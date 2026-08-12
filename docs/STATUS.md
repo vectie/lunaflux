@@ -105,6 +105,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   module once per digest and maps all required stable entry points to bounded
   CUDA function symbols. Missing, duplicate, unreferenced, or digest-mismatched
   declarations fail before module import.
+- Bounded, versioned AOT manifest and module-file admission under an approved
+  read-only root. It pins the exact model, target, catalog, module digests,
+  stable entry points, and function symbols; rejects unsafe path forms and
+  unsupported file types; proves aggregate bounds before module-sized reads;
+  and admits immutable snapshots without an extra full copy.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and
@@ -115,6 +120,27 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   close. A double construction/cleanup failure returns an opaque retryable
   cleanup guard; a close failure blocks further dispatch while preserving
   retry authority over still-open children.
+- A canonical transport-independent inference request and streaming-event
+  contract with immutable token/text inputs, exact model identity, bounded
+  sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public
+  failure vocabulary.
+- A backend-neutral immutable worker protocol for exact prefill/decode rows,
+  flattened token/page/capability tables, plan and model generations,
+  completion slots, and typed completion records. Submitted-work validation is
+  separated from the scheduler's current-generation publication check.
+- A generational fixed-page KV metadata allocator with preallocated arrays, an
+  intrusive FIFO free queue, separate active and cached references, exact-run
+  rollback, terminal-generation retirement, invariant diagnostics, and a
+  randomized ownership model test.
+- A fixed-capacity logical token-prefix trie with full-page-only longest-prefix
+  reuse, complete cache identity salting, generational entry IDs, transactional
+  result buffers, active references, deterministic zero-reference eviction,
+  and explicit bounded linear-scan complexity. It never owns device memory or
+  mutates physical page ownership.
+- Focused scheduler and cache configuration records for token/request budgets,
+  chunked prefill, waiting-age policy, the two-plan-buffer invariant, physical
+  page/block-table limits, prefix metadata arenas, reference bounds, and cache
+  layout identity. Cross-component page geometry remains a resolved-plan gate.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -141,14 +167,18 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
   macOS leak detection was unavailable, so the full sanitizer/leak gate remains
   open.
-- A KV arena or true incremental decode. The current semantic graph has no KV
+- A device KV arena, request block-table owner, paged-attention execution, or
+  true incremental decode. Host page identities and logical prefix metadata
+  are implemented, but the current semantic graph has no KV
   input, cache position, page table, or block mapping. Device profiles therefore
   support only stateless full prefill and full-sequence recomputation. The
   reference interpreter deliberately retains intermediate activations and
   recomputes the full sequence during generation; it is a correctness oracle,
   not a fallback.
-- Online APIs, scheduling, paged KV, prefix reuse, stochastic sampling, or
-  telemetry.
+- Online APIs, a single-owner scheduling state machine, continuous batching,
+  device paged KV, stochastic sampling execution, or telemetry. Request,
+  worker, page-allocation, prefix-index, and runtime-configuration foundations
+  exist but are not an online service.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains

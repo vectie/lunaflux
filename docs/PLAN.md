@@ -224,6 +224,10 @@ fixed-page KV arena.
 - invariant checker enabled in debug/test builds;
 - allocation snapshot fixtures.
 
+The host metadata allocator and its randomized ownership fixtures are now
+implemented. Device KV storage, per-request block tables, and scheduler-owned
+transaction integration remain part of this phase gate.
+
 ### Workstream 2: device KV arena
 
 - preallocate KV storage during startup;
@@ -250,6 +254,10 @@ fixed-page KV arena.
 - events distinguish submission, execution, and completion;
 - steady-state host buffers and rings are preallocated;
 - stale plan and completion generations are rejected.
+
+The immutable worker-plan/completion vocabulary and stale-generation checks
+are implemented. Reusable double-buffer construction and live worker overlap
+remain open and must pass the allocation-instrumentation gate below.
 
 ### Gate
 
@@ -284,6 +292,12 @@ without coupling logical cache structure to GPU objects.
 - prefix hit/miss/eviction metrics;
 - cache-disable request policy;
 - prefix-aware waiting-order policy bounded by fairness.
+
+A conservative fixed-capacity, uncompressed token trie now implements the
+identity, longest-full-page lookup, active-reference, and deterministic
+zero-reference eviction semantics. It deliberately does not claim the
+compressed-radix performance target; scheduler integration, metrics, and
+benchmark evidence remain open.
 
 ### Test matrix
 

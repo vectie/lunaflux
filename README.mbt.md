@@ -5,9 +5,10 @@
 > streaming file-to-device weight loading; immutable semantic and device plans;
 > exact activation/workspace memory and stateless execution profiles;
 > content-addressed AOT catalog, launch, and artifact contracts; deterministic
-> reference kernels; and an offline correctness interpreter validated against
-> an exact pinned upstream BF16 model. It does not yet claim a complete
-> production CUDA executor, serving readiness, or GPU performance.
+> reference kernels; bounded inference and worker-plan contracts; generational
+> KV metadata and prefix indexing; and an offline correctness interpreter
+> validated against an exact pinned upstream BF16 model. It does not yet claim
+> serving readiness, physical-CUDA release evidence, or GPU performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
@@ -101,7 +102,8 @@ device foundation also includes an immutable semantic-to-device plan, a
 single activation/workspace arena plan and allocator, and exact stateless
 `FullPrefill`/`FullRecompute` profiles. Kernel packages admit exact startup
 bindings, content-addressed AOT families and profile-specific entry points,
-launch ABIs, and digest-verified module/function artifacts. The private
+launch ABIs, digest-verified module/function artifacts, and bounded production
+manifest/file admission under an approved read-only mount. The private
 CUDA/device seam owns explicit resources, checked transfers, module/function
 loading, synchronous AOT launch, and narrow synchronous BF16 cuBLASLt GEMM
 plans.
@@ -114,8 +116,14 @@ thread-confined Phase-1 device executor now binds admitted AOT artifacts,
 vendor projection plans, and preplanned memory into an ordered synchronous
 full-sequence run. It retains explicit cleanup authority even when construction
 and cleanup both fail. The semantic graph still has no cached-KV decode path.
-Later packages are created only when their vertical phase begins; empty
-architectural packages are deliberately avoided.
+Canonical request/streaming events and scheduler/worker messages now have
+bounded immutable contracts. Host-side KV metadata has a generational fixed-
+page allocator, and logical full-page prefix reuse has a fixed-capacity token
+trie isolated by model, tokenizer, cache scope, and layout identity. These are
+foundations: the single-owner scheduler, request block tables, device KV arena,
+paged-attention kernels, and online transport remain open. Later packages are
+created only when their vertical phase begins; empty architectural packages
+are deliberately avoided.
 
 ## Validation
 
