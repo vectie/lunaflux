@@ -1,0 +1,306 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/contracts/inference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror InferenceContractError {
+  Invalid(field~ : ContractField, issue~ : ContractIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AcceptedEvent {
+  model_identity : @spec.ModelIdentity
+  effective_limits : EffectiveLimits
+} derive(Eq, @debug.Debug)
+pub fn AcceptedEvent::effective_limits(Self) -> EffectiveLimits
+pub fn AcceptedEvent::model_identity(Self) -> @spec.ModelIdentity
+pub fn AcceptedEvent::new(model_identity~ : @spec.ModelIdentity, effective_limits~ : EffectiveLimits) -> Self
+
+pub(all) enum CachePermission {
+  Disabled
+  ReadOnly
+  ReadWrite
+} derive(Eq, @debug.Debug)
+
+pub struct CachePolicy {
+  scope : CacheScope
+  permission : CachePermission
+}
+pub fn CachePolicy::new(CacheScope, CachePermission) -> Self
+pub fn CachePolicy::permission(Self) -> CachePermission
+pub fn CachePolicy::scope(Self) -> CacheScope
+
+pub struct CacheScope {
+  value : String
+}
+pub fn CacheScope::as_string(Self) -> String
+pub fn CacheScope::from_ascii(BytesView, InferenceLimits) -> Self raise InferenceContractError
+
+pub struct CompletedEvent {
+  finish_reason : FinishReason
+  final_usage : Usage
+} derive(Eq, @debug.Debug)
+pub fn CompletedEvent::final_usage(Self) -> Usage
+pub fn CompletedEvent::finish_reason(Self) -> FinishReason
+pub fn CompletedEvent::new(finish_reason~ : FinishReason, final_usage~ : Usage) -> Self
+
+pub(all) enum ContractField {
+  ProtocolVersion
+  RequestId
+  RequestGeneration
+  Limit
+  InputToken
+  InputText
+  MaximumNewTokens
+  ContextCeiling
+  Temperature
+  TopK
+  TopP
+  StopToken
+  StopString
+  DeadlineBudget
+  CacheScope
+  TraceCorrelation
+  DecodedDelta
+  TokenPosition
+  UsageInput
+  UsageCachedInput
+  UsageOutput
+  PublicErrorCode
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ContractIssue {
+  Empty
+  TooLong
+  TooMany
+  InvalidFormat
+  OutOfRange
+  Duplicate
+  NonFinite
+  NotMonotonic
+  Inconsistent
+  Unsupported
+} derive(Eq, @debug.Debug)
+
+pub struct DeadlineBudget {
+  milliseconds : UInt64
+} derive(Eq, @debug.Debug)
+pub fn DeadlineBudget::from_milliseconds(UInt64, InferenceLimits) -> Self raise InferenceContractError
+pub fn DeadlineBudget::milliseconds(Self) -> UInt64
+
+pub struct DecodedDelta {
+  text : String
+  utf8_bytes : Int
+}
+pub fn DecodedDelta::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
+pub fn DecodedDelta::text(Self) -> String
+pub fn DecodedDelta::utf8_bytes(Self) -> Int
+
+pub struct EffectiveLimits {
+  max_new_tokens : Int
+  context_ceiling : Int
+} derive(Eq, @debug.Debug)
+pub fn EffectiveLimits::context_ceiling(Self) -> Int
+pub fn EffectiveLimits::max_new_tokens(Self) -> Int
+pub fn EffectiveLimits::new(max_new_tokens~ : Int, context_ceiling~ : Int, InferenceLimits) -> Self raise InferenceContractError
+
+pub struct FailedEvent {
+  code : PublicErrorCode
+  retryable : Bool
+}
+pub fn FailedEvent::code(Self) -> PublicErrorCode
+pub fn FailedEvent::new(code~ : PublicErrorCode, retryable~ : Bool) -> Self
+pub fn FailedEvent::retryable(Self) -> Bool
+
+pub(all) enum FinishReason {
+  StopSequence
+  TokenLimit
+  Cancelled
+} derive(Eq, @debug.Debug)
+
+pub struct GenerateRequest {
+  protocol_version : ProtocolVersion
+  request_id : RequestId
+  model_identity : @spec.ModelIdentity
+  input : Input
+  max_new_tokens : Int
+  context_ceiling : Int
+  sampling : SamplingParameters
+  stops : StopConditions
+  stream_preference : StreamPreference
+  deadline : DeadlineBudget
+  cache : CachePolicy
+  trace : TraceCorrelation?
+}
+pub fn GenerateRequest::cache(Self) -> CachePolicy
+pub fn GenerateRequest::context_ceiling(Self) -> Int
+pub fn GenerateRequest::deadline(Self) -> DeadlineBudget
+pub fn GenerateRequest::input(Self) -> Input
+pub fn GenerateRequest::max_new_tokens(Self) -> Int
+pub fn GenerateRequest::model_identity(Self) -> @spec.ModelIdentity
+pub fn GenerateRequest::new(protocol_version~ : ProtocolVersion, request_id~ : RequestId, model_identity~ : @spec.ModelIdentity, input~ : Input, max_new_tokens~ : Int, context_ceiling~ : Int, sampling~ : SamplingParameters, stops~ : StopConditions, stream_preference~ : StreamPreference, deadline~ : DeadlineBudget, cache~ : CachePolicy, trace~ : TraceCorrelation?, limits~ : InferenceLimits) -> Self raise InferenceContractError
+pub fn GenerateRequest::protocol_version(Self) -> ProtocolVersion
+pub fn GenerateRequest::request_id(Self) -> RequestId
+pub fn GenerateRequest::sampling(Self) -> SamplingParameters
+pub fn GenerateRequest::stops(Self) -> StopConditions
+pub fn GenerateRequest::stream_preference(Self) -> StreamPreference
+pub fn GenerateRequest::trace(Self) -> TraceCorrelation?
+
+pub struct InferenceLimits {
+  max_text_bytes : Int
+  max_input_tokens : Int
+  max_new_tokens : Int
+  max_context_tokens : Int
+  max_token_id : Int
+  max_stop_token_ids : Int
+  max_stop_strings : Int
+  max_stop_string_bytes : Int
+  max_trace_bytes : Int
+  max_cache_scope_bytes : Int
+  max_decoded_delta_bytes : Int
+  max_deadline_millis : UInt64
+  max_top_k : Int
+  max_temperature : Double
+} derive(Eq, @debug.Debug)
+pub fn InferenceLimits::max_cache_scope_bytes(Self) -> Int
+pub fn InferenceLimits::max_context_tokens(Self) -> Int
+pub fn InferenceLimits::max_deadline_millis(Self) -> UInt64
+pub fn InferenceLimits::max_decoded_delta_bytes(Self) -> Int
+pub fn InferenceLimits::max_input_tokens(Self) -> Int
+pub fn InferenceLimits::max_new_tokens(Self) -> Int
+pub fn InferenceLimits::max_stop_string_bytes(Self) -> Int
+pub fn InferenceLimits::max_stop_strings(Self) -> Int
+pub fn InferenceLimits::max_stop_token_ids(Self) -> Int
+pub fn InferenceLimits::max_temperature(Self) -> Double
+pub fn InferenceLimits::max_text_bytes(Self) -> Int
+pub fn InferenceLimits::max_token_id(Self) -> Int
+pub fn InferenceLimits::max_top_k(Self) -> Int
+pub fn InferenceLimits::max_trace_bytes(Self) -> Int
+pub fn InferenceLimits::new(max_text_bytes~ : Int, max_input_tokens~ : Int, max_new_tokens~ : Int, max_context_tokens~ : Int, max_token_id~ : Int, max_stop_token_ids~ : Int, max_stop_strings~ : Int, max_stop_string_bytes~ : Int, max_trace_bytes~ : Int, max_cache_scope_bytes~ : Int, max_decoded_delta_bytes~ : Int, max_deadline_millis~ : UInt64, max_top_k~ : Int, max_temperature~ : Double) -> Self raise InferenceContractError
+
+pub(all) enum Input {
+  TokenIds(TokenBuffer)
+  Text(TextInput)
+}
+pub fn Input::from_token_ids(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
+pub fn Input::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
+
+pub struct ProtocolVersion {
+  wire_code : Int
+} derive(Eq, @debug.Debug)
+pub fn ProtocolVersion::from_wire(Int) -> Self raise InferenceContractError
+pub fn ProtocolVersion::v1() -> Self
+pub fn ProtocolVersion::wire_code(Self) -> Int
+
+pub struct PublicErrorCode {
+  value : String
+}
+pub fn PublicErrorCode::as_string(Self) -> String
+pub fn PublicErrorCode::from_ascii(BytesView) -> Self raise InferenceContractError
+
+pub struct RequestGeneration {
+  value : UInt64
+} derive(Eq, @debug.Debug)
+pub fn RequestGeneration::from_wire(UInt64) -> Self
+pub fn RequestGeneration::initial() -> Self
+pub fn RequestGeneration::next(Self) -> Self raise InferenceContractError
+pub fn RequestGeneration::value(Self) -> UInt64
+
+pub struct RequestId {
+  value : UInt64
+} derive(Eq, @debug.Debug)
+pub fn RequestId::new(UInt64) -> Self raise InferenceContractError
+pub fn RequestId::value(Self) -> UInt64
+
+pub(all) enum SamplingMode {
+  Greedy
+  Sample
+} derive(Eq, @debug.Debug)
+
+pub struct SamplingParameters {
+  mode : SamplingMode
+  temperature : Double
+  top_k : Int?
+  top_p : Double?
+} derive(Eq, @debug.Debug)
+pub fn SamplingParameters::greedy() -> Self
+pub fn SamplingParameters::mode(Self) -> SamplingMode
+pub fn SamplingParameters::sample(temperature~ : Double, top_k? : Int, top_p? : Double, InferenceLimits) -> Self raise InferenceContractError
+pub fn SamplingParameters::temperature(Self) -> Double
+pub fn SamplingParameters::top_k(Self) -> Int?
+pub fn SamplingParameters::top_p(Self) -> Double?
+
+pub struct StopConditions {
+  token_ids : ReadOnlyArray[Int]
+  strings : ReadOnlyArray[String]
+}
+pub fn StopConditions::new(ArrayView[Int], ArrayView[Bytes], InferenceLimits) -> Self raise InferenceContractError
+pub fn StopConditions::strings(Self) -> ReadOnlyArray[String]
+pub fn StopConditions::token_ids(Self) -> ReadOnlyArray[Int]
+
+pub(all) enum StreamEvent {
+  Accepted(AcceptedEvent)
+  Token(TokenEvent)
+  Usage(Usage)
+  Completed(CompletedEvent)
+  Failed(FailedEvent)
+}
+
+pub(all) enum StreamPreference {
+  Streaming
+  Buffered
+} derive(Eq, @debug.Debug)
+
+pub struct TextInput {
+  text : String
+  utf8_bytes : Int
+}
+pub fn TextInput::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
+pub fn TextInput::text(Self) -> String
+pub fn TextInput::utf8_bytes(Self) -> Int
+
+pub struct TokenBuffer {
+  token_ids : ReadOnlyArray[Int]
+}
+pub fn TokenBuffer::length(Self) -> Int
+pub fn TokenBuffer::new(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
+pub fn TokenBuffer::token_ids(Self) -> ReadOnlyArray[Int]
+
+pub struct TokenEvent {
+  token_id : Int
+  decoded_delta : DecodedDelta?
+  position : Int
+}
+pub fn TokenEvent::decoded_delta(Self) -> DecodedDelta?
+pub fn TokenEvent::new(token_id~ : Int, decoded_delta~ : DecodedDelta?, position~ : Int, InferenceLimits) -> Self raise InferenceContractError
+pub fn TokenEvent::position(Self) -> Int
+pub fn TokenEvent::token_id(Self) -> Int
+
+pub struct TraceCorrelation {
+  value : String
+}
+pub fn TraceCorrelation::as_string(Self) -> String
+pub fn TraceCorrelation::from_ascii(BytesView, InferenceLimits) -> Self raise InferenceContractError
+
+pub struct Usage {
+  input_tokens : Int
+  cached_input_tokens : Int
+  output_tokens : Int
+  total_tokens : Int
+} derive(Eq, @debug.Debug)
+pub fn Usage::advance(Self, output_tokens~ : Int, InferenceLimits) -> Self raise InferenceContractError
+pub fn Usage::cached_input_tokens(Self) -> Int
+pub fn Usage::initial(input_tokens~ : Int, cached_input_tokens~ : Int, InferenceLimits) -> Self raise InferenceContractError
+pub fn Usage::input_tokens(Self) -> Int
+pub fn Usage::output_tokens(Self) -> Int
+pub fn Usage::total_tokens(Self) -> Int
+
+// Type aliases
+
+// Traits
