@@ -37,6 +37,19 @@ fn vendor_implementation_is_legal(
 }
 
 ///|
+fn vendor_workspace_is_legal(
+  implementation : KernelImplementationId,
+  workspace_bytes : Int64,
+  workspace_alignment : Int64,
+) -> Bool {
+  match implementation {
+    VendorBf16GemmImplicitHeuristicV1 =>
+      workspace_bytes == 0L || workspace_alignment == 256L
+    ContentAddressedAot(_) => true
+  }
+}
+
+///|
 fn operation_shape_is_legal(
   operation_kind : @plan.OperationKind,
   operation_shape : @plan.OperationShape,
@@ -105,6 +118,11 @@ pub fn CatalogEntry::new(
   }
   if !vendor_implementation_is_legal(operation_kind, implementation) {
     raise InvalidCatalog(InvalidVendorImplementationKind)
+  }
+  if !vendor_workspace_is_legal(
+      implementation, workspace_bytes, workspace_alignment,
+    ) {
+    raise InvalidCatalog(InvalidWorkspaceAlignment)
   }
   {
     semantic_version,

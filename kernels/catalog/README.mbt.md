@@ -10,4 +10,5 @@ The implicit cuBLASLt BF16 implementation is legal only for
 representable by the narrow single-GEMM device ABI. `QkvProjection` has three
 weights and a packed Q/K/V output contract, so it requires an AOT family until
 an explicit multi-descriptor vendor ABI exists. Silent decomposition or layout
-fallback is forbidden.
+fallback is forbidden. A nonempty vendor workspace requires the ABI's exact
+256-byte alignment; incompatible catalog entries fail during admission.

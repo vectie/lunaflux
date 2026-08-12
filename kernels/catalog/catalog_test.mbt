@@ -310,13 +310,35 @@ test "entry workspace must cover documented operation workspace" {
   try
     catalog_of([
       aot_entry(workspace_bytes=0L, workspace_alignment=1L),
-      vendor_projection_entry(workspace_bytes=32L, workspace_alignment=16L),
-    ]).resolve(projection_plan(64L, operation_workspace=64L), test_target())
+      vendor_projection_entry(workspace_bytes=256L, workspace_alignment=256L),
+    ]).resolve(projection_plan(512L, operation_workspace=512L), test_target())
   catch {
     WorkspaceRequirementMismatch(id) => assert_eq(id.as_int(), 1)
     _ => fail("unexpected catalog error")
   } noraise {
     _ => fail("expected operation workspace mismatch")
+  }
+}
+
+///|
+test "nonempty vendor workspace requires the native 256-byte alignment" {
+  try
+    @catalog.CatalogEntry::new(
+      semantic_version=@catalog.KernelSemanticVersion::v1(),
+      operation_kind=OutputProjection,
+      operation_shape=ProjectionShape(input_width=16, output_width=16),
+      capability=@plan.KernelCapabilityId::dense_projection(),
+      compute_major=8,
+      compute_minor=0,
+      implementation=VendorBf16GemmImplicitHeuristicV1,
+      workspace_bytes=32L,
+      workspace_alignment=16L,
+    )
+  catch {
+    InvalidCatalog(InvalidWorkspaceAlignment) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected incompatible vendor workspace alignment")
   }
 }
 
