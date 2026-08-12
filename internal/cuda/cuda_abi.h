@@ -105,6 +105,12 @@ typedef struct lf_cuda_api {
     int32_t,
     int32_t
   );
+  int32_t (*cublasLtMatmulDescSetAttribute)(
+    cublasLtMatmulDesc_t,
+    int32_t,
+    const void *,
+    size_t
+  );
   int32_t (*cublasLtMatmulDescDestroy)(cublasLtMatmulDesc_t);
   int32_t (*cublasLtMatrixLayoutCreate)(
     cublasLtMatrixLayout_t *,

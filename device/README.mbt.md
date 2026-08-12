@@ -29,13 +29,17 @@ creation and child retention use the same interlock, preventing concurrent
 close from destroying a context, module, or cuBLASLt handle during child
 construction.
 
-The current GEMM contract is deliberately narrow: row-major BF16 inputs and
+The current GEMM contract is deliberately narrow: a row-major BF16 activation,
+a row-major `[output, input]` safetensors projection weight, a row-major BF16
 output, FP32 accumulation, fixed alpha one and beta zero, and a reusable shape
-descriptor. The ABI passes a null algorithm descriptor so cuBLASLt performs its
-documented implicit heuristic query with default search preferences; it does
-not claim deterministic or explicit algorithm selection. An unsupported shape
-or missing ABI fails instead of switching to a reference or CPU implementation.
-Physical-GPU correctness and performance are separate Phase 1 evidence gates.
+descriptor. The cuBLASLt descriptor explicitly transposes the stored weight;
+materialization never rewrites it. Zero-workspace algorithms are valid and use
+a null workspace pointer. The ABI passes a null algorithm descriptor so
+cuBLASLt performs its documented implicit heuristic query with default search
+preferences; it does not claim deterministic or explicit algorithm selection.
+An unsupported shape or missing ABI fails instead of switching to a reference
+or CPU implementation. Physical-GPU correctness and performance are separate
+Phase 1 evidence gates.
 
 AOT functions use an equally narrow synchronous launch contract. Launch
 geometry is bounded before the native call, and each of at most 32 parameters

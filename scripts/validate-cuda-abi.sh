@@ -48,7 +48,7 @@ done <<EOF
 $(rg --files internal/cuda device --glob '*.mbt' --glob '*.c' --glob '*.h' | sort)
 EOF
 
-for native_stub in cublas.c gemm.c launch.c loader.c modules.c resources.c transfers.c; do
+for native_stub in cublas.c gemm.c launch.c loader.c modules.c resources.c transfer_probe.c transfers.c; do
   if ! rg -q "\"$native_stub\"" internal/cuda/moon.pkg; then
     printf '%s: %s\n' \
       'internal/cuda native-stub list is missing' "$native_stub" >&2

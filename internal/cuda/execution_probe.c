@@ -15,15 +15,15 @@ typedef struct lf_probe_state {
   int32_t layout_creates;
   int32_t layout_destroys;
   int32_t operation_creates;
+  int32_t operation_sets;
   int32_t operation_destroys;
+  int32_t fail_operation_set_once;
   int32_t fail_layout_create_at;
   int32_t fail_destroy_once;
-  int32_t fail_mem_free_once;
-  int32_t copy_to_device_calls;
-  int32_t copy_to_host_calls;
   int32_t matmul_calls;
   int32_t stream_synchronize_calls;
-  const uint8_t *expected_host_source;
+  size_t expected_workspace_size;
+  CUdeviceptr expected_workspace_address;
 } lf_probe_state;
 
 static lf_probe_state *lf_active_probe;
@@ -47,37 +47,7 @@ static CUresult lf_fake_stream_synchronize(CUstream stream) {
 }
 
 static CUresult lf_fake_mem_free(CUdeviceptr address) {
-  if (lf_active_probe->fail_mem_free_once != 0) {
-    lf_active_probe->fail_mem_free_once = 0;
-    return 1;
-  }
   return address != 0 ? 0 : 1;
-}
-
-static CUresult lf_fake_copy_to_device(
-  CUdeviceptr destination,
-  const void *source,
-  size_t byte_count
-) {
-  if (destination != LF_FAKE_LEFT + 3 ||
-      source != lf_active_probe->expected_host_source + 5 ||
-      byte_count != 8) return 1;
-  lf_active_probe->copy_to_device_calls += 1;
-  return 0;
-}
-
-static CUresult lf_fake_copy_to_host(
-  void *destination,
-  CUdeviceptr source,
-  size_t byte_count
-) {
-  if (source != LF_FAKE_LEFT + 4 || byte_count != 6) return 1;
-  uint8_t *bytes = (uint8_t *)destination;
-  for (size_t index = 0; index < byte_count; index += 1) {
-    bytes[index] = (uint8_t)(index + 10);
-  }
-  lf_active_probe->copy_to_host_calls += 1;
-  return 0;
 }
 
 static int32_t lf_fake_cublas_destroy(cublasLtHandle_t handle) {
@@ -105,6 +75,23 @@ static int32_t lf_fake_operation_destroy(cublasLtMatmulDesc_t operation) {
   return 0;
 }
 
+static int32_t lf_fake_operation_set(
+  cublasLtMatmulDesc_t operation,
+  int32_t attribute,
+  const void *value,
+  size_t value_size
+) {
+  if (lf_active_probe->fail_operation_set_once != 0) {
+    lf_active_probe->fail_operation_set_once = 0;
+    return 1;
+  }
+  if (operation != (void *)(uintptr_t)0x500 || attribute != 3 ||
+      value == NULL || value_size != sizeof(int32_t) ||
+      *(const int32_t *)value != 1) return 1;
+  lf_active_probe->operation_sets += 1;
+  return 0;
+}
+
 static int32_t lf_fake_layout_create(
   cublasLtMatrixLayout_t *layout,
   int32_t data_type,
@@ -114,10 +101,11 @@ static int32_t lf_fake_layout_create(
 ) {
   lf_active_probe->layout_creates += 1;
   int32_t index = lf_active_probe->layout_creates;
+  int32_t position = (index - 1) % 3;
   int expected_shape =
-    (index == 1 && rows == 3 && columns == 4 && leading_dimension == 3) ||
-    (index == 2 && rows == 4 && columns == 2 && leading_dimension == 4) ||
-    (index == 3 && rows == 3 && columns == 2 && leading_dimension == 3);
+    (position == 0 && rows == 4 && columns == 3 && leading_dimension == 4) ||
+    (position == 1 && rows == 4 && columns == 2 && leading_dimension == 4) ||
+    (position == 2 && rows == 3 && columns == 2 && leading_dimension == 3);
   if (data_type != 14 || !expected_shape ||
       lf_active_probe->layout_creates ==
         lf_active_probe->fail_layout_create_at) return 1;
@@ -153,19 +141,21 @@ static int32_t lf_fake_matmul(
   size_t workspace_size,
   CUstream stream
 ) {
+  uintptr_t first_id = (uintptr_t)first_layout;
   if (handle != LF_FAKE_CUBLAS || operation == NULL ||
       *(const float *)alpha != 1.0f || *(const float *)beta != 0.0f ||
       first != (const void *)(uintptr_t)LF_FAKE_RIGHT ||
-      first_layout != (void *)(uintptr_t)0x601 ||
+      first_id < 0x601 || (first_id - 0x601) % 3 != 0 ||
       second != (const void *)(uintptr_t)LF_FAKE_LEFT ||
-      second_layout != (void *)(uintptr_t)0x602 ||
+      second_layout != (void *)(first_id + 1) ||
       input_output != (const void *)(uintptr_t)LF_FAKE_OUTPUT ||
       output != (void *)(uintptr_t)LF_FAKE_OUTPUT ||
-      input_output_layout != (void *)(uintptr_t)0x603 ||
+      input_output_layout != (void *)(first_id + 2) ||
       output_layout != input_output_layout ||
       algorithm != NULL ||
-      workspace != (void *)(uintptr_t)LF_FAKE_WORKSPACE ||
-      workspace_size != 512 || stream != LF_FAKE_STREAM) return 1;
+      workspace != (void *)(uintptr_t)lf_active_probe->expected_workspace_address ||
+      workspace_size != lf_active_probe->expected_workspace_size ||
+      stream != LF_FAKE_STREAM) return 1;
   lf_active_probe->matmul_calls += 1;
   return 0;
 }
@@ -240,98 +230,20 @@ static void lf_initialize_fake_api(lf_cuda_api *api) {
   api->cuStreamDestroy = lf_fake_stream_destroy;
   api->cuStreamSynchronize = lf_fake_stream_synchronize;
   api->cuMemFree = lf_fake_mem_free;
-  api->cuMemcpyHtoD = lf_fake_copy_to_device;
-  api->cuMemcpyDtoH = lf_fake_copy_to_host;
   api->cublasLtDestroy = lf_fake_cublas_destroy;
   api->cublasLtMatmulDescCreate = lf_fake_operation_create;
+  api->cublasLtMatmulDescSetAttribute = lf_fake_operation_set;
   api->cublasLtMatmulDescDestroy = lf_fake_operation_destroy;
   api->cublasLtMatrixLayoutCreate = lf_fake_layout_create;
   api->cublasLtMatrixLayoutDestroy = lf_fake_layout_destroy;
   api->cublasLtMatmul = lf_fake_matmul;
 }
 
-static int32_t lf_test_transfer_bounds(void) {
-  lf_probe_state state;
-  memset(&state, 0, sizeof(state));
-  lf_active_probe = &state;
-  lf_cuda_api api;
-  lf_initialize_fake_api(&api);
-  lf_context *context = lf_make_context(&api);
-  lf_allocation *allocation = lf_make_allocation(
-    context,
-    LF_FAKE_LEFT,
-    16,
-    0
-  );
-  moonbit_bytes_t source = moonbit_make_bytes(32, 0);
-  for (int32_t index = 0; index < 32; index += 1) source[index] = (uint8_t)index;
-  state.expected_host_source = source;
-  int32_t result = 0;
-  if (lunaflux_cuda_copy_to_device(allocation, source, 5, 3, 8) != LF_OK ||
-      state.copy_to_device_calls != 1) result = 101;
-  if (result == 0 &&
-      lunaflux_cuda_copy_to_device(allocation, source, 25, 0, 8) !=
-        LF_INVALID_ARGUMENT) result = 102;
-  if (result == 0 &&
-      lunaflux_cuda_copy_to_device(allocation, source, 0, 9, 8) !=
-        LF_INVALID_ARGUMENT) result = 103;
-  if (result == 0 && state.copy_to_device_calls != 1) result = 104;
-  int32_t status = 0;
-  moonbit_bytes_t output = lunaflux_cuda_copy_to_host(allocation, 4, 6, &status);
-  if (result == 0 &&
-      (status != LF_OK || Moonbit_array_length(output) != 6 ||
-       output[0] != 10 || output[5] != 15 ||
-       state.copy_to_host_calls != 1)) result = 105;
-  moonbit_decref(output);
-  output = lunaflux_cuda_copy_to_host(allocation, 12, 6, &status);
-  if (result == 0 &&
-      (status != LF_INVALID_ARGUMENT || Moonbit_array_length(output) != 0 ||
-       state.copy_to_host_calls != 1)) result = 106;
-  moonbit_decref(output);
-  moonbit_decref(source);
-  moonbit_decref(allocation);
-  moonbit_decref(context);
-  lf_active_probe = NULL;
-  return result;
-}
-
-static int32_t lf_test_allocation_retry(void) {
-  lf_probe_state state;
-  memset(&state, 0, sizeof(state));
-  state.fail_mem_free_once = 1;
-  lf_active_probe = &state;
-  lf_cuda_api api;
-  lf_initialize_fake_api(&api);
-  lf_context *context = lf_make_context(&api);
-  lf_allocation *allocation = lf_make_allocation(
-    context,
-    LF_FAKE_LEFT,
-    16,
-    1
-  );
-  int32_t result = 0;
-  if (lunaflux_cuda_allocation_close(allocation) != LF_DRIVER_FAILURE ||
-      atomic_load(&allocation->state) != LF_RESOURCE_LIVE ||
-      allocation->handle != LF_FAKE_LEFT ||
-      atomic_load(&context->children) != 1) result = 201;
-  if (result == 0 && lunaflux_cuda_allocation_close(allocation) != LF_OK) {
-    result = 202;
-  }
-  if (result == 0 &&
-      (atomic_load(&allocation->state) != LF_RESOURCE_CLOSED ||
-       allocation->handle != 0 || atomic_load(&context->children) != 0)) {
-    result = 203;
-  }
-  if (result == 0 && lunaflux_cuda_context_close(context) != LF_OK) result = 204;
-  moonbit_decref(allocation);
-  moonbit_decref(context);
-  lf_active_probe = NULL;
-  return result;
-}
-
 static int32_t lf_test_gemm_lifecycle(void) {
   lf_probe_state state;
   memset(&state, 0, sizeof(state));
+  state.expected_workspace_size = 512;
+  state.expected_workspace_address = LF_FAKE_WORKSPACE;
   lf_active_probe = &state;
   lf_cuda_api api;
   lf_initialize_fake_api(&api);
@@ -346,8 +258,18 @@ static int32_t lf_test_gemm_lifecycle(void) {
   );
   int32_t result = 0;
   int32_t status = 0;
-  state.fail_layout_create_at = 2;
+  state.fail_operation_set_once = 1;
   lf_gemm_plan *failed = lunaflux_cuda_bf16_gemm_plan_create(
+    cublas, 2, 4, 3, 512, &status
+  );
+  if (status != LF_DRIVER_FAILURE || atomic_load(&cublas->children) != 0 ||
+      state.operation_creates != state.operation_destroys ||
+      state.layout_creates != 0) result = 328;
+  moonbit_decref(failed);
+  state.operation_creates = 0;
+  state.operation_destroys = 0;
+  state.fail_layout_create_at = 2;
+  failed = lunaflux_cuda_bf16_gemm_plan_create(
     cublas, 2, 4, 3, 512, &status
   );
   if (status != LF_DRIVER_FAILURE || atomic_load(&cublas->children) != 0 ||
@@ -357,6 +279,7 @@ static int32_t lf_test_gemm_lifecycle(void) {
   state.layout_creates = 0;
   state.layout_destroys = 0;
   state.operation_creates = 0;
+  state.operation_sets = 0;
   state.operation_destroys = 0;
   state.fail_layout_create_at = 2;
   state.fail_destroy_once = 1;
@@ -380,6 +303,7 @@ static int32_t lf_test_gemm_lifecycle(void) {
   state.layout_creates = 0;
   state.layout_destroys = 0;
   state.operation_creates = 0;
+  state.operation_sets = 0;
   state.operation_destroys = 0;
   lf_gemm_plan *plan = lunaflux_cuda_bf16_gemm_plan_create(
     cublas,
@@ -390,7 +314,8 @@ static int32_t lf_test_gemm_lifecycle(void) {
     &status
   );
   if (result == 0 &&
-      (status != LF_OK || atomic_load(&cublas->children) != 1)) result = 302;
+      (status != LF_OK || atomic_load(&cublas->children) != 1 ||
+       state.operation_sets != 1)) result = 302;
   if (result == 0 && lunaflux_cuda_cublas_close(cublas) != LF_BUSY) {
     result = 303;
   }
@@ -458,6 +383,53 @@ static int32_t lf_test_gemm_lifecycle(void) {
        state.layout_destroys != 3 || state.operation_destroys != 1)) {
     result = 312;
   }
+  state.expected_workspace_size = 0;
+  state.expected_workspace_address = 0;
+  lf_gemm_plan *zero_workspace_plan = lunaflux_cuda_bf16_gemm_plan_create(
+    cublas,
+    2,
+    4,
+    3,
+    0,
+    &status
+  );
+  if (result == 0 &&
+      (status != LF_OK || atomic_load(&cublas->children) != 1 ||
+       state.operation_sets != 2)) result = 323;
+  if (result == 0 &&
+      lunaflux_cuda_bf16_gemm_plan_run(
+        zero_workspace_plan,
+        left,
+        0,
+        right,
+        0,
+        output,
+        0,
+        workspace,
+        1,
+        stream
+      ) != LF_OK) result = 324;
+  if (result == 0 &&
+      (state.matmul_calls != 2 || state.stream_synchronize_calls != 2)) {
+    result = 325;
+  }
+  if (result == 0 &&
+      lunaflux_cuda_bf16_gemm_plan_run(
+        zero_workspace_plan,
+        left,
+        0,
+        right,
+        0,
+        output,
+        0,
+        workspace,
+        -1,
+        stream
+      ) != LF_SIZE_OVERFLOW) result = 327;
+  if (result == 0 &&
+      lunaflux_cuda_bf16_gemm_plan_close(zero_workspace_plan) != LF_OK) {
+    result = 326;
+  }
   if (result == 0 && lunaflux_cuda_cublas_close(cublas) != LF_OK) result = 313;
   if (result == 0 && lunaflux_cuda_stream_close(stream) != LF_OK) result = 314;
   if (result == 0 && lunaflux_cuda_allocation_close(left) != LF_OK) result = 315;
@@ -469,6 +441,7 @@ static int32_t lf_test_gemm_lifecycle(void) {
   if (result == 0 && atomic_load(&context->children) != 0) result = 319;
   if (result == 0 && lunaflux_cuda_context_close(context) != LF_OK) result = 320;
   moonbit_decref(plan);
+  moonbit_decref(zero_workspace_plan);
   moonbit_decref(workspace);
   moonbit_decref(output);
   moonbit_decref(right);
@@ -484,11 +457,7 @@ MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_test_execution_boundary(int32_t cycles) {
   if (cycles < 1 || cycles > 10000) return LF_INVALID_ARGUMENT;
   for (int32_t cycle = 0; cycle < cycles; cycle += 1) {
-    int32_t result = lf_test_transfer_bounds();
-    if (result != 0) return result;
-    result = lf_test_allocation_retry();
-    if (result != 0) return result;
-    result = lf_test_gemm_lifecycle();
+    int32_t result = lf_test_gemm_lifecycle();
     if (result != 0) return result;
   }
   return LF_OK;

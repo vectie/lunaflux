@@ -7,6 +7,8 @@
 #define CUBLAS_COMPUTE_32F 68
 #define CUDA_R_32F 0
 #define CUDA_R_16BF 14
+#define CUBLASLT_MATMUL_DESC_TRANSA 3
+#define CUBLAS_OP_T 1
 #define LF_BF16_BYTES 2U
 #define LF_GEMM_ALIGNMENT 16U
 #define LF_WORKSPACE_ALIGNMENT 256U
@@ -123,9 +125,9 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
     *status = LF_CLOSED;
     return plan;
   }
-  if (workspace_byte_count <= 0 ||
+  if (workspace_byte_count < 0 ||
       (uint64_t)workspace_byte_count > SIZE_MAX) {
-    *status = workspace_byte_count <= 0
+    *status = workspace_byte_count < 0
       ? LF_INVALID_ARGUMENT
       : LF_SIZE_OVERFLOW;
     return plan;
@@ -159,14 +161,27 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
     lf_operation_end(&cublas->active_operations);
     return plan;
   }
-  /* cuBLASLt layouts default to column-major. A row-major C = A * B is
-   * represented as column-major C^T = B^T * A^T without layout attributes. */
+  /* Safetensors stores a projection weight as row-major [columns, inner].
+   * That byte sequence is the column-major view W^T [inner, columns]. Set
+   * transpose on the first cuBLASLt operand so the column-major operation is
+   * C^T = W * A^T, exactly the transpose of row-major C = A * W^T. */
+  const int32_t transpose = CUBLAS_OP_T;
+  if (api->cublasLtMatmulDescSetAttribute(
+        plan->operation,
+        CUBLASLT_MATMUL_DESC_TRANSA,
+        &transpose,
+        sizeof(transpose)
+      ) != CUBLAS_STATUS_SUCCESS) {
+    *status = lf_finish_failed_create(plan, LF_DRIVER_FAILURE);
+    lf_operation_end(&cublas->active_operations);
+    return plan;
+  }
   if (api->cublasLtMatrixLayoutCreate(
         &plan->right_layout,
         CUDA_R_16BF,
-        (uint64_t)columns,
         (uint64_t)inner,
-        columns
+        (uint64_t)columns,
+        inner
       ) != CUBLAS_STATUS_SUCCESS ||
       api->cublasLtMatrixLayoutCreate(
         &plan->left_layout,
@@ -288,6 +303,7 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
   CUdeviceptr right_address = 0;
   CUdeviceptr output_address = 0;
   CUdeviceptr workspace_address = 0;
+  CUdeviceptr resolved_workspace_address = 0;
   status = lf_allocation_address(
     left,
     left_offset,
@@ -313,13 +329,17 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
     workspace,
     workspace_offset,
     plan->workspace_size,
-    &workspace_address
+    &resolved_workspace_address
   );
   if (status != LF_OK) goto cleanup;
+  if (plan->workspace_size > 0) {
+    workspace_address = resolved_workspace_address;
+  }
   if ((left_address % LF_GEMM_ALIGNMENT) != 0 ||
       (right_address % LF_GEMM_ALIGNMENT) != 0 ||
       (output_address % LF_GEMM_ALIGNMENT) != 0 ||
-      (workspace_address % LF_WORKSPACE_ALIGNMENT) != 0) {
+      (plan->workspace_size > 0 &&
+       (workspace_address % LF_WORKSPACE_ALIGNMENT) != 0)) {
     status = LF_INVALID_ARGUMENT;
     goto cleanup;
   }
@@ -335,24 +355,24 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
         right_address,
         plan->right_size
       ) ||
-      lf_ranges_overlap(
+      (plan->workspace_size > 0 && lf_ranges_overlap(
         workspace_address,
         plan->workspace_size,
         left_address,
         plan->left_size
-      ) ||
-      lf_ranges_overlap(
+      )) ||
+      (plan->workspace_size > 0 && lf_ranges_overlap(
         workspace_address,
         plan->workspace_size,
         right_address,
         plan->right_size
-      ) ||
-      lf_ranges_overlap(
+      )) ||
+      (plan->workspace_size > 0 && lf_ranges_overlap(
         workspace_address,
         plan->workspace_size,
         output_address,
         plan->output_size
-      )) {
+      ))) {
     status = LF_INVALID_ARGUMENT;
     goto cleanup;
   }

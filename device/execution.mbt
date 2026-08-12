@@ -176,7 +176,9 @@ pub fn CublasLt::close(self : CublasLt) -> Unit raise DeviceError {
 
 ///|
 /// Creates a reusable descriptor for row-major
-/// `output[rows, columns] = left[rows, inner] * right[inner, columns]`.
+/// `output[rows, columns] = left[rows, inner] * weight[columns, inner]^T`.
+/// The weight layout therefore matches ordinary row-major safetensors
+/// projection storage and requires no host or device transpose materialization.
 /// Inputs and output use BF16 storage; accumulation uses FP32.
 pub fn CublasLt::create_bf16_gemm_plan(
   self : CublasLt,
@@ -209,8 +211,8 @@ pub fn Bf16GemmPlan::run(
   self : Bf16GemmPlan,
   left : Allocation,
   left_offset : Int64,
-  right : Allocation,
-  right_offset : Int64,
+  weight : Allocation,
+  weight_offset : Int64,
   output : Allocation,
   output_offset : Int64,
   workspace : Allocation,
@@ -220,8 +222,8 @@ pub fn Bf16GemmPlan::run(
   self.raw.run(
     left.raw,
     left_offset,
-    right.raw,
-    right_offset,
+    weight.raw,
+    weight_offset,
     output.raw,
     output_offset,
     workspace.raw,
