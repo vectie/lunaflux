@@ -101,10 +101,11 @@ pub struct KernelModule {
 pub fn KernelModule::digest(Self) -> @catalog.AotArtifactDigest
 pub fn KernelModule::module_bytes(Self) -> Bytes
 
-pub struct KernelModuleInput {
-  digest : @catalog.AotArtifactDigest
-  module_bytes : FixedArray[Byte]
+pub enum KernelModuleInput {
+  AliasedModule(@catalog.AotArtifactDigest, FixedArray[Byte])
+  OwnedModule(@catalog.AotArtifactDigest, Bytes)
 }
+pub fn KernelModuleInput::from_bytes(digest~ : @catalog.AotArtifactDigest, module_bytes~ : Bytes) -> Self
 pub fn KernelModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes~ : FixedArray[Byte]) -> Self
 
 // Type aliases

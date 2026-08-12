@@ -83,11 +83,34 @@ fn module_input_index(
   digest : @catalog.AotArtifactDigest,
 ) -> Int? {
   for index, input in inputs {
-    if input.digest == digest {
+    if module_input_digest(input) == digest {
       return Some(index)
     }
   }
   None
+}
+
+///|
+fn module_input_digest(input : KernelModuleInput) -> @catalog.AotArtifactDigest {
+  match input {
+    AliasedModule(digest, _) | OwnedModule(digest, _) => digest
+  }
+}
+
+///|
+fn module_input_length(input : KernelModuleInput) -> Int64 {
+  match input {
+    AliasedModule(_, bytes) => bytes.length().to_int64()
+    OwnedModule(_, bytes) => bytes.length().to_int64()
+  }
+}
+
+///|
+fn own_module_input(input : KernelModuleInput) -> Bytes {
+  match input {
+    AliasedModule(_, bytes) => Bytes::from_array(bytes)
+    OwnedModule(_, bytes) => bytes
+  }
 }
 
 ///|
@@ -127,24 +150,25 @@ fn validate_module_inputs(
   }
   let mut total = 0L
   for index, input in inputs {
-    let byte_count = input.module_bytes.length().to_int64()
+    let byte_count = module_input_length(input)
+    let digest = module_input_digest(input)
     if byte_count == 0L {
-      raise EmptyModule(input.digest)
+      raise EmptyModule(digest)
     }
     if byte_count > limits.max_module_bytes {
-      raise ModuleTooLarge(digest=input.digest, maximum=limits.max_module_bytes)
+      raise ModuleTooLarge(digest~, maximum=limits.max_module_bytes)
     }
     if total > limits.max_total_module_bytes - byte_count {
       raise TotalModuleBytesExceeded(maximum=limits.max_total_module_bytes)
     }
     total += byte_count
     for earlier in 0..<index {
-      if inputs[earlier].digest == input.digest {
-        raise DuplicateModule(input.digest)
+      if module_input_digest(inputs[earlier]) == digest {
+        raise DuplicateModule(digest)
       }
     }
-    if !required.contains(input.digest) {
-      raise UnreferencedModule(input.digest)
+    if !required.contains(digest) {
+      raise UnreferencedModule(digest)
     }
   }
   for digest in required {
@@ -214,9 +238,7 @@ pub fn admit(
     guard module_input_index(module_inputs, digest) is Some(input_index) else {
       raise MissingModule(digest)
     }
-    let owned_module = Bytes::from_array(
-      module_inputs[input_index].module_bytes,
-    )
+    let owned_module = own_module_input(module_inputs[input_index])
     if exact_digest(owned_module) != digest.sha256() {
       raise DigestMismatch(digest)
     }

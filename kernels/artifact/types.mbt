@@ -1,8 +1,14 @@
 ///|
-/// Untrusted aliased input for one precompiled content-addressed CUDA module.
-pub struct KernelModuleInput {
-  digest : @catalog.AotArtifactDigest
-  module_bytes : FixedArray[Byte]
+/// Input for one precompiled content-addressed CUDA module.
+///
+/// The fixed-array constructor retains an untrusted alias until every small
+/// semantic check passes; admission then makes exactly one defensive ownership
+/// copy. The Bytes constructor accepts an already immutable owned snapshot
+/// without another module-sized copy. The private variants make mixed or
+/// missing ownership states unrepresentable outside this package.
+pub enum KernelModuleInput {
+  AliasedModule(@catalog.AotArtifactDigest, FixedArray[Byte])
+  OwnedModule(@catalog.AotArtifactDigest, Bytes)
 }
 
 ///|
@@ -44,7 +50,19 @@ pub fn KernelModuleInput::new(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : FixedArray[Byte],
 ) -> KernelModuleInput {
-  { digest, module_bytes }
+  AliasedModule(digest, module_bytes)
+}
+
+///|
+/// Constructs an artifact input from an immutable exact file snapshot.
+///
+/// `Bytes` cannot be mutated after construction, so file admission may pass
+/// ownership through this boundary without creating a second full snapshot.
+pub fn KernelModuleInput::from_bytes(
+  digest~ : @catalog.AotArtifactDigest,
+  module_bytes~ : Bytes,
+) -> KernelModuleInput {
+  OwnedModule(digest, module_bytes)
 }
 
 ///|
