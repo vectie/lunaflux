@@ -1,0 +1,43 @@
+{
+  "schema": "lunaflux.reference-tokenizer.v1",
+  "upstream_revision": "f383101a26663708484cac0727792aad74f78234",
+  "tokenizers_version": "0.22.2",
+  "tokenizer_sha256": "72e19c379865733c37776d8386a87707ac50703aed1633fabb5c708b1479e142",
+  "cases": [
+    {
+      "name": "ranked-merges",
+      "text": "unrelated",
+      "utf8_hex": "756e72656c61746564",
+      "ids": [263],
+      "decoded": "unrelated"
+    },
+    {
+      "name": "merge-boundary-across-space",
+      "text": "unrelated unrelated",
+      "utf8_hex": "756e72656c6174656420756e72656c61746564",
+      "ids": [263, 32, 263],
+      "decoded": "unrelated unrelated"
+    },
+    {
+      "name": "unicode-multibyte",
+      "text": "hé🙂",
+      "utf8_hex": "68c3a9f09f9982",
+      "ids": [104, 195, 169, 240, 159, 153, 130],
+      "decoded": "hé🙂"
+    },
+    {
+      "name": "newline-and-zero-byte",
+      "text": "line\n\u0000end",
+      "utf8_hex": "6c696e650a00656e64",
+      "ids": [108, 105, 110, 101, 10, 0, 101, 110, 100],
+      "decoded": "line\n\u0000end"
+    },
+    {
+      "name": "georgian-unicode",
+      "text": "A Nuskhuri იესუ",
+      "utf8_hex": "41204e75736b6875726920e18398e18394e183a1e183a3",
+      "ids": [65, 32, 78, 117, 115, 107, 104, 117, 114, 105, 32, 225, 131, 152, 225, 131, 148, 225, 131, 161, 225, 131, 163],
+      "decoded": "A Nuskhuri იესუ"
+    }
+  ]
+}
