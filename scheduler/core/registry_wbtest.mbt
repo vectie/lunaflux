@@ -59,6 +59,7 @@ fn wb_owner() -> Scheduler {
     prefill_chunk_tokens=2,
     emergency_decode_page_reserve=1,
     waiting_age_threshold_steps=2,
+    output_event_capacity=2,
   )
   let cache = try! @cache.new(
     tokens_per_page=4,
@@ -97,7 +98,14 @@ fn wb_owner() -> Scheduler {
   let capacity = try! @runtime_resolved.resolve(
     scheduler, cache, shapes, worker,
   )
-  try! Scheduler::new(capacity, wb_identity())
+  let generation = @worker_protocol.ModelPlanGeneration::first()
+  let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
+    identity=wb_identity(),
+    model_plan_generation=generation,
+    [@plan.KernelCapabilityId::embedding_lookup()],
+    worker,
+  )
+  try! Scheduler::new(capacity, wb_identity(), generation, recipe, recipe)
 }
 
 ///|

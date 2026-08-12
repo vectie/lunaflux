@@ -38,6 +38,49 @@ test "admission validates identity, duplicates, capacity, and deadline arithmeti
 }
 
 ///|
+test "scheduler constructor binds recipe identity and loaded generation" {
+  let limits = worker_limits()
+  let generation = @worker_protocol.ModelPlanGeneration::first()
+  let wrong_identity = test_identity(
+    "1111111111111111111111111111111111111111111111111111111111111111",
+  )
+  let wrong_recipe = try! @worker_protocol.RowCapabilityRecipe::new(
+    identity=wrong_identity,
+    model_plan_generation=generation,
+    [@plan.KernelCapabilityId::embedding_lookup()],
+    limits,
+  )
+  try
+    Scheduler::new(
+      resolved_capacity(),
+      selected_identity(),
+      generation,
+      wrong_recipe,
+      wrong_recipe,
+    )
+  catch {
+    error => assert_eq(error, Invalid(field=ModelIdentity, issue=Mismatch))
+  } noraise {
+    _ => fail("expected recipe provenance rejection")
+  }
+}
+
+///|
+test "admission rejects requests that can never preserve decode reserve" {
+  let owner = tight_scheduler()
+  // Two prompt pages cannot preserve two reserved pages in a three-page arena.
+  let request = request_with_tokens(30UL, [1, 2, 3, 4, 5], 1, 6)
+  try owner.admit(request, 0UL) catch {
+    error => assert_eq(error, Invalid(field=Context, issue=OutOfRange))
+  } noraise {
+    _ => fail("expected impossible prefill reserve rejection")
+  }
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.waiting_request_count(), 0)
+  assert_eq(owner.free_page_count(), 3)
+}
+
+///|
 test "waiting cancellation publishes slot-free notice and never aliases re-admission" {
   let owner = scheduler()
   let old = owner.admit(request(7UL), 0UL)
@@ -72,7 +115,10 @@ test "deadline sweep preflights terminal capacity without partial mutation" {
   let retained = owner.admit(request(20UL, deadline=10UL), 0UL)
   try owner.expire_deadlines(10UL) catch {
     error =>
-      assert_eq(error, Invalid(field=OutputCapacity, issue=Backpressured))
+      assert_eq(
+        error,
+        Invalid(field=TerminalNoticeCapacity, issue=Backpressured),
+      )
   } noraise {
     _ => fail("expected transactional deadline backpressure")
   }
@@ -112,7 +158,10 @@ test "full terminal ring backpressures transactionally" {
   let retained = owner.admit(request(9UL), 0UL)
   try owner.cancel(retained) catch {
     error =>
-      assert_eq(error, Invalid(field=OutputCapacity, issue=Backpressured))
+      assert_eq(
+        error,
+        Invalid(field=TerminalNoticeCapacity, issue=Backpressured),
+      )
   } noraise {
     _ => fail("expected terminal publication backpressure")
   }
@@ -152,5 +201,36 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
     error => assert_eq(error, Invalid(field=Context, issue=OutOfRange))
   } noraise {
     _ => fail("expected tokenized context rejection")
+  }
+}
+
+///|
+test "tokenized boundary rejects unsupported stop strings explicitly" {
+  let limits = inference_limits()
+  try
+    TokenizedRequest::new(
+      request_id=try! @inference.RequestId::new(100UL),
+      model_identity=selected_identity(),
+      input_tokens=try! @inference.TokenBuffer::new([1], limits),
+      sampling=@inference.SamplingParameters::greedy(),
+      stops=try! @inference.StopConditions::new([], [b"stop"], limits),
+      cache=@inference.CachePolicy::new(
+        try! @inference.CacheScope::from_ascii(b"scope", limits),
+        Disabled,
+      ),
+      stream_preference=Streaming,
+      effective_limits=try! @inference.EffectiveLimits::new(
+        max_new_tokens=1,
+        context_ceiling=2,
+        limits,
+      ),
+      deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
+        10UL, limits,
+      ),
+    )
+  catch {
+    error => assert_eq(error, Invalid(field=Request, issue=Unsupported))
+  } noraise {
+    _ => fail("expected unsupported stop-string rejection")
   }
 }

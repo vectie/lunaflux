@@ -8,6 +8,7 @@ pub(all) enum SchedulerField {
   RequestCapacity
   WaitingCapacity
   ActiveCapacity
+  TerminalNoticeCapacity
   OutputCapacity
   RequestGeneration
   RequestState
@@ -29,6 +30,7 @@ pub(all) enum SchedulerIssue {
   Stale
   Backpressured
   InvalidTransition
+  Unsupported
 } derive(Debug, Eq)
 
 ///|

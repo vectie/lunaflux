@@ -32,6 +32,9 @@ pub fn TokenizedRequest::new(
     effective_limits.context_ceiling() - effective_limits.max_new_tokens() {
     raise invalid(Context, OutOfRange)
   }
+  if stops.strings().length() > 0 {
+    raise invalid(Request, Unsupported)
+  }
   {
     request_id,
     model_identity,

@@ -43,6 +43,7 @@ fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
     prefill_chunk_tokens=2,
     emergency_decode_page_reserve=1,
     waiting_age_threshold_steps=2,
+    output_event_capacity=4,
   )
   let cache = try! @cache.new(
     tokens_per_page=4,
@@ -82,6 +83,84 @@ fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
 }
 
 ///|
+fn tight_resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
+  let scheduler = try! @scheduler.new(
+    step_token_budget=2,
+    max_active_requests=1,
+    max_waiting_requests=1,
+    prefill_chunk_tokens=2,
+    emergency_decode_page_reserve=2,
+    waiting_age_threshold_steps=2,
+    output_event_capacity=2,
+  )
+  let cache = try! @cache.new(
+    tokens_per_page=4,
+    total_page_count=3,
+    block_table_pages_per_request=3,
+    prefix_enabled=false,
+    max_prefix_entries=0,
+    max_prefix_nodes=0,
+    max_prefix_tokens_per_entry=0,
+    max_prefix_pages=0,
+    max_active_references_per_page=4,
+    max_cached_references_per_page=4,
+    layout_version=1,
+  )
+  let shapes = try! @plan.ShapeConstraints::new(
+    max_batch_rows=1,
+    max_sequence_tokens=12,
+    vocabulary_size=32,
+    hidden_size=8,
+    intermediate_size=16,
+    attention_head_count=2,
+    kv_head_count=1,
+    head_dimension=4,
+  )
+  let worker = try! @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=1,
+    max_decode_rows=1,
+    max_plan_rows=1,
+    max_plan_tokens=2,
+    max_plan_pages=3,
+    max_capabilities=8,
+    max_completion_slots=1,
+    max_sequence_tokens=12,
+    max_token_id=31,
+  )
+  try! @runtime_resolved.resolve(scheduler, cache, shapes, worker)
+}
+
+///|
+fn request_with_tokens(
+  id : UInt64,
+  tokens : ArrayView[Int],
+  max_new_tokens : Int,
+  context_ceiling : Int,
+) -> TokenizedRequest {
+  let limits = inference_limits()
+  try! TokenizedRequest::new(
+    request_id=try! @inference.RequestId::new(id),
+    model_identity=selected_identity(),
+    input_tokens=try! @inference.TokenBuffer::new(tokens, limits),
+    sampling=@inference.SamplingParameters::greedy(),
+    stops=try! @inference.StopConditions::new([], [], limits),
+    cache=@inference.CachePolicy::new(
+      try! @inference.CacheScope::from_ascii(b"scope", limits),
+      Disabled,
+    ),
+    stream_preference=Streaming,
+    effective_limits=try! @inference.EffectiveLimits::new(
+      max_new_tokens~,
+      context_ceiling~,
+      limits,
+    ),
+    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
+      100UL, limits,
+    ),
+  )
+}
+
+///|
 fn request(
   id : UInt64,
   identity? : @spec.ModelIdentity = selected_identity(),
@@ -117,5 +196,53 @@ fn request(
 
 ///|
 fn scheduler() -> Scheduler {
-  try! Scheduler::new(resolved_capacity(), selected_identity())
+  let limits = worker_limits()
+  let generation = @worker_protocol.ModelPlanGeneration::first()
+  let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
+    identity=selected_identity(),
+    model_plan_generation=generation,
+    [@plan.KernelCapabilityId::embedding_lookup()],
+    limits,
+  )
+  try! Scheduler::new(
+    resolved_capacity(),
+    selected_identity(),
+    generation,
+    recipe,
+    recipe,
+  )
+}
+
+///|
+fn worker_limits() -> @worker_protocol.WorkerProtocolLimits {
+  try! @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=2,
+    max_decode_rows=2,
+    max_plan_rows=2,
+    max_plan_tokens=4,
+    max_plan_pages=8,
+    max_capabilities=8,
+    max_completion_slots=2,
+    max_sequence_tokens=16,
+    max_token_id=31,
+  )
+}
+
+///|
+fn tight_scheduler() -> Scheduler {
+  let limits = worker_limits()
+  let generation = @worker_protocol.ModelPlanGeneration::first()
+  let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
+    identity=selected_identity(),
+    model_plan_generation=generation,
+    [@plan.KernelCapabilityId::embedding_lookup()],
+    limits,
+  )
+  try! Scheduler::new(
+    tight_resolved_capacity(),
+    selected_identity(),
+    generation,
+    recipe,
+    recipe,
+  )
 }

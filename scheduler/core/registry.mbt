@@ -114,7 +114,7 @@ fn Scheduler::enqueue_terminal(
   reason : TerminalReason,
 ) -> Unit raise SchedulerError {
   if self.terminal_available() == 0 {
-    raise invalid(OutputCapacity, Backpressured)
+    raise invalid(TerminalNoticeCapacity, Backpressured)
   }
   let index = self.terminal_tail
   self.terminal_request_ids[index] = request_id
@@ -133,7 +133,25 @@ fn ceiling_pages(tokens : Int, tokens_per_page : Int) -> Int {
 pub fn Scheduler::new(
   capacity : @runtime_resolved.ResolvedRuntimeCapacity,
   model_identity : @spec.ModelIdentity,
+  model_plan_generation : @worker_protocol.ModelPlanGeneration,
+  prefill_recipe : @worker_protocol.RowCapabilityRecipe,
+  decode_recipe : @worker_protocol.RowCapabilityRecipe,
 ) -> Scheduler raise SchedulerError {
+  if prefill_recipe.identity() != model_identity ||
+    decode_recipe.identity() != model_identity ||
+    prefill_recipe.model_plan_generation() != model_plan_generation ||
+    decode_recipe.model_plan_generation() != model_plan_generation {
+    raise invalid(ModelIdentity, Mismatch)
+  }
+  let rows = capacity.max_rows_per_step()
+  let max_recipe_length = if prefill_recipe.length() > decode_recipe.length() {
+    prefill_recipe.length()
+  } else {
+    decode_recipe.length()
+  }
+  if rows > capacity.worker_max_capabilities() / max_recipe_length {
+    raise invalid(Plan, OutOfRange)
+  }
   let slots = capacity.total_request_slots()
   let placeholder_id = try @inference.RequestId::new(1UL) catch {
     _ => raise invalid(Request, OutOfRange)
@@ -159,6 +177,7 @@ pub fn Scheduler::new(
     model_identity,
     page_allocator,
     block_tables,
+    model_plan_generation,
     slot_states: FixedArray::make(slots, SLOT_FREE),
     slot_generations: FixedArray::make(slots, 0),
     requests: FixedArray::make(slots, None),
@@ -213,11 +232,24 @@ pub fn Scheduler::admit(
     raise invalid(RequestCapacity, Exhausted)
   }
   let context = request.effective_limits().context_ceiling()
+  let prompt_tokens = request.input_tokens().length()
+  let maximum_sequence_tokens = prompt_tokens +
+    request.effective_limits().max_new_tokens()
+  let prompt_pages = ceiling_pages(
+    prompt_tokens,
+    self.capacity.tokens_per_page(),
+  )
+  let maximum_sequence_pages = ceiling_pages(
+    maximum_sequence_tokens,
+    self.capacity.tokens_per_page(),
+  )
   if context > self.capacity.model_max_sequence_tokens() ||
     ceiling_pages(context, self.capacity.tokens_per_page()) >
     self.capacity.block_table_pages_per_request() ||
-    ceiling_pages(context, self.capacity.tokens_per_page()) >
-    self.capacity.total_page_count() {
+    prompt_pages >
+    self.capacity.total_page_count() -
+    self.capacity.emergency_decode_page_reserve() ||
+    maximum_sequence_pages > self.capacity.total_page_count() {
     raise invalid(Context, OutOfRange)
   }
   let budget = request.deadline_budget().milliseconds()
@@ -279,201 +311,4 @@ fn scheduler_state(state : Int) -> SchedulerRequestState {
     SLOT_DEADLINE => DeadlineExpired
     _ => Failed
   }
-}
-
-///|
-fn Scheduler::status_at(self : Scheduler, index : Int) -> RequestStatus {
-  let request = match self.requests[index] {
-    Some(value) => value
-    None => abort("scheduler status invariant")
-  }
-  {
-    handle: {
-      slot: SchedulerSlotId(index, self.slot_generations[index]),
-      request_id: request.request_id(),
-      request_generation: self.request_generations[index],
-    },
-    state: scheduler_state(self.slot_states[index]),
-    input_tokens: request.input_tokens().length(),
-    processed_input_tokens: self.processed_inputs[index],
-    output_tokens: self.output_counts[index],
-    deadline_at_millis: self.deadlines[index],
-    in_flight: self.in_flight[index],
-  }
-}
-
-///|
-pub fn Scheduler::status(
-  self : Scheduler,
-  request_id : @inference.RequestId,
-) -> RequestStatus? {
-  let index = self.find_request(request_id)
-  if index == NO_INDEX {
-    None
-  } else {
-    Some(self.status_at(index))
-  }
-}
-
-///|
-pub fn Scheduler::live_request_count(self : Scheduler) -> Int {
-  self.live_count
-}
-
-///|
-pub fn Scheduler::waiting_request_count(self : Scheduler) -> Int {
-  self.waiting_count
-}
-
-///|
-pub fn Scheduler::free_page_count(self : Scheduler) -> Int {
-  self.page_allocator.free_page_count()
-}
-
-///|
-pub fn Scheduler::allocated_block_table_count(self : Scheduler) -> Int {
-  self.block_tables.allocated_table_count()
-}
-
-///|
-pub fn Scheduler::retired_slot_count(self : Scheduler) -> Int {
-  self.retired_slot_count
-}
-
-///|
-pub fn Scheduler::terminal_notice_count(self : Scheduler) -> Int {
-  self.terminal_count
-}
-
-///|
-/// Removes the oldest terminal publication. It contains no slot identity, so
-/// a later request-slot reuse cannot make the notice address mutable state.
-pub fn Scheduler::poll_terminal(self : Scheduler) -> TerminalNotice? {
-  if self.terminal_count == 0 {
-    return None
-  }
-  let index = self.terminal_head
-  let notice = TerminalNotice(
-    self.terminal_request_ids[index],
-    self.terminal_generations[index],
-    self.terminal_reasons[index],
-  )
-  self.terminal_head = (index + 1) % self.terminal_request_ids.length()
-  self.terminal_count -= 1
-  Some(notice)
-}
-
-///|
-pub fn Scheduler::advance_step(self : Scheduler) -> Unit raise SchedulerError {
-  if self.step == MAX_GENERATION {
-    raise invalid(Plan, Exhausted)
-  }
-  self.step += 1UL
-}
-
-///|
-fn Scheduler::terminate_waiting(
-  self : Scheduler,
-  index : Int,
-  state : Int,
-  reason : TerminalReason,
-) -> Unit raise SchedulerError {
-  let request_id = match self.requests[index] {
-    Some(value) => value.request_id()
-    None => raise invalid(RequestState, InvalidTransition)
-  }
-  self.remove_waiting(index)
-  self.slot_states[index] = state
-  self.request_generations[index] = self.allocate_request_generation()
-  self.enqueue_terminal(request_id, self.request_generations[index], reason)
-  // No submitted row can reference waiting state. The slot-free publication
-  // remains in the bounded ring while request storage is safely reusable.
-  self.recycle_slot(index)
-}
-
-///|
-pub fn Scheduler::cancel(
-  self : Scheduler,
-  handle : RequestHandle,
-) -> Unit raise SchedulerError {
-  let index = self.checked_handle_index(handle)
-  if self.slot_states[index] == SLOT_CANCELLED ||
-    self.slot_states[index] == SLOT_DEADLINE ||
-    self.slot_states[index] == SLOT_FAILED {
-    raise invalid(RequestState, InvalidTransition)
-  }
-  if self.terminal_available() == 0 {
-    raise invalid(OutputCapacity, Backpressured)
-  }
-  if self.generation_cursor == MAX_GENERATION {
-    raise invalid(RequestGeneration, Exhausted)
-  }
-  if self.slot_states[index] == SLOT_WAITING {
-    self.terminate_waiting(index, SLOT_CANCELLED, CancelledByCaller)
-    return
-  }
-  self.request_generations[index] = self.allocate_request_generation()
-  self.slot_states[index] = SLOT_CANCELLED
-  let request_id = match self.requests[index] {
-    Some(value) => value.request_id()
-    None => raise invalid(RequestState, InvalidTransition)
-  }
-  self.enqueue_terminal(
-    request_id,
-    self.request_generations[index],
-    CancelledByCaller,
-  )
-}
-
-///|
-pub fn Scheduler::expire_deadlines(
-  self : Scheduler,
-  now_millis : UInt64,
-) -> Int raise SchedulerError {
-  let mut candidate_count = 0
-  for index in 0..<self.slot_states.length() {
-    let state = self.slot_states[index]
-    if state != SLOT_FREE &&
-      state != SLOT_RETIRED &&
-      state != SLOT_CANCELLED &&
-      state != SLOT_DEADLINE &&
-      state != SLOT_FAILED &&
-      now_millis >= self.deadlines[index] {
-      candidate_count += 1
-    }
-  }
-  if candidate_count > self.terminal_available() {
-    raise invalid(OutputCapacity, Backpressured)
-  }
-  if self.generation_cursor > MAX_GENERATION - candidate_count.to_uint64() {
-    raise invalid(RequestGeneration, Exhausted)
-  }
-  let mut expired = 0
-  for index in 0..<self.slot_states.length() {
-    let state = self.slot_states[index]
-    if state != SLOT_FREE &&
-      state != SLOT_RETIRED &&
-      state != SLOT_CANCELLED &&
-      state != SLOT_DEADLINE &&
-      state != SLOT_FAILED &&
-      now_millis >= self.deadlines[index] {
-      if state == SLOT_WAITING {
-        self.terminate_waiting(index, SLOT_DEADLINE, DeadlineReached)
-      } else {
-        self.request_generations[index] = self.allocate_request_generation()
-        self.slot_states[index] = SLOT_DEADLINE
-        let request_id = match self.requests[index] {
-          Some(value) => value.request_id()
-          None => raise invalid(RequestState, InvalidTransition)
-        }
-        self.enqueue_terminal(
-          request_id,
-          self.request_generations[index],
-          DeadlineReached,
-        )
-      }
-      expired += 1
-    }
-  }
-  expired
 }

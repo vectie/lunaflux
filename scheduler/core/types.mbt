@@ -175,6 +175,7 @@ pub struct Scheduler {
   priv model_identity : @spec.ModelIdentity
   priv page_allocator : @page_allocator.PageAllocator
   priv block_tables : @block_table.BlockTableArena
+  priv model_plan_generation : @worker_protocol.ModelPlanGeneration
   priv slot_states : FixedArray[Int]
   priv slot_generations : FixedArray[Int]
   priv requests : FixedArray[TokenizedRequest?]
