@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/safetensors_reader"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/safetensors",
+}
+
+// Values
+pub fn read_metadata(BytesView, limits~ : @safetensors.HeaderLimits) -> @safetensors.SafetensorsMetadata raise SafetensorsReaderError
+
+// Errors
+pub(all) suberror SafetensorsReaderError {
+  MissingHeaderLength
+  HeaderLengthOverflow
+  HeaderTooLarge
+  TruncatedHeader
+  InvalidHeaderEnvelope
+  InvalidHeaderEncoding
+  InvalidHeaderJson
+  DuplicateHeaderKey(depth~ : Int, index~ : Int)
+  InvalidRoot
+  InvalidMetadata
+  InvalidTensor(Int)
+  MissingTensorField(Int, TensorField)
+  UnexpectedTensorField(Int)
+  InvalidTensorField(Int, TensorField)
+  InvalidInteger(Int, TensorField)
+  PayloadSizeMismatch
+  Validation(@safetensors.SafetensorsError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum TensorField {
+  DType
+  Shape
+  DataOffsets
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

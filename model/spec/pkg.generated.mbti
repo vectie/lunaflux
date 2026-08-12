@@ -1,0 +1,101 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/spec"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ModelSpecError {
+  InvalidDimension(ModelDimension)
+  InvalidHeadRelationship(HeadRelationship)
+  InvalidRopeTheta
+  UnsupportedWeightDType
+  UnsupportedKvDType
+  UnknownDType
+  InvalidDigest
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ContentDigest {
+  hex : String
+} derive(Eq, @debug.Debug)
+pub fn ContentDigest::as_hex(Self) -> String
+pub fn ContentDigest::from_sha256(String) -> Self raise ModelSpecError
+
+pub(all) enum HeadRelationship {
+  HiddenNotDivisibleByAttentionHeads
+  AttentionHeadsNotDivisibleByKvHeads
+  KvHeadsExceedAttentionHeads
+} derive(Eq, @debug.Debug)
+
+pub struct LlamaModelMetadata {
+  spec : LlamaModelSpec
+  identity : ModelIdentity
+} derive(Eq, @debug.Debug)
+pub fn LlamaModelMetadata::identity(Self) -> ModelIdentity
+pub fn LlamaModelMetadata::new(LlamaModelSpec, ModelIdentity) -> Self
+pub fn LlamaModelMetadata::spec(Self) -> LlamaModelSpec
+
+pub struct LlamaModelSpec {
+  vocabulary_size : Int
+  hidden_size : Int
+  intermediate_size : Int
+  layer_count : Int
+  attention_head_count : Int
+  kv_head_count : Int
+  head_dimension : Int
+  context_length : Int
+  rope_theta : Double
+  weight_dtype : ModelDType
+  kv_dtype : ModelDType
+} derive(Eq, @debug.Debug)
+pub fn LlamaModelSpec::attention_head_count(Self) -> Int
+pub fn LlamaModelSpec::context_length(Self) -> Int
+pub fn LlamaModelSpec::head_dimension(Self) -> Int
+pub fn LlamaModelSpec::hidden_size(Self) -> Int
+pub fn LlamaModelSpec::intermediate_size(Self) -> Int
+pub fn LlamaModelSpec::kv_dtype(Self) -> ModelDType
+pub fn LlamaModelSpec::kv_head_count(Self) -> Int
+pub fn LlamaModelSpec::layer_count(Self) -> Int
+pub fn LlamaModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType) -> Self raise ModelSpecError
+pub fn LlamaModelSpec::rope_theta(Self) -> Double
+pub fn LlamaModelSpec::vocabulary_size(Self) -> Int
+pub fn LlamaModelSpec::weight_dtype(Self) -> ModelDType
+
+pub(all) enum ModelDType {
+  BFloat16
+  Float16
+  Float32
+} derive(Eq, @debug.Debug)
+pub fn ModelDType::parse(StringView) -> Self raise ModelSpecError
+
+pub(all) enum ModelDimension {
+  Vocabulary
+  Hidden
+  Intermediate
+  LayerCount
+  AttentionHeadCount
+  KvHeadCount
+  ContextLength
+} derive(Eq, @debug.Debug)
+
+pub struct ModelIdentity {
+  content : ContentDigest
+  plan : PlanDigest
+} derive(Eq, @debug.Debug)
+pub fn ModelIdentity::content(Self) -> ContentDigest
+pub fn ModelIdentity::new(ContentDigest, PlanDigest) -> Self
+pub fn ModelIdentity::plan(Self) -> PlanDigest
+
+pub struct PlanDigest {
+  hex : String
+} derive(Eq, @debug.Debug)
+pub fn PlanDigest::as_hex(Self) -> String
+pub fn PlanDigest::from_sha256(String) -> Self raise ModelSpecError
+
+// Type aliases
+
+// Traits

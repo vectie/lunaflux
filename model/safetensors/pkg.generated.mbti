@@ -1,0 +1,105 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/safetensors"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn validate_metadata(ArrayView[RawTensorMetadata], encoded_header_bytes~ : Int, payload_bytes~ : Int64, limits~ : HeaderLimits) -> SafetensorsMetadata raise SafetensorsError
+
+// Errors
+pub(all) suberror SafetensorsError {
+  InvalidLimit(MetadataLimit)
+  HeaderTooLarge
+  TooManyTensors
+  InvalidTensorName(Int)
+  InvalidDType(Int)
+  InvalidRank(Int)
+  InvalidDimension(Int)
+  TensorSizeOverflow(Int)
+  InvalidByteRange(Int)
+  RangeOutsidePayload(Int)
+  RangeSizeMismatch(Int)
+  DuplicateTensor(Int, Int)
+  OverlappingTensors(Int, Int)
+  MaterializedSizeExceeded
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct HeaderLimits {
+  max_header_bytes : Int
+  max_tensor_count : Int
+  max_rank : Int
+  max_name_length : Int
+  max_payload_bytes : Int64
+  max_materialized_tensor_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn HeaderLimits::max_header_bytes(Self) -> Int
+pub fn HeaderLimits::max_materialized_tensor_bytes(Self) -> Int64
+pub fn HeaderLimits::max_name_length(Self) -> Int
+pub fn HeaderLimits::max_payload_bytes(Self) -> Int64
+pub fn HeaderLimits::max_rank(Self) -> Int
+pub fn HeaderLimits::max_tensor_count(Self) -> Int
+pub fn HeaderLimits::new(max_header_bytes~ : Int, max_tensor_count~ : Int, max_rank~ : Int, max_name_length~ : Int, max_payload_bytes~ : Int64, max_materialized_tensor_bytes~ : Int64) -> Self raise SafetensorsError
+
+pub(all) enum MetadataLimit {
+  HeaderBytes
+  TensorCount
+  TensorRank
+  TensorNameLength
+  PayloadBytes
+  MaterializedTensorBytes
+} derive(Eq, @debug.Debug)
+
+pub struct RawTensorMetadata {
+  name : String
+  dtype : String
+  shape : ReadOnlyArray[Int64]
+  data_start : Int64
+  data_end : Int64
+} derive(Eq, @debug.Debug)
+pub fn RawTensorMetadata::new(name~ : String, dtype~ : String, shape~ : ArrayView[Int64], data_start~ : Int64, data_end~ : Int64) -> Self
+
+pub struct SafetensorsMetadata {
+  tensors : ReadOnlyArray[TensorMetadata]
+  encoded_header_bytes : Int
+  payload_bytes : Int64
+  materialized_tensor_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn SafetensorsMetadata::encoded_header_bytes(Self) -> Int
+pub fn SafetensorsMetadata::find_tensor(Self, StringView) -> TensorMetadata?
+pub fn SafetensorsMetadata::materialized_tensor_bytes(Self) -> Int64
+pub fn SafetensorsMetadata::payload_bytes(Self) -> Int64
+pub fn SafetensorsMetadata::tensor(Self, Int) -> TensorMetadata?
+pub fn SafetensorsMetadata::tensor_count(Self) -> Int
+
+pub struct TensorByteRange {
+  start : Int64
+  end : Int64
+} derive(Eq, @debug.Debug)
+pub fn TensorByteRange::byte_length(Self) -> Int64
+pub fn TensorByteRange::end(Self) -> Int64
+pub fn TensorByteRange::start(Self) -> Int64
+
+pub(all) enum TensorDType {
+  BFloat16
+} derive(Eq, @debug.Debug)
+
+pub struct TensorMetadata {
+  name : String
+  dtype : TensorDType
+  shape : ReadOnlyArray[Int64]
+  byte_range : TensorByteRange
+} derive(Eq, @debug.Debug)
+pub fn TensorMetadata::byte_length(Self) -> Int64
+pub fn TensorMetadata::byte_range(Self) -> TensorByteRange
+pub fn TensorMetadata::data_end(Self) -> Int64
+pub fn TensorMetadata::data_start(Self) -> Int64
+pub fn TensorMetadata::dtype(Self) -> TensorDType
+pub fn TensorMetadata::name(Self) -> String
+pub fn TensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
+
+// Type aliases
+
+// Traits

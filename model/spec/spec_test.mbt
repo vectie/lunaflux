@@ -1,0 +1,106 @@
+///|
+fn valid_spec() -> @spec.LlamaModelSpec raise {
+  @spec.LlamaModelSpec::new(
+    vocabulary_size=32000,
+    hidden_size=4096,
+    intermediate_size=11008,
+    layer_count=32,
+    attention_head_count=32,
+    kv_head_count=8,
+    context_length=4096,
+    rope_theta=10000.0,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  )
+}
+
+///|
+test "valid dense Llama metadata is plan-ready and immutable" {
+  let spec = valid_spec()
+  assert_eq(spec.head_dimension(), 128)
+  assert_eq(spec.kv_head_count(), 8)
+  assert_eq(spec.context_length(), 4096)
+  let content = @spec.ContentDigest::from_sha256(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  )
+  let plan = @spec.PlanDigest::from_sha256(
+    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  )
+  let metadata = @spec.LlamaModelMetadata::new(
+    spec,
+    @spec.ModelIdentity::new(content, plan),
+  )
+  assert_eq(metadata.spec().layer_count(), 32)
+  assert_eq(metadata.identity().content().as_hex(), content.as_hex())
+}
+
+///|
+test "invalid dimensions and head relationships are rejected" {
+  try
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=32000,
+      hidden_size=4097,
+      intermediate_size=11008,
+      layer_count=32,
+      attention_head_count=32,
+      kv_head_count=8,
+      context_length=4096,
+      rope_theta=10000.0,
+      weight_dtype=BFloat16,
+      kv_dtype=BFloat16,
+    )
+  catch {
+    InvalidHeadRelationship(HiddenNotDivisibleByAttentionHeads) => ()
+    _ => fail("unexpected model error")
+  } noraise {
+    _ => fail("expected invalid head relationship")
+  }
+  try
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=0,
+      hidden_size=4096,
+      intermediate_size=11008,
+      layer_count=32,
+      attention_head_count=32,
+      kv_head_count=8,
+      context_length=4096,
+      rope_theta=10000.0,
+      weight_dtype=BFloat16,
+      kv_dtype=BFloat16,
+    )
+  catch {
+    InvalidDimension(Vocabulary) => ()
+    _ => fail("unexpected model error")
+  } noraise {
+    _ => fail("expected invalid vocabulary")
+  }
+}
+
+///|
+test "unsupported precision and malformed digest fail closed" {
+  try
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=32000,
+      hidden_size=4096,
+      intermediate_size=11008,
+      layer_count=32,
+      attention_head_count=32,
+      kv_head_count=8,
+      context_length=4096,
+      rope_theta=10000.0,
+      weight_dtype=Float16,
+      kv_dtype=BFloat16,
+    )
+  catch {
+    UnsupportedWeightDType => ()
+    _ => fail("unexpected model error")
+  } noraise {
+    _ => fail("expected unsupported dtype")
+  }
+  try @spec.ContentDigest::from_sha256("not-a-digest") catch {
+    InvalidDigest => ()
+    _ => fail("unexpected digest error")
+  } noraise {
+    _ => fail("expected invalid digest")
+  }
+}

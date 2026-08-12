@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/model/safetensors",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/strconv",
+}
+
+supported_targets = "native"
