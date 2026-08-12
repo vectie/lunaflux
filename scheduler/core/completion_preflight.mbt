@@ -63,8 +63,9 @@ fn Scheduler::row_is_current(
 
 ///|
 fn request_stops_on_token(request : TokenizedRequest, token : Int) -> Bool {
-  for stop in request.stops().token_ids() {
-    if stop == token {
+  let stop_tokens = request.stops().token_ids()
+  for index in 0..<stop_tokens.length() {
+    if stop_tokens[index] == token {
       return true
     }
   }

@@ -174,11 +174,11 @@ pub fn BlockTableArena::page_count(
 }
 
 ///|
-fn BlockTableArena::checked_append_base(
+fn BlockTableArena::checked_append_index(
   self : BlockTableArena,
   table : BlockTableId,
   added : Int,
-) -> (Int, Int) raise BlockTableError {
+) -> Int raise BlockTableError {
   let index = self.checked_index(table)
   if added <= 0 || added > self.max_pages_per_table {
     raise InvalidPageCount
@@ -198,7 +198,7 @@ fn BlockTableArena::checked_append_base(
     self.mapping_touched[index] = true
     self.mapping_journal_length = journal_index + 1
   }
-  (index, index * self.max_pages_per_table + current)
+  index
 }
 
 ///|
@@ -209,7 +209,8 @@ pub fn BlockTableArena::append_page(
   table : BlockTableId,
   page : @page_allocator.PageId,
 ) -> Unit raise BlockTableError {
-  let (index, base) = self.checked_append_base(table, 1)
+  let index = self.checked_append_index(table, 1)
+  let base = index * self.max_pages_per_table + self.page_counts[index]
   page_storage_write(self.pages, base, page)
   self.page_counts[index] += 1
 }
@@ -223,7 +224,8 @@ pub fn BlockTableArena::append_run(
   run : @page_allocator.PageRunBuffer,
 ) -> Unit raise BlockTableError {
   let added = run.length()
-  let (index, base) = self.checked_append_base(table, added)
+  let index = self.checked_append_index(table, added)
+  let base = index * self.max_pages_per_table + self.page_counts[index]
   for offset in 0..<added {
     page_storage_write(self.pages, base + offset, page_run_read(run, offset))
   }
@@ -239,7 +241,8 @@ pub fn BlockTableArena::append_pages(
   pages : ArrayView[@page_allocator.PageId],
 ) -> Unit raise BlockTableError {
   let added = pages.length()
-  let (index, base) = self.checked_append_base(table, added)
+  let index = self.checked_append_index(table, added)
+  let base = index * self.max_pages_per_table + self.page_counts[index]
   for offset, page in pages {
     page_storage_write(self.pages, base + offset, page)
   }
