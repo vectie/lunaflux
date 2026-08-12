@@ -15,39 +15,6 @@ pub struct SchedulePlan {
 } derive(Eq)
 
 ///|
-fn row_error(
-  kind : WorkerRowKind,
-  index : Int,
-  rule : RowRule,
-) -> Unit raise WorkerProtocolError {
-  raise InvalidRow(kind~, index~, rule~)
-}
-
-///|
-fn validate_actual_range(
-  kind : WorkerRowKind,
-  index : Int,
-  start : Int,
-  length : Int,
-  actual_length : Int,
-  expected_start : Int,
-) -> Int raise WorkerProtocolError {
-  if start < 0 {
-    row_error(kind, index, NegativeRangeStart)
-  }
-  if length <= 0 {
-    row_error(kind, index, EmptyRange)
-  }
-  if start > actual_length || length > actual_length - start {
-    row_error(kind, index, RangeOutsideTable)
-  }
-  if start != expected_start {
-    row_error(kind, index, NonContiguousRange)
-  }
-  start + length
-}
-
-///|
 fn is_duplicate_request(
   request_id : @inference.RequestId,
   prefill_rows : ArrayView[PrefillRow],
@@ -98,9 +65,7 @@ fn validate_tokens(
     raise BoundExceeded(PlanTokens)
   }
   for index, token in tokens {
-    if token < 0 || token > limits.max_token_id() {
-      raise InvalidToken(index~)
-    }
+    validate_token(token, index, limits)
   }
 }
 
@@ -120,25 +85,15 @@ pub fn SchedulePlan::new(
 ) -> SchedulePlan raise WorkerProtocolError {
   let prefill_count = prefill_rows.length()
   let decode_count = decode_rows.length()
-  if prefill_count == 0 && decode_count == 0 {
-    raise EmptyPlan
-  }
-  if prefill_count > limits.max_prefill_rows() {
-    raise BoundExceeded(PrefillRows)
-  }
-  if decode_count > limits.max_decode_rows() {
-    raise BoundExceeded(DecodeRows)
-  }
-  if prefill_count > limits.max_plan_rows() - decode_count {
-    raise BoundExceeded(PlanRows)
-  }
+  validate_plan_counts(
+    prefill_count,
+    decode_count,
+    tokens.length(),
+    pages.length(),
+    capabilities.length(),
+    limits,
+  )
   validate_tokens(tokens, limits)
-  if pages.length() > limits.max_plan_pages() {
-    raise BoundExceeded(PlanPages)
-  }
-  if capabilities.length() > limits.max_capabilities() {
-    raise BoundExceeded(Capabilities)
-  }
   let mut token_end = 0
   let mut page_end = 0
   let mut capability_end = 0
@@ -239,20 +194,17 @@ pub fn SchedulePlan::new(
     }
     scheduled_tokens = scheduled_tokens + 1
   }
-  if token_end != tokens.length() {
-    raise IncompleteTable(Tokens)
-  }
-  if page_end != pages.length() {
-    raise IncompleteTable(Pages)
-  }
-  if capability_end != capabilities.length() {
-    raise IncompleteTable(Capabilities)
-  }
-  if token_budget <= 0 ||
-    token_budget > limits.max_plan_tokens() ||
-    token_budget != scheduled_tokens {
-    raise TokenBudgetMismatch
-  }
+  validate_plan_finish(
+    token_end,
+    tokens.length(),
+    page_end,
+    pages.length(),
+    capability_end,
+    capabilities.length(),
+    scheduled_tokens,
+    token_budget,
+    limits,
+  )
   {
     sequence,
     model_plan_generation,
@@ -328,17 +280,10 @@ pub fn SchedulePlan::validate_submission(
   previous_sequence : PlanSequence?,
   loaded_generation : ModelPlanGeneration,
 ) -> Unit raise WorkerProtocolError {
-  match previous_sequence {
-    None =>
-      if self.sequence != PlanSequence::first() {
-        raise StalePlanSequence
-      }
-    Some(previous) =>
-      if !self.sequence.immediately_follows(previous) {
-        raise StalePlanSequence
-      }
-  }
-  if self.model_plan_generation != loaded_generation {
-    raise StaleModelPlanGeneration
-  }
+  validate_submission_identity(
+    self.sequence,
+    self.model_plan_generation,
+    previous_sequence,
+    loaded_generation,
+  )
 }

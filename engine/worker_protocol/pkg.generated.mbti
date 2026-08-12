@@ -33,6 +33,10 @@ pub(all) suberror WorkerProtocolError {
   CompletionTokenCountMismatch(index~ : Int)
   StalePlanSequence
   StaleModelPlanGeneration
+  InvalidPlanBufferState(expected~ : PlanBufferState, actual~ : PlanBufferState)
+  PlanBufferMismatch
+  StalePlanBufferEpoch
+  PlanBufferStorageFailure
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -115,6 +119,12 @@ pub fn PageTableView::length(Self) -> Int
 pub fn PageTableView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn PageTableView::start(Self) -> Int
 
+pub(all) enum PlanBufferState {
+  Writable
+  Submitted
+  Retired
+} derive(Eq, @debug.Debug)
+
 pub struct PlanSequence {
   value : UInt64
 } derive(Eq, Hash, @debug.Debug)
@@ -145,6 +155,7 @@ pub fn PrefillRow::tokens(Self) -> TokenRange
 pub(all) enum ProtocolIdentity {
   PlanSequenceIdentity
   ModelPlanGenerationIdentity
+  PlanBufferEpochIdentity
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ProtocolLimit {
@@ -165,6 +176,8 @@ pub(all) enum ProtocolTable {
   Capabilities
 } derive(Eq, @debug.Debug)
 
+pub struct RetiredSchedulePlan(SchedulePlanBuffer, UInt64)
+
 pub(all) enum RowRule {
   EmptyRange
   NegativeRangeStart
@@ -174,6 +187,7 @@ pub(all) enum RowRule {
   InvalidSequencePosition
   DuplicateRequest
   DuplicateCompletionSlot
+  InvalidRowOrder
 } derive(Eq, @debug.Debug)
 
 pub struct SchedulePlan {
@@ -197,6 +211,53 @@ pub fn SchedulePlan::sequence(Self) -> PlanSequence
 pub fn SchedulePlan::token_budget(Self) -> Int
 pub fn SchedulePlan::tokens(Self) -> ReadOnlyArray[Int]
 pub fn SchedulePlan::validate_submission(Self, PlanSequence?, ModelPlanGeneration) -> Unit raise WorkerProtocolError
+
+pub struct SchedulePlanBuffer {
+  // private fields
+}
+pub fn SchedulePlanBuffer::append_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : Int, pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::append_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::epoch(Self) -> UInt64
+pub fn SchedulePlanBuffer::new(WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn SchedulePlanBuffer::reset(Self, RetiredSchedulePlan) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::retire(Self, SubmittedSchedulePlan) -> RetiredSchedulePlan raise WorkerProtocolError
+pub fn SchedulePlanBuffer::state(Self) -> PlanBufferState
+pub fn SchedulePlanBuffer::submit(Self, sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, token_budget~ : Int, PlanSequence?, ModelPlanGeneration) -> SubmittedSchedulePlan raise WorkerProtocolError
+
+pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int)
+pub fn SubmittedDecodeRow::capabilities(Self) -> CapabilityView raise WorkerProtocolError
+pub fn SubmittedDecodeRow::completion_slot(Self) -> CompletionSlot raise WorkerProtocolError
+pub fn SubmittedDecodeRow::input_token(Self) -> TokenRange raise WorkerProtocolError
+pub fn SubmittedDecodeRow::page_table(Self) -> PageTableView raise WorkerProtocolError
+pub fn SubmittedDecodeRow::request_generation(Self) -> @inference.RequestGeneration raise WorkerProtocolError
+pub fn SubmittedDecodeRow::request_id(Self) -> @inference.RequestId raise WorkerProtocolError
+pub fn SubmittedDecodeRow::sampling(Self) -> @inference.SamplingParameters raise WorkerProtocolError
+pub fn SubmittedDecodeRow::sequence_token_position(Self) -> Int raise WorkerProtocolError
+
+pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int)
+pub fn SubmittedPrefillRow::capabilities(Self) -> CapabilityView raise WorkerProtocolError
+pub fn SubmittedPrefillRow::completion_slot(Self) -> CompletionSlot raise WorkerProtocolError
+pub fn SubmittedPrefillRow::page_table(Self) -> PageTableView raise WorkerProtocolError
+pub fn SubmittedPrefillRow::request_generation(Self) -> @inference.RequestGeneration raise WorkerProtocolError
+pub fn SubmittedPrefillRow::request_id(Self) -> @inference.RequestId raise WorkerProtocolError
+pub fn SubmittedPrefillRow::sequence_token_start(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedPrefillRow::tokens(Self) -> TokenRange raise WorkerProtocolError
+
+pub struct SubmittedSchedulePlan(SchedulePlanBuffer, UInt64)
+pub fn SubmittedSchedulePlan::capability_at(Self, Int) -> @plan.KernelCapabilityId raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::capability_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::decode_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::decode_row(Self, Int) -> SubmittedDecodeRow raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::model_plan_generation(Self) -> ModelPlanGeneration raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::page_at(Self, Int) -> @page_allocator.PageId raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::page_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::prefill_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::prefill_row(Self, Int) -> SubmittedPrefillRow raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::row_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::sequence(Self) -> PlanSequence raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::token_at(Self, Int) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::token_budget(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::token_count(Self) -> Int raise WorkerProtocolError
 
 pub struct TokenRange(Int, Int) derive(Eq, @debug.Debug)
 pub fn TokenRange::end(Self) -> Int

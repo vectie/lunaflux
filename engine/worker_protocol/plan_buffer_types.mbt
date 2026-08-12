@@ -1,0 +1,73 @@
+///|
+/// Startup-allocated mutable owner of one reusable scheduler-to-worker plan.
+///
+/// The scheduler owns this value. A worker receives only a
+/// `SubmittedSchedulePlan`, whose every accessor authenticates the buffer
+/// epoch and lifecycle before reading. Production schedulers construct exactly
+/// two owners, but that overlap policy is deliberately not a protocol global.
+/// The owner is single-writer and thread-confined; protocol values are not a
+/// synchronization primitive. Append copies each caller `ArrayView` before
+/// returning, so callers need only refrain from concurrent source mutation for
+/// that call's duration.
+///
+/// The immutable `SchedulePlan` remains the allocating fixture and convenience
+/// API. This buffer is the production no-growth foundation. A reusable
+/// completion ingress/ring remains a separate worker-to-scheduler phase gate.
+pub struct SchedulePlanBuffer {
+  priv limits : WorkerProtocolLimits
+  priv mut state : PlanBufferState
+  priv mut epoch : UInt64
+  priv mut sequence : PlanSequence
+  priv mut model_plan_generation : ModelPlanGeneration
+  priv mut token_budget : Int
+  priv mut token_count : Int
+  priv mut page_count : Int
+  priv mut capability_count : Int
+  priv mut prefill_count : Int
+  priv mut decode_count : Int
+  priv tokens : FixedArray[Int]
+  priv pages : @page_allocator.PageIdStorage
+  priv capabilities : FixedArray[@plan.KernelCapabilityId]
+  priv prefill_request_ids : FixedArray[@inference.RequestId]
+  priv prefill_request_generations : FixedArray[@inference.RequestGeneration]
+  priv prefill_sequence_starts : FixedArray[Int]
+  priv prefill_token_starts : FixedArray[Int]
+  priv prefill_token_lengths : FixedArray[Int]
+  priv prefill_page_starts : FixedArray[Int]
+  priv prefill_page_lengths : FixedArray[Int]
+  priv prefill_capability_starts : FixedArray[Int]
+  priv prefill_capability_lengths : FixedArray[Int]
+  priv prefill_completion_slots : FixedArray[CompletionSlot]
+  priv decode_request_ids : FixedArray[@inference.RequestId]
+  priv decode_request_generations : FixedArray[@inference.RequestGeneration]
+  priv decode_sequence_positions : FixedArray[Int]
+  priv decode_token_starts : FixedArray[Int]
+  priv decode_page_starts : FixedArray[Int]
+  priv decode_page_lengths : FixedArray[Int]
+  priv decode_capability_starts : FixedArray[Int]
+  priv decode_capability_lengths : FixedArray[Int]
+  priv decode_sampling : FixedArray[@inference.SamplingParameters]
+  priv decode_completion_slots : FixedArray[CompletionSlot]
+}
+
+///|
+/// Opaque immutable worker handle for one exact submitted buffer epoch.
+/// Keeping this handle across retirement or reuse is safe: all later access
+/// fails authentication instead of aliasing the new plan.
+#valtype
+pub struct SubmittedSchedulePlan(SchedulePlanBuffer, UInt64)
+
+///|
+/// Scheduler-only proof that one submitted epoch was retired.
+#valtype
+pub struct RetiredSchedulePlan(SchedulePlanBuffer, UInt64)
+
+///|
+/// Opaque immutable prefill-row view tied to its submitted plan epoch.
+#valtype
+pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int)
+
+///|
+/// Opaque immutable decode-row view tied to its submitted plan epoch.
+#valtype
+pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int)

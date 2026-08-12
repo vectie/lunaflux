@@ -17,6 +17,16 @@ pub(all) enum ProtocolLimit {
 pub(all) enum ProtocolIdentity {
   PlanSequenceIdentity
   ModelPlanGenerationIdentity
+  PlanBufferEpochIdentity
+} derive(Debug, Eq)
+
+///|
+/// Lifecycle of one reusable schedule-plan buffer. The scheduler owns the
+/// mutable buffer; workers receive only authenticated submitted handles.
+pub(all) enum PlanBufferState {
+  Writable
+  Submitted
+  Retired
 } derive(Debug, Eq)
 
 ///|
@@ -47,6 +57,7 @@ pub(all) enum RowRule {
   InvalidSequencePosition
   DuplicateRequest
   DuplicateCompletionSlot
+  InvalidRowOrder
 } derive(Debug, Eq)
 
 ///|
@@ -73,4 +84,8 @@ pub(all) suberror WorkerProtocolError {
   CompletionTokenCountMismatch(index~ : Int)
   StalePlanSequence
   StaleModelPlanGeneration
+  InvalidPlanBufferState(expected~ : PlanBufferState, actual~ : PlanBufferState)
+  PlanBufferMismatch
+  StalePlanBufferEpoch
+  PlanBufferStorageFailure
 } derive(Debug, Eq)
