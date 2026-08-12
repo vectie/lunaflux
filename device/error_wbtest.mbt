@@ -5,6 +5,7 @@ test "native failures translate without payload expansion" {
     (InvalidArgument(CopyToDevice), InvalidArgument(CopyToDevice)),
     (Closed(EventRecord), Closed(EventRecord)),
     (Busy(ModuleClose), Busy(ModuleClose)),
+    (InvalidArgument(AotKernelLaunch), InvalidArgument(AotKernelLaunch)),
     (DriverFailure(Bf16GemmRun), DriverFailure(Bf16GemmRun)),
     (HostAllocationFailed(ModuleLoad), HostAllocationFailed(ModuleLoad)),
     (SizeOverflow(AllocationCreate), SizeOverflow(AllocationCreate)),

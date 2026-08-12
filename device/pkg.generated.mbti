@@ -100,6 +100,7 @@ pub(all) enum DeviceOperation {
   ModuleClose
   FunctionLoad
   FunctionClose
+  AotKernelLaunch
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
@@ -119,6 +120,23 @@ pub struct Function {
   // private fields
 }
 pub fn Function::close(Self) -> Unit raise DeviceError
+pub fn Function::launch_synchronous(Self, KernelLaunchDimensions, KernelArguments, Stream) -> Unit raise DeviceError
+
+pub struct KernelArgument {
+  // private fields
+}
+pub fn KernelArgument::device_region(Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Self raise DeviceError
+
+pub struct KernelArguments {
+  // private fields
+}
+pub fn KernelArguments::length(Self) -> Int
+pub fn KernelArguments::new(ArrayView[KernelArgument]) -> Self raise DeviceError
+
+pub struct KernelLaunchDimensions {
+  // private fields
+}
+pub fn KernelLaunchDimensions::new(grid_x~ : Int, grid_y~ : Int, grid_z~ : Int, block_x~ : Int, block_y~ : Int, block_z~ : Int, shared_memory_bytes~ : Int) -> Self raise DeviceError
 
 pub struct Module {
   // private fields

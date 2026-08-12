@@ -102,6 +102,7 @@ pub(all) enum CudaOperation {
   ModuleClose
   FunctionLoad
   FunctionClose
+  AotKernelLaunch
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate

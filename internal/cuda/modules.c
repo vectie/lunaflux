@@ -3,21 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct lf_module {
-  lf_context *context;
-  CUmodule handle;
-  atomic_int state;
-  atomic_int active_operations;
-  atomic_int children;
-} lf_module;
-
-typedef struct lf_function {
-  lf_module *module;
-  CUfunction handle;
-  atomic_int state;
-  atomic_int active_operations;
-} lf_function;
-
 static int32_t lf_close_module(lf_module *module) {
   if (module == NULL) return LF_INVALID_ARGUMENT;
   if (atomic_load(&module->state) == LF_RESOURCE_CLOSED) return LF_OK;

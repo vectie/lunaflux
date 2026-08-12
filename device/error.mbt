@@ -20,6 +20,7 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     ModuleClose => ModuleClose
     FunctionLoad => FunctionLoad
     FunctionClose => FunctionClose
+    AotKernelLaunch => AotKernelLaunch
     CublasLtCreate => CublasLtCreate
     CublasLtClose => CublasLtClose
     Bf16GemmPlanCreate => Bf16GemmPlanCreate

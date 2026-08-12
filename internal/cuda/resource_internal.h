@@ -29,6 +29,21 @@ typedef struct lf_allocation {
   atomic_int active_operations;
 } lf_allocation;
 
+typedef struct lf_module {
+  lf_context *context;
+  CUmodule handle;
+  atomic_int state;
+  atomic_int active_operations;
+  atomic_int children;
+} lf_module;
+
+typedef struct lf_function {
+  lf_module *module;
+  CUfunction handle;
+  atomic_int state;
+  atomic_int active_operations;
+} lf_function;
+
 typedef struct lf_gemm_plan {
   lf_child *cublas;
   cublasLtMatmulDesc_t operation;
@@ -62,6 +77,23 @@ int32_t lunaflux_cuda_context_close(lf_context *context);
 int32_t lunaflux_cuda_stream_close(lf_child *stream);
 int32_t lunaflux_cuda_cublas_close(lf_child *cublas);
 int32_t lunaflux_cuda_allocation_close(lf_allocation *allocation);
+int32_t lunaflux_cuda_module_close(lf_module *module);
+int32_t lunaflux_cuda_function_close(lf_function *function);
+int32_t lunaflux_cuda_function_launch(
+  lf_function *function,
+  lf_child *stream,
+  int32_t grid_x,
+  int32_t grid_y,
+  int32_t grid_z,
+  int32_t block_x,
+  int32_t block_y,
+  int32_t block_z,
+  int32_t shared_memory_bytes,
+  lf_allocation **allocations,
+  int64_t *offsets,
+  int64_t *byte_counts,
+  int64_t *alignments
+);
 int32_t lunaflux_cuda_copy_to_device(
   lf_allocation *allocation,
   moonbit_bytes_t source,

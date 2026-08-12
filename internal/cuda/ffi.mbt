@@ -134,6 +134,24 @@ extern "c" fn raw_function_load(
 extern "c" fn raw_function_close(function_ : Function) -> Int = "lunaflux_cuda_function_close"
 
 ///|
+#borrow(function_, stream, allocations, offsets, byte_counts, alignments)
+extern "c" fn raw_function_launch(
+  function_ : Function,
+  stream : Stream,
+  grid_x : Int,
+  grid_y : Int,
+  grid_z : Int,
+  block_x : Int,
+  block_y : Int,
+  block_z : Int,
+  shared_memory_bytes : Int,
+  allocations : FixedArray[Allocation],
+  offsets : FixedArray[Int64],
+  byte_counts : FixedArray[Int64],
+  alignments : FixedArray[Int64],
+) -> Int = "lunaflux_cuda_function_launch"
+
+///|
 #borrow(context, status)
 extern "c" fn raw_cublas_create(
   context : Context,

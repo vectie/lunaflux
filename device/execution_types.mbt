@@ -21,6 +21,7 @@ pub(all) enum DeviceOperation {
   ModuleClose
   FunctionLoad
   FunctionClose
+  AotKernelLaunch
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate

@@ -224,6 +224,34 @@ pub fn Function::close(self : Function) -> Unit raise CudaError {
 }
 
 ///|
+/// Launches one AOT function with prevalidated device-region arguments and
+/// synchronizes `stream` before returning. The native boundary rechecks every
+/// dimension, range, alignment, context, and resource state.
+pub fn Function::launch_synchronous(
+  self : Function,
+  stream : Stream,
+  grid_x : Int,
+  grid_y : Int,
+  grid_z : Int,
+  block_x : Int,
+  block_y : Int,
+  block_z : Int,
+  shared_memory_bytes : Int,
+  allocations : FixedArray[Allocation],
+  offsets : FixedArray[Int64],
+  byte_counts : FixedArray[Int64],
+  alignments : FixedArray[Int64],
+) -> Unit raise CudaError {
+  check_status(
+    raw_function_launch(
+      self, stream, grid_x, grid_y, grid_z, block_x, block_y, block_z, shared_memory_bytes,
+      allocations, offsets, byte_counts, alignments,
+    ),
+    AotKernelLaunch,
+  )
+}
+
+///|
 pub fn Context::create_cublas_lt(self : Context) -> CublasLt raise CudaError {
   let status = Ref(0)
   let handle = raw_cublas_create(self, status)

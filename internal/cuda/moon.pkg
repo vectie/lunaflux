@@ -9,6 +9,8 @@ options(
     "cublas.c",
     "execution_probe.c",
     "gemm.c",
+    "launch.c",
+    "launch_probe.c",
     "lifecycle_probe.c",
     "loader.c",
     "modules.c",

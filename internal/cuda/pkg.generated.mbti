@@ -69,6 +69,7 @@ pub(all) enum CudaOperation {
   ModuleClose
   FunctionLoad
   FunctionClose
+  AotKernelLaunch
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
@@ -105,6 +106,7 @@ pub fn Event::synchronize(Self) -> Unit raise CudaError
 
 type Function
 pub fn Function::close(Self) -> Unit raise CudaError
+pub fn Function::launch_synchronous(Self, Stream, Int, Int, Int, Int, Int, Int, Int, FixedArray[Allocation], FixedArray[Int64], FixedArray[Int64], FixedArray[Int64]) -> Unit raise CudaError
 
 type Module
 pub fn Module::close(Self) -> Unit raise CudaError

@@ -36,3 +36,13 @@ documented implicit heuristic query with default search preferences; it does
 not claim deterministic or explicit algorithm selection. An unsupported shape
 or missing ABI fails instead of switching to a reference or CPU implementation.
 Physical-GPU correctness and performance are separate Phase 1 evidence gates.
+
+AOT functions use an equally narrow synchronous launch contract. Launch
+geometry is bounded before the native call, and each of at most 32 parameters
+is an immutable checked allocation region with an explicit power-of-two
+alignment. Argument lists are prepared once and reused without launch-path
+MoonBit allocation. Function, module, stream, and every referenced allocation
+must share one context and remain active until the one mandatory stream
+synchronization completes. Kernel scalar dimensions remain part of the exact
+startup-selected AOT shape in this phase; arbitrary scalar and byte payloads
+are intentionally absent from the public launch vocabulary.

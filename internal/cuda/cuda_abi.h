@@ -85,6 +85,19 @@ typedef struct lf_cuda_api {
   CUresult (*cuModuleLoadData)(CUmodule *, const void *);
   CUresult (*cuModuleUnload)(CUmodule);
   CUresult (*cuModuleGetFunction)(CUfunction *, CUmodule, const char *);
+  CUresult (*cuLaunchKernel)(
+    CUfunction,
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    uint32_t,
+    CUstream,
+    void **,
+    void **
+  );
   int32_t (*cublasLtCreate)(cublasLtHandle_t *);
   int32_t (*cublasLtDestroy)(cublasLtHandle_t);
   int32_t (*cublasLtMatmulDescCreate)(
