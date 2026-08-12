@@ -7,9 +7,9 @@ import {
 }
 
 // Values
-pub fn parse_bytes(BytesView, @spec.ContentDigest, @spec.PlanDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
+pub fn parse_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
 
-pub fn parse_string(StringView, @spec.ContentDigest, @spec.PlanDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
+pub fn parse_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
 
 // Errors
 pub(all) suberror ModelConfigReaderError {

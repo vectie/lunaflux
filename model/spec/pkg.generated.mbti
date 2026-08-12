@@ -36,8 +36,8 @@ pub struct LlamaModelMetadata {
   spec : LlamaModelSpec
   identity : ModelIdentity
 } derive(Eq, @debug.Debug)
+pub fn LlamaModelMetadata::from_verified_content(LlamaModelSpec, ContentDigest) -> Self
 pub fn LlamaModelMetadata::identity(Self) -> ModelIdentity
-pub fn LlamaModelMetadata::new(LlamaModelSpec, ModelIdentity) -> Self
 pub fn LlamaModelMetadata::spec(Self) -> LlamaModelSpec
 
 pub struct LlamaModelSpec {
@@ -55,6 +55,7 @@ pub struct LlamaModelSpec {
   kv_dtype : ModelDType
 } derive(Eq, @debug.Debug)
 pub fn LlamaModelSpec::attention_head_count(Self) -> Int
+pub fn LlamaModelSpec::canonical_plan_digest(Self) -> PlanDigest
 pub fn LlamaModelSpec::context_length(Self) -> Int
 pub fn LlamaModelSpec::head_dimension(Self) -> Int
 pub fn LlamaModelSpec::hidden_size(Self) -> Int

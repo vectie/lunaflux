@@ -145,7 +145,6 @@ fn validate_selected_semantics(
 fn decode_model(
   object : Map[String, Json],
   content_digest : @spec.ContentDigest,
-  plan_digest : @spec.PlanDigest,
 ) -> @spec.LlamaModelMetadata raise ModelConfigReaderError {
   validate_known_fields(object)
   validate_inert_fields(object)
@@ -199,8 +198,5 @@ fn decode_model(
     error => raise Validation(error)
   }
   validate_selected_semantics(object, hidden_size, attention_head_count)
-  @spec.LlamaModelMetadata::new(
-    model_spec,
-    @spec.ModelIdentity::new(content_digest, plan_digest),
-  )
+  @spec.LlamaModelMetadata::from_verified_content(model_spec, content_digest)
 }

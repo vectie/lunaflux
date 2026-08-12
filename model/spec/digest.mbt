@@ -56,6 +56,60 @@ pub fn PlanDigest::as_hex(self : PlanDigest) -> String {
 }
 
 ///|
+fn append_u64_le(output : Array[Byte], value : UInt64) -> Unit {
+  for byte in value.to_le_bytes() {
+    output.push(byte)
+  }
+}
+
+///|
+fn append_int(output : Array[Byte], value : Int) -> Unit {
+  append_u64_le(output, Int64::from_int(value).reinterpret_as_uint64())
+}
+
+///|
+fn append_dtype(output : Array[Byte], dtype : ModelDType) -> Unit {
+  output.push(
+    match dtype {
+      BFloat16 => 1
+      Float16 => 2
+      Float32 => 3
+    },
+  )
+}
+
+///|
+/// Derives the plan identity from validated semantic model data.
+///
+/// The fixed prefix is the dense-Llama plan schema version. Any builder change
+/// that alters operation semantics must introduce a new prefix before release.
+/// Integers and IEEE-754 bit patterns use fixed little-endian encodings, so the
+/// digest is independent of locale and number formatting.
+pub fn LlamaModelSpec::canonical_plan_digest(
+  self : LlamaModelSpec,
+) -> PlanDigest {
+  let encoded : Array[Byte] = []
+  for byte in b"lunaflux.dense-llama-plan.v1\x00" {
+    encoded.push(byte)
+  }
+  append_int(encoded, self.vocabulary_size())
+  append_int(encoded, self.hidden_size())
+  append_int(encoded, self.intermediate_size())
+  append_int(encoded, self.layer_count())
+  append_int(encoded, self.attention_head_count())
+  append_int(encoded, self.kv_head_count())
+  append_int(encoded, self.head_dimension())
+  append_int(encoded, self.context_length())
+  append_u64_le(encoded, self.rope_theta().reinterpret_as_uint64())
+  append_u64_le(encoded, self.rms_norm_epsilon().reinterpret_as_uint64())
+  append_dtype(encoded, self.weight_dtype())
+  append_dtype(encoded, self.kv_dtype())
+  {
+    hex: @crypto.bytes_to_hex_string(@crypto.sha256(Bytes::from_array(encoded))),
+  }
+}
+
+///|
 /// Constructs an immutable model identity from independently verified digests.
 pub fn ModelIdentity::new(
   content : ContentDigest,

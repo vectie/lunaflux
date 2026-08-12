@@ -47,7 +47,6 @@ fn validate_utf8_size(
 fn parse_text(
   document : StringView,
   content_digest : @spec.ContentDigest,
-  plan_digest : @spec.PlanDigest,
   max_depth : Int,
 ) -> @spec.LlamaModelMetadata raise ModelConfigReaderError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
@@ -58,19 +57,19 @@ fn parse_text(
   }
   let parsed = @json.parse(document) catch { _ => raise MalformedJson }
   guard parsed is Object(root) else { raise NonObjectRoot }
-  decode_model(root, content_digest, plan_digest)
+  decode_model(root, content_digest)
 }
 
 ///|
 /// Parses selected-model JSON bytes after enforcing byte and nesting bounds.
 ///
-/// The supplied digests must already have been validated from independently
-/// verified artifact content and the canonical plan. This function performs
-/// no file access, hashing, code loading, or weight materialization.
+/// The supplied content digest must already have been verified independently.
+/// The plan digest is derived from validated semantic fields rather than
+/// accepted from the caller. This function performs no file access, hashing of
+/// artifact bytes, code loading, or weight materialization.
 pub fn parse_bytes(
   document : BytesView,
   content_digest : @spec.ContentDigest,
-  plan_digest : @spec.PlanDigest,
   max_bytes~ : Int,
   max_depth~ : Int,
 ) -> @spec.LlamaModelMetadata raise ModelConfigReaderError {
@@ -79,7 +78,7 @@ pub fn parse_bytes(
     raise ByteLimitExceeded(limit=max_bytes)
   }
   let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
-  parse_text(text, content_digest, plan_digest, max_depth)
+  parse_text(text, content_digest, max_depth)
 }
 
 ///|
@@ -90,11 +89,10 @@ pub fn parse_bytes(
 pub fn parse_string(
   document : StringView,
   content_digest : @spec.ContentDigest,
-  plan_digest : @spec.PlanDigest,
   max_bytes~ : Int,
   max_depth~ : Int,
 ) -> @spec.LlamaModelMetadata raise ModelConfigReaderError {
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
-  parse_text(document, content_digest, plan_digest, max_depth)
+  parse_text(document, content_digest, max_depth)
 }

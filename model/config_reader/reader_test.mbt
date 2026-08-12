@@ -5,7 +5,6 @@ test "selected dense Llama metadata is deterministic across string and bytes" {
   let from_bytes = @config_reader.parse_bytes(
     @utf8.encode(document),
     content_digest(),
-    plan_digest(),
     max_bytes=4096,
     max_depth=8,
   )
@@ -28,7 +27,7 @@ test "selected dense Llama metadata is deterministic across string and bytes" {
   )
   assert_eq(
     from_string.identity().plan().as_hex(),
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "74fa9112c5f8831069cf42e1774b57e34735dbbc654db9d0d035eb4e7b26a426",
   )
 }
 
@@ -58,7 +57,6 @@ test "byte depth UTF-8 JSON and duplicate bounds fail before admission" {
     @config_reader.parse_string(
       selected_config(),
       content_digest(),
-      plan_digest(),
       max_bytes=0,
       max_depth=8,
     )
@@ -72,7 +70,6 @@ test "byte depth UTF-8 JSON and duplicate bounds fail before admission" {
     @config_reader.parse_string(
       selected_config(),
       content_digest(),
-      plan_digest(),
       max_bytes=4096,
       max_depth=0,
     )
@@ -92,7 +89,6 @@ test "byte depth UTF-8 JSON and duplicate bounds fail before admission" {
     @config_reader.parse_bytes(
       ([0xff] : Bytes),
       content_digest(),
-      plan_digest(),
       max_bytes=1,
       max_depth=8,
     )

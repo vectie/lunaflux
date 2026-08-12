@@ -1,1 +1,5 @@
+import {
+  "moonbitlang/x/crypto",
+}
+
 supported_targets = "native"

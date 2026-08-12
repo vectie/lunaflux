@@ -162,11 +162,16 @@ pub fn LlamaModelSpec::kv_dtype(self : LlamaModelSpec) -> ModelDType {
 }
 
 ///|
-pub fn LlamaModelMetadata::new(
+/// Constructs plan-ready metadata from independently verified model content.
+///
+/// This admission constructor does not accept a caller-supplied plan identity.
+/// It derives the plan digest from the complete validated semantic
+/// specification.
+pub fn LlamaModelMetadata::from_verified_content(
   spec : LlamaModelSpec,
-  identity : ModelIdentity,
+  content : ContentDigest,
 ) -> LlamaModelMetadata {
-  { spec, identity }
+  { spec, identity: ModelIdentity::new(content, spec.canonical_plan_digest()) }
 }
 
 ///|

@@ -24,15 +24,53 @@ test "valid dense Llama metadata is plan-ready and immutable" {
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
-  let plan = @spec.PlanDigest::from_sha256(
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-  )
-  let metadata = @spec.LlamaModelMetadata::new(
-    spec,
-    @spec.ModelIdentity::new(content, plan),
-  )
+  let metadata = @spec.LlamaModelMetadata::from_verified_content(spec, content)
   assert_eq(metadata.spec().layer_count(), 32)
   assert_eq(metadata.identity().content().as_hex(), content.as_hex())
+}
+
+///|
+test "canonical plan identity is derived deterministically from semantic fields" {
+  let base = @spec.LlamaModelSpec::new(
+    vocabulary_size=32000,
+    hidden_size=16,
+    intermediate_size=32,
+    layer_count=2,
+    attention_head_count=4,
+    kv_head_count=2,
+    context_length=128,
+    rope_theta=10000.0,
+    rms_norm_epsilon=0.000001,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  )
+  assert_eq(
+    base.canonical_plan_digest().as_hex(),
+    "74fa9112c5f8831069cf42e1774b57e34735dbbc654db9d0d035eb4e7b26a426",
+  )
+  let changed = @spec.LlamaModelSpec::new(
+    vocabulary_size=32000,
+    hidden_size=16,
+    intermediate_size=32,
+    layer_count=2,
+    attention_head_count=4,
+    kv_head_count=2,
+    context_length=128,
+    rope_theta=20000.0,
+    rms_norm_epsilon=0.000001,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  )
+  assert_true(base.canonical_plan_digest() != changed.canonical_plan_digest())
+  let content = @spec.ContentDigest::from_sha256(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  )
+  assert_eq(
+    @spec.LlamaModelMetadata::from_verified_content(base, content)
+    .identity()
+    .plan(),
+    base.canonical_plan_digest(),
+  )
 }
 
 ///|

@@ -16,10 +16,7 @@ fn test_model() -> @spec.LlamaModelMetadata raise {
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
-  let plan = @spec.PlanDigest::from_sha256(
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-  )
-  @spec.LlamaModelMetadata::new(spec, @spec.ModelIdentity::new(content, plan))
+  @spec.LlamaModelMetadata::from_verified_content(spec, content)
 }
 
 ///|
