@@ -1,14 +1,13 @@
 # LunaFlux
 
-> Phase 1 foundation in progress. The repository contains checked MoonBit
-> contracts; bounded configuration, tokenizer, model, and safetensors readers;
-> streaming file-to-device weight loading; immutable semantic and device plans;
-> exact activation/workspace memory and stateless execution profiles;
-> content-addressed AOT catalog, launch, and artifact contracts; deterministic
-> reference kernels; bounded inference and worker-plan contracts; generational
-> KV metadata and prefix indexing; and an offline correctness interpreter
-> validated against an exact pinned upstream BF16 model. It does not yet claim
-> serving readiness, physical-CUDA release evidence, or GPU performance.
+> The Phase 1 physical-hardware promotion gate remains open while checked
+> foundations now span offline reference correctness and bounded host-side
+> online control: focused and resolved configuration, tokenizer and model
+> admission, file-to-device loading, semantic and device plans, AOT execution
+> contracts, reusable worker messages, generational KV metadata and block
+> tables, prefix indexing, sampling, and scheduler request ownership. The
+> repository does not yet claim serving readiness, physical-CUDA release
+> evidence, a continuous-batching execution loop, or GPU performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
@@ -52,7 +51,8 @@ LunaFlux does not own:
 3. The scheduler is a deterministic single owner of request and KV state.
 4. Prefix discovery and physical KV allocation are different concerns.
 5. Production kernels are selected from an AOT capability manifest.
-6. Unsupported combinations fail during startup, never during a live request.
+6. Instance, model, and hardware incompatibilities fail during startup;
+   request-specific unsupported options fail before scheduler activation.
 7. Performance is benchmark evidence, not an architectural claim.
 8. Feature breadth follows correctness and steady-state performance.
 
@@ -71,7 +71,10 @@ decoder-only Llama-style architecture:
 Quantization, tensor parallelism, MoE, multimodal models, LoRA, speculative
 decoding, and prefill/decode disaggregation are later gated capabilities.
 
-## Repository map
+## Target repository map
+
+Directories for API, metrics, and benchmark work are created only when their
+vertical phase begins; the map below records the intended ownership boundaries.
 
 ~~~text
 contracts/          public protocol and lifecycle vocabulary
@@ -117,13 +120,28 @@ vendor projection plans, and preplanned memory into an ordered synchronous
 full-sequence run. It retains explicit cleanup authority even when construction
 and cleanup both fail. The semantic graph still has no cached-KV decode path.
 Canonical request/streaming events and scheduler/worker messages now have
-bounded immutable contracts. Host-side KV metadata has a generational fixed-
-page allocator, and logical full-page prefix reuse has a fixed-capacity token
-trie isolated by model, tokenizer, cache scope, and layout identity. These are
-foundations: the single-owner scheduler, request block tables, device KV arena,
-paged-attention kernels, and online transport remain open. Later packages are
-created only when their vertical phase begins; empty architectural packages
-are deliberately avoided.
+bounded immutable contracts. Worker-protocol foundations include reusable
+fixed-capacity plan and completion buffers, authenticated epochs and row
+drafts, provenance-bound capability recipes, whole-build checkpoints, and
+explicit final-prefill sampling semantics. Host-side KV metadata includes a
+generational fixed-page allocator, a fixed-capacity request block-table arena,
+and inline optional-free page and table identity storage. Logical full-page
+prefix reuse has a fixed-capacity token trie isolated by model, tokenizer,
+cache scope, and layout identity.
+
+Startup-only runtime capacity resolution checks scheduler, cache, model-shape,
+worker, page, block-table, and output-publication envelopes. The scheduler
+foundation owns a fixed request registry and waiting queue, authenticates the
+loaded model and row recipes, and performs bounded tokenized admission,
+cancellation, deadline expiry, and terminal-notice publication. Greedy and
+bounded temperature/top-k/top-p host sampling are implemented with fixed
+scratch and deterministic RNG stream semantics. These remain foundations:
+request activation and page/block-table transactions, plan build/submit/retire,
+generated-token publication, continuous batching and fairness policy, prefix
+integration, device KV, paged-attention kernels, online transport and sampling
+integration, whole-token-step allocation evidence, and physical-CUDA gates are
+open. Later packages are created only when their vertical phase begins; empty
+architectural packages are deliberately avoided.
 
 ## Validation
 

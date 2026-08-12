@@ -224,9 +224,11 @@ fixed-page KV arena.
 - invariant checker enabled in debug/test builds;
 - allocation snapshot fixtures.
 
-The host metadata allocator and its randomized ownership fixtures are now
-implemented. Device KV storage, per-request block tables, and scheduler-owned
-transaction integration remain part of this phase gate.
+The host page allocator, fixed-capacity per-request block-table arena, inline
+page/table identity storage, and randomized ownership fixtures are now
+implemented. The scheduler constructs both owners from resolved startup
+capacity, but request activation, cross-owner allocation/rollback, terminal
+release, and device KV storage remain part of this phase gate.
 
 ### Workstream 2: device KV arena
 
@@ -248,6 +250,16 @@ transaction integration remain part of this phase gate.
 - exact capacity rejection before request activation;
 - double-buffered SchedulePlan descriptors.
 
+Startup capacity resolution and the bounded single-owner request registry are
+implemented foundations. Resolution checks the worker, model, page,
+block-table, row, and generated-token publication envelopes. Admission then
+authenticates model/recipe provenance and checks context, physical-page,
+request, waiting, and deadline bounds; cancellation and deadline expiry are
+generation-safe and transactional with respect to terminal-notice capacity.
+Request activation, decode-first and aging policy, page/block-table
+transactions, chunk planning, plan submission, completion retirement,
+stop-token/output enforcement, and generated-token publication remain open.
+
 ### Workstream 4: worker overlap
 
 - scheduler constructs plan N+1 during plan N execution;
@@ -255,9 +267,12 @@ transaction integration remain part of this phase gate.
 - steady-state host buffers and rings are preallocated;
 - stale plan and completion generations are rejected.
 
-The immutable worker-plan/completion vocabulary and stale-generation checks
-are implemented. Reusable double-buffer construction and live worker overlap
-remain open and must pass the allocation-instrumentation gate below.
+The immutable fixture vocabulary, reusable fixed-capacity plan/completion
+buffers, authenticated lifecycle epochs, scalar row drafts, provenance-bound
+capability recipes, whole-build checkpoints, final-prefill output semantics,
+and stale-generation checks are implemented. Scheduler-owned distinct A/B
+buffer pairing, build/retire integration, live worker overlap, and the runtime
+allocation-instrumentation gate remain open.
 
 ### Gate
 
@@ -407,6 +422,13 @@ supported capability set.
 - startup memory/capacity report;
 - install, upgrade, drain, rollback, and troubleshooting guides;
 - OCI build with exact runtime dependencies and kernel manifest.
+
+A bounded host sampler now implements temperature, top-k, top-p, a specified
+deterministic RNG stream, strict finite-logit validation, and fixed scratch
+storage.
+Online/device execution integration, stop-string matching, whole-path native
+allocation instrumentation, operator ergonomics, and production benchmark
+evidence remain part of this phase.
 
 ### Gate
 

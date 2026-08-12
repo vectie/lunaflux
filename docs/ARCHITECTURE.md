@@ -1,5 +1,9 @@
 # LunaFlux architecture
 
+This document defines the target architecture. Implemented evidence and open
+gates are recorded in [STATUS.md](STATUS.md); present-tense topology below does
+not by itself claim that the online service or device-KV path exists today.
+
 ## System context
 
 LunaFlux is an instance-level execution engine. Deployment systems are callers,
@@ -68,9 +72,12 @@ Admitted
 Any non-terminal scheduling state may become Cancelled or Failed.
 ~~~
 
-Admission validates model identity, context bounds, sampling bounds, stop-set
-limits, deadline viability, and security cache scope before allocating request
-state. Tokenization produces an immutable token buffer.
+Outer protocol validation establishes the admitted request and the tokenizer
+owns the `Tokenizing` transition. It produces an immutable token buffer before
+the scheduler receives a `TokenizedRequest`; scheduler-owned slot state begins
+at `Waiting`. Before taking that slot, the scheduler validates selected model
+identity, context and physical-page envelopes, deadline viability, and the
+already-bounded request options it supports. It never tokenizes text.
 
 Cancellation increments a request generation. A completion for an older
 generation may retire GPU work but cannot publish output or reuse released
@@ -84,7 +91,8 @@ The scheduler is a deterministic, single-writer state machine. Inputs are:
 - completion records;
 - cancellations and deadlines;
 - page availability;
-- immutable model and kernel capabilities;
+- resolved runtime capacity and authenticated prefill/decode row capability
+  recipes;
 - the configured step token budget.
 
 Each iteration:
@@ -95,12 +103,21 @@ Each iteration:
 4. continue eligible decode rows, subject to fairness;
 5. admit prefix-rich waiting requests;
 6. use remaining token budget for chunked prefill;
-7. resolve operation shapes to kernel capability IDs;
+7. apply the provenance-bound capability recipe for each selected row;
 8. write the next immutable plan and submit it.
 
 Policy is decode-first with bounded waiting-time aging. Initial preemption is
 recompute-only; host KV swapping is excluded. The same scheduler snapshot and
 inputs must produce the same plan.
+
+The current scheduler implementation stops before this iteration: it owns a
+bounded tokenized-request registry, FIFO waiting queue, cancellation/deadline
+transitions, terminal notices, and startup-created host page/block-table
+owners. Activation, page/table transactions, plan construction and retirement,
+generated-token publication, continuous batching, fairness/preemption policy,
+and prefix integration remain open. Capability IDs are copied from authenticated
+model-generation recipes; scheduler policy does not inspect model operations or
+select kernels.
 
 The scheduler package may depend on request, KV, prefix, and capability types.
 It may not depend on API, tokenizer implementation, model-family adapters,
@@ -285,6 +302,11 @@ ResolvedPlan containing:
 
 The CLI command lunaflux plan prints this structure before model
 materialization. Components receive only the configuration subset they use.
+
+The implemented subset is `ResolvedRuntimeCapacity`: it checks scheduler,
+cache, model-shape, worker-protocol, page, block-table, and output-publication
+envelopes and materializes bounded host-owner limits. The full device/kernel
+`ResolvedPlan` and its CLI explanation remain target behavior.
 
 ## Failure model
 

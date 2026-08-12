@@ -62,7 +62,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   Hugging Face Tokenizers sources. Five independently generated cases cover
   ranked merges, spaces, multibyte Unicode, a literal zero byte, newlines, and
   byte-exact decoding.
-- Bounded deterministic greedy sampling with stable lowest-token tie breaking.
+- Bounded deterministic greedy sampling with stable lowest-token tie breaking,
+  plus temperature/top-k/top-p stochastic sampling over fixed scratch storage.
+  The stochastic path rejects non-finite logits before advancing its specified
+  xorshift64 stream and preserves deterministic lowest-token tie ordering.
+  Online/device integration, whole-path allocation instrumentation, and
+  production performance evidence remain open.
 - A private dynamically loaded CUDA Driver/cuBLASLt ABI with opaque handles,
   explicit retryable resource release, parent-child ownership, and a semantic
   public device inventory. Unsupported hosts report a typed unavailability
@@ -124,23 +129,46 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public
   failure vocabulary.
-- A backend-neutral immutable worker protocol for exact prefill/decode rows,
-  flattened token/page/capability tables, plan and model generations,
-  completion slots, and typed completion records. Submitted-work validation is
-  separated from the scheduler's current-generation publication check.
-- A generational fixed-page KV metadata allocator with preallocated arrays, an
-  intrusive FIFO free queue, separate active and cached references, exact-run
-  rollback, terminal-generation retirement, invariant diagnostics, and a
-  randomized ownership model test.
+- A backend-neutral worker protocol for exact prefill/decode rows, flattened
+  token/page/capability tables, plan and model generations, completion slots,
+  and typed completion records. Its reusable fixed-capacity plan and completion
+  buffers authenticate lifecycle epochs; scalar row drafts avoid temporary
+  table construction; final prefill explicitly returns the first generated
+  token; provenance-bound row capability recipes preserve exact model-plan
+  operation order; and whole-build checkpoints can roll back several committed
+  rows. Submitted-work validation remains separate from the scheduler's
+  current-generation publication check. Scheduler-owned A/B buffer pairing and
+  live worker overlap are not yet integrated.
+- A generational fixed-page KV metadata `PageAllocator` with preallocated
+  arrays, an intrusive FIFO free queue, separate active and cached references,
+  exact-run rollback, terminal-generation retirement, invariant diagnostics,
+  and a randomized ownership model test.
+- A fixed-capacity request `BlockTableArena` with generational table ownership,
+  preallocated dense page mappings, reusable rollback/release buffers, and
+  randomized ownership fixtures. Canonical inline `PageIdStorage` and
+  `BlockTableIdStorage` retain optional identities without boxed option cells;
+  they do not acquire or release the underlying resources.
 - A fixed-capacity logical token-prefix trie with full-page-only longest-prefix
   reuse, complete cache identity salting, generational entry IDs, transactional
   result buffers, active references, deterministic zero-reference eviction,
   and explicit bounded linear-scan complexity. It never owns device memory or
   mutates physical page ownership.
 - Focused scheduler and cache configuration records for token/request budgets,
-  chunked prefill, waiting-age policy, the two-plan-buffer invariant, physical
-  page/block-table limits, prefix metadata arenas, reference bounds, and cache
-  layout identity. Cross-component page geometry remains a resolved-plan gate.
+  chunked prefill, waiting-age policy, the two-plan-buffer invariant, bounded
+  generated-token publication, physical page/block-table limits, prefix
+  metadata arenas, reference bounds, and cache layout identity. Startup-only
+  runtime capacity resolution now checks the scheduler, cache, model-shape, and
+  worker envelopes and materializes canonical page-allocator and block-table
+  limits. The scheduler subsequently authenticates exact prefill/decode row
+  recipes against the loaded model generation and capability-cell capacity.
+- A deterministic single-owner scheduler foundation with fixed request slots,
+  an intrusive FIFO waiting queue, globally unique request generations, bounded
+  terminal notices, and tokenized admission against the resolved runtime plan.
+  It validates model identity, duplicate IDs, context/page envelopes, deadlines,
+  and recipe provenance, and it explicitly rejects nonempty stop strings;
+  cancellation and deadline sweeps preflight publication and identity capacity
+  before mutation. It constructs host page and block-table owners at startup
+  but does not yet activate a request or allocate a table/page run for it.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -167,18 +195,21 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
   macOS leak detection was unavailable, so the full sanitizer/leak gate remains
   open.
-- A device KV arena, request block-table owner, paged-attention execution, or
-  true incremental decode. Host page identities and logical prefix metadata
-  are implemented, but the current semantic graph has no KV
-  input, cache position, page table, or block mapping. Device profiles therefore
-  support only stateless full prefill and full-sequence recomputation. The
-  reference interpreter deliberately retains intermediate activations and
-  recomputes the full sequence during generation; it is a correctness oracle,
-  not a fallback.
-- Online APIs, a single-owner scheduling state machine, continuous batching,
-  device paged KV, stochastic sampling execution, or telemetry. Request,
-  worker, page-allocation, prefix-index, and runtime-configuration foundations
-  exist but are not an online service.
+- A device KV arena, scheduler activation transaction that acquires a request
+  block table and physical pages, block-table upload, paged-attention execution,
+  or true incremental decode. The host page allocator, block-table arena, and
+  logical prefix metadata are implemented, but the current semantic graph has
+  no KV input, cache position, page table, or block mapping. Device profiles
+  therefore support only stateless full prefill and full-sequence
+  recomputation. The reference interpreter deliberately retains intermediate
+  activations and recomputes the full sequence during generation; it is a
+  correctness oracle, not a fallback.
+- Online APIs, scheduler plan build/submit/retire and generated-token
+  publication, continuous batching and fairness policy, live worker overlap,
+  device paged KV, online sampling and prefix integration, or telemetry. The
+  scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
+  prefix-index, and runtime-capacity foundations exist but are not an online
+  service. No whole-token-step allocation or bounded-waiting claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains
@@ -191,6 +222,7 @@ The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
 sanitizer and leak gates, with physical concurrency/race evidence still open.
-KV ownership and true cached decode remain open. Performance and
-production-readiness claims remain out of scope until physical correctness,
-resource balance, soak, and benchmark evidence passes.
+Cross-owner activation/retirement transactions, device KV ownership, and true
+cached decode remain open. Performance and production-readiness claims remain
+out of scope until physical correctness, resource balance, soak, and benchmark
+evidence passes.

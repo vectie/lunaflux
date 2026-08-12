@@ -71,9 +71,10 @@ The canonical request carries:
 - cache-scope identity and cache permission;
 - opaque trace correlation without tenant semantics.
 
-The scheduler converts the request into internal token IDs and immutable
-limits. Compatibility endpoints translate into this representation before
-admission.
+Compatibility endpoints translate into the canonical request before outer
+admission. At the tokenizer boundary, normalized text becomes an immutable
+token buffer. The scheduler accepts only a `TokenizedRequest` carrying that
+buffer and already-bounded immutable limits; it never parses or tokenizes text.
 
 Streaming events are typed:
 
@@ -188,4 +189,3 @@ The first usable release must:
 9. produce reproducible comparisons against pinned vLLM and SGLang baselines;
 10. run behind LunaNexa as an opaque runtime without either repository importing
     the other.
-
