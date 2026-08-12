@@ -3,6 +3,7 @@ package "vectie/lunaflux/sampling"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
 }
 
 // Values
@@ -12,12 +13,21 @@ pub fn greedy_float(ArrayView[Float], SamplingLimits) -> Selection raise Samplin
 
 pub fn greedy_rows(ArrayView[Double], Int, Int, SamplingLimits) -> ReadOnlyArray[Selection] raise SamplingError
 
+pub fn prepare_distribution(ArrayView[Double], @inference.SamplingParameters, SamplingLimits, SamplerScratch) -> Int raise SamplingError
+
+pub fn stochastic_sample(ArrayView[Double], @inference.SamplingParameters, SamplingLimits, SamplingRng, SamplerScratch) -> Selection raise SamplingError
+
 // Errors
 pub(all) suberror SamplingError {
   InvalidLimit(LimitDimension)
+  InvalidSeed
   EmptyInput
   InvalidShape
   LimitExceeded(LimitDimension)
+  ScratchTooSmall(required~ : Int, capacity~ : Int)
+  InvalidSamplingMode
+  CandidateIndexOutOfRange(index~ : Int, count~ : Int)
+  InvalidDistribution
   NonFiniteLogit(row~ : Int, token_id~ : Int)
 } derive(Eq, @debug.Debug)
 
@@ -27,6 +37,15 @@ pub(all) enum LimitDimension {
   TokensPerRow
 } derive(Eq, @debug.Debug)
 
+pub struct SamplerScratch {
+  // private fields
+}
+pub fn SamplerScratch::candidate_count(Self) -> Int
+pub fn SamplerScratch::candidate_probability(Self, Int) -> Double raise SamplingError
+pub fn SamplerScratch::candidate_token_id(Self, Int) -> Int raise SamplingError
+pub fn SamplerScratch::capacity(Self) -> Int
+pub fn SamplerScratch::new(Int, SamplingLimits) -> Self raise SamplingError
+
 pub struct SamplingLimits {
   max_rows : Int
   max_tokens_per_row : Int
@@ -34,6 +53,19 @@ pub struct SamplingLimits {
 pub fn SamplingLimits::max_rows(Self) -> Int
 pub fn SamplingLimits::max_tokens_per_row(Self) -> Int
 pub fn SamplingLimits::new(Int, Int) -> Self raise SamplingError
+
+pub struct SamplingRng {
+  // private fields
+}
+pub fn SamplingRng::from_seed(SamplingSeed) -> Self
+pub fn SamplingRng::reseed(Self, SamplingSeed) -> Unit
+pub fn SamplingRng::state(Self) -> UInt64
+
+pub struct SamplingSeed {
+  // private fields
+} derive(Eq)
+pub fn SamplingSeed::new(UInt64) -> Self raise SamplingError
+pub fn SamplingSeed::value(Self) -> UInt64
 
 pub struct Selection {
   token_id : Int

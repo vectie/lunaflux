@@ -12,9 +12,14 @@ pub(all) enum LimitDimension {
 /// logit values and input contents are deliberately omitted.
 pub(all) suberror SamplingError {
   InvalidLimit(LimitDimension)
+  InvalidSeed
   EmptyInput
   InvalidShape
   LimitExceeded(LimitDimension)
+  ScratchTooSmall(required~ : Int, capacity~ : Int)
+  InvalidSamplingMode
+  CandidateIndexOutOfRange(index~ : Int, count~ : Int)
+  InvalidDistribution
   NonFiniteLogit(row~ : Int, token_id~ : Int)
 } derive(Debug, Eq)
 
