@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

@@ -1,0 +1,88 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/artifact"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@catalog.ResolvedKernelCatalog, ArrayView[KernelArtifactInput], KernelArtifactLimits) -> KernelArtifactBundle raise KernelArtifactError
+
+// Errors
+pub(all) suberror KernelArtifactError {
+  InvalidLimit(KernelArtifactLimit)
+  ArtifactCountExceeded(maximum~ : Int)
+  EmptyModule(@catalog.AotArtifactDigest)
+  ModuleTooLarge(digest~ : @catalog.AotArtifactDigest, maximum~ : Int64)
+  TotalModuleBytesExceeded(maximum~ : Int64)
+  InvalidFunctionSymbol(digest~ : @catalog.AotArtifactDigest, rule~ : FunctionSymbolRule)
+  DigestMismatch(@catalog.AotArtifactDigest)
+  DuplicateArtifact(@catalog.AotArtifactDigest)
+  MissingArtifact(@catalog.AotArtifactDigest)
+  UnreferencedArtifact(@catalog.AotArtifactDigest)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum FunctionSymbolRule {
+  Empty
+  TooLong
+  NonAscii
+  InvalidInitial
+  InvalidContinuation
+} derive(Eq, @debug.Debug)
+
+pub struct KernelArtifactBundle {
+  model_identity : @spec.ModelIdentity
+  device_target : @catalog.DeviceTarget
+  catalog_version : @catalog.CatalogVersion
+  entries : ReadOnlyArray[KernelArtifactEntry]
+  total_module_bytes : Int64
+}
+pub fn KernelArtifactBundle::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn KernelArtifactBundle::device_target(Self) -> @catalog.DeviceTarget
+pub fn KernelArtifactBundle::entries(Self) -> ReadOnlyArray[KernelArtifactEntry]
+pub fn KernelArtifactBundle::entry(Self, @catalog.AotArtifactDigest) -> KernelArtifactEntry?
+pub fn KernelArtifactBundle::length(Self) -> Int
+pub fn KernelArtifactBundle::model_identity(Self) -> @spec.ModelIdentity
+pub fn KernelArtifactBundle::total_module_bytes(Self) -> Int64
+
+pub struct KernelArtifactEntry {
+  digest : @catalog.AotArtifactDigest
+  module_bytes : Bytes
+  function_symbol : String
+}
+pub fn KernelArtifactEntry::digest(Self) -> @catalog.AotArtifactDigest
+pub fn KernelArtifactEntry::function_symbol(Self) -> String
+pub fn KernelArtifactEntry::module_bytes(Self) -> Bytes
+
+pub struct KernelArtifactInput {
+  digest : @catalog.AotArtifactDigest
+  module_bytes : FixedArray[Byte]
+  function_symbol : String
+}
+pub fn KernelArtifactInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes~ : FixedArray[Byte], function_symbol~ : String) -> Self
+
+pub(all) enum KernelArtifactLimit {
+  ArtifactCount
+  ModuleBytes
+  TotalModuleBytes
+  FunctionSymbolBytes
+} derive(Eq, @debug.Debug)
+
+pub struct KernelArtifactLimits {
+  max_artifacts : Int
+  max_module_bytes : Int64
+  max_total_module_bytes : Int64
+  max_function_symbol_bytes : Int
+} derive(Eq, @debug.Debug)
+pub fn KernelArtifactLimits::max_artifacts(Self) -> Int
+pub fn KernelArtifactLimits::max_function_symbol_bytes(Self) -> Int
+pub fn KernelArtifactLimits::max_module_bytes(Self) -> Int64
+pub fn KernelArtifactLimits::max_total_module_bytes(Self) -> Int64
+pub fn KernelArtifactLimits::new(max_artifacts~ : Int, max_module_bytes~ : Int64, max_total_module_bytes~ : Int64, max_function_symbol_bytes~ : Int) -> Self raise KernelArtifactError
+
+// Type aliases
+
+// Traits
