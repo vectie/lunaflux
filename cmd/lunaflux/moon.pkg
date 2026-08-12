@@ -4,6 +4,7 @@ import {
   "vectie/lunaflux/config/model",
   "vectie/lunaflux/config/resolved",
   "vectie/lunaflux/config/service",
+  "vectie/lunaflux/device" @hardware,
   "moonbitlang/core/env",
 }
 

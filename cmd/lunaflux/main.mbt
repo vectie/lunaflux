@@ -8,13 +8,34 @@ fn print_usage() -> Unit {
 }
 
 ///|
+fn unavailable_device_reason(reason : @hardware.UnavailableReason) -> String {
+  match reason {
+    UnsupportedPlatform => "unsupported platform"
+    DriverLibraryMissing => "driver library missing"
+    DriverAbiIncomplete => "driver ABI incomplete"
+    DriverInitializationFailed => "driver initialization failed"
+    NoDevices => "no devices"
+    InventoryFailed => "inventory failed"
+  }
+}
+
+///|
 fn print_doctor() -> Unit {
   println("LunaFlux foundation inspection")
   println("contracts: ready")
   println("configuration validators: ready")
-  println("byte-BPE foundation: ready")
-  println("model metadata validators: ready")
-  println("CUDA ABI and device probe: not implemented")
+  println("bounded tokenizer JSON admission: ready")
+  println("bounded model metadata and weight-manifest validation: ready")
+  match @hardware.probe() {
+    Available(driver_version~, devices~) =>
+      println(
+        "CUDA device probe: available; driver \{driver_version}; devices \{devices.length()}",
+      )
+    Unavailable(reason) =>
+      println(
+        "CUDA device probe: unavailable; \{unavailable_device_reason(reason)}",
+      )
+  }
   println("offline inference: not implemented")
   println("readiness: false")
 }
