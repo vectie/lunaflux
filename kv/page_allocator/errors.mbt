@@ -2,6 +2,7 @@
 /// Startup bounds accepted by the fixed-page metadata allocator.
 pub(all) enum PageAllocatorLimitRule {
   PageCapacity
+  StorageCapacity
   RunCapacity
   ActiveReferences
   CachedReferences
@@ -39,6 +40,8 @@ pub(all) suberror PageAllocatorError {
   InvalidRunLength
   RunBufferTooSmall
   RunIndexOutOfBounds
+  StorageIndexOutOfBounds
+  StorageCellEmpty
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)

@@ -23,6 +23,12 @@ run, retain, and release operations do not grow collections or return mutable
 internal arrays. `debug_snapshot` and `debug_check_invariants` are explicit
 startup/test diagnostics and may allocate.
 
+`PageIdStorage` is the canonical fixed-capacity container for other host
+metadata packages that need to retain opaque page identities without boxing
+optional values or exposing an invalid sentinel. It stores identities inline
+behind an occupancy bitmap. The container does not acquire or release physical
+page references; its caller remains responsible for allocator ownership.
+
 Source and native-object inspection show no collection growth and no allocation
 call on the successful native allocation/run/reference paths. Failure paths may
 allocate a checked error value. The stronger release claim of zero general-heap

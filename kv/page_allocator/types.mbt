@@ -29,6 +29,18 @@ pub struct PageRunBuffer {
 }
 
 ///|
+/// Opaque fixed storage for canonical inline page identities.
+///
+/// The allocator package initializes unused cells with its private invalid
+/// sentinel. The public API never returns that sentinel: reads require an
+/// occupied cell. Construction allocates both fixed arrays; successful
+/// reads, writes, clears, and occupancy checks grow no collection.
+pub struct PageIdStorage {
+  priv pages : FixedArray[PageId]
+  priv occupied : FixedArray[Bool]
+}
+
+///|
 /// Diagnostic residency of one physical page slot.
 pub(all) enum PageResidency {
   Free

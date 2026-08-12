@@ -13,6 +13,8 @@ pub(all) suberror PageAllocatorError {
   InvalidRunLength
   RunBufferTooSmall
   RunIndexOutOfBounds
+  StorageIndexOutOfBounds
+  StorageCellEmpty
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)
@@ -55,6 +57,7 @@ pub(all) enum PageAllocatorInvariantRule {
 
 pub(all) enum PageAllocatorLimitRule {
   PageCapacity
+  StorageCapacity
   RunCapacity
   ActiveReferences
   CachedReferences
@@ -90,6 +93,16 @@ pub fn PageAllocatorSnapshot::retired_page_count(Self) -> Int
 pub struct PageId(Int, Int) derive(Eq, Hash, @debug.Debug)
 pub fn PageId::generation(Self) -> Int
 pub fn PageId::index(Self) -> Int
+
+pub struct PageIdStorage {
+  // private fields
+}
+pub fn PageIdStorage::capacity(Self) -> Int
+pub fn PageIdStorage::clear(Self, Int) -> Unit raise PageAllocatorError
+pub fn PageIdStorage::is_occupied(Self, Int) -> Bool raise PageAllocatorError
+pub fn PageIdStorage::new(Int) -> Self raise PageAllocatorError
+pub fn PageIdStorage::read(Self, Int) -> PageId raise PageAllocatorError
+pub fn PageIdStorage::write(Self, Int, PageId) -> Unit raise PageAllocatorError
 
 pub(all) enum PageReferenceKind {
   Active
