@@ -1,0 +1,139 @@
+///|
+type Context
+
+///|
+type Stream
+
+///|
+type Event
+
+///|
+type Allocation
+
+///|
+type Module
+
+///|
+type Function
+
+///|
+type CublasLt
+
+///|
+#borrow(output)
+extern "c" fn raw_probe(output : FixedArray[Int64]) -> Int = "lunaflux_cuda_probe"
+
+///|
+#borrow(numeric, name)
+extern "c" fn raw_device_info(
+  ordinal : Int,
+  numeric : FixedArray[Int64],
+  name : FixedArray[Byte],
+) -> Int = "lunaflux_cuda_device_info"
+
+///|
+#borrow(status)
+extern "c" fn raw_context_create(ordinal : Int, status : Ref[Int]) -> Context = "lunaflux_cuda_context_create"
+
+///|
+#borrow(context)
+extern "c" fn raw_context_close(context : Context) -> Int = "lunaflux_cuda_context_close"
+
+///|
+#borrow(context, status)
+extern "c" fn raw_stream_create(context : Context, status : Ref[Int]) -> Stream = "lunaflux_cuda_stream_create"
+
+///|
+#borrow(stream)
+extern "c" fn raw_stream_close(stream : Stream) -> Int = "lunaflux_cuda_stream_close"
+
+///|
+#borrow(stream)
+extern "c" fn raw_stream_synchronize(stream : Stream) -> Int = "lunaflux_cuda_stream_synchronize"
+
+///|
+#borrow(context, status)
+extern "c" fn raw_event_create(context : Context, status : Ref[Int]) -> Event = "lunaflux_cuda_event_create"
+
+///|
+#borrow(event)
+extern "c" fn raw_event_close(event : Event) -> Int = "lunaflux_cuda_event_close"
+
+///|
+#borrow(event, stream)
+extern "c" fn raw_event_record(event : Event, stream : Stream) -> Int = "lunaflux_cuda_event_record"
+
+///|
+#borrow(event)
+extern "c" fn raw_event_synchronize(event : Event) -> Int = "lunaflux_cuda_event_synchronize"
+
+///|
+#borrow(start, finish, status)
+extern "c" fn raw_event_elapsed(
+  start : Event,
+  finish : Event,
+  status : Ref[Int],
+) -> Double = "lunaflux_cuda_event_elapsed"
+
+///|
+#borrow(context, status)
+extern "c" fn raw_allocation_create(
+  context : Context,
+  byte_count : Int64,
+  status : Ref[Int],
+) -> Allocation = "lunaflux_cuda_allocation_create"
+
+///|
+#borrow(allocation)
+extern "c" fn raw_allocation_close(allocation : Allocation) -> Int = "lunaflux_cuda_allocation_close"
+
+///|
+#borrow(allocation, source)
+extern "c" fn raw_copy_to_device(
+  allocation : Allocation,
+  source : Bytes,
+  byte_count : Int64,
+) -> Int = "lunaflux_cuda_copy_to_device"
+
+///|
+#borrow(allocation, status)
+extern "c" fn raw_copy_to_host(
+  allocation : Allocation,
+  byte_count : Int64,
+  status : Ref[Int],
+) -> Bytes = "lunaflux_cuda_copy_to_host"
+
+///|
+#borrow(context, image, status)
+extern "c" fn raw_module_load(
+  context : Context,
+  image : Bytes,
+  status : Ref[Int],
+) -> Module = "lunaflux_cuda_module_load"
+
+///|
+#borrow(module_)
+extern "c" fn raw_module_close(module_ : Module) -> Int = "lunaflux_cuda_module_close"
+
+///|
+#borrow(module_, name, status)
+extern "c" fn raw_function_load(
+  module_ : Module,
+  name : Bytes,
+  status : Ref[Int],
+) -> Function = "lunaflux_cuda_function_load"
+
+///|
+#borrow(function_)
+extern "c" fn raw_function_close(function_ : Function) -> Int = "lunaflux_cuda_function_close"
+
+///|
+#borrow(context, status)
+extern "c" fn raw_cublas_create(
+  context : Context,
+  status : Ref[Int],
+) -> CublasLt = "lunaflux_cuda_cublas_create"
+
+///|
+#borrow(handle)
+extern "c" fn raw_cublas_close(handle : CublasLt) -> Int = "lunaflux_cuda_cublas_close"

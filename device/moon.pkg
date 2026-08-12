@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/internal/cuda",
+}
+
+supported_targets = "native"

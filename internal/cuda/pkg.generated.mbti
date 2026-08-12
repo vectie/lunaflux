@@ -1,0 +1,124 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/cuda"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn device_info(Int) -> RawDeviceInfo raise CudaError
+
+pub fn open_context(Int) -> Context raise CudaError
+
+pub fn probe() -> DriverInventory
+
+// Errors
+pub(all) suberror CudaError {
+  Unavailable(CudaOperation)
+  InvalidArgument(CudaOperation)
+  Closed(CudaOperation)
+  Busy(CudaOperation)
+  DriverFailure(CudaOperation)
+  HostAllocationFailed(CudaOperation)
+  SizeOverflow(CudaOperation)
+  Unsupported(CudaOperation)
+  InvalidOutput(CudaOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+type Allocation
+pub fn Allocation::close(Self) -> Unit raise CudaError
+pub fn Allocation::copy_from_host(Self, Bytes, Int64) -> Unit raise CudaError
+pub fn Allocation::copy_to_host(Self, Int64) -> Bytes raise CudaError
+
+type Context
+pub fn Context::allocate(Self, Int64) -> Allocation raise CudaError
+pub fn Context::close(Self) -> Unit raise CudaError
+pub fn Context::create_cublas_lt(Self) -> CublasLt raise CudaError
+pub fn Context::create_event(Self) -> Event raise CudaError
+pub fn Context::create_stream(Self) -> Stream raise CudaError
+pub fn Context::load_module(Self, Bytes) -> Module raise CudaError
+
+type CublasLt
+pub fn CublasLt::close(Self) -> Unit raise CudaError
+
+pub(all) enum CudaOperation {
+  DeviceInventory
+  ContextCreate
+  ContextClose
+  StreamCreate
+  StreamClose
+  StreamSynchronize
+  EventCreate
+  EventClose
+  EventRecord
+  EventSynchronize
+  EventElapsed
+  AllocationCreate
+  AllocationClose
+  CopyToDevice
+  CopyToHost
+  ModuleLoad
+  ModuleClose
+  FunctionLoad
+  FunctionClose
+  CublasLtCreate
+  CublasLtClose
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DriverAvailability {
+  Available
+  UnsupportedPlatform
+  DriverLibraryMissing
+  DriverAbiIncomplete
+  DriverInitializationFailed
+  NoDevices
+  InventoryFailed
+} derive(Eq, @debug.Debug)
+
+pub struct DriverInventory {
+  availability : DriverAvailability
+  driver_version : Int
+  device_count : Int
+  cublas_lt_available : Bool
+} derive(Eq, @debug.Debug)
+pub fn DriverInventory::availability(Self) -> DriverAvailability
+pub fn DriverInventory::cublas_lt_available(Self) -> Bool
+pub fn DriverInventory::device_count(Self) -> Int
+pub fn DriverInventory::driver_version(Self) -> Int
+
+type Event
+pub fn Event::close(Self) -> Unit raise CudaError
+pub fn Event::elapsed_milliseconds(Self, Self) -> Double raise CudaError
+pub fn Event::record(Self, Stream) -> Unit raise CudaError
+pub fn Event::synchronize(Self) -> Unit raise CudaError
+
+type Function
+pub fn Function::close(Self) -> Unit raise CudaError
+
+type Module
+pub fn Module::close(Self) -> Unit raise CudaError
+pub fn Module::load_function(Self, Bytes) -> Function raise CudaError
+
+pub struct RawDeviceInfo {
+  total_memory_bytes : Int64
+  compute_major : Int
+  compute_minor : Int
+  supports_bf16 : Bool
+  cublas_lt_available : Bool
+  name : String
+} derive(Eq, @debug.Debug)
+pub fn RawDeviceInfo::compute_major(Self) -> Int
+pub fn RawDeviceInfo::compute_minor(Self) -> Int
+pub fn RawDeviceInfo::cublas_lt_available(Self) -> Bool
+pub fn RawDeviceInfo::name(Self) -> String
+pub fn RawDeviceInfo::supports_bf16(Self) -> Bool
+pub fn RawDeviceInfo::total_memory_bytes(Self) -> Int64
+
+type Stream
+pub fn Stream::close(Self) -> Unit raise CudaError
+pub fn Stream::synchronize(Self) -> Unit raise CudaError
+
+// Type aliases
+
+// Traits

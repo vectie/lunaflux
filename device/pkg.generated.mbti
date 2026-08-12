@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/device"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn probe() -> ProbeResult
+
+// Errors
+
+// Types and methods
+pub struct DeviceCapability {
+  compute_major : Int
+  compute_minor : Int
+  total_memory_bytes : Int64
+  supports_bf16 : Bool
+  supports_cublas_lt : Bool
+} derive(Eq, @debug.Debug)
+pub fn DeviceCapability::compute_major(Self) -> Int
+pub fn DeviceCapability::compute_minor(Self) -> Int
+pub fn DeviceCapability::supports_bf16(Self) -> Bool
+pub fn DeviceCapability::supports_cublas_lt(Self) -> Bool
+pub fn DeviceCapability::total_memory_bytes(Self) -> Int64
+
+pub struct DeviceInfo {
+  ordinal : Int
+  name : String
+  capability : DeviceCapability
+} derive(Eq, @debug.Debug)
+pub fn DeviceInfo::capability(Self) -> DeviceCapability
+pub fn DeviceInfo::name(Self) -> String
+pub fn DeviceInfo::ordinal(Self) -> Int
+
+pub(all) enum ProbeResult {
+  Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])
+  Unavailable(UnavailableReason)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum UnavailableReason {
+  UnsupportedPlatform
+  DriverLibraryMissing
+  DriverAbiIncomplete
+  DriverInitializationFailed
+  NoDevices
+  InventoryFailed
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
