@@ -8,6 +8,8 @@ import {
 // Values
 pub fn greedy(ArrayView[Double], SamplingLimits) -> Selection raise SamplingError
 
+pub fn greedy_float(ArrayView[Float], SamplingLimits) -> Selection raise SamplingError
+
 pub fn greedy_rows(ArrayView[Double], Int, Int, SamplingLimits) -> ReadOnlyArray[Selection] raise SamplingError
 
 // Errors

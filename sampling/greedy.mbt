@@ -42,6 +42,41 @@ pub fn greedy(
 }
 
 ///|
+/// Selects the greatest finite binary32 logit from one borrowed row.
+///
+/// This avoids widening or copying reference-kernel output before selection.
+/// Equal logits choose the lowest token ID; the returned logit is widened to
+/// `Double` only after selection.
+pub fn greedy_float(
+  logits : ArrayView[Float],
+  limits : SamplingLimits,
+) -> Selection raise SamplingError {
+  if logits.is_empty() {
+    raise EmptyInput
+  }
+  if logits.length() > limits.max_tokens_per_row() {
+    raise LimitExceeded(TokensPerRow)
+  }
+  let first = logits[0]
+  if first.is_nan() || first.is_inf() {
+    raise NonFiniteLogit(row=0, token_id=0)
+  }
+  let mut best_token = 0
+  let mut best_logit = first
+  for token_id in 1..<logits.length() {
+    let logit = logits[token_id]
+    if logit.is_nan() || logit.is_inf() {
+      raise NonFiniteLogit(row=0, token_id~)
+    }
+    if logit > best_logit {
+      best_token = token_id
+      best_logit = logit
+    }
+  }
+  { token_id: best_token, logit: best_logit.to_double() }
+}
+
+///|
 /// Selects one token from each row of a borrowed flattened row-major matrix.
 ///
 /// Results are bounded by `limits.max_rows`; logits remain borrowed and are

@@ -10,6 +10,9 @@ test "greedy selects boundaries, negatives, and lowest tied token" {
   let tied = @sampling.greedy([-3.0, 5.0, 5.0, 4.0], limits)
   assert_eq(tied.token_id(), 1)
   assert_eq(tied.logit(), 5.0)
+  let float_tied = @sampling.greedy_float([-3.0F, 5.0F, 5.0F, 4.0F], limits)
+  assert_eq(float_tied.token_id(), 1)
+  assert_eq(float_tied.logit(), 5.0)
 }
 
 ///|
