@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "moonbitlang/x/crypto",
+}
+
+supported_targets = "native"

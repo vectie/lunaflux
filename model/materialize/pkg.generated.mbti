@@ -1,0 +1,115 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/materialize"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn copy_to_host(@llama_weights.LlamaWeightBindings, BytesView, limits~ : MaterializationLimits) -> HostMaterialization raise MaterializationError
+
+pub fn visit(@llama_weights.LlamaWeightBindings, BytesView, limits~ : MaterializationLimits, (TensorChunk) -> Unit raise?) -> Result[MaterializationReport, MaterializationError] raise?
+
+// Errors
+pub(all) suberror MaterializationError {
+  InvalidLimit(MaterializationLimit)
+  MissingHeaderLength
+  HeaderLengthOverflow
+  HeaderTooLarge
+  TruncatedHeader
+  PayloadTooLarge
+  EnvelopeLengthMismatch
+  MaterializedSizeOverflow
+  TooManyTensors
+  MissingBinding(reference~ : Int)
+  BindingOrderMismatch(reference~ : Int)
+  InvalidTensorRange(reference~ : Int)
+  TensorRangeOutsidePayload(reference~ : Int)
+  TensorRangeOverflow(reference~ : Int)
+  MaterializedSizeMismatch
+  HostMaterializationTooLarge
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct HostMaterialization {
+  identity : @spec.ModelIdentity
+  tensors : ReadOnlyArray[HostTensor]
+  total_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn HostMaterialization::identity(Self) -> @spec.ModelIdentity
+pub fn HostMaterialization::length(Self) -> Int
+pub fn HostMaterialization::tensor(Self, @plan.TensorRef) -> HostTensor?
+pub fn HostMaterialization::total_bytes(Self) -> Int64
+
+pub struct HostTensor {
+  reference : @plan.TensorRef
+  tensor : @safetensors.TensorMetadata
+  bytes : Bytes
+  checksum : TensorChecksum
+} derive(Eq, @debug.Debug)
+pub fn HostTensor::bytes(Self) -> Bytes
+pub fn HostTensor::checksum(Self) -> TensorChecksum
+pub fn HostTensor::reference(Self) -> @plan.TensorRef
+pub fn HostTensor::tensor(Self) -> @safetensors.TensorMetadata
+
+pub(all) enum MaterializationLimit {
+  HeaderBytes
+  TensorCount
+  PayloadBytes
+  HostBytes
+} derive(Eq, @debug.Debug)
+
+pub struct MaterializationLimits {
+  max_header_bytes : Int
+  max_tensor_count : Int
+  max_payload_bytes : Int64
+  max_host_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn MaterializationLimits::max_header_bytes(Self) -> Int
+pub fn MaterializationLimits::max_host_bytes(Self) -> Int64
+pub fn MaterializationLimits::max_payload_bytes(Self) -> Int64
+pub fn MaterializationLimits::max_tensor_count(Self) -> Int
+pub fn MaterializationLimits::new(max_header_bytes~ : Int, max_tensor_count~ : Int, max_payload_bytes~ : Int64, max_host_bytes~ : Int64) -> Self raise MaterializationError
+
+pub struct MaterializationReport {
+  identity : @spec.ModelIdentity
+  tensors : ReadOnlyArray[TensorReceipt]
+  total_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn MaterializationReport::identity(Self) -> @spec.ModelIdentity
+pub fn MaterializationReport::length(Self) -> Int
+pub fn MaterializationReport::receipt(Self, @plan.TensorRef) -> TensorReceipt?
+pub fn MaterializationReport::total_bytes(Self) -> Int64
+
+pub struct TensorChecksum {
+  hex : String
+} derive(Eq, @debug.Debug)
+pub fn TensorChecksum::as_hex(Self) -> String
+
+pub struct TensorChunk {
+  reference : @plan.TensorRef
+  tensor : @safetensors.TensorMetadata
+  bytes : BytesView
+  checksum : TensorChecksum
+} derive(Eq, @debug.Debug)
+pub fn TensorChunk::bytes(Self) -> BytesView
+pub fn TensorChunk::checksum(Self) -> TensorChecksum
+pub fn TensorChunk::reference(Self) -> @plan.TensorRef
+pub fn TensorChunk::tensor(Self) -> @safetensors.TensorMetadata
+
+pub struct TensorReceipt {
+  reference : @plan.TensorRef
+  byte_length : Int64
+  checksum : TensorChecksum
+} derive(Eq, @debug.Debug)
+pub fn TensorReceipt::byte_length(Self) -> Int64
+pub fn TensorReceipt::checksum(Self) -> TensorChecksum
+pub fn TensorReceipt::reference(Self) -> @plan.TensorRef
+
+// Type aliases
+
+// Traits

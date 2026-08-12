@@ -11,3 +11,7 @@ repository = "https://github.com/vectie/lunaflux"
 license = "Apache-2.0"
 
 preferred_target = "native"
+
+import {
+  "moonbitlang/x@0.4.48",
+}
