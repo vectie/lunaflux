@@ -1,0 +1,137 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/block_table"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kv/page_allocator",
+}
+
+// Values
+
+// Errors
+pub(all) suberror BlockTableError {
+  InvalidLimit(BlockTableLimitRule)
+  Exhausted
+  StaleTable(BlockTableId)
+  TableNotAllocated(BlockTableId)
+  TableNotEmpty(BlockTableId)
+  InvalidPageCount
+  InvalidTruncateLength(BlockTableId)
+  TableFull(BlockTableId)
+  PageBufferTooSmall
+  PageBufferIndexOutOfBounds
+  PositionUnset
+  SnapshotIndexOutOfBounds
+  LogicalPageIndexOutOfBounds(BlockTableId)
+  TokenPositionOutOfBounds(BlockTableId)
+  InvariantViolation(BlockTableInvariantRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct BlockTableArena {
+  // private fields
+}
+pub fn BlockTableArena::allocate(Self) -> BlockTableId raise BlockTableError
+pub fn BlockTableArena::allocated_table_count(Self) -> Int
+pub fn BlockTableArena::append_page(Self, BlockTableId, @page_allocator.PageId) -> Unit raise BlockTableError
+pub fn BlockTableArena::append_pages(Self, BlockTableId, ArrayView[@page_allocator.PageId]) -> Unit raise BlockTableError
+pub fn BlockTableArena::append_run(Self, BlockTableId, @page_allocator.PageRunBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::copy_pages(Self, BlockTableId, BlockTablePageBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::debug_check_invariants(Self) -> Unit raise BlockTableError
+pub fn BlockTableArena::debug_snapshot(Self) -> BlockTableSnapshot
+pub fn BlockTableArena::free_table_count(Self) -> Int
+pub fn BlockTableArena::limits(Self) -> BlockTableLimits
+pub fn BlockTableArena::new(BlockTableLimits) -> Self raise BlockTableError
+pub fn BlockTableArena::page_at(Self, BlockTableId, Int) -> @page_allocator.PageId raise BlockTableError
+pub fn BlockTableArena::page_count(Self, BlockTableId) -> Int raise BlockTableError
+pub fn BlockTableArena::release(Self, BlockTableId) -> Unit raise BlockTableError
+pub fn BlockTableArena::reset(Self, BlockTableId, BlockTablePageBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::reset_and_release(Self, BlockTableId, BlockTablePageBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::resolve_token_position(Self, BlockTableId, Int, BlockTablePositionBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::retired_table_count(Self) -> Int
+pub fn BlockTableArena::truncate(Self, BlockTableId, Int, BlockTablePageBuffer) -> Unit raise BlockTableError
+
+pub struct BlockTableId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn BlockTableId::generation(Self) -> Int
+pub fn BlockTableId::index(Self) -> Int
+
+pub(all) enum BlockTableInvariantRule {
+  CountPartition
+  QueueEndpoint
+  QueueCycle
+  QueueMembership
+  QueueCount
+  LifecycleState
+  TableShape
+  ClearedCells
+  GenerationRange
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BlockTableLimitRule {
+  TableCapacity
+  PagesPerTable
+  PageCellCapacity
+  TokensPerPage
+  Generation
+} derive(Eq, @debug.Debug)
+
+pub struct BlockTableLimits {
+  table_capacity : Int
+  max_pages_per_table : Int
+  tokens_per_page : Int
+  max_generation : Int
+} derive(Eq, @debug.Debug)
+pub fn BlockTableLimits::max_generation(Self) -> Int
+pub fn BlockTableLimits::max_pages_per_table(Self) -> Int
+pub fn BlockTableLimits::new(table_capacity~ : Int, max_pages_per_table~ : Int, tokens_per_page~ : Int, max_generation? : Int) -> Self raise BlockTableError
+pub fn BlockTableLimits::table_capacity(Self) -> Int
+pub fn BlockTableLimits::tokens_per_page(Self) -> Int
+
+pub struct BlockTablePageBuffer {
+  // private fields
+}
+pub fn BlockTablePageBuffer::capacity(Self) -> Int
+pub fn BlockTablePageBuffer::length(Self) -> Int
+pub fn BlockTablePageBuffer::new(Int) -> Self raise BlockTableError
+pub fn BlockTablePageBuffer::page_at(Self, Int) -> @page_allocator.PageId raise BlockTableError
+
+pub struct BlockTablePositionBuffer {
+  // private fields
+}
+pub fn BlockTablePositionBuffer::clear(Self) -> Unit raise BlockTableError
+pub fn BlockTablePositionBuffer::is_set(Self) -> Bool
+pub fn BlockTablePositionBuffer::logical_page_index(Self) -> Int raise BlockTableError
+pub fn BlockTablePositionBuffer::new() -> Self raise BlockTableError
+pub fn BlockTablePositionBuffer::page(Self) -> @page_allocator.PageId raise BlockTableError
+pub fn BlockTablePositionBuffer::token_offset(Self) -> Int raise BlockTableError
+
+pub(all) enum BlockTableResidency {
+  Free
+  Allocated
+  Retired
+} derive(Eq, @debug.Debug)
+
+pub struct BlockTableSlotSnapshot {
+  id : BlockTableId
+  residency : BlockTableResidency
+  page_count : Int
+} derive(Eq, @debug.Debug)
+pub fn BlockTableSlotSnapshot::id(Self) -> BlockTableId
+pub fn BlockTableSlotSnapshot::page_count(Self) -> Int
+pub fn BlockTableSlotSnapshot::residency(Self) -> BlockTableResidency
+
+pub struct BlockTableSnapshot {
+  free_tables : Int
+  allocated_tables : Int
+  retired_tables : Int
+  slots : ReadOnlyArray[BlockTableSlotSnapshot]
+} derive(Eq, @debug.Debug)
+pub fn BlockTableSnapshot::allocated_table_count(Self) -> Int
+pub fn BlockTableSnapshot::free_table_count(Self) -> Int
+pub fn BlockTableSnapshot::retired_table_count(Self) -> Int
+pub fn BlockTableSnapshot::slot_at(Self, Int) -> BlockTableSlotSnapshot raise BlockTableError
+pub fn BlockTableSnapshot::slot_count(Self) -> Int
+
+// Type aliases
+
+// Traits

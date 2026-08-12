@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/kv/page_allocator",
+}
+
+supported_targets = "native"
