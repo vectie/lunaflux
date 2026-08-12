@@ -43,6 +43,7 @@ pub(all) enum PlanBound {
 
 pub struct StaticDevicePlan {
   identity : @spec.ModelIdentity
+  shape_constraints : @plan.ShapeConstraints
   target : @catalog.DeviceTarget
   catalog_version : @catalog.CatalogVersion
   weight_arena_bytes : Int64
@@ -57,6 +58,7 @@ pub fn StaticDevicePlan::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn StaticDevicePlan::final_output(Self) -> @plan.ActivationRef
 pub fn StaticDevicePlan::identity(Self) -> @spec.ModelIdentity
 pub fn StaticDevicePlan::operations(Self) -> ReadOnlyArray[StaticOperation]
+pub fn StaticDevicePlan::shape_constraints(Self) -> @plan.ShapeConstraints
 pub fn StaticDevicePlan::target(Self) -> @catalog.DeviceTarget
 pub fn StaticDevicePlan::weight_alignment(Self) -> Int64
 pub fn StaticDevicePlan::weight_arena_bytes(Self) -> Int64

@@ -4,7 +4,8 @@
 semantic model plan, a deterministic device-weight layout, and an exact
 resolved kernel catalog. It checks that all three inputs name the same model,
 resolves every weight input to a bounded aligned arena region, preserves
-activation dependencies, and records one exact kernel binding per operation.
+activation dependencies, carries the validated model shape envelope, and
+records one exact kernel binding per operation.
 The complete weight layout is also revalidated and its tensor count is pinned
 in the resulting startup evidence, including regions not referenced by the
 current operation graph.

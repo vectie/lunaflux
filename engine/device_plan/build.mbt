@@ -248,6 +248,7 @@ pub fn build(
   }
   {
     identity: model_plan.identity(),
+    shape_constraints: model_plan.shape_constraints(),
     target: resolved_catalog.device_target(),
     catalog_version: resolved_catalog.catalog_version(),
     weight_arena_bytes: weight_layout.arena_bytes(),

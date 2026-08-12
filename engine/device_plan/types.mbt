@@ -30,6 +30,7 @@ pub struct StaticOperation {
 /// later executor.
 pub struct StaticDevicePlan {
   identity : @spec.ModelIdentity
+  shape_constraints : @plan.ShapeConstraints
   target : @catalog.DeviceTarget
   catalog_version : @catalog.CatalogVersion
   weight_arena_bytes : Int64
@@ -82,6 +83,13 @@ pub fn StaticDevicePlan::identity(
   self : StaticDevicePlan,
 ) -> @spec.ModelIdentity {
   self.identity
+}
+
+///|
+pub fn StaticDevicePlan::shape_constraints(
+  self : StaticDevicePlan,
+) -> @plan.ShapeConstraints {
+  self.shape_constraints
 }
 
 ///|

@@ -5,6 +5,7 @@ test "static device plan pins identity target regions activations and kernels" {
   let kernels = device_plan_catalog_for(semantic)
   let result = @device_plan.build(semantic, layout, kernels)
   assert_eq(result.identity(), semantic.identity())
+  assert_eq(result.shape_constraints(), semantic.shape_constraints())
   assert_eq(result.target(), kernels.device_target())
   assert_eq(result.catalog_version(), kernels.catalog_version())
   assert_eq(result.weight_arena_bytes(), layout.arena_bytes())
