@@ -1,0 +1,344 @@
+///|
+/// Immutable scheduler-to-worker command. Construction defensively copies all
+/// table and row inputs and verifies that row views consume every flattened
+/// table exactly once in prefill-then-decode order. This payload-bearing type
+/// deliberately has no `Debug` implementation.
+pub struct SchedulePlan {
+  sequence : PlanSequence
+  model_plan_generation : ModelPlanGeneration
+  token_budget : Int
+  tokens : ReadOnlyArray[Int]
+  pages : ReadOnlyArray[@page_allocator.PageId]
+  capabilities : ReadOnlyArray[@plan.KernelCapabilityId]
+  prefill_rows : ReadOnlyArray[PrefillRow]
+  decode_rows : ReadOnlyArray[DecodeRow]
+} derive(Eq)
+
+///|
+fn row_error(
+  kind : WorkerRowKind,
+  index : Int,
+  rule : RowRule,
+) -> Unit raise WorkerProtocolError {
+  raise InvalidRow(kind~, index~, rule~)
+}
+
+///|
+fn validate_actual_range(
+  kind : WorkerRowKind,
+  index : Int,
+  start : Int,
+  length : Int,
+  actual_length : Int,
+  expected_start : Int,
+) -> Int raise WorkerProtocolError {
+  if start < 0 {
+    row_error(kind, index, NegativeRangeStart)
+  }
+  if length <= 0 {
+    row_error(kind, index, EmptyRange)
+  }
+  if start > actual_length || length > actual_length - start {
+    row_error(kind, index, RangeOutsideTable)
+  }
+  if start != expected_start {
+    row_error(kind, index, NonContiguousRange)
+  }
+  start + length
+}
+
+///|
+fn is_duplicate_request(
+  request_id : @inference.RequestId,
+  prefill_rows : ArrayView[PrefillRow],
+  prefill_end : Int,
+  decode_rows : ArrayView[DecodeRow],
+  decode_end : Int,
+) -> Bool {
+  for index in 0..<prefill_end {
+    if prefill_rows[index].request_id() == request_id {
+      return true
+    }
+  }
+  for index in 0..<decode_end {
+    if decode_rows[index].request_id() == request_id {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn is_duplicate_slot(
+  slot : CompletionSlot,
+  prefill_rows : ArrayView[PrefillRow],
+  prefill_end : Int,
+  decode_rows : ArrayView[DecodeRow],
+  decode_end : Int,
+) -> Bool {
+  for index in 0..<prefill_end {
+    if prefill_rows[index].completion_slot() == slot {
+      return true
+    }
+  }
+  for index in 0..<decode_end {
+    if decode_rows[index].completion_slot() == slot {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn validate_tokens(
+  tokens : ArrayView[Int],
+  limits : WorkerProtocolLimits,
+) -> Unit raise WorkerProtocolError {
+  if tokens.length() > limits.max_plan_tokens() {
+    raise BoundExceeded(PlanTokens)
+  }
+  for index, token in tokens {
+    if token < 0 || token > limits.max_token_id() {
+      raise InvalidToken(index~)
+    }
+  }
+}
+
+///|
+/// Constructs an exact immutable plan. `token_budget` counts scheduled input
+/// tokens: every prefill chunk token plus one token per decode row.
+pub fn SchedulePlan::new(
+  sequence~ : PlanSequence,
+  model_plan_generation~ : ModelPlanGeneration,
+  token_budget~ : Int,
+  tokens~ : ArrayView[Int],
+  pages~ : ArrayView[@page_allocator.PageId],
+  capabilities~ : ArrayView[@plan.KernelCapabilityId],
+  prefill_rows~ : ArrayView[PrefillRow],
+  decode_rows~ : ArrayView[DecodeRow],
+  limits~ : WorkerProtocolLimits,
+) -> SchedulePlan raise WorkerProtocolError {
+  let prefill_count = prefill_rows.length()
+  let decode_count = decode_rows.length()
+  if prefill_count == 0 && decode_count == 0 {
+    raise EmptyPlan
+  }
+  if prefill_count > limits.max_prefill_rows() {
+    raise BoundExceeded(PrefillRows)
+  }
+  if decode_count > limits.max_decode_rows() {
+    raise BoundExceeded(DecodeRows)
+  }
+  if prefill_count > limits.max_plan_rows() - decode_count {
+    raise BoundExceeded(PlanRows)
+  }
+  validate_tokens(tokens, limits)
+  if pages.length() > limits.max_plan_pages() {
+    raise BoundExceeded(PlanPages)
+  }
+  if capabilities.length() > limits.max_capabilities() {
+    raise BoundExceeded(Capabilities)
+  }
+  let mut token_end = 0
+  let mut page_end = 0
+  let mut capability_end = 0
+  let mut scheduled_tokens = 0
+  for index, row in prefill_rows {
+    if is_duplicate_request(
+        row.request_id(),
+        prefill_rows,
+        index,
+        decode_rows,
+        0,
+      ) {
+      row_error(Prefill, index, DuplicateRequest)
+    }
+    if is_duplicate_slot(
+        row.completion_slot(),
+        prefill_rows,
+        index,
+        decode_rows,
+        0,
+      ) {
+      row_error(Prefill, index, DuplicateCompletionSlot)
+    }
+    token_end = validate_actual_range(
+      Prefill,
+      index,
+      row.tokens().start(),
+      row.tokens().length(),
+      tokens.length(),
+      token_end,
+    )
+    page_end = validate_actual_range(
+      Prefill,
+      index,
+      row.page_table().start(),
+      row.page_table().length(),
+      pages.length(),
+      page_end,
+    )
+    capability_end = validate_actual_range(
+      Prefill,
+      index,
+      row.capabilities().start(),
+      row.capabilities().length(),
+      capabilities.length(),
+      capability_end,
+    )
+    if scheduled_tokens > limits.max_plan_tokens() - row.tokens().length() {
+      raise BoundExceeded(PlanTokens)
+    }
+    scheduled_tokens = scheduled_tokens + row.tokens().length()
+  }
+  for index, row in decode_rows {
+    if is_duplicate_request(
+        row.request_id(),
+        prefill_rows,
+        prefill_count,
+        decode_rows,
+        index,
+      ) {
+      row_error(Decode, index, DuplicateRequest)
+    }
+    if is_duplicate_slot(
+        row.completion_slot(),
+        prefill_rows,
+        prefill_count,
+        decode_rows,
+        index,
+      ) {
+      row_error(Decode, index, DuplicateCompletionSlot)
+    }
+    token_end = validate_actual_range(
+      Decode,
+      index,
+      row.input_token().start(),
+      row.input_token().length(),
+      tokens.length(),
+      token_end,
+    )
+    page_end = validate_actual_range(
+      Decode,
+      index,
+      row.page_table().start(),
+      row.page_table().length(),
+      pages.length(),
+      page_end,
+    )
+    capability_end = validate_actual_range(
+      Decode,
+      index,
+      row.capabilities().start(),
+      row.capabilities().length(),
+      capabilities.length(),
+      capability_end,
+    )
+    if scheduled_tokens >= limits.max_plan_tokens() {
+      raise BoundExceeded(PlanTokens)
+    }
+    scheduled_tokens = scheduled_tokens + 1
+  }
+  if token_end != tokens.length() {
+    raise IncompleteTable(Tokens)
+  }
+  if page_end != pages.length() {
+    raise IncompleteTable(Pages)
+  }
+  if capability_end != capabilities.length() {
+    raise IncompleteTable(Capabilities)
+  }
+  if token_budget <= 0 ||
+    token_budget > limits.max_plan_tokens() ||
+    token_budget != scheduled_tokens {
+    raise TokenBudgetMismatch
+  }
+  {
+    sequence,
+    model_plan_generation,
+    token_budget,
+    tokens: ReadOnlyArray::from_array(tokens),
+    pages: ReadOnlyArray::from_array(pages),
+    capabilities: ReadOnlyArray::from_array(capabilities),
+    prefill_rows: ReadOnlyArray::from_array(prefill_rows),
+    decode_rows: ReadOnlyArray::from_array(decode_rows),
+  }
+}
+
+///|
+pub fn SchedulePlan::sequence(self : SchedulePlan) -> PlanSequence {
+  self.sequence
+}
+
+///|
+pub fn SchedulePlan::model_plan_generation(
+  self : SchedulePlan,
+) -> ModelPlanGeneration {
+  self.model_plan_generation
+}
+
+///|
+pub fn SchedulePlan::token_budget(self : SchedulePlan) -> Int {
+  self.token_budget
+}
+
+///|
+pub fn SchedulePlan::tokens(self : SchedulePlan) -> ReadOnlyArray[Int] {
+  self.tokens
+}
+
+///|
+pub fn SchedulePlan::pages(
+  self : SchedulePlan,
+) -> ReadOnlyArray[@page_allocator.PageId] {
+  self.pages
+}
+
+///|
+pub fn SchedulePlan::capabilities(
+  self : SchedulePlan,
+) -> ReadOnlyArray[@plan.KernelCapabilityId] {
+  self.capabilities
+}
+
+///|
+pub fn SchedulePlan::prefill_rows(
+  self : SchedulePlan,
+) -> ReadOnlyArray[PrefillRow] {
+  self.prefill_rows
+}
+
+///|
+pub fn SchedulePlan::decode_rows(
+  self : SchedulePlan,
+) -> ReadOnlyArray[DecodeRow] {
+  self.decode_rows
+}
+
+///|
+pub fn SchedulePlan::row_count(self : SchedulePlan) -> Int {
+  self.prefill_rows.length() + self.decode_rows.length()
+}
+
+///|
+/// Validates the exact submission order and loaded model generation without
+/// changing either value.
+pub fn SchedulePlan::validate_submission(
+  self : SchedulePlan,
+  previous_sequence : PlanSequence?,
+  loaded_generation : ModelPlanGeneration,
+) -> Unit raise WorkerProtocolError {
+  match previous_sequence {
+    None =>
+      if self.sequence != PlanSequence::first() {
+        raise StalePlanSequence
+      }
+    Some(previous) =>
+      if !self.sequence.immediately_follows(previous) {
+        raise StalePlanSequence
+      }
+  }
+  if self.model_plan_generation != loaded_generation {
+    raise StaleModelPlanGeneration
+  }
+}

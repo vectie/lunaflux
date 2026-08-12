@@ -1,0 +1,242 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/worker_protocol"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+
+// Errors
+pub(all) suberror WorkerProtocolError {
+  InvalidLimit(ProtocolLimit)
+  InvalidIdentity(ProtocolIdentity)
+  IdentityOverflow(ProtocolIdentity)
+  EmptyPlan
+  BoundExceeded(ProtocolLimit)
+  TokenBudgetMismatch
+  InvalidToken(index~ : Int)
+  InvalidCompletionSlot
+  InvalidCompletionToken(slot~ : Int)
+  InvalidView(table~ : ProtocolTable, rule~ : RowRule)
+  InvalidRowDescriptor(kind~ : WorkerRowKind, rule~ : RowRule)
+  InvalidRow(kind~ : WorkerRowKind, index~ : Int, rule~ : RowRule)
+  IncompleteTable(ProtocolTable)
+  CompletionCountMismatch
+  DuplicateCompletionSlot(index~ : Int)
+  UnknownCompletionSlot(index~ : Int)
+  CompletionIdentityMismatch(index~ : Int)
+  CompletionKindMismatch(index~ : Int)
+  CompletionTokenCountMismatch(index~ : Int)
+  StalePlanSequence
+  StaleModelPlanGeneration
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CapabilityView(Int, Int) derive(Eq, @debug.Debug)
+pub fn CapabilityView::end(Self) -> Int
+pub fn CapabilityView::length(Self) -> Int
+pub fn CapabilityView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CapabilityView::start(Self) -> Int
+
+pub struct CompletionEntry {
+  slot : CompletionSlot
+  request_id : @inference.RequestId
+  request_generation : @inference.RequestGeneration
+  outcome : CompletionOutcome
+} derive(Eq)
+pub fn CompletionEntry::decode_completed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, token_id~ : Int, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CompletionEntry::failed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, failure~ : WorkerFailure) -> Self
+pub fn CompletionEntry::is_current(Self, @inference.RequestId, @inference.RequestGeneration) -> Bool
+pub fn CompletionEntry::outcome(Self) -> CompletionOutcome
+pub fn CompletionEntry::prefill_completed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, processed_tokens~ : Int, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CompletionEntry::request_generation(Self) -> @inference.RequestGeneration
+pub fn CompletionEntry::request_id(Self) -> @inference.RequestId
+pub fn CompletionEntry::slot(Self) -> CompletionSlot
+
+pub(all) enum CompletionOutcome {
+  PrefillCompleted(processed_tokens~ : Int)
+  DecodeCompleted(token_id~ : Int)
+  Failed(WorkerFailure)
+} derive(Eq)
+
+pub struct CompletionRecord {
+  sequence : PlanSequence
+  model_plan_generation : ModelPlanGeneration
+  entries : ReadOnlyArray[CompletionEntry]
+} derive(Eq)
+pub fn CompletionRecord::entries(Self) -> ReadOnlyArray[CompletionEntry]
+pub fn CompletionRecord::model_plan_generation(Self) -> ModelPlanGeneration
+pub fn CompletionRecord::new(sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, entries~ : ArrayView[CompletionEntry], limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CompletionRecord::sequence(Self) -> PlanSequence
+pub fn CompletionRecord::validate_for(Self, SchedulePlan) -> Unit raise WorkerProtocolError
+
+pub struct CompletionSlot {
+  value : Int
+} derive(Eq, Hash, @debug.Debug)
+pub fn CompletionSlot::new(Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CompletionSlot::value(Self) -> Int
+
+pub struct DecodeRow {
+  request_id : @inference.RequestId
+  request_generation : @inference.RequestGeneration
+  sequence_token_position : Int
+  input_token : TokenRange
+  page_table : PageTableView
+  capabilities : CapabilityView
+  sampling : @inference.SamplingParameters
+  completion_slot : CompletionSlot
+} derive(Eq, @debug.Debug)
+pub fn DecodeRow::capabilities(Self) -> CapabilityView
+pub fn DecodeRow::completion_slot(Self) -> CompletionSlot
+pub fn DecodeRow::input_token(Self) -> TokenRange
+pub fn DecodeRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn DecodeRow::page_table(Self) -> PageTableView
+pub fn DecodeRow::request_generation(Self) -> @inference.RequestGeneration
+pub fn DecodeRow::request_id(Self) -> @inference.RequestId
+pub fn DecodeRow::sampling(Self) -> @inference.SamplingParameters
+pub fn DecodeRow::sequence_token_position(Self) -> Int
+
+pub struct ModelPlanGeneration {
+  value : UInt64
+} derive(Eq, Hash, @debug.Debug)
+pub fn ModelPlanGeneration::first() -> Self
+pub fn ModelPlanGeneration::from_wire(UInt64) -> Self raise WorkerProtocolError
+pub fn ModelPlanGeneration::immediately_follows(Self, Self) -> Bool
+pub fn ModelPlanGeneration::next(Self) -> Self raise WorkerProtocolError
+pub fn ModelPlanGeneration::value(Self) -> UInt64
+
+pub struct PageTableView(Int, Int) derive(Eq, @debug.Debug)
+pub fn PageTableView::end(Self) -> Int
+pub fn PageTableView::length(Self) -> Int
+pub fn PageTableView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn PageTableView::start(Self) -> Int
+
+pub struct PlanSequence {
+  value : UInt64
+} derive(Eq, Hash, @debug.Debug)
+pub fn PlanSequence::first() -> Self
+pub fn PlanSequence::from_wire(UInt64) -> Self raise WorkerProtocolError
+pub fn PlanSequence::immediately_follows(Self, Self) -> Bool
+pub fn PlanSequence::next(Self) -> Self raise WorkerProtocolError
+pub fn PlanSequence::value(Self) -> UInt64
+
+pub struct PrefillRow {
+  request_id : @inference.RequestId
+  request_generation : @inference.RequestGeneration
+  sequence_token_start : Int
+  tokens : TokenRange
+  page_table : PageTableView
+  capabilities : CapabilityView
+  completion_slot : CompletionSlot
+} derive(Eq, @debug.Debug)
+pub fn PrefillRow::capabilities(Self) -> CapabilityView
+pub fn PrefillRow::completion_slot(Self) -> CompletionSlot
+pub fn PrefillRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn PrefillRow::page_table(Self) -> PageTableView
+pub fn PrefillRow::request_generation(Self) -> @inference.RequestGeneration
+pub fn PrefillRow::request_id(Self) -> @inference.RequestId
+pub fn PrefillRow::sequence_token_start(Self) -> Int
+pub fn PrefillRow::tokens(Self) -> TokenRange
+
+pub(all) enum ProtocolIdentity {
+  PlanSequenceIdentity
+  ModelPlanGenerationIdentity
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProtocolLimit {
+  PrefillRows
+  DecodeRows
+  PlanRows
+  PlanTokens
+  PlanPages
+  Capabilities
+  CompletionSlots
+  SequenceTokens
+  TokenId
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProtocolTable {
+  Tokens
+  Pages
+  Capabilities
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RowRule {
+  EmptyRange
+  NegativeRangeStart
+  RangeOverflow
+  RangeOutsideTable
+  NonContiguousRange
+  InvalidSequencePosition
+  DuplicateRequest
+  DuplicateCompletionSlot
+} derive(Eq, @debug.Debug)
+
+pub struct SchedulePlan {
+  sequence : PlanSequence
+  model_plan_generation : ModelPlanGeneration
+  token_budget : Int
+  tokens : ReadOnlyArray[Int]
+  pages : ReadOnlyArray[@page_allocator.PageId]
+  capabilities : ReadOnlyArray[@plan.KernelCapabilityId]
+  prefill_rows : ReadOnlyArray[PrefillRow]
+  decode_rows : ReadOnlyArray[DecodeRow]
+} derive(Eq)
+pub fn SchedulePlan::capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId]
+pub fn SchedulePlan::decode_rows(Self) -> ReadOnlyArray[DecodeRow]
+pub fn SchedulePlan::model_plan_generation(Self) -> ModelPlanGeneration
+pub fn SchedulePlan::new(sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, token_budget~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], prefill_rows~ : ArrayView[PrefillRow], decode_rows~ : ArrayView[DecodeRow], limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn SchedulePlan::pages(Self) -> ReadOnlyArray[@page_allocator.PageId]
+pub fn SchedulePlan::prefill_rows(Self) -> ReadOnlyArray[PrefillRow]
+pub fn SchedulePlan::row_count(Self) -> Int
+pub fn SchedulePlan::sequence(Self) -> PlanSequence
+pub fn SchedulePlan::token_budget(Self) -> Int
+pub fn SchedulePlan::tokens(Self) -> ReadOnlyArray[Int]
+pub fn SchedulePlan::validate_submission(Self, PlanSequence?, ModelPlanGeneration) -> Unit raise WorkerProtocolError
+
+pub struct TokenRange(Int, Int) derive(Eq, @debug.Debug)
+pub fn TokenRange::end(Self) -> Int
+pub fn TokenRange::length(Self) -> Int
+pub fn TokenRange::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn TokenRange::start(Self) -> Int
+
+pub(all) enum WorkerFailure {
+  ExecutionFailed
+  ResourceUnavailable
+  CancelledBeforeExecution
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerProtocolLimits {
+  max_prefill_rows : Int
+  max_decode_rows : Int
+  max_plan_rows : Int
+  max_plan_tokens : Int
+  max_plan_pages : Int
+  max_capabilities : Int
+  max_completion_slots : Int
+  max_sequence_tokens : Int
+  max_token_id : Int
+} derive(Eq, @debug.Debug)
+pub fn WorkerProtocolLimits::max_capabilities(Self) -> Int
+pub fn WorkerProtocolLimits::max_completion_slots(Self) -> Int
+pub fn WorkerProtocolLimits::max_decode_rows(Self) -> Int
+pub fn WorkerProtocolLimits::max_plan_pages(Self) -> Int
+pub fn WorkerProtocolLimits::max_plan_rows(Self) -> Int
+pub fn WorkerProtocolLimits::max_plan_tokens(Self) -> Int
+pub fn WorkerProtocolLimits::max_prefill_rows(Self) -> Int
+pub fn WorkerProtocolLimits::max_sequence_tokens(Self) -> Int
+pub fn WorkerProtocolLimits::max_token_id(Self) -> Int
+pub fn WorkerProtocolLimits::new(max_prefill_rows~ : Int, max_decode_rows~ : Int, max_plan_rows~ : Int, max_plan_tokens~ : Int, max_plan_pages~ : Int, max_capabilities~ : Int, max_completion_slots~ : Int, max_sequence_tokens~ : Int, max_token_id~ : Int) -> Self raise WorkerProtocolError
+
+pub(all) enum WorkerRowKind {
+  Prefill
+  Decode
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
