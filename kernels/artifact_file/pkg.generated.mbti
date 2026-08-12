@@ -1,0 +1,138 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/artifact_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+}
+
+// Values
+pub async fn load(StringView, StringView, KernelManifestDigest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
+pub fn read_manifest(BytesView, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> KernelArtifactManifest raise KernelArtifactFileError
+
+// Errors
+pub(all) suberror KernelArtifactFileError {
+  InvalidExpectedManifestDigest
+  InvalidLimit(ArtifactFileLimit)
+  InvalidPath(file~ : ArtifactFileRef, issue~ : ArtifactPathIssue)
+  ApprovedRootUnavailable
+  UnsupportedApprovedRootType
+  FileUnavailable(ArtifactFileRef)
+  UnsupportedPathType(ArtifactFileRef)
+  FileTooLarge(file~ : ArtifactFileRef, maximum~ : Int64)
+  TotalModuleBytesExceeded(maximum~ : Int64)
+  FileTruncated(ArtifactFileRef)
+  FileChangedDuringRead(ArtifactFileRef)
+  DigestMismatch(ArtifactFileRef)
+  InvalidUtf8
+  MalformedJson
+  JsonDepthExceeded(maximum~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : ManifestArea, index~ : Int)
+  MissingField(area~ : ManifestArea, field~ : ManifestField)
+  InvalidField(area~ : ManifestArea, field~ : ManifestField, issue~ : ManifestValueIssue, index~ : Int)
+  IdentityMismatch(ManifestIdentityPart)
+  ArtifactRejected(@artifact.KernelArtifactError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ArtifactFileLimit {
+  ManifestBytes
+  JsonDepth
+  PathBytes
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ArtifactFileRef {
+  ManifestFile
+  ModuleFile(Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ArtifactPathIssue {
+  EmptyPath
+  PathTooLong
+  AbsolutePath
+  TraversalSegment
+  InvalidPathCharacter
+  DuplicatePath
+} derive(Eq, @debug.Debug)
+
+pub struct KernelArtifactFileLimits {
+  max_manifest_bytes : Int64
+  max_json_depth : Int
+  max_path_bytes : Int
+  artifact : @artifact.KernelArtifactLimits
+}
+pub fn KernelArtifactFileLimits::artifact(Self) -> @artifact.KernelArtifactLimits
+pub fn KernelArtifactFileLimits::max_json_depth(Self) -> Int
+pub fn KernelArtifactFileLimits::max_manifest_bytes(Self) -> Int64
+pub fn KernelArtifactFileLimits::max_path_bytes(Self) -> Int
+pub fn KernelArtifactFileLimits::new(max_manifest_bytes~ : Int64, max_json_depth~ : Int, max_path_bytes~ : Int, artifact~ : @artifact.KernelArtifactLimits) -> Self raise KernelArtifactFileError
+
+pub struct KernelArtifactManifest {
+  module_digests : ReadOnlyArray[@catalog.AotArtifactDigest]
+  module_path_identifiers : ReadOnlyArray[String]
+  entry_points : ReadOnlyArray[@artifact.KernelEntryPointInput]
+}
+pub fn KernelArtifactManifest::entry_point_count(Self) -> Int
+pub fn KernelArtifactManifest::module_count(Self) -> Int
+
+pub struct KernelManifestDigest(String) derive(Eq, @debug.Debug)
+pub fn KernelManifestDigest::as_hex(Self) -> String
+pub fn KernelManifestDigest::from_sha256(String) -> Self raise KernelArtifactFileError
+
+pub(all) enum ManifestArea {
+  ManifestRoot
+  ManifestModelIdentity
+  ManifestDeviceTarget
+  ManifestModule
+  ManifestEntryPoint
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ManifestField {
+  SchemaVersionField
+  ModelIdentityField
+  ContentSha256Field
+  PlanSha256Field
+  DeviceTargetField
+  ComputeMajorField
+  ComputeMinorField
+  SupportsBf16Field
+  SupportsCublasLtField
+  CatalogVersionField
+  ModulesField
+  ModuleSha256Field
+  ModulePathField
+  EntryPointsField
+  FamilyIdField
+  EntryPointIdField
+  FunctionSymbolField
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ManifestIdentityPart {
+  ModelContentIdentity
+  ModelPlanIdentity
+  DeviceComputeMajor
+  DeviceComputeMinor
+  DeviceBf16Support
+  DeviceCublasLtSupport
+  KernelCatalogVersion
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ManifestValueIssue {
+  ExpectedObject
+  ExpectedArray
+  ExpectedString
+  ExpectedInteger
+  ExpectedBoolean
+  UnsupportedValue
+  InvalidSha256
+  CountExceeded
+  StringTooLong
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
