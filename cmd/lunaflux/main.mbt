@@ -4,7 +4,170 @@ fn print_usage() -> Unit {
   println("usage:")
   println("  lunaflux doctor")
   println("  lunaflux plan MODEL_PATH sha256:DIGEST")
+  println(
+    "  lunaflux reference CONFIG TOKENIZER WEIGHTS CONFIG_SHA TOKENIZER_SHA WEIGHTS_SHA MAX_NEW TOKEN_IDS",
+  )
   println("  lunaflux version")
+}
+
+///|
+const REFERENCE_MAX_TOKENS : Int = 4096
+
+///|
+enum ReferenceArgument {
+  MaximumNewTokens
+  TokenIds
+} derive(Debug, Eq)
+
+///|
+suberror CliError {
+  InvalidReferenceArgument(ReferenceArgument)
+} derive(Debug, Eq)
+
+///|
+fn parse_positive(text : StringView) -> Int raise CliError {
+  let value : Int = @strconv.from_str(text) catch {
+    _ => raise InvalidReferenceArgument(MaximumNewTokens)
+  }
+  if value <= 0 || value > REFERENCE_MAX_TOKENS {
+    raise InvalidReferenceArgument(MaximumNewTokens)
+  }
+  value
+}
+
+///|
+fn parse_token_ids(text : StringView) -> Array[Int] raise CliError {
+  let tokens : Array[Int] = []
+  for part in text.split(",") {
+    if part.is_empty() || tokens.length() >= REFERENCE_MAX_TOKENS {
+      raise InvalidReferenceArgument(TokenIds)
+    }
+    let token : Int = @strconv.from_str(part) catch {
+      _ => raise InvalidReferenceArgument(TokenIds)
+    }
+    if token < 0 {
+      raise InvalidReferenceArgument(TokenIds)
+    }
+    tokens.push(token)
+  }
+  if tokens.is_empty() {
+    raise InvalidReferenceArgument(TokenIds)
+  }
+  tokens
+}
+
+///|
+fn reference_artifact_limits() -> @artifact.ArtifactLimits raise {
+  @artifact.ArtifactLimits::new(
+    max_model_config_bytes=1048576L,
+    max_tokenizer_bytes=67108864L,
+    max_weights_bytes=67108864L,
+    max_total_bytes=135266304L,
+    max_model_config_depth=32,
+    max_tokenizer_depth=64,
+    tokenizer_limits={
+      max_input_bytes: 1048576,
+      max_output_tokens: REFERENCE_MAX_TOKENS,
+      max_decoded_bytes: 4194304,
+      max_vocab_entries: 1048576,
+      max_merge_rules: 1048576,
+      max_token_bytes: 4096,
+      max_special_tokens: 4096,
+    },
+    safetensors_limits=@safetensors.HeaderLimits::new(
+      max_header_bytes=67108864,
+      max_tensor_count=4096,
+      max_rank=2,
+      max_name_length=512,
+      max_payload_bytes=67108864L,
+      max_materialized_tensor_bytes=67108864L,
+    ),
+  )
+}
+
+///|
+fn reference_execution_limits() -> @reference.ExecutionLimits raise {
+  @reference.ExecutionLimits::new(
+    kernels=@refkernels.ReferenceLimits::new(
+      max_rows=REFERENCE_MAX_TOKENS,
+      max_columns=1048576,
+      max_elements=33554432,
+    ),
+    sampling=@sampling.SamplingLimits::new(1, 1048576),
+    max_operations=8192,
+    max_tensors=4096,
+    max_input_tokens=REFERENCE_MAX_TOKENS,
+  )
+}
+
+///|
+fn print_tokens(tokens : ReadOnlyArray[Int]) -> Unit {
+  let output = StringBuilder()
+  for index, token in tokens {
+    if index > 0 {
+      output.write_string(",")
+    }
+    output.write_string(token.to_string())
+  }
+  println("generated token IDs: \{output}")
+}
+
+///|
+async fn run_reference(
+  config_path : String,
+  tokenizer_path : String,
+  weights_path : String,
+  config_sha : String,
+  tokenizer_sha : String,
+  weights_sha : String,
+  maximum_new_text : String,
+  token_text : String,
+) -> Unit {
+  let maximum_new = parse_positive(maximum_new_text)
+  let prompt = parse_token_ids(token_text)
+  if maximum_new > REFERENCE_MAX_TOKENS - prompt.length() {
+    raise InvalidReferenceArgument(MaximumNewTokens)
+  }
+  let paths = @artifact.ArtifactPaths::new(
+    model_config=config_path,
+    tokenizer=tokenizer_path,
+    weights=weights_path,
+  )
+  let expected = @artifact.ExpectedDigests::new(
+    model_config=@artifact.ArtifactDigest::parse(config_sha),
+    tokenizer=@artifact.ArtifactDigest::parse(tokenizer_sha),
+    weights=@artifact.ArtifactDigest::parse(weights_sha),
+  )
+  let bundle = @artifact.load_reference_bundle(
+    paths,
+    expected,
+    reference_artifact_limits(),
+  )
+  let admitted = @llama_admission.complete(bundle.model(), bundle.safetensors())
+  let host = @materialize.copy_to_host(
+    admitted.bindings(),
+    bundle.weights_bytes(),
+    limits=@materialize.MaterializationLimits::new(
+      max_header_bytes=67108864,
+      max_tensor_count=4096,
+      max_payload_bytes=67108864L,
+      max_host_bytes=67108864L,
+    ),
+  )
+  let limits = reference_execution_limits()
+  let prepared = @reference.prepare(admitted.plan(), host, limits~)
+  let generated = @reference.generate(
+    admitted.plan(),
+    prepared,
+    prompt,
+    max_new_tokens=maximum_new,
+    limits~,
+  )
+  println("LunaFlux offline reference execution")
+  println("model content sha256: \{generated.identity().content().as_hex()}")
+  println("input token count: \{generated.input_tokens()}")
+  print_tokens(generated.generated_tokens())
+  println("production readiness: false; correctness path only")
 }
 
 ///|
@@ -37,7 +200,8 @@ fn print_doctor() -> Unit {
       )
   }
   println("offline reference executor: ready (correctness only)")
-  println("model file loading: not implemented")
+  println("bounded reference bundle loading: ready (whole-file snapshot)")
+  println("production streaming model loading: not implemented")
   println("production device execution: not implemented")
   println("readiness: false")
 }
@@ -59,10 +223,26 @@ fn print_plan(model_path : String, digest : String) -> Unit raise {
 }
 
 ///|
-fn main raise {
+async fn main {
   match @env.args() {
     [_, "doctor"] => print_doctor()
     [_, "plan", model_path, digest] => print_plan(model_path, digest)
+    [
+      _,
+      "reference",
+      config_path,
+      tokenizer_path,
+      weights_path,
+      config_sha,
+      tokenizer_sha,
+      weights_sha,
+      maximum_new,
+      token_ids,
+    ] =>
+      run_reference(
+        config_path, tokenizer_path, weights_path, config_sha, tokenizer_sha, weights_sha,
+        maximum_new, token_ids,
+      )
     [_, "version"] => println(@contracts.protocol_version())
     _ => print_usage()
   }

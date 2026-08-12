@@ -1,11 +1,17 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "vectie/lunaflux/cmd/lunaflux"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 
 // Errors
+type CliError derive(Eq, @debug.Debug)
 
 // Types and methods
+type ReferenceArgument derive(Eq, @debug.Debug)
 
 // Type aliases
 

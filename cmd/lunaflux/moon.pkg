@@ -1,11 +1,22 @@
 import {
+  "moonbitlang/async",
   "vectie/lunaflux/contracts",
   "vectie/lunaflux/config/device",
   "vectie/lunaflux/config/model",
   "vectie/lunaflux/config/resolved",
   "vectie/lunaflux/config/service",
   "vectie/lunaflux/device" @hardware,
+  "vectie/lunaflux/engine/reference",
+  "vectie/lunaflux/kernels/reference" @refkernels,
+  "vectie/lunaflux/model/artifact",
+  "vectie/lunaflux/model/llama_admission",
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/sampling",
+  "vectie/lunaflux/tokenizer",
+  "moonbitlang/core/debug",
   "moonbitlang/core/env",
+  "moonbitlang/core/strconv",
 }
 
 supported_targets = "native"
