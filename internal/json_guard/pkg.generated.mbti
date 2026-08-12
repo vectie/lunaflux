@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/json_guard"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn reject_duplicate_object_keys(StringView, max_depth~ : Int) -> Unit raise JsonGuardError
+
+// Errors
+pub(all) suberror JsonGuardError {
+  InvalidDepthLimit
+  DepthLimitExceeded(limit~ : Int)
+  DuplicateObjectKey(depth~ : Int, index~ : Int)
+  MalformedStructure
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

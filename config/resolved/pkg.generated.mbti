@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/resolved"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/device",
+  "vectie/lunaflux/config/model",
+  "vectie/lunaflux/config/service",
+}
+
+// Values
+pub fn resolve(@service.ServiceConfig, @model.ModelConfig, @device.DeviceConfig) -> ResolvedPlan
+
+// Errors
+
+// Types and methods
+pub struct Decision {
+  subject : DecisionSubject
+  reason : DecisionReason
+} derive(Eq, @debug.Debug)
+pub fn Decision::reason(Self) -> DecisionReason
+pub fn Decision::subject(Self) -> DecisionSubject
+
+pub(all) enum DecisionReason {
+  ExplicitConfiguration
+  FirstAllowedArchitecture
+  FirstVisibleDevice
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DecisionSubject {
+  DiagnosticMode
+  ModelArchitecture
+  PrimaryDevice
+  MemoryCeiling
+} derive(Eq, @debug.Debug)
+
+pub struct ResolvedPlan {
+  diagnostic_mode : @service.DiagnosticMode
+  selected_architecture : String
+  primary_device : Int
+  memory_ceiling_bytes : Int64
+  decisions : ReadOnlyArray[Decision]
+} derive(Eq, @debug.Debug)
+pub fn ResolvedPlan::decisions(Self) -> ReadOnlyArray[Decision]
+pub fn ResolvedPlan::diagnostic_mode(Self) -> @service.DiagnosticMode
+pub fn ResolvedPlan::memory_ceiling_bytes(Self) -> Int64
+pub fn ResolvedPlan::primary_device(Self) -> Int
+pub fn ResolvedPlan::selected_architecture(Self) -> String
+
+// Type aliases
+
+// Traits

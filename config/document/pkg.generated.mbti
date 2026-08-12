@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/document"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/device",
+  "vectie/lunaflux/config/model",
+  "vectie/lunaflux/config/resolved",
+  "vectie/lunaflux/config/schema",
+  "vectie/lunaflux/config/service",
+}
+
+// Values
+pub fn parse_bytes(BytesView, max_bytes~ : Int) -> ConfigDocument raise ConfigDocumentError
+
+pub fn parse_string(StringView, max_bytes~ : Int) -> ConfigDocument raise ConfigDocumentError
+
+// Errors
+pub(all) suberror ConfigDocumentError {
+  InvalidByteLimit
+  ByteLimitExceeded(limit~ : Int)
+  InvalidUtf8
+  MalformedJson
+  NonObjectRoot
+  UnsupportedSchemaVersion
+  NestingLimitExceeded(limit~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : DocumentArea, index~ : Int)
+  MissingField(area~ : DocumentArea, field~ : DocumentField)
+  InvalidValue(area~ : DocumentArea, field~ : DocumentField, issue~ : DocumentValueIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ConfigDocument {
+  schema : @schema.DocumentSchema
+  service : @service.ServiceConfig
+  model : @model.ModelConfig
+  device : @device.DeviceConfig
+  resolved_plan : @resolved.ResolvedPlan
+}
+pub fn ConfigDocument::device(Self) -> @device.DeviceConfig
+pub fn ConfigDocument::model(Self) -> @model.ModelConfig
+pub fn ConfigDocument::resolved_plan(Self) -> @resolved.ResolvedPlan
+pub fn ConfigDocument::schema(Self) -> @schema.DocumentSchema
+pub fn ConfigDocument::service(Self) -> @service.ServiceConfig
+
+pub(all) enum DocumentArea {
+  RootArea
+  ServiceArea
+  ModelArea
+  DeviceArea
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DocumentField {
+  SchemaVersionField
+  ServiceObjectField
+  ListenHostField
+  ListenPortField
+  MaxRequestBytesField
+  GracefulDrainMillisecondsField
+  DiagnosticModeField
+  ModelObjectField
+  ArtifactPathField
+  ExpectedDigestField
+  ArchitectureAllowlistField
+  DeviceObjectField
+  VisibleDevicesField
+  MemoryCeilingBytesField
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DocumentValueIssue {
+  ExpectedString
+  ExpectedInteger
+  ExpectedObject
+  ExpectedArray
+  InvalidArrayElement
+  UnsupportedValue
+  RejectedByFocusedValidator
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

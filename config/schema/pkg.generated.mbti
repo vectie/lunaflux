@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/schema"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn validate_document(StringView, ArrayView[String]) -> DocumentSchema raise SchemaError
+
+// Errors
+pub(all) suberror SchemaError {
+  TooManyFields(limit~ : Int)
+  UnsupportedVersion
+  UnknownField(index~ : Int)
+  DuplicateField(index~ : Int, first_index~ : Int)
+  MissingSection(Section)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DocumentSchema {
+  version : SchemaVersion
+}
+pub fn DocumentSchema::version(Self) -> SchemaVersion
+
+pub(all) enum SchemaVersion {
+  V1Alpha1
+} derive(Eq, @debug.Debug)
+pub fn SchemaVersion::name(Self) -> String
+
+pub(all) enum Section {
+  SchemaVersion
+  Service
+  Model
+  Device
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

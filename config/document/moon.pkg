@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/config/schema",
+  "vectie/lunaflux/config/service",
+  "vectie/lunaflux/config/model",
+  "vectie/lunaflux/config/device",
+  "vectie/lunaflux/config/resolved",
+}
+
+supported_targets = "native"

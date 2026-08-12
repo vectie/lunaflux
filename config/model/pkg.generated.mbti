@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/model"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn new(String, String, ArrayView[String]) -> ModelConfig raise ModelConfigError
+
+// Errors
+pub(all) suberror ModelConfigError {
+  Invalid(field~ : ModelField, issue~ : ModelIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ModelConfig {
+  artifact_path : String
+  expected_digest : String
+  architecture_allowlist : ReadOnlyArray[String]
+} derive(Eq, @debug.Debug)
+pub fn ModelConfig::architecture_allowlist(Self) -> ReadOnlyArray[String]
+pub fn ModelConfig::artifact_path(Self) -> String
+pub fn ModelConfig::expected_digest(Self) -> String
+
+pub(all) enum ModelField {
+  ArtifactPath
+  ExpectedDigest
+  ArchitectureAllowlist
+  ArchitectureName
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelIssue {
+  Empty
+  TooLong
+  TooMany
+  InvalidFormat
+  Duplicate
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

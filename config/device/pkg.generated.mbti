@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/device"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn new(ArrayView[Int], Int64) -> DeviceConfig raise DeviceConfigError
+
+// Errors
+pub(all) suberror DeviceConfigError {
+  Invalid(field~ : DeviceField, issue~ : DeviceIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeviceConfig {
+  visible_devices : ReadOnlyArray[Int]
+  memory_ceiling_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceConfig::memory_ceiling_bytes(Self) -> Int64
+pub fn DeviceConfig::visible_devices(Self) -> ReadOnlyArray[Int]
+
+pub(all) enum DeviceField {
+  VisibleDevices
+  DeviceId
+  MemoryCeilingBytes
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceIssue {
+  Empty
+  TooMany
+  BelowMinimum
+  AboveMaximum
+  Duplicate
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

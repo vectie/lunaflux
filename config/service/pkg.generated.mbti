@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/service"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn new(String, Int, Int, Int, DiagnosticMode) -> ServiceConfig raise ServiceConfigError
+
+// Errors
+pub(all) suberror ServiceConfigError {
+  Invalid(field~ : ServiceField, issue~ : ServiceIssue)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DiagnosticMode {
+  Normal
+  Verbose
+} derive(Eq, @debug.Debug)
+
+pub struct ServiceConfig {
+  listen_host : String
+  listen_port : Int
+  max_request_bytes : Int
+  graceful_drain_milliseconds : Int
+  diagnostic_mode : DiagnosticMode
+} derive(Eq, @debug.Debug)
+pub fn ServiceConfig::diagnostic_mode(Self) -> DiagnosticMode
+pub fn ServiceConfig::graceful_drain_milliseconds(Self) -> Int
+pub fn ServiceConfig::listen_host(Self) -> String
+pub fn ServiceConfig::listen_port(Self) -> Int
+pub fn ServiceConfig::max_request_bytes(Self) -> Int
+
+pub(all) enum ServiceField {
+  ListenHost
+  ListenPort
+  MaxRequestBytes
+  GracefulDrainMilliseconds
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ServiceIssue {
+  Empty
+  TooLong
+  ContainsControlCharacter
+  BelowMinimum
+  AboveMaximum
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
