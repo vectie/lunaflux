@@ -201,8 +201,13 @@ fn print_doctor() -> Unit {
   }
   println("offline reference executor: ready (correctness only)")
   println("bounded reference bundle loading: ready (whole-file snapshot)")
-  println("production streaming model loading: not implemented")
-  println("production device execution: not implemented")
+  println(
+    "streaming device weight loading: implemented (approved read-only regular-file contract)",
+  )
+  println("exact static device executor: implemented")
+  println(
+    "physical CUDA correctness and resource gates: not proven on this host",
+  )
   println("readiness: false")
 }
 
