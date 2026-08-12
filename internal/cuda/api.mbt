@@ -207,6 +207,26 @@ pub fn Context::copy_from_fixed_host(
 }
 
 ///|
+/// Copies a bounded allocation range into caller-owned fixed host storage.
+/// The destination remains a writable borrow only until the synchronous
+/// driver call returns.
+pub fn Context::copy_to_fixed_host(
+  self : Context,
+  allocation : Allocation,
+  destination : FixedArray[Byte],
+  source_offset : Int64,
+  destination_offset : Int64,
+  byte_count : Int64,
+) -> Unit raise CudaError {
+  check_status(
+    raw_context_copy_device_to_fixed(
+      self, allocation, destination, source_offset, destination_offset, byte_count,
+    ),
+    CopyToHost,
+  )
+}
+
+///|
 pub fn Allocation::copy_to_host(
   self : Allocation,
   byte_count : Int64,

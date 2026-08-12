@@ -14,6 +14,7 @@ typedef struct lf_transfer_probe_state {
   int32_t allocation_close_status;
   int32_t context_close_status;
   const uint8_t *expected_host_source;
+  uint8_t *expected_host_destination;
   lf_context *active_context;
   lf_allocation *active_allocation;
 } lf_transfer_probe_state;
@@ -62,6 +63,18 @@ static CUresult lf_transfer_to_host(
   size_t byte_count
 ) {
   if (source != LF_TRANSFER_ADDRESS + 4 || byte_count != 6) return 1;
+  if (lf_active_transfer_probe->expected_host_destination != NULL &&
+      destination != lf_active_transfer_probe->expected_host_destination + 5) {
+    return 1;
+  }
+  if (lf_active_transfer_probe->check_close_interlocks != 0) {
+    lf_active_transfer_probe->allocation_close_status =
+      lunaflux_cuda_allocation_close(
+        lf_active_transfer_probe->active_allocation
+      );
+    lf_active_transfer_probe->context_close_status =
+      lunaflux_cuda_context_close(lf_active_transfer_probe->active_context);
+  }
   uint8_t *bytes = (uint8_t *)destination;
   for (size_t index = 0; index < byte_count; index += 1) {
     bytes[index] = (uint8_t)(index + 10);
@@ -253,6 +266,108 @@ static int32_t lf_test_fixed_transfer(
   return result;
 }
 
+static int32_t lf_test_fixed_readback(
+  uint8_t *destination,
+  int32_t destination_length
+) {
+  lf_transfer_probe_state state;
+  memset(&state, 0, sizeof(state));
+  state.allocation_close_status = LF_OK;
+  state.context_close_status = LF_OK;
+  lf_active_transfer_probe = &state;
+  lf_cuda_api api;
+  lf_transfer_api(&api);
+  lf_context *context = lf_transfer_make_context(&api);
+  lf_context *other_context = lf_transfer_make_context(&api);
+  lf_allocation *allocation = lf_transfer_make_allocation(context, 0);
+  state.expected_host_destination = destination;
+  state.check_close_interlocks = 1;
+  state.active_context = context;
+  state.active_allocation = allocation;
+  int32_t result = 0;
+  if (destination_length < 16) {
+    result = 401;
+  } else if (lunaflux_cuda_context_copy_device_to_fixed(
+               context,
+               allocation,
+               destination,
+               4,
+               5,
+               6
+             ) != LF_OK ||
+             state.copy_to_host_calls != 1 ||
+             state.allocation_close_status != LF_BUSY ||
+             state.context_close_status != LF_BUSY ||
+             destination[4] != 0xa5 || destination[5] != 10 ||
+             destination[10] != 15 || destination[11] != 0xa5 ||
+             !lf_transfer_guards_released(context, allocation)) {
+    result = 402;
+  }
+  state.check_close_interlocks = 0;
+  if (result == 0 &&
+      (lunaflux_cuda_context_copy_device_to_fixed(
+         other_context,
+         allocation,
+         destination,
+         4,
+         5,
+         6
+       ) != LF_INVALID_ARGUMENT ||
+       state.copy_to_host_calls != 1 ||
+       !lf_transfer_guards_released(other_context, allocation))) {
+    result = 403;
+  }
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, -1, 0, 1
+      ) !=
+        LF_SIZE_OVERFLOW) result = 404;
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 0, -1, 1
+      ) !=
+        LF_SIZE_OVERFLOW) result = 405;
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 12, 0, 6
+      ) !=
+        LF_INVALID_ARGUMENT) result = 406;
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 0, destination_length - 4, 6
+      ) !=
+        LF_INVALID_ARGUMENT) result = 407;
+  allocation->handle = UINT64_MAX - 2;
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 4, 0, 1
+      ) !=
+        LF_SIZE_OVERFLOW) result = 408;
+  allocation->handle = LF_TRANSFER_ADDRESS;
+  atomic_store(&allocation->state, LF_RESOURCE_CLOSING);
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 4, 5, 6
+      ) !=
+        LF_CLOSED) result = 409;
+  atomic_store(&allocation->state, LF_RESOURCE_LIVE);
+  atomic_store(&context->state, LF_RESOURCE_CLOSING);
+  if (result == 0 &&
+      lunaflux_cuda_context_copy_device_to_fixed(
+        context, allocation, destination, 4, 5, 6
+      ) !=
+        LF_CLOSED) result = 410;
+  atomic_store(&context->state, LF_RESOURCE_LIVE);
+  if (result == 0 && !lf_transfer_guards_released(context, allocation)) {
+    result = 411;
+  }
+  moonbit_decref(allocation);
+  moonbit_decref(other_context);
+  moonbit_decref(context);
+  lf_active_transfer_probe = NULL;
+  return result;
+}
+
 static int32_t lf_test_allocation_retry(void) {
   lf_transfer_probe_state state;
   memset(&state, 0, sizeof(state));
@@ -310,6 +425,30 @@ int32_t lunaflux_cuda_test_fixed_transfer_boundary(
     if (Moonbit_rc_count(Moonbit_object_header(source)) != reference_count) {
       return 310;
     }
+  }
+  return LF_OK;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_cuda_test_fixed_readback_boundary(
+  uint8_t *destination,
+  int32_t cycles
+) {
+  if (destination == NULL || cycles < 1 || cycles > 10000) {
+    return LF_INVALID_ARGUMENT;
+  }
+  int32_t destination_length = Moonbit_array_length(destination);
+  int32_t reference_count = Moonbit_rc_count(
+    Moonbit_object_header(destination)
+  );
+  for (int32_t cycle = 0; cycle < cycles; cycle += 1) {
+    int32_t result = lf_test_fixed_readback(
+      destination,
+      destination_length
+    );
+    if (result != 0) return result;
+    if (Moonbit_rc_count(Moonbit_object_header(destination)) !=
+        reference_count) return 412;
   }
   return LF_OK;
 }

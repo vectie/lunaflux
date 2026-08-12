@@ -71,6 +71,14 @@ if ! rg -q -U \
   failed=1
 fi
 
+if ! rg -q -U \
+  '#borrow\(context, allocation, destination\)\nextern "c" fn raw_context_copy_device_to_fixed' \
+  internal/cuda/ffi.mbt; then
+  printf '%s\n' \
+    'fixed host readback must borrow context, allocation, and destination' >&2
+  failed=1
+fi
+
 fixed_transfer_body=$(sed -n \
   '/^int32_t lunaflux_cuda_context_copy_fixed_to_device(/,/^}/p' \
   internal/cuda/transfers.c)
@@ -86,6 +94,25 @@ elif matches=$(printf '%s\n%s\n' \
   2>/dev/null); then
   printf '%s\n%s\n' \
     'fixed host transfer must not allocate or retain caller storage:' \
+    "$matches" >&2
+  failed=1
+fi
+
+fixed_readback_body=$(sed -n \
+  '/^int32_t lunaflux_cuda_context_copy_device_to_fixed(/,/^}/p' \
+  internal/cuda/transfers.c)
+fixed_readback_helper=$(sed -n \
+  '/^static int32_t lf_copy_from_device_range(/,/^}/p' \
+  internal/cuda/transfers.c)
+if [ -z "$fixed_readback_body" ] || [ -z "$fixed_readback_helper" ]; then
+  printf '%s\n' 'fixed host readback ABI implementation is missing' >&2
+  failed=1
+elif matches=$(printf '%s\n%s\n' \
+  "$fixed_readback_helper" "$fixed_readback_body" | rg -n \
+  'moonbit_make|moonbit_incref|moonbit_decref|malloc|calloc|realloc|free' \
+  2>/dev/null); then
+  printf '%s\n%s\n' \
+    'fixed host readback must not allocate or retain caller storage:' \
     "$matches" >&2
   failed=1
 fi

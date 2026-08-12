@@ -49,6 +49,7 @@ pub fn Context::allocate(Self, Int64) -> Allocation raise DeviceError
 pub fn Context::capability(Self) -> DeviceCapability
 pub fn Context::close(Self) -> Unit raise DeviceError
 pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
+pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
 pub fn Context::create_event(Self) -> Event raise DeviceError
 pub fn Context::create_stream(Self) -> Stream raise DeviceError

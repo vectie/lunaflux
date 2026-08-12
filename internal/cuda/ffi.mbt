@@ -122,6 +122,17 @@ extern "c" fn raw_context_copy_fixed_to_device(
 ) -> Int = "lunaflux_cuda_context_copy_fixed_to_device"
 
 ///|
+#borrow(context, allocation, destination)
+extern "c" fn raw_context_copy_device_to_fixed(
+  context : Context,
+  allocation : Allocation,
+  destination : FixedArray[Byte],
+  source_offset : Int64,
+  destination_offset : Int64,
+  byte_count : Int64,
+) -> Int = "lunaflux_cuda_context_copy_device_to_fixed"
+
+///|
 #borrow(allocation, status)
 extern "c" fn raw_copy_to_host(
   allocation : Allocation,

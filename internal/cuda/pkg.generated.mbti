@@ -41,6 +41,7 @@ type Context
 pub fn Context::allocate(Self, Int64) -> Allocation raise CudaError
 pub fn Context::close(Self) -> Unit raise CudaError
 pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise CudaError
+pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise CudaError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise CudaError
 pub fn Context::create_event(Self) -> Event raise CudaError
 pub fn Context::create_stream(Self) -> Stream raise CudaError

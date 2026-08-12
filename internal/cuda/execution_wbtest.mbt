@@ -12,6 +12,13 @@ extern "c" fn raw_test_fixed_transfer_boundary(
 ) -> Int = "lunaflux_cuda_test_fixed_transfer_boundary"
 
 ///|
+#borrow(destination)
+extern "c" fn raw_test_fixed_readback_boundary(
+  destination : FixedArray[Byte],
+  cycles : Int,
+) -> Int = "lunaflux_cuda_test_fixed_readback_boundary"
+
+///|
 extern "c" fn raw_test_region_validation(cycles : Int) -> Int = "lunaflux_cuda_test_region_validation"
 
 ///|
@@ -33,6 +40,16 @@ test "fixed host transfers borrow exact storage and enforce lifecycle guards" {
 }
 
 ///|
+test "fixed host readback writes exact storage and enforces lifecycle guards" {
+  let destination = FixedArray::make(32, b'\xa5')
+  assert_eq(raw_test_fixed_readback_boundary(destination, 256), 0)
+  assert_eq(destination[4], 0xa5)
+  assert_eq(destination[5], 10)
+  assert_eq(destination[10], 15)
+  assert_eq(destination[11], 0xa5)
+}
+
+///|
 test "native GEMM retains balanced retryable ownership" {
   assert_eq(raw_test_execution_boundary(256), 0)
 }
@@ -44,6 +61,8 @@ test "native execution probe rejects unbounded repetition" {
   let source = FixedArray::make(32, b'\x00')
   assert_eq(raw_test_fixed_transfer_boundary(source, 0), -2)
   assert_eq(raw_test_fixed_transfer_boundary(source, 10001), -2)
+  assert_eq(raw_test_fixed_readback_boundary(source, 0), -2)
+  assert_eq(raw_test_fixed_readback_boundary(source, 10001), -2)
   assert_eq(raw_test_execution_boundary(0), -2)
   assert_eq(raw_test_execution_boundary(10001), -2)
   assert_eq(raw_test_region_validation(0), -2)

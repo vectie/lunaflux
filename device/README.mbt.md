@@ -28,11 +28,14 @@ asynchronous transfer. `Allocation::copy_from_host` preserves the immutable
 `Bytes` loading API. `Context::copy_from_fixed_host` accepts caller-owned
 preallocated `FixedArray[Byte]` staging storage without materializing an
 intermediate buffer; it also proves that the destination allocation belongs to
-that exact context while both native resources are guarded against close. Phase
-1 BF16 GEMM also synchronizes its caller-owned stream before returning, so the
-plan, operands, workspace, and stream cannot be closed while device work still
-references them. Later asynchronous execution requires an explicit completion
-object that owns those lifetimes.
+that exact context while both native resources are guarded against close.
+`Context::copy_to_fixed_host` provides the symmetric allocation-free readback
+into caller-owned staging storage, while `Allocation::copy_to_host` preserves
+the allocating `Bytes` API for correctness-only callers. Phase 1 BF16 GEMM also
+synchronizes its caller-owned stream before returning, so the plan, operands,
+workspace, and stream cannot be closed while device work still references
+them. Later asynchronous execution requires an explicit completion object that
+owns those lifetimes.
 
 Native resources reject close with `Busy` while an operation is active. Parent
 creation and child retention use the same interlock, preventing concurrent

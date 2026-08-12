@@ -117,6 +117,92 @@ int32_t lunaflux_cuda_context_copy_fixed_to_device(
   return status;
 }
 
+static int32_t lf_copy_from_device_range(
+  lf_allocation *allocation,
+  uint8_t *destination,
+  size_t destination_size,
+  int64_t source_offset,
+  int64_t destination_offset,
+  int64_t byte_count
+) {
+  if (destination == NULL) return LF_INVALID_ARGUMENT;
+  if (source_offset < 0 || destination_offset < 0 || byte_count < 0 ||
+      (uint64_t)source_offset > SIZE_MAX ||
+      (uint64_t)destination_offset > SIZE_MAX ||
+      (uint64_t)byte_count > SIZE_MAX) return LF_SIZE_OVERFLOW;
+  size_t destination_start = (size_t)destination_offset;
+  size_t count = (size_t)byte_count;
+  if (destination_start > destination_size ||
+      count > destination_size - destination_start) {
+    return LF_INVALID_ARGUMENT;
+  }
+  if ((uintptr_t)destination_start > UINTPTR_MAX - (uintptr_t)destination) {
+    return LF_SIZE_OVERFLOW;
+  }
+  CUdeviceptr source = 0;
+  int32_t status = lf_allocation_region_address(
+    allocation,
+    source_offset,
+    count,
+    1,
+    1,
+    &source
+  );
+  if (status == LF_OK) status = lf_context_current(allocation->context);
+  if (status == LF_OK) {
+    status = lf_cuda_map_result(allocation->context->api->cuMemcpyDtoH(
+      destination + destination_start,
+      source,
+      count
+    ));
+  }
+  return status;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_cuda_context_copy_device_to_fixed(
+  lf_context *context,
+  lf_allocation *allocation,
+  uint8_t *destination,
+  int64_t source_offset,
+  int64_t destination_offset,
+  int64_t byte_count
+) {
+  if (context == NULL || allocation == NULL) return LF_CLOSED;
+  int32_t status = lf_operation_begin(
+    &context->state,
+    &context->active_operations
+  );
+  if (status != LF_OK) return status;
+  int allocation_acquired = 0;
+  status = lf_operation_begin(
+    &allocation->state,
+    &allocation->active_operations
+  );
+  if (status == LF_OK) allocation_acquired = 1;
+  if (status == LF_OK && allocation->context != context) {
+    status = LF_INVALID_ARGUMENT;
+  }
+  if (status == LF_OK) {
+    size_t destination_size = destination == NULL
+      ? 0
+      : (size_t)Moonbit_array_length(destination);
+    status = lf_copy_from_device_range(
+      allocation,
+      destination,
+      destination_size,
+      source_offset,
+      destination_offset,
+      byte_count
+    );
+  }
+  if (allocation_acquired != 0) {
+    lf_operation_end(&allocation->active_operations);
+  }
+  lf_operation_end(&context->active_operations);
+  return status;
+}
+
 MOONBIT_FFI_EXPORT
 moonbit_bytes_t lunaflux_cuda_copy_to_host(
   lf_allocation *allocation,
