@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/plan",
+} for "test"
+
+import {
+  "vectie/lunaflux/model/plan",
+} for "wbtest"

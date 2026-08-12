@@ -1,0 +1,87 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/device_arena"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn preflight(@spec.ModelIdentity, @device_layout.DeviceKvLayout) -> DeviceKvArenaPlan raise DeviceKvArenaError
+
+pub fn prepare(@device.Context, @spec.ModelIdentity, @device_layout.DeviceKvLayout) -> DeviceKvArenaPreparation raise DeviceKvArenaError
+
+// Errors
+pub(all) suberror DeviceKvArenaError {
+  InvalidLayout(DeviceKvArenaRule)
+  AllocationSizeMismatch
+  WrongContext
+  Closed
+  DeviceFailed(DeviceKvArenaStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeviceKvArena {
+  // private fields
+}
+pub fn DeviceKvArena::arena_bytes(Self) -> Int64
+pub fn DeviceKvArena::close(Self) -> Unit raise DeviceKvArenaError
+pub fn DeviceKvArena::context_ordinal(Self) -> Int
+pub fn DeviceKvArena::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceKvArena::is_closed(Self) -> Bool
+pub fn DeviceKvArena::is_usable(Self) -> Bool
+pub fn DeviceKvArena::kernel_argument(Self, @device.Context) -> @device.KernelArgument raise DeviceKvArenaError
+pub fn DeviceKvArena::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn DeviceKvArena::plan(Self) -> DeviceKvArenaPlan
+pub fn DeviceKvArena::region_kernel_argument(Self, @device.Context, Int, @device_layout.DeviceKvComponent, Int) -> @device.KernelArgument raise DeviceKvArenaError
+pub fn DeviceKvArena::validate_region(Self, @device.Context, Int, @device_layout.DeviceKvComponent, Int) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError
+
+pub struct DeviceKvArenaPlan {
+  // private fields
+}
+pub fn DeviceKvArenaPlan::arena_bytes(Self) -> Int64
+pub fn DeviceKvArenaPlan::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceKvArenaPlan::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn DeviceKvArenaPlan::segment_alignment_bytes(Self) -> Int64
+
+pub(all) enum DeviceKvArenaPreparation {
+  Ready(DeviceKvArena)
+  CleanupRequired(FailedDeviceKvArenaPreparation)
+}
+
+pub(all) enum DeviceKvArenaRule {
+  Identity
+  LayoutVersion
+  SegmentAlignment
+  PageLogicalBytes
+  PageStride
+  ComponentStride
+  LayerStride
+  ArenaBytes
+  ArenaLimit
+  FirstRegion
+  LastRegion
+  RegionIndex
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceKvArenaStage {
+  AllocationCreate
+  AllocationValidation
+  RegionValidation
+  KernelBinding
+  AllocationClose
+} derive(Eq, @debug.Debug)
+
+pub struct FailedDeviceKvArenaPreparation {
+  // private fields
+}
+pub fn FailedDeviceKvArenaPreparation::cause(Self) -> DeviceKvArenaError
+pub fn FailedDeviceKvArenaPreparation::cleanup_failure(Self) -> DeviceKvArenaError
+pub fn FailedDeviceKvArenaPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceKvArenaPreparation::retry_close(Self) -> Unit raise DeviceKvArenaError
+
+// Type aliases
+
+// Traits
