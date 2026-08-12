@@ -305,6 +305,7 @@ pub fn SchedulePlanBuffer::rollback_draft(Self, PlanRowDraft) -> Unit raise Work
 pub fn SchedulePlanBuffer::rollback_to(Self, PlanBuildCheckpoint) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::state(Self) -> PlanBufferState
 pub fn SchedulePlanBuffer::submit(Self, sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, token_budget~ : Int, PlanSequence?, ModelPlanGeneration) -> SubmittedSchedulePlan raise WorkerProtocolError
+pub fn SchedulePlanBuffer::submit_wire(Self, sequence_value~ : UInt64, model_plan_generation_value~ : UInt64, token_budget~ : Int, has_previous~ : Bool, previous_sequence_value~ : UInt64, loaded_generation_value~ : UInt64) -> SubmittedSchedulePlan raise WorkerProtocolError
 
 pub struct SubmittedCompletion(CompletionBuffer, UInt64)
 pub fn SubmittedCompletion::entry(Self, Int) -> SubmittedCompletionEntry raise WorkerProtocolError
@@ -350,12 +351,14 @@ pub fn SubmittedSchedulePlan::capability_count(Self) -> Int raise WorkerProtocol
 pub fn SubmittedSchedulePlan::decode_count(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::decode_row(Self, Int) -> SubmittedDecodeRow raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::model_plan_generation(Self) -> ModelPlanGeneration raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::model_plan_generation_wire(Self) -> UInt64 raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::page_at(Self, Int) -> @page_allocator.PageId raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::page_count(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::prefill_count(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::prefill_row(Self, Int) -> SubmittedPrefillRow raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::row_count(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::sequence(Self) -> PlanSequence raise WorkerProtocolError
+pub fn SubmittedSchedulePlan::sequence_wire(Self) -> UInt64 raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::token_at(Self, Int) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::token_budget(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::token_count(Self) -> Int raise WorkerProtocolError

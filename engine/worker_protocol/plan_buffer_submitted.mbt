@@ -47,14 +47,34 @@ fn check_row_index(
 pub fn SubmittedSchedulePlan::sequence(
   self : SubmittedSchedulePlan,
 ) -> PlanSequence raise WorkerProtocolError {
-  self.authenticate().sequence
+  let owner = self.authenticate()
+  try! PlanSequence::from_wire(owner.sequence_value)
+}
+
+///|
+/// Returns the authenticated scalar plan sequence without constructing an
+/// identity wrapper.
+pub fn SubmittedSchedulePlan::sequence_wire(
+  self : SubmittedSchedulePlan,
+) -> UInt64 raise WorkerProtocolError {
+  self.authenticate().sequence_value
 }
 
 ///|
 pub fn SubmittedSchedulePlan::model_plan_generation(
   self : SubmittedSchedulePlan,
 ) -> ModelPlanGeneration raise WorkerProtocolError {
-  self.authenticate().model_plan_generation
+  let owner = self.authenticate()
+  try! ModelPlanGeneration::from_wire(owner.model_plan_generation_value)
+}
+
+///|
+/// Returns the authenticated scalar model-plan generation without constructing
+/// an identity wrapper.
+pub fn SubmittedSchedulePlan::model_plan_generation_wire(
+  self : SubmittedSchedulePlan,
+) -> UInt64 raise WorkerProtocolError {
+  self.authenticate().model_plan_generation_value
 }
 
 ///|

@@ -14,8 +14,8 @@ test "epoch overflow leaves the authenticated buffer retired" {
   let buffer = SchedulePlanBuffer::new(limits)
   buffer.epoch = 0xffffffffffffffffUL
   let submitted = SubmittedSchedulePlan(buffer, buffer.epoch)
-  buffer.sequence = PlanSequence::first()
-  buffer.model_plan_generation = ModelPlanGeneration::first()
+  buffer.sequence_value = 1UL
+  buffer.model_plan_generation_value = 1UL
   buffer.token_budget = 0
   buffer.state = Submitted
   let retired = buffer.retire(submitted)

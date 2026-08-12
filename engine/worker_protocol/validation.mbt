@@ -109,14 +109,41 @@ fn validate_submission_identity(
   previous_sequence : PlanSequence?,
   loaded_generation : ModelPlanGeneration,
 ) -> Unit raise WorkerProtocolError {
-  match previous_sequence {
-    None => if sequence != PlanSequence::first() { raise StalePlanSequence }
-    Some(previous) =>
-      if !sequence.immediately_follows(previous) {
-        raise StalePlanSequence
-      }
+  validate_submission_identity_wire(
+    sequence.value(),
+    model_plan_generation.value(),
+    previous_sequence is Some(_),
+    previous_sequence.map(PlanSequence::value).unwrap_or(0UL),
+    loaded_generation.value(),
+  )
+}
+
+///|
+fn validate_submission_identity_wire(
+  sequence_value : UInt64,
+  model_plan_generation_value : UInt64,
+  has_previous : Bool,
+  previous_sequence_value : UInt64,
+  loaded_generation_value : UInt64,
+) -> Unit raise WorkerProtocolError {
+  if sequence_value == 0UL {
+    raise InvalidIdentity(PlanSequenceIdentity)
   }
-  if model_plan_generation != loaded_generation {
+  if model_plan_generation_value == 0UL || loaded_generation_value == 0UL {
+    raise InvalidIdentity(ModelPlanGenerationIdentity)
+  }
+  if has_previous {
+    if previous_sequence_value == 0UL {
+      raise InvalidIdentity(PlanSequenceIdentity)
+    }
+    if previous_sequence_value == 0xffffffffffffffffUL ||
+      sequence_value != previous_sequence_value + 1UL {
+      raise StalePlanSequence
+    }
+  } else if previous_sequence_value != 0UL || sequence_value != 1UL {
+    raise StalePlanSequence
+  }
+  if model_plan_generation_value != loaded_generation_value {
     raise StaleModelPlanGeneration
   }
 }

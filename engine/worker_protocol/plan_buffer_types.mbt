@@ -17,8 +17,8 @@ pub struct SchedulePlanBuffer {
   priv limits : WorkerProtocolLimits
   priv mut state : PlanBufferState
   priv mut epoch : UInt64
-  priv mut sequence : PlanSequence
-  priv mut model_plan_generation : ModelPlanGeneration
+  priv mut sequence_value : UInt64
+  priv mut model_plan_generation_value : UInt64
   priv mut token_budget : Int
   priv mut token_count : Int
   priv mut page_count : Int

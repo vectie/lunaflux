@@ -158,8 +158,8 @@ pub fn SchedulePlanBuffer::new(
     limits,
     state: Writable,
     epoch: 1UL,
-    sequence: PlanSequence::first(),
-    model_plan_generation: ModelPlanGeneration::first(),
+    sequence_value: 1UL,
+    model_plan_generation_value: 1UL,
     token_budget: 0,
     token_count: 0,
     page_count: 0,
@@ -325,16 +325,42 @@ pub fn SchedulePlanBuffer::submit(
   previous_sequence : PlanSequence?,
   loaded_generation : ModelPlanGeneration,
 ) -> SubmittedSchedulePlan raise WorkerProtocolError {
+  self.submit_wire(
+    sequence_value=sequence.value(),
+    model_plan_generation_value=model_plan_generation.value(),
+    token_budget~,
+    has_previous=previous_sequence is Some(_),
+    previous_sequence_value=previous_sequence
+      .map(PlanSequence::value)
+      .unwrap_or(0UL),
+    loaded_generation_value=loaded_generation.value(),
+  )
+}
+
+///|
+/// Scalar submission seam for allocation-sensitive schedulers. It validates
+/// the same identities as `submit`, stores wire scalars directly, and freezes
+/// the current epoch without constructing transient identity wrappers.
+pub fn SchedulePlanBuffer::submit_wire(
+  self : SchedulePlanBuffer,
+  sequence_value~ : UInt64,
+  model_plan_generation_value~ : UInt64,
+  token_budget~ : Int,
+  has_previous~ : Bool,
+  previous_sequence_value~ : UInt64,
+  loaded_generation_value~ : UInt64,
+) -> SubmittedSchedulePlan raise WorkerProtocolError {
   self.require_state(Writable)
   if self.draft_open {
     raise PlanRowDraftAlreadyOpen
   }
   self.validate_contents(token_budget)
-  validate_submission_identity(
-    sequence, model_plan_generation, previous_sequence, loaded_generation,
+  validate_submission_identity_wire(
+    sequence_value, model_plan_generation_value, has_previous, previous_sequence_value,
+    loaded_generation_value,
   )
-  self.sequence = sequence
-  self.model_plan_generation = model_plan_generation
+  self.sequence_value = sequence_value
+  self.model_plan_generation_value = model_plan_generation_value
   self.token_budget = token_budget
   self.state = Submitted
   SubmittedSchedulePlan(self, self.epoch)
