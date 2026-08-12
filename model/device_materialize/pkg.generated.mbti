@@ -1,0 +1,79 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/device_materialize"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn load(@device.Context, @llama_weights.LlamaWeightBindings, Bytes, materialization_limits~ : @materialize.MaterializationLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeights raise DeviceWeightError
+
+pub fn plan_layout(@llama_weights.LlamaWeightBindings, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightLayout raise DeviceWeightError
+
+// Errors
+pub(all) suberror DeviceWeightError {
+  InvalidAlignment
+  InvalidArenaLimit
+  EmptyBindings
+  MissingBinding(reference~ : Int)
+  BindingOrderMismatch(reference~ : Int)
+  LayoutSizeOverflow(reference~ : Int)
+  ArenaTooLarge
+  UnexpectedTensor(reference~ : Int)
+  TensorLengthMismatch(reference~ : Int)
+  MaterializationFailed(@materialize.MaterializationError)
+  DeviceFailed(@device.DeviceError)
+  CleanupFailed(stage~ : DeviceWeightFailureStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeviceWeightFailureStage {
+  TensorValidation
+  Transfer
+  MaterializationResult
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceWeightLayout {
+  identity : @spec.ModelIdentity
+  alignment_bytes : Int64
+  arena_bytes : Int64
+  materialized_bytes : Int64
+  regions : ReadOnlyArray[DeviceWeightRegion]
+} derive(Eq, @debug.Debug)
+pub fn DeviceWeightLayout::alignment_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::arena_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceWeightLayout::length(Self) -> Int
+pub fn DeviceWeightLayout::materialized_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
+
+pub struct DeviceWeightRegion {
+  reference : @plan.TensorRef
+  offset_bytes : Int64
+  byte_length : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceWeightRegion::byte_length(Self) -> Int64
+pub fn DeviceWeightRegion::end_offset_bytes(Self) -> Int64
+pub fn DeviceWeightRegion::offset_bytes(Self) -> Int64
+pub fn DeviceWeightRegion::reference(Self) -> @plan.TensorRef
+
+pub struct DeviceWeights {
+  layout : DeviceWeightLayout
+  report : @materialize.MaterializationReport
+  // private fields
+}
+pub fn DeviceWeights::allocation(Self) -> @device.Allocation
+pub fn DeviceWeights::close(Self) -> Unit raise DeviceWeightError
+pub fn DeviceWeights::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceWeights::layout(Self) -> DeviceWeightLayout
+pub fn DeviceWeights::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
+pub fn DeviceWeights::report(Self) -> @materialize.MaterializationReport
+
+// Type aliases
+
+// Traits

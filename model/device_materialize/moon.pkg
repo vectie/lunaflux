@@ -1,0 +1,17 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "vectie/lunaflux/model/safetensors",
+} for "test"
+
+import {
+  "vectie/lunaflux/model/safetensors",
+} for "wbtest"
+
+supported_targets = "native"
