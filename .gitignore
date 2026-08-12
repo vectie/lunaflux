@@ -1,0 +1,18 @@
+/_build/
+/.mooncakes/
+/.repos/
+/.DS_Store
+*.log
+*.pid
+*.local
+*.secret
+.env
+.env.*
+!.env.example
+
+# Generated runtime and benchmark state never belongs in source control.
+/state/
+/models/
+/kernels/cache/
+/benchmarks/results/
+/profiles/

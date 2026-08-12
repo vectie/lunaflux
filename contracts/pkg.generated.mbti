@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/contracts"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn protocol_version() -> String
+
+// Errors
+
+// Types and methods
+pub(all) enum EngineState {
+  Loading
+  Warming
+  Ready
+  Draining
+  Stopped
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RequestState {
+  Admitted
+  Tokenizing
+  Waiting
+  Prefill
+  Decode
+  Finishing
+  Cancelled
+  Finished
+  Failed
+} derive(Eq, @debug.Debug)
+pub fn RequestState::can_transition_to(Self, Self) -> Bool
+
+// Type aliases
+
+// Traits

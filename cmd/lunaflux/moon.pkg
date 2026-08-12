@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/contracts",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
