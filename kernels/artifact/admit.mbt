@@ -1,23 +1,34 @@
 ///|
-fn required_aot_digests(
-  resolved : @catalog.ResolvedKernelCatalog,
+fn required_entry_points(
+  contracts : @launch_contract.LaunchContractSet,
+  maximum : Int,
+) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
+  let required : Array[@catalog.AotKernelEntryPoint] = []
+  for contract in contracts.contracts() {
+    let identity = contract.entry_point()
+    if !required.contains(identity) {
+      if required.length() >= maximum {
+        raise EntryPointCountExceeded(maximum~)
+      }
+      required.push(identity)
+    }
+  }
+  required
+}
+
+///|
+fn required_modules(
+  entry_points : ArrayView[@catalog.AotKernelEntryPoint],
   maximum : Int,
 ) -> Array[@catalog.AotArtifactDigest] raise KernelArtifactError {
   let required : Array[@catalog.AotArtifactDigest] = []
-  let seen : Map[String, Unit] = Map([])
-  for binding in resolved.bindings() {
-    match binding.implementation() {
-      VendorBf16GemmImplicitHeuristicV1 => ()
-      ContentAddressedAot(digest) => {
-        let key = digest.sha256()
-        if !seen.contains(key) {
-          if required.length() >= maximum {
-            raise ArtifactCountExceeded(maximum~)
-          }
-          seen[key] = ()
-          required.push(digest)
-        }
+  for entry_point in entry_points {
+    let digest = entry_point.family().module_digest()
+    if !required.contains(digest) {
+      if required.length() >= maximum {
+        raise ModuleCountExceeded(maximum~)
       }
+      required.push(digest)
     }
   }
   required
@@ -35,27 +46,27 @@ fn valid_continuation(character : Char) -> Bool {
 
 ///|
 fn validate_symbol(
-  digest : @catalog.AotArtifactDigest,
+  entry_point : @catalog.AotKernelEntryPoint,
   symbol : String,
   maximum : Int,
 ) -> Unit raise KernelArtifactError {
   if symbol.is_empty() {
-    raise InvalidFunctionSymbol(digest~, rule=Empty)
+    raise InvalidFunctionSymbol(entry_point~, rule=Empty)
   }
   if symbol.length() > maximum {
-    raise InvalidFunctionSymbol(digest~, rule=TooLong)
+    raise InvalidFunctionSymbol(entry_point~, rule=TooLong)
   }
   let mut index = 0
   for character in symbol {
     if character.to_int() > 127 {
-      raise InvalidFunctionSymbol(digest~, rule=NonAscii)
+      raise InvalidFunctionSymbol(entry_point~, rule=NonAscii)
     }
     if index == 0 {
       if !valid_initial(character) {
-        raise InvalidFunctionSymbol(digest~, rule=InvalidInitial)
+        raise InvalidFunctionSymbol(entry_point~, rule=InvalidInitial)
       }
     } else if !valid_continuation(character) {
-      raise InvalidFunctionSymbol(digest~, rule=InvalidContinuation)
+      raise InvalidFunctionSymbol(entry_point~, rule=InvalidContinuation)
     }
     index += 1
   }
@@ -67,14 +78,53 @@ fn exact_digest(bytes : Bytes) -> String {
 }
 
 ///|
-fn validate_inputs(
-  inputs : ArrayView[KernelArtifactInput],
-  limits : KernelArtifactLimits,
-) -> (Map[String, Int], Int64) raise KernelArtifactError {
-  if inputs.length() > limits.max_artifacts {
-    raise ArtifactCountExceeded(maximum=limits.max_artifacts)
+fn module_input_index(
+  inputs : ArrayView[KernelModuleInput],
+  digest : @catalog.AotArtifactDigest,
+) -> Int? {
+  for index, input in inputs {
+    if input.digest == digest {
+      return Some(index)
+    }
   }
-  let by_digest : Map[String, Int] = Map([])
+  None
+}
+
+///|
+fn entry_input_index(
+  inputs : ArrayView[KernelEntryPointInput],
+  identity : @catalog.AotKernelEntryPoint,
+) -> Int? {
+  for index, input in inputs {
+    if input.entry_point == identity {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn digest_index(
+  digests : ArrayView[@catalog.AotArtifactDigest],
+  digest : @catalog.AotArtifactDigest,
+) -> Int? {
+  for index, candidate in digests {
+    if candidate == digest {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn validate_module_inputs(
+  inputs : ArrayView[KernelModuleInput],
+  required : ArrayView[@catalog.AotArtifactDigest],
+  limits : KernelArtifactLimits,
+) -> Int64 raise KernelArtifactError {
+  if inputs.length() > limits.max_modules {
+    raise ModuleCountExceeded(maximum=limits.max_modules)
+  }
   let mut total = 0L
   for index, input in inputs {
     let byte_count = input.module_bytes.length().to_int64()
@@ -88,83 +138,111 @@ fn validate_inputs(
       raise TotalModuleBytesExceeded(maximum=limits.max_total_module_bytes)
     }
     total += byte_count
+    for earlier in 0..<index {
+      if inputs[earlier].digest == input.digest {
+        raise DuplicateModule(input.digest)
+      }
+    }
+    if !required.contains(input.digest) {
+      raise UnreferencedModule(input.digest)
+    }
+  }
+  for digest in required {
+    if module_input_index(inputs, digest) is None {
+      raise MissingModule(digest)
+    }
+  }
+  total
+}
+
+///|
+fn validate_entry_inputs(
+  inputs : ArrayView[KernelEntryPointInput],
+  required : ArrayView[@catalog.AotKernelEntryPoint],
+  limits : KernelArtifactLimits,
+) -> Unit raise KernelArtifactError {
+  if inputs.length() > limits.max_entry_points {
+    raise EntryPointCountExceeded(maximum=limits.max_entry_points)
+  }
+  for index, input in inputs {
     validate_symbol(
-      input.digest,
+      input.entry_point,
       input.function_symbol,
       limits.max_function_symbol_bytes,
     )
-    let key = input.digest.sha256()
-    if by_digest.contains(key) {
-      raise DuplicateArtifact(input.digest)
+    for earlier in 0..<index {
+      if inputs[earlier].entry_point == input.entry_point {
+        raise DuplicateEntryPoint(input.entry_point)
+      }
     }
-    by_digest[key] = index
-  }
-  (by_digest, total)
-}
-
-///|
-fn validate_catalog_relationship(
-  required : ArrayView[@catalog.AotArtifactDigest],
-  inputs : ArrayView[KernelArtifactInput],
-  by_digest : Map[String, Int],
-) -> Unit raise KernelArtifactError {
-  let required_set : Map[String, Unit] = Map([])
-  for digest in required {
-    let key = digest.sha256()
-    required_set[key] = ()
-    if !by_digest.contains(key) {
-      raise MissingArtifact(digest)
+    if !required.contains(input.entry_point) {
+      raise UnreferencedEntryPoint(input.entry_point)
     }
   }
-  for input in inputs {
-    if !required_set.contains(input.digest.sha256()) {
-      raise UnreferencedArtifact(input.digest)
+  for entry_point in required {
+    if entry_input_index(inputs, entry_point) is None {
+      raise MissingEntryPoint(entry_point)
     }
   }
 }
 
 ///|
-/// Admits the exact bounded AOT modules required by a resolved kernel catalog.
+/// Admits exactly the precompiled modules and CUDA symbols required by an
+/// admitted launch-contract set.
 ///
-/// Admission is deliberately separate from device import. It accepts only
-/// already-compiled bytes held in memory, verifies SHA-256 over those exact
-/// bytes, and rejects duplicate, missing, and unreferenced artifacts. All
-/// structural, aggregate, digest, and catalog checks complete before the
-/// returned immutable bundle copies any module input. Output order follows
-/// first resolved use and is independent of input order. The bundle also pins
-/// the resolved model identity, device target, and catalog version.
-///
-/// There is no path lookup, executable metadata interpretation, compiler,
-/// developer cache, or runtime JIT path in this package.
+/// A module is hashed and retained once even when it exposes multiple kernel
+/// families or profile-specific entry points. Missing, duplicate,
+/// unreferenced, and invalid declarations fail before device import. Distinct
+/// stable identities may intentionally alias the same CUDA symbol.
+/// No path lookup, executable metadata evaluation, compilation, cache, or JIT
+/// is available here.
 pub fn admit(
-  resolved : @catalog.ResolvedKernelCatalog,
-  inputs : ArrayView[KernelArtifactInput],
+  contracts : @launch_contract.LaunchContractSet,
+  module_inputs : ArrayView[KernelModuleInput],
+  entry_point_inputs : ArrayView[KernelEntryPointInput],
   limits : KernelArtifactLimits,
 ) -> KernelArtifactBundle raise KernelArtifactError {
-  let required = required_aot_digests(resolved, limits.max_artifacts)
-  let (by_digest, total) = validate_inputs(inputs, limits)
-  validate_catalog_relationship(required, inputs, by_digest)
-  let entries : Array[KernelArtifactEntry] = []
-  for digest in required {
-    guard by_digest.get(digest.sha256()) is Some(input_index) else {
-      raise MissingArtifact(digest)
+  let required_entries = required_entry_points(
+    contracts,
+    limits.max_entry_points,
+  )
+  let required_digests = required_modules(required_entries, limits.max_modules)
+  let total = validate_module_inputs(module_inputs, required_digests, limits)
+  validate_entry_inputs(entry_point_inputs, required_entries, limits)
+  let modules : Array[KernelModule] = []
+  for digest in required_digests {
+    guard module_input_index(module_inputs, digest) is Some(input_index) else {
+      raise MissingModule(digest)
     }
-    let input = inputs[input_index]
-    let owned_module = Bytes::from_array(input.module_bytes)
-    if exact_digest(owned_module) != input.digest.sha256() {
-      raise DigestMismatch(input.digest)
+    let owned_module = Bytes::from_array(
+      module_inputs[input_index].module_bytes,
+    )
+    if exact_digest(owned_module) != digest.sha256() {
+      raise DigestMismatch(digest)
     }
-    entries.push({
-      digest: input.digest,
-      module_bytes: owned_module,
-      function_symbol: input.function_symbol,
+    modules.push({ digest, module_bytes: owned_module })
+  }
+  let exports : Array[KernelEntryPoint] = []
+  for identity in required_entries {
+    guard entry_input_index(entry_point_inputs, identity) is Some(input_index) else {
+      raise MissingEntryPoint(identity)
+    }
+    let digest = identity.family().module_digest()
+    guard digest_index(required_digests, digest) is Some(module_index) else {
+      raise MissingModule(digest)
+    }
+    exports.push({
+      entry_point: identity,
+      module_index,
+      function_symbol: entry_point_inputs[input_index].function_symbol,
     })
   }
   {
-    model_identity: resolved.model_identity(),
-    device_target: resolved.device_target(),
-    catalog_version: resolved.catalog_version(),
-    entries: ReadOnlyArray::from_array(entries),
+    model_identity: contracts.model_identity(),
+    device_target: contracts.device_target(),
+    catalog_version: contracts.catalog_version(),
+    modules: ReadOnlyArray::from_array(modules),
+    entry_points: ReadOnlyArray::from_array(exports),
     total_module_bytes: total,
   }
 }

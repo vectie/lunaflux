@@ -36,6 +36,18 @@ pub fn DeviceTarget::from_capability(
 }
 
 ///|
+/// Returns whether this exact startup target describes the opened context.
+pub fn DeviceTarget::matches_capability(
+  self : DeviceTarget,
+  capability : @device.DeviceCapability,
+) -> Bool {
+  self.compute_major == capability.compute_major() &&
+  self.compute_minor == capability.compute_minor() &&
+  self.supports_bf16 == capability.supports_bf16() &&
+  self.supports_cublas_lt == capability.supports_cublas_lt()
+}
+
+///|
 pub fn DeviceTarget::compute_major(self : DeviceTarget) -> Int {
   self.compute_major
 }

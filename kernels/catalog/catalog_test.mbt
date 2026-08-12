@@ -46,19 +46,17 @@ fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
 }
 
 ///|
-fn qkv_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
+fn output_projection_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
   try! @plan.PlanOperation::new(
     id=@plan.OperationId::new(1),
-    kind=QkvProjection,
+    kind=OutputProjection,
     inputs=[
       Activation(@plan.ActivationRef::new(0)),
       Tensor(@plan.TensorRef::new(1)),
-      Tensor(@plan.TensorRef::new(2)),
-      Tensor(@plan.TensorRef::new(3)),
     ],
     outputs=[@plan.ActivationRef::new(1)],
-    shape=ProjectionShape(input_width=16, output_width=32),
-    required_capability=@plan.KernelCapabilityId::qkv_projection(),
+    shape=ProjectionShape(input_width=16, output_width=16),
+    required_capability=@plan.KernelCapabilityId::dense_projection(),
     workspace_bytes~,
   )
 }
@@ -83,7 +81,10 @@ fn projection_plan(
     workspace_bounds=@plan.WorkspaceBounds::new(
       max_temporary_bytes=workspace_limit,
     ),
-    operations=[test_operation(0L), qkv_operation(operation_workspace)],
+    operations=[
+      test_operation(0L),
+      output_projection_operation(operation_workspace),
+    ],
     final_output=@plan.ActivationRef::new(1),
   )
 }
@@ -102,6 +103,15 @@ fn test_target(
 }
 
 ///|
+fn aot_family(
+  digest : @catalog.AotArtifactDigest,
+  stable_id? : Int = 1,
+) -> @catalog.AotKernelFamily {
+  let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
+  @catalog.AotKernelFamily::new(module_digest=digest, family_id~)
+}
+
+///|
 fn aot_entry(
   workspace_bytes? : Int64 = 31L,
   workspace_alignment? : Int64 = 16L,
@@ -116,7 +126,7 @@ fn aot_entry(
     capability=@plan.KernelCapabilityId::embedding_lookup(),
     compute_major=8,
     compute_minor=0,
-    implementation=ContentAddressedAot(digest),
+    implementation=ContentAddressedAot(aot_family(digest)),
     workspace_bytes~,
     workspace_alignment~,
   )
@@ -129,9 +139,9 @@ fn vendor_projection_entry(
 ) -> @catalog.CatalogEntry {
   try! @catalog.CatalogEntry::new(
     semantic_version=@catalog.KernelSemanticVersion::v1(),
-    operation_kind=QkvProjection,
-    operation_shape=ProjectionShape(input_width=16, output_width=32),
-    capability=@plan.KernelCapabilityId::qkv_projection(),
+    operation_kind=OutputProjection,
+    operation_shape=ProjectionShape(input_width=16, output_width=16),
+    capability=@plan.KernelCapabilityId::dense_projection(),
     compute_major=8,
     compute_minor=0,
     implementation=VendorBf16GemmImplicitHeuristicV1,
@@ -178,7 +188,7 @@ test "AOT identity is content addressed and exact" {
     capability=@plan.KernelCapabilityId::embedding_lookup(),
     compute_major=8,
     compute_minor=0,
-    implementation=ContentAddressedAot(digest),
+    implementation=ContentAddressedAot(aot_family(digest)),
     workspace_bytes=0L,
     workspace_alignment=1L,
   )
@@ -189,7 +199,8 @@ test "AOT identity is content addressed and exact" {
   guard resolved.bindings()[0].implementation() is ContentAddressedAot(found) else {
     fail("expected selected AOT identity")
   }
-  assert_eq(found.sha256(), digest.sha256())
+  assert_eq(found.module_digest().sha256(), digest.sha256())
+  assert_eq(found.family_id().as_int(), 1)
 }
 
 ///|
@@ -202,8 +213,10 @@ test "missing semantic support fails closed" {
     compute_major=8,
     compute_minor=0,
     implementation=ContentAddressedAot(
-      @catalog.AotArtifactDigest::from_sha256(
-        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+      aot_family(
+        @catalog.AotArtifactDigest::from_sha256(
+          "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+        ),
       ),
     ),
     workspace_bytes=0L,
@@ -258,7 +271,7 @@ test "duplicate exact matches are rejected as ambiguous regardless of order" {
     capability=@plan.KernelCapabilityId::embedding_lookup(),
     compute_major=8,
     compute_minor=0,
-    implementation=ContentAddressedAot(second_digest),
+    implementation=ContentAddressedAot(aot_family(second_digest)),
     workspace_bytes=0L,
     workspace_alignment=1L,
   )
@@ -308,7 +321,7 @@ test "entry workspace must cover documented operation workspace" {
 }
 
 ///|
-test "implicit vendor GEMM is legal only for projection semantics" {
+test "implicit vendor GEMM is legal only for representable dense projections" {
   try
     @catalog.CatalogEntry::new(
       semantic_version=@catalog.KernelSemanticVersion::v1(),
@@ -327,6 +340,24 @@ test "implicit vendor GEMM is legal only for projection semantics" {
   } noraise {
     _ => fail("expected illegal vendor implementation kind")
   }
+  try
+    @catalog.CatalogEntry::new(
+      semantic_version=@catalog.KernelSemanticVersion::v1(),
+      operation_kind=QkvProjection,
+      operation_shape=ProjectionShape(input_width=16, output_width=32),
+      capability=@plan.KernelCapabilityId::qkv_projection(),
+      compute_major=8,
+      compute_minor=0,
+      implementation=VendorBf16GemmImplicitHeuristicV1,
+      workspace_bytes=0L,
+      workspace_alignment=1L,
+    )
+  catch {
+    InvalidCatalog(InvalidVendorImplementationKind) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected QKV to require an AOT ABI")
+  }
 }
 
 ///|
@@ -342,7 +373,7 @@ test "entry shape and capability must match its operation semantics" {
       capability=@plan.KernelCapabilityId::embedding_lookup(),
       compute_major=8,
       compute_minor=0,
-      implementation=ContentAddressedAot(digest),
+      implementation=ContentAddressedAot(aot_family(digest)),
       workspace_bytes=0L,
       workspace_alignment=1L,
     )
@@ -360,7 +391,7 @@ test "entry shape and capability must match its operation semantics" {
       capability=@plan.KernelCapabilityId::residual_add(),
       compute_major=8,
       compute_minor=0,
-      implementation=ContentAddressedAot(digest),
+      implementation=ContentAddressedAot(aot_family(digest)),
       workspace_bytes=0L,
       workspace_alignment=1L,
     )
@@ -391,6 +422,18 @@ test "version, digest, alignment, and target validation fail closed" {
   } noraise {
     _ => fail("expected invalid digest")
   }
+  try @catalog.AotKernelFamilyId::from_stable_int(0) catch {
+    InvalidCatalog(InvalidAotFamilyId) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected invalid AOT family identity")
+  }
+  try @catalog.AotKernelEntryPointId::from_stable_int(-1) catch {
+    InvalidCatalog(InvalidAotEntryPointId) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected invalid AOT entry-point identity")
+  }
   try
     @catalog.CatalogEntry::new(
       semantic_version=@catalog.KernelSemanticVersion::v1(),
@@ -400,8 +443,10 @@ test "version, digest, alignment, and target validation fail closed" {
       compute_major=8,
       compute_minor=0,
       implementation=ContentAddressedAot(
-        @catalog.AotArtifactDigest::from_sha256(
-          "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+        aot_family(
+          @catalog.AotArtifactDigest::from_sha256(
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+          ),
         ),
       ),
       workspace_bytes=0L,

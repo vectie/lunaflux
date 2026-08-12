@@ -31,7 +31,7 @@ fn vendor_implementation_is_legal(
 ) -> Bool {
   match implementation {
     VendorBf16GemmImplicitHeuristicV1 =>
-      operation_kind is (QkvProjection | OutputProjection | LanguageModelHead)
+      operation_kind is (OutputProjection | LanguageModelHead)
     ContentAddressedAot(_) => true
   }
 }

@@ -40,6 +40,24 @@ pub fn KernelCatalog::new(
   if entries.length() > 65536 {
     raise InvalidCatalog(CatalogTooLarge)
   }
+  let aot_semantics : Map[
+    AotKernelFamily,
+    (@plan.OperationKind, @plan.KernelCapabilityId),
+  ] = Map([])
+  for entry in entries {
+    match entry.implementation {
+      VendorBf16GemmImplicitHeuristicV1 => ()
+      ContentAddressedAot(family) =>
+        match aot_semantics.get(family) {
+          Some((kind, capability)) =>
+            if kind != entry.operation_kind || capability != entry.capability {
+              raise InvalidCatalog(AotFamilySemanticMismatch)
+            }
+          None =>
+            aot_semantics[family] = (entry.operation_kind, entry.capability)
+        }
+    }
+  }
   { version, entries: ReadOnlyArray::from_array(entries) }
 }
 

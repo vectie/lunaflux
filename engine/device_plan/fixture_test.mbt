@@ -160,6 +160,12 @@ fn device_plan_catalog_for(
       }
     }
     if !found {
+      let family = @catalog.AotKernelFamily::new(
+        module_digest=digest,
+        family_id=@catalog.AotKernelFamilyId::from_stable_int(
+          operation.id().as_int() + 1,
+        ),
+      )
       entries.push(
         @catalog.CatalogEntry::new(
           semantic_version=@catalog.KernelSemanticVersion::v1(),
@@ -168,7 +174,7 @@ fn device_plan_catalog_for(
           capability=operation.required_capability(),
           compute_major=8,
           compute_minor=0,
-          implementation=ContentAddressedAot(digest),
+          implementation=ContentAddressedAot(family),
           workspace_bytes~,
           workspace_alignment=16L,
         ),

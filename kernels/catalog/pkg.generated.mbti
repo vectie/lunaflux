@@ -23,9 +23,33 @@ pub(all) suberror CatalogError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub struct AotArtifactDigest(String) derive(Eq, @debug.Debug)
+pub struct AotArtifactDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AotArtifactDigest::from_sha256(String) -> Self raise CatalogError
 pub fn AotArtifactDigest::sha256(Self) -> String
+
+pub struct AotKernelEntryPoint {
+  family : AotKernelFamily
+  entry_point_id : AotKernelEntryPointId
+} derive(Eq, Hash, @debug.Debug)
+pub fn AotKernelEntryPoint::entry_point_id(Self) -> AotKernelEntryPointId
+pub fn AotKernelEntryPoint::family(Self) -> AotKernelFamily
+pub fn AotKernelEntryPoint::new(family~ : AotKernelFamily, entry_point_id~ : AotKernelEntryPointId) -> Self
+
+pub struct AotKernelEntryPointId(Int) derive(Eq, Hash, @debug.Debug)
+pub fn AotKernelEntryPointId::as_int(Self) -> Int
+pub fn AotKernelEntryPointId::from_stable_int(Int) -> Self raise CatalogError
+
+pub struct AotKernelFamily {
+  module_digest : AotArtifactDigest
+  family_id : AotKernelFamilyId
+} derive(Eq, Hash, @debug.Debug)
+pub fn AotKernelFamily::family_id(Self) -> AotKernelFamilyId
+pub fn AotKernelFamily::module_digest(Self) -> AotArtifactDigest
+pub fn AotKernelFamily::new(module_digest~ : AotArtifactDigest, family_id~ : AotKernelFamilyId) -> Self
+
+pub struct AotKernelFamilyId(Int) derive(Eq, Hash, @debug.Debug)
+pub fn AotKernelFamilyId::as_int(Self) -> Int
+pub fn AotKernelFamilyId::from_stable_int(Int) -> Self raise CatalogError
 
 pub struct CatalogEntry {
   semantic_version : KernelSemanticVersion
@@ -57,10 +81,13 @@ pub(all) enum CatalogValidationRule {
   CatalogTooLarge
   InvalidComputeCapability
   InvalidArtifactDigest
+  InvalidAotFamilyId
+  InvalidAotEntryPointId
   InvalidWorkspaceBytes
   InvalidWorkspaceAlignment
   OperationShapeMismatch
   OperationCapabilityMismatch
+  AotFamilySemanticMismatch
   InvalidVendorImplementationKind
 } derive(Eq, @debug.Debug)
 
@@ -78,6 +105,7 @@ pub struct DeviceTarget {
 pub fn DeviceTarget::compute_major(Self) -> Int
 pub fn DeviceTarget::compute_minor(Self) -> Int
 pub fn DeviceTarget::from_capability(@device.DeviceCapability) -> Self raise CatalogError
+pub fn DeviceTarget::matches_capability(Self, @device.DeviceCapability) -> Bool
 pub fn DeviceTarget::new(compute_major~ : Int, compute_minor~ : Int, supports_bf16~ : Bool, supports_cublas_lt~ : Bool) -> Self raise CatalogError
 pub fn DeviceTarget::supports_bf16(Self) -> Bool
 pub fn DeviceTarget::supports_cublas_lt(Self) -> Bool
@@ -106,7 +134,7 @@ pub fn KernelCatalog::version(Self) -> CatalogVersion
 
 pub(all) enum KernelImplementationId {
   VendorBf16GemmImplicitHeuristicV1
-  ContentAddressedAot(AotArtifactDigest)
+  ContentAddressedAot(AotKernelFamily)
 } derive(Eq, @debug.Debug)
 
 pub struct KernelSemanticVersion(Int) derive(Eq, @debug.Debug)

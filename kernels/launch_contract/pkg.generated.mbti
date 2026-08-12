@@ -1,0 +1,176 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/launch_contract"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, ArrayView[KernelProfile], ArrayView[AotLaunchContractInput], LaunchContractLimits) -> LaunchContractSet raise LaunchContractError
+
+// Errors
+pub(all) suberror LaunchContractError {
+  InvalidLimit(LaunchContractLimit)
+  InvalidProfile(ProfileRule)
+  InvalidDimensions(LaunchDimensionRule)
+  InvalidOperandDefinition(OperandRule)
+  InvalidOperand(@plan.OperationId, OperandRule)
+  ProfileCountExceeded(maximum~ : Int)
+  ContractCountExceeded(maximum~ : Int)
+  OperandCountExceeded(operation~ : @plan.OperationId, maximum~ : Int)
+  DuplicateProfile(KernelProfileId)
+  UnknownProfile(KernelProfileId)
+  IdentityMismatch
+  BindingCountMismatch
+  BindingOrderMismatch(@plan.OperationId)
+  DuplicateContract(KernelProfileId, @plan.OperationId)
+  MissingContract(KernelProfileId, @plan.OperationId)
+  ContractForVendorKernel(KernelProfileId, @plan.OperationId)
+  KernelFamilyMismatch(KernelProfileId, @plan.OperationId)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AotLaunchContract {
+  profile : KernelProfile
+  operation_id : @plan.OperationId
+  operation_kind : @plan.OperationKind
+  operation_shape : @plan.OperationShape
+  capability : @plan.KernelCapabilityId
+  entry_point : @catalog.AotKernelEntryPoint
+  dimensions : AotLaunchDimensions
+  operands : ReadOnlyArray[AotOperand]
+  workspace_bytes : Int64
+  workspace_alignment : Int64
+} derive(Eq, @debug.Debug)
+pub fn AotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
+pub fn AotLaunchContract::dimensions(Self) -> AotLaunchDimensions
+pub fn AotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn AotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
+pub fn AotLaunchContract::operation_id(Self) -> @plan.OperationId
+pub fn AotLaunchContract::operation_kind(Self) -> @plan.OperationKind
+pub fn AotLaunchContract::operation_shape(Self) -> @plan.OperationShape
+pub fn AotLaunchContract::profile(Self) -> KernelProfile
+pub fn AotLaunchContract::workspace_alignment(Self) -> Int64
+pub fn AotLaunchContract::workspace_bytes(Self) -> Int64
+
+pub struct AotLaunchContractInput {
+  profile_id : KernelProfileId
+  operation_id : @plan.OperationId
+  entry_point : @catalog.AotKernelEntryPoint
+  dimensions : AotLaunchDimensions
+  operands : ReadOnlyArray[AotOperand]
+} derive(Eq, @debug.Debug)
+pub fn AotLaunchContractInput::new(profile_id~ : KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : AotLaunchDimensions, operands~ : ArrayView[AotOperand]) -> Self
+
+pub struct AotLaunchDimensions {
+  grid_x : Int
+  grid_y : Int
+  grid_z : Int
+  block_x : Int
+  block_y : Int
+  block_z : Int
+  shared_memory_bytes : Int
+} derive(Eq, @debug.Debug)
+pub fn AotLaunchDimensions::block_x(Self) -> Int
+pub fn AotLaunchDimensions::block_y(Self) -> Int
+pub fn AotLaunchDimensions::block_z(Self) -> Int
+pub fn AotLaunchDimensions::grid_x(Self) -> Int
+pub fn AotLaunchDimensions::grid_y(Self) -> Int
+pub fn AotLaunchDimensions::grid_z(Self) -> Int
+pub fn AotLaunchDimensions::new(grid_x~ : Int, grid_y~ : Int, grid_z~ : Int, block_x~ : Int, block_y~ : Int, block_z~ : Int, shared_memory_bytes~ : Int) -> Self raise LaunchContractError
+pub fn AotLaunchDimensions::shared_memory_bytes(Self) -> Int
+
+pub struct AotOperand {
+  role : AotOperandRole
+  byte_count : Int64
+  alignment : Int64
+} derive(Eq, @debug.Debug)
+pub fn AotOperand::alignment(Self) -> Int64
+pub fn AotOperand::byte_count(Self) -> Int64
+pub fn AotOperand::new(role~ : AotOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise LaunchContractError
+pub fn AotOperand::role(Self) -> AotOperandRole
+
+pub(all) enum AotOperandRole {
+  ExternalInput(@plan.ModelInputRef)
+  WeightInput(@plan.TensorRef)
+  ActivationInput(@plan.ActivationRef)
+  ActivationOutput(@plan.ActivationRef)
+  Workspace
+} derive(Eq, @debug.Debug)
+
+pub struct KernelProfile {
+  id : KernelProfileId
+  batch_rows : Int
+  sequence_tokens : Int
+  token_rows : Int64
+} derive(Eq, @debug.Debug)
+pub fn KernelProfile::batch_rows(Self) -> Int
+pub fn KernelProfile::full_prefill(id~ : KernelProfileId, batch_rows~ : Int, sequence_tokens~ : Int, token_rows~ : Int64) -> Self raise LaunchContractError
+pub fn KernelProfile::id(Self) -> KernelProfileId
+pub fn KernelProfile::sequence_tokens(Self) -> Int
+pub fn KernelProfile::token_rows(Self) -> Int64
+
+pub struct KernelProfileId(Int) derive(Eq, @debug.Debug)
+pub fn KernelProfileId::as_int(Self) -> Int
+pub fn KernelProfileId::from_stable_int(Int) -> Self raise LaunchContractError
+
+pub(all) enum LaunchContractLimit {
+  ProfileCount
+  ContractCount
+  OperandsPerContract
+} derive(Eq, @debug.Debug)
+
+pub struct LaunchContractLimits {
+  max_profiles : Int
+  max_contracts : Int
+  max_operands_per_contract : Int
+} derive(Eq, @debug.Debug)
+pub fn LaunchContractLimits::max_contracts(Self) -> Int
+pub fn LaunchContractLimits::max_operands_per_contract(Self) -> Int
+pub fn LaunchContractLimits::max_profiles(Self) -> Int
+pub fn LaunchContractLimits::new(max_profiles~ : Int, max_contracts~ : Int, max_operands_per_contract~ : Int) -> Self raise LaunchContractError
+
+pub struct LaunchContractSet {
+  model_identity : @spec.ModelIdentity
+  device_target : @catalog.DeviceTarget
+  catalog_version : @catalog.CatalogVersion
+  profiles : ReadOnlyArray[KernelProfile]
+  contracts : ReadOnlyArray[AotLaunchContract]
+} derive(Eq, @debug.Debug)
+pub fn LaunchContractSet::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn LaunchContractSet::contract(Self, KernelProfileId, @plan.OperationId) -> AotLaunchContract?
+pub fn LaunchContractSet::contracts(Self) -> ReadOnlyArray[AotLaunchContract]
+pub fn LaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn LaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn LaunchContractSet::profiles(Self) -> ReadOnlyArray[KernelProfile]
+
+pub(all) enum LaunchDimensionRule {
+  InvalidGrid
+  InvalidBlock
+  TooManyThreads
+  InvalidSharedMemory
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OperandRule {
+  InvalidAlignment
+  NonPositiveByteCount
+  DuplicateRole
+  MissingSemanticRole
+  UnexpectedSemanticRole
+  WorkspaceMismatch
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProfileRule {
+  NonPositiveId
+  NonPositiveDimension
+  TokenRowOverflow
+  TokenRowMismatch
+  OutsideModelEnvelope
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

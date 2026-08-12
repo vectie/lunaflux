@@ -8,10 +8,13 @@ pub(all) enum CatalogValidationRule {
   CatalogTooLarge
   InvalidComputeCapability
   InvalidArtifactDigest
+  InvalidAotFamilyId
+  InvalidAotEntryPointId
   InvalidWorkspaceBytes
   InvalidWorkspaceAlignment
   OperationShapeMismatch
   OperationCapabilityMismatch
+  AotFamilySemanticMismatch
   InvalidVendorImplementationKind
 } derive(Debug, Eq)
 

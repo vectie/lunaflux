@@ -1,76 +1,99 @@
 ///|
-/// Untrusted aliased in-memory input for one precompiled CUDA module.
-///
-/// Construction performs no admission and has no path, executable metadata,
-/// compiler identity, or JIT option. `admit` validates the entire set before
-/// any input module is defensively copied into a returned bundle.
-pub struct KernelArtifactInput {
+/// Untrusted aliased input for one precompiled content-addressed CUDA module.
+pub struct KernelModuleInput {
   digest : @catalog.AotArtifactDigest
   module_bytes : FixedArray[Byte]
+}
+
+///|
+/// Untrusted symbol mapping for one exact stable entry-point identity.
+pub struct KernelEntryPointInput {
+  entry_point : @catalog.AotKernelEntryPoint
   function_symbol : String
 }
 
 ///|
-/// One admitted immutable AOT module and its single CUDA entry symbol.
-///
-/// The module bytes hash exactly to `digest`. This type describes inert startup
-/// data only; it does not load a module, resolve a device function, or launch
-/// work.
-pub struct KernelArtifactEntry {
+/// One admitted immutable AOT module. Each digest is retained exactly once.
+pub struct KernelModule {
   digest : @catalog.AotArtifactDigest
   module_bytes : Bytes
+}
+
+///|
+/// One admitted immutable mapping from stable identity to bounded CUDA symbol.
+pub struct KernelEntryPoint {
+  entry_point : @catalog.AotKernelEntryPoint
+  module_index : Int
   function_symbol : String
 }
 
 ///|
-/// Complete immutable AOT inputs required by one resolved kernel catalog.
-///
-/// Entries are unique and ordered by the first resolved operation that uses
-/// each digest. Vendor implementations have no entry.
+/// Complete immutable modules and entry points required by one exact launch
+/// contract set. Runtime lookup uses integer identities over ordered arrays.
 pub struct KernelArtifactBundle {
   model_identity : @spec.ModelIdentity
   device_target : @catalog.DeviceTarget
   catalog_version : @catalog.CatalogVersion
-  entries : ReadOnlyArray[KernelArtifactEntry]
+  modules : ReadOnlyArray[KernelModule]
+  entry_points : ReadOnlyArray[KernelEntryPoint]
   total_module_bytes : Int64
 }
 
 ///|
-/// Constructs an untrusted artifact input without copying its aliased bytes.
-/// Validation is deliberately centralized in `admit`, where aggregate limits
-/// and catalog completeness are available.
-pub fn KernelArtifactInput::new(
+pub fn KernelModuleInput::new(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : FixedArray[Byte],
-  function_symbol~ : String,
-) -> KernelArtifactInput {
-  { digest, module_bytes, function_symbol }
+) -> KernelModuleInput {
+  { digest, module_bytes }
 }
 
 ///|
-pub fn KernelArtifactEntry::digest(
-  self : KernelArtifactEntry,
-) -> @catalog.AotArtifactDigest {
+pub fn KernelEntryPointInput::new(
+  entry_point~ : @catalog.AotKernelEntryPoint,
+  function_symbol~ : String,
+) -> KernelEntryPointInput {
+  { entry_point, function_symbol }
+}
+
+///|
+pub fn KernelModule::digest(self : KernelModule) -> @catalog.AotArtifactDigest {
   self.digest
 }
 
 ///|
-pub fn KernelArtifactEntry::module_bytes(self : KernelArtifactEntry) -> Bytes {
+pub fn KernelModule::module_bytes(self : KernelModule) -> Bytes {
   self.module_bytes
 }
 
 ///|
-pub fn KernelArtifactEntry::function_symbol(
-  self : KernelArtifactEntry,
-) -> String {
+pub fn KernelEntryPoint::identity(
+  self : KernelEntryPoint,
+) -> @catalog.AotKernelEntryPoint {
+  self.entry_point
+}
+
+///|
+pub fn KernelEntryPoint::module_index(self : KernelEntryPoint) -> Int {
+  self.module_index
+}
+
+///|
+pub fn KernelEntryPoint::function_symbol(self : KernelEntryPoint) -> String {
   self.function_symbol
 }
 
 ///|
-pub fn KernelArtifactBundle::entries(
+pub fn KernelArtifactBundle::modules(
   self : KernelArtifactBundle,
-) -> ReadOnlyArray[KernelArtifactEntry] {
-  self.entries
+) -> ReadOnlyArray[KernelModule] {
+  self.modules
+}
+
+///|
+pub fn KernelArtifactBundle::entry_points(
+  self : KernelArtifactBundle,
+) -> ReadOnlyArray[KernelEntryPoint] {
+  self.entry_points
 }
 
 ///|
@@ -95,13 +118,25 @@ pub fn KernelArtifactBundle::catalog_version(
 }
 
 ///|
-/// Finds one admitted entry by its approved digest without allocating.
-pub fn KernelArtifactBundle::entry(
+pub fn KernelArtifactBundle::find_module(
   self : KernelArtifactBundle,
   digest : @catalog.AotArtifactDigest,
-) -> KernelArtifactEntry? {
-  for entry in self.entries {
-    if entry.digest == digest {
+) -> KernelModule? {
+  for item in self.modules {
+    if item.digest == digest {
+      return Some(item)
+    }
+  }
+  None
+}
+
+///|
+pub fn KernelArtifactBundle::entry_point(
+  self : KernelArtifactBundle,
+  identity : @catalog.AotKernelEntryPoint,
+) -> KernelEntryPoint? {
+  for entry in self.entry_points {
+    if entry.entry_point == identity {
       return Some(entry)
     }
   }
@@ -109,8 +144,15 @@ pub fn KernelArtifactBundle::entry(
 }
 
 ///|
-pub fn KernelArtifactBundle::length(self : KernelArtifactBundle) -> Int {
-  self.entries.length()
+pub fn KernelArtifactBundle::module_count(self : KernelArtifactBundle) -> Int {
+  self.modules.length()
+}
+
+///|
+pub fn KernelArtifactBundle::entry_point_count(
+  self : KernelArtifactBundle,
+) -> Int {
+  self.entry_points.length()
 }
 
 ///|

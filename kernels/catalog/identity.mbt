@@ -7,14 +7,40 @@ pub struct CatalogVersion(Int) derive(Debug, Eq)
 pub struct KernelSemanticVersion(Int) derive(Debug, Eq)
 
 ///|
-/// SHA-256 identity of one AOT kernel artifact. No artifact path is stored.
-pub struct AotArtifactDigest(String) derive(Debug, Eq)
+/// SHA-256 identity of one AOT CUDA module. No artifact path is stored.
+pub struct AotArtifactDigest(String) derive(Debug, Eq, Hash)
+
+///|
+/// Stable identity of one callable kernel family inside an AOT module.
+///
+/// The integer is scoped by the module digest. It identifies an ABI family,
+/// not a concrete launch shape or CUDA symbol.
+pub struct AotKernelFamilyId(Int) derive(Debug, Eq, Hash)
+
+///|
+/// Content-addressed module plus one stable ABI family within that module.
+pub struct AotKernelFamily {
+  module_digest : AotArtifactDigest
+  family_id : AotKernelFamilyId
+} derive(Debug, Eq, Hash)
+
+///|
+/// Stable identity of one callable entry point within an AOT kernel family.
+pub struct AotKernelEntryPointId(Int) derive(Debug, Eq, Hash)
+
+///|
+/// Fully qualified entry-point identity. CUDA symbol spelling is admitted
+/// separately with the module bytes and is never used as this identity.
+pub struct AotKernelEntryPoint {
+  family : AotKernelFamily
+  entry_point_id : AotKernelEntryPointId
+} derive(Debug, Eq, Hash)
 
 ///|
 /// Concrete production implementation selected at startup.
 pub(all) enum KernelImplementationId {
   VendorBf16GemmImplicitHeuristicV1
-  ContentAddressedAot(AotArtifactDigest)
+  ContentAddressedAot(AotKernelFamily)
 } derive(Debug, Eq)
 
 ///|
@@ -83,4 +109,76 @@ pub fn AotArtifactDigest::from_sha256(
 ///|
 pub fn AotArtifactDigest::sha256(self : AotArtifactDigest) -> String {
   self.0
+}
+
+///|
+pub fn AotKernelFamilyId::from_stable_int(
+  value : Int,
+) -> AotKernelFamilyId raise CatalogError {
+  if value <= 0 {
+    raise InvalidCatalog(InvalidAotFamilyId)
+  }
+  AotKernelFamilyId(value)
+}
+
+///|
+pub fn AotKernelFamilyId::as_int(self : AotKernelFamilyId) -> Int {
+  self.0
+}
+
+///|
+pub fn AotKernelFamily::new(
+  module_digest~ : AotArtifactDigest,
+  family_id~ : AotKernelFamilyId,
+) -> AotKernelFamily {
+  { module_digest, family_id }
+}
+
+///|
+pub fn AotKernelFamily::module_digest(
+  self : AotKernelFamily,
+) -> AotArtifactDigest {
+  self.module_digest
+}
+
+///|
+pub fn AotKernelFamily::family_id(self : AotKernelFamily) -> AotKernelFamilyId {
+  self.family_id
+}
+
+///|
+pub fn AotKernelEntryPointId::from_stable_int(
+  value : Int,
+) -> AotKernelEntryPointId raise CatalogError {
+  if value <= 0 {
+    raise InvalidCatalog(InvalidAotEntryPointId)
+  }
+  AotKernelEntryPointId(value)
+}
+
+///|
+pub fn AotKernelEntryPointId::as_int(self : AotKernelEntryPointId) -> Int {
+  self.0
+}
+
+///|
+pub fn AotKernelEntryPoint::new(
+  family~ : AotKernelFamily,
+  entry_point_id~ : AotKernelEntryPointId,
+) -> AotKernelEntryPoint {
+  { family, entry_point_id }
+}
+
+///|
+pub fn AotKernelEntryPoint::family(
+  self : AotKernelEntryPoint,
+) -> AotKernelFamily {
+  self.family
+}
+
+///|
+pub fn AotKernelEntryPoint::entry_point_id(
+  self : AotKernelEntryPoint,
+) -> AotKernelEntryPointId {
+  self.entry_point_id
 }

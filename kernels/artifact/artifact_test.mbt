@@ -1,5 +1,5 @@
 ///|
-fn artifact_test_identity() -> @spec.ModelIdentity {
+fn artifact_identity() -> @spec.ModelIdentity {
   @spec.ModelIdentity::new(
     try! @spec.ContentDigest::from_sha256(
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -11,7 +11,7 @@ fn artifact_test_identity() -> @spec.ModelIdentity {
 }
 
 ///|
-fn artifact_test_plan() -> @plan.ModelPlan {
+fn artifact_plan() -> @plan.ModelPlan {
   let embedding = try! @plan.PlanOperation::new(
     id=@plan.OperationId::new(0),
     kind=Embedding,
@@ -21,25 +21,23 @@ fn artifact_test_plan() -> @plan.ModelPlan {
     required_capability=@plan.KernelCapabilityId::embedding_lookup(),
     workspace_bytes=0L,
   )
-  let projection = try! @plan.PlanOperation::new(
+  let norm = try! @plan.PlanOperation::new(
     id=@plan.OperationId::new(1),
-    kind=QkvProjection,
+    kind=RmsNorm,
     inputs=[
       Activation(@plan.ActivationRef::new(0)),
       Tensor(@plan.TensorRef::new(1)),
-      Tensor(@plan.TensorRef::new(2)),
-      Tensor(@plan.TensorRef::new(3)),
     ],
     outputs=[@plan.ActivationRef::new(1)],
-    shape=ProjectionShape(input_width=16, output_width=32),
-    required_capability=@plan.KernelCapabilityId::qkv_projection(),
+    shape=NormalizationShape(width=16, epsilon=0.000001),
+    required_capability=@plan.KernelCapabilityId::rms_norm(),
     workspace_bytes=0L,
   )
   try! @plan.ModelPlan::new(
-    identity=artifact_test_identity(),
+    identity=artifact_identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
-      max_sequence_tokens=64,
+      max_sequence_tokens=8,
       vocabulary_size=128,
       hidden_size=16,
       intermediate_size=32,
@@ -48,62 +46,58 @@ fn artifact_test_plan() -> @plan.ModelPlan {
       head_dimension=4,
     ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
-    operations=[embedding, projection],
+    operations=[embedding, norm],
     final_output=@plan.ActivationRef::new(1),
   )
 }
 
 ///|
-fn artifact_test_digest(
-  bytes : FixedArray[Byte],
-) -> @catalog.AotArtifactDigest raise @catalog.CatalogError {
-  @catalog.AotArtifactDigest::from_sha256(
+fn digest_for(bytes : FixedArray[Byte]) -> @catalog.AotArtifactDigest {
+  let digest = try! @catalog.AotArtifactDigest::from_sha256(
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
+  digest
 }
 
 ///|
-fn artifact_test_catalog_entry(
+fn family(
   digest : @catalog.AotArtifactDigest,
-  operation_kind : @plan.OperationKind,
-) -> @catalog.CatalogEntry raise {
-  let shape : @plan.OperationShape = match operation_kind {
-    Embedding => EmbeddingShape(vocabulary_size=128, width=16)
-    QkvProjection => ProjectionShape(input_width=16, output_width=32)
-    _ => abort("unsupported test operation")
-  }
-  let capability = match operation_kind {
-    Embedding => @plan.KernelCapabilityId::embedding_lookup()
-    QkvProjection => @plan.KernelCapabilityId::qkv_projection()
-    _ => abort("unsupported test operation")
-  }
-  @catalog.CatalogEntry::new(
+  stable_id : Int,
+) -> @catalog.AotKernelFamily {
+  let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
+  @catalog.AotKernelFamily::new(module_digest=digest, family_id~)
+}
+
+///|
+fn resolved_catalog(
+  digest : @catalog.AotArtifactDigest,
+) -> @catalog.ResolvedKernelCatalog {
+  let embedding = try! @catalog.CatalogEntry::new(
     semantic_version=@catalog.KernelSemanticVersion::v1(),
-    operation_kind~,
-    operation_shape=shape,
-    capability~,
+    operation_kind=Embedding,
+    operation_shape=EmbeddingShape(vocabulary_size=128, width=16),
+    capability=@plan.KernelCapabilityId::embedding_lookup(),
     compute_major=8,
     compute_minor=0,
-    implementation=ContentAddressedAot(digest),
+    implementation=ContentAddressedAot(family(digest, 1)),
     workspace_bytes=0L,
     workspace_alignment=1L,
   )
-}
-
-///|
-fn artifact_test_resolved(
-  first : @catalog.AotArtifactDigest,
-  second : @catalog.AotArtifactDigest,
-) -> @catalog.ResolvedKernelCatalog raise {
-  let catalog = @catalog.KernelCatalog::new(
-    version=@catalog.CatalogVersion::v1(),
-    entries=[
-      artifact_test_catalog_entry(second, QkvProjection),
-      artifact_test_catalog_entry(first, Embedding),
-    ],
+  let norm = try! @catalog.CatalogEntry::new(
+    semantic_version=@catalog.KernelSemanticVersion::v1(),
+    operation_kind=RmsNorm,
+    operation_shape=NormalizationShape(width=16, epsilon=0.000001),
+    capability=@plan.KernelCapabilityId::rms_norm(),
+    compute_major=8,
+    compute_minor=0,
+    implementation=ContentAddressedAot(family(digest, 2)),
+    workspace_bytes=0L,
+    workspace_alignment=1L,
   )
-  catalog.resolve(
-    artifact_test_plan(),
+  try! @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v1(), entries=[
+    norm, embedding,
+  ]).resolve(
+    artifact_plan(),
     @catalog.DeviceTarget::new(
       compute_major=8,
       compute_minor=0,
@@ -114,14 +108,140 @@ fn artifact_test_resolved(
 }
 
 ///|
-fn artifact_test_limits(
-  max_artifacts? : Int = 8,
+fn profile(stable_id : Int, rows : Int) -> @launch_contract.KernelProfile {
+  let id = try! @launch_contract.KernelProfileId::from_stable_int(stable_id)
+  try! @launch_contract.KernelProfile::full_prefill(
+    id~,
+    batch_rows=1,
+    sequence_tokens=rows,
+    token_rows=rows.to_int64(),
+  )
+}
+
+///|
+fn dimensions(rows : Int) -> @launch_contract.AotLaunchDimensions {
+  try! @launch_contract.AotLaunchDimensions::new(
+    grid_x=rows,
+    grid_y=1,
+    grid_z=1,
+    block_x=32,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+}
+
+///|
+fn entry(
+  digest : @catalog.AotArtifactDigest,
+  family_id : Int,
+  entry_id : Int,
+) -> @catalog.AotKernelEntryPoint {
+  let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
+    entry_id,
+  )
+  @catalog.AotKernelEntryPoint::new(
+    family=family(digest, family_id),
+    entry_point_id~,
+  )
+}
+
+///|
+fn operands(operation : Int, rows : Int) -> Array[@launch_contract.AotOperand] {
+  let row_bytes = rows.to_int64() * 32L
+  if operation == 0 {
+    [
+      try! @launch_contract.AotOperand::new(
+        role=ExternalInput(TokenIds),
+        byte_count=rows.to_int64() * 4L,
+        alignment=4L,
+      ),
+      try! @launch_contract.AotOperand::new(
+        role=WeightInput(@plan.TensorRef::new(0)),
+        byte_count=4096L,
+        alignment=16L,
+      ),
+      try! @launch_contract.AotOperand::new(
+        role=ActivationOutput(@plan.ActivationRef::new(0)),
+        byte_count=row_bytes,
+        alignment=16L,
+      ),
+    ]
+  } else {
+    [
+      try! @launch_contract.AotOperand::new(
+        role=ActivationInput(@plan.ActivationRef::new(0)),
+        byte_count=row_bytes,
+        alignment=16L,
+      ),
+      try! @launch_contract.AotOperand::new(
+        role=WeightInput(@plan.TensorRef::new(1)),
+        byte_count=32L,
+        alignment=16L,
+      ),
+      try! @launch_contract.AotOperand::new(
+        role=ActivationOutput(@plan.ActivationRef::new(1)),
+        byte_count=row_bytes,
+        alignment=16L,
+      ),
+    ]
+  }
+}
+
+///|
+fn contract_input(
+  digest : @catalog.AotArtifactDigest,
+  profile_id : Int,
+  operation_id : Int,
+  entry_id : Int,
+  rows : Int,
+) -> @launch_contract.AotLaunchContractInput {
+  let resolved_profile = try! @launch_contract.KernelProfileId::from_stable_int(
+    profile_id,
+  )
+  let resolved_operation = try! @plan.OperationId::new(operation_id)
+  @launch_contract.AotLaunchContractInput::new(
+    profile_id=resolved_profile,
+    operation_id=resolved_operation,
+    entry_point=entry(digest, operation_id + 1, entry_id),
+    dimensions=dimensions(rows),
+    operands=operands(operation_id, rows),
+  )
+}
+
+///|
+fn contracts(
+  digest : @catalog.AotArtifactDigest,
+) -> @launch_contract.LaunchContractSet {
+  try! @launch_contract.admit(
+    artifact_plan(),
+    resolved_catalog(digest),
+    [profile(1, 2), profile(2, 8)],
+    [
+      contract_input(digest, 2, 1, 22, 8),
+      contract_input(digest, 1, 0, 11, 2),
+      contract_input(digest, 2, 0, 12, 8),
+      contract_input(digest, 1, 1, 21, 2),
+    ],
+    @launch_contract.LaunchContractLimits::new(
+      max_profiles=4,
+      max_contracts=8,
+      max_operands_per_contract=8,
+    ),
+  )
+}
+
+///|
+fn limits(
+  max_modules? : Int = 4,
+  max_entry_points? : Int = 8,
   max_module_bytes? : Int64 = 1024L,
   max_total_module_bytes? : Int64 = 4096L,
   max_function_symbol_bytes? : Int = 64,
-) -> @artifact.KernelArtifactLimits raise @artifact.KernelArtifactError {
-  @artifact.KernelArtifactLimits::new(
-    max_artifacts~,
+) -> @artifact.KernelArtifactLimits {
+  try! @artifact.KernelArtifactLimits::new(
+    max_modules~,
+    max_entry_points~,
     max_module_bytes~,
     max_total_module_bytes~,
     max_function_symbol_bytes~,
@@ -129,227 +249,228 @@ fn artifact_test_limits(
 }
 
 ///|
-fn artifact_test_input(
-  bytes : FixedArray[Byte],
+fn export_input(
+  digest : @catalog.AotArtifactDigest,
+  family_id : Int,
+  entry_id : Int,
   symbol : String,
-) -> @artifact.KernelArtifactInput raise @catalog.CatalogError {
-  @artifact.KernelArtifactInput::new(
-    digest=artifact_test_digest(bytes),
-    module_bytes=bytes,
+) -> @artifact.KernelEntryPointInput {
+  @artifact.KernelEntryPointInput::new(
+    entry_point=entry(digest, family_id, entry_id),
     function_symbol=symbol,
   )
 }
 
 ///|
-test "admission verifies exact modules and orders by first resolved use" {
-  let first_bytes = b"first-cubin".to_fixedarray()
-  let second_bytes = b"second-cubin".to_fixedarray()
-  let first_owned = Bytes::from_array(first_bytes)
-  let second_owned = Bytes::from_array(second_bytes)
-  let first_digest = artifact_test_digest(first_bytes)
-  let second_digest = artifact_test_digest(second_bytes)
-  let first = artifact_test_input(first_bytes, "_Z16embedding_kernelv")
-  let second = artifact_test_input(second_bytes, "qkv_kernel_v1")
-  let inputs = [second, first]
-  let bundle = @artifact.admit(
-    artifact_test_resolved(first_digest, second_digest),
-    inputs,
-    artifact_test_limits(),
-  )
-  inputs[0] = first
-  first_bytes[0] = b'X'
-  assert_eq(bundle.length(), 2)
-  assert_eq(bundle.model_identity(), artifact_test_identity())
-  let resolved = artifact_test_resolved(first_digest, second_digest)
-  assert_eq(bundle.device_target(), resolved.device_target())
-  assert_eq(bundle.catalog_version(), resolved.catalog_version())
-  assert_eq(
-    bundle.total_module_bytes(),
-    (first_bytes.length() + second_bytes.length()).to_int64(),
-  )
-  assert_eq(bundle.entries()[0].digest(), first_digest)
-  assert_eq(bundle.entries()[0].module_bytes(), first_owned)
-  assert_eq(bundle.entries()[0].function_symbol(), "_Z16embedding_kernelv")
-  assert_eq(bundle.entries()[1].digest(), second_digest)
-  assert_eq(bundle.entries()[1].module_bytes(), second_owned)
-  assert_eq(bundle.entries()[1].function_symbol(), "qkv_kernel_v1")
-  guard bundle.entry(first_digest) is Some(found) else {
-    fail("expected deterministic digest lookup")
-  }
-  assert_eq(found.module_bytes(), first_owned)
+fn exports(
+  digest : @catalog.AotArtifactDigest,
+) -> Array[@artifact.KernelEntryPointInput] {
+  [
+    export_input(digest, 2, 22, "norm_prefill_8"),
+    export_input(digest, 1, 11, "embedding_prefill_2"),
+    export_input(digest, 1, 12, "embedding_prefill_8"),
+    export_input(digest, 2, 21, "norm_prefill_2"),
+  ]
 }
 
 ///|
-test "digest mismatch and duplicate artifacts fail closed" {
-  let first_bytes = b"first-cubin".to_fixedarray()
-  let second_bytes = b"second-cubin".to_fixedarray()
-  let first_digest = artifact_test_digest(first_bytes)
-  let second_digest = artifact_test_digest(second_bytes)
-  let resolved = artifact_test_resolved(first_digest, second_digest)
-  let wrong = @artifact.KernelArtifactInput::new(
-    digest=first_digest,
-    module_bytes=b"mutated-cubin".to_fixedarray(),
-    function_symbol="embedding_kernel",
+test "one immutable module backs multiple families and exact profiles" {
+  let bytes = b"multi-function-cubin".to_fixedarray()
+  let owned = Bytes::from_array(bytes)
+  let digest = digest_for(bytes)
+  let module_input = @artifact.KernelModuleInput::new(
+    digest~,
+    module_bytes=bytes,
   )
-  let second = artifact_test_input(second_bytes, "qkv_kernel")
-  try @artifact.admit(resolved, [wrong, second], artifact_test_limits()) catch {
-    DigestMismatch(found) => assert_eq(found, first_digest)
+  let module_inputs = [module_input]
+  let entry_inputs = exports(digest)
+  let bundle = @artifact.admit(
+    contracts(digest),
+    module_inputs,
+    entry_inputs,
+    limits(),
+  )
+  module_inputs.push(module_input)
+  entry_inputs[0] = entry_inputs[1]
+  bytes[0] = b'X'
+  assert_eq(bundle.module_count(), 1)
+  assert_eq(bundle.entry_point_count(), 4)
+  assert_eq(bundle.total_module_bytes(), owned.length().to_int64())
+  assert_eq(bundle.modules()[0].module_bytes(), owned)
+  assert_eq(bundle.entry_points()[0].function_symbol(), "embedding_prefill_2")
+  assert_eq(bundle.entry_points()[1].function_symbol(), "norm_prefill_2")
+  assert_eq(bundle.entry_points()[2].function_symbol(), "embedding_prefill_8")
+  assert_eq(bundle.entry_points()[3].function_symbol(), "norm_prefill_8")
+  for admitted in bundle.entry_points() {
+    assert_eq(admitted.module_index(), 0)
+  }
+  guard bundle.find_module(digest) is Some(found_module) else {
+    fail("expected module lookup")
+  }
+  assert_eq(found_module.module_bytes(), owned)
+  guard bundle.entry_point(entry(digest, 2, 22)) is Some(found_entry) else {
+    fail("expected stable entry-point lookup")
+  }
+  assert_eq(found_entry.function_symbol(), "norm_prefill_8")
+}
+
+///|
+test "module relation and digest validation fail closed" {
+  let bytes = b"multi-function-cubin".to_fixedarray()
+  let digest = digest_for(bytes)
+  let module_input = @artifact.KernelModuleInput::new(
+    digest~,
+    module_bytes=bytes,
+  )
+  try @artifact.admit(contracts(digest), [], exports(digest), limits()) catch {
+    MissingModule(found) => assert_eq(found, digest)
+    _ => fail("unexpected artifact error")
+  } noraise {
+    _ => fail("expected missing module")
+  }
+  try
+    @artifact.admit(
+      contracts(digest),
+      [module_input, module_input],
+      exports(digest),
+      limits(),
+    )
+  catch {
+    DuplicateModule(found) => assert_eq(found, digest)
+    _ => fail("unexpected artifact error")
+  } noraise {
+    _ => fail("expected duplicate module")
+  }
+  let wrong = @artifact.KernelModuleInput::new(
+    digest~,
+    module_bytes=b"mutated".to_fixedarray(),
+  )
+  try
+    @artifact.admit(contracts(digest), [wrong], exports(digest), limits())
+  catch {
+    DigestMismatch(found) => assert_eq(found, digest)
     _ => fail("unexpected artifact error")
   } noraise {
     _ => fail("expected digest mismatch")
   }
-  let first = artifact_test_input(first_bytes, "embedding_kernel")
-  try
-    @artifact.admit(resolved, [first, first, second], artifact_test_limits())
-  catch {
-    DuplicateArtifact(found) => assert_eq(found, first_digest)
-    _ => fail("unexpected artifact error")
-  } noraise {
-    _ => fail("expected duplicate artifact")
-  }
-}
-
-///|
-test "CUDA symbols are bounded conservative ASCII identifiers" {
-  let first_bytes = b"first-cubin".to_fixedarray()
-  let second_bytes = b"second-cubin".to_fixedarray()
-  let first_digest = artifact_test_digest(first_bytes)
-  let resolved = artifact_test_resolved(
-    first_digest,
-    artifact_test_digest(second_bytes),
-  )
-  let second = artifact_test_input(second_bytes, "qkv_kernel")
-  let invalid_symbols : Array[(String, @artifact.FunctionSymbolRule)] = [
-    ("", Empty),
-    ("9kernel", InvalidInitial),
-    ("kernel-name", InvalidContinuation),
-    ("kernél", NonAscii),
-  ]
-  for item in invalid_symbols {
-    let (symbol, expected) = item
-    let invalid = @artifact.KernelArtifactInput::new(
-      digest=first_digest,
-      module_bytes=first_bytes,
-      function_symbol=symbol,
-    )
-    try
-      @artifact.admit(resolved, [invalid, second], artifact_test_limits())
-    catch {
-      InvalidFunctionSymbol(digest=found, rule~) => {
-        assert_eq(found, first_digest)
-        assert_eq(rule, expected)
-      }
-      _ => fail("unexpected artifact error")
-    } noraise {
-      _ => fail("expected invalid symbol")
-    }
-  }
-  let too_long = @artifact.KernelArtifactInput::new(
-    digest=first_digest,
-    module_bytes=first_bytes,
-    function_symbol="kernel",
-  )
-  try
-    @artifact.admit(
-      resolved,
-      [too_long, second],
-      artifact_test_limits(max_function_symbol_bytes=5),
-    )
-  catch {
-    InvalidFunctionSymbol(rule=TooLong, ..) => ()
-    _ => fail("unexpected artifact error")
-  } noraise {
-    _ => fail("expected bounded symbol failure")
-  }
-}
-
-///|
-test "missing and unreferenced catalog artifacts are rejected" {
-  let first_bytes = b"first-cubin".to_fixedarray()
-  let second_bytes = b"second-cubin".to_fixedarray()
-  let first = artifact_test_input(first_bytes, "embedding_kernel")
-  let second_digest = artifact_test_digest(second_bytes)
-  let resolved = artifact_test_resolved(
-    artifact_test_digest(first_bytes),
-    second_digest,
-  )
-  try @artifact.admit(resolved, [first], artifact_test_limits()) catch {
-    MissingArtifact(found) => assert_eq(found, second_digest)
-    _ => fail("unexpected artifact error")
-  } noraise {
-    _ => fail("expected missing artifact")
-  }
-  let second = artifact_test_input(second_bytes, "qkv_kernel")
   let extra_bytes = b"unreferenced-cubin".to_fixedarray()
-  let extra = artifact_test_input(extra_bytes, "unused_kernel")
+  let extra_digest = digest_for(extra_bytes)
+  let extra = @artifact.KernelModuleInput::new(
+    digest=extra_digest,
+    module_bytes=extra_bytes,
+  )
   try
-    @artifact.admit(resolved, [first, second, extra], artifact_test_limits())
+    @artifact.admit(
+      contracts(digest),
+      [module_input, extra],
+      exports(digest),
+      limits(),
+    )
   catch {
-    UnreferencedArtifact(found) =>
-      assert_eq(found, artifact_test_digest(extra_bytes))
+    UnreferencedModule(found) => assert_eq(found, extra_digest)
     _ => fail("unexpected artifact error")
   } noraise {
-    _ => fail("expected unreferenced artifact")
+    _ => fail("expected unreferenced module")
+  }
+  try
+    @artifact.admit(
+      contracts(digest),
+      [module_input],
+      exports(digest),
+      limits(max_module_bytes=8L),
+    )
+  catch {
+    ModuleTooLarge(digest=found_digest, maximum=8L) =>
+      assert_eq(found_digest, digest)
+    _ => fail("unexpected artifact error")
+  } noraise {
+    _ => fail("expected module byte bound")
   }
 }
 
 ///|
-test "count module total and representability limits precede ownership" {
-  let first_bytes = b"12345678".to_fixedarray()
-  let second_bytes = b"abcdefgh".to_fixedarray()
-  let first = artifact_test_input(first_bytes, "first_kernel")
-  let second = artifact_test_input(second_bytes, "second_kernel")
-  let resolved = artifact_test_resolved(
-    artifact_test_digest(first_bytes),
-    artifact_test_digest(second_bytes),
+test "entry-point relations, aliases, and symbol bounds are exact" {
+  let bytes = b"multi-function-cubin".to_fixedarray()
+  let digest = digest_for(bytes)
+  let module_input = @artifact.KernelModuleInput::new(
+    digest~,
+    module_bytes=bytes,
   )
+  let all = exports(digest)
   try
-    @artifact.admit(
-      resolved,
-      [first, second],
-      artifact_test_limits(max_artifacts=1),
-    )
+    @artifact.admit(contracts(digest), [module_input], all[:3], limits())
   catch {
-    ArtifactCountExceeded(maximum=1) => ()
+    MissingEntryPoint(found) => assert_eq(found, entry(digest, 2, 21))
     _ => fail("unexpected artifact error")
   } noraise {
-    _ => fail("expected artifact count bound")
+    _ => fail("expected missing entry point")
   }
   try
     @artifact.admit(
-      resolved,
-      [first, second],
-      artifact_test_limits(max_module_bytes=7L),
+      contracts(digest),
+      [module_input],
+      [all[0], all[0], all[1], all[2], all[3]],
+      limits(),
     )
   catch {
-    ModuleTooLarge(maximum=7L, ..) => ()
+    DuplicateEntryPoint(found) => assert_eq(found, entry(digest, 2, 22))
     _ => fail("unexpected artifact error")
   } noraise {
-    _ => fail("expected module bound")
+    _ => fail("expected duplicate entry point")
+  }
+  let aliases = [
+    export_input(digest, 1, 11, "same_symbol"),
+    export_input(digest, 2, 21, "same_symbol"),
+    all[2],
+    all[0],
+  ]
+  let alias_bundle = @artifact.admit(
+    contracts(digest),
+    [module_input],
+    aliases,
+    limits(),
+  )
+  assert_eq(alias_bundle.entry_points()[0].function_symbol(), "same_symbol")
+  assert_eq(alias_bundle.entry_points()[1].function_symbol(), "same_symbol")
+  let invalid = [
+    export_input(digest, 1, 11, "9invalid"),
+    all[3],
+    all[2],
+    all[0],
+  ]
+  try
+    @artifact.admit(contracts(digest), [module_input], invalid, limits())
+  catch {
+    InvalidFunctionSymbol(rule=InvalidInitial, ..) => ()
+    _ => fail("unexpected artifact error")
+  } noraise {
+    _ => fail("expected invalid function symbol")
+  }
+  let unreferenced = export_input(digest, 1, 99, "unused_export")
+  try
+    @artifact.admit(
+      contracts(digest),
+      [module_input],
+      [all[0], all[1], all[2], all[3], unreferenced],
+      limits(),
+    )
+  catch {
+    UnreferencedEntryPoint(found) => assert_eq(found, entry(digest, 1, 99))
+    _ => fail("unexpected artifact error")
+  } noraise {
+    _ => fail("expected unreferenced entry point")
   }
   try
     @artifact.admit(
-      resolved,
-      [first, second],
-      artifact_test_limits(max_total_module_bytes=15L),
+      contracts(digest),
+      [module_input],
+      all,
+      limits(max_entry_points=3),
     )
   catch {
-    TotalModuleBytesExceeded(maximum=15L) => ()
+    EntryPointCountExceeded(maximum=3) => ()
     _ => fail("unexpected artifact error")
   } noraise {
-    _ => fail("expected total bound")
-  }
-  try
-    @artifact.KernelArtifactLimits::new(
-      max_artifacts=1,
-      max_module_bytes=1L,
-      max_total_module_bytes=9223372036854775807L,
-      max_function_symbol_bytes=1,
-    )
-  catch {
-    InvalidLimit(TotalModuleBytes) => ()
-    _ => fail("unexpected artifact error")
-  } noraise {
-    _ => fail("expected non-representable total limit rejection")
+    _ => fail("expected entry-point count bound")
   }
 }
