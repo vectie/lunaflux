@@ -1,0 +1,167 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror PlanValidationError {
+  InvalidIdentifier(PlanIdentifierKind)
+  InvalidShape(PlanShapeRule)
+  InvalidGraph(PlanGraphRule)
+  InvalidWorkspaceBound
+  OperationWorkspaceExceedsPlan
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ActivationRef(Int) derive(Eq, @debug.Debug)
+pub fn ActivationRef::as_int(Self) -> Int
+pub fn ActivationRef::new(Int) -> Self raise PlanValidationError
+
+pub struct KernelCapabilityId(Int) derive(Eq, @debug.Debug)
+pub fn KernelCapabilityId::as_int(Self) -> Int
+pub fn KernelCapabilityId::causal_attention() -> Self
+pub fn KernelCapabilityId::dense_projection() -> Self
+pub fn KernelCapabilityId::embedding_lookup() -> Self
+pub fn KernelCapabilityId::from_stable_int(Int) -> Self raise PlanValidationError
+pub fn KernelCapabilityId::gated_mlp() -> Self
+pub fn KernelCapabilityId::qkv_projection() -> Self
+pub fn KernelCapabilityId::residual_add() -> Self
+pub fn KernelCapabilityId::rms_norm() -> Self
+pub fn KernelCapabilityId::rotary_embedding() -> Self
+
+pub(all) enum ModelInputRef {
+  TokenIds
+} derive(Eq, @debug.Debug)
+
+pub struct ModelPlan {
+  identity : @spec.ModelIdentity
+  shape_constraints : ShapeConstraints
+  workspace_bounds : WorkspaceBounds
+  operations : ReadOnlyArray[PlanOperation]
+  required_capabilities : ReadOnlyArray[KernelCapabilityId]
+  final_output : ActivationRef
+} derive(Eq, @debug.Debug)
+pub fn ModelPlan::final_output(Self) -> ActivationRef
+pub fn ModelPlan::identity(Self) -> @spec.ModelIdentity
+pub fn ModelPlan::new(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef) -> Self raise PlanValidationError
+pub fn ModelPlan::operations(Self) -> ReadOnlyArray[PlanOperation]
+pub fn ModelPlan::required_capabilities(Self) -> ReadOnlyArray[KernelCapabilityId]
+pub fn ModelPlan::shape_constraints(Self) -> ShapeConstraints
+pub fn ModelPlan::workspace_bounds(Self) -> WorkspaceBounds
+
+pub struct OperationId(Int) derive(Eq, @debug.Debug)
+pub fn OperationId::as_int(Self) -> Int
+pub fn OperationId::new(Int) -> Self raise PlanValidationError
+
+pub(all) enum OperationKind {
+  Embedding
+  RmsNorm
+  QkvProjection
+  RotaryEmbedding
+  CausalAttention
+  OutputProjection
+  ResidualAdd
+  GatedMlp
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OperationShape {
+  EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
+  NormalizationShape(width~ : Int)
+  ProjectionShape(input_width~ : Int, output_width~ : Int)
+  RotaryShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, rope_theta~ : Double)
+  AttentionShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int)
+  ElementwiseShape(width~ : Int)
+  GatedMlpShape(hidden_size~ : Int, intermediate_size~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PlanGraphRule {
+  EmptyOperationList
+  EmptyOperationInputs
+  EmptyOperationOutputs
+  OperationOrder
+  ActivationOutputOrder
+  MissingActivationInput
+  FinalOutputNotLast
+  OperationArity
+  OperationInputRoles
+  OperationCapabilityMismatch
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PlanIdentifierKind {
+  Operation
+  Tensor
+  Activation
+  KernelCapability
+} derive(Eq, @debug.Debug)
+
+pub struct PlanOperation {
+  id : OperationId
+  kind : OperationKind
+  inputs : ReadOnlyArray[ValueRef]
+  outputs : ReadOnlyArray[ActivationRef]
+  shape : OperationShape
+  required_capability : KernelCapabilityId
+  workspace_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn PlanOperation::id(Self) -> OperationId
+pub fn PlanOperation::inputs(Self) -> ReadOnlyArray[ValueRef]
+pub fn PlanOperation::kind(Self) -> OperationKind
+pub fn PlanOperation::new(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64) -> Self raise PlanValidationError
+pub fn PlanOperation::outputs(Self) -> ReadOnlyArray[ActivationRef]
+pub fn PlanOperation::required_capability(Self) -> KernelCapabilityId
+pub fn PlanOperation::shape(Self) -> OperationShape
+pub fn PlanOperation::workspace_bytes(Self) -> Int64
+
+pub(all) enum PlanShapeRule {
+  PositiveDimension
+  HiddenHeadRelationship
+  AttentionKvHeadRelationship
+  DimensionOverflow
+  OperationShapeMismatch
+} derive(Eq, @debug.Debug)
+
+pub struct ShapeConstraints {
+  max_batch_rows : Int
+  max_sequence_tokens : Int
+  vocabulary_size : Int
+  hidden_size : Int
+  intermediate_size : Int
+  attention_head_count : Int
+  kv_head_count : Int
+  head_dimension : Int
+} derive(Eq, @debug.Debug)
+pub fn ShapeConstraints::attention_head_count(Self) -> Int
+pub fn ShapeConstraints::head_dimension(Self) -> Int
+pub fn ShapeConstraints::hidden_size(Self) -> Int
+pub fn ShapeConstraints::intermediate_size(Self) -> Int
+pub fn ShapeConstraints::kv_head_count(Self) -> Int
+pub fn ShapeConstraints::max_batch_rows(Self) -> Int
+pub fn ShapeConstraints::max_sequence_tokens(Self) -> Int
+pub fn ShapeConstraints::new(max_batch_rows~ : Int, max_sequence_tokens~ : Int, vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int) -> Self raise PlanValidationError
+pub fn ShapeConstraints::vocabulary_size(Self) -> Int
+
+pub struct TensorRef(Int) derive(Eq, @debug.Debug)
+pub fn TensorRef::as_int(Self) -> Int
+pub fn TensorRef::new(Int) -> Self raise PlanValidationError
+
+pub(all) enum ValueRef {
+  ModelInput(ModelInputRef)
+  Tensor(TensorRef)
+  Activation(ActivationRef)
+} derive(Eq, @debug.Debug)
+
+pub struct WorkspaceBounds {
+  max_temporary_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn WorkspaceBounds::max_temporary_bytes(Self) -> Int64
+pub fn WorkspaceBounds::new(max_temporary_bytes~ : Int64) -> Self raise PlanValidationError
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"

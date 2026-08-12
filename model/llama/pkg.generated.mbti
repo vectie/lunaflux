@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/llama"
+
+import {
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn build(@spec.LlamaModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
