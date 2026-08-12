@@ -1,0 +1,5 @@
+import {
+  "moonbitlang/core/math",
+}
+
+supported_targets = "native"

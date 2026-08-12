@@ -1,0 +1,110 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/reference"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn causal_gqa_attention(Activation, query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn decode_bfloat16_le(BytesView, rows~ : Int, columns~ : Int, limits~ : ReferenceLimits) -> Tensor raise ReferenceKernelError
+
+pub fn dense_projection(Activation, Tensor, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn embedding(ArrayView[Int], Tensor, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn language_model_head(Activation, Tensor, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn qkv_projection(Activation, Tensor, Tensor, Tensor, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn residual_add(Activation, Activation, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn rms_norm(Activation, Tensor, epsilon~ : Float, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn rotary_embedding(Activation, query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, position_offset~ : Int, rope_theta~ : Float, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+pub fn silu_gated_mlp(Activation, Tensor, Tensor, Tensor, limits~ : ReferenceLimits) -> Activation raise ReferenceKernelError
+
+// Errors
+pub(all) suberror ReferenceKernelError {
+  InvalidLimit(ReferenceLimitField)
+  LimitExceeded(ReferenceLimitField)
+  InvalidShape(ReferenceShapeRule)
+  InvalidScalar(ReferenceValueRole)
+  InvalidIndex
+  InvalidPosition
+  ArithmeticOverflow
+  NonFinite(ReferenceValueRole)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Activation {
+  rows : Int
+  columns : Int
+  values : ReadOnlyArray[Float]
+} derive(Eq, @debug.Debug)
+pub fn Activation::at(Self, row~ : Int, column~ : Int) -> Float raise ReferenceKernelError
+pub fn Activation::columns(Self) -> Int
+pub fn Activation::new(rows~ : Int, columns~ : Int, values~ : ArrayView[Float], limits~ : ReferenceLimits) -> Self raise ReferenceKernelError
+pub fn Activation::rows(Self) -> Int
+pub fn Activation::values(Self) -> ReadOnlyArray[Float]
+
+pub(all) enum ReferenceLimitField {
+  MaxRows
+  MaxColumns
+  MaxElements
+} derive(Eq, @debug.Debug)
+
+pub struct ReferenceLimits {
+  max_rows : Int
+  max_columns : Int
+  max_elements : Int
+} derive(Eq, @debug.Debug)
+pub fn ReferenceLimits::max_columns(Self) -> Int
+pub fn ReferenceLimits::max_elements(Self) -> Int
+pub fn ReferenceLimits::max_rows(Self) -> Int
+pub fn ReferenceLimits::new(max_rows~ : Int, max_columns~ : Int, max_elements~ : Int) -> Self raise ReferenceKernelError
+
+pub(all) enum ReferenceShapeRule {
+  PositiveDimensions
+  ElementCount
+  EmbeddingTokenCount
+  EmbeddingTokenId
+  NormalizationWeight
+  ProjectionInputWidth
+  QkvInputWidth
+  QkvOutputWidth
+  RotaryLayout
+  AttentionLayout
+  AttentionHeadRelationship
+  ResidualOperands
+  MlpGateWeight
+  MlpUpWeight
+  MlpDownWeight
+  Bfloat16ByteCount
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ReferenceValueRole {
+  ActivationValue
+  TensorValue
+  Bfloat16Value
+  Epsilon
+  RopeTheta
+  ComputedValue
+} derive(Eq, @debug.Debug)
+
+pub struct Tensor {
+  rows : Int
+  columns : Int
+  values : ReadOnlyArray[Float]
+} derive(Eq, @debug.Debug)
+pub fn Tensor::at(Self, row~ : Int, column~ : Int) -> Float raise ReferenceKernelError
+pub fn Tensor::columns(Self) -> Int
+pub fn Tensor::new(rows~ : Int, columns~ : Int, values~ : ArrayView[Float], limits~ : ReferenceLimits) -> Self raise ReferenceKernelError
+pub fn Tensor::rows(Self) -> Int
+pub fn Tensor::values(Self) -> ReadOnlyArray[Float]
+
+// Type aliases
+
+// Traits
