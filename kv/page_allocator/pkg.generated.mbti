@@ -1,0 +1,126 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/page_allocator"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror PageAllocatorError {
+  InvalidLimit(PageAllocatorLimitRule)
+  InvalidRunLength
+  RunBufferTooSmall
+  RunIndexOutOfBounds
+  Exhausted
+  StalePage(PageId)
+  PageNotAllocated(PageId)
+  ReferenceOverflow(PageId, PageReferenceKind)
+  ReferenceUnderflow(PageId, PageReferenceKind)
+  InvariantViolation(PageAllocatorInvariantRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PageAllocator {
+  // private fields
+}
+pub fn PageAllocator::active_reference_count(Self, PageId) -> Int raise PageAllocatorError
+pub fn PageAllocator::allocate_one(Self) -> PageId raise PageAllocatorError
+pub fn PageAllocator::allocate_run(Self, Int, PageRunBuffer) -> Unit raise PageAllocatorError
+pub fn PageAllocator::allocated_page_count(Self) -> Int
+pub fn PageAllocator::cached_reference_count(Self, PageId) -> Int raise PageAllocatorError
+pub fn PageAllocator::debug_check_invariants(Self) -> Unit raise PageAllocatorError
+pub fn PageAllocator::debug_snapshot(Self) -> PageAllocatorSnapshot
+pub fn PageAllocator::free_page_count(Self) -> Int
+pub fn PageAllocator::limits(Self) -> PageAllocatorLimits
+pub fn PageAllocator::new(PageAllocatorLimits) -> Self
+pub fn PageAllocator::release_active(Self, PageId) -> Unit raise PageAllocatorError
+pub fn PageAllocator::release_cached(Self, PageId) -> Unit raise PageAllocatorError
+pub fn PageAllocator::retain_active(Self, PageId) -> Unit raise PageAllocatorError
+pub fn PageAllocator::retain_cached(Self, PageId) -> Unit raise PageAllocatorError
+pub fn PageAllocator::retired_page_count(Self) -> Int
+
+pub(all) enum PageAllocatorInvariantRule {
+  CountPartition
+  QueueEndpoint
+  QueueCycle
+  QueueMembership
+  QueueCount
+  FreeReferences
+  AllocatedReferences
+  RetiredReferences
+  GenerationRange
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PageAllocatorLimitRule {
+  PageCapacity
+  RunCapacity
+  ActiveReferences
+  CachedReferences
+  Generation
+} derive(Eq, @debug.Debug)
+
+pub struct PageAllocatorLimits {
+  page_capacity : Int
+  max_run_pages : Int
+  max_active_references_per_page : Int
+  max_cached_references_per_page : Int
+  max_generation : Int
+} derive(Eq, @debug.Debug)
+pub fn PageAllocatorLimits::max_active_references_per_page(Self) -> Int
+pub fn PageAllocatorLimits::max_cached_references_per_page(Self) -> Int
+pub fn PageAllocatorLimits::max_generation(Self) -> Int
+pub fn PageAllocatorLimits::max_run_pages(Self) -> Int
+pub fn PageAllocatorLimits::new(page_capacity~ : Int, max_run_pages~ : Int, max_active_references_per_page~ : Int, max_cached_references_per_page~ : Int, max_generation? : Int) -> Self raise PageAllocatorError
+pub fn PageAllocatorLimits::page_capacity(Self) -> Int
+
+pub struct PageAllocatorSnapshot {
+  free_pages : Int
+  allocated_pages : Int
+  retired_pages : Int
+  pages : ReadOnlyArray[PageSnapshot]
+} derive(Eq, @debug.Debug)
+pub fn PageAllocatorSnapshot::allocated_page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::free_page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::page_at(Self, Int) -> PageSnapshot raise PageAllocatorError
+pub fn PageAllocatorSnapshot::page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::retired_page_count(Self) -> Int
+
+pub struct PageId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn PageId::generation(Self) -> Int
+pub fn PageId::index(Self) -> Int
+
+pub(all) enum PageReferenceKind {
+  Active
+  Cached
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PageResidency {
+  Free
+  Allocated
+  Retired
+} derive(Eq, @debug.Debug)
+
+pub struct PageRunBuffer {
+  // private fields
+}
+pub fn PageRunBuffer::capacity(Self) -> Int
+pub fn PageRunBuffer::length(Self) -> Int
+pub fn PageRunBuffer::new(Int) -> Self raise PageAllocatorError
+pub fn PageRunBuffer::page_at(Self, Int) -> PageId raise PageAllocatorError
+
+pub struct PageSnapshot {
+  id : PageId
+  residency : PageResidency
+  active_references : Int
+  cached_references : Int
+} derive(Eq, @debug.Debug)
+pub fn PageSnapshot::active_references(Self) -> Int
+pub fn PageSnapshot::cached_references(Self) -> Int
+pub fn PageSnapshot::id(Self) -> PageId
+pub fn PageSnapshot::residency(Self) -> PageResidency
+
+// Type aliases
+
+// Traits
