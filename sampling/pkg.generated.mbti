@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/sampling"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn greedy(ArrayView[Double], SamplingLimits) -> Selection raise SamplingError
+
+pub fn greedy_rows(ArrayView[Double], Int, Int, SamplingLimits) -> ReadOnlyArray[Selection] raise SamplingError
+
+// Errors
+pub(all) suberror SamplingError {
+  InvalidLimit(LimitDimension)
+  EmptyInput
+  InvalidShape
+  LimitExceeded(LimitDimension)
+  NonFiniteLogit(row~ : Int, token_id~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum LimitDimension {
+  Rows
+  TokensPerRow
+} derive(Eq, @debug.Debug)
+
+pub struct SamplingLimits {
+  max_rows : Int
+  max_tokens_per_row : Int
+} derive(Eq, @debug.Debug)
+pub fn SamplingLimits::max_rows(Self) -> Int
+pub fn SamplingLimits::max_tokens_per_row(Self) -> Int
+pub fn SamplingLimits::new(Int, Int) -> Self raise SamplingError
+
+pub struct Selection {
+  token_id : Int
+  logit : Double
+} derive(Eq, @debug.Debug)
+pub fn Selection::logit(Self) -> Double
+pub fn Selection::token_id(Self) -> Int
+
+// Type aliases
+
+// Traits
