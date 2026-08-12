@@ -110,14 +110,16 @@ Policy is decode-first with bounded waiting-time aging. Initial preemption is
 recompute-only; host KV swapping is excluded. The same scheduler snapshot and
 inputs must produce the same plan.
 
-The current scheduler implementation stops before this iteration: it owns a
-bounded tokenized-request registry, FIFO waiting queue, cancellation/deadline
-transitions, terminal notices, and startup-created host page/block-table
-owners. Activation, page/table transactions, plan construction and retirement,
-generated-token publication, continuous batching, fairness/preemption policy,
-and prefix integration remain open. Capability IDs are copied from authenticated
-model-generation recipes; scheduler policy does not inspect model operations or
-select kernels.
+The current scheduler implements the build/submission half of this iteration:
+it owns a bounded tokenized-request registry, FIFO waiting queue,
+cancellation/deadline transitions, terminal notices, host page/block-table
+owners, and distinct reusable A/B plan owners. `build_next` transactionally
+activates eligible requests, reserves decode resources before prefill, emits the
+protocol's prefill-first row order, and restores exact plan/table/page identity
+on failure. Completion retirement, generated-token publication, live worker
+overlap, global fairness/preemption, and prefix integration remain open.
+Capability IDs are copied from authenticated model-generation recipes;
+scheduler policy does not inspect model operations or select kernels.
 
 The scheduler package may depend on request, KV, prefix, and capability types.
 It may not depend on API, tokenizer implementation, model-family adapters,

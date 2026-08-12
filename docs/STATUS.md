@@ -137,8 +137,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   token; provenance-bound row capability recipes preserve exact model-plan
   operation order; and whole-build checkpoints can roll back several committed
   rows. Submitted-work validation remains separate from the scheduler's
-  current-generation publication check. Scheduler-owned A/B buffer pairing and
-  live worker overlap are not yet integrated.
+  current-generation publication check. The scheduler now owns distinct A/B
+  plan buffers and can submit two authenticated plans; completion-driven owner
+  retirement and live worker overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
@@ -159,16 +160,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   metadata arenas, reference bounds, and cache layout identity. Startup-only
   runtime capacity resolution now checks the scheduler, cache, model-shape, and
   worker envelopes and materializes canonical page-allocator and block-table
-  limits. The scheduler subsequently authenticates exact prefill/decode row
-  recipes against the loaded model generation and capability-cell capacity.
+  limits. The scheduler subsequently authenticates exact intermediate-prefill,
+  final-prefill, and decode row recipes against the loaded model generation and
+  capability-cell capacity.
 - A deterministic single-owner scheduler foundation with fixed request slots,
   an intrusive FIFO waiting queue, globally unique request generations, bounded
   terminal notices, and tokenized admission against the resolved runtime plan.
   It validates model identity, duplicate IDs, context/page envelopes, deadlines,
   and recipe provenance, and it explicitly rejects nonempty stop strings;
   cancellation and deadline sweeps preflight publication and identity capacity
-  before mutation. It constructs host page and block-table owners at startup
-  but does not yet activate a request or allocate a table/page run for it.
+  before mutation. Its bounded `build_next` path activates FIFO requests only
+  after submission, reserves decode resources before prefill policy, emits
+  prefill rows before decode rows, and uses exact plan, block-table, and page
+  checkpoints for rejected-build rollback. Intermediate prefill, final prefill,
+  and decode use separate authenticated capability recipes. Distinct A/B plan
+  owners permit two outstanding submissions; completion retirement remains
+  open.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -195,17 +202,18 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
   macOS leak detection was unavailable, so the full sanitizer/leak gate remains
   open.
-- A device KV arena, scheduler activation transaction that acquires a request
-  block table and physical pages, block-table upload, paged-attention execution,
-  or true incremental decode. The host page allocator, block-table arena, and
-  logical prefix metadata are implemented, but the current semantic graph has
-  no KV input, cache position, page table, or block mapping. Device profiles
+- A device KV arena, block-table upload, paged-attention execution, or true
+  incremental decode. The scheduler now transactionally acquires host request
+  tables and page identities while building plans, and the host page allocator,
+  block-table arena, and logical prefix metadata are implemented. The current
+  device semantic graph still has no KV input, cache position, page table, or
+  block mapping. Device profiles
   therefore support only stateless full prefill and full-sequence
   recomputation. The reference interpreter deliberately retains intermediate
   activations and recomputes the full sequence during generation; it is a
   correctness oracle, not a fallback.
-- Online APIs, scheduler plan build/submit/retire and generated-token
-  publication, continuous batching and fairness policy, live worker overlap,
+- Online APIs, scheduler completion retirement and generated-token publication,
+  continuous batching with global fairness/preemption, live worker overlap,
   device paged KV, online sampling and prefix integration, or telemetry. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist but are not an online
@@ -222,7 +230,7 @@ The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
 sanitizer and leak gates, with physical concurrency/race evidence still open.
-Cross-owner activation/retirement transactions, device KV ownership, and true
-cached decode remain open. Performance and production-readiness claims remain
-out of scope until physical correctness, resource balance, soak, and benchmark
+Authenticated completion retirement, device KV ownership, and true cached
+decode remain open. Performance and production-readiness claims remain out of
+scope until physical correctness, resource balance, soak, and benchmark
 evidence passes.

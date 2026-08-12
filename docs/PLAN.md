@@ -227,8 +227,9 @@ fixed-page KV arena.
 The host page allocator, fixed-capacity per-request block-table arena, inline
 page/table identity storage, and randomized ownership fixtures are now
 implemented. The scheduler constructs both owners from resolved startup
-capacity, but request activation, cross-owner allocation/rollback, terminal
-release, and device KV storage remain part of this phase gate.
+capacity and uses authenticated checkpoints for exact cross-owner allocation
+and rollback during plan construction. Completion-driven terminal release and
+device KV storage remain part of this phase gate.
 
 ### Workstream 2: device KV arena
 
@@ -256,9 +257,13 @@ block-table, row, and generated-token publication envelopes. Admission then
 authenticates model/recipe provenance and checks context, physical-page,
 request, waiting, and deadline bounds; cancellation and deadline expiry are
 generation-safe and transactional with respect to terminal-notice capacity.
-Request activation, decode-first and aging policy, page/block-table
-transactions, chunk planning, plan submission, completion retirement,
-stop-token/output enforcement, and generated-token publication remain open.
+Transactional plan construction now activates FIFO requests only after submit,
+selects decode resources before prefill, applies bounded eligible-prefill
+aging, chunks intermediate/final prefill, preserves the emergency page reserve,
+and submits into distinct A/B owners with exact plan/table/page rollback.
+Completion retirement, stop-token/output enforcement, generated-token
+publication, global fairness/preemption, and live worker integration remain
+open.
 
 ### Workstream 4: worker overlap
 
@@ -271,7 +276,8 @@ The immutable fixture vocabulary, reusable fixed-capacity plan/completion
 buffers, authenticated lifecycle epochs, scalar row drafts, provenance-bound
 capability recipes, whole-build checkpoints, final-prefill output semantics,
 and stale-generation checks are implemented. Scheduler-owned distinct A/B
-buffer pairing, build/retire integration, live worker overlap, and the runtime
+buffer pairing and build/submission integration are implemented. Authenticated
+completion retirement, live worker overlap, and the runtime
 allocation-instrumentation gate remain open.
 
 ### Gate

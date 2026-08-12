@@ -133,11 +133,16 @@ Startup-only runtime capacity resolution checks scheduler, cache, model-shape,
 worker, page, block-table, and output-publication envelopes. The scheduler
 foundation owns a fixed request registry and waiting queue, authenticates the
 loaded model and row recipes, and performs bounded tokenized admission,
-cancellation, deadline expiry, and terminal-notice publication. Greedy and
+cancellation, deadline expiry, and terminal-notice publication. Its
+transactional `build_next` path activates FIFO requests, reserves decode work
+before prefill, preserves the emergency page reserve for prefill, serializes
+protocol rows in the required order, and submits into distinct reusable A/B
+plan owners. Exact plan, block-table, and page checkpoints restore identities
+and FIFO state after a rejected build. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and deterministic RNG stream semantics. These remain foundations:
-request activation and page/block-table transactions, plan build/submit/retire,
-generated-token publication, continuous batching and fairness policy, prefix
+authenticated completion retirement, generated-token publication, stop/output
+enforcement, live worker overlap, global fairness/preemption, prefix
 integration, device KV, paged-attention kernels, online transport and sampling
 integration, whole-token-step allocation evidence, and physical-CUDA gates are
 open. Later packages are created only when their vertical phase begins; empty
