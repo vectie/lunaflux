@@ -25,6 +25,17 @@ pub struct SchedulePlanBuffer {
   priv mut capability_count : Int
   priv mut prefill_count : Int
   priv mut decode_count : Int
+  priv mut draft_open : Bool
+  priv mut draft_epoch : UInt64
+  priv mut draft_kind : WorkerRowKind
+  priv mut draft_request_id : @inference.RequestId
+  priv mut draft_request_generation : @inference.RequestGeneration
+  priv mut draft_sequence_position : Int
+  priv mut draft_completion_slot : CompletionSlot
+  priv mut draft_sampling : @inference.SamplingParameters
+  priv mut draft_token_start : Int
+  priv mut draft_page_start : Int
+  priv mut draft_capability_start : Int
   priv tokens : FixedArray[Int]
   priv pages : @page_allocator.PageIdStorage
   priv capabilities : FixedArray[@plan.KernelCapabilityId]
@@ -71,3 +82,10 @@ pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int)
 /// Opaque immutable decode-row view tied to its submitted plan epoch.
 #valtype
 pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int)
+
+///|
+/// Scheduler-only authenticated draft for one not-yet-visible row. Scalar
+/// pushes mutate reserved table cells; commit publishes the row atomically and
+/// rollback clears the reserved logical suffix.
+#valtype
+pub struct PlanRowDraft(SchedulePlanBuffer, UInt64, UInt64)

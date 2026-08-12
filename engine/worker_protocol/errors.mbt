@@ -18,6 +18,8 @@ pub(all) enum ProtocolIdentity {
   PlanSequenceIdentity
   ModelPlanGenerationIdentity
   PlanBufferEpochIdentity
+  PlanRowDraftEpochIdentity
+  CompletionBufferEpochIdentity
 } derive(Debug, Eq)
 
 ///|
@@ -27,6 +29,14 @@ pub(all) enum PlanBufferState {
   Writable
   Submitted
   Retired
+} derive(Debug, Eq)
+
+///|
+/// Lifecycle of one reusable worker-to-scheduler completion buffer.
+pub(all) enum CompletionBufferState {
+  CompletionWritable
+  CompletionSubmitted
+  Consumed
 } derive(Debug, Eq)
 
 ///|
@@ -88,4 +98,14 @@ pub(all) suberror WorkerProtocolError {
   PlanBufferMismatch
   StalePlanBufferEpoch
   PlanBufferStorageFailure
+  PlanRowDraftAlreadyOpen
+  PlanRowDraftNotOpen
+  PlanRowDraftMismatch
+  StalePlanRowDraftEpoch
+  InvalidCompletionBufferState(
+    expected~ : CompletionBufferState,
+    actual~ : CompletionBufferState
+  )
+  CompletionBufferMismatch
+  StaleCompletionBufferEpoch
 } derive(Debug, Eq)

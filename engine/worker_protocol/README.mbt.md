@@ -30,15 +30,27 @@ inspection covers successful append, submit, handle-return, accessor, retire,
 and reset paths; the Phase 3 runtime allocation-instrumentation gate is still
 required before promoting the whole scheduling path.
 
+Schedulers may instead build a row through an authenticated `PlanRowDraft`:
+begin, push scalar token/page/capability cells from existing immutable storage,
+then commit the exact suffix or roll it back. Until commit, no row descriptor
+is visible. This closes the temporary-array bridge for token buffers and block
+tables without importing either implementation package.
+
+Worker completions have a matching fixed-capacity `CompletionBuffer`.
+Successful prefill, decode, and failure appends write scalar columns; submit
+authenticates them against the exact submitted plan, and scheduler accessors
+remain epoch-checked through consume and reset. Plan authentication remains
+separate from `is_current`: old-generation work can retire resources but may
+not publish output.
+
 Payload-bearing plans, submitted handles, and completions deliberately do not
 implement `Debug`, so prompt and generated token IDs cannot enter ordinary
 diagnostic formatting. Errors contain only bounded categories and indices.
 
-This does not yet make a production scheduler. Append page inputs are ordinary
-views and do not directly borrow request block-table storage; integration needs
-a reusable staging/source bridge or scalar append path without per-step array
-creation. `CompletionRecord` construction still allocates an immutable copy;
-the bounded completion ingress/ring and live worker overlap remain separate
+This does not yet make a production scheduler. The convenience `ArrayView`
+append and immutable `CompletionRecord` APIs still allocate at their callers
+or constructors; production integration must use scalar drafts and reusable
+completion buffers. A transport ring and live worker overlap remain separate
 phase gates. `retire` is an ownership assertion after external completion has
 been authenticated—the protocol cannot observe device progress itself.
 

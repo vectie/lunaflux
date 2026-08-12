@@ -304,3 +304,13 @@ pub fn SubmittedDecodeRow::completion_slot(
 ) -> CompletionSlot raise WorkerProtocolError {
   self.owner().decode_completion_slots[self.2]
 }
+
+///|
+pub fn SchedulePlanBuffer::state(self : SchedulePlanBuffer) -> PlanBufferState {
+  self.state
+}
+
+///|
+pub fn SchedulePlanBuffer::epoch(self : SchedulePlanBuffer) -> UInt64 {
+  self.epoch
+}

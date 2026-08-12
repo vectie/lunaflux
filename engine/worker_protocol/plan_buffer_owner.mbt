@@ -80,6 +80,9 @@ fn SchedulePlanBuffer::preflight_row(
   capability_length : Int,
 ) -> Unit raise WorkerProtocolError {
   self.require_state(Writable)
+  if self.draft_open {
+    raise PlanRowDraftAlreadyOpen
+  }
   if self.prefill_count + self.decode_count >= self.limits.max_plan_rows() {
     raise BoundExceeded(PlanRows)
   }
@@ -163,6 +166,17 @@ pub fn SchedulePlanBuffer::new(
     capability_count: 0,
     prefill_count: 0,
     decode_count: 0,
+    draft_open: false,
+    draft_epoch: 0UL,
+    draft_kind: Prefill,
+    draft_request_id: request_id,
+    draft_request_generation: request_generation,
+    draft_sequence_position: 0,
+    draft_completion_slot: completion_slot,
+    draft_sampling: sampling,
+    draft_token_start: 0,
+    draft_page_start: 0,
+    draft_capability_start: 0,
     tokens: FixedArray::make(limits.max_plan_tokens(), 0),
     pages,
     capabilities: FixedArray::make(
@@ -407,6 +421,9 @@ pub fn SchedulePlanBuffer::submit(
   loaded_generation : ModelPlanGeneration,
 ) -> SubmittedSchedulePlan raise WorkerProtocolError {
   self.require_state(Writable)
+  if self.draft_open {
+    raise PlanRowDraftAlreadyOpen
+  }
   self.validate_contents(token_budget)
   validate_submission_identity(
     sequence, model_plan_generation, previous_sequence, loaded_generation,
@@ -468,16 +485,7 @@ pub fn SchedulePlanBuffer::reset(
   self.capability_count = 0
   self.prefill_count = 0
   self.decode_count = 0
+  self.draft_open = false
   self.epoch = self.epoch + 1UL
   self.state = Writable
-}
-
-///|
-pub fn SchedulePlanBuffer::state(self : SchedulePlanBuffer) -> PlanBufferState {
-  self.state
-}
-
-///|
-pub fn SchedulePlanBuffer::epoch(self : SchedulePlanBuffer) -> UInt64 {
-  self.epoch
 }
