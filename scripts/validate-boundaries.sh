@@ -46,6 +46,29 @@ if [ -d model ]; then
     '^\s*"vectie/lunaflux/(api|scheduler)(/|"|$)'
 fi
 
+# Correctness-reference packages are deliberately backend-independent. The
+# offline interpreter may use model-family builders only from its test import.
+if [ -d kernels/reference ]; then
+  fail_matches \
+    'reference kernels have a forbidden dependency:' \
+    --glob 'kernels/reference/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|device|engine|internal|model|scheduler)(/|"|$)'
+fi
+
+if [ -d engine/reference ]; then
+  fail_matches \
+    'reference interpreter has a forbidden runtime dependency:' \
+    --glob 'engine/reference/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|device|internal/cuda|scheduler)(/|"|$)'
+  if ! rg -U -q \
+    'import \{[^}]*"vectie/lunaflux/model/llama"[^}]*\} for "test"' \
+    engine/reference/moon.pkg; then
+    printf '%s\n' \
+      'engine/reference model-family fixture dependency must remain test-only' >&2
+    failed=1
+  fi
+fi
+
 # The CUDA vocabulary and foreign declarations have exactly one owner.
 fail_matches \
   'CUDA/native declarations are only allowed under internal/cuda:' \

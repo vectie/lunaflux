@@ -36,7 +36,9 @@ fn print_doctor() -> Unit {
         "CUDA device probe: unavailable; \{unavailable_device_reason(reason)}",
       )
   }
-  println("offline inference: not implemented")
+  println("offline reference executor: ready (correctness only)")
+  println("model file loading: not implemented")
+  println("production device execution: not implemented")
   println("readiness: false")
 }
 

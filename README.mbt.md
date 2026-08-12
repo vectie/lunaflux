@@ -1,10 +1,11 @@
 # LunaFlux
 
 > Phase 1 foundation in progress. The repository contains checked MoonBit
-> contracts plus bounded configuration, tokenizer JSON, model metadata, and
-> safetensors readers; immutable Llama plans and weight bindings; and a private
-> CUDA device boundary. It does not yet claim model execution, production CUDA
-> readiness, or GPU performance.
+> contracts; bounded configuration, tokenizer, model, and safetensors readers;
+> immutable plans and weight materialization; deterministic reference kernels;
+> and an offline correctness interpreter with pinned tiny-model logits. It does
+> not yet claim production CUDA execution, serving readiness, or GPU
+> performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
@@ -91,10 +92,13 @@ docs/               contracts, architecture, decisions, and phase gates
 
 Implemented packages currently cover `contracts/`, focused `config/` records,
 the byte-BPE foundation and bounded selected `tokenizer.json` adapter in
-`tokenizer/`, validated artifact readers and exact Llama weight bindings in
-`model/`, the architecture-neutral operation plan, and the private CUDA/device
-discovery boundary. Later packages are created only when their vertical phase
-begins; empty architectural packages are deliberately avoided.
+`tokenizer/`, validated artifact readers, exact Llama weight bindings, and
+bounded materialization in `model/`, deterministic reference kernels and
+greedy sampling, an architecture-neutral offline interpreter in
+`engine/reference/`, and the private CUDA/device discovery boundary. The
+reference path is a correctness oracle and is never a production fallback.
+Later packages are created only when their vertical phase begins; empty
+architectural packages are deliberately avoided.
 
 ## Validation
 
