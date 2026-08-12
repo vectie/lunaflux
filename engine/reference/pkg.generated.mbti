@@ -1,0 +1,79 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/sampling",
+}
+
+// Values
+pub fn execute(@plan.ModelPlan, PreparedModel, ArrayView[Int], limits~ : ExecutionLimits) -> ExecutionResult raise ReferenceExecutionError
+
+pub fn prepare(@plan.ModelPlan, @materialize.HostMaterialization, limits~ : ExecutionLimits) -> PreparedModel raise ReferenceExecutionError
+
+// Errors
+pub(all) suberror ReferenceExecutionError {
+  InvalidLimit(ExecutionLimitField)
+  InvalidGraph(ExecutionGraphFailure)
+  Kernel(@vectie/lunaflux/kernels/reference.ReferenceKernelError)
+  Sampling(@sampling.SamplingError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ExecutionGraphFailure {
+  IdentityMismatch
+  OperationLimitExceeded
+  TensorLimitExceeded
+  InputLimitExceeded
+  InputContextExceeded
+  MissingActivation
+  MissingTensor
+  UnsupportedInput
+  ShapeMismatch
+  FinalOutputMismatch
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionLimitField {
+  Operations
+  Tensors
+  InputTokens
+} derive(Eq, @debug.Debug)
+
+pub struct ExecutionLimits {
+  kernels : @vectie/lunaflux/kernels/reference.ReferenceLimits
+  sampling : @sampling.SamplingLimits
+  max_operations : Int
+  max_tensors : Int
+  max_input_tokens : Int
+} derive(Eq, @debug.Debug)
+pub fn ExecutionLimits::kernels(Self) -> @vectie/lunaflux/kernels/reference.ReferenceLimits
+pub fn ExecutionLimits::max_input_tokens(Self) -> Int
+pub fn ExecutionLimits::max_operations(Self) -> Int
+pub fn ExecutionLimits::max_tensors(Self) -> Int
+pub fn ExecutionLimits::new(kernels~ : @vectie/lunaflux/kernels/reference.ReferenceLimits, sampling~ : @sampling.SamplingLimits, max_operations~ : Int, max_tensors~ : Int, max_input_tokens~ : Int) -> Self raise ReferenceExecutionError
+pub fn ExecutionLimits::sampling(Self) -> @sampling.SamplingLimits
+
+pub struct ExecutionResult {
+  identity : @spec.ModelIdentity
+  logits : @vectie/lunaflux/kernels/reference.Activation
+  selection : @sampling.Selection
+  operation_count : Int
+} derive(Eq, @debug.Debug)
+pub fn ExecutionResult::identity(Self) -> @spec.ModelIdentity
+pub fn ExecutionResult::logits(Self) -> @vectie/lunaflux/kernels/reference.Activation
+pub fn ExecutionResult::operation_count(Self) -> Int
+pub fn ExecutionResult::selection(Self) -> @sampling.Selection
+
+pub struct PreparedModel {
+  identity : @spec.ModelIdentity
+  tensors : ReadOnlyArray[@vectie/lunaflux/kernels/reference.Tensor]
+} derive(Eq, @debug.Debug)
+pub fn PreparedModel::identity(Self) -> @spec.ModelIdentity
+pub fn PreparedModel::tensor_count(Self) -> Int
+
+// Type aliases
+
+// Traits

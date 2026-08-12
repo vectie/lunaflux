@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/kernels/reference" @refkernels,
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/sampling",
+}
+
+import {
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/safetensors",
+} for "test"
+
+supported_targets = "native"
