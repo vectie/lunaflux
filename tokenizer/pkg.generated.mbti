@@ -1,0 +1,118 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tokenizer"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror TokenizerError {
+  InvalidDigest
+  InvalidLimit(field~ : LimitField)
+  VocabularyTooLarge(actual~ : Int, maximum~ : Int)
+  MergeTableTooLarge(actual~ : Int, maximum~ : Int)
+  InvalidTokenId(entry_index~ : Int)
+  DuplicateTokenId(token_id~ : Int)
+  EmptyTokenPiece(entry_index~ : Int)
+  TokenPieceTooLong(entry_index~ : Int, actual~ : Int, maximum~ : Int)
+  DuplicateTokenPiece(first_index~ : Int, duplicate_index~ : Int)
+  TooManySpecialTokens(actual~ : Int, maximum~ : Int)
+  MissingByteToken(byte_value~ : Int)
+  InvalidMergeToken(rule_index~ : Int)
+  SpecialTokenInMerge(rule_index~ : Int)
+  InvalidMergeResult(rule_index~ : Int)
+  DuplicateMergePair(first_rule~ : Int, duplicate_rule~ : Int)
+  InvalidOutputLimit(requested~ : Int, maximum~ : Int)
+  InputTooLong(actual~ : Int, maximum~ : Int)
+  OutputTooLong(actual~ : Int, maximum~ : Int)
+  SpecialTokenRejected(token_id~ : Int)
+  UnknownTokenId(token_id~ : Int)
+  DecodedOutputTooLong(maximum~ : Int)
+  InvalidUtf8Output
+  InvalidUtf16Input(code_unit_offset~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecodeSpecialPolicy {
+  Preserve
+  Skip
+} derive(Eq, @debug.Debug)
+
+pub(all) struct EncodeResult {
+  token_ids : Array[Int]
+  input_bytes : Int
+  truncated : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LimitField {
+  InputBytes
+  OutputTokens
+  DecodedBytes
+  VocabularyEntries
+  MergeRules
+  TokenBytes
+  SpecialTokens
+} derive(Eq, @debug.Debug)
+
+pub(all) struct MergeRule {
+  left_token_id : Int
+  right_token_id : Int
+  result_token_id : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SpecialTokenPolicy {
+  Allow
+  Reject
+  AsOrdinary
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TokenKind {
+  Normal
+  Special
+} derive(Eq, @debug.Debug)
+
+pub struct TokenizerDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TokenizerDigest::as_string(Self) -> String
+pub fn TokenizerDigest::parse(String) -> Self raise TokenizerError
+
+pub(all) struct TokenizerLimits {
+  max_input_bytes : Int
+  max_output_tokens : Int
+  max_decoded_bytes : Int
+  max_vocab_entries : Int
+  max_merge_rules : Int
+  max_token_bytes : Int
+  max_special_tokens : Int
+} derive(Eq, @debug.Debug)
+
+pub struct TokenizerSpec {
+  // private fields
+}
+pub fn TokenizerSpec::decode_bytes(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> Bytes raise TokenizerError
+pub fn TokenizerSpec::decode_text(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> String raise TokenizerError
+pub fn TokenizerSpec::digest(Self) -> TokenizerDigest
+pub fn TokenizerSpec::encode_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError
+pub fn TokenizerSpec::encode_text(Self, String, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError
+pub fn TokenizerSpec::limits(Self) -> TokenizerLimits
+pub fn TokenizerSpec::merge_count(Self) -> Int
+pub fn TokenizerSpec::new(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
+pub fn TokenizerSpec::vocab_size(Self) -> Int
+
+pub(all) enum TruncationPolicy {
+  RejectOverflow
+  Truncate
+} derive(Eq, @debug.Debug)
+
+pub(all) struct VocabularyEntry {
+  token_id : Int
+  piece : Bytes
+  kind : TokenKind
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

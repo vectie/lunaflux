@@ -1,0 +1,141 @@
+///|
+/// Whether a vocabulary entry participates in ordinary BPE or is recognized
+/// only through an explicit special-token policy.
+pub(all) enum TokenKind {
+  Normal
+  Special
+} derive(Debug, Eq)
+
+///|
+/// One immutable input entry used to construct a tokenizer specification.
+///
+/// `piece` is the exact byte sequence represented by `token_id`. Normal
+/// entries are BPE symbols; special entries are matched literally.
+pub(all) struct VocabularyEntry {
+  token_id : Int
+  piece : Bytes
+  kind : TokenKind
+} derive(Debug, Eq)
+
+///|
+/// One ranked BPE merge. Array order supplied to `TokenizerSpec::new` is the
+/// rank: a smaller index has higher priority.
+pub(all) struct MergeRule {
+  left_token_id : Int
+  right_token_id : Int
+  result_token_id : Int
+} derive(Debug, Eq)
+
+///|
+/// Resource limits enforced while validating and using one tokenizer.
+pub(all) struct TokenizerLimits {
+  max_input_bytes : Int
+  max_output_tokens : Int
+  max_decoded_bytes : Int
+  max_vocab_entries : Int
+  max_merge_rules : Int
+  max_token_bytes : Int
+  max_special_tokens : Int
+} derive(Debug, Eq)
+
+///|
+/// Policy for literal special-token byte sequences encountered during encode.
+pub(all) enum SpecialTokenPolicy {
+  /// Recognize and emit configured special tokens.
+  Allow
+  /// Reject the first configured special token found in the input.
+  Reject
+  /// Treat all input bytes as ordinary bytes; no special matching is done.
+  AsOrdinary
+} derive(Debug, Eq)
+
+///|
+/// Behavior when encoded output exceeds the requested token limit.
+pub(all) enum TruncationPolicy {
+  RejectOverflow
+  Truncate
+} derive(Debug, Eq)
+
+///|
+/// Whether decode includes configured special-token byte sequences.
+pub(all) enum DecodeSpecialPolicy {
+  Preserve
+  Skip
+} derive(Debug, Eq)
+
+///|
+/// Result of one bounded encode operation.
+pub(all) struct EncodeResult {
+  token_ids : Array[Int]
+  input_bytes : Int
+  truncated : Bool
+} derive(Debug, Eq)
+
+///|
+/// Classifies a tokenizer limit without carrying configuration or payload
+/// strings into public errors.
+pub(all) enum LimitField {
+  InputBytes
+  OutputTokens
+  DecodedBytes
+  VocabularyEntries
+  MergeRules
+  TokenBytes
+  SpecialTokens
+} derive(Debug, Eq)
+
+///|
+/// Typed, payload-safe failures from tokenizer construction and use.
+pub(all) suberror TokenizerError {
+  InvalidDigest
+  InvalidLimit(field~ : LimitField)
+  VocabularyTooLarge(actual~ : Int, maximum~ : Int)
+  MergeTableTooLarge(actual~ : Int, maximum~ : Int)
+  InvalidTokenId(entry_index~ : Int)
+  DuplicateTokenId(token_id~ : Int)
+  EmptyTokenPiece(entry_index~ : Int)
+  TokenPieceTooLong(entry_index~ : Int, actual~ : Int, maximum~ : Int)
+  DuplicateTokenPiece(first_index~ : Int, duplicate_index~ : Int)
+  TooManySpecialTokens(actual~ : Int, maximum~ : Int)
+  MissingByteToken(byte_value~ : Int)
+  InvalidMergeToken(rule_index~ : Int)
+  SpecialTokenInMerge(rule_index~ : Int)
+  InvalidMergeResult(rule_index~ : Int)
+  DuplicateMergePair(first_rule~ : Int, duplicate_rule~ : Int)
+  InvalidOutputLimit(requested~ : Int, maximum~ : Int)
+  InputTooLong(actual~ : Int, maximum~ : Int)
+  OutputTooLong(actual~ : Int, maximum~ : Int)
+  SpecialTokenRejected(token_id~ : Int)
+  UnknownTokenId(token_id~ : Int)
+  DecodedOutputTooLong(maximum~ : Int)
+  InvalidUtf8Output
+  InvalidUtf16Input(code_unit_offset~ : Int)
+} derive(Debug, Eq)
+
+///|
+/// Opaque, validated lowercase SHA-256 identity of the tokenizer artifact.
+pub struct TokenizerDigest {
+  priv value : String
+} derive(Debug, Eq)
+
+///|
+/// Validate a lowercase 64-character SHA-256 hexadecimal identity.
+pub fn TokenizerDigest::parse(
+  value : String,
+) -> TokenizerDigest raise TokenizerError {
+  if value.length() != 64 {
+    raise InvalidDigest
+  }
+  for ch in value {
+    if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f')) {
+      raise InvalidDigest
+    }
+  }
+  { value, }
+}
+
+///|
+/// Return the validated digest text.
+pub fn TokenizerDigest::as_string(self : TokenizerDigest) -> String {
+  self.value
+}
