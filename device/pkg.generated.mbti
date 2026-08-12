@@ -6,11 +6,58 @@ import {
 }
 
 // Values
+pub fn open_context(Int) -> Context raise DeviceError
+
 pub fn probe() -> ProbeResult
 
 // Errors
+pub(all) suberror DeviceError {
+  Unavailable(DeviceOperation)
+  InvalidArgument(DeviceOperation)
+  Closed(DeviceOperation)
+  Busy(DeviceOperation)
+  DriverFailure(DeviceOperation)
+  HostAllocationFailed(DeviceOperation)
+  SizeOverflow(DeviceOperation)
+  Unsupported(DeviceOperation)
+  InvalidOutput(DeviceOperation)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct Allocation {
+  // private fields
+}
+pub fn Allocation::byte_count(Self) -> Int64
+pub fn Allocation::close(Self) -> Unit raise DeviceError
+pub fn Allocation::copy_from_host(Self, Bytes, Int64, Int64, Int64) -> Unit raise DeviceError
+pub fn Allocation::copy_to_host(Self, Int64, Int64) -> Bytes raise DeviceError
+
+pub struct Bf16GemmPlan {
+  // private fields
+}
+pub fn Bf16GemmPlan::close(Self) -> Unit raise DeviceError
+pub fn Bf16GemmPlan::columns(Self) -> Int64
+pub fn Bf16GemmPlan::inner(Self) -> Int64
+pub fn Bf16GemmPlan::rows(Self) -> Int64
+pub fn Bf16GemmPlan::run(Self, Allocation, Int64, Allocation, Int64, Allocation, Int64, Allocation, Int64, Stream) -> Unit raise DeviceError
+pub fn Bf16GemmPlan::workspace_byte_count(Self) -> Int64
+
+pub struct Context {
+  // private fields
+}
+pub fn Context::allocate(Self, Int64) -> Allocation raise DeviceError
+pub fn Context::close(Self) -> Unit raise DeviceError
+pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
+pub fn Context::create_event(Self) -> Event raise DeviceError
+pub fn Context::create_stream(Self) -> Stream raise DeviceError
+pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
+
+pub struct CublasLt {
+  // private fields
+}
+pub fn CublasLt::close(Self) -> Unit raise DeviceError
+pub fn CublasLt::create_bf16_gemm_plan(Self, Int64, Int64, Int64, Int64) -> Bf16GemmPlan raise DeviceError
+
 pub struct DeviceCapability {
   compute_major : Int
   compute_minor : Int
@@ -33,10 +80,62 @@ pub fn DeviceInfo::capability(Self) -> DeviceCapability
 pub fn DeviceInfo::name(Self) -> String
 pub fn DeviceInfo::ordinal(Self) -> Int
 
+pub(all) enum DeviceOperation {
+  DeviceInventory
+  ContextCreate
+  ContextClose
+  StreamCreate
+  StreamClose
+  StreamSynchronize
+  EventCreate
+  EventClose
+  EventRecord
+  EventSynchronize
+  EventElapsed
+  AllocationCreate
+  AllocationClose
+  CopyToDevice
+  CopyToHost
+  ModuleLoad
+  ModuleClose
+  FunctionLoad
+  FunctionClose
+  CublasLtCreate
+  CublasLtClose
+  Bf16GemmPlanCreate
+  Bf16GemmPlanClose
+  Bf16GemmRun
+} derive(Eq, @debug.Debug)
+
+pub struct Event {
+  // private fields
+}
+pub fn Event::close(Self) -> Unit raise DeviceError
+pub fn Event::elapsed_milliseconds(Self, Self) -> Double raise DeviceError
+pub fn Event::record(Self, Stream) -> Unit raise DeviceError
+pub fn Event::synchronize(Self) -> Unit raise DeviceError
+
+pub struct Function {
+  // private fields
+}
+pub fn Function::close(Self) -> Unit raise DeviceError
+
+pub struct Module {
+  // private fields
+}
+pub fn Module::close(Self) -> Unit raise DeviceError
+pub fn Module::load_function(Self, Bytes) -> Function raise DeviceError
+
 pub(all) enum ProbeResult {
   Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])
   Unavailable(UnavailableReason)
 } derive(Eq, @debug.Debug)
+
+pub struct Stream {
+  // private fields
+}
+pub fn Stream::close(Self) -> Unit raise DeviceError
+pub fn Stream::synchronize(Self) -> Unit raise DeviceError
 
 pub(all) enum UnavailableReason {
   UnsupportedPlatform

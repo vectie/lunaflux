@@ -141,6 +141,7 @@ lf_child *lunaflux_cuda_stream_create(lf_context *context, int32_t *status) {
   );
   memset(stream, 0, sizeof(*stream));
   atomic_init(&stream->state, LF_RESOURCE_CLOSED);
+  atomic_init(&stream->children, 0);
   *status = lf_context_current(context);
   if (*status != LF_OK) return stream;
   CUstream handle = NULL;
@@ -205,6 +206,7 @@ lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
   );
   memset(event, 0, sizeof(*event));
   atomic_init(&event->state, LF_RESOURCE_CLOSED);
+  atomic_init(&event->children, 0);
   *status = lf_context_current(context);
   if (*status != LF_OK) return event;
   CUevent handle = NULL;
@@ -352,29 +354,40 @@ MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_copy_to_device(
   lf_allocation *allocation,
   moonbit_bytes_t source,
+  int64_t source_offset,
+  int64_t destination_offset,
   int64_t byte_count
 ) {
   if (allocation == NULL ||
       atomic_load(&allocation->state) != LF_RESOURCE_LIVE) return LF_CLOSED;
-  if (byte_count < 0 || (uint64_t)byte_count > SIZE_MAX) {
+  if (source_offset < 0 || destination_offset < 0 || byte_count < 0 ||
+      (uint64_t)source_offset > SIZE_MAX ||
+      (uint64_t)destination_offset > SIZE_MAX ||
+      (uint64_t)byte_count > SIZE_MAX) {
     return LF_SIZE_OVERFLOW;
   }
-  if ((uint64_t)byte_count > allocation->size ||
-      byte_count > Moonbit_array_length(source)) {
+  size_t source_size = (size_t)Moonbit_array_length(source);
+  size_t source_start = (size_t)source_offset;
+  size_t destination_start = (size_t)destination_offset;
+  size_t count = (size_t)byte_count;
+  if (source_start > source_size || count > source_size - source_start ||
+      destination_start > allocation->size ||
+      count > allocation->size - destination_start) {
     return LF_INVALID_ARGUMENT;
   }
   int32_t current = lf_context_current(allocation->context);
   if (current != LF_OK) return current;
   return lf_cuda_map_result(allocation->context->api->cuMemcpyHtoD(
-    allocation->handle,
-    source,
-    (size_t)byte_count
+    allocation->handle + destination_start,
+    source + source_start,
+    count
   ));
 }
 
 MOONBIT_FFI_EXPORT
 moonbit_bytes_t lunaflux_cuda_copy_to_host(
   lf_allocation *allocation,
+  int64_t source_offset,
   int64_t byte_count,
   int32_t *status
 ) {
@@ -383,9 +396,17 @@ moonbit_bytes_t lunaflux_cuda_copy_to_host(
     *status = LF_CLOSED;
     return moonbit_make_bytes(0, 0);
   }
-  if (byte_count < 0 || byte_count > INT32_MAX ||
-      (uint64_t)byte_count > allocation->size) {
+  if (source_offset < 0 || byte_count < 0 || byte_count > INT32_MAX ||
+      (uint64_t)source_offset > SIZE_MAX ||
+      (uint64_t)byte_count > SIZE_MAX) {
     *status = LF_SIZE_OVERFLOW;
+    return moonbit_make_bytes(0, 0);
+  }
+  size_t source_start = (size_t)source_offset;
+  size_t count = (size_t)byte_count;
+  if (source_start > allocation->size ||
+      count > allocation->size - source_start) {
+    *status = LF_INVALID_ARGUMENT;
     return moonbit_make_bytes(0, 0);
   }
   *status = lf_context_current(allocation->context);
@@ -393,65 +414,8 @@ moonbit_bytes_t lunaflux_cuda_copy_to_host(
   moonbit_bytes_t output = moonbit_make_bytes((int32_t)byte_count, 0);
   *status = lf_cuda_map_result(allocation->context->api->cuMemcpyDtoH(
     output,
-    allocation->handle,
-    (size_t)byte_count
+    allocation->handle + source_start,
+    count
   ));
   return output;
-}
-
-static int32_t lf_close_cublas(lf_child *cublas) {
-  if (cublas == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&cublas->state);
-  if (begin == LF_CLOSED) return LF_OK;
-  if (begin != LF_OK) return begin;
-  int32_t result = lf_context_current(cublas->context);
-  if (result == LF_OK && cublas->handle != NULL &&
-      cublas->context->api->cublasLtDestroy(cublas->handle) != 0) {
-    result = LF_DRIVER_FAILURE;
-  }
-  if (result != LF_OK) {
-    lf_close_failed(&cublas->state);
-    return result;
-  }
-  cublas->handle = NULL;
-  lf_release_context_child(cublas->context);
-  cublas->context = NULL;
-  lf_close_succeeded(&cublas->state);
-  return LF_OK;
-}
-
-static void lf_finalize_cublas(void *object) {
-  if (lf_close_cublas((lf_child *)object) != LF_OK) lf_finalize_failure();
-}
-
-MOONBIT_FFI_EXPORT
-lf_child *lunaflux_cuda_cublas_create(lf_context *context, int32_t *status) {
-  lf_child *cublas = (lf_child *)moonbit_make_external_object(
-    lf_finalize_cublas,
-    sizeof(lf_child)
-  );
-  memset(cublas, 0, sizeof(*cublas));
-  atomic_init(&cublas->state, LF_RESOURCE_CLOSED);
-  *status = lf_context_current(context);
-  if (*status != LF_OK) return cublas;
-  if (!context->api->cublas_available) {
-    *status = LF_UNSUPPORTED;
-    return cublas;
-  }
-  cublasLtHandle_t handle = NULL;
-  if (context->api->cublasLtCreate(&handle) != 0) {
-    *status = LF_DRIVER_FAILURE;
-    return cublas;
-  }
-  moonbit_incref(context);
-  atomic_fetch_add(&context->children, 1);
-  cublas->context = context;
-  cublas->handle = handle;
-  atomic_store(&cublas->state, LF_RESOURCE_LIVE);
-  return cublas;
-}
-
-MOONBIT_FFI_EXPORT
-int32_t lunaflux_cuda_cublas_close(lf_child *cublas) {
-  return lf_close_cublas(cublas);
 }

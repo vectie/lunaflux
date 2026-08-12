@@ -104,6 +104,9 @@ pub(all) enum CudaOperation {
   FunctionClose
   CublasLtCreate
   CublasLtClose
+  Bf16GemmPlanCreate
+  Bf16GemmPlanClose
+  Bf16GemmRun
 } derive(Debug, Eq)
 
 ///|

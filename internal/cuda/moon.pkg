@@ -5,5 +5,14 @@ import {
 supported_targets = "native"
 
 options(
-  "native-stub": [ "lifecycle_probe.c", "loader.c", "modules.c", "resources.c" ],
+  "native-stub": [
+    "cublas.c",
+    "execution_probe.c",
+    "gemm.c",
+    "lifecycle_probe.c",
+    "loader.c",
+    "modules.c",
+    "resources.c",
+  ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
 )

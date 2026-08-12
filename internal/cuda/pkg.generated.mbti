@@ -29,7 +29,13 @@ pub(all) suberror CudaError {
 type Allocation
 pub fn Allocation::close(Self) -> Unit raise CudaError
 pub fn Allocation::copy_from_host(Self, Bytes, Int64) -> Unit raise CudaError
+pub fn Allocation::copy_from_host_at(Self, Bytes, Int64, Int64, Int64) -> Unit raise CudaError
 pub fn Allocation::copy_to_host(Self, Int64) -> Bytes raise CudaError
+pub fn Allocation::copy_to_host_at(Self, Int64, Int64) -> Bytes raise CudaError
+
+type Bf16GemmPlan
+pub fn Bf16GemmPlan::close(Self) -> Unit raise CudaError
+pub fn Bf16GemmPlan::run(Self, Allocation, Int64, Allocation, Int64, Allocation, Int64, Allocation, Int64, Stream) -> Unit raise CudaError
 
 type Context
 pub fn Context::allocate(Self, Int64) -> Allocation raise CudaError
@@ -41,6 +47,7 @@ pub fn Context::load_module(Self, Bytes) -> Module raise CudaError
 
 type CublasLt
 pub fn CublasLt::close(Self) -> Unit raise CudaError
+pub fn CublasLt::create_bf16_gemm_plan(Self, Int64, Int64, Int64, Int64) -> Bf16GemmPlan raise CudaError
 
 pub(all) enum CudaOperation {
   DeviceInventory
@@ -64,6 +71,9 @@ pub(all) enum CudaOperation {
   FunctionClose
   CublasLtCreate
   CublasLtClose
+  Bf16GemmPlanCreate
+  Bf16GemmPlanClose
+  Bf16GemmRun
 } derive(Eq, @debug.Debug)
 
 pub(all) enum DriverAvailability {

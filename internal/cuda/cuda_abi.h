@@ -28,6 +28,8 @@ typedef void *CUevent;
 typedef void *CUmodule;
 typedef void *CUfunction;
 typedef void *cublasLtHandle_t;
+typedef void *cublasLtMatmulDesc_t;
+typedef void *cublasLtMatrixLayout_t;
 
 enum lf_availability {
   LF_AVAILABLE = 0,
@@ -85,6 +87,38 @@ typedef struct lf_cuda_api {
   CUresult (*cuModuleGetFunction)(CUfunction *, CUmodule, const char *);
   int32_t (*cublasLtCreate)(cublasLtHandle_t *);
   int32_t (*cublasLtDestroy)(cublasLtHandle_t);
+  int32_t (*cublasLtMatmulDescCreate)(
+    cublasLtMatmulDesc_t *,
+    int32_t,
+    int32_t
+  );
+  int32_t (*cublasLtMatmulDescDestroy)(cublasLtMatmulDesc_t);
+  int32_t (*cublasLtMatrixLayoutCreate)(
+    cublasLtMatrixLayout_t *,
+    int32_t,
+    uint64_t,
+    uint64_t,
+    int64_t
+  );
+  int32_t (*cublasLtMatrixLayoutDestroy)(cublasLtMatrixLayout_t);
+  int32_t (*cublasLtMatmul)(
+    cublasLtHandle_t,
+    cublasLtMatmulDesc_t,
+    const void *,
+    const void *,
+    cublasLtMatrixLayout_t,
+    const void *,
+    cublasLtMatrixLayout_t,
+    const void *,
+    const void *,
+    cublasLtMatrixLayout_t,
+    void *,
+    cublasLtMatrixLayout_t,
+    const void *,
+    void *,
+    size_t,
+    CUstream
+  );
 } lf_cuda_api;
 
 lf_cuda_api *lf_cuda_api_get(void);

@@ -57,8 +57,33 @@ static void lf_load_optional_cublas(lf_cuda_api *api) {
     lf_symbol(api->cublas_library, "cublasLtCreate");
   api->cublasLtDestroy = (int32_t (*)(cublasLtHandle_t))
     lf_symbol(api->cublas_library, "cublasLtDestroy");
+  api->cublasLtMatmulDescCreate =
+    (int32_t (*)(cublasLtMatmulDesc_t *, int32_t, int32_t))
+      lf_symbol(api->cublas_library, "cublasLtMatmulDescCreate");
+  api->cublasLtMatmulDescDestroy =
+    (int32_t (*)(cublasLtMatmulDesc_t))
+      lf_symbol(api->cublas_library, "cublasLtMatmulDescDestroy");
+  api->cublasLtMatrixLayoutCreate =
+    (int32_t (*)(cublasLtMatrixLayout_t *, int32_t, uint64_t, uint64_t,
+                 int64_t))
+      lf_symbol(api->cublas_library, "cublasLtMatrixLayoutCreate");
+  api->cublasLtMatrixLayoutDestroy =
+    (int32_t (*)(cublasLtMatrixLayout_t))
+      lf_symbol(api->cublas_library, "cublasLtMatrixLayoutDestroy");
+  api->cublasLtMatmul =
+    (int32_t (*)(cublasLtHandle_t, cublasLtMatmulDesc_t, const void *,
+                 const void *, cublasLtMatrixLayout_t, const void *,
+                 cublasLtMatrixLayout_t, const void *, const void *,
+                 cublasLtMatrixLayout_t, void *, cublasLtMatrixLayout_t,
+                 const void *, void *, size_t, CUstream))
+      lf_symbol(api->cublas_library, "cublasLtMatmul");
   api->cublas_available =
-    api->cublasLtCreate != NULL && api->cublasLtDestroy != NULL;
+    api->cublasLtCreate != NULL && api->cublasLtDestroy != NULL &&
+    api->cublasLtMatmulDescCreate != NULL &&
+    api->cublasLtMatmulDescDestroy != NULL &&
+    api->cublasLtMatrixLayoutCreate != NULL &&
+    api->cublasLtMatrixLayoutDestroy != NULL &&
+    api->cublasLtMatmul != NULL;
 }
 #endif
 

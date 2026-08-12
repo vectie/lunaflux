@@ -149,7 +149,25 @@ pub fn Allocation::copy_from_host(
   source : Bytes,
   byte_count : Int64,
 ) -> Unit raise CudaError {
-  check_status(raw_copy_to_device(self, source, byte_count), CopyToDevice)
+  self.copy_from_host_at(source, 0L, 0L, byte_count)
+}
+
+///|
+/// Copies a bounded host byte range into a bounded allocation range. The
+/// borrowed host buffer is retained only for this synchronous call.
+pub fn Allocation::copy_from_host_at(
+  self : Allocation,
+  source : Bytes,
+  source_offset : Int64,
+  destination_offset : Int64,
+  byte_count : Int64,
+) -> Unit raise CudaError {
+  check_status(
+    raw_copy_to_device(
+      self, source, source_offset, destination_offset, byte_count,
+    ),
+    CopyToDevice,
+  )
 }
 
 ///|
@@ -157,8 +175,18 @@ pub fn Allocation::copy_to_host(
   self : Allocation,
   byte_count : Int64,
 ) -> Bytes raise CudaError {
+  self.copy_to_host_at(0L, byte_count)
+}
+
+///|
+/// Copies a bounded allocation range into a fresh host buffer.
+pub fn Allocation::copy_to_host_at(
+  self : Allocation,
+  source_offset : Int64,
+  byte_count : Int64,
+) -> Bytes raise CudaError {
   let status = Ref(0)
-  let output = raw_copy_to_host(self, byte_count, status)
+  let output = raw_copy_to_host(self, source_offset, byte_count, status)
   check_status(status.val, CopyToHost)
   output
 }
@@ -206,4 +234,53 @@ pub fn Context::create_cublas_lt(self : Context) -> CublasLt raise CudaError {
 ///|
 pub fn CublasLt::close(self : CublasLt) -> Unit raise CudaError {
   check_status(raw_cublas_close(self), CublasLtClose)
+}
+
+///|
+/// Creates a reusable row-major BF16 GEMM descriptor for
+/// `output[rows, columns] = left[rows, inner] * right[inner, columns]`.
+/// Accumulation and scalar computation use FP32. Workspace is caller-owned.
+pub fn CublasLt::create_bf16_gemm_plan(
+  self : CublasLt,
+  rows : Int64,
+  inner : Int64,
+  columns : Int64,
+  workspace_byte_count : Int64,
+) -> Bf16GemmPlan raise CudaError {
+  let status = Ref(0)
+  let plan = raw_bf16_gemm_plan_create(
+    self, rows, inner, columns, workspace_byte_count, status,
+  )
+  check_status(status.val, Bf16GemmPlanCreate)
+  plan
+}
+
+///|
+pub fn Bf16GemmPlan::close(self : Bf16GemmPlan) -> Unit raise CudaError {
+  check_status(raw_bf16_gemm_plan_close(self), Bf16GemmPlanClose)
+}
+
+///|
+/// Enqueues this GEMM on `stream`. Operand offsets must be 16-byte aligned;
+/// workspace offsets must be 256-byte aligned. The caller retains every
+/// allocation and must synchronize before reusing their storage.
+pub fn Bf16GemmPlan::run(
+  self : Bf16GemmPlan,
+  left : Allocation,
+  left_offset : Int64,
+  right : Allocation,
+  right_offset : Int64,
+  output : Allocation,
+  output_offset : Int64,
+  workspace : Allocation,
+  workspace_offset : Int64,
+  stream : Stream,
+) -> Unit raise CudaError {
+  check_status(
+    raw_bf16_gemm_plan_run(
+      self, left, left_offset, right, right_offset, output, output_offset, workspace,
+      workspace_offset, stream,
+    ),
+    Bf16GemmRun,
+  )
 }

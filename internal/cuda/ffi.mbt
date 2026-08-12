@@ -20,6 +20,9 @@ type Function
 type CublasLt
 
 ///|
+type Bf16GemmPlan
+
+///|
 #borrow(output)
 extern "c" fn raw_probe(output : FixedArray[Int64]) -> Int = "lunaflux_cuda_probe"
 
@@ -92,6 +95,8 @@ extern "c" fn raw_allocation_close(allocation : Allocation) -> Int = "lunaflux_c
 extern "c" fn raw_copy_to_device(
   allocation : Allocation,
   source : Bytes,
+  source_offset : Int64,
+  destination_offset : Int64,
   byte_count : Int64,
 ) -> Int = "lunaflux_cuda_copy_to_device"
 
@@ -99,6 +104,7 @@ extern "c" fn raw_copy_to_device(
 #borrow(allocation, status)
 extern "c" fn raw_copy_to_host(
   allocation : Allocation,
+  source_offset : Int64,
   byte_count : Int64,
   status : Ref[Int],
 ) -> Bytes = "lunaflux_cuda_copy_to_host"
@@ -137,3 +143,33 @@ extern "c" fn raw_cublas_create(
 ///|
 #borrow(handle)
 extern "c" fn raw_cublas_close(handle : CublasLt) -> Int = "lunaflux_cuda_cublas_close"
+
+///|
+#borrow(handle, status)
+extern "c" fn raw_bf16_gemm_plan_create(
+  handle : CublasLt,
+  rows : Int64,
+  inner : Int64,
+  columns : Int64,
+  workspace_byte_count : Int64,
+  status : Ref[Int],
+) -> Bf16GemmPlan = "lunaflux_cuda_bf16_gemm_plan_create"
+
+///|
+#borrow(plan)
+extern "c" fn raw_bf16_gemm_plan_close(plan : Bf16GemmPlan) -> Int = "lunaflux_cuda_bf16_gemm_plan_close"
+
+///|
+#borrow(plan, left, right, output, workspace, stream)
+extern "c" fn raw_bf16_gemm_plan_run(
+  plan : Bf16GemmPlan,
+  left : Allocation,
+  left_offset : Int64,
+  right : Allocation,
+  right_offset : Int64,
+  output : Allocation,
+  output_offset : Int64,
+  workspace : Allocation,
+  workspace_offset : Int64,
+  stream : Stream,
+) -> Int = "lunaflux_cuda_bf16_gemm_plan_run"

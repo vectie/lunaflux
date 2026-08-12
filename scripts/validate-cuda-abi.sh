@@ -48,10 +48,18 @@ done <<EOF
 $(rg --files internal/cuda device --glob '*.mbt' --glob '*.c' --glob '*.h' | sort)
 EOF
 
-if ! rg -q '"loader.c"' internal/cuda/moon.pkg ||
-   ! rg -q '"modules.c"' internal/cuda/moon.pkg ||
-   ! rg -q '"resources.c"' internal/cuda/moon.pkg; then
-  printf '%s\n' 'internal/cuda native-stub list is incomplete' >&2
+for native_stub in cublas.c gemm.c loader.c modules.c resources.c; do
+  if ! rg -q "\"$native_stub\"" internal/cuda/moon.pkg; then
+    printf '%s: %s\n' \
+      'internal/cuda native-stub list is missing' "$native_stub" >&2
+    failed=1
+  fi
+done
+
+if ! rg -q \
+  '"stub-cc-flags": "-std=c11 -Wall -Wextra -Werror"' \
+  internal/cuda/moon.pkg; then
+  printf '%s\n' 'internal/cuda must compile stubs with the strict C11 gate' >&2
   failed=1
 fi
 

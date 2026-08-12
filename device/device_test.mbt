@@ -25,3 +25,23 @@ test "probe is deterministic and semantically bounded on every host" {
     }
   }
 }
+
+///|
+test "context admission exposes only bounded public failures" {
+  match @device.probe() {
+    Unavailable(_) =>
+      try @device.open_context(0) catch {
+        Unavailable(ContextCreate) => ()
+        error => fail("unexpected public context error: \{Repr(error)}")
+      } noraise {
+        _ => fail("unavailable device unexpectedly opened a context")
+      }
+    Available(_) =>
+      try @device.open_context(-1) catch {
+        InvalidArgument(ContextCreate) => ()
+        error => fail("unexpected public context error: \{Repr(error)}")
+      } noraise {
+        _ => fail("negative device ordinal unexpectedly opened a context")
+      }
+  }
+}
