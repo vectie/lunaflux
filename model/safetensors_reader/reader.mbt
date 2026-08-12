@@ -179,6 +179,72 @@ fn decode_entries(
 }
 
 ///|
+/// Parses and validates an exact safetensors prefix plus header against a
+/// separately established payload byte length.
+///
+/// `prefix_and_header` must contain exactly the eight-byte length prefix and
+/// the declared header, with no payload bytes. This form lets a bounded file
+/// loader validate metadata before allocating a device destination or reading
+/// the model-sized payload into host memory.
+pub fn read_header(
+  prefix_and_header : BytesView,
+  payload_bytes~ : Int64,
+  limits~ : @safetensors.HeaderLimits,
+) -> @safetensors.SafetensorsMetadata raise SafetensorsReaderError {
+  if prefix_and_header.length() < SAFETENSORS_PREFIX_BYTES {
+    raise MissingHeaderLength
+  }
+  if payload_bytes < 0L {
+    raise InvalidPayloadLength
+  }
+  let encoded_length = decode_header_length(prefix_and_header)
+  if encoded_length > MAX_INT_AS_UINT64 {
+    raise HeaderLengthOverflow
+  }
+  let header_length = encoded_length.to_int()
+  if header_length > limits.max_header_bytes() {
+    raise HeaderTooLarge
+  }
+  let available_after_prefix = prefix_and_header.length() -
+    SAFETENSORS_PREFIX_BYTES
+  if header_length > available_after_prefix {
+    raise TruncatedHeader
+  }
+  if header_length != available_after_prefix {
+    raise HeaderEnvelopeSizeMismatch
+  }
+  if payload_bytes > limits.max_payload_bytes() {
+    raise Validation(RangeOutsidePayload(0))
+  }
+  let header = prefix_and_header[SAFETENSORS_PREFIX_BYTES:]
+  if !header_has_valid_envelope(header) {
+    raise InvalidHeaderEnvelope
+  }
+  let header_text = @utf8.decode(header) catch {
+    _ => raise InvalidHeaderEncoding
+  }
+  @json_guard.reject_duplicate_object_keys(header_text, max_depth=4) catch {
+    DuplicateObjectKey(depth~, index~) =>
+      raise DuplicateHeaderKey(depth~, index~)
+    _ => raise InvalidHeaderJson
+  }
+  let root = @json.parse(header_text) catch { _ => raise InvalidHeaderJson }
+  let entries = decode_entries(root, limits)
+  let metadata = @safetensors.validate_metadata(
+    entries,
+    encoded_header_bytes=header_length,
+    payload_bytes~,
+    limits~,
+  ) catch {
+    error => raise Validation(error)
+  }
+  if metadata.materialized_tensor_bytes() != payload_bytes {
+    raise PayloadSizeMismatch
+  }
+  metadata
+}
+
+///|
 /// Parses and validates metadata from one complete safetensors byte sequence.
 ///
 /// The first eight bytes are decoded as an unsigned little-endian header
@@ -208,33 +274,5 @@ pub fn read_metadata(
   }
   let header_end = SAFETENSORS_PREFIX_BYTES + header_length
   let payload_bytes = (file.length() - header_end).to_int64()
-  if payload_bytes > limits.max_payload_bytes() {
-    raise Validation(RangeOutsidePayload(0))
-  }
-  let header = file[SAFETENSORS_PREFIX_BYTES:header_end]
-  if !header_has_valid_envelope(header) {
-    raise InvalidHeaderEnvelope
-  }
-  let header_text = @utf8.decode(header) catch {
-    _ => raise InvalidHeaderEncoding
-  }
-  @json_guard.reject_duplicate_object_keys(header_text, max_depth=4) catch {
-    DuplicateObjectKey(depth~, index~) =>
-      raise DuplicateHeaderKey(depth~, index~)
-    _ => raise InvalidHeaderJson
-  }
-  let root = @json.parse(header_text) catch { _ => raise InvalidHeaderJson }
-  let entries = decode_entries(root, limits)
-  let metadata = @safetensors.validate_metadata(
-    entries,
-    encoded_header_bytes=header_length,
-    payload_bytes~,
-    limits~,
-  ) catch {
-    error => raise Validation(error)
-  }
-  if metadata.materialized_tensor_bytes() != payload_bytes {
-    raise PayloadSizeMismatch
-  }
-  metadata
+  read_header(file[:header_end], payload_bytes~, limits~)
 }

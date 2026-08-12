@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn read_header(BytesView, payload_bytes~ : Int64, limits~ : @safetensors.HeaderLimits) -> @safetensors.SafetensorsMetadata raise SafetensorsReaderError
+
 pub fn read_metadata(BytesView, limits~ : @safetensors.HeaderLimits) -> @safetensors.SafetensorsMetadata raise SafetensorsReaderError
 
 // Errors
@@ -15,6 +17,8 @@ pub(all) suberror SafetensorsReaderError {
   HeaderLengthOverflow
   HeaderTooLarge
   TruncatedHeader
+  HeaderEnvelopeSizeMismatch
+  InvalidPayloadLength
   InvalidHeaderEnvelope
   InvalidHeaderEncoding
   InvalidHeaderJson

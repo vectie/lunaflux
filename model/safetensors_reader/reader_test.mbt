@@ -60,6 +60,43 @@ test "valid header metadata is decoded and payload-relative ranges are preserved
 }
 
 ///|
+test "exact prefix and header validate without owning the payload" {
+  let header = "{\"w\":{\"dtype\":\"BF16\",\"shape\":[2],\"data_offsets\":[0,4]}}"
+  let prefix_and_header = fixture(header)
+  let metadata = @safetensors_reader.read_header(
+    prefix_and_header,
+    payload_bytes=4L,
+    limits=limits(),
+  )
+  assert_eq(metadata.tensor_count(), 1)
+  assert_eq(metadata.payload_bytes(), 4L)
+  try
+    @safetensors_reader.read_header(
+      fixture(header, payload_bytes=1),
+      payload_bytes=4L,
+      limits=limits(),
+    )
+  catch {
+    @safetensors_reader.SafetensorsReaderError::HeaderEnvelopeSizeMismatch => ()
+    _ => fail("unexpected header-envelope error")
+  } noraise {
+    _ => fail("expected extra header bytes to be rejected")
+  }
+  try
+    @safetensors_reader.read_header(
+      prefix_and_header,
+      payload_bytes=-1L,
+      limits=limits(),
+    )
+  catch {
+    @safetensors_reader.SafetensorsReaderError::InvalidPayloadLength => ()
+    _ => fail("unexpected payload-length error")
+  } noraise {
+    _ => fail("expected negative payload length rejection")
+  }
+}
+
+///|
 test "missing overflowing oversized and truncated header lengths are rejected" {
   try @safetensors_reader.read_metadata(b"short", limits=limits()) catch {
     @safetensors_reader.SafetensorsReaderError::MissingHeaderLength => ()

@@ -17,6 +17,8 @@ pub(all) suberror SafetensorsReaderError {
   HeaderLengthOverflow
   HeaderTooLarge
   TruncatedHeader
+  HeaderEnvelopeSizeMismatch
+  InvalidPayloadLength
   InvalidHeaderEnvelope
   InvalidHeaderEncoding
   InvalidHeaderJson
