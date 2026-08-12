@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/config/scheduler",
+  "vectie/lunaflux/config/cache",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/kv/block_table",
+}
+
+supported_targets = "native"

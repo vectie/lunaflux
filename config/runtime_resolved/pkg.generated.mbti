@@ -1,0 +1,126 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/runtime_resolved"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/cache",
+  "vectie/lunaflux/config/scheduler",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/block_table",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn resolve(@scheduler.SchedulerConfig, @cache.CacheConfig, @plan.ShapeConstraints, @worker_protocol.WorkerProtocolLimits) -> ResolvedRuntimeCapacity raise RuntimeCapacityError
+
+// Errors
+pub(all) suberror RuntimeCapacityError {
+  Invalid(RuntimeCapacityRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ResolvedRuntimeCapacity {
+  tokens_per_page : Int
+  total_page_count : Int
+  context_pages_per_request : Int
+  block_table_pages_per_request : Int
+  max_active_requests : Int
+  max_waiting_requests : Int
+  total_request_slots : Int
+  step_token_budget : Int
+  prefill_chunk_tokens : Int
+  emergency_decode_page_reserve : Int
+  waiting_age_threshold_steps : Int
+  max_rows_per_step : Int
+  required_worker_page_table_cells : Int
+  model_max_batch_rows : Int
+  model_max_sequence_tokens : Int
+  worker_max_prefill_rows : Int
+  worker_max_decode_rows : Int
+  worker_max_plan_rows : Int
+  worker_max_plan_tokens : Int
+  worker_max_plan_pages : Int
+  worker_max_capabilities : Int
+  worker_max_completion_slots : Int
+  worker_max_sequence_tokens : Int
+  worker_max_token_id : Int
+  page_allocator_limits : @page_allocator.PageAllocatorLimits
+  block_table_limits : @block_table.BlockTableLimits
+  decisions : ReadOnlyArray[RuntimeCapacityDecision]
+} derive(Eq, @debug.Debug)
+pub fn ResolvedRuntimeCapacity::block_table_limits(Self) -> @block_table.BlockTableLimits
+pub fn ResolvedRuntimeCapacity::block_table_pages_per_request(Self) -> Int
+pub fn ResolvedRuntimeCapacity::context_pages_per_request(Self) -> Int
+pub fn ResolvedRuntimeCapacity::decisions(Self) -> ReadOnlyArray[RuntimeCapacityDecision]
+pub fn ResolvedRuntimeCapacity::emergency_decode_page_reserve(Self) -> Int
+pub fn ResolvedRuntimeCapacity::max_active_requests(Self) -> Int
+pub fn ResolvedRuntimeCapacity::max_rows_per_step(Self) -> Int
+pub fn ResolvedRuntimeCapacity::max_waiting_requests(Self) -> Int
+pub fn ResolvedRuntimeCapacity::model_max_batch_rows(Self) -> Int
+pub fn ResolvedRuntimeCapacity::model_max_sequence_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::page_allocator_limits(Self) -> @page_allocator.PageAllocatorLimits
+pub fn ResolvedRuntimeCapacity::plan_buffer_count(Self) -> Int
+pub fn ResolvedRuntimeCapacity::prefill_chunk_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::required_worker_page_table_cells(Self) -> Int
+pub fn ResolvedRuntimeCapacity::step_token_budget(Self) -> Int
+pub fn ResolvedRuntimeCapacity::tokens_per_page(Self) -> Int
+pub fn ResolvedRuntimeCapacity::total_page_count(Self) -> Int
+pub fn ResolvedRuntimeCapacity::total_request_slots(Self) -> Int
+pub fn ResolvedRuntimeCapacity::waiting_age_threshold_steps(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_capabilities(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_completion_slots(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_decode_rows(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_plan_pages(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_plan_rows(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_plan_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_prefill_rows(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_sequence_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::worker_max_token_id(Self) -> Int
+
+pub struct RuntimeCapacityDecision {
+  subject : RuntimeCapacitySubject
+  reason : RuntimeCapacityReason
+} derive(Eq, @debug.Debug)
+pub fn RuntimeCapacityDecision::reason(Self) -> RuntimeCapacityReason
+pub fn RuntimeCapacityDecision::subject(Self) -> RuntimeCapacitySubject
+
+pub(all) enum RuntimeCapacityReason {
+  CeilingDivision
+  CombinedConfiguredCapacity
+  MinimumOfActiveAndTokenBudget
+  RowsTimesContextPages
+  FixedDoubleBuffer
+  OwnerMaximumGenerationDefault
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeCapacityRule {
+  EmergencyReserveWithinPhysicalPages
+  ContextFitsBlockTable
+  TotalRequestSlots
+  WorkerTokenBudget
+  WorkerPlanRows
+  WorkerPrefillRows
+  WorkerDecodeRows
+  WorkerCompletionSlots
+  WorkerSequenceTokens
+  WorkerPlanPages
+  WorkerTokenIdRange
+  ModelBatchRows
+  PageAllocatorLimits
+  BlockTableLimits
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeCapacitySubject {
+  ContextPagesPerRequest
+  TotalRequestSlots
+  MaxRowsPerStep
+  WorkerPageTableCells
+  PlanBufferCount
+  PageGenerationLimit
+  BlockTableGenerationLimit
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,207 @@
+///|
+const REQUIRED_PLAN_BUFFER_COUNT : Int = 2
+
+///|
+const MAX_SAFE_INT : Int = 2_147_483_647
+
+///|
+fn checked_add_nonnegative(left : Int, right : Int) -> Int? {
+  if left < 0 || right < 0 || left > MAX_SAFE_INT - right {
+    None
+  } else {
+    Some(left + right)
+  }
+}
+
+///|
+fn checked_multiply_nonnegative(left : Int, right : Int) -> Int? {
+  if left < 0 || right < 0 {
+    None
+  } else if left == 0 || right == 0 {
+    Some(0)
+  } else if left > MAX_SAFE_INT / right {
+    None
+  } else {
+    Some(left * right)
+  }
+}
+
+///|
+fn ceiling_divide_positive(numerator : Int, denominator : Int) -> Int? {
+  if numerator <= 0 || denominator <= 0 {
+    None
+  } else {
+    Some((numerator - 1) / denominator + 1)
+  }
+}
+
+///|
+fn require_at_least(
+  available : Int,
+  required : Int,
+  rule : RuntimeCapacityRule,
+) -> Unit raise RuntimeCapacityError {
+  if available < required {
+    raise Invalid(rule)
+  }
+}
+
+///|
+fn materialize_page_allocator_limits(
+  cache : @cache.CacheConfig,
+) -> @page_allocator.PageAllocatorLimits raise RuntimeCapacityError {
+  @page_allocator.PageAllocatorLimits::new(
+    page_capacity=cache.total_page_count(),
+    max_run_pages=cache.block_table_pages_per_request(),
+    max_active_references_per_page=cache.max_active_references_per_page(),
+    max_cached_references_per_page=cache.max_cached_references_per_page(),
+  ) catch {
+    _ => raise Invalid(PageAllocatorLimits)
+  }
+}
+
+///|
+fn materialize_block_table_limits(
+  scheduler : @scheduler.SchedulerConfig,
+  cache : @cache.CacheConfig,
+) -> @block_table.BlockTableLimits raise RuntimeCapacityError {
+  @block_table.BlockTableLimits::new(
+    table_capacity=scheduler.max_active_requests(),
+    max_pages_per_table=cache.block_table_pages_per_request(),
+    tokens_per_page=cache.tokens_per_page(),
+  ) catch {
+    _ => raise Invalid(BlockTableLimits)
+  }
+}
+
+///|
+/// Resolves exact cross-component capacities before runtime owners allocate.
+///
+/// `max_rows_per_step` is `min(max_active_requests, step_token_budget)` because
+/// every submitted row consumes at least one token. A legal step can consist
+/// entirely of decode rows or one-token prefill rows, so model batch rows and
+/// every worker row/completion envelope must independently support that full
+/// ceiling. Active concurrency may exceed this per-step row ceiling.
+///
+/// Worker page storage is conservative by construction: each scheduled row
+/// may carry a complete context-sized page table in the flattened plan.
+pub fn resolve(
+  scheduler : @scheduler.SchedulerConfig,
+  cache : @cache.CacheConfig,
+  shapes : @plan.ShapeConstraints,
+  worker : @worker_protocol.WorkerProtocolLimits,
+) -> ResolvedRuntimeCapacity raise RuntimeCapacityError {
+  let tokens_per_page = cache.tokens_per_page()
+  let total_page_count = cache.total_page_count()
+  let block_table_pages_per_request = cache.block_table_pages_per_request()
+  let model_max_sequence_tokens = shapes.max_sequence_tokens()
+  let context_pages_per_request = match
+    ceiling_divide_positive(model_max_sequence_tokens, tokens_per_page) {
+    Some(value) => value
+    None => raise Invalid(ContextFitsBlockTable)
+  }
+  if scheduler.emergency_decode_page_reserve() > total_page_count {
+    raise Invalid(EmergencyReserveWithinPhysicalPages)
+  }
+  if context_pages_per_request > block_table_pages_per_request {
+    raise Invalid(ContextFitsBlockTable)
+  }
+  let max_active_requests = scheduler.max_active_requests()
+  let max_waiting_requests = scheduler.max_waiting_requests()
+  let total_request_slots = match
+    checked_add_nonnegative(max_active_requests, max_waiting_requests) {
+    Some(value) => value
+    None => raise Invalid(TotalRequestSlots)
+  }
+  let step_token_budget = scheduler.step_token_budget()
+  let max_rows_per_step = if max_active_requests < step_token_budget {
+    max_active_requests
+  } else {
+    step_token_budget
+  }
+  require_at_least(shapes.max_batch_rows(), max_rows_per_step, ModelBatchRows)
+  require_at_least(
+    worker.max_plan_tokens(),
+    step_token_budget,
+    WorkerTokenBudget,
+  )
+  require_at_least(worker.max_plan_rows(), max_rows_per_step, WorkerPlanRows)
+  require_at_least(
+    worker.max_prefill_rows(),
+    max_rows_per_step,
+    WorkerPrefillRows,
+  )
+  require_at_least(
+    worker.max_decode_rows(),
+    max_rows_per_step,
+    WorkerDecodeRows,
+  )
+  require_at_least(
+    worker.max_completion_slots(),
+    max_rows_per_step,
+    WorkerCompletionSlots,
+  )
+  require_at_least(
+    worker.max_sequence_tokens(),
+    model_max_sequence_tokens,
+    WorkerSequenceTokens,
+  )
+  require_at_least(
+    worker.max_token_id(),
+    shapes.vocabulary_size() - 1,
+    WorkerTokenIdRange,
+  )
+  let required_worker_page_table_cells = match
+    checked_multiply_nonnegative(max_rows_per_step, context_pages_per_request) {
+    Some(value) => value
+    None => raise Invalid(WorkerPlanPages)
+  }
+  require_at_least(
+    worker.max_plan_pages(),
+    required_worker_page_table_cells,
+    WorkerPlanPages,
+  )
+  let page_allocator_limits = materialize_page_allocator_limits(cache)
+  let block_table_limits = materialize_block_table_limits(scheduler, cache)
+  let decisions : Array[RuntimeCapacityDecision] = [
+    { subject: ContextPagesPerRequest, reason: CeilingDivision },
+    { subject: TotalRequestSlots, reason: CombinedConfiguredCapacity },
+    { subject: MaxRowsPerStep, reason: MinimumOfActiveAndTokenBudget },
+    { subject: WorkerPageTableCells, reason: RowsTimesContextPages },
+    { subject: PlanBufferCount, reason: FixedDoubleBuffer },
+    { subject: PageGenerationLimit, reason: OwnerMaximumGenerationDefault },
+    {
+      subject: BlockTableGenerationLimit,
+      reason: OwnerMaximumGenerationDefault,
+    },
+  ]
+  {
+    tokens_per_page,
+    total_page_count,
+    context_pages_per_request,
+    block_table_pages_per_request,
+    max_active_requests,
+    max_waiting_requests,
+    total_request_slots,
+    step_token_budget,
+    prefill_chunk_tokens: scheduler.prefill_chunk_tokens(),
+    emergency_decode_page_reserve: scheduler.emergency_decode_page_reserve(),
+    waiting_age_threshold_steps: scheduler.waiting_age_threshold_steps(),
+    max_rows_per_step,
+    required_worker_page_table_cells,
+    model_max_batch_rows: shapes.max_batch_rows(),
+    model_max_sequence_tokens,
+    worker_max_prefill_rows: worker.max_prefill_rows(),
+    worker_max_decode_rows: worker.max_decode_rows(),
+    worker_max_plan_rows: worker.max_plan_rows(),
+    worker_max_plan_tokens: worker.max_plan_tokens(),
+    worker_max_plan_pages: worker.max_plan_pages(),
+    worker_max_capabilities: worker.max_capabilities(),
+    worker_max_completion_slots: worker.max_completion_slots(),
+    worker_max_sequence_tokens: worker.max_sequence_tokens(),
+    worker_max_token_id: worker.max_token_id(),
+    page_allocator_limits,
+    block_table_limits,
+    decisions: ReadOnlyArray::from_array(decisions),
+  }
+}
