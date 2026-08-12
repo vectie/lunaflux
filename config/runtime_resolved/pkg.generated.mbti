@@ -32,6 +32,7 @@ pub struct ResolvedRuntimeCapacity {
   prefill_chunk_tokens : Int
   emergency_decode_page_reserve : Int
   waiting_age_threshold_steps : Int
+  output_event_capacity : Int
   max_rows_per_step : Int
   required_worker_page_table_cells : Int
   model_max_batch_rows : Int
@@ -59,6 +60,7 @@ pub fn ResolvedRuntimeCapacity::max_rows_per_step(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_waiting_requests(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_batch_rows(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_sequence_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::output_event_capacity(Self) -> Int
 pub fn ResolvedRuntimeCapacity::page_allocator_limits(Self) -> @page_allocator.PageAllocatorLimits
 pub fn ResolvedRuntimeCapacity::plan_buffer_count(Self) -> Int
 pub fn ResolvedRuntimeCapacity::prefill_chunk_tokens(Self) -> Int
@@ -106,6 +108,7 @@ pub(all) enum RuntimeCapacityRule {
   WorkerSequenceTokens
   WorkerPlanPages
   WorkerTokenIdRange
+  OutputEventCapacity
   ModelBatchRows
   PageAllocatorLimits
   BlockTableLimits

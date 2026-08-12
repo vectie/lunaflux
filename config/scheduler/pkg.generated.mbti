@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn new(step_token_budget~ : Int, max_active_requests~ : Int, max_waiting_requests~ : Int, prefill_chunk_tokens~ : Int, emergency_decode_page_reserve~ : Int, waiting_age_threshold_steps~ : Int) -> SchedulerConfig raise SchedulerConfigError
+pub fn new(step_token_budget~ : Int, max_active_requests~ : Int, max_waiting_requests~ : Int, prefill_chunk_tokens~ : Int, emergency_decode_page_reserve~ : Int, waiting_age_threshold_steps~ : Int, output_event_capacity~ : Int) -> SchedulerConfig raise SchedulerConfigError
 
 // Errors
 pub(all) suberror SchedulerConfigError {
@@ -21,10 +21,12 @@ pub struct SchedulerConfig {
   prefill_chunk_tokens : Int
   emergency_decode_page_reserve : Int
   waiting_age_threshold_steps : Int
+  output_event_capacity : Int
 } derive(Eq, @debug.Debug)
 pub fn SchedulerConfig::emergency_decode_page_reserve(Self) -> Int
 pub fn SchedulerConfig::max_active_requests(Self) -> Int
 pub fn SchedulerConfig::max_waiting_requests(Self) -> Int
+pub fn SchedulerConfig::output_event_capacity(Self) -> Int
 pub fn SchedulerConfig::plan_buffer_count(Self) -> Int
 pub fn SchedulerConfig::prefill_chunk_tokens(Self) -> Int
 pub fn SchedulerConfig::step_token_budget(Self) -> Int
@@ -37,6 +39,7 @@ pub(all) enum SchedulerField {
   PrefillChunkTokens
   EmergencyDecodePageReserve
   WaitingAgeThresholdSteps
+  OutputEventCapacity
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SchedulerIssue {
@@ -44,6 +47,7 @@ pub(all) enum SchedulerIssue {
   AboveMaximum
   ExceedsStepTokenBudget
   CombinedRequestCapacityExceeded
+  BelowMaximumRowsPerStep
 } derive(Eq, @debug.Debug)
 
 // Type aliases

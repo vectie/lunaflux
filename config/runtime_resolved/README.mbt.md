@@ -11,10 +11,16 @@ single model batch: only the rows in one submitted step must fit the model and
 worker. Both prefill and decode row limits must independently hold the full
 ceiling because a legal step may contain only one row kind. Worker page-table
 storage conservatively holds a complete context-sized table for every row.
-The worker capability-cell limit is preserved in the resolved value but is not
-cross-validated: exact capability cells per row depend on a backend-neutral
-model-plan recipe that does not exist yet. Kernel or backend guessing in this
-startup package would make the capacity report less truthful.
+The explicitly configured output-event capacity is the scheduler-owned
+generated-token publication ring. It must hold at least one complete submitted
+row set so completion retirement can preflight all token publications before
+mutating request state. Terminal notices use a separate total-request-slot
+ring, and downstream transport queues are outside this capacity.
+The worker capability-cell limit is preserved in the resolved value. Exact
+capability cells per row are validated separately when provenance-bound
+`RowCapabilityRecipe` values are attached to the loaded model generation;
+kernel or backend guessing in this startup package would make the capacity
+report less truthful.
 
 Block-table capacity is the active-request capacity; waiting requests do not
 own KV mappings. Page and block-table generations use the maximum defaults

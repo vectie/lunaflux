@@ -90,6 +90,15 @@ pub fn ResolvedRuntimeCapacity::waiting_age_threshold_steps(
 }
 
 ///|
+/// Bounded generated-token publication slots. Terminal notices and transport
+/// queues have separate ownership and are not included in this count.
+pub fn ResolvedRuntimeCapacity::output_event_capacity(
+  self : ResolvedRuntimeCapacity,
+) -> Int {
+  self.output_event_capacity
+}
+
+///|
 pub fn ResolvedRuntimeCapacity::max_rows_per_step(
   self : ResolvedRuntimeCapacity,
 ) -> Int {

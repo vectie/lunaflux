@@ -12,6 +12,7 @@ pub(all) enum RuntimeCapacityRule {
   WorkerSequenceTokens
   WorkerPlanPages
   WorkerTokenIdRange
+  OutputEventCapacity
   ModelBatchRows
   PageAllocatorLimits
   BlockTableLimits
@@ -72,6 +73,7 @@ pub struct ResolvedRuntimeCapacity {
   prefill_chunk_tokens : Int
   emergency_decode_page_reserve : Int
   waiting_age_threshold_steps : Int
+  output_event_capacity : Int
   max_rows_per_step : Int
   required_worker_page_table_cells : Int
   model_max_batch_rows : Int

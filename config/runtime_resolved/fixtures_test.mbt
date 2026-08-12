@@ -5,6 +5,7 @@ fn scheduler_fixture(
   max_waiting_requests? : Int = 32,
   prefill_chunk_tokens? : Int = 64,
   emergency_decode_page_reserve? : Int = 8,
+  output_event_capacity? : Int = 128,
 ) -> @scheduler.SchedulerConfig {
   try! @scheduler.new(
     step_token_budget~,
@@ -13,6 +14,7 @@ fn scheduler_fixture(
     prefill_chunk_tokens~,
     emergency_decode_page_reserve~,
     waiting_age_threshold_steps=128,
+    output_event_capacity~,
   )
 }
 

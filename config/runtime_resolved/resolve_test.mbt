@@ -17,6 +17,7 @@ test "realistic startup capacity resolves exact component envelopes" {
   assert_eq(capacity.prefill_chunk_tokens(), 64)
   assert_eq(capacity.emergency_decode_page_reserve(), 8)
   assert_eq(capacity.waiting_age_threshold_steps(), 128)
+  assert_eq(capacity.output_event_capacity(), 128)
   assert_eq(capacity.max_rows_per_step(), 8)
   assert_eq(capacity.required_worker_page_table_cells(), 2048)
   assert_eq(capacity.plan_buffer_count(), 2)

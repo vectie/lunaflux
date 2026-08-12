@@ -119,6 +119,12 @@ pub fn resolve(
   } else {
     step_token_budget
   }
+  let output_event_capacity = scheduler.output_event_capacity()
+  require_at_least(
+    output_event_capacity,
+    max_rows_per_step,
+    OutputEventCapacity,
+  )
   require_at_least(shapes.max_batch_rows(), max_rows_per_step, ModelBatchRows)
   require_at_least(
     worker.max_plan_tokens(),
@@ -187,6 +193,7 @@ pub fn resolve(
     prefill_chunk_tokens: scheduler.prefill_chunk_tokens(),
     emergency_decode_page_reserve: scheduler.emergency_decode_page_reserve(),
     waiting_age_threshold_steps: scheduler.waiting_age_threshold_steps(),
+    output_event_capacity,
     max_rows_per_step,
     required_worker_page_table_cells,
     model_max_batch_rows: shapes.max_batch_rows(),

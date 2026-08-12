@@ -6,6 +6,7 @@ fn scheduler(
   prefill_chunk_tokens? : Int = 64,
   emergency_decode_page_reserve? : Int = 8,
   waiting_age_threshold_steps? : Int = 128,
+  output_event_capacity? : Int = 128,
 ) -> @scheduler.SchedulerConfig raise @scheduler.SchedulerConfigError {
   @scheduler.new(
     step_token_budget~,
@@ -14,6 +15,7 @@ fn scheduler(
     prefill_chunk_tokens~,
     emergency_decode_page_reserve~,
     waiting_age_threshold_steps~,
+    output_event_capacity~,
   )
 }
 
@@ -38,6 +40,7 @@ test "scheduler preserves exact values and inclusive minima" {
     prefill_chunk_tokens=1,
     emergency_decode_page_reserve=1,
     waiting_age_threshold_steps=1,
+    output_event_capacity=1,
   )
   assert_eq(config.step_token_budget(), 1)
   assert_eq(config.max_active_requests(), 1)
@@ -45,6 +48,7 @@ test "scheduler preserves exact values and inclusive minima" {
   assert_eq(config.prefill_chunk_tokens(), 1)
   assert_eq(config.emergency_decode_page_reserve(), 1)
   assert_eq(config.waiting_age_threshold_steps(), 1)
+  assert_eq(config.output_event_capacity(), 1)
   assert_eq(config.plan_buffer_count(), 2)
 }
 
@@ -57,6 +61,7 @@ test "scheduler accepts every inclusive hard ceiling" {
     prefill_chunk_tokens=262_144,
     emergency_decode_page_reserve=65_536,
     waiting_age_threshold_steps=1_000_000,
+    output_event_capacity=1_048_576,
   )
   assert_eq(config.step_token_budget(), 1_048_576)
   assert_eq(config.max_active_requests(), 65_536)
@@ -64,11 +69,13 @@ test "scheduler accepts every inclusive hard ceiling" {
   assert_eq(config.prefill_chunk_tokens(), 262_144)
   assert_eq(config.emergency_decode_page_reserve(), 65_536)
   assert_eq(config.waiting_age_threshold_steps(), 1_000_000)
+  assert_eq(config.output_event_capacity(), 1_048_576)
   let waiting_ceiling = scheduler(
     step_token_budget=48_576,
     max_active_requests=48_576,
     max_waiting_requests=1_000_000,
     emergency_decode_page_reserve=48_576,
+    output_event_capacity=48_576,
   )
   assert_eq(waiting_ceiling.max_waiting_requests(), 1_000_000)
 }
@@ -112,6 +119,10 @@ test "scheduler rejects every numeric lower bound" {
     () => scheduler(waiting_age_threshold_steps=0),
     Invalid(field=WaitingAgeThresholdSteps, issue=BelowMinimum),
   )
+  expect_scheduler_error(
+    () => scheduler(output_event_capacity=0),
+    Invalid(field=OutputEventCapacity, issue=BelowMinimum),
+  )
 }
 
 ///|
@@ -146,6 +157,10 @@ test "scheduler rejects every numeric hard-ceiling breach" {
     () => scheduler(waiting_age_threshold_steps=1_000_001),
     Invalid(field=WaitingAgeThresholdSteps, issue=AboveMaximum),
   )
+  expect_scheduler_error(
+    () => scheduler(output_event_capacity=1_048_577),
+    Invalid(field=OutputEventCapacity, issue=AboveMaximum),
+  )
 }
 
 ///|
@@ -163,5 +178,15 @@ test "scheduler rejects every internal relation breach" {
       )
     },
     Invalid(field=MaxWaitingRequests, issue=CombinedRequestCapacityExceeded),
+  )
+  expect_scheduler_error(
+    () => {
+      scheduler(
+        step_token_budget=64,
+        max_active_requests=32,
+        output_event_capacity=31,
+      )
+    },
+    Invalid(field=OutputEventCapacity, issue=BelowMaximumRowsPerStep),
   )
 }

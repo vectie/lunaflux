@@ -20,6 +20,9 @@ const MAX_EMERGENCY_DECODE_PAGE_RESERVE : Int = 65_536
 const MAX_WAITING_AGE_STEPS : Int = 1_000_000
 
 ///|
+const MAX_OUTPUT_EVENT_CAPACITY : Int = 1_048_576
+
+///|
 const REQUIRED_PLAN_BUFFER_COUNT : Int = 2
 
 ///|
@@ -31,6 +34,7 @@ pub(all) enum SchedulerField {
   PrefillChunkTokens
   EmergencyDecodePageReserve
   WaitingAgeThresholdSteps
+  OutputEventCapacity
 } derive(Debug, Eq)
 
 ///|
@@ -40,6 +44,7 @@ pub(all) enum SchedulerIssue {
   AboveMaximum
   ExceedsStepTokenBudget
   CombinedRequestCapacityExceeded
+  BelowMaximumRowsPerStep
 } derive(Debug, Eq)
 
 ///|
@@ -57,6 +62,7 @@ pub struct SchedulerConfig {
   prefill_chunk_tokens : Int
   emergency_decode_page_reserve : Int
   waiting_age_threshold_steps : Int
+  output_event_capacity : Int
 } derive(Debug, Eq)
 
 ///|
@@ -71,6 +77,7 @@ pub fn new(
   prefill_chunk_tokens~ : Int,
   emergency_decode_page_reserve~ : Int,
   waiting_age_threshold_steps~ : Int,
+  output_event_capacity~ : Int,
 ) -> SchedulerConfig raise SchedulerConfigError {
   require_positive_bounded(
     step_token_budget,
@@ -102,6 +109,11 @@ pub fn new(
     MAX_WAITING_AGE_STEPS,
     WaitingAgeThresholdSteps,
   )
+  require_positive_bounded(
+    output_event_capacity,
+    MAX_OUTPUT_EVENT_CAPACITY,
+    OutputEventCapacity,
+  )
   if prefill_chunk_tokens > step_token_budget {
     raise Invalid(field=PrefillChunkTokens, issue=ExceedsStepTokenBudget)
   }
@@ -111,6 +123,14 @@ pub fn new(
       issue=CombinedRequestCapacityExceeded,
     )
   }
+  let max_rows_per_step = if max_active_requests < step_token_budget {
+    max_active_requests
+  } else {
+    step_token_budget
+  }
+  if output_event_capacity < max_rows_per_step {
+    raise Invalid(field=OutputEventCapacity, issue=BelowMaximumRowsPerStep)
+  }
   {
     step_token_budget,
     max_active_requests,
@@ -118,6 +138,7 @@ pub fn new(
     prefill_chunk_tokens,
     emergency_decode_page_reserve,
     waiting_age_threshold_steps,
+    output_event_capacity,
   }
 }
 
@@ -167,6 +188,13 @@ pub fn SchedulerConfig::waiting_age_threshold_steps(
   self : SchedulerConfig,
 ) -> Int {
   self.waiting_age_threshold_steps
+}
+
+///|
+/// Generated-token publication slots owned by the scheduler. This excludes
+/// terminal notices and any downstream transport buffering.
+pub fn SchedulerConfig::output_event_capacity(self : SchedulerConfig) -> Int {
+  self.output_event_capacity
 }
 
 ///|
