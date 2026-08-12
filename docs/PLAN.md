@@ -162,8 +162,8 @@ Checked streaming file-to-device loading, exact static device and
 activation/workspace plans, stateless execution profiles, AOT family/entry
 launch contracts, digest-verified artifact admission, and the private
 module/function launch seam are implemented foundations. They do not promote
-Phase 1 without a prepared executor and physical-CUDA numerical, ownership,
-sanitizer/leak, soak, and resource-balance evidence. See
+Phase 1 without physical-CUDA numerical, ownership, sanitizer/leak, soak,
+benchmark, and resource-balance evidence. See
 [STATUS.md](STATUS.md) for the current boundary.
 
 ## Phase 2 — Online streaming service

@@ -109,11 +109,13 @@ plans.
 Deterministic reference kernels, greedy sampling, and the
 architecture-neutral `engine/reference/` interpreter remain the correctness
 oracle. The `lunaflux reference` command runs digest-pinned whole-file
-correctness bundles; it is never a production fallback. No prepared executor
-currently binds the admitted AOT and memory contracts into an ordered model
-run, and the semantic graph has no cached-KV decode path. Later packages are
-created only when their vertical phase begins; empty architectural packages
-are deliberately avoided.
+correctness bundles; it is never a production fallback. An exact,
+thread-confined Phase-1 device executor now binds admitted AOT artifacts,
+vendor projection plans, and preplanned memory into an ordered synchronous
+full-sequence run. It retains explicit cleanup authority even when construction
+and cleanup both fail. The semantic graph still has no cached-KV decode path.
+Later packages are created only when their vertical phase begins; empty
+architectural packages are deliberately avoided.
 
 ## Validation
 

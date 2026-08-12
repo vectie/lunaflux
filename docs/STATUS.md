@@ -105,6 +105,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   module once per digest and maps all required stable entry points to bounded
   CUDA function symbols. Missing, duplicate, unreferenced, or digest-mismatched
   declarations fail before module import.
+- An exact prepared Phase-1 device executor that cross-checks model, target,
+  catalog, profile, artifact, allocation ownership, physical range, and actual
+  pointer-alignment evidence before importing code. It reuses token and
+  activation storage, launch arguments, loaded functions, and vendor
+  descriptors across synchronous full-sequence dispatches. Invalid tokens and
+  unavailable or stale outputs fail closed.
+- Explicit executor cleanup ownership across partial construction and partial
+  close. A double construction/cleanup failure returns an opaque retryable
+  cleanup guard; a close failure blocks further dispatch while preserving
+  retry authority over still-open children.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -131,11 +141,6 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
   macOS leak detection was unavailable, so the full sanitizer/leak gate remains
   open.
-- A prepared static GPU executor that cross-checks exact profiles and launch
-  contracts against opened allocations/functions, constructs reusable launch
-  arguments, and executes the ordered model graph. The memory plans, activation
-  arena, AOT admission, and private launch seam are foundations, not execution
-  evidence by themselves.
 - A KV arena or true incremental decode. The current semantic graph has no KV
   input, cache position, page table, or block mapping. Device profiles therefore
   support only stateless full prefill and full-sequence recomputation. The
@@ -156,6 +161,6 @@ The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
 sanitizer and leak gates, with physical concurrency/race evidence still open.
-A prepared static executor remains open, as do KV ownership and true cached
-decode. Performance and production-readiness claims remain out of scope until
-physical correctness, resource balance, soak, and benchmark evidence passes.
+KV ownership and true cached decode remain open. Performance and
+production-readiness claims remain out of scope until physical correctness,
+resource balance, soak, and benchmark evidence passes.
