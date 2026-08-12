@@ -23,11 +23,18 @@ fail_matches \
   'lunanexa|moongate|moondesk|moonclaw|moontown'
 
 # Contracts are vocabulary only and cannot depend on implementation packages.
-if [ -f contracts/moon.pkg ]; then
+# The inference contract reuses the canonical model identity owned by
+# model/spec; duplicating that public value would make request/cache identity
+# weaker than startup admission.
+if [ -d contracts ]; then
   fail_matches \
     'contracts must not import implementation packages:' \
-    --glob 'contracts/moon.pkg' \
-    '^\s*"vectie/lunaflux/(api|tokenizer|engine|model|scheduler|kv|prefix|kernels|device|internal)(/|"|$)'
+    --glob 'contracts/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|tokenizer|engine|scheduler|kv|prefix|kernels|device|internal)(/|"|$)'
+  fail_matches \
+    'contracts may import only the canonical public model identity vocabulary:' \
+    --pcre2 --glob 'contracts/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/model/(?!spec"(?:,)?$)'
 fi
 
 # Scheduling policy is deliberately hardware-, transport-, and model-family
