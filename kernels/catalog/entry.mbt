@@ -37,6 +37,43 @@ fn vendor_implementation_is_legal(
 }
 
 ///|
+fn operation_shape_is_legal(
+  operation_kind : @plan.OperationKind,
+  operation_shape : @plan.OperationShape,
+) -> Bool {
+  match (operation_kind, operation_shape) {
+    (Embedding, EmbeddingShape(_)) => true
+    (RmsNorm, NormalizationShape(_)) => true
+    (QkvProjection | OutputProjection | LanguageModelHead, ProjectionShape(_)) =>
+      true
+    (RotaryEmbedding, RotaryShape(_)) => true
+    (CausalAttention, AttentionShape(_)) => true
+    (ResidualAdd, ElementwiseShape(_)) => true
+    (GatedMlp, GatedMlpShape(_)) => true
+    _ => false
+  }
+}
+
+///|
+fn operation_capability_is_legal(
+  operation_kind : @plan.OperationKind,
+  capability : @plan.KernelCapabilityId,
+) -> Bool {
+  let expected = match operation_kind {
+    Embedding => @plan.KernelCapabilityId::embedding_lookup()
+    RmsNorm => @plan.KernelCapabilityId::rms_norm()
+    QkvProjection => @plan.KernelCapabilityId::qkv_projection()
+    RotaryEmbedding => @plan.KernelCapabilityId::rotary_embedding()
+    CausalAttention => @plan.KernelCapabilityId::causal_attention()
+    OutputProjection | LanguageModelHead =>
+      @plan.KernelCapabilityId::dense_projection()
+    ResidualAdd => @plan.KernelCapabilityId::residual_add()
+    GatedMlp => @plan.KernelCapabilityId::gated_mlp()
+  }
+  capability == expected
+}
+
+///|
 pub fn CatalogEntry::new(
   semantic_version~ : KernelSemanticVersion,
   operation_kind~ : @plan.OperationKind,
@@ -59,6 +96,12 @@ pub fn CatalogEntry::new(
   }
   if !is_power_of_two(workspace_alignment) || workspace_alignment > 65536L {
     raise InvalidCatalog(InvalidWorkspaceAlignment)
+  }
+  if !operation_shape_is_legal(operation_kind, operation_shape) {
+    raise InvalidCatalog(OperationShapeMismatch)
+  }
+  if !operation_capability_is_legal(operation_kind, capability) {
+    raise InvalidCatalog(OperationCapabilityMismatch)
   }
   if !vendor_implementation_is_legal(operation_kind, implementation) {
     raise InvalidCatalog(InvalidVendorImplementationKind)

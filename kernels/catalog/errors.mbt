@@ -10,6 +10,8 @@ pub(all) enum CatalogValidationRule {
   InvalidArtifactDigest
   InvalidWorkspaceBytes
   InvalidWorkspaceAlignment
+  OperationShapeMismatch
+  OperationCapabilityMismatch
   InvalidVendorImplementationKind
 } derive(Debug, Eq)
 

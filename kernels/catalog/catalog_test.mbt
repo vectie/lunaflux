@@ -330,6 +330,49 @@ test "implicit vendor GEMM is legal only for projection semantics" {
 }
 
 ///|
+test "entry shape and capability must match its operation semantics" {
+  let digest = @catalog.AotArtifactDigest::from_sha256(
+    "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  )
+  try
+    @catalog.CatalogEntry::new(
+      semantic_version=@catalog.KernelSemanticVersion::v1(),
+      operation_kind=Embedding,
+      operation_shape=ElementwiseShape(width=16),
+      capability=@plan.KernelCapabilityId::embedding_lookup(),
+      compute_major=8,
+      compute_minor=0,
+      implementation=ContentAddressedAot(digest),
+      workspace_bytes=0L,
+      workspace_alignment=1L,
+    )
+  catch {
+    InvalidCatalog(OperationShapeMismatch) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected operation shape mismatch")
+  }
+  try
+    @catalog.CatalogEntry::new(
+      semantic_version=@catalog.KernelSemanticVersion::v1(),
+      operation_kind=Embedding,
+      operation_shape=EmbeddingShape(vocabulary_size=128, width=16),
+      capability=@plan.KernelCapabilityId::residual_add(),
+      compute_major=8,
+      compute_minor=0,
+      implementation=ContentAddressedAot(digest),
+      workspace_bytes=0L,
+      workspace_alignment=1L,
+    )
+  catch {
+    InvalidCatalog(OperationCapabilityMismatch) => ()
+    _ => fail("unexpected catalog error")
+  } noraise {
+    _ => fail("expected operation capability mismatch")
+  }
+}
+
+///|
 test "version, digest, alignment, and target validation fail closed" {
   try
     @catalog.KernelCatalog::new(
