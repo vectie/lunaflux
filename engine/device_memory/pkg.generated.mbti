@@ -1,0 +1,147 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_memory"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn allocate(@device.Context, DeviceMemoryPlan) -> DeviceMemoryArena raise DeviceMemoryError
+
+pub fn plan(@device_plan.StaticDevicePlan, DeviceMemoryLimits) -> DeviceMemoryPlan raise DeviceMemoryError
+
+// Errors
+pub(all) suberror DeviceMemoryError {
+  InvalidLimit(DeviceMemoryLimitRule)
+  InvalidPlan(DeviceMemoryPlanRule)
+  InvalidOperation(@plan.OperationId, DeviceMemoryPlanRule)
+  InvalidActivation(@plan.ActivationRef, DeviceMemoryPlanRule)
+  SizeOverflow(@plan.OperationId)
+  ArenaLimitExceeded
+  AllocationSizeMismatch
+  DeviceFailed(@device.DeviceError)
+  CleanupFailed(DeviceMemoryFailureStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ActivationRegion {
+  reference : @plan.ActivationRef
+  slot : ActivationSlotId
+  offset_bytes : Int64
+  logical_bytes : Int64
+  reserved_bytes : Int64
+  produced_by : @plan.OperationId
+  live_through_step : Int
+  retained_output : Bool
+} derive(Eq, @debug.Debug)
+pub fn ActivationRegion::end_offset_bytes(Self) -> Int64
+pub fn ActivationRegion::is_retained_output(Self) -> Bool
+pub fn ActivationRegion::live_through_step(Self) -> Int
+pub fn ActivationRegion::logical_bytes(Self) -> Int64
+pub fn ActivationRegion::offset_bytes(Self) -> Int64
+pub fn ActivationRegion::produced_by(Self) -> @plan.OperationId
+pub fn ActivationRegion::reference(Self) -> @plan.ActivationRef
+pub fn ActivationRegion::reserved_bytes(Self) -> Int64
+pub fn ActivationRegion::slot(Self) -> ActivationSlotId
+
+pub struct ActivationSlotId(Int) derive(Eq, @debug.Debug)
+pub fn ActivationSlotId::as_int(Self) -> Int
+
+pub struct DeviceMemoryArena {
+  plan : DeviceMemoryPlan
+  // private fields
+}
+pub fn DeviceMemoryArena::allocation(Self) -> @device.Allocation
+pub fn DeviceMemoryArena::close(Self) -> Unit raise DeviceMemoryError
+pub fn DeviceMemoryArena::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceMemoryArena::plan(Self) -> DeviceMemoryPlan
+pub fn DeviceMemoryArena::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum DeviceMemoryFailureStage {
+  AllocationValidation
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceMemoryLimitRule {
+  ActivationAlignment
+  ArenaBytes
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceMemoryLimits {
+  activation_alignment : Int64
+  max_arena_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceMemoryLimits::activation_alignment(Self) -> Int64
+pub fn DeviceMemoryLimits::max_arena_bytes(Self) -> Int64
+pub fn DeviceMemoryLimits::new(activation_alignment~ : Int64, max_arena_bytes~ : Int64) -> Self raise DeviceMemoryError
+
+pub struct DeviceMemoryPlan {
+  identity : @spec.ModelIdentity
+  target : @catalog.DeviceTarget
+  limits : DeviceMemoryLimits
+  token_rows : Int64
+  activation_bytes : Int64
+  workspace : WorkspaceRegion
+  arena_bytes : Int64
+  slot_count : Int
+  regions : ReadOnlyArray[ActivationRegion]
+  bindings : ReadOnlyArray[OperationMemoryBinding]
+  final_output : @plan.ActivationRef
+} derive(Eq, @debug.Debug)
+pub fn DeviceMemoryPlan::activation_bytes(Self) -> Int64
+pub fn DeviceMemoryPlan::activation_count(Self) -> Int
+pub fn DeviceMemoryPlan::arena_bytes(Self) -> Int64
+pub fn DeviceMemoryPlan::final_output(Self) -> @plan.ActivationRef
+pub fn DeviceMemoryPlan::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceMemoryPlan::limits(Self) -> DeviceMemoryLimits
+pub fn DeviceMemoryPlan::operation_binding(Self, @plan.OperationId) -> OperationMemoryBinding?
+pub fn DeviceMemoryPlan::operation_count(Self) -> Int
+pub fn DeviceMemoryPlan::region(Self, @plan.ActivationRef) -> ActivationRegion?
+pub fn DeviceMemoryPlan::slot_count(Self) -> Int
+pub fn DeviceMemoryPlan::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceMemoryPlan::token_rows(Self) -> Int64
+pub fn DeviceMemoryPlan::workspace(Self) -> WorkspaceRegion
+
+pub(all) enum DeviceMemoryPlanRule {
+  EmptyOperations
+  OperationCount
+  OperationOrder
+  OutputArity
+  OutputOrder
+  ActivationInput
+  ActivationInputCount
+  ShapeMismatch
+  FinalOutput
+  Workspace
+  ShapeEnvelope
+  TargetDtype
+} derive(Eq, @debug.Debug)
+
+pub struct OperationMemoryBinding {
+  operation_id : @plan.OperationId
+  activation_inputs : ReadOnlyArray[ActivationRegion]
+  activation_outputs : ReadOnlyArray[ActivationRegion]
+  workspace : WorkspaceRegion
+} derive(Eq, @debug.Debug)
+pub fn OperationMemoryBinding::activation_inputs(Self) -> ReadOnlyArray[ActivationRegion]
+pub fn OperationMemoryBinding::activation_outputs(Self) -> ReadOnlyArray[ActivationRegion]
+pub fn OperationMemoryBinding::operation_id(Self) -> @plan.OperationId
+pub fn OperationMemoryBinding::workspace(Self) -> WorkspaceRegion
+
+pub struct WorkspaceRegion {
+  offset_bytes : Int64
+  byte_length : Int64
+  alignment_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn WorkspaceRegion::alignment_bytes(Self) -> Int64
+pub fn WorkspaceRegion::byte_length(Self) -> Int64
+pub fn WorkspaceRegion::end_offset_bytes(Self) -> Int64
+pub fn WorkspaceRegion::offset_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits
