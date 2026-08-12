@@ -31,6 +31,7 @@ pub struct SchedulePlanBuffer {
   priv mut draft_request_id : @inference.RequestId
   priv mut draft_request_generation : @inference.RequestGeneration
   priv mut draft_sequence_position : Int
+  priv mut draft_produces_token : Bool
   priv mut draft_completion_slot : CompletionSlot
   priv mut draft_sampling : @inference.SamplingParameters
   priv mut draft_token_start : Int
@@ -48,6 +49,8 @@ pub struct SchedulePlanBuffer {
   priv prefill_page_lengths : FixedArray[Int]
   priv prefill_capability_starts : FixedArray[Int]
   priv prefill_capability_lengths : FixedArray[Int]
+  priv prefill_produces_tokens : FixedArray[Bool]
+  priv prefill_sampling : FixedArray[@inference.SamplingParameters]
   priv prefill_completion_slots : FixedArray[CompletionSlot]
   priv decode_request_ids : FixedArray[@inference.RequestId]
   priv decode_request_generations : FixedArray[@inference.RequestGeneration]

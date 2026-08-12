@@ -37,6 +37,8 @@ test "submitted buffer is exactly equivalent to immutable plan fixture" {
   assert_eq(actual_prefill.tokens(), expected_prefill.tokens())
   assert_eq(actual_prefill.page_table(), expected_prefill.page_table())
   assert_eq(actual_prefill.capabilities(), expected_prefill.capabilities())
+  assert_eq(actual_prefill.produces_token(), expected_prefill.produces_token())
+  assert_eq(actual_prefill.sampling(), expected_prefill.sampling())
   assert_eq(
     actual_prefill.completion_slot(),
     expected_prefill.completion_slot(),

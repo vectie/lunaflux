@@ -14,7 +14,8 @@ pub struct CompletionBuffer {
   priv request_ids : FixedArray[@inference.RequestId]
   priv request_generations : FixedArray[@inference.RequestGeneration]
   priv kinds : FixedArray[CompletionEntryKind]
-  priv values : FixedArray[Int]
+  priv processed_token_counts : FixedArray[Int]
+  priv token_ids : FixedArray[Int]
   priv failures : FixedArray[WorkerFailure]
 }
 
@@ -22,6 +23,7 @@ pub struct CompletionBuffer {
 /// Payload-safe scalar outcome category for reusable completion ingress.
 pub(all) enum CompletionEntryKind {
   PrefillCompletion
+  FinalPrefillCompletion
   DecodeCompletion
   FailedCompletion
 } derive(Debug, Eq)

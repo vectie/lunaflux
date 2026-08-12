@@ -12,6 +12,7 @@ pub(all) enum WorkerFailure {
 /// `Debug` implementation because a success may contain a generated token ID.
 pub(all) enum CompletionOutcome {
   PrefillCompleted(processed_tokens~ : Int)
+  FinalPrefillCompleted(processed_tokens~ : Int, token_id~ : Int)
   DecodeCompleted(token_id~ : Int)
   Failed(WorkerFailure)
 } derive(Eq)
@@ -42,6 +43,30 @@ pub fn CompletionEntry::prefill_completed(
     request_id,
     request_generation,
     outcome: PrefillCompleted(processed_tokens~),
+  }
+}
+
+///|
+/// Completes the final prompt chunk and returns its first sampled output token.
+pub fn CompletionEntry::final_prefill_completed(
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  processed_tokens~ : Int,
+  token_id~ : Int,
+  limits~ : WorkerProtocolLimits,
+) -> CompletionEntry raise WorkerProtocolError {
+  if processed_tokens <= 0 || processed_tokens > limits.max_plan_tokens() {
+    raise CompletionTokenCountMismatch(index=slot.value())
+  }
+  if token_id < 0 || token_id > limits.max_token_id() {
+    raise InvalidCompletionToken(slot=slot.value())
+  }
+  {
+    slot,
+    request_id,
+    request_generation,
+    outcome: FinalPrefillCompleted(processed_tokens~, token_id~),
   }
 }
 
@@ -136,6 +161,14 @@ pub fn CompletionRecord::new(
         if processed_tokens <= 0 || processed_tokens > limits.max_plan_tokens() {
           raise CompletionTokenCountMismatch(index~)
         }
+      FinalPrefillCompleted(processed_tokens~, token_id~) => {
+        if processed_tokens <= 0 || processed_tokens > limits.max_plan_tokens() {
+          raise CompletionTokenCountMismatch(index~)
+        }
+        if token_id < 0 || token_id > limits.max_token_id() {
+          raise InvalidCompletionToken(slot=entry.slot().value())
+        }
+      }
       DecodeCompleted(token_id~) =>
         if token_id < 0 || token_id > limits.max_token_id() {
           raise InvalidCompletionToken(slot=entry.slot().value())
@@ -211,10 +244,22 @@ fn validate_prefill_completion(
     index,
   )
   match entry.outcome() {
-    PrefillCompleted(processed_tokens~) =>
+    PrefillCompleted(processed_tokens~) => {
+      if row.produces_token() {
+        raise CompletionKindMismatch(index~)
+      }
       if processed_tokens != row.tokens().length() {
         raise CompletionTokenCountMismatch(index~)
       }
+    }
+    FinalPrefillCompleted(processed_tokens~, token_id=_) => {
+      if !row.produces_token() {
+        raise CompletionKindMismatch(index~)
+      }
+      if processed_tokens != row.tokens().length() {
+        raise CompletionTokenCountMismatch(index~)
+      }
+    }
     Failed(_) => ()
     DecodeCompleted(_) => raise CompletionKindMismatch(index~)
   }
@@ -237,7 +282,8 @@ fn validate_decode_completion(
   )
   match entry.outcome() {
     DecodeCompleted(_) | Failed(_) => ()
-    PrefillCompleted(_) => raise CompletionKindMismatch(index~)
+    PrefillCompleted(_) | FinalPrefillCompleted(_) =>
+      raise CompletionKindMismatch(index~)
   }
 }
 

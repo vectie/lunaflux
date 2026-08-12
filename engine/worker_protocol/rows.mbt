@@ -7,12 +7,15 @@ pub struct PrefillRow {
   tokens : TokenRange
   page_table : PageTableView
   capabilities : CapabilityView
+  produces_token : Bool
+  sampling : @inference.SamplingParameters
   completion_slot : CompletionSlot
 } derive(Debug, Eq)
 
 ///|
-/// Constructs one prefill row. Table bounds are revalidated against actual
-/// schedule storage when the containing plan is constructed.
+/// Constructs an intermediate prefill row. Intermediate chunks never sample
+/// or produce an output token; the stored greedy value is an inert canonical
+/// placeholder. Use `final_prompt` for the final prompt chunk.
 pub fn PrefillRow::new(
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
@@ -35,8 +38,61 @@ pub fn PrefillRow::new(
     tokens,
     page_table,
     capabilities,
+    produces_token: false,
+    sampling: @inference.SamplingParameters::greedy(),
     completion_slot,
   }
+}
+
+///|
+/// Explicit name for `new`; constructs a chunk that only advances prompt KV.
+pub fn PrefillRow::intermediate(
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  sequence_token_start~ : Int,
+  tokens~ : TokenRange,
+  page_table~ : PageTableView,
+  capabilities~ : CapabilityView,
+  completion_slot~ : CompletionSlot,
+  limits~ : WorkerProtocolLimits,
+) -> PrefillRow raise WorkerProtocolError {
+  PrefillRow::new(
+    request_id~,
+    request_generation~,
+    sequence_token_start~,
+    tokens~,
+    page_table~,
+    capabilities~,
+    completion_slot~,
+    limits~,
+  )
+}
+
+///|
+/// Constructs the final prompt chunk. Its worker completion must contain both
+/// the exact processed-token count and the first sampled output token.
+pub fn PrefillRow::final_prompt(
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  sequence_token_start~ : Int,
+  tokens~ : TokenRange,
+  page_table~ : PageTableView,
+  capabilities~ : CapabilityView,
+  sampling~ : @inference.SamplingParameters,
+  completion_slot~ : CompletionSlot,
+  limits~ : WorkerProtocolLimits,
+) -> PrefillRow raise WorkerProtocolError {
+  let row = PrefillRow::new(
+    request_id~,
+    request_generation~,
+    sequence_token_start~,
+    tokens~,
+    page_table~,
+    capabilities~,
+    completion_slot~,
+    limits~,
+  )
+  { ..row, produces_token: true, sampling }
 }
 
 ///|
@@ -69,6 +125,18 @@ pub fn PrefillRow::page_table(self : PrefillRow) -> PageTableView {
 ///|
 pub fn PrefillRow::capabilities(self : PrefillRow) -> CapabilityView {
   self.capabilities
+}
+
+///|
+/// True only for the final prompt chunk, which samples exactly one token.
+pub fn PrefillRow::produces_token(self : PrefillRow) -> Bool {
+  self.produces_token
+}
+
+///|
+/// Sampling parameters used only when `produces_token` is true.
+pub fn PrefillRow::sampling(self : PrefillRow) -> @inference.SamplingParameters {
+  self.sampling
 }
 
 ///|

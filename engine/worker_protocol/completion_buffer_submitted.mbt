@@ -47,10 +47,22 @@ fn CompletionBuffer::validate_against(
       row_index,
     )
     match self.kinds[index] {
-      PrefillCompletion =>
-        if self.values[index] != row.tokens().length() {
+      PrefillCompletion => {
+        if row.produces_token() {
+          raise CompletionKindMismatch(index=row_index)
+        }
+        if self.processed_token_counts[index] != row.tokens().length() {
           raise CompletionTokenCountMismatch(index=row_index)
         }
+      }
+      FinalPrefillCompletion => {
+        if !row.produces_token() {
+          raise CompletionKindMismatch(index=row_index)
+        }
+        if self.processed_token_counts[index] != row.tokens().length() {
+          raise CompletionTokenCountMismatch(index=row_index)
+        }
+      }
       FailedCompletion => ()
       DecodeCompletion => raise CompletionKindMismatch(index=row_index)
     }
@@ -71,7 +83,8 @@ fn CompletionBuffer::validate_against(
     )
     match self.kinds[index] {
       DecodeCompletion | FailedCompletion => ()
-      PrefillCompletion => raise CompletionKindMismatch(index=row_index)
+      PrefillCompletion | FinalPrefillCompletion =>
+        raise CompletionKindMismatch(index=row_index)
     }
   }
 }
@@ -193,10 +206,11 @@ pub fn SubmittedCompletionEntry::processed_tokens(
   self : SubmittedCompletionEntry,
 ) -> Int raise WorkerProtocolError {
   let owner = self.owner()
-  if owner.kinds[self.2] != PrefillCompletion {
-    raise CompletionKindMismatch(index=self.2)
+  match owner.kinds[self.2] {
+    PrefillCompletion | FinalPrefillCompletion => ()
+    _ => raise CompletionKindMismatch(index=self.2)
   }
-  owner.values[self.2]
+  owner.processed_token_counts[self.2]
 }
 
 ///|
@@ -204,10 +218,11 @@ pub fn SubmittedCompletionEntry::token_id(
   self : SubmittedCompletionEntry,
 ) -> Int raise WorkerProtocolError {
   let owner = self.owner()
-  if owner.kinds[self.2] != DecodeCompletion {
-    raise CompletionKindMismatch(index=self.2)
+  match owner.kinds[self.2] {
+    FinalPrefillCompletion | DecodeCompletion => ()
+    _ => raise CompletionKindMismatch(index=self.2)
   }
-  owner.values[self.2]
+  owner.token_ids[self.2]
 }
 
 ///|

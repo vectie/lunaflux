@@ -8,6 +8,15 @@ parameters, and bounded completion slots. A `CompletionRecord` is accepted only
 when every plan, model, request-generation, row-kind, token-count, and slot
 identity agrees with the submitted plan.
 
+Prefill completion semantics are explicit. An intermediate prompt chunk only
+reports its exact processed-token count and never samples. The final prompt
+chunk carries the request sampling parameters and returns both its processed
+count and exactly one sampled token. That sampled token is the first generated
+output and becomes the input of the first decode row at sequence position
+`prompt_length`; each later decode row consumes the sampled token returned by
+the preceding decode row. Neither row kind nor output behavior is inferred
+from chunk length.
+
 Plan validation authenticates completed work for resource retirement. Because
 cancellation may advance after submission, publication and KV reuse require a
 second `CompletionEntry::is_current` check against scheduler-owned current
@@ -37,11 +46,11 @@ is visible. This closes the temporary-array bridge for token buffers and block
 tables without importing either implementation package.
 
 Worker completions have a matching fixed-capacity `CompletionBuffer`.
-Successful prefill, decode, and failure appends write scalar columns; submit
-authenticates them against the exact submitted plan, and scheduler accessors
-remain epoch-checked through consume and reset. Plan authentication remains
-separate from `is_current`: old-generation work can retire resources but may
-not publish output.
+Successful intermediate-prefill, final-prefill, decode, and failure appends
+write scalar columns; submit authenticates them against the exact submitted
+plan, and scheduler accessors remain epoch-checked through consume and reset.
+Plan authentication remains separate from `is_current`: old-generation work
+can retire resources but may not publish output.
 
 Payload-bearing plans, submitted handles, and completions deliberately do not
 implement `Debug`, so prompt and generated token IDs cannot enter ordinary

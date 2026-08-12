@@ -5,6 +5,7 @@ fn SchedulePlanBuffer::start_draft(
   request_id : @inference.RequestId,
   request_generation : @inference.RequestGeneration,
   sequence_position : Int,
+  produces_token : Bool,
   sampling : @inference.SamplingParameters,
   completion_slot : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
@@ -55,6 +56,7 @@ fn SchedulePlanBuffer::start_draft(
   self.draft_request_id = request_id
   self.draft_request_generation = request_generation
   self.draft_sequence_position = sequence_position
+  self.draft_produces_token = produces_token
   self.draft_completion_slot = completion_slot
   self.draft_sampling = sampling
   self.draft_token_start = self.token_count
@@ -77,7 +79,29 @@ pub fn SchedulePlanBuffer::begin_prefill(
     request_id,
     request_generation,
     sequence_token_start,
+    false,
     @inference.SamplingParameters::greedy(),
+    completion_slot,
+  )
+}
+
+///|
+/// Begins the final prompt chunk, which samples exactly one output token.
+pub fn SchedulePlanBuffer::begin_final_prefill(
+  self : SchedulePlanBuffer,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  sequence_token_start~ : Int,
+  sampling~ : @inference.SamplingParameters,
+  completion_slot~ : CompletionSlot,
+) -> PlanRowDraft raise WorkerProtocolError {
+  self.start_draft(
+    Prefill,
+    request_id,
+    request_generation,
+    sequence_token_start,
+    true,
+    sampling,
     completion_slot,
   )
 }
@@ -97,6 +121,7 @@ pub fn SchedulePlanBuffer::begin_decode(
     request_id,
     request_generation,
     sequence_token_position,
+    false,
     sampling,
     completion_slot,
   )
@@ -238,6 +263,8 @@ pub fn PlanRowDraft::commit(
       owner.prefill_page_lengths[row] = page_length
       owner.prefill_capability_starts[row] = owner.draft_capability_start
       owner.prefill_capability_lengths[row] = capability_length
+      owner.prefill_produces_tokens[row] = owner.draft_produces_token
+      owner.prefill_sampling[row] = owner.draft_sampling
       owner.prefill_completion_slots[row] = owner.draft_completion_slot
       owner.prefill_count = row + 1
     }

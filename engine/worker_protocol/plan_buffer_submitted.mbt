@@ -225,6 +225,20 @@ pub fn SubmittedPrefillRow::capabilities(
 }
 
 ///|
+pub fn SubmittedPrefillRow::produces_token(
+  self : SubmittedPrefillRow,
+) -> Bool raise WorkerProtocolError {
+  self.owner().prefill_produces_tokens[self.2]
+}
+
+///|
+pub fn SubmittedPrefillRow::sampling(
+  self : SubmittedPrefillRow,
+) -> @inference.SamplingParameters raise WorkerProtocolError {
+  self.owner().prefill_sampling[self.2]
+}
+
+///|
 pub fn SubmittedPrefillRow::completion_slot(
   self : SubmittedPrefillRow,
 ) -> CompletionSlot raise WorkerProtocolError {

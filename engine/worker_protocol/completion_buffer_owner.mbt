@@ -28,7 +28,8 @@ fn CompletionBuffer::append(
   request_id : @inference.RequestId,
   request_generation : @inference.RequestGeneration,
   kind : CompletionEntryKind,
-  value : Int,
+  processed_tokens : Int,
+  token_id : Int,
   failure : WorkerFailure,
 ) -> Unit raise WorkerProtocolError {
   self.require_state(CompletionWritable)
@@ -46,7 +47,8 @@ fn CompletionBuffer::append(
   self.request_ids[index] = request_id
   self.request_generations[index] = request_generation
   self.kinds[index] = kind
-  self.values[index] = value
+  self.processed_token_counts[index] = processed_tokens
+  self.token_ids[index] = token_id
   self.failures[index] = failure
   self.entry_count = index + 1
 }
@@ -69,7 +71,8 @@ pub fn CompletionBuffer::new(
     request_ids: FixedArray::make(limits.max_plan_rows(), request_id),
     request_generations: FixedArray::make(limits.max_plan_rows(), generation),
     kinds: FixedArray::make(limits.max_plan_rows(), FailedCompletion),
-    values: FixedArray::make(limits.max_plan_rows(), 0),
+    processed_token_counts: FixedArray::make(limits.max_plan_rows(), 0),
+    token_ids: FixedArray::make(limits.max_plan_rows(), 0),
     failures: FixedArray::make(limits.max_plan_rows(), CancelledBeforeExecution),
   }
 }
@@ -91,6 +94,34 @@ pub fn CompletionBuffer::append_prefill_completed(
     request_generation,
     PrefillCompletion,
     processed_tokens,
+    0,
+    CancelledBeforeExecution,
+  )
+}
+
+///|
+/// Appends the final prompt completion and its first sampled output token.
+pub fn CompletionBuffer::append_final_prefill_completed(
+  self : CompletionBuffer,
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  processed_tokens~ : Int,
+  token_id~ : Int,
+) -> Unit raise WorkerProtocolError {
+  if processed_tokens <= 0 || processed_tokens > self.limits.max_plan_tokens() {
+    raise CompletionTokenCountMismatch(index=self.entry_count)
+  }
+  if token_id < 0 || token_id > self.limits.max_token_id() {
+    raise InvalidCompletionToken(slot=slot.value())
+  }
+  self.append(
+    slot,
+    request_id,
+    request_generation,
+    FinalPrefillCompletion,
+    processed_tokens,
+    token_id,
     CancelledBeforeExecution,
   )
 }
@@ -111,6 +142,7 @@ pub fn CompletionBuffer::append_decode_completed(
     request_id,
     request_generation,
     DecodeCompletion,
+    0,
     token_id,
     CancelledBeforeExecution,
   )
@@ -129,6 +161,7 @@ pub fn CompletionBuffer::append_failed(
     request_id,
     request_generation,
     FailedCompletion,
+    0,
     0,
     failure,
   )
