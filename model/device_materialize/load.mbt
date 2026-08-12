@@ -1,7 +1,6 @@
 ///|
 priv struct LoadedResource[T] {
   resource : T
-  report : @materialize.MaterializationReport
 }
 
 ///|
@@ -88,7 +87,7 @@ fn[T] load_with_resource(
         close_after_failure(resource, MaterializationResult, close)
         raise TensorLengthMismatch(reference=0)
       }
-      { resource, report }
+      { resource, }
     }
   }
 }
@@ -127,5 +126,5 @@ pub fn load(
     },
     allocation => allocation.close(),
   )
-  { allocation: loaded.resource, layout, report: loaded.report }
+  { allocation: loaded.resource, layout }
 }

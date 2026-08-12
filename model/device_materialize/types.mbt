@@ -26,7 +26,6 @@ pub struct DeviceWeightLayout {
 pub struct DeviceWeights {
   priv allocation : @device.Allocation
   layout : DeviceWeightLayout
-  report : @materialize.MaterializationReport
 }
 
 ///|
@@ -96,13 +95,6 @@ pub fn DeviceWeights::identity(self : DeviceWeights) -> @spec.ModelIdentity {
 ///|
 pub fn DeviceWeights::layout(self : DeviceWeights) -> DeviceWeightLayout {
   self.layout
-}
-
-///|
-pub fn DeviceWeights::report(
-  self : DeviceWeights,
-) -> @materialize.MaterializationReport {
-  self.report
 }
 
 ///|

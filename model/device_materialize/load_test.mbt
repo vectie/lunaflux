@@ -15,7 +15,6 @@ test "available CUDA device receives direct aligned tensor copies" {
         max_arena_bytes=4096L,
       )
       assert_eq(weights.identity(), bindings.identity())
-      assert_eq(weights.report().length(), bindings.length())
       assert_eq(weights.layout().arena_bytes(), 768L)
       assert_eq(weights.allocation().byte_count(), 768L)
       let first = try! @plan.TensorRef::new(0)

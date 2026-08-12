@@ -64,7 +64,6 @@ pub fn DeviceWeightRegion::reference(Self) -> @plan.TensorRef
 
 pub struct DeviceWeights {
   layout : DeviceWeightLayout
-  report : @materialize.MaterializationReport
   // private fields
 }
 pub fn DeviceWeights::allocation(Self) -> @device.Allocation
@@ -72,7 +71,6 @@ pub fn DeviceWeights::close(Self) -> Unit raise DeviceWeightError
 pub fn DeviceWeights::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWeights::layout(Self) -> DeviceWeightLayout
 pub fn DeviceWeights::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
-pub fn DeviceWeights::report(Self) -> @materialize.MaterializationReport
 
 // Type aliases
 
