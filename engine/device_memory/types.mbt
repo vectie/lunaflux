@@ -299,6 +299,10 @@ pub fn DeviceMemoryArena::target(
 }
 
 ///|
+/// Returns an alias of the safe opaque allocation for dispatch.
+///
+/// Closing this alias also closes the arena represented by
+/// `DeviceMemoryArena`; callers should retain lifecycle authority here.
 pub fn DeviceMemoryArena::allocation(
   self : DeviceMemoryArena,
 ) -> @device.Allocation {

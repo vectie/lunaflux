@@ -65,7 +65,6 @@ fn checked_align(
 fn output_width(
   operation : @device_plan.StaticOperation,
 ) -> Int64 raise DeviceMemoryError {
-  let invalid = () => raise InvalidOperation(operation.id(), ShapeMismatch)
   let width = match (operation.kind(), operation.shape()) {
     (Embedding, EmbeddingShape(width~, ..)) => Int64::from_int(width)
     (RmsNorm, NormalizationShape(width~, ..)) => Int64::from_int(width)
@@ -89,7 +88,7 @@ fn output_width(
       Int64::from_int(output_width)
     (ResidualAdd, ElementwiseShape(width~)) => Int64::from_int(width)
     (GatedMlp, GatedMlpShape(hidden_size~, ..)) => Int64::from_int(hidden_size)
-    _ => invalid()
+    _ => raise InvalidOperation(operation.id(), ShapeMismatch)
   }
   if width <= 0L {
     raise InvalidOperation(operation.id(), ShapeMismatch)
