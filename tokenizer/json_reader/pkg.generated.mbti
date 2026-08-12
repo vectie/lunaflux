@@ -1,0 +1,112 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tokenizer/json_reader"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn parse_bytes(BytesView, digest~ : @tokenizer.TokenizerDigest, limits~ : @tokenizer.TokenizerLimits, max_bytes~ : Int, max_depth~ : Int) -> @tokenizer.TokenizerSpec raise TokenizerJsonError
+
+pub fn parse_string(StringView, digest~ : @tokenizer.TokenizerDigest, limits~ : @tokenizer.TokenizerLimits, max_bytes~ : Int, max_depth~ : Int) -> @tokenizer.TokenizerSpec raise TokenizerJsonError
+
+// Errors
+pub(all) suberror TokenizerJsonError {
+  InvalidByteLimit
+  InvalidDepthLimit
+  ByteLimitExceeded(limit~ : Int)
+  InvalidUtf8
+  NestingLimitExceeded(limit~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  MalformedJson
+  NonObjectRoot
+  UnknownField(component~ : JsonComponent, index~ : Int)
+  MissingField(component~ : JsonComponent, field~ : JsonField)
+  InvalidField(component~ : JsonComponent, field~ : JsonField, index~ : Int)
+  UnsupportedSemantics(component~ : JsonComponent, feature~ : UnsupportedFeature)
+  VocabularyLimitExceeded(limit~ : Int)
+  MergeLimitExceeded(limit~ : Int)
+  AddedTokenLimitExceeded(limit~ : Int)
+  InvalidByteLevelPiece(entry_index~ : Int, character_index~ : Int)
+  AddedTokenNotInVocabulary(index~ : Int)
+  AddedTokenContentMismatch(index~ : Int)
+  MalformedMerge(index~ : Int)
+  UnknownMergePiece(index~ : Int, part~ : MergePart)
+  Validation(@tokenizer.TokenizerError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JsonComponent {
+  Root
+  Model
+  AddedToken
+  Normalizer
+  PreTokenizer
+  PostProcessor
+  Decoder
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JsonField {
+  Version
+  Truncation
+  Padding
+  AddedTokens
+  NormalizerField
+  PreTokenizerField
+  PostProcessorField
+  DecoderField
+  ModelField
+  TypeField
+  Vocab
+  Merges
+  Dropout
+  UnknownToken
+  ContinuingSubwordPrefix
+  EndOfWordSuffix
+  FuseUnknown
+  ByteFallback
+  IgnoreMerges
+  Id
+  Content
+  SingleWord
+  LeftStrip
+  RightStrip
+  Normalized
+  Special
+  AddPrefixSpace
+  TrimOffsets
+  UseRegex
+} derive(Eq, @debug.Debug)
+
+pub(all) enum MergePart {
+  Left
+  Right
+  Result
+} derive(Eq, @debug.Debug)
+
+pub(all) enum UnsupportedFeature {
+  SchemaVersion
+  TruncationBehavior
+  PaddingBehavior
+  NormalizationBehavior
+  PreTokenizerKind
+  RegexPreTokenization
+  PrefixSpaceInsertion
+  PostProcessingBehavior
+  DecoderKind
+  ModelKind
+  MergeDropout
+  UnknownTokenFallback
+  ContinuingSubwords
+  WordSuffixes
+  UnknownTokenFusion
+  ByteFallbackBehavior
+  IgnoreMergeBehavior
+  OrdinaryAddedToken
+  AddedTokenMatching
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
