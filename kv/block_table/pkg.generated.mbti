@@ -11,8 +11,14 @@ import {
 // Errors
 pub(all) suberror BlockTableError {
   InvalidLimit(BlockTableLimitRule)
+  IdentityOverflow(BlockTableIdentity)
   StorageIndexOutOfBounds
   StorageCellEmpty
+  AllocationCheckpointAlreadyOpen
+  AllocationCheckpointMutationRejected
+  InvalidCheckpointDetach(BlockTableId)
+  BlockTableAllocationCheckpointMismatch
+  StaleBlockTableAllocationCheckpointEpoch
   Exhausted
   StaleTable(BlockTableId)
   TableNotAllocated(BlockTableId)
@@ -30,6 +36,8 @@ pub(all) suberror BlockTableError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct BlockTableAllocationCheckpoint(BlockTableArena, UInt64)
+
 pub struct BlockTableArena {
   // private fields
 }
@@ -38,9 +46,12 @@ pub fn BlockTableArena::allocated_table_count(Self) -> Int
 pub fn BlockTableArena::append_page(Self, BlockTableId, @page_allocator.PageId) -> Unit raise BlockTableError
 pub fn BlockTableArena::append_pages(Self, BlockTableId, ArrayView[@page_allocator.PageId]) -> Unit raise BlockTableError
 pub fn BlockTableArena::append_run(Self, BlockTableId, @page_allocator.PageRunBuffer) -> Unit raise BlockTableError
+pub fn BlockTableArena::checkpoint(Self) -> BlockTableAllocationCheckpoint raise BlockTableError
+pub fn BlockTableArena::commit_checkpoint(Self, BlockTableAllocationCheckpoint) -> Unit raise BlockTableError
 pub fn BlockTableArena::copy_pages(Self, BlockTableId, BlockTablePageBuffer) -> Unit raise BlockTableError
 pub fn BlockTableArena::debug_check_invariants(Self) -> Unit raise BlockTableError
 pub fn BlockTableArena::debug_snapshot(Self) -> BlockTableSnapshot
+pub fn BlockTableArena::detach_suffix_for_checkpoint(Self, BlockTableAllocationCheckpoint, BlockTableId, Int) -> Unit raise BlockTableError
 pub fn BlockTableArena::free_table_count(Self) -> Int
 pub fn BlockTableArena::limits(Self) -> BlockTableLimits
 pub fn BlockTableArena::new(BlockTableLimits) -> Self raise BlockTableError
@@ -51,6 +62,7 @@ pub fn BlockTableArena::reset(Self, BlockTableId, BlockTablePageBuffer) -> Unit 
 pub fn BlockTableArena::reset_and_release(Self, BlockTableId, BlockTablePageBuffer) -> Unit raise BlockTableError
 pub fn BlockTableArena::resolve_token_position(Self, BlockTableId, Int, BlockTablePositionBuffer) -> Unit raise BlockTableError
 pub fn BlockTableArena::retired_table_count(Self) -> Int
+pub fn BlockTableArena::rollback_to(Self, BlockTableAllocationCheckpoint) -> Unit raise BlockTableError
 pub fn BlockTableArena::truncate(Self, BlockTableId, Int, BlockTablePageBuffer) -> Unit raise BlockTableError
 
 pub struct BlockTableId(Int, Int) derive(Eq, Hash, @debug.Debug)
@@ -66,6 +78,11 @@ pub fn BlockTableIdStorage::is_occupied(Self, Int) -> Bool raise BlockTableError
 pub fn BlockTableIdStorage::new(Int) -> Self raise BlockTableError
 pub fn BlockTableIdStorage::read(Self, Int) -> BlockTableId raise BlockTableError
 pub fn BlockTableIdStorage::write(Self, Int, BlockTableId) -> Unit raise BlockTableError
+
+pub(all) enum BlockTableIdentity {
+  AllocationCheckpointEpochIdentity
+  TableGenerationIdentity
+} derive(Eq, @debug.Debug)
 
 pub(all) enum BlockTableInvariantRule {
   CountPartition

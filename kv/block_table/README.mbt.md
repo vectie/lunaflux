@@ -23,6 +23,20 @@ metadata that must retain opaque table identities without optional-value
 boxing. It copies identities inline behind an occupancy bitmap, never exposes
 its inert empty sentinel, and does not acquire or release table ownership.
 
+`BlockTableAllocationCheckpoint` provides an authenticated transaction for
+table allocation and reversible mapping suffixes. It records allocation FIFO
+links, prior generations, and only first-touched mapping baselines in storage
+allocated by `BlockTableArena::new`; checkpoint is O(1), while rollback scales
+with allocations and touched mappings. Appends may target existing or newly allocated
+tables while the checkpoint is open. Before rollback, the scheduler must call
+`detach_suffix_for_checkpoint` for every appended table, then roll back the
+table checkpoint, and only then roll back physical page allocation. The arena
+verifies all existing tables are back at their exact baseline and every new
+provisional table is empty. Release, truncate, and reset operations are rejected
+while the checkpoint is open.
+Release native-object inspection shows no allocation call in the successful
+checkpoint, detach, commit, or rollback closure; failure paths may allocate.
+
 Release native-object inspection shows no allocation call on successful
 `BlockTableIdStorage` read, write, clear, or occupancy-check paths. Failure
 branches may allocate checked error values. A stronger zero-general-heap claim

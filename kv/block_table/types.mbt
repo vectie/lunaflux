@@ -37,6 +37,12 @@ pub struct BlockTableIdStorage {
 }
 
 ///|
+/// Authenticated, single-use boundary for provisional table allocations and
+/// reversible mapping suffixes.
+#valtype
+pub struct BlockTableAllocationCheckpoint(BlockTableArena, UInt64)
+
+///|
 /// Checked startup bounds for one dense block-table arena.
 pub struct BlockTableLimits {
   table_capacity : Int
@@ -115,6 +121,22 @@ pub struct BlockTableArena {
   priv mut free_tables : Int
   priv mut allocated_tables : Int
   priv mut retired_tables : Int
+  priv allocation_journal : FixedArray[Int]
+  priv allocation_journal_generations : FixedArray[Int]
+  priv allocation_journal_next : FixedArray[Int]
+  priv provisional_tables : FixedArray[Bool]
+  priv mapping_journal_indices : FixedArray[Int]
+  priv mapping_journal_baselines : FixedArray[Int]
+  priv mapping_touched : FixedArray[Bool]
+  priv mut allocation_journal_length : Int
+  priv mut mapping_journal_length : Int
+  priv mut allocation_checkpoint_open : Bool
+  priv mut allocation_checkpoint_epoch : UInt64
+  priv mut checkpoint_free_head : Int
+  priv mut checkpoint_free_tail : Int
+  priv mut checkpoint_free_tables : Int
+  priv mut checkpoint_allocated_tables : Int
+  priv mut checkpoint_retired_tables : Int
 }
 
 ///|

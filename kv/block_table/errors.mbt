@@ -9,6 +9,13 @@ pub(all) enum BlockTableLimitRule {
 } derive(Debug, Eq)
 
 ///|
+/// Monotonic identities owned by the block-table arena.
+pub(all) enum BlockTableIdentity {
+  AllocationCheckpointEpochIdentity
+  TableGenerationIdentity
+} derive(Debug, Eq)
+
+///|
 pub(all) enum BlockTableInvariantRule {
   CountPartition
   QueueEndpoint
@@ -28,8 +35,14 @@ pub(all) enum BlockTableInvariantRule {
 /// contain tokens, request data, device addresses, paths, or vendor details.
 pub(all) suberror BlockTableError {
   InvalidLimit(BlockTableLimitRule)
+  IdentityOverflow(BlockTableIdentity)
   StorageIndexOutOfBounds
   StorageCellEmpty
+  AllocationCheckpointAlreadyOpen
+  AllocationCheckpointMutationRejected
+  InvalidCheckpointDetach(BlockTableId)
+  BlockTableAllocationCheckpointMismatch
+  StaleBlockTableAllocationCheckpointEpoch
   Exhausted
   StaleTable(BlockTableId)
   TableNotAllocated(BlockTableId)

@@ -34,6 +34,22 @@ pub fn BlockTableArena::new(
     free_tables: capacity,
     allocated_tables: 0,
     retired_tables: 0,
+    allocation_journal: FixedArray::make(capacity, -1),
+    allocation_journal_generations: FixedArray::make(capacity, 0),
+    allocation_journal_next: FixedArray::make(capacity, -1),
+    provisional_tables: FixedArray::make(capacity, false),
+    mapping_journal_indices: FixedArray::make(capacity, -1),
+    mapping_journal_baselines: FixedArray::make(capacity, 0),
+    mapping_touched: FixedArray::make(capacity, false),
+    allocation_journal_length: 0,
+    mapping_journal_length: 0,
+    allocation_checkpoint_open: false,
+    allocation_checkpoint_epoch: 0UL,
+    checkpoint_free_head: -1,
+    checkpoint_free_tail: -1,
+    checkpoint_free_tables: 0,
+    checkpoint_allocated_tables: 0,
+    checkpoint_retired_tables: 0,
   }
 }
 
@@ -84,6 +100,20 @@ pub fn BlockTableArena::allocate(
   }
   let index = self.free_head
   let next = self.free_next[index]
+  if self.generations[index] >= self.max_generation {
+    raise IdentityOverflow(TableGenerationIdentity)
+  }
+  if self.allocation_checkpoint_open {
+    let journal_index = self.allocation_journal_length
+    if journal_index < 0 || journal_index >= self.allocation_journal.length() {
+      raise InvariantViolation(CountPartition)
+    }
+    self.allocation_journal[journal_index] = index
+    self.allocation_journal_generations[journal_index] = self.generations[index]
+    self.allocation_journal_next[journal_index] = next
+    self.allocation_journal_length = journal_index + 1
+    self.provisional_tables[index] = true
+  }
   self.free_head = next
   if next == -1 {
     self.free_tail = -1
@@ -126,6 +156,7 @@ pub fn BlockTableArena::release(
   self : BlockTableArena,
   table : BlockTableId,
 ) -> Unit raise BlockTableError {
+  self.require_checkpoint_closed()
   let index = self.checked_index(table)
   if self.page_counts[index] != 0 {
     raise TableNotEmpty(table)
@@ -155,6 +186,17 @@ fn BlockTableArena::checked_append_base(
   let current = self.page_counts[index]
   if added > self.max_pages_per_table - current {
     raise TableFull(table)
+  }
+  if self.allocation_checkpoint_open && !self.mapping_touched[index] {
+    let journal_index = self.mapping_journal_length
+    if journal_index < 0 ||
+      journal_index >= self.mapping_journal_indices.length() {
+      raise InvariantViolation(CountPartition)
+    }
+    self.mapping_journal_indices[journal_index] = index
+    self.mapping_journal_baselines[index] = current
+    self.mapping_touched[index] = true
+    self.mapping_journal_length = journal_index + 1
   }
   (index, index * self.max_pages_per_table + current)
 }
@@ -273,6 +315,7 @@ pub fn BlockTableArena::truncate(
   new_length : Int,
   output : BlockTablePageBuffer,
 ) -> Unit raise BlockTableError {
+  self.require_checkpoint_closed()
   let index = self.checked_index(table)
   let current = self.page_counts[index]
   if new_length < 0 || new_length > current {
@@ -301,6 +344,7 @@ pub fn BlockTableArena::reset(
   table : BlockTableId,
   output : BlockTablePageBuffer,
 ) -> Unit raise BlockTableError {
+  self.require_checkpoint_closed()
   let index = self.checked_index(table)
   let count = self.page_counts[index]
   if output.capacity() < count {
@@ -324,6 +368,7 @@ pub fn BlockTableArena::reset_and_release(
   table : BlockTableId,
   output : BlockTablePageBuffer,
 ) -> Unit raise BlockTableError {
+  self.require_checkpoint_closed()
   let index = self.checked_index(table)
   let count = self.page_counts[index]
   if output.capacity() < count {
