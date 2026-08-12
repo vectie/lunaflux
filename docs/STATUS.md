@@ -137,9 +137,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   token; provenance-bound row capability recipes preserve exact model-plan
   operation order; and whole-build checkpoints can roll back several committed
   rows. Submitted-work validation remains separate from the scheduler's
-  current-generation publication check. The scheduler now owns distinct A/B
-  plan buffers and can submit two authenticated plans; completion-driven owner
-  retirement and live worker overlap are not yet integrated.
+  current-generation publication check. The scheduler owns distinct paired A/B
+  plan and completion buffers, issues exact-epoch completion writers, and
+  retires completed owners strictly in plan-sequence order. Live worker
+  transport/overlap is not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
@@ -174,8 +175,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   prefill rows before decode rows, and uses exact plan, block-table, and page
   checkpoints for rejected-build rollback. Intermediate prefill, final prefill,
   and decode use separate authenticated capability recipes. Distinct A/B plan
-  owners permit two outstanding submissions; completion retirement remains
-  open.
+  owners permit two outstanding submissions. Paired completion owners use a
+  fixed slot index and exclusive writers; full-batch retirement authenticates
+  current versus cancelled/expired work, preflights both publication rings and
+  KV release, publishes final-prefill/decode tokens in plan order, enforces
+  token-stop/maximum-output terminals, and resets the exact plan side. Normal
+  idle and two-owner pressure are flat allocation-free outcomes in generated
+  native code; runtime allocation instrumentation remains open.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -212,8 +218,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   recomputation. The reference interpreter deliberately retains intermediate
   activations and recomputes the full sequence during generation; it is a
   correctness oracle, not a fallback.
-- Online APIs, scheduler completion retirement and generated-token publication,
-  continuous batching with global fairness/preemption, live worker overlap,
+- Online APIs, generated-text decoding/transport publication, continuous
+  batching with global fairness/preemption, live worker overlap,
   device paged KV, online sampling and prefix integration, or telemetry. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist but are not an online
@@ -230,7 +236,7 @@ The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
 sanitizer and leak gates, with physical concurrency/race evidence still open.
-Authenticated completion retirement, device KV ownership, and true cached
-decode remain open. Performance and production-readiness claims remain out of
+Device KV ownership and true cached decode remain open. Performance and
+production-readiness claims remain out of
 scope until physical correctness, resource balance, soak, and benchmark
 evidence passes.

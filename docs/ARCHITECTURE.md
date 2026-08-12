@@ -110,14 +110,18 @@ Policy is decode-first with bounded waiting-time aging. Initial preemption is
 recompute-only; host KV swapping is excluded. The same scheduler snapshot and
 inputs must produce the same plan.
 
-The current scheduler implements the build/submission half of this iteration:
-it owns a bounded tokenized-request registry, FIFO waiting queue,
-cancellation/deadline transitions, terminal notices, host page/block-table
-owners, and distinct reusable A/B plan owners. `build_next` transactionally
+The current scheduler implements the bounded host-control portion of this
+iteration: it owns a tokenized-request registry, FIFO waiting queue,
+cancellation/deadline transitions, separate terminal and generated-token
+rings, host page/block-table owners, and distinct paired reusable A/B plan and
+completion owners. `build_next` transactionally
 activates eligible requests, reserves decode resources before prefill, emits the
 protocol's prefill-first row order, and restores exact plan/table/page identity
-on failure. Completion retirement, generated-token publication, live worker
-overlap, global fairness/preemption, and prefix integration remain open.
+on failure. Exact-epoch completion leases and ordered full-batch retirement
+preflight publication and KV-release obligations before state mutation, then
+publish final-prefill/decode tokens and recycle exact owners. Live worker
+transport/overlap, global fairness/preemption, generated-text decoding, and
+prefix integration remain open.
 Capability IDs are copied from authenticated model-generation recipes;
 scheduler policy does not inspect model operations or select kernels.
 

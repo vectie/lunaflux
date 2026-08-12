@@ -138,14 +138,18 @@ transactional `build_next` path activates FIFO requests, reserves decode work
 before prefill, preserves the emergency page reserve for prefill, serializes
 protocol rows in the required order, and submits into distinct reusable A/B
 plan owners. Exact plan, block-table, and page checkpoints restore identities
-and FIFO state after a rejected build. Greedy and
+and FIFO state after a rejected build. Paired completion owners issue exclusive
+leases for exact plan epochs; ordered full-batch retirement preflights output,
+terminal, and KV-release obligations before publishing tokens or recycling
+resources. Idle and plan-buffer pressure are allocation-free value outcomes,
+and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and deterministic RNG stream semantics. These remain foundations:
-authenticated completion retirement, generated-token publication, stop/output
-enforcement, live worker overlap, global fairness/preemption, prefix
-integration, device KV, paged-attention kernels, online transport and sampling
-integration, whole-token-step allocation evidence, and physical-CUDA gates are
-open. Later packages are created only when their vertical phase begins; empty
+live worker transport/overlap, global fairness/preemption, prefix integration,
+device KV, paged-attention kernels, generated-text decoding, online transport
+and sampling integration, whole-token-step runtime allocation instrumentation,
+and physical-CUDA gates are open. Later packages are created only when their
+vertical phase begins; empty
 architectural packages are deliberately avoided.
 
 ## Validation

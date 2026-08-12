@@ -261,9 +261,11 @@ Transactional plan construction now activates FIFO requests only after submit,
 selects decode resources before prefill, applies bounded eligible-prefill
 aging, chunks intermediate/final prefill, preserves the emergency page reserve,
 and submits into distinct A/B owners with exact plan/table/page rollback.
-Completion retirement, stop-token/output enforcement, generated-token
-publication, global fairness/preemption, and live worker integration remain
-open.
+Paired completion owners issue exclusive exact-plan leases; ordered full-batch
+retirement preflights output, terminal, and release capacity, enforces token
+stops/output limits, publishes generated token IDs, and resets exact owners.
+Global fairness/preemption, generated-text decoding, and live worker
+integration remain open.
 
 ### Workstream 4: worker overlap
 
@@ -276,8 +278,9 @@ The immutable fixture vocabulary, reusable fixed-capacity plan/completion
 buffers, authenticated lifecycle epochs, scalar row drafts, provenance-bound
 capability recipes, whole-build checkpoints, final-prefill output semantics,
 and stale-generation checks are implemented. Scheduler-owned distinct A/B
-buffer pairing and build/submission integration are implemented. Authenticated
-completion retirement, live worker overlap, and the runtime
+buffer pairing, transactional build/submission, exclusive completion leases,
+ordered full-batch retirement, generated-token publication, and exact owner
+reset are implemented. Live worker overlap and the runtime
 allocation-instrumentation gate remain open.
 
 ### Gate
