@@ -40,6 +40,7 @@ pub(all) suberror ArtifactError {
   FileTruncated(ArtifactFile)
   FileChangedDuringRead(ArtifactFile)
   DigestMismatch(ArtifactFile)
+  TokenizerVocabularyMismatch
   InvalidModelConfig(@config_reader.ModelConfigReaderError)
   InvalidTokenizer(@json_reader.TokenizerJsonError)
   InvalidSafetensors(@safetensors_reader.SafetensorsReaderError)

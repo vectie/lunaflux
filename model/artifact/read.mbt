@@ -119,6 +119,9 @@ pub async fn load_reference_bundle(
   ) catch {
     error => raise InvalidTokenizer(error)
   }
+  if tokenizer.vocab_size() != model.spec().vocabulary_size() {
+    raise TokenizerVocabularyMismatch
+  }
   let remaining_after_tokenizer = remaining_after_config -
     tokenizer_bytes.length().to_int64()
 

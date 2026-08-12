@@ -329,3 +329,35 @@ async test "truncated weights and executable metadata are rejected after hashing
     }
   }
 }
+
+///|
+async test "model and tokenizer vocabularies must agree before weight loading" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-artifact-vocabulary")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let config = selected_config().to_array()
+    let text = try! @utf8.decode(Bytes::from_array(config)).replace(
+      old="\"vocab_size\":256",
+      new="\"vocab_size\":257",
+    )
+    let incompatible_config = @utf8.encode(text)
+    let tokenizer = selected_tokenizer()
+    let weights = safetensors_file()
+    let paths = test_paths(directory)
+    write_bundle(paths, incompatible_config, tokenizer, weights)
+    try
+      @artifact.load_reference_bundle(
+        paths,
+        test_expected(incompatible_config, tokenizer, weights),
+        test_limits(),
+      )
+    catch {
+      @artifact.ArtifactError::TokenizerVocabularyMismatch => ()
+      _ => fail("expected tokenizer vocabulary mismatch")
+    } noraise {
+      _ => fail("expected incompatible tokenizer vocabulary")
+    }
+  }
+}
