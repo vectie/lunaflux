@@ -1,0 +1,113 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/device_layout"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn plan(@spec.ModelIdentity, @plan.KvCacheGeometry, DeviceKvLimits) -> DeviceKvLayout raise DeviceKvLayoutError
+
+// Errors
+pub(all) suberror DeviceKvLayoutError {
+  InvalidLimit(DeviceKvLimitRule)
+  UnsupportedGeometry(DeviceKvGeometryRule)
+  SizeOverflow(DeviceKvSizeStage)
+  ArenaLimitExceeded
+  IndexOutOfBounds(DeviceKvIndexKind)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeviceKvComponent {
+  Key
+  Value
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceKvGeometryRule {
+  DType
+  Layout
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceKvIndexKind {
+  Layer
+  Page
+  Token
+  KvHead
+  HeadDimension
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceKvLayout {
+  identity : @spec.ModelIdentity
+  geometry : @plan.KvCacheGeometry
+  limits : DeviceKvLimits
+  stable_layout_version : Int
+  page_logical_bytes : Int64
+  page_stride_bytes : Int64
+  component_stride_bytes : Int64
+  layer_stride_bytes : Int64
+  arena_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceKvLayout::arena_bytes(Self) -> Int64
+pub fn DeviceKvLayout::component_stride_bytes(Self) -> Int64
+pub fn DeviceKvLayout::element_offset_bytes(Self, Int, DeviceKvComponent, Int, Int, Int, Int) -> Int64 raise DeviceKvLayoutError
+pub fn DeviceKvLayout::geometry(Self) -> @plan.KvCacheGeometry
+pub fn DeviceKvLayout::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceKvLayout::layer_stride_bytes(Self) -> Int64
+pub fn DeviceKvLayout::limits(Self) -> DeviceKvLimits
+pub fn DeviceKvLayout::page_logical_bytes(Self) -> Int64
+pub fn DeviceKvLayout::page_stride_bytes(Self) -> Int64
+pub fn DeviceKvLayout::region(Self, Int, DeviceKvComponent, Int) -> DeviceKvRegion raise DeviceKvLayoutError
+pub fn DeviceKvLayout::segment_alignment_bytes(Self) -> Int64
+pub fn DeviceKvLayout::stable_layout_version(Self) -> Int
+pub fn DeviceKvLayout::tokens_per_page(Self) -> Int
+pub fn DeviceKvLayout::total_page_count(Self) -> Int
+
+pub(all) enum DeviceKvLimitRule {
+  TokensPerPage
+  TotalPageCount
+  ArenaBytes
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceKvLimits {
+  tokens_per_page : Int
+  total_page_count : Int
+  max_arena_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceKvLimits::max_arena_bytes(Self) -> Int64
+pub fn DeviceKvLimits::new(tokens_per_page~ : Int, total_page_count~ : Int, max_arena_bytes~ : Int64) -> Self raise DeviceKvLayoutError
+pub fn DeviceKvLimits::segment_alignment_bytes(Self) -> Int64
+pub fn DeviceKvLimits::tokens_per_page(Self) -> Int
+pub fn DeviceKvLimits::total_page_count(Self) -> Int
+
+pub struct DeviceKvRegion {
+  layer_index : Int
+  component : DeviceKvComponent
+  page_index : Int
+  offset_bytes : Int64
+  logical_bytes : Int64
+  reserved_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn DeviceKvRegion::alignment_bytes(Self) -> Int64
+pub fn DeviceKvRegion::component(Self) -> DeviceKvComponent
+pub fn DeviceKvRegion::end_offset_bytes(Self) -> Int64
+pub fn DeviceKvRegion::layer_index(Self) -> Int
+pub fn DeviceKvRegion::logical_bytes(Self) -> Int64
+pub fn DeviceKvRegion::offset_bytes(Self) -> Int64
+pub fn DeviceKvRegion::page_index(Self) -> Int
+pub fn DeviceKvRegion::reserved_bytes(Self) -> Int64
+
+pub(all) enum DeviceKvSizeStage {
+  PageElements
+  PageLogicalBytes
+  PageStride
+  ComponentStride
+  LayerStride
+  ArenaBytes
+  RegionOffset
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
