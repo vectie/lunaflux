@@ -1,0 +1,162 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/prefix/radix"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+
+// Errors
+pub(all) suberror PrefixIndexError {
+  InvalidLimit(PrefixLimitRule)
+  InvalidTokenCount
+  InvalidToken(Int)
+  InvalidPageCount
+  ResultBufferTooSmall
+  ResultIndexOutOfBounds
+  Exhausted
+  DuplicatePrefix(PrefixEntryId)
+  StaleEntry(PrefixEntryId)
+  ReferenceOverflow(PrefixEntryId)
+  ReferenceUnderflow(PrefixEntryId)
+  NoEvictableEntry
+  InvariantViolation(PrefixInvariantRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PrefixEntryId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn PrefixEntryId::generation(Self) -> Int
+pub fn PrefixEntryId::index(Self) -> Int
+
+pub struct PrefixEntrySnapshot {
+  id : PrefixEntryId
+  token_count : Int
+  page_count : Int
+  active_references : Int
+  recency : UInt64
+} derive(Eq, @debug.Debug)
+pub fn PrefixEntrySnapshot::active_reference_count(Self) -> Int
+pub fn PrefixEntrySnapshot::id(Self) -> PrefixEntryId
+pub fn PrefixEntrySnapshot::page_count(Self) -> Int
+pub fn PrefixEntrySnapshot::recency(Self) -> UInt64
+pub fn PrefixEntrySnapshot::token_count(Self) -> Int
+
+pub struct PrefixEvictionBuffer {
+  // private fields
+}
+pub fn PrefixEvictionBuffer::capacity(Self) -> Int
+pub fn PrefixEvictionBuffer::clear(Self) -> Unit
+pub fn PrefixEvictionBuffer::entry(Self) -> PrefixEntryId?
+pub fn PrefixEvictionBuffer::new(Int) -> Self raise PrefixIndexError
+pub fn PrefixEvictionBuffer::page_at(Self, Int) -> @page_allocator.PageId raise PrefixIndexError
+pub fn PrefixEvictionBuffer::page_count(Self) -> Int
+
+pub struct PrefixIdentity {
+  model_identity : @spec.ModelIdentity
+  tokenizer : @tokenizer.TokenizerDigest
+  scope : @inference.CacheScope
+  layout : PrefixLayout
+}
+pub fn PrefixIdentity::layout(Self) -> PrefixLayout
+pub fn PrefixIdentity::model_identity(Self) -> @spec.ModelIdentity
+pub fn PrefixIdentity::new(model_identity~ : @spec.ModelIdentity, tokenizer~ : @tokenizer.TokenizerDigest, scope~ : @inference.CacheScope, layout~ : PrefixLayout) -> Self
+pub fn PrefixIdentity::scope(Self) -> @inference.CacheScope
+pub fn PrefixIdentity::tokenizer(Self) -> @tokenizer.TokenizerDigest
+
+pub struct PrefixIndex {
+  // private fields
+}
+pub fn PrefixIndex::active_reference_count(Self, PrefixEntryId) -> Int raise PrefixIndexError
+pub fn PrefixIndex::debug_check_invariants(Self) -> Unit raise PrefixIndexError
+pub fn PrefixIndex::debug_snapshot(Self) -> PrefixIndexSnapshot
+pub fn PrefixIndex::entry_count(Self) -> Int
+pub fn PrefixIndex::evict_oldest_zero_reference(Self, PrefixEvictionBuffer) -> PrefixEntryId raise PrefixIndexError
+pub fn PrefixIndex::insert(Self, PrefixIdentity, ArrayView[Int], ArrayView[@page_allocator.PageId]) -> PrefixEntryId raise PrefixIndexError
+pub fn PrefixIndex::limits(Self) -> PrefixIndexLimits
+pub fn PrefixIndex::lookup_longest_full_pages(Self, PrefixIdentity, ArrayView[Int], PrefixLookupBuffer) -> Unit raise PrefixIndexError
+pub fn PrefixIndex::new(PrefixIndexLimits) -> Self
+pub fn PrefixIndex::node_count(Self) -> Int
+pub fn PrefixIndex::page_count(Self) -> Int
+pub fn PrefixIndex::release_active(Self, PrefixEntryId) -> Unit raise PrefixIndexError
+pub fn PrefixIndex::retain_active(Self, PrefixEntryId) -> Unit raise PrefixIndexError
+pub fn PrefixIndex::retired_entry_count(Self) -> Int
+
+pub struct PrefixIndexLimits {
+  entry_capacity : Int
+  node_capacity : Int
+  max_tokens_per_entry : Int
+  page_capacity : Int
+  max_active_references_per_entry : Int
+  max_generation : Int
+} derive(Eq, @debug.Debug)
+pub fn PrefixIndexLimits::entry_capacity(Self) -> Int
+pub fn PrefixIndexLimits::max_active_references_per_entry(Self) -> Int
+pub fn PrefixIndexLimits::max_generation(Self) -> Int
+pub fn PrefixIndexLimits::max_tokens_per_entry(Self) -> Int
+pub fn PrefixIndexLimits::new(entry_capacity~ : Int, node_capacity~ : Int, max_tokens_per_entry~ : Int, page_capacity~ : Int, max_active_references_per_entry~ : Int, max_generation? : Int) -> Self raise PrefixIndexError
+pub fn PrefixIndexLimits::node_capacity(Self) -> Int
+pub fn PrefixIndexLimits::page_capacity(Self) -> Int
+
+pub struct PrefixIndexSnapshot {
+  entry_count : Int
+  retired_entry_count : Int
+  node_count : Int
+  page_count : Int
+  entries : ReadOnlyArray[PrefixEntrySnapshot]
+} derive(Eq, @debug.Debug)
+pub fn PrefixIndexSnapshot::entry_at(Self, Int) -> PrefixEntrySnapshot raise PrefixIndexError
+pub fn PrefixIndexSnapshot::entry_count(Self) -> Int
+pub fn PrefixIndexSnapshot::node_count(Self) -> Int
+pub fn PrefixIndexSnapshot::page_count(Self) -> Int
+pub fn PrefixIndexSnapshot::retired_entry_count(Self) -> Int
+pub fn PrefixIndexSnapshot::snapshot_count(Self) -> Int
+
+pub(all) enum PrefixInvariantRule {
+  CountPartition
+  RootCount
+  NodeOwnership
+  NodeUsage
+  TerminalLink
+  PageChain
+  EntryShape
+  GenerationRange
+} derive(Eq, @debug.Debug)
+
+pub struct PrefixLayout {
+  version : Int
+  tokens_per_page : Int
+} derive(Eq, @debug.Debug)
+pub fn PrefixLayout::new(version~ : Int, tokens_per_page~ : Int) -> Self raise PrefixIndexError
+pub fn PrefixLayout::tokens_per_page(Self) -> Int
+pub fn PrefixLayout::version(Self) -> Int
+
+pub(all) enum PrefixLimitRule {
+  EntryCapacity
+  NodeCapacity
+  TokensPerEntry
+  PageCapacity
+  TokensPerPage
+  ActiveReferences
+  Generation
+  LayoutVersion
+} derive(Eq, @debug.Debug)
+
+pub struct PrefixLookupBuffer {
+  // private fields
+}
+pub fn PrefixLookupBuffer::capacity(Self) -> Int
+pub fn PrefixLookupBuffer::clear(Self) -> Unit
+pub fn PrefixLookupBuffer::entry(Self) -> PrefixEntryId?
+pub fn PrefixLookupBuffer::matched_tokens(Self) -> Int
+pub fn PrefixLookupBuffer::new(Int) -> Self raise PrefixIndexError
+pub fn PrefixLookupBuffer::page_at(Self, Int) -> @page_allocator.PageId raise PrefixIndexError
+pub fn PrefixLookupBuffer::page_count(Self) -> Int
+
+// Type aliases
+
+// Traits

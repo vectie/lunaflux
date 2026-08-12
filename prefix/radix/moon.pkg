@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+}
+
+supported_targets = "native"
