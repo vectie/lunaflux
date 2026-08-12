@@ -113,6 +113,7 @@ pub fn CompletionWriter::abort(
   if owner.epoch == 0xffffffffffffffffUL {
     raise IdentityOverflow(CompletionBufferEpochIdentity)
   }
+  owner.clear_slot_index()
   owner.entry_count = 0
   owner.writer_open = false
   owner.epoch = owner.epoch + 1UL

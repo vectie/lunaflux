@@ -11,6 +11,16 @@ fn SubmittedSchedulePlan::authenticate(
 }
 
 ///|
+/// Returns the opaque handle for this owner's exact current submitted epoch.
+/// The handle is stack-valued and does not expose mutable owner access.
+pub fn SchedulePlanBuffer::current_submitted(
+  self : SchedulePlanBuffer,
+) -> SubmittedSchedulePlan raise WorkerProtocolError {
+  self.require_state(Submitted)
+  SubmittedSchedulePlan(self, self.epoch)
+}
+
+///|
 fn SubmittedSchedulePlan::authenticate_owner(
   self : SubmittedSchedulePlan,
   owner : SchedulePlanBuffer,

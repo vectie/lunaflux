@@ -9,16 +9,22 @@ fn CompletionBuffer::require_state(
 }
 
 ///|
-fn CompletionBuffer::has_slot(
+fn CompletionBuffer::entry_index_for_slot(
   self : CompletionBuffer,
   slot : CompletionSlot,
-) -> Bool {
-  for index in 0..<self.entry_count {
-    if self.slots[index] == slot {
-      return true
-    }
+) -> Int raise WorkerProtocolError {
+  let value = slot.value()
+  if value < 0 || value >= self.slot_to_entry.length() {
+    raise InvalidCompletionSlot
   }
-  false
+  self.slot_to_entry[value]
+}
+
+///|
+fn CompletionBuffer::clear_slot_index(self : CompletionBuffer) -> Unit {
+  for index in 0..<self.entry_count {
+    self.slot_to_entry[self.slots[index].value()] = -1
+  }
 }
 
 ///|
@@ -36,10 +42,8 @@ fn CompletionBuffer::append(
   if self.entry_count >= self.limits.max_plan_rows() {
     raise CompletionCountMismatch
   }
-  if slot.value() < 0 || slot.value() >= self.limits.max_completion_slots() {
-    raise InvalidCompletionSlot
-  }
-  if self.has_slot(slot) {
+  let previous = self.entry_index_for_slot(slot)
+  if previous != -1 {
     raise DuplicateCompletionSlot(index=self.entry_count)
   }
   let index = self.entry_count
@@ -50,6 +54,7 @@ fn CompletionBuffer::append(
   self.processed_token_counts[index] = processed_tokens
   self.token_ids[index] = token_id
   self.failures[index] = failure
+  self.slot_to_entry[slot.value()] = index
   self.entry_count = index + 1
 }
 
@@ -78,6 +83,7 @@ pub fn CompletionBuffer::new(
     model_plan_generation_value: 1UL,
     entry_count: 0,
     writer_open: false,
+    slot_to_entry: FixedArray::make(limits.max_completion_slots(), -1),
     slots: FixedArray::make(limits.max_plan_rows(), slot),
     request_ids: FixedArray::make(limits.max_plan_rows(), request_id),
     request_generations: FixedArray::make(limits.max_plan_rows(), generation),
@@ -293,6 +299,7 @@ pub fn CompletionBuffer::consume(
 ) -> ConsumedCompletion raise WorkerProtocolError {
   submitted.authenticate_owner(self)
   submitted.validate_for(plan)
+  self.clear_slot_index()
   self.state = Consumed
   ConsumedCompletion(self, self.epoch)
 }
@@ -320,6 +327,7 @@ pub fn CompletionBuffer::reset(
   if self.epoch == 0xffffffffffffffffUL {
     raise IdentityOverflow(CompletionBufferEpochIdentity)
   }
+  self.clear_slot_index()
   self.entry_count = 0
   self.writer_open = false
   self.epoch = self.epoch + 1UL

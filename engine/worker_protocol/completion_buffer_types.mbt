@@ -11,6 +11,7 @@ pub struct CompletionBuffer {
   priv mut model_plan_generation_value : UInt64
   priv mut entry_count : Int
   priv mut writer_open : Bool
+  priv slot_to_entry : FixedArray[Int]
   priv slots : FixedArray[CompletionSlot]
   priv request_ids : FixedArray[@inference.RequestId]
   priv request_generations : FixedArray[@inference.RequestGeneration]

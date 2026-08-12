@@ -309,6 +309,7 @@ pub fn SchedulePlanBuffer::begin_final_prefill(Self, request_id~ : @inference.Re
 pub fn SchedulePlanBuffer::begin_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
 pub fn SchedulePlanBuffer::checkpoint(Self) -> PlanBuildCheckpoint raise WorkerProtocolError
 pub fn SchedulePlanBuffer::commit_draft(Self, PlanRowDraft) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::current_submitted(Self) -> SubmittedSchedulePlan raise WorkerProtocolError
 pub fn SchedulePlanBuffer::epoch(Self) -> UInt64
 pub fn SchedulePlanBuffer::new(WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn SchedulePlanBuffer::reset(Self, RetiredSchedulePlan) -> Unit raise WorkerProtocolError
@@ -323,6 +324,7 @@ pub fn SchedulePlanBuffer::validate_submitted(Self, SubmittedSchedulePlan) -> Un
 pub struct SubmittedCompletion(CompletionBuffer, UInt64)
 pub fn SubmittedCompletion::entry(Self, Int) -> SubmittedCompletionEntry raise WorkerProtocolError
 pub fn SubmittedCompletion::entry_count(Self) -> Int raise WorkerProtocolError
+pub fn SubmittedCompletion::entry_for_slot(Self, CompletionSlot) -> SubmittedCompletionEntry raise WorkerProtocolError
 pub fn SubmittedCompletion::model_plan_generation(Self) -> ModelPlanGeneration raise WorkerProtocolError
 pub fn SubmittedCompletion::model_plan_generation_wire(Self) -> UInt64 raise WorkerProtocolError
 pub fn SubmittedCompletion::sequence(Self) -> PlanSequence raise WorkerProtocolError

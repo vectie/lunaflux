@@ -3,12 +3,12 @@ fn CompletionBuffer::find_slot(
   self : CompletionBuffer,
   slot : CompletionSlot,
 ) -> Int {
-  for index in 0..<self.entry_count {
-    if self.slots[index] == slot {
-      return index
-    }
+  let value = slot.value()
+  if value < 0 || value >= self.slot_to_entry.length() {
+    -1
+  } else {
+    self.slot_to_entry[value]
   }
-  -1
 }
 
 ///|
@@ -161,6 +161,21 @@ pub fn SubmittedCompletion::entry(
   let owner = self.authenticate()
   if index < 0 || index >= owner.entry_count {
     raise UnknownCompletionSlot(index~)
+  }
+  SubmittedCompletionEntry(owner, self.1, index)
+}
+
+///|
+/// Returns the authenticated entry for an exact completion-slot identity in
+/// O(1) time using fixed storage allocated with the completion owner.
+pub fn SubmittedCompletion::entry_for_slot(
+  self : SubmittedCompletion,
+  slot : CompletionSlot,
+) -> SubmittedCompletionEntry raise WorkerProtocolError {
+  let owner = self.authenticate()
+  let index = owner.entry_index_for_slot(slot)
+  if index < 0 || index >= owner.entry_count {
+    raise UnknownCompletionSlot(index=slot.value())
   }
   SubmittedCompletionEntry(owner, self.1, index)
 }
