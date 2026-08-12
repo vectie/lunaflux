@@ -48,7 +48,8 @@ fn append_operation(
 ///
 /// All model-family branching terminates in this package. The returned graph
 /// contains no model-family, device, vendor, allocation, or kernel-artifact
-/// switch.
+/// switch. Its batch-row ceiling remains the Phase-1 execution envelope;
+/// runtime batching capacity must move to execution planning in a later slice.
 pub fn build(
   metadata : @spec.LlamaModelMetadata,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
@@ -67,6 +68,13 @@ pub fn build(
     attention_head_count=query_heads,
     kv_head_count=kv_heads,
     head_dimension~,
+  )
+  let kv_cache_geometry = @plan.KvCacheGeometry::new(
+    layer_count=spec.layer_count(),
+    kv_head_count=kv_heads,
+    head_dimension~,
+    dtype=BFloat16,
+    layout=LayerMajorSplitKeyValueV1,
   )
   let kv_width = kv_heads * head_dimension
   let qkv_width = hidden + 2 * kv_width
@@ -195,6 +203,7 @@ pub fn build(
   @plan.ModelPlan::new(
     identity=metadata.identity(),
     shape_constraints=constraints,
+    kv_cache_geometry~,
     workspace_bounds=workspace,
     operations~,
     final_output=logits,

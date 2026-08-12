@@ -45,6 +45,13 @@ fn artifact_plan() -> @plan.ModelPlan {
       kv_head_count=2,
       head_dimension=4,
     ),
+    kv_cache_geometry=@plan.KvCacheGeometry::new(
+      layer_count=1,
+      kv_head_count=2,
+      head_dimension=4,
+      dtype=BFloat16,
+      layout=LayerMajorSplitKeyValueV1,
+    ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[embedding, norm],
     final_output=@plan.ActivationRef::new(1),

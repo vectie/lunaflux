@@ -42,7 +42,7 @@ fn profile_append_tensor(
 
 ///|
 fn profile_test_layout(
-  model? : @spec.LlamaModelMetadata = profile_test_model(),
+  model? : @spec.LlamaModelMetadata = try! profile_test_model(),
 ) -> @device_materialize.DeviceWeightLayout raise {
   let entries : Array[@safetensors.RawTensorMetadata] = []
   let offset = Ref(0L)
@@ -196,9 +196,9 @@ fn profile_catalog_for(
 
 ///|
 fn profile_static_plan(
-  semantic? : @plan.ModelPlan = @llama.build(profile_test_model()),
-  layout? : @device_materialize.DeviceWeightLayout = profile_test_layout(),
-  target? : @catalog.DeviceTarget = profile_test_target(),
+  semantic? : @plan.ModelPlan = try! @llama.build(try! profile_test_model()),
+  layout? : @device_materialize.DeviceWeightLayout = try! profile_test_layout(),
+  target? : @catalog.DeviceTarget = try! profile_test_target(),
   workspace_bytes? : Int64 = 32L,
 ) -> @device_plan.StaticDevicePlan raise {
   @device_plan.build(
@@ -210,7 +210,7 @@ fn profile_static_plan(
 
 ///|
 fn profile_memory_plan(
-  static_plan? : @device_plan.StaticDevicePlan = profile_static_plan(),
+  static_plan? : @device_plan.StaticDevicePlan = try! profile_static_plan(),
 ) -> @device_memory.DeviceMemoryPlan raise {
   @device_memory.plan(
     static_plan,
@@ -247,6 +247,13 @@ fn profile_embedding_plan(
       attention_head_count=2,
       kv_head_count=1,
       head_dimension=2,
+    ),
+    kv_cache_geometry=@plan.KvCacheGeometry::new(
+      layer_count=1,
+      kv_head_count=1,
+      head_dimension=2,
+      dtype=BFloat16,
+      layout=LayerMajorSplitKeyValueV1,
     ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[operation],

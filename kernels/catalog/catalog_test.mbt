@@ -37,6 +37,7 @@ fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
       kv_head_count=2,
       head_dimension=4,
     ),
+    kv_cache_geometry=catalog_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(
       max_temporary_bytes=workspace_limit,
     ),
@@ -78,6 +79,7 @@ fn projection_plan(
       kv_head_count=2,
       head_dimension=4,
     ),
+    kv_cache_geometry=catalog_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(
       max_temporary_bytes=workspace_limit,
     ),

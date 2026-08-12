@@ -14,6 +14,10 @@ pub(all) enum PlanShapeRule {
   HiddenHeadRelationship
   AttentionKvHeadRelationship
   DimensionOverflow
+  KvCachePositiveDimension
+  KvCacheDimensionOverflow
+  KvCacheShapeMismatch
+  UnsupportedKvCacheDType
   OperationShapeMismatch
 } derive(Debug, Eq)
 

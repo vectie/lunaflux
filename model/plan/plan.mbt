@@ -3,6 +3,7 @@
 pub struct ModelPlan {
   identity : @spec.ModelIdentity
   shape_constraints : ShapeConstraints
+  kv_cache_geometry : KvCacheGeometry
   workspace_bounds : WorkspaceBounds
   operations : ReadOnlyArray[PlanOperation]
   required_capabilities : ReadOnlyArray[KernelCapabilityId]
@@ -154,10 +155,15 @@ fn validate_operation(
 pub fn ModelPlan::new(
   identity~ : @spec.ModelIdentity,
   shape_constraints~ : ShapeConstraints,
+  kv_cache_geometry~ : KvCacheGeometry,
   workspace_bounds~ : WorkspaceBounds,
   operations~ : ArrayView[PlanOperation],
   final_output~ : ActivationRef,
 ) -> ModelPlan raise PlanValidationError {
+  if kv_cache_geometry.kv_head_count() != shape_constraints.kv_head_count() ||
+    kv_cache_geometry.head_dimension() != shape_constraints.head_dimension() {
+    raise InvalidShape(KvCacheShapeMismatch)
+  }
   if operations.is_empty() {
     raise InvalidGraph(EmptyOperationList)
   }
@@ -191,6 +197,7 @@ pub fn ModelPlan::new(
   {
     identity,
     shape_constraints,
+    kv_cache_geometry,
     workspace_bounds,
     operations: ReadOnlyArray::from_array(operations),
     required_capabilities: ReadOnlyArray::from_array(required),
@@ -206,6 +213,11 @@ pub fn ModelPlan::identity(self : ModelPlan) -> @spec.ModelIdentity {
 ///|
 pub fn ModelPlan::shape_constraints(self : ModelPlan) -> ShapeConstraints {
   self.shape_constraints
+}
+
+///|
+pub fn ModelPlan::kv_cache_geometry(self : ModelPlan) -> KvCacheGeometry {
+  self.kv_cache_geometry
 }
 
 ///|

@@ -24,6 +24,20 @@ fn plan_test_constraints() -> @plan.ShapeConstraints {
 }
 
 ///|
+fn plan_test_kv_geometry(
+  kv_head_count? : Int = 2,
+  head_dimension? : Int = 4,
+) -> @plan.KvCacheGeometry {
+  try! @plan.KvCacheGeometry::new(
+    layer_count=1,
+    kv_head_count~,
+    head_dimension~,
+    dtype=BFloat16,
+    layout=LayerMajorSplitKeyValueV1,
+  )
+}
+
+///|
 fn embedding_operation(
   first_input : @plan.ValueRef,
   capability : @plan.KernelCapabilityId,
@@ -49,6 +63,7 @@ test "model plan copies construction arrays into immutable ordered storage" {
   let model_plan = @plan.ModelPlan::new(
     identity=plan_test_identity(),
     shape_constraints=plan_test_constraints(),
+    kv_cache_geometry=plan_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
     operations~,
     final_output=@plan.ActivationRef::new(0),
@@ -57,6 +72,30 @@ test "model plan copies construction arrays into immutable ordered storage" {
   assert_eq(model_plan.operations().length(), 1)
   assert_eq(model_plan.required_capabilities().length(), 1)
   assert_eq(model_plan.final_output().as_int(), 0)
+  assert_eq(model_plan.kv_cache_geometry(), plan_test_kv_geometry())
+}
+
+///|
+test "model plan rejects KV geometry inconsistent with semantic dimensions" {
+  let operation = embedding_operation(
+    ModelInput(TokenIds),
+    @plan.KernelCapabilityId::embedding_lookup(),
+  )
+  try
+    @plan.ModelPlan::new(
+      identity=plan_test_identity(),
+      shape_constraints=plan_test_constraints(),
+      kv_cache_geometry=plan_test_kv_geometry(kv_head_count=1),
+      workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
+      operations=[operation],
+      final_output=@plan.ActivationRef::new(0),
+    )
+  catch {
+    InvalidShape(KvCacheShapeMismatch) => ()
+    _ => fail("unexpected KV shape-consistency error")
+  } noraise {
+    _ => fail("expected inconsistent KV geometry rejection")
+  }
 }
 
 ///|
@@ -98,6 +137,7 @@ test "model plan rejects forward activation references" {
     @plan.ModelPlan::new(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
+      kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
@@ -120,6 +160,7 @@ test "operation kind requires its stable semantic capability" {
     @plan.ModelPlan::new(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
+      kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
@@ -142,6 +183,7 @@ test "operation kinds enforce exact semantic input roles" {
     @plan.ModelPlan::new(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
+      kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),

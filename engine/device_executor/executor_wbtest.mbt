@@ -160,6 +160,7 @@ fn executor_test_semantic_plan(
       kv_head_count=1,
       head_dimension=2,
     ),
+    kv_cache_geometry=executor_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[embedding, head],
     final_output=@plan.ActivationRef::new(1),

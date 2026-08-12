@@ -65,6 +65,13 @@ test "dense Llama dimensions and workspace are explicit and bounded" {
   assert_eq(constraints.attention_head_count(), 4)
   assert_eq(constraints.kv_head_count(), 2)
   assert_eq(constraints.head_dimension(), 4)
+  let geometry = model_plan.kv_cache_geometry()
+  assert_eq(geometry.layer_count(), 2)
+  assert_eq(geometry.kv_head_count(), 2)
+  assert_eq(geometry.head_dimension(), 4)
+  assert_eq(geometry.dtype(), BFloat16)
+  assert_eq(geometry.layout(), LayerMajorSplitKeyValueV1)
+  assert_eq(geometry.layout().stable_version(), 1)
   assert_eq(model_plan.workspace_bounds().max_temporary_bytes(), 8192L)
   guard model_plan.operations()[2].shape()
     is ProjectionShape(input_width=16, output_width=32) else {

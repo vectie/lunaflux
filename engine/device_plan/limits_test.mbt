@@ -49,6 +49,13 @@ fn repeated_plan(
   @plan.ModelPlan::new(
     identity=device_plan_test_model().identity(),
     shape_constraints=device_plan_base_constraints(),
+    kv_cache_geometry=@plan.KvCacheGeometry::new(
+      layer_count=1,
+      kv_head_count=1,
+      head_dimension=2,
+      dtype=BFloat16,
+      layout=LayerMajorSplitKeyValueV1,
+    ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations~,
     final_output=@plan.ActivationRef::new(repeat_count),

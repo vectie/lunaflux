@@ -6,6 +6,13 @@ fn device_plan_one_operation(
   @plan.ModelPlan::new(
     identity~,
     shape_constraints=device_plan_base_constraints(),
+    kv_cache_geometry=@plan.KvCacheGeometry::new(
+      layer_count=1,
+      kv_head_count=1,
+      head_dimension=2,
+      dtype=BFloat16,
+      layout=LayerMajorSplitKeyValueV1,
+    ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[device_plan_embedding(tensor_reference)],
     final_output=@plan.ActivationRef::new(0),
@@ -46,6 +53,13 @@ fn device_plan_two_operations(
   @plan.ModelPlan::new(
     identity=device_plan_test_model().identity(),
     shape_constraints=device_plan_base_constraints(),
+    kv_cache_geometry=@plan.KvCacheGeometry::new(
+      layer_count=1,
+      kv_head_count=1,
+      head_dimension=2,
+      dtype=BFloat16,
+      layout=LayerMajorSplitKeyValueV1,
+    ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[device_plan_embedding(0), second],
     final_output=@plan.ActivationRef::new(1),
