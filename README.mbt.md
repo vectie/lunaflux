@@ -2,10 +2,12 @@
 
 > Phase 1 foundation in progress. The repository contains checked MoonBit
 > contracts; bounded configuration, tokenizer, model, and safetensors readers;
-> immutable plans and bounded reference-bundle loading; deterministic reference
-> kernels; and an offline correctness interpreter validated against an exact
-> pinned upstream BF16 model. It does not yet claim production CUDA execution,
-> serving readiness, or GPU performance.
+> streaming file-to-device weight loading; immutable semantic and device plans;
+> exact activation/workspace memory and stateless execution profiles;
+> content-addressed AOT catalog, launch, and artifact contracts; deterministic
+> reference kernels; and an offline correctness interpreter validated against
+> an exact pinned upstream BF16 model. It does not yet claim a complete
+> production CUDA executor, serving readiness, or GPU performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
@@ -81,8 +83,8 @@ scheduler/          admission and batch planning
 kv/                 page allocator and request block tables
 prefix/             radix prefix index
 sampling/           token selection
-engine/             engine state machine and worker coordination
-kernels/            kernel capabilities and MoonTile IR
+engine/             reference execution and static device preparation
+kernels/            exact kernel catalog, launch contracts, and reference kernels
 device/             safe public device abstractions
 internal/cuda/      private native bindings and stubs
 metrics/            bounded telemetry
@@ -93,14 +95,25 @@ docs/               contracts, architecture, decisions, and phase gates
 Implemented packages currently cover `contracts/`, focused `config/` records,
 the byte-BPE foundation and bounded selected `tokenizer.json` adapter in
 `tokenizer/`, validated artifact readers, exact Llama weight bindings, bounded
-host and direct-device materialization in `model/`, deterministic reference
-kernels and greedy sampling, an exact startup kernel catalog, an
-architecture-neutral offline interpreter in `engine/reference/`, and a private
-CUDA/device seam for explicit resources, checked transfers, and narrow
-synchronous BF16 cuBLASLt GEMM plans. The `lunaflux
-reference` command runs digest-pinned whole-file correctness bundles; it is
-never a production fallback. Later packages are created only when their
-vertical phase begins; empty architectural packages are deliberately avoided.
+host materialization for reference execution, and two-pass bounded streaming
+from an approved safetensors file into final aligned device regions. The
+device foundation also includes an immutable semantic-to-device plan, a
+single activation/workspace arena plan and allocator, and exact stateless
+`FullPrefill`/`FullRecompute` profiles. Kernel packages admit exact startup
+bindings, content-addressed AOT families and profile-specific entry points,
+launch ABIs, and digest-verified module/function artifacts. The private
+CUDA/device seam owns explicit resources, checked transfers, module/function
+loading, synchronous AOT launch, and narrow synchronous BF16 cuBLASLt GEMM
+plans.
+
+Deterministic reference kernels, greedy sampling, and the
+architecture-neutral `engine/reference/` interpreter remain the correctness
+oracle. The `lunaflux reference` command runs digest-pinned whole-file
+correctness bundles; it is never a production fallback. No prepared executor
+currently binds the admitted AOT and memory contracts into an ordered model
+run, and the semantic graph has no cached-KV decode path. Later packages are
+created only when their vertical phase begins; empty architectural packages
+are deliberately avoided.
 
 ## Validation
 

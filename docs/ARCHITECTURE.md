@@ -167,6 +167,46 @@ Weights are streamed or mapped into their final device destination. A
 multi-device loader must never materialize the complete model independently on
 every worker.
 
+The current single-device loader realizes this contract with two bounded reads
+of one approved regular safetensors file. It validates the complete digest and
+exact selected-model tensor vocabulary before opening the destination arena,
+then copies source-ordered chunks into final aligned regions while hashing the
+exact bytes again. It retains no model-sized host snapshot. This is a read-only
+mount contract; it does not claim atomic path-race exclusion for an adversarial
+writable directory.
+
+## Static device execution preparation
+
+Device preparation keeps semantic planning, storage planning, and executable
+artifacts as separately checked evidence:
+
+1. A static device plan binds one model identity, exact weight layout, resolved
+   kernel catalog, target, operation graph, and workspace bound.
+2. An activation plan computes BF16 value lifetimes, reuses aligned slots only
+   after the final consumer, retains the terminal output, and appends one shared
+   workspace to a single startup arena.
+3. An exact execution profile derives immutable token-staging, weight,
+   activation, workspace, operation, and terminal-output views for one admitted
+   batch and sequence shape.
+4. A launch-contract set fixes every AOT-backed operation's profile-specific
+   entry point, dimensions, ordered semantic operands, byte counts, alignments,
+   and workspace claim.
+5. Artifact admission verifies each content-addressed module once and maps
+   every required stable entry point to a bounded function symbol.
+
+No one item is execution evidence by itself. Before launch, a prepared executor
+must prove identity, device target, catalog version, exact operation order, and
+every launch operand against the actual token, weight, activation, and
+workspace allocation regions. Dispatch may then consume only precomputed
+records; it must not allocate, inspect model-family names, or reinterpret
+manifest byte claims.
+
+The current semantic graph is stateless. `FullPrefill` and
+`FullRecompute` execute every token in the supplied sequence. There is no true
+decode profile until the model and device plans explicitly contain KV storage,
+cache positions, sequence lengths, page/block tables, and deterministic
+ownership.
+
 ## Kernel architecture
 
 The engine begins with a kernel catalog, not a universal compiler.
@@ -193,10 +233,14 @@ validate
 → benchmark and publish capability manifest
 ~~~
 
-The initial catalog uses cuBLASLt or CUTLASS for GEMM and adds custom AOT
-kernels only for measured serving hotspots. Production startup selects exact
-artifacts by GPU architecture, dtype, layout, and shape class. Missing support
-is a startup error.
+The initial catalog uses a narrow cuBLASLt path only where one semantic
+operation is representable by its single-GEMM ABI, and uses custom AOT families
+for the remaining admitted operations. A content-addressed module may contain
+multiple semantic families and profile-specific stable entry points. Launch
+contracts bind those entry points to exact shapes and ordered operands;
+artifact admission binds them to digest-verified module bytes and bounded
+function symbols. Production startup selects exact artifacts by GPU
+architecture, dtype, layout, and shape. Missing support is a startup error.
 
 Developer JIT, when introduced, writes only to a content-addressed developer
 cache. It is disabled in production and never runs because of a live request.
@@ -290,4 +334,3 @@ Forbidden edges are enforced by a repository script once those packages exist:
 - model → api or scheduler policy;
 - public packages → concrete internal types;
 - any package → LunaNexa or another MoonSuite repository.
-

@@ -142,6 +142,12 @@ contains no architecture-name switch.
 - synchronous worker acceptable only in this phase;
 - simple correctness kernels or vendor kernels selected explicitly.
 
+The current device-preparation contract is intentionally stateless. Exact
+profiles may represent full prefill or full-sequence recomputation, but not a
+one-token decode backed by implied cache state. A constructible decode profile
+requires the Phase 3 semantic plan, KV arena, cache-position, and page/block-
+table inputs; maximum-envelope activation storage is not a substitute.
+
 ### Gate
 
 - tokenizer corpus matches the pinned reference;
@@ -151,6 +157,14 @@ contains no architecture-name switch.
 - greedy token sequences match;
 - repeated load/run/unload has balanced host and device resources;
 - no performance claim is made.
+
+Checked streaming file-to-device loading, exact static device and
+activation/workspace plans, stateless execution profiles, AOT family/entry
+launch contracts, digest-verified artifact admission, and the private
+module/function launch seam are implemented foundations. They do not promote
+Phase 1 without a prepared executor and physical-CUDA numerical, ownership,
+sanitizer/leak, soak, and resource-balance evidence. See
+[STATUS.md](STATUS.md) for the current boundary.
 
 ## Phase 2 — Online streaming service
 
