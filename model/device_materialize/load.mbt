@@ -1,6 +1,7 @@
 ///|
 priv struct LoadedResource[T] {
   resource : T
+  layout : DeviceWeightLayout
 }
 
 ///|
@@ -87,7 +88,7 @@ fn[T] load_with_resource(
         close_after_failure(resource, MaterializationResult, close)
         raise TensorLengthMismatch(reference=0)
       }
-      { resource, }
+      { resource, layout }
     }
   }
 }
@@ -126,5 +127,5 @@ pub fn load(
     },
     allocation => allocation.close(),
   )
-  { allocation: loaded.resource, layout }
+  { allocation: loaded.resource, layout: loaded.layout }
 }

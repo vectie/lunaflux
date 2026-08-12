@@ -97,6 +97,37 @@ test "exact prefix and header validate without owning the payload" {
 }
 
 ///|
+test "declared header length is bounded from an exact prefix" {
+  let encoded = fixture_with_length("", 37UL)
+  assert_eq(
+    @safetensors_reader.declared_header_bytes(encoded, limits=limits()),
+    37,
+  )
+  try
+    @safetensors_reader.declared_header_bytes(
+      fixture_with_length("x", 1UL),
+      limits=limits(),
+    )
+  catch {
+    @safetensors_reader.SafetensorsReaderError::HeaderEnvelopeSizeMismatch => ()
+    _ => fail("unexpected prefix-size error")
+  } noraise {
+    _ => fail("expected extra prefix bytes to fail")
+  }
+  try
+    @safetensors_reader.declared_header_bytes(
+      fixture_with_length("", 4097UL),
+      limits=limits(),
+    )
+  catch {
+    @safetensors_reader.SafetensorsReaderError::HeaderTooLarge => ()
+    _ => fail("unexpected prefix-limit error")
+  } noraise {
+    _ => fail("expected oversized declaration to fail")
+  }
+}
+
+///|
 test "missing overflowing oversized and truncated header lengths are rejected" {
   try @safetensors_reader.read_metadata(b"short", limits=limits()) catch {
     @safetensors_reader.SafetensorsReaderError::MissingHeaderLength => ()

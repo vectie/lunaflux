@@ -14,6 +14,15 @@ pub(all) suberror DeviceWeightError {
   ArenaTooLarge
   UnexpectedTensor(reference~ : Int)
   TensorLengthMismatch(reference~ : Int)
+  InvalidFileLimit(DeviceWeightFileLimit)
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge
+  FileTruncated
+  FileChangedDuringLoad
+  ContentDigestMismatch
+  InvalidSafetensors(@safetensors_reader.SafetensorsReaderError)
+  InvalidLlamaWeights(@llama_weights.LlamaWeightsError)
   MaterializationFailed(@materialize.MaterializationError)
   DeviceFailed(@device.DeviceError)
   CleanupFailed(stage~ : DeviceWeightFailureStage, @device.DeviceError)
@@ -26,5 +35,13 @@ pub(all) suberror DeviceWeightError {
 pub(all) enum DeviceWeightFailureStage {
   TensorValidation
   Transfer
+  SourceRevalidation
   MaterializationResult
+} derive(Debug, Eq)
+
+///|
+/// Bounded configuration fields owned by the streaming file loader.
+pub(all) enum DeviceWeightFileLimit {
+  FileBytes
+  TransferChunkBytes
 } derive(Debug, Eq)

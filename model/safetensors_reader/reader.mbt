@@ -14,6 +14,34 @@ fn decode_header_length(file : BytesView) -> UInt64 {
 }
 
 ///|
+/// Decodes the declared safetensors header length from exactly one eight-byte
+/// prefix and validates it against the supplied metadata limits.
+///
+/// This small admission step lets a streaming loader bound its header read
+/// before it allocates the header buffer. It does not validate the header or
+/// payload; callers must subsequently use `read_header`.
+pub fn declared_header_bytes(
+  prefix : BytesView,
+  limits~ : @safetensors.HeaderLimits,
+) -> Int raise SafetensorsReaderError {
+  if prefix.length() < SAFETENSORS_PREFIX_BYTES {
+    raise MissingHeaderLength
+  }
+  if prefix.length() != SAFETENSORS_PREFIX_BYTES {
+    raise HeaderEnvelopeSizeMismatch
+  }
+  let encoded_length = decode_header_length(prefix)
+  if encoded_length > MAX_INT_AS_UINT64 {
+    raise HeaderLengthOverflow
+  }
+  let header_length = encoded_length.to_int()
+  if header_length > limits.max_header_bytes() {
+    raise HeaderTooLarge
+  }
+  header_length
+}
+
+///|
 fn header_has_valid_envelope(header : BytesView) -> Bool {
   if header.is_empty() || header[0] != b'{' {
     return false

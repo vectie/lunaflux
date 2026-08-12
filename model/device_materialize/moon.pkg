@@ -3,7 +3,11 @@ import {
   "vectie/lunaflux/model/llama_weights",
   "vectie/lunaflux/model/materialize",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader",
   "vectie/lunaflux/model/spec",
+  "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
 }
 
 import {
@@ -11,6 +15,9 @@ import {
 } for "test"
 
 import {
+  "moonbitlang/async",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
   "vectie/lunaflux/model/safetensors",
 } for "wbtest"
 
