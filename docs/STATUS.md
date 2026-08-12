@@ -16,8 +16,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
-- Validated dense Llama-style BF16 dimensions and immutable artifact/plan
-  identities.
+- Validated dense Llama-style BF16 dimensions and content identities, with the
+  plan identity derived canonically from the complete validated semantic spec
+  rather than trusted as caller input.
 - A bounded selected-model architecture JSON adapter that rejects remote code,
   tied embeddings, and unsupported dense-Llama variants.
 - Bounded decoded safetensors metadata validation, including checked tensor
@@ -30,6 +31,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and semantic kernel-capability contracts.
 - Exact dense-Llama weight-manifest binding that validates safetensors names,
   shapes, completeness, and plan tensor-reference order before allocation.
+- A single selected-Llama admission boundary that proves configuration,
+  safetensors metadata, semantic plan, and exact tensor vocabulary agree before
+  materialization.
+- Bounded reference-bundle file admission for three explicit regular files,
+  with per-file and aggregate pre-allocation limits, exact-snapshot SHA-256,
+  tokenizer/model vocabulary agreement, payload-safe errors, and deterministic
+  handle closure. Whole-file ownership is explicitly reference-only.
 - Two-pass bounded weight materialization with identity preservation, complete
   preflight validation, zero-copy tensor visitation, and an explicit host-copy
   reference representation.
@@ -40,11 +48,23 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   weights once, executes validated operation plans, and performs bounded greedy
   generation. Pinned tiny-model fixtures cover non-degenerate attention and MLP
   paths with independently derived logits.
+- An exact Apache-2.0 upstream tiny BF16 Llama artifact pinned by immutable
+  revision and SHA-256. End-to-end tests match 33 independently generated
+  sampled logits, three argmax tokens, and two four-token greedy continuations.
+- A compatible Apache-2.0 external ByteLevel-BPE corpus derived from pinned
+  Hugging Face Tokenizers sources. Five independently generated cases cover
+  ranked merges, spaces, multibyte Unicode, a literal zero byte, newlines, and
+  byte-exact decoding.
 - Bounded deterministic greedy sampling with stable lowest-token tie breaking.
 - A private dynamically loaded CUDA Driver/cuBLASLt ABI with opaque handles,
   explicit retryable resource release, parent-child ownership, and a semantic
   public device inventory. Unsupported hosts report a typed unavailability
   reason without attempting device allocation.
+- Checked offset host/device transfers and reusable row-major BF16 cuBLASLt
+  GEMM plans with FP32 accumulation, explicit caller-owned storage, retryable
+  descriptor cleanup, and injected-dispatch ownership/failure probes.
+- A bounded `lunaflux reference` command that validates explicit paths and
+  digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
 - A repository guard for package direction, sibling-product independence,
   CUDA ABI ownership, Python exclusion, temporary debt markers, and source-size
@@ -52,30 +72,37 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 
 ## Explicitly not implemented or not yet proven
 
-- Tokenizer normalizer/pre-tokenizer variants outside the admitted byte-level
-  BPE contract, and model file I/O.
-- CUDA kernels, kernel selection, cuBLASLt execution, and validation on a real
-  CUDA host. The macOS build proves unavailable-host behavior and injected
-  lifecycle failures, but the current macOS toolchain invocation omits the
-  sanitizer runtime from the generated final link.
-- Production CUDA kernels, kernel selection, cuBLASLt execution, or a device
-  executor. The reference interpreter deliberately retains intermediate
-  activations and recomputes full prefill during generation; it is a
-  correctness oracle, not a production fallback.
-- A pinned external selected-model/tokenizer/logit corpus and model file I/O.
+- The tokenizer shipped with the pinned upstream model uses SentencePiece
+  normalization, template processing, unknown-token fusion, and byte fallback,
+  and is correctly rejected rather than approximated by the selected
+  ByteLevel-BPE contract. The selected ByteLevel subset is independently corpus
+  validated, but this particular model must be driven by token IDs or a
+  separately approved compatible tokenizer artifact.
+- A production streaming/mapped loader. The reference loader retains complete
+  host copies and relies on the approved read-only mount contract; adversarial
+  writable directories would require a narrow atomic `openat(O_NOFOLLOW)` and
+  `fstat` native wrapper.
+- Physical-CUDA validation of driver loading, transfers, modules, events,
+  numerical BF16 GEMM correctness, implicit-heuristic shape support, and
+  repeated resource balance. Local C stubs pass a manually instrumented
+  ASan/UBSan run, but the MoonBit runtime was not instrumented and macOS leak
+  detection was unavailable, so the full sanitizer/leak gate remains open.
+- A production static GPU executor and kernel catalog. The reference
+  interpreter deliberately retains intermediate activations and recomputes
+  full prefill during generation; it is a correctness oracle, not a fallback.
 - Online APIs, scheduling, paged KV, prefix reuse, stochastic sampling, or
   telemetry.
 
-The `lunaflux doctor` command reports the semantic CUDA inventory result and
-the availability of the offline reference executor, while `lunaflux plan`
-remains configuration-only. Both report production readiness as false; neither
-reads model files or implies production CUDA inference support.
+The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
+reference loading, and offline executor status. `lunaflux plan` remains
+configuration-only, while `lunaflux reference` reads digest-pinned files and
+runs the correctness executor. All retain production readiness as false.
 
 ## Next correctness gate
 
-The next correctness slice is bounded model file I/O plus a pinned external
-selected-model/tokenizer/logit corpus, followed by a real device executor and
-kernel catalog. The private CUDA ABI must also pass sanitizer, leak, and
-real-device correctness gates on a CUDA CI host before it can be called
-production-ready. Performance claims remain out of scope until the external
-reference corpus and resource-balance gates pass.
+The remaining Phase 1 correctness work is a physical-CUDA runner proving
+transfers and BF16 GEMM numerics, balanced repeated load/run/unload, and the
+full sanitizer/leak gate. The production path also needs direct-to-device
+materialization, an exact kernel catalog, and a static executor. Performance
+claims remain out of scope until the physical correctness and resource-balance
+evidence passes.
