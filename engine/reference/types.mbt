@@ -25,6 +25,14 @@ pub struct PreparedModel {
 } derive(Debug, Eq)
 
 ///|
+/// Immutable greedy tokens produced by bounded full-prefill recomputation.
+pub struct GenerationResult {
+  identity : @spec.ModelIdentity
+  input_tokens : Int
+  generated_tokens : ReadOnlyArray[Int]
+} derive(Debug, Eq)
+
+///|
 /// Constructs an explicit reference-execution envelope.
 pub fn ExecutionLimits::new(
   kernels~ : @refkernels.ReferenceLimits,
@@ -106,4 +114,23 @@ pub fn PreparedModel::identity(self : PreparedModel) -> @spec.ModelIdentity {
 ///|
 pub fn PreparedModel::tensor_count(self : PreparedModel) -> Int {
   self.tensors.length()
+}
+
+///|
+pub fn GenerationResult::identity(
+  self : GenerationResult,
+) -> @spec.ModelIdentity {
+  self.identity
+}
+
+///|
+pub fn GenerationResult::input_tokens(self : GenerationResult) -> Int {
+  self.input_tokens
+}
+
+///|
+pub fn GenerationResult::generated_tokens(
+  self : GenerationResult,
+) -> ReadOnlyArray[Int] {
+  self.generated_tokens
 }

@@ -12,6 +12,7 @@ pub(all) enum ExecutionGraphFailure {
   TensorLimitExceeded
   InputLimitExceeded
   InputContextExceeded
+  InvalidGenerationLength
   MissingActivation
   MissingTensor
   UnsupportedInput

@@ -272,3 +272,37 @@ test "reference execution rejects identity and caller-bound violations" {
     _ => fail("expected operation-limit rejection")
   }
 }
+
+///|
+test "bounded greedy generation performs full-prefill recomputation" {
+  let plan = @llama.build(test_model())
+  let prepared = @reference.prepare(
+    plan,
+    test_weights(),
+    limits=execution_limits(),
+  )
+  let generated = @reference.generate(
+    plan,
+    prepared,
+    [0],
+    max_new_tokens=3,
+    limits=execution_limits(),
+  )
+  assert_eq(generated.identity(), plan.identity())
+  assert_eq(generated.input_tokens(), 1)
+  assert_eq(generated.generated_tokens(), [0, 0, 0])
+  try
+    @reference.generate(
+      plan,
+      prepared,
+      [0],
+      max_new_tokens=4,
+      limits=execution_limits(),
+    )
+  catch {
+    @reference.ReferenceExecutionError::InvalidGraph(InputLimitExceeded) => ()
+    _ => fail("unexpected generation error")
+  } noraise {
+    _ => fail("expected token-bound rejection")
+  }
+}

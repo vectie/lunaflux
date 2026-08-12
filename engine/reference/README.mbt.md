@@ -11,4 +11,5 @@ backend. Model-specific behavior ends in the validated plan; tensor identity,
 operation order, input roles, dimensions, and caller limits are checked before
 or during interpretation. `prepare` decodes immutable BF16 tensors once for
 reuse across full-recomputation steps. Greedy selection uses only the last
-logits row.
+logits row; `generate` repeats that path under explicit token and context
+bounds.
