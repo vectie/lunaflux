@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+} for "test"
+
+supported_targets = "native"

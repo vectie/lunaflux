@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/llama_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(BytesView, BytesView, @spec.ContentDigest, config_max_bytes~ : Int, config_max_depth~ : Int, header_limits~ : @safetensors.HeaderLimits) -> LlamaAdmission raise LlamaAdmissionError
+
+pub fn complete(@spec.LlamaModelMetadata, @safetensors.SafetensorsMetadata) -> LlamaAdmission raise LlamaAdmissionError
+
+// Errors
+pub(all) suberror LlamaAdmissionError {
+  Configuration(@config_reader.ModelConfigReaderError)
+  Safetensors(@safetensors_reader.SafetensorsReaderError)
+  Plan(@plan.PlanValidationError)
+  Weights(@llama_weights.LlamaWeightsError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LlamaAdmission {
+  metadata : @spec.LlamaModelMetadata
+  safetensors : @safetensors.SafetensorsMetadata
+  plan : @plan.ModelPlan
+  bindings : @llama_weights.LlamaWeightBindings
+} derive(Eq, @debug.Debug)
+pub fn LlamaAdmission::bindings(Self) -> @llama_weights.LlamaWeightBindings
+pub fn LlamaAdmission::metadata(Self) -> @spec.LlamaModelMetadata
+pub fn LlamaAdmission::plan(Self) -> @plan.ModelPlan
+pub fn LlamaAdmission::safetensors(Self) -> @safetensors.SafetensorsMetadata
+
+// Type aliases
+
+// Traits
