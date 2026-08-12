@@ -28,6 +28,10 @@ moon test --target native --deny-warn
 
 Native and kernel phases add sanitizer, leak, correctness, and benchmark gates.
 
+Current implementation progress is recorded in [STATUS.md](STATUS.md). A
+completed workstream foundation does not promote its enclosing phase before
+the phase outcome and every named gate pass.
+
 ## Phase 0 — Contract and repository bootstrap
 
 ### Outcome
@@ -503,4 +507,3 @@ These require separate architecture decisions after the first release:
 
 Deferral is deliberate. None may add hidden branches or placeholder flags
 before its phase is approved.
-

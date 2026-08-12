@@ -1,0 +1,92 @@
+#!/bin/sh
+
+set -eu
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root"
+
+failed=0
+
+fail_matches() {
+  description=$1
+  shift
+  if matches=$(rg -n "$@" 2>/dev/null); then
+    printf '%s\n%s\n' "$description" "$matches" >&2
+    failed=1
+  fi
+}
+
+# LunaFlux must remain independently buildable from every sibling product.
+fail_matches \
+  'forbidden MoonSuite source dependency:' \
+  -i --glob 'moon.pkg' --glob 'moon.mod' \
+  'lunanexa|moongate|moondesk|moonclaw|moontown'
+
+# Contracts are vocabulary only and cannot depend on implementation packages.
+if [ -f contracts/moon.pkg ]; then
+  fail_matches \
+    'contracts must not import implementation packages:' \
+    --glob 'contracts/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|tokenizer|engine|model|scheduler|kv|prefix|kernels|device|internal)(/|"|$)'
+fi
+
+# Scheduling policy is deliberately hardware-, transport-, and model-family
+# agnostic. Add capabilities at the package boundary instead of exceptions.
+if [ -d scheduler ]; then
+  fail_matches \
+    'scheduler has a forbidden dependency:' \
+    --glob 'scheduler/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|device|internal/cuda|model/[^" ]+)(/|"|$)'
+fi
+
+if [ -d model ]; then
+  fail_matches \
+    'model has a forbidden dependency:' \
+    --glob 'model/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/(api|scheduler)(/|"|$)'
+fi
+
+# The CUDA vocabulary and foreign declarations have exactly one owner.
+fail_matches \
+  'CUDA/native declarations are only allowed under internal/cuda:' \
+  --glob '*.mbt' --glob '!internal/cuda/**' \
+  'extern\s+"[cC]"|#external'
+
+# Production code is MoonBit plus narrow C stubs. Python may be used by neither
+# the runtime nor its normal validation path.
+if python_files=$(rg --files --glob '*.py' 2>/dev/null); then
+  printf '%s\n%s\n' 'Python files are forbidden in the LunaFlux repository:' "$python_files" >&2
+  failed=1
+fi
+
+# Unowned temporary markers are rejected in code. Design documents may discuss
+# the policy itself without tripping this check.
+fail_matches \
+  'temporary debt marker found in source or package configuration:' \
+  --glob '*.mbt' --glob 'moon.pkg' --glob 'moon.mod' \
+  'TODO|HACK|FIXME'
+
+line_failure=0
+while IFS= read -r source_file; do
+  line_count=$(wc -l < "$source_file" | tr -d ' ')
+  if [ "$line_count" -gt 800 ]; then
+    printf '%s: %s lines; files above 800 require an ADR and split plan\n' \
+      "$source_file" "$line_count" >&2
+    line_failure=1
+  elif [ "$line_count" -gt 500 ]; then
+    printf '%s: %s lines; review cohesion before further growth\n' \
+      "$source_file" "$line_count" >&2
+  fi
+done <<EOF
+$(rg --files --glob '*.mbt' --glob '*.c' --glob '*.h' | sort)
+EOF
+
+if [ "$line_failure" -ne 0 ]; then
+  failed=1
+fi
+
+if [ "$failed" -ne 0 ]; then
+  exit 1
+fi
+
+printf '%s\n' 'LunaFlux dependency and debt boundaries are valid.'

@@ -1,5 +1,10 @@
 import {
   "vectie/lunaflux/contracts",
+  "vectie/lunaflux/config/device",
+  "vectie/lunaflux/config/model",
+  "vectie/lunaflux/config/resolved",
+  "vectie/lunaflux/config/service",
+  "moonbitlang/core/env",
 }
 
 supported_targets = "native"

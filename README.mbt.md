@@ -1,8 +1,9 @@
 # LunaFlux
 
-> Documentation-first bootstrap. The repository currently freezes product and
-> architecture boundaries and provides a checked MoonBit contract skeleton.
-> It does not yet claim model execution or GPU performance.
+> Phase 1 foundation in progress. The repository contains checked MoonBit
+> contracts plus bounded configuration and safetensors readers, byte-BPE,
+> dense-model metadata, and immutable Llama plan foundations. It does not yet
+> claim model execution, CUDA readiness, or GPU performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
@@ -87,16 +88,20 @@ benchmarks/         reproducible performance workloads
 docs/               contracts, architecture, decisions, and phase gates
 ~~~
 
-Only the first two packages exist in the bootstrap. Later packages are created
-when their phase begins; empty architectural packages are deliberately avoided.
+Implemented packages currently cover `contracts/`, focused `config/` records,
+the extracted byte-BPE foundation in `tokenizer/`, validated artifact metadata
+and readers in `model/`, and the first architecture-neutral operation plan.
+Later packages are created only when their vertical phase begins; empty
+architectural packages are deliberately avoided.
 
-## Bootstrap validation
+## Validation
 
 ~~~sh
 moon info
 moon fmt
 moon check --target native --deny-warn
 moon test --target native --deny-warn
+scripts/validate-boundaries.sh
 moon run --target native cmd/lunaflux
 ~~~
 
@@ -108,4 +113,4 @@ moon run --target native cmd/lunaflux
 - [Technical-debt policy](docs/DEBT_POLICY.md)
 - [Benchmark contract](docs/BENCHMARKING.md)
 - [Architecture decisions](docs/DECISIONS.md)
-
+- [Implementation status](docs/STATUS.md)
