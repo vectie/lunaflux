@@ -47,7 +47,8 @@ if [ -d scheduler ]; then
   fail_matches \
     'scheduler may import only canonical public model identity vocabulary:' \
     --pcre2 --glob 'scheduler/**/moon.pkg' \
-    '^\s*"vectie/lunaflux/model/(?!spec"(?:,)?$)'
+    -U \
+    'import\s*\{[^}]*"vectie/lunaflux/model/(?!spec"(?:,)?$)[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
 fi
 
 if [ -d model ]; then
