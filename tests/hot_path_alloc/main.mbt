@@ -15,10 +15,6 @@ extern "C" fn alloc_probe_seed() -> Int = "lunaflux_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_record_alive(value : PositiveControl) = "lunaflux_alloc_probe_keep_alive"
-
-///|
-#borrow(value)
 extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_alloc_probe_keep_alive"
 
 ///|
@@ -27,13 +23,20 @@ struct PositiveControl {
 }
 
 ///|
+let positive_control_sink : FixedArray[PositiveControl?] = FixedArray::make(
+  1,
+  None,
+)
+
+///|
 fn verify_probe_observes_allocations() -> Unit {
   // Both generated-C record allocation and runtime array allocation must be
   // observable, or a zero result below would not be trustworthy.
   alloc_probe_begin()
   let record = { value: alloc_probe_seed() }
-  keep_record_alive(record)
+  positive_control_sink[0] = Some(record)
   let record_observed = alloc_probe_end()
+  positive_control_sink[0] = None
   if alloc_probe_check(record_observed, 0) != 1 {
     alloc_probe_abort()
   }
