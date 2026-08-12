@@ -147,10 +147,40 @@ test "A side is reused for sequence three while B remains submitted" {
   ignore(owner.admit(wb_request(553UL), 0UL))
   let plan_a = wb_next_plan(owner)
   let plan_b = wb_next_plan(owner)
+  let completion_b = wb_final_completion(owner, plan_b, 17)
   owner.complete(plan_a, wb_final_completion(owner, plan_a, 14))
+  assert_eq(owner.take_generated_token().token_id(), 14)
   let plan_three = wb_next_plan(owner)
   assert_eq(try! plan_three.sequence_wire(), 3UL)
   assert_eq(owner.plan_a_sequence, 3UL)
   assert_eq(owner.plan_b_sequence, 2UL)
   assert_eq(try! plan_b.sequence_wire(), 2UL)
+  assert_eq(try! plan_three.prefill_count(), 1)
+  assert_eq(try! plan_three.decode_count(), 0)
+  let writer_three = try! owner.completion_writer(plan_three)
+  let prefill = try! plan_three.prefill_row(0)
+  try! writer_three.append_final_prefill_completed(
+    slot=try! prefill.completion_slot(),
+    request_id=try! prefill.request_id(),
+    request_generation=try! prefill.request_generation(),
+    processed_tokens=try! prefill.tokens().length(),
+    token_id=15,
+  )
+  let completion_three = try! writer_three.submit()
+  try owner.complete(plan_three, completion_three) catch {
+    Invalid(field=Completion, issue=OutOfOrder) => ()
+    _ => fail("expected reused A side to wait for sequence two")
+  } noraise {
+    _ => fail("sequence three retired before sequence two")
+  }
+  assert_eq(owner.generated_token_count(), 0)
+  assert_eq(owner.plan_a_sequence, 3UL)
+  owner.complete(plan_b, completion_b)
+  assert_eq(owner.take_generated_token().token_id(), 17)
+  owner.complete(plan_three, completion_three)
+  assert_eq(owner.take_generated_token().token_id(), 15)
+  assert_eq(owner.plan_a_sequence, 0UL)
+  assert_eq(owner.plan_b_sequence, 0UL)
+  assert_eq(owner.plan_a.state(), Writable)
+  assert_eq(owner.plan_b.state(), Writable)
 }
