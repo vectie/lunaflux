@@ -44,6 +44,7 @@ pub fn Context::create_cublas_lt(Self) -> CublasLt raise CudaError
 pub fn Context::create_event(Self) -> Event raise CudaError
 pub fn Context::create_stream(Self) -> Stream raise CudaError
 pub fn Context::load_module(Self, Bytes) -> Module raise CudaError
+pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise CudaError
 
 type CublasLt
 pub fn CublasLt::close(Self) -> Unit raise CudaError
@@ -63,6 +64,7 @@ pub(all) enum CudaOperation {
   EventElapsed
   AllocationCreate
   AllocationClose
+  AllocationRegionValidate
   CopyToDevice
   CopyToHost
   ModuleLoad

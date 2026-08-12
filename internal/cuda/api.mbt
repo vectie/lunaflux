@@ -144,6 +144,22 @@ pub fn Allocation::close(self : Allocation) -> Unit raise CudaError {
 }
 
 ///|
+pub fn Context::validate_allocation_region(
+  self : Context,
+  allocation : Allocation,
+  offset~ : Int64,
+  byte_count~ : Int64,
+  alignment~ : Int64,
+) -> Unit raise CudaError {
+  check_status(
+    raw_context_validate_allocation_region(
+      self, allocation, offset, byte_count, alignment,
+    ),
+    AllocationRegionValidate,
+  )
+}
+
+///|
 pub fn Allocation::copy_from_host(
   self : Allocation,
   source : Bytes,

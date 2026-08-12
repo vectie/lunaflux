@@ -98,6 +98,27 @@ pub fn Allocation::close(self : Allocation) -> Unit raise DeviceError {
 }
 
 ///|
+/// Proves that one non-empty region belongs to this context and has the
+/// requested physical device-pointer alignment. This preparation-time check
+/// does not replace immediate guarded kernel and vendor dispatch revalidation.
+pub fn Context::validate_allocation_region(
+  self : Context,
+  allocation : Allocation,
+  offset~ : Int64,
+  byte_count~ : Int64,
+  alignment~ : Int64,
+) -> Unit raise DeviceError {
+  self.raw.validate_allocation_region(
+    allocation.raw,
+    offset~,
+    byte_count~,
+    alignment~,
+  ) catch {
+    error => raise error_from_cuda(error)
+  }
+}
+
+///|
 /// Synchronously copies a bounded host range into this allocation. Synchronous
 /// transfer keeps the borrowed MoonBit buffer from escaping the FFI call.
 pub fn Allocation::copy_from_host(

@@ -9,6 +9,10 @@ test "native failures translate without payload expansion" {
     (DriverFailure(Bf16GemmRun), DriverFailure(Bf16GemmRun)),
     (HostAllocationFailed(ModuleLoad), HostAllocationFailed(ModuleLoad)),
     (SizeOverflow(AllocationCreate), SizeOverflow(AllocationCreate)),
+    (
+      InvalidArgument(AllocationRegionValidate),
+      InvalidArgument(AllocationRegionValidate),
+    ),
     (Unsupported(CublasLtCreate), Unsupported(CublasLtCreate)),
     (InvalidOutput(DeviceInventory), InvalidOutput(DeviceInventory)),
   ]

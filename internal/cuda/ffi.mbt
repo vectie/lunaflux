@@ -91,6 +91,16 @@ extern "c" fn raw_allocation_create(
 extern "c" fn raw_allocation_close(allocation : Allocation) -> Int = "lunaflux_cuda_allocation_close"
 
 ///|
+#borrow(context, allocation)
+extern "c" fn raw_context_validate_allocation_region(
+  context : Context,
+  allocation : Allocation,
+  offset : Int64,
+  byte_count : Int64,
+  alignment : Int64,
+) -> Int = "lunaflux_cuda_context_validate_allocation_region"
+
+///|
 #borrow(allocation, source)
 extern "c" fn raw_copy_to_device(
   allocation : Allocation,

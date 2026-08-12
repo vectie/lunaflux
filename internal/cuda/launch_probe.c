@@ -365,6 +365,16 @@ static int32_t lf_test_launch_boundary(void) {
   if (result == 0 &&
       (lf_run_launch(&state, mismatch) != LF_INVALID_ARGUMENT ||
        state.launch_calls != 0)) result = 104;
+  state.first->handle = LF_FAKE_FIRST + 1;
+  if (result == 0 &&
+      (lf_run_launch(&state, valid) != LF_INVALID_ARGUMENT ||
+       state.launch_calls != 0)) result = 124;
+  state.first->handle = LF_FAKE_FIRST;
+  atomic_store(&state.first->state, LF_RESOURCE_CLOSING);
+  if (result == 0 &&
+      (lf_run_launch(&state, valid) != LF_CLOSED ||
+       state.launch_calls != 0)) result = 125;
+  atomic_store(&state.first->state, LF_RESOURCE_LIVE);
   state.first->handle = UINT64_MAX - 8;
   if (result == 0 &&
       (lf_run_launch(&state, valid) != LF_SIZE_OVERFLOW ||

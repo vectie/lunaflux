@@ -8,7 +8,6 @@
 #define LF_MAX_BLOCK_DIMENSION 1024
 #define LF_MAX_THREADS_PER_BLOCK 1024
 #define LF_MAX_SHARED_MEMORY_BYTES 98304
-#define LF_MAX_ARGUMENT_ALIGNMENT 4096
 
 static int32_t lf_validate_launch_dimensions(
   int32_t grid_x,
@@ -35,36 +34,6 @@ static int32_t lf_validate_launch_dimensions(
       shared_memory_bytes > LF_MAX_SHARED_MEMORY_BYTES) {
     return LF_INVALID_ARGUMENT;
   }
-  return LF_OK;
-}
-
-static int32_t lf_argument_address(
-  lf_allocation *allocation,
-  int64_t offset,
-  int64_t byte_count,
-  int64_t alignment,
-  CUdeviceptr *address
-) {
-  if (allocation == NULL) return LF_CLOSED;
-  if (offset < 0 || byte_count <= 0 || alignment <= 0 ||
-      alignment > LF_MAX_ARGUMENT_ALIGNMENT ||
-      (alignment & (alignment - 1)) != 0) {
-    return LF_INVALID_ARGUMENT;
-  }
-  if ((uint64_t)offset > SIZE_MAX || (uint64_t)byte_count > SIZE_MAX) {
-    return LF_SIZE_OVERFLOW;
-  }
-  size_t start = (size_t)offset;
-  size_t length = (size_t)byte_count;
-  if (start > allocation->size || length > allocation->size - start) {
-    return LF_INVALID_ARGUMENT;
-  }
-  if ((uint64_t)start > UINT64_MAX - allocation->handle) {
-    return LF_SIZE_OVERFLOW;
-  }
-  CUdeviceptr resolved = allocation->handle + start;
-  if (resolved % (uint64_t)alignment != 0) return LF_INVALID_ARGUMENT;
-  *address = resolved;
   return LF_OK;
 }
 
@@ -152,11 +121,21 @@ int32_t lunaflux_cuda_function_launch(
       status = LF_INVALID_ARGUMENT;
       goto cleanup;
     }
-    status = lf_argument_address(
+    if (byte_counts[index] <= 0 || alignments[index] <= 0) {
+      status = LF_INVALID_ARGUMENT;
+      goto cleanup;
+    }
+    if ((uint64_t)byte_counts[index] > SIZE_MAX ||
+        (uint64_t)alignments[index] > SIZE_MAX) {
+      status = LF_SIZE_OVERFLOW;
+      goto cleanup;
+    }
+    status = lf_allocation_region_address(
       allocation,
       offsets[index],
-      byte_counts[index],
-      alignments[index],
+      (size_t)byte_counts[index],
+      (size_t)alignments[index],
+      0,
       &argument_values[index]
     );
     if (status != LF_OK) goto cleanup;

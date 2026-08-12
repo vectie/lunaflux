@@ -15,6 +15,7 @@ pub(all) enum DeviceOperation {
   EventElapsed
   AllocationCreate
   AllocationClose
+  AllocationRegionValidate
   CopyToDevice
   CopyToHost
   ModuleLoad

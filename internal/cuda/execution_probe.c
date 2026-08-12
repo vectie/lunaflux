@@ -425,7 +425,7 @@ static int32_t lf_test_gemm_lifecycle(void) {
         workspace,
         -1,
         stream
-      ) != LF_SIZE_OVERFLOW) result = 327;
+      ) != LF_INVALID_ARGUMENT) result = 327;
   if (result == 0 &&
       lunaflux_cuda_bf16_gemm_plan_close(zero_workspace_plan) != LF_OK) {
     result = 326;

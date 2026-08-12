@@ -211,26 +211,6 @@ int32_t lunaflux_cuda_bf16_gemm_plan_close(lf_gemm_plan *plan) {
   return lf_close_gemm_plan(plan);
 }
 
-static int32_t lf_allocation_address(
-  lf_allocation *allocation,
-  int64_t offset,
-  size_t byte_count,
-  CUdeviceptr *address
-) {
-  if (allocation == NULL ||
-      atomic_load(&allocation->state) != LF_RESOURCE_LIVE) return LF_CLOSED;
-  if (offset < 0 || (uint64_t)offset > SIZE_MAX) return LF_SIZE_OVERFLOW;
-  size_t start = (size_t)offset;
-  if (start > allocation->size || byte_count > allocation->size - start) {
-    return LF_INVALID_ARGUMENT;
-  }
-  if ((uint64_t)start > UINT64_MAX - allocation->handle) {
-    return LF_SIZE_OVERFLOW;
-  }
-  *address = allocation->handle + start;
-  return LF_OK;
-}
-
 static int lf_ranges_overlap(
   CUdeviceptr first,
   size_t first_size,
@@ -304,44 +284,44 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
   CUdeviceptr output_address = 0;
   CUdeviceptr workspace_address = 0;
   CUdeviceptr resolved_workspace_address = 0;
-  status = lf_allocation_address(
+  status = lf_allocation_region_address(
     left,
     left_offset,
     plan->left_size,
+    LF_GEMM_ALIGNMENT,
+    0,
     &left_address
   );
   if (status != LF_OK) goto cleanup;
-  status = lf_allocation_address(
+  status = lf_allocation_region_address(
     right,
     right_offset,
     plan->right_size,
+    LF_GEMM_ALIGNMENT,
+    0,
     &right_address
   );
   if (status != LF_OK) goto cleanup;
-  status = lf_allocation_address(
+  status = lf_allocation_region_address(
     output,
     output_offset,
     plan->output_size,
+    LF_GEMM_ALIGNMENT,
+    0,
     &output_address
   );
   if (status != LF_OK) goto cleanup;
-  status = lf_allocation_address(
+  status = lf_allocation_region_address(
     workspace,
     workspace_offset,
     plan->workspace_size,
+    plan->workspace_size > 0 ? LF_WORKSPACE_ALIGNMENT : 1U,
+    1,
     &resolved_workspace_address
   );
   if (status != LF_OK) goto cleanup;
   if (plan->workspace_size > 0) {
     workspace_address = resolved_workspace_address;
-  }
-  if ((left_address % LF_GEMM_ALIGNMENT) != 0 ||
-      (right_address % LF_GEMM_ALIGNMENT) != 0 ||
-      (output_address % LF_GEMM_ALIGNMENT) != 0 ||
-      (plan->workspace_size > 0 &&
-       (workspace_address % LF_WORKSPACE_ALIGNMENT) != 0)) {
-    status = LF_INVALID_ARGUMENT;
-    goto cleanup;
   }
   if (lf_ranges_overlap(
         output_address,

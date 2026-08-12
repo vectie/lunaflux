@@ -5,6 +5,8 @@
 
 #include <stdatomic.h>
 
+#define LF_MAX_REGION_ALIGNMENT 4096U
+
 typedef struct lf_context {
   lf_cuda_api *api;
   CUcontext handle;
@@ -65,6 +67,14 @@ enum lf_resource_state {
 };
 
 int32_t lf_context_current(lf_context *context);
+int32_t lf_allocation_region_address(
+  lf_allocation *allocation,
+  int64_t offset,
+  size_t byte_count,
+  size_t alignment,
+  int allow_empty,
+  CUdeviceptr *address
+);
 void lf_release_context_child(lf_context *context);
 int32_t lf_operation_begin(atomic_int *state, atomic_int *active_operations);
 void lf_operation_end(atomic_int *active_operations);
@@ -77,6 +87,13 @@ int32_t lunaflux_cuda_context_close(lf_context *context);
 int32_t lunaflux_cuda_stream_close(lf_child *stream);
 int32_t lunaflux_cuda_cublas_close(lf_child *cublas);
 int32_t lunaflux_cuda_allocation_close(lf_allocation *allocation);
+int32_t lunaflux_cuda_context_validate_allocation_region(
+  lf_context *context,
+  lf_allocation *allocation,
+  int64_t offset,
+  int64_t byte_count,
+  int64_t alignment
+);
 int32_t lunaflux_cuda_module_close(lf_module *module);
 int32_t lunaflux_cuda_function_close(lf_function *function);
 int32_t lunaflux_cuda_function_launch(

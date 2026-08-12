@@ -34,6 +34,15 @@ creation and child retention use the same interlock, preventing concurrent
 close from destroying a context, module, or cuBLASLt handle during child
 construction.
 
+Startup preparation may call `Context::validate_allocation_region` to prove
+that a region belongs to the selected context and that its actual allocation
+base plus offset satisfies a bounded power-of-two alignment, not merely that
+the planned offset is aligned. The check is allocation-free and holds both
+allocation and context lifecycle guards; it does not need to make the context
+current because it reads only owned metadata. Launch and GEMM immediately
+repeat the same native range, pointer-overflow, and resolved-address check so a
+successful startup proof cannot weaken close-race or dispatch-time safety.
+
 The current GEMM contract is deliberately narrow: a row-major BF16 activation,
 a row-major `[output, input]` safetensors projection weight, a row-major BF16
 output, FP32 accumulation, fixed alpha one and beta zero, and a reusable shape
