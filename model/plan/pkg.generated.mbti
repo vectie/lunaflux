@@ -72,7 +72,7 @@ pub(all) enum OperationKind {
 
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
-  NormalizationShape(width~ : Int)
+  NormalizationShape(width~ : Int, epsilon~ : Double)
   ProjectionShape(input_width~ : Int, output_width~ : Int)
   RotaryShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, rope_theta~ : Double)
   AttentionShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int)

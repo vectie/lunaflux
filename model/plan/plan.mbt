@@ -75,7 +75,12 @@ fn valid_operation_shape(
   match (kind, shape) {
     (Embedding, EmbeddingShape(vocabulary_size~, width~)) =>
       vocabulary_size == vocabulary && width == hidden
-    (RmsNorm, NormalizationShape(width~)) => width == hidden
+    (RmsNorm, NormalizationShape(width~, epsilon~)) =>
+      width == hidden &&
+      !epsilon.is_nan() &&
+      !epsilon.is_inf() &&
+      epsilon > 0.0 &&
+      epsilon <= 1.0
     (QkvProjection, ProjectionShape(input_width~, output_width~)) =>
       input_width == hidden && output_width == qkv_width
     (

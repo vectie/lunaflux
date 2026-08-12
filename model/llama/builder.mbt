@@ -97,7 +97,7 @@ pub fn build(
       operations,
       RmsNorm,
       [activation(hidden_state), tensor(next_tensor)],
-      NormalizationShape(width=hidden),
+      NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
     )
     next_tensor += 1
@@ -152,7 +152,7 @@ pub fn build(
       operations,
       RmsNorm,
       [activation(attention_residual), tensor(next_tensor)],
-      NormalizationShape(width=hidden),
+      NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
     )
     next_tensor += 1
@@ -181,7 +181,7 @@ pub fn build(
     operations,
     RmsNorm,
     [activation(hidden_state), tensor(next_tensor)],
-    NormalizationShape(width=hidden),
+    NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
     @plan.KernelCapabilityId::rms_norm(),
   )
   next_tensor += 1

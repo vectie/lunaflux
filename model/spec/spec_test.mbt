@@ -20,6 +20,7 @@ test "valid dense Llama metadata is plan-ready and immutable" {
   assert_eq(spec.head_dimension(), 128)
   assert_eq(spec.kv_head_count(), 8)
   assert_eq(spec.context_length(), 4096)
+  assert_eq(spec.rms_norm_epsilon(), 0.000001)
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
@@ -32,6 +33,44 @@ test "valid dense Llama metadata is plan-ready and immutable" {
   )
   assert_eq(metadata.spec().layer_count(), 32)
   assert_eq(metadata.identity().content().as_hex(), content.as_hex())
+}
+
+///|
+test "RMS normalization epsilon is explicit and bounded" {
+  let spec = @spec.LlamaModelSpec::new(
+    vocabulary_size=32,
+    hidden_size=8,
+    intermediate_size=16,
+    layer_count=1,
+    attention_head_count=2,
+    kv_head_count=1,
+    context_length=16,
+    rope_theta=10000.0,
+    rms_norm_epsilon=0.00001,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  )
+  assert_eq(spec.rms_norm_epsilon(), 0.00001)
+  try
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=32,
+      hidden_size=8,
+      intermediate_size=16,
+      layer_count=1,
+      attention_head_count=2,
+      kv_head_count=1,
+      context_length=16,
+      rope_theta=10000.0,
+      rms_norm_epsilon=0.0,
+      weight_dtype=BFloat16,
+      kv_dtype=BFloat16,
+    )
+  catch {
+    InvalidRmsNormEpsilon => ()
+    _ => fail("unexpected model error")
+  } noraise {
+    _ => fail("expected invalid RMS normalization epsilon")
+  }
 }
 
 ///|

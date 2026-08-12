@@ -73,6 +73,10 @@ test "dense Llama dimensions and workspace are explicit and bounded" {
     is ProjectionShape(input_width=16, output_width=32) else {
     fail("unexpected QKV projection dimensions")
   }
+  guard model_plan.operations()[1].shape()
+    is NormalizationShape(width=16, epsilon=0.000001) else {
+    fail("unexpected RMS normalization semantics")
+  }
   guard model_plan.operations()[3].shape()
     is RotaryShape(
       query_heads=4,

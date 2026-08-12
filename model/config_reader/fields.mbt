@@ -142,6 +142,21 @@ fn require_number(
 }
 
 ///|
+fn optional_finite_number(
+  object : Map[String, Json],
+  name : String,
+  field : ModelConfigField,
+  default : Double,
+) -> Double raise ModelConfigReaderError {
+  match object.get(name) {
+    None => default
+    Some(Number(value, repr=_)) if !value.is_nan() && !value.is_inf() => value
+    Some(Number(_, repr=_)) => raise invalid(field, UnsupportedValue)
+    Some(_) => raise invalid(field, ExpectedNumber)
+  }
+}
+
+///|
 fn require_bool(
   object : Map[String, Json],
   name : String,

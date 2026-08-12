@@ -12,6 +12,7 @@ pub(all) suberror ModelSpecError {
   InvalidDimension(ModelDimension)
   InvalidHeadRelationship(HeadRelationship)
   InvalidRopeTheta
+  InvalidRmsNormEpsilon
   UnsupportedWeightDType
   UnsupportedKvDType
   UnknownDType
@@ -49,6 +50,7 @@ pub struct LlamaModelSpec {
   head_dimension : Int
   context_length : Int
   rope_theta : Double
+  rms_norm_epsilon : Double
   weight_dtype : ModelDType
   kv_dtype : ModelDType
 } derive(Eq, @debug.Debug)
@@ -60,7 +62,8 @@ pub fn LlamaModelSpec::intermediate_size(Self) -> Int
 pub fn LlamaModelSpec::kv_dtype(Self) -> ModelDType
 pub fn LlamaModelSpec::kv_head_count(Self) -> Int
 pub fn LlamaModelSpec::layer_count(Self) -> Int
-pub fn LlamaModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType) -> Self raise ModelSpecError
+pub fn LlamaModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType) -> Self raise ModelSpecError
+pub fn LlamaModelSpec::rms_norm_epsilon(Self) -> Double
 pub fn LlamaModelSpec::rope_theta(Self) -> Double
 pub fn LlamaModelSpec::vocabulary_size(Self) -> Int
 pub fn LlamaModelSpec::weight_dtype(Self) -> ModelDType

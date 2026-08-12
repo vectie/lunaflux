@@ -13,6 +13,7 @@ pub struct LlamaModelSpec {
   head_dimension : Int
   context_length : Int
   rope_theta : Double
+  rms_norm_epsilon : Double
   weight_dtype : ModelDType
   kv_dtype : ModelDType
 } derive(Debug, Eq)
@@ -35,6 +36,7 @@ pub fn LlamaModelSpec::new(
   kv_head_count~ : Int,
   context_length~ : Int,
   rope_theta~ : Double,
+  rms_norm_epsilon? : Double = 0.000001,
   weight_dtype~ : ModelDType,
   kv_dtype~ : ModelDType,
 ) -> LlamaModelSpec raise ModelSpecError {
@@ -71,6 +73,12 @@ pub fn LlamaModelSpec::new(
   if rope_theta.is_nan() || rope_theta <= 0.0 || rope_theta > 1.0e12 {
     raise InvalidRopeTheta
   }
+  if rms_norm_epsilon.is_nan() ||
+    rms_norm_epsilon.is_inf() ||
+    rms_norm_epsilon <= 0.0 ||
+    rms_norm_epsilon > 1.0 {
+    raise InvalidRmsNormEpsilon
+  }
   if weight_dtype != BFloat16 {
     raise UnsupportedWeightDType
   }
@@ -87,6 +95,7 @@ pub fn LlamaModelSpec::new(
     head_dimension: hidden_size / attention_head_count,
     context_length,
     rope_theta,
+    rms_norm_epsilon,
     weight_dtype,
     kv_dtype,
   }
@@ -135,6 +144,11 @@ pub fn LlamaModelSpec::context_length(self : LlamaModelSpec) -> Int {
 ///|
 pub fn LlamaModelSpec::rope_theta(self : LlamaModelSpec) -> Double {
   self.rope_theta
+}
+
+///|
+pub fn LlamaModelSpec::rms_norm_epsilon(self : LlamaModelSpec) -> Double {
+  self.rms_norm_epsilon
 }
 
 ///|

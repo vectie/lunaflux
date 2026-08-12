@@ -129,7 +129,6 @@ fn validate_selected_semantics(
   check_optional_null(object, "rope_scaling", RopeScaling)
   check_optional_null(object, "sliding_window", SlidingWindow)
   check_optional_string(object, "hidden_act", HiddenActivation, "silu")
-  check_optional_number(object, "rms_norm_eps", RmsNormEpsilon, 0.000001)
   check_optional_bool(object, "attention_bias", AttentionBias, false)
   check_optional_number(object, "attention_dropout", AttentionDropout, 0.0)
   check_optional_bool(object, "mlp_bias", MlpBias, false)
@@ -174,6 +173,12 @@ fn decode_model(
     ContextLength,
   )
   let rope_theta = require_number(object, "rope_theta", RopeTheta)
+  let rms_norm_epsilon = optional_finite_number(
+    object,
+    "rms_norm_eps",
+    RmsNormEpsilon,
+    0.000001,
+  )
   let dtype = require_string(object, "torch_dtype", TorchDType)
   if dtype != "bfloat16" && dtype != "BF16" {
     raise invalid(TorchDType, UnsupportedValue)
@@ -187,6 +192,7 @@ fn decode_model(
     kv_head_count~,
     context_length~,
     rope_theta~,
+    rms_norm_epsilon~,
     weight_dtype=BFloat16,
     kv_dtype=BFloat16,
   ) catch {

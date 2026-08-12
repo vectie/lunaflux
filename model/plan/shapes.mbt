@@ -21,7 +21,7 @@ pub struct WorkspaceBounds {
 /// Semantic dimensions attached to an operation.
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
-  NormalizationShape(width~ : Int)
+  NormalizationShape(width~ : Int, epsilon~ : Double)
   ProjectionShape(input_width~ : Int, output_width~ : Int)
   RotaryShape(
     query_heads~ : Int,

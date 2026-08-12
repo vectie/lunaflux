@@ -152,3 +152,23 @@ test "dtype RoPE architecture and unsupported semantic variants fail closed" {
     assert_rejected(selected_config().replace(old~, new=replacement), expected)
   }
 }
+
+///|
+test "RMS normalization epsilon is preserved as execution semantics" {
+  let configured = parse_selected(
+    selected_config().replace(
+      old="\"rms_norm_eps\":0.000001",
+      new="\"rms_norm_eps\":0.00001",
+    ),
+  )
+  assert_eq(configured.spec().rms_norm_epsilon(), 0.00001)
+  for invalid in ["0.0", "2.0"] {
+    assert_rejected(
+      selected_config().replace(
+        old="\"rms_norm_eps\":0.000001",
+        new="\"rms_norm_eps\":" + invalid,
+      ),
+      Validation(InvalidRmsNormEpsilon),
+    )
+  }
+}

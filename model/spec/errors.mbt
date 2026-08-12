@@ -26,6 +26,7 @@ pub(all) suberror ModelSpecError {
   InvalidDimension(ModelDimension)
   InvalidHeadRelationship(HeadRelationship)
   InvalidRopeTheta
+  InvalidRmsNormEpsilon
   UnsupportedWeightDType
   UnsupportedKvDType
   UnknownDType

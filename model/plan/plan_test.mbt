@@ -90,7 +90,7 @@ test "model plan rejects forward activation references" {
       Tensor(@plan.TensorRef::new(0)),
     ],
     outputs=[@plan.ActivationRef::new(0)],
-    shape=NormalizationShape(width=16),
+    shape=NormalizationShape(width=16, epsilon=0.000001),
     required_capability=@plan.KernelCapabilityId::rms_norm(),
     workspace_bytes=0L,
   )
