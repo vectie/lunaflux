@@ -17,3 +17,13 @@ Appending does not validate allocator residency. Releasing a non-empty table
 is rejected so outstanding physical release obligations cannot be discarded.
 Every mutation uses startup-preallocated storage; allocating snapshots and
 invariant checks are diagnostics only.
+
+`BlockTableIdStorage` is the canonical fixed-capacity container for scheduler
+metadata that must retain opaque table identities without optional-value
+boxing. It copies identities inline behind an occupancy bitmap, never exposes
+its inert empty sentinel, and does not acquire or release table ownership.
+
+Release native-object inspection shows no allocation call on successful
+`BlockTableIdStorage` read, write, clear, or occupancy-check paths. Failure
+branches may allocate checked error values. A stronger zero-general-heap claim
+still depends on the Phase 3 allocation-instrumentation gate.

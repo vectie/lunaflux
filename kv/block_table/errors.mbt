@@ -1,6 +1,7 @@
 ///|
 pub(all) enum BlockTableLimitRule {
   TableCapacity
+  StorageCapacity
   PagesPerTable
   PageCellCapacity
   TokensPerPage
@@ -27,6 +28,8 @@ pub(all) enum BlockTableInvariantRule {
 /// contain tokens, request data, device addresses, paths, or vendor details.
 pub(all) suberror BlockTableError {
   InvalidLimit(BlockTableLimitRule)
+  StorageIndexOutOfBounds
+  StorageCellEmpty
   Exhausted
   StaleTable(BlockTableId)
   TableNotAllocated(BlockTableId)

@@ -11,6 +11,8 @@ import {
 // Errors
 pub(all) suberror BlockTableError {
   InvalidLimit(BlockTableLimitRule)
+  StorageIndexOutOfBounds
+  StorageCellEmpty
   Exhausted
   StaleTable(BlockTableId)
   TableNotAllocated(BlockTableId)
@@ -55,6 +57,16 @@ pub struct BlockTableId(Int, Int) derive(Eq, Hash, @debug.Debug)
 pub fn BlockTableId::generation(Self) -> Int
 pub fn BlockTableId::index(Self) -> Int
 
+pub struct BlockTableIdStorage {
+  // private fields
+}
+pub fn BlockTableIdStorage::capacity(Self) -> Int
+pub fn BlockTableIdStorage::clear(Self, Int) -> Unit raise BlockTableError
+pub fn BlockTableIdStorage::is_occupied(Self, Int) -> Bool raise BlockTableError
+pub fn BlockTableIdStorage::new(Int) -> Self raise BlockTableError
+pub fn BlockTableIdStorage::read(Self, Int) -> BlockTableId raise BlockTableError
+pub fn BlockTableIdStorage::write(Self, Int, BlockTableId) -> Unit raise BlockTableError
+
 pub(all) enum BlockTableInvariantRule {
   CountPartition
   QueueEndpoint
@@ -69,6 +81,7 @@ pub(all) enum BlockTableInvariantRule {
 
 pub(all) enum BlockTableLimitRule {
   TableCapacity
+  StorageCapacity
   PagesPerTable
   PageCellCapacity
   TokensPerPage

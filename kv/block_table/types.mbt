@@ -8,6 +8,9 @@ const ABSOLUTE_MAX_PAGES_PER_TABLE : Int = 1_048_576
 const ABSOLUTE_MAX_TABLE_PAGE_CELLS : Int = 16_777_216
 
 ///|
+const ABSOLUTE_MAX_BLOCK_TABLE_ID_STORAGE_CAPACITY : Int = 16_777_216
+
+///|
 const ABSOLUTE_MAX_TOKENS_PER_PAGE : Int = 1_048_576
 
 ///|
@@ -20,6 +23,18 @@ const ABSOLUTE_MAX_TABLE_GENERATION : Int = 2_147_483_647
 /// scheduler or worker message cannot address the new table through an old ID.
 #valtype
 pub struct BlockTableId(Int, Int) derive(Debug, Eq, Hash)
+
+///|
+/// Opaque fixed storage for canonical inline block-table identities.
+///
+/// Unused cells contain a package-private inert sentinel. Reads require an
+/// occupied cell, so the sentinel never crosses the public boundary.
+/// Construction allocates both fixed arrays; successful reads, writes, clears,
+/// and occupancy checks grow no collection.
+pub struct BlockTableIdStorage {
+  priv tables : FixedArray[BlockTableId]
+  priv occupied : FixedArray[Bool]
+}
 
 ///|
 /// Checked startup bounds for one dense block-table arena.
@@ -100,4 +115,9 @@ pub struct BlockTableArena {
   priv mut free_tables : Int
   priv mut allocated_tables : Int
   priv mut retired_tables : Int
+}
+
+///|
+fn invalid_block_table_id() -> BlockTableId {
+  BlockTableId(-1, 0)
 }
