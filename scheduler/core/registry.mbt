@@ -134,23 +134,49 @@ pub fn Scheduler::new(
   capacity : @runtime_resolved.ResolvedRuntimeCapacity,
   model_identity : @spec.ModelIdentity,
   model_plan_generation : @worker_protocol.ModelPlanGeneration,
-  prefill_recipe : @worker_protocol.RowCapabilityRecipe,
+  intermediate_prefill_recipe : @worker_protocol.RowCapabilityRecipe,
+  final_prefill_recipe : @worker_protocol.RowCapabilityRecipe,
   decode_recipe : @worker_protocol.RowCapabilityRecipe,
 ) -> Scheduler raise SchedulerError {
-  if prefill_recipe.identity() != model_identity ||
+  if intermediate_prefill_recipe.identity() != model_identity ||
+    final_prefill_recipe.identity() != model_identity ||
     decode_recipe.identity() != model_identity ||
-    prefill_recipe.model_plan_generation() != model_plan_generation ||
+    intermediate_prefill_recipe.model_plan_generation() != model_plan_generation ||
+    final_prefill_recipe.model_plan_generation() != model_plan_generation ||
     decode_recipe.model_plan_generation() != model_plan_generation {
     raise invalid(ModelIdentity, Mismatch)
   }
   let rows = capacity.max_rows_per_step()
-  let max_recipe_length = if prefill_recipe.length() > decode_recipe.length() {
-    prefill_recipe.length()
+  let prefill_max = if intermediate_prefill_recipe.length() >
+    final_prefill_recipe.length() {
+    intermediate_prefill_recipe.length()
+  } else {
+    final_prefill_recipe.length()
+  }
+  let max_recipe_length = if prefill_max > decode_recipe.length() {
+    prefill_max
   } else {
     decode_recipe.length()
   }
   if rows > capacity.worker_max_capabilities() / max_recipe_length {
     raise invalid(Plan, OutOfRange)
+  }
+  let worker_limits = try
+    @worker_protocol.WorkerProtocolLimits::new(
+      max_prefill_rows=capacity.worker_max_prefill_rows(),
+      max_decode_rows=capacity.worker_max_decode_rows(),
+      max_plan_rows=capacity.worker_max_plan_rows(),
+      max_plan_tokens=capacity.worker_max_plan_tokens(),
+      max_plan_pages=capacity.worker_max_plan_pages(),
+      max_capabilities=capacity.worker_max_capabilities(),
+      max_completion_slots=capacity.worker_max_completion_slots(),
+      max_sequence_tokens=capacity.worker_max_sequence_tokens(),
+      max_token_id=capacity.worker_max_token_id(),
+    )
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    value => value
   }
   let slots = capacity.total_request_slots()
   let placeholder_id = try @inference.RequestId::new(1UL) catch {
@@ -172,12 +198,69 @@ pub fn Scheduler::new(
   } noraise {
     arena => arena
   }
+  let plan_a = try
+    @worker_protocol.SchedulePlanBuffer::new(worker_limits)
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    owner => owner
+  }
+  let plan_b = try
+    @worker_protocol.SchedulePlanBuffer::new(worker_limits)
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    owner => owner
+  }
+  let first_completion = try
+    @worker_protocol.CompletionSlot::new(0, worker_limits)
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    value => value
+  }
+  let completion_slots = FixedArray::make(rows, first_completion)
+  for index in 1..<rows {
+    completion_slots[index] = try
+      @worker_protocol.CompletionSlot::new(index, worker_limits)
+    catch {
+      error => raise WorkerProtocol(error)
+    } noraise {
+      value => value
+    }
+  }
+  let request_tables = try @block_table.BlockTableIdStorage::new(slots) catch {
+    error => raise BlockTable(error)
+  } noraise {
+    storage => storage
+  }
+  let journal_tables = try @block_table.BlockTableIdStorage::new(rows) catch {
+    error => raise BlockTable(error)
+  } noraise {
+    storage => storage
+  }
+  let page_run = try
+    @page_allocator.PageRunBuffer::new(capacity.block_table_pages_per_request())
+  catch {
+    error => raise PageAllocator(error)
+  } noraise {
+    buffer => buffer
+  }
   {
     capacity,
     model_identity,
     page_allocator,
     block_tables,
     model_plan_generation,
+    intermediate_prefill_recipe,
+    final_prefill_recipe,
+    decode_recipe,
+    completion_slots,
+    plan_a,
+    plan_b,
+    request_tables,
+    journal_tables,
+    page_run,
     slot_states: FixedArray::make(slots, SLOT_FREE),
     slot_generations: FixedArray::make(slots, 0),
     requests: FixedArray::make(slots, None),
@@ -190,8 +273,18 @@ pub fn Scheduler::new(
     processed_inputs: FixedArray::make(slots, 0),
     output_counts: FixedArray::make(slots, 0),
     in_flight: FixedArray::make(slots, false),
+    decode_tokens: FixedArray::make(slots, 0),
     waiting_next: FixedArray::make(slots, NO_INDEX),
     free_next,
+    active_slots: FixedArray::make(capacity.max_active_requests(), NO_INDEX),
+    prefill_slots: FixedArray::make(rows, NO_INDEX),
+    prefill_tokens: FixedArray::make(rows, 0),
+    decode_slots: FixedArray::make(rows, NO_INDEX),
+    journal_slots: FixedArray::make(rows, NO_INDEX),
+    journal_old_page_counts: FixedArray::make(rows, 0),
+    journal_appended: FixedArray::make(rows, false),
+    plan_a_slots: FixedArray::make(rows, NO_INDEX),
+    plan_b_slots: FixedArray::make(rows, NO_INDEX),
     terminal_request_ids: FixedArray::make(slots, placeholder_id),
     terminal_generations: FixedArray::make(
       slots,
@@ -203,6 +296,7 @@ pub fn Scheduler::new(
     waiting_head: NO_INDEX,
     waiting_tail: NO_INDEX,
     waiting_count: 0,
+    active_count: 0,
     live_count: 0,
     retired_slot_count: 0,
     terminal_head: 0,
@@ -210,6 +304,12 @@ pub fn Scheduler::new(
     terminal_count: 0,
     generation_cursor: 0UL,
     step: 0UL,
+    last_plan_sequence: 0UL,
+    plan_a_sequence: 0UL,
+    plan_b_sequence: 0UL,
+    prefill_count: 0,
+    decode_count: 0,
+    journal_count: 0,
   }
 }
 
@@ -233,6 +333,11 @@ pub fn Scheduler::admit(
   }
   let context = request.effective_limits().context_ceiling()
   let prompt_tokens = request.input_tokens().length()
+  for token in request.input_tokens().token_ids() {
+    if token > self.capacity.worker_max_token_id() {
+      raise invalid(Request, OutOfRange)
+    }
+  }
   let maximum_sequence_tokens = prompt_tokens +
     request.effective_limits().max_new_tokens()
   let prompt_pages = ceiling_pages(

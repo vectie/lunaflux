@@ -176,6 +176,15 @@ pub struct Scheduler {
   priv page_allocator : @page_allocator.PageAllocator
   priv block_tables : @block_table.BlockTableArena
   priv model_plan_generation : @worker_protocol.ModelPlanGeneration
+  priv intermediate_prefill_recipe : @worker_protocol.RowCapabilityRecipe
+  priv final_prefill_recipe : @worker_protocol.RowCapabilityRecipe
+  priv decode_recipe : @worker_protocol.RowCapabilityRecipe
+  priv completion_slots : FixedArray[@worker_protocol.CompletionSlot]
+  priv plan_a : @worker_protocol.SchedulePlanBuffer
+  priv plan_b : @worker_protocol.SchedulePlanBuffer
+  priv request_tables : @block_table.BlockTableIdStorage
+  priv journal_tables : @block_table.BlockTableIdStorage
+  priv page_run : @page_allocator.PageRunBuffer
   priv slot_states : FixedArray[Int]
   priv slot_generations : FixedArray[Int]
   priv requests : FixedArray[TokenizedRequest?]
@@ -185,8 +194,18 @@ pub struct Scheduler {
   priv processed_inputs : FixedArray[Int]
   priv output_counts : FixedArray[Int]
   priv in_flight : FixedArray[Bool]
+  priv decode_tokens : FixedArray[Int]
   priv waiting_next : FixedArray[Int]
   priv free_next : FixedArray[Int]
+  priv active_slots : FixedArray[Int]
+  priv prefill_slots : FixedArray[Int]
+  priv prefill_tokens : FixedArray[Int]
+  priv decode_slots : FixedArray[Int]
+  priv journal_slots : FixedArray[Int]
+  priv journal_old_page_counts : FixedArray[Int]
+  priv journal_appended : FixedArray[Bool]
+  priv plan_a_slots : FixedArray[Int]
+  priv plan_b_slots : FixedArray[Int]
   priv terminal_request_ids : FixedArray[@inference.RequestId]
   priv terminal_generations : FixedArray[@inference.RequestGeneration]
   priv terminal_reasons : FixedArray[TerminalReason]
@@ -195,6 +214,7 @@ pub struct Scheduler {
   priv mut waiting_head : Int
   priv mut waiting_tail : Int
   priv mut waiting_count : Int
+  priv mut active_count : Int
   priv mut live_count : Int
   priv mut retired_slot_count : Int
   priv mut terminal_head : Int
@@ -202,4 +222,10 @@ pub struct Scheduler {
   priv mut terminal_count : Int
   priv mut generation_cursor : UInt64
   priv mut step : UInt64
+  priv mut last_plan_sequence : UInt64
+  priv mut plan_a_sequence : UInt64
+  priv mut plan_b_sequence : UInt64
+  priv mut prefill_count : Int
+  priv mut decode_count : Int
+  priv mut journal_count : Int
 }

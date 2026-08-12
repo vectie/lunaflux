@@ -86,14 +86,6 @@ pub fn Scheduler::poll_terminal(self : Scheduler) -> TerminalNotice? {
 }
 
 ///|
-pub fn Scheduler::advance_step(self : Scheduler) -> Unit raise SchedulerError {
-  if self.step == MAX_GENERATION {
-    raise invalid(Plan, Exhausted)
-  }
-  self.step += 1UL
-}
-
-///|
 fn Scheduler::terminate_waiting(
   self : Scheduler,
   index : Int,

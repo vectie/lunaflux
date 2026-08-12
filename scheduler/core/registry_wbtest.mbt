@@ -52,10 +52,18 @@ fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
 
 ///|
 fn wb_owner() -> Scheduler {
+  wb_owner_with_capacity(2, 2)
+}
+
+///|
+fn wb_owner_with_capacity(
+  max_active_requests : Int,
+  max_waiting_requests : Int,
+) -> Scheduler {
   let scheduler = try! @scheduler.new(
     step_token_budget=2,
-    max_active_requests=2,
-    max_waiting_requests=2,
+    max_active_requests~,
+    max_waiting_requests~,
     prefill_chunk_tokens=2,
     emergency_decode_page_reserve=1,
     waiting_age_threshold_steps=2,
@@ -105,7 +113,14 @@ fn wb_owner() -> Scheduler {
     [@plan.KernelCapabilityId::embedding_lookup()],
     worker,
   )
-  try! Scheduler::new(capacity, wb_identity(), generation, recipe, recipe)
+  try! Scheduler::new(
+    capacity,
+    wb_identity(),
+    generation,
+    recipe,
+    recipe,
+    recipe,
+  )
 }
 
 ///|
@@ -163,4 +178,158 @@ test "deadline generation preflight prevents partial expiry" {
   assert_eq(owner.waiting_count, 2)
   assert_eq(owner.live_count, 2)
   assert_eq(owner.terminal_count, 0)
+}
+
+///|
+test "distinct plan owners permit two different in-flight requests" {
+  let owner = wb_owner_with_capacity(3, 3)
+  let first = owner.admit(wb_request(11UL), 0UL)
+  let second = owner.admit(wb_request(12UL), 0UL)
+  let plan_a = owner.build_next()
+  assert_eq(try! plan_a.row_count(), 1)
+  assert_eq(try! plan_a.prefill_row(0).request_id(), first.request_id())
+  let plan_b = owner.build_next()
+  assert_eq(try! plan_b.row_count(), 1)
+  assert_eq(try! plan_b.prefill_row(0).request_id(), second.request_id())
+  try owner.build_next() catch {
+    error => assert_eq(error, Invalid(field=Plan, issue=Backpressured))
+  } noraise {
+    _ => fail("expected two-owner backpressure")
+  }
+  assert_eq(owner.plan_a_sequence, 1UL)
+  assert_eq(owner.plan_b_sequence, 2UL)
+  assert_eq(owner.plan_a_slots[0], first.slot().index())
+  assert_eq(owner.plan_b_slots[0], second.slot().index())
+  ignore(owner.admit(wb_request(13UL), 0UL))
+  try owner.build_next() catch {
+    error => assert_eq(error, Invalid(field=Plan, issue=Backpressured))
+  } noraise {
+    _ => fail("expected occupied A/B owner backpressure")
+  }
+}
+
+///|
+test "checkpoint cleanup restores exact identities before a real build" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(41UL), 0UL)
+  assert_eq(owner.select_rows(), 2)
+  let table_checkpoint = try! owner.block_tables.checkpoint()
+  let page_checkpoint = try! owner.page_allocator.checkpoint()
+  let plan_checkpoint = try! owner.plan_a.checkpoint()
+  let slot = owner.prefill_slots[0]
+  let table = owner.row_table(slot)
+  let old_count = try! owner.block_tables.page_count(table)
+  owner.append_pages(table, old_count, 1, slot)
+  let provisional_page = try! owner.block_tables.page_at(table, 0)
+  try! owner.plan_a.rollback_to(plan_checkpoint)
+  owner.rollback_tables(table_checkpoint)
+  try! owner.block_tables.rollback_to(table_checkpoint)
+  try! owner.page_allocator.rollback_to(page_checkpoint)
+  assert_eq(owner.journal_count, 0)
+  assert_eq(owner.waiting_count, 1)
+  assert_eq(owner.status(handle.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.free_page_count(), 8)
+  assert_eq(owner.allocated_block_table_count(), 0)
+  let plan = owner.build_next()
+  assert_eq(try! plan.page_at(0), provisional_page)
+  assert_eq(try! owner.request_tables.read(slot), table)
+}
+
+///|
+fn make_decode_active(
+  owner : Scheduler,
+  handle : RequestHandle,
+  output_count : Int,
+  token : Int,
+) -> Unit {
+  let slot = handle.slot().index()
+  owner.remove_waiting(slot)
+  let table = try! owner.block_tables.allocate()
+  let run = try! @page_allocator.PageRunBuffer::new(1)
+  try! owner.page_allocator.allocate_run(1, run)
+  try! owner.block_tables.append_run(table, run)
+  try! owner.request_tables.write(slot, table)
+  owner.slot_states[slot] = SLOT_DECODE
+  owner.output_counts[slot] = output_count
+  owner.decode_tokens[slot] = token
+  owner.active_slots[owner.active_count] = slot
+  owner.active_count += 1
+}
+
+///|
+test "decode is reserved first while protocol serializes prefill first" {
+  let owner = wb_owner()
+  let decoding = owner.admit(wb_request(21UL), 0UL)
+  make_decode_active(owner, decoding, 1, 7)
+  let waiting = owner.admit(wb_request(22UL), 0UL)
+  let plan = owner.build_next()
+  assert_eq(try! plan.token_budget(), 2)
+  assert_eq(try! plan.prefill_count(), 1)
+  assert_eq(try! plan.decode_count(), 1)
+  assert_eq(try! plan.prefill_row(0).request_id(), waiting.request_id())
+  assert_eq(try! plan.decode_row(0).request_id(), decoding.request_id())
+  assert_eq(try! plan.prefill_row(0).tokens().length(), 1)
+  assert_eq(try! plan.decode_row(0).sequence_token_position(), 2)
+  assert_eq(try! plan.decode_row(0).input_token().length(), 1)
+  assert_eq(try! plan.token_at(1), 7)
+}
+
+///|
+test "multirow second-row failure restores every provisional identity" {
+  let owner = wb_owner_with_capacity(3, 3)
+  let first = owner.admit(wb_request(51UL), 0UL)
+  let second = owner.admit(wb_request(52UL), 0UL)
+  make_decode_active(owner, first, 3, 7)
+  make_decode_active(owner, second, 3, 99)
+  let free_pages = owner.free_page_count()
+  try owner.build_next() catch {
+    WorkerProtocol(_) => ()
+    _ => fail("unexpected multirow rollback error")
+  } noraise {
+    _ => fail("expected second-row failure")
+  }
+  assert_eq(owner.free_page_count(), free_pages)
+  assert_eq(owner.plan_a.state(), Writable)
+  assert_false(owner.status(first.request_id()).unwrap().in_flight())
+  assert_false(owner.status(second.request_id()).unwrap().in_flight())
+  owner.decode_tokens[second.slot().index()] = 8
+  let plan = owner.build_next()
+  assert_eq(try! plan.decode_count(), 2)
+  let first_appended = try! plan.page_at(1)
+  let second_appended = try! plan.page_at(3)
+  assert_eq(first_appended.index(), 2)
+  assert_eq(first_appended.generation(), 1)
+  assert_eq(second_appended.index(), 3)
+  assert_eq(second_appended.generation(), 1)
+}
+
+///|
+test "post-allocation row failure restores exact page and table ownership" {
+  let owner = wb_owner()
+  let decoding = owner.admit(wb_request(31UL), 0UL)
+  make_decode_active(owner, decoding, 3, 99)
+  let free_pages = owner.free_page_count()
+  let table_count = owner.allocated_block_table_count()
+  let table = try! owner.request_tables.read(decoding.slot().index())
+  let page_count = try! owner.block_tables.page_count(table)
+  try owner.build_next() catch {
+    WorkerProtocol(_) => ()
+    _ => fail("unexpected rollback error")
+  } noraise {
+    _ => fail("expected invalid decode token")
+  }
+  assert_eq(owner.free_page_count(), free_pages)
+  assert_eq(owner.allocated_block_table_count(), table_count)
+  assert_eq(try! owner.block_tables.page_count(table), page_count)
+  assert_eq(owner.status(decoding.request_id()).unwrap().state(), Decode)
+  assert_false(owner.status(decoding.request_id()).unwrap().in_flight())
+  assert_eq(owner.plan_a.state(), Writable)
+  assert_eq(owner.plan_a_sequence, 0UL)
+  assert_eq(owner.journal_count, 0)
+  owner.decode_tokens[decoding.slot().index()] = 7
+  let plan = owner.build_next()
+  assert_eq(try! plan.page_count(), 2)
+  let restored = try! plan.page_at(1)
+  assert_eq(restored.index(), 1)
+  assert_eq(restored.generation(), 1)
 }

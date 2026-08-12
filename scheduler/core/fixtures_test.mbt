@@ -210,6 +210,7 @@ fn scheduler() -> Scheduler {
     generation,
     recipe,
     recipe,
+    recipe,
   )
 }
 
@@ -242,6 +243,7 @@ fn tight_scheduler() -> Scheduler {
     tight_resolved_capacity(),
     selected_identity(),
     generation,
+    recipe,
     recipe,
     recipe,
   )

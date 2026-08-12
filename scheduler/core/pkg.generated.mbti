@@ -52,14 +52,14 @@ pub struct Scheduler {
   // private fields
 }
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
-pub fn Scheduler::advance_step(Self) -> Unit raise SchedulerError
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
+pub fn Scheduler::build_next(Self) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
 pub fn Scheduler::free_page_count(Self) -> Int
 pub fn Scheduler::live_request_count(Self) -> Int
 pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGeneration
-pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
+pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
 pub fn Scheduler::poll_terminal(Self) -> TerminalNotice?
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
@@ -95,6 +95,7 @@ pub(all) enum SchedulerIssue {
   Backpressured
   InvalidTransition
   Unsupported
+  NoRunnableWork
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SchedulerRequestState {

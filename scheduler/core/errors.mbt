@@ -31,6 +31,7 @@ pub(all) enum SchedulerIssue {
   Backpressured
   InvalidTransition
   Unsupported
+  NoRunnableWork
 } derive(Debug, Eq)
 
 ///|

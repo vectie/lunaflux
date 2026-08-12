@@ -57,6 +57,7 @@ test "scheduler constructor binds recipe identity and loaded generation" {
       generation,
       wrong_recipe,
       wrong_recipe,
+      wrong_recipe,
     )
   catch {
     error => assert_eq(error, Invalid(field=ModelIdentity, issue=Mismatch))
@@ -78,6 +79,53 @@ test "admission rejects requests that can never preserve decode reserve" {
   assert_eq(owner.live_request_count(), 0)
   assert_eq(owner.waiting_request_count(), 0)
   assert_eq(owner.free_page_count(), 3)
+}
+
+///|
+test "admission rejects token IDs outside the loaded worker vocabulary" {
+  let broad = try! @inference.InferenceLimits::new(
+    max_text_bytes=64,
+    max_input_tokens=8,
+    max_new_tokens=4,
+    max_context_tokens=16,
+    max_token_id=63,
+    max_stop_token_ids=4,
+    max_stop_strings=2,
+    max_stop_string_bytes=8,
+    max_trace_bytes=8,
+    max_cache_scope_bytes=8,
+    max_decoded_delta_bytes=8,
+    max_deadline_millis=1000UL,
+    max_top_k=32,
+    max_temperature=4.0,
+  )
+  let candidate = try! TokenizedRequest::new(
+    request_id=try! @inference.RequestId::new(35UL),
+    model_identity=selected_identity(),
+    input_tokens=try! @inference.TokenBuffer::new([40], broad),
+    sampling=@inference.SamplingParameters::greedy(),
+    stops=try! @inference.StopConditions::new([], [], broad),
+    cache=@inference.CachePolicy::new(
+      try! @inference.CacheScope::from_ascii(b"scope", broad),
+      Disabled,
+    ),
+    stream_preference=Streaming,
+    effective_limits=try! @inference.EffectiveLimits::new(
+      max_new_tokens=1,
+      context_ceiling=2,
+      broad,
+    ),
+    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
+      100UL, broad,
+    ),
+  )
+  let owner = scheduler()
+  try owner.admit(candidate, 0UL) catch {
+    error => assert_eq(error, Invalid(field=Request, issue=OutOfRange))
+  } noraise {
+    _ => fail("expected worker vocabulary rejection")
+  }
+  assert_eq(owner.live_request_count(), 0)
 }
 
 ///|
