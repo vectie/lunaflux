@@ -92,11 +92,12 @@ docs/               contracts, architecture, decisions, and phase gates
 
 Implemented packages currently cover `contracts/`, focused `config/` records,
 the byte-BPE foundation and bounded selected `tokenizer.json` adapter in
-`tokenizer/`, validated artifact readers, exact Llama weight bindings, and
-bounded materialization in `model/`, deterministic reference kernels and
-greedy sampling, an architecture-neutral offline interpreter in
-`engine/reference/`, and a private CUDA/device seam for explicit resources,
-checked transfers, and narrow BF16 cuBLASLt GEMM plans. The `lunaflux
+`tokenizer/`, validated artifact readers, exact Llama weight bindings, bounded
+host and direct-device materialization in `model/`, deterministic reference
+kernels and greedy sampling, an exact startup kernel catalog, an
+architecture-neutral offline interpreter in `engine/reference/`, and a private
+CUDA/device seam for explicit resources, checked transfers, and narrow
+synchronous BF16 cuBLASLt GEMM plans. The `lunaflux
 reference` command runs digest-pinned whole-file correctness bundles; it is
 never a production fallback. Later packages are created only when their
 vertical phase begins; empty architectural packages are deliberately avoided.

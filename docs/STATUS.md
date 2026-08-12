@@ -39,8 +39,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   tokenizer/model vocabulary agreement, payload-safe errors, and deterministic
   handle closure. Whole-file ownership is explicitly reference-only.
 - Two-pass bounded weight materialization with identity preservation, complete
-  preflight validation, zero-copy tensor visitation, and an explicit host-copy
-  reference representation.
+  preflight validation, zero-copy tensor visitation, exact complete-file
+  source offsets, and an explicit host-copy reference representation.
+- Deterministic aligned single-arena device-weight layouts and direct copies
+  from the admitted immutable file into final device regions. Malformed input
+  is proven to fail before any destination allocation opens, and partial-load
+  cleanup is explicit and bounded.
 - Deterministic Float reference kernels for dense-Llama embedding, RMSNorm,
   projections, split-half RoPE, causal grouped-query attention, residuals,
   SiLU-gated MLP, and the language-model head.
@@ -63,6 +67,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - Checked offset host/device transfers and reusable row-major BF16 cuBLASLt
   GEMM plans with FP32 accumulation, explicit caller-owned storage, retryable
   descriptor cleanup, and injected-dispatch ownership/failure probes.
+- Atomic native operation guards that interlock use, child construction, and
+  explicit close across contexts and every owned child resource. Phase 1 GEMM
+  synchronizes before returning so borrowed operands cannot outlive device
+  work.
+- An immutable exact startup kernel catalog that selects by model operation,
+  shape, capability, CUDA target, and workspace, using either the narrow
+  implicit vendor BF16 GEMM semantic or a content-addressed AOT artifact.
+  Missing, incompatible, or ambiguous support fails closed without JIT or
+  fallback.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -78,18 +91,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   ByteLevel-BPE contract. The selected ByteLevel subset is independently corpus
   validated, but this particular model must be driven by token IDs or a
   separately approved compatible tokenizer artifact.
-- A production streaming/mapped loader. The reference loader retains complete
-  host copies and relies on the approved read-only mount contract; adversarial
-  writable directories would require a narrow atomic `openat(O_NOFOLLOW)` and
-  `fstat` native wrapper.
+- A production streaming/mapped file loader. Device materialization now copies
+  tensors directly into final aligned device regions, but its admitted source
+  is still the complete reference-only host snapshot. The file admission path
+  relies on the approved read-only mount contract; adversarial writable
+  directories would require a narrow atomic `openat(O_NOFOLLOW)` and `fstat`
+  native wrapper.
 - Physical-CUDA validation of driver loading, transfers, modules, events,
   numerical BF16 GEMM correctness, implicit-heuristic shape support, and
   repeated resource balance. Local C stubs pass a manually instrumented
   ASan/UBSan run, but the MoonBit runtime was not instrumented and macOS leak
   detection was unavailable, so the full sanitizer/leak gate remains open.
-- A production static GPU executor and kernel catalog. The reference
-  interpreter deliberately retains intermediate activations and recomputes
-  full prefill during generation; it is a correctness oracle, not a fallback.
+- A production static GPU executor, AOT kernel loader/launcher contract, and
+  activation/KV arenas. Exact catalog resolution is implemented, but catalog
+  metadata is not execution evidence. The reference interpreter deliberately
+  retains intermediate activations and recomputes full prefill during
+  generation; it is a correctness oracle, not a fallback.
 - Online APIs, scheduling, paged KV, prefix reuse, stochastic sampling, or
   telemetry.
 
@@ -101,8 +118,8 @@ runs the correctness executor. All retain production readiness as false.
 ## Next correctness gate
 
 The remaining Phase 1 correctness work is a physical-CUDA runner proving
-transfers and BF16 GEMM numerics, balanced repeated load/run/unload, and the
-full sanitizer/leak gate. The production path also needs direct-to-device
-materialization, an exact kernel catalog, and a static executor. Performance
-claims remain out of scope until the physical correctness and resource-balance
-evidence passes.
+transfers and BF16 GEMM numerics, balanced repeated load/run/unload, concurrent
+resource stress, and the full sanitizer/leak gate. The production path still
+needs a streaming/mapped file source, executable AOT kernel launch contract,
+activation/KV arenas, and a static executor. Performance claims remain out of
+scope until the physical correctness and resource-balance evidence passes.
