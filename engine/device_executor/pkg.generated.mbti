@@ -1,0 +1,111 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_executor"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn prepare(@device.Context, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @device_profile.DeviceExecutionProfile, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.LaunchContractSet, @artifact.KernelArtifactBundle) -> PreparationOutcome raise DeviceExecutorError
+
+// Errors
+pub(all) suberror DeviceExecutorError {
+  InvalidPlan(DeviceExecutorValidationRule)
+  InvalidOperation(@plan.OperationId, DeviceExecutorOperationRule)
+  DeviceFailed(DeviceExecutorStage, @device.DeviceError)
+  MemoryFailed(DeviceExecutorStage, @device_memory.DeviceMemoryError)
+  CleanupFailed(DeviceExecutorStage, DeviceExecutorCleanupCause)
+  InvalidTokenBytes(expected~ : Int64, actual~ : Int64)
+  InvalidTokenId(index~ : Int)
+  InvalidOutputRow(index~ : Int)
+  OutputUnavailable
+  Closed
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeviceExecutorCleanupCause {
+  Device(@device.DeviceError)
+  Memory(@device_memory.DeviceMemoryError)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceExecutorOperationRule {
+  ProfileMissing
+  ProfileOrder
+  BindingMismatch
+  ContractMissing
+  ContractMismatch
+  OperandMissing
+  OperandSize
+  OperandAlignment
+  OperandSpace
+  Workspace
+  VendorShape
+  VendorInputs
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceExecutorStage {
+  Stream
+  ActivationWorkspaceArena
+  TokenStaging
+  Module
+  Function
+  VendorGemmHandle
+  VendorGemmPlan
+  KernelArguments
+  TokenTransfer
+  OutputTransfer
+  AotLaunch
+  VendorGemmRun
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceExecutorValidationRule {
+  Identity
+  Target
+  CatalogVersion
+  ContextCapability
+  WeightLayout
+  MemoryPlan
+  ExecutionProfile
+  KernelProfile
+  OperationCount
+  OperationOrder
+  ArtifactModule
+  ArtifactEntryPoint
+  UnsupportedVendorOperation
+  LaunchDimensions
+} derive(Eq, @debug.Debug)
+
+pub struct FailedDevicePreparation {
+  // private fields
+}
+pub fn FailedDevicePreparation::cause(Self) -> DeviceExecutorError
+pub fn FailedDevicePreparation::cleanup_failure(Self) -> DeviceExecutorError
+pub fn FailedDevicePreparation::is_closed(Self) -> Bool
+pub fn FailedDevicePreparation::retry_close(Self) -> Unit raise DeviceExecutorError
+
+pub(all) enum PreparationOutcome {
+  Ready(PreparedDeviceExecutor)
+  CleanupRequired(FailedDevicePreparation)
+}
+
+pub struct PreparedDeviceExecutor {
+  // private fields
+}
+pub fn PreparedDeviceExecutor::close(Self) -> Unit raise DeviceExecutorError
+pub fn PreparedDeviceExecutor::copy_terminal_row(Self, Int) -> Bytes raise DeviceExecutorError
+pub fn PreparedDeviceExecutor::dispatch(Self, Bytes) -> Unit raise DeviceExecutorError
+pub fn PreparedDeviceExecutor::final_output_view(Self) -> @device_profile.FinalOutputView
+pub fn PreparedDeviceExecutor::token_byte_count(Self) -> Int64
+
+// Type aliases
+
+// Traits
