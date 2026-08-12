@@ -1,0 +1,211 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_profile"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn build(@device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, ExactExecutionShape) -> DeviceExecutionProfile raise DeviceProfileError
+
+// Errors
+pub(all) suberror DeviceProfileError {
+  InvalidShape(ProfileShapeRule)
+  InvalidPlan(ProfilePlanRule)
+  InvalidOperation(@plan.OperationId, ProfileOperationRule)
+  InvalidRegion(ProfileRegionId, ProfileRegionRule)
+  SizeOverflow(@plan.OperationId)
+  TokenSizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ActivationValueView {
+  reference : @plan.ActivationRef
+  width : Int64
+  token_rows : Int64
+  region : ExecutionRegionView
+} derive(Eq, @debug.Debug)
+pub fn ActivationValueView::reference(Self) -> @plan.ActivationRef
+pub fn ActivationValueView::region(Self) -> ExecutionRegionView
+pub fn ActivationValueView::token_rows(Self) -> Int64
+pub fn ActivationValueView::width(Self) -> Int64
+
+pub struct DeviceExecutionProfile {
+  identity : @spec.ModelIdentity
+  target : @catalog.DeviceTarget
+  shape : ExactExecutionShape
+  token_staging : ExecutionRegionView
+  token_staging_capacity_bytes : Int64
+  regions : ReadOnlyArray[ExecutionRegionView]
+  operations : ReadOnlyArray[OperationExecutionProfile]
+  final_output : FinalOutputView
+} derive(Eq, @debug.Debug)
+pub fn DeviceExecutionProfile::final_output(Self) -> FinalOutputView
+pub fn DeviceExecutionProfile::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceExecutionProfile::operation(Self, @plan.OperationId) -> OperationExecutionProfile?
+pub fn DeviceExecutionProfile::operation_count(Self) -> Int
+pub fn DeviceExecutionProfile::region(Self, ProfileRegionId) -> ExecutionRegionView?
+pub fn DeviceExecutionProfile::region_count(Self) -> Int
+pub fn DeviceExecutionProfile::shape(Self) -> ExactExecutionShape
+pub fn DeviceExecutionProfile::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceExecutionProfile::token_staging(Self) -> ExecutionRegionView
+pub fn DeviceExecutionProfile::token_staging_capacity_bytes(Self) -> Int64
+
+pub struct ExactExecutionShape {
+  phase : ExecutionPhase
+  batch_rows : Int
+  query_tokens_per_row : Int
+  context_tokens : Int
+  token_rows : Int64
+} derive(Eq, @debug.Debug)
+pub fn ExactExecutionShape::batch_rows(Self) -> Int
+pub fn ExactExecutionShape::context_tokens(Self) -> Int
+pub fn ExactExecutionShape::full_prefill(batch_rows~ : Int, sequence_tokens~ : Int) -> Self raise DeviceProfileError
+pub fn ExactExecutionShape::full_recompute(batch_rows~ : Int, sequence_tokens~ : Int) -> Self raise DeviceProfileError
+pub fn ExactExecutionShape::kernel_shape(Self) -> ExactKernelShape
+pub fn ExactExecutionShape::phase(Self) -> ExecutionPhase
+pub fn ExactExecutionShape::query_tokens_per_row(Self) -> Int
+pub fn ExactExecutionShape::token_rows(Self) -> Int64
+
+pub struct ExactKernelShape {
+  batch_rows : Int
+  sequence_tokens : Int
+  token_rows : Int64
+} derive(Eq, @debug.Debug)
+pub fn ExactKernelShape::batch_rows(Self) -> Int
+pub fn ExactKernelShape::sequence_tokens(Self) -> Int
+pub fn ExactKernelShape::token_rows(Self) -> Int64
+
+pub(all) enum ExecutionBufferSpace {
+  TokenInput
+  WeightArena
+  ActivationWorkspaceArena
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionPhase {
+  FullPrefill
+  FullRecompute
+} derive(Eq, @debug.Debug)
+pub fn ExecutionPhase::as_stable_int(Self) -> Int
+
+pub struct ExecutionRegionView {
+  id : ProfileRegionId
+  space : ExecutionBufferSpace
+  offset_bytes : Int64
+  logical_bytes : Int64
+  reserved_bytes : Int64
+  alignment_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn ExecutionRegionView::alignment_bytes(Self) -> Int64
+pub fn ExecutionRegionView::end_offset_bytes(Self) -> Int64
+pub fn ExecutionRegionView::id(Self) -> ProfileRegionId
+pub fn ExecutionRegionView::logical_bytes(Self) -> Int64
+pub fn ExecutionRegionView::offset_bytes(Self) -> Int64
+pub fn ExecutionRegionView::reserved_bytes(Self) -> Int64
+pub fn ExecutionRegionView::space(Self) -> ExecutionBufferSpace
+
+pub(all) enum FinalOutputSemantics {
+  LanguageModelLogits
+  ActivationOutput
+} derive(Eq, @debug.Debug)
+
+pub struct FinalOutputView {
+  semantics : FinalOutputSemantics
+  value : ActivationValueView
+  row_bytes : Int64
+  selected_rows : ReadOnlyArray[FinalRowView]
+} derive(Eq, @debug.Debug)
+pub fn FinalOutputView::row_bytes(Self) -> Int64
+pub fn FinalOutputView::selected_rows(Self) -> ReadOnlyArray[FinalRowView]
+pub fn FinalOutputView::semantics(Self) -> FinalOutputSemantics
+pub fn FinalOutputView::value(Self) -> ActivationValueView
+
+pub struct FinalRowView {
+  batch_index : Int
+  backing_region : ProfileRegionId
+  offset_bytes : Int64
+  byte_length : Int64
+  alignment_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn FinalRowView::alignment_bytes(Self) -> Int64
+pub fn FinalRowView::backing_region(Self) -> ProfileRegionId
+pub fn FinalRowView::batch_index(Self) -> Int
+pub fn FinalRowView::byte_length(Self) -> Int64
+pub fn FinalRowView::end_offset_bytes(Self) -> Int64
+pub fn FinalRowView::offset_bytes(Self) -> Int64
+
+pub struct OperationExecutionProfile {
+  operation_id : @plan.OperationId
+  kernel_shape : ExactKernelShape
+  inputs : ReadOnlyArray[OperationInputView]
+  outputs : ReadOnlyArray[ActivationValueView]
+  workspace : ExecutionRegionView
+} derive(Eq, @debug.Debug)
+pub fn OperationExecutionProfile::inputs(Self) -> ReadOnlyArray[OperationInputView]
+pub fn OperationExecutionProfile::kernel_shape(Self) -> ExactKernelShape
+pub fn OperationExecutionProfile::operation_id(Self) -> @plan.OperationId
+pub fn OperationExecutionProfile::outputs(Self) -> ReadOnlyArray[ActivationValueView]
+pub fn OperationExecutionProfile::workspace(Self) -> ExecutionRegionView
+
+pub(all) enum OperationInputView {
+  TokenIds(ExecutionRegionView)
+  Weight(@plan.TensorRef, ExecutionRegionView)
+  Activation(ActivationValueView)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProfileOperationRule {
+  OutputArity
+  OutputOrder
+  InputRoles
+  ActivationInput
+  ActivationInputOrder
+  ActivationWidth
+  Shape
+  MemoryBinding
+  Workspace
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProfilePlanRule {
+  Identity
+  Target
+  EmptyOperations
+  OperationCount
+  OperationOrder
+  ActivationCount
+  MaximumTokenRows
+  FinalOutput
+  Workspace
+} derive(Eq, @debug.Debug)
+
+pub struct ProfileRegionId(Int) derive(Eq, @debug.Debug)
+pub fn ProfileRegionId::as_int(Self) -> Int
+pub fn ProfileRegionId::from_stable_int(Int) -> Self raise DeviceProfileError
+
+pub(all) enum ProfileRegionRule {
+  Missing
+  NegativeOffset
+  NegativeLength
+  EmptyRequiredRegion
+  InvalidAlignment
+  MisalignedOffset
+  LogicalExceedsReserved
+  OutsideArena
+  IdentifierOverflow
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProfileShapeRule {
+  NonPositiveBatchRows
+  NonPositiveQueryTokens
+  BatchExceedsEnvelope
+  QueryExceedsEnvelope
+  TokenRowOverflow
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
