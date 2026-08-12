@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/llama_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind(@spec.LlamaModelMetadata, @safetensors.SafetensorsMetadata) -> LlamaWeightBindings raise LlamaWeightsError
+
+// Errors
+pub(all) suberror LlamaWeightsError {
+  TensorCountMismatch(expected~ : Int, actual~ : Int)
+  MissingTensor(reference~ : Int)
+  ShapeRankMismatch(reference~ : Int)
+  ShapeDimensionMismatch(reference~ : Int, axis~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LlamaWeightBindings {
+  identity : @spec.ModelIdentity
+  bindings : ReadOnlyArray[TensorBinding]
+  materialized_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn LlamaWeightBindings::binding(Self, @plan.TensorRef) -> TensorBinding?
+pub fn LlamaWeightBindings::identity(Self) -> @spec.ModelIdentity
+pub fn LlamaWeightBindings::length(Self) -> Int
+pub fn LlamaWeightBindings::materialized_bytes(Self) -> Int64
+
+pub struct TensorBinding {
+  reference : @plan.TensorRef
+  tensor : @safetensors.TensorMetadata
+} derive(Eq, @debug.Debug)
+pub fn TensorBinding::reference(Self) -> @plan.TensorRef
+pub fn TensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+
+// Type aliases
+
+// Traits

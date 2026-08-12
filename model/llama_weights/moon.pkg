@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+}
+
+import {
+  "vectie/lunaflux/model/llama",
+} for "test"
+
+supported_targets = "native"
