@@ -1,8 +1,8 @@
 # Scheduler core registry
 
-This package begins LunaFlux's deterministic single-owner scheduler with the
-request boundary and fixed owner storage that later batch planning will
-consume.
+This package implements LunaFlux's deterministic single-owner scheduler
+foundation: bounded request ownership, transactional batch planning,
+authenticated completion retirement, and fixed publication rings.
 It accepts only immutable `TokenizedRequest` values, never HTTP or text input,
 and validates selected model identity, duplicate live request IDs, prompt and
 context bounds, page-envelope capacity, and checked absolute monotonic
@@ -36,21 +36,35 @@ checkpoints make a failed build restore exact owner identities and FIFO state.
 At most one row per request is emitted, and exact token, page, row, completion
 slot, and capability budgets are enforced without growing a collection.
 
-This slice deliberately stops at authenticated plan submission. It does not
-retire completions, publish generated tokens, or integrate prefix reuse. Each
-submitted plan keeps its A/B owner unavailable; a second plan may use the
-other owner for different non-in-flight requests, and a third build is
-backpressured until future completion authentication retires and resets the
-exact owner. The scheduler claims aging only among eligible prefills, not
-global bounded waiting or recomputation-based preemption.
-When no request is eligible, `build_next` returns the typed `NoRunnableWork`
-issue before opening any ownership checkpoint.
+Two paired A/B completion owners issue exclusive worker leases only for the
+exact submitted plan owner and epoch. Retirement authenticates a complete
+batch, preflights all generated-token, terminal, and KV-release obligations,
+then commits rows in plan order. Intermediate prefill advances without output;
+final prefill publishes the first sampled token; decode publishes subsequent
+tokens. Stop-token, maximum-output, cancellation, deadline, and worker-failure
+paths release request page/table ownership exactly once. Stale cancelled or
+expired completions retire device work without advancing state or publishing a
+token. Plans retire strictly in sequence, after which their paired completion
+and plan buffers reset for reuse.
+
+Normal scheduling states do not allocate error payloads: `build_next` returns
+the flat value-type `BuildNextOutcome` for idle, two-owner backpressure, or a
+submitted identity. `submitted_plan` resolves only the exact current owner and
+epoch. Completion slots use a fixed O(1) index, and token/terminal dequeue uses
+direct value results after checking the corresponding count. A second plan may
+use the other owner while the first is in flight; a third attempt reports
+value-type backpressure until ordered completion retirement frees a side.
+
+The scheduler claims aging only among eligible prefills, not global bounded
+waiting or recomputation-based preemption.
 Cancellation or deadline expiry of submitted work advances the authenticated
 request generation immediately, but intentionally leaves page/table ownership
-attached until the deferred completion-retirement slice proves device work is
-retired; stale work cannot advance request state or publish a token.
+attached until completion proves device work is retired; stale work cannot
+advance request state or publish a token.
 The reusable worker protocol now distinguishes intermediate prefill from a
 final prompt chunk that samples the first output token; this scheduler uses
-that distinction when building rows. Completion retirement, stop-token and
-maximum-output enforcement remain scheduler-owned follow-up work. Until a bounded
-incremental matcher exists, nonempty stop strings are rejected explicitly.
+that distinction when building rows. Until a bounded incremental matcher
+exists, nonempty stop strings are rejected explicitly. Prefix reuse, generated
+text decoding, transport integration, recomputation-based preemption, runtime
+allocation instrumentation, and device KV execution remain outside this
+package's current evidence.

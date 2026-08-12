@@ -392,10 +392,10 @@ fn Scheduler::build_decode_row(
 
 ///|
 /// Builds one authenticated plan from fixed startup storage. At most two plans
-/// may remain submitted until completion retirement is implemented.
+/// may remain submitted until ordered completion retirement frees a side.
 pub fn Scheduler::build_next(
   self : Scheduler,
-) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError {
+) -> BuildNextOutcome raise SchedulerError {
   if self.step == MAX_GENERATION || self.last_plan_sequence == MAX_GENERATION {
     raise invalid(Plan, Exhausted)
   }
@@ -404,11 +404,11 @@ pub fn Scheduler::build_next(
   } else if self.plan_b_sequence == 0UL && self.plan_b.state() == Writable {
     1
   } else {
-    raise invalid(Plan, Backpressured)
+    return BuildBackpressured
   }
   let token_budget = self.select_rows()
   if token_budget == 0 {
-    raise invalid(Plan, NoRunnableWork)
+    return BuildIdle
   }
   let plan = if side == 0 { self.plan_a } else { self.plan_b }
   let sequence_value = self.last_plan_sequence + 1UL
@@ -474,5 +474,6 @@ pub fn Scheduler::build_next(
   self.step += 1UL
   try! self.block_tables.commit_checkpoint(table_checkpoint)
   try! self.page_allocator.commit_checkpoint(page_checkpoint)
-  submitted
+  ignore(submitted)
+  BuildSubmitted(side, sequence_value)
 }

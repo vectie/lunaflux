@@ -32,6 +32,7 @@ pub(all) enum SchedulerIssue {
   InvalidTransition
   Unsupported
   NoRunnableWork
+  OutOfOrder
 } derive(Debug, Eq)
 
 ///|

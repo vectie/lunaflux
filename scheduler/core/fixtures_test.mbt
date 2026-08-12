@@ -248,3 +248,8 @@ fn tight_scheduler() -> Scheduler {
     recipe,
   )
 }
+
+///|
+fn next_plan(owner : Scheduler) -> @worker_protocol.SubmittedSchedulePlan {
+  try! owner.submitted_plan(try! owner.build_next())
+}

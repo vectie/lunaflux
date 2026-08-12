@@ -35,6 +35,40 @@ const MAX_GENERATION : UInt64 = 0xffffffffffffffffUL
 const NO_INDEX : Int = -1
 
 ///|
+/// Allocation-free result of one scheduling attempt. Submitted identities are
+/// opaque and must be resolved through the scheduler that produced them.
+#valtype
+pub enum BuildNextOutcome {
+  BuildIdle
+  BuildBackpressured
+  BuildSubmitted(Int, UInt64)
+}
+
+///|
+pub fn BuildNextOutcome::is_idle(self : BuildNextOutcome) -> Bool {
+  match self {
+    BuildIdle => true
+    _ => false
+  }
+}
+
+///|
+pub fn BuildNextOutcome::is_backpressured(self : BuildNextOutcome) -> Bool {
+  match self {
+    BuildBackpressured => true
+    _ => false
+  }
+}
+
+///|
+pub fn BuildNextOutcome::is_submitted(self : BuildNextOutcome) -> Bool {
+  match self {
+    BuildSubmitted(_, _) => true
+    _ => false
+  }
+}
+
+///|
 /// Opaque identity of a scheduler-owned request slot.
 #valtype
 pub struct SchedulerSlotId(Int, Int) derive(Debug, Eq, Hash)
@@ -66,6 +100,8 @@ pub(all) enum SchedulerRequestState {
 pub(all) enum TerminalReason {
   CancelledByCaller
   DeadlineReached
+  StopTokenReached
+  MaximumOutputReached
   WorkerFailed
 } derive(Debug, Eq)
 
@@ -95,6 +131,41 @@ pub fn TerminalNotice::request_generation(
 ///|
 pub fn TerminalNotice::reason(self : TerminalNotice) -> TerminalReason {
   self.2
+}
+
+///|
+/// Slot-free publication of one generated token. The request identity remains
+/// valid after terminal resource release and scheduler-slot reuse.
+#valtype
+pub struct GeneratedTokenNotice(
+  @inference.RequestId,
+  @inference.RequestGeneration,
+  Int,
+  Int
+) derive(Eq)
+
+///|
+pub fn GeneratedTokenNotice::request_id(
+  self : GeneratedTokenNotice,
+) -> @inference.RequestId {
+  self.0
+}
+
+///|
+pub fn GeneratedTokenNotice::request_generation(
+  self : GeneratedTokenNotice,
+) -> @inference.RequestGeneration {
+  self.1
+}
+
+///|
+pub fn GeneratedTokenNotice::token_id(self : GeneratedTokenNotice) -> Int {
+  self.2
+}
+
+///|
+pub fn GeneratedTokenNotice::position(self : GeneratedTokenNotice) -> Int {
+  self.3
 }
 
 ///|
@@ -182,9 +253,12 @@ pub struct Scheduler {
   priv completion_slots : FixedArray[@worker_protocol.CompletionSlot]
   priv plan_a : @worker_protocol.SchedulePlanBuffer
   priv plan_b : @worker_protocol.SchedulePlanBuffer
+  priv completion_a : @worker_protocol.CompletionBuffer
+  priv completion_b : @worker_protocol.CompletionBuffer
   priv request_tables : @block_table.BlockTableIdStorage
   priv journal_tables : @block_table.BlockTableIdStorage
   priv page_run : @page_allocator.PageRunBuffer
+  priv release_pages : @block_table.BlockTablePageBuffer
   priv slot_states : FixedArray[Int]
   priv slot_generations : FixedArray[Int]
   priv requests : FixedArray[TokenizedRequest?]
@@ -209,6 +283,10 @@ pub struct Scheduler {
   priv terminal_request_ids : FixedArray[@inference.RequestId]
   priv terminal_generations : FixedArray[@inference.RequestGeneration]
   priv terminal_reasons : FixedArray[TerminalReason]
+  priv output_request_ids : FixedArray[@inference.RequestId]
+  priv output_generations : FixedArray[@inference.RequestGeneration]
+  priv output_token_ids : FixedArray[Int]
+  priv output_positions : FixedArray[Int]
   priv mut free_head : Int
   priv mut free_tail : Int
   priv mut waiting_head : Int
@@ -220,9 +298,13 @@ pub struct Scheduler {
   priv mut terminal_head : Int
   priv mut terminal_tail : Int
   priv mut terminal_count : Int
+  priv mut output_head : Int
+  priv mut output_tail : Int
+  priv mut output_count : Int
   priv mut generation_cursor : UInt64
   priv mut step : UInt64
   priv mut last_plan_sequence : UInt64
+  priv mut last_retired_plan_sequence : UInt64
   priv mut plan_a_sequence : UInt64
   priv mut plan_b_sequence : UInt64
   priv mut prefill_count : Int

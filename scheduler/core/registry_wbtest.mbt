@@ -124,6 +124,11 @@ fn wb_owner_with_capacity(
 }
 
 ///|
+fn wb_next_plan(owner : Scheduler) -> @worker_protocol.SubmittedSchedulePlan {
+  try! owner.submitted_plan(try! owner.build_next())
+}
+
+///|
 test "generation exhaustion rejects admission before consuming a slot" {
   let owner = wb_owner()
   owner.generation_cursor = MAX_GENERATION
@@ -185,27 +190,19 @@ test "distinct plan owners permit two different in-flight requests" {
   let owner = wb_owner_with_capacity(3, 3)
   let first = owner.admit(wb_request(11UL), 0UL)
   let second = owner.admit(wb_request(12UL), 0UL)
-  let plan_a = owner.build_next()
+  let plan_a = wb_next_plan(owner)
   assert_eq(try! plan_a.row_count(), 1)
   assert_eq(try! plan_a.prefill_row(0).request_id(), first.request_id())
-  let plan_b = owner.build_next()
+  let plan_b = wb_next_plan(owner)
   assert_eq(try! plan_b.row_count(), 1)
   assert_eq(try! plan_b.prefill_row(0).request_id(), second.request_id())
-  try owner.build_next() catch {
-    error => assert_eq(error, Invalid(field=Plan, issue=Backpressured))
-  } noraise {
-    _ => fail("expected two-owner backpressure")
-  }
+  assert_true(try! owner.build_next().is_backpressured())
   assert_eq(owner.plan_a_sequence, 1UL)
   assert_eq(owner.plan_b_sequence, 2UL)
   assert_eq(owner.plan_a_slots[0], first.slot().index())
   assert_eq(owner.plan_b_slots[0], second.slot().index())
   ignore(owner.admit(wb_request(13UL), 0UL))
-  try owner.build_next() catch {
-    error => assert_eq(error, Invalid(field=Plan, issue=Backpressured))
-  } noraise {
-    _ => fail("expected occupied A/B owner backpressure")
-  }
+  assert_true(try! owner.build_next().is_backpressured())
 }
 
 ///|
@@ -230,7 +227,7 @@ test "checkpoint cleanup restores exact identities before a real build" {
   assert_eq(owner.status(handle.request_id()).unwrap().state(), Waiting)
   assert_eq(owner.free_page_count(), 8)
   assert_eq(owner.allocated_block_table_count(), 0)
-  let plan = owner.build_next()
+  let plan = wb_next_plan(owner)
   assert_eq(try! plan.page_at(0), provisional_page)
   assert_eq(try! owner.request_tables.read(slot), table)
 }
@@ -262,7 +259,7 @@ test "decode is reserved first while protocol serializes prefill first" {
   let decoding = owner.admit(wb_request(21UL), 0UL)
   make_decode_active(owner, decoding, 1, 7)
   let waiting = owner.admit(wb_request(22UL), 0UL)
-  let plan = owner.build_next()
+  let plan = wb_next_plan(owner)
   assert_eq(try! plan.token_budget(), 2)
   assert_eq(try! plan.prefill_count(), 1)
   assert_eq(try! plan.decode_count(), 1)
@@ -293,7 +290,7 @@ test "multirow second-row failure restores every provisional identity" {
   assert_false(owner.status(first.request_id()).unwrap().in_flight())
   assert_false(owner.status(second.request_id()).unwrap().in_flight())
   owner.decode_tokens[second.slot().index()] = 8
-  let plan = owner.build_next()
+  let plan = wb_next_plan(owner)
   assert_eq(try! plan.decode_count(), 2)
   let first_appended = try! plan.page_at(1)
   let second_appended = try! plan.page_at(3)
@@ -327,7 +324,7 @@ test "post-allocation row failure restores exact page and table ownership" {
   assert_eq(owner.plan_a_sequence, 0UL)
   assert_eq(owner.journal_count, 0)
   owner.decode_tokens[decoding.slot().index()] = 7
-  let plan = owner.build_next()
+  let plan = wb_next_plan(owner)
   assert_eq(try! plan.page_count(), 2)
   let restored = try! plan.page_at(1)
   assert_eq(restored.index(), 1)

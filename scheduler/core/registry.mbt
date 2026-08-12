@@ -83,6 +83,7 @@ fn Scheduler::recycle_slot(self : Scheduler, index : Int) -> Unit {
   self.processed_inputs[index] = 0
   self.output_counts[index] = 0
   self.in_flight[index] = false
+  self.decode_tokens[index] = 0
   self.waiting_next[index] = NO_INDEX
   self.live_count -= 1
   if self.slot_generations[index] == MAX_SLOT_GENERATION {
@@ -212,6 +213,20 @@ pub fn Scheduler::new(
   } noraise {
     owner => owner
   }
+  let completion_a = try
+    @worker_protocol.CompletionBuffer::new(worker_limits)
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    owner => owner
+  }
+  let completion_b = try
+    @worker_protocol.CompletionBuffer::new(worker_limits)
+  catch {
+    error => raise WorkerProtocol(error)
+  } noraise {
+    owner => owner
+  }
   let first_completion = try
     @worker_protocol.CompletionSlot::new(0, worker_limits)
   catch {
@@ -246,6 +261,15 @@ pub fn Scheduler::new(
   } noraise {
     buffer => buffer
   }
+  let release_pages = try
+    @block_table.BlockTablePageBuffer::new(
+      capacity.block_table_pages_per_request(),
+    )
+  catch {
+    error => raise BlockTable(error)
+  } noraise {
+    buffer => buffer
+  }
   {
     capacity,
     model_identity,
@@ -258,9 +282,12 @@ pub fn Scheduler::new(
     completion_slots,
     plan_a,
     plan_b,
+    completion_a,
+    completion_b,
     request_tables,
     journal_tables,
     page_run,
+    release_pages,
     slot_states: FixedArray::make(slots, SLOT_FREE),
     slot_generations: FixedArray::make(slots, 0),
     requests: FixedArray::make(slots, None),
@@ -291,6 +318,16 @@ pub fn Scheduler::new(
       @inference.RequestGeneration::initial(),
     ),
     terminal_reasons: FixedArray::make(slots, CancelledByCaller),
+    output_request_ids: FixedArray::make(
+      capacity.output_event_capacity(),
+      placeholder_id,
+    ),
+    output_generations: FixedArray::make(
+      capacity.output_event_capacity(),
+      @inference.RequestGeneration::initial(),
+    ),
+    output_token_ids: FixedArray::make(capacity.output_event_capacity(), 0),
+    output_positions: FixedArray::make(capacity.output_event_capacity(), 0),
     free_head: 0,
     free_tail: slots - 1,
     waiting_head: NO_INDEX,
@@ -302,9 +339,13 @@ pub fn Scheduler::new(
     terminal_head: 0,
     terminal_tail: 0,
     terminal_count: 0,
+    output_head: 0,
+    output_tail: 0,
+    output_count: 0,
     generation_cursor: 0UL,
     step: 0UL,
     last_plan_sequence: 0UL,
+    last_retired_plan_sequence: 0UL,
     plan_a_sequence: 0UL,
     plan_b_sequence: 0UL,
     prefill_count: 0,

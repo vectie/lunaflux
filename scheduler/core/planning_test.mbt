@@ -3,7 +3,7 @@ test "build_next activates FIFO requests and serializes final prefills" {
   let owner = scheduler()
   let first = owner.admit(request(41UL), 0UL)
   let second = owner.admit(request(42UL), 0UL)
-  let plan = owner.build_next()
+  let plan = next_plan(owner)
   assert_eq(try! plan.sequence_wire(), 1UL)
   assert_eq(try! plan.token_budget(), 4)
   assert_eq(try! plan.prefill_count(), 2)
@@ -30,19 +30,15 @@ test "build_next reports typed no-work after all requests are in flight" {
   let owner = scheduler()
   ignore(owner.admit(request(51UL), 0UL))
   ignore(owner.admit(request(52UL), 0UL))
-  ignore(owner.build_next())
-  try owner.build_next() catch {
-    error => assert_eq(error, Invalid(field=Plan, issue=NoRunnableWork))
-  } noraise {
-    _ => fail("expected no schedulable work")
-  }
+  ignore(next_plan(owner))
+  assert_true(try! owner.build_next().is_idle())
 }
 
 ///|
 test "chunked prefill stays intermediate and preserves decode reserve" {
   let owner = scheduler()
   ignore(owner.admit(request_with_tokens(61UL, [1, 2, 3, 4, 5], 1, 6), 0UL))
-  let plan = owner.build_next()
+  let plan = next_plan(owner)
   assert_eq(try! plan.token_budget(), 2)
   assert_eq(try! plan.prefill_count(), 1)
   let row = try! plan.prefill_row(0)
@@ -56,7 +52,7 @@ test "chunked prefill stays intermediate and preserves decode reserve" {
 test "prefill may consume exactly to the emergency reserve boundary" {
   let owner = tight_scheduler()
   ignore(owner.admit(request(62UL), 0UL))
-  let plan = owner.build_next()
+  let plan = next_plan(owner)
   assert_eq(try! plan.prefill_count(), 1)
   assert_eq(owner.free_page_count(), 2)
 }
@@ -93,7 +89,7 @@ test "intermediate and final prefills use their exact capability recipes" {
   )
   ignore(owner.admit(request_with_tokens(71UL, [1, 2, 3, 4, 5], 1, 6), 0UL))
   ignore(owner.admit(request(72UL), 0UL))
-  let plan = owner.build_next()
+  let plan = next_plan(owner)
   assert_false(try! plan.prefill_row(0).produces_token())
   assert_true(try! plan.prefill_row(1).produces_token())
   assert_eq(
