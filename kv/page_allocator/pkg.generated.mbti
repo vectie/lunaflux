@@ -10,11 +10,16 @@ import {
 // Errors
 pub(all) suberror PageAllocatorError {
   InvalidLimit(PageAllocatorLimitRule)
+  IdentityOverflow(PageAllocatorIdentity)
   InvalidRunLength
   RunBufferTooSmall
   RunIndexOutOfBounds
   StorageIndexOutOfBounds
   StorageCellEmpty
+  AllocationCheckpointAlreadyOpen
+  AllocationCheckpointReferenceMutationRejected
+  PageAllocationCheckpointMismatch
+  StalePageAllocationCheckpointEpoch
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)
@@ -24,6 +29,8 @@ pub(all) suberror PageAllocatorError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct PageAllocationCheckpoint(PageAllocator, UInt64)
+
 pub struct PageAllocator {
   // private fields
 }
@@ -32,6 +39,8 @@ pub fn PageAllocator::allocate_one(Self) -> PageId raise PageAllocatorError
 pub fn PageAllocator::allocate_run(Self, Int, PageRunBuffer) -> Unit raise PageAllocatorError
 pub fn PageAllocator::allocated_page_count(Self) -> Int
 pub fn PageAllocator::cached_reference_count(Self, PageId) -> Int raise PageAllocatorError
+pub fn PageAllocator::checkpoint(Self) -> PageAllocationCheckpoint raise PageAllocatorError
+pub fn PageAllocator::commit_checkpoint(Self, PageAllocationCheckpoint) -> Unit raise PageAllocatorError
 pub fn PageAllocator::debug_check_invariants(Self) -> Unit raise PageAllocatorError
 pub fn PageAllocator::debug_snapshot(Self) -> PageAllocatorSnapshot
 pub fn PageAllocator::free_page_count(Self) -> Int
@@ -42,6 +51,12 @@ pub fn PageAllocator::release_cached(Self, PageId) -> Unit raise PageAllocatorEr
 pub fn PageAllocator::retain_active(Self, PageId) -> Unit raise PageAllocatorError
 pub fn PageAllocator::retain_cached(Self, PageId) -> Unit raise PageAllocatorError
 pub fn PageAllocator::retired_page_count(Self) -> Int
+pub fn PageAllocator::rollback_to(Self, PageAllocationCheckpoint) -> Unit raise PageAllocatorError
+
+pub(all) enum PageAllocatorIdentity {
+  AllocationCheckpointEpochIdentity
+  PageGenerationIdentity
+} derive(Eq, @debug.Debug)
 
 pub(all) enum PageAllocatorInvariantRule {
   CountPartition

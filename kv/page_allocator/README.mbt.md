@@ -29,6 +29,18 @@ optional values or exposing an invalid sentinel. It stores identities inline
 behind an occupancy bitmap. The container does not acquire or release physical
 page references; its caller remains responsible for allocator ownership.
 
+`PageAllocationCheckpoint` gives the scheduler one exclusive, authenticated
+transaction for provisional page allocation. The allocator journals popped
+FIFO indices and prior generations in page-capacity fixed storage allocated by
+`new`. Rollback restores the exact FIFO order, endpoints, counters, identity
+generations, residency, and reference counts; commit keeps the allocations.
+While a checkpoint is open all reference-count mutations are rejected, so the
+scheduler must not publish or retain provisional identities before commit. A
+caller that copied provisional identities into a block table or another
+external journal must detach or clear those copies before allocator rollback.
+Release native-object inspection shows no allocation call in the successful
+checkpoint, commit, or rollback closure; failure branches may allocate errors.
+
 Source and native-object inspection show no collection growth and no allocation
 call on the successful native allocation/run/reference paths. Failure paths may
 allocate a checked error value. The stronger release claim of zero general-heap

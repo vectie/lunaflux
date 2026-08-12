@@ -17,6 +17,13 @@ pub(all) enum PageReferenceKind {
 } derive(Debug, Eq)
 
 ///|
+/// Monotonic identities used by allocator-owned transactions.
+pub(all) enum PageAllocatorIdentity {
+  AllocationCheckpointEpochIdentity
+  PageGenerationIdentity
+} derive(Debug, Eq)
+
+///|
 /// Internal property checked only by the explicit diagnostic API.
 pub(all) enum PageAllocatorInvariantRule {
   CountPartition
@@ -37,11 +44,16 @@ pub(all) enum PageAllocatorInvariantRule {
 /// contain request data, device addresses, paths, or mutable metadata.
 pub(all) suberror PageAllocatorError {
   InvalidLimit(PageAllocatorLimitRule)
+  IdentityOverflow(PageAllocatorIdentity)
   InvalidRunLength
   RunBufferTooSmall
   RunIndexOutOfBounds
   StorageIndexOutOfBounds
   StorageCellEmpty
+  AllocationCheckpointAlreadyOpen
+  AllocationCheckpointReferenceMutationRejected
+  PageAllocationCheckpointMismatch
+  StalePageAllocationCheckpointEpoch
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)

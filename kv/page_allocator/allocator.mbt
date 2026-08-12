@@ -33,6 +33,17 @@ pub fn PageAllocator::new(limits : PageAllocatorLimits) -> PageAllocator {
     free_pages: capacity,
     allocated_pages: 0,
     retired_pages: 0,
+    allocation_journal: FixedArray::make(capacity, -1),
+    allocation_journal_generations: FixedArray::make(capacity, 0),
+    allocation_journal_next: FixedArray::make(capacity, -1),
+    allocation_journal_length: 0,
+    allocation_checkpoint_open: false,
+    allocation_checkpoint_epoch: 0UL,
+    checkpoint_free_head: -1,
+    checkpoint_free_tail: -1,
+    checkpoint_free_pages: 0,
+    checkpoint_allocated_pages: 0,
+    checkpoint_retired_pages: 0,
   }
 }
 
@@ -60,6 +71,13 @@ pub fn PageAllocator::retired_page_count(self : PageAllocator) -> Int {
 fn PageAllocator::pop_free(self : PageAllocator) -> PageId {
   let index = self.free_head
   let next = self.free_next[index]
+  if self.allocation_checkpoint_open {
+    let journal_index = self.allocation_journal_length
+    self.allocation_journal[journal_index] = index
+    self.allocation_journal_generations[journal_index] = self.generations[index]
+    self.allocation_journal_next[journal_index] = next
+    self.allocation_journal_length = journal_index + 1
+  }
   self.free_head = next
   if next == -1 {
     self.free_tail = -1
@@ -75,6 +93,32 @@ fn PageAllocator::pop_free(self : PageAllocator) -> PageId {
 }
 
 ///|
+fn PageAllocator::preflight_allocate(
+  self : PageAllocator,
+  count : Int,
+) -> Unit raise PageAllocatorError {
+  if self.allocation_checkpoint_open &&
+    self.allocation_journal_length + count > self.allocation_journal.length() {
+    raise InvariantViolation(CountPartition)
+  }
+  let mut cursor = self.free_head
+  for _ in 0..<count {
+    if cursor < 0 || cursor >= self.page_capacity {
+      raise InvariantViolation(QueueEndpoint)
+    }
+    if self.residency[cursor] != PAGE_FREE ||
+      self.active_references[cursor] != 0 ||
+      self.cached_references[cursor] != 0 {
+      raise InvariantViolation(QueueMembership)
+    }
+    if self.generations[cursor] >= self.max_generation {
+      raise IdentityOverflow(PageGenerationIdentity)
+    }
+    cursor = self.free_next[cursor]
+  }
+}
+
+///|
 /// Allocates the oldest free page with one active-request reference.
 pub fn PageAllocator::allocate_one(
   self : PageAllocator,
@@ -82,6 +126,7 @@ pub fn PageAllocator::allocate_one(
   if self.free_pages == 0 {
     raise Exhausted
   }
+  self.preflight_allocate(1)
   self.pop_free()
 }
 
@@ -104,10 +149,20 @@ pub fn PageAllocator::allocate_run(
   if self.free_pages < count {
     raise Exhausted
   }
+  self.preflight_allocate(count)
   for offset in 0..<count {
     output.pages[offset] = self.pop_free()
   }
   output.length = count
+}
+
+///|
+fn PageAllocator::require_reference_mutation_allowed(
+  self : PageAllocator,
+) -> Unit raise PageAllocatorError {
+  if self.allocation_checkpoint_open {
+    raise AllocationCheckpointReferenceMutationRejected
+  }
 }
 
 ///|
@@ -161,6 +216,7 @@ pub fn PageAllocator::retain_active(
   self : PageAllocator,
   page : PageId,
 ) -> Unit raise PageAllocatorError {
+  self.require_reference_mutation_allowed()
   let index = self.checked_index(page)
   if self.active_references[index] == self.max_active_references_per_page {
     raise ReferenceOverflow(page, Active)
@@ -174,6 +230,7 @@ pub fn PageAllocator::release_active(
   self : PageAllocator,
   page : PageId,
 ) -> Unit raise PageAllocatorError {
+  self.require_reference_mutation_allowed()
   let index = self.checked_index(page)
   if self.active_references[index] == 0 {
     raise ReferenceUnderflow(page, Active)
@@ -191,6 +248,7 @@ pub fn PageAllocator::retain_cached(
   self : PageAllocator,
   page : PageId,
 ) -> Unit raise PageAllocatorError {
+  self.require_reference_mutation_allowed()
   let index = self.checked_index(page)
   if self.cached_references[index] == self.max_cached_references_per_page {
     raise ReferenceOverflow(page, Cached)
@@ -204,6 +262,7 @@ pub fn PageAllocator::release_cached(
   self : PageAllocator,
   page : PageId,
 ) -> Unit raise PageAllocatorError {
+  self.require_reference_mutation_allowed()
   let index = self.checked_index(page)
   if self.cached_references[index] == 0 {
     raise ReferenceUnderflow(page, Cached)

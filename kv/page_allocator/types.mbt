@@ -41,6 +41,14 @@ pub struct PageIdStorage {
 }
 
 ///|
+/// Authenticated, single-use boundary for provisional page allocations.
+///
+/// The handle is valid only for its owning allocator and current checkpoint
+/// epoch. It contains no mutable metadata aliases.
+#valtype
+pub struct PageAllocationCheckpoint(PageAllocator, UInt64)
+
+///|
 /// Diagnostic residency of one physical page slot.
 pub(all) enum PageResidency {
   Free
@@ -89,6 +97,17 @@ pub struct PageAllocator {
   priv mut free_pages : Int
   priv mut allocated_pages : Int
   priv mut retired_pages : Int
+  priv allocation_journal : FixedArray[Int]
+  priv allocation_journal_generations : FixedArray[Int]
+  priv allocation_journal_next : FixedArray[Int]
+  priv mut allocation_journal_length : Int
+  priv mut allocation_checkpoint_open : Bool
+  priv mut allocation_checkpoint_epoch : UInt64
+  priv mut checkpoint_free_head : Int
+  priv mut checkpoint_free_tail : Int
+  priv mut checkpoint_free_pages : Int
+  priv mut checkpoint_allocated_pages : Int
+  priv mut checkpoint_retired_pages : Int
 }
 
 ///|
