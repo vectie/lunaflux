@@ -168,6 +168,12 @@ pub fn SchedulePlanBuffer::new(
     decode_count: 0,
     draft_open: false,
     draft_epoch: 0UL,
+    checkpoint_epoch: 0UL,
+    checkpoint_token_count: 0,
+    checkpoint_page_count: 0,
+    checkpoint_capability_count: 0,
+    checkpoint_prefill_count: 0,
+    checkpoint_decode_count: 0,
     draft_kind: Prefill,
     draft_request_id: request_id,
     draft_request_generation: request_generation,
@@ -385,6 +391,11 @@ pub fn SchedulePlanBuffer::reset(
   self.prefill_count = 0
   self.decode_count = 0
   self.draft_open = false
+  self.checkpoint_token_count = 0
+  self.checkpoint_page_count = 0
+  self.checkpoint_capability_count = 0
+  self.checkpoint_prefill_count = 0
+  self.checkpoint_decode_count = 0
   self.epoch = self.epoch + 1UL
   self.state = Writable
 }

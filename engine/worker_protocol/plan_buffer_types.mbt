@@ -27,6 +27,12 @@ pub struct SchedulePlanBuffer {
   priv mut decode_count : Int
   priv mut draft_open : Bool
   priv mut draft_epoch : UInt64
+  priv mut checkpoint_epoch : UInt64
+  priv mut checkpoint_token_count : Int
+  priv mut checkpoint_page_count : Int
+  priv mut checkpoint_capability_count : Int
+  priv mut checkpoint_prefill_count : Int
+  priv mut checkpoint_decode_count : Int
   priv mut draft_kind : WorkerRowKind
   priv mut draft_request_id : @inference.RequestId
   priv mut draft_request_generation : @inference.RequestGeneration
@@ -92,3 +98,10 @@ pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int)
 /// rollback clears the reserved logical suffix.
 #valtype
 pub struct PlanRowDraft(SchedulePlanBuffer, UInt64, UInt64)
+
+///|
+/// Authenticated logical snapshot for an in-progress multirow plan build.
+/// Only the owning scheduler can restore it while the same plan-buffer epoch
+/// remains writable. The handle exposes no payload or model vocabulary.
+#valtype
+pub struct PlanBuildCheckpoint(SchedulePlanBuffer, UInt64, UInt64)

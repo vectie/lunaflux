@@ -35,15 +35,36 @@ The mutable owner is single-writer and thread-confined. Append copies each
 caller `ArrayView` synchronously; callers must not mutate a source concurrently
 during that call. Tables and row columns never grow after construction, and
 canonical `PageIdStorage` avoids optional boxed page cells. Native object-code
-inspection covers successful append, submit, handle-return, accessor, retire,
-and reset paths; the Phase 3 runtime allocation-instrumentation gate is still
-required before promoting the whole scheduling path.
+inspection covers successful append, indexed recipe application, submit,
+handle-return, accessor, retire, and reset paths. The Phase 3 runtime
+allocation-instrumentation gate is still required before promoting the whole
+scheduling path.
 
 Schedulers may instead build a row through an authenticated `PlanRowDraft`:
 begin, push scalar token/page/capability cells from existing immutable storage,
 then commit the exact suffix or roll it back. Until commit, no row descriptor
 is visible. This closes the temporary-array bridge for token buffers and block
 tables without importing either implementation package.
+
+`RowCapabilityRecipe` is the startup-owned bridge from a model plan to those
+drafts. It is pinned to an exact model identity and loaded-plan generation,
+defensively owns one nonempty, bounded capability list, and preserves its exact
+order, including repeated semantic operation IDs. Scheduler policy can receive
+separate prefill and decode recipes without importing model-plan types or
+inventing model-family branches. `required_cells` checks the flattened table
+capacity for a bounded row count. `PlanRowDraft::push_recipe` proves the whole
+remaining capability capacity before copying directly into the preallocated
+draft, so a failed application writes no partial suffix and a successful
+steady-state application allocates nothing. Recipe construction is the only
+allocating step.
+
+A `PlanBuildCheckpoint` provides latest-checkpoint-only transactionality across
+several committed rows. It is bound to one writable owner and plan epoch,
+stores only scalar logical ends, and rejects open row drafts. Rollback clears
+the discarded page-table suffix and restores token, page, capability, prefill,
+and decode counts without allocation. It does not release physical KV pages or
+mutate request block tables; the scheduler must roll back those owners in its
+same failure path.
 
 Worker completions have a matching fixed-capacity `CompletionBuffer`.
 Successful intermediate-prefill, final-prefill, decode, and failure appends

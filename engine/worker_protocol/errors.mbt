@@ -19,6 +19,7 @@ pub(all) enum ProtocolIdentity {
   ModelPlanGenerationIdentity
   PlanBufferEpochIdentity
   PlanRowDraftEpochIdentity
+  PlanBuildCheckpointEpochIdentity
   CompletionBufferEpochIdentity
 } derive(Debug, Eq)
 
@@ -56,6 +57,13 @@ pub(all) enum WorkerRowKind {
 } derive(Debug, Eq)
 
 ///|
+/// Startup recipe validation rules. These categories contain no model or
+/// backend data.
+pub(all) enum CapabilityRecipeRule {
+  EmptyCapabilityRecipe
+} derive(Debug, Eq)
+
+///|
 /// Exact row validation rules. These names contain no prompt, path, device,
 /// model-family, or backend data.
 pub(all) enum RowRule {
@@ -80,6 +88,7 @@ pub(all) suberror WorkerProtocolError {
   BoundExceeded(ProtocolLimit)
   TokenBudgetMismatch
   InvalidToken(index~ : Int)
+  InvalidCapabilityRecipe(CapabilityRecipeRule)
   InvalidCompletionSlot
   InvalidCompletionToken(slot~ : Int)
   InvalidView(table~ : ProtocolTable, rule~ : RowRule)
@@ -102,6 +111,8 @@ pub(all) suberror WorkerProtocolError {
   PlanRowDraftNotOpen
   PlanRowDraftMismatch
   StalePlanRowDraftEpoch
+  PlanBuildCheckpointMismatch
+  StalePlanBuildCheckpointEpoch
   InvalidCompletionBufferState(
     expected~ : CompletionBufferState,
     actual~ : CompletionBufferState

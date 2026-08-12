@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
 }
 
 // Values
@@ -19,6 +20,7 @@ pub(all) suberror WorkerProtocolError {
   BoundExceeded(ProtocolLimit)
   TokenBudgetMismatch
   InvalidToken(index~ : Int)
+  InvalidCapabilityRecipe(CapabilityRecipeRule)
   InvalidCompletionSlot
   InvalidCompletionToken(slot~ : Int)
   InvalidView(table~ : ProtocolTable, rule~ : RowRule)
@@ -41,12 +43,18 @@ pub(all) suberror WorkerProtocolError {
   PlanRowDraftNotOpen
   PlanRowDraftMismatch
   StalePlanRowDraftEpoch
+  PlanBuildCheckpointMismatch
+  StalePlanBuildCheckpointEpoch
   InvalidCompletionBufferState(expected~ : CompletionBufferState, actual~ : CompletionBufferState)
   CompletionBufferMismatch
   StaleCompletionBufferEpoch
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum CapabilityRecipeRule {
+  EmptyCapabilityRecipe
+} derive(Eq, @debug.Debug)
+
 pub struct CapabilityView(Int, Int) derive(Eq, @debug.Debug)
 pub fn CapabilityView::end(Self) -> Int
 pub fn CapabilityView::length(Self) -> Int
@@ -163,10 +171,13 @@ pub(all) enum PlanBufferState {
   Retired
 } derive(Eq, @debug.Debug)
 
+pub struct PlanBuildCheckpoint(SchedulePlanBuffer, UInt64, UInt64)
+
 pub struct PlanRowDraft(SchedulePlanBuffer, UInt64, UInt64)
 pub fn PlanRowDraft::commit(Self) -> Unit raise WorkerProtocolError
 pub fn PlanRowDraft::push_capability(Self, @plan.KernelCapabilityId) -> Unit raise WorkerProtocolError
 pub fn PlanRowDraft::push_page(Self, @page_allocator.PageId) -> Unit raise WorkerProtocolError
+pub fn PlanRowDraft::push_recipe(Self, RowCapabilityRecipe) -> Unit raise WorkerProtocolError
 pub fn PlanRowDraft::push_token(Self, Int) -> Unit raise WorkerProtocolError
 pub fn PlanRowDraft::rollback(Self) -> Unit raise WorkerProtocolError
 
@@ -208,6 +219,7 @@ pub(all) enum ProtocolIdentity {
   ModelPlanGenerationIdentity
   PlanBufferEpochIdentity
   PlanRowDraftEpochIdentity
+  PlanBuildCheckpointEpochIdentity
   CompletionBufferEpochIdentity
 } derive(Eq, @debug.Debug)
 
@@ -230,6 +242,15 @@ pub(all) enum ProtocolTable {
 } derive(Eq, @debug.Debug)
 
 pub struct RetiredSchedulePlan(SchedulePlanBuffer, UInt64)
+
+pub struct RowCapabilityRecipe {
+  // private fields
+} derive(Eq)
+pub fn RowCapabilityRecipe::identity(Self) -> @spec.ModelIdentity
+pub fn RowCapabilityRecipe::length(Self) -> Int
+pub fn RowCapabilityRecipe::model_plan_generation(Self) -> ModelPlanGeneration
+pub fn RowCapabilityRecipe::new(identity~ : @spec.ModelIdentity, model_plan_generation~ : ModelPlanGeneration, ArrayView[@plan.KernelCapabilityId], WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn RowCapabilityRecipe::required_cells(Self, Int, WorkerProtocolLimits) -> Int raise WorkerProtocolError
 
 pub(all) enum RowRule {
   EmptyRange
@@ -274,12 +295,14 @@ pub fn SchedulePlanBuffer::append_prefill(Self, request_id~ : @inference.Request
 pub fn SchedulePlanBuffer::begin_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
 pub fn SchedulePlanBuffer::begin_final_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
 pub fn SchedulePlanBuffer::begin_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
+pub fn SchedulePlanBuffer::checkpoint(Self) -> PlanBuildCheckpoint raise WorkerProtocolError
 pub fn SchedulePlanBuffer::commit_draft(Self, PlanRowDraft) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::epoch(Self) -> UInt64
 pub fn SchedulePlanBuffer::new(WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn SchedulePlanBuffer::reset(Self, RetiredSchedulePlan) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::retire(Self, SubmittedSchedulePlan) -> RetiredSchedulePlan raise WorkerProtocolError
 pub fn SchedulePlanBuffer::rollback_draft(Self, PlanRowDraft) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::rollback_to(Self, PlanBuildCheckpoint) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::state(Self) -> PlanBufferState
 pub fn SchedulePlanBuffer::submit(Self, sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, token_budget~ : Int, PlanSequence?, ModelPlanGeneration) -> SubmittedSchedulePlan raise WorkerProtocolError
 
