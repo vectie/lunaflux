@@ -43,7 +43,11 @@ if [ -d scheduler ]; then
   fail_matches \
     'scheduler has a forbidden dependency:' \
     --glob 'scheduler/**/moon.pkg' \
-    '^\s*"vectie/lunaflux/(api|device|internal/cuda|model/[^" ]+)(/|"|$)'
+    '^\s*"vectie/lunaflux/(api|device|internal/cuda)(/|"|$)'
+  fail_matches \
+    'scheduler may import only canonical public model identity vocabulary:' \
+    --pcre2 --glob 'scheduler/**/moon.pkg' \
+    '^\s*"vectie/lunaflux/model/(?!spec"(?:,)?$)'
 fi
 
 if [ -d model ]; then
