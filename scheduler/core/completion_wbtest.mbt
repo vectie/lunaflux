@@ -85,3 +85,72 @@ test "non-inflight active cancellation releases KV immediately" {
   assert_eq(owner.allocated_block_table_count(), 0)
   assert_eq(owner.take_terminal_notice().reason(), CancelledByCaller)
 }
+
+///|
+test "deadline after submit retires stale work without publishing" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(531UL, deadline=10UL), 0UL)
+  let plan = wb_next_plan(owner)
+  let completion = wb_final_completion(owner, plan, 11)
+  assert_eq(owner.expire_deadlines(10UL), 1)
+  owner.complete(plan, completion)
+  assert_eq(owner.generated_token_count(), 0)
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.free_page_count(), 8)
+  let terminal = owner.take_terminal_notice()
+  assert_eq(terminal.request_id(), handle.request_id())
+  assert_eq(terminal.reason(), DeadlineReached)
+}
+
+///|
+test "terminal backpressure preserves a maximum-output completion for retry" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(541UL), 0UL)
+  let prefill = wb_next_plan(owner)
+  owner.complete(prefill, wb_final_completion(owner, prefill, 12))
+  let decode = wb_next_plan(owner)
+  let row = try! decode.decode_row(0)
+  let writer = try! owner.completion_writer(decode)
+  try! writer.append_decode_completed(
+    slot=try! row.completion_slot(),
+    request_id=try! row.request_id(),
+    request_generation=try! row.request_generation(),
+    token_id=13,
+  )
+  let completion = try! writer.submit()
+  owner.terminal_count = owner.terminal_request_ids.length()
+  try owner.complete(decode, completion) catch {
+    Invalid(field=TerminalNoticeCapacity, issue=Backpressured) => ()
+    _ => fail("expected terminal backpressure")
+  } noraise {
+    _ => fail("full terminal ring accepted a terminal completion")
+  }
+  let status = owner.status(handle.request_id()).unwrap()
+  assert_true(status.in_flight())
+  assert_eq(status.output_tokens(), 1)
+  assert_eq(owner.generated_token_count(), 1)
+  owner.terminal_count = 0
+  owner.terminal_head = 0
+  owner.terminal_tail = 0
+  owner.complete(decode, completion)
+  assert_eq(owner.generated_token_count(), 2)
+  assert_eq(owner.take_terminal_notice().reason(), MaximumOutputReached)
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.free_page_count(), 8)
+}
+
+///|
+test "A side is reused for sequence three while B remains submitted" {
+  let owner = wb_owner_with_capacity(3, 3)
+  ignore(owner.admit(wb_request(551UL), 0UL))
+  ignore(owner.admit(wb_request(552UL), 0UL))
+  ignore(owner.admit(wb_request(553UL), 0UL))
+  let plan_a = wb_next_plan(owner)
+  let plan_b = wb_next_plan(owner)
+  owner.complete(plan_a, wb_final_completion(owner, plan_a, 14))
+  let plan_three = wb_next_plan(owner)
+  assert_eq(try! plan_three.sequence_wire(), 3UL)
+  assert_eq(owner.plan_a_sequence, 3UL)
+  assert_eq(owner.plan_b_sequence, 2UL)
+  assert_eq(try! plan_b.sequence_wire(), 2UL)
+}
