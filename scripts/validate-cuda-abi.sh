@@ -63,6 +63,33 @@ if ! rg -q \
   failed=1
 fi
 
+if ! rg -q -U \
+  '#borrow\(context, allocation, source\)\nextern "c" fn raw_context_copy_fixed_to_device' \
+  internal/cuda/ffi.mbt; then
+  printf '%s\n' \
+    'fixed host transfer must borrow context, allocation, and source' >&2
+  failed=1
+fi
+
+fixed_transfer_body=$(sed -n \
+  '/^int32_t lunaflux_cuda_context_copy_fixed_to_device(/,/^}/p' \
+  internal/cuda/transfers.c)
+fixed_transfer_helper=$(sed -n \
+  '/^static int32_t lf_copy_to_device_range(/,/^}/p' \
+  internal/cuda/transfers.c)
+if [ -z "$fixed_transfer_body" ] || [ -z "$fixed_transfer_helper" ]; then
+  printf '%s\n' 'fixed host transfer ABI implementation is missing' >&2
+  failed=1
+elif matches=$(printf '%s\n%s\n' \
+  "$fixed_transfer_helper" "$fixed_transfer_body" | rg -n \
+  'moonbit_make|moonbit_incref|moonbit_decref|malloc|calloc|realloc|free' \
+  2>/dev/null); then
+  printf '%s\n%s\n' \
+    'fixed host transfer must not allocate or retain caller storage:' \
+    "$matches" >&2
+  failed=1
+fi
+
 if [ "$failed" -ne 0 ]; then
   exit 1
 fi

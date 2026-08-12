@@ -24,10 +24,15 @@ compute capability cannot be attached silently to another context.
 
 Host transfers are synchronous. This is intentional: MoonBit buffers are
 borrowed only for the duration of an FFI call and cannot safely outlive an
-asynchronous transfer. Phase 1 BF16 GEMM also synchronizes its caller-owned
-stream before returning, so the plan, operands, workspace, and stream cannot be
-closed while device work still references them. Later asynchronous execution
-requires an explicit completion object that owns those lifetimes.
+asynchronous transfer. `Allocation::copy_from_host` preserves the immutable
+`Bytes` loading API. `Context::copy_from_fixed_host` accepts caller-owned
+preallocated `FixedArray[Byte]` staging storage without materializing an
+intermediate buffer; it also proves that the destination allocation belongs to
+that exact context while both native resources are guarded against close. Phase
+1 BF16 GEMM also synchronizes its caller-owned stream before returning, so the
+plan, operands, workspace, and stream cannot be closed while device work still
+references them. Later asynchronous execution requires an explicit completion
+object that owns those lifetimes.
 
 Native resources reject close with `Busy` while an operation is active. Parent
 creation and child retention use the same interlock, preventing concurrent

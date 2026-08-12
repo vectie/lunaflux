@@ -187,6 +187,26 @@ pub fn Allocation::copy_from_host_at(
 }
 
 ///|
+/// Copies a caller-owned fixed host buffer into an allocation owned by this
+/// exact context. The source remains borrowed only until the synchronous
+/// driver call returns.
+pub fn Context::copy_from_fixed_host(
+  self : Context,
+  allocation : Allocation,
+  source : FixedArray[Byte],
+  source_offset : Int64,
+  destination_offset : Int64,
+  byte_count : Int64,
+) -> Unit raise CudaError {
+  check_status(
+    raw_context_copy_fixed_to_device(
+      self, allocation, source, source_offset, destination_offset, byte_count,
+    ),
+    CopyToDevice,
+  )
+}
+
+///|
 pub fn Allocation::copy_to_host(
   self : Allocation,
   byte_count : Int64,

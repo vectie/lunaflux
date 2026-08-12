@@ -136,6 +136,30 @@ pub fn Allocation::copy_from_host(
 }
 
 ///|
+/// Synchronously copies a bounded range from caller-owned reusable storage
+/// into `allocation`. Native validation proves the allocation belongs to this
+/// exact context and holds both resources live for the complete driver call.
+/// The fixed host buffer is neither copied nor retained by the device layer.
+pub fn Context::copy_from_fixed_host(
+  self : Context,
+  allocation : Allocation,
+  source : FixedArray[Byte],
+  source_offset : Int64,
+  destination_offset : Int64,
+  byte_count : Int64,
+) -> Unit raise DeviceError {
+  self.raw.copy_from_fixed_host(
+    allocation.raw,
+    source,
+    source_offset,
+    destination_offset,
+    byte_count,
+  ) catch {
+    error => raise error_from_cuda(error)
+  }
+}
+
+///|
 /// Synchronously copies a bounded device range into a fresh host buffer.
 pub fn Allocation::copy_to_host(
   self : Allocation,

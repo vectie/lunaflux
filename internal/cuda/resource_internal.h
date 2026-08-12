@@ -118,6 +118,18 @@ int32_t lunaflux_cuda_copy_to_device(
   int64_t destination_offset,
   int64_t byte_count
 );
+int32_t lunaflux_cuda_context_copy_fixed_to_device(
+  lf_context *context,
+  lf_allocation *allocation,
+  uint8_t *source,
+  int64_t source_offset,
+  int64_t destination_offset,
+  int64_t byte_count
+);
+int32_t lunaflux_cuda_test_fixed_transfer_boundary(
+  uint8_t *source,
+  int32_t cycles
+);
 moonbit_bytes_t lunaflux_cuda_copy_to_host(
   lf_allocation *allocation,
   int64_t source_offset,
