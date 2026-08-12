@@ -16,6 +16,7 @@ priv struct ValidatedEnvelope {
 ///|
 priv struct PreparedTensor {
   binding : @llama_weights.TensorBinding
+  file_offset_bytes : Int64
   bytes : BytesView
 }
 
@@ -108,6 +109,14 @@ fn checked_slice(
 }
 
 ///|
+fn file_offset_bytes(
+  envelope : ValidatedEnvelope,
+  binding : @llama_weights.TensorBinding,
+) -> Int64 {
+  envelope.payload_start.to_int64() + binding.tensor().data_start()
+}
+
+///|
 fn validate_all_ranges(
   bindings : @llama_weights.LlamaWeightBindings,
   file : BytesView,
@@ -139,7 +148,11 @@ fn prepare(
   let prepared : Array[PreparedTensor] = []
   for index in 0..<bindings.length() {
     let binding = binding_at(bindings, index)
-    prepared.push({ binding, bytes: checked_slice(file, envelope, binding) })
+    prepared.push({
+      binding,
+      file_offset_bytes: file_offset_bytes(envelope, binding),
+      bytes: checked_slice(file, envelope, binding),
+    })
   }
   ReadOnlyArray::from_array(prepared)
 }

@@ -20,8 +20,10 @@ test "visitor receives exact bytes in semantic TensorRef order" {
   let file = test_file(bindings.materialized_bytes().to_int())
   let references : Array[Int] = []
   let first_bytes : Array[Byte] = []
+  let file_offsets : Array[Int64] = []
   let result = @materialize.visit(bindings, file, limits=test_limits(), chunk => {
     references.push(chunk.reference().as_int())
+    file_offsets.push(chunk.file_offset_bytes())
     guard chunk.bytes().get(0) is Some(first) else {
       fail("expected non-empty tensor")
     }
@@ -32,6 +34,9 @@ test "visitor receives exact bytes in semantic TensorRef order" {
   }
   assert_eq(references, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
   assert_eq(first_bytes, [0, 64, 72, 104, 120, 136, 168, 176, 224, 21, 69, 77])
+  assert_eq(file_offsets, [
+    24L, 88L, 96L, 128L, 144L, 160L, 192L, 200L, 248L, 296L, 344L, 352L,
+  ])
   assert_eq(report.length(), 12)
   assert_eq(report.identity(), bindings.identity())
   assert_eq(report.total_bytes(), bindings.materialized_bytes())

@@ -93,11 +93,13 @@ pub fn TensorChecksum::as_hex(Self) -> String
 pub struct TensorChunk {
   reference : @plan.TensorRef
   tensor : @safetensors.TensorMetadata
+  file_offset_bytes : Int64
   bytes : BytesView
   checksum : TensorChecksum
 } derive(Eq, @debug.Debug)
 pub fn TensorChunk::bytes(Self) -> BytesView
 pub fn TensorChunk::checksum(Self) -> TensorChecksum
+pub fn TensorChunk::file_offset_bytes(Self) -> Int64
 pub fn TensorChunk::reference(Self) -> @plan.TensorRef
 pub fn TensorChunk::tensor(Self) -> @safetensors.TensorMetadata
 

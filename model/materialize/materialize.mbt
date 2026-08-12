@@ -31,6 +31,7 @@ pub fn visit(
         let chunk : TensorChunk = {
           reference: binding.reference(),
           tensor: binding.tensor(),
+          file_offset_bytes: prepared_tensor.file_offset_bytes,
           bytes,
           checksum: digest,
         }

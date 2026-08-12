@@ -22,6 +22,7 @@ pub struct TensorChecksum {
 pub struct TensorChunk {
   reference : @plan.TensorRef
   tensor : @safetensors.TensorMetadata
+  file_offset_bytes : Int64
   bytes : BytesView
   checksum : TensorChecksum
 } derive(Debug, Eq)
@@ -123,6 +124,16 @@ pub fn TensorChunk::reference(self : TensorChunk) -> @plan.TensorRef {
 ///|
 pub fn TensorChunk::tensor(self : TensorChunk) -> @safetensors.TensorMetadata {
   self.tensor
+}
+
+///|
+/// Returns the exact byte offset of this tensor in the complete immutable
+/// safetensors file supplied to `visit`.
+///
+/// Device destinations can use this with the original `Bytes` value to issue
+/// one direct host-to-device copy without first owning the tensor view.
+pub fn TensorChunk::file_offset_bytes(self : TensorChunk) -> Int64 {
+  self.file_offset_bytes
 }
 
 ///|
