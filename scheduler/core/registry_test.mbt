@@ -1,0 +1,156 @@
+///|
+test "admission validates identity, duplicates, capacity, and deadline arithmetic" {
+  let owner = scheduler()
+  let first = owner.admit(request(1UL), 10UL)
+  assert_eq(first.request_id().value(), 1UL)
+  assert_eq(first.request_generation().value(), 1UL)
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.waiting_request_count(), 1)
+  assert_eq(
+    owner.status(first.request_id()).unwrap().deadline_at_millis(),
+    110UL,
+  )
+  try owner.admit(request(1UL), 10UL) catch {
+    error => assert_eq(error, Invalid(field=Request, issue=Duplicate))
+  } noraise {
+    _ => fail("expected duplicate rejection")
+  }
+  let other_identity = test_identity(
+    "1111111111111111111111111111111111111111111111111111111111111111",
+  )
+  try owner.admit(request(2UL, identity=other_identity), 10UL) catch {
+    error => assert_eq(error, Invalid(field=ModelIdentity, issue=Mismatch))
+  } noraise {
+    _ => fail("expected model identity rejection")
+  }
+  ignore(owner.admit(request(2UL), 10UL))
+  try owner.admit(request(3UL), 10UL) catch {
+    error => assert_eq(error, Invalid(field=WaitingCapacity, issue=Exhausted))
+  } noraise {
+    _ => fail("expected waiting capacity rejection")
+  }
+  let fresh = scheduler()
+  try fresh.admit(request(4UL, deadline=10UL), 0xfffffffffffffff8UL) catch {
+    error => assert_eq(error, Invalid(field=Deadline, issue=Overflow))
+  } noraise {
+    _ => fail("expected absolute deadline overflow rejection")
+  }
+}
+
+///|
+test "waiting cancellation publishes slot-free notice and never aliases re-admission" {
+  let owner = scheduler()
+  let old = owner.admit(request(7UL), 0UL)
+  owner.cancel(old)
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.waiting_request_count(), 0)
+  assert_eq(owner.terminal_notice_count(), 1)
+  let current = owner.admit(request(7UL), 1UL)
+  assert_true(current.slot() != old.slot())
+  let notice = owner.poll_terminal().unwrap()
+  assert_eq(notice.request_id(), old.request_id())
+  assert_eq(notice.request_generation().value(), 2UL)
+  assert_eq(notice.reason(), CancelledByCaller)
+  assert_true(
+    current.request_generation().value() > notice.request_generation().value(),
+  )
+  try owner.cancel(old) catch {
+    error => assert_eq(error, Invalid(field=Request, issue=Stale))
+  } noraise {
+    _ => fail("expected old handle rejection")
+  }
+  assert_eq(owner.status(current.request_id()).unwrap().handle(), current)
+}
+
+///|
+test "deadline sweep preflights terminal capacity without partial mutation" {
+  let owner = scheduler()
+  for id in 1..<=4 {
+    let handle = owner.admit(request(id.to_uint64()), 0UL)
+    owner.cancel(handle)
+  }
+  let retained = owner.admit(request(20UL, deadline=10UL), 0UL)
+  try owner.expire_deadlines(10UL) catch {
+    error =>
+      assert_eq(error, Invalid(field=OutputCapacity, issue=Backpressured))
+  } noraise {
+    _ => fail("expected transactional deadline backpressure")
+  }
+  let status = owner.status(retained.request_id()).unwrap()
+  assert_eq(status.handle(), retained)
+  assert_eq(status.state(), Waiting)
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.waiting_request_count(), 1)
+}
+
+///|
+test "deadline expiry is deterministic and leaves resource owners balanced" {
+  let owner = scheduler()
+  ignore(owner.admit(request(10UL, deadline=10UL), 5UL))
+  ignore(owner.admit(request(11UL, deadline=20UL), 5UL))
+  assert_eq(owner.expire_deadlines(14UL), 0)
+  assert_eq(owner.expire_deadlines(15UL), 1)
+  let first = owner.poll_terminal().unwrap()
+  assert_eq(first.request_id().value(), 10UL)
+  assert_eq(first.reason(), DeadlineReached)
+  assert_eq(owner.expire_deadlines(25UL), 1)
+  let second = owner.poll_terminal().unwrap()
+  assert_eq(second.request_id().value(), 11UL)
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.free_page_count(), 8)
+  assert_eq(owner.allocated_block_table_count(), 0)
+}
+
+///|
+test "full terminal ring backpressures transactionally" {
+  let owner = scheduler()
+  for id in 1..<=4 {
+    let handle = owner.admit(request(id.to_uint64()), 0UL)
+    owner.cancel(handle)
+  }
+  assert_eq(owner.terminal_notice_count(), 4)
+  let retained = owner.admit(request(9UL), 0UL)
+  try owner.cancel(retained) catch {
+    error =>
+      assert_eq(error, Invalid(field=OutputCapacity, issue=Backpressured))
+  } noraise {
+    _ => fail("expected terminal publication backpressure")
+  }
+  let status = owner.status(retained.request_id()).unwrap()
+  assert_eq(status.state(), Waiting)
+  assert_eq(status.handle(), retained)
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.waiting_request_count(), 1)
+}
+
+///|
+test "tokenized boundary rejects context that cannot hold prompt plus output" {
+  let limits = inference_limits()
+  let input = try! @inference.TokenBuffer::new([1, 2, 3], limits)
+  try
+    TokenizedRequest::new(
+      request_id=try! @inference.RequestId::new(99UL),
+      model_identity=selected_identity(),
+      input_tokens=input,
+      sampling=@inference.SamplingParameters::greedy(),
+      stops=try! @inference.StopConditions::new([], [], limits),
+      cache=@inference.CachePolicy::new(
+        try! @inference.CacheScope::from_ascii(b"scope", limits),
+        Disabled,
+      ),
+      stream_preference=Streaming,
+      effective_limits=try! @inference.EffectiveLimits::new(
+        max_new_tokens=2,
+        context_ceiling=4,
+        limits,
+      ),
+      deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
+        10UL, limits,
+      ),
+    )
+  catch {
+    error => assert_eq(error, Invalid(field=Context, issue=OutOfRange))
+  } noraise {
+    _ => fail("expected tokenized context rejection")
+  }
+}

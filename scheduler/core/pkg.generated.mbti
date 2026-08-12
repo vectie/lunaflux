@@ -1,0 +1,146 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/scheduler/core"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/block_table",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror SchedulerError {
+  Invalid(field~ : SchedulerField, issue~ : SchedulerIssue)
+  PageAllocator(@page_allocator.PageAllocatorError)
+  BlockTable(@block_table.BlockTableError)
+  WorkerProtocol(@worker_protocol.WorkerProtocolError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RequestHandle {
+  slot : SchedulerSlotId
+  request_id : @inference.RequestId
+  request_generation : @inference.RequestGeneration
+} derive(Eq, @debug.Debug)
+pub fn RequestHandle::request_generation(Self) -> @inference.RequestGeneration
+pub fn RequestHandle::request_id(Self) -> @inference.RequestId
+pub fn RequestHandle::slot(Self) -> SchedulerSlotId
+
+pub struct RequestStatus {
+  handle : RequestHandle
+  state : SchedulerRequestState
+  input_tokens : Int
+  processed_input_tokens : Int
+  output_tokens : Int
+  deadline_at_millis : UInt64
+  in_flight : Bool
+} derive(Eq, @debug.Debug)
+pub fn RequestStatus::deadline_at_millis(Self) -> UInt64
+pub fn RequestStatus::handle(Self) -> RequestHandle
+pub fn RequestStatus::in_flight(Self) -> Bool
+pub fn RequestStatus::input_tokens(Self) -> Int
+pub fn RequestStatus::output_tokens(Self) -> Int
+pub fn RequestStatus::processed_input_tokens(Self) -> Int
+pub fn RequestStatus::state(Self) -> SchedulerRequestState
+
+pub struct Scheduler {
+  // private fields
+}
+pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
+pub fn Scheduler::advance_step(Self) -> Unit raise SchedulerError
+pub fn Scheduler::allocated_block_table_count(Self) -> Int
+pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
+pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
+pub fn Scheduler::free_page_count(Self) -> Int
+pub fn Scheduler::live_request_count(Self) -> Int
+pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity) -> Self raise SchedulerError
+pub fn Scheduler::poll_terminal(Self) -> TerminalNotice?
+pub fn Scheduler::retired_slot_count(Self) -> Int
+pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
+pub fn Scheduler::terminal_notice_count(Self) -> Int
+pub fn Scheduler::waiting_request_count(Self) -> Int
+
+pub(all) enum SchedulerField {
+  Request
+  ModelIdentity
+  Deadline
+  Context
+  RequestCapacity
+  WaitingCapacity
+  ActiveCapacity
+  OutputCapacity
+  RequestGeneration
+  RequestState
+  Completion
+  PageCapacity
+  Plan
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SchedulerIssue {
+  Duplicate
+  Mismatch
+  Expired
+  Overflow
+  Exhausted
+  OutOfRange
+  Unknown
+  Stale
+  Backpressured
+  InvalidTransition
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SchedulerRequestState {
+  Waiting
+  Prefill
+  Decode
+  Finishing
+  Cancelled
+  DeadlineExpired
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub struct SchedulerSlotId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn SchedulerSlotId::generation(Self) -> Int
+pub fn SchedulerSlotId::index(Self) -> Int
+
+pub struct TerminalNotice(@inference.RequestId, @inference.RequestGeneration, TerminalReason) derive(Eq, @debug.Debug)
+pub fn TerminalNotice::reason(Self) -> TerminalReason
+pub fn TerminalNotice::request_generation(Self) -> @inference.RequestGeneration
+pub fn TerminalNotice::request_id(Self) -> @inference.RequestId
+
+pub(all) enum TerminalReason {
+  CancelledByCaller
+  DeadlineReached
+  WorkerFailed
+} derive(Eq, @debug.Debug)
+
+pub struct TokenizedRequest {
+  request_id : @inference.RequestId
+  model_identity : @spec.ModelIdentity
+  input_tokens : @inference.TokenBuffer
+  sampling : @inference.SamplingParameters
+  stops : @inference.StopConditions
+  cache : @inference.CachePolicy
+  stream_preference : @inference.StreamPreference
+  effective_limits : @inference.EffectiveLimits
+  deadline_budget : @inference.DeadlineBudget
+}
+pub fn TokenizedRequest::cache(Self) -> @inference.CachePolicy
+pub fn TokenizedRequest::deadline_budget(Self) -> @inference.DeadlineBudget
+pub fn TokenizedRequest::effective_limits(Self) -> @inference.EffectiveLimits
+pub fn TokenizedRequest::input_tokens(Self) -> @inference.TokenBuffer
+pub fn TokenizedRequest::model_identity(Self) -> @spec.ModelIdentity
+pub fn TokenizedRequest::new(request_id~ : @inference.RequestId, model_identity~ : @spec.ModelIdentity, input_tokens~ : @inference.TokenBuffer, sampling~ : @inference.SamplingParameters, stops~ : @inference.StopConditions, cache~ : @inference.CachePolicy, stream_preference~ : @inference.StreamPreference, effective_limits~ : @inference.EffectiveLimits, deadline_budget~ : @inference.DeadlineBudget) -> Self raise SchedulerError
+pub fn TokenizedRequest::request_id(Self) -> @inference.RequestId
+pub fn TokenizedRequest::sampling(Self) -> @inference.SamplingParameters
+pub fn TokenizedRequest::stops(Self) -> @inference.StopConditions
+pub fn TokenizedRequest::stream_preference(Self) -> @inference.StreamPreference
+
+// Type aliases
+
+// Traits
