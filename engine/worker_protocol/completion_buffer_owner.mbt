@@ -54,6 +54,16 @@ fn CompletionBuffer::append(
 }
 
 ///|
+fn CompletionBuffer::require_direct_access(
+  self : CompletionBuffer,
+) -> Unit raise WorkerProtocolError {
+  self.require_state(CompletionWritable)
+  if self.writer_open {
+    raise CompletionWriterAlreadyOpen
+  }
+}
+
+///|
 pub fn CompletionBuffer::new(
   limits : WorkerProtocolLimits,
 ) -> CompletionBuffer raise WorkerProtocolError {
@@ -64,9 +74,10 @@ pub fn CompletionBuffer::new(
     limits,
     state: CompletionWritable,
     epoch: 1UL,
-    sequence: PlanSequence::first(),
-    model_plan_generation: ModelPlanGeneration::first(),
+    sequence_value: 1UL,
+    model_plan_generation_value: 1UL,
     entry_count: 0,
+    writer_open: false,
     slots: FixedArray::make(limits.max_plan_rows(), slot),
     request_ids: FixedArray::make(limits.max_plan_rows(), request_id),
     request_generations: FixedArray::make(limits.max_plan_rows(), generation),
@@ -79,6 +90,23 @@ pub fn CompletionBuffer::new(
 
 ///|
 pub fn CompletionBuffer::append_prefill_completed(
+  self : CompletionBuffer,
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  processed_tokens~ : Int,
+) -> Unit raise WorkerProtocolError {
+  self.require_direct_access()
+  self.append_prefill_completed_unleased(
+    slot~,
+    request_id~,
+    request_generation~,
+    processed_tokens~,
+  )
+}
+
+///|
+fn CompletionBuffer::append_prefill_completed_unleased(
   self : CompletionBuffer,
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
@@ -102,6 +130,25 @@ pub fn CompletionBuffer::append_prefill_completed(
 ///|
 /// Appends the final prompt completion and its first sampled output token.
 pub fn CompletionBuffer::append_final_prefill_completed(
+  self : CompletionBuffer,
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  processed_tokens~ : Int,
+  token_id~ : Int,
+) -> Unit raise WorkerProtocolError {
+  self.require_direct_access()
+  self.append_final_prefill_completed_unleased(
+    slot~,
+    request_id~,
+    request_generation~,
+    processed_tokens~,
+    token_id~,
+  )
+}
+
+///|
+fn CompletionBuffer::append_final_prefill_completed_unleased(
   self : CompletionBuffer,
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
@@ -134,6 +181,23 @@ pub fn CompletionBuffer::append_decode_completed(
   request_generation~ : @inference.RequestGeneration,
   token_id~ : Int,
 ) -> Unit raise WorkerProtocolError {
+  self.require_direct_access()
+  self.append_decode_completed_unleased(
+    slot~,
+    request_id~,
+    request_generation~,
+    token_id~,
+  )
+}
+
+///|
+fn CompletionBuffer::append_decode_completed_unleased(
+  self : CompletionBuffer,
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  token_id~ : Int,
+) -> Unit raise WorkerProtocolError {
   if token_id < 0 || token_id > self.limits.max_token_id() {
     raise InvalidCompletionToken(slot=slot.value())
   }
@@ -150,6 +214,18 @@ pub fn CompletionBuffer::append_decode_completed(
 
 ///|
 pub fn CompletionBuffer::append_failed(
+  self : CompletionBuffer,
+  slot~ : CompletionSlot,
+  request_id~ : @inference.RequestId,
+  request_generation~ : @inference.RequestGeneration,
+  failure~ : WorkerFailure,
+) -> Unit raise WorkerProtocolError {
+  self.require_direct_access()
+  self.append_failed_unleased(slot~, request_id~, request_generation~, failure~)
+}
+
+///|
+fn CompletionBuffer::append_failed_unleased(
   self : CompletionBuffer,
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
@@ -175,15 +251,38 @@ pub fn CompletionBuffer::submit_for(
   self : CompletionBuffer,
   plan : SubmittedSchedulePlan,
 ) -> SubmittedCompletion raise WorkerProtocolError {
+  self.require_direct_access()
+  self.submit_for_unleased(plan)
+}
+
+///|
+fn CompletionBuffer::submit_for_unleased(
+  self : CompletionBuffer,
+  plan : SubmittedSchedulePlan,
+) -> SubmittedCompletion raise WorkerProtocolError {
   self.require_state(CompletionWritable)
   if self.entry_count == 0 {
     raise CompletionCountMismatch
   }
   self.validate_against(plan)
-  self.sequence = plan.sequence()
-  self.model_plan_generation = plan.model_plan_generation()
+  self.sequence_value = plan.sequence_wire()
+  self.model_plan_generation_value = plan.model_plan_generation_wire()
   self.state = CompletionSubmitted
   SubmittedCompletion(self, self.epoch)
+}
+
+///|
+/// Nonmutating scheduler preflight for the exact completion owner, completion
+/// epoch, plan owner, plan epoch, plan sequence, model generation, and rows.
+/// Callers may validate and read all entries before committing scheduler state;
+/// `consume` repeats this authentication before changing protocol lifecycle.
+pub fn CompletionBuffer::validate_submitted(
+  self : CompletionBuffer,
+  submitted : SubmittedCompletion,
+  plan : SubmittedSchedulePlan,
+) -> Unit raise WorkerProtocolError {
+  submitted.authenticate_owner(self)
+  submitted.validate_for(plan)
 }
 
 ///|
@@ -222,6 +321,7 @@ pub fn CompletionBuffer::reset(
     raise IdentityOverflow(CompletionBufferEpochIdentity)
   }
   self.entry_count = 0
+  self.writer_open = false
   self.epoch = self.epoch + 1UL
   self.state = CompletionWritable
 }

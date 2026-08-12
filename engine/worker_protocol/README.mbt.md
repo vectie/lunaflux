@@ -68,10 +68,15 @@ same failure path.
 
 Worker completions have a matching fixed-capacity `CompletionBuffer`.
 Successful intermediate-prefill, final-prefill, decode, and failure appends
-write scalar columns; submit authenticates them against the exact submitted
-plan, and scheduler accessors remain epoch-checked through consume and reset.
-Plan authentication remains separate from `is_current`: old-generation work
-can retire resources but may not publish output.
+write scalar columns. The scheduler retains each mutable completion owner and
+issues the worker an exclusive `CompletionWriter` bound to one exact completion
+and submitted-plan epoch. Submit authenticates every result against that plan;
+abort discards a partial logical suffix and advances the epoch so all aliased
+writers become stale before a clean retry. Scheduler accessors remain
+epoch-checked through consume and reset. Retirement order is completion
+preflight and scheduler commit, completion consume, plan retire, then completion
+and plan reset. Plan authentication remains separate from `is_current`:
+old-generation work can retire resources but may not publish output.
 
 Payload-bearing plans, submitted handles, and completions deliberately do not
 implement `Debug`, so prompt and generated token IDs cannot enter ordinary

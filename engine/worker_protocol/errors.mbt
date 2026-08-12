@@ -117,6 +117,8 @@ pub(all) suberror WorkerProtocolError {
     expected~ : CompletionBufferState,
     actual~ : CompletionBufferState
   )
+  CompletionWriterAlreadyOpen
+  CompletionWriterNotOpen
   CompletionBufferMismatch
   StaleCompletionBufferEpoch
 } derive(Debug, Eq)

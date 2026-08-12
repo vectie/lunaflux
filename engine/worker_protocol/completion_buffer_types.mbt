@@ -7,9 +7,10 @@ pub struct CompletionBuffer {
   priv limits : WorkerProtocolLimits
   priv mut state : CompletionBufferState
   priv mut epoch : UInt64
-  priv mut sequence : PlanSequence
-  priv mut model_plan_generation : ModelPlanGeneration
+  priv mut sequence_value : UInt64
+  priv mut model_plan_generation_value : UInt64
   priv mut entry_count : Int
+  priv mut writer_open : Bool
   priv slots : FixedArray[CompletionSlot]
   priv request_ids : FixedArray[@inference.RequestId]
   priv request_generations : FixedArray[@inference.RequestGeneration]
@@ -42,3 +43,15 @@ pub struct SubmittedCompletionEntry(CompletionBuffer, UInt64, Int)
 /// Worker-only proof that the scheduler consumed one submitted epoch.
 #valtype
 pub struct ConsumedCompletion(CompletionBuffer, UInt64)
+
+///|
+/// Worker-only write lease for one exact completion-buffer and submitted-plan
+/// epoch. It can append and submit results, but cannot consume, reset, retire,
+/// or otherwise recover either mutable owner.
+#valtype
+pub struct CompletionWriter(
+  CompletionBuffer,
+  UInt64,
+  SchedulePlanBuffer,
+  UInt64
+)

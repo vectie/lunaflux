@@ -116,14 +116,34 @@ fn SubmittedCompletion::authenticate_owner(
 pub fn SubmittedCompletion::sequence(
   self : SubmittedCompletion,
 ) -> PlanSequence raise WorkerProtocolError {
-  self.authenticate().sequence
+  let owner = self.authenticate()
+  try! PlanSequence::from_wire(owner.sequence_value)
+}
+
+///|
+/// Returns the authenticated scalar plan sequence without constructing an
+/// identity wrapper.
+pub fn SubmittedCompletion::sequence_wire(
+  self : SubmittedCompletion,
+) -> UInt64 raise WorkerProtocolError {
+  self.authenticate().sequence_value
 }
 
 ///|
 pub fn SubmittedCompletion::model_plan_generation(
   self : SubmittedCompletion,
 ) -> ModelPlanGeneration raise WorkerProtocolError {
-  self.authenticate().model_plan_generation
+  let owner = self.authenticate()
+  try! ModelPlanGeneration::from_wire(owner.model_plan_generation_value)
+}
+
+///|
+/// Returns the authenticated scalar model-plan generation without
+/// constructing an identity wrapper.
+pub fn SubmittedCompletion::model_plan_generation_wire(
+  self : SubmittedCompletion,
+) -> UInt64 raise WorkerProtocolError {
+  self.authenticate().model_plan_generation_value
 }
 
 ///|
@@ -153,10 +173,10 @@ pub fn SubmittedCompletion::validate_for(
   plan : SubmittedSchedulePlan,
 ) -> Unit raise WorkerProtocolError {
   let owner = self.authenticate()
-  if owner.sequence != plan.sequence() {
+  if owner.sequence_value != plan.sequence_wire() {
     raise StalePlanSequence
   }
-  if owner.model_plan_generation != plan.model_plan_generation() {
+  if owner.model_plan_generation_value != plan.model_plan_generation_wire() {
     raise StaleModelPlanGeneration
   }
   owner.validate_against(plan)

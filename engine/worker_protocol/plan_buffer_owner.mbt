@@ -383,6 +383,18 @@ pub fn SchedulePlanBuffer::retire(
 }
 
 ///|
+/// Nonmutating scheduler preflight proving that a submitted handle belongs to
+/// this exact plan owner and live epoch. Resource or output state can be
+/// committed only after this succeeds; `retire` repeats the authentication
+/// before changing protocol lifecycle.
+pub fn SchedulePlanBuffer::validate_submitted(
+  self : SchedulePlanBuffer,
+  submitted : SubmittedSchedulePlan,
+) -> Unit raise WorkerProtocolError {
+  submitted.authenticate_owner(self)
+}
+
+///|
 fn RetiredSchedulePlan::authenticate_owner(
   self : RetiredSchedulePlan,
   owner : SchedulePlanBuffer,
