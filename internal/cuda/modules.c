@@ -7,6 +7,7 @@ typedef struct lf_module {
   lf_context *context;
   CUmodule handle;
   atomic_int state;
+  atomic_int active_operations;
   atomic_int children;
 } lf_module;
 
@@ -14,15 +15,20 @@ typedef struct lf_function {
   lf_module *module;
   CUfunction handle;
   atomic_int state;
+  atomic_int active_operations;
 } lf_function;
 
 static int32_t lf_close_module(lf_module *module) {
   if (module == NULL) return LF_INVALID_ARGUMENT;
   if (atomic_load(&module->state) == LF_RESOURCE_CLOSED) return LF_OK;
   if (atomic_load(&module->children) != 0) return LF_BUSY;
-  int32_t begin = lf_begin_close(&module->state);
+  int32_t begin = lf_begin_close(&module->state, &module->active_operations);
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
+  if (atomic_load(&module->children) != 0) {
+    lf_close_failed(&module->state);
+    return LF_BUSY;
+  }
   int32_t result = lf_context_current(module->context);
   if (result == LF_OK && module->handle != NULL) {
     result = lf_cuda_map_result(
@@ -56,17 +62,26 @@ lf_module *lunaflux_cuda_module_load(
   );
   memset(module, 0, sizeof(*module));
   atomic_init(&module->state, LF_RESOURCE_CLOSED);
+  atomic_init(&module->active_operations, 0);
   atomic_init(&module->children, 0);
   if (Moonbit_array_length(image) == 0) {
     *status = LF_INVALID_ARGUMENT;
     return module;
   }
-  *status = lf_context_current(context);
+  *status = context == NULL
+    ? LF_CLOSED
+    : lf_operation_begin(&context->state, &context->active_operations);
   if (*status != LF_OK) return module;
+  *status = lf_context_current(context);
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return module;
+  }
   size_t image_length = (size_t)Moonbit_array_length(image);
   uint8_t *terminated_image = (uint8_t *)malloc(image_length + 1);
   if (terminated_image == NULL) {
     *status = LF_HOST_ALLOCATION_FAILED;
+    lf_operation_end(&context->active_operations);
     return module;
   }
   memcpy(terminated_image, image, image_length);
@@ -76,12 +91,16 @@ lf_module *lunaflux_cuda_module_load(
     context->api->cuModuleLoadData(&handle, terminated_image)
   );
   free(terminated_image);
-  if (*status != LF_OK) return module;
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return module;
+  }
   moonbit_incref(context);
   atomic_fetch_add(&context->children, 1);
   module->context = context;
   module->handle = handle;
   atomic_store(&module->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&context->active_operations);
   return module;
 }
 
@@ -92,7 +111,10 @@ int32_t lunaflux_cuda_module_close(lf_module *module) {
 
 static int32_t lf_close_function(lf_function *function) {
   if (function == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&function->state);
+  int32_t begin = lf_begin_close(
+    &function->state,
+    &function->active_operations
+  );
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
   atomic_fetch_sub(&function->module->children, 1);
@@ -119,6 +141,7 @@ lf_function *lunaflux_cuda_function_load(
   );
   memset(function, 0, sizeof(*function));
   atomic_init(&function->state, LF_RESOURCE_CLOSED);
+  atomic_init(&function->active_operations, 0);
   int32_t name_length = Moonbit_array_length(name);
   if (module == NULL || atomic_load(&module->state) != LF_RESOURCE_LIVE) {
     *status = LF_CLOSED;
@@ -129,8 +152,13 @@ lf_function *lunaflux_cuda_function_load(
     *status = LF_INVALID_ARGUMENT;
     return function;
   }
-  *status = lf_context_current(module->context);
+  *status = lf_operation_begin(&module->state, &module->active_operations);
   if (*status != LF_OK) return function;
+  *status = lf_context_current(module->context);
+  if (*status != LF_OK) {
+    lf_operation_end(&module->active_operations);
+    return function;
+  }
   char terminated_name[129];
   memcpy(terminated_name, name, (size_t)name_length);
   terminated_name[name_length] = '\0';
@@ -140,12 +168,16 @@ lf_function *lunaflux_cuda_function_load(
     module->handle,
     terminated_name
   ));
-  if (*status != LF_OK) return function;
+  if (*status != LF_OK) {
+    lf_operation_end(&module->active_operations);
+    return function;
+  }
   moonbit_incref(module);
   atomic_fetch_add(&module->children, 1);
   function->module = module;
   function->handle = handle;
   atomic_store(&function->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&module->active_operations);
   return function;
 }
 

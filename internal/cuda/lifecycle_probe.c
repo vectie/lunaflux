@@ -52,6 +52,7 @@ static int32_t lf_test_retry_cycle(int32_t failure_kind) {
   context->api = &api;
   context->handle = LF_FAKE_VALID_HANDLE;
   atomic_init(&context->state, LF_RESOURCE_LIVE);
+  atomic_init(&context->active_operations, 0);
   atomic_init(&context->children, 1);
 
   lf_child *child = (lf_child *)moonbit_make_external_object(
@@ -64,10 +65,19 @@ static int32_t lf_test_retry_cycle(int32_t failure_kind) {
     ? LF_FAKE_CHILD_DESTROY_FAILURE
     : LF_FAKE_VALID_HANDLE;
   atomic_init(&child->state, LF_RESOURCE_LIVE);
+  atomic_init(&child->active_operations, 0);
   moonbit_incref(context);
 
   int32_t result = 0;
   if (lunaflux_cuda_context_close(context) != LF_BUSY) result = 10;
+  atomic_store(&child->active_operations, 1);
+  if (result == 0 && lunaflux_cuda_stream_close(child) != LF_BUSY) result = 21;
+  if (result == 0 &&
+      (atomic_load(&child->state) != LF_RESOURCE_LIVE ||
+       child->context != context || atomic_load(&context->children) != 1)) {
+    result = 22;
+  }
+  atomic_store(&child->active_operations, 0);
   if (result == 0 && failure_kind == 2) {
     context->handle = LF_FAKE_SET_CURRENT_FAILURE;
   }

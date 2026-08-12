@@ -6,9 +6,13 @@ static int32_t lf_close_cublas(lf_child *cublas) {
   if (cublas == NULL) return LF_INVALID_ARGUMENT;
   if (atomic_load(&cublas->state) == LF_RESOURCE_CLOSED) return LF_OK;
   if (atomic_load(&cublas->children) != 0) return LF_BUSY;
-  int32_t begin = lf_begin_close(&cublas->state);
+  int32_t begin = lf_begin_close(&cublas->state, &cublas->active_operations);
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
+  if (atomic_load(&cublas->children) != 0) {
+    lf_close_failed(&cublas->state);
+    return LF_BUSY;
+  }
   int32_t result = lf_context_current(cublas->context);
   if (result == LF_OK && cublas->handle != NULL &&
       cublas->context->api->cublasLtDestroy(cublas->handle) != 0) {
@@ -37,16 +41,26 @@ lf_child *lunaflux_cuda_cublas_create(lf_context *context, int32_t *status) {
   );
   memset(cublas, 0, sizeof(*cublas));
   atomic_init(&cublas->state, LF_RESOURCE_CLOSED);
+  atomic_init(&cublas->active_operations, 0);
   atomic_init(&cublas->children, 0);
-  *status = lf_context_current(context);
+  *status = context == NULL
+    ? LF_CLOSED
+    : lf_operation_begin(&context->state, &context->active_operations);
   if (*status != LF_OK) return cublas;
+  *status = lf_context_current(context);
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return cublas;
+  }
   if (!context->api->cublas_available) {
     *status = LF_UNSUPPORTED;
+    lf_operation_end(&context->active_operations);
     return cublas;
   }
   cublasLtHandle_t handle = NULL;
   if (context->api->cublasLtCreate(&handle) != 0) {
     *status = LF_DRIVER_FAILURE;
+    lf_operation_end(&context->active_operations);
     return cublas;
   }
   moonbit_incref(context);
@@ -54,6 +68,7 @@ lf_child *lunaflux_cuda_cublas_create(lf_context *context, int32_t *status) {
   cublas->context = context;
   cublas->handle = handle;
   atomic_store(&cublas->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&context->active_operations);
   return cublas;
 }
 

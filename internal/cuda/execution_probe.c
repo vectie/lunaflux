@@ -22,6 +22,7 @@ typedef struct lf_probe_state {
   int32_t copy_to_device_calls;
   int32_t copy_to_host_calls;
   int32_t matmul_calls;
+  int32_t stream_synchronize_calls;
   const uint8_t *expected_host_source;
 } lf_probe_state;
 
@@ -37,6 +38,12 @@ static CUresult lf_fake_context_destroy(CUcontext context) {
 
 static CUresult lf_fake_stream_destroy(CUstream stream) {
   return stream == LF_FAKE_STREAM ? 0 : 1;
+}
+
+static CUresult lf_fake_stream_synchronize(CUstream stream) {
+  if (stream != LF_FAKE_STREAM) return 1;
+  lf_active_probe->stream_synchronize_calls += 1;
+  return 0;
 }
 
 static CUresult lf_fake_mem_free(CUdeviceptr address) {
@@ -176,6 +183,7 @@ static lf_context *lf_make_context(lf_cuda_api *api) {
   context->api = api;
   context->handle = LF_FAKE_CONTEXT;
   atomic_init(&context->state, LF_RESOURCE_LIVE);
+  atomic_init(&context->active_operations, 0);
   atomic_init(&context->children, 0);
   return context;
 }
@@ -193,6 +201,7 @@ static lf_child *lf_make_child(
   child->context = context;
   child->handle = handle;
   atomic_init(&child->state, LF_RESOURCE_LIVE);
+  atomic_init(&child->active_operations, 0);
   atomic_init(&child->children, 0);
   if (retain_context != 0) {
     moonbit_incref(context);
@@ -216,6 +225,7 @@ static lf_allocation *lf_make_allocation(
   allocation->handle = handle;
   allocation->size = size;
   atomic_init(&allocation->state, LF_RESOURCE_LIVE);
+  atomic_init(&allocation->active_operations, 0);
   if (retain_context != 0) {
     moonbit_incref(context);
     atomic_fetch_add(&context->children, 1);
@@ -228,6 +238,7 @@ static void lf_initialize_fake_api(lf_cuda_api *api) {
   api->cuCtxSetCurrent = lf_fake_success_context;
   api->cuCtxDestroy = lf_fake_context_destroy;
   api->cuStreamDestroy = lf_fake_stream_destroy;
+  api->cuStreamSynchronize = lf_fake_stream_synchronize;
   api->cuMemFree = lf_fake_mem_free;
   api->cuMemcpyHtoD = lf_fake_copy_to_device;
   api->cuMemcpyDtoH = lf_fake_copy_to_host;
@@ -331,26 +342,40 @@ static int32_t lf_test_gemm_lifecycle(void) {
   lf_allocation *right = lf_make_allocation(context, LF_FAKE_RIGHT, 24, 1);
   lf_allocation *output = lf_make_allocation(context, LF_FAKE_OUTPUT, 16, 1);
   lf_allocation *workspace = lf_make_allocation(
-    context,
-    LF_FAKE_WORKSPACE,
-    1024,
-    1
+    context, LF_FAKE_WORKSPACE, 1024, 1
   );
   int32_t result = 0;
   int32_t status = 0;
   state.fail_layout_create_at = 2;
   lf_gemm_plan *failed = lunaflux_cuda_bf16_gemm_plan_create(
-    cublas,
-    2,
-    4,
-    3,
-    512,
-    &status
+    cublas, 2, 4, 3, 512, &status
   );
   if (status != LF_DRIVER_FAILURE || atomic_load(&cublas->children) != 0 ||
       state.operation_creates != state.operation_destroys ||
       state.layout_creates - 1 != state.layout_destroys) result = 301;
   moonbit_decref(failed);
+  state.layout_creates = 0;
+  state.layout_destroys = 0;
+  state.operation_creates = 0;
+  state.operation_destroys = 0;
+  state.fail_layout_create_at = 2;
+  state.fail_destroy_once = 1;
+  failed = lunaflux_cuda_bf16_gemm_plan_create(
+    cublas, 2, 4, 3, 512, &status
+  );
+  if (result == 0 &&
+      (status != LF_DRIVER_FAILURE ||
+       atomic_load(&failed->state) != LF_RESOURCE_LIVE ||
+       atomic_load(&cublas->children) != 1)) {
+    result = 321;
+  }
+  moonbit_decref(failed);
+  if (result == 0 &&
+      (atomic_load(&cublas->children) != 0 || state.operation_creates !=
+       state.operation_destroys ||
+       state.layout_creates - 1 != state.layout_destroys)) {
+    result = 322;
+  }
   state.fail_layout_create_at = 0;
   state.layout_creates = 0;
   state.layout_destroys = 0;
@@ -382,7 +407,10 @@ static int32_t lf_test_gemm_lifecycle(void) {
         0,
         stream
       ) != LF_OK) result = 304;
-  if (result == 0 && state.matmul_calls != 1) result = 305;
+  if (result == 0 &&
+      (state.matmul_calls != 1 || state.stream_synchronize_calls != 1)) {
+    result = 305;
+  }
   if (result == 0 &&
       lunaflux_cuda_bf16_gemm_plan_run(
         plan,
@@ -409,7 +437,10 @@ static int32_t lf_test_gemm_lifecycle(void) {
         1,
         stream
       ) != LF_INVALID_ARGUMENT) result = 307;
-  if (result == 0 && state.matmul_calls != 1) result = 308;
+  if (result == 0 &&
+      (state.matmul_calls != 1 || state.stream_synchronize_calls != 1)) {
+    result = 308;
+  }
   state.fail_destroy_once = 1;
   if (result == 0 &&
       lunaflux_cuda_bf16_gemm_plan_close(plan) != LF_DRIVER_FAILURE) {

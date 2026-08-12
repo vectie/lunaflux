@@ -13,6 +13,7 @@ options(
     "loader.c",
     "modules.c",
     "resources.c",
+    "transfers.c",
   ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
 )

@@ -201,8 +201,10 @@ pub fn Bf16GemmPlan::close(self : Bf16GemmPlan) -> Unit raise DeviceError {
 }
 
 ///|
-/// Enqueues this plan on `stream`. All operands remain caller-owned. Offsets
-/// are checked against their allocation ranges before entering the native ABI.
+/// Runs this plan on `stream` and synchronizes it before returning. Phase 1
+/// deliberately uses synchronous completion so every borrowed operand remains
+/// live for the complete device operation. Offsets are checked against their
+/// allocation ranges before entering the native ABI.
 pub fn Bf16GemmPlan::run(
   self : Bf16GemmPlan,
   left : Allocation,

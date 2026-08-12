@@ -19,9 +19,15 @@ libraries that own them.
 
 Host transfers are synchronous. This is intentional: MoonBit buffers are
 borrowed only for the duration of an FFI call and cannot safely outlive an
-asynchronous transfer. The BF16 GEMM path is asynchronous on its caller-owned
-stream. Its operands and 256-byte-aligned workspace remain caller-owned until
-that stream is synchronized.
+asynchronous transfer. Phase 1 BF16 GEMM also synchronizes its caller-owned
+stream before returning, so the plan, operands, workspace, and stream cannot be
+closed while device work still references them. Later asynchronous execution
+requires an explicit completion object that owns those lifetimes.
+
+Native resources reject close with `Busy` while an operation is active. Parent
+creation and child retention use the same interlock, preventing concurrent
+close from destroying a context, module, or cuBLASLt handle during child
+construction.
 
 The current GEMM contract is deliberately narrow: row-major BF16 inputs and
 output, FP32 accumulation, fixed alpha one and beta zero, and a reusable shape

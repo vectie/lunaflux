@@ -52,7 +52,7 @@ static int32_t lf_destroy_operation(
 
 static int32_t lf_close_gemm_plan(lf_gemm_plan *plan) {
   if (plan == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&plan->state);
+  int32_t begin = lf_begin_close(&plan->state, &plan->active_operations);
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
   int32_t result = lf_context_current(plan->cublas->context);
@@ -117,6 +117,7 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
   );
   memset(plan, 0, sizeof(*plan));
   atomic_init(&plan->state, LF_RESOURCE_CLOSED);
+  atomic_init(&plan->active_operations, 0);
   if (cublas == NULL ||
       atomic_load(&cublas->state) != LF_RESOURCE_LIVE) {
     *status = LF_CLOSED;
@@ -135,8 +136,13 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
   if (*status != LF_OK) return plan;
   *status = lf_matrix_bytes(rows, columns, &plan->output_size);
   if (*status != LF_OK) return plan;
-  *status = lf_context_current(cublas->context);
+  *status = lf_operation_begin(&cublas->state, &cublas->active_operations);
   if (*status != LF_OK) return plan;
+  *status = lf_context_current(cublas->context);
+  if (*status != LF_OK) {
+    lf_operation_end(&cublas->active_operations);
+    return plan;
+  }
 
   plan->workspace_size = (size_t)workspace_byte_count;
   moonbit_incref(cublas);
@@ -150,6 +156,7 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
         CUDA_R_32F
       ) != CUBLAS_STATUS_SUCCESS) {
     *status = lf_finish_failed_create(plan, LF_DRIVER_FAILURE);
+    lf_operation_end(&cublas->active_operations);
     return plan;
   }
   /* cuBLASLt layouts default to column-major. A row-major C = A * B is
@@ -176,9 +183,11 @@ lf_gemm_plan *lunaflux_cuda_bf16_gemm_plan_create(
         columns
       ) != CUBLAS_STATUS_SUCCESS) {
     *status = lf_finish_failed_create(plan, LF_DRIVER_FAILURE);
+    lf_operation_end(&cublas->active_operations);
     return plan;
   }
   *status = LF_OK;
+  lf_operation_end(&cublas->active_operations);
   return plan;
 }
 
@@ -232,58 +241,87 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
   int64_t workspace_offset,
   lf_child *stream
 ) {
-  if (plan == NULL || atomic_load(&plan->state) != LF_RESOURCE_LIVE ||
-      plan->operation == NULL || plan->right_layout == NULL ||
-      plan->left_layout == NULL || plan->output_layout == NULL) {
-    return LF_CLOSED;
+  if (plan == NULL || left == NULL || right == NULL || output == NULL ||
+      workspace == NULL || stream == NULL) return LF_CLOSED;
+  int32_t status = lf_operation_begin(&plan->state, &plan->active_operations);
+  if (status != LF_OK) return status;
+  int left_acquired = 0;
+  int right_acquired = 0;
+  int output_acquired = 0;
+  int workspace_acquired = 0;
+  int stream_acquired = 0;
+  status = lf_operation_begin(&left->state, &left->active_operations);
+  if (status == LF_OK) left_acquired = 1;
+  if (status == LF_OK) {
+    status = lf_operation_begin(&right->state, &right->active_operations);
+    if (status == LF_OK) right_acquired = 1;
   }
-  if (stream == NULL || atomic_load(&stream->state) != LF_RESOURCE_LIVE) {
-    return LF_CLOSED;
+  if (status == LF_OK) {
+    status = lf_operation_begin(&output->state, &output->active_operations);
+    if (status == LF_OK) output_acquired = 1;
+  }
+  if (status == LF_OK) {
+    status = lf_operation_begin(
+      &workspace->state,
+      &workspace->active_operations
+    );
+    if (status == LF_OK) workspace_acquired = 1;
+  }
+  if (status == LF_OK) {
+    status = lf_operation_begin(&stream->state, &stream->active_operations);
+    if (status == LF_OK) stream_acquired = 1;
+  }
+  if (status != LF_OK) goto cleanup;
+  if (plan->operation == NULL || plan->right_layout == NULL ||
+      plan->left_layout == NULL || plan->output_layout == NULL) {
+    status = LF_CLOSED;
+    goto cleanup;
   }
   lf_context *context = plan->cublas->context;
-  if (left == NULL || right == NULL || output == NULL || workspace == NULL ||
-      left->context != context || right->context != context ||
+  if (left->context != context || right->context != context ||
       output->context != context || workspace->context != context ||
       stream->context != context) {
-    return LF_INVALID_ARGUMENT;
+    status = LF_INVALID_ARGUMENT;
+    goto cleanup;
   }
   CUdeviceptr left_address = 0;
   CUdeviceptr right_address = 0;
   CUdeviceptr output_address = 0;
   CUdeviceptr workspace_address = 0;
-  int32_t status = lf_allocation_address(
+  status = lf_allocation_address(
     left,
     left_offset,
     plan->left_size,
     &left_address
   );
-  if (status != LF_OK) return status;
+  if (status != LF_OK) goto cleanup;
   status = lf_allocation_address(
     right,
     right_offset,
     plan->right_size,
     &right_address
   );
-  if (status != LF_OK) return status;
+  if (status != LF_OK) goto cleanup;
   status = lf_allocation_address(
     output,
     output_offset,
     plan->output_size,
     &output_address
   );
-  if (status != LF_OK) return status;
+  if (status != LF_OK) goto cleanup;
   status = lf_allocation_address(
     workspace,
     workspace_offset,
     plan->workspace_size,
     &workspace_address
   );
-  if (status != LF_OK) return status;
+  if (status != LF_OK) goto cleanup;
   if ((left_address % LF_GEMM_ALIGNMENT) != 0 ||
       (right_address % LF_GEMM_ALIGNMENT) != 0 ||
       (output_address % LF_GEMM_ALIGNMENT) != 0 ||
       (workspace_address % LF_WORKSPACE_ALIGNMENT) != 0) {
-    return LF_INVALID_ARGUMENT;
+    status = LF_INVALID_ARGUMENT;
+    goto cleanup;
   }
   if (lf_ranges_overlap(
         output_address,
@@ -315,10 +353,11 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
         output_address,
         plan->output_size
       )) {
-    return LF_INVALID_ARGUMENT;
+    status = LF_INVALID_ARGUMENT;
+    goto cleanup;
   }
   status = lf_context_current(context);
-  if (status != LF_OK) return status;
+  if (status != LF_OK) goto cleanup;
   const float alpha = 1.0f;
   const float beta = 0.0f;
   int32_t cublas_status = context->api->cublasLtMatmul(
@@ -339,7 +378,20 @@ int32_t lunaflux_cuda_bf16_gemm_plan_run(
     plan->workspace_size,
     (CUstream)stream->handle
   );
-  return cublas_status == CUBLAS_STATUS_SUCCESS
-    ? LF_OK
+  status = cublas_status == CUBLAS_STATUS_SUCCESS
+    ? lf_cuda_map_result(
+        context->api->cuStreamSynchronize((CUstream)stream->handle)
+      )
     : LF_DRIVER_FAILURE;
+
+cleanup:
+  if (stream_acquired != 0) lf_operation_end(&stream->active_operations);
+  if (workspace_acquired != 0) {
+    lf_operation_end(&workspace->active_operations);
+  }
+  if (output_acquired != 0) lf_operation_end(&output->active_operations);
+  if (right_acquired != 0) lf_operation_end(&right->active_operations);
+  if (left_acquired != 0) lf_operation_end(&left->active_operations);
+  lf_operation_end(&plan->active_operations);
+  return status;
 }

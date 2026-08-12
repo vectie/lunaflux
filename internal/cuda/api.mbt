@@ -261,9 +261,8 @@ pub fn Bf16GemmPlan::close(self : Bf16GemmPlan) -> Unit raise CudaError {
 }
 
 ///|
-/// Enqueues this GEMM on `stream`. Operand offsets must be 16-byte aligned;
-/// workspace offsets must be 256-byte aligned. The caller retains every
-/// allocation and must synchronize before reusing their storage.
+/// Runs this GEMM on `stream` and synchronizes it before returning. Operand
+/// offsets must be 16-byte aligned; workspace offsets must be 256-byte aligned.
 pub fn Bf16GemmPlan::run(
   self : Bf16GemmPlan,
   left : Allocation,

@@ -14,14 +14,36 @@ int32_t lf_context_current(lf_context *context) {
   return lf_cuda_map_result(context->api->cuCtxSetCurrent(context->handle));
 }
 
-int32_t lf_begin_close(atomic_int *state) {
+int32_t lf_operation_begin(
+  atomic_int *state,
+  atomic_int *active_operations
+) {
+  if (atomic_load(state) != LF_RESOURCE_LIVE) return LF_CLOSED;
+  atomic_fetch_add(active_operations, 1);
+  if (atomic_load(state) != LF_RESOURCE_LIVE) {
+    atomic_fetch_sub(active_operations, 1);
+    return LF_BUSY;
+  }
+  return LF_OK;
+}
+
+void lf_operation_end(atomic_int *active_operations) {
+  atomic_fetch_sub(active_operations, 1);
+}
+
+int32_t lf_begin_close(
+  atomic_int *state,
+  atomic_int *active_operations
+) {
   int expected = LF_RESOURCE_LIVE;
   if (atomic_compare_exchange_strong(
         state,
         &expected,
         LF_RESOURCE_CLOSING
       )) {
-    return LF_OK;
+    if (atomic_load(active_operations) == 0) return LF_OK;
+    atomic_store(state, LF_RESOURCE_LIVE);
+    return LF_BUSY;
   }
   return expected == LF_RESOURCE_CLOSED ? LF_CLOSED : LF_BUSY;
 }
@@ -52,9 +74,16 @@ static int32_t lf_close_context(lf_context *context) {
   if (context == NULL) return LF_INVALID_ARGUMENT;
   if (atomic_load(&context->state) == LF_RESOURCE_CLOSED) return LF_OK;
   if (atomic_load(&context->children) != 0) return LF_BUSY;
-  int32_t begin = lf_begin_close(&context->state);
+  int32_t begin = lf_begin_close(
+    &context->state,
+    &context->active_operations
+  );
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
+  if (atomic_load(&context->children) != 0) {
+    lf_close_failed(&context->state);
+    return LF_BUSY;
+  }
   CUcontext handle = context->handle;
   int32_t result = handle == NULL
     ? LF_OK
@@ -80,6 +109,7 @@ lf_context *lunaflux_cuda_context_create(int32_t ordinal, int32_t *status) {
   );
   memset(context, 0, sizeof(*context));
   atomic_init(&context->state, LF_RESOURCE_CLOSED);
+  atomic_init(&context->active_operations, 0);
   atomic_init(&context->children, 0);
   context->api = lf_cuda_api_get();
   if (context->api->availability != LF_AVAILABLE) {
@@ -109,7 +139,7 @@ int32_t lunaflux_cuda_context_close(lf_context *context) {
 
 static int32_t lf_close_stream(lf_child *stream) {
   if (stream == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&stream->state);
+  int32_t begin = lf_begin_close(&stream->state, &stream->active_operations);
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
   int32_t result = lf_context_current(stream->context);
@@ -141,17 +171,29 @@ lf_child *lunaflux_cuda_stream_create(lf_context *context, int32_t *status) {
   );
   memset(stream, 0, sizeof(*stream));
   atomic_init(&stream->state, LF_RESOURCE_CLOSED);
+  atomic_init(&stream->active_operations, 0);
   atomic_init(&stream->children, 0);
-  *status = lf_context_current(context);
+  *status = context == NULL
+    ? LF_CLOSED
+    : lf_operation_begin(&context->state, &context->active_operations);
   if (*status != LF_OK) return stream;
+  *status = lf_context_current(context);
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return stream;
+  }
   CUstream handle = NULL;
   *status = lf_cuda_map_result(context->api->cuStreamCreate(&handle, 0));
-  if (*status != LF_OK) return stream;
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return stream;
+  }
   moonbit_incref(context);
   atomic_fetch_add(&context->children, 1);
   stream->context = context;
   stream->handle = handle;
   atomic_store(&stream->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&context->active_operations);
   return stream;
 }
 
@@ -162,19 +204,25 @@ int32_t lunaflux_cuda_stream_close(lf_child *stream) {
 
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_stream_synchronize(lf_child *stream) {
-  if (stream == NULL || atomic_load(&stream->state) != LF_RESOURCE_LIVE) {
-    return LF_CLOSED;
-  }
-  int32_t current = lf_context_current(stream->context);
-  if (current != LF_OK) return current;
-  return lf_cuda_map_result(
-    stream->context->api->cuStreamSynchronize((CUstream)stream->handle)
+  if (stream == NULL) return LF_CLOSED;
+  int32_t acquired = lf_operation_begin(
+    &stream->state,
+    &stream->active_operations
   );
+  if (acquired != LF_OK) return acquired;
+  int32_t current = lf_context_current(stream->context);
+  if (current == LF_OK) {
+    current = lf_cuda_map_result(
+      stream->context->api->cuStreamSynchronize((CUstream)stream->handle)
+    );
+  }
+  lf_operation_end(&stream->active_operations);
+  return current;
 }
 
 static int32_t lf_close_event(lf_child *event) {
   if (event == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&event->state);
+  int32_t begin = lf_begin_close(&event->state, &event->active_operations);
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
   int32_t result = lf_context_current(event->context);
@@ -206,17 +254,29 @@ lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
   );
   memset(event, 0, sizeof(*event));
   atomic_init(&event->state, LF_RESOURCE_CLOSED);
+  atomic_init(&event->active_operations, 0);
   atomic_init(&event->children, 0);
-  *status = lf_context_current(context);
+  *status = context == NULL
+    ? LF_CLOSED
+    : lf_operation_begin(&context->state, &context->active_operations);
   if (*status != LF_OK) return event;
+  *status = lf_context_current(context);
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return event;
+  }
   CUevent handle = NULL;
   *status = lf_cuda_map_result(context->api->cuEventCreate(&handle, 0));
-  if (*status != LF_OK) return event;
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return event;
+  }
   moonbit_incref(context);
   atomic_fetch_add(&context->children, 1);
   event->context = context;
   event->handle = handle;
   atomic_store(&event->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&context->active_operations);
   return event;
 }
 
@@ -227,30 +287,42 @@ int32_t lunaflux_cuda_event_close(lf_child *event) {
 
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_event_record(lf_child *event, lf_child *stream) {
-  if (event == NULL || stream == NULL ||
-      atomic_load(&event->state) != LF_RESOURCE_LIVE ||
-      atomic_load(&stream->state) != LF_RESOURCE_LIVE) {
-    return LF_CLOSED;
+  if (event == NULL || stream == NULL) return LF_CLOSED;
+  int32_t result = lf_operation_begin(&event->state, &event->active_operations);
+  if (result != LF_OK) return result;
+  int stream_acquired = 0;
+  result = lf_operation_begin(&stream->state, &stream->active_operations);
+  if (result == LF_OK) stream_acquired = 1;
+  if (result == LF_OK && event->context != stream->context) {
+    result = LF_INVALID_ARGUMENT;
   }
-  if (event->context != stream->context) return LF_INVALID_ARGUMENT;
-  int32_t current = lf_context_current(event->context);
-  if (current != LF_OK) return current;
-  return lf_cuda_map_result(event->context->api->cuEventRecord(
-    (CUevent)event->handle,
-    (CUstream)stream->handle
-  ));
+  if (result == LF_OK) result = lf_context_current(event->context);
+  if (result == LF_OK) {
+    result = lf_cuda_map_result(event->context->api->cuEventRecord(
+      (CUevent)event->handle,
+      (CUstream)stream->handle
+    ));
+  }
+  if (stream_acquired != 0) {
+    lf_operation_end(&stream->active_operations);
+  }
+  lf_operation_end(&event->active_operations);
+  return result;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_event_synchronize(lf_child *event) {
-  if (event == NULL || atomic_load(&event->state) != LF_RESOURCE_LIVE) {
-    return LF_CLOSED;
+  if (event == NULL) return LF_CLOSED;
+  int32_t result = lf_operation_begin(&event->state, &event->active_operations);
+  if (result != LF_OK) return result;
+  result = lf_context_current(event->context);
+  if (result == LF_OK) {
+    result = lf_cuda_map_result(
+      event->context->api->cuEventSynchronize((CUevent)event->handle)
+    );
   }
-  int32_t current = lf_context_current(event->context);
-  if (current != LF_OK) return current;
-  return lf_cuda_map_result(
-    event->context->api->cuEventSynchronize((CUevent)event->handle)
-  );
+  lf_operation_end(&event->active_operations);
+  return result;
 }
 
 MOONBIT_FFI_EXPORT
@@ -259,30 +331,47 @@ double lunaflux_cuda_event_elapsed(
   lf_child *end,
   int32_t *status
 ) {
-  if (start == NULL || end == NULL ||
-      atomic_load(&start->state) != LF_RESOURCE_LIVE ||
-      atomic_load(&end->state) != LF_RESOURCE_LIVE) {
+  if (start == NULL || end == NULL) {
     *status = LF_CLOSED;
+    return 0.0;
+  }
+  *status = lf_operation_begin(&start->state, &start->active_operations);
+  if (*status != LF_OK) return 0.0;
+  int32_t end_acquired = lf_operation_begin(&end->state, &end->active_operations);
+  if (end_acquired != LF_OK) {
+    *status = end_acquired;
+    lf_operation_end(&start->active_operations);
     return 0.0;
   }
   if (start->context != end->context) {
     *status = LF_INVALID_ARGUMENT;
+    lf_operation_end(&end->active_operations);
+    lf_operation_end(&start->active_operations);
     return 0.0;
   }
   *status = lf_context_current(start->context);
-  if (*status != LF_OK) return 0.0;
+  if (*status != LF_OK) {
+    lf_operation_end(&end->active_operations);
+    lf_operation_end(&start->active_operations);
+    return 0.0;
+  }
   float millis = 0.0f;
   *status = lf_cuda_map_result(start->context->api->cuEventElapsedTime(
     &millis,
     (CUevent)start->handle,
     (CUevent)end->handle
   ));
+  lf_operation_end(&end->active_operations);
+  lf_operation_end(&start->active_operations);
   return (double)millis;
 }
 
 static int32_t lf_close_allocation(lf_allocation *allocation) {
   if (allocation == NULL) return LF_INVALID_ARGUMENT;
-  int32_t begin = lf_begin_close(&allocation->state);
+  int32_t begin = lf_begin_close(
+    &allocation->state,
+    &allocation->active_operations
+  );
   if (begin == LF_CLOSED) return LF_OK;
   if (begin != LF_OK) return begin;
   int32_t result = lf_context_current(allocation->context);
@@ -321,6 +410,7 @@ lf_allocation *lunaflux_cuda_allocation_create(
   );
   memset(allocation, 0, sizeof(*allocation));
   atomic_init(&allocation->state, LF_RESOURCE_CLOSED);
+  atomic_init(&allocation->active_operations, 0);
   if (byte_count <= 0) {
     *status = LF_INVALID_ARGUMENT;
     return allocation;
@@ -329,93 +419,34 @@ lf_allocation *lunaflux_cuda_allocation_create(
     *status = LF_SIZE_OVERFLOW;
     return allocation;
   }
-  *status = lf_context_current(context);
+  *status = context == NULL
+    ? LF_CLOSED
+    : lf_operation_begin(&context->state, &context->active_operations);
   if (*status != LF_OK) return allocation;
+  *status = lf_context_current(context);
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return allocation;
+  }
   CUdeviceptr handle = 0;
   *status = lf_cuda_map_result(
     context->api->cuMemAlloc(&handle, (size_t)byte_count)
   );
-  if (*status != LF_OK) return allocation;
+  if (*status != LF_OK) {
+    lf_operation_end(&context->active_operations);
+    return allocation;
+  }
   moonbit_incref(context);
   atomic_fetch_add(&context->children, 1);
   allocation->context = context;
   allocation->handle = handle;
   allocation->size = (size_t)byte_count;
   atomic_store(&allocation->state, LF_RESOURCE_LIVE);
+  lf_operation_end(&context->active_operations);
   return allocation;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_allocation_close(lf_allocation *allocation) {
   return lf_close_allocation(allocation);
-}
-
-MOONBIT_FFI_EXPORT
-int32_t lunaflux_cuda_copy_to_device(
-  lf_allocation *allocation,
-  moonbit_bytes_t source,
-  int64_t source_offset,
-  int64_t destination_offset,
-  int64_t byte_count
-) {
-  if (allocation == NULL ||
-      atomic_load(&allocation->state) != LF_RESOURCE_LIVE) return LF_CLOSED;
-  if (source_offset < 0 || destination_offset < 0 || byte_count < 0 ||
-      (uint64_t)source_offset > SIZE_MAX ||
-      (uint64_t)destination_offset > SIZE_MAX ||
-      (uint64_t)byte_count > SIZE_MAX) {
-    return LF_SIZE_OVERFLOW;
-  }
-  size_t source_size = (size_t)Moonbit_array_length(source);
-  size_t source_start = (size_t)source_offset;
-  size_t destination_start = (size_t)destination_offset;
-  size_t count = (size_t)byte_count;
-  if (source_start > source_size || count > source_size - source_start ||
-      destination_start > allocation->size ||
-      count > allocation->size - destination_start) {
-    return LF_INVALID_ARGUMENT;
-  }
-  int32_t current = lf_context_current(allocation->context);
-  if (current != LF_OK) return current;
-  return lf_cuda_map_result(allocation->context->api->cuMemcpyHtoD(
-    allocation->handle + destination_start,
-    source + source_start,
-    count
-  ));
-}
-
-MOONBIT_FFI_EXPORT
-moonbit_bytes_t lunaflux_cuda_copy_to_host(
-  lf_allocation *allocation,
-  int64_t source_offset,
-  int64_t byte_count,
-  int32_t *status
-) {
-  if (allocation == NULL ||
-      atomic_load(&allocation->state) != LF_RESOURCE_LIVE) {
-    *status = LF_CLOSED;
-    return moonbit_make_bytes(0, 0);
-  }
-  if (source_offset < 0 || byte_count < 0 || byte_count > INT32_MAX ||
-      (uint64_t)source_offset > SIZE_MAX ||
-      (uint64_t)byte_count > SIZE_MAX) {
-    *status = LF_SIZE_OVERFLOW;
-    return moonbit_make_bytes(0, 0);
-  }
-  size_t source_start = (size_t)source_offset;
-  size_t count = (size_t)byte_count;
-  if (source_start > allocation->size ||
-      count > allocation->size - source_start) {
-    *status = LF_INVALID_ARGUMENT;
-    return moonbit_make_bytes(0, 0);
-  }
-  *status = lf_context_current(allocation->context);
-  if (*status != LF_OK) return moonbit_make_bytes(0, 0);
-  moonbit_bytes_t output = moonbit_make_bytes((int32_t)byte_count, 0);
-  *status = lf_cuda_map_result(allocation->context->api->cuMemcpyDtoH(
-    output,
-    allocation->handle + source_start,
-    count
-  ));
-  return output;
 }

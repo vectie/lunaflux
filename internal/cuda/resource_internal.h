@@ -9,6 +9,7 @@ typedef struct lf_context {
   lf_cuda_api *api;
   CUcontext handle;
   atomic_int state;
+  atomic_int active_operations;
   atomic_int children;
 } lf_context;
 
@@ -16,6 +17,7 @@ typedef struct lf_child {
   lf_context *context;
   void *handle;
   atomic_int state;
+  atomic_int active_operations;
   atomic_int children;
 } lf_child;
 
@@ -24,6 +26,7 @@ typedef struct lf_allocation {
   CUdeviceptr handle;
   size_t size;
   atomic_int state;
+  atomic_int active_operations;
 } lf_allocation;
 
 typedef struct lf_gemm_plan {
@@ -37,6 +40,7 @@ typedef struct lf_gemm_plan {
   size_t output_size;
   size_t workspace_size;
   atomic_int state;
+  atomic_int active_operations;
 } lf_gemm_plan;
 
 enum lf_resource_state {
@@ -47,7 +51,9 @@ enum lf_resource_state {
 
 int32_t lf_context_current(lf_context *context);
 void lf_release_context_child(lf_context *context);
-int32_t lf_begin_close(atomic_int *state);
+int32_t lf_operation_begin(atomic_int *state, atomic_int *active_operations);
+void lf_operation_end(atomic_int *active_operations);
+int32_t lf_begin_close(atomic_int *state, atomic_int *active_operations);
 void lf_close_failed(atomic_int *state);
 void lf_close_succeeded(atomic_int *state);
 void lf_finalize_failure(void);
