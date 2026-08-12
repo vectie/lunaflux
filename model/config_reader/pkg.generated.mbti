@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/config_reader"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn parse_bytes(BytesView, @spec.ContentDigest, @spec.PlanDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
+
+pub fn parse_string(StringView, @spec.ContentDigest, @spec.PlanDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
+
+// Errors
+pub(all) suberror ModelConfigReaderError {
+  InvalidByteLimit
+  InvalidDepthLimit
+  ByteLimitExceeded(limit~ : Int)
+  InvalidUtf8
+  MalformedJson
+  NonObjectRoot
+  NestingLimitExceeded(limit~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(index~ : Int)
+  ExecutableMetadata(ExecutableField)
+  MissingField(ModelConfigField)
+  InvalidValue(field~ : ModelConfigField, issue~ : ModelConfigValueIssue, index~ : Int)
+  Validation(@spec.ModelSpecError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ExecutableField {
+  AutoMap
+  TrustRemoteCode
+  CustomPipelines
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelConfigField {
+  Architectures
+  ModelType
+  VocabularySize
+  HiddenSize
+  IntermediateSize
+  LayerCount
+  AttentionHeadCount
+  KvHeadCount
+  ContextLength
+  RopeTheta
+  TorchDType
+  TieWordEmbeddings
+  RopeScaling
+  SlidingWindow
+  HiddenActivation
+  RmsNormEpsilon
+  AttentionBias
+  AttentionDropout
+  MlpBias
+  HeadDimension
+  PretrainingTensorParallelism
+  InertMetadata
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelConfigValueIssue {
+  ExpectedString
+  ExpectedInteger
+  ExpectedNumber
+  ExpectedBoolean
+  ExpectedArray
+  ExpectedNull
+  InvalidArrayElement
+  UnsupportedValue
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
