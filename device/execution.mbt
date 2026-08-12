@@ -2,10 +2,13 @@
 /// Opens one process-visible CUDA device context. Every resource created from
 /// it requires deterministic close in reverse dependency order.
 pub fn open_context(ordinal : Int) -> Context raise DeviceError {
+  let raw_info = @cuda.device_info(ordinal) catch {
+    error => raise error_from_cuda_for(error, ContextCreate)
+  }
   let raw = @cuda.open_context(ordinal) catch {
     error => raise error_from_cuda(error)
   }
-  { raw, }
+  { raw, ordinal, capability: capability_from_raw(raw_info) }
 }
 
 ///|

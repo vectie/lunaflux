@@ -45,3 +45,21 @@ fn error_from_cuda(error : @cuda.CudaError) -> DeviceError {
     InvalidOutput(operation) => InvalidOutput(operation_from_cuda(operation))
   }
 }
+
+///|
+fn error_from_cuda_for(
+  error : @cuda.CudaError,
+  operation : DeviceOperation,
+) -> DeviceError {
+  match error {
+    Unavailable(_) => Unavailable(operation)
+    InvalidArgument(_) => InvalidArgument(operation)
+    Closed(_) => Closed(operation)
+    Busy(_) => Busy(operation)
+    DriverFailure(_) => DriverFailure(operation)
+    HostAllocationFailed(_) => HostAllocationFailed(operation)
+    SizeOverflow(_) => SizeOverflow(operation)
+    Unsupported(_) => Unsupported(operation)
+    InvalidOutput(_) => InvalidOutput(operation)
+  }
+}

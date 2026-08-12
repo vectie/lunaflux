@@ -46,11 +46,13 @@ pub struct Context {
   // private fields
 }
 pub fn Context::allocate(Self, Int64) -> Allocation raise DeviceError
+pub fn Context::capability(Self) -> DeviceCapability
 pub fn Context::close(Self) -> Unit raise DeviceError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
 pub fn Context::create_event(Self) -> Event raise DeviceError
 pub fn Context::create_stream(Self) -> Stream raise DeviceError
 pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
+pub fn Context::ordinal(Self) -> Int
 
 pub struct CublasLt {
   // private fields

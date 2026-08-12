@@ -17,6 +17,11 @@ CUDA driver and cuBLASLt libraries are intentionally loaded once and retained
 for process lifetime. Their dispatch pointers can therefore never outlive the
 libraries that own them.
 
+Each opened context pins its process-visible ordinal and immutable capability
+snapshot. Startup planners compare that capability to their exact device target
+before loading modules or allocating execution arenas; a plan selected for one
+compute capability cannot be attached silently to another context.
+
 Host transfers are synchronous. This is intentional: MoonBit buffers are
 borrowed only for the duration of an FFI call and cannot safely outlive an
 asynchronous transfer. Phase 1 BF16 GEMM also synchronizes its caller-owned

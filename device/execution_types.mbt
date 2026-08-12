@@ -49,6 +49,18 @@ pub(all) suberror DeviceError {
 /// explicit close remains the primary release mechanism.
 pub struct Context {
   priv raw : @cuda.Context
+  priv ordinal : Int
+  priv capability : DeviceCapability
+}
+
+///|
+pub fn Context::ordinal(self : Context) -> Int {
+  self.ordinal
+}
+
+///|
+pub fn Context::capability(self : Context) -> DeviceCapability {
+  self.capability
 }
 
 ///|
