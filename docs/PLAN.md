@@ -313,8 +313,11 @@ submission, but not yet its own positive-controlled runtime gate. Process I/O,
 authentication, worker-death supervision, and live overlap remain open. A
 private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
-reap; protocol-aware A/B supervision and the production worker executable do
-not yet consume it.
+reap. Protocol-aware A/B supervision now consumes it with monotonic submission,
+oldest-first receive, retained response epochs, and fail-stop malformed-session
+handling. The production worker executable, restart/readiness integration, and
+live overlap remain open; end-to-end valid-worker transport and allocation
+instrumentation are not yet proven.
 
 ### Gate
 

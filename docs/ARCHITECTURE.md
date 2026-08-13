@@ -127,8 +127,10 @@ stages an authenticated received-plan frame and, after execution, writes a
 completion frame from exact frame-bound logits and scalar sampling fields
 without scheduler heap-owner values. The private native layer now owns an
 exact-path shell-free child and inherited socketpair with bounded I/O,
-timeouts, and reap. Protocol-aware supervision, the production worker
-executable, restart/readiness, and overlap remain open. Global
+timeouts, and reap. The supervisor owns two physical plan/completion frame
+pairs, permits two monotonic submissions, receives oldest first, and retains a
+validated completion epoch until scheduler acceptance succeeds. The production
+worker executable, restart/readiness, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.
 Capability IDs are copied from authenticated model-generation recipes;

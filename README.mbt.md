@@ -174,8 +174,11 @@ scratch and counter-addressed replay semantics. These remain foundations:
 the private native layer can now spawn one exact worker executable without a
 shell or PATH lookup and exchange bounded fixed-buffer bytes over an inherited
 socketpair with monotonic deadlines and deterministic reap. Protocol-aware A/B
-supervision, the production worker executable, restart/readiness integration,
-and live overlap remain open, as do global fairness/preemption and prefix
+supervision now binds monotonic submitted plans to physically distinct frame
+owners, receives responses strictly in order, and pins each completion epoch
+through scheduler publication backpressure. The production worker executable,
+restart/readiness integration, and live overlap remain open, as do global
+fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
 physical-CUDA validation, online transport integration, a positive-controlled

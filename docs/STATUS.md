@@ -183,9 +183,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   The private native layer now provides shell-free exact-executable spawn, an
   inherited socketpair endpoint authenticated by construction, fixed-buffer
   exact I/O with monotonic deadlines, bounded wait/terminate, and deterministic
-  kill/reap close. Protocol framing over that channel, A/B supervision, the
-  production worker executable, restart/readiness, and live overlap are not
-  yet integrated.
+  kill/reap close. A protocol-aware supervisor now owns distinct A/B plan and
+  completion frame buffers, enforces monotonic submission and oldest-first
+  receive, pins a validated response until explicit post-publication
+  retirement, and permanently fails malformed sessions. The production worker
+  executable, restart/readiness, and live overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
