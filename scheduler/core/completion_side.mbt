@@ -30,6 +30,7 @@ pub fn Scheduler::completion_writer(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> @worker_protocol.CompletionWriter raise SchedulerError {
+  self.require_no_cancel_reservation()
   let side = self.completion_side(plan)
   try {
     if side == 0 {

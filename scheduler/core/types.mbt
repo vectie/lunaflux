@@ -61,6 +61,24 @@ pub fn BuildNextOutcome::is_idle(self : BuildNextOutcome) -> Bool {
 }
 
 ///|
+/// Allocation-free result of exact cancellation preflight. A naturally
+/// terminal request has already released its scheduler slot and must not be
+/// cancelled into a new generation.
+#valtype
+pub(all) enum CancelReservationStart {
+  CancelReserved
+  CancelNaturalTerminal
+} derive(Debug, Eq)
+
+///|
+/// Non-raising result of committing the owner-resident reservation.
+#valtype
+pub(all) enum CancelReservationCommit {
+  CancelCommitted(@inference.RequestGeneration)
+  CancelReservationAbsent
+} derive(Debug, Eq)
+
+///|
 pub fn BuildNextOutcome::is_backpressured(self : BuildNextOutcome) -> Bool {
   match self {
     BuildBackpressured => true
@@ -433,6 +451,14 @@ pub struct Scheduler {
   priv mut prefill_count : Int
   priv mut decode_count : Int
   priv mut journal_count : Int
+  priv mut cancel_reserved : Bool
+  priv mut cancel_slot : Int
+  priv mut cancel_slot_generation : Int
+  priv mut cancel_request_id : @inference.RequestId
+  priv mut cancel_request_generation : @inference.RequestGeneration
+  priv mut cancel_publication_cursor : UInt64
+  priv mut cancel_step : UInt64
+  priv mut cancel_token_taken : Bool
 }
 
 ///|

@@ -136,6 +136,7 @@ pub fn Scheduler::complete(
   plan : @worker_protocol.SubmittedSchedulePlan,
   completion : @worker_protocol.SubmittedCompletion,
 ) -> Unit raise SchedulerError {
+  self.require_no_cancel_reservation()
   let side = self.completion_side(plan)
   self.preflight_completion(plan, completion, side)
   let sequence = try! plan.sequence_wire()

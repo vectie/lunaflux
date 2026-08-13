@@ -47,6 +47,7 @@ pub fn Scheduler::fail_plan(
   plan : @worker_protocol.SubmittedSchedulePlan,
   failure : @worker_protocol.WorkerFailure,
 ) -> Unit raise SchedulerError {
+  self.require_no_cancel_reservation()
   let side = self.completion_side(plan)
   let owner = if side == 0 { self.completion_a } else { self.completion_b }
   let completion = match owner.state() {

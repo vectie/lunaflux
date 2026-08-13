@@ -128,6 +128,7 @@ pub fn Scheduler::next_publication_kind(
 pub fn Scheduler::take_next_publication(
   self : Scheduler,
 ) -> SchedulerPublication raise SchedulerError {
+  self.require_no_cancel_reservation()
   match self.next_publication_kind() {
     GeneratedTokenPublication => {
       let notice = self.take_generated_token()
@@ -164,6 +165,7 @@ pub fn Scheduler::take_next_publication(
 pub fn Scheduler::invalidate_device_state(
   self : Scheduler,
 ) -> Int raise SchedulerError {
+  self.require_no_cancel_reservation()
   if self.plan_a_sequence != 0UL ||
     self.plan_b_sequence != 0UL ||
     self.last_retired_plan_sequence != self.last_plan_sequence {
@@ -211,6 +213,7 @@ pub fn Scheduler::invalidate_device_state(
 pub fn Scheduler::take_terminal_notice(
   self : Scheduler,
 ) -> TerminalNotice raise SchedulerError {
+  self.require_no_cancel_reservation()
   if self.terminal_count == 0 {
     raise invalid(TerminalNoticeCapacity, NoRunnableWork)
   }
@@ -235,6 +238,7 @@ pub fn Scheduler::take_terminal_notice(
 pub fn Scheduler::take_generated_token(
   self : Scheduler,
 ) -> GeneratedTokenNotice raise SchedulerError {
+  self.require_no_cancel_reservation()
   if self.output_count == 0 {
     raise invalid(OutputCapacity, NoRunnableWork)
   }
@@ -365,6 +369,7 @@ pub fn Scheduler::cancel_exact(
   self : Scheduler,
   handle : RequestHandle,
 ) -> @inference.RequestGeneration raise SchedulerError {
+  self.require_no_cancel_reservation()
   let index = self.checked_handle_index(handle)
   if self.slot_states[index] == SLOT_CANCELLED ||
     self.slot_states[index] == SLOT_DEADLINE ||
@@ -407,6 +412,7 @@ pub fn Scheduler::cancel(
   self : Scheduler,
   handle : RequestHandle,
 ) -> Unit raise SchedulerError {
+  self.require_no_cancel_reservation()
   ignore(self.cancel_exact(handle))
 }
 
@@ -418,6 +424,7 @@ pub fn Scheduler::expire_exact(
   handle : RequestHandle,
   now_millis : UInt64,
 ) -> @inference.RequestGeneration? raise SchedulerError {
+  self.require_no_cancel_reservation()
   let index = self.checked_handle_index(handle)
   if self.slot_states[index] == SLOT_CANCELLED ||
     self.slot_states[index] == SLOT_DEADLINE ||
@@ -463,6 +470,7 @@ pub fn Scheduler::expire_deadlines(
   self : Scheduler,
   now_millis : UInt64,
 ) -> Int raise SchedulerError {
+  self.require_no_cancel_reservation()
   let mut candidate_count = 0
   for index in 0..<self.slot_states.length() {
     let state = self.slot_states[index]

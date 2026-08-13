@@ -14,6 +14,7 @@ pub(all) enum SchedulerField {
   RequestGeneration
   RequestState
   Completion
+  CancellationReservation
   PageCapacity
   Plan
 } derive(Debug, Eq)

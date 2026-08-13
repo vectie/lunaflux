@@ -265,6 +265,7 @@ pub fn Scheduler::accept_completion_frame(
   plan : @worker_protocol.SubmittedSchedulePlan,
   frame : @worker_wire.ValidatedCompletionFrame,
 ) -> @worker_protocol.SubmittedCompletion raise SchedulerError {
+  self.require_no_cancel_reservation()
   frame.validate_for(plan) catch {
     error => raise WorkerWire(error)
   }

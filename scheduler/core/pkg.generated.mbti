@@ -33,6 +33,16 @@ pub fn BuildNextOutcome::is_backpressured(Self) -> Bool
 pub fn BuildNextOutcome::is_idle(Self) -> Bool
 pub fn BuildNextOutcome::is_submitted(Self) -> Bool
 
+pub(all) enum CancelReservationCommit {
+  CancelCommitted(@inference.RequestGeneration)
+  CancelReservationAbsent
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CancelReservationStart {
+  CancelReserved
+  CancelNaturalTerminal
+} derive(Eq, @debug.Debug)
+
 pub struct GeneratedTokenNotice(@inference.RequestId, @inference.RequestGeneration, Int, Int, UInt64) derive(Eq)
 pub fn GeneratedTokenNotice::position(Self) -> Int
 pub fn GeneratedTokenNotice::publication_sequence(Self) -> UInt64
@@ -74,12 +84,14 @@ pub fn RequestStatus::state(Self) -> SchedulerRequestState
 pub struct Scheduler {
   // private fields
 }
+pub fn Scheduler::abort_cancel_reservation(Self) -> Unit
 pub fn Scheduler::accept_completion_frame(Self, @worker_protocol.SubmittedSchedulePlan, @worker_wire.ValidatedCompletionFrame) -> @worker_protocol.SubmittedCompletion raise SchedulerError
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
 pub fn Scheduler::build_next(Self) -> BuildNextOutcome raise SchedulerError
 pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::cancel_exact(Self, RequestHandle) -> @inference.RequestGeneration raise SchedulerError
+pub fn Scheduler::commit_cancel_reservation(Self) -> CancelReservationCommit
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
 pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
@@ -96,12 +108,14 @@ pub fn Scheduler::model_identity(Self) -> @spec.ModelIdentity
 pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGeneration
 pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
 pub fn Scheduler::next_publication_kind(Self) -> SchedulerPublicationKind raise SchedulerError
+pub fn Scheduler::reserve_cancel_exact(Self, RequestHandle) -> CancelReservationStart raise SchedulerError
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
 pub fn Scheduler::submitted_plan(Self, BuildNextOutcome) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::submitted_plan_for_sequence(Self, UInt64) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::take_generated_token(Self) -> GeneratedTokenNotice raise SchedulerError
 pub fn Scheduler::take_next_publication(Self) -> SchedulerPublication raise SchedulerError
+pub fn Scheduler::take_reserved_generated_token(Self) -> GeneratedTokenNotice raise SchedulerError
 pub fn Scheduler::take_terminal_notice(Self) -> TerminalNotice raise SchedulerError
 pub fn Scheduler::terminal_notice_count(Self) -> Int
 pub fn Scheduler::waiting_request_count(Self) -> Int
@@ -130,6 +144,7 @@ pub(all) enum SchedulerField {
   RequestGeneration
   RequestState
   Completion
+  CancellationReservation
   PageCapacity
   Plan
 } derive(Eq, @debug.Debug)

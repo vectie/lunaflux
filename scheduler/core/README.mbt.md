@@ -30,6 +30,16 @@ order—including the cancellation cut—without merging storage or allocating a
 event queue. The lower-level per-ring dequeues remain fail-closed against a
 wrong-ring choice.
 
+Exact cancellation also supports an owner-resident reservation transaction.
+It preflights the live handle, terminal credit, fresh request/publication
+generations, and deterministic KV release before a session consumes output.
+While reserved, every ordinary scheduler mutation is rejected; only the next
+globally ordered generated notice for that exact request generation may be
+dequeued, at most once. Commit is non-raising and always publishes the physical
+`CancelledByCaller` reason. A higher session may bind its private string-stop
+or output-failure cut only to that exact next-generation notice. A queued
+natural terminal is classified without reserving or inventing a cancellation.
+
 After an unrecoverable worker-instance loss, `drain_instance_loss` retires at
 most one live request per call, publishes `WorkerFailed`, and releases active
 page/table authority or removes one waiting request transactionally. Terminal

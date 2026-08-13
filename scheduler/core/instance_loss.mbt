@@ -7,6 +7,7 @@
 pub fn Scheduler::drain_instance_loss(
   self : Scheduler,
 ) -> InstanceLossDrain raise SchedulerError {
+  self.require_no_cancel_reservation()
   if self.plan_a_sequence != 0UL ||
     self.plan_b_sequence != 0UL ||
     self.last_retired_plan_sequence != self.last_plan_sequence {

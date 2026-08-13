@@ -376,6 +376,14 @@ pub fn Scheduler::new(
     prefill_count: 0,
     decode_count: 0,
     journal_count: 0,
+    cancel_reserved: false,
+    cancel_slot: NO_INDEX,
+    cancel_slot_generation: 0,
+    cancel_request_id: placeholder_id,
+    cancel_request_generation: @inference.RequestGeneration::initial(),
+    cancel_publication_cursor: 0UL,
+    cancel_step: 0UL,
+    cancel_token_taken: false,
   }
 }
 
@@ -385,6 +393,7 @@ pub fn Scheduler::admit(
   request : TokenizedRequest,
   now_millis : UInt64,
 ) -> RequestHandle raise SchedulerError {
+  self.require_no_cancel_reservation()
   if request.model_identity() != self.model_identity {
     raise invalid(ModelIdentity, Mismatch)
   }
