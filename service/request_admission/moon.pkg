@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/incremental_output",
+  "vectie/lunaflux/tokenizer",
+}
+
+supported_targets = "native"

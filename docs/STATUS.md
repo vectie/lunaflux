@@ -204,6 +204,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and withholds stop strings matched across token or code-point boundaries.
   Pattern tables and scratch are constructed before token stepping; the online
   session, output acknowledgement, and transport allocation gate remain open.
+- A synchronous request-admission bridge captures an opaque monotonic receipt
+  before parsing, binds the selected model and tokenizer, tokenizes with
+  overflow and special-token rejection, and constructs the scheduler request
+  with the original absolute deadline. String stops stay in its private
+  incremental owner while stop-token output fails closed. Exact request-handle
+  binding, terminal lookahead, and async tokenizer-pool orchestration remain
+  session-layer work.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

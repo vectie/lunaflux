@@ -331,6 +331,36 @@ if [ -d service/incremental_output ]; then
   fi
 fi
 
+# Request admission is the synchronous tokenizer-worker bridge. It may bind
+# contracts, tokenizer, monotonic time, incremental output, and the scheduler
+# request value, but it must not acquire transport/process/device authority or
+# become an async listener.
+if [ -d service/request_admission ]; then
+  fail_matches \
+    'request admission imports a forbidden engine or transport owner:' \
+    --glob 'service/request_admission/moon.pkg' \
+    'worker_service|worker_process|internal/process|moonbitlang/async|runtime/approved_fs'
+  fail_matches \
+    'request admission must remain synchronous and native-ABI free:' \
+    --glob 'service/request_admission/*.mbt' \
+    'pub async fn|extern\s+"[cC]"|#external'
+  if [ -f service/request_admission/pkg.generated.mbti ]; then
+    if ! rg -q \
+      '^pub fn admit\(RequestReceipt, @inference\.GenerateRequest, @tokenizer\.TokenizerSpec, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'request admission must retain typed receipt/model/tokenizer binding' >&2
+      failed=1
+    fi
+    if rg -n --pcre2 -U \
+      'pub struct (RequestReceipt|AdmittedRequest) \{\n  (?!// private fields)' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' 'request admission owners must remain opaque' >&2
+      failed=1
+    fi
+  fi
+fi
+
 # Production foreign declarations have exactly four narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, plus monotonic time, each under its dedicated internal ABI

@@ -1,0 +1,53 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/request_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/incremental_output",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn admit(RequestReceipt, @inference.GenerateRequest, @tokenizer.TokenizerSpec, @spec.ModelIdentity, @inference.InferenceLimits, @monotonic_clock.MonotonicClock) -> AdmittedRequest raise RequestAdmissionError
+
+// Errors
+pub(all) suberror RequestAdmissionError {
+  Invalid(RequestAdmissionRule)
+  ClockUnavailable
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedRequest {
+  // private fields
+}
+pub fn AdmittedRequest::finish_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise RequestAdmissionError
+pub fn AdmittedRequest::input_token_count(Self) -> Int
+pub fn AdmittedRequest::is_stop_token(Self, Int) -> Bool
+pub fn AdmittedRequest::output_finished(Self) -> Bool
+pub fn AdmittedRequest::output_stopped(Self) -> Bool
+pub fn AdmittedRequest::push_token_into(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStep raise RequestAdmissionError
+pub fn AdmittedRequest::scheduler_request(Self) -> @core.TokenizedRequest
+pub fn AdmittedRequest::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
+
+pub(all) enum RequestAdmissionRule {
+  ModelIdentity
+  ReceiptTime
+  Deadline
+  Input
+  Tokenization
+  SchedulerContract
+  OutputContract
+} derive(Eq, @debug.Debug)
+
+pub struct RequestReceipt {
+  // private fields
+}
+pub fn RequestReceipt::capture(@monotonic_clock.MonotonicClock) -> Self raise RequestAdmissionError
+
+// Type aliases
+
+// Traits
