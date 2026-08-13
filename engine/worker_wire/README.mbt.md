@@ -24,6 +24,32 @@ contract. This proves configuration agreement, not model loading or CUDA
 readiness; a production device worker must establish those facts before it
 emits `Ready`.
 
+Bootstrap-source v1 is a separate inert transport value for the production
+device-worker handshake. It owns five strict filesystem names below two
+lexically validated absolute root locators, independent SHA-256 identities for
+model configuration and the full-graph execution manifest, exact device target
+and KV page geometry, and focused file/arena ceilings. The canonical little-endian
+body has a fixed 184-byte header, variable UTF-8 path section bounded to five
+4096-byte fields, and a trailing raw SHA-256 of every preceding byte. Its
+maximum is 20,696 bytes. Absolute artifact locators, traversal, aliases,
+backslashes, empty path segments, reserved flags, noncanonical lengths, and
+unbounded ceilings fail closed. Lexical admission and decode do not prove a root
+exists, is trusted, or is stable and read-only. A deployment boundary must
+independently supply that authority before any filesystem use. Model and kernel
+roots may intentionally be the same deployment root; their role-specific
+locators and digests remain independently encoded.
+
+`EncodedBootstrapSource` is an immutable owned snapshot: it exposes only its
+digest, focused scalar/path records, exact length, and bounded copying. It never
+contains model weights, model configuration bytes, manifests, CUDA modules, or
+native handles. This slice deliberately does not change startup frame v3 or the
+process handshake yet. A later version will bind this source digest into the
+independent `Configure` contract, send `Configure -> BootstrapSource -> Ready`,
+and retain the exact encoded source across replacement workers. The trailing
+self-SHA provides internal integrity and canonical content identity only; it is
+not peer authentication. Authentication comes from the future independent
+`Configure` source-digest comparison over the private child channel.
+
 Completion frame v1 carries the exact plan sequence and model generation plus
 a canonical table of slot, request identity/generation, outcome kind,
 processed-token count, token ID, and bounded worker-failure category. The

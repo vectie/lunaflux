@@ -3,6 +3,27 @@ pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
   CompletionFrameBytes
   StartupFrameBytes
+  BootstrapSourceBytes
+} derive(Debug, Eq)
+
+///|
+/// Stable, payload-safe reasons why a worker bootstrap source was rejected.
+pub(all) enum WorkerBootstrapSourceRule {
+  Magic
+  Version
+  Recipe
+  Length
+  Reserved
+  RootPath
+  RelativeLocator
+  DuplicateLocator
+  Digest
+  Target
+  KvLayout
+  Ceiling
+  Utf8
+  Integrity
+  CanonicalEncoding
 } derive(Debug, Eq)
 
 ///|
@@ -31,6 +52,7 @@ pub(all) enum WorkerWireFrameRule {
 pub(all) suberror WorkerWireError {
   InvalidLimit(WorkerWireLimitRule)
   InvalidFrame(WorkerWireFrameRule)
+  InvalidBootstrapSource(WorkerBootstrapSourceRule)
   SourceTooSmall
   DestinationTooSmall
   FrameEpochOverflow

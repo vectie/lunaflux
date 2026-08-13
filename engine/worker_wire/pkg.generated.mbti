@@ -9,7 +9,13 @@ import {
 }
 
 // Values
+pub fn admit_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn bootstrap_source_capacity() -> Int
+
 pub fn completion_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
+
+pub fn decode_bootstrap_source(FixedArray[Byte], Int) -> EncodedBootstrapSource raise WorkerWireError
 
 pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
 
@@ -17,6 +23,7 @@ pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int ra
 pub(all) suberror WorkerWireError {
   InvalidLimit(WorkerWireLimitRule)
   InvalidFrame(WorkerWireFrameRule)
+  InvalidBootstrapSource(WorkerBootstrapSourceRule)
   SourceTooSmall
   DestinationTooSmall
   FrameEpochOverflow
@@ -57,6 +64,20 @@ pub fn CompletionFrameWriter::append_prefill_completed(Self, PlanFramePrefillRow
 pub fn CompletionFrameWriter::append_prefill_failed(Self, PlanFramePrefillRow, @worker_protocol.WorkerFailure) -> Unit raise WorkerWireError
 pub fn CompletionFrameWriter::submit(Self) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameWriter::validate_plan(Self, ValidatedPlanFrame) -> Unit raise WorkerWireError
+
+pub struct EncodedBootstrapSource {
+  // private fields
+}
+pub fn EncodedBootstrapSource::capacity(Self) -> Int
+pub fn EncodedBootstrapSource::ceilings(Self) -> WorkerBootstrapCeilings
+pub fn EncodedBootstrapSource::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
+pub fn EncodedBootstrapSource::digest(Self) -> WorkerBootstrapSourceDigest
+pub fn EncodedBootstrapSource::execution(Self) -> WorkerBootstrapExecution
+pub fn EncodedBootstrapSource::kernel(Self) -> WorkerBootstrapKernelSource
+pub fn EncodedBootstrapSource::length(Self) -> Int
+pub fn EncodedBootstrapSource::model(Self) -> WorkerBootstrapModelSource
+pub fn EncodedBootstrapSource::recipe(Self) -> WorkerBootstrapRecipe
+pub fn EncodedBootstrapSource::roots(Self) -> WorkerBootstrapRoots
 
 pub struct PlanFrameBuffer {
   // private fields
@@ -160,9 +181,81 @@ pub fn ValidatedStartupFrame::copy_to(Self, FixedArray[Byte], destination_offset
 pub fn ValidatedStartupFrame::kind(Self) -> StartupFrameKind raise WorkerWireError
 pub fn ValidatedStartupFrame::length(Self) -> Int raise WorkerWireError
 
+pub struct WorkerBootstrapCeilings {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapCeilings::max_activation_arena_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_execution_manifest_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_kv_arena_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_model_config_bytes(Self) -> Int
+pub fn WorkerBootstrapCeilings::max_module_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_total_module_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_weight_arena_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::max_weight_file_bytes(Self) -> Int64
+pub fn WorkerBootstrapCeilings::new(max_model_config_bytes~ : Int, max_weight_file_bytes~ : Int64, max_weight_arena_bytes~ : Int64, max_activation_arena_bytes~ : Int64, max_kv_arena_bytes~ : Int64, max_execution_manifest_bytes~ : Int64, max_module_bytes~ : Int64, max_total_module_bytes~ : Int64) -> Self raise WorkerWireError
+
 pub struct WorkerBootstrapDigest(String) derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapDigest::as_hex(Self) -> String
 pub fn WorkerBootstrapDigest::from_sha256(String) -> Self raise WorkerWireError
+
+pub struct WorkerBootstrapExecution {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapExecution::compute_major(Self) -> Int
+pub fn WorkerBootstrapExecution::compute_minor(Self) -> Int
+pub fn WorkerBootstrapExecution::new(compute_major~ : Int, compute_minor~ : Int, supports_bf16~ : Bool, supports_cublas_lt~ : Bool, tokens_per_page~ : Int, total_page_count~ : Int) -> Self raise WorkerWireError
+pub fn WorkerBootstrapExecution::supports_bf16(Self) -> Bool
+pub fn WorkerBootstrapExecution::supports_cublas_lt(Self) -> Bool
+pub fn WorkerBootstrapExecution::tokens_per_page(Self) -> Int
+pub fn WorkerBootstrapExecution::total_page_count(Self) -> Int
+
+pub struct WorkerBootstrapKernelSource {
+  // private fields
+} derive(Eq)
+pub fn WorkerBootstrapKernelSource::manifest_digest(Self) -> String
+pub fn WorkerBootstrapKernelSource::manifest_locator(Self) -> String
+pub fn WorkerBootstrapKernelSource::new(manifest_locator~ : StringView, manifest_digest_sha256~ : StringView) -> Self raise WorkerWireError
+
+pub struct WorkerBootstrapModelSource {
+  // private fields
+} derive(Eq)
+pub fn WorkerBootstrapModelSource::config_digest(Self) -> String
+pub fn WorkerBootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerBootstrapModelSource::new(config_locator~ : StringView, weights_locator~ : StringView, config_digest_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapModelSource::weights_locator(Self) -> String
+
+pub(all) enum WorkerBootstrapRecipe {
+  DenseLlamaPagedAotV1
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerBootstrapRoots {
+  // private fields
+} derive(Eq)
+pub fn WorkerBootstrapRoots::kernel_root(Self) -> String
+pub fn WorkerBootstrapRoots::model_root(Self) -> String
+pub fn WorkerBootstrapRoots::new(model_root~ : StringView, kernel_root~ : StringView) -> Self raise WorkerWireError
+
+pub struct WorkerBootstrapSourceDigest(String) derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapSourceDigest::as_hex(Self) -> String
+pub fn WorkerBootstrapSourceDigest::from_sha256(String) -> Self raise WorkerWireError
+
+pub(all) enum WorkerBootstrapSourceRule {
+  Magic
+  Version
+  Recipe
+  Length
+  Reserved
+  RootPath
+  RelativeLocator
+  DuplicateLocator
+  Digest
+  Target
+  KvLayout
+  Ceiling
+  Utf8
+  Integrity
+  CanonicalEncoding
+} derive(Eq, @debug.Debug)
 
 pub struct WorkerStartupContract {
   // private fields
@@ -201,6 +294,7 @@ pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
   CompletionFrameBytes
   StartupFrameBytes
+  BootstrapSourceBytes
 } derive(Eq, @debug.Debug)
 
 // Type aliases

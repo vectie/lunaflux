@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/model/spec",
