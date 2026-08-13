@@ -11,6 +11,13 @@ fixed-capacity little-endian Int32 device operands:
 6. CSR page offsets, including the terminal page count;
 7. physical page indices.
 
+The isolated-worker path accepts the equivalent canonical
+`ValidatedPlanFrame` through `stage_frame`. It validates sequence, generation,
+counts, tokens, capabilities, CSR tables, page-generation structure, and
+physical-page bounds directly from fixed wire storage before host mutation or
+device upload. No scheduler heap-owner capability is required in that path;
+the in-process `stage` method remains for the compatibility boundary.
+
 Rows retain protocol order: prefill first, then decode. Prefill positions are
 `sequence_token_start + local_query_index`; decode has one query at
 `sequence_token_position`. Every row carries exactly
@@ -74,7 +81,7 @@ in reverse dependency order; failed cleanup retains explicit retry authority.
 This is a full AOT graph dispatch owner, but not yet serving or numerical-
 correctness evidence. The separate native release gate in
 `tests/device_step_alloc` currently instruments the warmed descriptor
-`stage`/`finish` path, proves record and fixed-array positive controls
+`stage_frame`/`finish` path over prebuilt received frames, proves record and fixed-array positive controls
 independently, and exercises every fixed H2D call through a bounded test seam.
 Generated-C allocation review covers the launch lifecycle, while a
 positive-controlled full `stage`/`execute`/`sample_completion`/`finish` runtime

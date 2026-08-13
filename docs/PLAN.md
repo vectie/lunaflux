@@ -301,7 +301,8 @@ completion frames are additionally matched to the retained exact plan before
 the service populates its paired completion owner; retirement remains a later,
 retryable scheduler operation. The isolated side can write exact canonical
 completion frames directly from authenticated received-plan rows without a
-scheduler heap-owner capability. Independent
+scheduler heap-owner capability. The device descriptor stage consumes the
+validated received plan frame directly as well. Independent
 positive-controlled native release gates
 now cover the scheduler token step and public device-step staging/fixed-H2D
 path after warm-up. The full graph executor has generated-C success-path

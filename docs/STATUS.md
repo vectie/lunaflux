@@ -174,7 +174,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   work, preserving publication-backpressure retry. An exclusive worker-side
   writer now produces canonical completion frames directly from exact received
   plan rows with abort/stale-epoch safety, so no scheduler completion owner is
-  needed across this boundary. Live worker
+  needed across this boundary. Reusable device-step staging also consumes the
+  validated plan frame directly without a scheduler plan owner in the worker.
+  Live worker
   process I/O, authentication, supervision, and overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
