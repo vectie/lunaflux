@@ -293,12 +293,16 @@ capability recipes, whole-build checkpoints, final-prefill output semantics,
 and stale-generation checks are implemented. Scheduler-owned distinct A/B
 buffer pairing, transactional build/submission, exclusive completion leases,
 ordered full-batch retirement, generated-token publication, and exact owner
-reset are implemented. Independent positive-controlled native release gates
+reset are implemented. Canonical fixed-capacity plan/completion wire frames
+now preserve full page generations, capability order, sampling replay identity,
+and typed outcomes across a flat little-endian boundary; untrusted receive is
+transactional, semantically validated, and epoch-authenticated. Independent
+positive-controlled native release gates
 now cover the scheduler token step and public device-step staging/fixed-H2D
 path after warm-up. The full graph executor has generated-C success-path
 allocation evidence through logits readback, sampling, and completion
-submission, but not yet its own positive-controlled runtime gate. Live worker
-overlap remains open.
+submission, but not yet its own positive-controlled runtime gate. Process I/O,
+authentication, worker-death supervision, and live overlap remain open.
 
 ### Gate
 

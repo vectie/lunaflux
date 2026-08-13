@@ -163,8 +163,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   rows. Submitted-work validation remains separate from the scheduler's
   current-generation publication check. The scheduler owns distinct paired A/B
   plan and completion buffers, issues exact-epoch completion writers, and
-  retires completed owners strictly in plan-sequence order. Live worker
-  transport/overlap is not yet integrated.
+  retires completed owners strictly in plan-sequence order. Canonical bounded
+  little-endian plan and completion frames now detach that protocol from heap
+  owner capabilities: each receive validates checksum, exact counts/ranges,
+  identities, sampling fields, outcomes, and canonical table coverage before
+  replacing an epoch. Startup scratch provides O(n log n) uniqueness checks
+  and O(1) completion-slot lookup without steady-state allocation. Live worker
+  process I/O, authentication, supervision, and overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,

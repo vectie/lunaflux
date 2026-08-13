@@ -119,9 +119,12 @@ activates eligible requests, reserves decode resources before prefill, emits the
 protocol's prefill-first row order, and restores exact plan/table/page identity
 on failure. Exact-epoch completion leases and ordered full-batch retirement
 preflight publication and KV-release obligations before state mutation, then
-publish final-prefill/decode tokens and recycle exact owners. Live worker
-transport/overlap, global fairness/preemption, generated-text decoding, and
-prefix integration remain open.
+publish final-prefill/decode tokens and recycle exact owners. Corresponding
+plan/completion data can now be detached from heap capabilities through
+canonical bounded wire frames with transactional untrusted receive, but process I/O,
+authentication, supervision, and overlap remain open. Global
+fairness/preemption, generated-text decoding, and prefix integration also
+remain open.
 Capability IDs are copied from authenticated model-generation recipes;
 scheduler policy does not inspect model operations or select kernels.
 

@@ -134,7 +134,12 @@ scheduler/worker messages now have bounded immutable contracts.
 Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and
-explicit final-prefill sampling semantics. Host-side KV metadata includes a
+explicit final-prefill sampling semantics. A separate canonical little-endian
+worker-wire layer copies exact plan and completion identities, tables, sampling
+replay state, and outcomes into startup-sized frames; untrusted receives check
+all bounds and semantics before replacing an authenticated frame epoch.
+Positive-controlled release instrumentation covers both encode/receive paths
+inside the scheduler token-step window. Host-side KV metadata includes a
 generational fixed-page allocator, a fixed-capacity request block-table arena,
 and inline optional-free page and table identity storage. Logical full-page
 prefix reuse has a fixed-capacity token trie isolated by model, tokenizer,
@@ -156,7 +161,8 @@ resources. Idle and plan-buffer pressure are allocation-free value outcomes,
 and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and counter-addressed replay semantics. These remain foundations:
-live worker transport/overlap, global fairness/preemption, prefix integration,
+live worker process I/O/supervision/overlap, global fairness/preemption, prefix
+integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
 physical-CUDA validation, online transport integration, a positive-controlled
 full graph-executor allocation gate, and the remaining physical-CUDA gates are
