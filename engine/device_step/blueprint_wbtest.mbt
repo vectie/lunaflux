@@ -43,7 +43,7 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
   let rotary = result.steps()[0]
   assert_eq(rotary.operation_id(), @plan.OperationId::new(2))
   assert_eq(rotary.operation_kind(), RotaryEmbedding)
-  assert_eq(rotary.kv_layer(), @plan.KvLayerId::new(0))
+  assert_eq(rotary.kv_layer(), Some(@plan.KvLayerId::new(0)))
   assert_eq(
     rotary.capability(),
     @plan.KernelCapabilityId::positioned_rotary_embedding(),

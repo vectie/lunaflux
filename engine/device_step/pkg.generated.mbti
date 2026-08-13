@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
@@ -15,6 +16,8 @@ import {
 }
 
 // Values
+pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
+
 pub fn admit_paged_kv_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
 
 pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
@@ -133,12 +136,16 @@ pub(all) enum PagedKvBlueprintRule {
 pub struct PagedKvExecutionBlueprint {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedKvExecutionBlueprint::activation_workspace_arena_bytes(Self) -> Int64
 pub fn PagedKvExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn PagedKvExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
 pub fn PagedKvExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedKvExecutionBlueprint::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedKvExecutionBlueprint::scope(Self) -> @launch_contract.PagedContractScope
 pub fn PagedKvExecutionBlueprint::steps(Self) -> ReadOnlyArray[PagedKvExecutionStep]
 pub fn PagedKvExecutionBlueprint::target(Self) -> @catalog.DeviceTarget
+pub fn PagedKvExecutionBlueprint::weight_alignment(Self) -> Int64
+pub fn PagedKvExecutionBlueprint::weight_arena_bytes(Self) -> Int64
 
 pub struct PagedKvExecutionStep {
   // private fields
@@ -148,7 +155,7 @@ pub fn PagedKvExecutionStep::capability(Self) -> @plan.KernelCapabilityId
 pub fn PagedKvExecutionStep::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn PagedKvExecutionStep::entry_point(Self) -> @catalog.AotKernelEntryPoint
 pub fn PagedKvExecutionStep::function_symbol(Self) -> String
-pub fn PagedKvExecutionStep::kv_layer(Self) -> @plan.KvLayerId
+pub fn PagedKvExecutionStep::kv_layer(Self) -> @plan.KvLayerId?
 pub fn PagedKvExecutionStep::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
 pub fn PagedKvExecutionStep::operation_id(Self) -> @plan.OperationId
 pub fn PagedKvExecutionStep::operation_kind(Self) -> @plan.OperationKind
@@ -165,6 +172,7 @@ pub fn PagedKvOperandBinding::space(Self) -> PagedKvOperandSpace
 
 pub(all) enum PagedKvOperandSpace {
   StepDescriptor(DeviceStepStage)
+  WeightArena
   ActivationWorkspaceArena
   PersistentKvArena
 } derive(Eq, @debug.Debug)

@@ -5,6 +5,7 @@
 /// address, kernel argument, or lifecycle authority.
 pub(all) enum PagedKvOperandSpace {
   StepDescriptor(DeviceStepStage)
+  WeightArena
   ActivationWorkspaceArena
   PersistentKvArena
 } derive(Debug, Eq)
@@ -24,7 +25,7 @@ pub struct PagedKvOperandBinding {
 pub struct PagedKvExecutionStep {
   priv operation_id : @plan.OperationId
   priv operation_kind : @plan.OperationKind
-  priv kv_layer : @plan.KvLayerId
+  priv kv_layer : @plan.KvLayerId?
   priv capability : @plan.KernelCapabilityId
   priv semantic_version : @catalog.KernelSemanticVersion
   priv entry_point : @catalog.AotKernelEntryPoint
@@ -43,8 +44,12 @@ pub struct PagedKvExecutionBlueprint {
   priv identity : @spec.ModelIdentity
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
+  priv scope : @launch_contract.PagedContractScope
   priv profile : @launch_contract.PagedKernelProfile
   priv layout : @device_layout.DeviceKvLayout
+  priv weight_arena_bytes : Int64
+  priv weight_alignment : Int64
+  priv activation_workspace_arena_bytes : Int64
   priv steps : ReadOnlyArray[PagedKvExecutionStep]
 } derive(Debug, Eq)
 
@@ -96,7 +101,7 @@ pub fn PagedKvExecutionStep::operation_kind(
 ///|
 pub fn PagedKvExecutionStep::kv_layer(
   self : PagedKvExecutionStep,
-) -> @plan.KvLayerId {
+) -> @plan.KvLayerId? {
   self.kv_layer
 }
 
@@ -178,10 +183,38 @@ pub fn PagedKvExecutionBlueprint::profile(
 }
 
 ///|
+pub fn PagedKvExecutionBlueprint::scope(
+  self : PagedKvExecutionBlueprint,
+) -> @launch_contract.PagedContractScope {
+  self.scope
+}
+
+///|
 pub fn PagedKvExecutionBlueprint::layout(
   self : PagedKvExecutionBlueprint,
 ) -> @device_layout.DeviceKvLayout {
   self.layout
+}
+
+///|
+pub fn PagedKvExecutionBlueprint::weight_arena_bytes(
+  self : PagedKvExecutionBlueprint,
+) -> Int64 {
+  self.weight_arena_bytes
+}
+
+///|
+pub fn PagedKvExecutionBlueprint::weight_alignment(
+  self : PagedKvExecutionBlueprint,
+) -> Int64 {
+  self.weight_alignment
+}
+
+///|
+pub fn PagedKvExecutionBlueprint::activation_workspace_arena_bytes(
+  self : PagedKvExecutionBlueprint,
+) -> Int64 {
+  self.activation_workspace_arena_bytes
 }
 
 ///|

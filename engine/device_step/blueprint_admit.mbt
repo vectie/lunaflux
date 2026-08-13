@@ -38,6 +38,7 @@ fn validate_blueprint_evidence(
   memory_plan : @device_memory.DeviceMemoryPlan,
   contracts : @launch_contract.PagedKvLaunchContractSet,
   artifacts : @artifact.KernelArtifactBundle,
+  expected_scope : @launch_contract.PagedContractScope,
 ) -> Unit raise DeviceStepError {
   ignore(validate_plan_binding(model_plan, layout, limits))
   let identity = model_plan.identity()
@@ -58,7 +59,7 @@ fn validate_blueprint_evidence(
     artifacts.catalog_version() != catalog {
     raise blueprint_error(CatalogVersion)
   }
-  if contracts.scope() != KvSubsequence {
+  if contracts.scope() != expected_scope {
     raise blueprint_error(ContractSemantics)
   }
   if memory_plan.operation_count() != model_plan.operations().length() ||
@@ -302,6 +303,8 @@ fn bind_blueprint_operand(
   profile : @launch_contract.PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
   memory_plan : @device_memory.DeviceMemoryPlan,
+  static_operation : @device_plan.StaticOperation?,
+  static_plan : @device_plan.StaticDevicePlan?,
 ) -> PagedKvOperandBinding raise DeviceStepError {
   match operand.role() {
     RuntimeInput(input) => {
@@ -330,8 +333,14 @@ fn bind_blueprint_operand(
     PersistentKvComponent(layer, component) =>
       bind_kv_operand(operation, layer, component, operand, layout)
     Workspace => bind_workspace_operand(operation, operand, memory_plan)
-    ExternalInput(_) | WeightInput(_) =>
-      raise blueprint_operation_error(operation, OperandRole)
+    ExternalInput(reference) =>
+      bind_external_operand(
+        operation, reference, operand, profile, static_operation,
+      )
+    WeightInput(reference) =>
+      bind_weight_operand(
+        operation, reference, operand, static_operation, static_plan,
+      )
   }
 }
 
@@ -343,10 +352,10 @@ fn build_paged_step(
   layout : @device_layout.DeviceKvLayout,
   memory_plan : @device_memory.DeviceMemoryPlan,
   artifacts : @artifact.KernelArtifactBundle,
+  static_operation : @device_plan.StaticOperation?,
+  static_plan : @device_plan.StaticDevicePlan?,
 ) -> PagedKvExecutionStep raise DeviceStepError {
-  guard operation.kv_layer() is Some(layer) else {
-    raise blueprint_operation_error(operation.id(), ContractSemantics)
-  }
+  let layer = operation.kv_layer()
   guard memory_plan.operation_binding(operation.id()) is Some(memory_binding) &&
     memory_binding.operation_id() == operation.id() else {
     raise blueprint_operation_error(operation.id(), ActivationRegion)
@@ -360,7 +369,7 @@ fn build_paged_step(
     contract.operation_shape() != operation.shape() ||
     contract.capability() != operation.required_capability() ||
     contract.semantic_version() != @catalog.KernelSemanticVersion::v2() ||
-    contract.kv_layer() != Some(layer) ||
+    contract.kv_layer() != layer ||
     contract.runtime_inputs() != operation.runtime_inputs() ||
     contract.persistent_state() != operation.persistent_state() ||
     contract.kv_layout_version() != layout.stable_layout_version() ||
@@ -388,6 +397,8 @@ fn build_paged_step(
         profile,
         layout,
         memory_plan,
+        static_operation,
+        static_plan,
       ),
     )
   }
@@ -433,7 +444,13 @@ pub fn admit_paged_kv_execution_blueprint(
   artifacts : @artifact.KernelArtifactBundle,
 ) -> PagedKvExecutionBlueprint raise DeviceStepError {
   validate_blueprint_evidence(
-    model_plan, limits, layout, memory_plan, contracts, artifacts,
+    model_plan,
+    limits,
+    layout,
+    memory_plan,
+    contracts,
+    artifacts,
+    KvSubsequence,
   )
   let profile = selected_paged_profile(contracts, profile_id, limits)
   let operations = paged_model_operations(model_plan)
@@ -454,6 +471,8 @@ pub fn admit_paged_kv_execution_blueprint(
         layout,
         memory_plan,
         artifacts,
+        None,
+        None,
       ),
     )
   }
@@ -461,8 +480,12 @@ pub fn admit_paged_kv_execution_blueprint(
     identity: model_plan.identity(),
     target: contracts.device_target(),
     catalog_version: contracts.catalog_version(),
+    scope: contracts.scope(),
     profile,
     layout,
+    weight_arena_bytes: 0L,
+    weight_alignment: 1L,
+    activation_workspace_arena_bytes: memory_plan.arena_bytes(),
     steps: ReadOnlyArray::from_array(steps),
   }
 }
