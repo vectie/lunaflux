@@ -144,6 +144,22 @@ pub fn Allocation::close(self : Allocation) -> Unit raise CudaError {
 }
 
 ///|
+pub fn Context::lease_allocation(
+  self : Context,
+  allocation : Allocation,
+) -> AllocationLease raise CudaError {
+  let status = Ref(0)
+  let lease = raw_allocation_lease_create(self, allocation, status)
+  check_status(status.val, AllocationLeaseCreate)
+  lease
+}
+
+///|
+pub fn AllocationLease::close(self : AllocationLease) -> Unit raise CudaError {
+  check_status(raw_allocation_lease_close(self), AllocationLeaseClose)
+}
+
+///|
 pub fn Context::validate_allocation_region(
   self : Context,
   allocation : Allocation,

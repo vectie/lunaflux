@@ -22,6 +22,14 @@ extern "c" fn raw_test_fixed_readback_boundary(
 extern "c" fn raw_test_region_validation(cycles : Int) -> Int = "lunaflux_cuda_test_region_validation"
 
 ///|
+extern "c" fn raw_test_allocation_lease(cycles : Int) -> Int = "lunaflux_cuda_test_allocation_lease"
+
+///|
+test "native allocation leases retain exact retryable ownership" {
+  assert_eq(raw_test_allocation_lease(256), 0)
+}
+
+///|
 test "native region validation checks physical addresses and close guards" {
   assert_eq(raw_test_region_validation(256), 0)
 }
@@ -67,4 +75,6 @@ test "native execution probe rejects unbounded repetition" {
   assert_eq(raw_test_execution_boundary(10001), -2)
   assert_eq(raw_test_region_validation(0), -2)
   assert_eq(raw_test_region_validation(10001), -2)
+  assert_eq(raw_test_allocation_lease(0), -2)
+  assert_eq(raw_test_allocation_lease(10001), -2)
 }

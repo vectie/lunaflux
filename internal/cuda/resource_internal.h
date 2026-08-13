@@ -31,6 +31,11 @@ typedef struct lf_allocation {
   atomic_int active_operations;
 } lf_allocation;
 
+typedef struct lf_allocation_lease {
+  lf_allocation *allocation;
+  atomic_int state;
+} lf_allocation_lease;
+
 typedef struct lf_module {
   lf_context *context;
   CUmodule handle;
@@ -87,6 +92,12 @@ int32_t lunaflux_cuda_context_close(lf_context *context);
 int32_t lunaflux_cuda_stream_close(lf_child *stream);
 int32_t lunaflux_cuda_cublas_close(lf_child *cublas);
 int32_t lunaflux_cuda_allocation_close(lf_allocation *allocation);
+lf_allocation_lease *lunaflux_cuda_allocation_lease_create(
+  lf_context *context,
+  lf_allocation *allocation,
+  int32_t *status
+);
+int32_t lunaflux_cuda_allocation_lease_close(lf_allocation_lease *lease);
 int32_t lunaflux_cuda_context_validate_allocation_region(
   lf_context *context,
   lf_allocation *allocation,

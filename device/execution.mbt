@@ -98,6 +98,27 @@ pub fn Allocation::close(self : Allocation) -> Unit raise DeviceError {
 }
 
 ///|
+/// Acquires a deterministic lifetime lease for an allocation owned by this
+/// exact context. The lease carries no region, transfer, or launch methods.
+pub fn Context::lease_allocation(
+  self : Context,
+  allocation : Allocation,
+) -> AllocationLease raise DeviceError {
+  let raw = self.raw.lease_allocation(allocation.raw) catch {
+    error => raise error_from_cuda(error)
+  }
+  { raw, }
+}
+
+///|
+/// Releases this lifetime proof. Closing an already closed lease is safe.
+pub fn AllocationLease::close(self : AllocationLease) -> Unit raise DeviceError {
+  self.raw.close() catch {
+    error => raise error_from_cuda(error)
+  }
+}
+
+///|
 /// Proves that one non-empty region belongs to this context and has the
 /// requested physical device-pointer alignment. This preparation-time check
 /// does not replace immediate guarded kernel and vendor dispatch revalidation.

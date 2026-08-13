@@ -48,13 +48,28 @@ done <<EOF
 $(rg --files internal/cuda device --glob '*.mbt' --glob '*.c' --glob '*.h' | sort)
 EOF
 
-for native_stub in cublas.c gemm.c launch.c loader.c modules.c region_probe.c regions.c resources.c transfer_probe.c transfers.c; do
+for native_stub in allocation_lease.c allocation_lease_probe.c cublas.c gemm.c launch.c loader.c modules.c region_probe.c regions.c resources.c transfer_probe.c transfers.c; do
   if ! rg -q "\"$native_stub\"" internal/cuda/moon.pkg; then
     printf '%s: %s\n' \
       'internal/cuda native-stub list is missing' "$native_stub" >&2
     failed=1
   fi
 done
+
+if ! rg -q -U \
+  '#borrow\(context, allocation, status\)\nextern "c" fn raw_allocation_lease_create' \
+  internal/cuda/ffi.mbt; then
+  printf '%s\n' \
+    'allocation lease creation must borrow its context and allocation' >&2
+  failed=1
+fi
+
+if ! rg -q -U \
+  '#borrow\(lease\)\nextern "c" fn raw_allocation_lease_close' \
+  internal/cuda/ffi.mbt; then
+  printf '%s\n' 'allocation lease close must borrow its native owner' >&2
+  failed=1
+fi
 
 if ! rg -q \
   '"stub-cc-flags": "-std=c11 -Wall -Wextra -Werror"' \

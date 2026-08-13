@@ -15,6 +15,8 @@ pub(all) enum DeviceOperation {
   EventElapsed
   AllocationCreate
   AllocationClose
+  AllocationLeaseCreate
+  AllocationLeaseClose
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
@@ -78,6 +80,14 @@ pub struct Event {
 pub struct Allocation {
   priv raw : @cuda.Allocation
   priv byte_count : Int64
+}
+
+///|
+/// Opaque deterministic lifetime proof for one allocation. A live lease keeps
+/// explicit allocation close retryably busy but does not expose memory or
+/// launch authority.
+pub struct AllocationLease {
+  priv raw : @cuda.AllocationLease
 }
 
 ///|

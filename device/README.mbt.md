@@ -10,6 +10,7 @@ owners:
 1. close GEMM plans before their cuBLASLt handle;
 2. close functions before their module;
 3. close events, streams, allocations, modules, and cuBLASLt before the context;
+   close allocation leases before their allocation;
 4. retry a close that reports `Busy` or `DriverFailure`; a failed close retains
    ownership and does not invalidate the wrapper.
 
@@ -41,6 +42,14 @@ Native resources reject close with `Busy` while an operation is active. Parent
 creation and child retention use the same interlock, preventing concurrent
 close from destroying a context, module, or cuBLASLt handle during child
 construction.
+
+`Context::lease_allocation` extends that interlock into an explicit lifetime
+proof for prepared execution owners. A live lease keeps its exact allocation
+retryably busy across calls while exposing no address, transfer, region, or
+launch method. This lets an executor safely prebuild private argument lists
+from caller-owned weights without stealing weight ownership. The executor must
+close the lease only after it has made every prepared argument unreachable and
+will never launch again.
 
 Startup preparation may call `Context::validate_allocation_region` to prove
 that a region belongs to the selected context and that its actual allocation

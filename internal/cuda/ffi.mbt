@@ -11,6 +11,9 @@ type Event
 type Allocation
 
 ///|
+type AllocationLease
+
+///|
 type Module
 
 ///|
@@ -89,6 +92,18 @@ extern "c" fn raw_allocation_create(
 ///|
 #borrow(allocation)
 extern "c" fn raw_allocation_close(allocation : Allocation) -> Int = "lunaflux_cuda_allocation_close"
+
+///|
+#borrow(context, allocation, status)
+extern "c" fn raw_allocation_lease_create(
+  context : Context,
+  allocation : Allocation,
+  status : Ref[Int],
+) -> AllocationLease = "lunaflux_cuda_allocation_lease_create"
+
+///|
+#borrow(lease)
+extern "c" fn raw_allocation_lease_close(lease : AllocationLease) -> Int = "lunaflux_cuda_allocation_lease_close"
 
 ///|
 #borrow(context, allocation)

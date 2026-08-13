@@ -14,6 +14,8 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     EventElapsed => EventElapsed
     AllocationCreate => AllocationCreate
     AllocationClose => AllocationClose
+    AllocationLeaseCreate => AllocationLeaseCreate
+    AllocationLeaseClose => AllocationLeaseClose
     AllocationRegionValidate => AllocationRegionValidate
     CopyToDevice => CopyToDevice
     CopyToHost => CopyToHost

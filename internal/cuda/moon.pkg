@@ -6,6 +6,8 @@ supported_targets = "native"
 
 options(
   "native-stub": [
+    "allocation_lease.c",
+    "allocation_lease_probe.c",
     "cublas.c",
     "execution_probe.c",
     "gemm.c",

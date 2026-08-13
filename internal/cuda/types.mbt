@@ -96,6 +96,8 @@ pub(all) enum CudaOperation {
   EventElapsed
   AllocationCreate
   AllocationClose
+  AllocationLeaseCreate
+  AllocationLeaseClose
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
