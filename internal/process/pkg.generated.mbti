@@ -31,11 +31,12 @@ pub struct ChildProcess {
 }
 pub fn ChildProcess::close(Self) -> Unit raise ProcessError
 pub fn ChildProcess::is_closed(Self) -> Bool
-pub fn ChildProcess::read_exact(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+pub fn ChildProcess::is_failed(Self) -> Bool
+pub fn ChildProcess::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn ChildProcess::shutdown_write(Self) -> Unit raise ProcessError
 pub fn ChildProcess::terminate(Self) -> Unit raise ProcessError
 pub fn ChildProcess::wait(Self) -> ChildExit raise ProcessError
-pub fn ChildProcess::write_exact(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+pub fn ChildProcess::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
 
 pub(all) enum ProcessLimitRule {
   FrameBytes

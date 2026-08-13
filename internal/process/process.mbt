@@ -23,6 +23,17 @@ fn ChildProcess::require_open(
 }
 
 ///|
+fn ChildProcess::require_usable(
+  self : ChildProcess,
+  operation : ProcessOperation,
+) -> Unit raise ProcessError {
+  self.require_open(operation)
+  if self.failed {
+    raise InvalidState(operation)
+  }
+}
+
+///|
 /// Spawns one exact executable with an inherited private full-duplex channel.
 pub fn spawn(
   executable : Bytes,
@@ -34,18 +45,25 @@ pub fn spawn(
     ignore(raw_close(handle))
     raise SpawnFailed
   }
-  { handle, limits, closed: false }
+  {
+    handle,
+    limits,
+    write_prefix: FixedArray::make(4, b'\x00'),
+    read_prefix: FixedArray::make(4, b'\x00'),
+    failed: false,
+    closed: false,
+  }
 }
 
 ///|
 /// Writes an exact fixed-buffer range or fails without reporting a short write.
-pub fn ChildProcess::write_exact(
+fn ChildProcess::write_exact(
   self : ChildProcess,
   source : FixedArray[Byte],
   offset~ : Int,
   byte_count~ : Int,
 ) -> Unit raise ProcessError {
-  self.require_open(Write)
+  self.require_usable(Write)
   if offset < 0 ||
     byte_count < 0 ||
     byte_count > self.limits.max_frame_bytes ||
@@ -61,18 +79,23 @@ pub fn ChildProcess::write_exact(
       self.limits.io_timeout_millis,
     ),
     Write,
-  )
+  ) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
 }
 
 ///|
 /// Reads exactly one fixed-buffer range; EOF before completion is an error.
-pub fn ChildProcess::read_exact(
+fn ChildProcess::read_exact(
   self : ChildProcess,
   destination : FixedArray[Byte],
   offset~ : Int,
   byte_count~ : Int,
 ) -> Unit raise ProcessError {
-  self.require_open(Read)
+  self.require_usable(Read)
   if offset < 0 ||
     byte_count < 0 ||
     byte_count > self.limits.max_frame_bytes ||
@@ -88,7 +111,67 @@ pub fn ChildProcess::read_exact(
       self.limits.io_timeout_millis,
     ),
     Read,
-  )
+  ) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
+}
+
+///|
+fn write_u32_prefix(prefix : FixedArray[Byte], value : Int) -> Unit {
+  prefix[0] = value.to_byte()
+  prefix[1] = (value >> 8).to_byte()
+  prefix[2] = (value >> 16).to_byte()
+  prefix[3] = (value >> 24).to_byte()
+}
+
+///|
+fn read_u32_prefix(prefix : FixedArray[Byte]) -> Int {
+  prefix[0].to_int() |
+  (prefix[1].to_int() << 8) |
+  (prefix[2].to_int() << 16) |
+  (prefix[3].to_int() << 24)
+}
+
+///|
+/// Writes one length-delimited frame from caller-owned fixed storage.
+pub fn ChildProcess::write_frame(
+  self : ChildProcess,
+  source : FixedArray[Byte],
+  offset~ : Int,
+  byte_count~ : Int,
+) -> Unit raise ProcessError {
+  self.require_usable(Write)
+  if byte_count <= 0 ||
+    byte_count > self.limits.max_frame_bytes ||
+    offset < 0 ||
+    offset > source.length() - byte_count {
+    raise InvalidRange(Write)
+  }
+  write_u32_prefix(self.write_prefix, byte_count)
+  self.write_exact(self.write_prefix, offset=0, byte_count=4)
+  self.write_exact(source, offset~, byte_count~)
+}
+
+///|
+/// Reads one complete bounded frame into caller-owned fixed storage.
+pub fn ChildProcess::read_frame(
+  self : ChildProcess,
+  destination : FixedArray[Byte],
+) -> Int raise ProcessError {
+  self.require_usable(Read)
+  self.read_exact(self.read_prefix, offset=0, byte_count=4)
+  let byte_count = read_u32_prefix(self.read_prefix)
+  if byte_count <= 0 ||
+    byte_count > self.limits.max_frame_bytes ||
+    byte_count > destination.length() {
+    self.failed = true
+    raise InvalidRange(Read)
+  }
+  self.read_exact(destination, offset=0, byte_count~)
+  byte_count
 }
 
 ///|

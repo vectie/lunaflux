@@ -10,7 +10,7 @@ fn test_limits(
 }
 
 ///|
-test "private socketpair child echoes exact fixed-buffer ranges" {
+test "private socketpair child echoes one exact bounded frame" {
   let child = spawn(b"/bin/cat", test_limits())
   let source = FixedArray::make(16, b'\x7f')
   source[4] = b'l'
@@ -18,14 +18,13 @@ test "private socketpair child echoes exact fixed-buffer ranges" {
   source[6] = b'n'
   source[7] = b'a'
   let destination = FixedArray::make(16, b'\x33')
-  child.write_exact(source, offset=4, byte_count=4)
-  child.read_exact(destination, offset=6, byte_count=4)
-  assert_eq(destination[5], b'\x33')
-  assert_eq(destination[6], b'l')
-  assert_eq(destination[7], b'u')
-  assert_eq(destination[8], b'n')
-  assert_eq(destination[9], b'a')
-  assert_eq(destination[10], b'\x33')
+  child.write_frame(source, offset=4, byte_count=4)
+  assert_eq(child.read_frame(destination), 4)
+  assert_eq(destination[0], b'l')
+  assert_eq(destination[1], b'u')
+  assert_eq(destination[2], b'n')
+  assert_eq(destination[3], b'a')
+  assert_eq(destination[4], b'\x33')
   child.shutdown_write()
   let exit = child.wait()
   assert_eq(exit.kind(), 0)
@@ -36,20 +35,21 @@ test "private socketpair child echoes exact fixed-buffer ranges" {
 }
 
 ///|
-test "read timeout and invalid ranges preserve cleanup authority" {
+test "read timeout poisons framing but preserves cleanup authority" {
   let child = spawn(b"/bin/cat", test_limits(io_timeout_millis=5))
   let buffer = FixedArray::make(8, b'\x00')
-  try child.read_exact(buffer, offset=0, byte_count=1) catch {
+  try child.read_frame(buffer) catch {
     Timeout(Read) => ()
     _ => fail("unexpected child read timeout")
   } noraise {
     _ => fail("idle child read did not time out")
   }
-  try child.write_exact(buffer, offset=7, byte_count=2) catch {
-    InvalidRange(Write) => ()
-    _ => fail("unexpected child range error")
+  assert_true(child.is_failed())
+  try child.write_frame(buffer, offset=0, byte_count=1) catch {
+    InvalidState(Write) => ()
+    _ => fail("unexpected poisoned child error")
   } noraise {
-    _ => fail("invalid child range was accepted")
+    _ => fail("poisoned child accepted another frame")
   }
   try child.wait() catch {
     Timeout(Wait) => ()
@@ -80,8 +80,8 @@ test "repeated child lifecycle balances exact echo and reap" {
   let destination = FixedArray::make(1, b'\x00')
   for _ in 0..<32 {
     let child = spawn(b"/bin/cat", test_limits())
-    child.write_exact(source, offset=0, byte_count=1)
-    child.read_exact(destination, offset=0, byte_count=1)
+    child.write_frame(source, offset=0, byte_count=1)
+    assert_eq(child.read_frame(destination), 1)
     assert_eq(destination[0], b'x')
     child.shutdown_write()
     let exit = child.wait()

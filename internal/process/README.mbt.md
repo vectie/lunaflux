@@ -6,9 +6,12 @@ full-duplex socket on standard input/output. The parent endpoint is therefore
 authenticated by construction; no filesystem socket or ambient listener is
 created.
 
-All public operations are exact, bounded fixed-buffer transfers. Short I/O,
-EOF, timeout, invalid range, and lifecycle failures are typed without paths,
-payloads, file descriptors, PIDs, or `errno`. The native loop uses monotonic
+All public transfers are exact length-delimited frames over caller-owned fixed
+storage. The two four-byte prefixes are allocated once at spawn. Short I/O,
+EOF, timeout, invalid range, oversized declaration, and lifecycle failures
+permanently poison stream alignment; only termination, wait, and close remain.
+Failures are typed without paths, payloads, file descriptors, PIDs, or
+`errno`. The native loop uses monotonic
 deadlines and retries interruption. Explicit `close` shuts the channel, kills
 a still-live child, and reaps it; the external-object finalizer is only a
 last-resort cleanup guard.

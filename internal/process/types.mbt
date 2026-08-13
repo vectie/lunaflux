@@ -39,6 +39,9 @@ pub struct ProcessLimits {
 pub struct ChildProcess {
   priv handle : NativeChild
   priv limits : ProcessLimits
+  priv write_prefix : FixedArray[Byte]
+  priv read_prefix : FixedArray[Byte]
+  priv mut failed : Bool
   priv mut closed : Bool
 }
 
@@ -96,4 +99,9 @@ pub fn ChildExit::code(self : ChildExit) -> Int {
 ///|
 pub fn ChildProcess::is_closed(self : ChildProcess) -> Bool {
   self.closed
+}
+
+///|
+pub fn ChildProcess::is_failed(self : ChildProcess) -> Bool {
+  self.failed
 }
