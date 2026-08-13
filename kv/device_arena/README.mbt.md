@@ -12,13 +12,17 @@ creating worker must keep the exact `device.Context` open until the arena is
 closed and must not share the arena across context-owning workers. Region
 metadata is not permission to close, copy, or mutate storage.
 
-Paged kernels obtain one owner-mediated, safe `device.KernelArgument` for the
-whole arena and derive page offsets from authenticated scalar indices. That
-argument is a borrow and must not be launched after arena close begins; page
-generation remains host-owned validation state rather than a device pointer.
-Kernels that genuinely consume one segment may request a binding by
-layer/component/page indices; the arena re-derives the region so it never
-trusts unauthenticated caller-provided offsets or foreign region metadata.
+The arena does not return `device.KernelArgument` values. Those values are
+retainable allocation aliases, so documentation alone cannot make them safe
+borrows across poison or close. A future paged executor must keep binding and
+synchronous launch inside one owner-mediated call. Package-private preparation
+can resolve and physically validate the exact component stride beginning at
+page zero for a semantic `KvLayerId`; unauthenticated offsets and foreign
+region metadata are never accepted.
+
+Any launch failure poisons the arena. Poison is permanent and idempotent:
+region validation is rejected afterward, while explicit retry-safe close
+authority remains with the arena owner.
 
 Close is explicit and retry-safe. A failed normal close makes the arena
 unusable while retaining release authority. If post-allocation construction

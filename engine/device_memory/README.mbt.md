@@ -16,3 +16,11 @@ sequence dimensions. The caller supplies alignment and the exact total byte
 ceiling. Unsupported shapes, arithmetic overflow, and capacity excess fail
 before device allocation. Native resource ownership is explicit through
 `DeviceMemoryArena::close`.
+
+The existing stateless reference executor still consumes the arena's frozen
+Phase-1 allocation-alias exception. New paged execution must use an
+owner-mediated synchronous launch boundary instead: public `Allocation` or
+`KernelArgument` returns are retainable values and therefore cannot enforce
+activation liveness or poison semantics. `engine/device_executor` owns removal
+of this exception after its launch and output-copy paths become owner-mediated,
+and no Phase-3 paged executor may depend on it.

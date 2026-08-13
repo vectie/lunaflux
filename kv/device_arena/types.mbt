@@ -45,6 +45,7 @@ pub struct FailedDeviceKvArenaPreparation {
 ///|
 priv enum DeviceKvArenaLifecycle {
   Open
+  PoisonedState
   ClosingFailed
   ClosedState
 } derive(Eq)
@@ -110,6 +111,13 @@ pub fn DeviceKvArena::is_closed(self : DeviceKvArena) -> Bool {
 ///|
 pub fn DeviceKvArena::is_usable(self : DeviceKvArena) -> Bool {
   self.lifecycle == Open
+}
+
+///|
+/// Reports whether a dispatch failure has permanently disabled this arena.
+/// A poisoned arena retains only deterministic close authority.
+pub fn DeviceKvArena::is_poisoned(self : DeviceKvArena) -> Bool {
+  self.lifecycle == PoisonedState
 }
 
 ///|

@@ -21,7 +21,6 @@ pub(all) enum DeviceKvArenaStage {
   AllocationCreate
   AllocationValidation
   RegionValidation
-  KernelBinding
   AllocationClose
 } derive(Debug, Eq)
 
@@ -35,6 +34,7 @@ pub(all) suberror DeviceKvArenaError {
   InvalidLayout(DeviceKvArenaRule)
   AllocationSizeMismatch
   WrongContext
+  ArenaPoisoned
   Closed
   DeviceFailed(DeviceKvArenaStage, @device.DeviceError)
 } derive(Debug, Eq)

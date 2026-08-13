@@ -299,10 +299,13 @@ pub fn DeviceMemoryArena::target(
 }
 
 ///|
-/// Returns an alias of the safe opaque allocation for dispatch.
+/// Returns the frozen Phase-1 allocation-alias exception used by the existing
+/// stateless reference executor.
 ///
 /// Closing this alias also closes the arena represented by
-/// `DeviceMemoryArena`; callers should retain lifecycle authority here.
+/// `DeviceMemoryArena`; callers should retain lifecycle authority here. New
+/// paged execution must not use this legacy escape: retainable allocation and
+/// kernel-argument values cannot express call-scoped borrows in MoonBit.
 pub fn DeviceMemoryArena::allocation(
   self : DeviceMemoryArena,
 ) -> @device.Allocation {

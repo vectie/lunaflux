@@ -290,3 +290,160 @@ test "region guard validates the exact reserved segment" {
   assert_eq(region.offset_bytes(), 2816L)
   assert_eq(region.end_offset_bytes(), 3072L)
 }
+
+///|
+test "component-span guard validates exact semantic layer and component" {
+  let identity = fake_identity(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  )
+  let layout = fake_layout(identity)
+  let resource : FakeKvResource = {
+    byte_count: layout.arena_bytes(),
+    context_id: 7,
+    open: true,
+  }
+  let validated_offset = Ref(-1L)
+  let validated_bytes = Ref(-1L)
+  let validated_alignment = Ref(-1L)
+  let span = validate_owned_component_span(
+    Open,
+    resource,
+    layout,
+    7,
+    7,
+    @plan.KvLayerId::new(1),
+    Value,
+    (_checked, offset, bytes, alignment) => {
+      validated_offset.val = offset
+      validated_bytes.val = bytes
+      validated_alignment.val = alignment
+    },
+  )
+  assert_eq(validated_offset.val, 2304L)
+  assert_eq(validated_bytes.val, 768L)
+  assert_eq(validated_alignment.val, 256L)
+  assert_eq(span.offset_bytes, 2304L)
+  assert_eq(span.byte_count, 768L)
+  assert_eq(span.alignment_bytes, 256L)
+
+  let key_span = validate_owned_component_span(
+    Open,
+    resource,
+    layout,
+    7,
+    7,
+    @plan.KvLayerId::new(1),
+    Key,
+    (_checked, _offset, _bytes, _alignment) => (),
+  )
+  assert_eq(key_span.offset_bytes, 1536L)
+  assert_eq(key_span.byte_count, 768L)
+}
+
+///|
+test "component-span guard rejects wrong context layer and poisoned lifecycle" {
+  let identity = fake_identity(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  )
+  let layout = fake_layout(identity)
+  let resource : FakeKvResource = {
+    byte_count: layout.arena_bytes(),
+    context_id: 7,
+    open: true,
+  }
+  let validations = Ref(0)
+  try
+    validate_owned_component_span(
+      Open,
+      resource,
+      layout,
+      7,
+      8,
+      @plan.KvLayerId::new(0),
+      Key,
+      (_checked, _offset, _bytes, _alignment) => validations.val += 1,
+    )
+  catch {
+    WrongContext => ()
+    _ => fail("unexpected wrong-context failure")
+  } noraise {
+    _ => fail("expected wrong context")
+  }
+  try
+    validate_owned_component_span(
+      Open,
+      resource,
+      layout,
+      7,
+      7,
+      @plan.KvLayerId::new(2),
+      Key,
+      (_checked, _offset, _bytes, _alignment) => validations.val += 1,
+    )
+  catch {
+    InvalidLayout(RegionIndex) => ()
+    _ => fail("unexpected layer failure")
+  } noraise {
+    _ => fail("expected invalid layer")
+  }
+  try
+    validate_owned_component_span(
+      PoisonedState,
+      resource,
+      layout,
+      7,
+      7,
+      @plan.KvLayerId::new(0),
+      Value,
+      (_checked, _offset, _bytes, _alignment) => validations.val += 1,
+    )
+  catch {
+    ArenaPoisoned => ()
+    _ => fail("unexpected poison failure")
+  } noraise {
+    _ => fail("expected poisoned arena")
+  }
+  try
+    validate_owned_component_span(
+      ClosedState,
+      resource,
+      layout,
+      7,
+      7,
+      @plan.KvLayerId::new(0),
+      Value,
+      (_checked, _offset, _bytes, _alignment) => validations.val += 1,
+    )
+  catch {
+    Closed => ()
+    _ => fail("unexpected closed failure")
+  } noraise {
+    _ => fail("expected closed arena")
+  }
+  assert_eq(validations.val, 0)
+}
+
+///|
+test "poison is permanent while retry-safe close authority remains" {
+  assert_true(poison_lifecycle(Open) == PoisonedState)
+  assert_true(poison_lifecycle(PoisonedState) == PoisonedState)
+  assert_true(poison_lifecycle(ClosingFailed) == ClosingFailed)
+  assert_true(poison_lifecycle(ClosedState) == ClosedState)
+
+  let closes = Ref(0)
+  let lifecycle = Ref(PoisonedState)
+  let resource : FakeKvResource = {
+    byte_count: 256L,
+    context_id: 7,
+    open: true,
+  }
+  close_retry_safe(lifecycle.val, next => lifecycle.val = next, resource, owned => {
+    owned.open = false
+    closes.val += 1
+  })
+  close_retry_safe(lifecycle.val, next => lifecycle.val = next, resource, _owned => {
+    closes.val += 1
+  })
+  assert_true(lifecycle.val == ClosedState)
+  assert_eq(closes.val, 1)
+}

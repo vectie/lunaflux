@@ -18,6 +18,7 @@ pub(all) suberror DeviceKvArenaError {
   InvalidLayout(DeviceKvArenaRule)
   AllocationSizeMismatch
   WrongContext
+  ArenaPoisoned
   Closed
   DeviceFailed(DeviceKvArenaStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
@@ -31,11 +32,11 @@ pub fn DeviceKvArena::close(Self) -> Unit raise DeviceKvArenaError
 pub fn DeviceKvArena::context_ordinal(Self) -> Int
 pub fn DeviceKvArena::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceKvArena::is_closed(Self) -> Bool
+pub fn DeviceKvArena::is_poisoned(Self) -> Bool
 pub fn DeviceKvArena::is_usable(Self) -> Bool
-pub fn DeviceKvArena::kernel_argument(Self, @device.Context) -> @device.KernelArgument raise DeviceKvArenaError
 pub fn DeviceKvArena::layout(Self) -> @device_layout.DeviceKvLayout
 pub fn DeviceKvArena::plan(Self) -> DeviceKvArenaPlan
-pub fn DeviceKvArena::region_kernel_argument(Self, @device.Context, Int, @device_layout.DeviceKvComponent, Int) -> @device.KernelArgument raise DeviceKvArenaError
+pub fn DeviceKvArena::poison(Self) -> Unit
 pub fn DeviceKvArena::validate_region(Self, @device.Context, Int, @device_layout.DeviceKvComponent, Int) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError
 
 pub struct DeviceKvArenaPlan {
@@ -70,7 +71,6 @@ pub(all) enum DeviceKvArenaStage {
   AllocationCreate
   AllocationValidation
   RegionValidation
-  KernelBinding
   AllocationClose
 } derive(Eq, @debug.Debug)
 

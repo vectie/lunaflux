@@ -2,9 +2,29 @@
 fn require_open(
   lifecycle : DeviceKvArenaLifecycle,
 ) -> Unit raise DeviceKvArenaError {
-  if lifecycle != Open {
-    raise Closed
+  match lifecycle {
+    Open => ()
+    PoisonedState => raise ArenaPoisoned
+    ClosingFailed | ClosedState => raise Closed
   }
+}
+
+///|
+fn poison_lifecycle(
+  lifecycle : DeviceKvArenaLifecycle,
+) -> DeviceKvArenaLifecycle {
+  if lifecycle == Open {
+    PoisonedState
+  } else {
+    lifecycle
+  }
+}
+
+///|
+/// Permanently disables future region validation after a dispatch failure.
+/// Poisoning is idempotent and preserves the owner's explicit close authority.
+pub fn DeviceKvArena::poison(self : DeviceKvArena) -> Unit {
+  self.lifecycle = poison_lifecycle(self.lifecycle)
 }
 
 ///|
@@ -51,11 +71,51 @@ fn[Resource, ContextIdentity : Eq] validate_owned_region(
 }
 
 ///|
+/// Exact private layer/component span retained for package-local dispatch
+/// construction. It deliberately cannot escape the owning package as a
+/// retainable device argument.
+#valtype
+priv struct DeviceKvComponentSpan {
+  offset_bytes : Int64
+  byte_count : Int64
+  alignment_bytes : Int64
+}
+
+///|
+fn[Resource, ContextIdentity : Eq] validate_owned_component_span(
+  lifecycle : DeviceKvArenaLifecycle,
+  resource : Resource,
+  layout : @device_layout.DeviceKvLayout,
+  owning_context : ContextIdentity,
+  supplied_context : ContextIdentity,
+  layer : @plan.KvLayerId,
+  component : @device_layout.DeviceKvComponent,
+  validate : (Resource, Int64, Int64, Int64) -> Unit raise DeviceKvArenaError,
+) -> DeviceKvComponentSpan raise DeviceKvArenaError {
+  require_open(lifecycle)
+  if supplied_context != owning_context {
+    raise WrongContext
+  }
+  let first = layout.region(layer.as_int(), component, 0) catch {
+    _ => raise InvalidLayout(RegionIndex)
+  }
+  let bytes = layout.component_stride_bytes()
+  let alignment = layout.segment_alignment_bytes()
+  validate(resource, first.offset_bytes(), bytes, alignment)
+  {
+    offset_bytes: first.offset_bytes(),
+    byte_count: bytes,
+    alignment_bytes: alignment,
+  }
+}
+
+///|
 /// Resolves and physically validates one exact page component without exposing
-/// the allocation. This is a preparation/dispatch guard, not mutation
-/// authority. A context with a different ordinal is rejected before touching
-/// the device facade; same-ordinal alias mistakes are rejected by the facade's
-/// native allocation/context validation.
+/// the allocation. This startup/diagnostic guard first proves the containing
+/// semantic-layer component span and then the exact page; it is not a token-
+/// step dispatch path or mutation authority. A context with a different
+/// ordinal is rejected before touching the device facade; same-ordinal alias
+/// mistakes are rejected by the facade's native allocation/context validation.
 pub fn DeviceKvArena::validate_region(
   self : DeviceKvArena,
   context : @device.Context,
@@ -63,7 +123,29 @@ pub fn DeviceKvArena::validate_region(
   component : @device_layout.DeviceKvComponent,
   page_index : Int,
 ) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError {
-  validate_owned_region(
+  let layer = @plan.KvLayerId::new(layer_index) catch {
+    _ => raise InvalidLayout(RegionIndex)
+  }
+  let span = validate_owned_component_span(
+    self.lifecycle,
+    self.allocation,
+    self.plan.layout(),
+    self.context_ordinal,
+    context.ordinal(),
+    layer,
+    component,
+    (allocation, offset, bytes, alignment) => {
+      context.validate_allocation_region(
+        allocation,
+        offset~,
+        byte_count=bytes,
+        alignment~,
+      ) catch {
+        error => raise DeviceFailed(RegionValidation, error)
+      }
+    },
+  )
+  let region = validate_owned_region(
     self.lifecycle,
     self.allocation,
     self.plan.layout(),
@@ -83,59 +165,12 @@ pub fn DeviceKvArena::validate_region(
       }
     },
   )
-}
-
-///|
-/// Creates one safe opaque kernel argument for the complete persistent arena.
-/// Paged kernels bind this argument once and resolve page offsets from the
-/// immutable layout and authenticated host page indices. The returned value is
-/// a borrow: it must not be launched after this arena begins closing.
-pub fn DeviceKvArena::kernel_argument(
-  self : DeviceKvArena,
-  context : @device.Context,
-) -> @device.KernelArgument raise DeviceKvArenaError {
-  require_open(self.lifecycle)
-  if context.ordinal() != self.context_ordinal {
-    raise WrongContext
+  if region.offset_bytes() < span.offset_bytes ||
+    region.end_offset_bytes() > span.offset_bytes + span.byte_count ||
+    region.alignment_bytes() != span.alignment_bytes {
+    raise InvalidLayout(RegionIndex)
   }
-  context.validate_allocation_region(
-    self.allocation,
-    offset=0L,
-    byte_count=self.plan.arena_bytes(),
-    alignment=self.plan.segment_alignment_bytes(),
-  ) catch {
-    error => raise DeviceFailed(KernelBinding, error)
-  }
-  @device.KernelArgument::device_region(
-    self.allocation,
-    offset=0L,
-    byte_count=self.plan.arena_bytes(),
-    alignment=self.plan.segment_alignment_bytes(),
-  ) catch {
-    error => raise DeviceFailed(KernelBinding, error)
-  }
-}
-
-///|
-/// Creates a safe opaque kernel argument for one exact canonical page segment.
-/// Indices are resolved against the retained layout so a region from another
-/// arena cannot be confused with this allocation.
-pub fn DeviceKvArena::region_kernel_argument(
-  self : DeviceKvArena,
-  context : @device.Context,
-  layer_index : Int,
-  component : @device_layout.DeviceKvComponent,
-  page_index : Int,
-) -> @device.KernelArgument raise DeviceKvArenaError {
-  let region = self.validate_region(context, layer_index, component, page_index)
-  @device.KernelArgument::device_region(
-    self.allocation,
-    offset=region.offset_bytes(),
-    byte_count=region.reserved_bytes(),
-    alignment=region.alignment_bytes(),
-  ) catch {
-    error => raise DeviceFailed(KernelBinding, error)
-  }
+  region
 }
 
 ///|
