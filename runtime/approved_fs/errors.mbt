@@ -27,6 +27,8 @@ pub(all) suberror ApprovedFsError {
   Invalid(ApprovedFsRule)
   Unavailable(ApprovedFsObject)
   UnsupportedType(ApprovedFsObject)
+  FileTooLarge
+  ChangedDuringRead
   Truncated
   Busy(ApprovedFsOperation)
   OperationFailed(ApprovedFsOperation)

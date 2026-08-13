@@ -20,6 +20,12 @@ const STATUS_TRUNCATED : Int = 5
 const STATUS_BUSY : Int = 7
 
 ///|
+const STATUS_CHANGED : Int = 8
+
+///|
+const STATUS_TOO_LARGE : Int = 9
+
+///|
 fn raise_open_status(
   status : Int,
   object : ApprovedFsObject,
@@ -46,6 +52,8 @@ fn raise_operation_status(
     STATUS_CLOSED => raise Invalid(Lifecycle)
     STATUS_TRUNCATED => raise Truncated
     STATUS_BUSY => raise Busy(operation)
+    STATUS_CHANGED => raise ChangedDuringRead
+    STATUS_TOO_LARGE => raise FileTooLarge
     _ => raise OperationFailed(operation)
   }
 }
@@ -149,4 +157,26 @@ pub fn ApprovedFile::stamp(
     changed_seconds: output[3],
     changed_nanoseconds: output[4].to_int(),
   }
+}
+
+///|
+/// Reads the complete pinned regular file into one immutable startup payload.
+/// The same operation lease covers both metadata stamps, the exact positional
+/// read, and a trailing-byte probe. Size, modification time, or metadata-change
+/// time differences fail without publishing the snapshot.
+pub fn ApprovedFile::read_immutable_snapshot(
+  self : ApprovedFile,
+  maximum_bytes~ : Int64,
+) -> Bytes raise ApprovedFsError {
+  if maximum_bytes < 0L {
+    raise Invalid(ReadRange)
+  }
+  let status = Ref(STATUS_INVALID)
+  let snapshot = @native.read_immutable_snapshot(
+    self.handle,
+    maximum_bytes,
+    status,
+  )
+  raise_operation_status(status.val, Read)
+  snapshot
 }

@@ -13,36 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-_Static_assert(sizeof(off_t) >= sizeof(int64_t), "approved_fs requires 64-bit off_t");
-
-enum {
-  LF_APPROVED_OK = 0,
-  LF_APPROVED_INVALID = 1,
-  LF_APPROVED_UNAVAILABLE = 2,
-  LF_APPROVED_UNSUPPORTED = 3,
-  LF_APPROVED_CLOSED = 4,
-  LF_APPROVED_TRUNCATED = 5,
-  LF_APPROVED_FAILED = 6,
-  LF_APPROVED_BUSY = 7
-};
-
-enum {
-  LF_APPROVED_ROOT = 1,
-  LF_APPROVED_FILE = 2,
-  LF_APPROVED_PATH_MAX = 4096
-};
-
-enum {
-  LF_APPROVED_STATE_CLOSING = 0x80000000u,
-  LF_APPROVED_STATE_CLOSED = 0x80000001u,
-  LF_APPROVED_ACTIVE_MAX = 0x7fffffffu
-};
-
-typedef struct lf_approved_handle {
-  int fd;
-  int kind;
-  _Atomic uint32_t state;
-} lf_approved_handle;
+#include "approved_fs_private.h"
 
 static int lf_close_fd(int fd) {
   if (close(fd) == 0) return LF_APPROVED_OK;
@@ -398,6 +369,108 @@ int32_t lunaflux_approved_fs_stamp(
 #endif
   lf_end_operation(file);
   return LF_APPROVED_OK;
+}
+
+static int lf_file_stamp_equal(
+  const struct stat *left,
+  const struct stat *right
+) {
+  if (left->st_size != right->st_size) return 0;
+#if defined(__APPLE__)
+  return left->st_mtimespec.tv_sec == right->st_mtimespec.tv_sec &&
+    left->st_mtimespec.tv_nsec == right->st_mtimespec.tv_nsec &&
+    left->st_ctimespec.tv_sec == right->st_ctimespec.tv_sec &&
+    left->st_ctimespec.tv_nsec == right->st_ctimespec.tv_nsec;
+#else
+  return left->st_mtim.tv_sec == right->st_mtim.tv_sec &&
+    left->st_mtim.tv_nsec == right->st_mtim.tv_nsec &&
+    left->st_ctim.tv_sec == right->st_ctim.tv_sec &&
+    left->st_ctim.tv_nsec == right->st_ctim.tv_nsec;
+#endif
+}
+
+static moonbit_bytes_t lf_snapshot_failure(moonbit_bytes_t failure) {
+  moonbit_incref(failure);
+  return failure;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t lunaflux_approved_fs_read_immutable_snapshot(
+  lf_approved_handle *file,
+  int64_t maximum_bytes,
+  moonbit_bytes_t failure,
+  int32_t *status
+) {
+  *status = LF_APPROVED_INVALID;
+  if (maximum_bytes < 0) return lf_snapshot_failure(failure);
+
+  int file_fd = -1;
+  *status = lf_begin_operation(file, LF_APPROVED_FILE, &file_fd);
+  if (*status != LF_APPROVED_OK) return lf_snapshot_failure(failure);
+  struct stat before;
+  if (fstat(file_fd, &before) != 0 || !S_ISREG(before.st_mode) ||
+      before.st_size < 0) {
+    *status = LF_APPROVED_FAILED;
+    goto fail_before_allocation;
+  }
+  if ((uint64_t)before.st_size > (uint64_t)maximum_bytes ||
+      (uint64_t)before.st_size > INT32_MAX ||
+      (uint64_t)before.st_size > SIZE_MAX) {
+    *status = LF_APPROVED_TOO_LARGE;
+    goto fail_before_allocation;
+  }
+  int32_t byte_count = (int32_t)before.st_size;
+  moonbit_bytes_t output = moonbit_make_bytes(byte_count, 0);
+  LF_APPROVED_FS_SNAPSHOT_HOOK(1, file_fd);
+  int32_t cursor = 0;
+  while (cursor < byte_count) {
+    ssize_t count = pread(
+      file_fd,
+      output + cursor,
+      (size_t)(byte_count - cursor),
+      (off_t)cursor
+    );
+    if (count > 0) {
+      cursor += (int32_t)count;
+    } else if (count == 0) {
+      *status = LF_APPROVED_TRUNCATED;
+      goto finish;
+    } else if (errno != EINTR) {
+      *status = LF_APPROVED_FAILED;
+      goto finish;
+    }
+  }
+  uint8_t trailing = 0;
+  ssize_t trailing_count;
+  do {
+    trailing_count = pread(file_fd, &trailing, 1, (off_t)before.st_size);
+  } while (trailing_count < 0 && errno == EINTR);
+  if (trailing_count > 0) {
+    *status = LF_APPROVED_CHANGED;
+    goto finish;
+  }
+  if (trailing_count < 0) {
+    *status = LF_APPROVED_FAILED;
+    goto finish;
+  }
+  struct stat after;
+  if (fstat(file_fd, &after) != 0 || !S_ISREG(after.st_mode)) {
+    *status = LF_APPROVED_FAILED;
+    goto finish;
+  }
+  if (!lf_file_stamp_equal(&before, &after)) {
+    *status = LF_APPROVED_CHANGED;
+    goto finish;
+  }
+  *status = LF_APPROVED_OK;
+
+finish:
+  lf_end_operation(file);
+  return output;
+
+fail_before_allocation:
+  lf_end_operation(file);
+  return lf_snapshot_failure(failure);
 }
 
 MOONBIT_FFI_EXPORT

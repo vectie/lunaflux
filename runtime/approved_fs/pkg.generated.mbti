@@ -12,6 +12,8 @@ pub(all) suberror ApprovedFsError {
   Invalid(ApprovedFsRule)
   Unavailable(ApprovedFsObject)
   UnsupportedType(ApprovedFsObject)
+  FileTooLarge
+  ChangedDuringRead
   Truncated
   Busy(ApprovedFsOperation)
   OperationFailed(ApprovedFsOperation)
@@ -24,6 +26,7 @@ pub struct ApprovedFile {
 pub fn ApprovedFile::close(Self) -> Unit raise ApprovedFsError
 pub fn ApprovedFile::is_closed(Self) -> Bool
 pub fn ApprovedFile::read_exactly_at(Self, FixedArray[Byte], destination_offset~ : Int, byte_count~ : Int, position~ : Int64) -> Unit raise ApprovedFsError
+pub fn ApprovedFile::read_immutable_snapshot(Self, maximum_bytes~ : Int64) -> Bytes raise ApprovedFsError
 pub fn ApprovedFile::stamp(Self) -> ApprovedFileStamp raise ApprovedFsError
 
 pub struct ApprovedFileStamp {

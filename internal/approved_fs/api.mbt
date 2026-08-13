@@ -37,3 +37,12 @@ pub fn read_exact_at(
 pub fn stamp(file : ApprovedHandle, output : FixedArray[Int64]) -> Int {
   raw_stamp(file, output)
 }
+
+///|
+pub fn read_immutable_snapshot(
+  file : ApprovedHandle,
+  maximum_bytes : Int64,
+  status : Ref[Int],
+) -> Bytes {
+  raw_read_immutable_snapshot(file, maximum_bytes, b"", status)
+}

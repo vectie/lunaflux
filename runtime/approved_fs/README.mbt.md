@@ -13,6 +13,13 @@ redirect positional reads. Content digests and same-handle stamps remain the
 authority for file contents. Stamps include byte count, modification time, and
 metadata-change time from that same pinned descriptor.
 
+Startup readers may request one bounded immutable snapshot. That operation
+holds one file lease across its before-stamp, exact positional read,
+trailing-growth probe, and after-stamp. It allocates exactly one immutable
+payload after the initial size is accepted, and rejects truncation, growth, or
+size/mtime/ctime changes without publishing bytes. This is a startup primitive,
+not a token-step API and not a substitute for content-digest verification.
+
 Both roots and files require explicit deterministic close. Close is idempotent.
 Each descriptor operation holds an atomic lifecycle lease; close reports
 payload-safe `Busy(Close)` without consuming authority while a lease is active.

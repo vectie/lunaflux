@@ -17,6 +17,8 @@ pub fn open_root(Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApproved
 
 pub fn read_exact_at(@approved_fs_capability.NativeApprovedHandle, FixedArray[Byte], Int, Int, Int64) -> Int
 
+pub fn read_immutable_snapshot(@approved_fs_capability.NativeApprovedHandle, Int64, @ref.Ref[Int]) -> Bytes
+
 pub fn stamp(@approved_fs_capability.NativeApprovedHandle, FixedArray[Int64]) -> Int
 
 // Errors

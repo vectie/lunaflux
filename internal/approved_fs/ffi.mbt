@@ -37,3 +37,12 @@ extern "c" fn raw_stamp(
   file : @cap.ApprovedHandle,
   output : FixedArray[Int64],
 ) -> Int = "lunaflux_approved_fs_stamp"
+
+///|
+#borrow(file, failure, status)
+extern "c" fn raw_read_immutable_snapshot(
+  file : @cap.ApprovedHandle,
+  maximum_bytes : Int64,
+  failure : Bytes,
+  status : Ref[Int],
+) -> Bytes = "lunaflux_approved_fs_read_immutable_snapshot"

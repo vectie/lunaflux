@@ -86,6 +86,13 @@ async test "native ABI rejects invalid buffers without sentinel mutation" {
     let stamp_output = FixedArray::make(4, 77L)
     assert_eq(stamp(file, stamp_output), 1)
     assert_eq(stamp_output, FixedArray::make(4, 77L))
+    let snapshot_status = Ref(-1)
+    assert_eq(read_immutable_snapshot(file, -1L, snapshot_status), b"")
+    assert_eq(snapshot_status.val, 1)
+    assert_eq(read_immutable_snapshot(file, 2L, snapshot_status), b"")
+    assert_eq(snapshot_status.val, 9)
+    assert_eq(read_immutable_snapshot(file, 3L, snapshot_status), b"abc")
+    assert_eq(snapshot_status.val, 0)
     assert_eq(close(root), 0)
     assert_eq(close(file), 0)
   }

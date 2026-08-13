@@ -166,6 +166,19 @@ async test "relative locators and read ranges fail before native mutation" {
       }
     }
     let file = root.open_file("file.bin")
+    assert_eq(file.read_immutable_snapshot(maximum_bytes=3L), b"abc")
+    try file.read_immutable_snapshot(maximum_bytes=2L) catch {
+      FileTooLarge => ()
+      _ => fail("unexpected snapshot limit error")
+    } noraise {
+      _ => fail("oversized snapshot succeeded")
+    }
+    try file.read_immutable_snapshot(maximum_bytes=-1L) catch {
+      Invalid(ReadRange) => ()
+      _ => fail("unexpected negative snapshot limit error")
+    } noraise {
+      _ => fail("negative snapshot limit was accepted")
+    }
     try
       file.read_exactly_at(
         FixedArray::make(2, b'\x00'),
@@ -200,6 +213,12 @@ async test "relative locators and read ranges fail before native mutation" {
       _ => fail("unexpected closed file error")
     } noraise {
       _ => fail("closed file remained readable")
+    }
+    try file.read_immutable_snapshot(maximum_bytes=3L) catch {
+      Invalid(Lifecycle) => ()
+      _ => fail("unexpected closed snapshot error")
+    } noraise {
+      _ => fail("closed file published a snapshot")
     }
     root.close()
     root.close()
