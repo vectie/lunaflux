@@ -13,10 +13,11 @@ prefill rows, and decode rows follow in canonical contiguous order. Integer and
 floating-point fields use little-endian fixed-width representations. Sampling
 seed and output index are preserved exactly.
 
-Before plan traffic, startup frame v1 performs an exact `Configure`/`Ready`
-exchange. Its canonical 280-byte body binds protocol version, full model
-identity, model-plan generation, predecessor sequence, worker limits, and
-inference limits under the same bounded checksum and reserved-field rules. A
+Before plan traffic, startup frame v2 performs an exact `Configure`/`Ready`
+exchange. Its canonical 344-byte body binds protocol version, full model
+identity, a lowercase SHA-256 of the admitted worker bootstrap, model-plan
+generation, predecessor sequence, worker limits, and inference limits under
+the same bounded checksum and reserved-field rules. A
 worker is not protocol-ready until it returns the identical validated
 contract. This proves configuration agreement, not model loading or CUDA
 readiness; a production device worker must establish those facts before it

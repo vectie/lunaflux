@@ -44,6 +44,9 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       ),
     ),
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
     model_generation_value=1UL,
     worker_limits=worker_limits(),
     inference_limits=inference_limits(),

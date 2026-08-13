@@ -2,13 +2,13 @@
 let startup_magic : UInt = 0x5358464c
 
 ///|
-let startup_version : UInt = 1
+let startup_version : UInt = 2
 
 ///|
-let startup_length : Int = 280
+let startup_length : Int = 344
 
 ///|
-let startup_checksum_offset : Int = 272
+let startup_checksum_offset : Int = 336
 
 ///|
 fn startup_checksum(bytes : FixedArray[Byte]) -> UInt {
@@ -159,6 +159,7 @@ fn write_startup_contract(
   write_digest(bytes, 104, contract.identity.plan().as_hex())
   write_worker_limits(bytes, contract.worker_limits)
   write_inference_limits(bytes, contract.inference_limits)
+  write_digest(bytes, 272, contract.bootstrap_digest.as_hex())
   write_u32(bytes, startup_checksum_offset, startup_checksum(bytes))
 }
 
@@ -183,7 +184,7 @@ fn validate_startup_source(
   }
   if read_i32(bytes, 16) != startup_length ||
     read_u32(bytes, 260) != 0 ||
-    read_u32(bytes, 276) != 0 {
+    read_u32(bytes, 340) != 0 {
     raise InvalidFrame(Reserved)
   }
   if startup_checksum(bytes) != read_u32(bytes, startup_checksum_offset) {
@@ -258,6 +259,7 @@ pub fn ValidatedStartupFrame::contract(
   }
   WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(content, plan),
+    bootstrap_digest=WorkerBootstrapDigest::from_sha256(read_digest(bytes, 272)),
     model_generation_value=read_u64(bytes, 24),
     worker_limits=read_worker_limits(bytes),
     inference_limits=read_inference_limits(bytes),

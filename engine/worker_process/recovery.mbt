@@ -48,6 +48,7 @@ pub fn WorkerProcessSupervisor::recovery_startup_contract(
   }
   @worker_wire.WorkerStartupContract::new(
     identity=self.startup.identity(),
+    bootstrap_digest=self.startup.bootstrap_digest(),
     model_generation_value=self.startup.model_generation_value(),
     worker_limits=self.startup.worker_limits(),
     inference_limits=self.startup.inference_limits(),

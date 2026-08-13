@@ -6,9 +6,14 @@ pub(all) enum StartupFrameKind {
 } derive(Debug, Eq)
 
 ///|
+/// Content identity of the complete admitted worker bootstrap evidence.
+pub struct WorkerBootstrapDigest(String) derive(Debug, Eq)
+
+///|
 /// Exact model, generation, sequence domain, and bounded runtime envelope.
 pub struct WorkerStartupContract {
   priv identity : @spec.ModelIdentity
+  priv bootstrap_digest : WorkerBootstrapDigest
   priv model_generation_value : UInt64
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
@@ -32,6 +37,7 @@ pub struct ValidatedStartupFrame(StartupFrameBuffer, UInt64)
 ///|
 pub fn WorkerStartupContract::new(
   identity~ : @spec.ModelIdentity,
+  bootstrap_digest~ : WorkerBootstrapDigest,
   model_generation_value~ : UInt64,
   worker_limits~ : @worker_protocol.WorkerProtocolLimits,
   inference_limits~ : @inference.InferenceLimits,
@@ -48,6 +54,7 @@ pub fn WorkerStartupContract::new(
   }
   {
     identity,
+    bootstrap_digest,
     model_generation_value,
     worker_limits,
     inference_limits,
@@ -57,10 +64,37 @@ pub fn WorkerStartupContract::new(
 }
 
 ///|
+pub fn WorkerBootstrapDigest::from_sha256(
+  value : String,
+) -> WorkerBootstrapDigest raise WorkerWireError {
+  if value.length() != 64 {
+    raise InvalidFrame(StartupIdentity)
+  }
+  for character in value {
+    if !(character is ('0'..='9' | 'a'..='f')) {
+      raise InvalidFrame(StartupIdentity)
+    }
+  }
+  WorkerBootstrapDigest(value)
+}
+
+///|
+pub fn WorkerBootstrapDigest::as_hex(self : WorkerBootstrapDigest) -> String {
+  self.0
+}
+
+///|
 pub fn WorkerStartupContract::identity(
   self : WorkerStartupContract,
 ) -> @spec.ModelIdentity {
   self.identity
+}
+
+///|
+pub fn WorkerStartupContract::bootstrap_digest(
+  self : WorkerStartupContract,
+) -> WorkerBootstrapDigest {
+  self.bootstrap_digest
 }
 
 ///|
@@ -100,7 +134,7 @@ pub fn WorkerStartupContract::predecessor_value(
 
 ///|
 pub fn StartupFrameBuffer::new() -> StartupFrameBuffer {
-  { storage: FixedArray::make(280, b'\x00'), epoch: 0UL, length: 0 }
+  { storage: FixedArray::make(344, b'\x00'), epoch: 0UL, length: 0 }
 }
 
 ///|

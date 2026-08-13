@@ -53,6 +53,9 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       ),
     ),
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
     model_generation_value=1UL,
     worker_limits=supervisor_limits(),
     inference_limits=supervisor_inference_limits(),
@@ -319,6 +322,10 @@ test "closed submissions are abandoned only in exact sequence order" {
   owner.abandon_submission(submission_b)
   let recovery = owner.recovery_startup_contract()
   assert_eq(recovery.identity(), supervisor_startup().identity())
+  assert_eq(
+    recovery.bootstrap_digest(),
+    supervisor_startup().bootstrap_digest(),
+  )
   assert_eq(recovery.model_generation_value(), 1UL)
   assert_true(recovery.has_predecessor())
   assert_eq(recovery.predecessor_value(), 2UL)

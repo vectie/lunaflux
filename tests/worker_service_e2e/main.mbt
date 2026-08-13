@@ -129,6 +129,9 @@ fn request(id : UInt64) -> @scheduler.TokenizedRequest raise {
 fn startup() -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
     model_generation_value=1UL,
     worker_limits=worker_limits(),
     inference_limits=inference_limits(),
@@ -145,6 +148,9 @@ fn foreign_startup() -> @worker_wire.WorkerStartupContract raise {
         "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       ),
       identity().plan(),
+    ),
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
     model_generation_value=1UL,
     worker_limits=worker_limits(),

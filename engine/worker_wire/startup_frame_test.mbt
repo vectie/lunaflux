@@ -9,6 +9,9 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
         "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       ),
     ),
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
     model_generation_value=9UL,
     worker_limits=wire_protocol_limits(),
     inference_limits=wire_inference_limits(),
@@ -64,6 +67,7 @@ test "startup predecessor identity is canonical" {
     try
       @worker_wire.WorkerStartupContract::new(
         identity=base.identity(),
+        bootstrap_digest=base.bootstrap_digest(),
         model_generation_value=base.model_generation_value(),
         worker_limits=base.worker_limits(),
         inference_limits=base.inference_limits(),
@@ -75,6 +79,26 @@ test "startup predecessor identity is canonical" {
       _ => fail("unexpected predecessor identity error")
     } noraise {
       _ => fail("noncanonical predecessor identity was accepted")
+    }
+  }
+}
+
+///|
+test "startup bootstrap identity is exact lowercase sha256" {
+  let expected = startup_contract().bootstrap_digest()
+  assert_eq(
+    expected.as_hex(),
+    "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+  )
+  for
+    value in [
+      "ABC", "00112233445566778899AABBCCDDEEFF00112233445566778899aabbccddeeff",
+    ] {
+    try @worker_wire.WorkerBootstrapDigest::from_sha256(value) catch {
+      InvalidFrame(StartupIdentity) => ()
+      _ => fail("unexpected bootstrap digest error")
+    } noraise {
+      _ => fail("invalid bootstrap digest was accepted")
     }
   }
 }
