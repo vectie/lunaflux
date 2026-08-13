@@ -2,6 +2,7 @@
 fn empty_resources() -> ExecutorResources {
   {
     stream: None,
+    weight_lease: None,
     token_staging: None,
     arena: None,
     modules: [],
@@ -276,8 +277,12 @@ pub fn prepare(
     context, static_plan, memory_plan, profile, profile_id, weights, contracts, artifacts,
   )
   let resources = empty_resources()
+  let weight_lease = context.lease_allocation(weights.allocation()) catch {
+    error => raise DeviceFailed(WeightLease, error)
+  }
+  resources.weight_lease = Some({ resource: weight_lease, open: true })
   let stream = context.create_stream() catch {
-    error => raise DeviceFailed(Stream, error)
+    error => return construction_failed(resources, DeviceFailed(Stream, error))
   }
   resources.stream = Some({ resource: stream, open: true })
   let token_staging = context.allocate(profile.token_staging_capacity_bytes()) catch {

@@ -109,10 +109,11 @@ priv struct FakeOptionalResource {
 }
 
 ///|
-test "absent arena does not skip token and stream cleanup" {
+test "absent arena does not skip token lease and stream cleanup" {
   let first : Ref[DeviceExecutorError?] = Ref(None)
   let order : Array[Int] = []
   let token : FakeOptionalResource = { id: 2, open: true }
+  let lease : FakeOptionalResource = { id: 3, open: true }
   let stream : FakeOptionalResource = { id: 1, open: true }
   let absent : FakeOptionalResource? = None
   close_optional_resource(
@@ -130,14 +131,22 @@ test "absent arena does not skip token and stream cleanup" {
     first,
   )
   close_optional_resource(
+    Some(lease),
+    resource => resource.open,
+    resource => order.push(resource.id),
+    resource => resource.open = false,
+    first,
+  )
+  close_optional_resource(
     Some(stream),
     resource => resource.open,
     resource => order.push(resource.id),
     resource => resource.open = false,
     first,
   )
-  assert_eq(order, [2, 1])
+  assert_eq(order, [2, 3, 1])
   assert_false(token.open)
+  assert_false(lease.open)
   assert_false(stream.open)
   assert_true(first.val is None)
 }

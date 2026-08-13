@@ -185,6 +185,17 @@ fn close_allocations_and_stream(
     first,
   )
   close_optional_resource(
+    resources.weight_lease,
+    lease => lease.open,
+    lease => {
+      lease.resource.close() catch {
+        error => raise CleanupFailed(WeightLease, Device(error))
+      }
+    },
+    lease => lease.open = false,
+    first,
+  )
+  close_optional_resource(
     resources.stream,
     stream => stream.open,
     stream => {

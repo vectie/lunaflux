@@ -61,6 +61,12 @@ priv struct OwnedAllocation {
 }
 
 ///|
+priv struct OwnedAllocationLease {
+  resource : @device.AllocationLease
+  mut open : Bool
+}
+
+///|
 priv struct OwnedArena {
   resource : @device_memory.DeviceMemoryArena
   mut open : Bool
@@ -94,6 +100,7 @@ priv struct OwnedVendorPlan {
 ///|
 priv struct ExecutorResources {
   mut stream : OwnedStream?
+  mut weight_lease : OwnedAllocationLease?
   mut token_staging : OwnedAllocation?
   mut arena : OwnedArena?
   modules : Array[OwnedModule]
@@ -159,9 +166,10 @@ fn require_ready(
 /// One exact-shape Phase-1 executor prepared entirely before dispatch.
 ///
 /// The caller retains lifecycle authority for `Context` and `DeviceWeights`.
-/// They must remain open until this executor has been closed. The executor owns
-/// every resource it opens: stream, token staging, activation/workspace arena,
-/// modules, functions, vendor GEMM handle, and GEMM plans.
+/// A private allocation lease keeps weight close retryably busy until this
+/// executor begins closing. The executor owns every resource it opens: lease,
+/// stream, token staging, activation/workspace arena, modules, functions,
+/// vendor GEMM handle, and GEMM plans.
 pub struct PreparedDeviceExecutor {
   priv resources : ExecutorResources
   priv weight_allocation : @device.Allocation

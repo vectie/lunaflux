@@ -13,11 +13,14 @@ synchronization primitives. This matches LunaFlux's one-owner-per-device worker
 architecture and avoids adding a lock to the token-step path.
 
 The caller retains ownership of the already-open context and device weights.
-They must outlive the executor. Close is explicit, reverse ordered, idempotent
-after success, and retryable after a child close failure. A failed child close
-blocks only its parent while independent siblings continue closing. Once close
-begins, dispatch and output copy remain unavailable even when cleanup fails;
-the owner may retry close.
+Preparation acquires an opaque lifetime lease on the exact weight allocation,
+so an early caller close fails retryably with `Busy` instead of invalidating
+prepared arguments. Executor close invalidates dispatch first, then releases
+the lease with its other resources. Close is explicit, reverse ordered,
+idempotent after success, and retryable after a child close failure. A failed
+child close blocks only its parent while independent siblings continue
+closing. Once close begins, dispatch and output copy remain unavailable even
+when cleanup fails; the owner may retry close.
 
 Preparation returns `PreparationOutcome`. `Ready` carries the executor. If
 construction fails after native resources have opened and the first cleanup

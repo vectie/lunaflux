@@ -5,6 +5,7 @@ pub(all) enum DeviceExecutorStage {
   Stream
   ActivationWorkspaceArena
   TokenStaging
+  WeightLease
   Module
   Function
   VendorGemmHandle
