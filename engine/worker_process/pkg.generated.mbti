@@ -59,16 +59,19 @@ pub(all) enum WorkerProcessRule {
   Submission
   Completion
   Lifecycle
+  Recovery
 } derive(Eq, @debug.Debug)
 
 pub struct WorkerProcessSupervisor {
   // private fields
 }
+pub fn WorkerProcessSupervisor::abandon_submission(Self, WorkerSubmission) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::close(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle
 pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
+pub fn WorkerProcessSupervisor::recovery_startup_contract(Self) -> @worker_wire.WorkerStartupContract raise WorkerProcessError
 pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.WorkerStartupContract

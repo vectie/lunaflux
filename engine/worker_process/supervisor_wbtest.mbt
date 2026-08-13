@@ -288,3 +288,54 @@ test "malformed child response permanently fails the session" {
   assert_true(owner.lifecycle() == Failed)
   owner.close()
 }
+
+///|
+test "closed submissions are abandoned only in exact sequence order" {
+  let owner = test_supervisor()
+  let plan_a = supervisor_plan(1UL)
+  let plan_b = supervisor_plan(2UL)
+  let submission_a = owner.submit(plan_a)
+  let submission_b = owner.submit(plan_b)
+  try owner.recovery_startup_contract() catch {
+    Invalid(Recovery) => ()
+    _ => fail("unexpected live recovery-contract error")
+  } noraise {
+    _ => fail("live child published a recovery contract")
+  }
+  owner.close()
+  try owner.abandon_submission(submission_b) catch {
+    Invalid(Sequence) => ()
+    _ => fail("unexpected out-of-order abandonment error")
+  } noraise {
+    _ => fail("later submission was abandoned first")
+  }
+  owner.abandon_submission(submission_a)
+  try owner.recovery_startup_contract() catch {
+    Invalid(Recovery) => ()
+    _ => fail("unexpected outstanding recovery-contract error")
+  } noraise {
+    _ => fail("outstanding submission was omitted from recovery")
+  }
+  owner.abandon_submission(submission_b)
+  let recovery = owner.recovery_startup_contract()
+  assert_eq(recovery.identity(), supervisor_startup().identity())
+  assert_eq(recovery.model_generation_value(), 1UL)
+  assert_true(recovery.has_predecessor())
+  assert_eq(recovery.predecessor_value(), 2UL)
+  assert_eq(owner.outstanding_count(), 0)
+}
+
+///|
+test "validated completion remains retireable after child close" {
+  let owner = test_supervisor()
+  let plan = supervisor_plan(1UL)
+  ignore(owner.submit(plan))
+  let received = inject_completion(owner, 0, plan)
+  owner.close()
+  assert_eq(received.frame(owner).entry_count(), 1)
+  owner.retire_received(received)
+  let recovery = owner.recovery_startup_contract()
+  assert_true(recovery.has_predecessor())
+  assert_eq(recovery.predecessor_value(), 1UL)
+  assert_eq(owner.outstanding_count(), 0)
+}

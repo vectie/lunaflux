@@ -326,7 +326,6 @@ pub fn WorkerProcessSupervisor::retire_received(
   self : WorkerProcessSupervisor,
   received : ReceivedWorkerCompletion,
 ) -> Unit raise WorkerProcessError {
-  self.require_ready()
   ignore(received.frame(self))
   if received.2 != self.last_retired + 1UL {
     raise Invalid(Sequence)
@@ -340,7 +339,8 @@ pub fn WorkerProcessSupervisor::retire_received(
 }
 
 ///|
-/// Closes the child and invalidates every outstanding capability.
+/// Closes and reaps the child. Outstanding capabilities remain exact recovery
+/// obligations until explicitly retired or abandoned in sequence order.
 pub fn WorkerProcessSupervisor::close(
   self : WorkerProcessSupervisor,
 ) -> Unit raise WorkerProcessError {

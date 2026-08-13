@@ -91,11 +91,14 @@ fn plan(
 }
 
 ///|
-fn run(executable : Bytes) -> Unit raise {
-  let supervisor = match
+fn start_worker(
+  executable : Bytes,
+  startup : @worker_wire.WorkerStartupContract,
+) -> @worker_process.WorkerProcessSupervisor raise {
+  match
     @worker_process.prepare(
       executable,
-      startup_contract(),
+      startup,
       @worker_process.WorkerProcessLimits::new(
         max_frame_bytes=4096,
         io_timeout_millis=5000,
@@ -105,6 +108,11 @@ fn run(executable : Bytes) -> Unit raise {
     ReadyProcess(owner) => owner
     CleanupRequired(_) => raise Failure("worker startup cleanup required")
   }
+}
+
+///|
+fn run(executable : Bytes) -> Unit raise {
+  let supervisor = start_worker(executable, startup_contract())
   assert_eq(supervisor.startup_contract(), startup_contract())
   let plan_a1 = plan(1UL, 11UL)
   let plan_b2 = plan(2UL, 12UL)
@@ -125,6 +133,26 @@ fn run(executable : Bytes) -> Unit raise {
   supervisor.shutdown_clean()
   supervisor.close()
   assert_true(supervisor.lifecycle() == Closed)
+
+  let graceful_restart = supervisor.recovery_startup_contract()
+  assert_eq(graceful_restart.predecessor_value(), 3UL)
+  let replacement = start_worker(executable, graceful_restart)
+  let plan_b4 = plan(4UL, 14UL)
+  let abandoned_b4 = replacement.submit(plan_b4)
+  replacement.close()
+  replacement.abandon_submission(abandoned_b4)
+
+  let failed_restart = replacement.recovery_startup_contract()
+  assert_eq(failed_restart.predecessor_value(), 4UL)
+  let final_worker = start_worker(executable, failed_restart)
+  let plan_a5 = plan(5UL, 15UL)
+  let submission_a5 = final_worker.submit(plan_a5)
+  let completion_a5 = final_worker.receive(submission_a5, plan_a5)
+  assert_eq(completion_a5.frame(final_worker).entry_count(), 1)
+  final_worker.retire_received(completion_a5)
+  final_worker.shutdown_clean()
+  final_worker.close()
+  assert_eq(final_worker.recovery_startup_contract().predecessor_value(), 5UL)
 }
 
 ///|

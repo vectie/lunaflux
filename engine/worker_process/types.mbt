@@ -13,6 +13,7 @@ pub(all) enum WorkerProcessRule {
   Submission
   Completion
   Lifecycle
+  Recovery
 } derive(Debug, Eq)
 
 ///|
