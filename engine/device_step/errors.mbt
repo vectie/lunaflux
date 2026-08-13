@@ -136,5 +136,6 @@ pub(all) suberror DeviceStepError {
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Debug, Eq)

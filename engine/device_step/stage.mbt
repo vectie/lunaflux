@@ -193,6 +193,57 @@ pub fn DeviceStepOwner::stage(
 }
 
 ///|
+/// Validates and uploads one canonical received plan frame without requiring
+/// any scheduler heap-owner capability in the worker process. The same
+/// transaction and poison rules as `stage` apply.
+pub fn DeviceStepOwner::stage_frame(
+  self : DeviceStepOwner,
+  frame : @worker_wire.ValidatedPlanFrame,
+) -> StagedDeviceStep raise DeviceStepError {
+  require_lifecycle(self.lifecycle, Ready)
+  let summary = preflight_frame_and_write(
+    frame,
+    self.model_generation_value,
+    self.identity,
+    self.layout,
+    self.limits,
+    self.host,
+    self.required_capabilities,
+    false,
+  )
+  validate_next_sequence(
+    self.has_accepted_predecessor,
+    self.accepted_predecessor_value,
+    summary.sequence_value,
+  )
+  if self.stage_epoch == 18446744073709551615UL {
+    raise StageEpochOverflow
+  }
+  ignore(
+    preflight_frame_and_write(
+      frame,
+      self.model_generation_value,
+      self.identity,
+      self.layout,
+      self.limits,
+      self.host,
+      self.required_capabilities,
+      true,
+    ),
+  )
+  upload_owner_transaction(self, summary) catch {
+    error => {
+      self.lifecycle = Poisoned
+      raise error
+    }
+  }
+  self.stage_epoch += 1UL
+  self.staged_sequence_value = summary.sequence_value
+  self.lifecycle = Staged
+  StagedDeviceStep(self, self.stage_epoch)
+}
+
+///|
 fn StagedDeviceStep::authenticate(
   self : StagedDeviceStep,
   owner : DeviceStepOwner,

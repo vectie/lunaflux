@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",

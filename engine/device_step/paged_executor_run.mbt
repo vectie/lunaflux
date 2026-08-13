@@ -84,6 +84,27 @@ pub fn PagedGraphExecutor::stage(
 }
 
 ///|
+/// Publishes one exact validated wire plan into the full graph executor. No
+/// scheduler-owned mutable protocol object crosses this worker boundary.
+pub fn PagedGraphExecutor::stage_frame(
+  self : PagedGraphExecutor,
+  frame : @worker_wire.ValidatedPlanFrame,
+) -> StagedPagedGraphExecution raise DeviceStepError {
+  require_paged_lifecycle(self.lifecycle, GraphReady)
+  let descriptor = complete_descriptor(self.resources)
+  let staged = descriptor.stage_frame(frame) catch {
+    error => {
+      if descriptor.lifecycle() == Poisoned {
+        self.lifecycle = GraphPoisoned
+      }
+      raise error
+    }
+  }
+  self.lifecycle = GraphStaged
+  { executor: self, epoch: staged.1 }
+}
+
+///|
 /// Launches every admitted full-graph AOT step in semantic order. Each native
 /// launch synchronizes before returning. Any failure permanently poisons this
 /// owner because preceding operations may already have mutated activation or

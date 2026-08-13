@@ -7,6 +7,7 @@ import {
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -48,6 +49,7 @@ pub(all) suberror DeviceStepError {
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
 
@@ -86,6 +88,7 @@ pub fn DeviceStepOwner::close(Self) -> Unit raise DeviceStepError
 pub fn DeviceStepOwner::finish(Self, StagedDeviceStep) -> Unit raise DeviceStepError
 pub fn DeviceStepOwner::lifecycle(Self) -> DeviceStepLifecycle
 pub fn DeviceStepOwner::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedDeviceStep raise DeviceStepError
+pub fn DeviceStepOwner::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedDeviceStep raise DeviceStepError
 
 pub(all) enum DeviceStepPlanRule {
   ModelGeneration
@@ -146,6 +149,7 @@ pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit rai
 pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
 pub fn PagedGraphExecutor::sample_completion(Self, ExecutedPagedGraphExecution, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.CompletionWriter) -> @worker_protocol.SubmittedCompletion raise DeviceStepError
 pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError
+pub fn PagedGraphExecutor::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedPagedGraphExecution raise DeviceStepError
 
 pub(all) enum PagedGraphExecutorRule {
   BlueprintScope
