@@ -292,6 +292,20 @@ pub fn CompletionBuffer::validate_submitted(
 }
 
 ///|
+/// Returns this owner's exact submitted completion after reauthenticating it
+/// against the supplied still-live plan. This supports retry after a caller's
+/// publication preflight rejects without reopening or copying the completion.
+pub fn CompletionBuffer::current_submitted(
+  self : CompletionBuffer,
+  plan : SubmittedSchedulePlan,
+) -> SubmittedCompletion raise WorkerProtocolError {
+  self.require_state(CompletionSubmitted)
+  let submitted = SubmittedCompletion(self, self.epoch)
+  submitted.validate_for(plan)
+  submitted
+}
+
+///|
 pub fn CompletionBuffer::consume(
   self : CompletionBuffer,
   submitted : SubmittedCompletion,

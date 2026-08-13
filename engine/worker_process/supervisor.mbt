@@ -214,6 +214,21 @@ fn WorkerSubmission::authenticate(
 }
 
 ///|
+/// Reconstructs the exact live submission capability for a retained sequence.
+pub fn WorkerProcessSupervisor::submission_for_sequence(
+  self : WorkerProcessSupervisor,
+  sequence : UInt64,
+) -> WorkerSubmission raise WorkerProcessError {
+  if self.state_a == 1 && self.sequence_a == sequence {
+    WorkerSubmission(self, 0, sequence)
+  } else if self.state_b == 1 && self.sequence_b == sequence {
+    WorkerSubmission(self, 1, sequence)
+  } else {
+    raise Invalid(Submission)
+  }
+}
+
+///|
 fn WorkerProcessSupervisor::oldest_submitted_side(
   self : WorkerProcessSupervisor,
 ) -> Int raise WorkerProcessError {
@@ -321,15 +336,40 @@ pub fn ReceivedWorkerCompletion::frame(
 }
 
 ///|
+/// Reconstructs the exact pinned completion capability for a retained sequence.
+pub fn WorkerProcessSupervisor::received_for_sequence(
+  self : WorkerProcessSupervisor,
+  sequence : UInt64,
+) -> ReceivedWorkerCompletion raise WorkerProcessError {
+  if self.state_a == 2 && self.sequence_a == sequence {
+    ReceivedWorkerCompletion(self, 0, sequence)
+  } else if self.state_b == 2 && self.sequence_b == sequence {
+    ReceivedWorkerCompletion(self, 1, sequence)
+  } else {
+    raise Invalid(Completion)
+  }
+}
+
+///|
+/// Nonmutating retirement proof for service commit ordering.
+pub fn WorkerProcessSupervisor::validate_retirement(
+  self : WorkerProcessSupervisor,
+  received : ReceivedWorkerCompletion,
+) -> Unit raise WorkerProcessError {
+  ignore(received.frame(self))
+  if self.last_retired == 0xffffffffffffffffUL ||
+    received.2 != self.last_retired + 1UL {
+    raise Invalid(Sequence)
+  }
+}
+
+///|
 /// Frees one retained side only after scheduler acceptance has succeeded.
 pub fn WorkerProcessSupervisor::retire_received(
   self : WorkerProcessSupervisor,
   received : ReceivedWorkerCompletion,
 ) -> Unit raise WorkerProcessError {
-  ignore(received.frame(self))
-  if received.2 != self.last_retired + 1UL {
-    raise Invalid(Sequence)
-  }
+  self.validate_retirement(received)
   if received.1 == 0 {
     self.state_a = 0
   } else {

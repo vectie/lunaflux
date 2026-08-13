@@ -61,10 +61,8 @@ test "accepted wire completion survives publication backpressure for retry" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(605UL), 0UL)
   let plan = wb_next_plan(owner)
-  let completion = owner.accept_completion_frame(
-    plan,
-    wb_completion_frame(plan, 9),
-  )
+  let frame = wb_completion_frame(plan, 9)
+  let completion = owner.accept_completion_frame(plan, frame)
   owner.output_count = owner.output_request_ids.length()
   try owner.complete(plan, completion) catch {
     Invalid(field=OutputCapacity, issue=Backpressured) => ()
@@ -74,9 +72,19 @@ test "accepted wire completion survives publication backpressure for retry" {
   }
   assert_true(owner.status(handle.request_id()).unwrap().in_flight())
   assert_eq(owner.completion_a.state(), CompletionSubmitted)
+  let epoch = owner.completion_a.epoch()
+  let retried = owner.accept_completion_frame(plan, frame)
+  assert_eq(retried.sequence_wire(), completion.sequence_wire())
+  assert_eq(owner.completion_a.epoch(), epoch)
+  try owner.accept_completion_frame(plan, wb_completion_frame(plan, 10)) catch {
+    WorkerWire(InvalidFrame(CompletionEntry)) => ()
+    _ => fail("expected changed retry frame rejection")
+  } noraise {
+    _ => fail("changed retry frame replaced submitted completion")
+  }
   owner.output_count = 0
   owner.output_head = 0
   owner.output_tail = 0
-  owner.complete(plan, completion)
+  owner.complete(plan, retried)
   assert_eq(owner.take_generated_token().token_id(), 9)
 }

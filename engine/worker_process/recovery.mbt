@@ -5,6 +5,22 @@ pub fn WorkerProcessSupervisor::abandon_submission(
   self : WorkerProcessSupervisor,
   submission : WorkerSubmission,
 ) -> Unit raise WorkerProcessError {
+  self.validate_abandonment(submission)
+  if submission.1 == 0 {
+    self.state_a = 0
+  } else {
+    self.state_b = 0
+  }
+  self.last_retired = submission.2
+}
+
+///|
+/// Nonmutating proof that one exact closed-child submission is the next
+/// recoverable sequence.
+pub fn WorkerProcessSupervisor::validate_abandonment(
+  self : WorkerProcessSupervisor,
+  submission : WorkerSubmission,
+) -> Unit raise WorkerProcessError {
   if self.lifecycle != Closed {
     raise Invalid(Recovery)
   }
@@ -13,12 +29,6 @@ pub fn WorkerProcessSupervisor::abandon_submission(
     submission.2 != self.last_retired + 1UL {
     raise Invalid(Sequence)
   }
-  if submission.1 == 0 {
-    self.state_a = 0
-  } else {
-    self.state_b = 0
-  }
-  self.last_retired = submission.2
 }
 
 ///|

@@ -76,14 +76,19 @@ pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
 pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
+pub fn Scheduler::fail_plan(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::free_page_count(Self) -> Int
 pub fn Scheduler::generated_token_count(Self) -> Int
+pub fn Scheduler::last_retired_plan_sequence(Self) -> UInt64
+pub fn Scheduler::last_submitted_plan_sequence(Self) -> UInt64
 pub fn Scheduler::live_request_count(Self) -> Int
+pub fn Scheduler::model_identity(Self) -> @spec.ModelIdentity
 pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGeneration
 pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
 pub fn Scheduler::submitted_plan(Self, BuildNextOutcome) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
+pub fn Scheduler::submitted_plan_for_sequence(Self, UInt64) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::take_generated_token(Self) -> GeneratedTokenNotice raise SchedulerError
 pub fn Scheduler::take_terminal_notice(Self) -> TerminalNotice raise SchedulerError
 pub fn Scheduler::terminal_notice_count(Self) -> Int

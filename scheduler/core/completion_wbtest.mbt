@@ -44,6 +44,33 @@ test "completion backpressure preserves submitted work for exact retry" {
 }
 
 ///|
+test "worker failure completion is synthesized once and reused on retry" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(502UL), 0UL)
+  let plan = wb_next_plan(owner)
+  owner.terminal_count = owner.terminal_request_ids.length()
+  try owner.fail_plan(plan, ExecutionFailed) catch {
+    Invalid(field=TerminalNoticeCapacity, issue=Backpressured) => ()
+    _ => fail("expected worker-failure terminal backpressure")
+  } noraise {
+    _ => fail("full terminal ring accepted a worker failure")
+  }
+  let submitted_epoch = owner.completion_a.epoch()
+  assert_eq(owner.completion_a.state(), CompletionSubmitted)
+  assert_true(owner.status(handle.request_id()).unwrap().in_flight())
+  assert_eq(owner.live_request_count(), 1)
+  owner.terminal_count = 0
+  owner.terminal_head = 0
+  owner.terminal_tail = 0
+  owner.fail_plan(plan, ExecutionFailed)
+  assert_eq(owner.completion_a.epoch(), submitted_epoch + 1UL)
+  assert_eq(owner.completion_a.state(), CompletionWritable)
+  assert_eq(owner.take_terminal_notice().reason(), WorkerFailed)
+  assert_eq(owner.live_request_count(), 0)
+  assert_eq(owner.free_page_count(), 8)
+}
+
+///|
 test "completion retirement is sequence ordered across A and B" {
   let owner = wb_owner_with_capacity(3, 3)
   let first = owner.admit(wb_request(511UL), 0UL)

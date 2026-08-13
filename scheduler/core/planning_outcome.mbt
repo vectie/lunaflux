@@ -30,3 +30,21 @@ pub fn Scheduler::submitted_plan(
     }
   }
 }
+
+///|
+/// Resolves one exact still-submitted sequence without exposing A/B ownership.
+pub fn Scheduler::submitted_plan_for_sequence(
+  self : Scheduler,
+  sequence : UInt64,
+) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError {
+  let owner = if sequence != 0UL && self.plan_a_sequence == sequence {
+    self.plan_a
+  } else if sequence != 0UL && self.plan_b_sequence == sequence {
+    self.plan_b
+  } else {
+    raise invalid(Plan, Stale)
+  }
+  owner.current_submitted() catch {
+    error => raise WorkerProtocol(error)
+  }
+}

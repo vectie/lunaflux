@@ -60,6 +60,21 @@ pub fn Scheduler::model_plan_generation(
 }
 
 ///|
+pub fn Scheduler::model_identity(self : Scheduler) -> @spec.ModelIdentity {
+  self.model_identity
+}
+
+///|
+pub fn Scheduler::last_submitted_plan_sequence(self : Scheduler) -> UInt64 {
+  self.last_plan_sequence
+}
+
+///|
+pub fn Scheduler::last_retired_plan_sequence(self : Scheduler) -> UInt64 {
+  self.last_retired_plan_sequence
+}
+
+///|
 pub fn Scheduler::retired_slot_count(self : Scheduler) -> Int {
   self.retired_slot_count
 }

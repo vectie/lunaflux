@@ -71,11 +71,15 @@ pub fn WorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle
 pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
+pub fn WorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> ReceivedWorkerCompletion raise WorkerProcessError
 pub fn WorkerProcessSupervisor::recovery_startup_contract(Self) -> @worker_wire.WorkerStartupContract raise WorkerProcessError
 pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.WorkerStartupContract
+pub fn WorkerProcessSupervisor::submission_for_sequence(Self, UInt64) -> WorkerSubmission raise WorkerProcessError
 pub fn WorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> WorkerSubmission raise WorkerProcessError
+pub fn WorkerProcessSupervisor::validate_abandonment(Self, WorkerSubmission) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::validate_retirement(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
 
 pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)
 pub fn WorkerSubmission::sequence_value(Self) -> UInt64
