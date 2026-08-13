@@ -122,7 +122,10 @@ preflight publication and KV-release obligations before state mutation, then
 publish final-prefill/decode tokens and recycle exact owners. Corresponding
 plan/completion data can now be detached from heap capabilities through
 canonical bounded wire frames with transactional untrusted receive and exact
-service-side completion-plan authentication, but process I/O,
+service-side completion-plan authentication. The worker-side device path now
+stages an authenticated received-plan frame and, after execution, writes a
+completion frame from exact frame-bound logits and scalar sampling fields
+without scheduler heap-owner values. Process I/O,
 authentication, supervision, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.

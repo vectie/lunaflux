@@ -176,6 +176,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   plan rows with abort/stale-epoch safety, so no scheduler completion owner is
   needed across this boundary. Reusable device-step staging also consumes the
   validated plan frame directly without a scheduler plan owner in the worker.
+  Its post-execution path binds logits to the exact retained frame owner and
+  epoch, applies validated scalar sampling fields, and freezes a canonical
+  completion frame directly; no scheduler plan or completion owner is
+  reconstructed in the isolated side.
   Live worker
   process I/O, authentication, supervision, and overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated

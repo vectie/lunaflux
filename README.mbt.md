@@ -143,7 +143,11 @@ plan before populating its paired completion owner, while normal scheduler
 backpressure remains retryable. The worker side writes those frames directly
 from authenticated received-plan rows; scheduler heap-owner capabilities do
 not cross the wire boundary. Device-step staging likewise consumes validated
-plan frames directly in its isolated-worker path.
+plan frames directly in its isolated-worker path. After exact graph execution,
+that path authenticates the retained frame owner and epoch, reads each
+producing BF16 logits row, applies the frame's scalar greedy/stochastic replay
+fields, and writes the canonical completion frame without reconstructing
+scheduler plan, sampling-parameter, or completion-owner objects.
 Positive-controlled release instrumentation covers both encode/receive paths
 inside the scheduler token-step window. Host-side KV metadata includes a
 generational fixed-page allocator, a fixed-capacity request block-table arena,
