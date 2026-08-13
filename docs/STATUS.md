@@ -136,6 +136,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   snapshot source before publication, verifies an independent lowercase
   SHA-256 file identity, and parses metadata under an independently supplied
   model content identity. It exposes no ambient path or async filesystem API.
+- The internal device-worker bootstrap composition now authenticates a decoded
+  source before fixed-role root acquisition, derives the bounded paged-Llama
+  recipe, closes kernel authority before device preparation and model authority
+  before exact readiness publication, and retains independent retryable worker
+  and root cleanup authority after compound failure. Transport publication
+  remains outside this owner.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and

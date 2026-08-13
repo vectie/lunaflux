@@ -1,0 +1,28 @@
+import {
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/device_worker",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/artifact_file",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/config_file",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+} for "wbtest"

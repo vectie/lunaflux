@@ -151,6 +151,26 @@ if [ -d model/config_file ]; then
   fi
 fi
 
+if [ -d engine/device_worker_bootstrap ]; then
+  fail_matches \
+    'device_worker_bootstrap must not use ambient or async filesystem APIs:' \
+    --pcre2 --glob 'engine/device_worker_bootstrap/**/moon.pkg' -U \
+    'vectie/lunaflux/internal/approved_fs|import\s*\{[^}]*moonbitlang/async/fs[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
+  if ! rg -q \
+    '^pub fn prepare\(@worker_wire\.WorkerStartupContract, @worker_wire\.EncodedBootstrapSource\)' \
+    engine/device_worker_bootstrap/pkg.generated.mbti; then
+    printf '%s\n' \
+      'device_worker_bootstrap must consume only typed startup/source inputs' >&2
+    failed=1
+  fi
+  if rg -n 'ApprovedRoot|ApprovedRelativeLocator|DeviceWeightFileInspection|PagedExecutionAdmission|DeviceWorkerPlan' \
+    engine/device_worker_bootstrap/pkg.generated.mbti; then
+    printf '%s\n' \
+      'device_worker_bootstrap public interface leaks preparation evidence' >&2
+    failed=1
+  fi
+fi
+
 # Execution-manifest admission may consume only the public approved-root
 # capability and must remain synchronous and path-typed.
 if [ -d engine/execution_manifest_file ]; then

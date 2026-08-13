@@ -1,0 +1,88 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_worker_bootstrap"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/device_worker",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/config_file",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn prepare(@worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError
+
+// Errors
+pub(all) suberror DeviceWorkerBootstrapError {
+  Invalid(DeviceWorkerBootstrapRule)
+  Root(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
+  Config(@config_file.ModelConfigFileError)
+  Plan(@plan.PlanValidationError)
+  Weights(@device_materialize.DeviceWeightError)
+  KvLayout(@device_layout.DeviceKvLayoutError)
+  DeviceTarget(@catalog.CatalogError)
+  DeviceStep(@device_step.DeviceStepError)
+  ExecutionManifest(@execution_manifest_file.ExecutionManifestFileError)
+  Worker(@device_worker.DeviceWorkerError)
+  CleanupRoot(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
+  CleanupWorker(@device_worker.DeviceWorkerError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum BootstrapRootIssue {
+  Unavailable
+  UnsupportedType
+  AuthorityClosed
+  Busy
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BootstrapRootRole {
+  ModelRoot
+  KernelRoot
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceWorkerBootstrapOwner {
+  // private fields
+}
+pub fn DeviceWorkerBootstrapOwner::close(Self) -> Unit raise DeviceWorkerBootstrapError
+pub fn DeviceWorkerBootstrapOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerBootstrapError
+pub fn DeviceWorkerBootstrapOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerBootstrapError
+
+pub(all) enum DeviceWorkerBootstrapPreparation {
+  ChildReady(DeviceWorkerBootstrapOwner)
+  CleanupRequired(FailedDeviceWorkerBootstrapPreparation)
+}
+
+pub(all) enum DeviceWorkerBootstrapRule {
+  SourceDigest
+  Recipe
+  Locator
+  Digest
+  ModelIdentity
+  OperationCount
+  WorkerEnvelope
+  InferenceEnvelope
+  PageEnvelope
+  RecipeLimit
+  ReadinessContract
+} derive(Eq, @debug.Debug)
+
+pub struct FailedDeviceWorkerBootstrapPreparation {
+  // private fields
+}
+pub fn FailedDeviceWorkerBootstrapPreparation::cause(Self) -> DeviceWorkerBootstrapError
+pub fn FailedDeviceWorkerBootstrapPreparation::cleanup_failure(Self) -> DeviceWorkerBootstrapError?
+pub fn FailedDeviceWorkerBootstrapPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceWorkerBootstrapPreparation::retry_close(Self) -> Unit raise DeviceWorkerBootstrapError
+pub fn FailedDeviceWorkerBootstrapPreparation::root_cleanup_failure(Self, BootstrapRootRole) -> DeviceWorkerBootstrapError?
+pub fn FailedDeviceWorkerBootstrapPreparation::worker_cleanup_failure(Self) -> DeviceWorkerBootstrapError?
+
+// Type aliases
+
+// Traits
