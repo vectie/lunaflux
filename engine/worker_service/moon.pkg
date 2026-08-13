@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/scheduler/core",
+}
+
+supported_targets = "native"

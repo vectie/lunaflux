@@ -1,0 +1,250 @@
+///|
+fn identity() -> @spec.ModelIdentity raise {
+  @spec.ModelIdentity::new(
+    @spec.ContentDigest::from_sha256(
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
+    @spec.PlanDigest::from_sha256(
+      "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    ),
+  )
+}
+
+///|
+fn inference_limits() -> @inference.InferenceLimits raise {
+  @inference.InferenceLimits::new(
+    max_text_bytes=64,
+    max_input_tokens=4,
+    max_new_tokens=2,
+    max_context_tokens=4,
+    max_token_id=31,
+    max_stop_token_ids=1,
+    max_stop_strings=1,
+    max_stop_string_bytes=1,
+    max_trace_bytes=8,
+    max_cache_scope_bytes=8,
+    max_decoded_delta_bytes=8,
+    max_deadline_millis=1000UL,
+    max_top_k=32,
+    max_temperature=4.0,
+  )
+}
+
+///|
+fn worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
+  @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=1,
+    max_decode_rows=1,
+    max_plan_rows=1,
+    max_plan_tokens=1,
+    max_plan_pages=2,
+    max_capabilities=2,
+    max_completion_slots=1,
+    max_sequence_tokens=4,
+    max_token_id=31,
+  )
+}
+
+///|
+fn capacity() -> @runtime_resolved.ResolvedRuntimeCapacity raise {
+  let scheduling = @scheduler_config.new(
+    step_token_budget=1,
+    max_active_requests=2,
+    max_waiting_requests=4,
+    prefill_chunk_tokens=1,
+    emergency_decode_page_reserve=1,
+    waiting_age_threshold_steps=2,
+    output_event_capacity=1,
+  )
+  let cache = @cache.new(
+    tokens_per_page=2,
+    total_page_count=8,
+    block_table_pages_per_request=2,
+    prefix_enabled=false,
+    max_prefix_entries=0,
+    max_prefix_nodes=0,
+    max_prefix_tokens_per_entry=0,
+    max_prefix_pages=0,
+    max_active_references_per_page=4,
+    max_cached_references_per_page=4,
+    layout_version=1,
+  )
+  let shapes = @plan.ShapeConstraints::new(
+    max_batch_rows=1,
+    max_sequence_tokens=4,
+    vocabulary_size=32,
+    hidden_size=8,
+    intermediate_size=16,
+    attention_head_count=2,
+    kv_head_count=1,
+    head_dimension=4,
+  )
+  @runtime_resolved.resolve(scheduling, cache, shapes, worker_limits())
+}
+
+///|
+fn scheduler_owner() -> @scheduler.Scheduler raise {
+  let generation = @worker_protocol.ModelPlanGeneration::first()
+  let recipe = @worker_protocol.RowCapabilityRecipe::new(
+    identity=identity(),
+    model_plan_generation=generation,
+    [@plan.KernelCapabilityId::embedding_lookup()],
+    worker_limits(),
+  )
+  @scheduler.Scheduler::new(
+    capacity(),
+    identity(),
+    generation,
+    recipe,
+    recipe,
+    recipe,
+  )
+}
+
+///|
+fn request(id : UInt64) -> @scheduler.TokenizedRequest raise {
+  let limits = inference_limits()
+  @scheduler.TokenizedRequest::new(
+    request_id=@inference.RequestId::new(id),
+    model_identity=identity(),
+    input_tokens=@inference.TokenBuffer::new([1], limits),
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=@inference.SamplingSeed::new(id),
+    stops=@inference.StopConditions::new([], [], limits),
+    cache=@inference.CachePolicy::new(
+      @inference.CacheScope::from_ascii(b"service", limits),
+      Disabled,
+    ),
+    stream_preference=Streaming,
+    effective_limits=@inference.EffectiveLimits::new(
+      max_new_tokens=1,
+      context_ceiling=4,
+      limits,
+    ),
+    deadline_budget=@inference.DeadlineBudget::from_milliseconds(100UL, limits),
+  )
+}
+
+///|
+fn startup() -> @worker_wire.WorkerStartupContract raise {
+  @worker_wire.WorkerStartupContract::new(
+    identity=identity(),
+    model_generation_value=1UL,
+    worker_limits=worker_limits(),
+    inference_limits=inference_limits(),
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+}
+
+///|
+fn foreign_startup() -> @worker_wire.WorkerStartupContract raise {
+  @worker_wire.WorkerStartupContract::new(
+    identity=@spec.ModelIdentity::new(
+      @spec.ContentDigest::from_sha256(
+        "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      ),
+      identity().plan(),
+    ),
+    model_generation_value=1UL,
+    worker_limits=worker_limits(),
+    inference_limits=inference_limits(),
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+}
+
+///|
+fn process_limits() -> @worker_process.WorkerProcessLimits raise {
+  @worker_process.WorkerProcessLimits::new(
+    max_frame_bytes=4096,
+    io_timeout_millis=5000,
+    shutdown_timeout_millis=5000,
+  )
+}
+
+///|
+fn process_owner(
+  executable : Bytes,
+) -> @worker_process.WorkerProcessSupervisor raise {
+  match @worker_process.prepare(executable, startup(), process_limits()) {
+    ReadyProcess(owner) => owner
+    CleanupRequired(_) => raise Failure("worker startup cleanup required")
+  }
+}
+
+///|
+fn run(executable : Bytes) -> Unit raise {
+  let scheduler = scheduler_owner()
+  let foreign = match
+    @worker_process.prepare(executable, foreign_startup(), process_limits()) {
+    ReadyProcess(owner) => owner
+    CleanupRequired(_) => raise Failure("foreign worker cleanup required")
+  }
+  try @worker_service.new(scheduler, foreign) catch {
+    Invalid(Identity) => ()
+    _ => raise Failure("unexpected foreign worker identity error")
+  } noraise {
+    _ => raise Failure("foreign worker identity joined the scheduler")
+  }
+  foreign.shutdown_clean()
+  foreign.close()
+  let service = @worker_service.new(scheduler, process_owner(executable))
+  ignore(service.admit(request(101UL), 0UL))
+  ignore(service.admit(request(102UL), 0UL))
+  assert_eq(service.submit_next().sequence_value(), 1UL)
+  assert_eq(service.submit_next().sequence_value(), 2UL)
+  assert_true(service.submit_next().is_backpressured())
+  assert_eq(service.complete_oldest(), 1UL)
+  try service.complete_oldest() catch {
+    Scheduler(Invalid(field=OutputCapacity, issue=Backpressured)) => ()
+    _ => raise Failure("unexpected service publication error")
+  } noraise {
+    _ => raise Failure("full output ring accepted second completion")
+  }
+  assert_eq(service.outstanding_count(), 1)
+  assert_eq(
+    service.take_generated_token().request_id(),
+    @inference.RequestId::new(101UL),
+  )
+  assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
+  assert_eq(service.complete_oldest(), 2UL)
+  assert_eq(
+    service.take_generated_token().request_id(),
+    @inference.RequestId::new(102UL),
+  )
+  assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
+
+  ignore(service.admit(request(103UL), 0UL))
+  assert_eq(service.submit_next().sequence_value(), 3UL)
+  service.begin_recovery()
+  assert_eq(service.recover_oldest(ExecutionFailed), 3UL)
+  assert_eq(service.take_terminal_notice().reason(), WorkerFailed)
+  match service.restart(executable, process_limits()) {
+    Restarted => ()
+    RestartCleanupRequired(_) =>
+      raise Failure("replacement worker cleanup required")
+  }
+  ignore(service.admit(request(104UL), 0UL))
+  assert_eq(service.submit_next().sequence_value(), 4UL)
+  assert_eq(service.complete_oldest(), 4UL)
+  assert_eq(
+    service.take_generated_token().request_id(),
+    @inference.RequestId::new(104UL),
+  )
+  assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
+  assert_eq(service.outstanding_count(), 0)
+  assert_eq(service.live_request_count(), 0)
+  assert_eq(service.free_page_count(), 8)
+  assert_eq(service.allocated_block_table_count(), 0)
+  service.shutdown_clean()
+  assert_true(service.lifecycle() == ServiceClosed)
+}
+
+///|
+fn main {
+  match @env.args() {
+    [_, executable] => try! run(@utf8.encode(executable))
+    _ => println("worker executable path is required")
+  }
+}

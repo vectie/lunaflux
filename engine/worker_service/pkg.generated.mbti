@@ -1,0 +1,78 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/worker_service"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/scheduler/core",
+}
+
+// Values
+pub fn new(@core.Scheduler, @worker_process.WorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
+
+// Errors
+pub(all) suberror WorkerServiceError {
+  Invalid(WorkerServiceRule)
+  Process(@worker_process.WorkerProcessError)
+  Scheduler(@core.SchedulerError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct WorkerService {
+  // private fields
+}
+pub fn WorkerService::admit(Self, @core.TokenizedRequest, UInt64) -> @core.RequestHandle raise WorkerServiceError
+pub fn WorkerService::allocated_block_table_count(Self) -> Int
+pub fn WorkerService::begin_recovery(Self) -> Unit raise WorkerServiceError
+pub fn WorkerService::cancel(Self, @core.RequestHandle) -> Unit raise WorkerServiceError
+pub fn WorkerService::complete_oldest(Self) -> UInt64 raise WorkerServiceError
+pub fn WorkerService::expire_deadlines(Self, UInt64) -> Int raise WorkerServiceError
+pub fn WorkerService::free_page_count(Self) -> Int
+pub fn WorkerService::generated_token_count(Self) -> Int
+pub fn WorkerService::lifecycle(Self) -> WorkerServiceLifecycle
+pub fn WorkerService::live_request_count(Self) -> Int
+pub fn WorkerService::outstanding_count(Self) -> Int
+pub fn WorkerService::recover_oldest(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
+pub fn WorkerService::restart(Self, Bytes, @worker_process.WorkerProcessLimits) -> WorkerServiceRestart raise WorkerServiceError
+pub fn WorkerService::shutdown_clean(Self) -> Unit raise WorkerServiceError
+pub fn WorkerService::status(Self, @inference.RequestId) -> @core.RequestStatus?
+pub fn WorkerService::submit_next(Self) -> WorkerServiceDispatch raise WorkerServiceError
+pub fn WorkerService::take_generated_token(Self) -> @core.GeneratedTokenNotice raise WorkerServiceError
+pub fn WorkerService::take_terminal_notice(Self) -> @core.TerminalNotice raise WorkerServiceError
+pub fn WorkerService::terminal_notice_count(Self) -> Int
+
+pub enum WorkerServiceDispatch {
+  DispatchIdle
+  DispatchBackpressured
+  DispatchSubmitted(UInt64)
+}
+pub fn WorkerServiceDispatch::is_backpressured(Self) -> Bool
+pub fn WorkerServiceDispatch::is_idle(Self) -> Bool
+pub fn WorkerServiceDispatch::is_submitted(Self) -> Bool
+pub fn WorkerServiceDispatch::sequence_value(Self) -> UInt64 raise WorkerServiceError
+
+pub(all) enum WorkerServiceLifecycle {
+  ServiceReady
+  ServiceRecovering
+  ServiceClosingFailed
+  ServiceClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum WorkerServiceRestart {
+  Restarted
+  RestartCleanupRequired(@worker_process.FailedWorkerProcessStartup)
+}
+
+pub(all) enum WorkerServiceRule {
+  Identity
+  Generation
+  Sequence
+  Lifecycle
+  Recovery
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
