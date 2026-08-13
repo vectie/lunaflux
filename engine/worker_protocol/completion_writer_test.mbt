@@ -155,6 +155,8 @@ test "worker lease supports final-prefill and failed scalar outcomes" {
     pages=[allocator().allocate_one()],
     capabilities=[@plan.KernelCapabilityId::embedding_lookup()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(0),
   )
   let final_plan = final_plan_owner.submit_wire(

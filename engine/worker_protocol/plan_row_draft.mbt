@@ -7,6 +7,8 @@ fn SchedulePlanBuffer::start_draft(
   sequence_position : Int,
   produces_token : Bool,
   sampling : @inference.SamplingParameters,
+  sampling_seed_value : UInt64,
+  sample_index : Int,
   completion_slot : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.require_state(Writable)
@@ -24,6 +26,14 @@ fn SchedulePlanBuffer::start_draft(
     Decode if self.decode_count >= self.limits.max_decode_rows() =>
       raise BoundExceeded(DecodeRows)
     _ => ()
+  }
+  if (produces_token || kind == Decode) &&
+    (
+      sampling_seed_value == 0UL ||
+      sample_index < 0 ||
+      sample_index >= self.limits.max_sequence_tokens()
+    ) {
+    raise InvalidRowDescriptor(kind~, rule=InvalidSampleIndex)
   }
   if completion_slot.value() < 0 ||
     completion_slot.value() >= self.limits.max_completion_slots() {
@@ -59,6 +69,8 @@ fn SchedulePlanBuffer::start_draft(
   self.draft_produces_token = produces_token
   self.draft_completion_slot = completion_slot
   self.draft_sampling = sampling
+  self.draft_sampling_seed_value = sampling_seed_value
+  self.draft_sample_index = sample_index
   self.draft_token_start = self.token_count
   self.draft_page_start = self.page_count
   self.draft_capability_start = self.capability_count
@@ -81,6 +93,8 @@ pub fn SchedulePlanBuffer::begin_prefill(
     sequence_token_start,
     false,
     @inference.SamplingParameters::greedy(),
+    1UL,
+    0,
     completion_slot,
   )
 }
@@ -93,6 +107,8 @@ pub fn SchedulePlanBuffer::begin_final_prefill(
   request_generation~ : @inference.RequestGeneration,
   sequence_token_start~ : Int,
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.start_draft(
@@ -102,6 +118,8 @@ pub fn SchedulePlanBuffer::begin_final_prefill(
     sequence_token_start,
     true,
     sampling,
+    sampling_seed.value(),
+    sample_index,
     completion_slot,
   )
 }
@@ -114,6 +132,8 @@ pub fn SchedulePlanBuffer::begin_decode(
   request_generation~ : @inference.RequestGeneration,
   sequence_token_position~ : Int,
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.start_draft(
@@ -123,6 +143,8 @@ pub fn SchedulePlanBuffer::begin_decode(
     sequence_token_position,
     false,
     sampling,
+    sampling_seed.value(),
+    sample_index,
     completion_slot,
   )
 }
@@ -265,6 +287,8 @@ pub fn PlanRowDraft::commit(
       owner.prefill_capability_lengths[row] = capability_length
       owner.prefill_produces_tokens[row] = owner.draft_produces_token
       owner.prefill_sampling[row] = owner.draft_sampling
+      owner.prefill_sampling_seed_values[row] = owner.draft_sampling_seed_value
+      owner.prefill_sample_indices[row] = owner.draft_sample_index
       owner.prefill_completion_slots[row] = owner.draft_completion_slot
       owner.prefill_count = row + 1
     }
@@ -279,6 +303,8 @@ pub fn PlanRowDraft::commit(
       owner.decode_capability_starts[row] = owner.draft_capability_start
       owner.decode_capability_lengths[row] = capability_length
       owner.decode_sampling[row] = owner.draft_sampling
+      owner.decode_sampling_seed_values[row] = owner.draft_sampling_seed_value
+      owner.decode_sample_indices[row] = owner.draft_sample_index
       owner.decode_completion_slots[row] = owner.draft_completion_slot
       owner.decode_count = row + 1
     }

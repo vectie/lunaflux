@@ -20,6 +20,8 @@ pub fn SchedulePlanBuffer::append_prefill(
     capabilities,
     false,
     @inference.SamplingParameters::greedy(),
+    1UL,
+    0,
     completion_slot,
   )
 }
@@ -35,11 +37,22 @@ pub fn SchedulePlanBuffer::append_final_prefill(
   pages~ : ArrayView[@page_allocator.PageId],
   capabilities~ : ArrayView[@plan.KernelCapabilityId],
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
 ) -> Unit raise WorkerProtocolError {
   self.append_prefill_row(
-    request_id, request_generation, sequence_token_start, tokens, pages, capabilities,
-    true, sampling, completion_slot,
+    request_id,
+    request_generation,
+    sequence_token_start,
+    tokens,
+    pages,
+    capabilities,
+    true,
+    sampling,
+    sampling_seed.value(),
+    sample_index,
+    completion_slot,
   )
 }
 
@@ -54,6 +67,8 @@ fn SchedulePlanBuffer::append_prefill_row(
   capabilities : ArrayView[@plan.KernelCapabilityId],
   produces_token : Bool,
   sampling : @inference.SamplingParameters,
+  sampling_seed_value : UInt64,
+  sample_index : Int,
   completion_slot : CompletionSlot,
 ) -> Unit raise WorkerProtocolError {
   self.preflight_row(
@@ -68,6 +83,14 @@ fn SchedulePlanBuffer::append_prefill_row(
     sequence_token_start > self.limits.max_sequence_tokens() ||
     tokens.length() > self.limits.max_sequence_tokens() - sequence_token_start {
     raise InvalidRowDescriptor(kind=Prefill, rule=InvalidSequencePosition)
+  }
+  if produces_token &&
+    (
+      sampling_seed_value == 0UL ||
+      sample_index < 0 ||
+      sample_index >= self.limits.max_sequence_tokens()
+    ) {
+    raise InvalidRowDescriptor(kind=Prefill, rule=InvalidSampleIndex)
   }
   for index, token in tokens {
     validate_token(token, self.token_count + index, self.limits)
@@ -88,6 +111,8 @@ fn SchedulePlanBuffer::append_prefill_row(
   self.prefill_capability_lengths[row] = capabilities.length()
   self.prefill_produces_tokens[row] = produces_token
   self.prefill_sampling[row] = sampling
+  self.prefill_sampling_seed_values[row] = sampling_seed_value
+  self.prefill_sample_indices[row] = sample_index
   self.prefill_completion_slots[row] = completion_slot
   self.token_count = token_start + tokens.length()
   self.page_count = page_start + pages.length()
@@ -107,6 +132,8 @@ pub fn SchedulePlanBuffer::append_decode(
   pages~ : ArrayView[@page_allocator.PageId],
   capabilities~ : ArrayView[@plan.KernelCapabilityId],
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
 ) -> Unit raise WorkerProtocolError {
   self.preflight_row(
@@ -120,6 +147,9 @@ pub fn SchedulePlanBuffer::append_decode(
   if sequence_token_position < 0 ||
     sequence_token_position >= self.limits.max_sequence_tokens() {
     raise InvalidRowDescriptor(kind=Decode, rule=InvalidSequencePosition)
+  }
+  if sample_index < 0 || sample_index >= self.limits.max_sequence_tokens() {
+    raise InvalidRowDescriptor(kind=Decode, rule=InvalidSampleIndex)
   }
   validate_token(input_token, self.token_count, self.limits)
   let row = self.decode_count
@@ -142,6 +172,8 @@ pub fn SchedulePlanBuffer::append_decode(
   self.decode_capability_starts[row] = capability_start
   self.decode_capability_lengths[row] = capabilities.length()
   self.decode_sampling[row] = sampling
+  self.decode_sampling_seed_values[row] = sampling_seed.value()
+  self.decode_sample_indices[row] = sample_index
   self.decode_completion_slots[row] = completion_slot
   self.token_count = token_start + 1
   self.page_count = page_start + pages.length()

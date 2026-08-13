@@ -151,6 +151,7 @@ pub struct TokenizedRequest {
   model_identity : @spec.ModelIdentity
   input_tokens : @inference.TokenBuffer
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
   stops : @inference.StopConditions
   cache : @inference.CachePolicy
   stream_preference : @inference.StreamPreference
@@ -162,9 +163,10 @@ pub fn TokenizedRequest::deadline_budget(Self) -> @inference.DeadlineBudget
 pub fn TokenizedRequest::effective_limits(Self) -> @inference.EffectiveLimits
 pub fn TokenizedRequest::input_tokens(Self) -> @inference.TokenBuffer
 pub fn TokenizedRequest::model_identity(Self) -> @spec.ModelIdentity
-pub fn TokenizedRequest::new(request_id~ : @inference.RequestId, model_identity~ : @spec.ModelIdentity, input_tokens~ : @inference.TokenBuffer, sampling~ : @inference.SamplingParameters, stops~ : @inference.StopConditions, cache~ : @inference.CachePolicy, stream_preference~ : @inference.StreamPreference, effective_limits~ : @inference.EffectiveLimits, deadline_budget~ : @inference.DeadlineBudget) -> Self raise SchedulerError
+pub fn TokenizedRequest::new(request_id~ : @inference.RequestId, model_identity~ : @spec.ModelIdentity, input_tokens~ : @inference.TokenBuffer, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, stops~ : @inference.StopConditions, cache~ : @inference.CachePolicy, stream_preference~ : @inference.StreamPreference, effective_limits~ : @inference.EffectiveLimits, deadline_budget~ : @inference.DeadlineBudget) -> Self raise SchedulerError
 pub fn TokenizedRequest::request_id(Self) -> @inference.RequestId
 pub fn TokenizedRequest::sampling(Self) -> @inference.SamplingParameters
+pub fn TokenizedRequest::sampling_seed(Self) -> @inference.SamplingSeed
 pub fn TokenizedRequest::stops(Self) -> @inference.StopConditions
 pub fn TokenizedRequest::stream_preference(Self) -> @inference.StreamPreference
 

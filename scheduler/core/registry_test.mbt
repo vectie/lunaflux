@@ -104,6 +104,7 @@ test "admission rejects token IDs outside the loaded worker vocabulary" {
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new([40], broad),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(35UL),
     stops=try! @inference.StopConditions::new([], [], broad),
     cache=@inference.CachePolicy::new(
       try! @inference.CacheScope::from_ascii(b"scope", broad),
@@ -230,6 +231,7 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
       model_identity=selected_identity(),
       input_tokens=input,
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=try! @inference.SamplingSeed::new(99UL),
       stops=try! @inference.StopConditions::new([], [], limits),
       cache=@inference.CachePolicy::new(
         try! @inference.CacheScope::from_ascii(b"scope", limits),
@@ -261,6 +263,7 @@ test "tokenized boundary rejects unsupported stop strings explicitly" {
       model_identity=selected_identity(),
       input_tokens=try! @inference.TokenBuffer::new([1], limits),
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=try! @inference.SamplingSeed::new(100UL),
       stops=try! @inference.StopConditions::new([], [b"stop"], limits),
       cache=@inference.CachePolicy::new(
         try! @inference.CacheScope::from_ascii(b"scope", limits),

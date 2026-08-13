@@ -181,6 +181,8 @@ pub fn SchedulePlanBuffer::new(
     draft_produces_token: false,
     draft_completion_slot: completion_slot,
     draft_sampling: sampling,
+    draft_sampling_seed_value: 1UL,
+    draft_sample_index: 0,
     draft_token_start: 0,
     draft_page_start: 0,
     draft_capability_start: 0,
@@ -204,6 +206,11 @@ pub fn SchedulePlanBuffer::new(
     prefill_capability_lengths: FixedArray::make(limits.max_prefill_rows(), 0),
     prefill_produces_tokens: FixedArray::make(limits.max_prefill_rows(), false),
     prefill_sampling: FixedArray::make(limits.max_prefill_rows(), sampling),
+    prefill_sampling_seed_values: FixedArray::make(
+      limits.max_prefill_rows(),
+      1UL,
+    ),
+    prefill_sample_indices: FixedArray::make(limits.max_prefill_rows(), 0),
     prefill_completion_slots: FixedArray::make(
       limits.max_prefill_rows(),
       completion_slot,
@@ -220,6 +227,8 @@ pub fn SchedulePlanBuffer::new(
     decode_capability_starts: FixedArray::make(limits.max_decode_rows(), 0),
     decode_capability_lengths: FixedArray::make(limits.max_decode_rows(), 0),
     decode_sampling: FixedArray::make(limits.max_decode_rows(), sampling),
+    decode_sampling_seed_values: FixedArray::make(limits.max_decode_rows(), 1UL),
+    decode_sample_indices: FixedArray::make(limits.max_decode_rows(), 0),
     decode_completion_slots: FixedArray::make(
       limits.max_decode_rows(),
       completion_slot,

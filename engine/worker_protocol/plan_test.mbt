@@ -187,6 +187,8 @@ test "empty ranges and illegal decode rows fail before planning" {
       page_table=page_view(0, 1),
       capabilities=capability_view(0, 1),
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=0,
       completion_slot=slot(0),
       limits=protocol_limits(),
     )

@@ -20,6 +20,8 @@ test "scalar row drafts equal exact immutable plan semantics" {
     request_generation=@inference.RequestGeneration::from_wire(3UL),
     sequence_token_position=3,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(1),
   )
   decode.push_token(12)
@@ -69,6 +71,8 @@ test "draft rollback restores exact suffix after every construction stage" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(0),
   )
   last_draft.push_token(7)
@@ -105,6 +109,8 @@ test "draft handles reject overlapping stale and closed mutations" {
       request_generation=@inference.RequestGeneration::initial(),
       sequence_token_position=0,
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=0,
       completion_slot=slot(1),
     )
   catch {
@@ -125,6 +131,8 @@ test "draft handles reject overlapping stale and closed mutations" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(1),
   )
   try old.push_token(3) catch {

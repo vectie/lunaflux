@@ -161,6 +161,7 @@ fn request() -> @scheduler.TokenizedRequest {
     model_identity=model_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(1UL),
     stops=try! @inference.StopConditions::new([], [], limits),
     cache=@inference.CachePolicy::new(
       try! @inference.CacheScope::from_ascii(b"alloc", limits),

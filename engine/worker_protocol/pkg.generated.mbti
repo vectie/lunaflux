@@ -150,16 +150,20 @@ pub struct DecodeRow {
   page_table : PageTableView
   capabilities : CapabilityView
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
+  sample_index : Int
   completion_slot : CompletionSlot
-} derive(Eq, @debug.Debug)
+} derive(Eq)
 pub fn DecodeRow::capabilities(Self) -> CapabilityView
 pub fn DecodeRow::completion_slot(Self) -> CompletionSlot
 pub fn DecodeRow::input_token(Self) -> TokenRange
-pub fn DecodeRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn DecodeRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn DecodeRow::page_table(Self) -> PageTableView
 pub fn DecodeRow::request_generation(Self) -> @inference.RequestGeneration
 pub fn DecodeRow::request_id(Self) -> @inference.RequestId
+pub fn DecodeRow::sample_index(Self) -> Int
 pub fn DecodeRow::sampling(Self) -> @inference.SamplingParameters
+pub fn DecodeRow::sampling_seed(Self) -> @inference.SamplingSeed
 pub fn DecodeRow::sequence_token_position(Self) -> Int
 
 pub struct ModelPlanGeneration {
@@ -211,18 +215,22 @@ pub struct PrefillRow {
   capabilities : CapabilityView
   produces_token : Bool
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
+  sample_index : Int
   completion_slot : CompletionSlot
-} derive(Eq, @debug.Debug)
+} derive(Eq)
 pub fn PrefillRow::capabilities(Self) -> CapabilityView
 pub fn PrefillRow::completion_slot(Self) -> CompletionSlot
-pub fn PrefillRow::final_prompt(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn PrefillRow::final_prompt(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn PrefillRow::intermediate(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn PrefillRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn PrefillRow::page_table(Self) -> PageTableView
 pub fn PrefillRow::produces_token(Self) -> Bool
 pub fn PrefillRow::request_generation(Self) -> @inference.RequestGeneration
 pub fn PrefillRow::request_id(Self) -> @inference.RequestId
+pub fn PrefillRow::sample_index(Self) -> Int
 pub fn PrefillRow::sampling(Self) -> @inference.SamplingParameters
+pub fn PrefillRow::sampling_seed(Self) -> @inference.SamplingSeed
 pub fn PrefillRow::sequence_token_start(Self) -> Int
 pub fn PrefillRow::tokens(Self) -> TokenRange
 
@@ -271,6 +279,7 @@ pub(all) enum RowRule {
   RangeOutsideTable
   NonContiguousRange
   InvalidSequencePosition
+  InvalidSampleIndex
   DuplicateRequest
   DuplicateCompletionSlot
   InvalidRowOrder
@@ -301,11 +310,11 @@ pub fn SchedulePlan::validate_submission(Self, PlanSequence?, ModelPlanGeneratio
 pub struct SchedulePlanBuffer {
   // private fields
 }
-pub fn SchedulePlanBuffer::append_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : Int, pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
-pub fn SchedulePlanBuffer::append_final_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::append_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : Int, pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
+pub fn SchedulePlanBuffer::append_final_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::append_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], completion_slot~ : CompletionSlot) -> Unit raise WorkerProtocolError
-pub fn SchedulePlanBuffer::begin_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
-pub fn SchedulePlanBuffer::begin_final_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, sampling~ : @inference.SamplingParameters, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
+pub fn SchedulePlanBuffer::begin_decode(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
+pub fn SchedulePlanBuffer::begin_final_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
 pub fn SchedulePlanBuffer::begin_prefill(Self, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, completion_slot~ : CompletionSlot) -> PlanRowDraft raise WorkerProtocolError
 pub fn SchedulePlanBuffer::checkpoint(Self) -> PlanBuildCheckpoint raise WorkerProtocolError
 pub fn SchedulePlanBuffer::commit_draft(Self, PlanRowDraft) -> Unit raise WorkerProtocolError
@@ -348,7 +357,9 @@ pub fn SubmittedDecodeRow::input_token(Self) -> TokenRange raise WorkerProtocolE
 pub fn SubmittedDecodeRow::page_table(Self) -> PageTableView raise WorkerProtocolError
 pub fn SubmittedDecodeRow::request_generation(Self) -> @inference.RequestGeneration raise WorkerProtocolError
 pub fn SubmittedDecodeRow::request_id(Self) -> @inference.RequestId raise WorkerProtocolError
+pub fn SubmittedDecodeRow::sample_index(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedDecodeRow::sampling(Self) -> @inference.SamplingParameters raise WorkerProtocolError
+pub fn SubmittedDecodeRow::sampling_seed_value(Self) -> UInt64 raise WorkerProtocolError
 pub fn SubmittedDecodeRow::sequence_token_position(Self) -> Int raise WorkerProtocolError
 
 pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int)
@@ -358,7 +369,9 @@ pub fn SubmittedPrefillRow::page_table(Self) -> PageTableView raise WorkerProtoc
 pub fn SubmittedPrefillRow::produces_token(Self) -> Bool raise WorkerProtocolError
 pub fn SubmittedPrefillRow::request_generation(Self) -> @inference.RequestGeneration raise WorkerProtocolError
 pub fn SubmittedPrefillRow::request_id(Self) -> @inference.RequestId raise WorkerProtocolError
+pub fn SubmittedPrefillRow::sample_index(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedPrefillRow::sampling(Self) -> @inference.SamplingParameters raise WorkerProtocolError
+pub fn SubmittedPrefillRow::sampling_seed_value(Self) -> UInt64 raise WorkerProtocolError
 pub fn SubmittedPrefillRow::sequence_token_start(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedPrefillRow::tokens(Self) -> TokenRange raise WorkerProtocolError
 

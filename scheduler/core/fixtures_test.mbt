@@ -143,6 +143,7 @@ fn request_with_tokens(
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new(tokens, limits),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(id),
     stops=try! @inference.StopConditions::new([], [], limits),
     cache=@inference.CachePolicy::new(
       try! @inference.CacheScope::from_ascii(b"scope", limits),
@@ -180,6 +181,7 @@ fn request(
     model_identity=identity,
     input_tokens=input,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(id),
     stops~,
     cache~,
     stream_preference=Streaming,

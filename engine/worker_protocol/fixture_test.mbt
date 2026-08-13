@@ -30,6 +30,11 @@ fn request_id(value : UInt64) -> @inference.RequestId {
 }
 
 ///|
+fn sampling_seed() -> @inference.SamplingSeed {
+  try! @inference.SamplingSeed::new(0x123456789abcdef0UL)
+}
+
+///|
 fn plan_sequence(value : UInt64) -> @worker_protocol.PlanSequence {
   try! @worker_protocol.PlanSequence::from_wire(value)
 }
@@ -101,6 +106,8 @@ fn decode(
     page_table=page_view(page_start, 1),
     capabilities=capability_view(capability_start, 1),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(completion_slot),
     limits=protocol_limits(),
   )

@@ -9,8 +9,10 @@ pub struct PrefillRow {
   capabilities : CapabilityView
   produces_token : Bool
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
+  sample_index : Int
   completion_slot : CompletionSlot
-} derive(Debug, Eq)
+} derive(Eq)
 
 ///|
 /// Constructs an intermediate prefill row. Intermediate chunks never sample
@@ -40,6 +42,8 @@ pub fn PrefillRow::new(
     capabilities,
     produces_token: false,
     sampling: @inference.SamplingParameters::greedy(),
+    sampling_seed: try! @inference.SamplingSeed::new(1UL),
+    sample_index: 0,
     completion_slot,
   }
 }
@@ -79,6 +83,8 @@ pub fn PrefillRow::final_prompt(
   page_table~ : PageTableView,
   capabilities~ : CapabilityView,
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
   limits~ : WorkerProtocolLimits,
 ) -> PrefillRow raise WorkerProtocolError {
@@ -92,7 +98,10 @@ pub fn PrefillRow::final_prompt(
     completion_slot~,
     limits~,
   )
-  { ..row, produces_token: true, sampling }
+  if sample_index < 0 || sample_index >= limits.max_sequence_tokens() {
+    raise InvalidRowDescriptor(kind=Prefill, rule=InvalidSampleIndex)
+  }
+  { ..row, produces_token: true, sampling, sampling_seed, sample_index }
 }
 
 ///|
@@ -140,6 +149,16 @@ pub fn PrefillRow::sampling(self : PrefillRow) -> @inference.SamplingParameters 
 }
 
 ///|
+pub fn PrefillRow::sampling_seed(self : PrefillRow) -> @inference.SamplingSeed {
+  self.sampling_seed
+}
+
+///|
+pub fn PrefillRow::sample_index(self : PrefillRow) -> Int {
+  self.sample_index
+}
+
+///|
 pub fn PrefillRow::completion_slot(self : PrefillRow) -> CompletionSlot {
   self.completion_slot
 }
@@ -154,8 +173,10 @@ pub struct DecodeRow {
   page_table : PageTableView
   capabilities : CapabilityView
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
+  sample_index : Int
   completion_slot : CompletionSlot
-} derive(Debug, Eq)
+} derive(Eq)
 
 ///|
 /// Constructs one decode row. Decode consumes exactly one input token.
@@ -167,6 +188,8 @@ pub fn DecodeRow::new(
   page_table~ : PageTableView,
   capabilities~ : CapabilityView,
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
+  sample_index~ : Int,
   completion_slot~ : CompletionSlot,
   limits~ : WorkerProtocolLimits,
 ) -> DecodeRow raise WorkerProtocolError {
@@ -177,6 +200,9 @@ pub fn DecodeRow::new(
     sequence_token_position >= limits.max_sequence_tokens() {
     raise InvalidRowDescriptor(kind=Decode, rule=InvalidSequencePosition)
   }
+  if sample_index < 0 || sample_index >= limits.max_sequence_tokens() {
+    raise InvalidRowDescriptor(kind=Decode, rule=InvalidSampleIndex)
+  }
   {
     request_id,
     request_generation,
@@ -185,6 +211,8 @@ pub fn DecodeRow::new(
     page_table,
     capabilities,
     sampling,
+    sampling_seed,
+    sample_index,
     completion_slot,
   }
 }
@@ -224,6 +252,16 @@ pub fn DecodeRow::capabilities(self : DecodeRow) -> CapabilityView {
 ///|
 pub fn DecodeRow::sampling(self : DecodeRow) -> @inference.SamplingParameters {
   self.sampling
+}
+
+///|
+pub fn DecodeRow::sampling_seed(self : DecodeRow) -> @inference.SamplingSeed {
+  self.sampling_seed
+}
+
+///|
+pub fn DecodeRow::sample_index(self : DecodeRow) -> Int {
+  self.sample_index
 }
 
 ///|

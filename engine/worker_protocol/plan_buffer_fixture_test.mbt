@@ -20,6 +20,8 @@ fn append_mixed_buffer(
     pages=[pages.allocate_one()],
     capabilities=[@plan.KernelCapabilityId::causal_attention()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(1),
   )
 }

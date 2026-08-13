@@ -30,6 +30,11 @@ fn step_test_identity() -> @spec.ModelIdentity raise {
 }
 
 ///|
+fn step_sampling_seed() -> @inference.SamplingSeed {
+  try! @inference.SamplingSeed::new(0x123456789abcdef0UL)
+}
+
+///|
 fn step_required_capabilities() -> FixedArray[@plan.KernelCapabilityId] {
   let source = (try! step_test_model_plan()).required_capabilities()
   let result = FixedArray::make(source.length(), source[0])

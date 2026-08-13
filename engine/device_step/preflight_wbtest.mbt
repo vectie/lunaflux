@@ -20,6 +20,8 @@ test "mixed rows produce exact CSR and SoA values without page generations" {
     pages=decode_pages,
     capabilities=step_required_capability_array(),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
     completion_slot=step_slot(1),
   )
   let submitted = submit_step_buffer(buffer, token_budget=4)
@@ -164,6 +166,8 @@ test "retired submitted handle is rejected without host publication" {
     pages=[allocator.allocate_one()],
     capabilities=step_required_capability_array(),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
     completion_slot=step_slot(0),
   )
   let submitted = submit_step_buffer(buffer, token_budget=1)
@@ -203,6 +207,8 @@ test "physical page indices must fit the committed device layout" {
     pages=[outside],
     capabilities=step_required_capability_array(),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
     completion_slot=step_slot(0),
   )
   let submitted = submit_step_buffer(buffer, token_budget=1)
@@ -293,6 +299,8 @@ test "sequence and epoch preflight failures preserve prior host publication" {
     pages=[allocator.allocate_one()],
     capabilities=step_required_capability_array(),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
     completion_slot=step_slot(0),
   )
   let limits = step_device_limits()
@@ -356,6 +364,8 @@ test "row capabilities must equal the bound paged plan recipe" {
     pages=[allocator.allocate_one()],
     capabilities=[@plan.KernelCapabilityId::causal_attention()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
     completion_slot=step_slot(0),
   )
   let limits = step_device_limits()

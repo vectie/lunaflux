@@ -21,6 +21,8 @@ test "failed appends leave every logical count unchanged" {
       pages=[pages.allocate_one()],
       capabilities=[@plan.KernelCapabilityId::causal_attention()],
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=0,
       completion_slot=slot(1),
     )
   catch {
@@ -37,6 +39,8 @@ test "failed appends leave every logical count unchanged" {
     pages=[pages.allocate_one()],
     capabilities=[@plan.KernelCapabilityId::causal_attention()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(1),
   )
   let submitted = submit_mixed_buffer(
@@ -78,6 +82,8 @@ test "overflow duplicate and row ordering failures roll back exactly" {
     pages=[pages.allocate_one()],
     capabilities=[@plan.KernelCapabilityId::causal_attention()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=try! @worker_protocol.CompletionSlot::new(0, limits),
   )
   try
@@ -106,6 +112,8 @@ test "overflow duplicate and row ordering failures roll back exactly" {
       pages=[pages.allocate_one()],
       capabilities=[@plan.KernelCapabilityId::causal_attention()],
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=0,
       completion_slot=try! @worker_protocol.CompletionSlot::new(1, limits),
     )
   catch {

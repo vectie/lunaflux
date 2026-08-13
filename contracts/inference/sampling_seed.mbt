@@ -4,6 +4,7 @@
 /// The seed belongs to the transport-independent request contract so scheduler
 /// and isolated workers can replay a token by `(seed, sample_index)` without
 /// sharing mutable RNG state. It deliberately has no `Debug` implementation.
+#valtype
 pub struct SamplingSeed {
   priv value : UInt64
 } derive(Eq)

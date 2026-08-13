@@ -300,6 +300,8 @@ fn Scheduler::build_prefill_row(
         request_generation=self.request_generations[slot],
         sequence_token_start=start,
         sampling=request.sampling(),
+        sampling_seed=request.sampling_seed(),
+        sample_index=self.output_counts[slot],
         completion_slot=completion,
       )
     } else {
@@ -367,6 +369,8 @@ fn Scheduler::build_decode_row(
       request_generation=self.request_generations[slot],
       sequence_token_position=position,
       sampling=request.sampling(),
+      sampling_seed=request.sampling_seed(),
+      sample_index=self.output_counts[slot],
       completion_slot=completion,
     )
   catch {

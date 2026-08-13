@@ -29,6 +29,8 @@ test "build checkpoint rolls back several committed rows for exact retry" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=1,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(2),
   )
   draft.push_token(12)
@@ -43,6 +45,8 @@ test "build checkpoint rolls back several committed rows for exact retry" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=1,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=slot(1),
   )
   retry.push_token(21)

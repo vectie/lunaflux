@@ -40,6 +40,8 @@ pub struct SchedulePlanBuffer {
   priv mut draft_produces_token : Bool
   priv mut draft_completion_slot : CompletionSlot
   priv mut draft_sampling : @inference.SamplingParameters
+  priv mut draft_sampling_seed_value : UInt64
+  priv mut draft_sample_index : Int
   priv mut draft_token_start : Int
   priv mut draft_page_start : Int
   priv mut draft_capability_start : Int
@@ -57,6 +59,8 @@ pub struct SchedulePlanBuffer {
   priv prefill_capability_lengths : FixedArray[Int]
   priv prefill_produces_tokens : FixedArray[Bool]
   priv prefill_sampling : FixedArray[@inference.SamplingParameters]
+  priv prefill_sampling_seed_values : FixedArray[UInt64]
+  priv prefill_sample_indices : FixedArray[Int]
   priv prefill_completion_slots : FixedArray[CompletionSlot]
   priv decode_request_ids : FixedArray[@inference.RequestId]
   priv decode_request_generations : FixedArray[@inference.RequestGeneration]
@@ -67,6 +71,8 @@ pub struct SchedulePlanBuffer {
   priv decode_capability_starts : FixedArray[Int]
   priv decode_capability_lengths : FixedArray[Int]
   priv decode_sampling : FixedArray[@inference.SamplingParameters]
+  priv decode_sampling_seed_values : FixedArray[UInt64]
+  priv decode_sample_indices : FixedArray[Int]
   priv decode_completion_slots : FixedArray[CompletionSlot]
 }
 

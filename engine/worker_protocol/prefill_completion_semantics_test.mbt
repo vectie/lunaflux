@@ -8,6 +8,8 @@ fn final_prefill_row() -> @worker_protocol.PrefillRow {
     page_table=page_view(0, 1),
     capabilities=capability_view(0, 1),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=5,
     completion_slot=slot(0),
     limits=protocol_limits(),
   )
@@ -35,6 +37,8 @@ test "immutable final prefill requires sampled-token completion" {
   let row = plan.prefill_rows()[0]
   assert_true(row.produces_token())
   assert_eq(row.sampling(), @inference.SamplingParameters::greedy())
+  assert_true(row.sampling_seed() == sampling_seed())
+  assert_eq(row.sample_index(), 5)
   let final_entry = try! @worker_protocol.CompletionEntry::final_prefill_completed(
     slot=slot(0),
     request_id=request_id(21UL),
@@ -125,6 +129,8 @@ test "reusable final prefill preserves flag sampling count and token" {
     pages=[pages.allocate_one()],
     capabilities=[@plan.KernelCapabilityId::causal_attention()],
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=3,
     completion_slot=slot(0),
   )
   let submitted_plan = plan_owner.submit(
@@ -137,6 +143,8 @@ test "reusable final prefill preserves flag sampling count and token" {
   let row = submitted_plan.prefill_row(0)
   assert_true(row.produces_token())
   assert_eq(row.sampling(), @inference.SamplingParameters::greedy())
+  assert_eq(row.sampling_seed_value(), sampling_seed().value())
+  assert_eq(row.sample_index(), 3)
   let completions = @worker_protocol.CompletionBuffer::new(protocol_limits())
   completions.append_final_prefill_completed(
     slot=slot(0),
@@ -196,6 +204,8 @@ test "scalar final-prefill draft matches reusable append semantics" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_start=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=4,
     completion_slot=slot(0),
   )
   draft.push_token(10)
@@ -214,6 +224,30 @@ test "scalar final-prefill draft matches reusable append semantics" {
     plan.prefill_row(0).sampling(),
     @inference.SamplingParameters::greedy(),
   )
+  assert_eq(plan.prefill_row(0).sampling_seed_value(), sampling_seed().value())
+  assert_eq(plan.prefill_row(0).sample_index(), 4)
+}
+
+///|
+test "sampling cursor rejects out-of-range rows before mutation" {
+  let owner = @worker_protocol.SchedulePlanBuffer::new(protocol_limits())
+  try
+    owner.begin_decode(
+      request_id=request_id(27UL),
+      request_generation=@inference.RequestGeneration::initial(),
+      sequence_token_position=0,
+      sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=protocol_limits().max_sequence_tokens(),
+      completion_slot=slot(0),
+    )
+  catch {
+    InvalidRowDescriptor(kind=Decode, rule=InvalidSampleIndex) => ()
+    _ => fail("unexpected sampling cursor error")
+  } noraise {
+    _ => fail("out-of-range sampling cursor was admitted")
+  }
+  assert_eq(owner.state(), Writable)
 }
 
 ///|

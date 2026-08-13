@@ -162,6 +162,8 @@ test "recipe push preflights capacity without partial draft mutation" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
   )
   draft.push_token(8)
@@ -212,6 +214,8 @@ test "recipe push is semantically identical to ordered scalar pushes" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
   )
   scalar.push_token(4)
@@ -234,6 +238,8 @@ test "recipe push is semantically identical to ordered scalar pushes" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
   )
   copied.push_token(4)
@@ -283,6 +289,8 @@ test "one recipe applies to intermediate final and decode rows" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_start=0,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=@worker_protocol.CompletionSlot::new(1, limits),
   )
   final_prompt.push_token(2)
@@ -294,6 +302,8 @@ test "one recipe applies to intermediate final and decode rows" {
     request_generation=@inference.RequestGeneration::initial(),
     sequence_token_position=1,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=sampling_seed(),
+    sample_index=0,
     completion_slot=@worker_protocol.CompletionSlot::new(2, limits),
   )
   decode.push_token(3)

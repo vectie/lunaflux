@@ -9,6 +9,7 @@ pub struct TokenizedRequest {
   model_identity : @spec.ModelIdentity
   input_tokens : @inference.TokenBuffer
   sampling : @inference.SamplingParameters
+  sampling_seed : @inference.SamplingSeed
   stops : @inference.StopConditions
   cache : @inference.CachePolicy
   stream_preference : @inference.StreamPreference
@@ -22,6 +23,7 @@ pub fn TokenizedRequest::new(
   model_identity~ : @spec.ModelIdentity,
   input_tokens~ : @inference.TokenBuffer,
   sampling~ : @inference.SamplingParameters,
+  sampling_seed~ : @inference.SamplingSeed,
   stops~ : @inference.StopConditions,
   cache~ : @inference.CachePolicy,
   stream_preference~ : @inference.StreamPreference,
@@ -40,6 +42,7 @@ pub fn TokenizedRequest::new(
     model_identity,
     input_tokens,
     sampling,
+    sampling_seed,
     stops,
     cache,
     stream_preference,
@@ -74,6 +77,13 @@ pub fn TokenizedRequest::sampling(
   self : TokenizedRequest,
 ) -> @inference.SamplingParameters {
   self.sampling
+}
+
+///|
+pub fn TokenizedRequest::sampling_seed(
+  self : TokenizedRequest,
+) -> @inference.SamplingSeed {
+  self.sampling_seed
 }
 
 ///|

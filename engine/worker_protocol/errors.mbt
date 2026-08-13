@@ -73,6 +73,7 @@ pub(all) enum RowRule {
   RangeOutsideTable
   NonContiguousRange
   InvalidSequencePosition
+  InvalidSampleIndex
   DuplicateRequest
   DuplicateCompletionSlot
   InvalidRowOrder

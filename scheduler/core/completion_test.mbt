@@ -6,6 +6,7 @@ fn request_with_stop_token(id : UInt64, stop_token : Int) -> TokenizedRequest {
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(id),
     stops=try! @inference.StopConditions::new([stop_token], [], limits),
     cache=@inference.CachePolicy::new(
       try! @inference.CacheScope::from_ascii(b"scope", limits),
@@ -66,6 +67,10 @@ test "completion publishes in plan order through overlapping plans" {
   assert_eq(owner.generated_token_count(), 2)
 
   let decode = next_plan(owner)
+  assert_eq(decode.decode_row(0).sampling_seed_value(), 401UL)
+  assert_eq(decode.decode_row(1).sampling_seed_value(), 402UL)
+  assert_eq(decode.decode_row(0).sample_index(), 1)
+  assert_eq(decode.decode_row(1).sample_index(), 1)
   let decode_writer = owner.completion_writer(decode)
   append_decode_result(decode_writer, decode.decode_row(1), 22)
   append_decode_result(decode_writer, decode.decode_row(0), 21)

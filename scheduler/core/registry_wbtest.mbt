@@ -33,6 +33,7 @@ fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
     model_identity=wb_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(id),
     stops=try! @inference.StopConditions::new([], [], limits),
     cache=@inference.CachePolicy::new(
       try! @inference.CacheScope::from_ascii(b"scope", limits),

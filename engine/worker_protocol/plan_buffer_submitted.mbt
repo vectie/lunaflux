@@ -269,6 +269,20 @@ pub fn SubmittedPrefillRow::sampling(
 }
 
 ///|
+pub fn SubmittedPrefillRow::sampling_seed_value(
+  self : SubmittedPrefillRow,
+) -> UInt64 raise WorkerProtocolError {
+  self.owner().prefill_sampling_seed_values[self.2]
+}
+
+///|
+pub fn SubmittedPrefillRow::sample_index(
+  self : SubmittedPrefillRow,
+) -> Int raise WorkerProtocolError {
+  self.owner().prefill_sample_indices[self.2]
+}
+
+///|
 pub fn SubmittedPrefillRow::completion_slot(
   self : SubmittedPrefillRow,
 ) -> CompletionSlot raise WorkerProtocolError {
@@ -340,6 +354,20 @@ pub fn SubmittedDecodeRow::sampling(
   self : SubmittedDecodeRow,
 ) -> @inference.SamplingParameters raise WorkerProtocolError {
   self.owner().decode_sampling[self.2]
+}
+
+///|
+pub fn SubmittedDecodeRow::sampling_seed_value(
+  self : SubmittedDecodeRow,
+) -> UInt64 raise WorkerProtocolError {
+  self.owner().decode_sampling_seed_values[self.2]
+}
+
+///|
+pub fn SubmittedDecodeRow::sample_index(
+  self : SubmittedDecodeRow,
+) -> Int raise WorkerProtocolError {
+  self.owner().decode_sample_indices[self.2]
 }
 
 ///|

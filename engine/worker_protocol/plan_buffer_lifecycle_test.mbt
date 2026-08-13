@@ -28,6 +28,8 @@ test "reusable plan buffer enforces writable submitted retired lifecycle" {
       pages=[allocator().allocate_one()],
       capabilities=[@plan.KernelCapabilityId::causal_attention()],
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=sampling_seed(),
+      sample_index=0,
       completion_slot=slot(2),
     )
   catch {
