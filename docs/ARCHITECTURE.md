@@ -131,8 +131,12 @@ timeouts, and reap. The supervisor owns two physical plan/completion frame
 pairs, permits two monotonic submissions, receives oldest first, and retains a
 validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
-deterministic protocol completions. Binding that child to the device executor,
-restart/readiness, and overlap remain open. Global
+deterministic protocol completions. Before plan traffic, a fixed startup frame
+binds the exact model identity, model generation, predecessor, worker limits,
+and inference limits; the supervisor publishes protocol readiness only after
+an identical Ready response. Device/model loading must complete before a
+production child sends Ready. Binding the current deterministic child to the
+device executor, restart recovery, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.
 Capability IDs are copied from authenticated model-generation recipes;

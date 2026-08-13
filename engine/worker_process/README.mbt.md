@@ -5,13 +5,21 @@ completion frame owners. Submission is strictly monotonic and allocation-free
 after startup storage. At most two plans may be in flight; the oldest response
 is received first.
 
+Construction sends a canonical startup `Configure` frame and enters `Ready`
+only after the child returns the exact model identity, model generation,
+predecessor, worker limits, and inference limits. Incompatible children are
+closed before publication. If both handshake and cleanup fail, preparation
+returns opaque retained cleanup authority so the child is never abandoned.
+Submission also rechecks the loaded model generation before any frame write.
+
 A response side remains pinned after wire validation. Callers may inspect its
 exact frame repeatedly while scheduler publication is backpressured, and only
 `retire_received` permits that side to be reused. Foreign, stale, out-of-order,
 malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 
-The production worker executable and restart/readiness policy remain separate.
-This supervisor intentionally does not infer recovery after process failure:
+The included deterministic child proves protocol readiness only; production
+device loading and CUDA readiness remain separate. This supervisor
+intentionally does not infer recovery after process failure:
 the service must close it, retire submitted work through scheduler failure
 semantics, construct a replacement, and seed the last accepted predecessor.

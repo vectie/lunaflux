@@ -190,9 +190,14 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   channel now has a separately linked child-side frame runtime and a
   two-executable gate covering three monotonic exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That child intentionally
-  returns deterministic protocol completions rather than opening CUDA;
-  production device bootstrap, restart/readiness, and live overlap are not yet
-  integrated.
+  performs an exact checksummed Configure/Ready handshake that binds model
+  identity, model generation, predecessor, worker limits, and inference
+  limits before the supervisor publishes readiness. Startup cleanup retains
+  explicit authority after a double failure, and submission rejects a foreign
+  model generation before transport mutation. The child intentionally returns
+  deterministic protocol completions rather than opening CUDA; production
+  device bootstrap and device-backed readiness, restart recovery, and live
+  overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,

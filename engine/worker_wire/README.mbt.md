@@ -13,6 +13,15 @@ prefill rows, and decode rows follow in canonical contiguous order. Integer and
 floating-point fields use little-endian fixed-width representations. Sampling
 seed and output index are preserved exactly.
 
+Before plan traffic, startup frame v1 performs an exact `Configure`/`Ready`
+exchange. Its canonical 280-byte body binds protocol version, full model
+identity, model-plan generation, predecessor sequence, worker limits, and
+inference limits under the same bounded checksum and reserved-field rules. A
+worker is not protocol-ready until it returns the identical validated
+contract. This proves configuration agreement, not model loading or CUDA
+readiness; a production device worker must establish those facts before it
+emits `Ready`.
+
 Completion frame v1 carries the exact plan sequence and model generation plus
 a canonical table of slot, request identity/generation, outcome kind,
 processed-token count, token ID, and bounded worker-failure category. The
@@ -52,12 +61,14 @@ owner epoch on every access. A rejected load leaves the prior frame and epoch
 unchanged. Error values may allocate on rejected paths.
 
 The checksum detects accidental corruption only. It is not a MAC and provides
-no peer authentication. The eventual process transport must authenticate the
-worker endpoint and enforce its own framing and resource limits. The receiver
+no peer authentication. The private process transport authenticates the local
+child endpoint by construction and enforces its own framing and resource
+limits. The receiver
 still validates every count, range, identity, token, page generation,
 capability, sampling field, request uniqueness, completion slot, and canonical
 table cursor after checksum verification.
 
-This package is transport metadata only. Process lifecycle and I/O, endpoint
-authentication, timeouts, worker-death recovery, and device execution from
-received plans are separate slices and are not claimed here.
+This package is transport metadata only. Process lifecycle and I/O are owned by
+the private process and worker-supervisor packages. Worker-death recovery and
+device execution from received plans remain separate slices and are not
+claimed here.

@@ -309,17 +309,20 @@ positive-controlled native release gates
 now cover the scheduler token step and public device-step staging/fixed-H2D
 path after warm-up. The full graph executor has generated-C success-path
 allocation evidence through logits readback, sampling, and completion
-submission, but not yet its own positive-controlled runtime gate. Process I/O,
-authentication, worker-death supervision, and live overlap remain open. A
+submission, but not yet its own positive-controlled runtime gate. A
 private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
 reap. Protocol-aware A/B supervision now consumes it with monotonic submission,
 oldest-first receive, retained response epochs, and fail-stop malformed-session
-handling. The production worker executable, restart/readiness integration, and
-live overlap remain open. A separately linked deterministic child runtime now
-proves valid end-to-end frame transport, three-plan A/B/A reuse, EOF, clean
-exit, and reap; it does not claim device execution, restart, readiness, or
-allocation-free cross-process transport.
+handling. Worker-death recovery and live overlap remain open. A separately
+linked deterministic child runtime now proves valid
+end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
+An exact checksummed Configure/Ready handshake binds model identity,
+generation, predecessor, and worker/inference limits before protocol
+readiness; incompatible children fail closed and startup double failures retain
+cleanup authority. Production device bootstrap, device-backed readiness,
+restart recovery, and live overlap remain open. This does not claim device
+execution or allocation-free cross-process transport.
 
 ### Gate
 
