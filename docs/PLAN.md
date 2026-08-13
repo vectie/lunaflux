@@ -368,10 +368,16 @@ across before/after size+mtime+ctime stamps, exact positional reads, and a
 trailing-growth probe; it has one accepted payload-allocation site and publishes
 nothing after detected truncation or mutation. Canonical path validation is
 duplicated at the MoonBit and native boundaries; atomic leases prevent
-`openat`, `pread`, or `fstat` from racing descriptor close/reuse. The remaining
-work is to migrate model configuration, weight, and artifact readers to this
-authority, then inherit exact model/kernel roots into the production child
-without argv/environment path authority.
+`openat`, `pread`, or `fstat` from racing descriptor close/reuse. Weight and
+kernel-artifact loaders now use this authority; weight inspection retains its
+validated locator privately, completely re-admits before allocation, and
+transfers from reusable fixed host storage. Remaining model readers must
+migrate before exact model/kernel roots are inherited into the production
+child without argv/environment path authority.
+Readiness additionally requires successful terminal source-file close. A close
+failure consumes the file authority and closes any ready allocation; if that
+allocation close also fails, retryable cleanup authority is retained at the
+payload-safe `SourceClose` stage.
 
 ### Gate
 

@@ -53,13 +53,18 @@ pub(all) enum ApprovedFsRule {
   Lifecycle
 } derive(Eq, @debug.Debug)
 
+pub struct ApprovedRelativeLocator {
+  // private fields
+}
+pub fn ApprovedRelativeLocator::new(StringView) -> Self raise ApprovedFsError
+
 pub struct ApprovedRoot {
   // private fields
 }
 pub fn ApprovedRoot::close(Self) -> Unit raise ApprovedFsError
 pub fn ApprovedRoot::is_closed(Self) -> Bool
 pub fn ApprovedRoot::open_absolute(StringView) -> Self raise ApprovedFsError
-pub fn ApprovedRoot::open_file(Self, StringView) -> ApprovedFile raise ApprovedFsError
+pub fn ApprovedRoot::open_file(Self, ApprovedRelativeLocator) -> ApprovedFile raise ApprovedFsError
 
 // Type aliases
 

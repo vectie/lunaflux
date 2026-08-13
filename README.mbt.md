@@ -101,9 +101,9 @@ the byte-BPE foundation and bounded selected `tokenizer.json` adapter in
 `tokenizer/`, validated artifact readers, exact Llama weight bindings, bounded
 host materialization for reference execution, and two-pass bounded streaming
 from an approved safetensors file into final aligned device regions. That
-loader retains opaque, retryable allocation-cleanup authority if a
-primary load failure and its first close both fail; partial ownership is never
-discarded. The device foundation also includes an immutable semantic-to-device plan, a
+loader retains opaque, retryable allocation-cleanup authority if allocation
+close fails after either a primary load failure or terminal source-file close;
+partial ownership is never discarded. The device foundation also includes an immutable semantic-to-device plan, a
 single activation/workspace arena plan and allocator, and exact stateless
 `FullPrefill`/`FullRecompute` profiles. Kernel packages admit exact startup
 bindings, content-addressed AOT families and profile-specific entry points,
@@ -202,9 +202,13 @@ exercise the exact C translation unit. Startup callers can request one bounded
 immutable whole-file snapshot under a single lifecycle lease; the native read
 admits the initial size before its sole payload allocation and rejects
 truncation, trailing growth, or same-handle size/mtime/ctime change before
-publication. Model/artifact loaders and worker spawn have not yet migrated to
-these capabilities, so no production child readiness claim depends on them
-yet.
+publication. Weight and kernel-artifact loaders now consume these capabilities
+directly; weight inspection privately retains its strict relative locator and
+fixed host storage carries bounded positional reads into device transfer.
+Terminal file-close failure cannot publish a ready allocation; allocation-close
+failure in that path returns retryable cleanup authority at `SourceClose`.
+Remaining model readers, fixed-FD child inheritance, and the production child
+entry point have not migrated, so no production child readiness claim follows.
 
 A new aggregate `engine/device_worker` owner provides the child-side readiness
 foundation without publishing a wire frame: inert admission retains the exact

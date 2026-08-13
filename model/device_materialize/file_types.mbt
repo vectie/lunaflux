@@ -59,30 +59,24 @@ priv struct StreamingTransferRegion {
 } derive(Eq)
 
 ///|
-priv struct PreparedStreamingLoad {
-  source_stamp : SourceStamp
+priv struct PreparedStreamingLoad[S] {
+  source_stamp : S
   payload_offset_bytes : Int64
   layout : DeviceWeightLayout
   regions : ReadOnlyArray[StreamingTransferRegion]
+  scratch : FixedArray[Byte]
 }
-
-///|
-priv struct SourceStamp {
-  file_bytes : Int64
-  modified_seconds : Int64
-  modified_nanoseconds : Int
-  changed_seconds : Int64
-  changed_nanoseconds : Int
-} derive(Eq)
 
 ///|
 /// Immutable evidence from a complete read-only admission of one weight file.
 ///
-/// The source locator and filesystem metadata are deliberately not exposed or
-/// retained as authority. A later load reopens and completely re-hashes the
-/// caller-supplied locator before allocating device memory.
+/// The strict relative locator is retained privately so a later load cannot
+/// substitute another descendant. Filesystem metadata is not retained as
+/// authority: loading reopens beneath a caller-supplied approved root and
+/// completely re-hashes the current file before allocating device memory.
 pub struct DeviceWeightFileInspection {
   priv model : @spec.LlamaModelMetadata
+  priv locator : @approved_fs.ApprovedRelativeLocator
   priv limits : DeviceWeightFileLimits
   priv alignment_bytes : Int64
   priv max_arena_bytes : Int64

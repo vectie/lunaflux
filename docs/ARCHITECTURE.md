@@ -244,13 +244,21 @@ Weights are streamed or mapped into their final device destination. A
 multi-device loader must never materialize the complete model independently on
 every worker.
 
-The current single-device loader realizes this contract with two bounded reads
-of one approved regular safetensors file. It validates the complete digest and
-exact selected-model tensor vocabulary before opening the destination arena,
-then copies source-ordered chunks into final aligned regions while hashing the
-exact bytes again. It retains no model-sized host snapshot. This is a read-only
-mount contract; it does not claim atomic path-race exclusion for an adversarial
-writable directory.
+The current single-device loader resolves a strict relative descendant beneath
+an independently approved pinned root with component-wise no-follow traversal.
+Its one-shot API performs two bounded reads: it validates the complete digest
+and exact selected-model tensor vocabulary before opening the destination
+arena, then copies source-ordered chunks into final aligned regions while
+hashing the exact bytes again. Inspection-based worker preparation adds an
+earlier complete device-free admission and privately retains that validated
+locator; later loading reopens only that descendant and still completely
+re-admits it before allocation. Payload I/O reuses caller-owned fixed host
+storage apart from the bounded immutable safetensors header required by the
+parser. No model-sized host snapshot or ambient path authority is retained.
+Terminal source-file close must succeed before readiness is published. If it
+fails, the otherwise-ready allocation is closed; a simultaneous allocation-
+close failure returns retryable cleanup authority at the distinct
+`SourceClose` stage.
 
 ## Static device execution preparation
 

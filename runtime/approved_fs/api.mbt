@@ -77,11 +77,14 @@ pub fn ApprovedRoot::open_absolute(
 /// no-follow semantics.
 pub fn ApprovedRoot::open_file(
   self : ApprovedRoot,
-  locator : StringView,
+  locator : ApprovedRelativeLocator,
 ) -> ApprovedFile raise ApprovedFsError {
-  validate_relative_locator(locator)
   let status = Ref(STATUS_INVALID)
-  let handle = @native.open_file(self.handle, @utf8.encode(locator), status)
+  let handle = @native.open_file(
+    self.handle,
+    @utf8.encode(locator.value),
+    status,
+  )
   raise_open_status(status.val, File)
   { handle, }
 }

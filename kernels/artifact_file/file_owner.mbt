@@ -30,7 +30,10 @@ fn open_artifact_file(
   identifier : StringView,
   file_ref : ArtifactFileRef,
 ) -> @approved_fs.ApprovedFile raise KernelArtifactFileError {
-  root.open_file(identifier) catch {
+  let locator = @approved_fs.ApprovedRelativeLocator::new(identifier) catch {
+    error => raise filesystem_error(error, file_ref, OpenFile)
+  }
+  root.open_file(locator) catch {
     error => raise filesystem_error(error, file_ref, OpenFile)
   }
 }

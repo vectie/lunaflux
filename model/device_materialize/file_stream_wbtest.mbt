@@ -80,10 +80,30 @@ fn wb_stream_model(file : BytesView) -> @spec.LlamaModelMetadata raise {
 }
 
 ///|
-fn wb_slice(file : Bytes, position : Int64, count : Int) -> Bytes {
+fn wb_fill(
+  file : BytesView,
+  destination : FixedArray[Byte],
+  destination_offset : Int,
+  position : Int64,
+  count : Int,
+) -> Unit raise DeviceWeightError {
   let start = position.to_int()
-  file[start:start + count].to_owned()
+  if start < 0 || count < 0 || start > file.length() - count {
+    raise FileTruncated
+  }
+  for index in 0..<count {
+    destination[destination_offset + index] = file[start + index]
+  }
 }
+
+///|
+priv struct SourceStamp {
+  file_bytes : Int64
+  modified_seconds : Int64
+  modified_nanoseconds : Int
+  changed_seconds : Int64
+  changed_nanoseconds : Int
+} derive(Eq)
 
 ///|
 fn wb_stamp(
@@ -101,7 +121,7 @@ fn wb_stamp(
 }
 
 ///|
-async test "streaming validation opens no destination for malformed or unapproved bytes" {
+test "streaming validation opens no destination for malformed or unapproved bytes" {
   let opens = Ref(0)
   try
     load_streaming_with_resource(
@@ -113,10 +133,13 @@ async test "streaming validation opens no destination for malformed or unapprove
         changed_seconds: 1L,
         changed_nanoseconds: 0,
       },
+      5L,
       wb_stream_limits(),
       64L,
       4096L,
-      (_position, _count) => b"short",
+      (_destination, _destination_offset, _position, _count) => {
+        raise FileTruncated
+      },
       () => {
         file_bytes: 5L,
         modified_seconds: 1L,
@@ -128,7 +151,7 @@ async test "streaming validation opens no destination for malformed or unapprove
         opens.val = opens.val + 1
         1
       },
-      (_resource, _bytes, _destination, _count) => (),
+      (_resource, _source, _source_offset, _destination, _count) => (),
       _resource => (),
     )
   catch {
@@ -143,16 +166,19 @@ async test "streaming validation opens no destination for malformed or unapprove
     load_streaming_with_resource(
       wb_test_model(),
       wb_stamp(file),
+      file.length().to_int64(),
       wb_stream_limits(),
       64L,
       4096L,
-      (position, count) => wb_slice(file, position, count),
+      (destination, destination_offset, position, count) => {
+        wb_fill(file, destination, destination_offset, position, count)
+      },
       () => wb_stamp(file),
       _arena_bytes => {
         opens.val = opens.val + 1
         1
       },
-      (_resource, _bytes, _destination, _count) => (),
+      (_resource, _source, _source_offset, _destination, _count) => (),
       _resource => (),
     )
   catch {
@@ -165,7 +191,7 @@ async test "streaming validation opens no destination for malformed or unapprove
 }
 
 ///|
-async test "streaming copies are chunk bounded and target final layout regions" {
+test "streaming copies are chunk bounded and target final layout regions" {
   let file = wb_stream_file()
   let opens = Ref(0)
   let closes = Ref(0)
@@ -177,25 +203,35 @@ async test "streaming copies are chunk bounded and target final layout regions" 
   let outcome = load_streaming_with_resource(
     wb_stream_model(file),
     wb_stamp(file),
+    file.length().to_int64(),
     wb_stream_limits(transfer_chunk_bytes=17),
     64L,
     4096L,
-    (position, count) => wb_slice(file, position, count),
+    (destination, destination_offset, position, count) => {
+      wb_fill(file, destination, destination_offset, position, count)
+    },
     () => wb_stamp(file),
     arena_bytes => {
       opens.val = opens.val + 1
       opened_arena_bytes.val = arena_bytes
       9
     },
-    (_resource, bytes, destination, count) => {
+    (_resource, source, source_offset, destination, count) => {
       copies.val = copies.val + 1
-      if bytes.length().to_int64() != count || destination < 0L {
+      if source_offset != 0 ||
+        count > source.length().to_int64() ||
+        destination < 0L {
         invalid_copy.val = true
       }
       if count > maximum_copy.val {
         maximum_copy.val = count
       }
-      arena.blit_from_bytes(destination.to_int(), bytes, 0, count.to_int())
+      source.blit_to(
+        arena,
+        len=count.to_int(),
+        src_offset=source_offset,
+        dst_offset=destination.to_int(),
+      )
     },
     _resource => closes.val = closes.val + 1,
   )
@@ -233,7 +269,7 @@ async test "streaming copies are chunk bounded and target final layout regions" 
 }
 
 ///|
-async test "same-size mutation of copied bytes rejects and closes exactly once" {
+test "same-size mutation of copied bytes rejects and closes exactly once" {
   let file = wb_stream_file()
   let changed_array = file.to_array()
   changed_array[changed_array.length() - 1] = (changed_array[changed_array.length() -
@@ -247,19 +283,22 @@ async test "same-size mutation of copied bytes rejects and closes exactly once" 
     load_streaming_with_resource(
       wb_stream_model(file),
       wb_stamp(file),
+      file.length().to_int64(),
       wb_stream_limits(transfer_chunk_bytes=19),
       64L,
       4096L,
-      (position, count) => {
+      (destination, destination_offset, position, count) => {
         let source = if opens.val == 0 { file } else { changed }
-        wb_slice(source, position, count)
+        wb_fill(source, destination, destination_offset, position, count)
       },
       () => wb_stamp(file),
       _arena_bytes => {
         opens.val = opens.val + 1
         3
       },
-      (_resource, _bytes, _destination, _count) => copies.val = copies.val + 1,
+      (_resource, _source, _source_offset, _destination, _count) => {
+        copies.val = copies.val + 1
+      },
       _resource => closes.val = closes.val + 1,
     )
   catch {
@@ -274,7 +313,7 @@ async test "same-size mutation of copied bytes rejects and closes exactly once" 
 }
 
 ///|
-async test "source stamp changes reject before open and clean up after open" {
+test "source stamp changes reject before open and clean up after open" {
   let file = wb_stream_file()
   let opens = Ref(0)
   let stamp_reads = Ref(0)
@@ -282,10 +321,13 @@ async test "source stamp changes reject before open and clean up after open" {
     load_streaming_with_resource(
       wb_stream_model(file),
       wb_stamp(file),
+      file.length().to_int64(),
       wb_stream_limits(),
       64L,
       4096L,
-      (position, count) => wb_slice(file, position, count),
+      (destination, destination_offset, position, count) => {
+        wb_fill(file, destination, destination_offset, position, count)
+      },
       () => {
         stamp_reads.val = stamp_reads.val + 1
         wb_stamp(file, modified=2)
@@ -294,7 +336,7 @@ async test "source stamp changes reject before open and clean up after open" {
         opens.val = opens.val + 1
         1
       },
-      (_resource, _bytes, _destination, _count) => (),
+      (_resource, _source, _source_offset, _destination, _count) => (),
       _resource => (),
     )
   catch {
@@ -312,10 +354,13 @@ async test "source stamp changes reject before open and clean up after open" {
     load_streaming_with_resource(
       wb_stream_model(file),
       wb_stamp(file),
+      file.length().to_int64(),
       wb_stream_limits(),
       64L,
       4096L,
-      (position, count) => wb_slice(file, position, count),
+      (destination, destination_offset, position, count) => {
+        wb_fill(file, destination, destination_offset, position, count)
+      },
       () => {
         stamp_reads.val = stamp_reads.val + 1
         if stamp_reads.val == 1 {
@@ -328,7 +373,7 @@ async test "source stamp changes reject before open and clean up after open" {
         opens.val = opens.val + 1
         2
       },
-      (_resource, _bytes, _destination, _count) => (),
+      (_resource, _source, _source_offset, _destination, _count) => (),
       _resource => closes.val = closes.val + 1,
     )
   catch {
@@ -343,7 +388,7 @@ async test "source stamp changes reject before open and clean up after open" {
 }
 
 ///|
-async test "streaming transfer failure closes the destination exactly once" {
+test "streaming transfer failure closes the destination exactly once" {
   let file = wb_stream_file()
   let copies = Ref(0)
   let closes = Ref(0)
@@ -351,13 +396,16 @@ async test "streaming transfer failure closes the destination exactly once" {
     load_streaming_with_resource(
       wb_stream_model(file),
       wb_stamp(file),
+      file.length().to_int64(),
       wb_stream_limits(),
       64L,
       4096L,
-      (position, count) => wb_slice(file, position, count),
+      (destination, destination_offset, position, count) => {
+        wb_fill(file, destination, destination_offset, position, count)
+      },
       () => wb_stamp(file),
       _arena_bytes => 5,
-      (_resource, _bytes, _destination, _count) => {
+      (_resource, _source, _source_offset, _destination, _count) => {
         copies.val = copies.val + 1
         if copies.val == 4 {
           raise DriverFailure(CopyToDevice)
@@ -376,20 +424,23 @@ async test "streaming transfer failure closes the destination exactly once" {
 }
 
 ///|
-async test "streaming double failure retains retryable cleanup authority" {
+test "streaming double failure retains retryable cleanup authority" {
   let file = wb_stream_file()
   let copies = Ref(0)
   let closes = Ref(0)
   let outcome = load_streaming_with_resource(
     wb_stream_model(file),
     wb_stamp(file),
+    file.length().to_int64(),
     wb_stream_limits(),
     64L,
     4096L,
-    (position, count) => wb_slice(file, position, count),
+    (destination, destination_offset, position, count) => {
+      wb_fill(file, destination, destination_offset, position, count)
+    },
     () => wb_stamp(file),
     _arena_bytes => 5,
-    (_resource, _bytes, _destination, _count) => {
+    (_resource, _source, _source_offset, _destination, _count) => {
       copies.val += 1
       if copies.val == 4 {
         raise DriverFailure(CopyToDevice)

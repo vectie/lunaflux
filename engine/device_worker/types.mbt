@@ -2,6 +2,7 @@
 pub(all) enum DeviceWorkerRule {
   StartupContract
   ModelIdentity
+  ModelLocator
   WeightEnvelope
   DeviceOrdinal
   DeviceTarget
@@ -62,7 +63,7 @@ priv struct DeviceWorkerResources {
 pub struct DeviceWorkerPlan {
   priv startup : @worker_wire.WorkerStartupContract
   priv model : @spec.LlamaModelMetadata
-  priv model_path : String
+  priv model_locator : @approved_fs.ApprovedRelativeLocator
   priv weight_file_limits : @device_materialize.DeviceWeightFileLimits
   priv weight_alignment_bytes : Int64
   priv max_weight_arena_bytes : Int64

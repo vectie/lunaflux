@@ -11,6 +11,7 @@ import {
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 supported_targets = "native"

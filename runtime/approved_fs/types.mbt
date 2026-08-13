@@ -5,6 +5,22 @@ pub struct ApprovedRoot {
 }
 
 ///|
+/// Opaque validated strict relative descendant locator. Construction performs
+/// the complete lexical admission once; the retained text is intentionally
+/// unavailable to callers and the type has no diagnostic formatting surface.
+pub struct ApprovedRelativeLocator {
+  priv value : String
+}
+
+///|
+pub fn ApprovedRelativeLocator::new(
+  value : StringView,
+) -> ApprovedRelativeLocator raise ApprovedFsError {
+  validate_relative_locator(value)
+  { value: value.to_owned() }
+}
+
+///|
 /// Opaque explicit owner of one pinned read-only regular-file descriptor.
 pub struct ApprovedFile {
   priv handle : @native.ApprovedHandle

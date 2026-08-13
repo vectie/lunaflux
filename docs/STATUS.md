@@ -41,14 +41,17 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - Two-pass bounded weight materialization with identity preservation, complete
   preflight validation, zero-copy tensor visitation, exact complete-file
   source offsets, and an explicit host-copy reference representation.
-- Deterministic aligned single-arena device-weight layouts plus an async,
-  two-pass, bounded regular-file loader that verifies the complete file digest
-  and selected dense-Llama tensor vocabulary before device allocation. Its
-  second pass copies source-ordered chunks directly into final device regions,
-  re-hashes the exact bytes copied, rechecks source size and modification time,
-  and retains no model-sized host snapshot. A compound load/close failure
-  returns opaque allocation-cleanup authority with idempotent retry rather than
-  losing the partial owner.
+- Deterministic aligned single-arena device-weight layouts plus a synchronous,
+  bounded approved-root loader. Component-wise no-follow traversal pins a
+  strict relative descendant; complete digest, metadata, and dense-Llama
+  vocabulary admission precede device allocation. Inspection privately retains
+  that locator, and later loading completely re-admits it before allocation.
+  Transfer reuses fixed host storage, copies source-ordered chunks into final
+  device regions, re-hashes exact copied bytes, rechecks the same-handle stamp,
+  and retains no model-sized snapshot. A terminal source-file close failure
+  closes any otherwise-ready allocation before publication. If that allocation
+  close also fails, opaque cleanup authority is returned at `SourceClose` with
+  idempotent retry rather than losing the partial owner.
 - Deterministic Float reference kernels for dense-Llama embedding, RMSNorm,
   projections, split-half RoPE, causal grouped-query attention, residuals,
   SiLU-gated MLP, and the language-model head.
@@ -124,8 +127,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   stamps, exact positional read, and trailing-growth probe, with exactly one
   accepted payload allocation. It rejects truncation or size/mtime/ctime change
   before publication. Native and public capability representations are
-  private; startup loaders and fixed-FD child inheritance have not yet adopted
-  them.
+  private. The streaming weight loader has adopted this authority; remaining
+  model readers and fixed-FD child inheritance have not.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and
@@ -298,11 +301,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   ByteLevel-BPE contract. The selected ByteLevel subset is independently corpus
   validated, but this particular model must be driven by token IDs or a
   separately approved compatible tokenizer artifact.
-- The streaming device loader relies on the approved read-only regular-file
-  mount contract. It performs no-follow path-kind and opened-handle checks plus
-  two complete digest passes, but MoonBit's portable file API does not provide
-  an atomic `openat(O_NOFOLLOW)`/`fstat` boundary for adversarial writable
-  directories. That stronger path-race exclusion remains unproven.
+- The streaming device loader now uses pinned approved-root and regular-file
+  capabilities rather than ambient string paths. Deployment approval and
+  read-only mount policy remain external trust inputs; fixed descriptor-role
+  inheritance into the production child is not yet implemented.
 - Physical-CUDA validation of driver loading, transfers, modules, function
   launches, events, numerical BF16 GEMM and AOT correctness, implicit-heuristic
   shape support, and repeated resource balance. Local C stubs pass a manually

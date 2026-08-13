@@ -1,4 +1,11 @@
 ///|
+fn approved_locator(
+  value : StringView,
+) -> @approved_fs.ApprovedRelativeLocator raise @approved_fs.ApprovedFsError {
+  @approved_fs.ApprovedRelativeLocator::new(value)
+}
+
+///|
 test "approved filesystem paths are strict canonical ASCII" {
   for
     path in [
@@ -40,7 +47,7 @@ async test "approved root and file pin exact objects across namespace replacemen
       b"new",
       create_mode=CreateOrTruncate,
     )
-    let file = root.open_file("model.bin")
+    let file = root.open_file(approved_locator("model.bin"))
     let bytes = FixedArray::make(3, b'\x00')
     file.read_exactly_at(bytes, destination_offset=0, byte_count=3, position=0L)
     assert_eq(bytes, FixedArray::from_array([b'o', b'l', b'd']))
@@ -61,7 +68,7 @@ async test "approved file remains pinned after replacement and removal" {
     let old_path = "\{root_path}/weights.old"
     @fs.write_file(path, b"first", create_mode=CreateOrTruncate)
     let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
-    let file = root.open_file("weights.bin")
+    let file = root.open_file(approved_locator("weights.bin"))
     let stamp = file.stamp()
     assert_eq(stamp.byte_count(), 5L)
     @fs.rename(path, old_path)
@@ -104,7 +111,7 @@ async test "approved traversal rejects symlinks and wrong file types" {
     @fs.symlink(target=root_path, "\{parent}/root.link")
     let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
     for locator in ["linked/file.bin", "final.link", "actual"] {
-      try root.open_file(locator) catch {
+      try root.open_file(approved_locator(locator)) catch {
         UnsupportedType(File) => ()
         _ => fail("unexpected unsafe file type error")
       } noraise {
@@ -155,17 +162,14 @@ async test "relative locators and read ranges fail before native mutation" {
       locator in [
         "", "/file.bin", "../file.bin", "a//b", "a/./b", "file.bin/", "a\\b",
       ] {
-      try root.open_file(locator) catch {
+      try @approved_fs.ApprovedRelativeLocator::new(locator) catch {
         Invalid(RelativeLocator) => ()
         _ => fail("unexpected invalid locator error")
       } noraise {
-        opened => {
-          opened.close()
-          fail("invalid relative locator was opened")
-        }
+        _ => fail("invalid relative locator was admitted")
       }
     }
-    let file = root.open_file("file.bin")
+    let file = root.open_file(approved_locator("file.bin"))
     assert_eq(file.read_immutable_snapshot(maximum_bytes=3L), b"abc")
     try file.read_immutable_snapshot(maximum_bytes=2L) catch {
       FileTooLarge => ()
@@ -238,8 +242,9 @@ async test "independent same-root owners and close soak remain balanced" {
     for _ in 0..<256 {
       let left = @approved_fs.ApprovedRoot::open_absolute(root_path)
       let right = @approved_fs.ApprovedRoot::open_absolute(root_path)
-      let left_file = left.open_file("file.bin")
-      let right_file = right.open_file("file.bin")
+      let locator = approved_locator("file.bin")
+      let left_file = left.open_file(locator)
+      let right_file = right.open_file(locator)
       let byte = FixedArray::make(1, b'\x00')
       left_file.read_exactly_at(
         byte,

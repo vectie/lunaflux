@@ -54,13 +54,13 @@ if [ "$snapshot_allocations" -ne 1 ]; then
   failed=1
 fi
 
-for type_name in ApprovedRoot ApprovedFile; do
+for type_name in ApprovedRoot ApprovedFile ApprovedRelativeLocator; do
   interface_block=$(sed -n "/^pub struct $type_name {/,/^$/p" \
     runtime/approved_fs/pkg.generated.mbti)
   if [ -z "$interface_block" ] || \
     printf '%s\n' "$interface_block" | rg -q 'Debug|descriptor|fd|path|handle'; then
     printf '%s: %s\n' \
-      'approved filesystem owner leaks Debug or native/path authority' \
+      'approved filesystem capability leaks Debug or native/path authority' \
       "$type_name" >&2
     failed=1
   fi

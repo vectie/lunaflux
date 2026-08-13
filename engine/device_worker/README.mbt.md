@@ -2,11 +2,21 @@
 
 This package is the readiness owner for one device-worker process. `admit_plan`
 validates and retains an independently expected full startup contract plus
-immutable model, path, memory, kernel, artifact, and bootstrap evidence in an
-opaque inert `DeviceWorkerPlan`. `prepare` first requires the received contract
-to equal the admitted contract, then opens the exact
-ordinal within the process-visible device set, streams weights from the
-approved read-only model file, and prepares the complete paged executor.
+immutable model, opaque `ApprovedRelativeLocator`, memory, kernel, artifact,
+and bootstrap evidence in an inert `DeviceWorkerPlan`. Invalid locator syntax
+fails as `Invalid(ModelLocator)` before later plan admission or filesystem
+access. `prepare` first
+requires the received contract to equal the admitted contract, inspects the
+model descendant beneath an independently approved pinned root without opening
+CUDA, then opens the exact ordinal within the process-visible device set,
+reopens and completely re-admits the retained descendant, streams weights
+through one reusable fixed host buffer, and prepares the complete paged
+executor.
+
+Weight readiness additionally requires successful terminal source-file close.
+If both that close and cleanup of an otherwise-ready allocation fail, the
+weight owner retains retryable `SourceClose` cleanup authority and worker
+preparation cannot close the parent context or publish readiness.
 
 `DeviceWorkerOwner::readiness_contract` succeeds only while the context,
 weights, and executor are all live. No context, allocation, weights, executor,

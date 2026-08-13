@@ -5,23 +5,24 @@ const SAFETENSORS_PREFIX_BYTES64 : Int64 = 8L
 const MAX_HEADER_WITH_PREFIX_BYTES : Int = 2147483639
 
 ///|
-async fn read_exact_chunk(
-  read : async (Int64, Int) -> Bytes,
+fn read_exact_chunk(
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  scratch : FixedArray[Byte],
   position : Int64,
   byte_count : Int,
-) -> Bytes raise DeviceWeightError {
-  let bytes = read(position, byte_count) catch { _ => raise FileTruncated }
-  if bytes.length() != byte_count {
+) -> Unit raise DeviceWeightError {
+  if byte_count < 0 || byte_count > scratch.length() {
     raise FileTruncated
   }
-  bytes
+  read(scratch, 0, position, byte_count)
 }
 
 ///|
-async fn hash_stream(
+fn hash_stream(
   file_bytes : Int64,
   chunk_bytes : Int,
-  read : async (Int64, Int) -> Bytes,
+  scratch : FixedArray[Byte],
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
 ) -> String raise DeviceWeightError {
   let digest = @crypto.SHA256::new()
   let mut position = 0L
@@ -32,8 +33,11 @@ async fn hash_stream(
     } else {
       chunk_bytes
     }
-    let bytes = read_exact_chunk(read, position, count)
-    digest.update(bytes)
+    read_exact_chunk(read, scratch, position, count)
+    // `moonbitlang/x/crypto` does not yet expose a range update for a
+    // FixedArray. This iterator is confined to startup file admission and
+    // avoids allocating a fresh immutable Bytes value for every chunk.
+    digest.update_from_iter(scratch[:count].iter())
     position = position + count.to_int64()
   }
   @crypto.bytes_to_hex_string(digest.finalize())
@@ -100,23 +104,25 @@ fn streaming_regions(
 }
 
 ///|
-async fn prepare_streaming_load(
+fn[S : Eq] prepare_streaming_load(
   model : @spec.LlamaModelMetadata,
-  source_stamp : SourceStamp,
+  source_stamp : S,
+  file_bytes : Int64,
   limits : DeviceWeightFileLimits,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
-) -> PreparedStreamingLoad raise DeviceWeightError {
-  let file_bytes = source_stamp.file_bytes
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
+) -> PreparedStreamingLoad[S] raise DeviceWeightError {
   if file_bytes <= SAFETENSORS_PREFIX_BYTES64 {
     raise FileTruncated
   }
   if file_bytes > limits.max_file_bytes() {
     raise FileTooLarge
   }
-  let prefix = read_exact_chunk(read, 0L, 8)
+  let prefix_scratch = FixedArray::make(8, b'\x00')
+  read_exact_chunk(read, prefix_scratch, 0L, 8)
+  let prefix = Bytes::from_array(prefix_scratch[:])
   let header_bytes = @safetensors_reader.declared_header_bytes(
     prefix,
     limits=limits.safetensors(),
@@ -131,10 +137,19 @@ async fn prepare_streaming_load(
   if payload_offset_bytes > file_bytes {
     raise InvalidSafetensors(TruncatedHeader)
   }
-  let prefix_and_header = read_exact_chunk(
-    read,
-    0L,
-    payload_offset_bytes.to_int(),
+  let scratch_bytes = if payload_offset_bytes >
+    limits.transfer_chunk_bytes().to_int64() {
+    payload_offset_bytes.to_int()
+  } else {
+    limits.transfer_chunk_bytes()
+  }
+  let scratch = FixedArray::make(scratch_bytes, b'\x00')
+  read_exact_chunk(read, scratch, 0L, payload_offset_bytes.to_int())
+  // The safetensors parser currently accepts BytesView. Apart from the
+  // eight-byte prefix above, this bounded header envelope is the only
+  // immutable read allocation and never contains model payload bytes.
+  let prefix_and_header = Bytes::from_array(
+    scratch[:payload_offset_bytes.to_int()],
   )
   let metadata = @safetensors_reader.read_header(
     prefix_and_header,
@@ -153,6 +168,7 @@ async fn prepare_streaming_load(
   let verified_digest = hash_stream(
     file_bytes,
     limits.transfer_chunk_bytes(),
+    scratch,
     read,
   )
   let verified_stamp = observe_stamp() catch {
@@ -164,19 +180,21 @@ async fn prepare_streaming_load(
   if verified_digest != model.identity().content().as_hex() {
     raise ContentDigestMismatch
   }
-  { source_stamp, payload_offset_bytes, layout, regions }
+  { source_stamp, payload_offset_bytes, layout, regions, scratch }
 }
 
 ///|
-fn inspection_from_prepared(
+fn[S] inspection_from_prepared(
   model : @spec.LlamaModelMetadata,
+  locator : @approved_fs.ApprovedRelativeLocator,
   limits : DeviceWeightFileLimits,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
-  prepared : PreparedStreamingLoad,
+  prepared : PreparedStreamingLoad[S],
 ) -> DeviceWeightFileInspection {
   {
     model,
+    locator,
     limits,
     alignment_bytes,
     max_arena_bytes,
@@ -187,9 +205,9 @@ fn inspection_from_prepared(
 }
 
 ///|
-fn inspection_matches_prepared(
+fn[S] inspection_matches_prepared(
   inspection : DeviceWeightFileInspection,
-  prepared : PreparedStreamingLoad,
+  prepared : PreparedStreamingLoad[S],
 ) -> Bool {
   inspection.payload_offset_bytes == prepared.payload_offset_bytes &&
   inspection.layout == prepared.layout &&
@@ -197,15 +215,17 @@ fn inspection_matches_prepared(
 }
 
 ///|
-async fn readmit_inspection(
+fn[S : Eq] readmit_inspection(
   inspection : DeviceWeightFileInspection,
-  source_stamp : SourceStamp,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
-) -> PreparedStreamingLoad raise DeviceWeightError {
+  source_stamp : S,
+  file_bytes : Int64,
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
+) -> PreparedStreamingLoad[S] raise DeviceWeightError {
   let prepared = prepare_streaming_load(
     inspection.model,
     source_stamp,
+    file_bytes,
     inspection.limits,
     inspection.alignment_bytes,
     inspection.max_arena_bytes,
@@ -219,17 +239,18 @@ async fn readmit_inspection(
 }
 
 ///|
-async fn[T] load_inspected_streaming_with_resource(
+fn[S : Eq, T] load_inspected_streaming_with_resource(
   inspection : DeviceWeightFileInspection,
-  source_stamp : SourceStamp,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
+  source_stamp : S,
+  file_bytes : Int64,
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
   open : (Int64) -> T raise @device.DeviceError,
-  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> ResourcePreparation[T] raise DeviceWeightError {
   let prepared = readmit_inspection(
-    inspection, source_stamp, read, observe_stamp,
+    inspection, source_stamp, file_bytes, read, observe_stamp,
   )
   load_prepared_streaming_with_resource(
     prepared,
@@ -244,14 +265,14 @@ async fn[T] load_inspected_streaming_with_resource(
 }
 
 ///|
-async fn[T] transfer_streaming_load(
-  prepared : PreparedStreamingLoad,
+fn[S : Eq, T] transfer_streaming_load(
+  prepared : PreparedStreamingLoad[S],
   expected_digest : String,
   chunk_bytes : Int,
   resource : T,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
-  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
+  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
 ) -> Unit raise DeviceWeightError {
   let digest = @crypto.SHA256::new()
   let mut header_position = 0L
@@ -262,8 +283,8 @@ async fn[T] transfer_streaming_load(
     } else {
       chunk_bytes
     }
-    let bytes = read_exact_chunk(read, header_position, count)
-    digest.update(bytes)
+    read_exact_chunk(read, prepared.scratch, header_position, count)
+    digest.update_from_iter(prepared.scratch[:count].iter())
     header_position = header_position + count.to_int64()
   }
   for region in prepared.regions {
@@ -275,15 +296,17 @@ async fn[T] transfer_streaming_load(
       } else {
         chunk_bytes
       }
-      let bytes = read_exact_chunk(
+      read_exact_chunk(
         read,
+        prepared.scratch,
         region.source_offset_bytes + transferred,
         count,
       )
-      digest.update(bytes)
+      digest.update_from_iter(prepared.scratch[:count].iter())
       copy(
         resource,
-        bytes,
+        prepared.scratch,
+        0,
         region.destination_offset_bytes + transferred,
         count.to_int64(),
       ) catch {
@@ -302,20 +325,22 @@ async fn[T] transfer_streaming_load(
 }
 
 ///|
-async fn[T] load_streaming_with_resource(
+fn[S : Eq, T] load_streaming_with_resource(
   model : @spec.LlamaModelMetadata,
-  source_stamp : SourceStamp,
+  source_stamp : S,
+  file_bytes : Int64,
   limits : DeviceWeightFileLimits,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
   open : (Int64) -> T raise @device.DeviceError,
-  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> ResourcePreparation[T] raise DeviceWeightError {
   let prepared = prepare_streaming_load(
-    model, source_stamp, limits, alignment_bytes, max_arena_bytes, read, observe_stamp,
+    model, source_stamp, file_bytes, limits, alignment_bytes, max_arena_bytes, read,
+    observe_stamp,
   )
   load_prepared_streaming_with_resource(
     prepared,
@@ -330,14 +355,14 @@ async fn[T] load_streaming_with_resource(
 }
 
 ///|
-async fn[T] load_prepared_streaming_with_resource(
-  prepared : PreparedStreamingLoad,
+fn[S : Eq, T] load_prepared_streaming_with_resource(
+  prepared : PreparedStreamingLoad[S],
   expected_digest : String,
   chunk_bytes : Int,
-  read : async (Int64, Int) -> Bytes,
-  observe_stamp : async () -> SourceStamp,
+  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  observe_stamp : () -> S raise DeviceWeightError,
   open : (Int64) -> T raise @device.DeviceError,
-  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> ResourcePreparation[T] raise DeviceWeightError {
   let resource = open(prepared.layout.arena_bytes()) catch {

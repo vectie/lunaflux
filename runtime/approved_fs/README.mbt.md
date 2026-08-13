@@ -1,10 +1,12 @@
 # Approved read-only filesystem capabilities
 
 This package turns an independently approved canonical absolute directory path
-into an opaque pinned directory capability. Files are opened only through
-strict relative locators, using descriptor-relative component traversal with
-no-follow semantics and final `fstat` type checks. Path strings, descriptors,
-native handles, and platform errors never escape.
+into an opaque pinned directory capability. `ApprovedRelativeLocator::new`
+copies and validates strict relative text into an opaque no-`Debug` admission;
+`ApprovedRoot::open_file` accepts only that type. Files are then opened using
+descriptor-relative component traversal with no-follow semantics and final
+`fstat` type checks. Path strings, descriptors, native handles, and platform
+errors never escape.
 
 Opening proves directory/file identity at that instant; it does not infer that
 a deployment root is approved or read-only. The caller supplies that authority.

@@ -49,12 +49,22 @@ fn validate_model_identity(
 }
 
 ///|
+fn admit_model_locator(
+  locator : StringView,
+) -> @approved_fs.ApprovedRelativeLocator raise DeviceWorkerError {
+  @approved_fs.ApprovedRelativeLocator::new(locator) catch {
+    _ => raise Invalid(ModelLocator)
+  }
+}
+
+///|
 /// Admits all immutable device-worker evidence without opening a native or
-/// device resource. The model path is copied into plan-owned startup storage.
+/// device resource. The strict relative model locator is copied into plan-owned
+/// startup storage; approved-root resolution occurs during preparation.
 pub fn admit_plan(
   startup~ : @worker_wire.WorkerStartupContract,
   model~ : @spec.LlamaModelMetadata,
-  model_path~ : StringView,
+  model_locator~ : StringView,
   weight_file_limits~ : @device_materialize.DeviceWeightFileLimits,
   weight_alignment_bytes~ : Int64,
   max_weight_arena_bytes~ : Int64,
@@ -68,6 +78,7 @@ pub fn admit_plan(
   artifacts~ : @artifact.KernelArtifactBundle,
   bootstrap_limits~ : @device_step.DeviceBootstrapLimits,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
+  let admitted_model_locator = admit_model_locator(model_locator)
   let blueprint = @device_step.admit_paged_graph_execution_blueprint(
     model_plan, device_step_limits, layout, static_plan, memory_plan, profile_id,
     contracts, artifacts,
@@ -91,7 +102,7 @@ pub fn admit_plan(
   {
     startup: admitted_startup,
     model,
-    model_path: model_path.to_owned(),
+    model_locator: admitted_model_locator,
     weight_file_limits,
     weight_alignment_bytes,
     max_weight_arena_bytes,
@@ -108,16 +119,28 @@ pub fn admit_plan(
 }
 
 ///|
-/// Opens and owns the exact configured device, streams the approved model file
-/// into final device storage, and prepares the complete paged graph before
-/// returning readiness. The entire received startup contract is compared with
-/// the admitted inert plan before any native resource opens.
-pub async fn prepare(
+/// Inspects the approved model descendant before opening a device resource,
+/// then owns the exact configured device, fully re-admits and streams that
+/// descendant into final device storage, and prepares the complete paged graph
+/// before returning readiness. The received startup contract is compared with
+/// the admitted inert plan before any filesystem or device resource opens.
+pub fn prepare(
   received : @worker_wire.WorkerStartupContract,
+  model_root : @approved_fs.ApprovedRoot,
   plan : DeviceWorkerPlan,
 ) -> DeviceWorkerPreparation raise DeviceWorkerError {
   validate_received_startup(received, plan.startup)
   let ready_contract = plan.startup
+  let weight_inspection = @device_materialize.inspect_file(
+    model_root,
+    plan.model,
+    plan.model_locator,
+    limits=plan.weight_file_limits,
+    alignment_bytes=plan.weight_alignment_bytes,
+    max_arena_bytes=plan.max_weight_arena_bytes,
+  ) catch {
+    error => raise Weights(error)
+  }
   let resources : DeviceWorkerResources = {
     executor: None,
     weights: None,
@@ -133,13 +156,8 @@ pub async fn prepare(
   if !plan.manifest.target().matches_capability(context.capability()) {
     return preparation_failed(resources, Invalid(DeviceTarget))
   }
-  let weight_outcome = @device_materialize.load_file(
-    context,
-    plan.model,
-    plan.model_path,
-    limits=plan.weight_file_limits,
-    alignment_bytes=plan.weight_alignment_bytes,
-    max_arena_bytes=plan.max_weight_arena_bytes,
+  let weight_outcome = @device_materialize.load_inspected_file(
+    context, model_root, weight_inspection,
   ) catch {
     error => return preparation_failed(resources, Weights(error))
   }

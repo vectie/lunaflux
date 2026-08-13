@@ -31,16 +31,18 @@ pub struct DeviceWeights {
 ///|
 /// Explicit lifecycle result for device-weight loading.
 ///
-/// The cleanup-required branch is returned only when a primary load failure
-/// and the first deterministic allocation close both fail.
+/// The cleanup-required branch is returned only when either a primary load
+/// failure or terminal source-file close failure is followed by failure of the
+/// first deterministic allocation close.
 pub(all) enum DeviceWeightPreparation {
   WeightsReady(DeviceWeights)
   WeightsCleanupRequired(FailedDeviceWeightPreparation)
 }
 
 ///|
-/// Cleanup authority retained when a load and its first allocation close both
-/// fail. The incomplete allocation is never exposed.
+/// Cleanup authority retained when allocation close fails after a primary load
+/// failure or after terminal source-file close prevents readiness. The
+/// incomplete allocation is never exposed.
 pub struct FailedDeviceWeightPreparation {
   priv allocation : @device.Allocation
   priv cause : DeviceWeightError

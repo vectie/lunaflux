@@ -16,6 +16,7 @@ pub(all) suberror DeviceWeightError {
   TensorLengthMismatch(reference~ : Int)
   InvalidFileLimit(DeviceWeightFileLimit)
   FileUnavailable
+  FileCloseFailed
   UnsupportedFileType
   FileTooLarge
   FileTruncated
@@ -36,6 +37,7 @@ pub(all) enum DeviceWeightFailureStage {
   TensorValidation
   Transfer
   SourceRevalidation
+  SourceClose
   MaterializationResult
 } derive(Debug, Eq)
 

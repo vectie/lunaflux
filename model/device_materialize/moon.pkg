@@ -6,7 +6,7 @@ import {
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/safetensors_reader",
   "vectie/lunaflux/model/spec",
-  "moonbitlang/async/fs",
+  "vectie/lunaflux/runtime/approved_fs",
   "moonbitlang/x/crypto",
 }
 
