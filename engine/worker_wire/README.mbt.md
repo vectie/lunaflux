@@ -19,6 +19,14 @@ processed-token count, token ID, and bounded worker-failure category. The
 receiver builds a fixed slot-to-entry index after validation, so exact-slot
 lookup is O(1) without a map or collection growth.
 
+The parent authenticates every received completion frame against the retained
+exact `SubmittedSchedulePlan` before acquiring the scheduler's paired
+completion writer. Sequence, model generation, row count, slot, request
+identity/generation, row kind, and processed prompt length must all match.
+The converted `SubmittedCompletion` remains retryable if scheduler output or
+terminal publication is backpressured; frame acceptance itself does not retire
+the plan or mutate request/KV state.
+
 Untrusted-frame request and slot uniqueness checks use startup-owned scratch
 and deterministic in-place heapsort. They are O(n log n), avoiding quadratic
 work at the configured maximum row count while retaining allocation-free
@@ -37,6 +45,6 @@ still validates every count, range, identity, token, page generation,
 capability, sampling field, request uniqueness, completion slot, and canonical
 table cursor after checksum verification.
 
-This package is transport metadata only. Parent-side completion application,
-process lifecycle and I/O, timeouts, worker-death recovery, and device execution
-from received plans are separate slices and are not claimed here.
+This package is transport metadata only. Process lifecycle and I/O, endpoint
+authentication, timeouts, worker-death recovery, and device execution from
+received plans are separate slices and are not claimed here.

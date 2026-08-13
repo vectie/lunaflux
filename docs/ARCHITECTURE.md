@@ -121,7 +121,8 @@ on failure. Exact-epoch completion leases and ordered full-batch retirement
 preflight publication and KV-release obligations before state mutation, then
 publish final-prefill/decode tokens and recycle exact owners. Corresponding
 plan/completion data can now be detached from heap capabilities through
-canonical bounded wire frames with transactional untrusted receive, but process I/O,
+canonical bounded wire frames with transactional untrusted receive and exact
+service-side completion-plan authentication, but process I/O,
 authentication, supervision, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.

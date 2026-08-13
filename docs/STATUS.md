@@ -168,7 +168,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   owner capabilities: each receive validates checksum, exact counts/ranges,
   identities, sampling fields, outcomes, and canonical table coverage before
   replacing an epoch. Startup scratch provides O(n log n) uniqueness checks
-  and O(1) completion-slot lookup without steady-state allocation. Live worker
+  and O(1) completion-slot lookup without steady-state allocation. The service
+  authenticates each received completion frame against the retained exact plan
+  and converts it into the paired scheduler completion owner without retiring
+  work, preserving publication-backpressure retry. Live worker
   process I/O, authentication, supervision, and overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
