@@ -108,20 +108,79 @@ fn fixture_request(
 }
 
 ///|
-test "public receipt capture and admission use the monotonic clock" {
+fn fixture_received_source(
+  request : @inference.GenerateRequest,
+) -> (FixedArray[Byte], Int, @framed_wire.RequestFrameBuffer) raise {
+  let limits = @framed_wire.FramedWireLimits::new(
+    fixture_inference(),
+    max_frame_bytes=4096,
+  )
+  let frame = @framed_wire.RequestFrameBuffer::new(limits).encode(request)
+  let source = FixedArray::make(frame.length(), b'\x00')
+  frame.copy_to(source, destination_offset=0)
+  (source, frame.length(), @framed_wire.RequestFrameBuffer::new(limits))
+}
+
+///|
+test "public framed receipt and admission use the monotonic clock" {
   let clock = @monotonic_clock.MonotonicClock::system()
-  let receipt = RequestReceipt::capture(clock)
   let identity = fixture_identity("0")
-  let admitted = admit(
-    receipt,
+  let (source, length, buffer) = fixture_received_source(
     fixture_request(identity, deadline_millis=1000UL),
-    fixture_tokenizer(),
-    fixture_tokenizer().digest(),
+  )
+  let received = receive(buffer, source, length, clock)
+  let tokenizer = fixture_tokenizer()
+  let admitted = admit(
+    received,
+    tokenizer,
+    tokenizer.digest(),
     identity,
     fixture_inference(),
     clock,
   )
   assert_eq(admitted.scheduler_request().request_id().value(), 7UL)
+  try
+    admit(
+      received,
+      tokenizer,
+      tokenizer.digest(),
+      identity,
+      fixture_inference(),
+      clock,
+    )
+  catch {
+    Invalid(FrameContract) => ()
+    _ => fail("unexpected received-request replay error")
+  } noraise {
+    _ => fail("received request was admitted twice")
+  }
+}
+
+///|
+test "receipt clock is sampled before a malformed frame is parsed" {
+  let reads = Ref(0)
+  let limits = @framed_wire.FramedWireLimits::new(
+    fixture_inference(),
+    max_frame_bytes=4096,
+  )
+  let source = FixedArray::make(8, b'\x00')
+  try
+    receive_with_clock(
+      @framed_wire.RequestFrameBuffer::new(limits),
+      source,
+      source.length(),
+      () => {
+        reads.val += 1
+        10UL
+      },
+    )
+  catch {
+    Invalid(FrameContract) => ()
+    _ => fail("unexpected malformed-frame error")
+  } noraise {
+    _ => fail("malformed frame was received")
+  }
+  assert_eq(reads.val, 1)
 }
 
 ///|

@@ -15,6 +15,37 @@ priv struct PreparedInput {
 }
 
 ///|
+fn receive_with_clock(
+  buffer : @framed_wire.RequestFrameBuffer,
+  source : FixedArray[Byte],
+  length : Int,
+  read_clock : () -> UInt64 raise RequestAdmissionError,
+) -> ReceivedRequest raise RequestAdmissionError {
+  let receipt : RequestReceipt = { at_millis: read_clock() }
+  let frame = buffer.load(source, length) catch {
+    _ => raise Invalid(FrameContract)
+  }
+  { receipt, frame, consumed: false }
+}
+
+///|
+/// Captures the monotonic receipt before parsing the supplied request frame.
+/// The returned owner keeps that ordering evidence inseparable from the
+/// validated request and can be admitted only once.
+pub fn receive(
+  buffer : @framed_wire.RequestFrameBuffer,
+  source : FixedArray[Byte],
+  length : Int,
+  clock : @monotonic_clock.MonotonicClock,
+) -> ReceivedRequest raise RequestAdmissionError {
+  receive_with_clock(buffer, source, length, () => {
+    clock.now_millis() catch {
+      _ => raise ClockUnavailable
+    }
+  })
+}
+
+///|
 fn readmit_request(
   request : @inference.GenerateRequest,
   inference : @inference.InferenceLimits,
@@ -203,16 +234,22 @@ fn admit_with_clock(
 /// This synchronous admission function belongs on a bounded tokenizer worker,
 /// not an async network reactor.
 pub fn admit(
-  receipt : RequestReceipt,
-  request : @inference.GenerateRequest,
+  received : ReceivedRequest,
   tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   clock : @monotonic_clock.MonotonicClock,
 ) -> AdmittedRequest raise RequestAdmissionError {
+  if received.consumed {
+    raise Invalid(FrameContract)
+  }
+  received.consumed = true
+  let request = received.frame.request() catch {
+    _ => raise Invalid(FrameContract)
+  }
   admit_with_clock(
-    receipt,
+    received.receipt,
     request,
     tokenizer,
     expected_tokenizer,

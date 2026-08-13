@@ -3,6 +3,7 @@ import {
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/framed_wire",
   "vectie/lunaflux/service/incremental_output",
   "vectie/lunaflux/tokenizer",
 }

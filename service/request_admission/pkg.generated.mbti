@@ -7,12 +7,15 @@ import {
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/framed_wire",
   "vectie/lunaflux/service/incremental_output",
   "vectie/lunaflux/tokenizer",
 }
 
 // Values
-pub fn admit(RequestReceipt, @inference.GenerateRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @monotonic_clock.MonotonicClock) -> AdmittedRequest raise RequestAdmissionError
+pub fn admit(ReceivedRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @monotonic_clock.MonotonicClock) -> AdmittedRequest raise RequestAdmissionError
+
+pub fn receive(@framed_wire.RequestFrameBuffer, FixedArray[Byte], Int, @monotonic_clock.MonotonicClock) -> ReceivedRequest raise RequestAdmissionError
 
 // Errors
 pub(all) suberror RequestAdmissionError {
@@ -33,10 +36,15 @@ pub fn AdmittedRequest::push_token_into(Self, Int, FixedArray[Byte], destination
 pub fn AdmittedRequest::scheduler_request(Self) -> @core.TokenizedRequest
 pub fn AdmittedRequest::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
 
+pub struct ReceivedRequest {
+  // private fields
+}
+
 pub(all) enum RequestAdmissionRule {
   ModelIdentity
   TokenizerIdentity
   RequestContract
+  FrameContract
   ReceiptTime
   Deadline
   Input
@@ -44,11 +52,6 @@ pub(all) enum RequestAdmissionRule {
   SchedulerContract
   OutputContract
 } derive(Eq, @debug.Debug)
-
-pub struct RequestReceipt {
-  // private fields
-}
-pub fn RequestReceipt::capture(@monotonic_clock.MonotonicClock) -> Self raise RequestAdmissionError
 
 // Type aliases
 

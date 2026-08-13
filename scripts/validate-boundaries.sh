@@ -346,7 +346,7 @@ if [ -d service/request_admission ]; then
     'pub async fn|extern\s+"[cC]"|#external'
   if [ -f service/request_admission/pkg.generated.mbti ]; then
     if ! rg -q \
-      '^pub fn admit\(RequestReceipt, @inference\.GenerateRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
+      '^pub fn admit\(ReceivedRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
       service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
         'request admission must retain typed receipt/model/tokenizer binding' >&2
@@ -356,6 +356,19 @@ if [ -d service/request_admission ]; then
       'pub struct (RequestReceipt|AdmittedRequest) \{\n  (?!// private fields)' \
       service/request_admission/pkg.generated.mbti; then
       printf '%s\n' 'request admission owners must remain opaque' >&2
+      failed=1
+    fi
+    if ! rg -q \
+      '^pub fn receive\(@framed_wire\.RequestFrameBuffer, FixedArray\[Byte\], Int, @monotonic_clock\.MonotonicClock\) -> ReceivedRequest' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'request admission must capture receipt before framed parsing' >&2
+      failed=1
+    fi
+    if rg -q '^pub (struct RequestReceipt|fn RequestReceipt::capture)' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'request receipt evidence must not escape framed receipt admission' >&2
       failed=1
     fi
   fi

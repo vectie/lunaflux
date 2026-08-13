@@ -3,6 +3,7 @@ pub(all) enum RequestAdmissionRule {
   ModelIdentity
   TokenizerIdentity
   RequestContract
+  FrameContract
   ReceiptTime
   Deadline
   Input
@@ -20,20 +21,20 @@ pub(all) suberror RequestAdmissionError {
 } derive(Debug, Eq)
 
 ///|
-/// Opaque monotonic timestamp captured at the first trusted frame-receipt
-/// boundary. Callers cannot manufacture or inspect its process-local value.
+/// Monotonic timestamp captured inside the trusted frame-receipt operation.
 #valtype
-pub struct RequestReceipt {
-  priv at_millis : UInt64
+priv struct RequestReceipt {
+  at_millis : UInt64
 }
 
 ///|
-/// Captures request receipt before frame parsing or tokenization begins.
-pub fn RequestReceipt::capture(
-  clock : @monotonic_clock.MonotonicClock,
-) -> RequestReceipt raise RequestAdmissionError {
-  let at_millis = clock.now_millis() catch { _ => raise ClockUnavailable }
-  { at_millis, }
+/// One validated request frame paired with the monotonic receipt captured
+/// before its parser ran. The frame and timestamp cannot be separated, and the
+/// owner can be consumed by admission only once.
+pub struct ReceivedRequest {
+  priv receipt : RequestReceipt
+  priv frame : @framed_wire.ValidatedRequestFrame
+  priv mut consumed : Bool
 }
 
 ///|
