@@ -52,10 +52,13 @@ pub fn CacheScope::from_ascii(BytesView, InferenceLimits) -> Self raise Inferenc
 pub struct CompletedEvent {
   finish_reason : FinishReason
   final_usage : Usage
-} derive(Eq, @debug.Debug)
+  final_delta : DecodedDelta?
+} derive(Eq)
+pub fn CompletedEvent::final_delta(Self) -> DecodedDelta?
 pub fn CompletedEvent::final_usage(Self) -> Usage
 pub fn CompletedEvent::finish_reason(Self) -> FinishReason
 pub fn CompletedEvent::new(finish_reason~ : FinishReason, final_usage~ : Usage) -> Self
+pub fn CompletedEvent::with_final_delta(finish_reason~ : FinishReason, final_usage~ : Usage, final_delta~ : DecodedDelta, InferenceLimits) -> Self raise InferenceContractError
 
 pub(all) enum ContractField {
   ProtocolVersion
@@ -105,7 +108,7 @@ pub fn DeadlineBudget::milliseconds(Self) -> UInt64
 pub struct DecodedDelta {
   text : String
   utf8_bytes : Int
-}
+} derive(Eq)
 pub fn DecodedDelta::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
 pub fn DecodedDelta::text(Self) -> String
 pub fn DecodedDelta::utf8_bytes(Self) -> Int

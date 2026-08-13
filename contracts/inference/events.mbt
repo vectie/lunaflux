@@ -65,7 +65,7 @@ pub fn AcceptedEvent::effective_limits(self : AcceptedEvent) -> EffectiveLimits 
 pub struct DecodedDelta {
   text : String
   utf8_bytes : Int
-}
+} derive(Eq)
 
 ///|
 pub fn DecodedDelta::from_utf8(
@@ -221,18 +221,34 @@ pub(all) enum FinishReason {
 } derive(Debug, Eq)
 
 ///|
-/// Completed stream event payload.
+/// Completed stream event payload. It deliberately has no `Debug` because the
+/// optional final decoded tail may contain request output.
 pub struct CompletedEvent {
   finish_reason : FinishReason
   final_usage : Usage
-} derive(Debug, Eq)
+  final_delta : DecodedDelta?
+} derive(Eq)
 
 ///|
 pub fn CompletedEvent::new(
   finish_reason~ : FinishReason,
   final_usage~ : Usage,
 ) -> CompletedEvent {
-  { finish_reason, final_usage }
+  { finish_reason, final_usage, final_delta: None }
+}
+
+///|
+/// Constructs a terminal event with an exact bounded final decoded tail.
+pub fn CompletedEvent::with_final_delta(
+  finish_reason~ : FinishReason,
+  final_usage~ : Usage,
+  final_delta~ : DecodedDelta,
+  limits : InferenceLimits,
+) -> CompletedEvent raise InferenceContractError {
+  if final_delta.utf8_bytes() > limits.max_decoded_delta_bytes() {
+    raise invalid(DecodedDelta, TooLong, 0)
+  }
+  { finish_reason, final_usage, final_delta: Some(final_delta) }
 }
 
 ///|
@@ -243,6 +259,14 @@ pub fn CompletedEvent::finish_reason(self : CompletedEvent) -> FinishReason {
 ///|
 pub fn CompletedEvent::final_usage(self : CompletedEvent) -> Usage {
   self.final_usage
+}
+
+///|
+/// Optional final decoded bytes flushed from an unmatched stop-prefix after
+/// the last generated token. They belong to the terminal event so the stream
+/// never invents a text-only token.
+pub fn CompletedEvent::final_delta(self : CompletedEvent) -> DecodedDelta? {
+  self.final_delta
 }
 
 ///|

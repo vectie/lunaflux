@@ -78,6 +78,81 @@ fn prepare_event_header(
 }
 
 ///|
+fn valid_public_code_range(
+  source : FixedArray[Byte],
+  offset : Int,
+  length : Int,
+) -> Bool {
+  if length <= 0 ||
+    length > 64 ||
+    offset < 0 ||
+    offset > source.length() - length {
+    return false
+  }
+  for index in offset..<(offset + length) {
+    let byte = source[index]
+    if !((byte >= b'a' && byte <= b'z') ||
+      (byte >= b'A' && byte <= b'Z') ||
+      (byte >= b'0' && byte <= b'9') ||
+      byte == b'-' ||
+      byte == b'_' ||
+      byte == b'.' ||
+      byte == b':') {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn write_digest_ascii(
+  destination : FixedArray[Byte],
+  offset : Int,
+  value : String,
+) -> Unit raise FramedWireError {
+  if value.length() != 64 {
+    raise event_invalid(Identity)
+  }
+  for index in 0..<64 {
+    let unit = value[index]
+    if !((unit >= ('0' : UInt16) && unit <= ('9' : UInt16)) ||
+      (unit >= ('a' : UInt16) && unit <= ('f' : UInt16))) {
+      raise event_invalid(Identity)
+    }
+    destination[offset + index] = unit.to_int().to_byte()
+  }
+}
+
+///|
+fn valid_usage_scalars(
+  inference : @inference.InferenceLimits,
+  input_tokens : Int,
+  cached_input_tokens : Int,
+  output_tokens : Int,
+) -> Bool {
+  input_tokens >= 0 &&
+  input_tokens <= inference.max_context_tokens() &&
+  cached_input_tokens >= 0 &&
+  cached_input_tokens <= input_tokens &&
+  output_tokens >= 0 &&
+  output_tokens <= inference.max_new_tokens() &&
+  input_tokens <= inference.max_context_tokens() - output_tokens
+}
+
+///|
+fn write_usage_scalars(
+  bytes : FixedArray[Byte],
+  input_tokens : Int,
+  cached_input_tokens : Int,
+  output_tokens : Int,
+) -> Unit {
+  write_i32(bytes, 32, input_tokens)
+  write_i32(bytes, 36, cached_input_tokens)
+  write_i32(bytes, 40, output_tokens)
+  write_i32(bytes, 44, input_tokens + output_tokens)
+}
+
+///|
 fn CanonicalEventWriter::require_credit(
   self : CanonicalEventWriter,
 ) -> Unit raise FramedWireError {
@@ -134,6 +209,150 @@ pub fn CanonicalEventWriter::prepare(
   )
   ignore(parse_event(self.scratch, length, self.limits))
   self.publish(length)
+}
+
+///|
+/// Writes canonical Accepted evidence without constructing a StreamEvent.
+pub fn CanonicalEventWriter::prepare_accepted(
+  self : CanonicalEventWriter,
+  model_identity : @spec.ModelIdentity,
+  effective_limits : @inference.EffectiveLimits,
+) -> Unit raise FramedWireError {
+  self.require_credit()
+  let inference = self.limits.inference_limits()
+  let max_new_tokens = effective_limits.max_new_tokens()
+  let context_ceiling = effective_limits.context_ceiling()
+  if max_new_tokens <= 0 ||
+    max_new_tokens > inference.max_new_tokens() ||
+    context_ceiling <= 0 ||
+    context_ceiling > inference.max_context_tokens() ||
+    max_new_tokens > context_ceiling {
+    raise event_invalid(Scalar)
+  }
+  prepare_event_header(self.scratch, 1, EVENT_HEADER_BYTES, 0, 0)
+  write_i32(self.scratch, 48, max_new_tokens)
+  write_i32(self.scratch, 52, context_ceiling)
+  write_digest_ascii(self.scratch, 64, model_identity.content().as_hex())
+  write_digest_ascii(self.scratch, 128, model_identity.plan().as_hex())
+  write_u32(self.scratch, 16, frame_checksum(self.scratch, EVENT_HEADER_BYTES))
+  self.publish(EVENT_HEADER_BYTES)
+}
+
+///|
+/// Writes a canonical monotonic usage snapshot from bounded scalar evidence.
+pub fn CanonicalEventWriter::prepare_usage(
+  self : CanonicalEventWriter,
+  input_tokens~ : Int,
+  cached_input_tokens~ : Int,
+  output_tokens~ : Int,
+) -> Unit raise FramedWireError {
+  self.require_credit()
+  if !valid_usage_scalars(
+      self.limits.inference_limits(),
+      input_tokens,
+      cached_input_tokens,
+      output_tokens,
+    ) {
+    raise event_invalid(Scalar)
+  }
+  prepare_event_header(self.scratch, 3, EVENT_HEADER_BYTES, 0, 0)
+  write_usage_scalars(
+    self.scratch,
+    input_tokens,
+    cached_input_tokens,
+    output_tokens,
+  )
+  write_u32(self.scratch, 16, frame_checksum(self.scratch, EVENT_HEADER_BYTES))
+  self.publish(EVENT_HEADER_BYTES)
+}
+
+///|
+/// Writes canonical Completed evidence and an optional final UTF-8 tail from
+/// caller-owned fixed storage.
+pub fn CanonicalEventWriter::prepare_completed(
+  self : CanonicalEventWriter,
+  finish_reason : @inference.FinishReason,
+  input_tokens~ : Int,
+  cached_input_tokens~ : Int,
+  output_tokens~ : Int,
+  tail : FixedArray[Byte],
+  tail_offset~ : Int,
+  tail_length~ : Int,
+) -> Unit raise FramedWireError {
+  self.require_credit()
+  let inference = self.limits.inference_limits()
+  if !valid_usage_scalars(
+      inference, input_tokens, cached_input_tokens, output_tokens,
+    ) {
+    raise event_invalid(Scalar)
+  }
+  if tail_offset < 0 ||
+    tail_length < 0 ||
+    tail_offset > tail.length() ||
+    tail_length > tail.length() - tail_offset ||
+    tail_length > inference.max_decoded_delta_bytes() ||
+    tail_length > self.limits.max_frame_bytes() - EVENT_HEADER_BYTES {
+    raise event_invalid(Length)
+  }
+  if !valid_utf8_range(tail, tail_offset, tail_length) {
+    raise event_invalid(Payload)
+  }
+  let total = EVENT_HEADER_BYTES + tail_length
+  prepare_event_header(
+    self.scratch,
+    4,
+    total,
+    if tail_length == 0 {
+      0
+    } else {
+      1
+    },
+    tail_length,
+  )
+  write_i32(
+    self.scratch,
+    24,
+    match finish_reason {
+      StopSequence => 0
+      TokenLimit => 1
+      Cancelled => 2
+    },
+  )
+  write_usage_scalars(
+    self.scratch,
+    input_tokens,
+    cached_input_tokens,
+    output_tokens,
+  )
+  for index in 0..<tail_length {
+    self.scratch[EVENT_HEADER_BYTES + index] = tail[tail_offset + index]
+  }
+  write_u32(self.scratch, 16, frame_checksum(self.scratch, total))
+  self.publish(total)
+}
+
+///|
+/// Writes canonical payload-safe Failed evidence from caller-owned ASCII.
+pub fn CanonicalEventWriter::prepare_failed(
+  self : CanonicalEventWriter,
+  code : FixedArray[Byte],
+  code_offset~ : Int,
+  code_length~ : Int,
+  retryable~ : Bool,
+) -> Unit raise FramedWireError {
+  self.require_credit()
+  if !valid_public_code_range(code, code_offset, code_length) ||
+    code_length > self.limits.max_frame_bytes() - EVENT_HEADER_BYTES {
+    raise event_invalid(Payload)
+  }
+  let total = EVENT_HEADER_BYTES + code_length
+  prepare_event_header(self.scratch, 5, total, 0, code_length)
+  write_i32(self.scratch, 24, if retryable { 1 } else { 0 })
+  for index in 0..<code_length {
+    self.scratch[EVENT_HEADER_BYTES + index] = code[code_offset + index]
+  }
+  write_u32(self.scratch, 16, frame_checksum(self.scratch, total))
+  self.publish(total)
 }
 
 ///|

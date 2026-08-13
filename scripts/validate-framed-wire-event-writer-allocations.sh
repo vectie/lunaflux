@@ -55,8 +55,16 @@ fi
 
 for symbol in \
   'prepare__token__bytes(' \
+  'prepare__accepted(' \
+  'prepare__usage(' \
+  'prepare__completed(' \
+  'prepare__failed(' \
   'CanonicalEventWriter15require__credit(' \
   'valid__utf8__range(' \
+  'valid__public__code__range(' \
+  'write__digest__ascii(' \
+  'valid__usage__scalars(' \
+  'write__usage__scalars(' \
   'prepare__event__header(' \
   'CanonicalEventWriter7publish(' \
   'frame__checksum(' \
@@ -67,7 +75,7 @@ for symbol in \
     exit 1
   fi
   if printf '%s\n' "$body" | contains_forbidden_allocation; then
-    printf 'framed-wire direct Token path allocates: %s\n' "$symbol" >&2
+    printf 'framed-wire direct event path allocates: %s\n' "$symbol" >&2
     exit 1
   fi
 done

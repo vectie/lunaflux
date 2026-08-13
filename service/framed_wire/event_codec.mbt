@@ -2,7 +2,7 @@
 let event_magic : UInt = 0x5645464c
 
 ///|
-let event_version : UInt = 1
+let event_version : UInt = 2
 
 ///|
 fn event_invalid(rule : FramedWireRule) -> FramedWireError {
@@ -38,6 +38,11 @@ fn encode_event_payload(
   let payload : Bytes = match event {
     Token(value) =>
       match value.decoded_delta() {
+        Some(delta) => @utf8.encode(delta.text())
+        None => b""
+      }
+    Completed(value) =>
+      match value.final_delta() {
         Some(delta) => @utf8.encode(delta.text())
         None => b""
       }
@@ -83,6 +88,10 @@ fn encode_event_payload(
     }
     Usage(value) => write_usage(bytes, value)
     Completed(value) => {
+      match value.final_delta() {
+        Some(_) => write_u32(bytes, 20, 1)
+        None => ()
+      }
       write_i32(
         bytes,
         24,
@@ -241,7 +250,9 @@ fn parse_event(
       Usage(parse_usage(bytes, inference))
     }
     4 => {
-      if flags != 0 || length != EVENT_HEADER_BYTES {
+      let payload_length = length - EVENT_HEADER_BYTES
+      if payload_length > inference.max_decoded_delta_bytes() ||
+        ((flags & 1) != 0) != (payload_length > 0) {
         raise event_invalid(CanonicalEncoding)
       }
       require_event_zero(bytes, 28, 32)
@@ -253,11 +264,33 @@ fn parse_event(
         2 => Cancelled
         _ => raise event_invalid(Scalar)
       }
+      let final_delta = if payload_length > 0 {
+        Some(
+          @inference.DecodedDelta::from_utf8(
+            read_bytes(bytes, EVENT_HEADER_BYTES, payload_length),
+            inference,
+          ) catch {
+            _ => raise event_invalid(Payload)
+          },
+        )
+      } else {
+        None
+      }
+      let final_usage = parse_usage(bytes, inference)
       Completed(
-        @inference.CompletedEvent::new(
-          finish_reason=reason,
-          final_usage=parse_usage(bytes, inference),
-        ),
+        match final_delta {
+          Some(delta) =>
+            @inference.CompletedEvent::with_final_delta(
+              finish_reason=reason,
+              final_usage~,
+              final_delta=delta,
+              inference,
+            ) catch {
+              _ => raise event_invalid(Payload)
+            }
+          None =>
+            @inference.CompletedEvent::new(finish_reason=reason, final_usage~)
+        },
       )
     }
     5 => {

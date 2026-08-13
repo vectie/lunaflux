@@ -194,8 +194,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   failure vocabulary. The first trusted receipt boundary can now capture the
   relative deadline exactly once as an opaque absolute monotonic deadline;
   scheduler admission never rebases it after parsing or tokenization delay.
-- A canonical fixed-buffer framed-wire v1 for every `GenerateRequest` field and
-  all five `StreamEvent` variants. It bounds hostile counts before arithmetic
+- A canonical fixed-buffer request-v1/event-v2 wire for every `GenerateRequest`
+  field and all five `StreamEvent` variants. Completed v2 carries an optional
+  bounded UTF-8 terminal tail for unmatched incremental stop prefixes. It
+  bounds hostile counts before arithmetic
   or allocation, validates exact lengths/checksums/reserved bytes and canonical
   option encodings, and publishes only epoch-bound opaque frames. It is a pure
   codec foundation, not a listener or online-session readiness claim.

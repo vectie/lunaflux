@@ -81,7 +81,8 @@ Streaming events are typed:
 - Accepted: effective limits and model digest;
 - Token: token ID, optional decoded delta, and position;
 - Usage: input, cached-input, output, and total token counts;
-- Completed: finish reason and final usage;
+- Completed: finish reason, final usage, and an optional bounded UTF-8 delta
+  flushed from an unmatched incremental stop prefix;
 - Failed: bounded public error and retryability.
 
 Internal filesystem paths, device pointers, CUDA error text, worker endpoints,

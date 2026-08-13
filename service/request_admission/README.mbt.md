@@ -25,5 +25,5 @@ worker rather than an async network reactor.
 
 For a natural terminal immediately following a generated token, that session
 owner must hold the token publication until it observes the terminal. It can
-then append `finish_into` bytes to the same token delta before publication,
-preserving unmatched stop prefixes without inventing a text-only event.
+then place `finish_into` bytes in the canonical event-v2 `Completed` tail,
+preserving unmatched stop prefixes without inventing a text-only token event.

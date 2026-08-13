@@ -1,17 +1,20 @@
 # Canonical framed service wire
 
-`service/framed_wire` owns the bounded binary v1 representation of the native
-service request and event contracts. It is a codec package, not a listener,
-transport, scheduler, tokenizer, or execution service.
+`service/framed_wire` owns the bounded binary request-v1 and event-v2
+representations of the native service contracts. It is a codec package, not a
+listener, transport, scheduler, tokenizer, or execution service.
 
 The request frame carries one complete `GenerateRequest`: protocol and request
 identity, model content and plan digests, text or token input, generation and
 context ceilings, sampling and deterministic seed, stop tables, streaming
 preference, relative deadline budget, cache scope/permission, and optional
 trace correlation. The event frame carries exactly one of `Accepted`, `Token`,
-`Usage`, `Completed`, or `Failed`.
+`Usage`, `Completed`, or `Failed`. Event v2 adds an optional bounded UTF-8 tail
+to `Completed`, allowing unmatched incremental stop-prefix bytes to be flushed
+in the terminal frame without inventing a text-only token. Event v1 is
+rejected.
 
-Both formats use fixed little-endian headers, a v1 magic/version/kind tuple,
+Both formats use fixed little-endian headers, a versioned magic/kind tuple,
 an exact total length, an FNV-1a checksum that excludes its own field, zeroed
 reserved bytes, and one canonical payload order. Optional values have explicit
 presence flags; unused scalar fields must be zero. Digests remain lowercase
@@ -31,11 +34,12 @@ writes the single canonical representation. Loading validates completely
 before it replaces the prior frame, so rejection is transactional. Validated
 views are epoch-bound and become stale after the owner publishes a replacement.
 
-`CanonicalEventWriter` owns one explicit outbound credit. Its direct Token
-path validates a caller-owned UTF-8 byte range and writes the same canonical v1
-frame without constructing a payload `String`, `Bytes`, or `StreamEvent`.
-Other event variants use the existing admitted contracts. The pinned frame must
-be copied and retired before another event can replace it.
+`CanonicalEventWriter` owns one explicit outbound credit. Its direct Token and
+Completed paths validate caller-owned UTF-8 byte ranges and write the same
+canonical event-v2 frame without constructing a payload `String`, `Bytes`, or
+`StreamEvent`. Direct Accepted, Usage, and Failed writers consume bounded
+scalar/identity evidence. The pinned frame must be copied and retired before
+another event can replace it.
 
 This package deliberately has no async, filesystem, socket, native-FFI, or
 engine dependency. A later `engine/framed_service` slice may compose these

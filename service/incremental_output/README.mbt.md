@@ -10,7 +10,8 @@ Stop bytes are withheld. When a match completes, bytes preceding the match are
 published, the matching bytes and the remainder of that token piece are
 discarded, and the owner becomes terminal. Without a match, only the longest
 suffix that could still become a stop string—or an incomplete UTF-8 scalar—is
-retained. `finish_into` publishes an unmatched stop prefix but rejects a
+retained. `finish_into` copies an unmatched stop prefix for the canonical
+event-v2 `Completed` tail but rejects a
 truncated UTF-8 scalar.
 
 Construction rejects an envelope whose decoded-delta capacity cannot hold one

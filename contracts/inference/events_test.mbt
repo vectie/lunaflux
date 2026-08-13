@@ -112,12 +112,15 @@ test "terminal events expose bounded reasons usage and retryability" {
     cached_input_tokens=0,
     cfg,
   ).advance(output_tokens=1, cfg)
-  let completed = @inference.CompletedEvent::new(
+  let completed = @inference.CompletedEvent::with_final_delta(
     finish_reason=StopSequence,
     final_usage=usage,
+    final_delta=@inference.DecodedDelta::from_utf8(b"tail", cfg),
+    cfg,
   )
   assert_eq(completed.finish_reason(), StopSequence)
   assert_eq(completed.final_usage().total_tokens(), 3)
+  assert_eq(completed.final_delta().unwrap().text(), "tail")
   let failed = @inference.FailedEvent::new(
     code=@inference.PublicErrorCode::from_ascii(b"worker_unavailable"),
     retryable=true,
@@ -130,6 +133,46 @@ test "terminal events expose bounded reasons usage and retryability" {
     } noraise {
       _ => fail("expected payload-unsafe public error code rejection")
     }
+  }
+}
+
+///|
+test "completed final delta is readmitted against the exact event envelope" {
+  let broad = limits()
+  let narrow = @inference.InferenceLimits::new(
+    max_text_bytes=16,
+    max_input_tokens=8,
+    max_new_tokens=6,
+    max_context_tokens=12,
+    max_token_id=99,
+    max_stop_token_ids=3,
+    max_stop_strings=2,
+    max_stop_string_bytes=5,
+    max_trace_bytes=8,
+    max_cache_scope_bytes=8,
+    max_decoded_delta_bytes=4,
+    max_deadline_millis=1000UL,
+    max_top_k=100,
+    max_temperature=4.0,
+  )
+  let delta = @inference.DecodedDelta::from_utf8(b"123456", broad)
+  let usage = @inference.Usage::initial(
+    input_tokens=1,
+    cached_input_tokens=0,
+    narrow,
+  )
+  try
+    @inference.CompletedEvent::with_final_delta(
+      finish_reason=TokenLimit,
+      final_usage=usage,
+      final_delta=delta,
+      narrow,
+    )
+  catch {
+    Invalid(field=DecodedDelta, issue=TooLong, index=0) => ()
+    _ => fail("unexpected completed final delta error")
+  } noraise {
+    _ => fail("expected cross-envelope final delta rejection")
   }
 }
 
