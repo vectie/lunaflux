@@ -33,6 +33,10 @@ plan exists. It reserves decode work before prefill policy, preserves the
 physical emergency page reserve for prefill, and serializes prefill rows before
 decode rows as required by the worker protocol. Page, block-table, and plan
 checkpoints make a failed build restore exact owner identities and FIFO state.
+Before copying any block-table identity, the scheduler authenticates its exact
+generation and positive active-request reference against the canonical page
+allocator; the exact submitted plan epoch then carries that authorization to
+the in-process worker without exposing allocator mutation authority.
 At most one row per request is emitted, and exact token, page, row, completion
 slot, and capability budgets are enforced without growing a collection.
 

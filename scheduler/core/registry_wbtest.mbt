@@ -254,6 +254,60 @@ fn make_decode_active(
 }
 
 ///|
+test "stale block-table page generation rejects plan construction transactionally" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(20UL), 0UL)
+  make_decode_active(owner, handle, 1, 7)
+  let table = try! owner.request_tables.read(handle.slot().index())
+  let stale = try! owner.block_tables.page_at(table, 0)
+  try! owner.page_allocator.release_active(stale)
+  let replacements = try! @page_allocator.PageIdStorage::new(8)
+  let mut current = stale
+  for index in 0..<8 {
+    current = try! owner.page_allocator.allocate_one()
+    try! replacements.write(index, current)
+  }
+  assert_eq(current.index(), stale.index())
+  assert_eq(current.generation(), stale.generation() + 1)
+  try! owner.page_allocator.validate_active(current)
+  let free_pages = owner.free_page_count()
+  let allocated_tables = owner.allocated_block_table_count()
+  try owner.build_next() catch {
+    PageAllocator(StalePage(page)) => assert_eq(page, stale)
+    _ => fail("unexpected stale page plan-construction failure")
+  } noraise {
+    _ => fail("stale block-table generation reached a submitted plan")
+  }
+  assert_eq(owner.free_page_count(), free_pages)
+  assert_eq(owner.allocated_block_table_count(), allocated_tables)
+  assert_eq(owner.plan_a.state(), Writable)
+  assert_eq(owner.plan_a_sequence, 0UL)
+  assert_eq(owner.last_plan_sequence, 0UL)
+  assert_eq(owner.journal_count, 0)
+  assert_false(owner.status(handle.request_id()).unwrap().in_flight())
+  try! owner.page_allocator.validate_active(current)
+  try owner.page_allocator.validate_active(stale) catch {
+    StalePage(page) => assert_eq(page, stale)
+    _ => fail("unexpected post-rollback stale identity failure")
+  } noraise {
+    _ => fail("rollback made the stale block-table page current")
+  }
+  // Repair the deliberately corrupted white-box fixture so test teardown also
+  // proves balanced request, table, and allocator ownership.
+  try! owner.block_tables.reset_and_release(table, owner.release_pages)
+  try! owner.request_tables.clear(handle.slot().index())
+  owner.remove_active(handle.slot().index())
+  owner.recycle_slot(handle.slot().index())
+  for index in 0..<8 {
+    try! owner.page_allocator.release_active(try! replacements.read(index))
+  }
+  assert_eq(owner.free_page_count(), 8)
+  assert_eq(owner.allocated_block_table_count(), 0)
+  assert_eq(owner.live_request_count(), 0)
+  try! owner.page_allocator.debug_check_invariants()
+}
+
+///|
 test "decode is reserved first while protocol serializes prefill first" {
   let owner = wb_owner()
   let decoding = owner.admit(wb_request(21UL), 0UL)

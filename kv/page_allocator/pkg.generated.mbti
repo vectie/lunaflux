@@ -23,6 +23,7 @@ pub(all) suberror PageAllocatorError {
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)
+  PageNotActive(PageId)
   ReferenceOverflow(PageId, PageReferenceKind)
   ReferenceUnderflow(PageId, PageReferenceKind)
   InvariantViolation(PageAllocatorInvariantRule)
@@ -52,6 +53,7 @@ pub fn PageAllocator::retain_active(Self, PageId) -> Unit raise PageAllocatorErr
 pub fn PageAllocator::retain_cached(Self, PageId) -> Unit raise PageAllocatorError
 pub fn PageAllocator::retired_page_count(Self) -> Int
 pub fn PageAllocator::rollback_to(Self, PageAllocationCheckpoint) -> Unit raise PageAllocatorError
+pub fn PageAllocator::validate_active(Self, PageId) -> Unit raise PageAllocatorError
 
 pub(all) enum PageAllocatorIdentity {
   AllocationCheckpointEpochIdentity

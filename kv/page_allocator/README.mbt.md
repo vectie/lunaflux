@@ -19,9 +19,12 @@ slot at its configured terminal generation is retired instead of wrapping and
 aliasing an old identity.
 
 `PageRunBuffer` is caller-owned reusable output storage. Successful one-page,
-run, retain, and release operations do not grow collections or return mutable
-internal arrays. `debug_snapshot` and `debug_check_invariants` are explicit
-startup/test diagnostics and may allocate.
+run, retain, release, and `validate_active` operations do not grow collections
+or return mutable internal arrays. `validate_active` authenticates both the
+current generation and a positive active-request reference without mutating
+allocator state, including while an allocation checkpoint is open.
+`debug_snapshot` and `debug_check_invariants` are explicit startup/test
+diagnostics and may allocate.
 
 `PageIdStorage` is the canonical fixed-capacity container for other host
 metadata packages that need to retain opaque page identities without boxing

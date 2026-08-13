@@ -87,6 +87,27 @@ test "non-inflight active cancellation releases KV immediately" {
 }
 
 ///|
+test "submitted and completed rows retain active page authority until release" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(522UL), 0UL)
+  let plan = wb_next_plan(owner)
+  let page = try! plan.page_at(0)
+  try! owner.page_allocator.validate_active(page)
+  owner.complete(plan, wb_final_completion(owner, plan, 10))
+  try! owner.page_allocator.validate_active(page)
+  let active = owner.status(handle.request_id()).unwrap()
+  assert_eq(active.state(), Decode)
+  assert_false(active.in_flight())
+  owner.cancel(active.handle())
+  try owner.page_allocator.validate_active(page) catch {
+    PageNotAllocated(actual) => assert_eq(actual, page)
+    _ => fail("unexpected released-page authority failure")
+  } noraise {
+    _ => fail("released request page retained active authority")
+  }
+}
+
+///|
 test "deadline after submit retires stale work without publishing" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(531UL, deadline=10UL), 0UL)

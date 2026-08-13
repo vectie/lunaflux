@@ -57,6 +57,7 @@ pub(all) suberror PageAllocatorError {
   Exhausted
   StalePage(PageId)
   PageNotAllocated(PageId)
+  PageNotActive(PageId)
   ReferenceOverflow(PageId, PageReferenceKind)
   ReferenceUnderflow(PageId, PageReferenceKind)
   InvariantViolation(PageAllocatorInvariantRule)

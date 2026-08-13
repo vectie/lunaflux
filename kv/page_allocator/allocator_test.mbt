@@ -237,6 +237,36 @@ test "reuse invalidates stale identities and preserves FIFO order" {
 }
 
 ///|
+test "active validation authenticates ownership and rejects reused identity" {
+  let allocator = @page_allocator.PageAllocator::new(test_limits(1, 1))
+  let first = allocator.allocate_one()
+  allocator.validate_active(first)
+  let checkpoint = allocator.checkpoint()
+  allocator.validate_active(first)
+  allocator.commit_checkpoint(checkpoint)
+  allocator.retain_cached(first)
+  allocator.release_active(first)
+  try allocator.validate_active(first) catch {
+    PageNotActive(page) => assert_eq(page, first)
+    _ => fail("unexpected inactive-page validation failure")
+  } noraise {
+    _ => fail("cached-only page passed active validation")
+  }
+  allocator.release_cached(first)
+  let reused = allocator.allocate_one()
+  assert_eq(reused.index(), first.index())
+  assert_eq(reused.generation(), first.generation() + 1)
+  allocator.validate_active(reused)
+  try allocator.validate_active(first) catch {
+    StalePage(page) => assert_eq(page, first)
+    _ => fail("unexpected stale-page validation failure")
+  } noraise {
+    _ => fail("reused index validated an old generation")
+  }
+  allocator.debug_check_invariants()
+}
+
+///|
 test "terminal generations retire instead of wrapping" {
   let allocator = @page_allocator.PageAllocator::new(
     test_limits(1, 1, generation=2),

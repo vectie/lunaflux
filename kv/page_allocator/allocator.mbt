@@ -282,6 +282,22 @@ pub fn PageAllocator::active_reference_count(
 }
 
 ///|
+/// Authenticates that `page` is the allocator's current generation and still
+/// has at least one active-request owner.
+///
+/// This read-only check is valid while an allocation checkpoint is open. Its
+/// successful path performs only fixed-array reads and does not allocate.
+pub fn PageAllocator::validate_active(
+  self : PageAllocator,
+  page : PageId,
+) -> Unit raise PageAllocatorError {
+  let index = self.checked_index(page)
+  if self.active_references[index] <= 0 {
+    raise PageNotActive(page)
+  }
+}
+
+///|
 /// Returns the current cached-prefix reference count for a checked identity.
 pub fn PageAllocator::cached_reference_count(
   self : PageAllocator,

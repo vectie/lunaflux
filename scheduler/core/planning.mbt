@@ -264,6 +264,9 @@ fn Scheduler::push_table(
     } noraise {
       value => value
     }
+    self.page_allocator.validate_active(page) catch {
+      error => raise PageAllocator(error)
+    }
     draft.push_page(page) catch {
       error => raise WorkerProtocol(error)
     }
