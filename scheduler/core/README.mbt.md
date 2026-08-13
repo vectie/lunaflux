@@ -25,6 +25,7 @@ request becomes active or in flight.
 Startup authenticates separate immutable intermediate-prefill, final-prefill,
 and decode capability recipes against the selected model identity and loaded
 model-plan generation, proves the worst-case per-step capability-cell envelope,
+retains the exact resolved worker-protocol limits for downstream owner binding,
 and allocates two physically distinct plan owners plus fixed selection and
 ownership journals.
 

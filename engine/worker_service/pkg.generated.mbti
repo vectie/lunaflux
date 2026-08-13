@@ -6,11 +6,12 @@ import {
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/scheduler/core",
 }
 
 // Values
-pub fn new(@core.Scheduler, @worker_process.WorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
+pub fn new(@core.Scheduler, WorkerServiceBinding, @worker_process.WorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
 
 // Errors
 pub(all) suberror WorkerServiceError {
@@ -26,6 +27,7 @@ pub struct WorkerService {
 pub fn WorkerService::admit(Self, @core.TokenizedRequest, UInt64) -> @core.RequestHandle raise WorkerServiceError
 pub fn WorkerService::allocated_block_table_count(Self) -> Int
 pub fn WorkerService::begin_recovery(Self) -> Unit raise WorkerServiceError
+pub fn WorkerService::binding(Self) -> WorkerServiceBinding
 pub fn WorkerService::cancel(Self, @core.RequestHandle) -> Unit raise WorkerServiceError
 pub fn WorkerService::complete_oldest(Self) -> UInt64 raise WorkerServiceError
 pub fn WorkerService::expire_deadlines(Self, UInt64) -> Int raise WorkerServiceError
@@ -42,6 +44,14 @@ pub fn WorkerService::submit_next(Self) -> WorkerServiceDispatch raise WorkerSer
 pub fn WorkerService::take_generated_token(Self) -> @core.GeneratedTokenNotice raise WorkerServiceError
 pub fn WorkerService::take_terminal_notice(Self) -> @core.TerminalNotice raise WorkerServiceError
 pub fn WorkerService::terminal_notice_count(Self) -> Int
+
+pub struct WorkerServiceBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerServiceBinding::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn WorkerServiceBinding::device_ordinal(Self) -> Int
+pub fn WorkerServiceBinding::inference_limits(Self) -> @inference.InferenceLimits
+pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits) -> Self raise WorkerServiceError
 
 pub enum WorkerServiceDispatch {
   DispatchIdle
@@ -67,7 +77,11 @@ pub(all) enum WorkerServiceRestart {
 
 pub(all) enum WorkerServiceRule {
   Identity
+  BootstrapIdentity
+  DeviceAssignment
   Generation
+  WorkerEnvelope
+  InferenceEnvelope
   Sequence
   Lifecycle
   Recovery

@@ -93,6 +93,7 @@ pub fn Scheduler::take_generated_token(Self) -> GeneratedTokenNotice raise Sched
 pub fn Scheduler::take_terminal_notice(Self) -> TerminalNotice raise SchedulerError
 pub fn Scheduler::terminal_notice_count(Self) -> Int
 pub fn Scheduler::waiting_request_count(Self) -> Int
+pub fn Scheduler::worker_protocol_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
 pub(all) enum SchedulerField {
   Request

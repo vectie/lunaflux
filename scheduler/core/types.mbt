@@ -243,6 +243,7 @@ pub fn RequestStatus::in_flight(self : RequestStatus) -> Bool {
 /// metadata. Every mutable collection is fixed at startup.
 pub struct Scheduler {
   priv capacity : @runtime_resolved.ResolvedRuntimeCapacity
+  priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv model_identity : @spec.ModelIdentity
   priv page_allocator : @page_allocator.PageAllocator
   priv block_tables : @block_table.BlockTableArena

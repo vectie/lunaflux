@@ -142,6 +142,17 @@ fn startup() -> @worker_wire.WorkerStartupContract raise {
 }
 
 ///|
+fn service_binding() -> @worker_service.WorkerServiceBinding raise {
+  @worker_service.WorkerServiceBinding::new(
+    bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
+      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
+    device_ordinal=0,
+    inference_limits=inference_limits(),
+  )
+}
+
+///|
 fn foreign_startup() -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(
@@ -189,15 +200,19 @@ fn run(executable : Bytes) -> Unit raise {
     ReadyProcess(owner) => owner
     CleanupRequired(_) => raise Failure("foreign worker cleanup required")
   }
-  try @worker_service.new(scheduler, foreign) catch {
-    Invalid(Identity) => ()
+  try @worker_service.new(scheduler, service_binding(), foreign) catch {
+    @worker_service.Invalid(Identity) => ()
     _ => raise Failure("unexpected foreign worker identity error")
   } noraise {
     _ => raise Failure("foreign worker identity joined the scheduler")
   }
   foreign.shutdown_clean()
   foreign.close()
-  let service = @worker_service.new(scheduler, process_owner(executable))
+  let service = @worker_service.new(
+    scheduler,
+    service_binding(),
+    process_owner(executable),
+  )
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
   assert_eq(service.submit_next().sequence_value(), 1UL)
@@ -233,6 +248,7 @@ fn run(executable : Bytes) -> Unit raise {
     RestartCleanupRequired(_) =>
       raise Failure("replacement worker cleanup required")
   }
+  assert_eq(service.binding(), service_binding())
   ignore(service.admit(request(104UL), 0UL))
   assert_eq(service.submit_next().sequence_value(), 4UL)
   assert_eq(service.complete_oldest(), 4UL)

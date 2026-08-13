@@ -65,6 +65,14 @@ pub fn Scheduler::model_identity(self : Scheduler) -> @spec.ModelIdentity {
 }
 
 ///|
+/// Returns the exact worker-protocol envelope retained at scheduler startup.
+pub fn Scheduler::worker_protocol_limits(
+  self : Scheduler,
+) -> @worker_protocol.WorkerProtocolLimits {
+  self.worker_limits
+}
+
+///|
 pub fn Scheduler::last_submitted_plan_sequence(self : Scheduler) -> UInt64 {
   self.last_plan_sequence
 }

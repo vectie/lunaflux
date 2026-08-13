@@ -2,7 +2,16 @@ import {
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/scheduler/core",
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/config/cache",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/config/scheduler" @scheduler_config,
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

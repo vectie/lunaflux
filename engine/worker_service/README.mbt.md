@@ -5,6 +5,16 @@ isolated A/B worker process. It retains only two scalar flight identities in
 startup-owned storage. Scheduler plan owners, process buffers, native handles,
 and completion owners remain in their owning packages.
 
+Construction also requires an independent immutable `WorkerServiceBinding`
+containing the expected bootstrap digest, process-visible device ordinal, and
+inference-contract limits. The service verifies those values together with the
+scheduler's model identity, model generation, predecessor sequence, and exact
+retained worker-protocol limits before it owns a ready process. The same binding
+is rechecked before every replacement startup; the process handshake then
+requires the Ready response to reproduce that exact contract byte-for-byte.
+The child response is evidence, never the source of expected deployment
+identity.
+
 submit_next records a scheduler plan before attempting transport, so a failed
 write never loses the scheduler retirement obligation. complete_oldest
 receives strictly in order and keeps a validated process frame pinned while

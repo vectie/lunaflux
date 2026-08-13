@@ -93,17 +93,7 @@ fn wb_owner_with_capacity(
     kv_head_count=1,
     head_dimension=4,
   )
-  let worker = try! @worker_protocol.WorkerProtocolLimits::new(
-    max_prefill_rows=2,
-    max_decode_rows=2,
-    max_plan_rows=2,
-    max_plan_tokens=2,
-    max_plan_pages=8,
-    max_capabilities=8,
-    max_completion_slots=2,
-    max_sequence_tokens=16,
-    max_token_id=31,
-  )
+  let worker = wb_worker_limits()
   let capacity = try! @runtime_resolved.resolve(
     scheduler, cache, shapes, worker,
   )
@@ -122,6 +112,26 @@ fn wb_owner_with_capacity(
     recipe,
     recipe,
   )
+}
+
+///|
+fn wb_worker_limits() -> @worker_protocol.WorkerProtocolLimits {
+  try! @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=2,
+    max_decode_rows=2,
+    max_plan_rows=2,
+    max_plan_tokens=2,
+    max_plan_pages=8,
+    max_capabilities=8,
+    max_completion_slots=2,
+    max_sequence_tokens=16,
+    max_token_id=31,
+  )
+}
+
+///|
+test "scheduler retains the exact resolved worker envelope" {
+  assert_eq(wb_owner().worker_protocol_limits(), wb_worker_limits())
 }
 
 ///|

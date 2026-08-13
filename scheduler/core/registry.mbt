@@ -272,6 +272,7 @@ pub fn Scheduler::new(
   }
   {
     capacity,
+    worker_limits,
     model_identity,
     page_allocator,
     block_tables,

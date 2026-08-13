@@ -76,6 +76,7 @@ pub fn WorkerService::restart(
   let startup = self.process.recovery_startup_contract() catch {
     error => raise process_error(error)
   }
+  validate_startup_contract(self.scheduler, self.binding, startup)
   let result = @worker_process.prepare(executable, startup, limits) catch {
     error => raise process_error(error)
   }

@@ -21,7 +21,11 @@ pub(all) enum WorkerServiceLifecycle {
 ///|
 pub(all) enum WorkerServiceRule {
   Identity
+  BootstrapIdentity
+  DeviceAssignment
   Generation
+  WorkerEnvelope
+  InferenceEnvelope
   Sequence
   Lifecycle
   Recovery
@@ -50,13 +54,55 @@ pub(all) enum WorkerServiceRestart {
 }
 
 ///|
+/// Independent expected deployment binding for one worker-service owner.
+/// Scheduler identity, generation, sequence, and worker limits remain owned by
+/// the scheduler and are deliberately not duplicated here.
+pub struct WorkerServiceBinding {
+  priv bootstrap_digest : @worker_wire.WorkerBootstrapDigest
+  priv device_ordinal : Int
+  priv inference_limits : @inference.InferenceLimits
+} derive(Debug, Eq)
+
+///|
 /// Thread-confined owner joining one scheduler to one isolated worker process.
 pub struct WorkerService {
   priv scheduler : @core.Scheduler
+  priv binding : WorkerServiceBinding
   priv mut process : @worker_process.WorkerProcessSupervisor
   priv flight_states : FixedArray[Int]
   priv flight_sequences : FixedArray[UInt64]
   priv mut lifecycle : WorkerServiceLifecycle
+}
+
+///|
+pub fn WorkerServiceBinding::new(
+  bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest,
+  device_ordinal~ : Int,
+  inference_limits~ : @inference.InferenceLimits,
+) -> WorkerServiceBinding raise WorkerServiceError {
+  if device_ordinal < 0 || device_ordinal > 1023 {
+    raise Invalid(DeviceAssignment)
+  }
+  { bootstrap_digest, device_ordinal, inference_limits }
+}
+
+///|
+pub fn WorkerServiceBinding::bootstrap_digest(
+  self : WorkerServiceBinding,
+) -> @worker_wire.WorkerBootstrapDigest {
+  self.bootstrap_digest
+}
+
+///|
+pub fn WorkerServiceBinding::device_ordinal(self : WorkerServiceBinding) -> Int {
+  self.device_ordinal
+}
+
+///|
+pub fn WorkerServiceBinding::inference_limits(
+  self : WorkerServiceBinding,
+) -> @inference.InferenceLimits {
+  self.inference_limits
 }
 
 ///|

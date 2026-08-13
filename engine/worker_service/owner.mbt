@@ -21,17 +21,29 @@ fn WorkerService::require_lifecycle(
 }
 
 ///|
-fn validate_startup_against_scheduler(
+fn validate_startup_contract(
   scheduler : @core.Scheduler,
-  startup : @worker_process.WorkerProcessSupervisor,
+  binding : WorkerServiceBinding,
+  contract : @worker_wire.WorkerStartupContract,
 ) -> Unit raise WorkerServiceError {
-  let contract = startup.startup_contract()
   if contract.identity() != scheduler.model_identity() {
     raise Invalid(Identity)
+  }
+  if contract.bootstrap_digest() != binding.bootstrap_digest() {
+    raise Invalid(BootstrapIdentity)
+  }
+  if contract.device_ordinal() != binding.device_ordinal() {
+    raise Invalid(DeviceAssignment)
   }
   if contract.model_generation_value() !=
     scheduler.model_plan_generation().value() {
     raise Invalid(Generation)
+  }
+  if contract.worker_limits() != scheduler.worker_protocol_limits() {
+    raise Invalid(WorkerEnvelope)
+  }
+  if contract.inference_limits() != binding.inference_limits() {
+    raise Invalid(InferenceEnvelope)
   }
   let submitted = scheduler.last_submitted_plan_sequence()
   if scheduler.last_retired_plan_sequence() != submitted ||
@@ -44,19 +56,27 @@ fn validate_startup_against_scheduler(
 ///|
 pub fn new(
   scheduler : @core.Scheduler,
+  binding : WorkerServiceBinding,
   process : @worker_process.WorkerProcessSupervisor,
 ) -> WorkerService raise WorkerServiceError {
   if process.lifecycle() != Ready {
     raise Invalid(Lifecycle)
   }
-  validate_startup_against_scheduler(scheduler, process)
+  validate_startup_contract(scheduler, binding, process.startup_contract())
   {
     scheduler,
+    binding,
     process,
     flight_states: FixedArray::make(2, FLIGHT_EMPTY),
     flight_sequences: FixedArray::make(2, 0UL),
     lifecycle: ServiceReady,
   }
+}
+
+///|
+/// Returns the immutable deployment binding retained for every replacement.
+pub fn WorkerService::binding(self : WorkerService) -> WorkerServiceBinding {
+  self.binding
 }
 
 ///|
