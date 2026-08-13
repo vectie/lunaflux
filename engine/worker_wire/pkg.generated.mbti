@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/spec",
 }
 
 // Values
@@ -109,6 +110,19 @@ pub fn PlanFramePrefillRow::sequence_token_start(Self) -> Int raise WorkerWireEr
 pub fn PlanFramePrefillRow::token_length(Self) -> Int raise WorkerWireError
 pub fn PlanFramePrefillRow::token_start(Self) -> Int raise WorkerWireError
 
+pub struct StartupFrameBuffer {
+  // private fields
+}
+pub fn StartupFrameBuffer::capacity(Self) -> Int
+pub fn StartupFrameBuffer::encode(Self, StartupFrameKind, WorkerStartupContract) -> ValidatedStartupFrame raise WorkerWireError
+pub fn StartupFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedStartupFrame raise WorkerWireError
+pub fn StartupFrameBuffer::new() -> Self
+
+pub(all) enum StartupFrameKind {
+  Configure
+  Ready
+} derive(Eq, @debug.Debug)
+
 pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
 pub fn ValidatedCompletionFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
 pub fn ValidatedCompletionFrame::entry(Self, Int) -> CompletionFrameEntry raise WorkerWireError
@@ -140,6 +154,23 @@ pub fn ValidatedPlanFrame::token_at(Self, Int) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::token_budget(Self) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::token_count(Self) -> Int raise WorkerWireError
 
+pub struct ValidatedStartupFrame(StartupFrameBuffer, UInt64)
+pub fn ValidatedStartupFrame::contract(Self) -> WorkerStartupContract raise WorkerWireError
+pub fn ValidatedStartupFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
+pub fn ValidatedStartupFrame::kind(Self) -> StartupFrameKind raise WorkerWireError
+pub fn ValidatedStartupFrame::length(Self) -> Int raise WorkerWireError
+
+pub struct WorkerStartupContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerStartupContract::has_predecessor(Self) -> Bool
+pub fn WorkerStartupContract::identity(Self) -> @spec.ModelIdentity
+pub fn WorkerStartupContract::inference_limits(Self) -> @inference.InferenceLimits
+pub fn WorkerStartupContract::model_generation_value(Self) -> UInt64
+pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> Self raise WorkerWireError
+pub fn WorkerStartupContract::predecessor_value(Self) -> UInt64
+pub fn WorkerStartupContract::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
+
 pub(all) enum WorkerWireFrameRule {
   Magic
   Version
@@ -156,12 +187,14 @@ pub(all) enum WorkerWireFrameRule {
   Sampling
   CompletionSlot
   RequestIdentity
+  StartupIdentity
   Reserved
 } derive(Eq, @debug.Debug)
 
 pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
   CompletionFrameBytes
+  StartupFrameBytes
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -2,6 +2,7 @@
 pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
   CompletionFrameBytes
+  StartupFrameBytes
 } derive(Debug, Eq)
 
 ///|
@@ -21,6 +22,7 @@ pub(all) enum WorkerWireFrameRule {
   Sampling
   CompletionSlot
   RequestIdentity
+  StartupIdentity
   Reserved
 } derive(Debug, Eq)
 

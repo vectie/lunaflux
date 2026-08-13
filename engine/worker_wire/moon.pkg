@@ -1,11 +1,14 @@
 import {
+  "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/spec",
 }
 
 import {
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
 } for "test"
 
 import {
