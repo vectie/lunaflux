@@ -1,6 +1,6 @@
 ///|
 /// Closes and reaps the current child before any recovery retirement.
-pub fn WorkerService::begin_recovery(
+fn WorkerService::begin_recovery_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   if self.lifecycle != ServiceReady && self.lifecycle != ServiceRecovering {
@@ -33,7 +33,7 @@ pub fn WorkerService::begin_recovery(
 /// committed normally; an unreturned plan is committed as the given failure.
 /// If no process reservation exists, scheduler state is still retired but this
 /// owner becomes permanently restart-forbidden.
-pub fn WorkerService::recover_flight(
+fn WorkerService::recover_flight_impl(
   self : WorkerService,
   failure : @worker_protocol.WorkerFailure,
 ) -> UInt64 raise WorkerServiceError {
@@ -77,9 +77,7 @@ pub fn WorkerService::recover_flight(
       self.scheduler.fail_plan(plan, failure) catch {
         error => raise scheduler_error(error)
       }
-      self.require_process().abandon_submission(submission) catch {
-        error => raise root_bound_process_error(error)
-      }
+      try! self.require_process().abandon_submission(submission)
     }
   }
   self.clear_flight()
@@ -88,7 +86,7 @@ pub fn WorkerService::recover_flight(
 }
 
 ///|
-pub fn WorkerService::invalidate_device_state(
+fn WorkerService::invalidate_device_state_impl(
   self : WorkerService,
 ) -> Int raise WorkerServiceError {
   self.require_lifecycle(ServiceDeviceInvalidationRequired)
@@ -102,7 +100,7 @@ pub fn WorkerService::invalidate_device_state(
 ///|
 /// Deterministically terminally retires one live request after reservation
 /// ambiguity made replacement unsafe. `Complete` enables terminal close.
-pub fn WorkerService::drain_restart_forbidden(
+fn WorkerService::drain_restart_forbidden_impl(
   self : WorkerService,
 ) -> @core.InstanceLossDrain raise WorkerServiceError {
   self.require_lifecycle(ServiceRestartForbidden)
@@ -118,7 +116,7 @@ pub fn WorkerService::drain_restart_forbidden(
 ///|
 /// Permanently abandons replacement from a restart-ready state. Retained
 /// waiting work must then be terminally drained before close.
-pub fn WorkerService::abandon_restart(
+fn WorkerService::abandon_restart_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceRestartReady)
@@ -126,11 +124,11 @@ pub fn WorkerService::abandon_restart(
 }
 
 ///|
-pub fn WorkerService::restart(
+fn WorkerService::restart_impl(
   self : WorkerService,
 ) -> WorkerServiceRestart raise WorkerServiceError {
   self.require_lifecycle(ServiceRestartReady)
-  if self.outstanding_count() != 0 {
+  if self.raw_outstanding_count() != 0 {
     raise Invalid(Recovery)
   }
   let startup = self.require_process().recovery_startup_contract() catch {
@@ -156,7 +154,7 @@ pub fn WorkerService::restart(
 /// Retries cleanup of the exact failed replacement child retained by the
 /// root-bound process owner. A later restart remains impossible until this
 /// succeeds.
-pub fn WorkerService::retry_restart_cleanup(
+fn WorkerService::retry_restart_cleanup_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceReplacementCleanup)
@@ -167,11 +165,12 @@ pub fn WorkerService::retry_restart_cleanup(
 }
 
 ///|
-pub fn WorkerService::shutdown_clean(
+fn WorkerService::shutdown_clean_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
-  if self.outstanding_count() != 0 || self.scheduler.live_request_count() != 0 {
+  if self.raw_outstanding_count() != 0 ||
+    self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }
   self.require_process().shutdown_clean() catch {
@@ -192,7 +191,7 @@ pub fn WorkerService::shutdown_clean(
 ///|
 /// Retries terminal child/root retirement after `shutdown_clean` could not
 /// consume every authority. This never starts recovery or replacement.
-pub fn WorkerService::retry_close(
+fn WorkerService::retry_close_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceClosingFailed)
@@ -206,13 +205,14 @@ pub fn WorkerService::retry_close(
 /// Force-retires a service with no outstanding scheduler obligations from a
 /// recovery, failed-replacement-cleanup, or terminal-cleanup phase. The
 /// root-bound owner still attempts child and root cleanup independently.
-pub fn WorkerService::close(
+fn WorkerService::close_impl(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   if self.lifecycle == ServiceClosed {
     return
   }
-  if self.outstanding_count() != 0 || self.scheduler.live_request_count() != 0 {
+  if self.raw_outstanding_count() != 0 ||
+    self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }
   if self.lifecycle == ServiceRestartForbidden {

@@ -502,6 +502,27 @@ if [ -n "$fixture_constructor_calls" ] &&
   failed=1
 fi
 
+online_lease_references=$(rg -n 'OnlineWorkerLease|prepare_online_claim' \
+  --glob '*.mbt' --glob 'pkg.generated.mbti' || true)
+if [ -n "$online_lease_references" ] &&
+  printf '%s\n' "$online_lease_references" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/|^service/online_session/)'; then
+  printf '%s\n' 'online worker lease escaped its owned aggregate/test boundary' >&2
+  failed=1
+fi
+
+if rg -n 'OnlineWorkerLease::(scheduler|process|handle|request_id|request_generation|publication)' \
+  engine/worker_service/pkg.generated.mbti; then
+  printf '%s\n' 'online worker lease exposes raw owner or identity evidence' >&2
+  failed=1
+fi
+
+if [ -f service/online_session/pkg.generated.mbti ] &&
+  rg -n '(WorkerService|OnlineWorkerLease)' service/online_session/pkg.generated.mbti; then
+  printf '%s\n' 'online session aggregate must not return its lower owners' >&2
+  failed=1
+fi
+
 # Production code is MoonBit plus narrow C stubs. Python may be used by neither
 # the runtime nor its normal validation path.
 if python_files=$(rg --files --glob '*.py' 2>/dev/null); then

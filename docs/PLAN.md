@@ -353,8 +353,11 @@ constructor is retained only for deterministic fixtures. Deterministic worker
 buffers, child ownership, executable snapshot, and Configure/source/expected-
 Ready frames are allocated before root acquisition. Native spawn, scalar
 handshake I/O, exact Ready comparison, scalar cleanup, and owner publication
-allocate no managed objects while rooted child authority is live. Online-
-session ownership remains future work.
+allocate no managed objects while rooted child authority is live. A restricted
+epoch-authenticated online worker lease now enforces the permanent ownership
+family, exact generation/position/publication order, monotonic time, recovery,
+and close prerequisites. The application-facing canonical online-session
+aggregate, tokenizer/stop composition, and ingress reactor remain future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

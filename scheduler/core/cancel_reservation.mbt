@@ -24,6 +24,36 @@ fn Scheduler::has_exact_terminal(
 }
 
 ///|
+/// Sanitized exact natural-terminal probe used before a fallible clock sample.
+/// It exposes no publication, slot, or terminal reason.
+pub fn Scheduler::has_exact_natural_terminal(
+  self : Scheduler,
+  handle : RequestHandle,
+) -> Bool {
+  self.has_exact_terminal(handle)
+}
+
+///|
+/// Advances an already-authenticated handle to one exact queued terminal
+/// generation without exposing the scheduler slot or publication owner.
+pub fn Scheduler::advance_terminated_handle(
+  self : Scheduler,
+  handle : RequestHandle,
+  generation : @inference.RequestGeneration,
+) -> Unit raise SchedulerError {
+  for offset in 0..<self.terminal_count {
+    let index = (self.terminal_head + offset) %
+      self.terminal_request_ids.length()
+    if self.terminal_request_ids[index] == handle.request_id() &&
+      self.terminal_generations[index] == generation {
+      handle.request_generation = generation
+      return
+    }
+  }
+  raise invalid(RequestGeneration, Mismatch)
+}
+
+///|
 fn Scheduler::clear_cancel_reservation(self : Scheduler) -> Unit {
   self.cancel_reserved = false
   self.cancel_slot = NO_INDEX
@@ -160,5 +190,23 @@ pub fn Scheduler::commit_cancel_reservation(
 pub fn Scheduler::abort_cancel_reservation(self : Scheduler) -> Unit {
   if self.cancel_reserved {
     self.clear_cancel_reservation()
+  }
+}
+
+///|
+/// Applies one exact deadline while giving an already-queued natural terminal
+/// precedence over stale slot reuse. The returned value exposes no slot.
+pub fn Scheduler::expire_exact_or_natural(
+  self : Scheduler,
+  handle : RequestHandle,
+  now_millis : UInt64,
+) -> ExactDeadlineResult raise SchedulerError {
+  self.require_no_cancel_reservation()
+  if self.has_exact_terminal(handle) {
+    return ExactDeadlineNaturalTerminal
+  }
+  match self.expire_exact(handle, now_millis) {
+    None => ExactDeadlinePending
+    Some(generation) => ExactDeadlineExpired(generation)
   }
 }

@@ -174,6 +174,38 @@ fn request(
 }
 
 ///|
+fn online_request(
+  id : UInt64,
+  receipt : UInt64,
+  max_new_tokens? : Int = 1,
+  deadline_budget? : UInt64 = 1000UL,
+) -> @scheduler.TokenizedRequest raise {
+  let limits = inference_limits()
+  @scheduler.TokenizedRequest::new(
+    request_id=@inference.RequestId::new(id),
+    model_identity=identity(),
+    input_tokens=@inference.TokenBuffer::new([1], limits),
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=@inference.SamplingSeed::new(id),
+    stops=@inference.StopConditions::new([], [], limits),
+    cache=@inference.CachePolicy::new(
+      @inference.CacheScope::from_ascii(b"online", limits),
+      Disabled,
+    ),
+    stream_preference=Streaming,
+    effective_limits=@inference.EffectiveLimits::new(
+      max_new_tokens~,
+      context_ceiling=4,
+      limits,
+    ),
+    admission_deadline=@inference.AdmissionDeadline::from_receipt(
+      receipt,
+      @inference.DeadlineBudget::from_milliseconds(deadline_budget, limits),
+    ),
+  )
+}
+
+///|
 fn startup() -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
@@ -358,6 +390,7 @@ fn run(executable : Bytes) -> Unit raise {
   } noraise {
     _ => raise Failure("owned-service preparation extracted twice")
   }
+  service.claim_raw()
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
   progress_to_ready(service, 1UL)
@@ -445,6 +478,7 @@ fn run(executable : Bytes) -> Unit raise {
 
   run_terminal_drain_evidence(executable)
   run_reservation_classification_evidence(executable)
+  run_online_lease_evidence(executable)
 }
 
 ///|

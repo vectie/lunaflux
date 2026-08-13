@@ -31,6 +31,35 @@ child/root authority yields `OwnedServiceCleanupRequired`.
 owners and the resulting service is permanently ineligible for future online
 session admission. There is no production-facing alias-taking constructor.
 
+An owned service makes one permanent ownership-family choice. `claim_raw`
+selects compatibility dispatch forever. `prepare_online_claim` instead issues
+an opaque epoch-authenticated `OnlineWorkerLease`; superseded leases cannot
+mutate the service, and raw aliases reject before observing dynamic
+scheduler or process state. Online-idle services can rotate to a later epoch,
+but can never become raw. The lease retains the monotonic clock, exact request
+generation, token position, and global publication cursor. It exposes only
+sanitized value publications, including explicit suppressed-token evidence
+after a cancellation or deadline cut.
+
+The lease is a lower-level engine seam for the forthcoming owned
+`service/online_session` aggregate. Its prepare/admit entry points are boundary
+restricted to that aggregate and tests; applications must not pair a raw
+`TokenizedRequest` with the lease. No decoder, scheduler, process, request
+handle, request identity, generation, or raw publication owner escapes.
+The service and lease remain thread-confined; copying a current lease reference
+does not create independent authority and is forbidden by the aggregate's
+exclusive-owner discipline.
+
+Online recovery is lease-authenticated: child recovery, exact-flight
+retirement, device invalidation, replacement, restart-forbidden drain, and
+terminal close retain the same epoch and request evidence. Clean shutdown is
+available both after the exact terminal publication and before admission. A
+queued natural terminal wins before the retained clock is sampled.
+If cancellation or expiry cuts a request while one physical exchange is
+already active, online progress can retire only that recorded exchange; it
+cannot build another plan. The stale completion is consumed without reviving
+the logical request, after which the exact terminal can close cleanly.
+
 The owned-preparation allocation gate proves that service, cleanup, rooted,
 child, executable, and fixed handshake storage are allocated before root
 activation. Configure, source, and expected Ready bytes are encoded before that

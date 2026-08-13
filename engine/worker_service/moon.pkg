@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/scheduler/core",
   "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/monotonic_clock",
 }
 
 supported_targets = "native"

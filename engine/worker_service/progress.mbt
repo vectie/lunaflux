@@ -21,14 +21,7 @@ fn WorkerService::commit_received(
   self.scheduler.complete(plan, completion) catch {
     error => raise scheduler_error(error)
   }
-  self.require_process().retire_received(received) catch {
-    error => {
-      if self.require_process().lifecycle() != RootBoundReady {
-        self.lifecycle = ServiceRecovering
-      }
-      raise root_bound_process_error(error)
-    }
-  }
+  try! self.require_process().retire_received(received)
   self.clear_flight()
   sequence
 }
@@ -36,7 +29,7 @@ fn WorkerService::commit_received(
 ///|
 /// Advances exactly one logical service transition. A completed transport read
 /// is pinned and reported before scheduler publication is attempted.
-pub fn WorkerService::progress(
+fn WorkerService::progress_impl(
   self : WorkerService,
 ) -> WorkerServiceProgress raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
@@ -80,6 +73,17 @@ pub fn WorkerService::progress(
     self.flight_state = FLIGHT_SUBMITTED
     return ServiceStarted(sequence)
   }
+  self.progress_existing_flight_impl()
+}
+
+///|
+/// Advances only an already-recorded physical exchange. This never asks the
+/// scheduler to build another plan and is therefore safe after a logical
+/// cancel/deadline/terminal cut still needs to retire stale device work.
+fn WorkerService::progress_existing_flight_impl(
+  self : WorkerService,
+) -> WorkerServiceProgress raise WorkerServiceError {
+  self.require_lifecycle(ServiceReady)
   if self.flight_state == FLIGHT_SUBMITTED {
     let result = self.require_process().progress_exchange() catch {
         error => {
@@ -99,4 +103,12 @@ pub fn WorkerService::progress(
   } else {
     raise Invalid(Lifecycle)
   }
+}
+
+///|
+pub fn WorkerService::progress(
+  self : WorkerService,
+) -> WorkerServiceProgress raise WorkerServiceError {
+  self.require_raw_mode()
+  self.progress_impl()
 }

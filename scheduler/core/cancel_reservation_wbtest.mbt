@@ -210,3 +210,29 @@ test "naturally retired generation is classified without reservation" {
   assert_eq(owner.take_generated_token().token_id(), 13)
   assert_eq(owner.take_terminal_notice().reason(), MaximumOutputReached)
 }
+
+///|
+test "exact expiry preserves an already queued natural terminal" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(711UL), 0UL)
+  let prefill = wb_next_plan(owner)
+  owner.complete(prefill, wb_final_completion(owner, prefill, 16))
+  ignore(owner.take_generated_token())
+  let decode = wb_next_plan(owner)
+  let row = try! decode.decode_row(0)
+  let writer = try! owner.completion_writer(decode)
+  try! writer.append_decode_completed(
+    slot=try! row.completion_slot(),
+    request_id=try! row.request_id(),
+    request_generation=try! row.request_generation(),
+    token_id=17,
+  )
+  owner.complete(decode, try! writer.submit())
+  assert_true(owner.status(handle.request_id()) is None)
+  assert_eq(
+    owner.expire_exact_or_natural(handle, 1000UL),
+    ExactDeadlineNaturalTerminal,
+  )
+  assert_eq(owner.generated_token_count(), 1)
+  assert_eq(owner.terminal_notice_count(), 1)
+}

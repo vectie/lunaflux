@@ -54,3 +54,58 @@ pub fn Scheduler::drain_instance_loss(
     Remaining(self.live_count)
   }
 }
+
+///|
+/// Drains the exact authenticated request selected by the deterministic
+/// one-request instance-loss policy and returns its fresh terminal generation.
+pub fn Scheduler::drain_instance_loss_exact(
+  self : Scheduler,
+  handle : RequestHandle,
+) -> ExactInstanceLossDrain raise SchedulerError {
+  for offset in 0..<self.terminal_count {
+    let notice_index = (self.terminal_head + offset) %
+      self.terminal_request_ids.length()
+    if self.terminal_request_ids[notice_index] == handle.request_id() &&
+      self.terminal_generations[notice_index] == handle.request_generation() {
+      if self.live_count != 0 {
+        raise invalid(RequestCapacity, Mismatch)
+      }
+      let progress = self.drain_instance_loss()
+      let generation = self.terminal_generations[notice_index]
+      return match progress {
+        Remaining(count) => ExactLossRemaining(count, generation)
+        Complete => ExactLossComplete(generation)
+      }
+    }
+  }
+  if self.live_count != 1 {
+    raise invalid(RequestCapacity, Mismatch)
+  }
+  let index = self.checked_handle_index(handle)
+  let selected = if self.active_count > 0 {
+    self.active_slots[0]
+  } else {
+    self.waiting_head
+  }
+  if selected != index {
+    raise invalid(Request, Mismatch)
+  }
+  let progress = self.drain_instance_loss()
+  let expected_generation = @inference.RequestGeneration::from_wire(
+    self.generation_cursor,
+  )
+  for offset in 0..<self.terminal_count {
+    let notice_index = (self.terminal_head + offset) %
+      self.terminal_request_ids.length()
+    if self.terminal_request_ids[notice_index] == handle.request_id() &&
+      self.terminal_generations[notice_index] == expected_generation &&
+      self.terminal_reasons[notice_index] == WorkerFailed {
+      let generation = self.terminal_generations[notice_index]
+      return match progress {
+        Remaining(count) => ExactLossRemaining(count, generation)
+        Complete => ExactLossComplete(generation)
+      }
+    }
+  }
+  abort("exact instance-loss terminal invariant")
+}

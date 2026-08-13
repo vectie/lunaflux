@@ -12,6 +12,7 @@ import {
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core" @scheduler,
 }
 

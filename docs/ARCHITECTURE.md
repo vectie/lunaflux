@@ -192,8 +192,11 @@ alias-taking constructor is explicitly fixture-only. Its independent
 binding is retained unchanged across replacements. Restart
 policy/backoff and live overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
-remain open. This owned-instance foundation does not yet implement an online
-session aggregate. Child ownership, executable and fixed handshake storage are
+remain open. The owned service now contains a restricted permanent
+Raw-versus-Online ownership lease with exact request/publication sequencing,
+trusted monotonic admission/expiry, recovery, and close authority. The public
+online-session aggregate above it remains open and must never return the lease
+or WorkerService. Child ownership, executable and fixed handshake storage are
 preallocated; native spawn, scalar handshake validation and cleanup, and owner
 publication allocate no managed objects while rooted authority is live.
 Capability IDs are copied from authenticated model-generation recipes;

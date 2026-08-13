@@ -283,8 +283,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   Configure/source/expected-Ready frames are preallocated before root
   acquisition; native spawn, scalar handshake validation and cleanup, and
   owner publication allocate no managed objects with rooted authority live.
-  This foundation does not claim online
-  session readiness.
+  The owned service now also makes a permanent Raw-versus-Online family
+  choice. Its restricted epoch lease authenticates one streaming request,
+  exact generation/position/publication order, monotonic admission/deadline
+  time, cancellation cuts, worker-loss recovery, and deterministic close
+  without exposing scheduler/process/handle owners. This remains a lower
+  engine prerequisite: the public canonical online-session aggregate,
+  tokenizer/stop decoding, and ingress reactor are still open.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.

@@ -21,6 +21,24 @@ fn WorkerService::require_lifecycle(
 }
 
 ///|
+fn WorkerService::require_raw_mode(
+  self : WorkerService,
+) -> Unit raise WorkerServiceError {
+  if self.ownership_mode != SERVICE_MODE_FIXTURE_RAW {
+    raise Invalid(OwnershipMode)
+  }
+}
+
+///|
+fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int {
+  if self.flight_state == FLIGHT_EMPTY {
+    0
+  } else {
+    1
+  }
+}
+
+///|
 fn validate_startup_contract(
   scheduler : @core.Scheduler,
   binding : WorkerServiceBinding,
@@ -80,6 +98,9 @@ pub fn new_fixture(
     flight_sequence: 0UL,
     lifecycle: ServiceReady,
     production_owned: false,
+    ownership_mode: SERVICE_MODE_FIXTURE_RAW,
+    online_epoch: 0UL,
+    online_publication_cursor: 0UL,
   }
 }
 
@@ -105,12 +126,11 @@ pub fn WorkerService::lifecycle(self : WorkerService) -> WorkerServiceLifecycle 
 }
 
 ///|
-pub fn WorkerService::outstanding_count(self : WorkerService) -> Int {
-  if self.flight_state == FLIGHT_EMPTY {
-    0
-  } else {
-    1
-  }
+pub fn WorkerService::outstanding_count(
+  self : WorkerService,
+) -> Int raise WorkerServiceError {
+  self.require_raw_mode()
+  self.raw_outstanding_count()
 }
 
 ///|

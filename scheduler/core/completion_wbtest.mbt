@@ -38,6 +38,79 @@ test "device-state invalidation fails active requests but preserves waiting work
 }
 
 ///|
+test "exact invalidation publishes one authenticated failure generation" {
+  let owner = wb_owner_with_capacity(1, 1)
+  let handle = owner.admit(wb_request(497UL), 0UL)
+  let plan = wb_next_plan(owner)
+  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.take_generated_token())
+  ignore(owner.invalidate_device_state_exact(handle))
+  let terminal = owner.take_terminal_notice()
+  assert_eq(terminal.request_id(), handle.request_id())
+  assert_true(terminal.request_generation() != handle.request_generation())
+}
+
+///|
+test "exact instance-loss drain publishes one authenticated failure generation" {
+  let owner = wb_owner_with_capacity(1, 1)
+  let handle = owner.admit(wb_request(604UL), 0UL)
+  ignore(owner.drain_instance_loss_exact(handle))
+  let terminal = owner.take_terminal_notice()
+  assert_eq(terminal.request_id(), handle.request_id())
+  assert_true(terminal.request_generation() != handle.request_generation())
+}
+
+///|
+test "exact online recovery rejects more than one live request transactionally" {
+  let owner = wb_owner_with_capacity(2, 2)
+  let first = owner.admit(wb_request(605UL), 0UL)
+  let second = owner.admit(wb_request(606UL), 0UL)
+  try owner.invalidate_device_state_exact(first) catch {
+    Invalid(field=RequestCapacity, issue=Mismatch) => ()
+    _ => fail("unexpected multi-request invalidation error")
+  } noraise {
+    _ => fail("exact invalidation accepted two live requests")
+  }
+  try owner.drain_instance_loss_exact(first) catch {
+    Invalid(field=RequestCapacity, issue=Mismatch) => ()
+    _ => fail("unexpected multi-request drain error")
+  } noraise {
+    _ => fail("exact instance-loss drain accepted two live requests")
+  }
+  assert_eq(owner.live_request_count(), 2)
+  assert_eq(owner.status(first.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.status(second.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.terminal_notice_count(), 0)
+}
+
+///|
+test "queued exact terminal cannot authenticate while unrelated request is live" {
+  let owner = wb_owner_with_capacity(2, 2)
+  let terminal = owner.admit(wb_request(607UL), 0UL)
+  let survivor = owner.admit(wb_request(608UL), 0UL)
+  owner.cancel(terminal)
+  terminal.request_generation = owner.terminal_generations[owner.terminal_head]
+  assert_eq(owner.live_request_count(), 1)
+  try owner.invalidate_device_state_exact(terminal) catch {
+    Invalid(field=RequestCapacity, issue=Mismatch) => ()
+    _ => fail("unexpected queued-terminal invalidation isolation error")
+  } noraise {
+    _ => fail("queued terminal invalidated across another live request")
+  }
+  try owner.drain_instance_loss_exact(terminal) catch {
+    Invalid(field=RequestCapacity, issue=Mismatch) => ()
+    _ => fail("unexpected queued-terminal isolation error")
+  } noraise {
+    _ => fail("queued terminal authenticated across another live request")
+  }
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.status(survivor.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.terminal_notice_count(), 1)
+}
+
+///|
+
+///|
 test "instance-loss drain releases active then waiting requests one at a time" {
   let owner = wb_owner_with_capacity(1, 2)
   let active = owner.admit(wb_request(601UL), 0UL)

@@ -11,6 +11,33 @@ const FLIGHT_SUBMITTED : Int = 2
 const FLIGHT_RECEIVED : Int = 3
 
 ///|
+const SERVICE_MODE_FIXTURE_RAW : Int = 0
+
+///|
+const SERVICE_MODE_ONLINE_ELIGIBLE : Int = 1
+
+///|
+const SERVICE_MODE_ONLINE_IDLE : Int = 2
+
+///|
+const SERVICE_MODE_ONLINE_ACTIVE : Int = 3
+
+///|
+const ONLINE_REQUEST_EMPTY : Int = 0
+
+///|
+const ONLINE_REQUEST_LIVE : Int = 1
+
+///|
+const ONLINE_REQUEST_TERMINATION_PENDING : Int = 2
+
+///|
+const ONLINE_REQUEST_TERMINAL : Int = 3
+
+///|
+const ONLINE_REQUEST_RETIRED : Int = 4
+
+///|
 pub(all) enum WorkerServiceLifecycle {
   ServiceReady
   ServiceRecovering
@@ -35,6 +62,8 @@ pub(all) enum WorkerServiceRule {
   Sequence
   Lifecycle
   Recovery
+  OwnershipMode
+  Clock
 } derive(Debug, Eq)
 
 ///|
@@ -131,6 +160,79 @@ pub struct WorkerService {
   priv mut flight_sequence : UInt64
   priv mut lifecycle : WorkerServiceLifecycle
   priv production_owned : Bool
+  priv mut ownership_mode : Int
+  priv mut online_epoch : UInt64
+  priv mut online_publication_cursor : UInt64
+}
+
+///|
+/// Exclusive, epoch-authenticated access to the production-owned online mode.
+/// The lease exposes no scheduler, process, request handle, request identity,
+/// generation, or raw publication owner and deliberately has no `Debug`.
+pub struct OnlineWorkerLease {
+  priv service : WorkerService
+  priv epoch : UInt64
+  priv clock : @monotonic_clock.MonotonicClock
+  priv mut request_phase : Int
+  priv mut handle : @core.RequestHandle?
+  priv mut request_generation : @inference.RequestGeneration
+  priv mut cut_source_generation : @inference.RequestGeneration
+  priv mut publication_cursor : UInt64
+  priv mut expected_position : Int
+  priv mut cancel_reserved : Bool
+}
+
+///|
+#valtype
+pub(all) enum OnlineWorkerPublicationKind {
+  OnlineGeneratedTokenPublication
+  OnlineSuppressedTokenPublication
+  OnlineTerminalPublication
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlineWorkerTerminalReason {
+  OnlineCancelledByCaller
+  OnlineDeadlineReached
+  OnlineStopTokenReached
+  OnlineMaximumOutputReached
+  OnlineWorkerFailed
+} derive(Debug, Eq)
+
+///|
+/// Sanitized scheduler publication. Request identity and generation remain in
+/// the lease and cannot be paired independently by a caller.
+#valtype
+pub struct OnlineWorkerPublication(Int, Int, Int, UInt64)
+
+///|
+#valtype
+pub(all) enum OnlineCancelReservationStart {
+  OnlineCancelReserved
+  OnlineCancelNaturalTerminal
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlineCancelReservationCommit {
+  OnlineCancelCommitted
+  OnlineCancelReservationAbsent
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlineExpiry {
+  OnlineDeadlinePending
+  OnlineDeadlineNaturalTerminal
+  OnlineDeadlineCommitted
+} derive(Debug, Eq)
+
+///|
+#valtype
+priv enum OnlineExpiryClockPreflight {
+  ExpiryNaturalTerminal
+  ExpiryClockSample(UInt64)
 }
 
 ///|

@@ -108,6 +108,9 @@ pub fn prepare_owned(
     flight_sequence: 0UL,
     lifecycle: ServiceReady,
     production_owned: true,
+    ownership_mode: SERVICE_MODE_ONLINE_ELIGIBLE,
+    online_epoch: 0UL,
+    online_publication_cursor: 0UL,
   }
   let failed_owner : FailedOwnedWorkerServicePreparation = {
     initial: None,

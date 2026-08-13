@@ -307,10 +307,21 @@ pub fn SchedulerPublication::terminal_notice(
 
 ///|
 pub struct RequestHandle {
-  slot : SchedulerSlotId
+  mut slot : SchedulerSlotId
   request_id : @inference.RequestId
-  request_generation : @inference.RequestGeneration
+  mut request_generation : @inference.RequestGeneration
 } derive(Debug, Eq)
+
+///|
+/// Opaque admission publication shell. The request and handle storage are
+/// allocated before scheduler mutation; commit fills the exact handle using
+/// scalar assignments only.
+pub struct PreparedAdmission {
+  priv owner : Scheduler
+  priv request : TokenizedRequest
+  priv handle : RequestHandle
+  priv mut committed : Bool
+}
 
 ///|
 pub fn RequestHandle::slot(self : RequestHandle) -> SchedulerSlotId {
