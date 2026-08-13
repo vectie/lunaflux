@@ -40,6 +40,14 @@ dequeued, at most once. Commit is non-raising and always publishes the physical
 or output-failure cut only to that exact next-generation notice. A queued
 natural terminal is classified without reserving or inventing a cancellation.
 
+Owned online startup uses a separate boundary-restricted exclusive admission
+shell. Timeless validation and exact handle storage complete before rooted
+worker activation. While that shell is reserved, the same global mutation gate
+rejects ordinary admission, planning, cancellation, expiry, and instance-loss
+drain. Deadline is sampled only after startup; commit either installs the
+preallocated handle or consumes the shell as expired. Abort and expiry are
+one-shot, so an aliased stale shell cannot later admit.
+
 After an unrecoverable worker-instance loss, `drain_instance_loss` retires at
 most one live request per call, publishes `WorkerFailed`, and releases active
 page/table authority or removes one waiting request transactionally. Terminal
