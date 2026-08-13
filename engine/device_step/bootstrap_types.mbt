@@ -8,6 +8,7 @@ pub(all) enum DeviceBootstrapRule {
   Scope
   Artifact
   Blueprint
+  RuntimeEnvelope
   CanonicalBytes
 } derive(Debug, Eq)
 
@@ -36,6 +37,7 @@ pub struct DeviceWorkerBootstrapManifest {
   priv device_ordinal : Int
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
+  priv limits : DeviceStepLimits
   priv module_count : Int
   priv entry_point_count : Int
   priv step_count : Int
@@ -112,6 +114,15 @@ pub fn DeviceWorkerBootstrapManifest::catalog_version(
 }
 
 ///|
+/// Returns the exact descriptor and scalar envelope included in the bootstrap
+/// digest and required to contain the startup protocol envelopes.
+pub fn DeviceWorkerBootstrapManifest::device_step_limits(
+  self : DeviceWorkerBootstrapManifest,
+) -> DeviceStepLimits {
+  self.limits
+}
+
+///|
 pub fn DeviceWorkerBootstrapManifest::module_count(
   self : DeviceWorkerBootstrapManifest,
 ) -> Int {
@@ -142,6 +153,20 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
 ) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
+  let device = self.limits
+  if worker_limits.max_plan_rows() > device.max_rows() ||
+    worker_limits.max_prefill_rows() > device.max_rows() ||
+    worker_limits.max_decode_rows() > device.max_rows() ||
+    worker_limits.max_plan_tokens() > device.max_tokens() ||
+    worker_limits.max_plan_pages() > device.max_pages() ||
+    worker_limits.max_sequence_tokens() > device.max_sequence_tokens() ||
+    worker_limits.max_token_id() > device.max_token_id() ||
+    inference_limits.max_context_tokens() > device.max_sequence_tokens() ||
+    inference_limits.max_context_tokens() > worker_limits.max_sequence_tokens() ||
+    inference_limits.max_token_id() > device.max_token_id() ||
+    inference_limits.max_token_id() > worker_limits.max_token_id() {
+    raise InvalidBootstrap(RuntimeEnvelope)
+  }
   @worker_wire.WorkerStartupContract::new(
     identity=self.identity,
     bootstrap_digest=self.digest,

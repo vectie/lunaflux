@@ -62,10 +62,12 @@ inert and expose no resource authority.
 
 `admit_device_worker_bootstrap` hashes the complete admitted full-graph
 blueprint and artifact evidence into a bounded canonical binary schema. The
-digest covers model and plan identities, target, catalog-v3 ABI, live profile,
+digest covers model and plan identities, the bounded process-visible device
+ordinal, target, catalog-v3 ABI, exact descriptor/scalar limits, live profile,
 KV geometry, arena sizes, module digests, symbols, entry points, launch
-geometry, and every physical operand binding. Startup frame v2 carries that
-digest across Configure/Ready; the manifest itself owns no module bytes or
+geometry, and every physical operand binding. Startup frame v3 carries that
+digest and ordinal across Configure/Ready. Protocol and inference envelopes
+must fit the hashed device limits; the manifest itself owns no module bytes or
 device resource.
 
 `prepare_paged_graph_executor` is the first owner-mediated synchronous

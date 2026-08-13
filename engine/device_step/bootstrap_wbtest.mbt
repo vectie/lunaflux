@@ -11,13 +11,16 @@ fn bootstrap_limits(max_steps? : Int = 32) -> DeviceBootstrapLimits raise {
 }
 
 ///|
-fn bootstrap_inference_limits() -> @inference.InferenceLimits raise {
+fn bootstrap_inference_limits(
+  max_context_tokens? : Int = 8,
+  max_token_id? : Int = 7,
+) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=32,
     max_input_tokens=8,
     max_new_tokens=8,
-    max_context_tokens=8,
-    max_token_id=7,
+    max_context_tokens~,
+    max_token_id~,
     max_stop_token_ids=2,
     max_stop_strings=1,
     max_stop_string_bytes=8,
@@ -27,6 +30,29 @@ fn bootstrap_inference_limits() -> @inference.InferenceLimits raise {
     max_deadline_millis=100UL,
     max_top_k=8,
     max_temperature=4.0,
+  )
+}
+
+///|
+fn bootstrap_worker_limits(
+  max_prefill_rows? : Int = 2,
+  max_decode_rows? : Int = 2,
+  max_plan_rows? : Int = 2,
+  max_plan_tokens? : Int = 4,
+  max_plan_pages? : Int = 4,
+  max_sequence_tokens? : Int = 8,
+  max_token_id? : Int = 7,
+) -> @worker_protocol.WorkerProtocolLimits raise {
+  @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows~,
+    max_decode_rows~,
+    max_plan_rows~,
+    max_plan_tokens~,
+    max_plan_pages~,
+    max_capabilities=64,
+    max_completion_slots=32,
+    max_sequence_tokens~,
+    max_token_id~,
   )
 }
 
@@ -88,6 +114,7 @@ test "device worker bootstrap digest is canonical and complete" {
   )
   assert_eq(first.digest(), second.digest())
   assert_eq(first.identity(), blueprint.identity())
+  assert_eq(first.device_step_limits(), blueprint.limits())
   assert_eq(blueprint.limits().max_sequence_tokens(), 8)
   assert_eq(blueprint.limits().max_token_id(), 7)
   assert_eq(first.device_ordinal(), 0)
@@ -102,7 +129,7 @@ test "device worker bootstrap digest is canonical and complete" {
   )
   let startup = first.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),
-    step_protocol_limits(),
+    bootstrap_worker_limits(),
     bootstrap_inference_limits(),
     has_predecessor=false,
     predecessor_value=0UL,
@@ -110,6 +137,7 @@ test "device worker bootstrap digest is canonical and complete" {
   assert_eq(startup.identity(), first.identity())
   assert_eq(startup.bootstrap_digest(), first.digest())
   assert_eq(startup.model_generation_value(), 1UL)
+  assert_eq(startup.worker_limits().max_completion_slots(), 32)
 
   let (changed_blueprint, changed_artifacts) = bootstrap_fixture(entry_bias=100)
   let changed = admit_device_worker_bootstrap(
@@ -136,6 +164,62 @@ test "device worker bootstrap digest is canonical and complete" {
     bootstrap_limits(),
   )
   assert_true(changed_limits.digest() != first.digest())
+}
+
+///|
+test "worker startup envelopes must fit hashed device limits" {
+  let (blueprint, artifacts) = bootstrap_fixture()
+  let manifest = admit_device_worker_bootstrap(
+    blueprint,
+    artifacts,
+    device_ordinal=0,
+    bootstrap_limits(),
+  )
+  let oversized_workers = [
+    bootstrap_worker_limits(max_prefill_rows=3, max_plan_rows=3),
+    bootstrap_worker_limits(max_decode_rows=3, max_plan_rows=3),
+    bootstrap_worker_limits(max_plan_rows=3),
+    bootstrap_worker_limits(max_plan_tokens=5),
+    bootstrap_worker_limits(max_plan_pages=5),
+    bootstrap_worker_limits(max_sequence_tokens=9),
+    bootstrap_worker_limits(max_token_id=8),
+  ]
+  for oversized_worker in oversized_workers {
+    try
+      manifest.worker_startup_contract(
+        @worker_protocol.ModelPlanGeneration::first(),
+        oversized_worker,
+        bootstrap_inference_limits(),
+        has_predecessor=false,
+        predecessor_value=0UL,
+      )
+    catch {
+      InvalidBootstrap(RuntimeEnvelope) => ()
+      _ => fail("unexpected worker-envelope error")
+    } noraise {
+      _ => fail("oversized worker envelope was accepted")
+    }
+  }
+  for
+    oversized_inference in [
+      bootstrap_inference_limits(max_context_tokens=9),
+      bootstrap_inference_limits(max_token_id=8),
+    ] {
+    try
+      manifest.worker_startup_contract(
+        @worker_protocol.ModelPlanGeneration::first(),
+        bootstrap_worker_limits(),
+        oversized_inference,
+        has_predecessor=false,
+        predecessor_value=0UL,
+      )
+    catch {
+      InvalidBootstrap(RuntimeEnvelope) => ()
+      _ => fail("unexpected inference-envelope error")
+    } noraise {
+      _ => fail("oversized inference envelope was accepted")
+    }
+  }
 }
 
 ///|

@@ -76,6 +76,7 @@ pub(all) enum DeviceBootstrapRule {
   Scope
   Artifact
   Blueprint
+  RuntimeEnvelope
   CanonicalBytes
 } derive(Eq, @debug.Debug)
 
@@ -150,6 +151,7 @@ pub struct DeviceWorkerBootstrapManifest {
 }
 pub fn DeviceWorkerBootstrapManifest::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn DeviceWorkerBootstrapManifest::device_ordinal(Self) -> Int
+pub fn DeviceWorkerBootstrapManifest::device_step_limits(Self) -> DeviceStepLimits
 pub fn DeviceWorkerBootstrapManifest::digest(Self) -> @worker_wire.WorkerBootstrapDigest
 pub fn DeviceWorkerBootstrapManifest::entry_point_count(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::identity(Self) -> @spec.ModelIdentity

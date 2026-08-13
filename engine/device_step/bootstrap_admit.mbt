@@ -161,6 +161,7 @@ pub fn admit_device_worker_bootstrap(
     device_ordinal,
     target: blueprint.target(),
     catalog_version: blueprint.catalog_version(),
+    limits: blueprint.limits(),
     module_count: artifacts.module_count(),
     entry_point_count: artifacts.entry_point_count(),
     step_count: blueprint.steps().length(),

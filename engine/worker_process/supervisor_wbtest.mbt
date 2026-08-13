@@ -384,6 +384,7 @@ test "closed submissions are abandoned only in exact sequence order" {
     supervisor_startup().bootstrap_digest(),
   )
   assert_eq(recovery.model_generation_value(), 1UL)
+  assert_eq(recovery.device_ordinal(), supervisor_startup().device_ordinal())
   assert_true(recovery.has_predecessor())
   assert_eq(recovery.predecessor_value(), 2UL)
   assert_eq(owner.outstanding_count(), 0)
