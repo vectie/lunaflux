@@ -40,6 +40,11 @@ pub fn GeneratedTokenNotice::request_generation(Self) -> @inference.RequestGener
 pub fn GeneratedTokenNotice::request_id(Self) -> @inference.RequestId
 pub fn GeneratedTokenNotice::token_id(Self) -> Int
 
+pub(all) enum InstanceLossDrain {
+  Remaining(Int)
+  Complete
+} derive(Eq, @debug.Debug)
+
 pub struct RequestHandle {
   slot : SchedulerSlotId
   request_id : @inference.RequestId
@@ -76,6 +81,7 @@ pub fn Scheduler::build_next(Self) -> BuildNextOutcome raise SchedulerError
 pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
+pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
 pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
 pub fn Scheduler::fail_plan(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::free_page_count(Self) -> Int

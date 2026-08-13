@@ -220,6 +220,26 @@ if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
     failed=1
   fi
   if ! rg -q \
+    '^pub fn WorkerService::progress\(Self\) -> WorkerServiceProgress' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker service must own one nonblocking progress transition' >&2
+    failed=1
+  fi
+  if ! rg -q \
+    '^pub fn WorkerService::drain_restart_forbidden\(Self\) -> @core\.InstanceLossDrain' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'restart-forbidden service must expose deterministic terminal drain' >&2
+    failed=1
+  fi
+  if rg -n 'WorkerServiceDispatch|submit_next|complete_oldest|recover_oldest' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker service must not expose blocking fixture dispatch APIs' >&2
+    failed=1
+  fi
+  if ! rg -q \
     '^pub fn RootBoundWorkerProcessSupervisor::begin_exchange\(Self, @worker_protocol\.SubmittedSchedulePlan\) -> UInt64' \
     engine/worker_process/pkg.generated.mbti; then
     printf '%s\n' \

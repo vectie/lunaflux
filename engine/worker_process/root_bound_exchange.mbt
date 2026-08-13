@@ -306,6 +306,25 @@ fn WorkerProcessSupervisor::accept_exchange_completion_bytes(
 }
 
 ///|
+/// Commits this ready, idle owner to exchange mode for one exact predecessor.
+/// The claim is intended for the thread-confined service constructor.
+pub fn RootBoundWorkerProcessSupervisor::claim_exchange(
+  self : RootBoundWorkerProcessSupervisor,
+  predecessor : UInt64,
+) -> Unit raise RootBoundWorkerProcessError {
+  if self.lifecycle != RootBoundReady ||
+    self.transport_mode != 0 ||
+    self.active_exchange_epoch != 0UL ||
+    self.exchange_epoch == 0xffffffffffffffffUL ||
+    self.process.outstanding_count() != 0 ||
+    self.process.last_submitted != predecessor ||
+    self.process.last_retired != predecessor {
+    raise RootBoundFailure(Process(Invalid(Lifecycle)))
+  }
+  self.transport_mode = ROOT_TRANSPORT_EXCHANGE
+}
+
+///|
 /// Encodes, reserves, and begins one exact plan exchange without performing
 /// transport I/O. All mutable exchange state remains in this supervisor.
 pub fn RootBoundWorkerProcessSupervisor::begin_exchange(

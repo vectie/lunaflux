@@ -253,6 +253,57 @@ fn process_owner(
 }
 
 ///|
+fn progress_to_ready(
+  service : @worker_service.WorkerService,
+  expected : UInt64,
+) -> Unit raise {
+  match service.progress() {
+    ServiceStarted(sequence) => assert_eq(sequence, expected)
+    _ => raise Failure("service did not start the expected exchange")
+  }
+  let mut attempts = 0
+  while attempts < 1000000 {
+    match service.progress() {
+      ServicePending(sequence) => {
+        assert_eq(sequence, expected)
+        attempts += 1
+      }
+      ServiceCompletionReady(sequence) => {
+        assert_eq(sequence, expected)
+        return
+      }
+      _ => raise Failure("unexpected service exchange progress")
+    }
+  }
+  raise Failure("service exchange did not complete")
+}
+
+///|
+fn commit_ready(
+  service : @worker_service.WorkerService,
+  expected : UInt64,
+) -> Unit raise {
+  match service.progress() {
+    ServiceCommitted(sequence) => assert_eq(sequence, expected)
+    _ => raise Failure("service did not commit the expected exchange")
+  }
+}
+
+///|
+fn complete_root_exchange(
+  owner : @worker_process.RootBoundWorkerProcessSupervisor,
+) -> Unit raise {
+  let mut attempts = 0
+  while attempts < 1000000 {
+    match owner.progress_exchange() {
+      ExchangePending => attempts += 1
+      ExchangeCompleted => return
+    }
+  }
+  raise Failure("direct root exchange did not complete")
+}
+
+///|
 fn run(executable : Bytes) -> Unit raise {
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
@@ -286,12 +337,13 @@ fn run(executable : Bytes) -> Unit raise {
   )
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
-  assert_eq(service.submit_next().sequence_value(), 1UL)
-  assert_true(service.submit_next().is_backpressured())
-  assert_eq(service.complete_oldest(), 1UL)
-  assert_eq(service.submit_next().sequence_value(), 2UL)
-  try service.complete_oldest() catch {
-    Scheduler(Invalid(field=OutputCapacity, issue=Backpressured)) => ()
+  progress_to_ready(service, 1UL)
+  commit_ready(service, 1UL)
+  progress_to_ready(service, 2UL)
+  try commit_ready(service, 2UL) catch {
+    @worker_service.Scheduler(
+      Invalid(field=OutputCapacity, issue=Backpressured)
+    ) => ()
     _ => raise Failure("unexpected service publication error")
   } noraise {
     _ => raise Failure("full output ring accepted second completion")
@@ -306,7 +358,7 @@ fn run(executable : Bytes) -> Unit raise {
   let first_terminal = service.take_next_publication()
   assert_eq(first_terminal.kind(), TerminalPublication)
   assert_eq(first_terminal.terminal_notice().reason(), MaximumOutputReached)
-  assert_eq(service.complete_oldest(), 2UL)
+  commit_ready(service, 2UL)
   let second_publication = service.take_next_publication()
   assert_eq(second_publication.kind(), GeneratedTokenPublication)
   assert_eq(
@@ -322,12 +374,27 @@ fn run(executable : Bytes) -> Unit raise {
   // fresh KV arena, so restart must terminally invalidate the survivor before
   // it can become ready even with no outstanding transport frame.
   ignore(service.admit(request(103UL, max_new_tokens=2), 0UL))
-  assert_eq(service.submit_next().sequence_value(), 3UL)
-  assert_eq(service.complete_oldest(), 3UL)
+  progress_to_ready(service, 3UL)
+  commit_ready(service, 3UL)
   ignore(service.take_generated_token())
   assert_eq(service.live_request_count(), 1)
   assert_eq(service.allocated_block_table_count(), 1)
+  try service.shutdown_clean() catch {
+    Invalid(Lifecycle) => ()
+    _ => raise Failure("unexpected live-request shutdown rejection")
+  } noraise {
+    _ => raise Failure("clean shutdown discarded a live request")
+  }
   service.begin_recovery()
+  assert_eq(service.lifecycle(), ServiceDeviceInvalidationRequired)
+  try service.restart() catch {
+    Invalid(Lifecycle) => ()
+    _ => raise Failure("unexpected pre-invalidation restart rejection")
+  } noraise {
+    _ => raise Failure("replacement started before device invalidation")
+  }
+  assert_eq(service.invalidate_device_state(), 1)
+  assert_eq(service.lifecycle(), ServiceRestartReady)
   match service.restart() {
     Restarted => ()
     RestartCleanupRequired =>
@@ -339,8 +406,8 @@ fn run(executable : Bytes) -> Unit raise {
   assert_eq(service.allocated_block_table_count(), 0)
   assert_eq(service.binding(), service_binding())
   ignore(service.admit(request(104UL), 0UL))
-  assert_eq(service.submit_next().sequence_value(), 4UL)
-  assert_eq(service.complete_oldest(), 4UL)
+  progress_to_ready(service, 4UL)
+  commit_ready(service, 4UL)
   assert_eq(
     service.take_generated_token().request_id(),
     @inference.RequestId::new(104UL),
@@ -352,6 +419,9 @@ fn run(executable : Bytes) -> Unit raise {
   assert_eq(service.allocated_block_table_count(), 0)
   service.shutdown_clean()
   assert_true(service.lifecycle() == ServiceClosed)
+
+  run_terminal_drain_evidence(executable)
+  run_reservation_classification_evidence(executable)
 }
 
 ///|

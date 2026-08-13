@@ -14,6 +14,10 @@ const FLIGHT_RECEIVED : Int = 3
 pub(all) enum WorkerServiceLifecycle {
   ServiceReady
   ServiceRecovering
+  ServiceDeviceInvalidationRequired
+  ServiceRestartReady
+  ServiceRestartForbidden
+  ServiceTerminalCloseReady
   ServiceReplacementCleanup
   ServiceClosingFailed
   ServiceClosed
@@ -41,12 +45,15 @@ pub(all) suberror WorkerServiceError {
 } derive(Debug, Eq)
 
 ///|
-/// Allocation-free result of one scheduler-to-worker submission attempt.
+/// Allocation-free result of one owner-resident service transition.
 #valtype
-pub enum WorkerServiceDispatch {
-  DispatchIdle
-  DispatchBackpressured
-  DispatchSubmitted(UInt64)
+pub enum WorkerServiceProgress {
+  ServiceIdle
+  ServiceBackpressured
+  ServiceStarted(UInt64)
+  ServicePending(UInt64)
+  ServiceCompletionReady(UInt64)
+  ServiceCommitted(UInt64)
 }
 
 ///|
@@ -72,8 +79,8 @@ pub struct WorkerService {
   priv scheduler : @core.Scheduler
   priv binding : WorkerServiceBinding
   priv process : @worker_process.RootBoundWorkerProcessSupervisor
-  priv flight_states : FixedArray[Int]
-  priv flight_sequences : FixedArray[UInt64]
+  priv mut flight_state : Int
+  priv mut flight_sequence : UInt64
   priv mut lifecycle : WorkerServiceLifecycle
 }
 
@@ -122,30 +129,14 @@ pub fn WorkerServiceBinding::inference_limits(
 }
 
 ///|
-pub fn WorkerServiceDispatch::is_idle(self : WorkerServiceDispatch) -> Bool {
-  self is DispatchIdle
-}
-
-///|
-pub fn WorkerServiceDispatch::is_backpressured(
-  self : WorkerServiceDispatch,
-) -> Bool {
-  self is DispatchBackpressured
-}
-
-///|
-pub fn WorkerServiceDispatch::is_submitted(
-  self : WorkerServiceDispatch,
-) -> Bool {
-  self is DispatchSubmitted(_)
-}
-
-///|
-pub fn WorkerServiceDispatch::sequence_value(
-  self : WorkerServiceDispatch,
+pub fn WorkerServiceProgress::sequence_value(
+  self : WorkerServiceProgress,
 ) -> UInt64 raise WorkerServiceError {
   match self {
-    DispatchSubmitted(sequence) => sequence
+    ServiceStarted(sequence)
+    | ServicePending(sequence)
+    | ServiceCompletionReady(sequence)
+    | ServiceCommitted(sequence) => sequence
     _ => raise Invalid(Sequence)
   }
 }

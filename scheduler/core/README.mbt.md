@@ -30,6 +30,11 @@ order—including the cancellation cut—without merging storage or allocating a
 event queue. The lower-level per-ring dequeues remain fail-closed against a
 wrong-ring choice.
 
+After an unrecoverable worker-instance loss, `drain_instance_loss` retires at
+most one live request per call, publishes `WorkerFailed`, and releases active
+page/table authority or removes one waiting request transactionally. Terminal
+backpressure mutates nothing; `Complete` means no live request remains.
+
 Startup authenticates separate immutable intermediate-prefill, final-prefill,
 and decode capability recipes against the selected model identity and loaded
 model-plan generation, proves the worst-case per-step capability-cell envelope,

@@ -68,6 +68,34 @@ test "legacy and nonblocking exchange modes cannot mix" {
 }
 
 ///|
+test "exchange claim rejects legacy and previously used exchange owners" {
+  let legacy = test_root_bound_supervisor()
+  ignore(legacy.submit(supervisor_plan(1UL)))
+  try legacy.claim_exchange(0UL) catch {
+    RootBoundFailure(Process(Invalid(Lifecycle))) => ()
+    _ => fail("unexpected legacy claim rejection")
+  } noraise {
+    _ => fail("legacy-used owner admitted an exchange service claim")
+  }
+  legacy.close()
+
+  let used = test_root_bound_supervisor()
+  let plan = supervisor_plan(1UL, completion_slot=1)
+  ignore(used.begin_exchange(plan))
+  inject_exchange_completion(used, plan)
+  let received = used.received_for_sequence(1UL)
+  used.clear_exchange()
+  used.retire_received(received)
+  try used.claim_exchange(1UL) catch {
+    RootBoundFailure(Process(Invalid(Lifecycle))) => ()
+    _ => fail("unexpected reused exchange claim rejection")
+  } noraise {
+    _ => fail("previously used exchange owner was rebound to a service")
+  }
+  used.close()
+}
+
+///|
 test "malformed nonblocking response fail-stops the rooted supervisor" {
   let owner = test_root_bound_supervisor()
   ignore(owner.begin_exchange(supervisor_plan(1UL)))

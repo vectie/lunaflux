@@ -38,6 +38,46 @@ test "device-state invalidation fails active requests but preserves waiting work
 }
 
 ///|
+test "instance-loss drain releases active then waiting requests one at a time" {
+  let owner = wb_owner_with_capacity(1, 2)
+  let active = owner.admit(wb_request(601UL), 0UL)
+  let waiting = owner.admit(wb_request(602UL), 0UL)
+  let plan = wb_next_plan(owner)
+  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.take_generated_token())
+  assert_eq(owner.status(active.request_id()).unwrap().state(), Decode)
+  assert_eq(owner.status(waiting.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.drain_instance_loss(), Remaining(1))
+  assert_true(owner.status(active.request_id()) is None)
+  assert_eq(owner.free_page_count(), 8)
+  assert_eq(owner.allocated_block_table_count(), 0)
+  assert_eq(owner.drain_instance_loss(), Complete)
+  assert_true(owner.status(waiting.request_id()) is None)
+  assert_eq(owner.drain_instance_loss(), Complete)
+  assert_eq(owner.take_terminal_notice().reason(), WorkerFailed)
+  assert_eq(owner.take_terminal_notice().reason(), WorkerFailed)
+}
+
+///|
+test "instance-loss drain backpressure mutates no request or KV authority" {
+  let owner = wb_owner_with_capacity(1, 1)
+  let handle = owner.admit(wb_request(603UL), 0UL)
+  owner.terminal_count = owner.terminal_request_ids.length()
+  try owner.drain_instance_loss() catch {
+    Invalid(field=TerminalNoticeCapacity, issue=Backpressured) => ()
+    _ => fail("unexpected instance-loss backpressure error")
+  } noraise {
+    _ => fail("full terminal ring accepted instance-loss retirement")
+  }
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.waiting_request_count(), 1)
+  assert_eq(owner.status(handle.request_id()).unwrap().state(), Waiting)
+  owner.terminal_count = 0
+  assert_eq(owner.drain_instance_loss(), Complete)
+  assert_eq(owner.live_request_count(), 0)
+}
+
+///|
 test "device-state invalidation is transactional and rejects submitted work" {
   let owner = wb_owner_with_capacity(1, 1)
   let active = owner.admit(wb_request(498UL), 0UL)

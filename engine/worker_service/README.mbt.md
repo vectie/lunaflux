@@ -17,24 +17,31 @@ that exact contract byte-for-byte.
 The child response is evidence, never the source of expected deployment
 identity.
 
-`submit_next` checks the one-plan process credit before creating a scheduler
-obligation, then records a plan before attempting transport, so a failed write
-never loses the scheduler retirement obligation. `complete_oldest`
-receives strictly in order and keeps a validated process frame pinned while
-scheduler output or terminal publication is backpressured.
+`progress` owns the one-flight exchange state and advances exactly one logical
+transition per call: idle/backpressured, started, pending, completion-ready, or
+committed. It checks exchange credit before creating a scheduler obligation,
+records the sequence before beginning transport, and retains a received frame
+without I/O while scheduler publication is backpressured. `Committed` means
+both scheduler acceptance and process-side retirement succeeded.
 `take_next_publication` forwards the scheduler's atomic globally ordered
 dequeue, so service adapters never choose between physical token and terminal
 rings.
 
-Recovery first closes and reaps the old child. recover_oldest then commits a
-pinned valid response normally or synthesizes a retryable bounded worker-failed
-completion for an unreturned plan. The process submission is abandoned only
-after scheduler retirement succeeds. A replacement can start only after the
-single production obligation is gone and every surviving active request has
-been terminally failed and stripped of host page/table identities, because the
-new child owns a fresh device-KV arena. Waiting requests remain eligible because
-they have no device state. The replacement uses the exact non-reusing
-predecessor derived by the closed supervisor.
+Recovery first closes and reaps the old child. `recover_flight` probes for a
+pinned completion, then an exact process reservation, before synthesizing a
+bounded worker failure. The process submission is abandoned only after
+scheduler retirement succeeds. Missing reservation evidence enters explicit
+`ServiceRestartForbidden`; it can never start a replacement. Before a normal
+restart, `invalidate_device_state` is a separate retryable phase that fails
+active requests and releases their host page/table identities. Waiting requests
+remain eligible for the replacement. Operators may instead `abandon_restart`
+and incrementally `drain_restart_forbidden`; each call terminally releases at
+most one request, and only `ServiceTerminalCloseReady` can close after the drain.
+
+`shutdown_clean` rejects both an outstanding flight and any live request. The
+terminal `close` path likewise cannot silently discard request, KV, or page
+authority. Cancellation and deadline expiry remain ready-state operations and
+cannot create new recovery obligations.
 
 This owner implements deterministic failure orchestration, not retry policy,
 backoff, health endpoints, model/device loading, or CUDA readiness. Those

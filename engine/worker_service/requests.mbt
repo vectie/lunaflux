@@ -15,9 +15,7 @@ pub fn WorkerService::cancel(
   self : WorkerService,
   handle : @core.RequestHandle,
 ) -> Unit raise WorkerServiceError {
-  if self.lifecycle == ServiceClosed {
-    raise Invalid(Lifecycle)
-  }
+  self.require_lifecycle(ServiceReady)
   self.scheduler.cancel(handle) catch {
     error => raise scheduler_error(error)
   }
@@ -28,9 +26,7 @@ pub fn WorkerService::expire_deadlines(
   self : WorkerService,
   now_millis : UInt64,
 ) -> Int raise WorkerServiceError {
-  if self.lifecycle == ServiceClosed {
-    raise Invalid(Lifecycle)
-  }
+  self.require_lifecycle(ServiceReady)
   self.scheduler.expire_deadlines(now_millis) catch {
     error => raise scheduler_error(error)
   }

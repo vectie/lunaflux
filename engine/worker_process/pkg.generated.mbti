@@ -97,6 +97,7 @@ pub fn RootBoundWorkerProcessSupervisor::begin_recovery(Self) -> Unit raise Root
 pub fn RootBoundWorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn RootBoundWorkerProcessSupervisor::cause(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::child_cleanup_failure(Self) -> RootBoundWorkerProcessFailure?
+pub fn RootBoundWorkerProcessSupervisor::claim_exchange(Self, UInt64) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::close(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::has_exchange_capacity(Self) -> Bool

@@ -7,7 +7,11 @@ pub fn WorkerService::begin_recovery(
     raise Invalid(Lifecycle)
   }
   if self.process.lifecycle() == RootBoundRecovering {
-    self.lifecycle = ServiceRecovering
+    self.lifecycle = if self.flight_state == FLIGHT_EMPTY {
+      ServiceDeviceInvalidationRequired
+    } else {
+      ServiceRecovering
+    }
     return
   }
   if self.process.lifecycle() != RootBoundReady &&
@@ -19,12 +23,17 @@ pub fn WorkerService::begin_recovery(
   self.process.begin_recovery() catch {
     error => raise root_bound_process_error(error)
   }
+  if self.flight_state == FLIGHT_EMPTY {
+    self.lifecycle = ServiceDeviceInvalidationRequired
+  }
 }
 
 ///|
-/// Retires the oldest closed-child obligation. A pinned valid completion is
+/// Retires the exact closed-child obligation. A pinned valid completion is
 /// committed normally; an unreturned plan is committed as the given failure.
-pub fn WorkerService::recover_oldest(
+/// If no process reservation exists, scheduler state is still retired but this
+/// owner becomes permanently restart-forbidden.
+pub fn WorkerService::recover_flight(
   self : WorkerService,
   failure : @worker_protocol.WorkerFailure,
 ) -> UInt64 raise WorkerServiceError {
@@ -32,57 +41,98 @@ pub fn WorkerService::recover_oldest(
   if self.process.lifecycle() != RootBoundRecovering {
     raise Invalid(Recovery)
   }
-  let slot = self.oldest_slot()
-  if slot < 0 {
+  if self.flight_state == FLIGHT_EMPTY {
     raise Invalid(Sequence)
   }
-  let sequence = self.flight_sequences[slot]
-  if self.flight_states[slot] == FLIGHT_RECEIVED {
-    return self.commit_received_slot(slot)
+  let sequence = self.flight_sequence
+  try self.process.received_for_sequence(sequence) catch {
+    RootBoundFailure(Process(Invalid(Completion))) => ()
+    error => raise root_bound_process_error(error)
+  } noraise {
+    _ => {
+      self.flight_state = FLIGHT_RECEIVED
+      let committed = self.commit_received()
+      self.lifecycle = ServiceDeviceInvalidationRequired
+      return committed
+    }
   }
   let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
     error => raise scheduler_error(error)
   }
-  if self.flight_states[slot] == FLIGHT_SUBMITTED {
-    let submission = self.process.submission_for_sequence(sequence) catch {
-      error => raise root_bound_process_error(error)
+  try self.process.submission_for_sequence(sequence) catch {
+    RootBoundFailure(Process(Invalid(Submission))) => {
+      self.scheduler.fail_plan(plan, failure) catch {
+        error => raise scheduler_error(error)
+      }
+      self.clear_flight()
+      self.lifecycle = ServiceRestartForbidden
+      return sequence
     }
-    self.process.validate_abandonment(submission) catch {
-      error => raise root_bound_process_error(error)
+    error => raise root_bound_process_error(error)
+  } noraise {
+    submission => {
+      self.process.validate_abandonment(submission) catch {
+        error => raise root_bound_process_error(error)
+      }
+      self.scheduler.fail_plan(plan, failure) catch {
+        error => raise scheduler_error(error)
+      }
+      self.process.abandon_submission(submission) catch {
+        error => raise root_bound_process_error(error)
+      }
     }
-    self.scheduler.fail_plan(plan, failure) catch {
-      error => raise scheduler_error(error)
-    }
-    self.process.abandon_submission(submission) catch {
-      error => raise root_bound_process_error(error)
-    }
-  } else if self.flight_states[slot] == FLIGHT_PLANNED {
-    self.scheduler.fail_plan(plan, failure) catch {
-      error => raise scheduler_error(error)
-    }
-  } else {
-    raise Invalid(Recovery)
   }
-  self.clear_slot(slot)
+  self.clear_flight()
+  self.lifecycle = ServiceDeviceInvalidationRequired
   sequence
+}
+
+///|
+pub fn WorkerService::invalidate_device_state(
+  self : WorkerService,
+) -> Int raise WorkerServiceError {
+  self.require_lifecycle(ServiceDeviceInvalidationRequired)
+  let count = self.scheduler.invalidate_device_state() catch {
+    error => raise scheduler_error(error)
+  }
+  self.lifecycle = ServiceRestartReady
+  count
+}
+
+///|
+/// Deterministically terminally retires one live request after reservation
+/// ambiguity made replacement unsafe. `Complete` enables terminal close.
+pub fn WorkerService::drain_restart_forbidden(
+  self : WorkerService,
+) -> @core.InstanceLossDrain raise WorkerServiceError {
+  self.require_lifecycle(ServiceRestartForbidden)
+  let progress = self.scheduler.drain_instance_loss() catch {
+    error => raise scheduler_error(error)
+  }
+  if progress is Complete {
+    self.lifecycle = ServiceTerminalCloseReady
+  }
+  progress
+}
+
+///|
+/// Permanently abandons replacement from a restart-ready state. Retained
+/// waiting work must then be terminally drained before close.
+pub fn WorkerService::abandon_restart(
+  self : WorkerService,
+) -> Unit raise WorkerServiceError {
+  self.require_lifecycle(ServiceRestartReady)
+  self.lifecycle = ServiceRestartForbidden
 }
 
 ///|
 pub fn WorkerService::restart(
   self : WorkerService,
 ) -> WorkerServiceRestart raise WorkerServiceError {
-  self.require_lifecycle(ServiceRecovering)
+  self.require_lifecycle(ServiceRestartReady)
   if self.outstanding_count() != 0 {
     raise Invalid(Recovery)
   }
-  // A replacement owns a fresh device KV arena. Sequence continuity cannot
-  // authenticate bytes from the lost arena, so every remaining active request
-  // must terminally release its host page/table identities before spawn.
-  ignore(
-    self.scheduler.invalidate_device_state() catch {
-      error => raise scheduler_error(error)
-    },
-  )
   let startup = self.process.recovery_startup_contract() catch {
     error => raise root_bound_process_error(error)
   }
@@ -113,7 +163,7 @@ pub fn WorkerService::retry_restart_cleanup(
   self.process.retry_replacement_cleanup() catch {
     error => raise root_bound_process_error(error)
   }
-  self.lifecycle = ServiceRecovering
+  self.lifecycle = ServiceRestartReady
 }
 
 ///|
@@ -121,7 +171,7 @@ pub fn WorkerService::shutdown_clean(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
-  if self.outstanding_count() != 0 {
+  if self.outstanding_count() != 0 || self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }
   self.process.shutdown_clean() catch {
@@ -162,7 +212,10 @@ pub fn WorkerService::close(
   if self.lifecycle == ServiceClosed {
     return
   }
-  if self.outstanding_count() != 0 {
+  if self.outstanding_count() != 0 || self.scheduler.live_request_count() != 0 {
+    raise Invalid(Lifecycle)
+  }
+  if self.lifecycle == ServiceRestartForbidden {
     raise Invalid(Lifecycle)
   }
   self.process.close() catch {

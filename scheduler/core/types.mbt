@@ -45,6 +45,14 @@ pub enum BuildNextOutcome {
 }
 
 ///|
+/// Allocation-free progress for deterministic instance-loss retirement.
+#valtype
+pub(all) enum InstanceLossDrain {
+  Remaining(Int)
+  Complete
+} derive(Debug, Eq)
+
+///|
 pub fn BuildNextOutcome::is_idle(self : BuildNextOutcome) -> Bool {
   match self {
     BuildIdle => true
