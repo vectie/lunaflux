@@ -33,10 +33,18 @@ pub struct PagedKvAotLaunchContract {
 } derive(Debug, Eq)
 
 ///|
+/// Exact semantic coverage of one paged launch-contract set.
+pub(all) enum PagedContractScope {
+  KvSubsequence
+  FullGraph
+} derive(Debug, Eq)
+
+///|
 pub struct PagedKvLaunchContractSet {
   model_identity : @spec.ModelIdentity
   device_target : @catalog.DeviceTarget
   catalog_version : @catalog.CatalogVersion
+  scope : PagedContractScope
   device_kv_layout : @device_layout.DeviceKvLayout
   profiles : ReadOnlyArray[PagedKernelProfile]
   contracts : ReadOnlyArray[PagedKvAotLaunchContract]
@@ -57,6 +65,13 @@ pub fn PagedKvAotLaunchContractInput::new(
     dimensions,
     operands: ReadOnlyArray::from_array(operands),
   }
+}
+
+///|
+pub fn PagedKvLaunchContractSet::scope(
+  self : PagedKvLaunchContractSet,
+) -> PagedContractScope {
+  self.scope
 }
 
 ///|

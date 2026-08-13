@@ -58,6 +58,9 @@ fn validate_blueprint_evidence(
     artifacts.catalog_version() != catalog {
     raise blueprint_error(CatalogVersion)
   }
+  if contracts.scope() != KvSubsequence {
+    raise blueprint_error(ContractSemantics)
+  }
   if memory_plan.operation_count() != model_plan.operations().length() ||
     memory_plan.token_rows() <= 0L ||
     memory_plan.arena_bytes() <= 0L {

@@ -44,5 +44,8 @@ count only sizes each admitted component span and never specializes indexing.
 Paged admission verifies model, catalog, and physical-layout identities and
 geometry, but returns inert metadata only. It does not load a CUDA module,
 construct device arguments, launch a kernel, or claim executor support.
-It deliberately omits embedding, projections, normalization, residual, MLP,
-and language-model-head launches; supplying any such contract fails closed.
+`admit_paged_kv` deliberately omits embedding, projections, normalization,
+residual, MLP, and language-model-head launches; supplying any such contract
+fails closed. `admit_paged_graph` instead requires one exact AOT contract for
+every operation and marks the result `FullGraph`. The explicit scope prevents
+partial rotary/attention evidence from being mistaken for a complete graph.

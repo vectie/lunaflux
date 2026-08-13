@@ -47,6 +47,10 @@ and scalar offsets/spans into separately owned descriptor, activation, and KV
 arenas. It opens no native resource and exposes no allocation, device address,
 kernel argument, or launch method.
 
+This narrow blueprint accepts only a `KvSubsequence` launch-contract set. A
+`FullGraph` set is intentionally rejected until a separate executor blueprint
+binds token IDs, weights, every activation, workspace, and persistent KV.
+
 These are descriptor staging and startup admission, not paged attention or
 model execution. The separate native release gate in `tests/device_step_alloc`
 instruments the

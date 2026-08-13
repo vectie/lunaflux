@@ -165,8 +165,14 @@ fn paged_input_for(
 }
 
 ///|
-fn is_paged_kv_operation(operation : @plan.PlanOperation) -> Bool {
-  operation.kind() is (RotaryEmbedding | CausalAttention)
+fn operation_in_paged_scope(
+  operation : @plan.PlanOperation,
+  scope : PagedContractScope,
+) -> Bool {
+  match scope {
+    KvSubsequence => operation.kind() is (RotaryEmbedding | CausalAttention)
+    FullGraph => true
+  }
 }
 
 ///|
@@ -206,21 +212,14 @@ fn validate_paged_binding(
 }
 
 ///|
-/// Admits only positioned-rotary and paged-attention AOT metadata.
-///
-/// Operand positions are part of semantic version 2. `StepCounts` is exactly
-/// five little-endian Int32 values; every other runtime role is an exact Int32
-/// capacity. Persistent KV is the exact ordered Key and Value component-base
-/// pair for the semantic layer; total physical page count only sizes spans.
-/// Contracts for every other model operation are rejected: this set does not
-/// claim full-graph or worker-step execution support.
-pub fn admit_paged_kv(
+fn admit_paged_scope(
   model_plan : @plan.ModelPlan,
   resolved : @catalog.ResolvedKernelCatalog,
   device_kv_layout : @device_layout.DeviceKvLayout,
   profiles : ArrayView[PagedKernelProfile],
   inputs : ArrayView[PagedKvAotLaunchContractInput],
   limits : LaunchContractLimits,
+  scope : PagedContractScope,
 ) -> PagedKvLaunchContractSet raise LaunchContractError {
   if model_plan.kv_execution() != PagedKeyValue {
     raise UnsupportedExecutionContract
@@ -261,7 +260,7 @@ pub fn admit_paged_kv(
     guard operation_index(operations, input.operation_id) is Some(op_index) else {
       raise BindingOrderMismatch(input.operation_id)
     }
-    if !is_paged_kv_operation(operations[op_index]) {
+    if !operation_in_paged_scope(operations[op_index], scope) {
       raise ContractForNonPagedKvOperation(input.profile_id, input.operation_id)
     }
     let binding = bindings[op_index]
@@ -294,7 +293,7 @@ pub fn admit_paged_kv(
   let admitted : Array[PagedKvAotLaunchContract] = []
   for profile in profiles {
     for index, operation in operations {
-      if !is_paged_kv_operation(operation) {
+      if !operation_in_paged_scope(operation, scope) {
         continue
       }
       let binding = bindings[index]
@@ -334,8 +333,63 @@ pub fn admit_paged_kv(
     model_identity: model_plan.identity(),
     device_target: resolved.device_target(),
     catalog_version: resolved.catalog_version(),
+    scope,
     device_kv_layout,
     profiles: ReadOnlyArray::from_array(profiles),
     contracts: ReadOnlyArray::from_array(admitted),
   }
+}
+
+///|
+/// Admits only positioned-rotary and paged-attention AOT metadata.
+///
+/// Operand positions are part of semantic version 2. `StepCounts` is exactly
+/// five little-endian Int32 values; every other runtime role is an exact Int32
+/// capacity. Persistent KV is the exact ordered Key and Value component-base
+/// pair for the semantic layer; total physical page count only sizes spans.
+/// Contracts for every other model operation are rejected: this set does not
+/// claim full-graph or worker-step execution support.
+pub fn admit_paged_kv(
+  model_plan : @plan.ModelPlan,
+  resolved : @catalog.ResolvedKernelCatalog,
+  device_kv_layout : @device_layout.DeviceKvLayout,
+  profiles : ArrayView[PagedKernelProfile],
+  inputs : ArrayView[PagedKvAotLaunchContractInput],
+  limits : LaunchContractLimits,
+) -> PagedKvLaunchContractSet raise LaunchContractError {
+  admit_paged_scope(
+    model_plan,
+    resolved,
+    device_kv_layout,
+    profiles,
+    inputs,
+    limits,
+    KvSubsequence,
+  )
+}
+
+///|
+/// Admits one exact AOT contract for every operation in a full-live paged graph.
+///
+/// Runtime inputs lead each positional ABI, followed by semantic model/weight/
+/// activation inputs, outputs, optional Key and Value component bases, and
+/// optional workspace. The result is inert startup evidence; it loads no
+/// module, allocates no device memory, and launches no work.
+pub fn admit_paged_graph(
+  model_plan : @plan.ModelPlan,
+  resolved : @catalog.ResolvedKernelCatalog,
+  device_kv_layout : @device_layout.DeviceKvLayout,
+  profiles : ArrayView[PagedKernelProfile],
+  inputs : ArrayView[PagedKvAotLaunchContractInput],
+  limits : LaunchContractLimits,
+) -> PagedKvLaunchContractSet raise LaunchContractError {
+  admit_paged_scope(
+    model_plan,
+    resolved,
+    device_kv_layout,
+    profiles,
+    inputs,
+    limits,
+    FullGraph,
+  )
 }

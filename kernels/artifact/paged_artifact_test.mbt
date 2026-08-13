@@ -9,6 +9,29 @@ fn paged_exports(
 }
 
 ///|
+test "full paged graph artifact admission includes non-KV entry points" {
+  let source = b"paged-full-graph-cubin".to_fixedarray()
+  let digest = digest_for(source)
+  let contracts = paged_artifact_full_contracts(digest)
+  let exports = [
+    export_input(digest, 10, 3, "embedding_live"),
+    export_input(digest, 11, 1, "shared_paged_symbol"),
+    export_input(digest, 12, 2, "shared_paged_symbol"),
+  ]
+  let bundle = @artifact.admit_paged_kv(
+    contracts,
+    [@artifact.KernelModuleInput::new(digest~, module_bytes=source)],
+    exports,
+    limits(),
+  )
+  assert_eq(contracts.scope(), FullGraph)
+  assert_eq(contracts.contracts().length(), 5)
+  assert_eq(bundle.module_count(), 1)
+  assert_eq(bundle.entry_point_count(), 3)
+  assert_eq(bundle.entry_points()[0].function_symbol(), "embedding_live")
+}
+
+///|
 test "paged artifact admission deduplicates shared layer identities" {
   let source = b"paged-multi-layer-cubin".to_fixedarray()
   let snapshot = Bytes::from_array(source)

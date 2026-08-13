@@ -231,6 +231,7 @@ fn paged_operands(operation : Int) -> Array[@launch_contract.AotOperand] raise {
   match operation {
     0 =>
       [
+        operand(RuntimeInput(StepCounts), 20L, 4L),
         operand(ExternalInput(TokenIds), 16L, 4L),
         operand(WeightInput(@plan.TensorRef::new(0)), 4096L, 16L),
         operand(ActivationOutput(@plan.ActivationRef::new(0)), 128L, 16L),
@@ -296,6 +297,7 @@ test "paged v2 contract fixes canonical staged operand positions" {
     paged_limits_fixture(),
   )
   assert_eq(set.catalog_version(), @catalog.CatalogVersion::v2())
+  assert_eq(set.scope(), KvSubsequence)
   assert_eq(set.contracts().length(), 2)
   let contract = set.contracts()[1]
   assert_eq(contract.semantic_version(), @catalog.KernelSemanticVersion::v2())

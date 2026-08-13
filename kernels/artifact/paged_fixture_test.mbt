@@ -232,6 +232,18 @@ fn paged_artifact_operand(
 fn paged_artifact_operands(
   operation_id : Int,
 ) -> Array[@launch_contract.AotOperand] raise {
+  if operation_id == 0 {
+    return [
+      paged_artifact_operand(RuntimeInput(StepCounts), 20L, 4L),
+      paged_artifact_operand(ExternalInput(TokenIds), 16L, 4L),
+      paged_artifact_operand(WeightInput(@plan.TensorRef::new(0)), 4096L, 16L),
+      paged_artifact_operand(
+        ActivationOutput(@plan.ActivationRef::new(0)),
+        128L,
+        16L,
+      ),
+    ]
+  }
   let layer = @plan.KvLayerId::new((operation_id - 1) / 2)
   let input = @plan.ActivationRef::new(operation_id - 1)
   let output = @plan.ActivationRef::new(operation_id)
@@ -256,6 +268,51 @@ fn paged_artifact_operands(
       paged_artifact_operand(PersistentKvComponent(layer, Value), 2048L, 256L),
     ]
   }
+}
+
+///|
+fn paged_artifact_full_contracts(
+  digest : @catalog.AotArtifactDigest,
+) -> @launch_contract.PagedKvLaunchContractSet raise {
+  let profile_id = @launch_contract.KernelProfileId::from_stable_int(1)
+  let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []
+  for operation_id in 0..<5 {
+    let (family_id, entry_id) = if operation_id == 0 {
+      (10, 3)
+    } else if operation_id % 2 == 1 {
+      (11, 1)
+    } else {
+      (12, 2)
+    }
+    inputs.push(
+      @launch_contract.PagedKvAotLaunchContractInput::new(
+        profile_id~,
+        operation_id=@plan.OperationId::new(operation_id),
+        entry_point=entry(digest, family_id, entry_id),
+        dimensions=dimensions(4),
+        operands=paged_artifact_operands(operation_id),
+      ),
+    )
+  }
+  @launch_contract.admit_paged_graph(
+    paged_artifact_plan(),
+    paged_artifact_catalog(digest),
+    paged_artifact_layout(),
+    [
+      @launch_contract.PagedKernelProfile::new(
+        id=profile_id,
+        max_query_rows=2,
+        max_query_tokens=4,
+        max_page_table_entries=4,
+      ),
+    ],
+    inputs,
+    @launch_contract.LaunchContractLimits::new(
+      max_profiles=2,
+      max_contracts=8,
+      max_operands_per_contract=16,
+    ),
+  )
 }
 
 ///|

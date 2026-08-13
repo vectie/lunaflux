@@ -12,6 +12,8 @@ import {
 // Values
 pub fn admit(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, ArrayView[KernelProfile], ArrayView[AotLaunchContractInput], LaunchContractLimits) -> LaunchContractSet raise LaunchContractError
 
+pub fn admit_paged_graph(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, @device_layout.DeviceKvLayout, ArrayView[PagedKernelProfile], ArrayView[PagedKvAotLaunchContractInput], LaunchContractLimits) -> PagedKvLaunchContractSet raise LaunchContractError
+
 pub fn admit_paged_kv(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, @device_layout.DeviceKvLayout, ArrayView[PagedKernelProfile], ArrayView[PagedKvAotLaunchContractInput], LaunchContractLimits) -> PagedKvLaunchContractSet raise LaunchContractError
 
 // Errors
@@ -175,6 +177,11 @@ pub(all) enum OperandRule {
   PersistentKvMismatch
 } derive(Eq, @debug.Debug)
 
+pub(all) enum PagedContractScope {
+  KvSubsequence
+  FullGraph
+} derive(Eq, @debug.Debug)
+
 pub struct PagedKernelProfile {
   id : KernelProfileId
   max_query_rows : Int
@@ -235,6 +242,7 @@ pub struct PagedKvLaunchContractSet {
   model_identity : @spec.ModelIdentity
   device_target : @catalog.DeviceTarget
   catalog_version : @catalog.CatalogVersion
+  scope : PagedContractScope
   device_kv_layout : @device_layout.DeviceKvLayout
   profiles : ReadOnlyArray[PagedKernelProfile]
   contracts : ReadOnlyArray[PagedKvAotLaunchContract]
@@ -245,6 +253,7 @@ pub fn PagedKvLaunchContractSet::device_kv_layout(Self) -> @device_layout.Device
 pub fn PagedKvLaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
 pub fn PagedKvLaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
 pub fn PagedKvLaunchContractSet::profiles(Self) -> ReadOnlyArray[PagedKernelProfile]
+pub fn PagedKvLaunchContractSet::scope(Self) -> PagedContractScope
 
 pub(all) enum ProfileRule {
   NonPositiveId
