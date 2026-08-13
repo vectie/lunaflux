@@ -36,11 +36,13 @@ pub fn ChildExit::kind(Self) -> Int
 pub struct ChildProcess {
   // private fields
 }
-pub fn ChildProcess::begin_read_frame(Self, FixedArray[Byte], staging~ : FixedArray[Byte], timeout_millis? : Int) -> PendingFrameRead raise ProcessError
-pub fn ChildProcess::begin_write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, timeout_millis? : Int) -> PendingFrameWrite raise ProcessError
+pub fn ChildProcess::begin_read_frame(Self, FixedArray[Byte], staging~ : FixedArray[Byte], timeout_millis? : Int) -> Unit raise ProcessError
+pub fn ChildProcess::begin_write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, timeout_millis? : Int) -> Unit raise ProcessError
 pub fn ChildProcess::close(Self) -> Unit raise ProcessError
 pub fn ChildProcess::is_closed(Self) -> Bool
 pub fn ChildProcess::is_failed(Self) -> Bool
+pub fn ChildProcess::progress_read_frame(Self) -> Int? raise ProcessError
+pub fn ChildProcess::progress_write_frame(Self) -> Bool raise ProcessError
 pub fn ChildProcess::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn ChildProcess::read_frame_with_timeout(Self, FixedArray[Byte], timeout_millis~ : Int) -> Int raise ProcessError
 pub fn ChildProcess::shutdown_write(Self) -> Unit raise ProcessError
@@ -57,16 +59,6 @@ pub fn InheritedChannel::is_failed(Self) -> Bool
 pub fn InheritedChannel::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::read_frame_or_eof(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
-
-pub struct PendingFrameRead {
-  // private fields
-}
-pub fn PendingFrameRead::progress(Self) -> Int? raise ProcessError
-
-pub struct PendingFrameWrite {
-  // private fields
-}
-pub fn PendingFrameWrite::progress(Self) -> Bool raise ProcessError
 
 pub(all) enum ProcessLimitRule {
   FrameBytes

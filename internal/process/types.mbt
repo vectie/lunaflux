@@ -41,41 +41,17 @@ pub struct ChildProcess {
   priv limits : ProcessLimits
   priv write_prefix : FixedArray[Byte]
   priv read_prefix : FixedArray[Byte]
-  priv mut next_transfer_epoch : UInt64
-  priv mut active_write_epoch : UInt64
-  priv mut active_read_epoch : UInt64
+  priv mut transfer_kind : Int
+  priv empty_transfer_buffer : FixedArray[Byte]
+  priv mut transfer_primary : FixedArray[Byte]
+  priv mut transfer_secondary : FixedArray[Byte]
+  priv mut transfer_offset : Int
+  priv mut transfer_byte_count : Int
+  priv mut transfer_deadline_millis : Int64
+  priv mut transfer_phase : Int
+  priv mut transfer_cursor : Int
   priv mut failed : Bool
   priv mut closed : Bool
-}
-
-///|
-/// Opaque authority for one frame write bound to its creating child and
-/// transfer epoch. A child admits only one pending transfer in either
-/// direction. The source must not be mutated until completion.
-pub struct PendingFrameWrite {
-  priv owner : ChildProcess
-  priv epoch : UInt64
-  priv source : FixedArray[Byte]
-  priv source_offset : Int
-  priv byte_count : Int
-  priv deadline_millis : Int64
-  priv mut phase : Int
-  priv mut cursor : Int
-}
-
-///|
-/// Opaque authority for one transactional frame read bound to its creating
-/// child and transfer epoch. A child admits only one pending transfer in
-/// either direction. Destination publication occurs only on success.
-pub struct PendingFrameRead {
-  priv owner : ChildProcess
-  priv epoch : UInt64
-  priv destination : FixedArray[Byte]
-  priv staging : FixedArray[Byte]
-  priv deadline_millis : Int64
-  priv mut phase : Int
-  priv mut cursor : Int
-  priv mut byte_count : Int
 }
 
 ///|

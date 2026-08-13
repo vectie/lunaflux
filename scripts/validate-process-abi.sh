@@ -39,6 +39,20 @@ if ! rg -q 'MSG_DONTWAIT' internal/process/process_io.c ||
   exit 1
 fi
 
+if rg -q 'PendingFrame(Read|Write)' internal/process/types.mbt ||
+  ! rg -q 'pub fn ChildProcess::begin_write_frame' \
+    internal/process/pending_frame.mbt ||
+  ! rg -q 'pub fn ChildProcess::progress_write_frame' \
+    internal/process/pending_frame.mbt ||
+  ! rg -q 'pub fn ChildProcess::begin_read_frame' \
+    internal/process/pending_frame.mbt ||
+  ! rg -q 'pub fn ChildProcess::progress_read_frame' \
+    internal/process/pending_frame.mbt; then
+  printf '%s\n' \
+    'pending frame state must remain owner-resident without public tokens' >&2
+  exit 1
+fi
+
 for source_file in internal/process/process.c \
   internal/process/process_io.c \
   internal/process/process_io_asan_probe.c \

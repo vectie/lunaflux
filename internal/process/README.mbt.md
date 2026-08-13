@@ -8,17 +8,20 @@ created.
 
 All public transfers are exact length-delimited frames over caller-owned fixed
 storage. The two four-byte prefixes are allocated once at spawn. Parent-side
-online callers can begin opaque epoch-bound frame capabilities and advance
-them with one nonblocking native `send` or `recv` per `progress` call.
+online callers begin one owner-resident transfer and ask that same child for
+one nonblocking native `send` or `recv` per progress call. All mutable pending
+state and retained buffer references live in the long-lived `ChildProcess`;
+begin and progress create no per-frame token or state allocation.
 `EAGAIN`, `EWOULDBLOCK`, and `EINTR` remain pending. One absolute monotonic
 deadline covers the complete prefix and payload and is never reset by partial
 progress. A transactional read requires separate caller-owned staging storage
 and does not copy into its published destination until the complete declared
 frame has been received and validated.
 
-MoonBit fixed arrays remain mutable aliases: the capability retains the exact
-array reference but cannot prevent its holder from mutating it. Therefore the
-capability and all retained source, staging, and destination arrays must be
+MoonBit fixed arrays remain mutable aliases: the child retains the exact array
+references but cannot prevent their holder from mutating them. Retained
+references are cleared on completion, poison, and close. Therefore the
+child and all retained source, staging, and destination arrays must be
 confined to one higher-level owner and not exposed or mutated while active.
 Read begin rejects destination/staging identity aliasing. This confinement is
 part of the API contract rather than a claim of language-enforced ownership.
@@ -57,3 +60,9 @@ its existing argv/environment behavior.
 `_exit(1)` only after explicit owner cleanup so a rejected bootstrap terminates
 nonzero without runtime diagnostics or buffered writes reaching the private
 channel.
+
+`scripts/validate-process-allocations.sh` inspects release-generated C for all
+four begin/progress functions. It permits typed `ProcessError` construction on
+exceptional branches but rejects per-frame heap, array, string, ref, or token
+construction; a dedicated fixed-array allocation keeps the gate positively
+controlled.

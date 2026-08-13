@@ -45,14 +45,21 @@ pub fn spawn(
     ignore(raw_close(handle))
     raise SpawnFailed
   }
+  let empty_transfer_buffer = FixedArray::make(0, b'\x00')
   {
     handle,
     limits,
     write_prefix: FixedArray::make(4, b'\x00'),
     read_prefix: FixedArray::make(4, b'\x00'),
-    next_transfer_epoch: 1UL,
-    active_write_epoch: 0UL,
-    active_read_epoch: 0UL,
+    transfer_kind: 0,
+    empty_transfer_buffer,
+    transfer_primary: empty_transfer_buffer,
+    transfer_secondary: empty_transfer_buffer,
+    transfer_offset: 0,
+    transfer_byte_count: 0,
+    transfer_deadline_millis: 0L,
+    transfer_phase: 0,
+    transfer_cursor: 0,
     failed: false,
     closed: false,
   }
@@ -73,14 +80,21 @@ pub fn spawn_with_approved_roots(
     ignore(raw_close(handle))
     raise SpawnFailed
   }
+  let empty_transfer_buffer = FixedArray::make(0, b'\x00')
   {
     handle,
     limits,
     write_prefix: FixedArray::make(4, b'\x00'),
     read_prefix: FixedArray::make(4, b'\x00'),
-    next_transfer_epoch: 1UL,
-    active_write_epoch: 0UL,
-    active_read_epoch: 0UL,
+    transfer_kind: 0,
+    empty_transfer_buffer,
+    transfer_primary: empty_transfer_buffer,
+    transfer_secondary: empty_transfer_buffer,
+    transfer_offset: 0,
+    transfer_byte_count: 0,
+    transfer_deadline_millis: 0L,
+    transfer_phase: 0,
+    transfer_cursor: 0,
     failed: false,
     closed: false,
   }
@@ -116,7 +130,7 @@ fn ChildProcess::write_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
-  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+  if self.transfer_kind != 0 {
     raise InvalidState(Write)
   }
   if offset < 0 ||
@@ -148,7 +162,7 @@ fn ChildProcess::read_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
-  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+  if self.transfer_kind != 0 {
     raise InvalidState(Read)
   }
   if offset < 0 ||
@@ -213,7 +227,7 @@ pub fn ChildProcess::write_frame_with_timeout(
   timeout_millis~ : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
-  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+  if self.transfer_kind != 0 {
     raise InvalidState(Write)
   }
   if byte_count <= 0 ||
@@ -421,7 +435,7 @@ pub fn ChildProcess::shutdown_write(
   self : ChildProcess,
 ) -> Unit raise ProcessError {
   self.require_usable(ShutdownWrite)
-  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+  if self.transfer_kind != 0 {
     raise InvalidState(ShutdownWrite)
   }
   raise_status(raw_shutdown_write(self.handle), ShutdownWrite) catch {
@@ -458,6 +472,12 @@ pub fn ChildProcess::close(self : ChildProcess) -> Unit raise ProcessError {
   if self.closed {
     return
   }
-  raise_status(raw_close(self.handle), Close)
+  self.clear_pending_transfer()
+  raise_status(raw_close(self.handle), Close) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
   self.closed = true
 }

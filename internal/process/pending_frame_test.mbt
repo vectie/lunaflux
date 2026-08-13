@@ -10,9 +10,9 @@ fn pending_test_limits(
 }
 
 ///|
-fn finish_pending_write(pending : @process.PendingFrameWrite) -> Unit raise {
+fn finish_pending_write(child : @process.ChildProcess) -> Unit raise {
   for _ in 0..<100000 {
-    if pending.progress() {
+    if child.progress_write_frame() {
       return
     }
   }
@@ -20,9 +20,9 @@ fn finish_pending_write(pending : @process.PendingFrameWrite) -> Unit raise {
 }
 
 ///|
-fn finish_pending_read(pending : @process.PendingFrameRead) -> Int raise {
+fn finish_pending_read(child : @process.ChildProcess) -> Int raise {
   for _ in 0..<100000 {
-    match pending.progress() {
+    match child.progress_read_frame() {
       Some(byte_count) => return byte_count
       None => ()
     }
@@ -31,7 +31,7 @@ fn finish_pending_read(pending : @process.PendingFrameRead) -> Int raise {
 }
 
 ///|
-test "nonblocking frame capabilities preserve one-flight transactional state" {
+test "owner-resident nonblocking frames preserve one-flight state" {
   let child = @process.spawn(b"/bin/cat", pending_test_limits())
   let source = FixedArray::make(8, b'\x00')
   source[2] = b'l'
@@ -40,12 +40,7 @@ test "nonblocking frame capabilities preserve one-flight transactional state" {
   source[5] = b'a'
   let destination = FixedArray::make(8, b'\x33')
   let staging = FixedArray::make(8, b'\x44')
-  let write = child.begin_write_frame(
-    source,
-    offset=2,
-    byte_count=4,
-    timeout_millis=1000,
-  )
+  child.begin_write_frame(source, offset=2, byte_count=4, timeout_millis=1000)
   try
     child.begin_write_frame(source, offset=2, byte_count=4, timeout_millis=1000)
   catch {
@@ -60,15 +55,15 @@ test "nonblocking frame capabilities preserve one-flight transactional state" {
   } noraise {
     _ => fail("read overlapped pending write")
   }
-  assert_false(write.progress())
-  finish_pending_write(write)
-  try write.progress() catch {
+  assert_false(child.progress_write_frame())
+  finish_pending_write(child)
+  try child.progress_write_frame() catch {
     InvalidState(Write) => ()
     _ => fail("unexpected completed write error")
   } noraise {
-    _ => fail("completed write capability was reusable")
+    _ => fail("completed write transfer was reusable")
   }
-  let read = child.begin_read_frame(destination, staging~, timeout_millis=1000)
+  child.begin_read_frame(destination, staging~, timeout_millis=1000)
   try
     child.begin_write_frame(source, offset=2, byte_count=4, timeout_millis=1000)
   catch {
@@ -78,17 +73,17 @@ test "nonblocking frame capabilities preserve one-flight transactional state" {
     _ => fail("write overlapped pending read")
   }
   assert_eq(destination, FixedArray::make(8, b'\x33'))
-  assert_eq(finish_pending_read(read), 4)
+  assert_eq(finish_pending_read(child), 4)
   assert_eq(destination[0], b'l')
   assert_eq(destination[1], b'u')
   assert_eq(destination[2], b'n')
   assert_eq(destination[3], b'a')
   assert_eq(destination[4], b'\x33')
-  try read.progress() catch {
+  try child.progress_read_frame() catch {
     InvalidState(Read) => ()
     _ => fail("unexpected completed read error")
   } noraise {
-    _ => fail("completed read capability was reusable")
+    _ => fail("completed read transfer was reusable")
   }
   child.shutdown_write()
   ignore(child.wait())
@@ -100,14 +95,10 @@ test "transactional read keeps destination unchanged on channel failure" {
   let child = @process.spawn(b"/usr/bin/true", pending_test_limits())
   let destination = FixedArray::make(8, b'\x55')
   let staging = FixedArray::make(8, b'\x00')
-  let pending = child.begin_read_frame(
-    destination,
-    staging~,
-    timeout_millis=1000,
-  )
+  child.begin_read_frame(destination, staging~, timeout_millis=1000)
   let mut failed = false
   for _ in 0..<100000 {
-    try pending.progress() catch {
+    try child.progress_read_frame() catch {
       ChannelClosed(Read) => {
         failed = true
         break

@@ -7,24 +7,25 @@ test "one-attempt frame progress retains one absolute deadline and source" {
   )
   let child = spawn(b"/bin/cat", limits)
   let source = FixedArray::make(4, b'x')
-  let pending = child.begin_write_frame(
-    source,
-    offset=0,
-    byte_count=4,
-    timeout_millis=1000,
-  )
-  let deadline = pending.deadline_millis
-  assert_true(physical_equal(pending.source, source))
-  assert_eq(pending.phase, 0)
-  assert_false(pending.progress())
-  assert_eq(pending.phase, 1)
-  assert_eq(pending.deadline_millis, deadline)
+  child.begin_write_frame(source, offset=0, byte_count=4, timeout_millis=1000)
+  let deadline = child.transfer_deadline_millis
+  assert_true(physical_equal(child.transfer_primary, source))
+  assert_eq(child.transfer_phase, 0)
+  assert_false(child.progress_write_frame())
+  assert_eq(child.transfer_phase, 1)
+  assert_eq(child.transfer_deadline_millis, deadline)
   for _ in 0..<100000 {
-    if pending.progress() {
+    if child.progress_write_frame() {
       break
     }
   }
-  assert_eq(pending.deadline_millis, deadline)
+  assert_eq(child.transfer_deadline_millis, 0L)
+  assert_true(
+    physical_equal(child.transfer_primary, child.empty_transfer_buffer),
+  )
+  assert_true(
+    physical_equal(child.transfer_secondary, child.empty_transfer_buffer),
+  )
   child.close()
 }
 
@@ -36,23 +37,29 @@ test "expired pending frame poisons the child without resetting its deadline" {
     shutdown_timeout_millis=1000,
   )
   let child = spawn(b"/bin/cat", limits)
-  let pending = child.begin_read_frame(
+  child.begin_read_frame(
     FixedArray::make(4, b'\x55'),
     staging=FixedArray::make(4, b'\x00'),
     timeout_millis=1,
   )
-  let deadline = pending.deadline_millis
+  let deadline = child.transfer_deadline_millis
   let mut now = raw_monotonic_now()
   while now < deadline {
     now = raw_monotonic_now()
   }
-  try pending.progress() catch {
+  try child.progress_read_frame() catch {
     Timeout(Read) => ()
     _ => fail("unexpected expired frame error")
   } noraise {
     _ => fail("expired frame remained pending")
   }
-  assert_eq(pending.deadline_millis, deadline)
+  assert_eq(child.transfer_deadline_millis, 0L)
+  assert_true(
+    physical_equal(child.transfer_primary, child.empty_transfer_buffer),
+  )
+  assert_true(
+    physical_equal(child.transfer_secondary, child.empty_transfer_buffer),
+  )
   assert_true(child.is_failed())
   try child.shutdown_write() catch {
     InvalidState(ShutdownWrite) => ()
@@ -72,12 +79,7 @@ test "legacy write and half-close cannot mutate or cut off an active frame" {
   )
   let child = spawn(b"/bin/cat", limits)
   let source = FixedArray::make(8, b'x')
-  let pending = child.begin_write_frame(
-    source,
-    offset=0,
-    byte_count=4,
-    timeout_millis=1000,
-  )
+  child.begin_write_frame(source, offset=0, byte_count=4, timeout_millis=1000)
   assert_eq(read_u32_prefix(child.write_prefix), 4)
   try
     child.write_frame_with_timeout(
@@ -102,7 +104,7 @@ test "legacy write and half-close cannot mutate or cut off an active frame" {
   assert_false(child.is_failed())
   let mut completed = false
   for _ in 0..<100000 {
-    if pending.progress() {
+    if child.progress_write_frame() {
       completed = true
       break
     }
@@ -128,10 +130,10 @@ fn malformed_read_fixture(
   child.shutdown_write()
   let destination = FixedArray::make(64, b'\x55')
   let staging = FixedArray::make(64, b'\x00')
-  let pending = child.begin_read_frame(destination, staging~)
+  child.begin_read_frame(destination, staging~)
   let mut rejected = false
   for _ in 0..<100000 {
-    try pending.progress() catch {
+    try child.progress_read_frame() catch {
       InvalidRange(Read) => {
         if !expected_range_error {
           fail("partial frame mapped to range error")
@@ -155,11 +157,11 @@ fn malformed_read_fixture(
   assert_true(rejected)
   assert_true(child.is_failed())
   assert_eq(destination, FixedArray::make(64, b'\x55'))
-  try pending.progress() catch {
+  try child.progress_read_frame() catch {
     InvalidState(Read) => ()
     _ => fail("unexpected poisoned pending reuse error")
   } noraise {
-    _ => fail("poisoned pending capability was reusable")
+    _ => fail("poisoned pending transfer was reusable")
   }
   try child.read_frame(destination) catch {
     InvalidState(Read) => ()
@@ -183,4 +185,43 @@ test "malformed frame EOF and declarations poison without publication" {
   malformed_read_fixture([4, 0, 0, 0, 7, 9], expected_range_error=false)
   malformed_read_fixture([0, 0, 0, 0], expected_range_error=true)
   malformed_read_fixture([65, 0, 0, 0], expected_range_error=true)
+}
+
+///|
+fn pending_frame_allocation_positive_control() -> FixedArray[Byte] {
+  FixedArray::make(13, b'Z')
+}
+
+///|
+test "pending-frame allocation gate positive control remains live" {
+  let allocated = pending_frame_allocation_positive_control()
+  assert_eq(allocated.length(), 13)
+  assert_eq(allocated[12], b'Z')
+}
+
+///|
+test "close clears an active transfer and retained buffer authority" {
+  let limits = ProcessLimits::new(
+    max_frame_bytes=4096,
+    io_timeout_millis=1000,
+    shutdown_timeout_millis=1000,
+  )
+  let child = spawn(b"/bin/cat", limits)
+  let source = FixedArray::make(4, b'x')
+  child.begin_write_frame(source, offset=0, byte_count=4)
+  assert_true(physical_equal(child.transfer_primary, source))
+  child.close()
+  assert_eq(child.transfer_kind, 0)
+  assert_true(
+    physical_equal(child.transfer_primary, child.empty_transfer_buffer),
+  )
+  assert_true(
+    physical_equal(child.transfer_secondary, child.empty_transfer_buffer),
+  )
+  try child.progress_write_frame() catch {
+    InvalidState(Write) => ()
+    _ => fail("unexpected closed transfer error")
+  } noraise {
+    _ => fail("closed transfer remained usable")
+  }
 }
