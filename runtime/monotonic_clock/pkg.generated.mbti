@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/monotonic_clock"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror MonotonicClockError {
+  Unavailable
+  OutOfRange
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct MonotonicClock {
+  // private fields
+}
+pub fn MonotonicClock::now_millis(Self) -> UInt64 raise MonotonicClockError
+pub fn MonotonicClock::system() -> Self
+
+// Type aliases
+
+// Traits

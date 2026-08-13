@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/monotonic_clock"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn now_millis() -> UInt64 raise MonotonicClockNativeError
+
+// Errors
+pub(all) suberror MonotonicClockNativeError {
+  NativeUnavailable
+  NativeOutOfRange
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,9 @@
+options(
+  "native-stub": [ "monotonic_clock.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  targets: {
+    "api.mbt": [ "native" ],
+    "ffi.mbt": [ "native" ],
+    "status_wbtest.mbt": [ "native" ],
+  },
+)

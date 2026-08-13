@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/internal/monotonic_clock" @native,
+}
+
+options(
+  targets: {
+    "clock.mbt": [ "native" ],
+    "clock_test.mbt": [ "native" ],
+    "clock_wbtest.mbt": [ "native" ],
+  },
+)

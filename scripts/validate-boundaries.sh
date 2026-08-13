@@ -60,6 +60,25 @@ if [ -n "$approved_fs_capability_imports" ]; then
   failed=1
 fi
 
+# The public monotonic-clock facade is the sole importer of its primitive-only
+# native ABI. Higher layers consume the opaque runtime capability instead.
+monotonic_clock_imports=$(rg -l \
+  '"vectie/lunaflux/internal/monotonic_clock"' --glob 'moon.pkg' \
+  --glob '!runtime/monotonic_clock/moon.pkg' 2>/dev/null || true)
+if [ -n "$monotonic_clock_imports" ]; then
+  printf '%s\n%s\n' \
+    'internal monotonic clock ABI has unauthorized importers:' \
+    "$monotonic_clock_imports" >&2
+  failed=1
+fi
+
+if [ -d runtime/monotonic_clock ]; then
+  fail_matches \
+    'runtime monotonic clock must remain cycle-neutral:' \
+    --glob 'runtime/monotonic_clock/moon.pkg' \
+    'vectie/lunaflux/(contracts|device|engine|kernels|kv|model|prefix|scheduler|service|tokenizer)'
+fi
+
 # Scheduling policy is deliberately hardware-, transport-, and model-family
 # agnostic. Add capabilities at the package boundary instead of exceptions.
 if [ -d scheduler ]; then
@@ -312,9 +331,10 @@ if [ -d service/incremental_output ]; then
   fi
 fi
 
-# Production foreign declarations have exactly three narrow owners: CUDA,
+# Production foreign declarations have exactly four narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
-# process transport, each under its dedicated internal ABI package.
+# process transport, plus monotonic time, each under its dedicated internal ABI
+# package.
 # Positive-controlled allocation harnesses and the exact approved-root child /
 # parent E2E probes are the sole exceptions. Their narrow C shims inspect
 # process state or generated allocation entry points and are not imported by a
@@ -323,6 +343,7 @@ fail_matches \
   'production native declarations are only allowed under approved internal ABI packages:' \
   --glob '*.mbt' --glob '!internal/cuda/**' \
   --glob '!internal/approved_fs/**' \
+  --glob '!internal/monotonic_clock/**' \
   --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \
