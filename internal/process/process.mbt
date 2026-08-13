@@ -56,6 +56,17 @@ pub fn spawn(
 }
 
 ///|
+/// Opens the private socket inherited by a worker on stdin/stdout.
+pub fn open_inherited(limits : ProcessLimits) -> InheritedChannel {
+  {
+    limits,
+    write_prefix: FixedArray::make(4, b'\x00'),
+    read_prefix: FixedArray::make(4, b'\x00'),
+    failed: false,
+  }
+}
+
+///|
 /// Writes an exact fixed-buffer range or fails without reporting a short write.
 fn ChildProcess::write_exact(
   self : ChildProcess,
@@ -171,6 +182,103 @@ pub fn ChildProcess::read_frame(
     raise InvalidRange(Read)
   }
   self.read_exact(destination, offset=0, byte_count~)
+  byte_count
+}
+
+///|
+fn InheritedChannel::require_usable(
+  self : InheritedChannel,
+  operation : ProcessOperation,
+) -> Unit raise ProcessError {
+  if self.failed {
+    raise InvalidState(operation)
+  }
+}
+
+///|
+fn InheritedChannel::write_exact(
+  self : InheritedChannel,
+  source : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Unit raise ProcessError {
+  self.require_usable(Write)
+  raise_status(
+    raw_inherited_write_exact(
+      source,
+      offset,
+      byte_count,
+      self.limits.io_timeout_millis,
+    ),
+    Write,
+  ) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
+}
+
+///|
+fn InheritedChannel::read_exact(
+  self : InheritedChannel,
+  destination : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Unit raise ProcessError {
+  self.require_usable(Read)
+  raise_status(
+    raw_inherited_read_exact(
+      destination,
+      offset,
+      byte_count,
+      self.limits.io_timeout_millis,
+    ),
+    Read,
+  ) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
+}
+
+///|
+/// Writes one canonical length-delimited worker frame.
+pub fn InheritedChannel::write_frame(
+  self : InheritedChannel,
+  source : FixedArray[Byte],
+  offset~ : Int,
+  byte_count~ : Int,
+) -> Unit raise ProcessError {
+  self.require_usable(Write)
+  if byte_count <= 0 ||
+    byte_count > self.limits.max_frame_bytes ||
+    offset < 0 ||
+    offset > source.length() - byte_count {
+    raise InvalidRange(Write)
+  }
+  write_u32_prefix(self.write_prefix, byte_count)
+  self.write_exact(self.write_prefix, 0, 4)
+  self.write_exact(source, offset, byte_count)
+}
+
+///|
+/// Reads one canonical length-delimited worker frame.
+pub fn InheritedChannel::read_frame(
+  self : InheritedChannel,
+  destination : FixedArray[Byte],
+) -> Int raise ProcessError {
+  self.require_usable(Read)
+  self.read_exact(self.read_prefix, 0, 4)
+  let byte_count = read_u32_prefix(self.read_prefix)
+  if byte_count <= 0 ||
+    byte_count > self.limits.max_frame_bytes ||
+    byte_count > destination.length() {
+    self.failed = true
+    raise InvalidRange(Read)
+  }
+  self.read_exact(destination, 0, byte_count)
   byte_count
 }
 

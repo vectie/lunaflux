@@ -46,6 +46,15 @@ pub struct ChildProcess {
 }
 
 ///|
+/// Worker-side owner of the inherited standard-input/output channel.
+pub struct InheritedChannel {
+  priv limits : ProcessLimits
+  priv write_prefix : FixedArray[Byte]
+  priv read_prefix : FixedArray[Byte]
+  priv mut failed : Bool
+}
+
+///|
 /// Bounded child termination evidence.
 #valtype
 pub struct ChildExit {
@@ -103,5 +112,10 @@ pub fn ChildProcess::is_closed(self : ChildProcess) -> Bool {
 
 ///|
 pub fn ChildProcess::is_failed(self : ChildProcess) -> Bool {
+  self.failed
+}
+
+///|
+pub fn InheritedChannel::is_failed(self : InheritedChannel) -> Bool {
   self.failed
 }

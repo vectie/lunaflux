@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn open_inherited(ProcessLimits) -> InheritedChannel
+
 pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
 
 // Errors
@@ -37,6 +39,13 @@ pub fn ChildProcess::shutdown_write(Self) -> Unit raise ProcessError
 pub fn ChildProcess::terminate(Self) -> Unit raise ProcessError
 pub fn ChildProcess::wait(Self) -> ChildExit raise ProcessError
 pub fn ChildProcess::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+
+pub struct InheritedChannel {
+  // private fields
+}
+pub fn InheritedChannel::is_failed(Self) -> Bool
+pub fn InheritedChannel::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
+pub fn InheritedChannel::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
 
 pub(all) enum ProcessLimitRule {
   FrameBytes

@@ -45,3 +45,21 @@ extern "c" fn raw_terminate(child : NativeChild) -> Int = "lunaflux_process_term
 ///|
 #borrow(child)
 extern "c" fn raw_close(child : NativeChild) -> Int = "lunaflux_process_close"
+
+///|
+#borrow(source)
+extern "c" fn raw_inherited_write_exact(
+  source : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+  timeout_millis : Int,
+) -> Int = "lunaflux_process_inherited_write_exact"
+
+///|
+#borrow(destination)
+extern "c" fn raw_inherited_read_exact(
+  destination : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+  timeout_millis : Int,
+) -> Int = "lunaflux_process_inherited_read_exact"

@@ -18,5 +18,7 @@ last-resort cleanup guard.
 
 This is transport plumbing, not the worker protocol or supervisor. Higher
 packages own framing, plan/completion authentication, readiness, restart, and
-request-state recovery. The current native branch is POSIX; Windows process
+request-state recovery. `InheritedChannel` is the symmetric child-side owner;
+it uses the same fixed framing and fail-stop rules without exposing file
+descriptors. The current native branch is POSIX; Windows process
 creation and physical long-running soak/leak evidence remain open.

@@ -58,6 +58,7 @@ pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle
 pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
 pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> WorkerSubmission raise WorkerProcessError
 
 pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)

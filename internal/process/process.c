@@ -172,17 +172,14 @@ lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
   return process;
 }
 
-static int32_t lf_process_io(
-  lf_process *process,
+static int32_t lf_fd_io(
+  int fd,
   uint8_t *bytes,
   int32_t offset,
   int32_t byte_count,
   int32_t timeout_millis,
   int write_mode
 ) {
-  if (process == NULL || process->closed || process->fd < 0) {
-    return LF_PROCESS_INVALID_STATE;
-  }
   if (offset < 0 || byte_count < 0 || timeout_millis <= 0) {
     return LF_PROCESS_FAILED;
   }
@@ -194,20 +191,20 @@ static int32_t lf_process_io(
   int32_t cursor = 0;
   while (cursor < byte_count) {
     int32_t poll_status = lf_poll_fd(
-      process->fd, write_mode ? POLLOUT : POLLIN, deadline
+      fd, write_mode ? POLLOUT : POLLIN, deadline
     );
     if (poll_status != LF_PROCESS_OK) {
       return poll_status;
     }
     ssize_t count = write_mode
       ? send(
-          process->fd,
+          fd,
           bytes + offset + cursor,
           (size_t)(byte_count - cursor),
           MSG_NOSIGNAL
         )
       : recv(
-          process->fd,
+          fd,
           bytes + offset + cursor,
           (size_t)(byte_count - cursor),
           0
@@ -221,6 +218,42 @@ static int32_t lf_process_io(
     }
   }
   return LF_PROCESS_OK;
+}
+
+static int32_t lf_process_io(
+  lf_process *process,
+  uint8_t *bytes,
+  int32_t offset,
+  int32_t byte_count,
+  int32_t timeout_millis,
+  int write_mode
+) {
+  if (process == NULL || process->closed || process->fd < 0) {
+    return LF_PROCESS_INVALID_STATE;
+  }
+  return lf_fd_io(
+    process->fd, bytes, offset, byte_count, timeout_millis, write_mode
+  );
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_process_inherited_write_exact(
+  uint8_t *source,
+  int32_t offset,
+  int32_t byte_count,
+  int32_t timeout_millis
+) {
+  return lf_fd_io(1, source, offset, byte_count, timeout_millis, 1);
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_process_inherited_read_exact(
+  uint8_t *destination,
+  int32_t offset,
+  int32_t byte_count,
+  int32_t timeout_millis
+) {
+  return lf_fd_io(0, destination, offset, byte_count, timeout_millis, 0);
 }
 
 MOONBIT_FFI_EXPORT

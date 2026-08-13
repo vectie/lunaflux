@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

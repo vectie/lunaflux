@@ -143,3 +143,30 @@ pub fn ReceivedWorkerCompletion::sequence_value(
 ) -> UInt64 {
   self.2
 }
+
+///|
+/// Publishes child EOF and waits for a clean zero exit before final close.
+pub fn WorkerProcessSupervisor::shutdown_clean(
+  self : WorkerProcessSupervisor,
+) -> Unit raise WorkerProcessError {
+  self.require_ready()
+  if self.outstanding_count() != 0 {
+    raise Invalid(Lifecycle)
+  }
+  self.child.shutdown_write() catch {
+    error => {
+      self.lifecycle = Failed
+      raise transport_error(error)
+    }
+  }
+  let exit = self.child.wait() catch {
+    error => {
+      self.lifecycle = Failed
+      raise transport_error(error)
+    }
+  }
+  if exit.kind() != 0 || exit.code() != 0 {
+    self.lifecycle = Failed
+    raise Transport(OperationFailed)
+  }
+}
