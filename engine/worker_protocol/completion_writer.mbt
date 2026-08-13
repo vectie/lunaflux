@@ -34,6 +34,20 @@ pub fn CompletionBuffer::writer_for(
 }
 
 ///|
+/// Proves that this exclusive writer is bound to the exact submitted plan
+/// capability supplied by its scheduler. No mutable owner escapes.
+pub fn CompletionWriter::validate_plan(
+  self : CompletionWriter,
+  plan : SubmittedSchedulePlan,
+) -> Unit raise WorkerProtocolError {
+  ignore(self.owner())
+  ignore(plan.authenticate())
+  if !physical_equal(self.2, plan.0) || self.3 != plan.1 {
+    raise PlanBufferMismatch
+  }
+}
+
+///|
 pub fn CompletionWriter::append_prefill_completed(
   self : CompletionWriter,
   slot~ : CompletionSlot,

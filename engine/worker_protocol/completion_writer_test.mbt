@@ -22,6 +22,7 @@ test "worker lease writes and submits without exposing mutable owners" {
   let plan = submitted_plan_for_completion(plan_owner)
   let completions = @worker_protocol.CompletionBuffer::new(protocol_limits())
   let writer = completions.writer_for(plan)
+  writer.validate_plan(plan)
   append_mixed_writer(writer)
   let submitted = writer.submit()
   plan_owner.validate_submitted(plan)
@@ -43,6 +44,24 @@ test "worker lease writes and submits without exposing mutable owners" {
   } noraise {
     _ => fail("expected reset writer abort to fail")
   }
+}
+
+///|
+test "worker lease rejects a foreign submitted plan without mutation" {
+  let first_owner = @worker_protocol.SchedulePlanBuffer::new(protocol_limits())
+  let second_owner = @worker_protocol.SchedulePlanBuffer::new(protocol_limits())
+  let first = submitted_plan_for_completion(first_owner)
+  let second = submitted_plan_for_completion(second_owner)
+  let completions = @worker_protocol.CompletionBuffer::new(protocol_limits())
+  let writer = completions.writer_for(first)
+  try writer.validate_plan(second) catch {
+    PlanBufferMismatch => ()
+    _ => fail("expected exact submitted-plan owner rejection")
+  } noraise {
+    _ => fail("foreign submitted plan was accepted")
+  }
+  append_mixed_writer(writer)
+  ignore(writer.submit())
 }
 
 ///|

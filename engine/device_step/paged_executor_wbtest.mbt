@@ -29,9 +29,20 @@ fn[Step] run_paged_step_range(
 
 ///|
 fn dummy_paged_executor(lifecycle : PagedGraphLifecycle) -> PagedGraphExecutor {
+  let limits = try! @sampling.SamplingLimits::new(1, 1)
   {
     resources: empty_paged_resources(),
     steps: ReadOnlyArray::from_array([]),
+    completion: {
+      final_output_offset: 0L,
+      row_bytes: 2L,
+      vocabulary_size: 1,
+      limits,
+      sampler: try! @sampling.SamplerScratch::new(1, limits),
+      encoded_logits: FixedArray::make(2, b'\x00'),
+      logits: FixedArray::make(1, 0.0),
+      selected_tokens: FixedArray::make(1, 0),
+    },
     lifecycle,
   }
 }
@@ -78,6 +89,21 @@ test "public paged capabilities reject lifecycle and foreign owners" {
     _ => fail("unexpected foreign executed capability error")
   } noraise {
     _ => fail("foreign executed capability was admitted")
+  }
+  let missing = dummy_paged_executor(GraphExecuted)
+  let missing_capability : ExecutedPagedGraphExecution = {
+    executor: missing,
+    epoch: 1UL,
+  }
+  let plan = executor_test_submitted_plan()
+  let writer = @worker_protocol.CompletionBuffer::new(step_protocol_limits()).writer_for(
+    plan,
+  )
+  try missing.sample_completion(missing_capability, plan, writer) catch {
+    InvalidExecutor(ResourceState) => ()
+    _ => fail("unexpected missing completion-resource error")
+  } noraise {
+    _ => fail("completion sampled without executor resources")
   }
 }
 

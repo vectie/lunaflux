@@ -59,17 +59,24 @@ before resources, leases the caller-owned weight allocation, and privately owns
 its descriptor buffers, activation/workspace arena, persistent KV arena,
 stream, modules, functions, and prebuilt arguments. None of those resources or
 arguments escape. Exact opaque capabilities enforce `stage -> execute ->
-finish`; every launch synchronizes, and any partial launch failure permanently
-poisons execution and descriptor state. Close invalidates execution first and
-then attempts every independent resource in reverse dependency order; failed
-cleanup retains explicit retry authority.
+sample_completion -> finish`; every launch synchronizes, and any partial
+launch failure permanently poisons execution and descriptor state. The
+completion phase reads only each producing row's retained BF16 vocabulary
+logits into startup-owned fixed storage, rejects non-finite values, applies
+greedy or counter-addressed stochastic selection using the row's exact
+`(sampling seed, output index)`, and freezes the scheduler-issued completion
+writer. All reads and selections finish before the first completion entry is
+written. A protocol failure leaves the exclusive writer with the caller for
+explicit abort; a readback or invalid-logit failure poisons the executor.
+Close invalidates execution first and then attempts every independent resource
+in reverse dependency order; failed cleanup retains explicit retry authority.
 
 This is a full AOT graph dispatch owner, but not yet serving or numerical-
 correctness evidence. The separate native release gate in
 `tests/device_step_alloc` currently instruments the warmed descriptor
 `stage`/`finish` path, proves record and fixed-array positive controls
 independently, and exercises every fixed H2D call through a bounded test seam.
-Generated-C allocation review covers the new success lifecycle, while a
-positive-controlled full `stage`/`execute`/`finish` runtime gate, physical CUDA
-model correctness, sanitizer, leak, and benchmark evidence remain open before
-Phase 3 promotion.
+Generated-C allocation review covers the launch lifecycle, while a
+positive-controlled full `stage`/`execute`/`sample_completion`/`finish` runtime
+gate, physical CUDA model correctness (including logits and sampled tokens),
+sanitizer, leak, and benchmark evidence remain open before Phase 3 promotion.

@@ -14,6 +14,7 @@ import {
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/sampling",
 }
 
 // Values
@@ -43,6 +44,7 @@ pub(all) suberror DeviceStepError {
   InvalidExecutorLifecycle(expected~ : PagedGraphLifecycle, actual~ : PagedGraphLifecycle)
   ExecutorDevice(PagedGraphResource, @device.DeviceError)
   ExecutorLaunchFailed(@plan.OperationId, @device.DeviceError)
+  ExecutorSampling(@sampling.SamplingError)
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
@@ -142,6 +144,7 @@ pub fn PagedGraphExecutor::close(Self) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::execute(Self, StagedPagedGraphExecution) -> ExecutedPagedGraphExecution raise DeviceStepError
 pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
+pub fn PagedGraphExecutor::sample_completion(Self, ExecutedPagedGraphExecution, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.CompletionWriter) -> @worker_protocol.SubmittedCompletion raise DeviceStepError
 pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError
 
 pub(all) enum PagedGraphExecutorRule {
@@ -153,6 +156,7 @@ pub(all) enum PagedGraphExecutorRule {
   AllocationSize
   ArtifactModule
   LaunchDimensions
+  SamplingOutput
   ResourceState
 } derive(Eq, @debug.Debug)
 
@@ -176,6 +180,7 @@ pub(all) enum PagedGraphResource {
   Stream
   ActivationWorkspaceArena
   PersistentKvArena
+  ActivationReadback
   Module
   Function
   KernelArguments

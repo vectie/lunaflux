@@ -139,6 +139,7 @@ pub fn CompletionWriter::append_failed(Self, slot~ : CompletionSlot, request_id~
 pub fn CompletionWriter::append_final_prefill_completed(Self, slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, processed_tokens~ : Int, token_id~ : Int) -> Unit raise WorkerProtocolError
 pub fn CompletionWriter::append_prefill_completed(Self, slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, processed_tokens~ : Int) -> Unit raise WorkerProtocolError
 pub fn CompletionWriter::submit(Self) -> SubmittedCompletion raise WorkerProtocolError
+pub fn CompletionWriter::validate_plan(Self, SubmittedSchedulePlan) -> Unit raise WorkerProtocolError
 
 pub struct ConsumedCompletion(CompletionBuffer, UInt64)
 

@@ -62,6 +62,18 @@ priv struct PreparedPagedGraphStep {
 }
 
 ///|
+priv struct PagedCompletionScratch {
+  final_output_offset : Int64
+  row_bytes : Int64
+  vocabulary_size : Int
+  limits : @sampling.SamplingLimits
+  sampler : @sampling.SamplerScratch
+  encoded_logits : FixedArray[Byte]
+  logits : FixedArray[Double]
+  selected_tokens : FixedArray[Int]
+}
+
+///|
 /// Single-owner synchronous executor for one admitted full paged graph.
 ///
 /// The owner never exposes allocations, modules, functions, streams, kernel
@@ -69,6 +81,7 @@ priv struct PreparedPagedGraphStep {
 pub struct PagedGraphExecutor {
   priv resources : PagedGraphResources
   priv steps : ReadOnlyArray[PreparedPagedGraphStep]
+  priv completion : PagedCompletionScratch
   priv mut lifecycle : PagedGraphLifecycle
 }
 

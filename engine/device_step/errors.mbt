@@ -74,6 +74,7 @@ pub(all) enum PagedGraphResource {
   Stream
   ActivationWorkspaceArena
   PersistentKvArena
+  ActivationReadback
   Module
   Function
   KernelArguments
@@ -90,6 +91,7 @@ pub(all) enum PagedGraphExecutorRule {
   AllocationSize
   ArtifactModule
   LaunchDimensions
+  SamplingOutput
   ResourceState
 } derive(Debug, Eq)
 
@@ -130,6 +132,7 @@ pub(all) suberror DeviceStepError {
   )
   ExecutorDevice(PagedGraphResource, @device.DeviceError)
   ExecutorLaunchFailed(@plan.OperationId, @device.DeviceError)
+  ExecutorSampling(@sampling.SamplingError)
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)

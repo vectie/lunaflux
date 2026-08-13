@@ -232,6 +232,43 @@ fn prepare_paged_steps(
 }
 
 ///|
+fn prepare_paged_completion_scratch(
+  model_plan : @plan.ModelPlan,
+  memory_plan : @device_memory.DeviceMemoryPlan,
+  limits : DeviceStepLimits,
+) -> PagedCompletionScratch raise DeviceStepError {
+  let vocabulary_size = model_plan.shape_constraints().vocabulary_size()
+  let row_bytes = vocabulary_size.to_int64() * 2L
+  let token_rows = memory_plan.token_rows()
+  guard token_rows > 0L &&
+    memory_plan.region(model_plan.final_output()) is Some(output) &&
+    output.is_retained_output() &&
+    output.logical_bytes() % token_rows == 0L &&
+    output.logical_bytes() / token_rows == row_bytes else {
+    raise InvalidExecutor(SamplingOutput)
+  }
+  let sampling_limits = @sampling.SamplingLimits::new(
+    limits.max_rows(),
+    vocabulary_size,
+  ) catch {
+    error => raise ExecutorSampling(error)
+  }
+  let sampler = @sampling.SamplerScratch::new(vocabulary_size, sampling_limits) catch {
+    error => raise ExecutorSampling(error)
+  }
+  {
+    final_output_offset: output.offset_bytes(),
+    row_bytes,
+    vocabulary_size,
+    limits: sampling_limits,
+    sampler,
+    encoded_logits: FixedArray::make(row_bytes.to_int(), b'\x00'),
+    logits: FixedArray::make(vocabulary_size, 0.0),
+    selected_tokens: FixedArray::make(limits.max_rows(), 0),
+  }
+}
+
+///|
 fn paged_construction_failed(
   resources : PagedGraphResources,
   cause : DeviceStepError,
@@ -275,6 +312,9 @@ pub fn prepare_paged_graph_executor(
     has_accepted_predecessor, accepted_predecessor_value,
   )
   validate_executor_evidence(context, blueprint, weights)
+  let completion = prepare_paged_completion_scratch(
+    model_plan, memory_plan, limits,
+  )
   let (functions, function_indices) = collect_paged_functions(blueprint)
   let resources = empty_paged_resources()
   let descriptor_outcome = prepare(
@@ -362,5 +402,5 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  PagedReady({ resources, steps, lifecycle: GraphReady })
+  PagedReady({ resources, steps, completion, lifecycle: GraphReady })
 }
