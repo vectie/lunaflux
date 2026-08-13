@@ -56,7 +56,7 @@ priv struct StreamingTransferRegion {
   source_offset_bytes : Int64
   destination_offset_bytes : Int64
   byte_length : Int64
-}
+} derive(Eq)
 
 ///|
 priv struct PreparedStreamingLoad {
@@ -71,4 +71,36 @@ priv struct SourceStamp {
   file_bytes : Int64
   modified_seconds : Int64
   modified_nanoseconds : Int
+  changed_seconds : Int64
+  changed_nanoseconds : Int
 } derive(Eq)
+
+///|
+/// Immutable evidence from a complete read-only admission of one weight file.
+///
+/// The source locator and filesystem metadata are deliberately not exposed or
+/// retained as authority. A later load reopens and completely re-hashes the
+/// caller-supplied locator before allocating device memory.
+pub struct DeviceWeightFileInspection {
+  priv model : @spec.LlamaModelMetadata
+  priv limits : DeviceWeightFileLimits
+  priv alignment_bytes : Int64
+  priv max_arena_bytes : Int64
+  priv payload_offset_bytes : Int64
+  priv layout : DeviceWeightLayout
+  priv regions : ReadOnlyArray[StreamingTransferRegion]
+}
+
+///|
+pub fn DeviceWeightFileInspection::content_digest(
+  self : DeviceWeightFileInspection,
+) -> @spec.ContentDigest {
+  self.layout.identity().content()
+}
+
+///|
+pub fn DeviceWeightFileInspection::layout(
+  self : DeviceWeightFileInspection,
+) -> DeviceWeightLayout {
+  self.layout
+}

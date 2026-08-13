@@ -86,11 +86,17 @@ fn wb_slice(file : Bytes, position : Int64, count : Int) -> Bytes {
 }
 
 ///|
-fn wb_stamp(file : BytesView, modified? : Int = 1) -> SourceStamp {
+fn wb_stamp(
+  file : BytesView,
+  modified? : Int = 1,
+  changed? : Int = modified,
+) -> SourceStamp {
   {
     file_bytes: file.length().to_int64(),
     modified_seconds: modified.to_int64(),
     modified_nanoseconds: 0,
+    changed_seconds: changed.to_int64(),
+    changed_nanoseconds: 0,
   }
 }
 
@@ -100,12 +106,24 @@ async test "streaming validation opens no destination for malformed or unapprove
   try
     load_streaming_with_resource(
       wb_test_model(),
-      { file_bytes: 5L, modified_seconds: 1L, modified_nanoseconds: 0 },
+      {
+        file_bytes: 5L,
+        modified_seconds: 1L,
+        modified_nanoseconds: 0,
+        changed_seconds: 1L,
+        changed_nanoseconds: 0,
+      },
       wb_stream_limits(),
       64L,
       4096L,
       (_position, _count) => b"short",
-      () => { file_bytes: 5L, modified_seconds: 1L, modified_nanoseconds: 0 },
+      () => {
+        file_bytes: 5L,
+        modified_seconds: 1L,
+        modified_nanoseconds: 0,
+        changed_seconds: 1L,
+        changed_nanoseconds: 0,
+      },
       _arena_bytes => {
         opens.val = opens.val + 1
         1

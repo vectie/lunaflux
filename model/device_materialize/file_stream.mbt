@@ -168,6 +168,82 @@ async fn prepare_streaming_load(
 }
 
 ///|
+fn inspection_from_prepared(
+  model : @spec.LlamaModelMetadata,
+  limits : DeviceWeightFileLimits,
+  alignment_bytes : Int64,
+  max_arena_bytes : Int64,
+  prepared : PreparedStreamingLoad,
+) -> DeviceWeightFileInspection {
+  {
+    model,
+    limits,
+    alignment_bytes,
+    max_arena_bytes,
+    payload_offset_bytes: prepared.payload_offset_bytes,
+    layout: prepared.layout,
+    regions: prepared.regions,
+  }
+}
+
+///|
+fn inspection_matches_prepared(
+  inspection : DeviceWeightFileInspection,
+  prepared : PreparedStreamingLoad,
+) -> Bool {
+  inspection.payload_offset_bytes == prepared.payload_offset_bytes &&
+  inspection.layout == prepared.layout &&
+  inspection.regions == prepared.regions
+}
+
+///|
+async fn readmit_inspection(
+  inspection : DeviceWeightFileInspection,
+  source_stamp : SourceStamp,
+  read : async (Int64, Int) -> Bytes,
+  observe_stamp : async () -> SourceStamp,
+) -> PreparedStreamingLoad raise DeviceWeightError {
+  let prepared = prepare_streaming_load(
+    inspection.model,
+    source_stamp,
+    inspection.limits,
+    inspection.alignment_bytes,
+    inspection.max_arena_bytes,
+    read,
+    observe_stamp,
+  )
+  if !inspection_matches_prepared(inspection, prepared) {
+    raise FileChangedDuringLoad
+  }
+  prepared
+}
+
+///|
+async fn[T] load_inspected_streaming_with_resource(
+  inspection : DeviceWeightFileInspection,
+  source_stamp : SourceStamp,
+  read : async (Int64, Int) -> Bytes,
+  observe_stamp : async () -> SourceStamp,
+  open : (Int64) -> T raise @device.DeviceError,
+  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  close : (T) -> Unit raise @device.DeviceError,
+) -> ResourcePreparation[T] raise DeviceWeightError {
+  let prepared = readmit_inspection(
+    inspection, source_stamp, read, observe_stamp,
+  )
+  load_prepared_streaming_with_resource(
+    prepared,
+    inspection.content_digest().as_hex(),
+    inspection.limits.transfer_chunk_bytes(),
+    read,
+    observe_stamp,
+    open,
+    copy,
+    close,
+  )
+}
+
+///|
 async fn[T] transfer_streaming_load(
   prepared : PreparedStreamingLoad,
   expected_digest : String,
@@ -241,18 +317,35 @@ async fn[T] load_streaming_with_resource(
   let prepared = prepare_streaming_load(
     model, source_stamp, limits, alignment_bytes, max_arena_bytes, read, observe_stamp,
   )
+  load_prepared_streaming_with_resource(
+    prepared,
+    model.identity().content().as_hex(),
+    limits.transfer_chunk_bytes(),
+    read,
+    observe_stamp,
+    open,
+    copy,
+    close,
+  )
+}
+
+///|
+async fn[T] load_prepared_streaming_with_resource(
+  prepared : PreparedStreamingLoad,
+  expected_digest : String,
+  chunk_bytes : Int,
+  read : async (Int64, Int) -> Bytes,
+  observe_stamp : async () -> SourceStamp,
+  open : (Int64) -> T raise @device.DeviceError,
+  copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
+  close : (T) -> Unit raise @device.DeviceError,
+) -> ResourcePreparation[T] raise DeviceWeightError {
   let resource = open(prepared.layout.arena_bytes()) catch {
     error => raise DeviceFailed(error)
   }
   let transfer_result : Result[Unit, DeviceWeightError] = try {
     transfer_streaming_load(
-      prepared,
-      model.identity().content().as_hex(),
-      limits.transfer_chunk_bytes(),
-      resource,
-      read,
-      observe_stamp,
-      copy,
+      prepared, expected_digest, chunk_bytes, resource, read, observe_stamp, copy,
     )
     Ok(())
   } catch {

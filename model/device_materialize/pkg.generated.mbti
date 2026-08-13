@@ -13,9 +13,13 @@ import {
 }
 
 // Values
+pub async fn inspect_file(@spec.LlamaModelMetadata, StringView, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightFileInspection raise DeviceWeightError
+
 pub fn load(@device.Context, @llama_weights.LlamaWeightBindings, Bytes, materialization_limits~ : @materialize.MaterializationLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
 
 pub async fn load_file(@device.Context, @spec.LlamaModelMetadata, StringView, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
+
+pub async fn load_inspected_file(@device.Context, DeviceWeightFileInspection, StringView) -> DeviceWeightPreparation raise DeviceWeightError
 
 pub fn plan_layout(@llama_weights.LlamaWeightBindings, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightLayout raise DeviceWeightError
 
@@ -51,6 +55,12 @@ pub(all) enum DeviceWeightFailureStage {
   SourceRevalidation
   MaterializationResult
 } derive(Eq, @debug.Debug)
+
+pub struct DeviceWeightFileInspection {
+  // private fields
+}
+pub fn DeviceWeightFileInspection::content_digest(Self) -> @spec.ContentDigest
+pub fn DeviceWeightFileInspection::layout(Self) -> DeviceWeightLayout
 
 pub(all) enum DeviceWeightFileLimit {
   FileBytes
