@@ -297,20 +297,26 @@ fn run(executable : Bytes) -> Unit raise {
     _ => raise Failure("full output ring accepted second completion")
   }
   assert_eq(service.outstanding_count(), 1)
-  assert_eq(service.next_publication_kind(), GeneratedTokenPublication)
+  let first_publication = service.take_next_publication()
+  assert_eq(first_publication.kind(), GeneratedTokenPublication)
   assert_eq(
-    service.take_generated_token().request_id(),
+    first_publication.generated_token_notice().request_id(),
     @inference.RequestId::new(101UL),
   )
-  assert_eq(service.next_publication_kind(), TerminalPublication)
-  assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
+  let first_terminal = service.take_next_publication()
+  assert_eq(first_terminal.kind(), TerminalPublication)
+  assert_eq(first_terminal.terminal_notice().reason(), MaximumOutputReached)
   assert_eq(service.complete_oldest(), 2UL)
-  assert_eq(service.next_publication_kind(), GeneratedTokenPublication)
+  let second_publication = service.take_next_publication()
+  assert_eq(second_publication.kind(), GeneratedTokenPublication)
   assert_eq(
-    service.take_generated_token().request_id(),
+    second_publication.generated_token_notice().request_id(),
     @inference.RequestId::new(102UL),
   )
-  assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
+  assert_eq(
+    service.take_next_publication().terminal_notice().reason(),
+    MaximumOutputReached,
+  )
 
   // Keep one decoded request live across worker loss. The replacement owns a
   // fresh KV arena, so restart must terminally invalidate the survivor before

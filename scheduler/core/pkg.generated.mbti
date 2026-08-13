@@ -93,6 +93,7 @@ pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
 pub fn Scheduler::submitted_plan(Self, BuildNextOutcome) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::submitted_plan_for_sequence(Self, UInt64) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::take_generated_token(Self) -> GeneratedTokenNotice raise SchedulerError
+pub fn Scheduler::take_next_publication(Self) -> SchedulerPublication raise SchedulerError
 pub fn Scheduler::take_terminal_notice(Self) -> TerminalNotice raise SchedulerError
 pub fn Scheduler::terminal_notice_count(Self) -> Int
 pub fn Scheduler::waiting_request_count(Self) -> Int
@@ -131,6 +132,14 @@ pub(all) enum SchedulerIssue {
   NoRunnableWork
   OutOfOrder
 } derive(Eq, @debug.Debug)
+
+pub struct SchedulerPublication(Int, @inference.RequestId, @inference.RequestGeneration, Int, Int, UInt64) derive(Eq)
+pub fn SchedulerPublication::generated_token_notice(Self) -> GeneratedTokenNotice raise SchedulerError
+pub fn SchedulerPublication::kind(Self) -> SchedulerPublicationKind
+pub fn SchedulerPublication::publication_sequence(Self) -> UInt64
+pub fn SchedulerPublication::request_generation(Self) -> @inference.RequestGeneration
+pub fn SchedulerPublication::request_id(Self) -> @inference.RequestId
+pub fn SchedulerPublication::terminal_notice(Self) -> TerminalNotice raise SchedulerError
 
 pub(all) enum SchedulerPublicationKind {
   GeneratedTokenPublication

@@ -22,6 +22,9 @@ obligation, then records a plan before attempting transport, so a failed write
 never loses the scheduler retirement obligation. `complete_oldest`
 receives strictly in order and keeps a validated process frame pinned while
 scheduler output or terminal publication is backpressured.
+`take_next_publication` forwards the scheduler's atomic globally ordered
+dequeue, so service adapters never choose between physical token and terminal
+rings.
 
 Recovery first closes and reaps the old child. recover_oldest then commits a
 pinned valid response normally or synthesizes a retryable bounded worker-failed

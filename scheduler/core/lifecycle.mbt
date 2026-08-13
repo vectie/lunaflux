@@ -122,6 +122,39 @@ pub fn Scheduler::next_publication_kind(
 }
 
 ///|
+/// Consumes the globally oldest scheduler publication in one operation. This
+/// prevents a caller from observing the correct ring and then accidentally
+/// dequeuing the other one.
+pub fn Scheduler::take_next_publication(
+  self : Scheduler,
+) -> SchedulerPublication raise SchedulerError {
+  match self.next_publication_kind() {
+    GeneratedTokenPublication => {
+      let notice = self.take_generated_token()
+      SchedulerPublication(
+        0,
+        notice.request_id(),
+        notice.request_generation(),
+        notice.token_id(),
+        notice.position(),
+        notice.publication_sequence(),
+      )
+    }
+    TerminalPublication => {
+      let notice = self.take_terminal_notice()
+      SchedulerPublication(
+        1,
+        notice.request_id(),
+        notice.request_generation(),
+        0,
+        terminal_reason_code(notice.reason()),
+        notice.publication_sequence(),
+      )
+    }
+  }
+}
+
+///|
 /// Invalidates every active request after loss of the worker-owned device KV
 /// generation. Waiting requests remain queued because they own no device
 /// state. The operation is retryable under terminal-publication backpressure

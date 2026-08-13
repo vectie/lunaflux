@@ -73,6 +73,17 @@ pub fn WorkerService::next_publication_kind(
 }
 
 ///|
+/// Consumes the globally oldest scheduler publication without exposing a
+/// caller-selected physical ring.
+pub fn WorkerService::take_next_publication(
+  self : WorkerService,
+) -> @core.SchedulerPublication raise WorkerServiceError {
+  self.scheduler.take_next_publication() catch {
+    error => raise scheduler_error(error)
+  }
+}
+
+///|
 pub fn WorkerService::live_request_count(self : WorkerService) -> Int {
   self.scheduler.live_request_count()
 }

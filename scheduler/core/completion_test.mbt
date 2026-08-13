@@ -85,7 +85,15 @@ test "completion publishes in plan order through overlapping plans" {
   } noraise {
     _ => fail("newer terminal bypassed an older token")
   }
-  let first_output = owner.take_generated_token()
+  let first_publication = owner.take_next_publication()
+  assert_eq(first_publication.kind(), GeneratedTokenPublication)
+  try first_publication.terminal_notice() catch {
+    Invalid(field=PublicationSequence, issue=OutOfOrder) => ()
+    _ => fail("unexpected generated-publication projection error")
+  } noraise {
+    _ => fail("generated publication projected as terminal")
+  }
+  let first_output = first_publication.generated_token_notice()
   assert_eq(first_output.publication_sequence(), 1UL)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
   let second_output = owner.take_generated_token()
@@ -100,7 +108,15 @@ test "completion publishes in plan order through overlapping plans" {
   } noraise {
     _ => fail("newer token bypassed an older terminal")
   }
-  let first_terminal = owner.take_terminal_notice()
+  let first_terminal_publication = owner.take_next_publication()
+  assert_eq(first_terminal_publication.kind(), TerminalPublication)
+  try first_terminal_publication.generated_token_notice() catch {
+    Invalid(field=PublicationSequence, issue=OutOfOrder) => ()
+    _ => fail("unexpected terminal-publication projection error")
+  } noraise {
+    _ => fail("terminal publication projected as generated token")
+  }
+  let first_terminal = first_terminal_publication.terminal_notice()
   assert_eq(first_terminal.publication_sequence(), 4UL)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
   try owner.take_terminal_notice() catch {

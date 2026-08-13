@@ -330,7 +330,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   KV release, publishes final-prefill/decode tokens in plan order, enforces
   token-stop/maximum-output terminals, and resets the exact plan side. A shared
   monotonic publication sequence makes the separate token and terminal rings
-  fail closed against out-of-order dequeue, including cancellation cuts. Normal
+  fail closed against out-of-order dequeue, including cancellation cuts. A
+  single owner-selected dequeue now returns the exact globally oldest typed
+  publication without exposing a ring choice. Normal
   idle and two-owner pressure are flat allocation-free outcomes in generated
   native code; the positive-controlled warmed scheduler allocation gate passes.
 - A bounded `lunaflux reference` command that validates explicit paths and

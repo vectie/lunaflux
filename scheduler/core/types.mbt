@@ -191,6 +191,95 @@ pub fn GeneratedTokenNotice::publication_sequence(
 }
 
 ///|
+/// One globally ordered scheduler publication. Consumers should prefer this
+/// owner-selected value over choosing between the two physical rings. Its
+/// representation is private so external code cannot forge scheduler output.
+#valtype
+pub struct SchedulerPublication(
+  Int,
+  @inference.RequestId,
+  @inference.RequestGeneration,
+  Int,
+  Int,
+  UInt64
+) derive(Eq)
+
+///|
+fn terminal_reason_code(reason : TerminalReason) -> Int {
+  match reason {
+    CancelledByCaller => 0
+    DeadlineReached => 1
+    StopTokenReached => 2
+    MaximumOutputReached => 3
+    WorkerFailed => 4
+  }
+}
+
+///|
+fn terminal_reason_from_code(code : Int) -> TerminalReason {
+  match code {
+    0 => CancelledByCaller
+    1 => DeadlineReached
+    2 => StopTokenReached
+    3 => MaximumOutputReached
+    4 => WorkerFailed
+    _ => abort("scheduler publication reason invariant")
+  }
+}
+
+///|
+pub fn SchedulerPublication::kind(
+  self : SchedulerPublication,
+) -> SchedulerPublicationKind {
+  if self.0 == 0 {
+    GeneratedTokenPublication
+  } else {
+    TerminalPublication
+  }
+}
+
+///|
+pub fn SchedulerPublication::request_id(
+  self : SchedulerPublication,
+) -> @inference.RequestId {
+  self.1
+}
+
+///|
+pub fn SchedulerPublication::request_generation(
+  self : SchedulerPublication,
+) -> @inference.RequestGeneration {
+  self.2
+}
+
+///|
+pub fn SchedulerPublication::publication_sequence(
+  self : SchedulerPublication,
+) -> UInt64 {
+  self.5
+}
+
+///|
+pub fn SchedulerPublication::generated_token_notice(
+  self : SchedulerPublication,
+) -> GeneratedTokenNotice raise SchedulerError {
+  if self.0 != 0 {
+    raise invalid(PublicationSequence, OutOfOrder)
+  }
+  GeneratedTokenNotice(self.1, self.2, self.3, self.4, self.5)
+}
+
+///|
+pub fn SchedulerPublication::terminal_notice(
+  self : SchedulerPublication,
+) -> TerminalNotice raise SchedulerError {
+  if self.0 != 1 {
+    raise invalid(PublicationSequence, OutOfOrder)
+  }
+  TerminalNotice(self.1, self.2, terminal_reason_from_code(self.4), self.5)
+}
+
+///|
 pub struct RequestHandle {
   slot : SchedulerSlotId
   request_id : @inference.RequestId

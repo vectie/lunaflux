@@ -24,9 +24,11 @@ request becomes active or in flight.
 
 Generated-token and terminal rings remain physically separate and fixed, but
 every committed notice receives one scheduler-global monotonic publication
-sequence. `next_publication_kind` exposes the globally oldest ring, allowing an
-online adapter to preserve exact token/terminal order—including the
-cancellation cut—without merging storage or allocating an event queue.
+sequence. `take_next_publication` atomically selects and consumes the globally
+oldest ring, allowing an online adapter to preserve exact token/terminal
+order—including the cancellation cut—without merging storage or allocating an
+event queue. The lower-level per-ring dequeues remain fail-closed against a
+wrong-ring choice.
 
 Startup authenticates separate immutable intermediate-prefill, final-prefill,
 and decode capability recipes against the selected model identity and loaded

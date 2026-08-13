@@ -46,6 +46,7 @@ pub fn WorkerService::shutdown_clean(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::status(Self, @inference.RequestId) -> @core.RequestStatus?
 pub fn WorkerService::submit_next(Self) -> WorkerServiceDispatch raise WorkerServiceError
 pub fn WorkerService::take_generated_token(Self) -> @core.GeneratedTokenNotice raise WorkerServiceError
+pub fn WorkerService::take_next_publication(Self) -> @core.SchedulerPublication raise WorkerServiceError
 pub fn WorkerService::take_terminal_notice(Self) -> @core.TerminalNotice raise WorkerServiceError
 pub fn WorkerService::terminal_notice_count(Self) -> Int
 
