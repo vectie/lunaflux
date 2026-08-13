@@ -68,6 +68,44 @@ pub(all) enum DeviceStepStage {
 } derive(Debug, Eq)
 
 ///|
+/// Stable native-resource stages for the full paged graph executor.
+pub(all) enum PagedGraphResource {
+  WeightLease
+  Stream
+  ActivationWorkspaceArena
+  PersistentKvArena
+  Module
+  Function
+  KernelArguments
+} derive(Debug, Eq)
+
+///|
+/// Bounded executor evidence rejected before dispatch.
+pub(all) enum PagedGraphExecutorRule {
+  BlueprintScope
+  ContextTarget
+  WeightIdentity
+  WeightLayout
+  WeightRegion
+  AllocationSize
+  ArtifactModule
+  LaunchDimensions
+  ResourceState
+} derive(Debug, Eq)
+
+///|
+/// Single-owner synchronous paged execution lifecycle.
+pub(all) enum PagedGraphLifecycle {
+  GraphReady
+  GraphStaged
+  GraphExecuting
+  GraphExecuted
+  GraphPoisoned
+  GraphClosingFailed
+  GraphClosed
+} derive(Debug, Eq)
+
+///|
 /// Payload-safe failures for reusable device-step staging.
 pub(all) suberror DeviceStepError {
   InvalidLimit(DeviceStepLimitRule)
@@ -84,6 +122,16 @@ pub(all) suberror DeviceStepError {
   StageOwnerMismatch
   StageEpochOverflow
   AllocationSizeMismatch(DeviceStepStage)
+  InvalidExecutor(PagedGraphExecutorRule)
+  InvalidExecutorOperation(@plan.OperationId, PagedGraphExecutorRule)
+  InvalidExecutorLifecycle(
+    expected~ : PagedGraphLifecycle,
+    actual~ : PagedGraphLifecycle
+  )
+  ExecutorDevice(PagedGraphResource, @device.DeviceError)
+  ExecutorLaunchFailed(@plan.OperationId, @device.DeviceError)
+  ExecutorOwnerMismatch
+  ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Debug, Eq)

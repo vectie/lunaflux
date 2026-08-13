@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",

@@ -53,10 +53,23 @@ binds token IDs, exact verified weight regions, every activation/workspace
 region, and persistent KV. Scope mismatches fail closed; both results remain
 inert and expose no resource authority.
 
-These are descriptor staging and startup admission, not paged attention or
-model execution. The separate native release gate in `tests/device_step_alloc`
-instruments the
-public warmed `stage`/`finish` path, proves record and fixed-array positive
-controls independently, and exercises every fixed H2D call through a bounded
-test seam. Physical-CUDA transfer, sanitizer, leak, and paged execution
-evidence remain open before Phase 3 promotion.
+`prepare_paged_graph_executor` is the first owner-mediated synchronous
+execution path for a `FullGraph` blueprint. It validates all immutable evidence
+before resources, leases the caller-owned weight allocation, and privately owns
+its descriptor buffers, activation/workspace arena, persistent KV arena,
+stream, modules, functions, and prebuilt arguments. None of those resources or
+arguments escape. Exact opaque capabilities enforce `stage -> execute ->
+finish`; every launch synchronizes, and any partial launch failure permanently
+poisons execution and descriptor state. Close invalidates execution first and
+then attempts every independent resource in reverse dependency order; failed
+cleanup retains explicit retry authority.
+
+This is a full AOT graph dispatch owner, but not yet serving or numerical-
+correctness evidence. The separate native release gate in
+`tests/device_step_alloc` currently instruments the warmed descriptor
+`stage`/`finish` path, proves record and fixed-array positive controls
+independently, and exercises every fixed H2D call through a bounded test seam.
+Generated-C allocation review covers the new success lifecycle, while a
+positive-controlled full `stage`/`execute`/`finish` runtime gate, physical CUDA
+model correctness, sanitizer, leak, and benchmark evidence remain open before
+Phase 3 promotion.

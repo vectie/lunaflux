@@ -11,6 +11,7 @@ import {
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
@@ -21,6 +22,8 @@ pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, 
 pub fn admit_paged_kv_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
 
 pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
+
+pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> PagedGraphPreparation raise DeviceStepError
 
 // Errors
 pub(all) suberror DeviceStepError {
@@ -35,6 +38,13 @@ pub(all) suberror DeviceStepError {
   StageOwnerMismatch
   StageEpochOverflow
   AllocationSizeMismatch(DeviceStepStage)
+  InvalidExecutor(PagedGraphExecutorRule)
+  InvalidExecutorOperation(@plan.OperationId, PagedGraphExecutorRule)
+  InvalidExecutorLifecycle(expected~ : PagedGraphLifecycle, actual~ : PagedGraphLifecycle)
+  ExecutorDevice(PagedGraphResource, @device.DeviceError)
+  ExecutorLaunchFailed(@plan.OperationId, @device.DeviceError)
+  ExecutorOwnerMismatch
+  ExecutorEpochMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
@@ -105,6 +115,10 @@ pub(all) enum DeviceStepStage {
   PhysicalPageIndices
 } derive(Eq, @debug.Debug)
 
+pub struct ExecutedPagedGraphExecution {
+  // private fields
+}
+
 pub struct FailedDeviceStepPreparation {
   // private fields
 }
@@ -112,6 +126,60 @@ pub fn FailedDeviceStepPreparation::cause(Self) -> DeviceStepError
 pub fn FailedDeviceStepPreparation::cleanup_failure(Self) -> DeviceStepError
 pub fn FailedDeviceStepPreparation::is_closed(Self) -> Bool
 pub fn FailedDeviceStepPreparation::retry_close(Self) -> Unit raise DeviceStepError
+
+pub struct FailedPagedGraphPreparation {
+  // private fields
+}
+pub fn FailedPagedGraphPreparation::cause(Self) -> DeviceStepError
+pub fn FailedPagedGraphPreparation::cleanup_failure(Self) -> DeviceStepError
+pub fn FailedPagedGraphPreparation::is_closed(Self) -> Bool
+pub fn FailedPagedGraphPreparation::retry_close(Self) -> Unit raise DeviceStepError
+
+pub struct PagedGraphExecutor {
+  // private fields
+}
+pub fn PagedGraphExecutor::close(Self) -> Unit raise DeviceStepError
+pub fn PagedGraphExecutor::execute(Self, StagedPagedGraphExecution) -> ExecutedPagedGraphExecution raise DeviceStepError
+pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit raise DeviceStepError
+pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
+pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError
+
+pub(all) enum PagedGraphExecutorRule {
+  BlueprintScope
+  ContextTarget
+  WeightIdentity
+  WeightLayout
+  WeightRegion
+  AllocationSize
+  ArtifactModule
+  LaunchDimensions
+  ResourceState
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PagedGraphLifecycle {
+  GraphReady
+  GraphStaged
+  GraphExecuting
+  GraphExecuted
+  GraphPoisoned
+  GraphClosingFailed
+  GraphClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PagedGraphPreparation {
+  PagedReady(PagedGraphExecutor)
+  PagedCleanupRequired(FailedPagedGraphPreparation)
+}
+
+pub(all) enum PagedGraphResource {
+  WeightLease
+  Stream
+  ActivationWorkspaceArena
+  PersistentKvArena
+  Module
+  Function
+  KernelArguments
+} derive(Eq, @debug.Debug)
 
 pub(all) enum PagedKvBlueprintRule {
   Identity
@@ -178,6 +246,10 @@ pub(all) enum PagedKvOperandSpace {
 } derive(Eq, @debug.Debug)
 
 pub struct StagedDeviceStep(DeviceStepOwner, UInt64)
+
+pub struct StagedPagedGraphExecution {
+  // private fields
+}
 
 // Type aliases
 
