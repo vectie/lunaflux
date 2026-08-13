@@ -2,10 +2,13 @@
 
 `engine/device_plan` is the immutable startup bridge between a validated
 semantic model plan, a deterministic device-weight layout, and an exact
-resolved kernel catalog. It checks that all three inputs name the same model,
-resolves every weight input to a bounded aligned arena region, preserves
-activation dependencies, carries the validated model shape envelope, and
-records one exact kernel binding per operation.
+resolved kernel catalog. Kernel selection must name the exact execution plan.
+Weights are reusable across full-context and paged plans only when their
+verified content digest matches; every referenced tensor is then revalidated
+against the operation's exact semantic BF16 byte size, so content equality
+cannot rekey a foreign tensor schema. The plan preserves activation
+dependencies, carries the validated shape envelope, and records one exact
+kernel binding per operation.
 The complete weight layout is also revalidated and its tensor count is pinned
 in the resulting startup evidence, including regions not referenced by the
 current operation graph.

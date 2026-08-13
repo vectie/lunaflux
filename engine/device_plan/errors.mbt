@@ -1,7 +1,7 @@
 ///|
 /// Identity-bearing startup input that did not match the model plan.
 pub(all) enum IdentitySource {
-  WeightLayout
+  WeightContent
   KernelCatalog
 } derive(Debug, Eq)
 
@@ -23,6 +23,7 @@ pub(all) enum WeightRegionRule {
   EndOverflow
   OutsideArena
   OverlappingPrevious
+  ByteLengthMismatch
 } derive(Debug, Eq)
 
 ///|

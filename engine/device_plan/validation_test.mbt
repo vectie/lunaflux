@@ -81,7 +81,7 @@ test "identity mismatches fail before operation planning" {
       device_plan_catalog_for(other),
     )
   catch {
-    @device_plan.DevicePlanError::IdentityMismatch(WeightLayout) => ()
+    @device_plan.DevicePlanError::IdentityMismatch(WeightContent) => ()
     _ => fail("unexpected identity error")
   } noraise {
     _ => fail("expected weight-layout identity mismatch")
@@ -98,6 +98,25 @@ test "identity mismatches fail before operation planning" {
   } noraise {
     _ => fail("expected kernel-catalog identity mismatch")
   }
+}
+
+///|
+test "weight content is reusable across exact execution-plan identities" {
+  let model = device_plan_test_model()
+  let paged_identity = @spec.ModelIdentity::new(
+    model.identity().content(),
+    @spec.PlanDigest::from_sha256(
+      "1111111111111111111111111111111111111111111111111111111111111111",
+    ),
+  )
+  let semantic = device_plan_one_operation(paged_identity)
+  let planned = @device_plan.build(
+    semantic,
+    device_plan_test_layout(),
+    device_plan_catalog_for(semantic),
+  )
+  assert_eq(planned.identity(), paged_identity)
+  assert_eq(planned.weight_tensor_count(), 12)
 }
 
 ///|
@@ -120,6 +139,33 @@ test "missing semantic tensor region fails closed" {
     _ => fail("unexpected region error")
   } noraise {
     _ => fail("expected missing region")
+  }
+}
+
+///|
+test "weight regions must match exact semantic BF16 byte sizes" {
+  let semantic = device_plan_one_operation(
+    device_plan_test_model().identity(),
+    tensor_reference=1,
+  )
+  try
+    @device_plan.build(
+      semantic,
+      device_plan_test_layout(),
+      device_plan_catalog_for(semantic),
+    )
+  catch {
+    @device_plan.DevicePlanError::InvalidWeightRegion(
+      operation,
+      tensor,
+      ByteLengthMismatch
+    ) => {
+      assert_eq(operation.as_int(), 0)
+      assert_eq(tensor.as_int(), 1)
+    }
+    _ => fail("unexpected semantic weight-size error")
+  } noraise {
+    _ => fail("expected semantic weight-size rejection")
   }
 }
 

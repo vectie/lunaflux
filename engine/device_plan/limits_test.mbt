@@ -14,9 +14,9 @@ fn repeated_plan(
       QkvProjection =>
         [
           Activation(@plan.ActivationRef::new(index - 1)),
-          Tensor(@plan.TensorRef::new(1)),
           Tensor(@plan.TensorRef::new(2)),
           Tensor(@plan.TensorRef::new(3)),
+          Tensor(@plan.TensorRef::new(4)),
         ]
       _ => abort("test helper supports only bounded repeated kinds")
     }

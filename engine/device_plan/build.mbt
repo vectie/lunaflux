@@ -146,12 +146,70 @@ fn validate_weight_region(
 }
 
 ///|
+fn expected_bf16_weight_bytes(
+  operation : @plan.PlanOperation,
+  input_index : Int,
+  tensor : @plan.TensorRef,
+  constraints : @plan.ShapeConstraints,
+) -> Int64 raise DevicePlanError {
+  let dimensions : (Int64, Int64) = match operation.kind() {
+    Embedding =>
+      (
+        Int64::from_int(constraints.vocabulary_size()),
+        Int64::from_int(constraints.hidden_size()),
+      )
+    RmsNorm => (1L, Int64::from_int(constraints.hidden_size()))
+    QkvProjection => {
+      let hidden = Int64::from_int(constraints.hidden_size())
+      let kv_width = Int64::from_int(
+        constraints.kv_head_count() * constraints.head_dimension(),
+      )
+      if input_index == 1 {
+        (hidden, hidden)
+      } else {
+        (kv_width, hidden)
+      }
+    }
+    OutputProjection =>
+      match operation.shape() {
+        ProjectionShape(input_width~, output_width~) =>
+          (Int64::from_int(output_width), Int64::from_int(input_width))
+        _ => (0L, 0L)
+      }
+    GatedMlp => {
+      let hidden = Int64::from_int(constraints.hidden_size())
+      let intermediate = Int64::from_int(constraints.intermediate_size())
+      if input_index == 3 {
+        (hidden, intermediate)
+      } else {
+        (intermediate, hidden)
+      }
+    }
+    LanguageModelHead =>
+      (
+        Int64::from_int(constraints.vocabulary_size()),
+        Int64::from_int(constraints.hidden_size()),
+      )
+    RotaryEmbedding | CausalAttention | ResidualAdd => (0L, 0L)
+  }
+  let (rows, columns) = dimensions
+  if rows <= 0L ||
+    columns <= 0L ||
+    rows > MAX_INT64 / columns ||
+    rows * columns > MAX_INT64 / 2L {
+    raise InvalidWeightRegion(operation.id(), tensor, ByteLengthMismatch)
+  }
+  rows * columns * 2L
+}
+
+///|
 fn resolve_inputs(
   operation : @plan.PlanOperation,
   layout : @device_materialize.DeviceWeightLayout,
+  constraints : @plan.ShapeConstraints,
 ) -> ReadOnlyArray[StaticInput] raise DevicePlanError {
   let resolved : Array[StaticInput] = []
-  for input in operation.inputs() {
+  for input_index, input in operation.inputs() {
     match input {
       ModelInput(reference) => resolved.push(ExternalInput(reference))
       Activation(reference) => resolved.push(ActivationValue(reference))
@@ -166,6 +224,16 @@ fn resolve_inputs(
           layout.arena_bytes(),
           layout.alignment_bytes(),
         )
+        if region.byte_length() !=
+          expected_bf16_weight_bytes(
+            operation, input_index, reference, constraints,
+          ) {
+          raise InvalidWeightRegion(
+            operation.id(),
+            reference,
+            ByteLengthMismatch,
+          )
+        }
         resolved.push(WeightRegion(region))
       }
     }
@@ -185,8 +253,8 @@ pub fn build(
   weight_layout : @device_materialize.DeviceWeightLayout,
   resolved_catalog : @catalog.ResolvedKernelCatalog,
 ) -> StaticDevicePlan raise DevicePlanError {
-  if weight_layout.identity() != model_plan.identity() {
-    raise IdentityMismatch(WeightLayout)
+  if weight_layout.identity().content() != model_plan.identity().content() {
+    raise IdentityMismatch(WeightContent)
   }
   if resolved_catalog.model_identity() != model_plan.identity() {
     raise IdentityMismatch(KernelCatalog)
@@ -235,7 +303,11 @@ pub fn build(
       id: operation.id(),
       kind: operation.kind(),
       shape: operation.shape(),
-      inputs: resolve_inputs(operation, weight_layout),
+      inputs: resolve_inputs(
+        operation,
+        weight_layout,
+        model_plan.shape_constraints(),
+      ),
       outputs: operation.outputs(),
       binding,
     })

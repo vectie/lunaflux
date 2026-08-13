@@ -37,7 +37,7 @@ fn validate_top_level_evidence(
   let identity = static_plan.identity()
   if memory_plan.identity() != identity ||
     profile.identity() != identity ||
-    weight_layout.identity() != identity ||
+    weight_layout.identity().content() != identity.content() ||
     contracts.model_identity() != identity ||
     artifacts.model_identity() != identity {
     raise InvalidPlan(Identity)
