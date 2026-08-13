@@ -10,6 +10,10 @@ _Static_assert(sizeof(off_t) >= sizeof(int64_t),
 #define LF_APPROVED_FS_SNAPSHOT_HOOK(stage, fd) ((void)(stage), (void)(fd))
 #endif
 
+#ifndef LF_APPROVED_FS_CLOSE
+#define LF_APPROVED_FS_CLOSE close
+#endif
+
 enum {
   LF_APPROVED_OK = LF_APPROVED_CAPABILITY_OK,
   LF_APPROVED_INVALID = 1,
@@ -48,6 +52,12 @@ lf_worker_approved_roots *lunaflux_approved_fs_acquire_worker_roots(
   lf_approved_handle *model_root,
   lf_approved_handle *kernel_root,
   int32_t *status
+);
+lf_worker_approved_roots *lunaflux_approved_fs_prepare_worker_roots(void);
+int32_t lunaflux_approved_fs_acquire_prepared_worker_roots(
+  lf_worker_approved_roots *roots,
+  lf_approved_handle *model_root,
+  lf_approved_handle *kernel_root
 );
 int32_t lunaflux_approved_fs_worker_roots_is_closed(
   lf_worker_approved_roots *roots

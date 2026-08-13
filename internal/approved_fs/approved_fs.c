@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <moonbit.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -12,17 +11,18 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #include "approved_fs_private.h"
-
 int lf_close_fd(int fd) {
-  if (close(fd) == 0) return LF_APPROVED_OK;
-  /* Never retry close. POSIX does not provide portable retry authority and a
-   * reused descriptor number could otherwise close an unrelated resource. */
-  if (errno == EINTR) return LF_APPROVED_OK;
+  int status;
+#if defined(__APPLE__)
+  do status = LF_APPROVED_FS_CLOSE(fd); while (status != 0 && errno == EINTR);
+#else
+  status = LF_APPROVED_FS_CLOSE(fd);
+#endif
+  if (status == 0) return LF_APPROVED_OK;
+  /* Outside Darwin, never retry an indeterminate close. */
   return LF_APPROVED_FAILED;
 }
-
 static void lf_approved_finalize(void *object) {
   lf_approved_handle *handle = (lf_approved_handle *)object;
   uint32_t expected = 0;

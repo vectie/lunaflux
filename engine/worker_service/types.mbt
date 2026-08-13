@@ -45,6 +45,54 @@ pub(all) suberror WorkerServiceError {
 } derive(Debug, Eq)
 
 ///|
+/// Payload-safe owned-instance preparation evidence.
+pub(all) enum OwnedWorkerServiceFailure {
+  OwnedSchedulerFailure(@core.SchedulerError)
+  OwnedProcessFailure(@worker_process.RootBoundWorkerProcessError)
+  OwnedServiceFailure(WorkerServiceError)
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror OwnedWorkerServicePreparationError {
+  OwnedPreparationFailure(OwnedWorkerServiceFailure)
+  OwnedPreparationCompoundFailure(
+    OwnedWorkerServiceFailure,
+    OwnedWorkerServiceFailure
+  )
+} derive(Debug, Eq)
+
+///|
+/// Cleanup-only owner returned when rooted startup or the final service join
+/// could not consume every child/root authority.
+pub struct FailedOwnedWorkerServicePreparation {
+  priv mut initial : @worker_process.FailedRootBoundWorkerProcessStartup?
+  priv mut ready_process : @worker_process.RootBoundWorkerProcessSupervisor?
+  priv mut cause_kind : Int
+  priv service_cause : WorkerServiceError?
+  priv process_cause : @worker_process.RootBoundWorkerProcessError?
+  priv mut cleanup_process_failure : @worker_process.RootBoundWorkerProcessError?
+  priv mut closed : Bool
+  priv mut reported_consumed_failure : Bool
+}
+
+///|
+pub(all) enum OwnedWorkerServicePreparationState {
+  OwnedServiceReady
+  OwnedServiceCleanupRequired
+} derive(Debug, Eq)
+
+///|
+/// Preallocated publication shell for owned preparation. The shell itself is
+/// allocated before root acquisition; publishing either terminal state only
+/// mutates its private tag.
+pub struct OwnedWorkerServicePreparation {
+  priv mut service : WorkerService?
+  priv cleanup : FailedOwnedWorkerServicePreparation
+  priv mut state : OwnedWorkerServicePreparationState
+  priv mut consumed : Bool
+}
+
+///|
 /// Allocation-free result of one owner-resident service transition.
 #valtype
 pub enum WorkerServiceProgress {
@@ -78,10 +126,11 @@ pub struct WorkerServiceBinding {
 pub struct WorkerService {
   priv scheduler : @core.Scheduler
   priv binding : WorkerServiceBinding
-  priv process : @worker_process.RootBoundWorkerProcessSupervisor
+  priv mut process : @worker_process.RootBoundWorkerProcessSupervisor?
   priv mut flight_state : Int
   priv mut flight_sequence : UInt64
   priv mut lifecycle : WorkerServiceLifecycle
+  priv production_owned : Bool
 }
 
 ///|

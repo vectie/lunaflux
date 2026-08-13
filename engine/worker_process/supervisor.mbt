@@ -8,6 +8,16 @@ fn WorkerProcessSupervisor::require_ready(
 }
 
 ///|
+fn WorkerProcessSupervisor::require_child(
+  self : WorkerProcessSupervisor,
+) -> @process.ChildProcess {
+  if !self.child_selected {
+    abort("worker process child selection invariant")
+  }
+  self.child
+}
+
+///|
 fn transport_error(error : @process.ProcessError) -> WorkerProcessError {
   match error {
     InvalidLimit(_) | InvalidRange(_) => Transport(InvalidConfiguration)
@@ -20,187 +30,96 @@ fn transport_error(error : @process.ProcessError) -> WorkerProcessError {
 }
 
 ///|
-fn perform_startup_handshake(
-  child : @process.ChildProcess,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  startup_io_timeout_millis : Int,
-) -> Unit raise WorkerProcessError {
-  let sender = @worker_wire.StartupFrameBuffer::new()
-  let receiver = @worker_wire.StartupFrameBuffer::new()
-  let outgoing = FixedArray::make(sender.capacity(), b'\x00')
-  let source_outgoing = FixedArray::make(source.length(), b'\x00')
-  let incoming = FixedArray::make(receiver.capacity(), b'\x00')
-  let configure = sender.encode(Configure, startup) catch {
-    error => raise Wire(error)
-  }
-  let length = configure.length() catch { error => raise Wire(error) }
-  configure.copy_to(outgoing, destination_offset=0) catch {
-    error => raise Wire(error)
-  }
-  child.write_frame_with_timeout(
-    outgoing,
-    offset=0,
-    byte_count=length,
-    timeout_millis=startup_io_timeout_millis,
-  ) catch {
-    error => raise transport_error(error)
-  }
-  source.copy_to(source_outgoing, destination_offset=0) catch {
-    error => raise Wire(error)
-  }
-  child.write_frame_with_timeout(
-    source_outgoing,
-    offset=0,
-    byte_count=source.length(),
-    timeout_millis=startup_io_timeout_millis,
-  ) catch {
-    error => raise transport_error(error)
-  }
-  let response_length = child.read_frame_with_timeout(
-    incoming,
-    timeout_millis=startup_io_timeout_millis,
-  ) catch {
-    error => raise transport_error(error)
-  }
-  let ready = receiver.load(incoming, response_length) catch {
-    error => raise Wire(error)
-  }
-  let kind = ready.kind() catch { error => raise Wire(error) }
-  let actual = ready.contract() catch { error => raise Wire(error) }
-  if kind != Ready || actual != startup {
-    raise Invalid(Submission)
+fn transport_status_error(status : Int) -> WorkerProcessError {
+  Transport(
+    match status {
+      1 => InvalidState
+      2 => Timeout
+      3 => ChannelClosed
+      _ => OperationFailed
+    },
+  )
+}
+
+///|
+fn startup_raw_cause(failed : FailedWorkerProcessStartup) -> WorkerProcessError {
+  match failed.cause_kind {
+    1 => Transport(SpawnFailed)
+    2 => transport_status_error(failed.cause_status)
+    3 => Invalid(Submission)
+    _ => Invalid(Lifecycle)
   }
 }
 
 ///|
-fn prepare_internal(
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
+fn prepare_spawned(
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
-  roots : @approved_fs.WorkerApprovedRoots?,
-) -> WorkerProcessPreparation raise WorkerProcessError {
-  if source.digest() != startup.bootstrap_source_digest() {
-    raise Invalid(SourceMismatch)
+  prepared : PreparedWorkerProcessStartup,
+  child : @process.ChildProcess,
+) -> WorkerProcessPreparation {
+  let status = perform_startup_handshake_status(
+    child,
+    source,
+    limits.startup_io_timeout_millis,
+    prepared,
+  )
+  if status == 0 {
+    prepared.supervisor.child_selected = true
+    prepared.failed.child_selected = false
+    return ReadyProcess(prepared.supervisor)
   }
-  let worker_limits = startup.worker_limits()
-  let inference_limits = startup.inference_limits()
-  let plan_a = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
-  ) catch {
-    error => raise Wire(error)
+  if status >= 300 {
+    prepared.failed.cause_kind = 3
+    prepared.failed.cause_status = 0
+  } else {
+    prepared.failed.cause_kind = 2
+    prepared.failed.cause_status = if status >= 200 {
+      status - 201
+    } else {
+      status - 100
+    }
   }
-  let plan_b = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
-  ) catch {
-    error => raise Wire(error)
+  let cleanup_status = child.startup_close_status()
+  prepared.failed.cleanup_status = cleanup_status
+  prepared.supervisor.child_selected = false
+  prepared.failed.child_selected = !child.is_closed()
+  prepared.failed.closed = child.is_closed()
+  CleanupRequired(prepared.failed)
+}
+
+///|
+fn prepare_spawn_failed(
+  prepared : PreparedWorkerProcessStartup,
+) -> WorkerProcessPreparation {
+  prepared.failed.cause_kind = 1
+  prepared.failed.cause_status = 0
+  prepared.failed.cleanup_status = prepared.child.cleanup_status()
+  prepared.failed.closed = prepared.child.child_owner().is_closed()
+  prepared.supervisor.child_selected = false
+  prepared.failed.child_selected = !prepared.failed.closed
+  CleanupRequired(prepared.failed)
+}
+
+///|
+fn closed_startup_error(
+  failed : FailedWorkerProcessStartup,
+) -> WorkerProcessError {
+  startup_raw_cause(failed)
+}
+
+///|
+fn prepare_preflighted(
+  source : @worker_wire.EncodedBootstrapSource,
+  limits : WorkerProcessLimits,
+  prepared : PreparedWorkerProcessStartup,
+  roots : @approved_fs.WorkerApprovedRoots,
+) -> WorkerProcessPreparation {
+  let spawn_status = prepared.child.spawn_with_approved_roots_status(roots)
+  if spawn_status != 0 {
+    return prepare_spawn_failed(prepared)
   }
-  let completion_a = @worker_wire.CompletionFrameBuffer::new(
-    worker_limits, inference_limits,
-  ) catch {
-    error => raise Wire(error)
-  }
-  let completion_b = @worker_wire.CompletionFrameBuffer::new(
-    worker_limits, inference_limits,
-  ) catch {
-    error => raise Wire(error)
-  }
-  let startup_frame = @worker_wire.StartupFrameBuffer::new()
-  let required = plan_a
-    .capacity()
-    .max(completion_a.capacity())
-    .max(startup_frame.capacity())
-    .max(source.capacity())
-  if required > limits.max_frame_bytes {
-    raise Invalid(Capacity)
-  }
-  let process_limits = @process.ProcessLimits::new(
-    max_frame_bytes=limits.max_frame_bytes,
-    io_timeout_millis=limits.io_timeout_millis,
-    shutdown_timeout_millis=limits.shutdown_timeout_millis,
-  ) catch {
-    error => raise transport_error(error)
-  }
-  let child = match roots {
-    None =>
-      @process.spawn(executable, process_limits) catch {
-        error => raise transport_error(error)
-      }
-    Some(approved_roots) =>
-      @process.spawn_with_approved_roots(
-        executable, approved_roots, process_limits,
-      ) catch {
-        error => raise transport_error(error)
-      }
-  }
-  try {
-    perform_startup_handshake(
-      child,
-      startup,
-      source,
-      limits.startup_io_timeout_millis,
-    )
-    ReadyProcess({
-      child,
-      startup,
-      source,
-      plan_a,
-      plan_b,
-      completion_a,
-      completion_b,
-      tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
-      tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
-      rx: FixedArray::make(completion_a.capacity(), b'\x00'),
-      rx_staging: FixedArray::make(completion_a.capacity(), b'\x00'),
-      exchange_request_ids: FixedArray::make(
-        worker_limits.max_completion_slots(),
-        0UL,
-      ),
-      exchange_request_generations: FixedArray::make(
-        worker_limits.max_completion_slots(),
-        0UL,
-      ),
-      exchange_expected_kinds: FixedArray::make(
-        worker_limits.max_completion_slots(),
-        -1,
-      ),
-      exchange_processed_tokens: FixedArray::make(
-        worker_limits.max_completion_slots(),
-        0,
-      ),
-      exchange_slots: FixedArray::make(worker_limits.max_completion_slots(), -1),
-      exchange_entry_count: 0,
-      state_a: 0,
-      state_b: 0,
-      sequence_a: 0UL,
-      sequence_b: 0UL,
-      last_submitted: if startup.has_predecessor() {
-        startup.predecessor_value()
-      } else {
-        0UL
-      },
-      last_retired: if startup.has_predecessor() {
-        startup.predecessor_value()
-      } else {
-        0UL
-      },
-      lifecycle: Ready,
-    })
-  } catch {
-    cause =>
-      try child.close() catch {
-        cleanup_error =>
-          CleanupRequired({
-            child,
-            cause,
-            cleanup_failure: transport_error(cleanup_error),
-            closed: false,
-          })
-      } noraise {
-        _ => raise cause
-      }
-  }
+  prepare_spawned(source, limits, prepared, prepared.child.child_owner())
 }
 
 ///|
@@ -213,7 +132,16 @@ pub fn prepare(
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
 ) -> WorkerProcessPreparation raise WorkerProcessError {
-  prepare_internal(executable, startup, source, limits, None)
+  let prepared = preflight_prepare(executable, startup, source, limits)
+  let child = prepared.child.spawn() catch {
+    error => raise transport_error(error)
+  }
+  let result = prepare_spawned(source, limits, prepared, child)
+  match result {
+    CleanupRequired(failed) if failed.is_closed() && failed.cleanup_status == 0 =>
+      raise closed_startup_error(failed)
+    _ => result
+  }
 }
 
 ///|
@@ -263,7 +191,7 @@ pub fn WorkerProcessSupervisor::submit(
   frame.copy_to(transport, destination_offset=0) catch {
     error => raise Wire(error)
   }
-  self.child.write_frame(transport, offset=0, byte_count=length) catch {
+  self.require_child().write_frame(transport, offset=0, byte_count=length) catch {
     error => self.fail_process(error)
   }
   if side == 0 {
@@ -343,12 +271,12 @@ pub fn WorkerProcessSupervisor::receive(
   if plan_sequence != submission.2 {
     raise Invalid(Submission)
   }
-  let length = self.child.read_frame(self.rx) catch {
-    error => {
-      self.lifecycle = Failed
-      raise transport_error(error)
+  let length = self.require_child().read_frame(self.rx) catch {
+      error => {
+        self.lifecycle = Failed
+        raise transport_error(error)
+      }
     }
-  }
   self.accept_completion_bytes(side, plan, length)
 }
 
@@ -477,7 +405,7 @@ pub fn WorkerProcessSupervisor::close(
     return
   }
   self.lifecycle = ClosingFailed
-  self.child.close() catch {
+  self.require_child().close() catch {
     error => raise transport_error(error)
   }
   self.lifecycle = Closed

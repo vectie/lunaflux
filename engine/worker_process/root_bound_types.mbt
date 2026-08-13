@@ -25,6 +25,11 @@ pub(all) suberror RootBoundWorkerProcessError {
     RootBoundWorkerProcessFailure,
     RootBoundWorkerProcessFailure
   )
+  RootBoundTripleFailure(
+    RootBoundWorkerProcessFailure,
+    RootBoundWorkerProcessFailure,
+    RootBoundWorkerProcessFailure
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -34,6 +39,7 @@ pub struct RootBoundWorkerProcessSupervisor {
   priv executable : Bytes
   priv limits : WorkerProcessLimits
   priv roots : @approved_fs.WorkerApprovedRoots
+  priv mut roots_selected : Bool
   priv mut process : WorkerProcessSupervisor
   priv mut failed_replacement : FailedWorkerProcessStartup?
   priv mut cause : RootBoundWorkerProcessFailure?
@@ -52,14 +58,16 @@ pub struct RootBoundWorkerProcessSupervisor {
 /// Cleanup-only result when initial startup did not publish a supervisor.
 pub struct FailedRootBoundWorkerProcessStartup {
   priv roots : @approved_fs.WorkerApprovedRoots
+  priv mut roots_selected : Bool
   priv mut child : FailedWorkerProcessStartup?
-  priv cause : RootBoundWorkerProcessFailure
-  priv mut child_cleanup_failure : RootBoundWorkerProcessFailure?
-  priv mut roots_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut child_cleanup_process : WorkerProcessError?
+  priv mut child_cleanup_native : @process.ProcessError?
+  priv mut roots_cleanup_status : Int
   priv mut closed : Bool
 }
 
 ///|
+#valtype
 pub(all) enum RootBoundWorkerProcessPreparation {
   ReadyRootBoundProcess(RootBoundWorkerProcessSupervisor)
   RootBoundCleanupRequired(FailedRootBoundWorkerProcessStartup)
@@ -133,21 +141,36 @@ pub fn RootBoundWorkerProcessSupervisor::is_closed(
 pub fn FailedRootBoundWorkerProcessStartup::cause(
   self : FailedRootBoundWorkerProcessStartup,
 ) -> RootBoundWorkerProcessFailure {
-  self.cause
+  match self.child {
+    Some(child) => Process(child.cause())
+    None => Process(Invalid(Lifecycle))
+  }
 }
 
 ///|
 pub fn FailedRootBoundWorkerProcessStartup::child_cleanup_failure(
   self : FailedRootBoundWorkerProcessStartup,
 ) -> RootBoundWorkerProcessFailure? {
-  self.child_cleanup_failure
+  match self.child_cleanup_process {
+    Some(error) => Some(Process(error))
+    None =>
+      match self.child {
+        Some(child) if child.cleanup_status != 0 =>
+          Some(Process(child.cleanup_failure()))
+        _ =>
+          match self.child_cleanup_native {
+            Some(error) => Some(Process(transport_error(error)))
+            None => None
+          }
+      }
+  }
 }
 
 ///|
 pub fn FailedRootBoundWorkerProcessStartup::roots_cleanup_failure(
   self : FailedRootBoundWorkerProcessStartup,
 ) -> RootBoundWorkerProcessFailure? {
-  self.roots_cleanup_failure
+  root_failure_status(self.roots_cleanup_status)
 }
 
 ///|

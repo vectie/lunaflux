@@ -4,6 +4,7 @@ import {
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 supported_targets = "native"

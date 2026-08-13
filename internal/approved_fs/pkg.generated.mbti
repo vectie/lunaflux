@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn acquire_prepared_worker_roots(@approved_fs_inheritance.WorkerApprovedRoots, @approved_fs_capability.NativeApprovedHandle, @approved_fs_capability.NativeApprovedHandle) -> Int
+
 pub fn acquire_worker_roots(@approved_fs_capability.NativeApprovedHandle, @approved_fs_capability.NativeApprovedHandle, @ref.Ref[Int]) -> @approved_fs_inheritance.WorkerApprovedRoots
 
 pub fn close(@approved_fs_capability.NativeApprovedHandle) -> Int
@@ -21,6 +23,8 @@ pub fn open_file(@approved_fs_capability.NativeApprovedHandle, Bytes, @ref.Ref[I
 pub fn open_inherited_root(Int, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
 
 pub fn open_root(Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
+
+pub fn prepare_worker_roots() -> @approved_fs_inheritance.WorkerApprovedRoots
 
 pub fn read_exact_at(@approved_fs_capability.NativeApprovedHandle, FixedArray[Byte], Int, Int, Int64) -> Int
 

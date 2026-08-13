@@ -55,6 +55,29 @@ pub struct ChildProcess {
 }
 
 ///|
+/// Allocation-complete child shell prepared before any external capability is
+/// borrowed. Spawning only installs native pid/fd state into this exact owner.
+pub struct PreparedChildProcess {
+  priv child : ChildProcess
+  priv path : Bytes
+  priv mut consumed : Bool
+  priv mut cleanup_status : Int
+}
+
+///|
+pub fn PreparedChildProcess::child_owner(
+  self : PreparedChildProcess,
+) -> ChildProcess {
+  self.child
+}
+
+///|
+/// Returns scalar cleanup evidence retained by a failed prepared spawn.
+pub fn PreparedChildProcess::cleanup_status(self : PreparedChildProcess) -> Int {
+  self.cleanup_status
+}
+
+///|
 /// Worker-side owner of the inherited standard-input/output channel.
 pub struct InheritedChannel {
   priv limits : ProcessLimits

@@ -57,6 +57,20 @@ pub fn acquire_worker_roots(
 }
 
 ///|
+pub fn prepare_worker_roots() -> @inheritance.WorkerApprovedRoots {
+  raw_prepare_worker_roots()
+}
+
+///|
+pub fn acquire_prepared_worker_roots(
+  roots : @inheritance.WorkerApprovedRoots,
+  model_root : ApprovedHandle,
+  kernel_root : ApprovedHandle,
+) -> Int {
+  raw_acquire_prepared_worker_roots(roots, model_root, kernel_root)
+}
+
+///|
 pub fn open_inherited_root(role : Int, status : Ref[Int]) -> ApprovedHandle {
   raw_open_inherited_root(role, status)
 }

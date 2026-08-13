@@ -22,6 +22,7 @@ pub fn RootBoundWorkerProcessSupervisor::begin_recovery(
       }
     },
     () => None,
+    () => self.process.lifecycle() != Closed,
     () => false,
   )
   self.child_cleanup_failure = attempt.child_failure
@@ -46,15 +47,20 @@ pub fn RootBoundWorkerProcessSupervisor::restart(
   let startup = self.process.recovery_startup_contract() catch {
     error => raise RootBoundFailure(Process(error))
   }
-  let result = prepare_internal(
+  let prepared = preflight_prepare(
     self.executable,
     startup,
     self.process.bootstrap_source(),
     self.limits,
-    Some(self.roots),
   ) catch {
     error => raise RootBoundFailure(Process(error))
   }
+  let result = prepare_preflighted(
+    self.process.bootstrap_source(),
+    self.limits,
+    prepared,
+    self.require_roots(),
+  )
   match result {
     ReadyProcess(replacement) => {
       self.process = replacement
@@ -65,9 +71,23 @@ pub fn RootBoundWorkerProcessSupervisor::restart(
       RootBoundRestarted
     }
     CleanupRequired(failed) => {
+      if failed.is_closed() {
+        let primary = Process(failed.cause())
+        if failed.cleanup_status != 0 {
+          raise RootBoundCompoundFailure(
+            primary,
+            Process(failed.cleanup_failure()),
+          )
+        }
+        raise RootBoundFailure(primary)
+      }
       self.failed_replacement = Some(failed)
       self.cause = Some(Process(failed.cause()))
-      self.child_cleanup_failure = Some(Process(failed.cleanup_failure()))
+      self.child_cleanup_failure = if failed.cleanup_status == 0 {
+        None
+      } else {
+        Some(Process(failed.cleanup_failure()))
+      }
       self.lifecycle = RootBoundReplacementCleanup
       RootBoundRestartCleanupRequired
     }
@@ -95,6 +115,7 @@ pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(
       }
     },
     () => None,
+    () => !failed.is_closed(),
     () => false,
   )
   self.child_cleanup_failure = attempt.child_failure
@@ -120,7 +141,7 @@ pub fn RootBoundWorkerProcessSupervisor::close(
     self.process.lifecycle() != Closed
   let attempt = attempt_root_bound_cleanup(
     child_live,
-    roots_still_live(self.roots),
+    roots_still_live(self.require_roots()),
     () => {
       let mut failure = None
       if self.failed_replacement is Some(failed) {
@@ -143,8 +164,14 @@ pub fn RootBoundWorkerProcessSupervisor::close(
         None
       }
     },
-    () => close_root_pair(self.roots),
-    () => roots_still_live(self.roots),
+    () => close_root_pair(self.require_roots()),
+    () => {
+      match self.failed_replacement {
+        Some(failed) => !failed.is_closed()
+        None => self.process.lifecycle() != Closed
+      }
+    },
+    () => roots_still_live(self.require_roots()),
   )
   self.child_cleanup_failure = attempt.child_failure
   self.roots_cleanup_failure = attempt.roots_failure

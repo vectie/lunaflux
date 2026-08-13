@@ -29,6 +29,23 @@ if ! rg -q 'posix_spawn\s*\(' internal/process/process.c ||
   exit 1
 fi
 
+if ! rg -q 'lunaflux_process_prepare_child' internal/process/process.c ||
+  ! rg -q 'lunaflux_process_spawn_prepared_with_approved_roots' \
+    internal/process/process.c ||
+  ! rg -q 'lunaflux_process_is_closed' internal/process/process.c ||
+  rg -q 'raw_spawn_with_approved_roots|raw_spawn\(' internal/process/ffi.mbt; then
+  printf '%s\n' 'worker process ABI must use prepared child spawn only' >&2
+  exit 1
+fi
+
+if ! rg -q 'path_length <= 1.*path_length > 1048576' internal/process/process.c ||
+  ! rg -q "path\[path_length - 1\] != '\\\\0'" internal/process/process.c ||
+  ! rg -q "memchr\(path, '\\\\0', \(size_t\)\(path_length - 1\)\)" \
+    internal/process/process.c; then
+  printf '%s\n' 'prepared executable path length/terminator guards are missing' >&2
+  exit 1
+fi
+
 if ! rg -q 'MSG_DONTWAIT' internal/process/process_io.c ||
   ! rg -q 'LF_PROCESS_PENDING' internal/process/process_io.c ||
   ! rg -q 'error_number == EINTR' internal/process/process_io.c ||
@@ -58,6 +75,7 @@ for source_file in internal/process/process.c \
   internal/process/process_io_asan_probe.c \
   internal/process/process_io.h \
   internal/process/process_nonblocking.c \
+  internal/process/process_spawn_asan_probe.c \
   internal/process/process_handle.h \
   internal/process/child_control.c \
   internal/process/child_control_asan_probe.c \

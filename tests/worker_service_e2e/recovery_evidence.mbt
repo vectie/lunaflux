@@ -1,6 +1,30 @@
 ///|
+fn run_owned_startup_failure_evidence() -> Unit raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  try
+    @worker_service.prepare_owned(
+      scheduler_blueprint(),
+      service_binding(),
+      b"/private/tmp/lunaflux-worker-does-not-exist",
+      startup(),
+      bootstrap_source(),
+      process_limits(),
+      model,
+      kernel,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => raise Failure("missing executable published an owned service")
+  }
+  model.close()
+  kernel.close()
+}
+
+///|
 fn run_terminal_drain_evidence(executable : Bytes) -> Unit raise {
-  let terminal_service = @worker_service.new(
+  let terminal_service = @worker_service.new_fixture(
     scheduler_owner(),
     service_binding(),
     process_owner(executable),
@@ -17,7 +41,7 @@ fn run_terminal_drain_evidence(executable : Bytes) -> Unit raise {
   terminal_service.close()
   assert_eq(terminal_service.lifecycle(), ServiceClosed)
 
-  let pressured = @worker_service.new(
+  let pressured = @worker_service.new_fixture(
     scheduler_owner(),
     service_binding(),
     process_owner(executable),
@@ -53,7 +77,7 @@ fn run_reservation_classification_evidence(executable : Bytes) -> Unit raise {
   // These retained aliases deliberately violate exclusive-owner discipline to
   // inject deterministic child-loss races into the production state machine.
   let reserved_root = process_owner(executable)
-  let reserved = @worker_service.new(
+  let reserved = @worker_service.new_fixture(
     scheduler_owner(),
     service_binding(),
     reserved_root,
@@ -79,7 +103,7 @@ fn run_reservation_classification_evidence(executable : Bytes) -> Unit raise {
   reserved.close()
 
   let absent_root = process_owner(executable)
-  let absent = @worker_service.new(
+  let absent = @worker_service.new_fixture(
     scheduler_owner(),
     service_binding(),
     absent_root,

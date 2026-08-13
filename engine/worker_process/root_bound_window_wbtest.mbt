@@ -14,6 +14,7 @@ fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
     executable: b"/bin/cat",
     limits: supervisor_process_limits(),
     roots,
+    roots_selected: true,
     process: test_supervisor(),
     failed_replacement: None,
     cause: None,
@@ -26,6 +27,58 @@ fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
     exchange_side: -1,
     exchange_sequence: 0UL,
     lifecycle: RootBoundReady,
+  }
+}
+
+///|
+test "rooted preparation rejects executable before acquiring closed roots" {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  model.close()
+  kernel.close()
+  try
+    prepare_with_approved_roots(
+      b"bad\x00worker",
+      supervisor_startup(),
+      supervisor_source(),
+      supervisor_process_limits(),
+      model,
+      kernel,
+    )
+  catch {
+    RootBoundFailure(Process(Invalid(Submission))) => ()
+    _ => fail("executable preflight reached root acquisition")
+  } noraise {
+    _ => fail("NUL executable passed rooted preflight")
+  }
+}
+
+///|
+test "rooted preparation rejects frame capacity before acquiring closed roots" {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  model.close()
+  kernel.close()
+  let limits = WorkerProcessLimits::new(
+    max_frame_bytes=64,
+    startup_io_timeout_millis=100,
+    io_timeout_millis=100,
+    shutdown_timeout_millis=100,
+  )
+  try
+    prepare_with_approved_roots(
+      b"/bin/false",
+      supervisor_startup(),
+      supervisor_source(),
+      limits,
+      model,
+      kernel,
+    )
+  catch {
+    RootBoundFailure(Process(Invalid(Capacity))) => ()
+    _ => fail("capacity preflight reached root acquisition")
+  } noraise {
+    _ => fail("undersized frame capacity passed rooted preflight")
   }
 }
 
@@ -124,7 +177,7 @@ test "malformed nonblocking response fail-stops the rooted supervisor" {
 ///|
 test "post-reservation begin failure retains exact process obligation" {
   let owner = test_root_bound_supervisor()
-  owner.process.child.close()
+  owner.process.require_child().close()
   try owner.begin_exchange(supervisor_plan(1UL)) catch {
     RootBoundFailure(Process(Transport(InvalidState))) => ()
     _ => fail("unexpected post-reservation begin failure")

@@ -190,6 +190,26 @@ if [ -d engine/device_worker_bootstrap ]; then
   fi
 fi
 
+# The production scheduler blueprint accepts only resolver-owned capacity
+# evidence. Keep the capacity record opaque so callers cannot forge a wider or
+# internally inconsistent envelope with a record update.
+if [ -f config/runtime_resolved/pkg.generated.mbti ]; then
+  resolved_capacity_interface="$(sed -n \
+    '/^pub struct ResolvedRuntimeCapacity {$/,/^}/p' \
+    config/runtime_resolved/pkg.generated.mbti)"
+  if ! printf '%s\n' "$resolved_capacity_interface" |
+    rg -q '^  // private fields$'; then
+    printf '%s\n' \
+      'resolved runtime capacity must remain opaque construction evidence' >&2
+    failed=1
+  fi
+  if printf '%s\n' "$resolved_capacity_interface" | rg -q '^  [a-zA-Z_][^/]* :'; then
+    printf '%s\n' \
+      'resolved runtime capacity must not expose forgeable record fields' >&2
+    failed=1
+  fi
+fi
+
 # Production worker supervision owns one root-bound process facade. Initial
 # preparation accepts ordinary approved roots; replacement is zero-argument,
 # and the service cannot receive the legacy fixture supervisor.
@@ -207,10 +227,29 @@ if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
     failed=1
   fi
   if ! rg -q \
-    '^pub fn new\(@core\.Scheduler, WorkerServiceBinding, @worker_process\.RootBoundWorkerProcessSupervisor\)' \
+    '^pub fn new_fixture\(@core\.Scheduler, WorkerServiceBinding, @worker_process\.RootBoundWorkerProcessSupervisor\)' \
     engine/worker_service/pkg.generated.mbti; then
     printf '%s\n' \
-      'worker service must own the root-bound process supervisor' >&2
+      'worker service fixture constructor must be explicitly named' >&2
+    failed=1
+  fi
+  if ! rg -q \
+    '^pub fn prepare_owned\(@core\.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire\.WorkerStartupContract, @worker_wire\.EncodedBootstrapSource, @worker_process\.WorkerProcessLimits, @approved_fs\.ApprovedRoot, @approved_fs\.ApprovedRoot\)' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'production worker service must construct scheduler and rooted process internally' >&2
+    failed=1
+  fi
+  if rg -n '^pub fn [^(]*\([^)]*(@core\.Scheduler|@worker_process\.RootBoundWorkerProcessSupervisor)' \
+    engine/worker_service/pkg.generated.mbti |
+    rg -v '^.*pub fn (new_fixture|prepare_owned)\('; then
+    printf '%s\n' \
+      'worker service must not expose another alias-taking owner constructor' >&2
+    failed=1
+  fi
+  if rg -n '::(scheduler|process|roots)\(' engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker service must not expose scheduler, process, or root owners' >&2
     failed=1
   fi
   if ! rg -q \
@@ -446,6 +485,22 @@ fail_matches \
   'public package interface leaks an internal ABI type:' \
   --glob 'pkg.generated.mbti' --glob '!internal/**' \
   'vectie/lunaflux/internal/'
+
+root_owner_calls=$(rg -n '\.root_owner\(' --glob '*.mbt' || true)
+if [ -n "$root_owner_calls" ] &&
+  printf '%s\n' "$root_owner_calls" | rg -v '^engine/worker_process/'; then
+  printf '%s\n' 'prepared approved-root owner sharing is restricted to worker_process' >&2
+  failed=1
+fi
+
+fixture_constructor_calls=$(rg -n '@worker_service\.new_fixture\(' \
+  --glob '*.mbt' || true)
+if [ -n "$fixture_constructor_calls" ] &&
+  printf '%s\n' "$fixture_constructor_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/)'; then
+  printf '%s\n' 'WorkerService new_fixture escaped fixture/test scope' >&2
+  failed=1
+fi
 
 # Production code is MoonBit plus narrow C stubs. Python may be used by neither
 # the runtime nor its normal validation path.

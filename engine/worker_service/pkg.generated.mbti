@@ -7,13 +7,21 @@ import {
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/scheduler/core",
 }
 
 // Values
-pub fn new(@core.Scheduler, WorkerServiceBinding, @worker_process.RootBoundWorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
+pub fn new_fixture(@core.Scheduler, WorkerServiceBinding, @worker_process.RootBoundWorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
+
+pub fn prepare_owned(@core.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 
 // Errors
+pub(all) suberror OwnedWorkerServicePreparationError {
+  OwnedPreparationFailure(OwnedWorkerServiceFailure)
+  OwnedPreparationCompoundFailure(OwnedWorkerServiceFailure, OwnedWorkerServiceFailure)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror WorkerServiceError {
   Invalid(WorkerServiceRule)
   RootBoundProcess(@worker_process.RootBoundWorkerProcessError)
@@ -21,6 +29,32 @@ pub(all) suberror WorkerServiceError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct FailedOwnedWorkerServicePreparation {
+  // private fields
+}
+pub fn FailedOwnedWorkerServicePreparation::cause(Self) -> OwnedWorkerServiceFailure
+pub fn FailedOwnedWorkerServicePreparation::cleanup_failure(Self) -> OwnedWorkerServiceFailure?
+pub fn FailedOwnedWorkerServicePreparation::is_closed(Self) -> Bool
+pub fn FailedOwnedWorkerServicePreparation::retry_close(Self) -> Unit raise OwnedWorkerServicePreparationError
+
+pub(all) enum OwnedWorkerServiceFailure {
+  OwnedSchedulerFailure(@core.SchedulerError)
+  OwnedProcessFailure(@worker_process.RootBoundWorkerProcessError)
+  OwnedServiceFailure(WorkerServiceError)
+} derive(Eq, @debug.Debug)
+
+pub struct OwnedWorkerServicePreparation {
+  // private fields
+}
+pub fn OwnedWorkerServicePreparation::state(Self) -> OwnedWorkerServicePreparationState
+pub fn OwnedWorkerServicePreparation::take_cleanup(Self) -> FailedOwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+pub fn OwnedWorkerServicePreparation::take_ready(Self) -> WorkerService raise OwnedWorkerServicePreparationError
+
+pub(all) enum OwnedWorkerServicePreparationState {
+  OwnedServiceReady
+  OwnedServiceCleanupRequired
+} derive(Eq, @debug.Debug)
+
 pub struct WorkerService {
   // private fields
 }

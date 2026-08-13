@@ -211,12 +211,9 @@ fn WorkerProcessSupervisor::begin_exchange_write(
       raise Wire(error)
     }
   }
-  self.child.begin_write_frame(
-    transport,
-    offset=0,
-    byte_count=length,
-    timeout_millis~,
-  ) catch {
+  self
+  .require_child()
+  .begin_write_frame(transport, offset=0, byte_count=length, timeout_millis~) catch {
     error => {
       self.lifecycle = Failed
       raise transport_error(error)
@@ -401,13 +398,15 @@ pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
     raise RootBoundInvalidLifecycle
   }
   if self.exchange_phase == EXCHANGE_WRITING {
-    let complete = self.process.child.progress_write_frame() catch {
-      error => self.fail_exchange(transport_error(error))
-    }
+    let complete = self.process.require_child().progress_write_frame() catch {
+        error => self.fail_exchange(transport_error(error))
+      }
     if !complete {
       return ExchangePending
     }
-    self.process.child.begin_read_frame(
+    self.process
+    .require_child()
+    .begin_read_frame(
       self.process.rx,
       staging=self.process.rx_staging,
       timeout_millis=self.limits.io_timeout_millis(),
@@ -420,9 +419,9 @@ pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
   if self.exchange_phase != EXCHANGE_READING {
     self.fail_exchange(Invalid(Completion))
   }
-  let length = self.process.child.progress_read_frame() catch {
-    error => self.fail_exchange(transport_error(error))
-  }
+  let length = self.process.require_child().progress_read_frame() catch {
+      error => self.fail_exchange(transport_error(error))
+    }
   guard length is Some(byte_count) else { return ExchangePending }
   self.process.accept_exchange_completion_bytes(self.exchange_side, byte_count) catch {
     error => self.fail_exchange(error)

@@ -62,6 +62,14 @@ fn wb_owner_with_capacity(
   max_active_requests : Int,
   max_waiting_requests : Int,
 ) -> Scheduler {
+  try! wb_blueprint_with_capacity(max_active_requests, max_waiting_requests).instantiate()
+}
+
+///|
+fn wb_blueprint_with_capacity(
+  max_active_requests : Int,
+  max_waiting_requests : Int,
+) -> SchedulerBlueprint {
   let scheduler = try! @scheduler.new(
     step_token_budget=2,
     max_active_requests~,
@@ -105,7 +113,7 @@ fn wb_owner_with_capacity(
     [@plan.KernelCapabilityId::embedding_lookup()],
     worker,
   )
-  try! Scheduler::new(
+  try! SchedulerBlueprint::new(
     capacity,
     wb_identity(),
     generation,
@@ -113,6 +121,23 @@ fn wb_owner_with_capacity(
     recipe,
     recipe,
   )
+}
+
+///|
+test "scheduler blueprint instantiations own independent mutable state" {
+  let blueprint = wb_blueprint_with_capacity(2, 2)
+  let first = blueprint.instantiate()
+  let second = blueprint.instantiate()
+  let first_handle = first.admit(wb_request(41UL), 0UL)
+  assert_eq(first.live_request_count(), 1)
+  assert_eq(second.live_request_count(), 0)
+  assert_eq(second.status(first_handle.request_id()), None)
+  let second_handle = second.admit(wb_request(42UL), 0UL)
+  assert_eq(first_handle.request_generation().value(), 1UL)
+  assert_eq(second_handle.request_generation().value(), 1UL)
+  ignore(first.cancel(first_handle))
+  assert_eq(first.terminal_notice_count(), 1)
+  assert_eq(second.terminal_notice_count(), 0)
 }
 
 ///|

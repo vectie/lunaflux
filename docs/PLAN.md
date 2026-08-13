@@ -346,7 +346,15 @@ the replacement's fresh device arena. An independent `WorkerServiceBinding` reta
 bootstrap and bootstrap-source digests, device ordinal, and inference limits;
 service construction
 and replacement validate those together with the scheduler's exact worker
-limits, identity, generation, and predecessor.
+limits, identity, generation, and predecessor. The production constructor now
+accepts an immutable scheduler blueprint plus ordinary approved roots and
+constructs both mutable owners without exposing aliases; the alias-taking
+constructor is retained only for deterministic fixtures. Deterministic worker
+buffers, child ownership, executable snapshot, and Configure/source/expected-
+Ready frames are allocated before root acquisition. Native spawn, scalar
+handshake I/O, exact Ready comparison, scalar cleanup, and owner publication
+allocate no managed objects while rooted child authority is live. Online-
+session ownership remains future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

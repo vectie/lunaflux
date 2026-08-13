@@ -11,6 +11,8 @@ import {
 // Values
 pub fn prepare(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits) -> WorkerProcessPreparation raise WorkerProcessError
 
+pub fn prepare_exchange_with_approved_roots(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, UInt64) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
+
 pub fn prepare_with_approved_roots(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
 
 // Errors
@@ -19,6 +21,7 @@ pub(all) suberror RootBoundWorkerProcessError {
   RootBoundOwnerMismatch
   RootBoundFailure(RootBoundWorkerProcessFailure)
   RootBoundCompoundFailure(RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure)
+  RootBoundTripleFailure(RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror WorkerProcessError {

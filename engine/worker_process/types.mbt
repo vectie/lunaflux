@@ -52,6 +52,7 @@ pub struct WorkerProcessLimits {
 /// Single-owner A/B process supervisor.
 pub struct WorkerProcessSupervisor {
   priv child : @process.ChildProcess
+  priv mut child_selected : Bool
   priv startup : @worker_wire.WorkerStartupContract
   priv source : @worker_wire.EncodedBootstrapSource
   priv plan_a : @worker_wire.PlanFrameBuffer
@@ -78,7 +79,26 @@ pub struct WorkerProcessSupervisor {
 }
 
 ///|
+/// Private bounded-buffer startup plan. Deterministic capacities and reusable
+/// worker buffers, child ownership, and canonical Configure/source/expected-
+/// Ready bytes are validated and allocated before root acquisition. Startup
+/// I/O, exact Ready comparison, and cleanup use scalar status paths.
+priv struct PreparedWorkerProcessStartup {
+  executable : Bytes
+  child : @process.PreparedChildProcess
+  startup_outgoing : FixedArray[Byte]
+  startup_outgoing_length : Int
+  source_outgoing : FixedArray[Byte]
+  startup_incoming : FixedArray[Byte]
+  expected_ready : FixedArray[Byte]
+  expected_ready_length : Int
+  supervisor : WorkerProcessSupervisor
+  failed : FailedWorkerProcessStartup
+}
+
+///|
 /// Startup outcome preserving cleanup authority after a double failure.
+#valtype
 pub(all) enum WorkerProcessPreparation {
   ReadyProcess(WorkerProcessSupervisor)
   CleanupRequired(FailedWorkerProcessStartup)
@@ -88,8 +108,10 @@ pub(all) enum WorkerProcessPreparation {
 /// Opaque retained child cleanup after startup and close both fail.
 pub struct FailedWorkerProcessStartup {
   priv child : @process.ChildProcess
-  priv cause : WorkerProcessError
-  priv mut cleanup_failure : WorkerProcessError
+  priv mut child_selected : Bool
+  priv mut cause_kind : Int
+  priv mut cause_status : Int
+  priv mut cleanup_status : Int
   priv mut closed : Bool
 }
 
@@ -180,14 +202,18 @@ pub fn WorkerProcessSupervisor::bootstrap_source(
 pub fn FailedWorkerProcessStartup::cause(
   self : FailedWorkerProcessStartup,
 ) -> WorkerProcessError {
-  self.cause
+  startup_raw_cause(self)
 }
 
 ///|
 pub fn FailedWorkerProcessStartup::cleanup_failure(
   self : FailedWorkerProcessStartup,
 ) -> WorkerProcessError {
-  self.cleanup_failure
+  if self.cleanup_status == 0 {
+    Invalid(Lifecycle)
+  } else {
+    transport_status_error(self.cleanup_status)
+  }
 }
 
 ///|
@@ -198,20 +224,28 @@ pub fn FailedWorkerProcessStartup::is_closed(
 }
 
 ///|
-/// Retries exact child close/reap after startup cleanup failed.
+/// Retries exact child close/reap after startup cleanup retained authority.
+/// A nonzero scalar close status is consumed evidence: the native authority
+/// is already closed, so later calls are idempotent and preserve that status.
 pub fn FailedWorkerProcessStartup::retry_close(
   self : FailedWorkerProcessStartup,
 ) -> Unit raise WorkerProcessError {
   if self.closed {
     return
   }
-  self.child.close() catch {
-    error => {
-      self.cleanup_failure = transport_error(error)
-      raise self.cleanup_failure
-    }
+  if !self.child_selected {
+    abort("failed worker child selection invariant")
   }
-  self.closed = true
+  let child = self.child
+  let status = child.startup_close_status()
+  if status != 0 {
+    self.cleanup_status = status
+  }
+  self.closed = child.is_closed()
+  self.child_selected = !self.closed
+  if status != 0 {
+    raise transport_status_error(status)
+  }
 }
 
 ///|
@@ -250,18 +284,18 @@ pub fn WorkerProcessSupervisor::shutdown_clean(
   if self.outstanding_count() != 0 {
     raise Invalid(Lifecycle)
   }
-  self.child.shutdown_write() catch {
+  self.require_child().shutdown_write() catch {
     error => {
       self.lifecycle = Failed
       raise transport_error(error)
     }
   }
-  let exit = self.child.wait() catch {
-    error => {
-      self.lifecycle = Failed
-      raise transport_error(error)
+  let exit = self.require_child().wait() catch {
+      error => {
+        self.lifecycle = Failed
+        raise transport_error(error)
+      }
     }
-  }
   if exit.kind() != 0 || exit.code() != 0 {
     self.lifecycle = Failed
     raise Transport(OperationFailed)

@@ -145,6 +145,7 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
         shutdown_timeout_millis=limits.shutdown_timeout_millis(),
       ),
     ),
+    child_selected: true,
     startup: supervisor_startup(),
     source: supervisor_source(),
     plan_a,

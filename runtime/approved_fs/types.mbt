@@ -9,6 +9,14 @@ pub struct ApprovedRoot {
 pub type WorkerApprovedRoots = @inheritance.WorkerApprovedRoots
 
 ///|
+/// Closed, authority-free allocation shell consumed by exactly one root-pair
+/// acquisition attempt.
+pub struct PreparedWorkerApprovedRoots {
+  priv roots : WorkerApprovedRoots
+  priv mut consumed : Bool
+}
+
+///|
 /// Fixed child descriptor roles for approved worker roots.
 pub(all) enum ApprovedRootRole {
   Model

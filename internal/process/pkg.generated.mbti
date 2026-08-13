@@ -11,6 +11,8 @@ pub fn exit_failure() -> Unit
 
 pub fn open_inherited(ProcessLimits) -> InheritedChannel
 
+pub fn prepare_child(Bytes, ProcessLimits) -> PreparedChildProcess raise ProcessError
+
 pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
 
 pub fn spawn_with_approved_roots(Bytes, @approved_fs_inheritance.WorkerApprovedRoots, ProcessLimits) -> ChildProcess raise ProcessError
@@ -46,6 +48,9 @@ pub fn ChildProcess::progress_write_frame(Self) -> Bool raise ProcessError
 pub fn ChildProcess::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn ChildProcess::read_frame_with_timeout(Self, FixedArray[Byte], timeout_millis~ : Int) -> Int raise ProcessError
 pub fn ChildProcess::shutdown_write(Self) -> Unit raise ProcessError
+pub fn ChildProcess::startup_close_status(Self) -> Int
+pub fn ChildProcess::startup_read_frame_status(Self, FixedArray[Byte], Int) -> Int
+pub fn ChildProcess::startup_write_frame_status(Self, FixedArray[Byte], Int, Int) -> Int
 pub fn ChildProcess::terminate(Self) -> Unit raise ProcessError
 pub fn ChildProcess::wait(Self) -> ChildExit raise ProcessError
 pub fn ChildProcess::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
@@ -59,6 +64,15 @@ pub fn InheritedChannel::is_failed(Self) -> Bool
 pub fn InheritedChannel::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::read_frame_or_eof(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+
+pub struct PreparedChildProcess {
+  // private fields
+}
+pub fn PreparedChildProcess::child_owner(Self) -> ChildProcess
+pub fn PreparedChildProcess::cleanup_status(Self) -> Int
+pub fn PreparedChildProcess::spawn(Self) -> ChildProcess raise ProcessError
+pub fn PreparedChildProcess::spawn_with_approved_roots(Self, @approved_fs_inheritance.WorkerApprovedRoots) -> ChildProcess raise ProcessError
+pub fn PreparedChildProcess::spawn_with_approved_roots_status(Self, @approved_fs_inheritance.WorkerApprovedRoots) -> Int
 
 pub(all) enum ProcessLimitRule {
   FrameBytes

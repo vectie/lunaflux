@@ -185,11 +185,17 @@ for a replacement. The implemented thread-confined worker service owns this
 join: it retains a single production flight identity, records a plan before
 transport, pins validated
 responses through scheduler backpressure, and exposes request/event methods so
-callers do not retain a separate mutable scheduler API alias. Its independent
+callers do not retain a separate mutable scheduler API alias. Production
+construction now starts from an immutable scheduler blueprint and ordinary
+approved roots, constructing both mutable owners internally; the old
+alias-taking constructor is explicitly fixture-only. Its independent
 binding is retained unchanged across replacements. Restart
 policy/backoff and live overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
-remain open.
+remain open. This owned-instance foundation does not yet implement an online
+session aggregate. Child ownership, executable and fixed handshake storage are
+preallocated; native spawn, scalar handshake validation and cleanup, and owner
+publication allocate no managed objects while rooted authority is live.
 Capability IDs are copied from authenticated model-generation recipes;
 scheduler policy does not inspect model operations or select kernels.
 

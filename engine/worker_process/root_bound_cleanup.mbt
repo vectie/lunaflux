@@ -12,6 +12,7 @@ fn attempt_root_bound_cleanup(
   roots_live : Bool,
   close_child : () -> RootBoundWorkerProcessFailure?,
   close_roots : () -> RootBoundWorkerProcessFailure?,
+  child_is_live : () -> Bool,
   roots_is_live : () -> Bool,
 ) -> RootBoundCleanupAttempt {
   let mut next_child_live = child_live
@@ -19,9 +20,7 @@ fn attempt_root_bound_cleanup(
   let mut roots_failure = None
   if child_live {
     child_failure = close_child()
-    if child_failure is None {
-      next_child_live = false
-    }
+    next_child_live = child_is_live()
   }
   if roots_live {
     roots_failure = close_roots()
@@ -38,14 +37,16 @@ fn attempt_root_bound_cleanup(
 fn raise_cleanup_attempt(
   attempt : RootBoundCleanupAttempt,
 ) -> Unit raise RootBoundWorkerProcessError {
-  if attempt.child_live {
-    let child = attempt.child_failure.unwrap_or(
-      Process(Transport(OperationFailed)),
-    )
+  let child = match attempt.child_failure {
+    Some(failure) => Some(failure)
+    None if attempt.child_live => Some(Process(Transport(OperationFailed)))
+    None => None
+  }
+  if child is Some(child_failure) {
     if attempt.roots_failure is Some(roots) {
-      raise RootBoundCompoundFailure(child, roots)
+      raise RootBoundCompoundFailure(child_failure, roots)
     }
-    raise RootBoundFailure(child)
+    raise RootBoundFailure(child_failure)
   }
   if attempt.roots_live {
     raise RootBoundFailure(attempt.roots_failure.unwrap_or(RootsBusy))

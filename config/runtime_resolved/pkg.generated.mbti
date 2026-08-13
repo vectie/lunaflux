@@ -21,34 +21,7 @@ pub(all) suberror RuntimeCapacityError {
 
 // Types and methods
 pub struct ResolvedRuntimeCapacity {
-  tokens_per_page : Int
-  total_page_count : Int
-  context_pages_per_request : Int
-  block_table_pages_per_request : Int
-  max_active_requests : Int
-  max_waiting_requests : Int
-  total_request_slots : Int
-  step_token_budget : Int
-  prefill_chunk_tokens : Int
-  emergency_decode_page_reserve : Int
-  waiting_age_threshold_steps : Int
-  output_event_capacity : Int
-  max_rows_per_step : Int
-  required_worker_page_table_cells : Int
-  model_max_batch_rows : Int
-  model_max_sequence_tokens : Int
-  worker_max_prefill_rows : Int
-  worker_max_decode_rows : Int
-  worker_max_plan_rows : Int
-  worker_max_plan_tokens : Int
-  worker_max_plan_pages : Int
-  worker_max_capabilities : Int
-  worker_max_completion_slots : Int
-  worker_max_sequence_tokens : Int
-  worker_max_token_id : Int
-  page_allocator_limits : @page_allocator.PageAllocatorLimits
-  block_table_limits : @block_table.BlockTableLimits
-  decisions : ReadOnlyArray[RuntimeCapacityDecision]
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ResolvedRuntimeCapacity::block_table_limits(Self) -> @block_table.BlockTableLimits
 pub fn ResolvedRuntimeCapacity::block_table_pages_per_request(Self) -> Int

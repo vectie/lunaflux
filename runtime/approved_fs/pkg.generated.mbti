@@ -7,9 +7,17 @@ import {
 }
 
 // Values
+pub fn acquire_prepared_worker_approved_roots(PreparedWorkerApprovedRoots, ApprovedRoot, ApprovedRoot) -> Unit raise ApprovedFsError
+
+pub fn acquire_prepared_worker_approved_roots_status(PreparedWorkerApprovedRoots, ApprovedRoot, ApprovedRoot) -> Int
+
 pub fn acquire_worker_approved_roots(model_root~ : ApprovedRoot, kernel_root~ : ApprovedRoot) -> @approved_fs_inheritance.WorkerApprovedRoots raise ApprovedFsError
 
 pub fn close_worker_approved_roots(@approved_fs_inheritance.WorkerApprovedRoots) -> Unit raise ApprovedFsError
+
+pub fn prepare_worker_approved_roots() -> PreparedWorkerApprovedRoots
+
+pub fn worker_approved_roots_close_status(@approved_fs_inheritance.WorkerApprovedRoots) -> Int
 
 pub fn worker_approved_roots_is_closed(@approved_fs_inheritance.WorkerApprovedRoots) -> Bool
 
@@ -77,6 +85,11 @@ pub(all) enum ApprovedRootRole {
   Model
   Kernel
 } derive(Eq, @debug.Debug)
+
+pub struct PreparedWorkerApprovedRoots {
+  // private fields
+}
+pub fn PreparedWorkerApprovedRoots::root_owner(Self) -> @approved_fs_inheritance.WorkerApprovedRoots
 
 // Type aliases
 pub using @approved_fs_inheritance {type WorkerApprovedRoots}

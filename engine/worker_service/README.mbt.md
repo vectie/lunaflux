@@ -17,6 +17,27 @@ that exact contract byte-for-byte.
 The child response is evidence, never the source of expected deployment
 identity.
 
+Production construction starts from an immutable `SchedulerBlueprint`, two
+ordinary caller-owned approved roots, and the exact executable/startup/source
+inputs. `prepare_owned` allocates the service and cleanup publication shells,
+instantiates a fresh scheduler, and preflights deterministic worker buffers
+before root acquisition. It then creates and claims the rooted process as the
+last fallible join. Its one-shot opaque result exposes either the ready service
+or the only retained cleanup owner, never both. A closed failure raises its
+primary error, or a bounded compound error when cleanup also failed; only live
+child/root authority yields `OwnedServiceCleanupRequired`.
+
+`new_fixture` is compatibility-only: its caller retains aliases to both mutable
+owners and the resulting service is permanently ineligible for future online
+session admission. There is no production-facing alias-taking constructor.
+
+The owned-preparation allocation gate proves that service, cleanup, rooted,
+child, executable, and fixed handshake storage are allocated before root
+activation. Configure, source, and expected Ready bytes are encoded before that
+point. Native spawn, scalar handshake I/O, exact Ready comparison, scalar close,
+and ready/cleanup publication introduce no managed allocation while child or
+root authority is live.
+
 `progress` owns the one-flight exchange state and advances exactly one logical
 transition per call: idle/backpressured, started, pending, completion-ready, or
 committed. It checks exchange credit before creating a scheduler obligation,

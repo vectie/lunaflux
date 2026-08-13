@@ -434,3 +434,17 @@ pub struct Scheduler {
   priv mut decode_count : Int
   priv mut journal_count : Int
 }
+
+///|
+/// Immutable construction evidence for one scheduler owner. Reusing a
+/// blueprint constructs independent schedulers; it never aliases mutable
+/// request, KV, plan, completion, or publication state.
+pub struct SchedulerBlueprint {
+  priv capacity : @runtime_resolved.ResolvedRuntimeCapacity
+  priv model_identity : @spec.ModelIdentity
+  priv model_plan_generation : @worker_protocol.ModelPlanGeneration
+  priv intermediate_prefill_recipe : @worker_protocol.RowCapabilityRecipe
+  priv final_prefill_recipe : @worker_protocol.RowCapabilityRecipe
+  priv decode_recipe : @worker_protocol.RowCapabilityRecipe
+  priv worker_limits : @worker_protocol.WorkerProtocolLimits
+}

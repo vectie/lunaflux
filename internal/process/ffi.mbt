@@ -2,16 +2,19 @@
 priv type NativeChild
 
 ///|
-#borrow(path, status)
-extern "c" fn raw_spawn(path : Bytes, status : Ref[Int]) -> NativeChild = "lunaflux_process_spawn"
+extern "c" fn raw_prepare_child() -> NativeChild = "lunaflux_process_prepare_child"
 
 ///|
-#borrow(path, roots, status)
-extern "c" fn raw_spawn_with_approved_roots(
+#borrow(child, path)
+extern "c" fn raw_spawn_prepared(child : NativeChild, path : Bytes) -> Int = "lunaflux_process_spawn_prepared"
+
+///|
+#borrow(child, path, roots)
+extern "c" fn raw_spawn_prepared_with_approved_roots(
+  child : NativeChild,
   path : Bytes,
   roots : @inheritance.WorkerApprovedRoots,
-  status : Ref[Int],
-) -> NativeChild = "lunaflux_process_spawn_with_approved_roots"
+) -> Int = "lunaflux_process_spawn_prepared_with_approved_roots"
 
 ///|
 #borrow(child, source)
@@ -74,6 +77,10 @@ extern "c" fn raw_terminate(child : NativeChild) -> Int = "lunaflux_process_term
 ///|
 #borrow(child)
 extern "c" fn raw_close(child : NativeChild) -> Int = "lunaflux_process_close"
+
+///|
+#borrow(child)
+extern "c" fn raw_is_closed(child : NativeChild) -> Bool = "lunaflux_process_is_closed"
 
 ///|
 #borrow(source)

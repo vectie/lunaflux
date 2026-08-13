@@ -6,13 +6,13 @@ fn WorkerService::commit_received(
   let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
     error => raise scheduler_error(error)
   }
-  let received = self.process.received_for_sequence(sequence) catch {
+  let received = self.require_process().received_for_sequence(sequence) catch {
+      error => raise root_bound_process_error(error)
+    }
+  self.require_process().validate_retirement(received) catch {
     error => raise root_bound_process_error(error)
   }
-  self.process.validate_retirement(received) catch {
-    error => raise root_bound_process_error(error)
-  }
-  let frame = received.frame(self.process) catch {
+  let frame = received.frame(self.require_process()) catch {
     error => raise root_bound_process_error(error)
   }
   let completion = self.scheduler.accept_completion_frame(plan, frame) catch {
@@ -21,9 +21,9 @@ fn WorkerService::commit_received(
   self.scheduler.complete(plan, completion) catch {
     error => raise scheduler_error(error)
   }
-  self.process.retire_received(received) catch {
+  self.require_process().retire_received(received) catch {
     error => {
-      if self.process.lifecycle() != RootBoundReady {
+      if self.require_process().lifecycle() != RootBoundReady {
         self.lifecycle = ServiceRecovering
       }
       raise root_bound_process_error(error)
@@ -41,7 +41,7 @@ pub fn WorkerService::progress(
 ) -> WorkerServiceProgress raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
   if self.flight_state == FLIGHT_EMPTY {
-    if !self.process.has_exchange_capacity() {
+    if !self.require_process().has_exchange_capacity() {
       return ServiceBackpressured
     }
     let outcome = self.scheduler.build_next() catch {
@@ -61,18 +61,18 @@ pub fn WorkerService::progress(
     }
     self.flight_state = FLIGHT_PLANNED
     self.flight_sequence = sequence
-    let actual = self.process.begin_exchange(plan) catch {
-      error => {
-        self.lifecycle = ServiceRecovering
-        try self.process.submission_for_sequence(sequence) catch {
-          RootBoundFailure(Process(Invalid(Submission))) => ()
-          _ => ()
-        } noraise {
-          _ => self.flight_state = FLIGHT_SUBMITTED
+    let actual = self.require_process().begin_exchange(plan) catch {
+        error => {
+          self.lifecycle = ServiceRecovering
+          try self.require_process().submission_for_sequence(sequence) catch {
+            RootBoundFailure(Process(Invalid(Submission))) => ()
+            _ => ()
+          } noraise {
+            _ => self.flight_state = FLIGHT_SUBMITTED
+          }
+          raise root_bound_process_error(error)
         }
-        raise root_bound_process_error(error)
       }
-    }
     if actual != sequence {
       self.lifecycle = ServiceRecovering
       raise Invalid(Sequence)
@@ -81,12 +81,12 @@ pub fn WorkerService::progress(
     return ServiceStarted(sequence)
   }
   if self.flight_state == FLIGHT_SUBMITTED {
-    let result = self.process.progress_exchange() catch {
-      error => {
-        self.lifecycle = ServiceRecovering
-        raise root_bound_process_error(error)
+    let result = self.require_process().progress_exchange() catch {
+        error => {
+          self.lifecycle = ServiceRecovering
+          raise root_bound_process_error(error)
+        }
       }
-    }
     match result {
       ExchangePending => ServicePending(self.flight_sequence)
       ExchangeCompleted => {

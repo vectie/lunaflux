@@ -90,6 +90,62 @@ pub fn acquire_worker_approved_roots(
 }
 
 ///|
+/// Preallocates a closed native root-pair owner. It carries no filesystem
+/// authority until `acquire_prepared_worker_approved_roots` succeeds.
+pub fn prepare_worker_approved_roots() -> PreparedWorkerApprovedRoots {
+  { roots: @native.prepare_worker_roots(), consumed: false }
+}
+
+///|
+/// Internal owner-sharing hook used only to preinstall allocation-free rooted
+/// publication shells. The prepared wrapper remains the sole acquisition key.
+pub fn PreparedWorkerApprovedRoots::root_owner(
+  self : PreparedWorkerApprovedRoots,
+) -> WorkerApprovedRoots {
+  self.roots
+}
+
+///|
+/// Transactionally installs exact pinned duplicates into a preallocated owner.
+pub fn acquire_prepared_worker_approved_roots(
+  prepared : PreparedWorkerApprovedRoots,
+  model_root : ApprovedRoot,
+  kernel_root : ApprovedRoot,
+) -> Unit raise ApprovedFsError {
+  if prepared.consumed {
+    raise Invalid(Lifecycle)
+  }
+  prepared.consumed = true
+  raise_open_status(
+    @native.acquire_prepared_worker_roots(
+      prepared.roots,
+      model_root.handle,
+      kernel_root.handle,
+    ),
+    Root,
+  )
+}
+
+///|
+/// Allocation-sensitive activation primitive. The prepared owner is consumed
+/// before the native call and the exact native status is returned unchanged.
+pub fn acquire_prepared_worker_approved_roots_status(
+  prepared : PreparedWorkerApprovedRoots,
+  model_root : ApprovedRoot,
+  kernel_root : ApprovedRoot,
+) -> Int {
+  if prepared.consumed {
+    return STATUS_CLOSED
+  }
+  prepared.consumed = true
+  @native.acquire_prepared_worker_roots(
+    prepared.roots,
+    model_root.handle,
+    kernel_root.handle,
+  )
+}
+
+///|
 /// Opens and consumes the fixed descriptor for one child root role. The
 /// returned root owns a fresh close-on-exec duplicate and behaves like any
 /// other `ApprovedRoot`.
@@ -120,6 +176,14 @@ pub fn close_worker_approved_roots(
   roots : WorkerApprovedRoots,
 ) -> Unit raise ApprovedFsError {
   raise_operation_status(@native.close_worker_roots(roots), Close)
+}
+
+///|
+/// Allocation-sensitive lifecycle primitive for internal aggregate owners.
+/// The scalar is the native status; callers must still query closed state to
+/// distinguish retained Busy authority from consumed failure evidence.
+pub fn worker_approved_roots_close_status(roots : WorkerApprovedRoots) -> Int {
+  @native.close_worker_roots(roots)
 }
 
 ///|

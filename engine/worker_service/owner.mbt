@@ -57,7 +57,10 @@ fn validate_startup_contract(
 }
 
 ///|
-pub fn new(
+/// Compatibility constructor for deterministic fixtures. The caller retains
+/// aliases to both mutable owners, so this service is permanently ineligible
+/// for production online-session admission.
+pub fn new_fixture(
   scheduler : @core.Scheduler,
   binding : WorkerServiceBinding,
   process : @worker_process.RootBoundWorkerProcessSupervisor,
@@ -72,10 +75,21 @@ pub fn new(
   {
     scheduler,
     binding,
-    process,
+    process: Some(process),
     flight_state: FLIGHT_EMPTY,
     flight_sequence: 0UL,
     lifecycle: ServiceReady,
+    production_owned: false,
+  }
+}
+
+///|
+fn WorkerService::require_process(
+  self : WorkerService,
+) -> @worker_process.RootBoundWorkerProcessSupervisor {
+  match self.process {
+    Some(process) => process
+    None => abort("worker service process installation invariant")
   }
 }
 

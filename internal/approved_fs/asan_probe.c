@@ -12,8 +12,19 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 static int probe_snapshot_action = 0;
+static int probe_close_eintr_once = 0;
+static int probe_close(int fd) {
+  if (probe_close_eintr_once) {
+    probe_close_eintr_once = 0;
+    errno = EINTR;
+    return -1;
+  }
+  return close(fd);
+}
+#define LF_APPROVED_FS_CLOSE probe_close
 static const char *probe_snapshot_path = NULL;
 static void probe_snapshot_hook(int stage, int fd);
 #define LF_APPROVED_FS_SNAPSHOT_HOOK(stage, fd) \
@@ -122,6 +133,15 @@ static void probe_snapshot_hook(int stage, int fd) {
 }
 
 int main(void) {
+  int close_probe[2];
+  assert(pipe(close_probe) == 0);
+  probe_close_eintr_once = 1;
+#if defined(__APPLE__)
+  assert(lf_close_fd(close_probe[0]) == LF_APPROVED_OK);
+#else
+  assert(lf_close_fd(close_probe[0]) == LF_APPROVED_FAILED);
+#endif
+  assert(close(close_probe[1]) == 0);
   char root_path[] = "/tmp/lunaflux-approved-fs-asan.XXXXXX";
   assert(mkdtemp(root_path) != NULL);
   char canonical_root[PATH_MAX];
@@ -163,6 +183,22 @@ int main(void) {
       LF_APPROVED_BUSY
     );
     assert(lunaflux_approved_fs_worker_roots_is_closed(worker_roots) == 0);
+    lf_worker_approved_roots *prepared_roots =
+      lunaflux_approved_fs_prepare_worker_roots();
+    assert(lunaflux_approved_fs_acquire_prepared_worker_roots(
+      prepared_roots, root, root
+    ) == LF_APPROVED_OK);
+    assert(lunaflux_approved_fs_acquire_prepared_worker_roots(
+      prepared_roots, root, root
+    ) == LF_APPROVED_BUSY);
+    assert(lunaflux_approved_fs_worker_roots_close(prepared_roots) ==
+      LF_APPROVED_OK);
+    assert(lunaflux_approved_fs_acquire_prepared_worker_roots(
+      prepared_roots, root, root
+    ) == LF_APPROVED_BUSY);
+    assert(lunaflux_approved_fs_acquire_prepared_worker_roots(
+      NULL, root, root
+    ) == LF_APPROVED_FAILED);
 
     uint8_t *destination = (uint8_t *)probe_array(1, 5);
     memset(destination, '!', 5);

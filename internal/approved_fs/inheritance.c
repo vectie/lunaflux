@@ -38,39 +38,98 @@ static lf_worker_approved_roots *lf_new_worker_roots(void) {
 }
 
 MOONBIT_FFI_EXPORT
+lf_worker_approved_roots *lunaflux_approved_fs_prepare_worker_roots(void) {
+  lf_worker_approved_roots *roots = lf_new_worker_roots();
+  atomic_store_explicit(
+    &roots->state, LF_APPROVED_STATE_PREPARED, memory_order_release
+  );
+  return roots;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_approved_fs_acquire_prepared_worker_roots(
+  lf_worker_approved_roots *roots,
+  lf_approved_handle *model_root,
+  lf_approved_handle *kernel_root
+) {
+  if (roots == NULL) {
+    return LF_APPROVED_FAILED;
+  }
+  uint32_t expected = LF_APPROVED_STATE_PREPARED;
+  if (!atomic_compare_exchange_strong_explicit(
+        &roots->state,
+        &expected,
+        LF_APPROVED_STATE_PREPARING,
+        memory_order_acq_rel,
+        memory_order_acquire
+      )) return LF_APPROVED_BUSY;
+  if (roots->model_fd != -1 || roots->kernel_fd != -1) {
+    atomic_store_explicit(
+      &roots->state, LF_APPROVED_STATE_PREPARED, memory_order_release
+    );
+    return LF_APPROVED_FAILED;
+  }
+  int32_t status = LF_APPROVED_CLOSED;
+  int32_t cleanup_status = LF_APPROVED_OK;
+  int model_source = -1;
+  int kernel_source = -1;
+  status = lf_begin_operation(model_root, LF_APPROVED_ROOT, &model_source);
+  if (status != LF_APPROVED_OK) goto failed;
+  roots->model_fd = fcntl(model_source, F_DUPFD_CLOEXEC, 5);
+  lf_end_operation(model_root);
+  if (roots->model_fd < 0) {
+    status = LF_APPROVED_FAILED;
+    goto failed;
+  }
+  status = lf_begin_operation(kernel_root, LF_APPROVED_ROOT, &kernel_source);
+  if (status != LF_APPROVED_OK) {
+    cleanup_status = lf_close_fd(roots->model_fd);
+    roots->model_fd = -1;
+    goto failed;
+  }
+  roots->kernel_fd = fcntl(kernel_source, F_DUPFD_CLOEXEC, 5);
+  lf_end_operation(kernel_root);
+  if (roots->kernel_fd < 0) {
+    cleanup_status = lf_close_fd(roots->model_fd);
+    roots->model_fd = -1;
+    status = LF_APPROVED_FAILED;
+    goto failed;
+  }
+  atomic_store_explicit(&roots->state, 0, memory_order_release);
+  return LF_APPROVED_OK;
+failed:
+  if (roots->model_fd >= 0) {
+    if (lf_close_fd(roots->model_fd) != LF_APPROVED_OK) {
+      cleanup_status = LF_APPROVED_FAILED;
+    }
+    roots->model_fd = -1;
+  }
+  if (roots->kernel_fd >= 0) {
+    if (lf_close_fd(roots->kernel_fd) != LF_APPROVED_OK) {
+      cleanup_status = LF_APPROVED_FAILED;
+    }
+    roots->kernel_fd = -1;
+  }
+  atomic_store_explicit(&roots->state,
+    cleanup_status == LF_APPROVED_OK
+      ? LF_APPROVED_STATE_PREPARED : LF_APPROVED_STATE_CLOSED,
+    memory_order_release);
+  return cleanup_status == LF_APPROVED_OK ? status : LF_APPROVED_FAILED;
+}
+
+MOONBIT_FFI_EXPORT
 lf_worker_approved_roots *lunaflux_approved_fs_acquire_worker_roots(
   lf_approved_handle *model_root,
   lf_approved_handle *kernel_root,
   int32_t *status
 ) {
   lf_worker_approved_roots *roots = lf_new_worker_roots();
-  *status = LF_APPROVED_CLOSED;
-  int model_source = -1;
-  int kernel_source = -1;
-  *status = lf_begin_operation(model_root, LF_APPROVED_ROOT, &model_source);
-  if (*status != LF_APPROVED_OK) return roots;
-  roots->model_fd = fcntl(model_source, F_DUPFD_CLOEXEC, 5);
-  lf_end_operation(model_root);
-  if (roots->model_fd < 0) {
-    *status = LF_APPROVED_FAILED;
-    return roots;
-  }
-  *status = lf_begin_operation(kernel_root, LF_APPROVED_ROOT, &kernel_source);
-  if (*status != LF_APPROVED_OK) {
-    (void)lf_close_fd(roots->model_fd);
-    roots->model_fd = -1;
-    return roots;
-  }
-  roots->kernel_fd = fcntl(kernel_source, F_DUPFD_CLOEXEC, 5);
-  lf_end_operation(kernel_root);
-  if (roots->kernel_fd < 0) {
-    (void)lf_close_fd(roots->model_fd);
-    roots->model_fd = -1;
-    *status = LF_APPROVED_FAILED;
-    return roots;
-  }
-  atomic_store_explicit(&roots->state, 0, memory_order_release);
-  *status = LF_APPROVED_OK;
+  atomic_store_explicit(
+    &roots->state, LF_APPROVED_STATE_PREPARED, memory_order_release
+  );
+  *status = lunaflux_approved_fs_acquire_prepared_worker_roots(
+    roots, model_root, kernel_root
+  );
   return roots;
 }
 

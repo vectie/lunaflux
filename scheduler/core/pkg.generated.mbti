@@ -107,6 +107,15 @@ pub fn Scheduler::terminal_notice_count(Self) -> Int
 pub fn Scheduler::waiting_request_count(Self) -> Int
 pub fn Scheduler::worker_protocol_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
+pub struct SchedulerBlueprint {
+  // private fields
+}
+pub fn SchedulerBlueprint::instantiate(Self) -> Scheduler raise SchedulerError
+pub fn SchedulerBlueprint::model_identity(Self) -> @spec.ModelIdentity
+pub fn SchedulerBlueprint::model_plan_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn SchedulerBlueprint::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
+pub fn SchedulerBlueprint::worker_protocol_limits(Self) -> @worker_protocol.WorkerProtocolLimits
+
 pub(all) enum SchedulerField {
   Request
   ModelIdentity

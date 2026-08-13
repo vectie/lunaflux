@@ -19,24 +19,54 @@
 #include "process_io.h"
 #include "process_handle.h"
 extern char **environ;
-static void lf_process_reap_force(lf_process *process) {
+
+#ifndef LF_PROCESS_KILL
+#define LF_PROCESS_KILL kill
+#endif
+#ifndef LF_PROCESS_WAITPID
+#define LF_PROCESS_WAITPID waitpid
+#endif
+#ifndef LF_PROCESS_CLOSE
+#define LF_PROCESS_CLOSE close
+#endif
+#ifndef LF_PROCESS_FCNTL
+#define LF_PROCESS_FCNTL fcntl
+#endif
+
+static void lf_process_record_exit(lf_process *process, int status);
+MOONBIT_FFI_EXPORT int32_t lunaflux_process_close(lf_process *process);
+
+static int32_t lf_process_reap_force(lf_process *process) {
   if (process == NULL || process->reaped || process->pid <= 0) {
-    return;
+    return LF_PROCESS_OK;
   }
-  (void)kill(process->pid, SIGKILL);
+  if (LF_PROCESS_KILL(process->pid, SIGKILL) != 0 && errno != ESRCH) {
+    return LF_PROCESS_FAILED;
+  }
   int status = 0;
-  while (waitpid(process->pid, &status, 0) < 0 && errno == EINTR) {
+  pid_t result;
+  do {
+    result = LF_PROCESS_WAITPID(process->pid, &status, 0);
+  } while (result < 0 && errno == EINTR);
+  if (result == process->pid) {
+    lf_process_record_exit(process, status);
+    return LF_PROCESS_OK;
   }
-  process->reaped = 1;
+  if (result < 0 && errno == ECHILD) {
+    process->reaped = 1;
+    process->pid = -1;
+    return LF_PROCESS_FAILED;
+  }
+  return LF_PROCESS_FAILED;
 }
 
 static void lf_process_finalize(void *pointer) {
   lf_process *process = (lf_process *)pointer;
   if (process->fd >= 0) {
-    (void)close(process->fd);
+    (void)LF_PROCESS_CLOSE(process->fd);
     process->fd = -1;
   }
-  lf_process_reap_force(process);
+  (void)lf_process_reap_force(process);
   process->closed = 1;
 }
 
@@ -51,11 +81,7 @@ static int lf_set_cloexec(int fd) {
 }
 #endif
 
-static lf_process *lf_process_spawn_impl(
-  moonbit_bytes_t path,
-  lf_worker_approved_roots *roots,
-  int32_t *status
-) {
+static lf_process *lf_process_allocate(void) {
   lf_process *process = (lf_process *)moonbit_make_external_object(
     lf_process_finalize, sizeof(lf_process)
   );
@@ -65,7 +91,24 @@ static lf_process *lf_process_spawn_impl(
   process->closed = 1;
   process->exit_kind = 0;
   process->exit_code = 0;
-  *status = LF_PROCESS_FAILED;
+  return process;
+}
+
+static int32_t lf_process_spawn_into(
+  lf_process *process,
+  moonbit_bytes_t path,
+  lf_worker_approved_roots *roots
+) {
+  if (process == NULL || !process->closed || process->fd >= 0 ||
+      !process->reaped || process->pid > 0 || path == NULL) {
+    return LF_PROCESS_FAILED;
+  }
+  int32_t path_length = Moonbit_array_length(path);
+  if (path_length <= 1 || path_length > 1048576 ||
+      path[path_length - 1] != '\0' ||
+      memchr(path, '\0', (size_t)(path_length - 1)) != NULL) {
+    return LF_PROCESS_FAILED;
+  }
 
   int32_t model_root = -1;
   int32_t kernel_root = -1;
@@ -73,7 +116,7 @@ static lf_process *lf_process_spawn_impl(
   if (roots != NULL) {
     if (lf_worker_roots_begin(roots, &model_root, &kernel_root) !=
         LF_APPROVED_CAPABILITY_OK) {
-      return process;
+      return LF_PROCESS_FAILED;
     }
     roots_active = 1;
     struct stat model_info;
@@ -85,10 +128,6 @@ static lf_process *lf_process_spawn_impl(
     }
   }
 
-  int32_t path_length = Moonbit_array_length(path);
-  if (path_length <= 0 || memchr(path, '\0', (size_t)path_length) != NULL) {
-    goto finish;
-  }
   int raw_sockets[2] = {-1, -1};
   int sockets[2] = {-1, -1};
 #ifdef SOCK_CLOEXEC
@@ -110,6 +149,13 @@ static lf_process *lf_process_spawn_impl(
   if (sockets[0] < 0 || sockets[1] < 0 || sockets[0] == sockets[1]) {
     if (sockets[0] >= 0) (void)close(sockets[0]);
     if (sockets[1] >= 0) (void)close(sockets[1]);
+    goto finish;
+  }
+  int fd_flags = LF_PROCESS_FCNTL(sockets[0], F_GETFL, 0);
+  if (fd_flags < 0 ||
+      LF_PROCESS_FCNTL(sockets[0], F_SETFL, fd_flags | O_NONBLOCK) != 0) {
+    (void)LF_PROCESS_CLOSE(sockets[0]);
+    (void)LF_PROCESS_CLOSE(sockets[1]);
     goto finish;
   }
 
@@ -210,39 +256,41 @@ static lf_process *lf_process_spawn_impl(
     (void)close(sockets[0]);
     goto finish;
   }
-  int fd_flags = fcntl(sockets[0], F_GETFL, 0);
-  if (fd_flags < 0 ||
-      fcntl(sockets[0], F_SETFL, fd_flags | O_NONBLOCK) != 0) {
-    (void)close(sockets[0]);
-    (void)kill(pid, SIGKILL);
-    while (waitpid(pid, NULL, 0) < 0 && errno == EINTR) {
-    }
-    goto finish;
-  }
   process->pid = pid;
   process->fd = sockets[0];
   process->reaped = 0;
   process->closed = 0;
-  *status = LF_PROCESS_OK;
+  return LF_PROCESS_OK;
 finish:
   if (roots_active) {
     lf_worker_roots_end(roots);
   }
-  return process;
+  return LF_PROCESS_FAILED;
 }
 
 MOONBIT_FFI_EXPORT
-lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
-  return lf_process_spawn_impl(path, NULL, status);
+lf_process *lunaflux_process_prepare_child(void) {
+  return lf_process_allocate();
 }
 
 MOONBIT_FFI_EXPORT
-lf_process *lunaflux_process_spawn_with_approved_roots(
-  moonbit_bytes_t path,
-  lf_worker_approved_roots *roots,
-  int32_t *status
+int32_t lunaflux_process_spawn_prepared(
+  lf_process *process,
+  moonbit_bytes_t path
 ) {
-  return lf_process_spawn_impl(path, roots, status);
+  return lf_process_spawn_into(process, path, NULL);
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_process_spawn_prepared_with_approved_roots(
+  lf_process *process,
+  moonbit_bytes_t path,
+  lf_worker_approved_roots *roots
+) {
+  if (roots == NULL) {
+    return LF_PROCESS_FAILED;
+  }
+  return lf_process_spawn_into(process, path, roots);
 }
 
 static int32_t lf_process_io(
@@ -405,18 +453,35 @@ int32_t lunaflux_process_close(lf_process *process) {
   if (process == NULL) {
     return LF_PROCESS_FAILED;
   }
-  if (process->closed) {
+  if (process->closed && process->fd < 0 && process->reaped) {
     return LF_PROCESS_OK;
   }
   process->closed = 1;
   int32_t result = LF_PROCESS_OK;
   if (process->fd >= 0) {
     (void)shutdown(process->fd, SHUT_RDWR);
-    if (close(process->fd) != 0 && errno != EINTR) {
+    int close_status;
+#if defined(__APPLE__)
+    do {
+      close_status = LF_PROCESS_CLOSE(process->fd);
+    } while (close_status != 0 && errno == EINTR);
+#else
+    close_status = LF_PROCESS_CLOSE(process->fd);
+#endif
+    if (close_status != 0) {
       result = LF_PROCESS_FAILED;
     }
+    /* close consumes our descriptor authority even when EINTR leaves the
+       kernel result indeterminate; retrying could close a reused descriptor. */
     process->fd = -1;
   }
-  lf_process_reap_force(process);
+  if (lf_process_reap_force(process) != LF_PROCESS_OK) {
+    result = LF_PROCESS_FAILED;
+  }
   return result;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_process_is_closed(lf_process *process) {
+  return process != NULL && process->closed && process->fd < 0 && process->reaped;
 }

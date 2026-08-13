@@ -62,32 +62,32 @@ pub struct RuntimeCapacityDecision {
 /// It deliberately contains no device KV byte count, kernel support claim, or
 /// live mutable runtime state.
 pub struct ResolvedRuntimeCapacity {
-  tokens_per_page : Int
-  total_page_count : Int
-  context_pages_per_request : Int
-  block_table_pages_per_request : Int
-  max_active_requests : Int
-  max_waiting_requests : Int
-  total_request_slots : Int
-  step_token_budget : Int
-  prefill_chunk_tokens : Int
-  emergency_decode_page_reserve : Int
-  waiting_age_threshold_steps : Int
-  output_event_capacity : Int
-  max_rows_per_step : Int
-  required_worker_page_table_cells : Int
-  model_max_batch_rows : Int
-  model_max_sequence_tokens : Int
-  worker_max_prefill_rows : Int
-  worker_max_decode_rows : Int
-  worker_max_plan_rows : Int
-  worker_max_plan_tokens : Int
-  worker_max_plan_pages : Int
-  worker_max_capabilities : Int
-  worker_max_completion_slots : Int
-  worker_max_sequence_tokens : Int
-  worker_max_token_id : Int
-  page_allocator_limits : @page_allocator.PageAllocatorLimits
-  block_table_limits : @block_table.BlockTableLimits
-  decisions : ReadOnlyArray[RuntimeCapacityDecision]
+  priv tokens_per_page : Int
+  priv total_page_count : Int
+  priv context_pages_per_request : Int
+  priv block_table_pages_per_request : Int
+  priv max_active_requests : Int
+  priv max_waiting_requests : Int
+  priv total_request_slots : Int
+  priv step_token_budget : Int
+  priv prefill_chunk_tokens : Int
+  priv emergency_decode_page_reserve : Int
+  priv waiting_age_threshold_steps : Int
+  priv output_event_capacity : Int
+  priv max_rows_per_step : Int
+  priv required_worker_page_table_cells : Int
+  priv model_max_batch_rows : Int
+  priv model_max_sequence_tokens : Int
+  priv worker_max_prefill_rows : Int
+  priv worker_max_decode_rows : Int
+  priv worker_max_plan_rows : Int
+  priv worker_max_plan_tokens : Int
+  priv worker_max_plan_pages : Int
+  priv worker_max_capabilities : Int
+  priv worker_max_completion_slots : Int
+  priv worker_max_sequence_tokens : Int
+  priv worker_max_token_id : Int
+  priv page_allocator_limits : @page_allocator.PageAllocatorLimits
+  priv block_table_limits : @block_table.BlockTableLimits
+  priv decisions : ReadOnlyArray[RuntimeCapacityDecision]
 } derive(Debug, Eq)

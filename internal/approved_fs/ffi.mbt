@@ -56,6 +56,17 @@ extern "c" fn raw_acquire_worker_roots(
 ) -> @inheritance.WorkerApprovedRoots = "lunaflux_approved_fs_acquire_worker_roots"
 
 ///|
+extern "c" fn raw_prepare_worker_roots() -> @inheritance.WorkerApprovedRoots = "lunaflux_approved_fs_prepare_worker_roots"
+
+///|
+#borrow(roots, model_root, kernel_root)
+extern "c" fn raw_acquire_prepared_worker_roots(
+  roots : @inheritance.WorkerApprovedRoots,
+  model_root : @cap.ApprovedHandle,
+  kernel_root : @cap.ApprovedHandle,
+) -> Int = "lunaflux_approved_fs_acquire_prepared_worker_roots"
+
+///|
 #borrow(status)
 extern "c" fn raw_open_inherited_root(
   role : Int,

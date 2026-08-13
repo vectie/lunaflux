@@ -6,7 +6,7 @@ pub fn WorkerService::begin_recovery(
   if self.lifecycle != ServiceReady && self.lifecycle != ServiceRecovering {
     raise Invalid(Lifecycle)
   }
-  if self.process.lifecycle() == RootBoundRecovering {
+  if self.require_process().lifecycle() == RootBoundRecovering {
     self.lifecycle = if self.flight_state == FLIGHT_EMPTY {
       ServiceDeviceInvalidationRequired
     } else {
@@ -14,13 +14,13 @@ pub fn WorkerService::begin_recovery(
     }
     return
   }
-  if self.process.lifecycle() != RootBoundReady &&
-    self.process.lifecycle() != RootBoundRecoveryRequired &&
-    self.process.lifecycle() != RootBoundRecoveryClosingFailed {
+  if self.require_process().lifecycle() != RootBoundReady &&
+    self.require_process().lifecycle() != RootBoundRecoveryRequired &&
+    self.require_process().lifecycle() != RootBoundRecoveryClosingFailed {
     raise Invalid(Lifecycle)
   }
   self.lifecycle = ServiceRecovering
-  self.process.begin_recovery() catch {
+  self.require_process().begin_recovery() catch {
     error => raise root_bound_process_error(error)
   }
   if self.flight_state == FLIGHT_EMPTY {
@@ -38,14 +38,14 @@ pub fn WorkerService::recover_flight(
   failure : @worker_protocol.WorkerFailure,
 ) -> UInt64 raise WorkerServiceError {
   self.require_lifecycle(ServiceRecovering)
-  if self.process.lifecycle() != RootBoundRecovering {
+  if self.require_process().lifecycle() != RootBoundRecovering {
     raise Invalid(Recovery)
   }
   if self.flight_state == FLIGHT_EMPTY {
     raise Invalid(Sequence)
   }
   let sequence = self.flight_sequence
-  try self.process.received_for_sequence(sequence) catch {
+  try self.require_process().received_for_sequence(sequence) catch {
     RootBoundFailure(Process(Invalid(Completion))) => ()
     error => raise root_bound_process_error(error)
   } noraise {
@@ -59,7 +59,7 @@ pub fn WorkerService::recover_flight(
   let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
     error => raise scheduler_error(error)
   }
-  try self.process.submission_for_sequence(sequence) catch {
+  try self.require_process().submission_for_sequence(sequence) catch {
     RootBoundFailure(Process(Invalid(Submission))) => {
       self.scheduler.fail_plan(plan, failure) catch {
         error => raise scheduler_error(error)
@@ -71,13 +71,13 @@ pub fn WorkerService::recover_flight(
     error => raise root_bound_process_error(error)
   } noraise {
     submission => {
-      self.process.validate_abandonment(submission) catch {
+      self.require_process().validate_abandonment(submission) catch {
         error => raise root_bound_process_error(error)
       }
       self.scheduler.fail_plan(plan, failure) catch {
         error => raise scheduler_error(error)
       }
-      self.process.abandon_submission(submission) catch {
+      self.require_process().abandon_submission(submission) catch {
         error => raise root_bound_process_error(error)
       }
     }
@@ -133,13 +133,13 @@ pub fn WorkerService::restart(
   if self.outstanding_count() != 0 {
     raise Invalid(Recovery)
   }
-  let startup = self.process.recovery_startup_contract() catch {
-    error => raise root_bound_process_error(error)
-  }
+  let startup = self.require_process().recovery_startup_contract() catch {
+      error => raise root_bound_process_error(error)
+    }
   validate_startup_contract(self.scheduler, self.binding, startup)
-  let result = self.process.restart() catch {
-    error => raise root_bound_process_error(error)
-  }
+  let result = self.require_process().restart() catch {
+      error => raise root_bound_process_error(error)
+    }
   match result {
     RootBoundRestarted => {
       self.lifecycle = ServiceReady
@@ -160,7 +160,7 @@ pub fn WorkerService::retry_restart_cleanup(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceReplacementCleanup)
-  self.process.retry_replacement_cleanup() catch {
+  self.require_process().retry_replacement_cleanup() catch {
     error => raise root_bound_process_error(error)
   }
   self.lifecycle = ServiceRestartReady
@@ -174,13 +174,13 @@ pub fn WorkerService::shutdown_clean(
   if self.outstanding_count() != 0 || self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }
-  self.process.shutdown_clean() catch {
+  self.require_process().shutdown_clean() catch {
     error => {
       self.lifecycle = ServiceRecovering
       raise root_bound_process_error(error)
     }
   }
-  self.process.close() catch {
+  self.require_process().close() catch {
     error => {
       self.lifecycle = ServiceClosingFailed
       raise root_bound_process_error(error)
@@ -196,7 +196,7 @@ pub fn WorkerService::retry_close(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceClosingFailed)
-  self.process.close() catch {
+  self.require_process().close() catch {
     error => raise root_bound_process_error(error)
   }
   self.lifecycle = ServiceClosed
@@ -218,7 +218,7 @@ pub fn WorkerService::close(
   if self.lifecycle == ServiceRestartForbidden {
     raise Invalid(Lifecycle)
   }
-  self.process.close() catch {
+  self.require_process().close() catch {
     error => {
       self.lifecycle = ServiceClosingFailed
       raise root_bound_process_error(error)

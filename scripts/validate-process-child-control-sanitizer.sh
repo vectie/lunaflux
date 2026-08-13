@@ -29,4 +29,13 @@ ASAN_OPTIONS=detect_leaks=0:fast_unwind_on_malloc=0 "$task_dir/probe"
 
 ASAN_OPTIONS=detect_leaks=0:fast_unwind_on_malloc=0 "$task_dir/io-probe"
 
+"$cc_bin" -std=c11 -Wall -Wextra -Werror -g \
+  -fsanitize=address,undefined -fno-omit-frame-pointer \
+  -I"${MOON_HOME:-$HOME/.moon}/include" \
+  internal/process/process_spawn_asan_probe.c \
+  internal/process/process_io.c \
+  -o "$task_dir/spawn-probe"
+
+ASAN_OPTIONS=detect_leaks=0:fast_unwind_on_malloc=0 "$task_dir/spawn-probe"
+
 printf '%s\n' 'LunaFlux process child-control and nonblocking-I/O AddressSanitizer gate passed.'

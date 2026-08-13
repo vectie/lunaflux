@@ -120,7 +120,7 @@ fn capacity() -> @runtime_resolved.ResolvedRuntimeCapacity raise {
 }
 
 ///|
-fn scheduler_owner() -> @scheduler.Scheduler raise {
+fn scheduler_blueprint() -> @scheduler.SchedulerBlueprint raise {
   let generation = @worker_protocol.ModelPlanGeneration::first()
   let recipe = @worker_protocol.RowCapabilityRecipe::new(
     identity=identity(),
@@ -128,7 +128,7 @@ fn scheduler_owner() -> @scheduler.Scheduler raise {
     [@plan.KernelCapabilityId::embedding_lookup()],
     worker_limits(),
   )
-  @scheduler.Scheduler::new(
+  @scheduler.SchedulerBlueprint::new(
     capacity(),
     identity(),
     generation,
@@ -136,6 +136,11 @@ fn scheduler_owner() -> @scheduler.Scheduler raise {
     recipe,
     recipe,
   )
+}
+
+///|
+fn scheduler_owner() -> @scheduler.Scheduler raise {
+  scheduler_blueprint().instantiate()
 }
 
 ///|
@@ -305,6 +310,7 @@ fn complete_root_exchange(
 
 ///|
 fn run(executable : Bytes) -> Unit raise {
+  run_owned_startup_failure_evidence()
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let foreign_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
@@ -323,18 +329,35 @@ fn run(executable : Bytes) -> Unit raise {
     RootBoundCleanupRequired(_) =>
       raise Failure("foreign worker cleanup required")
   }
-  try @worker_service.new(scheduler, service_binding(), foreign) catch {
+  try @worker_service.new_fixture(scheduler, service_binding(), foreign) catch {
     @worker_service.Invalid(Identity) => ()
     _ => raise Failure("unexpected foreign worker identity error")
   } noraise {
     _ => raise Failure("foreign worker identity joined the scheduler")
   }
   foreign.close()
-  let service = @worker_service.new(
-    scheduler,
+  let owned_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let owned_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let owned = @worker_service.prepare_owned(
+    scheduler_blueprint(),
     service_binding(),
-    process_owner(executable),
+    executable,
+    startup(),
+    bootstrap_source(),
+    process_limits(),
+    owned_model,
+    owned_kernel,
   )
+  owned_model.close()
+  owned_kernel.close()
+  assert_eq(owned.state(), OwnedServiceReady)
+  let service = owned.take_ready()
+  try owned.take_ready() catch {
+    OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
+    _ => raise Failure("unexpected repeated owned-service extraction error")
+  } noraise {
+    _ => raise Failure("owned-service preparation extracted twice")
+  }
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
   progress_to_ready(service, 1UL)

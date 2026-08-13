@@ -97,7 +97,7 @@ test "exchange snapshot rejects a stale slot from the preceding plan" {
   let owner = test_root_bound_supervisor()
   let first = supervisor_plan(1UL)
   ignore(owner.begin_exchange(first))
-  while !owner.process.child.progress_write_frame() {
+  while !owner.process.require_child().progress_write_frame() {
 
   }
   inject_exchange_completion(owner, first)

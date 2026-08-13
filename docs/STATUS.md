@@ -276,6 +276,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   `WorkerServiceBinding` pins the expected bootstrap and bootstrap-source digests, device ordinal,
   and inference envelope; each join/restart also verifies exact scheduler-owned
   model identity, generation, predecessor, and worker-protocol limits. Its
+  owned-instance factory now consumes an immutable scheduler blueprint and
+  ordinary approved roots, constructs both mutable owners internally, and
+  publishes a one-shot ready-or-cleanup shell. The alias-taking constructor is
+  fixture-only. Worker buffers, child ownership, executable snapshot, and
+  Configure/source/expected-Ready frames are preallocated before root
+  acquisition; native spawn, scalar handshake validation and cleanup, and
+  owner publication allocate no managed objects with rooted authority live.
+  This foundation does not claim online
+  session readiness.
+  Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.
   The full-graph physical blueprint and artifact bundle now derive the

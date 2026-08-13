@@ -46,6 +46,18 @@ if ! rg -q '#borrow\(path, status\)' internal/approved_fs/ffi.mbt ||
   failed=1
 fi
 
+if ! rg -q 'lunaflux_approved_fs_prepare_worker_roots' \
+    internal/approved_fs/inheritance.c ||
+  ! rg -q 'lunaflux_approved_fs_acquire_prepared_worker_roots' \
+    internal/approved_fs/inheritance.c ||
+  ! rg -q 'atomic_compare_exchange_strong_explicit' \
+    internal/approved_fs/inheritance.c ||
+  ! rg -q 'LF_APPROVED_STATE_PREPARING' \
+    internal/approved_fs_capability/approved_fs_capability.h; then
+  printf '%s\n' 'prepared worker-root ABI lacks atomic one-shot acquisition' >&2
+  failed=1
+fi
+
 snapshot_allocations=$(rg -c 'moonbit_make_bytes\s*\(' \
   internal/approved_fs/approved_fs.c || true)
 if [ "$snapshot_allocations" -ne 1 ]; then
@@ -65,6 +77,14 @@ for type_name in ApprovedRoot ApprovedFile ApprovedRelativeLocator; do
     failed=1
   fi
 done
+
+prepared_block=$(sed -n \
+  '/^pub struct PreparedWorkerApprovedRoots {/,/^$/p' \
+  runtime/approved_fs/pkg.generated.mbti)
+if [ -z "$prepared_block" ] || printf '%s\n' "$prepared_block" | rg -q 'Debug|handle|fd|path|roots'; then
+  printf '%s\n' 'prepared worker-root owner must remain opaque and non-Debug' >&2
+  failed=1
+fi
 
 for source_file in runtime/approved_fs/api.mbt runtime/approved_fs/path.mbt \
   internal/approved_fs/approved_fs.c internal/approved_fs/api.mbt \
