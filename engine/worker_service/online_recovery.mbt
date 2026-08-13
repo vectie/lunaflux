@@ -120,7 +120,7 @@ pub fn OnlineWorkerLease::shutdown_clean(
   }
   service.shutdown_clean_impl()
   self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
+  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
 }
 
 ///|
@@ -137,7 +137,7 @@ pub fn OnlineWorkerLease::shutdown_clean_empty(
   }
   service.shutdown_clean_impl()
   self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
+  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
 }
 
 ///|
@@ -153,7 +153,7 @@ pub fn OnlineWorkerLease::close_terminal(
   }
   service.close_impl()
   self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
+  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
 }
 
 ///|
@@ -171,7 +171,7 @@ pub fn OnlineWorkerLease::retry_close_terminal(
     _ => abort("terminal close retry action invariant")
   }
   self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
+  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
 }
 
 ///|
@@ -204,5 +204,5 @@ pub fn OnlineWorkerLease::retry_close_empty(
     raise Invalid(Lifecycle)
   }
   self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
+  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
 }

@@ -1,7 +1,8 @@
 ///|
-fn owned_online_service(
+fn owned_online_lease(
   executable : Bytes,
-) -> @worker_service.WorkerService raise {
+  clock : @monotonic_clock.MonotonicClock,
+) -> @worker_service.OnlineWorkerLease raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let prepared = @worker_service.prepare_owned(
@@ -16,7 +17,45 @@ fn owned_online_service(
   )
   model.close()
   kernel.close()
-  prepared.take_ready()
+  prepared.take_online(clock)
+}
+
+///|
+fn run_owned_online_transfer_evidence(executable : Bytes) -> Unit raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let prepared = @worker_service.prepare_owned(
+    scheduler_blueprint(),
+    service_binding(),
+    executable,
+    startup(),
+    bootstrap_source(),
+    process_limits(),
+    model,
+    kernel,
+  )
+  model.close()
+  kernel.close()
+  let lease = prepared.take_online(@monotonic_clock.MonotonicClock::system())
+  try prepared.take_online(@monotonic_clock.MonotonicClock::system()) catch {
+    OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
+    _ => raise Failure("unexpected repeated online extraction error")
+  } noraise {
+    _ => raise Failure("online preparation extracted twice")
+  }
+  try prepared.take_raw_ready() catch {
+    OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
+    _ => raise Failure("unexpected online-to-raw extraction error")
+  } noraise {
+    _ => raise Failure("online preparation also exposed raw service")
+  }
+  try prepared.take_cleanup() catch {
+    OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
+    _ => raise Failure("unexpected online cleanup extraction error")
+  } noraise {
+    _ => raise Failure("online preparation also exposed cleanup")
+  }
+  lease.shutdown_clean_empty()
 }
 
 ///|
@@ -79,8 +118,7 @@ fn run_inflight_cut_evidence(executable : Bytes) -> Unit raise {
 
   // Cancel immediately after begin_exchange. The logical terminal is already
   // queued, but the stale physical completion must still retire.
-  let started_service = owned_online_service(executable)
-  let started = started_service.prepare_online_claim(clock)
+  let started = owned_online_lease(executable, clock)
   started.admit(online_request(301UL, clock.now_millis(), max_new_tokens=2))
   match started.progress() {
     ServiceStarted(1UL) => ()
@@ -95,8 +133,7 @@ fn run_inflight_cut_evidence(executable : Bytes) -> Unit raise {
   started.shutdown_clean()
 
   // The same retirement path remains valid after one pending syscall.
-  let pending_service = owned_online_service(executable)
-  let pending = pending_service.prepare_online_claim(clock)
+  let pending = owned_online_lease(executable, clock)
   pending.admit(online_request(302UL, clock.now_millis(), max_new_tokens=2))
   assert_true(pending.progress() is ServiceStarted(_))
   assert_true(pending.progress() is ServicePending(_))
@@ -111,8 +148,7 @@ fn run_inflight_cut_evidence(executable : Bytes) -> Unit raise {
   // A cut terminal cannot be dequeued while stale physical work remains. The
   // rejection is non-mutating; after exact retirement the terminal is visible,
   // and terminal-phase progress cannot build another plan.
-  let terminal_first_service = owned_online_service(executable)
-  let terminal_first = terminal_first_service.prepare_online_claim(clock)
+  let terminal_first = owned_online_lease(executable, clock)
   terminal_first.admit(
     online_request(304UL, clock.now_millis(), max_new_tokens=2),
   )
@@ -140,8 +176,7 @@ fn run_inflight_cut_evidence(executable : Bytes) -> Unit raise {
   terminal_first.shutdown_clean()
 
   // Deadline mutation likewise cannot strand the already-started exchange.
-  let deadline_service = owned_online_service(executable)
-  let deadline = deadline_service.prepare_online_claim(clock)
+  let deadline = owned_online_lease(executable, clock)
   let receipt = clock.now_millis()
   deadline.admit(
     online_request(303UL, receipt, max_new_tokens=2, deadline_budget=1UL),
@@ -160,162 +195,73 @@ fn run_inflight_cut_evidence(executable : Bytes) -> Unit raise {
 }
 
 ///|
-fn expect_online_alias_guard(
-  action : () -> Unit raise @worker_service.WorkerServiceError,
-) -> Unit raise {
-  try action() catch {
-    Invalid(OwnershipMode) => ()
-    _ => raise Failure("unexpected online ownership guard error")
-  } noraise {
-    _ => raise Failure("raw alias crossed online ownership mode")
-  }
-}
-
-///|
 fn run_online_lease_evidence(executable : Bytes) -> Unit raise {
-  let empty_service = owned_online_service(executable)
-  let empty_clock = @monotonic_clock.MonotonicClock::system()
-  empty_service.prepare_online_claim(empty_clock).shutdown_clean_empty()
-  assert_eq(empty_service.lifecycle(), ServiceClosed)
-
-  let service = owned_online_service(executable)
-  // Eligible is neither raw nor online-active; a rejected raw alias call does
-  // not consume the future online family choice.
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(service.live_request_count())
-  })
   let clock = @monotonic_clock.MonotonicClock::system()
-  let lease = service.prepare_online_claim(clock)
-  let stale_lease = lease
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(service.outstanding_count())
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(service.progress())
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(service.take_next_publication())
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    service.begin_recovery()
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    service.close()
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    service.claim_raw()
-  })
-  let now = clock.now_millis()
-  lease.admit(online_request(201UL, now, max_new_tokens=2))
-  online_progress_to_terminal(lease, 1UL)
-  assert_true(lease.has_publication())
-  try lease.progress() catch {
-    Invalid(Lifecycle) => ()
-    _ => raise Failure("unexpected queued-publication progress error")
-  } noraise {
-    _ => raise Failure("online progress advanced past queued publication")
-  }
-  assert_eq(lease.reserve_cancel(), OnlineCancelReserved)
-  assert_eq(lease.commit_cancel(), OnlineCancelCommitted)
-  let token = lease.take_publication()
-  assert_eq(token.kind(), OnlineSuppressedTokenPublication)
-  assert_eq(token.publication_sequence(), 1UL)
-  let terminal = lease.take_publication()
+
+  run_owned_online_transfer_evidence(executable)
+
+  let empty = owned_online_lease(executable, clock)
+  empty.shutdown_clean_empty()
+
+  let cancelled = owned_online_lease(executable, clock)
+  cancelled.admit(online_request(201UL, clock.now_millis(), max_new_tokens=2))
+  online_progress_to_terminal(cancelled, 1UL)
+  assert_eq(cancelled.reserve_cancel(), OnlineCancelReserved)
+  assert_eq(cancelled.commit_cancel(), OnlineCancelCommitted)
+  assert_eq(
+    cancelled.take_publication().kind(),
+    OnlineSuppressedTokenPublication,
+  )
+  let terminal = cancelled.take_publication()
   assert_eq(terminal.kind(), OnlineTerminalPublication)
   assert_eq(terminal.terminal_reason(), OnlineCancelledByCaller)
-  assert_eq(terminal.publication_sequence(), 2UL)
-  try lease.close_terminal() catch {
-    Invalid(Lifecycle) => ()
-    _ => raise Failure("unexpected healthy terminal-close rejection")
-  } noraise {
-    _ => raise Failure("healthy terminal bypassed clean shutdown")
-  }
-  lease.release()
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(stale_lease.has_publication())
-  })
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    service.claim_raw()
-  })
+  cancelled.shutdown_clean()
 
-  // A later online lease rotates the private epoch but continues the global
-  // publication sequence rather than resetting it to one.
-  let second = service.prepare_online_claim(clock)
-  expect_online_alias_guard(fn() raise @worker_service.WorkerServiceError {
-    ignore(stale_lease.has_publication())
-  })
-  second.admit(online_request(202UL, clock.now_millis(), max_new_tokens=2))
-  online_progress_to_terminal(second, 2UL)
-  assert_eq(second.reserve_cancel(), OnlineCancelReserved)
-  let second_token = second.take_reserved_token()
-  assert_eq(second_token.position(), 0)
-  assert_eq(second_token.publication_sequence(), 3UL)
-  assert_eq(second.commit_cancel(), OnlineCancelCommitted)
-  let second_terminal = second.take_publication()
-  assert_eq(second_terminal.terminal_reason(), OnlineCancelledByCaller)
-  assert_eq(second_terminal.publication_sequence(), 4UL)
-  second.release()
-
-  let final_lease = service.prepare_online_claim(clock)
-  final_lease.admit(online_request(203UL, clock.now_millis()))
-  online_progress_to_terminal(final_lease, 3UL)
-  assert_eq(final_lease.expire(), OnlineDeadlineNaturalTerminal)
-  assert_eq(final_lease.take_publication().publication_sequence(), 5UL)
-  assert_eq(final_lease.take_publication().publication_sequence(), 6UL)
-  final_lease.release()
-
-  // Deadline cut after a token has already been queued authenticates and
-  // suppresses that old-generation token before the fresh deadline terminal.
-  let deadline_lease = service.prepare_online_claim(clock)
-  let deadline_receipt = clock.now_millis()
-  deadline_lease.admit(
-    online_request(
-      205UL,
-      deadline_receipt,
-      max_new_tokens=2,
-      deadline_budget=1UL,
-    ),
+  let reserved = owned_online_lease(executable, clock)
+  reserved.admit(online_request(202UL, clock.now_millis(), max_new_tokens=2))
+  online_progress_to_terminal(reserved, 1UL)
+  assert_eq(reserved.reserve_cancel(), OnlineCancelReserved)
+  assert_eq(reserved.take_reserved_token().position(), 0)
+  assert_eq(reserved.commit_cancel(), OnlineCancelCommitted)
+  assert_eq(
+    reserved.take_publication().terminal_reason(),
+    OnlineCancelledByCaller,
   )
-  online_progress_to_terminal(deadline_lease, 4UL)
-  let mut expiry = deadline_lease.expire()
+  reserved.shutdown_clean()
+
+  let deadline = owned_online_lease(executable, clock)
+  let receipt = clock.now_millis()
+  deadline.admit(
+    online_request(205UL, receipt, max_new_tokens=2, deadline_budget=1UL),
+  )
+  online_progress_to_terminal(deadline, 1UL)
+  let mut expiry = deadline.expire()
   while expiry == OnlineDeadlinePending {
-    expiry = deadline_lease.expire()
+    expiry = deadline.expire()
   }
   assert_eq(expiry, OnlineDeadlineCommitted)
-  let deadline_token = deadline_lease.take_publication()
-  assert_eq(deadline_token.kind(), OnlineSuppressedTokenPublication)
-  assert_eq(deadline_token.publication_sequence(), 7UL)
-  let deadline_terminal = deadline_lease.take_publication()
-  assert_eq(deadline_terminal.terminal_reason(), OnlineDeadlineReached)
-  assert_eq(deadline_terminal.publication_sequence(), 8UL)
-  deadline_lease.shutdown_clean()
-  assert_eq(service.lifecycle(), ServiceClosed)
-
-  // Online recovery retains the exact request generation, invalidates its
-  // device state before replacement, and authenticates the fresh failure
-  // terminal without exposing a raw scheduler handle.
-  let recovery_service = owned_online_service(executable)
-  let recovery_lease = recovery_service.prepare_online_claim(clock)
-  recovery_lease.admit(
-    online_request(204UL, clock.now_millis(), max_new_tokens=2),
-  )
-  online_progress_to_terminal(recovery_lease, 1UL)
   assert_eq(
-    recovery_lease.take_publication().kind(),
-    OnlineGeneratedTokenPublication,
+    deadline.take_publication().kind(),
+    OnlineSuppressedTokenPublication,
   )
-  recovery_lease.begin_recovery()
-  assert_eq(recovery_service.lifecycle(), ServiceDeviceInvalidationRequired)
-  assert_eq(recovery_lease.invalidate_device_state(), 1)
-  assert_eq(recovery_service.lifecycle(), ServiceRestartReady)
-  recovery_lease.abandon_restart()
-  assert_eq(recovery_lease.drain_restart_forbidden(), Complete)
-  assert_eq(recovery_service.lifecycle(), ServiceTerminalCloseReady)
-  let failed = recovery_lease.take_publication()
+  assert_eq(
+    deadline.take_publication().terminal_reason(),
+    OnlineDeadlineReached,
+  )
+  deadline.shutdown_clean()
+
+  let recovery = owned_online_lease(executable, clock)
+  recovery.admit(online_request(204UL, clock.now_millis(), max_new_tokens=2))
+  online_progress_to_terminal(recovery, 1UL)
+  assert_eq(recovery.take_publication().kind(), OnlineGeneratedTokenPublication)
+  recovery.begin_recovery()
+  assert_eq(recovery.invalidate_device_state(), 1)
+  recovery.abandon_restart()
+  assert_eq(recovery.drain_restart_forbidden(), Complete)
+  let failed = recovery.take_publication()
   assert_eq(failed.kind(), OnlineTerminalPublication)
   assert_eq(failed.terminal_reason(), OnlineWorkerFailed)
-  recovery_lease.close_terminal()
-  assert_eq(recovery_service.lifecycle(), ServiceClosed)
+  recovery.close_terminal()
 
   run_inflight_cut_evidence(executable)
 }

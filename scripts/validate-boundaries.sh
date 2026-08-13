@@ -502,12 +502,42 @@ if [ -n "$fixture_constructor_calls" ] &&
   failed=1
 fi
 
-online_lease_references=$(rg -n 'OnlineWorkerLease|prepare_online_claim' \
+online_lease_references=$(rg -n 'OnlineWorkerLease|take_online' \
   --glob '*.mbt' --glob 'pkg.generated.mbti' || true)
 if [ -n "$online_lease_references" ] &&
   printf '%s\n' "$online_lease_references" |
     rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/|^service/online_session/)'; then
   printf '%s\n' 'online worker lease escaped its owned aggregate/test boundary' >&2
+  failed=1
+fi
+
+online_transfer_calls=$(rg -n '\.take_online\(' --glob '*.mbt' || true)
+if [ -n "$online_transfer_calls" ] &&
+  printf '%s\n' "$online_transfer_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/|^service/online_session/)'; then
+  printf '%s\n' 'owned online transfer escaped aggregate/test scope' >&2
+  failed=1
+fi
+
+raw_transfer_calls=$(rg -n '\.take_raw_ready\(' --glob '*.mbt' || true)
+if [ -n "$raw_transfer_calls" ] &&
+  printf '%s\n' "$raw_transfer_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/)'; then
+  printf '%s\n' 'owned raw transfer escaped fixture/test scope' >&2
+  failed=1
+fi
+
+if rg -n 'OwnedWorkerServicePreparation::take_ready|WorkerService::prepare_online_claim|OnlineWorkerLease::release' \
+  engine/worker_service/pkg.generated.mbti; then
+  printf '%s\n' 'legacy owned/online extraction API remains public' >&2
+  failed=1
+fi
+
+if ! rg -q '^pub fn OwnedWorkerServicePreparation::take_raw_ready\(Self\) -> WorkerService raise OwnedWorkerServicePreparationError$' \
+  engine/worker_service/pkg.generated.mbti ||
+  ! rg -q '^pub fn OwnedWorkerServicePreparation::take_online\(Self, @monotonic_clock.MonotonicClock\) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError$' \
+    engine/worker_service/pkg.generated.mbti; then
+  printf '%s\n' 'owned preparation must expose exact raw and online transfers' >&2
   failed=1
 fi
 

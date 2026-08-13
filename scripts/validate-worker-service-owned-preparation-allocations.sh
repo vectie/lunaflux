@@ -63,6 +63,9 @@ fi
 for symbol in \
   'install__owned__ready(' \
   'publish__cleanup(' \
+  'publish__online__transfer(' \
+  'publish__raw__transfer(' \
+  'WorkerService15can__claim__raw(' \
   'prepare__preflighted(' \
   'prepare__spawned(' \
   'perform__startup__handshake__status(' \
@@ -99,12 +102,14 @@ prepare_line="$(rg -n 'prepare__exchange__with__approved__roots\(' "$generated_c
 service_line="$(rg -n 'WorkerService\*\)moonbit_malloc' "$generated_c" | tail -n 1 | cut -d: -f1)"
 cleanup_line="$(rg -n 'FailedOwnedWorkerServicePreparation\*\)moonbit_malloc' "$generated_c" | tail -n 1 | cut -d: -f1)"
 outcome_line="$(rg -n 'OwnedWorkerServicePreparation\*\)moonbit_malloc' "$generated_c" | tail -n 1 | cut -d: -f1)"
+lease_line="$(rg -n 'OnlineWorkerLease\*\)moonbit_malloc' "$generated_c" | tail -n 1 | cut -d: -f1)"
 if [ -z "$prepare_line" ] || [ -z "$service_line" ] ||
-  [ -z "$cleanup_line" ] || [ -z "$outcome_line" ] ||
+  [ -z "$cleanup_line" ] || [ -z "$outcome_line" ] || [ -z "$lease_line" ] ||
   [ "$service_line" -ge "$prepare_line" ] ||
   [ "$cleanup_line" -ge "$prepare_line" ] ||
-  [ "$outcome_line" -ge "$prepare_line" ]; then
-  printf '%s\n' 'owned service/cleanup shells were not allocated before rooted preparation' >&2
+  [ "$outcome_line" -ge "$prepare_line" ] ||
+  [ "$lease_line" -ge "$prepare_line" ]; then
+  printf '%s\n' 'owned service/lease/cleanup shells were not allocated before rooted preparation' >&2
   exit 1
 fi
 
@@ -163,6 +168,30 @@ for branch in \
   branch_body="$(printf '%s\n' "$root_body" | sed -n "${branch}p")"
   if printf '%s\n' "$branch_body" | rg -q "$forbidden"; then
     printf '%s\n' 'direct rooted post-activation dispatch allocates' >&2
+    exit 1
+  fi
+done
+
+# Extraction dispatchers may allocate typed rejection errors before the final
+# successful preflight. Once the success helper is selected, the glue through
+# the returned owner must remain allocation-free as well.
+for transfer in \
+  'take__online(:publish__online__transfer(' \
+  'take__raw__ready(:publish__raw__transfer('; do
+  entry="${transfer%%:*}"
+  publish="${transfer#*:}"
+  transfer_body="$(extract_definition "$entry")"
+  publish_line="$(printf '%s\n' "$transfer_body" | rg -n -F "$publish" | tail -n 1 | cut -d: -f1)"
+  return_line="$(printf '%s\n' "$transfer_body" | awk -v start="$publish_line" \
+    'NR > start && /return _result_/ { print NR; exit }')"
+  if [ -z "$transfer_body" ] || [ -z "$publish_line" ] ||
+    [ -z "$return_line" ] || [ "$return_line" -le "$publish_line" ]; then
+    printf 'owned transfer success dispatcher is missing: %s\n' "$entry" >&2
+    exit 1
+  fi
+  transfer_slice="$(printf '%s\n' "$transfer_body" | sed -n "${publish_line},${return_line}p")"
+  if printf '%s\n' "$transfer_slice" | rg -q "$forbidden"; then
+    printf 'owned transfer success dispatcher allocates: %s\n' "$entry" >&2
     exit 1
   fi
 done

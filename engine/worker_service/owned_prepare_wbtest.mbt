@@ -22,6 +22,7 @@ test "owned preparation shell transfers only the selected owner once" {
   let cleanup = owned_test_cleanup()
   let prepared : OwnedWorkerServicePreparation = {
     service: None,
+    online: None,
     cleanup,
     state: OwnedServiceCleanupRequired,
     consumed: false,
@@ -37,7 +38,7 @@ test "owned preparation shell transfers only the selected owner once" {
   } noraise {
     _ => fail("cleanup authority extracted twice")
   }
-  try prepared.take_ready() catch {
+  try prepared.take_raw_ready() catch {
     OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
     _ => fail("unexpected failed-service extraction error")
   } noraise {

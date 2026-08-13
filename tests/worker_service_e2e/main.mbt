@@ -383,14 +383,13 @@ fn run(executable : Bytes) -> Unit raise {
   owned_model.close()
   owned_kernel.close()
   assert_eq(owned.state(), OwnedServiceReady)
-  let service = owned.take_ready()
-  try owned.take_ready() catch {
+  let service = owned.take_raw_ready()
+  try owned.take_raw_ready() catch {
     OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
     _ => raise Failure("unexpected repeated owned-service extraction error")
   } noraise {
     _ => raise Failure("owned-service preparation extracted twice")
   }
-  service.claim_raw()
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
   progress_to_ready(service, 1UL)

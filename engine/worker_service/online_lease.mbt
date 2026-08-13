@@ -48,63 +48,13 @@ fn OnlineWorkerLease::require_pending_handle(
 }
 
 ///|
-/// Permanently selects fixture/raw operation for an otherwise pristine owned
-/// service. Online admission can never be claimed afterward.
-pub fn WorkerService::claim_raw(
-  self : WorkerService,
-) -> Unit raise WorkerServiceError {
-  if !self.production_owned ||
-    self.ownership_mode != SERVICE_MODE_ONLINE_ELIGIBLE ||
-    self.lifecycle != ServiceReady ||
-    self.raw_outstanding_count() != 0 ||
-    !self.scheduler.is_pristine() ||
-    !self.require_process().has_exchange_capacity() {
-    raise Invalid(OwnershipMode)
-  }
-  self.ownership_mode = SERVICE_MODE_FIXTURE_RAW
-}
-
-///|
-/// Claims exclusive online ownership of a pristine production aggregate. The
-/// lease shell is fully allocated before the one-way mode transition.
-pub fn WorkerService::prepare_online_claim(
-  self : WorkerService,
-  clock : @monotonic_clock.MonotonicClock,
-) -> OnlineWorkerLease raise WorkerServiceError {
-  let next_epoch = if self.online_epoch == 0xffffffffffffffffUL {
-    raise Invalid(OwnershipMode)
-  } else {
-    self.online_epoch + 1UL
-  }
-  let lease : OnlineWorkerLease = {
-    service: self,
-    epoch: next_epoch,
-    clock,
-    request_phase: ONLINE_REQUEST_EMPTY,
-    handle: None,
-    request_generation: @inference.RequestGeneration::initial(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
-    publication_cursor: self.online_publication_cursor,
-    expected_position: 0,
-    cancel_reserved: false,
-  }
-  let scheduler_ready = if self.ownership_mode == SERVICE_MODE_ONLINE_ELIGIBLE {
-    self.scheduler.is_pristine()
-  } else if self.ownership_mode == SERVICE_MODE_ONLINE_IDLE {
-    self.scheduler.is_quiescent()
-  } else {
-    false
-  }
-  if !self.production_owned ||
-    self.lifecycle != ServiceReady ||
-    self.raw_outstanding_count() != 0 ||
-    !scheduler_ready ||
-    !self.require_process().has_exchange_capacity() {
-    raise Invalid(OwnershipMode)
-  }
-  self.online_epoch = next_epoch
-  self.ownership_mode = SERVICE_MODE_ONLINE_ACTIVE
-  lease
+fn WorkerService::can_claim_raw(self : WorkerService) -> Bool {
+  self.production_owned &&
+  self.ownership_mode == SERVICE_MODE_ONLINE_ELIGIBLE &&
+  self.lifecycle == ServiceReady &&
+  self.raw_outstanding_count() == 0 &&
+  self.scheduler.is_pristine() &&
+  self.require_process().has_exchange_capacity()
 }
 
 ///|
@@ -428,24 +378,4 @@ fn read_online_lease_clock(
   lease.clock.now_millis() catch {
     _ => raise Invalid(Clock)
   }
-}
-
-///|
-/// Releases online ownership only after the exact terminal publication has
-/// been consumed and every scheduler/process obligation is empty.
-pub fn OnlineWorkerLease::release(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_TERMINAL ||
-    self.cancel_reserved ||
-    service.raw_outstanding_count() != 0 ||
-    service.scheduler.live_request_count() != 0 ||
-    service.scheduler.generated_token_count() != 0 ||
-    service.scheduler.terminal_notice_count() != 0 ||
-    service.lifecycle != ServiceReady {
-    raise Invalid(Lifecycle)
-  }
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_IDLE
 }

@@ -122,8 +122,21 @@ pub fn prepare_owned(
     closed: false,
     reported_consumed_failure: false,
   }
+  let online : OnlineWorkerLease = {
+    service,
+    epoch: 0UL,
+    clock: @monotonic_clock.MonotonicClock::system(),
+    request_phase: ONLINE_REQUEST_EMPTY,
+    handle: None,
+    request_generation: @inference.RequestGeneration::initial(),
+    cut_source_generation: @inference.RequestGeneration::initial(),
+    publication_cursor: 0UL,
+    expected_position: 0,
+    cancel_reserved: false,
+  }
   let outcome : OwnedWorkerServicePreparation = {
     service: Some(service),
+    online: Some(online),
     cleanup: failed_owner,
     state: OwnedServiceCleanupRequired,
     consumed: false,
@@ -171,22 +184,86 @@ pub fn OwnedWorkerServicePreparation::state(
 }
 
 ///|
-/// Transfers the ready service once. No cleanup authority can be extracted
-/// from the same aliased shell afterward.
-pub fn OwnedWorkerServicePreparation::take_ready(
+fn publish_raw_transfer(
+  prepared : OwnedWorkerServicePreparation,
+  service : WorkerService,
+) -> WorkerService {
+  service.ownership_mode = SERVICE_MODE_FIXTURE_RAW
+  prepared.consumed = true
+  prepared.service = None
+  prepared.online = None
+  service
+}
+
+///|
+fn publish_online_transfer(
+  prepared : OwnedWorkerServicePreparation,
+  service : WorkerService,
+  online : OnlineWorkerLease,
+  clock : @monotonic_clock.MonotonicClock,
+  next_epoch : UInt64,
+) -> OnlineWorkerLease {
+  online.clock = clock
+  online.epoch = next_epoch
+  online.publication_cursor = service.online_publication_cursor
+  service.online_epoch = next_epoch
+  service.ownership_mode = SERVICE_MODE_ONLINE_ACTIVE
+  prepared.consumed = true
+  prepared.service = None
+  prepared.online = None
+  online
+}
+
+///|
+/// Transfers the ready service once. This lower-level migration/test seam is
+/// boundary-restricted; the owned online aggregate uses `take_online`.
+pub fn OwnedWorkerServicePreparation::take_raw_ready(
   self : OwnedWorkerServicePreparation,
 ) -> WorkerService raise OwnedWorkerServicePreparationError {
   if self.consumed || self.state != OwnedServiceReady {
     raise owned_failure(OwnedServiceFailure(Invalid(Lifecycle)))
   }
-  self.consumed = true
   match self.service {
     Some(service) => {
-      self.service = None
-      service
+      if !service.can_claim_raw() {
+        raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
+      }
+      publish_raw_transfer(self, service)
     }
     None => abort("owned ready service invariant")
   }
+}
+
+///|
+/// Atomically transfers a fresh production owner into its permanent online
+/// family. The exact lease shell was allocated before root activation; after
+/// the complete preflight, publication performs only nonraising assignments.
+pub fn OwnedWorkerServicePreparation::take_online(
+  self : OwnedWorkerServicePreparation,
+  clock : @monotonic_clock.MonotonicClock,
+) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError {
+  if self.consumed || self.state != OwnedServiceReady {
+    raise owned_failure(OwnedServiceFailure(Invalid(Lifecycle)))
+  }
+  let service = match self.service {
+    Some(value) => value
+    None => abort("owned online service invariant")
+  }
+  if !service.production_owned ||
+    service.ownership_mode != SERVICE_MODE_ONLINE_ELIGIBLE ||
+    service.online_epoch == 0xffffffffffffffffUL ||
+    service.lifecycle != ServiceReady ||
+    service.raw_outstanding_count() != 0 ||
+    !service.scheduler.is_pristine() ||
+    !service.require_process().has_exchange_capacity() {
+    raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
+  }
+  let next_epoch = service.online_epoch + 1UL
+  let online = match self.online {
+    Some(value) => value
+    None => abort("owned online lease invariant")
+  }
+  publish_online_transfer(self, service, online, clock, next_epoch)
 }
 
 ///|
@@ -198,6 +275,8 @@ pub fn OwnedWorkerServicePreparation::take_cleanup(
     raise owned_failure(OwnedServiceFailure(Invalid(Lifecycle)))
   }
   self.consumed = true
+  self.service = None
+  self.online = None
   self.cleanup
 }
 

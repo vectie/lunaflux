@@ -69,7 +69,6 @@ pub fn OnlineWorkerLease::has_publication(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::invalidate_device_state(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerLease::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
 pub fn OnlineWorkerLease::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
-pub fn OnlineWorkerLease::release(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
 pub fn OnlineWorkerLease::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_close_empty(Self) -> Unit raise WorkerServiceError
@@ -112,7 +111,8 @@ pub struct OwnedWorkerServicePreparation {
 }
 pub fn OwnedWorkerServicePreparation::state(Self) -> OwnedWorkerServicePreparationState
 pub fn OwnedWorkerServicePreparation::take_cleanup(Self) -> FailedOwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
-pub fn OwnedWorkerServicePreparation::take_ready(Self) -> WorkerService raise OwnedWorkerServicePreparationError
+pub fn OwnedWorkerServicePreparation::take_online(Self, @monotonic_clock.MonotonicClock) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError
+pub fn OwnedWorkerServicePreparation::take_raw_ready(Self) -> WorkerService raise OwnedWorkerServicePreparationError
 
 pub(all) enum OwnedWorkerServicePreparationState {
   OwnedServiceReady
@@ -128,7 +128,6 @@ pub fn WorkerService::allocated_block_table_count(Self) -> Int raise WorkerServi
 pub fn WorkerService::begin_recovery(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::binding(Self) -> WorkerServiceBinding
 pub fn WorkerService::cancel(Self, @core.RequestHandle) -> Unit raise WorkerServiceError
-pub fn WorkerService::claim_raw(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::close(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::drain_restart_forbidden(Self) -> @core.InstanceLossDrain raise WorkerServiceError
 pub fn WorkerService::expire_deadlines(Self, UInt64) -> Int raise WorkerServiceError
@@ -139,7 +138,6 @@ pub fn WorkerService::lifecycle(Self) -> WorkerServiceLifecycle
 pub fn WorkerService::live_request_count(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::next_publication_kind(Self) -> @core.SchedulerPublicationKind raise WorkerServiceError
 pub fn WorkerService::outstanding_count(Self) -> Int raise WorkerServiceError
-pub fn WorkerService::prepare_online_claim(Self, @monotonic_clock.MonotonicClock) -> OnlineWorkerLease raise WorkerServiceError
 pub fn WorkerService::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
 pub fn WorkerService::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn WorkerService::restart(Self) -> WorkerServiceRestart raise WorkerServiceError

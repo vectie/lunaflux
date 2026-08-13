@@ -17,7 +17,7 @@ const SERVICE_MODE_FIXTURE_RAW : Int = 0
 const SERVICE_MODE_ONLINE_ELIGIBLE : Int = 1
 
 ///|
-const SERVICE_MODE_ONLINE_IDLE : Int = 2
+const SERVICE_MODE_ONLINE_RETIRED : Int = 2
 
 ///|
 const SERVICE_MODE_ONLINE_ACTIVE : Int = 3
@@ -116,6 +116,7 @@ pub(all) enum OwnedWorkerServicePreparationState {
 /// mutates its private tag.
 pub struct OwnedWorkerServicePreparation {
   priv mut service : WorkerService?
+  priv mut online : OnlineWorkerLease?
   priv cleanup : FailedOwnedWorkerServicePreparation
   priv mut state : OwnedWorkerServicePreparationState
   priv mut consumed : Bool
@@ -171,8 +172,8 @@ pub struct WorkerService {
 /// generation, or raw publication owner and deliberately has no `Debug`.
 pub struct OnlineWorkerLease {
   priv service : WorkerService
-  priv epoch : UInt64
-  priv clock : @monotonic_clock.MonotonicClock
+  priv mut epoch : UInt64
+  priv mut clock : @monotonic_clock.MonotonicClock
   priv mut request_phase : Int
   priv mut handle : @core.RequestHandle?
   priv mut request_generation : @inference.RequestGeneration

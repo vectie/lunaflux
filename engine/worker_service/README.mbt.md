@@ -31,24 +31,25 @@ child/root authority yields `OwnedServiceCleanupRequired`.
 owners and the resulting service is permanently ineligible for future online
 session admission. There is no production-facing alias-taking constructor.
 
-An owned service makes one permanent ownership-family choice. `claim_raw`
-selects compatibility dispatch forever. `prepare_online_claim` instead issues
-an opaque epoch-authenticated `OnlineWorkerLease`; superseded leases cannot
-mutate the service, and raw aliases reject before observing dynamic
-scheduler or process state. Online-idle services can rotate to a later epoch,
-but can never become raw. The lease retains the monotonic clock, exact request
-generation, token position, and global publication cursor. It exposes only
-sanitized value publications, including explicit suppressed-token evidence
-after a cancellation or deadline cut.
+An owned preparation makes one permanent ownership-family choice.
+`take_raw_ready` irreversibly selects compatibility dispatch before exposing
+the service. `take_online` instead transfers a preallocated opaque
+epoch-authenticated `OnlineWorkerLease` without ever exposing the service. The
+lease retains the monotonic clock, exact request generation, token position,
+and global publication cursor. It exposes only sanitized value publications,
+including explicit suppressed-token evidence after a cancellation or deadline
+cut.
 
-The lease is a lower-level engine seam for the forthcoming owned
+The lease is a single-session lower-level engine seam for the forthcoming owned
 `service/online_session` aggregate. Its prepare/admit entry points are boundary
 restricted to that aggregate and tests; applications must not pair a raw
 `TokenizedRequest` with the lease. No decoder, scheduler, process, request
 handle, request identity, generation, or raw publication owner escapes.
 The service and lease remain thread-confined; copying a current lease reference
 does not create independent authority and is forbidden by the aggregate's
-exclusive-owner discipline.
+exclusive-owner discipline. The aggregate never releases or renews this owner:
+it terminally shuts down a healthy request, closes after recovery, or closes an
+empty failed admission. Sequential sessions require a fresh owned aggregate.
 
 Online recovery is lease-authenticated: child recovery, exact-flight
 retirement, device invalidation, replacement, restart-forbidden drain, and
