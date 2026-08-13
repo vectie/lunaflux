@@ -1,0 +1,77 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/worker_process"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+pub fn start(Bytes, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, WorkerProcessLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> WorkerProcessSupervisor raise WorkerProcessError
+
+// Errors
+pub(all) suberror WorkerProcessError {
+  Invalid(WorkerProcessRule)
+  Backpressured
+  OwnerMismatch
+  Transport(WorkerTransportFailure)
+  Wire(@worker_wire.WorkerWireError)
+  Protocol(@worker_protocol.WorkerProtocolError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
+pub fn ReceivedWorkerCompletion::frame(Self, WorkerProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise WorkerProcessError
+pub fn ReceivedWorkerCompletion::sequence_value(Self) -> UInt64
+
+pub(all) enum WorkerProcessLifecycle {
+  Ready
+  Failed
+  ClosingFailed
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerProcessLimits {
+  // private fields
+}
+pub fn WorkerProcessLimits::io_timeout_millis(Self) -> Int
+pub fn WorkerProcessLimits::max_frame_bytes(Self) -> Int
+pub fn WorkerProcessLimits::new(max_frame_bytes~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise WorkerProcessError
+pub fn WorkerProcessLimits::shutdown_timeout_millis(Self) -> Int
+
+pub(all) enum WorkerProcessRule {
+  Capacity
+  Sequence
+  Submission
+  Completion
+  Lifecycle
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerProcessSupervisor {
+  // private fields
+}
+pub fn WorkerProcessSupervisor::close(Self) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::has_capacity(Self) -> Bool
+pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle
+pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
+pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
+pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> WorkerSubmission raise WorkerProcessError
+
+pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)
+pub fn WorkerSubmission::sequence_value(Self) -> UInt64
+
+pub(all) enum WorkerTransportFailure {
+  InvalidConfiguration
+  InvalidState
+  Timeout
+  ChannelClosed
+  OperationFailed
+  SpawnFailed
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

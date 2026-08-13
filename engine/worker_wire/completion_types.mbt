@@ -65,6 +65,17 @@ pub fn CompletionFrameBuffer::capacity(self : CompletionFrameBuffer) -> Int {
 }
 
 ///|
+/// Returns the currently retained authenticated frame without changing it.
+pub fn CompletionFrameBuffer::current(
+  self : CompletionFrameBuffer,
+) -> ValidatedCompletionFrame raise WorkerWireError {
+  if self.epoch == 0UL || self.length == 0 || self.writer_open {
+    raise StaleFrame
+  }
+  ValidatedCompletionFrame(self, self.epoch)
+}
+
+///|
 fn ValidatedCompletionFrame::owner(
   self : ValidatedCompletionFrame,
 ) -> CompletionFrameBuffer raise WorkerWireError {

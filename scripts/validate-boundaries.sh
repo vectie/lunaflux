@@ -94,6 +94,13 @@ fail_matches \
   --glob '!tests/device_step_alloc/**' \
   'extern\s+"[cC]"|#external'
 
+# Internal ABI concrete types must never become part of a public package
+# interface. Generated interfaces are authoritative for this boundary.
+fail_matches \
+  'public package interface leaks an internal ABI type:' \
+  --glob 'pkg.generated.mbti' --glob '!internal/**' \
+  'vectie/lunaflux/internal/'
+
 # Production code is MoonBit plus narrow C stubs. Python may be used by neither
 # the runtime nor its normal validation path.
 if python_files=$(rg --files --glob '*.py' 2>/dev/null); then

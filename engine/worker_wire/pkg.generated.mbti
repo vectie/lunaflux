@@ -32,6 +32,7 @@ pub struct CompletionFrameBuffer {
   // private fields
 }
 pub fn CompletionFrameBuffer::capacity(Self) -> Int
+pub fn CompletionFrameBuffer::current(Self) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameBuffer::encode_completion(Self, @worker_protocol.SubmittedCompletion) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
