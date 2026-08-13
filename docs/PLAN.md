@@ -240,6 +240,16 @@ device KV storage remain part of this phase gate.
 - paged KV write and attention kernels;
 - no device allocation during a token step.
 
+The versioned paged semantic graph, fixed host page/table ownership, canonical
+split K/V device layout, reusable counts/position/page-table staging, exact
+all-AOT catalog and artifact admission, full physical launch blueprint, and
+owner-mediated synchronous graph executor are implemented. The executor
+preallocates persistent KV and activation/workspace storage and reuses loaded
+functions and argument lists. Phase promotion still requires a production
+paged-kernel bundle, generated-logit readback into completion/sampling, a
+positive-controlled allocation gate around the complete graph lifecycle, and
+physical-CUDA correctness, sanitizer, leak, soak, and benchmark evidence.
+
 ### Workstream 3: scheduler
 
 - unified token budget;
@@ -282,7 +292,9 @@ buffer pairing, transactional build/submission, exclusive completion leases,
 ordered full-batch retirement, generated-token publication, and exact owner
 reset are implemented. Independent positive-controlled native release gates
 now cover the scheduler token step and public device-step staging/fixed-H2D
-path after warm-up. Live worker overlap remains open.
+path after warm-up. The full graph executor has generated-C success-path
+allocation evidence but not yet its own positive-controlled runtime gate. Live
+worker overlap remains open.
 
 ### Gate
 

@@ -224,11 +224,15 @@ workspace allocation regions. Dispatch may then consume only precomputed
 records; it must not allocate, inspect model-family names, or reinterpret
 manifest byte claims.
 
-The current semantic graph is stateless. `FullPrefill` and
-`FullRecompute` execute every token in the supplied sequence. There is no true
-decode profile until the model and device plans explicitly contain KV storage,
-cache positions, sequence lengths, page/block tables, and deterministic
-ownership.
+Two execution contracts coexist. The stateless `FullPrefill` and
+`FullRecompute` profiles execute every supplied token and remain the Phase-1
+baseline. The separately versioned paged graph carries exact live-step counts,
+token positions, row/sequence descriptors, page tables, and persistent split
+K/V state through all-AOT admission. Its synchronous owner privately owns every
+mutable device resource and consumes only prevalidated, prebuilt launch
+records. This establishes a true incremental execution contract, but STATUS
+remains authoritative for the still-open physical-kernel, numerical,
+allocation-instrumentation, sampling/readback, and serving gates.
 
 ## Kernel architecture
 

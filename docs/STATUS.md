@@ -125,6 +125,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   close. A double construction/cleanup failure returns an opaque retryable
   cleanup guard; a close failure blocks further dispatch while preserving
   retry authority over still-open children.
+- A distinct versioned paged model graph whose every operation consumes exact
+  live-step counts, with positioned rotary input, page-table descriptors, and
+  persistent layer-indexed split K/V state. Its catalog is all-AOT and binds
+  exact runtime-input order, operation shape, layout version, tokens per page,
+  entry point, dimensions, and physical operands before code is imported.
+- Fixed-capacity device-step staging uploads counts last after complete host
+  validation, authenticates scheduler-retained page generations before plan
+  submission, and permanently poisons a staged owner after any partial transfer
+  failure. A positive-controlled native release gate proves the warmed public
+  descriptor `stage`/`finish` path performs no generated/runtime allocation.
+- An owner-mediated synchronous full-paged-graph executor that leases the
+  caller-owned weight allocation and privately owns descriptor buffers,
+  activation/workspace and persistent-KV allocations, stream, modules,
+  functions, dimensions, and argument lists. Exact staged/executed capabilities
+  enforce lifecycle order; any partial launch failure poisons the executor, and
+  partial construction or close retains explicit retryable cleanup authority.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public
@@ -181,7 +197,7 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   KV release, publishes final-prefill/decode tokens in plan order, enforces
   token-stop/maximum-output terminals, and resets the exact plan side. Normal
   idle and two-owner pressure are flat allocation-free outcomes in generated
-  native code; runtime allocation instrumentation remains open.
+  native code; the positive-controlled warmed scheduler allocation gate passes.
 - A bounded `lunaflux reference` command that validates explicit paths and
   digests, loads an admitted host snapshot, and produces offline greedy tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
@@ -208,22 +224,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
   macOS leak detection was unavailable, so the full sanitizer/leak gate remains
   open.
-- A device KV arena, block-table upload, paged-attention execution, or true
-  incremental decode. The scheduler now transactionally acquires host request
-  tables and page identities while building plans, and the host page allocator,
-  block-table arena, and logical prefix metadata are implemented. The current
-  device semantic graph still has no KV input, cache position, page table, or
-  block mapping. Device profiles
-  therefore support only stateless full prefill and full-sequence
-  recomputation. The reference interpreter deliberately retains intermediate
-  activations and recomputes the full sequence during generation; it is a
-  correctness oracle, not a fallback.
+- Physical and numerical proof for the new paged path. The semantic graph,
+  host page/table ownership, reusable device descriptor, persistent device KV
+  allocation, exact all-AOT launch ABI, artifact admission, physical blueprint,
+  and synchronous owner-mediated full-graph dispatch are implemented. No
+  production paged-kernel bundle has yet passed real-CUDA model correctness,
+  sanitizer, leak, soak, or benchmark gates; generated logits are not yet read
+  back into online sampling/completion. The stateless reference interpreter
+  remains the correctness oracle and deliberately recomputes full sequences.
 - Online APIs, generated-text decoding/transport publication, continuous
   batching with global fairness/preemption, live worker overlap,
-  device paged KV, online sampling and prefix integration, or telemetry. The
+  physically proven paged execution, online sampling and prefix integration,
+  or telemetry. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist but are not an online
-  service. No whole-token-step allocation or bounded-waiting claim is made.
+  service. No end-to-end scheduler/worker/device allocation or bounded-waiting
+  claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains

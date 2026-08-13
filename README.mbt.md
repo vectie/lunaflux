@@ -118,9 +118,15 @@ correctness bundles; it is never a production fallback. An exact,
 thread-confined Phase-1 device executor now binds admitted AOT artifacts,
 vendor projection plans, and preplanned memory into an ordered synchronous
 full-sequence run. It retains explicit cleanup authority even when construction
-and cleanup both fail. The semantic graph still has no cached-KV decode path.
-Canonical request/streaming events and scheduler/worker messages now have
-bounded immutable contracts. Worker-protocol foundations include reusable
+and cleanup both fail. A separate versioned paged graph now carries live-row
+counts, token positions, page tables, and persistent split K/V state through
+exact all-AOT catalog, contract, artifact, memory, and physical-blueprint
+admission. Reusable device-step buffers upload that bounded descriptor without
+steady-state allocation. The owner-mediated synchronous paged executor leases
+weights, privately owns activation/workspace and KV allocations, preloads every
+module/function and argument list, and fail-stops after any partial graph
+launch. Canonical request/streaming events and scheduler/worker messages now
+have bounded immutable contracts. Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and
 explicit final-prefill sampling semantics. Host-side KV metadata includes a
@@ -146,10 +152,10 @@ and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and deterministic RNG stream semantics. These remain foundations:
 live worker transport/overlap, global fairness/preemption, prefix integration,
-device KV, paged-attention kernels, generated-text decoding, online transport
-and sampling integration, whole-token-step runtime allocation instrumentation,
-and physical-CUDA gates are open. Later packages are created only when their
-vertical phase begins; empty
+shipped and numerically validated paged-kernel artifacts, generated-logit
+readback, online transport and sampling integration, a positive-controlled
+full graph-executor allocation gate, and physical-CUDA gates are open. Later
+packages are created only when their vertical phase begins; empty
 architectural packages are deliberately avoided.
 
 ## Validation
