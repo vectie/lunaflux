@@ -283,6 +283,35 @@ if [ -d service/framed_wire ]; then
   fi
 fi
 
+# Incremental output owns fixed per-request decode/matcher state only. Socket,
+# scheduler, worker, filesystem, and native authority stay outside this leaf.
+if [ -d service/incremental_output ]; then
+  fail_matches \
+    'incremental output imports outside inference contracts + tokenizer:' \
+    --pcre2 --glob 'service/incremental_output/moon.pkg' \
+    '"vectie/lunaflux/(?!contracts/inference"|tokenizer")'
+  fail_matches \
+    'incremental output must remain synchronous and native-ABI free:' \
+    --glob 'service/incremental_output/*.mbt' \
+    'pub async fn|extern\s+"[cC]"|#external'
+  if [ -f service/incremental_output/pkg.generated.mbti ]; then
+    if ! rg -q \
+      '^pub fn IncrementalOutput::push_token_into\(Self, Int, FixedArray\[Byte\], destination_offset~ : Int\)' \
+      service/incremental_output/pkg.generated.mbti; then
+      printf '%s\n' \
+        'incremental output must retain its fixed-destination token API' >&2
+      failed=1
+    fi
+    if rg -n --pcre2 -U \
+      'pub struct IncrementalOutput \{\n  (?!// private fields)' \
+      service/incremental_output/pkg.generated.mbti; then
+      printf '%s\n' \
+        'incremental output state must remain opaque' >&2
+      failed=1
+    fi
+  fi
+fi
+
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.

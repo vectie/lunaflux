@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/incremental_output"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+
+// Errors
+pub(all) suberror IncrementalOutputError {
+  Invalid(rule~ : IncrementalOutputRule, issue~ : IncrementalOutputIssue)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct IncrementalOutput {
+  // private fields
+}
+pub fn IncrementalOutput::finish_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise IncrementalOutputError
+pub fn IncrementalOutput::is_finished(Self) -> Bool
+pub fn IncrementalOutput::is_stopped(Self) -> Bool
+pub fn IncrementalOutput::new(@tokenizer.TokenizerSpec, @inference.StopConditions, @inference.InferenceLimits, special_policy~ : @tokenizer.DecodeSpecialPolicy) -> Self raise IncrementalOutputError
+pub fn IncrementalOutput::push_token_into(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStep raise IncrementalOutputError
+
+pub(all) enum IncrementalOutputIssue {
+  Unsupported
+  Invalid
+  TooSmall
+  Terminal
+} derive(Eq, @debug.Debug)
+
+pub(all) enum IncrementalOutputRule {
+  DecodeEnvelope
+  Token
+  Utf8
+  Destination
+  Lifecycle
+} derive(Eq, @debug.Debug)
+
+pub struct IncrementalOutputStep(Int, Bool)
+pub fn IncrementalOutputStep::copied_bytes(Self) -> Int
+pub fn IncrementalOutputStep::stop_matched(Self) -> Bool
+
+// Type aliases
+
+// Traits
