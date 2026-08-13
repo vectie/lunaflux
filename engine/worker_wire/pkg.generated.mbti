@@ -1,0 +1,115 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/worker_wire"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+}
+
+// Values
+pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
+
+// Errors
+pub(all) suberror WorkerWireError {
+  InvalidLimit(WorkerWireLimitRule)
+  InvalidFrame(WorkerWireFrameRule)
+  SourceTooSmall
+  DestinationTooSmall
+  FrameEpochOverflow
+  StaleFrame
+  Protocol(@worker_protocol.WorkerProtocolError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PlanFrameBuffer {
+  // private fields
+}
+pub fn PlanFrameBuffer::capacity(Self) -> Int
+pub fn PlanFrameBuffer::encode_plan(Self, @worker_protocol.SubmittedSchedulePlan) -> ValidatedPlanFrame raise WorkerWireError
+pub fn PlanFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedPlanFrame raise WorkerWireError
+pub fn PlanFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
+
+pub struct PlanFrameDecodeRow(PlanFrameBuffer, UInt64, Int)
+pub fn PlanFrameDecodeRow::capability_length(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::capability_start(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::completion_slot(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::page_length(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::page_start(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::request_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFrameDecodeRow::request_id_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFrameDecodeRow::sample_index(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_has_top_k(Self) -> Bool raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_has_top_p(Self) -> Bool raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_mode_value(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_seed_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_temperature(Self) -> Double raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_top_k_value(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::sampling_top_p_value(Self) -> Double raise WorkerWireError
+pub fn PlanFrameDecodeRow::sequence_token_position(Self) -> Int raise WorkerWireError
+pub fn PlanFrameDecodeRow::token_start(Self) -> Int raise WorkerWireError
+
+pub struct PlanFramePrefillRow(PlanFrameBuffer, UInt64, Int)
+pub fn PlanFramePrefillRow::capability_length(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::capability_start(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::completion_slot(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::page_length(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::page_start(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::produces_token(Self) -> Bool raise WorkerWireError
+pub fn PlanFramePrefillRow::request_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFramePrefillRow::request_id_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFramePrefillRow::sample_index(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_has_top_k(Self) -> Bool raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_has_top_p(Self) -> Bool raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_mode_value(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_seed_value(Self) -> UInt64 raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_temperature(Self) -> Double raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_top_k_value(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::sampling_top_p_value(Self) -> Double raise WorkerWireError
+pub fn PlanFramePrefillRow::sequence_token_start(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::token_length(Self) -> Int raise WorkerWireError
+pub fn PlanFramePrefillRow::token_start(Self) -> Int raise WorkerWireError
+
+pub struct ValidatedPlanFrame(PlanFrameBuffer, UInt64)
+pub fn ValidatedPlanFrame::capability_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::capability_value_at(Self, Int) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
+pub fn ValidatedPlanFrame::decode_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::decode_row(Self, Int) -> PlanFrameDecodeRow raise WorkerWireError
+pub fn ValidatedPlanFrame::length(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::model_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn ValidatedPlanFrame::page_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::page_generation_at(Self, Int) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::page_index_at(Self, Int) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::prefill_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::prefill_row(Self, Int) -> PlanFramePrefillRow raise WorkerWireError
+pub fn ValidatedPlanFrame::sequence_value(Self) -> UInt64 raise WorkerWireError
+pub fn ValidatedPlanFrame::token_at(Self, Int) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::token_budget(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::token_count(Self) -> Int raise WorkerWireError
+
+pub(all) enum WorkerWireFrameRule {
+  Magic
+  Version
+  Kind
+  Length
+  Checksum
+  Counts
+  TokenTable
+  PageTable
+  CapabilityTable
+  PrefillRow
+  DecodeRow
+  Sampling
+  CompletionSlot
+  RequestIdentity
+  Reserved
+} derive(Eq, @debug.Debug)
+
+pub(all) enum WorkerWireLimitRule {
+  PlanFrameBytes
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

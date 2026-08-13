@@ -23,6 +23,13 @@ struct PositiveControl {
 }
 
 ///|
+struct WireAudit {
+  sender : @worker_wire.PlanFrameBuffer
+  receiver : @worker_wire.PlanFrameBuffer
+  transport : FixedArray[Byte]
+}
+
+///|
 let positive_control_sink : FixedArray[PositiveControl?] = FixedArray::make(
   1,
   None,
@@ -154,6 +161,43 @@ fn scheduler() -> @scheduler.Scheduler {
 }
 
 ///|
+fn wire_audit() -> WireAudit {
+  let sender = try! @worker_wire.PlanFrameBuffer::new(
+    worker_limits(),
+    inference_limits(),
+  )
+  {
+    sender,
+    receiver: try! @worker_wire.PlanFrameBuffer::new(
+      worker_limits(),
+      inference_limits(),
+    ),
+    transport: FixedArray::make(sender.capacity(), b'\x00'),
+  }
+}
+
+///|
+fn audit_wire_plan(
+  audit : WireAudit,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+) -> Unit {
+  let encoded = try! audit.sender.encode_plan(plan)
+  try! encoded.copy_to(audit.transport, destination_offset=0)
+  let received = try! audit.receiver.load(audit.transport, encoded.length())
+  let received_sequence = try! received.sequence_value()
+  let plan_sequence = try! plan.sequence_wire()
+  let received_token_count = try! received.token_count()
+  let plan_token_count = try! plan.token_count()
+  let received_token = try! received.token_at(0)
+  let plan_token = try! plan.token_at(0)
+  if received_sequence != plan_sequence ||
+    received_token_count != plan_token_count ||
+    received_token != plan_token {
+    alloc_probe_abort()
+  }
+}
+
+///|
 fn request() -> @scheduler.TokenizedRequest {
   let limits = inference_limits()
   try! @scheduler.TokenizedRequest::new(
@@ -180,9 +224,13 @@ fn request() -> @scheduler.TokenizedRequest {
 }
 
 ///|
-fn complete_final_prefill(owner : @scheduler.Scheduler) -> Unit {
+fn complete_final_prefill(
+  owner : @scheduler.Scheduler,
+  audit : WireAudit,
+) -> Unit {
   let outcome = try! owner.build_next()
   let submitted = try! owner.submitted_plan(outcome)
+  audit_wire_plan(audit, submitted)
   let row = try! submitted.prefill_row(0)
   let writer = try! owner.completion_writer(submitted)
   try! writer.append_final_prefill_completed(
@@ -196,9 +244,14 @@ fn complete_final_prefill(owner : @scheduler.Scheduler) -> Unit {
 }
 
 ///|
-fn complete_decode(owner : @scheduler.Scheduler, token : Int) -> Unit {
+fn complete_decode(
+  owner : @scheduler.Scheduler,
+  audit : WireAudit,
+  token : Int,
+) -> Unit {
   let outcome = try! owner.build_next()
   let submitted = try! owner.submitted_plan(outcome)
+  audit_wire_plan(audit, submitted)
   let row = try! submitted.decode_row(0)
   let writer = try! owner.completion_writer(submitted)
   try! writer.append_decode_completed(
@@ -214,18 +267,19 @@ fn complete_decode(owner : @scheduler.Scheduler, token : Int) -> Unit {
 fn main {
   verify_probe_observes_allocations()
   let owner = scheduler()
+  let wire = wire_audit()
   ignore(try! owner.admit(request(), 0UL))
 
   // Warm both scheduler-owned A/B plan and completion buffers before counting.
-  complete_final_prefill(owner)
-  complete_decode(owner, 3)
+  complete_final_prefill(owner, wire)
+  complete_decode(owner, wire, 3)
   let pages_before = owner.free_page_count()
 
   // Decode enough tokens to reuse both A/B protocol buffers and cross at
   // least one KV page boundary while the counter is active.
   alloc_probe_begin()
   for token = 4; token < 12; token = token + 1 {
-    complete_decode(owner, token)
+    complete_decode(owner, wire, token)
   }
   let observed = alloc_probe_end()
   let pages_after = owner.free_page_count()

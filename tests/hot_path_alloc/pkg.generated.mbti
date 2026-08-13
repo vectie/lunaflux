@@ -8,6 +8,8 @@ package "vectie/lunaflux/tests/hot_path_alloc"
 // Types and methods
 type PositiveControl
 
+type WireAudit
+
 // Type aliases
 
 // Traits
