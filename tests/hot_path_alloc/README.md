@@ -10,9 +10,10 @@ their original allocation behavior.
 The gate first proves the counter is live with independent record and fixed-
 array positive controls. It then constructs and warms the scheduler, both A/B
 plan owners, and both A/B completion owners before measuring repeated decode
-build, plan-frame encode/copy/validate/access, completion write/submit, and
-retirement cycles. The measured window crosses a physical-page metadata
-boundary, so block-table append remains part of the zero-allocation evidence.
+build, plan-frame encode/copy/validate/access, completion write/submit,
+completion-frame encode/copy/validate/access, and retirement cycles. The
+measured window crosses a physical-page metadata boundary, so block-table
+append remains part of the zero-allocation evidence.
 
 This is runtime instrumentation, not a source scan or disassembly heuristic.
 It covers generated MoonBit code and the allocation entry points emitted into

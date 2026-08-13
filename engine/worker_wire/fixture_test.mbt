@@ -77,7 +77,7 @@ fn submitted_wire_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
   let pages = wire_allocator()
   owner.append_final_prefill(
     request_id=wire_request(7UL),
-    request_generation=@inference.RequestGeneration::from_wire(2UL),
+    request_generation=@inference.RequestGeneration::initial(),
     sequence_token_start=3,
     tokens=[10, 11],
     pages=[pages.allocate_one()],
@@ -107,4 +107,25 @@ fn submitted_wire_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
     previous_sequence_value=0UL,
     loaded_generation_value=9UL,
   )
+}
+
+///|
+fn submitted_completion_fixture(
+  plan : @worker_protocol.SubmittedSchedulePlan,
+) -> @worker_protocol.SubmittedCompletion raise {
+  let owner = @worker_protocol.CompletionBuffer::new(wire_protocol_limits())
+  owner.append_final_prefill_completed(
+    slot=wire_slot(0),
+    request_id=wire_request(7UL),
+    request_generation=@inference.RequestGeneration::initial(),
+    processed_tokens=2,
+    token_id=17,
+  )
+  owner.append_decode_completed(
+    slot=wire_slot(1),
+    request_id=wire_request(8UL),
+    request_generation=@inference.RequestGeneration::from_wire(3UL),
+    token_id=18,
+  )
+  owner.submit_for(plan)
 }

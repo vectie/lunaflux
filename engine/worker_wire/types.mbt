@@ -4,6 +4,8 @@ pub struct PlanFrameBuffer {
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
   priv storage : FixedArray[Byte]
+  priv validation_requests : FixedArray[UInt64]
+  priv validation_slots : FixedArray[Int]
   priv mut epoch : UInt64
   priv mut length : Int
 }
@@ -33,6 +35,8 @@ pub fn PlanFrameBuffer::new(
     worker_limits,
     inference_limits,
     storage: FixedArray::make(capacity, b'\x00'),
+    validation_requests: FixedArray::make(worker_limits.max_plan_rows(), 0UL),
+    validation_slots: FixedArray::make(worker_limits.max_plan_rows(), -1),
     epoch: 0UL,
     length: 0,
   }

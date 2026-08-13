@@ -30,7 +30,7 @@ test "plan frame round trips exact scalar tables and rows" {
   )
   let prefill = encoded.prefill_row(0)
   assert_eq(prefill.request_id_value(), 7UL)
-  assert_eq(prefill.request_generation_value(), 2UL)
+  assert_eq(prefill.request_generation_value(), 0UL)
   assert_eq(prefill.sequence_token_start(), 3)
   assert_eq(prefill.token_start(), 0)
   assert_eq(prefill.token_length(), 2)

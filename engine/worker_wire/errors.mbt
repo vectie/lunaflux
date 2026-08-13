@@ -1,6 +1,7 @@
 ///|
 pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
+  CompletionFrameBytes
 } derive(Debug, Eq)
 
 ///|
@@ -16,6 +17,7 @@ pub(all) enum WorkerWireFrameRule {
   CapabilityTable
   PrefillRow
   DecodeRow
+  CompletionEntry
   Sampling
   CompletionSlot
   RequestIdentity

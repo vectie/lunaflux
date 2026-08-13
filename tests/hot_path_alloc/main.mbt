@@ -26,6 +26,8 @@ struct PositiveControl {
 struct WireAudit {
   sender : @worker_wire.PlanFrameBuffer
   receiver : @worker_wire.PlanFrameBuffer
+  completion_sender : @worker_wire.CompletionFrameBuffer
+  completion_receiver : @worker_wire.CompletionFrameBuffer
   transport : FixedArray[Byte]
 }
 
@@ -172,7 +174,39 @@ fn wire_audit() -> WireAudit {
       worker_limits(),
       inference_limits(),
     ),
+    completion_sender: try! @worker_wire.CompletionFrameBuffer::new(
+      worker_limits(),
+      inference_limits(),
+    ),
+    completion_receiver: try! @worker_wire.CompletionFrameBuffer::new(
+      worker_limits(),
+      inference_limits(),
+    ),
     transport: FixedArray::make(sender.capacity(), b'\x00'),
+  }
+}
+
+///|
+fn audit_wire_completion(
+  audit : WireAudit,
+  completion : @worker_protocol.SubmittedCompletion,
+) -> Unit {
+  let encoded = try! audit.completion_sender.encode_completion(completion)
+  try! encoded.copy_to(audit.transport, destination_offset=0)
+  let received = try! audit.completion_receiver.load(
+    audit.transport,
+    encoded.length(),
+  )
+  let received_sequence = try! received.sequence_value()
+  let completion_sequence = try! completion.sequence_wire()
+  let received_count = try! received.entry_count()
+  let completion_count = try! completion.entry_count()
+  let received_slot = try! received.entry(0).slot()
+  let completion_slot = try! completion.entry(0).slot().value()
+  if received_sequence != completion_sequence ||
+    received_count != completion_count ||
+    received_slot != completion_slot {
+    alloc_probe_abort()
   }
 }
 
@@ -240,7 +274,9 @@ fn complete_final_prefill(
     processed_tokens=(try! row.tokens()).length(),
     token_id=2,
   )
-  try! owner.complete(submitted, try! writer.submit())
+  let completion = try! writer.submit()
+  audit_wire_completion(audit, completion)
+  try! owner.complete(submitted, completion)
 }
 
 ///|
@@ -260,7 +296,9 @@ fn complete_decode(
     request_generation=try! row.request_generation(),
     token_id=token,
   )
-  try! owner.complete(submitted, try! writer.submit())
+  let completion = try! writer.submit()
+  audit_wire_completion(audit, completion)
+  try! owner.complete(submitted, completion)
 }
 
 ///|

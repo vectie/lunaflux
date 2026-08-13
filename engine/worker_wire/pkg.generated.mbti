@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn completion_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
+
 pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
 
 // Errors
@@ -22,6 +24,23 @@ pub(all) suberror WorkerWireError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct CompletionFrameBuffer {
+  // private fields
+}
+pub fn CompletionFrameBuffer::capacity(Self) -> Int
+pub fn CompletionFrameBuffer::encode_completion(Self, @worker_protocol.SubmittedCompletion) -> ValidatedCompletionFrame raise WorkerWireError
+pub fn CompletionFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedCompletionFrame raise WorkerWireError
+pub fn CompletionFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
+
+pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int)
+pub fn CompletionFrameEntry::failure_value(Self) -> Int raise WorkerWireError
+pub fn CompletionFrameEntry::kind_value(Self) -> Int raise WorkerWireError
+pub fn CompletionFrameEntry::processed_tokens(Self) -> Int raise WorkerWireError
+pub fn CompletionFrameEntry::request_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn CompletionFrameEntry::request_id_value(Self) -> UInt64 raise WorkerWireError
+pub fn CompletionFrameEntry::slot(Self) -> Int raise WorkerWireError
+pub fn CompletionFrameEntry::token_id(Self) -> Int raise WorkerWireError
+
 pub struct PlanFrameBuffer {
   // private fields
 }
@@ -70,6 +89,15 @@ pub fn PlanFramePrefillRow::sequence_token_start(Self) -> Int raise WorkerWireEr
 pub fn PlanFramePrefillRow::token_length(Self) -> Int raise WorkerWireError
 pub fn PlanFramePrefillRow::token_start(Self) -> Int raise WorkerWireError
 
+pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
+pub fn ValidatedCompletionFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
+pub fn ValidatedCompletionFrame::entry(Self, Int) -> CompletionFrameEntry raise WorkerWireError
+pub fn ValidatedCompletionFrame::entry_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedCompletionFrame::entry_for_slot(Self, Int) -> CompletionFrameEntry raise WorkerWireError
+pub fn ValidatedCompletionFrame::length(Self) -> Int raise WorkerWireError
+pub fn ValidatedCompletionFrame::model_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn ValidatedCompletionFrame::sequence_value(Self) -> UInt64 raise WorkerWireError
+
 pub struct ValidatedPlanFrame(PlanFrameBuffer, UInt64)
 pub fn ValidatedPlanFrame::capability_count(Self) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::capability_value_at(Self, Int) -> Int raise WorkerWireError
@@ -100,6 +128,7 @@ pub(all) enum WorkerWireFrameRule {
   CapabilityTable
   PrefillRow
   DecodeRow
+  CompletionEntry
   Sampling
   CompletionSlot
   RequestIdentity
@@ -108,6 +137,7 @@ pub(all) enum WorkerWireFrameRule {
 
 pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
+  CompletionFrameBytes
 } derive(Eq, @debug.Debug)
 
 // Type aliases

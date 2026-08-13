@@ -67,59 +67,14 @@ fn validate_wire_range(
 }
 
 ///|
-fn validate_unique_wire_rows(
-  bytes : FixedArray[Byte],
-  prefill_offset : Int,
-  prefill_count : Int,
-  decode_offset : Int,
-  decode_count : Int,
-) -> Unit raise WorkerWireError {
-  for left in 0..<prefill_count {
-    let left_offset = prefill_offset + left * prefill_row_bytes
-    let left_request = read_u64(bytes, left_offset)
-    let left_slot = read_i32(bytes, left_offset + 92)
-    for right in 0..<left {
-      let right_offset = prefill_offset + right * prefill_row_bytes
-      if left_request == read_u64(bytes, right_offset) {
-        raise InvalidFrame(RequestIdentity)
-      }
-      if left_slot == read_i32(bytes, right_offset + 92) {
-        raise InvalidFrame(CompletionSlot)
-      }
-    }
-    for right in 0..<decode_count {
-      let right_offset = decode_offset + right * decode_row_bytes
-      if left_request == read_u64(bytes, right_offset) {
-        raise InvalidFrame(RequestIdentity)
-      }
-      if left_slot == read_i32(bytes, right_offset + 84) {
-        raise InvalidFrame(CompletionSlot)
-      }
-    }
-  }
-  for left in 0..<decode_count {
-    let left_offset = decode_offset + left * decode_row_bytes
-    let left_request = read_u64(bytes, left_offset)
-    let left_slot = read_i32(bytes, left_offset + 84)
-    for right in 0..<left {
-      let right_offset = decode_offset + right * decode_row_bytes
-      if left_request == read_u64(bytes, right_offset) {
-        raise InvalidFrame(RequestIdentity)
-      }
-      if left_slot == read_i32(bytes, right_offset + 84) {
-        raise InvalidFrame(CompletionSlot)
-      }
-    }
-  }
-}
-
-///|
 fn validate_plan_frame_source(
   bytes : FixedArray[Byte],
   supplied_length : Int,
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
   destination_capacity : Int,
+  validation_requests : FixedArray[UInt64],
+  validation_slots : FixedArray[Int],
 ) -> Unit raise WorkerWireError {
   if supplied_length < plan_header_bytes || supplied_length > bytes.length() {
     raise SourceTooSmall
@@ -218,7 +173,7 @@ fn validate_plan_frame_source(
     let offset = prefill_offset + row * prefill_row_bytes
     let sequence_start = read_i32(bytes, offset + 16)
     let token_length = read_i32(bytes, offset + 24)
-    if read_u64(bytes, offset) == 0UL || read_u64(bytes, offset + 8) == 0UL {
+    if read_u64(bytes, offset) == 0UL {
       raise InvalidFrame(RequestIdentity)
     }
     token_cursor = validate_wire_range(
@@ -267,11 +222,13 @@ fn validate_plan_frame_source(
     if slot < 0 || slot >= worker_limits.max_completion_slots() {
       raise InvalidFrame(CompletionSlot)
     }
+    validation_requests[row] = read_u64(bytes, offset)
+    validation_slots[row] = slot
     scheduled_tokens = scheduled_tokens + token_length
   }
   for row in 0..<decode_count {
     let offset = decode_offset + row * decode_row_bytes
-    if read_u64(bytes, offset) == 0UL || read_u64(bytes, offset + 8) == 0UL {
+    if read_u64(bytes, offset) == 0UL {
       raise InvalidFrame(RequestIdentity)
     }
     let position = read_i32(bytes, offset + 16)
@@ -309,6 +266,9 @@ fn validate_plan_frame_source(
     if slot < 0 || slot >= worker_limits.max_completion_slots() {
       raise InvalidFrame(CompletionSlot)
     }
+    let identity_index = prefill_count + row
+    validation_requests[identity_index] = read_u64(bytes, offset)
+    validation_slots[identity_index] = slot
     scheduled_tokens = scheduled_tokens + 1
   }
   if token_cursor != token_count ||
@@ -317,8 +277,10 @@ fn validate_plan_frame_source(
     scheduled_tokens != token_budget {
     raise InvalidFrame(Counts)
   }
-  validate_unique_wire_rows(
-    bytes, prefill_offset, prefill_count, decode_offset, decode_count,
+  validate_unique_scalar_identities(
+    validation_requests,
+    validation_slots,
+    prefill_count + decode_count,
   )
 }
 
@@ -339,6 +301,8 @@ pub fn PlanFrameBuffer::load(
     self.worker_limits,
     self.inference_limits,
     self.storage.length(),
+    self.validation_requests,
+    self.validation_slots,
   )
   for index in 0..<length {
     self.storage[index] = source[index]
