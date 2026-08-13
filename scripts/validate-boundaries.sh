@@ -125,6 +125,32 @@ if [ -d kernels/artifact_file ]; then
   fi
 fi
 
+# Model configuration-file admission is synchronous and capability-relative.
+# It must not regress to ambient paths or portable async filesystem access.
+if [ -d model/config_file ]; then
+  fail_matches \
+    'config_file must not import an internal filesystem ABI:' \
+    --glob 'model/config_file/**/moon.pkg' \
+    'vectie/lunaflux/internal/approved_fs'
+  fail_matches \
+    'config_file production imports must not use portable async filesystem IO:' \
+    --pcre2 --glob 'model/config_file/**/moon.pkg' -U \
+    'import\s*\{[^}]*moonbitlang/async(/fs)?[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
+  if ! rg -q \
+    '^pub fn load\(@approved_fs\.ApprovedRoot, @approved_fs\.ApprovedRelativeLocator,' \
+    model/config_file/pkg.generated.mbti; then
+    printf '%s\n' \
+      'config_file loader must consume ApprovedRoot and ApprovedRelativeLocator' >&2
+    failed=1
+  fi
+  if rg -n '^pub async fn load|^pub fn load\([^)]*String(View)?' \
+    model/config_file/pkg.generated.mbti; then
+    printf '%s\n' \
+      'config_file loader must remain synchronous and free of string paths' >&2
+    failed=1
+  fi
+fi
+
 # Execution-manifest admission may consume only the public approved-root
 # capability and must remain synchronous and path-typed.
 if [ -d engine/execution_manifest_file ]; then

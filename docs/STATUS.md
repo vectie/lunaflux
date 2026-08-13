@@ -131,6 +131,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   ordered model/kernel lease pair, sanitized fixed-FD rooted spawn, and child
   import are implemented; supervisor retention across replacement and
   production child reconstruction remain open.
+- Synchronous model-configuration file admission now consumes a caller-owned
+  approved root plus typed relative locator, closes the immutable bounded
+  snapshot source before publication, verifies an independent lowercase
+  SHA-256 file identity, and parses metadata under an independently supplied
+  model content identity. It exposes no ambient path or async filesystem API.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and

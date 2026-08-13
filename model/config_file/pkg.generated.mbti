@@ -1,0 +1,61 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/config_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn load(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ModelConfigDigest, @spec.ContentDigest, ModelConfigFileLimits) -> @spec.LlamaModelMetadata raise ModelConfigFileError
+
+// Errors
+pub(all) suberror ModelConfigFileError {
+  InvalidExpectedDigest
+  InvalidLimit(ModelConfigFileLimit)
+  FileUnavailable
+  UnsupportedPathType
+  FileIo(operation~ : ModelConfigFileOperation, issue~ : ModelConfigFileIoIssue)
+  FileTooLarge(maximum~ : Int64)
+  FileTruncated
+  FileChangedDuringRead
+  DigestMismatch
+  InvalidConfiguration(@config_reader.ModelConfigReaderError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ModelConfigDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelConfigDigest::as_hex(Self) -> String
+pub fn ModelConfigDigest::from_sha256(String) -> Self raise ModelConfigFileError
+
+pub(all) enum ModelConfigFileIoIssue {
+  AuthorityClosed
+  Busy
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelConfigFileLimit {
+  ConfigBytes
+  JsonDepth
+} derive(Eq, @debug.Debug)
+
+pub struct ModelConfigFileLimits {
+  // private fields
+}
+pub fn ModelConfigFileLimits::maximum_bytes(Self) -> Int64
+pub fn ModelConfigFileLimits::maximum_depth(Self) -> Int
+pub fn ModelConfigFileLimits::new(maximum_bytes~ : Int64, maximum_depth~ : Int) -> Self raise ModelConfigFileError
+
+pub(all) enum ModelConfigFileOperation {
+  OpenFile
+  SnapshotFile
+  CloseFile
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
