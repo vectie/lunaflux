@@ -125,8 +125,10 @@ canonical bounded wire frames with transactional untrusted receive and exact
 service-side completion-plan authentication. The worker-side device path now
 stages an authenticated received-plan frame and, after execution, writes a
 completion frame from exact frame-bound logits and scalar sampling fields
-without scheduler heap-owner values. Process I/O,
-authentication, supervision, and overlap remain open. Global
+without scheduler heap-owner values. The private native layer now owns an
+exact-path shell-free child and inherited socketpair with bounded I/O,
+timeouts, and reap. Protocol-aware supervision, the production worker
+executable, restart/readiness, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.
 Capability IDs are copied from authenticated model-generation recipes;

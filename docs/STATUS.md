@@ -180,8 +180,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   epoch, applies validated scalar sampling fields, and freezes a canonical
   completion frame directly; no scheduler plan or completion owner is
   reconstructed in the isolated side.
-  Live worker
-  process I/O, authentication, supervision, and overlap are not yet integrated.
+  The private native layer now provides shell-free exact-executable spawn, an
+  inherited socketpair endpoint authenticated by construction, fixed-buffer
+  exact I/O with monotonic deadlines, bounded wait/terminate, and deterministic
+  kill/reap close. Protocol framing over that channel, A/B supervision, the
+  production worker executable, restart/readiness, and live overlap are not
+  yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,

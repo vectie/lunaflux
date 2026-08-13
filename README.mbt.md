@@ -171,7 +171,11 @@ resources. Idle and plan-buffer pressure are allocation-free value outcomes,
 and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and counter-addressed replay semantics. These remain foundations:
-live worker process I/O/supervision/overlap, global fairness/preemption, prefix
+the private native layer can now spawn one exact worker executable without a
+shell or PATH lookup and exchange bounded fixed-buffer bytes over an inherited
+socketpair with monotonic deadlines and deterministic reap. Protocol-aware A/B
+supervision, the production worker executable, restart/readiness integration,
+and live overlap remain open, as do global fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
 physical-CUDA validation, online transport integration, a positive-controlled

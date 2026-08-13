@@ -310,7 +310,11 @@ now cover the scheduler token step and public device-step staging/fixed-H2D
 path after warm-up. The full graph executor has generated-C success-path
 allocation evidence through logits readback, sampling, and completion
 submission, but not yet its own positive-controlled runtime gate. Process I/O,
-authentication, worker-death supervision, and live overlap remain open.
+authentication, worker-death supervision, and live overlap remain open. A
+private POSIX primitive now supplies exact-path shell-free spawn, an inherited
+socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
+reap; protocol-aware A/B supervision and the production worker executable do
+not yet consume it.
 
 ### Gate
 
