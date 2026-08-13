@@ -203,5 +203,7 @@ pub fn prepare(
     has_accepted_predecessor,
     accepted_predecessor_value,
     staged_sequence_value: 0UL,
+    staged_wire_owner: None,
+    staged_wire_epoch: 0UL,
   })
 }

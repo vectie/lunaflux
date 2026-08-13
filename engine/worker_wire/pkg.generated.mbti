@@ -54,6 +54,7 @@ pub fn CompletionFrameWriter::append_final_prefill_completed(Self, PlanFramePref
 pub fn CompletionFrameWriter::append_prefill_completed(Self, PlanFramePrefillRow) -> Unit raise WorkerWireError
 pub fn CompletionFrameWriter::append_prefill_failed(Self, PlanFramePrefillRow, @worker_protocol.WorkerFailure) -> Unit raise WorkerWireError
 pub fn CompletionFrameWriter::submit(Self) -> ValidatedCompletionFrame raise WorkerWireError
+pub fn CompletionFrameWriter::validate_plan(Self, ValidatedPlanFrame) -> Unit raise WorkerWireError
 
 pub struct PlanFrameBuffer {
   // private fields
@@ -81,6 +82,10 @@ pub fn PlanFrameDecodeRow::sampling_top_k_value(Self) -> Int raise WorkerWireErr
 pub fn PlanFrameDecodeRow::sampling_top_p_value(Self) -> Double raise WorkerWireError
 pub fn PlanFrameDecodeRow::sequence_token_position(Self) -> Int raise WorkerWireError
 pub fn PlanFrameDecodeRow::token_start(Self) -> Int raise WorkerWireError
+
+pub struct PlanFrameOwnerIdentity {
+  // private fields
+}
 
 pub struct PlanFramePrefillRow(PlanFrameBuffer, UInt64, Int)
 pub fn PlanFramePrefillRow::capability_length(Self) -> Int raise WorkerWireError
@@ -119,8 +124,11 @@ pub fn ValidatedPlanFrame::capability_value_at(Self, Int) -> Int raise WorkerWir
 pub fn ValidatedPlanFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
 pub fn ValidatedPlanFrame::decode_count(Self) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::decode_row(Self, Int) -> PlanFrameDecodeRow raise WorkerWireError
+pub fn ValidatedPlanFrame::epoch_value(Self) -> UInt64 raise WorkerWireError
 pub fn ValidatedPlanFrame::length(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::matches_owner_epoch(Self, PlanFrameOwnerIdentity, UInt64) -> Bool raise WorkerWireError
 pub fn ValidatedPlanFrame::model_generation_value(Self) -> UInt64 raise WorkerWireError
+pub fn ValidatedPlanFrame::owner_identity(Self) -> PlanFrameOwnerIdentity raise WorkerWireError
 pub fn ValidatedPlanFrame::page_count(Self) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::page_generation_at(Self, Int) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::page_index_at(Self, Int) -> Int raise WorkerWireError

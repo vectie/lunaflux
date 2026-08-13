@@ -188,6 +188,8 @@ pub fn DeviceStepOwner::stage(
   }
   self.stage_epoch = self.stage_epoch + 1UL
   self.staged_sequence_value = summary.sequence_value
+  self.staged_wire_owner = None
+  self.staged_wire_epoch = 0UL
   self.lifecycle = Staged
   StagedDeviceStep(self, self.stage_epoch)
 }
@@ -201,6 +203,8 @@ pub fn DeviceStepOwner::stage_frame(
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> StagedDeviceStep raise DeviceStepError {
   require_lifecycle(self.lifecycle, Ready)
+  let frame_owner = frame.owner_identity() catch { error => raise Wire(error) }
+  let frame_epoch = frame.epoch_value() catch { error => raise Wire(error) }
   let summary = preflight_frame_and_write(
     frame,
     self.model_generation_value,
@@ -239,6 +243,8 @@ pub fn DeviceStepOwner::stage_frame(
   }
   self.stage_epoch += 1UL
   self.staged_sequence_value = summary.sequence_value
+  self.staged_wire_owner = Some(frame_owner)
+  self.staged_wire_epoch = frame_epoch
   self.lifecycle = Staged
   StagedDeviceStep(self, self.stage_epoch)
 }
@@ -266,5 +272,7 @@ pub fn DeviceStepOwner::finish(
   staged.authenticate(self)
   self.has_accepted_predecessor = true
   self.accepted_predecessor_value = self.staged_sequence_value
+  self.staged_wire_owner = None
+  self.staged_wire_epoch = 0UL
   self.lifecycle = Ready
 }

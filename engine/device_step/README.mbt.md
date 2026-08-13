@@ -66,7 +66,12 @@ before resources, leases the caller-owned weight allocation, and privately owns
 its descriptor buffers, activation/workspace arena, persistent KV arena,
 stream, modules, functions, and prebuilt arguments. None of those resources or
 arguments escape. Exact opaque capabilities enforce `stage -> execute ->
-sample_completion -> finish`; every launch synchronizes, and any partial
+sample_completion -> finish`; `stage_frame -> execute ->
+sample_completion_frame -> finish` is the equivalent isolated-worker path.
+The latter authenticates the exact retained frame owner and epoch and writes a
+canonical completion frame directly, so neither submitted-plan nor
+completion-writer scheduler ownership enters the worker. Every launch
+synchronizes, and any partial
 launch failure permanently poisons execution and descriptor state. The
 completion phase reads only each producing row's retained BF16 vocabulary
 logits into startup-owned fixed storage, rejects non-finite values, applies
@@ -81,8 +86,9 @@ in reverse dependency order; failed cleanup retains explicit retry authority.
 This is a full AOT graph dispatch owner, but not yet serving or numerical-
 correctness evidence. The separate native release gate in
 `tests/device_step_alloc` currently instruments the warmed descriptor
-`stage_frame`/`finish` path over prebuilt received frames, proves record and fixed-array positive controls
-independently, and exercises every fixed H2D call through a bounded test seam.
+`stage_frame`/`finish` path over prebuilt received frames, proves record and
+fixed-array positive controls independently, and exercises every fixed H2D
+call through a bounded test seam.
 Generated-C allocation review covers the launch lifecycle, while a
 positive-controlled full `stage`/`execute`/`sample_completion`/`finish` runtime
 gate, physical CUDA model correctness (including logits and sampled tokens),

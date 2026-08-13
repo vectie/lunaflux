@@ -54,6 +54,48 @@ test "non-finite BF16 terminal output fails closed" {
 }
 
 ///|
+test "wire scalar selection matches canonical greedy and stochastic replay" {
+  let scratch = completion_test_scratch(3)
+  scratch.logits[0] = 1.0
+  scratch.logits[1] = 3.0
+  scratch.logits[2] = 2.0
+  assert_eq(
+    select_paged_scalar_logit(scratch, 0, 1.0, false, 0, false, 0.0, 7UL, 0),
+    1,
+  )
+  let expected = select_paged_logit(
+    scratch,
+    @inference.SamplingParameters::sample(
+      temperature=0.75,
+      top_k=2,
+      top_p=0.9,
+      @inference.InferenceLimits::new(
+        max_text_bytes=1,
+        max_input_tokens=1,
+        max_new_tokens=1,
+        max_context_tokens=1,
+        max_token_id=2,
+        max_stop_token_ids=1,
+        max_stop_strings=1,
+        max_stop_string_bytes=1,
+        max_trace_bytes=1,
+        max_cache_scope_bytes=1,
+        max_decoded_delta_bytes=1,
+        max_deadline_millis=1UL,
+        max_top_k=3,
+        max_temperature=4.0,
+      ),
+    ),
+    7UL,
+    3,
+  )
+  assert_eq(
+    select_paged_scalar_logit(scratch, 1, 0.75, true, 2, true, 0.9, 7UL, 3),
+    expected,
+  )
+}
+
+///|
 test "completion scratch rejects a graph whose retained output is not logits" {
   let metadata = blueprint_metadata()
   let plan = blueprint_model_plan(metadata)
@@ -161,4 +203,80 @@ test "completion append emits final-prefill sampled token" {
   assert_eq(entry.kind(), FinalPrefillCompletion)
   assert_eq(entry.processed_tokens(), 2)
   assert_eq(entry.token_id(), 29)
+}
+
+///|
+test "wire completion append preserves exact frame row semantics" {
+  let allocator = step_allocator()
+  let plan_owner = @worker_protocol.SchedulePlanBuffer::new(
+    step_protocol_limits(),
+  )
+  plan_owner.append_final_prefill(
+    request_id=step_request(4UL),
+    request_generation=@inference.RequestGeneration::initial(),
+    sequence_token_start=0,
+    tokens=[10, 11],
+    pages=[allocator.allocate_one()],
+    capabilities=step_required_capability_array(),
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
+    completion_slot=step_slot(0),
+  )
+  let plan = submit_step_buffer(plan_owner, token_budget=2)
+  let frame_owner = @worker_wire.PlanFrameBuffer::new(
+    step_protocol_limits(),
+    @inference.InferenceLimits::new(
+      max_text_bytes=16,
+      max_input_tokens=16,
+      max_new_tokens=16,
+      max_context_tokens=16,
+      max_token_id=64,
+      max_stop_token_ids=1,
+      max_stop_strings=1,
+      max_stop_string_bytes=1,
+      max_trace_bytes=1,
+      max_cache_scope_bytes=1,
+      max_decoded_delta_bytes=1,
+      max_deadline_millis=1UL,
+      max_top_k=64,
+      max_temperature=4.0,
+    ),
+  )
+  let frame = frame_owner.encode_plan(plan)
+  let completion_owner = @worker_wire.CompletionFrameBuffer::new(
+    step_protocol_limits(),
+    @inference.InferenceLimits::new(
+      max_text_bytes=16,
+      max_input_tokens=16,
+      max_new_tokens=16,
+      max_context_tokens=16,
+      max_token_id=64,
+      max_stop_token_ids=1,
+      max_stop_strings=1,
+      max_stop_string_bytes=1,
+      max_trace_bytes=1,
+      max_cache_scope_bytes=1,
+      max_decoded_delta_bytes=1,
+      max_deadline_millis=1UL,
+      max_top_k=64,
+      max_temperature=4.0,
+    ),
+  )
+  let selected = FixedArray::make(1, 31)
+  let completion = append_wire_completion_frame(
+    frame,
+    completion_owner.writer_for(frame),
+    {
+      sequence_value: 1UL,
+      prefill_count: 1,
+      decode_count: 0,
+      row_count: 1,
+      token_count: 2,
+      page_count: 1,
+    },
+    selected,
+  )
+  completion.validate_for(plan)
+  assert_eq(completion.entry_for_slot(0).token_id(), 31)
 }

@@ -1,6 +1,7 @@
 ///|
 /// Startup-owned reusable storage for one canonical submitted-plan frame.
 pub struct PlanFrameBuffer {
+  priv identity : PlanFrameOwnerIdentity
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
   priv storage : FixedArray[Byte]
@@ -8,6 +9,13 @@ pub struct PlanFrameBuffer {
   priv validation_slots : FixedArray[Int]
   priv mut epoch : UInt64
   priv mut length : Int
+}
+
+///|
+/// Opaque unforgeable identity of one startup-owned plan-frame buffer. The
+/// value exposes no storage or mutation authority.
+pub struct PlanFrameOwnerIdentity {
+  priv marker : Ref[Int]
 }
 
 ///|
@@ -32,6 +40,7 @@ pub fn PlanFrameBuffer::new(
 ) -> PlanFrameBuffer raise WorkerWireError {
   let capacity = plan_frame_byte_capacity(worker_limits)
   {
+    identity: { marker: Ref(0) },
     worker_limits,
     inference_limits,
     storage: FixedArray::make(capacity, b'\x00'),
@@ -62,4 +71,30 @@ pub fn ValidatedPlanFrame::length(
   self : ValidatedPlanFrame,
 ) -> Int raise WorkerWireError {
   self.owner().length
+}
+
+///|
+pub fn ValidatedPlanFrame::owner_identity(
+  self : ValidatedPlanFrame,
+) -> PlanFrameOwnerIdentity raise WorkerWireError {
+  self.owner().identity
+}
+
+///|
+pub fn ValidatedPlanFrame::epoch_value(
+  self : ValidatedPlanFrame,
+) -> UInt64 raise WorkerWireError {
+  ignore(self.owner())
+  self.1
+}
+
+///|
+pub fn ValidatedPlanFrame::matches_owner_epoch(
+  self : ValidatedPlanFrame,
+  owner : PlanFrameOwnerIdentity,
+  epoch : UInt64,
+) -> Bool raise WorkerWireError {
+  let actual = self.owner()
+  ignore(actual.identity.marker.val)
+  physical_equal(actual.identity.marker, owner.marker) && self.1 == epoch
 }

@@ -35,6 +35,11 @@ prefill-before-decode row order, and either submits a complete checksummed
 frame or aborts to a new stale epoch. Partial, foreign-owner, duplicate-writer,
 and terminal-epoch paths fail without publishing a frame.
 
+The frame exposes an opaque owner identity plus scalar epoch proof for the
+worker's device-execution owner. This identity grants no storage or mutation
+authority; it only prevents logits from one staged frame being published as
+the completion of another buffer or superseded epoch.
+
 Untrusted-frame request and slot uniqueness checks use startup-owned scratch
 and deterministic in-place heapsort. They are O(n log n), avoiding quadratic
 work at the configured maximum row count while retaining allocation-free

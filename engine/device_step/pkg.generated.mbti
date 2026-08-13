@@ -148,6 +148,7 @@ pub fn PagedGraphExecutor::execute(Self, StagedPagedGraphExecution) -> ExecutedP
 pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
 pub fn PagedGraphExecutor::sample_completion(Self, ExecutedPagedGraphExecution, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.CompletionWriter) -> @worker_protocol.SubmittedCompletion raise DeviceStepError
+pub fn PagedGraphExecutor::sample_completion_frame(Self, ExecutedPagedGraphExecution, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceStepError
 pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError
 pub fn PagedGraphExecutor::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedPagedGraphExecution raise DeviceStepError
 

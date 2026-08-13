@@ -23,6 +23,20 @@ fn CompletionFrameWriter::owner(
 }
 
 ///|
+/// Proves that this exclusive completion writer is bound to the exact
+/// validated plan-frame owner and epoch supplied by device execution.
+pub fn CompletionFrameWriter::validate_plan(
+  self : CompletionFrameWriter,
+  plan : ValidatedPlanFrame,
+) -> Unit raise WorkerWireError {
+  ignore(self.owner())
+  ignore(plan.owner())
+  if !physical_equal(self.2, plan.0) || self.3 != plan.1 {
+    raise CompletionFrameWriterPlanMismatch
+  }
+}
+
+///|
 fn CompletionFrameWriter::validate_prefill_row(
   self : CompletionFrameWriter,
   row : PlanFramePrefillRow,

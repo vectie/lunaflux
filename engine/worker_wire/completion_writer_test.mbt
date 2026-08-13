@@ -105,3 +105,31 @@ test "direct completion writer rejects wrong owner and row order" {
   }
   writer.abort()
 }
+
+///|
+test "validated plan identity proves exact owner and epoch" {
+  let submitted = submitted_wire_fixture()
+  let owner = @worker_wire.PlanFrameBuffer::new(
+    wire_protocol_limits(),
+    wire_inference_limits(),
+  )
+  let first = owner.encode_plan(submitted)
+  let identity = first.owner_identity()
+  let epoch = first.epoch_value()
+  assert_true(first.matches_owner_epoch(identity, epoch))
+  let foreign = encoded_plan_frame(submitted)
+  assert_false(foreign.matches_owner_epoch(identity, epoch))
+  let replacement = owner.encode_plan(submitted)
+  try first.matches_owner_epoch(identity, epoch) catch {
+    StaleFrame => ()
+    _ => fail("unexpected stale-frame identity error")
+  } noraise {
+    _ => fail("superseded frame retained owner authority")
+  }
+  assert_true(
+    replacement.matches_owner_epoch(
+      replacement.owner_identity(),
+      replacement.epoch_value(),
+    ),
+  )
+}

@@ -25,6 +25,8 @@ pub struct DeviceStepOwner {
   priv mut has_accepted_predecessor : Bool
   priv mut accepted_predecessor_value : UInt64
   priv mut staged_sequence_value : UInt64
+  priv mut staged_wire_owner : @worker_wire.PlanFrameOwnerIdentity?
+  priv mut staged_wire_epoch : UInt64
 }
 
 ///|
