@@ -194,6 +194,40 @@ test "hostile request counts reject before multiplication or allocation" {
 }
 
 ///|
+test "late fixed request evidence rejects before payload ownership" {
+  let inference = fixture_inference_limits()
+  let request = @inference.GenerateRequest::new(
+    protocol_version=@inference.ProtocolVersion::v1(),
+    request_id=@inference.RequestId::new(9UL),
+    model_identity=fixture_identity(),
+    input=@inference.Input::from_token_ids([1, 2, 3], inference),
+    max_new_tokens=2,
+    context_ceiling=8,
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=@inference.SamplingSeed::new(3UL),
+    stops=@inference.StopConditions::new([], [], inference),
+    stream_preference=Buffered,
+    deadline=@inference.DeadlineBudget::from_milliseconds(50UL, inference),
+    cache=@inference.CachePolicy::new(
+      @inference.CacheScope::from_ascii(b"scope", inference),
+      Disabled,
+    ),
+    trace=None,
+    limits=inference,
+  )
+  let frame = RequestFrameBuffer::new(fixture_limits()).encode(request)
+  let source = FixedArray::make(frame.length(), b'\x00')
+  frame.copy_to(source, destination_offset=0)
+  write_u64(source, 88, 0UL)
+  write_u32(source, 16, frame_checksum(source, source.length()))
+  assert_request_rejected(source, source.length())
+  frame.copy_to(source, destination_offset=0)
+  write_i32(source, 52, 6)
+  write_u32(source, 16, frame_checksum(source, source.length()))
+  assert_request_rejected(source, source.length())
+}
+
+///|
 test "rejected replacement preserves the prior validated request" {
   let owner = RequestFrameBuffer::new(fixture_limits())
   let prior = owner.encode(fixture_request())
