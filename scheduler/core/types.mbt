@@ -106,12 +106,21 @@ pub(all) enum TerminalReason {
 } derive(Debug, Eq)
 
 ///|
+/// Identifies which fixed publication ring owns the globally oldest notice.
+#valtype
+pub(all) enum SchedulerPublicationKind {
+  GeneratedTokenPublication
+  TerminalPublication
+} derive(Debug, Eq)
+
+///|
 /// Slot-free publication identity. It stays valid after request-slot reuse.
 #valtype
 pub struct TerminalNotice(
   @inference.RequestId,
   @inference.RequestGeneration,
-  TerminalReason
+  TerminalReason,
+  UInt64
 ) derive(Debug, Eq)
 
 ///|
@@ -134,6 +143,11 @@ pub fn TerminalNotice::reason(self : TerminalNotice) -> TerminalReason {
 }
 
 ///|
+pub fn TerminalNotice::publication_sequence(self : TerminalNotice) -> UInt64 {
+  self.3
+}
+
+///|
 /// Slot-free publication of one generated token. The request identity remains
 /// valid after terminal resource release and scheduler-slot reuse.
 #valtype
@@ -141,7 +155,8 @@ pub struct GeneratedTokenNotice(
   @inference.RequestId,
   @inference.RequestGeneration,
   Int,
-  Int
+  Int,
+  UInt64
 ) derive(Eq)
 
 ///|
@@ -166,6 +181,13 @@ pub fn GeneratedTokenNotice::token_id(self : GeneratedTokenNotice) -> Int {
 ///|
 pub fn GeneratedTokenNotice::position(self : GeneratedTokenNotice) -> Int {
   self.3
+}
+
+///|
+pub fn GeneratedTokenNotice::publication_sequence(
+  self : GeneratedTokenNotice,
+) -> UInt64 {
+  self.4
 }
 
 ///|
@@ -284,10 +306,12 @@ pub struct Scheduler {
   priv terminal_request_ids : FixedArray[@inference.RequestId]
   priv terminal_generations : FixedArray[@inference.RequestGeneration]
   priv terminal_reasons : FixedArray[TerminalReason]
+  priv terminal_sequences : FixedArray[UInt64]
   priv output_request_ids : FixedArray[@inference.RequestId]
   priv output_generations : FixedArray[@inference.RequestGeneration]
   priv output_token_ids : FixedArray[Int]
   priv output_positions : FixedArray[Int]
+  priv output_sequences : FixedArray[UInt64]
   priv mut free_head : Int
   priv mut free_tail : Int
   priv mut waiting_head : Int
@@ -302,6 +326,7 @@ pub struct Scheduler {
   priv mut output_head : Int
   priv mut output_tail : Int
   priv mut output_count : Int
+  priv mut publication_cursor : UInt64
   priv mut generation_cursor : UInt64
   priv mut step : UInt64
   priv mut last_plan_sequence : UInt64

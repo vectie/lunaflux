@@ -63,6 +63,16 @@ pub fn WorkerService::take_terminal_notice(
 }
 
 ///|
+/// Returns which scheduler publication ring owns the globally oldest notice.
+pub fn WorkerService::next_publication_kind(
+  self : WorkerService,
+) -> @core.SchedulerPublicationKind raise WorkerServiceError {
+  self.scheduler.next_publication_kind() catch {
+    error => raise scheduler_error(error)
+  }
+}
+
+///|
 pub fn WorkerService::live_request_count(self : WorkerService) -> Int {
   self.scheduler.live_request_count()
 }

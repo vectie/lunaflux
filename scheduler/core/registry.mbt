@@ -108,6 +108,25 @@ fn Scheduler::terminal_available(self : Scheduler) -> Int {
 }
 
 ///|
+fn Scheduler::preflight_publications(
+  self : Scheduler,
+  count : Int,
+) -> Unit raise SchedulerError {
+  if count < 0 || self.publication_cursor > MAX_GENERATION - count.to_uint64() {
+    raise invalid(PublicationSequence, Exhausted)
+  }
+}
+
+///|
+fn Scheduler::allocate_publication_sequence(
+  self : Scheduler,
+) -> UInt64 raise SchedulerError {
+  self.preflight_publications(1)
+  self.publication_cursor += 1UL
+  self.publication_cursor
+}
+
+///|
 fn Scheduler::enqueue_terminal(
   self : Scheduler,
   request_id : @inference.RequestId,
@@ -117,10 +136,12 @@ fn Scheduler::enqueue_terminal(
   if self.terminal_available() == 0 {
     raise invalid(TerminalNoticeCapacity, Backpressured)
   }
+  let sequence = self.allocate_publication_sequence()
   let index = self.terminal_tail
   self.terminal_request_ids[index] = request_id
   self.terminal_generations[index] = generation
   self.terminal_reasons[index] = reason
+  self.terminal_sequences[index] = sequence
   self.terminal_tail = (index + 1) % self.terminal_request_ids.length()
   self.terminal_count += 1
 }
@@ -319,6 +340,7 @@ pub fn Scheduler::new(
       @inference.RequestGeneration::initial(),
     ),
     terminal_reasons: FixedArray::make(slots, CancelledByCaller),
+    terminal_sequences: FixedArray::make(slots, 0UL),
     output_request_ids: FixedArray::make(
       capacity.output_event_capacity(),
       placeholder_id,
@@ -329,6 +351,7 @@ pub fn Scheduler::new(
     ),
     output_token_ids: FixedArray::make(capacity.output_event_capacity(), 0),
     output_positions: FixedArray::make(capacity.output_event_capacity(), 0),
+    output_sequences: FixedArray::make(capacity.output_event_capacity(), 0UL),
     free_head: 0,
     free_tail: slots - 1,
     waiting_head: NO_INDEX,
@@ -343,6 +366,7 @@ pub fn Scheduler::new(
     output_head: 0,
     output_tail: 0,
     output_count: 0,
+    publication_cursor: 0UL,
     generation_cursor: 0UL,
     step: 0UL,
     last_plan_sequence: 0UL,

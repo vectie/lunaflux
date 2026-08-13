@@ -22,6 +22,12 @@ so a rejected sweep does not partially mutate requests. Cancellation and
 deadline generations authenticate later completion retirement even after a
 request becomes active or in flight.
 
+Generated-token and terminal rings remain physically separate and fixed, but
+every committed notice receives one scheduler-global monotonic publication
+sequence. `next_publication_kind` exposes the globally oldest ring, allowing an
+online adapter to preserve exact token/terminal order—including the
+cancellation cut—without merging storage or allocating an event queue.
+
 Startup authenticates separate immutable intermediate-prefill, final-prefill,
 and decode capability recipes against the selected model identity and loaded
 model-plan generation, proves the worst-case per-step capability-cell envelope,

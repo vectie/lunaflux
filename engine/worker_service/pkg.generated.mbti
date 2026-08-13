@@ -36,6 +36,7 @@ pub fn WorkerService::free_page_count(Self) -> Int
 pub fn WorkerService::generated_token_count(Self) -> Int
 pub fn WorkerService::lifecycle(Self) -> WorkerServiceLifecycle
 pub fn WorkerService::live_request_count(Self) -> Int
+pub fn WorkerService::next_publication_kind(Self) -> @core.SchedulerPublicationKind raise WorkerServiceError
 pub fn WorkerService::outstanding_count(Self) -> Int
 pub fn WorkerService::recover_oldest(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn WorkerService::restart(Self) -> WorkerServiceRestart raise WorkerServiceError

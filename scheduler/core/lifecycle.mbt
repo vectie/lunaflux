@@ -98,6 +98,30 @@ pub fn Scheduler::generated_token_count(self : Scheduler) -> Int {
 }
 
 ///|
+/// Returns the fixed ring that owns the globally oldest publication without
+/// consuming it. Following this head preserves the exact token/terminal commit
+/// order across the otherwise independent bounded rings.
+pub fn Scheduler::next_publication_kind(
+  self : Scheduler,
+) -> SchedulerPublicationKind raise SchedulerError {
+  if self.output_count == 0 && self.terminal_count == 0 {
+    raise invalid(OutputCapacity, NoRunnableWork)
+  }
+  if self.output_count == 0 {
+    return TerminalPublication
+  }
+  if self.terminal_count == 0 {
+    return GeneratedTokenPublication
+  }
+  if self.output_sequences[self.output_head] <
+    self.terminal_sequences[self.terminal_head] {
+    GeneratedTokenPublication
+  } else {
+    TerminalPublication
+  }
+}
+
+///|
 /// Invalidates every active request after loss of the worker-owned device KV
 /// generation. Waiting requests remain queued because they own no device
 /// state. The operation is retryable under terminal-publication backpressure
@@ -119,6 +143,7 @@ pub fn Scheduler::invalidate_device_state(
   if count > self.terminal_available() {
     raise invalid(TerminalNoticeCapacity, Backpressured)
   }
+  self.preflight_publications(count)
   if self.generation_cursor > MAX_GENERATION - count.to_uint64() {
     raise invalid(RequestGeneration, Exhausted)
   }
@@ -161,6 +186,7 @@ pub fn Scheduler::take_terminal_notice(
     self.terminal_request_ids[index],
     self.terminal_generations[index],
     self.terminal_reasons[index],
+    self.terminal_sequences[index],
   )
   self.terminal_head = (index + 1) % self.terminal_request_ids.length()
   self.terminal_count -= 1
@@ -180,6 +206,7 @@ pub fn Scheduler::take_generated_token(
     self.output_generations[index],
     self.output_token_ids[index],
     self.output_positions[index],
+    self.output_sequences[index],
   )
   self.output_head = (index + 1) % self.output_request_ids.length()
   self.output_count -= 1
@@ -307,6 +334,7 @@ pub fn Scheduler::cancel(
   if self.generation_cursor == MAX_GENERATION {
     raise invalid(RequestGeneration, Exhausted)
   }
+  self.preflight_publications(1)
   if self.slot_states[index] == SLOT_WAITING {
     self.terminate_waiting(index, SLOT_CANCELLED, CancelledByCaller)
     return
@@ -353,6 +381,7 @@ pub fn Scheduler::expire_deadlines(
   if self.generation_cursor > MAX_GENERATION - candidate_count.to_uint64() {
     raise invalid(RequestGeneration, Exhausted)
   }
+  self.preflight_publications(candidate_count)
   for index in 0..<self.slot_states.length() {
     let state = self.slot_states[index]
     if state != SLOT_FREE &&

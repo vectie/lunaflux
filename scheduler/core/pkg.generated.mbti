@@ -33,8 +33,9 @@ pub fn BuildNextOutcome::is_backpressured(Self) -> Bool
 pub fn BuildNextOutcome::is_idle(Self) -> Bool
 pub fn BuildNextOutcome::is_submitted(Self) -> Bool
 
-pub struct GeneratedTokenNotice(@inference.RequestId, @inference.RequestGeneration, Int, Int) derive(Eq)
+pub struct GeneratedTokenNotice(@inference.RequestId, @inference.RequestGeneration, Int, Int, UInt64) derive(Eq)
 pub fn GeneratedTokenNotice::position(Self) -> Int
+pub fn GeneratedTokenNotice::publication_sequence(Self) -> UInt64
 pub fn GeneratedTokenNotice::request_generation(Self) -> @inference.RequestGeneration
 pub fn GeneratedTokenNotice::request_id(Self) -> @inference.RequestId
 pub fn GeneratedTokenNotice::token_id(Self) -> Int
@@ -86,6 +87,7 @@ pub fn Scheduler::live_request_count(Self) -> Int
 pub fn Scheduler::model_identity(Self) -> @spec.ModelIdentity
 pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGeneration
 pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
+pub fn Scheduler::next_publication_kind(Self) -> SchedulerPublicationKind raise SchedulerError
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
 pub fn Scheduler::submitted_plan(Self, BuildNextOutcome) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
@@ -106,6 +108,7 @@ pub(all) enum SchedulerField {
   ActiveCapacity
   TerminalNoticeCapacity
   OutputCapacity
+  PublicationSequence
   RequestGeneration
   RequestState
   Completion
@@ -129,6 +132,11 @@ pub(all) enum SchedulerIssue {
   OutOfOrder
 } derive(Eq, @debug.Debug)
 
+pub(all) enum SchedulerPublicationKind {
+  GeneratedTokenPublication
+  TerminalPublication
+} derive(Eq, @debug.Debug)
+
 pub(all) enum SchedulerRequestState {
   Waiting
   Prefill
@@ -143,7 +151,8 @@ pub struct SchedulerSlotId(Int, Int) derive(Eq, Hash, @debug.Debug)
 pub fn SchedulerSlotId::generation(Self) -> Int
 pub fn SchedulerSlotId::index(Self) -> Int
 
-pub struct TerminalNotice(@inference.RequestId, @inference.RequestGeneration, TerminalReason) derive(Eq, @debug.Debug)
+pub struct TerminalNotice(@inference.RequestId, @inference.RequestGeneration, TerminalReason, UInt64) derive(Eq, @debug.Debug)
+pub fn TerminalNotice::publication_sequence(Self) -> UInt64
 pub fn TerminalNotice::reason(Self) -> TerminalReason
 pub fn TerminalNotice::request_generation(Self) -> @inference.RequestGeneration
 pub fn TerminalNotice::request_id(Self) -> @inference.RequestId

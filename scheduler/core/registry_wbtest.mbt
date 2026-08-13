@@ -116,6 +116,23 @@ fn wb_owner_with_capacity(
 }
 
 ///|
+test "publication sequence exhaustion rejects cancellation transactionally" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(99UL), 0UL)
+  owner.publication_cursor = 0xffffffffffffffffUL
+  try owner.cancel(handle) catch {
+    Invalid(field=PublicationSequence, issue=Exhausted) => ()
+    _ => fail("unexpected publication exhaustion error")
+  } noraise {
+    _ => fail("expected publication exhaustion")
+  }
+  assert_eq(owner.live_request_count(), 1)
+  assert_eq(owner.waiting_request_count(), 1)
+  assert_eq(owner.terminal_notice_count(), 0)
+  assert_eq(owner.status(handle.request_id()).unwrap().handle(), handle)
+}
+
+///|
 fn wb_worker_limits() -> @worker_protocol.WorkerProtocolLimits {
   try! @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=2,

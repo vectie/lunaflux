@@ -10,6 +10,7 @@ pub(all) enum SchedulerField {
   ActiveCapacity
   TerminalNoticeCapacity
   OutputCapacity
+  PublicationSequence
   RequestGeneration
   RequestState
   Completion

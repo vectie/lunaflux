@@ -238,4 +238,5 @@ fn Scheduler::preflight_completion(
   if terminal_demand > self.terminal_available() {
     raise invalid(TerminalNoticeCapacity, Backpressured)
   }
+  self.preflight_publications(output_demand + terminal_demand)
 }

@@ -297,12 +297,15 @@ fn run(executable : Bytes) -> Unit raise {
     _ => raise Failure("full output ring accepted second completion")
   }
   assert_eq(service.outstanding_count(), 1)
+  assert_eq(service.next_publication_kind(), GeneratedTokenPublication)
   assert_eq(
     service.take_generated_token().request_id(),
     @inference.RequestId::new(101UL),
   )
+  assert_eq(service.next_publication_kind(), TerminalPublication)
   assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
   assert_eq(service.complete_oldest(), 2UL)
+  assert_eq(service.next_publication_kind(), GeneratedTokenPublication)
   assert_eq(
     service.take_generated_token().request_id(),
     @inference.RequestId::new(102UL),

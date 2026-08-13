@@ -3,13 +3,15 @@ fn Scheduler::enqueue_generated_token(
   self : Scheduler,
   slot : Int,
   token : Int,
-) -> Unit {
+) -> Unit raise SchedulerError {
   let request = self.requests[slot].unwrap()
+  let sequence = self.allocate_publication_sequence()
   let index = self.output_tail
   self.output_request_ids[index] = request.request_id()
   self.output_generations[index] = self.request_generations[slot]
   self.output_token_ids[index] = token
   self.output_positions[index] = self.output_counts[slot]
+  self.output_sequences[index] = sequence
   self.output_tail = (index + 1) % self.output_request_ids.length()
   self.output_count += 1
 }
@@ -43,7 +45,7 @@ fn Scheduler::commit_current_completion(
     FinalPrefillCompletion => {
       let token = try! entry.token_id()
       self.processed_inputs[slot] += try! entry.processed_tokens()
-      self.enqueue_generated_token(slot, token)
+      try! self.enqueue_generated_token(slot, token)
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
       let request = self.requests[slot].unwrap()
@@ -63,7 +65,7 @@ fn Scheduler::commit_current_completion(
     }
     DecodeCompletion => {
       let token = try! entry.token_id()
-      self.enqueue_generated_token(slot, token)
+      try! self.enqueue_generated_token(slot, token)
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
       let request = self.requests[slot].unwrap()
