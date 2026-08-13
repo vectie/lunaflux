@@ -156,6 +156,29 @@ test "waiting cancellation publishes slot-free notice and never aliases re-admis
 }
 
 ///|
+test "exact cancellation returns the terminal generation it published" {
+  let owner = scheduler()
+  let handle = owner.admit(request(8UL), 0UL)
+  let generation = owner.cancel_exact(handle)
+  let notice = owner.take_terminal_notice()
+  assert_eq(generation, notice.request_generation())
+  assert_eq(notice.request_id(), handle.request_id())
+  assert_eq(notice.reason(), CancelledByCaller)
+}
+
+///|
+test "exact deadline leaves an unexpired request retryable" {
+  let owner = scheduler()
+  let handle = owner.admit(request(9UL, deadline=10UL), 0UL)
+  assert_eq(owner.expire_exact(handle, 9UL), None)
+  assert_eq(owner.status(handle.request_id()).unwrap().handle(), handle)
+  let generation = owner.expire_exact(handle, 10UL).unwrap()
+  let notice = owner.take_terminal_notice()
+  assert_eq(generation, notice.request_generation())
+  assert_eq(notice.reason(), DeadlineReached)
+}
+
+///|
 test "deadline sweep preflights terminal capacity without partial mutation" {
   let owner = scheduler()
   for id in 1..<=4 {

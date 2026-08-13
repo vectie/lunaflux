@@ -79,10 +79,12 @@ pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise S
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
 pub fn Scheduler::build_next(Self) -> BuildNextOutcome raise SchedulerError
 pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
+pub fn Scheduler::cancel_exact(Self, RequestHandle) -> @inference.RequestGeneration raise SchedulerError
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
 pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
 pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
+pub fn Scheduler::expire_exact(Self, RequestHandle, UInt64) -> @inference.RequestGeneration? raise SchedulerError
 pub fn Scheduler::fail_plan(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::free_page_count(Self) -> Int
 pub fn Scheduler::generated_token_count(Self) -> Int

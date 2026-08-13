@@ -361,10 +361,10 @@ fn Scheduler::terminate_waiting(
 }
 
 ///|
-pub fn Scheduler::cancel(
+pub fn Scheduler::cancel_exact(
   self : Scheduler,
   handle : RequestHandle,
-) -> Unit raise SchedulerError {
+) -> @inference.RequestGeneration raise SchedulerError {
   let index = self.checked_handle_index(handle)
   if self.slot_states[index] == SLOT_CANCELLED ||
     self.slot_states[index] == SLOT_DEADLINE ||
@@ -380,7 +380,7 @@ pub fn Scheduler::cancel(
   self.preflight_publications(1)
   if self.slot_states[index] == SLOT_WAITING {
     self.terminate_waiting(index, SLOT_CANCELLED, CancelledByCaller)
-    return
+    return self.request_generations[index]
   }
   if !self.in_flight[index] {
     self.preflight_active_release(index)
@@ -399,6 +399,63 @@ pub fn Scheduler::cancel(
   if !self.in_flight[index] {
     self.release_active_request(index)
   }
+  self.request_generations[index]
+}
+
+///|
+pub fn Scheduler::cancel(
+  self : Scheduler,
+  handle : RequestHandle,
+) -> Unit raise SchedulerError {
+  ignore(self.cancel_exact(handle))
+}
+
+///|
+/// Expires one exact request without scanning or mutating unrelated requests.
+/// `None` means its absolute deadline has not elapsed.
+pub fn Scheduler::expire_exact(
+  self : Scheduler,
+  handle : RequestHandle,
+  now_millis : UInt64,
+) -> @inference.RequestGeneration? raise SchedulerError {
+  let index = self.checked_handle_index(handle)
+  if self.slot_states[index] == SLOT_CANCELLED ||
+    self.slot_states[index] == SLOT_DEADLINE ||
+    self.slot_states[index] == SLOT_FAILED {
+    raise invalid(RequestState, InvalidTransition)
+  }
+  if now_millis < self.deadlines[index] {
+    return None
+  }
+  if self.terminal_available() == 0 {
+    raise invalid(TerminalNoticeCapacity, Backpressured)
+  }
+  if self.generation_cursor == MAX_GENERATION {
+    raise invalid(RequestGeneration, Exhausted)
+  }
+  self.preflight_publications(1)
+  if self.slot_states[index] != SLOT_WAITING && !self.in_flight[index] {
+    self.preflight_active_release(index)
+  }
+  if self.slot_states[index] == SLOT_WAITING {
+    self.terminate_waiting(index, SLOT_DEADLINE, DeadlineReached)
+    return Some(self.request_generations[index])
+  }
+  self.request_generations[index] = self.allocate_request_generation()
+  self.slot_states[index] = SLOT_DEADLINE
+  let request_id = match self.requests[index] {
+    Some(value) => value.request_id()
+    None => raise invalid(RequestState, InvalidTransition)
+  }
+  self.enqueue_terminal(
+    request_id,
+    self.request_generations[index],
+    DeadlineReached,
+  )
+  if !self.in_flight[index] {
+    self.release_active_request(index)
+  }
+  Some(self.request_generations[index])
 }
 
 ///|

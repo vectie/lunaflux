@@ -244,6 +244,23 @@ test "deadline after submit retires stale work without publishing" {
 }
 
 ///|
+test "exact expiry rejects an already-cancelled in-flight generation" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(532UL, deadline=10UL), 0UL)
+  ignore(wb_next_plan(owner))
+  let cancelled_generation = owner.cancel_exact(handle)
+  let cancelled = owner.status(handle.request_id()).unwrap()
+  assert_eq(cancelled.handle().request_generation(), cancelled_generation)
+  try owner.expire_exact(cancelled.handle(), 10UL) catch {
+    error =>
+      assert_eq(error, Invalid(field=RequestState, issue=InvalidTransition))
+  } noraise {
+    _ => fail("cancelled in-flight request was expired twice")
+  }
+  assert_eq(owner.terminal_notice_count(), 1)
+}
+
+///|
 test "terminal backpressure preserves a maximum-output completion for retry" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(541UL), 0UL)
