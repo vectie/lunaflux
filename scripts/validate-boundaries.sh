@@ -82,13 +82,14 @@ if [ -d engine/reference ]; then
 fi
 
 # Production CUDA vocabulary and foreign declarations have exactly one owner.
-# The release-only allocation harness is the sole test exception: its narrow C
-# shim instruments generated MoonBit allocation entry points and is never
-# imported by a production package.
+# The two positive-controlled release allocation harnesses are the sole test
+# exceptions: their narrow C shims instrument generated MoonBit allocation
+# entry points and are never imported by a production package.
 fail_matches \
   'production native declarations are only allowed under internal/cuda:' \
   --glob '*.mbt' --glob '!internal/cuda/**' \
   --glob '!tests/hot_path_alloc/**' \
+  --glob '!tests/device_step_alloc/**' \
   'extern\s+"[cC]"|#external'
 
 # Production code is MoonBit plus narrow C stubs. Python may be used by neither

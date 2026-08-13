@@ -280,8 +280,9 @@ capability recipes, whole-build checkpoints, final-prefill output semantics,
 and stale-generation checks are implemented. Scheduler-owned distinct A/B
 buffer pairing, transactional build/submission, exclusive completion leases,
 ordered full-batch retirement, generated-token publication, and exact owner
-reset are implemented. Live worker overlap and the runtime
-allocation-instrumentation gate remain open.
+reset are implemented. Independent positive-controlled native release gates
+now cover the scheduler token step and public device-step staging/fixed-H2D
+path after warm-up. Live worker overlap remains open.
 
 ### Gate
 

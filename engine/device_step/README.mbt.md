@@ -39,9 +39,8 @@ sequence predecessor; replacement owners may start from an explicit committed
 predecessor seed. No close authority escapes.
 
 This is descriptor staging, not paged attention or model execution. The
-release reuse test and generated-code inspection show stable fixed storage and
-allocation-free packing helpers, but are not a release allocation gate. The
-existing repository hot-path probe covers scheduler and worker-protocol paths,
-not this public stage/transfer path. Runtime allocation instrumentation for
-that path, plus physical-CUDA transfer, sanitizer, and leak evidence, remains
-open before Phase 3 promotion.
+separate native release gate in `tests/device_step_alloc` instruments the
+public warmed `stage`/`finish` path, proves record and fixed-array positive
+controls independently, and exercises every fixed H2D call through a bounded
+test seam. Physical-CUDA transfer, sanitizer, leak, and paged execution
+evidence remain open before Phase 3 promotion.

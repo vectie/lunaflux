@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "allocation_probe.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  link: {
+    "native": {
+      "cc-flags": "-O2 -include tests/device_step_alloc/allocation_redirect.h",
+    },
+  },
+)
