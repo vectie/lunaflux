@@ -97,6 +97,7 @@ pub fn ValidatedCompletionFrame::entry_for_slot(Self, Int) -> CompletionFrameEnt
 pub fn ValidatedCompletionFrame::length(Self) -> Int raise WorkerWireError
 pub fn ValidatedCompletionFrame::model_generation_value(Self) -> UInt64 raise WorkerWireError
 pub fn ValidatedCompletionFrame::sequence_value(Self) -> UInt64 raise WorkerWireError
+pub fn ValidatedCompletionFrame::validate_for(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise WorkerWireError
 
 pub struct ValidatedPlanFrame(PlanFrameBuffer, UInt64)
 pub fn ValidatedPlanFrame::capability_count(Self) -> Int raise WorkerWireError

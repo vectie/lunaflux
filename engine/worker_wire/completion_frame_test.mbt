@@ -7,6 +7,7 @@ test "completion frame round trips exact scalar outcomes" {
     wire_inference_limits(),
   )
   let encoded = sender.encode_completion(completion)
+  encoded.validate_for(plan)
   assert_eq(encoded.length(), 128)
   assert_eq(encoded.sequence_value(), 1UL)
   assert_eq(encoded.model_generation_value(), 9UL)
@@ -33,6 +34,35 @@ test "completion frame round trips exact scalar outcomes" {
   )
   let received = receiver.load(transport, transport.length())
   assert_eq(received.entry_for_slot(1).token_id(), 18)
+}
+
+///|
+test "completion frame authenticates worker failure against any exact row" {
+  let plan = submitted_wire_fixture()
+  let completion_owner = @worker_protocol.CompletionBuffer::new(
+    wire_protocol_limits(),
+  )
+  let prefill = plan.prefill_row(0)
+  let decode = plan.decode_row(0)
+  completion_owner.append_failed(
+    slot=prefill.completion_slot(),
+    request_id=prefill.request_id(),
+    request_generation=prefill.request_generation(),
+    failure=ExecutionFailed,
+  )
+  completion_owner.append_failed(
+    slot=decode.completion_slot(),
+    request_id=decode.request_id(),
+    request_generation=decode.request_generation(),
+    failure=ResourceUnavailable,
+  )
+  let frame_owner = @worker_wire.CompletionFrameBuffer::new(
+    wire_protocol_limits(),
+    wire_inference_limits(),
+  )
+  frame_owner
+  .encode_completion(completion_owner.submit_for(plan))
+  .validate_for(plan)
 }
 
 ///|
