@@ -120,8 +120,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   Component-relative `openat`, no-follow directory traversal, final regular-
   file checks, pinned positional reads, same-handle stamps, atomic operation/
   close exclusion, deterministic close, and payload-safe failures are
-  implemented. Native and public capability representations are private;
-  startup loaders and fixed-FD child inheritance have not yet adopted them.
+  implemented. A startup-only bounded snapshot holds one lease across its two
+  stamps, exact positional read, and trailing-growth probe, with exactly one
+  accepted payload allocation. It rejects truncation or size/mtime/ctime change
+  before publication. Native and public capability representations are
+  private; startup loaders and fixed-FD child inheritance have not yet adopted
+  them.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and

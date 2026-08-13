@@ -362,12 +362,16 @@ The source-reconstruction workstream now also owns an opaque approved-
 filesystem foundation. A neutral internal capability representation supports
 both descriptor-relative traversal and the future fixed-FD spawn lease, while
 the public facade exposes only pinned root/file owners, bounded positional
-reads, opaque same-handle stamps, and deterministic lifecycle. Canonical path
-validation is duplicated at the MoonBit and native boundaries; atomic leases
-prevent `openat`, `pread`, or `fstat` from racing descriptor close/reuse. The
-remaining work is to migrate model configuration, weight, and artifact readers
-to this authority, then inherit exact model/kernel roots into the production
-child without argv/environment path authority.
+reads, opaque same-handle stamps, deterministic lifecycle, and a bounded
+startup-only immutable snapshot. Snapshot creation holds one operation lease
+across before/after size+mtime+ctime stamps, exact positional reads, and a
+trailing-growth probe; it has one accepted payload-allocation site and publishes
+nothing after detected truncation or mutation. Canonical path validation is
+duplicated at the MoonBit and native boundaries; atomic leases prevent
+`openat`, `pread`, or `fstat` from racing descriptor close/reuse. The remaining
+work is to migrate model configuration, weight, and artifact readers to this
+authority, then inherit exact model/kernel roots into the production child
+without argv/environment path authority.
 
 ### Gate
 

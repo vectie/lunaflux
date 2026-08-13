@@ -198,9 +198,13 @@ relative files are opened by component with `openat`/no-follow/type checks,
 and positional reads are protected from concurrent close by atomic lifecycle
 leases. Paths, descriptors, native errors, and metadata timestamps do not
 escape the public API. An ASan probe and 1,024-cycle descriptor-balance soak
-exercise the exact C translation unit. Model/artifact loaders and worker spawn
-have not yet migrated to these capabilities, so no production child readiness
-claim depends on them yet.
+exercise the exact C translation unit. Startup callers can request one bounded
+immutable whole-file snapshot under a single lifecycle lease; the native read
+admits the initial size before its sole payload allocation and rejects
+truncation, trailing growth, or same-handle size/mtime/ctime change before
+publication. Model/artifact loaders and worker spawn have not yet migrated to
+these capabilities, so no production child readiness claim depends on them
+yet.
 
 A new aggregate `engine/device_worker` owner provides the child-side readiness
 foundation without publishing a wire frame: inert admission retains the exact
