@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "moonbitlang/x/crypto",
+} for "wbtest"
+
+supported_targets = "native"

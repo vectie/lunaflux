@@ -249,6 +249,40 @@ if [ -d engine/device_worker ]; then
   fi
 fi
 
+# Canonical service frames are bounded contract codecs only. Transport,
+# scheduling, tokenization, filesystem, and engine composition belong above
+# this leaf package.
+if [ -d service/framed_wire ]; then
+  fail_matches \
+    'framed service wire imports outside contracts/inference + model/spec:' \
+    --pcre2 --glob 'service/framed_wire/moon.pkg' \
+    '"vectie/lunaflux/(?!contracts/inference"|model/spec")'
+  fail_matches \
+    'framed service wire must remain synchronous and native-ABI free:' \
+    --glob 'service/framed_wire/*.mbt' \
+    'pub async fn|extern\s+"[cC]"|#external'
+  if [ -f service/framed_wire/pkg.generated.mbti ]; then
+    if ! rg -q \
+      '^pub fn RequestFrameBuffer::load\(Self, FixedArray\[Byte\], Int\)' \
+      service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' 'framed request decoder must retain its fixed-buffer API' >&2
+      failed=1
+    fi
+    if ! rg -q \
+      '^pub fn EventFrameBuffer::load\(Self, FixedArray\[Byte\], Int\)' \
+      service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' 'framed event decoder must retain its fixed-buffer API' >&2
+      failed=1
+    fi
+    if rg -n --pcre2 -U \
+      'pub struct (FramedWireLimits|RequestFrameBuffer|EventFrameBuffer|ValidatedRequestFrame|ValidatedEventFrame) \{\n  (?!// private fields)' \
+      service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' 'framed wire owner and limits fields must remain private' >&2
+      failed=1
+    fi
+  fi
+fi
+
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.

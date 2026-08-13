@@ -1,0 +1,36 @@
+# Canonical framed service wire
+
+`service/framed_wire` owns the bounded binary v1 representation of the native
+service request and event contracts. It is a codec package, not a listener,
+transport, scheduler, tokenizer, or execution service.
+
+The request frame carries one complete `GenerateRequest`: protocol and request
+identity, model content and plan digests, text or token input, generation and
+context ceilings, sampling and deterministic seed, stop tables, streaming
+preference, relative deadline budget, cache scope/permission, and optional
+trace correlation. The event frame carries exactly one of `Accepted`, `Token`,
+`Usage`, `Completed`, or `Failed`.
+
+Both formats use fixed little-endian headers, a v1 magic/version/kind tuple,
+an exact total length, an FNV-1a checksum that excludes its own field, zeroed
+reserved bytes, and one canonical payload order. Optional values have explicit
+presence flags; unused scalar fields must be zero. Digests remain lowercase
+SHA-256 identities and all strings are reconstructed through their owning
+bounded contract constructors.
+
+`FramedWireLimits` combines caller-supplied inference limits with a frame-byte
+ceiling capped at 16 MiB. Decoders check collection counts and individual
+payload lengths against those limits before multiplication, allocation, UTF-8
+decoding, or contract construction. Errors expose only frame kind and rule;
+they never contain request text, stop strings, cache scopes, traces, decoded
+token text, public failure codes, paths, or raw bytes.
+
+`RequestFrameBuffer` and `EventFrameBuffer` own fixed-capacity transport and
+scratch storage. Encoding accepts only already-admitted contract values and
+writes the single canonical representation. Loading validates completely
+before it replaces the prior frame, so rejection is transactional. Validated
+views are epoch-bound and become stale after the owner publishes a replacement.
+
+This package deliberately has no async, filesystem, socket, native-FFI, or
+engine dependency. A later `engine/framed_service` slice may compose these
+frames with admission and execution; this package does not do so.

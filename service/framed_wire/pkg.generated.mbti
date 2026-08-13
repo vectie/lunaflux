@@ -1,0 +1,85 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/framed_wire"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+}
+
+// Values
+
+// Errors
+pub(all) suberror FramedWireError {
+  InvalidLimit(FramedWireLimitRule)
+  InvalidFrame(frame~ : FramedWireFrameKind, rule~ : FramedWireRule)
+  FrameTooLarge(frame~ : FramedWireFrameKind)
+  DestinationTooSmall
+  StaleFrame
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct EventFrameBuffer {
+  // private fields
+}
+pub fn EventFrameBuffer::capacity(Self) -> Int
+pub fn EventFrameBuffer::encode(Self, @inference.StreamEvent) -> ValidatedEventFrame raise FramedWireError
+pub fn EventFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedEventFrame raise FramedWireError
+pub fn EventFrameBuffer::new(FramedWireLimits) -> Self
+
+pub(all) enum FramedWireFrameKind {
+  RequestFrame
+  EventFrame
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FramedWireLimitRule {
+  FrameBytes
+} derive(Eq, @debug.Debug)
+
+pub struct FramedWireLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FramedWireLimits::inference_limits(Self) -> @inference.InferenceLimits
+pub fn FramedWireLimits::max_frame_bytes(Self) -> Int
+pub fn FramedWireLimits::new(@inference.InferenceLimits, max_frame_bytes~ : Int) -> Self raise FramedWireError
+
+pub(all) enum FramedWireRule {
+  Magic
+  Version
+  Kind
+  Length
+  Checksum
+  Flags
+  Reserved
+  Identity
+  Scalar
+  Input
+  StopTable
+  Payload
+  CanonicalEncoding
+} derive(Eq, @debug.Debug)
+
+pub struct RequestFrameBuffer {
+  // private fields
+}
+pub fn RequestFrameBuffer::capacity(Self) -> Int
+pub fn RequestFrameBuffer::encode(Self, @inference.GenerateRequest) -> ValidatedRequestFrame raise FramedWireError
+pub fn RequestFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedRequestFrame raise FramedWireError
+pub fn RequestFrameBuffer::new(FramedWireLimits) -> Self
+
+pub struct ValidatedEventFrame {
+  // private fields
+}
+pub fn ValidatedEventFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise FramedWireError
+pub fn ValidatedEventFrame::event(Self) -> @inference.StreamEvent raise FramedWireError
+pub fn ValidatedEventFrame::length(Self) -> Int raise FramedWireError
+
+pub struct ValidatedRequestFrame {
+  // private fields
+}
+pub fn ValidatedRequestFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise FramedWireError
+pub fn ValidatedRequestFrame::length(Self) -> Int raise FramedWireError
+pub fn ValidatedRequestFrame::request(Self) -> @inference.GenerateRequest raise FramedWireError
+
+// Type aliases
+
+// Traits
