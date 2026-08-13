@@ -14,7 +14,7 @@ pub struct TokenizedRequest {
   cache : @inference.CachePolicy
   stream_preference : @inference.StreamPreference
   effective_limits : @inference.EffectiveLimits
-  deadline_budget : @inference.DeadlineBudget
+  admission_deadline : @inference.AdmissionDeadline
 }
 
 ///|
@@ -28,7 +28,7 @@ pub fn TokenizedRequest::new(
   cache~ : @inference.CachePolicy,
   stream_preference~ : @inference.StreamPreference,
   effective_limits~ : @inference.EffectiveLimits,
-  deadline_budget~ : @inference.DeadlineBudget,
+  admission_deadline~ : @inference.AdmissionDeadline,
 ) -> TokenizedRequest raise SchedulerError {
   if input_tokens.length() >
     effective_limits.context_ceiling() - effective_limits.max_new_tokens() {
@@ -47,7 +47,7 @@ pub fn TokenizedRequest::new(
     cache,
     stream_preference,
     effective_limits,
-    deadline_budget,
+    admission_deadline,
   }
 }
 
@@ -115,8 +115,8 @@ pub fn TokenizedRequest::effective_limits(
 }
 
 ///|
-pub fn TokenizedRequest::deadline_budget(
+pub fn TokenizedRequest::admission_deadline(
   self : TokenizedRequest,
-) -> @inference.DeadlineBudget {
-  self.deadline_budget
+) -> @inference.AdmissionDeadline {
+  self.admission_deadline
 }

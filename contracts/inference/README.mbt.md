@@ -10,6 +10,12 @@ these types; the scheduler consumes them without importing an API package.
 The selected loaded-model identity is the canonical content-plus-plan identity
 owned by `model/spec`; this package does not duplicate or reinterpret it.
 
+`DeadlineBudget` is a relative client policy. The first trusted request-receipt
+boundary converts it exactly once into an opaque monotonic
+`AdmissionDeadline`; parsing, tokenization, mailbox, and scheduler delay all
+consume that same budget. Scheduler admission accepts only the absolute value
+and never rebases it from a later clock sample.
+
 Payload-bearing request text, stop strings, decoded deltas, cache scopes, and
 trace correlation deliberately have no derived debug representation. Public
 validation errors contain only a bounded field, issue category, and collection

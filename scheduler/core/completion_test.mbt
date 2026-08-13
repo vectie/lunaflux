@@ -18,8 +18,9 @@ fn request_with_stop_token(id : UInt64, stop_token : Int) -> TokenizedRequest {
       context_ceiling=8,
       limits,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      100UL, limits,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(100UL, limits),
     ),
   )
 }

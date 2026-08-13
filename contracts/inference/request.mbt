@@ -61,6 +61,41 @@ pub fn DeadlineBudget::milliseconds(self : DeadlineBudget) -> UInt64 {
 }
 
 ///|
+/// Absolute monotonic deadline fixed at the first trusted request-receipt
+/// boundary. Parsing, tokenization, and mailbox delay consume this budget;
+/// downstream admission must never rebase it from a later clock sample.
+pub struct AdmissionDeadline {
+  priv at_millis : UInt64
+} derive(Debug, Eq)
+
+///|
+/// Captures one relative request budget against its original monotonic receipt
+/// time with checked arithmetic.
+pub fn AdmissionDeadline::from_receipt(
+  received_at_millis : UInt64,
+  budget : DeadlineBudget,
+) -> AdmissionDeadline raise InferenceContractError {
+  let duration = budget.milliseconds()
+  if received_at_millis > 0xffffffffffffffffUL - duration {
+    raise invalid(DeadlineBudget, OutOfRange, 0)
+  }
+  { at_millis: received_at_millis + duration }
+}
+
+///|
+pub fn AdmissionDeadline::at_millis(self : AdmissionDeadline) -> UInt64 {
+  self.at_millis
+}
+
+///|
+pub fn AdmissionDeadline::is_expired(
+  self : AdmissionDeadline,
+  now_millis : UInt64,
+) -> Bool {
+  now_millis >= self.at_millis
+}
+
+///|
 /// Immutable validated stop conditions. It deliberately has no `Debug` because
 /// stop strings are request payload.
 pub struct StopConditions {

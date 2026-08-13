@@ -45,8 +45,9 @@ fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
       context_ceiling=8,
       limits,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      deadline, limits,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(deadline, limits),
     ),
   )
 }

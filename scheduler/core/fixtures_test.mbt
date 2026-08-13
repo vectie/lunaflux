@@ -155,8 +155,9 @@ fn request_with_tokens(
       context_ceiling~,
       limits,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      100UL, limits,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(100UL, limits),
     ),
   )
 }
@@ -190,8 +191,9 @@ fn request(
       context_ceiling~,
       limits,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      deadline, limits,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(deadline, limits),
     ),
   )
 }

@@ -420,6 +420,27 @@ test "canonical request validates exact token context without overflow" {
 }
 
 ///|
+test "admission deadline is captured once at receipt with checked arithmetic" {
+  let cfg = limits()
+  let budget = @inference.DeadlineBudget::from_milliseconds(250UL, cfg)
+  let deadline = @inference.AdmissionDeadline::from_receipt(1000UL, budget)
+  assert_eq(deadline.at_millis(), 1250UL)
+  assert_false(deadline.is_expired(1249UL))
+  assert_true(deadline.is_expired(1250UL))
+  try
+    @inference.AdmissionDeadline::from_receipt(0xffffffffffffff80UL, budget)
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content="Invalid(field=DeadlineBudget, issue=OutOfRange, index=0)",
+      )
+  } noraise {
+    _ => fail("overflowing receipt deadline was admitted")
+  }
+}
+
+///|
 test "sampling seed is canonical and rejects the absorbing state" {
   assert_eq(@inference.SamplingSeed::new(42UL).value(), 42UL)
   try @inference.SamplingSeed::new(0UL) catch {

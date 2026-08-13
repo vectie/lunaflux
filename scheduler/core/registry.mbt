@@ -399,12 +399,8 @@ pub fn Scheduler::admit(
     maximum_sequence_pages > self.capacity.total_page_count() {
     raise invalid(Context, OutOfRange)
   }
-  let budget = request.deadline_budget().milliseconds()
-  if now_millis > MAX_GENERATION - budget {
-    raise invalid(Deadline, Overflow)
-  }
-  let deadline = now_millis + budget
-  if deadline <= now_millis {
+  let deadline = request.admission_deadline().at_millis()
+  if request.admission_deadline().is_expired(now_millis) {
     raise invalid(Deadline, Expired)
   }
   let generation = self.allocate_request_generation()

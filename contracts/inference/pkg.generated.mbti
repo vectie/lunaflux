@@ -22,6 +22,13 @@ pub fn AcceptedEvent::effective_limits(Self) -> EffectiveLimits
 pub fn AcceptedEvent::model_identity(Self) -> @spec.ModelIdentity
 pub fn AcceptedEvent::new(model_identity~ : @spec.ModelIdentity, effective_limits~ : EffectiveLimits) -> Self
 
+pub struct AdmissionDeadline {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdmissionDeadline::at_millis(Self) -> UInt64
+pub fn AdmissionDeadline::from_receipt(UInt64, DeadlineBudget) -> Self raise InferenceContractError
+pub fn AdmissionDeadline::is_expired(Self, UInt64) -> Bool
+
 pub(all) enum CachePermission {
   Disabled
   ReadOnly

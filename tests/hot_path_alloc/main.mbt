@@ -252,8 +252,9 @@ fn request() -> @scheduler.TokenizedRequest {
       context_ceiling=32,
       limits,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      1000UL, limits,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(1000UL, limits),
     ),
   )
 }

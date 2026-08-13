@@ -1,5 +1,5 @@
 ///|
-test "admission validates identity, duplicates, capacity, and deadline arithmetic" {
+test "admission validates identity duplicates capacity and received deadline" {
   let owner = scheduler()
   let first = owner.admit(request(1UL), 10UL)
   assert_eq(first.request_id().value(), 1UL)
@@ -8,7 +8,7 @@ test "admission validates identity, duplicates, capacity, and deadline arithmeti
   assert_eq(owner.waiting_request_count(), 1)
   assert_eq(
     owner.status(first.request_id()).unwrap().deadline_at_millis(),
-    110UL,
+    100UL,
   )
   try owner.admit(request(1UL), 10UL) catch {
     error => assert_eq(error, Invalid(field=Request, issue=Duplicate))
@@ -30,10 +30,10 @@ test "admission validates identity, duplicates, capacity, and deadline arithmeti
     _ => fail("expected waiting capacity rejection")
   }
   let fresh = scheduler()
-  try fresh.admit(request(4UL, deadline=10UL), 0xfffffffffffffff8UL) catch {
-    error => assert_eq(error, Invalid(field=Deadline, issue=Overflow))
+  try fresh.admit(request(4UL, deadline=10UL), 10UL) catch {
+    error => assert_eq(error, Invalid(field=Deadline, issue=Expired))
   } noraise {
-    _ => fail("expected absolute deadline overflow rejection")
+    _ => fail("request delay incorrectly rebased its deadline")
   }
 }
 
@@ -116,8 +116,9 @@ test "admission rejects token IDs outside the loaded worker vocabulary" {
       context_ceiling=2,
       broad,
     ),
-    deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-      100UL, broad,
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(100UL, broad),
     ),
   )
   let owner = scheduler()
@@ -183,12 +184,12 @@ test "deadline expiry is deterministic and leaves resource owners balanced" {
   let owner = scheduler()
   ignore(owner.admit(request(10UL, deadline=10UL), 5UL))
   ignore(owner.admit(request(11UL, deadline=20UL), 5UL))
-  assert_eq(owner.expire_deadlines(14UL), 0)
-  assert_eq(owner.expire_deadlines(15UL), 1)
+  assert_eq(owner.expire_deadlines(9UL), 0)
+  assert_eq(owner.expire_deadlines(10UL), 1)
   let first = owner.take_terminal_notice()
   assert_eq(first.request_id().value(), 10UL)
   assert_eq(first.reason(), DeadlineReached)
-  assert_eq(owner.expire_deadlines(25UL), 1)
+  assert_eq(owner.expire_deadlines(20UL), 1)
   let second = owner.take_terminal_notice()
   assert_eq(second.request_id().value(), 11UL)
   assert_eq(owner.live_request_count(), 0)
@@ -243,8 +244,9 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
         context_ceiling=4,
         limits,
       ),
-      deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-        10UL, limits,
+      admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+        0UL,
+        try! @inference.DeadlineBudget::from_milliseconds(10UL, limits),
       ),
     )
   catch {
@@ -275,8 +277,9 @@ test "tokenized boundary rejects unsupported stop strings explicitly" {
         context_ceiling=2,
         limits,
       ),
-      deadline_budget=try! @inference.DeadlineBudget::from_milliseconds(
-        10UL, limits,
+      admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+        0UL,
+        try! @inference.DeadlineBudget::from_milliseconds(10UL, limits),
       ),
     )
   catch {

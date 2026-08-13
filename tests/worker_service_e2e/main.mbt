@@ -161,7 +161,10 @@ fn request(
       context_ceiling=4,
       limits,
     ),
-    deadline_budget=@inference.DeadlineBudget::from_milliseconds(100UL, limits),
+    admission_deadline=@inference.AdmissionDeadline::from_receipt(
+      0UL,
+      @inference.DeadlineBudget::from_milliseconds(100UL, limits),
+    ),
   )
 }
 
