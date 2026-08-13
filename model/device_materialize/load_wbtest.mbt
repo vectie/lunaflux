@@ -202,26 +202,26 @@ test "transfer failure closes the partially loaded resource exactly once" {
 }
 
 ///|
-test "cleanup failure retains the primary transfer stage" {
+test "cleanup failure retains primary cause, stage, and resource" {
   let bindings = wb_test_bindings()
   let file = wb_test_file(bindings.materialized_bytes().to_int())
   let layout = plan_layout(bindings, alignment_bytes=64L, max_arena_bytes=4096L)
-  try
-    load_with_resource(
-      bindings,
-      file,
-      layout,
-      wb_test_limits(),
-      () => 7,
-      (_resource, _source, _destination, _count) => {
-        raise DriverFailure(CopyToDevice)
-      },
-      _resource => raise Busy(AllocationClose),
-    )
-  catch {
-    CleanupFailed(stage=Transfer, Busy(AllocationClose)) => ()
-    _ => fail("unexpected cleanup error")
-  } noraise {
-    _ => fail("expected cleanup failure")
+  let outcome = load_with_resource(
+    bindings,
+    file,
+    layout,
+    wb_test_limits(),
+    () => 7,
+    (_resource, _source, _destination, _count) => {
+      raise DriverFailure(CopyToDevice)
+    },
+    _resource => raise Busy(AllocationClose),
+  )
+  guard outcome is ResourceCleanupRequired(failed) else {
+    fail("double failure discarded cleanup authority")
   }
+  assert_eq(failed.resource, 7)
+  assert_eq(failed.cause, DeviceFailed(DriverFailure(CopyToDevice)))
+  assert_eq(failed.stage, Transfer)
+  assert_eq(failed.cleanup_failure, Busy(AllocationClose))
 }

@@ -29,6 +29,27 @@ pub struct DeviceWeights {
 }
 
 ///|
+/// Explicit lifecycle result for device-weight loading.
+///
+/// The cleanup-required branch is returned only when a primary load failure
+/// and the first deterministic allocation close both fail.
+pub(all) enum DeviceWeightPreparation {
+  WeightsReady(DeviceWeights)
+  WeightsCleanupRequired(FailedDeviceWeightPreparation)
+}
+
+///|
+/// Cleanup authority retained when a load and its first allocation close both
+/// fail. The incomplete allocation is never exposed.
+pub struct FailedDeviceWeightPreparation {
+  priv allocation : @device.Allocation
+  priv cause : DeviceWeightError
+  priv stage : DeviceWeightFailureStage
+  priv mut cleanup_failure : @device.DeviceError
+  priv mut open : Bool
+}
+
+///|
 pub fn DeviceWeightRegion::reference(
   self : DeviceWeightRegion,
 ) -> @plan.TensorRef {
@@ -119,4 +140,50 @@ pub fn DeviceWeights::close(
   self.allocation.close() catch {
     error => raise DeviceFailed(error)
   }
+}
+
+///|
+pub fn FailedDeviceWeightPreparation::cause(
+  self : FailedDeviceWeightPreparation,
+) -> DeviceWeightError {
+  self.cause
+}
+
+///|
+pub fn FailedDeviceWeightPreparation::stage(
+  self : FailedDeviceWeightPreparation,
+) -> DeviceWeightFailureStage {
+  self.stage
+}
+
+///|
+pub fn FailedDeviceWeightPreparation::cleanup_failure(
+  self : FailedDeviceWeightPreparation,
+) -> @device.DeviceError {
+  self.cleanup_failure
+}
+
+///|
+pub fn FailedDeviceWeightPreparation::is_closed(
+  self : FailedDeviceWeightPreparation,
+) -> Bool {
+  !self.open
+}
+
+///|
+/// Retries release of the retained incomplete allocation. Success and later
+/// calls are idempotent; failure preserves authority for another retry.
+pub fn FailedDeviceWeightPreparation::retry_close(
+  self : FailedDeviceWeightPreparation,
+) -> Unit raise DeviceWeightError {
+  if !self.open {
+    return
+  }
+  self.allocation.close() catch {
+    error => {
+      self.cleanup_failure = error
+      raise CleanupFailed(stage=self.stage, error)
+    }
+  }
+  self.open = false
 }

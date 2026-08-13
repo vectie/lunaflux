@@ -13,9 +13,9 @@ import {
 }
 
 // Values
-pub fn load(@device.Context, @llama_weights.LlamaWeightBindings, Bytes, materialization_limits~ : @materialize.MaterializationLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeights raise DeviceWeightError
+pub fn load(@device.Context, @llama_weights.LlamaWeightBindings, Bytes, materialization_limits~ : @materialize.MaterializationLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
 
-pub async fn load_file(@device.Context, @spec.LlamaModelMetadata, StringView, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeights raise DeviceWeightError
+pub async fn load_file(@device.Context, @spec.LlamaModelMetadata, StringView, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
 
 pub fn plan_layout(@llama_weights.LlamaWeightBindings, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightLayout raise DeviceWeightError
 
@@ -81,6 +81,11 @@ pub fn DeviceWeightLayout::length(Self) -> Int
 pub fn DeviceWeightLayout::materialized_bytes(Self) -> Int64
 pub fn DeviceWeightLayout::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
 
+pub(all) enum DeviceWeightPreparation {
+  WeightsReady(DeviceWeights)
+  WeightsCleanupRequired(FailedDeviceWeightPreparation)
+}
+
 pub struct DeviceWeightRegion {
   reference : @plan.TensorRef
   offset_bytes : Int64
@@ -100,6 +105,15 @@ pub fn DeviceWeights::close(Self) -> Unit raise DeviceWeightError
 pub fn DeviceWeights::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWeights::layout(Self) -> DeviceWeightLayout
 pub fn DeviceWeights::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
+
+pub struct FailedDeviceWeightPreparation {
+  // private fields
+}
+pub fn FailedDeviceWeightPreparation::cause(Self) -> DeviceWeightError
+pub fn FailedDeviceWeightPreparation::cleanup_failure(Self) -> @device.DeviceError
+pub fn FailedDeviceWeightPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceWeightPreparation::retry_close(Self) -> Unit raise DeviceWeightError
+pub fn FailedDeviceWeightPreparation::stage(Self) -> DeviceWeightFailureStage
 
 // Type aliases
 

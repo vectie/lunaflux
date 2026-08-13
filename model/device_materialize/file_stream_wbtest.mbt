@@ -156,7 +156,7 @@ async test "streaming copies are chunk bounded and target final layout regions" 
   let opened_arena_bytes = Ref(0L)
   let invalid_copy = Ref(false)
   let arena = FixedArray::make(768, b'\x00')
-  let loaded = load_streaming_with_resource(
+  let outcome = load_streaming_with_resource(
     wb_stream_model(file),
     wb_stamp(file),
     wb_stream_limits(transfer_chunk_bytes=17),
@@ -181,6 +181,9 @@ async test "streaming copies are chunk bounded and target final layout regions" 
     },
     _resource => closes.val = closes.val + 1,
   )
+  guard outcome is ResourceReady(loaded) else {
+    fail("successful stream retained cleanup authority")
+  }
   assert_eq(loaded.resource, 9)
   assert_eq(loaded.layout.arena_bytes(), 768L)
   assert_eq(opens.val, 1)
@@ -352,4 +355,70 @@ async test "streaming transfer failure closes the destination exactly once" {
   }
   assert_eq(copies.val, 4)
   assert_eq(closes.val, 1)
+}
+
+///|
+async test "streaming double failure retains retryable cleanup authority" {
+  let file = wb_stream_file()
+  let copies = Ref(0)
+  let closes = Ref(0)
+  let outcome = load_streaming_with_resource(
+    wb_stream_model(file),
+    wb_stamp(file),
+    wb_stream_limits(),
+    64L,
+    4096L,
+    (position, count) => wb_slice(file, position, count),
+    () => wb_stamp(file),
+    _arena_bytes => 5,
+    (_resource, _bytes, _destination, _count) => {
+      copies.val += 1
+      if copies.val == 4 {
+        raise DriverFailure(CopyToDevice)
+      }
+    },
+    _resource => {
+      closes.val += 1
+      if closes.val < 3 {
+        raise DriverFailure(AllocationClose)
+      }
+    },
+  )
+  guard outcome is ResourceCleanupRequired(failed) else {
+    fail("double failure discarded cleanup authority")
+  }
+  assert_eq(failed.cause, DeviceFailed(DriverFailure(CopyToDevice)))
+  assert_eq(failed.cleanup_failure, DriverFailure(AllocationClose))
+  let open = Ref(true)
+  let cleanup_failure = Ref(failed.cleanup_failure)
+  let retry_close = (close : (Int) -> Unit raise @device.DeviceError) => {
+    if !open.val {
+      return
+    }
+    close(failed.resource) catch {
+      error => {
+        cleanup_failure.val = error
+        raise CleanupFailed(stage=Transfer, error)
+      }
+    }
+    open.val = false
+  }
+  try
+    retry_close(_resource => {
+      closes.val += 1
+      if closes.val < 3 {
+        raise DriverFailure(AllocationClose)
+      }
+    })
+  catch {
+    CleanupFailed(stage=Transfer, DriverFailure(AllocationClose)) => ()
+    _ => fail("unexpected retry cleanup failure")
+  } noraise {
+    _ => fail("first retry unexpectedly closed")
+  }
+  assert_true(open.val)
+  retry_close(_resource => closes.val += 1)
+  assert_false(open.val)
+  retry_close(_resource => closes.val += 1)
+  assert_eq(closes.val, 3)
 }

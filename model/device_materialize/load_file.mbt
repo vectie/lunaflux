@@ -15,8 +15,10 @@
 /// and an opened-handle kind check but does not claim stronger path-race
 /// exclusion. Digest validation remains authoritative for admitted bytes.
 ///
-/// The caller owns the returned `DeviceWeights` and must close it before its
-/// context.
+/// `WeightsReady` transfers complete weight ownership to the caller.
+/// `WeightsCleanupRequired` retains an incomplete allocation after both the
+/// primary load and first close fail; callers must retry its close before the
+/// context can be released.
 pub async fn load_file(
   context : @device.Context,
   model : @spec.LlamaModelMetadata,
@@ -24,7 +26,7 @@ pub async fn load_file(
   limits~ : DeviceWeightFileLimits,
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
-) -> DeviceWeights raise DeviceWeightError {
+) -> DeviceWeightPreparation raise DeviceWeightError {
   let path_kind = @fs.kind(path, follow_symlink=false) catch {
     _ => raise FileUnavailable
   }
@@ -51,7 +53,18 @@ pub async fn load_file(
     },
     allocation => allocation.close(),
   )
-  { allocation: loaded.resource, layout: loaded.layout }
+  match loaded {
+    ResourceReady(ready) =>
+      WeightsReady({ allocation: ready.resource, layout: ready.layout })
+    ResourceCleanupRequired(failed) =>
+      WeightsCleanupRequired({
+        allocation: failed.resource,
+        cause: failed.cause,
+        stage: failed.stage,
+        cleanup_failure: failed.cleanup_failure,
+        open: true,
+      })
+  }
 }
 
 ///|

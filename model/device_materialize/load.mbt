@@ -5,25 +5,31 @@ priv struct LoadedResource[T] {
 }
 
 ///|
-fn[T] close_after_failure(
-  resource : T,
-  stage : DeviceWeightFailureStage,
-  close : (T) -> Unit raise @device.DeviceError,
-) -> Unit raise DeviceWeightError {
-  close(resource) catch {
-    error => raise CleanupFailed(stage~, error)
-  }
+priv enum ResourcePreparation[T] {
+  ResourceReady(LoadedResource[T])
+  ResourceCleanupRequired(FailedResourcePreparation[T])
 }
 
 ///|
-fn[T] close_owned_after_failure(
-  owned : Ref[T?],
+priv struct FailedResourcePreparation[T] {
+  resource : T
+  cause : DeviceWeightError
+  stage : DeviceWeightFailureStage
+  cleanup_failure : @device.DeviceError
+}
+
+///|
+fn[T] resource_failure(
+  resource : T,
+  cause : DeviceWeightError,
   stage : DeviceWeightFailureStage,
   close : (T) -> Unit raise @device.DeviceError,
-) -> Unit raise DeviceWeightError {
-  match owned.val {
-    Some(resource) => close_after_failure(resource, stage, close)
-    None => ()
+) -> ResourcePreparation[T] raise DeviceWeightError {
+  try close(resource) catch {
+    cleanup_failure =>
+      ResourceCleanupRequired({ resource, cause, stage, cleanup_failure })
+  } noraise {
+    _ => raise cause
   }
 }
 
@@ -36,20 +42,15 @@ fn[T] load_with_resource(
   open : () -> T raise @device.DeviceError,
   copy : (T, Int64, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
-) -> LoadedResource[T] raise DeviceWeightError {
+) -> ResourcePreparation[T] raise DeviceWeightError {
   let owned : Ref[T?] = Ref(None)
-  let visited = @materialize.visit(
-    bindings,
-    file,
-    limits=materialization_limits,
-    chunk => {
+  let visited = Ok(
+    @materialize.visit(bindings, file, limits=materialization_limits, chunk => {
       let reference = chunk.reference().as_int()
       guard layout.region(chunk.reference()) is Some(region) else {
-        close_owned_after_failure(owned, TensorValidation, close)
         raise UnexpectedTensor(reference~)
       }
       if region.byte_length() != chunk.tensor().byte_length() {
-        close_owned_after_failure(owned, TensorValidation, close)
         raise TensorLengthMismatch(reference~)
       }
       let resource = match owned.val {
@@ -66,30 +67,45 @@ fn[T] load_with_resource(
         region.offset_bytes(),
         region.byte_length(),
       ) catch {
-        error => {
-          close_after_failure(resource, Transfer, close)
-          raise DeviceFailed(error)
+        error => raise DeviceFailed(error)
+      }
+    }),
+  ) catch {
+    error => Err(error)
+  }
+  match visited {
+    Err(error) =>
+      match owned.val {
+        Some(resource) => {
+          let stage = match error {
+            DeviceFailed(_) => Transfer
+            UnexpectedTensor(_) | TensorLengthMismatch(_) => TensorValidation
+            _ => MaterializationResult
+          }
+          resource_failure(resource, error, stage, close)
+        }
+        None => raise error
+      }
+    Ok(result) =>
+      match result {
+        Err(error) =>
+          // Validation is complete before visiting, so no resource is open.
+          raise MaterializationFailed(error)
+        Ok(report) => {
+          guard owned.val is Some(resource) else { raise EmptyBindings }
+          if report.identity() != layout.identity() ||
+            report.total_bytes() != layout.materialized_bytes() ||
+            report.length() != layout.length() {
+            return resource_failure(
+              resource,
+              TensorLengthMismatch(reference=0),
+              MaterializationResult,
+              close,
+            )
+          }
+          ResourceReady({ resource, layout })
         }
       }
-    },
-  )
-  match visited {
-    Err(error) => {
-      // `visit` completes validation before invoking its visitor. Consequently
-      // malformed artifacts reach this branch with no opened resource.
-      close_owned_after_failure(owned, MaterializationResult, close)
-      raise MaterializationFailed(error)
-    }
-    Ok(report) => {
-      guard owned.val is Some(resource) else { raise EmptyBindings }
-      if report.identity() != layout.identity() ||
-        report.total_bytes() != layout.materialized_bytes() ||
-        report.length() != layout.length() {
-        close_after_failure(resource, MaterializationResult, close)
-        raise TensorLengthMismatch(reference=0)
-      }
-      { resource, layout }
-    }
   }
 }
 
@@ -98,13 +114,13 @@ fn[T] load_with_resource(
 /// allocation, then copies each tensor from the original immutable file
 /// directly into its final aligned arena region.
 ///
-/// Any failure after allocation attempts deterministic cleanup before it is
-/// returned. A cleanup failure retains the bounded primary failure stage and
-/// supersedes the primary error; the native finalizer remains a defensive
-/// retry rather than the normal ownership mechanism.
+/// Any failure after allocation attempts deterministic cleanup. If that close
+/// also fails, the result retains the allocation, exact primary cause/stage,
+/// and latest cleanup error for explicit retry. The native finalizer remains
+/// a defensive fallback rather than the normal ownership mechanism.
 ///
-/// The caller owns the returned `DeviceWeights` and must close it before its
-/// context.
+/// `WeightsReady` transfers complete weight ownership to the caller.
+/// `WeightsCleanupRequired` must be retried before closing the context.
 pub fn load(
   context : @device.Context,
   bindings : @llama_weights.LlamaWeightBindings,
@@ -112,7 +128,7 @@ pub fn load(
   materialization_limits~ : @materialize.MaterializationLimits,
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
-) -> DeviceWeights raise DeviceWeightError {
+) -> DeviceWeightPreparation raise DeviceWeightError {
   let layout = plan_layout(bindings, alignment_bytes~, max_arena_bytes~)
   let loaded = load_with_resource(
     bindings,
@@ -127,5 +143,16 @@ pub fn load(
     },
     allocation => allocation.close(),
   )
-  { allocation: loaded.resource, layout: loaded.layout }
+  match loaded {
+    ResourceReady(ready) =>
+      WeightsReady({ allocation: ready.resource, layout: ready.layout })
+    ResourceCleanupRequired(failed) =>
+      WeightsCleanupRequired({
+        allocation: failed.resource,
+        cause: failed.cause,
+        stage: failed.stage,
+        cleanup_failure: failed.cleanup_failure,
+        open: true,
+      })
+  }
 }

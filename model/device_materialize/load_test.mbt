@@ -6,7 +6,7 @@ test "available CUDA device receives direct aligned tensor copies" {
       let context = @device.open_context(devices[0].ordinal())
       let bindings = test_bindings()
       let file = test_file(bindings.materialized_bytes().to_int())
-      let weights = @device_materialize.load(
+      let outcome = @device_materialize.load(
         context,
         bindings,
         file,
@@ -14,6 +14,9 @@ test "available CUDA device receives direct aligned tensor copies" {
         alignment_bytes=64L,
         max_arena_bytes=4096L,
       )
+      guard outcome is WeightsReady(weights) else {
+        fail("successful load retained cleanup authority")
+      }
       assert_eq(weights.identity(), bindings.identity())
       assert_eq(weights.layout().arena_bytes(), 768L)
       assert_eq(weights.allocation().byte_count(), 768L)

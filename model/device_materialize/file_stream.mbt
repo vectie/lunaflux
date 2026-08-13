@@ -237,7 +237,7 @@ async fn[T] load_streaming_with_resource(
   open : (Int64) -> T raise @device.DeviceError,
   copy : (T, Bytes, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
-) -> LoadedResource[T] raise DeviceWeightError {
+) -> ResourcePreparation[T] raise DeviceWeightError {
   let prepared = prepare_streaming_load(
     model, source_stamp, limits, alignment_bytes, max_arena_bytes, read, observe_stamp,
   )
@@ -259,14 +259,23 @@ async fn[T] load_streaming_with_resource(
     error => Err(error)
   }
   match transfer_result {
-    Ok(_) => { resource, layout: prepared.layout }
+    Ok(_) => ResourceReady({ resource, layout: prepared.layout })
     Err(error) => {
       let stage = match error {
         DeviceFailed(_) => Transfer
         _ => SourceRevalidation
       }
-      close_after_failure(resource, stage, close)
-      raise error
+      try close(resource) catch {
+        cleanup_failure =>
+          ResourceCleanupRequired({
+            resource,
+            cause: error,
+            stage,
+            cleanup_failure,
+          })
+      } noraise {
+        _ => raise error
+      }
     }
   }
 }
