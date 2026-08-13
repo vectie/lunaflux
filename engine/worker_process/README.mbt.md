@@ -22,13 +22,29 @@ exact frame repeatedly while scheduler publication is backpressured, and only
 malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 
+The compatibility-only `prepare` entry remains for deterministic echo fixtures.
+Production service construction uses `prepare_with_approved_roots`, which
+privately duplicates caller-owned model and kernel roots. Its root-bound owner
+retains that exact opaque pair with the immutable executable bytes, process
+limits, startup sequence domain, and encoded source. Replacement is
+zero-argument and therefore cannot substitute another executable, limit set,
+source, or root pair.
+
 The supervisor retains the immutable encoded source, and replacements receive
-the same canonical bytes. The included deterministic child proves protocol
-agreement only: it does not read model/module files, reconstruct a device plan,
-or establish CUDA readiness. Recovery is explicit and
+the same canonical bytes and pinned root capabilities. The legacy
+`worker_echo` child proves protocol agreement only; the separate startup-only
+device worker child reconstructs admitted inputs and readiness, but does not
+run the steady-state production execution loop. Recovery is explicit and
 ordered: the old child must first be closed and reaped, validated completions
 remain retryable, and each unreturned `WorkerSubmission` must be committed as a
 scheduler worker failure before `abandon_submission` retires its exact sequence.
 Only after all obligations are retired can `recovery_startup_contract` derive
 the non-reusing predecessor for a replacement child. The supervisor does not
 silently infer scheduler mutation or discard in-flight work.
+
+Recovery closes only the child; the root pair remains live across replacement.
+Instance/service retirement attempts child and root cleanup independently.
+Busy root close preserves retry authority, while a consumed close failure
+remains bounded evidence without claiming a live pair. Failed replacement-child
+cleanup stays inside the root-bound owner and must be retried before restart;
+terminal service close is likewise retryable.

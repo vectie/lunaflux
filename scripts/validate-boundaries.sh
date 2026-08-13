@@ -171,6 +171,37 @@ if [ -d engine/device_worker_bootstrap ]; then
   fi
 fi
 
+# Production worker supervision owns one root-bound process facade. Initial
+# preparation accepts ordinary approved roots; replacement is zero-argument,
+# and the service cannot receive the legacy fixture supervisor.
+if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
+  if ! rg -q \
+    '^pub fn prepare_with_approved_roots\(Bytes, @worker_wire\.WorkerStartupContract, @worker_wire\.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs\.ApprovedRoot, @approved_fs\.ApprovedRoot\)' \
+    engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'root-bound worker preparation must acquire from ordinary ApprovedRoot owners' >&2
+    failed=1
+  fi
+  if rg -n 'WorkerApprovedRoots' engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker-process public interface must not expose the retained root pair' >&2
+    failed=1
+  fi
+  if ! rg -q \
+    '^pub fn new\(@core\.Scheduler, WorkerServiceBinding, @worker_process\.RootBoundWorkerProcessSupervisor\)' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker service must own the root-bound process supervisor' >&2
+    failed=1
+  fi
+  if ! rg -q \
+    '^pub fn WorkerService::restart\(Self\)' \
+    engine/worker_service/pkg.generated.mbti; then
+    printf '%s\n' 'worker service restart must remain zero-argument' >&2
+    failed=1
+  fi
+fi
+
 # Execution-manifest admission may consume only the public approved-root
 # capability and must remain synchronous and path-typed.
 if [ -d engine/execution_manifest_file ]; then

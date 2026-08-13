@@ -2,6 +2,7 @@ import {
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 import {

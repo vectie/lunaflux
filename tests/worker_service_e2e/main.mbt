@@ -226,31 +226,45 @@ fn process_limits() -> @worker_process.WorkerProcessLimits raise {
 ///|
 fn process_owner(
   executable : Bytes,
-) -> @worker_process.WorkerProcessSupervisor raise {
-  match
-    @worker_process.prepare(
-      executable,
-      startup(),
-      bootstrap_source(),
-      process_limits(),
-    ) {
-    ReadyProcess(owner) => owner
-    CleanupRequired(_) => raise Failure("worker startup cleanup required")
+) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let result = @worker_process.prepare_with_approved_roots(
+    executable,
+    startup(),
+    bootstrap_source(),
+    process_limits(),
+    model,
+    kernel,
+  )
+  model.close()
+  kernel.close()
+  match result {
+    ReadyRootBoundProcess(owner) => owner
+    RootBoundCleanupRequired(_) =>
+      raise Failure("worker startup cleanup required")
   }
 }
 
 ///|
 fn run(executable : Bytes) -> Unit raise {
   let scheduler = scheduler_owner()
-  let foreign = match
-    @worker_process.prepare(
-      executable,
-      foreign_startup(),
-      bootstrap_source(),
-      process_limits(),
-    ) {
-    ReadyProcess(owner) => owner
-    CleanupRequired(_) => raise Failure("foreign worker cleanup required")
+  let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let foreign_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let foreign_result = @worker_process.prepare_with_approved_roots(
+    executable,
+    foreign_startup(),
+    bootstrap_source(),
+    process_limits(),
+    foreign_model,
+    foreign_kernel,
+  )
+  foreign_model.close()
+  foreign_kernel.close()
+  let foreign = match foreign_result {
+    ReadyRootBoundProcess(owner) => owner
+    RootBoundCleanupRequired(_) =>
+      raise Failure("foreign worker cleanup required")
   }
   try @worker_service.new(scheduler, service_binding(), foreign) catch {
     @worker_service.Invalid(Identity) => ()
@@ -258,7 +272,6 @@ fn run(executable : Bytes) -> Unit raise {
   } noraise {
     _ => raise Failure("foreign worker identity joined the scheduler")
   }
-  foreign.shutdown_clean()
   foreign.close()
   let service = @worker_service.new(
     scheduler,
@@ -295,9 +308,9 @@ fn run(executable : Bytes) -> Unit raise {
   service.begin_recovery()
   assert_eq(service.recover_oldest(ExecutionFailed), 3UL)
   assert_eq(service.take_terminal_notice().reason(), WorkerFailed)
-  match service.restart(executable, process_limits()) {
+  match service.restart() {
     Restarted => ()
-    RestartCleanupRequired(_) =>
+    RestartCleanupRequired =>
       raise Failure("replacement worker cleanup required")
   }
   assert_eq(service.binding(), service_binding())

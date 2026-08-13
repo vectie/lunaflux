@@ -1,8 +1,8 @@
 ///|
-fn process_error(
-  error : @worker_process.WorkerProcessError,
+fn root_bound_process_error(
+  error : @worker_process.RootBoundWorkerProcessError,
 ) -> WorkerServiceError {
-  Process(error)
+  RootBoundProcess(error)
 }
 
 ///|
@@ -60,9 +60,9 @@ fn validate_startup_contract(
 pub fn new(
   scheduler : @core.Scheduler,
   binding : WorkerServiceBinding,
-  process : @worker_process.WorkerProcessSupervisor,
+  process : @worker_process.RootBoundWorkerProcessSupervisor,
 ) -> WorkerService raise WorkerServiceError {
-  if process.lifecycle() != Ready {
+  if process.lifecycle() != RootBoundReady {
     raise Invalid(Lifecycle)
   }
   validate_startup_contract(scheduler, binding, process.startup_contract())

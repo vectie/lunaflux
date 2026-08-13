@@ -14,6 +14,7 @@ const FLIGHT_RECEIVED : Int = 3
 pub(all) enum WorkerServiceLifecycle {
   ServiceReady
   ServiceRecovering
+  ServiceReplacementCleanup
   ServiceClosingFailed
   ServiceClosed
 } derive(Debug, Eq)
@@ -35,7 +36,7 @@ pub(all) enum WorkerServiceRule {
 ///|
 pub(all) suberror WorkerServiceError {
   Invalid(WorkerServiceRule)
-  Process(@worker_process.WorkerProcessError)
+  RootBoundProcess(@worker_process.RootBoundWorkerProcessError)
   Scheduler(@core.SchedulerError)
 } derive(Debug, Eq)
 
@@ -51,7 +52,7 @@ pub enum WorkerServiceDispatch {
 ///|
 pub(all) enum WorkerServiceRestart {
   Restarted
-  RestartCleanupRequired(@worker_process.FailedWorkerProcessStartup)
+  RestartCleanupRequired
 }
 
 ///|
@@ -70,7 +71,7 @@ pub struct WorkerServiceBinding {
 pub struct WorkerService {
   priv scheduler : @core.Scheduler
   priv binding : WorkerServiceBinding
-  priv mut process : @worker_process.WorkerProcessSupervisor
+  priv process : @worker_process.RootBoundWorkerProcessSupervisor
   priv flight_states : FixedArray[Int]
   priv flight_sequences : FixedArray[UInt64]
   priv mut lifecycle : WorkerServiceLifecycle

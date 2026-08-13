@@ -27,8 +27,10 @@ pub fn WorkerService::submit_next(
   ignore(
     self.process.submit(plan) catch {
       error => {
-        self.lifecycle = ServiceRecovering
-        raise process_error(error)
+        if self.process.lifecycle() != RootBoundReady {
+          self.lifecycle = ServiceRecovering
+        }
+        raise root_bound_process_error(error)
       }
     },
   )
@@ -46,13 +48,13 @@ fn WorkerService::commit_received_slot(
     error => raise scheduler_error(error)
   }
   let received = self.process.received_for_sequence(sequence) catch {
-    error => raise process_error(error)
+    error => raise root_bound_process_error(error)
   }
   self.process.validate_retirement(received) catch {
-    error => raise process_error(error)
+    error => raise root_bound_process_error(error)
   }
   let frame = received.frame(self.process) catch {
-    error => raise process_error(error)
+    error => raise root_bound_process_error(error)
   }
   let completion = self.scheduler.accept_completion_frame(plan, frame) catch {
     error => raise scheduler_error(error)
@@ -62,8 +64,10 @@ fn WorkerService::commit_received_slot(
   }
   self.process.retire_received(received) catch {
     error => {
-      self.lifecycle = ServiceRecovering
-      raise process_error(error)
+      if self.process.lifecycle() != RootBoundReady {
+        self.lifecycle = ServiceRecovering
+      }
+      raise root_bound_process_error(error)
     }
   }
   self.clear_slot(slot)
@@ -87,13 +91,15 @@ pub fn WorkerService::complete_oldest(
       error => raise scheduler_error(error)
     }
     let submission = self.process.submission_for_sequence(sequence) catch {
-      error => raise process_error(error)
+      error => raise root_bound_process_error(error)
     }
     ignore(
       self.process.receive(submission, plan) catch {
         error => {
-          self.lifecycle = ServiceRecovering
-          raise process_error(error)
+          if self.process.lifecycle() != RootBoundReady {
+            self.lifecycle = ServiceRecovering
+          }
+          raise root_bound_process_error(error)
         }
       },
     )

@@ -165,6 +165,97 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
 }
 
 ///|
+fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let roots = @approved_fs.acquire_worker_approved_roots(
+    model_root=model,
+    kernel_root=kernel,
+  )
+  model.close()
+  kernel.close()
+  {
+    executable: b"/bin/cat",
+    limits: supervisor_process_limits(),
+    roots,
+    process: test_supervisor(),
+    failed_replacement: None,
+    cause: None,
+    child_cleanup_failure: None,
+    roots_cleanup_failure: None,
+    lifecycle: RootBoundReady,
+  }
+}
+
+///|
+test "root-bound source mismatch precedes root acquisition" {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  model.close()
+  kernel.close()
+  try
+    prepare_with_approved_roots(
+      b"/definitely/not/a/worker",
+      supervisor_startup(),
+      alternate_supervisor_source(),
+      supervisor_process_limits(),
+      model,
+      kernel,
+    )
+  catch {
+    RootBoundFailure(Process(Invalid(SourceMismatch))) => ()
+    _ => fail("source mismatch acquired closed roots")
+  } noraise {
+    _ => fail("mismatched source reached root acquisition")
+  }
+}
+
+///|
+test "root-bound restart retains source and has no substitution input" {
+  let owner = test_root_bound_supervisor()
+  let digest = owner.bootstrap_source().digest()
+  owner.begin_recovery()
+  assert_eq(owner.lifecycle(), RootBoundRecovering)
+  try owner.restart() catch {
+    RootBoundFailure(Process(Invalid(Submission))) => ()
+    _ => fail("unexpected rooted replacement failure")
+  } noraise {
+    _ => fail("cat fixture unexpectedly completed startup")
+  }
+  assert_eq(owner.lifecycle(), RootBoundRecovering)
+  assert_eq(owner.bootstrap_source().digest(), digest)
+  owner.close()
+  owner.close()
+  assert_true(owner.is_closed())
+}
+
+///|
+test "delegated fatal transport failure marks recovery required" {
+  let owner = test_root_bound_supervisor()
+  let plan = supervisor_plan(1UL)
+  let submitted = owner.submit(plan)
+  try owner.receive(submitted, plan) catch {
+    RootBoundFailure(Process(Transport(InvalidConfiguration))) => ()
+    _ => fail("unexpected wrapped malformed response")
+  } noraise {
+    _ => fail("echoed plan became a completion")
+  }
+  assert_eq(owner.lifecycle(), RootBoundRecoveryRequired)
+  owner.close()
+}
+
+///|
+test "recovery transition consumes only child and retains roots for restart" {
+  let owner = test_root_bound_supervisor()
+  owner.begin_recovery()
+  assert_eq(owner.lifecycle(), RootBoundRecovering)
+  assert_eq(owner.child_cleanup_failure(), None)
+  assert_false(owner.is_closed())
+  owner.close()
+  assert_eq(owner.lifecycle(), RootBoundClosed)
+}
+
+///|
 fn supervisor_page() -> @page_allocator.PageId raise {
   @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(

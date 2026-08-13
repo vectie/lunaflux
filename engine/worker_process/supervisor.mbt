@@ -74,11 +74,12 @@ fn perform_startup_handshake(
 }
 
 ///|
-pub fn prepare(
+fn prepare_internal(
   executable : Bytes,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
+  roots : @approved_fs.WorkerApprovedRoots?,
 ) -> WorkerProcessPreparation raise WorkerProcessError {
   if source.digest() != startup.bootstrap_source_digest() {
     raise Invalid(SourceMismatch)
@@ -121,8 +122,17 @@ pub fn prepare(
   ) catch {
     error => raise transport_error(error)
   }
-  let child = @process.spawn(executable, process_limits) catch {
-    error => raise transport_error(error)
+  let child = match roots {
+    None =>
+      @process.spawn(executable, process_limits) catch {
+        error => raise transport_error(error)
+      }
+    Some(approved_roots) =>
+      @process.spawn_with_approved_roots(
+        executable, approved_roots, process_limits,
+      ) catch {
+        error => raise transport_error(error)
+      }
   }
   try {
     perform_startup_handshake(
@@ -172,6 +182,19 @@ pub fn prepare(
         _ => raise cause
       }
   }
+}
+
+///|
+/// Compatibility-only spawn for deterministic echo fixtures. Production
+/// workers use `prepare_with_approved_roots`, which retains exact root leases
+/// across every replacement.
+pub fn prepare(
+  executable : Bytes,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  limits : WorkerProcessLimits,
+) -> WorkerProcessPreparation raise WorkerProcessError {
+  prepare_internal(executable, startup, source, limits, None)
 }
 
 ///|

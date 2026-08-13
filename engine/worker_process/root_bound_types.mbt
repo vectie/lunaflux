@@ -1,0 +1,145 @@
+///|
+pub(all) enum RootBoundWorkerProcessLifecycle {
+  RootBoundReady
+  RootBoundRecoveryRequired
+  RootBoundRecoveryClosingFailed
+  RootBoundRecovering
+  RootBoundReplacementCleanup
+  RootBoundClosingFailed
+  RootBoundClosed
+} derive(Debug, Eq)
+
+///|
+pub(all) enum RootBoundWorkerProcessFailure {
+  Process(WorkerProcessError)
+  RootsBusy
+  RootsCloseFailed
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror RootBoundWorkerProcessError {
+  RootBoundInvalidLifecycle
+  RootBoundOwnerMismatch
+  RootBoundFailure(RootBoundWorkerProcessFailure)
+  RootBoundCompoundFailure(
+    RootBoundWorkerProcessFailure,
+    RootBoundWorkerProcessFailure
+  )
+} derive(Debug, Eq)
+
+///|
+/// Instance-lifetime owner of one exact executable, limits, canonical source,
+/// child sequence domain, and opaque model/kernel root lease pair.
+pub struct RootBoundWorkerProcessSupervisor {
+  priv executable : Bytes
+  priv limits : WorkerProcessLimits
+  priv roots : @approved_fs.WorkerApprovedRoots
+  priv mut process : WorkerProcessSupervisor
+  priv mut failed_replacement : FailedWorkerProcessStartup?
+  priv mut cause : RootBoundWorkerProcessFailure?
+  priv mut child_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut roots_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut lifecycle : RootBoundWorkerProcessLifecycle
+}
+
+///|
+/// Cleanup-only result when initial startup did not publish a supervisor.
+pub struct FailedRootBoundWorkerProcessStartup {
+  priv roots : @approved_fs.WorkerApprovedRoots
+  priv mut child : FailedWorkerProcessStartup?
+  priv cause : RootBoundWorkerProcessFailure
+  priv mut child_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut roots_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut closed : Bool
+}
+
+///|
+pub(all) enum RootBoundWorkerProcessPreparation {
+  ReadyRootBoundProcess(RootBoundWorkerProcessSupervisor)
+  RootBoundCleanupRequired(FailedRootBoundWorkerProcessStartup)
+}
+
+///|
+pub(all) enum RootBoundWorkerProcessRestart {
+  RootBoundRestarted
+  RootBoundRestartCleanupRequired
+}
+
+///|
+#valtype
+pub struct RootBoundWorkerSubmission(
+  RootBoundWorkerProcessSupervisor,
+  Int,
+  UInt64
+)
+
+///|
+#valtype
+pub struct RootBoundReceivedWorkerCompletion(
+  RootBoundWorkerProcessSupervisor,
+  Int,
+  UInt64
+)
+
+///|
+pub fn RootBoundWorkerProcessSupervisor::lifecycle(
+  self : RootBoundWorkerProcessSupervisor,
+) -> RootBoundWorkerProcessLifecycle {
+  self.lifecycle
+}
+
+///|
+pub fn RootBoundWorkerProcessSupervisor::cause(
+  self : RootBoundWorkerProcessSupervisor,
+) -> RootBoundWorkerProcessFailure? {
+  self.cause
+}
+
+///|
+pub fn RootBoundWorkerProcessSupervisor::child_cleanup_failure(
+  self : RootBoundWorkerProcessSupervisor,
+) -> RootBoundWorkerProcessFailure? {
+  self.child_cleanup_failure
+}
+
+///|
+pub fn RootBoundWorkerProcessSupervisor::roots_cleanup_failure(
+  self : RootBoundWorkerProcessSupervisor,
+) -> RootBoundWorkerProcessFailure? {
+  self.roots_cleanup_failure
+}
+
+///|
+pub fn RootBoundWorkerProcessSupervisor::is_closed(
+  self : RootBoundWorkerProcessSupervisor,
+) -> Bool {
+  self.lifecycle == RootBoundClosed
+}
+
+///|
+pub fn FailedRootBoundWorkerProcessStartup::cause(
+  self : FailedRootBoundWorkerProcessStartup,
+) -> RootBoundWorkerProcessFailure {
+  self.cause
+}
+
+///|
+pub fn FailedRootBoundWorkerProcessStartup::child_cleanup_failure(
+  self : FailedRootBoundWorkerProcessStartup,
+) -> RootBoundWorkerProcessFailure? {
+  self.child_cleanup_failure
+}
+
+///|
+pub fn FailedRootBoundWorkerProcessStartup::roots_cleanup_failure(
+  self : FailedRootBoundWorkerProcessStartup,
+) -> RootBoundWorkerProcessFailure? {
+  self.roots_cleanup_failure
+}
+
+///|
+pub fn FailedRootBoundWorkerProcessStartup::is_closed(
+  self : FailedRootBoundWorkerProcessStartup,
+) -> Bool {
+  self.closed
+}
