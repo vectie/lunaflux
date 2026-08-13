@@ -31,7 +31,8 @@ boundary. All filesystem and lower-layer semantic failures are mapped to
 payload-safe file classes or admission stages, without retaining a path,
 symbol, JSON value, descriptor, errno, or lower-layer error payload.
 
-`PagedExecutionAdmission` is inert. It retains the exact eight typed inputs
+`PagedExecutionAdmission` is inert. It retains the exact weight layout and the
+eight typed execution inputs
 needed for device-worker/executor admission and exposes focused getters. It
 contains no filesystem alias or native/device resource. The immutable admitted
 artifact bundle, including immutable module bytes, is intentionally available

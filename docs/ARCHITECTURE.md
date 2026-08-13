@@ -161,10 +161,13 @@ The eventual production spawn boundary will duplicate those neutral internal
 capabilities into fixed child descriptor roles. Passing roots through argv,
 ambient environment, or trusting decoded absolute labels is forbidden.
 
-The aggregate device-worker readiness owner admits immutable model-path,
-weight, device, memory, kernel, artifact, and startup evidence before opening
-resources. Preparation compares the complete received startup contract, opens
-the assigned ordinal and verifies its semantic target, loads weights internally,
+The aggregate device-worker readiness owner admits independently expected
+model metadata and startup, a precomputed immutable weight-file inspection,
+and one opaque aggregate paged execution admission before opening resources.
+Admission binds the inspection's exact layout to the execution aggregate and
+derives the canonical bootstrap. Preparation compares the complete received
+startup contract, opens the assigned ordinal and verifies its semantic target,
+completely re-admits the retained inspected file without repeating inspection,
 and prepares the complete paged executor. It exposes only the readiness
 contract, and only while context, weights, and executor are all live; cleanup
 retries in executor-to-weights-to-context order. Device/model loading must

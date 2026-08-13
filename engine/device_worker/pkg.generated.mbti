@@ -4,22 +4,17 @@ package "vectie/lunaflux/engine/device_worker"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
-  "vectie/lunaflux/engine/device_memory",
-  "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
-  "vectie/lunaflux/kernels/artifact",
-  "vectie/lunaflux/kernels/launch_contract",
-  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/device_materialize",
-  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model~ : @spec.LlamaModelMetadata, model_locator~ : StringView, weight_file_limits~ : @device_materialize.DeviceWeightFileLimits, weight_alignment_bytes~ : Int64, max_weight_arena_bytes~ : Int64, model_plan~ : @plan.ModelPlan, layout~ : @device_layout.DeviceKvLayout, device_step_limits~ : @device_step.DeviceStepLimits, static_plan~ : @device_plan.StaticDevicePlan, memory_plan~ : @device_memory.DeviceMemoryPlan, profile_id~ : @launch_contract.KernelProfileId, contracts~ : @launch_contract.PagedKvLaunchContractSet, artifacts~ : @artifact.KernelArtifactBundle, bootstrap_limits~ : @device_step.DeviceBootstrapLimits) -> DeviceWorkerPlan raise DeviceWorkerError
+pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model~ : @spec.LlamaModelMetadata, weight_inspection~ : @device_materialize.DeviceWeightFileInspection, execution~ : @execution_manifest_file.PagedExecutionAdmission, bootstrap_limits~ : @device_step.DeviceBootstrapLimits) -> DeviceWorkerPlan raise DeviceWorkerError
 
 pub fn prepare(@worker_wire.WorkerStartupContract, @approved_fs.ApprovedRoot, DeviceWorkerPlan) -> DeviceWorkerPreparation raise DeviceWorkerError
 
@@ -67,7 +62,6 @@ pub(all) enum DeviceWorkerPreparation {
 pub(all) enum DeviceWorkerRule {
   StartupContract
   ModelIdentity
-  ModelLocator
   WeightEnvelope
   DeviceOrdinal
   DeviceTarget

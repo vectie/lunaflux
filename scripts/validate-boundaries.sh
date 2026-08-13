@@ -178,6 +178,26 @@ if [ -d engine/execution_manifest_file ]; then
   fi
 fi
 
+# Device-worker preparation consumes the previously admitted inspection and
+# aggregate execution evidence. It must not restore the old decomposed handoff
+# or perform a second source inspection after admission.
+if [ -d engine/device_worker ]; then
+  if ! rg -q \
+    '^pub fn admit_plan\(startup~ : @worker_wire\.WorkerStartupContract, model~ : @spec\.LlamaModelMetadata, weight_inspection~ : @device_materialize\.DeviceWeightFileInspection, execution~ : @execution_manifest_file\.PagedExecutionAdmission, bootstrap_limits~ : @device_step\.DeviceBootstrapLimits\)' \
+    engine/device_worker/pkg.generated.mbti; then
+    printf '%s\n' \
+      'device_worker admission must consume aggregate execution and inspected-weight evidence' >&2
+    failed=1
+  fi
+  if rg -n '@device_materialize\.inspect_file' \
+    --glob '*.mbt' --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' \
+    engine/device_worker; then
+    printf '%s\n' \
+      'device_worker preparation must not repeat weight-file inspection' >&2
+    failed=1
+  fi
+fi
+
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.

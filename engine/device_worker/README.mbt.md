@@ -2,16 +2,16 @@
 
 This package is the readiness owner for one device-worker process. `admit_plan`
 validates and retains an independently expected full startup contract plus
-immutable model, opaque `ApprovedRelativeLocator`, memory, kernel, artifact,
-and bootstrap evidence in an inert `DeviceWorkerPlan`. Invalid locator syntax
-fails as `Invalid(ModelLocator)` before later plan admission or filesystem
-access. `prepare` first
-requires the received contract to equal the admitted contract, inspects the
-model descendant beneath an independently approved pinned root without opening
-CUDA, then opens the exact ordinal within the process-visible device set,
-reopens and completely re-admits the retained descendant, streams weights
-through one reusable fixed host buffer, and prepares the complete paged
-executor.
+independent model metadata, a precomputed immutable weight-file inspection, an
+opaque `PagedExecutionAdmission`, and bootstrap limits in an inert
+`DeviceWorkerPlan`. Admission requires the inspection's exact layout to equal
+the layout retained by the aggregate execution admission and validates the
+canonical paged model, bootstrap, and startup identities before any resource
+opens. `prepare` first requires the received contract to equal the admitted
+contract, then opens the exact ordinal within the process-visible device set,
+completely re-admits the retained descendant beneath an independently approved
+pinned root without re-inspecting it, streams weights through one reusable
+fixed host buffer, and prepares the complete paged executor.
 
 Weight readiness additionally requires successful terminal source-file close.
 If both that close and cleanup of an otherwise-ready allocation fail, the

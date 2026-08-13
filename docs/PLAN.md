@@ -346,12 +346,16 @@ and replacement validate those together with the scheduler's exact worker
 limits, identity, generation, and predecessor.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
-foundation anticipated by this workstream. It admits an inert exact plan, then
-verifies the received startup contract before opening resources, opens the
-assigned visible device and checks its capability, loads the verified model
-file internally, and prepares the complete paged executor. It publishes the
-contract only while context, weights, and executor remain live, with retryable
-dependency-ordered cleanup for compound failures. The spawned child remains
+foundation anticipated by this workstream. It admits independently expected
+model metadata and startup plus a precomputed immutable weight-file inspection
+and one opaque aggregate paged execution admission. Exact model, weight-layout,
+bootstrap, and startup evidence is checked before resources open. Preparation
+then verifies the received startup contract, opens the assigned visible device,
+checks its capability, completely re-admits the retained inspected file without
+a duplicate inspection, and prepares the complete paged executor from the
+aggregate admission. It publishes the contract only while context, weights,
+and executor remain live, with retryable dependency-ordered cleanup for
+compound failures. The spawned child remains
 the deterministic protocol fixture: locator/config transport into that child,
 calling this owner before emitting `Ready`, forwarding received plans through
 the owner, restart policy/backoff, physical CUDA evidence, and live overlap

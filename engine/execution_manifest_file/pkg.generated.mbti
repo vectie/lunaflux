@@ -131,6 +131,7 @@ pub fn PagedExecutionAdmission::memory_plan(Self) -> @device_memory.DeviceMemory
 pub fn PagedExecutionAdmission::model_plan(Self) -> @plan.ModelPlan
 pub fn PagedExecutionAdmission::profile_id(Self) -> @launch_contract.KernelProfileId
 pub fn PagedExecutionAdmission::static_plan(Self) -> @device_plan.StaticDevicePlan
+pub fn PagedExecutionAdmission::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
 
 // Type aliases
 

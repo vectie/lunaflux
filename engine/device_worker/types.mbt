@@ -2,7 +2,6 @@
 pub(all) enum DeviceWorkerRule {
   StartupContract
   ModelIdentity
-  ModelLocator
   WeightEnvelope
   DeviceOrdinal
   DeviceTarget
@@ -62,19 +61,8 @@ priv struct DeviceWorkerResources {
 /// no device or native resource and exposes no mutable execution owner.
 pub struct DeviceWorkerPlan {
   priv startup : @worker_wire.WorkerStartupContract
-  priv model : @spec.LlamaModelMetadata
-  priv model_locator : @approved_fs.ApprovedRelativeLocator
-  priv weight_file_limits : @device_materialize.DeviceWeightFileLimits
-  priv weight_alignment_bytes : Int64
-  priv max_weight_arena_bytes : Int64
-  priv model_plan : @plan.ModelPlan
-  priv layout : @device_layout.DeviceKvLayout
-  priv device_step_limits : @device_step.DeviceStepLimits
-  priv static_plan : @device_plan.StaticDevicePlan
-  priv memory_plan : @device_memory.DeviceMemoryPlan
-  priv profile_id : @launch_contract.KernelProfileId
-  priv contracts : @launch_contract.PagedKvLaunchContractSet
-  priv artifacts : @artifact.KernelArtifactBundle
+  priv weight_inspection : @device_materialize.DeviceWeightFileInspection
+  priv execution : @execution_manifest_file.PagedExecutionAdmission
   priv manifest : @device_step.DeviceWorkerBootstrapManifest
 }
 

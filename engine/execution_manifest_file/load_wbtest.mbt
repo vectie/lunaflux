@@ -38,6 +38,7 @@ async test "canonical v1 admits one immutable full-graph paged execution" {
       _ => abort("execution manifest admission failed")
     }
     assert_eq(admission.model_plan(), plan)
+    assert_eq(admission.weight_layout(), weights)
     assert_eq(admission.blueprint().scope(), FullGraph)
     assert_eq(
       admission.blueprint().steps().length(),

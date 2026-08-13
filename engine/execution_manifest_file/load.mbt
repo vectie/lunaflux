@@ -96,6 +96,7 @@ pub fn load_paged(
   }
   {
     model_plan,
+    weight_layout,
     layout: kv_layout,
     device_step_limits,
     static_plan,

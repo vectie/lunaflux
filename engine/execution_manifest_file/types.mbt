@@ -59,6 +59,7 @@ priv struct ManifestClaims {
 /// device-worker startup.
 pub struct PagedExecutionAdmission {
   priv model_plan : @plan.ModelPlan
+  priv weight_layout : @device_materialize.DeviceWeightLayout
   priv layout : @device_layout.DeviceKvLayout
   priv device_step_limits : @device_step.DeviceStepLimits
   priv static_plan : @device_plan.StaticDevicePlan
@@ -74,6 +75,14 @@ pub fn PagedExecutionAdmission::model_plan(
   self : PagedExecutionAdmission,
 ) -> @plan.ModelPlan {
   self.model_plan
+}
+
+///|
+/// Returns the exact immutable device-weight layout supplied to `load_paged`.
+pub fn PagedExecutionAdmission::weight_layout(
+  self : PagedExecutionAdmission,
+) -> @device_materialize.DeviceWeightLayout {
+  self.weight_layout
 }
 
 ///|

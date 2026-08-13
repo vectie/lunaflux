@@ -49,81 +49,50 @@ fn validate_model_identity(
 }
 
 ///|
-fn admit_model_locator(
-  locator : StringView,
-) -> @approved_fs.ApprovedRelativeLocator raise DeviceWorkerError {
-  @approved_fs.ApprovedRelativeLocator::new(locator) catch {
-    _ => raise Invalid(ModelLocator)
+fn validate_weight_evidence(
+  model : @spec.LlamaModelMetadata,
+  inspection : @device_materialize.DeviceWeightFileInspection,
+  execution : @execution_manifest_file.PagedExecutionAdmission,
+) -> Unit raise DeviceWorkerError {
+  let inspected_layout = inspection.layout()
+  let execution_layout = execution.weight_layout()
+  if inspection.content_digest() != model.identity().content() ||
+    inspected_layout != execution_layout {
+    raise Invalid(WeightEnvelope)
   }
 }
 
 ///|
-/// Admits all immutable device-worker evidence without opening a native or
-/// device resource. The strict relative model locator is copied into plan-owned
-/// startup storage; approved-root resolution occurs during preparation.
+/// Admits independently prepared immutable device-worker evidence without
+/// opening a filesystem, native, or device resource. The exact weight-file
+/// inspection and aggregate paged execution admission are retained privately.
 pub fn admit_plan(
   startup~ : @worker_wire.WorkerStartupContract,
   model~ : @spec.LlamaModelMetadata,
-  model_locator~ : StringView,
-  weight_file_limits~ : @device_materialize.DeviceWeightFileLimits,
-  weight_alignment_bytes~ : Int64,
-  max_weight_arena_bytes~ : Int64,
-  model_plan~ : @plan.ModelPlan,
-  layout~ : @device_layout.DeviceKvLayout,
-  device_step_limits~ : @device_step.DeviceStepLimits,
-  static_plan~ : @device_plan.StaticDevicePlan,
-  memory_plan~ : @device_memory.DeviceMemoryPlan,
-  profile_id~ : @launch_contract.KernelProfileId,
-  contracts~ : @launch_contract.PagedKvLaunchContractSet,
-  artifacts~ : @artifact.KernelArtifactBundle,
+  weight_inspection~ : @device_materialize.DeviceWeightFileInspection,
+  execution~ : @execution_manifest_file.PagedExecutionAdmission,
   bootstrap_limits~ : @device_step.DeviceBootstrapLimits,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
-  let admitted_model_locator = admit_model_locator(model_locator)
-  let blueprint = @device_step.admit_paged_graph_execution_blueprint(
-    model_plan, device_step_limits, layout, static_plan, memory_plan, profile_id,
-    contracts, artifacts,
-  ) catch {
-    error => raise Executor(error)
-  }
+  let blueprint = execution.blueprint()
   validate_model_identity(model, blueprint.identity())
-  if weight_alignment_bytes != blueprint.weight_alignment() ||
-    max_weight_arena_bytes < blueprint.weight_arena_bytes() {
-    raise Invalid(WeightEnvelope)
-  }
+  validate_weight_evidence(model, weight_inspection, execution)
   let manifest = @device_step.admit_device_worker_bootstrap(
     blueprint,
-    artifacts,
+    execution.artifacts(),
     device_ordinal=startup.device_ordinal(),
     bootstrap_limits,
   ) catch {
     error => raise Bootstrap(error)
   }
   let admitted_startup = exact_startup_contract(startup, manifest)
-  {
-    startup: admitted_startup,
-    model,
-    model_locator: admitted_model_locator,
-    weight_file_limits,
-    weight_alignment_bytes,
-    max_weight_arena_bytes,
-    model_plan,
-    layout,
-    device_step_limits,
-    static_plan,
-    memory_plan,
-    profile_id,
-    contracts,
-    artifacts,
-    manifest,
-  }
+  { startup: admitted_startup, weight_inspection, execution, manifest }
 }
 
 ///|
-/// Inspects the approved model descendant before opening a device resource,
-/// then owns the exact configured device, fully re-admits and streams that
-/// descendant into final device storage, and prepares the complete paged graph
-/// before returning readiness. The received startup contract is compared with
-/// the admitted inert plan before any filesystem or device resource opens.
+/// Requires the received contract to equal the admitted inert plan before any
+/// resource opens, then owns the exact configured device, fully re-admits and
+/// streams the retained inspected descendant into final device storage, and
+/// prepares the complete paged graph before returning readiness.
 pub fn prepare(
   received : @worker_wire.WorkerStartupContract,
   model_root : @approved_fs.ApprovedRoot,
@@ -131,16 +100,7 @@ pub fn prepare(
 ) -> DeviceWorkerPreparation raise DeviceWorkerError {
   validate_received_startup(received, plan.startup)
   let ready_contract = plan.startup
-  let weight_inspection = @device_materialize.inspect_file(
-    model_root,
-    plan.model,
-    plan.model_locator,
-    limits=plan.weight_file_limits,
-    alignment_bytes=plan.weight_alignment_bytes,
-    max_arena_bytes=plan.max_weight_arena_bytes,
-  ) catch {
-    error => raise Weights(error)
-  }
+  let execution = plan.execution
   let resources : DeviceWorkerResources = {
     executor: None,
     weights: None,
@@ -157,7 +117,9 @@ pub fn prepare(
     return preparation_failed(resources, Invalid(DeviceTarget))
   }
   let weight_outcome = @device_materialize.load_inspected_file(
-    context, model_root, weight_inspection,
+    context,
+    model_root,
+    plan.weight_inspection,
   ) catch {
     error => return preparation_failed(resources, Weights(error))
   }
@@ -178,16 +140,16 @@ pub fn prepare(
   }
   let executor_outcome = @device_step.prepare_paged_graph_executor(
     context,
-    plan.model_plan,
+    execution.model_plan(),
     generation,
-    plan.layout,
-    plan.device_step_limits,
-    plan.static_plan,
-    plan.memory_plan,
-    plan.profile_id,
+    execution.layout(),
+    execution.device_step_limits(),
+    execution.static_plan(),
+    execution.memory_plan(),
+    execution.profile_id(),
     weights,
-    plan.contracts,
-    plan.artifacts,
+    execution.contracts(),
+    execution.artifacts(),
     has_accepted_predecessor=plan.startup.has_predecessor(),
     accepted_predecessor_value=plan.startup.predecessor_value(),
   ) catch {
