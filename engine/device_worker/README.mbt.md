@@ -12,6 +12,16 @@ approved read-only model file, and prepares the complete paged executor.
 weights, and executor are all live. No context, allocation, weights, executor,
 module, function, stream, kernel argument, or native handle is exposed.
 
+`execute_frame` authenticates a completion writer against one validated plan
+frame, privately stages and executes the paged graph, appends the canonical
+completion while the writer remains open, finishes the executor, and only then
+submits and returns the validated frame. Any entered failure fail-stops the
+owner as `WorkerFaulted`; it cannot become ready or
+execute again, but remains explicitly closeable. Failure also best-effort
+aborts the accepted completion writer; a double failure reports both bounded
+causes. Writing the returned validated frame to transport remains outside this
+owner.
+
 Cleanup is dependency ordered: executor, weights, context. A child cleanup
 failure prevents its parent from closing and preserves authority for retry.
 Preparation follows the same rule and returns `DeviceWorkerCleanupRequired`

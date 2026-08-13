@@ -223,7 +223,7 @@ fn append_wire_completion_frame(
   writer : @worker_wire.CompletionFrameWriter,
   summary : DeviceStepSummary,
   selected : FixedArray[Int],
-) -> @worker_wire.ValidatedCompletionFrame raise DeviceStepError {
+) -> Unit raise DeviceStepError {
   for index in 0..<summary.prefill_count {
     let row = frame.prefill_row(index) catch { error => raise Wire(error) }
     let produces = row.produces_token() catch { error => raise Wire(error) }
@@ -243,23 +243,21 @@ fn append_wire_completion_frame(
       error => raise Wire(error)
     }
   }
-  writer.submit() catch {
-    error => raise Wire(error)
-  }
 }
 
 ///|
-/// Reads terminal BF16 logits and writes a canonical completion frame using
+/// Reads terminal BF16 logits and appends a canonical completion frame using
 /// the exact plan-frame owner and epoch previously staged by this executor.
-/// Neither scheduler protocol owner crosses the isolated-worker boundary.
-/// Sampling/readback failure poisons execution. A completion-frame write
-/// failure leaves the exclusive writer open so its owner can abort explicitly.
+/// The writer deliberately remains open: its aggregate owner must retire the
+/// executed graph successfully before publishing with `writer.submit()`.
+/// Sampling/readback failure poisons execution. Any sampling or write failure
+/// leaves the exclusive writer open so its owner can abort explicitly.
 pub fn PagedGraphExecutor::sample_completion_frame(
   self : PagedGraphExecutor,
   executed : ExecutedPagedGraphExecution,
   frame : @worker_wire.ValidatedPlanFrame,
   writer : @worker_wire.CompletionFrameWriter,
-) -> @worker_wire.ValidatedCompletionFrame raise DeviceStepError {
+) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_wire_completion_plan(descriptor, frame, writer)
   for index in 0..<summary.prefill_count {

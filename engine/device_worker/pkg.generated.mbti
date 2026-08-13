@@ -27,18 +27,21 @@ pub(all) suberror DeviceWorkerError {
   Invalid(DeviceWorkerRule)
   Bootstrap(@device_step.DeviceBootstrapError)
   Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
   Device(@device.DeviceError)
   Weights(@device_materialize.DeviceWeightError)
   Executor(@device_step.DeviceStepError)
   CleanupContext(@device.DeviceError)
   CleanupWeights(@device_materialize.DeviceWeightError)
   CleanupExecutor(@device_step.DeviceStepError)
+  CompletionAbortFailed(primary~ : DeviceWorkerError, abort~ : @worker_wire.WorkerWireError)
   InvalidLifecycle(DeviceWorkerLifecycle)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) enum DeviceWorkerLifecycle {
   WorkerReady
+  WorkerFaulted
   WorkerClosingFailed
   WorkerClosed
 } derive(Eq, @debug.Debug)
@@ -47,6 +50,7 @@ pub struct DeviceWorkerOwner {
   // private fields
 }
 pub fn DeviceWorkerOwner::close(Self) -> Unit raise DeviceWorkerError
+pub fn DeviceWorkerOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerError
 pub fn DeviceWorkerOwner::lifecycle(Self) -> DeviceWorkerLifecycle
 pub fn DeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerError
 

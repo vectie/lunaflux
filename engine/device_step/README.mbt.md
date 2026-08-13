@@ -78,18 +78,19 @@ stream, modules, functions, and prebuilt arguments. None of those resources or
 arguments escape. Exact opaque capabilities enforce `stage -> execute ->
 sample_completion -> finish`; `stage_frame -> execute ->
 sample_completion_frame -> finish` is the equivalent isolated-worker path.
-The latter authenticates the exact retained frame owner and epoch and writes a
-canonical completion frame directly, so neither submitted-plan nor
-completion-writer scheduler ownership enters the worker. Every launch
-synchronizes, and any partial
-launch failure permanently poisons execution and descriptor state. The
+The latter authenticates the exact retained frame owner and epoch and appends
+the canonical completion while deliberately leaving the writer open. Its
+aggregate owner must finish the executor before submitting the writer, so a
+finish failure cannot publish a completion. Every launch synchronizes, and any
+partial launch failure permanently poisons execution and descriptor state. The
 completion phase reads only each producing row's retained BF16 vocabulary
 logits into startup-owned fixed storage, rejects non-finite values, applies
 greedy or counter-addressed stochastic selection using the row's exact
-`(sampling seed, output index)`, and freezes the scheduler-issued completion
+`(sampling seed, output index)`, and appends to the exact frame-bound completion
 writer. All reads and selections finish before the first completion entry is
-written. A protocol failure leaves the exclusive writer with the caller for
-explicit abort; a readback or invalid-logit failure poisons the executor.
+written. The writer remains open for explicit submit after executor finish or
+abort after any failure; a readback or invalid-logit failure poisons the
+executor.
 Close invalidates execution first and then attempts every independent resource
 in reverse dependency order; failed cleanup retains explicit retry authority.
 

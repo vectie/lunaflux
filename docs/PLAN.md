@@ -247,8 +247,9 @@ owner-mediated synchronous graph executor are implemented. The executor
 preallocates persistent KV and activation/workspace storage and reuses loaded
 functions and argument lists. Its owner-mediated completion path now binds the
 exact retained BF16 vocabulary-row geometry, reuses fixed readback/sampling
-scratch, selects by canonical request seed/output index, and submits an exact
-completion lease. Phase promotion still requires a production paged-kernel
+scratch, selects by canonical request seed/output index, and appends an exact
+completion lease that the aggregate owner publishes only after executor
+finish. Phase promotion still requires a production paged-kernel
 bundle, a positive-controlled allocation gate around the complete graph
 lifecycle, and physical-CUDA numerical correctness, sanitizer, leak, soak, and
 benchmark evidence for logits and sampled tokens.

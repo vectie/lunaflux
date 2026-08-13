@@ -147,7 +147,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   fixed readback/logit/selection scratch; successful execution reads only
   producing rows, rejects non-finite logits, applies greedy or
   counter-addressed stochastic selection from exact request seed/output index,
-  and submits the scheduler-issued exact-plan completion writer. Physical CUDA
+  and appends to the exact-plan completion writer while leaving publication to
+  the aggregate owner after executor finish. Physical CUDA
   numerical correctness and a positive-controlled full lifecycle allocation
   gate remain open.
 - A canonical transport-independent inference request and streaming-event

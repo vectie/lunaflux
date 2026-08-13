@@ -12,6 +12,7 @@ pub(all) enum DeviceWorkerRule {
 /// Stable device-worker lifecycle. Only `WorkerReady` may emit readiness.
 pub(all) enum DeviceWorkerLifecycle {
   WorkerReady
+  WorkerFaulted
   WorkerClosingFailed
   WorkerClosed
 } derive(Debug, Eq)
@@ -22,12 +23,17 @@ pub(all) suberror DeviceWorkerError {
   Invalid(DeviceWorkerRule)
   Bootstrap(@device_step.DeviceBootstrapError)
   Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
   Device(@device.DeviceError)
   Weights(@device_materialize.DeviceWeightError)
   Executor(@device_step.DeviceStepError)
   CleanupContext(@device.DeviceError)
   CleanupWeights(@device_materialize.DeviceWeightError)
   CleanupExecutor(@device_step.DeviceStepError)
+  CompletionAbortFailed(
+    primary~ : DeviceWorkerError,
+    abort~ : @worker_wire.WorkerWireError
+  )
   InvalidLifecycle(DeviceWorkerLifecycle)
 } derive(Debug, Eq)
 

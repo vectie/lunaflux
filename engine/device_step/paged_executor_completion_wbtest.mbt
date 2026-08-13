@@ -264,9 +264,10 @@ test "wire completion append preserves exact frame row semantics" {
     ),
   )
   let selected = FixedArray::make(1, 31)
-  let completion = append_wire_completion_frame(
+  let writer = completion_owner.writer_for(frame)
+  append_wire_completion_frame(
     frame,
-    completion_owner.writer_for(frame),
+    writer,
     {
       sequence_value: 1UL,
       prefill_count: 1,
@@ -277,6 +278,13 @@ test "wire completion append preserves exact frame row semantics" {
     },
     selected,
   )
+  try completion_owner.current() catch {
+    StaleFrame => ()
+    _ => fail("unexpected unpublished completion error")
+  } noraise {
+    _ => fail("completion append published before explicit submit")
+  }
+  let completion = writer.submit()
   completion.validate_for(plan)
   assert_eq(completion.entry_for_slot(0).token_id(), 31)
 }

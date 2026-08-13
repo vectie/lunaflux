@@ -17,6 +17,7 @@ supported_targets = "native"
 
 import {
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/llama",
   "vectie/lunaflux/model/spec",
 } for "wbtest"
