@@ -79,6 +79,12 @@ test "completion publishes in plan order through overlapping plans" {
   owner.complete(decode, decode_completion)
   assert_eq(owner.generated_token_count(), 4)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
+  try owner.take_terminal_notice() catch {
+    Invalid(field=PublicationSequence, issue=OutOfOrder) => ()
+    _ => fail("unexpected wrong-ring dequeue error")
+  } noraise {
+    _ => fail("newer terminal bypassed an older token")
+  }
   let first_output = owner.take_generated_token()
   assert_eq(first_output.publication_sequence(), 1UL)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
@@ -88,9 +94,21 @@ test "completion publishes in plan order through overlapping plans" {
   let third_output = owner.take_generated_token()
   assert_eq(third_output.publication_sequence(), 3UL)
   assert_eq(owner.next_publication_kind(), TerminalPublication)
+  try owner.take_generated_token() catch {
+    Invalid(field=PublicationSequence, issue=OutOfOrder) => ()
+    _ => fail("unexpected reverse wrong-ring dequeue error")
+  } noraise {
+    _ => fail("newer token bypassed an older terminal")
+  }
   let first_terminal = owner.take_terminal_notice()
   assert_eq(first_terminal.publication_sequence(), 4UL)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
+  try owner.take_terminal_notice() catch {
+    Invalid(field=PublicationSequence, issue=OutOfOrder) => ()
+    _ => fail("unexpected interleaved dequeue error")
+  } noraise {
+    _ => fail("newer terminal bypassed an interleaved token")
+  }
   let fourth_output = owner.take_generated_token()
   assert_eq(fourth_output.publication_sequence(), 5UL)
   assert_eq(owner.next_publication_kind(), TerminalPublication)

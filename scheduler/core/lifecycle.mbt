@@ -181,6 +181,11 @@ pub fn Scheduler::take_terminal_notice(
   if self.terminal_count == 0 {
     raise invalid(TerminalNoticeCapacity, NoRunnableWork)
   }
+  if self.output_count > 0 &&
+    self.output_sequences[self.output_head] <
+    self.terminal_sequences[self.terminal_head] {
+    raise invalid(PublicationSequence, OutOfOrder)
+  }
   let index = self.terminal_head
   let notice = TerminalNotice(
     self.terminal_request_ids[index],
@@ -199,6 +204,11 @@ pub fn Scheduler::take_generated_token(
 ) -> GeneratedTokenNotice raise SchedulerError {
   if self.output_count == 0 {
     raise invalid(OutputCapacity, NoRunnableWork)
+  }
+  if self.terminal_count > 0 &&
+    self.terminal_sequences[self.terminal_head] <
+    self.output_sequences[self.output_head] {
+    raise invalid(PublicationSequence, OutOfOrder)
   }
   let index = self.output_head
   let notice = GeneratedTokenNotice(

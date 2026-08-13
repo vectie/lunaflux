@@ -162,6 +162,7 @@ test "non-inflight active cancellation releases KV immediately" {
   assert_eq(owner.live_request_count(), 0)
   assert_eq(owner.free_page_count(), 8)
   assert_eq(owner.allocated_block_table_count(), 0)
+  assert_eq(owner.take_generated_token().token_id(), 10)
   assert_eq(owner.take_terminal_notice().reason(), CancelledByCaller)
 }
 
@@ -234,6 +235,8 @@ test "terminal backpressure preserves a maximum-output completion for retry" {
   owner.terminal_tail = 0
   owner.complete(decode, completion)
   assert_eq(owner.generated_token_count(), 2)
+  assert_eq(owner.take_generated_token().token_id(), 12)
+  assert_eq(owner.take_generated_token().token_id(), 13)
   assert_eq(owner.take_terminal_notice().reason(), MaximumOutputReached)
   assert_eq(owner.live_request_count(), 0)
   assert_eq(owner.free_page_count(), 8)

@@ -132,7 +132,11 @@ readback/sampling scratch: after a successful graph it reads only producing
 rows, rejects non-finite logits, deterministically selects by the request's
 canonical `(seed, output index)`, and freezes the exact scheduler completion
 lease before retirement. Canonical request/streaming events and
-scheduler/worker messages now have bounded immutable contracts.
+scheduler/worker messages now have bounded immutable contracts. A pure
+fixed-buffer framed service codec covers every native request and event variant
+without claiming listener readiness. Incremental output state copies tokenizer
+pieces into caller storage, validates split UTF-8, and withholds cross-token
+stop strings without constructing per-token collections or text values.
 Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and
@@ -169,7 +173,9 @@ plan owners. Exact plan, block-table, and page checkpoints restore identities
 and FIFO state after a rejected build. Paired completion owners issue exclusive
 leases for exact plan epochs; ordered full-batch retirement preflights output,
 terminal, and KV-release obligations before publishing tokens or recycling
-resources. Idle and plan-buffer pressure are allocation-free value outcomes,
+resources. Token and terminal storage remains physically separate, but one
+monotonic publication sequence makes their global dequeue order fail closed.
+Idle and plan-buffer pressure are allocation-free value outcomes,
 and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and counter-addressed replay semantics. These remain foundations:

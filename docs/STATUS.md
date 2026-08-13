@@ -191,7 +191,19 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public
-  failure vocabulary.
+  failure vocabulary. The first trusted receipt boundary can now capture the
+  relative deadline exactly once as an opaque absolute monotonic deadline;
+  scheduler admission never rebases it after parsing or tokenization delay.
+- A canonical fixed-buffer framed-wire v1 for every `GenerateRequest` field and
+  all five `StreamEvent` variants. It bounds hostile counts before arithmetic
+  or allocation, validates exact lengths/checksums/reserved bytes and canonical
+  option encodings, and publishes only epoch-bound opaque frames. It is a pure
+  codec foundation, not a listener or online-session readiness claim.
+- A bounded incremental decoded-output owner that copies exact tokenizer pieces
+  into caller-owned fixed storage, validates UTF-8 across token boundaries,
+  and withholds stop strings matched across token or code-point boundaries.
+  Pattern tables and scratch are constructed before token stepping; the online
+  session, output acknowledgement, and transport allocation gate remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion
@@ -301,8 +313,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A deterministic single-owner scheduler foundation with fixed request slots,
   an intrusive FIFO waiting queue, globally unique request generations, bounded
   terminal notices, and tokenized admission against the resolved runtime plan.
-  It validates model identity, duplicate IDs, context/page envelopes, deadlines,
-  and recipe provenance, and it explicitly rejects nonempty stop strings;
+  It validates model identity, duplicate IDs, context/page envelopes, exact
+  receipt-relative deadlines, and recipe provenance; the core request type
+  still rejects nonempty stop strings until the incremental owner is composed;
   cancellation and deadline sweeps preflight publication and identity capacity
   before mutation. Its bounded `build_next` path activates FIFO requests only
   after submission, reserves decode resources before prefill policy, emits
@@ -315,7 +328,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   fixed slot index and exclusive writers; full-batch retirement authenticates
   current versus cancelled/expired work, preflights both publication rings and
   KV release, publishes final-prefill/decode tokens in plan order, enforces
-  token-stop/maximum-output terminals, and resets the exact plan side. Normal
+  token-stop/maximum-output terminals, and resets the exact plan side. A shared
+  monotonic publication sequence makes the separate token and terminal rings
+  fail closed against out-of-order dequeue, including cancellation cuts. Normal
   idle and two-owner pressure are flat allocation-free outcomes in generated
   native code; the positive-controlled warmed scheduler allocation gate passes.
 - A bounded `lunaflux reference` command that validates explicit paths and
