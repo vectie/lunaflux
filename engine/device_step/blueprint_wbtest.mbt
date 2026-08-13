@@ -37,7 +37,7 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
   )
   assert_eq(result.identity(), plan.identity())
   assert_eq(result.target(), target)
-  assert_eq(result.catalog_version(), @catalog.CatalogVersion::v2())
+  assert_eq(result.catalog_version(), @catalog.CatalogVersion::v3())
   assert_eq(result.profile(), blueprint_profile())
   assert_eq(result.steps().length(), 2)
   let rotary = result.steps()[0]
@@ -48,7 +48,7 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
     rotary.capability(),
     @plan.KernelCapabilityId::positioned_rotary_embedding(),
   )
-  assert_eq(rotary.semantic_version(), @catalog.KernelSemanticVersion::v2())
+  assert_eq(rotary.semantic_version(), @catalog.KernelSemanticVersion::v3())
   assert_eq(rotary.artifact_module_index(), 0)
   assert_eq(rotary.function_symbol(), "paged_exact")
   assert_eq(rotary.operands()[0].space(), StepDescriptor(Counts))

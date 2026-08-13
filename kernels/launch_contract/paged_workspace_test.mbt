@@ -1,5 +1,5 @@
 ///|
-test "catalog workspace controls the final v2 operand position" {
+test "catalog workspace controls the final v3 operand position" {
   let rotary = paged_operands(1)
   try
     @launch_contract.admit_paged_kv(

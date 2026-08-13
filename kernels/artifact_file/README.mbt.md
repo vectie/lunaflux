@@ -8,7 +8,7 @@ catalog version, module digests and relative path identifiers, and stable
 family/entry-point identities with bounded CUDA symbols.
 
 The same parser and same-handle loader admit both stateless catalog-v1 launch
-contracts and paged catalog-v2 launch contracts. The contract set supplies the
+contracts and paged catalog-v3 launch contracts. The contract set supplies the
 expected model, target, and catalog evidence; manifests cannot select or
 downgrade that evidence.
 

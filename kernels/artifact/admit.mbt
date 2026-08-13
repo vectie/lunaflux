@@ -281,7 +281,7 @@ fn admit_required(
 fn ensure_paged_catalog_version(
   actual : @catalog.CatalogVersion,
 ) -> Unit raise KernelArtifactError {
-  let expected = @catalog.CatalogVersion::v2()
+  let expected = @catalog.CatalogVersion::v3()
   if actual != expected {
     raise CatalogVersionMismatch(expected~, actual~)
   }
@@ -320,7 +320,7 @@ pub fn admit(
 
 ///|
 /// Admits exactly the content-addressed modules and CUDA symbols referenced by
-/// a catalog-v2 paged-KV launch-contract set.
+/// a catalog-v3 paged-KV launch-contract set.
 ///
 /// Repeated layer/profile contracts share the first occurrence of an exact
 /// stable entry-point identity. Distinct identities may intentionally alias

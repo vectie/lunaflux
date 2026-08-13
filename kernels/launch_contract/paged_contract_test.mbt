@@ -82,14 +82,14 @@ fn paged_semantics_fixture(
   let layer = @plan.KvLayerId::new(0)
   match kind {
     RotaryEmbedding =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[StepCounts, QueryPositions],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
     CausalAttention =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[
           StepCounts,
@@ -109,7 +109,7 @@ fn paged_semantics_fixture(
         ),
       )
     _ =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=None,
         runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
@@ -159,7 +159,7 @@ fn paged_catalog_fixture(
     }
     let workspace_alignment = if workspace_bytes > 0L { 16L } else { 1L }
     entries.push(
-      @catalog.CatalogEntry::new_paged_v2(
+      @catalog.CatalogEntry::new_paged_v3(
         operation_kind=kind,
         operation_shape=shape,
         capability~,
@@ -172,7 +172,7 @@ fn paged_catalog_fixture(
       ),
     )
   }
-  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries~).resolve_paged(
+  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries~).resolve_paged(
     paged_plan_fixture(),
     paged_layout_fixture(),
     @catalog.DeviceTarget::new(
@@ -286,7 +286,7 @@ fn paged_inputs(
 }
 
 ///|
-test "paged v2 contract fixes canonical staged operand positions" {
+test "paged v3 contract fixes canonical staged operand positions" {
   let attention = paged_operands(2)
   let set = @launch_contract.admit_paged_kv(
     paged_plan_fixture(),
@@ -296,11 +296,11 @@ test "paged v2 contract fixes canonical staged operand positions" {
     paged_inputs(attention),
     paged_limits_fixture(),
   )
-  assert_eq(set.catalog_version(), @catalog.CatalogVersion::v2())
+  assert_eq(set.catalog_version(), @catalog.CatalogVersion::v3())
   assert_eq(set.scope(), KvSubsequence)
   assert_eq(set.contracts().length(), 2)
   let contract = set.contracts()[1]
-  assert_eq(contract.semantic_version(), @catalog.KernelSemanticVersion::v2())
+  assert_eq(contract.semantic_version(), @catalog.KernelSemanticVersion::v3())
   assert_eq(
     contract.operation_shape(),
     AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
@@ -320,7 +320,7 @@ test "paged v2 contract fixes canonical staged operand positions" {
 }
 
 ///|
-test "paged v2 rejects missing, reordered, and foreign-layer operands" {
+test "paged v3 rejects missing, reordered, and foreign-layer operands" {
   let exact = paged_operands(2)
   let reordered = exact.copy()
   reordered[0] = exact[1]
@@ -409,7 +409,7 @@ test "paged KV set rejects extra non-KV contracts and requires both KV ops" {
 }
 
 ///|
-test "paged v2 rejects wrong layout, mode, and catalog version" {
+test "paged v3 rejects wrong layout, mode, and catalog version" {
   let foreign_geometry = @plan.KvCacheGeometry::new(
     layer_count=1,
     kv_head_count=1,

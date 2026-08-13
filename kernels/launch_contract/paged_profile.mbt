@@ -1,9 +1,9 @@
 ///|
-/// Exact maximum live-shape ABI understood by one catalog-v2 entry point.
+/// Exact maximum live-shape ABI understood by one catalog-v3 entry point.
 ///
 /// Unlike a full-prefill profile, rows may contain different prefill/decode
 /// lengths. The three capacities bind the packed Int32 metadata allocations;
-/// live values remain bounded by v2 `StepCounts` at execution time.
+/// live values remain bounded by v3 `StepCounts` at execution time.
 pub struct PagedKernelProfile {
   id : KernelProfileId
   max_query_rows : Int

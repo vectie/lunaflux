@@ -94,21 +94,21 @@ fn paged_file_semantics(
   let layer = try! @plan.KvLayerId::new(0)
   match kind {
     Embedding =>
-      try! @catalog.KernelExecutionSemantics::paged_v2(
+      try! @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=None,
         runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
     RotaryEmbedding =>
-      try! @catalog.KernelExecutionSemantics::paged_v2(
+      try! @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[StepCounts, QueryPositions],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
     CausalAttention =>
-      try! @catalog.KernelExecutionSemantics::paged_v2(
+      try! @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[
           StepCounts,
@@ -151,7 +151,7 @@ fn paged_file_catalog(
   for operation in plan.operations() {
     let family_id = operation.id().as_int() + 10
     entries.push(
-      try! @catalog.CatalogEntry::new_paged_v2(
+      try! @catalog.CatalogEntry::new_paged_v3(
         operation_kind=operation.kind(),
         operation_shape=operation.shape(),
         capability=operation.required_capability(),
@@ -165,7 +165,7 @@ fn paged_file_catalog(
     )
   }
   try! @catalog.KernelCatalog::new(
-    version=@catalog.CatalogVersion::v2(),
+    version=@catalog.CatalogVersion::v3(),
     entries~,
   ).resolve_paged(plan, paged_file_layout(), fixture_target())
 }
@@ -291,6 +291,6 @@ fn paged_valid_manifest(entry_count? : Int = 2) -> Bytes {
         entries[:entry_count],
       ),
     ],
-    catalog_version=2,
+    catalog_version=3,
   )
 }

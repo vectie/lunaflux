@@ -47,7 +47,7 @@ predecessor seed. No close authority escapes.
 
 Startup may also admit a `PagedKvExecutionBlueprint` for one exact paged
 kernel profile. This inert value cross-checks the semantic model and KV layout,
-device-step capacities, catalog-v2 launch contracts, activation/workspace
+device-step capacities, catalog-v3 launch contracts, activation/workspace
 memory plan, and content-addressed artifact entries. Its layer-ordered rotary
 and attention steps retain only semantic references, bounded launch metadata,
 and scalar offsets/spans into separately owned descriptor, activation, and KV

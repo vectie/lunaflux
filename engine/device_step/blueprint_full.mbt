@@ -106,7 +106,7 @@ fn validate_full_static_plan(
       bound.outputs() != operation.outputs() ||
       bound.binding().operation_id() != operation.id() ||
       bound.binding().capability() != operation.required_capability() ||
-      bound.binding().semantic_version() != @catalog.KernelSemanticVersion::v2() {
+      bound.binding().semantic_version() != @catalog.KernelSemanticVersion::v3() {
       raise blueprint_operation_error(operation.id(), ContractSemantics)
     }
   }

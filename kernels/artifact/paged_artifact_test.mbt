@@ -54,7 +54,7 @@ test "paged artifact admission deduplicates shared layer identities" {
   exports[0] = exports[1]
   assert_eq(bundle.model_identity(), contracts.model_identity())
   assert_eq(bundle.device_target(), contracts.device_target())
-  assert_eq(bundle.catalog_version(), @catalog.CatalogVersion::v2())
+  assert_eq(bundle.catalog_version(), @catalog.CatalogVersion::v3())
   assert_eq(bundle.module_count(), 1)
   assert_eq(bundle.entry_point_count(), 2)
   assert_eq(bundle.modules()[0].module_bytes(), snapshot)

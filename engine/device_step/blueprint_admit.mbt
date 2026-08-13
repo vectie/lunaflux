@@ -54,7 +54,7 @@ fn validate_blueprint_evidence(
   if memory_plan.target() != target || artifacts.device_target() != target {
     raise blueprint_error(Target)
   }
-  let catalog = @catalog.CatalogVersion::v2()
+  let catalog = @catalog.CatalogVersion::v3()
   if contracts.catalog_version() != catalog ||
     artifacts.catalog_version() != catalog {
     raise blueprint_error(CatalogVersion)
@@ -368,7 +368,7 @@ fn build_paged_step(
     contract.operation_kind() != operation.kind() ||
     contract.operation_shape() != operation.shape() ||
     contract.capability() != operation.required_capability() ||
-    contract.semantic_version() != @catalog.KernelSemanticVersion::v2() ||
+    contract.semantic_version() != @catalog.KernelSemanticVersion::v3() ||
     contract.kv_layer() != layer ||
     contract.runtime_inputs() != operation.runtime_inputs() ||
     contract.persistent_state() != operation.persistent_state() ||

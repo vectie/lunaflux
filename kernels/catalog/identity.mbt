@@ -60,8 +60,8 @@ pub fn CatalogVersion::v1() -> CatalogVersion {
 
 ///|
 /// Catalog contract whose entries name the complete paged-KV semantic ABI.
-pub fn CatalogVersion::v2() -> CatalogVersion {
-  CatalogVersion(2)
+pub fn CatalogVersion::v3() -> CatalogVersion {
+  CatalogVersion(3)
 }
 
 ///|
@@ -86,8 +86,8 @@ pub fn KernelSemanticVersion::v1() -> KernelSemanticVersion {
 
 ///|
 /// Paged-KV operation ABI with ordered live inputs and persistent state.
-pub fn KernelSemanticVersion::v2() -> KernelSemanticVersion {
-  KernelSemanticVersion(2)
+pub fn KernelSemanticVersion::v3() -> KernelSemanticVersion {
+  KernelSemanticVersion(3)
 }
 
 ///|

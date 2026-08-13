@@ -79,13 +79,13 @@ fn operation_capability_is_legal(
     RmsNorm => @plan.KernelCapabilityId::rms_norm()
     QkvProjection => @plan.KernelCapabilityId::qkv_projection()
     RotaryEmbedding =>
-      if semantic_version == KernelSemanticVersion::v2() {
+      if semantic_version == KernelSemanticVersion::v3() {
         @plan.KernelCapabilityId::positioned_rotary_embedding()
       } else {
         @plan.KernelCapabilityId::rotary_embedding()
       }
     CausalAttention =>
-      if semantic_version == KernelSemanticVersion::v2() {
+      if semantic_version == KernelSemanticVersion::v3() {
         @plan.KernelCapabilityId::paged_causal_attention()
       } else {
         @plan.KernelCapabilityId::causal_attention()
@@ -153,12 +153,12 @@ pub fn CatalogEntry::new(
 }
 
 ///|
-/// Constructs an exact catalog-v2 entry for paged-KV model execution.
+/// Constructs an exact catalog-v3 entry for paged-KV model execution.
 ///
 /// Every operation, including stateless operations in a paged model, carries
 /// an explicit execution-semantic record. This prevents v1 shape-only entries
-/// from being mixed into a v2 catalog.
-pub fn CatalogEntry::new_paged_v2(
+/// from being mixed into a v3 catalog.
+pub fn CatalogEntry::new_paged_v3(
   operation_kind~ : @plan.OperationKind,
   operation_shape~ : @plan.OperationShape,
   capability~ : @plan.KernelCapabilityId,
@@ -169,7 +169,7 @@ pub fn CatalogEntry::new_paged_v2(
   workspace_bytes~ : Int64,
   workspace_alignment~ : Int64,
 ) -> CatalogEntry raise CatalogError {
-  let semantic_version = KernelSemanticVersion::v2()
+  let semantic_version = KernelSemanticVersion::v3()
   if compute_major <= 0 || compute_minor < 0 {
     raise InvalidCatalog(InvalidComputeCapability)
   }

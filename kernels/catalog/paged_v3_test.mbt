@@ -1,18 +1,18 @@
 ///|
-fn paged_v2_semantics(
+fn paged_v3_semantics(
   kind : @plan.OperationKind,
   layer : @plan.KvLayerId,
 ) -> @catalog.KernelExecutionSemantics raise {
   match kind {
     RotaryEmbedding =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[StepCounts, QueryPositions],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
     CausalAttention =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=Some(layer),
         runtime_inputs=[
           StepCounts,
@@ -32,7 +32,7 @@ fn paged_v2_semantics(
         ),
       )
     _ =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=None,
         runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
@@ -42,7 +42,7 @@ fn paged_v2_semantics(
 }
 
 ///|
-fn paged_v2_entry(
+fn paged_v3_entry(
   kind : @plan.OperationKind,
   layer : @plan.KvLayerId,
   family_id : Int,
@@ -70,11 +70,11 @@ fn paged_v2_entry(
       )
     _ => abort("unsupported fixture kind")
   }
-  @catalog.CatalogEntry::new_paged_v2(
+  @catalog.CatalogEntry::new_paged_v3(
     operation_kind=kind,
     operation_shape=shape,
     capability~,
-    execution_semantics=paged_v2_semantics(kind, layer),
+    execution_semantics=paged_v3_semantics(kind, layer),
     compute_major=8,
     compute_minor=0,
     implementation=ContentAddressedAot(
@@ -91,16 +91,16 @@ fn paged_v2_entry(
 }
 
 ///|
-fn paged_v2_catalog(layer : @plan.KvLayerId) -> @catalog.KernelCatalog raise {
-  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries=[
-    paged_v2_entry(Embedding, layer, 1),
-    paged_v2_entry(RotaryEmbedding, layer, 2),
-    paged_v2_entry(CausalAttention, layer, 3),
+fn paged_v3_catalog(layer : @plan.KvLayerId) -> @catalog.KernelCatalog raise {
+  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries=[
+    paged_v3_entry(Embedding, layer, 1),
+    paged_v3_entry(RotaryEmbedding, layer, 2),
+    paged_v3_entry(CausalAttention, layer, 3),
   ])
 }
 
 ///|
-fn paged_v2_layout(
+fn paged_v3_layout(
   tokens_per_page? : Int = 4,
 ) -> @device_layout.DeviceKvLayout raise {
   let plan = catalog_paged_plan()
@@ -116,18 +116,18 @@ fn paged_v2_layout(
 }
 
 ///|
-test "v2 resolves exact paged semantics and preserves binding ABI" {
+test "v3 resolves exact paged semantics and preserves binding ABI" {
   let layer = @plan.KvLayerId::new(0)
-  let resolved = paged_v2_catalog(layer).resolve_paged(
+  let resolved = paged_v3_catalog(layer).resolve_paged(
     catalog_paged_plan(),
-    paged_v2_layout(),
+    paged_v3_layout(),
     test_target(),
   )
-  assert_eq(resolved.catalog_version(), @catalog.CatalogVersion::v2())
+  assert_eq(resolved.catalog_version(), @catalog.CatalogVersion::v3())
   let rotary = resolved.bindings()[1]
-  assert_eq(rotary.semantic_version(), @catalog.KernelSemanticVersion::v2())
+  assert_eq(rotary.semantic_version(), @catalog.KernelSemanticVersion::v3())
   guard rotary.execution_semantics() is Some(semantics) else {
-    fail("expected v2 execution semantics")
+    fail("expected v3 execution semantics")
   }
   assert_eq(semantics.kv_layer(), Some(layer))
   assert_eq(semantics.runtime_inputs(), [StepCounts, QueryPositions])
@@ -145,7 +145,7 @@ test "v2 resolves exact paged semantics and preserves binding ABI" {
 }
 
 ///|
-test "v2 entries reject missing and reordered live roles" {
+test "v3 entries reject missing and reordered live roles" {
   let layer = @plan.KvLayerId::new(0)
   let invalid_inputs : Array[Array[@plan.OperationRuntimeInput]] = [
     [StepCounts, QueryPositions, QueryRowOffsets, SequenceLengths],
@@ -159,7 +159,7 @@ test "v2 entries reject missing and reordered live roles" {
     ],
   ]
   for runtime_inputs in invalid_inputs {
-    let semantics = @catalog.KernelExecutionSemantics::paged_v2(
+    let semantics = @catalog.KernelExecutionSemantics::paged_v3(
       kv_layer=Some(layer),
       runtime_inputs~,
       persistent_state=KvCacheReadWrite(layer),
@@ -172,7 +172,7 @@ test "v2 entries reject missing and reordered live roles" {
       ),
     )
     try
-      @catalog.CatalogEntry::new_paged_v2(
+      @catalog.CatalogEntry::new_paged_v3(
         operation_kind=CausalAttention,
         operation_shape=AttentionShape(
           query_heads=4,
@@ -196,23 +196,23 @@ test "v2 entries reject missing and reordered live roles" {
       )
     catch {
       InvalidCatalog(InvalidExecutionSemantics) => ()
-      _ => fail("unexpected v2 semantic validation error")
+      _ => fail("unexpected v3 semantic validation error")
     } noraise {
-      _ => fail("expected invalid v2 runtime order")
+      _ => fail("expected invalid v3 runtime order")
     }
   }
 }
 
 ///|
-test "paged v2 rejects fixed-row vendor implementations" {
-  let semantics = @catalog.KernelExecutionSemantics::paged_v2(
+test "paged v3 rejects fixed-row vendor implementations" {
+  let semantics = @catalog.KernelExecutionSemantics::paged_v3(
     kv_layer=None,
     runtime_inputs=[StepCounts],
     persistent_state=NoPersistentState,
     kv_layout=None,
   )
   try
-    @catalog.CatalogEntry::new_paged_v2(
+    @catalog.CatalogEntry::new_paged_v3(
       operation_kind=OutputProjection,
       operation_shape=ProjectionShape(input_width=16, output_width=16),
       capability=@plan.KernelCapabilityId::dense_projection(),
@@ -232,18 +232,18 @@ test "paged v2 rejects fixed-row vendor implementations" {
 }
 
 ///|
-test "v2 family reuse normalizes layer identity but retains physical ABI" {
+test "v3 family reuse normalizes layer identity but retains physical ABI" {
   let layer_zero = @plan.KvLayerId::new(0)
   let layer_one = @plan.KvLayerId::new(1)
-  let first = paged_v2_entry(CausalAttention, layer_zero, 41)
-  let second = paged_v2_entry(CausalAttention, layer_one, 41)
+  let first = paged_v3_entry(CausalAttention, layer_zero, 41)
+  let second = paged_v3_entry(CausalAttention, layer_one, 41)
   let reused = @catalog.KernelCatalog::new(
-    version=@catalog.CatalogVersion::v2(),
+    version=@catalog.CatalogVersion::v3(),
     entries=[first, second],
   )
   assert_eq(reused.entries().length(), 2)
 
-  let foreign_layout = @catalog.KernelExecutionSemantics::paged_v2(
+  let foreign_layout = @catalog.KernelExecutionSemantics::paged_v3(
     kv_layer=Some(layer_one),
     runtime_inputs=[
       StepCounts,
@@ -262,7 +262,7 @@ test "v2 family reuse normalizes layer identity but retains physical ABI" {
       ),
     ),
   )
-  let mismatch = @catalog.CatalogEntry::new_paged_v2(
+  let mismatch = @catalog.CatalogEntry::new_paged_v3(
     operation_kind=CausalAttention,
     operation_shape=AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
     capability=@plan.KernelCapabilityId::paged_causal_attention(),
@@ -274,7 +274,7 @@ test "v2 family reuse normalizes layer identity but retains physical ABI" {
     workspace_alignment=1L,
   )
   try
-    @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries=[
+    @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries=[
       first, mismatch,
     ])
   catch {
@@ -286,12 +286,12 @@ test "v2 family reuse normalizes layer identity but retains physical ABI" {
 }
 
 ///|
-test "v2 resolution rejects tokens-per-page specialization mismatch" {
+test "v3 resolution rejects tokens-per-page specialization mismatch" {
   let layer = @plan.KvLayerId::new(0)
   try
-    paged_v2_catalog(layer).resolve_paged(
+    paged_v3_catalog(layer).resolve_paged(
       catalog_paged_plan(),
-      paged_v2_layout(tokens_per_page=2),
+      paged_v3_layout(tokens_per_page=2),
       test_target(),
     )
   catch {
@@ -305,8 +305,18 @@ test "v2 resolution rejects tokens-per-page specialization mismatch" {
 ///|
 test "catalog versions, modes, and layer identities do not cross" {
   let layer = @plan.KvLayerId::new(0)
+  let retired_version = try! @catalog.CatalogVersion::from_stable_int(2)
+  let retired_entry = try! paged_v3_entry(Embedding, layer, 1)
   try
-    @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries=[
+    @catalog.KernelCatalog::new(version=retired_version, entries=[retired_entry])
+  catch {
+    InvalidCatalog(UnsupportedCatalogVersion) => ()
+    _ => fail("unexpected retired catalog-version error")
+  } noraise {
+    _ => fail("expected retired catalog-v2 rejection")
+  }
+  try
+    @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries=[
       aot_entry(),
     ])
   catch {
@@ -315,17 +325,17 @@ test "catalog versions, modes, and layer identities do not cross" {
   } noraise {
     _ => fail("expected mixed catalog rejection")
   }
-  try paged_v2_catalog(layer).resolve(test_plan(0L), test_target()) catch {
+  try paged_v3_catalog(layer).resolve(test_plan(0L), test_target()) catch {
     @catalog.UnsupportedExecutionContract => ()
     _ => fail("unexpected execution-mode error")
   } noraise {
-    _ => fail("expected v2 stateless-plan rejection")
+    _ => fail("expected v3 stateless-plan rejection")
   }
   let foreign = @plan.KvLayerId::new(1)
   try
-    paged_v2_catalog(foreign).resolve_paged(
+    paged_v3_catalog(foreign).resolve_paged(
       catalog_paged_plan(),
-      paged_v2_layout(),
+      paged_v3_layout(),
       test_target(),
     )
   catch {

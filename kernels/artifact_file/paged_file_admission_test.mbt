@@ -25,7 +25,7 @@ async test "paged manifest loads through the exact filesystem admission path" {
     )
     assert_eq(bundle.model_identity(), contracts.model_identity())
     assert_eq(bundle.device_target(), contracts.device_target())
-    assert_eq(bundle.catalog_version(), @catalog.CatalogVersion::v2())
+    assert_eq(bundle.catalog_version(), @catalog.CatalogVersion::v3())
     assert_eq(bundle.module_count(), 1)
     assert_eq(bundle.entry_point_count(), 2)
     assert_eq(bundle.modules()[0].module_bytes(), fixture_module_bytes())
@@ -35,12 +35,15 @@ async test "paged manifest loads through the exact filesystem admission path" {
 ///|
 async test "paged filesystem admission fails closed on version and exports" {
   let contracts = paged_file_contracts()
-  let wrong_version = manifest_json([
-    module_json(fixture_digest().sha256(), "kernel.cubin", [
-      entry_json(11, 21, "paged_rotary"),
-      entry_json(12, 22, "paged_attention"),
-    ]),
-  ])
+  let wrong_version = manifest_json(
+    [
+      module_json(fixture_digest().sha256(), "kernel.cubin", [
+        entry_json(11, 21, "paged_rotary"),
+        entry_json(12, 22, "paged_attention"),
+      ]),
+    ],
+    catalog_version=2,
+  )
   try
     @artifact_file.read_paged_manifest(
       wrong_version,

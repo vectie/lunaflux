@@ -74,7 +74,7 @@ pub fn CatalogEntry::compute_minor(Self) -> Int
 pub fn CatalogEntry::execution_semantics(Self) -> KernelExecutionSemantics?
 pub fn CatalogEntry::implementation(Self) -> KernelImplementationId
 pub fn CatalogEntry::new(semantic_version~ : KernelSemanticVersion, operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
-pub fn CatalogEntry::new_paged_v2(operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, execution_semantics~ : KernelExecutionSemantics, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
+pub fn CatalogEntry::new_paged_v3(operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, execution_semantics~ : KernelExecutionSemantics, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
 pub fn CatalogEntry::operation_kind(Self) -> @plan.OperationKind
 pub fn CatalogEntry::operation_shape(Self) -> @plan.OperationShape
 pub fn CatalogEntry::semantic_version(Self) -> KernelSemanticVersion
@@ -105,7 +105,7 @@ pub struct CatalogVersion(Int) derive(Eq, @debug.Debug)
 pub fn CatalogVersion::as_int(Self) -> Int
 pub fn CatalogVersion::from_stable_int(Int) -> Self raise CatalogError
 pub fn CatalogVersion::v1() -> Self
-pub fn CatalogVersion::v2() -> Self
+pub fn CatalogVersion::v3() -> Self
 
 pub struct DeviceTarget {
   compute_major : Int
@@ -156,7 +156,7 @@ pub struct KernelExecutionSemantics {
 } derive(Eq, @debug.Debug)
 pub fn KernelExecutionSemantics::kv_layer(Self) -> @plan.KvLayerId?
 pub fn KernelExecutionSemantics::kv_layout(Self) -> PagedKvLayoutContract?
-pub fn KernelExecutionSemantics::paged_v2(kv_layer~ : @plan.KvLayerId?, runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput], persistent_state~ : @plan.PersistentStateAccess, kv_layout~ : PagedKvLayoutContract?) -> Self raise CatalogError
+pub fn KernelExecutionSemantics::paged_v3(kv_layer~ : @plan.KvLayerId?, runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput], persistent_state~ : @plan.PersistentStateAccess, kv_layout~ : PagedKvLayoutContract?) -> Self raise CatalogError
 pub fn KernelExecutionSemantics::persistent_state(Self) -> @plan.PersistentStateAccess
 pub fn KernelExecutionSemantics::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
 
@@ -169,7 +169,7 @@ pub struct KernelSemanticVersion(Int) derive(Eq, @debug.Debug)
 pub fn KernelSemanticVersion::as_int(Self) -> Int
 pub fn KernelSemanticVersion::from_stable_int(Int) -> Self raise CatalogError
 pub fn KernelSemanticVersion::v1() -> Self
-pub fn KernelSemanticVersion::v2() -> Self
+pub fn KernelSemanticVersion::v3() -> Self
 
 pub struct PagedKvLayoutContract {
   layout : @plan.KvCacheLayout

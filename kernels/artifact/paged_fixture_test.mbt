@@ -108,7 +108,7 @@ fn paged_artifact_semantics(
 ) -> @catalog.KernelExecutionSemantics raise {
   match kind {
     RotaryEmbedding =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=layer,
         runtime_inputs=[StepCounts, QueryPositions],
         persistent_state=NoPersistentState,
@@ -116,7 +116,7 @@ fn paged_artifact_semantics(
       )
     CausalAttention => {
       guard layer is Some(exact_layer) else { abort("missing fixture layer") }
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=layer,
         runtime_inputs=[
           StepCounts,
@@ -137,7 +137,7 @@ fn paged_artifact_semantics(
       )
     }
     _ =>
-      @catalog.KernelExecutionSemantics::paged_v2(
+      @catalog.KernelExecutionSemantics::paged_v3(
         kv_layer=None,
         runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
@@ -151,7 +151,7 @@ fn paged_artifact_catalog(
   digest : @catalog.AotArtifactDigest,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let entries : Array[@catalog.CatalogEntry] = [
-    @catalog.CatalogEntry::new_paged_v2(
+    @catalog.CatalogEntry::new_paged_v3(
       operation_kind=Embedding,
       operation_shape=EmbeddingShape(vocabulary_size=128, width=16),
       capability=@plan.KernelCapabilityId::embedding_lookup(),
@@ -166,7 +166,7 @@ fn paged_artifact_catalog(
   for layer_index in 0..<2 {
     let layer = @plan.KvLayerId::new(layer_index)
     entries.push(
-      @catalog.CatalogEntry::new_paged_v2(
+      @catalog.CatalogEntry::new_paged_v3(
         operation_kind=RotaryEmbedding,
         operation_shape=RotaryShape(
           query_heads=4,
@@ -187,7 +187,7 @@ fn paged_artifact_catalog(
       ),
     )
     entries.push(
-      @catalog.CatalogEntry::new_paged_v2(
+      @catalog.CatalogEntry::new_paged_v3(
         operation_kind=CausalAttention,
         operation_shape=AttentionShape(
           query_heads=4,
@@ -207,7 +207,7 @@ fn paged_artifact_catalog(
       ),
     )
   }
-  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries~).resolve_paged(
+  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries~).resolve_paged(
     paged_artifact_plan(),
     paged_artifact_layout(),
     @catalog.DeviceTarget::new(

@@ -9,7 +9,7 @@ pub struct PagedKvAotLaunchContractInput {
 } derive(Debug, Eq)
 
 ///|
-/// Fully admitted inert catalog-v2 paged-KV launch metadata.
+/// Fully admitted inert catalog-v3 paged-KV launch metadata.
 ///
 /// This value is not executable. It contains no device address, CUDA symbol,
 /// compiler path, fallback, or JIT channel.

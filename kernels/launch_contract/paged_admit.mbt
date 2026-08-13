@@ -1,8 +1,8 @@
 ///|
-const PAGED_V2_STEP_COUNT_BYTES : Int64 = 20L
+const PAGED_V3_STEP_COUNT_BYTES : Int64 = 20L
 
 ///|
-const PAGED_V2_INT32_ALIGNMENT : Int64 = 4L
+const PAGED_V3_INT32_ALIGNMENT : Int64 = 4L
 
 ///|
 fn paged_profile_is_known(
@@ -63,7 +63,7 @@ fn paged_runtime_bytes(
   profile : PagedKernelProfile,
 ) -> Int64 {
   match role {
-    StepCounts => PAGED_V2_STEP_COUNT_BYTES
+    StepCounts => PAGED_V3_STEP_COUNT_BYTES
     QueryPositions => profile.max_query_tokens.to_int64() * 4L
     QueryRowOffsets | PageTableOffsets =>
       (profile.max_query_rows.to_int64() + 1L) * 4L
@@ -129,7 +129,7 @@ fn validate_paged_operand_set(
     match operand.role {
       RuntimeInput(role) =>
         if operand.byte_count != paged_runtime_bytes(role, profile) ||
-          operand.alignment != PAGED_V2_INT32_ALIGNMENT {
+          operand.alignment != PAGED_V3_INT32_ALIGNMENT {
           raise InvalidOperand(operation.id(), RuntimeInputSizeMismatch)
         }
       PersistentKvComponent(_, _) =>
@@ -185,7 +185,7 @@ fn validate_paged_binding(
     binding.capability() != operation.required_capability() {
     raise BindingOrderMismatch(operation.id())
   }
-  if binding.semantic_version() != @catalog.KernelSemanticVersion::v2() {
+  if binding.semantic_version() != @catalog.KernelSemanticVersion::v3() {
     raise CatalogVersionMismatch
   }
   guard binding.execution_semantics() is Some(semantics) else {
@@ -224,7 +224,7 @@ fn admit_paged_scope(
   if model_plan.kv_execution() != PagedKeyValue {
     raise UnsupportedExecutionContract
   }
-  if resolved.catalog_version() != @catalog.CatalogVersion::v2() {
+  if resolved.catalog_version() != @catalog.CatalogVersion::v3() {
     raise CatalogVersionMismatch
   }
   if resolved.model_identity() != model_plan.identity() ||
@@ -343,7 +343,7 @@ fn admit_paged_scope(
 ///|
 /// Admits only positioned-rotary and paged-attention AOT metadata.
 ///
-/// Operand positions are part of semantic version 2. `StepCounts` is exactly
+/// Operand positions are part of semantic version 3. `StepCounts` is exactly
 /// five little-endian Int32 values; every other runtime role is an exact Int32
 /// capacity. Persistent KV is the exact ordered Key and Value component-base
 /// pair for the semantic layer; total physical page count only sizes spans.

@@ -21,7 +21,7 @@ fn blueprint_resolved_catalog(
     } else {
       None
     }
-    let semantics = @catalog.KernelExecutionSemantics::paged_v2(
+    let semantics = @catalog.KernelExecutionSemantics::paged_v3(
       kv_layer=operation.kv_layer(),
       runtime_inputs=operation.runtime_inputs(),
       persistent_state=operation.persistent_state(),
@@ -39,7 +39,7 @@ fn blueprint_resolved_catalog(
       0L
     }
     entries.push(
-      @catalog.CatalogEntry::new_paged_v2(
+      @catalog.CatalogEntry::new_paged_v3(
         operation_kind=operation.kind(),
         operation_shape=operation.shape(),
         capability=operation.required_capability(),
@@ -52,7 +52,7 @@ fn blueprint_resolved_catalog(
       ),
     )
   }
-  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v2(), entries~).resolve_paged(
+  @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries~).resolve_paged(
     plan, layout, target,
   )
 }

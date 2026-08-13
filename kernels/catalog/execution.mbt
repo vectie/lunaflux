@@ -1,5 +1,5 @@
 ///|
-/// Complete semantic ABI attached to one catalog-v2 operation entry.
+/// Complete semantic ABI attached to one catalog-v3 operation entry.
 ///
 /// The decoder-layer identity is semantic. Persistent KV is passed as exact
 /// per-layer Key and Value component bases; ordered page metadata indexes the
@@ -12,7 +12,7 @@ pub struct KernelExecutionSemantics {
 } derive(Debug, Eq)
 
 ///|
-/// Capacity-independent physical KV indexing contract for catalog v2.
+/// Capacity-independent physical KV indexing contract for catalog v3.
 ///
 /// Total physical page count is deliberately absent: it sizes admitted
 /// component spans but must not specialize kernel indexing.
@@ -58,10 +58,10 @@ pub fn PagedKvLayoutContract::tokens_per_page(
 }
 
 ///|
-/// Defensively owns one catalog-v2 live-input contract.
+/// Defensively owns one catalog-v3 live-input contract.
 ///
-/// Operation-specific legality is checked by `CatalogEntry::new_paged_v2`.
-pub fn KernelExecutionSemantics::paged_v2(
+/// Operation-specific legality is checked by `CatalogEntry::new_paged_v3`.
+pub fn KernelExecutionSemantics::paged_v3(
   kv_layer~ : @plan.KvLayerId?,
   runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput],
   persistent_state~ : @plan.PersistentStateAccess,

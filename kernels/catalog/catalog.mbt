@@ -85,7 +85,7 @@ pub fn KernelCatalog::new(
   version~ : CatalogVersion,
   entries~ : ArrayView[CatalogEntry],
 ) -> KernelCatalog raise CatalogError {
-  if version != CatalogVersion::v1() && version != CatalogVersion::v2() {
+  if version != CatalogVersion::v1() && version != CatalogVersion::v3() {
     raise InvalidCatalog(UnsupportedCatalogVersion)
   }
   if entries.is_empty() {
@@ -97,7 +97,7 @@ pub fn KernelCatalog::new(
   let expected_semantic_version = if version == CatalogVersion::v1() {
     KernelSemanticVersion::v1()
   } else {
-    KernelSemanticVersion::v2()
+    KernelSemanticVersion::v3()
   }
   let aot_semantics : Map[AotKernelFamily, AotFamilySemantics] = Map([])
   for entry in entries {
@@ -264,7 +264,7 @@ pub fn KernelCatalog::resolve(
 }
 
 ///|
-/// Resolves catalog v2 against the exact capacity-independent KV layout.
+/// Resolves catalog v3 against the exact capacity-independent KV layout.
 ///
 /// Tokens per page is an AOT indexing specialization. Total physical page
 /// count is not: it only sizes later admitted Key and Value component spans.
@@ -274,7 +274,7 @@ pub fn KernelCatalog::resolve_paged(
   device_kv_layout : @device_layout.DeviceKvLayout,
   target : DeviceTarget,
 ) -> ResolvedKernelCatalog raise CatalogError {
-  if self.version != CatalogVersion::v2() ||
+  if self.version != CatalogVersion::v3() ||
     model_plan.kv_execution() != PagedKeyValue {
     raise UnsupportedExecutionContract
   }

@@ -13,11 +13,11 @@ an explicit multi-descriptor vendor ABI exists. Silent decomposition or layout
 fallback is forbidden. A nonempty vendor workspace requires the ABI's exact
 256-byte alignment; incompatible catalog entries fail during admission.
 
-Catalog v1 remains the stateless full-context contract. Catalog v2 is a
+Catalog v1 remains the stateless full-context contract. Catalog v3 is a
 separate, fail-closed paged-KV contract: every entry records its exact semantic
 version, optional decoder-layer identity, ordered live `OperationRuntimeInput`
 roles, persistent-state effect, and required semantic KV layout. A v1 entry
-cannot appear in a v2 catalog, and neither catalog version resolves a model
+cannot appear in a v3 catalog, and neither catalog version resolves a model
 with the other execution mode.
 
 Paged resolution additionally consumes the canonical `DeviceKvLayout`.
@@ -27,7 +27,7 @@ specialization; it only sizes the later Key and Value component spans. Kernel
 families may therefore be reused across decoder layers while each entry and
 binding retains its exact `KvLayerId`.
 
-Catalog v2 still selects only inert content-addressed AOT identities. It does
+Catalog v3 still selects only inert content-addressed AOT identities. It does
 not admit the fixed-row vendor implementation because every paged operation
 consumes live `StepCounts`. It does not claim that a device executor, CUDA
 argument binder, or production paged kernel exists, and it has no JIT or

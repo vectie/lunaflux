@@ -13,7 +13,7 @@ CUDA symbol in one module. This package performs no filesystem lookup,
 executable metadata evaluation, compilation, cache access, or runtime JIT.
 
 `admit` preserves the catalog-v1 stateless path. `admit_paged_kv` accepts only
-catalog-v2 paged-KV launch contracts and admits only the positioned-rotary and
+catalog-v3 paged-KV launch contracts and admits only the positioned-rotary and
 paged-attention entry points those contracts reference. Repeated contracts may
 share one stable entry-point identity across profiles or layers, and multiple
 stable identities may intentionally name the same CUDA symbol. The returned
