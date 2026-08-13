@@ -56,6 +56,7 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=supervisor_limits(),
     inference_limits=supervisor_inference_limits(),

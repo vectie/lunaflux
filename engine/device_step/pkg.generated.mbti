@@ -20,7 +20,7 @@ import {
 }
 
 // Values
-pub fn admit_device_worker_bootstrap(PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, DeviceBootstrapLimits) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError
+pub fn admit_device_worker_bootstrap(PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, device_ordinal~ : Int, DeviceBootstrapLimits) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError
 
 pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
 
@@ -70,6 +70,7 @@ pub fn DeviceBootstrapLimits::new(max_modules~ : Int, max_entry_points~ : Int, m
 pub(all) enum DeviceBootstrapRule {
   Capacity
   Identity
+  DeviceOrdinal
   Target
   CatalogVersion
   Scope
@@ -97,7 +98,7 @@ pub(all) enum DeviceStepLimitRule {
 
 pub struct DeviceStepLimits {
   // private fields
-}
+} derive(Eq, @debug.Debug)
 pub fn DeviceStepLimits::max_pages(Self) -> Int
 pub fn DeviceStepLimits::max_rows(Self) -> Int
 pub fn DeviceStepLimits::max_sequence_tokens(Self) -> Int
@@ -148,6 +149,7 @@ pub struct DeviceWorkerBootstrapManifest {
   // private fields
 }
 pub fn DeviceWorkerBootstrapManifest::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn DeviceWorkerBootstrapManifest::device_ordinal(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::digest(Self) -> @worker_wire.WorkerBootstrapDigest
 pub fn DeviceWorkerBootstrapManifest::entry_point_count(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::identity(Self) -> @spec.ModelIdentity
@@ -254,6 +256,7 @@ pub fn PagedKvExecutionBlueprint::activation_workspace_arena_bytes(Self) -> Int6
 pub fn PagedKvExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn PagedKvExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
 pub fn PagedKvExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedKvExecutionBlueprint::limits(Self) -> DeviceStepLimits
 pub fn PagedKvExecutionBlueprint::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn PagedKvExecutionBlueprint::scope(Self) -> @launch_contract.PagedContractScope
 pub fn PagedKvExecutionBlueprint::steps(Self) -> ReadOnlyArray[PagedKvExecutionStep]

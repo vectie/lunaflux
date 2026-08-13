@@ -46,6 +46,7 @@ pub struct PagedKvExecutionBlueprint {
   priv catalog_version : @catalog.CatalogVersion
   priv scope : @launch_contract.PagedContractScope
   priv profile : @launch_contract.PagedKernelProfile
+  priv limits : DeviceStepLimits
   priv layout : @device_layout.DeviceKvLayout
   priv weight_arena_bytes : Int64
   priv weight_alignment : Int64
@@ -187,6 +188,16 @@ pub fn PagedKvExecutionBlueprint::scope(
   self : PagedKvExecutionBlueprint,
 ) -> @launch_contract.PagedContractScope {
   self.scope
+}
+
+///|
+/// Returns the exact reusable descriptor and scalar envelope admitted for this
+/// blueprint. Profile dimensions cover rows, tokens, and page-table cells;
+/// this value additionally preserves sequence and token-ID bounds.
+pub fn PagedKvExecutionBlueprint::limits(
+  self : PagedKvExecutionBlueprint,
+) -> DeviceStepLimits {
+  self.limits
 }
 
 ///|

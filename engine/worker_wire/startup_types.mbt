@@ -14,6 +14,7 @@ pub struct WorkerBootstrapDigest(String) derive(Debug, Eq)
 pub struct WorkerStartupContract {
   priv identity : @spec.ModelIdentity
   priv bootstrap_digest : WorkerBootstrapDigest
+  priv device_ordinal : Int
   priv model_generation_value : UInt64
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
@@ -38,13 +39,16 @@ pub struct ValidatedStartupFrame(StartupFrameBuffer, UInt64)
 pub fn WorkerStartupContract::new(
   identity~ : @spec.ModelIdentity,
   bootstrap_digest~ : WorkerBootstrapDigest,
+  device_ordinal~ : Int,
   model_generation_value~ : UInt64,
   worker_limits~ : @worker_protocol.WorkerProtocolLimits,
   inference_limits~ : @inference.InferenceLimits,
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
 ) -> WorkerStartupContract raise WorkerWireError {
-  if model_generation_value == 0UL ||
+  if device_ordinal < 0 ||
+    device_ordinal > 1023 ||
+    model_generation_value == 0UL ||
     (
       has_predecessor &&
       (predecessor_value == 0UL || predecessor_value == 0xffffffffffffffffUL)
@@ -55,6 +59,7 @@ pub fn WorkerStartupContract::new(
   {
     identity,
     bootstrap_digest,
+    device_ordinal,
     model_generation_value,
     worker_limits,
     inference_limits,
@@ -95,6 +100,15 @@ pub fn WorkerStartupContract::bootstrap_digest(
   self : WorkerStartupContract,
 ) -> WorkerBootstrapDigest {
   self.bootstrap_digest
+}
+
+///|
+/// Returns the exact ordinal within the device set visible to the worker
+/// process. This value is not a persistent hardware UUID.
+pub fn WorkerStartupContract::device_ordinal(
+  self : WorkerStartupContract,
+) -> Int {
+  self.device_ordinal
 }
 
 ///|

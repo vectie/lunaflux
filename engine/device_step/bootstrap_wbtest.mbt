@@ -34,6 +34,8 @@ fn bootstrap_inference_limits() -> @inference.InferenceLimits raise {
 fn bootstrap_fixture(
   digest_head? : Char = '0',
   entry_bias? : Int = 0,
+  max_sequence_tokens? : Int = 8,
+  max_token_id? : Int = 7,
 ) -> (PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle) raise {
   let metadata = blueprint_metadata(digest_head~)
   let plan = blueprint_model_plan(metadata)
@@ -52,7 +54,13 @@ fn bootstrap_fixture(
   let artifacts = blueprint_artifacts(contracts)
   let blueprint = admit_paged_graph_execution_blueprint(
     plan,
-    blueprint_limits(),
+    DeviceStepLimits::new(
+      max_rows=2,
+      max_tokens=4,
+      max_pages=4,
+      max_sequence_tokens~,
+      max_token_id~,
+    ),
     layout,
     static_plan,
     memory,
@@ -69,15 +77,20 @@ test "device worker bootstrap digest is canonical and complete" {
   let first = admit_device_worker_bootstrap(
     blueprint,
     artifacts,
+    device_ordinal=0,
     bootstrap_limits(),
   )
   let second = admit_device_worker_bootstrap(
     blueprint,
     artifacts,
+    device_ordinal=0,
     bootstrap_limits(),
   )
   assert_eq(first.digest(), second.digest())
   assert_eq(first.identity(), blueprint.identity())
+  assert_eq(blueprint.limits().max_sequence_tokens(), 8)
+  assert_eq(blueprint.limits().max_token_id(), 7)
+  assert_eq(first.device_ordinal(), 0)
   assert_eq(first.target(), blueprint.target())
   assert_eq(first.catalog_version(), @catalog.CatalogVersion::v3())
   assert_eq(first.module_count(), 1)
@@ -85,7 +98,7 @@ test "device worker bootstrap digest is canonical and complete" {
   assert_eq(first.step_count(), blueprint.steps().length())
   assert_eq(
     first.digest().as_hex(),
-    "d404e6ee3e3cc857240f785399d581de04c47433ec5dbc4552a2885b8d212f67",
+    "a55eaf90b9e52e5de7b21d72fd48b1740400d51c7c9575daad5d923ba6aa2a2c",
   )
   let startup = first.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),
@@ -102,9 +115,27 @@ test "device worker bootstrap digest is canonical and complete" {
   let changed = admit_device_worker_bootstrap(
     changed_blueprint,
     changed_artifacts,
+    device_ordinal=0,
     bootstrap_limits(),
   )
   assert_true(changed.digest() != first.digest())
+  let changed_ordinal = admit_device_worker_bootstrap(
+    blueprint,
+    artifacts,
+    device_ordinal=1,
+    bootstrap_limits(),
+  )
+  assert_true(changed_ordinal.digest() != first.digest())
+  let (changed_limits_blueprint, changed_limits_artifacts) = bootstrap_fixture(
+    max_sequence_tokens=7,
+  )
+  let changed_limits = admit_device_worker_bootstrap(
+    changed_limits_blueprint,
+    changed_limits_artifacts,
+    device_ordinal=0,
+    bootstrap_limits(),
+  )
+  assert_true(changed_limits.digest() != first.digest())
 }
 
 ///|
@@ -114,6 +145,7 @@ test "device worker bootstrap admission is bounded before hashing" {
     admit_device_worker_bootstrap(
       blueprint,
       artifacts,
+      device_ordinal=0,
       bootstrap_limits(max_steps=1),
     )
   catch {
@@ -126,6 +158,7 @@ test "device worker bootstrap admission is bounded before hashing" {
     admit_device_worker_bootstrap(
       blueprint,
       artifacts,
+      device_ordinal=0,
       DeviceBootstrapLimits::new(
         max_modules=4,
         max_entry_points=16,
@@ -140,5 +173,18 @@ test "device worker bootstrap admission is bounded before hashing" {
     _ => fail("unexpected canonical bootstrap bound error")
   } noraise {
     _ => fail("undersized canonical-byte limit was accepted")
+  }
+  try
+    admit_device_worker_bootstrap(
+      blueprint,
+      artifacts,
+      device_ordinal=-1,
+      bootstrap_limits(),
+    )
+  catch {
+    InvalidBootstrap(DeviceOrdinal) => ()
+    _ => fail("unexpected device-ordinal error")
+  } noraise {
+    _ => fail("invalid device ordinal was accepted")
   }
 }

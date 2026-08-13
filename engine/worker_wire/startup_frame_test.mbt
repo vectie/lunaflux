@@ -12,6 +12,7 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    device_ordinal=3,
     model_generation_value=9UL,
     worker_limits=wire_protocol_limits(),
     inference_limits=wire_inference_limits(),
@@ -31,6 +32,7 @@ test "startup frame round trips exact contract and kind" {
   let received = receiver.load(transport, configured.length())
   assert_eq(received.kind(), Configure)
   assert_eq(received.contract(), expected)
+  assert_eq(received.contract().device_ordinal(), 3)
   let ready = sender.encode(Ready, received.contract())
   assert_eq(ready.kind(), Ready)
   assert_eq(ready.contract(), expected)
@@ -68,6 +70,7 @@ test "startup predecessor identity is canonical" {
       @worker_wire.WorkerStartupContract::new(
         identity=base.identity(),
         bootstrap_digest=base.bootstrap_digest(),
+        device_ordinal=base.device_ordinal(),
         model_generation_value=base.model_generation_value(),
         worker_limits=base.worker_limits(),
         inference_limits=base.inference_limits(),
@@ -99,6 +102,30 @@ test "startup bootstrap identity is exact lowercase sha256" {
       _ => fail("unexpected bootstrap digest error")
     } noraise {
       _ => fail("invalid bootstrap digest was accepted")
+    }
+  }
+}
+
+///|
+test "startup device ordinal is bounded process-visible identity" {
+  let base = startup_contract()
+  for ordinal in [-1, 1024] {
+    try
+      @worker_wire.WorkerStartupContract::new(
+        identity=base.identity(),
+        bootstrap_digest=base.bootstrap_digest(),
+        device_ordinal=ordinal,
+        model_generation_value=base.model_generation_value(),
+        worker_limits=base.worker_limits(),
+        inference_limits=base.inference_limits(),
+        has_predecessor=base.has_predecessor(),
+        predecessor_value=base.predecessor_value(),
+      )
+    catch {
+      InvalidFrame(StartupIdentity) => ()
+      _ => fail("unexpected device ordinal error")
+    } noraise {
+      _ => fail("out-of-range device ordinal was accepted")
     }
   }
 }

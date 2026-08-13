@@ -482,6 +482,7 @@ pub fn admit_paged_kv_execution_blueprint(
     catalog_version: contracts.catalog_version(),
     scope: contracts.scope(),
     profile,
+    limits,
     layout,
     weight_arena_bytes: 0L,
     weight_alignment: 1L,

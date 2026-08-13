@@ -6,7 +6,7 @@ pub struct DeviceStepLimits {
   priv max_pages : Int
   priv max_sequence_tokens : Int
   priv max_token_id : Int
-}
+} derive(Debug, Eq)
 
 ///|
 /// Worker-confined owner of fixed host staging and matching device storage.

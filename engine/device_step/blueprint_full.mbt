@@ -169,6 +169,7 @@ pub fn admit_paged_graph_execution_blueprint(
     catalog_version: contracts.catalog_version(),
     scope: contracts.scope(),
     profile,
+    limits,
     layout,
     weight_arena_bytes: static_plan.weight_arena_bytes(),
     weight_alignment: static_plan.weight_alignment(),

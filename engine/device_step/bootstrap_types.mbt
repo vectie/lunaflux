@@ -2,6 +2,7 @@
 pub(all) enum DeviceBootstrapRule {
   Capacity
   Identity
+  DeviceOrdinal
   Target
   CatalogVersion
   Scope
@@ -32,6 +33,7 @@ pub struct DeviceBootstrapLimits {
 pub struct DeviceWorkerBootstrapManifest {
   priv digest : @worker_wire.WorkerBootstrapDigest
   priv identity : @spec.ModelIdentity
+  priv device_ordinal : Int
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv module_count : Int
@@ -87,6 +89,15 @@ pub fn DeviceWorkerBootstrapManifest::identity(
 }
 
 ///|
+/// Returns the exact ordinal within the device set visible to the worker
+/// process. This value is not a persistent hardware UUID.
+pub fn DeviceWorkerBootstrapManifest::device_ordinal(
+  self : DeviceWorkerBootstrapManifest,
+) -> Int {
+  self.device_ordinal
+}
+
+///|
 pub fn DeviceWorkerBootstrapManifest::target(
   self : DeviceWorkerBootstrapManifest,
 ) -> @catalog.DeviceTarget {
@@ -134,6 +145,7 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   @worker_wire.WorkerStartupContract::new(
     identity=self.identity,
     bootstrap_digest=self.digest,
+    device_ordinal=self.device_ordinal,
     model_generation_value=model_generation.value(),
     worker_limits~,
     inference_limits~,

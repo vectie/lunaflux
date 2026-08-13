@@ -2,8 +2,12 @@
 fn validate_bootstrap_inputs(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
+  device_ordinal : Int,
   limits : DeviceBootstrapLimits,
 ) -> Unit raise DeviceBootstrapError {
+  if device_ordinal < 0 || device_ordinal > 1023 {
+    raise InvalidBootstrap(DeviceOrdinal)
+  }
   if blueprint.identity() != artifacts.model_identity() {
     raise InvalidBootstrap(Identity)
   }
@@ -47,15 +51,17 @@ fn validate_bootstrap_inputs(
 fn encode_bootstrap(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
+  device_ordinal : Int,
   limits : DeviceBootstrapLimits,
 ) -> Bytes raise DeviceBootstrapError {
   let encoder : BootstrapEncoder = {
     bytes: [],
     maximum: limits.max_canonical_bytes,
   }
-  encoder.append_string("lunaflux.device-worker-bootstrap.v1")
+  encoder.append_string("lunaflux.device-worker-bootstrap.v2")
   encoder.append_string(blueprint.identity().content().as_hex())
   encoder.append_string(blueprint.identity().plan().as_hex())
+  encoder.append_int(device_ordinal)
   let target = blueprint.target()
   encoder.append_int(target.compute_major())
   encoder.append_int(target.compute_minor())
@@ -67,6 +73,12 @@ fn encode_bootstrap(
   encoder.append_int(profile.max_query_rows())
   encoder.append_int(profile.max_query_tokens())
   encoder.append_int(profile.max_page_table_entries())
+  let device_limits = blueprint.limits()
+  encoder.append_int(device_limits.max_rows())
+  encoder.append_int(device_limits.max_tokens())
+  encoder.append_int(device_limits.max_pages())
+  encoder.append_int(device_limits.max_sequence_tokens())
+  encoder.append_int(device_limits.max_token_id())
   let layout = blueprint.layout()
   let geometry = layout.geometry()
   encoder.append_int(layout.stable_layout_version())
@@ -133,10 +145,11 @@ fn encode_bootstrap(
 pub fn admit_device_worker_bootstrap(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
+  device_ordinal~ : Int,
   limits : DeviceBootstrapLimits,
 ) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError {
-  validate_bootstrap_inputs(blueprint, artifacts, limits)
-  let canonical = encode_bootstrap(blueprint, artifacts, limits)
+  validate_bootstrap_inputs(blueprint, artifacts, device_ordinal, limits)
+  let canonical = encode_bootstrap(blueprint, artifacts, device_ordinal, limits)
   let digest = @worker_wire.WorkerBootstrapDigest::from_sha256(
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   ) catch {
@@ -145,6 +158,7 @@ pub fn admit_device_worker_bootstrap(
   {
     digest,
     identity: blueprint.identity(),
+    device_ordinal,
     target: blueprint.target(),
     catalog_version: blueprint.catalog_version(),
     module_count: artifacts.module_count(),
