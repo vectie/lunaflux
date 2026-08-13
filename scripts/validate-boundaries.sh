@@ -125,6 +125,33 @@ if [ -d kernels/artifact_file ]; then
   fi
 fi
 
+# Execution-manifest admission may consume only the public approved-root
+# capability and must remain synchronous and path-typed.
+if [ -d engine/execution_manifest_file ]; then
+  fail_matches \
+    'execution_manifest_file must not import an internal filesystem ABI:' \
+    --glob 'engine/execution_manifest_file/**/moon.pkg' \
+    'vectie/lunaflux/internal/approved_fs'
+  fail_matches \
+    'execution_manifest_file production imports must not use portable async filesystem IO:' \
+    --pcre2 --glob 'engine/execution_manifest_file/**/moon.pkg' -U \
+    'import\s*\{[^}]*"moonbitlang/async/fs"[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
+  if ! rg -q \
+    '^pub fn load_paged\(@approved_fs\.ApprovedRoot, @approved_fs\.ApprovedRelativeLocator,' \
+    engine/execution_manifest_file/pkg.generated.mbti; then
+    printf '%s\n' \
+      'execution_manifest_file loader must consume ApprovedRoot + ApprovedRelativeLocator' >&2
+    failed=1
+  fi
+  if rg -n \
+    '^pub async fn load_paged|^pub fn load_paged\([^)]*String(View)?' \
+    engine/execution_manifest_file/pkg.generated.mbti; then
+    printf '%s\n' \
+      'execution_manifest_file loader must remain sync and free of string paths' >&2
+    failed=1
+  fi
+fi
+
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.

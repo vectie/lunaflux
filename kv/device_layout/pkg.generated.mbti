@@ -54,6 +54,7 @@ pub fn DeviceKvLayout::component_stride_bytes(Self) -> Int64
 pub fn DeviceKvLayout::element_offset_bytes(Self, Int, DeviceKvComponent, Int, Int, Int, Int) -> Int64 raise DeviceKvLayoutError
 pub fn DeviceKvLayout::geometry(Self) -> @plan.KvCacheGeometry
 pub fn DeviceKvLayout::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceKvLayout::is_canonical_for(Self, @spec.ModelIdentity, @plan.KvCacheGeometry) -> Bool
 pub fn DeviceKvLayout::layer_stride_bytes(Self) -> Int64
 pub fn DeviceKvLayout::limits(Self) -> DeviceKvLimits
 pub fn DeviceKvLayout::page_logical_bytes(Self) -> Int64

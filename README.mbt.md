@@ -205,6 +205,11 @@ truncation, trailing growth, or same-handle size/mtime/ctime change before
 publication. Weight and kernel-artifact loaders now consume these capabilities
 directly; weight inspection privately retains its strict relative locator and
 fixed host storage carries bounded positional reads into device transfer.
+The bounded `engine/execution_manifest_file` aggregate admits one
+digest-pinned canonical paged-Llama v1 manifest on the same root, deriving
+catalog v3, static/memory plans, full-graph contracts, artifact admission, and
+the inert device-step blueprint from already-admitted typed inputs rather than
+deserializing semantic plans.
 Terminal file-close failure cannot publish a ready allocation; allocation-close
 failure in that path returns retryable cleanup authority at `SourceClose`.
 Remaining model readers, fixed-FD child inheritance, and the production child

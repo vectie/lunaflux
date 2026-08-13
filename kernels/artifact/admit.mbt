@@ -229,6 +229,29 @@ fn validate_entry_inputs(
 }
 
 ///|
+/// Validates bounded symbol grammar without requiring module bytes or an
+/// admitted contract set.
+///
+/// This is a pre-I/O source check. Identity uniqueness and required or
+/// unreferenced linkage remain the responsibility of the caller until
+/// semantic artifact admission.
+pub fn validate_entry_point_symbols(
+  inputs : ArrayView[KernelEntryPointInput],
+  limits : KernelArtifactLimits,
+) -> Unit raise KernelArtifactError {
+  if inputs.length() > limits.max_entry_points {
+    raise EntryPointCountExceeded(maximum=limits.max_entry_points)
+  }
+  for input in inputs {
+    validate_symbol(
+      input.entry_point,
+      input.function_symbol,
+      limits.max_function_symbol_bytes,
+    )
+  }
+}
+
+///|
 fn admit_required(
   model_identity : @spec.ModelIdentity,
   device_target : @catalog.DeviceTarget,

@@ -1,0 +1,137 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/execution_manifest_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/artifact_file",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn load_paged(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @device_materialize.DeviceWeightLayout, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @device_step.DeviceStepLimits, ExecutionManifestFileLimits) -> PagedExecutionAdmission raise ExecutionManifestFileError
+
+// Errors
+pub(all) suberror ExecutionManifestFileError {
+  InvalidExpectedDigest
+  InvalidLimit(ExecutionManifestLimit)
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge(maximum~ : Int64)
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy(ExecutionManifestOperation)
+  FileOperationFailed(ExecutionManifestOperation)
+  DigestMismatch
+  InvalidUtf8
+  MalformedJson
+  JsonDepthExceeded(maximum~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : ExecutionManifestArea, index~ : Int)
+  MissingField(area~ : ExecutionManifestArea, index~ : Int)
+  InvalidField(area~ : ExecutionManifestArea, issue~ : ExecutionManifestIssue, index~ : Int)
+  IdentityMismatch(ExecutionManifestIdentityPart)
+  UnsupportedModelEnvelope
+  AdmissionRejected(ExecutionManifestAdmissionStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ExecutionManifestAdmissionStage {
+  Catalog
+  StaticPlan
+  MemoryPlan
+  LaunchContracts
+  ArtifactSource
+  ArtifactFiles
+  Blueprint
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionManifestArea {
+  Root
+  ModelIdentity
+  DeviceTarget
+  Profile
+  Module
+  Operation
+  Dimensions
+} derive(Eq, @debug.Debug)
+
+pub struct ExecutionManifestDigest(String) derive(Eq, @debug.Debug)
+pub fn ExecutionManifestDigest::as_hex(Self) -> String
+pub fn ExecutionManifestDigest::from_sha256(String) -> Self raise ExecutionManifestFileError
+
+pub struct ExecutionManifestFileLimits {
+  // private fields
+}
+pub fn ExecutionManifestFileLimits::artifact_file(Self) -> @artifact_file.KernelArtifactFileLimits
+pub fn ExecutionManifestFileLimits::device_memory(Self) -> @device_memory.DeviceMemoryLimits
+pub fn ExecutionManifestFileLimits::launch_contract(Self) -> @launch_contract.LaunchContractLimits
+pub fn ExecutionManifestFileLimits::max_json_depth(Self) -> Int
+pub fn ExecutionManifestFileLimits::max_manifest_bytes(Self) -> Int64
+pub fn ExecutionManifestFileLimits::max_modules(Self) -> Int
+pub fn ExecutionManifestFileLimits::max_operations(Self) -> Int
+pub fn ExecutionManifestFileLimits::new(max_manifest_bytes~ : Int64, max_json_depth~ : Int, max_modules~ : Int, max_operations~ : Int, device_memory~ : @device_memory.DeviceMemoryLimits, launch_contract~ : @launch_contract.LaunchContractLimits, artifact_file~ : @artifact_file.KernelArtifactFileLimits) -> Self raise ExecutionManifestFileError
+
+pub(all) enum ExecutionManifestIdentityPart {
+  ContentDigest
+  PlanDigest
+  ComputeMajor
+  ComputeMinor
+  Bf16Support
+  CublasLtSupport
+  CatalogVersion
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionManifestIssue {
+  ExpectedObject
+  ExpectedArray
+  ExpectedString
+  ExpectedInteger
+  ExpectedBoolean
+  InvalidSha256
+  UnsupportedValue
+  CountExceeded
+  InvalidOrder
+  DuplicateValue
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionManifestLimit {
+  ManifestBytes
+  JsonDepth
+  ModuleCount
+  OperationCount
+  DeviceMemory
+  LaunchContract
+  ArtifactFile
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExecutionManifestOperation {
+  Open
+  Snapshot
+  Close
+} derive(Eq, @debug.Debug)
+
+pub struct PagedExecutionAdmission {
+  // private fields
+}
+pub fn PagedExecutionAdmission::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn PagedExecutionAdmission::blueprint(Self) -> @device_step.PagedKvExecutionBlueprint
+pub fn PagedExecutionAdmission::contracts(Self) -> @launch_contract.PagedKvLaunchContractSet
+pub fn PagedExecutionAdmission::device_step_limits(Self) -> @device_step.DeviceStepLimits
+pub fn PagedExecutionAdmission::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedExecutionAdmission::memory_plan(Self) -> @device_memory.DeviceMemoryPlan
+pub fn PagedExecutionAdmission::model_plan(Self) -> @plan.ModelPlan
+pub fn PagedExecutionAdmission::profile_id(Self) -> @launch_contract.KernelProfileId
+pub fn PagedExecutionAdmission::static_plan(Self) -> @device_plan.StaticDevicePlan
+
+// Type aliases
+
+// Traits

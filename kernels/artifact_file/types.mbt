@@ -103,15 +103,17 @@ pub fn KernelArtifactManifest::admit_files(
   }
   let digests : Array[@catalog.AotArtifactDigest] = []
   let paths : Array[String] = []
+  let seen_paths : Map[String, Bool] = Map([])
   for index, input in modules {
     validate_path_identifier(
       input.path_identifier,
       ModuleFile(index),
       limits.max_path_bytes(),
     )
-    if paths.contains(input.path_identifier) {
+    if seen_paths.contains(input.path_identifier) {
       raise InvalidPath(file=ModuleFile(index), issue=DuplicatePath)
     }
+    seen_paths[input.path_identifier] = true
     digests.push(input.digest)
     paths.push(input.path_identifier)
   }

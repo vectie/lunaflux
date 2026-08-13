@@ -147,6 +147,12 @@ ordinal, and inference limits rather than trusting the child's echo; scheduler-r
 identity, generation, predecessor, and exact worker limits complete the
 comparison at join and replacement.
 
+The canonical paged-Llama v1 execution source is admitted synchronously by
+`engine/execution_manifest_file` through a caller-owned approved root. Its
+opaque inert aggregate retains the exact plans, FullGraph contracts, admitted
+artifacts, and blueprint needed by device-worker admission without owning a
+filesystem or device resource.
+
 Filesystem authority is separate from bootstrap-source path labels. The host
 independently opens deployment-approved model and kernel roots into opaque
 capabilities; strict relative descendants are resolved component-by-component

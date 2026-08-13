@@ -13,6 +13,8 @@ pub fn admit(@launch_contract.LaunchContractSet, ArrayView[KernelModuleInput], A
 
 pub fn admit_paged_kv(@launch_contract.PagedKvLaunchContractSet, ArrayView[KernelModuleInput], ArrayView[KernelEntryPointInput], KernelArtifactLimits) -> KernelArtifactBundle raise KernelArtifactError
 
+pub fn validate_entry_point_symbols(ArrayView[KernelEntryPointInput], KernelArtifactLimits) -> Unit raise KernelArtifactError
+
 // Errors
 pub(all) suberror KernelArtifactError {
   CatalogVersionMismatch(expected~ : @catalog.CatalogVersion, actual~ : @catalog.CatalogVersion)

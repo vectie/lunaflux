@@ -371,9 +371,12 @@ duplicated at the MoonBit and native boundaries; atomic leases prevent
 `openat`, `pread`, or `fstat` from racing descriptor close/reuse. Weight and
 kernel-artifact loaders now use this authority; weight inspection retains its
 validated locator privately, completely re-admits before allocation, and
-transfers from reusable fixed host storage. Remaining model readers must
-migrate before exact model/kernel roots are inherited into the production
-child without argv/environment path authority.
+transfers from reusable fixed host storage. The bounded
+`engine/execution_manifest_file` aggregate now digest-pins one canonical
+paged-Llama v1 manifest and derives catalog v3, static/memory plans, full-graph
+contracts, artifact loading, and the inert blueprint from typed evidence.
+Remaining model readers must migrate before exact model/kernel roots are
+inherited into the production child without argv/environment path authority.
 Readiness additionally requires successful terminal source-file close. A close
 failure consumes the file authority and closes any ready allocation; if that
 allocation close also fails, retryable cleanup authority is retained at the

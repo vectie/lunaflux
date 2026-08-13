@@ -140,3 +140,40 @@ test "direct module-file source enforces entry-point collection bounds" {
     _ => fail("expected source entry-point bound rejection")
   }
 }
+
+///|
+test "maximum module source rejects a late duplicate path" {
+  let maximum = 4096
+  let limits = @artifact_file.KernelArtifactFileLimits::new(
+    max_manifest_bytes=4096L,
+    max_json_depth=8,
+    max_path_bytes=128,
+    artifact=@artifact.KernelArtifactLimits::new(
+      max_modules=maximum,
+      max_entry_points=1,
+      max_module_bytes=1L,
+      max_total_module_bytes=4096L,
+      max_function_symbol_bytes=1,
+    ),
+  )
+  let digest = fixture_digest()
+  let unique : Array[@artifact_file.KernelModuleFileInput] = []
+  for index in 0..<maximum {
+    unique.push(source_input(digest, "module_\{index}.cubin"))
+  }
+  let admitted = @artifact_file.KernelArtifactManifest::admit_files(
+    unique,
+    [],
+    limits,
+  )
+  assert_eq(admitted.module_count(), maximum)
+  unique[maximum - 1] = source_input(digest, "module_0.cubin")
+  try
+    @artifact_file.KernelArtifactManifest::admit_files(unique, [], limits)
+  catch {
+    InvalidPath(file=ModuleFile(4095), issue=DuplicatePath) => ()
+    _ => fail("unexpected late-duplicate error")
+  } noraise {
+    _ => fail("late duplicate path was admitted")
+  }
+}

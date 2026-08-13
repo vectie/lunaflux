@@ -16,13 +16,13 @@ fn validate_admitted_source(
       maximum=artifact_limits.max_entry_points(),
     )
   }
+  let seen_paths : Map[String, Bool] = Map([])
   for index, path in manifest.module_path_identifiers {
     validate_path_identifier(path, ModuleFile(index), limits.max_path_bytes())
-    for earlier in 0..<index {
-      if manifest.module_path_identifiers[earlier] == path {
-        raise InvalidPath(file=ModuleFile(index), issue=DuplicatePath)
-      }
+    if seen_paths.contains(path) {
+      raise InvalidPath(file=ModuleFile(index), issue=DuplicatePath)
     }
+    seen_paths[path] = true
   }
 }
 

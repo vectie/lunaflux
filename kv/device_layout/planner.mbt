@@ -123,6 +123,22 @@ pub fn plan(
 }
 
 ///|
+/// Re-admits every derived scalar against the canonical planner.
+///
+/// This focused startup predicate lets aggregate packages reject a forged or
+/// stale immutable layout before using any filesystem or native authority.
+pub fn DeviceKvLayout::is_canonical_for(
+  self : DeviceKvLayout,
+  identity : @spec.ModelIdentity,
+  geometry : @plan.KvCacheGeometry,
+) -> Bool {
+  let expected = plan(identity, geometry, self.limits) catch {
+    _ => return false
+  }
+  self == expected
+}
+
+///|
 fn component_index(component : DeviceKvComponent) -> Int64 {
   match component {
     Key => 0L
