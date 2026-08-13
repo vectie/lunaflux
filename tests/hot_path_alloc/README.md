@@ -12,6 +12,9 @@ array positive controls. It then constructs and warms the scheduler, both A/B
 plan owners, and both A/B completion owners before measuring repeated decode
 build, plan-frame encode/copy/validate/access, completion write/submit,
 completion-frame encode/copy/validate/access, and retirement cycles. The
+simulated isolated worker writes completion frames directly from its received
+plan-frame rows; it never receives a scheduler completion owner or constructs
+a heap-backed `SubmittedCompletion`.
 service-side path authenticates each received completion frame against the
 exact submitted plan, converts it into the scheduler-owned paired completion
 buffer, and retires it only afterward. The measured window crosses a

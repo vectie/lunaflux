@@ -28,7 +28,6 @@ struct WireAudit {
   receiver : @worker_wire.PlanFrameBuffer
   completion_sender : @worker_wire.CompletionFrameBuffer
   completion_receiver : @worker_wire.CompletionFrameBuffer
-  worker_completion : @worker_protocol.CompletionBuffer
   transport : FixedArray[Byte]
 }
 
@@ -183,9 +182,6 @@ fn wire_audit() -> WireAudit {
       worker_limits(),
       inference_limits(),
     ),
-    worker_completion: try! @worker_protocol.CompletionBuffer::new(
-      worker_limits(),
-    ),
     transport: FixedArray::make(sender.capacity(), b'\x00'),
   }
 }
@@ -193,20 +189,19 @@ fn wire_audit() -> WireAudit {
 ///|
 fn audit_wire_completion(
   audit : WireAudit,
-  completion : @worker_protocol.SubmittedCompletion,
+  completion : @worker_wire.ValidatedCompletionFrame,
 ) -> @worker_wire.ValidatedCompletionFrame {
-  let encoded = try! audit.completion_sender.encode_completion(completion)
-  try! encoded.copy_to(audit.transport, destination_offset=0)
+  try! completion.copy_to(audit.transport, destination_offset=0)
   let received = try! audit.completion_receiver.load(
     audit.transport,
-    encoded.length(),
+    try! completion.length(),
   )
   let received_sequence = try! received.sequence_value()
-  let completion_sequence = try! completion.sequence_wire()
+  let completion_sequence = try! completion.sequence_value()
   let received_count = try! received.entry_count()
   let completion_count = try! completion.entry_count()
   let received_slot = try! received.entry(0).slot()
-  let completion_slot = try! completion.entry(0).slot().value()
+  let completion_slot = try! completion.entry(0).slot()
   if received_sequence != completion_sequence ||
     received_count != completion_count ||
     received_slot != completion_slot {
@@ -219,7 +214,7 @@ fn audit_wire_completion(
 fn audit_wire_plan(
   audit : WireAudit,
   plan : @worker_protocol.SubmittedSchedulePlan,
-) -> Unit {
+) -> @worker_wire.ValidatedPlanFrame {
   let encoded = try! audit.sender.encode_plan(plan)
   try! encoded.copy_to(audit.transport, destination_offset=0)
   let received = try! audit.receiver.load(audit.transport, encoded.length())
@@ -234,6 +229,7 @@ fn audit_wire_plan(
     received_token != plan_token {
     alloc_probe_abort()
   }
+  received
 }
 
 ///|
@@ -269,21 +265,12 @@ fn complete_final_prefill(
 ) -> Unit {
   let outcome = try! owner.build_next()
   let submitted = try! owner.submitted_plan(outcome)
-  audit_wire_plan(audit, submitted)
-  let row = try! submitted.prefill_row(0)
-  let writer = try! audit.worker_completion.writer_for(submitted)
-  try! writer.append_final_prefill_completed(
-    slot=try! row.completion_slot(),
-    request_id=try! row.request_id(),
-    request_generation=try! row.request_generation(),
-    processed_tokens=(try! row.tokens()).length(),
-    token_id=2,
-  )
+  let worker_plan = audit_wire_plan(audit, submitted)
+  let writer = try! audit.completion_sender.writer_for(worker_plan)
+  try! writer.append_final_prefill_completed(try! worker_plan.prefill_row(0), 2)
   let completion = try! writer.submit()
   let frame = audit_wire_completion(audit, completion)
   let accepted = try! owner.accept_completion_frame(submitted, frame)
-  let consumed = try! audit.worker_completion.consume(completion, submitted)
-  try! audit.worker_completion.reset(consumed)
   try! owner.complete(submitted, accepted)
 }
 
@@ -295,20 +282,12 @@ fn complete_decode(
 ) -> Unit {
   let outcome = try! owner.build_next()
   let submitted = try! owner.submitted_plan(outcome)
-  audit_wire_plan(audit, submitted)
-  let row = try! submitted.decode_row(0)
-  let writer = try! audit.worker_completion.writer_for(submitted)
-  try! writer.append_decode_completed(
-    slot=try! row.completion_slot(),
-    request_id=try! row.request_id(),
-    request_generation=try! row.request_generation(),
-    token_id=token,
-  )
+  let worker_plan = audit_wire_plan(audit, submitted)
+  let writer = try! audit.completion_sender.writer_for(worker_plan)
+  try! writer.append_decode_completed(try! worker_plan.decode_row(0), token)
   let completion = try! writer.submit()
   let frame = audit_wire_completion(audit, completion)
   let accepted = try! owner.accept_completion_frame(submitted, frame)
-  let consumed = try! audit.worker_completion.consume(completion, submitted)
-  try! audit.worker_completion.reset(consumed)
   try! owner.complete(submitted, accepted)
 }
 
