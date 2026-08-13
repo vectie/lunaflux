@@ -139,7 +139,11 @@ production child sends Ready. Binding the current deterministic child to the
 device executor remains open. A failed child is closed and reaped before the
 service commits each exact submitted plan as a scheduler worker failure and
 retires its supervisor obligation in sequence order. Only then can the
-supervisor derive the next non-reusing predecessor for a replacement. Restart
+supervisor derive the next non-reusing predecessor for a replacement. The
+implemented thread-confined worker service owns this join: it retains two
+scalar flight identities, records a plan before transport, pins validated
+responses through scheduler backpressure, and exposes request/event methods so
+callers do not retain a separate mutable scheduler API alias. Restart
 policy/backoff and live overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.

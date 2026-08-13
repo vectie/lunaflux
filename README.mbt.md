@@ -187,9 +187,13 @@ device-backed readiness, restart policy/backoff, and live overlap remain open.
 The supervisor now closes and reaps the old child before accepting exact
 ordered submission abandonment and derives a non-reusing predecessor only
 after every retained completion or failed submission is retired; a real
-three-child gate proves continuation through sequence 5. Scheduler-side
-worker-failure publication is intentionally still a service-level operation,
-as are global
+three-child gate proves continuation through sequence 5. A thread-confined
+worker service now encapsulates the scheduler and process owners, retains two
+scalar flight identities, retries pinned frames through scheduler
+backpressure, commits bounded worker-failure completions before process
+abandonment, and starts replacements only after all obligations retire. Its
+real-child gate proves two outstanding plans, output backpressure, worker
+failure, non-reusing restart, and balanced KV ownership. Still open are global
 fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit

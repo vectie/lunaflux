@@ -321,12 +321,18 @@ An exact checksummed Configure/Ready handshake binds model identity,
 generation, predecessor, and worker/inference limits before protocol
 readiness; incompatible children fail closed and startup double failures retain
 cleanup authority. Production device bootstrap, device-backed readiness,
-restart policy/backoff, scheduler failure orchestration, and live overlap
-remain open. The supervisor now requires close/reap before ordered abandonment
-of exact outstanding submissions and derives a non-reusing replacement
-predecessor only after every obligation is retired. The real-child gate proves
-replacement through sequence 5. This does not claim device execution or
-allocation-free cross-process transport.
+restart policy/backoff, and live overlap remain open. The supervisor now
+requires close/reap before ordered abandonment of exact outstanding
+submissions and derives a non-reusing replacement predecessor only after every
+obligation is retired. The real-child gate proves replacement through sequence
+5. A thread-confined scheduler/worker service now retains exactly two scalar
+flight identities, records plans before writes, retries received frames and
+synthesized worker failures under scheduler backpressure, retires scheduler
+state before process abandonment, and starts the exact replacement contract
+only after both obligations clear. Its real-process gate covers two outstanding
+plans, publication pressure, worker death, recovery, replacement, and balanced
+KV resources. This does not claim device execution or allocation-free
+cross-process transport.
 
 ### Gate
 

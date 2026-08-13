@@ -187,8 +187,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   completion frame buffers, enforces monotonic submission and oldest-first
   receive, pins a validated response until explicit post-publication
   retirement, and permanently fails malformed sessions. The production worker
-  channel now has a separately linked child-side frame runtime and a
-  two-executable gate covering three monotonic exchanges, A/B/A reuse, retained
+  channel now has a separately linked child-side frame runtime and gates
+  covering three monotonic exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That child intentionally
   performs an exact checksummed Configure/Ready handshake that binds model
   identity, model generation, predecessor, worker limits, and inference
@@ -200,9 +200,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   submissions in sequence order, and derives a replacement predecessor only
   after all obligations are discharged. The real-process gate proves a clean
   replacement, an abandoned sequence 4, and successful continuation at
-  sequence 5. Production device bootstrap and device-backed readiness,
-  scheduler-side failure orchestration, restart policy/backoff, and live
-  overlap are not yet integrated.
+  sequence 5. A new thread-confined worker service encapsulates scheduler and
+  process owners, records scheduler plans before transport, retries pinned
+  completion frames without reopening completion epochs, commits retryable
+  bounded worker failures before abandonment, and replaces the child only
+  after both scalar flight obligations retire. Its real-process gate proves
+  output-publication backpressure, worker death, failure retirement,
+  non-reusing restart, post-restart completion, and balanced KV ownership.
+  Production device bootstrap and device-backed readiness, restart
+  policy/backoff, and live overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
