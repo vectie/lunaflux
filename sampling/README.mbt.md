@@ -26,6 +26,11 @@ counter-addressed `stochastic_sample_at` path derives an independent draw from
 `(seed, sample_index)` so isolated-worker retry does not depend on shared
 mutable RNG state.
 
+`stochastic_sample_at_scalars` applies the same distribution and counter draw
+to already validated plan-frame scalars. This avoids reconstructing a
+heap-backed request parameter object in the isolated worker; replay tests pin
+its result to the canonical parameter path across a bounded sequence.
+
 The source structure and fixed storage establish the intended allocation-free
 steady-state algorithm, but native allocation instrumentation and production
 latency/throughput evidence have not yet been captured. Those performance

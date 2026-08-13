@@ -73,33 +73,6 @@ fn sort_candidates(
 }
 
 ///|
-fn validate_stochastic_input(
-  logits : ArrayView[Double],
-  parameters : @inference.SamplingParameters,
-  limits : SamplingLimits,
-  scratch : SamplerScratch,
-) -> Unit raise SamplingError {
-  if parameters.mode() != Sample {
-    raise InvalidSamplingMode
-  }
-  if logits.is_empty() {
-    raise EmptyInput
-  }
-  if logits.length() > limits.max_tokens_per_row() {
-    raise LimitExceeded(TokensPerRow)
-  }
-  if logits.length() > scratch.capacity() {
-    raise ScratchTooSmall(required=logits.length(), capacity=scratch.capacity())
-  }
-  for token_id in 0..<logits.length() {
-    let logit = logits[token_id]
-    if logit.is_nan() || logit.is_inf() {
-      raise NonFiniteLogit(row=0, token_id~)
-    }
-  }
-}
-
-///|
 /// Prepares the exact distribution consumed by `stochastic_sample`.
 ///
 /// Processing order is: validate every logit; order by descending logit and
@@ -115,21 +88,73 @@ pub fn prepare_distribution(
   limits : SamplingLimits,
   scratch : SamplerScratch,
 ) -> Int raise SamplingError {
+  if parameters.mode() != Sample {
+    raise InvalidSamplingMode
+  }
+  let top_k_option = parameters.top_k()
+  let has_top_k = top_k_option is Some(_)
+  let top_k = top_k_option.unwrap_or(0)
+  let top_p_option = parameters.top_p()
+  let has_top_p = top_p_option is Some(_)
+  let top_p = top_p_option.unwrap_or(0.0)
+  prepare_distribution_scalars(
+    logits,
+    parameters.temperature(),
+    has_top_k,
+    top_k,
+    has_top_p,
+    top_p,
+    limits,
+    scratch,
+  )
+}
+
+///|
+fn prepare_distribution_scalars(
+  logits : ArrayView[Double],
+  temperature : Double,
+  has_top_k : Bool,
+  top_k : Int,
+  has_top_p : Bool,
+  top_p : Double,
+  limits : SamplingLimits,
+  scratch : SamplerScratch,
+) -> Int raise SamplingError {
   // Never leave a previous distribution observable after a failed refresh.
   scratch.candidate_count = 0
   scratch.total_weight = 0.0
-  validate_stochastic_input(logits, parameters, limits, scratch)
+  if logits.is_empty() {
+    raise EmptyInput
+  }
+  if logits.length() > limits.max_tokens_per_row() {
+    raise LimitExceeded(TokensPerRow)
+  }
+  if logits.length() > scratch.capacity() {
+    raise ScratchTooSmall(required=logits.length(), capacity=scratch.capacity())
+  }
+  if temperature.is_nan() || temperature.is_inf() || temperature <= 0.0 {
+    raise InvalidDistribution
+  }
+  if (has_top_k && top_k <= 0) ||
+    (
+      has_top_p &&
+      (top_p.is_nan() || top_p.is_inf() || top_p <= 0.0 || top_p > 1.0)
+    ) {
+    raise InvalidDistribution
+  }
+  for token_id in 0..<logits.length() {
+    let logit = logits[token_id]
+    if logit.is_nan() || logit.is_inf() {
+      raise NonFiniteLogit(row=0, token_id~)
+    }
+  }
   let token_count = logits.length()
   for token_id in 0..<token_count {
     scratch.token_ids[token_id] = token_id
   }
   sort_candidates(scratch.token_ids, logits, token_count)
-  let top_k_count = match parameters.top_k() {
-    Some(value) => value.min(token_count)
-    None => token_count
-  }
+  let top_k_count = if has_top_k { top_k.min(token_count) } else { token_count }
   let maximum = logits[scratch.token_ids[0]]
-  let temperature = parameters.temperature()
   let mut total = 0.0
   for index in 0..<top_k_count {
     let token_id = scratch.token_ids[index]
@@ -142,18 +167,17 @@ pub fn prepare_distribution(
     scratch.total_weight = 0.0
     raise InvalidDistribution
   }
-  let retained = match parameters.top_p() {
-    None => top_k_count
-    Some(top_p) => {
-      let threshold = top_p * total
-      let mut cumulative = 0.0
-      let mut count = 0
-      while count < top_k_count && cumulative < threshold {
-        cumulative = cumulative + scratch.weights[count]
-        count = count + 1
-      }
-      count.max(1)
+  let retained = if has_top_p {
+    let threshold = top_p * total
+    let mut cumulative = 0.0
+    let mut count = 0
+    while count < top_k_count && cumulative < threshold {
+      cumulative = cumulative + scratch.weights[count]
+      count = count + 1
     }
+    count.max(1)
+  } else {
+    top_k_count
   }
   let mut retained_total = 0.0
   for index in 0..<retained {
@@ -167,6 +191,30 @@ pub fn prepare_distribution(
   scratch.candidate_count = retained
   scratch.total_weight = retained_total
   retained
+}
+
+///|
+/// Deterministically samples from validated scalar wire fields without
+/// reconstructing a heap-backed request parameter object.
+pub fn stochastic_sample_at_scalars(
+  logits : ArrayView[Double],
+  temperature~ : Double,
+  has_top_k~ : Bool,
+  top_k~ : Int,
+  has_top_p~ : Bool,
+  top_p~ : Double,
+  limits : SamplingLimits,
+  seed : @inference.SamplingSeed,
+  sample_index : Int,
+  scratch : SamplerScratch,
+) -> Selection raise SamplingError {
+  if sample_index < 0 {
+    raise InvalidDistribution
+  }
+  let count = prepare_distribution_scalars(
+    logits, temperature, has_top_k, top_k, has_top_p, top_p, limits, scratch,
+  )
+  select_prepared(logits, count, counter_unit(seed, sample_index), scratch)
 }
 
 ///|

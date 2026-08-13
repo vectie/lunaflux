@@ -19,6 +19,8 @@ pub fn stochastic_sample(ArrayView[Double], @inference.SamplingParameters, Sampl
 
 pub fn stochastic_sample_at(ArrayView[Double], @inference.SamplingParameters, SamplingLimits, @inference.SamplingSeed, Int, SamplerScratch) -> Selection raise SamplingError
 
+pub fn stochastic_sample_at_scalars(ArrayView[Double], temperature~ : Double, has_top_k~ : Bool, top_k~ : Int, has_top_p~ : Bool, top_p~ : Double, SamplingLimits, @inference.SamplingSeed, Int, SamplerScratch) -> Selection raise SamplingError
+
 // Errors
 pub(all) suberror SamplingError {
   InvalidLimit(LimitDimension)
