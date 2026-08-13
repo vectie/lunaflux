@@ -65,7 +65,8 @@ pub fn OnlineWorkerLease::admit(
   request : @core.TokenizedRequest,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_EMPTY {
+  if self.request_phase != ONLINE_REQUEST_EMPTY ||
+    self.prepared_admission is Some(_) {
     raise Invalid(Lifecycle)
   }
   let prepared = service.scheduler.prepare_admission(request)
@@ -77,6 +78,48 @@ pub fn OnlineWorkerLease::admit(
   self.handle = Some(handle)
   self.request_generation = handle.request_generation()
   self.request_phase = ONLINE_REQUEST_LIVE
+}
+
+///|
+/// Commits the exact request shell preallocated before rooted worker
+/// activation. Clock sampling occurs immediately before scheduler mutation;
+/// after a successful commit, only nonraising invariant reads and assignments
+/// install the private handle.
+pub fn OnlineWorkerLease::commit_prepared_admission(
+  self : OnlineWorkerLease,
+) -> OnlinePreparedAdmissionCommit {
+  let service = try! self.require_current()
+  if self.request_phase != ONLINE_REQUEST_EMPTY {
+    abort("prepared online admission phase invariant")
+  }
+  let prepared = match self.prepared_admission {
+    Some(value) => value
+    None => abort("prepared online admission owner invariant")
+  }
+  if self.prepared_clock_read.read_status() == MonotonicReadFailed {
+    service.scheduler.abort_exclusive_admission(prepared)
+    self.prepared_admission = None
+    return OnlineAdmissionClockFailed
+  }
+  match
+    service.scheduler.commit_exclusive_admission(
+      prepared,
+      try! self.prepared_clock_read.value(),
+    ) {
+    ExclusiveAdmissionExpired => {
+      self.prepared_admission = None
+      return OnlineAdmissionExpired
+    }
+    ExclusiveAdmissionInvalidated =>
+      abort("prepared online admission reservation invariant")
+    ExclusiveAdmissionCommitted => ()
+  }
+  let handle = prepared.request_handle()
+  self.prepared_admission = None
+  self.handle = Some(handle)
+  self.request_generation = handle.request_generation()
+  self.request_phase = ONLINE_REQUEST_LIVE
+  OnlineAdmissionCommitted
 }
 
 ///|

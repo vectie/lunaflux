@@ -356,8 +356,11 @@ handshake I/O, exact Ready comparison, scalar cleanup, and owner publication
 allocate no managed objects while rooted child authority is live. A restricted
 epoch-authenticated online worker lease now enforces the permanent ownership
 family, exact generation/position/publication order, monotonic time, recovery,
-and close prerequisites. The application-facing canonical online-session
-aggregate, tokenizer/stop composition, and ingress reactor remain future work.
+and close prerequisites. The alias-free online-session foundation now owns
+receipt admission, tokenizer output, the production-owned service, a canonical
+one-credit Accepted frame, and an off-reactor exact abort/recovery/close path.
+Steady token stepping, stop-token/string-stop/deadline translation, final
+Usage/Completed/Failed publication, and ingress transport remain future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

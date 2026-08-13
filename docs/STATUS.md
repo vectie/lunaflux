@@ -289,9 +289,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   choice. Its restricted epoch lease authenticates one streaming request,
   exact generation/position/publication order, monotonic admission/deadline
   time, cancellation cuts, worker-loss recovery, and deterministic close
-  without exposing scheduler/process/handle owners. This remains a lower
-  engine prerequisite: the public canonical online-session aggregate,
-  tokenizer/stop decoding, and ingress reactor are still open.
+  without exposing scheduler/process/handle owners. The alias-free
+  `service/online_session` foundation now accepts only `ReceivedRequest`, owns
+  request admission and the production worker, publishes one canonical
+  Accepted credit, and provides an off-reactor exact abort/recovery/close path.
+  The borrowed ordinary roots remain caller-owned. Steady token/stop/deadline
+  output, terminal Usage/Completed/Failed bundles, and ingress transport remain
+  open; this is not online-serving readiness.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.

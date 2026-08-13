@@ -21,6 +21,7 @@ are payload-safe and never contain token IDs, stop strings, decoded bytes, or
 tokenizer diagnostics.
 
 This package is not a scheduler, socket writer, event codec, or cancellation
-owner. A later online session must retain the exact scheduler handle, follow
-the scheduler publication sequence, and acknowledge output only after a full
-frame write.
+owner. The `service/online_session` foundation retains it together with the
+exact production worker authority and canonical one-credit writer. Token/stop
+composition and acknowledgement after a full external frame write remain the
+next aggregate slice.

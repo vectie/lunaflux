@@ -17,6 +17,8 @@ pub fn new_fixture(@core.Scheduler, WorkerServiceBinding, @worker_process.RootBo
 
 pub fn prepare_owned(@core.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 
+pub fn prepare_owned_online(@core.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @core.TokenizedRequest, @monotonic_clock.MonotonicClock) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+
 // Errors
 pub(all) suberror OwnedWorkerServicePreparationError {
   OwnedPreparationFailure(OwnedWorkerServiceFailure)
@@ -54,6 +56,17 @@ pub(all) enum OnlineExpiry {
   OnlineDeadlineCommitted
 } derive(Eq, @debug.Debug)
 
+pub(all) enum OnlinePreparedAdmissionCommit {
+  OnlineAdmissionCommitted
+  OnlineAdmissionClockFailed
+  OnlineAdmissionExpired
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OnlineTerminalRecoveryProgress {
+  OnlineTerminalRecoveryPending
+  OnlineTerminalRecoveryPublicationReady
+} derive(Eq, @debug.Debug)
+
 pub struct OnlineWorkerLease {
   // private fields
 }
@@ -63,11 +76,13 @@ pub fn OnlineWorkerLease::admit(Self, @core.TokenizedRequest) -> Unit raise Work
 pub fn OnlineWorkerLease::begin_recovery(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::close_terminal(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::commit_cancel(Self) -> OnlineCancelReservationCommit raise WorkerServiceError
+pub fn OnlineWorkerLease::commit_prepared_admission(Self) -> OnlinePreparedAdmissionCommit
 pub fn OnlineWorkerLease::drain_restart_forbidden(Self) -> @core.InstanceLossDrain raise WorkerServiceError
 pub fn OnlineWorkerLease::expire(Self) -> OnlineExpiry raise WorkerServiceError
 pub fn OnlineWorkerLease::has_publication(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::invalidate_device_state(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerLease::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_terminal_recovery(Self, @worker_protocol.WorkerFailure) -> OnlineTerminalRecoveryProgress raise WorkerServiceError
 pub fn OnlineWorkerLease::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn OnlineWorkerLease::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
 pub fn OnlineWorkerLease::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
@@ -112,6 +127,7 @@ pub struct OwnedWorkerServicePreparation {
 pub fn OwnedWorkerServicePreparation::state(Self) -> OwnedWorkerServicePreparationState
 pub fn OwnedWorkerServicePreparation::take_cleanup(Self) -> FailedOwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 pub fn OwnedWorkerServicePreparation::take_online(Self, @monotonic_clock.MonotonicClock) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError
+pub fn OwnedWorkerServicePreparation::take_prepared_online(Self) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError
 pub fn OwnedWorkerServicePreparation::take_raw_ready(Self) -> WorkerService raise OwnedWorkerServicePreparationError
 
 pub(all) enum OwnedWorkerServicePreparationState {

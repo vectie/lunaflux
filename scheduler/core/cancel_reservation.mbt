@@ -2,7 +2,7 @@
 fn Scheduler::require_no_cancel_reservation(
   self : Scheduler,
 ) -> Unit raise SchedulerError {
-  if self.cancel_reserved {
+  if self.cancel_reserved || self.exclusive_admission_reserved {
     raise invalid(CancellationReservation, InvalidTransition)
   }
 }

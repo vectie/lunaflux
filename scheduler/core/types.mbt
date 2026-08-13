@@ -313,17 +313,6 @@ pub struct RequestHandle {
 } derive(Debug, Eq)
 
 ///|
-/// Opaque admission publication shell. The request and handle storage are
-/// allocated before scheduler mutation; commit fills the exact handle using
-/// scalar assignments only.
-pub struct PreparedAdmission {
-  priv owner : Scheduler
-  priv request : TokenizedRequest
-  priv handle : RequestHandle
-  priv mut committed : Bool
-}
-
-///|
 pub fn RequestHandle::slot(self : RequestHandle) -> SchedulerSlotId {
   self.slot
 }
@@ -463,6 +452,7 @@ pub struct Scheduler {
   priv mut decode_count : Int
   priv mut journal_count : Int
   priv mut cancel_reserved : Bool
+  priv mut exclusive_admission_reserved : Bool
   priv mut cancel_slot : Int
   priv mut cancel_slot_generation : Int
   priv mut cancel_request_id : @inference.RequestId

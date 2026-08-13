@@ -86,7 +86,7 @@ fn install_owned_ready(
 /// the returned preparation shell retains either the service or the only
 /// remaining cleanup authority. The shell and both possible owners are
 /// allocated before root acquisition.
-pub fn prepare_owned(
+fn prepare_owned_internal(
   blueprint : @core.SchedulerBlueprint,
   binding : WorkerServiceBinding,
   executable : Bytes,
@@ -95,10 +95,21 @@ pub fn prepare_owned(
   process_limits : @worker_process.WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
+  online_request : @core.TokenizedRequest?,
+  online_clock : @monotonic_clock.MonotonicClock,
 ) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
   validate_owned_preflight(blueprint, binding, startup, source)
   let scheduler = blueprint.instantiate() catch {
     error => raise owned_failure(OwnedSchedulerFailure(error))
+  }
+  let prepared_admission = match online_request {
+    Some(request) =>
+      Some(
+        scheduler.prepare_exclusive_admission(request) catch {
+          error => raise owned_failure(OwnedSchedulerFailure(error))
+        },
+      )
+    None => None
   }
   let service : WorkerService = {
     scheduler,
@@ -125,8 +136,10 @@ pub fn prepare_owned(
   let online : OnlineWorkerLease = {
     service,
     epoch: 0UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
+    clock: online_clock,
     request_phase: ONLINE_REQUEST_EMPTY,
+    prepared_admission,
+    prepared_clock_read: online_clock.prepare_read(),
     handle: None,
     request_generation: @inference.RequestGeneration::initial(),
     cut_source_generation: @inference.RequestGeneration::initial(),
@@ -174,6 +187,62 @@ pub fn prepare_owned(
       install_owned_ready(outcome, service, process)
     }
   }
+}
+
+///|
+/// Constructs an online-eligible owned service without an admitted request.
+pub fn prepare_owned(
+  blueprint : @core.SchedulerBlueprint,
+  binding : WorkerServiceBinding,
+  executable : Bytes,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  process_limits : @worker_process.WorkerProcessLimits,
+  model_root : @approved_fs.ApprovedRoot,
+  kernel_root : @approved_fs.ApprovedRoot,
+) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
+  prepare_owned_internal(
+    blueprint,
+    binding,
+    executable,
+    startup,
+    source,
+    process_limits,
+    model_root,
+    kernel_root,
+    None,
+    @monotonic_clock.MonotonicClock::system(),
+  )
+}
+
+///|
+/// Preallocates the exact scheduler admission/handle shell before rooted worker
+/// activation. This boundary-restricted constructor never exposes the request;
+/// the returned online lease may only commit it through the no-input method.
+pub fn prepare_owned_online(
+  blueprint : @core.SchedulerBlueprint,
+  binding : WorkerServiceBinding,
+  executable : Bytes,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  process_limits : @worker_process.WorkerProcessLimits,
+  model_root : @approved_fs.ApprovedRoot,
+  kernel_root : @approved_fs.ApprovedRoot,
+  request : @core.TokenizedRequest,
+  clock : @monotonic_clock.MonotonicClock,
+) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
+  prepare_owned_internal(
+    blueprint,
+    binding,
+    executable,
+    startup,
+    source,
+    process_limits,
+    model_root,
+    kernel_root,
+    Some(request),
+    clock,
+  )
 }
 
 ///|
@@ -225,7 +294,11 @@ pub fn OwnedWorkerServicePreparation::take_raw_ready(
   }
   match self.service {
     Some(service) => {
-      if !service.can_claim_raw() {
+      let online = match self.online {
+        Some(value) => value
+        None => abort("owned raw lease shell invariant")
+      }
+      if online.prepared_admission is Some(_) || !service.can_claim_raw() {
         raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
       }
       publish_raw_transfer(self, service)
@@ -254,7 +327,6 @@ pub fn OwnedWorkerServicePreparation::take_online(
     service.online_epoch == 0xffffffffffffffffUL ||
     service.lifecycle != ServiceReady ||
     service.raw_outstanding_count() != 0 ||
-    !service.scheduler.is_pristine() ||
     !service.require_process().has_exchange_capacity() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
@@ -263,7 +335,55 @@ pub fn OwnedWorkerServicePreparation::take_online(
     Some(value) => value
     None => abort("owned online lease invariant")
   }
+  if online.prepared_admission is Some(_) ||
+    online.request_phase != ONLINE_REQUEST_EMPTY ||
+    !service.scheduler.is_pristine() {
+    raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
+  }
   publish_online_transfer(self, service, online, clock, next_epoch)
+}
+
+///|
+/// Transfers only the owned-online preparation carrying the exclusive request
+/// shell created before rooted worker activation.
+pub fn OwnedWorkerServicePreparation::take_prepared_online(
+  self : OwnedWorkerServicePreparation,
+) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError {
+  if self.consumed || self.state != OwnedServiceReady {
+    raise owned_failure(OwnedServiceFailure(Invalid(Lifecycle)))
+  }
+  let service = match self.service {
+    Some(value) => value
+    None => abort("owned prepared online service invariant")
+  }
+  let online = match self.online {
+    Some(value) => value
+    None => abort("owned prepared online lease invariant")
+  }
+  if !service.production_owned ||
+    service.ownership_mode != SERVICE_MODE_ONLINE_ELIGIBLE ||
+    service.online_epoch == 0xffffffffffffffffUL ||
+    service.lifecycle != ServiceReady ||
+    service.raw_outstanding_count() != 0 ||
+    !service.require_process().has_exchange_capacity() ||
+    online.prepared_admission is None ||
+    online.request_phase != ONLINE_REQUEST_EMPTY {
+    raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
+  }
+  let exclusive = match online.prepared_admission {
+    Some(value) => value
+    None => abort("owned prepared admission invariant")
+  }
+  if !service.scheduler.has_exclusive_admission(exclusive) {
+    raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
+  }
+  publish_online_transfer(
+    self,
+    service,
+    online,
+    online.clock,
+    service.online_epoch + 1UL,
+  )
 }
 
 ///|

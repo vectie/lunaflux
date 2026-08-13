@@ -14,9 +14,58 @@ pub struct MonotonicClock {
 }
 
 ///|
+pub struct PreparedMonotonicRead {
+  priv clock : MonotonicClock
+  priv output : Ref[UInt64]
+  priv mut used : Bool
+  priv mut ready : Bool
+}
+
+///|
+#valtype
+pub(all) enum MonotonicReadStatus {
+  MonotonicReadReady
+  MonotonicReadFailed
+} derive(Debug, Eq)
+
+///|
 /// Constructs the process-local operating system monotonic clock capability.
 pub fn MonotonicClock::system() -> MonotonicClock {
   { marker: () }
+}
+
+///|
+pub fn MonotonicClock::prepare_read(
+  self : MonotonicClock,
+) -> PreparedMonotonicRead {
+  { clock: self, output: Ref(0UL), used: false, ready: false }
+}
+
+///|
+pub fn PreparedMonotonicRead::read_status(
+  self : PreparedMonotonicRead,
+) -> MonotonicReadStatus {
+  ignore(self.clock.marker)
+  if self.used {
+    return MonotonicReadFailed
+  }
+  self.used = true
+  if @native.now_millis_status(self.output) == 0 {
+    self.ready = true
+    MonotonicReadReady
+  } else {
+    MonotonicReadFailed
+  }
+}
+
+///|
+pub fn PreparedMonotonicRead::value(
+  self : PreparedMonotonicRead,
+) -> UInt64 raise MonotonicClockError {
+  if !self.ready {
+    raise Unavailable
+  }
+  self.output.val
 }
 
 ///|

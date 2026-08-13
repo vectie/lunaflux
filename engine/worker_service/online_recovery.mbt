@@ -109,6 +109,46 @@ pub fn OnlineWorkerLease::drain_restart_forbidden(
 }
 
 ///|
+/// Advances one owner-resident terminal recovery transition after the worker
+/// path failed during an online cut. No raw scheduler, process, handle, or
+/// publication authority escapes. This cleanup operation may close/reap a
+/// failed child and is therefore for the aggregate's off-reactor cleanup path.
+pub fn OnlineWorkerLease::progress_terminal_recovery(
+  self : OnlineWorkerLease,
+  failure : @worker_protocol.WorkerFailure,
+) -> OnlineTerminalRecoveryProgress raise WorkerServiceError {
+  let service = self.require_current()
+  match service.lifecycle {
+    ServiceReady => {
+      self.begin_recovery()
+      OnlineTerminalRecoveryPending
+    }
+    ServiceRecovering => {
+      if service.require_process().lifecycle() == RootBoundRecovering {
+        ignore(self.recover_flight(failure))
+      } else {
+        self.begin_recovery()
+      }
+      OnlineTerminalRecoveryPending
+    }
+    ServiceDeviceInvalidationRequired => {
+      ignore(self.invalidate_device_state())
+      OnlineTerminalRecoveryPending
+    }
+    ServiceRestartReady => {
+      self.abandon_restart()
+      OnlineTerminalRecoveryPending
+    }
+    ServiceRestartForbidden => {
+      ignore(self.drain_restart_forbidden())
+      OnlineTerminalRecoveryPending
+    }
+    ServiceTerminalCloseReady => OnlineTerminalRecoveryPublicationReady
+    _ => raise Invalid(Recovery)
+  }
+}
+
+///|
 /// Cleanly closes a healthy service only after its exact terminal publication
 /// and every scheduler/process obligation have been retired.
 pub fn OnlineWorkerLease::shutdown_clean(
@@ -196,7 +236,9 @@ pub fn OnlineWorkerLease::retry_close_empty(
   if self.request_phase != ONLINE_REQUEST_EMPTY || self.cancel_reserved {
     raise Invalid(Lifecycle)
   }
-  if service.lifecycle == ServiceRecovering {
+  if service.lifecycle == ServiceReady {
+    service.shutdown_clean_impl()
+  } else if service.lifecycle == ServiceRecovering {
     service.close_impl()
   } else if service.lifecycle == ServiceClosingFailed {
     service.retry_close_impl()

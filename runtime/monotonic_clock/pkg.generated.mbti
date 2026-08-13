@@ -18,7 +18,19 @@ pub struct MonotonicClock {
   // private fields
 }
 pub fn MonotonicClock::now_millis(Self) -> UInt64 raise MonotonicClockError
+pub fn MonotonicClock::prepare_read(Self) -> PreparedMonotonicRead
 pub fn MonotonicClock::system() -> Self
+
+pub(all) enum MonotonicReadStatus {
+  MonotonicReadReady
+  MonotonicReadFailed
+} derive(Eq, @debug.Debug)
+
+pub struct PreparedMonotonicRead {
+  // private fields
+}
+pub fn PreparedMonotonicRead::read_status(Self) -> MonotonicReadStatus
+pub fn PreparedMonotonicRead::value(Self) -> UInt64 raise MonotonicClockError
 
 // Type aliases
 

@@ -39,7 +39,7 @@ fn owned_preparation_allocation_positive_control() -> Bytes {
 }
 
 ///|
-fn wb_online_request() -> @core.TokenizedRequest {
+fn wb_online_request(deadline? : UInt64 = 100UL) -> @core.TokenizedRequest {
   let limits = wb_service_inference_limits()
   try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(991UL),
@@ -60,9 +60,75 @@ fn wb_online_request() -> @core.TokenizedRequest {
     ),
     admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
       0UL,
-      try! @inference.DeadlineBudget::from_milliseconds(100UL, limits),
+      try! @inference.DeadlineBudget::from_milliseconds(deadline, limits),
     ),
   )
+}
+
+///|
+fn wb_prepared_online_lease(
+  scheduler : @core.Scheduler,
+  prepared : @core.PreparedExclusiveAdmission,
+  prepared_clock_read : @monotonic_clock.PreparedMonotonicRead,
+) -> OnlineWorkerLease {
+  let service : WorkerService = {
+    scheduler,
+    binding: wb_service_binding(),
+    process: None,
+    flight_state: FLIGHT_EMPTY,
+    flight_sequence: 0UL,
+    lifecycle: ServiceReady,
+    production_owned: true,
+    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    online_epoch: 1UL,
+    online_publication_cursor: 0UL,
+  }
+  {
+    service,
+    epoch: 1UL,
+    clock: @monotonic_clock.MonotonicClock::system(),
+    request_phase: ONLINE_REQUEST_EMPTY,
+    prepared_admission: Some(prepared),
+    prepared_clock_read,
+    handle: None,
+    request_generation: @inference.RequestGeneration::initial(),
+    cut_source_generation: @inference.RequestGeneration::initial(),
+    publication_cursor: 0UL,
+    expected_position: 0,
+    cancel_reserved: false,
+  }
+}
+
+///|
+test "prepared online clock failure aborts exclusive admission without mutation" {
+  let scheduler = wb_service_scheduler()
+  let prepared = try! scheduler.prepare_exclusive_admission(wb_online_request())
+  let read = @monotonic_clock.MonotonicClock::system().prepare_read()
+  assert_eq(read.read_status(), MonotonicReadReady)
+  let lease = wb_prepared_online_lease(scheduler, prepared, read)
+  assert_eq(lease.commit_prepared_admission(), OnlineAdmissionClockFailed)
+  assert_true(scheduler.is_pristine())
+  assert_eq(scheduler.live_request_count(), 0)
+  assert_true(lease.prepared_admission is None)
+  assert_eq(
+    scheduler.commit_exclusive_admission(prepared, 0UL),
+    ExclusiveAdmissionInvalidated,
+  )
+}
+
+///|
+test "prepared online expiry clears reservation and retains empty cleanup authority" {
+  let scheduler = wb_service_scheduler()
+  let prepared = try! scheduler.prepare_exclusive_admission(
+    wb_online_request(deadline=1UL),
+  )
+  let read = @monotonic_clock.MonotonicClock::system().prepare_read()
+  let lease = wb_prepared_online_lease(scheduler, prepared, read)
+  assert_eq(lease.commit_prepared_admission(), OnlineAdmissionExpired)
+  assert_true(scheduler.is_pristine())
+  assert_eq(scheduler.live_request_count(), 0)
+  assert_true(lease.prepared_admission is None)
+  assert_eq(lease.request_phase, ONLINE_REQUEST_EMPTY)
 }
 
 ///|
@@ -86,6 +152,8 @@ test "online restart-forbidden drain authenticates exact request" {
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: ONLINE_REQUEST_LIVE,
+    prepared_admission: None,
+    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: handle.request_generation(),
     cut_source_generation: @inference.RequestGeneration::initial(),
@@ -97,6 +165,48 @@ test "online restart-forbidden drain authenticates exact request" {
   assert_eq(service.lifecycle(), ServiceTerminalCloseReady)
   let terminal = lease.take_publication()
   assert_eq(terminal.terminal_reason(), OnlineWorkerFailed)
+}
+
+///|
+test "online terminal recovery wrapper drains restart-forbidden request" {
+  let scheduler = wb_service_scheduler()
+  let handle = try! scheduler.admit(wb_online_request(), 0UL)
+  let service : WorkerService = {
+    scheduler,
+    binding: wb_service_binding(),
+    process: None,
+    flight_state: FLIGHT_EMPTY,
+    flight_sequence: 0UL,
+    lifecycle: ServiceRestartForbidden,
+    production_owned: true,
+    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    online_epoch: 1UL,
+    online_publication_cursor: 0UL,
+  }
+  let lease : OnlineWorkerLease = {
+    service,
+    epoch: 1UL,
+    clock: @monotonic_clock.MonotonicClock::system(),
+    request_phase: ONLINE_REQUEST_LIVE,
+    prepared_admission: None,
+    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
+    handle: Some(handle),
+    request_generation: handle.request_generation(),
+    cut_source_generation: @inference.RequestGeneration::initial(),
+    publication_cursor: 0UL,
+    expected_position: 0,
+    cancel_reserved: false,
+  }
+  assert_eq(
+    lease.progress_terminal_recovery(ResourceUnavailable),
+    OnlineTerminalRecoveryPending,
+  )
+  assert_eq(service.lifecycle(), ServiceTerminalCloseReady)
+  assert_eq(
+    lease.progress_terminal_recovery(ResourceUnavailable),
+    OnlineTerminalRecoveryPublicationReady,
+  )
+  assert_eq(lease.take_publication().terminal_reason(), OnlineWorkerFailed)
 }
 
 ///|
@@ -134,6 +244,8 @@ test "out-of-phase reserved dequeue preserves scheduler publication" {
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: ONLINE_REQUEST_TERMINATION_PENDING,
+    prepared_admission: None,
+    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: handle.request_generation(),
     cut_source_generation: admitted.request_generation(),

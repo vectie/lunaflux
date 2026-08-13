@@ -1,0 +1,84 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/online_session"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/request_admission",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn prepare_owned_session(@request_admission.ReceivedRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> OnlineSessionPreparation raise OnlineSessionPreparationError
+
+// Errors
+pub(all) suberror OnlineSessionError {
+  SessionFailed(OnlineSessionFailure)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror OnlineSessionPreparationError {
+  PreparationFailed(OnlineSessionFailure)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FailedOnlineSessionPreparation {
+  // private fields
+}
+pub fn FailedOnlineSessionPreparation::cause(Self) -> OnlineSessionFailure
+pub fn FailedOnlineSessionPreparation::is_closed(Self) -> Bool
+pub fn FailedOnlineSessionPreparation::retry_close(Self) -> Unit raise OnlineSessionPreparationError
+
+pub struct OnlineSession {
+  // private fields
+}
+pub fn OnlineSession::ack_event(Self) -> Unit raise OnlineSessionError
+pub fn OnlineSession::begin_abort(Self) -> Unit raise OnlineSessionError
+pub fn OnlineSession::copy_event_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise OnlineSessionError
+pub fn OnlineSession::event_length(Self) -> Int raise OnlineSessionError
+pub fn OnlineSession::has_event(Self) -> Bool
+pub fn OnlineSession::progress_cleanup(Self) -> OnlineSessionCleanupProgress raise OnlineSessionError
+
+pub(all) enum OnlineSessionCleanupProgress {
+  OnlineSessionCleanupPending
+  OnlineSessionCleanupClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OnlineSessionFailure {
+  AdmissionFailure
+  ServicePreparationFailure
+  ServiceFailure
+  WireFailure
+  Invalid(OnlineSessionRule)
+} derive(Eq, @debug.Debug)
+
+pub struct OnlineSessionPreparation {
+  // private fields
+}
+pub fn OnlineSessionPreparation::state(Self) -> OnlineSessionPreparationState
+pub fn OnlineSessionPreparation::take_cleanup(Self) -> FailedOnlineSessionPreparation raise OnlineSessionPreparationError
+pub fn OnlineSessionPreparation::take_ready(Self) -> OnlineSession raise OnlineSessionPreparationError
+
+pub(all) enum OnlineSessionPreparationState {
+  OnlineSessionReady
+  OnlineSessionCleanupRequired
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OnlineSessionRule {
+  Lifecycle
+  Ownership
+  Streaming
+  InferenceEnvelope
+  ModelIdentity
+  EventCredit
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

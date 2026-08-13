@@ -3,10 +3,13 @@ package "vectie/lunaflux/internal/monotonic_clock"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/ref",
 }
 
 // Values
 pub fn now_millis() -> UInt64 raise MonotonicClockNativeError
+
+pub fn now_millis_status(@ref.Ref[UInt64]) -> Int
 
 // Errors
 pub(all) suberror MonotonicClockNativeError {

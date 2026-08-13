@@ -28,6 +28,7 @@ pub fn CanonicalEventWriter::copy_to(Self, FixedArray[Byte], destination_offset~
 pub fn CanonicalEventWriter::has_credit(Self) -> Bool
 pub fn CanonicalEventWriter::length(Self) -> Int raise FramedWireError
 pub fn CanonicalEventWriter::new(FramedWireLimits) -> Self
+pub fn CanonicalEventWriter::preflight_online_capacity(Self, Int) -> Unit raise FramedWireError
 pub fn CanonicalEventWriter::prepare(Self, @inference.StreamEvent) -> Unit raise FramedWireError
 pub fn CanonicalEventWriter::prepare_accepted(Self, @spec.ModelIdentity, @inference.EffectiveLimits) -> Unit raise FramedWireError
 pub fn CanonicalEventWriter::prepare_completed(Self, @inference.FinishReason, input_tokens~ : Int, cached_input_tokens~ : Int, output_tokens~ : Int, FixedArray[Byte], tail_offset~ : Int, tail_length~ : Int) -> Unit raise FramedWireError

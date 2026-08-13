@@ -34,3 +34,9 @@ pub fn now_millis() -> UInt64 raise MonotonicClockNativeError {
   let status = raw_now_millis(output)
   finish_native_read(status, output.val)
 }
+
+///|
+/// Allocation-free read into caller-preallocated scalar storage.
+pub fn now_millis_status(output : Ref[UInt64]) -> Int {
+  raw_now_millis(output)
+}

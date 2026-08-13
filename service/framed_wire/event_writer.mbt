@@ -195,6 +195,23 @@ pub fn CanonicalEventWriter::has_credit(self : CanonicalEventWriter) -> Bool {
 }
 
 ///|
+/// Preflights the canonical one-credit storage required by an online session:
+/// the largest bounded UTF-8 delta/terminal tail and every public failure code.
+/// This check is nonmutating and is intended to run before external authority
+/// is acquired.
+pub fn CanonicalEventWriter::preflight_online_capacity(
+  self : CanonicalEventWriter,
+  max_delta_bytes : Int,
+) -> Unit raise FramedWireError {
+  let payload_capacity = self.capacity() - EVENT_HEADER_BYTES
+  if max_delta_bytes < 0 ||
+    payload_capacity < max_delta_bytes ||
+    payload_capacity < 64 {
+    raise event_invalid(Length)
+  }
+}
+
+///|
 /// Canonically encodes a non-hot-path contract event. The prior frame remains
 /// pinned until `retire` is called.
 pub fn CanonicalEventWriter::prepare(

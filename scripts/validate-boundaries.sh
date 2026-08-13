@@ -242,7 +242,7 @@ if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
   fi
   if rg -n '^pub fn [^(]*\([^)]*(@core\.Scheduler|@worker_process\.RootBoundWorkerProcessSupervisor)' \
     engine/worker_service/pkg.generated.mbti |
-    rg -v '^.*pub fn (new_fixture|prepare_owned)\('; then
+    rg -v '^.*pub fn (new_fixture|prepare_owned|prepare_owned_online)\('; then
     printf '%s\n' \
       'worker service must not expose another alias-taking owner constructor' >&2
     failed=1
@@ -519,6 +519,34 @@ if [ -n "$online_transfer_calls" ] &&
   failed=1
 fi
 
+owned_online_prepare_calls=$(rg -n 'prepare_owned_online\(|\.take_prepared_online\(|\.commit_prepared_admission\(' \
+  --glob '*.mbt' || true)
+if [ -n "$owned_online_prepare_calls" ] &&
+  printf '%s\n' "$owned_online_prepare_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/|^service/online_session/)'; then
+  printf '%s\n' 'prepared online admission escaped aggregate/test scope' >&2
+  failed=1
+fi
+
+exclusive_admission_references=$(rg -n \
+  'PreparedExclusiveAdmission|prepare_exclusive_admission\(|commit_exclusive_admission\(|abort_exclusive_admission\(|has_exclusive_admission\(' \
+  --glob '*.mbt' --glob 'pkg.generated.mbti' || true)
+if [ -n "$exclusive_admission_references" ] &&
+  printf '%s\n' "$exclusive_admission_references" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^scheduler/core/|^engine/worker_service/)'; then
+  printf '%s\n' 'exclusive scheduler admission escaped worker-service/test scope' >&2
+  failed=1
+fi
+
+prepared_clock_references=$(rg -n 'PreparedMonotonicRead' \
+  --glob '*.mbt' --glob 'pkg.generated.mbti' || true)
+if [ -n "$prepared_clock_references" ] &&
+  printf '%s\n' "$prepared_clock_references" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^runtime/monotonic_clock/|^engine/worker_service/)'; then
+  printf '%s\n' 'prepared monotonic reader escaped worker-service/test scope' >&2
+  failed=1
+fi
+
 raw_transfer_calls=$(rg -n '\.take_raw_ready\(' --glob '*.mbt' || true)
 if [ -n "$raw_transfer_calls" ] &&
   printf '%s\n' "$raw_transfer_calls" |
@@ -536,6 +564,8 @@ fi
 if ! rg -q '^pub fn OwnedWorkerServicePreparation::take_raw_ready\(Self\) -> WorkerService raise OwnedWorkerServicePreparationError$' \
   engine/worker_service/pkg.generated.mbti ||
   ! rg -q '^pub fn OwnedWorkerServicePreparation::take_online\(Self, @monotonic_clock.MonotonicClock\) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError$' \
+    engine/worker_service/pkg.generated.mbti ||
+  ! rg -q '^pub fn OwnedWorkerServicePreparation::take_prepared_online\(Self\) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError$' \
     engine/worker_service/pkg.generated.mbti; then
   printf '%s\n' 'owned preparation must expose exact raw and online transfers' >&2
   failed=1
@@ -548,7 +578,7 @@ if rg -n 'OnlineWorkerLease::(scheduler|process|handle|request_id|request_genera
 fi
 
 if [ -f service/online_session/pkg.generated.mbti ] &&
-  rg -n '(WorkerService|OnlineWorkerLease)' service/online_session/pkg.generated.mbti; then
+  rg -n '(^|[^A-Za-z])WorkerService([^A-Za-z]|$)|OnlineWorkerLease|AdmittedRequest|TokenizedRequest|RequestHandle|SchedulerPublication|IncrementalOutput' service/online_session/pkg.generated.mbti; then
   printf '%s\n' 'online session aggregate must not return its lower owners' >&2
   failed=1
 fi

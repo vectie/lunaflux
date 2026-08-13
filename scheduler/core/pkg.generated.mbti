@@ -60,6 +60,12 @@ pub(all) enum ExactInstanceLossDrain {
   ExactLossComplete(@inference.RequestGeneration)
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ExclusiveAdmissionCommit {
+  ExclusiveAdmissionCommitted
+  ExclusiveAdmissionExpired
+  ExclusiveAdmissionInvalidated
+} derive(Eq, @debug.Debug)
+
 pub struct GeneratedTokenNotice(@inference.RequestId, @inference.RequestGeneration, Int, Int, UInt64) derive(Eq)
 pub fn GeneratedTokenNotice::position(Self) -> Int
 pub fn GeneratedTokenNotice::publication_sequence(Self) -> UInt64
@@ -76,6 +82,11 @@ pub struct PreparedAdmission {
   // private fields
 }
 pub fn PreparedAdmission::request_handle(Self) -> RequestHandle raise SchedulerError
+
+pub struct PreparedExclusiveAdmission {
+  // private fields
+}
+pub fn PreparedExclusiveAdmission::request_handle(Self) -> RequestHandle
 
 pub struct RequestHandle {
   mut slot : SchedulerSlotId
@@ -107,6 +118,7 @@ pub struct Scheduler {
   // private fields
 }
 pub fn Scheduler::abort_cancel_reservation(Self) -> Unit
+pub fn Scheduler::abort_exclusive_admission(Self, PreparedExclusiveAdmission) -> Unit
 pub fn Scheduler::accept_completion_frame(Self, @worker_protocol.SubmittedSchedulePlan, @worker_wire.ValidatedCompletionFrame) -> @worker_protocol.SubmittedCompletion raise SchedulerError
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
 pub fn Scheduler::advance_terminated_handle(Self, RequestHandle, @inference.RequestGeneration) -> Unit raise SchedulerError
@@ -116,6 +128,7 @@ pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::cancel_exact(Self, RequestHandle) -> @inference.RequestGeneration raise SchedulerError
 pub fn Scheduler::commit_admission(Self, PreparedAdmission, UInt64) -> Unit raise SchedulerError
 pub fn Scheduler::commit_cancel_reservation(Self) -> CancelReservationCommit
+pub fn Scheduler::commit_exclusive_admission(Self, PreparedExclusiveAdmission, UInt64) -> ExclusiveAdmissionCommit
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
 pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
@@ -127,6 +140,7 @@ pub fn Scheduler::fail_plan(Self, @worker_protocol.SubmittedSchedulePlan, @worke
 pub fn Scheduler::free_page_count(Self) -> Int
 pub fn Scheduler::generated_token_count(Self) -> Int
 pub fn Scheduler::has_exact_natural_terminal(Self, RequestHandle) -> Bool
+pub fn Scheduler::has_exclusive_admission(Self, PreparedExclusiveAdmission) -> Bool
 pub fn Scheduler::invalidate_device_state(Self) -> Int raise SchedulerError
 pub fn Scheduler::invalidate_device_state_exact(Self, RequestHandle) -> ExactDeviceInvalidation raise SchedulerError
 pub fn Scheduler::is_pristine(Self) -> Bool
@@ -139,6 +153,7 @@ pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGener
 pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
 pub fn Scheduler::next_publication_kind(Self) -> SchedulerPublicationKind raise SchedulerError
 pub fn Scheduler::prepare_admission(Self, TokenizedRequest) -> PreparedAdmission
+pub fn Scheduler::prepare_exclusive_admission(Self, TokenizedRequest) -> PreparedExclusiveAdmission raise SchedulerError
 pub fn Scheduler::reserve_cancel_exact(Self, RequestHandle) -> CancelReservationStart raise SchedulerError
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?

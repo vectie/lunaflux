@@ -377,6 +377,7 @@ pub fn Scheduler::new(
     decode_count: 0,
     journal_count: 0,
     cancel_reserved: false,
+    exclusive_admission_reserved: false,
     cancel_slot: NO_INDEX,
     cancel_slot_generation: 0,
     cancel_request_id: placeholder_id,

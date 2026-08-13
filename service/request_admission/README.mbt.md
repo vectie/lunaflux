@@ -17,11 +17,12 @@ rejected by `push_token_into`, preventing their pieces from leaking as ordinary
 decoded output.
 
 The package deliberately does not own a scheduler, request handle, socket, or
-async task. A future session owner must bind the returned request to the exact
-scheduler `RequestHandle`, consume globally ordered publications, reserve
-outbound capacity before stepping, and cancel on disconnect. Because tokenizer
-encoding is synchronous CPU work, `admit` must run on a bounded tokenizer
-worker rather than an async network reactor.
+async task. `service/online_session` now consumes this bridge internally and
+binds it to the production-owned worker without exposing the intermediate
+admitted owner. Its current foundation publishes Accepted and provides exact
+abort/recovery/close; normal publication stepping and terminal bundles remain
+open. Because tokenizer encoding is synchronous CPU work, `admit` and the
+aggregate preparation must run off an async network reactor.
 
 For a natural terminal immediately following a generated token, that session
 owner must hold the token publication until it observes the terminal. It can

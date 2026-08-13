@@ -175,6 +175,8 @@ pub struct OnlineWorkerLease {
   priv mut epoch : UInt64
   priv mut clock : @monotonic_clock.MonotonicClock
   priv mut request_phase : Int
+  priv mut prepared_admission : @core.PreparedExclusiveAdmission?
+  priv prepared_clock_read : @monotonic_clock.PreparedMonotonicRead
   priv mut handle : @core.RequestHandle?
   priv mut request_generation : @inference.RequestGeneration
   priv mut cut_source_generation : @inference.RequestGeneration
@@ -227,6 +229,21 @@ pub(all) enum OnlineExpiry {
   OnlineDeadlinePending
   OnlineDeadlineNaturalTerminal
   OnlineDeadlineCommitted
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlineTerminalRecoveryProgress {
+  OnlineTerminalRecoveryPending
+  OnlineTerminalRecoveryPublicationReady
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlinePreparedAdmissionCommit {
+  OnlineAdmissionCommitted
+  OnlineAdmissionClockFailed
+  OnlineAdmissionExpired
 } derive(Debug, Eq)
 
 ///|

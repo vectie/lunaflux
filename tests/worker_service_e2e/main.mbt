@@ -478,6 +478,7 @@ fn run(executable : Bytes) -> Unit raise {
   run_terminal_drain_evidence(executable)
   run_reservation_classification_evidence(executable)
   run_online_lease_evidence(executable)
+  run_online_session_foundation(executable)
 }
 
 ///|

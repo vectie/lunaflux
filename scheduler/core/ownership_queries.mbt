@@ -110,7 +110,8 @@ pub fn Scheduler::is_pristine(self : Scheduler) -> Bool {
   self.last_retired_plan_sequence == 0UL &&
   self.plan_a_sequence == 0UL &&
   self.plan_b_sequence == 0UL &&
-  !self.cancel_reserved
+  !self.cancel_reserved &&
+  !self.exclusive_admission_reserved
 }
 
 ///|
@@ -123,5 +124,6 @@ pub fn Scheduler::is_quiescent(self : Scheduler) -> Bool {
   self.last_plan_sequence == self.last_retired_plan_sequence &&
   self.plan_a_sequence == 0UL &&
   self.plan_b_sequence == 0UL &&
-  !self.cancel_reserved
+  !self.cancel_reserved &&
+  !self.exclusive_admission_reserved
 }
