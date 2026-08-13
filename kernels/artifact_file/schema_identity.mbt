@@ -1,7 +1,7 @@
 ///|
 fn validate_identity(
   root : Map[String, Json],
-  contracts : @launch_contract.LaunchContractSet,
+  expected : @spec.ModelIdentity,
 ) -> Unit raise KernelArtifactFileError {
   let identity = require_object(
     root,
@@ -35,10 +35,10 @@ fn validate_identity(
   if !is_lower_sha256(plan) {
     raise invalid_field(ManifestModelIdentity, PlanSha256Field, InvalidSha256)
   }
-  if content != contracts.model_identity().content().as_hex() {
+  if content != expected.content().as_hex() {
     raise IdentityMismatch(ModelContentIdentity)
   }
-  if plan != contracts.model_identity().plan().as_hex() {
+  if plan != expected.plan().as_hex() {
     raise IdentityMismatch(ModelPlanIdentity)
   }
 }
@@ -46,7 +46,7 @@ fn validate_identity(
 ///|
 fn validate_device_target(
   root : Map[String, Json],
-  contracts : @launch_contract.LaunchContractSet,
+  expected : @catalog.DeviceTarget,
 ) -> Unit raise KernelArtifactFileError {
   let target = require_object(
     root,
@@ -60,7 +60,6 @@ fn validate_device_target(
     ("supports_bf16", SupportsBf16Field),
     ("supports_cublas_lt", SupportsCublasLtField),
   ])
-  let expected = contracts.device_target()
   if require_nonnegative_int(
       target,
       "compute_major",
@@ -102,7 +101,7 @@ fn validate_device_target(
 ///|
 fn validate_catalog_version(
   root : Map[String, Json],
-  contracts : @launch_contract.LaunchContractSet,
+  expected : @catalog.CatalogVersion,
 ) -> Unit raise KernelArtifactFileError {
   let value = require_nonnegative_int(
     root,
@@ -110,7 +109,29 @@ fn validate_catalog_version(
     ManifestRoot,
     CatalogVersionField,
   )
-  if value != contracts.catalog_version().as_int() {
+  if value != expected.as_int() {
     raise IdentityMismatch(KernelCatalogVersion)
+  }
+}
+
+///|
+fn stateless_contract_evidence(
+  contracts : @launch_contract.LaunchContractSet,
+) -> ManifestContractEvidence {
+  {
+    model_identity: contracts.model_identity(),
+    device_target: contracts.device_target(),
+    catalog_version: contracts.catalog_version(),
+  }
+}
+
+///|
+fn paged_contract_evidence(
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+) -> ManifestContractEvidence {
+  {
+    model_identity: contracts.model_identity(),
+    device_target: contracts.device_target(),
+    catalog_version: contracts.catalog_version(),
   }
 }

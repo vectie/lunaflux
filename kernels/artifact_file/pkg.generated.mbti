@@ -11,7 +11,11 @@ import {
 // Values
 pub async fn load(StringView, StringView, KernelManifestDigest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
 
+pub async fn load_paged_kv(StringView, StringView, KernelManifestDigest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
 pub fn read_manifest(BytesView, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> KernelArtifactManifest raise KernelArtifactFileError
+
+pub fn read_paged_manifest(BytesView, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> KernelArtifactManifest raise KernelArtifactFileError
 
 // Errors
 pub(all) suberror KernelArtifactFileError {

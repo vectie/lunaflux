@@ -1,7 +1,7 @@
 ///|
 fn parse_manifest_text(
   document : StringView,
-  contracts : @launch_contract.LaunchContractSet,
+  evidence : ManifestContractEvidence,
   limits : KernelArtifactFileLimits,
 ) -> KernelArtifactManifest raise KernelArtifactFileError {
   @json_guard.reject_duplicate_object_keys(
@@ -32,10 +32,23 @@ fn parse_manifest_text(
     1 {
     raise invalid_field(ManifestRoot, SchemaVersionField, UnsupportedValue)
   }
-  validate_identity(root, contracts)
-  validate_device_target(root, contracts)
-  validate_catalog_version(root, contracts)
+  validate_identity(root, evidence.model_identity)
+  validate_device_target(root, evidence.device_target)
+  validate_catalog_version(root, evidence.catalog_version)
   parse_modules(root, limits)
+}
+
+///|
+fn read_manifest_with_evidence(
+  document : BytesView,
+  evidence : ManifestContractEvidence,
+  limits : KernelArtifactFileLimits,
+) -> KernelArtifactManifest raise KernelArtifactFileError {
+  if document.length().to_int64() > limits.max_manifest_bytes() {
+    raise FileTooLarge(file=ManifestFile, maximum=limits.max_manifest_bytes())
+  }
+  let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
+  parse_manifest_text(text, evidence, limits)
 }
 
 ///|
@@ -52,9 +65,25 @@ pub fn read_manifest(
   contracts : @launch_contract.LaunchContractSet,
   limits : KernelArtifactFileLimits,
 ) -> KernelArtifactManifest raise KernelArtifactFileError {
-  if document.length().to_int64() > limits.max_manifest_bytes() {
-    raise FileTooLarge(file=ManifestFile, maximum=limits.max_manifest_bytes())
-  }
-  let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
-  parse_manifest_text(text, contracts, limits)
+  read_manifest_with_evidence(
+    document,
+    stateless_contract_evidence(contracts),
+    limits,
+  )
+}
+
+///|
+/// Parses an exact inert AOT manifest and pins it to the supplied paged launch
+/// contracts. Parsing, bounds, duplicate-field rejection, and identity checks
+/// are identical to `read_manifest`.
+pub fn read_paged_manifest(
+  document : BytesView,
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> KernelArtifactManifest raise KernelArtifactFileError {
+  read_manifest_with_evidence(
+    document,
+    paged_contract_evidence(contracts),
+    limits,
+  )
 }

@@ -3,11 +3,24 @@
 pub struct KernelManifestDigest(String) derive(Debug, Eq)
 
 ///|
-/// Parsed exact v1 AOT manifest, already pinned to one launch-contract set.
+/// Parsed exact AOT manifest, already pinned to one launch-contract set.
 pub struct KernelArtifactManifest {
   module_digests : ReadOnlyArray[@catalog.AotArtifactDigest]
   module_path_identifiers : ReadOnlyArray[String]
   entry_points : ReadOnlyArray[@artifact.KernelEntryPointInput]
+}
+
+///|
+priv struct ManifestContractEvidence {
+  model_identity : @spec.ModelIdentity
+  device_target : @catalog.DeviceTarget
+  catalog_version : @catalog.CatalogVersion
+}
+
+///|
+priv struct LoadedArtifactInputs {
+  manifest : KernelArtifactManifest
+  module_inputs : Array[@artifact.KernelModuleInput]
 }
 
 ///|

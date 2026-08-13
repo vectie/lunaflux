@@ -236,9 +236,10 @@ fn module_json(
 fn manifest_json(
   modules : ArrayView[String],
   extra_root? : String = "",
+  catalog_version? : Int = 1,
 ) -> Bytes {
   @utf8.encode(
-    "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"\{fixture_identity().content().as_hex()}\",\"plan_sha256\":\"\{fixture_identity().plan().as_hex()}\"},\"device_target\":{\"compute_major\":8,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false},\"catalog_version\":1,\"modules\":[\{modules.join(",")}]\{extra_root}}",
+    "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"\{fixture_identity().content().as_hex()}\",\"plan_sha256\":\"\{fixture_identity().plan().as_hex()}\"},\"device_target\":{\"compute_major\":8,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false},\"catalog_version\":\{catalog_version},\"modules\":[\{modules.join(",")}]\{extra_root}}",
   )
 }
 

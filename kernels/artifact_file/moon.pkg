@@ -15,6 +15,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/kv/device_layout",
 } for "test"
 
 supported_targets = "native"

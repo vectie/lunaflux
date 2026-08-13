@@ -83,6 +83,36 @@ async fn read_module_inputs(
 }
 
 ///|
+async fn load_inputs(
+  approved_root : StringView,
+  manifest_identifier : StringView,
+  expected_manifest_digest : KernelManifestDigest,
+  evidence : ManifestContractEvidence,
+  limits : KernelArtifactFileLimits,
+) -> LoadedArtifactInputs raise KernelArtifactFileError {
+  let root_kind = @fs.kind(approved_root, follow_symlink=false) catch {
+    _ => raise ApprovedRootUnavailable
+  }
+  if root_kind != Directory {
+    raise UnsupportedApprovedRootType
+  }
+  validate_path_identifier(
+    manifest_identifier,
+    ManifestFile,
+    limits.max_path_bytes(),
+  )
+  let manifest_bytes = read_manifest_snapshot(
+    approved_root, manifest_identifier, expected_manifest_digest, limits,
+  )
+  let manifest = read_manifest_with_evidence(manifest_bytes, evidence, limits)
+  let opened : Array[OpenedModuleFile] = []
+  defer close_modules(opened)
+  open_module_files(approved_root, manifest, limits, opened)
+  let module_inputs = read_module_inputs(opened)
+  { manifest, module_inputs }
+}
+
+///|
 /// Loads and admits an exact digest-pinned AOT manifest and its module files
 /// from one caller-approved read-only artifact root.
 ///
@@ -103,29 +133,45 @@ pub async fn load(
   contracts : @launch_contract.LaunchContractSet,
   limits : KernelArtifactFileLimits,
 ) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
-  let root_kind = @fs.kind(approved_root, follow_symlink=false) catch {
-    _ => raise ApprovedRootUnavailable
-  }
-  if root_kind != Directory {
-    raise UnsupportedApprovedRootType
-  }
-  validate_path_identifier(
+  let loaded = load_inputs(
+    approved_root,
     manifest_identifier,
-    ManifestFile,
-    limits.max_path_bytes(),
+    expected_manifest_digest,
+    stateless_contract_evidence(contracts),
+    limits,
   )
-  let manifest_bytes = read_manifest_snapshot(
-    approved_root, manifest_identifier, expected_manifest_digest, limits,
-  )
-  let manifest = read_manifest(manifest_bytes, contracts, limits)
-  let opened : Array[OpenedModuleFile] = []
-  defer close_modules(opened)
-  open_module_files(approved_root, manifest, limits, opened)
-  let module_inputs = read_module_inputs(opened)
   @artifact.admit(
     contracts,
-    module_inputs,
-    manifest.entry_points,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
+    limits.artifact(),
+  ) catch {
+    error => raise ArtifactRejected(error)
+  }
+}
+
+///|
+/// Loads the same exact digest-pinned filesystem format as `load`, then admits
+/// it against a paged launch-contract set. No discovery, fallback, or runtime
+/// compilation is performed.
+pub async fn load_paged_kv(
+  approved_root : StringView,
+  manifest_identifier : StringView,
+  expected_manifest_digest : KernelManifestDigest,
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
+  let loaded = load_inputs(
+    approved_root,
+    manifest_identifier,
+    expected_manifest_digest,
+    paged_contract_evidence(contracts),
+    limits,
+  )
+  @artifact.admit_paged_kv(
+    contracts,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
     limits.artifact(),
   ) catch {
     error => raise ArtifactRejected(error)
