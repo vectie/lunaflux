@@ -125,8 +125,13 @@ admission. Reusable device-step buffers upload that bounded descriptor without
 steady-state allocation. The owner-mediated synchronous paged executor leases
 weights, privately owns activation/workspace and KV allocations, preloads every
 module/function and argument list, and fail-stops after any partial graph
-launch. Canonical request/streaming events and scheduler/worker messages now
-have bounded immutable contracts. Worker-protocol foundations include reusable
+launch. It also retains exact BF16 vocabulary-row geometry and startup-owned
+readback/sampling scratch: after a successful graph it reads only producing
+rows, rejects non-finite logits, deterministically selects by the request's
+canonical `(seed, output index)`, and freezes the exact scheduler completion
+lease before retirement. Canonical request/streaming events and
+scheduler/worker messages now have bounded immutable contracts.
+Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and
 explicit final-prefill sampling semantics. Host-side KV metadata includes a
@@ -150,11 +155,12 @@ terminal, and KV-release obligations before publishing tokens or recycling
 resources. Idle and plan-buffer pressure are allocation-free value outcomes,
 and completion-slot lookup is fixed-indexed. Greedy and
 bounded temperature/top-k/top-p host sampling are implemented with fixed
-scratch and deterministic RNG stream semantics. These remain foundations:
+scratch and counter-addressed replay semantics. These remain foundations:
 live worker transport/overlap, global fairness/preemption, prefix integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
-readback, online transport and sampling integration, a positive-controlled
-full graph-executor allocation gate, and physical-CUDA gates are open. Later
+physical-CUDA validation, online transport integration, a positive-controlled
+full graph-executor allocation gate, and the remaining physical-CUDA gates are
+open. Later
 packages are created only when their vertical phase begins; empty
 architectural packages are deliberately avoided.
 

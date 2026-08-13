@@ -141,6 +141,14 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   functions, dimensions, and argument lists. Exact staged/executed capabilities
   enforce lifecycle order; any partial launch failure poisons the executor, and
   partial construction or close retains explicit retryable cleanup authority.
+- Owner-mediated BF16 terminal-logit readback and completion construction for
+  that executor. Startup binds the retained LM-head row geometry and allocates
+  fixed readback/logit/selection scratch; successful execution reads only
+  producing rows, rejects non-finite logits, applies greedy or
+  counter-addressed stochastic selection from exact request seed/output index,
+  and submits the scheduler-issued exact-plan completion writer. Physical CUDA
+  numerical correctness and a positive-controlled full lifecycle allocation
+  gate remain open.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public

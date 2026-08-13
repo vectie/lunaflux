@@ -245,10 +245,13 @@ split K/V device layout, reusable counts/position/page-table staging, exact
 all-AOT catalog and artifact admission, full physical launch blueprint, and
 owner-mediated synchronous graph executor are implemented. The executor
 preallocates persistent KV and activation/workspace storage and reuses loaded
-functions and argument lists. Phase promotion still requires a production
-paged-kernel bundle, generated-logit readback into completion/sampling, a
-positive-controlled allocation gate around the complete graph lifecycle, and
-physical-CUDA correctness, sanitizer, leak, soak, and benchmark evidence.
+functions and argument lists. Its owner-mediated completion path now binds the
+exact retained BF16 vocabulary-row geometry, reuses fixed readback/sampling
+scratch, selects by canonical request seed/output index, and submits an exact
+completion lease. Phase promotion still requires a production paged-kernel
+bundle, a positive-controlled allocation gate around the complete graph
+lifecycle, and physical-CUDA numerical correctness, sanitizer, leak, soak, and
+benchmark evidence for logits and sampled tokens.
 
 ### Workstream 3: scheduler
 
@@ -293,8 +296,9 @@ ordered full-batch retirement, generated-token publication, and exact owner
 reset are implemented. Independent positive-controlled native release gates
 now cover the scheduler token step and public device-step staging/fixed-H2D
 path after warm-up. The full graph executor has generated-C success-path
-allocation evidence but not yet its own positive-controlled runtime gate. Live
-worker overlap remains open.
+allocation evidence through logits readback, sampling, and completion
+submission, but not yet its own positive-controlled runtime gate. Live worker
+overlap remains open.
 
 ### Gate
 
