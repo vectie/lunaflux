@@ -144,6 +144,7 @@ fn full_contract_set(
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
   weight_byte_delta? : Int64 = 0L,
+  entry_bias? : Int = 0,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let profile = blueprint_profile()
   let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []
@@ -162,7 +163,7 @@ fn full_contract_set(
         entry_point=@catalog.AotKernelEntryPoint::new(
           family~,
           entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(
-            index + 1,
+            index + entry_bias + 1,
           ),
         ),
         dimensions=blueprint_dimensions(),

@@ -3,6 +3,7 @@ package "vectie/lunaflux/engine/device_step"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",
@@ -19,6 +20,8 @@ import {
 }
 
 // Values
+pub fn admit_device_worker_bootstrap(PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, DeviceBootstrapLimits) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError
+
 pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
 
 pub fn admit_paged_kv_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
@@ -28,6 +31,11 @@ pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGener
 pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> PagedGraphPreparation raise DeviceStepError
 
 // Errors
+pub(all) suberror DeviceBootstrapError {
+  InvalidBootstrap(DeviceBootstrapRule)
+  BootstrapWire(@worker_wire.WorkerWireError)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror DeviceStepError {
   InvalidLimit(DeviceStepLimitRule)
   InvalidModelPlan
@@ -54,6 +62,22 @@ pub(all) suberror DeviceStepError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct DeviceBootstrapLimits {
+  // private fields
+}
+pub fn DeviceBootstrapLimits::new(max_modules~ : Int, max_entry_points~ : Int, max_steps~ : Int, max_operands_per_step~ : Int, max_symbol_bytes~ : Int, max_canonical_bytes~ : Int) -> Self raise DeviceBootstrapError
+
+pub(all) enum DeviceBootstrapRule {
+  Capacity
+  Identity
+  Target
+  CatalogVersion
+  Scope
+  Artifact
+  Blueprint
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
 pub(all) enum DeviceStepLifecycle {
   Ready
   Staged
@@ -119,6 +143,18 @@ pub(all) enum DeviceStepStage {
   PageOffsets
   PhysicalPageIndices
 } derive(Eq, @debug.Debug)
+
+pub struct DeviceWorkerBootstrapManifest {
+  // private fields
+}
+pub fn DeviceWorkerBootstrapManifest::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn DeviceWorkerBootstrapManifest::digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn DeviceWorkerBootstrapManifest::entry_point_count(Self) -> Int
+pub fn DeviceWorkerBootstrapManifest::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceWorkerBootstrapManifest::module_count(Self) -> Int
+pub fn DeviceWorkerBootstrapManifest::step_count(Self) -> Int
+pub fn DeviceWorkerBootstrapManifest::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(Self, @worker_protocol.ModelPlanGeneration, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError
 
 pub struct ExecutedPagedGraphExecution {
   // private fields
