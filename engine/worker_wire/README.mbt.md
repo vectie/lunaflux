@@ -27,6 +27,14 @@ The converted `SubmittedCompletion` remains retryable if scheduler output or
 terminal publication is backpressured; frame acceptance itself does not retire
 the plan or mutate request/KV state.
 
+The isolated side does not need a scheduler completion owner. An exclusive
+`CompletionFrameWriter` is bound to one exact validated plan-frame owner and
+epoch. It copies canonical request, generation, slot, and prompt-length fields
+from those authenticated rows, accepts only bounded outcome scalars, enforces
+prefill-before-decode row order, and either submits a complete checksummed
+frame or aborts to a new stale epoch. Partial, foreign-owner, duplicate-writer,
+and terminal-epoch paths fail without publishing a frame.
+
 Untrusted-frame request and slot uniqueness checks use startup-owned scratch
 and deterministic in-place heapsort. They are O(n log n), avoiding quadratic
 work at the configured maximum row count while retaining allocation-free

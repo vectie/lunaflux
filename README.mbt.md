@@ -140,7 +140,9 @@ replay state, and outcomes into startup-sized frames; untrusted receives check
 all bounds and semantics before replacing an authenticated frame epoch. The
 service authenticates received completion frames against the exact retained
 plan before populating its paired completion owner, while normal scheduler
-backpressure remains retryable.
+backpressure remains retryable. The worker side writes those frames directly
+from authenticated received-plan rows; scheduler heap-owner capabilities do
+not cross the wire boundary.
 Positive-controlled release instrumentation covers both encode/receive paths
 inside the scheduler token-step window. Host-side KV metadata includes a
 generational fixed-page allocator, a fixed-capacity request block-table arena,

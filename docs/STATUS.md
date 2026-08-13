@@ -171,7 +171,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and O(1) completion-slot lookup without steady-state allocation. The service
   authenticates each received completion frame against the retained exact plan
   and converts it into the paired scheduler completion owner without retiring
-  work, preserving publication-backpressure retry. Live worker
+  work, preserving publication-backpressure retry. An exclusive worker-side
+  writer now produces canonical completion frames directly from exact received
+  plan rows with abort/stale-epoch safety, so no scheduler completion owner is
+  needed across this boundary. Live worker
   process I/O, authentication, supervision, and overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
