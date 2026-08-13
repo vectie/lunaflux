@@ -1,19 +1,55 @@
 ///|
-async fn read_manifest_snapshot(
-  root : StringView,
+fn validate_admitted_source(
+  manifest : KernelArtifactManifest,
+  limits : KernelArtifactFileLimits,
+) -> Unit raise KernelArtifactFileError {
+  let artifact_limits = limits.artifact()
+  if manifest.module_digests.length() > artifact_limits.max_modules() {
+    raise SourceCountExceeded(
+      source=SourceModules,
+      maximum=artifact_limits.max_modules(),
+    )
+  }
+  if manifest.entry_points.length() > artifact_limits.max_entry_points() {
+    raise SourceCountExceeded(
+      source=SourceEntryPoints,
+      maximum=artifact_limits.max_entry_points(),
+    )
+  }
+  for index, path in manifest.module_path_identifiers {
+    validate_path_identifier(path, ModuleFile(index), limits.max_path_bytes())
+    for earlier in 0..<index {
+      if manifest.module_path_identifiers[earlier] == path {
+        raise InvalidPath(file=ModuleFile(index), issue=DuplicatePath)
+      }
+    }
+  }
+}
+
+///|
+fn read_manifest_snapshot(
+  root : @approved_fs.ApprovedRoot,
   identifier : StringView,
   expected : KernelManifestDigest,
   limits : KernelArtifactFileLimits,
 ) -> Bytes raise KernelArtifactFileError {
-  let file = open_regular_file(root, identifier, ManifestFile)
-  defer file.close()
-  let stamp = file_stamp(file) catch {
-    _ => raise FileUnavailable(ManifestFile)
+  let file = open_artifact_file(root, identifier, ManifestFile)
+  let bytes = file.read_immutable_snapshot(
+    maximum_bytes=limits.max_manifest_bytes(),
+  ) catch {
+    error => {
+      let primary = snapshot_error(
+        error,
+        ManifestFile,
+        limits.max_manifest_bytes(),
+        false,
+      )
+      raise_primary_after_cleanup(primary, () => {
+        close_artifact_file(file, ManifestFile)
+      })
+    }
   }
-  if stamp.byte_count < 0L || stamp.byte_count > limits.max_manifest_bytes() {
-    raise FileTooLarge(file=ManifestFile, maximum=limits.max_manifest_bytes())
-  }
-  let bytes = read_exact_snapshot(file, stamp, ManifestFile)
+  close_artifact_file(file, ManifestFile)
   if sha256_hex(bytes) != expected.as_hex() {
     raise DigestMismatch(ManifestFile)
   }
@@ -21,8 +57,8 @@ async fn read_manifest_snapshot(
 }
 
 ///|
-async fn open_module_files(
-  root : StringView,
+fn open_module_files(
+  root : @approved_fs.ApprovedRoot,
   manifest : KernelArtifactManifest,
   limits : KernelArtifactFileLimits,
   opened : Array[OpenedModuleFile],
@@ -31,44 +67,60 @@ async fn open_module_files(
   let mut total = 0L
   for index in 0..<manifest.module_digests.length() {
     let file_ref = ModuleFile(index)
-    let file = open_regular_file(
+    let file = open_artifact_file(
       root,
       manifest.module_path_identifiers[index],
       file_ref,
     )
-    let stamp = file_stamp(file) catch {
-      _ => {
-        file.close()
-        raise FileUnavailable(file_ref)
+    let stamp = file.stamp() catch {
+      error => {
+        let primary = filesystem_error(error, file_ref, StatFile)
+        raise_primary_after_cleanup(primary, () => {
+          close_artifact_file(file, file_ref)
+        })
       }
     }
-    if stamp.byte_count < 0L ||
-      stamp.byte_count > artifact_limits.max_module_bytes() {
-      file.close()
-      raise FileTooLarge(
+    let byte_count = stamp.byte_count()
+    if byte_count < 0L || byte_count > artifact_limits.max_module_bytes() {
+      let primary = FileTooLarge(
         file=file_ref,
         maximum=artifact_limits.max_module_bytes(),
       )
+      raise_primary_after_cleanup(primary, () => {
+        close_artifact_file(file, file_ref)
+      })
     }
-    if stamp.byte_count > artifact_limits.max_total_module_bytes() - total {
-      file.close()
-      raise TotalModuleBytesExceeded(
+    if byte_count > artifact_limits.max_total_module_bytes() - total {
+      let primary = TotalModuleBytesExceeded(
         maximum=artifact_limits.max_total_module_bytes(),
       )
+      raise_primary_after_cleanup(primary, () => {
+        close_artifact_file(file, file_ref)
+      })
     }
-    total += stamp.byte_count
-    opened.push({ index, digest: manifest.module_digests[index], file, stamp })
+    total += byte_count
+    opened.push({
+      index,
+      digest: manifest.module_digests[index],
+      file,
+      byte_count,
+    })
   }
 }
 
 ///|
-async fn read_module_inputs(
+fn read_module_inputs(
   opened : ArrayView[OpenedModuleFile],
 ) -> Array[@artifact.KernelModuleInput] raise KernelArtifactFileError {
   let inputs : Array[@artifact.KernelModuleInput] = []
   for item in opened {
     let file_ref = ModuleFile(item.index)
-    let bytes = read_exact_snapshot(item.file, item.stamp, file_ref)
+    let bytes = item.file.read_immutable_snapshot(maximum_bytes=item.byte_count) catch {
+      error => raise snapshot_error(error, file_ref, item.byte_count, true)
+    }
+    if bytes.length().to_int64() != item.byte_count {
+      raise FileChangedDuringRead(file_ref)
+    }
     if sha256_hex(bytes) != item.digest.sha256() {
       raise DigestMismatch(file_ref)
     }
@@ -83,19 +135,34 @@ async fn read_module_inputs(
 }
 
 ///|
-async fn load_inputs(
-  approved_root : StringView,
+fn load_admitted_inputs(
+  approved_root : @approved_fs.ApprovedRoot,
+  manifest : KernelArtifactManifest,
+  limits : KernelArtifactFileLimits,
+) -> LoadedArtifactInputs raise KernelArtifactFileError {
+  validate_admitted_source(manifest, limits)
+  let opened : Array[OpenedModuleFile] = []
+  let module_inputs = try {
+    open_module_files(approved_root, manifest, limits, opened)
+    read_module_inputs(opened)
+  } catch {
+    primary =>
+      raise_primary_after_cleanup(primary, () => close_module_files(opened))
+  } noraise {
+    inputs => inputs
+  }
+  close_module_files(opened)
+  { manifest, module_inputs }
+}
+
+///|
+fn load_manifest_inputs(
+  approved_root : @approved_fs.ApprovedRoot,
   manifest_identifier : StringView,
   expected_manifest_digest : KernelManifestDigest,
   evidence : ManifestContractEvidence,
   limits : KernelArtifactFileLimits,
 ) -> LoadedArtifactInputs raise KernelArtifactFileError {
-  let root_kind = @fs.kind(approved_root, follow_symlink=false) catch {
-    _ => raise ApprovedRootUnavailable
-  }
-  if root_kind != Directory {
-    raise UnsupportedApprovedRootType
-  }
   validate_path_identifier(
     manifest_identifier,
     ManifestFile,
@@ -105,35 +172,20 @@ async fn load_inputs(
     approved_root, manifest_identifier, expected_manifest_digest, limits,
   )
   let manifest = read_manifest_with_evidence(manifest_bytes, evidence, limits)
-  let opened : Array[OpenedModuleFile] = []
-  defer close_modules(opened)
-  open_module_files(approved_root, manifest, limits, opened)
-  let module_inputs = read_module_inputs(opened)
-  { manifest, module_inputs }
+  load_admitted_inputs(approved_root, manifest, limits)
 }
 
 ///|
-/// Loads and admits an exact digest-pinned AOT manifest and its module files
-/// from one caller-approved read-only artifact root.
-///
-/// The manifest identifier and all manifest module paths are strict relative
-/// identifiers. Absolute paths, traversal, aliases, symlinks, directories,
-/// pipes, sockets, and devices are rejected. All module handles are opened and
-/// the aggregate size is proven before any module snapshot is allocated. Each
-/// exact snapshot is then hashed through that same opened handle and delegated
-/// to kernels/artifact admission for semantic validation.
-///
-/// The portable filesystem seam cannot make component traversal and opening
-/// atomic. Deployments must therefore provide a stable approved read-only
-/// mount; this function does not claim openat/O_NOFOLLOW race exclusion.
-pub async fn load(
-  approved_root : StringView,
+/// Loads and admits an exact digest-pinned AOT manifest through one caller-
+/// owned pinned root. The root remains owned and open for the caller.
+pub fn load(
+  approved_root : @approved_fs.ApprovedRoot,
   manifest_identifier : StringView,
   expected_manifest_digest : KernelManifestDigest,
   contracts : @launch_contract.LaunchContractSet,
   limits : KernelArtifactFileLimits,
 ) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
-  let loaded = load_inputs(
+  let loaded = load_manifest_inputs(
     approved_root,
     manifest_identifier,
     expected_manifest_digest,
@@ -151,17 +203,36 @@ pub async fn load(
 }
 
 ///|
-/// Loads the same exact digest-pinned filesystem format as `load`, then admits
-/// it against a paged launch-contract set. No discovery, fallback, or runtime
-/// compilation is performed.
-pub async fn load_paged_kv(
-  approved_root : StringView,
+/// Loads an already admitted inert file source through one caller-owned root,
+/// then performs stateless semantic artifact admission.
+pub fn load_admitted(
+  approved_root : @approved_fs.ApprovedRoot,
+  source : KernelArtifactManifest,
+  contracts : @launch_contract.LaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
+  let loaded = load_admitted_inputs(approved_root, source, limits)
+  @artifact.admit(
+    contracts,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
+    limits.artifact(),
+  ) catch {
+    error => raise ArtifactRejected(error)
+  }
+}
+
+///|
+/// Loads the exact digest-pinned filesystem format and admits its complete
+/// paged launch-contract set without discovery, fallback, or compilation.
+pub fn load_paged_kv(
+  approved_root : @approved_fs.ApprovedRoot,
   manifest_identifier : StringView,
   expected_manifest_digest : KernelManifestDigest,
   contracts : @launch_contract.PagedKvLaunchContractSet,
   limits : KernelArtifactFileLimits,
 ) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
-  let loaded = load_inputs(
+  let loaded = load_manifest_inputs(
     approved_root,
     manifest_identifier,
     expected_manifest_digest,
@@ -176,4 +247,29 @@ pub async fn load_paged_kv(
   ) catch {
     error => raise ArtifactRejected(error)
   }
+}
+
+///|
+/// Loads an already admitted inert file source through one caller-owned root,
+/// then performs paged semantic artifact admission.
+pub fn load_paged_kv_admitted(
+  approved_root : @approved_fs.ApprovedRoot,
+  source : KernelArtifactManifest,
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
+  let loaded = load_admitted_inputs(approved_root, source, limits)
+  @artifact.admit_paged_kv(
+    contracts,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
+    limits.artifact(),
+  ) catch {
+    error => raise ArtifactRejected(error)
+  }
+}
+
+///|
+fn sha256_hex(bytes : BytesView) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
 }

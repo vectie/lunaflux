@@ -6,12 +6,17 @@ import {
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub async fn load(StringView, StringView, KernelManifestDigest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+pub fn load(@approved_fs.ApprovedRoot, StringView, KernelManifestDigest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
 
-pub async fn load_paged_kv(StringView, StringView, KernelManifestDigest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+pub fn load_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
+pub fn load_paged_kv(@approved_fs.ApprovedRoot, StringView, KernelManifestDigest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
+pub fn load_paged_kv_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
 
 pub fn read_manifest(BytesView, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> KernelArtifactManifest raise KernelArtifactFileError
 
@@ -23,10 +28,9 @@ pub(all) suberror KernelArtifactFileError {
   InvalidLimit(ArtifactFileLimit)
   SourceCountExceeded(source~ : ArtifactFileSourceCount, maximum~ : Int)
   InvalidPath(file~ : ArtifactFileRef, issue~ : ArtifactPathIssue)
-  ApprovedRootUnavailable
-  UnsupportedApprovedRootType
   FileUnavailable(ArtifactFileRef)
   UnsupportedPathType(ArtifactFileRef)
+  FileIo(file~ : ArtifactFileRef, operation~ : ArtifactFileOperation, issue~ : ArtifactFileIoIssue)
   FileTooLarge(file~ : ArtifactFileRef, maximum~ : Int64)
   TotalModuleBytesExceeded(maximum~ : Int64)
   FileTruncated(ArtifactFileRef)
@@ -44,10 +48,23 @@ pub(all) suberror KernelArtifactFileError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum ArtifactFileIoIssue {
+  AuthorityClosed
+  Busy
+  Failed
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ArtifactFileLimit {
   ManifestBytes
   JsonDepth
   PathBytes
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ArtifactFileOperation {
+  OpenFile
+  StatFile
+  SnapshotFile
+  CloseFile
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ArtifactFileRef {

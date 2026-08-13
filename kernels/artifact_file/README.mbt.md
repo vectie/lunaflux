@@ -1,29 +1,31 @@
 # Bounded AOT artifact-file admission
 
-`kernels/artifact_file` is the filesystem trust boundary for production AOT
-CUDA artifacts. A caller supplies one approved root, a lexical manifest path
-identifier, and an independently obtained manifest SHA-256. The exact JSON
-manifest pins the model content and plan identities, exact device target,
-catalog version, module digests and relative path identifiers, and stable
-family/entry-point identities with bounded CUDA symbols.
+`kernels/artifact_file` admits production AOT CUDA artifacts through one
+caller-owned `runtime/approved_fs.ApprovedRoot`. The pinned root remains open
+and owned by the caller on success and failure. A lexical manifest identifier
+and independently obtained SHA-256 select an exact JSON manifest that pins the
+model content and plan identities, exact device target, catalog version,
+module digests and relative identifiers, and stable family/entry-point
+identities with bounded CUDA symbols.
 
 The same parser and same-handle loader admit both stateless catalog-v1 launch
 contracts and paged catalog-v3 launch contracts. The contract set supplies the
 expected model, target, and catalog evidence; manifests cannot select or
 downgrade that evidence.
 
-Every path component is checked without following its final symlink, every
-opened object must be a regular file, and all sizes are checked before module
-snapshot allocation. The complete manifest and module snapshots are hashed
-from the same opened handles. Module files are opened together and their
-aggregate size is proven before any module-sized host allocation. Admission
-then delegates required-module, required-entry-point, symbol, and content
-semantics to the matching `kernels/artifact` admission function; this package
-does not duplicate that authority or expose a bundle constructor.
+Descriptor-relative `openat(O_NOFOLLOW)` traversal and final type checks belong
+to `runtime/approved_fs`; this package does not concatenate or rediscover
+paths. Module files are opened together and their per-file and aggregate sizes
+are proven before any module-sized host allocation. Each module is then read by
+one lifecycle-leased immutable-snapshot operation, checked against the
+preflight size, and SHA-256 verified. Admission delegates required-module,
+required-entry-point, symbol, and content semantics to `kernels/artifact`,
+which independently rechecks content identity before publishing a bundle.
 
-The deployment contract requires an approved, read-only, stable artifact
-mount. MoonBit's portable filesystem API does not expose atomic
-`openat(O_NOFOLLOW)` plus handle-relative traversal, so the component checks
-and opened-handle checks do not prove race exclusion in an adversarial writable
-directory. There is no executable metadata, search path, environment lookup,
-cache, compiler, JIT, or fallback channel.
+Execution-manifest reconstruction may supply an already admitted inert
+`KernelArtifactManifest` directly to `load_admitted` or
+`load_paged_kv_admitted`; this reuses the same bounded module opener and never
+serializes or reparses a nested JSON artifact manifest. A deployment still
+supplies the authority that the pinned root is approved and read-only. There is
+no executable metadata, search path, environment lookup, cache, compiler, JIT,
+or fallback channel.

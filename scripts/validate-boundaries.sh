@@ -104,6 +104,27 @@ if [ -d engine/reference ]; then
   fi
 fi
 
+# AOT artifact files consume only the public pinned-root capability. They must
+# not recreate path-based portable filesystem traversal or reach through the
+# native implementation package.
+if [ -d kernels/artifact_file ]; then
+  fail_matches \
+    'artifact_file must not import an internal filesystem ABI:' \
+    --glob 'kernels/artifact_file/**/moon.pkg' \
+    'vectie/lunaflux/internal/approved_fs'
+  fail_matches \
+    'artifact_file production imports must not use portable async filesystem IO:' \
+    --pcre2 --glob 'kernels/artifact_file/**/moon.pkg' -U \
+    'import\s*\{[^}]*"moonbitlang/async/fs"[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
+  if rg -n \
+    'pub (async )?fn (load|load_paged_kv)\(StringView' \
+    kernels/artifact_file/pkg.generated.mbti; then
+    printf '%s\n' \
+      'artifact_file public loaders must consume an ApprovedRoot, not a string root' >&2
+    failed=1
+  fi
+fi
+
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.

@@ -8,8 +8,9 @@ async test "valid exact manifest admits one multi-function module" {
     let manifest = valid_manifest()
     write_file(root, "manifest.json", manifest)
     write_file(root, "kernel.cubin", fixture_module_bytes())
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
     let bundle = @artifact_file.load(
-      root,
+      authority,
       "manifest.json",
       expected_manifest(manifest),
       fixture_contracts(),
@@ -20,6 +21,63 @@ async test "valid exact manifest admits one multi-function module" {
     assert_eq(bundle.modules()[0].module_bytes(), fixture_module_bytes())
     assert_eq(bundle.entry_points()[0].function_symbol(), "embedding_prefill_2")
     assert_eq(bundle.entry_points()[1].function_symbol(), "embedding_prefill_4")
+    assert_false(authority.is_closed())
+    authority.close()
+    try
+      @artifact_file.load(
+        authority,
+        "manifest.json",
+        expected_manifest(manifest),
+        fixture_contracts(),
+        fixture_file_limits(),
+      )
+    catch {
+      FileIo(file=ManifestFile, operation=OpenFile, issue=AuthorityClosed) => ()
+      _ => fail("unexpected closed-root mapping")
+    } noraise {
+      _ => fail("closed approved root was reused")
+    }
+  }
+}
+
+///|
+async test "direct stateless source loads without a JSON filesystem manifest" {
+  @async.with_task_group() <| group => {
+    let root = @fs.tmpdir(prefix="lunaflux-aot-direct-source")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(root, recursive=true))
+    }
+    write_file(root, "kernel.cubin", fixture_module_bytes())
+    let digest = fixture_digest()
+    let source = @artifact_file.KernelArtifactManifest::admit_files(
+      [
+        @artifact_file.KernelModuleFileInput::new(
+          digest~,
+          path_identifier="kernel.cubin",
+        ),
+      ],
+      [
+        @artifact.KernelEntryPointInput::new(
+          entry_point=fixture_entry(digest, 11),
+          function_symbol="embedding_prefill_2",
+        ),
+        @artifact.KernelEntryPointInput::new(
+          entry_point=fixture_entry(digest, 12),
+          function_symbol="embedding_prefill_4",
+        ),
+      ],
+      fixture_file_limits(),
+    )
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
+    let bundle = @artifact_file.load_admitted(
+      authority,
+      source,
+      fixture_contracts(),
+      fixture_file_limits(),
+    )
+    assert_eq(bundle.module_count(), 1)
+    assert_false(authority.is_closed())
+    authority.close()
   }
 }
 
@@ -33,10 +91,11 @@ async test "manifest and module snapshot digest mutations fail closed" {
     let manifest = valid_manifest()
     write_file(root, "manifest.json", manifest)
     write_file(root, "kernel.cubin", fixture_module_bytes())
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
     let wrong_expected = expected_manifest(fixture_module_bytes())
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         wrong_expected,
         fixture_contracts(),
@@ -55,7 +114,7 @@ async test "manifest and module snapshot digest mutations fail closed" {
     replace_file(root, "manifest.json", mutated_manifest)
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(manifest),
         fixture_contracts(),
@@ -74,7 +133,7 @@ async test "manifest and module snapshot digest mutations fail closed" {
     replace_file(root, "kernel.cubin", Bytes::from_array(mutated_module_array))
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(manifest),
         fixture_contracts(),
@@ -89,13 +148,14 @@ async test "manifest and module snapshot digest mutations fail closed" {
 
     replace_file(root, "kernel.cubin", fixture_module_bytes())
     let recovered = @artifact_file.load(
-      root,
+      authority,
       "manifest.json",
       expected_manifest(manifest),
       fixture_contracts(),
       fixture_file_limits(),
     )
     assert_eq(recovered.module_count(), 1)
+    authority.close()
   }
 }
 
@@ -109,6 +169,7 @@ async test "symlink directory traversal absolute and aliases are rejected" {
     write_file(root, "kernel.cubin", fixture_module_bytes())
     @fs.symlink(target="\{root}/kernel.cubin", "\{root}/kernel.link")
     @fs.mkdir("\{root}/kernel.dir")
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
 
     let unsafe_paths = [
       ("kernel.link", false),
@@ -121,7 +182,7 @@ async test "symlink directory traversal absolute and aliases are rejected" {
       replace_file(root, "manifest.json", manifest)
       try
         @artifact_file.load(
-          root,
+          authority,
           "manifest.json",
           expected_manifest(manifest),
           fixture_contracts(),
@@ -148,7 +209,7 @@ async test "symlink directory traversal absolute and aliases are rejected" {
     replace_file(root, "manifest.json", duplicate_path_manifest)
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(duplicate_path_manifest),
         fixture_contracts(),
@@ -160,6 +221,7 @@ async test "symlink directory traversal absolute and aliases are rejected" {
     } noraise {
       _ => fail("expected failure")
     }
+    authority.close()
   }
 }
 
@@ -173,9 +235,10 @@ async test "module per-file and aggregate limits fail before semantic admission"
     let manifest = valid_manifest()
     write_file(root, "manifest.json", manifest)
     write_file(root, "kernel.cubin", fixture_module_bytes())
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(manifest),
         fixture_contracts(),
@@ -189,7 +252,7 @@ async test "module per-file and aggregate limits fail before semantic admission"
     }
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(manifest),
         fixture_contracts(),
@@ -201,6 +264,55 @@ async test "module per-file and aggregate limits fail before semantic admission"
     } noraise {
       _ => fail("expected failure")
     }
+    authority.close()
+  }
+}
+
+///|
+async test "direct source aggregate preflight opens all files before snapshots" {
+  @async.with_task_group() <| group => {
+    let root = @fs.tmpdir(prefix="lunaflux-aot-direct-preflight")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(root, recursive=true))
+    }
+    let corrupted = fixture_module_bytes().to_array()
+    corrupted[0] = b'X'
+    write_file(root, "one.cubin", Bytes::from_array(corrupted))
+    write_file(root, "two.cubin", fixture_module_bytes())
+    let digest = fixture_digest()
+    let source = @artifact_file.KernelArtifactManifest::admit_files(
+      [
+        @artifact_file.KernelModuleFileInput::new(
+          digest~,
+          path_identifier="one.cubin",
+        ),
+        @artifact_file.KernelModuleFileInput::new(
+          digest~,
+          path_identifier="two.cubin",
+        ),
+      ],
+      [],
+      fixture_file_limits(),
+    )
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
+    try
+      @artifact_file.load_admitted(
+        authority,
+        source,
+        fixture_contracts(),
+        fixture_file_limits(
+          max_total_module_bytes=fixture_module_bytes().length().to_int64(),
+        ),
+      )
+    catch {
+      TotalModuleBytesExceeded(maximum=actual) if actual ==
+        fixture_module_bytes().length().to_int64() => ()
+      _ => fail("unexpected direct aggregate preflight error")
+    } noraise {
+      _ => fail("aggregate-overflow source reached snapshot admission")
+    }
+    assert_false(authority.is_closed())
+    authority.close()
   }
 }
 
@@ -212,12 +324,13 @@ async test "unknown and duplicate stable entry identities reach semantic authori
       @async.protect_from_cancel(() => @fs.rmdir(root, recursive=true))
     }
     write_file(root, "kernel.cubin", fixture_module_bytes())
+    let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
 
     let unknown = valid_manifest(entry_ids=[11, 99])
     write_file(root, "manifest.json", unknown)
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(unknown),
         fixture_contracts(),
@@ -230,12 +343,11 @@ async test "unknown and duplicate stable entry identities reach semantic authori
     } noraise {
       _ => fail("expected failure")
     }
-
     let duplicate = valid_manifest(entry_ids=[11, 11])
     replace_file(root, "manifest.json", duplicate)
     try
       @artifact_file.load(
-        root,
+        authority,
         "manifest.json",
         expected_manifest(duplicate),
         fixture_contracts(),
@@ -248,5 +360,6 @@ async test "unknown and duplicate stable entry identities reach semantic authori
     } noraise {
       _ => fail("expected failure")
     }
+    authority.close()
   }
 }

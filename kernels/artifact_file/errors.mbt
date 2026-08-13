@@ -85,6 +85,24 @@ pub(all) enum ArtifactFileSourceCount {
 } derive(Debug, Eq)
 
 ///|
+/// Filesystem operation whose platform detail is deliberately suppressed.
+pub(all) enum ArtifactFileOperation {
+  OpenFile
+  StatFile
+  SnapshotFile
+  CloseFile
+} derive(Debug, Eq)
+
+///|
+/// Stable filesystem failure class. No descriptor, path, errno, or platform
+/// message crosses the artifact-file boundary.
+pub(all) enum ArtifactFileIoIssue {
+  AuthorityClosed
+  Busy
+  Failed
+} derive(Debug, Eq)
+
+///|
 /// Bounded, payload-safe failures from AOT manifest and module-file admission.
 ///
 /// No variant retains a filesystem path, file contents, function symbol,
@@ -94,10 +112,13 @@ pub(all) suberror KernelArtifactFileError {
   InvalidLimit(ArtifactFileLimit)
   SourceCountExceeded(source~ : ArtifactFileSourceCount, maximum~ : Int)
   InvalidPath(file~ : ArtifactFileRef, issue~ : ArtifactPathIssue)
-  ApprovedRootUnavailable
-  UnsupportedApprovedRootType
   FileUnavailable(ArtifactFileRef)
   UnsupportedPathType(ArtifactFileRef)
+  FileIo(
+    file~ : ArtifactFileRef,
+    operation~ : ArtifactFileOperation,
+    issue~ : ArtifactFileIoIssue
+  )
   FileTooLarge(file~ : ArtifactFileRef, maximum~ : Int64)
   TotalModuleBytesExceeded(maximum~ : Int64)
   FileTruncated(ArtifactFileRef)

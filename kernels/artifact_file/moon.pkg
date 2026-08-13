@@ -1,5 +1,4 @@
 import {
-  "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
   "moonbitlang/x/crypto",
@@ -8,10 +7,12 @@ import {
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 import {
   "moonbitlang/async",
+  "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/model/plan",
