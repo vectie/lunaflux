@@ -99,10 +99,18 @@ if [ -z "$owned_body" ]; then
   exit 1
 fi
 admission_line="$(printf '%s\n' "$owned_body" | rg -n 'Scheduler29prepare__exclusive__admission' | head -n 1 | cut -d: -f1)"
+clock_line="$(printf '%s\n' "$owned_body" | rg -n 'MonotonicClock13prepare__read' | head -n 1 | cut -d: -f1)"
+lease_line="$(printf '%s\n' "$owned_body" | rg -n 'OnlineWorkerLease\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
+owned_outcome_line="$(printf '%s\n' "$owned_body" | rg -n 'OwnedWorkerServicePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
 owned_rooted_line="$(printf '%s\n' "$owned_body" | rg -n 'prepare__exchange__with__approved__roots' | head -n 1 | cut -d: -f1)"
-if [ -z "$admission_line" ] || [ -z "$owned_rooted_line" ] ||
-  [ "$admission_line" -ge "$owned_rooted_line" ]; then
-  printf '%s\n' 'scheduler admission shell was not prepared before rooted activation' >&2
+if [ -z "$admission_line" ] || [ -z "$clock_line" ] ||
+  [ -z "$lease_line" ] || [ -z "$owned_outcome_line" ] ||
+  [ -z "$owned_rooted_line" ] ||
+  [ "$admission_line" -ge "$owned_rooted_line" ] ||
+  [ "$clock_line" -ge "$owned_rooted_line" ] ||
+  [ "$lease_line" -ge "$owned_rooted_line" ] ||
+  [ "$owned_outcome_line" -ge "$owned_rooted_line" ]; then
+  printf '%s\n' 'online admission/clock/lease shells were not prepared before rooted activation' >&2
   exit 1
 fi
 

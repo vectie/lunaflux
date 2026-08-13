@@ -547,6 +547,18 @@ if [ -n "$prepared_clock_references" ] &&
   failed=1
 fi
 
+if ! rg -q '^pub struct PreparedExclusiveAdmission \{$' \
+    scheduler/core/pkg.generated.mbti ||
+  ! rg -q '^pub fn Scheduler::prepare_exclusive_admission\(Self, TokenizedRequest\) -> PreparedExclusiveAdmission raise SchedulerError$' \
+    scheduler/core/pkg.generated.mbti ||
+  ! rg -q '^pub fn Scheduler::commit_exclusive_admission\(Self, PreparedExclusiveAdmission, UInt64\) -> ExclusiveAdmissionCommit$' \
+    scheduler/core/pkg.generated.mbti ||
+  ! rg -q '^pub fn Scheduler::abort_exclusive_admission\(Self, PreparedExclusiveAdmission\) -> Unit$' \
+    scheduler/core/pkg.generated.mbti; then
+  printf '%s\n' 'exclusive scheduler admission must remain opaque and exact' >&2
+  failed=1
+fi
+
 raw_transfer_calls=$(rg -n '\.take_raw_ready\(' --glob '*.mbt' || true)
 if [ -n "$raw_transfer_calls" ] &&
   printf '%s\n' "$raw_transfer_calls" |

@@ -40,11 +40,14 @@ and global publication cursor. It exposes only sanitized value publications,
 including explicit suppressed-token evidence after a cancellation or deadline
 cut.
 
-The lease is a single-session lower-level engine seam for the forthcoming owned
-`service/online_session` aggregate. Its prepare/admit entry points are boundary
-restricted to that aggregate and tests; applications must not pair a raw
-`TokenizedRequest` with the lease. No decoder, scheduler, process, request
-handle, request identity, generation, or raw publication owner escapes.
+The lease is a single-session lower-level engine seam for the owned
+`service/online_session` aggregate. Production online construction prepares an
+exclusive scheduler admission and its monotonic read before rooted activation,
+then commits that exact shell after startup without accepting a request through
+the lease. Lower fixture entry points are boundary-restricted to tests; an
+application cannot pair a raw `TokenizedRequest` with the aggregate. No decoder,
+scheduler, process, request handle, request identity, generation, or raw
+publication owner escapes.
 The service and lease remain thread-confined; copying a current lease reference
 does not create independent authority and is forbidden by the aggregate's
 exclusive-owner discipline. The aggregate never releases or renews this owner:
