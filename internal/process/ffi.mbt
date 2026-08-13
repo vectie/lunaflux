@@ -71,3 +71,9 @@ extern "c" fn raw_inherited_read_exact(
   byte_count : Int,
   timeout_millis : Int,
 ) -> Int = "lunaflux_process_inherited_read_exact"
+
+///|
+extern "c" fn raw_inherited_expect_clean_eof(timeout_millis : Int) -> Int = "lunaflux_process_inherited_expect_clean_eof"
+
+///|
+extern "c" fn raw_exit_failure() -> Unit = "lunaflux_process_exit_failure"

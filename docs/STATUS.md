@@ -142,6 +142,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   before exact readiness publication, and retains independent retryable worker
   and root cleanup authority after compound failure. Transport publication
   remains outside this owner.
+- The startup-only device child consumes Configure then canonical source from
+  the inherited private channel, calls the real bootstrap composition, and
+  writes Ready only after an exact readiness query. It accepts only clean EOF
+  afterward and deterministically closes the owner; decode/bootstrap/channel
+  failures exit silently nonzero. CPU ordering, invalid-config no-Ready, native
+  child-control ABI, and AddressSanitizer gates pass; physical CUDA readiness
+  and the steady-state execution loop remain deferred.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and

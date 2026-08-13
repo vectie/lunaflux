@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn exit_failure() -> Unit
+
 pub fn open_inherited(ProcessLimits) -> InheritedChannel
 
 pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
@@ -48,6 +50,7 @@ pub fn ChildProcess::write_frame_with_timeout(Self, FixedArray[Byte], offset~ : 
 pub struct InheritedChannel {
   // private fields
 }
+pub fn InheritedChannel::expect_clean_eof(Self) -> Unit raise ProcessError
 pub fn InheritedChannel::is_failed(Self) -> Bool
 pub fn InheritedChannel::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError

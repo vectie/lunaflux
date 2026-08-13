@@ -1,0 +1,13 @@
+import {
+  "vectie/lunaflux/engine/device_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/internal/process",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

@@ -16,15 +16,8 @@
 #include <time.h>
 #include <unistd.h>
 #include "../approved_fs_capability/approved_fs_capability.h"
+#include "process_status.h"
 extern char **environ;
-
-enum {
-  LF_PROCESS_OK = 0,
-  LF_PROCESS_INVALID_STATE = 1,
-  LF_PROCESS_TIMEOUT = 2,
-  LF_PROCESS_CHANNEL_CLOSED = 3,
-  LF_PROCESS_FAILED = 4
-};
 typedef struct lf_process {
   pid_t pid;
   int fd;

@@ -92,6 +92,15 @@ pub fn open_inherited(limits : ProcessLimits) -> InheritedChannel {
 }
 
 ///|
+/// Terminates the current child immediately with a stable nonzero status and
+/// without emitting or flushing process diagnostics. Call only after explicit
+/// MoonBit-owned resource cleanup has completed or failed terminally.
+pub fn exit_failure() -> Unit {
+  raw_exit_failure()
+  abort("unreachable child failure exit")
+}
+
+///|
 /// Writes an exact fixed-buffer range or fails without reporting a short write.
 fn ChildProcess::write_exact(
   self : ChildProcess,
@@ -317,6 +326,25 @@ pub fn InheritedChannel::write_frame(
   write_u32_prefix(self.write_prefix, byte_count)
   self.write_exact(self.write_prefix, 0, 4)
   self.write_exact(source, offset, byte_count)
+}
+
+///|
+/// Waits for a clean parent half-close without consuming framed payload. A
+/// single byte, including a partial next-frame prefix, fails and permanently
+/// poisons the channel; timeout and native errors fail likewise.
+pub fn InheritedChannel::expect_clean_eof(
+  self : InheritedChannel,
+) -> Unit raise ProcessError {
+  self.require_usable(Read)
+  raise_status(
+    raw_inherited_expect_clean_eof(self.limits.io_timeout_millis),
+    Read,
+  ) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
 }
 
 ///|
