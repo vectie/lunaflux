@@ -50,6 +50,9 @@ pub fn spawn(
     limits,
     write_prefix: FixedArray::make(4, b'\x00'),
     read_prefix: FixedArray::make(4, b'\x00'),
+    next_transfer_epoch: 1UL,
+    active_write_epoch: 0UL,
+    active_read_epoch: 0UL,
     failed: false,
     closed: false,
   }
@@ -75,6 +78,9 @@ pub fn spawn_with_approved_roots(
     limits,
     write_prefix: FixedArray::make(4, b'\x00'),
     read_prefix: FixedArray::make(4, b'\x00'),
+    next_transfer_epoch: 1UL,
+    active_write_epoch: 0UL,
+    active_read_epoch: 0UL,
     failed: false,
     closed: false,
   }
@@ -110,6 +116,9 @@ fn ChildProcess::write_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
+  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+    raise InvalidState(Write)
+  }
   if offset < 0 ||
     byte_count < 0 ||
     timeout_millis <= 0 ||
@@ -139,6 +148,9 @@ fn ChildProcess::read_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
+  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+    raise InvalidState(Read)
+  }
   if offset < 0 ||
     byte_count < 0 ||
     timeout_millis <= 0 ||
@@ -201,6 +213,9 @@ pub fn ChildProcess::write_frame_with_timeout(
   timeout_millis~ : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
+  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+    raise InvalidState(Write)
+  }
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     timeout_millis <= 0 ||
@@ -405,8 +420,16 @@ pub fn InheritedChannel::read_frame_or_eof(
 pub fn ChildProcess::shutdown_write(
   self : ChildProcess,
 ) -> Unit raise ProcessError {
-  self.require_open(ShutdownWrite)
-  raise_status(raw_shutdown_write(self.handle), ShutdownWrite)
+  self.require_usable(ShutdownWrite)
+  if self.active_write_epoch != 0UL || self.active_read_epoch != 0UL {
+    raise InvalidState(ShutdownWrite)
+  }
+  raise_status(raw_shutdown_write(self.handle), ShutdownWrite) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
 }
 
 ///|

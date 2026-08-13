@@ -5,7 +5,6 @@
 #include <moonbit.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdint.h>
@@ -17,15 +16,9 @@
 #include <unistd.h>
 #include "../approved_fs_capability/approved_fs_capability.h"
 #include "process_status.h"
+#include "process_io.h"
+#include "process_handle.h"
 extern char **environ;
-typedef struct lf_process {
-  pid_t pid;
-  int fd;
-  int reaped;
-  int closed;
-  int exit_kind;
-  int exit_code;
-} lf_process;
 static void lf_process_reap_force(lf_process *process) {
   if (process == NULL || process->reaped || process->pid <= 0) {
     return;
@@ -45,37 +38,6 @@ static void lf_process_finalize(void *pointer) {
   }
   lf_process_reap_force(process);
   process->closed = 1;
-}
-
-static int64_t lf_now_millis(void) {
-  struct timespec value;
-  if (clock_gettime(CLOCK_MONOTONIC, &value) != 0) return -1;
-  return (int64_t)value.tv_sec * 1000 + value.tv_nsec / 1000000;
-}
-
-static int32_t lf_poll_fd(int fd, short events, int64_t deadline) {
-  for (;;) {
-    int64_t now = lf_now_millis();
-    if (now < 0) {
-      return LF_PROCESS_FAILED;
-    }
-    int64_t remaining = deadline - now;
-    if (remaining <= 0) {
-      return LF_PROCESS_TIMEOUT;
-    }
-    int timeout = remaining > INT32_MAX ? INT32_MAX : (int)remaining;
-    struct pollfd item = {.fd = fd, .events = events, .revents = 0};
-    int result = poll(&item, 1, timeout);
-    if (result > 0) {
-      if ((item.revents & events) != 0) return LF_PROCESS_OK;
-      if ((item.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
-        return LF_PROCESS_CHANNEL_CLOSED;
-    } else if (result == 0) {
-      return LF_PROCESS_TIMEOUT;
-    } else if (errno != EINTR) {
-      return LF_PROCESS_FAILED;
-    }
-  }
 }
 
 static int lf_duplicate_cloexec_at_least_five(int source) {
@@ -283,54 +245,6 @@ lf_process *lunaflux_process_spawn_with_approved_roots(
   return lf_process_spawn_impl(path, roots, status);
 }
 
-static int32_t lf_fd_io(
-  int fd,
-  uint8_t *bytes,
-  int32_t offset,
-  int32_t byte_count,
-  int32_t timeout_millis,
-  int write_mode
-) {
-  if (offset < 0 || byte_count < 0 || timeout_millis <= 0) {
-    return LF_PROCESS_FAILED;
-  }
-  int64_t now = lf_now_millis();
-  if (now < 0 || now > INT64_MAX - timeout_millis) {
-    return LF_PROCESS_FAILED;
-  }
-  int64_t deadline = now + timeout_millis;
-  int32_t cursor = 0;
-  while (cursor < byte_count) {
-    int32_t poll_status = lf_poll_fd(
-      fd, write_mode ? POLLOUT : POLLIN, deadline
-    );
-    if (poll_status != LF_PROCESS_OK) {
-      return poll_status;
-    }
-    ssize_t count = write_mode
-      ? send(
-          fd,
-          bytes + offset + cursor,
-          (size_t)(byte_count - cursor),
-          MSG_NOSIGNAL
-        )
-      : recv(
-          fd,
-          bytes + offset + cursor,
-          (size_t)(byte_count - cursor),
-          0
-        );
-    if (count > 0) {
-      cursor += (int32_t)count;
-    } else if (count == 0) {
-      return LF_PROCESS_CHANNEL_CLOSED;
-    } else if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-      return errno == EPIPE ? LF_PROCESS_CHANNEL_CLOSED : LF_PROCESS_FAILED;
-    }
-  }
-  return LF_PROCESS_OK;
-}
-
 static int32_t lf_process_io(
   lf_process *process,
   uint8_t *bytes,
@@ -342,7 +256,11 @@ static int32_t lf_process_io(
   if (process == NULL || process->closed || process->fd < 0) {
     return LF_PROCESS_INVALID_STATE;
   }
-  return lf_fd_io(
+  if (bytes == NULL || offset < 0 || byte_count < 0 ||
+      offset > Moonbit_array_length(bytes) - byte_count) {
+    return LF_PROCESS_FAILED;
+  }
+  return lf_process_fd_io_exact(
     process->fd, bytes, offset, byte_count, timeout_millis, write_mode
   );
 }
@@ -354,7 +272,13 @@ int32_t lunaflux_process_inherited_write_exact(
   int32_t byte_count,
   int32_t timeout_millis
 ) {
-  return lf_fd_io(1, source, offset, byte_count, timeout_millis, 1);
+  if (source == NULL || offset < 0 || byte_count < 0 ||
+      offset > Moonbit_array_length(source) - byte_count) {
+    return LF_PROCESS_FAILED;
+  }
+  return lf_process_fd_io_exact(
+    1, source, offset, byte_count, timeout_millis, 1
+  );
 }
 
 MOONBIT_FFI_EXPORT
@@ -364,7 +288,13 @@ int32_t lunaflux_process_inherited_read_exact(
   int32_t byte_count,
   int32_t timeout_millis
 ) {
-  return lf_fd_io(0, destination, offset, byte_count, timeout_millis, 0);
+  if (destination == NULL || offset < 0 || byte_count < 0 ||
+      offset > Moonbit_array_length(destination) - byte_count) {
+    return LF_PROCESS_FAILED;
+  }
+  return lf_process_fd_io_exact(
+    0, destination, offset, byte_count, timeout_millis, 0
+  );
 }
 
 MOONBIT_FFI_EXPORT
@@ -433,7 +363,7 @@ int32_t lunaflux_process_wait(
     *code = process->exit_code;
     return LF_PROCESS_OK;
   }
-  int64_t now = lf_now_millis();
+  int64_t now = lf_process_now_millis();
   if (now < 0 || now > INT64_MAX - timeout_millis) {
     return LF_PROCESS_FAILED;
   }
@@ -450,7 +380,7 @@ int32_t lunaflux_process_wait(
     if (result < 0 && errno != EINTR) {
       return LF_PROCESS_FAILED;
     }
-    if (lf_now_millis() >= deadline) {
+    if (lf_process_now_millis() >= deadline) {
       return LF_PROCESS_TIMEOUT;
     }
     struct timespec pause = {.tv_sec = 0, .tv_nsec = 1000000};

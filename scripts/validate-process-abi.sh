@@ -24,12 +24,27 @@ fi
 
 if ! rg -q 'posix_spawn\s*\(' internal/process/process.c ||
   ! rg -q 'socketpair\s*\(' internal/process/process.c ||
-  ! rg -q 'CLOCK_MONOTONIC' internal/process/process.c; then
+  ! rg -q 'CLOCK_MONOTONIC' internal/process/process_io.c; then
   printf '%s\n' 'worker process ABI is missing exact spawn, private channel, or monotonic timeout' >&2
   exit 1
 fi
 
+if ! rg -q 'MSG_DONTWAIT' internal/process/process_io.c ||
+  ! rg -q 'LF_PROCESS_PENDING' internal/process/process_io.c ||
+  ! rg -q 'error_number == EINTR' internal/process/process_io.c ||
+  ! rg -q 'lunaflux_process_try_write' internal/process/process_nonblocking.c ||
+  ! rg -q 'lunaflux_process_try_read' internal/process/process_nonblocking.c ||
+  ! rg -q 'Moonbit_array_length\(bytes\)' internal/process/process_nonblocking.c; then
+  printf '%s\n' 'worker process ABI is missing one-attempt nonblocking I/O semantics' >&2
+  exit 1
+fi
+
 for source_file in internal/process/process.c \
+  internal/process/process_io.c \
+  internal/process/process_io_asan_probe.c \
+  internal/process/process_io.h \
+  internal/process/process_nonblocking.c \
+  internal/process/process_handle.h \
   internal/process/child_control.c \
   internal/process/child_control_asan_probe.c \
   internal/process/process_status.h; do

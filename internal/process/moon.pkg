@@ -5,6 +5,11 @@ import {
 }
 
 options(
-  "native-stub": [ "process.c", "child_control.c" ],
+  "native-stub": [
+    "process.c",
+    "process_io.c",
+    "process_nonblocking.c",
+    "child_control.c",
+  ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
 )

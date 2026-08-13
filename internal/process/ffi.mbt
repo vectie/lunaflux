@@ -34,6 +34,27 @@ extern "c" fn raw_read_exact(
 ) -> Int = "lunaflux_process_read_exact"
 
 ///|
+extern "c" fn raw_monotonic_now() -> Int64 = "lunaflux_process_monotonic_now"
+
+///|
+#borrow(child, source)
+extern "c" fn raw_try_write(
+  child : NativeChild,
+  source : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Int = "lunaflux_process_try_write"
+
+///|
+#borrow(child, destination)
+extern "c" fn raw_try_read(
+  child : NativeChild,
+  destination : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Int = "lunaflux_process_try_read"
+
+///|
 #borrow(child)
 extern "c" fn raw_shutdown_write(child : NativeChild) -> Int = "lunaflux_process_shutdown_write"
 
