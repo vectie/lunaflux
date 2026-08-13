@@ -9,6 +9,8 @@ import {
 // Values
 pub fn build(@spec.LlamaModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
 
+pub fn build_paged(@spec.LlamaModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
+
 // Errors
 
 // Types and methods

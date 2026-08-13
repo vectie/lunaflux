@@ -13,6 +13,7 @@ import {
 // Errors
 pub(all) suberror CatalogError {
   InvalidCatalog(CatalogValidationRule)
+  UnsupportedExecutionContract
   MissingKernel(@plan.OperationId)
   IncompatibleTarget(@plan.OperationId)
   IncompatibleImplementation(@plan.OperationId)

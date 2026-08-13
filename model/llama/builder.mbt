@@ -30,7 +30,7 @@ fn append_operation(
   capability : @plan.KernelCapabilityId,
 ) -> @plan.ActivationRef raise @plan.PlanValidationError {
   let output = @plan.ActivationRef::new(operations.length())
-  let operation = @plan.PlanOperation::new(
+  let operation = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(operations.length()),
     kind~,
     inputs~,
@@ -44,16 +44,54 @@ fn append_operation(
 }
 
 ///|
-/// Builds the immutable dense Llama v1 semantic plan.
+fn append_layer_operation(
+  operations : Array[@plan.PlanOperation],
+  layer : @plan.KvLayerId,
+  kind : @plan.OperationKind,
+  inputs : ArrayView[@plan.ValueRef],
+  shape : @plan.OperationShape,
+  capability : @plan.KernelCapabilityId,
+  runtime_inputs : ArrayView[@plan.OperationRuntimeInput],
+  persistent_state : @plan.PersistentStateAccess,
+) -> @plan.ActivationRef raise @plan.PlanValidationError {
+  let output = @plan.ActivationRef::new(operations.length())
+  operations.push(
+    @plan.PlanOperation::new_with_execution(
+      id=@plan.OperationId::new(operations.length()),
+      kind~,
+      inputs~,
+      outputs=[output],
+      shape~,
+      required_capability=capability,
+      workspace_bytes=0L,
+      kv_layer=layer,
+      runtime_inputs~,
+      persistent_state~,
+    ),
+  )
+  output
+}
+
+///|
+/// Builds one immutable dense Llama v2 semantic plan.
 ///
 /// All model-family branching terminates in this package. The returned graph
 /// contains no model-family, device, vendor, allocation, or kernel-artifact
 /// switch. Its batch-row ceiling remains the Phase-1 execution envelope;
 /// runtime batching capacity must move to execution planning in a later slice.
-pub fn build(
+fn build_with_execution(
   metadata : @spec.LlamaModelMetadata,
+  kv_execution : @plan.ModelKvExecution,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let spec = metadata.spec()
+  let identity = match kv_execution {
+    StatelessFullContext => metadata.identity()
+    PagedKeyValue =>
+      @spec.ModelIdentity::new(
+        metadata.identity().content(),
+        spec.canonical_paged_plan_digest(),
+      )
+  }
   let hidden = spec.hidden_size()
   let intermediate = spec.intermediate_size()
   let query_heads = spec.attention_head_count()
@@ -99,7 +137,8 @@ pub fn build(
     @plan.KernelCapabilityId::embedding_lookup(),
   )
   next_tensor += 1
-  for _layer in 0..<spec.layer_count() {
+  for layer_index in 0..<spec.layer_count() {
+    let layer = @plan.KvLayerId::new(layer_index)
     let residual_input = hidden_state
     let attention_norm = append_operation(
       operations,
@@ -122,8 +161,13 @@ pub fn build(
       @plan.KernelCapabilityId::qkv_projection(),
     )
     next_tensor += 3
-    let rotated = append_operation(
+    let rotary_runtime = match kv_execution {
+      StatelessFullContext => []
+      PagedKeyValue => [@plan.StepCounts, QueryPositions]
+    }
+    let rotated = append_layer_operation(
       operations,
+      layer,
       RotaryEmbedding,
       [activation(projected)],
       RotaryShape(
@@ -132,14 +176,41 @@ pub fn build(
         head_dimension~,
         rope_theta=spec.rope_theta(),
       ),
-      @plan.KernelCapabilityId::rotary_embedding(),
+      match kv_execution {
+        StatelessFullContext => @plan.KernelCapabilityId::rotary_embedding()
+        PagedKeyValue => @plan.KernelCapabilityId::positioned_rotary_embedding()
+      },
+      rotary_runtime,
+      NoPersistentState,
     )
-    let attended = append_operation(
+    let attention_runtime = match kv_execution {
+      StatelessFullContext => []
+      PagedKeyValue =>
+        [
+          @plan.StepCounts,
+          QueryPositions,
+          QueryRowOffsets,
+          SequenceLengths,
+          PageTableOffsets,
+          PageTablePageIndices,
+        ]
+    }
+    let persistent_state = match kv_execution {
+      StatelessFullContext => @plan.NoPersistentState
+      PagedKeyValue => KvCacheReadWrite(layer)
+    }
+    let attended = append_layer_operation(
       operations,
+      layer,
       CausalAttention,
       [activation(rotated)],
       AttentionShape(query_heads~, kv_heads~, head_dimension~),
-      @plan.KernelCapabilityId::causal_attention(),
+      match kv_execution {
+        StatelessFullContext => @plan.KernelCapabilityId::causal_attention()
+        PagedKeyValue => @plan.KernelCapabilityId::paged_causal_attention()
+      },
+      attention_runtime,
+      persistent_state,
     )
     let projected_output = append_operation(
       operations,
@@ -200,12 +271,35 @@ pub fn build(
     ProjectionShape(input_width=hidden, output_width=spec.vocabulary_size()),
     @plan.KernelCapabilityId::dense_projection(),
   )
-  @plan.ModelPlan::new(
-    identity=metadata.identity(),
+  @plan.ModelPlan::new_with_kv_execution(
+    identity~,
     shape_constraints=constraints,
     kv_cache_geometry~,
     workspace_bounds=workspace,
     operations~,
     final_output=logits,
+    kv_execution~,
   )
+}
+
+///|
+/// Builds the immutable full-context dense Llama plan used by the current
+/// correctness and Phase-1 execution paths. Decoder-layer identities are
+/// explicit, but no operation claims persistent KV state.
+pub fn build(
+  metadata : @spec.LlamaModelMetadata,
+) -> @plan.ModelPlan raise @plan.PlanValidationError {
+  build_with_execution(metadata, StatelessFullContext)
+}
+
+///|
+/// Builds the semantic paged-KV graph for later cached execution planning.
+///
+/// This constructs no device profile and proves no kernel support. Catalog and
+/// executor admission must reject the plan until they name and bind every
+/// runtime input and persistent KV operand.
+pub fn build_paged(
+  metadata : @spec.LlamaModelMetadata,
+) -> @plan.ModelPlan raise @plan.PlanValidationError {
+  build_with_execution(metadata, PagedKeyValue)
 }

@@ -206,7 +206,7 @@ fn device_plan_embedding(
   tensor_reference : Int,
   workspace_bytes? : Int64 = 0L,
 ) -> @plan.PlanOperation raise {
-  @plan.PlanOperation::new(
+  @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[

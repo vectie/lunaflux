@@ -85,11 +85,12 @@ fn append_dtype(output : Array[Byte], dtype : ModelDType) -> Unit {
 /// that alters operation semantics must introduce a new prefix before release.
 /// Integers and IEEE-754 bit patterns use fixed little-endian encodings, so the
 /// digest is independent of locale and number formatting.
-pub fn LlamaModelSpec::canonical_plan_digest(
+fn LlamaModelSpec::plan_digest_with_schema(
   self : LlamaModelSpec,
+  schema : Bytes,
 ) -> PlanDigest {
   let encoded : Array[Byte] = []
-  for byte in b"lunaflux.dense-llama-plan.v1\x00" {
+  for byte in schema {
     encoded.push(byte)
   }
   append_int(encoded, self.vocabulary_size())
@@ -107,6 +108,26 @@ pub fn LlamaModelSpec::canonical_plan_digest(
   {
     hex: @crypto.bytes_to_hex_string(@crypto.sha256(Bytes::from_array(encoded))),
   }
+}
+
+///|
+/// Derives the full-context plan identity with explicit semantic KV layer
+/// ownership. The v2 prefix distinguishes this graph contract from the older
+/// operation-order-implied schema.
+pub fn LlamaModelSpec::canonical_plan_digest(
+  self : LlamaModelSpec,
+) -> PlanDigest {
+  self.plan_digest_with_schema(b"lunaflux.dense-llama-plan.v2.full-context\x00")
+}
+
+///|
+/// Derives the distinct paged-KV semantic plan identity. Merely sharing model
+/// weights and geometry does not make full-context and stateful graphs the
+/// same immutable plan.
+pub fn LlamaModelSpec::canonical_paged_plan_digest(
+  self : LlamaModelSpec,
+) -> PlanDigest {
+  self.plan_digest_with_schema(b"lunaflux.dense-llama-plan.v2.paged-kv-v1\x00")
 }
 
 ///|

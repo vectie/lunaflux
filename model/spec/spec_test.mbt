@@ -46,7 +46,14 @@ test "canonical plan identity is derived deterministically from semantic fields"
   )
   assert_eq(
     base.canonical_plan_digest().as_hex(),
-    "74fa9112c5f8831069cf42e1774b57e34735dbbc654db9d0d035eb4e7b26a426",
+    "27324d458a6df9e95d2dc38b7ae70b0010b1970d6d47c3c1c8c6c5bee5af6993",
+  )
+  assert_eq(
+    base.canonical_paged_plan_digest().as_hex(),
+    "e1eef676085ba63a306e1ccd1c7e82f7d32d8a49a4ea4d07b44c02560effcc01",
+  )
+  assert_true(
+    base.canonical_paged_plan_digest() != base.canonical_plan_digest(),
   )
   let changed = @spec.LlamaModelSpec::new(
     vocabulary_size=32000,

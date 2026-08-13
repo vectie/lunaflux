@@ -12,7 +12,7 @@ fn artifact_identity() -> @spec.ModelIdentity {
 
 ///|
 fn artifact_plan() -> @plan.ModelPlan {
-  let embedding = try! @plan.PlanOperation::new(
+  let embedding = try! @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -21,7 +21,7 @@ fn artifact_plan() -> @plan.ModelPlan {
     required_capability=@plan.KernelCapabilityId::embedding_lookup(),
     workspace_bytes=0L,
   )
-  let norm = try! @plan.PlanOperation::new(
+  let norm = try! @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(1),
     kind=RmsNorm,
     inputs=[
@@ -33,7 +33,7 @@ fn artifact_plan() -> @plan.ModelPlan {
     required_capability=@plan.KernelCapabilityId::rms_norm(),
     workspace_bytes=0L,
   )
-  try! @plan.ModelPlan::new(
+  try! @plan.ModelPlan::new_stateless(
     identity=artifact_identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,

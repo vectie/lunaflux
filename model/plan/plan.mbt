@@ -8,16 +8,34 @@ pub struct ModelPlan {
   operations : ReadOnlyArray[PlanOperation]
   required_capabilities : ReadOnlyArray[KernelCapabilityId]
   final_output : ActivationRef
+  kv_execution : ModelKvExecution
 } derive(Debug, Eq)
 
 ///|
-fn expected_capability(kind : OperationKind) -> KernelCapabilityId {
-  match kind {
+/// Truthful semantic execution contract for this complete model plan.
+pub(all) enum ModelKvExecution {
+  StatelessFullContext
+  PagedKeyValue
+} derive(Debug, Eq)
+
+///|
+fn expected_capability(operation : PlanOperation) -> KernelCapabilityId {
+  match operation.kind() {
     Embedding => KernelCapabilityId::embedding_lookup()
     RmsNorm => KernelCapabilityId::rms_norm()
     QkvProjection => KernelCapabilityId::qkv_projection()
-    RotaryEmbedding => KernelCapabilityId::rotary_embedding()
-    CausalAttention => KernelCapabilityId::causal_attention()
+    RotaryEmbedding =>
+      if operation.has_runtime_inputs([StepCounts, QueryPositions]) {
+        KernelCapabilityId::positioned_rotary_embedding()
+      } else {
+        KernelCapabilityId::rotary_embedding()
+      }
+    CausalAttention =>
+      if operation.uses_paged_kv() {
+        KernelCapabilityId::paged_causal_attention()
+      } else {
+        KernelCapabilityId::causal_attention()
+      }
     OutputProjection | LanguageModelHead =>
       KernelCapabilityId::dense_projection()
     ResidualAdd => KernelCapabilityId::residual_add()
@@ -37,6 +55,52 @@ fn expected_arity(kind : OperationKind) -> (Int, Int) {
     ResidualAdd => (2, 1)
     GatedMlp => (4, 1)
     LanguageModelHead => (2, 1)
+  }
+}
+
+///|
+fn valid_execution_contract(
+  operation : PlanOperation,
+  expected_kv_layer : Int,
+) -> Bool {
+  match operation.kind() {
+    RotaryEmbedding =>
+      match operation.kv_layer() {
+        Some(layer) =>
+          layer.as_int() == expected_kv_layer &&
+          operation.persistent_state() == NoPersistentState &&
+          (
+            operation.has_runtime_inputs([]) ||
+            operation.has_runtime_inputs([StepCounts, QueryPositions])
+          )
+        None => false
+      }
+    CausalAttention =>
+      match operation.kv_layer() {
+        Some(layer) => {
+          if layer.as_int() != expected_kv_layer {
+            return false
+          }
+          if operation.has_runtime_inputs([]) {
+            operation.persistent_state() == NoPersistentState
+          } else {
+            operation.has_runtime_inputs([
+              StepCounts,
+              QueryPositions,
+              QueryRowOffsets,
+              SequenceLengths,
+              PageTableOffsets,
+              PageTablePageIndices,
+            ]) &&
+            operation.persistent_state() == KvCacheReadWrite(layer)
+          }
+        }
+        None => false
+      }
+    _ =>
+      operation.kv_layer() is None &&
+      operation.has_runtime_inputs([]) &&
+      operation.persistent_state() == NoPersistentState
   }
 }
 
@@ -127,6 +191,7 @@ fn validate_operation(
   index : Int,
   constraints : ShapeConstraints,
   workspace : WorkspaceBounds,
+  expected_kv_layer : Int,
 ) -> Unit raise PlanValidationError {
   if operation.id().as_int() != index {
     raise InvalidGraph(OperationOrder)
@@ -139,7 +204,7 @@ fn validate_operation(
   if !valid_input_roles(operation.kind(), operation.inputs()) {
     raise InvalidGraph(OperationInputRoles)
   }
-  if operation.required_capability() != expected_capability(operation.kind()) {
+  if operation.required_capability() != expected_capability(operation) {
     raise InvalidGraph(OperationCapabilityMismatch)
   }
   if !valid_operation_shape(operation.kind(), operation.shape(), constraints) {
@@ -148,17 +213,118 @@ fn validate_operation(
   if operation.workspace_bytes() > workspace.max_temporary_bytes() {
     raise OperationWorkspaceExceedsPlan
   }
+  if operation.kind() is (RotaryEmbedding | CausalAttention) {
+    guard operation.kv_layer() is Some(layer) &&
+      layer.as_int() == expected_kv_layer else {
+      raise InvalidGraph(KvLayerOrder)
+    }
+  }
+  if !valid_execution_contract(operation, expected_kv_layer) {
+    raise InvalidGraph(KvExecutionContract)
+  }
 }
 
 ///|
-/// Validates and copies an ordered operation graph into immutable storage.
-pub fn ModelPlan::new(
+fn validate_kv_execution_mode(
+  mode : ModelKvExecution,
+  operations : ReadOnlyArray[PlanOperation],
+) -> Unit raise PlanValidationError {
+  for operation in operations {
+    match operation.kind() {
+      RotaryEmbedding =>
+        match mode {
+          StatelessFullContext =>
+            if !operation.has_runtime_inputs([]) {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+          PagedKeyValue =>
+            if !operation.has_runtime_inputs([StepCounts, QueryPositions]) {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+        }
+      CausalAttention =>
+        match mode {
+          StatelessFullContext =>
+            if !operation.has_runtime_inputs([]) ||
+              operation.persistent_state() != NoPersistentState {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+          PagedKeyValue =>
+            if !operation.uses_paged_kv() {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+        }
+      _ => ()
+    }
+  }
+}
+
+///|
+/// Validates and owns an explicitly stateless ordered operation graph.
+///
+/// This constructor is for attention-free plans and bounded semantic
+/// subgraphs. Complete decoder plans, including stateless full-context plans,
+/// use `new_with_kv_execution` so layer coverage is explicit and validated.
+pub fn ModelPlan::new_stateless(
   identity~ : @spec.ModelIdentity,
   shape_constraints~ : ShapeConstraints,
   kv_cache_geometry~ : KvCacheGeometry,
   workspace_bounds~ : WorkspaceBounds,
   operations~ : ArrayView[PlanOperation],
   final_output~ : ActivationRef,
+) -> ModelPlan raise PlanValidationError {
+  for operation in operations {
+    if operation.kind() is (RotaryEmbedding | CausalAttention) ||
+      operation.kv_layer() is Some(_) {
+      raise InvalidGraph(KvExecutionContract)
+    }
+  }
+  construct_model_plan(
+    identity~,
+    shape_constraints~,
+    kv_cache_geometry~,
+    workspace_bounds~,
+    operations~,
+    final_output~,
+    kv_execution=StatelessFullContext,
+    require_kv_coverage=false,
+  )
+}
+
+///|
+/// Validates and owns a model plan with an explicit full-context or paged-KV
+/// semantic contract. This selects no device implementation or kernel.
+pub fn ModelPlan::new_with_kv_execution(
+  identity~ : @spec.ModelIdentity,
+  shape_constraints~ : ShapeConstraints,
+  kv_cache_geometry~ : KvCacheGeometry,
+  workspace_bounds~ : WorkspaceBounds,
+  operations~ : ArrayView[PlanOperation],
+  final_output~ : ActivationRef,
+  kv_execution~ : ModelKvExecution,
+) -> ModelPlan raise PlanValidationError {
+  construct_model_plan(
+    identity~,
+    shape_constraints~,
+    kv_cache_geometry~,
+    workspace_bounds~,
+    operations~,
+    final_output~,
+    kv_execution~,
+    require_kv_coverage=true,
+  )
+}
+
+///|
+fn construct_model_plan(
+  identity~ : @spec.ModelIdentity,
+  shape_constraints~ : ShapeConstraints,
+  kv_cache_geometry~ : KvCacheGeometry,
+  workspace_bounds~ : WorkspaceBounds,
+  operations~ : ArrayView[PlanOperation],
+  final_output~ : ActivationRef,
+  kv_execution~ : ModelKvExecution,
+  require_kv_coverage~ : Bool,
 ) -> ModelPlan raise PlanValidationError {
   if kv_cache_geometry.kv_head_count() != shape_constraints.kv_head_count() ||
     kv_cache_geometry.head_dimension() != shape_constraints.head_dimension() {
@@ -169,8 +335,14 @@ pub fn ModelPlan::new(
   }
   let produced : Array[ActivationRef] = []
   let required : Array[KernelCapabilityId] = []
+  let mut next_kv_layer = 0
   for index, operation in operations {
-    validate_operation(operation, index, shape_constraints, workspace_bounds)
+    validate_operation(
+      operation, index, shape_constraints, workspace_bounds, next_kv_layer,
+    )
+    if operation.kind() == CausalAttention {
+      next_kv_layer += 1
+    }
     for input in operation.inputs() {
       match input {
         Activation(reference) =>
@@ -194,14 +366,23 @@ pub fn ModelPlan::new(
   guard produced.last() is Some(last_output) && last_output == final_output else {
     raise InvalidGraph(FinalOutputNotLast)
   }
+  // Stateless construction permits attention-free operation subgraphs.
+  // Explicit execution-mode construction always owns every semantic KV layer.
+  if (require_kv_coverage || next_kv_layer != 0) &&
+    next_kv_layer != kv_cache_geometry.layer_count() {
+    raise InvalidGraph(KvLayerCoverage)
+  }
+  let owned_operations = ReadOnlyArray::from_array(operations)
+  validate_kv_execution_mode(kv_execution, owned_operations)
   {
     identity,
     shape_constraints,
     kv_cache_geometry,
     workspace_bounds,
-    operations: ReadOnlyArray::from_array(operations),
+    operations: owned_operations,
     required_capabilities: ReadOnlyArray::from_array(required),
     final_output,
+    kv_execution,
   }
 }
 
@@ -218,6 +399,11 @@ pub fn ModelPlan::shape_constraints(self : ModelPlan) -> ShapeConstraints {
 ///|
 pub fn ModelPlan::kv_cache_geometry(self : ModelPlan) -> KvCacheGeometry {
   self.kv_cache_geometry
+}
+
+///|
+pub fn ModelPlan::kv_execution(self : ModelPlan) -> ModelKvExecution {
+  self.kv_execution
 }
 
 ///|

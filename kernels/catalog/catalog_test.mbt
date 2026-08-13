@@ -12,7 +12,7 @@ fn test_identity() -> @spec.ModelIdentity {
 
 ///|
 fn test_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
-  try! @plan.PlanOperation::new(
+  try! @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -25,7 +25,7 @@ fn test_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
 
 ///|
 fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
-  try! @plan.ModelPlan::new(
+  try! @plan.ModelPlan::new_stateless(
     identity=test_identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
@@ -48,7 +48,7 @@ fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
 
 ///|
 fn output_projection_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
-  try! @plan.PlanOperation::new(
+  try! @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(1),
     kind=OutputProjection,
     inputs=[
@@ -67,7 +67,7 @@ fn projection_plan(
   workspace_limit : Int64,
   operation_workspace? : Int64 = 0L,
 ) -> @plan.ModelPlan {
-  try! @plan.ModelPlan::new(
+  try! @plan.ModelPlan::new_stateless(
     identity=test_identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,

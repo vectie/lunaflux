@@ -38,11 +38,76 @@ fn plan_test_kv_geometry(
 }
 
 ///|
+test "KV layer identities are nonnegative semantic scalars" {
+  assert_eq(try! @plan.KvLayerId::new(3).as_int(), 3)
+  try @plan.KvLayerId::new(-1) catch {
+    InvalidIdentifier(KvLayer) => ()
+    _ => fail("unexpected KV layer identity failure")
+  } noraise {
+    _ => fail("expected negative KV layer rejection")
+  }
+}
+
+///|
+test "stateless operation construction rejects KV-bearing operation kinds" {
+  let kv_kinds : Array[@plan.OperationKind] = [RotaryEmbedding, CausalAttention]
+  for kind in kv_kinds {
+    try
+      @plan.PlanOperation::new_stateless(
+        id=@plan.OperationId::new(0),
+        kind~,
+        inputs=[Activation(@plan.ActivationRef::new(0))],
+        outputs=[@plan.ActivationRef::new(1)],
+        shape=AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
+        required_capability=@plan.KernelCapabilityId::causal_attention(),
+        workspace_bytes=0L,
+      )
+    catch {
+      InvalidGraph(KvExecutionContract) => ()
+      _ => fail("unexpected stateless KV operation failure")
+    } noraise {
+      _ => fail("expected stateless KV operation rejection")
+    }
+  }
+}
+
+///|
+test "stateless plan construction rejects explicitly layered attention" {
+  let attention = @plan.PlanOperation::new_with_execution(
+    id=@plan.OperationId::new(0),
+    kind=CausalAttention,
+    inputs=[Activation(@plan.ActivationRef::new(0))],
+    outputs=[@plan.ActivationRef::new(1)],
+    shape=AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
+    required_capability=@plan.KernelCapabilityId::causal_attention(),
+    workspace_bytes=0L,
+    kv_layer=@plan.KvLayerId::new(0),
+    runtime_inputs=[],
+    persistent_state=NoPersistentState,
+  )
+  try
+    @plan.ModelPlan::new_stateless(
+      identity=plan_test_identity(),
+      shape_constraints=plan_test_constraints(),
+      kv_cache_geometry=plan_test_kv_geometry(),
+      workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
+      operations=[attention],
+      final_output=@plan.ActivationRef::new(1),
+    )
+  catch {
+    InvalidGraph(KvExecutionContract) => ()
+    _ => fail("unexpected stateless plan KV failure")
+  } noraise {
+    _ => fail("expected stateless plan KV rejection")
+  }
+}
+
+///|
 fn embedding_operation(
   first_input : @plan.ValueRef,
   capability : @plan.KernelCapabilityId,
 ) -> @plan.PlanOperation raise {
-  @plan.PlanOperation::new(
+  @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[first_input, Tensor(@plan.TensorRef::new(0))],
@@ -60,7 +125,7 @@ test "model plan copies construction arrays into immutable ordered storage" {
     @plan.KernelCapabilityId::embedding_lookup(),
   )
   let operations = [operation]
-  let model_plan = @plan.ModelPlan::new(
+  let model_plan = @plan.ModelPlan::new_stateless(
     identity=plan_test_identity(),
     shape_constraints=plan_test_constraints(),
     kv_cache_geometry=plan_test_kv_geometry(),
@@ -82,7 +147,7 @@ test "model plan rejects KV geometry inconsistent with semantic dimensions" {
     @plan.KernelCapabilityId::embedding_lookup(),
   )
   try
-    @plan.ModelPlan::new(
+    @plan.ModelPlan::new_stateless(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(kv_head_count=1),
@@ -121,7 +186,7 @@ test "invalid shape relationships fail before plan construction" {
 
 ///|
 test "model plan rejects forward activation references" {
-  let operation = @plan.PlanOperation::new(
+  let operation = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=RmsNorm,
     inputs=[
@@ -134,7 +199,7 @@ test "model plan rejects forward activation references" {
     workspace_bytes=0L,
   )
   try
-    @plan.ModelPlan::new(
+    @plan.ModelPlan::new_stateless(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
@@ -157,7 +222,7 @@ test "operation kind requires its stable semantic capability" {
     @plan.KernelCapabilityId::rms_norm(),
   )
   try
-    @plan.ModelPlan::new(
+    @plan.ModelPlan::new_stateless(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
@@ -180,7 +245,7 @@ test "operation kinds enforce exact semantic input roles" {
     @plan.KernelCapabilityId::embedding_lookup(),
   )
   try
-    @plan.ModelPlan::new(
+    @plan.ModelPlan::new_stateless(
       identity=plan_test_identity(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),

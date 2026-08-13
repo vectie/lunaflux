@@ -29,6 +29,8 @@ pub fn KernelCapabilityId::dense_projection() -> Self
 pub fn KernelCapabilityId::embedding_lookup() -> Self
 pub fn KernelCapabilityId::from_stable_int(Int) -> Self raise PlanValidationError
 pub fn KernelCapabilityId::gated_mlp() -> Self
+pub fn KernelCapabilityId::paged_causal_attention() -> Self
+pub fn KernelCapabilityId::positioned_rotary_embedding() -> Self
 pub fn KernelCapabilityId::qkv_projection() -> Self
 pub fn KernelCapabilityId::residual_add() -> Self
 pub fn KernelCapabilityId::rms_norm() -> Self
@@ -53,8 +55,17 @@ pub(all) enum KvCacheLayout {
 } derive(Eq, @debug.Debug)
 pub fn KvCacheLayout::stable_version(Self) -> Int
 
+pub struct KvLayerId(Int) derive(Eq, @debug.Debug)
+pub fn KvLayerId::as_int(Self) -> Int
+pub fn KvLayerId::new(Int) -> Self raise PlanValidationError
+
 pub(all) enum ModelInputRef {
   TokenIds
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelKvExecution {
+  StatelessFullContext
+  PagedKeyValue
 } derive(Eq, @debug.Debug)
 
 pub struct ModelPlan {
@@ -65,11 +76,14 @@ pub struct ModelPlan {
   operations : ReadOnlyArray[PlanOperation]
   required_capabilities : ReadOnlyArray[KernelCapabilityId]
   final_output : ActivationRef
+  kv_execution : ModelKvExecution
 } derive(Eq, @debug.Debug)
 pub fn ModelPlan::final_output(Self) -> ActivationRef
 pub fn ModelPlan::identity(Self) -> @spec.ModelIdentity
 pub fn ModelPlan::kv_cache_geometry(Self) -> KvCacheGeometry
-pub fn ModelPlan::new(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef) -> Self raise PlanValidationError
+pub fn ModelPlan::kv_execution(Self) -> ModelKvExecution
+pub fn ModelPlan::new_stateless(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef) -> Self raise PlanValidationError
+pub fn ModelPlan::new_with_kv_execution(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, kv_execution~ : ModelKvExecution) -> Self raise PlanValidationError
 pub fn ModelPlan::operations(Self) -> ReadOnlyArray[PlanOperation]
 pub fn ModelPlan::required_capabilities(Self) -> ReadOnlyArray[KernelCapabilityId]
 pub fn ModelPlan::shape_constraints(Self) -> ShapeConstraints
@@ -91,6 +105,15 @@ pub(all) enum OperationKind {
   LanguageModelHead
 } derive(Eq, @debug.Debug)
 
+pub(all) enum OperationRuntimeInput {
+  StepCounts
+  QueryPositions
+  QueryRowOffsets
+  SequenceLengths
+  PageTableOffsets
+  PageTablePageIndices
+} derive(Eq, @debug.Debug)
+
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
   NormalizationShape(width~ : Int, epsilon~ : Double)
@@ -99,6 +122,11 @@ pub(all) enum OperationShape {
   AttentionShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int)
   ElementwiseShape(width~ : Int)
   GatedMlpShape(hidden_size~ : Int, intermediate_size~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PersistentStateAccess {
+  NoPersistentState
+  KvCacheReadWrite(KvLayerId)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum PlanGraphRule {
@@ -112,6 +140,10 @@ pub(all) enum PlanGraphRule {
   OperationArity
   OperationInputRoles
   OperationCapabilityMismatch
+  KvLayerCoverage
+  KvLayerOrder
+  KvExecutionContract
+  KvExecutionModeMismatch
 } derive(Eq, @debug.Debug)
 
 pub(all) enum PlanIdentifierKind {
@@ -119,6 +151,7 @@ pub(all) enum PlanIdentifierKind {
   Tensor
   Activation
   KernelCapability
+  KvLayer
 } derive(Eq, @debug.Debug)
 
 pub struct PlanOperation {
@@ -129,13 +162,20 @@ pub struct PlanOperation {
   shape : OperationShape
   required_capability : KernelCapabilityId
   workspace_bytes : Int64
+  kv_layer : KvLayerId?
+  runtime_inputs : ReadOnlyArray[OperationRuntimeInput]
+  persistent_state : PersistentStateAccess
 } derive(Eq, @debug.Debug)
 pub fn PlanOperation::id(Self) -> OperationId
 pub fn PlanOperation::inputs(Self) -> ReadOnlyArray[ValueRef]
 pub fn PlanOperation::kind(Self) -> OperationKind
-pub fn PlanOperation::new(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64) -> Self raise PlanValidationError
+pub fn PlanOperation::kv_layer(Self) -> KvLayerId?
+pub fn PlanOperation::new_stateless(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64) -> Self raise PlanValidationError
+pub fn PlanOperation::new_with_execution(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64, kv_layer~ : KvLayerId, runtime_inputs~ : ArrayView[OperationRuntimeInput], persistent_state~ : PersistentStateAccess) -> Self raise PlanValidationError
 pub fn PlanOperation::outputs(Self) -> ReadOnlyArray[ActivationRef]
+pub fn PlanOperation::persistent_state(Self) -> PersistentStateAccess
 pub fn PlanOperation::required_capability(Self) -> KernelCapabilityId
+pub fn PlanOperation::runtime_inputs(Self) -> ReadOnlyArray[OperationRuntimeInput]
 pub fn PlanOperation::shape(Self) -> OperationShape
 pub fn PlanOperation::workspace_bytes(Self) -> Int64
 

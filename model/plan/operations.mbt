@@ -23,17 +23,23 @@ pub struct PlanOperation {
   shape : OperationShape
   required_capability : KernelCapabilityId
   workspace_bytes : Int64
+  kv_layer : KvLayerId?
+  runtime_inputs : ReadOnlyArray[OperationRuntimeInput]
+  persistent_state : PersistentStateAccess
 } derive(Debug, Eq)
 
 ///|
-pub fn PlanOperation::new(
-  id~ : OperationId,
-  kind~ : OperationKind,
-  inputs~ : ArrayView[ValueRef],
-  outputs~ : ArrayView[ActivationRef],
-  shape~ : OperationShape,
-  required_capability~ : KernelCapabilityId,
-  workspace_bytes~ : Int64,
+fn new_operation(
+  id : OperationId,
+  kind : OperationKind,
+  inputs : ArrayView[ValueRef],
+  outputs : ArrayView[ActivationRef],
+  shape : OperationShape,
+  required_capability : KernelCapabilityId,
+  workspace_bytes : Int64,
+  kv_layer : KvLayerId?,
+  runtime_inputs : ArrayView[OperationRuntimeInput],
+  persistent_state : PersistentStateAccess,
 ) -> PlanOperation raise PlanValidationError {
   if inputs.is_empty() {
     raise InvalidGraph(EmptyOperationInputs)
@@ -52,7 +58,77 @@ pub fn PlanOperation::new(
     shape,
     required_capability,
     workspace_bytes,
+    kv_layer,
+    runtime_inputs: ReadOnlyArray::from_array(runtime_inputs),
+    persistent_state,
   }
+}
+
+///|
+/// Constructs an operation that has no semantic KV-layer association, live
+/// runtime inputs, or persistent state.
+///
+/// Rotary and causal-attention operations must use `new_with_execution`, even
+/// for full-context execution, because their decoder-layer identity is part of
+/// the model semantics.
+pub fn PlanOperation::new_stateless(
+  id~ : OperationId,
+  kind~ : OperationKind,
+  inputs~ : ArrayView[ValueRef],
+  outputs~ : ArrayView[ActivationRef],
+  shape~ : OperationShape,
+  required_capability~ : KernelCapabilityId,
+  workspace_bytes~ : Int64,
+) -> PlanOperation raise PlanValidationError {
+  if kind is (RotaryEmbedding | CausalAttention) {
+    raise InvalidGraph(KvExecutionContract)
+  }
+  new_operation(
+    id,
+    kind,
+    inputs,
+    outputs,
+    shape,
+    required_capability,
+    workspace_bytes,
+    None,
+    [],
+    NoPersistentState,
+  )
+}
+
+///|
+/// Constructs an operation with an explicit decoder layer, live-input
+/// contract, and persistent-state effect.
+///
+/// `ModelPlan::new_with_kv_execution` validates the only legal combinations: full-context
+/// rotary/attention operations are layered but stateless, while paged rotary
+/// consumes query positions and paged attention consumes the complete ordered
+/// row/page contract and reads/writes that exact layer's KV cache.
+pub fn PlanOperation::new_with_execution(
+  id~ : OperationId,
+  kind~ : OperationKind,
+  inputs~ : ArrayView[ValueRef],
+  outputs~ : ArrayView[ActivationRef],
+  shape~ : OperationShape,
+  required_capability~ : KernelCapabilityId,
+  workspace_bytes~ : Int64,
+  kv_layer~ : KvLayerId,
+  runtime_inputs~ : ArrayView[OperationRuntimeInput],
+  persistent_state~ : PersistentStateAccess,
+) -> PlanOperation raise PlanValidationError {
+  new_operation(
+    id,
+    kind,
+    inputs,
+    outputs,
+    shape,
+    required_capability,
+    workspace_bytes,
+    Some(kv_layer),
+    runtime_inputs,
+    persistent_state,
+  )
 }
 
 ///|
@@ -92,4 +168,53 @@ pub fn PlanOperation::required_capability(
 ///|
 pub fn PlanOperation::workspace_bytes(self : PlanOperation) -> Int64 {
   self.workspace_bytes
+}
+
+///|
+pub fn PlanOperation::kv_layer(self : PlanOperation) -> KvLayerId? {
+  self.kv_layer
+}
+
+///|
+pub fn PlanOperation::runtime_inputs(
+  self : PlanOperation,
+) -> ReadOnlyArray[OperationRuntimeInput] {
+  self.runtime_inputs
+}
+
+///|
+pub fn PlanOperation::persistent_state(
+  self : PlanOperation,
+) -> PersistentStateAccess {
+  self.persistent_state
+}
+
+///|
+/// Returns true only for the validated paged-attention state contract.
+fn PlanOperation::uses_paged_kv(self : PlanOperation) -> Bool {
+  self.persistent_state is KvCacheReadWrite(_)
+}
+
+///|
+fn runtime_inputs_equal(
+  actual : ReadOnlyArray[OperationRuntimeInput],
+  expected : ArrayView[OperationRuntimeInput],
+) -> Bool {
+  if actual.length() != expected.length() {
+    return false
+  }
+  for index, value in actual {
+    if value != expected[index] {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn PlanOperation::has_runtime_inputs(
+  self : PlanOperation,
+  expected : ArrayView[OperationRuntimeInput],
+) -> Bool {
+  runtime_inputs_equal(self.runtime_inputs, expected)
 }

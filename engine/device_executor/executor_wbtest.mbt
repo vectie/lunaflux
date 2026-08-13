@@ -127,7 +127,7 @@ fn executor_test_layout(
 fn executor_test_semantic_plan(
   metadata : @spec.LlamaModelMetadata,
 ) -> @plan.ModelPlan raise {
-  let embedding = @plan.PlanOperation::new(
+  let embedding = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -136,7 +136,7 @@ fn executor_test_semantic_plan(
     required_capability=@plan.KernelCapabilityId::embedding_lookup(),
     workspace_bytes=0L,
   )
-  let head = @plan.PlanOperation::new(
+  let head = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(1),
     kind=LanguageModelHead,
     inputs=[
@@ -148,7 +148,7 @@ fn executor_test_semantic_plan(
     required_capability=@plan.KernelCapabilityId::dense_projection(),
     workspace_bytes=0L,
   )
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity=metadata.identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,

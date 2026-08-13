@@ -129,7 +129,7 @@ fn memory_operation(
   shape : @plan.OperationShape,
   capability : @plan.KernelCapabilityId,
 ) -> @plan.PlanOperation raise {
-  @plan.PlanOperation::new(
+  @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(id),
     kind~,
     inputs~,
@@ -185,7 +185,7 @@ fn memory_semantic_plan(
       @plan.KernelCapabilityId::rms_norm(),
     ),
   ]
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity=memory_test_model().identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows~,

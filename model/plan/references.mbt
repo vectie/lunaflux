@@ -14,6 +14,14 @@ pub struct TensorRef(Int) derive(Debug, Eq)
 pub struct ActivationRef(Int) derive(Debug, Eq)
 
 ///|
+/// Stable semantic decoder-layer identity for persistent KV ownership.
+///
+/// This is neither an operation position nor a device byte offset. Model-plan
+/// validation binds the complete ordered attention graph to the cache geometry
+/// so later planners never recover a layer by counting operations.
+pub struct KvLayerId(Int) derive(Debug, Eq)
+
+///|
 /// Architecture-neutral external input vocabulary for model plans.
 pub(all) enum ModelInputRef {
   TokenIds
@@ -25,6 +33,32 @@ pub(all) enum ValueRef {
   ModelInput(ModelInputRef)
   Tensor(TensorRef)
   Activation(ActivationRef)
+} derive(Debug, Eq)
+
+///|
+/// Architecture-neutral live inputs required by cached attention execution.
+///
+/// `StepCounts` is the scalar bundle containing at least the live query-row,
+/// query-token, and page-table-entry counts. Those values bound every packed
+/// offset and payload read; its concrete element layout remains execution-owned.
+///
+/// Query and page-table offsets use packed row boundaries. Concrete element
+/// widths, device allocations, transfer layouts, and kernel ABI positions are
+/// selected by later execution packages.
+pub(all) enum OperationRuntimeInput {
+  StepCounts
+  QueryPositions
+  QueryRowOffsets
+  SequenceLengths
+  PageTableOffsets
+  PageTablePageIndices
+} derive(Debug, Eq)
+
+///|
+/// Explicit persistent-state effect of one semantic operation.
+pub(all) enum PersistentStateAccess {
+  NoPersistentState
+  KvCacheReadWrite(KvLayerId)
 } derive(Debug, Eq)
 
 ///|
@@ -71,6 +105,19 @@ pub fn ActivationRef::new(
 
 ///|
 pub fn ActivationRef::as_int(self : ActivationRef) -> Int {
+  self.0
+}
+
+///|
+pub fn KvLayerId::new(value : Int) -> KvLayerId raise PlanValidationError {
+  if value < 0 {
+    raise InvalidIdentifier(KvLayer)
+  }
+  KvLayerId(value)
+}
+
+///|
+pub fn KvLayerId::as_int(self : KvLayerId) -> Int {
   self.0
 }
 
@@ -135,4 +182,16 @@ pub fn KernelCapabilityId::residual_add() -> KernelCapabilityId {
 /// Semantic capability 8: gated feed-forward transformation.
 pub fn KernelCapabilityId::gated_mlp() -> KernelCapabilityId {
   KernelCapabilityId(8)
+}
+
+///|
+/// Semantic capability 9: RoPE using explicit per-query positions.
+pub fn KernelCapabilityId::positioned_rotary_embedding() -> KernelCapabilityId {
+  KernelCapabilityId(9)
+}
+
+///|
+/// Semantic capability 10: paged causal attention with persistent KV update.
+pub fn KernelCapabilityId::paged_causal_attention() -> KernelCapabilityId {
+  KernelCapabilityId(10)
 }

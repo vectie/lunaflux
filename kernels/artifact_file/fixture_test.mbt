@@ -12,7 +12,7 @@ fn fixture_identity() -> @spec.ModelIdentity {
 
 ///|
 fn fixture_plan() -> @plan.ModelPlan {
-  let operation = try! @plan.PlanOperation::new(
+  let operation = try! @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -21,7 +21,7 @@ fn fixture_plan() -> @plan.ModelPlan {
     required_capability=@plan.KernelCapabilityId::embedding_lookup(),
     workspace_bytes=0L,
   )
-  try! @plan.ModelPlan::new(
+  try! @plan.ModelPlan::new_stateless(
     identity=fixture_identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,

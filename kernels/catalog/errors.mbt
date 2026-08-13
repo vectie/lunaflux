@@ -23,6 +23,7 @@ pub(all) enum CatalogValidationRule {
 /// positions and do not disclose device handles, paths, or vendor diagnostics.
 pub(all) suberror CatalogError {
   InvalidCatalog(CatalogValidationRule)
+  UnsupportedExecutionContract
   MissingKernel(@plan.OperationId)
   IncompatibleTarget(@plan.OperationId)
   IncompatibleImplementation(@plan.OperationId)

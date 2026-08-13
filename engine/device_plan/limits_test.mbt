@@ -35,7 +35,7 @@ fn repeated_plan(
       _ => abort("test helper supports only bounded repeated kinds")
     }
     operations.push(
-      @plan.PlanOperation::new(
+      @plan.PlanOperation::new_stateless(
         id=@plan.OperationId::new(index),
         kind~,
         inputs~,
@@ -46,7 +46,7 @@ fn repeated_plan(
       ),
     )
   }
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity=device_plan_test_model().identity(),
     shape_constraints=device_plan_base_constraints(),
     kv_cache_geometry=@plan.KvCacheGeometry::new(

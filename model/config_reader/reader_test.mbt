@@ -27,7 +27,7 @@ test "selected dense Llama metadata is deterministic across string and bytes" {
   )
   assert_eq(
     from_string.identity().plan().as_hex(),
-    "74fa9112c5f8831069cf42e1774b57e34735dbbc654db9d0d035eb4e7b26a426",
+    "27324d458a6df9e95d2dc38b7ae70b0010b1970d6d47c3c1c8c6c5bee5af6993",
   )
 }
 

@@ -5,6 +5,7 @@ pub(all) enum PlanIdentifierKind {
   Tensor
   Activation
   KernelCapability
+  KvLayer
 } derive(Debug, Eq)
 
 ///|
@@ -34,6 +35,10 @@ pub(all) enum PlanGraphRule {
   OperationArity
   OperationInputRoles
   OperationCapabilityMismatch
+  KvLayerCoverage
+  KvLayerOrder
+  KvExecutionContract
+  KvExecutionModeMismatch
 } derive(Debug, Eq)
 
 ///|

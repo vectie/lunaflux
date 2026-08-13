@@ -227,7 +227,7 @@ fn profile_embedding_plan(
   max_sequence_tokens : Int,
 ) -> @plan.ModelPlan raise {
   let model = profile_test_model()
-  let operation = @plan.PlanOperation::new(
+  let operation = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),
     kind=Embedding,
     inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -236,7 +236,7 @@ fn profile_embedding_plan(
     required_capability=@plan.KernelCapabilityId::embedding_lookup(),
     workspace_bytes=0L,
   )
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity=model.identity(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows~,

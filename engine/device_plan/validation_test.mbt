@@ -3,7 +3,7 @@ fn device_plan_one_operation(
   identity : @spec.ModelIdentity,
   tensor_reference? : Int = 0,
 ) -> @plan.ModelPlan raise {
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity~,
     shape_constraints=device_plan_base_constraints(),
     kv_cache_geometry=@plan.KvCacheGeometry::new(
@@ -38,7 +38,7 @@ fn device_plan_two_operations(
       )
     _ => abort("test helper supports only two operation kinds")
   }
-  let second = @plan.PlanOperation::new(
+  let second = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(1),
     kind=second_kind,
     inputs=[
@@ -50,7 +50,7 @@ fn device_plan_two_operations(
     required_capability=capability,
     workspace_bytes=second_workspace,
   )
-  @plan.ModelPlan::new(
+  @plan.ModelPlan::new_stateless(
     identity=device_plan_test_model().identity(),
     shape_constraints=device_plan_base_constraints(),
     kv_cache_geometry=@plan.KvCacheGeometry::new(

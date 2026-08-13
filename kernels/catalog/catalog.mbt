@@ -164,6 +164,12 @@ pub fn KernelCatalog::resolve(
   model_plan : @plan.ModelPlan,
   target : DeviceTarget,
 ) -> ResolvedKernelCatalog raise CatalogError {
+  // Catalog semantic version 1 describes only the stateless full-context
+  // operation ABI. Paged plans must wait for entries that name their runtime
+  // metadata and persistent KV operands instead of matching by shape alone.
+  if model_plan.kv_execution() != StatelessFullContext {
+    raise UnsupportedExecutionContract
+  }
   let bindings : Array[KernelBinding] = []
   let mut max_workspace_bytes = 0L
   let mut max_workspace_alignment = 1L
