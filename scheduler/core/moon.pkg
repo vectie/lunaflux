@@ -2,6 +2,7 @@ import {
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/spec",

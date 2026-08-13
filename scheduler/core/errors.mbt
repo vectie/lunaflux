@@ -42,6 +42,7 @@ pub(all) suberror SchedulerError {
   PageAllocator(@page_allocator.PageAllocatorError)
   BlockTable(@block_table.BlockTableError)
   WorkerProtocol(@worker_protocol.WorkerProtocolError)
+  WorkerWire(@worker_wire.WorkerWireError)
 } derive(Debug, Eq)
 
 ///|

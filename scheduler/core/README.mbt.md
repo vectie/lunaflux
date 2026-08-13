@@ -51,6 +51,12 @@ expired completions retire device work without advancing state or publishing a
 token. Plans retire strictly in sequence, after which their paired completion
 and plan buffers reset for reuse.
 
+For the isolated-worker return boundary, `accept_completion_frame` first
+authenticates a canonical received frame against the retained exact plan, then
+copies only validated outcome scalars into the paired scheduler completion
+owner. It does not retire work. The caller retains the returned completion and
+retries normal `complete` if output or terminal publication is backpressured.
+
 Normal scheduling states do not allocate error payloads: `build_next` returns
 the flat value-type `BuildNextOutcome` for idle, two-owner backpressure, or a
 submitted identity. `submitted_plan` resolves only the exact current owner and
@@ -69,6 +75,6 @@ The reusable worker protocol now distinguishes intermediate prefill from a
 final prompt chunk that samples the first output token; this scheduler uses
 that distinction when building rows. Until a bounded incremental matcher
 exists, nonempty stop strings are rejected explicitly. Prefix reuse, generated
-text decoding, transport integration, recomputation-based preemption, runtime
+text decoding, process I/O and supervision, recomputation-based preemption, runtime
 allocation instrumentation, and device KV execution remain outside this
 package's current evidence.

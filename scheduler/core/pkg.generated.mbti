@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/spec",
@@ -19,6 +20,7 @@ pub(all) suberror SchedulerError {
   PageAllocator(@page_allocator.PageAllocatorError)
   BlockTable(@block_table.BlockTableError)
   WorkerProtocol(@worker_protocol.WorkerProtocolError)
+  WorkerWire(@worker_wire.WorkerWireError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -66,6 +68,7 @@ pub fn RequestStatus::state(Self) -> SchedulerRequestState
 pub struct Scheduler {
   // private fields
 }
+pub fn Scheduler::accept_completion_frame(Self, @worker_protocol.SubmittedSchedulePlan, @worker_wire.ValidatedCompletionFrame) -> @worker_protocol.SubmittedCompletion raise SchedulerError
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
 pub fn Scheduler::build_next(Self) -> BuildNextOutcome raise SchedulerError
