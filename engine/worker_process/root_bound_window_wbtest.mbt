@@ -1,4 +1,35 @@
 ///|
+
+///|
+fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let roots = @approved_fs.acquire_worker_approved_roots(
+    model_root=model,
+    kernel_root=kernel,
+  )
+  model.close()
+  kernel.close()
+  {
+    executable: b"/bin/cat",
+    limits: supervisor_process_limits(),
+    roots,
+    process: test_supervisor(),
+    failed_replacement: None,
+    cause: None,
+    child_cleanup_failure: None,
+    roots_cleanup_failure: None,
+    transport_mode: 0,
+    exchange_epoch: 0UL,
+    active_exchange_epoch: 0UL,
+    exchange_phase: -1,
+    exchange_side: -1,
+    exchange_sequence: 0UL,
+    lifecycle: RootBoundReady,
+  }
+}
+
+///|
 test "root-bound production supervisor serializes the device child window" {
   let owner = test_root_bound_supervisor()
   let first = owner.submit(supervisor_plan(1UL))
@@ -10,5 +41,69 @@ test "root-bound production supervisor serializes the device child window" {
     _ => fail("root-bound supervisor admitted a second in-flight plan")
   }
   assert_eq(first.sequence_value(), 1UL)
+  owner.close()
+}
+
+///|
+test "legacy and nonblocking exchange modes cannot mix" {
+  let legacy = test_root_bound_supervisor()
+  ignore(legacy.submit(supervisor_plan(1UL)))
+  try legacy.begin_exchange(supervisor_plan(2UL)) catch {
+    RootBoundFailure(Process(Backpressured)) => ()
+    _ => fail("unexpected legacy-to-exchange error")
+  } noraise {
+    _ => fail("exchange mixed with legacy submission")
+  }
+  legacy.close()
+  let exchange_owner = test_root_bound_supervisor()
+  let sequence = exchange_owner.begin_exchange(supervisor_plan(1UL))
+  assert_eq(sequence, 1UL)
+  try exchange_owner.submit(supervisor_plan(2UL)) catch {
+    RootBoundFailure(Process(Invalid(Lifecycle))) => ()
+    _ => fail("unexpected exchange-to-legacy error")
+  } noraise {
+    _ => fail("legacy submission mixed with exchange")
+  }
+  exchange_owner.close()
+}
+
+///|
+test "malformed nonblocking response fail-stops the rooted supervisor" {
+  let owner = test_root_bound_supervisor()
+  ignore(owner.begin_exchange(supervisor_plan(1UL)))
+  let mut attempts = 0
+  let mut failed = false
+  while attempts < 10000 && !failed {
+    try owner.progress_exchange() catch {
+      RootBoundFailure(Process(_)) => failed = true
+      _ => fail("unexpected exchange progression failure")
+    } noraise {
+      _ => ()
+    }
+    attempts += 1
+  }
+  assert_true(failed)
+  assert_eq(owner.lifecycle(), RootBoundRecoveryRequired)
+  try owner.progress_exchange() catch {
+    RootBoundInvalidLifecycle => ()
+    _ => fail("unexpected stale exchange error")
+  } noraise {
+    _ => fail("failed exchange remained usable")
+  }
+  owner.close()
+}
+
+///|
+test "post-reservation begin failure retains exact process obligation" {
+  let owner = test_root_bound_supervisor()
+  owner.process.child.close()
+  try owner.begin_exchange(supervisor_plan(1UL)) catch {
+    RootBoundFailure(Process(Transport(InvalidState))) => ()
+    _ => fail("unexpected post-reservation begin failure")
+  } noraise {
+    _ => fail("closed child began an exchange")
+  }
+  assert_eq(owner.lifecycle(), RootBoundRecoveryRequired)
+  assert_eq(owner.submission_for_sequence(1UL).sequence_value(), 1UL)
   owner.close()
 }

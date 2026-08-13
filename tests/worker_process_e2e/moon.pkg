@@ -8,6 +8,7 @@ import {
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 supported_targets = "native"

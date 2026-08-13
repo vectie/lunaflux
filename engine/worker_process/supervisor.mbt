@@ -152,6 +152,25 @@ fn prepare_internal(
       tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
       tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
       rx: FixedArray::make(completion_a.capacity(), b'\x00'),
+      rx_staging: FixedArray::make(completion_a.capacity(), b'\x00'),
+      exchange_request_ids: FixedArray::make(
+        worker_limits.max_completion_slots(),
+        0UL,
+      ),
+      exchange_request_generations: FixedArray::make(
+        worker_limits.max_completion_slots(),
+        0UL,
+      ),
+      exchange_expected_kinds: FixedArray::make(
+        worker_limits.max_completion_slots(),
+        -1,
+      ),
+      exchange_processed_tokens: FixedArray::make(
+        worker_limits.max_completion_slots(),
+        0,
+      ),
+      exchange_slots: FixedArray::make(worker_limits.max_completion_slots(), -1),
+      exchange_entry_count: 0,
       state_a: 0,
       state_b: 0,
       sequence_a: 0UL,
@@ -340,6 +359,18 @@ fn WorkerProcessSupervisor::accept_completion_bytes(
   plan : @worker_protocol.SubmittedSchedulePlan,
   length : Int,
 ) -> ReceivedWorkerCompletion raise WorkerProcessError {
+  self.accept_completion_bytes_in_place(side, plan, length)
+  let sequence = if side == 0 { self.sequence_a } else { self.sequence_b }
+  ReceivedWorkerCompletion(self, side, sequence)
+}
+
+///|
+fn WorkerProcessSupervisor::accept_completion_bytes_in_place(
+  self : WorkerProcessSupervisor,
+  side : Int,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+  length : Int,
+) -> Unit raise WorkerProcessError {
   let frame = if side == 0 {
     self.completion_a.load(self.rx, length) catch {
       error => {
@@ -366,8 +397,6 @@ fn WorkerProcessSupervisor::accept_completion_bytes(
   } else {
     self.state_b = 2
   }
-  let sequence = if side == 0 { self.sequence_a } else { self.sequence_b }
-  ReceivedWorkerCompletion(self, side, sequence)
 }
 
 ///|

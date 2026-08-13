@@ -61,6 +61,13 @@ pub struct WorkerProcessSupervisor {
   priv tx_a : FixedArray[Byte]
   priv tx_b : FixedArray[Byte]
   priv rx : FixedArray[Byte]
+  priv rx_staging : FixedArray[Byte]
+  priv exchange_request_ids : FixedArray[UInt64]
+  priv exchange_request_generations : FixedArray[UInt64]
+  priv exchange_expected_kinds : FixedArray[Int]
+  priv exchange_processed_tokens : FixedArray[Int]
+  priv exchange_slots : FixedArray[Int]
+  priv mut exchange_entry_count : Int
   priv mut state_a : Int
   priv mut state_b : Int
   priv mut sequence_a : UInt64

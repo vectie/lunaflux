@@ -56,6 +56,11 @@ pub struct RootBoundReceivedWorkerCompletion(RootBoundWorkerProcessSupervisor, I
 pub fn RootBoundReceivedWorkerCompletion::frame(Self, RootBoundWorkerProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise RootBoundWorkerProcessError
 pub fn RootBoundReceivedWorkerCompletion::sequence_value(Self) -> UInt64
 
+pub enum RootBoundWorkerExchangeProgress {
+  ExchangePending
+  ExchangeCompleted
+}
+
 pub(all) enum RootBoundWorkerProcessFailure {
   Process(WorkerProcessError)
   RootsBusy
@@ -86,15 +91,19 @@ pub struct RootBoundWorkerProcessSupervisor {
   // private fields
 }
 pub fn RootBoundWorkerProcessSupervisor::abandon_submission(Self, RootBoundWorkerSubmission) -> Unit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::active_exchange_sequence(Self) -> UInt64 raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::begin_exchange(Self, @worker_protocol.SubmittedSchedulePlan) -> UInt64 raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::begin_recovery(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn RootBoundWorkerProcessSupervisor::cause(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::child_cleanup_failure(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::close(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::has_capacity(Self) -> Bool
+pub fn RootBoundWorkerProcessSupervisor::has_exchange_capacity(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::is_closed(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::lifecycle(Self) -> RootBoundWorkerProcessLifecycle
 pub fn RootBoundWorkerProcessSupervisor::outstanding_count(Self) -> Int
+pub fn RootBoundWorkerProcessSupervisor::progress_exchange(Self) -> RootBoundWorkerExchangeProgress raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::receive(Self, RootBoundWorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::recovery_startup_contract(Self) -> @worker_wire.WorkerStartupContract raise RootBoundWorkerProcessError

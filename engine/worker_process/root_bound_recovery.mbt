@@ -10,6 +10,7 @@ pub fn RootBoundWorkerProcessSupervisor::begin_recovery(
     self.lifecycle != RootBoundRecoveryClosingFailed {
     raise RootBoundInvalidLifecycle
   }
+  self.clear_exchange()
   let attempt = attempt_root_bound_cleanup(
     true,
     false,
@@ -57,6 +58,7 @@ pub fn RootBoundWorkerProcessSupervisor::restart(
   match result {
     ReadyProcess(replacement) => {
       self.process = replacement
+      self.clear_exchange()
       self.cause = None
       self.child_cleanup_failure = None
       self.lifecycle = RootBoundReady
@@ -110,6 +112,7 @@ pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(
 pub fn RootBoundWorkerProcessSupervisor::close(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Unit raise RootBoundWorkerProcessError {
+  self.clear_exchange()
   if self.lifecycle == RootBoundClosed {
     return
   }

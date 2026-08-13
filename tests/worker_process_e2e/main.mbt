@@ -155,7 +155,76 @@ fn start_worker(
 }
 
 ///|
+fn start_root_worker(
+  executable : Bytes,
+) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let result = @worker_process.prepare_with_approved_roots(
+    executable,
+    startup_contract(),
+    bootstrap_source(),
+    @worker_process.WorkerProcessLimits::new(
+      max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
+      startup_io_timeout_millis=5000,
+      io_timeout_millis=5000,
+      shutdown_timeout_millis=5000,
+    ),
+    model,
+    kernel,
+  )
+  model.close()
+  kernel.close()
+  match result {
+    ReadyRootBoundProcess(owner) => owner
+    RootBoundCleanupRequired(_) =>
+      raise Failure("rooted worker startup cleanup required")
+  }
+}
+
+///|
+fn complete_exchange(
+  owner : @worker_process.RootBoundWorkerProcessSupervisor,
+) -> Unit raise {
+  let mut attempts = 0
+  while attempts < 1000000 {
+    match owner.progress_exchange() {
+      ExchangePending => attempts += 1
+      ExchangeCompleted => return
+    }
+  }
+  raise Failure("nonblocking worker exchange did not complete")
+}
+
+///|
 fn run(executable : Bytes) -> Unit raise {
+  let rooted = start_root_worker(executable)
+  let rooted_plan = plan(1UL, 10UL)
+  let exchange_sequence = rooted.begin_exchange(rooted_plan)
+  assert_eq(exchange_sequence, 1UL)
+  complete_exchange(rooted)
+  let rooted_completion = rooted.received_for_sequence(exchange_sequence)
+  assert_eq(rooted_completion.sequence_value(), 1UL)
+  assert_eq(rooted_completion.frame(rooted).entry_count(), 1)
+  rooted.retire_received(rooted_completion)
+  rooted.begin_recovery()
+  match rooted.restart() {
+    RootBoundRestarted => ()
+    RootBoundRestartCleanupRequired =>
+      raise Failure("rooted exchange replacement cleanup required")
+  }
+  let replacement_plan = plan(2UL, 20UL)
+  let replacement_sequence = rooted.begin_exchange(replacement_plan)
+  assert_eq(replacement_sequence, 2UL)
+  complete_exchange(rooted)
+  let replacement_completion = rooted.received_for_sequence(
+    replacement_sequence,
+  )
+  rooted.retire_received(replacement_completion)
+  rooted.shutdown_clean()
+  rooted.close()
+  assert_true(rooted.lifecycle() == RootBoundClosed)
+
   let supervisor = start_worker(executable, startup_contract())
   assert_eq(supervisor.startup_contract(), startup_contract())
   let plan_a1 = plan(1UL, 11UL)

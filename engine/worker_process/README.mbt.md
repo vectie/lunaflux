@@ -23,6 +23,31 @@ exact frame repeatedly while scheduler publication is backpressured, and only
 malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 
+The production root-bound facade also exposes one coherent owner-resident
+nonblocking exchange. `begin_exchange` canonically encodes and reserves the
+exact submitted plan sequence, then begins a pending write without performing
+I/O.
+Each `progress_exchange` call advances at most one native pending write or read
+operation. Write completion arms the transactional read; read completion loads
+and validates the response against the retained exact plan before publishing
+the existing received side. The caller resolves it by the returned sequence
+through `received_for_sequence`. All plan, phase, sequence, and pending-I/O
+state stays inside the supervisor; no per-plan exchange owner or transport
+capability is allocated or exposed. Internal non-reusing epochs are invalidated
+on success, failure, recovery, or close. `has_exchange_capacity` preflights
+this one-owner window before a caller creates a scheduling obligation.
+The root-bound supervisor is thread-confined and exclusively owned; possession
+of that owner authorizes owner-resident progress. The `UInt64` returned by
+`begin_exchange` is only sequence correlation evidence, never a transferable
+progress capability.
+
+The first successful transport claim fixes a root-bound owner to legacy or
+exchange mode. Legacy `submit`/`receive` remain compatibility-fixture APIs and
+cannot overlap or follow exchange mode. Any pending transport, timeout,
+channel, or validation failure fail-stops the child, invalidates the exchange,
+and transitions the root-bound owner to `RootBoundRecoveryRequired`; the exact
+reserved sequence remains reconstructible for scheduler failure retirement.
+
 The compatibility-only `prepare` entry remains for deterministic echo fixtures.
 Production service construction uses `prepare_with_approved_roots`, which
 privately duplicates caller-owned model and kernel roots. Its root-bound owner

@@ -81,6 +81,12 @@ pub fn prepare_with_approved_roots(
         cause: None,
         child_cleanup_failure: None,
         roots_cleanup_failure: None,
+        transport_mode: 0,
+        exchange_epoch: 0UL,
+        active_exchange_epoch: 0UL,
+        exchange_phase: -1,
+        exchange_side: -1,
+        exchange_sequence: 0UL,
         lifecycle: RootBoundReady,
       })
     CleanupRequired(child) => {
@@ -149,6 +155,8 @@ pub fn RootBoundWorkerProcessSupervisor::has_capacity(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Bool {
   self.lifecycle == RootBoundReady &&
+  self.transport_mode != 2 &&
+  self.active_exchange_epoch == 0UL &&
   self.process.outstanding_count() == 0 &&
   self.process.has_capacity()
 }
@@ -199,6 +207,9 @@ pub fn RootBoundWorkerProcessSupervisor::submit(
   if self.lifecycle != RootBoundReady {
     raise RootBoundInvalidLifecycle
   }
+  if self.transport_mode == 2 {
+    raise RootBoundFailure(Process(Invalid(Lifecycle)))
+  }
   if self.process.outstanding_count() != 0 {
     raise RootBoundFailure(Process(Backpressured))
   }
@@ -211,6 +222,7 @@ pub fn RootBoundWorkerProcessSupervisor::submit(
       raise RootBoundFailure(Process(error))
     }
   }
+  self.transport_mode = 1
   RootBoundWorkerSubmission(self, submitted.1, submitted.2)
 }
 
@@ -237,6 +249,9 @@ pub fn RootBoundWorkerProcessSupervisor::receive(
   submission : RootBoundWorkerSubmission,
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError {
+  if self.transport_mode != 1 {
+    raise RootBoundFailure(Process(Invalid(Lifecycle)))
+  }
   submission.authenticate(self)
   let received = self.process.receive(
     WorkerSubmission(self.process, submission.1, submission.2),

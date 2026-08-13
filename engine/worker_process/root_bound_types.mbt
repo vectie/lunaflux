@@ -39,6 +39,12 @@ pub struct RootBoundWorkerProcessSupervisor {
   priv mut cause : RootBoundWorkerProcessFailure?
   priv mut child_cleanup_failure : RootBoundWorkerProcessFailure?
   priv mut roots_cleanup_failure : RootBoundWorkerProcessFailure?
+  priv mut transport_mode : Int
+  priv mut exchange_epoch : UInt64
+  priv mut active_exchange_epoch : UInt64
+  priv mut exchange_phase : Int
+  priv mut exchange_side : Int
+  priv mut exchange_sequence : UInt64
   priv mut lifecycle : RootBoundWorkerProcessLifecycle
 }
 
@@ -80,6 +86,13 @@ pub struct RootBoundReceivedWorkerCompletion(
   Int,
   UInt64
 )
+
+///|
+#valtype
+pub enum RootBoundWorkerExchangeProgress {
+  ExchangePending
+  ExchangeCompleted
+}
 
 ///|
 pub fn RootBoundWorkerProcessSupervisor::lifecycle(

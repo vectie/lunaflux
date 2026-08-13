@@ -154,6 +154,25 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
     tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
     tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
     rx: FixedArray::make(completion_a.capacity(), b'\x00'),
+    rx_staging: FixedArray::make(completion_a.capacity(), b'\x00'),
+    exchange_request_ids: FixedArray::make(
+      worker_limits.max_completion_slots(),
+      0UL,
+    ),
+    exchange_request_generations: FixedArray::make(
+      worker_limits.max_completion_slots(),
+      0UL,
+    ),
+    exchange_expected_kinds: FixedArray::make(
+      worker_limits.max_completion_slots(),
+      -1,
+    ),
+    exchange_processed_tokens: FixedArray::make(
+      worker_limits.max_completion_slots(),
+      0,
+    ),
+    exchange_slots: FixedArray::make(worker_limits.max_completion_slots(), -1),
+    exchange_entry_count: 0,
     state_a: 0,
     state_b: 0,
     sequence_a: 0UL,
@@ -161,29 +180,6 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
     last_submitted: 0UL,
     last_retired: 0UL,
     lifecycle: Ready,
-  }
-}
-
-///|
-fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let roots = @approved_fs.acquire_worker_approved_roots(
-    model_root=model,
-    kernel_root=kernel,
-  )
-  model.close()
-  kernel.close()
-  {
-    executable: b"/bin/cat",
-    limits: supervisor_process_limits(),
-    roots,
-    process: test_supervisor(),
-    failed_replacement: None,
-    cause: None,
-    child_cleanup_failure: None,
-    roots_cleanup_failure: None,
-    lifecycle: RootBoundReady,
   }
 }
 
@@ -271,6 +267,7 @@ fn supervisor_page() -> @page_allocator.PageId raise {
 fn supervisor_plan(
   sequence : UInt64,
   generation? : UInt64 = 1UL,
+  completion_slot? : Int = 0,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = supervisor_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)
@@ -281,7 +278,9 @@ fn supervisor_plan(
     tokens=[1, 2],
     pages=[supervisor_page()],
     capabilities=[@plan.KernelCapabilityId::embedding_lookup()],
-    completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
+    completion_slot=@worker_protocol.CompletionSlot::new(
+      completion_slot, limits,
+    ),
   )
   let generation = @worker_protocol.ModelPlanGeneration::from_wire(generation)
   owner.submit(

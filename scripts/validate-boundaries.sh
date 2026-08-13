@@ -219,6 +219,32 @@ if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
     printf '%s\n' 'worker service restart must remain zero-argument' >&2
     failed=1
   fi
+  if ! rg -q \
+    '^pub fn RootBoundWorkerProcessSupervisor::begin_exchange\(Self, @worker_protocol\.SubmittedSchedulePlan\) -> UInt64' \
+    engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'root-bound worker process must own nonblocking plan exchange' >&2
+    failed=1
+  fi
+  if ! rg -q \
+    '^pub fn RootBoundWorkerProcessSupervisor::progress_exchange\(Self\) -> RootBoundWorkerExchangeProgress' \
+    engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'root-bound exchange must expose bounded explicit progress' >&2
+    failed=1
+  fi
+  if rg -n '^pub struct RootBoundWorkerExchange|ExchangeCompleted\(' \
+    engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'root-bound exchange state or completion capability must not be returned by progress' >&2
+    failed=1
+  fi
+  if rg -n 'PendingFrame(Read|Write)|ChildProcess|FixedArray\[Byte\]' \
+    engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'worker-process public interface leaks private transport authority' >&2
+    failed=1
+  fi
 fi
 
 # Execution-manifest admission may consume only the public approved-root
