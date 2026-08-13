@@ -139,7 +139,7 @@ fn blueprint_operation(
   capability : @plan.KernelCapabilityId,
   workspace : Int64,
 ) -> @plan.PlanOperation raise {
-  @plan.PlanOperation::new_stateless(
+  @plan.PlanOperation::new_with_runtime_inputs(
     id=@plan.OperationId::new(id),
     kind~,
     inputs~,
@@ -147,6 +147,7 @@ fn blueprint_operation(
     shape~,
     required_capability=capability,
     workspace_bytes=workspace,
+    runtime_inputs=[StepCounts],
   )
 }
 

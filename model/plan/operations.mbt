@@ -98,6 +98,40 @@ pub fn PlanOperation::new_stateless(
 }
 
 ///|
+/// Constructs a non-KV operation with an explicit ordered live-input contract.
+///
+/// This is used by paged full-graph execution where otherwise stateless
+/// operations consume `StepCounts` to bound live rows and tokens. Rotary and
+/// causal attention remain layered operations and must use
+/// `new_with_execution`; an empty live-input list must use `new_stateless`.
+pub fn PlanOperation::new_with_runtime_inputs(
+  id~ : OperationId,
+  kind~ : OperationKind,
+  inputs~ : ArrayView[ValueRef],
+  outputs~ : ArrayView[ActivationRef],
+  shape~ : OperationShape,
+  required_capability~ : KernelCapabilityId,
+  workspace_bytes~ : Int64,
+  runtime_inputs~ : ArrayView[OperationRuntimeInput],
+) -> PlanOperation raise PlanValidationError {
+  if kind is (RotaryEmbedding | CausalAttention) || runtime_inputs.is_empty() {
+    raise InvalidGraph(KvExecutionContract)
+  }
+  new_operation(
+    id,
+    kind,
+    inputs,
+    outputs,
+    shape,
+    required_capability,
+    workspace_bytes,
+    None,
+    runtime_inputs,
+    NoPersistentState,
+  )
+}
+
+///|
 /// Constructs an operation with an explicit decoder layer, live-input
 /// contract, and persistent-state effect.
 ///

@@ -24,7 +24,7 @@ fn catalog_paged_plan() -> @plan.ModelPlan raise {
     kv_cache_geometry=catalog_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[
-      @plan.PlanOperation::new_stateless(
+      @plan.PlanOperation::new_with_runtime_inputs(
         id=@plan.OperationId::new(0),
         kind=Embedding,
         inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -32,6 +32,7 @@ fn catalog_paged_plan() -> @plan.ModelPlan raise {
         shape=EmbeddingShape(vocabulary_size=128, width=16),
         required_capability=@plan.KernelCapabilityId::embedding_lookup(),
         workspace_bytes=0L,
+        runtime_inputs=[StepCounts],
       ),
       @plan.PlanOperation::new_with_execution(
         id=@plan.OperationId::new(1),

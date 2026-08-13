@@ -190,6 +190,11 @@ pub fn CatalogEntry::new_paged_v2(
   if !paged_semantics_are_legal(operation_kind, execution_semantics) {
     raise InvalidCatalog(InvalidExecutionSemantics)
   }
+  // The only vendor ABI is fixed-row and cannot consume live `StepCounts`.
+  // Paged execution therefore remains content-addressed AOT only.
+  if implementation is VendorBf16GemmImplicitHeuristicV1 {
+    raise InvalidCatalog(InvalidVendorImplementationKind)
+  }
   if !vendor_implementation_is_legal(operation_kind, implementation) {
     raise InvalidCatalog(InvalidVendorImplementationKind)
   }

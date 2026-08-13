@@ -34,7 +34,7 @@ fn paged_v2_semantics(
     _ =>
       @catalog.KernelExecutionSemantics::paged_v2(
         kv_layer=None,
-        runtime_inputs=[],
+        runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
@@ -200,6 +200,34 @@ test "v2 entries reject missing and reordered live roles" {
     } noraise {
       _ => fail("expected invalid v2 runtime order")
     }
+  }
+}
+
+///|
+test "paged v2 rejects fixed-row vendor implementations" {
+  let semantics = @catalog.KernelExecutionSemantics::paged_v2(
+    kv_layer=None,
+    runtime_inputs=[StepCounts],
+    persistent_state=NoPersistentState,
+    kv_layout=None,
+  )
+  try
+    @catalog.CatalogEntry::new_paged_v2(
+      operation_kind=OutputProjection,
+      operation_shape=ProjectionShape(input_width=16, output_width=16),
+      capability=@plan.KernelCapabilityId::dense_projection(),
+      execution_semantics=semantics,
+      compute_major=8,
+      compute_minor=0,
+      implementation=VendorBf16GemmImplicitHeuristicV1,
+      workspace_bytes=0L,
+      workspace_alignment=1L,
+    )
+  catch {
+    InvalidCatalog(InvalidVendorImplementationKind) => ()
+    _ => fail("unexpected paged vendor rejection")
+  } noraise {
+    _ => fail("expected fixed-row paged vendor rejection")
   }
 }
 

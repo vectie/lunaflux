@@ -121,13 +121,16 @@ pub fn LlamaModelSpec::canonical_plan_digest(
 }
 
 ///|
-/// Derives the distinct paged-KV semantic plan identity. Merely sharing model
-/// weights and geometry does not make full-context and stateful graphs the
-/// same immutable plan.
+/// Derives the distinct full-live paged-KV semantic plan identity. Every
+/// operation consumes explicit live-step counts; rotary and attention retain
+/// their additional ordered runtime inputs. Merely sharing model weights and
+/// geometry does not make full-context and stateful graphs the same plan.
 pub fn LlamaModelSpec::canonical_paged_plan_digest(
   self : LlamaModelSpec,
 ) -> PlanDigest {
-  self.plan_digest_with_schema(b"lunaflux.dense-llama-plan.v2.paged-kv-v1\x00")
+  self.plan_digest_with_schema(
+    b"lunaflux.dense-llama-plan.v3.paged-kv-full-live-v1\x00",
+  )
 }
 
 ///|

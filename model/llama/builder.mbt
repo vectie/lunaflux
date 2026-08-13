@@ -28,17 +28,31 @@ fn append_operation(
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
   capability : @plan.KernelCapabilityId,
+  runtime_inputs : ArrayView[@plan.OperationRuntimeInput],
 ) -> @plan.ActivationRef raise @plan.PlanValidationError {
   let output = @plan.ActivationRef::new(operations.length())
-  let operation = @plan.PlanOperation::new_stateless(
-    id=@plan.OperationId::new(operations.length()),
-    kind~,
-    inputs~,
-    outputs=[output],
-    shape~,
-    required_capability=capability,
-    workspace_bytes=0L,
-  )
+  let operation = if runtime_inputs.is_empty() {
+    @plan.PlanOperation::new_stateless(
+      id=@plan.OperationId::new(operations.length()),
+      kind~,
+      inputs~,
+      outputs=[output],
+      shape~,
+      required_capability=capability,
+      workspace_bytes=0L,
+    )
+  } else {
+    @plan.PlanOperation::new_with_runtime_inputs(
+      id=@plan.OperationId::new(operations.length()),
+      kind~,
+      inputs~,
+      outputs=[output],
+      shape~,
+      required_capability=capability,
+      workspace_bytes=0L,
+      runtime_inputs~,
+    )
+  }
   operations.push(operation)
   output
 }
@@ -128,6 +142,10 @@ fn build_with_execution(
     max_temporary_bytes=checked_product(scratch_elements, 2L),
   )
   let operations : Array[@plan.PlanOperation] = []
+  let live_runtime : Array[@plan.OperationRuntimeInput] = match kv_execution {
+    StatelessFullContext => []
+    PagedKeyValue => [StepCounts]
+  }
   let mut next_tensor = 0
   let mut hidden_state = append_operation(
     operations,
@@ -135,6 +153,7 @@ fn build_with_execution(
     [ModelInput(TokenIds), tensor(next_tensor)],
     EmbeddingShape(vocabulary_size=spec.vocabulary_size(), width=hidden),
     @plan.KernelCapabilityId::embedding_lookup(),
+    live_runtime,
   )
   next_tensor += 1
   for layer_index in 0..<spec.layer_count() {
@@ -146,6 +165,7 @@ fn build_with_execution(
       [activation(hidden_state), tensor(next_tensor)],
       NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
+      live_runtime,
     )
     next_tensor += 1
     let projected = append_operation(
@@ -159,6 +179,7 @@ fn build_with_execution(
       ],
       ProjectionShape(input_width=hidden, output_width=qkv_width),
       @plan.KernelCapabilityId::qkv_projection(),
+      live_runtime,
     )
     next_tensor += 3
     let rotary_runtime = match kv_execution {
@@ -218,6 +239,7 @@ fn build_with_execution(
       [activation(attended), tensor(next_tensor)],
       ProjectionShape(input_width=hidden, output_width=hidden),
       @plan.KernelCapabilityId::dense_projection(),
+      live_runtime,
     )
     next_tensor += 1
     let attention_residual = append_operation(
@@ -226,6 +248,7 @@ fn build_with_execution(
       [activation(residual_input), activation(projected_output)],
       ElementwiseShape(width=hidden),
       @plan.KernelCapabilityId::residual_add(),
+      live_runtime,
     )
     let mlp_norm = append_operation(
       operations,
@@ -233,6 +256,7 @@ fn build_with_execution(
       [activation(attention_residual), tensor(next_tensor)],
       NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
+      live_runtime,
     )
     next_tensor += 1
     let mlp_output = append_operation(
@@ -246,6 +270,7 @@ fn build_with_execution(
       ],
       GatedMlpShape(hidden_size=hidden, intermediate_size=intermediate),
       @plan.KernelCapabilityId::gated_mlp(),
+      live_runtime,
     )
     next_tensor += 3
     hidden_state = append_operation(
@@ -254,6 +279,7 @@ fn build_with_execution(
       [activation(attention_residual), activation(mlp_output)],
       ElementwiseShape(width=hidden),
       @plan.KernelCapabilityId::residual_add(),
+      live_runtime,
     )
   }
   let final_norm = append_operation(
@@ -262,6 +288,7 @@ fn build_with_execution(
     [activation(hidden_state), tensor(next_tensor)],
     NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
     @plan.KernelCapabilityId::rms_norm(),
+    live_runtime,
   )
   next_tensor += 1
   let logits = append_operation(
@@ -270,6 +297,7 @@ fn build_with_execution(
     [activation(final_norm), tensor(next_tensor)],
     ProjectionShape(input_width=hidden, output_width=spec.vocabulary_size()),
     @plan.KernelCapabilityId::dense_projection(),
+    live_runtime,
   )
   @plan.ModelPlan::new_with_kv_execution(
     identity~,
@@ -293,11 +321,12 @@ pub fn build(
 }
 
 ///|
-/// Builds the semantic paged-KV graph for later cached execution planning.
+/// Builds the full-live semantic paged-KV graph for cached execution planning.
 ///
-/// This constructs no device profile and proves no kernel support. Catalog and
-/// executor admission must reject the plan until they name and bind every
-/// runtime input and persistent KV operand.
+/// Every operation consumes `StepCounts`; rotary and attention additionally
+/// consume their exact positioned-query and page-table inputs. This constructs
+/// no device profile and proves no kernel support. Catalog and executor
+/// admission must reject the plan until they bind the complete graph.
 pub fn build_paged(
   metadata : @spec.LlamaModelMetadata,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {

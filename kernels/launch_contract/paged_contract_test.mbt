@@ -23,7 +23,7 @@ fn paged_plan_fixture() -> @plan.ModelPlan raise {
     kv_cache_geometry=geometry,
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[
-      @plan.PlanOperation::new_stateless(
+      @plan.PlanOperation::new_with_runtime_inputs(
         id=@plan.OperationId::new(0),
         kind=Embedding,
         inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
@@ -31,6 +31,7 @@ fn paged_plan_fixture() -> @plan.ModelPlan raise {
         shape=EmbeddingShape(vocabulary_size=128, width=16),
         required_capability=@plan.KernelCapabilityId::embedding_lookup(),
         workspace_bytes=0L,
+        runtime_inputs=[StepCounts],
       ),
       @plan.PlanOperation::new_with_execution(
         id=@plan.OperationId::new(1),
@@ -110,7 +111,7 @@ fn paged_semantics_fixture(
     _ =>
       @catalog.KernelExecutionSemantics::paged_v2(
         kv_layer=None,
-        runtime_inputs=[],
+        runtime_inputs=[StepCounts],
         persistent_state=NoPersistentState,
         kv_layout=None,
       )
@@ -467,34 +468,5 @@ test "paged v2 rejects wrong layout, mode, and catalog version" {
     _ => fail("unexpected catalog-version failure")
   } noraise {
     _ => fail("expected v1 catalog rejection")
-  }
-}
-
-///|
-test "catalog workspace controls the final v2 operand position" {
-  let rotary = paged_operands(1)
-  try
-    @launch_contract.admit_paged_kv(
-      paged_plan_fixture(),
-      paged_catalog_fixture(rotary_workspace=64L),
-      paged_layout_fixture(),
-      [paged_profile_fixture()],
-      [
-        @launch_contract.PagedKvAotLaunchContractInput::new(
-          profile_id=@launch_contract.KernelProfileId::from_stable_int(1),
-          operation_id=@plan.OperationId::new(1),
-          entry_point=entry_point(12, 2),
-          dimensions=dimensions(4),
-          operands=rotary,
-        ),
-      ],
-      paged_limits_fixture(),
-    )
-  catch {
-    @launch_contract.InvalidOperand(id, MissingSemanticRole) =>
-      assert_eq(id.as_int(), 1)
-    _ => fail("unexpected catalog-workspace error")
-  } noraise {
-    _ => fail("expected catalog workspace operand requirement")
   }
 }

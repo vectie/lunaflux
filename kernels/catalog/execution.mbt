@@ -169,7 +169,7 @@ fn paged_semantics_are_legal(
       }
     _ =>
       semantics.kv_layer is None &&
-      semantics.runtime_inputs.is_empty() &&
+      runtime_inputs_match(semantics.runtime_inputs, [StepCounts]) &&
       semantics.persistent_state == NoPersistentState &&
       semantics.kv_layout is None
   }

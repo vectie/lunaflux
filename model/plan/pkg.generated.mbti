@@ -172,6 +172,7 @@ pub fn PlanOperation::kind(Self) -> OperationKind
 pub fn PlanOperation::kv_layer(Self) -> KvLayerId?
 pub fn PlanOperation::new_stateless(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64) -> Self raise PlanValidationError
 pub fn PlanOperation::new_with_execution(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64, kv_layer~ : KvLayerId, runtime_inputs~ : ArrayView[OperationRuntimeInput], persistent_state~ : PersistentStateAccess) -> Self raise PlanValidationError
+pub fn PlanOperation::new_with_runtime_inputs(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64, runtime_inputs~ : ArrayView[OperationRuntimeInput]) -> Self raise PlanValidationError
 pub fn PlanOperation::outputs(Self) -> ReadOnlyArray[ActivationRef]
 pub fn PlanOperation::persistent_state(Self) -> PersistentStateAccess
 pub fn PlanOperation::required_capability(Self) -> KernelCapabilityId

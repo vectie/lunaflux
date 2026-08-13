@@ -50,7 +50,7 @@ test "canonical plan identity is derived deterministically from semantic fields"
   )
   assert_eq(
     base.canonical_paged_plan_digest().as_hex(),
-    "e1eef676085ba63a306e1ccd1c7e82f7d32d8a49a4ea4d07b44c02560effcc01",
+    "bc32f10a8f02b9ce74ef9f70e22966ee811bd96f2a8bd254caa87662753c0db0",
   )
   assert_true(
     base.canonical_paged_plan_digest() != base.canonical_plan_digest(),

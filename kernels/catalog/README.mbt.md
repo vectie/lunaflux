@@ -28,5 +28,7 @@ families may therefore be reused across decoder layers while each entry and
 binding retains its exact `KvLayerId`.
 
 Catalog v2 still selects only inert content-addressed AOT identities. It does
-not claim that a device executor, CUDA argument binder, or production paged
-kernel exists, and it has no JIT or fallback path.
+not admit the fixed-row vendor implementation because every paged operation
+consumes live `StepCounts`. It does not claim that a device executor, CUDA
+argument binder, or production paged kernel exists, and it has no JIT or
+fallback path.

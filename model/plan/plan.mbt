@@ -99,7 +99,10 @@ fn valid_execution_contract(
       }
     _ =>
       operation.kv_layer() is None &&
-      operation.has_runtime_inputs([]) &&
+      (
+        operation.has_runtime_inputs([]) ||
+        operation.has_runtime_inputs([StepCounts])
+      ) &&
       operation.persistent_state() == NoPersistentState
   }
 }
@@ -254,7 +257,17 @@ fn validate_kv_execution_mode(
               raise InvalidGraph(KvExecutionModeMismatch)
             }
         }
-      _ => ()
+      _ =>
+        match mode {
+          StatelessFullContext =>
+            if !operation.has_runtime_inputs([]) {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+          PagedKeyValue =>
+            if !operation.has_runtime_inputs([StepCounts]) {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+        }
     }
   }
 }

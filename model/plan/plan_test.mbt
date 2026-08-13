@@ -72,6 +72,40 @@ test "stateless operation construction rejects KV-bearing operation kinds" {
 }
 
 ///|
+test "live non-KV operation construction requires an exact nonempty contract" {
+  let live = @plan.PlanOperation::new_with_runtime_inputs(
+    id=@plan.OperationId::new(0),
+    kind=Embedding,
+    inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
+    outputs=[@plan.ActivationRef::new(0)],
+    shape=EmbeddingShape(vocabulary_size=128, width=16),
+    required_capability=@plan.KernelCapabilityId::embedding_lookup(),
+    workspace_bytes=0L,
+    runtime_inputs=[StepCounts],
+  )
+  assert_eq(live.runtime_inputs(), [StepCounts])
+  assert_eq(live.kv_layer(), None)
+  assert_eq(live.persistent_state(), NoPersistentState)
+  try
+    @plan.PlanOperation::new_with_runtime_inputs(
+      id=@plan.OperationId::new(0),
+      kind=Embedding,
+      inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
+      outputs=[@plan.ActivationRef::new(0)],
+      shape=EmbeddingShape(vocabulary_size=128, width=16),
+      required_capability=@plan.KernelCapabilityId::embedding_lookup(),
+      workspace_bytes=0L,
+      runtime_inputs=[],
+    )
+  catch {
+    InvalidGraph(KvExecutionContract) => ()
+    _ => fail("unexpected empty live-input failure")
+  } noraise {
+    _ => fail("expected empty live-input rejection")
+  }
+}
+
+///|
 test "stateless plan construction rejects explicitly layered attention" {
   let attention = @plan.PlanOperation::new_with_execution(
     id=@plan.OperationId::new(0),

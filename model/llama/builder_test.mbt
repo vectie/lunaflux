@@ -196,6 +196,14 @@ test "paged Llama plan owns exact layered runtime and persistent-state semantics
     PageTableOffsets,
     PageTablePageIndices,
   ]
+  for operation in paged.operations() {
+    if operation.kind() != RotaryEmbedding &&
+      operation.kind() != CausalAttention {
+      assert_eq(operation.runtime_inputs(), [StepCounts])
+      assert_eq(operation.kv_layer(), None)
+      assert_eq(operation.persistent_state(), NoPersistentState)
+    }
+  }
   for layer in 0..<2 {
     let layer_id = @plan.KvLayerId::new(layer)
     let rotary = paged.operations()[3 + layer * 9]
