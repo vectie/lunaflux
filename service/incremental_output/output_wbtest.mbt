@@ -259,3 +259,69 @@ test "stop matcher spans UTF-8 bytes and rejects an undersized envelope" {
     _ => fail("undersized decoded-delta envelope was accepted")
   }
 }
+
+///|
+test "scalar no-stop token and finish statuses are transactional" {
+  let output = IncrementalOutput::new(
+    fixture_tokenizer(),
+    @inference.StopConditions::new([], [], fixture_inference()),
+    fixture_inference(),
+    special_policy=Skip,
+  )
+  let destination = FixedArray::make(8, b'!')
+  let first = output.push_token_without_stops_status(
+    65,
+    destination,
+    destination_offset=1,
+  )
+  assert_true(first.is_ready())
+  assert_eq(first.copied_bytes(), 1)
+  assert_eq(destination[1], b'A')
+  let rejected = output.push_token_without_stops_status(
+    9999,
+    destination,
+    destination_offset=1,
+  )
+  assert_false(rejected.is_ready())
+  assert_eq(destination[1], b'A')
+  let finished = output.finish_into_status(destination, destination_offset=2)
+  assert_true(finished.is_ready())
+  assert_eq(finished.copied_bytes(), 0)
+  assert_true(output.is_finished())
+}
+
+///|
+test "scalar finish rejects truncated UTF-8 without consuming output owner" {
+  let output = IncrementalOutput::new(
+    fixture_tokenizer(),
+    @inference.StopConditions::new([], [], fixture_inference()),
+    fixture_inference(),
+    special_policy=Preserve,
+  )
+  let destination = FixedArray::make(8, b'!')
+  let prefix = output.push_token_without_stops_status(
+    0xe4,
+    destination,
+    destination_offset=0,
+  )
+  assert_true(prefix.is_ready())
+  assert_eq(prefix.copied_bytes(), 0)
+  let rejected = output.finish_into_status(destination, destination_offset=0)
+  assert_false(rejected.is_ready())
+  for byte in destination {
+    assert_eq(byte, b'!')
+  }
+  assert_false(output.is_finished())
+  assert_true(
+    output
+    .push_token_without_stops_status(0xbd, destination, destination_offset=0)
+    .is_ready(),
+  )
+  let completed = output.push_token_without_stops_status(
+    0xa0,
+    destination,
+    destination_offset=0,
+  )
+  assert_true(completed.is_ready())
+  assert_eq(completed.copied_bytes(), 3)
+}

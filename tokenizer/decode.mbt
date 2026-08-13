@@ -99,3 +99,33 @@ pub fn TokenizerSpec::copy_decoded_piece(
   }
   count
 }
+
+///|
+/// Copies one decoded piece without constructing a typed error. Failure is
+/// reported as an opaque scalar status and leaves the destination unchanged.
+pub fn TokenizerSpec::copy_decoded_piece_status(
+  self : TokenizerSpec,
+  token_id : Int,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+  special_policy~ : DecodeSpecialPolicy,
+) -> DecodePieceStatus {
+  guard self.tokens_by_id.get(token_id) is Some(token) else {
+    return DecodePieceStatus(1, 0)
+  }
+  if destination_offset < 0 || destination_offset > destination.length() {
+    return DecodePieceStatus(2, 0)
+  }
+  let count = if token.kind is Special && special_policy is Skip {
+    0
+  } else {
+    token.piece.length()
+  }
+  if count > destination.length() - destination_offset {
+    return DecodePieceStatus(3, 0)
+  }
+  for index in 0..<count {
+    destination[destination_offset + index] = token.piece[index]
+  }
+  DecodePieceStatus(0, count)
+}

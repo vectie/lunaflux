@@ -57,6 +57,22 @@ for symbol in \
   'OnlineSession10ack__event(' \
   'OnlineSession12begin__abort(' \
   'OnlineSession17progress__cleanup(' \
+  'OnlineSession8progress(' \
+  'OnlineSession13decode__token(' \
+  'OnlineSession22enter__output__cleanup(' \
+  'OnlineSession29consume__natural__publication(' \
+  'OnlineSession26prepare__natural__terminal(' \
+  'AdmittedRequest25push__token__into__status(' \
+  'AdmittedRequest20finish__into__status(' \
+  'AdmittedRequest15is__stop__token(' \
+  'IncrementalOutput35push__token__without__stops__status(' \
+  'IncrementalOutput20finish__into__status(' \
+  'incremental__output11copy__range(' \
+  'incremental__output21advance__utf8__status(' \
+  'TokenizerSpec28copy__decoded__piece__status(' \
+  'CanonicalEventWriter29prepare__token__bytes__status(' \
+  'CanonicalEventWriter14prepare__usage(' \
+  'CanonicalEventWriter18prepare__completed(' \
   'OnlineWorkerLease28progress__terminal__recovery(' \
   'OnlineWorkerLease27commit__prepared__admission(' \
   'Scheduler28commit__exclusive__admission(' \
@@ -73,6 +89,39 @@ for symbol in \
     exit 1
   fi
 done
+
+stop_body="$(extract_definition 'AdmittedRequest15is__stop__token(')"
+if [ -z "$stop_body" ] || printf '%s\n' "$stop_body" |
+  rg -q 'iterG|ArrayView4iter|FixedArray4iter'; then
+  printf '%s\n' 'online stop-token lookup introduced iterator allocation' >&2
+  exit 1
+fi
+
+# Failure mapping is allowed to allocate only after retained cleanup state is
+# secured. Generated ordering evidence guards the exact post-dequeue branches.
+decode_body="$(extract_definition 'OnlineSession13decode__token(')"
+progress_body="$(extract_definition 'OnlineSession8progress(')"
+terminal_body="$(extract_definition 'OnlineSession26prepare__natural__terminal(')"
+if [ -z "$decode_body" ] || [ -z "$progress_body" ] || [ -z "$terminal_body" ]; then
+  printf '%s\n' 'online-session failure-order functions are missing' >&2
+  exit 1
+fi
+decode_cleanup_count="$(printf '%s\n' "$decode_body" | rg -c 'enter__output__cleanup' || true)"
+decode_error_count="$(printf '%s\n' "$decode_body" | rg -c 'OnlineSessionError_2eSessionFailed' || true)"
+if [ "$decode_cleanup_count" -lt 2 ] || [ "$decode_error_count" -lt 2 ]; then
+  printf '%s\n' 'decode/writer rejection does not secure cleanup before typed failure' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$progress_body" | rg -U -q \
+  -- '->\$[0-9]+ = 5;[\s\S]*->\$[0-9]+ = 1;[\s\S]*OnlineSessionError_2eSessionFailed'; then
+  printf '%s\n' 'worker progress failure is mapped before recovery authority is secured' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$terminal_body" | rg -U -q \
+  -- 'finish__into__status[\s\S]*->\$[0-9]+ = 2;[\s\S]*OnlineSessionError_2eSessionFailed'; then
+  printf '%s\n' 'terminal tail rejection is mapped before cleanup authority is secured' >&2
+  exit 1
+fi
 
 # The exact aggregate/session/cleanup shells must precede rooted authority.
 prepare_body="$(extract_definition 'prepare__owned__session(')"

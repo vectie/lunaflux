@@ -43,6 +43,7 @@ pub fn OnlineSession::begin_abort(Self) -> Unit raise OnlineSessionError
 pub fn OnlineSession::copy_event_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise OnlineSessionError
 pub fn OnlineSession::event_length(Self) -> Int raise OnlineSessionError
 pub fn OnlineSession::has_event(Self) -> Bool
+pub fn OnlineSession::progress(Self) -> OnlineSessionProgress raise OnlineSessionError
 pub fn OnlineSession::progress_cleanup(Self) -> OnlineSessionCleanupProgress raise OnlineSessionError
 
 pub(all) enum OnlineSessionCleanupProgress {
@@ -55,6 +56,7 @@ pub(all) enum OnlineSessionFailure {
   ServicePreparationFailure
   ServiceFailure
   WireFailure
+  OutputFailure
   Invalid(OnlineSessionRule)
 } derive(Eq, @debug.Debug)
 
@@ -70,12 +72,18 @@ pub(all) enum OnlineSessionPreparationState {
   OnlineSessionCleanupRequired
 } derive(Eq, @debug.Debug)
 
+pub(all) enum OnlineSessionProgress {
+  OnlineSessionPending
+  OnlineSessionEventReady
+} derive(Eq, @debug.Debug)
+
 pub(all) enum OnlineSessionRule {
   Lifecycle
   Ownership
   Streaming
   InferenceEnvelope
   ModelIdentity
+  StringStops
   EventCredit
 } derive(Eq, @debug.Debug)
 

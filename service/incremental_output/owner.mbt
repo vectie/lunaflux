@@ -40,6 +40,11 @@ pub fn IncrementalOutput::is_finished(self : IncrementalOutput) -> Bool {
 }
 
 ///|
+pub fn IncrementalOutput::has_string_stops(self : IncrementalOutput) -> Bool {
+  self.patterns.length() != 0
+}
+
+///|
 fn destination_available(
   destination : FixedArray[Byte],
   offset : Int,
@@ -194,4 +199,87 @@ pub fn IncrementalOutput::finish_into(
   self.pending_count = 0
   self.lifecycle = OUTPUT_FINISHED
   count
+}
+
+///|
+/// Allocation-free decode used after a session has consumed an authenticated
+/// scheduler token. This narrow method accepts only the no-string-stop shape;
+/// rejection is scalar and leaves logical stream/destination state unchanged.
+pub fn IncrementalOutput::push_token_without_stops_status(
+  self : IncrementalOutput,
+  token_id : Int,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+) -> IncrementalOutputStatus {
+  if self.lifecycle != OUTPUT_ACTIVE || self.patterns.length() != 0 {
+    return IncrementalOutputStatus(1, 0)
+  }
+  copy_range(self.pending, 0, self.scratch, 0, self.pending_count)
+  let piece = self.tokenizer.copy_decoded_piece_status(
+    token_id,
+    self.scratch,
+    destination_offset=self.pending_count,
+    special_policy=self.special_policy,
+  )
+  if !piece.is_ready() {
+    return IncrementalOutputStatus(2, 0)
+  }
+  let total = self.pending_count + piece.copied_bytes()
+  let mut remaining = self.utf8_remaining
+  let mut codepoint = self.utf8_codepoint
+  let mut minimum = self.utf8_minimum
+  let mut seen = self.utf8_seen
+  for cursor in self.pending_count..<total {
+    let advanced = advance_utf8_status(
+      remaining,
+      codepoint,
+      minimum,
+      seen,
+      self.scratch[cursor],
+    )
+    if !advanced.0 {
+      return IncrementalOutputStatus(3, 0)
+    }
+    remaining = advanced.1
+    codepoint = advanced.2
+    minimum = advanced.3
+    seen = advanced.4
+  }
+  let retained = if remaining == 0 { 0 } else { seen }
+  let output_count = total - retained
+  if destination_offset < 0 ||
+    destination_offset > destination.length() ||
+    output_count > destination.length() - destination_offset {
+    return IncrementalOutputStatus(4, 0)
+  }
+  copy_range(self.scratch, 0, destination, destination_offset, output_count)
+  copy_range(self.scratch, output_count, self.pending, 0, retained)
+  self.pending_count = retained
+  self.utf8_remaining = remaining
+  self.utf8_codepoint = codepoint
+  self.utf8_minimum = minimum
+  self.utf8_seen = seen
+  IncrementalOutputStatus(0, output_count)
+}
+
+///|
+/// Allocation-free terminal tail flush. Failure is scalar and transactional.
+pub fn IncrementalOutput::finish_into_status(
+  self : IncrementalOutput,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+) -> IncrementalOutputStatus {
+  if self.lifecycle != OUTPUT_ACTIVE || self.utf8_remaining != 0 {
+    return IncrementalOutputStatus(1, 0)
+  }
+  if destination_offset < 0 ||
+    destination_offset > destination.length() ||
+    self.pending_count > destination.length() - destination_offset {
+    return IncrementalOutputStatus(2, 0)
+  }
+  let count = self.pending_count
+  copy_range(self.pending, 0, destination, destination_offset, count)
+  self.pending_count = 0
+  self.lifecycle = OUTPUT_FINISHED
+  IncrementalOutputStatus(0, count)
 }

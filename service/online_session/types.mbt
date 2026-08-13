@@ -5,6 +5,7 @@ pub(all) enum OnlineSessionRule {
   Streaming
   InferenceEnvelope
   ModelIdentity
+  StringStops
   EventCredit
 } derive(Debug, Eq)
 
@@ -14,6 +15,7 @@ pub(all) enum OnlineSessionFailure {
   ServicePreparationFailure
   ServiceFailure
   WireFailure
+  OutputFailure
   Invalid(OnlineSessionRule)
 } derive(Debug, Eq)
 
@@ -41,6 +43,13 @@ pub(all) enum OnlineSessionCleanupProgress {
 } derive(Debug, Eq)
 
 ///|
+#valtype
+pub(all) enum OnlineSessionProgress {
+  OnlineSessionPending
+  OnlineSessionEventReady
+} derive(Debug, Eq)
+
+///|
 pub struct OnlineSession {
   priv admitted : @request_admission.AdmittedRequest
   priv mut lease : @worker_service.OnlineWorkerLease?
@@ -49,7 +58,11 @@ pub struct OnlineSession {
   priv input_tokens : Int
   priv max_new_tokens : Int
   priv mut event_ready : Bool
+  priv mut event_kind : Int
   priv mut accepted_acked : Bool
+  priv mut output_tokens : Int
+  priv mut final_tail_length : Int
+  priv mut finish_kind : Int
   priv mut cleanup_phase : Int
   priv mut recovery_close : Bool
   priv mut closed : Bool

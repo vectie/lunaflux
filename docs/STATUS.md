@@ -293,9 +293,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   `service/online_session` foundation now accepts only `ReceivedRequest`, owns
   request admission and the production worker, publishes one canonical
   Accepted credit, and provides an off-reactor exact abort/recovery/close path.
-  The borrowed ordinary roots remain caller-owned. Steady token/stop/deadline
-  output, terminal Usage/Completed/Failed bundles, and ingress transport remain
-  open; this is not online-serving readiness.
+  The borrowed ordinary roots remain caller-owned. Normal allocation-free
+  Token output and natural Maximum/StopToken Usage+Completed-v2 bundles are
+  implemented; stop tokens are counted but suppressed. String-stop,
+  caller-cancel, deadline and public Failed translation plus ingress transport
+  remain open; this is not online-serving readiness.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.

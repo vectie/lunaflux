@@ -47,3 +47,29 @@ test "online capacity preflight rejects negative delta bounds" {
   }
   assert_true(writer.has_credit())
 }
+
+///|
+test "scalar token writer rejects without consuming credit" {
+  let writer = CanonicalEventWriter::new(fixture_limits())
+  let source = FixedArray::make(1, b'x')
+  assert_false(
+    writer.prepare_token_bytes_status(
+      token_id=fixture_inference_limits().max_token_id() + 1,
+      position=0,
+      source,
+      source_offset=0,
+      length=1,
+    ),
+  )
+  assert_true(writer.has_credit())
+  assert_true(
+    writer.prepare_token_bytes_status(
+      token_id=1,
+      position=0,
+      source,
+      source_offset=0,
+      length=1,
+    ),
+  )
+  assert_false(writer.has_credit())
+}

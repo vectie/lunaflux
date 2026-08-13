@@ -115,6 +115,24 @@ pub(all) suberror TokenizerError {
 } derive(Debug, Eq)
 
 ///|
+/// Allocation-free single-piece copy result for owner-resident decode paths.
+#valtype
+pub struct DecodePieceStatus(Int, Int)
+
+///|
+pub fn DecodePieceStatus::is_ready(self : DecodePieceStatus) -> Bool {
+  self.0 == 0
+}
+
+///|
+pub fn DecodePieceStatus::copied_bytes(self : DecodePieceStatus) -> Int {
+  if self.0 != 0 {
+    return 0
+  }
+  self.1
+}
+
+///|
 /// Opaque, validated lowercase SHA-256 identity of the tokenizer artifact.
 pub struct TokenizerDigest {
   priv value : String

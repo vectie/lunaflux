@@ -13,14 +13,23 @@ and handshake with the worker, and acquire/release rooted authority. The
 ordinary approved roots are borrowed; callers retain and close their original
 root capabilities after preparation returns.
 
-The first outbound credit is the canonical event-v2 Accepted frame. The frame
-is pinned in owner-resident one-credit storage until copied and acknowledged;
-no transferable frame owner or scalar authentication token is exposed.
+The first outbound credit is the canonical event-v2 Accepted frame. Normal
+progress then publishes exact Token credits, followed by Usage and
+Completed-v2 for natural maximum-output or physical stop-token termination.
+Stop tokens count toward usage but are suppressed from Token output; their
+exact adjacent terminal is authenticated before Usage. Any final valid UTF-8
+decoder tail is carried only by Completed. Every frame remains pinned in the
+same owner-resident one-credit storage until copied and acknowledged; pinned
+credit rejects before worker, scheduler, or decoder mutation.
 
-This initial foundation intentionally stops before normal token stepping. It
-does include the complete off-reactor abort path required to publish a session
-without stranding authority: exact cancellation, existing-flight retirement,
-suppression through the exact terminal, worker-failure recovery, and clean or
-terminal close. Child shutdown/reap may block, so cleanup progression does not
-belong on an async network reactor. Natural token/string-stop/deadline output
-and the final Usage/Completed/Failed bundle land in the next coherent slice.
+Ordinary generated-token decode and writer publication use scalar transactional
+status after exact scheduler reservation/dequeue. No typed error is created
+until cancellation/recovery cleanup state is secured. Natural terminal tail
+flush is likewise scalar. This slice deliberately rejects string-stop requests
+before rooted startup; caller cancellation, deadline translation, and public
+Failed events remain later work.
+
+The complete off-reactor cleanup path prevents stranded authority: existing
+flight retirement, suppression through exact terminal, worker-failure
+recovery, healthy shutdown, and terminal close. Child shutdown/reap may block,
+so cleanup progression does not belong on an async network reactor.

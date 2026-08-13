@@ -150,14 +150,55 @@ pub fn OnlineSession::ack_event(
     raise SessionFailed(Invalid(EventCredit))
   }
   self.require_owner()
-  if !self.event_ready || self.accepted_acked {
+  if !self.event_ready {
     raise SessionFailed(Invalid(EventCredit))
   }
-  self.writer.retire() catch {
-    _ => raise SessionFailed(WireFailure)
+  match self.event_kind {
+    1 => {
+      if self.accepted_acked {
+        raise SessionFailed(Invalid(EventCredit))
+      }
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      self.event_ready = false
+      self.accepted_acked = true
+    }
+    2 => {
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      self.event_ready = false
+    }
+    3 => {
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      try! self.writer.prepare_completed(
+        if self.finish_kind == 1 {
+          StopSequence
+        } else {
+          TokenLimit
+        },
+        input_tokens=self.input_tokens,
+        cached_input_tokens=0,
+        output_tokens=self.output_tokens,
+        self.output,
+        tail_offset=0,
+        tail_length=self.final_tail_length,
+      )
+      self.event_kind = 4
+      self.event_ready = true
+    }
+    4 => {
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      self.event_ready = false
+      self.cleanup_phase = 2
+    }
+    _ => abort("online session event kind invariant")
   }
-  self.event_ready = false
-  self.accepted_acked = true
 }
 
 ///|
@@ -181,6 +222,10 @@ pub fn OnlineSession::begin_abort(
     self.event_ready = false
     self.accepted_acked = true
   }
+  if self.event_kind == 3 || self.event_kind == 4 {
+    self.cleanup_phase = 2
+    return
+  }
   let lease = match self.lease {
     Some(value) => value
     None => abort("online session lease invariant")
@@ -198,7 +243,10 @@ pub fn OnlineSession::begin_abort(
         OnlineCancelReservationAbsent => raise SessionFailed(Invalid(Lifecycle))
       }
     }
-    OnlineCancelNaturalTerminal => ()
+    OnlineCancelNaturalTerminal => {
+      self.cleanup_phase = 1
+      return
+    }
   }
   self.cleanup_phase = 1
 }

@@ -37,6 +37,33 @@ pub fn IncrementalOutputStep::stop_matched(
 }
 
 ///|
+/// Scalar, allocation-free token decode status for owner-resident sessions.
+#valtype
+pub struct IncrementalOutputStatus(Int, Int)
+
+///|
+pub fn IncrementalOutputStatus::is_ready(
+  self : IncrementalOutputStatus,
+) -> Bool {
+  self.0 == 0
+}
+
+///|
+pub fn IncrementalOutputStatus::copied_bytes(
+  self : IncrementalOutputStatus,
+) -> Int {
+  if self.0 != 0 {
+    return 0
+  }
+  self.1
+}
+
+///|
+pub fn IncrementalOutputStatus::rejected() -> IncrementalOutputStatus {
+  IncrementalOutputStatus(1, 0)
+}
+
+///|
 priv struct StopPattern {
   bytes : Bytes
   failure : FixedArray[Int]

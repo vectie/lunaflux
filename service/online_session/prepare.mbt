@@ -72,6 +72,9 @@ pub fn prepare_owned_session(
   if request.stream_preference() != Streaming {
     raise preparation_failure(Invalid(Streaming))
   }
+  if admitted.has_string_stops() {
+    raise preparation_failure(Invalid(StringStops))
+  }
   writer.prepare_accepted(request.model_identity(), request.effective_limits()) catch {
     _ => raise preparation_failure(WireFailure)
   }
@@ -83,7 +86,11 @@ pub fn prepare_owned_session(
     input_tokens: admitted.input_token_count(),
     max_new_tokens: request.effective_limits().max_new_tokens(),
     event_ready: true,
+    event_kind: 1,
     accepted_acked: false,
+    output_tokens: 0,
+    final_tail_length: 0,
+    finish_kind: 0,
     cleanup_phase: 0,
     recovery_close: false,
     closed: false,

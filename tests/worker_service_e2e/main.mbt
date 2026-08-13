@@ -341,7 +341,7 @@ fn complete_root_exchange(
 }
 
 ///|
-fn run(executable : Bytes) -> Unit raise {
+fn run(executable : Bytes, failure_executable : Bytes?) -> Unit raise {
   run_owned_startup_failure_evidence()
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
@@ -479,12 +479,18 @@ fn run(executable : Bytes) -> Unit raise {
   run_reservation_classification_evidence(executable)
   run_online_lease_evidence(executable)
   run_online_session_foundation(executable)
+  match failure_executable {
+    Some(value) => run_online_session_progress_failure(value)
+    None => ()
+  }
 }
 
 ///|
 fn main {
   match @env.args() {
-    [_, executable] => try! run(@utf8.encode(executable))
+    [_, executable, failure_executable] =>
+      try! run(@utf8.encode(executable), Some(@utf8.encode(failure_executable)))
+    [_, executable] => try! run(@utf8.encode(executable), None)
     _ => println("worker executable path is required")
   }
 }

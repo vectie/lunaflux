@@ -37,6 +37,10 @@ pub(all) suberror TokenizerError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct DecodePieceStatus(Int, Int)
+pub fn DecodePieceStatus::copied_bytes(Self) -> Int
+pub fn DecodePieceStatus::is_ready(Self) -> Bool
+
 pub(all) enum DecodeSpecialPolicy {
   Preserve
   Skip
@@ -95,6 +99,7 @@ pub struct TokenizerSpec {
   // private fields
 }
 pub fn TokenizerSpec::copy_decoded_piece(Self, Int, FixedArray[Byte], destination_offset~ : Int, special_policy~ : DecodeSpecialPolicy) -> Int raise TokenizerError
+pub fn TokenizerSpec::copy_decoded_piece_status(Self, Int, FixedArray[Byte], destination_offset~ : Int, special_policy~ : DecodeSpecialPolicy) -> DecodePieceStatus
 pub fn TokenizerSpec::decode_bytes(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> Bytes raise TokenizerError
 pub fn TokenizerSpec::decode_text(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> String raise TokenizerError
 pub fn TokenizerSpec::decoded_piece_bytes(Self, Int, special_policy~ : DecodeSpecialPolicy) -> Int raise TokenizerError

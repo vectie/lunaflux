@@ -68,12 +68,19 @@ pub fn AdmittedRequest::input_token_count(self : AdmittedRequest) -> Int {
 }
 
 ///|
+/// Sanitized output-contract classification without exposing stop payloads.
+pub fn AdmittedRequest::has_string_stops(self : AdmittedRequest) -> Bool {
+  self.output.has_string_stops()
+}
+
+///|
 pub fn AdmittedRequest::is_stop_token(
   self : AdmittedRequest,
   token_id : Int,
 ) -> Bool {
-  for candidate in self.scheduler_request.stops().token_ids() {
-    if candidate == token_id {
+  let candidates = self.scheduler_request.stops().token_ids()
+  for index in 0..<candidates.length() {
+    if candidates[index] == token_id {
       return true
     }
   }
@@ -104,6 +111,32 @@ pub fn AdmittedRequest::finish_into(
   self.output.finish_into(destination, destination_offset~) catch {
     _ => raise Invalid(OutputContract)
   }
+}
+
+///|
+pub fn AdmittedRequest::push_token_into_status(
+  self : AdmittedRequest,
+  token_id : Int,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+) -> @incremental_output.IncrementalOutputStatus {
+  if self.is_stop_token(token_id) {
+    return @incremental_output.IncrementalOutputStatus::rejected()
+  }
+  self.output.push_token_without_stops_status(
+    token_id,
+    destination,
+    destination_offset~,
+  )
+}
+
+///|
+pub fn AdmittedRequest::finish_into_status(
+  self : AdmittedRequest,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+) -> @incremental_output.IncrementalOutputStatus {
+  self.output.finish_into_status(destination, destination_offset~)
 }
 
 ///|

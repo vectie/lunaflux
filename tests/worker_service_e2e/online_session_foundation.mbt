@@ -21,20 +21,60 @@ fn session_tokenizer() -> @tokenizer.TokenizerSpec raise {
 }
 
 ///|
+fn invalid_output_session_tokenizer() -> @tokenizer.TokenizerSpec raise {
+  let vocabulary : Array[@tokenizer.VocabularyEntry] = []
+  for value in 0..<256 {
+    let piece = if value == 0 {
+      b"\xc0"
+    } else if value == 0xc0 {
+      b"\x00"
+    } else {
+      Bytes::make(1, value.to_byte())
+    }
+    vocabulary.push({ token_id: value, piece, kind: Normal })
+  }
+  @tokenizer.TokenizerSpec::new(
+    vocabulary,
+    [],
+    @tokenizer.TokenizerDigest::parse("abcdef0123456789".repeat(4)),
+    {
+      max_input_bytes: 4,
+      max_output_tokens: 4,
+      max_decoded_bytes: 8,
+      max_vocab_entries: 256,
+      max_merge_rules: 1,
+      max_token_bytes: 1,
+      max_special_tokens: 1,
+    },
+  )
+}
+
+///|
 fn session_received(
   stream : @inference.StreamPreference,
+  request_id? : UInt64 = 901UL,
+  stop_token? : Int = -1,
+  stop_string? : Bytes = b"",
 ) -> @request_admission.ReceivedRequest raise {
   let limits = inference_limits()
+  let stop_tokens : Array[Int] = []
+  if stop_token >= 0 {
+    stop_tokens.push(stop_token)
+  }
+  let stop_strings : Array[Bytes] = []
+  if stop_string.length() > 0 {
+    stop_strings.push(stop_string)
+  }
   let request = @inference.GenerateRequest::new(
     protocol_version=@inference.ProtocolVersion::v1(),
-    request_id=@inference.RequestId::new(901UL),
+    request_id=@inference.RequestId::new(request_id),
     model_identity=identity(),
     input=@inference.Input::from_token_ids([1, 2], limits),
     max_new_tokens=2,
     context_ceiling=4,
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(9UL),
-    stops=@inference.StopConditions::new([], [], limits),
+    stops=@inference.StopConditions::new(stop_tokens, stop_strings, limits),
     stream_preference=stream,
     deadline=@inference.DeadlineBudget::from_milliseconds(1000UL, limits),
     cache=@inference.CachePolicy::new(
@@ -54,6 +94,63 @@ fn session_received(
     source.length(),
     @monotonic_clock.MonotonicClock::system(),
   )
+}
+
+///|
+fn prepare_foundation_session(
+  executable : Bytes,
+  tokenizer : @tokenizer.TokenizerSpec,
+  received : @request_admission.ReceivedRequest,
+) -> @online_session.OnlineSession raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let prepared = @online_session.prepare_owned_session(
+    received,
+    tokenizer,
+    tokenizer.digest(),
+    identity(),
+    inference_limits(),
+    @framed_wire.FramedWireLimits::new(inference_limits(), max_frame_bytes=4096),
+    scheduler_blueprint(),
+    service_binding(),
+    executable,
+    startup(),
+    bootstrap_source(),
+    process_limits(),
+    model,
+    kernel,
+  )
+  model.close()
+  kernel.close()
+  assert_eq(prepared.state(), OnlineSessionReady)
+  prepared.take_ready()
+}
+
+///|
+fn foundation_event(
+  session : @online_session.OnlineSession,
+) -> @inference.StreamEvent raise {
+  let wire = @framed_wire.FramedWireLimits::new(
+    inference_limits(),
+    max_frame_bytes=4096,
+  )
+  let bytes = FixedArray::make(session.event_length(), b'\x00')
+  assert_eq(session.copy_event_to(bytes, destination_offset=0), bytes.length())
+  @framed_wire.EventFrameBuffer::new(wire).load(bytes, bytes.length()).event()
+}
+
+///|
+fn progress_foundation_to_event(
+  session : @online_session.OnlineSession,
+) -> Unit raise {
+  let mut attempts = 0
+  while !session.has_event() && attempts < 1000000 {
+    ignore(session.progress())
+    attempts += 1
+  }
+  if !session.has_event() {
+    raise Failure("online session did not publish bounded progress")
+  }
 }
 
 ///|
@@ -91,41 +188,21 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   narrow_model.close()
   narrow_kernel.close()
 
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let wire = @framed_wire.FramedWireLimits::new(
-    inference_limits(),
-    max_frame_bytes=4096,
-  )
-  let received = session_received(Streaming)
-  let blueprint = scheduler_blueprint()
-  let prepared = @online_session.prepare_owned_session(
-    received,
-    tokenizer,
-    tokenizer.digest(),
-    identity(),
-    inference_limits(),
-    wire,
-    blueprint,
-    service_binding(),
+  let session = prepare_foundation_session(
     executable,
-    startup(),
-    bootstrap_source(),
-    process_limits(),
-    model,
-    kernel,
+    tokenizer,
+    session_received(Streaming),
   )
-  model.close()
-  kernel.close()
-  assert_eq(prepared.state(), OnlineSessionReady)
-  let session = prepared.take_ready()
   assert_true(session.has_event())
-  let bytes = FixedArray::make(session.event_length(), b'\x00')
-  assert_eq(session.copy_event_to(bytes, destination_offset=0), bytes.length())
-  match
-    @framed_wire.EventFrameBuffer::new(wire).load(bytes, bytes.length()).event() {
+  match foundation_event(session) {
     Accepted(value) => assert_eq(value.model_identity(), identity())
     _ => raise Failure("online session did not publish Accepted")
+  }
+  try session.progress() catch {
+    SessionFailed(Invalid(EventCredit)) => ()
+    _ => raise Failure("unexpected pinned online progress error")
+  } noraise {
+    _ => raise Failure("pinned Accepted allowed online mutation")
   }
   session.ack_event()
   assert_false(session.has_event())
@@ -135,7 +212,149 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   } noraise {
     _ => raise Failure("stale online event remained usable")
   }
-  session.begin_abort()
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupPending)
+
+  for position in 0..<2 {
+    progress_foundation_to_event(session)
+    match foundation_event(session) {
+      Token(value) => {
+        assert_eq(value.token_id(), 0)
+        assert_eq(value.position(), position)
+      }
+      _ => raise Failure("online maximum path did not publish Token")
+    }
+    session.ack_event()
+  }
+  progress_foundation_to_event(session)
+  match foundation_event(session) {
+    Usage(value) => {
+      assert_eq(value.input_tokens(), 2)
+      assert_eq(value.output_tokens(), 2)
+    }
+    _ => raise Failure("online maximum path did not publish Usage")
+  }
+  session.ack_event()
+  match foundation_event(session) {
+    Completed(value) => {
+      assert_eq(value.finish_reason(), TokenLimit)
+      assert_eq(value.final_usage().output_tokens(), 2)
+      assert_true(value.final_delta() is None)
+    }
+    _ => raise Failure("online maximum path did not publish Completed")
+  }
+  session.ack_event()
   assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+
+  let stopped = prepare_foundation_session(
+    executable,
+    tokenizer,
+    session_received(Streaming, request_id=902UL, stop_token=0),
+  )
+  stopped.ack_event()
+  progress_foundation_to_event(stopped)
+  match foundation_event(stopped) {
+    Usage(value) => assert_eq(value.output_tokens(), 1)
+    _ => raise Failure("online stop-token path leaked its physical token")
+  }
+  stopped.ack_event()
+  match foundation_event(stopped) {
+    Completed(value) => {
+      assert_eq(value.finish_reason(), StopSequence)
+      assert_eq(value.final_usage().output_tokens(), 1)
+      assert_true(value.final_delta() is None)
+    }
+    _ => raise Failure("online stop-token path did not publish Completed")
+  }
+  stopped.ack_event()
+  assert_eq(stopped.progress_cleanup(), OnlineSessionCleanupClosed)
+
+  let invalid_output = prepare_foundation_session(
+    executable,
+    invalid_output_session_tokenizer(),
+    session_received(Streaming, request_id=905UL),
+  )
+  invalid_output.ack_event()
+  let mut decode_failed = false
+  let mut attempts = 0
+  while !decode_failed && attempts < 1000000 {
+    try invalid_output.progress() catch {
+      SessionFailed(OutputFailure) => decode_failed = true
+      _ => raise Failure("unexpected scalar online decode failure")
+    } noraise {
+      _ => attempts += 1
+    }
+  }
+  assert_true(decode_failed)
+  let mut cleanup = invalid_output.progress_cleanup()
+  while cleanup == OnlineSessionCleanupPending {
+    cleanup = invalid_output.progress_cleanup()
+  }
+  assert_eq(cleanup, OnlineSessionCleanupClosed)
+
+  let aborting = prepare_foundation_session(
+    executable,
+    tokenizer,
+    session_received(Streaming, request_id=903UL),
+  )
+  aborting.ack_event()
+  aborting.begin_abort()
+  assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupPending)
+  assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupClosed)
+
+  let string_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let string_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  try
+    @online_session.prepare_owned_session(
+      session_received(Streaming, request_id=904UL, stop_string=b"x"),
+      tokenizer,
+      tokenizer.digest(),
+      identity(),
+      inference_limits(),
+      @framed_wire.FramedWireLimits::new(
+        inference_limits(),
+        max_frame_bytes=4096,
+      ),
+      scheduler_blueprint(),
+      service_binding(),
+      executable,
+      startup(),
+      bootstrap_source(),
+      process_limits(),
+      string_model,
+      string_kernel,
+    )
+  catch {
+    @online_session.PreparationFailed(Invalid(StringStops)) => ()
+    _ => raise Failure("unexpected deferred string-stop rejection")
+  } noraise {
+    _ => raise Failure("deferred string stop reached rooted online startup")
+  }
+  string_model.close()
+  string_kernel.close()
+}
+
+///|
+fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
+  let session = prepare_foundation_session(
+    executable,
+    session_tokenizer(),
+    session_received(Streaming, request_id=906UL),
+  )
+  session.ack_event()
+  assert_eq(session.progress(), OnlineSessionPending)
+  let mut failed = false
+  let mut attempts = 0
+  while !failed && attempts < 1000000 {
+    try session.progress() catch {
+      SessionFailed(ServiceFailure) => failed = true
+      _ => raise Failure("unexpected online physical progress failure")
+    } noraise {
+      _ => attempts += 1
+    }
+  }
+  assert_true(failed)
+  let mut cleanup = session.progress_cleanup()
+  while cleanup == OnlineSessionCleanupPending {
+    cleanup = session.progress_cleanup()
+  }
+  assert_eq(cleanup, OnlineSessionCleanupClosed)
 }
