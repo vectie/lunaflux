@@ -136,6 +136,7 @@ fn input_region(
       }
       None
     }
+    RuntimeInput(_) | PersistentKvComponent(_, _) => None
     Workspace => Some(operation_profile.workspace())
   }
 }

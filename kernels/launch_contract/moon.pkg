@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }

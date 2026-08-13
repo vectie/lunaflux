@@ -23,3 +23,26 @@ physical allocation safety. The device executor must validate every admitted
 operand against the exact resolved weight, external-input, activation, and
 workspace region before constructing reusable device arguments. Execution is
 forbidden until that second validation succeeds.
+
+## Paged-KV semantic version 2
+
+`admit_paged_kv` is a separate catalog-v2 admission path for only positioned
+rotary and paged causal-attention operations. Its serialized operand
+order is exact: operation runtime inputs in `ModelPlan` order, semantic value
+inputs, activation outputs, optional per-layer Key and Value component bases,
+then an optional catalog workspace.
+Alternate orders are invalid even when they contain the same roles.
+
+The v2 runtime metadata ABI is deliberately concrete: `StepCounts` is exactly
+five little-endian Int32 values, and positions, packed row offsets, sequence
+lengths, packed page offsets, and physical page indices use bounded Int32
+arrays. This statement applies only to semantic version 2. Persistent KV uses
+two exact per-layer component-base operands, Key then Value. The catalog binds
+the canonical `KvCacheLayout` version and tokens per page, while physical page
+count only sizes each admitted component span and never specializes indexing.
+
+Paged admission verifies model, catalog, and physical-layout identities and
+geometry, but returns inert metadata only. It does not load a CUDA module,
+construct device arguments, launch a kernel, or claim executor support.
+It deliberately omits embedding, projections, normalization, residual, MLP,
+and language-model-head launches; supplying any such contract fails closed.

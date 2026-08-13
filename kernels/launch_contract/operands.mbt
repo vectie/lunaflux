@@ -5,6 +5,8 @@ pub(all) enum AotOperandRole {
   ExternalInput(@plan.ModelInputRef)
   WeightInput(@plan.TensorRef)
   ActivationInput(@plan.ActivationRef)
+  RuntimeInput(@plan.OperationRuntimeInput)
+  PersistentKvComponent(@plan.KvLayerId, @device_layout.DeviceKvComponent)
   ActivationOutput(@plan.ActivationRef)
   Workspace
 } derive(Debug, Eq)

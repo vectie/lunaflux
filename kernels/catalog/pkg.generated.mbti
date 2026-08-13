@@ -4,6 +4,7 @@ package "vectie/lunaflux/kernels/catalog"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
@@ -14,6 +15,7 @@ import {
 pub(all) suberror CatalogError {
   InvalidCatalog(CatalogValidationRule)
   UnsupportedExecutionContract
+  DeviceKvLayoutMismatch
   MissingKernel(@plan.OperationId)
   IncompatibleTarget(@plan.OperationId)
   IncompatibleImplementation(@plan.OperationId)
@@ -27,6 +29,8 @@ pub(all) suberror CatalogError {
 pub struct AotArtifactDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AotArtifactDigest::from_sha256(String) -> Self raise CatalogError
 pub fn AotArtifactDigest::sha256(Self) -> String
+
+type AotFamilySemantics derive(Eq, @debug.Debug)
 
 pub struct AotKernelEntryPoint {
   family : AotKernelFamily
@@ -62,12 +66,15 @@ pub struct CatalogEntry {
   implementation : KernelImplementationId
   workspace_bytes : Int64
   workspace_alignment : Int64
+  execution_semantics : KernelExecutionSemantics?
 } derive(Eq, @debug.Debug)
 pub fn CatalogEntry::capability(Self) -> @plan.KernelCapabilityId
 pub fn CatalogEntry::compute_major(Self) -> Int
 pub fn CatalogEntry::compute_minor(Self) -> Int
+pub fn CatalogEntry::execution_semantics(Self) -> KernelExecutionSemantics?
 pub fn CatalogEntry::implementation(Self) -> KernelImplementationId
 pub fn CatalogEntry::new(semantic_version~ : KernelSemanticVersion, operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
+pub fn CatalogEntry::new_paged_v2(operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, execution_semantics~ : KernelExecutionSemantics, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
 pub fn CatalogEntry::operation_kind(Self) -> @plan.OperationKind
 pub fn CatalogEntry::operation_shape(Self) -> @plan.OperationShape
 pub fn CatalogEntry::semantic_version(Self) -> KernelSemanticVersion
@@ -90,12 +97,15 @@ pub(all) enum CatalogValidationRule {
   OperationCapabilityMismatch
   AotFamilySemanticMismatch
   InvalidVendorImplementationKind
+  CatalogSemanticVersionMismatch
+  InvalidExecutionSemantics
 } derive(Eq, @debug.Debug)
 
 pub struct CatalogVersion(Int) derive(Eq, @debug.Debug)
 pub fn CatalogVersion::as_int(Self) -> Int
 pub fn CatalogVersion::from_stable_int(Int) -> Self raise CatalogError
 pub fn CatalogVersion::v1() -> Self
+pub fn CatalogVersion::v2() -> Self
 
 pub struct DeviceTarget {
   compute_major : Int
@@ -114,13 +124,17 @@ pub fn DeviceTarget::supports_cublas_lt(Self) -> Bool
 pub struct KernelBinding {
   operation_id : @plan.OperationId
   capability : @plan.KernelCapabilityId
+  semantic_version : KernelSemanticVersion
+  execution_semantics : KernelExecutionSemantics?
   implementation : KernelImplementationId
   workspace_bytes : Int64
   workspace_alignment : Int64
 } derive(Eq, @debug.Debug)
 pub fn KernelBinding::capability(Self) -> @plan.KernelCapabilityId
+pub fn KernelBinding::execution_semantics(Self) -> KernelExecutionSemantics?
 pub fn KernelBinding::implementation(Self) -> KernelImplementationId
 pub fn KernelBinding::operation_id(Self) -> @plan.OperationId
+pub fn KernelBinding::semantic_version(Self) -> KernelSemanticVersion
 pub fn KernelBinding::workspace_alignment(Self) -> Int64
 pub fn KernelBinding::workspace_bytes(Self) -> Int64
 
@@ -131,7 +145,20 @@ pub struct KernelCatalog {
 pub fn KernelCatalog::entries(Self) -> ReadOnlyArray[CatalogEntry]
 pub fn KernelCatalog::new(version~ : CatalogVersion, entries~ : ArrayView[CatalogEntry]) -> Self raise CatalogError
 pub fn KernelCatalog::resolve(Self, @plan.ModelPlan, DeviceTarget) -> ResolvedKernelCatalog raise CatalogError
+pub fn KernelCatalog::resolve_paged(Self, @plan.ModelPlan, @device_layout.DeviceKvLayout, DeviceTarget) -> ResolvedKernelCatalog raise CatalogError
 pub fn KernelCatalog::version(Self) -> CatalogVersion
+
+pub struct KernelExecutionSemantics {
+  kv_layer : @plan.KvLayerId?
+  runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
+  persistent_state : @plan.PersistentStateAccess
+  kv_layout : PagedKvLayoutContract?
+} derive(Eq, @debug.Debug)
+pub fn KernelExecutionSemantics::kv_layer(Self) -> @plan.KvLayerId?
+pub fn KernelExecutionSemantics::kv_layout(Self) -> PagedKvLayoutContract?
+pub fn KernelExecutionSemantics::paged_v2(kv_layer~ : @plan.KvLayerId?, runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput], persistent_state~ : @plan.PersistentStateAccess, kv_layout~ : PagedKvLayoutContract?) -> Self raise CatalogError
+pub fn KernelExecutionSemantics::persistent_state(Self) -> @plan.PersistentStateAccess
+pub fn KernelExecutionSemantics::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
 
 pub(all) enum KernelImplementationId {
   VendorBf16GemmImplicitHeuristicV1
@@ -142,6 +169,17 @@ pub struct KernelSemanticVersion(Int) derive(Eq, @debug.Debug)
 pub fn KernelSemanticVersion::as_int(Self) -> Int
 pub fn KernelSemanticVersion::from_stable_int(Int) -> Self raise CatalogError
 pub fn KernelSemanticVersion::v1() -> Self
+pub fn KernelSemanticVersion::v2() -> Self
+
+pub struct PagedKvLayoutContract {
+  layout : @plan.KvCacheLayout
+  stable_version : Int
+  tokens_per_page : Int
+} derive(Eq, @debug.Debug)
+pub fn PagedKvLayoutContract::layout(Self) -> @plan.KvCacheLayout
+pub fn PagedKvLayoutContract::new(layout~ : @plan.KvCacheLayout, stable_version~ : Int, tokens_per_page~ : Int) -> Self raise CatalogError
+pub fn PagedKvLayoutContract::stable_version(Self) -> Int
+pub fn PagedKvLayoutContract::tokens_per_page(Self) -> Int
 
 pub struct ResolvedKernelCatalog {
   catalog_version : CatalogVersion

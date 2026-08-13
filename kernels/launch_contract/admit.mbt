@@ -53,6 +53,7 @@ fn role_expected_by_operation(
       operation.inputs().any(input => input == Tensor(reference))
     ActivationInput(reference) =>
       operation.inputs().any(input => input == Activation(reference))
+    RuntimeInput(_) | PersistentKvComponent(_, _) => false
     ActivationOutput(reference) => operation.outputs().contains(reference)
     Workspace => false
   }

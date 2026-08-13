@@ -16,6 +16,8 @@ pub(all) enum CatalogValidationRule {
   OperationCapabilityMismatch
   AotFamilySemanticMismatch
   InvalidVendorImplementationKind
+  CatalogSemanticVersionMismatch
+  InvalidExecutionSemantics
 } derive(Debug, Eq)
 
 ///|
@@ -24,6 +26,7 @@ pub(all) enum CatalogValidationRule {
 pub(all) suberror CatalogError {
   InvalidCatalog(CatalogValidationRule)
   UnsupportedExecutionContract
+  DeviceKvLayoutMismatch
   MissingKernel(@plan.OperationId)
   IncompatibleTarget(@plan.OperationId)
   IncompatibleImplementation(@plan.OperationId)

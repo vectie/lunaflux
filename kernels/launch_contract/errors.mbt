@@ -30,6 +30,9 @@ pub(all) enum OperandRule {
   MissingSemanticRole
   UnexpectedSemanticRole
   WorkspaceMismatch
+  PositionalRoleMismatch
+  RuntimeInputSizeMismatch
+  PersistentKvMismatch
 } derive(Debug, Eq)
 
 ///|
@@ -50,5 +53,9 @@ pub(all) suberror LaunchContractError {
   DuplicateContract(KernelProfileId, @plan.OperationId)
   MissingContract(KernelProfileId, @plan.OperationId)
   ContractForVendorKernel(KernelProfileId, @plan.OperationId)
+  ContractForNonPagedKvOperation(KernelProfileId, @plan.OperationId)
   KernelFamilyMismatch(KernelProfileId, @plan.OperationId)
+  UnsupportedExecutionContract
+  CatalogVersionMismatch
+  DeviceKvLayoutMismatch
 } derive(Debug, Eq)

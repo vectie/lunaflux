@@ -4,12 +4,15 @@ package "vectie/lunaflux/kernels/launch_contract"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
 
 // Values
 pub fn admit(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, ArrayView[KernelProfile], ArrayView[AotLaunchContractInput], LaunchContractLimits) -> LaunchContractSet raise LaunchContractError
+
+pub fn admit_paged_kv(@plan.ModelPlan, @catalog.ResolvedKernelCatalog, @device_layout.DeviceKvLayout, ArrayView[PagedKernelProfile], ArrayView[PagedKvAotLaunchContractInput], LaunchContractLimits) -> PagedKvLaunchContractSet raise LaunchContractError
 
 // Errors
 pub(all) suberror LaunchContractError {
@@ -29,7 +32,11 @@ pub(all) suberror LaunchContractError {
   DuplicateContract(KernelProfileId, @plan.OperationId)
   MissingContract(KernelProfileId, @plan.OperationId)
   ContractForVendorKernel(KernelProfileId, @plan.OperationId)
+  ContractForNonPagedKvOperation(KernelProfileId, @plan.OperationId)
   KernelFamilyMismatch(KernelProfileId, @plan.OperationId)
+  UnsupportedExecutionContract
+  CatalogVersionMismatch
+  DeviceKvLayoutMismatch
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -97,6 +104,8 @@ pub(all) enum AotOperandRole {
   ExternalInput(@plan.ModelInputRef)
   WeightInput(@plan.TensorRef)
   ActivationInput(@plan.ActivationRef)
+  RuntimeInput(@plan.OperationRuntimeInput)
+  PersistentKvComponent(@plan.KvLayerId, @device_layout.DeviceKvComponent)
   ActivationOutput(@plan.ActivationRef)
   Workspace
 } derive(Eq, @debug.Debug)
@@ -161,7 +170,79 @@ pub(all) enum OperandRule {
   MissingSemanticRole
   UnexpectedSemanticRole
   WorkspaceMismatch
+  PositionalRoleMismatch
+  RuntimeInputSizeMismatch
+  PersistentKvMismatch
 } derive(Eq, @debug.Debug)
+
+pub struct PagedKernelProfile {
+  id : KernelProfileId
+  max_query_rows : Int
+  max_query_tokens : Int
+  max_page_table_entries : Int
+} derive(Eq, @debug.Debug)
+pub fn PagedKernelProfile::id(Self) -> KernelProfileId
+pub fn PagedKernelProfile::max_page_table_entries(Self) -> Int
+pub fn PagedKernelProfile::max_query_rows(Self) -> Int
+pub fn PagedKernelProfile::max_query_tokens(Self) -> Int
+pub fn PagedKernelProfile::new(id~ : KernelProfileId, max_query_rows~ : Int, max_query_tokens~ : Int, max_page_table_entries~ : Int) -> Self raise LaunchContractError
+
+pub struct PagedKvAotLaunchContract {
+  profile : PagedKernelProfile
+  operation_id : @plan.OperationId
+  operation_kind : @plan.OperationKind
+  capability : @plan.KernelCapabilityId
+  semantic_version : @catalog.KernelSemanticVersion
+  kv_layer : @plan.KvLayerId?
+  runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
+  persistent_state : @plan.PersistentStateAccess
+  kv_layout_version : Int
+  tokens_per_page : Int
+  entry_point : @catalog.AotKernelEntryPoint
+  dimensions : AotLaunchDimensions
+  operands : ReadOnlyArray[AotOperand]
+  workspace_bytes : Int64
+  workspace_alignment : Int64
+} derive(Eq, @debug.Debug)
+pub fn PagedKvAotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
+pub fn PagedKvAotLaunchContract::dimensions(Self) -> AotLaunchDimensions
+pub fn PagedKvAotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedKvAotLaunchContract::kv_layer(Self) -> @plan.KvLayerId?
+pub fn PagedKvAotLaunchContract::kv_layout_version(Self) -> Int
+pub fn PagedKvAotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
+pub fn PagedKvAotLaunchContract::operation_id(Self) -> @plan.OperationId
+pub fn PagedKvAotLaunchContract::operation_kind(Self) -> @plan.OperationKind
+pub fn PagedKvAotLaunchContract::persistent_state(Self) -> @plan.PersistentStateAccess
+pub fn PagedKvAotLaunchContract::profile(Self) -> PagedKernelProfile
+pub fn PagedKvAotLaunchContract::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
+pub fn PagedKvAotLaunchContract::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn PagedKvAotLaunchContract::tokens_per_page(Self) -> Int
+pub fn PagedKvAotLaunchContract::workspace_alignment(Self) -> Int64
+pub fn PagedKvAotLaunchContract::workspace_bytes(Self) -> Int64
+
+pub struct PagedKvAotLaunchContractInput {
+  profile_id : KernelProfileId
+  operation_id : @plan.OperationId
+  entry_point : @catalog.AotKernelEntryPoint
+  dimensions : AotLaunchDimensions
+  operands : ReadOnlyArray[AotOperand]
+} derive(Eq, @debug.Debug)
+pub fn PagedKvAotLaunchContractInput::new(profile_id~ : KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : AotLaunchDimensions, operands~ : ArrayView[AotOperand]) -> Self
+
+pub struct PagedKvLaunchContractSet {
+  model_identity : @spec.ModelIdentity
+  device_target : @catalog.DeviceTarget
+  catalog_version : @catalog.CatalogVersion
+  device_kv_layout : @device_layout.DeviceKvLayout
+  profiles : ReadOnlyArray[PagedKernelProfile]
+  contracts : ReadOnlyArray[PagedKvAotLaunchContract]
+} derive(Eq, @debug.Debug)
+pub fn PagedKvLaunchContractSet::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn PagedKvLaunchContractSet::contracts(Self) -> ReadOnlyArray[PagedKvAotLaunchContract]
+pub fn PagedKvLaunchContractSet::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedKvLaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn PagedKvLaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn PagedKvLaunchContractSet::profiles(Self) -> ReadOnlyArray[PagedKernelProfile]
 
 pub(all) enum ProfileRule {
   NonPositiveId

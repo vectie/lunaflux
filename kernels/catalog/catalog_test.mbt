@@ -431,7 +431,7 @@ test "entry shape and capability must match its operation semantics" {
 test "version, digest, alignment, and target validation fail closed" {
   try
     @catalog.KernelCatalog::new(
-      version=@catalog.CatalogVersion::from_stable_int(2),
+      version=@catalog.CatalogVersion::from_stable_int(3),
       entries=[aot_entry()],
     )
   catch {
