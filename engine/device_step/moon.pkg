@@ -1,6 +1,10 @@
 import {
   "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
@@ -10,6 +14,10 @@ supported_targets = "native"
 
 import {
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/safetensors",
 } for "wbtest"

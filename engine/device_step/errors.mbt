@@ -25,6 +25,28 @@ pub(all) enum DeviceStepPlanRule {
 } derive(Debug, Eq)
 
 ///|
+/// Bounded startup-admission rules for inert paged-KV execution metadata.
+pub(all) enum PagedKvBlueprintRule {
+  Identity
+  Target
+  CatalogVersion
+  Layout
+  Profile
+  OperationCount
+  OperationOrder
+  ContractSemantics
+  OperandCount
+  OperandRole
+  OperandSize
+  OperandAlignment
+  ActivationRegion
+  WorkspaceRegion
+  PersistentKvRegion
+  ArtifactEntryPoint
+  ArtifactModule
+} derive(Debug, Eq)
+
+///|
 pub(all) enum DeviceStepLifecycle {
   Ready
   Staged
@@ -51,6 +73,8 @@ pub(all) suberror DeviceStepError {
   InvalidLimit(DeviceStepLimitRule)
   InvalidModelPlan
   InvalidLayout
+  InvalidBlueprint(PagedKvBlueprintRule)
+  InvalidBlueprintOperation(@plan.OperationId, PagedKvBlueprintRule)
   InvalidPlan(DeviceStepPlanRule)
   InvalidLifecycle(
     expected~ : DeviceStepLifecycle,

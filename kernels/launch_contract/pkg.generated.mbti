@@ -191,6 +191,7 @@ pub struct PagedKvAotLaunchContract {
   profile : PagedKernelProfile
   operation_id : @plan.OperationId
   operation_kind : @plan.OperationKind
+  operation_shape : @plan.OperationShape
   capability : @plan.KernelCapabilityId
   semantic_version : @catalog.KernelSemanticVersion
   kv_layer : @plan.KvLayerId?
@@ -212,6 +213,7 @@ pub fn PagedKvAotLaunchContract::kv_layout_version(Self) -> Int
 pub fn PagedKvAotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
 pub fn PagedKvAotLaunchContract::operation_id(Self) -> @plan.OperationId
 pub fn PagedKvAotLaunchContract::operation_kind(Self) -> @plan.OperationKind
+pub fn PagedKvAotLaunchContract::operation_shape(Self) -> @plan.OperationShape
 pub fn PagedKvAotLaunchContract::persistent_state(Self) -> @plan.PersistentStateAccess
 pub fn PagedKvAotLaunchContract::profile(Self) -> PagedKernelProfile
 pub fn PagedKvAotLaunchContract::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]

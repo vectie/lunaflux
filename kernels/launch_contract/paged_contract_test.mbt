@@ -298,6 +298,10 @@ test "paged v2 contract fixes canonical staged operand positions" {
   assert_eq(set.contracts().length(), 2)
   let contract = set.contracts()[1]
   assert_eq(contract.semantic_version(), @catalog.KernelSemanticVersion::v2())
+  assert_eq(
+    contract.operation_shape(),
+    AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
+  )
   assert_eq(contract.kv_layer(), Some(@plan.KvLayerId::new(0)))
   assert_eq(contract.kv_layout_version(), 1)
   assert_eq(contract.operands()[0].role(), RuntimeInput(StepCounts))

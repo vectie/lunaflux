@@ -4,12 +4,19 @@ package "vectie/lunaflux/engine/device_step"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
 }
 
 // Values
+pub fn admit_paged_kv_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
+
 pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
 
 // Errors
@@ -17,6 +24,8 @@ pub(all) suberror DeviceStepError {
   InvalidLimit(DeviceStepLimitRule)
   InvalidModelPlan
   InvalidLayout
+  InvalidBlueprint(PagedKvBlueprintRule)
+  InvalidBlueprintOperation(@plan.OperationId, PagedKvBlueprintRule)
   InvalidPlan(DeviceStepPlanRule)
   InvalidLifecycle(expected~ : DeviceStepLifecycle, actual~ : DeviceStepLifecycle)
   StaleStage
@@ -100,6 +109,65 @@ pub fn FailedDeviceStepPreparation::cause(Self) -> DeviceStepError
 pub fn FailedDeviceStepPreparation::cleanup_failure(Self) -> DeviceStepError
 pub fn FailedDeviceStepPreparation::is_closed(Self) -> Bool
 pub fn FailedDeviceStepPreparation::retry_close(Self) -> Unit raise DeviceStepError
+
+pub(all) enum PagedKvBlueprintRule {
+  Identity
+  Target
+  CatalogVersion
+  Layout
+  Profile
+  OperationCount
+  OperationOrder
+  ContractSemantics
+  OperandCount
+  OperandRole
+  OperandSize
+  OperandAlignment
+  ActivationRegion
+  WorkspaceRegion
+  PersistentKvRegion
+  ArtifactEntryPoint
+  ArtifactModule
+} derive(Eq, @debug.Debug)
+
+pub struct PagedKvExecutionBlueprint {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedKvExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn PagedKvExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
+pub fn PagedKvExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedKvExecutionBlueprint::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedKvExecutionBlueprint::steps(Self) -> ReadOnlyArray[PagedKvExecutionStep]
+pub fn PagedKvExecutionBlueprint::target(Self) -> @catalog.DeviceTarget
+
+pub struct PagedKvExecutionStep {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedKvExecutionStep::artifact_module_index(Self) -> Int
+pub fn PagedKvExecutionStep::capability(Self) -> @plan.KernelCapabilityId
+pub fn PagedKvExecutionStep::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PagedKvExecutionStep::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedKvExecutionStep::function_symbol(Self) -> String
+pub fn PagedKvExecutionStep::kv_layer(Self) -> @plan.KvLayerId
+pub fn PagedKvExecutionStep::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
+pub fn PagedKvExecutionStep::operation_id(Self) -> @plan.OperationId
+pub fn PagedKvExecutionStep::operation_kind(Self) -> @plan.OperationKind
+pub fn PagedKvExecutionStep::semantic_version(Self) -> @catalog.KernelSemanticVersion
+
+pub struct PagedKvOperandBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedKvOperandBinding::alignment(Self) -> Int64
+pub fn PagedKvOperandBinding::byte_count(Self) -> Int64
+pub fn PagedKvOperandBinding::offset_bytes(Self) -> Int64
+pub fn PagedKvOperandBinding::role(Self) -> @launch_contract.AotOperandRole
+pub fn PagedKvOperandBinding::space(Self) -> PagedKvOperandSpace
+
+pub(all) enum PagedKvOperandSpace {
+  StepDescriptor(DeviceStepStage)
+  ActivationWorkspaceArena
+  PersistentKvArena
+} derive(Eq, @debug.Debug)
 
 pub struct StagedDeviceStep(DeviceStepOwner, UInt64)
 

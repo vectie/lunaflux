@@ -312,6 +312,7 @@ pub fn admit_paged_kv(
             profile,
             operation_id: operation.id(),
             operation_kind: operation.kind(),
+            operation_shape: operation.shape(),
             capability: operation.required_capability(),
             semantic_version: binding.semantic_version(),
             kv_layer: semantics.kv_layer(),

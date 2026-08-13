@@ -17,6 +17,7 @@ pub struct PagedKvAotLaunchContract {
   profile : PagedKernelProfile
   operation_id : @plan.OperationId
   operation_kind : @plan.OperationKind
+  operation_shape : @plan.OperationShape
   capability : @plan.KernelCapabilityId
   semantic_version : @catalog.KernelSemanticVersion
   kv_layer : @plan.KvLayerId?
@@ -77,6 +78,13 @@ pub fn PagedKvAotLaunchContract::operation_kind(
   self : PagedKvAotLaunchContract,
 ) -> @plan.OperationKind {
   self.operation_kind
+}
+
+///|
+pub fn PagedKvAotLaunchContract::operation_shape(
+  self : PagedKvAotLaunchContract,
+) -> @plan.OperationShape {
+  self.operation_shape
 }
 
 ///|

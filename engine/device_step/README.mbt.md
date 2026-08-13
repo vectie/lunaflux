@@ -38,8 +38,18 @@ authorization. `finish` retires the exact stage and advances the accepted
 sequence predecessor; replacement owners may start from an explicit committed
 predecessor seed. No close authority escapes.
 
-This is descriptor staging, not paged attention or model execution. The
-separate native release gate in `tests/device_step_alloc` instruments the
+Startup may also admit a `PagedKvExecutionBlueprint` for one exact paged
+kernel profile. This inert value cross-checks the semantic model and KV layout,
+device-step capacities, catalog-v2 launch contracts, activation/workspace
+memory plan, and content-addressed artifact entries. Its layer-ordered rotary
+and attention steps retain only semantic references, bounded launch metadata,
+and scalar offsets/spans into separately owned descriptor, activation, and KV
+arenas. It opens no native resource and exposes no allocation, device address,
+kernel argument, or launch method.
+
+These are descriptor staging and startup admission, not paged attention or
+model execution. The separate native release gate in `tests/device_step_alloc`
+instruments the
 public warmed `stage`/`finish` path, proves record and fixed-array positive
 controls independently, and exercises every fixed H2D call through a bounded
 test seam. Physical-CUDA transfer, sanitizer, leak, and paged execution
