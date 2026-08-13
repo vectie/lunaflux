@@ -1,53 +1,31 @@
 ///|
-fn worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
-  @worker_protocol.WorkerProtocolLimits::new(
-    max_prefill_rows=4,
-    max_decode_rows=4,
-    max_plan_rows=8,
-    max_plan_tokens=32,
-    max_plan_pages=32,
-    max_capabilities=32,
-    max_completion_slots=8,
-    max_sequence_tokens=64,
-    max_token_id=1024,
-  )
-}
-
-///|
-fn inference_limits() -> @inference.InferenceLimits raise {
-  @inference.InferenceLimits::new(
-    max_text_bytes=1024,
-    max_input_tokens=64,
-    max_new_tokens=64,
-    max_context_tokens=64,
-    max_token_id=1024,
-    max_stop_token_ids=8,
-    max_stop_strings=1,
-    max_stop_string_bytes=1,
-    max_trace_bytes=64,
-    max_cache_scope_bytes=64,
-    max_decoded_delta_bytes=64,
-    max_deadline_millis=1000UL,
-    max_top_k=32,
-    max_temperature=4.0,
-  )
-}
-
-///|
 fn run_worker() -> Unit raise {
-  let limits = worker_limits()
-  let inference = inference_limits()
   let channel = @process.open_inherited(
     @process.ProcessLimits::new(
-      max_frame_bytes=4096,
+      max_frame_bytes=67108864,
       io_timeout_millis=5000,
       shutdown_timeout_millis=5000,
     ),
   )
+  let startup_owner = @worker_wire.StartupFrameBuffer::new()
+  let startup_input = FixedArray::make(startup_owner.capacity(), b'\x00')
+  let startup_length = channel.read_frame(startup_input)
+  let configured = startup_owner.load(startup_input, startup_length)
+  if configured.kind() != Configure {
+    raise Failure("worker startup kind mismatch")
+  }
+  let startup = configured.contract()
+  let limits = startup.worker_limits()
+  let inference = startup.inference_limits()
   let plan_owner = @worker_wire.PlanFrameBuffer::new(limits, inference)
   let completion_owner = @worker_wire.CompletionFrameBuffer::new(
     limits, inference,
   )
+  let startup_output = FixedArray::make(startup_owner.capacity(), b'\x00')
+  let ready = startup_owner.encode(Ready, startup)
+  let ready_length = ready.length()
+  ready.copy_to(startup_output, destination_offset=0)
+  channel.write_frame(startup_output, offset=0, byte_count=ready_length)
   let input = FixedArray::make(plan_owner.capacity(), b'\x00')
   let output = FixedArray::make(completion_owner.capacity(), b'\x00')
   let mut running = true

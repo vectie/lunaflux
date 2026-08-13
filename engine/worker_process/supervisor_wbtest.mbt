@@ -43,6 +43,69 @@ fn supervisor_process_limits() -> WorkerProcessLimits raise {
 }
 
 ///|
+fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
+  @worker_wire.WorkerStartupContract::new(
+    identity=@spec.ModelIdentity::new(
+      @spec.ContentDigest::from_sha256(
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      ),
+      @spec.PlanDigest::from_sha256(
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      ),
+    ),
+    model_generation_value=1UL,
+    worker_limits=supervisor_limits(),
+    inference_limits=supervisor_inference_limits(),
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+}
+
+///|
+fn test_supervisor() -> WorkerProcessSupervisor raise {
+  let worker_limits = supervisor_limits()
+  let inference_limits = supervisor_inference_limits()
+  let plan_a = @worker_wire.PlanFrameBuffer::new(
+    worker_limits, inference_limits,
+  )
+  let plan_b = @worker_wire.PlanFrameBuffer::new(
+    worker_limits, inference_limits,
+  )
+  let completion_a = @worker_wire.CompletionFrameBuffer::new(
+    worker_limits, inference_limits,
+  )
+  let completion_b = @worker_wire.CompletionFrameBuffer::new(
+    worker_limits, inference_limits,
+  )
+  let limits = supervisor_process_limits()
+  {
+    child: @process.spawn(
+      b"/bin/cat",
+      @process.ProcessLimits::new(
+        max_frame_bytes=limits.max_frame_bytes(),
+        io_timeout_millis=limits.io_timeout_millis(),
+        shutdown_timeout_millis=limits.shutdown_timeout_millis(),
+      ),
+    ),
+    startup: supervisor_startup(),
+    plan_a,
+    plan_b,
+    completion_a,
+    completion_b,
+    tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
+    tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
+    rx: FixedArray::make(completion_a.capacity(), b'\x00'),
+    state_a: 0,
+    state_b: 0,
+    sequence_a: 0UL,
+    sequence_b: 0UL,
+    last_submitted: 0UL,
+    last_retired: 0UL,
+    lifecycle: Ready,
+  }
+}
+
+///|
 fn supervisor_page() -> @page_allocator.PageId raise {
   @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
@@ -57,6 +120,7 @@ fn supervisor_page() -> @page_allocator.PageId raise {
 ///|
 fn supervisor_plan(
   sequence : UInt64,
+  generation? : UInt64 = 1UL,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = supervisor_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)
@@ -69,7 +133,7 @@ fn supervisor_plan(
     capabilities=[@plan.KernelCapabilityId::embedding_lookup()],
     completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
   )
-  let generation = @worker_protocol.ModelPlanGeneration::from_wire(1UL)
+  let generation = @worker_protocol.ModelPlanGeneration::from_wire(generation)
   owner.submit(
     sequence=@worker_protocol.PlanSequence::from_wire(sequence),
     model_plan_generation=generation,
@@ -81,6 +145,31 @@ fn supervisor_plan(
     },
     generation,
   )
+}
+
+///|
+test "startup handshake rejects an incompatible child before readiness" {
+  try
+    prepare(b"/bin/cat", supervisor_startup(), supervisor_process_limits())
+  catch {
+    Invalid(Submission) => ()
+    _ => fail("unexpected incompatible-child handshake error")
+  } noraise {
+    _ => fail("unhandshaken child became ready")
+  }
+}
+
+///|
+test "submission rejects a foreign loaded model generation before write" {
+  let owner = test_supervisor()
+  try owner.submit(supervisor_plan(1UL, generation=2UL)) catch {
+    Invalid(Submission) => ()
+    _ => fail("unexpected foreign-generation error")
+  } noraise {
+    _ => fail("foreign model generation reached the child")
+  }
+  assert_eq(owner.outstanding_count(), 0)
+  owner.close()
 }
 
 ///|
@@ -114,14 +203,7 @@ fn inject_completion(
 
 ///|
 test "received side remains pinned until explicit retirement" {
-  let owner = start(
-    b"/bin/cat",
-    supervisor_limits(),
-    supervisor_inference_limits(),
-    supervisor_process_limits(),
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
+  let owner = test_supervisor()
   let plan = supervisor_plan(1UL)
   let submitted = owner.submit(plan)
   assert_eq(submitted.sequence_value(), 1UL)
@@ -143,14 +225,7 @@ test "received side remains pinned until explicit retirement" {
 
 ///|
 test "A side reuses only after ordered A/B retirement" {
-  let owner = start(
-    b"/bin/cat",
-    supervisor_limits(),
-    supervisor_inference_limits(),
-    supervisor_process_limits(),
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
+  let owner = test_supervisor()
   let plan_a1 = supervisor_plan(1UL)
   let plan_b2 = supervisor_plan(2UL)
   let submission_a1 = owner.submit(plan_a1)
@@ -177,14 +252,7 @@ test "A side reuses only after ordered A/B retirement" {
 
 ///|
 test "A/B pressure and out-of-order receive fail before channel read" {
-  let owner = start(
-    b"/bin/cat",
-    supervisor_limits(),
-    supervisor_inference_limits(),
-    supervisor_process_limits(),
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
+  let owner = test_supervisor()
   let plan_a = supervisor_plan(1UL)
   let plan_b = supervisor_plan(2UL)
   let a = owner.submit(plan_a)
@@ -208,14 +276,7 @@ test "A/B pressure and out-of-order receive fail before channel read" {
 
 ///|
 test "malformed child response permanently fails the session" {
-  let owner = start(
-    b"/bin/cat",
-    supervisor_limits(),
-    supervisor_inference_limits(),
-    supervisor_process_limits(),
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
+  let owner = test_supervisor()
   let plan = supervisor_plan(1UL)
   let submission = owner.submit(plan)
   try owner.receive(submission, plan) catch {

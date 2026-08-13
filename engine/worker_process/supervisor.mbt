@@ -20,14 +20,45 @@ fn transport_error(error : @process.ProcessError) -> WorkerProcessError {
 }
 
 ///|
-pub fn start(
+fn perform_startup_handshake(
+  child : @process.ChildProcess,
+  startup : @worker_wire.WorkerStartupContract,
+) -> Unit raise WorkerProcessError {
+  let sender = @worker_wire.StartupFrameBuffer::new()
+  let receiver = @worker_wire.StartupFrameBuffer::new()
+  let outgoing = FixedArray::make(sender.capacity(), b'\x00')
+  let incoming = FixedArray::make(receiver.capacity(), b'\x00')
+  let configure = sender.encode(Configure, startup) catch {
+    error => raise Wire(error)
+  }
+  let length = configure.length() catch { error => raise Wire(error) }
+  configure.copy_to(outgoing, destination_offset=0) catch {
+    error => raise Wire(error)
+  }
+  child.write_frame(outgoing, offset=0, byte_count=length) catch {
+    error => raise transport_error(error)
+  }
+  let response_length = child.read_frame(incoming) catch {
+    error => raise transport_error(error)
+  }
+  let ready = receiver.load(incoming, response_length) catch {
+    error => raise Wire(error)
+  }
+  let kind = ready.kind() catch { error => raise Wire(error) }
+  let actual = ready.contract() catch { error => raise Wire(error) }
+  if kind != Ready || actual != startup {
+    raise Invalid(Submission)
+  }
+}
+
+///|
+pub fn prepare(
   executable : Bytes,
-  worker_limits : @worker_protocol.WorkerProtocolLimits,
-  inference_limits : @inference.InferenceLimits,
+  startup : @worker_wire.WorkerStartupContract,
   limits : WorkerProcessLimits,
-  has_predecessor~ : Bool,
-  predecessor_value~ : UInt64,
-) -> WorkerProcessSupervisor raise WorkerProcessError {
+) -> WorkerProcessPreparation raise WorkerProcessError {
+  let worker_limits = startup.worker_limits()
+  let inference_limits = startup.inference_limits()
   let plan_a = @worker_wire.PlanFrameBuffer::new(
     worker_limits, inference_limits,
   ) catch {
@@ -49,9 +80,7 @@ pub fn start(
     error => raise Wire(error)
   }
   let required = plan_a.capacity().max(completion_a.capacity())
-  if required > limits.max_frame_bytes ||
-    (has_predecessor && predecessor_value == 0xffffffffffffffffUL) ||
-    (!has_predecessor && predecessor_value != 0UL) {
+  if required > limits.max_frame_bytes || limits.max_frame_bytes < 280 {
     raise Invalid(Capacity)
   }
   let process_limits = @process.ProcessLimits::new(
@@ -64,30 +93,47 @@ pub fn start(
   let child = @process.spawn(executable, process_limits) catch {
     error => raise transport_error(error)
   }
-  {
-    child,
-    plan_a,
-    plan_b,
-    completion_a,
-    completion_b,
-    tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
-    tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
-    rx: FixedArray::make(completion_a.capacity(), b'\x00'),
-    state_a: 0,
-    state_b: 0,
-    sequence_a: 0UL,
-    sequence_b: 0UL,
-    last_submitted: if has_predecessor {
-      predecessor_value
-    } else {
-      0UL
-    },
-    last_retired: if has_predecessor {
-      predecessor_value
-    } else {
-      0UL
-    },
-    lifecycle: Ready,
+  try {
+    perform_startup_handshake(child, startup)
+    ReadyProcess({
+      child,
+      startup,
+      plan_a,
+      plan_b,
+      completion_a,
+      completion_b,
+      tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
+      tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
+      rx: FixedArray::make(completion_a.capacity(), b'\x00'),
+      state_a: 0,
+      state_b: 0,
+      sequence_a: 0UL,
+      sequence_b: 0UL,
+      last_submitted: if startup.has_predecessor() {
+        startup.predecessor_value()
+      } else {
+        0UL
+      },
+      last_retired: if startup.has_predecessor() {
+        startup.predecessor_value()
+      } else {
+        0UL
+      },
+      lifecycle: Ready,
+    })
+  } catch {
+    cause =>
+      try child.close() catch {
+        cleanup_error =>
+          CleanupRequired({
+            child,
+            cause,
+            cleanup_failure: transport_error(cleanup_error),
+            closed: false,
+          })
+      } noraise {
+        _ => raise cause
+      }
   }
 }
 
@@ -107,6 +153,12 @@ pub fn WorkerProcessSupervisor::submit(
 ) -> WorkerSubmission raise WorkerProcessError {
   self.require_ready()
   let sequence = plan.sequence_wire() catch { error => raise Protocol(error) }
+  let generation = plan.model_plan_generation_wire() catch {
+    error => raise Protocol(error)
+  }
+  if generation != self.startup.model_generation_value() {
+    raise Invalid(Submission)
+  }
   if self.last_submitted == 0xffffffffffffffffUL ||
     sequence != self.last_submitted + 1UL {
     raise Invalid(Sequence)

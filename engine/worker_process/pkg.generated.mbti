@@ -3,13 +3,12 @@ package "vectie/lunaflux/engine/worker_process"
 
 import {
   "moonbitlang/core/debug",
-  "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
 }
 
 // Values
-pub fn start(Bytes, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, WorkerProcessLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> WorkerProcessSupervisor raise WorkerProcessError
+pub fn prepare(Bytes, @worker_wire.WorkerStartupContract, WorkerProcessLimits) -> WorkerProcessPreparation raise WorkerProcessError
 
 // Errors
 pub(all) suberror WorkerProcessError {
@@ -22,6 +21,14 @@ pub(all) suberror WorkerProcessError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct FailedWorkerProcessStartup {
+  // private fields
+}
+pub fn FailedWorkerProcessStartup::cause(Self) -> WorkerProcessError
+pub fn FailedWorkerProcessStartup::cleanup_failure(Self) -> WorkerProcessError
+pub fn FailedWorkerProcessStartup::is_closed(Self) -> Bool
+pub fn FailedWorkerProcessStartup::retry_close(Self) -> Unit raise WorkerProcessError
+
 pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
 pub fn ReceivedWorkerCompletion::frame(Self, WorkerProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise WorkerProcessError
 pub fn ReceivedWorkerCompletion::sequence_value(Self) -> UInt64
@@ -41,6 +48,11 @@ pub fn WorkerProcessLimits::max_frame_bytes(Self) -> Int
 pub fn WorkerProcessLimits::new(max_frame_bytes~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise WorkerProcessError
 pub fn WorkerProcessLimits::shutdown_timeout_millis(Self) -> Int
 
+pub(all) enum WorkerProcessPreparation {
+  ReadyProcess(WorkerProcessSupervisor)
+  CleanupRequired(FailedWorkerProcessStartup)
+}
+
 pub(all) enum WorkerProcessRule {
   Capacity
   Sequence
@@ -59,6 +71,7 @@ pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
 pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.WorkerStartupContract
 pub fn WorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> WorkerSubmission raise WorkerProcessError
 
 pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)

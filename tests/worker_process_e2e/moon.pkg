@@ -4,8 +4,10 @@ import {
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
 }
 
 supported_targets = "native"

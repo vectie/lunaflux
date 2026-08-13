@@ -34,6 +34,25 @@ fn inference_limits() -> @inference.InferenceLimits raise {
 }
 
 ///|
+fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
+  @worker_wire.WorkerStartupContract::new(
+    identity=@spec.ModelIdentity::new(
+      @spec.ContentDigest::from_sha256(
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      ),
+      @spec.PlanDigest::from_sha256(
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      ),
+    ),
+    model_generation_value=1UL,
+    worker_limits=worker_limits(),
+    inference_limits=inference_limits(),
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+}
+
+///|
 fn page_allocator() -> @page_allocator.PageAllocator raise {
   @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
@@ -73,18 +92,20 @@ fn plan(
 
 ///|
 fn run(executable : Bytes) -> Unit raise {
-  let supervisor = @worker_process.start(
-    executable,
-    worker_limits(),
-    inference_limits(),
-    @worker_process.WorkerProcessLimits::new(
-      max_frame_bytes=4096,
-      io_timeout_millis=5000,
-      shutdown_timeout_millis=5000,
-    ),
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
+  let supervisor = match
+    @worker_process.prepare(
+      executable,
+      startup_contract(),
+      @worker_process.WorkerProcessLimits::new(
+        max_frame_bytes=4096,
+        io_timeout_millis=5000,
+        shutdown_timeout_millis=5000,
+      ),
+    ) {
+    ReadyProcess(owner) => owner
+    CleanupRequired(_) => raise Failure("worker startup cleanup required")
+  }
+  assert_eq(supervisor.startup_contract(), startup_contract())
   let plan_a1 = plan(1UL, 11UL)
   let plan_b2 = plan(2UL, 12UL)
   let submission_a1 = supervisor.submit(plan_a1)

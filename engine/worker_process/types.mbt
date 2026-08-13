@@ -48,6 +48,7 @@ pub struct WorkerProcessLimits {
 /// Single-owner A/B process supervisor.
 pub struct WorkerProcessSupervisor {
   priv child : @process.ChildProcess
+  priv startup : @worker_wire.WorkerStartupContract
   priv plan_a : @worker_wire.PlanFrameBuffer
   priv plan_b : @worker_wire.PlanFrameBuffer
   priv completion_a : @worker_wire.CompletionFrameBuffer
@@ -62,6 +63,22 @@ pub struct WorkerProcessSupervisor {
   priv mut last_submitted : UInt64
   priv mut last_retired : UInt64
   priv mut lifecycle : WorkerProcessLifecycle
+}
+
+///|
+/// Startup outcome preserving cleanup authority after a double failure.
+pub(all) enum WorkerProcessPreparation {
+  ReadyProcess(WorkerProcessSupervisor)
+  CleanupRequired(FailedWorkerProcessStartup)
+}
+
+///|
+/// Opaque retained child cleanup after startup and close both fail.
+pub struct FailedWorkerProcessStartup {
+  priv child : @process.ChildProcess
+  priv cause : WorkerProcessError
+  priv mut cleanup_failure : WorkerProcessError
+  priv mut closed : Bool
 }
 
 ///|
@@ -115,6 +132,51 @@ pub fn WorkerProcessSupervisor::lifecycle(
   self : WorkerProcessSupervisor,
 ) -> WorkerProcessLifecycle {
   self.lifecycle
+}
+
+///|
+pub fn WorkerProcessSupervisor::startup_contract(
+  self : WorkerProcessSupervisor,
+) -> @worker_wire.WorkerStartupContract {
+  self.startup
+}
+
+///|
+pub fn FailedWorkerProcessStartup::cause(
+  self : FailedWorkerProcessStartup,
+) -> WorkerProcessError {
+  self.cause
+}
+
+///|
+pub fn FailedWorkerProcessStartup::cleanup_failure(
+  self : FailedWorkerProcessStartup,
+) -> WorkerProcessError {
+  self.cleanup_failure
+}
+
+///|
+pub fn FailedWorkerProcessStartup::is_closed(
+  self : FailedWorkerProcessStartup,
+) -> Bool {
+  self.closed
+}
+
+///|
+/// Retries exact child close/reap after startup cleanup failed.
+pub fn FailedWorkerProcessStartup::retry_close(
+  self : FailedWorkerProcessStartup,
+) -> Unit raise WorkerProcessError {
+  if self.closed {
+    return
+  }
+  self.child.close() catch {
+    error => {
+      self.cleanup_failure = transport_error(error)
+      raise self.cleanup_failure
+    }
+  }
+  self.closed = true
 }
 
 ///|

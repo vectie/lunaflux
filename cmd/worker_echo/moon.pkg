@@ -1,6 +1,4 @@
 import {
-  "vectie/lunaflux/contracts/inference",
-  "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/internal/process",
 }
