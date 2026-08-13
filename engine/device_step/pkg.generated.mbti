@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_step"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
+
+// Errors
+pub(all) suberror DeviceStepError {
+  InvalidLimit(DeviceStepLimitRule)
+  InvalidModelPlan
+  InvalidLayout
+  InvalidPlan(DeviceStepPlanRule)
+  InvalidLifecycle(expected~ : DeviceStepLifecycle, actual~ : DeviceStepLifecycle)
+  StaleStage
+  StageOwnerMismatch
+  StageEpochOverflow
+  AllocationSizeMismatch(DeviceStepStage)
+  Protocol(@worker_protocol.WorkerProtocolError)
+  Device(DeviceStepStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeviceStepLifecycle {
+  Ready
+  Staged
+  Poisoned
+  ClosingFailed
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceStepLimitRule {
+  Rows
+  Tokens
+  Pages
+  SequenceTokens
+  TokenId
+  ByteCapacity
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceStepLimits {
+  // private fields
+}
+pub fn DeviceStepLimits::max_pages(Self) -> Int
+pub fn DeviceStepLimits::max_rows(Self) -> Int
+pub fn DeviceStepLimits::max_sequence_tokens(Self) -> Int
+pub fn DeviceStepLimits::max_token_id(Self) -> Int
+pub fn DeviceStepLimits::max_tokens(Self) -> Int
+pub fn DeviceStepLimits::new(max_rows~ : Int, max_tokens~ : Int, max_pages~ : Int, max_sequence_tokens~ : Int, max_token_id~ : Int) -> Self raise DeviceStepError
+
+pub struct DeviceStepOwner {
+  // private fields
+}
+pub fn DeviceStepOwner::close(Self) -> Unit raise DeviceStepError
+pub fn DeviceStepOwner::finish(Self, StagedDeviceStep) -> Unit raise DeviceStepError
+pub fn DeviceStepOwner::lifecycle(Self) -> DeviceStepLifecycle
+pub fn DeviceStepOwner::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedDeviceStep raise DeviceStepError
+
+pub(all) enum DeviceStepPlanRule {
+  ModelGeneration
+  PlanSequence
+  Counts
+  TokenPacking
+  PagePacking
+  TokenId
+  TokenPosition
+  SequenceLength
+  PageCount
+  PageIndex
+  PageIdStructure
+  CapabilityRecipe
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeviceStepPreparation {
+  Ready(DeviceStepOwner)
+  CleanupRequired(FailedDeviceStepPreparation)
+}
+
+pub(all) enum DeviceStepStage {
+  Counts
+  TokenIds
+  TokenPositions
+  QueryRowOffsets
+  SequenceLengths
+  PageOffsets
+  PhysicalPageIndices
+} derive(Eq, @debug.Debug)
+
+pub struct FailedDeviceStepPreparation {
+  // private fields
+}
+pub fn FailedDeviceStepPreparation::cause(Self) -> DeviceStepError
+pub fn FailedDeviceStepPreparation::cleanup_failure(Self) -> DeviceStepError
+pub fn FailedDeviceStepPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceStepPreparation::retry_close(Self) -> Unit raise DeviceStepError
+
+pub struct StagedDeviceStep(DeviceStepOwner, UInt64)
+
+// Type aliases
+
+// Traits
