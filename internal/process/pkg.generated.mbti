@@ -1,0 +1,65 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/process"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
+
+// Errors
+pub(all) suberror ProcessError {
+  InvalidLimit(ProcessLimitRule)
+  InvalidRange(ProcessOperation)
+  InvalidState(ProcessOperation)
+  SpawnFailed
+  Timeout(ProcessOperation)
+  ChannelClosed(ProcessOperation)
+  OperationFailed(ProcessOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ChildExit {
+  // private fields
+}
+pub fn ChildExit::code(Self) -> Int
+pub fn ChildExit::kind(Self) -> Int
+
+pub struct ChildProcess {
+  // private fields
+}
+pub fn ChildProcess::close(Self) -> Unit raise ProcessError
+pub fn ChildProcess::is_closed(Self) -> Bool
+pub fn ChildProcess::read_exact(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+pub fn ChildProcess::shutdown_write(Self) -> Unit raise ProcessError
+pub fn ChildProcess::terminate(Self) -> Unit raise ProcessError
+pub fn ChildProcess::wait(Self) -> ChildExit raise ProcessError
+pub fn ChildProcess::write_exact(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
+
+pub(all) enum ProcessLimitRule {
+  FrameBytes
+  IoTimeoutMillis
+  ShutdownTimeoutMillis
+} derive(Eq, @debug.Debug)
+
+pub struct ProcessLimits {
+  // private fields
+}
+pub fn ProcessLimits::io_timeout_millis(Self) -> Int
+pub fn ProcessLimits::max_frame_bytes(Self) -> Int
+pub fn ProcessLimits::new(max_frame_bytes~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise ProcessError
+pub fn ProcessLimits::shutdown_timeout_millis(Self) -> Int
+
+pub(all) enum ProcessOperation {
+  Write
+  Read
+  ShutdownWrite
+  Wait
+  Terminate
+  Close
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

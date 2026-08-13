@@ -81,13 +81,15 @@ if [ -d engine/reference ]; then
   fi
 fi
 
-# Production CUDA vocabulary and foreign declarations have exactly one owner.
+# Production foreign declarations have exactly two narrow owners: CUDA under
+# internal/cuda and shell-free child-process transport under internal/process.
 # The two positive-controlled release allocation harnesses are the sole test
 # exceptions: their narrow C shims instrument generated MoonBit allocation
 # entry points and are never imported by a production package.
 fail_matches \
-  'production native declarations are only allowed under internal/cuda:' \
+  'production native declarations are only allowed under approved internal ABI packages:' \
   --glob '*.mbt' --glob '!internal/cuda/**' \
+  --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \
   'extern\s+"[cC]"|#external'
