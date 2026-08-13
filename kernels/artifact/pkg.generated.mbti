@@ -11,8 +11,11 @@ import {
 // Values
 pub fn admit(@launch_contract.LaunchContractSet, ArrayView[KernelModuleInput], ArrayView[KernelEntryPointInput], KernelArtifactLimits) -> KernelArtifactBundle raise KernelArtifactError
 
+pub fn admit_paged_kv(@launch_contract.PagedKvLaunchContractSet, ArrayView[KernelModuleInput], ArrayView[KernelEntryPointInput], KernelArtifactLimits) -> KernelArtifactBundle raise KernelArtifactError
+
 // Errors
 pub(all) suberror KernelArtifactError {
+  CatalogVersionMismatch(expected~ : @catalog.CatalogVersion, actual~ : @catalog.CatalogVersion)
   InvalidLimit(KernelArtifactLimit)
   ModuleCountExceeded(maximum~ : Int)
   EntryPointCountExceeded(maximum~ : Int)

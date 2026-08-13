@@ -17,6 +17,24 @@ fn required_entry_points(
 }
 
 ///|
+fn required_paged_entry_points(
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+  maximum : Int,
+) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
+  let required : Array[@catalog.AotKernelEntryPoint] = []
+  for contract in contracts.contracts() {
+    let identity = contract.entry_point()
+    if !required.contains(identity) {
+      if required.length() >= maximum {
+        raise EntryPointCountExceeded(maximum~)
+      }
+      required.push(identity)
+    }
+  }
+  required
+}
+
+///|
 fn required_modules(
   entry_points : ArrayView[@catalog.AotKernelEntryPoint],
   maximum : Int,
@@ -211,25 +229,15 @@ fn validate_entry_inputs(
 }
 
 ///|
-/// Admits exactly the precompiled modules and CUDA symbols required by an
-/// admitted launch-contract set.
-///
-/// A module is hashed and retained once even when it exposes multiple kernel
-/// families or profile-specific entry points. Missing, duplicate,
-/// unreferenced, and invalid declarations fail before device import. Distinct
-/// stable identities may intentionally alias the same CUDA symbol.
-/// No path lookup, executable metadata evaluation, compilation, cache, or JIT
-/// is available here.
-pub fn admit(
-  contracts : @launch_contract.LaunchContractSet,
+fn admit_required(
+  model_identity : @spec.ModelIdentity,
+  device_target : @catalog.DeviceTarget,
+  catalog_version : @catalog.CatalogVersion,
+  required_entries : Array[@catalog.AotKernelEntryPoint],
   module_inputs : ArrayView[KernelModuleInput],
   entry_point_inputs : ArrayView[KernelEntryPointInput],
   limits : KernelArtifactLimits,
 ) -> KernelArtifactBundle raise KernelArtifactError {
-  let required_entries = required_entry_points(
-    contracts,
-    limits.max_entry_points,
-  )
   let required_digests = required_modules(required_entries, limits.max_modules)
   let total = validate_module_inputs(module_inputs, required_digests, limits)
   validate_entry_inputs(entry_point_inputs, required_entries, limits)
@@ -260,11 +268,82 @@ pub fn admit(
     })
   }
   {
-    model_identity: contracts.model_identity(),
-    device_target: contracts.device_target(),
-    catalog_version: contracts.catalog_version(),
+    model_identity,
+    device_target,
+    catalog_version,
     modules: ReadOnlyArray::from_array(modules),
     entry_points: ReadOnlyArray::from_array(exports),
     total_module_bytes: total,
   }
+}
+
+///|
+fn ensure_paged_catalog_version(
+  actual : @catalog.CatalogVersion,
+) -> Unit raise KernelArtifactError {
+  let expected = @catalog.CatalogVersion::v2()
+  if actual != expected {
+    raise CatalogVersionMismatch(expected~, actual~)
+  }
+}
+
+///|
+/// Admits exactly the precompiled modules and CUDA symbols required by an
+/// admitted launch-contract set.
+///
+/// A module is hashed and retained once even when it exposes multiple kernel
+/// families or profile-specific entry points. Missing, duplicate,
+/// unreferenced, and invalid declarations fail before device import. Distinct
+/// stable identities may intentionally alias the same CUDA symbol.
+/// No path lookup, executable metadata evaluation, compilation, cache, or JIT
+/// is available here.
+pub fn admit(
+  contracts : @launch_contract.LaunchContractSet,
+  module_inputs : ArrayView[KernelModuleInput],
+  entry_point_inputs : ArrayView[KernelEntryPointInput],
+  limits : KernelArtifactLimits,
+) -> KernelArtifactBundle raise KernelArtifactError {
+  let required_entries = required_entry_points(
+    contracts,
+    limits.max_entry_points,
+  )
+  admit_required(
+    contracts.model_identity(),
+    contracts.device_target(),
+    contracts.catalog_version(),
+    required_entries,
+    module_inputs,
+    entry_point_inputs,
+    limits,
+  )
+}
+
+///|
+/// Admits exactly the content-addressed modules and CUDA symbols referenced by
+/// a catalog-v2 paged-KV launch-contract set.
+///
+/// Repeated layer/profile contracts share the first occurrence of an exact
+/// stable entry-point identity. Distinct identities may intentionally alias
+/// the same bounded CUDA symbol. The result remains inert admission evidence;
+/// it does not claim that a worker step or model graph can execute.
+pub fn admit_paged_kv(
+  contracts : @launch_contract.PagedKvLaunchContractSet,
+  module_inputs : ArrayView[KernelModuleInput],
+  entry_point_inputs : ArrayView[KernelEntryPointInput],
+  limits : KernelArtifactLimits,
+) -> KernelArtifactBundle raise KernelArtifactError {
+  ensure_paged_catalog_version(contracts.catalog_version())
+  let required_entries = required_paged_entry_points(
+    contracts,
+    limits.max_entry_points,
+  )
+  admit_required(
+    contracts.model_identity(),
+    contracts.device_target(),
+    contracts.catalog_version(),
+    required_entries,
+    module_inputs,
+    entry_point_inputs,
+    limits,
+  )
 }

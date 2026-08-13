@@ -18,6 +18,10 @@ pub(all) enum FunctionSymbolRule {
 
 ///|
 pub(all) suberror KernelArtifactError {
+  CatalogVersionMismatch(
+    expected~ : @catalog.CatalogVersion,
+    actual~ : @catalog.CatalogVersion
+  )
   InvalidLimit(KernelArtifactLimit)
   ModuleCountExceeded(maximum~ : Int)
   EntryPointCountExceeded(maximum~ : Int)
