@@ -321,8 +321,12 @@ An exact checksummed Configure/Ready handshake binds model identity,
 generation, predecessor, and worker/inference limits before protocol
 readiness; incompatible children fail closed and startup double failures retain
 cleanup authority. Production device bootstrap, device-backed readiness,
-restart recovery, and live overlap remain open. This does not claim device
-execution or allocation-free cross-process transport.
+restart policy/backoff, scheduler failure orchestration, and live overlap
+remain open. The supervisor now requires close/reap before ordered abandonment
+of exact outstanding submissions and derives a non-reusing replacement
+predecessor only after every obligation is retired. The real-child gate proves
+replacement through sequence 5. This does not claim device execution or
+allocation-free cross-process transport.
 
 ### Gate
 

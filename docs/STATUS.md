@@ -195,8 +195,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   limits before the supervisor publishes readiness. Startup cleanup retains
   explicit authority after a double failure, and submission rejects a foreign
   model generation before transport mutation. The child intentionally returns
-  deterministic protocol completions rather than opening CUDA; production
-  device bootstrap and device-backed readiness, restart recovery, and live
+  deterministic protocol completions rather than opening CUDA. Closed-child
+  recovery now retains validated responses, retires exact unreturned
+  submissions in sequence order, and derives a replacement predecessor only
+  after all obligations are discharged. The real-process gate proves a clean
+  replacement, an abandoned sequence 4, and successful continuation at
+  sequence 5. Production device bootstrap and device-backed readiness,
+  scheduler-side failure orchestration, restart policy/backoff, and live
   overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,

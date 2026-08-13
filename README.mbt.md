@@ -183,8 +183,13 @@ reuse, EOF, zero exit, and reap. Startup is now an exact checksummed
 and all worker/inference limits; an incompatible child cannot become ready,
 and double-failure cleanup retains explicit authority. It is a deterministic
 protocol executable, not the CUDA worker; production device bootstrap,
-device-backed readiness, restart integration, and live overlap remain open,
-as do global
+device-backed readiness, restart policy/backoff, and live overlap remain open.
+The supervisor now closes and reaps the old child before accepting exact
+ordered submission abandonment and derives a non-reusing predecessor only
+after every retained completion or failed submission is retired; a real
+three-child gate proves continuation through sequence 5. Scheduler-side
+worker-failure publication is intentionally still a service-level operation,
+as are global
 fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit

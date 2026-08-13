@@ -19,7 +19,10 @@ malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 
 The included deterministic child proves protocol readiness only; production
-device loading and CUDA readiness remain separate. This supervisor
-intentionally does not infer recovery after process failure:
-the service must close it, retire submitted work through scheduler failure
-semantics, construct a replacement, and seed the last accepted predecessor.
+device loading and CUDA readiness remain separate. Recovery is explicit and
+ordered: the old child must first be closed and reaped, validated completions
+remain retryable, and each unreturned `WorkerSubmission` must be committed as a
+scheduler worker failure before `abandon_submission` retires its exact sequence.
+Only after all obligations are retired can `recovery_startup_contract` derive
+the non-reusing predecessor for a replacement child. The supervisor does not
+silently infer scheduler mutation or discard in-flight work.

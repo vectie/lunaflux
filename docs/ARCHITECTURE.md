@@ -136,7 +136,11 @@ binds the exact model identity, model generation, predecessor, worker limits,
 and inference limits; the supervisor publishes protocol readiness only after
 an identical Ready response. Device/model loading must complete before a
 production child sends Ready. Binding the current deterministic child to the
-device executor, restart recovery, and overlap remain open. Global
+device executor remains open. A failed child is closed and reaped before the
+service commits each exact submitted plan as a scheduler worker failure and
+retires its supervisor obligation in sequence order. Only then can the
+supervisor derive the next non-reusing predecessor for a replacement. Restart
+policy/backoff and live overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.
 Capability IDs are copied from authenticated model-generation recipes;
