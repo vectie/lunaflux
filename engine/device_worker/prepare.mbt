@@ -10,6 +10,7 @@ fn exact_startup_contract(
   }
   let expected = manifest.worker_startup_contract(
     generation,
+    bootstrap_source_digest=startup.bootstrap_source_digest(),
     startup.worker_limits(),
     startup.inference_limits(),
     has_predecessor=startup.has_predecessor(),

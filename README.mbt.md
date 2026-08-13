@@ -181,12 +181,14 @@ owners, receives responses strictly in order, and pins each completion epoch
 through scheduler publication backpressure. A separately linked child-side
 runtime now proves three real socket-framed plan/completion exchanges, A/B/A
 reuse, EOF, zero exit, and reap. Startup is now an exact checksummed
-`Configure`/`Ready` exchange binding model identity, admitted-bootstrap digest,
-exact process-visible device ordinal, generation, predecessor, and all
-worker/inference limits; an incompatible child cannot become protocol-ready,
+`Configure`/`Ready` exchange binding model identity, the admitted-bootstrap
+digest derived from graph/artifact evidence, the bootstrap-source digest
+derived from canonical `EncodedBootstrapSource` bytes, exact process-visible
+device ordinal, generation, predecessor, and all worker/inference limits; an
+incompatible child cannot become protocol-ready,
 and double-failure cleanup retains explicit authority. The shipped child is a
 deterministic protocol executable, not the CUDA worker. The admitted full-graph
-blueprint and artifact bundle now derive that digest from a bounded canonical
+blueprint and artifact bundle now derive the admitted-bootstrap digest from a bounded canonical
 schema that also binds the exact device-step limits and assignment.
 
 A new aggregate `engine/device_worker` owner provides the child-side readiness
@@ -207,8 +209,8 @@ worker service now encapsulates the scheduler and process owners, retains two
 scalar flight identities, retries pinned frames through scheduler
 backpressure, commits bounded worker-failure completions before process
 abandonment, and starts replacements only after all obligations retire. Its
-independent immutable binding pins the expected bootstrap digest, assigned
-device ordinal, and inference limits; construction and restart additionally
+independent immutable binding pins the expected bootstrap and bootstrap-source
+digests, assigned device ordinal, and inference limits; construction and restart additionally
 require exact equality with the scheduler-retained worker limits, model
 identity, generation, and predecessor sequence. Its real-child gate proves two
 outstanding plans, output backpressure, worker failure, non-reusing restart,

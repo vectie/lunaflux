@@ -2,15 +2,21 @@
 let startup_magic : UInt = 0x5358464c
 
 ///|
-let startup_version : UInt = 3
+let startup_version : UInt = 4
 
 ///|
-let startup_length : Int = 344
+let startup_length : Int = 408
+
+///|
+let startup_source_digest_offset : Int = 344
 
 ///|
 let startup_checksum_offset : Int = 336
 
 ///|
+/// V4 preserves every v3 field offset and appends the source digest. The
+/// checksum therefore covers the appended tail while excluding only its own
+/// four bytes at the retained v3 offset.
 fn startup_checksum(bytes : FixedArray[Byte]) -> UInt {
   let mut hash : UInt = 2166136261
   for index in 0..<startup_length {
@@ -161,6 +167,11 @@ fn write_startup_contract(
   write_inference_limits(bytes, contract.inference_limits)
   write_digest(bytes, 272, contract.bootstrap_digest.as_hex())
   write_i32(bytes, 340, contract.device_ordinal)
+  write_digest(
+    bytes,
+    startup_source_digest_offset,
+    contract.bootstrap_source_digest.as_hex(),
+  )
   write_u32(bytes, startup_checksum_offset, startup_checksum(bytes))
 }
 
@@ -259,6 +270,11 @@ pub fn ValidatedStartupFrame::contract(
   WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(content, plan),
     bootstrap_digest=WorkerBootstrapDigest::from_sha256(read_digest(bytes, 272)),
+    bootstrap_source_digest=WorkerBootstrapSourceDigest::from_sha256(
+      read_digest(bytes, startup_source_digest_offset),
+    ) catch {
+      _ => raise InvalidFrame(StartupIdentity)
+    },
     device_ordinal=read_i32(bytes, 340),
     model_generation_value=read_u64(bytes, 24),
     worker_limits=read_worker_limits(bytes),

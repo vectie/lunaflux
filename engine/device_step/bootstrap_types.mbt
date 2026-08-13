@@ -148,6 +148,7 @@ pub fn DeviceWorkerBootstrapManifest::step_count(
 pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   self : DeviceWorkerBootstrapManifest,
   model_generation : @worker_protocol.ModelPlanGeneration,
+  bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest,
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
   has_predecessor~ : Bool,
@@ -170,6 +171,7 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   @worker_wire.WorkerStartupContract::new(
     identity=self.identity,
     bootstrap_digest=self.digest,
+    bootstrap_source_digest~,
     device_ordinal=self.device_ordinal,
     model_generation_value=model_generation.value(),
     worker_limits~,

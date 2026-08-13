@@ -56,6 +56,9 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=supervisor_limits(),
@@ -196,6 +199,7 @@ test "startup frame capacity is rejected before child spawn" {
   let startup = @worker_wire.WorkerStartupContract::new(
     identity=base.identity(),
     bootstrap_digest=base.bootstrap_digest(),
+    bootstrap_source_digest=base.bootstrap_source_digest(),
     device_ordinal=base.device_ordinal(),
     model_generation_value=base.model_generation_value(),
     worker_limits=tiny_worker,
@@ -203,15 +207,15 @@ test "startup frame capacity is rejected before child spawn" {
     has_predecessor=false,
     predecessor_value=0UL,
   )
-  for bytes in [343, 344] {
+  for bytes in [407, 408] {
     let limits = WorkerProcessLimits::new(
       max_frame_bytes=bytes,
       io_timeout_millis=1,
       shutdown_timeout_millis=1,
     )
     try prepare(b"/definitely/not/a/worker", startup, limits) catch {
-      Invalid(Capacity) if bytes == 343 => ()
-      Transport(SpawnFailed) if bytes == 344 => ()
+      Invalid(Capacity) if bytes == 407 => ()
+      Transport(SpawnFailed) if bytes == 408 => ()
       _ => fail("unexpected startup capacity result")
     } noraise {
       _ => fail("nonexistent child unexpectedly became ready")
@@ -382,6 +386,10 @@ test "closed submissions are abandoned only in exact sequence order" {
   assert_eq(
     recovery.bootstrap_digest(),
     supervisor_startup().bootstrap_digest(),
+  )
+  assert_eq(
+    recovery.bootstrap_source_digest(),
+    supervisor_startup().bootstrap_source_digest(),
   )
   assert_eq(recovery.model_generation_value(), 1UL)
   assert_eq(recovery.device_ordinal(), supervisor_startup().device_ordinal())

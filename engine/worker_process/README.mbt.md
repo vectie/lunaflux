@@ -6,8 +6,10 @@ after startup storage. At most two plans may be in flight; the oldest response
 is received first.
 
 Construction sends a canonical startup `Configure` frame and enters `Ready`
-only after the child returns the exact model identity, admitted-bootstrap
-SHA-256, model generation, predecessor, worker limits, and inference limits.
+only after the child returns the exact model identity, admitted-bootstrap and
+bootstrap-source SHA-256 identities, model generation, predecessor, worker
+limits, and inference limits. The current handshake does not send the source
+bytes; source delivery precedes readiness in a later slice.
 Incompatible children are closed before publication. If both handshake and cleanup fail, preparation
 returns opaque retained cleanup authority so the child is never abandoned.
 Submission also rechecks the loaded model generation before any frame write.

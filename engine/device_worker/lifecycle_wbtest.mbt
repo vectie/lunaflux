@@ -39,6 +39,9 @@ fn worker_test_startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits~,
@@ -87,6 +90,20 @@ test "received startup must equal every independently admitted field" {
     @worker_wire.WorkerStartupContract::new(
       identity=expected.identity(),
       bootstrap_digest=expected.bootstrap_digest(),
+      bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+        "212233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+      ),
+      device_ordinal=expected.device_ordinal(),
+      model_generation_value=expected.model_generation_value(),
+      worker_limits=expected.worker_limits(),
+      inference_limits=expected.inference_limits(),
+      has_predecessor=false,
+      predecessor_value=0UL,
+    ),
+    @worker_wire.WorkerStartupContract::new(
+      identity=expected.identity(),
+      bootstrap_digest=expected.bootstrap_digest(),
+      bootstrap_source_digest=expected.bootstrap_source_digest(),
       device_ordinal=expected.device_ordinal(),
       model_generation_value=2UL,
       worker_limits=expected.worker_limits(),
@@ -97,6 +114,7 @@ test "received startup must equal every independently admitted field" {
     @worker_wire.WorkerStartupContract::new(
       identity=expected.identity(),
       bootstrap_digest=expected.bootstrap_digest(),
+      bootstrap_source_digest=expected.bootstrap_source_digest(),
       device_ordinal=expected.device_ordinal(),
       model_generation_value=1UL,
       worker_limits=alternate_worker,
@@ -107,6 +125,7 @@ test "received startup must equal every independently admitted field" {
     @worker_wire.WorkerStartupContract::new(
       identity=expected.identity(),
       bootstrap_digest=expected.bootstrap_digest(),
+      bootstrap_source_digest=expected.bootstrap_source_digest(),
       device_ordinal=expected.device_ordinal(),
       model_generation_value=1UL,
       worker_limits=expected.worker_limits(),
@@ -117,6 +136,7 @@ test "received startup must equal every independently admitted field" {
     @worker_wire.WorkerStartupContract::new(
       identity=expected.identity(),
       bootstrap_digest=expected.bootstrap_digest(),
+      bootstrap_source_digest=expected.bootstrap_source_digest(),
       device_ordinal=expected.device_ordinal(),
       model_generation_value=1UL,
       worker_limits=expected.worker_limits(),

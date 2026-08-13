@@ -132,14 +132,16 @@ pairs, permits two monotonic submissions, receives oldest first, and retains a
 validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
 deterministic protocol completions. Before plan traffic, a fixed startup frame
-binds the exact model identity, admitted-bootstrap SHA-256, process-visible
-device ordinal, model generation, predecessor, worker limits, and inference
+binds the exact model identity, an admitted-bootstrap SHA-256 derived from
+graph/artifact evidence, a bootstrap-source SHA-256 derived from canonical
+`EncodedBootstrapSource` bytes, process-visible device ordinal, model
+generation, predecessor, worker limits, and inference
 limits; the supervisor publishes protocol readiness only after an identical
-Ready response. The SHA-256 is derived from the admitted full-graph blueprint
+Ready response. The admitted-bootstrap SHA-256 is derived from the admitted full-graph blueprint
 and artifact bundle's canonical module, symbol, launch, layout, operand,
 device-step envelope, and exact assignment evidence. A distinct service-owned
-immutable binding supplies the expected bootstrap digest, ordinal, and
-inference limits rather than trusting the child's echo; scheduler-retained
+immutable binding supplies the expected bootstrap and bootstrap-source digests,
+ordinal, and inference limits rather than trusting the child's echo; scheduler-retained
 identity, generation, predecessor, and exact worker limits complete the
 comparison at join and replacement.
 

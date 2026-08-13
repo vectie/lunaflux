@@ -32,6 +32,9 @@ fn validate_startup_contract(
   if contract.bootstrap_digest() != binding.bootstrap_digest() {
     raise Invalid(BootstrapIdentity)
   }
+  if contract.bootstrap_source_digest() != binding.bootstrap_source_digest() {
+    raise Invalid(BootstrapSourceIdentity)
+  }
   if contract.device_ordinal() != binding.device_ordinal() {
     raise Invalid(DeviceAssignment)
   }

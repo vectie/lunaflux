@@ -13,12 +13,13 @@ prefill rows, and decode rows follow in canonical contiguous order. Integer and
 floating-point fields use little-endian fixed-width representations. Sampling
 seed and output index are preserved exactly.
 
-Before plan traffic, startup frame v3 performs an exact `Configure`/`Ready`
-exchange. Its canonical 344-byte body binds protocol version, full model
-identity, a lowercase SHA-256 of the admitted worker bootstrap, the exact
-ordinal within the worker process's visible device set, model-plan generation,
-predecessor sequence, worker limits, and inference limits under the same
-bounded checksum and reserved-field rules. A
+Before plan traffic, startup frame v4 performs an exact `Configure`/`Ready`
+exchange. Its canonical 408-byte body binds protocol version, full model
+identity, lowercase SHA-256 identities of the admitted worker bootstrap and
+the independently admitted bootstrap source, the exact ordinal within the
+worker process's visible device set, model-plan generation, predecessor
+sequence, worker limits, and inference limits under the same bounded checksum
+and reserved-field rules. A
 worker is not protocol-ready until it returns the identical validated
 contract. This proves configuration agreement, not model loading or CUDA
 readiness; a production device worker must establish those facts before it
@@ -42,13 +43,14 @@ locators and digests remain independently encoded.
 `EncodedBootstrapSource` is an immutable owned snapshot: it exposes only its
 digest, focused scalar/path records, exact length, and bounded copying. It never
 contains model weights, model configuration bytes, manifests, CUDA modules, or
-native handles. This slice deliberately does not change startup frame v3 or the
-process handshake yet. A later version will bind this source digest into the
-independent `Configure` contract, send `Configure -> BootstrapSource -> Ready`,
-and retain the exact encoded source across replacement workers. The trailing
-self-SHA provides internal integrity and canonical content identity only; it is
-not peer authentication. Authentication comes from the future independent
-`Configure` source-digest comparison over the private child channel.
+native handles. Startup v4 now binds this source digest into the independent
+`Configure` contract, but the process handshake still sends only `Configure ->
+Ready`; it does not send bootstrap-source bytes yet. A later slice will send
+`Configure -> BootstrapSource -> Ready` and retain the exact encoded source
+across replacement workers. The trailing self-SHA provides internal integrity
+and canonical content identity only; it is not peer authentication. Future
+source delivery must compare the received bytes with the already independent
+`Configure` source digest over the private child channel.
 
 Completion frame v1 carries the exact plan sequence and model generation plus
 a canonical table of slot, request identity/generation, outcome kind,

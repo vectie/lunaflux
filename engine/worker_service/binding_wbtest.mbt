@@ -31,6 +31,16 @@ fn wb_other_digest_hex() -> String {
 }
 
 ///|
+fn wb_service_source_digest_hex() -> String {
+  "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00"
+}
+
+///|
+fn wb_other_source_digest_hex() -> String {
+  "212233445566778899aabbccddeeff00112233445566778899aabbccddeeff00"
+}
+
+///|
 fn wb_service_inference_limits(
   max_text_bytes? : Int = 64,
 ) -> @inference.InferenceLimits {
@@ -129,8 +139,12 @@ fn wb_service_binding() -> WorkerServiceBinding {
   let digest = try! @worker_wire.WorkerBootstrapDigest::from_sha256(
     wb_service_digest_hex(),
   )
+  let source_digest = try! @worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+    wb_service_source_digest_hex(),
+  )
   try! WorkerServiceBinding::new(
     bootstrap_digest=digest,
+    bootstrap_source_digest=source_digest,
     device_ordinal=0,
     inference_limits=wb_service_inference_limits(),
   )
@@ -140,6 +154,7 @@ fn wb_service_binding() -> WorkerServiceBinding {
 fn wb_startup_contract(
   identity? : @spec.ModelIdentity = wb_service_identity(),
   bootstrap_digest_hex? : String = wb_service_digest_hex(),
+  bootstrap_source_digest_hex? : String = wb_service_source_digest_hex(),
   device_ordinal? : Int = 0,
   model_generation_value? : UInt64 = 1UL,
   worker_limits? : @worker_protocol.WorkerProtocolLimits = wb_service_worker_limits(),
@@ -150,9 +165,13 @@ fn wb_startup_contract(
   let digest = try! @worker_wire.WorkerBootstrapDigest::from_sha256(
     bootstrap_digest_hex,
   )
+  let source_digest = try! @worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+    bootstrap_source_digest_hex,
+  )
   try! @worker_wire.WorkerStartupContract::new(
     identity~,
     bootstrap_digest=digest,
+    bootstrap_source_digest=source_digest,
     device_ordinal~,
     model_generation_value~,
     worker_limits~,
@@ -209,6 +228,14 @@ test "startup mismatch rules are exact and validation does not mutate scheduler"
   expect_binding_rule(
     scheduler,
     binding,
+    wb_startup_contract(
+      bootstrap_source_digest_hex=wb_other_source_digest_hex(),
+    ),
+    BootstrapSourceIdentity,
+  )
+  expect_binding_rule(
+    scheduler,
+    binding,
     wb_startup_contract(device_ordinal=1),
     DeviceAssignment,
   )
@@ -251,9 +278,13 @@ test "service binding rejects invalid visible device ordinal distinctly" {
   let digest = try! @worker_wire.WorkerBootstrapDigest::from_sha256(
     wb_service_digest_hex(),
   )
+  let source_digest = try! @worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+    wb_service_source_digest_hex(),
+  )
   try
     WorkerServiceBinding::new(
       bootstrap_digest=digest,
+      bootstrap_source_digest=source_digest,
       device_ordinal=-1,
       inference_limits=wb_service_inference_limits(),
     )

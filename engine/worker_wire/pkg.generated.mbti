@@ -261,12 +261,13 @@ pub struct WorkerStartupContract {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerStartupContract::bootstrap_digest(Self) -> WorkerBootstrapDigest
+pub fn WorkerStartupContract::bootstrap_source_digest(Self) -> WorkerBootstrapSourceDigest
 pub fn WorkerStartupContract::device_ordinal(Self) -> Int
 pub fn WorkerStartupContract::has_predecessor(Self) -> Bool
 pub fn WorkerStartupContract::identity(Self) -> @spec.ModelIdentity
 pub fn WorkerStartupContract::inference_limits(Self) -> @inference.InferenceLimits
 pub fn WorkerStartupContract::model_generation_value(Self) -> UInt64
-pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, bootstrap_digest~ : WorkerBootstrapDigest, device_ordinal~ : Int, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> Self raise WorkerWireError
+pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, bootstrap_digest~ : WorkerBootstrapDigest, bootstrap_source_digest~ : WorkerBootstrapSourceDigest, device_ordinal~ : Int, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> Self raise WorkerWireError
 pub fn WorkerStartupContract::predecessor_value(Self) -> UInt64
 pub fn WorkerStartupContract::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 

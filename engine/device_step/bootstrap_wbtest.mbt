@@ -129,6 +129,9 @@ test "device worker bootstrap digest is canonical and complete" {
   )
   let startup = first.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
     bootstrap_worker_limits(),
     bootstrap_inference_limits(),
     has_predecessor=false,
@@ -136,6 +139,10 @@ test "device worker bootstrap digest is canonical and complete" {
   )
   assert_eq(startup.identity(), first.identity())
   assert_eq(startup.bootstrap_digest(), first.digest())
+  assert_eq(
+    startup.bootstrap_source_digest().as_hex(),
+    "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+  )
   assert_eq(startup.model_generation_value(), 1UL)
   assert_eq(startup.worker_limits().max_completion_slots(), 32)
 
@@ -188,6 +195,9 @@ test "worker startup envelopes must fit hashed device limits" {
     try
       manifest.worker_startup_contract(
         @worker_protocol.ModelPlanGeneration::first(),
+        bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+          "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+        ),
         oversized_worker,
         bootstrap_inference_limits(),
         has_predecessor=false,
@@ -208,6 +218,9 @@ test "worker startup envelopes must fit hashed device limits" {
     try
       manifest.worker_startup_contract(
         @worker_protocol.ModelPlanGeneration::first(),
+        bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+          "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+        ),
         bootstrap_worker_limits(),
         oversized_inference,
         has_predecessor=false,

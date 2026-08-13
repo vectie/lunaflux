@@ -65,8 +65,9 @@ blueprint and artifact evidence into a bounded canonical binary schema. The
 digest covers model and plan identities, the bounded process-visible device
 ordinal, target, catalog-v3 ABI, exact descriptor/scalar limits, live profile,
 KV geometry, arena sizes, module digests, symbols, entry points, launch
-geometry, and every physical operand binding. Startup frame v3 carries that
-digest and ordinal across Configure/Ready. Protocol and inference envelopes
+geometry, and every physical operand binding. Startup frame v4 carries that
+digest, the independently admitted bootstrap-source digest, and the ordinal
+across Configure/Ready. Protocol and inference envelopes
 must fit the hashed device limits; the manifest itself owns no module bytes or
 device resource.
 

@@ -6,8 +6,8 @@ startup-owned storage. Scheduler plan owners, process buffers, native handles,
 and completion owners remain in their owning packages.
 
 Construction also requires an independent immutable `WorkerServiceBinding`
-containing the expected bootstrap digest, process-visible device ordinal, and
-inference-contract limits. The service verifies those values together with the
+containing the expected bootstrap and bootstrap-source digests, process-visible
+device ordinal, and inference-contract limits. The service verifies those values together with the
 scheduler's model identity, model generation, predecessor sequence, and exact
 retained worker-protocol limits before it owns a ready process. The same binding
 is rechecked before every replacement startup; the process handshake then

@@ -158,7 +158,7 @@ pub fn DeviceWorkerBootstrapManifest::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWorkerBootstrapManifest::module_count(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::step_count(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::target(Self) -> @catalog.DeviceTarget
-pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(Self, @worker_protocol.ModelPlanGeneration, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError
+pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(Self, @worker_protocol.ModelPlanGeneration, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError
 
 pub struct ExecutedPagedGraphExecution {
   // private fields

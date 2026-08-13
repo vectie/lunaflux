@@ -49,9 +49,10 @@ pub struct WorkerServiceBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerServiceBinding::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn WorkerServiceBinding::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
 pub fn WorkerServiceBinding::device_ordinal(Self) -> Int
 pub fn WorkerServiceBinding::inference_limits(Self) -> @inference.InferenceLimits
-pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits) -> Self raise WorkerServiceError
+pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits) -> Self raise WorkerServiceError
 
 pub enum WorkerServiceDispatch {
   DispatchIdle
@@ -78,6 +79,7 @@ pub(all) enum WorkerServiceRestart {
 pub(all) enum WorkerServiceRule {
   Identity
   BootstrapIdentity
+  BootstrapSourceIdentity
   DeviceAssignment
   Generation
   WorkerEnvelope

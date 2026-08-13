@@ -12,6 +12,9 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
     device_ordinal=3,
     model_generation_value=9UL,
     worker_limits=wire_protocol_limits(),
@@ -24,6 +27,7 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
 ///|
 test "startup frame round trips exact contract and kind" {
   let sender = @worker_wire.StartupFrameBuffer::new()
+  assert_eq(sender.capacity(), 408)
   let expected = startup_contract()
   let configured = sender.encode(Configure, expected)
   let transport = FixedArray::make(sender.capacity(), b'\x00')
@@ -32,6 +36,10 @@ test "startup frame round trips exact contract and kind" {
   let received = receiver.load(transport, configured.length())
   assert_eq(received.kind(), Configure)
   assert_eq(received.contract(), expected)
+  assert_eq(
+    received.contract().bootstrap_source_digest(),
+    expected.bootstrap_source_digest(),
+  )
   assert_eq(received.contract().device_ordinal(), 3)
   let ready = sender.encode(Ready, received.contract())
   assert_eq(ready.kind(), Ready)
@@ -51,6 +59,22 @@ test "startup frame corruption and stale epochs fail closed" {
   } noraise {
     _ => fail("corrupt startup frame was accepted")
   }
+  first.copy_to(transport, destination_offset=0)
+  transport[4] = b'\x03'
+  try owner.load(transport, transport.length()) catch {
+    InvalidFrame(Version) => ()
+    _ => fail("unexpected legacy startup version error")
+  } noraise {
+    _ => fail("legacy startup version was accepted")
+  }
+  first.copy_to(transport, destination_offset=0)
+  transport[344] = transport[344] ^ b'\x01'
+  try owner.load(transport, transport.length()) catch {
+    InvalidFrame(Checksum) => ()
+    _ => fail("unexpected source-digest corruption error")
+  } noraise {
+    _ => fail("corrupt startup source digest was accepted")
+  }
   let replacement = owner.encode(Ready, startup_contract())
   assert_eq(replacement.kind(), Ready)
   try first.kind() catch {
@@ -62,6 +86,27 @@ test "startup frame corruption and stale epochs fail closed" {
 }
 
 ///|
+test "startup source digest participates in exact contract equality" {
+  let base = startup_contract()
+  let alternate = @worker_wire.WorkerStartupContract::new(
+    identity=base.identity(),
+    bootstrap_digest=base.bootstrap_digest(),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "212233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
+    device_ordinal=base.device_ordinal(),
+    model_generation_value=base.model_generation_value(),
+    worker_limits=base.worker_limits(),
+    inference_limits=base.inference_limits(),
+    has_predecessor=base.has_predecessor(),
+    predecessor_value=base.predecessor_value(),
+  )
+  assert_true(alternate != base)
+  let owner = @worker_wire.StartupFrameBuffer::new()
+  assert_eq(owner.encode(Configure, alternate).contract(), alternate)
+}
+
+///|
 test "startup predecessor identity is canonical" {
   let base = startup_contract()
   for candidate in [(true, 0UL), (true, 0xffffffffffffffffUL), (false, 1UL)] {
@@ -70,6 +115,7 @@ test "startup predecessor identity is canonical" {
       @worker_wire.WorkerStartupContract::new(
         identity=base.identity(),
         bootstrap_digest=base.bootstrap_digest(),
+        bootstrap_source_digest=base.bootstrap_source_digest(),
         device_ordinal=base.device_ordinal(),
         model_generation_value=base.model_generation_value(),
         worker_limits=base.worker_limits(),
@@ -114,6 +160,7 @@ test "startup device ordinal is bounded process-visible identity" {
       @worker_wire.WorkerStartupContract::new(
         identity=base.identity(),
         bootstrap_digest=base.bootstrap_digest(),
+        bootstrap_source_digest=base.bootstrap_source_digest(),
         device_ordinal=ordinal,
         model_generation_value=base.model_generation_value(),
         worker_limits=base.worker_limits(),

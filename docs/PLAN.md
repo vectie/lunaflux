@@ -320,10 +320,13 @@ handling. Device-backed child execution and live overlap remain open. A separate
 linked deterministic child runtime now proves valid
 end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
 An exact checksummed Configure/Ready handshake binds model identity, an
-admitted-bootstrap SHA-256, exact process-visible device ordinal, generation,
-predecessor, and worker/inference limits before protocol readiness;
+admitted-bootstrap SHA-256 derived from graph/artifact evidence, a
+bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
+bytes, exact process-visible device ordinal, generation, predecessor, and
+worker/inference limits before protocol readiness;
 incompatible children fail closed and startup double failures retain cleanup
-authority. The full-graph blueprint and artifact bundle derive this identity
+authority. The full-graph blueprint and artifact bundle derive the
+admitted-bootstrap identity
 from a bounded canonical schema including device-step limits and the exact
 assignment. The supervisor now
 requires close/reap before ordered abandonment of exact outstanding
@@ -336,7 +339,8 @@ state before process abandonment, and starts the exact replacement contract
 only after both obligations clear. Its real-process gate covers two outstanding
 plans, publication pressure, worker death, recovery, replacement, and balanced
 KV resources. An independent `WorkerServiceBinding` retains the expected
-bootstrap digest, device ordinal, and inference limits; service construction
+bootstrap and bootstrap-source digests, device ordinal, and inference limits;
+service construction
 and replacement validate those together with the scheduler's exact worker
 limits, identity, generation, and predecessor.
 

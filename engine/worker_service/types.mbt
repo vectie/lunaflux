@@ -22,6 +22,7 @@ pub(all) enum WorkerServiceLifecycle {
 pub(all) enum WorkerServiceRule {
   Identity
   BootstrapIdentity
+  BootstrapSourceIdentity
   DeviceAssignment
   Generation
   WorkerEnvelope
@@ -59,6 +60,7 @@ pub(all) enum WorkerServiceRestart {
 /// the scheduler and are deliberately not duplicated here.
 pub struct WorkerServiceBinding {
   priv bootstrap_digest : @worker_wire.WorkerBootstrapDigest
+  priv bootstrap_source_digest : @worker_wire.WorkerBootstrapSourceDigest
   priv device_ordinal : Int
   priv inference_limits : @inference.InferenceLimits
 } derive(Debug, Eq)
@@ -77,13 +79,26 @@ pub struct WorkerService {
 ///|
 pub fn WorkerServiceBinding::new(
   bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest,
+  bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest,
   device_ordinal~ : Int,
   inference_limits~ : @inference.InferenceLimits,
 ) -> WorkerServiceBinding raise WorkerServiceError {
   if device_ordinal < 0 || device_ordinal > 1023 {
     raise Invalid(DeviceAssignment)
   }
-  { bootstrap_digest, device_ordinal, inference_limits }
+  {
+    bootstrap_digest,
+    bootstrap_source_digest,
+    device_ordinal,
+    inference_limits,
+  }
+}
+
+///|
+pub fn WorkerServiceBinding::bootstrap_source_digest(
+  self : WorkerServiceBinding,
+) -> @worker_wire.WorkerBootstrapSourceDigest {
+  self.bootstrap_source_digest
 }
 
 ///|

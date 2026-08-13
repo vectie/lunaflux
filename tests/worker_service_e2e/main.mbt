@@ -132,6 +132,9 @@ fn startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    ),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=worker_limits(),
@@ -146,6 +149,9 @@ fn service_binding() -> @worker_service.WorkerServiceBinding raise {
   @worker_service.WorkerServiceBinding::new(
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
     ),
     device_ordinal=0,
     inference_limits=inference_limits(),
@@ -163,6 +169,9 @@ fn foreign_startup() -> @worker_wire.WorkerStartupContract raise {
     ),
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+    ),
+    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
     ),
     device_ordinal=0,
     model_generation_value=1UL,

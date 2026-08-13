@@ -10,10 +10,12 @@ pub(all) enum StartupFrameKind {
 pub struct WorkerBootstrapDigest(String) derive(Debug, Eq)
 
 ///|
-/// Exact model, generation, sequence domain, and bounded runtime envelope.
+/// Exact model, bootstrap/source identities, generation, sequence domain, and
+/// bounded runtime envelope.
 pub struct WorkerStartupContract {
   priv identity : @spec.ModelIdentity
   priv bootstrap_digest : WorkerBootstrapDigest
+  priv bootstrap_source_digest : WorkerBootstrapSourceDigest
   priv device_ordinal : Int
   priv model_generation_value : UInt64
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
@@ -39,6 +41,7 @@ pub struct ValidatedStartupFrame(StartupFrameBuffer, UInt64)
 pub fn WorkerStartupContract::new(
   identity~ : @spec.ModelIdentity,
   bootstrap_digest~ : WorkerBootstrapDigest,
+  bootstrap_source_digest~ : WorkerBootstrapSourceDigest,
   device_ordinal~ : Int,
   model_generation_value~ : UInt64,
   worker_limits~ : @worker_protocol.WorkerProtocolLimits,
@@ -59,6 +62,7 @@ pub fn WorkerStartupContract::new(
   {
     identity,
     bootstrap_digest,
+    bootstrap_source_digest,
     device_ordinal,
     model_generation_value,
     worker_limits,
@@ -100,6 +104,13 @@ pub fn WorkerStartupContract::bootstrap_digest(
   self : WorkerStartupContract,
 ) -> WorkerBootstrapDigest {
   self.bootstrap_digest
+}
+
+///|
+pub fn WorkerStartupContract::bootstrap_source_digest(
+  self : WorkerStartupContract,
+) -> WorkerBootstrapSourceDigest {
+  self.bootstrap_source_digest
 }
 
 ///|
@@ -148,7 +159,7 @@ pub fn WorkerStartupContract::predecessor_value(
 
 ///|
 pub fn StartupFrameBuffer::new() -> StartupFrameBuffer {
-  { storage: FixedArray::make(344, b'\x00'), epoch: 0UL, length: 0 }
+  { storage: FixedArray::make(startup_length, b'\x00'), epoch: 0UL, length: 0 }
 }
 
 ///|

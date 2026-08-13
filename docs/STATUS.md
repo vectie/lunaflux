@@ -193,7 +193,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   covering three monotonic exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That child intentionally
   performs an exact checksummed Configure/Ready handshake that binds model
-  identity, a canonical admitted-bootstrap SHA-256, model generation,
+  identity, an admitted-bootstrap SHA-256 derived from graph/artifact evidence,
+  a bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
+  bytes, model generation,
   exact process-visible device ordinal, predecessor, worker limits, and
   inference limits before the supervisor publishes protocol readiness. Startup
   cleanup retains explicit authority after a double failure, and submission
@@ -208,12 +210,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   completion frames without reopening completion epochs, commits retryable
   bounded worker failures before abandonment, and replaces the child only
   after both scalar flight obligations retire. An independent retained
-  `WorkerServiceBinding` pins the expected bootstrap digest, device ordinal,
+  `WorkerServiceBinding` pins the expected bootstrap and bootstrap-source digests, device ordinal,
   and inference envelope; each join/restart also verifies exact scheduler-owned
   model identity, generation, predecessor, and worker-protocol limits. Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.
-  The full-graph physical blueprint and artifact bundle now derive that digest
+  The full-graph physical blueprint and artifact bundle now derive the
+  admitted-bootstrap digest
   from bounded canonical module, symbol, launch, layout, operand, device-step
   envelope, and exact device-assignment evidence.
 - An aggregate `engine/device_worker` readiness owner. Its inert admission
