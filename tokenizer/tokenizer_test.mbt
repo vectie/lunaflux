@@ -188,6 +188,83 @@ test "special token policy is explicit and longest-match" {
 }
 
 ///|
+test "single-piece decode copies into fixed caller storage transactionally" {
+  let spec = corpus_spec()
+  let destination = FixedArray::make(8, b'!')
+  assert_eq(spec.decoded_piece_bytes(259, special_policy=Preserve), 5)
+  assert_eq(
+    spec.copy_decoded_piece(
+      259,
+      destination,
+      destination_offset=2,
+      special_policy=Preserve,
+    ),
+    5,
+  )
+  assert_eq(destination[0], b'!')
+  assert_eq(destination[1], b'!')
+  assert_eq(destination[2], b'h')
+  assert_eq(destination[3], b'e')
+  assert_eq(destination[4], b'l')
+  assert_eq(destination[5], b'l')
+  assert_eq(destination[6], b'o')
+  assert_eq(destination[7], b'!')
+
+  let unchanged = FixedArray::make(4, b'?')
+  try
+    spec.copy_decoded_piece(
+      259,
+      unchanged,
+      destination_offset=0,
+      special_policy=Preserve,
+    )
+  catch {
+    DecodeDestinationTooSmall(required=5, available=4) => ()
+    _ => fail("unexpected fixed destination error")
+  } noraise {
+    _ => fail("expected fixed destination rejection")
+  }
+  for byte in unchanged {
+    assert_eq(byte, b'?')
+  }
+}
+
+///|
+test "single-piece decode handles special policy and invalid inputs" {
+  let spec = corpus_spec()
+  let destination = FixedArray::make(6, b'.')
+  assert_eq(spec.decoded_piece_bytes(1_001, special_policy=Skip), 0)
+  assert_eq(
+    spec.copy_decoded_piece(
+      1_001,
+      destination,
+      destination_offset=6,
+      special_policy=Skip,
+    ),
+    0,
+  )
+  try
+    spec.copy_decoded_piece(
+      1_001,
+      destination,
+      destination_offset=-1,
+      special_policy=Skip,
+    )
+  catch {
+    InvalidDecodeDestination => ()
+    _ => fail("unexpected destination-offset error")
+  } noraise {
+    _ => fail("expected destination-offset rejection")
+  }
+  try spec.decoded_piece_bytes(9_999, special_policy=Preserve) catch {
+    UnknownTokenId(token_id=9_999) => ()
+    _ => fail("unexpected unknown-token error")
+  } noraise {
+    _ => fail("expected unknown-token rejection")
+  }
+}
+
+///|
 test "output and input bounds reject or truncate deterministically" {
   let spec = corpus_spec()
   let truncated = spec.encode_text(

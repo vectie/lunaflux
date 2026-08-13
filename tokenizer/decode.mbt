@@ -48,3 +48,54 @@ pub fn TokenizerSpec::decode_text(
     _ => raise InvalidUtf8Output
   }
 }
+
+///|
+/// Return the exact byte count contributed by one token under the selected
+/// special-token policy. This performs no output allocation.
+pub fn TokenizerSpec::decoded_piece_bytes(
+  self : TokenizerSpec,
+  token_id : Int,
+  special_policy~ : DecodeSpecialPolicy,
+) -> Int raise TokenizerError {
+  guard self.tokens_by_id.get(token_id) is Some(token) else {
+    raise UnknownTokenId(token_id~)
+  }
+  if token.kind is Special && special_policy is Skip {
+    0
+  } else {
+    token.piece.length()
+  }
+}
+
+///|
+/// Copy one token's exact configured byte piece into caller-owned storage.
+/// Capacity is proven before the first write, so rejection leaves the
+/// destination unchanged. The returned count is zero for a skipped special
+/// token and otherwise equals `decoded_piece_bytes` for the same arguments.
+pub fn TokenizerSpec::copy_decoded_piece(
+  self : TokenizerSpec,
+  token_id : Int,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+  special_policy~ : DecodeSpecialPolicy,
+) -> Int raise TokenizerError {
+  guard self.tokens_by_id.get(token_id) is Some(token) else {
+    raise UnknownTokenId(token_id~)
+  }
+  if destination_offset < 0 || destination_offset > destination.length() {
+    raise InvalidDecodeDestination
+  }
+  let count = if token.kind is Special && special_policy is Skip {
+    0
+  } else {
+    token.piece.length()
+  }
+  let available = destination.length() - destination_offset
+  if count > available {
+    raise DecodeDestinationTooSmall(required=count, available~)
+  }
+  for index in 0..<count {
+    destination[destination_offset + index] = token.piece[index]
+  }
+  count
+}

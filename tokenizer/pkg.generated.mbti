@@ -30,6 +30,8 @@ pub(all) suberror TokenizerError {
   SpecialTokenRejected(token_id~ : Int)
   UnknownTokenId(token_id~ : Int)
   DecodedOutputTooLong(maximum~ : Int)
+  InvalidDecodeDestination
+  DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
   InvalidUtf16Input(code_unit_offset~ : Int)
 } derive(Eq, @debug.Debug)
@@ -92,8 +94,10 @@ pub(all) struct TokenizerLimits {
 pub struct TokenizerSpec {
   // private fields
 }
+pub fn TokenizerSpec::copy_decoded_piece(Self, Int, FixedArray[Byte], destination_offset~ : Int, special_policy~ : DecodeSpecialPolicy) -> Int raise TokenizerError
 pub fn TokenizerSpec::decode_bytes(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> Bytes raise TokenizerError
 pub fn TokenizerSpec::decode_text(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> String raise TokenizerError
+pub fn TokenizerSpec::decoded_piece_bytes(Self, Int, special_policy~ : DecodeSpecialPolicy) -> Int raise TokenizerError
 pub fn TokenizerSpec::digest(Self) -> TokenizerDigest
 pub fn TokenizerSpec::encode_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError
 pub fn TokenizerSpec::encode_text(Self, String, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError

@@ -108,6 +108,8 @@ pub(all) suberror TokenizerError {
   SpecialTokenRejected(token_id~ : Int)
   UnknownTokenId(token_id~ : Int)
   DecodedOutputTooLong(maximum~ : Int)
+  InvalidDecodeDestination
+  DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
   InvalidUtf16Input(code_unit_offset~ : Int)
 } derive(Debug, Eq)
