@@ -162,6 +162,7 @@ pub struct GenerateRequest {
   max_new_tokens : Int
   context_ceiling : Int
   sampling : SamplingParameters
+  sampling_seed : SamplingSeed
   stops : StopConditions
   stream_preference : StreamPreference
   deadline : DeadlineBudget
@@ -178,6 +179,7 @@ pub fn GenerateRequest::new(
   max_new_tokens~ : Int,
   context_ceiling~ : Int,
   sampling~ : SamplingParameters,
+  sampling_seed~ : SamplingSeed,
   stops~ : StopConditions,
   stream_preference~ : StreamPreference,
   deadline~ : DeadlineBudget,
@@ -224,6 +226,7 @@ pub fn GenerateRequest::new(
     max_new_tokens,
     context_ceiling,
     sampling,
+    sampling_seed,
     stops,
     stream_preference,
     deadline,
@@ -269,6 +272,11 @@ pub fn GenerateRequest::context_ceiling(self : GenerateRequest) -> Int {
 ///|
 pub fn GenerateRequest::sampling(self : GenerateRequest) -> SamplingParameters {
   self.sampling
+}
+
+///|
+pub fn GenerateRequest::sampling_seed(self : GenerateRequest) -> SamplingSeed {
+  self.sampling_seed
 }
 
 ///|

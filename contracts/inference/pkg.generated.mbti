@@ -62,6 +62,7 @@ pub(all) enum ContractField {
   Temperature
   TopK
   TopP
+  SamplingSeed
   StopToken
   StopString
   DeadlineBudget
@@ -132,6 +133,7 @@ pub struct GenerateRequest {
   max_new_tokens : Int
   context_ceiling : Int
   sampling : SamplingParameters
+  sampling_seed : SamplingSeed
   stops : StopConditions
   stream_preference : StreamPreference
   deadline : DeadlineBudget
@@ -144,10 +146,11 @@ pub fn GenerateRequest::deadline(Self) -> DeadlineBudget
 pub fn GenerateRequest::input(Self) -> Input
 pub fn GenerateRequest::max_new_tokens(Self) -> Int
 pub fn GenerateRequest::model_identity(Self) -> @spec.ModelIdentity
-pub fn GenerateRequest::new(protocol_version~ : ProtocolVersion, request_id~ : RequestId, model_identity~ : @spec.ModelIdentity, input~ : Input, max_new_tokens~ : Int, context_ceiling~ : Int, sampling~ : SamplingParameters, stops~ : StopConditions, stream_preference~ : StreamPreference, deadline~ : DeadlineBudget, cache~ : CachePolicy, trace~ : TraceCorrelation?, limits~ : InferenceLimits) -> Self raise InferenceContractError
+pub fn GenerateRequest::new(protocol_version~ : ProtocolVersion, request_id~ : RequestId, model_identity~ : @spec.ModelIdentity, input~ : Input, max_new_tokens~ : Int, context_ceiling~ : Int, sampling~ : SamplingParameters, sampling_seed~ : SamplingSeed, stops~ : StopConditions, stream_preference~ : StreamPreference, deadline~ : DeadlineBudget, cache~ : CachePolicy, trace~ : TraceCorrelation?, limits~ : InferenceLimits) -> Self raise InferenceContractError
 pub fn GenerateRequest::protocol_version(Self) -> ProtocolVersion
 pub fn GenerateRequest::request_id(Self) -> RequestId
 pub fn GenerateRequest::sampling(Self) -> SamplingParameters
+pub fn GenerateRequest::sampling_seed(Self) -> SamplingSeed
 pub fn GenerateRequest::stops(Self) -> StopConditions
 pub fn GenerateRequest::stream_preference(Self) -> StreamPreference
 pub fn GenerateRequest::trace(Self) -> TraceCorrelation?
@@ -235,6 +238,12 @@ pub fn SamplingParameters::sample(temperature~ : Double, top_k? : Int, top_p? : 
 pub fn SamplingParameters::temperature(Self) -> Double
 pub fn SamplingParameters::top_k(Self) -> Int?
 pub fn SamplingParameters::top_p(Self) -> Double?
+
+pub struct SamplingSeed {
+  // private fields
+} derive(Eq)
+pub fn SamplingSeed::new(UInt64) -> Self raise InferenceContractError
+pub fn SamplingSeed::value(Self) -> UInt64
 
 pub struct StopConditions {
   token_ids : ReadOnlyArray[Int]

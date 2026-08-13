@@ -379,6 +379,7 @@ test "canonical request validates exact token context without overflow" {
     max_new_tokens=4,
     context_ceiling=7,
     sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=@inference.SamplingSeed::new(17UL),
     stops=empty_stops(),
     stream_preference=Streaming,
     deadline=@inference.DeadlineBudget::from_milliseconds(250UL, cfg),
@@ -389,6 +390,7 @@ test "canonical request validates exact token context without overflow" {
   assert_eq(request.request_id().value(), 7UL)
   assert_eq(request.max_new_tokens(), 4)
   assert_eq(request.context_ceiling(), 7)
+  assert_eq(request.sampling_seed().value(), 17UL)
   try
     @inference.GenerateRequest::new(
       protocol_version=@inference.ProtocolVersion::v1(),
@@ -398,6 +400,7 @@ test "canonical request validates exact token context without overflow" {
       max_new_tokens=4,
       context_ceiling=7,
       sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=@inference.SamplingSeed::new(18UL),
       stops=empty_stops(),
       stream_preference=Buffered,
       deadline=@inference.DeadlineBudget::from_milliseconds(250UL, cfg),
@@ -413,5 +416,19 @@ test "canonical request validates exact token context without overflow" {
       )
   } noraise {
     _ => fail("expected exact token context rejection")
+  }
+}
+
+///|
+test "sampling seed is canonical and rejects the absorbing state" {
+  assert_eq(@inference.SamplingSeed::new(42UL).value(), 42UL)
+  try @inference.SamplingSeed::new(0UL) catch {
+    error =>
+      debug_inspect(
+        error,
+        content="Invalid(field=SamplingSeed, issue=OutOfRange, index=0)",
+      )
+  } noraise {
+    _ => fail("zero sampling seed was admitted")
   }
 }

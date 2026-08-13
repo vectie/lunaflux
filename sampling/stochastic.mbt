@@ -183,7 +183,17 @@ pub fn stochastic_sample(
   scratch : SamplerScratch,
 ) -> Selection raise SamplingError {
   let count = prepare_distribution(logits, parameters, limits, scratch)
-  let threshold = rng.next_unit() * scratch.total_weight
+  select_prepared(logits, count, rng.next_unit(), scratch)
+}
+
+///|
+fn select_prepared(
+  logits : ArrayView[Double],
+  count : Int,
+  unit : Double,
+  scratch : SamplerScratch,
+) -> Selection {
+  let threshold = unit * scratch.total_weight
   let mut cumulative = 0.0
   let mut selected = count - 1
   for index in 0..<count {
@@ -195,4 +205,23 @@ pub fn stochastic_sample(
   }
   let token_id = scratch.token_ids[selected]
   { token_id, logit: logits[token_id] }
+}
+
+///|
+/// Deterministically samples one output position without shared mutable RNG
+/// state. The same `(seed, sample_index, logits, parameters)` always selects
+/// the same token, making worker retry and process replacement replayable.
+pub fn stochastic_sample_at(
+  logits : ArrayView[Double],
+  parameters : @inference.SamplingParameters,
+  limits : SamplingLimits,
+  seed : @inference.SamplingSeed,
+  sample_index : Int,
+  scratch : SamplerScratch,
+) -> Selection raise SamplingError {
+  if sample_index < 0 {
+    raise InvalidDistribution
+  }
+  let count = prepare_distribution(logits, parameters, limits, scratch)
+  select_prepared(logits, count, counter_unit(seed, sample_index), scratch)
 }

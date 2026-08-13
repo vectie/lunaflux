@@ -110,7 +110,7 @@ test "golden seeded selections and replay state are stable" {
   let params = sample_parameters(1.0, top_k=None, top_p=None)
   let scratch = @sampling.SamplerScratch::new(4, limits)
   let low_rng = @sampling.SamplingRng::from_seed(
-    @sampling.SamplingSeed::new(1UL),
+    @inference.SamplingSeed::new(1UL),
   )
   let low = @sampling.stochastic_sample(
     [0.0, 0.0, 0.0],
@@ -123,7 +123,7 @@ test "golden seeded selections and replay state are stable" {
   assert_eq(low.logit(), 0.0)
   assert_eq(low_rng.state(), 1082269761UL)
   let high_rng = @sampling.SamplingRng::from_seed(
-    @sampling.SamplingSeed::new(0x6c576fac43fd007cUL),
+    @inference.SamplingSeed::new(0x6c576fac43fd007cUL),
   )
   let high = @sampling.stochastic_sample(
     [0.0, 0.0, 0.0],
@@ -142,7 +142,7 @@ test "identical seeds reproduce a multi-step stream" {
   let params = sample_parameters(0.75, top_k=Some(3), top_p=Some(0.95))
   let left_scratch = @sampling.SamplerScratch::new(4, limits)
   let right_scratch = @sampling.SamplerScratch::new(4, limits)
-  let seed = @sampling.SamplingSeed::new(0x123456789abcdef0UL)
+  let seed = @inference.SamplingSeed::new(0x123456789abcdef0UL)
   let left = @sampling.SamplingRng::from_seed(seed)
   let right = @sampling.SamplingRng::from_seed(seed)
   for _ in 0..<64 {
@@ -170,7 +170,7 @@ test "validation failures are bounded and do not advance RNG" {
   let limits = @sampling.SamplingLimits::new(1, 3)
   let params = sample_parameters(1.0, top_k=None, top_p=None)
   let scratch = @sampling.SamplerScratch::new(2, limits)
-  let rng = @sampling.SamplingRng::from_seed(@sampling.SamplingSeed::new(42UL))
+  let rng = @sampling.SamplingRng::from_seed(@inference.SamplingSeed::new(42UL))
   try
     @sampling.stochastic_sample([1.0, 2.0, 3.0], params, limits, rng, scratch)
   catch {
@@ -208,10 +208,41 @@ test "validation failures are bounded and do not advance RNG" {
     _ => fail("expected explicit mode rejection")
   }
   assert_eq(rng.state(), 42UL)
-  try @sampling.SamplingSeed::new(0UL) catch {
-    error => debug_inspect(error, content="InvalidSeed")
+}
+
+///|
+test "counter-addressed sampling is replayable and position distinct" {
+  let limits = @sampling.SamplingLimits::new(1, 4)
+  let params = sample_parameters(1.0, top_k=None, top_p=None)
+  let seed = @inference.SamplingSeed::new(0x123456789abcdef0UL)
+  let left = @sampling.SamplerScratch::new(4, limits)
+  let right = @sampling.SamplerScratch::new(4, limits)
+  for index in 0..<64 {
+    let first = @sampling.stochastic_sample_at(
+      [3.0, 2.0, 1.0, 0.0],
+      params,
+      limits,
+      seed,
+      index,
+      left,
+    )
+    let replay = @sampling.stochastic_sample_at(
+      [3.0, 2.0, 1.0, 0.0],
+      params,
+      limits,
+      seed,
+      index,
+      right,
+    )
+    assert_eq(first, replay)
+  }
+  try
+    @sampling.stochastic_sample_at([1.0], params, limits, seed, -1, left)
+  catch {
+    InvalidDistribution => ()
+    _ => fail("unexpected negative sample index error")
   } noraise {
-    _ => fail("expected zero seed rejection")
+    _ => fail("negative sample index was admitted")
   }
 }
 

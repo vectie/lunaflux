@@ -12,7 +12,6 @@ pub(all) enum LimitDimension {
 /// logit values and input contents are deliberately omitted.
 pub(all) suberror SamplingError {
   InvalidLimit(LimitDimension)
-  InvalidSeed
   EmptyInput
   InvalidShape
   LimitExceeded(LimitDimension)
@@ -60,6 +59,7 @@ pub fn SamplingLimits::max_tokens_per_row(self : SamplingLimits) -> Int {
 
 ///|
 /// Deterministic selected token and its finite source logit.
+#valtype
 pub struct Selection {
   token_id : Int
   logit : Double

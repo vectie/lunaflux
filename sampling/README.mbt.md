@@ -20,8 +20,11 @@ being silently masked by a filter or maximum operation.
 `SamplerScratch` owns fixed token-ID and weight arrays allocated at
 construction. Preparation and selection overwrite those arrays without
 growing a collection, and observation exposes only scalar values. The RNG is a
-specified xorshift64 stream with an explicit non-zero seed; one successful
-stochastic selection consumes exactly one value.
+specified xorshift64 stream with an explicit non-zero canonical request seed;
+one successful stochastic selection consumes exactly one value. The
+counter-addressed `stochastic_sample_at` path derives an independent draw from
+`(seed, sample_index)` so isolated-worker retry does not depend on shared
+mutable RNG state.
 
 The source structure and fixed storage establish the intended allocation-free
 steady-state algorithm, but native allocation instrumentation and production

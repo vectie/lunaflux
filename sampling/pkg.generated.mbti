@@ -17,10 +17,11 @@ pub fn prepare_distribution(ArrayView[Double], @inference.SamplingParameters, Sa
 
 pub fn stochastic_sample(ArrayView[Double], @inference.SamplingParameters, SamplingLimits, SamplingRng, SamplerScratch) -> Selection raise SamplingError
 
+pub fn stochastic_sample_at(ArrayView[Double], @inference.SamplingParameters, SamplingLimits, @inference.SamplingSeed, Int, SamplerScratch) -> Selection raise SamplingError
+
 // Errors
 pub(all) suberror SamplingError {
   InvalidLimit(LimitDimension)
-  InvalidSeed
   EmptyInput
   InvalidShape
   LimitExceeded(LimitDimension)
@@ -57,15 +58,9 @@ pub fn SamplingLimits::new(Int, Int) -> Self raise SamplingError
 pub struct SamplingRng {
   // private fields
 }
-pub fn SamplingRng::from_seed(SamplingSeed) -> Self
-pub fn SamplingRng::reseed(Self, SamplingSeed) -> Unit
+pub fn SamplingRng::from_seed(@inference.SamplingSeed) -> Self
+pub fn SamplingRng::reseed(Self, @inference.SamplingSeed) -> Unit
 pub fn SamplingRng::state(Self) -> UInt64
-
-pub struct SamplingSeed {
-  // private fields
-} derive(Eq)
-pub fn SamplingSeed::new(UInt64) -> Self raise SamplingError
-pub fn SamplingSeed::value(Self) -> UInt64
 
 pub struct Selection {
   token_id : Int

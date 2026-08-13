@@ -1,26 +1,4 @@
 ///|
-/// A non-zero seed for the deterministic sampling stream.
-///
-/// Zero is rejected because it is the absorbing state of xorshift64. Seed
-/// interpretation is part of the sampler's replay contract.
-pub struct SamplingSeed {
-  priv value : UInt64
-} derive(Eq)
-
-///|
-pub fn SamplingSeed::new(value : UInt64) -> SamplingSeed raise SamplingError {
-  if value == 0UL {
-    raise InvalidSeed
-  }
-  { value, }
-}
-
-///|
-pub fn SamplingSeed::value(self : SamplingSeed) -> UInt64 {
-  self.value
-}
-
-///|
 /// Mutable deterministic xorshift64 state owned by one sampling stream.
 ///
 /// A successful stochastic selection advances the stream exactly once.
@@ -31,7 +9,7 @@ pub struct SamplingRng {
 }
 
 ///|
-pub fn SamplingRng::from_seed(seed : SamplingSeed) -> SamplingRng {
+pub fn SamplingRng::from_seed(seed : @inference.SamplingSeed) -> SamplingRng {
   { state: seed.value() }
 }
 
@@ -43,8 +21,31 @@ pub fn SamplingRng::state(self : SamplingRng) -> UInt64 {
 
 ///|
 /// Replaces the stream state with a validated non-zero checkpoint.
-pub fn SamplingRng::reseed(self : SamplingRng, seed : SamplingSeed) -> Unit {
+pub fn SamplingRng::reseed(
+  self : SamplingRng,
+  seed : @inference.SamplingSeed,
+) -> Unit {
   self.state = seed.value()
+}
+
+///|
+fn counter_state(seed : @inference.SamplingSeed, sample_index : Int) -> UInt64 {
+  let mut value = seed.value() +
+    (sample_index + 1).to_uint64() * 0x9e3779b97f4a7c15UL
+  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
+  value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL
+  value = value ^ (value >> 31)
+  if value == 0UL {
+    0x9e3779b97f4a7c15UL
+  } else {
+    value
+  }
+}
+
+///|
+fn counter_unit(seed : @inference.SamplingSeed, sample_index : Int) -> Double {
+  let value = counter_state(seed, sample_index)
+  (value >> 11).to_double() * 1.1102230246251565e-16
 }
 
 ///|

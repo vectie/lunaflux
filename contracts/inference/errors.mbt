@@ -16,6 +16,7 @@ pub(all) enum ContractField {
   Temperature
   TopK
   TopP
+  SamplingSeed
   StopToken
   StopString
   DeadlineBudget
