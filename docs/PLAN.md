@@ -316,8 +316,10 @@ socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
 reap. Protocol-aware A/B supervision now consumes it with monotonic submission,
 oldest-first receive, retained response epochs, and fail-stop malformed-session
 handling. The production worker executable, restart/readiness integration, and
-live overlap remain open; end-to-end valid-worker transport and allocation
-instrumentation are not yet proven.
+live overlap remain open. A separately linked deterministic child runtime now
+proves valid end-to-end frame transport, three-plan A/B/A reuse, EOF, clean
+exit, and reap; it does not claim device execution, restart, readiness, or
+allocation-free cross-process transport.
 
 ### Gate
 

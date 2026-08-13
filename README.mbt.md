@@ -176,8 +176,11 @@ shell or PATH lookup and exchange bounded fixed-buffer bytes over an inherited
 socketpair with monotonic deadlines and deterministic reap. Protocol-aware A/B
 supervision now binds monotonic submitted plans to physically distinct frame
 owners, receives responses strictly in order, and pins each completion epoch
-through scheduler publication backpressure. The production worker executable,
-restart/readiness integration, and live overlap remain open, as do global
+through scheduler publication backpressure. A separately linked child-side
+runtime now proves three real socket-framed plan/completion exchanges, A/B/A
+reuse, EOF, zero exit, and reap. It is a deterministic protocol executable,
+not the CUDA worker; production device bootstrap, restart/readiness
+integration, and live overlap remain open, as do global
 fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit

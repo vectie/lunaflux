@@ -129,8 +129,10 @@ without scheduler heap-owner values. The private native layer now owns an
 exact-path shell-free child and inherited socketpair with bounded I/O,
 timeouts, and reap. The supervisor owns two physical plan/completion frame
 pairs, permits two monotonic submissions, receives oldest first, and retains a
-validated completion epoch until scheduler acceptance succeeds. The production
-worker executable, restart/readiness, and overlap remain open. Global
+validated completion epoch until scheduler acceptance succeeds. A separately
+linked inherited-channel child proves the complete framing lifecycle with
+deterministic protocol completions. Binding that child to the device executor,
+restart/readiness, and overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.
 Capability IDs are copied from authenticated model-generation recipes;
