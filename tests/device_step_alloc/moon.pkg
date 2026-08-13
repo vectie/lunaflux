@@ -3,6 +3,7 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/llama",

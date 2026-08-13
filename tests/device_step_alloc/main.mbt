@@ -157,6 +157,56 @@ fn prepared_plans(
 }
 
 ///|
+fn prepared_frames(
+  plans : FixedArray[@worker_protocol.SubmittedSchedulePlan],
+) -> FixedArray[@worker_wire.ValidatedPlanFrame] {
+  let first_owner = try! @worker_wire.PlanFrameBuffer::new(
+    worker_limits(),
+    try! @inference.InferenceLimits::new(
+      max_text_bytes=64,
+      max_input_tokens=16,
+      max_new_tokens=16,
+      max_context_tokens=16,
+      max_token_id=127,
+      max_stop_token_ids=1,
+      max_stop_strings=1,
+      max_stop_string_bytes=1,
+      max_trace_bytes=1,
+      max_cache_scope_bytes=1,
+      max_decoded_delta_bytes=1,
+      max_deadline_millis=100UL,
+      max_top_k=128,
+      max_temperature=4.0,
+    ),
+  )
+  let first = try! first_owner.encode_plan(plans[0])
+  let frames = FixedArray::make(plans.length(), first)
+  for index in 1..<plans.length() {
+    let owner = try! @worker_wire.PlanFrameBuffer::new(
+      worker_limits(),
+      try! @inference.InferenceLimits::new(
+        max_text_bytes=64,
+        max_input_tokens=16,
+        max_new_tokens=16,
+        max_context_tokens=16,
+        max_token_id=127,
+        max_stop_token_ids=1,
+        max_stop_strings=1,
+        max_stop_string_bytes=1,
+        max_trace_bytes=1,
+        max_cache_scope_bytes=1,
+        max_decoded_delta_bytes=1,
+        max_deadline_millis=100UL,
+        max_top_k=128,
+        max_temperature=4.0,
+      ),
+    )
+    frames[index] = try! owner.encode_plan(plans[index])
+  }
+  frames
+}
+
+///|
 fn main {
   verify_probe_observes_allocations()
   let model_plan = try! @llama.build_paged(metadata())
@@ -171,6 +221,7 @@ fn main {
   )
   let cycle_count = 128
   let plans = prepared_plans(cycle_count + 1, model_plan)
+  let frames = prepared_frames(plans)
   let context = try! @device.open_context(0)
   let owner = match
     (try! @device_step.prepare(
@@ -189,13 +240,13 @@ fn main {
     }
   }
 
-  let warm = try! owner.stage(plans[0])
+  let warm = try! owner.stage_frame(frames[0])
   try! owner.finish(warm)
   let copies_before = fake_copy_count()
 
   alloc_probe_begin()
   for index in 1..<=cycle_count {
-    let staged = try! owner.stage(plans[index])
+    let staged = try! owner.stage_frame(frames[index])
     try! owner.finish(staged)
   }
   let observed = alloc_probe_end()

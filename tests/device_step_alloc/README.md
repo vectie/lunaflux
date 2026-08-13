@@ -1,8 +1,9 @@
 # Device-step allocation gate
 
 This native release executable measures the real public
-`DeviceStepOwner::stage`/`finish` path after startup preparation and one warm
-cycle. Consecutive submitted plans are built before the counter starts, and a
+`DeviceStepOwner::stage_frame`/`finish` path after startup preparation and one
+warm cycle. Consecutive canonical received-plan frames are built before the
+counter starts, and a
 force-included header redirects generated allocation entry points into a
 thread-confined counter.
 
