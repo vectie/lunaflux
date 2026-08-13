@@ -85,8 +85,7 @@ fn parse_modules(
   if module_values.length() > artifact_limits.max_modules() {
     raise invalid_field(ManifestRoot, ModulesField, CountExceeded)
   }
-  let digests : Array[@catalog.AotArtifactDigest] = []
-  let paths : Array[String] = []
+  let modules : Array[KernelModuleFileInput] = []
   let entries : Array[@artifact.KernelEntryPointInput] = []
   for module_index, value in module_values {
     guard value is Object(kernel_module) else {
@@ -123,14 +122,6 @@ fn parse_modules(
       ManifestModule,
       ModulePathField,
     )
-    validate_path_identifier(
-      path,
-      ModuleFile(module_index),
-      limits.max_path_bytes(),
-    )
-    if paths.contains(path) {
-      raise InvalidPath(file=ModuleFile(module_index), issue=DuplicatePath)
-    }
     let entry_values = require_array(
       kernel_module,
       "entry_points",
@@ -156,12 +147,7 @@ fn parse_modules(
         ),
       )
     }
-    digests.push(digest)
-    paths.push(path)
+    modules.push(KernelModuleFileInput::new(digest~, path_identifier=path))
   }
-  {
-    module_digests: ReadOnlyArray::from_array(digests),
-    module_path_identifiers: ReadOnlyArray::from_array(paths),
-    entry_points: ReadOnlyArray::from_array(entries),
-  }
+  KernelArtifactManifest::admit_files(modules, entries, limits)
 }

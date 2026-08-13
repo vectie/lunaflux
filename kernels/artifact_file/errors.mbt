@@ -78,6 +78,13 @@ pub(all) enum ArtifactFileLimit {
 } derive(Debug, Eq)
 
 ///|
+/// Bounded collection within one inert module-file source declaration.
+pub(all) enum ArtifactFileSourceCount {
+  SourceModules
+  SourceEntryPoints
+} derive(Debug, Eq)
+
+///|
 /// Bounded, payload-safe failures from AOT manifest and module-file admission.
 ///
 /// No variant retains a filesystem path, file contents, function symbol,
@@ -85,6 +92,7 @@ pub(all) enum ArtifactFileLimit {
 pub(all) suberror KernelArtifactFileError {
   InvalidExpectedManifestDigest
   InvalidLimit(ArtifactFileLimit)
+  SourceCountExceeded(source~ : ArtifactFileSourceCount, maximum~ : Int)
   InvalidPath(file~ : ArtifactFileRef, issue~ : ArtifactPathIssue)
   ApprovedRootUnavailable
   UnsupportedApprovedRootType
