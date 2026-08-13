@@ -1,0 +1,23 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/approved_fs" @native,
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+options(
+  targets: {
+    "api.mbt": [ "native" ],
+    "approved_fs_test.mbt": [ "native" ],
+    "path.mbt": [ "native" ],
+    "types.mbt": [ "native" ],
+  },
+)

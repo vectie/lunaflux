@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/approved_fs_capability"
+
+// Values
+
+// Errors
+
+// Types and methods
+#alias(ApprovedHandle)
+type NativeApprovedHandle
+
+// Type aliases
+
+// Traits

@@ -358,6 +358,17 @@ the owner, restart policy/backoff, physical CUDA evidence, and live overlap
 remain open. This does not claim device execution or allocation-free
 cross-process transport.
 
+The source-reconstruction workstream now also owns an opaque approved-
+filesystem foundation. A neutral internal capability representation supports
+both descriptor-relative traversal and the future fixed-FD spawn lease, while
+the public facade exposes only pinned root/file owners, bounded positional
+reads, opaque same-handle stamps, and deterministic lifecycle. Canonical path
+validation is duplicated at the MoonBit and native boundaries; atomic leases
+prevent `openat`, `pread`, or `fstat` from racing descriptor close/reuse. The
+remaining work is to migrate model configuration, weight, and artifact readers
+to this authority, then inherit exact model/kernel roots into the production
+child without argv/environment path authority.
+
 ### Gate
 
 - deterministic scheduler fixtures cover mixed prefill/decode queues;

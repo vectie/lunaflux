@@ -192,6 +192,16 @@ deterministic protocol executable, not the CUDA worker. The admitted full-graph
 blueprint and artifact bundle now derive the admitted-bootstrap digest from a bounded canonical
 schema that also binds the exact device-step limits and assignment.
 
+Startup filesystem authority now has a narrow native foundation: independently
+approved absolute directories become opaque pinned capabilities, strict
+relative files are opened by component with `openat`/no-follow/type checks,
+and positional reads are protected from concurrent close by atomic lifecycle
+leases. Paths, descriptors, native errors, and metadata timestamps do not
+escape the public API. An ASan probe and 1,024-cycle descriptor-balance soak
+exercise the exact C translation unit. Model/artifact loaders and worker spawn
+have not yet migrated to these capabilities, so no production child readiness
+claim depends on them yet.
+
 A new aggregate `engine/device_worker` owner provides the child-side readiness
 foundation without publishing a wire frame: inert admission retains the exact
 expected startup contract and bounded model, file, device, memory, kernel, and

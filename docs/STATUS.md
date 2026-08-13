@@ -116,6 +116,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   stable entry points, and function symbols; rejects unsafe path forms and
   unsupported file types; proves aggregate bounds before module-sized reads;
   and admits immutable snapshots without an extra full copy.
+- Opaque approved-filesystem capabilities backed by a private native ABI.
+  Component-relative `openat`, no-follow directory traversal, final regular-
+  file checks, pinned positional reads, same-handle stamps, atomic operation/
+  close exclusion, deterministic close, and payload-safe failures are
+  implemented. Native and public capability representations are private;
+  startup loaders and fixed-FD child inheritance have not yet adopted them.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and

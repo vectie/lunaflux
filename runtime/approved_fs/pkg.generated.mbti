@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/approved_fs"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ApprovedFsError {
+  Invalid(ApprovedFsRule)
+  Unavailable(ApprovedFsObject)
+  UnsupportedType(ApprovedFsObject)
+  Truncated
+  Busy(ApprovedFsOperation)
+  OperationFailed(ApprovedFsOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ApprovedFile {
+  // private fields
+}
+pub fn ApprovedFile::close(Self) -> Unit raise ApprovedFsError
+pub fn ApprovedFile::is_closed(Self) -> Bool
+pub fn ApprovedFile::read_exactly_at(Self, FixedArray[Byte], destination_offset~ : Int, byte_count~ : Int, position~ : Int64) -> Unit raise ApprovedFsError
+pub fn ApprovedFile::stamp(Self) -> ApprovedFileStamp raise ApprovedFsError
+
+pub struct ApprovedFileStamp {
+  // private fields
+} derive(Eq)
+pub fn ApprovedFileStamp::byte_count(Self) -> Int64
+
+pub(all) enum ApprovedFsObject {
+  Root
+  File
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ApprovedFsOperation {
+  Open
+  Read
+  Stat
+  Close
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ApprovedFsRule {
+  RootPath
+  RelativeLocator
+  ReadRange
+  Lifecycle
+} derive(Eq, @debug.Debug)
+
+pub struct ApprovedRoot {
+  // private fields
+}
+pub fn ApprovedRoot::close(Self) -> Unit raise ApprovedFsError
+pub fn ApprovedRoot::is_closed(Self) -> Bool
+pub fn ApprovedRoot::open_absolute(StringView) -> Self raise ApprovedFsError
+pub fn ApprovedRoot::open_file(Self, StringView) -> ApprovedFile raise ApprovedFsError
+
+// Type aliases
+
+// Traits

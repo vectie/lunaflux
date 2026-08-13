@@ -1,0 +1,2 @@
+// Neutral opaque vocabulary shared by the approved-filesystem ABI and the
+// future fixed-FD worker spawn boundary. It owns no native implementation.

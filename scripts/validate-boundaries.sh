@@ -37,6 +37,29 @@ if [ -d contracts ]; then
     '^\s*"vectie/lunaflux/model/(?!spec"(?:,)?$)'
 fi
 
+# The public approved-filesystem facade is the sole production importer of the
+# descriptor-owning native ABI. This keeps raw capability composition out of
+# model, kernel, scheduler, and process packages until a dedicated fixed-FD
+# spawn lease is designed.
+approved_fs_imports=$(rg -l '"vectie/lunaflux/internal/approved_fs"' \
+  --glob 'moon.pkg' --glob '!runtime/approved_fs/moon.pkg' 2>/dev/null || true)
+if [ -n "$approved_fs_imports" ]; then
+  printf '%s\n%s\n' \
+    'internal approved filesystem ABI has unauthorized importers:' \
+    "$approved_fs_imports" >&2
+  failed=1
+fi
+
+approved_fs_capability_imports=$(rg -l \
+  '"vectie/lunaflux/internal/approved_fs_capability"' --glob 'moon.pkg' \
+  2>/dev/null | rg -v '^internal/(approved_fs|process)/moon.pkg$' || true)
+if [ -n "$approved_fs_capability_imports" ]; then
+  printf '%s\n%s\n' \
+    'approved filesystem capability has unauthorized importers:' \
+    "$approved_fs_capability_imports" >&2
+  failed=1
+fi
+
 # Scheduling policy is deliberately hardware-, transport-, and model-family
 # agnostic. Add capabilities at the package boundary instead of exceptions.
 if [ -d scheduler ]; then
@@ -81,14 +104,16 @@ if [ -d engine/reference ]; then
   fi
 fi
 
-# Production foreign declarations have exactly two narrow owners: CUDA under
-# internal/cuda and shell-free child-process transport under internal/process.
+# Production foreign declarations have exactly three narrow owners: CUDA,
+# approved descriptor-relative filesystem authority, and shell-free child
+# process transport, each under its dedicated internal ABI package.
 # The two positive-controlled release allocation harnesses are the sole test
 # exceptions: their narrow C shims instrument generated MoonBit allocation
 # entry points and are never imported by a production package.
 fail_matches \
   'production native declarations are only allowed under approved internal ABI packages:' \
   --glob '*.mbt' --glob '!internal/cuda/**' \
+  --glob '!internal/approved_fs/**' \
   --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \

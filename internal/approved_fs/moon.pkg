@@ -1,0 +1,19 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/approved_fs_capability" @cap,
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+options(
+  "native-stub": [ "approved_fs.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  targets: {
+    "api.mbt": [ "native" ],
+    "ffi.mbt": [ "native" ],
+    "native_wbtest.mbt": [ "native" ],
+  },
+)

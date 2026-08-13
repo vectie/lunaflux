@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/approved_fs"
+
+import {
+  "moonbitlang/core/ref",
+  "vectie/lunaflux/internal/approved_fs_capability",
+}
+
+// Values
+pub fn close(@approved_fs_capability.NativeApprovedHandle) -> Int
+
+pub fn is_closed(@approved_fs_capability.NativeApprovedHandle) -> Bool
+
+pub fn open_file(@approved_fs_capability.NativeApprovedHandle, Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
+
+pub fn open_root(Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
+
+pub fn read_exact_at(@approved_fs_capability.NativeApprovedHandle, FixedArray[Byte], Int, Int, Int64) -> Int
+
+pub fn stamp(@approved_fs_capability.NativeApprovedHandle, FixedArray[Int64]) -> Int
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+pub using @approved_fs_capability {type NativeApprovedHandle as ApprovedHandle}
+
+// Traits

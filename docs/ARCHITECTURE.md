@@ -147,6 +147,14 @@ ordinal, and inference limits rather than trusting the child's echo; scheduler-r
 identity, generation, predecessor, and exact worker limits complete the
 comparison at join and replacement.
 
+Filesystem authority is separate from bootstrap-source path labels. The host
+independently opens deployment-approved model and kernel roots into opaque
+capabilities; strict relative descendants are resolved component-by-component
+without following symlinks and remain pinned across namespace replacement.
+The eventual production spawn boundary will duplicate those neutral internal
+capabilities into fixed child descriptor roles. Passing roots through argv,
+ambient environment, or trusting decoded absolute labels is forbidden.
+
 The aggregate device-worker readiness owner admits immutable model-path,
 weight, device, memory, kernel, artifact, and startup evidence before opening
 resources. Preparation compares the complete received startup contract, opens
