@@ -35,6 +35,38 @@ test "private socketpair child echoes one exact bounded frame" {
 }
 
 ///|
+test "explicit frame timeout overrides steady limit and rejects before mutation" {
+  let child = spawn(b"/bin/cat", test_limits(io_timeout_millis=5))
+  let source = FixedArray::make(4, b'x')
+  let destination = FixedArray::make(4, b'\x00')
+  try
+    child.write_frame_with_timeout(
+      source,
+      offset=0,
+      byte_count=4,
+      timeout_millis=0,
+    )
+  catch {
+    InvalidRange(Write) => ()
+    _ => fail("unexpected explicit-timeout validation error")
+  } noraise {
+    _ => fail("invalid explicit timeout was accepted")
+  }
+  assert_false(child.is_failed())
+  child.write_frame_with_timeout(
+    source,
+    offset=0,
+    byte_count=4,
+    timeout_millis=1000,
+  )
+  assert_eq(child.read_frame_with_timeout(destination, timeout_millis=1000), 4)
+  assert_eq(destination, source)
+  child.shutdown_write()
+  ignore(child.wait())
+  child.close()
+}
+
+///|
 test "read timeout poisons framing but preserves cleanup authority" {
   let child = spawn(b"/bin/cat", test_limits(io_timeout_millis=5))
   let buffer = FixedArray::make(8, b'\x00')

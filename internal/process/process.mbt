@@ -73,22 +73,19 @@ fn ChildProcess::write_exact(
   source : FixedArray[Byte],
   offset~ : Int,
   byte_count~ : Int,
+  timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if offset < 0 ||
     byte_count < 0 ||
+    timeout_millis <= 0 ||
+    timeout_millis > 600000 ||
     byte_count > self.limits.max_frame_bytes ||
     offset > source.length() - byte_count {
     raise InvalidRange(Write)
   }
   raise_status(
-    raw_write_exact(
-      self.handle,
-      source,
-      offset,
-      byte_count,
-      self.limits.io_timeout_millis,
-    ),
+    raw_write_exact(self.handle, source, offset, byte_count, timeout_millis),
     Write,
   ) catch {
     error => {
@@ -105,22 +102,19 @@ fn ChildProcess::read_exact(
   destination : FixedArray[Byte],
   offset~ : Int,
   byte_count~ : Int,
+  timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
   if offset < 0 ||
     byte_count < 0 ||
+    timeout_millis <= 0 ||
+    timeout_millis > 600000 ||
     byte_count > self.limits.max_frame_bytes ||
     offset > destination.length() - byte_count {
     raise InvalidRange(Read)
   }
   raise_status(
-    raw_read_exact(
-      self.handle,
-      destination,
-      offset,
-      byte_count,
-      self.limits.io_timeout_millis,
-    ),
+    raw_read_exact(self.handle, destination, offset, byte_count, timeout_millis),
     Read,
   ) catch {
     error => {
@@ -154,16 +148,36 @@ pub fn ChildProcess::write_frame(
   offset~ : Int,
   byte_count~ : Int,
 ) -> Unit raise ProcessError {
+  self.write_frame_with_timeout(
+    source,
+    offset~,
+    byte_count~,
+    timeout_millis=self.limits.io_timeout_millis,
+  )
+}
+
+///|
+/// Writes one bounded frame with a caller-selected validated per-operation
+/// timeout. The prefix and payload exact writes each use this bound.
+pub fn ChildProcess::write_frame_with_timeout(
+  self : ChildProcess,
+  source : FixedArray[Byte],
+  offset~ : Int,
+  byte_count~ : Int,
+  timeout_millis~ : Int,
+) -> Unit raise ProcessError {
   self.require_usable(Write)
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
+    timeout_millis <= 0 ||
+    timeout_millis > 600000 ||
     offset < 0 ||
     offset > source.length() - byte_count {
     raise InvalidRange(Write)
   }
   write_u32_prefix(self.write_prefix, byte_count)
-  self.write_exact(self.write_prefix, offset=0, byte_count=4)
-  self.write_exact(source, offset~, byte_count~)
+  self.write_exact(self.write_prefix, offset=0, byte_count=4, timeout_millis~)
+  self.write_exact(source, offset~, byte_count~, timeout_millis~)
 }
 
 ///|
@@ -172,8 +186,25 @@ pub fn ChildProcess::read_frame(
   self : ChildProcess,
   destination : FixedArray[Byte],
 ) -> Int raise ProcessError {
+  self.read_frame_with_timeout(
+    destination,
+    timeout_millis=self.limits.io_timeout_millis,
+  )
+}
+
+///|
+/// Reads one bounded frame with a caller-selected validated per-operation
+/// timeout. The prefix and payload exact reads each use this bound.
+pub fn ChildProcess::read_frame_with_timeout(
+  self : ChildProcess,
+  destination : FixedArray[Byte],
+  timeout_millis~ : Int,
+) -> Int raise ProcessError {
   self.require_usable(Read)
-  self.read_exact(self.read_prefix, offset=0, byte_count=4)
+  if timeout_millis <= 0 || timeout_millis > 600000 {
+    raise InvalidRange(Read)
+  }
+  self.read_exact(self.read_prefix, offset=0, byte_count=4, timeout_millis~)
   let byte_count = read_u32_prefix(self.read_prefix)
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
@@ -181,7 +212,7 @@ pub fn ChildProcess::read_frame(
     self.failed = true
     raise InvalidRange(Read)
   }
-  self.read_exact(destination, offset=0, byte_count~)
+  self.read_exact(destination, offset=0, byte_count~, timeout_millis~)
   byte_count
 }
 

@@ -15,6 +15,15 @@ fn run_worker() -> Unit raise {
     raise Failure("worker startup kind mismatch")
   }
   let startup = configured.contract()
+  let source_input = FixedArray::make(
+    @worker_wire.bootstrap_source_capacity(),
+    b'\x00',
+  )
+  let source_length = channel.read_frame(source_input)
+  let source = @worker_wire.decode_bootstrap_source(source_input, source_length)
+  if source.digest() != startup.bootstrap_source_digest() {
+    raise Failure("worker bootstrap source mismatch")
+  }
   let limits = startup.worker_limits()
   let inference = startup.inference_limits()
   let plan_owner = @worker_wire.PlanFrameBuffer::new(limits, inference)

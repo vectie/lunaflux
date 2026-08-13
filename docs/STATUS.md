@@ -192,12 +192,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   channel now has a separately linked child-side frame runtime and gates
   covering three monotonic exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That child intentionally
-  performs an exact checksummed Configure/Ready handshake that binds model
+  performs an exact checksummed Configure/BootstrapSource/Ready handshake that binds model
   identity, an admitted-bootstrap SHA-256 derived from graph/artifact evidence,
   a bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
   bytes, model generation,
   exact process-visible device ordinal, predecessor, worker limits, and
-  inference limits before the supervisor publishes protocol readiness. Startup
+  inference limits. It canonically decodes and checks the source before the
+  supervisor publishes protocol readiness. Startup
   cleanup retains explicit authority after a double failure, and submission
   rejects a foreign model generation before transport mutation. The child intentionally returns
   deterministic protocol completions rather than opening CUDA. Closed-child

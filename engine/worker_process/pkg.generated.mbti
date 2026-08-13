@@ -8,7 +8,7 @@ import {
 }
 
 // Values
-pub fn prepare(Bytes, @worker_wire.WorkerStartupContract, WorkerProcessLimits) -> WorkerProcessPreparation raise WorkerProcessError
+pub fn prepare(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits) -> WorkerProcessPreparation raise WorkerProcessError
 
 // Errors
 pub(all) suberror WorkerProcessError {
@@ -45,8 +45,9 @@ pub struct WorkerProcessLimits {
 }
 pub fn WorkerProcessLimits::io_timeout_millis(Self) -> Int
 pub fn WorkerProcessLimits::max_frame_bytes(Self) -> Int
-pub fn WorkerProcessLimits::new(max_frame_bytes~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise WorkerProcessError
+pub fn WorkerProcessLimits::new(max_frame_bytes~ : Int, startup_io_timeout_millis~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise WorkerProcessError
 pub fn WorkerProcessLimits::shutdown_timeout_millis(Self) -> Int
+pub fn WorkerProcessLimits::startup_io_timeout_millis(Self) -> Int
 
 pub(all) enum WorkerProcessPreparation {
   ReadyProcess(WorkerProcessSupervisor)
@@ -55,6 +56,7 @@ pub(all) enum WorkerProcessPreparation {
 
 pub(all) enum WorkerProcessRule {
   Capacity
+  SourceMismatch
   Sequence
   Submission
   Completion
@@ -66,6 +68,7 @@ pub struct WorkerProcessSupervisor {
   // private fields
 }
 pub fn WorkerProcessSupervisor::abandon_submission(Self, WorkerSubmission) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn WorkerProcessSupervisor::close(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle

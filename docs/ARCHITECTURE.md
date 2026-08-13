@@ -131,7 +131,9 @@ timeouts, and reap. The supervisor owns two physical plan/completion frame
 pairs, permits two monotonic submissions, receives oldest first, and retains a
 validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
-deterministic protocol completions. Before plan traffic, a fixed startup frame
+deterministic protocol completions. Before plan traffic, the parent sends a
+fixed Configure frame followed by the canonical bounded bootstrap source. The
+child decodes and verifies its independently bound digest before Ready. Configure
 binds the exact model identity, an admitted-bootstrap SHA-256 derived from
 graph/artifact evidence, a bootstrap-source SHA-256 derived from canonical
 `EncodedBootstrapSource` bytes, process-visible device ordinal, model

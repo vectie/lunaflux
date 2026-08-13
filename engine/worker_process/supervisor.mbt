@@ -23,10 +23,13 @@ fn transport_error(error : @process.ProcessError) -> WorkerProcessError {
 fn perform_startup_handshake(
   child : @process.ChildProcess,
   startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  startup_io_timeout_millis : Int,
 ) -> Unit raise WorkerProcessError {
   let sender = @worker_wire.StartupFrameBuffer::new()
   let receiver = @worker_wire.StartupFrameBuffer::new()
   let outgoing = FixedArray::make(sender.capacity(), b'\x00')
+  let source_outgoing = FixedArray::make(source.length(), b'\x00')
   let incoming = FixedArray::make(receiver.capacity(), b'\x00')
   let configure = sender.encode(Configure, startup) catch {
     error => raise Wire(error)
@@ -35,10 +38,29 @@ fn perform_startup_handshake(
   configure.copy_to(outgoing, destination_offset=0) catch {
     error => raise Wire(error)
   }
-  child.write_frame(outgoing, offset=0, byte_count=length) catch {
+  child.write_frame_with_timeout(
+    outgoing,
+    offset=0,
+    byte_count=length,
+    timeout_millis=startup_io_timeout_millis,
+  ) catch {
     error => raise transport_error(error)
   }
-  let response_length = child.read_frame(incoming) catch {
+  source.copy_to(source_outgoing, destination_offset=0) catch {
+    error => raise Wire(error)
+  }
+  child.write_frame_with_timeout(
+    source_outgoing,
+    offset=0,
+    byte_count=source.length(),
+    timeout_millis=startup_io_timeout_millis,
+  ) catch {
+    error => raise transport_error(error)
+  }
+  let response_length = child.read_frame_with_timeout(
+    incoming,
+    timeout_millis=startup_io_timeout_millis,
+  ) catch {
     error => raise transport_error(error)
   }
   let ready = receiver.load(incoming, response_length) catch {
@@ -55,8 +77,12 @@ fn perform_startup_handshake(
 pub fn prepare(
   executable : Bytes,
   startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
 ) -> WorkerProcessPreparation raise WorkerProcessError {
+  if source.digest() != startup.bootstrap_source_digest() {
+    raise Invalid(SourceMismatch)
+  }
   let worker_limits = startup.worker_limits()
   let inference_limits = startup.inference_limits()
   let plan_a = @worker_wire.PlanFrameBuffer::new(
@@ -84,6 +110,7 @@ pub fn prepare(
     .capacity()
     .max(completion_a.capacity())
     .max(startup_frame.capacity())
+    .max(source.capacity())
   if required > limits.max_frame_bytes {
     raise Invalid(Capacity)
   }
@@ -98,10 +125,16 @@ pub fn prepare(
     error => raise transport_error(error)
   }
   try {
-    perform_startup_handshake(child, startup)
+    perform_startup_handshake(
+      child,
+      startup,
+      source,
+      limits.startup_io_timeout_millis,
+    )
     ReadyProcess({
       child,
       startup,
+      source,
       plan_a,
       plan_b,
       completion_a,

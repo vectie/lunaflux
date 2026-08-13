@@ -319,12 +319,13 @@ oldest-first receive, retained response epochs, and fail-stop malformed-session
 handling. Device-backed child execution and live overlap remain open. A separately
 linked deterministic child runtime now proves valid
 end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
-An exact checksummed Configure/Ready handshake binds model identity, an
+An exact checksummed Configure/BootstrapSource/Ready handshake binds model identity, an
 admitted-bootstrap SHA-256 derived from graph/artifact evidence, a
 bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
 bytes, exact process-visible device ordinal, generation, predecessor, and
 worker/inference limits before protocol readiness;
-incompatible children fail closed and startup double failures retain cleanup
+the child canonically decodes and verifies the source before Ready; incompatible
+children fail closed and startup double failures retain cleanup
 authority. The full-graph blueprint and artifact bundle derive the
 admitted-bootstrap identity
 from a bounded canonical schema including device-step limits and the exact

@@ -180,8 +180,9 @@ supervision now binds monotonic submitted plans to physically distinct frame
 owners, receives responses strictly in order, and pins each completion epoch
 through scheduler publication backpressure. A separately linked child-side
 runtime now proves three real socket-framed plan/completion exchanges, A/B/A
-reuse, EOF, zero exit, and reap. Startup is now an exact checksummed
-`Configure`/`Ready` exchange binding model identity, the admitted-bootstrap
+reuse, EOF, zero exit, and reap. Startup now sends an exact checksummed
+`Configure`, then the canonical bounded bootstrap source, before accepting
+`Ready`. The exchange binds model identity, the admitted-bootstrap
 digest derived from graph/artifact evidence, the bootstrap-source digest
 derived from canonical `EncodedBootstrapSource` bytes, exact process-visible
 device ordinal, generation, predecessor, and all worker/inference limits; an
@@ -198,8 +199,8 @@ artifact evidence; preparation opens the assigned ordinal, verifies its target,
 streams and owns the verified weights, and constructs the complete paged
 executor. Readiness can be queried only while context, weights, and executor are
 all live, and dependency-ordered cleanup remains retryable after compound
-failures. Source-locator/config delivery into the child, `Ready` emission,
-plan/execution forwarding through that owner, restart policy/backoff, live
+failures. Bootstrap-source reconstruction into a device-worker plan, device-owned
+`Ready` emission, plan/execution forwarding through that owner, restart policy/backoff, live
 overlap, and physical-CUDA promotion evidence remain open.
 The supervisor now closes and reaps the old child before accepting exact
 ordered submission abandonment and derives a non-reusing predecessor only

@@ -77,7 +77,8 @@ pub fn WorkerService::restart(
     error => raise process_error(error)
   }
   validate_startup_contract(self.scheduler, self.binding, startup)
-  let result = @worker_process.prepare(executable, startup, limits) catch {
+  let source = self.process.bootstrap_source()
+  let result = @worker_process.prepare(executable, startup, source, limits) catch {
     error => raise process_error(error)
   }
   match result {

@@ -9,6 +9,7 @@ pub(all) enum WorkerProcessLifecycle {
 ///|
 pub(all) enum WorkerProcessRule {
   Capacity
+  SourceMismatch
   Sequence
   Submission
   Completion
@@ -38,9 +39,11 @@ pub(all) suberror WorkerProcessError {
 } derive(Debug, Eq)
 
 ///|
-/// Public limits owned by the supervisor boundary, not its native ABI.
+/// Public limits owned by the supervisor boundary, not its native ABI. Startup
+/// I/O has a separate per-prefix/per-payload timeout from steady plan traffic.
 pub struct WorkerProcessLimits {
   priv max_frame_bytes : Int
+  priv startup_io_timeout_millis : Int
   priv io_timeout_millis : Int
   priv shutdown_timeout_millis : Int
 }
@@ -50,6 +53,7 @@ pub struct WorkerProcessLimits {
 pub struct WorkerProcessSupervisor {
   priv child : @process.ChildProcess
   priv startup : @worker_wire.WorkerStartupContract
+  priv source : @worker_wire.EncodedBootstrapSource
   priv plan_a : @worker_wire.PlanFrameBuffer
   priv plan_b : @worker_wire.PlanFrameBuffer
   priv completion_a : @worker_wire.CompletionFrameBuffer
@@ -95,18 +99,33 @@ pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
 ///|
 pub fn WorkerProcessLimits::new(
   max_frame_bytes~ : Int,
+  startup_io_timeout_millis~ : Int,
   io_timeout_millis~ : Int,
   shutdown_timeout_millis~ : Int,
 ) -> WorkerProcessLimits raise WorkerProcessError {
   if max_frame_bytes < 64 ||
     max_frame_bytes > 67108864 ||
+    startup_io_timeout_millis <= 0 ||
+    startup_io_timeout_millis > 600000 ||
     io_timeout_millis <= 0 ||
     io_timeout_millis > 600000 ||
     shutdown_timeout_millis <= 0 ||
     shutdown_timeout_millis > 600000 {
     raise Invalid(Capacity)
   }
-  { max_frame_bytes, io_timeout_millis, shutdown_timeout_millis }
+  {
+    max_frame_bytes,
+    startup_io_timeout_millis,
+    io_timeout_millis,
+    shutdown_timeout_millis,
+  }
+}
+
+///|
+pub fn WorkerProcessLimits::startup_io_timeout_millis(
+  self : WorkerProcessLimits,
+) -> Int {
+  self.startup_io_timeout_millis
 }
 
 ///|
@@ -140,6 +159,14 @@ pub fn WorkerProcessSupervisor::startup_contract(
   self : WorkerProcessSupervisor,
 ) -> @worker_wire.WorkerStartupContract {
   self.startup
+}
+
+///|
+/// Returns the immutable canonical bootstrap source retained for replacements.
+pub fn WorkerProcessSupervisor::bootstrap_source(
+  self : WorkerProcessSupervisor,
+) -> @worker_wire.EncodedBootstrapSource {
+  self.source
 }
 
 ///|

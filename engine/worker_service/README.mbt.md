@@ -10,8 +10,9 @@ containing the expected bootstrap and bootstrap-source digests, process-visible
 device ordinal, and inference-contract limits. The service verifies those values together with the
 scheduler's model identity, model generation, predecessor sequence, and exact
 retained worker-protocol limits before it owns a ready process. The same binding
-is rechecked before every replacement startup; the process handshake then
-requires the Ready response to reproduce that exact contract byte-for-byte.
+is rechecked before every replacement startup. The retained immutable source is
+sent again, and the process handshake requires the Ready response to reproduce
+that exact contract byte-for-byte.
 The child response is evidence, never the source of expected deployment
 identity.
 

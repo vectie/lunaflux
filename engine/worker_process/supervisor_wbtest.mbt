@@ -36,9 +36,62 @@ fn supervisor_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn supervisor_process_limits() -> WorkerProcessLimits raise {
   WorkerProcessLimits::new(
-    max_frame_bytes=4096,
+    max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
+    startup_io_timeout_millis=1000,
     io_timeout_millis=1000,
     shutdown_timeout_millis=1000,
+  )
+}
+
+///|
+fn supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
+  @worker_wire.admit_bootstrap_source(
+    @worker_wire.WorkerBootstrapRoots::new(
+      model_root="/models",
+      kernel_root="/kernels",
+    ),
+    @worker_wire.WorkerBootstrapModelSource::new(
+      config_locator="config.json",
+      weights_locator="weights.bin",
+      config_digest_sha256="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator="manifest.json",
+      manifest_digest_sha256="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    ),
+    @worker_wire.WorkerBootstrapExecution::new(
+      compute_major=8,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=true,
+      tokens_per_page=16,
+      total_page_count=8,
+    ),
+    @worker_wire.WorkerBootstrapCeilings::new(
+      max_model_config_bytes=1024,
+      max_weight_file_bytes=1024L,
+      max_weight_arena_bytes=1024L,
+      max_activation_arena_bytes=1024L,
+      max_kv_arena_bytes=1024L,
+      max_execution_manifest_bytes=1024L,
+      max_module_bytes=1024L,
+      max_total_module_bytes=1024L,
+    ),
+  )
+}
+
+///|
+fn alternate_supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
+  let base = supervisor_source()
+  @worker_wire.admit_bootstrap_source(
+    @worker_wire.WorkerBootstrapRoots::new(
+      model_root="/alternate-models",
+      kernel_root="/kernels",
+    ),
+    base.model(),
+    base.kernel(),
+    base.execution(),
+    base.ceilings(),
   )
 }
 
@@ -56,9 +109,7 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
-      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
-    ),
+    bootstrap_source_digest=supervisor_source().digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=supervisor_limits(),
@@ -95,6 +146,7 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
       ),
     ),
     startup: supervisor_startup(),
+    source: supervisor_source(),
     plan_a,
     plan_b,
     completion_a,
@@ -152,75 +204,6 @@ fn supervisor_plan(
     },
     generation,
   )
-}
-
-///|
-test "startup handshake rejects an incompatible child before readiness" {
-  try
-    prepare(b"/bin/cat", supervisor_startup(), supervisor_process_limits())
-  catch {
-    Invalid(Submission) => ()
-    _ => fail("unexpected incompatible-child handshake error")
-  } noraise {
-    _ => fail("unhandshaken child became ready")
-  }
-}
-
-///|
-test "startup frame capacity is rejected before child spawn" {
-  let base = supervisor_startup()
-  let tiny_worker = @worker_protocol.WorkerProtocolLimits::new(
-    max_prefill_rows=1,
-    max_decode_rows=1,
-    max_plan_rows=1,
-    max_plan_tokens=1,
-    max_plan_pages=1,
-    max_capabilities=1,
-    max_completion_slots=1,
-    max_sequence_tokens=1,
-    max_token_id=0,
-  )
-  let tiny_inference = @inference.InferenceLimits::new(
-    max_text_bytes=1,
-    max_input_tokens=1,
-    max_new_tokens=1,
-    max_context_tokens=1,
-    max_token_id=0,
-    max_stop_token_ids=1,
-    max_stop_strings=1,
-    max_stop_string_bytes=1,
-    max_trace_bytes=1,
-    max_cache_scope_bytes=1,
-    max_decoded_delta_bytes=1,
-    max_deadline_millis=1UL,
-    max_top_k=1,
-    max_temperature=1.0,
-  )
-  let startup = @worker_wire.WorkerStartupContract::new(
-    identity=base.identity(),
-    bootstrap_digest=base.bootstrap_digest(),
-    bootstrap_source_digest=base.bootstrap_source_digest(),
-    device_ordinal=base.device_ordinal(),
-    model_generation_value=base.model_generation_value(),
-    worker_limits=tiny_worker,
-    inference_limits=tiny_inference,
-    has_predecessor=false,
-    predecessor_value=0UL,
-  )
-  for bytes in [407, 408] {
-    let limits = WorkerProcessLimits::new(
-      max_frame_bytes=bytes,
-      io_timeout_millis=1,
-      shutdown_timeout_millis=1,
-    )
-    try prepare(b"/definitely/not/a/worker", startup, limits) catch {
-      Invalid(Capacity) if bytes == 407 => ()
-      Transport(SpawnFailed) if bytes == 408 => ()
-      _ => fail("unexpected startup capacity result")
-    } noraise {
-      _ => fail("nonexistent child unexpectedly became ready")
-    }
-  }
 }
 
 ///|

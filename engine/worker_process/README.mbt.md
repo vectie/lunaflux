@@ -5,11 +5,13 @@ completion frame owners. Submission is strictly monotonic and allocation-free
 after startup storage. At most two plans may be in flight; the oldest response
 is received first.
 
-Construction sends a canonical startup `Configure` frame and enters `Ready`
-only after the child returns the exact model identity, admitted-bootstrap and
-bootstrap-source SHA-256 identities, model generation, predecessor, worker
-limits, and inference limits. The current handshake does not send the source
-bytes; source delivery precedes readiness in a later slice.
+Construction preflights the full bootstrap-source receiver capacity and exact
+source digest before spawn, then performs `Configure -> BootstrapSource ->
+Ready`. The child canonically decodes the bounded source bytes, compares their
+digest with Configure, and returns the exact model identity, bootstrap/source
+identities, model generation, predecessor, and runtime limits. Startup framed
+I/O has its own validated per-prefix/per-payload timeout; steady plan traffic
+continues to use the separate I/O timeout.
 Incompatible children are closed before publication. If both handshake and cleanup fail, preparation
 returns opaque retained cleanup authority so the child is never abandoned.
 Submission also rechecks the loaded model generation before any frame write.
@@ -20,8 +22,10 @@ exact frame repeatedly while scheduler publication is backpressured, and only
 malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 
-The included deterministic child proves protocol readiness only; production
-device loading and CUDA readiness remain separate. Recovery is explicit and
+The supervisor retains the immutable encoded source, and replacements receive
+the same canonical bytes. The included deterministic child proves protocol
+agreement only: it does not read model/module files, reconstruct a device plan,
+or establish CUDA readiness. Recovery is explicit and
 ordered: the old child must first be closed and reaped, validated completions
 remain retryable, and each unreturned `WorkerSubmission` must be committed as a
 scheduler worker failure before `abandon_submission` retires its exact sequence.

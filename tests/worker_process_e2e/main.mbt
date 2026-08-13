@@ -34,6 +34,43 @@ fn inference_limits() -> @inference.InferenceLimits raise {
 }
 
 ///|
+fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
+  @worker_wire.admit_bootstrap_source(
+    @worker_wire.WorkerBootstrapRoots::new(
+      model_root="/models",
+      kernel_root="/kernels",
+    ),
+    @worker_wire.WorkerBootstrapModelSource::new(
+      config_locator="config.json",
+      weights_locator="weights.bin",
+      config_digest_sha256="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator="manifest.json",
+      manifest_digest_sha256="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    ),
+    @worker_wire.WorkerBootstrapExecution::new(
+      compute_major=8,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=true,
+      tokens_per_page=16,
+      total_page_count=8,
+    ),
+    @worker_wire.WorkerBootstrapCeilings::new(
+      max_model_config_bytes=1024,
+      max_weight_file_bytes=1024L,
+      max_weight_arena_bytes=1024L,
+      max_activation_arena_bytes=1024L,
+      max_kv_arena_bytes=1024L,
+      max_execution_manifest_bytes=1024L,
+      max_module_bytes=1024L,
+      max_total_module_bytes=1024L,
+    ),
+  )
+}
+
+///|
 fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(
@@ -47,9 +84,7 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
-      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
-    ),
+    bootstrap_source_digest=bootstrap_source().digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=worker_limits(),
@@ -106,8 +141,10 @@ fn start_worker(
     @worker_process.prepare(
       executable,
       startup,
+      bootstrap_source(),
       @worker_process.WorkerProcessLimits::new(
-        max_frame_bytes=4096,
+        max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
+        startup_io_timeout_millis=5000,
         io_timeout_millis=5000,
         shutdown_timeout_millis=5000,
       ),

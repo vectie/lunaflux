@@ -43,14 +43,13 @@ locators and digests remain independently encoded.
 `EncodedBootstrapSource` is an immutable owned snapshot: it exposes only its
 digest, focused scalar/path records, exact length, and bounded copying. It never
 contains model weights, model configuration bytes, manifests, CUDA modules, or
-native handles. Startup v4 now binds this source digest into the independent
-`Configure` contract, but the process handshake still sends only `Configure ->
-Ready`; it does not send bootstrap-source bytes yet. A later slice will send
-`Configure -> BootstrapSource -> Ready` and retain the exact encoded source
-across replacement workers. The trailing self-SHA provides internal integrity
-and canonical content identity only; it is not peer authentication. Future
-source delivery must compare the received bytes with the already independent
-`Configure` source digest over the private child channel.
+native handles. Startup v4 binds this source digest into the independent
+`Configure` contract. The process supervisor now sends `Configure ->
+BootstrapSource -> Ready`, retains the immutable source, and reuses its exact
+canonical bytes for replacement workers. The trailing self-SHA provides
+internal integrity and canonical content identity only; it is not peer
+authentication. The child compares received source bytes with the independently
+expected `Configure` source digest over the private child channel.
 
 Completion frame v1 carries the exact plan sequence and model generation plus
 a canonical table of slot, request identity/generation, outcome kind,
