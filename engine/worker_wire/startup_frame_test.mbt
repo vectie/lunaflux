@@ -55,3 +55,26 @@ test "startup frame corruption and stale epochs fail closed" {
     _ => fail("superseded startup frame remained live")
   }
 }
+
+///|
+test "startup predecessor identity is canonical" {
+  let base = startup_contract()
+  for candidate in [(true, 0UL), (true, 0xffffffffffffffffUL), (false, 1UL)] {
+    let (has_predecessor, predecessor) = candidate
+    try
+      @worker_wire.WorkerStartupContract::new(
+        identity=base.identity(),
+        model_generation_value=base.model_generation_value(),
+        worker_limits=base.worker_limits(),
+        inference_limits=base.inference_limits(),
+        has_predecessor~,
+        predecessor_value=predecessor,
+      )
+    catch {
+      InvalidFrame(StartupIdentity) => ()
+      _ => fail("unexpected predecessor identity error")
+    } noraise {
+      _ => fail("noncanonical predecessor identity was accepted")
+    }
+  }
+}

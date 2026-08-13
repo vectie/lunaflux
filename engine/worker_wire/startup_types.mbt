@@ -39,7 +39,10 @@ pub fn WorkerStartupContract::new(
   predecessor_value~ : UInt64,
 ) -> WorkerStartupContract raise WorkerWireError {
   if model_generation_value == 0UL ||
-    (has_predecessor && predecessor_value == 0xffffffffffffffffUL) ||
+    (
+      has_predecessor &&
+      (predecessor_value == 0UL || predecessor_value == 0xffffffffffffffffUL)
+    ) ||
     (!has_predecessor && predecessor_value != 0UL) {
     raise InvalidFrame(StartupIdentity)
   }
