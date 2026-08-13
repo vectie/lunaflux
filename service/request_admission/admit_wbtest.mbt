@@ -55,6 +55,30 @@ fn fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
 }
 
 ///|
+fn fixture_tokenizer_with_digest(
+  digest : String,
+) -> @tokenizer.TokenizerSpec raise {
+  let vocabulary : Array[@tokenizer.VocabularyEntry] = []
+  for value in 0..<256 {
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+  }
+  @tokenizer.TokenizerSpec::new(
+    vocabulary,
+    [],
+    @tokenizer.TokenizerDigest::parse(digest),
+    {
+      max_input_bytes: 64,
+      max_output_tokens: 64,
+      max_decoded_bytes: 256,
+      max_vocab_entries: 256,
+      max_merge_rules: 4,
+      max_token_bytes: 1,
+      max_special_tokens: 1,
+    },
+  )
+}
+
+///|
 fn fixture_request(
   identity : @spec.ModelIdentity,
   deadline_millis? : UInt64 = 100UL,
@@ -92,6 +116,7 @@ test "public receipt capture and admission use the monotonic clock" {
     receipt,
     fixture_request(identity, deadline_millis=1000UL),
     fixture_tokenizer(),
+    fixture_tokenizer().digest(),
     identity,
     fixture_inference(),
     clock,
@@ -100,20 +125,94 @@ test "public receipt capture and admission use the monotonic clock" {
 }
 
 ///|
+test "tokenizer digest substitution rejects before clock or tokenization" {
+  let identity = fixture_identity("0")
+  let tokenizer = fixture_tokenizer()
+  let foreign = fixture_tokenizer_with_digest("fedcba9876543210".repeat(4))
+  let clock_reads = Ref(0)
+  try
+    admit_with_clock(
+      { at_millis: 10UL },
+      fixture_request(identity),
+      tokenizer,
+      foreign.digest(),
+      identity,
+      fixture_inference(),
+      () => {
+        clock_reads.val += 1
+        11UL
+      },
+    )
+  catch {
+    Invalid(TokenizerIdentity) => ()
+    _ => fail("unexpected tokenizer binding error")
+  } noraise {
+    _ => fail("foreign tokenizer digest was accepted")
+  }
+  assert_eq(clock_reads.val, 0)
+}
+
+///|
+test "deadline samples once before and once after tokenization" {
+  let identity = fixture_identity("0")
+  let reads = Ref(0)
+  let admitted = admit_with_clock(
+    { at_millis: 10UL },
+    fixture_request(identity),
+    fixture_tokenizer(),
+    fixture_tokenizer().digest(),
+    identity,
+    fixture_inference(),
+    () => {
+      reads.val += 1
+      if reads.val == 1 {
+        11UL
+      } else {
+        12UL
+      }
+    },
+  )
+  assert_eq(reads.val, 2)
+  assert_eq(admitted.input_token_count(), 3)
+  let expired_reads = Ref(0)
+  try
+    admit_with_clock(
+      { at_millis: 10UL },
+      fixture_request(identity),
+      fixture_tokenizer(),
+      fixture_tokenizer().digest(),
+      identity,
+      fixture_inference(),
+      () => {
+        expired_reads.val += 1
+        110UL
+      },
+    )
+  catch {
+    Invalid(Deadline) => ()
+    _ => fail("unexpected pre-tokenization deadline error")
+  } noraise {
+    _ => fail("expired request reached tokenization")
+  }
+  assert_eq(expired_reads.val, 1)
+}
+
+///|
 fn admit_at(
   receipt : RequestReceipt,
   request : @inference.GenerateRequest,
   tokenizer : @tokenizer.TokenizerSpec,
+  expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   observed_at_millis : UInt64,
 ) -> AdmittedRequest raise RequestAdmissionError {
-  let prepared = prepare_input(
-    receipt, request, tokenizer, expected_model, inference,
+  let prepared_request = preflight_request(
+    receipt, request, tokenizer, expected_tokenizer, expected_model, inference,
   )
-  finish_admission(
-    request, tokenizer, inference, prepared, observed_at_millis, receipt,
-  )
+  validate_observed_time(receipt, prepared_request.deadline, observed_at_millis)
+  let prepared = tokenize_input(prepared_request, tokenizer, inference)
+  finish_admission(tokenizer, inference, prepared, observed_at_millis, receipt)
 }
 
 ///|
@@ -124,6 +223,7 @@ test "text admission preserves receipt deadline and separates string stops" {
     { at_millis: 100UL },
     fixture_request(identity),
     tokenizer,
+    tokenizer.digest(),
     identity,
     fixture_inference(),
     150UL,
@@ -159,6 +259,7 @@ test "identity receipt and expired budget reject before publication" {
       { at_millis: 100UL },
       request,
       fixture_tokenizer(),
+      fixture_tokenizer().digest(),
       fixture_identity("f"),
       fixture_inference(),
       101UL,
@@ -176,6 +277,7 @@ test "identity receipt and expired budget reject before publication" {
         { at_millis: 100UL },
         request,
         fixture_tokenizer(),
+        fixture_tokenizer().digest(),
         identity,
         fixture_inference(),
         observed,
@@ -190,12 +292,69 @@ test "identity receipt and expired budget reject before publication" {
 }
 
 ///|
+test "request evidence is canonically readmitted under instance limits" {
+  let loose = @inference.InferenceLimits::new(
+    max_text_bytes=64,
+    max_input_tokens=64,
+    max_new_tokens=16,
+    max_context_tokens=64,
+    max_token_id=255,
+    max_stop_token_ids=4,
+    max_stop_strings=4,
+    max_stop_string_bytes=16,
+    max_trace_bytes=16,
+    max_cache_scope_bytes=16,
+    max_decoded_delta_bytes=32,
+    max_deadline_millis=2000UL,
+    max_top_k=256,
+    max_temperature=4.0,
+  )
+  let identity = fixture_identity("0")
+  let request = @inference.GenerateRequest::new(
+    protocol_version=@inference.ProtocolVersion::v1(),
+    request_id=@inference.RequestId::new(8UL),
+    model_identity=identity,
+    input=@inference.Input::from_token_ids([1, 2, 3], loose),
+    max_new_tokens=4,
+    context_ceiling=16,
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=@inference.SamplingSeed::new(8UL),
+    stops=@inference.StopConditions::new([], [], loose),
+    stream_preference=Streaming,
+    deadline=@inference.DeadlineBudget::from_milliseconds(1500UL, loose),
+    cache=@inference.CachePolicy::new(
+      @inference.CacheScope::from_ascii(b"scope", loose),
+      Disabled,
+    ),
+    trace=None,
+    limits=loose,
+  )
+  try
+    admit_at(
+      { at_millis: 0UL },
+      request,
+      fixture_tokenizer(),
+      fixture_tokenizer().digest(),
+      identity,
+      fixture_inference(),
+      1UL,
+    )
+  catch {
+    Invalid(RequestContract) => ()
+    _ => fail("unexpected foreign-limit error")
+  } noraise {
+    _ => fail("request admitted with a foreign deadline ceiling")
+  }
+}
+
+///|
 test "string stops remain in incremental output instead of scheduler state" {
   let identity = fixture_identity("0")
   let admitted = admit_at(
     { at_millis: 10UL },
     fixture_request(identity),
     fixture_tokenizer(),
+    fixture_tokenizer().digest(),
     identity,
     fixture_inference(),
     11UL,

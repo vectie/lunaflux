@@ -346,7 +346,7 @@ if [ -d service/request_admission ]; then
     'pub async fn|extern\s+"[cC]"|#external'
   if [ -f service/request_admission/pkg.generated.mbti ]; then
     if ! rg -q \
-      '^pub fn admit\(RequestReceipt, @inference\.GenerateRequest, @tokenizer\.TokenizerSpec, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
+      '^pub fn admit\(RequestReceipt, @inference\.GenerateRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
       service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
         'request admission must retain typed receipt/model/tokenizer binding' >&2

@@ -1,6 +1,8 @@
 ///|
 pub(all) enum RequestAdmissionRule {
   ModelIdentity
+  TokenizerIdentity
+  RequestContract
   ReceiptTime
   Deadline
   Input

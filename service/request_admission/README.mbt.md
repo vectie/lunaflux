@@ -3,7 +3,8 @@
 This package is the synchronous, transport-neutral bridge from one canonical
 `GenerateRequest` to the scheduler's token-only contract. A `RequestReceipt`
 captures monotonic time before frame parsing. Admission binds the exact selected
-model and tokenizer, tokenizes text with special-token rejection and overflow
+model and an independently expected tokenizer digest, tokenizes text with
+special-token rejection and overflow
 rejection, samples the clock again after tokenization, and preserves the
 original absolute deadline rather than rebasing it.
 
