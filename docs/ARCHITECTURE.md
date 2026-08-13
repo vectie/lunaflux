@@ -132,20 +132,35 @@ pairs, permits two monotonic submissions, receives oldest first, and retains a
 validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
 deterministic protocol completions. Before plan traffic, a fixed startup frame
-binds the exact model identity, admitted-bootstrap SHA-256, model generation,
-predecessor, worker limits, and inference limits; the supervisor publishes
-protocol readiness only after an identical Ready response. The SHA-256 is
-derived from the admitted full-graph blueprint and artifact bundle's canonical
-module, symbol, launch, layout, and operand evidence. Device/model loading must complete before a
-production child sends Ready. Binding the current deterministic child to the
-device executor remains open. A failed child is closed and reaped before the
-service commits each exact submitted plan as a scheduler worker failure and
+binds the exact model identity, admitted-bootstrap SHA-256, process-visible
+device ordinal, model generation, predecessor, worker limits, and inference
+limits; the supervisor publishes protocol readiness only after an identical
+Ready response. The SHA-256 is derived from the admitted full-graph blueprint
+and artifact bundle's canonical module, symbol, launch, layout, operand,
+device-step envelope, and exact assignment evidence. A distinct service-owned
+immutable binding supplies the expected bootstrap digest, ordinal, and
+inference limits rather than trusting the child's echo; scheduler-retained
+identity, generation, predecessor, and exact worker limits complete the
+comparison at join and replacement.
+
+The aggregate device-worker readiness owner admits immutable model-path,
+weight, device, memory, kernel, artifact, and startup evidence before opening
+resources. Preparation compares the complete received startup contract, opens
+the assigned ordinal and verifies its semantic target, loads weights internally,
+and prepares the complete paged executor. It exposes only the readiness
+contract, and only while context, weights, and executor are all live; cleanup
+retries in executor-to-weights-to-context order. Device/model loading must
+complete before a production child sends Ready. The current deterministic child
+does not yet receive source/config locators, call this aggregate, emit Ready
+from it, or forward plan execution through it. A failed child is closed and
+reaped before the service commits each exact submitted plan as a scheduler worker failure and
 retires its supervisor obligation in sequence order. Only then can the
 supervisor derive the next non-reusing predecessor for a replacement. The
 implemented thread-confined worker service owns this join: it retains two
 scalar flight identities, records a plan before transport, pins validated
 responses through scheduler backpressure, and exposes request/event methods so
-callers do not retain a separate mutable scheduler API alias. Restart
+callers do not retain a separate mutable scheduler API alias. Its independent
+binding is retained unchanged across replacements. Restart
 policy/backoff and live overlap remain open. Global
 fairness/preemption, generated-text decoding, and prefix integration also
 remain open.

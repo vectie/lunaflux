@@ -293,8 +293,9 @@ capability recipes, whole-build checkpoints, final-prefill output semantics,
 and stale-generation checks are implemented. Scheduler-owned distinct A/B
 buffer pairing, transactional build/submission, exclusive completion leases,
 ordered full-batch retirement, generated-token publication, and exact owner
-reset are implemented. Canonical fixed-capacity plan/completion wire frames
-now preserve full page generations, capability order, sampling replay identity,
+reset are implemented. The scheduler retains its exact resolved worker-protocol
+limits for outer-owner binding. Canonical fixed-capacity plan/completion wire
+frames preserve full page generations, capability order, sampling replay identity,
 and typed outcomes across a flat little-endian boundary; untrusted receive is
 transactional, semantically validated, and epoch-authenticated. Received
 completion frames are additionally matched to the retained exact plan before
@@ -314,15 +315,16 @@ private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
 reap. Protocol-aware A/B supervision now consumes it with monotonic submission,
 oldest-first receive, retained response epochs, and fail-stop malformed-session
-handling. Worker-death recovery and live overlap remain open. A separately
+handling. Device-backed child execution and live overlap remain open. A separately
 linked deterministic child runtime now proves valid
 end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
 An exact checksummed Configure/Ready handshake binds model identity, an
-admitted-bootstrap SHA-256, generation, predecessor, and worker/inference limits before protocol
-readiness; incompatible children fail closed and startup double failures retain
-cleanup authority. The full-graph blueprint and artifact bundle derive this
-identity from a bounded canonical schema. Production child-side model/device
-loading, device-backed readiness, restart policy/backoff, and live overlap remain open. The supervisor now
+admitted-bootstrap SHA-256, exact process-visible device ordinal, generation,
+predecessor, and worker/inference limits before protocol readiness;
+incompatible children fail closed and startup double failures retain cleanup
+authority. The full-graph blueprint and artifact bundle derive this identity
+from a bounded canonical schema including device-step limits and the exact
+assignment. The supervisor now
 requires close/reap before ordered abandonment of exact outstanding
 submissions and derives a non-reusing replacement predecessor only after every
 obligation is retired. The real-child gate proves replacement through sequence
@@ -332,7 +334,22 @@ synthesized worker failures under scheduler backpressure, retires scheduler
 state before process abandonment, and starts the exact replacement contract
 only after both obligations clear. Its real-process gate covers two outstanding
 plans, publication pressure, worker death, recovery, replacement, and balanced
-KV resources. This does not claim device execution or allocation-free
+KV resources. An independent `WorkerServiceBinding` retains the expected
+bootstrap digest, device ordinal, and inference limits; service construction
+and replacement validate those together with the scheduler's exact worker
+limits, identity, generation, and predecessor.
+
+The `engine/device_worker` aggregate now implements the bounded readiness-owner
+foundation anticipated by this workstream. It admits an inert exact plan, then
+verifies the received startup contract before opening resources, opens the
+assigned visible device and checks its capability, loads the verified model
+file internally, and prepares the complete paged executor. It publishes the
+contract only while context, weights, and executor remain live, with retryable
+dependency-ordered cleanup for compound failures. The spawned child remains
+the deterministic protocol fixture: locator/config transport into that child,
+calling this owner before emitting `Ready`, forwarding received plans through
+the owner, restart policy/backoff, physical CUDA evidence, and live overlap
+remain open. This does not claim device execution or allocation-free
 cross-process transport.
 
 ### Gate

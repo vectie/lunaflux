@@ -46,8 +46,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and selected dense-Llama tensor vocabulary before device allocation. Its
   second pass copies source-ordered chunks directly into final device regions,
   re-hashes the exact bytes copied, rechecks source size and modification time,
-  retains no model-sized host snapshot, and closes partial allocation on
-  failure.
+  and retains no model-sized host snapshot. A compound load/close failure
+  returns opaque allocation-cleanup authority with idempotent retry rather than
+  losing the partial owner.
 - Deterministic Float reference kernels for dense-Llama embedding, RMSNorm,
   projections, split-half RoPE, causal grouped-query attention, residuals,
   SiLU-gated MLP, and the language-model head.
@@ -192,10 +193,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   response inspection, EOF, zero exit, and reap. That child intentionally
   performs an exact checksummed Configure/Ready handshake that binds model
   identity, a canonical admitted-bootstrap SHA-256, model generation,
-  predecessor, worker limits, and inference limits before the supervisor
-  publishes readiness. Startup cleanup retains
-  explicit authority after a double failure, and submission rejects a foreign
-  model generation before transport mutation. The child intentionally returns
+  exact process-visible device ordinal, predecessor, worker limits, and
+  inference limits before the supervisor publishes protocol readiness. Startup
+  cleanup retains explicit authority after a double failure, and submission
+  rejects a foreign model generation before transport mutation. The child intentionally returns
   deterministic protocol completions rather than opening CUDA. Closed-child
   recovery now retains validated responses, retires exact unreturned
   submissions in sequence order, and derives a replacement predecessor only
@@ -205,13 +206,27 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   process owners, records scheduler plans before transport, retries pinned
   completion frames without reopening completion epochs, commits retryable
   bounded worker failures before abandonment, and replaces the child only
-  after both scalar flight obligations retire. Its real-process gate proves
-  output-publication backpressure, worker death, failure retirement,
+  after both scalar flight obligations retire. An independent retained
+  `WorkerServiceBinding` pins the expected bootstrap digest, device ordinal,
+  and inference envelope; each join/restart also verifies exact scheduler-owned
+  model identity, generation, predecessor, and worker-protocol limits. Its
+  real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.
   The full-graph physical blueprint and artifact bundle now derive that digest
-  from bounded canonical module, symbol, launch, layout, and operand evidence.
-  Production child-side device loading and readiness, restart policy/backoff,
-  and live overlap are not yet integrated.
+  from bounded canonical module, symbol, launch, layout, operand, device-step
+  envelope, and exact device-assignment evidence.
+- An aggregate `engine/device_worker` readiness owner. Its inert admission
+  retains the independently expected startup contract and exact bounded model
+  path, weight, device, memory, kernel, artifact, and bootstrap evidence.
+  Preparation compares the complete received contract before resource opening,
+  opens and verifies the exact visible device ordinal/target, loads verified
+  weights internally, prepares the complete paged executor, and exposes only
+  the exact readiness contract while context, weights, and executor remain
+  live. Executor/weights/context cleanup is dependency ordered, retryable, and
+  retains authority after compound preparation/cleanup failure. This is the
+  readiness-owner foundation, not child-process integration: the current child
+  has no model/source locator delivery, does not call this owner or forward
+  execution through it, and does not emit `Ready` from it.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
@@ -282,10 +297,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - Physical and numerical proof for the new paged path. The semantic graph,
   host page/table ownership, reusable device descriptor, persistent device KV
   allocation, exact all-AOT launch ABI, artifact admission, physical blueprint,
-  and synchronous owner-mediated full-graph dispatch are implemented. No
+  synchronous owner-mediated full-graph dispatch, and aggregate readiness owner
+  are implemented. No
   production paged-kernel bundle has yet passed real-CUDA model correctness,
-  sanitizer, leak, soak, or benchmark gates; generated logits are not yet read
-  back into online sampling/completion. The stateless reference interpreter
+  sanitizer, leak, soak, or benchmark gates; generated logits are not yet wired
+  through the spawned child into the online service path. The stateless reference interpreter
   remains the correctness oracle and deliberately recomputes full sequences.
 - Online APIs, generated-text decoding/transport publication, continuous
   batching with global fairness/preemption, live worker overlap,
@@ -293,8 +309,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   or telemetry. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist but are not an online
-  service. No end-to-end scheduler/worker/device allocation or bounded-waiting
-  claim is made.
+  service. No end-to-end child-to-device execution or bounded-waiting claim is
+  made; the device-worker aggregate has not yet been wired into the spawned
+  child or service dispatch path.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains

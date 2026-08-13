@@ -100,8 +100,10 @@ Implemented packages currently cover `contracts/`, focused `config/` records,
 the byte-BPE foundation and bounded selected `tokenizer.json` adapter in
 `tokenizer/`, validated artifact readers, exact Llama weight bindings, bounded
 host materialization for reference execution, and two-pass bounded streaming
-from an approved safetensors file into final aligned device regions. The
-device foundation also includes an immutable semantic-to-device plan, a
+from an approved safetensors file into final aligned device regions. That
+loader retains opaque, retryable allocation-cleanup authority if a
+primary load failure and its first close both fail; partial ownership is never
+discarded. The device foundation also includes an immutable semantic-to-device plan, a
 single activation/workspace arena plan and allocator, and exact stateless
 `FullPrefill`/`FullRecompute` profiles. Kernel packages admit exact startup
 bindings, content-addressed AOT families and profile-specific entry points,
@@ -180,12 +182,23 @@ through scheduler publication backpressure. A separately linked child-side
 runtime now proves three real socket-framed plan/completion exchanges, A/B/A
 reuse, EOF, zero exit, and reap. Startup is now an exact checksummed
 `Configure`/`Ready` exchange binding model identity, admitted-bootstrap digest,
-generation, predecessor, and all worker/inference limits; an incompatible child cannot become ready,
-and double-failure cleanup retains explicit authority. It is a deterministic
-protocol executable, not the CUDA worker. The admitted full-graph blueprint
-and artifact bundle now derive that digest from a bounded canonical schema;
-production child-side model/device loading, device-backed readiness, restart
-policy/backoff, and live overlap remain open.
+exact process-visible device ordinal, generation, predecessor, and all
+worker/inference limits; an incompatible child cannot become protocol-ready,
+and double-failure cleanup retains explicit authority. The shipped child is a
+deterministic protocol executable, not the CUDA worker. The admitted full-graph
+blueprint and artifact bundle now derive that digest from a bounded canonical
+schema that also binds the exact device-step limits and assignment.
+
+A new aggregate `engine/device_worker` owner provides the child-side readiness
+foundation without publishing a wire frame: inert admission retains the exact
+expected startup contract and bounded model, file, device, memory, kernel, and
+artifact evidence; preparation opens the assigned ordinal, verifies its target,
+streams and owns the verified weights, and constructs the complete paged
+executor. Readiness can be queried only while context, weights, and executor are
+all live, and dependency-ordered cleanup remains retryable after compound
+failures. Source-locator/config delivery into the child, `Ready` emission,
+plan/execution forwarding through that owner, restart policy/backoff, live
+overlap, and physical-CUDA promotion evidence remain open.
 The supervisor now closes and reaps the old child before accepting exact
 ordered submission abandonment and derives a non-reusing predecessor only
 after every retained completion or failed submission is retired; a real
@@ -194,8 +207,12 @@ worker service now encapsulates the scheduler and process owners, retains two
 scalar flight identities, retries pinned frames through scheduler
 backpressure, commits bounded worker-failure completions before process
 abandonment, and starts replacements only after all obligations retire. Its
-real-child gate proves two outstanding plans, output backpressure, worker
-failure, non-reusing restart, and balanced KV ownership. Still open are global
+independent immutable binding pins the expected bootstrap digest, assigned
+device ordinal, and inference limits; construction and restart additionally
+require exact equality with the scheduler-retained worker limits, model
+identity, generation, and predecessor sequence. Its real-child gate proves two
+outstanding plans, output backpressure, worker failure, non-reusing restart,
+binding preservation, and balanced KV ownership. Still open are global
 fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
