@@ -336,8 +336,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - The streaming device loader now uses pinned approved-root and regular-file
   capabilities rather than ambient string paths. Deployment approval and
   read-only mount policy remain external trust inputs. Low-level fixed
-  descriptor-role inheritance is implemented and proven; production supervisor
-  retention and child reconstruction from those roles remain open.
+  descriptor-role inheritance, production supervisor retention across restart,
+  and child reconstruction from those roles are implemented and proven.
 - Physical-CUDA validation of driver loading, transfers, modules, function
   launches, events, numerical BF16 GEMM and AOT correctness, implicit-heuristic
   shape support, and repeated resource balance. Local C stubs pass a manually
@@ -350,18 +350,20 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   synchronous owner-mediated full-graph dispatch, and aggregate readiness owner
   are implemented. No
   production paged-kernel bundle has yet passed real-CUDA model correctness,
-  sanitizer, leak, soak, or benchmark gates; generated logits are not yet wired
-  through the spawned child into the online service path. The stateless reference interpreter
-  remains the correctness oracle and deliberately recomputes full sequences.
+  sanitizer, leak, soak, or benchmark gates. Generated logits and sampled
+  completions are structurally wired through the spawned child and worker
+  service, but that path has not passed physical-CUDA numerical validation. The
+  stateless reference interpreter remains the correctness oracle and
+  deliberately recomputes full sequences.
 - Online APIs, generated-text decoding/transport publication, continuous
   batching with global fairness/preemption, live worker overlap,
   physically proven paged execution, online sampling and prefix integration,
   or telemetry. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
-  prefix-index, and runtime-capacity foundations exist but are not an online
-  service. No end-to-end child-to-device execution or bounded-waiting claim is
-  made; the device-worker aggregate has not yet been wired into the spawned
-  child or service dispatch path.
+  prefix-index, and runtime-capacity foundations exist, and the scheduler,
+  root-bound service, spawned device child, and device-worker aggregate are now
+  connected. There is still no public online API or physical-CUDA serving
+  evidence, so no bounded-latency serving claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains
@@ -374,7 +376,6 @@ The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
 sanitizer and leak gates, with physical concurrency/race evidence still open.
-Device KV ownership and true cached decode remain open. Performance and
-production-readiness claims remain out of
-scope until physical correctness, resource balance, soak, and benchmark
-evidence passes.
+Physical device-KV correctness and true cached decode evidence remain open.
+Performance and production-readiness claims remain out of scope until physical
+correctness, resource balance, soak, and benchmark evidence passes.
