@@ -258,6 +258,147 @@ fn event_bytes(frame : ValidatedEventFrame) -> FixedArray[Byte] raise {
 }
 
 ///|
+fn writer_bytes(writer : CanonicalEventWriter) -> FixedArray[Byte] raise {
+  let storage = FixedArray::make(writer.length(), b'\x00')
+  ignore(writer.copy_to(storage, destination_offset=0))
+  storage
+}
+
+///|
+fn assert_fixed_bytes_equal(
+  left : FixedArray[Byte],
+  right : FixedArray[Byte],
+) -> Unit raise {
+  assert_eq(left.length(), right.length())
+  for index in 0..<left.length() {
+    assert_eq(left[index], right[index])
+  }
+}
+
+///|
+test "direct token writer is byte-identical to canonical event encoding" {
+  let inference = fixture_inference_limits()
+  let source = FixedArray::make(6, b'!')
+  source[1] = b'o'
+  source[2] = b'k'
+  source[3] = 0xe4
+  source[4] = 0xb8
+  source[5] = 0xad
+  let writer = CanonicalEventWriter::new(fixture_limits())
+  writer.prepare_token_bytes(
+    token_id=9,
+    position=1,
+    source,
+    source_offset=1,
+    length=5,
+  )
+  let direct = writer_bytes(writer)
+  let expected = event_bytes(
+    EventFrameBuffer::new(fixture_limits()).encode(
+      Token(
+        @inference.TokenEvent::new(
+          token_id=9,
+          decoded_delta=Some(
+            @inference.DecodedDelta::from_utf8(b"ok\xe4\xb8\xad", inference),
+          ),
+          position=1,
+          inference,
+        ),
+      ),
+    ),
+  )
+  assert_fixed_bytes_equal(direct, expected)
+  match
+    EventFrameBuffer::new(fixture_limits())
+    .load(direct, direct.length())
+    .event() {
+    Token(value) => assert_eq(value.decoded_delta().unwrap().text(), "ok中")
+    _ => fail("expected token event")
+  }
+}
+
+///|
+test "direct empty token delta is byte-identical and keeps one credit" {
+  let inference = fixture_inference_limits()
+  let source = FixedArray::make(0, b'\x00')
+  let writer = CanonicalEventWriter::new(fixture_limits())
+  writer.prepare_token_bytes(
+    token_id=2,
+    position=0,
+    source,
+    source_offset=0,
+    length=0,
+  )
+  let first = writer_bytes(writer)
+  let expected = event_bytes(
+    EventFrameBuffer::new(fixture_limits()).encode(
+      Token(
+        @inference.TokenEvent::new(
+          token_id=2,
+          decoded_delta=None,
+          position=0,
+          inference,
+        ),
+      ),
+    ),
+  )
+  assert_fixed_bytes_equal(first, expected)
+  assert_false(writer.has_credit())
+  try
+    writer.prepare_token_bytes(
+      token_id=3,
+      position=1,
+      source,
+      source_offset=0,
+      length=0,
+    )
+  catch {
+    EventCreditUnavailable => ()
+    _ => fail("unexpected credit error")
+  } noraise {
+    _ => fail("expected busy writer rejection")
+  }
+  assert_fixed_bytes_equal(writer_bytes(writer), first)
+  writer.retire()
+  assert_true(writer.has_credit())
+  writer.prepare_token_bytes(
+    token_id=3,
+    position=1,
+    source,
+    source_offset=0,
+    length=0,
+  )
+  assert_eq(writer.length(), EVENT_HEADER_BYTES)
+}
+
+///|
+test "direct token rejection is transactional and validates UTF-8" {
+  let writer = CanonicalEventWriter::new(fixture_limits())
+  let invalid = FixedArray::make(2, b'\x80')
+  try
+    writer.prepare_token_bytes(
+      token_id=1,
+      position=0,
+      invalid,
+      source_offset=0,
+      length=2,
+    )
+  catch {
+    InvalidFrame(frame=EventFrame, rule=Payload) => ()
+    _ => fail("unexpected UTF-8 error")
+  } noraise {
+    _ => fail("expected invalid UTF-8 rejection")
+  }
+  assert_true(writer.has_credit())
+  try writer.length() catch {
+    StaleFrame => ()
+    _ => fail("unexpected empty writer error")
+  } noraise {
+    _ => fail("expected no published frame")
+  }
+}
+
+///|
 test "all five event variants roundtrip through canonical v1 frames" {
   let inference = fixture_inference_limits()
   let usage = @inference.Usage::initial(

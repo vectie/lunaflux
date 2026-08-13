@@ -41,6 +41,7 @@ pub(all) suberror FramedWireError {
   InvalidFrame(frame~ : FramedWireFrameKind, rule~ : FramedWireRule)
   FrameTooLarge(frame~ : FramedWireFrameKind)
   DestinationTooSmall
+  EventCreditUnavailable
   StaleFrame
 } derive(Debug, Eq)
 
@@ -106,4 +107,16 @@ pub struct EventFrameBuffer {
 pub struct ValidatedEventFrame {
   priv owner_ref : EventFrameBuffer
   priv epoch : UInt64
+}
+
+///|
+/// One owner-resident canonical event frame with exactly one publication
+/// credit. Token deltas can be written from caller-owned fixed storage without
+/// first constructing `String`, `Bytes`, or `StreamEvent` values.
+pub struct CanonicalEventWriter {
+  priv limits : FramedWireLimits
+  priv storage : FixedArray[Byte]
+  priv scratch : FixedArray[Byte]
+  priv mut busy : Bool
+  priv mut length : Int
 }

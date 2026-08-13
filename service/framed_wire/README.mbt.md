@@ -31,6 +31,12 @@ writes the single canonical representation. Loading validates completely
 before it replaces the prior frame, so rejection is transactional. Validated
 views are epoch-bound and become stale after the owner publishes a replacement.
 
+`CanonicalEventWriter` owns one explicit outbound credit. Its direct Token
+path validates a caller-owned UTF-8 byte range and writes the same canonical v1
+frame without constructing a payload `String`, `Bytes`, or `StreamEvent`.
+Other event variants use the existing admitted contracts. The pinned frame must
+be copied and retired before another event can replace it.
+
 This package deliberately has no async, filesystem, socket, native-FFI, or
 engine dependency. A later `engine/framed_service` slice may compose these
 frames with admission and execution; this package does not do so.
