@@ -191,8 +191,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   covering three monotonic exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That child intentionally
   performs an exact checksummed Configure/Ready handshake that binds model
-  identity, model generation, predecessor, worker limits, and inference
-  limits before the supervisor publishes readiness. Startup cleanup retains
+  identity, a canonical admitted-bootstrap SHA-256, model generation,
+  predecessor, worker limits, and inference limits before the supervisor
+  publishes readiness. Startup cleanup retains
   explicit authority after a double failure, and submission rejects a foreign
   model generation before transport mutation. The child intentionally returns
   deterministic protocol completions rather than opening CUDA. Closed-child
@@ -207,8 +208,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   after both scalar flight obligations retire. Its real-process gate proves
   output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.
-  Production device bootstrap and device-backed readiness, restart
-  policy/backoff, and live overlap are not yet integrated.
+  The full-graph physical blueprint and artifact bundle now derive that digest
+  from bounded canonical module, symbol, launch, layout, and operand evidence.
+  Production child-side device loading and readiness, restart policy/backoff,
+  and live overlap are not yet integrated.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,

@@ -133,8 +133,10 @@ validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
 deterministic protocol completions. Before plan traffic, a fixed startup frame
 binds the exact model identity, admitted-bootstrap SHA-256, model generation,
-predecessor, worker limits, and inference limits; the supervisor publishes protocol readiness only after
-an identical Ready response. Device/model loading must complete before a
+predecessor, worker limits, and inference limits; the supervisor publishes
+protocol readiness only after an identical Ready response. The SHA-256 is
+derived from the admitted full-graph blueprint and artifact bundle's canonical
+module, symbol, launch, layout, and operand evidence. Device/model loading must complete before a
 production child sends Ready. Binding the current deterministic child to the
 device executor remains open. A failed child is closed and reaped before the
 service commits each exact submitted plan as a scheduler worker failure and

@@ -317,11 +317,12 @@ oldest-first receive, retained response epochs, and fail-stop malformed-session
 handling. Worker-death recovery and live overlap remain open. A separately
 linked deterministic child runtime now proves valid
 end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
-An exact checksummed Configure/Ready handshake binds model identity,
-generation, predecessor, and worker/inference limits before protocol
+An exact checksummed Configure/Ready handshake binds model identity, an
+admitted-bootstrap SHA-256, generation, predecessor, and worker/inference limits before protocol
 readiness; incompatible children fail closed and startup double failures retain
-cleanup authority. Production device bootstrap, device-backed readiness,
-restart policy/backoff, and live overlap remain open. The supervisor now
+cleanup authority. The full-graph blueprint and artifact bundle derive this
+identity from a bounded canonical schema. Production child-side model/device
+loading, device-backed readiness, restart policy/backoff, and live overlap remain open. The supervisor now
 requires close/reap before ordered abandonment of exact outstanding
 submissions and derives a non-reusing replacement predecessor only after every
 obligation is retired. The real-child gate proves replacement through sequence

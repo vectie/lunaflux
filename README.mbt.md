@@ -179,11 +179,13 @@ owners, receives responses strictly in order, and pins each completion epoch
 through scheduler publication backpressure. A separately linked child-side
 runtime now proves three real socket-framed plan/completion exchanges, A/B/A
 reuse, EOF, zero exit, and reap. Startup is now an exact checksummed
-`Configure`/`Ready` exchange binding model identity, admitted-bootstrap digest, generation, predecessor,
-and all worker/inference limits; an incompatible child cannot become ready,
+`Configure`/`Ready` exchange binding model identity, admitted-bootstrap digest,
+generation, predecessor, and all worker/inference limits; an incompatible child cannot become ready,
 and double-failure cleanup retains explicit authority. It is a deterministic
-protocol executable, not the CUDA worker; production device bootstrap,
-device-backed readiness, restart policy/backoff, and live overlap remain open.
+protocol executable, not the CUDA worker. The admitted full-graph blueprint
+and artifact bundle now derive that digest from a bounded canonical schema;
+production child-side model/device loading, device-backed readiness, restart
+policy/backoff, and live overlap remain open.
 The supervisor now closes and reaps the old child before accepting exact
 ordered submission abandonment and derives a non-reusing predecessor only
 after every retained completion or failed submission is retired; a real
