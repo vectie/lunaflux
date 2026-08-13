@@ -1,0 +1,81 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model~ : @spec.LlamaModelMetadata, model_path~ : StringView, weight_file_limits~ : @device_materialize.DeviceWeightFileLimits, weight_alignment_bytes~ : Int64, max_weight_arena_bytes~ : Int64, model_plan~ : @plan.ModelPlan, layout~ : @device_layout.DeviceKvLayout, device_step_limits~ : @device_step.DeviceStepLimits, static_plan~ : @device_plan.StaticDevicePlan, memory_plan~ : @device_memory.DeviceMemoryPlan, profile_id~ : @launch_contract.KernelProfileId, contracts~ : @launch_contract.PagedKvLaunchContractSet, artifacts~ : @artifact.KernelArtifactBundle, bootstrap_limits~ : @device_step.DeviceBootstrapLimits) -> DeviceWorkerPlan raise DeviceWorkerError
+
+pub async fn prepare(@worker_wire.WorkerStartupContract, DeviceWorkerPlan) -> DeviceWorkerPreparation raise DeviceWorkerError
+
+// Errors
+pub(all) suberror DeviceWorkerError {
+  Invalid(DeviceWorkerRule)
+  Bootstrap(@device_step.DeviceBootstrapError)
+  Protocol(@worker_protocol.WorkerProtocolError)
+  Device(@device.DeviceError)
+  Weights(@device_materialize.DeviceWeightError)
+  Executor(@device_step.DeviceStepError)
+  CleanupContext(@device.DeviceError)
+  CleanupWeights(@device_materialize.DeviceWeightError)
+  CleanupExecutor(@device_step.DeviceStepError)
+  InvalidLifecycle(DeviceWorkerLifecycle)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeviceWorkerLifecycle {
+  WorkerReady
+  WorkerClosingFailed
+  WorkerClosed
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceWorkerOwner {
+  // private fields
+}
+pub fn DeviceWorkerOwner::close(Self) -> Unit raise DeviceWorkerError
+pub fn DeviceWorkerOwner::lifecycle(Self) -> DeviceWorkerLifecycle
+pub fn DeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerError
+
+pub struct DeviceWorkerPlan {
+  // private fields
+}
+
+pub(all) enum DeviceWorkerPreparation {
+  DeviceWorkerReady(DeviceWorkerOwner)
+  DeviceWorkerCleanupRequired(FailedDeviceWorkerPreparation)
+}
+
+pub(all) enum DeviceWorkerRule {
+  StartupContract
+  ModelIdentity
+  WeightEnvelope
+  DeviceOrdinal
+  DeviceTarget
+  ResourceState
+} derive(Eq, @debug.Debug)
+
+pub struct FailedDeviceWorkerPreparation {
+  // private fields
+}
+pub fn FailedDeviceWorkerPreparation::cause(Self) -> DeviceWorkerError
+pub fn FailedDeviceWorkerPreparation::cleanup_failure(Self) -> DeviceWorkerError
+pub fn FailedDeviceWorkerPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceWorkerPreparation::retry_close(Self) -> Unit raise DeviceWorkerError
+
+// Type aliases
+
+// Traits
