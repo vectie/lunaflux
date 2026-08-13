@@ -75,6 +75,14 @@ pub fn WorkerService::restart(
   if self.outstanding_count() != 0 {
     raise Invalid(Recovery)
   }
+  // A replacement owns a fresh device KV arena. Sequence continuity cannot
+  // authenticate bytes from the lost arena, so every remaining active request
+  // must terminally release its host page/table identities before spawn.
+  ignore(
+    self.scheduler.invalidate_device_state() catch {
+      error => raise scheduler_error(error)
+    },
+  )
   let startup = self.process.recovery_startup_contract() catch {
     error => raise root_bound_process_error(error)
   }

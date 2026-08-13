@@ -7,6 +7,9 @@ pub fn WorkerService::submit_next(
   if slot < 0 {
     return DispatchBackpressured
   }
+  if !self.process.has_capacity() {
+    return DispatchBackpressured
+  }
   let outcome = self.scheduler.build_next() catch {
     error => raise scheduler_error(error)
   }

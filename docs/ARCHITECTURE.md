@@ -157,9 +157,10 @@ Filesystem authority is separate from bootstrap-source path labels. The host
 independently opens deployment-approved model and kernel roots into opaque
 capabilities; strict relative descendants are resolved component-by-component
 without following symlinks and remain pinned across namespace replacement.
-The eventual production spawn boundary will duplicate those neutral internal
-capabilities into fixed child descriptor roles. Passing roots through argv,
-ambient environment, or trusting decoded absolute labels is forbidden.
+The production spawn boundary duplicates those neutral internal capabilities
+into fixed child descriptor roles and retains the same pinned pair across
+replacement. Passing roots through argv, ambient environment, or trusting
+decoded absolute labels is forbidden.
 
 The aggregate device-worker readiness owner admits independently expected
 model metadata and startup, a precomputed immutable weight-file inspection,
@@ -170,15 +171,19 @@ startup contract, opens the assigned ordinal and verifies its semantic target,
 completely re-admits the retained inspected file without repeating inspection,
 and prepares the complete paged executor. It exposes only the readiness
 contract, and only while context, weights, and executor are all live; cleanup
-retries in executor-to-weights-to-context order. Device/model loading must
-complete before a production child sends Ready. The current deterministic child
-does not yet receive source/config locators, call this aggregate, emit Ready
-from it, or forward plan execution through it. A failed child is closed and
+retries in executor-to-weights-to-context order. Device/model loading completes
+before a production child sends Ready. The root-bound service admits one
+outstanding plan from the reusable A/B storage because the production child
+reads, executes, and publishes completion serially; two-slot overlap remains a
+legacy echo/transport fixture and future event-loop work. A failed child is closed and
 reaped before the service commits each exact submitted plan as a scheduler worker failure and
-retires its supervisor obligation in sequence order. Only then can the
-supervisor derive the next non-reusing predecessor for a replacement. The
-implemented thread-confined worker service owns this join: it retains two
-scalar flight identities, records a plan before transport, pins validated
+retires its supervisor obligation in sequence order. The service then
+terminally invalidates every remaining device-backed request and
+releases its host KV identities; waiting requests own no device state and may
+survive. Only then can the supervisor derive the next non-reusing predecessor
+for a replacement. The implemented thread-confined worker service owns this
+join: it retains a single production flight identity, records a plan before
+transport, pins validated
 responses through scheduler backpressure, and exposes request/event methods so
 callers do not retain a separate mutable scheduler API alias. Its independent
 binding is retained unchanged across replacements. Restart

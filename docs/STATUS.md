@@ -131,9 +131,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   ordered model/kernel lease pair, sanitized fixed-FD rooted spawn, and child
   import are implemented. The root-bound supervisor now retains the exact pair,
   executable, limits, and canonical source across zero-argument replacement,
-  closing the pair only at instance/service retirement. The startup-only child
-  reconstructs admission and readiness; its steady-state production execution
-  loop remains open.
+  closing the pair only at instance/service retirement. The child reconstructs
+  admission and readiness, then runs a serialized bounded plan/completion loop.
 - Synchronous model-configuration file admission now consumes a caller-owned
   approved root plus typed relative locator, closes the immutable bounded
   snapshot source before publication, verifies an independent lowercase
@@ -145,13 +144,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   before exact readiness publication, and retains independent retryable worker
   and root cleanup authority after compound failure. Transport publication
   remains outside this owner.
-- The startup-only device child consumes Configure then canonical source from
+- The device child consumes Configure then canonical source from
   the inherited private channel, calls the real bootstrap composition, and
-  writes Ready only after an exact readiness query. It accepts only clean EOF
-  afterward and deterministically closes the owner; decode/bootstrap/channel
-  failures exit silently nonzero. CPU ordering, invalid-config no-Ready, native
-  child-control ABI, and AddressSanitizer gates pass; physical CUDA readiness
-  and the steady-state execution loop remain deferred.
+  writes Ready only after an exact readiness query and reusable loop storage.
+  It then reads one bounded plan, acquires its completion writer before device
+  mutation, finishes execution, and publishes the exact completion before the
+  next plan. Clean idle waits without a first-byte deadline; partial frames are
+  bounded and fail-stop. CPU ordering, positive-controlled release generated-C
+  allocation, invalid-config no-Ready, native child-control ABI, and
+  AddressSanitizer gates pass; physical CUDA readiness remains deferred.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and
@@ -200,7 +201,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   operation order; and whole-build checkpoints can roll back several committed
   rows. Submitted-work validation remains separate from the scheduler's
   current-generation publication check. The scheduler owns distinct paired A/B
-  plan and completion buffers, issues exact-epoch completion writers, and
+  plan and completion buffers, while the production root-bound service admits
+  one outstanding plan for its serialized child. It issues exact-epoch completion writers and
   retires completed owners strictly in plan-sequence order. Canonical bounded
   little-endian plan and completion frames now detach that protocol from heap
   owner capabilities: each receive validates checksum, exact counts/ranges,
@@ -220,33 +222,38 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   reconstructed in the isolated side.
   The private native layer now provides shell-free exact-executable spawn, an
   inherited socketpair endpoint authenticated by construction, fixed-buffer
-  exact I/O with monotonic deadlines, bounded wait/terminate, and deterministic
-  kill/reap close. A protocol-aware supervisor now owns distinct A/B plan and
+  exact I/O with an unbounded idle first-byte wait and bounded partial-frame
+  deadlines, bounded wait/terminate, and deterministic kill/reap close. A legacy
+  protocol supervisor owns distinct A/B plan and
   completion frame buffers, enforces monotonic submission and oldest-first
   receive, pins a validated response until explicit post-publication
   retirement, and permanently fails malformed sessions. The production worker
   channel now has a separately linked child-side frame runtime and gates
-  covering three monotonic exchanges, A/B/A reuse, retained
-  response inspection, EOF, zero exit, and reap. That child intentionally
+  covering three monotonic echo exchanges, A/B/A reuse, retained
+  response inspection, EOF, zero exit, and reap. That legacy echo child
   performs an exact checksummed Configure/BootstrapSource/Ready handshake that binds model
   identity, an admitted-bootstrap SHA-256 derived from graph/artifact evidence,
   a bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
   bytes, model generation,
   exact process-visible device ordinal, predecessor, worker limits, and
   inference limits. It canonically decodes and checks the source before the
-  supervisor publishes protocol readiness. Startup
+  fixture publishes protocol readiness. Startup
   cleanup retains explicit authority after a double failure, and submission
-  rejects a foreign model generation before transport mutation. The child intentionally returns
-  deterministic protocol completions rather than opening CUDA. Closed-child
+  rejects a foreign model generation before transport mutation. The echo child
+  returns deterministic protocol completions rather than opening CUDA; the
+  separate device child owns the real serialized execution loop. Closed-child
   recovery now retains validated responses, retires exact unreturned
   submissions in sequence order, and derives a replacement predecessor only
   after all obligations are discharged. The real-process gate proves a clean
   replacement, an abandoned sequence 4, and successful continuation at
   sequence 5. A new thread-confined worker service encapsulates scheduler and
-  process owners, records scheduler plans before transport, retries pinned
+  root-bound process owners, checks its single production credit before
+  scheduler mutation, records plans before transport, retries pinned
   completion frames without reopening completion epochs, commits retryable
   bounded worker failures before abandonment, and replaces the child only
-  after both scalar flight obligations retire. An independent retained
+  after the outstanding obligation retires and every surviving active request
+  is terminally invalidated with balanced host KV release. Waiting requests are
+  preserved because they own no device bytes. An independent retained
   `WorkerServiceBinding` pins the expected bootstrap and bootstrap-source digests, device ordinal,
   and inference envelope; each join/restart also verifies exact scheduler-owned
   model identity, generation, predecessor, and worker-protocol limits. Its
@@ -302,7 +309,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   prefill rows before decode rows, and uses exact plan, block-table, and page
   checkpoints for rejected-build rollback. Intermediate prefill, final prefill,
   and decode use separate authenticated capability recipes. Distinct A/B plan
-  owners permit two outstanding submissions. Paired completion owners use a
+  owners permit two outstanding submissions in scheduler and echo fixtures;
+  the production root-bound service restricts the serialized device child to
+  one. Paired completion owners use a
   fixed slot index and exclusive writers; full-batch retirement authenticates
   current versus cancelled/expired work, preflights both publication rings and
   KV release, publishes final-prefill/decode tokens in plan order, enforces

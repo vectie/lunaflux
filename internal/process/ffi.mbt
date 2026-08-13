@@ -73,6 +73,13 @@ extern "c" fn raw_inherited_read_exact(
 ) -> Int = "lunaflux_process_inherited_read_exact"
 
 ///|
+#borrow(prefix)
+extern "c" fn raw_inherited_read_prefix_or_eof(
+  prefix : FixedArray[Byte],
+  timeout_millis : Int,
+) -> Int = "lunaflux_process_inherited_read_prefix_or_eof"
+
+///|
 extern "c" fn raw_inherited_expect_clean_eof(timeout_millis : Int) -> Int = "lunaflux_process_inherited_expect_clean_eof"
 
 ///|

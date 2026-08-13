@@ -278,8 +278,9 @@ and submits into distinct A/B owners with exact plan/table/page rollback.
 Paired completion owners issue exclusive exact-plan leases; ordered full-batch
 retirement preflights output, terminal, and release capacity, enforces token
 stops/output limits, publishes generated token IDs, and resets exact owners.
-Global fairness/preemption, generated-text decoding, and live worker
-integration remain open.
+Global fairness/preemption, generated-text decoding, and overlapped worker
+integration remain open. The root-bound production service currently consumes
+one reusable side at a time; A/B overlap is confined to transport fixtures.
 
 ### Workstream 4: worker overlap
 
@@ -314,11 +315,10 @@ allocation evidence through logits readback, sampling, and completion
 submission, but not yet its own positive-controlled runtime gate. A
 private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
-reap. Protocol-aware A/B supervision now consumes it with monotonic submission,
+reap. The legacy protocol supervisor proves monotonic A/B submission,
 oldest-first receive, retained response epochs, and fail-stop malformed-session
-handling. Device-backed child execution and live overlap remain open. A separately
-linked deterministic child runtime now proves valid
-end-to-end frame transport, three-plan A/B/A reuse, EOF, clean exit, and reap.
+handling through three-plan A/B/A echo transport. The root-bound production
+facade instead grants one outstanding credit to the serialized device child.
 An exact checksummed Configure/BootstrapSource/Ready handshake binds model identity, an
 admitted-bootstrap SHA-256 derived from graph/artifact evidence, a
 bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
@@ -333,13 +333,16 @@ assignment. The supervisor now
 requires close/reap before ordered abandonment of exact outstanding
 submissions and derives a non-reusing replacement predecessor only after every
 obligation is retired. The real-child gate proves replacement through sequence
-5. A thread-confined scheduler/worker service now retains exactly two scalar
-flight identities, records plans before writes, retries received frames and
+5. A thread-confined scheduler/worker service records plans before writes,
+retries received frames and
 synthesized worker failures under scheduler backpressure, retires scheduler
 state before process abandonment, and starts the exact replacement contract
-only after both obligations clear. Its real-process gate covers two outstanding
-plans, publication pressure, worker death, recovery, replacement, and balanced
-KV resources. An independent `WorkerServiceBinding` retains the expected
+only after its single production obligation clears. The legacy echo gate covers
+two-slot transport; the root-bound service gate covers one outstanding plan,
+publication pressure, worker death, recovery, replacement, and balanced KV
+resources. Before replacement it transactionally fails every surviving active
+request and releases its host page/table identities so no page ID can refer to
+the replacement's fresh device arena. An independent `WorkerServiceBinding` retains the expected
 bootstrap and bootstrap-source digests, device ordinal, and inference limits;
 service construction
 and replacement validate those together with the scheduler's exact worker
@@ -355,12 +358,13 @@ checks its capability, completely re-admits the retained inspected file without
 a duplicate inspection, and prepares the complete paged executor from the
 aggregate admission. It publishes the contract only while context, weights,
 and executor remain live, with retryable dependency-ordered cleanup for
-compound failures. The spawned child remains
-the deterministic protocol fixture: locator/config transport into that child,
-calling this owner before emitting `Ready`, forwarding received plans through
-the owner, restart policy/backoff, physical CUDA evidence, and live overlap
-remain open. This does not claim device execution or allocation-free
-cross-process transport.
+compound failures. The spawned device child now imports fixed roots, performs
+real source reconstruction before `Ready`, and forwards each bounded plan
+through this owner before publishing its exact completion. Clean idle waits are
+unbounded until the first prefix byte; partial frames use bounded deadlines. A
+positive-controlled release generated-C gate proves repeated serialized-loop
+success does not call a MoonBit allocator. Restart policy/backoff, physical
+CUDA evidence, and live overlap remain open.
 
 The source-reconstruction workstream now also owns an opaque approved-
 filesystem foundation. A neutral internal capability representation supports

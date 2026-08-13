@@ -139,7 +139,10 @@ fn scheduler_owner() -> @scheduler.Scheduler raise {
 }
 
 ///|
-fn request(id : UInt64) -> @scheduler.TokenizedRequest raise {
+fn request(
+  id : UInt64,
+  max_new_tokens? : Int = 1,
+) -> @scheduler.TokenizedRequest raise {
   let limits = inference_limits()
   @scheduler.TokenizedRequest::new(
     request_id=@inference.RequestId::new(id),
@@ -154,7 +157,7 @@ fn request(id : UInt64) -> @scheduler.TokenizedRequest raise {
     ),
     stream_preference=Streaming,
     effective_limits=@inference.EffectiveLimits::new(
-      max_new_tokens=1,
+      max_new_tokens~,
       context_ceiling=4,
       limits,
     ),
@@ -281,9 +284,9 @@ fn run(executable : Bytes) -> Unit raise {
   ignore(service.admit(request(101UL), 0UL))
   ignore(service.admit(request(102UL), 0UL))
   assert_eq(service.submit_next().sequence_value(), 1UL)
-  assert_eq(service.submit_next().sequence_value(), 2UL)
   assert_true(service.submit_next().is_backpressured())
   assert_eq(service.complete_oldest(), 1UL)
+  assert_eq(service.submit_next().sequence_value(), 2UL)
   try service.complete_oldest() catch {
     Scheduler(Invalid(field=OutputCapacity, issue=Backpressured)) => ()
     _ => raise Failure("unexpected service publication error")
@@ -303,16 +306,25 @@ fn run(executable : Bytes) -> Unit raise {
   )
   assert_eq(service.take_terminal_notice().reason(), MaximumOutputReached)
 
-  ignore(service.admit(request(103UL), 0UL))
+  // Keep one decoded request live across worker loss. The replacement owns a
+  // fresh KV arena, so restart must terminally invalidate the survivor before
+  // it can become ready even with no outstanding transport frame.
+  ignore(service.admit(request(103UL, max_new_tokens=2), 0UL))
   assert_eq(service.submit_next().sequence_value(), 3UL)
+  assert_eq(service.complete_oldest(), 3UL)
+  ignore(service.take_generated_token())
+  assert_eq(service.live_request_count(), 1)
+  assert_eq(service.allocated_block_table_count(), 1)
   service.begin_recovery()
-  assert_eq(service.recover_oldest(ExecutionFailed), 3UL)
-  assert_eq(service.take_terminal_notice().reason(), WorkerFailed)
   match service.restart() {
     Restarted => ()
     RestartCleanupRequired =>
       raise Failure("replacement worker cleanup required")
   }
+  assert_eq(service.take_terminal_notice().reason(), WorkerFailed)
+  assert_eq(service.live_request_count(), 0)
+  assert_eq(service.free_page_count(), 8)
+  assert_eq(service.allocated_block_table_count(), 0)
   assert_eq(service.binding(), service_binding())
   ignore(service.admit(request(104UL), 0UL))
   assert_eq(service.submit_next().sequence_value(), 4UL)

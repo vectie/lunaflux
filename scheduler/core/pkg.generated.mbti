@@ -79,6 +79,7 @@ pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
 pub fn Scheduler::fail_plan(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::free_page_count(Self) -> Int
 pub fn Scheduler::generated_token_count(Self) -> Int
+pub fn Scheduler::invalidate_device_state(Self) -> Int raise SchedulerError
 pub fn Scheduler::last_retired_plan_sequence(Self) -> UInt64
 pub fn Scheduler::last_submitted_plan_sequence(Self) -> UInt64
 pub fn Scheduler::live_request_count(Self) -> Int

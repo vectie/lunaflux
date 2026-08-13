@@ -98,6 +98,56 @@ pub fn Scheduler::generated_token_count(self : Scheduler) -> Int {
 }
 
 ///|
+/// Invalidates every active request after loss of the worker-owned device KV
+/// generation. Waiting requests remain queued because they own no device
+/// state. The operation is retryable under terminal-publication backpressure
+/// and mutates nothing until every active request and KV release is proven.
+/// No submitted plan may remain: callers must first retire each exact process
+/// obligation through `complete` or `fail_plan`.
+pub fn Scheduler::invalidate_device_state(
+  self : Scheduler,
+) -> Int raise SchedulerError {
+  if self.plan_a_sequence != 0UL ||
+    self.plan_b_sequence != 0UL ||
+    self.last_retired_plan_sequence != self.last_plan_sequence {
+    raise invalid(Plan, InvalidTransition)
+  }
+  let count = self.active_count
+  if count == 0 {
+    return 0
+  }
+  if count > self.terminal_available() {
+    raise invalid(TerminalNoticeCapacity, Backpressured)
+  }
+  if self.generation_cursor > MAX_GENERATION - count.to_uint64() {
+    raise invalid(RequestGeneration, Exhausted)
+  }
+  for index in 0..<count {
+    let slot = self.active_slots[index]
+    if slot < 0 || slot >= self.slot_states.length() || self.in_flight[slot] {
+      raise invalid(RequestState, InvalidTransition)
+    }
+    self.preflight_active_release(slot)
+  }
+  for _ in 0..<count {
+    let slot = self.active_slots[0]
+    let request = match self.requests[slot] {
+      Some(value) => value
+      None => abort("scheduler device-state invalidation invariant")
+    }
+    self.request_generations[slot] = self.allocate_request_generation()
+    self.slot_states[slot] = SLOT_FAILED
+    self.enqueue_terminal(
+      request.request_id(),
+      self.request_generations[slot],
+      WorkerFailed,
+    )
+    self.release_active_request(slot)
+  }
+  count
+}
+
+///|
 /// Allocation-sensitive terminal dequeue. Use `terminal_notice_count` to
 /// avoid the typed empty-ring error on the production path.
 pub fn Scheduler::take_terminal_notice(

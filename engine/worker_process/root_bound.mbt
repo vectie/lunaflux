@@ -148,7 +148,9 @@ pub fn RootBoundWorkerProcessSupervisor::startup_contract(
 pub fn RootBoundWorkerProcessSupervisor::has_capacity(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Bool {
-  self.lifecycle == RootBoundReady && self.process.has_capacity()
+  self.lifecycle == RootBoundReady &&
+  self.process.outstanding_count() == 0 &&
+  self.process.has_capacity()
 }
 
 ///|
@@ -164,6 +166,9 @@ pub fn RootBoundWorkerProcessSupervisor::shutdown_clean(
 ) -> Unit raise RootBoundWorkerProcessError {
   if self.lifecycle != RootBoundReady {
     raise RootBoundInvalidLifecycle
+  }
+  if self.process.outstanding_count() != 0 {
+    raise RootBoundFailure(Process(Backpressured))
   }
   self.process.shutdown_clean() catch {
     error => {
@@ -193,6 +198,9 @@ pub fn RootBoundWorkerProcessSupervisor::submit(
 ) -> RootBoundWorkerSubmission raise RootBoundWorkerProcessError {
   if self.lifecycle != RootBoundReady {
     raise RootBoundInvalidLifecycle
+  }
+  if self.process.outstanding_count() != 0 {
+    raise RootBoundFailure(Process(Backpressured))
   }
   let submitted = self.process.submit(plan) catch {
     error => {

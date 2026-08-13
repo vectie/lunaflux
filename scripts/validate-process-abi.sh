@@ -15,6 +15,8 @@ if ! rg -q '#include "process_status.h"' internal/process/process.c ||
   ! rg -q '#include "process_status.h"' internal/process/child_control.c ||
   ! rg -q 'lunaflux_process_inherited_expect_clean_eof' \
     internal/process/child_control.c ||
+  ! rg -q 'lunaflux_process_inherited_read_prefix_or_eof' \
+    internal/process/child_control.c ||
   ! rg -q '_exit\(1\)' internal/process/child_control.c; then
   printf '%s\n' 'worker child control is missing shared status or exact exit/EOF primitives' >&2
   exit 1

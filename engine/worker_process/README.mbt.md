@@ -1,9 +1,10 @@
-# A/B isolated-worker supervisor
+# Isolated-worker supervisor
 
-This package owns one exact child channel plus physically distinct A/B plan and
-completion frame owners. Submission is strictly monotonic and allocation-free
-after startup storage. At most two plans may be in flight; the oldest response
-is received first.
+The legacy transport supervisor owns one exact child channel plus physically
+distinct A/B plan and completion frame owners. It admits at most two plans for
+deterministic echo/transport fixtures. The production root-bound facade retains
+the same preallocated storage but admits exactly one outstanding plan because
+the real device child reads, executes, and completes plans serially.
 
 Construction preflights the full bootstrap-source receiver capacity and exact
 source digest before spawn, then performs `Configure -> BootstrapSource ->
@@ -32,10 +33,10 @@ source, or root pair.
 
 The supervisor retains the immutable encoded source, and replacements receive
 the same canonical bytes and pinned root capabilities. The legacy
-`worker_echo` child proves protocol agreement only; the separate startup-only
-device worker child reconstructs admitted inputs and readiness, but does not
-run the steady-state production execution loop. Recovery is explicit and
-ordered: the old child must first be closed and reaped, validated completions
+`worker_echo` child proves two-slot protocol agreement only. The device worker
+child reconstructs admitted inputs and readiness, then runs the serialized
+steady-state plan/completion loop. Recovery is explicit and ordered: the old
+child must first be closed and reaped, validated completions
 remain retryable, and each unreturned `WorkerSubmission` must be committed as a
 scheduler worker failure before `abandon_submission` retires its exact sequence.
 Only after all obligations are retired can `recovery_startup_contract` derive

@@ -367,6 +367,40 @@ pub fn InheritedChannel::read_frame(
 }
 
 ///|
+/// Reads one canonical length-delimited frame or returns zero only when the
+/// parent cleanly closes before any byte of the next prefix. EOF after a
+/// partial prefix or payload is a terminal channel error. Positive results are
+/// exact frame lengths and therefore never overlap the EOF sentinel.
+pub fn InheritedChannel::read_frame_or_eof(
+  self : InheritedChannel,
+  destination : FixedArray[Byte],
+) -> Int raise ProcessError {
+  self.require_usable(Read)
+  let status = raw_inherited_read_prefix_or_eof(
+    self.read_prefix,
+    self.limits.io_timeout_millis,
+  )
+  if status == 3 {
+    return 0
+  }
+  raise_status(status, Read) catch {
+    error => {
+      self.failed = true
+      raise error
+    }
+  }
+  let byte_count = read_u32_prefix(self.read_prefix)
+  if byte_count <= 0 ||
+    byte_count > self.limits.max_frame_bytes ||
+    byte_count > destination.length() {
+    self.failed = true
+    raise InvalidRange(Read)
+  }
+  self.read_exact(destination, 0, byte_count)
+  byte_count
+}
+
+///|
 /// Publishes EOF to the child while retaining the read side for drain.
 pub fn ChildProcess::shutdown_write(
   self : ChildProcess,

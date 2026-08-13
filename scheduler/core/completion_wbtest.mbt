@@ -17,6 +17,58 @@ fn wb_final_completion(
 }
 
 ///|
+test "device-state invalidation fails active requests but preserves waiting work" {
+  let owner = wb_owner_with_capacity(1, 2)
+  let active = owner.admit(wb_request(499UL), 0UL)
+  let waiting = owner.admit(wb_request(500UL), 0UL)
+  let plan = wb_next_plan(owner)
+  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.take_generated_token())
+  assert_eq(owner.status(active.request_id()).unwrap().state(), Decode)
+  assert_eq(owner.status(waiting.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.free_page_count(), 7)
+  assert_eq(owner.allocated_block_table_count(), 1)
+
+  assert_eq(owner.invalidate_device_state(), 1)
+  assert_true(owner.status(active.request_id()) is None)
+  assert_eq(owner.status(waiting.request_id()).unwrap().state(), Waiting)
+  assert_eq(owner.take_terminal_notice().reason(), WorkerFailed)
+  assert_eq(owner.free_page_count(), 8)
+  assert_eq(owner.allocated_block_table_count(), 0)
+}
+
+///|
+test "device-state invalidation is transactional and rejects submitted work" {
+  let owner = wb_owner_with_capacity(1, 1)
+  let active = owner.admit(wb_request(498UL), 0UL)
+  let plan = wb_next_plan(owner)
+  try owner.invalidate_device_state() catch {
+    Invalid(field=Plan, issue=InvalidTransition) => ()
+    _ => fail("unexpected submitted-device-state error")
+  } noraise {
+    _ => fail("submitted device state was invalidated")
+  }
+  assert_true(owner.status(active.request_id()).unwrap().in_flight())
+  owner.complete(plan, wb_final_completion(owner, plan, 8))
+  ignore(owner.take_generated_token())
+
+  owner.terminal_count = owner.terminal_request_ids.length()
+  try owner.invalidate_device_state() catch {
+    Invalid(field=TerminalNoticeCapacity, issue=Backpressured) => ()
+    _ => fail("unexpected invalidation backpressure error")
+  } noraise {
+    _ => fail("full terminal ring accepted device-state invalidation")
+  }
+  assert_true(owner.status(active.request_id()) is Some(_))
+  assert_eq(owner.free_page_count(), 7)
+  assert_eq(owner.allocated_block_table_count(), 1)
+  owner.terminal_count = 0
+  owner.terminal_head = 0
+  owner.terminal_tail = 0
+  assert_eq(owner.invalidate_device_state(), 1)
+}
+
+///|
 test "completion backpressure preserves submitted work for exact retry" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(501UL), 0UL)

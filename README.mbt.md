@@ -175,20 +175,22 @@ bounded temperature/top-k/top-p host sampling are implemented with fixed
 scratch and counter-addressed replay semantics. These remain foundations:
 the private native layer can now spawn one exact worker executable without a
 shell or PATH lookup and exchange bounded fixed-buffer bytes over an inherited
-socketpair with monotonic deadlines and deterministic reap. Protocol-aware A/B
-supervision now binds monotonic submitted plans to physically distinct frame
+socketpair with monotonic deadlines and deterministic reap. The legacy A/B
+supervisor binds monotonic submitted plans to physically distinct frame
 owners, receives responses strictly in order, and pins each completion epoch
-through scheduler publication backpressure. A separately linked child-side
-runtime now proves three real socket-framed plan/completion exchanges, A/B/A
-reuse, EOF, zero exit, and reap. Startup now sends an exact checksummed
+through scheduler publication backpressure; its echo fixture proves three
+socket-framed exchanges and A/B/A reuse. The root-bound production facade
+instead grants one outstanding credit to a serialized device child. Startup
+sends an exact checksummed
 `Configure`, then the canonical bounded bootstrap source, before accepting
 `Ready`. The exchange binds model identity, the admitted-bootstrap
 digest derived from graph/artifact evidence, the bootstrap-source digest
 derived from canonical `EncodedBootstrapSource` bytes, exact process-visible
 device ordinal, generation, predecessor, and all worker/inference limits; an
 incompatible child cannot become protocol-ready,
-and double-failure cleanup retains explicit authority. The shipped child is a
-deterministic protocol executable, not the CUDA worker. The admitted full-graph
+and double-failure cleanup retains explicit authority. The device child imports
+pinned root roles, reconstructs the model and executor, publishes Ready only
+after exact resource readiness, and then executes bounded frames. The admitted full-graph
 blueprint and artifact bundle now derive the admitted-bootstrap digest from a bounded canonical
 schema that also binds the exact device-step limits and assignment.
 
@@ -212,8 +214,8 @@ the inert device-step blueprint from already-admitted typed inputs rather than
 deserializing semantic plans.
 Terminal file-close failure cannot publish a ready allocation; allocation-close
 failure in that path returns retryable cleanup authority at `SourceClose`.
-Remaining model readers, fixed-FD child inheritance, and the production child
-entry point have not migrated, so no production child readiness claim follows.
+Physical-CUDA correctness, leak, and allocation promotion gates remain open, so
+this does not yet claim production GPU readiness.
 
 A new aggregate `engine/device_worker` owner provides the child-side readiness
 foundation without publishing a wire frame: inert admission retains the exact
@@ -222,22 +224,23 @@ artifact evidence; preparation opens the assigned ordinal, verifies its target,
 streams and owns the verified weights, and constructs the complete paged
 executor. Readiness can be queried only while context, weights, and executor are
 all live, and dependency-ordered cleanup remains retryable after compound
-failures. Bootstrap-source reconstruction into a device-worker plan, device-owned
-`Ready` emission, plan/execution forwarding through that owner, restart policy/backoff, live
-overlap, and physical-CUDA promotion evidence remain open.
+failures. Bootstrap-source reconstruction, device-owned `Ready`, and serialized
+plan/execution forwarding now pass through this owner. Restart policy/backoff,
+live overlap, and physical-CUDA promotion evidence remain open.
 The supervisor now closes and reaps the old child before accepting exact
 ordered submission abandonment and derives a non-reusing predecessor only
 after every retained completion or failed submission is retired; a real
 three-child gate proves continuation through sequence 5. A thread-confined
-worker service now encapsulates the scheduler and process owners, retains two
-scalar flight identities, retries pinned frames through scheduler
+worker service now encapsulates the scheduler and root-bound process owners,
+admits one production flight, retries pinned frames through scheduler
 backpressure, commits bounded worker-failure completions before process
 abandonment, and starts replacements only after all obligations retire. Its
 independent immutable binding pins the expected bootstrap and bootstrap-source
 digests, assigned device ordinal, and inference limits; construction and restart additionally
 require exact equality with the scheduler-retained worker limits, model
-identity, generation, and predecessor sequence. Its real-child gate proves two
-outstanding plans, output backpressure, worker failure, non-reusing restart,
+identity, generation, and predecessor sequence. Its echo gate proves two-slot
+transport; its service gate proves one-flight backpressure, worker failure,
+device-state invalidation, non-reusing restart,
 binding preservation, and balanced KV ownership. Still open are global
 fairness/preemption and prefix
 integration,
