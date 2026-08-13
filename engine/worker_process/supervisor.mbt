@@ -79,8 +79,12 @@ pub fn prepare(
   ) catch {
     error => raise Wire(error)
   }
-  let required = plan_a.capacity().max(completion_a.capacity())
-  if required > limits.max_frame_bytes || limits.max_frame_bytes < 280 {
+  let startup_frame = @worker_wire.StartupFrameBuffer::new()
+  let required = plan_a
+    .capacity()
+    .max(completion_a.capacity())
+    .max(startup_frame.capacity())
+  if required > limits.max_frame_bytes {
     raise Invalid(Capacity)
   }
   let process_limits = @process.ProcessLimits::new(

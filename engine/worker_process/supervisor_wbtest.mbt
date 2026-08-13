@@ -164,6 +164,62 @@ test "startup handshake rejects an incompatible child before readiness" {
 }
 
 ///|
+test "startup frame capacity is rejected before child spawn" {
+  let base = supervisor_startup()
+  let tiny_worker = @worker_protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=1,
+    max_decode_rows=1,
+    max_plan_rows=1,
+    max_plan_tokens=1,
+    max_plan_pages=1,
+    max_capabilities=1,
+    max_completion_slots=1,
+    max_sequence_tokens=1,
+    max_token_id=0,
+  )
+  let tiny_inference = @inference.InferenceLimits::new(
+    max_text_bytes=1,
+    max_input_tokens=1,
+    max_new_tokens=1,
+    max_context_tokens=1,
+    max_token_id=0,
+    max_stop_token_ids=1,
+    max_stop_strings=1,
+    max_stop_string_bytes=1,
+    max_trace_bytes=1,
+    max_cache_scope_bytes=1,
+    max_decoded_delta_bytes=1,
+    max_deadline_millis=1UL,
+    max_top_k=1,
+    max_temperature=1.0,
+  )
+  let startup = @worker_wire.WorkerStartupContract::new(
+    identity=base.identity(),
+    bootstrap_digest=base.bootstrap_digest(),
+    device_ordinal=base.device_ordinal(),
+    model_generation_value=base.model_generation_value(),
+    worker_limits=tiny_worker,
+    inference_limits=tiny_inference,
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+  for bytes in [343, 344] {
+    let limits = WorkerProcessLimits::new(
+      max_frame_bytes=bytes,
+      io_timeout_millis=1,
+      shutdown_timeout_millis=1,
+    )
+    try prepare(b"/definitely/not/a/worker", startup, limits) catch {
+      Invalid(Capacity) if bytes == 343 => ()
+      Transport(SpawnFailed) if bytes == 344 => ()
+      _ => fail("unexpected startup capacity result")
+    } noraise {
+      _ => fail("nonexistent child unexpectedly became ready")
+    }
+  }
+}
+
+///|
 test "submission rejects a foreign loaded model generation before write" {
   let owner = test_supervisor()
   try owner.submit(supervisor_plan(1UL, generation=2UL)) catch {
