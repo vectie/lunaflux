@@ -33,5 +33,9 @@ pub(all) suberror WorkerWireError {
   DestinationTooSmall
   FrameEpochOverflow
   StaleFrame
+  CompletionFrameWriterAlreadyOpen
+  CompletionFrameWriterNotOpen
+  CompletionFrameWriterPlanMismatch
+  CompletionFrameWriterOrderMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
 } derive(Debug, Eq)

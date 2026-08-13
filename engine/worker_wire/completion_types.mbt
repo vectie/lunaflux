@@ -10,6 +10,7 @@ pub struct CompletionFrameBuffer {
   priv mut epoch : UInt64
   priv mut length : Int
   priv mut entry_count : Int
+  priv mut writer_open : Bool
 }
 
 ///|
@@ -21,6 +22,19 @@ pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
 /// Opaque completion-entry view tied to one exact frame epoch.
 #valtype
 pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int)
+
+///|
+/// Exclusive worker-side writer bound to one exact received plan-frame epoch.
+/// It can append canonical outcomes and submit or abort, but cannot expose
+/// either mutable frame owner.
+#valtype
+pub struct CompletionFrameWriter(
+  CompletionFrameBuffer,
+  UInt64,
+  PlanFrameBuffer,
+  UInt64,
+  Int
+)
 
 ///|
 pub fn CompletionFrameBuffer::new(
@@ -41,6 +55,7 @@ pub fn CompletionFrameBuffer::new(
     epoch: 0UL,
     length: 0,
     entry_count: 0,
+    writer_open: false,
   }
 }
 
@@ -88,4 +103,13 @@ fn CompletionFrameBuffer::rebuild_slot_index(
     self.slot_to_entry[slot] = index
   }
   self.entry_count = count
+}
+
+///|
+fn CompletionFrameBuffer::require_no_writer(
+  self : CompletionFrameBuffer,
+) -> Unit raise WorkerWireError {
+  if self.writer_open {
+    raise CompletionFrameWriterAlreadyOpen
+  }
 }

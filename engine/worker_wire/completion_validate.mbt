@@ -109,6 +109,7 @@ pub fn CompletionFrameBuffer::load(
   source : FixedArray[Byte],
   length : Int,
 ) -> ValidatedCompletionFrame raise WorkerWireError {
+  self.require_no_writer()
   if self.epoch == 0xffffffffffffffffUL {
     raise FrameEpochOverflow
   }

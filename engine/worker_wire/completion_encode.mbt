@@ -130,6 +130,7 @@ pub fn CompletionFrameBuffer::encode_completion(
   self : CompletionFrameBuffer,
   completion : @worker_protocol.SubmittedCompletion,
 ) -> ValidatedCompletionFrame raise WorkerWireError {
+  self.require_no_writer()
   let sequence = completion.sequence_wire() catch {
     error => raise Protocol(error)
   }

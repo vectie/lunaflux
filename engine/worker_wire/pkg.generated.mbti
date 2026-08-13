@@ -20,6 +20,10 @@ pub(all) suberror WorkerWireError {
   DestinationTooSmall
   FrameEpochOverflow
   StaleFrame
+  CompletionFrameWriterAlreadyOpen
+  CompletionFrameWriterNotOpen
+  CompletionFrameWriterPlanMismatch
+  CompletionFrameWriterOrderMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
 } derive(Eq, @debug.Debug)
 
@@ -31,6 +35,7 @@ pub fn CompletionFrameBuffer::capacity(Self) -> Int
 pub fn CompletionFrameBuffer::encode_completion(Self, @worker_protocol.SubmittedCompletion) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedCompletionFrame raise WorkerWireError
 pub fn CompletionFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
+pub fn CompletionFrameBuffer::writer_for(Self, ValidatedPlanFrame) -> CompletionFrameWriter raise WorkerWireError
 
 pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int)
 pub fn CompletionFrameEntry::failure_value(Self) -> Int raise WorkerWireError
@@ -40,6 +45,15 @@ pub fn CompletionFrameEntry::request_generation_value(Self) -> UInt64 raise Work
 pub fn CompletionFrameEntry::request_id_value(Self) -> UInt64 raise WorkerWireError
 pub fn CompletionFrameEntry::slot(Self) -> Int raise WorkerWireError
 pub fn CompletionFrameEntry::token_id(Self) -> Int raise WorkerWireError
+
+pub struct CompletionFrameWriter(CompletionFrameBuffer, UInt64, PlanFrameBuffer, UInt64, Int)
+pub fn CompletionFrameWriter::abort(Self) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::append_decode_completed(Self, PlanFrameDecodeRow, Int) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::append_decode_failed(Self, PlanFrameDecodeRow, @worker_protocol.WorkerFailure) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::append_final_prefill_completed(Self, PlanFramePrefillRow, Int) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::append_prefill_completed(Self, PlanFramePrefillRow) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::append_prefill_failed(Self, PlanFramePrefillRow, @worker_protocol.WorkerFailure) -> Unit raise WorkerWireError
+pub fn CompletionFrameWriter::submit(Self) -> ValidatedCompletionFrame raise WorkerWireError
 
 pub struct PlanFrameBuffer {
   // private fields
