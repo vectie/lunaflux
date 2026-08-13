@@ -3,12 +3,15 @@ package "vectie/lunaflux/internal/process"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs_inheritance",
 }
 
 // Values
 pub fn open_inherited(ProcessLimits) -> InheritedChannel
 
 pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
+
+pub fn spawn_with_approved_roots(Bytes, @approved_fs_inheritance.WorkerApprovedRoots, ProcessLimits) -> ChildProcess raise ProcessError
 
 // Errors
 pub(all) suberror ProcessError {

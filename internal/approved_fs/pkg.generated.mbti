@@ -4,14 +4,21 @@ package "vectie/lunaflux/internal/approved_fs"
 import {
   "moonbitlang/core/ref",
   "vectie/lunaflux/internal/approved_fs_capability",
+  "vectie/lunaflux/runtime/approved_fs_inheritance",
 }
 
 // Values
+pub fn acquire_worker_roots(@approved_fs_capability.NativeApprovedHandle, @approved_fs_capability.NativeApprovedHandle, @ref.Ref[Int]) -> @approved_fs_inheritance.WorkerApprovedRoots
+
 pub fn close(@approved_fs_capability.NativeApprovedHandle) -> Int
+
+pub fn close_worker_roots(@approved_fs_inheritance.WorkerApprovedRoots) -> Int
 
 pub fn is_closed(@approved_fs_capability.NativeApprovedHandle) -> Bool
 
 pub fn open_file(@approved_fs_capability.NativeApprovedHandle, Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
+
+pub fn open_inherited_root(Int, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
 
 pub fn open_root(Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
 
@@ -20,6 +27,8 @@ pub fn read_exact_at(@approved_fs_capability.NativeApprovedHandle, FixedArray[By
 pub fn read_immutable_snapshot(@approved_fs_capability.NativeApprovedHandle, Int64, @ref.Ref[Int]) -> Bytes
 
 pub fn stamp(@approved_fs_capability.NativeApprovedHandle, FixedArray[Int64]) -> Int
+
+pub fn worker_roots_is_closed(@approved_fs_inheritance.WorkerApprovedRoots) -> Bool
 
 // Errors
 

@@ -6,6 +6,14 @@ priv type NativeChild
 extern "c" fn raw_spawn(path : Bytes, status : Ref[Int]) -> NativeChild = "lunaflux_process_spawn"
 
 ///|
+#borrow(path, roots, status)
+extern "c" fn raw_spawn_with_approved_roots(
+  path : Bytes,
+  roots : @inheritance.WorkerApprovedRoots,
+  status : Ref[Int],
+) -> NativeChild = "lunaflux_process_spawn_with_approved_roots"
+
+///|
 #borrow(child, source)
 extern "c" fn raw_write_exact(
   child : NativeChild,

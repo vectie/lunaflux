@@ -3,9 +3,15 @@ package "vectie/lunaflux/runtime/approved_fs"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs_inheritance",
 }
 
 // Values
+pub fn acquire_worker_approved_roots(model_root~ : ApprovedRoot, kernel_root~ : ApprovedRoot) -> @approved_fs_inheritance.WorkerApprovedRoots raise ApprovedFsError
+
+pub fn close_worker_approved_roots(@approved_fs_inheritance.WorkerApprovedRoots) -> Unit raise ApprovedFsError
+
+pub fn worker_approved_roots_is_closed(@approved_fs_inheritance.WorkerApprovedRoots) -> Bool
 
 // Errors
 pub(all) suberror ApprovedFsError {
@@ -65,7 +71,14 @@ pub fn ApprovedRoot::close(Self) -> Unit raise ApprovedFsError
 pub fn ApprovedRoot::is_closed(Self) -> Bool
 pub fn ApprovedRoot::open_absolute(StringView) -> Self raise ApprovedFsError
 pub fn ApprovedRoot::open_file(Self, ApprovedRelativeLocator) -> ApprovedFile raise ApprovedFsError
+pub fn ApprovedRoot::open_inherited(ApprovedRootRole) -> Self raise ApprovedFsError
+
+pub(all) enum ApprovedRootRole {
+  Model
+  Kernel
+} derive(Eq, @debug.Debug)
 
 // Type aliases
+pub using @approved_fs_inheritance {type WorkerApprovedRoots}
 
 // Traits

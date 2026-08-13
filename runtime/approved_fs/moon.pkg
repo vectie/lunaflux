@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/internal/approved_fs" @native,
+  "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }
 
 import {

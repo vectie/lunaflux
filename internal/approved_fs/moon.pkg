@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/internal/approved_fs_capability" @cap,
+  "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }
 
 import {
@@ -9,7 +10,7 @@ import {
 } for "wbtest"
 
 options(
-  "native-stub": [ "approved_fs.c" ],
+  "native-stub": [ "approved_fs.c", "inheritance.c" ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
   targets: {
     "api.mbt": [ "native" ],

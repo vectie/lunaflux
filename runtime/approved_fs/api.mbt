@@ -72,6 +72,57 @@ pub fn ApprovedRoot::open_absolute(
 }
 
 ///|
+/// Retains an ordered, reusable pair of independently duplicated model and
+/// kernel root capabilities for worker replacement. Neither original root is
+/// consumed, and no descriptor or locator is exposed.
+pub fn acquire_worker_approved_roots(
+  model_root~ : ApprovedRoot,
+  kernel_root~ : ApprovedRoot,
+) -> WorkerApprovedRoots raise ApprovedFsError {
+  let status = Ref(STATUS_INVALID)
+  let roots = @native.acquire_worker_roots(
+    model_root.handle,
+    kernel_root.handle,
+    status,
+  )
+  raise_open_status(status.val, Root)
+  roots
+}
+
+///|
+/// Opens and consumes the fixed descriptor for one child root role. The
+/// returned root owns a fresh close-on-exec duplicate and behaves like any
+/// other `ApprovedRoot`.
+pub fn ApprovedRoot::open_inherited(
+  role : ApprovedRootRole,
+) -> ApprovedRoot raise ApprovedFsError {
+  let status = Ref(STATUS_INVALID)
+  let handle = @native.open_inherited_root(
+    match role {
+      Model => 0
+      Kernel => 1
+    },
+    status,
+  )
+  raise_open_status(status.val, Root)
+  { handle, }
+}
+
+///|
+pub fn worker_approved_roots_is_closed(roots : WorkerApprovedRoots) -> Bool {
+  @native.worker_roots_is_closed(roots)
+}
+
+///|
+/// Deterministically consumes the retained pair. An active spawn returns
+/// `Busy` without consuming either lease; an already closed owner is a no-op.
+pub fn close_worker_approved_roots(
+  roots : WorkerApprovedRoots,
+) -> Unit raise ApprovedFsError {
+  raise_operation_status(@native.close_worker_roots(roots), Close)
+}
+
+///|
 /// Opens one strict relative locator beneath this pinned root. Every
 /// intermediate component and the final regular file are opened with
 /// no-follow semantics.

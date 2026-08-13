@@ -28,3 +28,10 @@ payload-safe `Busy(Close)` without consuming authority while a lease is active.
 POSIX does not portably preserve descriptor retry authority after a close
 error, so the wrapper becomes closed even when reporting that error. Finalizers
 are a last-resort safety net rather than the production lifecycle.
+
+`acquire_worker_approved_roots` creates an opaque reusable pair of independent
+model and kernel root leases. Original roots remain valid and may close
+independently. Rooted spawn borrows the same pinned pair across replacements
+and maps only fixed roles; child import immediately creates an owned
+close-on-exec `ApprovedRoot` and consumes the fixed descriptor. No descriptor,
+path, handle, or role-reordering surface is exposed.

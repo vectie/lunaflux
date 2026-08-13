@@ -68,6 +68,7 @@ done
 
 for source_file in runtime/approved_fs/api.mbt runtime/approved_fs/path.mbt \
   internal/approved_fs/approved_fs.c internal/approved_fs/api.mbt \
+  internal/approved_fs/inheritance.c \
   internal/approved_fs/asan_probe.c \
   internal/approved_fs/approved_fs_private.h; do
   line_count=$(wc -l < "$source_file" | tr -d ' ')

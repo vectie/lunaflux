@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/internal/process",
+  "moonbitlang/core/env",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "probe.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+)

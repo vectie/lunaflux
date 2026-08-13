@@ -80,6 +80,11 @@ static void probe_handle_free(lf_approved_handle *handle) {
   free(handle);
 }
 
+static void probe_worker_roots_free(lf_worker_approved_roots *roots) {
+  assert(lunaflux_approved_fs_worker_roots_close(roots) == LF_APPROVED_OK);
+  free(roots);
+}
+
 static void probe_write_exact_file(const char *path, const char *bytes) {
   int file = open(path, O_TRUNC | O_WRONLY | O_CLOEXEC);
   assert(file >= 0);
@@ -147,6 +152,17 @@ int main(void) {
     lf_approved_handle *file =
       lunaflux_approved_fs_open_file(root, file_bytes, &status);
     assert(status == LF_APPROVED_OK);
+    lf_worker_approved_roots *worker_roots =
+      lunaflux_approved_fs_acquire_worker_roots(root, root, &status);
+    assert(status == LF_APPROVED_OK);
+    assert(worker_roots->model_fd >= 5);
+    assert(worker_roots->kernel_fd >= 5);
+    assert(worker_roots->model_fd != worker_roots->kernel_fd);
+    assert(
+      lunaflux_approved_fs_test_close_worker_roots_while_active(worker_roots) ==
+      LF_APPROVED_BUSY
+    );
+    assert(lunaflux_approved_fs_worker_roots_is_closed(worker_roots) == 0);
 
     uint8_t *destination = (uint8_t *)probe_array(1, 5);
     memset(destination, '!', 5);
@@ -208,6 +224,7 @@ int main(void) {
     probe_array_free(destination);
     probe_array_free(stamp);
     probe_handle_free(file);
+    probe_worker_roots_free(worker_roots);
     probe_handle_free(root);
   }
 

@@ -1,5 +1,9 @@
 supported_targets = "native"
 
+import {
+  "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
+}
+
 options(
   "native-stub": [ "process.c" ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",

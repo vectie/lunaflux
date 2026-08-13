@@ -10,6 +10,37 @@ extern "c" fn raw_test_close_while_active(
 ) -> Int = "lunaflux_approved_fs_test_close_while_active"
 
 ///|
+#borrow(roots)
+extern "c" fn raw_test_close_worker_roots_while_active(
+  roots : @inheritance.WorkerApprovedRoots,
+) -> Int = "lunaflux_approved_fs_test_close_worker_roots_while_active"
+
+///|
+async test "worker root leases remain reusable after Busy close" {
+  @async.with_task_group() <| group => {
+    let temporary = @fs.tmpdir(prefix="lunaflux-approved-fs-worker-roots")
+    let root_path = @fs.realpath(temporary)
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(root_path, recursive=true))
+    }
+    let status = Ref(-1)
+    let model = open_root(@utf8.encode(root_path), status)
+    assert_eq(status.val, 0)
+    let kernel = open_root(@utf8.encode(root_path), status)
+    assert_eq(status.val, 0)
+    let roots = acquire_worker_roots(model, kernel, status)
+    assert_eq(status.val, 0)
+    assert_eq(raw_test_close_worker_roots_while_active(roots), 7)
+    assert_false(worker_roots_is_closed(roots))
+    assert_eq(close_worker_roots(roots), 0)
+    assert_true(worker_roots_is_closed(roots))
+    assert_eq(close_worker_roots(roots), 0)
+    assert_eq(close(model), 0)
+    assert_eq(close(kernel), 0)
+  }
+}
+
+///|
 async test "FIFO final component is rejected without blocking" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-approved-fs-fifo")

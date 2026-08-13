@@ -15,7 +15,7 @@
 
 #include "approved_fs_private.h"
 
-static int lf_close_fd(int fd) {
+int lf_close_fd(int fd) {
   if (close(fd) == 0) return LF_APPROVED_OK;
   /* Never retry close. POSIX does not provide portable retry authority and a
    * reused descriptor number could otherwise close an unrelated resource. */
@@ -44,7 +44,7 @@ static void lf_approved_finalize(void *object) {
   );
 }
 
-static lf_approved_handle *lf_new_handle(int kind) {
+lf_approved_handle *lf_new_handle(int kind) {
   lf_approved_handle *handle =
     (lf_approved_handle *)moonbit_make_external_object(
       lf_approved_finalize, sizeof(lf_approved_handle)
@@ -55,7 +55,7 @@ static lf_approved_handle *lf_new_handle(int kind) {
   return handle;
 }
 
-static int32_t lf_begin_operation(
+int32_t lf_begin_operation(
   lf_approved_handle *handle,
   int expected_kind,
   int *fd
@@ -86,7 +86,7 @@ static int32_t lf_begin_operation(
   }
 }
 
-static void lf_end_operation(lf_approved_handle *handle) {
+void lf_end_operation(lf_approved_handle *handle) {
   (void)atomic_fetch_sub_explicit(&handle->state, 1, memory_order_release);
 }
 

@@ -46,3 +46,27 @@ pub fn read_immutable_snapshot(
 ) -> Bytes {
   raw_read_immutable_snapshot(file, maximum_bytes, b"", status)
 }
+
+///|
+pub fn acquire_worker_roots(
+  model_root : ApprovedHandle,
+  kernel_root : ApprovedHandle,
+  status : Ref[Int],
+) -> @inheritance.WorkerApprovedRoots {
+  raw_acquire_worker_roots(model_root, kernel_root, status)
+}
+
+///|
+pub fn open_inherited_root(role : Int, status : Ref[Int]) -> ApprovedHandle {
+  raw_open_inherited_root(role, status)
+}
+
+///|
+pub fn worker_roots_is_closed(roots : @inheritance.WorkerApprovedRoots) -> Bool {
+  raw_worker_roots_is_closed(roots)
+}
+
+///|
+pub fn close_worker_roots(roots : @inheritance.WorkerApprovedRoots) -> Int {
+  raw_close_worker_roots(roots)
+}

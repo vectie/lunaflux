@@ -1,7 +1,8 @@
+#define _GNU_SOURCE 1
+#define _DARWIN_C_SOURCE 1
 #define _POSIX_C_SOURCE 200809L
 
 #include <moonbit.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -10,10 +11,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
+#include "../approved_fs_capability/approved_fs_capability.h"
 extern char **environ;
 
 enum {
@@ -23,7 +25,6 @@ enum {
   LF_PROCESS_CHANNEL_CLOSED = 3,
   LF_PROCESS_FAILED = 4
 };
-
 typedef struct lf_process {
   pid_t pid;
   int fd;
@@ -32,7 +33,6 @@ typedef struct lf_process {
   int exit_kind;
   int exit_code;
 } lf_process;
-
 static void lf_process_reap_force(lf_process *process) {
   if (process == NULL || process->reaped || process->pid <= 0) {
     return;
@@ -56,9 +56,7 @@ static void lf_process_finalize(void *pointer) {
 
 static int64_t lf_now_millis(void) {
   struct timespec value;
-  if (clock_gettime(CLOCK_MONOTONIC, &value) != 0) {
-    return -1;
-  }
+  if (clock_gettime(CLOCK_MONOTONIC, &value) != 0) return -1;
   return (int64_t)value.tv_sec * 1000 + value.tv_nsec / 1000000;
 }
 
@@ -76,12 +74,9 @@ static int32_t lf_poll_fd(int fd, short events, int64_t deadline) {
     struct pollfd item = {.fd = fd, .events = events, .revents = 0};
     int result = poll(&item, 1, timeout);
     if (result > 0) {
-      if ((item.revents & events) != 0) {
-        return LF_PROCESS_OK;
-      }
-      if ((item.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+      if ((item.revents & events) != 0) return LF_PROCESS_OK;
+      if ((item.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
         return LF_PROCESS_CHANNEL_CLOSED;
-      }
     } else if (result == 0) {
       return LF_PROCESS_TIMEOUT;
     } else if (errno != EINTR) {
@@ -90,8 +85,22 @@ static int32_t lf_poll_fd(int fd, short events, int64_t deadline) {
   }
 }
 
-MOONBIT_FFI_EXPORT
-lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
+static int lf_duplicate_cloexec_at_least_five(int source) {
+  return fcntl(source, F_DUPFD_CLOEXEC, 5);
+}
+
+#ifndef SOCK_CLOEXEC
+static int lf_set_cloexec(int fd) {
+  int flags = fcntl(fd, F_GETFD, 0);
+  return flags >= 0 && fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == 0;
+}
+#endif
+
+static lf_process *lf_process_spawn_impl(
+  moonbit_bytes_t path,
+  lf_worker_approved_roots *roots,
+  int32_t *status
+) {
   lf_process *process = (lf_process *)moonbit_make_external_object(
     lf_process_finalize, sizeof(lf_process)
   );
@@ -103,40 +112,114 @@ lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
   process->exit_code = 0;
   *status = LF_PROCESS_FAILED;
 
+  int32_t model_root = -1;
+  int32_t kernel_root = -1;
+  int roots_active = 0;
+  if (roots != NULL) {
+    if (lf_worker_roots_begin(roots, &model_root, &kernel_root) !=
+        LF_APPROVED_CAPABILITY_OK) {
+      return process;
+    }
+    roots_active = 1;
+    struct stat model_info;
+    struct stat kernel_info;
+    if (fstat(model_root, &model_info) != 0 ||
+        fstat(kernel_root, &kernel_info) != 0 ||
+        !S_ISDIR(model_info.st_mode) || !S_ISDIR(kernel_info.st_mode)) {
+      goto finish;
+    }
+  }
+
   int32_t path_length = Moonbit_array_length(path);
   if (path_length <= 0 || memchr(path, '\0', (size_t)path_length) != NULL) {
-    return process;
+    goto finish;
   }
+  int raw_sockets[2] = {-1, -1};
   int sockets[2] = {-1, -1};
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) != 0) {
-    return process;
+#ifdef SOCK_CLOEXEC
+  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, raw_sockets) != 0) {
+    goto finish;
   }
-  (void)fcntl(sockets[0], F_SETFD, FD_CLOEXEC);
-  (void)fcntl(sockets[1], F_SETFD, FD_CLOEXEC);
+#else
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, raw_sockets) != 0) goto finish;
+  if (!lf_set_cloexec(raw_sockets[0]) || !lf_set_cloexec(raw_sockets[1])) {
+    (void)close(raw_sockets[0]);
+    (void)close(raw_sockets[1]);
+    goto finish;
+  }
+#endif
+  sockets[0] = lf_duplicate_cloexec_at_least_five(raw_sockets[0]);
+  sockets[1] = lf_duplicate_cloexec_at_least_five(raw_sockets[1]);
+  (void)close(raw_sockets[0]);
+  (void)close(raw_sockets[1]);
+  if (sockets[0] < 0 || sockets[1] < 0 || sockets[0] == sockets[1]) {
+    if (sockets[0] >= 0) (void)close(sockets[0]);
+    if (sockets[1] >= 0) (void)close(sockets[1]);
+    goto finish;
+  }
 
   posix_spawn_file_actions_t actions;
   posix_spawnattr_t attributes;
   if (posix_spawn_file_actions_init(&actions) != 0) {
     (void)close(sockets[0]);
     (void)close(sockets[1]);
-    return process;
+    goto finish;
   }
   if (posix_spawnattr_init(&attributes) != 0) {
     (void)posix_spawn_file_actions_destroy(&actions);
     (void)close(sockets[0]);
     (void)close(sockets[1]);
-    return process;
+    goto finish;
   }
   int setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 0);
   if (setup == 0) {
     setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 1);
   }
   if (setup == 0) {
+    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 2);
+  }
+  if (setup == 0) {
+    setup = posix_spawn_file_actions_addclose(&actions, 2);
+  }
+  if (setup == 0 && roots == NULL) {
+    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 3);
+  }
+  if (setup == 0 && roots == NULL) {
+    setup = posix_spawn_file_actions_addclose(&actions, 3);
+  }
+  if (setup == 0 && roots == NULL) {
+    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 4);
+  }
+  if (setup == 0 && roots == NULL) {
+    setup = posix_spawn_file_actions_addclose(&actions, 4);
+  }
+  if (setup == 0 && roots != NULL) {
+    setup = posix_spawn_file_actions_adddup2(&actions, model_root, 3);
+  }
+  if (setup == 0 && roots != NULL) {
+    setup = posix_spawn_file_actions_adddup2(&actions, kernel_root, 4);
+  }
+  if (setup == 0) {
     setup = posix_spawn_file_actions_addclose(&actions, sockets[0]);
   }
-  if (setup == 0 && sockets[1] != 0 && sockets[1] != 1) {
+  if (setup == 0) {
     setup = posix_spawn_file_actions_addclose(&actions, sockets[1]);
   }
+  if (setup == 0 && roots != NULL && model_root != sockets[0] &&
+      model_root != sockets[1]) {
+    setup = posix_spawn_file_actions_addclose(&actions, model_root);
+  }
+  if (setup == 0 && roots != NULL && kernel_root != sockets[0] &&
+      kernel_root != sockets[1]) {
+    setup = posix_spawn_file_actions_addclose(&actions, kernel_root);
+  }
+#if defined(__GLIBC__)
+  if (setup == 0) {
+    setup = posix_spawn_file_actions_addclosefrom_np(&actions, 5);
+  }
+#elif !defined(POSIX_SPAWN_CLOEXEC_DEFAULT)
+#error "fixed-FD spawn requires closefrom actions or CLOEXEC-default spawn"
+#endif
 #ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
   short spawn_flags = POSIX_SPAWN_CLOEXEC_DEFAULT;
   if (setup == 0) {
@@ -144,16 +227,33 @@ lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
   }
 #endif
   pid_t pid = -1;
-  char *const argv[] = {(char *)path, NULL};
+  char *const argv[] = {
+    roots == NULL ? (char *)path : (char *)"lunaflux-worker", NULL
+  };
+  char *const sanitized_environment[] = {NULL};
+  char *const *spawn_environment = roots == NULL
+    ? environ
+    : sanitized_environment;
   int spawned = setup == 0
-    ? posix_spawn(&pid, (char *)path, &actions, &attributes, argv, environ)
+    ? posix_spawn(
+        &pid,
+        (char *)path,
+        &actions,
+        &attributes,
+        argv,
+        spawn_environment
+      )
     : setup;
   (void)posix_spawn_file_actions_destroy(&actions);
   (void)posix_spawnattr_destroy(&attributes);
   (void)close(sockets[1]);
+  if (roots_active) {
+    lf_worker_roots_end(roots);
+    roots_active = 0;
+  }
   if (spawned != 0) {
     (void)close(sockets[0]);
-    return process;
+    goto finish;
   }
   int fd_flags = fcntl(sockets[0], F_GETFL, 0);
   if (fd_flags < 0 ||
@@ -162,14 +262,32 @@ lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
     (void)kill(pid, SIGKILL);
     while (waitpid(pid, NULL, 0) < 0 && errno == EINTR) {
     }
-    return process;
+    goto finish;
   }
   process->pid = pid;
   process->fd = sockets[0];
   process->reaped = 0;
   process->closed = 0;
   *status = LF_PROCESS_OK;
+finish:
+  if (roots_active) {
+    lf_worker_roots_end(roots);
+  }
   return process;
+}
+
+MOONBIT_FFI_EXPORT
+lf_process *lunaflux_process_spawn(moonbit_bytes_t path, int32_t *status) {
+  return lf_process_spawn_impl(path, NULL, status);
+}
+
+MOONBIT_FFI_EXPORT
+lf_process *lunaflux_process_spawn_with_approved_roots(
+  moonbit_bytes_t path,
+  lf_worker_approved_roots *roots,
+  int32_t *status
+) {
+  return lf_process_spawn_impl(path, roots, status);
 }
 
 static int32_t lf_fd_io(

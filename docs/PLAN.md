@@ -368,8 +368,12 @@ across before/after size+mtime+ctime stamps, exact positional reads, and a
 trailing-growth probe; it has one accepted payload-allocation site and publishes
 nothing after detected truncation or mutation. Canonical path validation is
 duplicated at the MoonBit and native boundaries; atomic leases prevent
-`openat`, `pread`, or `fstat` from racing descriptor close/reuse. Weight and
-kernel-artifact loaders now use this authority; weight inspection retains its
+`openat`, `pread`, or `fstat` from racing descriptor close/reuse.
+Fixed-FD inheritance now adds reusable pinned model/kernel leases, sanitized
+rooted spawn, and immediate child-side import. The next boundary is for the
+worker supervisor or instance owner to retain the same pair across every
+replacement and close it only when the instance is retired. Weight and
+kernel-artifact loaders use this authority; weight inspection retains its
 validated locator privately, completely re-admits before allocation, and
 transfers from reusable fixed host storage. The bounded
 `engine/execution_manifest_file` aggregate now digest-pins one canonical

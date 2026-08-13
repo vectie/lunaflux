@@ -127,8 +127,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   stamps, exact positional read, and trailing-growth probe, with exactly one
   accepted payload allocation. It rejects truncation or size/mtime/ctime change
   before publication. Native and public capability representations are
-  private. The streaming weight loader has adopted this authority; remaining
-  model readers and fixed-FD child inheritance have not.
+  private. The streaming weight loader has adopted this authority. A reusable
+  ordered model/kernel lease pair, sanitized fixed-FD rooted spawn, and child
+  import are implemented; supervisor retention across replacement and
+  production child reconstruction remain open.
 - An exact prepared Phase-1 device executor that cross-checks model, target,
   catalog, profile, artifact, allocation ownership, physical range, and actual
   pointer-alignment evidence before importing code. It reuses token and
@@ -303,8 +305,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   separately approved compatible tokenizer artifact.
 - The streaming device loader now uses pinned approved-root and regular-file
   capabilities rather than ambient string paths. Deployment approval and
-  read-only mount policy remain external trust inputs; fixed descriptor-role
-  inheritance into the production child is not yet implemented.
+  read-only mount policy remain external trust inputs. Low-level fixed
+  descriptor-role inheritance is implemented and proven; production supervisor
+  retention and child reconstruction from those roles remain open.
 - Physical-CUDA validation of driver loading, transfers, modules, function
   launches, events, numerical BF16 GEMM and AOT correctness, implicit-heuristic
   shape support, and repeated resource balance. Local C stubs pass a manually

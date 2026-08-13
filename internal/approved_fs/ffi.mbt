@@ -46,3 +46,30 @@ extern "c" fn raw_read_immutable_snapshot(
   failure : Bytes,
   status : Ref[Int],
 ) -> Bytes = "lunaflux_approved_fs_read_immutable_snapshot"
+
+///|
+#borrow(model_root, kernel_root, status)
+extern "c" fn raw_acquire_worker_roots(
+  model_root : @cap.ApprovedHandle,
+  kernel_root : @cap.ApprovedHandle,
+  status : Ref[Int],
+) -> @inheritance.WorkerApprovedRoots = "lunaflux_approved_fs_acquire_worker_roots"
+
+///|
+#borrow(status)
+extern "c" fn raw_open_inherited_root(
+  role : Int,
+  status : Ref[Int],
+) -> @cap.ApprovedHandle = "lunaflux_approved_fs_open_inherited_root"
+
+///|
+#borrow(roots)
+extern "c" fn raw_worker_roots_is_closed(
+  roots : @inheritance.WorkerApprovedRoots,
+) -> Bool = "lunaflux_approved_fs_worker_roots_is_closed"
+
+///|
+#borrow(roots)
+extern "c" fn raw_close_worker_roots(
+  roots : @inheritance.WorkerApprovedRoots,
+) -> Int = "lunaflux_approved_fs_worker_roots_close"

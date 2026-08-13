@@ -5,6 +5,17 @@ pub struct ApprovedRoot {
 }
 
 ///|
+/// Opaque reusable owner of ordered model and kernel worker-root leases.
+pub type WorkerApprovedRoots = @inheritance.WorkerApprovedRoots
+
+///|
+/// Fixed child descriptor roles for approved worker roots.
+pub(all) enum ApprovedRootRole {
+  Model
+  Kernel
+} derive(Debug, Eq)
+
+///|
 /// Opaque validated strict relative descendant locator. Construction performs
 /// the complete lexical admission once; the retained text is intentionally
 /// unavailable to callers and the type has no diagnostic formatting surface.

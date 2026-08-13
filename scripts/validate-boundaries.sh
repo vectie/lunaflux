@@ -155,9 +155,10 @@ fi
 # Production foreign declarations have exactly three narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
 # process transport, each under its dedicated internal ABI package.
-# The two positive-controlled release allocation harnesses are the sole test
-# exceptions: their narrow C shims instrument generated MoonBit allocation
-# entry points and are never imported by a production package.
+# Positive-controlled allocation harnesses and the exact approved-root child /
+# parent E2E probes are the sole exceptions. Their narrow C shims inspect
+# process state or generated allocation entry points and are not imported by a
+# production package.
 fail_matches \
   'production native declarations are only allowed under approved internal ABI packages:' \
   --glob '*.mbt' --glob '!internal/cuda/**' \
@@ -165,6 +166,8 @@ fail_matches \
   --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \
+  --glob '!cmd/approved_root_echo/**' \
+  --glob '!tests/approved_root_inheritance_e2e/**' \
   'extern\s+"[cC]"|#external'
 
 # Internal ABI concrete types must never become part of a public package

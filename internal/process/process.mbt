@@ -56,6 +56,31 @@ pub fn spawn(
 }
 
 ///|
+/// Spawns one exact executable with model and kernel roots inherited at their
+/// fixed child roles. The reusable pair remains owned by the caller and may be
+/// used for a later replacement child.
+pub fn spawn_with_approved_roots(
+  executable : Bytes,
+  roots : @inheritance.WorkerApprovedRoots,
+  limits : ProcessLimits,
+) -> ChildProcess raise ProcessError {
+  let status = Ref(0)
+  let handle = raw_spawn_with_approved_roots(executable, roots, status)
+  if status.val != 0 {
+    ignore(raw_close(handle))
+    raise SpawnFailed
+  }
+  {
+    handle,
+    limits,
+    write_prefix: FixedArray::make(4, b'\x00'),
+    read_prefix: FixedArray::make(4, b'\x00'),
+    failed: false,
+    closed: false,
+  }
+}
+
+///|
 /// Opens the private socket inherited by a worker on stdin/stdout.
 pub fn open_inherited(limits : ProcessLimits) -> InheritedChannel {
   {
