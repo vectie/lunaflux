@@ -34,13 +34,14 @@ fn test_root_bound_supervisor() -> RootBoundWorkerProcessSupervisor raise {
 test "rooted preparation rejects executable before acquiring closed roots" {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let source = supervisor_source_for_roots("/private/tmp", "/private/tmp")
   model.close()
   kernel.close()
   try
     prepare_with_approved_roots(
-      b"bad\x00worker",
-      supervisor_startup(),
-      supervisor_source(),
+      b"",
+      supervisor_startup_for_source(source),
+      source,
       supervisor_process_limits(),
       model,
       kernel,
@@ -49,7 +50,7 @@ test "rooted preparation rejects executable before acquiring closed roots" {
     RootBoundFailure(Process(Invalid(Submission))) => ()
     _ => fail("executable preflight reached root acquisition")
   } noraise {
-    _ => fail("NUL executable passed rooted preflight")
+    _ => fail("empty executable passed rooted preflight")
   }
 }
 

@@ -119,11 +119,19 @@ if [ -z "$root_body" ]; then
   exit 1
 fi
 root_activation_line="$(printf '%s\n' "$root_body" | rg -n 'acquire__prepared__worker__approved__roots__status\(' | cut -d: -f1)"
+root_preflight_line="$(printf '%s\n' "$root_body" | rg -n 'preflight__prepare\(' | head -n 1 | cut -d: -f1)"
+model_binding_line="$(printf '%s\n' "$root_body" | rg -n 'require__model__root__binding\(' | cut -d: -f1)"
+kernel_binding_line="$(printf '%s\n' "$root_body" | rg -n 'require__kernel__root__binding\(' | cut -d: -f1)"
 root_ready_line="$(printf '%s\n' "$root_body" | rg -n 'prepare__preflighted\(' | cut -d: -f1)"
 root_ready_owner_line="$(printf '%s\n' "$root_body" | rg -n 'RootBoundWorkerProcessSupervisor\*\)moonbit_malloc' | cut -d: -f1)"
 root_failed_owner_line="$(printf '%s\n' "$root_body" | rg -n 'FailedRootBoundWorkerProcessStartup\*\)moonbit_malloc' | cut -d: -f1)"
-if [ -z "$root_activation_line" ] || [ -z "$root_ready_line" ] ||
+if [ -z "$root_activation_line" ] || [ -z "$root_preflight_line" ] ||
+  [ -z "$model_binding_line" ] || [ -z "$kernel_binding_line" ] ||
+  [ -z "$root_ready_line" ] ||
   [ -z "$root_ready_owner_line" ] || [ -z "$root_failed_owner_line" ] ||
+  [ "$root_preflight_line" -ge "$model_binding_line" ] ||
+  [ "$model_binding_line" -ge "$kernel_binding_line" ] ||
+  [ "$kernel_binding_line" -ge "$root_activation_line" ] ||
   [ "$root_ready_owner_line" -ge "$root_activation_line" ] ||
   [ "$root_failed_owner_line" -ge "$root_activation_line" ] ||
   [ "$root_ready_line" -le "$root_activation_line" ]; then

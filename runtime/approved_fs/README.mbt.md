@@ -8,6 +8,12 @@ descriptor-relative component traversal with no-follow semantics and final
 `fstat` type checks. Path strings, descriptors, native handles, and platform
 errors never escape.
 
+`ApprovedRoot::require_absolute_identity` re-traverses one strict canonical
+absolute label without following symlinks and requires its directory device
+and inode to match the pinned capability. It exposes only success or a
+payload-safe error: no path, descriptor, device, or inode value is returned.
+This is an admission-time binding primitive, not ambient lookup authority.
+
 Opening proves directory/file identity at that instant; it does not infer that
 a deployment root is approved or read-only. The caller supplies that authority.
 Once a file is opened, rename or replacement of its former pathname cannot

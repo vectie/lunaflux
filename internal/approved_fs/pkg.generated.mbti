@@ -30,6 +30,8 @@ pub fn read_exact_at(@approved_fs_capability.NativeApprovedHandle, FixedArray[By
 
 pub fn read_immutable_snapshot(@approved_fs_capability.NativeApprovedHandle, Int64, @ref.Ref[Int]) -> Bytes
 
+pub fn require_absolute_identity(@approved_fs_capability.NativeApprovedHandle, Bytes) -> Int
+
 pub fn stamp(@approved_fs_capability.NativeApprovedHandle, FixedArray[Int64]) -> Int
 
 pub fn worker_roots_is_closed(@approved_fs_inheritance.WorkerApprovedRoots) -> Bool

@@ -12,6 +12,8 @@ pub(all) enum RootBoundWorkerProcessLifecycle {
 ///|
 pub(all) enum RootBoundWorkerProcessFailure {
   Process(WorkerProcessError)
+  ModelRootBinding(@approved_fs.ApprovedFsError)
+  KernelRootBinding(@approved_fs.ApprovedFsError)
   RootsBusy
   RootsCloseFailed
 } derive(Debug, Eq)

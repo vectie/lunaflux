@@ -60,6 +60,54 @@ if [ -n "$approved_fs_capability_imports" ]; then
   failed=1
 fi
 
+root_identity_calls=$(rg -l '\.require_absolute_identity\(' \
+  --glob '*.mbt' 2>/dev/null | \
+  rg -v '^(runtime/approved_fs|engine/worker_process)/' || true)
+if [ -n "$root_identity_calls" ]; then
+  printf '%s\n%s\n' \
+    'approved root identity admission has unauthorized call sites:' \
+    "$root_identity_calls" >&2
+  failed=1
+fi
+
+worker_identity_calls=$(rg -n '\.require_absolute_identity\(' \
+  engine/worker_process --glob '*.mbt' --glob '!*_test.mbt' \
+  --glob '!*_wbtest.mbt' 2>/dev/null || true)
+worker_identity_count=$(printf '%s\n' "$worker_identity_calls" | \
+  sed '/^$/d' | wc -l | tr -d ' ')
+if [ "$worker_identity_count" -ne 2 ] ||
+  printf '%s\n' "$worker_identity_calls" | \
+    rg -v '^engine/worker_process/root_bound_binding\.mbt:'; then
+  printf '%s\n%s\n' \
+    'root identity must be checked exactly once per role during initial binding:' \
+    "$worker_identity_calls" >&2
+  failed=1
+fi
+
+for binding_role in model kernel; do
+  helper="require_${binding_role}_root_binding"
+  helper_files=$(rg -l "$helper" engine/worker_process --glob '*.mbt' \
+    --glob '!*_test.mbt' --glob '!*_wbtest.mbt' 2>/dev/null || true)
+  helper_file_count=$(printf '%s\n' "$helper_files" | sed '/^$/d' | \
+    wc -l | tr -d ' ')
+  helper_calls=$(rg -n "$helper\(" engine/worker_process --glob '*.mbt' \
+    --glob '!*_test.mbt' --glob '!*_wbtest.mbt' 2>/dev/null | \
+    rg -v '^engine/worker_process/root_bound_binding\.mbt:' || true)
+  helper_call_count=$(printf '%s\n' "$helper_calls" | sed '/^$/d' | \
+    wc -l | tr -d ' ')
+  if [ "$helper_file_count" -ne 2 ] ||
+    printf '%s\n' "$helper_files" | \
+      rg -v '^engine/worker_process/root_bound(_binding)?\.mbt$' ||
+    [ "$helper_call_count" -ne 1 ] ||
+    ! printf '%s\n' "$helper_calls" | \
+      rg -q '^engine/worker_process/root_bound\.mbt:'; then
+    printf '%s\n%s\n' \
+      "root identity $binding_role helper escaped initial preparation:" \
+      "$helper_files" >&2
+    failed=1
+  fi
+done
+
 # The public monotonic-clock facade is the sole importer of its primitive-only
 # native ABI. Higher layers consume the opaque runtime capability instead.
 monotonic_clock_imports=$(rg -l \
@@ -273,6 +321,20 @@ if [ -d engine/worker_process ] && [ -d engine/worker_service ]; then
   if rg -n 'WorkerApprovedRoots' engine/worker_process/pkg.generated.mbti; then
     printf '%s\n' \
       'worker-process public interface must not expose the retained root pair' >&2
+    failed=1
+  fi
+  if ! rg -q '^  ModelRootBinding\(@approved_fs\.ApprovedFsError\)$' \
+      engine/worker_process/pkg.generated.mbti ||
+    ! rg -q '^  KernelRootBinding\(@approved_fs\.ApprovedFsError\)$' \
+      engine/worker_process/pkg.generated.mbti; then
+    printf '%s\n' \
+      'root-bound errors must retain a role-specific payload-safe binding cause' >&2
+    failed=1
+  fi
+  if rg -n 'require_(absolute_identity|model_root_binding|kernel_root_binding)' \
+      engine/worker_process/root_bound_recovery.mbt; then
+    printf '%s\n' \
+      'root-bound restart must continue from retained roots without label revalidation' >&2
     failed=1
   fi
   if ! rg -q \

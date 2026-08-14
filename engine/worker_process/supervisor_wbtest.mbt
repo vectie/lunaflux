@@ -44,12 +44,12 @@ fn supervisor_process_limits() -> WorkerProcessLimits raise {
 }
 
 ///|
-fn supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
+fn supervisor_source_for_roots(
+  model_root : String,
+  kernel_root : String,
+) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_bootstrap_source(
-    @worker_wire.WorkerBootstrapRoots::new(
-      model_root="/models",
-      kernel_root="/kernels",
-    ),
+    @worker_wire.WorkerBootstrapRoots::new(model_root~, kernel_root~),
     @worker_wire.WorkerBootstrapModelSource::new(
       config_locator="config.json",
       weights_locator="weights.bin",
@@ -81,6 +81,11 @@ fn supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
 }
 
 ///|
+fn supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
+  supervisor_source_for_roots("/models", "/kernels")
+}
+
+///|
 fn alternate_supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
   let base = supervisor_source()
   @worker_wire.admit_bootstrap_source(
@@ -96,7 +101,9 @@ fn alternate_supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
 }
 
 ///|
-fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
+fn supervisor_startup_for_source(
+  source : @worker_wire.EncodedBootstrapSource,
+) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(
       @spec.ContentDigest::from_sha256(
@@ -109,7 +116,7 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=supervisor_source().digest(),
+    bootstrap_source_digest=source.digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=supervisor_limits(),
@@ -117,6 +124,11 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
     has_predecessor=false,
     predecessor_value=0UL,
   )
+}
+
+///|
+fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
+  supervisor_startup_for_source(supervisor_source())
 }
 
 ///|

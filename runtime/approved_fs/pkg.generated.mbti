@@ -62,6 +62,7 @@ pub(all) enum ApprovedFsOperation {
 
 pub(all) enum ApprovedFsRule {
   RootPath
+  RootIdentity
   RelativeLocator
   ReadRange
   Lifecycle
@@ -80,6 +81,7 @@ pub fn ApprovedRoot::is_closed(Self) -> Bool
 pub fn ApprovedRoot::open_absolute(StringView) -> Self raise ApprovedFsError
 pub fn ApprovedRoot::open_file(Self, ApprovedRelativeLocator) -> ApprovedFile raise ApprovedFsError
 pub fn ApprovedRoot::open_inherited(ApprovedRootRole) -> Self raise ApprovedFsError
+pub fn ApprovedRoot::require_absolute_identity(Self, StringView) -> Unit raise ApprovedFsError
 
 pub(all) enum ApprovedRootRole {
   Model

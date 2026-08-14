@@ -172,7 +172,11 @@ completely re-admits the retained inspected file without repeating inspection,
 and prepares the complete paged executor. It exposes only the readiness
 contract, and only while context, weights, and executor are all live; cleanup
 retries in executor-to-weights-to-context order. Device/model loading completes
-before a production child sends Ready. The root-bound service admits one
+before a production child sends Ready. Before initial root-bound pair
+activation or spawn, each encoded absolute model/kernel label must match the
+exact corresponding caller-owned approved directory capability through
+no-follow opaque identity admission. Replacement continues from the retained
+pair and does not re-resolve ambient labels. The root-bound service admits one
 outstanding plan from the reusable A/B storage because the production child
 reads, executes, and publishes completion serially; two-slot overlap remains a
 legacy echo/transport fixture and future event-loop work. A failed child is closed and

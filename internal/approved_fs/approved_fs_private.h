@@ -24,7 +24,8 @@ enum {
   LF_APPROVED_FAILED = 6,
   LF_APPROVED_BUSY = LF_APPROVED_CAPABILITY_BUSY,
   LF_APPROVED_CHANGED = 8,
-  LF_APPROVED_TOO_LARGE = 9
+  LF_APPROVED_TOO_LARGE = 9,
+  LF_APPROVED_IDENTITY_MISMATCH = 10
 };
 
 enum {
@@ -47,7 +48,16 @@ int32_t lf_begin_operation(
   int *fd
 );
 void lf_end_operation(lf_approved_handle *handle);
-
+int32_t lf_open_status(int error);
+int lf_validate_path(const uint8_t *path, int32_t length, int absolute);
+int lf_traverse(
+  int starting_fd,
+  const uint8_t *path,
+  int32_t start,
+  int32_t length,
+  int final_file,
+  int32_t *status
+);
 lf_worker_approved_roots *lunaflux_approved_fs_acquire_worker_roots(
   lf_approved_handle *model_root,
   lf_approved_handle *kernel_root,

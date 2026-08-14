@@ -10,7 +10,12 @@ import {
 } for "wbtest"
 
 options(
-  "native-stub": [ "approved_fs.c", "inheritance.c" ],
+  "native-stub": [
+    "approved_fs.c",
+    "traversal.c",
+    "identity.c",
+    "inheritance.c",
+  ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
   targets: {
     "api.mbt": [ "native" ],

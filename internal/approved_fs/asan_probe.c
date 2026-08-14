@@ -16,12 +16,23 @@
 
 static int probe_snapshot_action = 0;
 static int probe_close_eintr_once = 0;
+static int probe_close_fail_countdown = -1;
 static int probe_close(int fd) {
   if (probe_close_eintr_once) {
     probe_close_eintr_once = 0;
     errno = EINTR;
     return -1;
   }
+  if (probe_close_fail_countdown == 0) {
+    probe_close_fail_countdown = -1;
+    int status = close(fd);
+    if (status == 0) {
+      errno = EIO;
+      return -1;
+    }
+    return status;
+  }
+  if (probe_close_fail_countdown > 0) probe_close_fail_countdown--;
   return close(fd);
 }
 #define LF_APPROVED_FS_CLOSE probe_close
@@ -34,6 +45,11 @@ static void probe_snapshot_hook(int stage, int fd);
  * the MoonBit allocator. The tiny functions below model only the two runtime
  * allocation layouts used by this ABI probe. */
 #include "approved_fs.c"
+
+int32_t lunaflux_approved_fs_require_absolute_identity(
+  lf_approved_handle *root,
+  moonbit_bytes_t path
+);
 
 void *moonbit_make_external_object(
   void (*finalize)(void *self),
@@ -82,6 +98,14 @@ static int32_t probe_fd_count(void) {
   for (int fd = 0; (rlim_t)fd < upper; fd++) {
     errno = 0;
     if (fcntl(fd, F_GETFD) >= 0 || errno != EBADF) count++;
+  }
+  return count;
+}
+
+static int probe_path_component_count(const char *path) {
+  int count = 0;
+  for (const char *cursor = path; *cursor != '\0'; cursor++) {
+    if (*cursor == '/') count++;
   }
   return count;
 }
@@ -155,16 +179,70 @@ int main(void) {
   assert(close(created) == 0);
 
   moonbit_bytes_t root_bytes = probe_bytes(canonical_root);
+  char other_path[sizeof(root_path) + 16];
+  written = snprintf(other_path, sizeof(other_path), "%s.other", root_path);
+  assert(written > 0 && (size_t)written < sizeof(other_path));
+  assert(mkdir(other_path, 0700) == 0);
+  char canonical_other[PATH_MAX];
+  assert(realpath(other_path, canonical_other) != NULL);
+  moonbit_bytes_t other_bytes = probe_bytes(canonical_other);
+  char link_path[PATH_MAX];
+  written = snprintf(link_path, sizeof(link_path), "%s.link", canonical_root);
+  assert(written > 0 && (size_t)written < sizeof(link_path));
+  assert(symlink(canonical_root, link_path) == 0);
+  moonbit_bytes_t link_bytes = probe_bytes(link_path);
+  char missing_path[PATH_MAX];
+  written = snprintf(
+    missing_path, sizeof(missing_path), "%s.missing", canonical_root
+  );
+  assert(written > 0 && (size_t)written < sizeof(missing_path));
+  moonbit_bytes_t missing_bytes = probe_bytes(missing_path);
   moonbit_bytes_t file_bytes = probe_bytes("file.bin");
   moonbit_bytes_t escape_bytes = probe_bytes("../file.bin");
   moonbit_bytes_t snapshot_failure = probe_bytes("");
   probe_snapshot_path = file_path;
   int32_t before = probe_fd_count();
 
+  int32_t identity_status = -1;
+  lf_approved_handle *identity_root =
+    lunaflux_approved_fs_open_root(root_bytes, &identity_status);
+  assert(identity_status == LF_APPROVED_OK);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, root_bytes
+  ) == LF_APPROVED_OK);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, other_bytes
+  ) == LF_APPROVED_IDENTITY_MISMATCH);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, missing_bytes
+  ) == LF_APPROVED_UNAVAILABLE);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, link_bytes
+  ) == LF_APPROVED_UNSUPPORTED);
+  probe_close_fail_countdown = probe_path_component_count(canonical_root);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, root_bytes
+  ) == LF_APPROVED_FAILED);
+  assert(probe_close_fail_countdown == -1);
+  probe_close_fail_countdown = probe_path_component_count(canonical_other);
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, other_bytes
+  ) == LF_APPROVED_IDENTITY_MISMATCH);
+  assert(probe_close_fail_countdown == -1);
+  probe_close_fail_countdown = 0;
+  assert(lunaflux_approved_fs_require_absolute_identity(
+    identity_root, root_bytes
+  ) == LF_APPROVED_FAILED);
+  assert(probe_close_fail_countdown == -1);
+  probe_handle_free(identity_root);
+  assert(probe_fd_count() == before);
+
   for (int iteration = 0; iteration < 1024; iteration++) {
     int32_t status = -1;
     lf_approved_handle *root = lunaflux_approved_fs_open_root(root_bytes, &status);
     assert(status == LF_APPROVED_OK);
+    assert(lunaflux_approved_fs_require_absolute_identity(root, root_bytes) ==
+      LF_APPROVED_OK);
     lf_approved_handle *escape =
       lunaflux_approved_fs_open_file(root, escape_bytes, &status);
     assert(status == LF_APPROVED_INVALID);
@@ -266,10 +344,15 @@ int main(void) {
 
   assert(probe_fd_count() == before);
   probe_array_free(root_bytes);
+  probe_array_free(other_bytes);
+  probe_array_free(link_bytes);
+  probe_array_free(missing_bytes);
   probe_array_free(file_bytes);
   probe_array_free(escape_bytes);
   probe_array_free(snapshot_failure);
   assert(unlink(file_path) == 0);
   assert(rmdir(root_path) == 0);
+  assert(rmdir(other_path) == 0);
+  assert(unlink(link_path) == 0);
   return 0;
 }

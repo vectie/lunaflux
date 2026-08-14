@@ -77,6 +77,9 @@ fn prepare_root_bound(
   let prepared = preflight_prepare(executable, startup, source, limits) catch {
     error => raise RootBoundFailure(Process(error))
   }
+  let labels = source.roots()
+  require_model_root_binding(model_root, labels.model_root())
+  require_kernel_root_binding(kernel_root, labels.kernel_root())
   let prepared_roots = @approved_fs.prepare_worker_approved_roots()
   let roots = prepared_roots.root_owner()
   let ready_owner : RootBoundWorkerProcessSupervisor = {

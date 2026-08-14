@@ -4,6 +4,11 @@ pub fn open_root(path : Bytes, status : Ref[Int]) -> ApprovedHandle {
 }
 
 ///|
+pub fn require_absolute_identity(root : ApprovedHandle, path : Bytes) -> Int {
+  raw_require_absolute_identity(root, path)
+}
+
+///|
 pub fn open_file(
   root : ApprovedHandle,
   locator : Bytes,

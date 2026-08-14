@@ -49,8 +49,8 @@ fn worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
 fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_bootstrap_source(
     @worker_wire.WorkerBootstrapRoots::new(
-      model_root="/models",
-      kernel_root="/kernels",
+      model_root="/private/tmp",
+      kernel_root="/private/tmp",
     ),
     @worker_wire.WorkerBootstrapModelSource::new(
       config_locator="config.json",

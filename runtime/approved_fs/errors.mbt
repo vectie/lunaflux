@@ -1,6 +1,7 @@
 ///|
 pub(all) enum ApprovedFsRule {
   RootPath
+  RootIdentity
   RelativeLocator
   ReadRange
   Lifecycle

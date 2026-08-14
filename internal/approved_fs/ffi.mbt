@@ -6,6 +6,13 @@ extern "c" fn raw_open_root(
 ) -> @cap.ApprovedHandle = "lunaflux_approved_fs_open_root"
 
 ///|
+#borrow(root, path)
+extern "c" fn raw_require_absolute_identity(
+  root : @cap.ApprovedHandle,
+  path : Bytes,
+) -> Int = "lunaflux_approved_fs_require_absolute_identity"
+
+///|
 #borrow(root, locator, status)
 extern "c" fn raw_open_file(
   root : @cap.ApprovedHandle,

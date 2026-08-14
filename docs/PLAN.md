@@ -401,7 +401,7 @@ CUDA evidence, and live overlap remain open.
 
 The source-reconstruction workstream now also owns an opaque approved-
 filesystem foundation. A neutral internal capability representation supports
-both descriptor-relative traversal and the future fixed-FD spawn lease, while
+both descriptor-relative traversal and the fixed-FD spawn lease, while
 the public facade exposes only pinned root/file owners, bounded positional
 reads, opaque same-handle stamps, deterministic lifecycle, and a bounded
 startup-only immutable snapshot. Snapshot creation holds one operation lease
@@ -411,17 +411,20 @@ nothing after detected truncation or mutation. Canonical path validation is
 duplicated at the MoonBit and native boundaries; atomic leases prevent
 `openat`, `pread`, or `fstat` from racing descriptor close/reuse.
 Fixed-FD inheritance now adds reusable pinned model/kernel leases, sanitized
-rooted spawn, and immediate child-side import. The next boundary is for the
-worker supervisor or instance owner to retain the same pair across every
-replacement and close it only when the instance is retired. Weight and
+rooted spawn, and immediate child-side import. The worker supervisor retains
+the same pair across every replacement and closes it only when the instance is
+retired; initial admission also binds each canonical encoded root label to the
+exact caller-owned capability before pair activation, without restart-time
+ambient revalidation. Remaining work is production transport and deployment
+evidence beyond this root-ownership boundary. Weight and
 kernel-artifact loaders use this authority; weight inspection retains its
 validated locator privately, completely re-admits before allocation, and
 transfers from reusable fixed host storage. The bounded
 `engine/execution_manifest_file` aggregate now digest-pins one canonical
 paged-Llama v1 manifest and derives catalog v3, static/memory plans, full-graph
 contracts, artifact loading, and the inert blueprint from typed evidence.
-Remaining model readers must migrate before exact model/kernel roots are
-inherited into the production child without argv/environment path authority.
+Remaining promotion work is transport/deployment evidence for the inherited
+authority path, not another ambient model/kernel root migration.
 Readiness additionally requires successful terminal source-file close. A close
 failure consumes the file authority and closes any ready allocation; if that
 allocation close also fails, retryable cleanup authority is retained at the

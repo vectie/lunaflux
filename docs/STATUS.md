@@ -129,9 +129,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   before publication. Native and public capability representations are
   private. The streaming weight loader has adopted this authority. A reusable
   ordered model/kernel lease pair, sanitized fixed-FD rooted spawn, and child
-  import are implemented. The root-bound supervisor now retains the exact pair,
-  executable, limits, and canonical source across zero-argument replacement,
-  closing the pair only at instance/service retirement. The child reconstructs
+  import are implemented. Initial root-bound admission no-follow traverses each
+  encoded absolute model/kernel label and requires exact opaque directory
+  identity with the corresponding caller-owned capability before retained-pair
+  activation or spawn. Failures remain role-specific and payload-safe. The
+  root-bound supervisor retains that exact pair, executable, limits, and
+  canonical source across zero-argument replacement without ambient label
+  revalidation, closing the pair only at instance/service retirement. The child reconstructs
   admission and readiness, then runs a serialized bounded plan/completion loop.
 - Synchronous model-configuration file admission now consumes a caller-owned
   approved root plus typed relative locator, closes the immutable bounded

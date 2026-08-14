@@ -7,10 +7,10 @@ cd "$repo_root"
 
 failed=0
 
-if ! rg -q 'openat\s*\(' internal/approved_fs/approved_fs.c ||
-  ! rg -q 'O_NOFOLLOW' internal/approved_fs/approved_fs.c ||
-  ! rg -q 'O_DIRECTORY' internal/approved_fs/approved_fs.c ||
-  ! rg -q 'O_NONBLOCK' internal/approved_fs/approved_fs.c ||
+if ! rg -q 'openat\s*\(' internal/approved_fs/traversal.c ||
+  ! rg -q 'O_NOFOLLOW' internal/approved_fs/traversal.c ||
+  ! rg -q 'O_DIRECTORY' internal/approved_fs/traversal.c ||
+  ! rg -q 'O_NONBLOCK' internal/approved_fs/traversal.c ||
   ! rg -q 'fstat\s*\(' internal/approved_fs/approved_fs.c ||
   ! rg -q 'pread\s*\(' internal/approved_fs/approved_fs.c ||
   ! rg -q 'lunaflux_approved_fs_read_immutable_snapshot' \
@@ -22,6 +22,36 @@ if ! rg -q 'openat\s*\(' internal/approved_fs/approved_fs.c ||
     internal/approved_fs/approved_fs_private.h; then
   printf '%s\n' \
     'approved filesystem ABI is missing no-follow traversal, type checks, or positional reads' >&2
+  failed=1
+fi
+
+if ! rg -q 'lunaflux_approved_fs_require_absolute_identity' \
+    internal/approved_fs/identity.c ||
+  ! rg -q 'lf_validate_path\(path, length, 1\)' \
+    internal/approved_fs/identity.c ||
+  ! rg -q 'lf_traverse\s*\(' internal/approved_fs/identity.c ||
+  ! rg -q 'lf_begin_operation\(root, LF_APPROVED_ROOT' \
+    internal/approved_fs/identity.c ||
+  ! rg -q 'lf_end_operation\(root\)' internal/approved_fs/identity.c ||
+  ! rg -q 'lf_close_fd\(candidate\)' internal/approved_fs/identity.c ||
+  ! rg -q 'lf_reduce_identity_close_status' \
+    internal/approved_fs/identity.c ||
+  ! rg -q 'fstat\s*\(root_fd' internal/approved_fs/identity.c ||
+  ! rg -q 'st_dev' internal/approved_fs/identity.c ||
+  ! rg -q 'st_ino' internal/approved_fs/identity.c ||
+  ! rg -q 'LF_APPROVED_IDENTITY_MISMATCH' \
+    internal/approved_fs/identity.c; then
+  printf '%s\n' \
+    'approved root identity ABI lacks strict traversal or opaque device/inode comparison' >&2
+  failed=1
+fi
+
+if ! rg -q 'LF_APPROVED_IDENTITY_MISMATCH = 10' \
+    internal/approved_fs/approved_fs_private.h ||
+  ! rg -q 'const STATUS_IDENTITY_MISMATCH : Int = 10' \
+    runtime/approved_fs/api.mbt; then
+  printf '%s\n' \
+    'approved root identity native and MoonBit status values disagree' >&2
   failed=1
 fi
 
@@ -38,11 +68,21 @@ if matches=$(rg -n 'extern\s+"[cC]"' runtime/approved_fs --glob '*.mbt' 2>/dev/n
 fi
 
 if ! rg -q '#borrow\(path, status\)' internal/approved_fs/ffi.mbt ||
+  ! rg -q '#borrow\(root, path\)' internal/approved_fs/ffi.mbt ||
   ! rg -q '#borrow\(root, locator, status\)' internal/approved_fs/ffi.mbt ||
   ! rg -q '#borrow\(file, destination\)' internal/approved_fs/ffi.mbt ||
   ! rg -q '#borrow\(file, output\)' internal/approved_fs/ffi.mbt ||
   ! rg -q '#borrow\(file, failure, status\)' internal/approved_fs/ffi.mbt; then
   printf '%s\n' 'approved filesystem FFI ownership annotations are incomplete' >&2
+  failed=1
+fi
+
+if ! rg -q '^pub fn ApprovedRoot::require_absolute_identity\(Self, StringView\) -> Unit raise ApprovedFsError$' \
+    runtime/approved_fs/pkg.generated.mbti ||
+  rg -n 'device|inode|descriptor|absolute_path|identity_value' \
+    runtime/approved_fs/pkg.generated.mbti; then
+  printf '%s\n' \
+    'approved root identity interface is missing or exposes native/path identity' >&2
   failed=1
 fi
 
@@ -88,6 +128,7 @@ fi
 
 for source_file in runtime/approved_fs/api.mbt runtime/approved_fs/path.mbt \
   internal/approved_fs/approved_fs.c internal/approved_fs/api.mbt \
+  internal/approved_fs/traversal.c internal/approved_fs/identity.c \
   internal/approved_fs/inheritance.c \
   internal/approved_fs/asan_probe.c \
   internal/approved_fs/approved_fs_private.h; do

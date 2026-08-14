@@ -50,11 +50,16 @@ reserved sequence remains reconstructible for scheduler failure retirement.
 
 The compatibility-only `prepare` entry remains for deterministic echo fixtures.
 Production service construction uses `prepare_with_approved_roots`, which
-privately duplicates caller-owned model and kernel roots. Its root-bound owner
+first preflights the source and process envelope, then binds each encoded
+absolute model/kernel root label to the exact caller-owned approved capability
+before any retained pair is activated or child is spawned. Failures retain the
+role and payload-safe approved-filesystem cause; the same capability may
+satisfy both roles. It then privately duplicates the caller-owned roots. Its root-bound owner
 retains that exact opaque pair with the immutable executable bytes, process
 limits, startup sequence domain, and encoded source. Replacement is
 zero-argument and therefore cannot substitute another executable, limit set,
-source, or root pair.
+source, or root pair. Restart intentionally does not re-resolve ambient labels:
+the retained pinned pair is the continuing authority.
 
 The supervisor retains the immutable encoded source, and replacements receive
 the same canonical bytes and pinned root capabilities. The legacy

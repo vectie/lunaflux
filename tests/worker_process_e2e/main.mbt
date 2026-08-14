@@ -34,12 +34,12 @@ fn inference_limits() -> @inference.InferenceLimits raise {
 }
 
 ///|
-fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
+fn bootstrap_source_for_roots(
+  model_root : StringView,
+  kernel_root : StringView,
+) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_bootstrap_source(
-    @worker_wire.WorkerBootstrapRoots::new(
-      model_root="/models",
-      kernel_root="/kernels",
-    ),
+    @worker_wire.WorkerBootstrapRoots::new(model_root~, kernel_root~),
     @worker_wire.WorkerBootstrapModelSource::new(
       config_locator="config.json",
       weights_locator="weights.bin",
@@ -71,7 +71,14 @@ fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
 }
 
 ///|
-fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
+fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
+  bootstrap_source_for_roots("/private/tmp", "/private/tmp")
+}
+
+///|
+fn startup_contract_for_source(
+  source : @worker_wire.EncodedBootstrapSource,
+) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(
       @spec.ContentDigest::from_sha256(
@@ -84,7 +91,7 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=bootstrap_source().digest(),
+    bootstrap_source_digest=source.digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=worker_limits(),
@@ -92,6 +99,11 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
     has_predecessor=false,
     predecessor_value=0UL,
   )
+}
+
+///|
+fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
+  startup_contract_for_source(bootstrap_source())
 }
 
 ///|
@@ -157,13 +169,16 @@ fn start_worker(
 ///|
 fn start_root_worker(
   executable : Bytes,
+  source : @worker_wire.EncodedBootstrapSource,
+  model_path : StringView,
+  kernel_path : StringView,
 ) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let model = @approved_fs.ApprovedRoot::open_absolute(model_path)
+  let kernel = @approved_fs.ApprovedRoot::open_absolute(kernel_path)
   let result = @worker_process.prepare_with_approved_roots(
     executable,
-    startup_contract(),
-    bootstrap_source(),
+    startup_contract_for_source(source),
+    source,
     @worker_process.WorkerProcessLimits::new(
       max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
       startup_io_timeout_millis=5000,
@@ -197,79 +212,99 @@ fn complete_exchange(
 }
 
 ///|
-fn run(executable : Bytes) -> Unit raise {
-  let rooted = start_root_worker(executable)
-  let rooted_plan = plan(1UL, 10UL)
-  let exchange_sequence = rooted.begin_exchange(rooted_plan)
-  assert_eq(exchange_sequence, 1UL)
-  complete_exchange(rooted)
-  let rooted_completion = rooted.received_for_sequence(exchange_sequence)
-  assert_eq(rooted_completion.sequence_value(), 1UL)
-  assert_eq(rooted_completion.frame(rooted).entry_count(), 1)
-  rooted.retire_received(rooted_completion)
-  rooted.begin_recovery()
-  match rooted.restart() {
-    RootBoundRestarted => ()
-    RootBoundRestartCleanupRequired =>
-      raise Failure("rooted exchange replacement cleanup required")
+async fn run(executable : Bytes) -> Unit {
+  @async.with_task_group() <| group => {
+    let temporary = @fs.tmpdir(prefix="lunaflux-worker-process-roots")
+    let parent = @fs.realpath(temporary)
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(parent, recursive=true))
+    }
+    let model_path = "\{parent}/model"
+    let kernel_path = "\{parent}/kernel"
+    let moved_model = "\{parent}/model.moved"
+    let moved_kernel = "\{parent}/kernel.moved"
+    @fs.mkdir(model_path)
+    @fs.mkdir(kernel_path)
+    let rooted_source = bootstrap_source_for_roots(model_path, kernel_path)
+    let rooted = start_root_worker(
+      executable, rooted_source, model_path, kernel_path,
+    )
+    let rooted_plan = plan(1UL, 10UL)
+    let exchange_sequence = rooted.begin_exchange(rooted_plan)
+    assert_eq(exchange_sequence, 1UL)
+    complete_exchange(rooted)
+    let rooted_completion = rooted.received_for_sequence(exchange_sequence)
+    assert_eq(rooted_completion.sequence_value(), 1UL)
+    assert_eq(rooted_completion.frame(rooted).entry_count(), 1)
+    rooted.retire_received(rooted_completion)
+    @fs.rename(model_path, moved_model)
+    @fs.rename(kernel_path, moved_kernel)
+    @fs.mkdir(model_path)
+    @fs.mkdir(kernel_path)
+    rooted.begin_recovery()
+    match rooted.restart() {
+      RootBoundRestarted => ()
+      RootBoundRestartCleanupRequired =>
+        raise Failure("rooted exchange replacement cleanup required")
+    }
+    let replacement_plan = plan(2UL, 20UL)
+    let replacement_sequence = rooted.begin_exchange(replacement_plan)
+    assert_eq(replacement_sequence, 2UL)
+    complete_exchange(rooted)
+    let replacement_completion = rooted.received_for_sequence(
+      replacement_sequence,
+    )
+    rooted.retire_received(replacement_completion)
+    rooted.shutdown_clean()
+    rooted.close()
+    assert_true(rooted.lifecycle() == RootBoundClosed)
+
+    let supervisor = start_worker(executable, startup_contract())
+    assert_eq(supervisor.startup_contract(), startup_contract())
+    let plan_a1 = plan(1UL, 11UL)
+    let plan_b2 = plan(2UL, 12UL)
+    let submission_a1 = supervisor.submit(plan_a1)
+    let submission_b2 = supervisor.submit(plan_b2)
+    let completion_a1 = supervisor.receive(submission_a1, plan_a1)
+    let frame_a1 = completion_a1.frame(supervisor)
+    assert_eq(frame_a1.entry_count(), 1)
+    assert_eq(frame_a1.entry_for_slot(0).processed_tokens(), 2)
+    supervisor.retire_received(completion_a1)
+    let plan_a3 = plan(3UL, 13UL)
+    let submission_a3 = supervisor.submit(plan_a3)
+    let completion_b2 = supervisor.receive(submission_b2, plan_b2)
+    supervisor.retire_received(completion_b2)
+    let completion_a3 = supervisor.receive(submission_a3, plan_a3)
+    supervisor.retire_received(completion_a3)
+    assert_eq(supervisor.outstanding_count(), 0)
+    supervisor.shutdown_clean()
+    supervisor.close()
+    assert_true(supervisor.lifecycle() == Closed)
+
+    let graceful_restart = supervisor.recovery_startup_contract()
+    assert_eq(graceful_restart.predecessor_value(), 3UL)
+    let replacement = start_worker(executable, graceful_restart)
+    let plan_b4 = plan(4UL, 14UL)
+    let abandoned_b4 = replacement.submit(plan_b4)
+    replacement.close()
+    replacement.abandon_submission(abandoned_b4)
+
+    let failed_restart = replacement.recovery_startup_contract()
+    assert_eq(failed_restart.predecessor_value(), 4UL)
+    let final_worker = start_worker(executable, failed_restart)
+    let plan_a5 = plan(5UL, 15UL)
+    let submission_a5 = final_worker.submit(plan_a5)
+    let completion_a5 = final_worker.receive(submission_a5, plan_a5)
+    assert_eq(completion_a5.frame(final_worker).entry_count(), 1)
+    final_worker.retire_received(completion_a5)
+    final_worker.shutdown_clean()
+    final_worker.close()
+    assert_eq(final_worker.recovery_startup_contract().predecessor_value(), 5UL)
   }
-  let replacement_plan = plan(2UL, 20UL)
-  let replacement_sequence = rooted.begin_exchange(replacement_plan)
-  assert_eq(replacement_sequence, 2UL)
-  complete_exchange(rooted)
-  let replacement_completion = rooted.received_for_sequence(
-    replacement_sequence,
-  )
-  rooted.retire_received(replacement_completion)
-  rooted.shutdown_clean()
-  rooted.close()
-  assert_true(rooted.lifecycle() == RootBoundClosed)
-
-  let supervisor = start_worker(executable, startup_contract())
-  assert_eq(supervisor.startup_contract(), startup_contract())
-  let plan_a1 = plan(1UL, 11UL)
-  let plan_b2 = plan(2UL, 12UL)
-  let submission_a1 = supervisor.submit(plan_a1)
-  let submission_b2 = supervisor.submit(plan_b2)
-  let completion_a1 = supervisor.receive(submission_a1, plan_a1)
-  let frame_a1 = completion_a1.frame(supervisor)
-  assert_eq(frame_a1.entry_count(), 1)
-  assert_eq(frame_a1.entry_for_slot(0).processed_tokens(), 2)
-  supervisor.retire_received(completion_a1)
-  let plan_a3 = plan(3UL, 13UL)
-  let submission_a3 = supervisor.submit(plan_a3)
-  let completion_b2 = supervisor.receive(submission_b2, plan_b2)
-  supervisor.retire_received(completion_b2)
-  let completion_a3 = supervisor.receive(submission_a3, plan_a3)
-  supervisor.retire_received(completion_a3)
-  assert_eq(supervisor.outstanding_count(), 0)
-  supervisor.shutdown_clean()
-  supervisor.close()
-  assert_true(supervisor.lifecycle() == Closed)
-
-  let graceful_restart = supervisor.recovery_startup_contract()
-  assert_eq(graceful_restart.predecessor_value(), 3UL)
-  let replacement = start_worker(executable, graceful_restart)
-  let plan_b4 = plan(4UL, 14UL)
-  let abandoned_b4 = replacement.submit(plan_b4)
-  replacement.close()
-  replacement.abandon_submission(abandoned_b4)
-
-  let failed_restart = replacement.recovery_startup_contract()
-  assert_eq(failed_restart.predecessor_value(), 4UL)
-  let final_worker = start_worker(executable, failed_restart)
-  let plan_a5 = plan(5UL, 15UL)
-  let submission_a5 = final_worker.submit(plan_a5)
-  let completion_a5 = final_worker.receive(submission_a5, plan_a5)
-  assert_eq(completion_a5.frame(final_worker).entry_count(), 1)
-  final_worker.retire_received(completion_a5)
-  final_worker.shutdown_clean()
-  final_worker.close()
-  assert_eq(final_worker.recovery_startup_contract().predecessor_value(), 5UL)
 }
 
 ///|
-fn main {
+async fn main {
   match @env.args() {
     [_, executable] => try! run(@utf8.encode(executable))
     _ => println("worker executable path is required")

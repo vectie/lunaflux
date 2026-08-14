@@ -18,6 +18,7 @@ options(
   targets: {
     "api.mbt": [ "native" ],
     "approved_fs_test.mbt": [ "native" ],
+    "root_identity_test.mbt": [ "native" ],
     "path.mbt": [ "native" ],
     "types.mbt": [ "native" ],
   },

@@ -26,6 +26,9 @@ const STATUS_CHANGED : Int = 8
 const STATUS_TOO_LARGE : Int = 9
 
 ///|
+const STATUS_IDENTITY_MISMATCH : Int = 10
+
+///|
 fn raise_open_status(
   status : Int,
   object : ApprovedFsObject,
@@ -69,6 +72,25 @@ pub fn ApprovedRoot::open_absolute(
   let handle = @native.open_root(@utf8.encode(path), status)
   raise_open_status(status.val, Root)
   { handle, }
+}
+
+///|
+/// Requires this pinned root to identify the exact directory currently named
+/// by one strict canonical absolute label. Traversal follows no symlink and no
+/// path, descriptor, device, or inode value is exposed.
+pub fn ApprovedRoot::require_absolute_identity(
+  self : ApprovedRoot,
+  path : StringView,
+) -> Unit raise ApprovedFsError {
+  validate_root_path(path)
+  let status = @native.require_absolute_identity(
+    self.handle,
+    @utf8.encode(path),
+  )
+  if status == STATUS_IDENTITY_MISMATCH {
+    raise Invalid(RootIdentity)
+  }
+  raise_open_status(status, Root)
 }
 
 ///|

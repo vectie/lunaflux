@@ -26,11 +26,12 @@ test "exchange predecessor mismatch precedes closed-root acquisition" {
 test "rooted malformed ready closes child and leaves caller roots independent" {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let source = supervisor_source_for_roots("/private/tmp", "/private/tmp")
   try
     prepare_exchange_with_approved_roots(
       b"/bin/cat",
-      supervisor_startup(),
-      supervisor_source(),
+      supervisor_startup_for_source(source),
+      source,
       supervisor_process_limits(),
       model,
       kernel,

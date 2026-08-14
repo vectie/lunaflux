@@ -16,6 +16,20 @@ extern "c" fn raw_test_close_worker_roots_while_active(
 ) -> Int = "lunaflux_approved_fs_test_close_worker_roots_while_active"
 
 ///|
+extern "c" fn raw_test_reduce_identity_close(
+  primary_status : Int,
+  close_status : Int,
+) -> Int = "lunaflux_approved_fs_test_reduce_identity_close"
+
+///|
+test "identity close reducer preserves the primary result" {
+  assert_eq(raw_test_reduce_identity_close(10, 6), 10)
+  assert_eq(raw_test_reduce_identity_close(1, 6), 1)
+  assert_eq(raw_test_reduce_identity_close(0, 6), 6)
+  assert_eq(raw_test_reduce_identity_close(0, 0), 0)
+}
+
+///|
 async test "worker root leases remain reusable after Busy close" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-approved-fs-worker-roots")
