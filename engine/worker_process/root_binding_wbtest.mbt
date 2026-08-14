@@ -30,13 +30,13 @@ test "root-bound admission sanitizes model and kernel identity failures by role"
     supervisor_source_for_roots("/private", "/private/tmp"),
     model,
     kernel,
-    ModelRootBinding(@approved_fs.Invalid(@approved_fs.RootIdentity)),
+    ModelRootBinding(Invalid(RootIdentity)),
   )
   expect_root_binding_failure(
     supervisor_source_for_roots("/private/tmp", "/private"),
     model,
     kernel,
-    KernelRootBinding(@approved_fs.Invalid(@approved_fs.RootIdentity)),
+    KernelRootBinding(Invalid(RootIdentity)),
   )
   model.close()
   kernel.close()
@@ -52,7 +52,7 @@ test "closed root binding failure is sanitized before retained pair acquisition"
     source,
     model,
     kernel,
-    ModelRootBinding(@approved_fs.Invalid(@approved_fs.Lifecycle)),
+    ModelRootBinding(Invalid(Lifecycle)),
   )
   assert_false(kernel.is_closed())
   kernel.close()
@@ -103,7 +103,7 @@ async test "namespace replacement cannot substitute a root-bound source" {
       source,
       model,
       kernel,
-      ModelRootBinding(@approved_fs.Invalid(@approved_fs.RootIdentity)),
+      ModelRootBinding(Invalid(RootIdentity)),
     )
     assert_false(model.is_closed())
     assert_false(kernel.is_closed())
@@ -146,7 +146,7 @@ async test "root-bound model and kernel roles authenticate an ordered pair" {
       source,
       kernel,
       model,
-      ModelRootBinding(@approved_fs.Invalid(@approved_fs.RootIdentity)),
+      ModelRootBinding(Invalid(RootIdentity)),
     )
     model.close()
     kernel.close()
@@ -174,7 +174,7 @@ async test "root-bound identity follows no role label symlink" {
       source,
       model,
       kernel,
-      ModelRootBinding(@approved_fs.UnsupportedType(@approved_fs.Root)),
+      ModelRootBinding(UnsupportedType(Root)),
     )
     model.close()
     kernel.close()
