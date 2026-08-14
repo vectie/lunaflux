@@ -20,11 +20,11 @@ pub struct IncrementalOutput {
 }
 pub fn IncrementalOutput::finish_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise IncrementalOutputError
 pub fn IncrementalOutput::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
-pub fn IncrementalOutput::has_string_stops(Self) -> Bool
 pub fn IncrementalOutput::is_finished(Self) -> Bool
 pub fn IncrementalOutput::is_stopped(Self) -> Bool
 pub fn IncrementalOutput::new(@tokenizer.TokenizerSpec, @inference.StopConditions, @inference.InferenceLimits, special_policy~ : @tokenizer.DecodeSpecialPolicy) -> Self raise IncrementalOutputError
 pub fn IncrementalOutput::push_token_into(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStep raise IncrementalOutputError
+pub fn IncrementalOutput::push_token_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
 pub fn IncrementalOutput::push_token_without_stops_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
 
 pub(all) enum IncrementalOutputIssue {
@@ -42,10 +42,11 @@ pub(all) enum IncrementalOutputRule {
   Lifecycle
 } derive(Eq, @debug.Debug)
 
-pub struct IncrementalOutputStatus(Int, Int)
+pub struct IncrementalOutputStatus(Int, Int, Bool)
 pub fn IncrementalOutputStatus::copied_bytes(Self) -> Int
 pub fn IncrementalOutputStatus::is_ready(Self) -> Bool
 pub fn IncrementalOutputStatus::rejected() -> Self
+pub fn IncrementalOutputStatus::stop_matched(Self) -> Bool
 
 pub struct IncrementalOutputStep(Int, Bool)
 pub fn IncrementalOutputStep::copied_bytes(Self) -> Int

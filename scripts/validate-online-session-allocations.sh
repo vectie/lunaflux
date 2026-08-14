@@ -59,13 +59,16 @@ for symbol in \
   'OnlineSession17progress__cleanup(' \
   'OnlineSession8progress(' \
   'OnlineSession13decode__token(' \
+  'OnlineSession21progress__string__cut(' \
+  'OnlineSession31prepare__string__stop__terminal(' \
   'OnlineSession22enter__output__cleanup(' \
   'OnlineSession29consume__natural__publication(' \
   'OnlineSession26prepare__natural__terminal(' \
   'AdmittedRequest25push__token__into__status(' \
   'AdmittedRequest20finish__into__status(' \
   'AdmittedRequest15is__stop__token(' \
-  'IncrementalOutput35push__token__without__stops__status(' \
+  'IncrementalOutput19push__token__status(' \
+  'StopPattern7advance(' \
   'IncrementalOutput20finish__into__status(' \
   'incremental__output11copy__range(' \
   'incremental__output21advance__utf8__status(' \
@@ -110,6 +113,30 @@ decode_cleanup_count="$(printf '%s\n' "$decode_body" | rg -c 'enter__output__cle
 decode_error_count="$(printf '%s\n' "$decode_body" | rg -c 'OnlineSessionError_2eSessionFailed' || true)"
 if [ "$decode_cleanup_count" -lt 2 ] || [ "$decode_error_count" -lt 2 ]; then
   printf '%s\n' 'decode/writer rejection does not secure cleanup before typed failure' >&2
+  exit 1
+fi
+
+# The scalar status accessor is inlined by the native compiler, so the exact
+# generated transaction is the stronger proof boundary: an authenticated
+# match must commit cancellation and publish its private cut state before the
+# token writer can expose credit. Writer rejection after that commit must
+# select retained cleanup before constructing the public typed failure.
+if ! rg -U -q \
+  'pub fn IncrementalOutputStatus::stop_matched\([\s\S]*self\.0 == 0 && self\.2' \
+  service/incremental_output/types.mbt; then
+  printf '%s\n' 'incremental-output matched status is not a scalar accessor' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$decode_body" | rg -U -q \
+  -- 'push__token__into__status[\s\S]*commit__cancel[\s\S]*->\$12 = 1;[\s\S]*prepare__token__bytes__status[\s\S]*->\$7 = 2;[\s\S]*->\$6 = 1;'; then
+  printf '%s\n' \
+    'string-stop cancellation is not committed before event publication' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$decode_body" | rg -U -q \
+  -- 'prepare__token__bytes__status[\s\S]*->\$13 = 1;[\s\S]*OnlineSessionError_2eSessionFailed'; then
+  printf '%s\n' \
+    'matched token writer rejection does not retain cleanup authority' >&2
   exit 1
 fi
 if ! printf '%s\n' "$progress_body" | rg -U -q \

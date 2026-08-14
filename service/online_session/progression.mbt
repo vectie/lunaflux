@@ -46,22 +46,95 @@ fn OnlineSession::decode_token(
     self.enter_output_cleanup(lease, natural_terminal)
     raise SessionFailed(OutputFailure)
   }
-  let prepared = self.writer.prepare_token_bytes_status(
-    token_id~,
-    position=try! publication.position(),
-    self.output,
-    source_offset=0,
-    length=step.copied_bytes(),
-  )
-  if !prepared {
-    self.enter_output_cleanup(lease, natural_terminal)
+  if step.stop_matched() {
+    if natural_terminal {
+      self.string_cut = 2
+    } else {
+      let committed = try! lease.commit_cancel()
+      match committed {
+        OnlineCancelCommitted => self.string_cut = 1
+        OnlineCancelReservationAbsent => abort("online string cut invariant")
+      }
+    }
+    if step.copied_bytes() == 0 {
+      return
+    }
+  }
+  if !self.writer.prepare_token_bytes_status(
+      token_id~,
+      position=try! publication.position(),
+      self.output,
+      source_offset=0,
+      length=step.copied_bytes(),
+    ) {
+    if step.stop_matched() {
+      self.cleanup_phase = 1
+    } else {
+      self.enter_output_cleanup(lease, natural_terminal)
+    }
     raise SessionFailed(OutputFailure)
   }
-  if !natural_terminal {
+  if !step.stop_matched() && !natural_terminal {
     try! lease.abort_cancel()
   }
   self.event_kind = 2
   self.event_ready = true
+}
+
+///|
+fn OnlineSession::prepare_string_stop_terminal(self : OnlineSession) -> Unit {
+  self.string_cut = 0
+  self.finish_kind = 1
+  self.final_tail_length = 0
+  try! self.writer.prepare_usage(
+    input_tokens=self.input_tokens,
+    cached_input_tokens=0,
+    output_tokens=self.output_tokens,
+  )
+  self.event_kind = 3
+  self.event_ready = true
+}
+
+///|
+fn OnlineSession::progress_string_cut(
+  self : OnlineSession,
+  lease : @worker_service.OnlineWorkerLease,
+) -> Unit raise OnlineSessionError {
+  if !(try! lease.has_publication()) {
+    try lease.progress() catch {
+      _ => {
+        self.cleanup_phase = 5
+        self.recovery_close = true
+        raise SessionFailed(ServiceFailure)
+      }
+    } noraise {
+      _ => ()
+    }
+    return
+  }
+  let publication = try! lease.take_publication()
+  match publication.kind() {
+    OnlineTerminalPublication => {
+      let reason = try! publication.terminal_reason()
+      if self.string_cut == 1 {
+        if reason != OnlineCancelledByCaller {
+          abort("online string cancellation terminal invariant")
+        }
+      } else if reason != OnlineMaximumOutputReached &&
+        reason != OnlineStopTokenReached {
+        abort("online natural string terminal invariant")
+      }
+      self.prepare_string_stop_terminal()
+    }
+    OnlineSuppressedTokenPublication => {
+      if self.string_cut != 1 {
+        abort("online string suppression invariant")
+      }
+      self.output_tokens += 1
+    }
+    OnlineGeneratedTokenPublication =>
+      abort("online natural string terminal adjacency invariant")
+  }
 }
 
 ///|
@@ -140,6 +213,13 @@ pub fn OnlineSession::progress(
   }
   self.require_owner()
   let lease = self.lease_owner()
+  if self.string_cut != 0 {
+    self.progress_string_cut(lease)
+    if self.event_ready {
+      return OnlineSessionEventReady
+    }
+    return OnlineSessionPending
+  }
   let available = try! lease.has_publication()
   if available {
     let reservation = try lease.reserve_cancel() catch {

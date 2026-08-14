@@ -295,9 +295,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   Accepted credit, and provides an off-reactor exact abort/recovery/close path.
   The borrowed ordinary roots remain caller-owned. Normal allocation-free
   Token output and natural Maximum/StopToken Usage+Completed-v2 bundles are
-  implemented; stop tokens are counted but suppressed. String-stop,
-  caller-cancel, deadline and public Failed translation plus ingress transport
-  remain open; this is not online-serving readiness.
+  implemented; stop tokens are counted but suppressed. Incremental string-stop
+  matching now withholds stop/post-stop bytes, commits an exact cancellation
+  cut when possible, and translates only its authenticated terminal to
+  Usage+Completed(StopSequence); final-token natural-terminal precedence is
+  covered without cancelling an already-terminal request. Caller-cancel,
+  deadline and public Failed translation plus ingress transport remain open;
+  this is not online-serving readiness.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,
   non-reusing restart, post-restart completion, and balanced KV ownership.

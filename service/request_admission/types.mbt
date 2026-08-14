@@ -68,12 +68,6 @@ pub fn AdmittedRequest::input_token_count(self : AdmittedRequest) -> Int {
 }
 
 ///|
-/// Sanitized output-contract classification without exposing stop payloads.
-pub fn AdmittedRequest::has_string_stops(self : AdmittedRequest) -> Bool {
-  self.output.has_string_stops()
-}
-
-///|
 pub fn AdmittedRequest::is_stop_token(
   self : AdmittedRequest,
   token_id : Int,
@@ -123,11 +117,7 @@ pub fn AdmittedRequest::push_token_into_status(
   if self.is_stop_token(token_id) {
     return @incremental_output.IncrementalOutputStatus::rejected()
   }
-  self.output.push_token_without_stops_status(
-    token_id,
-    destination,
-    destination_offset~,
-  )
+  self.output.push_token_status(token_id, destination, destination_offset~)
 }
 
 ///|

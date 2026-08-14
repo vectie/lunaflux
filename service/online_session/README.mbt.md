@@ -25,9 +25,13 @@ credit rejects before worker, scheduler, or decoder mutation.
 Ordinary generated-token decode and writer publication use scalar transactional
 status after exact scheduler reservation/dequeue. No typed error is created
 until cancellation/recovery cleanup state is secured. Natural terminal tail
-flush is likewise scalar. This slice deliberately rejects string-stop requests
-before rooted startup; caller cancellation, deadline translation, and public
-Failed events remain later work.
+flush is likewise scalar. String-stop matching is incremental and transactional:
+the trigger is counted, stop and post-stop bytes are withheld, and an exact
+reserved cancellation terminal is privately translated to canonical `Usage`
+then `Completed(StopSequence)`. If the same final token already has an adjacent
+natural Maximum/StopToken terminal, that precedence is authenticated and
+translated without cancelling an already-terminal request. Caller cancellation,
+deadline translation, and public Failed events remain later work.
 
 The complete off-reactor cleanup path prevents stranded authority: existing
 flight retirement, suppression through exact terminal, worker-failure

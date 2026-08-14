@@ -7,6 +7,7 @@ fn fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
   vocabulary.push({ token_id: 300, piece: b"helloE", kind: Normal })
   vocabulary.push({ token_id: 301, piece: b"NDx", kind: Normal })
   vocabulary.push({ token_id: 302, piece: b"abcE", kind: Normal })
+  vocabulary.push({ token_id: 303, piece: b"xENDz", kind: Normal })
   vocabulary.push({ token_id: 1000, piece: b"<eos>", kind: Special })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -288,6 +289,47 @@ test "scalar no-stop token and finish statuses are transactional" {
   assert_true(finished.is_ready())
   assert_eq(finished.copied_bytes(), 0)
   assert_true(output.is_finished())
+}
+
+///|
+test "scalar stop matcher spans pieces and commits only after destination fits" {
+  let cross = IncrementalOutput::new(
+    fixture_tokenizer(),
+    stops([b"END"]),
+    fixture_inference(),
+    special_policy=Preserve,
+  )
+  let destination = FixedArray::make(16, b'!')
+  let first = cross.push_token_status(300, destination, destination_offset=0)
+  assert_true(first.is_ready())
+  assert_false(first.stop_matched())
+  assert_eq(first.copied_bytes(), 5)
+  let second = cross.push_token_status(301, destination, destination_offset=5)
+  assert_true(second.is_ready())
+  assert_true(second.stop_matched())
+  assert_eq(second.copied_bytes(), 0)
+  assert_true(cross.is_stopped())
+
+  let retryable = IncrementalOutput::new(
+    fixture_tokenizer(),
+    stops([b"END"]),
+    fixture_inference(),
+    special_policy=Preserve,
+  )
+  let too_small = FixedArray::make(0, b'!')
+  let rejected = retryable.push_token_status(
+    303,
+    too_small,
+    destination_offset=0,
+  )
+  assert_false(rejected.is_ready())
+  assert_false(retryable.is_stopped())
+  let exact = FixedArray::make(1, b'!')
+  let matched = retryable.push_token_status(303, exact, destination_offset=0)
+  assert_true(matched.is_ready())
+  assert_true(matched.stop_matched())
+  assert_eq(matched.copied_bytes(), 1)
+  assert_eq(exact[0], b'x')
 }
 
 ///|

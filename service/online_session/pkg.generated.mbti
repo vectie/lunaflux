@@ -83,7 +83,6 @@ pub(all) enum OnlineSessionRule {
   Streaming
   InferenceEnvelope
   ModelIdentity
-  StringStops
   EventCredit
 } derive(Eq, @debug.Debug)
 

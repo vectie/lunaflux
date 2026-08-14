@@ -39,7 +39,7 @@ pub fn IncrementalOutputStep::stop_matched(
 ///|
 /// Scalar, allocation-free token decode status for owner-resident sessions.
 #valtype
-pub struct IncrementalOutputStatus(Int, Int)
+pub struct IncrementalOutputStatus(Int, Int, Bool)
 
 ///|
 pub fn IncrementalOutputStatus::is_ready(
@@ -59,8 +59,15 @@ pub fn IncrementalOutputStatus::copied_bytes(
 }
 
 ///|
+pub fn IncrementalOutputStatus::stop_matched(
+  self : IncrementalOutputStatus,
+) -> Bool {
+  self.0 == 0 && self.2
+}
+
+///|
 pub fn IncrementalOutputStatus::rejected() -> IncrementalOutputStatus {
-  IncrementalOutputStatus(1, 0)
+  IncrementalOutputStatus(1, 0, false)
 }
 
 ///|

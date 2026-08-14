@@ -50,11 +50,47 @@ fn invalid_output_session_tokenizer() -> @tokenizer.TokenizerSpec raise {
 }
 
 ///|
+fn string_session_tokenizer(
+  piece : Bytes,
+  digest : String,
+) -> @tokenizer.TokenizerSpec raise {
+  let vocabulary : Array[@tokenizer.VocabularyEntry] = []
+  let displaced = if piece.length() == 1 { piece[0].to_int() } else { -1 }
+  vocabulary.push({ token_id: 0, piece, kind: Normal })
+  for value in 1..<256 {
+    let byte_piece = if value == displaced {
+      b"\x00"
+    } else {
+      [value.to_byte()]
+    }
+    vocabulary.push({ token_id: value, piece: byte_piece, kind: Normal })
+  }
+  if displaced < 0 {
+    vocabulary.push({ token_id: 256, piece: b"\x00", kind: Normal })
+  }
+  @tokenizer.TokenizerSpec::new(
+    vocabulary,
+    [],
+    @tokenizer.TokenizerDigest::parse(digest),
+    {
+      max_input_bytes: 4,
+      max_output_tokens: 4,
+      max_decoded_bytes: 8,
+      max_vocab_entries: 257,
+      max_merge_rules: 1,
+      max_token_bytes: 2,
+      max_special_tokens: 1,
+    },
+  )
+}
+
+///|
 fn session_received(
   stream : @inference.StreamPreference,
   request_id? : UInt64 = 901UL,
   stop_token? : Int = -1,
   stop_string? : Bytes = b"",
+  max_new_tokens? : Int = 2,
 ) -> @request_admission.ReceivedRequest raise {
   let limits = inference_limits()
   let stop_tokens : Array[Int] = []
@@ -70,7 +106,7 @@ fn session_received(
     request_id=@inference.RequestId::new(request_id),
     model_identity=identity(),
     input=@inference.Input::from_token_ids([1, 2], limits),
-    max_new_tokens=2,
+    max_new_tokens~,
     context_ceiling=4,
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(9UL),
@@ -300,36 +336,58 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupPending)
   assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupClosed)
 
-  let string_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let string_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  try
-    @online_session.prepare_owned_session(
-      session_received(Streaming, request_id=904UL, stop_string=b"x"),
-      tokenizer,
-      tokenizer.digest(),
-      identity(),
-      inference_limits(),
-      @framed_wire.FramedWireLimits::new(
-        inference_limits(),
-        max_frame_bytes=4096,
-      ),
-      scheduler_blueprint(),
-      service_binding(),
-      executable,
-      startup(),
-      bootstrap_source(),
-      process_limits(),
-      string_model,
-      string_kernel,
-    )
-  catch {
-    @online_session.PreparationFailed(Invalid(StringStops)) => ()
-    _ => raise Failure("unexpected deferred string-stop rejection")
-  } noraise {
-    _ => raise Failure("deferred string stop reached rooted online startup")
-  }
-  string_model.close()
-  string_kernel.close()
+  let string_zero_tokenizer = string_session_tokenizer(b"x", "1".repeat(64))
+  let string_zero_received = session_received(
+    Streaming,
+    request_id=904UL,
+    stop_string=b"x",
+    max_new_tokens=2,
+  )
+  assert_string_stop_session(
+    executable,
+    string_zero_tokenizer,
+    string_zero_received,
+    [],
+    1,
+  )
+  assert_string_stop_session(
+    executable,
+    string_session_tokenizer(b"ax", "2".repeat(64)),
+    session_received(
+      Streaming,
+      request_id=907UL,
+      stop_string=b"x",
+      max_new_tokens=2,
+    ),
+    [Some("a")],
+    1,
+  )
+  assert_string_stop_session(
+    executable,
+    string_session_tokenizer(b"a", "3".repeat(64)),
+    session_received(
+      Streaming,
+      request_id=908UL,
+      stop_string=b"aa",
+      max_new_tokens=2,
+    ),
+    [None],
+    2,
+  )
+  assert_string_stop_session(
+    executable,
+    string_session_tokenizer(b"ax", "4".repeat(64)),
+    session_received(
+      Streaming,
+      request_id=909UL,
+      stop_string=b"x",
+      max_new_tokens=1,
+    ),
+    [Some("a")],
+    1,
+  )
+  assert_string_cut_abort(executable, 910UL, false)
+  assert_string_cut_abort(executable, 911UL, true)
 }
 
 ///|

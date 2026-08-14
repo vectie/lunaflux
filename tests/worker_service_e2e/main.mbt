@@ -20,7 +20,7 @@ fn inference_limits() -> @inference.InferenceLimits raise {
     max_token_id=31,
     max_stop_token_ids=1,
     max_stop_strings=1,
-    max_stop_string_bytes=1,
+    max_stop_string_bytes=2,
     max_trace_bytes=8,
     max_cache_scope_bytes=8,
     max_decoded_delta_bytes=8,

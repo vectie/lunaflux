@@ -361,8 +361,11 @@ receipt admission, tokenizer output, the production-owned service, a canonical
 one-credit Accepted frame, and an off-reactor exact abort/recovery/close path.
 Steady allocation-free token stepping, physical stop-token suppression, and
 natural Maximum/StopToken Usage+Completed-v2 publication are now present.
-String-stop/caller-cancel/deadline translation, public Failed publication, and
-ingress transport remain future work.
+Incremental string-stop matching now performs an exact cancellation cut (or
+authenticates final-token natural precedence), withholds stop/post-stop bytes,
+and publishes Usage+Completed(StopSequence). Caller-cancel/deadline
+translation, public Failed publication, and ingress transport remain future
+work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

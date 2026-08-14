@@ -29,7 +29,6 @@ pub struct AdmittedRequest {
 }
 pub fn AdmittedRequest::finish_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise RequestAdmissionError
 pub fn AdmittedRequest::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
-pub fn AdmittedRequest::has_string_stops(Self) -> Bool
 pub fn AdmittedRequest::input_token_count(Self) -> Int
 pub fn AdmittedRequest::is_stop_token(Self, Int) -> Bool
 pub fn AdmittedRequest::output_finished(Self) -> Bool

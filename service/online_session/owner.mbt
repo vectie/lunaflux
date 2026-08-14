@@ -226,6 +226,10 @@ pub fn OnlineSession::begin_abort(
     self.cleanup_phase = 2
     return
   }
+  if self.string_cut != 0 {
+    self.cleanup_phase = 1
+    return
+  }
   let lease = match self.lease {
     Some(value) => value
     None => abort("online session lease invariant")

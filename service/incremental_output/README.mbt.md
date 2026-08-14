@@ -14,10 +14,10 @@ retained. `finish_into` copies an unmatched stop prefix for the canonical
 event-v2 `Completed` tail but rejects a
 truncated UTF-8 scalar.
 
-`push_token_without_stops_status` and `finish_into_status` are the narrow
+`push_token_status` and `finish_into_status` are the narrow
 allocation-free owner-resident variants used after an online session consumes
-authenticated scheduler evidence. They return scalar status, mutate only on
-success, and deliberately reject the string-stop matcher shape.
+authenticated scheduler evidence. They return scalar status and mutate only on
+success, including for the preallocated string-stop matcher shape.
 
 Construction rejects an envelope whose decoded-delta capacity cannot hold one
 maximum tokenizer piece, the longest admitted stop string, and the UTF-8 carry.
@@ -29,4 +29,4 @@ This package is not a scheduler, socket writer, event codec, or cancellation
 owner. The `service/online_session` foundation retains it together with the
 exact production worker authority and canonical one-credit writer. Token/stop
 composition preserves one-credit acknowledgement after a full external frame
-write; string-stop composition remains a later aggregate slice.
+write. The aggregate now uses the scalar matcher for exact string-stop cuts.
