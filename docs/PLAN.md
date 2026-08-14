@@ -284,9 +284,11 @@ and submits into distinct A/B owners with exact plan/table/page rollback.
 Paired completion owners issue exclusive exact-plan leases; ordered full-batch
 retirement preflights output, terminal, and release capacity, enforces token
 stops/output limits, publishes generated token IDs, and resets exact owners.
-Global fairness/preemption, generated-text decoding, and overlapped worker
-integration remain open. The root-bound production service currently consumes
-one reusable side at a time; A/B overlap is confined to transport fixtures.
+Global fairness/preemption, prefix integration, network ingress, and
+overlapped worker integration remain open. Generated-text decoding and exact
+one-credit session publication are implemented above the root-bound service,
+which currently consumes one reusable side at a time; A/B overlap is confined
+to transport fixtures.
 
 ### Workstream 4: worker overlap
 

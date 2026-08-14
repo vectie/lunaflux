@@ -220,15 +220,17 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A bounded incremental decoded-output owner that copies exact tokenizer pieces
   into caller-owned fixed storage, validates UTF-8 across token boundaries,
   and withholds stop strings matched across token or code-point boundaries.
-  Pattern tables and scratch are constructed before token stepping; the online
-  session, output acknowledgement, and transport allocation gate remain open.
+  Pattern tables and scratch are constructed before token stepping. The owned
+  online session now drives this owner through acknowledged one-credit Token
+  and terminal publication with a positive-controlled allocation gate; network
+  transport remains open.
 - A synchronous request-admission bridge captures an opaque monotonic receipt
   before parsing, binds the selected model and tokenizer, tokenizes with
   overflow and special-token rejection, and constructs the scheduler request
   with the original absolute deadline. String stops stay in its private
   incremental owner while stop-token output fails closed. Exact request-handle
-  binding, terminal lookahead, and async tokenizer-pool orchestration remain
-  session-layer work.
+  binding and terminal lookahead are implemented by the owned session; async
+  tokenizer-pool and ingress orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion
@@ -431,15 +433,17 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   service, but that path has not passed physical-CUDA numerical validation. The
   stateless reference interpreter remains the correctness oracle and
   deliberately recomputes full sequences.
-- Online APIs, generated-text decoding/transport publication, continuous
-  batching with global fairness/preemption, live worker overlap,
-  physically proven paged execution, online sampling and prefix integration,
-  or telemetry. The
+- Public network ingress/API adapters, continuous batching with global
+  fairness/preemption, live worker overlap, physically proven paged execution,
+  prefix integration, or telemetry. The public in-process online-session owner
+  implements generated-text decoding, sampling-result consumption, exact
+  one-credit Token/Usage/Completed/Failed publication, cancellation, deadlines,
+  and failure terminalization. The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist, and the scheduler,
   root-bound service, spawned device child, and device-worker aggregate are now
-  connected. There is still no public online API or physical-CUDA serving
-  evidence, so no bounded-latency serving claim is made.
+  connected. There is still no network listener/protocol adapter or
+  physical-CUDA serving evidence, so no bounded-latency serving claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` remains

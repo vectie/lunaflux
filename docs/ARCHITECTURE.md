@@ -194,15 +194,18 @@ construction now starts from an immutable scheduler blueprint and ordinary
 approved roots, constructing both mutable owners internally; the old
 alias-taking constructor is explicitly fixture-only. Its independent
 binding is retained unchanged across replacements. Restart
-policy/backoff and live overlap remain open. Global
-fairness/preemption, generated-text decoding, and prefix integration also
-remain open. The owned service now contains a restricted permanent
+policy/backoff and live overlap remain open. Global fairness/preemption,
+prefix integration, and network ingress also remain open. The owned service
+now contains a restricted permanent
 Raw-versus-Online ownership lease with exact request/publication sequencing,
 trusted monotonic admission/expiry, recovery, and close authority. The public
-online-session aggregate above it remains open and must never return the lease
-or WorkerService. Child ownership, executable and fixed handshake storage are
-preallocated; native spawn, scalar handshake validation and cleanup, and owner
-publication allocate no managed objects while rooted authority is live.
+in-process online-session aggregate above it owns token decoding, one-credit
+event acknowledgement, cancellation, deadline enforcement, terminal failure,
+and off-reactor recovery/cleanup without returning the lease or WorkerService.
+Network transport remains above that aggregate. Child ownership, executable
+and fixed handshake storage are preallocated; native spawn, scalar handshake
+validation and cleanup, and owner publication allocate no managed objects
+while rooted authority is live.
 Capability IDs are copied from authenticated model-generation recipes;
 scheduler policy does not inspect model operations or select kernels.
 

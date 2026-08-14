@@ -7,7 +7,8 @@
 > contracts, reusable worker messages, generational KV metadata and block
 > tables, prefix indexing, sampling, and scheduler request ownership. The
 > repository does not yet claim serving readiness, physical-CUDA release
-> evidence, a public online API, live worker overlap, or GPU performance.
+> evidence, a public network ingress/API adapter, live worker overlap, or GPU
+> performance.
 
 LunaFlux is a MoonBit-native, high-throughput language-model inference engine.
 Its design combines prefix-aware scheduling, deterministic paged KV memory,
