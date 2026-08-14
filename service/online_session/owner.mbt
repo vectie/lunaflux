@@ -203,11 +203,18 @@ pub fn OnlineSession::ack_event(
       self.writer.retire() catch {
         _ => raise SessionFailed(WireFailure)
       }
+      let code = if self.failure_kind == 1 {
+        self.deadline_code
+      } else if self.failure_kind == 2 {
+        self.output_code
+      } else {
+        self.worker_code
+      }
       try! self.writer.prepare_failed(
-        self.deadline_code,
+        code,
         code_offset=0,
-        code_length=self.deadline_code.length(),
-        retryable=false,
+        code_length=code.length(),
+        retryable=self.failure_kind == 3,
       )
       self.event_kind = 6
       self.event_ready = true
@@ -243,6 +250,10 @@ pub fn OnlineSession::begin_abort(
     }
     self.event_ready = false
     self.accepted_acked = true
+  }
+  if self.recovery_close && (self.string_cut != 0 || self.terminal_cut != 0) {
+    self.cleanup_phase = 5
+    return
   }
   if self.event_kind >= 3 && self.event_kind <= 6 {
     self.cleanup_phase = 2

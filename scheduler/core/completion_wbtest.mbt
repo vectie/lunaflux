@@ -236,6 +236,35 @@ test "worker failure completion is synthesized once and reused on retry" {
 }
 
 ///|
+test "semantic invalid submitted completion is replaced by exact failure" {
+  let owner = wb_owner()
+  let handle = owner.admit(wb_request(503UL), 0UL)
+  let plan = wb_next_plan(owner)
+  let row = try! plan.prefill_row(0)
+  let writer = try! owner.completion_writer(plan)
+  try! writer.append_final_prefill_completed(
+    slot=try! row.completion_slot(),
+    request_id=try! row.request_id(),
+    request_generation=try! row.request_generation(),
+    processed_tokens=try! row.tokens().length(),
+    token_id=7,
+  )
+  let invalid = try! writer.submit()
+  owner.processed_inputs[owner.plan_a_slots[0]] = 1
+  try owner.complete(plan, invalid) catch {
+    Invalid(field=Completion, issue=Mismatch) => ()
+    _ => fail("unexpected semantic completion error")
+  } noraise {
+    _ => fail("semantic invalid completion was accepted")
+  }
+  assert_eq(owner.completion_a.state(), CompletionSubmitted)
+  owner.replace_submitted_completion_with_failure(plan, ExecutionFailed)
+  assert_eq(owner.take_terminal_notice().reason(), WorkerFailed)
+  assert_true(owner.status(handle.request_id()) is None)
+  assert_eq(owner.completion_a.state(), CompletionWritable)
+}
+
+///|
 test "completion retirement is sequence ordered across A and B" {
   let owner = wb_owner_with_capacity(3, 3)
   let first = owner.admit(wb_request(511UL), 0UL)

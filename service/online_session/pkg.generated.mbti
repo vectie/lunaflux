@@ -46,6 +46,7 @@ pub fn OnlineSession::event_length(Self) -> Int raise OnlineSessionError
 pub fn OnlineSession::has_event(Self) -> Bool
 pub fn OnlineSession::progress(Self) -> OnlineSessionProgress raise OnlineSessionError
 pub fn OnlineSession::progress_cleanup(Self) -> OnlineSessionCleanupProgress raise OnlineSessionError
+pub fn OnlineSession::progress_terminalization(Self) -> OnlineSessionProgress raise OnlineSessionError
 pub fn OnlineSession::request_cancel(Self) -> Unit raise OnlineSessionError
 
 pub(all) enum OnlineSessionCleanupProgress {
@@ -58,7 +59,6 @@ pub(all) enum OnlineSessionFailure {
   ServicePreparationFailure
   ServiceFailure
   WireFailure
-  OutputFailure
   Invalid(OnlineSessionRule)
 } derive(Eq, @debug.Debug)
 
@@ -77,6 +77,7 @@ pub(all) enum OnlineSessionPreparationState {
 pub(all) enum OnlineSessionProgress {
   OnlineSessionPending
   OnlineSessionEventReady
+  OnlineSessionTerminalizationRequired
 } derive(Eq, @debug.Debug)
 
 pub(all) enum OnlineSessionRule {

@@ -227,6 +227,52 @@ test "online terminal recovery wrapper drains restart-forbidden request" {
 }
 
 ///|
+test "online worker step classification is bounded and state-aware" {
+  assert_eq(
+    classify_online_worker_error(
+      Scheduler(Invalid(field=OutputCapacity, issue=Backpressured)),
+    ),
+    0,
+  )
+  assert_eq(
+    classify_online_worker_error(
+      RootBoundProcess(RootBoundFailure(Process(Backpressured))),
+    ),
+    0,
+  )
+  assert_eq(
+    classify_online_worker_error(
+      RootBoundProcess(RootBoundFailure(Process(Invalid(Completion)))),
+    ),
+    1,
+  )
+  assert_eq(
+    classify_online_worker_error(
+      Scheduler(Invalid(field=Completion, issue=Mismatch)),
+    ),
+    1,
+  )
+  assert_eq(
+    classify_online_worker_error(
+      RootBoundProcess(RootBoundFailure(Process(Transport(ChannelClosed)))),
+    ),
+    2,
+  )
+  assert_eq(classify_online_worker_error(Invalid(Lifecycle)), 2)
+  assert_eq(
+    classify_online_worker_error(Scheduler(PageAllocator(Exhausted))),
+    2,
+  )
+  assert_eq(classify_online_worker_error(Scheduler(BlockTable(Exhausted))), 2)
+  assert_eq(
+    classify_online_worker_error(
+      Scheduler(Invalid(field=PublicationSequence, issue=Exhausted)),
+    ),
+    2,
+  )
+}
+
+///|
 test "out-of-phase reserved dequeue preserves scheduler publication" {
   let scheduler = wb_service_scheduler()
   let admitted = try! scheduler.admit(wb_online_request(), 0UL)

@@ -67,6 +67,12 @@ pub(all) enum OnlineTerminalRecoveryProgress {
   OnlineTerminalRecoveryPublicationReady
 } derive(Eq, @debug.Debug)
 
+pub(all) enum OnlineTerminalRecoveryStatus {
+  OnlineTerminalRecoveryRetryable
+  OnlineTerminalRecoveryStillPending
+  OnlineTerminalRecoveryReady
+} derive(Eq, @debug.Debug)
+
 pub struct OnlineWorkerLease {
   // private fields
 }
@@ -82,7 +88,9 @@ pub fn OnlineWorkerLease::expire(Self) -> OnlineExpiry raise WorkerServiceError
 pub fn OnlineWorkerLease::has_publication(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::invalidate_device_state(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerLease::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_status(Self) -> OnlineWorkerStep raise WorkerServiceError
 pub fn OnlineWorkerLease::progress_terminal_recovery(Self, @worker_protocol.WorkerFailure) -> OnlineTerminalRecoveryProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_terminal_recovery_status(Self, @worker_protocol.WorkerFailure) -> OnlineTerminalRecoveryStatus
 pub fn OnlineWorkerLease::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn OnlineWorkerLease::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
 pub fn OnlineWorkerLease::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
@@ -105,6 +113,13 @@ pub(all) enum OnlineWorkerPublicationKind {
   OnlineGeneratedTokenPublication
   OnlineSuppressedTokenPublication
   OnlineTerminalPublication
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OnlineWorkerStep {
+  OnlineWorkerAdvanced
+  OnlineWorkerRetryable
+  OnlineWorkerOutputInvalid
+  OnlineWorkerUnavailable
 } derive(Eq, @debug.Debug)
 
 pub(all) enum OnlineWorkerTerminalReason {

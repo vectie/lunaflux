@@ -51,9 +51,34 @@ fn WorkerService::recover_flight_impl(
   } noraise {
     _ => {
       self.flight_state = FLIGHT_RECEIVED
-      let committed = self.commit_received()
-      self.lifecycle = ServiceDeviceInvalidationRequired
-      return committed
+      try self.commit_received() catch {
+        Scheduler(Invalid(issue=Backpressured, ..)) as error => raise error
+        _ => {
+          let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
+            error => raise scheduler_error(error)
+          }
+          let received = self.require_process().received_for_sequence(sequence) catch {
+              error => raise root_bound_process_error(error)
+            }
+          self.require_process().validate_retirement(received) catch {
+            error => raise root_bound_process_error(error)
+          }
+          self.scheduler.replace_submitted_completion_with_failure(
+            plan, failure,
+          ) catch {
+            error => raise scheduler_error(error)
+          }
+          try! self.require_process().retire_received(received)
+          self.clear_flight()
+          self.lifecycle = ServiceDeviceInvalidationRequired
+          return sequence
+        }
+      } noraise {
+        committed => {
+          self.lifecycle = ServiceDeviceInvalidationRequired
+          return committed
+        }
+      }
     }
   }
   let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {

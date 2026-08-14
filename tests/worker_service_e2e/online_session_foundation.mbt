@@ -184,12 +184,33 @@ fn progress_foundation_to_event(
 ) -> Unit raise {
   let mut attempts = 0
   while !session.has_event() && attempts < 1000000 {
-    ignore(session.progress())
+    match session.progress() {
+      OnlineSessionTerminalizationRequired =>
+        ignore(session.progress_terminalization())
+      OnlineSessionPending | OnlineSessionEventReady => ()
+    }
     attempts += 1
   }
   if !session.has_event() {
     raise Failure("online session did not publish bounded progress")
   }
+}
+
+///|
+fn progress_foundation_to_terminalization(
+  session : @online_session.OnlineSession,
+) -> Unit raise {
+  let mut attempts = 0
+  while attempts < 1000000 {
+    match session.progress() {
+      OnlineSessionTerminalizationRequired => return
+      OnlineSessionPending => ()
+      OnlineSessionEventReady =>
+        raise Failure("online failure unexpectedly published on reactor")
+    }
+    attempts += 1
+  }
+  raise Failure("online failure did not require bounded terminalization")
 }
 
 ///|
@@ -312,22 +333,25 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
     session_received(Streaming, request_id=905UL),
   )
   invalid_output.ack_event()
-  let mut decode_failed = false
-  let mut attempts = 0
-  while !decode_failed && attempts < 1000000 {
-    try invalid_output.progress() catch {
-      SessionFailed(OutputFailure) => decode_failed = true
-      _ => raise Failure("unexpected scalar online decode failure")
-    } noraise {
-      _ => attempts += 1
+  progress_foundation_to_terminalization(invalid_output)
+  assert_eq(invalid_output.progress(), OnlineSessionTerminalizationRequired)
+  progress_foundation_to_event(invalid_output)
+  match foundation_event(invalid_output) {
+    Usage(value) => assert_eq(value.output_tokens(), 1)
+    _ => raise Failure("invalid output did not publish Usage")
+  }
+  invalid_output.request_cancel()
+  invalid_output.check_deadline()
+  invalid_output.ack_event()
+  match foundation_event(invalid_output) {
+    Failed(value) => {
+      assert_eq(value.code().as_string(), "output_invalid")
+      assert_false(value.retryable())
     }
+    _ => raise Failure("invalid output did not publish canonical Failed")
   }
-  assert_true(decode_failed)
-  let mut cleanup = invalid_output.progress_cleanup()
-  while cleanup == OnlineSessionCleanupPending {
-    cleanup = invalid_output.progress_cleanup()
-  }
-  assert_eq(cleanup, OnlineSessionCleanupClosed)
+  invalid_output.ack_event()
+  assert_eq(invalid_output.progress_cleanup(), OnlineSessionCleanupClosed)
 
   let aborting = prepare_foundation_session(
     executable,
@@ -391,31 +415,4 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   )
   assert_string_cut_abort(executable, 910UL, false)
   assert_string_cut_abort(executable, 911UL, true)
-}
-
-///|
-fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
-  let session = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
-    session_received(Streaming, request_id=906UL),
-  )
-  session.ack_event()
-  assert_eq(session.progress(), OnlineSessionPending)
-  let mut failed = false
-  let mut attempts = 0
-  while !failed && attempts < 1000000 {
-    try session.progress() catch {
-      SessionFailed(ServiceFailure) => failed = true
-      _ => raise Failure("unexpected online physical progress failure")
-    } noraise {
-      _ => attempts += 1
-    }
-  }
-  assert_true(failed)
-  let mut cleanup = session.progress_cleanup()
-  while cleanup == OnlineSessionCleanupPending {
-    cleanup = session.progress_cleanup()
-  }
-  assert_eq(cleanup, OnlineSessionCleanupClosed)
 }

@@ -16,4 +16,6 @@ import {
   "vectie/lunaflux/config/scheduler" @scheduler_config,
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/kv/block_table",
+  "vectie/lunaflux/kv/page_allocator",
 } for "wbtest"

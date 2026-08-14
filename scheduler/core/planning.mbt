@@ -407,12 +407,24 @@ pub fn Scheduler::build_next(
   if self.step == MAX_GENERATION || self.last_plan_sequence == MAX_GENERATION {
     raise invalid(Plan, Exhausted)
   }
-  let side = if self.plan_a_sequence == 0UL && self.plan_a.state() == Writable {
+  let a_reusable = self.plan_a_sequence == 0UL &&
+    self.plan_a.state() == Writable &&
+    self.plan_a.epoch() < MAX_GENERATION &&
+    self.completion_a.state() == CompletionWritable &&
+    self.completion_a.epoch() < MAX_GENERATION
+  let b_reusable = self.plan_b_sequence == 0UL &&
+    self.plan_b.state() == Writable &&
+    self.plan_b.epoch() < MAX_GENERATION &&
+    self.completion_b.state() == CompletionWritable &&
+    self.completion_b.epoch() < MAX_GENERATION
+  let side = if a_reusable {
     0
-  } else if self.plan_b_sequence == 0UL && self.plan_b.state() == Writable {
+  } else if b_reusable {
     1
-  } else {
+  } else if self.plan_a_sequence != 0UL || self.plan_b_sequence != 0UL {
     return BuildBackpressured
+  } else {
+    raise invalid(Plan, Exhausted)
   }
   let token_budget = self.select_rows()
   if token_budget == 0 {

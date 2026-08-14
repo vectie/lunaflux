@@ -84,7 +84,10 @@ rings.
 Recovery first closes and reaps the old child. `recover_flight` probes for a
 pinned completion, then an exact process reservation, before synthesizing a
 bounded worker failure. The process submission is abandoned only after
-scheduler retirement succeeds. Missing reservation evidence enters explicit
+scheduler retirement succeeds. A received frame that is wire-valid but
+semantically invalid is first replaced by the scheduler's exact terminal
+failure transaction; only then is received process authority retired. Missing
+reservation evidence enters explicit
 `ServiceRestartForbidden`; it can never start a replacement. Before a normal
 restart, `invalidate_device_state` is a separate retryable phase that fails
 active requests and releases their host page/table identities. Waiting requests

@@ -135,6 +135,17 @@ pub enum WorkerServiceProgress {
 }
 
 ///|
+/// Payload-safe classification of one online worker step. Lower scheduler,
+/// protocol, process, and transport errors remain owned by the service.
+#valtype
+pub(all) enum OnlineWorkerStep {
+  OnlineWorkerAdvanced
+  OnlineWorkerRetryable
+  OnlineWorkerOutputInvalid
+  OnlineWorkerUnavailable
+} derive(Debug, Eq)
+
+///|
 pub(all) enum WorkerServiceRestart {
   Restarted
   RestartCleanupRequired
@@ -236,6 +247,14 @@ pub(all) enum OnlineExpiry {
 pub(all) enum OnlineTerminalRecoveryProgress {
   OnlineTerminalRecoveryPending
   OnlineTerminalRecoveryPublicationReady
+} derive(Debug, Eq)
+
+///|
+#valtype
+pub(all) enum OnlineTerminalRecoveryStatus {
+  OnlineTerminalRecoveryRetryable
+  OnlineTerminalRecoveryStillPending
+  OnlineTerminalRecoveryReady
 } derive(Debug, Eq)
 
 ///|

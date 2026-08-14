@@ -154,6 +154,7 @@ pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIden
 pub fn Scheduler::next_publication_kind(Self) -> SchedulerPublicationKind raise SchedulerError
 pub fn Scheduler::prepare_admission(Self, TokenizedRequest) -> PreparedAdmission
 pub fn Scheduler::prepare_exclusive_admission(Self, TokenizedRequest) -> PreparedExclusiveAdmission raise SchedulerError
+pub fn Scheduler::replace_submitted_completion_with_failure(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::reserve_cancel_exact(Self, RequestHandle) -> CancelReservationStart raise SchedulerError
 pub fn Scheduler::retired_slot_count(Self) -> Int
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?

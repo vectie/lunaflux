@@ -9,18 +9,19 @@ fn OnlineSession::lease_owner(
 }
 
 ///|
-fn OnlineSession::enter_output_cleanup(
+fn OnlineSession::begin_output_failure(
   self : OnlineSession,
   lease : @worker_service.OnlineWorkerLease,
   natural_terminal : Bool,
 ) -> Unit {
+  self.failure_kind = 2
   if natural_terminal {
-    self.cleanup_phase = 1
+    self.terminal_cut = 5
     return
   }
   let committed = try! lease.commit_cancel()
   match committed {
-    OnlineCancelCommitted => self.cleanup_phase = 1
+    OnlineCancelCommitted => self.terminal_cut = 3
     OnlineCancelReservationAbsent => abort("online output cut invariant")
   }
 }
@@ -31,7 +32,7 @@ fn OnlineSession::decode_token(
   lease : @worker_service.OnlineWorkerLease,
   publication : @worker_service.OnlineWorkerPublication,
   natural_terminal : Bool,
-) -> Unit raise OnlineSessionError {
+) -> Unit {
   let token_id = try! publication.token_id()
   if self.admitted.is_stop_token(token_id) {
     abort("online natural stop token decode invariant")
@@ -43,8 +44,8 @@ fn OnlineSession::decode_token(
     destination_offset=0,
   )
   if !step.is_ready() {
-    self.enter_output_cleanup(lease, natural_terminal)
-    raise SessionFailed(OutputFailure)
+    self.begin_output_failure(lease, natural_terminal)
+    return
   }
   if step.stop_matched() {
     if natural_terminal {
@@ -68,11 +69,13 @@ fn OnlineSession::decode_token(
       length=step.copied_bytes(),
     ) {
     if step.stop_matched() {
-      self.cleanup_phase = 1
+      self.failure_kind = 2
+      self.terminal_cut = if natural_terminal { 5 } else { 3 }
+      self.string_cut = 0
     } else {
-      self.enter_output_cleanup(lease, natural_terminal)
+      self.begin_output_failure(lease, natural_terminal)
     }
-    raise SessionFailed(OutputFailure)
+    return
   }
   if !step.stop_matched() && !natural_terminal {
     try! lease.abort_cancel()
@@ -99,16 +102,11 @@ fn OnlineSession::prepare_string_stop_terminal(self : OnlineSession) -> Unit {
 fn OnlineSession::progress_string_cut(
   self : OnlineSession,
   lease : @worker_service.OnlineWorkerLease,
-) -> Unit raise OnlineSessionError {
+) -> Unit {
   if !(try! lease.has_publication()) {
-    try lease.progress() catch {
-      _ => {
-        self.cleanup_phase = 5
-        self.recovery_close = true
-        raise SessionFailed(ServiceFailure)
-      }
-    } noraise {
-      _ => ()
+    let step = try! lease.progress_status()
+    if self.latch_worker_step_failure(step) {
+      return
     }
     return
   }
@@ -142,6 +140,18 @@ fn OnlineSession::prepare_natural_terminal(
   self : OnlineSession,
   reason : @worker_service.OnlineWorkerTerminalReason,
 ) -> Unit raise OnlineSessionError {
+  if reason == OnlineWorkerFailed {
+    self.failure_kind = 3
+    self.final_tail_length = 0
+    try! self.writer.prepare_usage(
+      input_tokens=self.input_tokens,
+      cached_input_tokens=0,
+      output_tokens=self.output_tokens,
+    )
+    self.event_kind = 5
+    self.event_ready = true
+    return
+  }
   self.finish_kind = match reason {
     OnlineStopTokenReached => 1
     OnlineMaximumOutputReached => 2
@@ -152,8 +162,16 @@ fn OnlineSession::prepare_natural_terminal(
   }
   let tail = self.admitted.finish_into_status(self.output, destination_offset=0)
   if !tail.is_ready() {
-    self.cleanup_phase = 2
-    raise SessionFailed(OutputFailure)
+    self.failure_kind = 2
+    self.final_tail_length = 0
+    try! self.writer.prepare_usage(
+      input_tokens=self.input_tokens,
+      cached_input_tokens=0,
+      output_tokens=self.output_tokens,
+    )
+    self.event_kind = 5
+    self.event_ready = true
+    return
   }
   self.final_tail_length = tail.copied_bytes()
   try! self.writer.prepare_usage(
@@ -213,8 +231,17 @@ pub fn OnlineSession::progress(
   }
   self.require_owner()
   let lease = self.lease_owner()
+  if self.recovery_close {
+    return OnlineSessionTerminalizationRequired
+  }
   if self.terminal_cut != 0 {
+    if self.terminal_cut == 3 || self.terminal_cut == 4 {
+      return OnlineSessionTerminalizationRequired
+    }
     self.progress_terminal_cut(lease)
+    if self.recovery_close {
+      return OnlineSessionTerminalizationRequired
+    }
     if self.event_ready {
       return OnlineSessionEventReady
     }
@@ -222,6 +249,9 @@ pub fn OnlineSession::progress(
   }
   if self.string_cut != 0 {
     self.progress_string_cut(lease)
+    if self.recovery_close {
+      return OnlineSessionTerminalizationRequired
+    }
     if self.event_ready {
       return OnlineSessionEventReady
     }
@@ -262,16 +292,14 @@ pub fn OnlineSession::progress(
     if self.event_ready {
       return OnlineSessionEventReady
     }
+    if self.terminal_cut == 3 || self.terminal_cut == 4 {
+      return OnlineSessionTerminalizationRequired
+    }
     return OnlineSessionPending
   }
-  try lease.progress() catch {
-    _ => {
-      self.cleanup_phase = 5
-      self.recovery_close = true
-      raise SessionFailed(ServiceFailure)
-    }
-  } noraise {
-    _ => ()
+  let step = try! lease.progress_status()
+  if self.latch_worker_step_failure(step) {
+    return OnlineSessionTerminalizationRequired
   }
   OnlineSessionPending
 }

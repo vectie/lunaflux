@@ -149,6 +149,22 @@ pub fn OnlineWorkerLease::progress_terminal_recovery(
 }
 
 ///|
+/// Nonraising recovery disposition for an aggregate that already owns this
+/// lease. A lower close/reap/invalidation failure retains authority and is
+/// reported as retryable instead of allocating a post-mutation error.
+pub fn OnlineWorkerLease::progress_terminal_recovery_status(
+  self : OnlineWorkerLease,
+  failure : @worker_protocol.WorkerFailure,
+) -> OnlineTerminalRecoveryStatus {
+  try self.progress_terminal_recovery(failure) catch {
+    _ => OnlineTerminalRecoveryRetryable
+  } noraise {
+    OnlineTerminalRecoveryPending => OnlineTerminalRecoveryStillPending
+    OnlineTerminalRecoveryPublicationReady => OnlineTerminalRecoveryReady
+  }
+}
+
+///|
 /// Cleanly closes a healthy service only after its exact terminal publication
 /// and every scheduler/process obligation have been retired.
 pub fn OnlineWorkerLease::shutdown_clean(

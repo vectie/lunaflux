@@ -5,6 +5,18 @@ fn deadline_failure_code() -> FixedArray[Byte] {
 }
 
 ///|
+fn output_failure_code() -> FixedArray[Byte] {
+  let source = b"output_invalid"
+  FixedArray::makei(source.length(), index => source[index])
+}
+
+///|
+fn worker_failure_code() -> FixedArray[Byte] {
+  let source = b"worker_unavailable"
+  FixedArray::makei(source.length(), index => source[index])
+}
+
+///|
 fn OnlineSession::begin_caller_cut(
   self : OnlineSession,
   lease : @worker_service.OnlineWorkerLease,
@@ -32,7 +44,10 @@ fn OnlineSession::begin_deadline_cut(
   let expiry = lease.expire() catch { _ => raise SessionFailed(ServiceFailure) }
   match expiry {
     OnlineDeadlinePending | OnlineDeadlineNaturalTerminal => ()
-    OnlineDeadlineCommitted => self.terminal_cut = 2
+    OnlineDeadlineCommitted => {
+      self.failure_kind = 1
+      self.terminal_cut = 2
+    }
   }
 }
 
@@ -44,6 +59,7 @@ fn OnlineSession::enforce_deadline(
   let expiry = lease.expire() catch { _ => raise SessionFailed(ServiceFailure) }
   match classify_expiry_cut(expiry) {
     2 => {
+      self.failure_kind = 1
       self.terminal_cut = 2
       true
     }
@@ -61,6 +77,39 @@ fn classify_expiry_cut(expiry : @worker_service.OnlineExpiry) -> Int {
 }
 
 ///|
+/// Latches only failure classes whose lower owner has already retained every
+/// outstanding flight/recovery obligation. Retryable pre-mutation failures do
+/// not consume the session or change its public terminal cause.
+fn OnlineSession::latch_worker_step_failure(
+  self : OnlineSession,
+  step : @worker_service.OnlineWorkerStep,
+) -> Bool {
+  match step {
+    OnlineWorkerOutputInvalid => {
+      if self.terminal_cut == 0 && self.string_cut == 0 {
+        if self.failure_kind == 0 {
+          self.failure_kind = 2
+        }
+        self.terminal_cut = 4
+      }
+      self.recovery_close = true
+      true
+    }
+    OnlineWorkerUnavailable => {
+      if self.terminal_cut == 0 && self.string_cut == 0 {
+        if self.failure_kind == 0 {
+          self.failure_kind = 3
+        }
+        self.terminal_cut = 4
+      }
+      self.recovery_close = true
+      true
+    }
+    OnlineWorkerAdvanced | OnlineWorkerRetryable => false
+  }
+}
+
+///|
 fn OnlineSession::prepare_cut_terminal(self : OnlineSession) -> Unit {
   try! self.writer.prepare_usage(
     input_tokens=self.input_tokens,
@@ -71,6 +120,15 @@ fn OnlineSession::prepare_cut_terminal(self : OnlineSession) -> Unit {
     self.finish_kind = 3
     self.event_kind = 3
   } else {
+    if self.failure_kind == 0 {
+      self.failure_kind = if self.terminal_cut == 2 {
+        1
+      } else if self.terminal_cut == 4 {
+        3
+      } else {
+        2
+      }
+    }
     self.event_kind = 5
   }
   self.terminal_cut = 0
@@ -81,16 +139,11 @@ fn OnlineSession::prepare_cut_terminal(self : OnlineSession) -> Unit {
 fn OnlineSession::progress_terminal_cut(
   self : OnlineSession,
   lease : @worker_service.OnlineWorkerLease,
-) -> Unit raise OnlineSessionError {
+) -> Unit {
   if !(try! lease.has_publication()) {
-    try lease.progress() catch {
-      _ => {
-        self.cleanup_phase = 5
-        self.recovery_close = true
-        raise SessionFailed(ServiceFailure)
-      }
-    } noraise {
-      _ => ()
+    let step = try! lease.progress_status()
+    if self.latch_worker_step_failure(step) {
+      return
     }
     return
   }
@@ -105,11 +158,64 @@ fn OnlineSession::progress_terminal_cut(
         if reason != OnlineCancelledByCaller {
           abort("online caller cancellation terminal invariant")
         }
-      } else if reason != OnlineDeadlineReached {
+      } else if self.terminal_cut == 2 && reason != OnlineDeadlineReached {
         abort("online deadline terminal invariant")
+      } else if self.terminal_cut == 3 && reason != OnlineCancelledByCaller {
+        abort("online output cancellation terminal invariant")
+      } else if self.terminal_cut == 4 && reason != OnlineWorkerFailed {
+        abort("online worker failure terminal invariant")
+      } else if self.terminal_cut == 5 &&
+        reason != OnlineMaximumOutputReached &&
+        reason != OnlineStopTokenReached {
+        abort("online natural output failure terminal invariant")
       }
       self.prepare_cut_terminal()
     }
+  }
+}
+
+///|
+/// Advances one explicitly off-reactor failure-terminalization transition.
+/// This is the only normal-session API allowed to recover/reap a failed child.
+/// The first latched product cause remains stable across recovery retries.
+pub fn OnlineSession::progress_terminalization(
+  self : OnlineSession,
+) -> OnlineSessionProgress raise OnlineSessionError {
+  if self.event_ready {
+    raise SessionFailed(Invalid(EventCredit))
+  }
+  if self.closed || self.cleanup_phase != 0 || !self.accepted_acked {
+    raise SessionFailed(Invalid(Lifecycle))
+  }
+  self.require_owner()
+  if !self.recovery_close && self.terminal_cut != 3 {
+    raise SessionFailed(Invalid(Lifecycle))
+  }
+  let lease = self.lease_owner()
+  if self.recovery_close {
+    let recovery = lease.progress_terminal_recovery_status(ResourceUnavailable)
+    match recovery {
+      OnlineTerminalRecoveryRetryable | OnlineTerminalRecoveryStillPending =>
+        return OnlineSessionTerminalizationRequired
+      OnlineTerminalRecoveryReady => ()
+    }
+  } else if !(try! lease.has_publication()) {
+    let step = try! lease.progress_status()
+    ignore(self.latch_worker_step_failure(step))
+    return OnlineSessionTerminalizationRequired
+  }
+  if !(try! lease.has_publication()) {
+    return OnlineSessionTerminalizationRequired
+  }
+  if self.string_cut != 0 {
+    self.progress_string_cut(lease)
+  } else {
+    self.progress_terminal_cut(lease)
+  }
+  if self.event_ready {
+    OnlineSessionEventReady
+  } else {
+    OnlineSessionTerminalizationRequired
   }
 }
 

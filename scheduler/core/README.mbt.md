@@ -81,7 +81,13 @@ tokens. Stop-token, maximum-output, cancellation, deadline, and worker-failure
 paths release request page/table ownership exactly once. Stale cancelled or
 expired completions retire device work without advancing state or publishing a
 token. Plans retire strictly in sequence, after which their paired completion
-and plan buffers reset for reuse.
+and plan buffers normally reset for reuse. A semantically invalid submitted
+completion is replaced by an exact `WorkerFailed` outcome only after terminal,
+publication, release, and identity preflight; publication backpressure consumes
+nothing. If either paired owner can no longer survive replacement, the pair is
+retired terminally as completion `Consumed` and plan `Retired`. The other pair
+remains reusable, and planning reports `Plan`/`Exhausted` rather than transient
+backpressure once no reusable or retireable pair remains.
 
 For the isolated-worker return boundary, `accept_completion_frame` first
 authenticates a canonical received frame against the retained exact plan, then

@@ -14,7 +14,6 @@ pub(all) enum OnlineSessionFailure {
   ServicePreparationFailure
   ServiceFailure
   WireFailure
-  OutputFailure
   Invalid(OnlineSessionRule)
 } derive(Debug, Eq)
 
@@ -46,6 +45,7 @@ pub(all) enum OnlineSessionCleanupProgress {
 pub(all) enum OnlineSessionProgress {
   OnlineSessionPending
   OnlineSessionEventReady
+  OnlineSessionTerminalizationRequired
 } derive(Debug, Eq)
 
 ///|
@@ -66,6 +66,9 @@ pub struct OnlineSession {
   priv mut terminal_cut : Int
   priv mut deferred_cut : Int
   priv deadline_code : FixedArray[Byte]
+  priv output_code : FixedArray[Byte]
+  priv worker_code : FixedArray[Byte]
+  priv mut failure_kind : Int
   priv mut cleanup_phase : Int
   priv mut recovery_close : Bool
   priv mut closed : Bool

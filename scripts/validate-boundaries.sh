@@ -519,6 +519,33 @@ if [ -n "$online_transfer_calls" ] &&
   failed=1
 fi
 
+online_progress_status_calls=$(rg -n \
+  '\.progress_status\(|\.progress_terminal_recovery_status\(' \
+  --glob '*.mbt' || true)
+if [ -n "$online_progress_status_calls" ] &&
+  printf '%s\n' "$online_progress_status_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^engine/worker_service/|^service/online_session/)'; then
+  printf '%s\n' 'sanitized online progress status escaped aggregate/test scope' >&2
+  failed=1
+fi
+
+if ! rg -q '^pub fn OnlineWorkerLease::progress_status\(Self\) -> OnlineWorkerStep raise WorkerServiceError$' \
+    engine/worker_service/pkg.generated.mbti ||
+  ! rg -q '^pub fn OnlineWorkerLease::progress_terminal_recovery_status\(Self, @worker_protocol.WorkerFailure\) -> OnlineTerminalRecoveryStatus$' \
+    engine/worker_service/pkg.generated.mbti; then
+  printf '%s\n' 'sanitized online progress status surface drifted' >&2
+  failed=1
+fi
+
+scheduler_replacement_calls=$(rg -n \
+  '\.replace_submitted_completion_with_failure\(' --glob '*.mbt' || true)
+if [ -n "$scheduler_replacement_calls" ] &&
+  printf '%s\n' "$scheduler_replacement_calls" |
+    rg -v '(^tests/|_test\.mbt:|_wbtest\.mbt:|^scheduler/core/|^engine/worker_service/)'; then
+  printf '%s\n' 'scheduler invalid-completion replacement escaped recovery scope' >&2
+  failed=1
+fi
+
 owned_online_prepare_calls=$(rg -n 'prepare_owned_online\(|\.take_prepared_online\(|\.commit_prepared_admission\(' \
   --glob '*.mbt' || true)
 if [ -n "$owned_online_prepare_calls" ] &&
@@ -595,9 +622,16 @@ if [ -f service/online_session/pkg.generated.mbti ] &&
   failed=1
 fi
 
+if rg -q '^  OutputFailure$' service/online_session/pkg.generated.mbti; then
+  printf '%s\n' 'online output failure remains a typed aggregate error' >&2
+  failed=1
+fi
+
 if [ -f service/online_session/pkg.generated.mbti ] &&
   { ! rg -q '^pub fn OnlineSession::request_cancel\(Self\) -> Unit raise OnlineSessionError$' service/online_session/pkg.generated.mbti ||
-    ! rg -q '^pub fn OnlineSession::check_deadline\(Self\) -> Unit raise OnlineSessionError$' service/online_session/pkg.generated.mbti; }; then
+    ! rg -q '^pub fn OnlineSession::check_deadline\(Self\) -> Unit raise OnlineSessionError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn OnlineSession::progress_terminalization\(Self\) -> OnlineSessionProgress raise OnlineSessionError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^  OnlineSessionTerminalizationRequired$' service/online_session/pkg.generated.mbti; }; then
   printf '%s\n' 'online session cancellation/deadline surface drifted' >&2
   failed=1
 fi

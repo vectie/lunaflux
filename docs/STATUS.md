@@ -302,8 +302,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   covered without cancelling an already-terminal request. Caller cancellation
   now defers behind pinned credit and publishes Usage+Completed(Cancelled), and
   automatic owner-clock expiry publishes Usage plus canonical nonretryable
-  Failed(deadline_exceeded), with natural terminal precedence. Worker/public
-  failure translation plus ingress transport remain open;
+  Failed(deadline_exceeded), with natural terminal precedence. Decoder/output
+  rejection and authenticated worker/device loss now retain exact terminal
+  authority and publish Usage plus fixed payload-safe Failed(output_invalid,
+  nonretryable) or Failed(worker_unavailable, retryable). Reactor-safe progress
+  reports when explicit off-reactor recovery/reap/drain is required. Ingress
+  transport remains open;
   this is not online-serving readiness.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,

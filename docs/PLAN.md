@@ -366,8 +366,12 @@ authenticates final-token natural precedence), withholds stop/post-stop bytes,
 and publishes Usage+Completed(StopSequence). Caller cancellation now defers
 behind pinned credit and publishes Usage+Completed(Cancelled); automatic
 credit-free deadline enforcement publishes Usage+Failed(deadline_exceeded)
-after natural-terminal preflight. Worker/public Failed publication and ingress
-transport remain future work.
+after natural-terminal preflight. Decoder/output rejection and worker/device
+loss now terminalize through exact authenticated drains to Usage plus fixed
+payload-safe Failed(output_invalid) or Failed(worker_unavailable). Normal
+progress only latches that state; explicit off-reactor terminalization owns
+recovery/reap and preserves the first failure cause across retry. Ingress
+transport remains future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected
