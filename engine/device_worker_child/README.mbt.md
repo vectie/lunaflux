@@ -12,8 +12,11 @@ completion writer before device mutation, delegates complete execution and
 retirement to `DeviceWorkerBootstrapOwner::execute_frame`, then copies and
 writes the exact submitted completion. The root-bound parent admits only one
 in-flight plan for this serialized child. The loop is designed around reusable
-fixed storage; positive-controlled allocation evidence for the complete
-launch/readback/sampling/transport path remains a promotion gate.
+fixed storage. Its positive-controlled generated-C gate covers the repeated
+serialized control/transport branch, while the genuine fake-device aggregate
+gate covers the public `DeviceWorkerOwner::execute_frame` lifecycle and its
+measured row/sampling shapes. Physical CUDA allocation and numerical evidence
+remain promotion gates.
 
 Clean EOF before a new prefix closes the owner and succeeds. Partial prefix or
 payload EOF, malformed frames, writer/device/completion failures, and transport

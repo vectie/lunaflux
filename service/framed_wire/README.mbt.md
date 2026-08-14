@@ -42,5 +42,6 @@ scalar/identity evidence. The pinned frame must be copied and retired before
 another event can replace it.
 
 This package deliberately has no async, filesystem, socket, native-FFI, or
-engine dependency. A later `engine/framed_service` slice may compose these
-frames with admission and execution; this package does not do so.
+engine dependency. `service/online_session` is the current in-process composer
+of these frames with admission and execution while preserving that dependency
+direction. Listener and network-protocol adapters remain future outer work.

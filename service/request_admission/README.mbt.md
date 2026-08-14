@@ -19,12 +19,14 @@ decoded output.
 The package deliberately does not own a scheduler, request handle, socket, or
 async task. `service/online_session` now consumes this bridge internally and
 binds it to the production-owned worker without exposing the intermediate
-admitted owner. Its current foundation publishes Accepted and provides exact
-abort/recovery/close; normal publication stepping and terminal bundles remain
+admitted owner. That session authenticates the exact request handle and
+publication sequence, owns Accepted/Token/Usage/Completed/Failed one-credit
+progression, applies stop/cancel/deadline cuts, and performs recovery/cleanup
+off-reactor. Async tokenizer-pool and network-ingress orchestration remain
 open. Because tokenizer encoding is synchronous CPU work, `admit` and the
 aggregate preparation must run off an async network reactor.
 
 For a natural terminal immediately following a generated token, that session
-owner must hold the token publication until it observes the terminal. It can
-then place `finish_into` bytes in the canonical event-v2 `Completed` tail,
+owner holds the token publication until it observes the terminal. It then
+places `finish_into` bytes in the canonical event-v2 `Completed` tail,
 preserving unmatched stop prefixes without inventing a text-only token event.
