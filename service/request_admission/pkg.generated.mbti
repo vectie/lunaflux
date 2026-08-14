@@ -38,6 +38,14 @@ pub fn AdmittedRequest::push_token_into_status(Self, Int, FixedArray[Byte], dest
 pub fn AdmittedRequest::scheduler_request(Self) -> @core.TokenizedRequest
 pub fn AdmittedRequest::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
 
+pub struct IncrementalRequestReceiver {
+  // private fields
+}
+pub fn IncrementalRequestReceiver::append(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Unit raise RequestAdmissionError
+pub fn IncrementalRequestReceiver::new(@framed_wire.FramedWireLimits, @monotonic_clock.MonotonicClock) -> Self
+pub fn IncrementalRequestReceiver::next_capacity(Self) -> Int raise RequestAdmissionError
+pub fn IncrementalRequestReceiver::take_received(Self) -> ReceivedRequest raise RequestAdmissionError
+
 pub struct ReceivedRequest {
   // private fields
 }

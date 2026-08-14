@@ -217,8 +217,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   bounded UTF-8 terminal tail for unmatched incremental stop prefixes. It
   bounds hostile counts before arithmetic
   or allocation, validates exact lengths/checksums/reserved bytes and canonical
-  option encodings, and publishes only epoch-bound opaque frames. It is a pure
-  codec foundation, not a listener or online-session readiness claim.
+  option encodings, and publishes only epoch-bound opaque frames. Its
+  fixed-capacity one-frame incremental reader authenticates the 16-byte prefix
+  and unsigned declared total before payload acceptance, rejects trailing or
+  pipelined input, poisons on prefix/frame failure, and delegates final
+  authority to the existing whole-frame decoder. It is a pure synchronous
+  codec foundation, not a listener or ingress claim.
 - A bounded incremental decoded-output owner that copies exact tokenizer pieces
   into caller-owned fixed storage, validates UTF-8 across token boundaries,
   and withholds stop strings matched across token or code-point boundaries.
@@ -226,8 +230,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   online session now drives this owner through acknowledged one-credit Token
   and terminal publication with a positive-controlled allocation gate; network
   transport remains open.
-- A synchronous request-admission bridge captures an opaque monotonic receipt
-  before parsing, binds the selected model and tokenizer, tokenizes with
+- A synchronous request-admission bridge now composes that reader with trusted
+  monotonic time: the first valid nonempty append samples exactly once before
+  byte mutation, and one successful take retains an immutable request plus its
+  once-derived absolute deadline without exposing timestamp/deadline getters or
+  a detachable frame/receipt capability. It binds the selected model and tokenizer, tokenizes with
   overflow and special-token rejection, and constructs the scheduler request
   with the original absolute deadline. String stops stay in its private
   incremental owner while stop-token output fails closed. Exact request-handle

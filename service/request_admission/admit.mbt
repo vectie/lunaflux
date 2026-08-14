@@ -15,37 +15,6 @@ priv struct PreparedInput {
 }
 
 ///|
-fn receive_with_clock(
-  buffer : @framed_wire.RequestFrameBuffer,
-  source : FixedArray[Byte],
-  length : Int,
-  read_clock : () -> UInt64 raise RequestAdmissionError,
-) -> ReceivedRequest raise RequestAdmissionError {
-  let receipt : RequestReceipt = { at_millis: read_clock() }
-  let frame = buffer.load(source, length) catch {
-    _ => raise Invalid(FrameContract)
-  }
-  { receipt, frame, consumed: false }
-}
-
-///|
-/// Captures the monotonic receipt before parsing the supplied request frame.
-/// The returned owner keeps that ordering evidence inseparable from the
-/// validated request and can be admitted only once.
-pub fn receive(
-  buffer : @framed_wire.RequestFrameBuffer,
-  source : FixedArray[Byte],
-  length : Int,
-  clock : @monotonic_clock.MonotonicClock,
-) -> ReceivedRequest raise RequestAdmissionError {
-  receive_with_clock(buffer, source, length, () => {
-    clock.now_millis() catch {
-      _ => raise ClockUnavailable
-    }
-  })
-}
-
-///|
 fn readmit_request(
   request : @inference.GenerateRequest,
   inference : @inference.InferenceLimits,
@@ -71,8 +40,8 @@ fn readmit_request(
 }
 
 ///|
-fn preflight_request(
-  receipt : RequestReceipt,
+fn preflight_bound_request(
+  deadline : @inference.AdmissionDeadline,
   request : @inference.GenerateRequest,
   tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
@@ -86,12 +55,6 @@ fn preflight_request(
     raise Invalid(TokenizerIdentity)
   }
   let request = readmit_request(request, inference)
-  let deadline = @inference.AdmissionDeadline::from_receipt(
-    receipt.at_millis,
-    request.deadline(),
-  ) catch {
-    _ => raise Invalid(Deadline)
-  }
   let effective = @inference.EffectiveLimits::new(
     max_new_tokens=request.max_new_tokens(),
     context_ceiling=request.context_ceiling(),
@@ -207,8 +170,9 @@ fn finish_admission(
 }
 
 ///|
-fn admit_with_clock(
+fn admit_bound_with_clock(
   receipt : RequestReceipt,
+  deadline : @inference.AdmissionDeadline,
   request : @inference.GenerateRequest,
   tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
@@ -216,8 +180,8 @@ fn admit_with_clock(
   inference : @inference.InferenceLimits,
   read_clock : () -> UInt64 raise RequestAdmissionError,
 ) -> AdmittedRequest raise RequestAdmissionError {
-  let prepared_request = preflight_request(
-    receipt, request, tokenizer, expected_tokenizer, expected_model, inference,
+  let prepared_request = preflight_bound_request(
+    deadline, request, tokenizer, expected_tokenizer, expected_model, inference,
   )
   validate_observed_time(receipt, prepared_request.deadline, read_clock())
   let prepared = tokenize_input(prepared_request, tokenizer, inference)
@@ -245,12 +209,10 @@ pub fn admit(
     raise Invalid(FrameContract)
   }
   received.consumed = true
-  let request = received.frame.request() catch {
-    _ => raise Invalid(FrameContract)
-  }
-  admit_with_clock(
+  admit_bound_with_clock(
     received.receipt,
-    request,
+    received.deadline,
+    received.request,
     tokenizer,
     expected_tokenizer,
     expected_model,

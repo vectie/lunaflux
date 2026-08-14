@@ -42,6 +42,8 @@ pub(all) suberror FramedWireError {
   FrameTooLarge(frame~ : FramedWireFrameKind)
   DestinationTooSmall
   EventCreditUnavailable
+  RequestReaderIncomplete
+  RequestReaderPoisoned
   StaleFrame
 } derive(Debug, Eq)
 
@@ -90,6 +92,17 @@ pub struct RequestFrameBuffer {
 pub struct ValidatedRequestFrame {
   priv owner_ref : RequestFrameBuffer
   priv epoch : UInt64
+}
+
+///|
+/// One fixed-capacity incremental owner for exactly one canonical request
+/// frame. Prefix or frame rejection permanently poisons the owner.
+pub struct IncrementalRequestReader {
+  priv frame_buffer : RequestFrameBuffer
+  priv mut frame : ValidatedRequestFrame?
+  priv mut length : Int
+  priv mut declared_length : Int
+  priv mut state : Int
 }
 
 ///|

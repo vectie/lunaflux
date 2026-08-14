@@ -157,30 +157,16 @@ test "public framed receipt and admission use the monotonic clock" {
 }
 
 ///|
-test "receipt clock is sampled before a malformed frame is parsed" {
-  let reads = Ref(0)
-  let limits = @framed_wire.FramedWireLimits::new(
-    fixture_inference(),
-    max_frame_bytes=4096,
-  )
-  let source = FixedArray::make(8, b'\x00')
-  try
-    receive_with_clock(
-      @framed_wire.RequestFrameBuffer::new(limits),
-      source,
-      source.length(),
-      () => {
-        reads.val += 1
-        10UL
-      },
-    )
-  catch {
-    Invalid(FrameContract) => ()
-    _ => fail("unexpected malformed-frame error")
-  } noraise {
-    _ => fail("malformed frame was received")
+fn fixture_deadline(
+  receipt : RequestReceipt,
+  request : @inference.GenerateRequest,
+) -> @inference.AdmissionDeadline raise RequestAdmissionError {
+  @inference.AdmissionDeadline::from_receipt(
+    receipt.at_millis,
+    request.deadline(),
+  ) catch {
+    _ => raise Invalid(Deadline)
   }
-  assert_eq(reads.val, 1)
 }
 
 ///|
@@ -189,10 +175,13 @@ test "tokenizer digest substitution rejects before clock or tokenization" {
   let tokenizer = fixture_tokenizer()
   let foreign = fixture_tokenizer_with_digest("fedcba9876543210".repeat(4))
   let clock_reads = Ref(0)
+  let receipt : RequestReceipt = { at_millis: 10UL }
+  let request = fixture_request(identity)
   try
-    admit_with_clock(
-      { at_millis: 10UL },
-      fixture_request(identity),
+    admit_bound_with_clock(
+      receipt,
+      fixture_deadline(receipt, request),
+      request,
       tokenizer,
       foreign.digest(),
       identity,
@@ -215,9 +204,12 @@ test "tokenizer digest substitution rejects before clock or tokenization" {
 test "deadline samples once before and once after tokenization" {
   let identity = fixture_identity("0")
   let reads = Ref(0)
-  let admitted = admit_with_clock(
-    { at_millis: 10UL },
-    fixture_request(identity),
+  let receipt : RequestReceipt = { at_millis: 10UL }
+  let request = fixture_request(identity)
+  let admitted = admit_bound_with_clock(
+    receipt,
+    fixture_deadline(receipt, request),
+    request,
     fixture_tokenizer(),
     fixture_tokenizer().digest(),
     identity,
@@ -235,9 +227,10 @@ test "deadline samples once before and once after tokenization" {
   assert_eq(admitted.input_token_count(), 3)
   let expired_reads = Ref(0)
   try
-    admit_with_clock(
-      { at_millis: 10UL },
-      fixture_request(identity),
+    admit_bound_with_clock(
+      receipt,
+      fixture_deadline(receipt, request),
+      request,
       fixture_tokenizer(),
       fixture_tokenizer().digest(),
       identity,
@@ -266,8 +259,13 @@ fn admit_at(
   inference : @inference.InferenceLimits,
   observed_at_millis : UInt64,
 ) -> AdmittedRequest raise RequestAdmissionError {
-  let prepared_request = preflight_request(
-    receipt, request, tokenizer, expected_tokenizer, expected_model, inference,
+  let prepared_request = preflight_bound_request(
+    fixture_deadline(receipt, request),
+    request,
+    tokenizer,
+    expected_tokenizer,
+    expected_model,
+    inference,
   )
   validate_observed_time(receipt, prepared_request.deadline, observed_at_millis)
   let prepared = tokenize_input(prepared_request, tokenizer, inference)

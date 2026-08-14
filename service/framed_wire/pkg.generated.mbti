@@ -16,6 +16,8 @@ pub(all) suberror FramedWireError {
   FrameTooLarge(frame~ : FramedWireFrameKind)
   DestinationTooSmall
   EventCreditUnavailable
+  RequestReaderIncomplete
+  RequestReaderPoisoned
   StaleFrame
 } derive(Eq, @debug.Debug)
 
@@ -77,6 +79,14 @@ pub(all) enum FramedWireRule {
   Payload
   CanonicalEncoding
 } derive(Eq, @debug.Debug)
+
+pub struct IncrementalRequestReader {
+  // private fields
+}
+pub fn IncrementalRequestReader::append(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Unit raise FramedWireError
+pub fn IncrementalRequestReader::new(FramedWireLimits) -> Self
+pub fn IncrementalRequestReader::next_capacity(Self) -> Int raise FramedWireError
+pub fn IncrementalRequestReader::take(Self) -> ValidatedRequestFrame raise FramedWireError
 
 pub struct RequestFrameBuffer {
   // private fields

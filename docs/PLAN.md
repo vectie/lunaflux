@@ -289,7 +289,11 @@ Global fairness/preemption, prefix integration, network ingress, and
 overlapped worker integration remain open. Generated-text decoding and exact
 one-credit session publication are implemented above the root-bound service,
 which currently consumes one reusable side at a time; A/B overlap is confined
-to transport fixtures.
+to transport fixtures. The trusted request-receipt prerequisite is implemented:
+one fixed-capacity incremental canonical reader authenticates declared length
+before payload acceptance, while request admission samples monotonic time before
+the first copied byte and binds a single immutable request/absolute deadline.
+It deliberately adds no socket, async task, framed-ingress package, or server.
 
 ### Workstream 4: worker overlap
 

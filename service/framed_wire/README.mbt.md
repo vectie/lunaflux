@@ -34,6 +34,14 @@ writes the single canonical representation. Loading validates completely
 before it replaces the prior frame, so rejection is transactional. Validated
 views are epoch-bound and become stale after the owner publishes a replacement.
 
+`IncrementalRequestReader` is a one-frame, fixed-capacity owner above the same
+authoritative `RequestFrameBuffer::load`. It accepts at most the exact 16-byte
+magic/version/kind/declared-length prefix first, authenticates the unsigned
+declared total before exposing payload capacity, snapshots each accepted byte
+range, and rejects undersize, oversize, trailing, or pipelined input. Prefix or
+canonical-frame failure permanently poisons the reader; an incomplete frame can
+continue, while a completed validated frame can be taken exactly once.
+
 `CanonicalEventWriter` owns one explicit outbound credit. Its direct Token and
 Completed paths validate caller-owned UTF-8 byte ranges and write the same
 canonical event-v2 frame without constructing a payload `String`, `Bytes`, or
@@ -41,7 +49,8 @@ canonical event-v2 frame without constructing a payload `String`, `Bytes`, or
 scalar/identity evidence. The pinned frame must be copied and retired before
 another event can replace it.
 
-This package deliberately has no async, filesystem, socket, native-FFI, or
-engine dependency. `service/online_session` is the current in-process composer
-of these frames with admission and execution while preserving that dependency
-direction. Listener and network-protocol adapters remain future outer work.
+This package deliberately has no async, filesystem, socket, native-FFI, clock,
+or engine dependency. `service/request_admission` owns the trusted receipt
+clock ordering above the incremental reader, and `service/online_session` is
+the current in-process composer of frames with admission and execution.
+Listener and network-protocol adapters remain future outer work.

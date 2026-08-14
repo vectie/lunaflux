@@ -346,4 +346,5 @@ fi
 
 scripts/validate-worker-service-online-lease-allocations.sh
 scripts/validate-framed-wire-event-writer-allocations.sh
+scripts/validate-framed-request-receipt-allocations.sh
 printf '%s\n' 'LunaFlux online-session allocation gate passed.'

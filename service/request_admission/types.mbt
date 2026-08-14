@@ -28,12 +28,23 @@ priv struct RequestReceipt {
 }
 
 ///|
-/// One validated request frame paired with the monotonic receipt captured
-/// before its parser ran. The frame and timestamp cannot be separated, and the
-/// owner can be consumed by admission only once.
+/// One trusted incremental receiver. The first nonempty append captures its
+/// monotonic receipt before the framed reader can copy any byte.
+pub struct IncrementalRequestReceiver {
+  priv reader : @framed_wire.IncrementalRequestReader
+  priv clock : @monotonic_clock.MonotonicClock
+  priv mut receipt_at_millis : UInt64
+  priv mut has_receipt : Bool
+  priv mut terminal : Bool
+}
+
+///|
+/// One immutable request paired with the monotonic receipt and absolute
+/// deadline derived during exact frame binding. The owner is admitted once.
 pub struct ReceivedRequest {
   priv receipt : RequestReceipt
-  priv frame : @framed_wire.ValidatedRequestFrame
+  priv request : @inference.GenerateRequest
+  priv deadline : @inference.AdmissionDeadline
   priv mut consumed : Bool
 }
 
