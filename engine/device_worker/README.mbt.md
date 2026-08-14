@@ -41,12 +41,14 @@ This package does not write the process `Ready` frame or own the worker
 channel; the child entry point must call `readiness_contract` and only then
 encode that exact value. CPU tests cover immutable admission and lifecycle
 orchestration. A positive-controlled native release harness additionally
-prepares a genuine owner, warms it, and proves 128 exact final-prefill greedy
+prepares a genuine owner, warms it, and proves 131 exact canonical one-row
+ordinary-prefill/final-prefill/decode and greedy/stochastic
 `execute_frame`/completion-authentication/plan-retirement cycles perform no
 MoonBit managed, array, or string allocation and create no native resource.
-Its fake device checks exact transfer, launch, synchronization, readback,
-publication, and cleanup counts; injected launch/readback/non-finite faults
-prove aggregate fail-stop and writer reuse. This is allocation and control-flow
-evidence only. Ordinary prefill, decode, stochastic sampling, physical CUDA
-numerical correctness, sanitizer/leak, soak, and benchmark evidence remain
-promotion gates.
+Its fake device checks exact request/page generations, transfer, launch,
+synchronization, readback, publication, and cleanup counts; injected
+launch/readback/non-finite faults prove aggregate fail-stop and writer reuse.
+This is allocation, control-flow, and deterministic same-sampler replay
+evidence only. Mixed-row batching, independent stochastic correctness,
+physical CUDA numerical correctness, sanitizer/leak, soak, and benchmark
+evidence remain promotion gates.

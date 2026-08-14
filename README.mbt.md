@@ -260,10 +260,9 @@ binding preservation, and balanced KV ownership. Still open are global
 fairness/preemption and prefix
 integration,
 shipped and numerically validated paged-kernel artifacts, generated-logit
-physical-CUDA validation, online transport integration, a positive-controlled
-full graph-executor allocation gate for row/sampling shapes beyond the proven
-final-prefill greedy fake-device lifecycle, and the remaining physical-CUDA
-gates are open. Later
+physical-CUDA validation, online transport integration, mixed-row/full-batch
+allocation evidence beyond the proven canonical one-row fake-device lifecycle,
+and the remaining physical-CUDA gates are open. Later
 packages are created only when their vertical phase begins; empty
 architectural packages are deliberately avoided.
 

@@ -107,100 +107,6 @@ fn verify_probe_controls() -> Unit {
 }
 
 ///|
-struct PreparedCycle {
-  plan_owner : @worker_protocol.SchedulePlanBuffer
-  plan : @worker_protocol.SubmittedSchedulePlan
-  frame : @worker_wire.ValidatedPlanFrame
-}
-
-///|
-fn prepare_cycle(
-  sequence : UInt64,
-  model_plan : @plan.ModelPlan,
-  page : @page_allocator.PageId,
-) -> PreparedCycle raise {
-  let limits = fixture_worker_limits()
-  let plan_owner = @worker_protocol.SchedulePlanBuffer::new(limits)
-  plan_owner.append_final_prefill(
-    request_id=@inference.RequestId::new(sequence),
-    request_generation=@inference.RequestGeneration::initial(),
-    sequence_token_start=0,
-    tokens=[0],
-    pages=[page],
-    capabilities=model_plan.required_capabilities(),
-    sampling=@inference.SamplingParameters::greedy(),
-    sampling_seed=@inference.SamplingSeed::new(sequence),
-    sample_index=0,
-    completion_slot=@worker_protocol.CompletionSlot::new(0, limits),
-  )
-  let generation = @worker_protocol.ModelPlanGeneration::first()
-  let plan = plan_owner.submit(
-    sequence=@worker_protocol.PlanSequence::from_wire(sequence),
-    model_plan_generation=generation,
-    token_budget=1,
-    if sequence == 1UL {
-      None
-    } else {
-      Some(@worker_protocol.PlanSequence::from_wire(sequence - 1UL))
-    },
-    generation,
-  )
-  let frame_owner = @worker_wire.PlanFrameBuffer::new(
-    limits,
-    fixture_inference_limits(),
-  )
-  { plan_owner, plan, frame: frame_owner.encode_plan(plan) }
-}
-
-///|
-fn prepare_cycles(
-  count : Int,
-  model_plan : @plan.ModelPlan,
-) -> FixedArray[PreparedCycle] raise {
-  let allocator = @page_allocator.PageAllocator::new(
-    @page_allocator.PageAllocatorLimits::new(
-      page_capacity=1,
-      max_run_pages=1,
-      max_active_references_per_page=1,
-      max_cached_references_per_page=1,
-    ),
-  )
-  let page = allocator.allocate_one()
-  let first = prepare_cycle(1UL, model_plan, page)
-  let cycles = FixedArray::make(count, first)
-  for index in 1..<count {
-    cycles[index] = prepare_cycle((index + 1).to_uint64(), model_plan, page)
-  }
-  cycles
-}
-
-///|
-fn execute_cycle(
-  owner : @device_worker.DeviceWorkerOwner,
-  completion_owner : @worker_wire.CompletionFrameBuffer,
-  cycle : PreparedCycle,
-) -> Unit raise {
-  let writer = completion_owner.writer_for(cycle.frame)
-  let completion = owner.execute_frame(cycle.frame, writer)
-  completion.validate_for(cycle.plan)
-  if completion.sequence_value() != cycle.plan.sequence_wire() ||
-    completion.model_generation_value() != 1UL ||
-    completion.entry_count() != 1 {
-    alloc_probe_abort()
-  }
-  let entry = completion.entry(0)
-  if entry.kind_value() != 1 ||
-    entry.request_id_value() != cycle.plan.sequence_wire() ||
-    entry.request_generation_value() != 0UL ||
-    entry.processed_tokens() != 1 ||
-    entry.token_id() != 0 {
-    alloc_probe_abort()
-  }
-  let retired = cycle.plan_owner.retire(cycle.plan)
-  cycle.plan_owner.reset(retired)
-}
-
-///|
 async fn run_allocation_evidence() -> Unit {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-device-worker-alloc")
@@ -223,14 +129,16 @@ async fn run_allocation_evidence() -> Unit {
     let owner = prepare_fixture_owner(
       directory, manifest, model, model_plan, target,
     )
-    let cycle_count = 128
-    let cycles = prepare_cycles(cycle_count + 1, model_plan)
+    let cycle_count = 131
+    let matrix = prepare_cycles(cycle_count + 1, model_plan)
+    let cycles = matrix.cycles
     let completion_owner = @worker_wire.CompletionFrameBuffer::new(
       fixture_worker_limits(),
       fixture_inference_limits(),
     )
+    let operation_count = model_plan.operations().length().to_uint64()
     verify_probe_controls()
-    execute_cycle(owner, completion_owner, cycles[0])
+    execute_cycle(owner, completion_owner, cycles[0], operation_count)
     let copies_before = fake_copy_count()
     let launches_before = fake_launch_count()
     let syncs_before = fake_sync_count()
@@ -238,22 +146,46 @@ async fn run_allocation_evidence() -> Unit {
     let creates_before = fake_resource_create_count()
     let closes_before = fake_resource_close_count()
     alloc_probe_begin()
+    let mut ordinary_prefills = 0
+    let mut greedy_final_prefills = 0
+    let mut stochastic_final_prefills = 0
+    let mut greedy_decodes = 0
+    let mut stochastic_decodes = 0
     for index in 1..<=cycle_count {
-      execute_cycle(owner, completion_owner, cycles[index])
+      let cycle = cycles[index]
+      execute_cycle(owner, completion_owner, cycle, operation_count)
+      if cycle.branch == CYCLE_ORDINARY_PREFILL {
+        ordinary_prefills += 1
+      } else if cycle.branch == CYCLE_GREEDY_FINAL_PREFILL {
+        greedy_final_prefills += 1
+      } else if cycle.branch == CYCLE_STOCHASTIC_FINAL_PREFILL {
+        stochastic_final_prefills += 1
+      } else if cycle.branch == CYCLE_GREEDY_DECODE {
+        greedy_decodes += 1
+      } else if cycle.branch == CYCLE_STOCHASTIC_DECODE {
+        stochastic_decodes += 1
+      } else {
+        alloc_probe_abort()
+      }
     }
     let observed = alloc_probe_end()
-    let operation_count = model_plan.operations().length().to_uint64()
     if alloc_probe_check(observed, 1) != 1 ||
+      ordinary_prefills != 43 ||
+      greedy_final_prefills != 22 ||
+      stochastic_final_prefills != 22 ||
+      greedy_decodes != 22 ||
+      stochastic_decodes != 22 ||
       fake_copy_count() - copies_before != cycle_count.to_uint64() * 8UL ||
       fake_launch_count() - launches_before !=
       cycle_count.to_uint64() * operation_count ||
       fake_sync_count() - syncs_before !=
       cycle_count.to_uint64() * operation_count ||
-      fake_readback_count() - reads_before != cycle_count.to_uint64() ||
+      fake_readback_count() - reads_before != 88UL ||
       fake_resource_create_count() != creates_before ||
       fake_resource_close_count() != closes_before {
       alloc_probe_abort()
     }
+    matrix.release_pages()
     owner.close()
     if fake_live_children() != 0 {
       alloc_probe_abort()

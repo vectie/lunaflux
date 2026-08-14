@@ -6,4 +6,4 @@ cd "$repo_root"
 
 moon run --target native --release tests/hot_path_alloc
 scripts/validate-device-step-allocations.sh
-scripts/validate-device-worker-final-prefill-allocations.sh
+scripts/validate-device-worker-one-row-allocations.sh

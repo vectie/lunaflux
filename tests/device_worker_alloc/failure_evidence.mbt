@@ -12,30 +12,32 @@ fn assert_execute_failure(
   model_plan : @plan.ModelPlan,
   target : @catalog.DeviceTarget,
   fault_mode : Int,
+  branch : Int,
 ) -> Unit raise {
   let owner = prepare_fixture_owner(
     directory, manifest, model, model_plan, target,
   )
-  let cycle = prepare_cycle(
-    1UL,
-    model_plan,
-    {
-      let allocator = @page_allocator.PageAllocator::new(
-        @page_allocator.PageAllocatorLimits::new(
-          page_capacity=1,
-          max_run_pages=1,
-          max_active_references_per_page=1,
-          max_cached_references_per_page=1,
-        ),
-      )
-      allocator.allocate_one()
-    },
+  let allocator = @page_allocator.PageAllocator::new(
+    @page_allocator.PageAllocatorLimits::new(
+      page_capacity=1,
+      max_run_pages=1,
+      max_active_references_per_page=1,
+      max_cached_references_per_page=1,
+    ),
   )
+  let page = allocator.allocate_one()
+  let cycle = prepare_cycle_for_branch(1UL, branch, model_plan, page)
   let completions = @worker_wire.CompletionFrameBuffer::new(
     fixture_worker_limits(),
     fixture_inference_limits(),
   )
   let writer = completions.writer_for(cycle.frame)
+  let copies = fake_copy_count()
+  let launches = fake_launch_count()
+  let syncs = fake_sync_count()
+  let reads = fake_readback_count()
+  let creates = fake_resource_create_count()
+  let closes = fake_resource_close_count()
   fake_set_fault(fault_mode)
   try owner.execute_frame(cycle.frame, writer) catch {
     @device_worker.Executor(
@@ -60,6 +62,20 @@ fn assert_execute_failure(
   if fake_fault_mode() != 0 {
     alloc_probe_abort()
   }
+  let expected_launches = if fault_mode == 1 {
+    0UL
+  } else {
+    model_plan.operations().length().to_uint64()
+  }
+  let expected_reads = if fault_mode == 3 { 1UL } else { 0UL }
+  if fake_copy_count() - copies != 8UL ||
+    fake_launch_count() - launches != expected_launches ||
+    fake_sync_count() - syncs != expected_launches ||
+    fake_readback_count() - reads != expected_reads ||
+    fake_resource_create_count() != creates ||
+    fake_resource_close_count() != closes {
+    alloc_probe_abort()
+  }
   if owner.lifecycle() != WorkerFaulted {
     alloc_probe_abort()
   }
@@ -72,7 +88,10 @@ fn assert_execute_failure(
   let reuse = completions.writer_for(cycle.frame)
   reuse.abort()
   owner.close()
-  if fake_live_children() != 0 {
+  allocator.release_active(page)
+  if fake_live_children() != 0 ||
+    allocator.allocated_page_count() != 0 ||
+    allocator.free_page_count() != 1 {
     alloc_probe_abort()
   }
 }
@@ -88,7 +107,31 @@ fn run_failure_evidence(
   // Launch, readback, and non-finite BF16 output faults all enter the real
   // aggregate execute path. Finish ordering is separately covered by the
   // device_worker package's package-private transaction test.
-  assert_execute_failure(directory, manifest, model, model_plan, target, 1)
-  assert_execute_failure(directory, manifest, model, model_plan, target, 2)
-  assert_execute_failure(directory, manifest, model, model_plan, target, 3)
+  assert_execute_failure(
+    directory,
+    manifest,
+    model,
+    model_plan,
+    target,
+    1,
+    CYCLE_ORDINARY_PREFILL,
+  )
+  assert_execute_failure(
+    directory,
+    manifest,
+    model,
+    model_plan,
+    target,
+    2,
+    CYCLE_GREEDY_DECODE,
+  )
+  assert_execute_failure(
+    directory,
+    manifest,
+    model,
+    model_plan,
+    target,
+    3,
+    CYCLE_STOCHASTIC_DECODE,
+  )
 }

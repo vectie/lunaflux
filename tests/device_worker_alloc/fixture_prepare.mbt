@@ -159,8 +159,8 @@ fn prepare_fixture_owner(
     model_plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=4,
-      total_page_count=8,
-      max_arena_bytes=16384L,
+      total_page_count=44,
+      max_arena_bytes=1048576L,
     ),
   )
   let step_limits = @device_step.DeviceStepLimits::new(

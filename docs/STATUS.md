@@ -155,8 +155,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and root cleanup authority after compound failure. Transport publication
   remains outside this owner.
 - The device child consumes Configure then canonical source from
-  the inherited private channel, calls the real bootstrap composition, and
-  writes Ready only after an exact readiness query and reusable loop storage.
+  the inherited private channel, reconstructs the fixed-root bootstrap into a
+  live `DeviceWorkerOwner`, and writes Ready only after an exact readiness
+  query and reusable loop storage.
   It then reads one bounded plan, acquires its completion writer before device
   mutation, finishes execution, and publishes the exact completion before the
   next plan. Clean idle waits without a first-byte deadline; partial frames are
@@ -196,14 +197,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   counter-addressed stochastic selection from exact request seed/output index,
   and appends to the exact-plan completion writer while leaving publication to
   the aggregate owner after executor finish. A positive-controlled native
-  release harness now proves a warm public device-worker owner completes 128
-  exact final-prefill greedy execute/authenticate/retire/reset cycles without
-  MoonBit managed/array/string allocation or native resource creation, with
-  exact fake transfer/launch/synchronize/readback counts and balanced close.
+  release harness now proves a warm public device-worker owner completes 131
+  exact canonical one-row ordinary-prefill/final-prefill/decode and
+  greedy/stochastic execute/authenticate/retire/reset cycles without MoonBit
+  managed/array/string allocation or native resource creation, with exact fake
+  transfer/launch/synchronize/readback counts and balanced page/native close.
   Fake launch/readback/non-finite faults also prove no completion publication,
-  owner faulting, writer reuse, and cleanup. Ordinary prefill, decode,
-  stochastic sampling, physical CUDA numerical correctness, and promotion
-  evidence remain open.
+  owner faulting, writer reuse, and cleanup. Mixed-row/full-batch execution,
+  independent stochastic correctness, physical CUDA numerical correctness,
+  and promotion evidence remain open.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public

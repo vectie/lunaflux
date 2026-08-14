@@ -253,12 +253,13 @@ exact retained BF16 vocabulary-row geometry, reuses fixed readback/sampling
 scratch, selects by canonical request seed/output index, and appends an exact
 completion lease that the aggregate owner publishes only after executor
 finish. A positive-controlled native release gate now covers the exact warm
-final-prefill greedy aggregate lifecycle through public execute, fixed
-readback, canonical completion authentication, and plan retirement/reset using
-a test-only fake device. Phase promotion still requires aggregate allocation
-evidence for ordinary prefill, decode, and stochastic sampling, a production
-paged-kernel bundle, and physical-CUDA numerical correctness, sanitizer, leak,
-soak, and benchmark evidence for logits and sampled tokens.
+canonical one-row ordinary-prefill/final-prefill/decode and greedy/stochastic
+aggregate lifecycle through public execute, conditional fixed readback,
+canonical completion authentication, and plan retirement/reset using a
+test-only fake device. Phase promotion still requires mixed-row/full-batch
+allocation evidence when production admits it, a production paged-kernel
+bundle, and physical-CUDA numerical correctness, sanitizer, leak, soak, and
+benchmark evidence for logits and sampled tokens.
 
 ### Workstream 3: scheduler
 
@@ -317,12 +318,12 @@ validated received plan frame directly as well, and its post-execution path
 authenticates that exact frame epoch before scalar sampling and direct
 completion-frame publication. Independent
 positive-controlled native release gates now cover the scheduler token step,
-the public device-step staging/fixed-H2D path, and the exact final-prefill
-greedy public device-worker execute lifecycle through logits readback,
-completion publication, validation, and plan retirement/reset after warm-up.
-The device-worker proof uses a test-only fake CUDA seam and does not cover
-ordinary prefill, decode, stochastic sampling, numerical correctness, or
-physical promotion. A
+the public device-step staging/fixed-H2D path, and the canonical one-row public
+device-worker execute lifecycle across ordinary/final prefill, decode, and
+greedy/stochastic selection through conditional logits readback, completion
+publication, validation, and plan retirement/reset after warm-up. The
+device-worker proof uses a test-only fake CUDA seam and does not cover mixed-row
+batching, independent stochastic/numerical correctness, or physical promotion. A
 private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
 reap. The legacy protocol supervisor proves monotonic A/B submission,
