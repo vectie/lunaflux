@@ -13,16 +13,31 @@ if [ ! -f "$generated_c" ]; then
   exit 1
 fi
 
-extract_function() {
+extract_definition() {
   local pattern="$1"
   awk -v pattern="$pattern" '
-    $0 ~ pattern { copying = 1 }
-    copying { print }
-    copying && /^}$/ { exit }
+    index($0, pattern) > 0 &&
+      $0 ~ /^(struct|int|uint|void|moonbit_)[A-Za-z0-9_ *]*_M0/ &&
+      $0 ~ /\($/ {
+      candidate = 1; body = $0 ORS; next
+    }
+    candidate {
+      body = body $0 ORS
+      if ($0 ~ /^\);$/) { candidate = 0; body = ""; next }
+      if ($0 ~ /^\) \{$/) {
+        copying = 1; depth = 1; printf "%s", body; candidate = 0; next
+      }
+    }
+    copying {
+      print
+      opens = gsub(/\{/, "{"); closes = gsub(/\}/, "}")
+      depth += opens - closes
+      if (depth == 0) exit
+    }
   ' "$generated_c"
 }
 
-steady_body="$(extract_function '^struct .*23serve__serialized__with')"
+steady_body="$(extract_definition 'serve__serialized__with')"
 if [ -z "$steady_body" ]; then
   printf '%s\n' 'serialized steady-loop release function is missing' >&2
   exit 1

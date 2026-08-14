@@ -524,6 +524,7 @@ fail_matches \
   --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \
+  --glob '!tests/device_worker_alloc/**' \
   --glob '!cmd/approved_root_echo/**' \
   --glob '!tests/approved_root_inheritance_e2e/**' \
   'extern\s+"[cC]"|#external'

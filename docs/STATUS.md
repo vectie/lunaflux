@@ -191,9 +191,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   producing rows, rejects non-finite logits, applies greedy or
   counter-addressed stochastic selection from exact request seed/output index,
   and appends to the exact-plan completion writer while leaving publication to
-  the aggregate owner after executor finish. Physical CUDA
-  numerical correctness and a positive-controlled full lifecycle allocation
-  gate remain open.
+  the aggregate owner after executor finish. A positive-controlled native
+  release harness now proves a warm public device-worker owner completes 128
+  exact final-prefill greedy execute/authenticate/retire/reset cycles without
+  MoonBit managed/array/string allocation or native resource creation, with
+  exact fake transfer/launch/synchronize/readback counts and balanced close.
+  Fake launch/readback/non-finite faults also prove no completion publication,
+  owner faulting, writer reuse, and cleanup. Ordinary prefill, decode,
+  stochastic sampling, physical CUDA numerical correctness, and promotion
+  evidence remain open.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public

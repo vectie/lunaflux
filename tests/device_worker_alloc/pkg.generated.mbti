@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/device_worker_alloc"
+
+// Values
+
+// Errors
+
+// Types and methods
+type PositiveControl
+
+type PreparedCycle
+
+// Type aliases
+
+// Traits

@@ -40,6 +40,13 @@ when both startup and its first deterministic cleanup fail.
 This package does not write the process `Ready` frame or own the worker
 channel; the child entry point must call `readiness_contract` and only then
 encode that exact value. CPU tests cover immutable admission and lifecycle
-orchestration, while the nested device, weight, and graph owners provide their
-own fault seams. Physical CUDA load/execute/close, sanitizer, leak, soak, and
-benchmark evidence remains a promotion gate.
+orchestration. A positive-controlled native release harness additionally
+prepares a genuine owner, warms it, and proves 128 exact final-prefill greedy
+`execute_frame`/completion-authentication/plan-retirement cycles perform no
+MoonBit managed, array, or string allocation and create no native resource.
+Its fake device checks exact transfer, launch, synchronization, readback,
+publication, and cleanup counts; injected launch/readback/non-finite faults
+prove aggregate fail-stop and writer reuse. This is allocation and control-flow
+evidence only. Ordinary prefill, decode, stochastic sampling, physical CUDA
+numerical correctness, sanitizer/leak, soak, and benchmark evidence remain
+promotion gates.

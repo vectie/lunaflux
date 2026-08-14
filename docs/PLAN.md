@@ -252,10 +252,13 @@ functions and argument lists. Its owner-mediated completion path now binds the
 exact retained BF16 vocabulary-row geometry, reuses fixed readback/sampling
 scratch, selects by canonical request seed/output index, and appends an exact
 completion lease that the aggregate owner publishes only after executor
-finish. Phase promotion still requires a production paged-kernel
-bundle, a positive-controlled allocation gate around the complete graph
-lifecycle, and physical-CUDA numerical correctness, sanitizer, leak, soak, and
-benchmark evidence for logits and sampled tokens.
+finish. A positive-controlled native release gate now covers the exact warm
+final-prefill greedy aggregate lifecycle through public execute, fixed
+readback, canonical completion authentication, and plan retirement/reset using
+a test-only fake device. Phase promotion still requires aggregate allocation
+evidence for ordinary prefill, decode, and stochastic sampling, a production
+paged-kernel bundle, and physical-CUDA numerical correctness, sanitizer, leak,
+soak, and benchmark evidence for logits and sampled tokens.
 
 ### Workstream 3: scheduler
 
@@ -311,11 +314,13 @@ scheduler heap-owner capability. The device descriptor stage consumes the
 validated received plan frame directly as well, and its post-execution path
 authenticates that exact frame epoch before scalar sampling and direct
 completion-frame publication. Independent
-positive-controlled native release gates
-now cover the scheduler token step and public device-step staging/fixed-H2D
-path after warm-up. The full graph executor has generated-C success-path
-allocation evidence through logits readback, sampling, and completion
-submission, but not yet its own positive-controlled runtime gate. A
+positive-controlled native release gates now cover the scheduler token step,
+the public device-step staging/fixed-H2D path, and the exact final-prefill
+greedy public device-worker execute lifecycle through logits readback,
+completion publication, validation, and plan retirement/reset after warm-up.
+The device-worker proof uses a test-only fake CUDA seam and does not cover
+ordinary prefill, decode, stochastic sampling, numerical correctness, or
+physical promotion. A
 private POSIX primitive now supplies exact-path shell-free spawn, an inherited
 socketpair, bounded fixed-buffer I/O, monotonic timeouts, and deterministic
 reap. The legacy protocol supervisor proves monotonic A/B submission,
