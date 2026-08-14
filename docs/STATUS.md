@@ -138,6 +138,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   snapshot source before publication, verifies an independent lowercase
   SHA-256 file identity, and parses metadata under an independently supplied
   model content identity. It exposes no ambient path or async filesystem API.
+- The offline reference artifact aggregate now follows the same capability
+  boundary: one caller-owned approved root plus one opaque three-locator source
+  yields three immutable digest-pinned snapshots synchronously. Same-handle
+  per-file/aggregate admission and deterministic file close complete before
+  parsing or bundle publication. The CLI alone opens the absolute deployment
+  root and closes it before reference execution or output.
 - The internal device-worker bootstrap composition now authenticates a decoded
   source before fixed-role root acquisition, derives the bounded paged-Llama
   recipe, closes kernel authority before device preparation and model authority
@@ -376,8 +382,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   publication without exposing a ring choice. Normal
   idle and two-owner pressure are flat allocation-free outcomes in generated
   native code; the positive-controlled warmed scheduler allocation gate passes.
-- A bounded `lunaflux reference` command that validates explicit paths and
-  digests, loads an admitted host snapshot, and produces offline greedy tokens.
+- A bounded `lunaflux reference` command that opens one approved absolute
+  deployment root, validates three strict relative locators and digests, loads
+  an admitted host snapshot, closes the root, and produces offline greedy
+  tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
 - A repository guard for package direction, sibling-product independence,
   CUDA ABI ownership, Python exclusion, temporary debt markers, and source-size

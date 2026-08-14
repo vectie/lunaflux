@@ -1,5 +1,4 @@
 import {
-  "moonbitlang/async",
   "vectie/lunaflux/contracts",
   "vectie/lunaflux/config/device",
   "vectie/lunaflux/config/model",
@@ -12,6 +11,7 @@ import {
   "vectie/lunaflux/model/llama_admission",
   "vectie/lunaflux/model/materialize",
   "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/sampling",
   "vectie/lunaflux/tokenizer",
   "moonbitlang/core/debug",

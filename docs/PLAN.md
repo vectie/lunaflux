@@ -161,7 +161,10 @@ table inputs; maximum-envelope activation storage is not a substitute.
 Checked streaming file-to-device loading, exact static device and
 activation/workspace plans, stateless execution profiles, AOT family/entry
 launch contracts, digest-verified artifact admission, and the private
-module/function launch seam are implemented foundations. They do not promote
+module/function launch seam are implemented foundations. Offline reference
+admission is now synchronous and capability-relative: three immutable snapshots
+close before publication under one caller-owned approved root. These
+foundations do not promote
 Phase 1 without physical-CUDA numerical, ownership, sanitizer/leak, soak,
 benchmark, and resource-balance evidence. See
 [STATUS.md](STATUS.md) for the current boundary.

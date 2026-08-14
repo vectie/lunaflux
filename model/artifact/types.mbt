@@ -7,11 +7,20 @@ pub(all) enum ArtifactFile {
 } derive(Debug, Eq)
 
 ///|
-/// Path validation categories that never retain path text.
-pub(all) enum ArtifactPathIssue {
-  Empty
-  TooLong
-  Duplicate
+/// Filesystem operations whose failures remain payload-safe.
+pub(all) enum ArtifactFileOperation {
+  OpenFile
+  StatFile
+  SnapshotFile
+  CloseFile
+} derive(Debug, Eq)
+
+///|
+/// Bounded filesystem failure classes with no path or native error text.
+pub(all) enum ArtifactFileIoIssue {
+  AuthorityClosed
+  Busy
+  Failed
 } derive(Debug, Eq)
 
 ///|
@@ -31,10 +40,16 @@ pub(all) enum ArtifactLimit {
 /// No variant retains a filesystem path, file contents, or vendor error text.
 pub(all) suberror ArtifactError {
   InvalidDigest
-  InvalidPath(file~ : ArtifactFile, issue~ : ArtifactPathIssue)
+  InvalidLocator(ArtifactFile)
+  DuplicateLocator(ArtifactFile)
   InvalidLimit(ArtifactLimit)
   FileUnavailable(ArtifactFile)
   UnsupportedPathType(ArtifactFile)
+  FileIo(
+    file~ : ArtifactFile,
+    operation~ : ArtifactFileOperation,
+    issue~ : ArtifactFileIoIssue
+  )
   FileTooLarge(file~ : ArtifactFile, maximum~ : Int64)
   TotalTooLarge(maximum~ : Int64)
   FileTruncated(ArtifactFile)
@@ -53,14 +68,15 @@ pub struct ArtifactDigest {
 } derive(Debug, Eq)
 
 ///|
-/// Explicit paths for the three v1 bundle files.
+/// Opaque approved relative source for the three v1 bundle files.
 ///
-/// LunaFlux does not scan the containing directory or infer filenames.
-pub struct ArtifactPaths {
-  model_config : String
-  tokenizer : String
-  weights : String
-} derive(Debug, Eq)
+/// LunaFlux does not scan the approved root or infer filenames. Locator text
+/// remains private to the filesystem capability boundary.
+pub struct ArtifactSource {
+  priv model_config : @approved_fs.ApprovedRelativeLocator
+  priv tokenizer : @approved_fs.ApprovedRelativeLocator
+  priv weights : @approved_fs.ApprovedRelativeLocator
+}
 
 ///|
 /// Independently approved file identities supplied before admission.

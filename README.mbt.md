@@ -215,9 +215,12 @@ exercise the exact C translation unit. Startup callers can request one bounded
 immutable whole-file snapshot under a single lifecycle lease; the native read
 admits the initial size before its sole payload allocation and rejects
 truncation, trailing growth, or same-handle size/mtime/ctime change before
-publication. Weight and kernel-artifact loaders now consume these capabilities
-directly; weight inspection privately retains its strict relative locator and
-fixed host storage carries bounded positional reads into device transfer.
+publication. Weight, kernel-artifact, model-configuration, and offline
+reference-bundle loaders now consume these capabilities directly. The offline
+CLI is the only production boundary that opens its absolute deployment root,
+and it closes that root before execution or output. Weight inspection privately
+retains its strict relative locator and fixed host storage carries bounded
+positional reads into device transfer.
 The bounded `engine/execution_manifest_file` aggregate admits one
 digest-pinned canonical paged-Llama v1 manifest on the same root, deriving
 catalog v3, static/memory plans, full-graph contracts, artifact admission, and

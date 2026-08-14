@@ -103,12 +103,12 @@ fn artifact_digest(bytes : BytesView) -> @artifact.ArtifactDigest {
 }
 
 ///|
-fn test_paths(directory : String) -> @artifact.ArtifactPaths {
-  try! @artifact.ArtifactPaths::new(
-    model_config="\{directory}/config.json",
-    tokenizer="\{directory}/tokenizer.json",
-    weights="\{directory}/model.safetensors",
-  )
+fn test_source(
+  model_config? : StringView = "config.json",
+  tokenizer? : StringView = "tokenizer.json",
+  weights? : StringView = "model.safetensors",
+) -> @artifact.ArtifactSource {
+  try! @artifact.ArtifactSource::new(model_config~, tokenizer~, weights~)
 }
 
 ///|
@@ -160,14 +160,22 @@ fn test_limits(
 
 ///|
 async fn write_bundle(
-  paths : @artifact.ArtifactPaths,
+  directory : String,
   config : Bytes,
   tokenizer : Bytes,
   weights : Bytes,
 ) -> Unit {
-  @fs.write_file(paths.model_config(), config, create_mode=CreateNew)
-  @fs.write_file(paths.tokenizer(), tokenizer, create_mode=CreateNew)
-  @fs.write_file(paths.weights(), weights, create_mode=CreateNew)
+  @fs.write_file("\{directory}/config.json", config, create_mode=CreateNew)
+  @fs.write_file(
+    "\{directory}/tokenizer.json",
+    tokenizer,
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    "\{directory}/model.safetensors",
+    weights,
+    create_mode=CreateNew,
+  )
 }
 
 ///|
@@ -180,10 +188,12 @@ async test "valid explicit bundle returns the hashed byte snapshot and metadata"
     let config = selected_config()
     let tokenizer = selected_tokenizer()
     let weights = safetensors_file()
-    let paths = test_paths(directory)
-    write_bundle(paths, config, tokenizer, weights)
+    let source = test_source()
+    write_bundle(directory, config, tokenizer, weights)
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
     let bundle = @artifact.load_reference_bundle(
-      paths,
+      root,
+      source,
       test_expected(config, tokenizer, weights),
       test_limits(),
     )
@@ -201,6 +211,8 @@ async test "valid explicit bundle returns the hashed byte snapshot and metadata"
       bundle.identity().tokenizer().as_string(),
       artifact_digest(tokenizer).as_hex(),
     )
+    assert_false(root.is_closed())
+    root.close()
   }
 }
 
@@ -211,69 +223,96 @@ async test "missing oversized digest and path-type failures are payload safe" {
     group.add_defer() <| () => {
       @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
     }
-    let paths = test_paths(directory)
+    let source = test_source()
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
     let config = selected_config()
     let tokenizer = selected_tokenizer()
     let weights = safetensors_file()
     let expected = test_expected(config, tokenizer, weights)
-    try @artifact.load_reference_bundle(paths, expected, test_limits()) catch {
-      @artifact.ArtifactError::FileUnavailable(ModelConfig) => ()
+    try
+      @artifact.load_reference_bundle(root, source, expected, test_limits())
+    catch {
+      FileUnavailable(ModelConfig) => ()
       _ => fail("expected missing config")
     } noraise {
       _ => fail("expected failure")
     }
-    @fs.write_file(paths.model_config(), config, create_mode=CreateNew)
+    @fs.write_file("\{directory}/config.json", config, create_mode=CreateNew)
     try
       @artifact.load_reference_bundle(
-        paths,
+        root,
+        source,
         expected,
         test_limits(max_model_config_bytes=16L),
       )
     catch {
-      @artifact.ArtifactError::FileTooLarge(file=ModelConfig, maximum=16L) => ()
+      FileTooLarge(file=ModelConfig, maximum=16L) => ()
       _ => fail("expected config size limit")
     } noraise {
       _ => fail("expected failure")
+    }
+    try
+      @artifact.load_reference_bundle(
+        root,
+        source,
+        expected,
+        test_limits(max_model_config_bytes=16L, max_total_bytes=8L),
+      )
+    catch {
+      FileTooLarge(file=ModelConfig, maximum=16L) => ()
+      _ => fail("per-file limit did not precede aggregate limit")
+    } noraise {
+      _ => fail("file exceeding both limits was admitted")
     }
     let mutated_array = config.to_array()
     mutated_array[0] = b'['
     let mutated = Bytes::from_array(mutated_array)
     assert_eq(mutated.length(), config.length())
-    @fs.write_file(paths.model_config(), mutated, create_mode=CreateOrTruncate)
-    try @artifact.load_reference_bundle(paths, expected, test_limits()) catch {
-      @artifact.ArtifactError::DigestMismatch(ModelConfig) => ()
+    @fs.write_file(
+      "\{directory}/config.json",
+      mutated,
+      create_mode=CreateOrTruncate,
+    )
+    try
+      @artifact.load_reference_bundle(root, source, expected, test_limits())
+    catch {
+      DigestMismatch(ModelConfig) => ()
       _ => fail("expected digest mismatch")
     } noraise {
       _ => fail("expected failure")
     }
     let symlink_path = "\{directory}/config.link"
-    @fs.symlink(target=paths.model_config(), symlink_path)
-    let symlink_paths = try! @artifact.ArtifactPaths::new(
-      model_config=symlink_path,
-      tokenizer=paths.tokenizer(),
-      weights=paths.weights(),
-    )
+    @fs.symlink(target="\{directory}/config.json", symlink_path)
+    let symlink_source = test_source(model_config="config.link")
     try
-      @artifact.load_reference_bundle(symlink_paths, expected, test_limits())
+      @artifact.load_reference_bundle(
+        root,
+        symlink_source,
+        expected,
+        test_limits(),
+      )
     catch {
-      @artifact.ArtifactError::UnsupportedPathType(ModelConfig) => ()
+      UnsupportedPathType(ModelConfig) => ()
       _ => fail("expected symlink rejection")
     } noraise {
       _ => fail("expected failure")
     }
-    let directory_paths = try! @artifact.ArtifactPaths::new(
-      model_config=directory,
-      tokenizer=paths.tokenizer(),
-      weights=paths.weights(),
-    )
+    @fs.mkdir("\{directory}/config-dir")
+    let directory_source = test_source(model_config="config-dir")
     try
-      @artifact.load_reference_bundle(directory_paths, expected, test_limits())
+      @artifact.load_reference_bundle(
+        root,
+        directory_source,
+        expected,
+        test_limits(),
+      )
     catch {
-      @artifact.ArtifactError::UnsupportedPathType(ModelConfig) => ()
+      UnsupportedPathType(ModelConfig) => ()
       _ => fail("expected path-type rejection")
     } noraise {
       _ => fail("expected failure")
     }
+    root.close()
   }
 }
 
@@ -289,20 +328,25 @@ async test "truncated weights and executable metadata are rejected after hashing
     let config = selected_config()
     let tokenizer = selected_tokenizer()
     let truncated = safetensors_file(truncated=true)
-    let truncated_paths = test_paths(truncated_directory)
-    write_bundle(truncated_paths, config, tokenizer, truncated)
+    let truncated_source = test_source()
+    write_bundle(truncated_directory, config, tokenizer, truncated)
+    let truncated_root = @approved_fs.ApprovedRoot::open_absolute(
+      @fs.realpath(truncated_directory),
+    )
     try
       @artifact.load_reference_bundle(
-        truncated_paths,
+        truncated_root,
+        truncated_source,
         test_expected(config, tokenizer, truncated),
         test_limits(),
       )
     catch {
-      @artifact.ArtifactError::InvalidSafetensors(TruncatedHeader) => ()
+      InvalidSafetensors(TruncatedHeader) => ()
       _ => fail("expected truncated safetensors")
     } noraise {
       _ => fail("expected failure")
     }
+    truncated_root.close()
 
     let unsafe_directory = @fs.tmpdir(prefix="lunaflux-artifact-unsafe")
     group.add_defer() <| () => {
@@ -312,21 +356,25 @@ async test "truncated weights and executable metadata are rejected after hashing
     }
     let unsafe_config = selected_config(executable=true)
     let weights = safetensors_file()
-    let unsafe_paths = test_paths(unsafe_directory)
-    write_bundle(unsafe_paths, unsafe_config, tokenizer, weights)
+    let unsafe_source = test_source()
+    write_bundle(unsafe_directory, unsafe_config, tokenizer, weights)
+    let unsafe_root = @approved_fs.ApprovedRoot::open_absolute(
+      @fs.realpath(unsafe_directory),
+    )
     try
       @artifact.load_reference_bundle(
-        unsafe_paths,
+        unsafe_root,
+        unsafe_source,
         test_expected(unsafe_config, tokenizer, weights),
         test_limits(),
       )
     catch {
-      @artifact.ArtifactError::InvalidModelConfig(ExecutableMetadata(AutoMap)) =>
-        ()
+      InvalidModelConfig(ExecutableMetadata(AutoMap)) => ()
       _ => fail("expected executable metadata rejection")
     } noraise {
       _ => fail("expected failure")
     }
+    unsafe_root.close()
   }
 }
 
@@ -345,19 +393,22 @@ async test "model and tokenizer vocabularies must agree before weight loading" {
     let incompatible_config = @utf8.encode(text)
     let tokenizer = selected_tokenizer()
     let weights = safetensors_file()
-    let paths = test_paths(directory)
-    write_bundle(paths, incompatible_config, tokenizer, weights)
+    let source = test_source()
+    write_bundle(directory, incompatible_config, tokenizer, weights)
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
     try
       @artifact.load_reference_bundle(
-        paths,
+        root,
+        source,
         test_expected(incompatible_config, tokenizer, weights),
         test_limits(),
       )
     catch {
-      @artifact.ArtifactError::TokenizerVocabularyMismatch => ()
+      TokenizerVocabularyMismatch => ()
       _ => fail("expected tokenizer vocabulary mismatch")
     } noraise {
       _ => fail("expected incompatible tokenizer vocabulary")
     }
+    root.close()
   }
 }

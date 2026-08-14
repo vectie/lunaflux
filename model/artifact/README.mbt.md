@@ -1,26 +1,26 @@
 # Phase 1 reference artifact admission
 
 `model/artifact` admits the exact bytes used by LunaFlux's offline Phase 1
-correctness path. The caller supplies three distinct paths and independently
-approved SHA-256 identities for `config.json`, `tokenizer.json`, and one
-`safetensors` file. The package never scans a directory, executes metadata, or
-infers additional files.
+correctness path. The caller supplies independently approved SHA-256 identities
+for `config.json`, `tokenizer.json`, and one `safetensors` file. Their strict
+relative locators are admitted once into an opaque `ArtifactSource`; loading
+receives one separately caller-owned `ApprovedRoot`. The package never scans a
+directory, opens an absolute path, executes metadata, or infers files.
 
-`load_reference_bundle` is intentionally a whole-file host snapshot. It checks
-each non-symlink regular file's size against per-file and aggregate limits
-before allocating, reads from one open file handle, verifies the canonical
-SHA-256 of the returned bytes, and parses those same immutable bytes. A same-size
-replacement or mutation therefore fails the expected digest instead of
-reaching a parser. Paths are locators, not trust identities; the approved
-digest is authoritative.
+`load_reference_bundle` is a synchronous whole-file host snapshot. Each strict
+relative descendant is opened with component-wise no-follow traversal and a
+final regular-file check. A same-handle stamp preserves per-file-before-total
+limit precedence before the native immutable-snapshot transaction performs its
+own stamp/read/trailing-probe/stamp checks. The file is deterministically closed
+before bytes can be hashed, parsed, or published. A close failure wins over a
+successful body; an earlier snapshot failure stays primary while close is still
+attempted. The caller's root remains open and caller-owned.
 
-MoonBit's current async filesystem API does not expose an atomic
-`openat`/`O_NOFOLLOW` operation. Admission therefore performs a non-following
-kind check before open and a regular-file check on the opened handle. This is
-appropriate for the product contract's approved read-only model mount. If a
-writable or adversarial directory is ever admitted, production must first add
-a narrow native `openat` plus `fstat` wrapper rather than treating these two
-checks as atomic.
+The package has no production dependency on ambient or asynchronous filesystem
+APIs. Namespace replacement cannot redirect an opened root or file. Concurrent
+truncation, growth, or same-handle size/mtime/ctime change fails without
+publishing a snapshot. Relative labels are locators, never trust identities;
+the independently approved digests remain authoritative.
 
 The validated weights digest becomes `ModelIdentity.content`, while the model
 plan digest is derived from validated configuration semantics. The tokenizer
@@ -32,3 +32,8 @@ This package is not the production weight loader. Production loading must use
 streaming or mapping and place tensor bytes directly into their final device
 allocations through the materialization boundary. It must not retain a complete
 model-sized host copy.
+
+The `lunaflux reference` deployment boundary is the sole production caller. It
+opens the operator-supplied absolute root, constructs the opaque relative
+source, loads the bundle, and closes the root before reference execution or
+console output.

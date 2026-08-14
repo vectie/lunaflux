@@ -5,7 +5,7 @@ fn print_usage() -> Unit {
   println("  lunaflux doctor")
   println("  lunaflux plan MODEL_PATH sha256:DIGEST")
   println(
-    "  lunaflux reference CONFIG TOKENIZER WEIGHTS CONFIG_SHA TOKENIZER_SHA WEIGHTS_SHA MAX_NEW TOKEN_IDS",
+    "  lunaflux reference ROOT CONFIG_REL TOKENIZER_REL WEIGHTS_REL CONFIG_SHA TOKENIZER_SHA WEIGHTS_SHA MAX_NEW TOKEN_IDS",
   )
   println("  lunaflux version")
 }
@@ -113,36 +113,49 @@ fn print_tokens(tokens : ReadOnlyArray[Int]) -> Unit {
 }
 
 ///|
-async fn run_reference(
-  config_path : String,
-  tokenizer_path : String,
-  weights_path : String,
+fn run_reference(
+  root_path : String,
+  config_locator : String,
+  tokenizer_locator : String,
+  weights_locator : String,
   config_sha : String,
   tokenizer_sha : String,
   weights_sha : String,
   maximum_new_text : String,
   token_text : String,
-) -> Unit {
+) -> Unit raise {
   let maximum_new = parse_positive(maximum_new_text)
   let prompt = parse_token_ids(token_text)
   if maximum_new > REFERENCE_MAX_TOKENS - prompt.length() {
     raise InvalidReferenceArgument(MaximumNewTokens)
   }
-  let paths = @artifact.ArtifactPaths::new(
-    model_config=config_path,
-    tokenizer=tokenizer_path,
-    weights=weights_path,
+  let source = @artifact.ArtifactSource::new(
+    model_config=config_locator,
+    tokenizer=tokenizer_locator,
+    weights=weights_locator,
   )
   let expected = @artifact.ExpectedDigests::new(
     model_config=@artifact.ArtifactDigest::parse(config_sha),
     tokenizer=@artifact.ArtifactDigest::parse(tokenizer_sha),
     weights=@artifact.ArtifactDigest::parse(weights_sha),
   )
+  let artifact_limits = reference_artifact_limits()
+  // Absolute path admission is confined to this deployment boundary. The
+  // artifact package sees only the pinned root and opaque relative source.
+  let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
   let bundle = @artifact.load_reference_bundle(
-    paths,
-    expected,
-    reference_artifact_limits(),
-  )
+    root, source, expected, artifact_limits,
+  ) catch {
+    error => {
+      root.close() catch {
+        _ => ()
+      }
+      raise error
+    }
+  }
+  // No execution result or console output is published until the caller-owned
+  // root has been deterministically consumed.
+  root.close()
   let admitted = @llama_admission.complete(bundle.model(), bundle.safetensors())
   let host = @materialize.copy_to_host(
     admitted.bindings(),
@@ -228,16 +241,17 @@ fn print_plan(model_path : String, digest : String) -> Unit raise {
 }
 
 ///|
-async fn main {
+fn main raise {
   match @env.args() {
     [_, "doctor"] => print_doctor()
     [_, "plan", model_path, digest] => print_plan(model_path, digest)
     [
       _,
       "reference",
-      config_path,
-      tokenizer_path,
-      weights_path,
+      root_path,
+      config_locator,
+      tokenizer_locator,
+      weights_locator,
       config_sha,
       tokenizer_sha,
       weights_sha,
@@ -245,8 +259,8 @@ async fn main {
       token_ids,
     ] =>
       run_reference(
-        config_path, tokenizer_path, weights_path, config_sha, tokenizer_sha, weights_sha,
-        maximum_new, token_ids,
+        root_path, config_locator, tokenizer_locator, weights_locator, config_sha,
+        tokenizer_sha, weights_sha, maximum_new, token_ids,
       )
     [_, "version"] => println(@contracts.protocol_version())
     _ => print_usage()

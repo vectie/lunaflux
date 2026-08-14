@@ -7,20 +7,23 @@ import {
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/safetensors_reader",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/tokenizer",
   "vectie/lunaflux/tokenizer/json_reader",
 }
 
 // Values
-pub async fn load_reference_bundle(ArtifactPaths, ExpectedDigests, ArtifactLimits) -> ReferenceArtifactBundle
+pub fn load_reference_bundle(@approved_fs.ApprovedRoot, ArtifactSource, ExpectedDigests, ArtifactLimits) -> ReferenceArtifactBundle raise ArtifactError
 
 // Errors
 pub(all) suberror ArtifactError {
   InvalidDigest
-  InvalidPath(file~ : ArtifactFile, issue~ : ArtifactPathIssue)
+  InvalidLocator(ArtifactFile)
+  DuplicateLocator(ArtifactFile)
   InvalidLimit(ArtifactLimit)
   FileUnavailable(ArtifactFile)
   UnsupportedPathType(ArtifactFile)
+  FileIo(file~ : ArtifactFile, operation~ : ArtifactFileOperation, issue~ : ArtifactFileIoIssue)
   FileTooLarge(file~ : ArtifactFile, maximum~ : Int64)
   TotalTooLarge(maximum~ : Int64)
   FileTruncated(ArtifactFile)
@@ -43,6 +46,19 @@ pub(all) enum ArtifactFile {
   ModelConfig
   Tokenizer
   Weights
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ArtifactFileIoIssue {
+  AuthorityClosed
+  Busy
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ArtifactFileOperation {
+  OpenFile
+  StatFile
+  SnapshotFile
+  CloseFile
 } derive(Eq, @debug.Debug)
 
 pub struct ArtifactIdentity {
@@ -75,21 +91,10 @@ pub struct ArtifactLimits {
 } derive(Eq, @debug.Debug)
 pub fn ArtifactLimits::new(max_model_config_bytes~ : Int64, max_tokenizer_bytes~ : Int64, max_weights_bytes~ : Int64, max_total_bytes~ : Int64, max_model_config_depth~ : Int, max_tokenizer_depth~ : Int, tokenizer_limits~ : @tokenizer.TokenizerLimits, safetensors_limits~ : @safetensors.HeaderLimits) -> Self raise ArtifactError
 
-pub(all) enum ArtifactPathIssue {
-  Empty
-  TooLong
-  Duplicate
-} derive(Eq, @debug.Debug)
-
-pub struct ArtifactPaths {
-  model_config : String
-  tokenizer : String
-  weights : String
-} derive(Eq, @debug.Debug)
-pub fn ArtifactPaths::model_config(Self) -> String
-pub fn ArtifactPaths::new(model_config~ : String, tokenizer~ : String, weights~ : String) -> Self raise ArtifactError
-pub fn ArtifactPaths::tokenizer(Self) -> String
-pub fn ArtifactPaths::weights(Self) -> String
+pub struct ArtifactSource {
+  // private fields
+}
+pub fn ArtifactSource::new(model_config~ : StringView, tokenizer~ : StringView, weights~ : StringView) -> Self raise ArtifactError
 
 pub struct ExpectedDigests {
   model_config : ArtifactDigest

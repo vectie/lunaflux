@@ -170,6 +170,55 @@ if [ -d model/config_file ]; then
   fi
 fi
 
+# Offline reference-artifact admission is synchronous and descriptor-relative.
+# Locator text is admitted only into one opaque source; the loader itself sees
+# one caller-owned root and cannot recover ambient path authority.
+if [ -d model/artifact ]; then
+  fail_matches \
+    'model/artifact must not import an internal filesystem ABI:' \
+    --glob 'model/artifact/**/moon.pkg' \
+    'vectie/lunaflux/internal/approved_fs'
+  fail_matches \
+    'model/artifact production imports must not use async filesystem IO:' \
+    --pcre2 --glob 'model/artifact/**/moon.pkg' -U \
+    'import\s*\{[^}]*moonbitlang/async(/fs)?[^}]*\}(?!\s*for\s*"(?:test|wbtest)")'
+  if ! rg -q \
+    '^pub fn load_reference_bundle\(@approved_fs\.ApprovedRoot, ArtifactSource, ExpectedDigests, ArtifactLimits\)' \
+    model/artifact/pkg.generated.mbti; then
+    printf '%s\n' \
+      'reference artifact loader must consume ApprovedRoot and opaque ArtifactSource' >&2
+    failed=1
+  fi
+  if rg -n \
+    '^pub async fn load_reference_bundle|^pub fn load_reference_bundle\([^)]*String(View)?|ArtifactPaths' \
+    model/artifact/pkg.generated.mbti; then
+    printf '%s\n' \
+      'reference artifact loader restored async or ambient path authority' >&2
+    failed=1
+  fi
+  artifact_source_interface="$(sed -n \
+    '/^pub struct ArtifactSource {$/,/^}$/p' \
+    model/artifact/pkg.generated.mbti)"
+  if [ -z "$artifact_source_interface" ] ||
+    ! printf '%s\n' "$artifact_source_interface" | rg -q 'private fields' ||
+    printf '%s\n' "$artifact_source_interface" | rg -q 'Debug|String|Locator|path'; then
+    printf '%s\n' \
+      'ArtifactSource must remain opaque and expose no locator text or Debug surface' >&2
+    failed=1
+  fi
+fi
+
+if [ -d cmd/lunaflux ]; then
+  reference_source="$(sed -n \
+    '/^fn run_reference(/,/^\/\/\/|/p' cmd/lunaflux/main.mbt)"
+  if ! printf '%s\n' "$reference_source" | rg -U -q \
+    'let artifact_limits = reference_artifact_limits\(\)[\s\S]*ApprovedRoot::open_absolute[\s\S]*load_reference_bundle[\s\S]*root\.close\(\) catch \{[\s\S]*raise error[\s\S]*root\.close\(\)[\s\S]*@llama_admission\.complete'; then
+    printf '%s\n' \
+      'reference CLI must prepare limits before root open and close root before execution/output' >&2
+    failed=1
+  fi
+fi
+
 if [ -d engine/device_worker_bootstrap ]; then
   fail_matches \
     'device_worker_bootstrap must not use ambient or async filesystem APIs:' \

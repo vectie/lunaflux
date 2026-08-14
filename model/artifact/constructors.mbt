@@ -1,7 +1,4 @@
 ///|
-const MAX_PATH_CODE_UNITS : Int = 4096
-
-///|
 const MAX_OWNED_FILE_BYTES : Int64 = 2147483647L
 
 ///|
@@ -27,35 +24,35 @@ pub fn ArtifactDigest::as_hex(self : ArtifactDigest) -> String {
 }
 
 ///|
-fn validate_path(
-  path : StringView,
-  file : ArtifactFile,
-) -> Unit raise ArtifactError {
-  if path.is_empty() {
-    raise InvalidPath(file~, issue=Empty)
+/// Constructs a distinct, explicit three-file source beneath one separately
+/// owned approved root.
+pub fn ArtifactSource::new(
+  model_config~ : StringView,
+  tokenizer~ : StringView,
+  weights~ : StringView,
+) -> ArtifactSource raise ArtifactError {
+  let model_config_locator = @approved_fs.ApprovedRelativeLocator::new(
+    model_config,
+  ) catch {
+    _ => raise InvalidLocator(ModelConfig)
   }
-  if path.length() > MAX_PATH_CODE_UNITS {
-    raise InvalidPath(file~, issue=TooLong)
+  let tokenizer_locator = @approved_fs.ApprovedRelativeLocator::new(tokenizer) catch {
+    _ => raise InvalidLocator(Tokenizer)
   }
-}
-
-///|
-/// Constructs a distinct, explicit three-file path set.
-pub fn ArtifactPaths::new(
-  model_config~ : String,
-  tokenizer~ : String,
-  weights~ : String,
-) -> ArtifactPaths raise ArtifactError {
-  validate_path(model_config, ModelConfig)
-  validate_path(tokenizer, Tokenizer)
-  validate_path(weights, Weights)
+  let weights_locator = @approved_fs.ApprovedRelativeLocator::new(weights) catch {
+    _ => raise InvalidLocator(Weights)
+  }
   if model_config == tokenizer {
-    raise InvalidPath(file=Tokenizer, issue=Duplicate)
+    raise DuplicateLocator(Tokenizer)
   }
   if model_config == weights || tokenizer == weights {
-    raise InvalidPath(file=Weights, issue=Duplicate)
+    raise DuplicateLocator(Weights)
   }
-  { model_config, tokenizer, weights }
+  {
+    model_config: model_config_locator,
+    tokenizer: tokenizer_locator,
+    weights: weights_locator,
+  }
 }
 
 ///|
@@ -110,21 +107,6 @@ pub fn ArtifactLimits::new(
     tokenizer_limits,
     safetensors_limits,
   }
-}
-
-///|
-pub fn ArtifactPaths::model_config(self : ArtifactPaths) -> String {
-  self.model_config
-}
-
-///|
-pub fn ArtifactPaths::tokenizer(self : ArtifactPaths) -> String {
-  self.tokenizer
-}
-
-///|
-pub fn ArtifactPaths::weights(self : ArtifactPaths) -> String {
-  self.weights
 }
 
 ///|
