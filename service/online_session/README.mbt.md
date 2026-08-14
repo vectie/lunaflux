@@ -30,8 +30,16 @@ the trigger is counted, stop and post-stop bytes are withheld, and an exact
 reserved cancellation terminal is privately translated to canonical `Usage`
 then `Completed(StopSequence)`. If the same final token already has an adjacent
 natural Maximum/StopToken terminal, that precedence is authenticated and
-translated without cancelling an already-terminal request. Caller cancellation,
-deadline translation, and public Failed events remain later work.
+translated without cancelling an already-terminal request. Caller cancellation
+is deferred behind pinned Accepted/Token credit, commits one exact cut after
+acknowledgement, and publishes `Usage` then `Completed(Cancelled)`. Every
+credit-free `progress` enforces the owner-bound deadline after deferred caller
+intent and before worker/publication mutation; expiration publishes `Usage`
+then payload-safe nonretryable `Failed(deadline_exceeded)`. `check_deadline` is
+a non-latching poll while credit is pinned. Worker/public Failed translation
+remains later work. Caller, deadline, abort, and worker-failure cuts fix output
+at the last retired public event and suppress decoder-pending bytes; only an
+authenticated natural terminal flushes a final decoder tail.
 
 The complete off-reactor cleanup path prevents stranded authority: existing
 flight retirement, suppression through exact terminal, worker-failure

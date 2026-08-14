@@ -34,6 +34,23 @@ test "natural terminal wins before online monotonic clock sampling" {
 }
 
 ///|
+test "online deadline clock failure samples once before scheduler mutation" {
+  let reads = Ref(0)
+  try
+    read_expiry_clock(false, reads, fn(counter) raise WorkerServiceError {
+      counter.val += 1
+      raise Invalid(Clock)
+    })
+  catch {
+    Invalid(Clock) => ()
+    _ => fail("unexpected online deadline clock error")
+  } noraise {
+    _ => fail("failing online deadline clock returned a sample")
+  }
+  assert_eq(reads.val, 1)
+}
+
+///|
 fn owned_preparation_allocation_positive_control() -> Bytes {
   Bytes::make(19, b'R')
 }

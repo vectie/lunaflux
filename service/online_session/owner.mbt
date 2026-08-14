@@ -177,8 +177,10 @@ pub fn OnlineSession::ack_event(
       try! self.writer.prepare_completed(
         if self.finish_kind == 1 {
           StopSequence
-        } else {
+        } else if self.finish_kind == 2 {
           TokenLimit
+        } else {
+          Cancelled
         },
         input_tokens=self.input_tokens,
         cached_input_tokens=0,
@@ -191,6 +193,26 @@ pub fn OnlineSession::ack_event(
       self.event_ready = true
     }
     4 => {
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      self.event_ready = false
+      self.cleanup_phase = 2
+    }
+    5 => {
+      self.writer.retire() catch {
+        _ => raise SessionFailed(WireFailure)
+      }
+      try! self.writer.prepare_failed(
+        self.deadline_code,
+        code_offset=0,
+        code_length=self.deadline_code.length(),
+        retryable=false,
+      )
+      self.event_kind = 6
+      self.event_ready = true
+    }
+    6 => {
       self.writer.retire() catch {
         _ => raise SessionFailed(WireFailure)
       }
@@ -222,14 +244,15 @@ pub fn OnlineSession::begin_abort(
     self.event_ready = false
     self.accepted_acked = true
   }
-  if self.event_kind == 3 || self.event_kind == 4 {
+  if self.event_kind >= 3 && self.event_kind <= 6 {
     self.cleanup_phase = 2
     return
   }
-  if self.string_cut != 0 {
+  if self.string_cut != 0 || self.terminal_cut != 0 {
     self.cleanup_phase = 1
     return
   }
+  self.deferred_cut = 0
   let lease = match self.lease {
     Some(value) => value
     None => abort("online session lease invariant")

@@ -363,9 +363,11 @@ Steady allocation-free token stepping, physical stop-token suppression, and
 natural Maximum/StopToken Usage+Completed-v2 publication are now present.
 Incremental string-stop matching now performs an exact cancellation cut (or
 authenticates final-token natural precedence), withholds stop/post-stop bytes,
-and publishes Usage+Completed(StopSequence). Caller-cancel/deadline
-translation, public Failed publication, and ingress transport remain future
-work.
+and publishes Usage+Completed(StopSequence). Caller cancellation now defers
+behind pinned credit and publishes Usage+Completed(Cancelled); automatic
+credit-free deadline enforcement publishes Usage+Failed(deadline_exceeded)
+after natural-terminal preflight. Worker/public Failed publication and ingress
+transport remain future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

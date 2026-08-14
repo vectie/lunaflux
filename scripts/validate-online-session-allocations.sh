@@ -58,6 +58,14 @@ for symbol in \
   'OnlineSession12begin__abort(' \
   'OnlineSession17progress__cleanup(' \
   'OnlineSession8progress(' \
+  'OnlineSession15request__cancel(' \
+  'OnlineSession15check__deadline(' \
+  'OnlineSession18begin__caller__cut(' \
+  'OnlineSession20begin__deadline__cut(' \
+  'OnlineSession17enforce__deadline(' \
+  'OnlineSession23progress__terminal__cut(' \
+  'OnlineSession22prepare__cut__terminal(' \
+  'classify__expiry__cut(' \
   'OnlineSession13decode__token(' \
   'OnlineSession21progress__string__cut(' \
   'OnlineSession31prepare__string__stop__terminal(' \
@@ -76,6 +84,8 @@ for symbol in \
   'CanonicalEventWriter29prepare__token__bytes__status(' \
   'CanonicalEventWriter14prepare__usage(' \
   'CanonicalEventWriter18prepare__completed(' \
+  'CanonicalEventWriter15prepare__failed(' \
+  'OnlineWorkerLease6expire(' \
   'OnlineWorkerLease28progress__terminal__recovery(' \
   'OnlineWorkerLease27commit__prepared__admission(' \
   'Scheduler28commit__exclusive__admission(' \
@@ -105,8 +115,59 @@ fi
 decode_body="$(extract_definition 'OnlineSession13decode__token(')"
 progress_body="$(extract_definition 'OnlineSession8progress(')"
 terminal_body="$(extract_definition 'OnlineSession26prepare__natural__terminal(')"
-if [ -z "$decode_body" ] || [ -z "$progress_body" ] || [ -z "$terminal_body" ]; then
+caller_body="$(extract_definition 'OnlineSession18begin__caller__cut(')"
+cut_body="$(extract_definition 'OnlineSession23progress__terminal__cut(')"
+request_body="$(extract_definition 'OnlineSession15request__cancel(')"
+deadline_body="$(extract_definition 'OnlineSession15check__deadline(')"
+ack_body="$(extract_definition 'OnlineSession10ack__event(')"
+if [ -z "$decode_body" ] || [ -z "$progress_body" ] ||
+  [ -z "$terminal_body" ] || [ -z "$caller_body" ] || [ -z "$cut_body" ] ||
+  [ -z "$request_body" ] || [ -z "$deadline_body" ] || [ -z "$ack_body" ]; then
   printf '%s\n' 'online-session failure-order functions are missing' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$progress_body" | rg -U -q \
+  -- 'enforce__deadline[\s\S]*has__publication[\s\S]*OnlineWorkerLease8progress'; then
+  printf '%s\n' 'automatic deadline enforcement does not precede publication/worker progress' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$request_body" | rg -U -q \
+  -- 'enforce__deadline[\s\S]*begin__caller__cut'; then
+  printf '%s\n' 'unpinned caller cancellation does not preflight absolute expiry' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$deadline_body" | rg -U -q \
+  -- '->\$6\)[\s\S]*return[\s\S]*begin__deadline__cut'; then
+  printf '%s\n' 'pinned deadline poll can sample the clock before returning' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$cut_body" | rg -U -q \
+  -- 'OnlineWorkerLease8progress[\s\S]*->\$16 = 5;[\s\S]*->\$17 = 1;[\s\S]*OnlineSessionError_2eSessionFailed'; then
+  printf '%s\n' 'terminal-cut worker failure maps before recovery authority is secured' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$ack_body" | rg -U -q \
+  -- 'prepare__failed[\s\S]*->\$7 = 6;[\s\S]*->\$6 = 1;'; then
+  printf '%s\n' 'deadline Failed publication is not pinned after Usage acknowledgement' >&2
+  exit 1
+fi
+
+# Deferred caller intent remains installed until the fallible exact
+# reservation/commit returns, and deadline enforcement follows it. The cut
+# publishes only after the exact terminal reason is authenticated.
+if ! printf '%s\n' "$progress_body" | rg -U -q \
+  -- 'begin__caller__cut[\s\S]*->\$14 = 0;[\s\S]*enforce__deadline'; then
+  printf '%s\n' 'deferred caller cut is cleared before reservation or after deadline enforcement' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$caller_body" | rg -U -q \
+  -- 'reserve__cancel[\s\S]*commit__cancel[\s\S]*->\$13 = 1;'; then
+  printf '%s\n' 'caller cancellation is not bound to an exact committed cut' >&2
+  exit 1
+fi
+if ! printf '%s\n' "$cut_body" | rg -U -q \
+  -- 'terminal__reason[\s\S]*prepare__cut__terminal'; then
+  printf '%s\n' 'terminal cut publishes before exact terminal authentication' >&2
   exit 1
 fi
 decode_cleanup_count="$(printf '%s\n' "$decode_body" | rg -c 'enter__output__cleanup' || true)"
@@ -134,7 +195,7 @@ if ! printf '%s\n' "$decode_body" | rg -U -q \
   exit 1
 fi
 if ! printf '%s\n' "$decode_body" | rg -U -q \
-  -- 'prepare__token__bytes__status[\s\S]*->\$13 = 1;[\s\S]*OnlineSessionError_2eSessionFailed'; then
+  -- 'prepare__token__bytes__status[\s\S]*->\$16 = 1;[\s\S]*OnlineSessionError_2eSessionFailed'; then
   printf '%s\n' \
     'matched token writer rejection does not retain cleanup authority' >&2
   exit 1

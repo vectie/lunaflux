@@ -299,8 +299,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   matching now withholds stop/post-stop bytes, commits an exact cancellation
   cut when possible, and translates only its authenticated terminal to
   Usage+Completed(StopSequence); final-token natural-terminal precedence is
-  covered without cancelling an already-terminal request. Caller-cancel,
-  deadline and public Failed translation plus ingress transport remain open;
+  covered without cancelling an already-terminal request. Caller cancellation
+  now defers behind pinned credit and publishes Usage+Completed(Cancelled), and
+  automatic owner-clock expiry publishes Usage plus canonical nonretryable
+  Failed(deadline_exceeded), with natural terminal precedence. Worker/public
+  failure translation plus ingress transport remain open;
   this is not online-serving readiness.
   Its
   real-process gate proves output-publication backpressure, worker death, failure retirement,

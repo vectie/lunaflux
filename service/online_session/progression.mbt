@@ -213,11 +213,31 @@ pub fn OnlineSession::progress(
   }
   self.require_owner()
   let lease = self.lease_owner()
+  if self.terminal_cut != 0 {
+    self.progress_terminal_cut(lease)
+    if self.event_ready {
+      return OnlineSessionEventReady
+    }
+    return OnlineSessionPending
+  }
   if self.string_cut != 0 {
     self.progress_string_cut(lease)
     if self.event_ready {
       return OnlineSessionEventReady
     }
+    return OnlineSessionPending
+  }
+  if self.deferred_cut != 0 {
+    let deferred = self.deferred_cut
+    if deferred == 1 {
+      self.begin_caller_cut(lease)
+    }
+    self.deferred_cut = 0
+    if self.terminal_cut != 0 {
+      return OnlineSessionPending
+    }
+  }
+  if self.enforce_deadline(lease) {
     return OnlineSessionPending
   }
   let available = try! lease.has_publication()

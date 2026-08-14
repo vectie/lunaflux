@@ -91,6 +91,7 @@ fn session_received(
   stop_token? : Int = -1,
   stop_string? : Bytes = b"",
   max_new_tokens? : Int = 2,
+  deadline_millis? : UInt64 = 1000UL,
 ) -> @request_admission.ReceivedRequest raise {
   let limits = inference_limits()
   let stop_tokens : Array[Int] = []
@@ -112,7 +113,9 @@ fn session_received(
     sampling_seed=@inference.SamplingSeed::new(9UL),
     stops=@inference.StopConditions::new(stop_tokens, stop_strings, limits),
     stream_preference=stream,
-    deadline=@inference.DeadlineBudget::from_milliseconds(1000UL, limits),
+    deadline=@inference.DeadlineBudget::from_milliseconds(
+      deadline_millis, limits,
+    ),
     cache=@inference.CachePolicy::new(
       @inference.CacheScope::from_ascii(b"scope", limits),
       Disabled,

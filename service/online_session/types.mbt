@@ -63,6 +63,9 @@ pub struct OnlineSession {
   priv mut final_tail_length : Int
   priv mut finish_kind : Int
   priv mut string_cut : Int
+  priv mut terminal_cut : Int
+  priv mut deferred_cut : Int
+  priv deadline_code : FixedArray[Byte]
   priv mut cleanup_phase : Int
   priv mut recovery_close : Bool
   priv mut closed : Bool

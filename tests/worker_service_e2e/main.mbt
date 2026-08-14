@@ -479,6 +479,7 @@ fn run(executable : Bytes, failure_executable : Bytes?) -> Unit raise {
   run_reservation_classification_evidence(executable)
   run_online_lease_evidence(executable)
   run_online_session_foundation(executable)
+  run_online_session_termination_evidence(executable)
   match failure_executable {
     Some(value) => run_online_session_progress_failure(value)
     None => ()

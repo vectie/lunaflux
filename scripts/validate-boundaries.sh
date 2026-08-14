@@ -595,6 +595,13 @@ if [ -f service/online_session/pkg.generated.mbti ] &&
   failed=1
 fi
 
+if [ -f service/online_session/pkg.generated.mbti ] &&
+  { ! rg -q '^pub fn OnlineSession::request_cancel\(Self\) -> Unit raise OnlineSessionError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn OnlineSession::check_deadline\(Self\) -> Unit raise OnlineSessionError$' service/online_session/pkg.generated.mbti; }; then
+  printf '%s\n' 'online session cancellation/deadline surface drifted' >&2
+  failed=1
+fi
+
 # Production code is MoonBit plus narrow C stubs. Python may be used by neither
 # the runtime nor its normal validation path.
 if python_files=$(rg --files --glob '*.py' 2>/dev/null); then

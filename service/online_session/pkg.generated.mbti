@@ -40,11 +40,13 @@ pub struct OnlineSession {
 }
 pub fn OnlineSession::ack_event(Self) -> Unit raise OnlineSessionError
 pub fn OnlineSession::begin_abort(Self) -> Unit raise OnlineSessionError
+pub fn OnlineSession::check_deadline(Self) -> Unit raise OnlineSessionError
 pub fn OnlineSession::copy_event_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise OnlineSessionError
 pub fn OnlineSession::event_length(Self) -> Int raise OnlineSessionError
 pub fn OnlineSession::has_event(Self) -> Bool
 pub fn OnlineSession::progress(Self) -> OnlineSessionProgress raise OnlineSessionError
 pub fn OnlineSession::progress_cleanup(Self) -> OnlineSessionCleanupProgress raise OnlineSessionError
+pub fn OnlineSession::request_cancel(Self) -> Unit raise OnlineSessionError
 
 pub(all) enum OnlineSessionCleanupProgress {
   OnlineSessionCleanupPending
