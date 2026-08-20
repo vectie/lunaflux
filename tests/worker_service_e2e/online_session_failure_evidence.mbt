@@ -46,12 +46,14 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   assert_eq(session.progress(), LunaOnlineInstanceTerminalizationRequired)
   assert_worker_unavailable_bundle(session)
   assert_eq(
-    instance.begin(
+    instance
+    .begin(
       prepare_foundation_request(
         session_tokenizer(),
         session_received(Streaming, request_id=916UL),
       ),
-    ),
+    )
+    .kind(),
     LunaOnlineInstanceDraining,
   )
 

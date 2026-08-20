@@ -685,6 +685,21 @@ if [ -f service/online_session/pkg.generated.mbti ] &&
   failed=1
 fi
 
+if rg -n 'framed_wire|FramedWireLimits|CanonicalEventWriter|EventFrameBuffer|ValidatedEventFrame|LunaOnlineWireFailure' \
+  service/online_session --glob '*.mbt' --glob 'moon.pkg' --glob '*.mbti'; then
+  printf '%s\n' \
+    'online session must own semantic Luna events, not framed-wire state' >&2
+  failed=1
+fi
+
+if ! rg -U -q \
+  'fn begin_foundation_session[\s\S]*LunaFramedEventAdapter::new[\s\S]*let admission = instance\.begin\(prepared\)' \
+  tests/worker_service_e2e/online_session_harness.mbt; then
+  printf '%s\n' \
+    'online driver must preflight its fallible event adapter before begin' >&2
+  failed=1
+fi
+
 if rg -n '@request_admission\.(admit|prepare_luna_request)|@tokenizer\.TokenizerSpec|priv tokenizer[[:space:]]*:' \
   service/online_session --glob '*.mbt' --glob 'moon.pkg'; then
   printf '%s\n' \
@@ -699,17 +714,37 @@ fi
 
 if [ -f service/online_session/pkg.generated.mbti ] &&
   { ! rg -q '^pub fn prepare_owned_luna_online_instance\(' service/online_session/pkg.generated.mbti ||
-    ! rg -q '^pub struct LunaOnlineRequestTicket\(UInt64\)' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn prepare_owned_luna_online_instance\(@tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @core\.SchedulerBlueprint, @worker_service\.WorkerServiceBinding, Bytes, @worker_wire\.WorkerStartupContract, @worker_wire\.EncodedBootstrapSource, @worker_process\.WorkerProcessLimits, @approved_fs\.ApprovedRoot, @approved_fs\.ApprovedRoot\) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q --pcre2 -U '^pub struct LunaOnlineRequestTicket \{\n  // private fields\n\} derive\(Eq\)$' service/online_session/pkg.generated.mbti ||
+    ! rg -q --pcre2 -U '^pub struct LunaOnlineInstanceAdmission \{\n  // private fields\n\}$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineInstanceAdmission::kind\(Self\) -> LunaOnlineInstanceAdmissionKind$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineInstanceAdmission::ticket\(Self\) -> LunaOnlineRequestTicket raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::begin\(Self, @request_admission\.LunaPreparedRequest\) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress_terminalization\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress_request_retirement\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineInstance::take_event\(Self, LunaOnlineRequestTicket\) -> LunaOnlineEventCredit raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineEventCredit::view\(Self\) -> @luna_event\.LunaEventView raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineEventCredit::ack\(Self\) -> Unit raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::begin_drain\(Self\) -> Unit$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress_shutdown\(Self\) -> LunaOnlineInstanceShutdownProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::request_cancel\(Self, LunaOnlineRequestTicket\) -> Unit raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::check_deadline\(Self, LunaOnlineRequestTicket\) -> Unit raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^  LunaOnlineInstanceRequestRetirementRequired$' service/online_session/pkg.generated.mbti; }; then
   printf '%s\n' 'persistent Luna online instance surface drifted' >&2
+  failed=1
+fi
+
+if [ -f service/online_session/pkg.generated.mbti ] &&
+  { ! rg -q --pcre2 -U \
+      'pub struct LunaOnlineEventCredit \{\n  // private fields\n\}' \
+      service/online_session/pkg.generated.mbti ||
+    rg -n '^pub fn LunaOnlineInstance::(has_event|event_length|copy_event_to|ack_event)\(' \
+      service/online_session/pkg.generated.mbti ||
+    rg -n '^pub fn LunaOnlineEventCredit::(instance|ticket|event_epoch|epoch|raw)\(' \
+      service/online_session/pkg.generated.mbti; }; then
+  printf '%s\n' \
+    'Luna online event credit must remain opaque with only view/ACK authority' >&2
   failed=1
 fi
 
@@ -767,7 +802,7 @@ if rg -n \
 fi
 
 if rg -n \
-  '^pub\(all\) struct LunaOnlineRequestTicket|^pub fn LunaOnlineRequestTicket::(value|epoch|id|raw)\(' \
+  '^pub\(all\) struct LunaOnlineRequestTicket|^pub struct LunaOnlineRequestTicket\(|^pub fn LunaOnlineRequestTicket::(value|epoch|id|raw)\(|^pub fn LunaOnlineInstanceAdmission::(epoch|raw|status)\(' \
   service/online_session/pkg.generated.mbti; then
   printf '%s\n' 'Luna online request tickets must remain opaque scalar authority' >&2
   failed=1

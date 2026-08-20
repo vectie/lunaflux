@@ -16,6 +16,51 @@ fail_matches() {
   fi
 }
 
+# Semantic Luna event storage is a bounded typed leaf. Public views are opaque
+# epoch capabilities: tuple constructors or owner/epoch accessors would let an
+# external caller forge retirement authority.
+if [ -d service/luna_event ]; then
+  fail_matches \
+    'Luna semantic event imports outside inference contracts + model spec:' \
+    --pcre2 --glob 'service/luna_event/moon.pkg' \
+    '"vectie/lunaflux/(?!contracts/inference"|model/spec")'
+  fail_matches \
+    'Luna semantic event storage must remain synchronous and native-ABI free:' \
+    --glob 'service/luna_event/*.mbt' \
+    'pub async fn|extern\s+"[cC]"|#external'
+  if [ -f service/luna_event/pkg.generated.mbti ]; then
+    for luna_view in \
+      LunaEventView \
+      LunaAcceptedEventView \
+      LunaTokenEventView \
+      LunaUsageEventView \
+      LunaCompletedEventView \
+      LunaFailedEventView; do
+      if ! rg -U -q \
+        "^pub struct ${luna_view} \\{\\n  // private fields\\n\\}" \
+        service/luna_event/pkg.generated.mbti; then
+        printf '%s\n' \
+          "Luna semantic view is not opaque in generated interface: ${luna_view}" >&2
+        failed=1
+      fi
+    done
+    if ! rg -U -q \
+      '^pub struct LunaEventOwner \{\n  // private fields\n\}' \
+      service/luna_event/pkg.generated.mbti; then
+      printf '%s\n' \
+        'Luna semantic event owner fields escaped its generated interface' >&2
+      failed=1
+    fi
+    if rg -n \
+      '^pub struct Luna(Event|AcceptedEvent|TokenEvent|UsageEvent|CompletedEvent|FailedEvent)View\(|^pub fn Luna(Event|AcceptedEvent|TokenEvent|UsageEvent|CompletedEvent|FailedEvent)View::(owner|epoch|raw)' \
+      service/luna_event/pkg.generated.mbti; then
+      printf '%s\n' \
+        'Luna semantic view exposes a forgeable tuple or raw owner/epoch accessor' >&2
+      failed=1
+    fi
+  fi
+fi
+
 # Completion wire tags are private codec details. Consumers receive the
 # canonical worker-protocol enums and cannot branch on duplicated numeric tags.
 if [ -f engine/worker_wire/pkg.generated.mbti ]; then
@@ -51,9 +96,9 @@ fi
 # this leaf package.
 if [ -d service/framed_wire ]; then
   fail_matches \
-    'framed service wire imports outside contracts/inference + model/spec:' \
+    'framed service wire imports outside contracts/inference + model/spec + Luna events:' \
     --pcre2 --glob 'service/framed_wire/moon.pkg' \
-    '"vectie/lunaflux/(?!contracts/inference"|model/spec")'
+    '"vectie/lunaflux/(?!contracts/inference"|model/spec"|service/luna_event")'
   fail_matches \
     'framed service wire must remain synchronous and native-ABI free:' \
     --glob 'service/framed_wire/*.mbt' \
@@ -111,6 +156,28 @@ if [ -d service/framed_wire ]; then
       'pub struct (FramedWireLimits|RequestFrameBuffer|IncrementalRequestReader|EventFrameBuffer|ValidatedRequestFrame|ValidatedEventFrame) \{\n  (?!// private fields)' \
       service/framed_wire/pkg.generated.mbti; then
       printf '%s\n' 'framed wire owner and limits fields must remain private' >&2
+      failed=1
+    fi
+    if ! rg -q '^pub fn LunaFramedEventAdapter::new\(FramedWireLimits\) -> Self raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventAdapter::stage\(Self, @luna_event\.LunaEventView\) -> Unit raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventAdapter::length\(Self\) -> Int raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventAdapter::copy_to\(Self, FixedArray\[Byte\], destination_offset~ : Int\) -> Int raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventAdapter::release\(Self\) -> Unit raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' 'Luna framed event adapter surface drifted' >&2
+      failed=1
+    fi
+    if ! rg -q --pcre2 -U \
+        'pub struct LunaFramedEventAdapter \{\n  // private fields\n\}' \
+        service/framed_wire/pkg.generated.mbti ||
+      rg -n '^pub fn LunaFramedEventAdapter::(ack|retire|view|event)\(' \
+        service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' \
+        'framed Luna adapter must remain opaque and must not receive ACK authority' >&2
       failed=1
     fi
   fi

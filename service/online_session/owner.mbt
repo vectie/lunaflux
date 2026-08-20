@@ -79,108 +79,129 @@ pub fn FailedLunaOnlineInstancePreparation::retry_close(
 
 ///|
 fn LunaOnlineInstance::require_owner(self : LunaOnlineInstance) -> Unit {
-  if self.lease is None ||
-    self.output.length() == 0 ||
-    self.wire_limits.inference_limits() != self.inference {
+  if self.lease is None || self.output.length() == 0 {
     abort("luna online instance owner invariant")
   }
 }
 
 ///|
-pub fn LunaOnlineInstance::has_event(
+fn LunaOnlineInstance::mark_event_published(
   self : LunaOnlineInstance,
-  ticket : LunaOnlineRequestTicket,
-) -> Bool raise LunaOnlineInstanceError {
-  self.require_ticket(ticket)
-  self.require_owner()
-  self.phase == LunaRequestActivePhase && self.event_ready
+  kind : SessionEventKind,
+) -> Unit {
+  if self.event_epoch == 0xffffffffffffffffUL {
+    abort("luna online event epoch invariant")
+  }
+  self.event_epoch += 1UL
+  self.event_kind = kind
+  self.event_taken = false
 }
 
 ///|
-pub fn LunaOnlineInstance::event_length(
+pub fn LunaOnlineInstance::take_event(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
-) -> Int raise LunaOnlineInstanceError {
+) -> LunaOnlineEventCredit raise LunaOnlineInstanceError {
   self.require_active_ticket(ticket)
   self.require_owner()
-  if !self.event_ready {
+  if !self.events.has_event() || self.event_taken {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
-  self.writer.length() catch {
-    _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+  ignore(
+    self.events.view() catch {
+      _ =>
+        raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+    },
+  )
+  self.event_taken = true
+  { instance: self, request_epoch: ticket.epoch, event_epoch: self.event_epoch }
+}
+
+///|
+pub fn LunaOnlineEventCredit::view(
+  self : LunaOnlineEventCredit,
+) -> @luna_event.LunaEventView raise LunaOnlineInstanceError {
+  let instance = self.instance
+  instance.require_active_ticket({ epoch: self.request_epoch })
+  instance.require_owner()
+  if !instance.event_taken || self.event_epoch != instance.event_epoch {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+  }
+  instance.events.view() catch {
+    _ =>
+      raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
 }
 
 ///|
-pub fn LunaOnlineInstance::copy_event_to(
+fn LunaOnlineInstance::ack_event_credit(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
-  destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise LunaOnlineInstanceError {
-  self.require_active_ticket(ticket)
-  self.require_owner()
-  if !self.event_ready {
-    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
-  }
-  self.writer.copy_to(destination, destination_offset~) catch {
-    _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
-  }
-}
-
-///|
-pub fn LunaOnlineInstance::ack_event(
-  self : LunaOnlineInstance,
-  ticket : LunaOnlineRequestTicket,
+  event_epoch : UInt64,
 ) -> Unit raise LunaOnlineInstanceError {
   self.require_active_ticket(ticket)
   self.require_owner()
-  if !self.event_ready {
+  if !self.event_taken || event_epoch != self.event_epoch {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+  }
+  let view = self.events.view() catch {
+    _ =>
+      raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   match self.event_kind {
     AcceptedEvent => {
       if self.accepted_acked {
         raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
       }
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      self.events.retire(view) catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
-      self.event_ready = false
+      self.event_taken = false
       self.accepted_acked = true
     }
     TokenEvent => {
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      self.events.retire(view) catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
-      self.event_ready = false
+      self.event_taken = false
     }
     CompletionUsageEvent => {
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      let usage = view.usage() catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
-      try! self.writer.prepare_completed(
-        match self.finish_kind {
-          FinishStopSequence => StopSequence
-          FinishTokenLimit => TokenLimit
-          FinishCancelled => Cancelled
-          FinishPending => abort("luna online finish kind invariant")
-        },
-        input_tokens=self.input_tokens,
-        cached_input_tokens=0,
-        output_tokens=self.output_tokens,
-        self.output,
-        tail_offset=0,
-        tail_length=self.final_tail_length,
+      ignore(
+        try! self.events.replace_usage_with_completed(
+          usage,
+          match self.finish_kind {
+            FinishStopSequence => StopSequence
+            FinishTokenLimit => TokenLimit
+            FinishCancelled => Cancelled
+            FinishPending => abort("luna online finish kind invariant")
+          },
+          self.output,
+          tail_offset=0,
+          tail_length=self.final_tail_length,
+        ),
       )
-      self.event_kind = CompletedEvent
-      self.event_ready = true
+      self.mark_event_published(CompletedEvent)
     }
     CompletedEvent => {
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      self.events.retire(view) catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
-      self.event_ready = false
+      self.event_taken = false
       self.phase = if self.recovery_close {
         LunaInstanceClosingTerminalPhase
       } else {
@@ -188,8 +209,11 @@ pub fn LunaOnlineInstance::ack_event(
       }
     }
     FailureUsageEvent => {
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      let usage = view.usage() catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
       let code = match self.failure_kind {
         DeadlineLatchedFailure => self.deadline_code
@@ -197,20 +221,25 @@ pub fn LunaOnlineInstance::ack_event(
         WorkerLatchedFailure => self.worker_code
         NoLatchedFailure => abort("luna online failure kind invariant")
       }
-      try! self.writer.prepare_failed(
-        code,
-        code_offset=0,
-        code_length=code.length(),
-        retryable=self.failure_kind == WorkerLatchedFailure,
+      ignore(
+        try! self.events.replace_usage_with_failed(
+          usage,
+          code,
+          code_offset=0,
+          code_length=code.length(),
+          retryable=self.failure_kind == WorkerLatchedFailure,
+        ),
       )
-      self.event_kind = FailedEvent
-      self.event_ready = true
+      self.mark_event_published(FailedEvent)
     }
     FailedEvent => {
-      self.writer.retire() catch {
-        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      self.events.retire(view) catch {
+        _ =>
+          raise LunaOnlineInstanceFailed(
+            LunaOnlineInvalid(LunaOnlineEventCredit),
+          )
       }
-      self.event_ready = false
+      self.event_taken = false
       self.phase = if self.recovery_close {
         LunaInstanceClosingTerminalPhase
       } else {
@@ -219,6 +248,16 @@ pub fn LunaOnlineInstance::ack_event(
     }
     NoSessionEvent => abort("luna online event kind invariant")
   }
+}
+
+///|
+pub fn LunaOnlineEventCredit::ack(
+  self : LunaOnlineEventCredit,
+) -> Unit raise LunaOnlineInstanceError {
+  self.instance.ack_event_credit(
+    { epoch: self.request_epoch },
+    self.event_epoch,
+  )
 }
 
 ///|
@@ -233,11 +272,9 @@ pub fn LunaOnlineInstance::begin_abort(
   if self.phase != LunaRequestActivePhase {
     return
   }
-  if self.event_ready {
-    self.writer.retire() catch {
-      _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
-    }
-    self.event_ready = false
+  if self.events.has_event() {
+    try! self.events.discard()
+    self.event_taken = false
     self.accepted_acked = true
   }
   if self.recovery_close &&

@@ -52,31 +52,36 @@ fn LunaOnlineInstance::decode_token(
       return
     }
   }
-  if !self.writer.prepare_token_bytes_status(
-      token_id~,
-      position=try! publication.position(),
-      self.output,
-      source_offset=0,
-      length=step.copied_bytes(),
-    ) {
-    if step.stop_matched() {
-      self.failure_kind = OutputLatchedFailure
-      self.terminal_cut = if natural_terminal {
-        NaturalOutputFailureCut
+  let published = self.events.publish_token_status(
+    token_id~,
+    position=try! publication.position(),
+    self.output,
+    source_offset=0,
+    length=step.copied_bytes(),
+  )
+  match published {
+    LunaEventPublishReady => ()
+    LunaEventPublishPayloadInvalid => {
+      if step.stop_matched() {
+        self.failure_kind = OutputLatchedFailure
+        self.terminal_cut = if natural_terminal {
+          NaturalOutputFailureCut
+        } else {
+          OutputCancellationCut
+        }
+        self.string_cut = NoStringCut
       } else {
-        OutputCancellationCut
+        self.begin_output_failure(lease, natural_terminal)
       }
-      self.string_cut = NoStringCut
-    } else {
-      self.begin_output_failure(lease, natural_terminal)
+      return
     }
-    return
+    LunaEventPublishEpochExhausted | LunaEventPublishCreditUnavailable =>
+      abort("luna semantic event publication invariant")
   }
   if !step.stop_matched() && !natural_terminal {
     try! lease.abort_cancel()
   }
-  self.event_kind = TokenEvent
-  self.event_ready = true
+  self.mark_event_published(TokenEvent)
 }
 
 ///|
@@ -86,13 +91,12 @@ fn LunaOnlineInstance::prepare_string_stop_terminal(
   self.string_cut = NoStringCut
   self.finish_kind = FinishStopSequence
   self.final_tail_length = 0
-  try! self.writer.prepare_usage(
+  try! self.events.publish_usage(
     input_tokens=self.input_tokens,
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  self.event_kind = CompletionUsageEvent
-  self.event_ready = true
+  self.mark_event_published(CompletionUsageEvent)
 }
 
 ///|
@@ -141,13 +145,12 @@ fn LunaOnlineInstance::prepare_natural_terminal(
     self.failure_kind = WorkerLatchedFailure
     self.recovery_close = true
     self.final_tail_length = 0
-    try! self.writer.prepare_usage(
+    try! self.events.publish_usage(
       input_tokens=self.input_tokens,
       cached_input_tokens=0,
       output_tokens=self.output_tokens,
     )
-    self.event_kind = FailureUsageEvent
-    self.event_ready = true
+    self.mark_event_published(FailureUsageEvent)
     return
   }
   self.finish_kind = match reason {
@@ -165,23 +168,21 @@ fn LunaOnlineInstance::prepare_natural_terminal(
   if !tail.is_ready() {
     self.failure_kind = OutputLatchedFailure
     self.final_tail_length = 0
-    try! self.writer.prepare_usage(
+    try! self.events.publish_usage(
       input_tokens=self.input_tokens,
       cached_input_tokens=0,
       output_tokens=self.output_tokens,
     )
-    self.event_kind = FailureUsageEvent
-    self.event_ready = true
+    self.mark_event_published(FailureUsageEvent)
     return
   }
   self.final_tail_length = tail.copied_bytes()
-  try! self.writer.prepare_usage(
+  try! self.events.publish_usage(
     input_tokens=self.input_tokens,
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  self.event_kind = CompletionUsageEvent
-  self.event_ready = true
+  self.mark_event_published(CompletionUsageEvent)
 }
 
 ///|
@@ -229,7 +230,7 @@ pub fn LunaOnlineInstance::progress(
   if self.phase != LunaRequestActivePhase {
     return LunaOnlineInstanceRequestRetirementRequired
   }
-  if self.event_ready {
+  if self.events.has_event() {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   if !self.accepted_acked {
@@ -250,7 +251,7 @@ pub fn LunaOnlineInstance::progress(
     if self.recovery_close {
       return LunaOnlineInstanceTerminalizationRequired
     }
-    if self.event_ready {
+    if self.events.has_event() {
       return LunaOnlineInstanceEventReady
     }
     return LunaOnlineInstancePending
@@ -260,7 +261,7 @@ pub fn LunaOnlineInstance::progress(
     if self.recovery_close {
       return LunaOnlineInstanceTerminalizationRequired
     }
-    if self.event_ready {
+    if self.events.has_event() {
       return LunaOnlineInstanceEventReady
     }
     return LunaOnlineInstancePending
@@ -294,7 +295,7 @@ pub fn LunaOnlineInstance::progress(
       }
       OnlineCancelNaturalTerminal => self.consume_natural_publication(lease)
     }
-    if self.event_ready {
+    if self.events.has_event() {
       return LunaOnlineInstanceEventReady
     }
     match self.terminal_cut {

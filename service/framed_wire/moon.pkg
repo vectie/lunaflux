@@ -2,6 +2,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/luna_event",
 }
 
 import {

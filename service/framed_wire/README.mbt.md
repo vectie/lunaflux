@@ -42,15 +42,21 @@ range, and rejects undersize, oversize, trailing, or pipelined input. Prefix or
 canonical-frame failure permanently poisons the reader; an incomplete frame can
 continue, while a completed validated frame can be taken exactly once.
 
-`CanonicalEventWriter` owns one explicit outbound credit. Its direct Token and
-Completed paths validate caller-owned UTF-8 byte ranges and write the same
-canonical event-v2 frame without constructing a payload `String`, `Bytes`, or
-`StreamEvent`. Direct Accepted, Usage, and Failed writers consume bounded
-scalar/identity evidence. The pinned frame must be copied and retired before
-another event can replace it.
+`LunaFramedEventAdapter` is the canonical boundary from an epoch-bound
+`LunaEventView` to event-v2 bytes. It writes directly into unpublished,
+preallocated frame storage and exposes the frame only after all view evidence
+has been authenticated. Construction requires capacity for the larger of the
+configured decoded-delta envelope and the fixed 64-byte public failure code,
+so every valid semantic event is frameable before request work begins. Busy,
+stale-view, and defensive capacity rejection leave its single transport credit
+unchanged. `release` returns only that transport credit; semantic event
+retirement remains exclusively with `LunaEventOwner`, so framed, SSE, and
+OpenAI-compatible adapters can share the same semantic source without parsing
+another adapter's bytes or acquiring ACK authority.
 
 This package deliberately has no async, filesystem, socket, native-FFI, clock,
 or engine dependency. `service/request_admission` owns the trusted receipt
-clock ordering above the incremental reader, and `service/online_session` is
-the current in-process composer of frames with admission and execution.
-Listener and network-protocol adapters remain future outer work.
+clock ordering above the incremental reader. `service/online_session`
+publishes semantic Luna event credits; outer adapters compose transport
+representations from those credits. Listener and network-protocol adapters
+remain future outer work.

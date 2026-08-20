@@ -76,7 +76,7 @@ fn run_online_session_prepared_evidence(executable : Bytes) -> Unit raise {
   )
   draining_instance.begin_drain()
   assert_eq(
-    draining_instance.begin(drain_retry_prepared),
+    draining_instance.begin(drain_retry_prepared).kind(),
     LunaOnlineInstanceDraining,
   )
   assert_eq(

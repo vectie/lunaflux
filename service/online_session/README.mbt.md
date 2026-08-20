@@ -1,62 +1,55 @@
 # Luna online instance
 
-This package owns one persistent, alias-free `LunaOnlineInstance` for the
-bounded one-active-request-at-a-time online mode. Instance preparation binds
-tokenizer and model identities, inference and wire envelopes, reusable
-event/output storage, one scheduler, and one rooted worker process. It does not
-accept a request.
-`prepare_owned_luna_online_instance` starts and authenticates the worker once,
-then transfers its opaque online lease into the instance.
+This package owns one persistent, alias-free `LunaOnlineInstance` for bounded,
+one-active-request-at-a-time online inference. Instance preparation binds an
+expected tokenizer digest, model identity, and exact inference envelope, then
+starts and authenticates one scheduler, online worker lease, and rooted worker
+process. It preallocates semantic-event, decoded-output, and failure-code
+storage. It owns no tokenizer, request receipt, listener, or transport adapter.
 
 Tokenization, deadline validation, and incremental-output construction happen
-off-reactor in `service/request_admission`, which publishes one opaque
-`LunaPreparedRequest`. `LunaOnlineInstance::begin` decides Busy, Draining, or
-request-epoch exhaustion before consuming that owner, validates its streaming,
-tokenizer, model, and exact inference-envelope evidence, prepares Accepted
-credit, and only then claims its scheduler request exactly once and commits
-lower admission. A lower admission rejection consumes the prepared request,
-retires the writer credit, and leaves the instance idle. After admission
-commits, only nonraising assignments publish a nonzero
-`LunaOnlineRequestTicket`. Every request operation authenticates that ticket
-before touching writer, decoder, scheduler, or worker state.
+off-reactor in `service/request_admission`, which publishes an opaque
+`LunaPreparedRequest`. `begin` returns an opaque allocation-free admission
+result whose `kind()` is Admitted, Busy, or Draining and whose `ticket()` is
+valid only for Admitted. Busy, Draining, and exhausted request-epoch outcomes
+precede destructive claim transfer. Streaming mode, tokenizer digest, model,
+and the exact inference envelope are authenticated before lower mutation.
 
-Only one request is active at a time. The first outbound credit is the
-canonical event-v2 Accepted frame. Normal progress publishes exact Token
-credits, followed by Usage and Completed-v2 for natural maximum-output or
-physical stop-token termination. Stop tokens count toward usage but are
-suppressed from Token output; their exact adjacent terminal is authenticated
-before Usage. Any final valid UTF-8 decoder tail is carried only by Completed.
-Every frame remains pinned in the same reusable one-credit storage until copied
-and acknowledged.
+Before Accepted publication, `begin` preflights semantic-event epoch headroom
+for `max_new_tokens + 3`: Accepted, at most the maximum Token count, Usage, and
+one Completed or Failed event. Accepted is published before the prepared shell
+is destructively claimed and before lower admission. If claim or lower
+admission then fails, Accepted is discarded. A committed request is authorized
+only by its opaque `LunaOnlineRequestTicket`.
 
-Ordinary generated-token decode and writer publication use scalar
-transactional status after exact scheduler reservation/dequeue. String-stop
-matching remains incremental and transactional. Caller cancellation is
-deferred behind pinned Accepted or Token credit and commits one exact cut after
-acknowledgement. Every credit-free progress call enforces the owner-bound
-deadline before worker/publication mutation. Deadline, output, and worker
-failures publish the same payload-safe fixed codes established during instance
-preparation.
+The persistent `LunaEventOwner` publishes typed Accepted, Token, Usage,
+Completed, and Failed state without encoding a protocol frame. `take_event` is
+the sole acquisition path and issues one opaque `LunaOnlineEventCredit` for the
+exact request and event epochs. `credit.view()` grants semantic read authority;
+`credit.ack()` alone advances or retires the event. Usage ACK atomically
+publishes a distinct Completed or Failed epoch, so a delayed Usage-credit alias
+cannot read or acknowledge the terminal event. Abort discards the pinned event
+and invalidates outstanding credit.
 
-A healthy final Completed or Failed acknowledgement moves the request to
-ReleaseReady. `progress_request_retirement(ticket)` invokes the lower
-`retire_terminal_request` transaction, clears only request-local decoder,
-event, counter, and cut state, and returns the instance to Idle. The retained
-lease epoch, scheduler publication cursor, worker plan predecessor, rooted
-process, fixed event storage, and failure-code storage are not reset. The next
-request receives a fresh Luna ticket and begins token positions at
-zero without spawning or handshaking another worker.
+Transport adapters receive only `credit.view()`. Adapter capacity and other
+fallible transport setup must complete before `begin` can consume a prepared
+request. An outer owner then stages a `LunaFramedEventAdapter`, copies and
+releases its frame credit, and only then acknowledges the Luna event credit.
+The adapter cannot ACK semantic state. SSE and OpenAI-compatible adapters can
+consume the same typed boundary without parsing canonical framed bytes.
 
-Worker, protocol, or device failure remains close-only. Normal `progress`
-latches the first product-safe failure cause and reports
-`LunaOnlineInstanceTerminalizationRequired`; explicit off-reactor
-`progress_terminalization(ticket)` recovers and drains through the exact
-terminal. Its final acknowledgement leads to terminal close, never back to
-Idle. Retry paths retain the same ticket and cleanup authority.
+Generated-token decode and semantic publication use scalar transactional
+status after exact scheduler reservation/dequeue. Physical stop tokens count
+toward usage but are suppressed from Token output. Incremental string-stop
+matching withholds matched/post-stop bytes. Natural completion, cancellation,
+deadline, output rejection, and worker loss all publish Usage before a distinct
+terminal event. Valid unmatched UTF-8 decoder tail appears only on Completed.
 
-`begin_drain` prevents new request admission without invalidating an active
-ticket. Once the active request retires, `progress_shutdown` closes the empty
-lease and rooted worker. This explicit instance drain is the only healthy
-worker-shutdown path. Child shutdown and reap may block, so terminal recovery,
-request retirement, and instance shutdown do not belong on an async network
-reactor.
+A healthy Completed or Failed ACK moves the request to ReleaseReady.
+`progress_request_retirement(ticket)` retires exact lower request authority,
+clears request-local state, and returns the instance to Idle. The worker,
+scheduler history, plan predecessor, lease epoch, semantic event epoch, and
+fixed storage persist across the next request. Worker, protocol, or device
+failure remains close-only. Explicit instance drain is the only healthy
+worker-shutdown path; blocking recovery, retirement, and shutdown stay off the
+network reactor.

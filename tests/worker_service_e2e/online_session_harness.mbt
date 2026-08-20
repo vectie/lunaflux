@@ -2,6 +2,8 @@
 struct FoundationSession {
   instance : @online_session.LunaOnlineInstance
   ticket : @online_session.LunaOnlineRequestTicket
+  adapter : @framed_wire.LunaFramedEventAdapter
+  mut credit : @online_session.LunaOnlineEventCredit?
 }
 
 ///|
@@ -15,7 +17,6 @@ fn prepare_foundation_instance(
     expected_tokenizer,
     identity(),
     inference_limits(),
-    @framed_wire.FramedWireLimits::new(inference_limits(), max_frame_bytes=4096),
     scheduler_blueprint(),
     service_binding(),
     executable,
@@ -58,8 +59,13 @@ fn begin_foundation_session(
   instance : @online_session.LunaOnlineInstance,
   prepared : @request_admission.LunaPreparedRequest,
 ) -> FoundationSession raise {
-  match instance.begin(prepared) {
-    LunaOnlineInstanceAdmitted(ticket) => { instance, ticket }
+  let adapter = @framed_wire.LunaFramedEventAdapter::new(
+    @framed_wire.FramedWireLimits::new(inference_limits(), max_frame_bytes=4096),
+  )
+  let admission = instance.begin(prepared)
+  match admission.kind() {
+    LunaOnlineInstanceAdmitted =>
+      { instance, ticket: admission.ticket(), adapter, credit: None }
     LunaOnlineInstanceBusy =>
       raise Failure("idle online instance rejected a request as busy")
     LunaOnlineInstanceDraining =>
@@ -79,27 +85,23 @@ fn begin_default_foundation_session(
 }
 
 ///|
-fn FoundationSession::has_event(self : FoundationSession) -> Bool raise {
-  self.instance.has_event(self.ticket)
-}
-
-///|
-fn FoundationSession::event_length(self : FoundationSession) -> Int raise {
-  self.instance.event_length(self.ticket)
-}
-
-///|
-fn FoundationSession::copy_event_to(
+fn FoundationSession::take_credit(
   self : FoundationSession,
-  destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise {
-  self.instance.copy_event_to(self.ticket, destination, destination_offset~)
+) -> @online_session.LunaOnlineEventCredit raise {
+  match self.credit {
+    Some(credit) => credit
+    None => {
+      let credit = self.instance.take_event(self.ticket)
+      self.credit = Some(credit)
+      credit
+    }
+  }
 }
 
 ///|
 fn FoundationSession::ack_event(self : FoundationSession) -> Unit raise {
-  self.instance.ack_event(self.ticket)
+  self.take_credit().ack()
+  self.credit = None
 }
 
 ///|
@@ -129,6 +131,7 @@ fn FoundationSession::check_deadline(self : FoundationSession) -> Unit raise {
 ///|
 fn FoundationSession::begin_abort(self : FoundationSession) -> Unit raise {
   self.instance.begin_abort(self.ticket)
+  self.credit = None
 }
 
 ///|

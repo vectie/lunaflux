@@ -143,27 +143,37 @@ fn foundation_event(
     inference_limits(),
     max_frame_bytes=4096,
   )
-  let bytes = FixedArray::make(session.event_length(), b'\x00')
-  assert_eq(session.copy_event_to(bytes, destination_offset=0), bytes.length())
+  session.adapter.stage(session.take_credit().view())
+  let bytes = FixedArray::make(session.adapter.length(), b'\x00')
+  assert_eq(
+    session.adapter.copy_to(bytes, destination_offset=0),
+    bytes.length(),
+  )
+  session.adapter.release()
   @framed_wire.EventFrameBuffer::new(wire).load(bytes, bytes.length()).event()
 }
 
 ///|
 fn progress_foundation_to_event(session : FoundationSession) -> Unit raise {
   let mut attempts = 0
-  while !session.has_event() && attempts < 1000000 {
+  while attempts < 1000000 {
     match session.progress() {
       LunaOnlineInstanceTerminalizationRequired =>
-        ignore(session.progress_terminalization())
-      LunaOnlineInstancePending | LunaOnlineInstanceEventReady => ()
+        match session.progress_terminalization() {
+          LunaOnlineInstanceEventReady => return
+          LunaOnlineInstanceTerminalizationRequired
+          | LunaOnlineInstancePending => ()
+          LunaOnlineInstanceRequestRetirementRequired =>
+            raise Failure("online request retired during terminalization")
+        }
+      LunaOnlineInstanceEventReady => return
+      LunaOnlineInstancePending => ()
       LunaOnlineInstanceRequestRetirementRequired =>
         raise Failure("online request retired before publishing its event")
     }
     attempts += 1
   }
-  if !session.has_event() {
-    raise Failure("online session did not publish bounded progress")
-  }
+  raise Failure("online session did not publish bounded progress")
 }
 
 ///|
@@ -187,44 +197,13 @@ fn progress_foundation_to_terminalization(
 
 ///|
 fn run_online_session_foundation(executable : Bytes) -> Unit raise {
+  run_online_session_credit_evidence(executable)
   let tokenizer = session_tokenizer()
-  let narrow_wire = @framed_wire.FramedWireLimits::new(
-    inference_limits(),
-    max_frame_bytes=256,
-  )
-  let narrow_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let narrow_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  try
-    @online_session.prepare_owned_luna_online_instance(
-      tokenizer.digest(),
-      identity(),
-      inference_limits(),
-      narrow_wire,
-      scheduler_blueprint(),
-      service_binding(),
-      executable,
-      startup(),
-      bootstrap_source(),
-      process_limits(),
-      narrow_model,
-      narrow_kernel,
-    )
-  catch {
-    @online_session.LunaOnlineInstancePreparationFailed(LunaOnlineWireFailure) =>
-      ()
-    _ => raise Failure("unexpected online wire-capacity preflight error")
-  } noraise {
-    _ => raise Failure("undersized online event storage reached rooted startup")
-  }
-  narrow_model.close()
-  narrow_kernel.close()
-
   let instance = prepare_foundation_instance(executable, tokenizer.digest())
   let session = begin_foundation_session(
     instance,
     prepare_foundation_request(tokenizer, session_received(Streaming)),
   )
-  assert_true(session.has_event())
   match foundation_event(session) {
     Accepted(value) => assert_eq(value.model_identity(), identity())
     _ => raise Failure("online session did not publish Accepted")
@@ -238,14 +217,11 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
     _ => raise Failure("pinned Accepted allowed online mutation")
   }
   session.ack_event()
-  assert_false(session.has_event())
-  try session.event_length() catch {
-    @online_session.LunaOnlineInstanceFailed(
-      LunaOnlineInvalid(LunaOnlineEventCredit)
-    ) => ()
+  try session.instance.take_event(session.ticket) catch {
+    LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit)) => ()
     _ => raise Failure("unexpected stale online event error")
   } noraise {
-    _ => raise Failure("stale online event remained usable")
+    _ => raise Failure("retired online event remained acquirable")
   }
 
   for position in 0..<2 {

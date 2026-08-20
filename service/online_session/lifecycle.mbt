@@ -2,8 +2,8 @@
 fn LunaOnlineInstance::reset_request(self : LunaOnlineInstance) -> Unit {
   self.claim = None
   self.input_tokens = 0
-  self.event_ready = false
   self.event_kind = NoSessionEvent
+  self.event_taken = false
   self.accepted_acked = false
   self.output_tokens = 0
   self.final_tail_length = 0

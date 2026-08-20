@@ -50,5 +50,7 @@ orchestration remain open. Because tokenizer encoding is synchronous CPU work,
 
 For a natural terminal immediately following a generated token, that session
 owner holds the token publication until it observes the terminal. It then
-places `finish_into_status` bytes in the canonical event-v2 `Completed` tail,
+places `finish_into_status` bytes in the typed Luna `Completed` tail,
 preserving unmatched stop prefixes without inventing a text-only token event.
+Outer protocol adapters may then encode that semantic view as event-v2 or
+another transport representation without receiving ACK authority.

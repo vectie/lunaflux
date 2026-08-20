@@ -10,13 +10,13 @@ import {
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/scheduler/core",
-  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/luna_event",
   "vectie/lunaflux/service/request_admission",
   "vectie/lunaflux/tokenizer",
 }
 
 // Values
-pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 
 // Errors
 pub(all) suberror LunaOnlineInstanceError {
@@ -35,25 +35,34 @@ pub fn FailedLunaOnlineInstancePreparation::cause(Self) -> LunaOnlineInstanceFai
 pub fn FailedLunaOnlineInstancePreparation::is_closed(Self) -> Bool
 pub fn FailedLunaOnlineInstancePreparation::retry_close(Self) -> Unit raise LunaOnlineInstancePreparationError
 
+pub struct LunaOnlineEventCredit {
+  // private fields
+}
+pub fn LunaOnlineEventCredit::ack(Self) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineEventCredit::view(Self) -> @luna_event.LunaEventView raise LunaOnlineInstanceError
+
 pub struct LunaOnlineInstance {
   // private fields
 }
-pub fn LunaOnlineInstance::ack_event(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin(Self, @request_admission.LunaPreparedRequest) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin_abort(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin_drain(Self) -> Unit
 pub fn LunaOnlineInstance::check_deadline(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
-pub fn LunaOnlineInstance::copy_event_to(Self, LunaOnlineRequestTicket, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaOnlineInstanceError
-pub fn LunaOnlineInstance::event_length(Self, LunaOnlineRequestTicket) -> Int raise LunaOnlineInstanceError
-pub fn LunaOnlineInstance::has_event(Self, LunaOnlineRequestTicket) -> Bool raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress_request_retirement(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress_shutdown(Self) -> LunaOnlineInstanceShutdownProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress_terminalization(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::request_cancel(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::take_event(Self, LunaOnlineRequestTicket) -> LunaOnlineEventCredit raise LunaOnlineInstanceError
 
-pub(all) enum LunaOnlineInstanceAdmission {
-  LunaOnlineInstanceAdmitted(LunaOnlineRequestTicket)
+pub struct LunaOnlineInstanceAdmission {
+  // private fields
+}
+pub fn LunaOnlineInstanceAdmission::kind(Self) -> LunaOnlineInstanceAdmissionKind
+pub fn LunaOnlineInstanceAdmission::ticket(Self) -> LunaOnlineRequestTicket raise LunaOnlineInstanceError
+
+pub(all) enum LunaOnlineInstanceAdmissionKind {
+  LunaOnlineInstanceAdmitted
   LunaOnlineInstanceBusy
   LunaOnlineInstanceDraining
 } derive(Eq, @debug.Debug)
@@ -62,7 +71,6 @@ pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
   LunaOnlineServicePreparationFailure
   LunaOnlineServiceFailure
-  LunaOnlineWireFailure
   LunaOnlineInvalid(LunaOnlineInstanceRule)
 } derive(Eq, @debug.Debug)
 
@@ -106,7 +114,9 @@ pub(all) enum LunaOnlineInstanceShutdownProgress {
   LunaOnlineInstanceShutdownClosed
 } derive(Eq, @debug.Debug)
 
-pub struct LunaOnlineRequestTicket(UInt64) derive(Eq, @debug.Debug)
+pub struct LunaOnlineRequestTicket {
+  // private fields
+} derive(Eq)
 
 // Type aliases
 

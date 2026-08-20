@@ -14,7 +14,6 @@ pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
   LunaOnlineServicePreparationFailure
   LunaOnlineServiceFailure
-  LunaOnlineWireFailure
   LunaOnlineInvalid(LunaOnlineInstanceRule)
 } derive(Debug, Eq)
 
@@ -35,15 +34,37 @@ pub(all) enum LunaOnlineInstancePreparationState {
 } derive(Debug, Eq)
 
 ///|
-pub struct LunaOnlineRequestTicket(UInt64) derive(Debug, Eq)
+#valtype
+pub struct LunaOnlineRequestTicket {
+  priv epoch : UInt64
+} derive(Eq)
+
+///|
+/// One exact request/event-epoch capability. It grants semantic read access
+/// and the sole acknowledgement authority for its pinned event.
+#valtype
+pub struct LunaOnlineEventCredit {
+  priv instance : LunaOnlineInstance
+  priv request_epoch : UInt64
+  priv event_epoch : UInt64
+}
 
 ///|
 #valtype
-pub(all) enum LunaOnlineInstanceAdmission {
-  LunaOnlineInstanceAdmitted(LunaOnlineRequestTicket)
+pub(all) enum LunaOnlineInstanceAdmissionKind {
+  LunaOnlineInstanceAdmitted
   LunaOnlineInstanceBusy
   LunaOnlineInstanceDraining
 } derive(Debug, Eq)
+
+///|
+/// Allocation-free admission disposition. Its ticket epoch remains private
+/// and can be extracted only from an admitted result.
+#valtype
+pub struct LunaOnlineInstanceAdmission {
+  priv disposition : Int
+  priv request_epoch : UInt64
+}
 
 ///|
 #valtype
@@ -155,15 +176,15 @@ pub struct LunaOnlineInstance {
   priv expected_tokenizer : @tokenizer.TokenizerDigest
   priv expected_model : @spec.ModelIdentity
   priv inference : @inference.InferenceLimits
-  priv wire_limits : @framed_wire.FramedWireLimits
   priv mut claim : @request_admission.LunaPreparedRequestClaim?
   priv mut lease : @worker_service.OnlineWorkerLease?
-  priv writer : @framed_wire.CanonicalEventWriter
+  priv events : @luna_event.LunaEventOwner
   priv output : FixedArray[Byte]
   priv mut input_tokens : Int
   priv mut request_epoch : UInt64
-  priv mut event_ready : Bool
+  priv mut event_epoch : UInt64
   priv mut event_kind : SessionEventKind
+  priv mut event_taken : Bool
   priv mut accepted_acked : Bool
   priv mut output_tokens : Int
   priv mut final_tail_length : Int

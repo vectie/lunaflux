@@ -385,7 +385,8 @@ family, exact generation/position/publication order, monotonic time, recovery,
 and close prerequisites. The alias-free `LunaOnlineInstance` now prepares the
 production-owned service once, claims sequential off-reactor prepared requests
 under fresh opaque tickets, retains only the expected tokenizer digest and
-preparation envelope, and publishes a canonical one-credit Accepted frame.
+preparation envelope, preflights exact semantic-event epoch headroom, and
+publishes a one-credit typed Luna Accepted event.
 Busy and draining outcomes do not consume prepared authority; foreign binding
 and replay fail before lower admission. Final acknowledgement and exact lower
 retirement return only healthy request-local state to Idle while preserving the
@@ -405,7 +406,9 @@ payload-safe Failed(output_invalid) or Failed(worker_unavailable). Normal
 progress only latches that state; explicit off-reactor terminalization owns
 recovery/reap and preserves the first failure cause across retry. The
 same-child two-request gate authenticates monotonic plan history and request
-position reset without respawning. Ingress transport remains future work.
+position reset without respawning. A canonical framed adapter now borrows only
+the credit's semantic view and owns no ACK authority; listener dispatch and
+ingress transport remain future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected

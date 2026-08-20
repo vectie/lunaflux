@@ -206,15 +206,19 @@ one exact preallocated claim. That claim binds the model, tokenizer digest,
 inference envelope, absolute deadline, token buffer, and incremental-output
 owner. The online instance retains no tokenizer or raw receipt state. Busy,
 draining, and exhausted-epoch outcomes precede destructive claim transfer;
-foreign preparation bindings fail before writer or scheduler mutation. Each
-transferred claim is authenticated by an opaque Luna ticket and owns token
-decoding, one-credit event acknowledgement, cancellation, deadline enforcement,
-and terminal failure.
+foreign preparation bindings fail before semantic-event or scheduler mutation.
+Begin also preflights exact event-epoch headroom before publishing Accepted or
+consuming the claim. Each transferred claim is authenticated by an opaque Luna
+ticket. `take_event` issues the only request/event-epoch credit; its view grants
+read authority and its ACK alone advances the semantic owner. Framed and other
+protocol adapters receive only that view. Token decoding, cancellation,
+deadline enforcement, and terminal failure remain owned by the instance.
 Final acknowledgement retires only request-local state; the lease epoch,
 publication history, plan predecessor, and worker remain live. Explicit
 instance drain is the only healthy worker-close path, while authenticated
 worker, protocol, or device failure remains close-only. Tokenizer-worker/pool
-orchestration and network transport remain above this aggregate. Child
+orchestration, adapter dispatch, and network transport remain above this
+aggregate. Child
 ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects

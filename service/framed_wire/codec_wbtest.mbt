@@ -258,13 +258,6 @@ fn event_bytes(frame : ValidatedEventFrame) -> FixedArray[Byte] raise {
 }
 
 ///|
-fn writer_bytes(writer : CanonicalEventWriter) -> FixedArray[Byte] raise {
-  let storage = FixedArray::make(writer.length(), b'\x00')
-  ignore(writer.copy_to(storage, destination_offset=0))
-  storage
-}
-
-///|
 fn assert_fixed_bytes_equal(
   left : FixedArray[Byte],
   right : FixedArray[Byte],

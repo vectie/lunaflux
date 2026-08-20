@@ -3,7 +3,7 @@ fn assert_stale_online_ticket(
   instance : @online_session.LunaOnlineInstance,
   stale : @online_session.LunaOnlineRequestTicket,
 ) -> Unit raise {
-  try instance.has_event(stale) catch {
+  try ignore(instance.take_event(stale)) catch {
     LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineRequestEpoch)) => ()
     _ => raise Failure("unexpected stale online request ticket error")
   } noraise {
@@ -103,7 +103,7 @@ fn run_online_session_persistence_evidence(executable : Bytes) -> Unit raise {
   )
   let retained_second = second_prepared
   let first = begin_foundation_session(instance, first_prepared)
-  assert_eq(instance.begin(second_prepared), LunaOnlineInstanceBusy)
+  assert_eq(instance.begin(second_prepared).kind(), LunaOnlineInstanceBusy)
   let queued_expired = prepare_foundation_request(
     tokenizer,
     session_received(
@@ -113,7 +113,7 @@ fn run_online_session_persistence_evidence(executable : Bytes) -> Unit raise {
       deadline_millis=100UL,
     ),
   )
-  assert_eq(instance.begin(queued_expired), LunaOnlineInstanceBusy)
+  assert_eq(instance.begin(queued_expired).kind(), LunaOnlineInstanceBusy)
   finish_persistent_natural(first)
 
   let clock = @monotonic_clock.MonotonicClock::system()
@@ -160,7 +160,10 @@ fn run_online_session_persistence_evidence(executable : Bytes) -> Unit raise {
     session_received(Streaming, request_id=952UL),
   )
   instance.begin_drain()
-  assert_eq(instance.begin(draining_prepared), LunaOnlineInstanceDraining)
+  assert_eq(
+    instance.begin(draining_prepared).kind(),
+    LunaOnlineInstanceDraining,
+  )
   assert_eq(
     draining_prepared.take_claim().scheduler_request().request_id().value(),
     952UL,

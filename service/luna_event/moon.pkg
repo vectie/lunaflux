@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

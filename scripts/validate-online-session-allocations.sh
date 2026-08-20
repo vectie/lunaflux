@@ -35,7 +35,11 @@ extract_definition() {
 forbidden='moonbit_malloc|moonbit_make_|Bytes4make|moonbit_add_string'
 
 contains_forbidden_allocation() {
-  rg "$forbidden" | rg -v 'Error|Failure' | rg -q .
+  # Exclude only MoonBit's typed exception envelope. Error/failure-named
+  # production constructors remain visible to the gate.
+  rg "$forbidden" |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error' |
+    rg -q .
 }
 
 contains_warm_begin_allocation() {
@@ -50,7 +54,7 @@ contains_warm_begin_allocation() {
 # The aggregate constructor deliberately allocates all owners and fixed
 # storage before rooted worker preparation. The same extractor and predicate
 # must observe that positive control before checking publication/steady paths.
-positive_body="$(extract_definition 'CanonicalEventWriter3new(')"
+positive_body="$(extract_definition 'LunaEventOwner3new(')"
 if [ -z "$positive_body" ] ||
   ! printf '%s\n' "$positive_body" | contains_forbidden_allocation; then
   printf '%s\n' 'online-session allocation positive control is ineffective' >&2
@@ -60,10 +64,14 @@ fi
 for symbol in \
   'publish__luna__instance(' \
   'publish__luna__cleanup(' \
-  'LunaOnlineInstance10has__event(' \
-  'LunaOnlineInstance13event__length(' \
-  'LunaOnlineInstance15copy__event__to(' \
-  'LunaOnlineInstance10ack__event(' \
+  'luna__online__admission(' \
+  'LunaOnlineInstanceAdmission4kind(' \
+  'LunaOnlineInstanceAdmission6ticket(' \
+  'LunaOnlineInstance11take__event(' \
+  'LunaOnlineEventCredit4view(' \
+  'LunaOnlineEventCredit3ack(' \
+  'LunaOnlineInstance18ack__event__credit(' \
+  'LunaOnlineInstance22mark__event__published(' \
   'LunaOnlineInstance12begin__abort(' \
   'LunaOnlineInstance29progress__request__retirement(' \
   'LunaOnlineInstance14reset__request(' \
@@ -100,11 +108,15 @@ for symbol in \
   'incremental__output11copy__range(' \
   'incremental__output21advance__utf8__status(' \
   'TokenizerSpec28copy__decoded__piece__status(' \
-  'CanonicalEventWriter29prepare__token__bytes__status(' \
-  'CanonicalEventWriter14prepare__usage(' \
-  'CanonicalEventWriter18prepare__completed(' \
-  'CanonicalEventWriter15prepare__failed(' \
-  'CanonicalEventWriter17prepare__accepted(' \
+  'LunaEventOwner22publish__token__status(' \
+  'LunaEventOwner14publish__usage(' \
+  'LunaEventOwner17publish__accepted(' \
+  'LunaEventOwner20has__epoch__capacity(' \
+  'LunaEventOwner31replace__usage__with__completed(' \
+  'LunaEventOwner28replace__usage__with__failed(' \
+  'LunaEventOwner6retire(' \
+  'LunaEventOwner7discard(' \
+  'LunaEventOwner4view(' \
   'OnlineWorkerLease6expire(' \
   'OnlineWorkerLease28progress__terminal__recovery(' \
   'OnlineWorkerLease36progress__terminal__recovery__status(' \
@@ -118,8 +130,7 @@ for symbol in \
   'Scheduler38commit__exhausted__failure__retirement(' \
   'Scheduler11build__next(' \
   'OnlineWorkerLease5admit(' \
-  'Scheduler17commit__admission(' \
-  'CanonicalEventWriter27preflight__online__capacity('; do
+  'Scheduler17commit__admission('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
     printf 'online-session allocation function is missing: %s\n' "$symbol" >&2
@@ -171,9 +182,10 @@ if printf '%s\n' "$begin_body" |
   exit 1
 fi
 if ! rg -U -q \
-  'if self\.drain_requested[\s\S]*return LunaOnlineInstanceDraining[\s\S]*if self\.phase != LunaInstanceIdlePhase \{[\s\S]*return LunaOnlineInstanceBusy[\s\S]*prepared\.take_claim' \
+  'if self\.drain_requested[\s\S]*return luna_online_admission\(LunaOnlineInstanceDraining[\s\S]*if self\.phase != LunaInstanceIdlePhase \{[\s\S]*return luna_online_admission\(LunaOnlineInstanceBusy[\s\S]*has_epoch_capacity\(effective\.max_new_tokens\(\) \+ 3\)[\s\S]*publish_accepted[\s\S]*prepared\.take_claim[\s\S]*\.admit\(claim\.scheduler_request\(\)\)' \
   service/online_session/admission.mbt; then
-  printf '%s\n' 'persistent online begin claims before busy-drain disposition' >&2
+  printf '%s\n' \
+    'persistent online begin drifted from drain/busy/headroom/Accepted/claim/admit order' >&2
   exit 1
 fi
 
@@ -197,7 +209,7 @@ latch_body="$(extract_definition 'LunaOnlineInstance28latch__worker__step__failu
 step_body="$(extract_definition 'OnlineWorkerLease16progress__status(')"
 request_body="$(extract_definition 'LunaOnlineInstance15request__cancel(')"
 deadline_body="$(extract_definition 'LunaOnlineInstance15check__deadline(')"
-ack_body="$(extract_definition 'LunaOnlineInstance10ack__event(')"
+ack_body="$(extract_definition 'LunaOnlineInstance18ack__event__credit(')"
 if [ -z "$decode_body" ] || [ -z "$progress_body" ] ||
   [ -z "$terminal_body" ] || [ -z "$caller_body" ] || [ -z "$cut_body" ] ||
   [ -z "$terminalization_body" ] || [ -z "$output_failure_body" ] ||
@@ -217,13 +229,13 @@ if ! printf '%s\n' "$request_body" | rg -U -q \
   exit 1
 fi
 if ! rg -U -q \
-  'pub fn LunaOnlineInstance::check_deadline[\s\S]*if self\.event_ready \{[\s\S]*return[\s\S]*self\.begin_deadline_cut' \
+  'pub fn LunaOnlineInstance::check_deadline[\s\S]*if self\.events\.has_event\(\) \{[\s\S]*return[\s\S]*self\.begin_deadline_cut' \
   service/online_session/termination.mbt; then
   printf '%s\n' 'pinned deadline poll can sample the clock before returning' >&2
   exit 1
 fi
 if ! rg -U -q \
-  'FailureUsageEvent => \{[\s\S]*prepare_failed[\s\S]*self\.event_kind = FailedEvent[\s\S]*self\.event_ready = true' \
+  'FailureUsageEvent => \{[\s\S]*replace_usage_with_failed[\s\S]*self\.mark_event_published\(FailedEvent\)' \
   service/online_session/owner.mbt; then
   printf '%s\n' 'deadline Failed publication is not pinned after Usage acknowledgement' >&2
   exit 1
@@ -262,7 +274,7 @@ if ! rg -U -q \
   exit 1
 fi
 if ! rg -U -q \
-  'fn LunaOnlineInstance::decode_token[\s\S]*push_token_into_status[\s\S]*commit_cancel[\s\S]*self\.string_cut = CancelledStringCut[\s\S]*prepare_token_bytes_status[\s\S]*self\.event_kind = TokenEvent[\s\S]*self\.event_ready = true' \
+  'fn LunaOnlineInstance::decode_token[\s\S]*push_token_into_status[\s\S]*commit_cancel[\s\S]*self\.string_cut = CancelledStringCut[\s\S]*publish_token_status[\s\S]*self\.mark_event_published\(TokenEvent\)' \
   service/online_session/progression.mbt; then
   printf '%s\n' \
     'string-stop cancellation is not committed before event publication' >&2
@@ -307,7 +319,7 @@ if ! rg -U -q \
   exit 1
 fi
 if ! rg -U -q \
-  'if reason == OnlineWorkerFailed \{[\s\S]*self\.failure_kind = WorkerLatchedFailure[\s\S]*prepare_usage[\s\S]*self\.event_kind = FailureUsageEvent' \
+  'if reason == OnlineWorkerFailed \{[\s\S]*self\.failure_kind = WorkerLatchedFailure[\s\S]*publish_usage[\s\S]*self\.mark_event_published\(FailureUsageEvent\)' \
   service/online_session/progression.mbt; then
   printf '%s\n' 'authenticated worker terminal does not publish Usage-first failure bundle' >&2
   exit 1
@@ -416,6 +428,6 @@ if [ -z "$suffix" ] ||
 fi
 
 scripts/validate-worker-service-online-lease-allocations.sh
-scripts/validate-framed-wire-event-writer-allocations.sh
+scripts/validate-luna-framed-event-allocations.sh
 scripts/validate-framed-request-receipt-allocations.sh
 printf '%s\n' 'LunaFlux online-session allocation gate passed.'

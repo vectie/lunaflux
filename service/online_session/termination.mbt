@@ -117,14 +117,14 @@ fn LunaOnlineInstance::latch_worker_step_failure(
 
 ///|
 fn LunaOnlineInstance::prepare_cut_terminal(self : LunaOnlineInstance) -> Unit {
-  try! self.writer.prepare_usage(
+  try! self.events.publish_usage(
     input_tokens=self.input_tokens,
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  if self.terminal_cut == CallerCancellationCut {
+  let kind = if self.terminal_cut == CallerCancellationCut {
     self.finish_kind = FinishCancelled
-    self.event_kind = CompletionUsageEvent
+    CompletionUsageEvent
   } else {
     if self.failure_kind == NoLatchedFailure {
       self.failure_kind = match self.terminal_cut {
@@ -135,10 +135,10 @@ fn LunaOnlineInstance::prepare_cut_terminal(self : LunaOnlineInstance) -> Unit {
           abort("online terminal failure kind invariant")
       }
     }
-    self.event_kind = FailureUsageEvent
+    FailureUsageEvent
   }
   self.terminal_cut = NoTerminalCut
-  self.event_ready = true
+  self.mark_event_published(kind)
 }
 
 ///|
@@ -192,7 +192,7 @@ pub fn LunaOnlineInstance::progress_terminalization(
   ticket : LunaOnlineRequestTicket,
 ) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
   self.require_ticket(ticket)
-  if self.event_ready {
+  if self.events.has_event() {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   if self.phase != LunaRequestActivePhase || !self.accepted_acked {
@@ -223,7 +223,7 @@ pub fn LunaOnlineInstance::progress_terminalization(
   } else {
     self.progress_terminal_cut(lease)
   }
-  if self.event_ready {
+  if self.events.has_event() {
     LunaOnlineInstanceEventReady
   } else {
     LunaOnlineInstanceTerminalizationRequired
@@ -250,7 +250,7 @@ pub fn LunaOnlineInstance::request_cancel(
       return
     NoSessionEvent | AcceptedEvent | TokenEvent => ()
   }
-  if self.event_ready {
+  if self.events.has_event() {
     match self.event_kind {
       AcceptedEvent | TokenEvent => self.deferred_cancel = true
       _ =>
@@ -285,7 +285,7 @@ pub fn LunaOnlineInstance::check_deadline(
       return
     NoSessionEvent | AcceptedEvent | TokenEvent => ()
   }
-  if self.event_ready {
+  if self.events.has_event() {
     // Poll only: never sample time or latch deadline intent while a frame is
     // pinned. Automatic expiry runs from the next credit-free progress call.
     return

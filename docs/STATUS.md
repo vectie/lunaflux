@@ -238,10 +238,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   into caller-owned fixed storage, validates UTF-8 across token boundaries,
   and withholds stop strings matched across token or code-point boundaries.
   Pattern tables and scratch are constructed before token stepping. The
-  persistent Luna online instance drives this owner through acknowledged
-  one-credit Token
-  and terminal publication with a positive-controlled allocation gate; network
-  transport remains open.
+  persistent Luna online instance drives this owner through acknowledged typed
+  Luna events. `take_event` issues one opaque exact request/event-epoch credit;
+  only its ACK advances the semantic owner. Usage ACK atomically creates a
+  distinct Completed/Failed epoch, abort invalidates outstanding credit, and a
+  canonical framed adapter borrows only the semantic view. Positive-controlled
+  release-C gates cover the warm online and adapter paths. Tokenizer-pool,
+  listener dispatch, and network transport remain open.
 - A synchronous request-admission bridge now composes that reader with trusted
   monotonic time: the first valid nonempty append samples exactly once before
   byte mutation, and one successful take retains an immutable request plus its

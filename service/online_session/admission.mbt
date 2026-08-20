@@ -23,8 +23,8 @@ fn LunaOnlineInstance::require_ticket(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
-  if ticket.0 == 0UL ||
-    ticket.0 != self.request_epoch ||
+  if ticket.epoch == 0UL ||
+    ticket.epoch != self.request_epoch ||
     self.claim is None ||
     self.phase == LunaInstanceIdlePhase ||
     self.phase == LunaInstanceDrainingPhase ||
@@ -32,6 +32,43 @@ fn LunaOnlineInstance::require_ticket(
     self.phase == LunaInstanceClosedPhase {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineRequestEpoch))
   }
+}
+
+///|
+fn luna_online_admission(
+  kind : LunaOnlineInstanceAdmissionKind,
+  request_epoch : UInt64,
+) -> LunaOnlineInstanceAdmission {
+  {
+    disposition: match kind {
+      LunaOnlineInstanceAdmitted => 0
+      LunaOnlineInstanceBusy => 1
+      LunaOnlineInstanceDraining => 2
+    },
+    request_epoch,
+  }
+}
+
+///|
+pub fn LunaOnlineInstanceAdmission::kind(
+  self : LunaOnlineInstanceAdmission,
+) -> LunaOnlineInstanceAdmissionKind {
+  match self.disposition {
+    0 => LunaOnlineInstanceAdmitted
+    1 => LunaOnlineInstanceBusy
+    2 => LunaOnlineInstanceDraining
+    _ => abort("luna online admission disposition invariant")
+  }
+}
+
+///|
+pub fn LunaOnlineInstanceAdmission::ticket(
+  self : LunaOnlineInstanceAdmission,
+) -> LunaOnlineRequestTicket raise LunaOnlineInstanceError {
+  if self.disposition != 0 || self.request_epoch == 0UL {
+    raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  { epoch: self.request_epoch }
 }
 
 ///|
@@ -62,15 +99,15 @@ pub fn LunaOnlineInstance::begin(
     self.phase == LunaInstanceDrainingPhase ||
     self.phase == LunaInstanceRetryingEmptyClosePhase ||
     self.phase == LunaInstanceClosedPhase {
-    return LunaOnlineInstanceDraining
+    return luna_online_admission(LunaOnlineInstanceDraining, 0UL)
   }
   if self.phase != LunaInstanceIdlePhase {
-    return LunaOnlineInstanceBusy
+    return luna_online_admission(LunaOnlineInstanceBusy, 0UL)
   }
   if self.request_epoch == 0xffffffffffffffffUL {
     self.drain_requested = true
     self.phase = LunaInstanceDrainingPhase
-    return LunaOnlineInstanceDraining
+    return luna_online_admission(LunaOnlineInstanceDraining, 0UL)
   }
   let stream_preference = prepared.stream_preference() catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
@@ -101,21 +138,31 @@ pub fn LunaOnlineInstance::begin(
   let effective = prepared.effective_limits() catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
+  if !self.events.has_epoch_capacity(effective.max_new_tokens() + 3) {
+    self.drain_requested = true
+    self.phase = LunaInstanceDrainingPhase
+    return luna_online_admission(LunaOnlineInstanceDraining, 0UL)
+  }
   let input_tokens = prepared.input_token_count() catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
-  self.writer.prepare_accepted(model_identity, effective) catch {
-    _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+  self.events.publish_accepted(model_identity, effective) catch {
+    LunaEventInvalid(LunaEventEpoch) => {
+      self.drain_requested = true
+      self.phase = LunaInstanceDrainingPhase
+      return luna_online_admission(LunaOnlineInstanceDraining, 0UL)
+    }
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
   }
   let claim = prepared.take_claim() catch {
     _ => {
-      try! self.writer.retire()
+      try! self.events.discard()
       raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
     }
   }
   self.lease_owner().admit(claim.scheduler_request()) catch {
     _ => {
-      try! self.writer.retire()
+      try! self.events.discard()
       raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
     }
   }
@@ -123,8 +170,7 @@ pub fn LunaOnlineInstance::begin(
   self.claim = Some(claim)
   self.input_tokens = input_tokens
   self.request_epoch = next_epoch
-  self.event_ready = true
-  self.event_kind = AcceptedEvent
+  self.mark_event_published(AcceptedEvent)
   self.accepted_acked = false
   self.output_tokens = 0
   self.final_tail_length = 0
@@ -135,5 +181,5 @@ pub fn LunaOnlineInstance::begin(
   self.failure_kind = NoLatchedFailure
   self.recovery_close = false
   self.phase = LunaRequestActivePhase
-  LunaOnlineInstanceAdmitted(LunaOnlineRequestTicket(next_epoch))
+  luna_online_admission(LunaOnlineInstanceAdmitted, next_epoch)
 }

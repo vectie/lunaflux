@@ -1,0 +1,112 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/luna_event"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror LunaEventError {
+  LunaEventInvalid(LunaEventRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaAcceptedEventView {
+  // private fields
+}
+pub fn LunaAcceptedEventView::effective_limits(Self) -> @inference.EffectiveLimits raise LunaEventError
+pub fn LunaAcceptedEventView::model_identity(Self) -> @spec.ModelIdentity raise LunaEventError
+
+pub struct LunaCompletedEventView {
+  // private fields
+}
+pub fn LunaCompletedEventView::cached_input_tokens(Self) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::copy_final_delta_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::final_delta_length(Self) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::finish_reason(Self) -> @inference.FinishReason raise LunaEventError
+pub fn LunaCompletedEventView::input_tokens(Self) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::output_tokens(Self) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::total_tokens(Self) -> Int raise LunaEventError
+
+pub(all) enum LunaEventKind {
+  LunaAcceptedEventKind
+  LunaTokenEventKind
+  LunaUsageEventKind
+  LunaCompletedEventKind
+  LunaFailedEventKind
+} derive(Eq, @debug.Debug)
+
+pub struct LunaEventOwner {
+  // private fields
+}
+pub fn LunaEventOwner::discard(Self) -> Unit raise LunaEventError
+pub fn LunaEventOwner::has_epoch_capacity(Self, Int) -> Bool
+pub fn LunaEventOwner::has_event(Self) -> Bool
+pub fn LunaEventOwner::new(@inference.InferenceLimits) -> Self
+pub fn LunaEventOwner::publish_accepted(Self, @spec.ModelIdentity, @inference.EffectiveLimits) -> Unit raise LunaEventError
+pub fn LunaEventOwner::publish_completed(Self, @inference.FinishReason, input_tokens~ : Int, cached_input_tokens~ : Int, output_tokens~ : Int, FixedArray[Byte], tail_offset~ : Int, tail_length~ : Int) -> Unit raise LunaEventError
+pub fn LunaEventOwner::publish_failed(Self, FixedArray[Byte], code_offset~ : Int, code_length~ : Int, retryable~ : Bool) -> Unit raise LunaEventError
+pub fn LunaEventOwner::publish_token_status(Self, token_id~ : Int, position~ : Int, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaEventPublishStatus
+pub fn LunaEventOwner::publish_usage(Self, input_tokens~ : Int, cached_input_tokens~ : Int, output_tokens~ : Int) -> Unit raise LunaEventError
+pub fn LunaEventOwner::replace_usage_with_completed(Self, LunaUsageEventView, @inference.FinishReason, FixedArray[Byte], tail_offset~ : Int, tail_length~ : Int) -> LunaCompletedEventView raise LunaEventError
+pub fn LunaEventOwner::replace_usage_with_failed(Self, LunaUsageEventView, FixedArray[Byte], code_offset~ : Int, code_length~ : Int, retryable~ : Bool) -> LunaFailedEventView raise LunaEventError
+pub fn LunaEventOwner::retire(Self, LunaEventView) -> Unit raise LunaEventError
+pub fn LunaEventOwner::view(Self) -> LunaEventView raise LunaEventError
+
+pub(all) enum LunaEventPublishStatus {
+  LunaEventPublishReady
+  LunaEventPublishPayloadInvalid
+  LunaEventPublishEpochExhausted
+  LunaEventPublishCreditUnavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaEventRule {
+  LunaEventLifecycle
+  LunaEventEpoch
+  LunaEventKind
+  LunaEventScalar
+  LunaEventLength
+  LunaEventPayload
+  LunaEventDestination
+} derive(Eq, @debug.Debug)
+
+pub struct LunaEventView {
+  // private fields
+}
+pub fn LunaEventView::accepted(Self) -> LunaAcceptedEventView raise LunaEventError
+pub fn LunaEventView::completed(Self) -> LunaCompletedEventView raise LunaEventError
+pub fn LunaEventView::failed(Self) -> LunaFailedEventView raise LunaEventError
+pub fn LunaEventView::kind(Self) -> LunaEventKind raise LunaEventError
+pub fn LunaEventView::token(Self) -> LunaTokenEventView raise LunaEventError
+pub fn LunaEventView::usage(Self) -> LunaUsageEventView raise LunaEventError
+
+pub struct LunaFailedEventView {
+  // private fields
+}
+pub fn LunaFailedEventView::code_length(Self) -> Int raise LunaEventError
+pub fn LunaFailedEventView::copy_code_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
+pub fn LunaFailedEventView::retryable(Self) -> Bool raise LunaEventError
+
+pub struct LunaTokenEventView {
+  // private fields
+}
+pub fn LunaTokenEventView::copy_delta_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
+pub fn LunaTokenEventView::delta_length(Self) -> Int raise LunaEventError
+pub fn LunaTokenEventView::position(Self) -> Int raise LunaEventError
+pub fn LunaTokenEventView::token_id(Self) -> Int raise LunaEventError
+
+pub struct LunaUsageEventView {
+  // private fields
+}
+pub fn LunaUsageEventView::cached_input_tokens(Self) -> Int raise LunaEventError
+pub fn LunaUsageEventView::input_tokens(Self) -> Int raise LunaEventError
+pub fn LunaUsageEventView::output_tokens(Self) -> Int raise LunaEventError
+pub fn LunaUsageEventView::total_tokens(Self) -> Int raise LunaEventError
+
+// Type aliases
+
+// Traits

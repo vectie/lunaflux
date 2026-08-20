@@ -35,7 +35,6 @@ pub fn prepare_owned_luna_online_instance(
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
-  wire_limits : @framed_wire.FramedWireLimits,
   blueprint : @core.SchedulerBlueprint,
   binding : @worker_service.WorkerServiceBinding,
   executable : Bytes,
@@ -45,8 +44,7 @@ pub fn prepare_owned_luna_online_instance(
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
 ) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
-  if wire_limits.inference_limits() != inference ||
-    binding.inference_limits() != inference {
+  if binding.inference_limits() != inference {
     raise luna_preparation_failure(
       LunaOnlineInvalid(LunaOnlineInferenceEnvelope),
     )
@@ -54,24 +52,21 @@ pub fn prepare_owned_luna_online_instance(
   if expected_model != blueprint.model_identity() {
     raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineModelIdentity))
   }
-  let writer = @framed_wire.CanonicalEventWriter::new(wire_limits)
-  writer.preflight_online_capacity(inference.max_decoded_delta_bytes()) catch {
-    _ => raise luna_preparation_failure(LunaOnlineWireFailure)
-  }
+  let events = @luna_event.LunaEventOwner::new(inference)
   let clock = @monotonic_clock.MonotonicClock::system()
   let instance : LunaOnlineInstance = {
     expected_tokenizer,
     expected_model,
     inference,
-    wire_limits,
     claim: None,
     lease: None,
-    writer,
+    events,
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),
     input_tokens: 0,
     request_epoch: 0UL,
-    event_ready: false,
+    event_epoch: 0UL,
     event_kind: NoSessionEvent,
+    event_taken: false,
     accepted_acked: false,
     output_tokens: 0,
     final_tail_length: 0,

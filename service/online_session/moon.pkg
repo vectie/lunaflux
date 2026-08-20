@@ -7,7 +7,7 @@ import {
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core",
-  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/luna_event",
   "vectie/lunaflux/service/request_admission",
   "vectie/lunaflux/tokenizer",
 }

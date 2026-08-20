@@ -10,8 +10,8 @@ Stop bytes are withheld. When a match completes, bytes preceding the match are
 published, the matching bytes and the remainder of that token piece are
 discarded, and the owner becomes terminal. Without a match, only the longest
 suffix that could still become a stop string—or an incomplete UTF-8 scalar—is
-retained. `finish_into` copies an unmatched stop prefix for the canonical
-event-v2 `Completed` tail but rejects a
+retained. `finish_into` copies an unmatched stop prefix for the semantic Luna
+`Completed` tail but rejects a
 truncated UTF-8 scalar.
 
 `push_token_status` and `finish_into_status` are the narrow
@@ -27,6 +27,7 @@ tokenizer diagnostics.
 
 This package is not a scheduler, socket writer, event codec, or cancellation
 owner. The `service/online_session` foundation retains it together with the
-exact production worker authority and canonical one-credit writer. Token/stop
-composition preserves one-credit acknowledgement after a full external frame
-write. The aggregate now uses the scalar matcher for exact string-stop cuts.
+exact production worker authority and semantic Luna event owner. Token/stop
+composition preserves one-credit acknowledgement; an outer adapter may stage,
+copy, and release a transport frame before acknowledging the semantic credit.
+The aggregate uses the scalar matcher for exact string-stop cuts.
