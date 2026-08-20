@@ -191,6 +191,96 @@ if [ -d service/framed_wire ]; then
   fi
 fi
 
+# The bounded Luna tokenizer worker is synchronous cooperative work. It owns
+# only fixed scratch and resumable scalar state; async orchestration, sockets,
+# process authority, and dynamically growing work storage stay above it.
+if [ -d tokenizer ]; then
+  fail_matches \
+    'Luna tokenizer work acquired async, transport, process, or native authority:' \
+    --glob 'tokenizer/luna_worker*.mbt' --glob 'tokenizer/moon.pkg' \
+    'moonbitlang/async|socket|internal/process|worker_process|extern\s+"[cC]"|#external|pub async fn'
+  fail_matches \
+    'Luna tokenizer warmed work uses dynamically growing Array or Map storage:' \
+    --pcre2 --glob 'tokenizer/luna_worker*.mbt' \
+    '(^|[^A-Za-z])((Array|Map)\[|Array::|Map\()'
+  if ! rg -q --pcre2 -U \
+      '#valtype\npub struct LunaTokenizerWork \{\n  priv worker : LunaTokenizerWorker\n  priv epoch : UInt64\n\}' \
+      tokenizer/luna_worker_types.mbt ||
+    ! rg -q --pcre2 -U \
+      '#valtype\npub struct LunaTokenizerStepBudget \{\n  priv work_units : Int\n\}' \
+      tokenizer/luna_worker_types.mbt ||
+    rg -n --pcre2 -U \
+      'pub struct LunaTokenizer(?:Work|Worker|StepBudget)(?s:.*?)derive\([^)]*Debug' \
+      tokenizer/luna_worker*.mbt; then
+    printf '%s\n' \
+      'Luna tokenizer work, worker, and budget must remain opaque without Debug' >&2
+    failed=1
+  fi
+  worker_api="$(rg --no-filename -o '^pub fn LunaTokenizerWorker::[a-z_]+' \
+    tokenizer/luna_worker*.mbt | sort)"
+  if [ "$worker_api" != \
+    $'pub fn LunaTokenizerWorker::begin_bytes\npub fn LunaTokenizerWorker::new' ]; then
+    printf '%s\n%s\n' \
+      'Luna tokenizer worker must expose only construction and epoch-bound begin:' \
+      "$worker_api" >&2
+    failed=1
+  fi
+  work_api="$(rg --no-filename -o '^pub fn LunaTokenizerWork::[a-z_]+' \
+    tokenizer/luna_worker*.mbt | sort)"
+  if [ "$work_api" != \
+    $'pub fn LunaTokenizerWork::abort\npub fn LunaTokenizerWork::copy_tokens_to\npub fn LunaTokenizerWork::last_work_units\npub fn LunaTokenizerWork::progress\npub fn LunaTokenizerWork::token_count\npub fn LunaTokenizerWork::was_truncated' ]; then
+    printf '%s\n%s\n' \
+      'Luna tokenizer work capability surface drifted:' "$work_api" >&2
+    failed=1
+  fi
+  if [ -f tokenizer/pkg.generated.mbti ]; then
+    if [ "$(rg -c '^pub fn LunaTokenizerWorker::' \
+        tokenizer/pkg.generated.mbti)" != '2' ] ||
+      [ "$(rg -c '^pub fn LunaTokenizerWork::' \
+        tokenizer/pkg.generated.mbti)" != '6' ] ||
+      [ "$(rg -c '^pub fn LunaTokenizerStepBudget::' \
+        tokenizer/pkg.generated.mbti)" != '2' ] ||
+      ! rg -q --pcre2 -U \
+        'pub struct LunaTokenizerStepBudget \{\n  // private fields\n\}' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q --pcre2 -U \
+        'pub struct LunaTokenizerWork \{\n  // private fields\n\}' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q --pcre2 -U \
+        'pub struct LunaTokenizerWorker \{\n  // private fields\n\}' \
+        tokenizer/pkg.generated.mbti ||
+      rg -q --pcre2 \
+        '^pub struct LunaTokenizer(?:StepBudget|Work|Worker)\(|^pub fn LunaTokenizer(?:StepBudget|Work|Worker)::[^\n]*(?:owner|epoch|storage)|LunaTokenizer(?:StepBudget|Work|Worker).*derive\([^)]*Debug' \
+        tokenizer/pkg.generated.mbti; then
+      printf '%s\n' \
+        'generated Luna tokenizer authorities must remain exact and opaque' >&2
+      failed=1
+    fi
+    if ! rg -q --pcre2 -U \
+        'pub\(all\) enum LunaTokenizerProgress \{\n  LunaTokenizerPending\n  LunaTokenizerReady\n\}' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerWorker::begin_bytes\(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy\) -> LunaTokenizerWork raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerWorker::new\(TokenizerSpec, input_capacity~ : Int, output_capacity~ : Int, LunaTokenizerStepBudget\) -> Self raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti; then
+      printf '%s\n' \
+        'generated Luna tokenizer lifecycle surface drifted' >&2
+      failed=1
+    fi
+  fi
+  if ! rg -q 'const LUNA_TOKENIZER_MAX_STEP_WORK_UNITS : Int = 65536' \
+      tokenizer/luna_worker_types.mbt ||
+    ! rg -q 'length > worker\.budget\.work_units()' tokenizer/luna_worker.mbt ||
+    ! rg -q --pcre2 -U \
+      'pub fn LunaTokenizerWork::progress(?s).*let maximum = worker\.budget\.work_units\(\).*while used < maximum' \
+      tokenizer/luna_worker_progress.mbt;
+  then
+    printf '%s\n' \
+      'Luna tokenizer progress/copy work bounds are not enforced at the owner' >&2
+    failed=1
+  fi
+fi
+
 # Incremental output owns fixed per-request decode/matcher state only. Socket,
 # scheduler, worker, filesystem, and native authority stay outside this leaf.
 if [ -d service/incremental_output ]; then

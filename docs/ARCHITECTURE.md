@@ -216,9 +216,10 @@ deadline enforcement, and terminal failure remain owned by the instance.
 Final acknowledgement retires only request-local state; the lease epoch,
 publication history, plan predecessor, and worker remain live. Explicit
 instance drain is the only healthy worker-close path, while authenticated
-worker, protocol, or device failure remains close-only. Tokenizer-worker/pool
-orchestration, adapter dispatch, and network transport remain above this
-aggregate. Child
+worker, protocol, or device failure remains close-only. The byte-BPE layer has
+reusable operation-budgeted Luna work; incremental text conversion,
+tokenizer-pool orchestration, adapter dispatch, and network transport remain
+above this aggregate. Child
 ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects

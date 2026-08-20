@@ -13,6 +13,14 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   records.
 - A bounded extracted byte-BPE tokenizer foundation with exact byte decoding,
   explicit special-token policy, limits, and deterministic merge ranking.
+- A reusable startup-preallocated `LunaTokenizerWorker`. Its opaque
+  epoch-bound work credit advances byte BPE by a fixed operation budget, uses
+  resumable CSR merge lookup, preserves exact ranked group-merge semantics,
+  and copies results only in budget-capped chunks. The synchronous encoder is
+  a compatibility facade over that same implementation. Frozen-reference and
+  positive-controlled release-C gates cover byte-work equivalence and the
+  allocation-free warm path; incremental text conversion and pool scheduling
+  remain open.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
@@ -255,8 +263,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   returns a revocable `LunaPreparedRequest` shell around one preallocated claim
   carrying the scheduler request and incremental-output authority. Destructive
   claim transfer revokes retained aliases. String stops stay in that private
-  output owner while stop-token output fails closed. A bounded tokenizer-worker
-  pool and ingress orchestration remain open.
+  output owner while stop-token output fails closed. Incremental UTF-16/UTF-8
+  request conversion, a bounded tokenizer-worker pool, and ingress
+  orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

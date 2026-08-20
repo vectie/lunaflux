@@ -6,12 +6,6 @@ priv struct StoredToken {
 }
 
 ///|
-priv struct StoredMerge {
-  rank : Int
-  result_token_id : Int
-}
-
-///|
 /// Validated immutable byte-level BPE specification.
 ///
 /// This Phase 1 package deliberately models an already-extracted byte-level
@@ -21,7 +15,12 @@ pub struct TokenizerSpec {
   priv digest : TokenizerDigest
   priv limits : TokenizerLimits
   priv tokens_by_id : Map[Int, StoredToken]
-  priv merges_by_left : Map[Int, Map[Int, StoredMerge]]
+  priv merge_left_ids : FixedArray[Int]
+  priv merge_right_ids : FixedArray[Int]
+  priv merge_result_ids : FixedArray[Int]
+  priv merge_left_offsets : FixedArray[Int]
+  priv merge_right_sorted : FixedArray[Int]
+  priv merge_rank_sorted : FixedArray[Int]
   priv byte_token_ids : FixedArray[Int]
   priv special_tokens : Array[StoredToken]
   priv vocab_size : Int
@@ -149,7 +148,12 @@ pub fn TokenizerSpec::new(
       None => raise MissingByteToken(byte_value=value)
     }
   }
-  let merges_by_left : Map[Int, Map[Int, StoredMerge]] = Map([])
+  let merge_left_ids = FixedArray::make(merges.length(), 0)
+  let merge_right_ids = FixedArray::make(merges.length(), 0)
+  let merge_result_ids = FixedArray::make(merges.length(), 0)
+  let merge_left_offsets = FixedArray::make(vocabulary.length() + 1, 0)
+  let merge_right_sorted = FixedArray::make(merges.length(), 0)
+  let merge_rank_sorted = FixedArray::make(merges.length(), 0)
   let pair_first_rule : Map[Int, Map[Int, Int]] = Map([])
   for rule_index, rule in merges {
     let left = tokens_by_id.get(rule.left_token_id)
@@ -180,17 +184,41 @@ pub fn TokenizerSpec::new(
         raise DuplicateMergePair(first_rule~, duplicate_rule=rule_index)
       None => prior_by_right[rule.right_token_id] = rule_index
     }
-    let by_right = merges_by_left.get_or_init(rule.left_token_id, () => Map([]))
-    by_right[rule.right_token_id] = {
-      rank: rule_index,
-      result_token_id: rule.result_token_id,
+    merge_left_ids[rule_index] = rule.left_token_id
+    merge_right_ids[rule_index] = rule.right_token_id
+    merge_result_ids[rule_index] = rule.result_token_id
+    merge_left_offsets[rule.left_token_id + 1] += 1
+  }
+  for token_id in 0..<vocabulary.length() {
+    merge_left_offsets[token_id + 1] += merge_left_offsets[token_id]
+  }
+  let merge_order : Array[Int] = Array::new(capacity=merges.length())
+  for rank in 0..<merges.length() {
+    merge_order.push(rank)
+  }
+  merge_order.sort_by((left_rank, right_rank) => {
+    let left_rule = merges[left_rank]
+    let right_rule = merges[right_rank]
+    if left_rule.left_token_id != right_rule.left_token_id {
+      left_rule.left_token_id.compare(right_rule.left_token_id)
+    } else {
+      left_rule.right_token_id.compare(right_rule.right_token_id)
     }
+  })
+  for sorted_index, rank in merge_order {
+    merge_right_sorted[sorted_index] = merges[rank].right_token_id
+    merge_rank_sorted[sorted_index] = rank
   }
   {
     digest,
     limits,
     tokens_by_id,
-    merges_by_left,
+    merge_left_ids,
+    merge_right_ids,
+    merge_result_ids,
+    merge_left_offsets,
+    merge_right_sorted,
+    merge_rank_sorted,
     byte_token_ids,
     special_tokens,
     vocab_size: vocabulary.length(),

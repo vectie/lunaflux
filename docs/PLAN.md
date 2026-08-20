@@ -166,6 +166,11 @@ admission is now synchronous and capability-relative: three immutable snapshots
 close before publication under one caller-owned approved root. A pinned
 synthetic ByteLevel-BPE compatibility artifact now composes supported text
 encoding with the selected model's independently recorded logits and tokens.
+The byte-BPE implementation also has one authoritative reusable
+`LunaTokenizerWorker`: fixed startup storage, opaque epoch-bound work,
+resumable CSR merge lookup, bounded progress/copy calls, frozen-reference
+equivalence, and a positive-controlled release-C allocation gate. Whole-text
+conversion and request-pool scheduling are not part of that proof.
 `lunaflux plan` authenticates bounded configuration and explains the derived
 semantic plan, required capabilities, and KV capacity, while deliberately
 leaving weight identity and kernel-manifest resolution open. These foundations
@@ -299,11 +304,14 @@ to transport fixtures. The trusted request-receipt prerequisite is implemented:
 one fixed-capacity incremental canonical reader authenticates declared length
 before payload acceptance, while request admission samples monotonic time before
 the first copied byte and binds a single immutable request/absolute deadline.
-The off-reactor tokenizer boundary consumes that receipt into a revocable
+The caller-designated synchronous preparation boundary consumes that receipt
+into a revocable
 `LunaPreparedRequest` shell around one preallocated claim carrying exact model,
 tokenizer-digest, inference-envelope, token, deadline, and incremental-output
 authority. The persistent online instance consumes only that claim and owns no
-tokenizer state.
+tokenizer state. The reusable byte-BPE worker is implemented below this
+boundary, but incremental text conversion, bounded pool orchestration, and
+resumable token-buffer publication remain open.
 It deliberately adds no socket, async task, framed-ingress package, or server.
 
 ### Workstream 4: worker overlap

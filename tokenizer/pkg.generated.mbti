@@ -34,6 +34,13 @@ pub(all) suberror TokenizerError {
   DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
   InvalidUtf16Input(code_unit_offset~ : Int)
+  LunaInvalidStepBudget
+  LunaInvalidWorkerCapacity
+  LunaTokenizerWorkerBusy
+  LunaTokenizerWorkerNotReady
+  LunaTokenizerWorkerStale
+  LunaInvalidTokenCopy
+  LunaTokenizerWorkerEpochExhausted
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -61,6 +68,33 @@ pub(all) enum LimitField {
   TokenBytes
   SpecialTokens
 } derive(Eq, @debug.Debug)
+
+pub(all) enum LunaTokenizerProgress {
+  LunaTokenizerPending
+  LunaTokenizerReady
+} derive(Eq, @debug.Debug)
+
+pub struct LunaTokenizerStepBudget {
+  // private fields
+}
+pub fn LunaTokenizerStepBudget::new(Int) -> Self raise TokenizerError
+pub fn LunaTokenizerStepBudget::work_units(Self) -> Int
+
+pub struct LunaTokenizerWork {
+  // private fields
+}
+pub fn LunaTokenizerWork::abort(Self) -> Unit raise TokenizerError
+pub fn LunaTokenizerWork::copy_tokens_to(Self, FixedArray[Int], source_offset~ : Int, destination_offset~ : Int, length~ : Int) -> Unit raise TokenizerError
+pub fn LunaTokenizerWork::last_work_units(Self) -> Int raise TokenizerError
+pub fn LunaTokenizerWork::progress(Self) -> LunaTokenizerProgress raise TokenizerError
+pub fn LunaTokenizerWork::token_count(Self) -> Int raise TokenizerError
+pub fn LunaTokenizerWork::was_truncated(Self) -> Bool raise TokenizerError
+
+pub struct LunaTokenizerWorker {
+  // private fields
+}
+pub fn LunaTokenizerWorker::begin_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> LunaTokenizerWork raise TokenizerError
+pub fn LunaTokenizerWorker::new(TokenizerSpec, input_capacity~ : Int, output_capacity~ : Int, LunaTokenizerStepBudget) -> Self raise TokenizerError
 
 pub(all) struct MergeRule {
   left_token_id : Int

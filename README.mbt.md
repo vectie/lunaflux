@@ -141,8 +141,10 @@ stop strings without constructing per-token collections or text values.
 A transport-neutral admission owner captures monotonic receipt before parsing,
 binds the exact model and tokenizer, tokenizes once, preserves that absolute
 deadline, and separates scheduler stop tokens from private incremental
-string-stop state. It remains synchronous tokenizer-worker code, not an async
-listener.
+string-stop state. A reusable operation-budgeted `LunaTokenizerWorker` now
+owns the authoritative byte-BPE path, but whole-text conversion and request
+preparation are still synchronous and no tokenizer pool or async listener is
+claimed.
 Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and

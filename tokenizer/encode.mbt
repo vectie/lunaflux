@@ -22,109 +22,6 @@ fn validate_utf16(text : String) -> Unit raise TokenizerError {
 }
 
 ///|
-fn TokenizerSpec::merge_for(
-  self : TokenizerSpec,
-  left : Int,
-  right : Int,
-) -> StoredMerge? {
-  match self.merges_by_left.get(left) {
-    Some(by_right) => by_right.get(right)
-    None => None
-  }
-}
-
-///|
-fn TokenizerSpec::encode_ordinary_range(
-  self : TokenizerSpec,
-  input : Bytes,
-  start : Int,
-  end : Int,
-  output : Array[Int],
-) -> Unit {
-  if start == end {
-    return
-  }
-  let symbols : Array[Int] = Array::new(capacity=end - start)
-  for offset in start..<end {
-    symbols.push(self.byte_token_ids[input[offset].to_int()])
-  }
-  while symbols.length() > 1 {
-    let mut selected_rank = -1
-    let mut selected_left = -1
-    let mut selected_right = -1
-    for index in 0..<(symbols.length() - 1) {
-      match self.merge_for(symbols[index], symbols[index + 1]) {
-        Some(merge) =>
-          if selected_rank < 0 || merge.rank < selected_rank {
-            selected_rank = merge.rank
-            selected_left = symbols[index]
-            selected_right = symbols[index + 1]
-          }
-        None => ()
-      }
-    }
-    if selected_rank < 0 {
-      break
-    }
-    let selected = self.merge_for(selected_left, selected_right).unwrap()
-    let merged : Array[Int] = Array::new(capacity=symbols.length())
-    let mut index = 0
-    while index < symbols.length() {
-      if index + 1 < symbols.length() &&
-        symbols[index] == selected_left &&
-        symbols[index + 1] == selected_right {
-        merged.push(selected.result_token_id)
-        index += 2
-      } else {
-        merged.push(symbols[index])
-        index += 1
-      }
-    }
-    symbols.clear()
-    symbols.append(merged)
-  }
-  output.append(symbols)
-}
-
-///|
-fn bytes_match_at(input : Bytes, offset : Int, piece : Bytes) -> Bool {
-  if piece.length() > input.length() - offset {
-    return false
-  }
-  for index, value in piece {
-    if input[offset + index] != value {
-      return false
-    }
-  }
-  true
-}
-
-///|
-fn TokenizerSpec::special_at(
-  self : TokenizerSpec,
-  input : Bytes,
-  offset : Int,
-) -> StoredToken? {
-  let mut best : StoredToken? = None
-  for candidate in self.special_tokens {
-    if bytes_match_at(input, offset, candidate.piece) {
-      match best {
-        None => best = Some(candidate)
-        Some(current) =>
-          if candidate.piece.length() > current.piece.length() ||
-            (
-              candidate.piece.length() == current.piece.length() &&
-              candidate.token_id < current.token_id
-            ) {
-            best = Some(candidate)
-          }
-      }
-    }
-  }
-  best
-}
-
-///|
 /// Encode valid MoonBit text as UTF-8 bytes and then deterministic byte BPE.
 ///
 /// `output_limit` must be positive and no larger than the spec limit.
@@ -166,37 +63,41 @@ pub fn TokenizerSpec::encode_bytes(
       maximum=self.limits.max_input_bytes,
     )
   }
-  let token_ids : Array[Int] = []
-  if special_policy is AsOrdinary || self.special_tokens.is_empty() {
-    self.encode_ordinary_range(input, 0, input.length(), token_ids)
-  } else {
-    let mut ordinary_start = 0
-    let mut offset = 0
-    while offset < input.length() {
-      match self.special_at(input, offset) {
-        Some(special) => {
-          self.encode_ordinary_range(input, ordinary_start, offset, token_ids)
-          if special_policy is Reject {
-            raise SpecialTokenRejected(token_id=special.token_id)
-          }
-          token_ids.push(special.token_id)
-          offset += special.piece.length()
-          ordinary_start = offset
-        }
-        None => offset += 1
-      }
-    }
-    self.encode_ordinary_range(input, ordinary_start, input.length(), token_ids)
+  let capacity = Int::max(input.length(), 1)
+  let worker = LunaTokenizerWorker::new(
+    self,
+    input_capacity=capacity,
+    output_capacity=self.limits.max_output_tokens,
+    LunaTokenizerStepBudget::new(LUNA_TOKENIZER_MAX_STEP_WORK_UNITS),
+  )
+  let work = worker.begin_bytes(
+    input,
+    special_policy~,
+    output_limit~,
+    truncation~,
+  )
+  while work.progress() is LunaTokenizerPending {
+
   }
-  let actual = token_ids.length()
-  if actual > output_limit {
-    match truncation {
-      RejectOverflow => raise OutputTooLong(actual~, maximum=output_limit)
-      Truncate => {
-        token_ids.truncate(output_limit)
-        return { token_ids, input_bytes: input.length(), truncated: true }
-      }
-    }
+  let count = work.token_count()
+  let storage = FixedArray::make(count, 0)
+  let copy_budget = LUNA_TOKENIZER_MAX_STEP_WORK_UNITS
+  let mut copied = 0
+  while copied < count {
+    let length = Int::min(copy_budget, count - copied)
+    work.copy_tokens_to(
+      storage,
+      source_offset=copied,
+      destination_offset=copied,
+      length~,
+    )
+    copied += length
   }
-  { token_ids, input_bytes: input.length(), truncated: false }
+  let token_ids : Array[Int] = Array::new(capacity=count)
+  for token_id in storage {
+    token_ids.push(token_id)
+  }
+  let truncated = work.was_truncated()
+  work.abort()
+  { token_ids, input_bytes: input.length(), truncated }
 }

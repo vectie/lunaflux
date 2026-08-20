@@ -112,6 +112,13 @@ pub(all) suberror TokenizerError {
   DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
   InvalidUtf16Input(code_unit_offset~ : Int)
+  LunaInvalidStepBudget
+  LunaInvalidWorkerCapacity
+  LunaTokenizerWorkerBusy
+  LunaTokenizerWorkerNotReady
+  LunaTokenizerWorkerStale
+  LunaInvalidTokenCopy
+  LunaTokenizerWorkerEpochExhausted
 } derive(Debug, Eq)
 
 ///|
