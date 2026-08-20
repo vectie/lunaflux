@@ -602,6 +602,30 @@ if [ -f contracts/inference/pkg.generated.mbti ] &&
       'tokenized scheduler requests must remain opaque without raw token arrays' >&2
     failed=1
   fi
+
+  token_bound_surface="$(rg \
+    '^pub fn (LunaTokenBufferBoundStatus::|TokenBuffer::maximum_token_status\()' \
+    contracts/inference/pkg.generated.mbti || true)"
+  if ! rg -q --pcre2 -U \
+      '^pub struct LunaTokenBufferBoundStatus \{\n  // private fields\n\}$' \
+      contracts/inference/pkg.generated.mbti ||
+    rg -q --pcre2 -U \
+      '^pub struct LunaTokenBufferBoundStatus \{(?s:[^}]*)\} derive\([^)]*(?:@debug\.)?Debug' \
+      contracts/inference/pkg.generated.mbti ||
+    [ "$token_bound_surface" != \
+    $'pub fn LunaTokenBufferBoundStatus::is_out_of_range(Self) -> Bool\npub fn LunaTokenBufferBoundStatus::is_stale(Self) -> Bool\npub fn LunaTokenBufferBoundStatus::is_within_bound(Self) -> Bool\npub fn TokenBuffer::maximum_token_status(Self, Int) -> LunaTokenBufferBoundStatus' ]; then
+    printf '%s\n' \
+      'authenticated Luna token-maximum bound opacity or surface drifted' >&2
+    failed=1
+  fi
+
+  if rg -n \
+      '^pub fn TokenBuffer::.*maximum.* -> Int$|^pub fn TokenizedRequest::input_maximum_token_status\(' \
+      contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti; then
+    printf '%s\n' \
+      'raw token maximum or scheduler forwarding authority became public' >&2
+    failed=1
+  fi
 fi
 
 if [ "$failed" -ne 0 ]; then

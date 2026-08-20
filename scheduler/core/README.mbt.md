@@ -8,6 +8,12 @@ and validates selected model identity, duplicate live request IDs, prompt and
 context bounds, page-envelope capacity, and checked absolute monotonic
 deadlines before owning a request slot.
 
+Prompt token-range preflight authenticates the opaque `TokenBuffer` backing
+generation and compares its exact cached maximum against the loaded worker
+vocabulary in constant scalar work. It neither exposes nor rescans prompt
+tokens. Later plan construction still reads each authenticated token needed to
+populate a bounded prefill row.
+
 The owner allocates fixed request-slot arrays and one intrusive FIFO waiting
 queue at startup. A scheduler-global `RequestGeneration` sequence advances on
 every admission, cancellation, and deadline transition, so re-admitting the
@@ -45,7 +51,10 @@ shell. Timeless validation and exact handle storage complete before rooted
 worker activation. While that shell is reserved, the same global mutation gate
 rejects ordinary admission, planning, cancellation, expiry, and instance-loss
 drain. Deadline is sampled only after startup; commit either installs the
-preallocated handle or consumes the shell as expired. Abort and expiry are
+preallocated handle, consumes the shell as expired, or returns Invalidated if
+an outer retained alias released or reused the prompt-token backing after
+prepare. Backing reauthentication precedes the deadline check, and every
+noncommit result clears the reservation. Abort, invalidation, and expiry are
 one-shot, so an aliased stale shell cannot later admit.
 
 After an unrecoverable worker-instance loss, `drain_instance_loss` retires at

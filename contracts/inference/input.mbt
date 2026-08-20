@@ -6,6 +6,7 @@
 pub struct TokenBuffer {
   priv backing : LunaTokenBufferBacking
   priv token_count : Int
+  priv maximum_token_id : Int
 }
 
 ///|
@@ -20,6 +21,35 @@ priv enum LunaTokenBufferBacking {
 /// invalid index.
 #valtype
 pub struct LunaTokenBufferReadStatus(Int, Int)
+
+///|
+/// Allocation-free result of checking a live token buffer against a caller's
+/// token-ID bound. The cached maximum itself is never exposed.
+#valtype
+pub struct LunaTokenBufferBoundStatus {
+  priv state : Int
+}
+
+///|
+pub fn LunaTokenBufferBoundStatus::is_within_bound(
+  self : LunaTokenBufferBoundStatus,
+) -> Bool {
+  self.state == 0
+}
+
+///|
+pub fn LunaTokenBufferBoundStatus::is_out_of_range(
+  self : LunaTokenBufferBoundStatus,
+) -> Bool {
+  self.state == 1
+}
+
+///|
+pub fn LunaTokenBufferBoundStatus::is_stale(
+  self : LunaTokenBufferBoundStatus,
+) -> Bool {
+  self.state == 2
+}
 
 ///|
 pub fn LunaTokenBufferReadStatus::is_ready(
@@ -59,14 +89,19 @@ pub fn TokenBuffer::new(
   if token_ids.length() > limits.max_input_tokens() {
     raise invalid(InputToken, TooMany, limits.max_input_tokens())
   }
+  let mut maximum_token_id = -1
   for index, token_id in token_ids {
     if token_id < 0 || token_id > limits.max_token_id() {
       raise invalid(InputToken, OutOfRange, index)
+    }
+    if token_id > maximum_token_id {
+      maximum_token_id = token_id
     }
   }
   {
     backing: LunaOwnedTokenBacking(ReadOnlyArray::from_array(token_ids)),
     token_count: token_ids.length(),
+    maximum_token_id,
   }
 }
 
@@ -82,6 +117,24 @@ pub fn TokenBuffer::is_live(self : TokenBuffer) -> Bool {
     LunaOwnedTokenBacking(_) => true
     LunaLeasedTokenBacking(storage, epoch) =>
       storage.is_sealed_epoch(epoch, self.token_count)
+  }
+}
+
+///|
+/// Authenticates this buffer's exact backing generation and compares the
+/// actual cached maximum token ID against `maximum_token_id`. A negative bound
+/// is out of range for every live, nonempty token buffer.
+pub fn TokenBuffer::maximum_token_status(
+  self : TokenBuffer,
+  maximum_token_id : Int,
+) -> LunaTokenBufferBoundStatus {
+  if !self.is_live() {
+    return { state: 2 }
+  }
+  if maximum_token_id < 0 || self.maximum_token_id > maximum_token_id {
+    { state: 1 }
+  } else {
+    { state: 0 }
   }
 }
 

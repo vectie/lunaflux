@@ -21,11 +21,14 @@ fn Scheduler::preflight_admission_request(
   }
   let context = request.effective_limits().context_ceiling()
   let prompt_tokens = request.input_tokens().length()
-  for index in 0..<prompt_tokens {
-    let token = request.input_token_at(index)
-    if token > self.capacity.worker_max_token_id() {
-      raise invalid(Request, OutOfRange)
-    }
+  let maximum_token = request.input_maximum_token_status(
+    self.capacity.worker_max_token_id(),
+  )
+  if maximum_token.is_stale() {
+    raise invalid(Request, Stale)
+  }
+  if maximum_token.is_out_of_range() || !maximum_token.is_within_bound() {
+    raise invalid(Request, OutOfRange)
   }
   let maximum_sequence_tokens = prompt_tokens +
     request.effective_limits().max_new_tokens()
@@ -147,8 +150,9 @@ pub fn Scheduler::prepare_exclusive_admission(
 }
 
 ///|
-/// Commits the exclusively retained shell with deadline as the only remaining
-/// rejection. The boundary owner guarantees no intervening scheduler mutation.
+/// Commits the exclusively retained shell after reauthenticating its token
+/// backing. No scheduler mutation can intervene, but an outer retained Luna
+/// lease alias may invalidate the backing while rooted startup is in progress.
 pub fn Scheduler::commit_exclusive_admission(
   self : Scheduler,
   prepared : PreparedExclusiveAdmission,
@@ -157,6 +161,14 @@ pub fn Scheduler::commit_exclusive_admission(
   if !physical_equal(prepared.owner, self) ||
     prepared.consumed ||
     !self.exclusive_admission_reserved {
+    return ExclusiveAdmissionInvalidated
+  }
+  let maximum_token = prepared.request.input_maximum_token_status(
+    self.capacity.worker_max_token_id(),
+  )
+  if !maximum_token.is_within_bound() {
+    self.exclusive_admission_reserved = false
+    prepared.consumed = true
     return ExclusiveAdmissionInvalidated
   }
   if prepared.request.admission_deadline().is_expired(now_millis) {

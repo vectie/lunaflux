@@ -13,11 +13,12 @@ const LUNA_TOKEN_STORAGE_SEALED : Int = 2
 /// proportionally or exposes its mutable fixed array.
 pub struct LunaTokenBufferStorage {
   priv tokens : FixedArray[Int]
-  priv max_token_id : Int
+  priv validation_max_token_id : Int
   priv mut epoch : UInt64
   priv mut phase : Int
   priv mut expected_count : Int
   priv mut written_count : Int
+  priv mut written_maximum_token_id : Int
 }
 
 ///|
@@ -57,11 +58,12 @@ pub fn LunaTokenBufferStorage::new(
   }
   {
     tokens: FixedArray::make(capacity, 0),
-    max_token_id: limits.max_token_id(),
+    validation_max_token_id: limits.max_token_id(),
     epoch: 0UL,
     phase: LUNA_TOKEN_STORAGE_IDLE,
     expected_count: 0,
     written_count: 0,
+    written_maximum_token_id: -1,
   }
 }
 
@@ -88,6 +90,7 @@ pub fn LunaTokenBufferStorage::begin(
   self.phase = LUNA_TOKEN_STORAGE_WRITING
   self.expected_count = token_count
   self.written_count = 0
+  self.written_maximum_token_id = -1
   { storage: self, epoch: self.epoch }
 }
 
@@ -114,11 +117,14 @@ pub fn LunaTokenBufferWrite::push(
   if storage.written_count >= storage.expected_count {
     raise invalid(LunaTokenStorage, LunaStorageLifecycle, storage.written_count)
   }
-  if token_id < 0 || token_id > storage.max_token_id {
+  if token_id < 0 || token_id > storage.validation_max_token_id {
     raise invalid(InputToken, OutOfRange, storage.written_count)
   }
   storage.tokens[storage.written_count] = token_id
   storage.written_count += 1
+  if token_id > storage.written_maximum_token_id {
+    storage.written_maximum_token_id = token_id
+  }
 }
 
 ///|
@@ -136,6 +142,7 @@ pub fn LunaTokenBufferWrite::abort(
   storage.phase = LUNA_TOKEN_STORAGE_IDLE
   storage.expected_count = 0
   storage.written_count = 0
+  storage.written_maximum_token_id = -1
 }
 
 ///|
@@ -168,6 +175,7 @@ pub fn LunaTokenBufferLease::token_buffer(
   {
     backing: LunaLeasedTokenBacking(self.storage, self.epoch),
     token_count: self.token_count,
+    maximum_token_id: self.storage.written_maximum_token_id,
   }
 }
 
@@ -181,6 +189,7 @@ pub fn LunaTokenBufferLease::release(
   storage.phase = LUNA_TOKEN_STORAGE_IDLE
   storage.expected_count = 0
   storage.written_count = 0
+  storage.written_maximum_token_id = -1
 }
 
 ///|

@@ -28,4 +28,8 @@ an immutable copied collection; startup-preallocated
 `LunaTokenBufferStorage` instead publishes an exact-generation lease whose
 tokens are readable only through scalar `token_status`. Releasing or reusing
 the storage makes every retained buffer alias stale, and Luna-leased buffers
-never expose a collection view or mutable fixed storage.
+never expose a collection view or mutable fixed storage. Both owned and leased
+buffers cache their actual maximum token ID while performing the existing
+validation/write pass. `maximum_token_status` authenticates the exact live
+generation before comparing that cache with a caller's bound; neither the
+cached value nor the construction-time validation ceiling is exposed.
