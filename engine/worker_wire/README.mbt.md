@@ -57,6 +57,12 @@ processed-token count, token ID, and bounded worker-failure category. The
 receiver builds a fixed slot-to-entry index after validation, so exact-slot
 lookup is O(1) without a map or collection growth.
 
+Completion outcome and failure tags are decoded once at this package boundary.
+Public entry views expose the typed `CompletionEntryKind` and `WorkerFailure`
+vocabularies; their numeric wire representations remain private codec details.
+The failure accessor rejects successful entries instead of exposing a reserved
+zero field as a semantic failure.
+
 The parent authenticates every received completion frame against the retained
 exact `SubmittedSchedulePlan` before acquiring the scheduler's paired
 completion writer. Sequence, model generation, row count, slot, request

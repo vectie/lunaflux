@@ -9,10 +9,9 @@
 /// synchronization primitive. Append copies each caller `ArrayView` before
 /// returning, so callers need only refrain from concurrent source mutation for
 /// that call's duration.
-///
-/// The immutable `SchedulePlan` remains the allocating fixture and convenience
-/// API. This buffer is the production no-growth foundation. A reusable
-/// completion ingress/ring remains a separate worker-to-scheduler phase gate.
+/// This is the authoritative scheduler-to-worker plan representation. A
+/// reusable completion ingress remains a separate worker-to-scheduler phase
+/// gate.
 pub struct SchedulePlanBuffer {
   priv limits : WorkerProtocolLimits
   priv mut state : PlanBufferState

@@ -199,10 +199,15 @@ prefix integration, and network ingress also remain open. The owned service
 now contains a restricted permanent
 Raw-versus-Online ownership lease with exact request/publication sequencing,
 trusted monotonic admission/expiry, recovery, and close authority. The public
-in-process online-session aggregate above it owns token decoding, one-credit
-event acknowledgement, cancellation, deadline enforcement, terminal failure,
-and off-reactor recovery/cleanup without returning the lease or WorkerService.
-Network transport remains above that aggregate. Child ownership, executable
+in-process `LunaOnlineInstance` above it owns one scheduler and rooted worker
+across sequential healthy request epochs. Each active request is authenticated
+by an opaque Luna ticket and owns token decoding, one-credit event
+acknowledgement, cancellation, deadline enforcement, and terminal failure.
+Final acknowledgement retires only request-local state; the lease epoch,
+publication history, plan predecessor, and worker remain live. Explicit
+instance drain is the only healthy worker-close path, while authenticated
+worker, protocol, or device failure remains close-only. Network transport
+remains above this aggregate. Child ownership, executable
 and fixed handshake storage are preallocated; native spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects
 while rooted authority is live.
@@ -330,7 +335,7 @@ allocation-instrumentation, sampling/readback, and serving gates.
 
 The engine begins with a kernel catalog, not a universal compiler.
 
-The constrained MoonTile IR describes:
+The constrained LunaTile IR describes:
 
 - typed tensor views with shape, strides, dtype, address space, and alignment;
 - tile loops and parallel mappings;
@@ -351,6 +356,50 @@ validate
 → compile AOT
 → benchmark and publish capability manifest
 ~~~
+
+### Typed offline specialization
+
+LunaTile is not only a safer syntax tree for generated CUDA. Its type and
+capability boundary must make invalid model, layout, storage, and kernel
+combinations unrepresentable where practical, and reject every remaining
+incompatibility before artifact construction. Tensor shape, strides, dtype,
+address space, alignment, quantization layout, model identity, target profile,
+and kernel capability are semantic inputs, not untyped generator options.
+
+An offline specializer consumes an authenticated `ModelPlan`, static device
+plan, exact execution profile, and kernel-catalog target. It may partially
+evaluate stable facts such as dimensions, tensor byte offsets, layout strides,
+RoPE parameters, quantization codebooks, expert strides, and profile-specific
+entry points. It then emits deterministic AOT input plus a content-addressed
+specialization record containing:
+
+- every typed input identity and semantic version;
+- the baked constants and layout/codebook digests;
+- the compiler, flags, target, and stable entry points;
+- the declared floating-point contract: bit-exact operation order or a named
+  tolerance and token-agreement policy;
+- references to differential, real-tensor, dispatch-canary, numerical, and
+  benchmark evidence.
+
+Generated source is neither a public API nor trusted execution authority. It
+cannot select a model, reinterpret a tensor, acquire a device, or run because a
+request arrived. Artifact admission accepts it only when its specialization
+record, module digest, launch contract, and typed runtime capability all agree.
+This is controlled offline partial evaluation, not a universal compiler or a
+production JIT.
+
+The evidence ladder follows the same boundary: an independent scalar referee,
+adversarial synthetic blocks, admitted real tensor rows, proof that the
+specialized dispatch actually ran, logits and deterministic token agreement,
+then an end-to-end mixed-workload benchmark. Strict floating-point builds may
+claim bit equality only when operation ordering is preserved; reassociating or
+vendor paths require an explicit tolerance contract. A microbenchmark win is
+insufficient when the operation is not an end-to-end hotspot.
+
+This subsection is target architecture. The current repository has typed model,
+device, launch, and artifact-admission foundations, but no LunaTile IR,
+specialization compiler, or specialization-record implementation yet; those
+belong to Phase 5.
 
 The initial catalog uses a narrow cuBLASLt path only where one semantic
 operation is representable by its single-GEMM ABI, and uses custom AOT families

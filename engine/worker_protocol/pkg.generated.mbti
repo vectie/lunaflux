@@ -86,46 +86,12 @@ pub(all) enum CompletionBufferState {
   Consumed
 } derive(Eq, @debug.Debug)
 
-pub struct CompletionEntry {
-  slot : CompletionSlot
-  request_id : @inference.RequestId
-  request_generation : @inference.RequestGeneration
-  outcome : CompletionOutcome
-} derive(Eq)
-pub fn CompletionEntry::decode_completed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, token_id~ : Int, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn CompletionEntry::failed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, failure~ : WorkerFailure) -> Self
-pub fn CompletionEntry::final_prefill_completed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, processed_tokens~ : Int, token_id~ : Int, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn CompletionEntry::is_current(Self, @inference.RequestId, @inference.RequestGeneration) -> Bool
-pub fn CompletionEntry::outcome(Self) -> CompletionOutcome
-pub fn CompletionEntry::prefill_completed(slot~ : CompletionSlot, request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, processed_tokens~ : Int, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn CompletionEntry::request_generation(Self) -> @inference.RequestGeneration
-pub fn CompletionEntry::request_id(Self) -> @inference.RequestId
-pub fn CompletionEntry::slot(Self) -> CompletionSlot
-
 pub(all) enum CompletionEntryKind {
   PrefillCompletion
   FinalPrefillCompletion
   DecodeCompletion
   FailedCompletion
 } derive(Eq, @debug.Debug)
-
-pub(all) enum CompletionOutcome {
-  PrefillCompleted(processed_tokens~ : Int)
-  FinalPrefillCompleted(processed_tokens~ : Int, token_id~ : Int)
-  DecodeCompleted(token_id~ : Int)
-  Failed(WorkerFailure)
-} derive(Eq)
-
-pub struct CompletionRecord {
-  sequence : PlanSequence
-  model_plan_generation : ModelPlanGeneration
-  entries : ReadOnlyArray[CompletionEntry]
-} derive(Eq)
-pub fn CompletionRecord::entries(Self) -> ReadOnlyArray[CompletionEntry]
-pub fn CompletionRecord::model_plan_generation(Self) -> ModelPlanGeneration
-pub fn CompletionRecord::new(sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, entries~ : ArrayView[CompletionEntry], limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn CompletionRecord::sequence(Self) -> PlanSequence
-pub fn CompletionRecord::validate_for(Self, SchedulePlan) -> Unit raise WorkerProtocolError
 
 pub struct CompletionSlot {
   value : Int
@@ -143,30 +109,6 @@ pub fn CompletionWriter::submit(Self) -> SubmittedCompletion raise WorkerProtoco
 pub fn CompletionWriter::validate_plan(Self, SubmittedSchedulePlan) -> Unit raise WorkerProtocolError
 
 pub struct ConsumedCompletion(CompletionBuffer, UInt64)
-
-pub struct DecodeRow {
-  request_id : @inference.RequestId
-  request_generation : @inference.RequestGeneration
-  sequence_token_position : Int
-  input_token : TokenRange
-  page_table : PageTableView
-  capabilities : CapabilityView
-  sampling : @inference.SamplingParameters
-  sampling_seed : @inference.SamplingSeed
-  sample_index : Int
-  completion_slot : CompletionSlot
-} derive(Eq)
-pub fn DecodeRow::capabilities(Self) -> CapabilityView
-pub fn DecodeRow::completion_slot(Self) -> CompletionSlot
-pub fn DecodeRow::input_token(Self) -> TokenRange
-pub fn DecodeRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_position~ : Int, input_token~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn DecodeRow::page_table(Self) -> PageTableView
-pub fn DecodeRow::request_generation(Self) -> @inference.RequestGeneration
-pub fn DecodeRow::request_id(Self) -> @inference.RequestId
-pub fn DecodeRow::sample_index(Self) -> Int
-pub fn DecodeRow::sampling(Self) -> @inference.SamplingParameters
-pub fn DecodeRow::sampling_seed(Self) -> @inference.SamplingSeed
-pub fn DecodeRow::sequence_token_position(Self) -> Int
 
 pub struct ModelPlanGeneration {
   value : UInt64
@@ -207,34 +149,6 @@ pub fn PlanSequence::from_wire(UInt64) -> Self raise WorkerProtocolError
 pub fn PlanSequence::immediately_follows(Self, Self) -> Bool
 pub fn PlanSequence::next(Self) -> Self raise WorkerProtocolError
 pub fn PlanSequence::value(Self) -> UInt64
-
-pub struct PrefillRow {
-  request_id : @inference.RequestId
-  request_generation : @inference.RequestGeneration
-  sequence_token_start : Int
-  tokens : TokenRange
-  page_table : PageTableView
-  capabilities : CapabilityView
-  produces_token : Bool
-  sampling : @inference.SamplingParameters
-  sampling_seed : @inference.SamplingSeed
-  sample_index : Int
-  completion_slot : CompletionSlot
-} derive(Eq)
-pub fn PrefillRow::capabilities(Self) -> CapabilityView
-pub fn PrefillRow::completion_slot(Self) -> CompletionSlot
-pub fn PrefillRow::final_prompt(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, sample_index~ : Int, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn PrefillRow::intermediate(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn PrefillRow::new(request_id~ : @inference.RequestId, request_generation~ : @inference.RequestGeneration, sequence_token_start~ : Int, tokens~ : TokenRange, page_table~ : PageTableView, capabilities~ : CapabilityView, completion_slot~ : CompletionSlot, limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn PrefillRow::page_table(Self) -> PageTableView
-pub fn PrefillRow::produces_token(Self) -> Bool
-pub fn PrefillRow::request_generation(Self) -> @inference.RequestGeneration
-pub fn PrefillRow::request_id(Self) -> @inference.RequestId
-pub fn PrefillRow::sample_index(Self) -> Int
-pub fn PrefillRow::sampling(Self) -> @inference.SamplingParameters
-pub fn PrefillRow::sampling_seed(Self) -> @inference.SamplingSeed
-pub fn PrefillRow::sequence_token_start(Self) -> Int
-pub fn PrefillRow::tokens(Self) -> TokenRange
 
 pub(all) enum ProtocolIdentity {
   PlanSequenceIdentity
@@ -286,28 +200,6 @@ pub(all) enum RowRule {
   DuplicateCompletionSlot
   InvalidRowOrder
 } derive(Eq, @debug.Debug)
-
-pub struct SchedulePlan {
-  sequence : PlanSequence
-  model_plan_generation : ModelPlanGeneration
-  token_budget : Int
-  tokens : ReadOnlyArray[Int]
-  pages : ReadOnlyArray[@page_allocator.PageId]
-  capabilities : ReadOnlyArray[@plan.KernelCapabilityId]
-  prefill_rows : ReadOnlyArray[PrefillRow]
-  decode_rows : ReadOnlyArray[DecodeRow]
-} derive(Eq)
-pub fn SchedulePlan::capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId]
-pub fn SchedulePlan::decode_rows(Self) -> ReadOnlyArray[DecodeRow]
-pub fn SchedulePlan::model_plan_generation(Self) -> ModelPlanGeneration
-pub fn SchedulePlan::new(sequence~ : PlanSequence, model_plan_generation~ : ModelPlanGeneration, token_budget~ : Int, tokens~ : ArrayView[Int], pages~ : ArrayView[@page_allocator.PageId], capabilities~ : ArrayView[@plan.KernelCapabilityId], prefill_rows~ : ArrayView[PrefillRow], decode_rows~ : ArrayView[DecodeRow], limits~ : WorkerProtocolLimits) -> Self raise WorkerProtocolError
-pub fn SchedulePlan::pages(Self) -> ReadOnlyArray[@page_allocator.PageId]
-pub fn SchedulePlan::prefill_rows(Self) -> ReadOnlyArray[PrefillRow]
-pub fn SchedulePlan::row_count(Self) -> Int
-pub fn SchedulePlan::sequence(Self) -> PlanSequence
-pub fn SchedulePlan::token_budget(Self) -> Int
-pub fn SchedulePlan::tokens(Self) -> ReadOnlyArray[Int]
-pub fn SchedulePlan::validate_submission(Self, PlanSequence?, ModelPlanGeneration) -> Unit raise WorkerProtocolError
 
 pub struct SchedulePlanBuffer {
   // private fields

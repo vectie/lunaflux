@@ -1,6 +1,5 @@
 ///|
-test "submitted buffer is exactly equivalent to immutable plan fixture" {
-  let expected = mixed_plan()
+test "submitted buffer exposes exact canonical plan fields" {
   let buffer = @worker_protocol.SchedulePlanBuffer::new(protocol_limits())
   append_mixed_buffer(buffer, allocator())
   let actual = submit_mixed_buffer(
@@ -8,57 +7,49 @@ test "submitted buffer is exactly equivalent to immutable plan fixture" {
     plan_sequence(2UL),
     Some(plan_sequence(1UL)),
   )
-  assert_eq(actual.sequence(), expected.sequence())
-  assert_eq(actual.model_plan_generation(), expected.model_plan_generation())
-  assert_eq(actual.token_budget(), expected.token_budget())
-  assert_eq(actual.token_count(), expected.tokens().length())
-  for index, token in expected.tokens() {
-    assert_eq(actual.token_at(index), token)
-  }
-  assert_eq(actual.page_count(), expected.pages().length())
-  for index, page in expected.pages() {
-    assert_eq(actual.page_at(index), page)
-  }
-  assert_eq(actual.capability_count(), expected.capabilities().length())
-  for index, capability in expected.capabilities() {
-    assert_eq(actual.capability_at(index), capability)
-  }
-  let expected_prefill = expected.prefill_rows()[0]
+  assert_eq(actual.sequence(), plan_sequence(2UL))
+  assert_eq(actual.model_plan_generation(), model_generation(1UL))
+  assert_eq(actual.token_budget(), 3)
+  assert_eq(actual.token_count(), 3)
+  assert_eq(actual.token_at(0), 10)
+  assert_eq(actual.token_at(1), 11)
+  assert_eq(actual.token_at(2), 12)
+  assert_eq(actual.page_count(), 2)
+  assert_eq(actual.page_at(0).index(), 0)
+  assert_eq(actual.page_at(1).index(), 1)
+  assert_eq(actual.capability_count(), 2)
+  assert_eq(
+    actual.capability_at(0),
+    @plan.KernelCapabilityId::embedding_lookup(),
+  )
+  assert_eq(
+    actual.capability_at(1),
+    @plan.KernelCapabilityId::causal_attention(),
+  )
   let actual_prefill = actual.prefill_row(0)
-  assert_eq(actual_prefill.request_id(), expected_prefill.request_id())
+  assert_eq(actual_prefill.request_id(), request_id(7UL))
   assert_eq(
     actual_prefill.request_generation(),
-    expected_prefill.request_generation(),
+    @inference.RequestGeneration::initial(),
   )
-  assert_eq(
-    actual_prefill.sequence_token_start(),
-    expected_prefill.sequence_token_start(),
-  )
-  assert_eq(actual_prefill.tokens(), expected_prefill.tokens())
-  assert_eq(actual_prefill.page_table(), expected_prefill.page_table())
-  assert_eq(actual_prefill.capabilities(), expected_prefill.capabilities())
-  assert_eq(actual_prefill.produces_token(), expected_prefill.produces_token())
-  assert_eq(actual_prefill.sampling(), expected_prefill.sampling())
-  assert_eq(
-    actual_prefill.completion_slot(),
-    expected_prefill.completion_slot(),
-  )
-  let expected_decode = expected.decode_rows()[0]
+  assert_eq(actual_prefill.sequence_token_start(), 0)
+  assert_eq(actual_prefill.tokens(), token_range(0, 2))
+  assert_eq(actual_prefill.page_table(), page_view(0, 1))
+  assert_eq(actual_prefill.capabilities(), capability_view(0, 1))
+  assert_false(actual_prefill.produces_token())
+  assert_eq(actual_prefill.completion_slot(), slot(0))
   let actual_decode = actual.decode_row(0)
-  assert_eq(actual_decode.request_id(), expected_decode.request_id())
+  assert_eq(actual_decode.request_id(), request_id(8UL))
   assert_eq(
     actual_decode.request_generation(),
-    expected_decode.request_generation(),
+    @inference.RequestGeneration::from_wire(3UL),
   )
-  assert_eq(
-    actual_decode.sequence_token_position(),
-    expected_decode.sequence_token_position(),
-  )
-  assert_eq(actual_decode.input_token(), expected_decode.input_token())
-  assert_eq(actual_decode.page_table(), expected_decode.page_table())
-  assert_eq(actual_decode.capabilities(), expected_decode.capabilities())
-  assert_eq(actual_decode.sampling(), expected_decode.sampling())
-  assert_eq(actual_decode.completion_slot(), expected_decode.completion_slot())
+  assert_eq(actual_decode.sequence_token_position(), 3)
+  assert_eq(actual_decode.input_token(), token_range(2, 1))
+  assert_eq(actual_decode.page_table(), page_view(1, 1))
+  assert_eq(actual_decode.capabilities(), capability_view(1, 1))
+  assert_eq(actual_decode.sampling(), @inference.SamplingParameters::greedy())
+  assert_eq(actual_decode.completion_slot(), slot(1))
 }
 
 ///|

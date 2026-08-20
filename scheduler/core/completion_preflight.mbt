@@ -138,12 +138,29 @@ fn Scheduler::validate_decode_progress(
 }
 
 ///|
+/// Scalar-only publication-capacity decision for one semantically validated
+/// completion. Publication-sequence exhaustion remains a typed semantic error
+/// and is checked separately after this nonraising result.
+fn Scheduler::completion_capacity_commit(
+  self : Scheduler,
+  output_demand : Int,
+  terminal_demand : Int,
+) -> CompletionCommit {
+  if output_demand > self.output_request_ids.length() - self.output_count ||
+    terminal_demand > self.terminal_available() {
+    CompletionBackpressured
+  } else {
+    CompletionCommitted
+  }
+}
+
+///|
 fn Scheduler::preflight_completion(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
   completion : @worker_protocol.SubmittedCompletion,
   side : Int,
-) -> Unit raise SchedulerError {
+) -> CompletionCommit raise SchedulerError {
   let sequence = try plan.sequence_wire() catch {
     error => raise WorkerProtocol(error)
   } noraise {
@@ -232,11 +249,10 @@ fn Scheduler::preflight_completion(
       self.preflight_active_release(slot)
     }
   }
-  if output_demand > self.output_request_ids.length() - self.output_count {
-    raise invalid(OutputCapacity, Backpressured)
-  }
-  if terminal_demand > self.terminal_available() {
-    raise invalid(TerminalNoticeCapacity, Backpressured)
+  match self.completion_capacity_commit(output_demand, terminal_demand) {
+    CompletionCommitted => ()
+    CompletionBackpressured => return CompletionBackpressured
   }
   self.preflight_publications(output_demand + terminal_demand)
+  CompletionCommitted
 }

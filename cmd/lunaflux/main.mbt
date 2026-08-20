@@ -3,7 +3,9 @@ fn print_usage() -> Unit {
   println("LunaFlux \{@contracts.protocol_version()}")
   println("usage:")
   println("  lunaflux doctor")
-  println("  lunaflux plan MODEL_PATH sha256:DIGEST")
+  println(
+    "  lunaflux plan ROOT CONFIG_REL CONFIG_SHA256 DECLARED_MODEL_SHA256 KV_BUDGET_BYTES TOKENS_PER_PAGE",
+  )
   println(
     "  lunaflux reference ROOT CONFIG_REL TOKENIZER_REL WEIGHTS_REL CONFIG_SHA TOKENIZER_SHA WEIGHTS_SHA MAX_NEW TOKEN_IDS",
   )
@@ -225,26 +227,22 @@ fn print_doctor() -> Unit {
 }
 
 ///|
-fn print_plan(model_path : String, digest : String) -> Unit raise {
-  let service = @service.new("127.0.0.1", 8080, 1048576, 30000, Normal)
-  let model = @model.new(model_path, digest, ["LlamaForCausalLM"])
-  let device = @device.new([0], 8589934592L)
-  let plan = @resolved.resolve(service, model, device)
-  println("LunaFlux configuration-only startup plan")
-  println("artifact identity: validated; path redacted")
-  println("architecture: \{plan.selected_architecture()}")
-  println("primary device: \{plan.primary_device()} (configured, not probed)")
-  println("memory ceiling bytes: \{plan.memory_ceiling_bytes()}")
-  println("decisions recorded: \{plan.decisions().length()}")
-  println("model materialization: not performed")
-  println("readiness: false; CUDA capability resolution is a later gate")
-}
-
-///|
-fn main raise {
-  match @env.args() {
+fn run_cli(arguments : ArrayView[String]) -> Unit raise {
+  match arguments {
     [_, "doctor"] => print_doctor()
-    [_, "plan", model_path, digest] => print_plan(model_path, digest)
+    [
+      _,
+      "plan",
+      root_path,
+      config_locator,
+      config_sha,
+      model_sha,
+      kv_budget_bytes,
+      tokens_per_page,
+    ] =>
+      @lunaflux_plan.run(
+        root_path, config_locator, config_sha, model_sha, kv_budget_bytes, tokens_per_page,
+      )
     [
       _,
       "reference",
@@ -265,4 +263,9 @@ fn main raise {
     [_, "version"] => println(@contracts.protocol_version())
     _ => print_usage()
   }
+}
+
+///|
+fn main raise {
+  run_cli(@env.args())
 }

@@ -115,11 +115,10 @@ fn prepare_owned_internal(
     scheduler,
     binding,
     process: None,
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceReady,
     production_owned: true,
-    ownership_mode: SERVICE_MODE_ONLINE_ELIGIBLE,
+    ownership_mode: OnlineEligibleOwnership,
     online_epoch: 0UL,
     online_publication_cursor: 0UL,
   }
@@ -137,7 +136,7 @@ fn prepare_owned_internal(
     service,
     epoch: 0UL,
     clock: online_clock,
-    request_phase: ONLINE_REQUEST_EMPTY,
+    request_phase: OnlineRequestEmpty,
     prepared_admission,
     prepared_clock_read: online_clock.prepare_read(),
     handle: None,
@@ -257,7 +256,7 @@ fn publish_raw_transfer(
   prepared : OwnedWorkerServicePreparation,
   service : WorkerService,
 ) -> WorkerService {
-  service.ownership_mode = SERVICE_MODE_FIXTURE_RAW
+  service.ownership_mode = FixtureRawOwnership
   prepared.consumed = true
   prepared.service = None
   prepared.online = None
@@ -276,7 +275,7 @@ fn publish_online_transfer(
   online.epoch = next_epoch
   online.publication_cursor = service.online_publication_cursor
   service.online_epoch = next_epoch
-  service.ownership_mode = SERVICE_MODE_ONLINE_ACTIVE
+  service.ownership_mode = OnlineActiveOwnership
   prepared.consumed = true
   prepared.service = None
   prepared.online = None
@@ -323,7 +322,7 @@ pub fn OwnedWorkerServicePreparation::take_online(
     None => abort("owned online service invariant")
   }
   if !service.production_owned ||
-    service.ownership_mode != SERVICE_MODE_ONLINE_ELIGIBLE ||
+    service.ownership_mode != OnlineEligibleOwnership ||
     service.online_epoch == 0xffffffffffffffffUL ||
     service.lifecycle != ServiceReady ||
     service.raw_outstanding_count() != 0 ||
@@ -336,7 +335,7 @@ pub fn OwnedWorkerServicePreparation::take_online(
     None => abort("owned online lease invariant")
   }
   if online.prepared_admission is Some(_) ||
-    online.request_phase != ONLINE_REQUEST_EMPTY ||
+    online.request_phase != OnlineRequestEmpty ||
     !service.scheduler.is_pristine() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
@@ -361,13 +360,13 @@ pub fn OwnedWorkerServicePreparation::take_prepared_online(
     None => abort("owned prepared online lease invariant")
   }
   if !service.production_owned ||
-    service.ownership_mode != SERVICE_MODE_ONLINE_ELIGIBLE ||
+    service.ownership_mode != OnlineEligibleOwnership ||
     service.online_epoch == 0xffffffffffffffffUL ||
     service.lifecycle != ServiceReady ||
     service.raw_outstanding_count() != 0 ||
     !service.require_process().has_exchange_capacity() ||
     online.prepared_admission is None ||
-    online.request_phase != ONLINE_REQUEST_EMPTY {
+    online.request_phase != OnlineRequestEmpty {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
   let exclusive = match online.prepared_admission {

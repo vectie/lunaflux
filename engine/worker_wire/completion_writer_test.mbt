@@ -40,8 +40,8 @@ test "direct completion writer carries bounded failures for exact rows" {
   writer.append_decode_failed(plan.decode_row(0), ResourceUnavailable)
   let completion = writer.submit()
   completion.validate_for(submitted)
-  assert_eq(completion.entry(0).failure_value(), 0)
-  assert_eq(completion.entry(1).failure_value(), 1)
+  assert_eq(completion.entry(0).failure(), ExecutionFailed)
+  assert_eq(completion.entry(1).failure(), ResourceUnavailable)
 }
 
 ///|

@@ -22,7 +22,7 @@ test "device-state invalidation fails active requests but preserves waiting work
   let active = owner.admit(wb_request(499UL), 0UL)
   let waiting = owner.admit(wb_request(500UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 7)))
   ignore(owner.take_generated_token())
   assert_eq(owner.status(active.request_id()).unwrap().state(), Decode)
   assert_eq(owner.status(waiting.request_id()).unwrap().state(), Waiting)
@@ -42,7 +42,7 @@ test "exact invalidation publishes one authenticated failure generation" {
   let owner = wb_owner_with_capacity(1, 1)
   let handle = owner.admit(wb_request(497UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 7)))
   ignore(owner.take_generated_token())
   ignore(owner.invalidate_device_state_exact(handle))
   let terminal = owner.take_terminal_notice()
@@ -116,7 +116,7 @@ test "instance-loss drain releases active then waiting requests one at a time" {
   let active = owner.admit(wb_request(601UL), 0UL)
   let waiting = owner.admit(wb_request(602UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 7))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 7)))
   ignore(owner.take_generated_token())
   assert_eq(owner.status(active.request_id()).unwrap().state(), Decode)
   assert_eq(owner.status(waiting.request_id()).unwrap().state(), Waiting)
@@ -162,7 +162,7 @@ test "device-state invalidation is transactional and rejects submitted work" {
     _ => fail("submitted device state was invalidated")
   }
   assert_true(owner.status(active.request_id()).unwrap().in_flight())
-  owner.complete(plan, wb_final_completion(owner, plan, 8))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 8)))
   ignore(owner.take_generated_token())
 
   owner.terminal_count = owner.terminal_request_ids.length()
@@ -188,12 +188,7 @@ test "completion backpressure preserves submitted work for exact retry" {
   let plan = wb_next_plan(owner)
   let completion = wb_final_completion(owner, plan, 7)
   owner.output_count = owner.output_request_ids.length()
-  try owner.complete(plan, completion) catch {
-    Invalid(field=OutputCapacity, issue=Backpressured) => ()
-    _ => fail("expected output backpressure")
-  } noraise {
-    _ => fail("full output ring accepted a completion")
-  }
+  assert_eq(owner.complete(plan, completion), CompletionBackpressured)
   let status = owner.status(handle.request_id()).unwrap()
   assert_true(status.in_flight())
   assert_eq(status.processed_input_tokens(), 0)
@@ -203,7 +198,7 @@ test "completion backpressure preserves submitted work for exact retry" {
   owner.output_count = 0
   owner.output_head = 0
   owner.output_tail = 0
-  owner.complete(plan, completion)
+  assert_eq(owner.complete_submitted(plan), CompletionCommitted)
   assert_false(owner.status(handle.request_id()).unwrap().in_flight())
   assert_eq(owner.take_generated_token().token_id(), 7)
 }
@@ -282,8 +277,8 @@ test "completion retirement is sequence ordered across A and B" {
   assert_true(owner.status(first.request_id()).unwrap().in_flight())
   assert_true(owner.status(second.request_id()).unwrap().in_flight())
   assert_eq(owner.generated_token_count(), 0)
-  owner.complete(plan_a, completion_a)
-  owner.complete(plan_b, completion_b)
+  ignore(owner.complete(plan_a, completion_a))
+  ignore(owner.complete(plan_b, completion_b))
   assert_eq(owner.take_generated_token().request_id(), first.request_id())
   assert_eq(owner.take_generated_token().request_id(), second.request_id())
   assert_eq(owner.last_retired_plan_sequence, 2UL)
@@ -294,7 +289,7 @@ test "non-inflight active cancellation releases KV immediately" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(521UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 10))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 10)))
   let active = owner.status(handle.request_id()).unwrap()
   assert_eq(active.state(), Decode)
   assert_false(active.in_flight())
@@ -315,7 +310,7 @@ test "submitted and completed rows retain active page authority until release" {
   let plan = wb_next_plan(owner)
   let page = try! plan.page_at(0)
   try! owner.page_allocator.validate_active(page)
-  owner.complete(plan, wb_final_completion(owner, plan, 10))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 10)))
   try! owner.page_allocator.validate_active(page)
   let active = owner.status(handle.request_id()).unwrap()
   assert_eq(active.state(), Decode)
@@ -336,7 +331,7 @@ test "deadline after submit retires stale work without publishing" {
   let plan = wb_next_plan(owner)
   let completion = wb_final_completion(owner, plan, 11)
   assert_eq(owner.expire_deadlines(10UL), 1)
-  owner.complete(plan, completion)
+  ignore(owner.complete(plan, completion))
   assert_eq(owner.generated_token_count(), 0)
   assert_eq(owner.live_request_count(), 0)
   assert_eq(owner.free_page_count(), 8)
@@ -367,7 +362,7 @@ test "terminal backpressure preserves a maximum-output completion for retry" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(541UL), 0UL)
   let prefill = wb_next_plan(owner)
-  owner.complete(prefill, wb_final_completion(owner, prefill, 12))
+  ignore(owner.complete(prefill, wb_final_completion(owner, prefill, 12)))
   let decode = wb_next_plan(owner)
   let row = try! decode.decode_row(0)
   let writer = try! owner.completion_writer(decode)
@@ -379,12 +374,7 @@ test "terminal backpressure preserves a maximum-output completion for retry" {
   )
   let completion = try! writer.submit()
   owner.terminal_count = owner.terminal_request_ids.length()
-  try owner.complete(decode, completion) catch {
-    Invalid(field=TerminalNoticeCapacity, issue=Backpressured) => ()
-    _ => fail("expected terminal backpressure")
-  } noraise {
-    _ => fail("full terminal ring accepted a terminal completion")
-  }
+  assert_eq(owner.complete(decode, completion), CompletionBackpressured)
   let status = owner.status(handle.request_id()).unwrap()
   assert_true(status.in_flight())
   assert_eq(status.output_tokens(), 1)
@@ -392,7 +382,7 @@ test "terminal backpressure preserves a maximum-output completion for retry" {
   owner.terminal_count = 0
   owner.terminal_head = 0
   owner.terminal_tail = 0
-  owner.complete(decode, completion)
+  assert_eq(owner.complete_submitted(decode), CompletionCommitted)
   assert_eq(owner.generated_token_count(), 2)
   assert_eq(owner.take_generated_token().token_id(), 12)
   assert_eq(owner.take_generated_token().token_id(), 13)
@@ -410,7 +400,7 @@ test "A side is reused for sequence three while B remains submitted" {
   let plan_a = wb_next_plan(owner)
   let plan_b = wb_next_plan(owner)
   let completion_b = wb_final_completion(owner, plan_b, 17)
-  owner.complete(plan_a, wb_final_completion(owner, plan_a, 14))
+  ignore(owner.complete(plan_a, wb_final_completion(owner, plan_a, 14)))
   assert_eq(owner.take_generated_token().token_id(), 14)
   let plan_three = wb_next_plan(owner)
   assert_eq(try! plan_three.sequence_wire(), 3UL)
@@ -437,9 +427,9 @@ test "A side is reused for sequence three while B remains submitted" {
   }
   assert_eq(owner.generated_token_count(), 0)
   assert_eq(owner.plan_a_sequence, 3UL)
-  owner.complete(plan_b, completion_b)
+  ignore(owner.complete(plan_b, completion_b))
   assert_eq(owner.take_generated_token().token_id(), 17)
-  owner.complete(plan_three, completion_three)
+  ignore(owner.complete(plan_three, completion_three))
   assert_eq(owner.take_generated_token().token_id(), 15)
   assert_eq(owner.plan_a_sequence, 0UL)
   assert_eq(owner.plan_b_sequence, 0UL)

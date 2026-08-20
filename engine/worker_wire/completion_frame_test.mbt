@@ -13,15 +13,20 @@ test "completion frame round trips exact scalar outcomes" {
   assert_eq(encoded.model_generation_value(), 9UL)
   assert_eq(encoded.entry_count(), 2)
   let prefill = encoded.entry_for_slot(0)
-  assert_eq(prefill.kind_value(), 1)
+  assert_eq(prefill.kind(), FinalPrefillCompletion)
   assert_eq(prefill.request_id_value(), 7UL)
   assert_eq(prefill.request_generation_value(), 0UL)
   assert_eq(prefill.processed_tokens(), 2)
   assert_eq(prefill.token_id(), 17)
-  assert_eq(prefill.failure_value(), 0)
+  try prefill.failure() catch {
+    InvalidFrame(CompletionEntry) => ()
+    _ => fail("expected failure-only accessor rejection")
+  } noraise {
+    _ => fail("nonfailure entry exposed a failure")
+  }
   let decode = encoded.entry(1)
   assert_eq(decode.slot(), 1)
-  assert_eq(decode.kind_value(), 2)
+  assert_eq(decode.kind(), DecodeCompletion)
   assert_eq(decode.request_id_value(), 8UL)
   assert_eq(decode.request_generation_value(), 3UL)
   assert_eq(decode.processed_tokens(), 0)
@@ -60,9 +65,12 @@ test "completion frame authenticates worker failure against any exact row" {
     wire_protocol_limits(),
     wire_inference_limits(),
   )
-  frame_owner
-  .encode_completion(completion_owner.submit_for(plan))
-  .validate_for(plan)
+  let frame = frame_owner.encode_completion(completion_owner.submit_for(plan))
+  frame.validate_for(plan)
+  assert_eq(frame.entry_for_slot(0).kind(), FailedCompletion)
+  assert_eq(frame.entry_for_slot(0).failure(), ExecutionFailed)
+  assert_eq(frame.entry_for_slot(1).kind(), FailedCompletion)
+  assert_eq(frame.entry_for_slot(1).failure(), ResourceUnavailable)
 }
 
 ///|

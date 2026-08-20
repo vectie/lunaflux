@@ -47,8 +47,8 @@ pub fn CompletionFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @infere
 pub fn CompletionFrameBuffer::writer_for(Self, ValidatedPlanFrame) -> CompletionFrameWriter raise WorkerWireError
 
 pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int)
-pub fn CompletionFrameEntry::failure_value(Self) -> Int raise WorkerWireError
-pub fn CompletionFrameEntry::kind_value(Self) -> Int raise WorkerWireError
+pub fn CompletionFrameEntry::failure(Self) -> @worker_protocol.WorkerFailure raise WorkerWireError
+pub fn CompletionFrameEntry::kind(Self) -> @worker_protocol.CompletionEntryKind raise WorkerWireError
 pub fn CompletionFrameEntry::processed_tokens(Self) -> Int raise WorkerWireError
 pub fn CompletionFrameEntry::request_generation_value(Self) -> UInt64 raise WorkerWireError
 pub fn CompletionFrameEntry::request_id_value(Self) -> UInt64 raise WorkerWireError

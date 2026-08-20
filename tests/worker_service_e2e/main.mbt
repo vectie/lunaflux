@@ -341,7 +341,11 @@ fn complete_root_exchange(
 }
 
 ///|
-fn run(executable : Bytes, failure_executable : Bytes?) -> Unit raise {
+fn run(
+  executable : Bytes,
+  failure_executable : Bytes?,
+  persistent_executable : Bytes?,
+) -> Unit raise {
   run_owned_startup_failure_evidence()
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
@@ -395,13 +399,14 @@ fn run(executable : Bytes, failure_executable : Bytes?) -> Unit raise {
   progress_to_ready(service, 1UL)
   commit_ready(service, 1UL)
   progress_to_ready(service, 2UL)
-  try commit_ready(service, 2UL) catch {
-    @worker_service.Scheduler(
-      Invalid(field=OutputCapacity, issue=Backpressured)
-    ) => ()
-    _ => raise Failure("unexpected service publication error")
-  } noraise {
-    _ => raise Failure("full output ring accepted second completion")
+  guard service.progress() is ServiceBackpressured else {
+    raise Failure("full output ring accepted second completion")
+  }
+  // The accepted completion and physical response stay pinned. Repeated
+  // pressure must not reopen a writer, rebuild the completion, or advance its
+  // epoch before publication capacity is released.
+  guard service.progress() is ServiceBackpressured else {
+    raise Failure("accepted completion did not remain retryably pinned")
   }
   assert_eq(service.outstanding_count(), 1)
   let first_publication = service.take_next_publication()
@@ -480,18 +485,12 @@ fn run(executable : Bytes, failure_executable : Bytes?) -> Unit raise {
   run_online_lease_evidence(executable)
   run_online_session_foundation(executable)
   run_online_session_termination_evidence(executable)
+  match persistent_executable {
+    Some(value) => run_online_session_persistence_evidence(value)
+    None => ()
+  }
   match failure_executable {
     Some(value) => run_online_session_progress_failure(value)
     None => ()
-  }
-}
-
-///|
-fn main {
-  match @env.args() {
-    [_, executable, failure_executable] =>
-      try! run(@utf8.encode(executable), Some(@utf8.encode(failure_executable)))
-    [_, executable] => try! run(@utf8.encode(executable), None)
-    _ => println("worker executable path is required")
   }
 }

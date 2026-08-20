@@ -36,7 +36,7 @@ LunaFlux owns:
 - fixed-page KV allocation and radix-indexed prefix reuse;
 - sampling, streaming events, metrics, and instance health;
 - one worker per accelerator and the GPU execution protocol;
-- kernel capability selection and the constrained MoonTile kernel IR.
+- kernel capability selection and the constrained LunaTile kernel IR.
 
 LunaFlux does not own:
 
@@ -151,10 +151,13 @@ worker-wire layer copies exact plan and completion identities, tables, sampling
 replay state, and outcomes into startup-sized frames; untrusted receives check
 all bounds and semantics before replacing an authenticated frame epoch. The
 service authenticates received completion frames against the exact retained
-plan before populating its paired completion owner, while normal scheduler
-backpressure remains retryable. The worker side writes those frames directly
-from authenticated received-plan rows; scheduler heap-owner capabilities do
-not cross the wire boundary. Device-step staging likewise consumes validated
+plan and retirement authority before staging each frame exactly once into its
+paired typed completion owner. Normal scheduler publication pressure retains a
+private accepted-flight state and returns scalar backpressure; retry does not
+reread wire bytes, reopen the completion writer, advance its epoch, or allocate
+an error. The worker side writes those frames directly from authenticated
+received-plan rows; scheduler heap-owner capabilities do not cross the wire
+boundary. Device-step staging likewise consumes validated
 plan frames directly in its isolated-worker path. After exact graph execution,
 that path authenticates the retained frame owner and epoch, reads each
 producing BF16 logits row, applies the frame's scalar greedy/stochastic replay
@@ -205,6 +208,15 @@ pinned root roles, reconstructs the model and executor, publishes Ready only
 after exact resource readiness, and then executes bounded frames. The admitted full-graph
 blueprint and artifact bundle now derive the admitted-bootstrap digest from a bounded canonical
 schema that also binds the exact device-step limits and assignment.
+
+The public in-process `LunaOnlineInstance` prepares that owned scheduler and
+rooted worker once, then admits sequential healthy streaming requests under
+fresh opaque Luna tickets. One request is active at a time. Its final event
+acknowledgement retires only request-local decode, event, and cut state, while
+the lease epoch, scheduler publication history, plan predecessor, and physical
+worker continue. Explicit instance drain is the only healthy shutdown path;
+worker, protocol, or device failure remains close-only. Network ingress remains
+outside this aggregate.
 
 Startup filesystem authority now has a narrow native foundation: independently
 approved absolute directories become opaque pinned capabilities, strict
@@ -275,8 +287,14 @@ moon check --target native --deny-warn
 moon test --target native --deny-warn
 scripts/validate-boundaries.sh
 scripts/validate-cuda-abi.sh
-moon run --target native cmd/lunaflux
+moon run --target native cmd/lunaflux -- doctor
+moon run --target native cmd/lunaflux -- plan ROOT CONFIG_REL CONFIG_SHA256 DECLARED_MODEL_SHA256 KV_BUDGET_BYTES TOKENS_PER_PAGE
 ~~~
+
+`plan` authenticates the bounded configuration snapshot and explains semantic
+shapes, kernel requirements, and KV capacity. Its model-content digest is
+caller-declared until the later weight/manifest admission slice, so the command
+always reports readiness as false.
 
 ## Documents
 

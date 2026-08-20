@@ -68,10 +68,10 @@ pub fn CompletionFrameEntry::slot(
 }
 
 ///|
-pub fn CompletionFrameEntry::kind_value(
+pub fn CompletionFrameEntry::kind(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
-  read_u32(self.0.storage, self.offset() + 4).reinterpret_as_int()
+) -> @worker_protocol.CompletionEntryKind raise WorkerWireError {
+  completion_kind_from_wire(read_u32(self.0.storage, self.offset() + 4))
 }
 
 ///|
@@ -103,8 +103,13 @@ pub fn CompletionFrameEntry::token_id(
 }
 
 ///|
-pub fn CompletionFrameEntry::failure_value(
+pub fn CompletionFrameEntry::failure(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
-  read_u32(self.0.storage, self.offset() + 32).reinterpret_as_int()
+) -> @worker_protocol.WorkerFailure raise WorkerWireError {
+  let offset = self.offset()
+  if completion_kind_from_wire(read_u32(self.0.storage, offset + 4)) !=
+    FailedCompletion {
+    raise InvalidFrame(CompletionEntry)
+  }
+  worker_failure_from_wire(read_u32(self.0.storage, offset + 32))
 }

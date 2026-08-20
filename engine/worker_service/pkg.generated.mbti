@@ -94,6 +94,7 @@ pub fn OnlineWorkerLease::progress_terminal_recovery_status(Self, @worker_protoc
 pub fn OnlineWorkerLease::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn OnlineWorkerLease::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
 pub fn OnlineWorkerLease::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
+pub fn OnlineWorkerLease::retire_terminal_request(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_close_empty(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_close_terminal(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_restart_cleanup(Self) -> Unit raise WorkerServiceError
@@ -230,6 +231,7 @@ pub(all) enum WorkerServiceRule {
   Recovery
   OwnershipMode
   Clock
+  WorkerOutput
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -53,7 +53,7 @@ fn validate_completion_frame_source(
   for index in 0..<count {
     let offset = completion_entry_offset(index)
     let slot = read_i32(bytes, offset)
-    let kind = read_u32(bytes, offset + 4)
+    let kind = completion_kind_from_wire(read_u32(bytes, offset + 4))
     let request = read_u64(bytes, offset + 8)
     let processed = read_i32(bytes, offset + 24)
     let token = read_i32(bytes, offset + 28)
@@ -68,14 +68,14 @@ fn validate_completion_frame_source(
       raise InvalidFrame(Reserved)
     }
     match kind {
-      0 =>
+      PrefillCompletion =>
         if processed <= 0 ||
           processed > worker_limits.max_plan_tokens() ||
           token != 0 ||
           failure != 0 {
           raise InvalidFrame(CompletionEntry)
         }
-      1 =>
+      FinalPrefillCompletion =>
         if processed <= 0 ||
           processed > worker_limits.max_plan_tokens() ||
           token < 0 ||
@@ -83,15 +83,16 @@ fn validate_completion_frame_source(
           failure != 0 {
           raise InvalidFrame(CompletionEntry)
         }
-      2 =>
+      DecodeCompletion =>
         if processed != 0 || token < 0 || token > max_token || failure != 0 {
           raise InvalidFrame(CompletionEntry)
         }
-      3 =>
-        if processed != 0 || token != 0 || failure > 2 {
+      FailedCompletion => {
+        if processed != 0 || token != 0 {
           raise InvalidFrame(CompletionEntry)
         }
-      _ => raise InvalidFrame(CompletionEntry)
+        ignore(worker_failure_from_wire(failure))
+      }
     }
     validation_requests[index] = request
     validation_slots[index] = slot

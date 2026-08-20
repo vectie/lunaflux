@@ -24,17 +24,29 @@ fn WorkerService::require_lifecycle(
 fn WorkerService::require_raw_mode(
   self : WorkerService,
 ) -> Unit raise WorkerServiceError {
-  if self.ownership_mode != SERVICE_MODE_FIXTURE_RAW {
+  if self.ownership_mode != FixtureRawOwnership {
     raise Invalid(OwnershipMode)
   }
 }
 
 ///|
 fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int {
-  if self.flight_state == FLIGHT_EMPTY {
-    0
-  } else {
-    1
+  match self.flight {
+    FlightEmpty => 0
+    _ => 1
+  }
+}
+
+///|
+fn WorkerService::flight_sequence_value(
+  self : WorkerService,
+) -> UInt64 raise WorkerServiceError {
+  match self.flight {
+    FlightEmpty => raise Invalid(Sequence)
+    FlightPlanned(sequence)
+    | FlightSubmitted(sequence)
+    | FlightReceived(sequence)
+    | FlightAccepted(sequence) => sequence
   }
 }
 
@@ -94,11 +106,10 @@ pub fn new_fixture(
     scheduler,
     binding,
     process: Some(process),
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceReady,
     production_owned: false,
-    ownership_mode: SERVICE_MODE_FIXTURE_RAW,
+    ownership_mode: FixtureRawOwnership,
     online_epoch: 0UL,
     online_publication_cursor: 0UL,
   }
@@ -135,6 +146,5 @@ pub fn WorkerService::outstanding_count(
 
 ///|
 fn WorkerService::clear_flight(self : WorkerService) -> Unit {
-  self.flight_state = FLIGHT_EMPTY
-  self.flight_sequence = 0UL
+  self.flight = FlightEmpty
 }

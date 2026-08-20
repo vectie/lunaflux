@@ -64,7 +64,7 @@ test "completion publishes in plan order through overlapping plans" {
   append_final_result(prefill_writer, prefill.prefill_row(1), 12)
   append_final_result(prefill_writer, prefill.prefill_row(0), 11)
   let prefill_completion = prefill_writer.submit()
-  owner.complete(prefill, prefill_completion)
+  ignore(owner.complete(prefill, prefill_completion))
   assert_eq(owner.generated_token_count(), 2)
 
   let decode = next_plan(owner)
@@ -76,7 +76,7 @@ test "completion publishes in plan order through overlapping plans" {
   append_decode_result(decode_writer, decode.decode_row(1), 22)
   append_decode_result(decode_writer, decode.decode_row(0), 21)
   let decode_completion = decode_writer.submit()
-  owner.complete(decode, decode_completion)
+  ignore(owner.complete(decode, decode_completion))
   assert_eq(owner.generated_token_count(), 4)
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
   try owner.take_terminal_notice() catch {
@@ -172,7 +172,7 @@ test "intermediate prefill advances without output or terminal publication" {
     request_generation=row.request_generation(),
     processed_tokens=row.tokens().length(),
   )
-  owner.complete(plan, writer.submit())
+  ignore(owner.complete(plan, writer.submit()))
   let status = owner.status(handle.request_id()).unwrap()
   assert_eq(status.state(), Prefill)
   assert_eq(status.processed_input_tokens(), 2)
@@ -188,7 +188,7 @@ test "stop token is published before terminal resource release" {
   let plan = next_plan(owner)
   let writer = owner.completion_writer(plan)
   append_final_result(writer, plan.prefill_row(0), 9)
-  owner.complete(plan, writer.submit())
+  ignore(owner.complete(plan, writer.submit()))
   let output = owner.take_generated_token()
   assert_eq(output.request_id(), handle.request_id())
   assert_eq(output.token_id(), 9)
@@ -209,7 +209,7 @@ test "cancelled submitted work retires without post-cancel token" {
   append_final_result(writer, plan.prefill_row(0), 7)
   let completion = writer.submit()
   owner.cancel(handle)
-  owner.complete(plan, completion)
+  ignore(owner.complete(plan, completion))
   assert_eq(owner.generated_token_count(), 0)
   assert_eq(owner.terminal_notice_count(), 1)
   assert_eq(owner.take_terminal_notice().reason(), CancelledByCaller)
@@ -231,11 +231,110 @@ test "current worker failure publishes one bounded terminal and balances KV" {
     request_generation=row.request_generation(),
     failure=ExecutionFailed,
   )
-  owner.complete(plan, writer.submit())
+  ignore(owner.complete(plan, writer.submit()))
   assert_eq(owner.generated_token_count(), 0)
   let terminal = owner.take_terminal_notice()
   assert_eq(terminal.request_id(), handle.request_id())
   assert_eq(terminal.reason(), WorkerFailed)
   assert_eq(owner.live_request_count(), 0)
   assert_eq(owner.free_page_count(), 8)
+}
+
+///|
+test "submitted completion retries exact A and B owners in sequence" {
+  let owner = scheduler()
+  ignore(owner.admit(request(451UL), 0UL))
+  let plan_a = next_plan(owner)
+  let writer_a = owner.completion_writer(plan_a)
+  append_final_result(writer_a, plan_a.prefill_row(0), 7)
+  let completion_a = writer_a.submit()
+
+  ignore(owner.admit(request(452UL), 0UL))
+  let plan_b = next_plan(owner)
+  let writer_b = owner.completion_writer(plan_b)
+  append_final_result(writer_b, plan_b.prefill_row(0), 8)
+  let completion_b = writer_b.submit()
+
+  try owner.complete_submitted(plan_b) catch {
+    Invalid(field=Completion, issue=OutOfOrder) => ()
+    _ => fail("unexpected B-side ordering failure")
+  } noraise {
+    _ => fail("B-side completion retired before A")
+  }
+  assert_eq(owner.complete_submitted(plan_a), CompletionCommitted)
+  assert_eq(owner.complete_submitted(plan_b), CompletionCommitted)
+  assert_eq(owner.take_generated_token().token_id(), 7)
+  assert_eq(owner.take_generated_token().token_id(), 8)
+  try owner.complete_submitted(plan_a) catch {
+    WorkerProtocol(StalePlanBufferEpoch) => ()
+    _ => fail("unexpected retired-plan retry failure")
+  } noraise {
+    _ => fail("retired A-side plan was completed twice")
+  }
+  try completion_a.sequence_wire() catch {
+    StaleCompletionBufferEpoch => ()
+    _ => fail("unexpected retired A completion epoch failure")
+  } noraise {
+    _ => fail("retired A completion epoch remained current")
+  }
+  try completion_b.sequence_wire() catch {
+    StaleCompletionBufferEpoch => ()
+    _ => fail("unexpected retired B completion epoch failure")
+  } noraise {
+    _ => fail("retired B completion epoch remained current")
+  }
+}
+
+///|
+test "submitted completion rejects a foreign plan owner" {
+  let owner = scheduler()
+  ignore(owner.admit(request(461UL), 0UL))
+  let plan = next_plan(owner)
+  let writer = owner.completion_writer(plan)
+  append_final_result(writer, plan.prefill_row(0), 9)
+  ignore(writer.submit())
+
+  let foreign = scheduler()
+  ignore(foreign.admit(request(462UL), 0UL))
+  let foreign_plan = next_plan(foreign)
+  try owner.complete_submitted(foreign_plan) catch {
+    WorkerProtocol(PlanBufferMismatch) => ()
+    _ => fail("unexpected foreign-plan completion failure")
+  } noraise {
+    _ => fail("foreign plan owner selected a scheduler completion")
+  }
+  assert_eq(owner.complete_submitted(plan), CompletionCommitted)
+}
+
+///|
+test "submitted completion backpressure preserves its exact epoch" {
+  let owner = tight_scheduler()
+  ignore(owner.admit(request(471UL, max_new_tokens=4), 0UL))
+
+  let prefill = next_plan(owner)
+  let prefill_writer = owner.completion_writer(prefill)
+  append_final_result(prefill_writer, prefill.prefill_row(0), 10)
+  ignore(owner.complete(prefill, prefill_writer.submit()))
+
+  let first_decode = next_plan(owner)
+  let first_writer = owner.completion_writer(first_decode)
+  append_decode_result(first_writer, first_decode.decode_row(0), 11)
+  ignore(owner.complete(first_decode, first_writer.submit()))
+
+  let pressured = next_plan(owner)
+  let pressured_writer = owner.completion_writer(pressured)
+  append_decode_result(pressured_writer, pressured.decode_row(0), 12)
+  let completion = pressured_writer.submit()
+  assert_eq(owner.complete_submitted(pressured), CompletionBackpressured)
+  assert_eq(completion.sequence_wire(), pressured.sequence_wire())
+  assert_eq(owner.take_generated_token().token_id(), 10)
+  assert_eq(owner.take_generated_token().token_id(), 11)
+  assert_eq(owner.complete_submitted(pressured), CompletionCommitted)
+  assert_eq(owner.take_generated_token().token_id(), 12)
+  try completion.sequence_wire() catch {
+    StaleCompletionBufferEpoch => ()
+    _ => fail("unexpected pressured completion epoch failure")
+  } noraise {
+    _ => fail("committed pressured completion epoch remained current")
+  }
 }

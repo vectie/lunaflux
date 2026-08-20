@@ -16,6 +16,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
+- A digest-pinned synthetic compatibility tokenizer for the selected 3,000-row
+  reference model. It proves the supported ByteLevel-BPE path from `Luna*c` to
+  exact token IDs, independently recorded logits, the greedy token, and a
+  four-token continuation. This is functional integration evidence, not a
+  claim of upstream SentencePiece compatibility or trained tokenizer quality.
 - Validated dense Llama-style BF16 dimensions and content identities, with the
   plan identity derived canonically from the complete validated semantic spec
   rather than trusted as caller input.
@@ -59,6 +64,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   weights once, executes validated operation plans, and performs bounded greedy
   generation. Pinned tiny-model fixtures cover non-degenerate attention and MLP
   paths with independently derived logits.
+- A substantive `lunaflux plan` command that authenticates a bounded model
+  configuration under an approved root, builds the exact paged-Llama semantic
+  plan, and explains shapes, operation count, workspace, required kernel
+  capabilities, and KV page/capacity decisions. It closes filesystem authority
+  before publishing. The model-content digest is explicitly caller-declared,
+  not weight-verified, and kernel-manifest resolution remains open.
 - An exact Apache-2.0 upstream tiny BF16 Llama artifact pinned by immutable
   revision and SHA-256. End-to-end tests match 33 independently generated
   sampled logits, three argmax tokens, and two four-token greedy continuations.
@@ -226,8 +237,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A bounded incremental decoded-output owner that copies exact tokenizer pieces
   into caller-owned fixed storage, validates UTF-8 across token boundaries,
   and withholds stop strings matched across token or code-point boundaries.
-  Pattern tables and scratch are constructed before token stepping. The owned
-  online session now drives this owner through acknowledged one-credit Token
+  Pattern tables and scratch are constructed before token stepping. The
+  persistent Luna online instance drives this owner through acknowledged
+  one-credit Token
   and terminal publication with a positive-controlled allocation gate; network
   transport remains open.
 - A synchronous request-admission bridge now composes that reader with trusted
@@ -296,9 +308,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   replacement, an abandoned sequence 4, and successful continuation at
   sequence 5. A new thread-confined worker service encapsulates scheduler and
   root-bound process owners, checks its single production credit before
-  scheduler mutation, records plans before transport, retries pinned
-  completion frames without reopening completion epochs, commits retryable
-  bounded worker failures before abandonment, and replaces the child only
+  scheduler mutation, records plans before transport, validates received
+  retirement authority before scheduler mutation, and stages each frame once
+  into a paired typed completion owner. Publication pressure retains a private
+  accepted-flight state and returns a nonallocating scalar backpressure result;
+  retry neither rereads the wire frame nor reopens or advances the completion
+  owner. The service commits bounded worker failures before abandonment and
+  replaces the child only
   after the outstanding obligation retires and every surviving active request
   is terminally invalidated with balanced host KV release. Waiting requests are
   preserved because they own no device bytes. An independent retained
@@ -313,13 +329,17 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   acquisition; native spawn, scalar handshake validation and cleanup, and
   owner publication allocate no managed objects with rooted authority live.
   The owned service now also makes a permanent Raw-versus-Online family
-  choice. Its restricted epoch lease authenticates one streaming request,
-  exact generation/position/publication order, monotonic admission/deadline
+  choice. Its restricted epoch lease authenticates sequential streaming
+  request epochs, exact generation/position/publication order, monotonic
+  admission/deadline
   time, cancellation cuts, worker-loss recovery, and deterministic close
   without exposing scheduler/process/handle owners. The alias-free
-  `service/online_session` foundation now accepts only `ReceivedRequest`, owns
-  request admission and the production worker, publishes one canonical
-  Accepted credit, and provides an off-reactor exact abort/recovery/close path.
+  `LunaOnlineInstance` prepares that worker once, admits one active
+  `ReceivedRequest` at a time under a fresh opaque ticket, publishes one
+  canonical Accepted credit, and provides exact request retirement plus
+  off-reactor abort/recovery/instance-shutdown paths. Healthy retirement
+  preserves the worker, lease epoch, publication cursor, and plan history;
+  worker/protocol/device failure remains close-only.
   The borrowed ordinary roots remain caller-owned. Normal allocation-free
   Token output and natural Maximum/StopToken Usage+Completed-v2 bundles are
   implemented; stop tokens are counted but suppressed. Incremental string-stop
@@ -351,10 +371,13 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   weights internally, prepares the complete paged executor, and exposes only
   the exact readiness contract while context, weights, and executor remain
   live. Executor/weights/context cleanup is dependency ordered, retryable, and
-  retains authority after compound preparation/cleanup failure. This is the
-  readiness-owner foundation, not child-process integration: the current child
-  has no model/source locator delivery, does not call this owner or forward
-  execution through it, and does not emit `Ready` from it.
+  retains authority after compound preparation/cleanup failure. The production
+  child imports its fixed approved roots, reconstructs and authenticates the
+  encoded source through `engine/device_worker_bootstrap`, derives `Ready` from
+  the live `DeviceWorkerOwner`, and forwards bounded plan/completion frames
+  through that owner. The real-child gate currently proves hostile startup and
+  failure behavior; positive spawned-child execution with physical CUDA and
+  numerical output remains unproven.
 - A generational fixed-page KV metadata `PageAllocator` with preallocated
   arrays, an intrusive FIFO free queue, separate active and cached references,
   exact-run rollback, terminal-generation retirement, invariant diagnostics,
@@ -414,12 +437,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 
 ## Explicitly not implemented or not yet proven
 
+- The typed LunaTile IR and its offline specialization system are Phase 5
+  architecture, not current implementation. Existing model, device, execution,
+  launch-contract, catalog, and artifact-admission types establish inputs to
+  that future boundary, but LunaFlux does not yet partially evaluate them into
+  typed specialization records or generated kernel families. No current
+  artifact therefore claims baked model/layout/codebook constants, a
+  specialization compiler, or specialization-specific differential and
+  end-to-end benchmark evidence.
 - The tokenizer shipped with the pinned upstream model uses SentencePiece
   normalization, template processing, unknown-token fusion, and byte fallback,
   and is correctly rejected rather than approximated by the selected
   ByteLevel-BPE contract. The selected ByteLevel subset is independently corpus
-  validated, but this particular model must be driven by token IDs or a
-  separately approved compatible tokenizer artifact.
+  validated, and the checked-in synthetic compatibility fixture now proves its
+  text-to-model composition against this model. Production use still requires
+  an independently approved tokenizer with suitable trained semantics; the
+  synthetic fixture is not such an artifact.
 - The streaming device loader now uses pinned approved-root and regular-file
   capabilities rather than ambient string paths. Deployment approval and
   read-only mount policy remain external trust inputs. Low-level fixed
@@ -444,10 +477,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   deliberately recomputes full sequences.
 - Public network ingress/API adapters, continuous batching with global
   fairness/preemption, live worker overlap, physically proven paged execution,
-  prefix integration, or telemetry. The public in-process online-session owner
-  implements generated-text decoding, sampling-result consumption, exact
+  prefix integration, or telemetry. The public in-process `LunaOnlineInstance`
+  retains one worker across sequential healthy requests and implements
+  generated-text decoding, sampling-result consumption, exact
   one-credit Token/Usage/Completed/Failed publication, cancellation, deadlines,
-  and failure terminalization. The
+  request retirement, explicit drain, and close-only failure terminalization.
+  The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist, and the scheduler,
   root-bound service, spawned device child, and device-worker aggregate are now
@@ -455,16 +490,21 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   physical-CUDA serving evidence, so no bounded-latency serving claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
-reference loading, and offline executor status. `lunaflux plan` remains
-configuration-only, while `lunaflux reference` reads digest-pinned files and
-runs the correctness executor. All retain production readiness as false.
+reference loading, and offline executor status. `lunaflux plan` now
+authenticates model configuration and reports the derived semantic plan,
+required capabilities, and exact KV-capacity decision without materializing
+weights or resolving a kernel manifest. `lunaflux reference` reads
+digest-pinned files and runs the correctness executor. All retain production
+readiness as false.
 
 ## Next correctness gate
 
-The remaining Phase 1 promotion evidence is a physical-CUDA runner proving
+Phase 1 promotion still requires `doctor` evidence for admitted model files and
+the resolved kernel manifest, weight-verified extension of the current semantic
+`plan` report, and a physical-CUDA runner proving
 transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
 repeated load/run/unload, concurrent resource stress, and the complete
-sanitizer and leak gates, with physical concurrency/race evidence still open.
+sanitizer and leak gates. Physical concurrency/race evidence also remains open.
 Physical device-KV correctness and true cached decode evidence remain open.
 Performance and production-readiness claims remain out of scope until physical
 correctness, resource balance, soak, and benchmark evidence passes.

@@ -92,11 +92,10 @@ fn wb_prepared_online_lease(
     scheduler,
     binding: wb_service_binding(),
     process: None,
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceReady,
     production_owned: true,
-    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
   }
@@ -104,7 +103,7 @@ fn wb_prepared_online_lease(
     service,
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: ONLINE_REQUEST_EMPTY,
+    request_phase: OnlineRequestEmpty,
     prepared_admission: Some(prepared),
     prepared_clock_read,
     handle: None,
@@ -145,7 +144,7 @@ test "prepared online expiry clears reservation and retains empty cleanup author
   assert_true(scheduler.is_pristine())
   assert_eq(scheduler.live_request_count(), 0)
   assert_true(lease.prepared_admission is None)
-  assert_eq(lease.request_phase, ONLINE_REQUEST_EMPTY)
+  assert_true(lease.request_phase == OnlineRequestEmpty)
 }
 
 ///|
@@ -156,11 +155,10 @@ test "online restart-forbidden drain authenticates exact request" {
     scheduler,
     binding: wb_service_binding(),
     process: None,
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceRestartForbidden,
     production_owned: true,
-    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
   }
@@ -168,7 +166,7 @@ test "online restart-forbidden drain authenticates exact request" {
     service,
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: ONLINE_REQUEST_LIVE,
+    request_phase: OnlineRequestLive,
     prepared_admission: None,
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
@@ -192,11 +190,10 @@ test "online terminal recovery wrapper drains restart-forbidden request" {
     scheduler,
     binding: wb_service_binding(),
     process: None,
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceRestartForbidden,
     production_owned: true,
-    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
   }
@@ -204,7 +201,7 @@ test "online terminal recovery wrapper drains restart-forbidden request" {
     service,
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: ONLINE_REQUEST_LIVE,
+    request_phase: OnlineRequestLive,
     prepared_admission: None,
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
@@ -246,6 +243,7 @@ test "online worker step classification is bounded and state-aware" {
     ),
     1,
   )
+  assert_eq(classify_online_worker_error(Invalid(WorkerOutput)), 1)
   assert_eq(
     classify_online_worker_error(
       Scheduler(Invalid(field=Completion, issue=Mismatch)),
@@ -287,18 +285,17 @@ test "out-of-phase reserved dequeue preserves scheduler publication" {
     processed_tokens=try! row.tokens().length(),
     token_id=7,
   )
-  try! scheduler.complete(plan, try! writer.submit())
+  ignore(try! scheduler.complete(plan, try! writer.submit()))
   let handle = scheduler.status(admitted.request_id()).unwrap().handle()
   assert_eq(try! scheduler.reserve_cancel_exact(handle), CancelReserved)
   let service : WorkerService = {
     scheduler,
     binding: wb_service_binding(),
     process: None,
-    flight_state: FLIGHT_EMPTY,
-    flight_sequence: 0UL,
+    flight: FlightEmpty,
     lifecycle: ServiceReady,
     production_owned: true,
-    ownership_mode: SERVICE_MODE_ONLINE_ACTIVE,
+    ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
   }
@@ -306,7 +303,7 @@ test "out-of-phase reserved dequeue preserves scheduler publication" {
     service,
     epoch: 1UL,
     clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: ONLINE_REQUEST_TERMINATION_PENDING,
+    request_phase: OnlineRequestTerminationPending,
     prepared_admission: None,
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),

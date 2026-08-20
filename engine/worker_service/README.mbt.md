@@ -40,19 +40,24 @@ and global publication cursor. It exposes only sanitized value publications,
 including explicit suppressed-token evidence after a cancellation or deadline
 cut.
 
-The lease is a single-session lower-level engine seam for the owned
-`service/online_session` aggregate. Production online construction prepares an
-exclusive scheduler admission and its monotonic read before rooted activation,
-then commits that exact shell after startup without accepting a request through
-the lease. Lower fixture entry points are boundary-restricted to tests; an
-application cannot pair a raw `TokenizedRequest` with the aggregate. No decoder,
-scheduler, process, request handle, request identity, generation, or raw
-publication owner escapes.
+The lease is the lower-level engine seam for the owned online aggregate.
+Production online construction may prepare an exclusive scheduler admission
+and its monotonic read before rooted activation, then commit that exact shell
+after startup without accepting a request through the lease. A preparation may
+also transfer an empty lease for later aggregate-owned admission. Lower fixture
+entry points are boundary-restricted to tests; an application cannot pair a raw
+`TokenizedRequest` with the aggregate. No decoder, scheduler, process, request
+handle, request identity, generation, or raw publication owner escapes.
 The service and lease remain thread-confined; copying a current lease reference
 does not create independent authority and is forbidden by the aggregate's
-exclusive-owner discipline. The aggregate never releases or renews this owner:
-it terminally shuts down a healthy request, closes after recovery, or closes an
-empty failed admission. Sequential sessions require a fresh owned aggregate.
+exclusive-owner discipline. After an exact healthy terminal is dequeued,
+`retire_terminal_request` may reset only the private request handle,
+generations, and token position and return the same lease to empty admission.
+It requires a ready worker, restored exchange capacity, no physical flight or
+cancel/admission reservation, and a quiescent scheduler. Worker, scheduler and
+publication history, lease epoch, and ownership family remain unchanged.
+Instance shutdown remains a separate terminal or empty transition; recovery
+still follows the close-only `LunaOnlineInstance` policy.
 
 Online recovery is lease-authenticated: child recovery, exact-flight
 retirement, device invalidation, replacement, restart-forbidden drain, and
@@ -74,9 +79,13 @@ root authority is live.
 `progress` owns the one-flight exchange state and advances exactly one logical
 transition per call: idle/backpressured, started, pending, completion-ready, or
 committed. It checks exchange credit before creating a scheduler obligation,
-records the sequence before beginning transport, and retains a received frame
-without I/O while scheduler publication is backpressured. `Committed` means
-both scheduler acceptance and process-side retirement succeeded.
+records the sequence before beginning transport, and validates exact received
+retirement authority before scheduler mutation. Each received frame is staged
+into its paired typed completion owner exactly once; publication pressure moves
+the private flight to `Accepted` and returns scalar `ServiceBackpressured`.
+Retries from that state neither reread the frame, reopen the writer, advance its
+epoch, nor construct a typed error. Scheduler retirement always precedes
+process-side retirement, and `Committed` means both succeeded.
 `take_next_publication` forwards the scheduler's atomic globally ordered
 dequeue, so service adapters never choose between physical token and terminal
 rings.

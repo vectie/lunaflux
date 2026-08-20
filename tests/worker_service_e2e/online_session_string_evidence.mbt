@@ -6,7 +6,8 @@ fn assert_string_stop_session(
   expected_tokens : Array[String?],
   expected_output_tokens : Int,
 ) -> Unit raise {
-  let session = prepare_foundation_session(executable, tokenizer, received)
+  let instance = prepare_foundation_instance(executable, tokenizer)
+  let session = begin_foundation_session(instance, received)
   session.ack_event()
   let mut token_index = 0
   let mut terminal = false
@@ -44,7 +45,8 @@ fn assert_string_stop_session(
       _ => raise Failure("online string stop leaked a physical terminal")
     }
   }
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(session)
+  drain_foundation_instance(instance)
 }
 
 ///|
@@ -54,9 +56,9 @@ fn assert_string_cut_abort(
   ack_prefix : Bool,
 ) -> Unit raise {
   let tokenizer = string_session_tokenizer(b"ax", "5".repeat(64))
-  let session = prepare_foundation_session(
-    executable,
-    tokenizer,
+  let instance = prepare_foundation_instance(executable, tokenizer)
+  let session = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id~, stop_string=b"x", max_new_tokens=2),
   )
   session.ack_event()
@@ -69,9 +71,6 @@ fn assert_string_cut_abort(
     session.ack_event()
   }
   session.begin_abort()
-  let mut cleanup = session.progress_cleanup()
-  while cleanup == OnlineSessionCleanupPending {
-    cleanup = session.progress_cleanup()
-  }
-  assert_eq(cleanup, OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(session)
+  drain_foundation_instance(instance)
 }

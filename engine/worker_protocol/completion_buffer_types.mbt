@@ -1,8 +1,7 @@
 ///|
 /// Startup-allocated, single-writer worker-to-scheduler completion ingress.
-/// Scalar columns avoid constructing heap-backed `CompletionEntry` values on
-/// the successful production path. The immutable `CompletionRecord` remains
-/// the allocating convenience and fixture API.
+/// Scalar columns and epoch-authenticated entry views are the authoritative
+/// completion representation and avoid successful-path heap allocation.
 pub struct CompletionBuffer {
   priv limits : WorkerProtocolLimits
   priv mut state : CompletionBufferState

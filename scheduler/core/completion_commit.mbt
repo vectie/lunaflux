@@ -135,10 +135,13 @@ pub fn Scheduler::complete(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
   completion : @worker_protocol.SubmittedCompletion,
-) -> Unit raise SchedulerError {
+) -> CompletionCommit raise SchedulerError {
   self.require_no_cancel_reservation()
   let side = self.completion_side(plan)
-  self.preflight_completion(plan, completion, side)
+  match self.preflight_completion(plan, completion, side) {
+    CompletionCommitted => ()
+    CompletionBackpressured => return CompletionBackpressured
+  }
   let sequence = try! plan.sequence_wire()
   let row_count = try! plan.row_count()
   let slots = self.side_slots(side)
@@ -153,4 +156,22 @@ pub fn Scheduler::complete(
     }
   }
   self.finish_protocol_retirement(plan, completion, side, row_count, sequence)
+  CompletionCommitted
+}
+
+///|
+/// Retries the exact currently submitted completion paired with `plan`.
+/// Transport owners need retain only their own flight state; the scheduler
+/// reauthenticates its completion owner and epoch before normal retirement.
+pub fn Scheduler::complete_submitted(
+  self : Scheduler,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+) -> CompletionCommit raise SchedulerError {
+  self.require_no_cancel_reservation()
+  let side = self.completion_side(plan)
+  let owner = if side == 0 { self.completion_a } else { self.completion_b }
+  let completion = owner.current_submitted(plan) catch {
+    error => raise WorkerProtocol(error)
+  }
+  self.complete(plan, completion)
 }

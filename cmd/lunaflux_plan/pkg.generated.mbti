@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/lunaflux_plan"
+
+// Values
+pub fn render(String, String, String, String, String, String) -> String raise
+
+pub fn run(String, String, String, String, String, String) -> Unit raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

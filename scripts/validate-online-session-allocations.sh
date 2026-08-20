@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-moon build tests/worker_service_e2e --target native --release --deny-warn
+moon build tests/worker_service_e2e --target native --release --deny-warn --warn-list +73
 
 generated_c="_build/native/release/build/tests/worker_service_e2e/worker_service_e2e.c"
 
@@ -49,31 +49,35 @@ if [ -z "$positive_body" ] ||
 fi
 
 for symbol in \
-  'publish__online__session(' \
-  'publish__online__cleanup(' \
-  'OnlineSession10has__event(' \
-  'OnlineSession13event__length(' \
-  'OnlineSession15copy__event__to(' \
-  'OnlineSession10ack__event(' \
-  'OnlineSession12begin__abort(' \
-  'OnlineSession17progress__cleanup(' \
-  'OnlineSession8progress(' \
-  'OnlineSession15request__cancel(' \
-  'OnlineSession15check__deadline(' \
-  'OnlineSession18begin__caller__cut(' \
-  'OnlineSession20begin__deadline__cut(' \
-  'OnlineSession17enforce__deadline(' \
-  'OnlineSession23progress__terminal__cut(' \
-  'OnlineSession25progress__terminalization(' \
-  'OnlineSession28latch__worker__step__failure(' \
-  'OnlineSession22prepare__cut__terminal(' \
+  'publish__luna__instance(' \
+  'publish__luna__cleanup(' \
+  'LunaOnlineInstance10has__event(' \
+  'LunaOnlineInstance13event__length(' \
+  'LunaOnlineInstance15copy__event__to(' \
+  'LunaOnlineInstance10ack__event(' \
+  'LunaOnlineInstance12begin__abort(' \
+  'LunaOnlineInstance29progress__request__retirement(' \
+  'LunaOnlineInstance14reset__request(' \
+  'LunaOnlineInstance22close__terminal__owner(' \
+  'LunaOnlineInstance12begin__drain(' \
+  'LunaOnlineInstance18progress__shutdown(' \
+  'LunaOnlineInstance8progress(' \
+  'LunaOnlineInstance15request__cancel(' \
+  'LunaOnlineInstance15check__deadline(' \
+  'LunaOnlineInstance18begin__caller__cut(' \
+  'LunaOnlineInstance20begin__deadline__cut(' \
+  'LunaOnlineInstance17enforce__deadline(' \
+  'LunaOnlineInstance23progress__terminal__cut(' \
+  'LunaOnlineInstance25progress__terminalization(' \
+  'LunaOnlineInstance28latch__worker__step__failure(' \
+  'LunaOnlineInstance22prepare__cut__terminal(' \
   'classify__expiry__cut(' \
-  'OnlineSession13decode__token(' \
-  'OnlineSession21progress__string__cut(' \
-  'OnlineSession31prepare__string__stop__terminal(' \
-  'OnlineSession22begin__output__failure(' \
-  'OnlineSession29consume__natural__publication(' \
-  'OnlineSession26prepare__natural__terminal(' \
+  'LunaOnlineInstance13decode__token(' \
+  'LunaOnlineInstance21progress__string__cut(' \
+  'LunaOnlineInstance31prepare__string__stop__terminal(' \
+  'LunaOnlineInstance22begin__output__failure(' \
+  'LunaOnlineInstance29consume__natural__publication(' \
+  'LunaOnlineInstance26prepare__natural__terminal(' \
   'AdmittedRequest25push__token__into__status(' \
   'AdmittedRequest20finish__into__status(' \
   'AdmittedRequest15is__stop__token(' \
@@ -91,16 +95,16 @@ for symbol in \
   'OnlineWorkerLease28progress__terminal__recovery(' \
   'OnlineWorkerLease36progress__terminal__recovery__status(' \
   'OnlineWorkerLease16progress__status(' \
+  'OnlineWorkerLease25retire__terminal__request(' \
+  'OnlineWorkerLease22shutdown__clean__empty(' \
   'classify__online__worker__error(' \
   'WorkerService21recover__flight__impl(' \
   'Scheduler45replace__submitted__completion__with__failure(' \
   'Scheduler41preflight__exhausted__failure__retirement(' \
   'Scheduler38commit__exhausted__failure__retirement(' \
   'Scheduler11build__next(' \
-  'OnlineWorkerLease27commit__prepared__admission(' \
-  'Scheduler28commit__exclusive__admission(' \
-  'PreparedMonotonicRead12read__status(' \
-  'now__millis__status(' \
+  'OnlineWorkerLease5admit(' \
+  'Scheduler17commit__admission(' \
   'CanonicalEventWriter27preflight__online__capacity('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
@@ -113,6 +117,28 @@ for symbol in \
   fi
 done
 
+# Admission may allocate only its public typed Admitted(ticket) result shell.
+# Request/token/output owners must already exist before the rooted instance is
+# published, and busy/draining dispositions run before request admission.
+begin_body="$(extract_definition 'LunaOnlineInstance5begin(')"
+if [ -z "$begin_body" ]; then
+  printf '%s\n' 'persistent online begin function is missing' >&2
+  exit 1
+fi
+if printf '%s\n' "$begin_body" |
+  rg "$forbidden" |
+  rg -v 'Error|Failure|LunaOnlineInstanceAdmission' |
+  rg -q .; then
+  printf '%s\n' 'persistent online begin allocates request-local runtime state' >&2
+  exit 1
+fi
+if ! rg -U -q \
+  'if self\.drain_requested[\s\S]*return LunaOnlineInstanceDraining[\s\S]*if self\.phase != LunaInstanceIdlePhase \{[\s\S]*return LunaOnlineInstanceBusy[\s\S]*@request_admission\.admit' \
+  service/online_session/admission.mbt; then
+  printf '%s\n' 'persistent online begin mutates/consumes before busy-drain disposition' >&2
+  exit 1
+fi
+
 stop_body="$(extract_definition 'AdmittedRequest15is__stop__token(')"
 if [ -z "$stop_body" ] || printf '%s\n' "$stop_body" |
   rg -q 'iterG|ArrayView4iter|FixedArray4iter'; then
@@ -122,18 +148,18 @@ fi
 
 # Generated ordering evidence guards exact cancellation, failure latching, and
 # the reactor/off-reactor terminalization split.
-decode_body="$(extract_definition 'OnlineSession13decode__token(')"
-progress_body="$(extract_definition 'OnlineSession8progress(')"
-terminal_body="$(extract_definition 'OnlineSession26prepare__natural__terminal(')"
-caller_body="$(extract_definition 'OnlineSession18begin__caller__cut(')"
-cut_body="$(extract_definition 'OnlineSession23progress__terminal__cut(')"
-terminalization_body="$(extract_definition 'OnlineSession25progress__terminalization(')"
-output_failure_body="$(extract_definition 'OnlineSession22begin__output__failure(')"
-latch_body="$(extract_definition 'OnlineSession28latch__worker__step__failure(')"
+decode_body="$(extract_definition 'LunaOnlineInstance13decode__token(')"
+progress_body="$(extract_definition 'LunaOnlineInstance8progress(')"
+terminal_body="$(extract_definition 'LunaOnlineInstance26prepare__natural__terminal(')"
+caller_body="$(extract_definition 'LunaOnlineInstance18begin__caller__cut(')"
+cut_body="$(extract_definition 'LunaOnlineInstance23progress__terminal__cut(')"
+terminalization_body="$(extract_definition 'LunaOnlineInstance25progress__terminalization(')"
+output_failure_body="$(extract_definition 'LunaOnlineInstance22begin__output__failure(')"
+latch_body="$(extract_definition 'LunaOnlineInstance28latch__worker__step__failure(')"
 step_body="$(extract_definition 'OnlineWorkerLease16progress__status(')"
-request_body="$(extract_definition 'OnlineSession15request__cancel(')"
-deadline_body="$(extract_definition 'OnlineSession15check__deadline(')"
-ack_body="$(extract_definition 'OnlineSession10ack__event(')"
+request_body="$(extract_definition 'LunaOnlineInstance15request__cancel(')"
+deadline_body="$(extract_definition 'LunaOnlineInstance15check__deadline(')"
+ack_body="$(extract_definition 'LunaOnlineInstance10ack__event(')"
 if [ -z "$decode_body" ] || [ -z "$progress_body" ] ||
   [ -z "$terminal_body" ] || [ -z "$caller_body" ] || [ -z "$cut_body" ] ||
   [ -z "$terminalization_body" ] || [ -z "$output_failure_body" ] ||
@@ -152,13 +178,15 @@ if ! printf '%s\n' "$request_body" | rg -U -q \
   printf '%s\n' 'unpinned caller cancellation does not preflight absolute expiry' >&2
   exit 1
 fi
-if ! printf '%s\n' "$deadline_body" | rg -U -q \
-  -- '->\$6\)[\s\S]*return[\s\S]*begin__deadline__cut'; then
+if ! rg -U -q \
+  'pub fn LunaOnlineInstance::check_deadline[\s\S]*if self\.event_ready \{[\s\S]*return[\s\S]*self\.begin_deadline_cut' \
+  service/online_session/termination.mbt; then
   printf '%s\n' 'pinned deadline poll can sample the clock before returning' >&2
   exit 1
 fi
-if ! printf '%s\n' "$ack_body" | rg -U -q \
-  -- 'prepare__failed[\s\S]*->\$7 = 6;[\s\S]*->\$6 = 1;'; then
+if ! rg -U -q \
+  'FailureUsageEvent => \{[\s\S]*prepare_failed[\s\S]*self\.event_kind = FailedEvent[\s\S]*self\.event_ready = true' \
+  service/online_session/owner.mbt; then
   printf '%s\n' 'deadline Failed publication is not pinned after Usage acknowledgement' >&2
   exit 1
 fi
@@ -166,13 +194,15 @@ fi
 # Deferred caller intent remains installed until the fallible exact
 # reservation/commit returns, and deadline enforcement follows it. The cut
 # publishes only after the exact terminal reason is authenticated.
-if ! printf '%s\n' "$progress_body" | rg -U -q \
-  -- 'begin__caller__cut[\s\S]*->\$14 = 0;[\s\S]*enforce__deadline'; then
+if ! rg -U -q \
+  'if self\.deferred_cancel \{[\s\S]*self\.begin_caller_cut\(lease\)[\s\S]*self\.deferred_cancel = false[\s\S]*if self\.enforce_deadline\(lease\)' \
+  service/online_session/progression.mbt; then
   printf '%s\n' 'deferred caller cut is cleared before reservation or after deadline enforcement' >&2
   exit 1
 fi
-if ! printf '%s\n' "$caller_body" | rg -U -q \
-  -- 'reserve__cancel[\s\S]*commit__cancel[\s\S]*->\$13 = 1;'; then
+if ! rg -U -q \
+  'fn LunaOnlineInstance::begin_caller_cut[\s\S]*reserve_cancel[\s\S]*commit_cancel[\s\S]*self\.terminal_cut = CallerCancellationCut' \
+  service/online_session/termination.mbt; then
   printf '%s\n' 'caller cancellation is not bound to an exact committed cut' >&2
   exit 1
 fi
@@ -193,19 +223,21 @@ if ! rg -U -q \
   printf '%s\n' 'incremental-output matched status is not a scalar accessor' >&2
   exit 1
 fi
-if ! printf '%s\n' "$decode_body" | rg -U -q \
-  -- 'push__token__into__status[\s\S]*commit__cancel[\s\S]*->\$12 = 1;[\s\S]*prepare__token__bytes__status[\s\S]*->\$7 = 2;[\s\S]*->\$6 = 1;'; then
+if ! rg -U -q \
+  'fn LunaOnlineInstance::decode_token[\s\S]*push_token_into_status[\s\S]*commit_cancel[\s\S]*self\.string_cut = CancelledStringCut[\s\S]*prepare_token_bytes_status[\s\S]*self\.event_kind = TokenEvent[\s\S]*self\.event_ready = true' \
+  service/online_session/progression.mbt; then
   printf '%s\n' \
     'string-stop cancellation is not committed before event publication' >&2
   exit 1
 fi
-if ! printf '%s\n' "$output_failure_body" | rg -U -q \
-  -- '->\$18 = 2;[\s\S]*commit__cancel[\s\S]*->\$13 = 3;'; then
+if ! rg -U -q \
+  'fn LunaOnlineInstance::begin_output_failure[\s\S]*self\.failure_kind = OutputLatchedFailure[\s\S]*commit_cancel[\s\S]*self\.terminal_cut = OutputCancellationCut' \
+  service/online_session/progression.mbt; then
   printf '%s\n' 'output-invalid cause is not latched before exact cut publication' >&2
   exit 1
 fi
 if ! printf '%s\n' "$step_body" | rg -U -q \
-  -- 'classify__online__worker__error[\s\S]*->\$5 = 1;[\s\S]*data\.ok ='; then
+  -- 'classify__online__worker__error[\s\S]*->\$[0-9]+ = 1;[\s\S]*data\.ok ='; then
   printf '%s\n' 'worker step does not retain recovery lifecycle before scalar disposition' >&2
   exit 1
 fi
@@ -213,8 +245,9 @@ if printf '%s\n' "$progress_body" | rg -q 'progress__terminal__recovery'; then
   printf '%s\n' 'reactor progress calls off-reactor terminal recovery' >&2
   exit 1
 fi
-if ! printf '%s\n' "$progress_body" | rg -U -q \
-  -- 'progress__status[\s\S]*latch__worker__step__failure[\s\S]*data\.ok = 2;'; then
+if ! rg -U -q \
+  'let step = try! lease\.progress_status\(\)[\s\S]*if self\.latch_worker_step_failure\(step\) \{[\s\S]*return LunaOnlineInstanceTerminalizationRequired' \
+  service/online_session/progression.mbt; then
   printf '%s\n' 'reactor progress does not return terminalization-required after failure latch' >&2
   exit 1
 fi
@@ -224,20 +257,20 @@ if ! printf '%s\n' "$terminalization_body" | rg -U -q \
   exit 1
 fi
 if ! rg -U -q \
-  'OnlineWorkerOutputInvalid => \{\s*if self\.terminal_cut == 0 && self\.string_cut == 0 \{[\s\S]*self\.failure_kind = 2[\s\S]*self\.terminal_cut = 4\s*\}\s*self\.recovery_close = true' \
+  'OnlineWorkerOutputInvalid => \{\s*if self\.terminal_cut == NoTerminalCut && self\.string_cut == NoStringCut \{[\s\S]*self\.failure_kind = OutputLatchedFailure[\s\S]*self\.terminal_cut = WorkerFailureCut\s*\}\s*self\.recovery_close = true' \
   service/online_session/termination.mbt ||
   ! rg -U -q \
-    'OnlineWorkerUnavailable => \{\s*if self\.terminal_cut == 0 && self\.string_cut == 0 \{[\s\S]*self\.failure_kind = 3[\s\S]*self\.terminal_cut = 4\s*\}\s*self\.recovery_close = true' \
+    'OnlineWorkerUnavailable => \{\s*if self\.terminal_cut == NoTerminalCut && self\.string_cut == NoStringCut \{[\s\S]*self\.failure_kind = WorkerLatchedFailure[\s\S]*self\.terminal_cut = WorkerFailureCut\s*\}\s*self\.recovery_close = true' \
     service/online_session/termination.mbt ||
-  ! printf '%s\n' "$latch_body" | rg -U -q \
-    -- '->\$18 = 2;[\s\S]*->\$13 = 4;[\s\S]*->\$20 = 1;[\s\S]*return 1;' ||
-  ! printf '%s\n' "$latch_body" | rg -U -q \
-    -- '->\$18 = 3;[\s\S]*->\$13 = 4;[\s\S]*->\$20 = 1;[\s\S]*return 1;'; then
+  ! rg -U -q \
+    'OnlineWorkerUnavailable => \{[\s\S]*self\.failure_kind = WorkerLatchedFailure[\s\S]*self\.terminal_cut = WorkerFailureCut[\s\S]*self\.recovery_close = true' \
+    service/online_session/termination.mbt; then
   printf '%s\n' 'failure latch does not preserve cause and recovery authority' >&2
   exit 1
 fi
-if ! printf '%s\n' "$terminal_body" | rg -U -q \
-  -- '->\$18 = 3;[\s\S]*prepare__usage[\s\S]*->\$7 = 5;'; then
+if ! rg -U -q \
+  'if reason == OnlineWorkerFailed \{[\s\S]*self\.failure_kind = WorkerLatchedFailure[\s\S]*prepare_usage[\s\S]*self\.event_kind = FailureUsageEvent' \
+  service/online_session/progression.mbt; then
   printf '%s\n' 'authenticated worker terminal does not publish Usage-first failure bundle' >&2
   exit 1
 fi
@@ -271,21 +304,21 @@ if ! printf '%s\n' "$replacement_commit_body" | rg -U -q \
   exit 1
 fi
 if ! printf '%s\n' "$recover_body" | rg -U -q \
-  -- 'replace__submitted__completion__with__failure[\s\S]*retire__received[\s\S]*clear__flight[\s\S]*->\$5 = 2;'; then
+  -- 'replace__submitted__completion__with__failure[\s\S]*retire__received[\s\S]*clear__flight[\s\S]*->\$[0-9]+ = 2;'; then
   printf '%s\n' 'service recovery retires process authority before scheduler failure terminal' >&2
   exit 1
 fi
 
 # The exact aggregate/session/cleanup shells must precede rooted authority.
-prepare_body="$(extract_definition 'prepare__owned__session(')"
+prepare_body="$(extract_definition 'prepare__owned__luna__online__instance(')"
 if [ -z "$prepare_body" ]; then
   printf '%s\n' 'online-session owned constructor is missing' >&2
   exit 1
 fi
-session_line="$(printf '%s\n' "$prepare_body" | rg -n 'OnlineSession\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-cleanup_line="$(printf '%s\n' "$prepare_body" | rg -n 'FailedOnlineSessionPreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-outcome_line="$(printf '%s\n' "$prepare_body" | rg -n 'OnlineSessionPreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-rooted_line="$(printf '%s\n' "$prepare_body" | rg -n 'worker__service22prepare__owned__online' | head -n 1 | cut -d: -f1)"
+session_line="$(printf '%s\n' "$prepare_body" | rg -n 'LunaOnlineInstance\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
+cleanup_line="$(printf '%s\n' "$prepare_body" | rg -n 'FailedLunaOnlineInstancePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
+outcome_line="$(printf '%s\n' "$prepare_body" | rg -n 'LunaOnlineInstancePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
+rooted_line="$(printf '%s\n' "$prepare_body" | rg -n 'worker__service14prepare__owned' | head -n 1 | cut -d: -f1)"
 deadline_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'deadline__failure__code' | head -n 1 | cut -d: -f1)"
 output_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'output__failure__code' | head -n 1 | cut -d: -f1)"
 worker_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'worker__failure__code' | head -n 1 | cut -d: -f1)"
@@ -337,7 +370,7 @@ fi
 
 # After the exact lower take_online succeeds, aggregate publication is only
 # owner installation, lease admission, or already-preallocated result return.
-suffix="$(printf '%s\n' "$prepare_body" | tail -n "+$(printf '%s\n' "$prepare_body" | rg -n 'take__prepared__online' | head -n 1 | cut -d: -f1)")"
+suffix="$(printf '%s\n' "$prepare_body" | tail -n "+$(printf '%s\n' "$prepare_body" | rg -n 'take__online' | head -n 1 | cut -d: -f1)")"
 if [ -z "$suffix" ] ||
   printf '%s\n' "$suffix" | contains_forbidden_allocation; then
   printf '%s\n' 'online-session post-transfer publication introduced allocation' >&2

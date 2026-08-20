@@ -170,7 +170,7 @@ test "terminal replacement retires an active decode row" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(712UL), 0UL)
   let prefill = wb_next_plan(owner)
-  owner.complete(prefill, wb_final_completion(owner, prefill, 7))
+  ignore(owner.complete(prefill, wb_final_completion(owner, prefill, 7)))
   ignore(owner.take_generated_token())
   let decode = wb_next_plan(owner)
   let row = try! decode.decode_row(0)

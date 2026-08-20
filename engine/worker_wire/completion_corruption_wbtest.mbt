@@ -68,6 +68,8 @@ fn completion_test_owner() -> CompletionFrameBuffer {
 ///|
 test "checksum-valid completion payload corruption is rejected" {
   let owner = completion_test_owner()
+  let prior_bytes = valid_completion_frame()
+  let prior = owner.load(prior_bytes, prior_bytes.length())
   let invalid_kind = valid_completion_frame()
   write_u32(invalid_kind, completion_entry_offset(0) + 4, 9)
   refresh_completion_checksum(invalid_kind)
@@ -95,6 +97,8 @@ test "checksum-valid completion payload corruption is rejected" {
   } noraise {
     _ => fail("expected failure rejection")
   }
+  assert_eq(prior.entry_for_slot(0).kind(), PrefillCompletion)
+  assert_eq(prior.entry_for_slot(1).failure(), ResourceUnavailable)
 }
 
 ///|

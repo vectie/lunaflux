@@ -88,7 +88,7 @@ fn WorkerProcessSupervisor::begin_exchange_write(
   }
   self.exchange_entry_count = prefill_count + decode_count
   for index in 0..<self.exchange_expected_kinds.length() {
-    self.exchange_expected_kinds[index] = -1
+    self.exchange_expected_kinds[index] = ExpectedEmpty
     self.exchange_processed_tokens[index] = 0
     self.exchange_slots[index] = -1
   }
@@ -135,13 +135,17 @@ fn WorkerProcessSupervisor::begin_exchange_write(
     let processed_tokens = tokens.length()
     if slot < 0 ||
       slot >= snapshot_capacity ||
-      self.exchange_expected_kinds[slot] != -1 {
+      self.exchange_expected_kinds[slot] != ExpectedEmpty {
       self.lifecycle = Failed
       raise Invalid(Submission)
     }
     self.exchange_request_ids[slot] = request_id
     self.exchange_request_generations[slot] = request_generation
-    self.exchange_expected_kinds[slot] = if produces_token { 1 } else { 0 }
+    self.exchange_expected_kinds[slot] = if produces_token {
+      ExpectedFinalPrefill
+    } else {
+      ExpectedPrefill
+    }
     self.exchange_processed_tokens[slot] = processed_tokens
     self.exchange_slots[index] = slot
   }
@@ -173,13 +177,13 @@ fn WorkerProcessSupervisor::begin_exchange_write(
     let slot = slot_value.value()
     if slot < 0 ||
       slot >= snapshot_capacity ||
-      self.exchange_expected_kinds[slot] != -1 {
+      self.exchange_expected_kinds[slot] != ExpectedEmpty {
       self.lifecycle = Failed
       raise Invalid(Submission)
     }
     self.exchange_request_ids[slot] = request_id.value()
     self.exchange_request_generations[slot] = request_generation.value()
-    self.exchange_expected_kinds[slot] = 2
+    self.exchange_expected_kinds[slot] = ExpectedDecode
     self.exchange_processed_tokens[slot] = 0
     self.exchange_slots[prefill_count + index] = slot
   }
@@ -269,7 +273,7 @@ fn WorkerProcessSupervisor::accept_exchange_completion_bytes(
         raise Wire(error)
       }
     }
-    let kind = entry.kind_value() catch { error => raise Wire(error) }
+    let kind = entry.kind() catch { error => raise Wire(error) }
     let expected = self.exchange_expected_kinds[slot]
     let actual_slot = entry.slot() catch { error => raise Wire(error) }
     let actual_request = entry.request_id_value() catch {
@@ -281,14 +285,19 @@ fn WorkerProcessSupervisor::accept_exchange_completion_bytes(
     let actual_processed = entry.processed_tokens() catch {
       error => raise Wire(error)
     }
-    if expected < 0 ||
-      actual_slot != slot ||
+    let kind_matches = match (expected, kind) {
+      (ExpectedPrefill, PrefillCompletion | FailedCompletion) => true
+      (ExpectedFinalPrefill, FinalPrefillCompletion | FailedCompletion) => true
+      (ExpectedDecode, DecodeCompletion | FailedCompletion) => true
+      _ => false
+    }
+    if actual_slot != slot ||
       actual_request != self.exchange_request_ids[slot] ||
       actual_generation != self.exchange_request_generations[slot] ||
-      (kind != 3 && kind != expected) ||
+      !kind_matches ||
       (
-        kind != 3 &&
-        expected < 2 &&
+        kind != FailedCompletion &&
+        (expected == ExpectedPrefill || expected == ExpectedFinalPrefill) &&
         actual_processed != self.exchange_processed_tokens[slot]
       ) {
       self.lifecycle = Failed

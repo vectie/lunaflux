@@ -17,9 +17,11 @@ Incompatible children are closed before publication. If both handshake and clean
 returns opaque retained cleanup authority so the child is never abandoned.
 Submission also rechecks the loaded model generation before any frame write.
 
-A response side remains pinned after wire validation. Callers may inspect its
-exact frame repeatedly while scheduler publication is backpressured, and only
-`retire_received` permits that side to be reused. Foreign, stale, out-of-order,
+A response side remains pinned after wire validation. The worker service
+inspects its exact frame once, stages a typed completion, and keeps this
+physical authority pinned while scheduler publication is backpressured; retry
+does not reread the frame. Only `retire_received` permits that side to be
+reused. Foreign, stale, out-of-order,
 malformed, partial, timed-out, or closed-channel traffic fails closed. Native
 process handles and transport buffers never escape.
 

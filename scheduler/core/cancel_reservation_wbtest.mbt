@@ -88,7 +88,7 @@ test "reserved dequeue is exact and abort preserves live request" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(703UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 10))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 10)))
   let status = owner.status(handle.request_id()).unwrap()
   assert_eq(status.state(), Decode)
   assert_eq(owner.reserve_cancel_exact(status.handle()), CancelReserved)
@@ -145,7 +145,7 @@ test "reserved dequeue rejects a foreign global publication" {
   let first = owner.admit(wb_request(706UL), 0UL)
   let second = owner.admit(wb_request(707UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 11))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 11)))
   assert_eq(owner.reserve_cancel_exact(second), CancelReserved)
   try owner.take_reserved_generated_token() catch {
     Invalid(field=CancellationReservation, issue=Mismatch) => ()
@@ -163,7 +163,7 @@ test "one reservation dequeues at most one generated notice" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(709UL), 0UL)
   let plan = wb_next_plan(owner)
-  owner.complete(plan, wb_final_completion(owner, plan, 14))
+  ignore(owner.complete(plan, wb_final_completion(owner, plan, 14)))
   let status = owner.status(handle.request_id()).unwrap()
   let second_index = owner.output_tail
   owner.output_request_ids[second_index] = handle.request_id()
@@ -192,7 +192,7 @@ test "naturally retired generation is classified without reservation" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(708UL), 0UL)
   let prefill = wb_next_plan(owner)
-  owner.complete(prefill, wb_final_completion(owner, prefill, 12))
+  ignore(owner.complete(prefill, wb_final_completion(owner, prefill, 12)))
   ignore(owner.take_generated_token())
   let decode = wb_next_plan(owner)
   let row = try! decode.decode_row(0)
@@ -203,7 +203,7 @@ test "naturally retired generation is classified without reservation" {
     request_generation=try! row.request_generation(),
     token_id=13,
   )
-  owner.complete(decode, try! writer.submit())
+  ignore(owner.complete(decode, try! writer.submit()))
   assert_true(owner.status(handle.request_id()) is None)
   assert_eq(owner.reserve_cancel_exact(handle), CancelNaturalTerminal)
   assert_false(owner.cancel_reserved)
@@ -216,7 +216,7 @@ test "exact expiry preserves an already queued natural terminal" {
   let owner = wb_owner()
   let handle = owner.admit(wb_request(711UL), 0UL)
   let prefill = wb_next_plan(owner)
-  owner.complete(prefill, wb_final_completion(owner, prefill, 16))
+  ignore(owner.complete(prefill, wb_final_completion(owner, prefill, 16)))
   ignore(owner.take_generated_token())
   let decode = wb_next_plan(owner)
   let row = try! decode.decode_row(0)
@@ -227,7 +227,7 @@ test "exact expiry preserves an already queued natural terminal" {
     request_generation=try! row.request_generation(),
     token_id=17,
   )
-  owner.complete(decode, try! writer.submit())
+  ignore(owner.complete(decode, try! writer.submit()))
   assert_true(owner.status(handle.request_id()) is None)
   assert_eq(
     owner.expire_exact_or_natural(handle, 1000UL),

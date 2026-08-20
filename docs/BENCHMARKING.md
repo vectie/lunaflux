@@ -83,7 +83,7 @@ Report tokenizer-included and engine-only results separately.
   supported workload envelope.
 - Prefix/overlap phase: parity or better on at least one prefix-rich profile
   without material regression on prefix-cold profiles.
-- MoonTile replacement: a custom kernel ships only when it beats the selected
+- LunaTile replacement: a custom kernel ships only when it beats the selected
   vendor/reference kernel on its declared shape set and does not regress the
   end-to-end mixed workload.
 - Release: publish all results, including profiles where LunaFlux loses.
@@ -91,4 +91,3 @@ Report tokenizer-included and engine-only results separately.
 Thresholds are hypotheses until measured on the target hardware. Updating a
 threshold requires an architecture decision and preservation of historical
 results.
-

@@ -28,11 +28,15 @@ fn validate_prefill_completion(
   }
   let entry = frame.entry_for_slot(slot.value())
   validate_completion_identity(entry, slot, request_id, generation)
-  let kind = entry.kind_value()
-  if kind == 3 {
+  let kind = entry.kind()
+  if kind == FailedCompletion {
     return
   }
-  let expected_kind = if produces_token { 1 } else { 0 }
+  let expected_kind : @worker_protocol.CompletionEntryKind = if produces_token {
+    FinalPrefillCompletion
+  } else {
+    PrefillCompletion
+  }
   if kind != expected_kind || entry.processed_tokens() != tokens.length() {
     raise InvalidFrame(CompletionEntry)
   }
@@ -50,8 +54,8 @@ fn validate_decode_completion(
   }
   let entry = frame.entry_for_slot(slot.value())
   validate_completion_identity(entry, slot, request_id, generation)
-  let kind = entry.kind_value()
-  if kind != 2 && kind != 3 {
+  let kind = entry.kind()
+  if kind != DecodeCompletion && kind != FailedCompletion {
     raise InvalidFrame(CompletionEntry)
   }
 }

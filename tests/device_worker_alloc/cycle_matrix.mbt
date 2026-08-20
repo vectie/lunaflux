@@ -28,7 +28,7 @@ struct PreparedCycle {
   page_generation : Int
   capability_count : Int
   expected_input_token : Int
-  expected_kind : Int
+  expected_kind : @worker_protocol.CompletionEntryKind
   expected_processed_tokens : Int
   expected_token : Int
   expected_readbacks : UInt64
@@ -88,7 +88,7 @@ fn prepare_cycle_for_branch(
   let mut row_position = 0
   let mut sample_index = 0
   let mut sampling_seed = 1UL
-  let mut expected_kind = 0
+  let mut expected_kind : @worker_protocol.CompletionEntryKind = PrefillCompletion
   let mut expected_processed_tokens = 1
   let mut expected_token = 0
   let mut expected_input_token = 0
@@ -108,7 +108,7 @@ fn prepare_cycle_for_branch(
     row_position = 1
     sample_index = 0
     sampling_seed = seed.value()
-    expected_kind = 1
+    expected_kind = FinalPrefillCompletion
     expected_input_token = 1
     expected_readbacks = 1UL
     let sampling = if branch == CYCLE_GREEDY_FINAL_PREFILL {
@@ -135,7 +135,7 @@ fn prepare_cycle_for_branch(
     row_position = 2
     sample_index = 1
     sampling_seed = seed.value()
-    expected_kind = 2
+    expected_kind = DecodeCompletion
     expected_processed_tokens = 0
     expected_readbacks = 1UL
     let sampling = if branch == CYCLE_GREEDY_DECODE {
@@ -360,7 +360,7 @@ fn execute_cycle(
     alloc_probe_abort()
   }
   let entry = completion.entry(0)
-  if entry.kind_value() != cycle.expected_kind ||
+  if entry.kind() != cycle.expected_kind ||
     entry.request_id_value() != cycle.request_id ||
     entry.request_generation_value() != cycle.request_generation ||
     entry.processed_tokens() != cycle.expected_processed_tokens ||

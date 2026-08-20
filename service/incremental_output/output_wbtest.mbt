@@ -4,11 +4,11 @@ fn fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
   for value in 0..<256 {
     vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
   }
-  vocabulary.push({ token_id: 300, piece: b"helloE", kind: Normal })
-  vocabulary.push({ token_id: 301, piece: b"NDx", kind: Normal })
-  vocabulary.push({ token_id: 302, piece: b"abcE", kind: Normal })
-  vocabulary.push({ token_id: 303, piece: b"xENDz", kind: Normal })
-  vocabulary.push({ token_id: 1000, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 256, piece: b"helloE", kind: Normal })
+  vocabulary.push({ token_id: 257, piece: b"NDx", kind: Normal })
+  vocabulary.push({ token_id: 258, piece: b"abcE", kind: Normal })
+  vocabulary.push({ token_id: 259, piece: b"xENDz", kind: Normal })
+  vocabulary.push({ token_id: 260, piece: b"<eos>", kind: Special })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
     [],
@@ -32,7 +32,7 @@ fn fixture_inference() -> @inference.InferenceLimits raise {
     max_input_tokens=64,
     max_new_tokens=32,
     max_context_tokens=64,
-    max_token_id=1000,
+    max_token_id=260,
     max_stop_token_ids=4,
     max_stop_strings=4,
     max_stop_string_bytes=16,
@@ -40,7 +40,7 @@ fn fixture_inference() -> @inference.InferenceLimits raise {
     max_cache_scope_bytes=16,
     max_decoded_delta_bytes=32,
     max_deadline_millis=1000UL,
-    max_top_k=1001,
+    max_top_k=261,
     max_temperature=4.0,
   )
 }
@@ -92,11 +92,11 @@ test "stop text spanning token pieces is withheld before terminal" {
     special_policy=Preserve,
   )
   let destination = FixedArray::make(16, b'!')
-  let first = output.push_token_into(300, destination, destination_offset=0)
+  let first = output.push_token_into(256, destination, destination_offset=0)
   assert_eq(first.copied_bytes(), 5)
   assert_false(first.stop_matched())
   assert_eq(Bytes::makei(5, index => destination[index]), b"hello")
-  let second = output.push_token_into(301, destination, destination_offset=5)
+  let second = output.push_token_into(257, destination, destination_offset=5)
   assert_eq(second.copied_bytes(), 0)
   assert_true(second.stop_matched())
   assert_true(output.is_stopped())
@@ -117,7 +117,7 @@ test "destination rejection leaves stream state retryable" {
     special_policy=Preserve,
   )
   let small = FixedArray::make(4, b'?')
-  try output.push_token_into(300, small, destination_offset=0) catch {
+  try output.push_token_into(256, small, destination_offset=0) catch {
     Invalid(rule=Destination, issue=TooSmall) => ()
     _ => fail("unexpected destination error")
   } noraise {
@@ -128,7 +128,7 @@ test "destination rejection leaves stream state retryable" {
   }
   let exact = FixedArray::make(5, b'!')
   assert_eq(
-    output.push_token_into(300, exact, destination_offset=0).copied_bytes(),
+    output.push_token_into(256, exact, destination_offset=0).copied_bytes(),
     5,
   )
   assert_eq(Bytes::makei(5, index => exact[index]), b"hello")
@@ -145,7 +145,7 @@ test "finish publishes an unmatched stop prefix and rejects truncation" {
   let destination = FixedArray::make(8, b'!')
   assert_eq(
     output
-    .push_token_into(302, destination, destination_offset=0)
+    .push_token_into(258, destination, destination_offset=0)
     .copied_bytes(),
     3,
   )
@@ -205,7 +205,7 @@ test "invalid UTF-8 unknown tokens and skipped specials are payload safe" {
   )
   assert_eq(
     skipped
-    .push_token_into(1000, destination, destination_offset=0)
+    .push_token_into(260, destination, destination_offset=0)
     .copied_bytes(),
     0,
   )
@@ -235,7 +235,7 @@ test "stop matcher spans UTF-8 bytes and rejects an undersized envelope" {
     max_input_tokens=64,
     max_new_tokens=32,
     max_context_tokens=64,
-    max_token_id=1000,
+    max_token_id=260,
     max_stop_token_ids=4,
     max_stop_strings=4,
     max_stop_string_bytes=16,
@@ -243,7 +243,7 @@ test "stop matcher spans UTF-8 bytes and rejects an undersized envelope" {
     max_cache_scope_bytes=16,
     max_decoded_delta_bytes=8,
     max_deadline_millis=1000UL,
-    max_top_k=1001,
+    max_top_k=261,
     max_temperature=4.0,
   )
   try
@@ -300,11 +300,11 @@ test "scalar stop matcher spans pieces and commits only after destination fits" 
     special_policy=Preserve,
   )
   let destination = FixedArray::make(16, b'!')
-  let first = cross.push_token_status(300, destination, destination_offset=0)
+  let first = cross.push_token_status(256, destination, destination_offset=0)
   assert_true(first.is_ready())
   assert_false(first.stop_matched())
   assert_eq(first.copied_bytes(), 5)
-  let second = cross.push_token_status(301, destination, destination_offset=5)
+  let second = cross.push_token_status(257, destination, destination_offset=5)
   assert_true(second.is_ready())
   assert_true(second.stop_matched())
   assert_eq(second.copied_bytes(), 0)
@@ -318,14 +318,14 @@ test "scalar stop matcher spans pieces and commits only after destination fits" 
   )
   let too_small = FixedArray::make(0, b'!')
   let rejected = retryable.push_token_status(
-    303,
+    259,
     too_small,
     destination_offset=0,
   )
   assert_false(rejected.is_ready())
   assert_false(retryable.is_stopped())
   let exact = FixedArray::make(1, b'!')
-  let matched = retryable.push_token_status(303, exact, destination_offset=0)
+  let matched = retryable.push_token_status(259, exact, destination_offset=0)
   assert_true(matched.is_ready())
   assert_true(matched.stop_matched())
   assert_eq(matched.copied_bytes(), 1)

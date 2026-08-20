@@ -3,7 +3,7 @@ fn WorkerService::require_online_epoch(
   self : WorkerService,
   epoch : UInt64,
 ) -> Unit raise WorkerServiceError {
-  if self.ownership_mode != SERVICE_MODE_ONLINE_ACTIVE ||
+  if self.ownership_mode != OnlineActiveOwnership ||
     epoch == 0UL ||
     self.online_epoch != epoch {
     raise Invalid(OwnershipMode)
@@ -23,7 +23,7 @@ fn OnlineWorkerLease::require_live_handle(
   self : OnlineWorkerLease,
 ) -> @core.RequestHandle raise WorkerServiceError {
   ignore(self.require_current())
-  if self.request_phase != ONLINE_REQUEST_LIVE {
+  if self.request_phase != OnlineRequestLive {
     raise Invalid(Lifecycle)
   }
   match self.handle {
@@ -37,8 +37,8 @@ fn OnlineWorkerLease::require_pending_handle(
   self : OnlineWorkerLease,
 ) -> @core.RequestHandle raise WorkerServiceError {
   ignore(self.require_current())
-  if self.request_phase != ONLINE_REQUEST_LIVE &&
-    self.request_phase != ONLINE_REQUEST_TERMINATION_PENDING {
+  if self.request_phase != OnlineRequestLive &&
+    self.request_phase != OnlineRequestTerminationPending {
     raise Invalid(Lifecycle)
   }
   match self.handle {
@@ -50,7 +50,7 @@ fn OnlineWorkerLease::require_pending_handle(
 ///|
 fn WorkerService::can_claim_raw(self : WorkerService) -> Bool {
   self.production_owned &&
-  self.ownership_mode == SERVICE_MODE_ONLINE_ELIGIBLE &&
+  self.ownership_mode == OnlineEligibleOwnership &&
   self.lifecycle == ServiceReady &&
   self.raw_outstanding_count() == 0 &&
   self.scheduler.is_pristine() &&
@@ -65,7 +65,7 @@ pub fn OnlineWorkerLease::admit(
   request : @core.TokenizedRequest,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_EMPTY ||
+  if self.request_phase != OnlineRequestEmpty ||
     self.prepared_admission is Some(_) {
     raise Invalid(Lifecycle)
   }
@@ -77,7 +77,7 @@ pub fn OnlineWorkerLease::admit(
   let handle = try! prepared.request_handle()
   self.handle = Some(handle)
   self.request_generation = handle.request_generation()
-  self.request_phase = ONLINE_REQUEST_LIVE
+  self.request_phase = OnlineRequestLive
 }
 
 ///|
@@ -89,7 +89,7 @@ pub fn OnlineWorkerLease::commit_prepared_admission(
   self : OnlineWorkerLease,
 ) -> OnlinePreparedAdmissionCommit {
   let service = try! self.require_current()
-  if self.request_phase != ONLINE_REQUEST_EMPTY {
+  if self.request_phase != OnlineRequestEmpty {
     abort("prepared online admission phase invariant")
   }
   let prepared = match self.prepared_admission {
@@ -118,7 +118,7 @@ pub fn OnlineWorkerLease::commit_prepared_admission(
   self.prepared_admission = None
   self.handle = Some(handle)
   self.request_generation = handle.request_generation()
-  self.request_phase = ONLINE_REQUEST_LIVE
+  self.request_phase = OnlineRequestLive
   OnlineAdmissionCommitted
 }
 
@@ -127,7 +127,7 @@ pub fn OnlineWorkerLease::progress(
   self : OnlineWorkerLease,
 ) -> WorkerServiceProgress raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase == ONLINE_REQUEST_LIVE {
+  if self.request_phase == OnlineRequestLive {
     if service.scheduler.generated_token_count() != 0 ||
       service.scheduler.terminal_notice_count() != 0 {
       raise Invalid(Lifecycle)
@@ -135,8 +135,8 @@ pub fn OnlineWorkerLease::progress(
     return service.progress_impl()
   }
   if (
-      self.request_phase == ONLINE_REQUEST_TERMINATION_PENDING ||
-      self.request_phase == ONLINE_REQUEST_TERMINAL
+      self.request_phase == OnlineRequestTerminationPending ||
+      self.request_phase == OnlineRequestTerminal
     ) &&
     service.raw_outstanding_count() != 0 {
     return service.progress_existing_flight_impl()
@@ -155,7 +155,7 @@ fn classify_online_worker_error(error : WorkerServiceError) -> Int {
       )
     ) => 1
     RootBoundProcess(_) => 2
-    Scheduler(WorkerProtocol(_)) | Scheduler(WorkerWire(_)) => 1
+    Scheduler(WorkerProtocol(_)) | Invalid(WorkerOutput) => 1
     Scheduler(
       Invalid(
         field=Completion
@@ -207,7 +207,7 @@ pub fn OnlineWorkerLease::has_publication(
   self : OnlineWorkerLease,
 ) -> Bool raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase == ONLINE_REQUEST_TERMINATION_PENDING &&
+  if self.request_phase == OnlineRequestTerminationPending &&
     service.raw_outstanding_count() != 0 {
     return false
   }
@@ -301,7 +301,7 @@ pub fn OnlineWorkerLease::take_publication(
 ) -> OnlineWorkerPublication raise WorkerServiceError {
   let service = self.require_current()
   let handle = self.require_pending_handle()
-  if self.request_phase == ONLINE_REQUEST_TERMINATION_PENDING &&
+  if self.request_phase == OnlineRequestTerminationPending &&
     service.raw_outstanding_count() != 0 {
     raise Invalid(Lifecycle)
   }
@@ -315,7 +315,7 @@ pub fn OnlineWorkerLease::take_publication(
   match publication.kind() {
     GeneratedTokenPublication => {
       if publication.request_generation() != self.request_generation {
-        if self.request_phase != ONLINE_REQUEST_TERMINATION_PENDING ||
+        if self.request_phase != OnlineRequestTerminationPending ||
           publication.request_generation() != self.cut_source_generation {
           abort("online token generation invariant")
         }
@@ -325,7 +325,7 @@ pub fn OnlineWorkerLease::take_publication(
         abort("online token position invariant")
       }
       self.expected_position += 1
-      let kind = if self.request_phase == ONLINE_REQUEST_LIVE { 0 } else { 2 }
+      let kind = if self.request_phase == OnlineRequestLive { 0 } else { 2 }
       OnlineWorkerPublication(
         kind,
         notice.token_id(),
@@ -338,7 +338,7 @@ pub fn OnlineWorkerLease::take_publication(
       if notice.request_generation() != self.request_generation {
         abort("online terminal generation invariant")
       }
-      self.request_phase = ONLINE_REQUEST_TERMINAL
+      self.request_phase = OnlineRequestTerminal
       OnlineWorkerPublication(
         1,
         0,
@@ -412,7 +412,7 @@ pub fn OnlineWorkerLease::commit_cancel(
       self.cut_source_generation = self.request_generation
       try! self.service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       OnlineCancelCommitted
     }
     CancelReservationAbsent => OnlineCancelReservationAbsent
@@ -453,7 +453,7 @@ pub fn OnlineWorkerLease::expire(
       self.cut_source_generation = self.request_generation
       try! service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       OnlineDeadlineCommitted
     }
   }

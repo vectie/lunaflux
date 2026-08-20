@@ -1,6 +1,21 @@
 ///|
 test "deadline expiry classification preserves natural precedence" {
-  assert_eq(classify_expiry_cut(OnlineDeadlinePending), 0)
-  assert_eq(classify_expiry_cut(OnlineDeadlineNaturalTerminal), 1)
-  assert_eq(classify_expiry_cut(OnlineDeadlineCommitted), 2)
+  assert_true(
+    match classify_expiry_cut(OnlineDeadlinePending) {
+      ExpiryCutPending => true
+      _ => false
+    },
+  )
+  assert_true(
+    match classify_expiry_cut(OnlineDeadlineNaturalTerminal) {
+      ExpiryCutNaturalTerminal => true
+      _ => false
+    },
+  )
+  assert_true(
+    match classify_expiry_cut(OnlineDeadlineCommitted) {
+      ExpiryCutCommitted => true
+      _ => false
+    },
+  )
 }

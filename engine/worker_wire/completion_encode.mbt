@@ -1,23 +1,4 @@
 ///|
-fn completion_kind_value(kind : @worker_protocol.CompletionEntryKind) -> UInt {
-  match kind {
-    PrefillCompletion => 0
-    FinalPrefillCompletion => 1
-    DecodeCompletion => 2
-    FailedCompletion => 3
-  }
-}
-
-///|
-fn failure_value(failure : @worker_protocol.WorkerFailure) -> UInt {
-  match failure {
-    ExecutionFailed => 0
-    ResourceUnavailable => 1
-    CancelledBeforeExecution => 2
-  }
-}
-
-///|
 fn validate_completion_entry_for_encode(
   owner : CompletionFrameBuffer,
   entry : @worker_protocol.SubmittedCompletionEntry,
@@ -107,7 +88,7 @@ fn write_completion_entry(
     FinalPrefillCompletion | DecodeCompletion =>
       token = entry.token_id() catch { error => raise Protocol(error) }
     FailedCompletion =>
-      failure = failure_value(
+      failure = worker_failure_to_wire(
         entry.failure() catch {
           error => raise Protocol(error)
         },
@@ -115,7 +96,7 @@ fn write_completion_entry(
     PrefillCompletion => ()
   }
   write_i32(bytes, offset, slot.value())
-  write_u32(bytes, offset + 4, completion_kind_value(kind))
+  write_u32(bytes, offset + 4, completion_kind_to_wire(kind))
   write_u64(bytes, offset + 8, request.value())
   write_u64(bytes, offset + 16, generation.value())
   write_i32(bytes, offset + 24, processed)

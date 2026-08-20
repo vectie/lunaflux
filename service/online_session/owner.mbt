@@ -1,186 +1,170 @@
 ///|
-pub fn OnlineSessionPreparation::state(
-  self : OnlineSessionPreparation,
-) -> OnlineSessionPreparationState {
+pub fn LunaOnlineInstancePreparation::state(
+  self : LunaOnlineInstancePreparation,
+) -> LunaOnlineInstancePreparationState {
   self.state
 }
 
 ///|
-pub fn OnlineSessionPreparation::take_ready(
-  self : OnlineSessionPreparation,
-) -> OnlineSession raise OnlineSessionPreparationError {
-  if self.consumed || self.state != OnlineSessionReady {
-    raise preparation_failure(Invalid(Lifecycle))
+pub fn LunaOnlineInstancePreparation::take_ready(
+  self : LunaOnlineInstancePreparation,
+) -> LunaOnlineInstance raise LunaOnlineInstancePreparationError {
+  if self.consumed || self.state != LunaOnlineInstanceReady {
+    raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   self.consumed = true
-  match self.session {
-    Some(session) => {
-      self.session = None
-      session
+  match self.instance {
+    Some(instance) => {
+      self.instance = None
+      instance
     }
-    None => abort("online session ready invariant")
+    None => abort("luna online ready invariant")
   }
 }
 
 ///|
-pub fn OnlineSessionPreparation::take_cleanup(
-  self : OnlineSessionPreparation,
-) -> FailedOnlineSessionPreparation raise OnlineSessionPreparationError {
-  if self.consumed || self.state != OnlineSessionCleanupRequired {
-    raise preparation_failure(Invalid(Lifecycle))
+pub fn LunaOnlineInstancePreparation::take_cleanup(
+  self : LunaOnlineInstancePreparation,
+) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
+  if self.consumed || self.state != LunaOnlineInstanceCleanupRequired {
+    raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   self.consumed = true
-  self.session = None
+  self.instance = None
   self.cleanup
 }
 
 ///|
-pub fn FailedOnlineSessionPreparation::cause(
-  self : FailedOnlineSessionPreparation,
-) -> OnlineSessionFailure {
+pub fn FailedLunaOnlineInstancePreparation::cause(
+  self : FailedLunaOnlineInstancePreparation,
+) -> LunaOnlineInstanceFailure {
   match self.cause_kind {
-    1 => ServiceFailure
-    2 => {
+    PreparationServiceCleanupFailure => {
       if self.service_cleanup is None {
-        abort("online cleanup preparation cause invariant")
+        abort("luna online cleanup preparation cause invariant")
       }
-      ServicePreparationFailure
+      LunaOnlineServicePreparationFailure
     }
-    3 => AdmissionFailure
-    _ => Invalid(Ownership)
+    PreparationOwnershipFailure => LunaOnlineInvalid(LunaOnlineOwnership)
   }
 }
 
 ///|
-pub fn FailedOnlineSessionPreparation::is_closed(
-  self : FailedOnlineSessionPreparation,
+pub fn FailedLunaOnlineInstancePreparation::is_closed(
+  self : FailedLunaOnlineInstancePreparation,
 ) -> Bool {
   self.closed
 }
 
 ///|
-pub fn FailedOnlineSessionPreparation::retry_close(
-  self : FailedOnlineSessionPreparation,
-) -> Unit raise OnlineSessionPreparationError {
+pub fn FailedLunaOnlineInstancePreparation::retry_close(
+  self : FailedLunaOnlineInstancePreparation,
+) -> Unit raise LunaOnlineInstancePreparationError {
   if self.closed {
     return
   }
-  match self.lease {
-    Some(lease) => {
-      lease.retry_close_empty() catch {
-        _ => raise preparation_failure(ServiceFailure)
+  match self.service_cleanup {
+    Some(cleanup) => {
+      cleanup.retry_close() catch {
+        _ => raise luna_preparation_failure(LunaOnlineServicePreparationFailure)
       }
-      self.lease = None
-      self.closed = true
+      if cleanup.is_closed() {
+        self.service_cleanup = None
+        self.closed = true
+      }
     }
-    None =>
-      match self.service_cleanup {
-        Some(cleanup) => {
-          cleanup.retry_close() catch {
-            _ => raise preparation_failure(ServicePreparationFailure)
-          }
-          if cleanup.is_closed() {
-            self.service_cleanup = None
-            self.closed = true
-          }
-        }
-        None => abort("online session cleanup invariant")
-      }
+    None => abort("luna online cleanup invariant")
   }
 }
 
 ///|
-fn OnlineSession::require_owner(self : OnlineSession) -> Unit {
+fn LunaOnlineInstance::require_owner(self : LunaOnlineInstance) -> Unit {
   if self.lease is None ||
     self.output.length() == 0 ||
-    self.max_new_tokens <= 0 ||
-    self.input_tokens != self.admitted.input_token_count() {
-    abort("online session owner invariant")
+    self.wire_limits.inference_limits() != self.inference {
+    abort("luna online instance owner invariant")
   }
 }
 
 ///|
-pub fn OnlineSession::has_event(self : OnlineSession) -> Bool {
-  if self.closed || self.cleanup_phase != 0 {
-    return false
-  }
+pub fn LunaOnlineInstance::has_event(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Bool raise LunaOnlineInstanceError {
+  self.require_ticket(ticket)
   self.require_owner()
-  self.event_ready
+  self.phase == LunaRequestActivePhase && self.event_ready
 }
 
 ///|
-pub fn OnlineSession::event_length(
-  self : OnlineSession,
-) -> Int raise OnlineSessionError {
-  if self.closed || self.cleanup_phase != 0 {
-    raise SessionFailed(Invalid(EventCredit))
-  }
+pub fn LunaOnlineInstance::event_length(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Int raise LunaOnlineInstanceError {
+  self.require_active_ticket(ticket)
   self.require_owner()
   if !self.event_ready {
-    raise SessionFailed(Invalid(EventCredit))
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   self.writer.length() catch {
-    _ => raise SessionFailed(WireFailure)
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
   }
 }
 
 ///|
-pub fn OnlineSession::copy_event_to(
-  self : OnlineSession,
+pub fn LunaOnlineInstance::copy_event_to(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
   destination : FixedArray[Byte],
   destination_offset~ : Int,
-) -> Int raise OnlineSessionError {
-  if self.closed || self.cleanup_phase != 0 {
-    raise SessionFailed(Invalid(EventCredit))
-  }
+) -> Int raise LunaOnlineInstanceError {
+  self.require_active_ticket(ticket)
   self.require_owner()
   if !self.event_ready {
-    raise SessionFailed(Invalid(EventCredit))
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   self.writer.copy_to(destination, destination_offset~) catch {
-    _ => raise SessionFailed(WireFailure)
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
   }
 }
 
 ///|
-pub fn OnlineSession::ack_event(
-  self : OnlineSession,
-) -> Unit raise OnlineSessionError {
-  if self.closed || self.cleanup_phase != 0 {
-    raise SessionFailed(Invalid(EventCredit))
-  }
+pub fn LunaOnlineInstance::ack_event(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Unit raise LunaOnlineInstanceError {
+  self.require_active_ticket(ticket)
   self.require_owner()
   if !self.event_ready {
-    raise SessionFailed(Invalid(EventCredit))
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
   match self.event_kind {
-    1 => {
+    AcceptedEvent => {
       if self.accepted_acked {
-        raise SessionFailed(Invalid(EventCredit))
+        raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
       }
       self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
       }
       self.event_ready = false
       self.accepted_acked = true
     }
-    2 => {
+    TokenEvent => {
       self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
       }
       self.event_ready = false
     }
-    3 => {
+    CompletionUsageEvent => {
       self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
       }
       try! self.writer.prepare_completed(
-        if self.finish_kind == 1 {
-          StopSequence
-        } else if self.finish_kind == 2 {
-          TokenLimit
-        } else {
-          Cancelled
+        match self.finish_kind {
+          FinishStopSequence => StopSequence
+          FinishTokenLimit => TokenLimit
+          FinishCancelled => Cancelled
+          FinishPending => abort("luna online finish kind invariant")
         },
         input_tokens=self.input_tokens,
         cached_input_tokens=0,
@@ -189,182 +173,110 @@ pub fn OnlineSession::ack_event(
         tail_offset=0,
         tail_length=self.final_tail_length,
       )
-      self.event_kind = 4
+      self.event_kind = CompletedEvent
       self.event_ready = true
     }
-    4 => {
+    CompletedEvent => {
       self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
       }
       self.event_ready = false
-      self.cleanup_phase = 2
-    }
-    5 => {
-      self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
-      }
-      let code = if self.failure_kind == 1 {
-        self.deadline_code
-      } else if self.failure_kind == 2 {
-        self.output_code
+      self.phase = if self.recovery_close {
+        LunaInstanceClosingTerminalPhase
       } else {
-        self.worker_code
+        LunaRequestReleaseReadyPhase
+      }
+    }
+    FailureUsageEvent => {
+      self.writer.retire() catch {
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
+      }
+      let code = match self.failure_kind {
+        DeadlineLatchedFailure => self.deadline_code
+        OutputLatchedFailure => self.output_code
+        WorkerLatchedFailure => self.worker_code
+        NoLatchedFailure => abort("luna online failure kind invariant")
       }
       try! self.writer.prepare_failed(
         code,
         code_offset=0,
         code_length=code.length(),
-        retryable=self.failure_kind == 3,
+        retryable=self.failure_kind == WorkerLatchedFailure,
       )
-      self.event_kind = 6
+      self.event_kind = FailedEvent
       self.event_ready = true
     }
-    6 => {
+    FailedEvent => {
       self.writer.retire() catch {
-        _ => raise SessionFailed(WireFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
       }
       self.event_ready = false
-      self.cleanup_phase = 2
+      self.phase = if self.recovery_close {
+        LunaInstanceClosingTerminalPhase
+      } else {
+        LunaRequestReleaseReadyPhase
+      }
     }
-    _ => abort("online session event kind invariant")
+    NoSessionEvent => abort("luna online event kind invariant")
   }
 }
 
 ///|
-/// Begins the exact cancellation cut once. Cleanup remains owner-resident and
-/// is advanced through `progress_cleanup`; this call never assumes that the
-/// terminal publication is already visible.
-pub fn OnlineSession::begin_abort(
-  self : OnlineSession,
-) -> Unit raise OnlineSessionError {
-  if self.closed {
-    return
-  }
+/// Begins the exact cancellation cut once. Request and cleanup authority stay
+/// authenticated by the same ticket until retirement or terminal close.
+pub fn LunaOnlineInstance::begin_abort(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Unit raise LunaOnlineInstanceError {
+  self.require_ticket(ticket)
   self.require_owner()
-  if self.cleanup_phase != 0 {
+  if self.phase != LunaRequestActivePhase {
     return
   }
   if self.event_ready {
     self.writer.retire() catch {
-      _ => raise SessionFailed(WireFailure)
+      _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
     }
     self.event_ready = false
     self.accepted_acked = true
   }
-  if self.recovery_close && (self.string_cut != 0 || self.terminal_cut != 0) {
-    self.cleanup_phase = 5
+  if self.recovery_close &&
+    (self.string_cut != NoStringCut || self.terminal_cut != NoTerminalCut) {
+    self.phase = LunaInstanceRecoveringTerminalPhase
     return
   }
-  if self.event_kind >= 3 && self.event_kind <= 6 {
-    self.cleanup_phase = 2
+  match self.event_kind {
+    CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent => {
+      self.phase = if self.recovery_close {
+        LunaInstanceClosingTerminalPhase
+      } else {
+        LunaRequestReleaseReadyPhase
+      }
+      return
+    }
+    NoSessionEvent | AcceptedEvent | TokenEvent => ()
+  }
+  if self.string_cut != NoStringCut || self.terminal_cut != NoTerminalCut {
+    self.phase = LunaRequestAwaitingTerminalPhase
     return
   }
-  if self.string_cut != 0 || self.terminal_cut != 0 {
-    self.cleanup_phase = 1
-    return
-  }
-  self.deferred_cut = 0
-  let lease = match self.lease {
-    Some(value) => value
-    None => abort("online session lease invariant")
-  }
+  self.deferred_cancel = false
+  let lease = self.lease_owner()
   let reservation = lease.reserve_cancel() catch {
-    _ => raise SessionFailed(ServiceFailure)
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
   }
   match reservation {
     OnlineCancelReserved => {
       let committed = lease.commit_cancel() catch {
-        _ => raise SessionFailed(ServiceFailure)
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
       }
       match committed {
-        OnlineCancelCommitted => ()
-        OnlineCancelReservationAbsent => raise SessionFailed(Invalid(Lifecycle))
+        OnlineCancelCommitted => self.terminal_cut = CallerCancellationCut
+        OnlineCancelReservationAbsent =>
+          raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
       }
     }
-    OnlineCancelNaturalTerminal => {
-      self.cleanup_phase = 1
-      return
-    }
+    OnlineCancelNaturalTerminal => ()
   }
-  self.cleanup_phase = 1
-}
-
-///|
-/// Advances at most one cleanup transition: one pending worker operation, one
-/// suppressed/terminal publication, or one close attempt. The exact lease and
-/// cleanup authority remain retained after every reported failure.
-pub fn OnlineSession::progress_cleanup(
-  self : OnlineSession,
-) -> OnlineSessionCleanupProgress raise OnlineSessionError {
-  if self.closed {
-    return OnlineSessionCleanupClosed
-  }
-  self.require_owner()
-  if self.cleanup_phase == 0 {
-    raise SessionFailed(Invalid(Lifecycle))
-  }
-  let lease = match self.lease {
-    Some(value) => value
-    None => abort("online session lease invariant")
-  }
-  if self.cleanup_phase == 1 {
-    let available = lease.has_publication() catch {
-      _ => raise SessionFailed(ServiceFailure)
-    }
-    if !available {
-      try lease.progress() catch {
-        _ => {
-          self.cleanup_phase = 5
-          self.recovery_close = true
-        }
-      } noraise {
-        _ => ()
-      }
-      return OnlineSessionCleanupPending
-    }
-    let publication = lease.take_publication() catch {
-      _ => raise SessionFailed(ServiceFailure)
-    }
-    match publication.kind() {
-      OnlineTerminalPublication => self.cleanup_phase = 2
-      OnlineSuppressedTokenPublication | OnlineGeneratedTokenPublication => ()
-    }
-    return OnlineSessionCleanupPending
-  }
-  if self.cleanup_phase == 2 {
-    if self.recovery_close {
-      lease.close_terminal() catch {
-        _ => {
-          self.cleanup_phase = 3
-          raise SessionFailed(ServiceFailure)
-        }
-      }
-    } else {
-      lease.shutdown_clean() catch {
-        _ => {
-          self.cleanup_phase = 3
-          raise SessionFailed(ServiceFailure)
-        }
-      }
-    }
-  } else if self.cleanup_phase == 3 {
-    lease.retry_close_terminal() catch {
-      _ => raise SessionFailed(ServiceFailure)
-    }
-  } else if self.cleanup_phase == 5 {
-    let recovery = lease.progress_terminal_recovery(ResourceUnavailable) catch {
-      _ => raise SessionFailed(ServiceFailure)
-    }
-    match recovery {
-      OnlineTerminalRecoveryPending => ()
-      OnlineTerminalRecoveryPublicationReady => self.cleanup_phase = 1
-    }
-    return OnlineSessionCleanupPending
-  } else {
-    abort("online session cleanup phase invariant")
-  }
-  self.lease = None
-  self.closed = true
-  self.cleanup_phase = 4
-  OnlineSessionCleanupClosed
+  self.phase = LunaRequestAwaitingTerminalPhase
 }

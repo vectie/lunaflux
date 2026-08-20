@@ -57,39 +57,51 @@ fn load_plan_completion(
 ///|
 test "plan validation rejects checksum-valid foreign completion semantics" {
   let plan = plan_validation_fixture()
-  let (owner, bytes, _) = load_plan_completion(plan)
+  let (owner, valid, prior) = load_plan_completion(plan)
+  prior.validate_for(plan)
   let entry = completion_entry_offset(0)
-  write_u64(bytes, entry + 8, 8UL)
-  refresh_completion_checksum(bytes)
-  let foreign_request = owner.load(bytes, bytes.length())
-  try foreign_request.validate_for(plan) catch {
-    InvalidFrame(CompletionEntry) => ()
-    _ => fail("expected request identity rejection")
-  } noraise {
-    _ => fail("foreign request accepted")
+  let attacks : Array[(Int, Int, UInt64, WorkerWireFrameRule, String)] = [
+    (16, 8, 2UL, CompletionEntry, "sequence"),
+    (24, 8, 3UL, CompletionEntry, "model generation"),
+    (entry, 4, 1UL, CompletionSlot, "completion slot"),
+    (entry + 8, 8, 8UL, CompletionEntry, "request id"),
+    (entry + 16, 8, 1UL, CompletionEntry, "request generation"),
+    (entry + 24, 4, 1UL, CompletionEntry, "processed count"),
+  ]
+  for attack in attacks {
+    let (offset, width, value, expected_rule, label) = attack
+    let bytes = copy_completion_fixture(valid)
+    if width == 8 {
+      write_u64(bytes, offset, value)
+    } else {
+      write_i32(bytes, offset, value.to_int())
+    }
+    refresh_completion_checksum(bytes)
+    let hostile = owner.load(bytes, bytes.length())
+    try hostile.validate_for(plan) catch {
+      InvalidFrame(rule) if rule == expected_rule => ()
+      _ => fail("unexpected " + label + " rejection")
+    } noraise {
+      _ => fail(label + " attack was accepted")
+    }
+    assert_eq(plan.sequence_wire(), 1UL)
+    let restored = owner.load(valid, valid.length())
+    restored.validate_for(plan)
+    assert_eq(restored.entry_for_slot(0).request_id_value(), 7UL)
   }
 
-  write_u64(bytes, entry + 8, 7UL)
-  write_u32(bytes, entry + 4, 0)
-  write_i32(bytes, entry + 28, 0)
-  refresh_completion_checksum(bytes)
-  let wrong_kind = owner.load(bytes, bytes.length())
-  try wrong_kind.validate_for(plan) catch {
+  let wrong_kind = copy_completion_fixture(valid)
+  write_u32(wrong_kind, entry + 4, 0)
+  write_i32(wrong_kind, entry + 28, 0)
+  refresh_completion_checksum(wrong_kind)
+  let hostile_kind = owner.load(wrong_kind, wrong_kind.length())
+  try hostile_kind.validate_for(plan) catch {
     InvalidFrame(CompletionEntry) => ()
-    _ => fail("expected completion-kind rejection")
+    _ => fail("unexpected completion-kind rejection")
   } noraise {
-    _ => fail("wrong completion kind accepted")
+    _ => fail("completion-kind attack was accepted")
   }
-
-  write_u32(bytes, entry + 4, 1)
-  write_i32(bytes, entry + 24, 1)
-  write_i32(bytes, entry + 28, 3)
-  refresh_completion_checksum(bytes)
-  let wrong_count = owner.load(bytes, bytes.length())
-  try wrong_count.validate_for(plan) catch {
-    InvalidFrame(CompletionEntry) => ()
-    _ => fail("expected processed-token rejection")
-  } noraise {
-    _ => fail("wrong processed-token count accepted")
-  }
+  let restored = owner.load(valid, valid.length())
+  restored.validate_for(plan)
+  assert_eq(restored.entry_for_slot(0).processed_tokens(), 2)
 }

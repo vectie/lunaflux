@@ -7,10 +7,9 @@ fn WorkerService::begin_recovery_impl(
     raise Invalid(Lifecycle)
   }
   if self.require_process().lifecycle() == RootBoundRecovering {
-    self.lifecycle = if self.flight_state == FLIGHT_EMPTY {
-      ServiceDeviceInvalidationRequired
-    } else {
-      ServiceRecovering
+    self.lifecycle = match self.flight {
+      FlightEmpty => ServiceDeviceInvalidationRequired
+      _ => ServiceRecovering
     }
     return
   }
@@ -23,8 +22,9 @@ fn WorkerService::begin_recovery_impl(
   self.require_process().begin_recovery() catch {
     error => raise root_bound_process_error(error)
   }
-  if self.flight_state == FLIGHT_EMPTY {
-    self.lifecycle = ServiceDeviceInvalidationRequired
+  match self.flight {
+    FlightEmpty => self.lifecycle = ServiceDeviceInvalidationRequired
+    _ => ()
   }
 }
 
@@ -41,16 +41,16 @@ fn WorkerService::recover_flight_impl(
   if self.require_process().lifecycle() != RootBoundRecovering {
     raise Invalid(Recovery)
   }
-  if self.flight_state == FLIGHT_EMPTY {
-    raise Invalid(Sequence)
-  }
-  let sequence = self.flight_sequence
+  let sequence = self.flight_sequence_value()
   try self.require_process().received_for_sequence(sequence) catch {
     RootBoundFailure(Process(Invalid(Completion))) => ()
     error => raise root_bound_process_error(error)
   } noraise {
     _ => {
-      self.flight_state = FLIGHT_RECEIVED
+      match self.flight {
+        FlightAccepted(_) => ()
+        _ => self.flight = FlightReceived(sequence)
+      }
       try self.commit_received() catch {
         Scheduler(Invalid(issue=Backpressured, ..)) as error => raise error
         _ => {
@@ -74,10 +74,18 @@ fn WorkerService::recover_flight_impl(
           return sequence
         }
       } noraise {
-        committed => {
-          self.lifecycle = ServiceDeviceInvalidationRequired
-          return committed
-        }
+        progress =>
+          match progress {
+            ServiceBackpressured =>
+              raise Scheduler(
+                Invalid(field=OutputCapacity, issue=Backpressured),
+              )
+            ServiceCommitted(committed) => {
+              self.lifecycle = ServiceDeviceInvalidationRequired
+              return committed
+            }
+            _ => abort("recovery completion progress invariant")
+          }
       }
     }
   }

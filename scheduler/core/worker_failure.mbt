@@ -213,7 +213,11 @@ pub fn Scheduler::fail_plan(
       }
     Consumed => raise invalid(Completion, Stale)
   }
-  self.complete(plan, completion)
+  match self.complete(plan, completion) {
+    CompletionCommitted => ()
+    CompletionBackpressured =>
+      raise invalid(TerminalNoticeCapacity, Backpressured)
+  }
 }
 
 ///|

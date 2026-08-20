@@ -25,10 +25,24 @@ presented as the upstream tokenizer file.
 
 Checked-in derivative identities:
 
-| Fixture | SHA-256 |
-| --- | --- |
-| `corpus.json` | `f4ade303b1b7b3264e86caa15b77cdb2805244e1142b9b74225ed3f36438f1d0` |
-| `tokenizer_semantics_probe.json` | `4ac8db0bb211b5bd064b58eaab43a3bd38de593593eceadc7364848fcf4f954f` |
+| Fixture | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `corpus.json` | 1,794 | `f4ade303b1b7b3264e86caa15b77cdb2805244e1142b9b74225ed3f36438f1d0` |
+| `tokenizer_semantics_probe.json` | 796 | `4ac8db0bb211b5bd064b58eaab43a3bd38de593593eceadc7364848fcf4f954f` |
+| `compatible_bytelevel_tokenizer.json` | 48,574 | `82000898a396651e5d3b149c5dec02998427406c78ccdf14084cbf85c63d2686` |
+
+`compatible_bytelevel_tokenizer.json` is a synthetic functional-compatibility
+fixture, not an upstream artifact, not a tokenizer trained for this model, and
+not a SentencePiece approximation. It exists only to exercise LunaFlux's
+supported exact ByteLevel-BPE subset against the model's dense 3,000-row
+vocabulary. It derives the complete byte alphabet and original eight merges
+from the separately pinned compatible tokenizer corpus, assigns `Luna` to model
+token ID 1 through the ranked merges `L u`, `Lu n`, and `Lun a`, preserves `*`
+and `c` as byte IDs 42 and 99, moves raw byte `0x01` to ID 266, and fills IDs
+267 through 2999 with unique unmerged `<lf:NNNN>` marker pieces. Consequently
+the exact functional mapping `Luna*c` to `[1, 42, 99]` reaches the independently
+generated third model case without claiming the upstream tokenizer's
+normalization, BOS-template, unknown-token, or byte-fallback semantics.
 
 ## Independent generation
 
@@ -55,9 +69,9 @@ insertion, byte fallback, unknown-token fusion, and no ByteLevel pre-tokenizer.
 Therefore model cases use explicit token IDs and the tokenizer observations are
 provenance evidence, not a claim that LunaFlux can encode this tokenizer.
 
-The black-box MoonBit test verifies the weight SHA-256 before admission, then
-runs the complete LunaFlux admission, exact binding, host materialization,
-reference execution, sampled-logit comparison, and greedy-generation path.
-Tokenizer compatibility remains explicitly negative rather than being silently
-approximated. Production model-directory I/O and a compatible selected
-ByteLevel tokenizer remain separate Phase 1 work.
+The black-box MoonBit tests verify all artifact digests through the production
+approved-root loader, then run complete LunaFlux admission, exact binding, host
+materialization, text encoding, reference execution, sampled-logit comparison,
+and greedy generation. The upstream tokenizer compatibility result remains
+explicitly negative rather than being silently approximated; the synthetic
+tokenizer proves only the supported functional text-to-token-to-model path.

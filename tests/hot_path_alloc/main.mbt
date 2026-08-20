@@ -260,6 +260,83 @@ fn request() -> @scheduler.TokenizedRequest {
 }
 
 ///|
+fn accept_wire_completion(
+  owner : @scheduler.Scheduler,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+  frame : @worker_wire.ValidatedCompletionFrame,
+) -> @worker_protocol.SubmittedCompletion {
+  try! frame.validate_for(plan)
+  let writer = try! owner.completion_writer(plan)
+  let prefill_count = try! plan.prefill_count()
+  for index in 0..<prefill_count {
+    let row = try! plan.prefill_row(index)
+    let slot = try! row.completion_slot()
+    let entry = try! frame.entry_for_slot(slot.value())
+    match (try! entry.kind()) {
+      PrefillCompletion =>
+        try! writer.append_prefill_completed(
+          slot~,
+          request_id=try! row.request_id(),
+          request_generation=try! row.request_generation(),
+          processed_tokens=try! entry.processed_tokens(),
+        )
+      FinalPrefillCompletion =>
+        try! writer.append_final_prefill_completed(
+          slot~,
+          request_id=try! row.request_id(),
+          request_generation=try! row.request_generation(),
+          processed_tokens=try! entry.processed_tokens(),
+          token_id=try! entry.token_id(),
+        )
+      FailedCompletion =>
+        try! writer.append_failed(
+          slot~,
+          request_id=try! row.request_id(),
+          request_generation=try! row.request_generation(),
+          failure=try! entry.failure(),
+        )
+      DecodeCompletion => alloc_probe_abort()
+    }
+  }
+  let decode_count = try! plan.decode_count()
+  for index in 0..<decode_count {
+    let row = try! plan.decode_row(index)
+    let slot = try! row.completion_slot()
+    let entry = try! frame.entry_for_slot(slot.value())
+    match (try! entry.kind()) {
+      DecodeCompletion =>
+        try! writer.append_decode_completed(
+          slot~,
+          request_id=try! row.request_id(),
+          request_generation=try! row.request_generation(),
+          token_id=try! entry.token_id(),
+        )
+      FailedCompletion =>
+        try! writer.append_failed(
+          slot~,
+          request_id=try! row.request_id(),
+          request_generation=try! row.request_generation(),
+          failure=try! entry.failure(),
+        )
+      PrefillCompletion | FinalPrefillCompletion => alloc_probe_abort()
+    }
+  }
+  try! writer.submit()
+}
+
+///|
+fn commit_or_abort(
+  owner : @scheduler.Scheduler,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+  completion : @worker_protocol.SubmittedCompletion,
+) -> Unit {
+  match (try! owner.complete(plan, completion)) {
+    CompletionCommitted => ()
+    CompletionBackpressured => alloc_probe_abort()
+  }
+}
+
+///|
 fn complete_final_prefill(
   owner : @scheduler.Scheduler,
   audit : WireAudit,
@@ -271,8 +348,8 @@ fn complete_final_prefill(
   try! writer.append_final_prefill_completed(try! worker_plan.prefill_row(0), 2)
   let completion = try! writer.submit()
   let frame = audit_wire_completion(audit, completion)
-  let accepted = try! owner.accept_completion_frame(submitted, frame)
-  try! owner.complete(submitted, accepted)
+  let accepted = accept_wire_completion(owner, submitted, frame)
+  commit_or_abort(owner, submitted, accepted)
 }
 
 ///|
@@ -288,8 +365,8 @@ fn complete_decode(
   try! writer.append_decode_completed(try! worker_plan.decode_row(0), token)
   let completion = try! writer.submit()
   let frame = audit_wire_completion(audit, completion)
-  let accepted = try! owner.accept_completion_frame(submitted, frame)
-  try! owner.complete(submitted, accepted)
+  let accepted = accept_wire_completion(owner, submitted, frame)
+  commit_or_abort(owner, submitted, accepted)
 }
 
 ///|

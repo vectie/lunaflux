@@ -1,12 +1,12 @@
 # Worker scheduling protocol
 
-This package owns LunaFlux's backend- and model-family-neutral immutable
-scheduler/worker message vocabulary. A `SchedulePlan` carries monotonic plan
-and loaded-model identities, request cancellation generations, flattened token
-and generational page tables, exact model-plan capability IDs, row sampling
-parameters, and bounded completion slots. A `CompletionRecord` is accepted only
-when every plan, model, request-generation, row-kind, token-count, and slot
-identity agrees with the submitted plan.
+This package owns LunaFlux's backend- and model-family-neutral scheduler/worker
+message vocabulary. A `SubmittedSchedulePlan` carries monotonic plan and
+loaded-model identities, request cancellation generations, flattened token and
+generational page tables, exact model-plan capability IDs, row sampling
+parameters, and bounded completion slots. A `SubmittedCompletion` is accepted
+only when every plan, model, request-generation, row-kind, token-count, and
+slot identity agrees with the submitted plan.
 
 Prefill completion semantics are explicit. An intermediate prompt chunk only
 reports its exact processed-token count and never samples. The final prompt
@@ -19,17 +19,16 @@ from chunk length.
 
 Plan validation authenticates completed work for resource retirement. Because
 cancellation may advance after submission, publication and KV reuse require a
-second `CompletionEntry::is_current` check against scheduler-owned current
-request state.
+second `SubmittedCompletionEntry::is_current` check against scheduler-owned
+current request state.
 
-The immutable `SchedulePlan` constructor defensively copies caller arrays and
-remains the convenient fixture API. The production foundation is a
-startup-allocated, fixed-capacity `SchedulePlanBuffer`: the scheduler appends
-prefill rows before decode rows, submits one authenticated epoch, retires it
-only after separately authenticating worker completion, then resets it for
-reuse. Opaque submitted and row handles recheck both lifecycle and epoch on
-every access, so an old handle cannot silently read a reused buffer. Exactly
-two buffers is a scheduler overlap invariant, not a protocol global.
+The authoritative plan representation is a startup-allocated, fixed-capacity
+`SchedulePlanBuffer`: the scheduler appends prefill rows before decode rows,
+submits one authenticated epoch, retires it only after separately
+authenticating worker completion, then resets it for reuse. Opaque submitted
+and row handles recheck both lifecycle and epoch on every access, so an old
+handle cannot silently read a reused buffer. Exactly two buffers is a
+scheduler overlap invariant, not a protocol global.
 
 The mutable owner is single-writer and thread-confined. Append copies each
 caller `ArrayView` synchronously; callers must not mutate a source concurrently
@@ -82,12 +81,12 @@ Payload-bearing plans, submitted handles, and completions deliberately do not
 implement `Debug`, so prompt and generated token IDs cannot enter ordinary
 diagnostic formatting. Errors contain only bounded categories and indices.
 
-This does not yet make a production scheduler. The convenience `ArrayView`
-append and immutable `CompletionRecord` APIs still allocate at their callers
-or constructors; production integration must use scalar drafts and reusable
-completion buffers. A transport ring and live worker overlap remain separate
-phase gates. `retire` is an ownership assertion after external completion has
-been authenticated—the protocol cannot observe device progress itself.
+This does not itself make a production scheduler. Convenience `ArrayView`
+append callers may allocate their source arrays; allocation-sensitive
+integration uses scalar drafts and reusable completion buffers. A transport
+ring and live worker overlap remain separate phase gates. `retire` is an
+ownership assertion after external completion has been authenticated—the
+protocol cannot observe device progress itself.
 
 The package imports no API, tokenizer, scheduler-policy, model-family, device,
 kernel implementation, or CUDA package.

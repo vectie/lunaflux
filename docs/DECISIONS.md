@@ -42,15 +42,20 @@ later but is disabled in production.
 
 This makes readiness, latency, attack surface, and reproducibility tractable.
 
-## ADR-0005 — Constrained MoonTile before universal DSL
+## ADR-0005 — Constrained LunaTile before universal DSL
 
 **Status:** accepted
 
 LunaFlux needs tile operations for a finite kernel catalog. It does not need to
 rebuild TileLang or TVM before serving one model.
 
-MoonTile grows only from measured kernel requirements. Vendor GEMM remains
+LunaTile grows only from measured kernel requirements. Vendor GEMM remains
 valid when it is faster or more reliable.
+
+`LunaTile` is a LunaFlux inference component, not part of the MoonBit language
+or runtime. New first-party inference languages, compilers, artifact formats,
+and operator-facing tools use the `Luna` prefix so their ownership is explicit;
+the `Moon` prefix is reserved for the surrounding MoonBit ecosystem.
 
 ## ADR-0006 — One dense decoder family first
 
@@ -84,3 +89,24 @@ without corrupting scheduler memory.
 The initial service has one scheduler process and one worker, not a process per
 subsystem.
 
+## ADR-0009 — Typed offline specialization, not source-driven execution
+
+**Status:** accepted; implementation scheduled for Phase 5
+
+Model-specific kernel specialization is controlled partial evaluation over
+authenticated semantic inputs. A future LunaTile specializer receives typed
+model, layout, execution-profile, target, and kernel-capability evidence and
+may bake stable dimensions, offsets, layouts, tables, and entry points into a
+content-addressed AOT artifact.
+
+Generated C, CUDA, or another target language is an output representation, not
+the type system or an execution authority. It cannot select a model, reinterpret
+storage, acquire a device, or compile because a request arrived. Production
+artifact admission requires the generated module, specialization record,
+launch contract, compiler policy, and runtime capabilities to agree exactly.
+
+Each specialized family requires an independent scalar referee, adversarial
+and real-tensor differential evidence, a dispatch canary, declared numerical
+semantics, logits/token comparison, and an end-to-end benchmark. This prevents
+syntactic code-generation success or an isolated microbenchmark from being
+mistaken for inference correctness or useful speedup.

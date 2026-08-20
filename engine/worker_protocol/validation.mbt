@@ -103,22 +103,6 @@ fn validate_plan_finish(
 }
 
 ///|
-fn validate_submission_identity(
-  sequence : PlanSequence,
-  model_plan_generation : ModelPlanGeneration,
-  previous_sequence : PlanSequence?,
-  loaded_generation : ModelPlanGeneration,
-) -> Unit raise WorkerProtocolError {
-  validate_submission_identity_wire(
-    sequence.value(),
-    model_plan_generation.value(),
-    previous_sequence is Some(_),
-    previous_sequence.map(PlanSequence::value).unwrap_or(0UL),
-    loaded_generation.value(),
-  )
-}
-
-///|
 fn validate_submission_identity_wire(
   sequence_value : UInt64,
   model_plan_generation_value : UInt64,

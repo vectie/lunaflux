@@ -1,44 +1,35 @@
 ///|
-fn OnlineSession::lease_owner(
-  self : OnlineSession,
-) -> @worker_service.OnlineWorkerLease {
-  match self.lease {
-    Some(value) => value
-    None => abort("online session lease invariant")
-  }
-}
-
-///|
-fn OnlineSession::begin_output_failure(
-  self : OnlineSession,
+fn LunaOnlineInstance::begin_output_failure(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
   natural_terminal : Bool,
 ) -> Unit {
-  self.failure_kind = 2
+  self.failure_kind = OutputLatchedFailure
   if natural_terminal {
-    self.terminal_cut = 5
+    self.terminal_cut = NaturalOutputFailureCut
     return
   }
   let committed = try! lease.commit_cancel()
   match committed {
-    OnlineCancelCommitted => self.terminal_cut = 3
+    OnlineCancelCommitted => self.terminal_cut = OutputCancellationCut
     OnlineCancelReservationAbsent => abort("online output cut invariant")
   }
 }
 
 ///|
-fn OnlineSession::decode_token(
-  self : OnlineSession,
+fn LunaOnlineInstance::decode_token(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
   publication : @worker_service.OnlineWorkerPublication,
   natural_terminal : Bool,
 ) -> Unit {
   let token_id = try! publication.token_id()
-  if self.admitted.is_stop_token(token_id) {
+  let admitted = self.admitted_owner()
+  if admitted.is_stop_token(token_id) {
     abort("online natural stop token decode invariant")
   }
   self.output_tokens += 1
-  let step = self.admitted.push_token_into_status(
+  let step = admitted.push_token_into_status(
     token_id,
     self.output,
     destination_offset=0,
@@ -49,11 +40,11 @@ fn OnlineSession::decode_token(
   }
   if step.stop_matched() {
     if natural_terminal {
-      self.string_cut = 2
+      self.string_cut = NaturalStringCut
     } else {
       let committed = try! lease.commit_cancel()
       match committed {
-        OnlineCancelCommitted => self.string_cut = 1
+        OnlineCancelCommitted => self.string_cut = CancelledStringCut
         OnlineCancelReservationAbsent => abort("online string cut invariant")
       }
     }
@@ -69,9 +60,13 @@ fn OnlineSession::decode_token(
       length=step.copied_bytes(),
     ) {
     if step.stop_matched() {
-      self.failure_kind = 2
-      self.terminal_cut = if natural_terminal { 5 } else { 3 }
-      self.string_cut = 0
+      self.failure_kind = OutputLatchedFailure
+      self.terminal_cut = if natural_terminal {
+        NaturalOutputFailureCut
+      } else {
+        OutputCancellationCut
+      }
+      self.string_cut = NoStringCut
     } else {
       self.begin_output_failure(lease, natural_terminal)
     }
@@ -80,27 +75,29 @@ fn OnlineSession::decode_token(
   if !step.stop_matched() && !natural_terminal {
     try! lease.abort_cancel()
   }
-  self.event_kind = 2
+  self.event_kind = TokenEvent
   self.event_ready = true
 }
 
 ///|
-fn OnlineSession::prepare_string_stop_terminal(self : OnlineSession) -> Unit {
-  self.string_cut = 0
-  self.finish_kind = 1
+fn LunaOnlineInstance::prepare_string_stop_terminal(
+  self : LunaOnlineInstance,
+) -> Unit {
+  self.string_cut = NoStringCut
+  self.finish_kind = FinishStopSequence
   self.final_tail_length = 0
   try! self.writer.prepare_usage(
     input_tokens=self.input_tokens,
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  self.event_kind = 3
+  self.event_kind = CompletionUsageEvent
   self.event_ready = true
 }
 
 ///|
-fn OnlineSession::progress_string_cut(
-  self : OnlineSession,
+fn LunaOnlineInstance::progress_string_cut(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
 ) -> Unit {
   if !(try! lease.has_publication()) {
@@ -114,7 +111,7 @@ fn OnlineSession::progress_string_cut(
   match publication.kind() {
     OnlineTerminalPublication => {
       let reason = try! publication.terminal_reason()
-      if self.string_cut == 1 {
+      if self.string_cut == CancelledStringCut {
         if reason != OnlineCancelledByCaller {
           abort("online string cancellation terminal invariant")
         }
@@ -125,7 +122,7 @@ fn OnlineSession::progress_string_cut(
       self.prepare_string_stop_terminal()
     }
     OnlineSuppressedTokenPublication => {
-      if self.string_cut != 1 {
+      if self.string_cut != CancelledStringCut {
         abort("online string suppression invariant")
       }
       self.output_tokens += 1
@@ -136,40 +133,44 @@ fn OnlineSession::progress_string_cut(
 }
 
 ///|
-fn OnlineSession::prepare_natural_terminal(
-  self : OnlineSession,
+fn LunaOnlineInstance::prepare_natural_terminal(
+  self : LunaOnlineInstance,
   reason : @worker_service.OnlineWorkerTerminalReason,
-) -> Unit raise OnlineSessionError {
+) -> Unit raise LunaOnlineInstanceError {
   if reason == OnlineWorkerFailed {
-    self.failure_kind = 3
+    self.failure_kind = WorkerLatchedFailure
+    self.recovery_close = true
     self.final_tail_length = 0
     try! self.writer.prepare_usage(
       input_tokens=self.input_tokens,
       cached_input_tokens=0,
       output_tokens=self.output_tokens,
     )
-    self.event_kind = 5
+    self.event_kind = FailureUsageEvent
     self.event_ready = true
     return
   }
   self.finish_kind = match reason {
-    OnlineStopTokenReached => 1
-    OnlineMaximumOutputReached => 2
+    OnlineStopTokenReached => FinishStopSequence
+    OnlineMaximumOutputReached => FinishTokenLimit
     _ => {
-      self.cleanup_phase = 2
-      raise SessionFailed(ServiceFailure)
+      self.recovery_close = true
+      self.phase = LunaInstanceClosingTerminalPhase
+      raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     }
   }
-  let tail = self.admitted.finish_into_status(self.output, destination_offset=0)
+  let tail = self
+    .admitted_owner()
+    .finish_into_status(self.output, destination_offset=0)
   if !tail.is_ready() {
-    self.failure_kind = 2
+    self.failure_kind = OutputLatchedFailure
     self.final_tail_length = 0
     try! self.writer.prepare_usage(
       input_tokens=self.input_tokens,
       cached_input_tokens=0,
       output_tokens=self.output_tokens,
     )
-    self.event_kind = 5
+    self.event_kind = FailureUsageEvent
     self.event_ready = true
     return
   }
@@ -179,20 +180,20 @@ fn OnlineSession::prepare_natural_terminal(
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  self.event_kind = 3
+  self.event_kind = CompletionUsageEvent
   self.event_ready = true
 }
 
 ///|
-fn OnlineSession::consume_natural_publication(
-  self : OnlineSession,
+fn LunaOnlineInstance::consume_natural_publication(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
-) -> Unit raise OnlineSessionError {
+) -> Unit raise LunaOnlineInstanceError {
   let publication = try! lease.take_publication()
   match publication.kind() {
     OnlineGeneratedTokenPublication => {
       let token_id = try! publication.token_id()
-      if self.admitted.is_stop_token(token_id) {
+      if self.admitted_owner().is_stop_token(token_id) {
         self.output_tokens += 1
         let terminal_available = try! lease.has_publication()
         if !terminal_available {
@@ -220,60 +221,64 @@ fn OnlineSession::consume_natural_publication(
 /// Advances at most one worker transition or publishes one canonical event.
 /// Any pinned event credit rejects before scheduler, decoder, or worker state
 /// can change.
-pub fn OnlineSession::progress(
-  self : OnlineSession,
-) -> OnlineSessionProgress raise OnlineSessionError {
-  if self.event_ready {
-    raise SessionFailed(Invalid(EventCredit))
+pub fn LunaOnlineInstance::progress(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
+  self.require_ticket(ticket)
+  if self.phase != LunaRequestActivePhase {
+    return LunaOnlineInstanceRequestRetirementRequired
   }
-  if self.closed || self.cleanup_phase != 0 || !self.accepted_acked {
-    raise SessionFailed(Invalid(Lifecycle))
+  if self.event_ready {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+  }
+  if !self.accepted_acked {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   self.require_owner()
   let lease = self.lease_owner()
   if self.recovery_close {
-    return OnlineSessionTerminalizationRequired
+    return LunaOnlineInstanceTerminalizationRequired
   }
-  if self.terminal_cut != 0 {
-    if self.terminal_cut == 3 || self.terminal_cut == 4 {
-      return OnlineSessionTerminalizationRequired
+  if self.terminal_cut != NoTerminalCut {
+    match self.terminal_cut {
+      OutputCancellationCut | WorkerFailureCut =>
+        return LunaOnlineInstanceTerminalizationRequired
+      _ => ()
     }
     self.progress_terminal_cut(lease)
     if self.recovery_close {
-      return OnlineSessionTerminalizationRequired
+      return LunaOnlineInstanceTerminalizationRequired
     }
     if self.event_ready {
-      return OnlineSessionEventReady
+      return LunaOnlineInstanceEventReady
     }
-    return OnlineSessionPending
+    return LunaOnlineInstancePending
   }
-  if self.string_cut != 0 {
+  if self.string_cut != NoStringCut {
     self.progress_string_cut(lease)
     if self.recovery_close {
-      return OnlineSessionTerminalizationRequired
+      return LunaOnlineInstanceTerminalizationRequired
     }
     if self.event_ready {
-      return OnlineSessionEventReady
+      return LunaOnlineInstanceEventReady
     }
-    return OnlineSessionPending
+    return LunaOnlineInstancePending
   }
-  if self.deferred_cut != 0 {
-    let deferred = self.deferred_cut
-    if deferred == 1 {
-      self.begin_caller_cut(lease)
-    }
-    self.deferred_cut = 0
-    if self.terminal_cut != 0 {
-      return OnlineSessionPending
+  if self.deferred_cancel {
+    self.begin_caller_cut(lease)
+    self.deferred_cancel = false
+    if self.terminal_cut != NoTerminalCut {
+      return LunaOnlineInstancePending
     }
   }
   if self.enforce_deadline(lease) {
-    return OnlineSessionPending
+    return LunaOnlineInstancePending
   }
   let available = try! lease.has_publication()
   if available {
     let reservation = try lease.reserve_cancel() catch {
-      _ => raise SessionFailed(ServiceFailure)
+      _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     } noraise {
       value => value
     }
@@ -282,7 +287,7 @@ pub fn OnlineSession::progress(
         let publication = lease.take_reserved_token() catch {
           _ => {
             try! lease.abort_cancel()
-            raise SessionFailed(ServiceFailure)
+            raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
           }
         }
         self.decode_token(lease, publication, false)
@@ -290,16 +295,18 @@ pub fn OnlineSession::progress(
       OnlineCancelNaturalTerminal => self.consume_natural_publication(lease)
     }
     if self.event_ready {
-      return OnlineSessionEventReady
+      return LunaOnlineInstanceEventReady
     }
-    if self.terminal_cut == 3 || self.terminal_cut == 4 {
-      return OnlineSessionTerminalizationRequired
+    match self.terminal_cut {
+      OutputCancellationCut | WorkerFailureCut =>
+        return LunaOnlineInstanceTerminalizationRequired
+      _ => ()
     }
-    return OnlineSessionPending
+    return LunaOnlineInstancePending
   }
   let step = try! lease.progress_status()
   if self.latch_worker_step_failure(step) {
-    return OnlineSessionTerminalizationRequired
+    return LunaOnlineInstanceTerminalizationRequired
   }
-  OnlineSessionPending
+  LunaOnlineInstancePending
 }

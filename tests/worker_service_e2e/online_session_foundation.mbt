@@ -136,38 +136,8 @@ fn session_received(
 }
 
 ///|
-fn prepare_foundation_session(
-  executable : Bytes,
-  tokenizer : @tokenizer.TokenizerSpec,
-  received : @request_admission.ReceivedRequest,
-) -> @online_session.OnlineSession raise {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @online_session.prepare_owned_session(
-    received,
-    tokenizer,
-    tokenizer.digest(),
-    identity(),
-    inference_limits(),
-    @framed_wire.FramedWireLimits::new(inference_limits(), max_frame_bytes=4096),
-    scheduler_blueprint(),
-    service_binding(),
-    executable,
-    startup(),
-    bootstrap_source(),
-    process_limits(),
-    model,
-    kernel,
-  )
-  model.close()
-  kernel.close()
-  assert_eq(prepared.state(), OnlineSessionReady)
-  prepared.take_ready()
-}
-
-///|
 fn foundation_event(
-  session : @online_session.OnlineSession,
+  session : FoundationSession,
 ) -> @inference.StreamEvent raise {
   let wire = @framed_wire.FramedWireLimits::new(
     inference_limits(),
@@ -179,15 +149,15 @@ fn foundation_event(
 }
 
 ///|
-fn progress_foundation_to_event(
-  session : @online_session.OnlineSession,
-) -> Unit raise {
+fn progress_foundation_to_event(session : FoundationSession) -> Unit raise {
   let mut attempts = 0
   while !session.has_event() && attempts < 1000000 {
     match session.progress() {
-      OnlineSessionTerminalizationRequired =>
+      LunaOnlineInstanceTerminalizationRequired =>
         ignore(session.progress_terminalization())
-      OnlineSessionPending | OnlineSessionEventReady => ()
+      LunaOnlineInstancePending | LunaOnlineInstanceEventReady => ()
+      LunaOnlineInstanceRequestRetirementRequired =>
+        raise Failure("online request retired before publishing its event")
     }
     attempts += 1
   }
@@ -198,15 +168,17 @@ fn progress_foundation_to_event(
 
 ///|
 fn progress_foundation_to_terminalization(
-  session : @online_session.OnlineSession,
+  session : FoundationSession,
 ) -> Unit raise {
   let mut attempts = 0
   while attempts < 1000000 {
     match session.progress() {
-      OnlineSessionTerminalizationRequired => return
-      OnlineSessionPending => ()
-      OnlineSessionEventReady =>
+      LunaOnlineInstanceTerminalizationRequired => return
+      LunaOnlineInstancePending => ()
+      LunaOnlineInstanceEventReady =>
         raise Failure("online failure unexpectedly published on reactor")
+      LunaOnlineInstanceRequestRetirementRequired =>
+        raise Failure("online failure retired before terminalization")
     }
     attempts += 1
   }
@@ -223,8 +195,7 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   let narrow_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let narrow_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   try
-    @online_session.prepare_owned_session(
-      session_received(Streaming),
+    @online_session.prepare_owned_luna_online_instance(
       tokenizer,
       tokenizer.digest(),
       identity(),
@@ -240,7 +211,8 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
       narrow_kernel,
     )
   catch {
-    @online_session.PreparationFailed(WireFailure) => ()
+    @online_session.LunaOnlineInstancePreparationFailed(LunaOnlineWireFailure) =>
+      ()
     _ => raise Failure("unexpected online wire-capacity preflight error")
   } noraise {
     _ => raise Failure("undersized online event storage reached rooted startup")
@@ -248,18 +220,17 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   narrow_model.close()
   narrow_kernel.close()
 
-  let session = prepare_foundation_session(
-    executable,
-    tokenizer,
-    session_received(Streaming),
-  )
+  let instance = prepare_foundation_instance(executable, tokenizer)
+  let session = begin_foundation_session(instance, session_received(Streaming))
   assert_true(session.has_event())
   match foundation_event(session) {
     Accepted(value) => assert_eq(value.model_identity(), identity())
     _ => raise Failure("online session did not publish Accepted")
   }
   try session.progress() catch {
-    SessionFailed(Invalid(EventCredit)) => ()
+    @online_session.LunaOnlineInstanceFailed(
+      LunaOnlineInvalid(LunaOnlineEventCredit)
+    ) => ()
     _ => raise Failure("unexpected pinned online progress error")
   } noraise {
     _ => raise Failure("pinned Accepted allowed online mutation")
@@ -267,7 +238,9 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   session.ack_event()
   assert_false(session.has_event())
   try session.event_length() catch {
-    SessionFailed(Invalid(EventCredit)) => ()
+    @online_session.LunaOnlineInstanceFailed(
+      LunaOnlineInvalid(LunaOnlineEventCredit)
+    ) => ()
     _ => raise Failure("unexpected stale online event error")
   } noraise {
     _ => raise Failure("stale online event remained usable")
@@ -302,11 +275,10 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
     _ => raise Failure("online maximum path did not publish Completed")
   }
   session.ack_event()
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(session)
 
-  let stopped = prepare_foundation_session(
-    executable,
-    tokenizer,
+  let stopped = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=902UL, stop_token=0),
   )
   stopped.ack_event()
@@ -325,16 +297,22 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
     _ => raise Failure("online stop-token path did not publish Completed")
   }
   stopped.ack_event()
-  assert_eq(stopped.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(stopped)
 
-  let invalid_output = prepare_foundation_session(
-    executable,
-    invalid_output_session_tokenizer(),
+  let invalid_tokenizer = invalid_output_session_tokenizer()
+  let invalid_instance = prepare_foundation_instance(
+    executable, invalid_tokenizer,
+  )
+  let invalid_output = begin_foundation_session(
+    invalid_instance,
     session_received(Streaming, request_id=905UL),
   )
   invalid_output.ack_event()
   progress_foundation_to_terminalization(invalid_output)
-  assert_eq(invalid_output.progress(), OnlineSessionTerminalizationRequired)
+  assert_eq(
+    invalid_output.progress(),
+    LunaOnlineInstanceTerminalizationRequired,
+  )
   progress_foundation_to_event(invalid_output)
   match foundation_event(invalid_output) {
     Usage(value) => assert_eq(value.output_tokens(), 1)
@@ -351,17 +329,25 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
     _ => raise Failure("invalid output did not publish canonical Failed")
   }
   invalid_output.ack_event()
-  assert_eq(invalid_output.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(invalid_output)
 
-  let aborting = prepare_foundation_session(
-    executable,
-    tokenizer,
+  let invalid_reuse = begin_foundation_session(
+    invalid_instance,
+    session_received(Streaming, request_id=915UL),
+  )
+  invalid_reuse.ack_event()
+  invalid_reuse.begin_abort()
+  progress_foundation_to_idle(invalid_reuse)
+  drain_foundation_instance(invalid_instance)
+
+  let aborting = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=903UL),
   )
   aborting.ack_event()
   aborting.begin_abort()
-  assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupPending)
-  assert_eq(aborting.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(aborting)
+  drain_foundation_instance(instance)
 
   let string_zero_tokenizer = string_session_tokenizer(b"x", "1".repeat(64))
   let string_zero_received = session_received(

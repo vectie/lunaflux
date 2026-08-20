@@ -12,15 +12,18 @@ scripts/validate-hot-path-allocations.sh
 scripts/validate-worker-process-exchange-allocations.sh
 
 generated_c="_build/native/release/build/tests/worker_service_e2e/worker_service_e2e.c"
+collection_allocation_pattern='moonbit_make_.*array|moonbit_make_bytes|moonbit_make_ref|moonbit_add_string|Bytes4make\(|FixedArray4make\('
+strict_allocation_pattern="moonbit_malloc|${collection_allocation_pattern}"
 if [ ! -f "$generated_c" ]; then
   printf '%s\n' 'worker-service release C output is missing' >&2
   exit 1
 fi
 
 extract_definition() {
-  local pattern="$1"
+  local source_file="$1"
+  local pattern="$2"
   awk -v pattern="$pattern" '
-    index($0, pattern) > 0 && $0 ~ /^struct moonbit_result_/ {
+    index($0, pattern) > 0 && $0 ~ /^[A-Za-z_]/ {
       candidate = 1; body = $0 ORS; next
     }
     candidate {
@@ -36,14 +39,21 @@ extract_definition() {
       depth += opens - closes
       if (depth == 0) exit
     }
-  ' "$generated_c"
+  ' "$source_file"
 }
 
 hot_body=""
 for symbol in \
   'WorkerService8progress(' \
-  'WorkerService16commit__received('; do
-  body="$(extract_definition "$symbol")"
+  'WorkerService16commit__received(' \
+  'worker__service18bridge__completion(' \
+  'worker__service27submit__bridge__after__open(' \
+  'worker__service23append__bridge__prefill(' \
+  'worker__service22append__bridge__decode(' \
+  'Scheduler19complete__submitted(' \
+  'Scheduler8complete(' \
+  'Scheduler21preflight__completion('; do
+  body="$(extract_definition "$generated_c" "$symbol")"
   if [ -z "$body" ]; then
     printf 'worker-service allocation function is missing: %s\n' "$symbol" >&2
     exit 1
@@ -52,7 +62,7 @@ for symbol in \
 done
 
 if printf '%s\n' "$hot_body" |
-  rg -q 'moonbit_make_.*array|moonbit_make_bytes|moonbit_make_ref|moonbit_add_string'; then
+  rg -q "$collection_allocation_pattern"; then
   printf '%s\n' 'worker-service progress constructs a collection, ref, or string' >&2
   exit 1
 fi
@@ -63,9 +73,28 @@ if printf '%s\n' "$hot_body" |
   exit 1
 fi
 
-if ! rg -q 'Bytes4make\(17, 81\)' \
-  _build/native/release/test/engine/worker_service/worker_service.whitebox_test.c; then
+whitebox_c="_build/native/release/test/engine/worker_service/worker_service.whitebox_test.c"
+positive_body="$(extract_definition \
+  "$whitebox_c" \
+  'owned__preparation__allocation__positive__control(')"
+if [ -z "$positive_body" ] || ! printf '%s\n' "$positive_body" |
+  rg -q "$strict_allocation_pattern"; then
   printf '%s\n' 'worker-service allocation positive control is ineffective' >&2
+  exit 1
+fi
+
+# The scalar capacity branch is the strict proof point for backpressure: unlike
+# semantic error paths above, no constructor name is exempted from this check.
+capacity_body="$(extract_definition \
+  "$generated_c" \
+  'Scheduler28completion__capacity__commit(')"
+if [ -z "$capacity_body" ]; then
+  printf '%s\n' 'scheduler scalar completion-capacity function is missing' >&2
+  exit 1
+fi
+if printf '%s\n' "$capacity_body" |
+  rg -q "$strict_allocation_pattern"; then
+  printf '%s\n' 'scheduler scalar completion backpressure branch allocates' >&2
   exit 1
 fi
 

@@ -52,6 +52,91 @@ fn inject_exchange_completion(
 }
 
 ///|
+priv enum RootBoundSnapshotAttack {
+  Sequence
+  ModelGeneration
+  CompletionSlot
+  RequestId
+  RequestGeneration
+  CompletionKind
+  ProcessedCount
+}
+
+///|
+fn hostile_write_u32(
+  bytes : FixedArray[Byte],
+  offset : Int,
+  value : UInt,
+) -> Unit {
+  bytes.unsafe_write_uint32_le(offset, value)
+}
+
+///|
+fn hostile_write_u64(
+  bytes : FixedArray[Byte],
+  offset : Int,
+  value : UInt64,
+) -> Unit {
+  bytes.unsafe_write_uint64_le(offset, value)
+}
+
+///|
+fn hostile_refresh_checksum(bytes : FixedArray[Byte], length : Int) -> Unit {
+  let mut checksum = 2166136261U
+  for index in 0..<length {
+    if index < 40 || index >= 44 {
+      checksum = (checksum ^ bytes[index].to_uint()) * 16777619U
+    }
+  }
+  hostile_write_u32(bytes, 40, checksum)
+}
+
+///|
+fn apply_root_bound_snapshot_attack(
+  bytes : FixedArray[Byte],
+  length : Int,
+  attack : RootBoundSnapshotAttack,
+) -> Unit {
+  let entry = 48
+  match attack {
+    Sequence => hostile_write_u64(bytes, 16, 2UL)
+    ModelGeneration => hostile_write_u64(bytes, 24, 2UL)
+    CompletionSlot => hostile_write_u32(bytes, entry, 0U)
+    RequestId => hostile_write_u64(bytes, entry + 8, 9UL)
+    RequestGeneration => hostile_write_u64(bytes, entry + 16, 1UL)
+    CompletionKind => {
+      hostile_write_u32(bytes, entry + 4, 2U)
+      hostile_write_u32(bytes, entry + 24, 0U)
+    }
+    ProcessedCount => hostile_write_u32(bytes, entry + 24, 1U)
+  }
+  hostile_refresh_checksum(bytes, length)
+}
+
+///|
+fn expect_root_bound_snapshot_reject(
+  attack : RootBoundSnapshotAttack,
+  expected_rule : @worker_wire.WorkerWireFrameRule,
+) -> Unit raise {
+  let owner = test_root_bound_supervisor()
+  let plan = supervisor_plan(1UL, completion_slot=1)
+  assert_eq(owner.begin_exchange(plan), 1UL)
+  let length = encoded_completion(plan, owner.process.rx)
+  apply_root_bound_snapshot_attack(owner.process.rx, length, attack)
+  try
+    owner.process.accept_exchange_completion_bytes(owner.exchange_side, length)
+  catch {
+    Wire(InvalidFrame(rule)) => assert_eq(rule, expected_rule)
+    _ => fail("unexpected root-bound snapshot rejection")
+  } noraise {
+    _ => fail("hostile completion snapshot was accepted")
+  }
+  assert_eq(owner.process.outstanding_count(), 1)
+  assert_eq(owner.submission_for_sequence(1UL).sequence_value(), 1UL)
+  owner.close()
+}
+
+///|
 test "exchange accepts an exact completion at a noncontiguous slot" {
   let owner = test_root_bound_supervisor()
   let plan = supervisor_plan(1UL, completion_slot=1)
@@ -65,31 +150,14 @@ test "exchange accepts an exact completion at a noncontiguous slot" {
 }
 
 ///|
-test "exchange rejects wrong completion sequence and model generation" {
-  let wrong_sequence = test_root_bound_supervisor()
-  ignore(wrong_sequence.begin_exchange(supervisor_plan(1UL)))
-  try inject_exchange_completion(wrong_sequence, supervisor_plan(2UL)) catch {
-    Wire(InvalidFrame(CompletionEntry)) => ()
-    _ => fail("unexpected wrong-sequence validation failure")
-  } noraise {
-    _ => fail("wrong completion sequence was accepted")
-  }
-  wrong_sequence.close()
-
-  let wrong_generation = test_root_bound_supervisor()
-  ignore(wrong_generation.begin_exchange(supervisor_plan(1UL)))
-  try
-    inject_exchange_completion(
-      wrong_generation,
-      supervisor_plan(1UL, generation=2UL),
-    )
-  catch {
-    Wire(InvalidFrame(CompletionEntry)) => ()
-    _ => fail("unexpected wrong-generation validation failure")
-  } noraise {
-    _ => fail("wrong completion generation was accepted")
-  }
-  wrong_generation.close()
+test "exchange snapshot rejects every exact-plan authority mismatch" {
+  expect_root_bound_snapshot_reject(Sequence, CompletionEntry)
+  expect_root_bound_snapshot_reject(ModelGeneration, CompletionEntry)
+  expect_root_bound_snapshot_reject(CompletionSlot, CompletionSlot)
+  expect_root_bound_snapshot_reject(RequestId, CompletionEntry)
+  expect_root_bound_snapshot_reject(RequestGeneration, CompletionEntry)
+  expect_root_bound_snapshot_reject(CompletionKind, CompletionEntry)
+  expect_root_bound_snapshot_reject(ProcessedCount, CompletionEntry)
 }
 
 ///|

@@ -1,6 +1,6 @@
 ///|
 fn assert_cancel_bundle(
-  session : @online_session.OnlineSession,
+  session : FoundationSession,
   expected_output_tokens : Int,
 ) -> Unit raise {
   progress_foundation_to_event(session)
@@ -20,7 +20,7 @@ fn assert_cancel_bundle(
     _ => raise Failure("caller cancellation did not publish Completed")
   }
   session.ack_event()
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(session)
 }
 
 ///|
@@ -35,31 +35,30 @@ fn wait_past_online_deadline() -> Unit raise {
 
 ///|
 fn assert_deadline_abort(
-  executable : Bytes,
+  instance : @online_session.LunaOnlineInstance,
   request_id : UInt64,
   at_failed : Bool,
 ) -> Unit raise {
-  let session = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let session = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id~),
   )
   session.ack_event()
-  assert_eq(session.progress(), OnlineSessionPending)
+  assert_eq(session.progress(), LunaOnlineInstancePending)
   wait_past_online_deadline()
   progress_foundation_to_event(session)
   if at_failed {
     session.ack_event()
   }
   session.begin_abort()
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(session)
 }
 
 ///|
 fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
-  let accepted_cancel = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let instance = prepare_foundation_instance(executable, session_tokenizer())
+  let accepted_cancel = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=920UL),
   )
   accepted_cancel.request_cancel()
@@ -70,18 +69,16 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   accepted_cancel.request_cancel()
   assert_cancel_bundle(accepted_cancel, 0)
 
-  let live_cancel = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let live_cancel = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=927UL),
   )
   live_cancel.ack_event()
   live_cancel.request_cancel()
   assert_cancel_bundle(live_cancel, 0)
 
-  let token_cancel = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let token_cancel = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=921UL),
   )
   token_cancel.ack_event()
@@ -95,24 +92,22 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   token_cancel.ack_event()
   assert_cancel_bundle(token_cancel, 1)
 
-  let flight_cancel = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let flight_cancel = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=926UL),
   )
   flight_cancel.ack_event()
-  assert_eq(flight_cancel.progress(), OnlineSessionPending)
+  assert_eq(flight_cancel.progress(), LunaOnlineInstancePending)
   flight_cancel.request_cancel()
   assert_cancel_bundle(flight_cancel, 0)
 
-  let expired = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let expired = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=922UL),
   )
   expired.check_deadline()
   expired.ack_event()
-  assert_eq(expired.progress(), OnlineSessionPending)
+  assert_eq(expired.progress(), LunaOnlineInstancePending)
   wait_past_online_deadline()
   progress_foundation_to_event(expired)
   match foundation_event(expired) {
@@ -130,13 +125,12 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
     _ => raise Failure("deadline did not publish canonical Failed")
   }
   expired.ack_event()
-  assert_eq(expired.progress_cleanup(), OnlineSessionCleanupClosed)
-  assert_deadline_abort(executable, 924UL, false)
-  assert_deadline_abort(executable, 925UL, true)
+  progress_foundation_to_idle(expired)
+  assert_deadline_abort(instance, 924UL, false)
+  assert_deadline_abort(instance, 925UL, true)
 
-  let overdue_cancel = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let overdue_cancel = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=928UL),
   )
   overdue_cancel.ack_event()
@@ -153,11 +147,10 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
     _ => raise Failure("overdue cancellation did not retain deadline Failed")
   }
   overdue_cancel.ack_event()
-  assert_eq(overdue_cancel.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(overdue_cancel)
 
-  let natural = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let natural = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=923UL, max_new_tokens=1),
   )
   natural.ack_event()
@@ -181,5 +174,6 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
     _ => raise Failure("natural terminal did not beat late controls")
   }
   natural.ack_event()
-  assert_eq(natural.progress_cleanup(), OnlineSessionCleanupClosed)
+  progress_foundation_to_idle(natural)
+  drain_foundation_instance(instance)
 }

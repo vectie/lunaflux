@@ -39,8 +39,8 @@ fn corpus_spec() -> @tokenizer.TokenizerSpec raise @tokenizer.TokenizerError {
   vocabulary.push({ token_id: 259, piece: b"hello", kind: Normal })
   vocabulary.push({ token_id: 260, piece: b"ab", kind: Normal })
   vocabulary.push({ token_id: 261, piece: b"bc", kind: Normal })
-  vocabulary.push({ token_id: 1_000, piece: b"<e", kind: Special })
-  vocabulary.push({ token_id: 1_001, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 262, piece: b"<e", kind: Special })
+  vocabulary.push({ token_id: 263, piece: b"<eos>", kind: Special })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
     [
@@ -160,7 +160,7 @@ test "special token policy is explicit and longest-match" {
     output_limit=16,
     truncation=RejectOverflow,
   )
-  debug_inspect(allowed.token_ids, content="[259, 1001, 1000]")
+  debug_inspect(allowed.token_ids, content="[259, 263, 262]")
   inspect(
     spec.decode_text(allowed.token_ids, special_policy=Skip),
     content="hello",
@@ -180,7 +180,7 @@ test "special token policy is explicit and longest-match" {
       truncation=RejectOverflow,
     )
   catch {
-    SpecialTokenRejected(token_id=1_001) => ()
+    SpecialTokenRejected(token_id=263) => ()
     _ => fail("unexpected special-token rejection")
   } noraise {
     _ => fail("expected special token rejection")
@@ -233,10 +233,10 @@ test "single-piece decode copies into fixed caller storage transactionally" {
 test "single-piece decode handles special policy and invalid inputs" {
   let spec = corpus_spec()
   let destination = FixedArray::make(6, b'.')
-  assert_eq(spec.decoded_piece_bytes(1_001, special_policy=Skip), 0)
+  assert_eq(spec.decoded_piece_bytes(263, special_policy=Skip), 0)
   assert_eq(
     spec.copy_decoded_piece(
-      1_001,
+      263,
       destination,
       destination_offset=6,
       special_policy=Skip,
@@ -245,7 +245,7 @@ test "single-piece decode handles special policy and invalid inputs" {
   )
   try
     spec.copy_decoded_piece(
-      1_001,
+      263,
       destination,
       destination_offset=-1,
       special_policy=Skip,
@@ -328,6 +328,20 @@ test "invalid digest and incomplete byte vocabulary fail closed" {
     _ => fail("unexpected incomplete-vocabulary error")
   } noraise {
     _ => fail("expected incomplete byte vocabulary rejection")
+  }
+}
+
+///|
+test "token IDs must be dense within the vocabulary range" {
+  let sparse = base_vocabulary()
+  sparse.push({ token_id: 300, piece: b"ab", kind: Normal })
+  try
+    @tokenizer.TokenizerSpec::new(sparse, [], test_digest(), test_limits())
+  catch {
+    InvalidTokenId(entry_index=256) => ()
+    _ => fail("unexpected sparse token-ID error")
+  } noraise {
+    _ => fail("sparse token IDs were admitted")
   }
 }
 

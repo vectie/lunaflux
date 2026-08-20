@@ -39,6 +39,15 @@ pub(all) suberror WorkerProcessError {
 } derive(Debug, Eq)
 
 ///|
+#valtype
+priv enum ExpectedCompletionKind {
+  ExpectedEmpty
+  ExpectedPrefill
+  ExpectedFinalPrefill
+  ExpectedDecode
+} derive(Eq)
+
+///|
 /// Public limits owned by the supervisor boundary, not its native ABI. Startup
 /// I/O has a separate per-prefix/per-payload timeout from steady plan traffic.
 pub struct WorkerProcessLimits {
@@ -65,7 +74,7 @@ pub struct WorkerProcessSupervisor {
   priv rx_staging : FixedArray[Byte]
   priv exchange_request_ids : FixedArray[UInt64]
   priv exchange_request_generations : FixedArray[UInt64]
-  priv exchange_expected_kinds : FixedArray[Int]
+  priv exchange_expected_kinds : FixedArray[ExpectedCompletionKind]
   priv exchange_processed_tokens : FixedArray[Int]
   priv exchange_slots : FixedArray[Int]
   priv mut exchange_entry_count : Int

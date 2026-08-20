@@ -1,41 +1,36 @@
 ///|
-const FLIGHT_EMPTY : Int = 0
+/// Exact owner-resident lifecycle for one physical worker exchange. Once a
+/// completion is accepted, the scheduler exclusively owns its submitted epoch.
+#valtype
+priv enum WorkerFlightState {
+  FlightEmpty
+  FlightPlanned(UInt64)
+  FlightSubmitted(UInt64)
+  FlightReceived(UInt64)
+  FlightAccepted(UInt64)
+}
 
 ///|
-const FLIGHT_PLANNED : Int = 1
+/// Permanent ownership family selected for one worker-service owner.
+#valtype
+priv enum WorkerServiceOwnership {
+  FixtureRawOwnership
+  OnlineEligibleOwnership
+  OnlineRetiredOwnership
+  OnlineActiveOwnership
+} derive(Eq)
 
 ///|
-const FLIGHT_SUBMITTED : Int = 2
-
-///|
-const FLIGHT_RECEIVED : Int = 3
-
-///|
-const SERVICE_MODE_FIXTURE_RAW : Int = 0
-
-///|
-const SERVICE_MODE_ONLINE_ELIGIBLE : Int = 1
-
-///|
-const SERVICE_MODE_ONLINE_RETIRED : Int = 2
-
-///|
-const SERVICE_MODE_ONLINE_ACTIVE : Int = 3
-
-///|
-const ONLINE_REQUEST_EMPTY : Int = 0
-
-///|
-const ONLINE_REQUEST_LIVE : Int = 1
-
-///|
-const ONLINE_REQUEST_TERMINATION_PENDING : Int = 2
-
-///|
-const ONLINE_REQUEST_TERMINAL : Int = 3
-
-///|
-const ONLINE_REQUEST_RETIRED : Int = 4
+/// Request-local lifecycle retained by an authenticated online lease. A
+/// terminal request may return to Empty without releasing the instance owner.
+#valtype
+priv enum OnlineRequestPhase {
+  OnlineRequestEmpty
+  OnlineRequestLive
+  OnlineRequestTerminationPending
+  OnlineRequestTerminal
+  OnlineRequestRetired
+} derive(Eq)
 
 ///|
 pub(all) enum WorkerServiceLifecycle {
@@ -64,6 +59,7 @@ pub(all) enum WorkerServiceRule {
   Recovery
   OwnershipMode
   Clock
+  WorkerOutput
 } derive(Debug, Eq)
 
 ///|
@@ -168,11 +164,10 @@ pub struct WorkerService {
   priv scheduler : @core.Scheduler
   priv binding : WorkerServiceBinding
   priv mut process : @worker_process.RootBoundWorkerProcessSupervisor?
-  priv mut flight_state : Int
-  priv mut flight_sequence : UInt64
+  priv mut flight : WorkerFlightState
   priv mut lifecycle : WorkerServiceLifecycle
   priv production_owned : Bool
-  priv mut ownership_mode : Int
+  priv mut ownership_mode : WorkerServiceOwnership
   priv mut online_epoch : UInt64
   priv mut online_publication_cursor : UInt64
 }
@@ -185,7 +180,7 @@ pub struct OnlineWorkerLease {
   priv service : WorkerService
   priv mut epoch : UInt64
   priv mut clock : @monotonic_clock.MonotonicClock
-  priv mut request_phase : Int
+  priv mut request_phase : OnlineRequestPhase
   priv mut prepared_admission : @core.PreparedExclusiveAdmission?
   priv prepared_clock_read : @monotonic_clock.PreparedMonotonicRead
   priv mut handle : @core.RequestHandle?

@@ -40,21 +40,12 @@ fn assert_execute_failure(
   let closes = fake_resource_close_count()
   fake_set_fault(fault_mode)
   try owner.execute_frame(cycle.frame, writer) catch {
-    @device_worker.Executor(
-      @device_step.ExecutorLaunchFailed(
-        _,
-        @device.DriverFailure(@device.AotKernelLaunch)
-      )
-    ) if fault_mode == 1 => ()
-    @device_worker.Executor(
-      @device_step.ExecutorDevice(
-        @device_step.ActivationReadback,
-        @device.DriverFailure(@device.CopyToHost)
-      )
-    ) if fault_mode == 2 => ()
-    @device_worker.Executor(
-      @device_step.ExecutorSampling(@sampling.NonFiniteLogit(row=0, token_id=0))
-    ) if fault_mode == 3 => ()
+    Executor(ExecutorLaunchFailed(_, DriverFailure(AotKernelLaunch))) if fault_mode ==
+      1 => ()
+    Executor(ExecutorDevice(ActivationReadback, DriverFailure(CopyToHost))) if fault_mode ==
+      2 => ()
+    Executor(ExecutorSampling(NonFiniteLogit(row=0, token_id=0))) if fault_mode ==
+      3 => ()
     _ => alloc_probe_abort()
   } noraise {
     _ => alloc_probe_abort()

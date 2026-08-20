@@ -1,42 +1,37 @@
 ///|
-fn preparation_failure(
-  failure : OnlineSessionFailure,
-) -> OnlineSessionPreparationError {
-  PreparationFailed(failure)
+fn luna_preparation_failure(
+  failure : LunaOnlineInstanceFailure,
+) -> LunaOnlineInstancePreparationError {
+  LunaOnlineInstancePreparationFailed(failure)
 }
 
 ///|
-fn publish_online_session(
-  prepared : OnlineSessionPreparation,
-  session : OnlineSession,
-) -> OnlineSessionPreparation {
-  prepared.session = Some(session)
-  prepared.state = OnlineSessionReady
+fn publish_luna_instance(
+  prepared : LunaOnlineInstancePreparation,
+  instance : LunaOnlineInstance,
+) -> LunaOnlineInstancePreparation {
+  prepared.instance = Some(instance)
+  prepared.state = LunaOnlineInstanceReady
   prepared
 }
 
 ///|
-fn publish_online_cleanup(
-  prepared : OnlineSessionPreparation,
-  lease : @worker_service.OnlineWorkerLease?,
-  service_cleanup : @worker_service.FailedOwnedWorkerServicePreparation?,
-) -> OnlineSessionPreparation {
-  prepared.session = None
-  prepared.cleanup.lease = lease
-  prepared.cleanup.service_cleanup = service_cleanup
-  if service_cleanup is Some(_) {
-    prepared.cleanup.cause_kind = 2
-  }
-  prepared.state = OnlineSessionCleanupRequired
+fn publish_luna_cleanup(
+  prepared : LunaOnlineInstancePreparation,
+  service_cleanup : @worker_service.FailedOwnedWorkerServicePreparation,
+) -> LunaOnlineInstancePreparation {
+  prepared.instance = None
+  prepared.cleanup.service_cleanup = Some(service_cleanup)
+  prepared.cleanup.cause_kind = PreparationServiceCleanupFailure
+  prepared.state = LunaOnlineInstanceCleanupRequired
   prepared
 }
 
 ///|
-/// Constructs one alias-free, single-request online session. Receipt parsing,
-/// tokenization, output ownership, event storage, scheduler, and rooted worker
-/// ownership remain inside the returned one-shot preparation.
-pub fn prepare_owned_session(
-  received : @request_admission.ReceivedRequest,
+/// Constructs one persistent, alias-free online instance. Tokenizer bindings,
+/// event storage, scheduler, rooted worker, and the online lease are created
+/// once; individual requests enter later through `LunaOnlineInstance::begin`.
+pub fn prepare_owned_luna_online_instance(
   tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
@@ -50,89 +45,77 @@ pub fn prepare_owned_session(
   process_limits : @worker_process.WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
-) -> OnlineSessionPreparation raise OnlineSessionPreparationError {
+) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
   if wire_limits.inference_limits() != inference ||
     binding.inference_limits() != inference {
-    raise preparation_failure(Invalid(InferenceEnvelope))
+    raise luna_preparation_failure(
+      LunaOnlineInvalid(LunaOnlineInferenceEnvelope),
+    )
   }
   if expected_model != blueprint.model_identity() {
-    raise preparation_failure(Invalid(ModelIdentity))
+    raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineModelIdentity))
+  }
+  if tokenizer.digest() != expected_tokenizer {
+    raise luna_preparation_failure(LunaOnlineAdmissionFailure)
   }
   let writer = @framed_wire.CanonicalEventWriter::new(wire_limits)
   writer.preflight_online_capacity(inference.max_decoded_delta_bytes()) catch {
-    _ => raise preparation_failure(WireFailure)
+    _ => raise luna_preparation_failure(LunaOnlineWireFailure)
   }
   let clock = @monotonic_clock.MonotonicClock::system()
-  let admitted = @request_admission.admit(
-    received, tokenizer, expected_tokenizer, expected_model, inference, clock,
-  ) catch {
-    _ => raise preparation_failure(AdmissionFailure)
-  }
-  let request = admitted.scheduler_request()
-  if request.stream_preference() != Streaming {
-    raise preparation_failure(Invalid(Streaming))
-  }
-  writer.prepare_accepted(request.model_identity(), request.effective_limits()) catch {
-    _ => raise preparation_failure(WireFailure)
-  }
-  let session : OnlineSession = {
-    admitted,
+  let instance : LunaOnlineInstance = {
+    tokenizer,
+    expected_tokenizer,
+    expected_model,
+    inference,
+    wire_limits,
+    clock,
+    admitted: None,
     lease: None,
     writer,
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),
-    input_tokens: admitted.input_token_count(),
-    max_new_tokens: request.effective_limits().max_new_tokens(),
-    event_ready: true,
-    event_kind: 1,
+    input_tokens: 0,
+    request_epoch: 0UL,
+    event_ready: false,
+    event_kind: NoSessionEvent,
     accepted_acked: false,
     output_tokens: 0,
     final_tail_length: 0,
-    finish_kind: 0,
-    string_cut: 0,
-    terminal_cut: 0,
-    deferred_cut: 0,
+    finish_kind: FinishPending,
+    string_cut: NoStringCut,
+    terminal_cut: NoTerminalCut,
+    deferred_cancel: false,
     deadline_code: deadline_failure_code(),
     output_code: output_failure_code(),
     worker_code: worker_failure_code(),
-    failure_kind: 0,
-    cleanup_phase: 0,
+    failure_kind: NoLatchedFailure,
+    phase: LunaInstanceIdlePhase,
+    drain_requested: false,
     recovery_close: false,
-    closed: false,
   }
-  let failed : FailedOnlineSessionPreparation = {
-    lease: None,
+  let failed : FailedLunaOnlineInstancePreparation = {
     service_cleanup: None,
-    cause_kind: 0,
+    cause_kind: PreparationOwnershipFailure,
     closed: false,
   }
-  let prepared : OnlineSessionPreparation = {
-    session: Some(session),
+  let prepared : LunaOnlineInstancePreparation = {
+    instance: Some(instance),
     cleanup: failed,
-    state: OnlineSessionCleanupRequired,
+    state: LunaOnlineInstanceCleanupRequired,
     consumed: false,
   }
-  let owned = @worker_service.prepare_owned_online(
+  let owned = @worker_service.prepare_owned(
     blueprint, binding, executable, startup, source, process_limits, model_root,
-    kernel_root, request, clock,
+    kernel_root,
   ) catch {
-    _ => raise preparation_failure(ServicePreparationFailure)
+    _ => raise luna_preparation_failure(LunaOnlineServicePreparationFailure)
   }
   match owned.state() {
-    OwnedServiceCleanupRequired => {
-      let cleanup = try! owned.take_cleanup()
-      publish_online_cleanup(prepared, None, Some(cleanup))
-    }
+    OwnedServiceCleanupRequired =>
+      publish_luna_cleanup(prepared, try! owned.take_cleanup())
     OwnedServiceReady => {
-      let lease = try! owned.take_prepared_online()
-      session.lease = Some(lease)
-      match lease.commit_prepared_admission() {
-        OnlineAdmissionCommitted => ()
-        OnlineAdmissionClockFailed | OnlineAdmissionExpired => {
-          failed.cause_kind = 3
-          return publish_online_cleanup(prepared, Some(lease), None)
-        }
-      }
-      publish_online_session(prepared, session)
+      instance.lease = Some(try! owned.take_online(clock))
+      publish_luna_instance(prepared, instance)
     }
   }
 }

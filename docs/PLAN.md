@@ -163,8 +163,13 @@ activation/workspace plans, stateless execution profiles, AOT family/entry
 launch contracts, digest-verified artifact admission, and the private
 module/function launch seam are implemented foundations. Offline reference
 admission is now synchronous and capability-relative: three immutable snapshots
-close before publication under one caller-owned approved root. These
-foundations do not promote
+close before publication under one caller-owned approved root. A pinned
+synthetic ByteLevel-BPE compatibility artifact now composes supported text
+encoding with the selected model's independently recorded logits and tokens.
+`lunaflux plan` authenticates bounded configuration and explains the derived
+semantic plan, required capabilities, and KV capacity, while deliberately
+leaving weight identity and kernel-manifest resolution open. These foundations
+do not promote
 Phase 1 without physical-CUDA numerical, ownership, sanitizer/leak, soak,
 benchmark, and resource-balance evidence. See
 [STATUS.md](STATUS.md) for the current boundary.
@@ -173,8 +178,9 @@ benchmark, and resource-balance evidence. See
 
 ### Outcome
 
-The reference engine becomes a bounded, cancellable single-request service with
-a native protocol and compatibility adapter.
+The reference engine becomes a bounded, cancellable,
+one-active-request-at-a-time service with a native protocol and compatibility
+adapter.
 
 ### Deliverables
 
@@ -371,9 +377,14 @@ handshake I/O, exact Ready comparison, scalar cleanup, and owner publication
 allocate no managed objects while rooted child authority is live. A restricted
 epoch-authenticated online worker lease now enforces the permanent ownership
 family, exact generation/position/publication order, monotonic time, recovery,
-and close prerequisites. The alias-free online-session foundation now owns
-receipt admission, tokenizer output, the production-owned service, a canonical
-one-credit Accepted frame, and an off-reactor exact abort/recovery/close path.
+and close prerequisites. The alias-free `LunaOnlineInstance` now prepares the
+production-owned service once, admits sequential healthy requests under fresh
+opaque tickets, owns receipt admission and tokenizer output, and publishes a
+canonical one-credit Accepted frame. Final acknowledgement and exact lower
+retirement return only healthy request-local state to Idle while preserving the
+worker, lease epoch, scheduler history, and plan predecessor. Worker/device
+failure stays close-only, and explicit instance drain owns the healthy
+off-reactor shutdown path.
 Steady allocation-free token stepping, physical stop-token suppression, and
 natural Maximum/StopToken Usage+Completed-v2 publication are now present.
 Incremental string-stop matching now performs an exact cancellation cut (or
@@ -385,8 +396,9 @@ after natural-terminal preflight. Decoder/output rejection and worker/device
 loss now terminalize through exact authenticated drains to Usage plus fixed
 payload-safe Failed(output_invalid) or Failed(worker_unavailable). Normal
 progress only latches that state; explicit off-reactor terminalization owns
-recovery/reap and preserves the first failure cause across retry. Ingress
-transport remains future work.
+recovery/reap and preserves the first failure cause across retry. The
+same-child two-request gate authenticates monotonic plan history and request
+position reset without respawning. Ingress transport remains future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected
@@ -498,7 +510,7 @@ benchmark evidence remain open.
 - prefix-cold regression remains within the declared budget;
 - the radix package imports no device implementation.
 
-## Phase 5 — Graph capture and MoonTile kernel program
+## Phase 5 — Graph capture and LunaTile kernel program
 
 ### Outcome
 
@@ -517,10 +529,12 @@ Define a signed/versioned manifest entry containing:
 - workspace requirement;
 - graph-capture safety;
 - artifact digest;
+- specialization-record digest and every baked semantic input identity;
 - compiler/toolchain identity;
+- declared floating-point equality or tolerance policy;
 - correctness and benchmark evidence reference.
 
-### Workstream 2: MoonTile IR
+### Workstream 2: LunaTile IR
 
 Implement the smallest IR needed for selected kernels:
 
@@ -535,7 +549,32 @@ Implement the smallest IR needed for selected kernels:
 Add validation, canonicalization, memory planning, vectorization, pipelining,
 CUDA lowering, and deterministic serialization.
 
-### Workstream 3: initial custom kernels
+### Workstream 3: typed offline specialization
+
+Implement a deterministic specializer that consumes only authenticated
+`ModelPlan`, static device-plan, exact execution-profile, and kernel-catalog
+capabilities. It may bake dimensions, checked 64-bit tensor offsets, layout
+strides, RoPE parameters, quantization codebooks, expert strides, and stable
+profile-specific entry points. It must:
+
+- keep those values typed through construction rather than passing an untyped
+  option map or concatenating source strings;
+- reject unsupported shape, head, dtype, layout, quantization, alignment, and
+  target combinations before emitting an artifact;
+- serialize a content-addressed specialization record binding all semantic
+  inputs, baked constants, compiler identity, flags, and numerical contract;
+- run only during offline artifact production, never because of a live request;
+- expose no generated source, compiler handle, model authority, or device
+  authority through a production public API.
+
+The first evidence harness must compare each generated family with an
+independent scalar referee on adversarial blocks, admitted real tensor rows,
+and boundary shapes; prove the specialized dispatch ran with a canary or
+bounded counter; compare logits and deterministic tokens; and finish with an
+end-to-end mixed-workload benchmark. Strict and reassociating builds use
+separate, explicitly named numerical standards.
+
+### Workstream 4: initial custom kernels
 
 Prioritize by profiler evidence:
 
@@ -547,7 +586,7 @@ Prioritize by profiler evidence:
 
 GEMM remains cuBLASLt/CUTLASS until evidence justifies replacement.
 
-### Workstream 4: CUDA graphs
+### Workstream 5: CUDA graphs
 
 - capture declared shape classes during warm-up;
 - maintain explicit eager fallback capability only when validated;
@@ -559,6 +598,12 @@ GEMM remains cuBLASLt/CUTLASS until evidence justifies replacement.
 
 - IR serialization and lowering are deterministic;
 - invalid layouts fail before compilation;
+- specialization records reproduce byte-identically from identical admitted
+  inputs and change when any bound semantic input changes;
+- generated artifacts cannot be admitted against a mismatched model, layout,
+  target, compiler policy, or launch contract;
+- dispatch canaries prove that differential and end-to-end tests exercised the
+  specialized entry point rather than a fallback;
 - each custom kernel passes differential, boundary, sanitizer, and race tests;
 - each replacement wins its declared microbenchmark shape set;
 - end-to-end mixed workload does not regress;

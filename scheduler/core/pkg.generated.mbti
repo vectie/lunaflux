@@ -6,7 +6,6 @@ import {
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
-  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/spec",
@@ -20,7 +19,6 @@ pub(all) suberror SchedulerError {
   PageAllocator(@page_allocator.PageAllocatorError)
   BlockTable(@block_table.BlockTableError)
   WorkerProtocol(@worker_protocol.WorkerProtocolError)
-  WorkerWire(@worker_wire.WorkerWireError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -41,6 +39,11 @@ pub(all) enum CancelReservationCommit {
 pub(all) enum CancelReservationStart {
   CancelReserved
   CancelNaturalTerminal
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CompletionCommit {
+  CompletionCommitted
+  CompletionBackpressured
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ExactDeadlineResult {
@@ -119,7 +122,6 @@ pub struct Scheduler {
 }
 pub fn Scheduler::abort_cancel_reservation(Self) -> Unit
 pub fn Scheduler::abort_exclusive_admission(Self, PreparedExclusiveAdmission) -> Unit
-pub fn Scheduler::accept_completion_frame(Self, @worker_protocol.SubmittedSchedulePlan, @worker_wire.ValidatedCompletionFrame) -> @worker_protocol.SubmittedCompletion raise SchedulerError
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
 pub fn Scheduler::advance_terminated_handle(Self, RequestHandle, @inference.RequestGeneration) -> Unit raise SchedulerError
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
@@ -129,7 +131,8 @@ pub fn Scheduler::cancel_exact(Self, RequestHandle) -> @inference.RequestGenerat
 pub fn Scheduler::commit_admission(Self, PreparedAdmission, UInt64) -> Unit raise SchedulerError
 pub fn Scheduler::commit_cancel_reservation(Self) -> CancelReservationCommit
 pub fn Scheduler::commit_exclusive_admission(Self, PreparedExclusiveAdmission, UInt64) -> ExclusiveAdmissionCommit
-pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise SchedulerError
+pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> CompletionCommit raise SchedulerError
+pub fn Scheduler::complete_submitted(Self, @worker_protocol.SubmittedSchedulePlan) -> CompletionCommit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
 pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
 pub fn Scheduler::drain_instance_loss_exact(Self, RequestHandle) -> ExactInstanceLossDrain raise SchedulerError

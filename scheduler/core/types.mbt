@@ -45,6 +45,16 @@ pub enum BuildNextOutcome {
 }
 
 ///|
+/// Allocation-free result of one authenticated completion attempt. Capacity
+/// pressure is ordinary scheduler flow; semantic and ownership failures remain
+/// typed `SchedulerError` values.
+#valtype
+pub(all) enum CompletionCommit {
+  CompletionCommitted
+  CompletionBackpressured
+} derive(Debug, Eq)
+
+///|
 /// Allocation-free progress for deterministic instance-loss retirement.
 #valtype
 pub(all) enum InstanceLossDrain {

@@ -61,8 +61,9 @@ fn pieces_equal_joined(left : Bytes, right : Bytes, result : Bytes) -> Bool {
 /// Construct and validate an immutable raw-byte BPE specification.
 ///
 /// The normal vocabulary must contain exactly one entry for every single byte.
-/// Token IDs and pieces are unique. A merge result must be the concatenation
-/// of its normal left and right pieces. Merge array order defines rank.
+/// Token IDs are dense in `0..<vocabulary.length()` and pieces are unique. A
+/// merge result must be the concatenation of its normal left and right pieces.
+/// Merge array order defines rank.
 pub fn TokenizerSpec::new(
   vocabulary : ArrayView[VocabularyEntry],
   merges : ArrayView[MergeRule],
@@ -102,7 +103,7 @@ pub fn TokenizerSpec::new(
   )
   let special_tokens : Array[StoredToken] = []
   for entry_index, entry in vocabulary {
-    if entry.token_id < 0 {
+    if entry.token_id < 0 || entry.token_id >= vocabulary.length() {
       raise InvalidTokenId(entry_index~)
     }
     if tokens_by_id.contains(entry.token_id) {

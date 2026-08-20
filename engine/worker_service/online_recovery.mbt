@@ -37,7 +37,7 @@ pub fn OnlineWorkerLease::invalidate_device_state(
       self.cut_source_generation = self.request_generation
       try! service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       service.lifecycle = ServiceRestartReady
       count
     }
@@ -45,7 +45,7 @@ pub fn OnlineWorkerLease::invalidate_device_state(
       self.cut_source_generation = self.request_generation
       try! service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       service.lifecycle = ServiceRestartReady
       0
     }
@@ -94,14 +94,14 @@ pub fn OnlineWorkerLease::drain_restart_forbidden(
       self.cut_source_generation = self.request_generation
       try! service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       Remaining(count)
     }
     ExactLossComplete(generation) => {
       self.cut_source_generation = self.request_generation
       try! service.scheduler.advance_terminated_handle(handle, generation)
       self.request_generation = generation
-      self.request_phase = ONLINE_REQUEST_TERMINATION_PENDING
+      self.request_phase = OnlineRequestTerminationPending
       service.lifecycle = ServiceTerminalCloseReady
       Complete
     }
@@ -165,18 +165,62 @@ pub fn OnlineWorkerLease::progress_terminal_recovery_status(
 }
 
 ///|
+fn OnlineWorkerLease::preflight_terminal_request_retirement(
+  self : OnlineWorkerLease,
+  service : WorkerService,
+  has_exchange_capacity : Bool,
+) -> Unit raise WorkerServiceError {
+  if self.request_phase != OnlineRequestTerminal ||
+    self.cancel_reserved ||
+    self.prepared_admission is Some(_) ||
+    service.lifecycle != ServiceReady ||
+    service.raw_outstanding_count() != 0 ||
+    !service.scheduler.is_quiescent() ||
+    !has_exchange_capacity {
+    raise Invalid(Lifecycle)
+  }
+}
+
+///|
+fn OnlineWorkerLease::commit_terminal_request_retirement(
+  self : OnlineWorkerLease,
+) -> Unit {
+  self.handle = None
+  self.request_generation = @inference.RequestGeneration::initial()
+  self.cut_source_generation = @inference.RequestGeneration::initial()
+  self.expected_position = 0
+  self.cancel_reserved = false
+  self.request_phase = OnlineRequestEmpty
+}
+
+///|
+/// Retires only the exact completed request while preserving the live worker,
+/// scheduler history, lease epoch, ownership family, and publication cursor.
+/// The complete preflight precedes the nonraising request-local reset.
+pub fn OnlineWorkerLease::retire_terminal_request(
+  self : OnlineWorkerLease,
+) -> Unit raise WorkerServiceError {
+  let service = self.require_current()
+  self.preflight_terminal_request_retirement(
+    service,
+    service.require_process().has_exchange_capacity(),
+  )
+  self.commit_terminal_request_retirement()
+}
+
+///|
 /// Cleanly closes a healthy service only after its exact terminal publication
 /// and every scheduler/process obligation have been retired.
 pub fn OnlineWorkerLease::shutdown_clean(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_TERMINAL || self.cancel_reserved {
+  if self.request_phase != OnlineRequestTerminal || self.cancel_reserved {
     raise Invalid(Lifecycle)
   }
   service.shutdown_clean_impl()
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
+  self.request_phase = OnlineRequestRetired
+  service.ownership_mode = OnlineRetiredOwnership
 }
 
 ///|
@@ -186,14 +230,14 @@ pub fn OnlineWorkerLease::shutdown_clean_empty(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_EMPTY ||
+  if self.request_phase != OnlineRequestEmpty ||
     self.cancel_reserved ||
     !service.scheduler.is_quiescent() {
     raise Invalid(Lifecycle)
   }
   service.shutdown_clean_impl()
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
+  self.request_phase = OnlineRequestRetired
+  service.ownership_mode = OnlineRetiredOwnership
 }
 
 ///|
@@ -202,14 +246,14 @@ pub fn OnlineWorkerLease::close_terminal(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_TERMINAL ||
+  if self.request_phase != OnlineRequestTerminal ||
     self.cancel_reserved ||
     service.lifecycle != ServiceTerminalCloseReady {
     raise Invalid(Lifecycle)
   }
   service.close_impl()
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
+  self.request_phase = OnlineRequestRetired
+  service.ownership_mode = OnlineRetiredOwnership
 }
 
 ///|
@@ -218,7 +262,7 @@ pub fn OnlineWorkerLease::retry_close_terminal(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_TERMINAL || self.cancel_reserved {
+  if self.request_phase != OnlineRequestTerminal || self.cancel_reserved {
     raise Invalid(Lifecycle)
   }
   match terminal_close_retry_action(service.lifecycle) {
@@ -226,8 +270,8 @@ pub fn OnlineWorkerLease::retry_close_terminal(
     2 => service.retry_close_impl()
     _ => abort("terminal close retry action invariant")
   }
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
+  self.request_phase = OnlineRequestRetired
+  service.ownership_mode = OnlineRetiredOwnership
 }
 
 ///|
@@ -249,7 +293,7 @@ pub fn OnlineWorkerLease::retry_close_empty(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase != ONLINE_REQUEST_EMPTY || self.cancel_reserved {
+  if self.request_phase != OnlineRequestEmpty || self.cancel_reserved {
     raise Invalid(Lifecycle)
   }
   if service.lifecycle == ServiceReady {
@@ -261,6 +305,6 @@ pub fn OnlineWorkerLease::retry_close_empty(
   } else {
     raise Invalid(Lifecycle)
   }
-  self.request_phase = ONLINE_REQUEST_RETIRED
-  service.ownership_mode = SERVICE_MODE_ONLINE_RETIRED
+  self.request_phase = OnlineRequestRetired
+  service.ownership_mode = OnlineRetiredOwnership
 }

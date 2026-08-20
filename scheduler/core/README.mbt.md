@@ -89,11 +89,13 @@ retired terminally as completion `Consumed` and plan `Retired`. The other pair
 remains reusable, and planning reports `Plan`/`Exhausted` rather than transient
 backpressure once no reusable or retireable pair remains.
 
-For the isolated-worker return boundary, `accept_completion_frame` first
-authenticates a canonical received frame against the retained exact plan, then
-copies only validated outcome scalars into the paired scheduler completion
-owner. It does not retire work. The caller retains the returned completion and
-retries normal `complete` if output or terminal publication is backpressured.
+The scheduler has no serialized worker-frame dependency. Its caller receives
+an exact protocol completion writer, stages authenticated scalar outcomes, and
+submits that paired epoch. `complete` returns the allocation-free
+`CompletionBackpressured` value when output or terminal publication lacks
+capacity; semantic and ownership failures remain typed errors. The caller may
+then use `complete_submitted` to reauthenticate and retry the exact current
+completion without retaining or reconstructing a mutable owner.
 
 Normal scheduling states do not allocate error payloads: `build_next` returns
 the flat value-type `BuildNextOutcome` for idle, two-owner backpressure, or a

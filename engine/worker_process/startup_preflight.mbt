@@ -144,7 +144,7 @@ fn preflight_prepare(
   )
   let exchange_expected_kinds = FixedArray::make(
     worker_limits.max_completion_slots(),
-    -1,
+    ExpectedEmpty,
   )
   let exchange_processed_tokens = FixedArray::make(
     worker_limits.max_completion_slots(),

@@ -16,78 +16,97 @@ import {
 }
 
 // Values
-pub fn prepare_owned_session(@request_admission.ReceivedRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> OnlineSessionPreparation raise OnlineSessionPreparationError
+pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 
 // Errors
-pub(all) suberror OnlineSessionError {
-  SessionFailed(OnlineSessionFailure)
+pub(all) suberror LunaOnlineInstanceError {
+  LunaOnlineInstanceFailed(LunaOnlineInstanceFailure)
 } derive(Eq, @debug.Debug)
 
-pub(all) suberror OnlineSessionPreparationError {
-  PreparationFailed(OnlineSessionFailure)
+pub(all) suberror LunaOnlineInstancePreparationError {
+  LunaOnlineInstancePreparationFailed(LunaOnlineInstanceFailure)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub struct FailedOnlineSessionPreparation {
+pub struct FailedLunaOnlineInstancePreparation {
   // private fields
 }
-pub fn FailedOnlineSessionPreparation::cause(Self) -> OnlineSessionFailure
-pub fn FailedOnlineSessionPreparation::is_closed(Self) -> Bool
-pub fn FailedOnlineSessionPreparation::retry_close(Self) -> Unit raise OnlineSessionPreparationError
+pub fn FailedLunaOnlineInstancePreparation::cause(Self) -> LunaOnlineInstanceFailure
+pub fn FailedLunaOnlineInstancePreparation::is_closed(Self) -> Bool
+pub fn FailedLunaOnlineInstancePreparation::retry_close(Self) -> Unit raise LunaOnlineInstancePreparationError
 
-pub struct OnlineSession {
+pub struct LunaOnlineInstance {
   // private fields
 }
-pub fn OnlineSession::ack_event(Self) -> Unit raise OnlineSessionError
-pub fn OnlineSession::begin_abort(Self) -> Unit raise OnlineSessionError
-pub fn OnlineSession::check_deadline(Self) -> Unit raise OnlineSessionError
-pub fn OnlineSession::copy_event_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise OnlineSessionError
-pub fn OnlineSession::event_length(Self) -> Int raise OnlineSessionError
-pub fn OnlineSession::has_event(Self) -> Bool
-pub fn OnlineSession::progress(Self) -> OnlineSessionProgress raise OnlineSessionError
-pub fn OnlineSession::progress_cleanup(Self) -> OnlineSessionCleanupProgress raise OnlineSessionError
-pub fn OnlineSession::progress_terminalization(Self) -> OnlineSessionProgress raise OnlineSessionError
-pub fn OnlineSession::request_cancel(Self) -> Unit raise OnlineSessionError
+pub fn LunaOnlineInstance::ack_event(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::begin(Self, @request_admission.ReceivedRequest) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::begin_abort(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::begin_drain(Self) -> Unit
+pub fn LunaOnlineInstance::check_deadline(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::copy_event_to(Self, LunaOnlineRequestTicket, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::event_length(Self, LunaOnlineRequestTicket) -> Int raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::has_event(Self, LunaOnlineRequestTicket) -> Bool raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::progress(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::progress_request_retirement(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::progress_shutdown(Self) -> LunaOnlineInstanceShutdownProgress raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::progress_terminalization(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::request_cancel(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
 
-pub(all) enum OnlineSessionCleanupProgress {
-  OnlineSessionCleanupPending
-  OnlineSessionCleanupClosed
+pub(all) enum LunaOnlineInstanceAdmission {
+  LunaOnlineInstanceAdmitted(LunaOnlineRequestTicket)
+  LunaOnlineInstanceBusy
+  LunaOnlineInstanceDraining
 } derive(Eq, @debug.Debug)
 
-pub(all) enum OnlineSessionFailure {
-  AdmissionFailure
-  ServicePreparationFailure
-  ServiceFailure
-  WireFailure
-  Invalid(OnlineSessionRule)
+pub(all) enum LunaOnlineInstanceFailure {
+  LunaOnlineAdmissionFailure
+  LunaOnlineServicePreparationFailure
+  LunaOnlineServiceFailure
+  LunaOnlineWireFailure
+  LunaOnlineInvalid(LunaOnlineInstanceRule)
 } derive(Eq, @debug.Debug)
 
-pub struct OnlineSessionPreparation {
+pub struct LunaOnlineInstancePreparation {
   // private fields
 }
-pub fn OnlineSessionPreparation::state(Self) -> OnlineSessionPreparationState
-pub fn OnlineSessionPreparation::take_cleanup(Self) -> FailedOnlineSessionPreparation raise OnlineSessionPreparationError
-pub fn OnlineSessionPreparation::take_ready(Self) -> OnlineSession raise OnlineSessionPreparationError
+pub fn LunaOnlineInstancePreparation::state(Self) -> LunaOnlineInstancePreparationState
+pub fn LunaOnlineInstancePreparation::take_cleanup(Self) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineInstancePreparation::take_ready(Self) -> LunaOnlineInstance raise LunaOnlineInstancePreparationError
 
-pub(all) enum OnlineSessionPreparationState {
-  OnlineSessionReady
-  OnlineSessionCleanupRequired
+pub(all) enum LunaOnlineInstancePreparationState {
+  LunaOnlineInstanceReady
+  LunaOnlineInstanceCleanupRequired
 } derive(Eq, @debug.Debug)
 
-pub(all) enum OnlineSessionProgress {
-  OnlineSessionPending
-  OnlineSessionEventReady
-  OnlineSessionTerminalizationRequired
+pub(all) enum LunaOnlineInstanceProgress {
+  LunaOnlineInstancePending
+  LunaOnlineInstanceEventReady
+  LunaOnlineInstanceTerminalizationRequired
+  LunaOnlineInstanceRequestRetirementRequired
 } derive(Eq, @debug.Debug)
 
-pub(all) enum OnlineSessionRule {
-  Lifecycle
-  Ownership
-  Streaming
-  InferenceEnvelope
-  ModelIdentity
-  EventCredit
+pub(all) enum LunaOnlineInstanceRetirementProgress {
+  LunaOnlineInstanceRetirementPending
+  LunaOnlineInstanceIdle
+  LunaOnlineInstanceClosed
 } derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineInstanceRule {
+  LunaOnlineLifecycle
+  LunaOnlineOwnership
+  LunaOnlineStreaming
+  LunaOnlineInferenceEnvelope
+  LunaOnlineModelIdentity
+  LunaOnlineEventCredit
+  LunaOnlineRequestEpoch
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineInstanceShutdownProgress {
+  LunaOnlineInstanceShutdownPending
+  LunaOnlineInstanceShutdownClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineRequestTicket(UInt64) derive(Eq, @debug.Debug)
 
 // Type aliases
 

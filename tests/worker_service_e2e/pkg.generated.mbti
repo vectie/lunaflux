@@ -6,6 +6,7 @@ package "vectie/lunaflux/tests/worker_service_e2e"
 // Errors
 
 // Types and methods
+type FoundationSession
 
 // Type aliases
 

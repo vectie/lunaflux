@@ -1,9 +1,6 @@
 import {
+  "vectie/lunaflux/cmd/lunaflux_plan",
   "vectie/lunaflux/contracts",
-  "vectie/lunaflux/config/device",
-  "vectie/lunaflux/config/model",
-  "vectie/lunaflux/config/resolved",
-  "vectie/lunaflux/config/service",
   "vectie/lunaflux/device" @hardware,
   "vectie/lunaflux/engine/reference",
   "vectie/lunaflux/kernels/reference" @refkernels,

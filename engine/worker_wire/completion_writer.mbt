@@ -1,13 +1,4 @@
 ///|
-fn completion_failure_value(failure : @worker_protocol.WorkerFailure) -> UInt {
-  match failure {
-    ExecutionFailed => 0
-    ResourceUnavailable => 1
-    CancelledBeforeExecution => 2
-  }
-}
-
-///|
 fn CompletionFrameWriter::owner(
   self : CompletionFrameWriter,
 ) -> CompletionFrameBuffer raise WorkerWireError {
@@ -75,10 +66,10 @@ fn write_direct_completion_entry(
   slot : Int,
   request_id : UInt64,
   request_generation : UInt64,
-  kind : UInt,
+  kind : @worker_protocol.CompletionEntryKind,
   processed_tokens : Int,
   token_id : Int,
-  failure : UInt,
+  failure_wire : UInt,
 ) -> Unit raise WorkerWireError {
   if owner.entry_count >= owner.worker_limits.max_completion_slots() ||
     slot < 0 ||
@@ -89,12 +80,12 @@ fn write_direct_completion_entry(
   let index = owner.entry_count
   let offset = completion_entry_offset(index)
   write_i32(owner.storage, offset, slot)
-  write_u32(owner.storage, offset + 4, kind)
+  write_u32(owner.storage, offset + 4, completion_kind_to_wire(kind))
   write_u64(owner.storage, offset + 8, request_id)
   write_u64(owner.storage, offset + 16, request_generation)
   write_i32(owner.storage, offset + 24, processed_tokens)
   write_i32(owner.storage, offset + 28, token_id)
-  write_u32(owner.storage, offset + 32, failure)
+  write_u32(owner.storage, offset + 32, failure_wire)
   write_u32(owner.storage, offset + 36, 0)
   owner.slot_to_entry[slot] = index
   owner.entry_count = index + 1
@@ -168,7 +159,7 @@ pub fn CompletionFrameWriter::append_prefill_completed(
     row.completion_slot(),
     row.request_id_value(),
     row.request_generation_value(),
-    0,
+    PrefillCompletion,
     row.token_length(),
     0,
     0,
@@ -191,7 +182,7 @@ pub fn CompletionFrameWriter::append_final_prefill_completed(
     row.completion_slot(),
     row.request_id_value(),
     row.request_generation_value(),
-    1,
+    FinalPrefillCompletion,
     row.token_length(),
     token_id,
     0,
@@ -211,7 +202,7 @@ pub fn CompletionFrameWriter::append_decode_completed(
     row.completion_slot(),
     row.request_id_value(),
     row.request_generation_value(),
-    2,
+    DecodeCompletion,
     0,
     token_id,
     0,
@@ -230,10 +221,10 @@ pub fn CompletionFrameWriter::append_prefill_failed(
     row.completion_slot(),
     row.request_id_value(),
     row.request_generation_value(),
-    3,
+    FailedCompletion,
     0,
     0,
-    completion_failure_value(failure),
+    worker_failure_to_wire(failure),
   )
 }
 
@@ -249,10 +240,10 @@ pub fn CompletionFrameWriter::append_decode_failed(
     row.completion_slot(),
     row.request_id_value(),
     row.request_generation_value(),
-    3,
+    FailedCompletion,
     0,
     0,
-    completion_failure_value(failure),
+    worker_failure_to_wire(failure),
   )
 }
 

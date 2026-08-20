@@ -1,12 +1,12 @@
 ///|
-fn finish_online_failure_cleanup(
-  session : @online_session.OnlineSession,
-) -> Unit raise {
+fn finish_online_failure_cleanup(session : FoundationSession) -> Unit raise {
   let mut attempts = 0
   while attempts < 1000000 {
-    match session.progress_cleanup() {
-      OnlineSessionCleanupClosed => return
-      OnlineSessionCleanupPending => ()
+    match session.progress_retirement() {
+      LunaOnlineInstanceClosed => return
+      LunaOnlineInstanceRetirementPending => ()
+      LunaOnlineInstanceIdle =>
+        raise Failure("worker failure recycled poisoned instance authority")
     }
     attempts += 1
   }
@@ -14,9 +14,7 @@ fn finish_online_failure_cleanup(
 }
 
 ///|
-fn assert_worker_unavailable_bundle(
-  session : @online_session.OnlineSession,
-) -> Unit raise {
+fn assert_worker_unavailable_bundle(session : FoundationSession) -> Unit raise {
   progress_foundation_to_event(session)
   match foundation_event(session) {
     Usage(value) => assert_eq(value.output_tokens(), 0)
@@ -33,31 +31,38 @@ fn assert_worker_unavailable_bundle(
     _ => raise Failure("worker loss did not publish canonical Failed")
   }
   session.ack_event()
-  assert_eq(session.progress_cleanup(), OnlineSessionCleanupClosed)
+  finish_online_failure_cleanup(session)
 }
 
 ///|
 fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
-  let session = prepare_foundation_session(
-    executable,
-    session_tokenizer(),
+  let instance = prepare_foundation_instance(executable, session_tokenizer())
+  let session = begin_foundation_session(
+    instance,
     session_received(Streaming, request_id=906UL),
   )
   session.ack_event()
   progress_foundation_to_terminalization(session)
-  assert_eq(session.progress(), OnlineSessionTerminalizationRequired)
+  assert_eq(session.progress(), LunaOnlineInstanceTerminalizationRequired)
   assert_worker_unavailable_bundle(session)
+  assert_eq(
+    instance.begin(session_received(Streaming, request_id=916UL)),
+    LunaOnlineInstanceDraining,
+  )
 
-  let cancelled = prepare_foundation_session(
+  let cancelled_instance = prepare_foundation_instance(
     executable,
     session_tokenizer(),
+  )
+  let cancelled = begin_foundation_session(
+    cancelled_instance,
     session_received(Streaming, request_id=912UL),
   )
   cancelled.ack_event()
-  assert_eq(cancelled.progress(), OnlineSessionPending)
+  assert_eq(cancelled.progress(), LunaOnlineInstancePending)
   cancelled.request_cancel()
   progress_foundation_to_terminalization(cancelled)
-  assert_eq(cancelled.progress(), OnlineSessionTerminalizationRequired)
+  assert_eq(cancelled.progress(), LunaOnlineInstanceTerminalizationRequired)
   progress_foundation_to_event(cancelled)
   match foundation_event(cancelled) {
     Usage(value) => assert_eq(value.output_tokens(), 0)
@@ -72,19 +77,22 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
     _ => raise Failure("worker loss overwrote committed caller cut")
   }
   cancelled.ack_event()
-  assert_eq(cancelled.progress_cleanup(), OnlineSessionCleanupClosed)
+  finish_online_failure_cleanup(cancelled)
 
-  let deadline = prepare_foundation_session(
+  let deadline_instance = prepare_foundation_instance(
     executable,
     session_tokenizer(),
+  )
+  let deadline = begin_foundation_session(
+    deadline_instance,
     session_received(Streaming, request_id=913UL),
   )
   deadline.ack_event()
-  assert_eq(deadline.progress(), OnlineSessionPending)
+  assert_eq(deadline.progress(), LunaOnlineInstancePending)
   wait_past_online_deadline()
-  assert_eq(deadline.progress(), OnlineSessionPending)
+  assert_eq(deadline.progress(), LunaOnlineInstancePending)
   progress_foundation_to_terminalization(deadline)
-  assert_eq(deadline.progress(), OnlineSessionTerminalizationRequired)
+  assert_eq(deadline.progress(), LunaOnlineInstanceTerminalizationRequired)
   progress_foundation_to_event(deadline)
   match foundation_event(deadline) {
     Usage(value) => assert_eq(value.output_tokens(), 0)
@@ -99,11 +107,14 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
     _ => raise Failure("worker loss overwrote committed deadline cut")
   }
   deadline.ack_event()
-  assert_eq(deadline.progress_cleanup(), OnlineSessionCleanupClosed)
+  finish_online_failure_cleanup(deadline)
 
-  let aborting = prepare_foundation_session(
+  let aborting_instance = prepare_foundation_instance(
     executable,
     session_tokenizer(),
+  )
+  let aborting = begin_foundation_session(
+    aborting_instance,
     session_received(Streaming, request_id=914UL),
   )
   aborting.ack_event()

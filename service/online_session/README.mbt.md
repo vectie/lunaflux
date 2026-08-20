@@ -1,55 +1,58 @@
-# Owned online session
+# Luna online instance
 
-This package owns one alias-free, single-request Streaming session. Its factory
-consumes `ReceivedRequest`, performs tokenization/admission internally, creates
-the scheduler and rooted worker through `worker_service.prepare_owned`, and
-immediately transfers that preparation into its preallocated online lease.
-Neither `AdmittedRequest`, `WorkerService`, `OnlineWorkerLease`, scheduler
-handles, decoder owners, nor raw publications appear in this package's public
-interface.
+This package owns one persistent, alias-free `LunaOnlineInstance` for the
+bounded one-active-request-at-a-time online mode. Instance preparation binds the tokenizer,
+model identity, inference and wire envelopes, reusable event/output storage,
+one scheduler, and one rooted worker process. It does not accept a request.
+`prepare_owned_luna_online_instance` starts and authenticates the worker once,
+then transfers its opaque online lease into the instance.
 
-`prepare_owned_session` is synchronous and off-reactor: it may tokenize, spawn
-and handshake with the worker, and acquire/release rooted authority. The
-ordinary approved roots are borrowed; callers retain and close their original
-root capabilities after preparation returns.
+`LunaOnlineInstance::begin` is synchronous and off-reactor. It decides Busy or
+Draining before consuming the `ReceivedRequest`, preflights request-epoch
+exhaustion, tokenizes and validates one Streaming request, prepares Accepted
+credit, and only then commits scheduler admission. Admission rejection retires
+the prepared writer credit and leaves the instance idle. After admission
+commits, only nonraising assignments publish a nonzero
+`LunaOnlineRequestTicket`. Every request operation authenticates that ticket
+before touching writer, decoder, scheduler, or worker state.
 
-The first outbound credit is the canonical event-v2 Accepted frame. Normal
-progress then publishes exact Token credits, followed by Usage and
-Completed-v2 for natural maximum-output or physical stop-token termination.
-Stop tokens count toward usage but are suppressed from Token output; their
-exact adjacent terminal is authenticated before Usage. Any final valid UTF-8
-decoder tail is carried only by Completed. Every frame remains pinned in the
-same owner-resident one-credit storage until copied and acknowledged; pinned
-credit rejects before worker, scheduler, or decoder mutation.
+Only one request is active at a time. The first outbound credit is the
+canonical event-v2 Accepted frame. Normal progress publishes exact Token
+credits, followed by Usage and Completed-v2 for natural maximum-output or
+physical stop-token termination. Stop tokens count toward usage but are
+suppressed from Token output; their exact adjacent terminal is authenticated
+before Usage. Any final valid UTF-8 decoder tail is carried only by Completed.
+Every frame remains pinned in the same reusable one-credit storage until copied
+and acknowledged.
 
-Ordinary generated-token decode and writer publication use scalar transactional
-status after exact scheduler reservation/dequeue. No typed error is created
-until cancellation/recovery cleanup state is secured. Natural terminal tail
-flush is likewise scalar. String-stop matching is incremental and transactional:
-the trigger is counted, stop and post-stop bytes are withheld, and an exact
-reserved cancellation terminal is privately translated to canonical `Usage`
-then `Completed(StopSequence)`. If the same final token already has an adjacent
-natural Maximum/StopToken terminal, that precedence is authenticated and
-translated without cancelling an already-terminal request. Caller cancellation
-is deferred behind pinned Accepted/Token credit, commits one exact cut after
-acknowledgement, and publishes `Usage` then `Completed(Cancelled)`. Every
-credit-free `progress` enforces the owner-bound deadline after deferred caller
-intent and before worker/publication mutation; expiration publishes `Usage`
-then payload-safe nonretryable `Failed(deadline_exceeded)`. `check_deadline` is
-a non-latching poll while credit is pinned. Decoder/output/protocol rejection
-publishes `Usage` then nonretryable `Failed(output_invalid)`; physical
-worker/device loss publishes `Usage` then retryable
-`Failed(worker_unavailable)`. Both codes are fixed and preallocated before
-rooted startup, and lower errors or payloads never enter the frame. Caller,
-deadline, abort, output, and worker-failure cuts fix output at the last retired
-public event and suppress decoder-pending bytes; only an authenticated natural
-terminal flushes a final decoder tail.
+Ordinary generated-token decode and writer publication use scalar
+transactional status after exact scheduler reservation/dequeue. String-stop
+matching remains incremental and transactional. Caller cancellation is
+deferred behind pinned Accepted or Token credit and commits one exact cut after
+acknowledgement. Every credit-free progress call enforces the owner-bound
+deadline before worker/publication mutation. Deadline, output, and worker
+failures publish the same payload-safe fixed codes established during instance
+preparation.
 
-Normal `progress` only latches owned failure state and returns
-`OnlineSessionTerminalizationRequired`. Explicit `progress_terminalization`
-then runs off-reactor to recover/reap, retire an existing flight, suppress
-through the exact terminal, and publish the failure bundle. Recovery retries
-retain both cleanup authority and the first product failure cause. Healthy
-shutdown, terminal close, and abort cleanup are explicit as well. Child
-shutdown/reap may block, so terminalization and cleanup progression do not
-belong on an async network reactor.
+A healthy final Completed or Failed acknowledgement moves the request to
+ReleaseReady. `progress_request_retirement(ticket)` invokes the lower
+`retire_terminal_request` transaction, clears only request-local decoder,
+event, counter, and cut state, and returns the instance to Idle. The retained
+lease epoch, scheduler publication cursor, worker plan predecessor, rooted
+process, fixed event storage, and failure-code storage are not reset. The next
+request receives a fresh Luna ticket and begins token positions at
+zero without spawning or handshaking another worker.
+
+Worker, protocol, or device failure remains close-only. Normal `progress`
+latches the first product-safe failure cause and reports
+`LunaOnlineInstanceTerminalizationRequired`; explicit off-reactor
+`progress_terminalization(ticket)` recovers and drains through the exact
+terminal. Its final acknowledgement leads to terminal close, never back to
+Idle. Retry paths retain the same ticket and cleanup authority.
+
+`begin_drain` prevents new request admission without invalidating an active
+ticket. Once the active request retires, `progress_shutdown` closes the empty
+lease and rooted worker. This explicit instance drain is the only healthy
+worker-shutdown path. Child shutdown and reap may block, so terminal recovery,
+request retirement, and instance shutdown do not belong on an async network
+reactor.

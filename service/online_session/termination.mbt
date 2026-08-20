@@ -17,19 +17,19 @@ fn worker_failure_code() -> FixedArray[Byte] {
 }
 
 ///|
-fn OnlineSession::begin_caller_cut(
-  self : OnlineSession,
+fn LunaOnlineInstance::begin_caller_cut(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
-) -> Unit raise OnlineSessionError {
+) -> Unit raise LunaOnlineInstanceError {
   let reservation = lease.reserve_cancel() catch {
-    _ => raise SessionFailed(ServiceFailure)
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
   }
   match reservation {
     OnlineCancelNaturalTerminal => ()
     OnlineCancelReserved => {
       let committed = try! lease.commit_cancel()
       match committed {
-        OnlineCancelCommitted => self.terminal_cut = 1
+        OnlineCancelCommitted => self.terminal_cut = CallerCancellationCut
         OnlineCancelReservationAbsent => abort("online caller cut invariant")
       }
     }
@@ -37,42 +37,48 @@ fn OnlineSession::begin_caller_cut(
 }
 
 ///|
-fn OnlineSession::begin_deadline_cut(
-  self : OnlineSession,
+fn LunaOnlineInstance::begin_deadline_cut(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
-) -> Unit raise OnlineSessionError {
-  let expiry = lease.expire() catch { _ => raise SessionFailed(ServiceFailure) }
+) -> Unit raise LunaOnlineInstanceError {
+  let expiry = lease.expire() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
   match expiry {
     OnlineDeadlinePending | OnlineDeadlineNaturalTerminal => ()
     OnlineDeadlineCommitted => {
-      self.failure_kind = 1
-      self.terminal_cut = 2
+      self.failure_kind = DeadlineLatchedFailure
+      self.terminal_cut = DeadlineFailureCut
     }
   }
 }
 
 ///|
-fn OnlineSession::enforce_deadline(
-  self : OnlineSession,
+fn LunaOnlineInstance::enforce_deadline(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
-) -> Bool raise OnlineSessionError {
-  let expiry = lease.expire() catch { _ => raise SessionFailed(ServiceFailure) }
+) -> Bool raise LunaOnlineInstanceError {
+  let expiry = lease.expire() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
   match classify_expiry_cut(expiry) {
-    2 => {
-      self.failure_kind = 1
-      self.terminal_cut = 2
+    ExpiryCutCommitted => {
+      self.failure_kind = DeadlineLatchedFailure
+      self.terminal_cut = DeadlineFailureCut
       true
     }
-    _ => false
+    ExpiryCutPending | ExpiryCutNaturalTerminal => false
   }
 }
 
 ///|
-fn classify_expiry_cut(expiry : @worker_service.OnlineExpiry) -> Int {
+fn classify_expiry_cut(
+  expiry : @worker_service.OnlineExpiry,
+) -> ExpiryCutClassification {
   match expiry {
-    OnlineDeadlinePending => 0
-    OnlineDeadlineNaturalTerminal => 1
-    OnlineDeadlineCommitted => 2
+    OnlineDeadlinePending => ExpiryCutPending
+    OnlineDeadlineNaturalTerminal => ExpiryCutNaturalTerminal
+    OnlineDeadlineCommitted => ExpiryCutCommitted
   }
 }
 
@@ -80,27 +86,27 @@ fn classify_expiry_cut(expiry : @worker_service.OnlineExpiry) -> Int {
 /// Latches only failure classes whose lower owner has already retained every
 /// outstanding flight/recovery obligation. Retryable pre-mutation failures do
 /// not consume the session or change its public terminal cause.
-fn OnlineSession::latch_worker_step_failure(
-  self : OnlineSession,
+fn LunaOnlineInstance::latch_worker_step_failure(
+  self : LunaOnlineInstance,
   step : @worker_service.OnlineWorkerStep,
 ) -> Bool {
   match step {
     OnlineWorkerOutputInvalid => {
-      if self.terminal_cut == 0 && self.string_cut == 0 {
-        if self.failure_kind == 0 {
-          self.failure_kind = 2
+      if self.terminal_cut == NoTerminalCut && self.string_cut == NoStringCut {
+        if self.failure_kind == NoLatchedFailure {
+          self.failure_kind = OutputLatchedFailure
         }
-        self.terminal_cut = 4
+        self.terminal_cut = WorkerFailureCut
       }
       self.recovery_close = true
       true
     }
     OnlineWorkerUnavailable => {
-      if self.terminal_cut == 0 && self.string_cut == 0 {
-        if self.failure_kind == 0 {
-          self.failure_kind = 3
+      if self.terminal_cut == NoTerminalCut && self.string_cut == NoStringCut {
+        if self.failure_kind == NoLatchedFailure {
+          self.failure_kind = WorkerLatchedFailure
         }
-        self.terminal_cut = 4
+        self.terminal_cut = WorkerFailureCut
       }
       self.recovery_close = true
       true
@@ -110,34 +116,34 @@ fn OnlineSession::latch_worker_step_failure(
 }
 
 ///|
-fn OnlineSession::prepare_cut_terminal(self : OnlineSession) -> Unit {
+fn LunaOnlineInstance::prepare_cut_terminal(self : LunaOnlineInstance) -> Unit {
   try! self.writer.prepare_usage(
     input_tokens=self.input_tokens,
     cached_input_tokens=0,
     output_tokens=self.output_tokens,
   )
-  if self.terminal_cut == 1 {
-    self.finish_kind = 3
-    self.event_kind = 3
+  if self.terminal_cut == CallerCancellationCut {
+    self.finish_kind = FinishCancelled
+    self.event_kind = CompletionUsageEvent
   } else {
-    if self.failure_kind == 0 {
-      self.failure_kind = if self.terminal_cut == 2 {
-        1
-      } else if self.terminal_cut == 4 {
-        3
-      } else {
-        2
+    if self.failure_kind == NoLatchedFailure {
+      self.failure_kind = match self.terminal_cut {
+        DeadlineFailureCut => DeadlineLatchedFailure
+        WorkerFailureCut => WorkerLatchedFailure
+        OutputCancellationCut | NaturalOutputFailureCut => OutputLatchedFailure
+        NoTerminalCut | CallerCancellationCut =>
+          abort("online terminal failure kind invariant")
       }
     }
-    self.event_kind = 5
+    self.event_kind = FailureUsageEvent
   }
-  self.terminal_cut = 0
+  self.terminal_cut = NoTerminalCut
   self.event_ready = true
 }
 
 ///|
-fn OnlineSession::progress_terminal_cut(
-  self : OnlineSession,
+fn LunaOnlineInstance::progress_terminal_cut(
+  self : LunaOnlineInstance,
   lease : @worker_service.OnlineWorkerLease,
 ) -> Unit {
   if !(try! lease.has_publication()) {
@@ -154,17 +160,20 @@ fn OnlineSession::progress_terminal_cut(
       abort("online terminal cut token suppression invariant")
     OnlineTerminalPublication => {
       let reason = try! publication.terminal_reason()
-      if self.terminal_cut == 1 {
+      if self.terminal_cut == CallerCancellationCut {
         if reason != OnlineCancelledByCaller {
           abort("online caller cancellation terminal invariant")
         }
-      } else if self.terminal_cut == 2 && reason != OnlineDeadlineReached {
+      } else if self.terminal_cut == DeadlineFailureCut &&
+        reason != OnlineDeadlineReached {
         abort("online deadline terminal invariant")
-      } else if self.terminal_cut == 3 && reason != OnlineCancelledByCaller {
+      } else if self.terminal_cut == OutputCancellationCut &&
+        reason != OnlineCancelledByCaller {
         abort("online output cancellation terminal invariant")
-      } else if self.terminal_cut == 4 && reason != OnlineWorkerFailed {
+      } else if self.terminal_cut == WorkerFailureCut &&
+        reason != OnlineWorkerFailed {
         abort("online worker failure terminal invariant")
-      } else if self.terminal_cut == 5 &&
+      } else if self.terminal_cut == NaturalOutputFailureCut &&
         reason != OnlineMaximumOutputReached &&
         reason != OnlineStopTokenReached {
         abort("online natural output failure terminal invariant")
@@ -178,72 +187,74 @@ fn OnlineSession::progress_terminal_cut(
 /// Advances one explicitly off-reactor failure-terminalization transition.
 /// This is the only normal-session API allowed to recover/reap a failed child.
 /// The first latched product cause remains stable across recovery retries.
-pub fn OnlineSession::progress_terminalization(
-  self : OnlineSession,
-) -> OnlineSessionProgress raise OnlineSessionError {
+pub fn LunaOnlineInstance::progress_terminalization(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
+  self.require_ticket(ticket)
   if self.event_ready {
-    raise SessionFailed(Invalid(EventCredit))
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
-  if self.closed || self.cleanup_phase != 0 || !self.accepted_acked {
-    raise SessionFailed(Invalid(Lifecycle))
+  if self.phase != LunaRequestActivePhase || !self.accepted_acked {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   self.require_owner()
-  if !self.recovery_close && self.terminal_cut != 3 {
-    raise SessionFailed(Invalid(Lifecycle))
+  if !self.recovery_close && self.terminal_cut != OutputCancellationCut {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   let lease = self.lease_owner()
   if self.recovery_close {
     let recovery = lease.progress_terminal_recovery_status(ResourceUnavailable)
     match recovery {
       OnlineTerminalRecoveryRetryable | OnlineTerminalRecoveryStillPending =>
-        return OnlineSessionTerminalizationRequired
+        return LunaOnlineInstanceTerminalizationRequired
       OnlineTerminalRecoveryReady => ()
     }
   } else if !(try! lease.has_publication()) {
     let step = try! lease.progress_status()
     ignore(self.latch_worker_step_failure(step))
-    return OnlineSessionTerminalizationRequired
+    return LunaOnlineInstanceTerminalizationRequired
   }
   if !(try! lease.has_publication()) {
-    return OnlineSessionTerminalizationRequired
+    return LunaOnlineInstanceTerminalizationRequired
   }
-  if self.string_cut != 0 {
+  if self.string_cut != NoStringCut {
     self.progress_string_cut(lease)
   } else {
     self.progress_terminal_cut(lease)
   }
   if self.event_ready {
-    OnlineSessionEventReady
+    LunaOnlineInstanceEventReady
   } else {
-    OnlineSessionTerminalizationRequired
+    LunaOnlineInstanceTerminalizationRequired
   }
 }
 
 ///|
 /// Requests a caller-visible cancellation. A pinned Token remains immutable;
 /// its acknowledgement is required before the exact cut can begin.
-pub fn OnlineSession::request_cancel(
-  self : OnlineSession,
-) -> Unit raise OnlineSessionError {
-  if self.closed || self.cleanup_phase != 0 {
-    raise SessionFailed(Invalid(Lifecycle))
-  }
+pub fn LunaOnlineInstance::request_cancel(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Unit raise LunaOnlineInstanceError {
+  self.require_active_ticket(ticket)
   self.require_owner()
-  if self.terminal_cut != 0 || self.string_cut != 0 {
+  if self.terminal_cut != NoTerminalCut || self.string_cut != NoStringCut {
     return
   }
-  if self.deferred_cut == 1 {
+  if self.deferred_cancel {
     return
   }
-  if self.event_kind >= 3 {
-    return
+  match self.event_kind {
+    CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent =>
+      return
+    NoSessionEvent | AcceptedEvent | TokenEvent => ()
   }
   if self.event_ready {
-    if self.event_kind != 1 && self.event_kind != 2 {
-      raise SessionFailed(Invalid(EventCredit))
-    }
-    if self.deferred_cut == 0 {
-      self.deferred_cut = 1
+    match self.event_kind {
+      AcceptedEvent | TokenEvent => self.deferred_cancel = true
+      _ =>
+        raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
     }
     return
   }
@@ -257,21 +268,22 @@ pub fn OnlineSession::request_cancel(
 ///|
 /// Samples the owner-bound monotonic clock only after event credit is free.
 /// Natural terminal evidence takes precedence inside the lower lease.
-pub fn OnlineSession::check_deadline(
-  self : OnlineSession,
-) -> Unit raise OnlineSessionError {
-  if self.closed || self.cleanup_phase != 0 {
-    raise SessionFailed(Invalid(Lifecycle))
-  }
+pub fn LunaOnlineInstance::check_deadline(
+  self : LunaOnlineInstance,
+  ticket : LunaOnlineRequestTicket,
+) -> Unit raise LunaOnlineInstanceError {
+  self.require_active_ticket(ticket)
   self.require_owner()
-  if self.terminal_cut != 0 || self.string_cut != 0 {
+  if self.terminal_cut != NoTerminalCut || self.string_cut != NoStringCut {
     return
   }
-  if self.deferred_cut == 1 {
+  if self.deferred_cancel {
     return
   }
-  if self.event_kind >= 3 {
-    return
+  match self.event_kind {
+    CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent =>
+      return
+    NoSessionEvent | AcceptedEvent | TokenEvent => ()
   }
   if self.event_ready {
     // Poll only: never sample time or latch deadline intent while a frame is
