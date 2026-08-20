@@ -1,6 +1,6 @@
 ///|
 fn artifact_identity() -> @spec.ModelIdentity {
-  @spec.ModelIdentity::new(
+  try! @spec.ModelIdentity::new(
     try! @spec.ContentDigest::from_sha256(
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     ),

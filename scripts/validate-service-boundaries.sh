@@ -588,6 +588,245 @@ if [ -d service/request_admission ]; then
   fi
 fi
 
+for required_authority_interface in \
+  contracts/inference/pkg.generated.mbti \
+  model/spec/pkg.generated.mbti \
+  scheduler/core/pkg.generated.mbti; do
+  if [ ! -f "$required_authority_interface" ]; then
+    printf '%s\n' \
+      "required authority interface ${required_authority_interface} is missing" >&2
+    failed=1
+  fi
+done
+
+assert_self_factory_allowlist() {
+  interface=$1
+  authority_type=$2
+  expected=$3
+  actual="$(rg \
+    "^pub fn ${authority_type}::.* -> Self( raise .*)?$" \
+    "$interface" | sed \
+    "s/^pub fn ${authority_type}:://; s/(.*$//" | sort || true)"
+  if [ "$actual" != "$expected" ]; then
+    printf '%s\n' \
+      "${authority_type} public Self factory allowlist drifted" >&2
+    failed=1
+  fi
+}
+
+assert_authority_escape_allowlist() {
+  interface=$1
+  authority_type=$2
+  expected=$3
+  actual="$({
+    rg "^pub fn ${authority_type}::.* -> Self( raise .*)?$" \
+      "$interface" || true
+    rg --pcre2 \
+      "^pub fn .* -> .*(?<![A-Za-z0-9_])${authority_type}(?![A-Za-z0-9_]).*$" \
+      "$interface" || true
+  } | sed 's/^pub fn //; s/(.*$//' | sort -u)"
+  if [ "$actual" != "$expected" ]; then
+    printf '%s\n' \
+      "${authority_type} public authority escape allowlist drifted" >&2
+    failed=1
+  fi
+}
+
+for request_authority in \
+    AdmissionDeadline \
+    CachePolicy \
+    CacheScope \
+    DeadlineBudget \
+    EffectiveLimits \
+    GenerateRequest \
+    InferenceLimits \
+    ProtocolVersion \
+    RequestId \
+    SamplingParameters \
+    SamplingSeed \
+    StopConditions \
+    TextInput \
+    TokenBuffer \
+    TraceCorrelation; do
+  if ! rg -q --pcre2 -U \
+      "^pub struct ${request_authority} \\{\\n  // private fields\\n\\}" \
+      contracts/inference/pkg.generated.mbti; then
+    printf '%s\n' \
+      "inference request authority ${request_authority} is not opaque" >&2
+    failed=1
+  fi
+done
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti AdmissionDeadline from_receipt
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti CachePolicy new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti CacheScope from_ascii
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti DeadlineBudget from_milliseconds
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti EffectiveLimits new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti GenerateRequest new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti InferenceLimits new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti Input 'from_token_ids
+from_utf8'
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti ProtocolVersion 'from_wire
+v1'
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti RequestId new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti SamplingParameters 'greedy
+sample'
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti SamplingSeed new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti StopConditions 'new
+token_only'
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti TextInput from_utf8
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti TokenBuffer new
+assert_self_factory_allowlist \
+  contracts/inference/pkg.generated.mbti TraceCorrelation from_ascii
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti AdmissionDeadline AdmissionDeadline::from_receipt
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti CachePolicy 'CachePolicy::new
+GenerateRequest::cache'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti CacheScope 'CachePolicy::scope
+CacheScope::from_ascii'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti DeadlineBudget 'DeadlineBudget::from_milliseconds
+GenerateRequest::deadline'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti EffectiveLimits 'AcceptedEvent::effective_limits
+EffectiveLimits::new'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti GenerateRequest GenerateRequest::new
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti InferenceLimits InferenceLimits::new
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti Input 'GenerateRequest::input
+Input::from_token_ids
+Input::from_utf8'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti ProtocolVersion 'GenerateRequest::protocol_version
+ProtocolVersion::from_wire
+ProtocolVersion::v1'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti RequestId 'GenerateRequest::request_id
+RequestId::new'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti SamplingParameters 'GenerateRequest::sampling
+SamplingParameters::greedy
+SamplingParameters::sample'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti SamplingSeed 'GenerateRequest::sampling_seed
+SamplingSeed::new'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti StopConditions 'GenerateRequest::stops
+StopConditions::new
+StopConditions::token_only'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti TextInput TextInput::from_utf8
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti TokenBuffer 'LunaTokenBufferLease::token_buffer
+TokenBuffer::new'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti TraceCorrelation 'GenerateRequest::trace
+TraceCorrelation::from_ascii'
+if ! rg -q --pcre2 -U \
+    '^pub\(all\) enum Input \{\n  TokenIds\(TokenBuffer\)\n  Text\(TextInput\)\n\}$' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' 'inference Input authority variants drifted' >&2
+  failed=1
+fi
+if ! rg -F -x -q \
+    'pub fn Input::from_token_ids(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError' \
+    contracts/inference/pkg.generated.mbti ||
+  ! rg -F -x -q \
+    'pub fn Input::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError' \
+    contracts/inference/pkg.generated.mbti ||
+  ! rg -F -x -q \
+    'pub fn GenerateRequest::input(Self) -> Input' \
+    contracts/inference/pkg.generated.mbti ||
+  ! rg -F -x -q \
+    'pub fn TokenBuffer::new(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError' \
+    contracts/inference/pkg.generated.mbti ||
+  ! rg -F -x -q \
+    'pub fn LunaTokenBufferLease::token_buffer(Self) -> TokenBuffer raise InferenceContractError' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' 'inference input and token authority signatures drifted' >&2
+  failed=1
+fi
+if rg -q --pcre2 -U \
+    '^pub struct (CachePolicy|CacheScope|GenerateRequest|SamplingSeed|StopConditions|TextInput|TokenBuffer|TraceCorrelation) \{(?s:[^}]*)\} derive\([^)]*(?:@debug\.)?Debug' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' \
+    'payload-bearing inference request authority became debuggable' >&2
+  failed=1
+fi
+
+for model_identity_authority in \
+  ContentDigest \
+  LlamaModelMetadata \
+  LlamaModelSpec \
+  ModelIdentity \
+  PlanDigest; do
+  if ! rg -q --pcre2 -U \
+      "^pub struct ${model_identity_authority} \\{\\n  // private fields\\n\\}" \
+      model/spec/pkg.generated.mbti; then
+    printf '%s\n' \
+      "model identity authority ${model_identity_authority} is not opaque" >&2
+    failed=1
+  fi
+done
+assert_self_factory_allowlist \
+  model/spec/pkg.generated.mbti ContentDigest from_sha256
+assert_self_factory_allowlist \
+  model/spec/pkg.generated.mbti LlamaModelMetadata from_verified_content
+assert_self_factory_allowlist \
+  model/spec/pkg.generated.mbti LlamaModelSpec new
+assert_self_factory_allowlist \
+  model/spec/pkg.generated.mbti ModelIdentity new
+assert_self_factory_allowlist \
+  model/spec/pkg.generated.mbti PlanDigest from_sha256
+assert_authority_escape_allowlist \
+  model/spec/pkg.generated.mbti ContentDigest 'ContentDigest::from_sha256
+ModelIdentity::content'
+assert_authority_escape_allowlist \
+  model/spec/pkg.generated.mbti LlamaModelMetadata LlamaModelMetadata::from_verified_content
+assert_authority_escape_allowlist \
+  model/spec/pkg.generated.mbti LlamaModelSpec 'LlamaModelMetadata::spec
+LlamaModelSpec::new'
+assert_authority_escape_allowlist \
+  model/spec/pkg.generated.mbti ModelIdentity 'LlamaModelMetadata::identity
+ModelIdentity::new'
+assert_authority_escape_allowlist \
+  model/spec/pkg.generated.mbti PlanDigest 'LlamaModelSpec::canonical_paged_plan_digest
+LlamaModelSpec::canonical_plan_digest
+ModelIdentity::plan
+PlanDigest::from_sha256'
+if rg -n '^pub(\(all\))? type' \
+    contracts/inference/pkg.generated.mbti model/spec/pkg.generated.mbti; then
+  printf '%s\n' \
+    'authority packages must not hide authority returns behind public aliases' >&2
+  failed=1
+fi
+if ! rg -q '^pub fn ContentDigest::from_sha256\(String\) -> Self raise ModelSpecError$' model/spec/pkg.generated.mbti ||
+  ! rg -q '^pub fn PlanDigest::from_sha256\(String\) -> Self raise ModelSpecError$' model/spec/pkg.generated.mbti ||
+  ! rg -q '^pub fn ModelIdentity::new\(ContentDigest, PlanDigest\) -> Self raise ModelSpecError$' model/spec/pkg.generated.mbti ||
+  ! rg -q '^pub fn LlamaModelMetadata::from_verified_content\(LlamaModelSpec, ContentDigest\) -> Self raise ModelSpecError$' model/spec/pkg.generated.mbti ||
+  ! rg -q '^pub fn LlamaModelSpec::new\(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon\? : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType\) -> Self raise ModelSpecError$' model/spec/pkg.generated.mbti; then
+  printf '%s\n' 'model authority factory exclusivity drifted' >&2
+  failed=1
+fi
+
 if [ -f contracts/inference/pkg.generated.mbti ] &&
   [ -f scheduler/core/pkg.generated.mbti ]; then
   if rg -n '^pub fn TokenBuffer::token_ids\(|^pub fn TokenizedRequest::(input_tokens|input_token_at)\(' \
@@ -596,8 +835,8 @@ if [ -f contracts/inference/pkg.generated.mbti ] &&
       'pub struct (TokenBuffer|TokenizedRequest) \{\n  (?!// private fields)' \
       contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti ||
     rg -n --pcre2 -U \
-      'pub struct TokenizedRequest \{(?s:[^}]*)\} derive\([^)]*Debug' \
-      scheduler/core/pkg.generated.mbti; then
+      'pub struct (TokenBuffer|TokenizedRequest) \{(?s:[^}]*)\} derive\([^)]*Debug' \
+      contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti; then
     printf '%s\n' \
       'tokenized scheduler requests must remain opaque without raw token arrays' >&2
     failed=1

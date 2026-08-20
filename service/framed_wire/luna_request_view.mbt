@@ -399,12 +399,15 @@ fn materialize_luna_framed_request(
   } else {
     None
   }
+  let model_identity = @spec.ModelIdentity::new(content, plan) catch {
+    _ => raise request_invalid(Identity)
+  }
   @inference.GenerateRequest::new(
     protocol_version=try! @inference.ProtocolVersion::from_wire(
       view.protocol_version_wire(),
     ),
     request_id=try! @inference.RequestId::new(view.request_id_value()),
-    model_identity=@spec.ModelIdentity::new(content, plan),
+    model_identity~,
     input~,
     max_new_tokens=view.max_new_tokens(),
     context_ceiling=view.context_ceiling(),

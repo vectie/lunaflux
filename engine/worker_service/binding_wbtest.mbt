@@ -1,6 +1,6 @@
 ///|
 fn wb_service_identity() -> @spec.ModelIdentity {
-  @spec.ModelIdentity::new(
+  try! @spec.ModelIdentity::new(
     try! @spec.ContentDigest::from_sha256(
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     ),
@@ -12,7 +12,7 @@ fn wb_service_identity() -> @spec.ModelIdentity {
 
 ///|
 fn wb_other_identity() -> @spec.ModelIdentity {
-  @spec.ModelIdentity::new(
+  try! @spec.ModelIdentity::new(
     try! @spec.ContentDigest::from_sha256(
       "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     ),

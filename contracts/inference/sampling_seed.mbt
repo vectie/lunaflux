@@ -13,13 +13,21 @@ pub struct SamplingSeed {
 pub fn SamplingSeed::new(
   value : UInt64,
 ) -> SamplingSeed raise InferenceContractError {
-  if value == 0UL {
-    raise invalid(SamplingSeed, OutOfRange, 0)
-  }
-  { value, }
+  let sampling_seed : SamplingSeed = { value, }
+  sampling_seed.validate()
+  sampling_seed
 }
 
 ///|
 pub fn SamplingSeed::value(self : SamplingSeed) -> UInt64 {
   self.value
+}
+
+///|
+fn SamplingSeed::validate(
+  self : SamplingSeed,
+) -> Unit raise InferenceContractError {
+  if self.value == 0UL {
+    raise invalid(SamplingSeed, OutOfRange, 0)
+  }
 }

@@ -114,7 +114,8 @@ pub fn TokenBuffer::length(self : TokenBuffer) -> Int {
 /// Reports whether this buffer's backing generation is still readable.
 pub fn TokenBuffer::is_live(self : TokenBuffer) -> Bool {
   match self.backing {
-    LunaOwnedTokenBacking(_) => true
+    LunaOwnedTokenBacking(tokens) =>
+      self.token_count > 0 && self.token_count == tokens.length()
     LunaLeasedTokenBacking(storage, epoch) =>
       storage.is_sealed_epoch(epoch, self.token_count)
   }
@@ -253,23 +254,47 @@ fn Input::validate(
 ) -> Unit raise InferenceContractError {
   match self {
     TokenIds(tokens) => {
+      let length = tokens.length()
+      if length <= 0 {
+        raise invalid(InputToken, Empty, 0)
+      }
       if !tokens.is_live() {
         raise invalid(LunaTokenStorage, LunaStorageStale, 0)
       }
-      let length = tokens.length()
       if length > limits.max_input_tokens() {
         raise invalid(InputToken, TooMany, limits.max_input_tokens())
       }
+      let mut actual_maximum_token_id = -1
       for index in 0..<length {
         let status = tokens.token_status(index)
-        if !status.is_ready() || status.token_id() > limits.max_token_id() {
+        let token_id = status.token_id()
+        if !status.is_ready() ||
+          token_id < 0 ||
+          token_id > limits.max_token_id() {
           raise invalid(InputToken, OutOfRange, index)
         }
+        if token_id > actual_maximum_token_id {
+          actual_maximum_token_id = token_id
+        }
+      }
+      if actual_maximum_token_id != tokens.maximum_token_id {
+        raise invalid(InputToken, Inconsistent, 0)
       }
     }
-    Text(text) =>
-      if text.utf8_bytes() > limits.max_text_bytes() {
+    Text(text) => {
+      let utf8 = text.utf8()
+      if utf8.length() == 0 {
+        raise invalid(InputText, Empty, 0)
+      }
+      if utf8.length() > limits.max_text_bytes() {
         raise invalid(InputText, TooLong, 0)
       }
+      let decoded = @utf8.decode(utf8) catch {
+        _ => raise invalid(InputText, InvalidFormat, 0)
+      }
+      if decoded != text.text() {
+        raise invalid(InputText, Inconsistent, 0)
+      }
+    }
   }
 }

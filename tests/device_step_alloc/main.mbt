@@ -53,7 +53,7 @@ fn verify_probe_observes_allocations() -> Unit {
 
 ///|
 fn metadata() -> @spec.LlamaModelMetadata {
-  @spec.LlamaModelMetadata::from_verified_content(
+  try! @spec.LlamaModelMetadata::from_verified_content(
     try! @spec.LlamaModelSpec::new(
       vocabulary_size=128,
       hidden_size=16,

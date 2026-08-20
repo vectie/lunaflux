@@ -16,6 +16,7 @@ pub(all) enum HeadRelationship {
   HiddenNotDivisibleByAttentionHeads
   AttentionHeadsNotDivisibleByKvHeads
   KvHeadsExceedAttentionHeads
+  HeadDimensionMismatch
 } derive(Debug, Eq)
 
 ///|
@@ -31,4 +32,5 @@ pub(all) suberror ModelSpecError {
   UnsupportedKvDType
   UnknownDType
   InvalidDigest
+  MetadataIdentityMismatch
 } derive(Debug, Eq)

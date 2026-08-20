@@ -6,7 +6,7 @@ fn plan_test_identity() -> @spec.ModelIdentity {
   let digest = try! @spec.PlanDigest::from_sha256(
     "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   )
-  @spec.ModelIdentity::new(content, digest)
+  try! @spec.ModelIdentity::new(content, digest)
 }
 
 ///|

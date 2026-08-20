@@ -11,10 +11,10 @@ pub(all) enum SamplingMode {
 /// Greedy is represented separately from probabilistic sampling so zero
 /// temperature never acquires an implicit or adapter-specific meaning.
 pub struct SamplingParameters {
-  mode : SamplingMode
-  temperature : Double
-  top_k : Int?
-  top_p : Double?
+  priv mode : SamplingMode
+  priv temperature : Double
+  priv top_k : Int?
+  priv top_p : Double?
 } derive(Debug, Eq)
 
 ///|
@@ -77,7 +77,19 @@ fn SamplingParameters::validate(
   limits : InferenceLimits,
 ) -> Unit raise InferenceContractError {
   match self.mode {
-    Greedy => ()
+    Greedy => {
+      if self.temperature != 1.0 {
+        raise invalid(Temperature, Inconsistent, 0)
+      }
+      match self.top_k {
+        Some(_) => raise invalid(TopK, Inconsistent, 0)
+        None => ()
+      }
+      match self.top_p {
+        Some(_) => raise invalid(TopP, Inconsistent, 0)
+        None => ()
+      }
+    }
     Sample =>
       ignore(
         SamplingParameters::sample(

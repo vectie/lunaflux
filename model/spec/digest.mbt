@@ -1,20 +1,20 @@
 ///|
 /// SHA-256 identity of immutable model artifact content.
 pub struct ContentDigest {
-  hex : String
+  priv hex : String
 } derive(Debug, Eq)
 
 ///|
 /// SHA-256 identity of a canonical immutable model plan.
 pub struct PlanDigest {
-  hex : String
+  priv hex : String
 } derive(Debug, Eq)
 
 ///|
 /// Pair of identities that salts model- and plan-specific runtime state.
 pub struct ModelIdentity {
-  content : ContentDigest
-  plan : PlanDigest
+  priv content : ContentDigest
+  priv plan : PlanDigest
 } derive(Debug, Eq)
 
 ///|
@@ -28,10 +28,16 @@ fn is_lower_sha256(hex : StringView) -> Bool {
 pub fn ContentDigest::from_sha256(
   hex : String,
 ) -> ContentDigest raise ModelSpecError {
-  if !is_lower_sha256(hex) {
+  let digest : ContentDigest = { hex, }
+  digest.validate()
+  digest
+}
+
+///|
+fn ContentDigest::validate(self : ContentDigest) -> Unit raise ModelSpecError {
+  if !is_lower_sha256(self.hex) {
     raise InvalidDigest
   }
-  { hex, }
 }
 
 ///|
@@ -43,10 +49,16 @@ pub fn ContentDigest::as_hex(self : ContentDigest) -> String {
 ///|
 /// Validates a lowercase hexadecimal SHA-256 plan identity.
 pub fn PlanDigest::from_sha256(hex : String) -> PlanDigest raise ModelSpecError {
-  if !is_lower_sha256(hex) {
+  let digest : PlanDigest = { hex, }
+  digest.validate()
+  digest
+}
+
+///|
+fn PlanDigest::validate(self : PlanDigest) -> Unit raise ModelSpecError {
+  if !is_lower_sha256(self.hex) {
     raise InvalidDigest
   }
-  { hex, }
 }
 
 ///|
@@ -138,8 +150,10 @@ pub fn LlamaModelSpec::canonical_paged_plan_digest(
 pub fn ModelIdentity::new(
   content : ContentDigest,
   plan : PlanDigest,
-) -> ModelIdentity {
-  { content, plan }
+) -> ModelIdentity raise ModelSpecError {
+  let identity : ModelIdentity = { content, plan }
+  identity.validate()
+  identity
 }
 
 ///|
@@ -150,4 +164,10 @@ pub fn ModelIdentity::content(self : ModelIdentity) -> ContentDigest {
 ///|
 pub fn ModelIdentity::plan(self : ModelIdentity) -> PlanDigest {
   self.plan
+}
+
+///|
+fn ModelIdentity::validate(self : ModelIdentity) -> Unit raise ModelSpecError {
+  self.content.validate()
+  self.plan.validate()
 }

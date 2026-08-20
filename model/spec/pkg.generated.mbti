@@ -17,11 +17,12 @@ pub(all) suberror ModelSpecError {
   UnsupportedKvDType
   UnknownDType
   InvalidDigest
+  MetadataIdentityMismatch
 } derive(Eq, @debug.Debug)
 
 // Types and methods
 pub struct ContentDigest {
-  hex : String
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ContentDigest::as_hex(Self) -> String
 pub fn ContentDigest::from_sha256(String) -> Self raise ModelSpecError
@@ -30,29 +31,18 @@ pub(all) enum HeadRelationship {
   HiddenNotDivisibleByAttentionHeads
   AttentionHeadsNotDivisibleByKvHeads
   KvHeadsExceedAttentionHeads
+  HeadDimensionMismatch
 } derive(Eq, @debug.Debug)
 
 pub struct LlamaModelMetadata {
-  spec : LlamaModelSpec
-  identity : ModelIdentity
+  // private fields
 } derive(Eq, @debug.Debug)
-pub fn LlamaModelMetadata::from_verified_content(LlamaModelSpec, ContentDigest) -> Self
+pub fn LlamaModelMetadata::from_verified_content(LlamaModelSpec, ContentDigest) -> Self raise ModelSpecError
 pub fn LlamaModelMetadata::identity(Self) -> ModelIdentity
 pub fn LlamaModelMetadata::spec(Self) -> LlamaModelSpec
 
 pub struct LlamaModelSpec {
-  vocabulary_size : Int
-  hidden_size : Int
-  intermediate_size : Int
-  layer_count : Int
-  attention_head_count : Int
-  kv_head_count : Int
-  head_dimension : Int
-  context_length : Int
-  rope_theta : Double
-  rms_norm_epsilon : Double
-  weight_dtype : ModelDType
-  kv_dtype : ModelDType
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaModelSpec::attention_head_count(Self) -> Int
 pub fn LlamaModelSpec::canonical_paged_plan_digest(Self) -> PlanDigest
@@ -88,15 +78,14 @@ pub(all) enum ModelDimension {
 } derive(Eq, @debug.Debug)
 
 pub struct ModelIdentity {
-  content : ContentDigest
-  plan : PlanDigest
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ModelIdentity::content(Self) -> ContentDigest
-pub fn ModelIdentity::new(ContentDigest, PlanDigest) -> Self
+pub fn ModelIdentity::new(ContentDigest, PlanDigest) -> Self raise ModelSpecError
 pub fn ModelIdentity::plan(Self) -> PlanDigest
 
 pub struct PlanDigest {
-  hex : String
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn PlanDigest::as_hex(Self) -> String
 pub fn PlanDigest::from_sha256(String) -> Self raise ModelSpecError

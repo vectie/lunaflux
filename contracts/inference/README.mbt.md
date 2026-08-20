@@ -21,6 +21,33 @@ trace correlation deliberately have no derived debug representation. Public
 validation errors contain only a bounded field, issue category, and collection
 index.
 
+Validated request-authority records are opaque outside this package. Callers
+construct protocol and request identities, limits, sampling, stop, deadline,
+cache, trace, and effective-limit values only through their checked public
+constructors and typed accessors. `GenerateRequest::new` defensively
+revalidates every nested request authority in a fixed precedence order, so a
+same-package forged nested value passed to that constructor cannot bypass
+token, duplicate, UTF-8 byte, scalar, or safe-identifier bounds.
+`RequestGeneration` remains a separate monotonic
+coordination value rather than validated request content; public output/event
+records are also outside this request-authority boundary.
+
+Input revalidation authenticates the exact owned or leased token backing,
+rejects empty and negative token data, and recomputes the cached maximum token
+ID before scheduler admission can trust it. Text input is re-decoded from its
+retained UTF-8 bytes and must exactly match the retained MoonBit string.
+Sampling seeds are revalidated as nonzero before stop conditions.
+
+Deployment limits are themselves opaque authority and are defensively
+revalidated before any request field is inspected; `Limit` therefore precedes
+`ProtocolVersion` and every later request error. Forged stop and identifier
+strings are scanned as UTF-16 before UTF-8 byte accounting, so lone or
+misordered surrogates return bounded `InvalidFormat` errors while valid
+supplementary pairs count as exactly four UTF-8 bytes.
+Code-unit length is checked first because it is a lower bound on UTF-8 bytes;
+definitely oversized forged strings therefore return `TooLong` without an
+unbounded malformed-string scan.
+
 `TextInput` retains the canonical immutable UTF-8 bytes accepted at the
 contract boundary, so bounded Luna tokenization does not recreate them from
 MoonBit's UTF-16 `String`. `TokenBuffer` is opaque. Ordinary constructors own

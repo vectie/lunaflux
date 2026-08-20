@@ -267,8 +267,11 @@ pub fn ValidatedStartupFrame::contract(
   let plan = @spec.PlanDigest::from_sha256(read_digest(bytes, 104)) catch {
     _ => raise InvalidFrame(StartupIdentity)
   }
+  let identity = @spec.ModelIdentity::new(content, plan) catch {
+    _ => raise InvalidFrame(StartupIdentity)
+  }
   WorkerStartupContract::new(
-    identity=@spec.ModelIdentity::new(content, plan),
+    identity~,
     bootstrap_digest=WorkerBootstrapDigest::from_sha256(read_digest(bytes, 272)),
     bootstrap_source_digest=WorkerBootstrapSourceDigest::from_sha256(
       read_digest(bytes, startup_source_digest_offset),

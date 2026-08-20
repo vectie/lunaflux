@@ -1,8 +1,8 @@
 ///|
 /// Limits made effective by admission for one accepted request.
 pub struct EffectiveLimits {
-  max_new_tokens : Int
-  context_ceiling : Int
+  priv max_new_tokens : Int
+  priv context_ceiling : Int
 } derive(Debug, Eq)
 
 ///|

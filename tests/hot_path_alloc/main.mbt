@@ -67,7 +67,7 @@ fn model_identity() -> @spec.ModelIdentity {
   let plan = try! @spec.PlanDigest::from_sha256(
     "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   )
-  @spec.ModelIdentity::new(content, plan)
+  try! @spec.ModelIdentity::new(content, plan)
 }
 
 ///|

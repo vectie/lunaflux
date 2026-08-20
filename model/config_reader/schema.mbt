@@ -198,5 +198,7 @@ fn decode_model(
     error => raise Validation(error)
   }
   validate_selected_semantics(object, hidden_size, attention_head_count)
-  @spec.LlamaModelMetadata::from_verified_content(model_spec, content_digest)
+  @spec.LlamaModelMetadata::from_verified_content(model_spec, content_digest) catch {
+    error => raise Validation(error)
+  }
 }

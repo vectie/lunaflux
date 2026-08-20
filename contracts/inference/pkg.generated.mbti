@@ -36,15 +36,14 @@ pub(all) enum CachePermission {
 } derive(Eq, @debug.Debug)
 
 pub struct CachePolicy {
-  scope : CacheScope
-  permission : CachePermission
+  // private fields
 }
 pub fn CachePolicy::new(CacheScope, CachePermission) -> Self
 pub fn CachePolicy::permission(Self) -> CachePermission
 pub fn CachePolicy::scope(Self) -> CacheScope
 
 pub struct CacheScope {
-  value : String
+  // private fields
 }
 pub fn CacheScope::as_string(Self) -> String
 pub fn CacheScope::from_ascii(BytesView, InferenceLimits) -> Self raise InferenceContractError
@@ -104,7 +103,7 @@ pub(all) enum ContractIssue {
 } derive(Eq, @debug.Debug)
 
 pub struct DeadlineBudget {
-  milliseconds : UInt64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeadlineBudget::from_milliseconds(UInt64, InferenceLimits) -> Self raise InferenceContractError
 pub fn DeadlineBudget::milliseconds(Self) -> UInt64
@@ -118,8 +117,7 @@ pub fn DecodedDelta::text(Self) -> String
 pub fn DecodedDelta::utf8_bytes(Self) -> Int
 
 pub struct EffectiveLimits {
-  max_new_tokens : Int
-  context_ceiling : Int
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn EffectiveLimits::context_ceiling(Self) -> Int
 pub fn EffectiveLimits::max_new_tokens(Self) -> Int
@@ -140,19 +138,7 @@ pub(all) enum FinishReason {
 } derive(Eq, @debug.Debug)
 
 pub struct GenerateRequest {
-  protocol_version : ProtocolVersion
-  request_id : RequestId
-  model_identity : @spec.ModelIdentity
-  input : Input
-  max_new_tokens : Int
-  context_ceiling : Int
-  sampling : SamplingParameters
-  sampling_seed : SamplingSeed
-  stops : StopConditions
-  stream_preference : StreamPreference
-  deadline : DeadlineBudget
-  cache : CachePolicy
-  trace : TraceCorrelation?
+  // private fields
 }
 pub fn GenerateRequest::cache(Self) -> CachePolicy
 pub fn GenerateRequest::context_ceiling(Self) -> Int
@@ -170,20 +156,7 @@ pub fn GenerateRequest::stream_preference(Self) -> StreamPreference
 pub fn GenerateRequest::trace(Self) -> TraceCorrelation?
 
 pub struct InferenceLimits {
-  max_text_bytes : Int
-  max_input_tokens : Int
-  max_new_tokens : Int
-  max_context_tokens : Int
-  max_token_id : Int
-  max_stop_token_ids : Int
-  max_stop_strings : Int
-  max_stop_string_bytes : Int
-  max_trace_bytes : Int
-  max_cache_scope_bytes : Int
-  max_decoded_delta_bytes : Int
-  max_deadline_millis : UInt64
-  max_top_k : Int
-  max_temperature : Double
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn InferenceLimits::max_cache_scope_bytes(Self) -> Int
 pub fn InferenceLimits::max_context_tokens(Self) -> Int
@@ -243,7 +216,7 @@ pub fn LunaTokenBufferWrite::seal(Self) -> LunaTokenBufferLease raise InferenceC
 pub fn LunaTokenBufferWrite::written_count(Self) -> Int raise InferenceContractError
 
 pub struct ProtocolVersion {
-  wire_code : Int
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProtocolVersion::from_wire(Int) -> Self raise InferenceContractError
 pub fn ProtocolVersion::v1() -> Self
@@ -264,7 +237,7 @@ pub fn RequestGeneration::next(Self) -> Self raise InferenceContractError
 pub fn RequestGeneration::value(Self) -> UInt64
 
 pub struct RequestId {
-  value : UInt64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn RequestId::new(UInt64) -> Self raise InferenceContractError
 pub fn RequestId::value(Self) -> UInt64
@@ -275,10 +248,7 @@ pub(all) enum SamplingMode {
 } derive(Eq, @debug.Debug)
 
 pub struct SamplingParameters {
-  mode : SamplingMode
-  temperature : Double
-  top_k : Int?
-  top_p : Double?
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn SamplingParameters::greedy() -> Self
 pub fn SamplingParameters::mode(Self) -> SamplingMode
@@ -294,8 +264,7 @@ pub fn SamplingSeed::new(UInt64) -> Self raise InferenceContractError
 pub fn SamplingSeed::value(Self) -> UInt64
 
 pub struct StopConditions {
-  token_ids : ReadOnlyArray[Int]
-  strings : ReadOnlyArray[String]
+  // private fields
 }
 pub fn StopConditions::new(ArrayView[Int], ArrayView[Bytes], InferenceLimits) -> Self raise InferenceContractError
 pub fn StopConditions::strings(Self) -> ReadOnlyArray[String]
@@ -344,7 +313,7 @@ pub fn TokenEvent::position(Self) -> Int
 pub fn TokenEvent::token_id(Self) -> Int
 
 pub struct TraceCorrelation {
-  value : String
+  // private fields
 }
 pub fn TraceCorrelation::as_string(Self) -> String
 pub fn TraceCorrelation::from_ascii(BytesView, InferenceLimits) -> Self raise InferenceContractError

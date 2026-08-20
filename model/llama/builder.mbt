@@ -101,7 +101,7 @@ fn build_with_execution(
   let identity = match kv_execution {
     StatelessFullContext => metadata.identity()
     PagedKeyValue =>
-      @spec.ModelIdentity::new(
+      try! @spec.ModelIdentity::new(
         metadata.identity().content(),
         spec.canonical_paged_plan_digest(),
       )

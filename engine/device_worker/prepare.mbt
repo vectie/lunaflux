@@ -42,7 +42,9 @@ fn validate_model_identity(
   let canonical = @spec.ModelIdentity::new(
     model.identity().content(),
     model.spec().canonical_paged_plan_digest(),
-  )
+  ) catch {
+    _ => raise Invalid(ModelIdentity)
+  }
   if execution_identity != canonical {
     raise Invalid(ModelIdentity)
   }

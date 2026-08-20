@@ -16,8 +16,8 @@ pub(all) enum CachePermission {
 ///|
 /// Scoped cache policy carried by one request.
 pub struct CachePolicy {
-  scope : CacheScope
-  permission : CachePermission
+  priv scope : CacheScope
+  priv permission : CachePermission
 }
 
 ///|
@@ -41,7 +41,7 @@ pub fn CachePolicy::permission(self : CachePolicy) -> CachePermission {
 ///|
 /// Relative monotonic request budget, never a wall-clock timestamp.
 pub struct DeadlineBudget {
-  milliseconds : UInt64
+  priv milliseconds : UInt64
 } derive(Debug, Eq)
 
 ///|
@@ -49,15 +49,25 @@ pub fn DeadlineBudget::from_milliseconds(
   milliseconds : UInt64,
   limits : InferenceLimits,
 ) -> DeadlineBudget raise InferenceContractError {
-  if milliseconds == 0UL || milliseconds > limits.max_deadline_millis() {
-    raise invalid(DeadlineBudget, OutOfRange, 0)
-  }
-  { milliseconds, }
+  let deadline = { milliseconds, }
+  deadline.validate(limits)
+  deadline
 }
 
 ///|
 pub fn DeadlineBudget::milliseconds(self : DeadlineBudget) -> UInt64 {
   self.milliseconds
+}
+
+///|
+fn DeadlineBudget::validate(
+  self : DeadlineBudget,
+  limits : InferenceLimits,
+) -> Unit raise InferenceContractError {
+  if self.milliseconds == 0UL ||
+    self.milliseconds > limits.max_deadline_millis() {
+    raise invalid(DeadlineBudget, OutOfRange, 0)
+  }
 }
 
 ///|
@@ -99,8 +109,8 @@ pub fn AdmissionDeadline::is_expired(
 /// Immutable validated stop conditions. It deliberately has no `Debug` because
 /// stop strings are request payload.
 pub struct StopConditions {
-  token_ids : ReadOnlyArray[Int]
-  strings : ReadOnlyArray[String]
+  priv token_ids : ReadOnlyArray[Int]
+  priv strings : ReadOnlyArray[String]
 }
 
 ///|
@@ -185,10 +195,30 @@ fn StopConditions::validate(
     if token_id < 0 || token_id > limits.max_token_id() {
       raise invalid(StopToken, OutOfRange, index)
     }
+    for prior in 0..<index {
+      if self.token_ids[prior] == token_id {
+        raise invalid(StopToken, Duplicate, index)
+      }
+    }
   }
   for index, value in self.strings {
-    if @utf8.encode(value).length() > limits.max_stop_string_bytes() {
+    if value.length() == 0 {
+      raise invalid(StopString, Empty, index)
+    }
+    if value.length() > limits.max_stop_string_bytes() {
       raise invalid(StopString, TooLong, index)
+    }
+    let byte_length = match checked_utf8_length(value) {
+      Some(length) => length
+      None => raise invalid(StopString, InvalidFormat, index)
+    }
+    if byte_length > limits.max_stop_string_bytes() {
+      raise invalid(StopString, TooLong, index)
+    }
+    for prior in 0..<index {
+      if self.strings[prior] == value {
+        raise invalid(StopString, Duplicate, index)
+      }
     }
   }
 }
@@ -199,19 +229,19 @@ fn StopConditions::validate(
 /// The type deliberately has no `Debug`; access to payload-bearing fields is
 /// explicit through typed accessors.
 pub struct GenerateRequest {
-  protocol_version : ProtocolVersion
-  request_id : RequestId
-  model_identity : @spec.ModelIdentity
-  input : Input
-  max_new_tokens : Int
-  context_ceiling : Int
-  sampling : SamplingParameters
-  sampling_seed : SamplingSeed
-  stops : StopConditions
-  stream_preference : StreamPreference
-  deadline : DeadlineBudget
-  cache : CachePolicy
-  trace : TraceCorrelation?
+  priv protocol_version : ProtocolVersion
+  priv request_id : RequestId
+  priv model_identity : @spec.ModelIdentity
+  priv input : Input
+  priv max_new_tokens : Int
+  priv context_ceiling : Int
+  priv sampling : SamplingParameters
+  priv sampling_seed : SamplingSeed
+  priv stops : StopConditions
+  priv stream_preference : StreamPreference
+  priv deadline : DeadlineBudget
+  priv cache : CachePolicy
+  priv trace : TraceCorrelation?
 }
 
 ///|
@@ -231,9 +261,11 @@ pub fn GenerateRequest::new(
   trace~ : TraceCorrelation?,
   limits~ : InferenceLimits,
 ) -> GenerateRequest raise InferenceContractError {
+  limits.validate()
   if protocol_version != ProtocolVersion::v1() {
     raise invalid(ProtocolVersion, Unsupported, 0)
   }
+  request_id.validate()
   if max_new_tokens <= 0 || max_new_tokens > limits.max_new_tokens() {
     raise invalid(MaximumNewTokens, OutOfRange, 0)
   }
@@ -250,16 +282,12 @@ pub fn GenerateRequest::new(
     _ => ()
   }
   sampling.validate(limits)
+  sampling_seed.validate()
   stops.validate(limits)
-  if deadline.milliseconds() > limits.max_deadline_millis() {
-    raise invalid(DeadlineBudget, OutOfRange, 0)
-  }
-  if cache.scope().as_string().length() > limits.max_cache_scope_bytes() {
-    raise invalid(CacheScope, TooLong, 0)
-  }
+  deadline.validate(limits)
+  cache.scope().validate(limits)
   match trace {
-    Some(value) if value.as_string().length() > limits.max_trace_bytes() =>
-      raise invalid(TraceCorrelation, TooLong, 0)
+    Some(value) => value.validate(limits)
     _ => ()
   }
   {

@@ -195,6 +195,9 @@ fn parse_event(
       ) catch {
         _ => raise event_invalid(Identity)
       }
+      let model_identity = @spec.ModelIdentity::new(content, plan) catch {
+        _ => raise event_invalid(Identity)
+      }
       let effective = @inference.EffectiveLimits::new(
         max_new_tokens=read_i32(bytes, 48),
         context_ceiling=read_i32(bytes, 52),
@@ -204,7 +207,7 @@ fn parse_event(
       }
       Accepted(
         @inference.AcceptedEvent::new(
-          model_identity=@spec.ModelIdentity::new(content, plan),
+          model_identity~,
           effective_limits=effective,
         ),
       )

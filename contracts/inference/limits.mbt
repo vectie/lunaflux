@@ -50,20 +50,20 @@ const PUBLIC_ERROR_CODE_BYTES : Int = 64
 /// ceilings. Consequently a validated request cannot turn a permissive or
 /// malformed service configuration into an unbounded allocation.
 pub struct InferenceLimits {
-  max_text_bytes : Int
-  max_input_tokens : Int
-  max_new_tokens : Int
-  max_context_tokens : Int
-  max_token_id : Int
-  max_stop_token_ids : Int
-  max_stop_strings : Int
-  max_stop_string_bytes : Int
-  max_trace_bytes : Int
-  max_cache_scope_bytes : Int
-  max_decoded_delta_bytes : Int
-  max_deadline_millis : UInt64
-  max_top_k : Int
-  max_temperature : Double
+  priv max_text_bytes : Int
+  priv max_input_tokens : Int
+  priv max_new_tokens : Int
+  priv max_context_tokens : Int
+  priv max_token_id : Int
+  priv max_stop_token_ids : Int
+  priv max_stop_strings : Int
+  priv max_stop_string_bytes : Int
+  priv max_trace_bytes : Int
+  priv max_cache_scope_bytes : Int
+  priv max_decoded_delta_bytes : Int
+  priv max_deadline_millis : UInt64
+  priv max_top_k : Int
+  priv max_temperature : Double
 } derive(Debug, Eq)
 
 ///|
@@ -89,32 +89,7 @@ pub fn InferenceLimits::new(
   max_top_k~ : Int,
   max_temperature~ : Double,
 ) -> InferenceLimits raise InferenceContractError {
-  let valid = positive_bounded(max_text_bytes, HARD_MAX_TEXT_BYTES) &&
-    positive_bounded(max_input_tokens, HARD_MAX_INPUT_TOKENS) &&
-    positive_bounded(max_new_tokens, HARD_MAX_NEW_TOKENS) &&
-    positive_bounded(max_context_tokens, HARD_MAX_CONTEXT_TOKENS) &&
-    max_input_tokens <= max_context_tokens &&
-    max_new_tokens <= max_context_tokens &&
-    max_token_id >= 0 &&
-    max_token_id <= HARD_MAX_TOKEN_ID &&
-    positive_bounded(max_stop_token_ids, HARD_MAX_STOP_TOKEN_IDS) &&
-    positive_bounded(max_stop_strings, HARD_MAX_STOP_STRINGS) &&
-    positive_bounded(max_stop_string_bytes, HARD_MAX_STOP_STRING_BYTES) &&
-    positive_bounded(max_trace_bytes, HARD_MAX_TRACE_BYTES) &&
-    positive_bounded(max_cache_scope_bytes, HARD_MAX_CACHE_SCOPE_BYTES) &&
-    positive_bounded(max_decoded_delta_bytes, HARD_MAX_DECODED_DELTA_BYTES) &&
-    max_deadline_millis > 0UL &&
-    max_deadline_millis <= HARD_MAX_DEADLINE_MILLIS &&
-    positive_bounded(max_top_k, HARD_MAX_TOP_K) &&
-    max_top_k <= max_token_id + 1 &&
-    !max_temperature.is_nan() &&
-    !max_temperature.is_inf() &&
-    max_temperature > 0.0 &&
-    max_temperature <= HARD_MAX_TEMPERATURE
-  if !valid {
-    raise invalid(Limit, OutOfRange, 0)
-  }
-  {
+  let limits : InferenceLimits = {
     max_text_bytes,
     max_input_tokens,
     max_new_tokens,
@@ -129,6 +104,39 @@ pub fn InferenceLimits::new(
     max_deadline_millis,
     max_top_k,
     max_temperature,
+  }
+  limits.validate()
+  limits
+}
+
+///|
+fn InferenceLimits::validate(
+  self : InferenceLimits,
+) -> Unit raise InferenceContractError {
+  let valid = positive_bounded(self.max_text_bytes, HARD_MAX_TEXT_BYTES) &&
+    positive_bounded(self.max_input_tokens, HARD_MAX_INPUT_TOKENS) &&
+    positive_bounded(self.max_new_tokens, HARD_MAX_NEW_TOKENS) &&
+    positive_bounded(self.max_context_tokens, HARD_MAX_CONTEXT_TOKENS) &&
+    self.max_input_tokens <= self.max_context_tokens &&
+    self.max_new_tokens <= self.max_context_tokens &&
+    self.max_token_id >= 0 &&
+    self.max_token_id <= HARD_MAX_TOKEN_ID &&
+    positive_bounded(self.max_stop_token_ids, HARD_MAX_STOP_TOKEN_IDS) &&
+    positive_bounded(self.max_stop_strings, HARD_MAX_STOP_STRINGS) &&
+    positive_bounded(self.max_stop_string_bytes, HARD_MAX_STOP_STRING_BYTES) &&
+    positive_bounded(self.max_trace_bytes, HARD_MAX_TRACE_BYTES) &&
+    positive_bounded(self.max_cache_scope_bytes, HARD_MAX_CACHE_SCOPE_BYTES) &&
+    positive_bounded(self.max_decoded_delta_bytes, HARD_MAX_DECODED_DELTA_BYTES) &&
+    self.max_deadline_millis > 0UL &&
+    self.max_deadline_millis <= HARD_MAX_DEADLINE_MILLIS &&
+    positive_bounded(self.max_top_k, HARD_MAX_TOP_K) &&
+    self.max_top_k <= self.max_token_id + 1 &&
+    !self.max_temperature.is_nan() &&
+    !self.max_temperature.is_inf() &&
+    self.max_temperature > 0.0 &&
+    self.max_temperature <= HARD_MAX_TEMPERATURE
+  if !valid {
+    raise invalid(Limit, OutOfRange, 0)
   }
 }
 
