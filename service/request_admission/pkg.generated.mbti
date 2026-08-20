@@ -13,7 +13,7 @@ import {
 }
 
 // Values
-pub fn admit(ReceivedRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @monotonic_clock.MonotonicClock) -> AdmittedRequest raise RequestAdmissionError
+pub fn prepare_luna_request(ReceivedRequest, @tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @monotonic_clock.MonotonicClock) -> LunaPreparedRequest raise RequestAdmissionError
 
 pub fn receive(@framed_wire.RequestFrameBuffer, FixedArray[Byte], Int, @monotonic_clock.MonotonicClock) -> ReceivedRequest raise RequestAdmissionError
 
@@ -24,20 +24,6 @@ pub(all) suberror RequestAdmissionError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub struct AdmittedRequest {
-  // private fields
-}
-pub fn AdmittedRequest::finish_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise RequestAdmissionError
-pub fn AdmittedRequest::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
-pub fn AdmittedRequest::input_token_count(Self) -> Int
-pub fn AdmittedRequest::is_stop_token(Self, Int) -> Bool
-pub fn AdmittedRequest::output_finished(Self) -> Bool
-pub fn AdmittedRequest::output_stopped(Self) -> Bool
-pub fn AdmittedRequest::push_token_into(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStep raise RequestAdmissionError
-pub fn AdmittedRequest::push_token_into_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
-pub fn AdmittedRequest::scheduler_request(Self) -> @core.TokenizedRequest
-pub fn AdmittedRequest::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
-
 pub struct IncrementalRequestReceiver {
   // private fields
 }
@@ -45,6 +31,25 @@ pub fn IncrementalRequestReceiver::append(Self, FixedArray[Byte], source_offset~
 pub fn IncrementalRequestReceiver::new(@framed_wire.FramedWireLimits, @monotonic_clock.MonotonicClock) -> Self
 pub fn IncrementalRequestReceiver::next_capacity(Self) -> Int raise RequestAdmissionError
 pub fn IncrementalRequestReceiver::take_received(Self) -> ReceivedRequest raise RequestAdmissionError
+
+pub struct LunaPreparedRequest {
+  // private fields
+}
+pub fn LunaPreparedRequest::effective_limits(Self) -> @inference.EffectiveLimits raise RequestAdmissionError
+pub fn LunaPreparedRequest::inference_limits(Self) -> @inference.InferenceLimits raise RequestAdmissionError
+pub fn LunaPreparedRequest::input_token_count(Self) -> Int raise RequestAdmissionError
+pub fn LunaPreparedRequest::model_identity(Self) -> @spec.ModelIdentity raise RequestAdmissionError
+pub fn LunaPreparedRequest::stream_preference(Self) -> @inference.StreamPreference raise RequestAdmissionError
+pub fn LunaPreparedRequest::take_claim(Self) -> LunaPreparedRequestClaim raise RequestAdmissionError
+pub fn LunaPreparedRequest::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest raise RequestAdmissionError
+
+pub struct LunaPreparedRequestClaim {
+  // private fields
+}
+pub fn LunaPreparedRequestClaim::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
+pub fn LunaPreparedRequestClaim::is_stop_token(Self, Int) -> Bool
+pub fn LunaPreparedRequestClaim::push_token_into_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
+pub fn LunaPreparedRequestClaim::scheduler_request(Self) -> @core.TokenizedRequest
 
 pub struct ReceivedRequest {
   // private fields
@@ -61,6 +66,7 @@ pub(all) enum RequestAdmissionRule {
   Tokenization
   SchedulerContract
   OutputContract
+  LunaPreparedLifecycle
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -484,6 +484,7 @@ fn run(
   run_reservation_classification_evidence(executable)
   run_online_lease_evidence(executable)
   run_online_session_foundation(executable)
+  run_online_session_prepared_evidence(executable)
   run_online_session_termination_evidence(executable)
   match persistent_executable {
     Some(value) => run_online_session_persistence_evidence(value)

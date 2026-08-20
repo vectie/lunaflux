@@ -9,10 +9,10 @@ fn LunaOnlineInstance::lease_owner(
 }
 
 ///|
-fn LunaOnlineInstance::admitted_owner(
+fn LunaOnlineInstance::claim_owner(
   self : LunaOnlineInstance,
-) -> @request_admission.AdmittedRequest {
-  match self.admitted {
+) -> @request_admission.LunaPreparedRequestClaim {
+  match self.claim {
     Some(value) => value
     None => abort("luna online instance request invariant")
   }
@@ -25,7 +25,7 @@ fn LunaOnlineInstance::require_ticket(
 ) -> Unit raise LunaOnlineInstanceError {
   if ticket.0 == 0UL ||
     ticket.0 != self.request_epoch ||
-    self.admitted is None ||
+    self.claim is None ||
     self.phase == LunaInstanceIdlePhase ||
     self.phase == LunaInstanceDrainingPhase ||
     self.phase == LunaInstanceRetryingEmptyClosePhase ||
@@ -46,12 +46,13 @@ fn LunaOnlineInstance::require_active_ticket(
 }
 
 ///|
-/// Admits one request into an idle persistent instance. Busy or draining
-/// disposition is decided before the receipt can be consumed. Accepted credit
-/// is prepared before scheduler admission and retired if admission rejects.
+/// Claims one off-reactor-prepared request into an idle persistent instance.
+/// Busy, draining, and epoch-exhaustion disposition is decided before the
+/// prepared owner can be consumed. Accepted credit is prepared before the
+/// one-shot scheduler-request claim and retired if lower admission rejects.
 pub fn LunaOnlineInstance::begin(
   self : LunaOnlineInstance,
-  received : @request_admission.ReceivedRequest,
+  prepared : @request_admission.LunaPreparedRequest,
 ) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError {
   if self.drain_requested ||
     self.recovery_close ||
@@ -71,35 +72,55 @@ pub fn LunaOnlineInstance::begin(
     self.phase = LunaInstanceDrainingPhase
     return LunaOnlineInstanceDraining
   }
-  let admitted = @request_admission.admit(
-    received,
-    self.tokenizer,
-    self.expected_tokenizer,
-    self.expected_model,
-    self.inference,
-    self.clock,
-  ) catch {
+  let stream_preference = prepared.stream_preference() catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
-  let request = admitted.scheduler_request()
-  if request.stream_preference() != Streaming {
+  if stream_preference != Streaming {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineStreaming))
   }
-  let input_tokens = admitted.input_token_count()
-  self.writer.prepare_accepted(
-    request.model_identity(),
-    request.effective_limits(),
-  ) catch {
+  let model_identity = prepared.model_identity() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  if model_identity != self.expected_model {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineModelIdentity))
+  }
+  let tokenizer_digest = prepared.tokenizer_digest() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  if tokenizer_digest != self.expected_tokenizer {
+    raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  let inference_limits = prepared.inference_limits() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  if inference_limits != self.inference {
+    raise LunaOnlineInstanceFailed(
+      LunaOnlineInvalid(LunaOnlineInferenceEnvelope),
+    )
+  }
+  let effective = prepared.effective_limits() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  let input_tokens = prepared.input_token_count() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+  }
+  self.writer.prepare_accepted(model_identity, effective) catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineWireFailure)
   }
-  self.lease_owner().admit(request) catch {
+  let claim = prepared.take_claim() catch {
+    _ => {
+      try! self.writer.retire()
+      raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
+    }
+  }
+  self.lease_owner().admit(claim.scheduler_request()) catch {
     _ => {
       try! self.writer.retire()
       raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
     }
   }
   let next_epoch = self.request_epoch + 1UL
-  self.admitted = Some(admitted)
+  self.claim = Some(claim)
   self.input_tokens = input_tokens
   self.request_epoch = next_epoch
   self.event_ready = true

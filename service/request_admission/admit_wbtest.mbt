@@ -122,7 +122,7 @@ fn fixture_received_source(
 }
 
 ///|
-test "public framed receipt and admission use the monotonic clock" {
+test "public framed receipt and Luna preparation use the monotonic clock" {
   let clock = @monotonic_clock.MonotonicClock::system()
   let identity = fixture_identity("0")
   let (source, length, buffer) = fixture_received_source(
@@ -130,7 +130,7 @@ test "public framed receipt and admission use the monotonic clock" {
   )
   let received = receive(buffer, source, length, clock)
   let tokenizer = fixture_tokenizer()
-  let admitted = admit(
+  let prepared = prepare_luna_request(
     received,
     tokenizer,
     tokenizer.digest(),
@@ -138,9 +138,26 @@ test "public framed receipt and admission use the monotonic clock" {
     fixture_inference(),
     clock,
   )
-  assert_eq(admitted.scheduler_request().request_id().value(), 7UL)
+  assert_eq(prepared.input_token_count(), 3)
+  assert_eq(prepared.tokenizer_digest(), tokenizer.digest())
+  assert_eq(prepared.inference_limits(), fixture_inference())
+  let retained = prepared
+  let claim = prepared.take_claim()
+  assert_eq(claim.scheduler_request().request_id().value(), 7UL)
+  try retained.take_claim() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("unexpected prepared-request replay error")
+  } noraise {
+    _ => fail("prepared request was claimed twice")
+  }
+  try retained.input_token_count() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("unexpected retained-shell getter error")
+  } noraise {
+    _ => fail("retained prepared shell kept read authority")
+  }
   try
-    admit(
+    prepare_luna_request(
       received,
       tokenizer,
       tokenizer.digest(),
@@ -152,7 +169,7 @@ test "public framed receipt and admission use the monotonic clock" {
     Invalid(FrameContract) => ()
     _ => fail("unexpected received-request replay error")
   } noraise {
-    _ => fail("received request was admitted twice")
+    _ => fail("received request was prepared twice")
   }
 }
 
@@ -178,7 +195,7 @@ test "tokenizer digest substitution rejects before clock or tokenization" {
   let receipt : RequestReceipt = { at_millis: 10UL }
   let request = fixture_request(identity)
   try
-    admit_bound_with_clock(
+    prepare_bound_with_clock(
       receipt,
       fixture_deadline(receipt, request),
       request,
@@ -201,56 +218,7 @@ test "tokenizer digest substitution rejects before clock or tokenization" {
 }
 
 ///|
-test "deadline samples once before and once after tokenization" {
-  let identity = fixture_identity("0")
-  let reads = Ref(0)
-  let receipt : RequestReceipt = { at_millis: 10UL }
-  let request = fixture_request(identity)
-  let admitted = admit_bound_with_clock(
-    receipt,
-    fixture_deadline(receipt, request),
-    request,
-    fixture_tokenizer(),
-    fixture_tokenizer().digest(),
-    identity,
-    fixture_inference(),
-    () => {
-      reads.val += 1
-      if reads.val == 1 {
-        11UL
-      } else {
-        12UL
-      }
-    },
-  )
-  assert_eq(reads.val, 2)
-  assert_eq(admitted.input_token_count(), 3)
-  let expired_reads = Ref(0)
-  try
-    admit_bound_with_clock(
-      receipt,
-      fixture_deadline(receipt, request),
-      request,
-      fixture_tokenizer(),
-      fixture_tokenizer().digest(),
-      identity,
-      fixture_inference(),
-      () => {
-        expired_reads.val += 1
-        110UL
-      },
-    )
-  catch {
-    Invalid(Deadline) => ()
-    _ => fail("unexpected pre-tokenization deadline error")
-  } noraise {
-    _ => fail("expired request reached tokenization")
-  }
-  assert_eq(expired_reads.val, 1)
-}
-
-///|
-fn admit_at(
+fn prepare_at(
   receipt : RequestReceipt,
   request : @inference.GenerateRequest,
   tokenizer : @tokenizer.TokenizerSpec,
@@ -258,7 +226,7 @@ fn admit_at(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   observed_at_millis : UInt64,
-) -> AdmittedRequest raise RequestAdmissionError {
+) -> LunaPreparedRequest raise RequestAdmissionError {
   let prepared_request = preflight_bound_request(
     fixture_deadline(receipt, request),
     request,
@@ -269,14 +237,16 @@ fn admit_at(
   )
   validate_observed_time(receipt, prepared_request.deadline, observed_at_millis)
   let prepared = tokenize_input(prepared_request, tokenizer, inference)
-  finish_admission(tokenizer, inference, prepared, observed_at_millis, receipt)
+  finish_preparation(
+    tokenizer, inference, prepared, observed_at_millis, receipt,
+  )
 }
 
 ///|
 test "text admission preserves receipt deadline and separates string stops" {
   let identity = fixture_identity("0")
   let tokenizer = fixture_tokenizer()
-  let admitted = admit_at(
+  let prepared = prepare_at(
     { at_millis: 100UL },
     fixture_request(identity),
     tokenizer,
@@ -285,26 +255,27 @@ test "text admission preserves receipt deadline and separates string stops" {
     fixture_inference(),
     150UL,
   )
-  let scheduler_request = admitted.scheduler_request()
+  assert_eq(prepared.input_token_count(), 3)
+  let claim = prepared.take_claim()
+  let scheduler_request = claim.scheduler_request()
   assert_eq(scheduler_request.input_tokens().length(), 3)
   assert_eq(scheduler_request.admission_deadline().at_millis(), 200UL)
   assert_eq(scheduler_request.stops().token_ids().length(), 1)
   assert_eq(scheduler_request.stops().strings().length(), 0)
-  assert_eq(admitted.input_token_count(), 3)
-  assert_eq(admitted.tokenizer_digest(), tokenizer.digest())
   let destination = FixedArray::make(8, b'!')
-  assert_true(admitted.is_stop_token(9))
-  try admitted.push_token_into(9, destination, destination_offset=1) catch {
-    Invalid(OutputContract) => ()
-    _ => fail("unexpected stop-token output error")
-  } noraise {
-    _ => fail("stop token was decoded as ordinary output")
-  }
-  let step = admitted.push_token_into(65, destination, destination_offset=1)
+  assert_true(claim.is_stop_token(9))
+  assert_false(
+    claim
+    .push_token_into_status(9, destination, destination_offset=1)
+    .is_ready(),
+  )
+  let step = claim.push_token_into_status(65, destination, destination_offset=1)
+  assert_true(step.is_ready())
   assert_eq(step.copied_bytes(), 1)
   assert_eq(destination[1], b'A')
-  assert_eq(admitted.finish_into(destination, destination_offset=2), 0)
-  assert_true(admitted.output_finished())
+  let finished = claim.finish_into_status(destination, destination_offset=2)
+  assert_true(finished.is_ready())
+  assert_eq(finished.copied_bytes(), 0)
 }
 
 ///|
@@ -312,7 +283,7 @@ test "identity receipt and expired budget reject before publication" {
   let identity = fixture_identity("0")
   let request = fixture_request(identity)
   try
-    admit_at(
+    prepare_at(
       { at_millis: 100UL },
       request,
       fixture_tokenizer(),
@@ -330,7 +301,7 @@ test "identity receipt and expired budget reject before publication" {
   for case in [(99UL, ReceiptTime), (200UL, Deadline)] {
     let (observed, expected) = case
     try
-      admit_at(
+      prepare_at(
         { at_millis: 100UL },
         request,
         fixture_tokenizer(),
@@ -387,7 +358,7 @@ test "request evidence is canonically readmitted under instance limits" {
     limits=loose,
   )
   try
-    admit_at(
+    prepare_at(
       { at_millis: 0UL },
       request,
       fixture_tokenizer(),
@@ -407,7 +378,7 @@ test "request evidence is canonically readmitted under instance limits" {
 ///|
 test "string stops remain in incremental output instead of scheduler state" {
   let identity = fixture_identity("0")
-  let admitted = admit_at(
+  let prepared = prepare_at(
     { at_millis: 10UL },
     fixture_request(identity),
     fixture_tokenizer(),
@@ -416,27 +387,29 @@ test "string stops remain in incremental output instead of scheduler state" {
     fixture_inference(),
     11UL,
   )
+  let claim = prepared.take_claim()
   let destination = FixedArray::make(8, b'!')
   assert_eq(
-    admitted
-    .push_token_into(69, destination, destination_offset=0)
+    claim
+    .push_token_into_status(69, destination, destination_offset=0)
     .copied_bytes(),
     0,
   )
   assert_eq(
-    admitted
-    .push_token_into(78, destination, destination_offset=0)
+    claim
+    .push_token_into_status(78, destination, destination_offset=0)
     .copied_bytes(),
     0,
   )
-  let matched = admitted.push_token_into(68, destination, destination_offset=0)
+  let matched = claim.push_token_into_status(
+    68,
+    destination,
+    destination_offset=0,
+  )
+  assert_true(matched.is_ready())
   assert_eq(matched.copied_bytes(), 0)
   assert_true(matched.stop_matched())
-  assert_true(admitted.output_stopped())
-  try admitted.finish_into(destination, destination_offset=0) catch {
-    Invalid(OutputContract) => ()
-    _ => fail("unexpected stopped-output terminal error")
-  } noraise {
-    _ => fail("matched stop suffix was flushed")
-  }
+  assert_false(
+    claim.finish_into_status(destination, destination_offset=0).is_ready(),
+  )
 }

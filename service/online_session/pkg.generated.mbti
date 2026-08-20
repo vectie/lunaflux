@@ -16,7 +16,7 @@ import {
 }
 
 // Values
-pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 
 // Errors
 pub(all) suberror LunaOnlineInstanceError {
@@ -39,7 +39,7 @@ pub struct LunaOnlineInstance {
   // private fields
 }
 pub fn LunaOnlineInstance::ack_event(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
-pub fn LunaOnlineInstance::begin(Self, @request_admission.ReceivedRequest) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::begin(Self, @request_admission.LunaPreparedRequest) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin_abort(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin_drain(Self) -> Unit
 pub fn LunaOnlineInstance::check_deadline(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError

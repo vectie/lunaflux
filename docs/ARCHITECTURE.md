@@ -200,15 +200,23 @@ now contains a restricted permanent
 Raw-versus-Online ownership lease with exact request/publication sequencing,
 trusted monotonic admission/expiry, recovery, and close authority. The public
 in-process `LunaOnlineInstance` above it owns one scheduler and rooted worker
-across sequential healthy request epochs. Each active request is authenticated
-by an opaque Luna ticket and owns token decoding, one-credit event
-acknowledgement, cancellation, deadline enforcement, and terminal failure.
+across sequential healthy request epochs. The off-reactor preparation boundary
+consumes a trusted receipt into a revocable `LunaPreparedRequest` shell around
+one exact preallocated claim. That claim binds the model, tokenizer digest,
+inference envelope, absolute deadline, token buffer, and incremental-output
+owner. The online instance retains no tokenizer or raw receipt state. Busy,
+draining, and exhausted-epoch outcomes precede destructive claim transfer;
+foreign preparation bindings fail before writer or scheduler mutation. Each
+transferred claim is authenticated by an opaque Luna ticket and owns token
+decoding, one-credit event acknowledgement, cancellation, deadline enforcement,
+and terminal failure.
 Final acknowledgement retires only request-local state; the lease epoch,
 publication history, plan predecessor, and worker remain live. Explicit
 instance drain is the only healthy worker-close path, while authenticated
-worker, protocol, or device failure remains close-only. Network transport
-remains above this aggregate. Child ownership, executable
-and fixed handshake storage are preallocated; native spawn, scalar handshake
+worker, protocol, or device failure remains close-only. Tokenizer-worker/pool
+orchestration and network transport remain above this aggregate. Child
+ownership, executable and fixed handshake storage are preallocated; native
+spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects
 while rooted authority is live.
 Capability IDs are copied from authenticated model-generation recipes;

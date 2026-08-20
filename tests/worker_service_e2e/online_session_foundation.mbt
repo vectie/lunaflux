@@ -196,7 +196,6 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   let narrow_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   try
     @online_session.prepare_owned_luna_online_instance(
-      tokenizer,
       tokenizer.digest(),
       identity(),
       inference_limits(),
@@ -220,8 +219,11 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
   narrow_model.close()
   narrow_kernel.close()
 
-  let instance = prepare_foundation_instance(executable, tokenizer)
-  let session = begin_foundation_session(instance, session_received(Streaming))
+  let instance = prepare_foundation_instance(executable, tokenizer.digest())
+  let session = begin_foundation_session(
+    instance,
+    prepare_foundation_request(tokenizer, session_received(Streaming)),
+  )
   assert_true(session.has_event())
   match foundation_event(session) {
     Accepted(value) => assert_eq(value.model_identity(), identity())
@@ -279,7 +281,10 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
 
   let stopped = begin_foundation_session(
     instance,
-    session_received(Streaming, request_id=902UL, stop_token=0),
+    prepare_foundation_request(
+      tokenizer,
+      session_received(Streaming, request_id=902UL, stop_token=0),
+    ),
   )
   stopped.ack_event()
   progress_foundation_to_event(stopped)
@@ -301,11 +306,15 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
 
   let invalid_tokenizer = invalid_output_session_tokenizer()
   let invalid_instance = prepare_foundation_instance(
-    executable, invalid_tokenizer,
+    executable,
+    invalid_tokenizer.digest(),
   )
   let invalid_output = begin_foundation_session(
     invalid_instance,
-    session_received(Streaming, request_id=905UL),
+    prepare_foundation_request(
+      invalid_tokenizer,
+      session_received(Streaming, request_id=905UL),
+    ),
   )
   invalid_output.ack_event()
   progress_foundation_to_terminalization(invalid_output)
@@ -333,7 +342,10 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
 
   let invalid_reuse = begin_foundation_session(
     invalid_instance,
-    session_received(Streaming, request_id=915UL),
+    prepare_foundation_request(
+      invalid_tokenizer,
+      session_received(Streaming, request_id=915UL),
+    ),
   )
   invalid_reuse.ack_event()
   invalid_reuse.begin_abort()
@@ -342,7 +354,10 @@ fn run_online_session_foundation(executable : Bytes) -> Unit raise {
 
   let aborting = begin_foundation_session(
     instance,
-    session_received(Streaming, request_id=903UL),
+    prepare_foundation_request(
+      tokenizer,
+      session_received(Streaming, request_id=903UL),
+    ),
   )
   aborting.ack_event()
   aborting.begin_abort()

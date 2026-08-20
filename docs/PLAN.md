@@ -299,6 +299,11 @@ to transport fixtures. The trusted request-receipt prerequisite is implemented:
 one fixed-capacity incremental canonical reader authenticates declared length
 before payload acceptance, while request admission samples monotonic time before
 the first copied byte and binds a single immutable request/absolute deadline.
+The off-reactor tokenizer boundary consumes that receipt into a revocable
+`LunaPreparedRequest` shell around one preallocated claim carrying exact model,
+tokenizer-digest, inference-envelope, token, deadline, and incremental-output
+authority. The persistent online instance consumes only that claim and owns no
+tokenizer state.
 It deliberately adds no socket, async task, framed-ingress package, or server.
 
 ### Workstream 4: worker overlap
@@ -378,9 +383,11 @@ allocate no managed objects while rooted child authority is live. A restricted
 epoch-authenticated online worker lease now enforces the permanent ownership
 family, exact generation/position/publication order, monotonic time, recovery,
 and close prerequisites. The alias-free `LunaOnlineInstance` now prepares the
-production-owned service once, admits sequential healthy requests under fresh
-opaque tickets, owns receipt admission and tokenizer output, and publishes a
-canonical one-credit Accepted frame. Final acknowledgement and exact lower
+production-owned service once, claims sequential off-reactor prepared requests
+under fresh opaque tickets, retains only the expected tokenizer digest and
+preparation envelope, and publishes a canonical one-credit Accepted frame.
+Busy and draining outcomes do not consume prepared authority; foreign binding
+and replay fail before lower admission. Final acknowledgement and exact lower
 retirement return only healthy request-local state to Idle while preserving the
 worker, lease epoch, scheduler history, and plan predecessor. Worker/device
 failure stays close-only, and explicit instance drain owns the healthy

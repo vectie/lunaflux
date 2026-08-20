@@ -7,13 +7,12 @@ struct FoundationSession {
 ///|
 fn prepare_foundation_instance(
   executable : Bytes,
-  tokenizer : @tokenizer.TokenizerSpec,
+  expected_tokenizer : @tokenizer.TokenizerDigest,
 ) -> @online_session.LunaOnlineInstance raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let prepared = @online_session.prepare_owned_luna_online_instance(
-    tokenizer,
-    tokenizer.digest(),
+    expected_tokenizer,
     identity(),
     inference_limits(),
     @framed_wire.FramedWireLimits::new(inference_limits(), max_frame_bytes=4096),
@@ -33,17 +32,50 @@ fn prepare_foundation_instance(
 }
 
 ///|
+fn prepare_default_foundation_instance(
+  executable : Bytes,
+) -> @online_session.LunaOnlineInstance raise {
+  prepare_foundation_instance(executable, session_tokenizer().digest())
+}
+
+///|
+fn prepare_foundation_request(
+  tokenizer : @tokenizer.TokenizerSpec,
+  received : @request_admission.ReceivedRequest,
+) -> @request_admission.LunaPreparedRequest raise {
+  @request_admission.prepare_luna_request(
+    received,
+    tokenizer,
+    tokenizer.digest(),
+    identity(),
+    inference_limits(),
+    @monotonic_clock.MonotonicClock::system(),
+  )
+}
+
+///|
 fn begin_foundation_session(
   instance : @online_session.LunaOnlineInstance,
-  received : @request_admission.ReceivedRequest,
+  prepared : @request_admission.LunaPreparedRequest,
 ) -> FoundationSession raise {
-  match instance.begin(received) {
+  match instance.begin(prepared) {
     LunaOnlineInstanceAdmitted(ticket) => { instance, ticket }
     LunaOnlineInstanceBusy =>
       raise Failure("idle online instance rejected a request as busy")
     LunaOnlineInstanceDraining =>
       raise Failure("live online instance rejected a request as draining")
   }
+}
+
+///|
+fn begin_default_foundation_session(
+  instance : @online_session.LunaOnlineInstance,
+  received : @request_admission.ReceivedRequest,
+) -> FoundationSession raise {
+  begin_foundation_session(
+    instance,
+    prepare_foundation_request(session_tokenizer(), received),
+  )
 }
 
 ///|

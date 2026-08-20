@@ -39,7 +39,7 @@ fn assert_deadline_abort(
   request_id : UInt64,
   at_failed : Bool,
 ) -> Unit raise {
-  let session = begin_foundation_session(
+  let session = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id~),
   )
@@ -56,8 +56,8 @@ fn assert_deadline_abort(
 
 ///|
 fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
-  let instance = prepare_foundation_instance(executable, session_tokenizer())
-  let accepted_cancel = begin_foundation_session(
+  let instance = prepare_default_foundation_instance(executable)
+  let accepted_cancel = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=920UL),
   )
@@ -69,7 +69,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   accepted_cancel.request_cancel()
   assert_cancel_bundle(accepted_cancel, 0)
 
-  let live_cancel = begin_foundation_session(
+  let live_cancel = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=927UL),
   )
@@ -77,7 +77,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   live_cancel.request_cancel()
   assert_cancel_bundle(live_cancel, 0)
 
-  let token_cancel = begin_foundation_session(
+  let token_cancel = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=921UL),
   )
@@ -92,7 +92,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   token_cancel.ack_event()
   assert_cancel_bundle(token_cancel, 1)
 
-  let flight_cancel = begin_foundation_session(
+  let flight_cancel = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=926UL),
   )
@@ -101,7 +101,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   flight_cancel.request_cancel()
   assert_cancel_bundle(flight_cancel, 0)
 
-  let expired = begin_foundation_session(
+  let expired = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=922UL),
   )
@@ -129,7 +129,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   assert_deadline_abort(instance, 924UL, false)
   assert_deadline_abort(instance, 925UL, true)
 
-  let overdue_cancel = begin_foundation_session(
+  let overdue_cancel = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=928UL),
   )
@@ -149,7 +149,7 @@ fn run_online_session_termination_evidence(executable : Bytes) -> Unit raise {
   overdue_cancel.ack_event()
   progress_foundation_to_idle(overdue_cancel)
 
-  let natural = begin_foundation_session(
+  let natural = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=923UL, max_new_tokens=1),
   )

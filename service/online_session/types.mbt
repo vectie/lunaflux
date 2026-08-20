@@ -38,6 +38,7 @@ pub(all) enum LunaOnlineInstancePreparationState {
 pub struct LunaOnlineRequestTicket(UInt64) derive(Debug, Eq)
 
 ///|
+#valtype
 pub(all) enum LunaOnlineInstanceAdmission {
   LunaOnlineInstanceAdmitted(LunaOnlineRequestTicket)
   LunaOnlineInstanceBusy
@@ -151,13 +152,11 @@ priv enum ExpiryCutClassification {
 
 ///|
 pub struct LunaOnlineInstance {
-  priv tokenizer : @tokenizer.TokenizerSpec
   priv expected_tokenizer : @tokenizer.TokenizerDigest
   priv expected_model : @spec.ModelIdentity
   priv inference : @inference.InferenceLimits
   priv wire_limits : @framed_wire.FramedWireLimits
-  priv clock : @monotonic_clock.MonotonicClock
-  priv mut admitted : @request_admission.AdmittedRequest?
+  priv mut claim : @request_admission.LunaPreparedRequestClaim?
   priv mut lease : @worker_service.OnlineWorkerLease?
   priv writer : @framed_wire.CanonicalEventWriter
   priv output : FixedArray[Byte]

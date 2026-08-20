@@ -28,11 +28,10 @@ fn publish_luna_cleanup(
 }
 
 ///|
-/// Constructs one persistent, alias-free online instance. Tokenizer bindings,
-/// event storage, scheduler, rooted worker, and the online lease are created
-/// once; individual requests enter later through `LunaOnlineInstance::begin`.
+/// Constructs one persistent, alias-free online instance. Event storage,
+/// scheduler, rooted worker, and the online lease are created once;
+/// off-reactor-prepared requests enter later through `LunaOnlineInstance::begin`.
 pub fn prepare_owned_luna_online_instance(
-  tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
@@ -55,22 +54,17 @@ pub fn prepare_owned_luna_online_instance(
   if expected_model != blueprint.model_identity() {
     raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineModelIdentity))
   }
-  if tokenizer.digest() != expected_tokenizer {
-    raise luna_preparation_failure(LunaOnlineAdmissionFailure)
-  }
   let writer = @framed_wire.CanonicalEventWriter::new(wire_limits)
   writer.preflight_online_capacity(inference.max_decoded_delta_bytes()) catch {
     _ => raise luna_preparation_failure(LunaOnlineWireFailure)
   }
   let clock = @monotonic_clock.MonotonicClock::system()
   let instance : LunaOnlineInstance = {
-    tokenizer,
     expected_tokenizer,
     expected_model,
     inference,
     wire_limits,
-    clock,
-    admitted: None,
+    claim: None,
     lease: None,
     writer,
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),

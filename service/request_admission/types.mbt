@@ -10,6 +10,7 @@ pub(all) enum RequestAdmissionRule {
   Tokenization
   SchedulerContract
   OutputContract
+  LunaPreparedLifecycle
 } derive(Debug, Eq)
 
 ///|
@@ -49,38 +50,96 @@ pub struct ReceivedRequest {
 }
 
 ///|
-/// One tokenized scheduler request paired with its exact incremental decoded
-/// output owner. The tokenizer and payload-bearing state remain private and
-/// the type deliberately has no `Debug`.
-pub struct AdmittedRequest {
+/// One revocable shell around a preallocated prepared-request claim. Retained
+/// aliases observe `None` after the claim is taken, so scheduler and output
+/// authority cannot be extracted twice. The type deliberately has no `Debug`.
+pub struct LunaPreparedRequest {
+  priv mut claim : LunaPreparedRequestClaim?
+}
+
+///|
+/// Exact scheduler and incremental-output authority transferred from one
+/// Luna-prepared shell. Receipt, deadline, tokenizer, and payload-bearing
+/// state remain private and the type deliberately has no `Debug`.
+pub struct LunaPreparedRequestClaim {
   priv scheduler_request : @core.TokenizedRequest
   priv output : @incremental_output.IncrementalOutput
   priv tokenizer_digest : @tokenizer.TokenizerDigest
+  priv inference_limits : @inference.InferenceLimits
   priv input_tokens : Int
 }
 
 ///|
-pub fn AdmittedRequest::scheduler_request(
-  self : AdmittedRequest,
+fn LunaPreparedRequest::require_claim(
+  self : LunaPreparedRequest,
+) -> LunaPreparedRequestClaim raise RequestAdmissionError {
+  match self.claim {
+    Some(claim) => claim
+    None => raise Invalid(LunaPreparedLifecycle)
+  }
+}
+
+///|
+pub fn LunaPreparedRequest::take_claim(
+  self : LunaPreparedRequest,
+) -> LunaPreparedRequestClaim raise RequestAdmissionError {
+  let claim = self.require_claim()
+  self.claim = None
+  claim
+}
+
+///|
+pub fn LunaPreparedRequest::input_token_count(
+  self : LunaPreparedRequest,
+) -> Int raise RequestAdmissionError {
+  self.require_claim().input_tokens
+}
+
+///|
+pub fn LunaPreparedRequest::tokenizer_digest(
+  self : LunaPreparedRequest,
+) -> @tokenizer.TokenizerDigest raise RequestAdmissionError {
+  self.require_claim().tokenizer_digest
+}
+
+///|
+pub fn LunaPreparedRequest::inference_limits(
+  self : LunaPreparedRequest,
+) -> @inference.InferenceLimits raise RequestAdmissionError {
+  self.require_claim().inference_limits
+}
+
+///|
+pub fn LunaPreparedRequest::model_identity(
+  self : LunaPreparedRequest,
+) -> @spec.ModelIdentity raise RequestAdmissionError {
+  self.require_claim().scheduler_request.model_identity()
+}
+
+///|
+pub fn LunaPreparedRequest::effective_limits(
+  self : LunaPreparedRequest,
+) -> @inference.EffectiveLimits raise RequestAdmissionError {
+  self.require_claim().scheduler_request.effective_limits()
+}
+
+///|
+pub fn LunaPreparedRequest::stream_preference(
+  self : LunaPreparedRequest,
+) -> @inference.StreamPreference raise RequestAdmissionError {
+  self.require_claim().scheduler_request.stream_preference()
+}
+
+///|
+pub fn LunaPreparedRequestClaim::scheduler_request(
+  self : LunaPreparedRequestClaim,
 ) -> @core.TokenizedRequest {
   self.scheduler_request
 }
 
 ///|
-pub fn AdmittedRequest::tokenizer_digest(
-  self : AdmittedRequest,
-) -> @tokenizer.TokenizerDigest {
-  self.tokenizer_digest
-}
-
-///|
-pub fn AdmittedRequest::input_token_count(self : AdmittedRequest) -> Int {
-  self.input_tokens
-}
-
-///|
-pub fn AdmittedRequest::is_stop_token(
-  self : AdmittedRequest,
+pub fn LunaPreparedRequestClaim::is_stop_token(
+  self : LunaPreparedRequestClaim,
   token_id : Int,
 ) -> Bool {
   let candidates = self.scheduler_request.stops().token_ids()
@@ -93,34 +152,8 @@ pub fn AdmittedRequest::is_stop_token(
 }
 
 ///|
-pub fn AdmittedRequest::push_token_into(
-  self : AdmittedRequest,
-  token_id : Int,
-  destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> @incremental_output.IncrementalOutputStep raise RequestAdmissionError {
-  if self.is_stop_token(token_id) {
-    raise Invalid(OutputContract)
-  }
-  self.output.push_token_into(token_id, destination, destination_offset~) catch {
-    _ => raise Invalid(OutputContract)
-  }
-}
-
-///|
-pub fn AdmittedRequest::finish_into(
-  self : AdmittedRequest,
-  destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise RequestAdmissionError {
-  self.output.finish_into(destination, destination_offset~) catch {
-    _ => raise Invalid(OutputContract)
-  }
-}
-
-///|
-pub fn AdmittedRequest::push_token_into_status(
-  self : AdmittedRequest,
+pub fn LunaPreparedRequestClaim::push_token_into_status(
+  self : LunaPreparedRequestClaim,
   token_id : Int,
   destination : FixedArray[Byte],
   destination_offset~ : Int,
@@ -132,20 +165,10 @@ pub fn AdmittedRequest::push_token_into_status(
 }
 
 ///|
-pub fn AdmittedRequest::finish_into_status(
-  self : AdmittedRequest,
+pub fn LunaPreparedRequestClaim::finish_into_status(
+  self : LunaPreparedRequestClaim,
   destination : FixedArray[Byte],
   destination_offset~ : Int,
 ) -> @incremental_output.IncrementalOutputStatus {
   self.output.finish_into_status(destination, destination_offset~)
-}
-
-///|
-pub fn AdmittedRequest::output_stopped(self : AdmittedRequest) -> Bool {
-  self.output.is_stopped()
-}
-
-///|
-pub fn AdmittedRequest::output_finished(self : AdmittedRequest) -> Bool {
-  self.output.is_finished()
 }

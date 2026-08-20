@@ -680,8 +680,15 @@ if rg -n 'OnlineWorkerLease::(scheduler|process|handle|request_id|request_genera
 fi
 
 if [ -f service/online_session/pkg.generated.mbti ] &&
-  rg -n '(^|[^A-Za-z])WorkerService([^A-Za-z]|$)|OnlineWorkerLease|AdmittedRequest|TokenizedRequest|RequestHandle|SchedulerPublication|IncrementalOutput' service/online_session/pkg.generated.mbti; then
+  rg -n '(^|[^A-Za-z])WorkerService([^A-Za-z]|$)|OnlineWorkerLease|AdmittedRequest|ReceivedRequest|TokenizerSpec|LunaPreparedRequestClaim|TokenizedRequest|RequestHandle|SchedulerPublication|IncrementalOutput' service/online_session/pkg.generated.mbti; then
   printf '%s\n' 'online session aggregate must not return its lower owners' >&2
+  failed=1
+fi
+
+if rg -n '@request_admission\.(admit|prepare_luna_request)|@tokenizer\.TokenizerSpec|priv tokenizer[[:space:]]*:' \
+  service/online_session --glob '*.mbt' --glob 'moon.pkg'; then
+  printf '%s\n' \
+    'online instance must consume prepared requests without tokenizer work/state' >&2
   failed=1
 fi
 
@@ -693,7 +700,7 @@ fi
 if [ -f service/online_session/pkg.generated.mbti ] &&
   { ! rg -q '^pub fn prepare_owned_luna_online_instance\(' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub struct LunaOnlineRequestTicket\(UInt64\)' service/online_session/pkg.generated.mbti ||
-    ! rg -q '^pub fn LunaOnlineInstance::begin\(Self, @request_admission\.ReceivedRequest\) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaOnlineInstance::begin\(Self, @request_admission\.LunaPreparedRequest\) -> LunaOnlineInstanceAdmission raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress_terminalization\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^pub fn LunaOnlineInstance::progress_request_retirement\(Self, LunaOnlineRequestTicket\) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
@@ -703,6 +710,52 @@ if [ -f service/online_session/pkg.generated.mbti ] &&
     ! rg -q '^pub fn LunaOnlineInstance::check_deadline\(Self, LunaOnlineRequestTicket\) -> Unit raise LunaOnlineInstanceError$' service/online_session/pkg.generated.mbti ||
     ! rg -q '^  LunaOnlineInstanceRequestRetirementRequired$' service/online_session/pkg.generated.mbti; }; then
   printf '%s\n' 'persistent Luna online instance surface drifted' >&2
+  failed=1
+fi
+
+if rg -n 'AdmittedRequest|^pub fn admit\(' \
+  service/request_admission/pkg.generated.mbti service/online_session/pkg.generated.mbti; then
+  printf '%s\n' 'legacy admitted-request/tokenizer admission API remains public' >&2
+  failed=1
+fi
+
+if ! rg -q '^pub fn LunaPreparedRequest::take_claim\(Self\) -> LunaPreparedRequestClaim raise RequestAdmissionError$' \
+    service/request_admission/pkg.generated.mbti ||
+  rg -n 'claim_scheduler_request|LunaPreparedRequest::scheduler_request' \
+    service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' 'Luna prepared shell must expose only destructive claim transfer' >&2
+  failed=1
+fi
+
+if rg -n --pcre2 -U \
+    'pub struct (LunaPreparedRequest|LunaPreparedRequestClaim) \{\n  (?!// private fields)|pub struct LunaPreparedRequest(?:Claim)? \{(?s:[^}]*)\} derive\([^)]*Debug' \
+    service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' 'Luna prepared authority must remain opaque and non-Debug' >&2
+  failed=1
+fi
+
+if [ "$(rg -c '^pub fn LunaPreparedRequest::' \
+    service/request_admission/pkg.generated.mbti)" != '7' ] ||
+  rg -n --pcre2 \
+    '^pub fn LunaPreparedRequest::(receipt|receipt_at_millis|timestamp|deadline|admission_deadline|scheduler_request|is_stop_token|push_token|push_token_into|push_token_into_status|finish_into|finish_into_status|output_finished|output_stopped)\(' \
+    service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' \
+    'Luna prepared shell surface escaped binding preflight/destructive transfer' >&2
+  failed=1
+fi
+
+if [ "$(rg -c '^pub fn LunaPreparedRequestClaim::' \
+    service/request_admission/pkg.generated.mbti)" != '4' ] ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::scheduler_request\(Self\) -> @core\.TokenizedRequest$' \
+    service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::is_stop_token\(Self, Int\) -> Bool$' \
+    service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::push_token_into_status\(' \
+    service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::finish_into_status\(' \
+    service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' \
+    'Luna prepared claim surface escaped scheduler/output ownership' >&2
   failed=1
 fi
 

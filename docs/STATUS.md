@@ -246,12 +246,14 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   monotonic time: the first valid nonempty append samples exactly once before
   byte mutation, and one successful take retains an immutable request plus its
   once-derived absolute deadline without exposing timestamp/deadline getters or
-  a detachable frame/receipt capability. It binds the selected model and tokenizer, tokenizes with
-  overflow and special-token rejection, and constructs the scheduler request
-  with the original absolute deadline. String stops stay in its private
-  incremental owner while stop-token output fails closed. Exact request-handle
-  binding and terminal lookahead are implemented by the owned session; async
-  tokenizer-pool and ingress orchestration remain open.
+  a detachable frame/receipt capability. The synchronous off-reactor
+  preparation boundary binds the selected model, tokenizer digest, and exact
+  inference envelope; tokenizes with overflow and special-token rejection; and
+  returns a revocable `LunaPreparedRequest` shell around one preallocated claim
+  carrying the scheduler request and incremental-output authority. Destructive
+  claim transfer revokes retained aliases. String stops stay in that private
+  output owner while stop-token output fails closed. A bounded tokenizer-worker
+  pool and ingress orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion
@@ -334,12 +336,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   admission/deadline
   time, cancellation cuts, worker-loss recovery, and deterministic close
   without exposing scheduler/process/handle owners. The alias-free
-  `LunaOnlineInstance` prepares that worker once, admits one active
-  `ReceivedRequest` at a time under a fresh opaque ticket, publishes one
-  canonical Accepted credit, and provides exact request retirement plus
-  off-reactor abort/recovery/instance-shutdown paths. Healthy retirement
+  `LunaOnlineInstance` prepares that worker once, consumes one externally
+  prepared `LunaPreparedRequest` claim at a time under a fresh opaque ticket,
+  publishes one canonical Accepted credit, and provides exact request
+  retirement plus off-reactor abort/recovery/instance-shutdown paths. Healthy retirement
   preserves the worker, lease epoch, publication cursor, and plan history;
-  worker/protocol/device failure remains close-only.
+  worker/protocol/device failure remains close-only. The instance owns no
+  tokenizer or raw receipt state; Busy and Draining leave prepared authority
+  retryable, exact preparation mismatches fail before lower mutation, and
+  destructive claim transfer rejects retained-alias replay.
   The borrowed ordinary roots remain caller-owned. Normal allocation-free
   Token output and natural Maximum/StopToken Usage+Completed-v2 bundles are
   implemented; stop tokens are counted but suppressed. Incremental string-stop

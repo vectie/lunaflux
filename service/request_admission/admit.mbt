@@ -123,13 +123,13 @@ fn validate_observed_time(
 }
 
 ///|
-fn finish_admission(
+fn finish_preparation(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   prepared : PreparedInput,
   observed_at_millis : UInt64,
   receipt : RequestReceipt,
-) -> AdmittedRequest raise RequestAdmissionError {
+) -> LunaPreparedRequest raise RequestAdmissionError {
   validate_observed_time(receipt, prepared.deadline, observed_at_millis)
   let no_stop_strings : Array[Bytes] = []
   let scheduler_stops = @inference.StopConditions::new(
@@ -161,16 +161,18 @@ fn finish_admission(
   ) catch {
     _ => raise Invalid(SchedulerContract)
   }
-  {
+  let claim : LunaPreparedRequestClaim = {
     scheduler_request,
     output,
     tokenizer_digest: tokenizer.digest(),
+    inference_limits: inference,
     input_tokens: prepared.tokens.length(),
   }
+  { claim: Some(claim) }
 }
 
 ///|
-fn admit_bound_with_clock(
+fn prepare_bound_with_clock(
   receipt : RequestReceipt,
   deadline : @inference.AdmissionDeadline,
   request : @inference.GenerateRequest,
@@ -179,37 +181,39 @@ fn admit_bound_with_clock(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   read_clock : () -> UInt64 raise RequestAdmissionError,
-) -> AdmittedRequest raise RequestAdmissionError {
+) -> LunaPreparedRequest raise RequestAdmissionError {
   let prepared_request = preflight_bound_request(
     deadline, request, tokenizer, expected_tokenizer, expected_model, inference,
   )
   validate_observed_time(receipt, prepared_request.deadline, read_clock())
   let prepared = tokenize_input(prepared_request, tokenizer, inference)
   let observed_at_millis = read_clock()
-  finish_admission(tokenizer, inference, prepared, observed_at_millis, receipt)
+  finish_preparation(
+    tokenizer, inference, prepared, observed_at_millis, receipt,
+  )
 }
 
 ///|
-/// Tokenizes and admits one request against the exact selected model and
-/// independently expected tokenizer digest. The clock is sampled after cheap
-/// canonical preflight and again after tokenization: already-expired work is
-/// rejected before BPE, while tokenization still consumes the original budget.
+/// Prepares one request against the exact selected model and independently
+/// expected tokenizer digest. The clock is sampled after cheap canonical
+/// preflight and again after tokenization: already-expired work is rejected
+/// before BPE, while tokenization still consumes the original budget.
 ///
 /// This synchronous admission function belongs on a bounded tokenizer worker,
 /// not an async network reactor.
-pub fn admit(
+pub fn prepare_luna_request(
   received : ReceivedRequest,
   tokenizer : @tokenizer.TokenizerSpec,
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   clock : @monotonic_clock.MonotonicClock,
-) -> AdmittedRequest raise RequestAdmissionError {
+) -> LunaPreparedRequest raise RequestAdmissionError {
   if received.consumed {
     raise Invalid(FrameContract)
   }
   received.consumed = true
-  admit_bound_with_clock(
+  prepare_bound_with_clock(
     received.receipt,
     received.deadline,
     received.request,

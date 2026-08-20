@@ -38,6 +38,15 @@ contains_forbidden_allocation() {
   rg "$forbidden" | rg -v 'Error|Failure' | rg -q .
 }
 
+contains_warm_begin_allocation() {
+  # Rejection branches may allocate MoonBit's typed exception wrapper. Exclude
+  # only that generated error-object constructor; a success result or any
+  # request-local allocation remains visible to this predicate.
+  rg "$forbidden" |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error' |
+    rg -q .
+}
+
 # The aggregate constructor deliberately allocates all owners and fixed
 # storage before rooted worker preparation. The same extractor and predicate
 # must observe that positive control before checking publication/steady paths.
@@ -78,9 +87,13 @@ for symbol in \
   'LunaOnlineInstance22begin__output__failure(' \
   'LunaOnlineInstance29consume__natural__publication(' \
   'LunaOnlineInstance26prepare__natural__terminal(' \
-  'AdmittedRequest25push__token__into__status(' \
-  'AdmittedRequest20finish__into__status(' \
-  'AdmittedRequest15is__stop__token(' \
+  'LunaPreparedRequestClaim25push__token__into__status(' \
+  'LunaPreparedRequestClaim20finish__into__status(' \
+  'LunaPreparedRequestClaim15is__stop__token(' \
+  'LunaPreparedRequest11take__claim(' \
+  'LunaPreparedRequest18stream__preference(' \
+  'LunaPreparedRequest15model__identity(' \
+  'LunaPreparedRequest17effective__limits(' \
   'IncrementalOutput19push__token__status(' \
   'StopPattern7advance(' \
   'IncrementalOutput20finish__into__status(' \
@@ -91,6 +104,7 @@ for symbol in \
   'CanonicalEventWriter14prepare__usage(' \
   'CanonicalEventWriter18prepare__completed(' \
   'CanonicalEventWriter15prepare__failed(' \
+  'CanonicalEventWriter17prepare__accepted(' \
   'OnlineWorkerLease6expire(' \
   'OnlineWorkerLease28progress__terminal__recovery(' \
   'OnlineWorkerLease36progress__terminal__recovery__status(' \
@@ -117,29 +131,53 @@ for symbol in \
   fi
 done
 
-# Admission may allocate only its public typed Admitted(ticket) result shell.
-# Request/token/output owners must already exist before the rooted instance is
-# published, and busy/draining dispositions run before request admission.
+# Native release compilation inlines the claim field access and the three
+# direct preflight fields below into begin. The generated begin scan therefore
+# covers their machine code; these source guards keep that inlining boundary
+# scalar and prevent hidden preparation/tokenization work from moving into it.
+if ! rg -U -q \
+    'pub fn LunaPreparedRequest::input_token_count[^{]*\{\s*self\.require_claim\(\)\.input_tokens\s*\}' \
+    service/request_admission/types.mbt ||
+  ! rg -U -q \
+    'pub fn LunaPreparedRequest::tokenizer_digest[^{]*\{\s*self\.require_claim\(\)\.tokenizer_digest\s*\}' \
+    service/request_admission/types.mbt ||
+  ! rg -U -q \
+    'pub fn LunaPreparedRequest::inference_limits[^{]*\{\s*self\.require_claim\(\)\.inference_limits\s*\}' \
+    service/request_admission/types.mbt ||
+  ! rg -U -q \
+    'pub fn LunaPreparedRequestClaim::scheduler_request[^{]*\{\s*self\.scheduler_request\s*\}' \
+    service/request_admission/types.mbt; then
+  printf '%s\n' \
+    'inlined prepared-request success accessors stopped being scalar field reads' >&2
+  exit 1
+fi
+
+# Off-reactor preparation owns tokenization and every request-local allocation.
+# Warm begin consumes only the prepared capability and must not allocate, call
+# the tokenizer, or construct request/output owners. Busy/draining dispositions
+# run before its destructive claim.
 begin_body="$(extract_definition 'LunaOnlineInstance5begin(')"
 if [ -z "$begin_body" ]; then
   printf '%s\n' 'persistent online begin function is missing' >&2
   exit 1
 fi
+if printf '%s\n' "$begin_body" | contains_warm_begin_allocation; then
+  printf '%s\n' 'persistent online begin allocates after off-reactor preparation' >&2
+  exit 1
+fi
 if printf '%s\n' "$begin_body" |
-  rg "$forbidden" |
-  rg -v 'Error|Failure|LunaOnlineInstanceAdmission' |
-  rg -q .; then
-  printf '%s\n' 'persistent online begin allocates request-local runtime state' >&2
+  rg -q 'TokenizerSpec|prepare__luna__request|TokenizedRequest3new|IncrementalOutput3new'; then
+  printf '%s\n' 'persistent online begin reintroduced tokenizer work' >&2
   exit 1
 fi
 if ! rg -U -q \
-  'if self\.drain_requested[\s\S]*return LunaOnlineInstanceDraining[\s\S]*if self\.phase != LunaInstanceIdlePhase \{[\s\S]*return LunaOnlineInstanceBusy[\s\S]*@request_admission\.admit' \
+  'if self\.drain_requested[\s\S]*return LunaOnlineInstanceDraining[\s\S]*if self\.phase != LunaInstanceIdlePhase \{[\s\S]*return LunaOnlineInstanceBusy[\s\S]*prepared\.take_claim' \
   service/online_session/admission.mbt; then
-  printf '%s\n' 'persistent online begin mutates/consumes before busy-drain disposition' >&2
+  printf '%s\n' 'persistent online begin claims before busy-drain disposition' >&2
   exit 1
 fi
 
-stop_body="$(extract_definition 'AdmittedRequest15is__stop__token(')"
+stop_body="$(extract_definition 'LunaPreparedRequestClaim15is__stop__token(')"
 if [ -z "$stop_body" ] || printf '%s\n' "$stop_body" |
   rg -q 'iterG|ArrayView4iter|FixedArray4iter'; then
   printf '%s\n' 'online stop-token lookup introduced iterator allocation' >&2

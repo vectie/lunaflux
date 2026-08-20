@@ -168,16 +168,62 @@ if [ -d service/request_admission ]; then
     'pub async fn|extern\s+"[cC]"|#external'
   if [ -f service/request_admission/pkg.generated.mbti ]; then
     if ! rg -q \
-      '^pub fn admit\(ReceivedRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\)' \
+      '^pub fn prepare_luna_request\(ReceivedRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\) -> LunaPreparedRequest raise RequestAdmissionError$' \
       service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
-        'request admission must retain typed receipt/model/tokenizer binding' >&2
+        'Luna request preparation must retain typed receipt/model/tokenizer binding' >&2
+      failed=1
+    fi
+    if rg -n '^pub fn admit\(|AdmittedRequest' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' 'legacy request admission surface remains public' >&2
+      failed=1
+    fi
+    if ! rg -q \
+      '^pub fn LunaPreparedRequest::take_claim\(Self\) -> LunaPreparedRequestClaim raise RequestAdmissionError$' \
+      service/request_admission/pkg.generated.mbti ||
+      rg -n 'claim_scheduler_request|LunaPreparedRequest::scheduler_request' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'prepared shell must destructively transfer its preallocated claim' >&2
       failed=1
     fi
     if rg -n --pcre2 -U \
-      'pub struct (IncrementalRequestReceiver|ReceivedRequest|AdmittedRequest) \{\n  (?!// private fields)' \
+      'pub struct (IncrementalRequestReceiver|ReceivedRequest|LunaPreparedRequest|LunaPreparedRequestClaim) \{\n  (?!// private fields)' \
       service/request_admission/pkg.generated.mbti; then
       printf '%s\n' 'request admission owners must remain opaque' >&2
+      failed=1
+    fi
+    if rg -n --pcre2 -U \
+      'pub struct LunaPreparedRequest(?:Claim)? \{(?s:[^}]*)\} derive\([^)]*Debug' \
+      service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'prepared shell and destructive claim must not expose Debug state' >&2
+      failed=1
+    fi
+    if [ "$(rg -c '^pub fn LunaPreparedRequest::' \
+      service/request_admission/pkg.generated.mbti)" != '7' ] ||
+      ! rg -q '^pub fn LunaPreparedRequest::take_claim\(Self\) -> LunaPreparedRequestClaim raise RequestAdmissionError$' \
+        service/request_admission/pkg.generated.mbti ||
+      rg -n --pcre2 \
+        '^pub fn LunaPreparedRequest::(receipt|receipt_at_millis|timestamp|deadline|admission_deadline|scheduler_request|is_stop_token|push_token|push_token_into|push_token_into_status|finish_into|finish_into_status|output_finished|output_stopped)\(' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'prepared shell must expose only binding preflight plus destructive transfer' >&2
+      failed=1
+    fi
+    if [ "$(rg -c '^pub fn LunaPreparedRequestClaim::' \
+      service/request_admission/pkg.generated.mbti)" != '4' ] ||
+      ! rg -q '^pub fn LunaPreparedRequestClaim::scheduler_request\(Self\) -> @core\.TokenizedRequest$' \
+        service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaPreparedRequestClaim::is_stop_token\(Self, Int\) -> Bool$' \
+        service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaPreparedRequestClaim::push_token_into_status\(' \
+        service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaPreparedRequestClaim::finish_into_status\(' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'prepared claim must expose only scheduler transfer and online output operations' >&2
       failed=1
     fi
     if ! rg -q \

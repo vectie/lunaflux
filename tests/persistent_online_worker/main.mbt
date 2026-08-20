@@ -15,17 +15,23 @@ fn validate_request_phase(
   request_id : UInt64,
   saw_first : Bool,
   saw_second : Bool,
-) -> (Bool, Bool) raise {
+  saw_third : Bool,
+) -> (Bool, Bool, Bool) raise {
   if request_id == 950UL {
-    if saw_second {
+    if saw_second || saw_third {
       raise Failure("persistent online fixture returned to its first request")
     }
-    (true, false)
+    (true, false, false)
   } else if request_id == 951UL {
-    if !saw_first {
+    if !saw_first || saw_third {
       raise Failure("persistent online fixture skipped its first request")
     }
-    (true, true)
+    (true, true, false)
+  } else if request_id == 954UL {
+    if !saw_second {
+      raise Failure("persistent online fixture skipped its second request")
+    }
+    (true, true, true)
   } else {
     raise Failure("persistent online fixture received a foreign request")
   }
@@ -73,6 +79,7 @@ fn run_worker() -> Unit raise {
   let mut running = true
   let mut saw_first = false
   let mut saw_second = false
+  let mut saw_third = false
   let mut frame_count = 0
   let mut last_sequence = 0UL
   while running {
@@ -92,13 +99,15 @@ fn run_worker() -> Unit raise {
       }
       last_sequence = frame.sequence_value()
       frame_count += 1
-      let (next_first, next_second) = validate_request_phase(
+      let (next_first, next_second, next_third) = validate_request_phase(
         plan_request_id(frame),
         saw_first,
         saw_second,
+        saw_third,
       )
       saw_first = next_first
       saw_second = next_second
+      saw_third = next_third
       let writer = completion_owner.writer_for(frame)
       for index in 0..<frame.prefill_count() {
         let row = frame.prefill_row(index)
@@ -117,8 +126,8 @@ fn run_worker() -> Unit raise {
       channel.write_frame(output, offset=0, byte_count=output_length)
     }
   }
-  if !saw_first || !saw_second || frame_count < 2 {
-    raise Failure("persistent online fixture drained before both requests")
+  if !saw_first || !saw_second || !saw_third || frame_count < 3 {
+    raise Failure("persistent online fixture drained before all requests")
   }
 }
 

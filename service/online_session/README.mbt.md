@@ -1,17 +1,21 @@
 # Luna online instance
 
 This package owns one persistent, alias-free `LunaOnlineInstance` for the
-bounded one-active-request-at-a-time online mode. Instance preparation binds the tokenizer,
-model identity, inference and wire envelopes, reusable event/output storage,
-one scheduler, and one rooted worker process. It does not accept a request.
+bounded one-active-request-at-a-time online mode. Instance preparation binds
+tokenizer and model identities, inference and wire envelopes, reusable
+event/output storage, one scheduler, and one rooted worker process. It does not
+accept a request.
 `prepare_owned_luna_online_instance` starts and authenticates the worker once,
 then transfers its opaque online lease into the instance.
 
-`LunaOnlineInstance::begin` is synchronous and off-reactor. It decides Busy or
-Draining before consuming the `ReceivedRequest`, preflights request-epoch
-exhaustion, tokenizes and validates one Streaming request, prepares Accepted
-credit, and only then commits scheduler admission. Admission rejection retires
-the prepared writer credit and leaves the instance idle. After admission
+Tokenization, deadline validation, and incremental-output construction happen
+off-reactor in `service/request_admission`, which publishes one opaque
+`LunaPreparedRequest`. `LunaOnlineInstance::begin` decides Busy, Draining, or
+request-epoch exhaustion before consuming that owner, validates its streaming,
+tokenizer, model, and exact inference-envelope evidence, prepares Accepted
+credit, and only then claims its scheduler request exactly once and commits
+lower admission. A lower admission rejection consumes the prepared request,
+retires the writer credit, and leaves the instance idle. After admission
 commits, only nonraising assignments publish a nonzero
 `LunaOnlineRequestTicket`. Every request operation authenticates that ticket
 before touching writer, decoder, scheduler, or worker state.

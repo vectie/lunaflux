@@ -24,12 +24,12 @@ fn LunaOnlineInstance::decode_token(
   natural_terminal : Bool,
 ) -> Unit {
   let token_id = try! publication.token_id()
-  let admitted = self.admitted_owner()
-  if admitted.is_stop_token(token_id) {
+  let claim = self.claim_owner()
+  if claim.is_stop_token(token_id) {
     abort("online natural stop token decode invariant")
   }
   self.output_tokens += 1
-  let step = admitted.push_token_into_status(
+  let step = claim.push_token_into_status(
     token_id,
     self.output,
     destination_offset=0,
@@ -160,7 +160,7 @@ fn LunaOnlineInstance::prepare_natural_terminal(
     }
   }
   let tail = self
-    .admitted_owner()
+    .claim_owner()
     .finish_into_status(self.output, destination_offset=0)
   if !tail.is_ready() {
     self.failure_kind = OutputLatchedFailure
@@ -193,7 +193,7 @@ fn LunaOnlineInstance::consume_natural_publication(
   match publication.kind() {
     OnlineGeneratedTokenPublication => {
       let token_id = try! publication.token_id()
-      if self.admitted_owner().is_stop_token(token_id) {
+      if self.claim_owner().is_stop_token(token_id) {
         self.output_tokens += 1
         let terminal_available = try! lease.has_publication()
         if !terminal_available {

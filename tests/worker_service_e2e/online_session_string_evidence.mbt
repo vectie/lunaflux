@@ -6,8 +6,11 @@ fn assert_string_stop_session(
   expected_tokens : Array[String?],
   expected_output_tokens : Int,
 ) -> Unit raise {
-  let instance = prepare_foundation_instance(executable, tokenizer)
-  let session = begin_foundation_session(instance, received)
+  let instance = prepare_foundation_instance(executable, tokenizer.digest())
+  let session = begin_foundation_session(
+    instance,
+    prepare_foundation_request(tokenizer, received),
+  )
   session.ack_event()
   let mut token_index = 0
   let mut terminal = false
@@ -56,10 +59,18 @@ fn assert_string_cut_abort(
   ack_prefix : Bool,
 ) -> Unit raise {
   let tokenizer = string_session_tokenizer(b"ax", "5".repeat(64))
-  let instance = prepare_foundation_instance(executable, tokenizer)
+  let instance = prepare_foundation_instance(executable, tokenizer.digest())
   let session = begin_foundation_session(
     instance,
-    session_received(Streaming, request_id~, stop_string=b"x", max_new_tokens=2),
+    prepare_foundation_request(
+      tokenizer,
+      session_received(
+        Streaming,
+        request_id~,
+        stop_string=b"x",
+        max_new_tokens=2,
+      ),
+    ),
   )
   session.ack_event()
   progress_foundation_to_event(session)

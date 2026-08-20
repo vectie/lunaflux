@@ -12,6 +12,18 @@ fn assert_stale_online_ticket(
 }
 
 ///|
+fn assert_prepared_shell_revoked(
+  retained : @request_admission.LunaPreparedRequest,
+) -> Unit raise {
+  try ignore(retained.input_token_count()) catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => raise Failure("unexpected revoked Luna preparation error")
+  } noraise {
+    _ => raise Failure("retained Luna preparation alias kept claim authority")
+  }
+}
+
+///|
 fn finish_persistent_natural(session : FoundationSession) -> Unit raise {
   session.ack_event()
   progress_foundation_to_event(session)
@@ -69,9 +81,10 @@ fn finish_persistent_cancelled(session : FoundationSession) -> Unit raise {
 
 ///|
 fn run_online_session_persistence_evidence(executable : Bytes) -> Unit raise {
-  let instance = prepare_foundation_instance(executable, session_tokenizer())
-  let first = begin_foundation_session(
-    instance,
+  let tokenizer = session_tokenizer()
+  let instance = prepare_foundation_instance(executable, tokenizer.digest())
+  let first_prepared = prepare_foundation_request(
+    tokenizer,
     session_received(
       Streaming,
       request_id=950UL,
@@ -79,24 +92,78 @@ fn run_online_session_persistence_evidence(executable : Bytes) -> Unit raise {
       deadline_millis=1000UL,
     ),
   )
-  let second_received = session_received(
-    Streaming,
-    request_id=951UL,
-    max_new_tokens=2,
-    deadline_millis=1000UL,
+  let second_prepared = prepare_foundation_request(
+    tokenizer,
+    session_received(
+      Streaming,
+      request_id=951UL,
+      max_new_tokens=2,
+      deadline_millis=1000UL,
+    ),
   )
-  assert_eq(instance.begin(second_received), LunaOnlineInstanceBusy)
+  let retained_second = second_prepared
+  let first = begin_foundation_session(instance, first_prepared)
+  assert_eq(instance.begin(second_prepared), LunaOnlineInstanceBusy)
+  let queued_expired = prepare_foundation_request(
+    tokenizer,
+    session_received(
+      Streaming,
+      request_id=953UL,
+      max_new_tokens=1,
+      deadline_millis=100UL,
+    ),
+  )
+  assert_eq(instance.begin(queued_expired), LunaOnlineInstanceBusy)
   finish_persistent_natural(first)
 
-  let second = begin_foundation_session(instance, second_received)
+  let clock = @monotonic_clock.MonotonicClock::system()
+  let expires_after = clock.now_millis() + 101UL
+  while clock.now_millis() < expires_after {
+
+  }
+  try instance.begin(queued_expired) catch {
+    LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure) => ()
+    _ => raise Failure("unexpected queued-expiry admission error")
+  } noraise {
+    _ => raise Failure("expired prepared request entered the scheduler")
+  }
+
+  let second = begin_foundation_session(instance, second_prepared)
+  assert_prepared_shell_revoked(retained_second)
   assert_false(first.ticket == second.ticket)
   assert_stale_online_ticket(instance, first.ticket)
   finish_persistent_cancelled(second)
 
+  try instance.begin(second_prepared) catch {
+    LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure) => ()
+    _ => raise Failure("unexpected prepared-request replay error")
+  } noraise {
+    _ => raise Failure("one prepared request was admitted twice")
+  }
+
+  let third = begin_foundation_session(
+    instance,
+    prepare_foundation_request(
+      tokenizer,
+      session_received(
+        Streaming,
+        request_id=954UL,
+        max_new_tokens=1,
+        deadline_millis=1000UL,
+      ),
+    ),
+  )
+  finish_persistent_natural(third)
+
+  let draining_prepared = prepare_foundation_request(
+    tokenizer,
+    session_received(Streaming, request_id=952UL),
+  )
   instance.begin_drain()
+  assert_eq(instance.begin(draining_prepared), LunaOnlineInstanceDraining)
   assert_eq(
-    instance.begin(session_received(Streaming, request_id=952UL)),
-    LunaOnlineInstanceDraining,
+    draining_prepared.take_claim().scheduler_request().request_id().value(),
+    952UL,
   )
   assert_eq(instance.progress_shutdown(), LunaOnlineInstanceShutdownClosed)
   assert_eq(instance.progress_shutdown(), LunaOnlineInstanceShutdownClosed)

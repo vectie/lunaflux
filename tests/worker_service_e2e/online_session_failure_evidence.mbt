@@ -36,8 +36,8 @@ fn assert_worker_unavailable_bundle(session : FoundationSession) -> Unit raise {
 
 ///|
 fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
-  let instance = prepare_foundation_instance(executable, session_tokenizer())
-  let session = begin_foundation_session(
+  let instance = prepare_default_foundation_instance(executable)
+  let session = begin_default_foundation_session(
     instance,
     session_received(Streaming, request_id=906UL),
   )
@@ -46,15 +46,17 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   assert_eq(session.progress(), LunaOnlineInstanceTerminalizationRequired)
   assert_worker_unavailable_bundle(session)
   assert_eq(
-    instance.begin(session_received(Streaming, request_id=916UL)),
+    instance.begin(
+      prepare_foundation_request(
+        session_tokenizer(),
+        session_received(Streaming, request_id=916UL),
+      ),
+    ),
     LunaOnlineInstanceDraining,
   )
 
-  let cancelled_instance = prepare_foundation_instance(
-    executable,
-    session_tokenizer(),
-  )
-  let cancelled = begin_foundation_session(
+  let cancelled_instance = prepare_default_foundation_instance(executable)
+  let cancelled = begin_default_foundation_session(
     cancelled_instance,
     session_received(Streaming, request_id=912UL),
   )
@@ -79,11 +81,8 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   cancelled.ack_event()
   finish_online_failure_cleanup(cancelled)
 
-  let deadline_instance = prepare_foundation_instance(
-    executable,
-    session_tokenizer(),
-  )
-  let deadline = begin_foundation_session(
+  let deadline_instance = prepare_default_foundation_instance(executable)
+  let deadline = begin_default_foundation_session(
     deadline_instance,
     session_received(Streaming, request_id=913UL),
   )
@@ -109,11 +108,8 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   deadline.ack_event()
   finish_online_failure_cleanup(deadline)
 
-  let aborting_instance = prepare_foundation_instance(
-    executable,
-    session_tokenizer(),
-  )
-  let aborting = begin_foundation_session(
+  let aborting_instance = prepare_default_foundation_instance(executable)
+  let aborting = begin_default_foundation_session(
     aborting_instance,
     session_received(Streaming, request_id=914UL),
   )

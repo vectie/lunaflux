@@ -8,3 +8,10 @@ and a successful post-restart completion with balanced KV ownership.
 
 The child remains a deterministic protocol implementation rather than a CUDA
 worker. Device-backed readiness is a separate physical release gate.
+
+The persistent-online slice prepares requests outside the online instance and
+then destructively transfers one preallocated `LunaPreparedRequest` claim. Its
+evidence covers sequential requests in the same child, Busy/Draining
+non-consumption and retry, foreign preparation binding, queued expiry without
+scheduler mutation, retained-alias replay rejection, stale tickets, and writer
+reuse after post-writer failure.
