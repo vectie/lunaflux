@@ -21,8 +21,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   positive-controlled release-C gates cover byte-work equivalence and the
   allocation-free warm path. A fixed-lane Luna request-preparation pool now
   drives that worker, cooperative token copying, and incremental-output setup
-  from one central FIFO quantum owner; canonical-frame materialization and
-  network ingress remain open.
+  from one central FIFO quantum owner. Canonical raw-frame scanning and
+  validation are also cooperative; object-form request materialization,
+  trusted receipt-clock composition, and network ingress remain open.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
@@ -238,12 +239,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   bounded UTF-8 terminal tail for unmatched incremental stop prefixes. It
   bounds hostile counts before arithmetic
   or allocation, validates exact lengths/checksums/reserved bytes and canonical
-  option encodings, and publishes only epoch-bound opaque frames. Its
+  option encodings, and publishes only epoch-bound opaque frames. A reusable
+  `LunaFramedRequestWorkspace` accepts and validates request-v1 through bounded
+  work quanta, then lends an epoch-bound scalar/indexed-byte view without
+  constructing request payload objects. Its
   fixed-capacity one-frame incremental reader authenticates the 16-byte prefix
   and unsigned declared total before payload acceptance, rejects trailing or
   pipelined input, poisons on prefix/frame failure, and delegates final
-  authority to the existing whole-frame decoder. It is a pure synchronous
-  codec foundation, not a listener or ingress claim.
+  authority to the same scanner plus a synchronous object-form compatibility
+  materializer. It is a transport-neutral codec foundation, not a listener or
+  ingress claim.
 - A bounded incremental decoded-output owner that copies exact tokenizer pieces
   into caller-owned fixed storage, validates UTF-8 across token boundaries,
   and withholds stop strings matched across token or code-point boundaries.
@@ -271,7 +276,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   explicit discard/release are covered. Ready, failed, prepared, and claimed
   results intentionally pin their lane until the outer owner disposes of the
   capability. The legacy facade remains synchronous, while canonical-frame
-  materialization and network ingress orchestration remain open.
+  scanning/validation is cooperative and object-form materialization, trusted
+  receipt-clock composition, and network ingress orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

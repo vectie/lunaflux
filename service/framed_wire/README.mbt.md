@@ -34,8 +34,29 @@ writes the single canonical representation. Loading validates completely
 before it replaces the prior frame, so rejection is transactional. Validated
 views are epoch-bound and become stale after the owner publishes a replacement.
 
-`IncrementalRequestReader` is a one-frame, fixed-capacity owner above the same
-authoritative `RequestFrameBuffer::load`. It accepts at most the exact 16-byte
+`LunaFramedRequestWorkspace` is the transport-neutral cooperative request-v1
+scanner. `begin` issues an epoch-authenticated `LunaFramedRequestWork`; `offer`
+copies no more than the configured step budget and returns the exact accepted
+byte count, while `progress` performs no more than that many bounded validation
+steps. One validation step is a fixed header group, one payload byte or token,
+one duplicate comparison, or one phase transition; it is not a claim that a
+step contains only one scalar read. A ready work item transfers a single
+`LunaFramedRequestView`. Its scalar and indexed-byte accessors read directly
+from fixed-capacity workspace storage and become stale after `release` and
+workspace reuse. No accessor constructs `GenerateRequest`, `Input`, stop
+arrays, strings, digests, or optional scalar wrappers.
+
+`RequestFrameBuffer::load` remains the allocating object-form compatibility
+surface. It synchronously drives that same scanner, proportionally
+materializes `GenerateRequest`, and publishes only after both operations
+succeed; there is no second request validator. The buffer binds the scanner to
+its existing scratch array, so it retains two frame-sized arrays in total plus
+bounded stop-string offset and length tables. Future ingress can drive a
+standalone workspace over multiple reactor turns without using the
+compatibility materializer.
+
+`IncrementalRequestReader` is a one-frame, fixed-capacity compatibility owner
+above `RequestFrameBuffer::load`. It accepts at most the exact 16-byte
 magic/version/kind/declared-length prefix first, authenticates the unsigned
 declared total before exposing payload capacity, snapshots each accepted byte
 range, and rejects undersize, oversize, trailing, or pipelined input. Prefix or

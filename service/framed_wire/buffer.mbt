@@ -1,9 +1,18 @@
 ///|
 pub fn RequestFrameBuffer::new(limits : FramedWireLimits) -> RequestFrameBuffer {
+  let scratch = FixedArray::make(limits.max_frame_bytes(), b'\x00')
+  let request_workspace = new_luna_framed_request_workspace(
+    limits,
+    try! LunaFramedRequestStepBudget::new(
+      LUNA_FRAMED_REQUEST_MAX_STEP_WORK_UNITS,
+    ),
+    scratch,
+  )
   {
     limits,
     storage: FixedArray::make(limits.max_frame_bytes(), b'\x00'),
-    scratch: FixedArray::make(limits.max_frame_bytes(), b'\x00'),
+    scratch,
+    request_workspace,
     request: None,
     epoch: 0UL,
     length: 0,

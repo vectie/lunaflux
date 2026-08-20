@@ -18,6 +18,10 @@ pub(all) suberror FramedWireError {
   EventCreditUnavailable
   RequestReaderIncomplete
   RequestReaderPoisoned
+  LunaFramedRequestBusy
+  LunaFramedRequestNotReady
+  LunaFramedRequestFailed
+  LunaFramedRequestStale
   StaleFrame
 } derive(Eq, @debug.Debug)
 
@@ -37,6 +41,7 @@ pub(all) enum FramedWireFrameKind {
 
 pub(all) enum FramedWireLimitRule {
   FrameBytes
+  LunaFramedRequestWorkUnits
 } derive(Eq, @debug.Debug)
 
 pub struct FramedWireLimits {
@@ -78,6 +83,84 @@ pub fn LunaFramedEventAdapter::length(Self) -> Int raise FramedWireError
 pub fn LunaFramedEventAdapter::new(FramedWireLimits) -> Self raise FramedWireError
 pub fn LunaFramedEventAdapter::release(Self) -> Unit raise FramedWireError
 pub fn LunaFramedEventAdapter::stage(Self, @luna_event.LunaEventView) -> Unit raise FramedWireError
+
+pub(all) enum LunaFramedRequestInputKind {
+  LunaFramedRequestText
+  LunaFramedRequestTokenIds
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaFramedRequestProgress {
+  LunaFramedRequestIdle
+  LunaFramedRequestAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedRequestStepBudget {
+  // private fields
+}
+pub fn LunaFramedRequestStepBudget::new(Int) -> Self raise FramedWireError
+pub fn LunaFramedRequestStepBudget::work_units(Self) -> Int
+
+pub struct LunaFramedRequestView {
+  // private fields
+}
+pub fn LunaFramedRequestView::cache_permission(Self) -> @inference.CachePermission raise FramedWireError
+pub fn LunaFramedRequestView::cache_scope_byte_at(Self, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::cache_scope_length(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::content_digest_byte_at(Self, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::context_ceiling(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::deadline_millis(Self) -> UInt64 raise FramedWireError
+pub fn LunaFramedRequestView::has_top_k(Self) -> Bool raise FramedWireError
+pub fn LunaFramedRequestView::has_top_p(Self) -> Bool raise FramedWireError
+pub fn LunaFramedRequestView::inference_limits(Self) -> @inference.InferenceLimits raise FramedWireError
+pub fn LunaFramedRequestView::input_byte_at(Self, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::input_kind(Self) -> LunaFramedRequestInputKind raise FramedWireError
+pub fn LunaFramedRequestView::input_length(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::input_token_at(Self, Int) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::length(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::max_new_tokens(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::plan_digest_byte_at(Self, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::protocol_version_wire(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::release(Self) -> Unit raise FramedWireError
+pub fn LunaFramedRequestView::request_id_value(Self) -> UInt64 raise FramedWireError
+pub fn LunaFramedRequestView::sampling_mode(Self) -> @inference.SamplingMode raise FramedWireError
+pub fn LunaFramedRequestView::sampling_seed_value(Self) -> UInt64 raise FramedWireError
+pub fn LunaFramedRequestView::sampling_temperature(Self) -> Double raise FramedWireError
+pub fn LunaFramedRequestView::stop_string_byte_at(Self, Int, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::stop_string_count(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::stop_string_length(Self, Int) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::stop_token_at(Self, Int) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::stop_token_count(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::stream_preference(Self) -> @inference.StreamPreference raise FramedWireError
+pub fn LunaFramedRequestView::top_k(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestView::top_p(Self) -> Double raise FramedWireError
+pub fn LunaFramedRequestView::trace_byte_at(Self, Int) -> Byte raise FramedWireError
+pub fn LunaFramedRequestView::trace_length(Self) -> Int raise FramedWireError
+
+pub struct LunaFramedRequestWork {
+  // private fields
+}
+pub fn LunaFramedRequestWork::abort(Self) -> Unit raise FramedWireError
+pub fn LunaFramedRequestWork::failure(Self) -> FramedWireError raise FramedWireError
+pub fn LunaFramedRequestWork::last_work_units(Self) -> Int raise FramedWireError
+pub fn LunaFramedRequestWork::offer(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Int raise FramedWireError
+pub fn LunaFramedRequestWork::progress(Self) -> LunaFramedRequestProgress raise FramedWireError
+pub fn LunaFramedRequestWork::state(Self) -> LunaFramedRequestWorkState raise FramedWireError
+pub fn LunaFramedRequestWork::take_view(Self) -> LunaFramedRequestView raise FramedWireError
+pub fn LunaFramedRequestWork::total_work_units(Self) -> UInt64 raise FramedWireError
+
+pub(all) enum LunaFramedRequestWorkState {
+  LunaFramedRequestReceivingPrefix
+  LunaFramedRequestReceivingBody
+  LunaFramedRequestValidating
+  LunaFramedRequestReady
+  LunaFramedRequestFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedRequestWorkspace {
+  // private fields
+}
+pub fn LunaFramedRequestWorkspace::begin(Self) -> LunaFramedRequestWork raise FramedWireError
+pub fn LunaFramedRequestWorkspace::new(FramedWireLimits, LunaFramedRequestStepBudget) -> Self
 
 pub struct RequestFrameBuffer {
   // private fields

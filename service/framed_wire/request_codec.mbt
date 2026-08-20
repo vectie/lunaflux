@@ -173,218 +173,93 @@ fn encode_request_payload(
 }
 
 ///|
-fn parse_request(
-  bytes : FixedArray[Byte],
+fn drive_luna_framed_request_work(
+  work : LunaFramedRequestWork,
+  source : FixedArray[Byte],
   length : Int,
-  limits : FramedWireLimits,
-) -> @inference.GenerateRequest raise FramedWireError {
-  if length < REQUEST_HEADER_BYTES ||
-    length > limits.max_frame_bytes() ||
-    length > bytes.length() {
-    raise request_invalid(Length)
-  }
-  if read_u32(bytes, 0) != request_magic {
-    raise request_invalid(Magic)
-  }
-  if read_u32(bytes, 4) != request_version {
-    raise request_invalid(Version)
-  }
-  if read_u32(bytes, 8) != 1 {
-    raise request_invalid(Kind)
-  }
-  if read_u32(bytes, 12).reinterpret_as_int() != length {
-    raise request_invalid(Length)
-  }
-  if read_u32(bytes, 16) != frame_checksum(bytes, length) {
-    raise request_invalid(Checksum)
-  }
-  let flags = read_u32(bytes, 20)
-  if (flags & 0xffffffc0) != 0 {
-    raise request_invalid(Flags)
-  }
-  if read_u32(bytes, 68) != 0 ||
-    read_u32(bytes, 252) != 0 ||
-    read_i32(bytes, 248) != REQUEST_HEADER_BYTES ||
-    read_i32(bytes, 244) != length - REQUEST_HEADER_BYTES {
-    raise request_invalid(Reserved)
-  }
-  let input_count = read_i32(bytes, 28)
-  let stop_token_count = read_i32(bytes, 32)
-  let stop_string_count = read_i32(bytes, 36)
-  let declared_stop_bytes = read_i32(bytes, 40)
-  let scope_length = read_i32(bytes, 44)
-  let trace_length = read_i32(bytes, 48)
-  if input_count < 0 ||
-    stop_token_count < 0 ||
-    stop_string_count < 0 ||
-    declared_stop_bytes < 0 ||
-    scope_length < 0 ||
-    trace_length < 0 {
-    raise request_invalid(Length)
-  }
-  let inference = limits.inference_limits()
-  let input_limit = if (flags & 1) != 0 {
-    inference.max_text_bytes()
-  } else {
-    inference.max_input_tokens()
-  }
-  if input_count == 0 ||
-    input_count > input_limit ||
-    stop_token_count > inference.max_stop_token_ids() ||
-    stop_string_count > inference.max_stop_strings() ||
-    declared_stop_bytes > stop_string_count * inference.max_stop_string_bytes() ||
-    scope_length == 0 ||
-    scope_length > inference.max_cache_scope_bytes() ||
-    trace_length > inference.max_trace_bytes() {
-    raise request_invalid(Length)
-  }
-  preflight_request_header(bytes, flags, input_count, inference)
-  preflight_request_payload(
-    bytes, length, flags, input_count, stop_token_count, stop_string_count, declared_stop_bytes,
-    scope_length, trace_length, inference,
-  )
-  let mut cursor = REQUEST_HEADER_BYTES
-  let input = if (flags & 1) != 0 {
-    request_room(cursor, input_count, length)
-    let payload = read_bytes(bytes, cursor, input_count)
-    cursor += input_count
-    @inference.Input::from_utf8(payload, inference) catch {
-      _ => raise request_invalid(Input)
+) -> LunaFramedRequestView raise FramedWireError {
+  let mut cursor = 0
+  while cursor < length {
+    match work.state() {
+      LunaFramedRequestFailed => {
+        let error = work.failure()
+        work.abort()
+        raise error
+      }
+      LunaFramedRequestReceivingBody =>
+        if work.workspace.declared_length != length {
+          work.abort()
+          raise request_invalid(Length)
+        }
+      LunaFramedRequestReady => {
+        work.abort()
+        raise request_invalid(Length)
+      }
+      LunaFramedRequestReceivingPrefix | LunaFramedRequestValidating => ()
     }
-  } else {
-    request_room(cursor, input_count * 4, length)
-    let tokens : Array[Int] = []
-    for index in 0..<input_count {
-      tokens.push(read_i32(bytes, cursor + index * 4))
-    }
-    cursor += input_count * 4
-    @inference.Input::from_token_ids(tokens, inference) catch {
-      _ => raise request_invalid(Input)
-    }
-  }
-  request_room(cursor, stop_token_count * 4, length)
-  let stop_tokens : Array[Int] = []
-  for index in 0..<stop_token_count {
-    stop_tokens.push(read_i32(bytes, cursor + index * 4))
-  }
-  cursor += stop_token_count * 4
-  let stop_strings : Array[Bytes] = []
-  let mut actual_stop_bytes = 0
-  for _ in 0..<stop_string_count {
-    request_room(cursor, 4, length)
-    let item_length = read_u32(bytes, cursor).reinterpret_as_int()
-    cursor += 4
-    if item_length <= 0 || item_length > inference.max_stop_string_bytes() {
-      raise request_invalid(StopTable)
-    }
-    request_room(cursor, item_length, length)
-    stop_strings.push(read_bytes(bytes, cursor, item_length))
-    cursor += item_length
-    actual_stop_bytes += item_length
-  }
-  if actual_stop_bytes != declared_stop_bytes {
-    raise request_invalid(StopTable)
-  }
-  request_room(cursor, scope_length, length)
-  let scope_bytes = read_bytes(bytes, cursor, scope_length)
-  cursor += scope_length
-  request_room(cursor, trace_length, length)
-  let trace_bytes = read_bytes(bytes, cursor, trace_length)
-  cursor += trace_length
-  if cursor != length || ((flags & 32) != 0) != (trace_length > 0) {
-    raise request_invalid(CanonicalEncoding)
-  }
-  let protocol = @inference.ProtocolVersion::from_wire(read_i32(bytes, 24)) catch {
-    _ => raise request_invalid(Version)
-  }
-  let request_id = @inference.RequestId::new(read_u64(bytes, 104)) catch {
-    _ => raise request_invalid(Scalar)
-  }
-  let content = @spec.ContentDigest::from_sha256(
-    read_digest(bytes, 112, RequestFrame),
-  ) catch {
-    _ => raise request_invalid(Identity)
-  }
-  let plan = @spec.PlanDigest::from_sha256(
-    read_digest(bytes, 176, RequestFrame),
-  ) catch {
-    _ => raise request_invalid(Identity)
-  }
-  let sampling = if (flags & 2) == 0 {
-    if read_i32(bytes, 60) != 0 ||
-      (flags & 12) != 0 ||
-      read_i32(bytes, 64) != 0 ||
-      read_u64(bytes, 72) != 1.0.reinterpret_as_uint64() ||
-      read_u64(bytes, 80) != 0UL {
-      raise request_invalid(CanonicalEncoding)
-    }
-    @inference.SamplingParameters::greedy()
-  } else {
-    if read_i32(bytes, 60) != 1 ||
-      ((flags & 4) != 0) != (read_i32(bytes, 64) != 0) ||
-      ((flags & 8) != 0) != (read_u64(bytes, 80) != 0UL) {
-      raise request_invalid(CanonicalEncoding)
-    }
-    @inference.SamplingParameters::sample(
-      temperature=read_u64(bytes, 72).reinterpret_as_double(),
-      top_k?=if (flags & 4) != 0 { Some(read_i32(bytes, 64)) } else { None },
-      top_p?=if (flags & 8) != 0 {
-        Some(read_u64(bytes, 80).reinterpret_as_double())
-      } else {
-        None
-      },
-      inference,
-    ) catch {
-      _ => raise request_invalid(Scalar)
-    }
-  }
-  let stops = @inference.StopConditions::new(
-    stop_tokens, stop_strings, inference,
-  ) catch {
-    _ => raise request_invalid(StopTable)
-  }
-  let scope = @inference.CacheScope::from_ascii(scope_bytes, inference) catch {
-    _ => raise request_invalid(Payload)
-  }
-  let permission = match read_i32(bytes, 240) {
-    0 => @inference.Disabled
-    1 => ReadOnly
-    2 => ReadWrite
-    _ => raise request_invalid(Scalar)
-  }
-  let trace = if (flags & 32) != 0 {
-    Some(
-      @inference.TraceCorrelation::from_ascii(trace_bytes, inference) catch {
-        _ => raise request_invalid(Payload)
-      },
+    let consumed = work.offer(
+      source,
+      source_offset=cursor,
+      length=length - cursor,
     )
-  } else {
-    None
+    if consumed > 0 {
+      cursor += consumed
+    } else {
+      match work.state() {
+        LunaFramedRequestFailed => {
+          let error = work.failure()
+          work.abort()
+          raise error
+        }
+        LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => {
+          work.abort()
+          raise request_invalid(Length)
+        }
+        LunaFramedRequestReady => {
+          work.abort()
+          raise request_invalid(Length)
+        }
+        LunaFramedRequestValidating => ignore(work.progress())
+      }
+    }
   }
-  @inference.GenerateRequest::new(
-    protocol_version=protocol,
-    request_id~,
-    model_identity=@spec.ModelIdentity::new(content, plan),
-    input~,
-    max_new_tokens=read_i32(bytes, 52),
-    context_ceiling=read_i32(bytes, 56),
-    sampling~,
-    sampling_seed=@inference.SamplingSeed::new(read_u64(bytes, 88)) catch {
-      _ => raise request_invalid(Scalar)
-    },
-    stops~,
-    stream_preference=if (flags & 16) != 0 { Streaming } else { Buffered },
-    deadline=@inference.DeadlineBudget::from_milliseconds(
-      read_u64(bytes, 96),
-      inference,
-    ) catch {
-      _ => raise request_invalid(Scalar)
-    },
-    cache=@inference.CachePolicy::new(scope, permission),
-    trace~,
-    limits=inference,
-  ) catch {
-    _ => raise request_invalid(CanonicalEncoding)
+  while true {
+    match work.state() {
+      LunaFramedRequestReady => return work.take_view()
+      LunaFramedRequestFailed => {
+        let error = work.failure()
+        work.abort()
+        raise error
+      }
+      LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => {
+        work.abort()
+        raise request_invalid(Length)
+      }
+      LunaFramedRequestValidating => ignore(work.progress())
+    }
+  }
+  abort("Luna framed request compatibility driver invariant")
+}
+
+///|
+fn drive_luna_framed_request(
+  workspace : LunaFramedRequestWorkspace,
+  source : FixedArray[Byte],
+  length : Int,
+) -> LunaFramedRequestView raise FramedWireError {
+  if length < REQUEST_HEADER_BYTES ||
+    length > workspace.limits.max_frame_bytes() ||
+    length > source.length() {
+    raise request_invalid(Length)
+  }
+  let work = workspace.begin()
+  drive_luna_framed_request_work(work, source, length) catch {
+    error => {
+      work.abort() catch {
+        _ => ()
+      }
+      raise error
+    }
   }
 }
 
@@ -398,18 +273,24 @@ pub fn RequestFrameBuffer::encode(
     request,
     self.limits.max_frame_bytes(),
   )
-  let canonical = parse_request(self.scratch, length, self.limits)
-  self.publish(canonical, length)
+  self.load(self.scratch, length)
 }
 
 ///|
-/// Validates before replacing the current frame; rejection is transactional.
+/// Synchronous compatibility driver over the authoritative cooperative
+/// scanner. Validation finishes before the previous published frame changes.
 pub fn RequestFrameBuffer::load(
   self : RequestFrameBuffer,
   source : FixedArray[Byte],
   length : Int,
 ) -> ValidatedRequestFrame raise FramedWireError {
-  let request = parse_request(source, length, self.limits)
-  copy_bytes(source, self.scratch, length)
+  let view = drive_luna_framed_request(self.request_workspace, source, length)
+  let request = materialize_luna_framed_request(view) catch {
+    error => {
+      view.release()
+      raise error
+    }
+  }
+  view.release()
   self.publish(request, length)
 }

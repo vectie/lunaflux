@@ -53,10 +53,12 @@ contains_unexpected_allocation() {
     rg -q .
 }
 
-# Final canonical parsing intentionally constructs immutable request values.
-# This gate covers the fixed owner-resident prefix/incomplete append path up to
-# that exact final RequestFrameBuffer::load boundary, plus receipt sampling and
-# publication ordering. The constructor above is the positive control.
+# The compatibility reader's final load intentionally constructs immutable
+# request values. This section covers the fixed owner-resident prefix/incomplete
+# append path up to that boundary, plus receipt sampling and publication
+# ordering. The nested Luna scanner gate below separately proves cooperative
+# canonical validation without object materialization. The constructor above is
+# the positive control for this receipt-owner section.
 for symbol in \
   'IncrementalRequestReader13virtual__byte(' \
   'IncrementalRequestReader12virtual__u32(' \
@@ -96,5 +98,7 @@ if ! printf '%s\n' "$reader_append" | rg -q \
     'framed request reader lost prefix-preflight/final-load composition' >&2
   exit 1
 fi
+
+scripts/validate-luna-framed-request-allocations.sh
 
 printf '%s\n' 'LunaFlux framed request-receipt allocation gate passed.'

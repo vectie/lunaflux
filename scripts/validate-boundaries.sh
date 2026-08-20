@@ -654,6 +654,74 @@ if rg -n 'OwnedWorkerServicePreparation::take_ready|WorkerService::prepare_onlin
   failed=1
 fi
 
+if [ -f service/framed_wire/pkg.generated.mbti ]; then
+  if ! rg -q '^pub fn LunaFramedRequestStepBudget::new\(Int\) -> Self raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestWorkspace::new\(FramedWireLimits, LunaFramedRequestStepBudget\) -> Self$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestWorkspace::begin\(Self\) -> LunaFramedRequestWork raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestWork::offer\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> Int raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestWork::progress\(Self\) -> LunaFramedRequestProgress raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestWork::take_view\(Self\) -> LunaFramedRequestView raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti ||
+    ! rg -q '^pub fn LunaFramedRequestView::release\(Self\) -> Unit raise FramedWireError$' \
+      service/framed_wire/pkg.generated.mbti; then
+    printf '%s\n' 'Luna framed-request public contract drifted' >&2
+    failed=1
+  fi
+  if [ "$(rg -c '^pub fn LunaFramedRequestStepBudget::' \
+      service/framed_wire/pkg.generated.mbti)" != '2' ] ||
+    [ "$(rg -c '^pub fn LunaFramedRequestWorkspace::' \
+      service/framed_wire/pkg.generated.mbti)" != '2' ] ||
+    [ "$(rg -c '^pub fn LunaFramedRequestWork::' \
+      service/framed_wire/pkg.generated.mbti)" != '8' ] ||
+    [ "$(rg -c '^pub fn LunaFramedRequestView::' \
+      service/framed_wire/pkg.generated.mbti)" != '32' ]; then
+    printf '%s\n' 'Luna framed-request method set drifted' >&2
+    failed=1
+  fi
+  expected_luna_work_methods="$(printf '%s\n' \
+    abort failure last_work_units offer progress state take_view \
+    total_work_units | sort)"
+  actual_luna_work_methods="$(sed -n \
+    's/^pub fn LunaFramedRequestWork::\([^(:]*\).*/\1/p' \
+    service/framed_wire/pkg.generated.mbti | sort)"
+  if [ "$actual_luna_work_methods" != "$expected_luna_work_methods" ]; then
+    printf '%s\n' 'Luna framed-request work authority surface drifted' >&2
+    failed=1
+  fi
+  expected_luna_view_methods="$(printf '%s\n' \
+    cache_permission cache_scope_byte_at cache_scope_length \
+    content_digest_byte_at context_ceiling deadline_millis has_top_k \
+    has_top_p inference_limits input_byte_at input_kind input_length \
+    input_token_at length max_new_tokens plan_digest_byte_at \
+    protocol_version_wire release request_id_value sampling_mode \
+    sampling_seed_value sampling_temperature stop_string_byte_at \
+    stop_string_count stop_string_length stop_token_at stop_token_count \
+    stream_preference top_k top_p trace_byte_at trace_length | sort)"
+  actual_luna_view_methods="$(sed -n \
+    's/^pub fn LunaFramedRequestView::\([^(:]*\).*/\1/p' \
+    service/framed_wire/pkg.generated.mbti | sort)"
+  luna_request_private_count="$(rg -c --pcre2 -U \
+    'pub struct LunaFramedRequest(StepBudget|Workspace|Work|View) \{\n  // private fields\n\}' \
+    service/framed_wire/pkg.generated.mbti)"
+  if [ "$actual_luna_view_methods" != "$expected_luna_view_methods" ] ||
+    [ "$luna_request_private_count" != '4' ] ||
+    rg -n '^pub fn LunaFramedRequest(StepBudget|Workspace|Work|View)::.*-> .*(FixedArray|Array\[|ArrayView|ReadOnlyArray|Bytes|String|GenerateRequest|ValidatedRequestFrame)' \
+      service/framed_wire/pkg.generated.mbti ||
+    rg -n '^pub fn LunaFramedRequest(StepBudget|Workspace|Work|View)::(owner|epoch|storage|workspace)\(' \
+      service/framed_wire/pkg.generated.mbti ||
+    rg -n 'pub struct LunaFramedRequest(StepBudget|Workspace|Work|View).*derive\([^)]*Debug' \
+      service/framed_wire/pkg.generated.mbti; then
+    printf '%s\n' \
+      'Luna framed-request capability opacity or scalar view drifted' >&2
+    failed=1
+  fi
+fi
+
 if ! rg -q '^pub fn OwnedWorkerServicePreparation::take_raw_ready\(Self\) -> WorkerService raise OwnedWorkerServicePreparationError$' \
   engine/worker_service/pkg.generated.mbti ||
   ! rg -q '^pub fn OwnedWorkerServicePreparation::take_online\(Self, @monotonic_clock.MonotonicClock\) -> OnlineWorkerLease raise OwnedWorkerServicePreparationError$' \

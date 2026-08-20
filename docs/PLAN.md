@@ -314,7 +314,9 @@ bounded token copying, and incremental-output setup; each preallocated lane
 remains leased through scheduler retirement and explicit claim release. The
 persistent online instance consumes only that claim and owns no tokenizer or
 pool state. The synchronous compatibility facade remains, and proportional
-frame parsing/materialization is still outside the cooperative boundary.
+object-form request materialization and trusted receipt-clock composition are
+still outside the cooperative boundary; canonical raw-frame scanning and
+validation now use reusable operation-budgeted Luna work.
 It deliberately adds no socket, async task, framed-ingress package, or server.
 
 ### Workstream 4: worker overlap

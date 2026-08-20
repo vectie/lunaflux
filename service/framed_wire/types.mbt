@@ -33,6 +33,7 @@ pub(all) enum FramedWireRule {
 ///|
 pub(all) enum FramedWireLimitRule {
   FrameBytes
+  LunaFramedRequestWorkUnits
 } derive(Debug, Eq)
 
 ///|
@@ -44,6 +45,10 @@ pub(all) suberror FramedWireError {
   EventCreditUnavailable
   RequestReaderIncomplete
   RequestReaderPoisoned
+  LunaFramedRequestBusy
+  LunaFramedRequestNotReady
+  LunaFramedRequestFailed
+  LunaFramedRequestStale
   StaleFrame
 } derive(Debug, Eq)
 
@@ -82,6 +87,7 @@ pub struct RequestFrameBuffer {
   priv limits : FramedWireLimits
   priv storage : FixedArray[Byte]
   priv scratch : FixedArray[Byte]
+  priv request_workspace : LunaFramedRequestWorkspace
   priv mut request : @inference.GenerateRequest?
   priv mut epoch : UInt64
   priv mut length : Int
