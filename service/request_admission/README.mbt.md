@@ -18,16 +18,40 @@ expected tokenizer digest, tokenizes text with special-token and overflow
 rejection, samples the clock again after tokenization, and preserves that
 retained deadline without rebasing it.
 
+The live cooperative path is `LunaRequestPreparationPool`. It allocates a hard
+maximum of 1024 fixed lanes at startup, after checked aggregate `Int`, `Byte`,
+and reference-cell accounting. Every lane permanently owns one Luna tokenizer
+worker, token buffer storage, and incremental-output workspace. `try_submit`
+returns Saturated or Draining without consuming its `ReceivedRequest`; an
+admitted request is pinned to its lane and exact generation until explicit
+discard or claim release.
+
+Only the pool advances work. Its fixed active ring grants one FIFO lane a
+configured quantum per `progress` call. One charged preparation unit is one
+underlying tokenizer unit, one token scalar read/write, one incremental-output
+setup unit, or one constant-size assembly transition. Work is checked against
+both a per-call quantum and an exact total-work ceiling. The monotonic deadline
+is checked before each lane quantum, immediately before Ready publication, and
+again before Prepared and Claimed transfer. Cancellation is observed by the
+central owner; Ready and Failed results remain pinned rather than being
+silently evicted.
+
+Ready assembly may allocate only constant-size scheduler, prepared, and claim
+records. Text bytes remain canonical and immutable while BPE and token copying
+are cooperative. TokenIds reuse their already-validated `TokenBuffer` without
+rescanning or copying. No proportional collection is created by pool progress.
+String stops remain in the pooled incremental-output lease while the scheduler
+receives the O(1) token-only stop view.
+
 Preparation publishes one opaque `LunaPreparedRequest` shell, deliberately
-without `Debug` or receipt/deadline accessors. Its complete
-`LunaPreparedRequestClaim` is allocated during off-reactor preparation, not
-during ownership transfer. Read-only Accepted and binding metadata may be
-inspected while the shell is live. `take_claim` clears the shell's sole claim
-slot before returning scheduler and incremental-output authority; every
-retained shell alias then rejects. Busy or draining instance disposition can
-therefore leave the shell intact for a bounded mailbox retry, while a
-successful take cannot be replayed into a second scheduler admission. Output
-mutation exists only on the claim, never on the shell.
+without `Debug`, lane, generation, receipt, or deadline accessors. `take_claim`
+revokes every retained shell alias and transfers scheduler plus optional pooled
+token/output lease authority. `LunaPreparedRequestClaim::release` is mandatory,
+generation-authenticated, and non-idempotent; only successful subordinate lease
+release returns the lane to the free ring. Output mutation exists only on the
+claim, never on the shell. Its `scheduler_request` result is a trusted borrowed
+view for the designated online admission bridge: it must not outlive the claim,
+and no other production package may retain or consume it.
 
 String stops remain in the private incremental-output owner while only stop
 token IDs enter the scheduler request. Generated pieces can then be copied into
@@ -36,17 +60,14 @@ Known stop-token IDs are exposed only as a bounded membership query and are
 rejected by `push_token_into_status`, preventing their pieces from leaking as
 ordinary decoded output.
 
-The package deliberately does not own a scheduler, request handle, socket, or
-async task. The incremental receiver is a trusted synchronous composition
-primitive, not framed ingress or a server. The synchronous preparation boundary
-is designed to run on a future bounded tokenizer worker before
-`service/online_session` claims the Luna owner and binds it to the
-production-owned worker. That session authenticates the exact request handle
-and publication sequence, owns Accepted/Token/Usage/Completed/Failed
-one-credit progression, applies stop/cancel/deadline cuts, and performs
-recovery/cleanup off-reactor. Async tokenizer-pool and network-ingress
-orchestration remain open. Because tokenizer encoding is synchronous CPU work,
-`prepare_luna_request` must run off an async network reactor.
+The legacy `prepare_luna_request` facade remains synchronous and detached for
+compatibility. It is not the reactor-safe production path. The package does not
+own a scheduler, request handle, socket, or async task, and framed parsing plus
+request materialization are still synchronous. Therefore end-to-end
+reactor-safe ingress is not yet claimed even though Luna preparation itself is
+fixed-lane and cooperatively bounded. `service/online_session` claims the Luna
+owner, authenticates its scheduler handle and publication sequence, and must
+release the claim on every rejected-admission or terminal path.
 
 For a natural terminal immediately following a generated token, that session
 owner holds the token publication until it observes the terminal. It then

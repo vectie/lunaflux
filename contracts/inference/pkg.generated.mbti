@@ -67,6 +67,7 @@ pub(all) enum ContractField {
   Limit
   InputToken
   InputText
+  LunaTokenStorage
   MaximumNewTokens
   ContextCeiling
   Temperature
@@ -97,6 +98,9 @@ pub(all) enum ContractIssue {
   NotMonotonic
   Inconsistent
   Unsupported
+  LunaStorageBusy
+  LunaStorageStale
+  LunaStorageLifecycle
 } derive(Eq, @debug.Debug)
 
 pub struct DeadlineBudget {
@@ -204,6 +208,33 @@ pub(all) enum Input {
 pub fn Input::from_token_ids(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
 pub fn Input::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
 
+pub struct LunaTokenBufferLease {
+  // private fields
+}
+pub fn LunaTokenBufferLease::release(Self) -> Unit raise InferenceContractError
+pub fn LunaTokenBufferLease::token_buffer(Self) -> TokenBuffer raise InferenceContractError
+
+pub struct LunaTokenBufferReadStatus(Int, Int)
+pub fn LunaTokenBufferReadStatus::is_ready(Self) -> Bool
+pub fn LunaTokenBufferReadStatus::is_stale(Self) -> Bool
+pub fn LunaTokenBufferReadStatus::token_id(Self) -> Int
+
+pub struct LunaTokenBufferStorage {
+  // private fields
+}
+pub fn LunaTokenBufferStorage::begin(Self, token_count~ : Int) -> LunaTokenBufferWrite raise InferenceContractError
+pub fn LunaTokenBufferStorage::capacity(Self) -> Int
+pub fn LunaTokenBufferStorage::new(capacity~ : Int, limits~ : InferenceLimits) -> Self raise InferenceContractError
+pub fn LunaTokenBufferStorage::required_int_cells(Int) -> UInt64 raise InferenceContractError
+
+pub struct LunaTokenBufferWrite {
+  // private fields
+}
+pub fn LunaTokenBufferWrite::abort(Self) -> Unit raise InferenceContractError
+pub fn LunaTokenBufferWrite::push(Self, Int) -> Unit raise InferenceContractError
+pub fn LunaTokenBufferWrite::seal(Self) -> LunaTokenBufferLease raise InferenceContractError
+pub fn LunaTokenBufferWrite::written_count(Self) -> Int raise InferenceContractError
+
 pub struct ProtocolVersion {
   wire_code : Int
 } derive(Eq, @debug.Debug)
@@ -262,6 +293,7 @@ pub struct StopConditions {
 pub fn StopConditions::new(ArrayView[Int], ArrayView[Bytes], InferenceLimits) -> Self raise InferenceContractError
 pub fn StopConditions::strings(Self) -> ReadOnlyArray[String]
 pub fn StopConditions::token_ids(Self) -> ReadOnlyArray[Int]
+pub fn StopConditions::token_only(Self) -> Self
 
 pub(all) enum StreamEvent {
   Accepted(AcceptedEvent)
@@ -277,19 +309,21 @@ pub(all) enum StreamPreference {
 } derive(Eq, @debug.Debug)
 
 pub struct TextInput {
-  text : String
-  utf8_bytes : Int
+  // private fields
 }
 pub fn TextInput::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
 pub fn TextInput::text(Self) -> String
+pub fn TextInput::utf8(Self) -> Bytes
 pub fn TextInput::utf8_bytes(Self) -> Int
 
 pub struct TokenBuffer {
-  token_ids : ReadOnlyArray[Int]
+  // private fields
 }
+pub fn TokenBuffer::is_live(Self) -> Bool
 pub fn TokenBuffer::length(Self) -> Int
 pub fn TokenBuffer::new(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
-pub fn TokenBuffer::token_ids(Self) -> ReadOnlyArray[Int]
+pub fn TokenBuffer::token_at(Self, Int) -> Int raise InferenceContractError
+pub fn TokenBuffer::token_status(Self, Int) -> LunaTokenBufferReadStatus
 
 pub struct TokenEvent {
   token_id : Int

@@ -1,6 +1,8 @@
 ///|
 fn LunaOnlineInstance::reset_request(self : LunaOnlineInstance) -> Unit {
-  self.claim = None
+  if self.claim is Some(_) {
+    abort("luna online request reset retained prepared claim")
+  }
   self.input_tokens = 0
   self.event_kind = NoSessionEvent
   self.event_taken = false
@@ -16,6 +18,16 @@ fn LunaOnlineInstance::reset_request(self : LunaOnlineInstance) -> Unit {
   for index in 0..<self.output.length() {
     self.output[index] = b'\x00'
   }
+}
+
+///|
+/// Releases only after lower scheduler authority is proven absent. A stale
+/// claim here is an owner-internal invariant violation, not a retryable service
+/// outcome: lower retirement/close has already committed.
+fn LunaOnlineInstance::release_request_claim(self : LunaOnlineInstance) -> Unit {
+  let claim = self.claim_owner()
+  try! claim.release()
+  self.claim = None
 }
 
 ///|
@@ -37,6 +49,7 @@ fn LunaOnlineInstance::close_terminal_owner(
   } else {
     abort("luna online terminal close phase invariant")
   }
+  self.release_request_claim()
   self.lease = None
   self.reset_request()
   self.drain_requested = true
@@ -154,6 +167,7 @@ pub fn LunaOnlineInstance::progress_request_retirement(
   lease.retire_terminal_request() catch {
     _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
   }
+  self.release_request_claim()
   self.reset_request()
   self.phase = LunaInstanceIdlePhase
   if self.drain_requested {

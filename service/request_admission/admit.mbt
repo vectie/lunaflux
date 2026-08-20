@@ -62,7 +62,10 @@ fn preflight_bound_request(
   ) catch {
     _ => raise Invalid(Input)
   }
-  let input_capacity = effective.context_ceiling() - effective.max_new_tokens()
+  let input_capacity = Int::min(
+    effective.context_ceiling() - effective.max_new_tokens(),
+    Int::min(inference.max_input_tokens(), tokenizer.limits().max_output_tokens),
+  )
   if input_capacity <= 0 {
     raise Invalid(Input)
   }
@@ -76,10 +79,12 @@ fn tokenize_input(
   inference : @inference.InferenceLimits,
 ) -> PreparedInput raise RequestAdmissionError {
   let tokens = match prepared.request.input() {
-    TokenIds(value) =>
-      @inference.TokenBuffer::new(value.token_ids(), inference) catch {
-        _ => raise Invalid(Input)
+    TokenIds(value) => {
+      if !value.is_live() {
+        raise Invalid(Input)
       }
+      value
+    }
     Text(value) => {
       let encoded = tokenizer.encode_text(
         value.text(),
@@ -131,14 +136,7 @@ fn finish_preparation(
   receipt : RequestReceipt,
 ) -> LunaPreparedRequest raise RequestAdmissionError {
   validate_observed_time(receipt, prepared.deadline, observed_at_millis)
-  let no_stop_strings : Array[Bytes] = []
-  let scheduler_stops = @inference.StopConditions::new(
-    prepared.request.stops().token_ids(),
-    no_stop_strings,
-    inference,
-  ) catch {
-    _ => raise Invalid(SchedulerContract)
-  }
+  let scheduler_stops = prepared.request.stops().token_only()
   let output = @incremental_output.IncrementalOutput::new(
     tokenizer,
     prepared.request.stops(),
@@ -162,8 +160,13 @@ fn finish_preparation(
     _ => raise Invalid(SchedulerContract)
   }
   let claim : LunaPreparedRequestClaim = {
-    scheduler_request,
-    output,
+    scheduler_request: Some(scheduler_request),
+    detached_output: Some(output),
+    pooled_output: None,
+    token_lease: None,
+    pool: None,
+    lane: -1,
+    generation: 0UL,
     tokenizer_digest: tokenizer.digest(),
     inference_limits: inference,
     input_tokens: prepared.tokens.length(),

@@ -318,9 +318,9 @@ fn Scheduler::build_prefill_row(
     value => value
   }
   try {
-    let tokens = request.input_tokens().token_ids()
     for index in start..<(start + length) {
-      draft.push_token(tokens[index]) catch {
+      let token = request.input_token_at(index)
+      draft.push_token(token) catch {
         error => raise WorkerProtocol(error)
       }
     }

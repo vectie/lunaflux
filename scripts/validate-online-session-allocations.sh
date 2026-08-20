@@ -75,6 +75,7 @@ for symbol in \
   'LunaOnlineInstance12begin__abort(' \
   'LunaOnlineInstance29progress__request__retirement(' \
   'LunaOnlineInstance14reset__request(' \
+  'LunaOnlineInstance23release__request__claim(' \
   'LunaOnlineInstance22close__terminal__owner(' \
   'LunaOnlineInstance12begin__drain(' \
   'LunaOnlineInstance18progress__shutdown(' \
@@ -98,14 +99,11 @@ for symbol in \
   'LunaPreparedRequestClaim25push__token__into__status(' \
   'LunaPreparedRequestClaim20finish__into__status(' \
   'LunaPreparedRequestClaim15is__stop__token(' \
+  'LunaPreparedRequestClaim7release(' \
   'LunaPreparedRequest11take__claim(' \
   'LunaPreparedRequest18stream__preference(' \
   'LunaPreparedRequest15model__identity(' \
   'LunaPreparedRequest17effective__limits(' \
-  'IncrementalOutput19push__token__status(' \
-  'StopPattern7advance(' \
-  'IncrementalOutput20finish__into__status(' \
-  'incremental__output11copy__range(' \
   'incremental__output21advance__utf8__status(' \
   'TokenizerSpec28copy__decoded__piece__status(' \
   'LunaEventOwner22publish__token__status(' \
@@ -156,17 +154,18 @@ if ! rg -U -q \
     'pub fn LunaPreparedRequest::inference_limits[^{]*\{\s*self\.require_claim\(\)\.inference_limits\s*\}' \
     service/request_admission/types.mbt ||
   ! rg -U -q \
-    'pub fn LunaPreparedRequestClaim::scheduler_request[^{]*\{\s*self\.scheduler_request\s*\}' \
+    'pub fn LunaPreparedRequestClaim::scheduler_request[^{]*\{\s*self\.require_scheduler_request\(\)\s*\}' \
     service/request_admission/types.mbt; then
   printf '%s\n' \
     'inlined prepared-request success accessors stopped being scalar field reads' >&2
   exit 1
 fi
 
-# Off-reactor preparation owns tokenization and every request-local allocation.
-# Warm begin consumes only the prepared capability and must not allocate, call
-# the tokenizer, or construct request/output owners. Busy/draining dispositions
-# run before its destructive claim.
+# Off-reactor pooled preparation owns tokenization and every proportional
+# request-local allocation. Its Ready/prepared/claim shells are separately
+# bounded as constant allocations by the focused pool gate. Warm begin consumes
+# only the prepared capability and must not allocate, call the tokenizer, or
+# construct request/output owners. Busy/draining dispositions precede claim.
 begin_body="$(extract_definition 'LunaOnlineInstance5begin(')"
 if [ -z "$begin_body" ]; then
   printf '%s\n' 'persistent online begin function is missing' >&2
@@ -430,5 +429,6 @@ fi
 scripts/validate-worker-service-online-lease-allocations.sh
 scripts/validate-luna-framed-event-allocations.sh
 scripts/validate-luna-tokenizer-work-allocations.sh
+scripts/validate-luna-request-preparation-pool-allocations.sh
 scripts/validate-framed-request-receipt-allocations.sh
 printf '%s\n' 'LunaFlux online-session allocation gate passed.'

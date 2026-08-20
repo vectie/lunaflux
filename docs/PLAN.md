@@ -169,8 +169,10 @@ encoding with the selected model's independently recorded logits and tokens.
 The byte-BPE implementation also has one authoritative reusable
 `LunaTokenizerWorker`: fixed startup storage, opaque epoch-bound work,
 resumable CSR merge lookup, bounded progress/copy calls, frozen-reference
-equivalence, and a positive-controlled release-C allocation gate. Whole-text
-conversion and request-pool scheduling are not part of that proof.
+equivalence, and a positive-controlled release-C allocation gate. The separate
+fixed-lane request-preparation proof composes canonical UTF-8, that worker,
+bounded token copying, and reusable incremental-output setup; it does not
+broaden the worker-only allocation claim or cover framed ingress.
 `lunaflux plan` authenticates bounded configuration and explains the derived
 semantic plan, required capabilities, and KV capacity, while deliberately
 leaving weight identity and kernel-manifest resolution open. These foundations
@@ -304,14 +306,15 @@ to transport fixtures. The trusted request-receipt prerequisite is implemented:
 one fixed-capacity incremental canonical reader authenticates declared length
 before payload acceptance, while request admission samples monotonic time before
 the first copied byte and binds a single immutable request/absolute deadline.
-The caller-designated synchronous preparation boundary consumes that receipt
-into a revocable
-`LunaPreparedRequest` shell around one preallocated claim carrying exact model,
+The live fixed-lane preparation boundary consumes that receipt into a revocable
+`LunaPreparedRequest` shell around one exact-generation claim carrying model,
 tokenizer-digest, inference-envelope, token, deadline, and incremental-output
-authority. The persistent online instance consumes only that claim and owns no
-tokenizer state. The reusable byte-BPE worker is implemented below this
-boundary, but incremental text conversion, bounded pool orchestration, and
-resumable token-buffer publication remain open.
+authority. A central FIFO quantum owner advances retained UTF-8 byte BPE,
+bounded token copying, and incremental-output setup; each preallocated lane
+remains leased through scheduler retirement and explicit claim release. The
+persistent online instance consumes only that claim and owns no tokenizer or
+pool state. The synchronous compatibility facade remains, and proportional
+frame parsing/materialization is still outside the cooperative boundary.
 It deliberately adds no socket, async task, framed-ingress package, or server.
 
 ### Workstream 4: worker overlap

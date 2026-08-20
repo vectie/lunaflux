@@ -21,7 +21,8 @@ fn Scheduler::preflight_admission_request(
   }
   let context = request.effective_limits().context_ceiling()
   let prompt_tokens = request.input_tokens().length()
-  for token in request.input_tokens().token_ids() {
+  for index in 0..<prompt_tokens {
+    let token = request.input_token_at(index)
     if token > self.capacity.worker_max_token_id() {
       raise invalid(Request, OutOfRange)
     }

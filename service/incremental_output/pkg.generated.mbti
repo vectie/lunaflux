@@ -32,6 +32,10 @@ pub(all) enum IncrementalOutputIssue {
   Invalid
   TooSmall
   Terminal
+  Busy
+  NotReady
+  Stale
+  Exhausted
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IncrementalOutputRule {
@@ -40,6 +44,8 @@ pub(all) enum IncrementalOutputRule {
   Utf8
   Destination
   Lifecycle
+  LunaIncrementalOutputWorkspace
+  LunaIncrementalOutputEpoch
 } derive(Eq, @debug.Debug)
 
 pub struct IncrementalOutputStatus(Int, Int, Bool)
@@ -51,6 +57,43 @@ pub fn IncrementalOutputStatus::stop_matched(Self) -> Bool
 pub struct IncrementalOutputStep(Int, Bool)
 pub fn IncrementalOutputStep::copied_bytes(Self) -> Int
 pub fn IncrementalOutputStep::stop_matched(Self) -> Bool
+
+pub struct LunaIncrementalOutputLease {
+  // private fields
+}
+pub fn LunaIncrementalOutputLease::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
+pub fn LunaIncrementalOutputLease::is_finished(Self) -> Bool raise IncrementalOutputError
+pub fn LunaIncrementalOutputLease::is_stopped(Self) -> Bool raise IncrementalOutputError
+pub fn LunaIncrementalOutputLease::push_token_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
+pub fn LunaIncrementalOutputLease::push_token_without_stops_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> IncrementalOutputStatus
+pub fn LunaIncrementalOutputLease::release(Self) -> Unit raise IncrementalOutputError
+
+pub(all) enum LunaIncrementalOutputProgress {
+  LunaIncrementalOutputPending
+  LunaIncrementalOutputReady
+} derive(Eq, @debug.Debug)
+
+pub struct LunaIncrementalOutputStepBudget {
+  // private fields
+}
+pub fn LunaIncrementalOutputStepBudget::new(Int) -> Self raise IncrementalOutputError
+pub fn LunaIncrementalOutputStepBudget::work_units(Self) -> Int
+
+pub struct LunaIncrementalOutputWork {
+  // private fields
+}
+pub fn LunaIncrementalOutputWork::abort(Self) -> Unit raise IncrementalOutputError
+pub fn LunaIncrementalOutputWork::last_work_units(Self) -> Int raise IncrementalOutputError
+pub fn LunaIncrementalOutputWork::progress(Self) -> LunaIncrementalOutputProgress raise IncrementalOutputError
+pub fn LunaIncrementalOutputWork::take_lease(Self) -> LunaIncrementalOutputLease raise IncrementalOutputError
+
+pub struct LunaIncrementalOutputWorkspace {
+  // private fields
+}
+pub fn LunaIncrementalOutputWorkspace::begin(Self, @inference.StopConditions, special_policy~ : @tokenizer.DecodeSpecialPolicy) -> LunaIncrementalOutputWork raise IncrementalOutputError
+pub fn LunaIncrementalOutputWorkspace::new(@tokenizer.TokenizerSpec, @inference.InferenceLimits, LunaIncrementalOutputStepBudget) -> Self raise IncrementalOutputError
+pub fn LunaIncrementalOutputWorkspace::required_byte_cells(@inference.InferenceLimits) -> Int raise IncrementalOutputError
+pub fn LunaIncrementalOutputWorkspace::required_int_cells(@inference.InferenceLimits) -> Int raise IncrementalOutputError
 
 // Type aliases
 

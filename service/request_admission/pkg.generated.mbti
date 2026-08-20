@@ -35,6 +35,7 @@ pub fn IncrementalRequestReceiver::take_received(Self) -> ReceivedRequest raise 
 pub struct LunaPreparedRequest {
   // private fields
 }
+pub fn LunaPreparedRequest::discard(Self) -> Unit raise RequestAdmissionError
 pub fn LunaPreparedRequest::effective_limits(Self) -> @inference.EffectiveLimits raise RequestAdmissionError
 pub fn LunaPreparedRequest::inference_limits(Self) -> @inference.InferenceLimits raise RequestAdmissionError
 pub fn LunaPreparedRequest::input_token_count(Self) -> Int raise RequestAdmissionError
@@ -49,7 +50,71 @@ pub struct LunaPreparedRequestClaim {
 pub fn LunaPreparedRequestClaim::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
 pub fn LunaPreparedRequestClaim::is_stop_token(Self, Int) -> Bool
 pub fn LunaPreparedRequestClaim::push_token_into_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
-pub fn LunaPreparedRequestClaim::scheduler_request(Self) -> @core.TokenizedRequest
+pub fn LunaPreparedRequestClaim::release(Self) -> Unit raise RequestAdmissionError
+pub fn LunaPreparedRequestClaim::scheduler_request(Self) -> @core.TokenizedRequest raise RequestAdmissionError
+
+pub struct LunaRequestPreparationAdmission {
+  // private fields
+}
+pub fn LunaRequestPreparationAdmission::kind(Self) -> LunaRequestPreparationAdmissionKind
+pub fn LunaRequestPreparationAdmission::work(Self) -> LunaRequestPreparationWork raise RequestAdmissionError
+
+pub(all) enum LunaRequestPreparationAdmissionKind {
+  LunaRequestPreparationAdmitted
+  LunaRequestPreparationSaturated
+  LunaRequestPreparationDraining
+} derive(Eq, @debug.Debug)
+
+pub struct LunaRequestPreparationPool {
+  // private fields
+}
+pub fn LunaRequestPreparationPool::begin_drain(Self) -> Unit
+pub fn LunaRequestPreparationPool::free_lane_count(Self) -> Int
+pub fn LunaRequestPreparationPool::is_drained(Self) -> Bool
+pub fn LunaRequestPreparationPool::lane_count(Self) -> Int
+pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationPool::progress(Self) -> LunaRequestPreparationPoolProgress
+pub fn LunaRequestPreparationPool::try_submit(Self, ReceivedRequest) -> LunaRequestPreparationAdmission raise RequestAdmissionError
+
+pub(all) enum LunaRequestPreparationPoolProgress {
+  LunaRequestPreparationPoolIdle
+  LunaRequestPreparationPoolAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaRequestPreparationStepBudget {
+  // private fields
+}
+pub fn LunaRequestPreparationStepBudget::new(Int) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationStepBudget::work_units(Self) -> Int
+
+pub struct LunaRequestPreparationStorageBudget {
+  // private fields
+}
+pub fn LunaRequestPreparationStorageBudget::new(int_cells~ : UInt64, byte_cells~ : UInt64, reference_cells~ : UInt64) -> Self raise RequestAdmissionError
+
+pub struct LunaRequestPreparationWork {
+  // private fields
+}
+pub fn LunaRequestPreparationWork::cancel(Self) -> Unit raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::discard(Self) -> Unit raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::failure(Self) -> RequestAdmissionError raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::last_work_units(Self) -> Int raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::state(Self) -> LunaRequestPreparationWorkState raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::take_prepared(Self) -> LunaPreparedRequest raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::total_work_units(Self) -> UInt64 raise RequestAdmissionError
+
+pub struct LunaRequestPreparationWorkLimit {
+  // private fields
+}
+pub fn LunaRequestPreparationWorkLimit::new(UInt64) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationWorkLimit::work_units(Self) -> UInt64
+
+pub(all) enum LunaRequestPreparationWorkState {
+  LunaRequestPreparationPending
+  LunaRequestPreparationReady
+  LunaRequestPreparationFailed
+  LunaRequestPreparationCancelRequested
+} derive(Eq, @debug.Debug)
 
 pub struct ReceivedRequest {
   // private fields
@@ -67,6 +132,9 @@ pub(all) enum RequestAdmissionRule {
   SchedulerContract
   OutputContract
   LunaPreparedLifecycle
+  LunaPreparationPool
+  LunaPreparationWork
+  LunaPreparationStorage
 } derive(Eq, @debug.Debug)
 
 // Type aliases

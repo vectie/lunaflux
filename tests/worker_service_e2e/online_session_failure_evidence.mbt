@@ -36,15 +36,30 @@ fn assert_worker_unavailable_bundle(session : FoundationSession) -> Unit raise {
 
 ///|
 fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
+  let tokenizer = session_tokenizer()
+  let recovery_pool = prepare_foundation_pool(tokenizer, 1)
   let instance = prepare_default_foundation_instance(executable)
-  let session = begin_default_foundation_session(
-    instance,
+  let recovery_work = submit_foundation_pool_work(
+    recovery_pool,
     session_received(Streaming, request_id=906UL),
   )
+  let session = begin_foundation_session(
+    instance,
+    finish_foundation_pool_work(recovery_pool, recovery_work),
+  )
+  assert_eq(recovery_pool.free_lane_count(), 0)
   session.ack_event()
   progress_foundation_to_terminalization(session)
   assert_eq(session.progress(), LunaOnlineInstanceTerminalizationRequired)
   assert_worker_unavailable_bundle(session)
+  assert_eq(recovery_pool.free_lane_count(), 1)
+  let recovery_reuse = prepare_foundation_pool_request(
+    recovery_pool,
+    session_received(Streaming, request_id=926UL),
+  )
+  assert_pool_work_stale(recovery_work)
+  recovery_reuse.discard()
+  assert_eq(recovery_pool.free_lane_count(), 1)
   assert_eq(
     instance
     .begin(

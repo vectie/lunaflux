@@ -93,7 +93,7 @@ test "token input is copied before caller mutation" {
   let source = [1, 2, 3]
   let input = @inference.TokenBuffer::new(source, limits())
   source[0] = 77
-  assert_eq(input.token_ids()[0], 1)
+  assert_eq(input.token_at(0), 1)
   assert_eq(input.length(), 3)
 }
 

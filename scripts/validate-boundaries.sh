@@ -770,7 +770,9 @@ if rg -n --pcre2 -U \
 fi
 
 if [ "$(rg -c '^pub fn LunaPreparedRequest::' \
-    service/request_admission/pkg.generated.mbti)" != '7' ] ||
+    service/request_admission/pkg.generated.mbti)" != '8' ] ||
+  ! rg -q '^pub fn LunaPreparedRequest::discard\(Self\) -> Unit raise RequestAdmissionError$' \
+    service/request_admission/pkg.generated.mbti ||
   rg -n --pcre2 \
     '^pub fn LunaPreparedRequest::(receipt|receipt_at_millis|timestamp|deadline|admission_deadline|scheduler_request|is_stop_token|push_token|push_token_into|push_token_into_status|finish_into|finish_into_status|output_finished|output_stopped)\(' \
     service/request_admission/pkg.generated.mbti; then
@@ -780,8 +782,10 @@ if [ "$(rg -c '^pub fn LunaPreparedRequest::' \
 fi
 
 if [ "$(rg -c '^pub fn LunaPreparedRequestClaim::' \
-    service/request_admission/pkg.generated.mbti)" != '4' ] ||
-  ! rg -q '^pub fn LunaPreparedRequestClaim::scheduler_request\(Self\) -> @core\.TokenizedRequest$' \
+    service/request_admission/pkg.generated.mbti)" != '5' ] ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::scheduler_request\(Self\) -> @core\.TokenizedRequest raise RequestAdmissionError$' \
+    service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaPreparedRequestClaim::release\(Self\) -> Unit raise RequestAdmissionError$' \
     service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaPreparedRequestClaim::is_stop_token\(Self, Int\) -> Bool$' \
     service/request_admission/pkg.generated.mbti ||
@@ -790,7 +794,78 @@ if [ "$(rg -c '^pub fn LunaPreparedRequestClaim::' \
   ! rg -q '^pub fn LunaPreparedRequestClaim::finish_into_status\(' \
     service/request_admission/pkg.generated.mbti; then
   printf '%s\n' \
-    'Luna prepared claim surface escaped scheduler/output ownership' >&2
+    'Luna prepared claim surface escaped scheduler/output/release ownership' >&2
+  failed=1
+fi
+
+claim_scheduler_consumers="$(rg -l \
+  'claim\.scheduler_request\(\)' \
+  --glob '*.mbt' --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' \
+  --glob '!tests/**' . | sed 's#^\./##' | sort || true)"
+if [ "$claim_scheduler_consumers" != \
+  'service/online_session/admission.mbt' ]; then
+  printf '%s\n' \
+    'prepared scheduler-request borrow escaped the online admission bridge' >&2
+  failed=1
+fi
+
+direct_claim_releases="$(rg -n 'claim\.release\(\)' \
+  service/online_session --glob '*.mbt' | wc -l | tr -d ' ')"
+lifecycle_claim_releases="$(rg -n 'self\.release_request_claim\(\)' \
+  service/online_session/lifecycle.mbt | wc -l | tr -d ' ')"
+if [ "$direct_claim_releases" != '2' ] ||
+  [ "$lifecycle_claim_releases" != '2' ] ||
+  ! rg -q --pcre2 -U \
+    'self\.lease_owner\(\)\.admit\(claim\.scheduler_request\(\)\) catch \{[\s\S]*try! claim\.release\(\)[\s\S]*try! self\.events\.discard\(\)' \
+    service/online_session/admission.mbt ||
+  ! rg -q --pcre2 -U \
+    'fn LunaOnlineInstance::close_terminal_owner[\s\S]*lease\.close_terminal\(\)[\s\S]*lease\.retry_close_terminal\(\)[\s\S]*self\.release_request_claim\(\)[\s\S]*self\.reset_request\(\)' \
+    service/online_session/lifecycle.mbt ||
+  ! rg -q --pcre2 -U \
+    'lease\.retire_terminal_request\(\) catch[\s\S]*self\.release_request_claim\(\)[\s\S]*self\.reset_request\(\)' \
+    service/online_session/lifecycle.mbt; then
+  printf '%s\n' \
+    'online claim release must follow lower rejection, terminal close, or healthy retirement exactly once' >&2
+  failed=1
+fi
+
+if rg -n --pcre2 -U \
+    'pub struct (LunaRequestPreparationPool|LunaRequestPreparationAdmission|LunaRequestPreparationWork|LunaRequestPreparationStepBudget|LunaRequestPreparationWorkLimit|LunaRequestPreparationStorageBudget) \{\n  (?!// private fields)' \
+    service/request_admission/pkg.generated.mbti ||
+  rg -n \
+    '^pub fn (LunaPreparedRequest|LunaPreparedRequestClaim|LunaRequestPreparation[^:]*)::.*(LunaTokenBuffer|TokenBuffer|LunaIncrementalOutput(Workspace|Work|Lease)|Array\[Int\]|ArrayView\[Int\]|ReadOnlyArray\[Int\])' \
+    service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' \
+    'Luna request-preparation capabilities leaked raw storage or representation' >&2
+  failed=1
+fi
+
+if ! rg -q '^pub fn LunaRequestPreparationPool::try_submit\(Self, ReceivedRequest\) -> LunaRequestPreparationAdmission raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaRequestPreparationPool::progress\(Self\) -> LunaRequestPreparationPoolProgress$' service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaRequestPreparationWork::take_prepared\(Self\) -> LunaPreparedRequest raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaRequestPreparationWork::last_work_units\(Self\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaRequestPreparationWork::total_work_units\(Self\) -> UInt64 raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti; then
+  printf '%s\n' 'Luna preparation submit/progress/take surface drifted' >&2
+  failed=1
+fi
+
+if rg -n 'moonbitlang/async|async fn|socket|listener|worker_(process|service)|device_|approved_fs|framed_wire' \
+    service/request_admission/pool*.mbt; then
+  printf '%s\n' \
+    'Luna preparation pool acquired async/socket/process/device authority' >&2
+  failed=1
+fi
+
+if rg -n '^pub fn TokenBuffer::token_ids\(|^pub fn TokenizedRequest::(input_tokens|input_token_at)\(' \
+    contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti ||
+  rg -n --pcre2 -U \
+    'pub struct (TokenBuffer|TokenizedRequest) \{\n  (?!// private fields)' \
+    contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti ||
+  rg -n --pcre2 -U \
+    'pub struct TokenizedRequest \{(?s:[^}]*)\} derive\([^)]*Debug' \
+    scheduler/core/pkg.generated.mbti; then
+  printf '%s\n' \
+    'scheduler token request leaked raw token arrays or debuggable representation' >&2
   failed=1
 fi
 

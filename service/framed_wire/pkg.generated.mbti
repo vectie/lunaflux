@@ -84,6 +84,7 @@ pub struct RequestFrameBuffer {
 }
 pub fn RequestFrameBuffer::capacity(Self) -> Int
 pub fn RequestFrameBuffer::encode(Self, @inference.GenerateRequest) -> ValidatedRequestFrame raise FramedWireError
+pub fn RequestFrameBuffer::inference_limits(Self) -> @inference.InferenceLimits
 pub fn RequestFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedRequestFrame raise FramedWireError
 pub fn RequestFrameBuffer::new(FramedWireLimits) -> Self
 

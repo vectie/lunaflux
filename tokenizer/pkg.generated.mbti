@@ -80,6 +80,10 @@ pub struct LunaTokenizerStepBudget {
 pub fn LunaTokenizerStepBudget::new(Int) -> Self raise TokenizerError
 pub fn LunaTokenizerStepBudget::work_units(Self) -> Int
 
+pub struct LunaTokenizerTokenStatus(Int, Int)
+pub fn LunaTokenizerTokenStatus::is_ready(Self) -> Bool
+pub fn LunaTokenizerTokenStatus::token_id(Self) -> Int
+
 pub struct LunaTokenizerWork {
   // private fields
 }
@@ -88,6 +92,7 @@ pub fn LunaTokenizerWork::copy_tokens_to(Self, FixedArray[Int], source_offset~ :
 pub fn LunaTokenizerWork::last_work_units(Self) -> Int raise TokenizerError
 pub fn LunaTokenizerWork::progress(Self) -> LunaTokenizerProgress raise TokenizerError
 pub fn LunaTokenizerWork::token_count(Self) -> Int raise TokenizerError
+pub fn LunaTokenizerWork::token_status(Self, Int) -> LunaTokenizerTokenStatus raise TokenizerError
 pub fn LunaTokenizerWork::was_truncated(Self) -> Bool raise TokenizerError
 
 pub struct LunaTokenizerWorker {
@@ -95,6 +100,7 @@ pub struct LunaTokenizerWorker {
 }
 pub fn LunaTokenizerWorker::begin_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> LunaTokenizerWork raise TokenizerError
 pub fn LunaTokenizerWorker::new(TokenizerSpec, input_capacity~ : Int, output_capacity~ : Int, LunaTokenizerStepBudget) -> Self raise TokenizerError
+pub fn LunaTokenizerWorker::required_int_cells(Int) -> UInt64 raise TokenizerError
 
 pub(all) struct MergeRule {
   left_token_id : Int

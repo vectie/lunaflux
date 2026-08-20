@@ -487,7 +487,7 @@ fn run(
   run_online_session_prepared_evidence(executable)
   run_online_session_termination_evidence(executable)
   match persistent_executable {
-    Some(value) => run_online_session_persistence_evidence(value)
+    Some(value) => run_online_session_persistence_evidence(executable, value)
     None => ()
   }
   match failure_executable {

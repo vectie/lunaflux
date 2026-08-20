@@ -49,7 +49,7 @@ fn encode_request_payload(
 ) -> (Int, UInt) raise FramedWireError {
   clear_header(bytes, REQUEST_HEADER_BYTES)
   let input_bytes : Bytes = match request.input() {
-    Text(value) => @utf8.encode(value.text())
+    Text(value) => value.utf8()
     TokenIds(_) => b""
   }
   let scope = @utf8.encode(request.cache().scope().as_string())
@@ -65,7 +65,12 @@ fn encode_request_payload(
     }
     TokenIds(value) => {
       cursor = request_append(cursor, value.length() * 4, maximum)
-      for index, token_id in value.token_ids() {
+      for index in 0..<value.length() {
+        let token_id = try value.token_at(index) catch {
+          _ => raise request_invalid(Payload)
+        } noraise {
+          value => value
+        }
         write_i32(bytes, REQUEST_HEADER_BYTES + index * 4, token_id)
       }
     }

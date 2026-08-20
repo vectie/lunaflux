@@ -200,12 +200,15 @@ now contains a restricted permanent
 Raw-versus-Online ownership lease with exact request/publication sequencing,
 trusted monotonic admission/expiry, recovery, and close authority. The public
 in-process `LunaOnlineInstance` above it owns one scheduler and rooted worker
-across sequential healthy request epochs. The off-reactor preparation boundary
-consumes a trusted receipt into a revocable `LunaPreparedRequest` shell around
-one exact preallocated claim. That claim binds the model, tokenizer digest,
-inference envelope, absolute deadline, token buffer, and incremental-output
-owner. The online instance retains no tokenizer or raw receipt state. Busy,
-draining, and exhausted-epoch outcomes precede destructive claim transfer;
+across sequential healthy request epochs. The cooperative fixed-lane
+preparation boundary consumes a trusted receipt into a revocable
+`LunaPreparedRequest` shell around one exact-generation claim. A central FIFO
+quantum owner advances retained UTF-8 tokenization, token copying, and
+incremental-output setup. The claim binds the model, tokenizer digest,
+inference envelope, absolute deadline, and generation-leased token/output
+storage; its lane returns only after lower scheduler retirement or terminal
+close. The online instance retains no tokenizer, pool, or raw receipt state.
+Busy, draining, and exhausted-epoch outcomes precede destructive claim transfer;
 foreign preparation bindings fail before semantic-event or scheduler mutation.
 Begin also preflights exact event-epoch headroom before publishing Accepted or
 consuming the claim. Each transferred claim is authenticated by an opaque Luna
@@ -216,10 +219,10 @@ deadline enforcement, and terminal failure remain owned by the instance.
 Final acknowledgement retires only request-local state; the lease epoch,
 publication history, plan predecessor, and worker remain live. Explicit
 instance drain is the only healthy worker-close path, while authenticated
-worker, protocol, or device failure remains close-only. The byte-BPE layer has
-reusable operation-budgeted Luna work; incremental text conversion,
-tokenizer-pool orchestration, adapter dispatch, and network transport remain
-above this aggregate. Child
+worker, protocol, or device failure remains close-only. The byte-BPE layer and
+request-preparation pool have reusable operation-budgeted Luna work. Framed
+request materialization, adapter dispatch, and network transport remain above
+this aggregate, so no end-to-end reactor-safety claim is made. Child
 ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects

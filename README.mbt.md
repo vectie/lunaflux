@@ -36,7 +36,8 @@ LunaFlux owns:
 - fixed-page KV allocation and radix-indexed prefix reuse;
 - sampling, streaming events, metrics, and instance health;
 - one worker per accelerator and the GPU execution protocol;
-- kernel capability selection and the constrained LunaTile kernel IR.
+- kernel capability selection and, in Phase 5, the constrained LunaTile kernel
+  IR and offline specializer.
 
 LunaFlux does not own:
 
@@ -139,12 +140,18 @@ without claiming listener readiness. Incremental output state copies tokenizer
 pieces into caller storage, validates split UTF-8, and withholds cross-token
 stop strings without constructing per-token collections or text values.
 A transport-neutral admission owner captures monotonic receipt before parsing,
-binds the exact model and tokenizer, tokenizes once, preserves that absolute
-deadline, and separates scheduler stop tokens from private incremental
-string-stop state. A reusable operation-budgeted `LunaTokenizerWorker` now
-owns the authoritative byte-BPE path, but whole-text conversion and request
-preparation are still synchronous and no tokenizer pool or async listener is
-claimed.
+binds the exact model and tokenizer, preserves that absolute deadline, and
+separates scheduler stop tokens from private incremental string-stop state.
+A reusable operation-budgeted `LunaTokenizerWorker` owns the authoritative
+byte-BPE path. Above it, a fixed-lane `LunaRequestPreparationPool` retains
+canonical UTF-8, advances text tokenization, token copying, and incremental
+output setup through a central FIFO quantum, and transfers an exact-generation
+claim whose token and output storage remains leased until scheduler retirement.
+Saturation and draining do not consume the receipt; deadline, cancellation,
+work-ceiling, stale-generation, and explicit lane-return paths fail closed.
+The legacy preparation facade remains synchronous. Canonical-frame parsing and
+request materialization are not yet cooperative, and no async listener or
+end-to-end reactor-safe ingress is claimed.
 Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and

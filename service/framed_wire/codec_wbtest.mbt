@@ -136,7 +136,7 @@ test "request token input and greedy canonical form roundtrip" {
     .load(source, bytes.length())
     .request()
     .input() {
-    TokenIds(value) => assert_eq(value.token_ids()[2], 3)
+    TokenIds(value) => assert_eq(try! value.token_at(2), 3)
     _ => fail("expected token input")
   }
 }

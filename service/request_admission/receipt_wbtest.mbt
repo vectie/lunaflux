@@ -196,7 +196,7 @@ test "binding rejects a stale validated frame before request publication" {
   let buffer = @framed_wire.RequestFrameBuffer::new(limits)
   let stale = buffer.encode(request)
   ignore(buffer.encode(request))
-  try bind_received({ at_millis: 10UL }, stale) catch {
+  try bind_received({ at_millis: 10UL }, stale, fixture_inference()) catch {
     Invalid(FrameContract) => ()
     _ => fail("unexpected stale-frame binding error")
   } noraise {

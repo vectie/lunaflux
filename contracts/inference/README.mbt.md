@@ -20,3 +20,12 @@ Payload-bearing request text, stop strings, decoded deltas, cache scopes, and
 trace correlation deliberately have no derived debug representation. Public
 validation errors contain only a bounded field, issue category, and collection
 index.
+
+`TextInput` retains the canonical immutable UTF-8 bytes accepted at the
+contract boundary, so bounded Luna tokenization does not recreate them from
+MoonBit's UTF-16 `String`. `TokenBuffer` is opaque. Ordinary constructors own
+an immutable copied collection; startup-preallocated
+`LunaTokenBufferStorage` instead publishes an exact-generation lease whose
+tokens are readable only through scalar `token_status`. Releasing or reusing
+the storage makes every retained buffer alias stale, and Luna-leased buffers
+never expose a collection view or mutable fixed storage.

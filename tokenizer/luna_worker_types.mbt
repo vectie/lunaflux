@@ -35,6 +35,30 @@ pub(all) enum LunaTokenizerProgress {
 } derive(Debug, Eq)
 
 ///|
+/// Allocation-free scalar read of one ready Luna tokenizer result token.
+#valtype
+pub struct LunaTokenizerTokenStatus(Int, Int)
+
+///|
+pub fn LunaTokenizerTokenStatus::is_ready(
+  self : LunaTokenizerTokenStatus,
+) -> Bool {
+  self.0 == 0
+}
+
+///|
+/// Returns the token ID for a ready status and `-1` otherwise.
+pub fn LunaTokenizerTokenStatus::token_id(
+  self : LunaTokenizerTokenStatus,
+) -> Int {
+  if self.0 == 0 {
+    self.1
+  } else {
+    -1
+  }
+}
+
+///|
 #valtype
 pub struct LunaTokenizerStepBudget {
   priv work_units : Int
@@ -98,6 +122,18 @@ pub struct LunaTokenizerWorker {
   priv mut output_count : Int
   priv mut truncated : Bool
   priv mut last_work_units : Int
+}
+
+///|
+/// Returns the exact number of startup-preallocated `Int` cells used by one
+/// worker's token, previous-link, and next-link arrays.
+pub fn LunaTokenizerWorker::required_int_cells(
+  input_capacity : Int,
+) -> UInt64 raise TokenizerError {
+  if input_capacity <= 0 {
+    raise LunaInvalidWorkerCapacity
+  }
+  input_capacity.to_uint64() * 3UL
 }
 
 ///|

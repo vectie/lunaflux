@@ -162,6 +162,15 @@ pub fn StopConditions::strings(self : StopConditions) -> ReadOnlyArray[String] {
 }
 
 ///|
+/// Produces the scheduler-facing token-stop projection in constant work. The
+/// immutable token collection is shared; request text stop payload is not
+/// carried into scheduler state.
+pub fn StopConditions::token_only(self : StopConditions) -> StopConditions {
+  let empty : Array[String] = []
+  { token_ids: self.token_ids, strings: ReadOnlyArray::from_array(empty) }
+}
+
+///|
 fn StopConditions::validate(
   self : StopConditions,
   limits : InferenceLimits,

@@ -11,6 +11,7 @@ pub(all) enum ContractField {
   Limit
   InputToken
   InputText
+  LunaTokenStorage
   MaximumNewTokens
   ContextCeiling
   Temperature
@@ -43,6 +44,9 @@ pub(all) enum ContractIssue {
   NotMonotonic
   Inconsistent
   Unsupported
+  LunaStorageBusy
+  LunaStorageStale
+  LunaStorageLifecycle
 } derive(Debug, Eq)
 
 ///|

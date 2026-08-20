@@ -152,6 +152,23 @@ pub fn LunaTokenizerWork::token_count(
 }
 
 ///|
+/// Reads one result token without exposing the worker's mutable fixed storage.
+/// The status is non-ready for an invalid index or before result readiness;
+/// stale work credits retain the existing typed error.
+pub fn LunaTokenizerWork::token_status(
+  self : LunaTokenizerWork,
+  index : Int,
+) -> LunaTokenizerTokenStatus raise TokenizerError {
+  let worker = self.require_worker()
+  if worker.phase != LUNA_WORKER_READY ||
+    index < 0 ||
+    index >= worker.output_count {
+    return LunaTokenizerTokenStatus(1, 0)
+  }
+  LunaTokenizerTokenStatus(0, worker.tokens[index])
+}
+
+///|
 pub fn LunaTokenizerWork::copy_tokens_to(
   self : LunaTokenizerWork,
   destination : FixedArray[Int],

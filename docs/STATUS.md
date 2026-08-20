@@ -19,8 +19,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   and copies results only in budget-capped chunks. The synchronous encoder is
   a compatibility facade over that same implementation. Frozen-reference and
   positive-controlled release-C gates cover byte-work equivalence and the
-  allocation-free warm path; incremental text conversion and pool scheduling
-  remain open.
+  allocation-free warm path. A fixed-lane Luna request-preparation pool now
+  drives that worker, cooperative token copying, and incremental-output setup
+  from one central FIFO quantum owner; canonical-frame materialization and
+  network ingress remain open.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
@@ -251,21 +253,25 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   only its ACK advances the semantic owner. Usage ACK atomically creates a
   distinct Completed/Failed epoch, abort invalidates outstanding credit, and a
   canonical framed adapter borrows only the semantic view. Positive-controlled
-  release-C gates cover the warm online and adapter paths. Tokenizer-pool,
-  listener dispatch, and network transport remain open.
-- A synchronous request-admission bridge now composes that reader with trusted
+  release-C gates cover the warm online and adapter paths. The fixed-lane
+  preparation pool now feeds this boundary; listener dispatch and network
+  transport remain open.
+- A request-admission bridge now composes that reader with trusted
   monotonic time: the first valid nonempty append samples exactly once before
   byte mutation, and one successful take retains an immutable request plus its
   once-derived absolute deadline without exposing timestamp/deadline getters or
-  a detachable frame/receipt capability. The synchronous off-reactor
-  preparation boundary binds the selected model, tokenizer digest, and exact
-  inference envelope; tokenizes with overflow and special-token rejection; and
-  returns a revocable `LunaPreparedRequest` shell around one preallocated claim
-  carrying the scheduler request and incremental-output authority. Destructive
-  claim transfer revokes retained aliases. String stops stay in that private
-  output owner while stop-token output fails closed. Incremental UTF-16/UTF-8
-  request conversion, a bounded tokenizer-worker pool, and ingress
-  orchestration remain open.
+  a detachable frame/receipt capability. The live fixed-lane preparation pool
+  authenticates the selected model, tokenizer digest, and exact inference
+  envelope; advances retained UTF-8 tokenization, token copying, and
+  incremental-output setup through bounded FIFO quanta; and returns a
+  revocable `LunaPreparedRequest` shell around one exact claim. Each lane's
+  token and output storage remains generation-pinned through claim release
+  after scheduler retirement. Saturated or draining admission does not consume
+  the receipt; deadlines, cancellation, work ceilings, stale aliases, and
+  explicit discard/release are covered. Ready, failed, prepared, and claimed
+  results intentionally pin their lane until the outer owner disposes of the
+  capability. The legacy facade remains synchronous, while canonical-frame
+  materialization and network ingress orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

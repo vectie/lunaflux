@@ -11,6 +11,15 @@ pub fn RequestFrameBuffer::new(limits : FramedWireLimits) -> RequestFrameBuffer 
 }
 
 ///|
+/// Returns the exact inference envelope that authenticated this buffer. The
+/// scalar contract value carries no frame bytes or mutable buffer authority.
+pub fn RequestFrameBuffer::inference_limits(
+  self : RequestFrameBuffer,
+) -> @inference.InferenceLimits {
+  self.limits.inference_limits()
+}
+
+///|
 pub fn RequestFrameBuffer::capacity(self : RequestFrameBuffer) -> Int {
   self.storage.length()
 }

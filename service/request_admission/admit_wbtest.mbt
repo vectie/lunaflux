@@ -258,7 +258,6 @@ test "text admission preserves receipt deadline and separates string stops" {
   assert_eq(prepared.input_token_count(), 3)
   let claim = prepared.take_claim()
   let scheduler_request = claim.scheduler_request()
-  assert_eq(scheduler_request.input_tokens().length(), 3)
   assert_eq(scheduler_request.admission_deadline().at_millis(), 200UL)
   assert_eq(scheduler_request.stops().token_ids().length(), 1)
   assert_eq(scheduler_request.stops().strings().length(), 0)

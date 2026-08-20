@@ -19,7 +19,80 @@ fn alternate_inference_limits() -> @inference.InferenceLimits raise {
 }
 
 ///|
+fn assert_stale_preparation_claim(
+  claim : @request_admission.LunaPreparedRequestClaim,
+) -> Unit raise {
+  try ignore(claim.scheduler_request()) catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => raise Failure("unexpected stale Luna claim read error")
+  } noraise {
+    _ => raise Failure("released Luna claim retained scheduler authority")
+  }
+  try claim.release() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => raise Failure("unexpected stale Luna claim release error")
+  } noraise {
+    _ => raise Failure("released Luna claim returned a reused lane twice")
+  }
+  let destination = FixedArray::make(8, b'!')
+  assert_false(
+    claim
+    .push_token_into_status(1, destination, destination_offset=0)
+    .is_ready(),
+  )
+  assert_false(
+    claim.finish_into_status(destination, destination_offset=0).is_ready(),
+  )
+}
+
+///|
+fn run_preparation_pool_alias_evidence() -> Unit raise {
+  let tokenizer = session_tokenizer()
+  let pool = prepare_foundation_pool(tokenizer, 1)
+  let first_work = submit_foundation_pool_work(
+    pool,
+    session_received(Streaming, request_id=940UL),
+  )
+  let first_prepared = finish_foundation_pool_work(pool, first_work)
+  let first_prepared_alias = first_prepared
+  let saturated_received = session_received(Streaming, request_id=941UL)
+  assert_eq(
+    pool.try_submit(saturated_received).kind(),
+    LunaRequestPreparationSaturated,
+  )
+  let first_claim = first_prepared.take_claim()
+  assert_eq(first_claim.scheduler_request().request_id().value(), 940UL)
+  first_claim.release()
+  assert_eq(pool.free_lane_count(), 1)
+
+  // The saturated receipt was not consumed. Its admission reuses the only
+  // lane, advancing the exact storage generation and staling every old alias.
+  let second_work = submit_foundation_pool_work(pool, saturated_received)
+  let second_prepared = finish_foundation_pool_work(pool, second_work)
+  assert_pool_work_stale(first_work)
+  assert_prepared_shell_revoked(first_prepared_alias)
+  assert_stale_preparation_claim(first_claim)
+  second_prepared.discard()
+  assert_eq(pool.free_lane_count(), 1)
+
+  let draining_received = session_received(Streaming, request_id=942UL)
+  pool.begin_drain()
+  assert_eq(
+    pool.try_submit(draining_received).kind(),
+    LunaRequestPreparationDraining,
+  )
+  assert_true(pool.is_drained())
+  let retry_pool = prepare_foundation_pool(tokenizer, 1)
+  let retry_prepared = prepare_foundation_pool_request(
+    retry_pool, draining_received,
+  )
+  retry_prepared.discard()
+  assert_eq(retry_pool.free_lane_count(), 1)
+}
+
+///|
 fn run_online_session_prepared_evidence(executable : Bytes) -> Unit raise {
+  run_preparation_pool_alias_evidence()
   let tokenizer = session_tokenizer()
   let instance = prepare_foundation_instance(executable, tokenizer.digest())
   let foreign_tokenizer = invalid_output_session_tokenizer()

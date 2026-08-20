@@ -4,7 +4,48 @@
 /// The type deliberately has no `Debug` because token IDs encode prompt
 /// payload. Construction checks the collection bound before copying.
 pub struct TokenBuffer {
-  token_ids : ReadOnlyArray[Int]
+  priv backing : LunaTokenBufferBacking
+  priv token_count : Int
+}
+
+///|
+priv enum LunaTokenBufferBacking {
+  LunaOwnedTokenBacking(ReadOnlyArray[Int])
+  LunaLeasedTokenBacking(LunaTokenBufferStorage, UInt64)
+}
+
+///|
+/// Allocation-free scalar token read. A non-ready status carries no token ID;
+/// `is_stale` distinguishes an invalidated Luna storage generation from an
+/// invalid index.
+#valtype
+pub struct LunaTokenBufferReadStatus(Int, Int)
+
+///|
+pub fn LunaTokenBufferReadStatus::is_ready(
+  self : LunaTokenBufferReadStatus,
+) -> Bool {
+  self.0 == 0
+}
+
+///|
+pub fn LunaTokenBufferReadStatus::is_stale(
+  self : LunaTokenBufferReadStatus,
+) -> Bool {
+  self.0 == 2
+}
+
+///|
+/// Returns the token ID for a ready status and `-1` otherwise. Token IDs are
+/// contractually nonnegative, so the sentinel cannot be mistaken for data.
+pub fn LunaTokenBufferReadStatus::token_id(
+  self : LunaTokenBufferReadStatus,
+) -> Int {
+  if self.0 == 0 {
+    self.1
+  } else {
+    -1
+  }
 }
 
 ///|
@@ -23,24 +64,75 @@ pub fn TokenBuffer::new(
       raise invalid(InputToken, OutOfRange, index)
     }
   }
-  { token_ids: ReadOnlyArray::from_array(token_ids) }
-}
-
-///|
-pub fn TokenBuffer::token_ids(self : TokenBuffer) -> ReadOnlyArray[Int] {
-  self.token_ids
+  {
+    backing: LunaOwnedTokenBacking(ReadOnlyArray::from_array(token_ids)),
+    token_count: token_ids.length(),
+  }
 }
 
 ///|
 pub fn TokenBuffer::length(self : TokenBuffer) -> Int {
-  self.token_ids.length()
+  self.token_count
+}
+
+///|
+/// Reports whether this buffer's backing generation is still readable.
+pub fn TokenBuffer::is_live(self : TokenBuffer) -> Bool {
+  match self.backing {
+    LunaOwnedTokenBacking(_) => true
+    LunaLeasedTokenBacking(storage, epoch) =>
+      storage.is_sealed_epoch(epoch, self.token_count)
+  }
+}
+
+///|
+/// Reads one token without exposing the backing collection. Invalid indices
+/// return a non-ready status; released or reused Luna storage returns stale.
+pub fn TokenBuffer::token_status(
+  self : TokenBuffer,
+  index : Int,
+) -> LunaTokenBufferReadStatus {
+  match self.backing {
+    LunaOwnedTokenBacking(tokens) =>
+      if index < 0 || index >= self.token_count {
+        LunaTokenBufferReadStatus(1, 0)
+      } else {
+        LunaTokenBufferReadStatus(0, tokens[index])
+      }
+    LunaLeasedTokenBacking(storage, epoch) => {
+      if !storage.is_sealed_epoch(epoch, self.token_count) {
+        return LunaTokenBufferReadStatus(2, 0)
+      }
+      if index < 0 || index >= self.token_count {
+        return LunaTokenBufferReadStatus(1, 0)
+      }
+      storage.read_status(epoch, self.token_count, index)
+    }
+  }
+}
+
+///|
+/// Reads one token with typed stale/range rejection and never exposes the
+/// underlying owned or reusable collection.
+pub fn TokenBuffer::token_at(
+  self : TokenBuffer,
+  index : Int,
+) -> Int raise InferenceContractError {
+  let status = self.token_status(index)
+  if status.is_ready() {
+    return status.token_id()
+  }
+  if status.is_stale() {
+    raise invalid(LunaTokenStorage, LunaStorageStale, 0)
+  }
+  raise invalid(InputToken, OutOfRange, index)
 }
 
 ///|
 /// Immutable bounded UTF-8 text input. It deliberately has no `Debug`.
 pub struct TextInput {
-  text : String
-  utf8_bytes : Int
+  priv text : String
+  priv utf8 : Bytes
 }
 
 ///|
@@ -57,7 +149,7 @@ pub fn TextInput::from_utf8(
   let text = @utf8.decode(bytes) catch {
     _ => raise invalid(InputText, InvalidFormat, 0)
   }
-  { text, utf8_bytes: bytes.length() }
+  { text, utf8: bytes.to_owned() }
 }
 
 ///|
@@ -67,7 +159,14 @@ pub fn TextInput::text(self : TextInput) -> String {
 
 ///|
 pub fn TextInput::utf8_bytes(self : TextInput) -> Int {
-  self.utf8_bytes
+  self.utf8.length()
+}
+
+///|
+/// Returns the canonical immutable UTF-8 bytes retained at validation. This
+/// avoids an encode-from-UTF-16 copy before bounded Luna tokenization.
+pub fn TextInput::utf8(self : TextInput) -> Bytes {
+  self.utf8
 }
 
 ///|
@@ -101,11 +200,16 @@ fn Input::validate(
 ) -> Unit raise InferenceContractError {
   match self {
     TokenIds(tokens) => {
-      if tokens.length() > limits.max_input_tokens() {
+      if !tokens.is_live() {
+        raise invalid(LunaTokenStorage, LunaStorageStale, 0)
+      }
+      let length = tokens.length()
+      if length > limits.max_input_tokens() {
         raise invalid(InputToken, TooMany, limits.max_input_tokens())
       }
-      for index, token_id in tokens.token_ids() {
-        if token_id < 0 || token_id > limits.max_token_id() {
+      for index in 0..<length {
+        let status = tokens.token_status(index)
+        if !status.is_ready() || status.token_id() > limits.max_token_id() {
           raise invalid(InputToken, OutOfRange, index)
         }
       }

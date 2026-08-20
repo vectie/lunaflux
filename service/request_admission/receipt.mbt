@@ -9,6 +9,7 @@ fn capture_receipt_with_clock(
 fn bind_received(
   receipt : RequestReceipt,
   frame : @framed_wire.ValidatedRequestFrame,
+  inference : @inference.InferenceLimits,
 ) -> ReceivedRequest raise RequestAdmissionError {
   let request = frame.request() catch { _ => raise Invalid(FrameContract) }
   let deadline = @inference.AdmissionDeadline::from_receipt(
@@ -17,7 +18,7 @@ fn bind_received(
   ) catch {
     _ => raise Invalid(Deadline)
   }
-  { receipt, request, deadline, consumed: false }
+  { receipt, request, deadline, inference, consumed: false }
 }
 
 ///|
@@ -28,6 +29,7 @@ pub fn IncrementalRequestReceiver::new(
   {
     reader: @framed_wire.IncrementalRequestReader::new(limits),
     clock,
+    inference: limits.inference_limits(),
     receipt_at_millis: 0UL,
     has_receipt: false,
     terminal: false,
@@ -136,7 +138,7 @@ pub fn IncrementalRequestReceiver::take_received(
     abort("completed request frame has no trusted receipt")
   }
   self.terminal = true
-  bind_received({ at_millis: self.receipt_at_millis }, frame)
+  bind_received({ at_millis: self.receipt_at_millis }, frame, self.inference)
 }
 
 ///|
@@ -156,5 +158,5 @@ pub fn receive(
   let frame = buffer.load(source, length) catch {
     _ => raise Invalid(FrameContract)
   }
-  bind_received(receipt, frame)
+  bind_received(receipt, frame, buffer.inference_limits())
 }

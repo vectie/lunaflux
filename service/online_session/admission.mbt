@@ -162,6 +162,9 @@ pub fn LunaOnlineInstance::begin(
   }
   self.lease_owner().admit(claim.scheduler_request()) catch {
     _ => {
+      // Rejected lower admission retains no scheduler alias. Revoke the
+      // claim-owned request resources before publishing the rollback outcome.
+      try! claim.release()
       try! self.events.discard()
       raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
     }
