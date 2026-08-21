@@ -91,9 +91,11 @@ pub struct LunaIncrementalOutputWorkspace {
   // private fields
 }
 pub fn LunaIncrementalOutputWorkspace::begin(Self, @inference.StopConditions, special_policy~ : @tokenizer.DecodeSpecialPolicy) -> LunaIncrementalOutputWork raise IncrementalOutputError
+pub fn LunaIncrementalOutputWorkspace::begin_luna_request_semantics(Self, @inference.LunaRequestSemanticView, special_policy~ : @tokenizer.DecodeSpecialPolicy) -> LunaIncrementalOutputWork raise IncrementalOutputError
 pub fn LunaIncrementalOutputWorkspace::new(@tokenizer.TokenizerSpec, @inference.InferenceLimits, LunaIncrementalOutputStepBudget) -> Self raise IncrementalOutputError
 pub fn LunaIncrementalOutputWorkspace::required_byte_cells(@inference.InferenceLimits) -> Int raise IncrementalOutputError
 pub fn LunaIncrementalOutputWorkspace::required_int_cells(@inference.InferenceLimits) -> Int raise IncrementalOutputError
+pub fn LunaIncrementalOutputWorkspace::required_reference_cells(@inference.InferenceLimits) -> Int raise IncrementalOutputError
 
 // Type aliases
 

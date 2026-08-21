@@ -9,6 +9,22 @@ charged setup unit is one pattern transition, UTF-16 scalar transition, emitted
 UTF-8 byte, failure comparison/advance, or failure fallback. No setup call
 performs a hidden proportional scan or grows a collection.
 
+`begin_luna_request_semantics` is the direct authority-safe path from an
+authenticated inference `LunaRequestSemanticView`. It first binds the exact
+`InferenceLimits` without mutating the workspace, then copies one already
+validated UTF-8 stop byte per charged text unit. The view remains retained and
+is reauthenticated immediately before Ready publication and lease transfer;
+successful transfer detaches it before token decoding. A stale view or another
+setup error enters a payload-safe authenticated Failed state. The same Work
+replays that error with zero work, cannot publish a lease, and remains the sole
+authority that may abort the failure back to Idle.
+
+Workspace construction also reserves one private semantic-view capability
+slot. It is filled and cleared without growing a collection, so semantic setup
+does not allocate a per-request option wrapper. `required_reference_cells`
+reports that single reusable slot alongside the existing exact integer and byte
+cell queries.
+
 Ready work transfers exactly one `LunaIncrementalOutputLease`. Retained work
 aliases reject after transfer, while retained lease aliases reject after
 release or workspace reuse. The lease alone may decode, query lifecycle, flush
@@ -39,7 +55,7 @@ Workspace construction preflights the complete logical cell count before its
 first allocation. `LunaIncrementalOutputWorkspace::required_int_cells` and
 `LunaIncrementalOutputWorkspace::required_byte_cells` expose the exact reusable
 backing-array requirements without allocating; the workspace has no
-reference-cell backing array. Request setup rejects an envelope whose
+request-varying reference-cell allocation. Request setup rejects an envelope whose
 decoded-delta capacity cannot hold one maximum tokenizer piece, the longest
 admitted stop string, and the UTF-8 carry. Stream errors are payload-safe and
 never contain token IDs, stop strings, decoded bytes, or tokenizer diagnostics.

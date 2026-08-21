@@ -60,11 +60,22 @@ fi
 # symbols are failures, so inlining cannot silently narrow the evidence.
 for symbol in \
   'LunaIncrementalOutputWorkspace5begin(' \
+  'LunaIncrementalOutputWorkspace31begin__luna__request__semantics(' \
+  'LunaIncrementalOutputWorkspace12begin__setup(' \
   'LunaIncrementalOutputWork8progress(' \
   'LunaIncrementalOutputWorkspace20progress__setup__one(' \
   'LunaIncrementalOutputWorkspace21progress__setup__text(' \
+  'LunaIncrementalOutputWorkspace31progress__setup__semantic__text(' \
   'LunaIncrementalOutputWorkspace24progress__setup__pattern(' \
   'LunaIncrementalOutputWorkspace24progress__setup__failure(' \
+  'LunaIncrementalOutputWorkspace30authenticate__setup__semantics(' \
+  'LunaIncrementalOutputWorkspace30semantic__stop__string__length(' \
+  'LunaIncrementalOutputWorkspace32semantic__stop__string__byte__at(' \
+  'LunaIncrementalOutputWorkspace20clear__setup__source(' \
+  'LunaIncrementalOutputWorkspace11fail__setup(' \
+  'LunaIncrementalOutputWorkspace21raise__setup__failure(' \
+  'LunaRequestSemanticView20stop__string__length(' \
+  'LunaRequestSemanticView22stop__string__byte__at(' \
   'LunaIncrementalOutputWork11take__lease(' \
   'LunaIncrementalOutputLease19push__token__status(' \
   'LunaIncrementalOutputLease35push__token__without__stops__status(' \

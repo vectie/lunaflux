@@ -104,6 +104,9 @@ const LUNA_INCREMENTAL_OUTPUT_READY : Int = 4
 const LUNA_INCREMENTAL_OUTPUT_LEASED : Int = 5
 
 ///|
+const LUNA_INCREMENTAL_OUTPUT_FAILED : Int = 6
+
+///|
 const LUNA_INCREMENTAL_OUTPUT_MAX_STEP_WORK_UNITS : Int = 65536
 
 ///|
@@ -133,6 +136,7 @@ pub struct LunaIncrementalOutputWorkspace {
   priv pending : FixedArray[Byte]
   priv scratch : FixedArray[Byte]
   priv mut setup_stops : @inference.StopConditions?
+  priv setup_semantics : Array[@inference.LunaRequestSemanticView]
   priv mut special_policy : @tokenizer.DecodeSpecialPolicy
   priv mut phase : Int
   priv mut epoch : UInt64
@@ -146,6 +150,8 @@ pub struct LunaIncrementalOutputWorkspace {
   priv mut setup_failure_matched : Int
   priv mut longest_pattern : Int
   priv mut last_work_units : Int
+  priv mut setup_error_rule : IncrementalOutputRule
+  priv mut setup_error_issue : IncrementalOutputIssue
   priv mut pending_count : Int
   priv mut utf8_remaining : Int
   priv mut utf8_codepoint : Int

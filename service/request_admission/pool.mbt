@@ -62,13 +62,21 @@ fn validate_pool_storage(
   ) catch {
     _ => raise Invalid(LunaPreparationStorage)
   }).to_uint64()
+  let output_reference_cells = (@incremental_output.LunaIncrementalOutputWorkspace::required_reference_cells(
+    inference,
+  ) catch {
+    _ => raise Invalid(LunaPreparationStorage)
+  }).to_uint64()
   let lanes = lane_count.to_uint64()
   let total_int = checked_add_cells(
     checked_multiply_cells(per_lane_int, lanes),
     checked_multiply_cells(lanes, 2UL),
   )
   let total_byte = checked_multiply_cells(per_lane_byte, lanes)
-  let total_references = lanes
+  let total_references = checked_multiply_cells(
+    checked_add_cells(1UL, output_reference_cells),
+    lanes,
+  )
   if total_int > budget.int_cells ||
     total_byte > budget.byte_cells ||
     total_references > budget.reference_cells {

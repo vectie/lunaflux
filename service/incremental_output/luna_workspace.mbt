@@ -21,19 +21,29 @@ pub fn LunaIncrementalOutputWorkspace::begin(
   stops : @inference.StopConditions,
   special_policy~ : @tokenizer.DecodeSpecialPolicy,
 ) -> LunaIncrementalOutputWork raise IncrementalOutputError {
+  self.begin_setup(stops.strings().length(), Some(stops), special_policy)
+}
+
+///|
+fn LunaIncrementalOutputWorkspace::begin_setup(
+  self : LunaIncrementalOutputWorkspace,
+  stop_count : Int,
+  setup_stops : @inference.StopConditions?,
+  special_policy : @tokenizer.DecodeSpecialPolicy,
+) -> LunaIncrementalOutputWork raise IncrementalOutputError {
   if self.phase != LUNA_INCREMENTAL_OUTPUT_IDLE {
     raise invalid(LunaIncrementalOutputWorkspace, Busy)
   }
   if self.epoch == 0xffffffffffffffffUL {
     raise invalid(LunaIncrementalOutputEpoch, Exhausted)
   }
-  if stops.strings().length() > self.pattern_lengths.length() {
+  if stop_count < 0 || stop_count > self.pattern_lengths.length() {
     raise invalid(LunaIncrementalOutputWorkspace, Unsupported)
   }
   self.epoch += 1UL
-  self.setup_stops = Some(stops)
+  self.setup_stops = setup_stops
   self.special_policy = special_policy
-  self.stop_count = stops.strings().length()
+  self.stop_count = stop_count
   self.setup_pattern = 0
   self.setup_unit_offset = 0
   self.setup_emit_index = 0
@@ -43,6 +53,8 @@ pub fn LunaIncrementalOutputWorkspace::begin(
   self.setup_failure_matched = 0
   self.longest_pattern = 0
   self.last_work_units = 0
+  self.setup_error_rule = Lifecycle
+  self.setup_error_issue = Invalid
   self.pending_count = 0
   self.utf8_remaining = 0
   self.utf8_codepoint = 0
@@ -63,11 +75,39 @@ fn LunaIncrementalOutputWork::require_setup(
       self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_SETUP_PATTERN &&
       self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_SETUP_TEXT &&
       self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_SETUP_FAILURE &&
-      self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_READY
+      self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_READY &&
+      self.workspace.phase != LUNA_INCREMENTAL_OUTPUT_FAILED
     ) {
     raise invalid(LunaIncrementalOutputEpoch, Stale)
   }
   self.workspace
+}
+
+///|
+fn LunaIncrementalOutputWorkspace::clear_setup_source(
+  self : LunaIncrementalOutputWorkspace,
+) -> Unit {
+  self.setup_stops = None
+  self.setup_semantics.clear()
+}
+
+///|
+fn LunaIncrementalOutputWorkspace::fail_setup(
+  self : LunaIncrementalOutputWorkspace,
+  rule : IncrementalOutputRule,
+  issue : IncrementalOutputIssue,
+) -> Unit {
+  self.clear_setup_source()
+  self.setup_error_rule = rule
+  self.setup_error_issue = issue
+  self.phase = LUNA_INCREMENTAL_OUTPUT_FAILED
+}
+
+///|
+fn LunaIncrementalOutputWorkspace::raise_setup_failure(
+  self : LunaIncrementalOutputWorkspace,
+) -> Unit raise IncrementalOutputError {
+  raise invalid(self.setup_error_rule, self.setup_error_issue)
 }
 
 ///|
@@ -102,10 +142,10 @@ fn LunaIncrementalOutputWorkspace::progress_setup_pattern(
     let token_bytes = self.tokenizer.limits().max_token_bytes
     let delta_bytes = self.inference.max_decoded_delta_bytes()
     if self.longest_pattern > delta_bytes - token_bytes - 3 {
-      self.phase = LUNA_INCREMENTAL_OUTPUT_IDLE
-      self.setup_stops = None
-      raise invalid(DecodeEnvelope, Unsupported)
+      self.fail_setup(DecodeEnvelope, Unsupported)
+      self.raise_setup_failure()
     }
+    self.authenticate_setup_semantics()
     self.phase = LUNA_INCREMENTAL_OUTPUT_READY
     return
   }
@@ -125,14 +165,17 @@ fn LunaIncrementalOutputWorkspace::progress_setup_pattern(
 fn LunaIncrementalOutputWorkspace::progress_setup_text(
   self : LunaIncrementalOutputWorkspace,
 ) -> Unit raise IncrementalOutputError {
+  if !self.setup_semantics.is_empty() {
+    self.progress_setup_semantic_text()
+    return
+  }
   let value = self.setup_stops.unwrap().strings()[self.setup_pattern]
   let maximum = self.stop_string_byte_capacity
   if self.setup_emit_index < self.setup_emit_length {
     let length = self.pattern_lengths[self.setup_pattern]
     if length >= maximum {
-      self.phase = LUNA_INCREMENTAL_OUTPUT_IDLE
-      self.setup_stops = None
-      raise invalid(DecodeEnvelope, Unsupported)
+      self.fail_setup(DecodeEnvelope, Unsupported)
+      self.raise_setup_failure()
     }
     let base = self.setup_pattern * maximum
     self.pattern_bytes[base + length] = utf8_byte(
@@ -226,6 +269,10 @@ pub fn LunaIncrementalOutputWork::progress(
   self : LunaIncrementalOutputWork,
 ) -> LunaIncrementalOutputProgress raise IncrementalOutputError {
   let workspace = self.require_setup()
+  if workspace.phase == LUNA_INCREMENTAL_OUTPUT_FAILED {
+    workspace.last_work_units = 0
+    workspace.raise_setup_failure()
+  }
   if workspace.phase == LUNA_INCREMENTAL_OUTPUT_READY {
     workspace.last_work_units = 0
     return LunaIncrementalOutputReady
@@ -233,7 +280,12 @@ pub fn LunaIncrementalOutputWork::progress(
   let mut used = 0
   while used < workspace.budget.work_units() &&
         workspace.phase != LUNA_INCREMENTAL_OUTPUT_READY {
-    workspace.progress_setup_one()
+    workspace.progress_setup_one() catch {
+      error => {
+        workspace.last_work_units = used + 1
+        raise error
+      }
+    }
     used += 1
   }
   workspace.last_work_units = used
@@ -259,8 +311,9 @@ pub fn LunaIncrementalOutputWork::take_lease(
   if workspace.phase != LUNA_INCREMENTAL_OUTPUT_READY {
     raise invalid(LunaIncrementalOutputWorkspace, NotReady)
   }
+  workspace.authenticate_setup_semantics()
   workspace.phase = LUNA_INCREMENTAL_OUTPUT_LEASED
-  workspace.setup_stops = None
+  workspace.clear_setup_source()
   { workspace, epoch: self.epoch }
 }
 
@@ -270,6 +323,8 @@ pub fn LunaIncrementalOutputWork::abort(
 ) -> Unit raise IncrementalOutputError {
   let workspace = self.require_setup()
   workspace.phase = LUNA_INCREMENTAL_OUTPUT_IDLE
-  workspace.setup_stops = None
+  workspace.clear_setup_source()
+  workspace.setup_error_rule = Lifecycle
+  workspace.setup_error_issue = Invalid
   workspace.last_work_units = 0
 }

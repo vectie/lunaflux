@@ -261,6 +261,20 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   release-C gates cover the warm online and adapter paths. The fixed-lane
   preparation pool now feeds this boundary; listener dispatch and network
   transport remain open.
+- A startup-preallocated, generation-authenticated
+  `LunaRequestSemanticStorage` foundation can now stream structurally bounded
+  stop-token, stop-string, cache-scope, permission, and inference-limit data
+  into budgeted validation and a sorted stop-token index. Its scalar/byte View
+  exposes no collection, string, epoch, or release authority. Incremental
+  output is the first real consumer: it copies one authenticated stop byte per
+  charged setup unit, retains explicit failed-Work cleanup, and detaches only
+  after final View authentication at lease transfer. Its preallocated one-View
+  slot is included in request-preparation pool reference-cell admission. This
+  is a foundation, not a second production request path: object-form
+  `StopConditions`, the existing preparation claim, `TokenizedRequest`, and
+  scheduler consumers remain authoritative until the immediately following
+  coordinated migration. Builder-structural failures precede Work and do not
+  claim full multi-error equivalence with `StopConditions::new`.
 - A request-admission bridge now composes that reader with trusted
   monotonic time: the first valid nonempty append samples exactly once before
   byte mutation, and one successful take retains an immutable request plus its

@@ -272,6 +272,45 @@ test "lane bounds storage and exhausted generation reject before consumption" {
   } noraise {
     _ => fail("undersized preparation storage was accepted")
   }
+  try
+    new_pool_with_clock(
+      tokenizer,
+      tokenizer.digest(),
+      fixture_identity("0"),
+      fixture_inference(),
+      () => 11UL,
+      1,
+      LunaRequestPreparationStepBudget::new(1),
+      LunaRequestPreparationWorkLimit::new(4096UL),
+      LunaRequestPreparationStorageBudget::new(
+        int_cells=1000000UL,
+        byte_cells=1000000UL,
+        reference_cells=1UL,
+      ),
+    )
+  catch {
+    Invalid(LunaPreparationStorage) => ()
+    _ => fail("unexpected output-reference storage-bound error")
+  } noraise {
+    _ => fail("missing output semantic-view slot was accepted")
+  }
+  let exact_references = new_pool_with_clock(
+    tokenizer,
+    tokenizer.digest(),
+    fixture_identity("0"),
+    fixture_inference(),
+    () => 11UL,
+    1,
+    LunaRequestPreparationStepBudget::new(1),
+    LunaRequestPreparationWorkLimit::new(4096UL),
+    LunaRequestPreparationStorageBudget::new(
+      int_cells=1000000UL,
+      byte_cells=1000000UL,
+      reference_cells=2UL,
+    ),
+  )
+  exact_references.begin_drain()
+  assert_true(exact_references.is_drained())
 
   let exhausted = hostile_pool_with_clock(() => 11UL, 1, 1, 4096UL)
   let received = pool_received_at(fixture_request(fixture_identity("0")), 10UL)

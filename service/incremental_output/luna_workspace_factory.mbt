@@ -73,6 +73,21 @@ pub fn LunaIncrementalOutputWorkspace::required_byte_cells(
 }
 
 ///|
+/// Returns the exact number of retained semantic-view capability slots.
+pub fn LunaIncrementalOutputWorkspace::required_reference_cells(
+  inference : @inference.InferenceLimits,
+) -> Int raise IncrementalOutputError {
+  ignore(
+    preflight_workspace_shape(
+      inference,
+      inference.max_stop_strings(),
+      inference.max_stop_string_bytes(),
+    ),
+  )
+  1
+}
+
+///|
 fn new_luna_incremental_output_workspace(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
@@ -100,6 +115,7 @@ fn new_luna_incremental_output_workspace(
     pending: FixedArray::make(stop_string_byte_capacity + 3, b'\x00'),
     scratch: FixedArray::make(delta_bytes, b'\x00'),
     setup_stops: None,
+    setup_semantics: Array::new(capacity=1),
     special_policy: Preserve,
     phase: LUNA_INCREMENTAL_OUTPUT_IDLE,
     epoch: 0UL,
@@ -113,6 +129,8 @@ fn new_luna_incremental_output_workspace(
     setup_failure_matched: 0,
     longest_pattern: 0,
     last_work_units: 0,
+    setup_error_rule: Lifecycle,
+    setup_error_issue: Invalid,
     pending_count: 0,
     utf8_remaining: 0,
     utf8_codepoint: 0,

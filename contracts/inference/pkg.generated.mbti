@@ -67,6 +67,7 @@ pub(all) enum ContractField {
   InputToken
   InputText
   LunaTokenStorage
+  LunaRequestSemantic
   MaximumNewTokens
   ContextCeiling
   Temperature
@@ -180,6 +181,90 @@ pub(all) enum Input {
 }
 pub fn Input::from_token_ids(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
 pub fn Input::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
+
+pub struct LunaRequestSemanticFailure {
+  // private fields
+}
+pub fn LunaRequestSemanticFailure::field(Self) -> ContractField
+pub fn LunaRequestSemanticFailure::index(Self) -> Int
+pub fn LunaRequestSemanticFailure::issue(Self) -> ContractIssue
+
+pub struct LunaRequestSemanticLease {
+  // private fields
+}
+pub fn LunaRequestSemanticLease::release(Self) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticLease::view(Self) -> LunaRequestSemanticView raise InferenceContractError
+
+pub struct LunaRequestSemanticProgress {
+  // private fields
+}
+pub fn LunaRequestSemanticProgress::is_failed(Self) -> Bool
+pub fn LunaRequestSemanticProgress::is_pending(Self) -> Bool
+pub fn LunaRequestSemanticProgress::is_ready(Self) -> Bool
+
+pub struct LunaRequestSemanticState {
+  // private fields
+}
+pub fn LunaRequestSemanticState::is_failed(Self) -> Bool
+pub fn LunaRequestSemanticState::is_ready(Self) -> Bool
+pub fn LunaRequestSemanticState::is_validating(Self) -> Bool
+
+pub struct LunaRequestSemanticStepBudget {
+  // private fields
+}
+pub fn LunaRequestSemanticStepBudget::new(Int) -> Self raise InferenceContractError
+pub fn LunaRequestSemanticStepBudget::work_units(Self) -> Int
+
+pub struct LunaRequestSemanticStopTokenStatus {
+  // private fields
+}
+pub fn LunaRequestSemanticStopTokenStatus::is_absent(Self) -> Bool
+pub fn LunaRequestSemanticStopTokenStatus::is_present(Self) -> Bool
+pub fn LunaRequestSemanticStopTokenStatus::is_stale(Self) -> Bool
+pub fn LunaRequestSemanticStopTokenStatus::work_units(Self) -> Int
+
+pub struct LunaRequestSemanticStorage {
+  // private fields
+}
+pub fn LunaRequestSemanticStorage::begin(Self, stop_token_count~ : Int, stop_string_count~ : Int, cache_scope_byte_count~ : Int, cache_permission~ : CachePermission) -> LunaRequestSemanticWrite raise InferenceContractError
+pub fn LunaRequestSemanticStorage::new(InferenceLimits, LunaRequestSemanticStepBudget) -> Self raise InferenceContractError
+pub fn LunaRequestSemanticStorage::required_byte_cells(InferenceLimits) -> UInt64 raise InferenceContractError
+pub fn LunaRequestSemanticStorage::required_int_cells(InferenceLimits) -> UInt64 raise InferenceContractError
+
+pub struct LunaRequestSemanticView {
+  // private fields
+}
+pub fn LunaRequestSemanticView::cache_permission(Self) -> CachePermission raise InferenceContractError
+pub fn LunaRequestSemanticView::cache_scope_byte_at(Self, Int) -> Byte raise InferenceContractError
+pub fn LunaRequestSemanticView::cache_scope_length(Self) -> Int raise InferenceContractError
+pub fn LunaRequestSemanticView::inference_limits(Self) -> InferenceLimits raise InferenceContractError
+pub fn LunaRequestSemanticView::is_stop_token(Self, Int) -> LunaRequestSemanticStopTokenStatus
+pub fn LunaRequestSemanticView::stop_string_byte_at(Self, string_index~ : Int, byte_index~ : Int) -> Byte raise InferenceContractError
+pub fn LunaRequestSemanticView::stop_string_count(Self) -> Int raise InferenceContractError
+pub fn LunaRequestSemanticView::stop_string_length(Self, Int) -> Int raise InferenceContractError
+pub fn LunaRequestSemanticView::stop_token_at(Self, Int) -> Int raise InferenceContractError
+pub fn LunaRequestSemanticView::stop_token_count(Self) -> Int raise InferenceContractError
+
+pub struct LunaRequestSemanticWork {
+  // private fields
+}
+pub fn LunaRequestSemanticWork::abort(Self) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticWork::failure(Self) -> LunaRequestSemanticFailure raise InferenceContractError
+pub fn LunaRequestSemanticWork::last_work_units(Self) -> Int raise InferenceContractError
+pub fn LunaRequestSemanticWork::progress(Self) -> LunaRequestSemanticProgress raise InferenceContractError
+pub fn LunaRequestSemanticWork::state(Self) -> LunaRequestSemanticState raise InferenceContractError
+pub fn LunaRequestSemanticWork::take_lease(Self) -> LunaRequestSemanticLease raise InferenceContractError
+pub fn LunaRequestSemanticWork::total_work_units(Self) -> UInt64 raise InferenceContractError
+
+pub struct LunaRequestSemanticWrite {
+  // private fields
+}
+pub fn LunaRequestSemanticWrite::abort(Self) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticWrite::finish(Self) -> LunaRequestSemanticWork raise InferenceContractError
+pub fn LunaRequestSemanticWrite::push_cache_scope_byte(Self, Byte) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticWrite::push_stop_string_byte(Self, Byte) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticWrite::push_stop_string_length(Self, Int) -> Unit raise InferenceContractError
+pub fn LunaRequestSemanticWrite::push_stop_token(Self, Int) -> Unit raise InferenceContractError
 
 pub struct LunaTokenBufferBoundStatus {
   // private fields

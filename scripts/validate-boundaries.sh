@@ -968,6 +968,19 @@ assert_authority_escape_allowlist() {
   fi
 }
 
+assert_authority_method_allowlist() {
+  interface=$1
+  authority_type=$2
+  expected=$3
+  actual="$(rg "^pub fn ${authority_type}::" "$interface" | sed \
+    "s/^pub fn ${authority_type}:://; s/(.*$//" | sort || true)"
+  if [ "$actual" != "$expected" ]; then
+    printf '%s\n' \
+      "${authority_type} public method allowlist drifted" >&2
+    failed=1
+  fi
+}
+
 for request_authority in \
     AdmissionDeadline \
     CachePolicy \
@@ -1045,7 +1058,8 @@ EffectiveLimits::new'
 assert_authority_escape_allowlist \
   contracts/inference/pkg.generated.mbti GenerateRequest GenerateRequest::new
 assert_authority_escape_allowlist \
-  contracts/inference/pkg.generated.mbti InferenceLimits InferenceLimits::new
+  contracts/inference/pkg.generated.mbti InferenceLimits 'InferenceLimits::new
+LunaRequestSemanticView::inference_limits'
 assert_authority_escape_allowlist \
   contracts/inference/pkg.generated.mbti Input 'GenerateRequest::input
 Input::from_token_ids
@@ -1107,6 +1121,145 @@ if rg -q --pcre2 -U \
     'payload-bearing inference request authority became debuggable' >&2
   failed=1
 fi
+
+for semantic_authority in \
+    LunaRequestSemanticFailure \
+    LunaRequestSemanticLease \
+    LunaRequestSemanticProgress \
+    LunaRequestSemanticState \
+    LunaRequestSemanticStepBudget \
+    LunaRequestSemanticStopTokenStatus \
+    LunaRequestSemanticStorage \
+    LunaRequestSemanticView \
+    LunaRequestSemanticWork \
+    LunaRequestSemanticWrite; do
+  if ! rg -q --pcre2 -U \
+      "^pub struct ${semantic_authority} \\{\\n  // private fields\\n\\}" \
+      contracts/inference/pkg.generated.mbti; then
+    printf '%s\n' \
+      "inference semantic authority ${semantic_authority} is not opaque" >&2
+    failed=1
+  fi
+done
+if rg -q --pcre2 -U \
+    '^pub struct LunaRequestSemantic[^ ]* \{(?s:[^}]*)\} derive\([^)]*(?:@debug\.)?Debug' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' \
+    'inference semantic authority became debuggable' >&2
+  failed=1
+fi
+if rg -n --pcre2 \
+    '^pub fn LunaRequestSemantic[^:]*::.* -> .*\b(Array|ArrayView|ReadOnlyArray|FixedArray|Bytes|BytesView|String|StringView)\b' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' \
+    'inference semantic authority exposed a raw payload collection' >&2
+  failed=1
+fi
+if rg -n '^pub fn LunaRequestSemantic[^:]*::.*epoch' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' 'inference semantic authority exposed a raw epoch' >&2
+  failed=1
+fi
+if rg 'LunaRequestSemantic(Failure|Lease|Progress|State|StepBudget|StopTokenStatus|Storage|View|Work|Write)' \
+    contracts/inference/pkg.generated.mbti | \
+    rg -n -v '^pub (struct|fn) '; then
+  printf '%s\n' \
+    'inference semantic authority was embedded in another public type' >&2
+  failed=1
+fi
+if rg -n --pcre2 \
+    '^pub fn (?!LunaRequestSemantic[^:]*::)[^(]*\([^)]*LunaRequestSemantic(Failure|Lease|Progress|State|StepBudget|StopTokenStatus|Storage|View|Work|Write)[^)]*\)' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' \
+    'inference semantic authority gained a non-owner public consumer' >&2
+  failed=1
+fi
+
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticFailure 'field
+index
+issue'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticLease 'release
+view'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticProgress 'is_failed
+is_pending
+is_ready'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticState 'is_failed
+is_ready
+is_validating'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStepBudget 'new
+work_units'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStopTokenStatus 'is_absent
+is_present
+is_stale
+work_units'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStorage 'begin
+new
+required_byte_cells
+required_int_cells'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticView 'cache_permission
+cache_scope_byte_at
+cache_scope_length
+inference_limits
+is_stop_token
+stop_string_byte_at
+stop_string_count
+stop_string_length
+stop_token_at
+stop_token_count'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticWork 'abort
+failure
+last_work_units
+progress
+state
+take_lease
+total_work_units'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticWrite 'abort
+finish
+push_cache_scope_byte
+push_stop_string_byte
+push_stop_string_length
+push_stop_token'
+
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticFailure \
+  LunaRequestSemanticWork::failure
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticLease \
+  LunaRequestSemanticWork::take_lease
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticProgress \
+  LunaRequestSemanticWork::progress
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticState \
+  LunaRequestSemanticWork::state
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStepBudget \
+  LunaRequestSemanticStepBudget::new
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStopTokenStatus \
+  LunaRequestSemanticView::is_stop_token
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticStorage \
+  LunaRequestSemanticStorage::new
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticView \
+  LunaRequestSemanticLease::view
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticWork \
+  LunaRequestSemanticWrite::finish
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestSemanticWrite \
+  LunaRequestSemanticStorage::begin
 
 for model_identity_authority in \
   ContentDigest \

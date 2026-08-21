@@ -17,7 +17,7 @@ fn pattern_advance(
   state : Int,
   byte : Byte,
 ) -> Int {
-  let capacity = workspace.inference.max_stop_string_bytes()
+  let capacity = workspace.stop_string_byte_capacity
   let base = pattern * capacity
   let mut next = state
   while next > 0 && workspace.pattern_bytes[base + next] != byte {

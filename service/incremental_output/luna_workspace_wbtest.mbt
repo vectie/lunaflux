@@ -51,6 +51,10 @@ test "Luna workspace requirement queries match exact backing cells" {
     3 +
     inference.max_decoded_delta_bytes(),
   )
+  assert_eq(
+    LunaIncrementalOutputWorkspace::required_reference_cells(inference),
+    1,
+  )
   let workspace = LunaIncrementalOutputWorkspace::new(
     fixture_tokenizer(),
     inference,

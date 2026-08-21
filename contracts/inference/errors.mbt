@@ -12,6 +12,7 @@ pub(all) enum ContractField {
   InputToken
   InputText
   LunaTokenStorage
+  LunaRequestSemantic
   MaximumNewTokens
   ContextCeiling
   Temperature

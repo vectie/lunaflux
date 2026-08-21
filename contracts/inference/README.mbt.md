@@ -60,3 +60,33 @@ buffers cache their actual maximum token ID while performing the existing
 validation/write pass. `maximum_token_status` authenticates the exact live
 generation before comparing that cache with a caller's bound; neither the
 cached value nor the construction-time validation ceiling is exposed.
+
+`LunaRequestSemanticStorage` is the transport-neutral, startup-preallocated
+owner for stop-token IDs, stop-string UTF-8, cache-scope bytes, cache
+permission, and the exact `InferenceLimits` under which they were admitted.
+Its generation-authenticated lifecycle is `Storage -> Write -> Work -> Lease ->
+View`. The builder layer immediately enforces structural order and envelope:
+token/string counts and cache length at `begin`, then each declared string
+length before its bytes. It is intended to import an already structurally
+validated framed view. A structurally complete write transfers to the semantic
+layer, whose fixed precedence is token range/duplicates, string
+empty/UTF-8/duplicates, then cache-scope safe grammar. This does not claim
+multi-error equivalence with `StopConditions::new` or `GenerateRequest::new`
+when a caller violates the builder envelope.
+
+One charged semantic-work unit is exactly one token range check, prior-token
+comparison, string header transition, UTF-8 byte or terminal check, prior
+string length or byte comparison, cache header transition, cache byte check,
+token-index copy, or insertion-sort comparison/move transition. Consequently
+`progress` reports exact per-call and total units and never exceeds its step
+budget. Semantic failure retains the exact generation and must be explicitly
+aborted; it never silently returns storage to idle. Startup sizing reports the
+exact `Int` and byte cells and checked arithmetic precedes every allocation.
+
+`Lease` alone owns release. Every scalar or byte `View` read reauthenticates
+the exact leased generation before checking its index, and no API exposes a
+raw array, string, byte collection, storage index, or epoch. `is_stop_token`
+performs a bounded binary search over the budgetedly constructed sorted index;
+its allocation-free status distinguishes present, absent, and stale and
+reports the exact number of token comparisons. Releasing the lease invalidates
+all retained views immediately without clearing storage proportionally.
