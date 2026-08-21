@@ -585,9 +585,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   service, but that path has not passed physical-CUDA numerical validation. The
   stateless reference interpreter remains the correctness oracle and
   deliberately recomputes full sequences.
-- Public network ingress/API adapters, continuous batching with global
-  fairness/preemption, live worker overlap, physically proven paged execution,
-  prefix integration, or telemetry. The public in-process `LunaOnlineInstance`
+- Reusable public network ingress/API adapters, continuous batching with
+  global fairness/preemption, live worker overlap, physically proven paged
+  execution, prefix integration, or telemetry. The public in-process
+  `LunaOnlineInstance`
   retains one worker across sequential healthy requests and implements
   generated-text decoding, sampling-result consumption, exact
   one-credit Token/Usage/Completed/Failed publication, cancellation, deadlines,
@@ -596,8 +597,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist, and the scheduler,
   root-bound service, spawned device child, and device-worker aggregate are now
-  connected. There is still no network listener/protocol adapter or
-  physical-CUDA serving evidence, so no bounded-latency serving claim is made.
+  connected. The native one-shot TCP endpoint proves one serialized connection
+  and framed protocol path, but there is still no reusable listener,
+  multi-client protocol adapter, host off-reactor executor, or physical-CUDA
+  serving evidence, so no bounded-latency serving claim is made.
 
 The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
 reference loading, and offline executor status. `lunaflux plan` now
