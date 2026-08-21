@@ -225,8 +225,9 @@ operation-budgeted Luna work. The pool captures trusted receipt time before
 byte one and imports a validated frame view directly into its preallocated
 token, semantic, and output owners without object-form request materialization.
 The object materializer remains a synchronous compatibility path; adapter
-dispatch and network transport remain above this aggregate, so no end-to-end
-network-reactor claim is made. Child
+dispatch and network transport remain above this aggregate. The native
+one-shot endpoint composes one such path without claiming a standalone reactor,
+reusable listener, or multi-client service. Child
 ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects

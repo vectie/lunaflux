@@ -288,8 +288,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   real online evidence pins that credit through complete framing and copying
   until explicit ACK. Positive-controlled release-C gates cover the warm online
   and cooperative framing paths. The fixed-lane preparation pool now feeds this
-  boundary; partial socket writes, listener dispatch, and network transport
-  ownership remain open.
+  boundary. This owner deliberately excludes socket operations; the native
+  one-shot endpoint composes partial writes and transport ownership, while
+  reusable listener dispatch remains open.
 - A startup-preallocated, generation-authenticated
   `LunaRequestSemanticStorage` foundation can now stream structurally bounded
   stop-token, stop-string, cache-scope, permission, and inference-limit data
@@ -328,7 +329,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   now consumes the scanner View without constructing a `GenerateRequest`: it
   enforces the hard pre-frame and exact request deadlines, compares the selected
   model digests bytewise before input mutation, and accounts receipt bytes plus
-  scanner/import work under the same lane ceiling. Network ingress orchestration
+  scanner/import work under the same lane ceiling. The native one-shot endpoint
+  composes this path; reusable and multi-connection ingress orchestration
   remains open.
 - A transport-neutral `LunaOnlineFramedCoordinator` now exclusively composes
   one direct-framed preparation pool, one persistent online instance, and one
@@ -344,9 +346,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   owners. Real-worker evidence covers the Usage ACK boundary, later-rejection
   ordering, exact byte confirmation, owner reuse, and partial-receipt close;
   positive-controlled release-C and exact MBTI gates cover warmed transport
-  paths and capability opacity. This is still not a TCP listener or socket
-  writer: connection arbitration, timer wakeups, kernel partial-write retry,
-  and multi-client fairness remain the next network-adapter boundary.
+  paths and capability opacity. This coordinator itself is not a TCP listener
+  or socket writer. The separate one-shot endpoint owns one connection and
+  kernel partial-write retry; reusable connection arbitration, host timer
+  wakeups, and multi-client fairness remain the next network-adapter boundary.
 - A native-only, private online-TCP output scratch now owns one dynamic `Bytes`
   payload backing and a retained mutable `FixedArray[Byte]` view of that same
   object. The narrow internal bridge borrows the original, increments its

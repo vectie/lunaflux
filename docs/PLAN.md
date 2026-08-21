@@ -421,8 +421,10 @@ progress only latches that state; explicit off-reactor terminalization owns
 recovery/reap and preserves the first failure cause across retry. The
 same-child two-request gate authenticates monotonic plan history and request
 position reset without respawning. A canonical framed adapter now borrows only
-the credit's semantic view and owns no ACK authority; listener dispatch and
-ingress transport remain future work.
+the credit's semantic view and owns no ACK authority. A native one-shot endpoint
+composes bounded framed ingress and partial writes around that adapter;
+reusable listener dispatch, multi-client fairness, and a host off-reactor
+executor remain future work.
 
 The `engine/device_worker` aggregate now implements the bounded readiness-owner
 foundation anticipated by this workstream. It admits independently expected
