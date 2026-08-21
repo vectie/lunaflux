@@ -74,6 +74,16 @@ Prepared request, online ticket, semantic event credit, or framed Work/View
 alias. It owns no listener, socket, TLS state, async runtime, or TCP retry
 policy.
 
+Before transferring the ready coordinator, its preparation exposes one
+authenticated scalar `maximum_transport_wait_millis`. A transport must bind
+its blocking read/write interval at or below that owned inference deadline;
+this prevents a separately supplied timeout from postponing receipt, request,
+or output-stall polling.
+Immediately before each body read or event write, the live coordinator also
+reports the shorter current remaining interval across its incomplete receipt
+and output-stall obligations. The scalar is recomputed from authenticated
+owners and exposes no absolute deadline.
+
 Ingress accepts only caller-owned canonical framed byte ranges. A short
 accepted count leaves the unconsumed tail with the caller. Once the exact frame
 body is received, its Work remains in a fixed preallocated FIFO while the
@@ -83,6 +93,13 @@ Busy admission without consulting the now-stale preparation Work. Saturation,
 draining, a pinned rejection, and a live receipt that cannot currently consume
 bytes return `Backpressured`/`Draining` with zero consumption; `Accepted` always
 means at least one byte was consumed.
+While an active request owns the ordered stream, a later Ready or Failed FIFO
+head remains pinned and reports progress rather than transport idleness; it is
+inspected only after the active request retires.
+Coordinator progress reports `LunaOnlineFramedCoordinatorAwaitingInput` only
+when the selected authenticated direct receipt remains byte-starved after the
+preparation pool has applied deadline, cancellation, and drain precedence.
+Scanner work and object-form preparation never use that result.
 
 Every admitted frame receives a nonwrapping one-based sequence. A preparation
 failure publishes one opaque, payload-safe `LunaOnlineFramedRejectionCredit`;
@@ -117,5 +134,7 @@ retirement, process close, or clean shutdown. Those transitions are owned only
 by `progress_off_reactor_maintenance`. Scheduler admission is constant with
 respect to prompt length and stop count because token maxima are cached; it
 remains bounded by the configured scheduler-slot scan.
-No TCP listener, connection owner, socket writer, or network retry adapter is
-implemented by this slice.
+The coordinator itself owns no TCP listener, connection, socket writer, or
+network retry adapter. `service/online_tcp` can compose it into one internally
+bound, one-connection endpoint; reusable listeners and multi-client serving
+remain outside this slice.

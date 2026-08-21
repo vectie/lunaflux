@@ -1,11 +1,85 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "vectie/lunaflux/service/online_tcp"
 
+import {
+  "moonbitlang/async/socket",
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/service/online_session",
+}
+
 // Values
+pub async fn bind_luna_online_tcp_single_endpoint(@socket.Addr, @online_session.LunaOnlineFramedCoordinatorPreparation, LunaOnlineTcpLimits) -> LunaOnlineTcpEndpoint
 
 // Errors
+pub(all) suberror LunaOnlineTcpError {
+  LunaOnlineTcpFailed(LunaOnlineTcpRule)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct LunaOnlineTcpEndpoint {
+  // private fields
+}
+pub fn LunaOnlineTcpEndpoint::begin_drain(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::disconnect(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::failure_rule(Self) -> LunaOnlineTcpRule raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineTcpEndpoint::progress_off_reactor_maintenance(Self) -> LunaOnlineTcpProgress raise LunaOnlineTcpError
+pub async fn LunaOnlineTcpEndpoint::progress_on_reactor(Self) -> LunaOnlineTcpProgress
+pub fn LunaOnlineTcpEndpoint::rejection_rule(Self) -> LunaOnlineTcpRejectionRule raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::rejection_sequence(Self) -> UInt64 raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::request_cancel(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::state(Self) -> LunaOnlineTcpEndpointState
+
+pub(all) enum LunaOnlineTcpEndpointState {
+  LunaOnlineTcpListening
+  LunaOnlineTcpAccepting
+  LunaOnlineTcpConnected
+  LunaOnlineTcpDraining
+  LunaOnlineTcpCloseRequired
+  LunaOnlineTcpClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineTcpLimits {
+  // private fields
+}
+pub fn LunaOnlineTcpLimits::new(read_chunk_bytes~ : Int, write_chunk_bytes~ : Int, accept_timeout_millis~ : Int, input_idle_timeout_millis~ : Int, write_timeout_millis~ : Int, reactor_transition_budget~ : Int) -> Self raise LunaOnlineTcpError
+pub fn LunaOnlineTcpLimits::reactor_transition_budget(Self) -> Int
+pub fn LunaOnlineTcpLimits::read_chunk_bytes(Self) -> Int
+pub fn LunaOnlineTcpLimits::write_chunk_bytes(Self) -> Int
+
+pub(all) enum LunaOnlineTcpProgress {
+  LunaOnlineTcpConnectedProgress
+  LunaOnlineTcpAdvanced
+  LunaOnlineTcpBackpressured
+  LunaOnlineTcpMaintenanceRequired
+  LunaOnlineTcpRejected
+  LunaOnlineTcpCleanupRequired
+  LunaOnlineTcpClosedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineTcpRejectionRule {
+  LunaOnlineTcpRejectedFrame
+  LunaOnlineTcpRejectedIdentity
+  LunaOnlineTcpRejectedDeadline
+  LunaOnlineTcpRejectedInput
+  LunaOnlineTcpRejectedTokenization
+  LunaOnlineTcpRejectedCapacity
+  LunaOnlineTcpRejectedService
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineTcpRule {
+  LunaOnlineTcpLimits
+  LunaOnlineTcpPreparation
+  LunaOnlineTcpBind
+  LunaOnlineTcpAccept
+  LunaOnlineTcpRead
+  LunaOnlineTcpWrite
+  LunaOnlineTcpTimeout
+  LunaOnlineTcpCancelled
+  LunaOnlineTcpCoordinator
+  LunaOnlineTcpLifecycle
+  LunaOnlineTcpOwnership
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

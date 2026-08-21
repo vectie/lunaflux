@@ -30,7 +30,23 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   owner: the first accepted byte captures one receipt clock, frame/scalar/input
   and semantic work stays budgeted in fixed lane storage, and the private
   framed View is released before Ready. Object-form materialization remains a
-  compatibility path; concrete network ingress remains open.
+  compatibility path. A native one-shot loopback/TCP shell now binds one
+  listener, accepts exactly one connection, closes the listener, preserves
+  partial framed tails, and drives that coordinator through private fixed
+  input and dual-view output storage. A typed awaiting-input result alone
+  authorizes continuation reads for an incomplete receipt; queued terminal
+  work pinned behind an active ticket remains semantic progress. Exact
+  receipt/output-stall remaining
+  time bounds each body read and event write; positive short writes confirm
+  the authenticated Offer before Flight release, while zero/unknown writes,
+  timeout, cancellation, rejection, and disconnect drain retained authority.
+  Usage ACK and lower retirement remain explicit off-reactor maintenance.
+  The endpoint is thread-confined and requires exclusive serialized handoff;
+  its activity flags are not cross-thread synchronization. It is evidence for
+  one connection, not a standalone reactor, reusable listener, multi-client
+  server, TLS/HTTP adapter, or fleet ingress. Async runtime and socket
+  allocation remain outside the narrower warmed payload/helper allocation
+  proof.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.

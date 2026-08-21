@@ -495,5 +495,5 @@ pub fn LunaRequestPreparationPool::progress(
     lane.phase != LUNA_PREPARATION_CANCEL_REQUESTED {
     self.enqueue_active(lane_index)
   }
-  LunaRequestPreparationPoolAdvanced
+  self.luna_preparation_pool_progress_disposition(lane)
 }

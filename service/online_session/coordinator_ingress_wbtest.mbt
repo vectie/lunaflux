@@ -330,7 +330,7 @@ test "Luna queued failure cannot preempt active request stream" {
   assert_eq(coordinator.queue_sequences[coordinator.queue_head], 2UL)
   coordinator.tickets.push({ epoch: 1UL })
   coordinator.turn_pool = true
-  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorIdle)
+  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorAdvanced)
   assert_eq(coordinator.rejection_epoch, 0UL)
   assert_eq(coordinator.queue_count, 1)
   coordinator.tickets.clear()

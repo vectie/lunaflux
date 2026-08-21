@@ -200,6 +200,7 @@ pub(all) enum LunaRequestPreparationWorkState {
 #valtype
 pub(all) enum LunaRequestPreparationPoolProgress {
   LunaRequestPreparationPoolIdle
+  LunaRequestPreparationPoolAwaitingInput
   LunaRequestPreparationPoolAdvanced
 } derive(Debug, Eq)
 

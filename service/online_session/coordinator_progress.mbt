@@ -199,7 +199,12 @@ fn LunaOnlineFramedCoordinator::progress_preparation(
     // events that carry no coordinator sequence. Inspect it only after the
     // ticket retires.
     return match self.pool.progress() {
-      LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorIdle
+      // A terminal queued Work has left the pool's active ring but remains
+      // pinned behind the active request. This is not transport idleness: a
+      // socket read cannot advance it and may consume an unrelated frame.
+      LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorAdvanced
+      LunaRequestPreparationPoolAwaitingInput =>
+        LunaOnlineFramedCoordinatorAwaitingInput
       LunaRequestPreparationPoolAdvanced => LunaOnlineFramedCoordinatorAdvanced
     }
   }
@@ -257,6 +262,8 @@ fn LunaOnlineFramedCoordinator::progress_preparation(
   }
   match self.pool.progress() {
     LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorIdle
+    LunaRequestPreparationPoolAwaitingInput =>
+      LunaOnlineFramedCoordinatorAwaitingInput
     LunaRequestPreparationPoolAdvanced => LunaOnlineFramedCoordinatorAdvanced
   }
 }

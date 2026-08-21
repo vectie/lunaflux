@@ -147,6 +147,27 @@ pub fn LunaOnlineFramedCoordinatorPreparation::state(
 }
 
 ///|
+/// Returns the authenticated maximum interval for a transport to block before
+/// polling the coordinator again. It is valid only while this ready
+/// preparation still owns its coordinator.
+pub fn LunaOnlineFramedCoordinatorPreparation::maximum_transport_wait_millis(
+  self : LunaOnlineFramedCoordinatorPreparation,
+) -> Int raise LunaOnlineInstancePreparationError {
+  if self.consumed || self.state != LunaOnlineInstanceReady {
+    raise luna_coordinator_preparation_failure(LunaOnlineFramedOwnership)
+  }
+  let coordinator = match self.coordinator {
+    Some(value) => value
+    None => abort("Luna coordinator preparation invariant")
+  }
+  let wait = coordinator.inference.max_deadline_millis()
+  if wait == 0UL || wait > 0x7fffffffUL {
+    raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
+  }
+  wait.to_int()
+}
+
+///|
 pub fn LunaOnlineFramedCoordinatorPreparation::take_ready(
   self : LunaOnlineFramedCoordinatorPreparation,
 ) -> LunaOnlineFramedCoordinator raise LunaOnlineInstancePreparationError {

@@ -1,5 +1,5 @@
 ///|
-fn main {
+async fn main {
   match @env.args() {
     [_, executable, failure_executable, persistent_executable] =>
       try! run(

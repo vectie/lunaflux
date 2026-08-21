@@ -275,3 +275,37 @@ pub fn LunaRequestPreparationWork::luna_framed_receipt_complete(
   }
   lane.framed_receipt_complete
 }
+
+///|
+/// Returns the exact remaining hard-receipt interval for an authenticated
+/// incomplete direct frame. Expiry returns zero; stale, completed, and
+/// object-form work reject without exposing the absolute deadline.
+pub fn LunaRequestPreparationWork::luna_framed_receipt_remaining_millis(
+  self : LunaRequestPreparationWork,
+) -> Int raise RequestAdmissionError {
+  let lane = self.require_lane()
+  if !lane.framed_direct ||
+    lane.framed_receipt_complete ||
+    (
+      lane.phase != LUNA_PREPARATION_FRAMED_RECEIVING &&
+      lane.phase != LUNA_PREPARATION_FRAMED_SCANNING
+    ) {
+    raise Invalid(LunaPreparedLifecycle)
+  }
+  let deadline = match lane.hard_deadline {
+    Some(value) => value.at_millis()
+    None => abort("Luna preparation hard-deadline invariant")
+  }
+  let observed = (self.pool.clock_read)()
+  if observed < lane.receipt_at_millis {
+    raise Invalid(ReceiptTime)
+  }
+  if observed >= deadline {
+    return 0
+  }
+  let remaining = deadline - observed
+  if remaining > 0x7fffffffUL {
+    raise Invalid(ReceiptTime)
+  }
+  remaining.to_int()
+}

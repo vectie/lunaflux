@@ -117,3 +117,37 @@ test "Luna output stall obligation cannot replace an active deadline" {
   coordinator.stall_active = false
   coordinator.stall_deadline_millis = 0UL
 }
+
+///|
+test "Luna coordinator transport wait follows live stall ownership" {
+  let coordinator = coordinator_fixture()
+  assert_eq(coordinator.transport_wait_remaining_millis(), 1000)
+  let observed = coordinator.clock.now_millis()
+  coordinator.stall_active = true
+  coordinator.stall_deadline_millis = observed + 100UL
+  let remaining = coordinator.transport_wait_remaining_millis()
+  assert_true(remaining > 0)
+  assert_true(remaining <= 100)
+  coordinator.stall_deadline_millis = 0UL
+  assert_eq(coordinator.transport_wait_remaining_millis(), 0)
+  coordinator.stall_active = false
+  coordinator.stall_deadline_millis = 0UL
+}
+
+///|
+test "Luna coordinator rejects a stall wait beyond its envelope" {
+  let coordinator = coordinator_fixture()
+  let observed = coordinator.clock.now_millis()
+  coordinator.stall_active = true
+  coordinator.stall_deadline_millis = observed +
+    coordinator.inference.max_deadline_millis() +
+    100UL
+  try coordinator.transport_wait_remaining_millis() catch {
+    LunaOnlineFramedCoordinatorFailed(LunaOnlineFramedClock) => ()
+    _ => fail("unexpected oversized Luna stall wait error")
+  } noraise {
+    _ => fail("oversized Luna stall wait escaped its inference envelope")
+  }
+  coordinator.stall_active = false
+  coordinator.stall_deadline_millis = 0UL
+}

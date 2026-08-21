@@ -136,6 +136,8 @@ fn progress_coordinator_to_event(
         raise Failure("valid framed request was rejected")
       LunaOnlineFramedCoordinatorClosed =>
         raise Failure("coordinator closed before publishing an event")
+      LunaOnlineFramedCoordinatorAwaitingInput =>
+        raise Failure("complete framed request unexpectedly awaited input")
       LunaOnlineFramedCoordinatorIdle
       | LunaOnlineFramedCoordinatorAdvanced
       | LunaOnlineFramedCoordinatorEventPreparing

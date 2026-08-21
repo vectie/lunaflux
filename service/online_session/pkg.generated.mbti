@@ -61,16 +61,19 @@ pub fn LunaOnlineFramedCoordinator::progress(Self) -> LunaOnlineFramedCoordinato
 pub fn LunaOnlineFramedCoordinator::progress_off_reactor_maintenance(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::request_cancel(Self) -> Unit raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::take_rejection(Self) -> LunaOnlineFramedRejectionCredit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
 
 pub struct LunaOnlineFramedCoordinatorPreparation {
   // private fields
 }
+pub fn LunaOnlineFramedCoordinatorPreparation::maximum_transport_wait_millis(Self) -> Int raise LunaOnlineInstancePreparationError
 pub fn LunaOnlineFramedCoordinatorPreparation::state(Self) -> LunaOnlineInstancePreparationState
 pub fn LunaOnlineFramedCoordinatorPreparation::take_cleanup(Self) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 pub fn LunaOnlineFramedCoordinatorPreparation::take_ready(Self) -> LunaOnlineFramedCoordinator raise LunaOnlineInstancePreparationError
 
 pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorIdle
+  LunaOnlineFramedCoordinatorAwaitingInput
   LunaOnlineFramedCoordinatorAdvanced
   LunaOnlineFramedCoordinatorEventPreparing
   LunaOnlineFramedCoordinatorEventReady

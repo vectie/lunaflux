@@ -333,11 +333,11 @@ fn complete_root_exchange(
 }
 
 ///|
-fn run(
+async fn run(
   executable : Bytes,
   failure_executable : Bytes?,
   persistent_executable : Bytes?,
-) -> Unit raise {
+) -> Unit {
   run_owned_startup_failure_evidence()
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
@@ -478,6 +478,7 @@ fn run(
   run_online_session_foundation(executable)
   run_online_framed_outbound_evidence(executable)
   run_online_framed_coordinator_evidence(executable)
+  run_online_tcp_endpoint_evidence(executable)
   run_online_session_prepared_evidence(executable)
   run_online_session_termination_evidence(executable)
   match persistent_executable {

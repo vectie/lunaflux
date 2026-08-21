@@ -59,10 +59,18 @@ becomes true immediately after the scanner consumes the declared final frame
 byte, before canonical validation or later import must finish. It remains true
 through Ready, returns false for live object-form submissions, and rejects
 stale, Failed, CancelRequested, or already-transferred Work authority.
-Incomplete
-receipts remain in the FIFO ring at zero charged work so deadlines,
-cancellation, and drain remain observable. Drain promptly retires incomplete
-receipts; a fully received scanner or later import may finish. The validated
+Incomplete receipts remain in the FIFO ring at zero charged work so deadlines,
+cancellation, and drain remain observable. After deadline and drain precedence,
+`progress` reports `LunaRequestPreparationPoolAwaitingInput` only when the
+authenticated dequeued direct lane still needs bytes; scanner validation and
+object-form work remain `Advanced`. An authenticated incomplete
+direct-frame Work can report only its remaining
+hard-receipt interval, never its receipt or absolute deadline. Zero means a
+transport must not begin another blocking operation; completed, object-form,
+and stale Work reject.
+
+Drain promptly retires incomplete receipts; a fully received scanner or later
+import may finish. The validated
 framed View stays private to its lane while expected content and plan digests
 are compared bytewise, then while text/token input and stop/cache semantics are
 copied into their fixed owners. It is released before tokenization or semantic

@@ -52,6 +52,55 @@ fn LunaOnlineFramedCoordinator::stall_expired(
 }
 
 ///|
+fn LunaOnlineFramedCoordinator::stall_remaining_millis(
+  self : LunaOnlineFramedCoordinator,
+) -> Int raise LunaOnlineFramedCoordinatorError {
+  let maximum = self.inference.max_deadline_millis()
+  if maximum == 0UL || maximum > 0x7fffffffUL {
+    raise luna_coordinator_error(LunaOnlineFramedClock)
+  }
+  if !self.stall_active {
+    if self.stall_deadline_millis != 0UL {
+      raise luna_coordinator_error(LunaOnlineFramedLifecycle)
+    }
+    return maximum.to_int()
+  }
+  let observed = self.clock.now_millis() catch {
+    _ => raise luna_coordinator_error(LunaOnlineFramedClock)
+  }
+  if observed >= self.stall_deadline_millis {
+    return 0
+  }
+  let remaining = self.stall_deadline_millis - observed
+  if remaining > maximum {
+    raise luna_coordinator_error(LunaOnlineFramedClock)
+  }
+  remaining.to_int()
+}
+
+///|
+/// Returns the shortest authenticated interval before the transport must poll
+/// receipt or output-stall ownership again. It exposes no absolute timestamp.
+pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(
+  self : LunaOnlineFramedCoordinator,
+) -> Int raise LunaOnlineFramedCoordinatorError {
+  if self.closed {
+    return 0
+  }
+  let mut remaining = self.stall_remaining_millis()
+  if self.receipt_slot >= 0 {
+    let receipt = self
+      .current_receipt_work()
+      .luna_framed_receipt_remaining_millis() catch {
+        ClockUnavailable => raise luna_coordinator_error(LunaOnlineFramedClock)
+        _ => raise luna_coordinator_error(LunaOnlineFramedPreparation)
+      }
+    remaining = Int::min(remaining, receipt)
+  }
+  remaining
+}
+
+///|
 fn LunaOnlineFramedCoordinator::release_outbound_authority(
   self : LunaOnlineFramedCoordinator,
 ) -> Unit {

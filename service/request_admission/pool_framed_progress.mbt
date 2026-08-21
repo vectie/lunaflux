@@ -439,3 +439,18 @@ fn LunaRequestPreparationPool::progress_framed_release_view(
     lane.phase = LUNA_PREPARATION_SEMANTIC_VALIDATE
   }
 }
+
+///|
+fn LunaRequestPreparationPool::luna_preparation_pool_progress_disposition(
+  self : LunaRequestPreparationPool,
+  lane : LunaRequestPreparationLane,
+) -> LunaRequestPreparationPoolProgress {
+  if !self.draining &&
+    lane.framed_direct &&
+    !lane.framed_receipt_complete &&
+    lane.phase == LUNA_PREPARATION_FRAMED_RECEIVING {
+    LunaRequestPreparationPoolAwaitingInput
+  } else {
+    LunaRequestPreparationPoolAdvanced
+  }
+}

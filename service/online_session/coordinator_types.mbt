@@ -34,6 +34,7 @@ pub struct LunaOnlineFramedIngress {
 #valtype
 pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorIdle
+  LunaOnlineFramedCoordinatorAwaitingInput
   LunaOnlineFramedCoordinatorAdvanced
   LunaOnlineFramedCoordinatorEventPreparing
   LunaOnlineFramedCoordinatorEventReady

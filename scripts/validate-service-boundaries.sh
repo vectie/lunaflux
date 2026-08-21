@@ -669,11 +669,28 @@ if [ -d service/request_admission ]; then
       ! rg -q '^pub fn LunaRequestPreparationAdmission::consumed_bytes\(Self\) -> Int$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::offer_luna_framed\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::luna_framed_receipt_complete\(Self\) -> Bool raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaRequestPreparationWork::luna_framed_receipt_remaining_millis\(Self\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::take_prepared\(Self\) -> LunaPreparedRequest raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::last_work_units\(Self\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::total_work_units\(Self\) -> UInt64 raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
         'Luna preparation pool submit/progress/take evidence surface drifted' >&2
+      failed=1
+    fi
+    expected_pool_progress="$(cat <<'EOF'
+pub(all) enum LunaRequestPreparationPoolProgress {
+  LunaRequestPreparationPoolIdle
+  LunaRequestPreparationPoolAwaitingInput
+  LunaRequestPreparationPoolAdvanced
+} derive(Eq, @debug.Debug)
+EOF
+)"
+    actual_pool_progress="$(sed -n \
+      '/^pub(all) enum LunaRequestPreparationPoolProgress {/,/^}/p' \
+      service/request_admission/pkg.generated.mbti)"
+    if [ "$actual_pool_progress" != "$expected_pool_progress" ]; then
+      printf '%s\n' \
+        'Luna preparation pool progress vocabulary drifted' >&2
       failed=1
     fi
     if rg -n \
@@ -1285,6 +1302,8 @@ pub fn LunaOnlineFramedCoordinator::progress(Self) -> LunaOnlineFramedCoordinato
 pub fn LunaOnlineFramedCoordinator::progress_off_reactor_maintenance(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::request_cancel(Self) -> Unit raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::take_rejection(Self) -> LunaOnlineFramedRejectionCredit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinatorPreparation::maximum_transport_wait_millis(Self) -> Int raise LunaOnlineInstancePreparationError
 pub fn LunaOnlineFramedCoordinatorPreparation::state(Self) -> LunaOnlineInstancePreparationState
 pub fn LunaOnlineFramedCoordinatorPreparation::take_cleanup(Self) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 pub fn LunaOnlineFramedCoordinatorPreparation::take_ready(Self) -> LunaOnlineFramedCoordinator raise LunaOnlineInstancePreparationError
@@ -1365,6 +1384,28 @@ EOF
       'online framed scalar offer/ingress/rejection/progress representation drifted' >&2
     failed=1
   fi
+  expected_online_coordinator_progress="$(cat <<'EOF'
+pub(all) enum LunaOnlineFramedCoordinatorProgress {
+  LunaOnlineFramedCoordinatorIdle
+  LunaOnlineFramedCoordinatorAwaitingInput
+  LunaOnlineFramedCoordinatorAdvanced
+  LunaOnlineFramedCoordinatorEventPreparing
+  LunaOnlineFramedCoordinatorEventReady
+  LunaOnlineFramedCoordinatorRejectionReady
+  LunaOnlineFramedCoordinatorMaintenanceRequired
+  LunaOnlineFramedCoordinatorDraining
+  LunaOnlineFramedCoordinatorClosed
+} derive(Eq, @debug.Debug)
+EOF
+)"
+  actual_online_coordinator_progress="$(sed -n \
+    '/^pub(all) enum LunaOnlineFramedCoordinatorProgress {/,/^}/p' \
+    service/online_session/pkg.generated.mbti)"
+  if [ "$actual_online_coordinator_progress" != \
+      "$expected_online_coordinator_progress" ]; then
+    printf '%s\n' 'online framed coordinator progress vocabulary drifted' >&2
+    failed=1
+  fi
 fi
 
 # The private online TCP scratch is the sole service importer and caller of the
@@ -1399,12 +1440,134 @@ else
     printf '%s\n' 'online TCP alias ABI surface drifted or exposed a type' >&2
     failed=1
   fi
-  if rg -n '^pub |^#(valtype|derive)' service/online_tcp/pkg.generated.mbti ||
+  expected_online_tcp_surface="$(cat <<'EOF'
+pub async fn LunaOnlineTcpEndpoint::progress_on_reactor(Self) -> LunaOnlineTcpProgress
+pub async fn bind_luna_online_tcp_single_endpoint(@socket.Addr, @online_session.LunaOnlineFramedCoordinatorPreparation, LunaOnlineTcpLimits) -> LunaOnlineTcpEndpoint
+pub fn LunaOnlineTcpEndpoint::begin_drain(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::disconnect(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::failure_rule(Self) -> LunaOnlineTcpRule raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineTcpEndpoint::progress_off_reactor_maintenance(Self) -> LunaOnlineTcpProgress raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::rejection_rule(Self) -> LunaOnlineTcpRejectionRule raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::rejection_sequence(Self) -> UInt64 raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::request_cancel(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpEndpoint::state(Self) -> LunaOnlineTcpEndpointState
+pub fn LunaOnlineTcpLimits::new(read_chunk_bytes~ : Int, write_chunk_bytes~ : Int, accept_timeout_millis~ : Int, input_idle_timeout_millis~ : Int, write_timeout_millis~ : Int, reactor_transition_budget~ : Int) -> Self raise LunaOnlineTcpError
+pub fn LunaOnlineTcpLimits::reactor_transition_budget(Self) -> Int
+pub fn LunaOnlineTcpLimits::read_chunk_bytes(Self) -> Int
+pub fn LunaOnlineTcpLimits::write_chunk_bytes(Self) -> Int
+EOF
+)"
+  actual_online_tcp_surface="$(rg '^pub (async )?fn ' \
+    service/online_tcp/pkg.generated.mbti | sort)"
+  if [ "$actual_online_tcp_surface" != "$expected_online_tcp_surface" ]; then
+    printf '%s\n' 'online TCP endpoint public method surface drifted' >&2
+    failed=1
+  fi
+  expected_online_tcp_types="$(cat <<'EOF'
+LunaOnlineTcpEndpoint
+LunaOnlineTcpEndpointState
+LunaOnlineTcpError
+LunaOnlineTcpLimits
+LunaOnlineTcpProgress
+LunaOnlineTcpRejectionRule
+LunaOnlineTcpRule
+EOF
+)"
+  actual_online_tcp_types="$(rg \
+    '^pub(\(all\))? (struct|enum|suberror) LunaOnlineTcp' \
+    service/online_tcp/pkg.generated.mbti |
+    sed -E 's/^pub(\(all\))? (struct|enum|suberror) ([A-Za-z0-9_]+).*/\3/' |
+    sort)"
+  if [ "$actual_online_tcp_types" != "$expected_online_tcp_types" ] ||
+    [ "$(rg -c --pcre2 -U \
+      'pub struct LunaOnlineTcp(Endpoint|Limits) \{\n  // private fields\n\}' \
+      service/online_tcp/pkg.generated.mbti)" -ne 2 ] ||
+    rg -n --pcre2 -U \
+      'pub struct LunaOnlineTcp(Endpoint|Limits) \{(?s:[^}]*)\} derive\([^)]*Debug' \
+      service/online_tcp/pkg.generated.mbti ||
     rg -n \
-      'Debug|Bytes|FixedArray|LunaOnlineTcp(OutputScratch|OutputWrite|OutputFlight)|online_tcp_buffer_alias|vectie/lunaflux/internal/' \
+      'Bytes|FixedArray|LunaOnlineTcp(OutputScratch|OutputWrite|OutputFlight)|online_tcp_buffer_alias|vectie/lunaflux/internal/' \
+      service/online_tcp/pkg.generated.mbti ||
+    rg -n --pcre2 \
+      '^pub (async )?fn LunaOnlineTcp.*::(owner|server|connection|coordinator|input|output|offer|flight|epoch|raw|storage)\(' \
       service/online_tcp/pkg.generated.mbti; then
     printf '%s\n' \
-      'online TCP service leaked scratch, raw storage, or internal capability' >&2
+      'online TCP endpoint leaked scratch, socket, inner owner, or generation authority' >&2
+    failed=1
+  fi
+  expected_online_tcp_vocabulary="$(cat <<'EOF'
+pub(all) enum LunaOnlineTcpRule {
+  LunaOnlineTcpLimits
+  LunaOnlineTcpPreparation
+  LunaOnlineTcpBind
+  LunaOnlineTcpAccept
+  LunaOnlineTcpRead
+  LunaOnlineTcpWrite
+  LunaOnlineTcpTimeout
+  LunaOnlineTcpCancelled
+  LunaOnlineTcpCoordinator
+  LunaOnlineTcpLifecycle
+  LunaOnlineTcpOwnership
+} derive(Eq, @debug.Debug)
+pub(all) suberror LunaOnlineTcpError {
+  LunaOnlineTcpFailed(LunaOnlineTcpRule)
+} derive(Eq, @debug.Debug)
+pub(all) enum LunaOnlineTcpEndpointState {
+  LunaOnlineTcpListening
+  LunaOnlineTcpAccepting
+  LunaOnlineTcpConnected
+  LunaOnlineTcpDraining
+  LunaOnlineTcpCloseRequired
+  LunaOnlineTcpClosed
+} derive(Eq, @debug.Debug)
+pub(all) enum LunaOnlineTcpProgress {
+  LunaOnlineTcpConnectedProgress
+  LunaOnlineTcpAdvanced
+  LunaOnlineTcpBackpressured
+  LunaOnlineTcpMaintenanceRequired
+  LunaOnlineTcpRejected
+  LunaOnlineTcpCleanupRequired
+  LunaOnlineTcpClosedProgress
+} derive(Eq, @debug.Debug)
+pub(all) enum LunaOnlineTcpRejectionRule {
+  LunaOnlineTcpRejectedFrame
+  LunaOnlineTcpRejectedIdentity
+  LunaOnlineTcpRejectedDeadline
+  LunaOnlineTcpRejectedInput
+  LunaOnlineTcpRejectedTokenization
+  LunaOnlineTcpRejectedCapacity
+  LunaOnlineTcpRejectedService
+} derive(Eq, @debug.Debug)
+EOF
+)"
+  actual_online_tcp_vocabulary="$(
+    sed -n '/^pub(all) enum LunaOnlineTcpRule {/,/^} derive/p' \
+      service/online_tcp/pkg.generated.mbti
+    sed -n '/^pub(all) suberror LunaOnlineTcpError {/,/^} derive/p' \
+      service/online_tcp/pkg.generated.mbti
+    sed -n '/^pub(all) enum LunaOnlineTcpEndpointState {/,/^} derive/p' \
+      service/online_tcp/pkg.generated.mbti
+    sed -n '/^pub(all) enum LunaOnlineTcpProgress {/,/^} derive/p' \
+      service/online_tcp/pkg.generated.mbti
+    sed -n '/^pub(all) enum LunaOnlineTcpRejectionRule {/,/^} derive/p' \
+      service/online_tcp/pkg.generated.mbti
+  )"
+  if [ "$actual_online_tcp_vocabulary" != \
+      "$expected_online_tcp_vocabulary" ]; then
+    printf '%s\n' 'online TCP lifecycle/error scalar vocabulary drifted' >&2
+    failed=1
+  fi
+  expected_online_tcp_valtypes="$(cat <<'EOF'
+pub(all) enum LunaOnlineTcpEndpointState {
+pub(all) enum LunaOnlineTcpProgress {
+pub(all) enum LunaOnlineTcpRejectionRule {
+EOF
+)"
+  actual_online_tcp_valtypes="$(sed -n '/^#valtype$/{n;p;}' \
+    service/online_tcp/endpoint_types.mbt)"
+  if [ "$actual_online_tcp_valtypes" != "$expected_online_tcp_valtypes" ]; then
+    printf '%s\n' 'online TCP scalar state/progress representation drifted' >&2
     failed=1
   fi
 fi
