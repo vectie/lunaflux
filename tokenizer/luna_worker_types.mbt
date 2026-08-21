@@ -26,6 +26,9 @@ const LUNA_WORKER_COMPACT : Int = 6
 const LUNA_WORKER_READY : Int = 7
 
 ///|
+const LUNA_WORKER_INPUT_WRITE : Int = 8
+
+///|
 const LUNA_REMOVED_NODE : Int = -2
 
 ///|
@@ -98,7 +101,9 @@ pub struct LunaTokenizerWorker {
   priv tokens : FixedArray[Int]
   priv previous : FixedArray[Int]
   priv next : FixedArray[Int]
-  priv mut input : Bytes
+  priv input : FixedArray[Byte]
+  priv mut input_length : Int
+  priv mut written_input_bytes : Int
   priv mut special_policy : SpecialTokenPolicy
   priv mut truncation : TruncationPolicy
   priv mut output_limit : Int
@@ -134,6 +139,25 @@ pub fn LunaTokenizerWorker::required_int_cells(
     raise LunaInvalidWorkerCapacity
   }
   input_capacity.to_uint64() * 3UL
+}
+
+///|
+/// Exact startup byte cells owned by one worker's input backing.
+pub fn LunaTokenizerWorker::required_byte_cells(
+  input_capacity : Int,
+) -> UInt64 raise TokenizerError {
+  if input_capacity <= 0 {
+    raise LunaInvalidWorkerCapacity
+  }
+  input_capacity.to_uint64()
+}
+
+///|
+/// Exact-generation authority for sequentially filling worker-owned input.
+#valtype
+pub struct LunaTokenizerInputWrite {
+  priv worker : LunaTokenizerWorker
+  priv epoch : UInt64
 }
 
 ///|

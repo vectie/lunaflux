@@ -1,91 +1,4 @@
 ///|
-fn checked_add_cells(
-  left : UInt64,
-  right : UInt64,
-) -> UInt64 raise RequestAdmissionError {
-  if left > 0xffffffffffffffffUL - right {
-    raise Invalid(LunaPreparationStorage)
-  }
-  left + right
-}
-
-///|
-fn checked_multiply_cells(
-  left : UInt64,
-  right : UInt64,
-) -> UInt64 raise RequestAdmissionError {
-  if right != 0UL && left > 0xffffffffffffffffUL / right {
-    raise Invalid(LunaPreparationStorage)
-  }
-  left * right
-}
-
-///|
-fn validate_pool_storage(
-  tokenizer : @tokenizer.TokenizerSpec,
-  inference : @inference.InferenceLimits,
-  lane_count : Int,
-  budget : LunaRequestPreparationStorageBudget,
-) -> (Int, Int) raise RequestAdmissionError {
-  if lane_count <= 0 || lane_count > LUNA_PREPARATION_MAX_LANES {
-    raise Invalid(LunaPreparationPool)
-  }
-  let input_capacity = Int::min(
-    tokenizer.limits().max_input_bytes,
-    inference.max_text_bytes(),
-  )
-  let output_capacity = Int::min(
-    tokenizer.limits().max_output_tokens,
-    inference.max_input_tokens(),
-  )
-  let tokenizer_cells = @tokenizer.LunaTokenizerWorker::required_int_cells(
-    input_capacity,
-  ) catch {
-    _ => raise Invalid(LunaPreparationStorage)
-  }
-  let token_cells = @inference.LunaTokenBufferStorage::required_int_cells(
-    output_capacity,
-  ) catch {
-    _ => raise Invalid(LunaPreparationStorage)
-  }
-  let output_int_cells = (@incremental_output.LunaIncrementalOutputWorkspace::required_int_cells(
-    inference,
-  ) catch {
-    _ => raise Invalid(LunaPreparationStorage)
-  }).to_uint64()
-  let per_lane_int = checked_add_cells(
-    checked_add_cells(tokenizer_cells, token_cells),
-    output_int_cells,
-  )
-  let per_lane_byte = (@incremental_output.LunaIncrementalOutputWorkspace::required_byte_cells(
-    inference,
-  ) catch {
-    _ => raise Invalid(LunaPreparationStorage)
-  }).to_uint64()
-  let output_reference_cells = (@incremental_output.LunaIncrementalOutputWorkspace::required_reference_cells(
-    inference,
-  ) catch {
-    _ => raise Invalid(LunaPreparationStorage)
-  }).to_uint64()
-  let lanes = lane_count.to_uint64()
-  let total_int = checked_add_cells(
-    checked_multiply_cells(per_lane_int, lanes),
-    checked_multiply_cells(lanes, 2UL),
-  )
-  let total_byte = checked_multiply_cells(per_lane_byte, lanes)
-  let total_references = checked_multiply_cells(
-    checked_add_cells(1UL, output_reference_cells),
-    lanes,
-  )
-  if total_int > budget.int_cells ||
-    total_byte > budget.byte_cells ||
-    total_references > budget.reference_cells {
-    raise Invalid(LunaPreparationStorage)
-  }
-  (input_capacity, output_capacity)
-}
-
-///|
 fn new_preparation_lane(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
@@ -128,6 +41,7 @@ fn new_preparation_lane(
     deadline: None,
     effective: None,
     input_capacity: 0,
+    tokenizer_input_write: None,
     tokenizer_work: None,
     token_write: None,
     token_lease: None,
@@ -300,6 +214,7 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.request = None
   lane.deadline = None
   lane.effective = None
+  lane.tokenizer_input_write = None
   lane.tokenizer_work = None
   lane.token_write = None
   lane.token_lease = None
@@ -390,9 +305,9 @@ fn LunaRequestPreparationPool::start_lane(
   )
   match received.request.input() {
     Text(text) => {
-      lane.tokenizer_work = Some(
-        lane.tokenizer.begin_bytes(
-          text.utf8(),
+      lane.tokenizer_input_write = Some(
+        lane.tokenizer.begin_luna_input(
+          byte_count=text.utf8_bytes(),
           special_policy=Reject,
           output_limit=input_capacity,
           truncation=RejectOverflow,
@@ -400,13 +315,15 @@ fn LunaRequestPreparationPool::start_lane(
           _ => raise Invalid(Tokenization)
         },
       )
+      lane.tokenizer_work = None
       lane.tokens = None
-      lane.phase = LUNA_PREPARATION_TEXT_TOKENIZE
+      lane.phase = LUNA_PREPARATION_TEXT_INPUT_COPY
     }
     TokenIds(tokens) => {
       if !tokens.is_live() || tokens.length() > input_capacity {
         raise Invalid(Input)
       }
+      lane.tokenizer_input_write = None
       lane.tokenizer_work = None
       lane.tokens = Some(tokens)
       lane.phase = LUNA_PREPARATION_OUTPUT_SETUP

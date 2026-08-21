@@ -73,7 +73,7 @@ fn LunaTokenizerWorker::progress_special_match(
     return
   }
   if !self.special_matches ||
-    self.input_offset + self.special_piece_offset >= self.input.length() {
+    self.input_offset + self.special_piece_offset >= self.input_length {
     self.special_index += 1
     self.special_piece_offset = 0
     self.special_matches = true
@@ -89,7 +89,7 @@ fn LunaTokenizerWorker::progress_special_match(
 
 ///|
 fn LunaTokenizerWorker::progress_initialize(self : LunaTokenizerWorker) -> Unit {
-  if self.input_offset >= self.input.length() {
+  if self.input_offset >= self.input_length {
     self.scan_left = self.head
     self.selected_rank = -1
     self.phase = LUNA_WORKER_SELECT_ADJACENCY

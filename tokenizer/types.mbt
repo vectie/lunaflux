@@ -118,6 +118,7 @@ pub(all) suberror TokenizerError {
   LunaTokenizerWorkerNotReady
   LunaTokenizerWorkerStale
   LunaInvalidTokenCopy
+  LunaInvalidInputWrite
   LunaTokenizerWorkerEpochExhausted
 } derive(Debug, Eq)
 

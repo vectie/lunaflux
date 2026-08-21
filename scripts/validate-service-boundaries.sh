@@ -267,32 +267,46 @@ fi
 if [ -d tokenizer ]; then
   fail_matches \
     'Luna tokenizer work acquired async, transport, process, or native authority:' \
-    --glob 'tokenizer/luna_worker*.mbt' --glob 'tokenizer/moon.pkg' \
+    --glob 'tokenizer/luna_worker*.mbt' \
+    --glob 'tokenizer/luna_input_write.mbt' --glob 'tokenizer/moon.pkg' \
     'moonbitlang/async|socket|internal/process|worker_process|extern\s+"[cC]"|#external|pub async fn'
   fail_matches \
     'Luna tokenizer warmed work uses dynamically growing Array or Map storage:' \
     --pcre2 --glob 'tokenizer/luna_worker*.mbt' \
+    --glob 'tokenizer/luna_input_write.mbt' \
     '(^|[^A-Za-z])((Array|Map)\[|Array::|Map\()'
   if ! rg -q --pcre2 -U \
+      '#valtype\npub struct LunaTokenizerInputWrite \{\n  priv worker : LunaTokenizerWorker\n  priv epoch : UInt64\n\}' \
+      tokenizer/luna_worker_types.mbt ||
+    ! rg -q --pcre2 -U \
       '#valtype\npub struct LunaTokenizerWork \{\n  priv worker : LunaTokenizerWorker\n  priv epoch : UInt64\n\}' \
       tokenizer/luna_worker_types.mbt ||
     ! rg -q --pcre2 -U \
       '#valtype\npub struct LunaTokenizerStepBudget \{\n  priv work_units : Int\n\}' \
       tokenizer/luna_worker_types.mbt ||
     rg -n --pcre2 -U \
-      'pub struct LunaTokenizer(?:Work|Worker|StepBudget)(?s:.*?)derive\([^)]*Debug' \
-      tokenizer/luna_worker*.mbt; then
+      'pub struct LunaTokenizer(?:InputWrite|Work|Worker|StepBudget)(?s:.*?)derive\([^)]*Debug' \
+      tokenizer/luna_worker*.mbt tokenizer/luna_input_write.mbt; then
     printf '%s\n' \
       'Luna tokenizer work, worker, and budget must remain opaque without Debug' >&2
     failed=1
   fi
   worker_api="$(rg --no-filename -o '^pub fn LunaTokenizerWorker::[a-z_]+' \
-    tokenizer/luna_worker*.mbt | sort)"
+    tokenizer/luna_worker*.mbt tokenizer/luna_input_write.mbt | sort)"
   if [ "$worker_api" != \
-    $'pub fn LunaTokenizerWorker::begin_bytes\npub fn LunaTokenizerWorker::new\npub fn LunaTokenizerWorker::required_int_cells' ]; then
+    $'pub fn LunaTokenizerWorker::begin_bytes\npub fn LunaTokenizerWorker::begin_luna_input\npub fn LunaTokenizerWorker::new\npub fn LunaTokenizerWorker::required_byte_cells\npub fn LunaTokenizerWorker::required_int_cells' ]; then
     printf '%s\n%s\n' \
       'Luna tokenizer worker must expose only construction and epoch-bound begin:' \
       "$worker_api" >&2
+    failed=1
+  fi
+  input_write_api="$(rg --no-filename -o '^pub fn LunaTokenizerInputWrite::[a-z_]+' \
+    tokenizer/luna_input_write.mbt | sort)"
+  if [ "$input_write_api" != \
+    $'pub fn LunaTokenizerInputWrite::abort\npub fn LunaTokenizerInputWrite::finish\npub fn LunaTokenizerInputWrite::push_byte' ]; then
+    printf '%s\n%s\n' \
+      'Luna tokenizer input-write capability surface drifted:' \
+      "$input_write_api" >&2
     failed=1
   fi
   work_api="$(rg --no-filename -o '^pub fn LunaTokenizerWork::[a-z_]+' \
@@ -305,6 +319,8 @@ if [ -d tokenizer ]; then
   fi
   if [ -f tokenizer/pkg.generated.mbti ]; then
     if [ "$(rg -c '^pub fn LunaTokenizerWorker::' \
+        tokenizer/pkg.generated.mbti)" != '5' ] ||
+      [ "$(rg -c '^pub fn LunaTokenizerInputWrite::' \
         tokenizer/pkg.generated.mbti)" != '3' ] ||
       [ "$(rg -c '^pub fn LunaTokenizerWork::' \
         tokenizer/pkg.generated.mbti)" != '7' ] ||
@@ -314,13 +330,16 @@ if [ -d tokenizer ]; then
         'pub struct LunaTokenizerStepBudget \{\n  // private fields\n\}' \
         tokenizer/pkg.generated.mbti ||
       ! rg -q --pcre2 -U \
+        'pub struct LunaTokenizerInputWrite \{\n  // private fields\n\}' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q --pcre2 -U \
         'pub struct LunaTokenizerWork \{\n  // private fields\n\}' \
         tokenizer/pkg.generated.mbti ||
       ! rg -q --pcre2 -U \
         'pub struct LunaTokenizerWorker \{\n  // private fields\n\}' \
         tokenizer/pkg.generated.mbti ||
       rg -q --pcre2 \
-        '^pub struct LunaTokenizer(?:StepBudget|Work|Worker)\(|^pub fn LunaTokenizer(?:StepBudget|Work|Worker)::[^\n]*(?:owner|epoch|storage)|LunaTokenizer(?:StepBudget|Work|Worker).*derive\([^)]*Debug' \
+        '^pub struct LunaTokenizer(?:InputWrite|StepBudget|Work|Worker)\(|^pub fn LunaTokenizer(?:InputWrite|StepBudget|Work|Worker)::[^\n]*(?:owner|epoch|storage)|LunaTokenizer(?:InputWrite|StepBudget|Work|Worker).*derive\([^)]*Debug' \
         tokenizer/pkg.generated.mbti; then
       printf '%s\n' \
         'generated Luna tokenizer authorities must remain exact and opaque' >&2
@@ -331,12 +350,33 @@ if [ -d tokenizer ]; then
         tokenizer/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaTokenizerWorker::begin_bytes\(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy\) -> LunaTokenizerWork raise TokenizerError$' \
         tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerWorker::begin_luna_input\(Self, byte_count~ : Int, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy\) -> LunaTokenizerInputWrite raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerWorker::required_byte_cells\(Int\) -> UInt64 raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaTokenizerWorker::new\(TokenizerSpec, input_capacity~ : Int, output_capacity~ : Int, LunaTokenizerStepBudget\) -> Self raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerInputWrite::abort\(Self\) -> Unit raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerInputWrite::finish\(Self\) -> LunaTokenizerWork raise TokenizerError$' \
+        tokenizer/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaTokenizerInputWrite::push_byte\(Self, Byte\) -> Unit raise TokenizerError$' \
         tokenizer/pkg.generated.mbti; then
       printf '%s\n' \
         'generated Luna tokenizer lifecycle surface drifted' >&2
       failed=1
     fi
+  fi
+  if ! rg -q 'priv input : FixedArray\[Byte\]' \
+      tokenizer/luna_worker_types.mbt ||
+    rg -n 'priv (mut )?input : Bytes' tokenizer/luna_worker_types.mbt ||
+    rg -n '^pub fn LunaTokenizer(?:Worker|InputWrite)::(?:input|source|raw_bytes|request_bytes)' \
+      tokenizer/pkg.generated.mbti ||
+    ! rg -q 'self\.input_offset .* self\.input_length' \
+      tokenizer/luna_worker_progress.mbt; then
+    printf '%s\n' \
+      'Luna tokenizer worker no longer proves fixed owned byte input' >&2
+    failed=1
   fi
   if ! rg -q 'const LUNA_TOKENIZER_MAX_STEP_WORK_UNITS : Int = 65536' \
       tokenizer/luna_worker_types.mbt ||
@@ -414,6 +454,22 @@ if [ -d service/request_admission ]; then
     'Luna preparation pool acquired async/socket/process/device authority:' \
     --glob 'service/request_admission/pool*.mbt' \
     'moonbitlang/async|async fn|socket|listener|worker_(process|service)|device_|approved_fs|framed_wire'
+  if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
+    ! rg -F -q 'begin_luna_input(' service/request_admission/pool.mbt ||
+    ! rg -q 'const LUNA_PREPARATION_TEXT_INPUT_COPY' \
+      service/request_admission/pool_types.mbt ||
+    ! rg -q --pcre2 -U \
+      'progress_text_input_copy(?s).*write\.push_byte\(text\.utf8\(\)\[lane\.copy_index\]\)(?s).*lane\.copy_index \+= 1(?s).*return(?s).*write\.finish\(\)' \
+      service/request_admission/pool_progress.mbt ||
+    ! rg -q 'LunaTokenizerWorker::required_byte_cells' \
+      service/request_admission/pool_storage.mbt ||
+    ! rg -q --pcre2 -U \
+      'let per_lane_byte = checked_add_cells\(\s*tokenizer_byte_cells,\s*output_byte_cells,?\s*\)' \
+      service/request_admission/pool_storage.mbt; then
+    printf '%s\n' \
+      'Luna preparation pool lost bounded tokenizer input or exact byte accounting' >&2
+    failed=1
+  fi
   if [ -f service/request_admission/pkg.generated.mbti ]; then
     if ! rg -q \
       '^pub fn prepare_luna_request\(ReceivedRequest, @tokenizer\.TokenizerSpec, @tokenizer\.TokenizerDigest, @spec\.ModelIdentity, @inference\.InferenceLimits, @monotonic_clock\.MonotonicClock\) -> LunaPreparedRequest raise RequestAdmissionError$' \

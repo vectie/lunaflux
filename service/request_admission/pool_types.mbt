@@ -2,34 +2,37 @@
 const LUNA_PREPARATION_IDLE : Int = 0
 
 ///|
-const LUNA_PREPARATION_TEXT_TOKENIZE : Int = 1
+const LUNA_PREPARATION_TEXT_INPUT_COPY : Int = 1
 
 ///|
-const LUNA_PREPARATION_TEXT_BEGIN_COPY : Int = 2
+const LUNA_PREPARATION_TEXT_TOKENIZE : Int = 2
 
 ///|
-const LUNA_PREPARATION_TEXT_COPY : Int = 3
+const LUNA_PREPARATION_TEXT_BEGIN_COPY : Int = 3
 
 ///|
-const LUNA_PREPARATION_OUTPUT_SETUP : Int = 4
+const LUNA_PREPARATION_TEXT_COPY : Int = 4
 
 ///|
-const LUNA_PREPARATION_ASSEMBLE : Int = 5
+const LUNA_PREPARATION_OUTPUT_SETUP : Int = 5
 
 ///|
-const LUNA_PREPARATION_READY : Int = 6
+const LUNA_PREPARATION_ASSEMBLE : Int = 6
 
 ///|
-const LUNA_PREPARATION_PREPARED : Int = 7
+const LUNA_PREPARATION_READY : Int = 7
 
 ///|
-const LUNA_PREPARATION_CLAIMED : Int = 8
+const LUNA_PREPARATION_PREPARED : Int = 8
 
 ///|
-const LUNA_PREPARATION_FAILED : Int = 9
+const LUNA_PREPARATION_CLAIMED : Int = 9
 
 ///|
-const LUNA_PREPARATION_CANCEL_REQUESTED : Int = 10
+const LUNA_PREPARATION_FAILED : Int = 10
+
+///|
+const LUNA_PREPARATION_CANCEL_REQUESTED : Int = 11
 
 ///|
 const LUNA_PREPARATION_MAX_STEP_WORK_UNITS : Int = 65536
@@ -158,6 +161,7 @@ priv struct LunaRequestPreparationLane {
   mut deadline : @inference.AdmissionDeadline?
   mut effective : @inference.EffectiveLimits?
   mut input_capacity : Int
+  mut tokenizer_input_write : @tokenizer.LunaTokenizerInputWrite?
   mut tokenizer_work : @tokenizer.LunaTokenizerWork?
   mut token_write : @inference.LunaTokenBufferWrite?
   mut token_lease : @inference.LunaTokenBufferLease?

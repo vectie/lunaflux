@@ -19,7 +19,9 @@ pub fn LunaTokenizerWorker::new(
     tokens: FixedArray::make(input_capacity, 0),
     previous: FixedArray::make(input_capacity, LUNA_REMOVED_NODE),
     next: FixedArray::make(input_capacity, LUNA_REMOVED_NODE),
-    input: b"",
+    input: FixedArray::make(input_capacity, b'\x00'),
+    input_length: 0,
+    written_input_bytes: 0,
     special_policy: AsOrdinary,
     truncation: RejectOverflow,
     output_limit: 0,
@@ -48,7 +50,8 @@ pub fn LunaTokenizerWorker::new(
 
 ///|
 fn LunaTokenizerWorker::clear_request(self : LunaTokenizerWorker) -> Unit {
-  self.input = b""
+  self.input_length = 0
+  self.written_input_bytes = 0
   self.output_limit = 0
   self.phase = LUNA_WORKER_IDLE
   self.input_offset = 0
@@ -79,46 +82,16 @@ pub fn LunaTokenizerWorker::begin_bytes(
   output_limit~ : Int,
   truncation~ : TruncationPolicy,
 ) -> LunaTokenizerWork raise TokenizerError {
-  if self.phase != LUNA_WORKER_IDLE {
-    raise LunaTokenizerWorkerBusy
+  let write = self.begin_luna_input(
+    byte_count=input.length(),
+    special_policy~,
+    output_limit~,
+    truncation~,
+  )
+  for byte in input {
+    write.push_byte(byte)
   }
-  if input.length() > self.input_capacity ||
-    input.length() > self.spec.limits.max_input_bytes {
-    raise InputTooLong(
-      actual=input.length(),
-      maximum=Int::min(self.input_capacity, self.spec.limits.max_input_bytes),
-    )
-  }
-  if output_limit <= 0 ||
-    output_limit > self.output_capacity ||
-    output_limit > self.spec.limits.max_output_tokens {
-    raise InvalidOutputLimit(
-      requested=output_limit,
-      maximum=Int::min(self.output_capacity, self.spec.limits.max_output_tokens),
-    )
-  }
-  if self.epoch == 0xffffffffffffffffUL {
-    raise LunaTokenizerWorkerEpochExhausted
-  }
-  self.epoch += 1UL
-  self.input = input
-  self.special_policy = special_policy
-  self.truncation = truncation
-  self.output_limit = output_limit
-  self.input_offset = 0
-  self.node_count = 0
-  self.head = -1
-  self.tail = -1
-  self.scan_left = -1
-  self.lookup_low = 0
-  self.lookup_high = 0
-  self.selected_rank = -1
-  self.compact_actual = 0
-  self.output_count = 0
-  self.truncated = false
-  self.last_work_units = 0
-  self.phase = LUNA_WORKER_INITIALIZE
-  { worker: self, epoch: self.epoch }
+  write.finish()
 }
 
 ///|
@@ -127,7 +100,8 @@ fn LunaTokenizerWork::require_worker(
 ) -> LunaTokenizerWorker raise TokenizerError {
   if self.epoch == 0UL ||
     self.worker.epoch != self.epoch ||
-    self.worker.phase == LUNA_WORKER_IDLE {
+    self.worker.phase == LUNA_WORKER_IDLE ||
+    self.worker.phase == LUNA_WORKER_INPUT_WRITE {
     raise LunaTokenizerWorkerStale
   }
   self.worker

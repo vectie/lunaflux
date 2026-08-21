@@ -14,16 +14,21 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - A bounded extracted byte-BPE tokenizer foundation with exact byte decoding,
   explicit special-token policy, limits, and deterministic merge ranking.
 - A reusable startup-preallocated `LunaTokenizerWorker`. Its opaque
-  epoch-bound work credit advances byte BPE by a fixed operation budget, uses
-  resumable CSR merge lookup, preserves exact ranked group-merge semantics,
-  and copies results only in budget-capped chunks. The synchronous encoder is
-  a compatibility facade over that same implementation. Frozen-reference and
+  generation-bound input writer copies one scalar byte into fixed backing per
+  outer preparation unit, then transfers authority to work that advances byte
+  BPE by a fixed operation budget, uses resumable CSR merge lookup, preserves
+  exact ranked group-merge semantics, and copies results only in budget-capped
+  chunks. The proportional `Bytes` encoder is a compatibility facade over that
+  same writer and is not a reactor quantum. Frozen-reference and
   positive-controlled release-C gates cover byte-work equivalence and the
-  allocation-free warm path. A fixed-lane Luna request-preparation pool now
-  drives that worker, cooperative token copying, and incremental-output setup
-  from one central FIFO quantum owner. Canonical raw-frame scanning and
-  validation are also cooperative; object-form request materialization,
-  trusted receipt-clock composition, and network ingress remain open.
+  allocation-free warm path. A fixed-lane Luna request-preparation pool
+  includes the tokenizer input backing in checked aggregate byte admission and
+  drives input copy, tokenization, token transfer, and incremental-output setup
+  from one central FIFO quantum owner. Terminal tokenizer errors clean their
+  already-stale work alias before the pool releases remaining lane authority.
+  Canonical raw-frame scanning and validation are also cooperative;
+  object-form request materialization, direct framed-view integration, trusted
+  receipt-clock composition, and network ingress remain open.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.

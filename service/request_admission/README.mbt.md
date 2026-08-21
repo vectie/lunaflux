@@ -21,20 +21,26 @@ retained deadline without rebasing it.
 The live cooperative path is `LunaRequestPreparationPool`. It allocates a hard
 maximum of 1024 fixed lanes at startup, after checked aggregate `Int`, `Byte`,
 and reference-cell accounting. Every lane permanently owns one Luna tokenizer
-worker, token buffer storage, and incremental-output workspace. `try_submit`
+worker, token buffer storage, and incremental-output workspace. The byte budget
+includes both the worker's exact fixed input backing and the output workspace's
+matcher/decode backing for every lane. `try_submit`
 returns Saturated or Draining without consuming its `ReceivedRequest`; an
 admitted request is pinned to its lane and exact generation until explicit
-discard or claim release.
+discard or claim release. Once a free lane is selected, `try_submit` consumes
+the received authority before fallible lane start; a rejected start resets and
+releases that lane but intentionally does not restore the invalid submission's
+receipt capability.
 
 Only the pool advances work. Its fixed active ring grants one FIFO lane a
 configured quantum per `progress` call. One charged preparation unit is one
-underlying tokenizer unit, one token scalar read/write, one incremental-output
-setup unit, or one constant-size assembly transition. Work is checked against
-both a per-call quantum and an exact total-work ceiling. The monotonic deadline
-is checked before each lane quantum, immediately before Ready publication, and
-again before Prepared and Claimed transfer. Cancellation is observed by the
-central owner; Ready and Failed results remain pinned rather than being
-silently evicted.
+input-byte copy into the fixed tokenizer backing, one tokenizer state-machine
+unit, one token scalar read/write, one incremental-output setup unit, or one
+constant-size assembly transition. Work is checked against both a per-call
+quantum and an exact total-work ceiling. The monotonic deadline is checked
+before each lane quantum, immediately before Ready publication, and again
+before Prepared and Claimed transfer. Cancellation is observed by the central
+owner; Ready and Failed results remain pinned rather than being silently
+evicted.
 
 Ready assembly may allocate only constant-size scheduler, prepared, and claim
 records. Text bytes remain canonical and immutable while BPE and token copying

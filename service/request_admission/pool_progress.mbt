@@ -34,6 +34,13 @@ fn LunaRequestPreparationPool::abort_lane_resources(
   lane : LunaRequestPreparationLane,
 ) -> Unit {
   ignore(self)
+  match lane.tokenizer_input_write {
+    Some(write) => {
+      try! write.abort()
+      lane.tokenizer_input_write = None
+    }
+    None => ()
+  }
   match lane.tokenizer_work {
     Some(work) => {
       try! work.abort()
@@ -88,6 +95,37 @@ fn LunaRequestPreparationPool::fail_lane(
 }
 
 ///|
+fn LunaRequestPreparationPool::progress_text_input_copy(
+  self : LunaRequestPreparationPool,
+  lane : LunaRequestPreparationLane,
+) -> Unit raise RequestAdmissionError {
+  ignore(self)
+  let write = match lane.tokenizer_input_write {
+    Some(value) => value
+    None => abort("Luna tokenizer-input invariant")
+  }
+  let text = match lane.require_request().input() {
+    Text(value) => value
+    TokenIds(_) => abort("Luna tokenizer-input source invariant")
+  }
+  if lane.copy_index < text.utf8_bytes() {
+    write.push_byte(text.utf8()[lane.copy_index]) catch {
+      _ => raise Invalid(Tokenization)
+    }
+    lane.copy_index += 1
+    return
+  }
+  lane.tokenizer_work = Some(
+    write.finish() catch {
+      _ => raise Invalid(Tokenization)
+    },
+  )
+  lane.tokenizer_input_write = None
+  lane.copy_index = 0
+  lane.phase = LUNA_PREPARATION_TEXT_TOKENIZE
+}
+
+///|
 fn LunaRequestPreparationPool::progress_text_tokenize(
   self : LunaRequestPreparationPool,
   lane : LunaRequestPreparationLane,
@@ -97,7 +135,15 @@ fn LunaRequestPreparationPool::progress_text_tokenize(
     Some(value) => value
     None => abort("Luna tokenizer-work invariant")
   }
-  let progress = work.progress() catch { _ => raise Invalid(Tokenization) }
+  let progress = work.progress() catch {
+    SpecialTokenRejected(token_id=_) | OutputTooLong(actual=_, maximum=_) => {
+      // These terminal tokenizer failures clear the worker before raising, so
+      // the retained Work alias is already stale and must not be aborted.
+      lane.tokenizer_work = None
+      raise Invalid(Tokenization)
+    }
+    _ => raise Invalid(Tokenization)
+  }
   match progress {
     LunaTokenizerPending => ()
     LunaTokenizerReady => lane.phase = LUNA_PREPARATION_TEXT_BEGIN_COPY
@@ -252,6 +298,7 @@ fn LunaRequestPreparationPool::progress_lane_one(
 ) -> Unit raise RequestAdmissionError {
   let lane = self.lanes[lane_index]
   match lane.phase {
+    LUNA_PREPARATION_TEXT_INPUT_COPY => self.progress_text_input_copy(lane)
     LUNA_PREPARATION_TEXT_TOKENIZE => self.progress_text_tokenize(lane)
     LUNA_PREPARATION_TEXT_BEGIN_COPY => self.progress_text_begin_copy(lane)
     LUNA_PREPARATION_TEXT_COPY => self.progress_text_copy(lane)

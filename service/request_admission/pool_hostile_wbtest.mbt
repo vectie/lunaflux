@@ -33,6 +33,76 @@ fn hostile_work(
 }
 
 ///|
+fn hostile_special_tokenizer() -> @tokenizer.TokenizerSpec raise {
+  let vocabulary : Array[@tokenizer.VocabularyEntry] = []
+  for value in 0..<256 {
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+  }
+  vocabulary.push({ token_id: 256, piece: b"<eos>", kind: Special })
+  @tokenizer.TokenizerSpec::new(
+    vocabulary,
+    [],
+    @tokenizer.TokenizerDigest::parse("abcdef0123456789".repeat(4)),
+    {
+      max_input_bytes: 64,
+      max_output_tokens: 64,
+      max_decoded_bytes: 256,
+      max_vocab_entries: 257,
+      max_merge_rules: 4,
+      max_token_bytes: 5,
+      max_special_tokens: 1,
+    },
+  )
+}
+
+///|
+fn hostile_text_request(
+  input : BytesView,
+  max_new_tokens : Int,
+  context_ceiling : Int,
+) -> @inference.GenerateRequest raise {
+  let limits = fixture_inference()
+  let base = fixture_request(fixture_identity("0"))
+  @inference.GenerateRequest::new(
+    protocol_version=base.protocol_version(),
+    request_id=base.request_id(),
+    model_identity=base.model_identity(),
+    input=@inference.Input::from_utf8(input, limits),
+    max_new_tokens~,
+    context_ceiling~,
+    sampling=base.sampling(),
+    sampling_seed=base.sampling_seed(),
+    stops=base.stops(),
+    stream_preference=base.stream_preference(),
+    deadline=base.deadline(),
+    cache=base.cache(),
+    trace=base.trace(),
+    limits~,
+  )
+}
+
+///|
+fn hostile_pool_for_tokenizer(
+  tokenizer : @tokenizer.TokenizerSpec,
+) -> LunaRequestPreparationPool raise {
+  new_pool_with_clock(
+    tokenizer,
+    tokenizer.digest(),
+    fixture_identity("0"),
+    fixture_inference(),
+    () => 11UL,
+    1,
+    LunaRequestPreparationStepBudget::new(1),
+    LunaRequestPreparationWorkLimit::new(4096UL),
+    LunaRequestPreparationStorageBudget::new(
+      int_cells=1000000UL,
+      byte_cells=1000000UL,
+      reference_cells=2048UL,
+    ),
+  )
+}
+
+///|
 fn drive_to_phase(
   pool : LunaRequestPreparationPool,
   work : LunaRequestPreparationWork,
@@ -189,6 +259,44 @@ test "cancel during token copy and output setup returns the lane" {
 }
 
 ///|
+test "text input copy is one byte per unit and terminal tokenizer failures cleanly reuse" {
+  let tokenizer = hostile_special_tokenizer()
+  let pool = hostile_pool_for_tokenizer(tokenizer)
+  let special = pool
+    .try_submit(pool_received_at(hostile_text_request(b"<eos>", 4, 16), 10UL))
+    .work()
+  let lane = pool.lanes[special.lane]
+  assert_eq(lane.phase, LUNA_PREPARATION_TEXT_INPUT_COPY)
+  for expected in 1..<=5 {
+    assert_eq(pool.progress(), LunaRequestPreparationPoolAdvanced)
+    assert_eq(special.last_work_units(), 1)
+    assert_eq(lane.copy_index, expected)
+    assert_eq(lane.phase, LUNA_PREPARATION_TEXT_INPUT_COPY)
+  }
+  assert_eq(pool.progress(), LunaRequestPreparationPoolAdvanced)
+  assert_eq(lane.phase, LUNA_PREPARATION_TEXT_TOKENIZE)
+  drive_terminal_work(pool, special)
+  assert_eq(special.failure(), Invalid(Tokenization))
+  special.discard()
+  assert_eq(pool.free_lane_count(), 1)
+
+  let overflow = pool
+    .try_submit(pool_received_at(hostile_text_request(b"ab", 15, 16), 10UL))
+    .work()
+  drive_terminal_work(pool, overflow)
+  assert_eq(overflow.failure(), Invalid(Tokenization))
+  overflow.discard()
+  assert_eq(pool.free_lane_count(), 1)
+
+  let reused = pool
+    .try_submit(pool_received_at(hostile_text_request(b"abc", 4, 16), 10UL))
+    .work()
+  drive_preparation_ready(pool, reused)
+  reused.discard()
+  assert_eq(pool.free_lane_count(), 1)
+}
+
+///|
 test "drain waits for Pending Ready Prepared Claimed and Failed authority" {
   let pending_now = Ref(11UL)
   let pending_pool = fixture_preparation_pool(pending_now, 1, 1, 4096UL)
@@ -311,6 +419,58 @@ test "lane bounds storage and exhausted generation reject before consumption" {
   )
   exact_references.begin_drain()
   assert_true(exact_references.is_drained())
+
+  let inference = fixture_inference()
+  let input_capacity = Int::min(
+    tokenizer.limits().max_input_bytes,
+    inference.max_text_bytes(),
+  )
+  let tokenizer_bytes = @tokenizer.LunaTokenizerWorker::required_byte_cells(
+    input_capacity,
+  )
+  let output_bytes = @incremental_output.LunaIncrementalOutputWorkspace::required_byte_cells(
+    inference,
+  ).to_uint64()
+  let exact_bytes = tokenizer_bytes + output_bytes
+  try
+    new_pool_with_clock(
+      tokenizer,
+      tokenizer.digest(),
+      fixture_identity("0"),
+      inference,
+      () => 11UL,
+      1,
+      LunaRequestPreparationStepBudget::new(1),
+      LunaRequestPreparationWorkLimit::new(4096UL),
+      LunaRequestPreparationStorageBudget::new(
+        int_cells=1000000UL,
+        byte_cells=exact_bytes - 1UL,
+        reference_cells=2UL,
+      ),
+    )
+  catch {
+    Invalid(LunaPreparationStorage) => ()
+    _ => fail("unexpected tokenizer-byte storage-bound error")
+  } noraise {
+    _ => fail("missing tokenizer byte cell was accepted")
+  }
+  let exact_bytes_pool = new_pool_with_clock(
+    tokenizer,
+    tokenizer.digest(),
+    fixture_identity("0"),
+    inference,
+    () => 11UL,
+    1,
+    LunaRequestPreparationStepBudget::new(1),
+    LunaRequestPreparationWorkLimit::new(4096UL),
+    LunaRequestPreparationStorageBudget::new(
+      int_cells=1000000UL,
+      byte_cells=exact_bytes,
+      reference_cells=2UL,
+    ),
+  )
+  exact_bytes_pool.begin_drain()
+  assert_true(exact_bytes_pool.is_drained())
 
   let exhausted = hostile_pool_with_clock(() => 11UL, 1, 1, 4096UL)
   let received = pool_received_at(fixture_request(fixture_identity("0")), 10UL)

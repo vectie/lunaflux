@@ -4,7 +4,12 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-moon test tokenizer/luna_work_wbtest.mbt tokenizer/luna_work_reference_wbtest.mbt \
+moon test \
+  tokenizer/luna_work_wbtest.mbt \
+  tokenizer/luna_work_reference_wbtest.mbt \
+  tokenizer/luna_input_write_wbtest.mbt \
+  tokenizer/luna_input_equivalence_wbtest.mbt \
+  tokenizer/luna_input_integration_wbtest.mbt \
   --target native --release --deny-warn --warn-list +73
 
 generated_c="_build/native/release/test/tokenizer/tokenizer.whitebox_test.c"
@@ -60,7 +65,11 @@ fi
 # Every helper reachable from progress is named explicitly. This prevents a
 # nonallocating wrapper from hiding allocation in a phase or adjacency scan.
 for symbol in \
-  'LunaTokenizerWorker12begin__bytes(' \
+  'LunaTokenizerWorker18begin__luna__input(' \
+  'LunaTokenizerInputWrite15require__worker(' \
+  'LunaTokenizerInputWrite10push__byte(' \
+  'LunaTokenizerInputWrite6finish(' \
+  'LunaTokenizerInputWrite5abort(' \
   'LunaTokenizerWork15require__worker(' \
   'LunaTokenizerWork8progress(' \
   'LunaTokenizerWork12token__count(' \
@@ -90,6 +99,16 @@ for symbol in \
     exit 1
   fi
 done
+
+# The compatibility Bytes facade performs a proportional copy into the fixed
+# input backing. It is covered by equivalence, never used as evidence for the
+# constant writer path above.
+if ! rg -q --pcre2 -U \
+  'pub fn LunaTokenizerWorker::begin_bytes(?s).*begin_luna_input(?s).*write\.push_byte(?s).*write\.finish' \
+  tokenizer/luna_worker.mbt; then
+  printf '%s\n' 'Luna tokenizer Bytes compatibility facade no longer drives the writer' >&2
+  exit 1
+fi
 
 # Simple scalar getters can be inlined out of release C. If emitted, scan them
 # like every other warm function. If absent, require their exact source form;
@@ -123,9 +142,18 @@ elif ! rg -q --pcre2 -U \
   exit 1
 fi
 
-begin_body="$(extract_definition 'LunaTokenizerWorker12begin__bytes(')"
-if ! printf '%s\n' "$begin_body" | rg -q 'LunaTokenizerWork\)\{'; then
-  printf '%s\n' 'Luna tokenizer begin lost its preallocated valtype work return' >&2
+begin_body="$(extract_definition 'LunaTokenizerWorker18begin__luna__input(')"
+if ! printf '%s\n' "$begin_body" | rg -q 'LunaTokenizerInputWrite\)\{'; then
+  printf '%s\n' 'Luna tokenizer input begin lost its preallocated valtype writer return' >&2
+  exit 1
+fi
+
+if ! rg -q 'priv input : FixedArray\[Byte\]' tokenizer/luna_worker_types.mbt ||
+  rg -q --pcre2 'priv (?:input|source|request_bytes) : Bytes' \
+    tokenizer/luna_worker_types.mbt tokenizer/luna_input_write.mbt ||
+  rg -q '^pub fn LunaTokenizer(?:Worker|InputWrite)::(?:input|source|request_bytes|raw_bytes)' \
+    tokenizer/pkg.generated.mbti; then
+  printf '%s\n' 'Luna tokenizer writer retained or exposed raw Bytes authority' >&2
   exit 1
 fi
 

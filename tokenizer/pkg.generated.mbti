@@ -40,6 +40,7 @@ pub(all) suberror TokenizerError {
   LunaTokenizerWorkerNotReady
   LunaTokenizerWorkerStale
   LunaInvalidTokenCopy
+  LunaInvalidInputWrite
   LunaTokenizerWorkerEpochExhausted
 } derive(Eq, @debug.Debug)
 
@@ -68,6 +69,13 @@ pub(all) enum LimitField {
   TokenBytes
   SpecialTokens
 } derive(Eq, @debug.Debug)
+
+pub struct LunaTokenizerInputWrite {
+  // private fields
+}
+pub fn LunaTokenizerInputWrite::abort(Self) -> Unit raise TokenizerError
+pub fn LunaTokenizerInputWrite::finish(Self) -> LunaTokenizerWork raise TokenizerError
+pub fn LunaTokenizerInputWrite::push_byte(Self, Byte) -> Unit raise TokenizerError
 
 pub(all) enum LunaTokenizerProgress {
   LunaTokenizerPending
@@ -99,7 +107,9 @@ pub struct LunaTokenizerWorker {
   // private fields
 }
 pub fn LunaTokenizerWorker::begin_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> LunaTokenizerWork raise TokenizerError
+pub fn LunaTokenizerWorker::begin_luna_input(Self, byte_count~ : Int, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> LunaTokenizerInputWrite raise TokenizerError
 pub fn LunaTokenizerWorker::new(TokenizerSpec, input_capacity~ : Int, output_capacity~ : Int, LunaTokenizerStepBudget) -> Self raise TokenizerError
+pub fn LunaTokenizerWorker::required_byte_cells(Int) -> UInt64 raise TokenizerError
 pub fn LunaTokenizerWorker::required_int_cells(Int) -> UInt64 raise TokenizerError
 
 pub(all) struct MergeRule {

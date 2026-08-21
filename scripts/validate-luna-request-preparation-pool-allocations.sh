@@ -44,7 +44,7 @@ allocation_lines() {
 contains_unbounded_allocation() {
   allocation_lines |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error' |
-    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer17LunaTokenizerWork|46vectie8lunaflux9contracts9inference20LunaTokenBuffer(Write|Lease)|46vectie8lunaflux7service19incremental__output2[56]LunaIncrementalOutput(Work|Lease))E4Some\)' |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference20LunaTokenBuffer(Write|Lease)|46vectie8lunaflux7service19incremental__output2[56]LunaIncrementalOutput(Work|Lease))E4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0TP(46vectie8lunaflux7service18request__admission(19LunaPreparedRequest|24LunaPreparedRequestClaim)|46vectie8lunaflux9scheduler4core16TokenizedRequest)\)' |
     rg -q .
 }
@@ -79,6 +79,9 @@ for symbol in \
   'LunaRequestPreparationPool11start__lane(' \
   'LunaRequestPreparationPool8progress(' \
   'LunaRequestPreparationPool19progress__lane__one(' \
+  'LunaRequestPreparationPool22abort__lane__resources(' \
+  'LunaRequestPreparationPool10fail__lane(' \
+  'LunaRequestPreparationPool27progress__text__input__copy(' \
   'LunaRequestPreparationPool24progress__text__tokenize(' \
   'LunaRequestPreparationPool27progress__text__begin__copy(' \
   'LunaRequestPreparationPool20progress__text__copy(' \
@@ -87,14 +90,20 @@ for symbol in \
   'LunaRequestPreparationWork5state(' \
   'LunaRequestPreparationWork14take__prepared(' \
   'LunaPreparedRequestClaim7release(' \
-  'LunaTokenizerWorker12begin__bytes(' \
+  'LunaTokenizerWorker18begin__luna__input(' \
+  'LunaTokenizerInputWrite15require__worker(' \
+  'LunaTokenizerInputWrite10push__byte(' \
+  'LunaTokenizerInputWrite6finish(' \
+  'LunaTokenizerInputWrite5abort(' \
   'LunaTokenizerWork8progress(' \
+  'LunaTokenizerWork5abort(' \
   'LunaTokenizerWork16copy__tokens__to(' \
   'LunaTokenBufferStorage5begin(' \
   'LunaTokenBufferWrite4push(' \
   'LunaTokenBufferWrite4seal(' \
   'LunaIncrementalOutputWorkspace5begin(' \
   'LunaIncrementalOutputWork8progress(' \
+  'LunaIncrementalOutputWork5abort(' \
   'LunaIncrementalOutputWork11take__lease(' \
   'TokenizedRequest3new('; do
   body="$(extract_definition "$symbol")"
@@ -107,6 +116,36 @@ for symbol in \
     exit 1
   fi
 done
+
+# These immutable request projections can be inlined away in release C. Pin
+# their exact scalar/field form so the one-byte caller above cannot hide a
+# proportional conversion or fresh Bytes construction behind an out-of-line
+# accessor.
+if ! rg -q --pcre2 -U \
+    'pub fn GenerateRequest::input\(self : GenerateRequest\) -> Input \{\n  self\.input\n\}' \
+    contracts/inference/request.mbt ||
+  ! rg -q --pcre2 -U \
+    'pub fn TextInput::utf8_bytes\(self : TextInput\) -> Int \{\n  self\.utf8\.length\(\)\n\}' \
+    contracts/inference/input.mbt ||
+  ! rg -q --pcre2 -U \
+    'pub fn TextInput::utf8\(self : TextInput\) -> Bytes \{\n  self\.utf8\n\}' \
+    contracts/inference/input.mbt; then
+  printf '%s\n' \
+    'preparation-pool text source projections are no longer scalar retained-data reads' >&2
+  exit 1
+fi
+
+if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
+  ! rg -q --pcre2 -U \
+    'progress_text_input_copy(?s).*if lane\.copy_index < text\.utf8_bytes\(\)(?s).*write\.push_byte\(text\.utf8\(\)\[lane\.copy_index\]\)(?s).*lane\.copy_index \+= 1(?s).*return(?s).*write\.finish\(\)' \
+    service/request_admission/pool_progress.mbt ||
+  ! rg -q --pcre2 -U \
+    'SpecialTokenRejected\(token_id=_\) \|(?s).*OutputTooLong\(actual=_, maximum=_\)(?s).*lane\.tokenizer_work = None(?s).*raise Invalid\(Tokenization\)' \
+    service/request_admission/pool_progress.mbt; then
+  printf '%s\n' \
+    'preparation-pool text ingress is not exact one-byte work with terminal cleanup' >&2
+  exit 1
+fi
 
 if rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
     service/request_admission/pool*.mbt; then
