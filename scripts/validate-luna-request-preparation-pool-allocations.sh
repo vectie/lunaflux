@@ -45,6 +45,7 @@ contains_unbounded_allocation() {
   allocation_lines |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference20LunaTokenBuffer(Write|Lease)|46vectie8lunaflux7service19incremental__output2[56]LunaIncrementalOutput(Work|Lease))E4Some\)' |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGdE4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0TP(46vectie8lunaflux7service18request__admission(19LunaPreparedRequest|24LunaPreparedRequestClaim)|46vectie8lunaflux9scheduler4core16TokenizedRequest)\)' |
     rg -q .
 }
@@ -173,7 +174,7 @@ if rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
     service/request_admission/pool_progress.mbt \
     service/request_admission/pool_semantic_progress.mbt \
     service/request_admission/pool_work.mbt ||
-  [ "$(rg -c 'Array::new\(capacity=1\)' service/request_admission/pool.mbt)" != '3' ] ||
+  [ "$(rg -c 'Array::new\(capacity=1\)' service/request_admission/pool.mbt)" != '5' ] ||
   rg -n '(^|[^A-Za-z])Array::' service/request_admission/pool.mbt |
     rg -v 'Array::new\(capacity=1\)'; then
   printf '%s\n' \

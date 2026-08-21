@@ -221,9 +221,12 @@ publication history, plan predecessor, and worker remain live. Explicit
 instance drain is the only healthy worker-close path, while authenticated
 worker, protocol, or device failure remains close-only. The byte-BPE layer,
 canonical request-frame scanner, and request-preparation pool have reusable
-operation-budgeted Luna work. Object-form request materialization, trusted
-receipt-clock composition, adapter dispatch, and network transport remain
-above this aggregate, so no end-to-end reactor-safety claim is made. Child
+operation-budgeted Luna work. The pool captures trusted receipt time before
+byte one and imports a validated frame view directly into its preallocated
+token, semantic, and output owners without object-form request materialization.
+The object materializer remains a synchronous compatibility path; adapter
+dispatch and network transport remain above this aggregate, so no end-to-end
+network-reactor claim is made. Child
 ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects

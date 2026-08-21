@@ -65,6 +65,48 @@ const LUNA_PREPARATION_FAILED : Int = 20
 const LUNA_PREPARATION_CANCEL_REQUESTED : Int = 21
 
 ///|
+const LUNA_PREPARATION_FRAMED_RECEIVING : Int = 22
+
+///|
+const LUNA_PREPARATION_FRAMED_SCANNING : Int = 23
+
+///|
+const LUNA_PREPARATION_FRAMED_TAKE_VIEW : Int = 24
+
+///|
+const LUNA_PREPARATION_FRAMED_BIND_MODEL : Int = 25
+
+///|
+const LUNA_PREPARATION_FRAMED_BIND_SCALARS : Int = 26
+
+///|
+const LUNA_PREPARATION_FRAMED_INPUT_BEGIN : Int = 27
+
+///|
+const LUNA_PREPARATION_FRAMED_INPUT_COPY : Int = 28
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_BEGIN : Int = 29
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_TOKEN_COPY : Int = 30
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_STRING_HEADER : Int = 31
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_STRING_COPY : Int = 32
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_CACHE_COPY : Int = 33
+
+///|
+const LUNA_PREPARATION_FRAMED_SEMANTIC_FINISH : Int = 34
+
+///|
+const LUNA_PREPARATION_FRAMED_RELEASE_VIEW : Int = 35
+
+///|
 const LUNA_PREPARATION_MAX_STEP_WORK_UNITS : Int = 65536
 
 ///|
@@ -168,6 +210,7 @@ pub struct LunaRequestPreparationAdmission {
   priv lane : Int
   priv generation : UInt64
   priv disposition : Int
+  priv consumed : Int
 }
 
 ///|
@@ -184,12 +227,16 @@ priv struct LunaRequestPreparationLane {
   token_storage : @inference.LunaTokenBufferStorage
   semantic_storage : @inference.LunaRequestSemanticStorage
   output_workspace : @incremental_output.LunaIncrementalOutputWorkspace
+  framed_workspace : @framed_wire.LunaFramedRequestWorkspace
+  framed_work : Array[@framed_wire.LunaFramedRequestWork]
+  framed_view : Array[@framed_wire.LunaFramedRequestView]
   mut generation : UInt64
   mut phase : Int
   mut queued : Bool
   mut receipt_at_millis : UInt64
   mut request : @inference.GenerateRequest?
   mut deadline : @inference.AdmissionDeadline?
+  mut hard_deadline : @inference.AdmissionDeadline?
   mut effective : @inference.EffectiveLimits?
   mut input_capacity : Int
   mut tokenizer_input_write : @tokenizer.LunaTokenizerInputWrite?
@@ -209,6 +256,22 @@ priv struct LunaRequestPreparationLane {
   mut semantic_codepoint : Int
   mut semantic_codepoint_width : Int
   mut semantic_codepoint_byte_index : Int
+  mut framed_direct : Bool
+  mut framed_model_index : Int
+  mut framed_input_kind : Int
+  mut framed_input_count : Int
+  mut framed_stop_token_count : Int
+  mut framed_stop_string_count : Int
+  mut framed_cache_scope_length : Int
+  mut framed_request_id : UInt64
+  mut framed_sampling_mode : Int
+  mut framed_temperature : Double
+  mut framed_has_top_k : Bool
+  mut framed_top_k : Int
+  mut framed_has_top_p : Bool
+  mut framed_top_p : Double
+  mut framed_sampling_seed : UInt64
+  mut framed_streaming : Bool
   mut claim : LunaPreparedRequestClaim?
   mut failure : RequestAdmissionError?
   mut last_work_units : Int

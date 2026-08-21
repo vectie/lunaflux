@@ -46,6 +46,12 @@ from fixed-capacity workspace storage and become stale after `release` and
 workspace reuse. No accessor constructs `GenerateRequest`, `Input`, stop
 arrays, strings, digests, or optional scalar wrappers.
 
+`required_byte_cells` reports the exact canonical frame backing and
+`required_int_cells` reports the combined stop-string offset and length tables.
+Both use the same checked capacity calculation as workspace construction, so a
+later fixed-lane aggregate can authenticate total startup storage before any
+lane allocation.
+
 `RequestFrameBuffer::load` remains the allocating object-form compatibility
 surface. It synchronously drives that same scanner, proportionally
 materializes `GenerateRequest`, and publishes only after both operations

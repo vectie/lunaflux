@@ -28,6 +28,7 @@ fn fixture_preparation_pool(
     tokenizer.digest(),
     identity,
     inference,
+    @framed_wire.FramedWireLimits::new(inference, max_frame_bytes=4096),
     () => now.val,
     lane_count,
     LunaRequestPreparationStepBudget::new(step_work_units),

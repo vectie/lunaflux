@@ -46,6 +46,10 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     tokenizer.limits().max_output_tokens,
     inference.max_input_tokens(),
   )
+  let framed_limits = @framed_wire.FramedWireLimits::new(
+    inference,
+    max_frame_bytes=4096,
+  )
   let exact_int = @tokenizer.LunaTokenizerWorker::required_int_cells(
       input_capacity,
     ) +
@@ -54,6 +58,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     @incremental_output.LunaIncrementalOutputWorkspace::required_int_cells(
       inference,
     ).to_uint64() +
+    @framed_wire.LunaFramedRequestWorkspace::required_int_cells(framed_limits) +
     2UL
   let exact_byte = @tokenizer.LunaTokenizerWorker::required_byte_cells(
       input_capacity,
@@ -61,7 +66,8 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     @inference.LunaRequestSemanticStorage::required_byte_cells(inference) +
     @incremental_output.LunaIncrementalOutputWorkspace::required_byte_cells(
       inference,
-    ).to_uint64()
+    ).to_uint64() +
+    @framed_wire.LunaFramedRequestWorkspace::required_byte_cells(framed_limits)
   for missing_int in [true, false] {
     try
       new_pool_with_clock(
@@ -69,6 +75,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
         tokenizer.digest(),
         fixture_identity("0"),
         inference,
+        framed_limits,
         () => 11UL,
         1,
         LunaRequestPreparationStepBudget::new(1),
@@ -76,7 +83,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
         LunaRequestPreparationStorageBudget::new(
           int_cells=if missing_int { exact_int - 1UL } else { exact_int },
           byte_cells=if missing_int { exact_byte } else { exact_byte - 1UL },
-          reference_cells=5UL,
+          reference_cells=7UL,
         ),
       )
     catch {
@@ -91,6 +98,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     tokenizer.digest(),
     fixture_identity("0"),
     inference,
+    framed_limits,
     () => 11UL,
     1,
     LunaRequestPreparationStepBudget::new(1),
@@ -98,7 +106,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=exact_int,
       byte_cells=exact_byte,
-      reference_cells=5UL,
+      reference_cells=7UL,
     ),
   )
   assert_eq(exact.free_lane_count(), 1)

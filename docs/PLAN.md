@@ -313,11 +313,12 @@ authority. A central FIFO quantum owner advances retained UTF-8 byte BPE,
 bounded token copying, and incremental-output setup; each preallocated lane
 remains leased through scheduler retirement and explicit claim release. The
 persistent online instance consumes only that claim and owns no tokenizer or
-pool state. The synchronous compatibility facade remains, and proportional
-object-form request materialization and trusted receipt-clock composition are
-still outside the cooperative boundary; canonical raw-frame scanning and
-validation now use reusable operation-budgeted Luna work.
-It deliberately adds no socket, async task, framed-ingress package, or server.
+pool state. The synchronous object-form compatibility facade remains. The live
+fixed-lane pool captures trusted receipt time before byte one, drives canonical
+raw-frame scanning, and imports the validated scalar/byte view into its token,
+semantic, and output owners under the same work ceiling without constructing a
+`GenerateRequest`. It deliberately adds no socket, async task, listener, or
+server; network dispatch and partial-write response ownership remain open.
 
 ### Workstream 4: worker overlap
 

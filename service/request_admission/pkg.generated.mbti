@@ -56,6 +56,7 @@ pub fn LunaPreparedRequestClaim::scheduler_request(Self) -> @core.TokenizedReque
 pub struct LunaRequestPreparationAdmission {
   // private fields
 }
+pub fn LunaRequestPreparationAdmission::consumed_bytes(Self) -> Int
 pub fn LunaRequestPreparationAdmission::kind(Self) -> LunaRequestPreparationAdmissionKind
 pub fn LunaRequestPreparationAdmission::work(Self) -> LunaRequestPreparationWork raise RequestAdmissionError
 
@@ -72,8 +73,9 @@ pub fn LunaRequestPreparationPool::begin_drain(Self) -> Unit
 pub fn LunaRequestPreparationPool::free_lane_count(Self) -> Int
 pub fn LunaRequestPreparationPool::is_drained(Self) -> Bool
 pub fn LunaRequestPreparationPool::lane_count(Self) -> Int
-pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, framed_limits~ : @framed_wire.FramedWireLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget) -> Self raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::progress(Self) -> LunaRequestPreparationPoolProgress
+pub fn LunaRequestPreparationPool::try_begin_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaRequestPreparationAdmission raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::try_submit(Self, ReceivedRequest) -> LunaRequestPreparationAdmission raise RequestAdmissionError
 
 pub(all) enum LunaRequestPreparationPoolProgress {
@@ -99,6 +101,7 @@ pub fn LunaRequestPreparationWork::cancel(Self) -> Unit raise RequestAdmissionEr
 pub fn LunaRequestPreparationWork::discard(Self) -> Unit raise RequestAdmissionError
 pub fn LunaRequestPreparationWork::failure(Self) -> RequestAdmissionError raise RequestAdmissionError
 pub fn LunaRequestPreparationWork::last_work_units(Self) -> Int raise RequestAdmissionError
+pub fn LunaRequestPreparationWork::offer_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Int raise RequestAdmissionError
 pub fn LunaRequestPreparationWork::state(Self) -> LunaRequestPreparationWorkState raise RequestAdmissionError
 pub fn LunaRequestPreparationWork::take_prepared(Self) -> LunaPreparedRequest raise RequestAdmissionError
 pub fn LunaRequestPreparationWork::total_work_units(Self) -> UInt64 raise RequestAdmissionError

@@ -175,6 +175,10 @@ fn prepare_foundation_pool(
     expected_tokenizer=tokenizer.digest(),
     expected_model=identity(),
     inference=inference_limits(),
+    framed_limits=@framed_wire.FramedWireLimits::new(
+      inference_limits(),
+      max_frame_bytes=4096,
+    ),
     clock=@monotonic_clock.MonotonicClock::system(),
     lane_count~,
     step_budget=@request_admission.LunaRequestPreparationStepBudget::new(17),

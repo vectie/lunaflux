@@ -161,6 +161,8 @@ pub struct LunaFramedRequestWorkspace {
 }
 pub fn LunaFramedRequestWorkspace::begin(Self) -> LunaFramedRequestWork raise FramedWireError
 pub fn LunaFramedRequestWorkspace::new(FramedWireLimits, LunaFramedRequestStepBudget) -> Self
+pub fn LunaFramedRequestWorkspace::required_byte_cells(FramedWireLimits) -> UInt64 raise FramedWireError
+pub fn LunaFramedRequestWorkspace::required_int_cells(FramedWireLimits) -> UInt64 raise FramedWireError
 
 pub struct RequestFrameBuffer {
   // private fields

@@ -88,7 +88,7 @@ pub fn LunaRequestPreparationWork::take_prepared(
   }
   validate_pool_time(
     lane.receipt_at_millis,
-    lane.require_deadline(),
+    lane.require_current_deadline(),
     (self.pool.clock_read)(),
   ) catch {
     error => {
@@ -102,4 +102,33 @@ pub fn LunaRequestPreparationWork::take_prepared(
   }
   lane.phase = LUNA_PREPARATION_PREPARED
   { claim: Some(claim) }
+}
+
+///|
+pub fn LunaRequestPreparationAdmission::kind(
+  self : LunaRequestPreparationAdmission,
+) -> LunaRequestPreparationAdmissionKind {
+  match self.disposition {
+    0 => LunaRequestPreparationAdmitted
+    1 => LunaRequestPreparationSaturated
+    2 => LunaRequestPreparationDraining
+    _ => abort("Luna preparation admission invariant")
+  }
+}
+
+///|
+pub fn LunaRequestPreparationAdmission::consumed_bytes(
+  self : LunaRequestPreparationAdmission,
+) -> Int {
+  self.consumed
+}
+
+///|
+pub fn LunaRequestPreparationAdmission::work(
+  self : LunaRequestPreparationAdmission,
+) -> LunaRequestPreparationWork raise RequestAdmissionError {
+  if self.disposition != 0 || self.lane < 0 || self.generation == 0UL {
+    raise Invalid(LunaPreparedLifecycle)
+  }
+  { pool: self.pool, lane: self.lane, generation: self.generation }
 }

@@ -1,10 +1,65 @@
 ///|
+fn luna_framed_request_checked_multiply_cells(
+  left : UInt64,
+  right : UInt64,
+) -> UInt64 raise FramedWireError {
+  if right != 0UL && left > 0xffffffffffffffffUL / right {
+    raise InvalidLimit(FrameBytes)
+  }
+  left * right
+}
+
+///|
+fn luna_framed_request_workspace_requirements(
+  limits : FramedWireLimits,
+) -> (Int, Int, UInt64, UInt64) raise FramedWireError {
+  let byte_capacity = limits.max_frame_bytes()
+  if byte_capacity < REQUEST_HEADER_BYTES ||
+    byte_capacity > ABSOLUTE_MAX_FRAME_BYTES {
+    raise InvalidLimit(FrameBytes)
+  }
+  let stop_capacity = limits.inference_limits().max_stop_strings()
+  if stop_capacity <= 0 {
+    raise InvalidLimit(FrameBytes)
+  }
+  let byte_cells = byte_capacity.to_uint64()
+  let int_cells = luna_framed_request_checked_multiply_cells(
+    stop_capacity.to_uint64(),
+    2UL,
+  )
+  (byte_capacity, stop_capacity, byte_cells, int_cells)
+}
+
+///|
+/// Exact fixed integer cells used by the stop-string offset and length tables.
+pub fn LunaFramedRequestWorkspace::required_int_cells(
+  limits : FramedWireLimits,
+) -> UInt64 raise FramedWireError {
+  let (_, _, _, int_cells) = luna_framed_request_workspace_requirements(limits)
+  int_cells
+}
+
+///|
+/// Exact fixed byte cells used by the canonical request-frame backing.
+pub fn LunaFramedRequestWorkspace::required_byte_cells(
+  limits : FramedWireLimits,
+) -> UInt64 raise FramedWireError {
+  let (_, _, byte_cells, _) = luna_framed_request_workspace_requirements(limits)
+  byte_cells
+}
+
+///|
 fn new_luna_framed_request_workspace(
   limits : FramedWireLimits,
   budget : LunaFramedRequestStepBudget,
   storage : FixedArray[Byte],
 ) -> LunaFramedRequestWorkspace {
-  let stop_capacity = limits.inference_limits().max_stop_strings()
+  let (byte_capacity, stop_capacity, _, _) = try! luna_framed_request_workspace_requirements(
+    limits,
+  )
+  if storage.length() != byte_capacity {
+    abort("Luna framed request storage-capacity invariant")
+  }
   {
     limits,
     budget,
@@ -46,10 +101,13 @@ pub fn LunaFramedRequestWorkspace::new(
   limits : FramedWireLimits,
   budget : LunaFramedRequestStepBudget,
 ) -> LunaFramedRequestWorkspace {
+  let (byte_capacity, _, _, _) = try! luna_framed_request_workspace_requirements(
+    limits,
+  )
   new_luna_framed_request_workspace(
     limits,
     budget,
-    FixedArray::make(limits.max_frame_bytes(), b'\x00'),
+    FixedArray::make(byte_capacity, b'\x00'),
   )
 }
 

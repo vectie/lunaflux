@@ -26,9 +26,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   drives input copy, tokenization, token transfer, and incremental-output setup
   from one central FIFO quantum owner. Terminal tokenizer errors clean their
   already-stale work alias before the pool releases remaining lane authority.
-  Canonical raw-frame scanning and validation are also cooperative;
-  object-form request materialization, direct framed-view integration, trusted
-  receipt-clock composition, and network ingress remain open.
+  Canonical raw-frame scanning and direct preparation now share that FIFO work
+  owner: the first accepted byte captures one receipt clock, frame/scalar/input
+  and semantic work stays budgeted in fixed lane storage, and the private
+  framed View is released before Ready. Object-form materialization remains a
+  compatibility path; concrete network ingress remains open.
 - A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
   with duplicate-key rejection and explicit rejection of unsupported tokenizer
   semantics.
@@ -300,9 +302,12 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   claimed results intentionally pin their lane until the outer owner disposes
   of the capability. The legacy facade performs the same semantic-storage and
   View-based output contract synchronously, including blocking tokenization and
-  semantic validation; it is not a reactor quantum. Canonical-frame scanning
-  and validation is cooperative, while direct framed-view preparation and
-  network ingress orchestration remain open.
+  semantic validation; it is not a reactor quantum. Direct framed preparation
+  now consumes the scanner View without constructing a `GenerateRequest`: it
+  enforces the hard pre-frame and exact request deadlines, compares the selected
+  model digests bytewise before input mutation, and accounts receipt bytes plus
+  scanner/import work under the same lane ceiling. Network ingress orchestration
+  remains open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

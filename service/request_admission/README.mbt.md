@@ -20,10 +20,12 @@ retained deadline without rebasing it.
 
 The live cooperative path is `LunaRequestPreparationPool`. It allocates a hard
 maximum of 1024 fixed lanes at startup, after checked aggregate `Int`, `Byte`,
-and reference-cell accounting. Every lane permanently owns one Luna tokenizer
-worker, token buffer storage, request-semantic storage, and incremental-output
-workspace. The byte budget includes tokenizer input, semantic stop/cache, and
-output matcher/decode backing for every lane. `try_submit`
+and reference-cell accounting. Every lane permanently owns one Luna framed
+scanner workspace, tokenizer worker, token buffer storage, request-semantic
+storage, and incremental-output workspace. The mandatory `framed_limits`
+binding must carry the exact pool inference limits. Scanner frame bytes and
+stop-table integer cells, plus its preallocated Work/View authority slots, are
+included in the pool envelope. `try_submit`
 returns Saturated or Draining without consuming its `ReceivedRequest`; an
 admitted request is pinned to its lane and exact generation until explicit
 discard or claim release. Once a free lane is selected, `try_submit` consumes
@@ -33,15 +35,33 @@ receipt capability.
 
 Only the pool advances work. Its fixed active ring grants one FIFO lane a
 configured quantum per `progress` call. One charged preparation unit is one
-input-byte copy into the fixed tokenizer backing, one tokenizer state-machine
-unit, one token scalar read/write, one semantic token/UTF-8/cache import or
-validation unit, one incremental-output setup unit, or one constant-size
-assembly transition. Work is checked against both a per-call
+received frame byte, one framed validation unit, one model-digest byte
+comparison, one input-byte copy into the fixed tokenizer backing, one tokenizer
+state-machine unit, one token scalar read/write, one semantic
+token/UTF-8/cache import or validation unit, one incremental-output setup unit,
+or one constant-size assembly transition. Work is checked against both a per-call
 quantum and an exact total-work ceiling. The monotonic deadline is checked
 before each lane quantum, immediately before Ready publication, and again
 before Prepared and Claimed transfer. Cancellation is observed by the central
 owner; Ready and Failed results remain pinned rather than being silently
 evicted.
+
+`try_begin_luna_framed` is the direct transport-neutral path. Saturated and
+Draining dispositions consume zero bytes and sample no clock. An admitted
+nonempty range captures its receipt timestamp before byte one, reports the
+exact consumed prefix through `consumed_bytes`, and exposes further bounded
+offers only on the same generation-authenticated preparation Work. Incomplete
+receipts use the overflow-checked hard deadline `receipt +
+inference.max_deadline_millis`; once the validated View exposes the client
+budget, its exact deadline is derived from that same original receipt and is
+never rebased. Incomplete
+receipts remain in the FIFO ring at zero charged work so deadlines,
+cancellation, and drain remain observable. Drain promptly retires incomplete
+receipts; a fully received scanner or later import may finish. The validated
+framed View stays private to its lane while expected content and plan digests
+are compared bytewise, then while text/token input and stop/cache semantics are
+copied into their fixed owners. It is released before tokenization or semantic
+validation continues.
 
 Ready assembly may allocate only constant-size scheduler, prepared, and claim
 records. Text bytes remain canonical and immutable while BPE and token copying
@@ -74,11 +94,13 @@ The legacy `prepare_luna_request` facade remains synchronous for compatibility,
 but drives the same semantic validation, output setup, and claim engine. Its
 exact-shape Luna output factory preserves small-request memory behavior. It is
 not the reactor-safe production path. The package does not
-own a scheduler, request handle, socket, or async task. Object-form frame
-materialization and direct framed-View preparation composition remain open.
-Therefore end-to-end
-reactor-safe ingress is not yet claimed even though Luna preparation itself is
-fixed-lane and cooperatively bounded. `service/online_session` claims the Luna
+own a scheduler, request handle, socket, or async task. The legacy object-form
+frame materialization path remains only for compatibility; the direct Luna
+framed path does not construct `GenerateRequest`, `Input`, `TextInput`,
+`StopConditions`, `CachePolicy`, or a standalone token buffer. A concrete
+socket/listener coordinator remains open, so end-to-end network ingress is not
+yet claimed even though receipt, scanning, and Luna preparation are fixed-lane
+and cooperatively bounded. `service/online_session` claims the Luna
 owner, authenticates its scheduler handle and publication sequence, and must
 release the claim on every rejected-admission or terminal path.
 

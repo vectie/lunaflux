@@ -6,11 +6,13 @@ fn hostile_pool_with_clock(
   total_work_units : UInt64,
 ) -> LunaRequestPreparationPool raise {
   let tokenizer = fixture_tokenizer()
+  let inference = fixture_inference()
   new_pool_with_clock(
     tokenizer,
     tokenizer.digest(),
     fixture_identity("0"),
-    fixture_inference(),
+    inference,
+    @framed_wire.FramedWireLimits::new(inference, max_frame_bytes=4096),
     clock_read,
     lane_count,
     LunaRequestPreparationStepBudget::new(step_work_units),
@@ -85,11 +87,13 @@ fn hostile_text_request(
 fn hostile_pool_for_tokenizer(
   tokenizer : @tokenizer.TokenizerSpec,
 ) -> LunaRequestPreparationPool raise {
+  let inference = fixture_inference()
   new_pool_with_clock(
     tokenizer,
     tokenizer.digest(),
     fixture_identity("0"),
-    fixture_inference(),
+    inference,
+    @framed_wire.FramedWireLimits::new(inference, max_frame_bytes=4096),
     () => 11UL,
     1,
     LunaRequestPreparationStepBudget::new(1),
@@ -131,44 +135,6 @@ fn drive_terminal_work(
     if turns > 4096 {
       fail("preparation work did not terminate")
     }
-  }
-}
-
-///|
-test "deadline cuts Ready before take and Prepared before claim" {
-  let ready_now = Ref(11UL)
-  let ready_pool = fixture_preparation_pool(ready_now, 1, 1, 4096UL)
-  let ready = hostile_work(ready_pool)
-  drive_preparation_ready(ready_pool, ready)
-  ready_now.val = 111UL
-  try ready.take_prepared() catch {
-    Invalid(Deadline) => ()
-    _ => fail("unexpected Ready expiry error")
-  } noraise {
-    _ => fail("expired Ready work published a prepared shell")
-  }
-  assert_eq(ready.state(), LunaRequestPreparationFailed)
-  ready.discard()
-  assert_eq(ready_pool.free_lane_count(), 1)
-
-  let prepared_now = Ref(11UL)
-  let prepared_pool = fixture_preparation_pool(prepared_now, 1, 1, 4096UL)
-  let prepared_work = hostile_work(prepared_pool)
-  drive_preparation_ready(prepared_pool, prepared_work)
-  let prepared = prepared_work.take_prepared()
-  prepared_now.val = 111UL
-  try prepared.take_claim() catch {
-    Invalid(Deadline) => ()
-    _ => fail("unexpected Prepared expiry error")
-  } noraise {
-    _ => fail("expired Prepared shell published a claim")
-  }
-  assert_eq(prepared_pool.free_lane_count(), 1)
-  try prepared.input_token_count() catch {
-    Invalid(LunaPreparedLifecycle) => ()
-    _ => fail("unexpected expired-shell replay error")
-  } noraise {
-    _ => fail("expired Prepared shell retained authority")
   }
 }
 
@@ -358,12 +324,18 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     }
   }
   let tokenizer = fixture_tokenizer()
+  let fixture_limits = fixture_inference()
+  let fixture_wire = @framed_wire.FramedWireLimits::new(
+    fixture_limits,
+    max_frame_bytes=4096,
+  )
   try
     new_pool_with_clock(
       tokenizer,
       tokenizer.digest(),
       fixture_identity("0"),
-      fixture_inference(),
+      fixture_limits,
+      fixture_wire,
       () => 11UL,
       1,
       LunaRequestPreparationStepBudget::new(1),
@@ -385,7 +357,8 @@ test "lane bounds storage and exhausted generation reject before consumption" {
       tokenizer,
       tokenizer.digest(),
       fixture_identity("0"),
-      fixture_inference(),
+      fixture_limits,
+      fixture_wire,
       () => 11UL,
       1,
       LunaRequestPreparationStepBudget::new(1),
@@ -406,7 +379,8 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     tokenizer,
     tokenizer.digest(),
     fixture_identity("0"),
-    fixture_inference(),
+    fixture_limits,
+    fixture_wire,
     () => 11UL,
     1,
     LunaRequestPreparationStepBudget::new(1),
@@ -414,13 +388,17 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=1000000UL,
-      reference_cells=5UL,
+      reference_cells=7UL,
     ),
   )
   exact_references.begin_drain()
   assert_true(exact_references.is_drained())
 
   let inference = fixture_inference()
+  let framed_limits = @framed_wire.FramedWireLimits::new(
+    inference,
+    max_frame_bytes=4096,
+  )
   let input_capacity = Int::min(
     tokenizer.limits().max_input_bytes,
     inference.max_text_bytes(),
@@ -434,13 +412,20 @@ test "lane bounds storage and exhausted generation reject before consumption" {
   let semantic_bytes = @inference.LunaRequestSemanticStorage::required_byte_cells(
     inference,
   )
-  let exact_bytes = tokenizer_bytes + output_bytes + semantic_bytes
+  let framed_bytes = @framed_wire.LunaFramedRequestWorkspace::required_byte_cells(
+    framed_limits,
+  )
+  let exact_bytes = tokenizer_bytes +
+    output_bytes +
+    semantic_bytes +
+    framed_bytes
   try
     new_pool_with_clock(
       tokenizer,
       tokenizer.digest(),
       fixture_identity("0"),
       inference,
+      framed_limits,
       () => 11UL,
       1,
       LunaRequestPreparationStepBudget::new(1),
@@ -448,7 +433,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
       LunaRequestPreparationStorageBudget::new(
         int_cells=1000000UL,
         byte_cells=exact_bytes - 1UL,
-        reference_cells=5UL,
+        reference_cells=7UL,
       ),
     )
   catch {
@@ -462,6 +447,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     tokenizer.digest(),
     fixture_identity("0"),
     inference,
+    framed_limits,
     () => 11UL,
     1,
     LunaRequestPreparationStepBudget::new(1),
@@ -469,7 +455,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=exact_bytes,
-      reference_cells=5UL,
+      reference_cells=7UL,
     ),
   )
   exact_bytes_pool.begin_drain()

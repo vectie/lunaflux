@@ -149,11 +149,13 @@ output setup through a central FIFO quantum, and transfers an exact-generation
 claim whose token and output storage remains leased until scheduler retirement.
 Saturation and draining do not consume the receipt; deadline, cancellation,
 work-ceiling, stale-generation, and explicit lane-return paths fail closed.
-The legacy preparation facade remains synchronous. Canonical request-frame
-receipt/scanning/validation now has a reusable operation-budgeted Luna
-workspace, while object-form `GenerateRequest` materialization and composition
-with the trusted receipt clock remain synchronous and proportional. No async
-listener or end-to-end reactor-safe ingress is claimed.
+The legacy object-form preparation facade remains synchronous. The live Luna
+pool can instead capture receipt time before byte one, scan canonical request
+frames, bind model identity, and import input/stop/cache data directly into its
+fixed lane through one operation budget, without materializing a
+`GenerateRequest`. Object-form materialization remains a proportional
+compatibility path. No async listener or end-to-end network-ingress claim is
+made yet.
 Worker-protocol foundations include reusable
 fixed-capacity plan and completion buffers, authenticated epochs and row
 drafts, provenance-bound capability recipes, whole-build checkpoints, and

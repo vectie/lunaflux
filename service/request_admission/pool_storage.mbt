@@ -24,6 +24,7 @@ fn checked_multiply_cells(
 fn validate_pool_storage(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
   lane_count : Int,
   budget : LunaRequestPreparationStorageBudget,
 ) -> (Int, Int) raise RequestAdmissionError {
@@ -63,12 +64,17 @@ fn validate_pool_storage(
   ) catch {
     _ => raise Invalid(LunaPreparationStorage)
   }).to_uint64()
+  let framed_int_cells = @framed_wire.LunaFramedRequestWorkspace::required_int_cells(
+    framed_limits,
+  ) catch {
+    _ => raise Invalid(LunaPreparationStorage)
+  }
   let per_lane_int = checked_add_cells(
     checked_add_cells(
       checked_add_cells(tokenizer_int_cells, token_cells),
       semantic_int_cells,
     ),
-    output_int_cells,
+    checked_add_cells(output_int_cells, framed_int_cells),
   )
   let output_byte_cells = (@incremental_output.LunaIncrementalOutputWorkspace::required_byte_cells(
     inference,
@@ -80,9 +86,17 @@ fn validate_pool_storage(
   ) catch {
     _ => raise Invalid(LunaPreparationStorage)
   }
+  let framed_byte_cells = @framed_wire.LunaFramedRequestWorkspace::required_byte_cells(
+    framed_limits,
+  ) catch {
+    _ => raise Invalid(LunaPreparationStorage)
+  }
   let per_lane_byte = checked_add_cells(
-    checked_add_cells(tokenizer_byte_cells, output_byte_cells),
-    semantic_byte_cells,
+    checked_add_cells(
+      checked_add_cells(tokenizer_byte_cells, output_byte_cells),
+      semantic_byte_cells,
+    ),
+    framed_byte_cells,
   )
   let output_reference_cells = (@incremental_output.LunaIncrementalOutputWorkspace::required_reference_cells(
     inference,
@@ -96,7 +110,7 @@ fn validate_pool_storage(
   )
   let total_byte = checked_multiply_cells(per_lane_byte, lanes)
   let total_references = checked_multiply_cells(
-    checked_add_cells(4UL, output_reference_cells),
+    checked_add_cells(6UL, output_reference_cells),
     lanes,
   )
   if total_int > budget.int_cells ||

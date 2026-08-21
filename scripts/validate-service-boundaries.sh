@@ -158,6 +158,10 @@ if [ -d service/framed_wire ]; then
         service/framed_wire/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaFramedRequestWorkspace::new\(FramedWireLimits, LunaFramedRequestStepBudget\) -> Self$' \
         service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedRequestWorkspace::required_byte_cells\(FramedWireLimits\) -> UInt64 raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedRequestWorkspace::required_int_cells\(FramedWireLimits\) -> UInt64 raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaFramedRequestWorkspace::begin\(Self\) -> LunaFramedRequestWork raise FramedWireError$' \
         service/framed_wire/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaFramedRequestWork::offer\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> Int raise FramedWireError$' \
@@ -174,7 +178,7 @@ if [ -d service/framed_wire ]; then
     if [ "$(rg -c '^pub fn LunaFramedRequestStepBudget::' \
         service/framed_wire/pkg.generated.mbti)" != '2' ] ||
       [ "$(rg -c '^pub fn LunaFramedRequestWorkspace::' \
-        service/framed_wire/pkg.generated.mbti)" != '2' ] ||
+        service/framed_wire/pkg.generated.mbti)" != '4' ] ||
       [ "$(rg -c '^pub fn LunaFramedRequestWork::' \
         service/framed_wire/pkg.generated.mbti)" != '8' ] ||
       [ "$(rg -c '^pub fn LunaFramedRequestView::' \
@@ -453,7 +457,13 @@ if [ -d service/request_admission ]; then
   fail_matches \
     'Luna preparation pool acquired async/socket/process/device authority:' \
     --glob 'service/request_admission/pool*.mbt' \
-    'moonbitlang/async|async fn|socket|listener|worker_(process|service)|device_|approved_fs|framed_wire'
+    'moonbitlang/async|async fn|socket|listener|worker_(process|service)|device_|approved_fs'
+  fail_matches \
+    'direct framed preparation reintroduced object materialization:' \
+    'GenerateRequest::new|Input::(from_utf8|from_token_ids)|TextInput::|StopConditions::new|CachePolicy::new|materialize_luna|@utf8\.encode|Bytes::make|Map::|HashMap' \
+    service/request_admission/luna_framed_receipt.mbt \
+    service/request_admission/pool_framed_progress.mbt \
+    service/request_admission/pool_output_progress.mbt
   if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
     ! rg -F -q 'begin_luna_input(' service/request_admission/pool.mbt ||
     ! rg -q 'const LUNA_PREPARATION_TEXT_INPUT_COPY' \
@@ -464,7 +474,7 @@ if [ -d service/request_admission ]; then
     ! rg -q 'LunaTokenizerWorker::required_byte_cells' \
       service/request_admission/pool_storage.mbt ||
     ! rg -q --pcre2 -U \
-      'let per_lane_byte = checked_add_cells\(\s*checked_add_cells\(tokenizer_byte_cells, output_byte_cells\),\s*semantic_byte_cells,?\s*\)' \
+      'let per_lane_byte = checked_add_cells\(\s*checked_add_cells\(\s*checked_add_cells\(tokenizer_byte_cells, output_byte_cells\),\s*semantic_byte_cells,?\s*\),\s*framed_byte_cells,?\s*\)' \
       service/request_admission/pool_storage.mbt; then
     printf '%s\n' \
       'Luna preparation pool lost bounded tokenizer input or exact byte accounting' >&2
@@ -584,12 +594,29 @@ if [ -d service/request_admission ]; then
       failed=1
     fi
     if ! rg -q '^pub fn LunaRequestPreparationPool::try_submit\(Self, ReceivedRequest\) -> LunaRequestPreparationAdmission raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaRequestPreparationPool::try_begin_luna_framed\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> LunaRequestPreparationAdmission raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationPool::progress\(Self\) -> LunaRequestPreparationPoolProgress$' service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaRequestPreparationAdmission::consumed_bytes\(Self\) -> Int$' service/request_admission/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaRequestPreparationWork::offer_luna_framed\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::take_prepared\(Self\) -> LunaPreparedRequest raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::last_work_units\(Self\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
       ! rg -q '^pub fn LunaRequestPreparationWork::total_work_units\(Self\) -> UInt64 raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
         'Luna preparation pool submit/progress/take evidence surface drifted' >&2
+      failed=1
+    fi
+    if rg -n \
+        '^pub fn .*(@framed_wire\.LunaFramedRequest(Workspace|Work|View)|RequestReceipt|@inference\.AdmissionDeadline)' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'direct framed preparation leaked scanner, receipt, or deadline authority' >&2
+      failed=1
+    fi
+    if rg -n \
+        '^pub (struct|enum) (Luna.*Framed.*(Receipt|Admission)|RequestReceipt)' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'direct framed preparation introduced a parallel receipt/admission authority' >&2
       failed=1
     fi
     if ! rg -q \

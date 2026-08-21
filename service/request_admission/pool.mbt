@@ -2,6 +2,7 @@
 fn new_preparation_lane(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
   input_capacity : Int,
   output_capacity : Int,
 ) -> LunaRequestPreparationLane raise RequestAdmissionError {
@@ -13,6 +14,12 @@ fn new_preparation_lane(
   ) catch {
     _ => raise Invalid(LunaPreparationPool)
   }
+  let framed_workspace = @framed_wire.LunaFramedRequestWorkspace::new(
+    framed_limits,
+    @framed_wire.LunaFramedRequestStepBudget::new(1) catch {
+      _ => raise Invalid(LunaPreparationPool)
+    },
+  )
   {
     tokenizer: @tokenizer.LunaTokenizerWorker::new(
       tokenizer,
@@ -41,12 +48,16 @@ fn new_preparation_lane(
     ) catch {
       _ => raise Invalid(OutputContract)
     },
+    framed_workspace,
+    framed_work: Array::new(capacity=1),
+    framed_view: Array::new(capacity=1),
     generation: 0UL,
     phase: LUNA_PREPARATION_IDLE,
     queued: false,
     receipt_at_millis: 0UL,
     request: None,
     deadline: None,
+    hard_deadline: None,
     effective: None,
     input_capacity: 0,
     tokenizer_input_write: None,
@@ -66,6 +77,22 @@ fn new_preparation_lane(
     semantic_codepoint: 0,
     semantic_codepoint_width: 0,
     semantic_codepoint_byte_index: 0,
+    framed_direct: false,
+    framed_model_index: 0,
+    framed_input_kind: 0,
+    framed_input_count: 0,
+    framed_stop_token_count: 0,
+    framed_stop_string_count: 0,
+    framed_cache_scope_length: 0,
+    framed_request_id: 0UL,
+    framed_sampling_mode: 0,
+    framed_temperature: 1.0,
+    framed_has_top_k: false,
+    framed_top_k: 0,
+    framed_has_top_p: false,
+    framed_top_p: 0.0,
+    framed_sampling_seed: 0UL,
+    framed_streaming: false,
     claim: None,
     failure: None,
     last_work_units: 0,
@@ -79,20 +106,26 @@ fn new_pool_with_clock(
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
   clock_read : () -> UInt64 raise RequestAdmissionError,
   lane_count : Int,
   step_budget : LunaRequestPreparationStepBudget,
   work_limit : LunaRequestPreparationWorkLimit,
   storage_budget : LunaRequestPreparationStorageBudget,
 ) -> LunaRequestPreparationPool raise RequestAdmissionError {
+  if framed_limits.inference_limits() != inference {
+    raise Invalid(RequestContract)
+  }
   if tokenizer.digest() != expected_tokenizer {
     raise Invalid(TokenizerIdentity)
   }
   let (input_capacity, output_capacity) = validate_pool_storage(
-    tokenizer, inference, lane_count, storage_budget,
+    tokenizer, inference, framed_limits, lane_count, storage_budget,
   )
   let lanes = FixedArray::makei(lane_count, _ => {
-    new_preparation_lane(tokenizer, inference, input_capacity, output_capacity)
+    new_preparation_lane(
+      tokenizer, inference, framed_limits, input_capacity, output_capacity,
+    )
   })
   {
     tokenizer,
@@ -119,6 +152,7 @@ pub fn LunaRequestPreparationPool::new(
   expected_tokenizer~ : @tokenizer.TokenizerDigest,
   expected_model~ : @spec.ModelIdentity,
   inference~ : @inference.InferenceLimits,
+  framed_limits~ : @framed_wire.FramedWireLimits,
   clock~ : @monotonic_clock.MonotonicClock,
   lane_count~ : Int,
   step_budget~ : LunaRequestPreparationStepBudget,
@@ -130,6 +164,7 @@ pub fn LunaRequestPreparationPool::new(
     expected_tokenizer,
     expected_model,
     inference,
+    framed_limits,
     () => clock.now_millis() catch { _ => raise ClockUnavailable },
     lane_count,
     step_budget,
@@ -230,6 +265,7 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.phase = LUNA_PREPARATION_IDLE
   lane.request = None
   lane.deadline = None
+  lane.hard_deadline = None
   lane.effective = None
   lane.tokenizer_input_write = None
   lane.tokenizer_work = None
@@ -238,6 +274,8 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.semantic_write.clear()
   lane.semantic_work.clear()
   lane.semantic_lease.clear()
+  lane.framed_work.clear()
+  lane.framed_view.clear()
   lane.output_work = None
   lane.output_lease = None
   lane.tokens = None
@@ -250,6 +288,22 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.semantic_codepoint = 0
   lane.semantic_codepoint_width = 0
   lane.semantic_codepoint_byte_index = 0
+  lane.framed_direct = false
+  lane.framed_model_index = 0
+  lane.framed_input_kind = 0
+  lane.framed_input_count = 0
+  lane.framed_stop_token_count = 0
+  lane.framed_stop_string_count = 0
+  lane.framed_cache_scope_length = 0
+  lane.framed_request_id = 0UL
+  lane.framed_sampling_mode = 0
+  lane.framed_temperature = 1.0
+  lane.framed_has_top_k = false
+  lane.framed_top_k = 0
+  lane.framed_has_top_p = false
+  lane.framed_top_p = 0.0
+  lane.framed_sampling_seed = 0UL
+  lane.framed_streaming = false
   lane.last_work_units = 0
   lane.total_work_units = 0UL
   self.push_free_lane(lane_index)
@@ -359,11 +413,13 @@ fn preparation_admission(
   kind : LunaRequestPreparationAdmissionKind,
   lane : Int,
   generation : UInt64,
+  consumed : Int,
 ) -> LunaRequestPreparationAdmission {
   {
     pool,
     lane,
     generation,
+    consumed,
     disposition: match kind {
       LunaRequestPreparationAdmitted => 0
       LunaRequestPreparationSaturated => 1
@@ -378,10 +434,22 @@ pub fn LunaRequestPreparationPool::try_submit(
   received : ReceivedRequest,
 ) -> LunaRequestPreparationAdmission raise RequestAdmissionError {
   if self.draining {
-    return preparation_admission(self, LunaRequestPreparationDraining, -1, 0UL)
+    return preparation_admission(
+      self,
+      LunaRequestPreparationDraining,
+      -1,
+      0UL,
+      0,
+    )
   }
   if self.free_count == 0 {
-    return preparation_admission(self, LunaRequestPreparationSaturated, -1, 0UL)
+    return preparation_admission(
+      self,
+      LunaRequestPreparationSaturated,
+      -1,
+      0UL,
+      0,
+    )
   }
   if received.consumed {
     raise Invalid(FrameContract)
@@ -389,7 +457,13 @@ pub fn LunaRequestPreparationPool::try_submit(
   let next_lane = self.free_ring[self.free_head]
   if self.lanes[next_lane].generation == 0xffffffffffffffffUL {
     self.draining = true
-    return preparation_admission(self, LunaRequestPreparationDraining, -1, 0UL)
+    return preparation_admission(
+      self,
+      LunaRequestPreparationDraining,
+      -1,
+      0UL,
+      0,
+    )
   }
   let lane_index = self.pop_free_lane()
   received.consumed = true
@@ -408,27 +482,6 @@ pub fn LunaRequestPreparationPool::try_submit(
     LunaRequestPreparationAdmitted,
     lane_index,
     self.lanes[lane_index].generation,
+    0,
   )
-}
-
-///|
-pub fn LunaRequestPreparationAdmission::kind(
-  self : LunaRequestPreparationAdmission,
-) -> LunaRequestPreparationAdmissionKind {
-  match self.disposition {
-    0 => LunaRequestPreparationAdmitted
-    1 => LunaRequestPreparationSaturated
-    2 => LunaRequestPreparationDraining
-    _ => abort("Luna preparation admission invariant")
-  }
-}
-
-///|
-pub fn LunaRequestPreparationAdmission::work(
-  self : LunaRequestPreparationAdmission,
-) -> LunaRequestPreparationWork raise RequestAdmissionError {
-  if self.disposition != 0 || self.lane < 0 || self.generation == 0UL {
-    raise Invalid(LunaPreparedLifecycle)
-  }
-  { pool: self.pool, lane: self.lane, generation: self.generation }
 }
