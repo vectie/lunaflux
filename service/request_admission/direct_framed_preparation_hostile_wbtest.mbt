@@ -356,3 +356,112 @@ test "direct framed total work is invariant across outer quanta" {
   assert_true(wide.lanes[wide_work.lane].request is None)
   wide_work.discard()
 }
+
+///|
+test "receipt-complete proof starts at the final byte and survives import" {
+  let request = fixture_request(fixture_identity("0"))
+  let object_pool = direct_hostile_pool(() => 10UL, 1, 17, 100000UL)
+  let object_work = object_pool
+    .try_submit(pool_received_at(request, 10UL))
+    .work()
+  assert_false(object_work.luna_framed_receipt_complete())
+  object_work.cancel()
+  ignore(object_pool.progress())
+
+  let (source, frame_length) = framed_pool_source(request)
+  let pool = direct_hostile_pool(() => 10UL, 1, 1, 100000UL)
+  let admission = pool.try_begin_luna_framed(source, source_offset=0, length=1)
+  let work = admission.work()
+  assert_false(work.luna_framed_receipt_complete())
+  direct_hostile_offer_complete(
+    pool,
+    work,
+    source,
+    frame_length,
+    admission.consumed_bytes(),
+  )
+  // No pool progress is required after the final accepted byte.
+  assert_true(work.luna_framed_receipt_complete())
+  ignore(pool.progress())
+  assert_true(work.luna_framed_receipt_complete())
+  direct_hostile_drive_to_phase(
+    pool,
+    work,
+    LUNA_PREPARATION_FRAMED_BIND_SCALARS,
+  )
+  assert_true(work.luna_framed_receipt_complete())
+  while work.state() == LunaRequestPreparationPending {
+    ignore(pool.progress())
+  }
+  assert_eq(work.state(), LunaRequestPreparationReady)
+  assert_true(work.luna_framed_receipt_complete())
+  let prepared = work.take_prepared()
+  try work.luna_framed_receipt_complete() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("taken receipt proof produced the wrong stale error")
+  } noraise {
+    _ => fail("taken preparation retained receipt proof")
+  }
+  prepared.discard()
+  let reused = pool
+    .try_begin_luna_framed(source, source_offset=0, length=1)
+    .work()
+  assert_false(reused.luna_framed_receipt_complete())
+  try work.luna_framed_receipt_complete() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("reused receipt proof produced the wrong stale error")
+  } noraise {
+    _ => fail("old generation observed reused receipt state")
+  }
+  reused.cancel()
+  ignore(pool.progress())
+}
+
+///|
+test "failed and cancelled preparations cannot expose receipt proof" {
+  let (corrupt, frame_length) = framed_pool_source(
+    fixture_request(fixture_identity("0")),
+  )
+  corrupt[frame_length - 1] = corrupt[frame_length - 1] ^ b'\x01'
+  let failed_pool = direct_hostile_pool(() => 10UL, 1, 17, 100000UL)
+  let failed_admission = failed_pool.try_begin_luna_framed(
+    corrupt,
+    source_offset=0,
+    length=1,
+  )
+  let failed_work = failed_admission.work()
+  direct_hostile_offer_complete(
+    failed_pool,
+    failed_work,
+    corrupt,
+    frame_length,
+    failed_admission.consumed_bytes(),
+  )
+  assert_true(failed_work.luna_framed_receipt_complete())
+  while failed_work.state() == LunaRequestPreparationPending {
+    ignore(failed_pool.progress())
+  }
+  assert_eq(failed_work.state(), LunaRequestPreparationFailed)
+  try failed_work.luna_framed_receipt_complete() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("failed receipt proof produced the wrong error")
+  } noraise {
+    _ => fail("failed preparation exposed receipt proof")
+  }
+  failed_work.discard()
+
+  let (source, _) = framed_pool_source(fixture_request(fixture_identity("0")))
+  let cancelled_pool = direct_hostile_pool(() => 10UL, 1, 1, 100000UL)
+  let cancelled = cancelled_pool
+    .try_begin_luna_framed(source, source_offset=0, length=1)
+    .work()
+  assert_false(cancelled.luna_framed_receipt_complete())
+  cancelled.cancel()
+  try cancelled.luna_framed_receipt_complete() catch {
+    Invalid(LunaPreparedLifecycle) => ()
+    _ => fail("cancelled receipt proof produced the wrong error")
+  } noraise {
+    _ => fail("cancelled preparation exposed receipt proof")
+  }
+  ignore(cancelled_pool.progress())
+}

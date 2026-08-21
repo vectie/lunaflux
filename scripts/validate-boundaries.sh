@@ -996,6 +996,7 @@ if ! rg -q '^pub fn LunaRequestPreparationPool::try_submit\(Self, ReceivedReques
   ! rg -q '^pub fn LunaRequestPreparationPool::progress\(Self\) -> LunaRequestPreparationPoolProgress$' service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaRequestPreparationAdmission::consumed_bytes\(Self\) -> Int$' service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaRequestPreparationWork::offer_luna_framed\(Self, FixedArray\[Byte\], source_offset~ : Int, length~ : Int\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
+  ! rg -q '^pub fn LunaRequestPreparationWork::luna_framed_receipt_complete\(Self\) -> Bool raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaRequestPreparationWork::take_prepared\(Self\) -> LunaPreparedRequest raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaRequestPreparationWork::last_work_units\(Self\) -> Int raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti ||
   ! rg -q '^pub fn LunaRequestPreparationWork::total_work_units\(Self\) -> UInt64 raise RequestAdmissionError$' service/request_admission/pkg.generated.mbti; then

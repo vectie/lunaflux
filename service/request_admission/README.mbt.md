@@ -54,7 +54,12 @@ offers only on the same generation-authenticated preparation Work. Incomplete
 receipts use the overflow-checked hard deadline `receipt +
 inference.max_deadline_millis`; once the validated View exposes the client
 budget, its exact deadline is derived from that same original receipt and is
-never rebased. Incomplete
+never rebased. `luna_framed_receipt_complete` authenticates that exact Work and
+becomes true immediately after the scanner consumes the declared final frame
+byte, before canonical validation or later import must finish. It remains true
+through Ready, returns false for live object-form submissions, and rejects
+stale, Failed, CancelRequested, or already-transferred Work authority.
+Incomplete
 receipts remain in the FIFO ring at zero charged work so deadlines,
 cancellation, and drain remain observable. Drain promptly retires incomplete
 receipts; a fully received scanner or later import may finish. The validated

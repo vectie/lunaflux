@@ -69,6 +69,7 @@ for symbol in \
   'LunaRequestPreparationPool24try__begin__luna__framed(' \
   'LunaRequestPreparationPool19offer__framed__lane(' \
   'LunaRequestPreparationWork19offer__luna__framed(' \
+  'LunaRequestPreparationWork31luna__framed__receipt__complete(' \
   'LunaRequestPreparationPool8progress(' \
   'LunaRequestPreparationPool19progress__lane__one(' \
   'LunaRequestPreparationPool22abort__lane__resources(' \

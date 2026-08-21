@@ -226,3 +226,36 @@ pub fn LunaRequestPreparationWork::offer_luna_framed(
   let observed = (self.pool.clock_read)()
   self.pool.offer_framed_lane(lane, source, source_offset, length, observed)
 }
+
+///|
+/// Reports whether the exact direct frame body has been fully consumed. This
+/// does not imply that canonical validation, semantic import, or preparation
+/// has completed.
+pub fn LunaRequestPreparationWork::luna_framed_receipt_complete(
+  self : LunaRequestPreparationWork,
+) -> Bool raise RequestAdmissionError {
+  let lane = self.require_lane()
+  if lane.phase == LUNA_PREPARATION_FAILED ||
+    lane.phase == LUNA_PREPARATION_CANCEL_REQUESTED {
+    raise Invalid(LunaPreparedLifecycle)
+  }
+  if !lane.framed_direct {
+    return false
+  }
+  if lane.framed_work.is_empty() {
+    // The scanner Work is cleared only after its Ready View transfers. Every
+    // later live direct-preparation phase therefore retains receipt proof.
+    return true
+  }
+  if lane.framed_work.length() != 1 {
+    abort("Luna framed receipt Work cardinality invariant")
+  }
+  let state = lane.framed_work[0].state() catch {
+    _ => raise Invalid(LunaPreparedLifecycle)
+  }
+  match state {
+    LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => false
+    LunaFramedRequestValidating | LunaFramedRequestReady => true
+    LunaFramedRequestFailed => raise Invalid(LunaPreparedLifecycle)
+  }
+}
