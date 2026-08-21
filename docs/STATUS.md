@@ -314,6 +314,23 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   model digests bytewise before input mutation, and accounts receipt bytes plus
   scanner/import work under the same lane ceiling. Network ingress orchestration
   remains open.
+- A transport-neutral `LunaOnlineFramedCoordinator` now exclusively composes
+  one direct-framed preparation pool, one persistent online instance, and one
+  cooperative framed-event workspace under a shared monotonic clock. It owns a
+  single ordered byte stream: accepted counts leave every unconsumed tail with
+  the caller, fixed slots preserve request FIFO across preparation and active
+  execution, and a later Ready or failed preparation cannot preempt an active
+  request. Opaque byte Offers require exact partial confirmation; semantic
+  event ACK occurs only after every framed byte is confirmed, while Usage ACK,
+  terminal retirement, recovery, and shutdown remain explicit off-reactor
+  maintenance. Disconnect and bounded output/rejection stalls revoke framed
+  authority before draining partial, Ready, Prepared, active, and terminal
+  owners. Real-worker evidence covers the Usage ACK boundary, later-rejection
+  ordering, exact byte confirmation, owner reuse, and partial-receipt close;
+  positive-controlled release-C and exact MBTI gates cover warmed transport
+  paths and capability opacity. This is still not a TCP listener or socket
+  writer: connection arbitration, timer wakeups, kernel partial-write retry,
+  and multi-client fairness remain the next network-adapter boundary.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

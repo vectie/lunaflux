@@ -106,6 +106,25 @@ fn LunaRequestPreparationPool::offer_framed_lane(
     if accepted <= 0 {
       break
     }
+    if state == LunaFramedRequestReceivingBody {
+      let after = work.state() catch {
+        error => {
+          let mapped = luna_framed_admission_error(error)
+          self.fail_lane(lane, mapped)
+          raise mapped
+        }
+      }
+      match after {
+        LunaFramedRequestValidating | LunaFramedRequestReady =>
+          lane.framed_receipt_complete = true
+        LunaFramedRequestFailed => {
+          let mapped = Invalid(FrameContract)
+          self.fail_lane(lane, mapped)
+          raise mapped
+        }
+        LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => ()
+      }
+    }
     consumed += accepted
     lane.total_work_units += accepted.to_uint64()
   }
@@ -178,6 +197,7 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed(
   lane.request = None
   lane.effective = None
   lane.framed_direct = true
+  lane.framed_receipt_complete = false
   lane.framed_work.push(scanner)
   lane.phase = LUNA_PREPARATION_FRAMED_RECEIVING
   lane.failure = None
@@ -213,7 +233,18 @@ pub fn LunaRequestPreparationWork::offer_luna_framed(
   length~ : Int,
 ) -> Int raise RequestAdmissionError {
   let lane = self.require_lane()
-  if !lane.framed_direct || lane.phase != LUNA_PREPARATION_FRAMED_RECEIVING {
+  if !lane.framed_direct {
+    raise Invalid(LunaPreparedLifecycle)
+  }
+  if lane.phase == LUNA_PREPARATION_FRAMED_SCANNING &&
+    !lane.framed_receipt_complete {
+    // Prefix/layout validation temporarily owns the scanner. The exact Work
+    // still owns the incomplete receipt position, so expose transport
+    // backpressure without inspecting caller storage or sampling the clock.
+    lane.last_work_units = 0
+    return 0
+  }
+  if lane.phase != LUNA_PREPARATION_FRAMED_RECEIVING {
     raise Invalid(LunaPreparedLifecycle)
   }
   lane.last_work_units = 0
@@ -242,20 +273,5 @@ pub fn LunaRequestPreparationWork::luna_framed_receipt_complete(
   if !lane.framed_direct {
     return false
   }
-  if lane.framed_work.is_empty() {
-    // The scanner Work is cleared only after its Ready View transfers. Every
-    // later live direct-preparation phase therefore retains receipt proof.
-    return true
-  }
-  if lane.framed_work.length() != 1 {
-    abort("Luna framed receipt Work cardinality invariant")
-  }
-  let state = lane.framed_work[0].state() catch {
-    _ => raise Invalid(LunaPreparedLifecycle)
-  }
-  match state {
-    LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => false
-    LunaFramedRequestValidating | LunaFramedRequestReady => true
-    LunaFramedRequestFailed => raise Invalid(LunaPreparedLifecycle)
-  }
+  lane.framed_receipt_complete
 }

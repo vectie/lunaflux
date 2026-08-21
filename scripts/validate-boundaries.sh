@@ -822,16 +822,25 @@ if rg -n 'OnlineWorkerLease::(scheduler|process|handle|request_id|request_genera
   failed=1
 fi
 
-if [ -f service/online_session/pkg.generated.mbti ] &&
-  rg -n '(^|[^A-Za-z])WorkerService([^A-Za-z]|$)|OnlineWorkerLease|AdmittedRequest|ReceivedRequest|TokenizerSpec|LunaPreparedRequestClaim|TokenizedRequest|RequestHandle|SchedulerPublication|IncrementalOutput' service/online_session/pkg.generated.mbti; then
+online_lower_surface="$(rg -n \
+  '(^|[^A-Za-z])WorkerService([^A-Za-z]|$)|OnlineWorkerLease|AdmittedRequest|ReceivedRequest|TokenizerSpec|LunaPreparedRequestClaim|TokenizedRequest|RequestHandle|SchedulerPublication|IncrementalOutput' \
+  service/online_session/pkg.generated.mbti 2>/dev/null || true)"
+if [ -n "$online_lower_surface" ] &&
+  printf '%s\n' "$online_lower_surface" |
+    rg -v 'prepare_owned_luna_online_framed_coordinator'; then
   printf '%s\n' 'online session aggregate must not return its lower owners' >&2
   failed=1
 fi
 
-if rg -n 'framed_wire|FramedWireLimits|CanonicalEventWriter|EventFrameBuffer|ValidatedEventFrame|LunaOnlineWireFailure' \
-  service/online_session --glob '*.mbt' --glob 'moon.pkg' --glob '*.mbti'; then
+online_wire_surface="$(rg -n \
+  'framed_wire|FramedWireLimits|CanonicalEventWriter|EventFrameBuffer|ValidatedEventFrame|LunaOnlineWireFailure' \
+  service/online_session --glob '*.mbt' --glob 'moon.pkg' --glob '*.mbti' \
+  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' 2>/dev/null || true)"
+if [ -n "$online_wire_surface" ] &&
+  printf '%s\n' "$online_wire_surface" |
+    rg -v 'coordinator_(types|prepare|ingress|progress|events|lifecycle)\.mbt:|moon\.pkg:|pkg\.generated\.mbti:.*prepare_owned_luna_online_framed_coordinator|pkg\.generated\.mbti:.*"vectie/lunaflux/service/framed_wire",'; then
   printf '%s\n' \
-    'online session must own semantic Luna events, not framed-wire state' >&2
+    'base online instance acquired framed-wire state outside its coordinator' >&2
   failed=1
 fi
 
@@ -843,10 +852,15 @@ if ! rg -U -q \
   failed=1
 fi
 
-if rg -n '@request_admission\.(admit|prepare_luna_request)|@tokenizer\.TokenizerSpec|priv tokenizer[[:space:]]*:' \
-  service/online_session --glob '*.mbt' --glob 'moon.pkg'; then
+online_tokenizer_surface="$(rg -n \
+  '@request_admission\.(admit|prepare_luna_request)|@tokenizer\.TokenizerSpec|priv tokenizer[[:space:]]*:' \
+  service/online_session --glob '*.mbt' --glob 'moon.pkg' \
+  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' 2>/dev/null || true)"
+if [ -n "$online_tokenizer_surface" ] &&
+  printf '%s\n' "$online_tokenizer_surface" |
+    rg -v 'coordinator_prepare\.mbt:.*@tokenizer\.TokenizerSpec'; then
   printf '%s\n' \
-    'online instance must consume prepared requests without tokenizer work/state' >&2
+    'base online instance acquired tokenizer work/state outside coordinator startup' >&2
   failed=1
 fi
 
@@ -889,6 +903,107 @@ if [ -f service/online_session/pkg.generated.mbti ] &&
   printf '%s\n' \
     'Luna online event credit must remain opaque with only view/ACK authority' >&2
   failed=1
+fi
+
+# The transport-neutral coordinator is the sole composition boundary for one
+# preparation pool, one persistent online instance, and one framed-event
+# workspace. Its public values are opaque capabilities; none may reveal the
+# mutable inner owners, generation scalars, or a parallel receipt authority.
+if [ ! -f service/online_session/pkg.generated.mbti ]; then
+  printf '%s\n' 'online session generated interface is required' >&2
+  failed=1
+else
+  expected_online_coordinator_surface="$(cat <<'EOF'
+pub fn LunaOnlineFramedCoordinator::begin_drain(Self) -> Unit
+pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, maximum_length~ : Int) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::disconnect(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::framed_event_remaining(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::is_closed(Self) -> Bool
+pub fn LunaOnlineFramedCoordinator::offer_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::progress(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::progress_off_reactor_maintenance(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::request_cancel(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinator::take_rejection(Self) -> LunaOnlineFramedRejectionCredit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedCoordinatorPreparation::state(Self) -> LunaOnlineInstancePreparationState
+pub fn LunaOnlineFramedCoordinatorPreparation::take_cleanup(Self) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedCoordinatorPreparation::take_ready(Self) -> LunaOnlineFramedCoordinator raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedEventOffer::confirm(Self, length~ : Int) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedEventOffer::length(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedIngress::consumed_bytes(Self) -> Int
+pub fn LunaOnlineFramedIngress::kind(Self) -> LunaOnlineFramedIngressKind
+pub fn LunaOnlineFramedRejectionCredit::ack(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedRejectionCredit::rule(Self) -> LunaOnlineFramedRejectionRule raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedRejectionCredit::sequence(Self) -> UInt64 raise LunaOnlineFramedCoordinatorError
+pub fn prepare_owned_luna_online_framed_coordinator(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineFramedCoordinatorPreparation raise LunaOnlineInstancePreparationError
+EOF
+)"
+  actual_online_coordinator_surface="$(rg \
+    '^pub fn (prepare_owned_luna_online_framed_coordinator|LunaOnlineFramed)' \
+    service/online_session/pkg.generated.mbti | sort)"
+  if [ "$actual_online_coordinator_surface" != \
+      "$expected_online_coordinator_surface" ]; then
+    printf '%s\n' 'online framed coordinator public method surface drifted' >&2
+    failed=1
+  fi
+
+  expected_online_coordinator_types="$(cat <<'EOF'
+LunaOnlineFramedCoordinator
+LunaOnlineFramedCoordinatorError
+LunaOnlineFramedCoordinatorPreparation
+LunaOnlineFramedCoordinatorProgress
+LunaOnlineFramedCoordinatorRule
+LunaOnlineFramedEventOffer
+LunaOnlineFramedIngress
+LunaOnlineFramedIngressKind
+LunaOnlineFramedRejectionCredit
+LunaOnlineFramedRejectionRule
+EOF
+)"
+  actual_online_coordinator_types="$(rg \
+    '^pub(\(all\))? (struct|enum|suberror) LunaOnlineFramed' \
+    service/online_session/pkg.generated.mbti |
+    sed -E 's/^pub(\(all\))? (struct|enum|suberror) ([A-Za-z0-9_]+).*/\3/' |
+    sort)"
+  if [ "$actual_online_coordinator_types" != \
+      "$expected_online_coordinator_types" ]; then
+    printf '%s\n' 'parallel online framed authority type appeared' >&2
+    failed=1
+  fi
+
+  online_coordinator_private_count="$(rg -c --pcre2 -U \
+    'pub struct LunaOnlineFramed(Coordinator|CoordinatorPreparation|EventOffer|Ingress|RejectionCredit) \{\n  // private fields\n\}' \
+    service/online_session/pkg.generated.mbti)"
+  if [ "$online_coordinator_private_count" != '5' ] ||
+    rg -n --pcre2 -U \
+      'pub struct LunaOnlineFramed(Coordinator|CoordinatorPreparation|EventOffer|Ingress|RejectionCredit) \{(?s:[^}]*)\} derive\([^)]*Debug' \
+      service/online_session/pkg.generated.mbti ||
+    rg -n --pcre2 \
+      '^pub fn LunaOnlineFramed.*::(owner|pool|instance|workspace|work|view|ticket|credit|epoch|raw|storage)\(' \
+      service/online_session/pkg.generated.mbti ||
+    rg -n --pcre2 \
+      '^pub fn (prepare_owned_luna_online_framed_coordinator|LunaOnlineFramed).*-> .*(@request_admission\.Luna|@framed_wire\.LunaFramed|LunaOnlineRequestTicket|LunaOnlineEventCredit|LunaOnlineInstance(?:[ ,)\]]|$))' \
+      service/online_session/pkg.generated.mbti; then
+    printf '%s\n' \
+      'online framed coordinator leaked inner owner, storage, or generation authority' >&2
+    failed=1
+  fi
+
+  expected_online_valtypes="$(cat <<'EOF'
+pub(all) enum LunaOnlineFramedIngressKind {
+pub struct LunaOnlineFramedIngress {
+pub(all) enum LunaOnlineFramedCoordinatorProgress {
+pub(all) enum LunaOnlineFramedRejectionRule {
+pub struct LunaOnlineFramedRejectionCredit {
+pub struct LunaOnlineFramedEventOffer {
+EOF
+)"
+  actual_online_valtypes="$(sed -n '/^#valtype$/{n;p;}' \
+    service/online_session/coordinator_types.mbt)"
+  if [ "$actual_online_valtypes" != "$expected_online_valtypes" ]; then
+    printf '%s\n' \
+      'online framed scalar offer/ingress/rejection/progress representation drifted' >&2
+    failed=1
+  fi
 fi
 
 if rg -n 'AdmittedRequest|^pub fn admit\(' \

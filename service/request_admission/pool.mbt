@@ -78,6 +78,7 @@ fn new_preparation_lane(
     semantic_codepoint_width: 0,
     semantic_codepoint_byte_index: 0,
     framed_direct: false,
+    framed_receipt_complete: false,
     framed_model_index: 0,
     framed_input_kind: 0,
     framed_input_count: 0,
@@ -289,6 +290,7 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.semantic_codepoint_width = 0
   lane.semantic_codepoint_byte_index = 0
   lane.framed_direct = false
+  lane.framed_receipt_complete = false
   lane.framed_model_index = 0
   lane.framed_input_kind = 0
   lane.framed_input_count = 0

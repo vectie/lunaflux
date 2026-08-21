@@ -369,29 +369,53 @@ test "receipt-complete proof starts at the final byte and survives import" {
   ignore(object_pool.progress())
 
   let (source, frame_length) = framed_pool_source(request)
-  let pool = direct_hostile_pool(() => 10UL, 1, 1, 100000UL)
+  let clock_enabled = Ref(true)
+  let clock_reads = Ref(0)
+  let pool = direct_hostile_pool(
+    () => {
+      clock_reads.val += 1
+      if !clock_enabled.val {
+        raise ClockUnavailable
+      }
+      10UL
+    },
+    1,
+    1,
+    100000UL,
+  )
   let admission = pool.try_begin_luna_framed(source, source_offset=0, length=1)
   let work = admission.work()
+  assert_eq(admission.consumed_bytes(), 1)
+  for offset in 1..<16 {
+    assert_eq(work.offer_luna_framed(source, source_offset=offset, length=1), 1)
+    assert_false(work.luna_framed_receipt_complete())
+  }
+  // Prefix validation uses the scanner's Validating state too; it is not a
+  // complete receipt and must not publish body-complete proof.
   assert_false(work.luna_framed_receipt_complete())
-  direct_hostile_offer_complete(
-    pool,
-    work,
-    source,
-    frame_length,
-    admission.consumed_bytes(),
-  )
+  ignore(pool.progress())
+  assert_false(work.luna_framed_receipt_complete())
+  assert_eq(pool.lanes[work.lane].phase, LUNA_PREPARATION_FRAMED_SCANNING)
+  let reads_before_backpressure = clock_reads.val
+  clock_enabled.val = false
+  assert_eq(work.offer_luna_framed(source, source_offset=-1, length=-1), 0)
+  assert_eq(clock_reads.val, reads_before_backpressure)
+  clock_enabled.val = true
+  while pool.lanes[work.lane].require_framed_work().state() !=
+        LunaFramedRequestReceivingBody {
+    ignore(pool.progress())
+    assert_false(work.luna_framed_receipt_complete())
+  }
+  assert_eq(work.offer_luna_framed(source, source_offset=16, length=1), 1)
+  assert_false(work.luna_framed_receipt_complete())
+  direct_hostile_offer_complete(pool, work, source, frame_length, 17)
   // No pool progress is required after the final accepted byte.
   assert_true(work.luna_framed_receipt_complete())
   ignore(pool.progress())
   assert_true(work.luna_framed_receipt_complete())
-  direct_hostile_drive_to_phase(
-    pool,
-    work,
-    LUNA_PREPARATION_FRAMED_BIND_SCALARS,
-  )
-  assert_true(work.luna_framed_receipt_complete())
   while work.state() == LunaRequestPreparationPending {
     ignore(pool.progress())
+    assert_true(work.luna_framed_receipt_complete())
   }
   assert_eq(work.state(), LunaRequestPreparationReady)
   assert_true(work.luna_framed_receipt_complete())

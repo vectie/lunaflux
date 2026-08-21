@@ -257,6 +257,7 @@ priv struct LunaRequestPreparationLane {
   mut semantic_codepoint_width : Int
   mut semantic_codepoint_byte_index : Int
   mut framed_direct : Bool
+  mut framed_receipt_complete : Bool
   mut framed_model_index : Int
   mut framed_input_kind : Int
   mut framed_input_count : Int
