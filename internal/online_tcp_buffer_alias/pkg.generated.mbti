@@ -1,0 +1,13 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/online_tcp_buffer_alias"
+
+// Values
+pub fn retain_bytes_as_fixed_array(Bytes) -> FixedArray[Byte]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

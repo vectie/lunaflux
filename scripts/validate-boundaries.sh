@@ -512,10 +512,10 @@ fi
 if ! scripts/validate-service-boundaries.sh; then
   failed=1
 fi
-# Production foreign declarations have exactly four narrow owners: CUDA,
+# Production foreign declarations have exactly five narrow owners: CUDA,
 # approved descriptor-relative filesystem authority, and shell-free child
-# process transport, plus monotonic time, each under its dedicated internal ABI
-# package.
+# process transport, monotonic time, and the online TCP buffer representation
+# alias, each under its dedicated internal ABI package.
 # Positive-controlled allocation harnesses and the exact approved-root child /
 # parent E2E probes are the sole exceptions. Their narrow C shims inspect
 # process state or generated allocation entry points and are not imported by a
@@ -525,6 +525,7 @@ fail_matches \
   --glob '*.mbt' --glob '!internal/cuda/**' \
   --glob '!internal/approved_fs/**' \
   --glob '!internal/monotonic_clock/**' \
+  --glob '!internal/online_tcp_buffer_alias/**' \
   --glob '!internal/process/**' \
   --glob '!tests/hot_path_alloc/**' \
   --glob '!tests/device_step_alloc/**' \
@@ -532,6 +533,83 @@ fail_matches \
   --glob '!cmd/approved_root_echo/**' \
   --glob '!tests/approved_root_inheritance_e2e/**' \
   'extern\s+"[cC]"|#external'
+
+expected_internal_abi_owners="$(cat <<'EOF'
+internal/approved_fs
+internal/cuda
+internal/monotonic_clock
+internal/online_tcp_buffer_alias
+internal/process
+EOF
+)"
+actual_internal_abi_owners="$(rg -l 'extern\s+"[cC]"|#external' internal \
+  --glob '*.mbt' | sed -E 's#^(internal/[^/]+).*#\1#' | sort -u)"
+if [ "$actual_internal_abi_owners" != "$expected_internal_abi_owners" ]; then
+  printf '%s\n' 'production internal ABI owner set drifted from exactly five' >&2
+  failed=1
+fi
+
+if [ ! -f internal/online_tcp_buffer_alias/pkg.generated.mbti ] ||
+  [ ! -f service/online_tcp/pkg.generated.mbti ]; then
+  printf '%s\n' 'online TCP alias and service generated interfaces are required' >&2
+  failed=1
+else
+  expected_alias_surface='pub fn retain_bytes_as_fixed_array(Bytes) -> FixedArray[Byte]'
+  actual_alias_surface="$(rg '^pub ' \
+    internal/online_tcp_buffer_alias/pkg.generated.mbti || true)"
+  if [ "$actual_alias_surface" != "$expected_alias_surface" ] ||
+    rg -n '^pub (struct|enum|type|trait)' \
+      internal/online_tcp_buffer_alias/pkg.generated.mbti; then
+    printf '%s\n' 'online TCP alias ABI public surface drifted' >&2
+    failed=1
+  fi
+  if rg -n '^pub |^#(valtype|derive)' service/online_tcp/pkg.generated.mbti ||
+    rg -n \
+      'Debug|Bytes|FixedArray|LunaOnlineTcp(OutputScratch|OutputWrite|OutputFlight)|online_tcp_buffer_alias|vectie/lunaflux/internal/' \
+      service/online_tcp/pkg.generated.mbti; then
+    printf '%s\n' \
+      'online TCP service must keep its scratch and both raw views private' >&2
+    failed=1
+  fi
+fi
+
+if ! rg -F -x -q 'supported_targets = "native"' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  ! rg -F -x -q '  "native-stub": [ "alias.c" ],' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  ! rg -F -x -q \
+    '  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  [ "$(rg -o '"[A-Za-z0-9_]+\.c"' \
+    internal/online_tcp_buffer_alias/moon.pkg | wc -l | tr -d ' ')" -ne 1 ]; then
+  printf '%s\n' \
+    'online TCP alias package must remain native-only with exactly one stub' >&2
+  failed=1
+fi
+
+online_alias_importers="$(rg -l \
+  '"vectie/lunaflux/internal/online_tcp_buffer_alias"' \
+  --glob 'moon.pkg' 2>/dev/null || true)"
+if [ "$online_alias_importers" != 'service/online_tcp/moon.pkg' ]; then
+  printf '%s\n%s\n' \
+    'online TCP alias ABI import escaped its sole service owner:' \
+    "$online_alias_importers" >&2
+  failed=1
+fi
+
+online_alias_calls="$(rg -n \
+  '@buffer_alias\.retain_bytes_as_fixed_array\(' --glob '*.mbt' \
+  2>/dev/null || true)"
+if [ "$(printf '%s\n' "$online_alias_calls" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ] ||
+  ! printf '%s\n' "$online_alias_calls" |
+    rg -q '^service/online_tcp/scratch\.mbt:' ||
+  ! rg -q --pcre2 -U \
+    "let immutable = Bytes::makei\\(capacity, _ => b'\\\\x00'\\)\\n  let mutable = @buffer_alias\\.retain_bytes_as_fixed_array\\(immutable\\)" \
+    service/online_tcp/scratch.mbt; then
+  printf '%s\n' \
+    'online TCP alias must have one dynamic-Bytes service call and no literal/view caller' >&2
+  failed=1
+fi
 
 # Internal ABI concrete types must never become part of a public package
 # interface. Generated interfaces are authoritative for this boundary.

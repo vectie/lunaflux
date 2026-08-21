@@ -1367,6 +1367,94 @@ EOF
   fi
 fi
 
+# The private online TCP scratch is the sole service importer and caller of the
+# fifth production native ABI. It may retain two typed views internally, but
+# its generated service surface must remain completely empty.
+expected_internal_abi_owners="$(cat <<'EOF'
+internal/approved_fs
+internal/cuda
+internal/monotonic_clock
+internal/online_tcp_buffer_alias
+internal/process
+EOF
+)"
+actual_internal_abi_owners="$(rg -l 'extern\s+"[cC]"|#external' internal \
+  --glob '*.mbt' | sed -E 's#^(internal/[^/]+).*#\1#' | sort -u)"
+if [ "$actual_internal_abi_owners" != "$expected_internal_abi_owners" ]; then
+  printf '%s\n' 'service boundary requires exactly five internal ABI owners' >&2
+  failed=1
+fi
+
+if [ ! -f internal/online_tcp_buffer_alias/pkg.generated.mbti ] ||
+  [ ! -f service/online_tcp/pkg.generated.mbti ]; then
+  printf '%s\n' 'online TCP alias and service generated interfaces are required' >&2
+  failed=1
+else
+  expected_alias_surface='pub fn retain_bytes_as_fixed_array(Bytes) -> FixedArray[Byte]'
+  actual_alias_surface="$(rg '^pub ' \
+    internal/online_tcp_buffer_alias/pkg.generated.mbti || true)"
+  if [ "$actual_alias_surface" != "$expected_alias_surface" ] ||
+    rg -n '^pub (struct|enum|type|trait)' \
+      internal/online_tcp_buffer_alias/pkg.generated.mbti; then
+    printf '%s\n' 'online TCP alias ABI surface drifted or exposed a type' >&2
+    failed=1
+  fi
+  if rg -n '^pub |^#(valtype|derive)' service/online_tcp/pkg.generated.mbti ||
+    rg -n \
+      'Debug|Bytes|FixedArray|LunaOnlineTcp(OutputScratch|OutputWrite|OutputFlight)|online_tcp_buffer_alias|vectie/lunaflux/internal/' \
+      service/online_tcp/pkg.generated.mbti; then
+    printf '%s\n' \
+      'online TCP service leaked scratch, raw storage, or internal capability' >&2
+    failed=1
+  fi
+fi
+
+if ! rg -F -x -q 'supported_targets = "native"' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  ! rg -F -x -q '  "native-stub": [ "alias.c" ],' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  ! rg -F -x -q \
+    '  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",' \
+    internal/online_tcp_buffer_alias/moon.pkg ||
+  [ "$(rg -o '"[A-Za-z0-9_]+\.c"' \
+    internal/online_tcp_buffer_alias/moon.pkg | wc -l | tr -d ' ')" -ne 1 ]; then
+  printf '%s\n' \
+    'online TCP alias package must remain native-only with exactly one stub' >&2
+  failed=1
+fi
+
+if internal_type_leaks=$(rg -n 'vectie/lunaflux/internal/' \
+  --glob 'pkg.generated.mbti' --glob '!internal/**' 2>/dev/null); then
+  printf '%s\n%s\n' \
+    'service boundary found a public internal ABI type leak:' \
+    "$internal_type_leaks" >&2
+  failed=1
+fi
+
+online_alias_importers="$(rg -l \
+  '"vectie/lunaflux/internal/online_tcp_buffer_alias"' \
+  --glob 'moon.pkg' 2>/dev/null || true)"
+if [ "$online_alias_importers" != 'service/online_tcp/moon.pkg' ]; then
+  printf '%s\n%s\n' \
+    'online TCP alias ABI has an unauthorized service importer:' \
+    "$online_alias_importers" >&2
+  failed=1
+fi
+
+online_alias_calls="$(rg -n \
+  '@buffer_alias\.retain_bytes_as_fixed_array\(' --glob '*.mbt' \
+  2>/dev/null || true)"
+if [ "$(printf '%s\n' "$online_alias_calls" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ] ||
+  ! printf '%s\n' "$online_alias_calls" |
+    rg -q '^service/online_tcp/scratch\.mbt:' ||
+  ! rg -q --pcre2 -U \
+    "let immutable = Bytes::makei\\(capacity, _ => b'\\\\x00'\\)\\n  let mutable = @buffer_alias\\.retain_bytes_as_fixed_array\\(immutable\\)" \
+    service/online_tcp/scratch.mbt; then
+  printf '%s\n' \
+    'online TCP alias call escaped its exact dynamic-Bytes constructor' >&2
+  failed=1
+fi
+
 if [ "$failed" -ne 0 ]; then
   exit 1
 fi

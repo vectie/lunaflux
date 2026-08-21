@@ -331,6 +331,18 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   paths and capability opacity. This is still not a TCP listener or socket
   writer: connection arbitration, timer wakeups, kernel partial-write retry,
   and multi-client fairness remain the next network-adapter boundary.
+- A native-only, private online-TCP output scratch now owns one dynamic `Bytes`
+  payload backing and a retained mutable `FixedArray[Byte]` view of that same
+  object. The narrow internal bridge borrows the original, increments its
+  reference count once for the returned alias, and is callable only from the
+  thread-confined service scratch constructor; static bytes, `BytesView`, and
+  cross-thread manual reference-counting are outside the contract. Exact-TU
+  ASan/UBSan evidence covers pointer identity, length, reference balance, and
+  repeated reuse. Positive-controlled release-C evidence covers allocation-
+  and bulk-copy-free warmed payload-buffer operations only; it does not claim
+  that a future async TCP task or runtime scheduling is allocation-free. The
+  scratch remains private foundation, not a listener, socket owner, or public
+  transport capability.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion
