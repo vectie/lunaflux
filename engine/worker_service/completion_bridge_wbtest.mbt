@@ -19,11 +19,7 @@ fn wb_bridge_request(
     input_tokens=try! @inference.TokenBuffer::new(tokens, limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(request_value),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"bridge", limits),
-      Disabled,
-    ),
+    stop_tokens=wb_service_stop_token_projection(limits),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=2,

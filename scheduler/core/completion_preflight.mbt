@@ -62,14 +62,17 @@ fn Scheduler::row_is_current(
 }
 
 ///|
-fn request_stops_on_token(request : TokenizedRequest, token : Int) -> Bool {
-  let stop_tokens = request.stops().token_ids()
-  for index in 0..<stop_tokens.length() {
-    if stop_tokens[index] == token {
-      return true
-    }
+fn Scheduler::request_stops_on_token(
+  self : Scheduler,
+  slot : Int,
+  token : Int,
+) -> Bool raise SchedulerError {
+  let retention = self.request_stop_tokens[slot]
+  let status = retention.is_stop_token(token)
+  if status.is_stale() {
+    raise invalid(Request, Stale)
   }
-  false
+  status.is_present()
 }
 
 ///|
@@ -222,6 +225,11 @@ fn Scheduler::preflight_completion(
     }
     let mut release = !current
     if current {
+      let request = self.requests[slot].unwrap()
+      let semantic_live = self.request_stop_tokens[slot].is_live()
+      if !semantic_live {
+        raise invalid(Request, Stale)
+      }
       match kind {
         PrefillCompletion => ()
         FinalPrefillCompletion | DecodeCompletion => {
@@ -230,9 +238,8 @@ fn Scheduler::preflight_completion(
           } noraise {
             value => value
           }
-          let request = self.requests[slot].unwrap()
           output_demand += 1
-          if request_stops_on_token(request, token) ||
+          if self.request_stops_on_token(slot, token) ||
             self.output_counts[slot] + 1 >=
             request.effective_limits().max_new_tokens() {
             terminal_demand += 1

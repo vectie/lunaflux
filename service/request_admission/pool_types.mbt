@@ -14,25 +14,55 @@ const LUNA_PREPARATION_TEXT_BEGIN_COPY : Int = 3
 const LUNA_PREPARATION_TEXT_COPY : Int = 4
 
 ///|
-const LUNA_PREPARATION_OUTPUT_SETUP : Int = 5
+const LUNA_PREPARATION_SEMANTIC_CACHE_MEASURE : Int = 5
 
 ///|
-const LUNA_PREPARATION_ASSEMBLE : Int = 6
+const LUNA_PREPARATION_SEMANTIC_BEGIN : Int = 6
 
 ///|
-const LUNA_PREPARATION_READY : Int = 7
+const LUNA_PREPARATION_SEMANTIC_TOKEN_COPY : Int = 7
 
 ///|
-const LUNA_PREPARATION_PREPARED : Int = 8
+const LUNA_PREPARATION_SEMANTIC_STRING_MEASURE : Int = 8
 
 ///|
-const LUNA_PREPARATION_CLAIMED : Int = 9
+const LUNA_PREPARATION_SEMANTIC_STRING_HEADER : Int = 9
 
 ///|
-const LUNA_PREPARATION_FAILED : Int = 10
+const LUNA_PREPARATION_SEMANTIC_STRING_EMIT : Int = 10
 
 ///|
-const LUNA_PREPARATION_CANCEL_REQUESTED : Int = 11
+const LUNA_PREPARATION_SEMANTIC_CACHE_EMIT : Int = 11
+
+///|
+const LUNA_PREPARATION_SEMANTIC_FINISH : Int = 12
+
+///|
+const LUNA_PREPARATION_SEMANTIC_VALIDATE : Int = 13
+
+///|
+const LUNA_PREPARATION_SEMANTIC_TAKE : Int = 14
+
+///|
+const LUNA_PREPARATION_OUTPUT_SETUP : Int = 15
+
+///|
+const LUNA_PREPARATION_ASSEMBLE : Int = 16
+
+///|
+const LUNA_PREPARATION_READY : Int = 17
+
+///|
+const LUNA_PREPARATION_PREPARED : Int = 18
+
+///|
+const LUNA_PREPARATION_CLAIMED : Int = 19
+
+///|
+const LUNA_PREPARATION_FAILED : Int = 20
+
+///|
+const LUNA_PREPARATION_CANCEL_REQUESTED : Int = 21
 
 ///|
 const LUNA_PREPARATION_MAX_STEP_WORK_UNITS : Int = 65536
@@ -152,6 +182,7 @@ pub struct LunaRequestPreparationWork {
 priv struct LunaRequestPreparationLane {
   tokenizer : @tokenizer.LunaTokenizerWorker
   token_storage : @inference.LunaTokenBufferStorage
+  semantic_storage : @inference.LunaRequestSemanticStorage
   output_workspace : @incremental_output.LunaIncrementalOutputWorkspace
   mut generation : UInt64
   mut phase : Int
@@ -165,10 +196,19 @@ priv struct LunaRequestPreparationLane {
   mut tokenizer_work : @tokenizer.LunaTokenizerWork?
   mut token_write : @inference.LunaTokenBufferWrite?
   mut token_lease : @inference.LunaTokenBufferLease?
+  semantic_write : Array[@inference.LunaRequestSemanticWrite]
+  semantic_work : Array[@inference.LunaRequestSemanticWork]
+  semantic_lease : Array[@inference.LunaRequestSemanticLease]
   mut output_work : @incremental_output.LunaIncrementalOutputWork?
   mut output_lease : @incremental_output.LunaIncrementalOutputLease?
   mut tokens : @inference.TokenBuffer?
   mut copy_index : Int
+  mut semantic_item_index : Int
+  mut semantic_unit_offset : Int
+  mut semantic_byte_length : Int
+  mut semantic_codepoint : Int
+  mut semantic_codepoint_width : Int
+  mut semantic_codepoint_byte_index : Int
   mut claim : LunaPreparedRequestClaim?
   mut failure : RequestAdmissionError?
   mut last_work_units : Int

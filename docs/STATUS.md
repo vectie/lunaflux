@@ -274,12 +274,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   output is the first real consumer: it copies one authenticated stop byte per
   charged setup unit, retains explicit failed-Work cleanup, and detaches only
   after final View authentication at lease transfer. Its preallocated one-View
-  slot is included in request-preparation pool reference-cell admission. This
-  is a foundation, not a second production request path: object-form
-  `StopConditions`, the existing preparation claim, `TokenizedRequest`, and
-  scheduler consumers remain authoritative until the immediately following
-  coordinated migration. Builder-structural failures precede Work and do not
-  claim full multi-error equivalence with `StopConditions::new`.
+  slot is included in request-preparation pool reference-cell admission. The
+  coordinated object-request path now streams stop tokens, UTF-16 stop text,
+  cache scope, and permission into this storage under the pool quantum. Output
+  setup receives only the full semantic View; the scheduler receives a narrow
+  token-only projection and holds an independent preallocated retention until
+  slot recycle. The online worker holds the second retention through healthy
+  request retirement or successful recovery close, so claim release cannot
+  invalidate scheduler semantics early. Builder-structural failures precede
+  Work and do not claim full multi-error equivalence with
+  `StopConditions::new`.
 - A request-admission bridge now composes that reader with trusted
   monotonic time: the first valid nonempty append samples exactly once before
   byte mutation, and one successful take retains an immutable request plus its
@@ -289,14 +293,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   envelope; advances retained UTF-8 tokenization, token copying, and
   incremental-output setup through bounded FIFO quanta; and returns a
   revocable `LunaPreparedRequest` shell around one exact claim. Each lane's
-  token and output storage remains generation-pinned through claim release
-  after scheduler retirement. Saturated or draining admission does not consume
-  the receipt; deadlines, cancellation, work ceilings, stale aliases, and
-  explicit discard/release are covered. Ready, failed, prepared, and claimed
-  results intentionally pin their lane until the outer owner disposes of the
-  capability. The legacy facade remains synchronous, while canonical-frame
-  scanning/validation is cooperative and object-form materialization, trusted
-  receipt-clock composition, and network ingress orchestration remain open.
+  token, semantic, and output storage remains generation-pinned through claim
+  release after lower retirement. Saturated or draining admission does not
+  consume the receipt; deadlines, cancellation, work ceilings, stale aliases,
+  and explicit discard/release are covered. Ready, failed, prepared, and
+  claimed results intentionally pin their lane until the outer owner disposes
+  of the capability. The legacy facade performs the same semantic-storage and
+  View-based output contract synchronously, including blocking tokenization and
+  semantic validation; it is not a reactor quantum. Canonical-frame scanning
+  and validation is cooperative, while direct framed-view preparation and
+  network ingress orchestration remain open.
 - A backend-neutral worker protocol for exact prefill/decode rows, flattened
   token/page/capability tables, plan and model generations, completion slots,
   and typed completion records. Its reusable fixed-capacity plan and completion

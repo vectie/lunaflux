@@ -236,6 +236,10 @@ pub struct LunaRequestSemanticStorage {
   priv stop_string_bytes : FixedArray[Byte]
   priv cache_scope_bytes : FixedArray[Byte]
   priv mut epoch : UInt64
+  priv mut retention_cursor : UInt64
+  priv mut retention_count : Int
+  priv mut retention_id_a : UInt64
+  priv mut retention_id_b : UInt64
   priv mut phase : Int
   priv mut stop_token_count : Int
   priv mut stop_string_count : Int
@@ -288,6 +292,24 @@ pub struct LunaRequestSemanticLease {
 pub struct LunaRequestSemanticView {
   priv storage : LunaRequestSemanticStorage
   priv epoch : UInt64
+}
+
+///|
+/// Token-only projection of one exact semantic lease. It carries no stop
+/// strings, cache data, inference limits, release authority, or raw storage.
+#valtype
+pub struct LunaRequestStopTokenView {
+  priv storage : LunaRequestSemanticStorage
+  priv epoch : UInt64
+}
+
+///|
+/// Startup-preallocated mutable owner cell for one transferred retention.
+/// It avoids both a copyable retention alias and Option boxing on admission.
+pub struct LunaRequestStopTokenRetentionSlot {
+  priv mut storage : LunaRequestSemanticStorage?
+  priv mut epoch : UInt64
+  priv mut retention_id : UInt64
 }
 
 ///|

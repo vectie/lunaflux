@@ -52,7 +52,10 @@ for symbol in \
   'worker__service22append__bridge__decode(' \
   'Scheduler19complete__submitted(' \
   'Scheduler8complete(' \
-  'Scheduler21preflight__completion('; do
+  'Scheduler21preflight__completion(' \
+  'Scheduler25request__stops__on__token(' \
+  'LunaRequestStopTokenRetentionSlot15is__stop__token(' \
+  'LunaRequestSemanticStorage19stop__token__status('; do
   body="$(extract_definition "$generated_c" "$symbol")"
   if [ -z "$body" ]; then
     printf 'worker-service allocation function is missing: %s\n' "$symbol" >&2
@@ -70,6 +73,49 @@ if printf '%s\n' "$hot_body" |
   rg 'moonbit_malloc' |
   rg -q -v 'Error|Failure'; then
   printf '%s\n' 'worker-service progress contains a non-error heap allocation' >&2
+  exit 1
+fi
+
+semantic_membership_body=""
+for symbol in \
+  'Scheduler25request__stops__on__token(' \
+  'LunaRequestStopTokenRetentionSlot8is__live(' \
+  'LunaRequestStopTokenRetentionSlot15is__stop__token(' \
+  'LunaRequestSemanticStorage19stop__token__status('; do
+  body="$(extract_definition "$generated_c" "$symbol")"
+  if [ -z "$body" ]; then
+    printf 'worker semantic-membership function is missing: %s\n' "$symbol" >&2
+    exit 1
+  fi
+  semantic_membership_body="${semantic_membership_body}${body}"
+done
+if printf '%s\n' "$semantic_membership_body" |
+  rg "$strict_allocation_pattern" |
+  rg -v \
+    'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error63vectie_2flunaflux_2fscheduler_2fcore_2eSchedulerError_2eInvalid\)\)' |
+  rg -q .; then
+  printf '%s\n' \
+    'worker semantic membership contains a non-typed-error allocation' >&2
+  exit 1
+fi
+
+request_stops_source="$(awk '
+  /fn Scheduler::request_stops_on_token\(/ { copying = 1 }
+  copying {
+    print
+    opens += gsub(/\{/, "{"); closes += gsub(/\}/, "}")
+    if (opens > 0 && opens == closes) exit
+  }
+' scheduler/core/completion_preflight.mbt)"
+if [ -z "$request_stops_source" ] ||
+  ! printf '%s\n' "$request_stops_source" | rg -q \
+    'request_stop_tokens\[slot\]' ||
+  ! printf '%s\n' "$request_stops_source" | rg -q \
+    'is_stop_token\(token\)' ||
+  ! printf '%s\n' "$request_stops_source" | rg -q 'is_stale\(\)' ||
+  printf '%s\n' "$request_stops_source" | rg -q \
+    'LunaRequestSemanticView|StopConditions|CachePolicy|\.stops\(|\.cache\('; then
+  printf '%s\n' 'worker semantic-membership dependency shape drifted' >&2
   exit 1
 fi
 

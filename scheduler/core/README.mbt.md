@@ -14,6 +14,17 @@ vocabulary in constant scalar work. It neither exposes nor rescans prompt
 tokens. Later plan construction still reads each authenticated token needed to
 populate a bounded prefill row.
 
+Stop-token semantics cross the boundary only through an opaque token-only Luna
+projection. Stop strings, cache policy, inference limits, raw token IDs, and
+full semantic views are not scheduler inputs. Admission authenticates the
+projection, then retains one exact semantic authority after every request
+preflight and deadline check and immediately before the first scheduler
+mutation. Prepared admission lets the online worker acquire its independent
+retention before sampling the clock and committing. The semantic lease cannot
+release while either retention is live; every slot recycle releases the
+scheduler retention exactly once. Completion uses bounded allocation-free
+membership and maps stale authority to `Request`/`Stale` before mutation.
+
 The owner allocates fixed request-slot arrays and one intrusive FIFO waiting
 queue at startup. A scheduler-global `RequestGeneration` sequence advances on
 every admission, cancellation, and deadline transition, so re-admitting the
@@ -52,10 +63,12 @@ worker activation. While that shell is reserved, the same global mutation gate
 rejects ordinary admission, planning, cancellation, expiry, and instance-loss
 drain. Deadline is sampled only after startup; commit either installs the
 preallocated handle, consumes the shell as expired, or returns Invalidated if
-an outer retained alias released or reused the prompt-token backing after
-prepare. Backing reauthentication precedes the deadline check, and every
-noncommit result clears the reservation. Abort, invalidation, and expiry are
-one-shot, so an aliased stale shell cannot later admit.
+an outer retained alias released or reused the prompt-token or semantic
+backing after prepare. Both backings are reauthenticated before the deadline;
+the scheduler retention is then acquired before installation. Saturated
+retention invalidates without scheduler mutation. Every noncommit result
+clears the reservation. Abort, invalidation, and expiry are one-shot, so an
+aliased stale shell cannot later admit.
 
 After an unrecoverable worker-instance loss, `drain_instance_loss` retires at
 most one live request per call, publishes `WorkerFailed`, and releases active
@@ -122,8 +135,9 @@ attached until completion proves device work is retired; stale work cannot
 advance request state or publish a token.
 The reusable worker protocol now distinguishes intermediate prefill from a
 final prompt chunk that samples the first output token; this scheduler uses
-that distinction when building rows. Until a bounded incremental matcher
-exists, nonempty stop strings are rejected explicitly. Prefix reuse, generated
+that distinction when building rows. Stop strings remain an outer incremental
+output concern and cannot cross the scheduler's token-only projection. Prefix
+reuse, generated
 text decoding, process I/O and supervision, recomputation-based preemption, runtime
 allocation instrumentation, and device KV execution remain outside this
 package's current evidence.

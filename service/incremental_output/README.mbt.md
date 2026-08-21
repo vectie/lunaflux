@@ -19,6 +19,12 @@ setup error enters a payload-safe authenticated Failed state. The same Work
 replays that error with zero work, cannot publish a lease, and remains the sole
 authority that may abort the failure back to Idle.
 
+`LunaIncrementalOutputWorkspace::new_for_luna_request_semantics` is the
+synchronous compatibility factory. It authenticates the exact limits and live
+semantic epoch before allocating only the actual stop count and longest stop
+string shape. Warm fixed-lane owners continue to use envelope-sized `new` once
+at startup.
+
 Workspace construction also reserves one private semantic-view capability
 slot. It is filled and cleared without growing a collection, so semantic setup
 does not allocate a per-request option wrapper. `required_reference_cells`

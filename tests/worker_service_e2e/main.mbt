@@ -155,11 +155,7 @@ fn request(
     input_tokens=@inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(id),
-    stops=@inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      @inference.CacheScope::from_ascii(b"service", limits),
-      Disabled,
-    ),
+    stop_tokens=e2e_stop_token_projection(limits, b"service"),
     stream_preference=Streaming,
     effective_limits=@inference.EffectiveLimits::new(
       max_new_tokens~,
@@ -187,11 +183,7 @@ fn online_request(
     input_tokens=@inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(id),
-    stops=@inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      @inference.CacheScope::from_ascii(b"online", limits),
-      Disabled,
-    ),
+    stop_tokens=e2e_stop_token_projection(limits, b"online"),
     stream_preference=Streaming,
     effective_limits=@inference.EffectiveLimits::new(
       max_new_tokens~,

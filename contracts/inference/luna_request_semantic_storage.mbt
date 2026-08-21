@@ -48,6 +48,10 @@ pub fn LunaRequestSemanticStorage::new(
     ),
     cache_scope_bytes: FixedArray::make(limits.max_cache_scope_bytes(), b'\x00'),
     epoch: 0UL,
+    retention_cursor: 0UL,
+    retention_count: 0,
+    retention_id_a: 0UL,
+    retention_id_b: 0UL,
     phase: LUNA_REQUEST_SEMANTIC_IDLE,
     stop_token_count: 0,
     stop_string_count: 0,
@@ -159,6 +163,11 @@ fn LunaRequestSemanticStorage::is_current_epoch(
 fn LunaRequestSemanticStorage::return_to_idle(
   self : LunaRequestSemanticStorage,
 ) -> Unit {
+  if self.retention_count != 0 ||
+    self.retention_id_a != 0UL ||
+    self.retention_id_b != 0UL {
+    abort("Luna semantic retention invariant")
+  }
   self.phase = LUNA_REQUEST_SEMANTIC_IDLE
   self.stop_token_count = 0
   self.stop_string_count = 0
@@ -169,4 +178,59 @@ fn LunaRequestSemanticStorage::return_to_idle(
   self.write_stop_byte_index = 0
   self.write_cache_index = 0
   self.last_work_units = 0
+}
+
+///|
+fn LunaRequestSemanticStorage::has_retention(
+  self : LunaRequestSemanticStorage,
+  retention_id : UInt64,
+) -> Bool {
+  retention_id != 0UL &&
+  (self.retention_id_a == retention_id || self.retention_id_b == retention_id)
+}
+
+///|
+fn LunaRequestSemanticStorage::retain_stop_tokens(
+  self : LunaRequestSemanticStorage,
+  epoch : UInt64,
+) -> UInt64 raise InferenceContractError {
+  if !self.is_current_epoch(epoch) || self.phase != LUNA_REQUEST_SEMANTIC_LEASED {
+    raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  if self.retention_count >= 2 {
+    raise invalid(LunaRequestSemantic, LunaStorageBusy, 0)
+  }
+  if self.retention_cursor == 0xffffffffffffffffUL {
+    raise invalid(LunaRequestSemantic, OutOfRange, 0)
+  }
+  self.retention_cursor += 1UL
+  let retention_id = self.retention_cursor
+  if self.retention_id_a == 0UL {
+    self.retention_id_a = retention_id
+  } else if self.retention_id_b == 0UL {
+    self.retention_id_b = retention_id
+  } else {
+    abort("Luna semantic retention capacity invariant")
+  }
+  self.retention_count += 1
+  retention_id
+}
+
+///|
+fn LunaRequestSemanticStorage::release_stop_tokens(
+  self : LunaRequestSemanticStorage,
+  epoch : UInt64,
+  retention_id : UInt64,
+) -> Unit raise InferenceContractError {
+  if !self.is_current_epoch(epoch) ||
+    self.phase != LUNA_REQUEST_SEMANTIC_LEASED ||
+    !self.has_retention(retention_id) {
+    raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  if self.retention_id_a == retention_id {
+    self.retention_id_a = 0UL
+  } else {
+    self.retention_id_b = 0UL
+  }
+  self.retention_count -= 1
 }

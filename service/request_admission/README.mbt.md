@@ -1,7 +1,7 @@
 # Online request admission
 
 This package is the synchronous, transport-neutral bridge from one canonical
-framed `GenerateRequest` to the scheduler's token-only contract. The opaque
+framed `GenerateRequest` to the scheduler's opaque Luna stop-token contract. The opaque
 `IncrementalRequestReceiver` preallocates its framed reader and scalar receipt
 state. Empty or invalid caller ranges read no clock; the first valid nonempty
 append samples monotonic time exactly once before any byte/count mutation, and
@@ -21,9 +21,9 @@ retained deadline without rebasing it.
 The live cooperative path is `LunaRequestPreparationPool`. It allocates a hard
 maximum of 1024 fixed lanes at startup, after checked aggregate `Int`, `Byte`,
 and reference-cell accounting. Every lane permanently owns one Luna tokenizer
-worker, token buffer storage, and incremental-output workspace. The byte budget
-includes both the worker's exact fixed input backing and the output workspace's
-matcher/decode backing for every lane. `try_submit`
+worker, token buffer storage, request-semantic storage, and incremental-output
+workspace. The byte budget includes tokenizer input, semantic stop/cache, and
+output matcher/decode backing for every lane. `try_submit`
 returns Saturated or Draining without consuming its `ReceivedRequest`; an
 admitted request is pinned to its lane and exact generation until explicit
 discard or claim release. Once a free lane is selected, `try_submit` consumes
@@ -34,8 +34,9 @@ receipt capability.
 Only the pool advances work. Its fixed active ring grants one FIFO lane a
 configured quantum per `progress` call. One charged preparation unit is one
 input-byte copy into the fixed tokenizer backing, one tokenizer state-machine
-unit, one token scalar read/write, one incremental-output setup unit, or one
-constant-size assembly transition. Work is checked against both a per-call
+unit, one token scalar read/write, one semantic token/UTF-8/cache import or
+validation unit, one incremental-output setup unit, or one constant-size
+assembly transition. Work is checked against both a per-call
 quantum and an exact total-work ceiling. The monotonic deadline is checked
 before each lane quantum, immediately before Ready publication, and again
 before Prepared and Claimed transfer. Cancellation is observed by the central
@@ -46,30 +47,36 @@ Ready assembly may allocate only constant-size scheduler, prepared, and claim
 records. Text bytes remain canonical and immutable while BPE and token copying
 are cooperative. TokenIds reuse their already-validated `TokenBuffer` without
 rescanning or copying. No proportional collection is created by pool progress.
-String stops remain in the pooled incremental-output lease while the scheduler
-receives the O(1) token-only stop view.
+String stops and cache authority remain in the inference-owned semantic lease.
+The full view exists only through output setup; the scheduler receives the
+narrow O(1) Luna stop-token projection.
 
 Preparation publishes one opaque `LunaPreparedRequest` shell, deliberately
 without `Debug`, lane, generation, receipt, or deadline accessors. `take_claim`
 revokes every retained shell alias and transfers scheduler plus optional pooled
 token/output lease authority. `LunaPreparedRequestClaim::release` is mandatory,
-generation-authenticated, and non-idempotent; only successful subordinate lease
-release returns the lane to the free ring. Output mutation exists only on the
+generation-authenticated, and non-idempotent. Semantic release occurs first,
+so any live scheduler or online-worker retention rejects early release
+transactionally and leaves the claim and lane intact. Successful release after
+lower retirement returns the lane to the free ring. Output mutation exists only on the
 claim, never on the shell. Its `scheduler_request` result is a trusted borrowed
 view for the designated online admission bridge: it must not outlive the claim,
 and no other production package may retain or consume it.
 
-String stops remain in the private incremental-output owner while only stop
-token IDs enter the scheduler request. Generated pieces can then be copied into
+String stops remain in private semantic/output owners while only opaque
+stop-token membership enters the scheduler request. Generated pieces can then be copied into
 caller-owned fixed storage with split UTF-8 and cross-token stop matching.
 Known stop-token IDs are exposed only as a bounded membership query and are
 rejected by `push_token_into_status`, preventing their pieces from leaking as
 ordinary decoded output.
 
-The legacy `prepare_luna_request` facade remains synchronous and detached for
-compatibility. It is not the reactor-safe production path. The package does not
-own a scheduler, request handle, socket, or async task, and framed parsing plus
-request materialization are still synchronous. Therefore end-to-end
+The legacy `prepare_luna_request` facade remains synchronous for compatibility,
+but drives the same semantic validation, output setup, and claim engine. Its
+exact-shape Luna output factory preserves small-request memory behavior. It is
+not the reactor-safe production path. The package does not
+own a scheduler, request handle, socket, or async task. Object-form frame
+materialization and direct framed-View preparation composition remain open.
+Therefore end-to-end
 reactor-safe ingress is not yet claimed even though Luna preparation itself is
 fixed-lane and cooperatively bounded. `service/online_session` claims the Luna
 owner, authenticates its scheduler handle and publication sequence, and must

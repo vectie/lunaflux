@@ -28,6 +28,14 @@ fn new_preparation_lane(
     ) catch {
       _ => raise Invalid(Input)
     },
+    semantic_storage: @inference.LunaRequestSemanticStorage::new(
+      inference,
+      @inference.LunaRequestSemanticStepBudget::new(1) catch {
+        _ => raise Invalid(LunaPreparationPool)
+      },
+    ) catch {
+      _ => raise Invalid(LunaPreparationStorage)
+    },
     output_workspace: @incremental_output.LunaIncrementalOutputWorkspace::new(
       tokenizer, inference, output_budget,
     ) catch {
@@ -45,10 +53,19 @@ fn new_preparation_lane(
     tokenizer_work: None,
     token_write: None,
     token_lease: None,
+    semantic_write: Array::new(capacity=1),
+    semantic_work: Array::new(capacity=1),
+    semantic_lease: Array::new(capacity=1),
     output_work: None,
     output_lease: None,
     tokens: None,
     copy_index: 0,
+    semantic_item_index: 0,
+    semantic_unit_offset: 0,
+    semantic_byte_length: 0,
+    semantic_codepoint: 0,
+    semantic_codepoint_width: 0,
+    semantic_codepoint_byte_index: 0,
     claim: None,
     failure: None,
     last_work_units: 0,
@@ -218,12 +235,21 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.tokenizer_work = None
   lane.token_write = None
   lane.token_lease = None
+  lane.semantic_write.clear()
+  lane.semantic_work.clear()
+  lane.semantic_lease.clear()
   lane.output_work = None
   lane.output_lease = None
   lane.tokens = None
   lane.claim = None
   lane.failure = None
   lane.copy_index = 0
+  lane.semantic_item_index = 0
+  lane.semantic_unit_offset = 0
+  lane.semantic_byte_length = 0
+  lane.semantic_codepoint = 0
+  lane.semantic_codepoint_width = 0
+  lane.semantic_codepoint_byte_index = 0
   lane.last_work_units = 0
   lane.total_work_units = 0UL
   self.push_free_lane(lane_index)
@@ -298,11 +324,7 @@ fn LunaRequestPreparationPool::start_lane(
   lane.last_work_units = 0
   lane.total_work_units = 0UL
   lane.claim = None
-  lane.output_work = Some(
-    lane.output_workspace.begin(received.request.stops(), special_policy=Skip) catch {
-      _ => raise Invalid(OutputContract)
-    },
-  )
+  lane.output_work = None
   match received.request.input() {
     Text(text) => {
       lane.tokenizer_input_write = Some(
@@ -326,7 +348,7 @@ fn LunaRequestPreparationPool::start_lane(
       lane.tokenizer_input_write = None
       lane.tokenizer_work = None
       lane.tokens = Some(tokens)
-      lane.phase = LUNA_PREPARATION_OUTPUT_SETUP
+      lane.phase = LUNA_PREPARATION_SEMANTIC_CACHE_MEASURE
     }
   }
 }

@@ -68,9 +68,10 @@ pub struct LunaPreparedRequest {
 /// state remain private and the type deliberately has no `Debug`.
 pub struct LunaPreparedRequestClaim {
   priv mut scheduler_request : @core.TokenizedRequest?
-  priv mut detached_output : @incremental_output.IncrementalOutput?
   priv mut pooled_output : @incremental_output.LunaIncrementalOutputLease?
   priv mut token_lease : @inference.LunaTokenBufferLease?
+  priv semantic_lease : Array[@inference.LunaRequestSemanticLease]
+  priv stop_tokens : @inference.LunaRequestStopTokenView
   priv mut pool : LunaRequestPreparationPool?
   priv lane : Int
   priv generation : UInt64
@@ -222,18 +223,14 @@ pub fn LunaPreparedRequestClaim::is_stop_token(
   self : LunaPreparedRequestClaim,
   token_id : Int,
 ) -> Bool {
-  let request = try self.require_scheduler_request() catch {
-    _ => return false
-  } noraise {
-    value => value
-  }
-  let candidates = request.stops().token_ids()
-  for index in 0..<candidates.length() {
-    if candidates[index] == token_id {
-      return true
-    }
-  }
-  false
+  ignore(
+    try self.require_scheduler_request() catch {
+      _ => return false
+    } noraise {
+      value => value
+    },
+  )
+  self.stop_tokens.is_stop_token(token_id).is_present()
 }
 
 ///|
@@ -249,12 +246,7 @@ pub fn LunaPreparedRequestClaim::push_token_into_status(
   match self.pooled_output {
     Some(output) =>
       output.push_token_status(token_id, destination, destination_offset~)
-    None =>
-      match self.detached_output {
-        Some(output) =>
-          output.push_token_status(token_id, destination, destination_offset~)
-        None => @incremental_output.IncrementalOutputStatus::rejected()
-      }
+    None => @incremental_output.IncrementalOutputStatus::rejected()
   }
 }
 
@@ -266,21 +258,22 @@ pub fn LunaPreparedRequestClaim::finish_into_status(
 ) -> @incremental_output.IncrementalOutputStatus {
   match self.pooled_output {
     Some(output) => output.finish_into_status(destination, destination_offset~)
-    None =>
-      match self.detached_output {
-        Some(output) =>
-          output.finish_into_status(destination, destination_offset~)
-        None => @incremental_output.IncrementalOutputStatus::rejected()
-      }
+    None => @incremental_output.IncrementalOutputStatus::rejected()
   }
 }
 
 ///|
 fn LunaPreparedRequestClaim::release_resources_only(
   self : LunaPreparedRequestClaim,
-) -> Unit {
+) -> Unit raise RequestAdmissionError {
+  if self.semantic_lease.length() != 1 {
+    raise Invalid(LunaPreparedLifecycle)
+  }
+  self.semantic_lease[0].release() catch {
+    _ => raise Invalid(LunaPreparedLifecycle)
+  }
+  self.semantic_lease.clear()
   self.scheduler_request = None
-  self.detached_output = None
   match self.pooled_output {
     Some(output) => try! output.release()
     None => ()

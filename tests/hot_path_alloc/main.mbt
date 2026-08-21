@@ -233,19 +233,37 @@ fn audit_wire_plan(
 }
 
 ///|
-fn request() -> @scheduler.TokenizedRequest {
+priv struct HotPathRequestFixture {
+  request : @scheduler.TokenizedRequest
+  semantics : @inference.LunaRequestSemanticLease
+}
+
+///|
+fn request() -> HotPathRequestFixture {
   let limits = inference_limits()
-  try! @scheduler.TokenizedRequest::new(
+  let semantic_storage = try! @inference.LunaRequestSemanticStorage::new(
+    limits,
+    try! @inference.LunaRequestSemanticStepBudget::new(17),
+  )
+  let semantic_write = try! semantic_storage.begin(
+    stop_token_count=0,
+    stop_string_count=0,
+    cache_scope_byte_count=1,
+    cache_permission=Disabled,
+  )
+  try! semantic_write.push_cache_scope_byte(b'x')
+  let semantic_work = try! semantic_write.finish()
+  while (try! semantic_work.progress()).is_pending() {
+
+  }
+  let semantics = try! semantic_work.take_lease()
+  let request = try! @scheduler.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(1UL),
     model_identity=model_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(1UL),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"alloc", limits),
-      Disabled,
-    ),
+    stop_tokens=try! semantics.stop_token_view(),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=24,
@@ -257,6 +275,7 @@ fn request() -> @scheduler.TokenizedRequest {
       try! @inference.DeadlineBudget::from_milliseconds(1000UL, limits),
     ),
   )
+  { request, semantics }
 }
 
 ///|
@@ -374,7 +393,9 @@ fn main {
   verify_probe_observes_allocations()
   let owner = scheduler()
   let wire = wire_audit()
-  ignore(try! owner.admit(request(), 0UL))
+  let request_fixture = request()
+  ignore(try! owner.admit(request_fixture.request, 0UL))
+  ignore(request_fixture.semantics)
 
   // Warm both scheduler-owned A/B plan and completion buffers before counting.
   complete_final_prefill(owner, wire)

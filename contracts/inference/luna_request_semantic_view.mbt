@@ -30,11 +30,24 @@ pub fn LunaRequestSemanticLease::view(
 }
 
 ///|
-/// Invalidates this lease and every retained View alias without clearing arrays.
+/// Issues a scheduler-safe token-only projection of this exact lease epoch.
+pub fn LunaRequestSemanticLease::stop_token_view(
+  self : LunaRequestSemanticLease,
+) -> LunaRequestStopTokenView raise InferenceContractError {
+  ignore(self.require_storage())
+  { storage: self.storage, epoch: self.epoch }
+}
+
+///|
+/// Invalidates the lease and Views only after both lower retention slots release.
 pub fn LunaRequestSemanticLease::release(
   self : LunaRequestSemanticLease,
 ) -> Unit raise InferenceContractError {
-  self.require_storage().return_to_idle()
+  let storage = self.require_storage()
+  if storage.retention_count != 0 {
+    raise invalid(LunaRequestSemantic, LunaStorageBusy, 0)
+  }
+  storage.return_to_idle()
 }
 
 ///|
@@ -130,22 +143,21 @@ pub fn LunaRequestSemanticView::cache_scope_byte_at(
 /// Performs an authenticated binary search over the budgetedly built sorted
 /// token index. The status distinguishes invalidated authority from absence;
 /// `work_units` is the exact number of token comparisons.
-pub fn LunaRequestSemanticView::is_stop_token(
-  self : LunaRequestSemanticView,
+fn LunaRequestSemanticStorage::stop_token_status(
+  self : LunaRequestSemanticStorage,
+  epoch : UInt64,
   token_id : Int,
 ) -> LunaRequestSemanticStopTokenStatus {
-  let storage = self.storage
-  if !storage.is_current_epoch(self.epoch) ||
-    storage.phase != LUNA_REQUEST_SEMANTIC_LEASED {
+  if !self.is_current_epoch(epoch) || self.phase != LUNA_REQUEST_SEMANTIC_LEASED {
     return { state: 2, work_units: 0 }
   }
   let mut low = 0
-  let mut high = storage.stop_token_count
+  let mut high = self.stop_token_count
   let mut used = 0
   while low < high {
     let middle = low + (high - low) / 2
     used += 1
-    let candidate = storage.sorted_stop_tokens[middle]
+    let candidate = self.sorted_stop_tokens[middle]
     if candidate == token_id {
       return { state: 0, work_units: used }
     }
@@ -156,4 +168,105 @@ pub fn LunaRequestSemanticView::is_stop_token(
     }
   }
   { state: 1, work_units: used }
+}
+
+///|
+pub fn LunaRequestSemanticView::is_stop_token(
+  self : LunaRequestSemanticView,
+  token_id : Int,
+) -> LunaRequestSemanticStopTokenStatus {
+  self.storage.stop_token_status(self.epoch, token_id)
+}
+
+///|
+/// Reports whether this exact token-only lease projection remains live.
+pub fn LunaRequestStopTokenView::is_live(
+  self : LunaRequestStopTokenView,
+) -> Bool {
+  self.storage.is_current_epoch(self.epoch) &&
+  self.storage.phase == LUNA_REQUEST_SEMANTIC_LEASED
+}
+
+///|
+/// Bounded authenticated membership without exposing token storage.
+pub fn LunaRequestStopTokenView::is_stop_token(
+  self : LunaRequestStopTokenView,
+  token_id : Int,
+) -> LunaRequestSemanticStopTokenStatus {
+  self.storage.stop_token_status(self.epoch, token_id)
+}
+
+///|
+/// Acquires one of the two exact retentions directly into a caller-owned,
+/// startup-preallocated empty slot.
+pub fn LunaRequestStopTokenView::retain_into(
+  self : LunaRequestStopTokenView,
+  slot : LunaRequestStopTokenRetentionSlot,
+) -> Unit raise InferenceContractError {
+  slot.bind(self.storage, self.epoch)
+}
+
+///|
+/// Allocates one empty owner cell during enclosing-owner startup.
+pub fn LunaRequestStopTokenRetentionSlot::new() -> LunaRequestStopTokenRetentionSlot {
+  { storage: None, epoch: 0UL, retention_id: 0UL }
+}
+
+///|
+/// Transfers one exact retention into this already allocated empty cell.
+fn LunaRequestStopTokenRetentionSlot::bind(
+  self : LunaRequestStopTokenRetentionSlot,
+  storage : LunaRequestSemanticStorage,
+  epoch : UInt64,
+) -> Unit raise InferenceContractError {
+  match self.storage {
+    Some(_) => raise invalid(LunaRequestSemantic, LunaStorageBusy, 0)
+    None => ()
+  }
+  let retention_id = storage.retain_stop_tokens(epoch)
+  self.storage = Some(storage)
+  self.epoch = epoch
+  self.retention_id = retention_id
+}
+
+///|
+/// Reports whether the transferred exact retention remains live.
+pub fn LunaRequestStopTokenRetentionSlot::is_live(
+  self : LunaRequestStopTokenRetentionSlot,
+) -> Bool {
+  match self.storage {
+    Some(storage) =>
+      storage.is_current_epoch(self.epoch) &&
+      storage.phase == LUNA_REQUEST_SEMANTIC_LEASED &&
+      storage.has_retention(self.retention_id)
+    None => false
+  }
+}
+
+///|
+/// Bounded membership through this transferred owner cell.
+pub fn LunaRequestStopTokenRetentionSlot::is_stop_token(
+  self : LunaRequestStopTokenRetentionSlot,
+  token_id : Int,
+) -> LunaRequestSemanticStopTokenStatus {
+  match self.storage {
+    Some(storage) if self.is_live() =>
+      storage.stop_token_status(self.epoch, token_id)
+    _ => { state: 2, work_units: 0 }
+  }
+}
+
+///|
+/// Releases the exact bound retention, leaving this cell reusable.
+pub fn LunaRequestStopTokenRetentionSlot::release(
+  self : LunaRequestStopTokenRetentionSlot,
+) -> Unit raise InferenceContractError {
+  let storage = match self.storage {
+    Some(value) => value
+    None => raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  storage.release_stop_tokens(self.epoch, self.retention_id)
+  self.storage = None
+  self.epoch = 0UL
+  self.retention_id = 0UL
 }

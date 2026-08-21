@@ -30,6 +30,9 @@ fn Scheduler::preflight_admission_request(
   if maximum_token.is_out_of_range() || !maximum_token.is_within_bound() {
     raise invalid(Request, OutOfRange)
   }
+  if !request.semantic_stop_tokens_live() {
+    raise invalid(Request, Stale)
+  }
   let maximum_sequence_tokens = prompt_tokens +
     request.effective_limits().max_new_tokens()
   let prompt_pages = ceiling_pages(
@@ -55,10 +58,14 @@ fn Scheduler::preflight_admission_request(
 fn Scheduler::install_admission_request(
   self : Scheduler,
   request : TokenizedRequest,
+  retained_index : Int,
 ) -> Int {
   let deadline = request.admission_deadline().at_millis()
   let generation = try! self.allocate_request_generation()
   let index = try! self.allocate_slot()
+  if index != retained_index || !self.request_stop_tokens[index].is_live() {
+    abort("scheduler stop-token install invariant")
+  }
   self.slot_states[index] = SLOT_WAITING
   self.requests[index] = Some(request)
   self.request_generations[index] = generation
@@ -79,7 +86,9 @@ fn Scheduler::commit_admission_request(
   if request.admission_deadline().is_expired(now_millis) {
     raise invalid(Deadline, Expired)
   }
-  ignore(self.install_admission_request(request))
+  let retained_index = self.free_head
+  request.retain_stop_tokens_into(self.request_stop_tokens[retained_index])
+  ignore(self.install_admission_request(request, retained_index))
 }
 
 ///|
@@ -96,7 +105,21 @@ pub fn Scheduler::prepare_admission(
       request_generation: @inference.RequestGeneration::initial(),
     },
     committed: false,
+    retention_issued: false,
   }
+}
+
+///|
+/// Acquires the online worker's independent semantic retention before commit.
+pub fn PreparedAdmission::retain_stop_tokens_into(
+  self : PreparedAdmission,
+  slot : @inference.LunaRequestStopTokenRetentionSlot,
+) -> Unit raise SchedulerError {
+  if self.committed || self.retention_issued {
+    raise invalid(Request, InvalidTransition)
+  }
+  self.request.retain_stop_tokens_into(slot)
+  self.retention_issued = true
 }
 
 ///|
@@ -144,9 +167,26 @@ pub fn Scheduler::prepare_exclusive_admission(
     },
     committed: false,
     consumed: false,
+    retention_issued: false,
   }
   self.exclusive_admission_reserved = true
   prepared
+}
+
+///|
+/// Acquires the online worker's independent semantic retention while this
+/// exact exclusive reservation remains live and unconsumed.
+pub fn PreparedExclusiveAdmission::retain_stop_tokens_into(
+  self : PreparedExclusiveAdmission,
+  slot : @inference.LunaRequestStopTokenRetentionSlot,
+) -> Unit raise SchedulerError {
+  if self.consumed ||
+    self.retention_issued ||
+    !self.owner.exclusive_admission_reserved {
+    raise invalid(Request, InvalidTransition)
+  }
+  self.request.retain_stop_tokens_into(slot)
+  self.retention_issued = true
 }
 
 ///|
@@ -166,7 +206,8 @@ pub fn Scheduler::commit_exclusive_admission(
   let maximum_token = prepared.request.input_maximum_token_status(
     self.capacity.worker_max_token_id(),
   )
-  if !maximum_token.is_within_bound() {
+  if !maximum_token.is_within_bound() ||
+    !prepared.request.semantic_stop_tokens_live() {
     self.exclusive_admission_reserved = false
     prepared.consumed = true
     return ExclusiveAdmissionInvalidated
@@ -176,7 +217,21 @@ pub fn Scheduler::commit_exclusive_admission(
     prepared.consumed = true
     return ExclusiveAdmissionExpired
   }
-  let index = self.install_admission_request(prepared.request)
+  let retained_index = self.free_head
+  try
+    prepared.request.retain_stop_tokens_into(
+      self.request_stop_tokens[retained_index],
+    )
+  catch {
+    _ => {
+      self.exclusive_admission_reserved = false
+      prepared.consumed = true
+      return ExclusiveAdmissionInvalidated
+    }
+  } noraise {
+    _ => ()
+  }
+  let index = self.install_admission_request(prepared.request, retained_index)
   prepared.handle.slot = SchedulerSlotId(index, self.slot_generations[index])
   prepared.handle.request_generation = self.request_generations[index]
   prepared.committed = true

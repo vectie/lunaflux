@@ -58,17 +58,25 @@ fn owned_preparation_allocation_positive_control() -> Bytes {
 ///|
 fn wb_online_request(deadline? : UInt64 = 100UL) -> @core.TokenizedRequest {
   let limits = wb_service_inference_limits()
+  wb_online_request_with_stop_tokens(
+    wb_service_stop_token_projection(limits),
+    deadline,
+  )
+}
+
+///|
+fn wb_online_request_with_stop_tokens(
+  stop_tokens : @inference.LunaRequestStopTokenView,
+  deadline : UInt64,
+) -> @core.TokenizedRequest {
+  let limits = wb_service_inference_limits()
   try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(991UL),
     model_identity=wb_service_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(991UL),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"online", limits),
-      Disabled,
-    ),
+    stop_tokens~,
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=2,
@@ -80,6 +88,33 @@ fn wb_online_request(deadline? : UInt64 = 100UL) -> @core.TokenizedRequest {
       try! @inference.DeadlineBudget::from_milliseconds(deadline, limits),
     ),
   )
+}
+
+///|
+test "prepared online retention saturation invalidates without scheduler mutation" {
+  let limits = wb_service_inference_limits()
+  let (semantic_lease, stop_tokens) = wb_service_semantic_stop_authority(
+    limits,
+    [],
+  )
+  let external_a = @inference.LunaRequestStopTokenRetentionSlot::new()
+  let external_b = @inference.LunaRequestStopTokenRetentionSlot::new()
+  try! stop_tokens.retain_into(external_a)
+  try! stop_tokens.retain_into(external_b)
+  let scheduler = wb_service_scheduler()
+  let prepared = try! scheduler.prepare_exclusive_admission(
+    wb_online_request_with_stop_tokens(stop_tokens, 100UL),
+  )
+  let read = @monotonic_clock.MonotonicClock::system().prepare_read()
+  let lease = wb_prepared_online_lease(scheduler, prepared, read)
+  assert_eq(lease.commit_prepared_admission(), OnlineAdmissionInvalidated)
+  assert_true(scheduler.is_pristine())
+  assert_eq(scheduler.live_request_count(), 0)
+  assert_true(lease.prepared_admission is None)
+  assert_false(lease.semantic_retention.is_live())
+  try! external_a.release()
+  try! external_b.release()
+  try! semantic_lease.release()
 }
 
 ///|
@@ -105,6 +140,7 @@ fn wb_prepared_online_lease(
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: OnlineRequestEmpty,
     prepared_admission: Some(prepared),
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read,
     handle: None,
     request_generation: @inference.RequestGeneration::initial(),
@@ -168,6 +204,7 @@ test "online restart-forbidden drain authenticates exact request" {
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: OnlineRequestLive,
     prepared_admission: None,
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: handle.request_generation(),
@@ -203,6 +240,7 @@ test "online terminal recovery wrapper drains restart-forbidden request" {
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: OnlineRequestLive,
     prepared_admission: None,
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: handle.request_generation(),
@@ -305,6 +343,7 @@ test "out-of-phase reserved dequeue preserves scheduler publication" {
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: OnlineRequestTerminationPending,
     prepared_admission: None,
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: handle.request_generation(),

@@ -85,6 +85,20 @@ for symbol in \
   'LunaRequestPreparationPool24progress__text__tokenize(' \
   'LunaRequestPreparationPool27progress__text__begin__copy(' \
   'LunaRequestPreparationPool20progress__text__copy(' \
+  'LunaRequestPreparationPool34progress__semantic__cache__measure(' \
+  'LunaRequestPreparationPool25progress__semantic__begin(' \
+  'LunaRequestPreparationPool31progress__semantic__token__copy(' \
+  'LunaRequestPreparationPool35progress__semantic__string__measure(' \
+  'LunaRequestPreparationPool34progress__semantic__string__header(' \
+  'LunaRequestPreparationPool32progress__semantic__string__emit(' \
+  'LunaRequestPreparationPool31progress__semantic__cache__emit(' \
+  'LunaRequestPreparationPool26progress__semantic__finish(' \
+  'LunaRequestPreparationPool28progress__semantic__validate(' \
+  'LunaRequestPreparationPool24progress__semantic__take(' \
+  'luna__semantic__codepoint__at(' \
+  'luna__semantic__codepoint__units__at(' \
+  'luna__semantic__utf8__width(' \
+  'luna__semantic__utf8__byte(' \
   'LunaRequestPreparationPool23progress__output__setup(' \
   'LunaRequestPreparationPool18progress__assemble(' \
   'LunaRequestPreparationWork5state(' \
@@ -101,7 +115,15 @@ for symbol in \
   'LunaTokenBufferStorage5begin(' \
   'LunaTokenBufferWrite4push(' \
   'LunaTokenBufferWrite4seal(' \
-  'LunaIncrementalOutputWorkspace5begin(' \
+  'LunaRequestSemanticStorage5begin(' \
+  'LunaRequestSemanticWrite17push__stop__token(' \
+  'LunaRequestSemanticWrite26push__stop__string__length(' \
+  'LunaRequestSemanticWrite24push__stop__string__byte(' \
+  'LunaRequestSemanticWrite24push__cache__scope__byte(' \
+  'LunaRequestSemanticWrite6finish(' \
+  'LunaRequestSemanticWork8progress(' \
+  'LunaRequestSemanticWork11take__lease(' \
+  'LunaIncrementalOutputWorkspace31begin__luna__request__semantics(' \
   'LunaIncrementalOutputWork8progress(' \
   'LunaIncrementalOutputWork5abort(' \
   'LunaIncrementalOutputWork11take__lease(' \
@@ -148,7 +170,12 @@ if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
 fi
 
 if rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
-    service/request_admission/pool*.mbt; then
+    service/request_admission/pool_progress.mbt \
+    service/request_admission/pool_semantic_progress.mbt \
+    service/request_admission/pool_work.mbt ||
+  [ "$(rg -c 'Array::new\(capacity=1\)' service/request_admission/pool.mbt)" != '3' ] ||
+  rg -n '(^|[^A-Za-z])Array::' service/request_admission/pool.mbt |
+    rg -v 'Array::new\(capacity=1\)'; then
   printf '%s\n' \
     'preparation-pool progress introduced a growing/proportional collection' >&2
   exit 1

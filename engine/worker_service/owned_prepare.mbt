@@ -138,6 +138,7 @@ fn prepare_owned_internal(
     clock: online_clock,
     request_phase: OnlineRequestEmpty,
     prepared_admission,
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: online_clock.prepare_read(),
     handle: None,
     request_generation: @inference.RequestGeneration::initial(),
@@ -335,6 +336,7 @@ pub fn OwnedWorkerServicePreparation::take_online(
     None => abort("owned online lease invariant")
   }
   if online.prepared_admission is Some(_) ||
+    online.semantic_retention.is_live() ||
     online.request_phase != OnlineRequestEmpty ||
     !service.scheduler.is_pristine() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
@@ -366,6 +368,7 @@ pub fn OwnedWorkerServicePreparation::take_prepared_online(
     service.raw_outstanding_count() != 0 ||
     !service.require_process().has_exchange_capacity() ||
     online.prepared_admission is None ||
+    online.semantic_retention.is_live() ||
     online.request_phase != OnlineRequestEmpty {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }

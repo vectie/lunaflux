@@ -410,6 +410,9 @@ pub struct Scheduler {
   priv slot_states : FixedArray[Int]
   priv slot_generations : FixedArray[Int]
   priv requests : FixedArray[TokenizedRequest?]
+  priv request_stop_tokens : FixedArray[
+    @inference.LunaRequestStopTokenRetentionSlot,
+  ]
   priv request_generations : FixedArray[@inference.RequestGeneration]
   priv deadlines : FixedArray[UInt64]
   priv admitted_steps : FixedArray[UInt64]

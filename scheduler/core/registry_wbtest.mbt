@@ -11,6 +11,34 @@ fn wb_identity() -> @spec.ModelIdentity {
 }
 
 ///|
+fn wb_stop_token_projection(
+  limits : @inference.InferenceLimits,
+  token_ids : ArrayView[Int],
+) -> @inference.LunaRequestStopTokenView {
+  let storage = try! @inference.LunaRequestSemanticStorage::new(
+    limits,
+    try! @inference.LunaRequestSemanticStepBudget::new(17),
+  )
+  let write = try! storage.begin(
+    stop_token_count=token_ids.length(),
+    stop_string_count=0,
+    cache_scope_byte_count=5,
+    cache_permission=Disabled,
+  )
+  for token in token_ids {
+    try! write.push_stop_token(token)
+  }
+  for byte in b"scope" {
+    try! write.push_cache_scope_byte(byte)
+  }
+  let work = try! write.finish()
+  while (try! work.progress()).is_pending() {
+
+  }
+  try! (try! work.take_lease()).stop_token_view()
+}
+
+///|
 fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
   let limits = try! @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -34,11 +62,7 @@ fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
     input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"scope", limits),
-      Disabled,
-    ),
+    stop_tokens=wb_stop_token_projection(limits, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=2,

@@ -60,6 +60,7 @@ pub(all) enum OnlinePreparedAdmissionCommit {
   OnlineAdmissionCommitted
   OnlineAdmissionClockFailed
   OnlineAdmissionExpired
+  OnlineAdmissionInvalidated
 } derive(Eq, @debug.Debug)
 
 pub(all) enum OnlineTerminalRecoveryProgress {

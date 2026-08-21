@@ -371,7 +371,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
       LunaRequestPreparationStorageBudget::new(
         int_cells=1UL,
         byte_cells=1UL,
-        reference_cells=1UL,
+        reference_cells=4UL,
       ),
     )
   catch {
@@ -414,7 +414,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=1000000UL,
-      reference_cells=2UL,
+      reference_cells=5UL,
     ),
   )
   exact_references.begin_drain()
@@ -431,7 +431,10 @@ test "lane bounds storage and exhausted generation reject before consumption" {
   let output_bytes = @incremental_output.LunaIncrementalOutputWorkspace::required_byte_cells(
     inference,
   ).to_uint64()
-  let exact_bytes = tokenizer_bytes + output_bytes
+  let semantic_bytes = @inference.LunaRequestSemanticStorage::required_byte_cells(
+    inference,
+  )
+  let exact_bytes = tokenizer_bytes + output_bytes + semantic_bytes
   try
     new_pool_with_clock(
       tokenizer,
@@ -445,7 +448,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
       LunaRequestPreparationStorageBudget::new(
         int_cells=1000000UL,
         byte_cells=exact_bytes - 1UL,
-        reference_cells=2UL,
+        reference_cells=5UL,
       ),
     )
   catch {
@@ -466,7 +469,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=exact_bytes,
-      reference_cells=2UL,
+      reference_cells=5UL,
     ),
   )
   exact_bytes_pool.begin_drain()

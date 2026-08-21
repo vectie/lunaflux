@@ -182,6 +182,7 @@ pub struct OnlineWorkerLease {
   priv mut clock : @monotonic_clock.MonotonicClock
   priv mut request_phase : OnlineRequestPhase
   priv mut prepared_admission : @core.PreparedExclusiveAdmission?
+  priv semantic_retention : @inference.LunaRequestStopTokenRetentionSlot
   priv prepared_clock_read : @monotonic_clock.PreparedMonotonicRead
   priv mut handle : @core.RequestHandle?
   priv mut request_generation : @inference.RequestGeneration
@@ -258,6 +259,7 @@ pub(all) enum OnlinePreparedAdmissionCommit {
   OnlineAdmissionCommitted
   OnlineAdmissionClockFailed
   OnlineAdmissionExpired
+  OnlineAdmissionInvalidated
 } derive(Debug, Eq)
 
 ///|

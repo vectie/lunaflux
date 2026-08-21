@@ -105,11 +105,7 @@ test "admission rejects token IDs outside the loaded worker vocabulary" {
     input_tokens=try! @inference.TokenBuffer::new([40], broad),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(35UL),
-    stops=try! @inference.StopConditions::new([], [], broad),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"scope", broad),
-      Disabled,
-    ),
+    stop_tokens=stop_token_projection(broad, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=1,
@@ -256,11 +252,7 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
       input_tokens=input,
       sampling=@inference.SamplingParameters::greedy(),
       sampling_seed=try! @inference.SamplingSeed::new(99UL),
-      stops=try! @inference.StopConditions::new([], [], limits),
-      cache=@inference.CachePolicy::new(
-        try! @inference.CacheScope::from_ascii(b"scope", limits),
-        Disabled,
-      ),
+      stop_tokens=stop_token_projection(limits, []),
       stream_preference=Streaming,
       effective_limits=try! @inference.EffectiveLimits::new(
         max_new_tokens=2,
@@ -280,34 +272,27 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
 }
 
 ///|
-test "tokenized boundary rejects unsupported stop strings explicitly" {
+test "tokenized scheduler boundary cannot observe semantic stop strings" {
   let limits = inference_limits()
-  try
-    TokenizedRequest::new(
-      request_id=try! @inference.RequestId::new(100UL),
-      model_identity=selected_identity(),
-      input_tokens=try! @inference.TokenBuffer::new([1], limits),
-      sampling=@inference.SamplingParameters::greedy(),
-      sampling_seed=try! @inference.SamplingSeed::new(100UL),
-      stops=try! @inference.StopConditions::new([], [b"stop"], limits),
-      cache=@inference.CachePolicy::new(
-        try! @inference.CacheScope::from_ascii(b"scope", limits),
-        Disabled,
-      ),
-      stream_preference=Streaming,
-      effective_limits=try! @inference.EffectiveLimits::new(
-        max_new_tokens=1,
-        context_ceiling=2,
-        limits,
-      ),
-      admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
-        0UL,
-        try! @inference.DeadlineBudget::from_milliseconds(10UL, limits),
-      ),
-    )
-  catch {
-    error => assert_eq(error, Invalid(field=Request, issue=Unsupported))
-  } noraise {
-    _ => fail("expected unsupported stop-string rejection")
-  }
+  let candidate = try! TokenizedRequest::new(
+    request_id=try! @inference.RequestId::new(100UL),
+    model_identity=selected_identity(),
+    input_tokens=try! @inference.TokenBuffer::new([1], limits),
+    sampling=@inference.SamplingParameters::greedy(),
+    sampling_seed=try! @inference.SamplingSeed::new(100UL),
+    stop_tokens=stop_token_projection(limits, [], stop_strings=[b"stop"]),
+    stream_preference=Streaming,
+    effective_limits=try! @inference.EffectiveLimits::new(
+      max_new_tokens=1,
+      context_ceiling=2,
+      limits,
+    ),
+    admission_deadline=try! @inference.AdmissionDeadline::from_receipt(
+      0UL,
+      try! @inference.DeadlineBudget::from_milliseconds(10UL, limits),
+    ),
+  )
+  let owner = scheduler()
+  ignore(owner.admit(candidate, 0UL))
+  assert_eq(owner.live_request_count(), 1)
 }

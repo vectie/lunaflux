@@ -68,6 +68,13 @@ contains_unexpected_admission_allocation() {
     rg -q .
 }
 
+contains_unexpected_semantic_retention_allocation() {
+  rg "$forbidden" |
+    rg -v \
+      'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error63vectie_2flunaflux_2fscheduler_2fcore_2eSchedulerError_2eInvalid\)\)|moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error76vectie_2flunaflux_2fcontracts_2finference_2eInferenceContractError_2eInvalid\)\)' |
+    rg -q .
+}
+
 positive_body="$(extract_definition 'cancel__reservation__allocation__positive__control(')"
 if [ -z "$positive_body" ] ||
   ! printf '%s\n' "$positive_body" | contains_forbidden_allocation; then
@@ -101,6 +108,36 @@ done
 
 
 for symbol in \
+  'contracts9inference33LunaRequestStopTokenRetentionSlot8is__live(' \
+  'contracts9inference33LunaRequestStopTokenRetentionSlot15is__stop__token(' \
+  'contracts9inference26LunaRequestSemanticStorage19stop__token__status('; do
+  body="$(extract_definition "$symbol")"
+  if [ -z "$body" ]; then
+    printf 'scheduler semantic-retention predicate is missing: %s\n' "$symbol" >&2
+    exit 1
+  fi
+  if printf '%s\n' "$body" | contains_strict_allocation; then
+    printf 'scheduler semantic-retention predicate allocates: %s\n' \
+      "$symbol" >&2
+    exit 1
+  fi
+done
+
+semantic_status_source="$(extract_source_definition \
+  'pub fn LunaRequestSemanticStopTokenStatus::is_present(' \
+  contracts/inference/luna_request_semantic_types.mbt)$(extract_source_definition \
+  'pub fn LunaRequestSemanticStopTokenStatus::is_stale(' \
+  contracts/inference/luna_request_semantic_types.mbt)"
+if [ -z "$semantic_status_source" ] ||
+  printf '%s\n' "$semantic_status_source" | rg -q \
+    'raise|try|Array|FixedArray|Bytes|String|::new|::make|push|append'; then
+  printf '%s\n' \
+    'scheduler semantic membership status predicates construct or drifted' >&2
+  exit 1
+fi
+
+
+for symbol in \
   'scheduler4core16TokenizedRequest29input__maximum__token__status(' \
   'contracts9inference11TokenBuffer22maximum__token__status(' \
   'contracts9inference11TokenBuffer8is__live(' \
@@ -116,6 +153,44 @@ for symbol in \
     exit 1
   fi
 done
+
+for symbol in \
+  'scheduler4core9Scheduler27install__admission__request(' \
+  'scheduler4core16TokenizedRequest26retain__stop__tokens__into(' \
+  'scheduler4core17PreparedAdmission26retain__stop__tokens__into(' \
+  'scheduler4core26PreparedExclusiveAdmission26retain__stop__tokens__into(' \
+  'contracts9inference24LunaRequestStopTokenView12retain__into(' \
+  'contracts9inference33LunaRequestStopTokenRetentionSlot4bind(' \
+  'contracts9inference33LunaRequestStopTokenRetentionSlot7release(' \
+  'contracts9inference26LunaRequestSemanticStorage20retain__stop__tokens(' \
+  'contracts9inference26LunaRequestSemanticStorage21release__stop__tokens('; do
+  body="$(extract_definition "$symbol")"
+  if [ -z "$body" ]; then
+    printf 'scheduler semantic-retention function is missing: %s\n' "$symbol" >&2
+    exit 1
+  fi
+  if printf '%s\n' "$body" |
+    contains_unexpected_semantic_retention_allocation; then
+    printf 'scheduler semantic-retention success path allocates: %s\n' \
+      "$symbol" >&2
+    exit 1
+  fi
+done
+
+if rg -n \
+    'FixedArray\[@inference\.LunaRequestStopTokenRetention\?\]|LunaRequestStopTokenRetention\?' \
+    scheduler/core engine/worker_service --glob '*.mbt'; then
+  printf '%s\n' 'semantic retention returned to an allocating optional slot' >&2
+  exit 1
+fi
+
+if rg -n \
+    'LunaRequestSemanticView|StopConditions|CachePolicy|\.stops\(|\.cache\(|stop_string|cache_scope' \
+    scheduler/core --glob '*.mbt' --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt'; then
+  printf '%s\n' \
+    'scheduler production crossed the token-only semantic boundary' >&2
+  exit 1
+fi
 
 preflight_body="$(extract_definition 'preflight__admission__request(')"
 if [ -z "$preflight_body" ]; then
@@ -157,7 +232,7 @@ if [ -z "$admission_preflight" ] || [ -z "$request_bound" ] ||
   ! printf '%s\n' "$request_bound" | rg -q \
     'maximum_token_status' ||
   ! printf '%s\n' "$exclusive_commit" | rg -q --pcre2 -U \
-    'input_maximum_token_status(?s:.*)!maximum_token\.is_within_bound\(\)(?s:.*)exclusive_admission_reserved = false(?s:.*)prepared\.consumed = true(?s:.*)ExclusiveAdmissionInvalidated(?s:.*)is_expired(?s:.*)install_admission_request'; then
+    'input_maximum_token_status(?s:.*)!maximum_token\.is_within_bound\(\)(?s:.*)exclusive_admission_reserved = false(?s:.*)prepared\.consumed = true(?s:.*)ExclusiveAdmissionInvalidated(?s:.*)is_expired(?s:.*)retain_stop_tokens_into(?s:.*)install_admission_request'; then
   printf '%s\n' \
     'scheduler admission token-bound proof rescans prompt data or drifted' >&2
   exit 1

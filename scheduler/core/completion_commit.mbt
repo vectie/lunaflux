@@ -18,11 +18,10 @@ fn Scheduler::enqueue_generated_token(
 
 ///|
 fn Scheduler::terminal_reason_for_token(
-  self : Scheduler,
-  slot : Int,
-  token : Int,
+  _self : Scheduler,
+  stopped : Bool,
 ) -> TerminalReason {
-  if request_stops_on_token(self.requests[slot].unwrap(), token) {
+  if stopped {
     StopTokenReached
   } else {
     MaximumOutputReached
@@ -49,12 +48,13 @@ fn Scheduler::commit_current_completion(
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
       let request = self.requests[slot].unwrap()
-      if request_stops_on_token(request, token) ||
+      let stopped = try! self.request_stops_on_token(slot, token)
+      if stopped ||
         self.output_counts[slot] >= request.effective_limits().max_new_tokens() {
         try! self.enqueue_terminal(
           request.request_id(),
           self.request_generations[slot],
-          self.terminal_reason_for_token(slot, token),
+          self.terminal_reason_for_token(stopped),
         )
         self.slot_states[slot] = SLOT_FINISHING
         self.release_active_request(slot)
@@ -69,12 +69,13 @@ fn Scheduler::commit_current_completion(
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
       let request = self.requests[slot].unwrap()
-      if request_stops_on_token(request, token) ||
+      let stopped = try! self.request_stops_on_token(slot, token)
+      if stopped ||
         self.output_counts[slot] >= request.effective_limits().max_new_tokens() {
         try! self.enqueue_terminal(
           request.request_id(),
           self.request_generations[slot],
-          self.terminal_reason_for_token(slot, token),
+          self.terminal_reason_for_token(stopped),
         )
         self.slot_states[slot] = SLOT_FINISHING
         self.release_active_request(slot)

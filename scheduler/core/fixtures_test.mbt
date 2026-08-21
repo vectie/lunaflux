@@ -35,6 +35,41 @@ fn inference_limits() -> @inference.InferenceLimits {
 }
 
 ///|
+fn stop_token_projection(
+  limits : @inference.InferenceLimits,
+  token_ids : ArrayView[Int],
+  stop_strings? : ArrayView[Bytes] = [],
+) -> @inference.LunaRequestStopTokenView {
+  let storage = try! @inference.LunaRequestSemanticStorage::new(
+    limits,
+    try! @inference.LunaRequestSemanticStepBudget::new(17),
+  )
+  let write = try! storage.begin(
+    stop_token_count=token_ids.length(),
+    stop_string_count=stop_strings.length(),
+    cache_scope_byte_count=5,
+    cache_permission=Disabled,
+  )
+  for token in token_ids {
+    try! write.push_stop_token(token)
+  }
+  for string in stop_strings {
+    try! write.push_stop_string_length(string.length())
+    for byte in string {
+      try! write.push_stop_string_byte(byte)
+    }
+  }
+  for byte in b"scope" {
+    try! write.push_cache_scope_byte(byte)
+  }
+  let work = try! write.finish()
+  while (try! work.progress()).is_pending() {
+
+  }
+  try! (try! work.take_lease()).stop_token_view()
+}
+
+///|
 fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
   let scheduler = try! @scheduler.new(
     step_token_budget=4,
@@ -144,11 +179,7 @@ fn request_with_tokens(
     input_tokens=try! @inference.TokenBuffer::new(tokens, limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"scope", limits),
-      Disabled,
-    ),
+    stop_tokens=stop_token_projection(limits, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens~,
@@ -172,19 +203,13 @@ fn request(
 ) -> TokenizedRequest {
   let limits = inference_limits()
   let input = try! @inference.TokenBuffer::new([1, 2], limits)
-  let stops = try! @inference.StopConditions::new([], [], limits)
-  let cache = @inference.CachePolicy::new(
-    try! @inference.CacheScope::from_ascii(b"scope", limits),
-    Disabled,
-  )
   try! TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=identity,
     input_tokens=input,
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
-    stops~,
-    cache~,
+    stop_tokens=stop_token_projection(limits, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens~,

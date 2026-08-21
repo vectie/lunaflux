@@ -77,8 +77,23 @@ fn LunaRequestPreparationPool::abort_lane_resources(
     None => ()
   }
   match lane.claim {
-    Some(claim) => claim.release_resources_only()
+    Some(claim) => {
+      try! claim.release_resources_only()
+      return
+    }
     None => ()
+  }
+  if !lane.semantic_write.is_empty() {
+    try! lane.semantic_write[0].abort()
+    lane.semantic_write.clear()
+  }
+  if !lane.semantic_work.is_empty() {
+    try! lane.semantic_work[0].abort()
+    lane.semantic_work.clear()
+  }
+  if !lane.semantic_lease.is_empty() {
+    try! lane.semantic_lease[0].release()
+    lane.semantic_lease.clear()
   }
 }
 
@@ -211,7 +226,7 @@ fn LunaRequestPreparationPool::progress_text_copy(
     _ => raise Invalid(Tokenization)
   }
   lane.tokenizer_work = None
-  lane.phase = LUNA_PREPARATION_OUTPUT_SETUP
+  lane.begin_semantic_import()
 }
 
 ///|
@@ -254,14 +269,20 @@ fn LunaRequestPreparationPool::progress_assemble(
   }
   lane.output_work = None
   lane.output_lease = Some(output_lease)
+  validate_pool_time(
+    lane.receipt_at_millis,
+    lane.require_deadline(),
+    (self.clock_read)(),
+  )
   let scheduler_request = @core.TokenizedRequest::new(
     request_id=request.request_id(),
     model_identity=request.model_identity(),
     input_tokens=tokens,
     sampling=request.sampling(),
     sampling_seed=request.sampling_seed(),
-    stops=request.stops().token_only(),
-    cache=request.cache(),
+    stop_tokens=lane.require_semantic_lease().stop_token_view() catch {
+        _ => raise Invalid(SchedulerContract)
+      },
     stream_preference=request.stream_preference(),
     effective_limits=lane.require_effective(),
     admission_deadline=lane.require_deadline(),
@@ -270,9 +291,12 @@ fn LunaRequestPreparationPool::progress_assemble(
   }
   let claim : LunaPreparedRequestClaim = {
     scheduler_request: Some(scheduler_request),
-    detached_output: None,
     pooled_output: Some(output_lease),
     token_lease: lane.token_lease,
+    semantic_lease: lane.semantic_lease,
+    stop_tokens: lane.require_semantic_lease().stop_token_view() catch {
+      _ => raise Invalid(SchedulerContract)
+    },
     pool: Some(self),
     lane: lane_index,
     generation: lane.generation,
@@ -280,11 +304,6 @@ fn LunaRequestPreparationPool::progress_assemble(
     inference_limits: self.inference,
     input_tokens: tokens.length(),
   }
-  validate_pool_time(
-    lane.receipt_at_millis,
-    lane.require_deadline(),
-    (self.clock_read)(),
-  )
   lane.token_lease = None
   lane.output_lease = None
   lane.claim = Some(claim)
@@ -302,6 +321,22 @@ fn LunaRequestPreparationPool::progress_lane_one(
     LUNA_PREPARATION_TEXT_TOKENIZE => self.progress_text_tokenize(lane)
     LUNA_PREPARATION_TEXT_BEGIN_COPY => self.progress_text_begin_copy(lane)
     LUNA_PREPARATION_TEXT_COPY => self.progress_text_copy(lane)
+    LUNA_PREPARATION_SEMANTIC_CACHE_MEASURE =>
+      self.progress_semantic_cache_measure(lane)
+    LUNA_PREPARATION_SEMANTIC_BEGIN => self.progress_semantic_begin(lane)
+    LUNA_PREPARATION_SEMANTIC_TOKEN_COPY =>
+      self.progress_semantic_token_copy(lane)
+    LUNA_PREPARATION_SEMANTIC_STRING_MEASURE =>
+      self.progress_semantic_string_measure(lane)
+    LUNA_PREPARATION_SEMANTIC_STRING_HEADER =>
+      self.progress_semantic_string_header(lane)
+    LUNA_PREPARATION_SEMANTIC_STRING_EMIT =>
+      self.progress_semantic_string_emit(lane)
+    LUNA_PREPARATION_SEMANTIC_CACHE_EMIT =>
+      self.progress_semantic_cache_emit(lane)
+    LUNA_PREPARATION_SEMANTIC_FINISH => self.progress_semantic_finish(lane)
+    LUNA_PREPARATION_SEMANTIC_VALIDATE => self.progress_semantic_validate(lane)
+    LUNA_PREPARATION_SEMANTIC_TAKE => self.progress_semantic_take(lane)
     LUNA_PREPARATION_OUTPUT_SETUP => self.progress_output_setup(lane)
     LUNA_PREPARATION_ASSEMBLE => self.progress_assemble(lane_index, lane)
     _ => abort("Luna preparation progress phase invariant")
@@ -357,110 +392,4 @@ pub fn LunaRequestPreparationPool::progress(
     self.enqueue_active(lane_index)
   }
   LunaRequestPreparationPoolAdvanced
-}
-
-///|
-fn LunaRequestPreparationWork::require_lane(
-  self : LunaRequestPreparationWork,
-) -> LunaRequestPreparationLane raise RequestAdmissionError {
-  if self.lane < 0 || self.lane >= self.pool.lanes.length() {
-    raise Invalid(LunaPreparedLifecycle)
-  }
-  let lane = self.pool.lanes[self.lane]
-  if self.generation == 0UL ||
-    lane.generation != self.generation ||
-    lane.phase == LUNA_PREPARATION_IDLE ||
-    lane.phase == LUNA_PREPARATION_PREPARED ||
-    lane.phase == LUNA_PREPARATION_CLAIMED {
-    raise Invalid(LunaPreparedLifecycle)
-  }
-  lane
-}
-
-///|
-pub fn LunaRequestPreparationWork::state(
-  self : LunaRequestPreparationWork,
-) -> LunaRequestPreparationWorkState raise RequestAdmissionError {
-  match self.require_lane().phase {
-    LUNA_PREPARATION_READY => LunaRequestPreparationReady
-    LUNA_PREPARATION_FAILED => LunaRequestPreparationFailed
-    LUNA_PREPARATION_CANCEL_REQUESTED => LunaRequestPreparationCancelRequested
-    _ => LunaRequestPreparationPending
-  }
-}
-
-///|
-pub fn LunaRequestPreparationWork::last_work_units(
-  self : LunaRequestPreparationWork,
-) -> Int raise RequestAdmissionError {
-  self.require_lane().last_work_units
-}
-
-///|
-pub fn LunaRequestPreparationWork::total_work_units(
-  self : LunaRequestPreparationWork,
-) -> UInt64 raise RequestAdmissionError {
-  self.require_lane().total_work_units
-}
-
-///|
-pub fn LunaRequestPreparationWork::failure(
-  self : LunaRequestPreparationWork,
-) -> RequestAdmissionError raise RequestAdmissionError {
-  let lane = self.require_lane()
-  if lane.phase != LUNA_PREPARATION_FAILED {
-    raise Invalid(LunaPreparedLifecycle)
-  }
-  match lane.failure {
-    Some(value) => value
-    None => abort("Luna preparation failure invariant")
-  }
-}
-
-///|
-pub fn LunaRequestPreparationWork::cancel(
-  self : LunaRequestPreparationWork,
-) -> Unit raise RequestAdmissionError {
-  let lane = self.require_lane()
-  match lane.phase {
-    LUNA_PREPARATION_READY | LUNA_PREPARATION_FAILED => {
-      self.pool.abort_lane_resources(lane)
-      self.pool.release_lane(self.lane, self.generation)
-    }
-    LUNA_PREPARATION_CANCEL_REQUESTED => ()
-    _ => lane.phase = LUNA_PREPARATION_CANCEL_REQUESTED
-  }
-}
-
-///|
-pub fn LunaRequestPreparationWork::discard(
-  self : LunaRequestPreparationWork,
-) -> Unit raise RequestAdmissionError {
-  self.cancel()
-}
-
-///|
-pub fn LunaRequestPreparationWork::take_prepared(
-  self : LunaRequestPreparationWork,
-) -> LunaPreparedRequest raise RequestAdmissionError {
-  let lane = self.require_lane()
-  if lane.phase != LUNA_PREPARATION_READY {
-    raise Invalid(LunaPreparedLifecycle)
-  }
-  validate_pool_time(
-    lane.receipt_at_millis,
-    lane.require_deadline(),
-    (self.pool.clock_read)(),
-  ) catch {
-    error => {
-      self.pool.fail_lane(lane, error)
-      raise error
-    }
-  }
-  let claim = match lane.claim {
-    Some(value) => value
-    None => abort("Luna ready-claim invariant")
-  }
-  lane.phase = LUNA_PREPARATION_PREPARED
-  { claim: Some(claim) }
 }

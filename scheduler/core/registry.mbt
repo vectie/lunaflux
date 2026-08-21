@@ -77,6 +77,7 @@ fn Scheduler::remove_waiting(self : Scheduler, index : Int) -> Unit {
 
 ///|
 fn Scheduler::recycle_slot(self : Scheduler, index : Int) -> Unit {
+  try! self.request_stop_tokens[index].release()
   self.requests[index] = None
   self.deadlines[index] = 0UL
   self.admitted_steps[index] = 0UL
@@ -210,6 +211,13 @@ pub fn Scheduler::new(
   for index in 0..<slots {
     free_next[index] = if index + 1 < slots { index + 1 } else { NO_INDEX }
   }
+  let request_stop_tokens = FixedArray::make(
+    slots,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+  )
+  for index in 1..<slots {
+    request_stop_tokens[index] = @inference.LunaRequestStopTokenRetentionSlot::new()
+  }
   let page_allocator = @page_allocator.PageAllocator::new(
     capacity.page_allocator_limits(),
   )
@@ -313,6 +321,7 @@ pub fn Scheduler::new(
     slot_states: FixedArray::make(slots, SLOT_FREE),
     slot_generations: FixedArray::make(slots, 0),
     requests: FixedArray::make(slots, None),
+    request_stop_tokens,
     request_generations: FixedArray::make(
       slots,
       @inference.RequestGeneration::initial(),

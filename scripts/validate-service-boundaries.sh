@@ -464,7 +464,7 @@ if [ -d service/request_admission ]; then
     ! rg -q 'LunaTokenizerWorker::required_byte_cells' \
       service/request_admission/pool_storage.mbt ||
     ! rg -q --pcre2 -U \
-      'let per_lane_byte = checked_add_cells\(\s*tokenizer_byte_cells,\s*output_byte_cells,?\s*\)' \
+      'let per_lane_byte = checked_add_cells\(\s*checked_add_cells\(tokenizer_byte_cells, output_byte_cells\),\s*semantic_byte_cells,?\s*\)' \
       service/request_admission/pool_storage.mbt; then
     printf '%s\n' \
       'Luna preparation pool lost bounded tokenizer input or exact byte accounting' >&2
@@ -532,6 +532,13 @@ if [ -d service/request_admission ]; then
         service/request_admission/pkg.generated.mbti; then
       printf '%s\n' \
         'prepared claim must expose only scheduler transfer, online output, and exact release' >&2
+      failed=1
+    fi
+    if rg -n --pcre2 \
+        '^pub fn .*@inference\.(?:LunaRequestSemantic(?:Lease|View|Storage|Work|Write)|LunaRequestStopToken(?:View|RetentionSlot)|StopConditions|CachePolicy|CacheScope)|^pub fn LunaPreparedRequestClaim::.*(?:Array\[String\]|ReadOnlyArray\[String\]|StringView|\bepoch\b)' \
+        service/request_admission/pkg.generated.mbti; then
+      printf '%s\n' \
+        'request admission leaked semantic retention or claim stop/cache representation authority' >&2
       failed=1
     fi
     claim_scheduler_consumers="$(rg -l \
@@ -918,6 +925,7 @@ index
 issue'
 assert_authority_method_allowlist \
   contracts/inference/pkg.generated.mbti LunaRequestSemanticLease 'release
+stop_token_view
 view'
 assert_authority_method_allowlist \
   contracts/inference/pkg.generated.mbti LunaRequestSemanticProgress 'is_failed
@@ -984,7 +992,7 @@ assert_authority_escape_allowlist \
   LunaRequestSemanticStepBudget::new
 assert_authority_escape_allowlist \
   contracts/inference/pkg.generated.mbti LunaRequestSemanticStopTokenStatus \
-  LunaRequestSemanticView::is_stop_token
+  $'LunaRequestSemanticView::is_stop_token\nLunaRequestStopTokenRetentionSlot::is_stop_token\nLunaRequestStopTokenView::is_stop_token'
 assert_authority_escape_allowlist \
   contracts/inference/pkg.generated.mbti LunaRequestSemanticStorage \
   LunaRequestSemanticStorage::new
@@ -997,6 +1005,39 @@ assert_authority_escape_allowlist \
 assert_authority_escape_allowlist \
   contracts/inference/pkg.generated.mbti LunaRequestSemanticWrite \
   LunaRequestSemanticStorage::begin
+
+for stop_authority in \
+    LunaRequestStopTokenRetentionSlot \
+    LunaRequestStopTokenView; do
+  if ! rg -q --pcre2 -U \
+      "^pub struct ${stop_authority} \\{\\n  // private fields\\n\\}" \
+      contracts/inference/pkg.generated.mbti; then
+    printf '%s\n' \
+      "inference token-stop authority ${stop_authority} is not opaque" >&2
+    failed=1
+  fi
+done
+if rg -q --pcre2 -U \
+    '^pub struct LunaRequestStopToken[^ ]* \{(?s:[^}]*)\} derive\([^)]*(?:@debug\.)?Debug' \
+    contracts/inference/pkg.generated.mbti; then
+  printf '%s\n' 'inference token-stop authority became debuggable' >&2
+  failed=1
+fi
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestStopTokenRetentionSlot 'is_live
+is_stop_token
+new
+release'
+assert_authority_method_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestStopTokenView 'is_live
+is_stop_token
+retain_into'
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestStopTokenRetentionSlot \
+  LunaRequestStopTokenRetentionSlot::new
+assert_authority_escape_allowlist \
+  contracts/inference/pkg.generated.mbti LunaRequestStopTokenView \
+  LunaRequestSemanticLease::stop_token_view
 
 for model_identity_authority in \
   ContentDigest \
@@ -1089,6 +1130,41 @@ if [ -f contracts/inference/pkg.generated.mbti ] &&
       contracts/inference/pkg.generated.mbti scheduler/core/pkg.generated.mbti; then
     printf '%s\n' \
       'raw token maximum or scheduler forwarding authority became public' >&2
+    failed=1
+  fi
+  if ! rg -F -x -q \
+      'pub fn TokenizedRequest::new(request_id~ : @inference.RequestId, model_identity~ : @spec.ModelIdentity, input_tokens~ : @inference.TokenBuffer, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, stop_tokens~ : @inference.LunaRequestStopTokenView, stream_preference~ : @inference.StreamPreference, effective_limits~ : @inference.EffectiveLimits, admission_deadline~ : @inference.AdmissionDeadline) -> Self raise SchedulerError' \
+      scheduler/core/pkg.generated.mbti ||
+    ! rg -F -x -q \
+      'pub fn PreparedAdmission::retain_stop_tokens_into(Self, @inference.LunaRequestStopTokenRetentionSlot) -> Unit raise SchedulerError' \
+      scheduler/core/pkg.generated.mbti ||
+    ! rg -F -x -q \
+      'pub fn PreparedExclusiveAdmission::retain_stop_tokens_into(Self, @inference.LunaRequestStopTokenRetentionSlot) -> Unit raise SchedulerError' \
+      scheduler/core/pkg.generated.mbti ||
+    rg -n '^pub fn TokenizedRequest::(stops|cache|stop_tokens|semantic)' \
+      scheduler/core/pkg.generated.mbti ||
+    rg -n 'LunaRequestSemanticView|StopConditions|CachePolicy' \
+      scheduler/core/pkg.generated.mbti; then
+    printf '%s\n' \
+      'scheduler token-only semantic authority surface drifted' >&2
+    failed=1
+  fi
+
+  if rg -n \
+      '@inference\.(LunaRequestSemanticView|StopConditions|CachePolicy)|\.stops\(\)|\.cache\(\)|stop_string_(count|length|byte_at)|cache_scope_(length|byte_at)|token_only\(' \
+      scheduler/core --glob '*.mbt' --glob '!**/*_test.mbt' \
+      --glob '!**/*_wbtest.mbt' ||
+    ! rg -q \
+      'priv stop_tokens : @inference\.LunaRequestStopTokenView' \
+      scheduler/core/request.mbt ||
+    ! rg -q \
+      '@inference\.LunaRequestStopTokenRetentionSlot' \
+      scheduler/core/types.mbt ||
+    ! rg -F -q \
+      'retention.is_stop_token(token)' \
+      scheduler/core/completion_preflight.mbt; then
+    printf '%s\n' \
+      'scheduler source escaped the narrow Luna stop-token projection boundary' >&2
     failed=1
   fi
 fi

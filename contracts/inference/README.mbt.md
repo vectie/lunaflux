@@ -90,3 +90,15 @@ performs a bounded binary search over the budgetedly constructed sorted index;
 its allocation-free status distinguishes present, absent, and stale and
 reports the exact number of token comparisons. Releasing the lease invalidates
 all retained views immediately without clearing storage proportionally.
+`LunaRequestSemanticLease::stop_token_view` narrows the same exact epoch to an
+opaque scheduler projection with only allocation-free liveness and bounded
+token-membership queries. It carries no stop-string, cache, limits, raw-token,
+or release surface. A projection may issue at most two exact-ID
+`LunaRequestStopTokenRetentionSlot` owners: one for the scheduler and one for
+its online worker. `retain_into` binds directly into an empty startup-allocated
+slot, so no copyable retention or boxed optional is created on admission. Each
+slot exposes only liveness, bounded membership, and exact once-only release.
+Semantic lease release rejects
+transactionally with `LunaStorageBusy` while either retention remains, and a
+copied retention alias becomes stale after the first release. Storage becomes
+reusable only after both lower owners retire.

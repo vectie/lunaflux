@@ -7,6 +7,7 @@ pub struct PreparedAdmission {
   priv request : TokenizedRequest
   priv handle : RequestHandle
   priv mut committed : Bool
+  priv mut retention_issued : Bool
 }
 
 ///|
@@ -18,6 +19,7 @@ pub struct PreparedExclusiveAdmission {
   priv handle : RequestHandle
   priv mut committed : Bool
   priv mut consumed : Bool
+  priv mut retention_issued : Bool
 }
 
 ///|

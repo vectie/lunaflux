@@ -30,11 +30,7 @@ fn token_bound_request(
     input_tokens~,
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"scope", limits),
-      Disabled,
-    ),
+    stop_tokens=stop_token_projection(limits, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=1,

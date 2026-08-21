@@ -7,11 +7,7 @@ fn request_with_stop_token(id : UInt64, stop_token : Int) -> TokenizedRequest {
     input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
-    stops=try! @inference.StopConditions::new([stop_token], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"scope", limits),
-      Disabled,
-    ),
+    stop_tokens=stop_token_projection(limits, [stop_token]),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=3,

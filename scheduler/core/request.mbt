@@ -3,15 +3,15 @@
 ///
 /// This is deliberately not constructible from text and has no `Debug`:
 /// tokenization and transport parsing are outer-layer responsibilities, while
-/// token IDs and stop strings remain payload-sensitive.
+/// token IDs remain payload-sensitive. Stop strings and cache semantics never
+/// cross the scheduler's token-only projection boundary.
 pub struct TokenizedRequest {
   priv request_id : @inference.RequestId
   priv model_identity : @spec.ModelIdentity
   priv input_tokens : @inference.TokenBuffer
   priv sampling : @inference.SamplingParameters
   priv sampling_seed : @inference.SamplingSeed
-  priv stops : @inference.StopConditions
-  priv cache : @inference.CachePolicy
+  priv stop_tokens : @inference.LunaRequestStopTokenView
   priv stream_preference : @inference.StreamPreference
   priv effective_limits : @inference.EffectiveLimits
   priv admission_deadline : @inference.AdmissionDeadline
@@ -24,8 +24,7 @@ pub fn TokenizedRequest::new(
   input_tokens~ : @inference.TokenBuffer,
   sampling~ : @inference.SamplingParameters,
   sampling_seed~ : @inference.SamplingSeed,
-  stops~ : @inference.StopConditions,
-  cache~ : @inference.CachePolicy,
+  stop_tokens~ : @inference.LunaRequestStopTokenView,
   stream_preference~ : @inference.StreamPreference,
   effective_limits~ : @inference.EffectiveLimits,
   admission_deadline~ : @inference.AdmissionDeadline,
@@ -33,12 +32,12 @@ pub fn TokenizedRequest::new(
   if !input_tokens.is_live() {
     raise invalid(Request, Stale)
   }
+  if !stop_tokens.is_live() {
+    raise invalid(Request, Stale)
+  }
   if input_tokens.length() >
     effective_limits.context_ceiling() - effective_limits.max_new_tokens() {
     raise invalid(Context, OutOfRange)
-  }
-  if stops.strings().length() > 0 {
-    raise invalid(Request, Unsupported)
   }
   {
     request_id,
@@ -46,8 +45,7 @@ pub fn TokenizedRequest::new(
     input_tokens,
     sampling,
     sampling_seed,
-    stops,
-    cache,
+    stop_tokens,
     stream_preference,
     effective_limits,
     admission_deadline,
@@ -110,17 +108,23 @@ pub fn TokenizedRequest::sampling_seed(
 }
 
 ///|
-pub fn TokenizedRequest::stops(
-  self : TokenizedRequest,
-) -> @inference.StopConditions {
-  self.stops
+fn TokenizedRequest::semantic_stop_tokens_live(self : TokenizedRequest) -> Bool {
+  self.stop_tokens.is_live()
 }
 
 ///|
-pub fn TokenizedRequest::cache(
+fn TokenizedRequest::retain_stop_tokens_into(
   self : TokenizedRequest,
-) -> @inference.CachePolicy {
-  self.cache
+  slot : @inference.LunaRequestStopTokenRetentionSlot,
+) -> Unit raise SchedulerError {
+  if !self.stop_tokens.is_live() {
+    raise invalid(Request, Stale)
+  }
+  try self.stop_tokens.retain_into(slot) catch {
+    _ => raise invalid(Request, Backpressured)
+  } noraise {
+    _ => ()
+  }
 }
 
 ///|

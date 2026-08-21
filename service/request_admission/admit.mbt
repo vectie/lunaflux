@@ -128,6 +128,113 @@ fn validate_observed_time(
 }
 
 ///|
+fn prepare_semantic_lease(
+  request : @inference.GenerateRequest,
+  inference : @inference.InferenceLimits,
+) -> @inference.LunaRequestSemanticLease raise RequestAdmissionError {
+  let storage = @inference.LunaRequestSemanticStorage::new(
+    inference,
+    @inference.LunaRequestSemanticStepBudget::new(65536) catch {
+      _ => raise Invalid(RequestContract)
+    },
+  ) catch {
+    _ => raise Invalid(RequestContract)
+  }
+  let scope = request.cache().scope().as_string()
+  let write = storage.begin(
+    stop_token_count=request.stops().token_ids().length(),
+    stop_string_count=request.stops().strings().length(),
+    cache_scope_byte_count=scope.length(),
+    cache_permission=request.cache().permission(),
+  ) catch {
+    _ => raise Invalid(RequestContract)
+  }
+  for token in request.stops().token_ids() {
+    write.push_stop_token(token) catch {
+      _ => raise Invalid(RequestContract)
+    }
+  }
+  for value in request.stops().strings() {
+    let mut offset = 0
+    let mut byte_length = 0
+    while offset < value.length() {
+      let codepoint = luna_semantic_codepoint_at(value, offset)
+      offset += luna_semantic_codepoint_units_at(value, offset)
+      byte_length += luna_semantic_utf8_width(codepoint)
+    }
+    write.push_stop_string_length(byte_length) catch {
+      _ => raise Invalid(RequestContract)
+    }
+    offset = 0
+    while offset < value.length() {
+      let codepoint = luna_semantic_codepoint_at(value, offset)
+      let width = luna_semantic_utf8_width(codepoint)
+      for byte_index in 0..<width {
+        write.push_stop_string_byte(
+          luna_semantic_utf8_byte(codepoint, width, byte_index),
+        ) catch {
+          _ => raise Invalid(RequestContract)
+        }
+      }
+      offset += luna_semantic_codepoint_units_at(value, offset)
+    }
+  }
+  for index in 0..<scope.length() {
+    write.push_cache_scope_byte(scope.unsafe_get(index).to_int().to_byte()) catch {
+      _ => raise Invalid(RequestContract)
+    }
+  }
+  let work = write.finish() catch { _ => raise Invalid(RequestContract) }
+  while true {
+    let progress = work.progress() catch { _ => raise Invalid(RequestContract) }
+    if progress.is_failed() {
+      try! work.abort()
+      raise Invalid(RequestContract)
+    }
+    if progress.is_ready() {
+      break
+    }
+  }
+  work.take_lease() catch {
+    _ => raise Invalid(RequestContract)
+  }
+}
+
+///|
+fn prepare_output_lease(
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
+  semantics : @inference.LunaRequestSemanticView,
+) -> @incremental_output.LunaIncrementalOutputLease raise RequestAdmissionError {
+  let workspace = @incremental_output.LunaIncrementalOutputWorkspace::new_for_luna_request_semantics(
+    tokenizer,
+    inference,
+    @incremental_output.LunaIncrementalOutputStepBudget::new(65536) catch {
+      _ => raise Invalid(OutputContract)
+    },
+    semantics,
+  ) catch {
+    _ => raise Invalid(OutputContract)
+  }
+  let work = workspace.begin_luna_request_semantics(
+    semantics,
+    special_policy=Skip,
+  ) catch {
+    _ => raise Invalid(OutputContract)
+  }
+  while true {
+    let progress = work.progress() catch { _ => raise Invalid(OutputContract) }
+    match progress {
+      LunaIncrementalOutputPending => ()
+      LunaIncrementalOutputReady => break
+    }
+  }
+  work.take_lease() catch {
+    _ => raise Invalid(OutputContract)
+  }
+}
+
+///|
 fn finish_preparation(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
@@ -136,14 +243,25 @@ fn finish_preparation(
   receipt : RequestReceipt,
 ) -> LunaPreparedRequest raise RequestAdmissionError {
   validate_observed_time(receipt, prepared.deadline, observed_at_millis)
-  let scheduler_stops = prepared.request.stops().token_only()
-  let output = @incremental_output.IncrementalOutput::new(
+  let semantic_lease = prepare_semantic_lease(prepared.request, inference)
+  let output = prepare_output_lease(
     tokenizer,
-    prepared.request.stops(),
     inference,
-    special_policy=Skip,
+    semantic_lease.view() catch {
+      _ => raise Invalid(RequestContract)
+    },
   ) catch {
-    _ => raise Invalid(OutputContract)
+    error => {
+      try! semantic_lease.release()
+      raise error
+    }
+  }
+  let stop_tokens = semantic_lease.stop_token_view() catch {
+    _ => {
+      try! output.release()
+      try! semantic_lease.release()
+      raise Invalid(SchedulerContract)
+    }
   }
   let scheduler_request = @core.TokenizedRequest::new(
     request_id=prepared.request.request_id(),
@@ -151,19 +269,23 @@ fn finish_preparation(
     input_tokens=prepared.tokens,
     sampling=prepared.request.sampling(),
     sampling_seed=prepared.request.sampling_seed(),
-    stops=scheduler_stops,
-    cache=prepared.request.cache(),
+    stop_tokens~,
     stream_preference=prepared.request.stream_preference(),
     effective_limits=prepared.effective,
     admission_deadline=prepared.deadline,
   ) catch {
-    _ => raise Invalid(SchedulerContract)
+    _ => {
+      try! output.release()
+      try! semantic_lease.release()
+      raise Invalid(SchedulerContract)
+    }
   }
   let claim : LunaPreparedRequestClaim = {
     scheduler_request: Some(scheduler_request),
-    detached_output: Some(output),
-    pooled_output: None,
+    pooled_output: Some(output),
     token_lease: None,
+    semantic_lease: [semantic_lease],
+    stop_tokens,
     pool: None,
     lane: -1,
     generation: 0UL,

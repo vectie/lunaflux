@@ -157,6 +157,45 @@ pub fn LunaIncrementalOutputWorkspace::new(
 }
 
 ///|
+/// Allocates an exact-shape synchronous workspace from one authenticated
+/// semantic request view. The view remains owned by its semantic lease; this
+/// factory acquires no release or retention authority.
+pub fn LunaIncrementalOutputWorkspace::new_for_luna_request_semantics(
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
+  budget : LunaIncrementalOutputStepBudget,
+  semantics : @inference.LunaRequestSemanticView,
+) -> LunaIncrementalOutputWorkspace raise IncrementalOutputError {
+  let semantic_limits = semantics.inference_limits() catch {
+    _ => raise invalid(LunaIncrementalOutputEpoch, Stale)
+  }
+  if semantic_limits != inference {
+    raise invalid(DecodeEnvelope, Unsupported)
+  }
+  let stop_count = semantics.stop_string_count() catch {
+    _ => raise invalid(LunaIncrementalOutputEpoch, Stale)
+  }
+  let mut maximum = 0
+  for index in 0..<stop_count {
+    let length = semantics.stop_string_length(index) catch {
+      _ => raise invalid(LunaIncrementalOutputEpoch, Stale)
+    }
+    if length > maximum {
+      maximum = length
+    }
+  }
+  let final_limits = semantics.inference_limits() catch {
+    _ => raise invalid(LunaIncrementalOutputEpoch, Stale)
+  }
+  if final_limits != inference {
+    raise invalid(DecodeEnvelope, Unsupported)
+  }
+  new_luna_incremental_output_workspace(
+    tokenizer, inference, budget, stop_count, maximum,
+  )
+}
+
+///|
 fn exact_max_stop_bytes(stops : @inference.StopConditions) -> Int {
   let values = stops.strings()
   let mut maximum = 0

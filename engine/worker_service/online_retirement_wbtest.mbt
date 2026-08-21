@@ -1,7 +1,11 @@
 ///|
 fn wb_terminal_online_lease() -> OnlineWorkerLease {
   let scheduler = wb_service_scheduler()
-  let handle = try! scheduler.admit(wb_online_request(), 0UL)
+  let prepared = scheduler.prepare_admission(wb_online_request())
+  let semantic_retention = @inference.LunaRequestStopTokenRetentionSlot::new()
+  try! prepared.retain_stop_tokens_into(semantic_retention)
+  try! scheduler.commit_admission(prepared, 0UL)
+  let handle = try! prepared.request_handle()
   let terminal_generation = try! scheduler.cancel_exact(handle)
   ignore(try! scheduler.take_next_publication())
   if !scheduler.is_quiescent() || scheduler.is_pristine() {
@@ -24,6 +28,7 @@ fn wb_terminal_online_lease() -> OnlineWorkerLease {
     clock: @monotonic_clock.MonotonicClock::system(),
     request_phase: OnlineRequestTerminal,
     prepared_admission: None,
+    semantic_retention,
     prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
     handle: Some(handle),
     request_generation: terminal_generation,
@@ -64,11 +69,7 @@ fn wb_retirement_request(
     input_tokens=try! @inference.TokenBuffer::new([1], limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(request_value),
-    stops=try! @inference.StopConditions::new([], [], limits),
-    cache=@inference.CachePolicy::new(
-      try! @inference.CacheScope::from_ascii(b"online", limits),
-      Disabled,
-    ),
+    stop_tokens=wb_service_stop_token_projection(limits),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
       max_new_tokens=2,
@@ -103,6 +104,7 @@ fn wb_empty_online_lease(
     clock,
     request_phase: OnlineRequestEmpty,
     prepared_admission: None,
+    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: clock.prepare_read(),
     handle: None,
     request_generation: @inference.RequestGeneration::initial(),

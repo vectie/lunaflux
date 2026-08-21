@@ -185,6 +185,7 @@ fn OnlineWorkerLease::preflight_terminal_request_retirement(
 fn OnlineWorkerLease::commit_terminal_request_retirement(
   self : OnlineWorkerLease,
 ) -> Unit {
+  self.release_required_semantic_retention()
   self.handle = None
   self.request_generation = @inference.RequestGeneration::initial()
   self.cut_source_generation = @inference.RequestGeneration::initial()
@@ -219,6 +220,7 @@ pub fn OnlineWorkerLease::shutdown_clean(
     raise Invalid(Lifecycle)
   }
   service.shutdown_clean_impl()
+  self.release_required_semantic_retention()
   self.request_phase = OnlineRequestRetired
   service.ownership_mode = OnlineRetiredOwnership
 }
@@ -232,6 +234,7 @@ pub fn OnlineWorkerLease::shutdown_clean_empty(
   let service = self.require_current()
   if self.request_phase != OnlineRequestEmpty ||
     self.cancel_reserved ||
+    self.semantic_retention.is_live() ||
     !service.scheduler.is_quiescent() {
     raise Invalid(Lifecycle)
   }
@@ -252,6 +255,7 @@ pub fn OnlineWorkerLease::close_terminal(
     raise Invalid(Lifecycle)
   }
   service.close_impl()
+  self.release_required_semantic_retention()
   self.request_phase = OnlineRequestRetired
   service.ownership_mode = OnlineRetiredOwnership
 }
@@ -270,6 +274,7 @@ pub fn OnlineWorkerLease::retry_close_terminal(
     2 => service.retry_close_impl()
     _ => abort("terminal close retry action invariant")
   }
+  self.release_required_semantic_retention()
   self.request_phase = OnlineRequestRetired
   service.ownership_mode = OnlineRetiredOwnership
 }
@@ -294,6 +299,9 @@ pub fn OnlineWorkerLease::retry_close_empty(
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
   if self.request_phase != OnlineRequestEmpty || self.cancel_reserved {
+    raise Invalid(Lifecycle)
+  }
+  if self.semantic_retention.is_live() {
     raise Invalid(Lifecycle)
   }
   if service.lifecycle == ServiceReady {
