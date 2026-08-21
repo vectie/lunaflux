@@ -34,6 +34,7 @@ pub(all) enum FramedWireRule {
 pub(all) enum FramedWireLimitRule {
   FrameBytes
   LunaFramedRequestWorkUnits
+  LunaFramedEventWorkUnits
 } derive(Debug, Eq)
 
 ///|
@@ -49,6 +50,11 @@ pub(all) suberror FramedWireError {
   LunaFramedRequestNotReady
   LunaFramedRequestFailed
   LunaFramedRequestStale
+  LunaFramedEventBusy
+  LunaFramedEventNotReady
+  LunaFramedEventFailed
+  LunaFramedEventStale
+  LunaFramedEventInvalidRange
   StaleFrame
 } derive(Debug, Eq)
 

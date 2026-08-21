@@ -368,6 +368,7 @@ test "direct Completed and Failed publications expose typed bounded views" {
   assert_eq(completed.cached_input_tokens(), 1)
   assert_eq(completed.output_tokens(), 2)
   assert_eq(completed.total_tokens(), 5)
+  assert_eq(completed.final_delta_byte_at(0), b'e')
   owner.retire(completed_event)
   let code : FixedArray[Byte] = [b'w', b'o', b'r', b'k', b'e', b'r']
   owner.publish_failed(code, code_offset=0, code_length=6, retryable=true)
@@ -376,7 +377,58 @@ test "direct Completed and Failed publications expose typed bounded views" {
   let failed = failed_event.failed()
   assert_true(failed.retryable())
   assert_eq(failed.code_length(), 6)
+  assert_eq(failed.code_byte_at(5), b'r')
   let copied = FixedArray::make(6, b'\x00')
   assert_eq(failed.copy_code_to(copied, destination_offset=0), 6)
   luna_assert_bytes(copied, b"worker")
+}
+
+///|
+test "payload byte access authenticates epoch before bounds" {
+  let owner = LunaEventOwner::new(luna_fixture_limits())
+  let delta : FixedArray[Byte] = [b'a', b'b']
+  assert_eq(
+    owner.publish_token_status(
+      token_id=3,
+      position=0,
+      delta,
+      source_offset=0,
+      length=2,
+    ),
+    LunaEventPublishReady,
+  )
+  let token_event = owner.view()
+  let token = token_event.token()
+  assert_eq(token.delta_byte_at(0), b'a')
+  assert_eq(token.delta_byte_at(1), b'b')
+  try token.delta_byte_at(2) catch {
+    LunaEventInvalid(LunaEventPayload) => ()
+    _ => fail("unexpected live token byte bound error")
+  } noraise {
+    _ => fail("token byte beyond payload passed")
+  }
+  owner.retire(token_event)
+  try token.delta_byte_at(-1) catch {
+    LunaEventInvalid(LunaEventEpoch) => ()
+    _ => fail("stale token byte did not authenticate before bounds")
+  } noraise {
+    _ => fail("stale token byte remained readable")
+  }
+  let effective = @inference.EffectiveLimits::new(
+    max_new_tokens=4,
+    context_ceiling=16,
+    luna_fixture_limits(),
+  )
+  owner.publish_accepted(luna_fixture_identity(), effective)
+  let accepted_event = owner.view()
+  let accepted = accepted_event.accepted()
+  assert_eq(accepted.content_digest_byte_at(0), b'0')
+  assert_eq(accepted.plan_digest_byte_at(0), b'a')
+  try accepted.plan_digest_byte_at(64) catch {
+    LunaEventInvalid(LunaEventPayload) => ()
+    _ => fail("unexpected accepted digest bound error")
+  } noraise {
+    _ => fail("accepted digest byte beyond payload passed")
+  }
+  owner.retire(accepted_event)
 }

@@ -1,10 +1,7 @@
 ///|
-/// One transport-owned publication credit for a canonical event-v2 frame.
-/// The adapter borrows semantic event evidence but never owns its retirement
-/// or acknowledgement authority.
+/// Synchronous compatibility owner over the authoritative cooperative event
+/// workspace. The sole retained View pins the workspace until `release`.
 pub struct LunaFramedEventAdapter {
-  priv limits : FramedWireLimits
-  priv storage : FixedArray[Byte]
-  priv mut busy : Bool
-  priv mut length : Int
+  priv workspace : LunaFramedEventWorkspace
+  priv views : Array[LunaFramedEventView]
 }

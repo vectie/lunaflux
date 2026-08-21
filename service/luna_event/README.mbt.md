@@ -13,9 +13,10 @@ Each publication advances a non-wrapping owner epoch and exposes one
 allocation-free `LunaEventView`. Its typed `accepted`, `token`, `usage`,
 `completed`, and `failed` projections return opaque `#valtype` views only after
 authenticating the exact live owner, epoch, and kind. Variant accessors repeat
-that authentication before returning scalar evidence or copying bounded bytes
-into caller-owned storage. Views expose neither mutable storage nor a raw
-epoch.
+that authentication before returning scalar evidence, reading one bounded
+payload or digest byte, or copying bounded bytes into caller-owned storage.
+Authentication precedes every byte-index check, so a stale view cannot probe
+the later event's length. Views expose neither mutable storage nor a raw epoch.
 
 Retirement requires the exact view borrowed from the owner. `discard` is a
 separate abort operation: it invalidates a pinned view without treating a

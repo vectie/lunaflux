@@ -22,6 +22,11 @@ pub(all) suberror FramedWireError {
   LunaFramedRequestNotReady
   LunaFramedRequestFailed
   LunaFramedRequestStale
+  LunaFramedEventBusy
+  LunaFramedEventNotReady
+  LunaFramedEventFailed
+  LunaFramedEventStale
+  LunaFramedEventInvalidRange
   StaleFrame
 } derive(Eq, @debug.Debug)
 
@@ -42,6 +47,7 @@ pub(all) enum FramedWireFrameKind {
 pub(all) enum FramedWireLimitRule {
   FrameBytes
   LunaFramedRequestWorkUnits
+  LunaFramedEventWorkUnits
 } derive(Eq, @debug.Debug)
 
 pub struct FramedWireLimits {
@@ -83,6 +89,49 @@ pub fn LunaFramedEventAdapter::length(Self) -> Int raise FramedWireError
 pub fn LunaFramedEventAdapter::new(FramedWireLimits) -> Self raise FramedWireError
 pub fn LunaFramedEventAdapter::release(Self) -> Unit raise FramedWireError
 pub fn LunaFramedEventAdapter::stage(Self, @luna_event.LunaEventView) -> Unit raise FramedWireError
+
+pub(all) enum LunaFramedEventProgress {
+  LunaFramedEventIdle
+  LunaFramedEventAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedEventStepBudget {
+  // private fields
+}
+pub fn LunaFramedEventStepBudget::new(Int) -> Self raise FramedWireError
+pub fn LunaFramedEventStepBudget::work_units(Self) -> Int
+
+pub struct LunaFramedEventView {
+  // private fields
+}
+pub fn LunaFramedEventView::copy_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise FramedWireError
+pub fn LunaFramedEventView::length(Self) -> Int raise FramedWireError
+pub fn LunaFramedEventView::release(Self) -> Unit raise FramedWireError
+
+pub struct LunaFramedEventWork {
+  // private fields
+}
+pub fn LunaFramedEventWork::abort(Self) -> Unit raise FramedWireError
+pub fn LunaFramedEventWork::failure(Self) -> FramedWireError raise FramedWireError
+pub fn LunaFramedEventWork::last_work_units(Self) -> Int raise FramedWireError
+pub fn LunaFramedEventWork::progress(Self) -> LunaFramedEventProgress raise FramedWireError
+pub fn LunaFramedEventWork::state(Self) -> LunaFramedEventWorkState raise FramedWireError
+pub fn LunaFramedEventWork::take_view(Self) -> LunaFramedEventView raise FramedWireError
+pub fn LunaFramedEventWork::total_work_units(Self) -> UInt64 raise FramedWireError
+
+pub(all) enum LunaFramedEventWorkState {
+  LunaFramedEventPending
+  LunaFramedEventReady
+  LunaFramedEventFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedEventWorkspace {
+  // private fields
+}
+pub fn LunaFramedEventWorkspace::begin(Self, @luna_event.LunaEventView) -> LunaFramedEventWork raise FramedWireError
+pub fn LunaFramedEventWorkspace::new(FramedWireLimits, LunaFramedEventStepBudget) -> Self raise FramedWireError
+pub fn LunaFramedEventWorkspace::required_byte_cells(FramedWireLimits) -> UInt64 raise FramedWireError
+pub fn LunaFramedEventWorkspace::required_reference_cells(FramedWireLimits) -> UInt64 raise FramedWireError
 
 pub(all) enum LunaFramedRequestInputKind {
   LunaFramedRequestText

@@ -264,10 +264,16 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   Luna events. `take_event` issues one opaque exact request/event-epoch credit;
   only its ACK advances the semantic owner. Usage ACK atomically creates a
   distinct Completed/Failed epoch, abort invalidates outstanding credit, and a
-  canonical framed adapter borrows only the semantic view. Positive-controlled
-  release-C gates cover the warm online and adapter paths. The fixed-lane
-  preparation pool now feeds this boundary; listener dispatch and network
-  transport remain open.
+  cooperative canonical framed-event Workspace borrows only the semantic view.
+  Its budgeted Work charges fixed header groups, individual payload/digest and
+  checksum bytes, detaches one immutable epoch View only after final semantic
+  authentication, and bounds each caller-owned chunk copy by the startup step
+  budget. Copying or releasing framed bytes never ACKs the semantic credit;
+  real online evidence pins that credit through complete framing and copying
+  until explicit ACK. Positive-controlled release-C gates cover the warm online
+  and cooperative framing paths. The fixed-lane preparation pool now feeds this
+  boundary; partial socket writes, listener dispatch, and network transport
+  ownership remain open.
 - A startup-preallocated, generation-authenticated
   `LunaRequestSemanticStorage` foundation can now stream structurally bounded
   stop-token, stop-string, cache-scope, permission, and inference-limit data

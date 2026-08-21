@@ -226,6 +226,76 @@ if [ -d service/framed_wire ]; then
         'Luna framed-request capabilities leaked storage or representation' >&2
       failed=1
     fi
+    if ! rg -q '^pub fn LunaFramedEventStepBudget::new\(Int\) -> Self raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventStepBudget::work_units\(Self\) -> Int$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWorkspace::new\(FramedWireLimits, LunaFramedEventStepBudget\) -> Self raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWorkspace::required_byte_cells\(FramedWireLimits\) -> UInt64 raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWorkspace::required_reference_cells\(FramedWireLimits\) -> UInt64 raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWorkspace::begin\(Self, @luna_event\.LunaEventView\) -> LunaFramedEventWork raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::abort\(Self\) -> Unit raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::failure\(Self\) -> FramedWireError raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::last_work_units\(Self\) -> Int raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::progress\(Self\) -> LunaFramedEventProgress raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::state\(Self\) -> LunaFramedEventWorkState raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::take_view\(Self\) -> LunaFramedEventView raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventWork::total_work_units\(Self\) -> UInt64 raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventView::length\(Self\) -> Int raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventView::copy_chunk_to\(Self, FixedArray\[Byte\], destination_offset~ : Int, source_offset~ : Int, length~ : Int\) -> Int raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti ||
+      ! rg -q '^pub fn LunaFramedEventView::release\(Self\) -> Unit raise FramedWireError$' \
+        service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' 'Luna framed-event cooperative surface drifted' >&2
+      failed=1
+    fi
+    if [ "$(rg -c '^pub fn LunaFramedEventStepBudget::' \
+        service/framed_wire/pkg.generated.mbti)" != '2' ] ||
+      [ "$(rg -c '^pub fn LunaFramedEventWorkspace::' \
+        service/framed_wire/pkg.generated.mbti)" != '4' ] ||
+      [ "$(rg -c '^pub fn LunaFramedEventWork::' \
+        service/framed_wire/pkg.generated.mbti)" != '7' ] ||
+      [ "$(rg -c '^pub fn LunaFramedEventView::' \
+        service/framed_wire/pkg.generated.mbti)" != '3' ]; then
+      printf '%s\n' 'Luna framed-event capability method set drifted' >&2
+      failed=1
+    fi
+    expected_luna_event_work_methods="$(printf '%s\n' \
+      abort failure last_work_units progress state take_view total_work_units | sort)"
+    actual_luna_event_work_methods="$(sed -n \
+      's/^pub fn LunaFramedEventWork::\([^(:]*\).*/\1/p' \
+      service/framed_wire/pkg.generated.mbti | sort)"
+    if [ "$actual_luna_event_work_methods" != \
+        "$expected_luna_event_work_methods" ]; then
+      printf '%s\n' 'Luna framed-event Work authority surface drifted' >&2
+      failed=1
+    fi
+    luna_event_private_count="$(rg -c --pcre2 -U \
+      'pub struct LunaFramedEvent(StepBudget|Workspace|Work|View) \{\n  // private fields\n\}' \
+      service/framed_wire/pkg.generated.mbti)"
+    if [ "$luna_event_private_count" != '4' ] ||
+      rg -n '^pub fn LunaFramedEvent(StepBudget|Workspace|Work|View)::.*-> .*(FixedArray|Array\[|ArrayView|ReadOnlyArray|Bytes|String|LunaEventView)' \
+        service/framed_wire/pkg.generated.mbti ||
+      rg -n '^pub fn LunaFramedEvent(StepBudget|Workspace|Work|View)::(ack|retire|owner|epoch|storage|workspace|event|raw)\(' \
+        service/framed_wire/pkg.generated.mbti ||
+      rg -n 'pub struct LunaFramedEvent(StepBudget|Workspace|Work|View).*derive\([^)]*Debug' \
+        service/framed_wire/pkg.generated.mbti; then
+      printf '%s\n' \
+        'Luna framed-event capabilities leaked storage, epoch, or ACK authority' >&2
+      failed=1
+    fi
     if rg -n --pcre2 -U \
       'pub struct (FramedWireLimits|RequestFrameBuffer|IncrementalRequestReader|EventFrameBuffer|ValidatedRequestFrame|ValidatedEventFrame) \{\n  (?!// private fields)' \
       service/framed_wire/pkg.generated.mbti; then

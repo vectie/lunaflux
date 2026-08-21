@@ -69,17 +69,35 @@ range, and rejects undersize, oversize, trailing, or pipelined input. Prefix or
 canonical-frame failure permanently poisons the reader; an incomplete frame can
 continue, while a completed validated frame can be taken exactly once.
 
-`LunaFramedEventAdapter` is the canonical boundary from an epoch-bound
-`LunaEventView` to event-v2 bytes. It writes directly into unpublished,
-preallocated frame storage and exposes the frame only after all view evidence
-has been authenticated. Construction requires capacity for the larger of the
-configured decoded-delta envelope and the fixed 64-byte public failure code,
-so every valid semantic event is frameable before request work begins. Busy,
-stale-view, and defensive capacity rejection leave its single transport credit
-unchanged. `release` returns only that transport credit; semantic event
-retirement remains exclusively with `LunaEventOwner`, so framed, SSE, and
-OpenAI-compatible adapters can share the same semantic source without parsing
-another adapter's bytes or acquiring ACK authority.
+`LunaFramedEventWorkspace` is the authoritative cooperative boundary from an
+epoch-bound `LunaEventView` to event-v2 bytes. Construction preallocates the
+exact 208-byte header plus the larger of the configured decoded-delta envelope
+and fixed 64-byte public failure code, together with one semantic-view reference
+slot. The checked `required_byte_cells` and `required_reference_cells` report
+those same startup requirements. `begin` issues one epoch-authenticated Work.
+Each `progress` call performs at most its configured budget of bounded steps:
+one fixed scalar/header group, one header-clear byte, one payload/digest byte,
+one checksum byte, or one phase transition. `last_work_units` and
+`total_work_units` report exact charged steps. A semantic failure pins an
+authenticated Failed Work until `abort`.
+
+The final checksum transition reauthenticates the semantic event before
+publishing Ready, then detaches it. `take_view` transfers the immutable frame to
+one opaque `LunaFramedEventView`. `copy_chunk_to` copies exactly one positive
+caller-selected range no larger than the configured step budget; it has no
+transport cursor and cannot claim that bytes were written. The TCP or other
+outer transport must retain its own confirmed-write cursor across partial
+writes. `release` returns only framed-byte authority and never acknowledges the
+semantic event.
+
+`LunaFramedEventAdapter` is the synchronous compatibility facade over that same
+Workspace/Work/View engine. It retains no second frame buffer, drives Work to
+Ready proportionally, and chunks a full compatibility copy through View. Busy
+and stale rejection leave its sole transport credit unchanged. The cooperative
+Workspace APIs, not `stage` or full `copy_to`, are the bounded reactor-facing
+surface. Semantic retirement remains exclusively with `LunaEventOwner`, so
+framed, SSE, and OpenAI-compatible adapters can share the same semantic source
+without parsing another adapter's bytes or acquiring ACK authority.
 
 This package deliberately has no async, filesystem, socket, native-FFI, clock,
 or engine dependency. `service/request_admission` owns the trusted receipt

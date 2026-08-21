@@ -18,14 +18,17 @@ pub(all) suberror LunaEventError {
 pub struct LunaAcceptedEventView {
   // private fields
 }
+pub fn LunaAcceptedEventView::content_digest_byte_at(Self, Int) -> Byte raise LunaEventError
 pub fn LunaAcceptedEventView::effective_limits(Self) -> @inference.EffectiveLimits raise LunaEventError
 pub fn LunaAcceptedEventView::model_identity(Self) -> @spec.ModelIdentity raise LunaEventError
+pub fn LunaAcceptedEventView::plan_digest_byte_at(Self, Int) -> Byte raise LunaEventError
 
 pub struct LunaCompletedEventView {
   // private fields
 }
 pub fn LunaCompletedEventView::cached_input_tokens(Self) -> Int raise LunaEventError
 pub fn LunaCompletedEventView::copy_final_delta_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
+pub fn LunaCompletedEventView::final_delta_byte_at(Self, Int) -> Byte raise LunaEventError
 pub fn LunaCompletedEventView::final_delta_length(Self) -> Int raise LunaEventError
 pub fn LunaCompletedEventView::finish_reason(Self) -> @inference.FinishReason raise LunaEventError
 pub fn LunaCompletedEventView::input_tokens(Self) -> Int raise LunaEventError
@@ -87,6 +90,7 @@ pub fn LunaEventView::usage(Self) -> LunaUsageEventView raise LunaEventError
 pub struct LunaFailedEventView {
   // private fields
 }
+pub fn LunaFailedEventView::code_byte_at(Self, Int) -> Byte raise LunaEventError
 pub fn LunaFailedEventView::code_length(Self) -> Int raise LunaEventError
 pub fn LunaFailedEventView::copy_code_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
 pub fn LunaFailedEventView::retryable(Self) -> Bool raise LunaEventError
@@ -95,6 +99,7 @@ pub struct LunaTokenEventView {
   // private fields
 }
 pub fn LunaTokenEventView::copy_delta_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Int raise LunaEventError
+pub fn LunaTokenEventView::delta_byte_at(Self, Int) -> Byte raise LunaEventError
 pub fn LunaTokenEventView::delta_length(Self) -> Int raise LunaEventError
 pub fn LunaTokenEventView::position(Self) -> Int raise LunaEventError
 pub fn LunaTokenEventView::token_id(Self) -> Int raise LunaEventError

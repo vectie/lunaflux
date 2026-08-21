@@ -119,6 +119,49 @@ pub fn LunaAcceptedEventView::effective_limits(
 }
 
 ///|
+fn luna_digest_byte_at(
+  owner : LunaEventOwner,
+  epoch : UInt64,
+  content : Bool,
+  index : Int,
+) -> Byte raise LunaEventError {
+  let authenticated = luna_authenticate_view(
+    owner,
+    epoch,
+    LunaAcceptedEventSlot,
+  )
+  if index < 0 || index >= 64 {
+    raise luna_event_invalid(LunaEventPayload)
+  }
+  let identity = match authenticated.model_identity {
+    Some(value) => value
+    None => abort("luna accepted event identity invariant")
+  }
+  let digest = if content {
+    identity.content().as_hex()
+  } else {
+    identity.plan().as_hex()
+  }
+  digest[index].to_int().to_byte()
+}
+
+///|
+pub fn LunaAcceptedEventView::content_digest_byte_at(
+  self : LunaAcceptedEventView,
+  index : Int,
+) -> Byte raise LunaEventError {
+  luna_digest_byte_at(self.owner, self.epoch, true, index)
+}
+
+///|
+pub fn LunaAcceptedEventView::plan_digest_byte_at(
+  self : LunaAcceptedEventView,
+  index : Int,
+) -> Byte raise LunaEventError {
+  luna_digest_byte_at(self.owner, self.epoch, false, index)
+}
+
+///|
 pub fn LunaTokenEventView::token_id(
   self : LunaTokenEventView,
 ) -> Int raise LunaEventError {
@@ -137,6 +180,18 @@ pub fn LunaTokenEventView::delta_length(
   self : LunaTokenEventView,
 ) -> Int raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot).payload_length
+}
+
+///|
+pub fn LunaTokenEventView::delta_byte_at(
+  self : LunaTokenEventView,
+  index : Int,
+) -> Byte raise LunaEventError {
+  let owner = luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot)
+  if index < 0 || index >= owner.payload_length {
+    raise luna_event_invalid(LunaEventPayload)
+  }
+  owner.payload[index]
 }
 
 ///|
@@ -229,6 +284,22 @@ pub fn LunaCompletedEventView::final_delta_length(
 }
 
 ///|
+pub fn LunaCompletedEventView::final_delta_byte_at(
+  self : LunaCompletedEventView,
+  index : Int,
+) -> Byte raise LunaEventError {
+  let owner = luna_authenticate_view(
+    self.owner,
+    self.epoch,
+    LunaCompletedEventSlot,
+  )
+  if index < 0 || index >= owner.payload_length {
+    raise luna_event_invalid(LunaEventPayload)
+  }
+  owner.payload[index]
+}
+
+///|
 pub fn LunaCompletedEventView::copy_final_delta_to(
   self : LunaCompletedEventView,
   destination : FixedArray[Byte],
@@ -253,6 +324,22 @@ pub fn LunaFailedEventView::code_length(
   self : LunaFailedEventView,
 ) -> Int raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaFailedEventSlot).payload_length
+}
+
+///|
+pub fn LunaFailedEventView::code_byte_at(
+  self : LunaFailedEventView,
+  index : Int,
+) -> Byte raise LunaEventError {
+  let owner = luna_authenticate_view(
+    self.owner,
+    self.epoch,
+    LunaFailedEventSlot,
+  )
+  if index < 0 || index >= owner.payload_length {
+    raise luna_event_invalid(LunaEventPayload)
+  }
+  owner.payload[index]
 }
 
 ///|

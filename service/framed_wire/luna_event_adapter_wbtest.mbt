@@ -291,42 +291,6 @@ test "Luna adapter busy stale and copy rejection preserve exact credit" {
 }
 
 ///|
-test "Luna adapter capacity rejection is transactional and has no ACK" {
-  let inference = fixture_inference_limits()
-  let limits = fixture_limits()
-  let adapter : LunaFramedEventAdapter = {
-    limits,
-    storage: FixedArray::make(REQUEST_HEADER_BYTES, b'\x00'),
-    busy: false,
-    length: 0,
-  }
-  let owner = @luna_event.LunaEventOwner::new(inference)
-  let code = FixedArray::make(64, b'a')
-  owner.publish_failed(code, code_offset=0, code_length=64, retryable=false)
-  let oversized = owner.view()
-  try adapter.stage(oversized) catch {
-    FrameTooLarge(frame=EventFrame) => ()
-    _ => fail("unexpected adapter capacity error")
-  } noraise {
-    _ => fail("oversized semantic event staged")
-  }
-  try adapter.length() catch {
-    StaleFrame => ()
-    _ => fail("unexpected adapter state after capacity rejection")
-  } noraise {
-    _ => fail("capacity rejection consumed adapter credit")
-  }
-  assert_eq(oversized.failed().code_length(), 64)
-  owner.retire(oversized)
-  owner.publish_usage(input_tokens=1, cached_input_tokens=0, output_tokens=0)
-  let usage = owner.view()
-  adapter.stage(usage)
-  adapter.release()
-  assert_eq(usage.usage().total_tokens(), 1)
-  owner.retire(usage)
-}
-
-///|
 fn luna_adapter_inference_limits(
   max_delta_bytes : Int,
 ) -> @inference.InferenceLimits raise {

@@ -47,9 +47,10 @@ contains_forbidden_allocation() {
     rg -q .
 }
 
-# The adapter constructor intentionally allocates its owner and fixed storage.
-# The same extractor/predicate is the positive control for the warm path.
-positive_body="$(extract_definition 'LunaFramedEventAdapter3new(')"
+# The Workspace constructor intentionally allocates its owner, byte backing,
+# and one semantic-view slot. The same extractor/predicate is the positive
+# control for the warmed cooperative path.
+positive_body="$(extract_definition 'LunaFramedEventWorkspace3new(')"
 if [ -z "$positive_body" ] ||
   ! printf '%s\n' "$positive_body" | contains_forbidden_allocation; then
   printf '%s\n' 'Luna framed-event allocation positive control is ineffective' >&2
@@ -57,34 +58,46 @@ if [ -z "$positive_body" ] ||
 fi
 
 for symbol in \
-  'LunaFramedEventAdapter5stage(' \
-  'LunaFramedEventAdapter15stage__accepted(' \
-  'LunaFramedEventAdapter12stage__token(' \
-  'LunaFramedEventAdapter12stage__usage(' \
-  'LunaFramedEventAdapter16stage__completed(' \
-  'LunaFramedEventAdapter13stage__failed(' \
-  'LunaFramedEventAdapter15require__credit(' \
-  'LunaFramedEventAdapter26require__payload__capacity(' \
-  'LunaFramedEventAdapter7publish(' \
-  'LunaFramedEventAdapter6length(' \
-  'LunaFramedEventAdapter8copy__to(' \
-  'LunaFramedEventAdapter7release(' \
+  'LunaFramedEventWorkspace5begin(' \
+  'LunaFramedEventWorkspace16reset__operation(' \
+  'LunaFramedEventWorkspace11event__view(' \
+  'LunaFramedEventWorkspace19authenticate__event(' \
+  'LunaFramedEventWorkspace4fail(' \
+  'LunaFramedEventWorkspace14failure__value(' \
+  'LunaFramedEventWorkspace13progress__one(' \
+  'LunaFramedEventWorkspace15progress__setup(' \
+  'LunaFramedEventWorkspace14progress__copy(' \
+  'LunaFramedEventWorkspace18progress__checksum(' \
+  'LunaFramedEventWorkspace15setup__accepted(' \
+  'LunaFramedEventWorkspace12setup__token(' \
+  'LunaFramedEventWorkspace12setup__usage(' \
+  'LunaFramedEventWorkspace16setup__completed(' \
+  'LunaFramedEventWorkspace13setup__failed(' \
+  'LunaFramedEventWorkspace24require__event__capacity(' \
+  'LunaFramedEventWork18require__workspace(' \
+  'LunaFramedEventWork5state(' \
+  'LunaFramedEventWork7failure(' \
+  'LunaFramedEventWork5abort(' \
+  'LunaFramedEventWork8progress(' \
+  'LunaFramedEventWork10take__view(' \
+  'LunaFramedEventView18require__workspace(' \
+  'LunaFramedEventView15copy__chunk__to(' \
+  'LunaFramedEventView7release(' \
   'LunaEventView4kind(' \
   'LunaEventView8accepted(' \
   'LunaEventView5token(' \
   'LunaEventView5usage(' \
   'LunaEventView9completed(' \
   'LunaEventView6failed(' \
-  'LunaAcceptedEventView15model__identity(' \
   'LunaAcceptedEventView17effective__limits(' \
-  'LunaTokenEventView15copy__delta__to(' \
-  'LunaCompletedEventView22copy__final__delta__to(' \
-  'LunaFailedEventView14copy__code__to(' \
-  'write__digest__ascii(' \
+  'LunaAcceptedEventView25content__digest__byte__at(' \
+  'LunaAcceptedEventView22plan__digest__byte__at(' \
+  'LunaTokenEventView15delta__byte__at(' \
+  'LunaCompletedEventView22final__delta__byte__at(' \
+  'LunaFailedEventView14code__byte__at(' \
+  'luna__event__prepare__header__fields(' \
   'write__usage__scalars(' \
-  'prepare__event__header(' \
-  'frame__checksum(' \
-  'copy__bytes('; do
+  'valid__usage__scalars('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
     printf 'Luna framed-event function is missing: %s\n' "$symbol" >&2
@@ -96,10 +109,25 @@ for symbol in \
   fi
 done
 
-if rg -n '^pub fn LunaFramedEventAdapter::(ack|retire|take_event)\(' \
-  service/framed_wire/pkg.generated.mbti; then
-  printf '%s\n' 'framed adapter acquired semantic ACK authority' >&2
+if ! rg -q 'semantic_views: Array::new\(capacity=1\)' \
+    service/framed_wire/luna_event_work.mbt ||
+  ! rg -q 'self\.semantic_views\.clear\(\)' \
+    service/framed_wire/luna_event_work.mbt ||
+  ! rg -q 'length > workspace\.budget\.work_units\(\)' \
+    service/framed_wire/luna_event_work_view.mbt ||
+  ! rg -q 'self\.storage\[destination\] = byte' \
+    service/framed_wire/luna_event_work_progress.mbt ||
+  ! rg -q 'self\.checksum = .*self\.storage\[self\.cursor\]\.to_uint\(\)' \
+    service/framed_wire/luna_event_work_progress.mbt; then
+  printf '%s\n' \
+    'Luna framed-event fixed-slot or one-byte work source shape drifted' >&2
   exit 1
 fi
 
-printf '%s\n' 'LunaFlux semantic-to-framed event allocation gate passed.'
+if rg -n '^pub fn LunaFramedEvent(Workspace|Work|View)::(ack|retire|take_event)\(' \
+  service/framed_wire/pkg.generated.mbti; then
+  printf '%s\n' 'cooperative framed event acquired semantic ACK authority' >&2
+  exit 1
+fi
+
+printf '%s\n' 'LunaFlux cooperative semantic-to-framed event allocation gate passed.'
