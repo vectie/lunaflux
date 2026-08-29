@@ -290,6 +290,7 @@ test "all model-plan operation kinds have a typed lowering family" {
     Embedding,
     RmsNorm,
     QkvProjection,
+    QkRmsNorm,
     RotaryEmbedding,
     CausalAttention,
     OutputProjection,
@@ -300,4 +301,11 @@ test "all model-plan operation kinds have a typed lowering family" {
   for kind in kinds {
     assert_true(model_operation_has_typed_cuda_lowering(kind))
   }
+}
+
+///|
+test "Q/K RMSNorm bundle admission cannot masquerade as plain RMSNorm" {
+  assert_true(pointwise_kind_matches(QkRmsNorm, QkRmsNorm))
+  assert_false(pointwise_kind_matches(QkRmsNorm, RmsNorm))
+  assert_false(pointwise_kind_matches(RmsNorm, QkRmsNorm))
 }

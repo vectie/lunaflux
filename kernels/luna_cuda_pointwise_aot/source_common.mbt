@@ -3,6 +3,7 @@ fn family_tag(family : PointwiseAotFamily) -> String {
   match family {
     EmbeddingLookup => "embedding_lookup"
     RmsNorm => "rms_norm"
+    QkRmsNorm => "qk_rms_norm"
     PositionedRotary => "positioned_rotary"
     ResidualAdd => "residual_add"
     KvCacheWrite => "kv_cache_write"
@@ -100,11 +101,12 @@ fn pointwise_dimensions(
     raise Invalid(LaunchDimensions)
   }
   let threads = 256L
-  if family != RmsNorm && maximum_work_items > 9223372036854775552L {
+  let reduction_family = family == RmsNorm || family == QkRmsNorm
+  if !reduction_family && maximum_work_items > 9223372036854775552L {
     raise SizeOverflow(LaunchDimensions)
   }
   let grid_x = match family {
-    RmsNorm => maximum_work_items
+    RmsNorm | QkRmsNorm => maximum_work_items
     _ => (maximum_work_items + threads - 1L) / threads
   }
   if grid_x <= 0L || grid_x > 2147483647L {
@@ -144,7 +146,7 @@ fn pointwise_contract(
   match family {
     EmbeddingLookup | KvCacheWrite => BitExactBf16Copy
     ResidualAdd => OrderedBf16Add
-    RmsNorm => Float32ReductionToleranceV1
+    RmsNorm | QkRmsNorm => Float32ReductionToleranceV1
     PositionedRotary => Float32TranscendentalToleranceV1
   }
 }

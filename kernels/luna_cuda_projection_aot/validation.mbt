@@ -11,6 +11,7 @@ const PROJECTION_VALUE_ALIGNMENT : Int64 = 16L
 priv struct ProjectionParameters {
   family : ProjectionAotFamily
   input_width : Int
+  query_width : Int
   output_width : Int
   intermediate_width : Int
 }
@@ -82,15 +83,15 @@ fn projection_parameters(
         !projection_is_weight(operation.inputs()[2]) ||
         !projection_is_weight(operation.inputs()[3]) ||
         input_width <= 0 ||
-        output_width <= input_width ||
-        (output_width - input_width) % 2 != 0 {
+        output_width <= 0 {
         raise Mismatch(Operation)
       }
       {
         family: QkvProjection,
         input_width,
+        query_width: 0,
         output_width,
-        intermediate_width: (output_width - input_width) / 2,
+        intermediate_width: 0,
       }
     }
     (
@@ -114,6 +115,7 @@ fn projection_parameters(
           LanguageModelHead
         },
         input_width,
+        query_width: 0,
         output_width,
         intermediate_width: 0,
       }
@@ -133,12 +135,70 @@ fn projection_parameters(
       {
         family: GatedMlp,
         input_width: hidden_size,
+        query_width: 0,
         output_width: hidden_size,
         intermediate_width: intermediate_size,
       }
     }
     _ => raise Unsupported(Operation)
   }
+}
+
+///|
+fn projection_qkv_width_from_bytes(
+  byte_count : Int64,
+  input_width : Int,
+) -> Int raise ProjectionAotError {
+  let row_bytes = projection_checked_mul(
+    input_width.to_int64(),
+    PROJECTION_BF16_BYTES,
+  )
+  if byte_count <= 0L || byte_count % row_bytes != 0L {
+    raise Mismatch(OperandSize)
+  }
+  let rows = byte_count / row_bytes
+  if rows <= 0L || rows > 2147483647L {
+    raise SizeOverflow(Shape)
+  }
+  rows.to_int()
+}
+
+///|
+fn projection_bind_qkv_widths(
+  operation : @plan.PlanOperation,
+  parameters : ProjectionParameters,
+  operands : ArrayView[@launch_contract.AotOperand],
+) -> ProjectionParameters raise ProjectionAotError {
+  if parameters.family != QkvProjection {
+    return parameters
+  }
+  let roles = projection_roles(operation)
+  if operands.length() != roles.length() || operands.length() != 6 {
+    raise Mismatch(OperandOrder)
+  }
+  for index, operand in operands {
+    if operand.role() != roles[index] {
+      raise Mismatch(OperandOrder)
+    }
+  }
+  let query_width = projection_qkv_width_from_bytes(
+    operands[2].byte_count(),
+    parameters.input_width,
+  )
+  let key_width = projection_qkv_width_from_bytes(
+    operands[3].byte_count(),
+    parameters.input_width,
+  )
+  let value_width = projection_qkv_width_from_bytes(
+    operands[4].byte_count(),
+    parameters.input_width,
+  )
+  if key_width != value_width ||
+    query_width.to_int64() + 2L * key_width.to_int64() !=
+    parameters.output_width.to_int64() {
+    raise Mismatch(OperandSize)
+  }
+  { ..parameters, query_width, intermediate_width: key_width }
 }
 
 ///|
@@ -174,7 +234,7 @@ fn projection_weight_bytes(
       match weight_index {
         0 =>
           projection_matrix_bytes(
-            parameters.input_width,
+            parameters.query_width,
             parameters.input_width,
           )
         1 | 2 =>
@@ -312,7 +372,11 @@ fn validate_projection_contract(
   }
   let expected = projection_dimensions(
     contract.profile(),
-    projection_parameters(operation).output_width,
+    projection_bind_qkv_widths(
+      operation,
+      projection_parameters(operation),
+      contract.operands(),
+    ).output_width,
   )
   if contract.dimensions() != expected {
     raise Mismatch(LaunchDimensions)

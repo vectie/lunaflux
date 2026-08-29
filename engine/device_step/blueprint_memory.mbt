@@ -23,6 +23,11 @@ fn blueprint_output_width(
         Int64::from_int(query_heads + 2 * kv_heads),
         Int64::from_int(head_dimension),
       )
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) =>
+      checked_blueprint_product(
+        Int64::from_int(query_heads + 2 * kv_heads),
+        Int64::from_int(head_dimension),
+      )
     AttentionShape(query_heads~, head_dimension~, ..) =>
       checked_blueprint_product(
         Int64::from_int(query_heads),

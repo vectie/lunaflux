@@ -92,6 +92,31 @@ fn pointwise_rms_operation() -> @plan.PlanOperation raise {
 }
 
 ///|
+fn pointwise_qk_rms_operation(
+  capability? : @plan.KernelCapabilityId = @plan.KernelCapabilityId::qk_rms_norm(),
+) -> @plan.PlanOperation raise {
+  @plan.PlanOperation::new_with_runtime_inputs(
+    id=@plan.OperationId::new(2),
+    kind=QkRmsNorm,
+    inputs=[
+      Activation(@plan.ActivationRef::new(1)),
+      Tensor(@plan.TensorRef::new(2)),
+      Tensor(@plan.TensorRef::new(3)),
+    ],
+    outputs=[@plan.ActivationRef::new(2)],
+    shape=QkNormalizationShape(
+      query_heads=2,
+      kv_heads=1,
+      head_dimension=4,
+      epsilon=0.000001,
+    ),
+    required_capability=capability,
+    workspace_bytes=0L,
+    runtime_inputs=[StepCounts],
+  )
+}
+
+///|
 fn pointwise_residual_operation() -> @plan.PlanOperation raise {
   @plan.PlanOperation::new_with_runtime_inputs(
     id=@plan.OperationId::new(2),

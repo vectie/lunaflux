@@ -9,6 +9,7 @@ fn operation_kind_name(kind : @plan.OperationKind) -> String {
   match kind {
     Embedding => "embedding"
     RmsNorm => "rms_norm"
+    QkRmsNorm => "qk_rms_norm"
     QkvProjection => "qkv_projection"
     RotaryEmbedding => "rotary_embedding"
     CausalAttention => "causal_attention"
@@ -30,6 +31,16 @@ fn append_shape(output : StringBuilder, shape : @plan.OperationShape) -> Unit {
     NormalizationShape(width~, epsilon~) => {
       append_line(output, "shape: normalization")
       append_line(output, "shape.width: \{width}")
+      append_line(
+        output,
+        "shape.epsilon_bits: \{epsilon.reinterpret_as_uint64()}",
+      )
+    }
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~) => {
+      append_line(output, "shape: qk_normalization")
+      append_line(output, "shape.query_heads: \{query_heads}")
+      append_line(output, "shape.kv_heads: \{kv_heads}")
+      append_line(output, "shape.head_dimension: \{head_dimension}")
       append_line(
         output,
         "shape.epsilon_bits: \{epsilon.reinterpret_as_uint64()}",

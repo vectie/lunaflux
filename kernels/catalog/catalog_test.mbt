@@ -431,3 +431,47 @@ test "entry shape and capability must match its operation semantics" {
     _ => fail("expected operation capability mismatch")
   }
 }
+
+///|
+test "catalog admits only capability 11 for Q/K RMS normalization" {
+  let digest = @catalog.AotArtifactDigest::from_sha256(
+    "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  )
+  let shape = @plan.QkNormalizationShape(
+    query_heads=2,
+    kv_heads=1,
+    head_dimension=4,
+    epsilon=0.000001,
+  )
+  let entry = @catalog.CatalogEntry::new(
+    semantic_version=@catalog.KernelSemanticVersion::v1(),
+    operation_kind=QkRmsNorm,
+    operation_shape=shape,
+    capability=@plan.KernelCapabilityId::qk_rms_norm(),
+    compute_major=8,
+    compute_minor=0,
+    implementation=ContentAddressedAot(aot_family(digest)),
+    workspace_bytes=0L,
+    workspace_alignment=1L,
+  )
+  assert_eq(entry.operation_kind(), QkRmsNorm)
+  assert_eq(entry.capability(), @plan.KernelCapabilityId::qk_rms_norm())
+  try
+    @catalog.CatalogEntry::new(
+      semantic_version=@catalog.KernelSemanticVersion::v1(),
+      operation_kind=QkRmsNorm,
+      operation_shape=shape,
+      capability=@plan.KernelCapabilityId::rms_norm(),
+      compute_major=8,
+      compute_minor=0,
+      implementation=ContentAddressedAot(aot_family(digest)),
+      workspace_bytes=0L,
+      workspace_alignment=1L,
+    )
+  catch {
+    InvalidCatalog(OperationCapabilityMismatch) => ()
+    _ => fail("unexpected Q/K capability error")
+  } noraise {
+    _ => fail("expected capability-11 enforcement")
+  }
+}

@@ -5,6 +5,7 @@ fn candidate_family_name(candidate : LunaBf16KernelCandidate) -> String {
       match value.family() {
         EmbeddingLookup => "embedding_lookup"
         RmsNorm => "rms_norm"
+        QkRmsNorm => "qk_rms_norm"
         PositionedRotary => "positioned_rotary"
         ResidualAdd => "residual_add"
         KvCacheWrite => "kv_cache_write"
@@ -119,7 +120,7 @@ fn lower_candidate(
     model_plan, operation, profile, layout,
   )
   match operation.kind() {
-    Embedding | RmsNorm | RotaryEmbedding | ResidualAdd =>
+    Embedding | RmsNorm | QkRmsNorm | RotaryEmbedding | ResidualAdd =>
       Pointwise(
         @luna_cuda_pointwise_aot.lower_reusable_pointwise_cuda_aot_candidate(
           operation,

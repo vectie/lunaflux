@@ -11,6 +11,7 @@ import {
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/spec",
 }
 
@@ -21,4 +22,6 @@ import {
   "vectie/lunaflux/kernels/artifact_file",
   "vectie/lunaflux/kernels/full_graph_manifest",
   "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
 } for "wbtest"

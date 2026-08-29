@@ -24,7 +24,11 @@ fn projection_finish_candidate(
   limits : ProjectionAotLimits,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   projection_validate_policy(target, compiler)
-  let parameters = projection_parameters(operation)
+  let parameters = projection_bind_qkv_widths(
+    operation,
+    projection_parameters(operation),
+    operands,
+  )
   validate_projection_operands(operation, parameters, profile, operands)
   let dimensions = projection_dimensions(profile, parameters.output_width)
   let source = projection_source(

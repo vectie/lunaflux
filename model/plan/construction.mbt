@@ -102,7 +102,7 @@ fn construct_model_plan(
   }
   let produced_numeric : Array[@numeric_contract.ComputeDType] = []
   let required : Array[KernelCapabilityId] = []
-  let seen_capabilities = FixedArray::make(11, false)
+  let seen_capabilities = FixedArray::make(12, false)
   let used_parameters : Array[Bool] = []
   for _ in 0..<numeric_binding.tensors().length() {
     used_parameters.push(false)

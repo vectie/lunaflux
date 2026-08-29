@@ -43,6 +43,7 @@ test "canonical operation and runtime tag tables are pinned" {
       operation_kind_tag(Embedding),
       operation_kind_tag(RmsNorm),
       operation_kind_tag(QkvProjection),
+      operation_kind_tag(QkRmsNorm),
       operation_kind_tag(RotaryEmbedding),
       operation_kind_tag(CausalAttention),
       operation_kind_tag(OutputProjection),
@@ -50,7 +51,7 @@ test "canonical operation and runtime tag tables are pinned" {
       operation_kind_tag(GatedMlp),
       operation_kind_tag(LanguageModelHead),
     ],
-    [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09],
+    [0x01, 0x02, 0x03, 0x0a, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09],
   )
   assert_eq(
     [
@@ -77,6 +78,14 @@ test "canonical operation and runtime tag tables are pinned" {
     [
       operation_shape_tag(EmbeddingShape(vocabulary_size=8, width=4)),
       operation_shape_tag(NormalizationShape(width=4, epsilon=0.000001)),
+      operation_shape_tag(
+        QkNormalizationShape(
+          query_heads=2,
+          kv_heads=1,
+          head_dimension=2,
+          epsilon=0.000001,
+        ),
+      ),
       operation_shape_tag(ProjectionShape(input_width=4, output_width=8)),
       operation_shape_tag(
         RotaryShape(
@@ -92,7 +101,7 @@ test "canonical operation and runtime tag tables are pinned" {
       operation_shape_tag(ElementwiseShape(width=4)),
       operation_shape_tag(GatedMlpShape(hidden_size=4, intermediate_size=8)),
     ],
-    [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+    [0x01, 0x02, 0x08, 0x03, 0x04, 0x05, 0x06, 0x07],
   )
   assert_eq(
     [optional_kv_layer_tag(None), optional_kv_layer_tag(Some({ value: 0 }))],
@@ -112,6 +121,14 @@ test "all canonical operation-shape tags and payload forms are distinct" {
   let hashes = [
     canonical_tag_shape_hash(EmbeddingShape(vocabulary_size=8, width=4)),
     canonical_tag_shape_hash(NormalizationShape(width=4, epsilon=0.000001)),
+    canonical_tag_shape_hash(
+      QkNormalizationShape(
+        query_heads=2,
+        kv_heads=1,
+        head_dimension=2,
+        epsilon=0.000001,
+      ),
+    ),
     canonical_tag_shape_hash(ProjectionShape(input_width=4, output_width=8)),
     canonical_tag_shape_hash(
       RotaryShape(

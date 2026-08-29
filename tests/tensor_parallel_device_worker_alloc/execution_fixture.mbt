@@ -22,6 +22,7 @@ fn family_index(operation : @plan.PlanOperation) -> Int {
   match operation.kind() {
     Embedding => 0
     RmsNorm => 1
+    QkRmsNorm => 7
     QkvProjection => 2
     RotaryEmbedding => 3
     CausalAttention => 4

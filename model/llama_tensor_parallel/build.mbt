@@ -130,6 +130,7 @@ fn llama_tp_build_operations(
         )
       OutputProjection => (local_hidden, hidden, 0, 0, 0, 0)
       LanguageModelHead => (hidden, local_vocabulary, 0, 0, 0, 0)
+      QkRmsNorm => raise UnsupportedPlan(operation=operation.id().as_int())
     }
     output.push(
       @tensor_parallel_plan.TensorParallelOperationPlan::new(

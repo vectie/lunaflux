@@ -45,6 +45,7 @@ pub fn KernelCapabilityId::from_stable_int(Int) -> Self raise PlanValidationErro
 pub fn KernelCapabilityId::gated_mlp() -> Self
 pub fn KernelCapabilityId::paged_causal_attention() -> Self
 pub fn KernelCapabilityId::positioned_rotary_embedding() -> Self
+pub fn KernelCapabilityId::qk_rms_norm() -> Self
 pub fn KernelCapabilityId::qkv_projection() -> Self
 pub fn KernelCapabilityId::residual_add() -> Self
 pub fn KernelCapabilityId::rms_norm() -> Self
@@ -133,6 +134,7 @@ pub(all) enum OperationKind {
   Embedding
   RmsNorm
   QkvProjection
+  QkRmsNorm
   RotaryEmbedding
   CausalAttention
   OutputProjection
@@ -159,6 +161,7 @@ pub(all) enum OperationRuntimeInput {
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
   NormalizationShape(width~ : Int, epsilon~ : Double)
+  QkNormalizationShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, epsilon~ : Double)
   ProjectionShape(input_width~ : Int, output_width~ : Int)
   RotaryShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, rope_theta~ : Double)
   AttentionShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int)
@@ -265,9 +268,11 @@ pub fn ShapeConstraints::head_dimension(Self) -> Int
 pub fn ShapeConstraints::hidden_size(Self) -> Int
 pub fn ShapeConstraints::intermediate_size(Self) -> Int
 pub fn ShapeConstraints::kv_head_count(Self) -> Int
+pub fn ShapeConstraints::kv_width(Self) -> Int
 pub fn ShapeConstraints::max_batch_rows(Self) -> Int
 pub fn ShapeConstraints::max_sequence_tokens(Self) -> Int
 pub fn ShapeConstraints::new(max_batch_rows~ : Int, max_sequence_tokens~ : Int, vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int) -> Self raise PlanValidationError
+pub fn ShapeConstraints::query_width(Self) -> Int
 pub fn ShapeConstraints::vocabulary_size(Self) -> Int
 
 pub struct TensorRef {

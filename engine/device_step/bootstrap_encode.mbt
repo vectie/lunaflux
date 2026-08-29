@@ -58,6 +58,7 @@ fn operation_kind_code(kind : @plan.OperationKind) -> Int {
   match kind {
     Embedding => 1
     RmsNorm => 2
+    QkRmsNorm => 10
     QkvProjection => 3
     RotaryEmbedding => 4
     CausalAttention => 5

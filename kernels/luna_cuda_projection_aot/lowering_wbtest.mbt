@@ -56,6 +56,76 @@ test "generated projection sources retain exact canonical ABIs" {
 }
 
 ///|
+test "Qwen-shaped QKV split is authenticated from all three weight bytes" {
+  let operation = projection_fixture_operation(
+    7,
+    QkvProjection,
+    [
+      Activation(@plan.ActivationRef::new(0)),
+      Tensor(@plan.TensorRef::new(9)),
+      Tensor(@plan.TensorRef::new(10)),
+      Tensor(@plan.TensorRef::new(11)),
+    ],
+    ProjectionShape(input_width=4, output_width=16),
+    @plan.KernelCapabilityId::qkv_projection(),
+  )
+  let operands = [
+    projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(
+      ActivationInput(@plan.ActivationRef::new(0)),
+      32L,
+      16L,
+    ),
+    projection_fixture_operand(WeightInput(@plan.TensorRef::new(9)), 64L, 16L),
+    projection_fixture_operand(WeightInput(@plan.TensorRef::new(10)), 32L, 16L),
+    projection_fixture_operand(WeightInput(@plan.TensorRef::new(11)), 32L, 16L),
+    projection_fixture_operand(
+      ActivationOutput(@plan.ActivationRef::new(7)),
+      128L,
+      16L,
+    ),
+  ]
+  let contract = projection_fixture_contracts().contracts()[1]
+  let lowering = lower_projection_cuda_aot_candidate(
+    operation,
+    contract.profile(),
+    @catalog.AotKernelEntryPointId::from_stable_int(8),
+    projection_fixture_target(),
+    projection_fixture_compiler(),
+    operands,
+    projection_fixture_limits(),
+  )
+  assert_eq(lowering.input_width(), 4)
+  assert_eq(lowering.output_width(), 16)
+  assert_eq(lowering.intermediate_width(), 4)
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("if (column >= 8)"))
+  assert_true(source.contains("local_column = column - 8"))
+  let mismatched = operands.copy()
+  mismatched[4] = projection_fixture_operand(
+    WeightInput(@plan.TensorRef::new(11)),
+    16L,
+    16L,
+  )
+  try
+    lower_projection_cuda_aot_candidate(
+      operation,
+      contract.profile(),
+      @catalog.AotKernelEntryPointId::from_stable_int(8),
+      projection_fixture_target(),
+      projection_fixture_compiler(),
+      mismatched,
+      projection_fixture_limits(),
+    )
+  catch {
+    Mismatch(OperandSize) => ()
+    _ => fail("unexpected asymmetric K/V rejection")
+  } noraise {
+    _ => fail("expected exact Q/K/V split rejection")
+  }
+}
+
+///|
 test "candidate recipe excludes final module identity" {
   let lowering = projection_fixture_lowering(1)
   let recipe = @utf8.decode(lowering.recipe_bytes())

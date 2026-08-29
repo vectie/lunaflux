@@ -175,6 +175,9 @@ pub fn TensorParallelOperationPlan::new(
   head_dimension~ : Int,
 ) -> TensorParallelOperationPlan raise TensorParallelPlanError {
   let index = operation.as_int()
+  if kind == QkRmsNorm {
+    raise invalid(UnsupportedSemanticOperation, index~)
+  }
   if input_width <= 0 ||
     output_width <= 0 ||
     (kind == GatedMlp && inner_width <= 0) ||
@@ -323,6 +326,8 @@ fn validate_operation_topology(
       valid = operation.input_width == width &&
         operation.output_width == width &&
         operation.inner_width == 0
+    QkNormalizationShape(..) =>
+      raise invalid(UnsupportedSemanticOperation, index~)
     ProjectionShape(input_width~, output_width~) =>
       match semantic.kind() {
         QkvProjection =>
@@ -387,6 +392,11 @@ pub fn TensorParallelRankPlan::new(
   collectives~ : ArrayView[TensorCollectiveSite],
 ) -> TensorParallelRankPlan raise TensorParallelPlanError {
   let semantic = model.operations()
+  for index, operation in semantic {
+    if operation.kind() == QkRmsNorm {
+      raise invalid(UnsupportedSemanticOperation, index~)
+    }
+  }
   if !valid_alignment(alignment_bytes) ||
     arena_bytes <= 0L ||
     materialized_bytes <= 0L ||

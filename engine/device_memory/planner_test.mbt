@@ -139,6 +139,7 @@ test "every v1 operation output is sized from the complete shape envelope" {
         seen_head.val = true
         256L
       }
+      QkRmsNorm => fail("Llama fixture unexpectedly contains QK RMS norm")
       Embedding | RmsNorm | OutputProjection | ResidualAdd => 128L
     }
     assert_eq(region.logical_bytes(), expected)

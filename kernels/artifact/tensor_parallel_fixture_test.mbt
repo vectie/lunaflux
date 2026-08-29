@@ -129,6 +129,7 @@ fn tp_family_index(operation : @plan.PlanOperation) -> Int {
   match operation.kind() {
     Embedding => 20
     RmsNorm => 21
+    QkRmsNorm => 27
     QkvProjection => 22
     RotaryEmbedding => 23
     CausalAttention => 24

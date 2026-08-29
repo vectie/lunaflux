@@ -116,6 +116,7 @@ fn device_operation_kind_code(kind : @plan.OperationKind) -> Int {
     ResidualAdd => 7
     GatedMlp => 8
     LanguageModelHead => 9
+    QkRmsNorm => 10
   }
 }
 

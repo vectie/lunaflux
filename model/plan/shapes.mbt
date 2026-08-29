@@ -22,6 +22,12 @@ pub struct WorkspaceBounds {
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
   NormalizationShape(width~ : Int, epsilon~ : Double)
+  QkNormalizationShape(
+    query_heads~ : Int,
+    kv_heads~ : Int,
+    head_dimension~ : Int,
+    epsilon~ : Double
+  )
   ProjectionShape(input_width~ : Int, output_width~ : Int)
   RotaryShape(
     query_heads~ : Int,
@@ -55,19 +61,17 @@ pub fn ShapeConstraints::new(
     head_dimension <= 0 {
     raise InvalidShape(PositiveDimension)
   }
-  if hidden_size % attention_head_count != 0 ||
-    hidden_size / attention_head_count != head_dimension {
-    raise InvalidShape(HiddenHeadRelationship)
-  }
   if kv_head_count > attention_head_count ||
     attention_head_count % kv_head_count != 0 {
     raise InvalidShape(AttentionKvHeadRelationship)
   }
-  if kv_head_count > 2147483647 / head_dimension {
+  if attention_head_count > 2147483647 / head_dimension ||
+    kv_head_count > 2147483647 / head_dimension {
     raise InvalidShape(DimensionOverflow)
   }
+  let query_width = attention_head_count * head_dimension
   let kv_width = kv_head_count * head_dimension
-  if kv_width > (2147483647 - hidden_size) / 2 {
+  if kv_width > (2147483647 - query_width) / 2 {
     raise InvalidShape(DimensionOverflow)
   }
   {
@@ -130,6 +134,16 @@ pub fn ShapeConstraints::kv_head_count(self : ShapeConstraints) -> Int {
 ///|
 pub fn ShapeConstraints::head_dimension(self : ShapeConstraints) -> Int {
   self.head_dimension
+}
+
+///|
+pub fn ShapeConstraints::query_width(self : ShapeConstraints) -> Int {
+  self.attention_head_count * self.head_dimension
+}
+
+///|
+pub fn ShapeConstraints::kv_width(self : ShapeConstraints) -> Int {
+  self.kv_head_count * self.head_dimension
 }
 
 ///|

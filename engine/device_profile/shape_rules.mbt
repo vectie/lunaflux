@@ -7,6 +7,22 @@ fn operation_output_width(
     (RmsNorm, NormalizationShape(width~, ..)) => Int64::from_int(width)
     (QkvProjection, ProjectionShape(output_width~, ..)) =>
       Int64::from_int(output_width)
+    (
+      QkRmsNorm,
+      QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..),
+    ) => {
+      let operation_id = operation.id()
+      let total_heads = checked_add(
+        Int64::from_int(query_heads),
+        checked_multiply(Int64::from_int(kv_heads), 2L, operation_id),
+        operation_id,
+      )
+      checked_multiply(
+        total_heads,
+        Int64::from_int(head_dimension),
+        operation_id,
+      )
+    }
     (RotaryEmbedding, RotaryShape(query_heads~, kv_heads~, head_dimension~, ..)) => {
       let operation_id = operation.id()
       let kv_twice = checked_multiply(
@@ -47,6 +63,24 @@ fn expected_activation_widths(
     (RmsNorm, NormalizationShape(width~, ..)) => [Int64::from_int(width)]
     (QkvProjection, ProjectionShape(input_width~, ..)) =>
       [Int64::from_int(input_width)]
+    (
+      QkRmsNorm,
+      QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..),
+    ) => {
+      let operation_id = operation.id()
+      let total_heads = checked_add(
+        Int64::from_int(query_heads),
+        checked_multiply(Int64::from_int(kv_heads), 2L, operation_id),
+        operation_id,
+      )
+      [
+        checked_multiply(
+          total_heads,
+          Int64::from_int(head_dimension),
+          operation_id,
+        ),
+      ]
+    }
     (RotaryEmbedding, RotaryShape(query_heads~, kv_heads~, head_dimension~, ..)) => {
       let operation_id = operation.id()
       let total_heads = checked_add(
@@ -113,6 +147,11 @@ fn valid_input_roles(operation : @device_plan.StaticOperation) -> Bool {
       inputs[1] is WeightRegion(_) &&
       inputs[2] is WeightRegion(_) &&
       inputs[3] is WeightRegion(_)
+    QkRmsNorm =>
+      inputs.length() == 3 &&
+      inputs[0] is ActivationValue(_) &&
+      inputs[1] is WeightRegion(_) &&
+      inputs[2] is WeightRegion(_)
     RotaryEmbedding | CausalAttention =>
       inputs.length() == 1 && inputs[0] is ActivationValue(_)
     ResidualAdd =>

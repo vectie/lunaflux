@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen3"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/qwen3_spec",
+}
+
+// Values
+pub fn build(@qwen3_spec.Qwen3ModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged(@qwen3_spec.Qwen3ModelMetadata, batch? : Qwen3PagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+// Errors
+
+// Types and methods
+pub struct Qwen3PagedBatchEnvelope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3PagedBatchEnvelope::max_batch_rows(Self) -> Int
+pub fn Qwen3PagedBatchEnvelope::new(Int) -> Self raise @plan.PlanValidationError
+pub fn Qwen3PagedBatchEnvelope::single_row() -> Self
+
+// Type aliases
+
+// Traits

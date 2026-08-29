@@ -153,6 +153,40 @@ fn pointwise_parameters(
         page_stride_bytes: 0L,
       }
     }
+    (
+      QkRmsNorm,
+      QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~),
+    ) => {
+      common_pointwise_operation(
+        operation,
+        @plan.KernelCapabilityId::qk_rms_norm(),
+      )
+      let width = qkv_width(query_heads, kv_heads, head_dimension)
+      if !exact_runtime_inputs(operation.runtime_inputs(), [StepCounts]) ||
+        operation.inputs().length() != 3 ||
+        !(operation.inputs()[0] is Activation(_)) ||
+        !(operation.inputs()[1] is Tensor(_)) ||
+        !(operation.inputs()[2] is Tensor(_)) ||
+        epsilon.is_nan() ||
+        epsilon.is_inf() ||
+        epsilon <= 0.0 ||
+        epsilon > 1.0 {
+        raise Mismatch(Operation)
+      }
+      {
+        family: QkRmsNorm,
+        width,
+        vocabulary_size: 0,
+        query_heads,
+        kv_heads,
+        head_dimension,
+        epsilon,
+        rope_theta: 0.0,
+        tokens_per_page: 0,
+        total_page_count: 0,
+        page_stride_bytes: 0L,
+      }
+    }
     (ResidualAdd, ElementwiseShape(width~)) => {
       common_pointwise_operation(
         operation,
@@ -274,6 +308,7 @@ fn manifest_operand_bytes(
         EmbeddingLookup =>
           bf16_matrix_bytes(parameters.vocabulary_size, parameters.width)
         RmsNorm => bf16_matrix_bytes(1, parameters.width)
+        QkRmsNorm => bf16_matrix_bytes(1, parameters.head_dimension)
         _ => raise Mismatch(OperandOrder)
       }
     ActivationInput(_) | ActivationOutput(_) =>

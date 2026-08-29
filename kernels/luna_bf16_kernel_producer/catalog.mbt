@@ -105,18 +105,22 @@ fn require_complete_kinds(
 ) -> Unit raise LunaBf16KernelProducerError {
   let seen = FixedArray::make(9, false)
   for operation in operations {
-    let index = match operation.kind() {
-      Embedding => 0
-      RmsNorm => 1
-      QkvProjection => 2
-      RotaryEmbedding => 3
-      CausalAttention => 4
-      OutputProjection => 5
-      ResidualAdd => 6
-      GatedMlp => 7
-      LanguageModelHead => 8
+    let index : Int? = match operation.kind() {
+      Embedding => Some(0)
+      RmsNorm => Some(1)
+      QkvProjection => Some(2)
+      QkRmsNorm => None
+      RotaryEmbedding => Some(3)
+      CausalAttention => Some(4)
+      OutputProjection => Some(5)
+      ResidualAdd => Some(6)
+      GatedMlp => Some(7)
+      LanguageModelHead => Some(8)
     }
-    seen[index] = true
+    match index {
+      Some(value) => seen[value] = true
+      None => ()
+    }
   }
   for value in seen {
     if !value {

@@ -173,6 +173,12 @@ fn encode_operation_shape(
       writer.write_int(width)
       writer.write_u64(epsilon.reinterpret_as_uint64())
     }
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~) => {
+      writer.write_int(query_heads)
+      writer.write_int(kv_heads)
+      writer.write_int(head_dimension)
+      writer.write_u64(epsilon.reinterpret_as_uint64())
+    }
     ProjectionShape(input_width~, output_width~) => {
       writer.write_int(input_width)
       writer.write_int(output_width)
@@ -296,7 +302,7 @@ fn encode_model_plan_canonical(
 
 ///|
 fn count_required_capabilities(operations : ArrayView[PlanOperation]) -> Int {
-  let seen = FixedArray::make(11, false)
+  let seen = FixedArray::make(12, false)
   let mut count = 0
   for operation in operations {
     let value = expected_capability(operation).as_int()
@@ -339,7 +345,7 @@ fn preflight_model_plan(
     required_count,
     KernelCapabilityId::embedding_lookup(),
   )
-  let seen = FixedArray::make(11, false)
+  let seen = FixedArray::make(12, false)
   let mut next_required = 0
   for operation in operations {
     let capability = expected_capability(operation)

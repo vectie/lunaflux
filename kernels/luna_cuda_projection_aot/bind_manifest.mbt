@@ -94,8 +94,8 @@ pub fn bind_manifest_projection_cuda_aot(
   operation : @plan.PlanOperation,
   contracts : @launch_contract.PagedKvLaunchContractSet,
 ) -> ProjectionManifestCudaLowering raise ProjectionAotError {
-  let parameters = projection_parameters(operation)
-  if parameters.family != candidate.family ||
+  let operation_parameters = projection_parameters(operation)
+  if operation_parameters.family != candidate.family ||
     operation.id() != candidate.operation_id ||
     contracts.scope() != FullGraph ||
     contracts.catalog_version() != @catalog.CatalogVersion::v3() ||
@@ -103,6 +103,11 @@ pub fn bind_manifest_projection_cuda_aot(
     raise Mismatch(Operation)
   }
   let contract = projection_find_exact_contract(candidate, contracts)
+  let parameters = projection_bind_qkv_widths(
+    operation,
+    operation_parameters,
+    contract.operands(),
+  )
   validate_projection_contract(operation, contract)
   if contract.profile() != candidate.profile ||
     contract.dimensions() != candidate.dimensions ||

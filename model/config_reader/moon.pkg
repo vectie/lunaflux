@@ -3,6 +3,7 @@ import {
   "moonbitlang/core/json",
   "vectie/lunaflux/internal/json_guard",
   "vectie/lunaflux/model/mistral_spec",
+  "vectie/lunaflux/model/qwen3_spec",
   "vectie/lunaflux/model/spec",
 }
 

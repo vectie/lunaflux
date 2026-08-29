@@ -40,6 +40,26 @@ fn execute_operation(
       }
     }
     (
+      QkRmsNorm,
+      QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~),
+    ) => {
+      let input = activation_input(activations, inputs[0])
+      let query_weight = tensor_input(model, inputs[1])
+      let key_weight = tensor_input(model, inputs[2])
+      qk_rms_norm(
+        input,
+        query_weight,
+        key_weight,
+        query_heads~,
+        kv_heads~,
+        head_dimension~,
+        epsilon=Float::from_double(epsilon),
+        limits=kernel_limits,
+      ) catch {
+        error => raise Kernel(error)
+      }
+    }
+    (
       RotaryEmbedding,
       RotaryShape(query_heads~, kv_heads~, head_dimension~, rope_theta~),
     ) => {

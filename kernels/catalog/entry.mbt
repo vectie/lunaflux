@@ -60,6 +60,7 @@ fn operation_shape_is_legal(
   match (operation_kind, operation_shape) {
     (Embedding, EmbeddingShape(_)) => true
     (RmsNorm, NormalizationShape(_)) => true
+    (QkRmsNorm, QkNormalizationShape(_)) => true
     (QkvProjection | OutputProjection | LanguageModelHead, ProjectionShape(_)) =>
       true
     (RotaryEmbedding, RotaryShape(_)) => true
@@ -79,6 +80,7 @@ fn operation_capability_is_legal(
   let expected = match operation_kind {
     Embedding => @plan.KernelCapabilityId::embedding_lookup()
     RmsNorm => @plan.KernelCapabilityId::rms_norm()
+    QkRmsNorm => @plan.KernelCapabilityId::qk_rms_norm()
     QkvProjection => @plan.KernelCapabilityId::qkv_projection()
     RotaryEmbedding =>
       if semantic_version == KernelSemanticVersion::v3() ||

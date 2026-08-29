@@ -25,6 +25,7 @@ fn expected_capability(operation : PlanOperation) -> KernelCapabilityId {
     Embedding => KernelCapabilityId::embedding_lookup()
     RmsNorm => KernelCapabilityId::rms_norm()
     QkvProjection => KernelCapabilityId::qkv_projection()
+    QkRmsNorm => KernelCapabilityId::qk_rms_norm()
     RotaryEmbedding =>
       if operation.has_runtime_inputs([StepCounts, QueryPositions]) {
         KernelCapabilityId::positioned_rotary_embedding()
@@ -50,6 +51,7 @@ fn expected_arity(kind : OperationKind) -> (Int, Int) {
     Embedding => (2, 1)
     RmsNorm => (2, 1)
     QkvProjection => (4, 1)
+    QkRmsNorm => (3, 1)
     RotaryEmbedding => (1, 1)
     CausalAttention => (1, 1)
     OutputProjection => (2, 1)
@@ -122,6 +124,10 @@ fn valid_input_roles(
       inputs[1] is Tensor(_) &&
       inputs[2] is Tensor(_) &&
       inputs[3] is Tensor(_)
+    QkRmsNorm =>
+      inputs[0] is Activation(_) &&
+      inputs[1] is Tensor(_) &&
+      inputs[2] is Tensor(_)
     RotaryEmbedding | CausalAttention => inputs[0] is Activation(_)
     ResidualAdd => inputs[0] is Activation(_) && inputs[1] is Activation(_)
   }
@@ -140,12 +146,29 @@ fn valid_operation_shape(
   let kv_heads = constraints.kv_head_count()
   let head_dimension = constraints.head_dimension()
   let kv_width = kv_heads * head_dimension
-  let qkv_width = hidden + 2 * kv_width
+  let query_width = query_heads * head_dimension
+  let qkv_width = query_width + 2 * kv_width
   match (kind, shape) {
     (Embedding, EmbeddingShape(vocabulary_size~, width~)) =>
       vocabulary_size == vocabulary && width == hidden
     (RmsNorm, NormalizationShape(width~, epsilon~)) =>
       width == hidden &&
+      !epsilon.is_nan() &&
+      !epsilon.is_inf() &&
+      epsilon > 0.0 &&
+      epsilon <= 1.0
+    (
+      QkRmsNorm,
+      QkNormalizationShape(
+        query_heads=shape_query_heads,
+        kv_heads=shape_kv_heads,
+        head_dimension=shape_head_dimension,
+        epsilon~
+      ),
+    ) =>
+      shape_query_heads == query_heads &&
+      shape_kv_heads == kv_heads &&
+      shape_head_dimension == head_dimension &&
       !epsilon.is_nan() &&
       !epsilon.is_inf() &&
       epsilon > 0.0 &&
@@ -179,7 +202,7 @@ fn valid_operation_shape(
       shape_kv_heads == kv_heads &&
       shape_head_dimension == head_dimension
     (OutputProjection, ProjectionShape(input_width~, output_width~)) =>
-      input_width == hidden && output_width == hidden
+      input_width == query_width && output_width == hidden
     (ResidualAdd, ElementwiseShape(width~)) => width == hidden
     (GatedMlp, GatedMlpShape(hidden_size~, intermediate_size~)) =>
       hidden_size == hidden && intermediate_size == intermediate

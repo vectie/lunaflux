@@ -63,6 +63,7 @@ fn operation_shape_code(shape : @plan.OperationShape) -> Int {
     AttentionShape(..) => 5
     ElementwiseShape(..) => 6
     GatedMlpShape(..) => 7
+    QkNormalizationShape(..) => 8
   }
 }
 
@@ -79,6 +80,12 @@ fn LunaSpecializationEncoder::append_operation_shape(
     }
     NormalizationShape(width~, epsilon~) => {
       self.append_int(width)
+      self.append_u64(epsilon.reinterpret_as_uint64())
+    }
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~) => {
+      self.append_int(query_heads)
+      self.append_int(kv_heads)
+      self.append_int(head_dimension)
       self.append_u64(epsilon.reinterpret_as_uint64())
     }
     ProjectionShape(input_width~, output_width~) => {

@@ -156,7 +156,7 @@ pub fn model_operation_has_typed_cuda_lowering(
   kind : @plan.OperationKind,
 ) -> Bool {
   match kind {
-    Embedding | RmsNorm | RotaryEmbedding | ResidualAdd => true
+    Embedding | RmsNorm | QkRmsNorm | RotaryEmbedding | ResidualAdd => true
     QkvProjection | OutputProjection | GatedMlp | LanguageModelHead => true
     CausalAttention => true
   }

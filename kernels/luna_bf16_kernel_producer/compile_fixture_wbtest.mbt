@@ -8,7 +8,7 @@ fn producer_fixture_candidate(
   let layout = producer_fixture_layout()
   let operands = producer_fixture_operands(plan, operation, profile, layout)
   match operation.kind() {
-    Embedding | RmsNorm | RotaryEmbedding | ResidualAdd => {
+    Embedding | RmsNorm | QkRmsNorm | RotaryEmbedding | ResidualAdd => {
       let candidate = if legacy {
         @luna_cuda_pointwise_aot.lower_pointwise_cuda_aot_candidate(
           operation,

@@ -78,6 +78,23 @@ fn parse_mistral_text(
 }
 
 ///|
+fn parse_qwen3_text(
+  document : StringView,
+  content_digest : @spec.ContentDigest,
+  max_depth : Int,
+) -> @qwen3_spec.Qwen3ModelMetadata raise ModelConfigReaderError {
+  @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
+    InvalidDepthLimit => raise InvalidDepthLimit
+    DepthLimitExceeded(limit~) => raise NestingLimitExceeded(limit~)
+    DuplicateObjectKey(depth~, index~) => raise DuplicateField(depth~, index~)
+    MalformedStructure => raise MalformedJson
+  }
+  let parsed = @json.parse(document) catch { _ => raise MalformedJson }
+  guard parsed is Object(root) else { raise NonObjectRoot }
+  decode_qwen3_model(root, content_digest)
+}
+
+///|
 /// Parses selected-model JSON bytes after enforcing byte and nesting bounds.
 ///
 /// The supplied content digest must already have been verified independently.
@@ -146,4 +163,33 @@ pub fn parse_mistral_string(
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
   parse_mistral_text(document, content_digest, max_depth)
+}
+
+///|
+/// Parses the exact pinned dense Qwen3-0.6B BF16 configuration profile.
+pub fn parse_qwen3_bytes(
+  document : BytesView,
+  content_digest : @spec.ContentDigest,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @qwen3_spec.Qwen3ModelMetadata raise ModelConfigReaderError {
+  validate_limits(max_bytes, max_depth)
+  if document.length() > max_bytes {
+    raise ByteLimitExceeded(limit=max_bytes)
+  }
+  let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
+  parse_qwen3_text(text, content_digest, max_depth)
+}
+
+///|
+/// Parses exact pinned dense Qwen3-0.6B JSON text under its UTF-8 byte bound.
+pub fn parse_qwen3_string(
+  document : StringView,
+  content_digest : @spec.ContentDigest,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @qwen3_spec.Qwen3ModelMetadata raise ModelConfigReaderError {
+  validate_limits(max_bytes, max_depth)
+  validate_utf8_size(document, max_bytes)
+  parse_qwen3_text(document, content_digest, max_depth)
 }

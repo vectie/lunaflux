@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

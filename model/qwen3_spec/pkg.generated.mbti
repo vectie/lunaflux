@@ -1,0 +1,74 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen3_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror Qwen3ModelSpecError {
+  InvalidDimension(Qwen3ModelDimension)
+  InvalidHeadRelationship(Qwen3HeadRelationship)
+  InvalidRopeTheta
+  InvalidRmsNormEpsilon
+  UnsupportedWeightDType
+  UnsupportedKvDType
+  UntiedEmbeddings
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Qwen3HeadRelationship {
+  AttentionHeadsNotDivisibleByKvHeads
+  KvHeadsExceedAttentionHeads
+  OddHeadDimension
+  ProjectionWidthOverflow
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Qwen3ModelDimension {
+  Vocabulary
+  Hidden
+  Intermediate
+  LayerCount
+  AttentionHeadCount
+  KvHeadCount
+  HeadDimension
+  ContextLength
+} derive(Eq, @debug.Debug)
+
+pub struct Qwen3ModelMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3ModelMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Qwen3ModelMetadata::from_verified_content(Qwen3ModelSpec, @spec.ContentDigest) -> Self raise Qwen3ModelSpecError
+pub fn Qwen3ModelMetadata::spec(Self) -> Qwen3ModelSpec
+
+pub struct Qwen3ModelSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3ModelSpec::attention_head_count(Self) -> Int
+pub fn Qwen3ModelSpec::context_length(Self) -> Int
+pub fn Qwen3ModelSpec::has_query_key_norm(Self) -> Bool
+pub fn Qwen3ModelSpec::head_dimension(Self) -> Int
+pub fn Qwen3ModelSpec::hidden_size(Self) -> Int
+pub fn Qwen3ModelSpec::intermediate_size(Self) -> Int
+pub fn Qwen3ModelSpec::kv_dtype(Self) -> @spec.ModelDType
+pub fn Qwen3ModelSpec::kv_head_count(Self) -> Int
+pub fn Qwen3ModelSpec::kv_projection_width(Self) -> Int
+pub fn Qwen3ModelSpec::layer_count(Self) -> Int
+pub fn Qwen3ModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : @spec.ModelDType, kv_dtype~ : @spec.ModelDType, tied_embeddings~ : Bool) -> Self raise Qwen3ModelSpecError
+pub fn Qwen3ModelSpec::numeric_schema(Self) -> @numeric_contract.ModelNumericSchema
+pub fn Qwen3ModelSpec::query_head_count(Self) -> Int
+pub fn Qwen3ModelSpec::query_projection_width(Self) -> Int
+pub fn Qwen3ModelSpec::rms_norm_epsilon(Self) -> Double
+pub fn Qwen3ModelSpec::rope_theta(Self) -> Double
+pub fn Qwen3ModelSpec::tied_embeddings(Self) -> Bool
+pub fn Qwen3ModelSpec::vocabulary_size(Self) -> Int
+pub fn Qwen3ModelSpec::weight_dtype(Self) -> @spec.ModelDType
+
+// Type aliases
+
+// Traits

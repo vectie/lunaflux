@@ -170,6 +170,7 @@ fn exec_family_index(operation : @plan.PlanOperation) -> Int {
     ResidualAdd => 6
     GatedMlp => 8
     LanguageModelHead => 11
+    QkRmsNorm => abort("tensor-parallel fixture rejects QK RMS normalization")
   }
 }
 

@@ -91,6 +91,8 @@ fn fixture_operation_width(operation : @plan.PlanOperation) -> Int {
   match operation.shape() {
     EmbeddingShape(width~, ..) => width
     NormalizationShape(width~, ..) => width
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) =>
+      (query_heads + 2 * kv_heads) * head_dimension
     ProjectionShape(output_width~, ..) => output_width
     RotaryShape(query_heads~, kv_heads~, head_dimension~, ..) =>
       (query_heads + 2 * kv_heads) * head_dimension
@@ -121,6 +123,12 @@ fn fixture_weight_bytes(
     EmbeddingShape(vocabulary_size~, width~) =>
       vocabulary_size.to_int64() * width.to_int64() * 2L
     NormalizationShape(width~, ..) => width.to_int64() * 2L
+    QkNormalizationShape(head_dimension~, ..) =>
+      if weight_index < 2 {
+        head_dimension.to_int64() * 2L
+      } else {
+        abort("Q/K norm fixture has only two weights")
+      }
     ProjectionShape(input_width~, output_width~) =>
       if operation.kind() == QkvProjection {
         let kv_width = (output_width - input_width) / 2

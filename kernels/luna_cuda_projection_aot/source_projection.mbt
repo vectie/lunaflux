@@ -81,10 +81,10 @@ fn projection_qkv_source(
     "  const __nv_bfloat16 *weight = query_weight;\n" +
     "  int local_column = column;\n" +
     "  if (column >= " +
-    parameters.input_width.to_string() +
+    parameters.query_width.to_string() +
     ") {\n" +
     "    local_column = column - " +
-    parameters.input_width.to_string() +
+    parameters.query_width.to_string() +
     ";\n" +
     "    if (local_column >= " +
     parameters.intermediate_width.to_string() +

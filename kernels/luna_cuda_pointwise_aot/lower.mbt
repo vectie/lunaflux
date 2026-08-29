@@ -83,6 +83,11 @@ pub fn lower_pointwise_cuda_aot_candidate(
   validate_operands(operation, parameters, profile, operands)
   let work_items = match parameters.family {
     RmsNorm => profile.max_query_tokens().to_int64()
+    QkRmsNorm =>
+      checked_mul(
+        profile.max_query_tokens().to_int64(),
+        (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
+      )
     _ =>
       checked_mul(
         profile.max_query_tokens().to_int64(),
@@ -132,6 +137,11 @@ pub fn lower_reusable_pointwise_cuda_aot_candidate(
   validate_operands(operation, parameters, profile, operands)
   let work_items = match parameters.family {
     RmsNorm => profile.max_query_tokens().to_int64()
+    QkRmsNorm =>
+      checked_mul(
+        profile.max_query_tokens().to_int64(),
+        (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
+      )
     _ =>
       checked_mul(
         profile.max_query_tokens().to_int64(),

@@ -72,6 +72,30 @@ test "generic operation plans reject invalid local head geometry" {
 }
 
 ///|
+test "generic operation plans fail closed on QK RMS normalization" {
+  try
+    ignore(
+      TensorParallelOperationPlan::new(
+        operation=@plan.OperationId::new(0),
+        kind=QkRmsNorm,
+        capability=@plan.KernelCapabilityId::qk_rms_norm(),
+        input_width=8,
+        output_width=8,
+        inner_width=0,
+        query_head_count=0,
+        kv_head_count=0,
+        head_dimension=0,
+      ),
+    )
+  catch {
+    InvalidTensorParallelPlan(rule=UnsupportedSemanticOperation, index=0) => ()
+    _ => fail("unexpected unsupported-semantic rejection")
+  } noraise {
+    _ => fail("QK RMS normalization was admitted for tensor parallelism")
+  }
+}
+
+///|
 test "generic collective binds an exact covered operation" {
   let operation = generic_operation(output_width=4)
   let gather = TensorCollectiveSite::new(

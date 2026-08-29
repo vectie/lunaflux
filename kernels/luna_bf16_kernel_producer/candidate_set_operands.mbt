@@ -51,6 +51,8 @@ fn candidate_activation_width(
           match operation.shape() {
             EmbeddingShape(width~, ..) => width
             NormalizationShape(width~, ..) => width
+            QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) =>
+              (query_heads + 2 * kv_heads) * head_dimension
             ProjectionShape(output_width~, ..) => output_width
             RotaryShape(query_heads~, kv_heads~, head_dimension~, ..) =>
               (query_heads + 2 * kv_heads) * head_dimension
@@ -69,6 +71,7 @@ fn candidate_activation_width(
 
 ///|
 fn candidate_weight_bytes(
+  model_plan : @plan.ModelPlan,
   operation : @plan.PlanOperation,
   weight_index : Int,
 ) -> Int64 raise LunaBf16KernelProducerError {
@@ -85,15 +88,32 @@ fn candidate_weight_bytes(
       } else {
         raise Invalid(CandidateSet)
       }
+    QkNormalizationShape(head_dimension~, ..) =>
+      if weight_index < 2 {
+        candidate_matrix_bytes(1, head_dimension)
+      } else {
+        raise Invalid(CandidateSet)
+      }
     ProjectionShape(input_width~, output_width~) =>
       if operation.kind() == QkvProjection {
-        let kv_width = (output_width - input_width) / 2
-        let rows = if weight_index == 0 { input_width } else { kv_width }
-        if weight_index < 3 {
-          candidate_matrix_bytes(rows, input_width)
-        } else {
+        if weight_index >= 3 {
           raise Invalid(CandidateSet)
         }
+        guard operation.inputs()[weight_index + 1] is Tensor(reference) else {
+          raise Invalid(CandidateSet)
+        }
+        guard model_plan.numeric_binding().tensors().get(reference.as_int())
+          is Some(tensor) else {
+          raise Invalid(CandidateSet)
+        }
+        let shape = tensor.shape()
+        if tensor.reference().as_int() != reference.as_int() ||
+          tensor.storage().dtype() != @numeric_contract.StorageDType::bfloat16() ||
+          shape.rank() != 2 ||
+          shape.dimension(1) != Some(input_width.to_int64()) {
+          raise Invalid(CandidateSet)
+        }
+        candidate_checked_mul(shape.element_count(), 2L)
       } else if weight_index == 0 {
         candidate_matrix_bytes(output_width, input_width)
       } else {
@@ -155,7 +175,7 @@ fn derive_candidate_operands(
         result.push(
           candidate_operand(
             WeightInput(reference),
-            candidate_weight_bytes(operation, weight_index),
+            candidate_weight_bytes(model_plan, operation, weight_index),
             16L,
           ),
         )

@@ -22,6 +22,8 @@ pub(all) enum ModelConfigField {
   MlpBias
   HeadDimension
   PretrainingTensorParallelism
+  MaxWindowLayers
+  UseSlidingWindow
   InertMetadata
 } derive(Debug, Eq)
 
@@ -69,4 +71,5 @@ pub(all) suberror ModelConfigReaderError {
     index~ : Int
   )
   Validation(@spec.ModelSpecError)
+  Qwen3Validation(@qwen3_spec.Qwen3ModelSpecError)
 } derive(Debug, Eq)

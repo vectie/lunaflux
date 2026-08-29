@@ -145,6 +145,7 @@ fn profile_family_id(kind : @plan.OperationKind) -> Int {
     ResidualAdd => 7
     GatedMlp => 8
     LanguageModelHead => 9
+    QkRmsNorm => 10
   }
 }
 

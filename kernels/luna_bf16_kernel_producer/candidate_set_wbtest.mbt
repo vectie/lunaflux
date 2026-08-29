@@ -87,6 +87,45 @@ fn tiny_candidate_set() -> LunaBf16CandidateSet raise {
 }
 
 ///|
+fn tiny_qwen_candidate_plan() -> @plan.ModelPlan raise {
+  let model = @qwen3_spec.Qwen3ModelSpec::new(
+    vocabulary_size=32,
+    hidden_size=4,
+    intermediate_size=8,
+    layer_count=1,
+    attention_head_count=2,
+    kv_head_count=1,
+    head_dimension=4,
+    context_length=4,
+    rope_theta=10000.0,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+    tied_embeddings=true,
+  )
+  @qwen3.build_paged(
+    @qwen3_spec.Qwen3ModelMetadata::from_verified_content(
+      model,
+      @spec.ContentDigest::from_sha256("9".repeat(64)),
+    ),
+  )
+}
+
+///|
+fn tiny_qwen_candidate_layout(
+  plan : @plan.ModelPlan,
+) -> @device_layout.DeviceKvLayout raise {
+  @device_layout.plan(
+    plan.identity(),
+    plan.kv_cache_geometry(),
+    @device_layout.DeviceKvLimits::new(
+      tokens_per_page=4,
+      total_page_count=1,
+      max_arena_bytes=4096L,
+    ),
+  )
+}
+
+///|
 test "authenticated tiny BF16 plan produces canonical sm120 candidate set" {
   let set = tiny_candidate_set()
   let identity = set.model_identity()
@@ -143,6 +182,65 @@ test "authenticated tiny BF16 plan produces canonical sm120 candidate set" {
       sha256_bytes(set.candidate_recipe_bytes(index).unwrap()),
     )
   }
+}
+
+///|
+test "Qwen candidate set binds capability-11 Q/K normalization ABI" {
+  let plan = tiny_qwen_candidate_plan()
+  let set = prepare_luna_bf16_candidate_set(
+    plan,
+    tiny_qwen_candidate_layout(plan),
+    tiny_candidate_profile(),
+    tiny_candidate_target(),
+    producer_fixture_compiler(),
+    tiny_candidate_limits(),
+  )
+  assert_eq(set.operation_count(), 13)
+  guard set.candidates()[2] is Projection(qkv) else {
+    fail("Qwen QKV did not use the projection AOT family")
+  }
+  assert_eq(qkv.operands()[2].byte_count(), 64L)
+  assert_eq(qkv.operands()[3].byte_count(), 32L)
+  assert_eq(qkv.operands()[4].byte_count(), 32L)
+  let qkv_source = @utf8.decode(qkv.source_bytes())
+  assert_true(qkv_source.contains("if (column >= 8)"))
+  assert_true(qkv_source.contains("local_column = column - 8"))
+  assert_eq(set.candidate_key(3), Some("op_00000003_qk_rms_norm"))
+  guard set.candidates()[3] is Pointwise(qk) else {
+    fail("Q/K normalization did not use the pointwise AOT family")
+  }
+  assert_eq(qk.family(), QkRmsNorm)
+  assert_eq(qk.launch_dimensions().grid_x(), 4)
+  let operands = qk.operands()
+  assert_eq(operands.length(), 5)
+  assert_eq(operands[0].byte_count(), 20L)
+  assert_eq(operands[1].byte_count(), 32L)
+  assert_eq(operands[2].byte_count(), 8L)
+  assert_eq(operands[3].byte_count(), 8L)
+  assert_eq(operands[4].byte_count(), 32L)
+  let source = @utf8.decode(qk.source_bytes())
+  assert_true(source.contains("packed_head < 2 ? q_norm : k_norm"))
+  assert_true(source.contains("output[base + lane] = input[base + lane]"))
+  let recipe = @utf8.decode(qk.recipe_bytes())
+  assert_true(recipe.contains("family=qk_rms_norm\n"))
+  assert_true(recipe.contains("grid=4,1,1\n"))
+
+  let compilations : Array[LunaBf16OfflineCompilation] = []
+  for candidate in set.candidates() {
+    compilations.push(producer_fixture_compilation(candidate))
+  }
+  let release = produce_luna_bf16_kernel_release(
+    plan,
+    tiny_qwen_candidate_layout(plan),
+    tiny_candidate_target(),
+    compilations,
+    producer_fixture_limits(),
+  )
+  let contract = release.contracts().contracts()[3]
+  assert_eq(contract.capability(), @plan.KernelCapabilityId::qk_rms_norm())
+  assert_eq(contract.dimensions().grid_x(), 4)
+  assert_eq(contract.operands(), qk.operands())
+  assert_eq(release.bundle().operations()[3].operation_id().as_int(), 3)
 }
 
 ///|

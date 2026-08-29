@@ -9,6 +9,7 @@ pub(all) enum TensorParallelPlanRule {
   TensorOrder
   OperationOrder
   OperationGeometry
+  UnsupportedSemanticOperation
   CollectiveOrder
   CollectiveGeometry
   ArenaBytes

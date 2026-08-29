@@ -127,6 +127,7 @@ fn candidate_kind_matches(
       match (value.family(), kind) {
         (EmbeddingLookup, Embedding)
         | (RmsNorm, RmsNorm)
+        | (QkRmsNorm, QkRmsNorm)
         | (PositionedRotary, RotaryEmbedding)
         | (ResidualAdd, ResidualAdd) => true
         _ => false

@@ -5,6 +5,7 @@ pub(all) enum OperationKind {
   Embedding
   RmsNorm
   QkvProjection
+  QkRmsNorm
   RotaryEmbedding
   CausalAttention
   OutputProjection

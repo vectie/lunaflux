@@ -32,7 +32,9 @@ fn v2_stage_tag(
 }
 
 ///|
-fn v2_operation_kind_tag(kind : @plan.OperationKind) -> String {
+fn v2_operation_kind_tag(
+  kind : @plan.OperationKind,
+) -> String raise Fp8LaunchAbiError {
   match kind {
     QkvProjection => "qkv-projection"
     OutputProjection => "output-projection"
@@ -40,6 +42,7 @@ fn v2_operation_kind_tag(kind : @plan.OperationKind) -> String {
     LanguageModelHead => "language-model-head"
     Embedding => "embedding"
     RmsNorm => "rms-norm"
+    QkRmsNorm => raise InvalidFp8LaunchAbi(OperationKind)
     RotaryEmbedding => "rotary-embedding"
     CausalAttention => "causal-attention"
     ResidualAdd => "residual-add"

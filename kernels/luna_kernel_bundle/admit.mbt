@@ -106,6 +106,7 @@ fn pointwise_kind_matches(
   match (family, kind) {
     (EmbeddingLookup, Embedding) => true
     (RmsNorm, RmsNorm) => true
+    (QkRmsNorm, QkRmsNorm) => true
     (PositionedRotary, RotaryEmbedding) => true
     (ResidualAdd, ResidualAdd) => true
     _ => false

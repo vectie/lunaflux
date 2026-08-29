@@ -89,6 +89,66 @@ fn rms_norm_source(symbol : String, parameters : PointwiseParameters) -> Bytes {
 }
 
 ///|
+fn qk_rms_norm_source(
+  symbol : String,
+  parameters : PointwiseParameters,
+) -> Bytes {
+  let packed_heads = parameters.query_heads + 2 * parameters.kv_heads
+  @utf8.encode(
+    cuda_prelude() +
+    "extern \"C\" __global__ void " +
+    symbol +
+    "(const int32_t *counts, const __nv_bfloat16 *input, " +
+    "const __nv_bfloat16 *q_norm, const __nv_bfloat16 *k_norm, " +
+    "__nv_bfloat16 *output) {\n" +
+    "  const int packed_head = (int)(blockIdx.x % " +
+    packed_heads.to_string() +
+    "ULL);\n" +
+    "  const int row = (int)(blockIdx.x / " +
+    packed_heads.to_string() +
+    "ULL);\n" +
+    "  if (counts[3] <= 0 || row >= counts[3]) return;\n" +
+    "  const unsigned long long base = ((unsigned long long)row * " +
+    packed_heads.to_string() +
+    "ULL + (unsigned long long)packed_head) * " +
+    parameters.head_dimension.to_string() +
+    "ULL;\n" +
+    "  if (packed_head >= " +
+    (parameters.query_heads + parameters.kv_heads).to_string() +
+    ") {\n" +
+    "    for (int lane = threadIdx.x; lane < " +
+    parameters.head_dimension.to_string() +
+    "; lane += 256) output[base + lane] = input[base + lane];\n" +
+    "    return;\n  }\n" +
+    "  __shared__ float partial[256];\n  float sum = 0.0f;\n" +
+    "  for (int lane = threadIdx.x; lane < " +
+    parameters.head_dimension.to_string() +
+    "; lane += 256) {\n" +
+    "    const float value = __bfloat162float(input[base + lane]);\n" +
+    "    sum = sum + value * value;\n  }\n" +
+    "  partial[threadIdx.x] = sum;\n  __syncthreads();\n" +
+    "  for (int stride = 128; stride > 0; stride >>= 1) {\n" +
+    "    if (threadIdx.x < stride) partial[threadIdx.x] += partial[threadIdx.x + stride];\n" +
+    "    __syncthreads();\n  }\n" +
+    "  const float inverse = rsqrtf(partial[0] / " +
+    parameters.head_dimension.to_string() +
+    ".0f + " +
+    canonical_cuda_float_literal(parameters.epsilon) +
+    ");\n" +
+    "  const __nv_bfloat16 *weight = packed_head < " +
+    parameters.query_heads.to_string() +
+    " ? q_norm : k_norm;\n" +
+    "  for (int lane = threadIdx.x; lane < " +
+    parameters.head_dimension.to_string() +
+    "; lane += 256) {\n" +
+    "    const float value = __bfloat162float(input[base + lane]);\n" +
+    "    const float scale = __bfloat162float(weight[lane]);\n" +
+    "    output[base + lane] = __float2bfloat16_rn(value * inverse * scale);\n" +
+    "  }\n}\n",
+  )
+}
+
+///|
 fn rotary_source(symbol : String, parameters : PointwiseParameters) -> Bytes {
   let rotary_width = (parameters.query_heads + parameters.kv_heads) *
     parameters.head_dimension
@@ -146,6 +206,7 @@ fn pointwise_source(
   match parameters.family {
     EmbeddingLookup => embedding_source(symbol, parameters)
     RmsNorm => rms_norm_source(symbol, parameters)
+    QkRmsNorm => qk_rms_norm_source(symbol, parameters)
     PositionedRotary => rotary_source(symbol, parameters)
     ResidualAdd => residual_source(symbol, parameters)
     KvCacheWrite => raise Unsupported(Operation)

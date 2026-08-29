@@ -22,6 +22,7 @@ fn v3_operation_tag(kind : @plan.OperationKind) -> String {
     LanguageModelHead => "language-model-head"
     Embedding => "embedding"
     RmsNorm => "rms-norm"
+    QkRmsNorm => "qk-rms-norm"
     RotaryEmbedding => "rotary-embedding"
     CausalAttention => "causal-attention"
     ResidualAdd => "residual-add"

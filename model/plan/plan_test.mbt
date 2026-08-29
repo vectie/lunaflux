@@ -337,7 +337,20 @@ test "model plan rejects KV geometry inconsistent with semantic dimensions" {
 }
 
 ///|
-test "invalid shape relationships fail before plan construction" {
+test "query width is independent of hidden width and remains overflow checked" {
+  let constraints = @plan.ShapeConstraints::new(
+    max_batch_rows=1,
+    max_sequence_tokens=64,
+    vocabulary_size=128,
+    hidden_size=17,
+    intermediate_size=32,
+    attention_head_count=4,
+    kv_head_count=2,
+    head_dimension=4,
+  )
+  assert_eq(constraints.hidden_size(), 17)
+  assert_eq(constraints.query_width(), 16)
+  assert_eq(constraints.kv_width(), 8)
   try
     @plan.ShapeConstraints::new(
       max_batch_rows=1,
@@ -345,15 +358,15 @@ test "invalid shape relationships fail before plan construction" {
       vocabulary_size=128,
       hidden_size=17,
       intermediate_size=32,
-      attention_head_count=4,
-      kv_head_count=2,
-      head_dimension=4,
+      attention_head_count=2147483647,
+      kv_head_count=1,
+      head_dimension=2,
     )
   catch {
-    InvalidShape(HiddenHeadRelationship) => ()
+    InvalidShape(DimensionOverflow) => ()
     _ => fail("unexpected validation error")
   } noraise {
-    _ => fail("expected invalid hidden/head relationship")
+    _ => fail("expected overflowing query width rejection")
   }
 }
 

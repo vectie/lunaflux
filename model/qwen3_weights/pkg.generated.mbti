@@ -1,0 +1,101 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen3_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn bind(@qwen3_spec.Qwen3ModelMetadata, @safetensors.SafetensorsMetadata) -> Qwen3WeightBindings raise Qwen3WeightsError
+
+pub fn inspect_paged_file(@approved_fs.ApprovedRoot, @qwen3_spec.Qwen3ModelMetadata, @approved_fs.ApprovedRelativeLocator, expected_artifact_digest~ : @numeric_weight_file.NumericWeightArtifactDigest, limits~ : @numeric_weight_file.NumericWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64, expected_route_manifest_sha256~ : StringView, batch? : @qwen3.Qwen3PagedBatchEnvelope) -> Qwen3WeightFileInspection raise Qwen3WeightsError
+
+pub fn inspect_source_safetensors_file(@approved_fs.ApprovedRoot, @qwen3_spec.Qwen3ModelMetadata, @approved_fs.ApprovedRelativeLocator, expected_artifact_sha256~ : StringView, limits~ : Qwen3SourceFileLimits) -> Qwen3SourceFileInspection raise Qwen3WeightsError
+
+pub fn load_inspected_paged_file(@device.Context, @approved_fs.ApprovedRoot, Qwen3WeightFileInspection) -> @numeric_weight_file.NumericDeviceWeightPreparation raise Qwen3WeightsError
+
+// Errors
+pub(all) suberror Qwen3WeightsError {
+  Mismatch(Qwen3WeightRule)
+  UnknownTensor(index~ : Int)
+  MissingTensor(reference~ : Int)
+  InvalidTensor(reference~ : Int, Qwen3WeightRule)
+  InvalidModelPlan(@plan.PlanValidationError)
+  InvalidNumericWeightFile(@numeric_weight_file.NumericWeightFileError)
+  InvalidSourceSafetensors(@safetensors_reader.SafetensorsReaderError)
+  InvalidSourceFileLimit
+  SourceFileUnavailable
+  SourceFileCloseFailed
+  SourceFileTooLarge
+  SourceFileChanged
+  SourceArtifactDigestMismatch
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Qwen3SourceFileInspection {
+  // private fields
+}
+pub fn Qwen3SourceFileInspection::artifact_sha256(Self) -> String
+pub fn Qwen3SourceFileInspection::bindings(Self) -> Qwen3WeightBindings
+pub fn Qwen3SourceFileInspection::source_manifest_sha256(Self) -> String
+
+pub struct Qwen3SourceFileLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3SourceFileLimits::new(max_file_bytes~ : Int64, compare_chunk_bytes~ : Int, safetensors~ : @safetensors.HeaderLimits) -> Self raise Qwen3WeightsError
+
+pub struct Qwen3TensorBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3TensorBinding::reference(Self) -> @plan.TensorRef
+pub fn Qwen3TensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+
+pub struct Qwen3WeightBindings {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen3WeightBindings::binding(Self, @plan.TensorRef) -> Qwen3TensorBinding?
+pub fn Qwen3WeightBindings::content_digest(Self) -> @spec.ContentDigest
+pub fn Qwen3WeightBindings::embedding_binding(Self) -> Qwen3TensorBinding
+pub fn Qwen3WeightBindings::length(Self) -> Int
+pub fn Qwen3WeightBindings::lm_head_binding(Self) -> Qwen3TensorBinding
+pub fn Qwen3WeightBindings::materialized_bytes(Self) -> Int64
+pub fn Qwen3WeightBindings::redundant_lm_head_tensor(Self) -> @safetensors.TensorMetadata?
+pub fn Qwen3WeightBindings::source_bytes(Self) -> Int64
+pub fn Qwen3WeightBindings::source_tensor_count(Self) -> Int
+
+pub struct Qwen3WeightFileInspection {
+  // private fields
+}
+pub fn Qwen3WeightFileInspection::artifact_digest(Self) -> @numeric_weight_file.NumericWeightArtifactDigest
+pub fn Qwen3WeightFileInspection::generic_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+pub fn Qwen3WeightFileInspection::identity(Self) -> @spec.ModelIdentity
+pub fn Qwen3WeightFileInspection::layout(Self) -> @device_materialize.DeviceWeightLayout
+pub fn Qwen3WeightFileInspection::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Qwen3WeightFileInspection::route_manifest_sha256(Self) -> String
+
+pub(all) enum Qwen3WeightRule {
+  TensorCount
+  TensorName
+  TensorDType
+  TensorRank
+  TensorDimension
+  TensorByteRange
+  TiedOutput
+  TiedOutputByteEquality
+  RouteManifest
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

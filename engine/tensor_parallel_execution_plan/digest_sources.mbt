@@ -41,6 +41,13 @@ fn append_operation_shape(
       encoder.append_int(hidden_size)
       encoder.append_int(intermediate_size)
     }
+    QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~) => {
+      encoder.append_int(8)
+      encoder.append_int(query_heads)
+      encoder.append_int(kv_heads)
+      encoder.append_int(head_dimension)
+      encoder.append_u64(epsilon.reinterpret_as_uint64())
+    }
   }
 }
 

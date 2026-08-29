@@ -253,3 +253,10 @@ pub fn KernelCapabilityId::positioned_rotary_embedding() -> KernelCapabilityId {
 pub fn KernelCapabilityId::paged_causal_attention() -> KernelCapabilityId {
   { value: 10 }
 }
+
+///|
+/// Semantic capability 11: per-head query/key RMS normalization over one
+/// packed QKV activation.
+pub fn KernelCapabilityId::qk_rms_norm() -> KernelCapabilityId {
+  { value: 11 }
+}

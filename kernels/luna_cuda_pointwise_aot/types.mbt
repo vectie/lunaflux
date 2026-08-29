@@ -2,6 +2,7 @@
 pub(all) enum PointwiseAotFamily {
   EmbeddingLookup
   RmsNorm
+  QkRmsNorm
   PositionedRotary
   ResidualAdd
   KvCacheWrite

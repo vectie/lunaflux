@@ -37,6 +37,7 @@ fn operation_kind_tag(kind : OperationKind) -> Byte {
     Embedding => 0x01
     RmsNorm => 0x02
     QkvProjection => 0x03
+    QkRmsNorm => 0x0a
     RotaryEmbedding => 0x04
     CausalAttention => 0x05
     OutputProjection => 0x06
@@ -51,6 +52,7 @@ fn operation_shape_tag(shape : OperationShape) -> Byte {
   match shape {
     EmbeddingShape(..) => 0x01
     NormalizationShape(..) => 0x02
+    QkNormalizationShape(..) => 0x08
     ProjectionShape(..) => 0x03
     RotaryShape(..) => 0x04
     AttentionShape(..) => 0x05

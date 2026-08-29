@@ -70,6 +70,17 @@ fn output_width(
     (RmsNorm, NormalizationShape(width~, ..)) => Int64::from_int(width)
     (QkvProjection, ProjectionShape(output_width~, ..)) =>
       Int64::from_int(output_width)
+    (
+      QkRmsNorm,
+      QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..),
+    ) => {
+      let heads = checked_add(
+        Int64::from_int(query_heads),
+        checked_multiply(Int64::from_int(kv_heads), 2L, operation.id()),
+        operation.id(),
+      )
+      checked_multiply(heads, Int64::from_int(head_dimension), operation.id())
+    }
     (RotaryEmbedding, RotaryShape(query_heads~, kv_heads~, head_dimension~, ..)) => {
       let heads = checked_add(
         Int64::from_int(query_heads),
