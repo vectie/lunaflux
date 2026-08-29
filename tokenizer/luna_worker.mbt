@@ -21,7 +21,10 @@ pub fn LunaTokenizerWorker::new(
     tokens: FixedArray::make(node_capacity, 0),
     previous: FixedArray::make(node_capacity, LUNA_REMOVED_NODE),
     next: FixedArray::make(node_capacity, LUNA_REMOVED_NODE),
-    input: FixedArray::make(input_capacity, b'\x00'),
+    input: FixedArray::make(
+      LunaTokenizerWorker::required_byte_cells(input_capacity).to_int(),
+      b'\x00',
+    ),
     input_length: 0,
     written_input_bytes: 0,
     ordinary_ready: false,
@@ -32,6 +35,8 @@ pub fn LunaTokenizerWorker::new(
     scalar_byte_offset: 0,
     scalar_byte_length: 0,
     scalar_source_advance: 0,
+    normalized_length: 0,
+    qwen_segment_end: -1,
     special_policy: AsOrdinary,
     truncation: RejectOverflow,
     output_limit: 0,
@@ -70,6 +75,8 @@ fn LunaTokenizerWorker::clear_request(self : LunaTokenizerWorker) -> Unit {
   self.scalar_byte_offset = 0
   self.scalar_byte_length = 0
   self.scalar_source_advance = 0
+  self.normalized_length = 0
+  self.qwen_segment_end = -1
   self.output_limit = 0
   self.phase = LUNA_WORKER_IDLE
   self.input_offset = 0

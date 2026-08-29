@@ -6,6 +6,8 @@ pub(all) enum TokenKind {
   /// One exact raw byte emitted only when the SentencePiece BPE model cannot
   /// represent an input Unicode scalar directly.
   ByteFallback
+  /// An exact added-token match which remains visible under decode `Skip`.
+  Added
   Special
 } derive(Debug, Eq)
 
@@ -115,6 +117,7 @@ pub(all) suberror TokenizerError {
   DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
   InvalidUtf8Input(byte_offset~ : Int)
+  UnsupportedQwen3Unicode(byte_offset~ : Int)
   InvalidUtf16Input(code_unit_offset~ : Int)
   InvalidSentencePieceToken(entry_index~ : Int)
   InvalidSentencePieceUnknownToken(token_id~ : Int)

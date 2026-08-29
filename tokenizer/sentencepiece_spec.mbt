@@ -67,6 +67,11 @@ fn TokenizerSpec::worker_symbol_capacity(
   }
   if self.profile == TOKENIZER_PROFILE_SENTENCEPIECE_BPE {
     sentencepiece_symbol_capacity(input_capacity)
+  } else if self.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+    if input_capacity > (1_073_741_824 - 1) / QWEN3_NFC_MAX_UTF8_EXPANSION {
+      raise LunaInvalidWorkerCapacity
+    }
+    input_capacity * QWEN3_NFC_MAX_UTF8_EXPANSION + 1
   } else {
     input_capacity
   }
@@ -183,6 +188,7 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
         )
         entry.piece
       }
+      Added => raise InvalidSentencePieceToken(entry_index~)
     }
     let stored : StoredToken = {
       token_id: entry.token_id,

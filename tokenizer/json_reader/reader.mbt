@@ -45,7 +45,7 @@ fn parse_text(
   let parsed = @json.parse(document) catch { _ => raise MalformedJson }
   guard parsed is Object(root) else { raise NonObjectRoot }
   let profile = validate_root_semantics(root)
-  let specials = parse_added_tokens(root, limits)
+  let specials = parse_added_tokens(root, limits, profile)
   parse_model(
     require_field(root, "model", Root, ModelField),
     specials,

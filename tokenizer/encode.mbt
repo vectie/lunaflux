@@ -42,8 +42,8 @@ pub fn TokenizerSpec::encode_text(
 }
 
 ///|
-/// Encode arbitrary bytes. Invalid UTF-8 is intentionally accepted because
-/// this tokenizer's normalization domain is bytes, not Unicode scalar values.
+/// Encode arbitrary bytes. The raw-byte profile accepts every byte sequence;
+/// Unicode-normalizing profiles reject malformed UTF-8 before tokenization.
 pub fn TokenizerSpec::encode_bytes(
   self : TokenizerSpec,
   input : Bytes,

@@ -43,8 +43,16 @@ fn LunaTokenizerWorker::finish_special_match(
     self.input_offset += self.best_special_bytes
     self.segment_start = true
     self.ordinary_ready = false
+    if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+      self.qwen_segment_end = -1
+    }
   } else if self.spec.profile == TOKENIZER_PROFILE_SENTENCEPIECE_BPE {
     self.ordinary_ready = true
+  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+    self.append_symbol(
+      self.spec.byte_token_ids[self.input[self.input_offset].to_int()],
+    )
+    self.input_offset += 1
   } else {
     self.append_symbol(
       self.spec.byte_token_ids[self.input[self.input_offset].to_int()],
@@ -261,6 +269,28 @@ fn LunaTokenizerWorker::progress_initialize(
     self.scan_left = self.head
     self.selected_rank = -1
     self.phase = LUNA_WORKER_SELECT_ADJACENCY
+  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+    if self.qwen_segment_end >= 0 && self.input_offset >= self.qwen_segment_end {
+      self.append_symbol(LUNA_PRETOKEN_BOUNDARY)
+      self.qwen_segment_end = -1
+    } else {
+      if self.qwen_segment_end < 0 {
+        self.qwen_segment_end = qwen3_pretoken_end(
+          self.input,
+          self.input_length,
+          self.input_offset,
+        )
+      }
+      if self.special_policy is AsOrdinary ||
+        self.spec.special_tokens.is_empty() {
+        self.append_symbol(
+          self.spec.byte_token_ids[self.input[self.input_offset].to_int()],
+        )
+        self.input_offset += 1
+      } else {
+        self.start_special_match()
+      }
+    }
   } else if self.spec.profile == TOKENIZER_PROFILE_SENTENCEPIECE_BPE {
     if !self.ordinary_ready {
       if self.special_policy is AsOrdinary ||
@@ -409,6 +439,9 @@ fn LunaTokenizerWorker::progress_compaction(
   }
   let node = self.compact_node
   self.compact_node = self.next[node]
+  if self.tokens[node] == LUNA_PRETOKEN_BOUNDARY {
+    return
+  }
   if self.compact_actual < self.output_limit {
     self.tokens[self.compact_actual] = self.tokens[node]
   }
@@ -427,6 +460,7 @@ fn LunaTokenizerWorker::progress_one(
     LUNA_WORKER_MERGE_BATCH => self.progress_merge_batch()
     LUNA_WORKER_COMPACT => self.progress_compaction()
     LUNA_WORKER_SENTENCEPIECE_SCALAR => self.progress_sentencepiece_scalar()
+    LUNA_WORKER_QWEN3_NORMALIZE => self.progress_qwen3_normalize()
     _ => abort("invalid Luna tokenizer worker phase")
   }
 }

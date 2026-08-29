@@ -49,6 +49,8 @@ pub(all) enum JsonField {
   SpecialTokens
   Start
   Stop
+  Behavior
+  Invert
 } derive(Debug, Eq)
 
 ///|
@@ -73,6 +75,8 @@ pub(all) enum UnsupportedFeature {
   IgnoreMergeBehavior
   OrdinaryAddedToken
   AddedTokenMatching
+  Qwen3PreTokenization
+  Qwen3AddedTokens
 } derive(Debug, Eq)
 
 ///|

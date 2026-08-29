@@ -31,7 +31,7 @@ fn parse_vocabulary(
       }
       None =>
         match profile {
-          ByteLevelJson =>
+          ByteLevelJson | Qwen3Json =>
             (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
           SentencePieceJson(..) =>
             match decode_sentencepiece_byte_fallback(raw_piece) {
@@ -47,9 +47,38 @@ fn parse_vocabulary(
     }
   }
   for _, special in specials {
-    match raw_id_by_token.get(special.content) {
-      Some(id) if id == special.id => ()
-      _ => raise AddedTokenNotInVocabulary(index=special.source_index)
+    match profile {
+      Qwen3Json =>
+        if raw_id_by_token.contains(special.content) {
+          raise AddedTokenContentMismatch(index=special.source_index)
+        }
+      _ =>
+        match raw_id_by_token.get(special.content) {
+          Some(id) if id == special.id => ()
+          _ => raise AddedTokenNotInVocabulary(index=special.source_index)
+        }
+    }
+  }
+  if profile is Qwen3Json {
+    if entries.length() != QWEN3_FIRST_ADDED_TOKEN_ID {
+      raise InvalidField(component=Model, field=Vocab, index=entries.length())
+    }
+    for id in QWEN3_FIRST_ADDED_TOKEN_ID..<=QWEN3_LAST_ADDED_TOKEN_ID {
+      guard specials.get(id) is Some(added) else {
+        raise UnsupportedSemantics(
+          component=AddedToken,
+          feature=Qwen3AddedTokens,
+        )
+      }
+      entries.push({
+        token_id: id,
+        piece: added.piece,
+        kind: if added.special {
+          Special
+        } else {
+          Added
+        },
+      })
     }
   }
   { entries, normal_id_by_piece }
@@ -135,11 +164,11 @@ fn parse_merges(
   for index, row in rows {
     let (left_raw, right_raw) = decode_merge_pair(row, index)
     let left_piece = match profile {
-      ByteLevelJson => decode_bytelevel_piece(left_raw, index)
+      ByteLevelJson | Qwen3Json => decode_bytelevel_piece(left_raw, index)
       SentencePieceJson(..) => @utf8.encode(left_raw)
     }
     let right_piece = match profile {
-      ByteLevelJson => decode_bytelevel_piece(right_raw, index)
+      ByteLevelJson | Qwen3Json => decode_bytelevel_piece(right_raw, index)
       SentencePieceJson(..) => @utf8.encode(right_raw)
     }
     let left_id = match vocabulary.normal_id_by_piece.get(left_piece) {
@@ -183,22 +212,42 @@ fn parse_model(
     raise UnsupportedSemantics(component=Model, feature=ModelKind)
   }
   require_null(model, "dropout", Model, Dropout, MergeDropout)
-  require_null(
-    model,
-    "continuing_subword_prefix",
-    Model,
-    ContinuingSubwordPrefix,
-    ContinuingSubwords,
-  )
-  require_null(
-    model,
-    "end_of_word_suffix",
-    Model,
-    EndOfWordSuffix,
-    WordSuffixes,
-  )
+  match profile {
+    Qwen3Json => {
+      if require_string(
+          model,
+          "continuing_subword_prefix",
+          Model,
+          ContinuingSubwordPrefix,
+          0,
+        ) !=
+        "" {
+        raise UnsupportedSemantics(component=Model, feature=ContinuingSubwords)
+      }
+      if require_string(model, "end_of_word_suffix", Model, EndOfWordSuffix, 0) !=
+        "" {
+        raise UnsupportedSemantics(component=Model, feature=WordSuffixes)
+      }
+    }
+    _ => {
+      require_null(
+        model,
+        "continuing_subword_prefix",
+        Model,
+        ContinuingSubwordPrefix,
+        ContinuingSubwords,
+      )
+      require_null(
+        model,
+        "end_of_word_suffix",
+        Model,
+        EndOfWordSuffix,
+        WordSuffixes,
+      )
+    }
+  }
   let (unknown_token_id, bos_token_id) = match profile {
-    ByteLevelJson => {
+    ByteLevelJson | Qwen3Json => {
       require_null(
         model,
         "unk_token",
@@ -268,6 +317,15 @@ fn parse_model(
   match profile {
     ByteLevelJson =>
       @tokenizer.TokenizerSpec::new(vocabulary.entries, merges, digest, limits) catch {
+        error => raise Validation(error)
+      }
+    Qwen3Json =>
+      @tokenizer.TokenizerSpec::new_qwen3_bpe(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+      ) catch {
         error => raise Validation(error)
       }
     SentencePieceJson(..) =>

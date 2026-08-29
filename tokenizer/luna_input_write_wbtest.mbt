@@ -113,7 +113,7 @@ test "Luna input writer preserves special EOF rejection and truncation" {
 
 ///|
 test "Luna input byte sizing and writer lifecycle fail closed" {
-  assert_eq(LunaTokenizerWorker::required_byte_cells(128), 128UL)
+  assert_eq(LunaTokenizerWorker::required_byte_cells(128), 384UL)
   try ignore(LunaTokenizerWorker::required_byte_cells(0)) catch {
     LunaInvalidWorkerCapacity => ()
     _ => fail("unexpected Luna byte-cell error")

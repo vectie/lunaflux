@@ -15,12 +15,15 @@ const TOKENIZER_PROFILE_RAW_BYTE_BPE : Int = 0
 const TOKENIZER_PROFILE_SENTENCEPIECE_BPE : Int = 1
 
 ///|
+const TOKENIZER_PROFILE_QWEN3_BPE : Int = 2
+
+///|
 /// Validated immutable specification for one admitted tokenizer profile.
 ///
-/// LunaFlux supports its raw ByteLevel-BPE contract and one closed
-/// SentencePiece-derived BPE `tokenizer.json` pipeline. This type does not
-/// claim compatibility with arbitrary normalizer, template, decoder, or
-/// SentencePiece profiles.
+/// LunaFlux supports its raw ByteLevel-BPE contract, one closed
+/// SentencePiece-derived BPE `tokenizer.json` pipeline, and the pinned Qwen3
+/// NFC/regex ByteLevel-BPE pipeline. This type does not claim compatibility
+/// with arbitrary normalizer, template, decoder, or model-family profiles.
 pub struct TokenizerSpec {
   priv digest : TokenizerDigest
   priv limits : TokenizerLimits
@@ -83,6 +86,44 @@ pub fn TokenizerSpec::new(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
+) -> TokenizerSpec raise TokenizerError {
+  new_bytelevel_bpe(
+    vocabulary,
+    merges,
+    digest,
+    limits,
+    profile=TOKENIZER_PROFILE_RAW_BYTE_BPE,
+  )
+}
+
+///|
+/// Construct the exact NFC plus Qwen3-regex ByteLevel-BPE profile.
+///
+/// JSON admission separately pins the regex, ByteLevel options, and the
+/// model's exact added-token vocabulary. This constructor exists so the typed
+/// tokenizer package owns execution of that already-admitted profile.
+pub fn TokenizerSpec::new_qwen3_bpe(
+  vocabulary : ArrayView[VocabularyEntry],
+  merges : ArrayView[MergeRule],
+  digest : TokenizerDigest,
+  limits : TokenizerLimits,
+) -> TokenizerSpec raise TokenizerError {
+  new_bytelevel_bpe(
+    vocabulary,
+    merges,
+    digest,
+    limits,
+    profile=TOKENIZER_PROFILE_QWEN3_BPE,
+  )
+}
+
+///|
+fn new_bytelevel_bpe(
+  vocabulary : ArrayView[VocabularyEntry],
+  merges : ArrayView[MergeRule],
+  digest : TokenizerDigest,
+  limits : TokenizerLimits,
+  profile~ : Int,
 ) -> TokenizerSpec raise TokenizerError {
   validate_positive_limit(limits.max_input_bytes, InputBytes)
   validate_positive_limit(limits.max_output_tokens, OutputTokens)
@@ -150,7 +191,7 @@ pub fn TokenizerSpec::new(
     tokens_by_id[entry.token_id] = stored
     match entry.kind {
       Normal => normal_ids_by_piece[entry.piece] = entry.token_id
-      Special => special_tokens.push(stored)
+      Added | Special => special_tokens.push(stored)
       ByteFallback => abort("raw byte BPE kind validation invariant")
     }
   }
@@ -241,7 +282,7 @@ pub fn TokenizerSpec::new(
     merge_rank_sorted,
     byte_token_ids,
     special_tokens,
-    profile: TOKENIZER_PROFILE_RAW_BYTE_BPE,
+    profile,
     initial_scalar_ids: FixedArray::make(0, 0),
     sentencepiece_meta_token_id: -1,
     post_processor_token_id: -1,

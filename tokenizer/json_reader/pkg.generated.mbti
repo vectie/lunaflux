@@ -84,6 +84,8 @@ pub(all) enum JsonField {
   SpecialTokens
   Start
   Stop
+  Behavior
+  Invert
 } derive(Eq, @debug.Debug)
 
 pub(all) enum MergePart {
@@ -112,6 +114,8 @@ pub(all) enum UnsupportedFeature {
   IgnoreMergeBehavior
   OrdinaryAddedToken
   AddedTokenMatching
+  Qwen3PreTokenization
+  Qwen3AddedTokens
 } derive(Eq, @debug.Debug)
 
 // Type aliases

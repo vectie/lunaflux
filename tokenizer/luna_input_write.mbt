@@ -40,6 +40,8 @@ pub fn LunaTokenizerWorker::begin_luna_input(
   self.scalar_byte_offset = 0
   self.scalar_byte_length = 0
   self.scalar_source_advance = 0
+  self.normalized_length = 0
+  self.qwen_segment_end = -1
   self.special_policy = special_policy
   self.truncation = truncation
   self.output_limit = output_limit
@@ -100,7 +102,11 @@ pub fn LunaTokenizerInputWrite::finish(
   if worker.written_input_bytes != worker.input_length {
     raise LunaInvalidInputWrite
   }
-  worker.phase = LUNA_WORKER_INITIALIZE
+  worker.phase = if worker.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+    LUNA_WORKER_QWEN3_NORMALIZE
+  } else {
+    LUNA_WORKER_INITIALIZE
+  }
   { worker, epoch: self.epoch }
 }
 

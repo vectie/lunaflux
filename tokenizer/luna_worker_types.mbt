@@ -32,7 +32,13 @@ const LUNA_WORKER_INPUT_WRITE : Int = 8
 const LUNA_WORKER_SENTENCEPIECE_SCALAR : Int = 9
 
 ///|
+const LUNA_WORKER_QWEN3_NORMALIZE : Int = 10
+
+///|
 const LUNA_REMOVED_NODE : Int = -2
+
+///|
+const LUNA_PRETOKEN_BOUNDARY : Int = -3
 
 ///|
 pub(all) enum LunaTokenizerProgress {
@@ -116,6 +122,8 @@ pub struct LunaTokenizerWorker {
   priv mut scalar_byte_offset : Int
   priv mut scalar_byte_length : Int
   priv mut scalar_source_advance : Int
+  priv mut normalized_length : Int
+  priv mut qwen_segment_end : Int
   priv mut special_policy : SpecialTokenPolicy
   priv mut truncation : TruncationPolicy
   priv mut output_limit : Int
@@ -156,14 +164,18 @@ pub fn LunaTokenizerWorker::required_int_cells(
 }
 
 ///|
-/// Exact startup byte cells owned by one worker's input backing.
+/// Conservative startup byte cells owned by one worker's input backing.
+/// Unicode NFC can expand UTF-8 by at most three times under the generated
+/// Unicode 17.0 canonical-decomposition tables; other profiles use the same
+/// fixed envelope so profile-polymorphic pool sizing remains exact and simple.
 pub fn LunaTokenizerWorker::required_byte_cells(
   input_capacity : Int,
 ) -> UInt64 raise TokenizerError {
-  if input_capacity <= 0 {
+  if input_capacity <= 0 ||
+    input_capacity > 1_073_741_824 / QWEN3_NFC_MAX_UTF8_EXPANSION {
     raise LunaInvalidWorkerCapacity
   }
-  input_capacity.to_uint64()
+  input_capacity.to_uint64() * QWEN3_NFC_MAX_UTF8_EXPANSION.to_uint64()
 }
 
 ///|
