@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/lunaflux_qwen3_bf16_candidate_export"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Qwen3Bf16CandidateExportCliError derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

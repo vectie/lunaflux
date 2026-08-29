@@ -5,6 +5,9 @@ if [ "${1:-}" = --version ]; then
   printf 'Cuda compilation tools, release 13.1, V%s\n' "${FAKE_LUNA_CUDA_VERSION:-13.1.0}"
   exit 0
 fi
+if [ -n "${FAKE_LUNA_CUDA_INVOCATION_LOG:-}" ]; then
+  printf '%s\n' "$PWD" >>"$FAKE_LUNA_CUDA_INVOCATION_LOG"
+fi
 output=
 previous=
 resource_audit=0

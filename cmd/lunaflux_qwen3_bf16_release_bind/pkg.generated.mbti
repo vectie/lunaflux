@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/lunaflux_qwen3_bf16_release_bind"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Qwen3Bf16ReleaseBindError derive(Eq, @debug.Debug)
+
+// Types and methods
+type Qwen3ReleaseBindArguments
+
+type Qwen3ReleaseBindEvidence
+
+type Qwen3ReleaseBindInputs
+
+// Type aliases
+
+// Traits

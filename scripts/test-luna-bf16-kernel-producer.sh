@@ -50,6 +50,7 @@ write_recipe() {
   family=$3
   schema=$4
   source_sha=$5
+  function_symbol=$6
   recipe=$test_root/candidates/recipes/$key.recipe
   {
     printf 'schema=%s\n' "$schema"
@@ -60,7 +61,7 @@ write_recipe() {
     fi
     printf 'operation_id=%s\n' "$operation_id"
     printf 'entry_point_id=%s\n' "$((operation_id + 1))"
-    printf 'function_symbol=lunaflux_test_%s\n' "$key"
+    printf 'function_symbol=%s\n' "$function_symbol"
     printf 'source_sha256=%s\n' "$source_sha"
     printf 'toolchain_sha256=%s\n' "$toolchain_sha"
     printf '%s\n' 'compiler_version=13.1.0'
@@ -82,7 +83,11 @@ write_recipe() {
 
 while IFS=, read -r key operation_id family; do
   source_file=$test_root/candidates/sources/$key.cu
-  printf 'extern "C" __global__ void lunaflux_test_%s(void) {}\n' "$key" >"$source_file"
+  case "$key" in
+    embedding|norm) function_symbol=lunaflux_test_shared ;;
+    *) function_symbol=lunaflux_test_$key ;;
+  esac
+  printf 'extern "C" __global__ void %s(void) {}\n' "$function_symbol" >"$source_file"
   source_sha=$(lbf_sha256_file "$source_file")
   case "$family" in
     embedding_lookup|rms_norm|positioned_rotary|residual_add)
@@ -93,7 +98,8 @@ while IFS=, read -r key operation_id family; do
       ;;
     paged_attention) schema=lunaflux-paged-attention-cuda-aot-recipe-v1 ;;
   esac
-  write_recipe "$key" "$operation_id" "$family" "$schema" "$source_sha"
+  write_recipe "$key" "$operation_id" "$family" "$schema" "$source_sha" \
+    "$function_symbol"
 done <<'EOF'
 embedding,0,embedding_lookup
 norm,1,rms_norm
@@ -119,12 +125,15 @@ inventory=$test_root/candidates.files.sha256
 write_candidate_inventory "$inventory"
 inventory_sha=$(lbf_sha256_file "$inventory")
 output=$test_root/compiled
-"$repo_root/scripts/build-luna-bf16-kernel-set.sh" \
+FAKE_LUNA_CUDA_INVOCATION_LOG=$test_root/compiler-invocations.log \
+  "$repo_root/scripts/build-luna-bf16-kernel-set.sh" \
   "$test_root/toolchain/nvcc" \
   "$test_root/toolchain.manifest#sha256=$toolchain_sha" \
   "$test_root/candidates" \
   "$inventory#sha256=$inventory_sha" \
   "$output" >"$test_root/build.out"
+[ "$(wc -l <"$test_root/compiler-invocations.log" | tr -d ' ')" -eq 16 ] ||
+  lbf_fail 'producer did not compile exactly twice per unique compile identity'
 "$repo_root/scripts/verify-luna-bf16-kernel-set.sh" "$output" \
   >"$test_root/verify.out"
 grep -qx 'operation_count=9' "$output/compiled-set.v1"
@@ -176,7 +185,7 @@ fi
 [ ! -e "$nondeterministic_output" ] ||
   lbf_fail 'nondeterministic failure left partial output'
 
-sed 's/^function_symbol=lunaflux_test_embedding$/function_symbol=lunaflux_missing_symbol/' \
+sed 's/^function_symbol=lunaflux_test_shared$/function_symbol=lunaflux_missing_symbol/' \
   "$test_root/candidates/recipes/embedding.recipe" >"$test_root/recipe.substituted"
 cp "$test_root/recipe.substituted" \
   "$test_root/candidates/recipes/embedding.recipe"

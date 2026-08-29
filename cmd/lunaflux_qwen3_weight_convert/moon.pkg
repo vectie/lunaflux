@@ -1,0 +1,29 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
+  "vectie/lunaflux/model/qwen3_weights",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "convert.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+)

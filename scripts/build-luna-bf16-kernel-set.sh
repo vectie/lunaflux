@@ -137,6 +137,7 @@ lbf_is_sha256 "$approved_driver_identity" ||
 stage=$publish_container/result
 mkdir "$stage"
 mkdir "$stage/sha256" "$stage/receipts"
+mkdir "$scratch/compile-cache"
 operations_output=$scratch/operations.output
 : >"$operations_output"
 
@@ -158,7 +159,7 @@ while IFS=, read -r key operation_id family; do
   schema=$(lbf_recipe_value schema "$recipe_file")
 
   case "$family" in
-    embedding_lookup|rms_norm|positioned_rotary|residual_add)
+    embedding_lookup|rms_norm|qk_rms_norm|positioned_rotary|residual_add)
       [ "$schema" = lunaflux-luna-cuda-pointwise-aot-recipe-v1 ] ||
         lbf_fail "pointwise candidate has the wrong recipe schema: $key"
       [ "$(lbf_recipe_value family "$recipe_file")" = "$family" ] ||
@@ -212,37 +213,72 @@ while IFS=, read -r key operation_id family; do
   fi
 
   build_root=$scratch/build-$operation_id
-  mkdir "$build_root" "$build_root/first" "$build_root/second"
+  mkdir "$build_root"
   cp "$source_file" "$build_root/kernel.cu"
   chmod 444 "$build_root/kernel.cu"
   compute=${target#sm_}
   common_flags="--cubin --std=$language_standard --generate-code=arch=compute_${compute},code=$target -O$optimization --fmad=$fmad --ftz=false --prec-div=true --prec-sqrt=true --maxrregcount=$max_registers --Werror all-warnings"
-  for build in first second; do
-    cp "$build_root/kernel.cu" "$build_root/$build/kernel.cu"
-    (
-      cd "$build_root/$build"
-      LC_ALL=C TZ=UTC SOURCE_DATE_EPOCH=0 CUDA_CACHE_DISABLE=1 \
-        "$nvcc" $common_flags kernel.cu -o kernel.cubin >compiler.log 2>&1
-    ) || lbf_fail "compiler invocation failed: $key/$build"
-    [ -s "$build_root/$build/kernel.cubin" ] ||
-      lbf_fail "compiler produced an empty CUBIN: $key/$build"
-    [ ! -s "$build_root/$build/compiler.log" ] ||
-      lbf_fail "compiler emitted diagnostics: $key/$build"
-  done
-  first_sha=$(lbf_sha256_file "$build_root/first/kernel.cubin")
-  second_sha=$(lbf_sha256_file "$build_root/second/kernel.cubin")
-  [ "$first_sha" = "$second_sha" ] &&
-    cmp -s "$build_root/first/kernel.cubin" "$build_root/second/kernel.cubin" ||
-    lbf_fail "independent compiler outputs differ: $key"
+  compile_identity=$build_root/compile-identity.v1
+  {
+    printf '%s\n' 'schema=lunaflux-bf16-compile-identity.v1'
+    printf 'source_sha256=%s\n' "$source_sha"
+    printf 'toolchain_sha256=%s\n' "$toolchain_sha"
+    printf 'driver_identity_sha256=%s\n' "$driver_identity_sha"
+    printf 'compiler_version=%s\n' "$compiler_version"
+    printf 'target=%s\n' "$target"
+    printf 'language_standard=%s\n' "$language_standard"
+    printf 'output=%s\n' "$recipe_output"
+    printf 'optimization=%s\n' "$optimization"
+    printf 'fmad=%s\n' "$fmad"
+    printf 'reassociate=%s\n' "$reassociate"
+    printf 'max_registers=%s\n' "$max_registers"
+    printf 'flags=%s\n' "$common_flags"
+  } >"$compile_identity"
+  compile_identity_sha=$(lbf_sha256_file "$compile_identity")
+  cache_root=$scratch/compile-cache/$compile_identity_sha
+  if [ -d "$cache_root" ]; then
+    [ -f "$cache_root/compile-identity.v1" ] &&
+      [ ! -L "$cache_root/compile-identity.v1" ] &&
+      cmp -s "$compile_identity" "$cache_root/compile-identity.v1" ||
+      lbf_fail "compile-cache identity collision: $key"
+    [ -s "$cache_root/kernel.cubin" ] && [ ! -L "$cache_root/kernel.cubin" ] ||
+      lbf_fail "compile-cache artifact is unavailable: $key"
+    compiled_artifact=$cache_root/kernel.cubin
+    first_sha=$(lbf_sha256_file "$compiled_artifact")
+    second_sha=$first_sha
+  else
+    mkdir "$build_root/first" "$build_root/second"
+    for build in first second; do
+      cp "$build_root/kernel.cu" "$build_root/$build/kernel.cu"
+      (
+        cd "$build_root/$build"
+        LC_ALL=C TZ=UTC SOURCE_DATE_EPOCH=0 CUDA_CACHE_DISABLE=1 \
+          "$nvcc" $common_flags kernel.cu -o kernel.cubin >compiler.log 2>&1
+      ) || lbf_fail "compiler invocation failed: $key/$build"
+      [ -s "$build_root/$build/kernel.cubin" ] ||
+        lbf_fail "compiler produced an empty CUBIN: $key/$build"
+      [ ! -s "$build_root/$build/compiler.log" ] ||
+        lbf_fail "compiler emitted diagnostics: $key/$build"
+    done
+    first_sha=$(lbf_sha256_file "$build_root/first/kernel.cubin")
+    second_sha=$(lbf_sha256_file "$build_root/second/kernel.cubin")
+    [ "$first_sha" = "$second_sha" ] &&
+      cmp -s "$build_root/first/kernel.cubin" "$build_root/second/kernel.cubin" ||
+      lbf_fail "independent compiler outputs differ: $key"
+    mkdir "$cache_root"
+    cp "$compile_identity" "$cache_root/compile-identity.v1"
+    cp "$build_root/first/kernel.cubin" "$cache_root/kernel.cubin"
+    compiled_artifact=$cache_root/kernel.cubin
+  fi
 
   module_relative=sha256/$first_sha.cubin
   module_path=$stage/$module_relative
   if [ -e "$module_path" ]; then
     [ -f "$module_path" ] && [ ! -L "$module_path" ] &&
-      cmp -s "$module_path" "$build_root/first/kernel.cubin" ||
+      cmp -s "$module_path" "$compiled_artifact" ||
       lbf_fail "content-addressed module collision: $key"
   else
-    cp "$build_root/first/kernel.cubin" "$module_path"
+    cp "$compiled_artifact" "$module_path"
   fi
   recipe_sha=$(lbf_sha256_file "$recipe_file")
   receipt_relative=receipts/$key.receipt.v1

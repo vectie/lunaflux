@@ -38,7 +38,7 @@ lbf_is_target() {
 
 lbf_is_family() {
   case "$1" in
-    embedding_lookup|rms_norm|positioned_rotary|residual_add|qkv_projection|dense_projection|gated_mlp|language_model_head|paged_attention)
+    embedding_lookup|rms_norm|qk_rms_norm|positioned_rotary|residual_add|qkv_projection|dense_projection|gated_mlp|language_model_head|paged_attention)
       return 0
       ;;
     *) return 1 ;;
