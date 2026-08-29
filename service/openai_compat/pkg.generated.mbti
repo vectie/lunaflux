@@ -1,0 +1,140 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/openai_compat"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/luna_event",
+}
+
+// Values
+
+// Errors
+pub(all) suberror LunaOpenAICompatError {
+  LunaOpenAICompatInvalid(LunaOpenAICompatRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaOpenAIChatTemplate {
+  // private fields
+}
+pub fn LunaOpenAIChatTemplate::new(@inference.InferenceLimits, FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], max_rendered_prompt_bytes~ : Int) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAIChatTemplate::required_byte_cells(FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte]) -> UInt64 raise LunaOpenAICompatError
+pub fn LunaOpenAIChatTemplate::required_int_cells() -> UInt64
+
+pub(all) enum LunaOpenAICompatMode {
+  LunaOpenAIResponses
+  LunaOpenAIChatCompletions
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOpenAICompatProgress {
+  LunaOpenAICompatIdle
+  LunaOpenAICompatAdvanced
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOpenAICompatRule {
+  LunaOpenAICompatLimits
+  LunaOpenAICompatWorkUnits
+  LunaOpenAICompatModelAlias
+  LunaOpenAICompatResponseId
+  LunaOpenAICompatLifecycle
+  LunaOpenAICompatEpoch
+  LunaOpenAICompatSemanticEvent
+  LunaOpenAICompatScalar
+  LunaOpenAICompatPayload
+  LunaOpenAICompatCapacity
+  LunaOpenAICompatDestination
+  LunaOpenAICompatJson
+  LunaOpenAICompatTemplate
+  LunaOpenAICompatHttp
+  LunaOpenAICompatFrame
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOpenAICompatStepBudget {
+  // private fields
+}
+pub fn LunaOpenAICompatStepBudget::new(Int) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAICompatStepBudget::work_units(Self) -> Int
+
+pub struct LunaOpenAICompatView {
+  // private fields
+}
+pub fn LunaOpenAICompatView::copy_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAICompatView::length(Self) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAICompatView::release(Self) -> Unit raise LunaOpenAICompatError
+
+pub struct LunaOpenAICompatWork {
+  // private fields
+}
+pub fn LunaOpenAICompatWork::abort(Self) -> Unit raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::failure(Self) -> LunaOpenAICompatError raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::last_work_units(Self) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::progress(Self) -> LunaOpenAICompatProgress raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::state(Self) -> LunaOpenAICompatWorkState raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::take_view(Self) -> LunaOpenAICompatView raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWork::total_work_units(Self) -> UInt64 raise LunaOpenAICompatError
+
+pub(all) enum LunaOpenAICompatWorkState {
+  LunaOpenAICompatPending
+  LunaOpenAICompatReady
+  LunaOpenAICompatFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOpenAICompatWorkspace {
+  // private fields
+}
+pub fn LunaOpenAICompatWorkspace::begin(Self, @luna_event.LunaEventView, LunaOpenAICompatMode, response_sequence~ : UInt64) -> LunaOpenAICompatWork raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWorkspace::new(@inference.InferenceLimits, LunaOpenAICompatStepBudget, FixedArray[Byte], model_alias_offset~ : Int, model_alias_length~ : Int, FixedArray[Byte], response_id_prefix_offset~ : Int, response_id_prefix_length~ : Int) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWorkspace::required_byte_cells(@inference.InferenceLimits) -> UInt64 raise LunaOpenAICompatError
+pub fn LunaOpenAICompatWorkspace::required_reference_cells(@inference.InferenceLimits) -> UInt64 raise LunaOpenAICompatError
+
+pub struct LunaOpenAIInboundLimits {
+  // private fields
+}
+pub fn LunaOpenAIInboundLimits::new(max_messages~ : Int) -> Self raise LunaOpenAICompatError
+
+pub(all) enum LunaOpenAIInboundProgress {
+  LunaOpenAIInboundIdle
+  LunaOpenAIInboundAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOpenAIInboundView {
+  // private fields
+}
+pub fn LunaOpenAIInboundView::copy_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundView::handoff(Self) -> @inference.LunaTextRequestHandoffLease raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundView::length(Self) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundView::release(Self) -> Unit raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundView::release_after_transfer(Self) -> Unit raise LunaOpenAICompatError
+
+pub struct LunaOpenAIInboundWork {
+  // private fields
+}
+pub fn LunaOpenAIInboundWork::abort(Self) -> Unit raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::failure(Self) -> LunaOpenAICompatError raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::last_work_units(Self) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::progress(Self) -> LunaOpenAIInboundProgress raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::state(Self) -> LunaOpenAIInboundWorkState raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::take_view(Self) -> LunaOpenAIInboundView raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWork::total_work_units(Self) -> UInt64 raise LunaOpenAICompatError
+
+pub(all) enum LunaOpenAIInboundWorkState {
+  LunaOpenAIInboundPending
+  LunaOpenAIInboundReady
+  LunaOpenAIInboundFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOpenAIInboundWorkspace {
+  // private fields
+}
+pub fn LunaOpenAIInboundWorkspace::begin(Self, @http1.LunaHttp1View, @inference.RequestId) -> LunaOpenAIInboundWork raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWorkspace::new(@inference.InferenceLimits, LunaOpenAICompatStepBudget, LunaOpenAIInboundLimits, LunaOpenAIChatTemplate, FixedArray[Byte], model_alias_offset~ : Int, model_alias_length~ : Int, @spec.ModelIdentity, @inference.CacheScope, max_new_tokens~ : Int, context_ceiling~ : Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWorkspace::required_byte_cells(@inference.InferenceLimits) -> UInt64 raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWorkspace::required_int_cells(@inference.InferenceLimits, LunaOpenAIInboundLimits) -> UInt64 raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWorkspace::required_reference_cells() -> UInt64
+
+// Type aliases
+
+// Traits

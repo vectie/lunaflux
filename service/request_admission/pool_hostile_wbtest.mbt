@@ -388,7 +388,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=1000000UL,
-      reference_cells=7UL,
+      reference_cells=8UL,
     ),
   )
   exact_references.begin_drain()
@@ -433,7 +433,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
       LunaRequestPreparationStorageBudget::new(
         int_cells=1000000UL,
         byte_cells=exact_bytes - 1UL,
-        reference_cells=7UL,
+        reference_cells=8UL,
       ),
     )
   catch {
@@ -455,7 +455,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=1000000UL,
       byte_cells=exact_bytes,
-      reference_cells=7UL,
+      reference_cells=8UL,
     ),
   )
   exact_bytes_pool.begin_drain()

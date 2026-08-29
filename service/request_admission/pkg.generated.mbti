@@ -76,6 +76,8 @@ pub fn LunaRequestPreparationPool::lane_count(Self) -> Int
 pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, framed_limits~ : @framed_wire.FramedWireLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget) -> Self raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::progress(Self) -> LunaRequestPreparationPoolProgress
 pub fn LunaRequestPreparationPool::try_begin_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaRequestPreparationAdmission raise RequestAdmissionError
+pub fn LunaRequestPreparationPool::try_begin_luna_framed_with_receipt(Self, LunaRequestReceipt, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaRequestPreparationAdmission raise RequestAdmissionError
+pub fn LunaRequestPreparationPool::try_begin_luna_text_handoff_with_receipt(Self, LunaRequestReceipt, @inference.LunaTextRequestHandoffLease) -> LunaRequestPreparationAdmission raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::try_submit(Self, ReceivedRequest) -> LunaRequestPreparationAdmission raise RequestAdmissionError
 
 pub(all) enum LunaRequestPreparationPoolProgress {
@@ -94,6 +96,7 @@ pub struct LunaRequestPreparationStorageBudget {
   // private fields
 }
 pub fn LunaRequestPreparationStorageBudget::new(int_cells~ : UInt64, byte_cells~ : UInt64, reference_cells~ : UInt64) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationStorageBudget::require_fits(Self, @tokenizer.TokenizerSpec, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int) -> Unit raise RequestAdmissionError
 
 pub struct LunaRequestPreparationWork {
   // private fields
@@ -121,6 +124,18 @@ pub(all) enum LunaRequestPreparationWorkState {
   LunaRequestPreparationFailed
   LunaRequestPreparationCancelRequested
 } derive(Eq, @debug.Debug)
+
+pub struct LunaRequestReceipt {
+  // private fields
+}
+pub fn LunaRequestReceipt::abort(Self) -> Unit raise RequestAdmissionError
+pub fn LunaRequestReceipt::remaining_millis(Self) -> Int raise RequestAdmissionError
+
+pub struct LunaRequestReceiptWorkspace {
+  // private fields
+}
+pub fn LunaRequestReceiptWorkspace::begin(Self) -> LunaRequestReceipt raise RequestAdmissionError
+pub fn LunaRequestReceiptWorkspace::new(@monotonic_clock.MonotonicClock, @inference.DeadlineBudget) -> Self raise RequestAdmissionError
 
 pub struct ReceivedRequest {
   // private fields

@@ -36,6 +36,7 @@ pub(all) enum LunaOnlineInstancePreparationState {
 ///|
 #valtype
 pub struct LunaOnlineRequestTicket {
+  priv lane : Int
   priv epoch : UInt64
 } derive(Eq)
 
@@ -45,6 +46,7 @@ pub struct LunaOnlineRequestTicket {
 #valtype
 pub struct LunaOnlineEventCredit {
   priv instance : LunaOnlineInstance
+  priv lane : Int
   priv request_epoch : UInt64
   priv event_epoch : UInt64
 }
@@ -63,6 +65,7 @@ pub(all) enum LunaOnlineInstanceAdmissionKind {
 #valtype
 pub struct LunaOnlineInstanceAdmission {
   priv disposition : Int
+  priv lane : Int
   priv request_epoch : UInt64
 }
 
@@ -158,6 +161,15 @@ priv enum LunaInstancePhase {
 
 ///|
 #valtype
+priv enum LunaRecoveryMaintenanceStep {
+  LunaRecoveryMaintenancePending
+  LunaRecoveryMaintenanceRestarted
+  LunaRecoveryMaintenanceFailCloseReady
+  LunaRecoveryMaintenanceClosed
+}
+
+///|
+#valtype
 priv enum PreparationFailureKind {
   PreparationOwnershipFailure
   PreparationServiceCleanupFailure
@@ -181,6 +193,7 @@ pub struct LunaOnlineInstance {
   priv events : @luna_event.LunaEventOwner
   priv output : FixedArray[Byte]
   priv mut input_tokens : Int
+  priv mut cached_input_tokens : Int
   priv mut request_epoch : UInt64
   priv mut event_epoch : UInt64
   priv mut event_kind : SessionEventKind
@@ -197,8 +210,12 @@ pub struct LunaOnlineInstance {
   priv worker_code : FixedArray[Byte]
   priv mut failure_kind : SessionLatchedFailure
   priv mut phase : LunaInstancePhase
+  priv mut maintenance_state : Int
+  priv mut restart_observation_pending : Bool
+  priv mut restarted_failure_terminal_pending : Bool
   priv mut drain_requested : Bool
   priv mut recovery_close : Bool
+  priv multi : LunaOnlineMultiState
 }
 
 ///|

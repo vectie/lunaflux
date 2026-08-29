@@ -16,3 +16,11 @@ test "Luna coordinator preparation authenticates transport wait bound" {
     _ => fail("consumed Luna preparation exposed its transport wait")
   }
 }
+
+///|
+test "framed preparation owns the single authenticated transport wait rule" {
+  assert_eq(
+    try! admitted_maximum_transport_wait_millis(coordinator_fixture_inference()),
+    1000,
+  )
+}

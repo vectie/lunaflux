@@ -28,31 +28,12 @@ fn publish_luna_cleanup(
 }
 
 ///|
-/// Constructs one persistent, alias-free online instance. Event storage,
-/// scheduler, rooted worker, and the online lease are created once;
-/// off-reactor-prepared requests enter later through `LunaOnlineInstance::begin`.
-fn prepare_owned_luna_online_instance_with_clock(
+fn new_pending_luna_online_preparation(
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   blueprint : @core.SchedulerBlueprint,
-  binding : @worker_service.WorkerServiceBinding,
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  process_limits : @worker_process.WorkerProcessLimits,
-  model_root : @approved_fs.ApprovedRoot,
-  kernel_root : @approved_fs.ApprovedRoot,
-  clock : @monotonic_clock.MonotonicClock,
-) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
-  if binding.inference_limits() != inference {
-    raise luna_preparation_failure(
-      LunaOnlineInvalid(LunaOnlineInferenceEnvelope),
-    )
-  }
-  if expected_model != blueprint.model_identity() {
-    raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineModelIdentity))
-  }
+) -> (LunaOnlineInstance, LunaOnlineInstancePreparation) {
   let events = @luna_event.LunaEventOwner::new(inference)
   let instance : LunaOnlineInstance = {
     expected_tokenizer,
@@ -63,6 +44,7 @@ fn prepare_owned_luna_online_instance_with_clock(
     events,
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),
     input_tokens: 0,
+    cached_input_tokens: 0,
     request_epoch: 0UL,
     event_epoch: 0UL,
     event_kind: NoSessionEvent,
@@ -79,31 +61,48 @@ fn prepare_owned_luna_online_instance_with_clock(
     worker_code: worker_failure_code(),
     failure_kind: NoLatchedFailure,
     phase: LunaInstanceIdlePhase,
+    maintenance_state: 0,
+    restart_observation_pending: false,
+    restarted_failure_terminal_pending: false,
     drain_requested: false,
     recovery_close: false,
+    multi: new_luna_online_multi_state(
+      blueprint.request_slot_capacity(),
+      inference,
+    ),
   }
   let failed : FailedLunaOnlineInstancePreparation = {
     service_cleanup: None,
     cause_kind: PreparationOwnershipFailure,
     closed: false,
   }
-  let prepared : LunaOnlineInstancePreparation = {
-    instance: Some(instance),
-    cleanup: failed,
-    state: LunaOnlineInstanceCleanupRequired,
-    consumed: false,
-  }
-  let owned = @worker_service.prepare_owned(
-    blueprint, binding, executable, startup, source, process_limits, model_root,
-    kernel_root,
-  ) catch {
-    _ => raise luna_preparation_failure(LunaOnlineServicePreparationFailure)
-  }
+  (
+    instance,
+    {
+      instance: Some(instance),
+      cleanup: failed,
+      state: LunaOnlineInstanceCleanupRequired,
+      consumed: false,
+    },
+  )
+}
+
+///|
+fn publish_owned_luna_online_preparation(
+  instance : LunaOnlineInstance,
+  prepared : LunaOnlineInstancePreparation,
+  owned : @worker_service.OwnedWorkerServicePreparation,
+  clock : @monotonic_clock.MonotonicClock,
+) -> LunaOnlineInstancePreparation {
   match owned.state() {
     OwnedServiceCleanupRequired =>
       publish_luna_cleanup(prepared, try! owned.take_cleanup())
     OwnedServiceReady => {
-      instance.lease = Some(try! owned.take_online(clock))
+      let lease = try! owned.take_online(clock)
+      if instance.multi.routes.capacity() != lease.request_capacity() {
+        abort("Luna online publication route ownership capacity invariant")
+      }
+      instance.lease = Some(lease)
       publish_luna_instance(prepared, instance)
     }
   }
@@ -113,18 +112,59 @@ fn prepare_owned_luna_online_instance_with_clock(
 /// Constructs one persistent, alias-free online instance. Event storage,
 /// scheduler, rooted worker, and the online lease are created once;
 /// off-reactor-prepared requests enter later through `LunaOnlineInstance::begin`.
-pub fn prepare_owned_luna_online_instance(
+fn prepare_owned_luna_online_instance_with_clock(
   expected_tokenizer : @tokenizer.TokenizerDigest,
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   blueprint : @core.SchedulerBlueprint,
   binding : @worker_service.WorkerServiceBinding,
-  executable : Bytes,
+  executable : @worker_executable_file.WorkerExecutableAdmission,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   process_limits : @worker_process.WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
+  clock : @monotonic_clock.MonotonicClock,
+  restart_policy : @worker_service.WorkerRestartBackoffPolicy,
+) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
+  if binding.inference_limits() != inference {
+    raise luna_preparation_failure(
+      LunaOnlineInvalid(LunaOnlineInferenceEnvelope),
+    )
+  }
+  if expected_model != blueprint.model_identity() {
+    raise luna_preparation_failure(LunaOnlineInvalid(LunaOnlineModelIdentity))
+  }
+  let (instance, prepared) = new_pending_luna_online_preparation(
+    expected_tokenizer, expected_model, inference, blueprint,
+  )
+  let owned = @worker_service.prepare_owned_approved(
+    blueprint, binding, executable, startup, source, process_limits, model_root,
+    kernel_root, restart_policy,
+  ) catch {
+    _ => raise luna_preparation_failure(LunaOnlineServicePreparationFailure)
+  }
+  publish_owned_luna_online_preparation(instance, prepared, owned, clock)
+}
+
+///|
+/// Constructs one persistent, alias-free online instance. Event storage,
+/// scheduler, rooted worker, and the online lease are created once;
+/// off-reactor-prepared requests enter later through `LunaOnlineInstance::begin`.
+/// Production online instance preparation from an authenticated pinned worker.
+pub fn prepare_owned_luna_online_instance_approved(
+  expected_tokenizer : @tokenizer.TokenizerDigest,
+  expected_model : @spec.ModelIdentity,
+  inference : @inference.InferenceLimits,
+  blueprint : @core.SchedulerBlueprint,
+  binding : @worker_service.WorkerServiceBinding,
+  executable : @worker_executable_file.WorkerExecutableAdmission,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  process_limits : @worker_process.WorkerProcessLimits,
+  model_root : @approved_fs.ApprovedRoot,
+  kernel_root : @approved_fs.ApprovedRoot,
+  restart_policy : @worker_service.WorkerRestartBackoffPolicy,
 ) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError {
   prepare_owned_luna_online_instance_with_clock(
     expected_tokenizer,
@@ -139,5 +179,6 @@ pub fn prepare_owned_luna_online_instance(
     model_root,
     kernel_root,
     @monotonic_clock.MonotonicClock::system(),
+    restart_policy,
   )
 }

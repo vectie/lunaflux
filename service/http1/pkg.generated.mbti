@@ -1,0 +1,227 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/http1"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/service/api_auth",
+}
+
+// Values
+
+// Errors
+pub(all) suberror LunaHttp1Error {
+  LunaHttp1Failed(rule~ : LunaHttp1Rule, issue~ : LunaHttp1Issue)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaHttp1ControlLimits {
+  // private fields
+}
+pub fn LunaHttp1ControlLimits::new(max_head_bytes~ : Int) -> Self raise LunaHttp1Error
+
+pub struct LunaHttp1ControlMetricsResponse {
+  // private fields
+}
+pub fn LunaHttp1ControlMetricsResponse::copy_chunk(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ControlMetricsResponse::length(Self) -> Int
+pub fn LunaHttp1ControlMetricsResponse::new(Int?, readiness~ : Bool) -> Self raise LunaHttp1Error
+pub fn LunaHttp1ControlMetricsResponse::status_code(Self) -> Int
+
+pub struct LunaHttp1ControlRequest {
+  // private fields
+}
+pub fn LunaHttp1ControlRequest::abort(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1ControlRequest::finish_input(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1ControlRequest::offer(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ControlRequest::state(Self) -> LunaHttp1ControlRequestState raise LunaHttp1Error
+pub fn LunaHttp1ControlRequest::take_view(Self) -> LunaHttp1ControlRequestView raise LunaHttp1Error
+
+pub(all) enum LunaHttp1ControlRequestState {
+  LunaHttp1ControlReceiving
+  LunaHttp1ControlReady
+  LunaHttp1ControlFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1ControlRequestView {
+  // private fields
+}
+pub fn LunaHttp1ControlRequestView::release(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1ControlRequestView::route(Self) -> LunaHttp1ControlRoute raise LunaHttp1Error
+
+pub struct LunaHttp1ControlResponse {
+  // private fields
+}
+pub fn LunaHttp1ControlResponse::copy_chunk(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ControlResponse::length(Self) -> Int
+pub fn LunaHttp1ControlResponse::new(LunaHttp1ControlResponseKind) -> Self
+pub fn LunaHttp1ControlResponse::status_code(Self) -> Int
+
+pub(all) enum LunaHttp1ControlResponseKind {
+  LunaHttp1ControlHealthy
+  LunaHttp1ControlUnhealthy
+  LunaHttp1ControlReadyResponse
+  LunaHttp1ControlNotReadyResponse
+  LunaHttp1ControlBadRequest
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaHttp1ControlRoute {
+  LunaHttp1Health
+  LunaHttp1Readiness
+  LunaHttp1Metrics
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1ControlWorkspace {
+  // private fields
+}
+pub fn LunaHttp1ControlWorkspace::begin(Self) -> LunaHttp1ControlRequest raise LunaHttp1Error
+pub fn LunaHttp1ControlWorkspace::new(LunaHttp1ControlLimits) -> Self raise LunaHttp1Error
+
+pub(all) enum LunaHttp1ErrorResponseKind {
+  LunaHttp1AuthenticationError
+  LunaHttp1ValidationError
+  LunaHttp1CapacityError
+  LunaHttp1ServiceError
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaHttp1Issue {
+  LunaHttp1Invalid
+  LunaHttp1Missing
+  LunaHttp1Duplicate
+  LunaHttp1Conflicting
+  LunaHttp1Unsupported
+  LunaHttp1TooLong
+  LunaHttp1OutOfRange
+  LunaHttp1Rejected
+  LunaHttp1PrematureEnd
+  LunaHttp1Trailing
+  LunaHttp1Busy
+  LunaHttp1NotReady
+  LunaHttp1Stale
+  LunaHttp1Exhausted
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1Limits {
+  // private fields
+}
+pub fn LunaHttp1Limits::new(max_head_bytes~ : Int, max_body_bytes~ : Int) -> Self raise LunaHttp1Error
+
+pub(all) enum LunaHttp1Progress {
+  LunaHttp1Idle
+  LunaHttp1Advanced
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaHttp1ResponseProgress {
+  LunaHttp1ResponseIdle
+  LunaHttp1ResponseAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1ResponseStepBudget {
+  // private fields
+}
+pub fn LunaHttp1ResponseStepBudget::new(Int) -> Self raise LunaHttp1Error
+pub fn LunaHttp1ResponseStepBudget::work_units(Self) -> Int
+
+pub struct LunaHttp1ResponseView {
+  // private fields
+}
+pub fn LunaHttp1ResponseView::byte_at(Self, Int) -> Byte raise LunaHttp1Error
+pub fn LunaHttp1ResponseView::copy_chunk(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ResponseView::is_live(Self) -> Bool
+pub fn LunaHttp1ResponseView::length(Self) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ResponseView::release(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1ResponseView::status_code(Self) -> Int raise LunaHttp1Error
+
+pub struct LunaHttp1ResponseWork {
+  // private fields
+}
+pub fn LunaHttp1ResponseWork::abort(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1ResponseWork::last_work_units(Self) -> Int raise LunaHttp1Error
+pub fn LunaHttp1ResponseWork::progress(Self) -> LunaHttp1ResponseProgress raise LunaHttp1Error
+pub fn LunaHttp1ResponseWork::state(Self) -> LunaHttp1ResponseWorkState raise LunaHttp1Error
+pub fn LunaHttp1ResponseWork::take_view(Self) -> LunaHttp1ResponseView raise LunaHttp1Error
+pub fn LunaHttp1ResponseWork::total_work_units(Self) -> UInt64 raise LunaHttp1Error
+
+pub(all) enum LunaHttp1ResponseWorkState {
+  LunaHttp1ResponseBuilding
+  LunaHttp1ResponseReady
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1ResponseWorkspace {
+  // private fields
+}
+pub fn LunaHttp1ResponseWorkspace::begin_error(Self, LunaHttp1ErrorResponseKind) -> LunaHttp1ResponseWork raise LunaHttp1Error
+pub fn LunaHttp1ResponseWorkspace::begin_event_stream(Self) -> LunaHttp1ResponseWork raise LunaHttp1Error
+pub fn LunaHttp1ResponseWorkspace::new(LunaHttp1ResponseStepBudget) -> Self
+pub fn LunaHttp1ResponseWorkspace::required_byte_cells() -> UInt64
+
+pub(all) enum LunaHttp1Route {
+  LunaHttp1Responses
+  LunaHttp1ChatCompletions
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaHttp1Rule {
+  LunaHttp1Limits
+  LunaHttp1Source
+  LunaHttp1RequestLine
+  LunaHttp1Method
+  LunaHttp1RouteRule
+  LunaHttp1Version
+  LunaHttp1Header
+  LunaHttp1Authorization
+  LunaHttp1ContentLength
+  LunaHttp1ContentType
+  LunaHttp1TransferEncoding
+  LunaHttp1Head
+  LunaHttp1Body
+  LunaHttp1Lifecycle
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1StepBudget {
+  // private fields
+}
+pub fn LunaHttp1StepBudget::new(Int) -> Self raise LunaHttp1Error
+pub fn LunaHttp1StepBudget::work_units(Self) -> Int
+
+pub struct LunaHttp1View {
+  // private fields
+}
+pub fn LunaHttp1View::body_byte_at(Self, Int) -> Byte raise LunaHttp1Error
+pub fn LunaHttp1View::body_length(Self) -> Int raise LunaHttp1Error
+pub fn LunaHttp1View::is_live(Self) -> Bool
+pub fn LunaHttp1View::release(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1View::route(Self) -> LunaHttp1Route raise LunaHttp1Error
+
+pub struct LunaHttp1Work {
+  // private fields
+}
+pub fn LunaHttp1Work::abort(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1Work::failure(Self) -> LunaHttp1Error raise LunaHttp1Error
+pub fn LunaHttp1Work::finish_input(Self) -> Unit raise LunaHttp1Error
+pub fn LunaHttp1Work::last_work_units(Self) -> Int raise LunaHttp1Error
+pub fn LunaHttp1Work::offer(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> Int raise LunaHttp1Error
+pub fn LunaHttp1Work::progress(Self) -> LunaHttp1Progress raise LunaHttp1Error
+pub fn LunaHttp1Work::state(Self) -> LunaHttp1WorkState raise LunaHttp1Error
+pub fn LunaHttp1Work::take_view(Self) -> LunaHttp1View raise LunaHttp1Error
+pub fn LunaHttp1Work::total_work_units(Self) -> UInt64 raise LunaHttp1Error
+
+pub(all) enum LunaHttp1WorkState {
+  LunaHttp1ReceivingHead
+  LunaHttp1ValidatingHead
+  LunaHttp1Authenticating
+  LunaHttp1ReceivingBody
+  LunaHttp1Ready
+  LunaHttp1Failed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaHttp1Workspace {
+  // private fields
+}
+pub fn LunaHttp1Workspace::begin(Self) -> LunaHttp1Work raise LunaHttp1Error
+pub fn LunaHttp1Workspace::close_authentication(Self) -> Unit
+pub fn LunaHttp1Workspace::new(LunaHttp1Limits, LunaHttp1StepBudget, @api_auth.LunaApiAuthPolicy) -> Self raise LunaHttp1Error
+pub fn LunaHttp1Workspace::required_byte_cells(LunaHttp1Limits) -> UInt64 raise LunaHttp1Error
+pub fn LunaHttp1Workspace::required_reference_cells(LunaHttp1Limits) -> UInt64 raise LunaHttp1Error
+
+// Type aliases
+
+// Traits

@@ -4,11 +4,46 @@ package "vectie/lunaflux/service/online_tcp"
 import {
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/http1",
   "vectie/lunaflux/service/online_session",
+  "vectie/lunaflux/service/openai_compat",
 }
 
 // Values
+pub async fn bind_luna_online_framed_connection_pool(@socket.Addr, LunaOnlineFramedConnectionPoolPreparation, LunaOnlineTcpLimits, log_capacity~ : Int) -> LunaOnlineFramedConnectionPool
+
+pub async fn bind_luna_online_http_control_server(LunaOnlineHttpControlPreparation, LunaOnlineTcpLimits) -> LunaOnlineHttpControlServer
+
+pub async fn bind_luna_online_openai_connection_pool(@socket.Addr, LunaOnlineOpenAIConnectionPoolPreparation, LunaOnlineTcpLimits, log_capacity~ : Int) -> LunaOnlineOpenAIConnectionPool
+
+pub async fn bind_luna_online_openai_server(@socket.Addr, LunaOnlineOpenAIServerPreparation, LunaOnlineTcpLimits, log_capacity~ : Int) -> LunaOnlineOpenAIServer
+
+pub async fn bind_luna_online_tcp_pipeline_server(@socket.Addr, @online_session.LunaOnlineFramedServicePreparation, LunaOnlineTcpLimits, log_capacity~ : Int) -> LunaOnlineTcpServer
+
+pub async fn bind_luna_online_tcp_server(@socket.Addr, @online_session.LunaOnlineFramedServicePreparation, LunaOnlineTcpLimits, log_capacity~ : Int) -> LunaOnlineTcpServer
+
 pub async fn bind_luna_online_tcp_single_endpoint(@socket.Addr, @online_session.LunaOnlineFramedCoordinatorPreparation, LunaOnlineTcpLimits) -> LunaOnlineTcpEndpoint
+
+pub fn prepare_luna_online_framed_connection_pool(@online_session.LunaOnlineFramedServicePreparation, LunaOnlineTcpLimits, LunaOnlineFramedConnectionPoolLimits, @inference.DeadlineBudget) -> LunaOnlineFramedConnectionPoolPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_native(LunaOnlineTcpServer, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_native_pool(LunaOnlineFramedConnectionPool, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_openai_pool_production(LunaOnlineOpenAIConnectionPool, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_openai_pool_qualification(LunaOnlineOpenAIConnectionPool, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_openai_production(LunaOnlineOpenAIServer, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_http_control_for_openai_qualification(LunaOnlineOpenAIServer, @http1.LunaHttp1ControlLimits) -> LunaOnlineHttpControlPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_openai_connection_pool(@online_session.LunaOnlineFramedServicePreparation, LunaOnlineTcpLimits, LunaOnlineOpenAIConnectionPoolLimits, @http1.LunaHttp1Limits, @http1.LunaHttp1StepBudget, @http1.LunaHttp1ResponseStepBudget, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAIInboundLimits, @openai_compat.LunaOpenAIChatTemplate, FixedArray[Byte], model_alias_offset~ : Int, model_alias_length~ : Int, FixedArray[Byte], response_id_prefix_offset~ : Int, response_id_prefix_length~ : Int, @inference.CacheScope, max_new_tokens~ : Int, context_ceiling~ : Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget, production_ready? : Bool) -> LunaOnlineOpenAIConnectionPoolPreparation raise LunaOnlineTcpError
+
+pub fn prepare_luna_online_openai_server(@online_session.LunaOnlineFramedServicePreparation, @http1.LunaHttp1Limits, @http1.LunaHttp1StepBudget, @http1.LunaHttp1ResponseStepBudget, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAIInboundLimits, @openai_compat.LunaOpenAIChatTemplate, FixedArray[Byte], model_alias_offset~ : Int, model_alias_length~ : Int, FixedArray[Byte], response_id_prefix_offset~ : Int, response_id_prefix_length~ : Int, @inference.CacheScope, max_new_tokens~ : Int, context_ceiling~ : Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget, production_ready? : Bool) -> LunaOnlineOpenAIServerPreparation raise LunaOnlineTcpError
 
 // Errors
 pub(all) suberror LunaOnlineTcpError {
@@ -16,6 +51,157 @@ pub(all) suberror LunaOnlineTcpError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct LunaOnlineFramedConnectionPool {
+  // private fields
+}
+pub fn LunaOnlineFramedConnectionPool::active_connection_count(Self) -> Int
+pub fn LunaOnlineFramedConnectionPool::begin_drain(Self) -> Unit
+pub fn LunaOnlineFramedConnectionPool::delivered_events(Self) -> UInt64
+pub fn LunaOnlineFramedConnectionPool::health(Self) -> LunaOnlineTcpServerHealth
+pub fn LunaOnlineFramedConnectionPool::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineFramedConnectionPool::metrics_snapshot(Self) -> @vectie/lunaflux/metrics/instance.LunaInstanceMetricsSnapshot raise LunaOnlineTcpError
+pub fn LunaOnlineFramedConnectionPool::network_accepts(Self) -> UInt64
+pub fn LunaOnlineFramedConnectionPool::network_disconnects(Self) -> UInt64
+pub async fn LunaOnlineFramedConnectionPool::progress_on_reactor(Self) -> LunaOnlineFramedConnectionPoolProgress
+pub fn LunaOnlineFramedConnectionPool::readiness(Self) -> LunaOnlineFramedConnectionPoolReadiness
+pub fn LunaOnlineFramedConnectionPool::record_cold_start_latency_millis(Self, Int) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineFramedConnectionPool::state(Self) -> LunaOnlineFramedConnectionPoolState
+
+pub struct LunaOnlineFramedConnectionPoolLimits {
+  // private fields
+}
+pub fn LunaOnlineFramedConnectionPoolLimits::connection_capacity(Self) -> Int
+pub fn LunaOnlineFramedConnectionPoolLimits::io_poll_timeout_millis(Self) -> Int
+pub fn LunaOnlineFramedConnectionPoolLimits::new(connection_capacity~ : Int, io_poll_timeout_millis~ : Int, request_work_units~ : Int, event_work_units~ : Int) -> Self raise LunaOnlineTcpError
+
+pub struct LunaOnlineFramedConnectionPoolPreparation {
+  // private fields
+}
+
+pub(all) enum LunaOnlineFramedConnectionPoolProgress {
+  LunaOnlineFramedConnectionAccepted
+  LunaOnlineFramedConnectionPoolAdvanced
+  LunaOnlineFramedConnectionPoolBackpressured
+  LunaOnlineFramedConnectionRetired
+  LunaOnlineFramedConnectionPoolDrainingProgress
+  LunaOnlineFramedConnectionPoolFailedProgress
+  LunaOnlineFramedConnectionPoolClosedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineFramedConnectionPoolReadiness {
+  LunaOnlineFramedConnectionPoolNotReady
+  LunaOnlineFramedConnectionPoolReady
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineFramedConnectionPoolState {
+  LunaOnlineFramedConnectionPoolListening
+  LunaOnlineFramedConnectionPoolActive
+  LunaOnlineFramedConnectionPoolDraining
+  LunaOnlineFramedConnectionPoolFailed
+  LunaOnlineFramedConnectionPoolClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineHttpControlPreparation {
+  // private fields
+}
+
+pub(all) enum LunaOnlineHttpControlProgress {
+  LunaOnlineHttpControlAcceptTimedOut
+  LunaOnlineHttpControlConnectedProgress
+  LunaOnlineHttpControlAdvanced
+  LunaOnlineHttpControlConnectionRetired
+  LunaOnlineHttpControlDrainingProgress
+  LunaOnlineHttpControlClosedProgress
+  LunaOnlineHttpControlFailedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineHttpControlReadiness {
+  LunaOnlineHttpControlNotReady
+  LunaOnlineHttpControlReady
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineHttpControlServer {
+  // private fields
+}
+pub fn LunaOnlineHttpControlServer::begin_drain(Self) -> Unit
+pub fn LunaOnlineHttpControlServer::health(Self) -> LunaOnlineTcpServerHealth
+pub fn LunaOnlineHttpControlServer::local_addr(Self) -> @socket.Addr
+pub async fn LunaOnlineHttpControlServer::progress_on_reactor(Self) -> LunaOnlineHttpControlProgress
+pub fn LunaOnlineHttpControlServer::publish_startup_measurement(Self, Int) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineHttpControlServer::readiness(Self) -> LunaOnlineHttpControlReadiness
+pub fn LunaOnlineHttpControlServer::state(Self) -> LunaOnlineHttpControlState
+
+pub(all) enum LunaOnlineHttpControlState {
+  LunaOnlineHttpControlListening
+  LunaOnlineHttpControlConnected
+  LunaOnlineHttpControlDraining
+  LunaOnlineHttpControlClosed
+  LunaOnlineHttpControlFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineOpenAIConnectionPool {
+  // private fields
+}
+pub fn LunaOnlineOpenAIConnectionPool::active_connection_count(Self) -> Int
+pub fn LunaOnlineOpenAIConnectionPool::begin_drain(Self) -> Unit
+pub fn LunaOnlineOpenAIConnectionPool::health(Self) -> LunaOnlineTcpServerHealth
+pub fn LunaOnlineOpenAIConnectionPool::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineOpenAIConnectionPool::metrics_snapshot(Self) -> @vectie/lunaflux/metrics/instance.LunaInstanceMetricsSnapshot raise LunaOnlineTcpError
+pub async fn LunaOnlineOpenAIConnectionPool::progress_on_reactor(Self) -> LunaOnlineOpenAIConnectionPoolProgress
+pub fn LunaOnlineOpenAIConnectionPool::readiness(Self) -> LunaOnlineOpenAIConnectionPoolReadiness
+pub fn LunaOnlineOpenAIConnectionPool::record_cold_start_latency_millis(Self, Int) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIConnectionPool::state(Self) -> LunaOnlineOpenAIConnectionPoolState
+
+pub struct LunaOnlineOpenAIConnectionPoolLimits {
+  // private fields
+}
+pub fn LunaOnlineOpenAIConnectionPoolLimits::connection_capacity(Self) -> Int
+pub fn LunaOnlineOpenAIConnectionPoolLimits::new(connection_capacity~ : Int, output_buffer_bytes~ : Int, io_poll_timeout_millis~ : Int) -> Self raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIConnectionPoolLimits::output_buffer_bytes(Self) -> Int
+
+pub struct LunaOnlineOpenAIConnectionPoolPreparation {
+  // private fields
+}
+
+pub(all) enum LunaOnlineOpenAIConnectionPoolProgress {
+  LunaOnlineOpenAIConnectionAccepted
+  LunaOnlineOpenAIConnectionPoolAdvanced
+  LunaOnlineOpenAIConnectionPoolBackpressured
+  LunaOnlineOpenAIConnectionRetired
+  LunaOnlineOpenAIConnectionPoolDrainingProgress
+  LunaOnlineOpenAIConnectionPoolClosedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineOpenAIConnectionPoolReadiness {
+  LunaOnlineOpenAIConnectionPoolNotReady
+  LunaOnlineOpenAIConnectionPoolReady
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineOpenAIConnectionPoolState {
+  LunaOnlineOpenAIConnectionPoolListening
+  LunaOnlineOpenAIConnectionPoolActive
+  LunaOnlineOpenAIConnectionPoolDraining
+  LunaOnlineOpenAIConnectionPoolClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineOpenAIServer {
+  // private fields
+}
+pub fn LunaOnlineOpenAIServer::begin_drain(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIServer::graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIServer::health(Self) -> LunaOnlineTcpServerHealth
+pub fn LunaOnlineOpenAIServer::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineOpenAIServer::log_snapshot(Self) -> @vectie/lunaflux/logging/instance.LunaInstanceLogSnapshot raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIServer::metrics_snapshot(Self) -> @vectie/lunaflux/metrics/instance.LunaInstanceMetricsSnapshot raise LunaOnlineTcpError
+pub async fn LunaOnlineOpenAIServer::progress_on_reactor(Self) -> LunaOnlineTcpServerProgress
+pub fn LunaOnlineOpenAIServer::record_cold_start_latency_millis(Self, Int) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIServer::request_cancel(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineOpenAIServer::state(Self) -> LunaOnlineTcpServerState
+
+pub struct LunaOnlineOpenAIServerPreparation {
+  // private fields
+}
+
 pub struct LunaOnlineTcpEndpoint {
   // private fields
 }
@@ -43,8 +229,10 @@ pub struct LunaOnlineTcpLimits {
   // private fields
 }
 pub fn LunaOnlineTcpLimits::new(read_chunk_bytes~ : Int, write_chunk_bytes~ : Int, accept_timeout_millis~ : Int, input_idle_timeout_millis~ : Int, write_timeout_millis~ : Int, reactor_transition_budget~ : Int) -> Self raise LunaOnlineTcpError
+pub fn LunaOnlineTcpLimits::pool_poll_timeout_millis(Self) -> Int
 pub fn LunaOnlineTcpLimits::reactor_transition_budget(Self) -> Int
 pub fn LunaOnlineTcpLimits::read_chunk_bytes(Self) -> Int
+pub fn LunaOnlineTcpLimits::require_fits_transport_wait(Self, Int) -> Unit raise LunaOnlineTcpError
 pub fn LunaOnlineTcpLimits::write_chunk_bytes(Self) -> Int
 
 pub(all) enum LunaOnlineTcpProgress {
@@ -77,8 +265,49 @@ pub(all) enum LunaOnlineTcpRule {
   LunaOnlineTcpTimeout
   LunaOnlineTcpCancelled
   LunaOnlineTcpCoordinator
+  LunaOnlineTcpTelemetry
   LunaOnlineTcpLifecycle
   LunaOnlineTcpOwnership
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineTcpServer {
+  // private fields
+}
+pub fn LunaOnlineTcpServer::begin_drain(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpServer::graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise LunaOnlineTcpError
+pub fn LunaOnlineTcpServer::health(Self) -> LunaOnlineTcpServerHealth
+pub fn LunaOnlineTcpServer::local_addr(Self) -> @socket.Addr
+pub fn LunaOnlineTcpServer::log_snapshot(Self) -> @vectie/lunaflux/logging/instance.LunaInstanceLogSnapshot raise LunaOnlineTcpError
+pub fn LunaOnlineTcpServer::metrics_snapshot(Self) -> @vectie/lunaflux/metrics/instance.LunaInstanceMetricsSnapshot raise LunaOnlineTcpError
+pub async fn LunaOnlineTcpServer::progress_on_reactor(Self) -> LunaOnlineTcpServerProgress
+pub fn LunaOnlineTcpServer::record_cold_start_latency_millis(Self, Int) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpServer::request_cancel(Self) -> Unit raise LunaOnlineTcpError
+pub fn LunaOnlineTcpServer::state(Self) -> LunaOnlineTcpServerState
+
+pub(all) enum LunaOnlineTcpServerHealth {
+  LunaOnlineTcpServerHealthy
+  LunaOnlineTcpServerFailed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineTcpServerProgress {
+  LunaOnlineTcpServerListeningProgress
+  LunaOnlineTcpServerAcceptTimedOut
+  LunaOnlineTcpServerConnectedProgress
+  LunaOnlineTcpServerAdvanced
+  LunaOnlineTcpServerBackpressured
+  LunaOnlineTcpServerObservationRecorded
+  LunaOnlineTcpServerConnectionRetired
+  LunaOnlineTcpServerDrainingProgress
+  LunaOnlineTcpServerClosedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaOnlineTcpServerState {
+  LunaOnlineTcpServerListening
+  LunaOnlineTcpServerAccepting
+  LunaOnlineTcpServerConnected
+  LunaOnlineTcpServerRetiring
+  LunaOnlineTcpServerDraining
+  LunaOnlineTcpServerClosed
 } derive(Eq, @debug.Debug)
 
 // Type aliases

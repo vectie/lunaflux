@@ -33,6 +33,7 @@ pub(all) enum LunaOnlineTcpRule {
   LunaOnlineTcpTimeout
   LunaOnlineTcpCancelled
   LunaOnlineTcpCoordinator
+  LunaOnlineTcpTelemetry
   LunaOnlineTcpLifecycle
   LunaOnlineTcpOwnership
 } derive(Debug, Eq)

@@ -79,7 +79,9 @@ pub fn FailedLunaOnlineInstancePreparation::retry_close(
 
 ///|
 fn LunaOnlineInstance::require_owner(self : LunaOnlineInstance) -> Unit {
-  if self.lease is None || self.output.length() == 0 {
+  if self.lease is None ||
+    self.output.length() == 0 ||
+    self.multi.lanes.length() == 0 {
     abort("luna online instance owner invariant")
   }
 }
@@ -104,6 +106,9 @@ pub fn LunaOnlineInstance::take_event(
 ) -> LunaOnlineEventCredit raise LunaOnlineInstanceError {
   self.require_active_ticket(ticket)
   self.require_owner()
+  if ticket.lane >= 0 && self.multi.event_lane != ticket.lane {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+  }
   if !self.events.has_event() || self.event_taken {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
   }
@@ -114,7 +119,12 @@ pub fn LunaOnlineInstance::take_event(
     },
   )
   self.event_taken = true
-  { instance: self, request_epoch: ticket.epoch, event_epoch: self.event_epoch }
+  {
+    instance: self,
+    lane: ticket.lane,
+    request_epoch: ticket.epoch,
+    event_epoch: self.event_epoch,
+  }
 }
 
 ///|
@@ -122,7 +132,7 @@ pub fn LunaOnlineEventCredit::view(
   self : LunaOnlineEventCredit,
 ) -> @luna_event.LunaEventView raise LunaOnlineInstanceError {
   let instance = self.instance
-  instance.require_active_ticket({ epoch: self.request_epoch })
+  instance.require_active_ticket({ lane: self.lane, epoch: self.request_epoch })
   instance.require_owner()
   if !instance.event_taken || self.event_epoch != instance.event_epoch {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
@@ -139,6 +149,10 @@ fn LunaOnlineInstance::ack_event_credit(
   ticket : LunaOnlineRequestTicket,
   event_epoch : UInt64,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    self.ack_multi_event_credit(ticket, event_epoch)
+    return
+  }
   self.require_active_ticket(ticket)
   self.require_owner()
   if !self.event_taken || event_epoch != self.event_epoch {
@@ -255,9 +269,35 @@ pub fn LunaOnlineEventCredit::ack(
   self : LunaOnlineEventCredit,
 ) -> Unit raise LunaOnlineInstanceError {
   self.instance.ack_event_credit(
-    { epoch: self.request_epoch },
+    { lane: self.lane, epoch: self.request_epoch },
     self.event_epoch,
   )
+}
+
+///|
+/// Applies the request-local cut after any pinned event authority has already
+/// been revoked. A terminal event means the scheduler terminal was consumed;
+/// a restarted healthy lease therefore proceeds to exact request release,
+/// while a fail-close path retains its close obligation.
+fn LunaOnlineInstance::finish_abort_after_event_cut(
+  self : LunaOnlineInstance,
+) -> Bool {
+  if self.recovery_close &&
+    (self.string_cut != NoStringCut || self.terminal_cut != NoTerminalCut) {
+    self.phase = LunaInstanceRecoveringTerminalPhase
+    return true
+  }
+  match self.event_kind {
+    CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent => {
+      self.phase = if self.recovery_close {
+        LunaInstanceClosingTerminalPhase
+      } else {
+        LunaRequestReleaseReadyPhase
+      }
+      true
+    }
+    NoSessionEvent | AcceptedEvent | TokenEvent => false
+  }
 }
 
 ///|
@@ -267,6 +307,10 @@ pub fn LunaOnlineInstance::begin_abort(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    self.begin_abort_multi(ticket)
+    return
+  }
   self.require_ticket(ticket)
   self.require_owner()
   if self.phase != LunaRequestActivePhase {
@@ -277,21 +321,8 @@ pub fn LunaOnlineInstance::begin_abort(
     self.event_taken = false
     self.accepted_acked = true
   }
-  if self.recovery_close &&
-    (self.string_cut != NoStringCut || self.terminal_cut != NoTerminalCut) {
-    self.phase = LunaInstanceRecoveringTerminalPhase
+  if self.finish_abort_after_event_cut() {
     return
-  }
-  match self.event_kind {
-    CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent => {
-      self.phase = if self.recovery_close {
-        LunaInstanceClosingTerminalPhase
-      } else {
-        LunaRequestReleaseReadyPhase
-      }
-      return
-    }
-    NoSessionEvent | AcceptedEvent | TokenEvent => ()
   }
   if self.string_cut != NoStringCut || self.terminal_cut != NoTerminalCut {
     self.phase = LunaRequestAwaitingTerminalPhase

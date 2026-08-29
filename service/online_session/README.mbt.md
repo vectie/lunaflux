@@ -1,8 +1,10 @@
 # Luna online instance
 
-This package owns one persistent, alias-free `LunaOnlineInstance` for bounded,
-one-active-request-at-a-time online inference and the optional transport-neutral
-`LunaOnlineFramedCoordinator` that composes it with framed preparation/output.
+This package owns one persistent, alias-free `LunaOnlineInstance` for a
+startup-bounded set of live online requests and a reusable transport-neutral
+`LunaOnlineFramedService` with exact-generation `LunaOnlineFramedStream`s.
+`LunaOnlineFramedCoordinator` remains the max-one compatibility facade over
+that same service/stream implementation.
 Instance preparation binds an expected tokenizer digest, model identity, and
 exact inference envelope, then starts and authenticates one scheduler, online
 worker lease, and rooted worker process. The instance itself owns no tokenizer,
@@ -53,20 +55,110 @@ matching withholds matched/post-stop bytes. Natural completion, cancellation,
 deadline, output rejection, and worker loss all publish Usage before a distinct
 terminal event. Valid unmatched UTF-8 decoder tail appears only on Completed.
 
-A healthy Completed or Failed ACK moves the request to ReleaseReady.
+Multi-request publication routing is a startup-fixed direct table from the
+opaque lower worker route lane to the owning session lane plus exact route
+generation. One oldest-publication peek performs one table probe and then
+authenticates the mapped live request before dequeue; lane scans and stale-route
+substitution are excluded. The exact mapping survives worker recovery until
+its retained failure terminal is consumed, then clears before either lane can
+be reused.
+
+A healthy Completed or Failed ACK moves that request to ReleaseReady.
 `progress_request_retirement(ticket)` retires exact lower request authority,
-then releases the exact prepared claim, clears request-local state, and returns
-the instance to Idle. Failed retirement retains the claim for retry. The
+then releases the exact prepared claim, clears its fixed lane, and leaves other
+live lanes untouched. Failed retirement retains the claim for retry. The
 worker, scheduler history, plan predecessor, lease epoch, semantic event epoch,
-and fixed storage persist across the next request. Worker, protocol, or device
-failure remains close-only; its claim is retained across failed close attempts
-and released only after terminal close succeeds. Explicit instance drain is
-the only healthy worker-shutdown path; blocking recovery, retirement, and
-shutdown stay off the network reactor.
+and fixed storage persist across later requests. Worker, protocol, or device
+failure uses cooperative child cleanup, exact physical and pending scheduler
+retirement, device invalidation, bounded restart delay, replacement, and
+failed-replacement cleanup. Readiness remains false during the delay and
+`maintenance_wait_remaining_millis` exposes its cached host wake without
+sleeping or advancing replacement. Drain during that interval abandons spawn
+and reuses deterministic instance-loss terminalization; cleanup and retained
+request authority are never delayed.
+The claim remains retained until exact lower retirement succeeds. Explicit
+instance drain is the only healthy worker-shutdown path and uses the same
+cooperative owner; no instance progress method runs a blocking recovery, reap,
+or close loop.
+
+## Reusable framed service
+
+`LunaOnlineFramedService` owns the sole preparation pool, online instance,
+framed-output workspace, monotonic clock, FIFO storage, and one preallocated
+stream-authority slot. `readiness()`, `open_stream()`, and
+`open_semantic_stream()` return scalar dispositions. `take_open_stream()`
+transfers an opaque stream exactly once. Native mode exposes event-v2 copy
+Offers; semantic mode exposes an exact-generation
+`LunaOnlineFramedSemanticEvent` and no framed Offer. Neither mode exposes pool
+Work, Prepared, ticket, lower event credit, framed View, storage, or raw epochs.
+
+Semantic progress reports `LunaOnlineFramedCoordinatorSemanticEventReady`.
+Taking the semantic event returns a read-only authenticated `LunaEventView`.
+The service retains the sole lower ACK and output-stall authority. `delivered()`
+invalidates the semantic delivery capability exactly once and only arms ACK;
+the caller must invoke it only after its complete protocol response has been
+confirmed. A retained View becomes stale when later progress ACKs, disconnects,
+or advances the stream epoch. Usage ACK may copy at most the configured
+`max_decoded_delta_bytes` while replacing Usage with Completed or Failed; this
+is a fixed bounded terminal transition, not a strict one-work-unit operation.
+
+Disconnect retires only that stream. It revokes output and rejection credit,
+discards partial and queued preparation authority, cooperatively aborts and
+retires an active ticket, and returns the same service to Ready. It does not
+drain the preparation pool or close a healthy worker. Stream generations never
+wrap; retained Stream, Offer, and rejection aliases authenticate both stream
+and result epochs and reject after the next open. Request and worker plan
+sequence history remains monotonic across sequential streams and pipelined
+requests within one stream.
+
+Each stream also owns one preallocated, finite observation pulse. Exact lower
+event evidence publishes Admission, Token, Usage, Completion, Cancellation,
+Deadline, RequestFailure, or WorkerFailure. WorkerFailure is the early durable
+worker/request-failure accounting pulse. A successful lower replacement
+publishes WorkerRestart before the recovered request's FailureUsage and a
+distinct payload-free WorkerRequestTerminal event. That terminal carries only
+the request-latency disposition and must not recount the earlier failure.
+The restarted healthy worker lease remains owned while the exact failed
+request terminal is consumed and its claim is released; disconnect during
+either recovered terminal event retires the request without closing that
+healthy lease. `progress` reports `ObservationReady` and performs no later
+service transition until the exact observation is taken and ACKed. Usage alone
+exposes authenticated input, cached-input, output, and total token counts; no
+observation exposes a request ID, payload, timestamp, raw epoch, or mutable
+telemetry owner. A startup-preallocated generation-keyed timing slot begins
+only after transactional lower admission commits. Token pulses carry either a
+relative first-token or inter-token interval, and per-request terminal pulses
+carry one relative request interval. Clock failure, rollback, or interval
+overflow degrades only that request's timing and emits no fabricated sample.
+Disconnect preserves a pending pulse as non-protocol
+bookkeeping and stream retirement cannot finish before its ACK. The max-one
+compatibility coordinator explicitly consumes these pulses to preserve its
+historical progress surface; the reusable TCP server records them first.
+
+Only `LunaOnlineFramedService::begin_drain` cuts admission. It first retires an
+active stream, then drains the pool and cooperatively closes the empty online
+instance. `LunaOnlineFramedService::progress` drives ordinary work and
+cooperative maintenance on repeated calls, with no separate off-reactor
+executor prerequisite. The legacy coordinator keeps its historical
+`MaintenanceRequired` plus `progress_off_reactor_maintenance` handshake for
+existing endpoint callers, but both methods operate on the same service owner.
+
+Ready service preparation exposes authenticated immutable model identity,
+inference limits, framed limits, and maximum transport wait before ownership is
+consumed, allowing an outer server to reject substitutable configuration.
+It also exposes the same initial scalar Luna telemetry projections before
+consumption. A live Service projection adds its framed preparation FIFO and
+retained Prepared authority to scheduler waiting depth while leaving active
+request and KV/last-plan scalars exact. No scheduler, worker lease, request,
+plan, page, or raw epoch crosses this boundary.
+For an outer protocol that observed receipt before canonical frame encoding,
+`Stream::offer_luna_framed_with_receipt` transfers the opaque trusted receipt
+only with the first admitted byte range; later chunks use the ordinary offer.
+No receipt timestamp or absolute deadline is exposed or rebased here.
 
 ## Transport-neutral framed coordinator
 
-`LunaOnlineFramedCoordinator` is the single-stream owner that composes one
+`LunaOnlineFramedCoordinator` is the max-one compatibility view over one
 fixed-lane `LunaRequestPreparationPool`, one persistent `LunaOnlineInstance`,
 and one cooperative `LunaFramedEventWorkspace`. Its preparation factory creates
 all three internally, so callers cannot retain a pool, preparation Work,
@@ -128,13 +220,14 @@ expiry or clock failure revokes the pinned result, cuts the active request when
 present, and enters drain/maintenance. This is cooperative enforcement, not a
 background timer.
 
-`progress` advances at most one preparation, online, or framed-output quantum.
+Compatibility `progress` advances at most one preparation, online, or framed-output quantum.
 It reports `MaintenanceRequired` without running worker recovery, terminal
 retirement, process close, or clean shutdown. Those transitions are owned only
 by `progress_off_reactor_maintenance`. Scheduler admission is constant with
 respect to prompt length and stop count because token maxima are cached; it
 remains bounded by the configured scheduler-slot scan.
 The coordinator itself owns no TCP listener, connection, socket writer, or
-network retry adapter. `service/online_tcp` can compose it into one internally
-bound, one-connection endpoint; reusable listeners and multi-client serving
-remain outside this slice.
+network retry adapter. `service/online_tcp` composes the service into one-shot,
+reusable max-one, fixed-lane pipeline, and serialized OpenAI HTTP owners.
+Concurrent-client arbitration, TLS, and a listener fleet remain outside this
+slice.

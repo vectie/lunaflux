@@ -244,14 +244,23 @@ fn finish_preparation(
 ) -> LunaPreparedRequest raise RequestAdmissionError {
   validate_observed_time(receipt, prepared.deadline, observed_at_millis)
   let semantic_lease = prepare_semantic_lease(prepared.request, inference)
-  let output = prepare_output_lease(
-    tokenizer,
-    inference,
-    semantic_lease.view() catch {
-      _ => raise Invalid(RequestContract)
-    },
+  let output_result : Result[
+    @incremental_output.LunaIncrementalOutputLease,
+    RequestAdmissionError,
+  ] = Ok(
+    prepare_output_lease(
+      tokenizer,
+      inference,
+      semantic_lease.view() catch {
+        _ => raise Invalid(RequestContract)
+      },
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let output = match output_result {
+    Ok(value) => value
+    Err(error) => {
       try! semantic_lease.release()
       raise error
     }
@@ -263,7 +272,7 @@ fn finish_preparation(
       raise Invalid(SchedulerContract)
     }
   }
-  let scheduler_request = @core.TokenizedRequest::new(
+  let scheduler_request = @core.TokenizedRequest::new_with_prefix(
     request_id=prepared.request.request_id(),
     model_identity=prepared.request.model_identity(),
     input_tokens=prepared.tokens,
@@ -273,6 +282,10 @@ fn finish_preparation(
     stream_preference=prepared.request.stream_preference(),
     effective_limits=prepared.effective,
     admission_deadline=prepared.deadline,
+    tokenizer_digest=tokenizer.digest(),
+    prefix_semantic=semantic_lease.prefix_view() catch {
+      _ => raise Invalid(SchedulerContract)
+    },
   ) catch {
     _ => {
       try! output.release()

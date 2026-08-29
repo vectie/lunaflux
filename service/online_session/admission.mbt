@@ -23,6 +23,10 @@ fn LunaOnlineInstance::require_ticket(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    ignore(self.require_multi_ticket(ticket))
+    return
+  }
   if ticket.epoch == 0UL ||
     ticket.epoch != self.request_epoch ||
     self.claim is None ||
@@ -45,6 +49,7 @@ fn luna_online_admission(
       LunaOnlineInstanceBusy => 1
       LunaOnlineInstanceDraining => 2
     },
+    lane: -1,
     request_epoch,
   }
 }
@@ -68,7 +73,7 @@ pub fn LunaOnlineInstanceAdmission::ticket(
   if self.disposition != 0 || self.request_epoch == 0UL {
     raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
-  { epoch: self.request_epoch }
+  { lane: self.lane, epoch: self.request_epoch }
 }
 
 ///|
@@ -76,6 +81,10 @@ fn LunaOnlineInstance::require_active_ticket(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    ignore(self.require_active_multi_ticket(ticket))
+    return
+  }
   self.require_ticket(ticket)
   if self.phase != LunaRequestActivePhase {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
@@ -172,6 +181,7 @@ pub fn LunaOnlineInstance::begin(
   let next_epoch = self.request_epoch + 1UL
   self.claim = Some(claim)
   self.input_tokens = input_tokens
+  self.cached_input_tokens = 0
   self.request_epoch = next_epoch
   self.mark_event_published(AcceptedEvent)
   self.accepted_acked = false

@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/luna_event",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/sampling",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/framed_wire",
+} for "wbtest"

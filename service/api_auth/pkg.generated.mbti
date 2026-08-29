@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/api_auth"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror LunaApiAuthError {
+  LunaApiAuthFailed(rule~ : LunaApiAuthRule, issue~ : LunaApiAuthIssue)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaApiAuthDecision {
+  // private fields
+}
+pub fn LunaApiAuthDecision::is_accepted(Self) -> Bool
+pub fn LunaApiAuthDecision::is_rejected(Self) -> Bool
+
+pub(all) enum LunaApiAuthIssue {
+  LunaApiAuthInvalid
+  LunaApiAuthEmpty
+  LunaApiAuthTooLong
+  LunaApiAuthOutOfRange
+  LunaApiAuthBusy
+  LunaApiAuthNotReady
+  LunaApiAuthStale
+  LunaApiAuthExhausted
+} derive(Eq, @debug.Debug)
+
+pub struct LunaApiAuthPolicy {
+  // private fields
+}
+pub fn LunaApiAuthPolicy::close(Self) -> Unit
+pub fn LunaApiAuthPolicy::new(FixedArray[Byte], source_offset~ : Int, length~ : Int, maximum_credential_bytes~ : Int) -> Self raise LunaApiAuthError
+pub fn LunaApiAuthPolicy::required_byte_cells(Int) -> UInt64 raise LunaApiAuthError
+pub fn LunaApiAuthPolicy::verify(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaApiAuthDecision raise LunaApiAuthError
+
+pub(all) enum LunaApiAuthRule {
+  LunaApiAuthPolicy
+  LunaApiAuthCredential
+  LunaApiAuthSource
+  LunaApiAuthWorkUnits
+  LunaApiAuthLifecycle
+  LunaApiAuthEpoch
+} derive(Eq, @debug.Debug)
+
+pub struct LunaApiAuthStepBudget {
+  // private fields
+}
+pub fn LunaApiAuthStepBudget::new(Int) -> Self raise LunaApiAuthError
+pub fn LunaApiAuthStepBudget::work_units(Self) -> Int
+
+pub(all) enum LunaApiAuthVerificationProgress {
+  LunaApiAuthVerificationIdle
+  LunaApiAuthVerificationAdvanced
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaApiAuthVerificationState {
+  LunaApiAuthVerificationPending
+  LunaApiAuthVerificationAccepted
+  LunaApiAuthVerificationRejected
+  LunaApiAuthVerificationFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaApiAuthVerificationWork {
+  // private fields
+}
+pub fn LunaApiAuthVerificationWork::abort(Self) -> Unit raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::failure(Self) -> LunaApiAuthError raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::last_work_units(Self) -> Int raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::progress(Self) -> LunaApiAuthVerificationProgress raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::state(Self) -> LunaApiAuthVerificationState raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::take_decision(Self) -> LunaApiAuthDecision raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWork::total_work_units(Self) -> UInt64 raise LunaApiAuthError
+
+pub struct LunaApiAuthVerificationWrite {
+  // private fields
+}
+pub fn LunaApiAuthVerificationWrite::abort(Self) -> Unit raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWrite::finish(Self) -> LunaApiAuthVerificationWork raise LunaApiAuthError
+pub fn LunaApiAuthVerificationWrite::push_byte(Self, Byte) -> LunaApiAuthWriteProgress raise LunaApiAuthError
+
+pub struct LunaApiAuthVerifierWorkspace {
+  // private fields
+}
+pub fn LunaApiAuthVerifierWorkspace::begin_verify(Self, Int) -> LunaApiAuthVerificationWrite raise LunaApiAuthError
+pub fn LunaApiAuthVerifierWorkspace::close(Self) -> Unit
+pub fn LunaApiAuthVerifierWorkspace::new(LunaApiAuthPolicy, LunaApiAuthStepBudget) -> Self raise LunaApiAuthError
+
+pub struct LunaApiAuthWriteProgress {
+  // private fields
+}
+pub fn LunaApiAuthWriteProgress::is_accepting(Self) -> Bool
+pub fn LunaApiAuthWriteProgress::is_complete(Self) -> Bool
+pub fn LunaApiAuthWriteProgress::work_units(Self) -> Int
+
+// Type aliases
+
+// Traits

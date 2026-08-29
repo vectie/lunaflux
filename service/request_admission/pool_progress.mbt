@@ -1,34 +1,4 @@
 ///|
-fn LunaRequestPreparationLane::require_request(
-  self : LunaRequestPreparationLane,
-) -> @inference.GenerateRequest {
-  match self.request {
-    Some(value) => value
-    None => abort("Luna preparation request invariant")
-  }
-}
-
-///|
-fn LunaRequestPreparationLane::require_deadline(
-  self : LunaRequestPreparationLane,
-) -> @inference.AdmissionDeadline {
-  match self.deadline {
-    Some(value) => value
-    None => abort("Luna preparation deadline invariant")
-  }
-}
-
-///|
-fn LunaRequestPreparationLane::require_effective(
-  self : LunaRequestPreparationLane,
-) -> @inference.EffectiveLimits {
-  match self.effective {
-    Some(value) => value
-    None => abort("Luna preparation effective-limit invariant")
-  }
-}
-
-///|
 fn LunaRequestPreparationPool::abort_lane_resources(
   self : LunaRequestPreparationPool,
   lane : LunaRequestPreparationLane,
@@ -37,6 +7,10 @@ fn LunaRequestPreparationPool::abort_lane_resources(
   if !lane.framed_view.is_empty() {
     try! lane.framed_view[0].release()
     lane.framed_view.clear()
+  }
+  if !lane.typed_handoff.is_empty() {
+    try! lane.typed_handoff[0].release()
+    lane.typed_handoff.clear()
   }
   if !lane.framed_work.is_empty() {
     try! lane.framed_work[0].abort()
@@ -234,7 +208,19 @@ fn LunaRequestPreparationPool::progress_text_copy(
     _ => raise Invalid(Tokenization)
   }
   lane.tokenizer_work = None
-  if lane.framed_direct {
+  if lane.typed_direct {
+    lane.output_work = Some(
+      lane.output_workspace.begin_luna_request_semantics(
+        lane.require_semantic_lease().view() catch {
+          _ => raise Invalid(RequestContract)
+        },
+        special_policy=Skip,
+      ) catch {
+        _ => raise Invalid(OutputContract)
+      },
+    )
+    lane.phase = LUNA_PREPARATION_OUTPUT_SETUP
+  } else if lane.framed_direct {
     lane.phase = LUNA_PREPARATION_SEMANTIC_VALIDATE
   } else {
     lane.begin_semantic_import()
@@ -268,14 +254,18 @@ fn LunaRequestPreparationPool::progress_assemble(
     lane.require_current_deadline(),
     (self.clock_read)(),
   )
-  let request_id = if lane.framed_direct {
+  let request_id = if lane.typed_direct {
+    lane.typed_request_id
+  } else if lane.framed_direct {
     @inference.RequestId::new(lane.framed_request_id) catch {
       _ => raise Invalid(RequestContract)
     }
   } else {
     lane.require_request().request_id()
   }
-  let sampling = if lane.framed_direct {
+  let sampling = if lane.typed_direct {
+    lane.typed_sampling.materialize()
+  } else if lane.framed_direct {
     if lane.framed_sampling_mode == 0 {
       @inference.SamplingParameters::greedy()
     } else {
@@ -301,23 +291,27 @@ fn LunaRequestPreparationPool::progress_assemble(
   } else {
     lane.require_request().sampling()
   }
-  let sampling_seed = if lane.framed_direct {
+  let sampling_seed = if lane.typed_direct {
+    lane.typed_sampling_seed
+  } else if lane.framed_direct {
     @inference.SamplingSeed::new(lane.framed_sampling_seed) catch {
       _ => raise Invalid(RequestContract)
     }
   } else {
     lane.require_request().sampling_seed()
   }
-  let stream_preference = if lane.framed_direct {
+  let stream_preference = if lane.typed_direct {
+    lane.typed_stream_preference
+  } else if lane.framed_direct {
     if lane.framed_streaming {
-      @inference.Streaming
+      Streaming
     } else {
       Buffered
     }
   } else {
     lane.require_request().stream_preference()
   }
-  let scheduler_request = @core.TokenizedRequest::new(
+  let scheduler_request = @core.TokenizedRequest::new_with_prefix(
     request_id~,
     model_identity=self.expected_model,
     input_tokens=tokens,
@@ -329,6 +323,10 @@ fn LunaRequestPreparationPool::progress_assemble(
     stream_preference~,
     effective_limits=lane.require_effective(),
     admission_deadline=lane.require_current_deadline(),
+    tokenizer_digest=self.tokenizer.digest(),
+    prefix_semantic=lane.require_semantic_lease().prefix_view() catch {
+        _ => raise Invalid(SchedulerContract)
+      },
   ) catch {
     _ => raise Invalid(SchedulerContract)
   }
@@ -408,6 +406,8 @@ fn LunaRequestPreparationPool::progress_lane_one(
       self.progress_framed_semantic_finish(lane)
     LUNA_PREPARATION_FRAMED_RELEASE_VIEW =>
       self.progress_framed_release_view(lane)
+    LUNA_PREPARATION_TYPED_INPUT_BEGIN => self.progress_typed_input_begin(lane)
+    LUNA_PREPARATION_TYPED_INPUT_COPY => self.progress_typed_input_copy(lane)
     _ => abort("Luna preparation progress phase invariant")
   }
 }

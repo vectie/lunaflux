@@ -4,6 +4,8 @@ package "vectie/lunaflux/service/online_session"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/tensor_parallel_group_transport",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_service",
   "vectie/lunaflux/engine/worker_wire",
@@ -17,9 +19,17 @@ import {
 }
 
 // Values
-pub fn prepare_owned_luna_online_framed_coordinator(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineFramedCoordinatorPreparation raise LunaOnlineInstancePreparationError
+pub fn admitted_maximum_transport_wait_millis(@inference.InferenceLimits) -> Int raise LunaOnlineInstancePreparationError
 
-pub fn prepare_owned_luna_online_instance(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn prepare_owned_luna_online_framed_coordinator_approved(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, @worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineFramedCoordinatorPreparation raise LunaOnlineInstancePreparationError
+
+pub fn prepare_owned_luna_online_framed_service_approved(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, @worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineFramedServicePreparation raise LunaOnlineInstancePreparationError
+
+pub fn prepare_owned_luna_online_instance_approved(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @worker_service.WorkerServiceBinding, @worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+
+pub fn prepare_owned_tensor_parallel_luna_online_framed_service(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineFramedServicePreparation raise LunaOnlineInstancePreparationError
+
+pub fn prepare_owned_tensor_parallel_luna_online_instance_approved(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
 
 // Errors
 pub(all) suberror LunaOnlineFramedCoordinatorError {
@@ -56,6 +66,7 @@ pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(Self, FixedArray[
 pub fn LunaOnlineFramedCoordinator::disconnect(Self) -> Unit raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::framed_event_remaining(Self) -> Int raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::is_closed(Self) -> Bool
+pub fn LunaOnlineFramedCoordinator::maintenance_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::offer_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::progress(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedCoordinator::progress_off_reactor_maintenance(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
@@ -77,6 +88,8 @@ pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorAdvanced
   LunaOnlineFramedCoordinatorEventPreparing
   LunaOnlineFramedCoordinatorEventReady
+  LunaOnlineFramedCoordinatorSemanticEventReady
+  LunaOnlineFramedCoordinatorObservationReady
   LunaOnlineFramedCoordinatorRejectionReady
   LunaOnlineFramedCoordinatorMaintenanceRequired
   LunaOnlineFramedCoordinatorDraining
@@ -104,7 +117,9 @@ pub struct LunaOnlineFramedIngress {
   // private fields
 }
 pub fn LunaOnlineFramedIngress::consumed_bytes(Self) -> Int
+pub fn LunaOnlineFramedIngress::has_request_route(Self) -> Bool
 pub fn LunaOnlineFramedIngress::kind(Self) -> LunaOnlineFramedIngressKind
+pub fn LunaOnlineFramedIngress::request_route(Self) -> LunaOnlineFramedRequestRoute raise LunaOnlineFramedCoordinatorError
 
 pub(all) enum LunaOnlineFramedIngressKind {
   LunaOnlineFramedIngressAccepted
@@ -112,10 +127,62 @@ pub(all) enum LunaOnlineFramedIngressKind {
   LunaOnlineFramedIngressDraining
 } derive(Eq, @debug.Debug)
 
+pub(all) enum LunaOnlineFramedLatencyKind {
+  LunaOnlineFramedNoLatency
+  LunaOnlineFramedRequestLatency
+  LunaOnlineFramedFirstTokenLatency
+  LunaOnlineFramedInterTokenLatency
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineFramedObservation {
+  // private fields
+}
+pub fn LunaOnlineFramedObservation::ack(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::cached_input_tokens(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::input_tokens(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::kind(Self) -> LunaOnlineFramedObservationKind raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::latency_kind(Self) -> LunaOnlineFramedLatencyKind raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::latency_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::output_tokens(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedObservation::total_tokens(Self) -> Int raise LunaOnlineFramedCoordinatorError
+
+pub(all) enum LunaOnlineFramedObservationKind {
+  LunaOnlineFramedAdmissionObservation
+  LunaOnlineFramedTokenObservation
+  LunaOnlineFramedUsageObservation
+  LunaOnlineFramedCompletionObservation
+  LunaOnlineFramedCancellationObservation
+  LunaOnlineFramedDeadlineObservation
+  LunaOnlineFramedRequestFailureObservation
+  LunaOnlineFramedWorkerFailureObservation
+  LunaOnlineFramedWorkerRestartObservation
+  LunaOnlineFramedWorkerRequestTerminalObservation
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineFramedOpen {
+  // private fields
+}
+pub fn LunaOnlineFramedOpen::kind(Self) -> LunaOnlineFramedOpenKind
+
+pub(all) enum LunaOnlineFramedOpenKind {
+  LunaOnlineFramedOpened
+  LunaOnlineFramedOpenBusy
+  LunaOnlineFramedOpenDraining
+  LunaOnlineFramedOpenClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineFramedPlanTelemetry {
+  // private fields
+}
+pub fn LunaOnlineFramedPlanTelemetry::last_plan_rows(Self) -> Int
+pub fn LunaOnlineFramedPlanTelemetry::last_plan_sequence(Self) -> UInt64
+pub fn LunaOnlineFramedPlanTelemetry::last_plan_tokens(Self) -> Int
+
 pub struct LunaOnlineFramedRejectionCredit {
   // private fields
 }
 pub fn LunaOnlineFramedRejectionCredit::ack(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedRejectionCredit::request_route(Self) -> LunaOnlineFramedRequestRoute raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedRejectionCredit::rule(Self) -> LunaOnlineFramedRejectionRule raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedRejectionCredit::sequence(Self) -> UInt64 raise LunaOnlineFramedCoordinatorError
 
@@ -129,6 +196,99 @@ pub(all) enum LunaOnlineFramedRejectionRule {
   LunaOnlineFramedRejectedService
 } derive(Eq, @debug.Debug)
 
+pub struct LunaOnlineFramedRequestRoute {
+  // private fields
+}
+pub fn LunaOnlineFramedRequestRoute::same_request(Self, Self) -> Bool
+
+pub struct LunaOnlineFramedSemanticEvent {
+  // private fields
+}
+pub fn LunaOnlineFramedSemanticEvent::cancel_and_discard(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedSemanticEvent::delivered(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedSemanticEvent::discard_after_transport_cut(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedSemanticEvent::request_route(Self) -> LunaOnlineFramedRequestRoute raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedSemanticEvent::view(Self) -> @luna_event.LunaEventView raise LunaOnlineFramedCoordinatorError
+
+pub struct LunaOnlineFramedService {
+  // private fields
+}
+pub fn LunaOnlineFramedService::begin_drain(Self) -> Unit
+pub fn LunaOnlineFramedService::has_luna_graph_runtime_telemetry(Self) -> Bool raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::is_closed(Self) -> Bool
+pub fn LunaOnlineFramedService::luna_graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::luna_plan_telemetry(Self) -> LunaOnlineFramedPlanTelemetry raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::luna_telemetry(Self) -> LunaOnlineFramedTelemetry raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::maintenance_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::open_semantic_stream(Self) -> LunaOnlineFramedOpen
+pub fn LunaOnlineFramedService::open_stream(Self) -> LunaOnlineFramedOpen
+pub fn LunaOnlineFramedService::progress(Self) -> LunaOnlineFramedServiceReadiness raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedService::readiness(Self) -> LunaOnlineFramedServiceReadiness
+pub fn LunaOnlineFramedService::take_open_stream(Self, LunaOnlineFramedOpen) -> LunaOnlineFramedStream raise LunaOnlineFramedCoordinatorError
+
+pub struct LunaOnlineFramedServicePreparation {
+  // private fields
+}
+pub fn LunaOnlineFramedServicePreparation::framed_limits(Self) -> @framed_wire.FramedWireLimits raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::has_luna_graph_runtime_telemetry(Self) -> Bool raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::inference_limits(Self) -> @inference.InferenceLimits raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::luna_graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::luna_plan_telemetry(Self) -> LunaOnlineFramedPlanTelemetry raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::luna_telemetry(Self) -> LunaOnlineFramedTelemetry raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::maximum_transport_wait_millis(Self) -> Int raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::model_identity(Self) -> @spec.ModelIdentity raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::state(Self) -> LunaOnlineInstancePreparationState
+pub fn LunaOnlineFramedServicePreparation::take_cleanup(Self) -> FailedLunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+pub fn LunaOnlineFramedServicePreparation::take_ready(Self) -> LunaOnlineFramedService raise LunaOnlineInstancePreparationError
+
+pub(all) enum LunaOnlineFramedServiceReadiness {
+  LunaOnlineFramedServiceReady
+  LunaOnlineFramedServiceStreamActive
+  LunaOnlineFramedServiceMaintenanceRequired
+  LunaOnlineFramedServiceDraining
+  LunaOnlineFramedServiceClosed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineFramedStream {
+  // private fields
+}
+pub fn LunaOnlineFramedStream::copy_framed_event_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, maximum_length~ : Int) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::disconnect(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::framed_event_remaining(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::is_live(Self) -> Bool
+pub fn LunaOnlineFramedStream::luna_framed_boundary_clear(Self) -> Bool raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::luna_framed_input_clear(Self) -> Bool raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::luna_framed_receipt_complete(Self) -> Bool raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::maintenance_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::offer_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::offer_luna_framed_with_receipt(Self, @request_admission.LunaRequestReceipt, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::offer_luna_text_handoff_with_receipt(Self, @request_admission.LunaRequestReceipt, @inference.LunaTextRequestHandoffLease) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::progress(Self) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::request_cancel(Self) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::request_cancel_route(Self, LunaOnlineFramedRequestRoute) -> Unit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::request_route_live(Self, LunaOnlineFramedRequestRoute) -> Bool raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::take_observation(Self) -> LunaOnlineFramedObservation raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::take_rejection(Self) -> LunaOnlineFramedRejectionCredit raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::take_semantic_event(Self) -> LunaOnlineFramedSemanticEvent raise LunaOnlineFramedCoordinatorError
+pub fn LunaOnlineFramedStream::transport_wait_remaining_millis(Self) -> Int raise LunaOnlineFramedCoordinatorError
+
+pub struct LunaOnlineFramedTelemetry {
+  // private fields
+}
+pub fn LunaOnlineFramedTelemetry::active_requests(Self) -> Int
+pub fn LunaOnlineFramedTelemetry::kv_pages_free(Self) -> Int
+pub fn LunaOnlineFramedTelemetry::kv_pages_used(Self) -> Int
+pub fn LunaOnlineFramedTelemetry::prefix_entries(Self) -> Int
+pub fn LunaOnlineFramedTelemetry::prefix_evictions(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_hits(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_lookups(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_misses(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_pages(Self) -> Int
+pub fn LunaOnlineFramedTelemetry::prefix_publications(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_tokens_computed(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::prefix_tokens_reused(Self) -> UInt64
+pub fn LunaOnlineFramedTelemetry::queue_depth(Self) -> Int
+
 pub struct LunaOnlineInstance {
   // private fields
 }
@@ -136,6 +296,7 @@ pub fn LunaOnlineInstance::begin(Self, @request_admission.LunaPreparedRequest) -
 pub fn LunaOnlineInstance::begin_abort(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::begin_drain(Self) -> Unit
 pub fn LunaOnlineInstance::check_deadline(Self, LunaOnlineRequestTicket) -> Unit raise LunaOnlineInstanceError
+pub fn LunaOnlineInstance::maintenance_wait_remaining_millis(Self) -> Int raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress_request_retirement(Self, LunaOnlineRequestTicket) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError
 pub fn LunaOnlineInstance::progress_shutdown(Self) -> LunaOnlineInstanceShutdownProgress raise LunaOnlineInstanceError

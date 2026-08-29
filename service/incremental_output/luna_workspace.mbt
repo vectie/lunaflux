@@ -56,6 +56,7 @@ fn LunaIncrementalOutputWorkspace::begin_setup(
   self.setup_error_rule = Lifecycle
   self.setup_error_issue = Invalid
   self.pending_count = 0
+  self.decoder_at_start = true
   self.utf8_remaining = 0
   self.utf8_codepoint = 0
   self.utf8_minimum = 0

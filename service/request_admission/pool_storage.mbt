@@ -39,7 +39,7 @@ fn validate_pool_storage(
     tokenizer.limits().max_output_tokens,
     inference.max_input_tokens(),
   )
-  let tokenizer_int_cells = @tokenizer.LunaTokenizerWorker::required_int_cells(
+  let tokenizer_int_cells = tokenizer.luna_worker_required_int_cells(
     input_capacity,
   ) catch {
     _ => raise Invalid(LunaPreparationStorage)
@@ -110,7 +110,7 @@ fn validate_pool_storage(
   )
   let total_byte = checked_multiply_cells(per_lane_byte, lanes)
   let total_references = checked_multiply_cells(
-    checked_add_cells(6UL, output_reference_cells),
+    checked_add_cells(7UL, output_reference_cells),
     lanes,
   )
   if total_int > budget.int_cells ||
@@ -119,4 +119,19 @@ fn validate_pool_storage(
     raise Invalid(LunaPreparationStorage)
   }
   (input_capacity, output_capacity)
+}
+
+///|
+/// Validate the exact preparation-pool storage and lane envelope without
+/// allocating a live pool owner.
+pub fn LunaRequestPreparationStorageBudget::require_fits(
+  self : LunaRequestPreparationStorageBudget,
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
+  lane_count : Int,
+) -> Unit raise RequestAdmissionError {
+  ignore(
+    validate_pool_storage(tokenizer, inference, framed_limits, lane_count, self),
+  )
 }

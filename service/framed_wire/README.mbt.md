@@ -103,5 +103,23 @@ This package deliberately has no async, filesystem, socket, native-FFI, clock,
 or engine dependency. `service/request_admission` owns the trusted receipt
 clock ordering above the incremental reader. `service/online_session`
 publishes semantic Luna event credits; outer adapters compose transport
-representations from those credits. Listener and network-protocol adapters
-remain future outer work.
+representations from those credits. The online TCP package now supplies the
+one-shot, reusable native, pipelined native, and serialized OpenAI listener
+owners; TLS and concurrent-client arbitration remain future outer work.
+
+`LunaFramedTextRequestWorkspace` is the canonical object-free v1 text-request
+encoder. Startup copies one exact `ModelIdentity` and one explicit nonempty
+`CacheScope`; cache permission is always Disabled and trace is absent.
+`begin_text` preserves the compatibility object surface with empty stops.
+`begin_text_with_sampling_scalars` accepts already-validated scalar sampling,
+seed, and declared stop counts without constructing a request object. Its
+generation-bound Write receives the declared UTF-8 input, stop token IDs, and
+length-prefixed stop-string bytes through scalar methods. Incomplete or
+out-of-envelope stop payload cannot become Work.
+
+Work emits one header byte, cache-scope byte, checksum input byte, checksum
+byte, or phase transition per charged unit. Its View permits only nonzero
+copies bounded by the configured step budget. The result is byte-identical to
+`RequestFrameBuffer::encode` for the same semantic request and carries no
+absolute receipt timestamp. Original receipt ownership therefore remains with
+request admission rather than being rebased here.

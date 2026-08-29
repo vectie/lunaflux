@@ -253,14 +253,11 @@ fn drive_luna_framed_request(
     raise request_invalid(Length)
   }
   let work = workspace.begin()
-  drive_luna_framed_request_work(work, source, length) catch {
-    error => {
-      work.abort() catch {
-        _ => ()
-      }
-      raise error
-    }
-  }
+  let mut work_complete = false
+  defer (if !work_complete { work.abort() catch { _ => () } })
+  let view = drive_luna_framed_request_work(work, source, length)
+  work_complete = true
+  view
 }
 
 ///|
@@ -285,12 +282,14 @@ pub fn RequestFrameBuffer::load(
   length : Int,
 ) -> ValidatedRequestFrame raise FramedWireError {
   let view = drive_luna_framed_request(self.request_workspace, source, length)
-  let request = materialize_luna_framed_request(view) catch {
-    error => {
-      view.release()
-      raise error
-    }
+  let outcome : Result[@inference.GenerateRequest, FramedWireError] = Ok(
+    materialize_luna_framed_request(view),
+  ) catch {
+    error => Err(error)
   }
   view.release()
-  self.publish(request, length)
+  match outcome {
+    Err(error) => raise error
+    Ok(request) => self.publish(request, length)
+  }
 }

@@ -128,10 +128,15 @@ fn LunaRequestPreparationPool::progress_framed_bind_scalars(
   if input_capacity <= 0 {
     raise Invalid(Input)
   }
+  let deadline_millis = view.deadline_millis() catch {
+    _ => raise Invalid(FrameContract)
+  }
+  if lane.trusted_receipt_bound &&
+    deadline_millis != lane.trusted_deadline_millis {
+    raise Invalid(Deadline)
+  }
   let deadline_budget = @inference.DeadlineBudget::from_milliseconds(
-    view.deadline_millis() catch {
-      _ => raise Invalid(FrameContract)
-    },
+    deadline_millis,
     self.inference,
   ) catch {
     _ => raise Invalid(Deadline)

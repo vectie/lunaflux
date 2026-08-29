@@ -1,11 +1,31 @@
 ///|
-fn LunaOnlineFramedCoordinator::ticket(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::ticket(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineRequestTicket {
-  if self.tickets.length() != 1 {
+  if self.tickets.length() == 0 {
     abort("Luna coordinator ticket invariant")
   }
   self.tickets[0]
+}
+
+///|
+fn LunaOnlineFramedService::route_sequence_for_ticket(
+  self : LunaOnlineFramedService,
+  ticket : LunaOnlineRequestTicket,
+) -> UInt64 {
+  if self.ticket_sequences.length() != self.tickets.length() {
+    abort("Luna coordinator ticket route invariant")
+  }
+  for index, current in self.tickets {
+    if current.lane == ticket.lane && current.epoch == ticket.epoch {
+      let sequence = self.ticket_sequences[index]
+      if sequence == 0UL {
+        abort("Luna coordinator ticket route invariant")
+      }
+      return sequence
+    }
+  }
+  abort("Luna coordinator event route invariant")
 }
 
 ///|
@@ -20,8 +40,8 @@ fn luna_online_event_kind(kind : @luna_event.LunaEventKind) -> Int {
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::begin_stall_deadline(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::begin_stall_deadline(
+  self : LunaOnlineFramedService,
 ) -> Bool {
   if self.stall_active || self.stall_deadline_millis != 0UL {
     return false
@@ -37,8 +57,8 @@ fn LunaOnlineFramedCoordinator::begin_stall_deadline(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::stall_expired(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stall_expired(
+  self : LunaOnlineFramedService,
 ) -> Int {
   if !self.stall_active {
     return 0
@@ -52,8 +72,8 @@ fn LunaOnlineFramedCoordinator::stall_expired(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::stall_remaining_millis(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stall_remaining_millis(
+  self : LunaOnlineFramedService,
 ) -> Int raise LunaOnlineFramedCoordinatorError {
   let maximum = self.inference.max_deadline_millis()
   if maximum == 0UL || maximum > 0x7fffffffUL {
@@ -81,8 +101,8 @@ fn LunaOnlineFramedCoordinator::stall_remaining_millis(
 ///|
 /// Returns the shortest authenticated interval before the transport must poll
 /// receipt or output-stall ownership again. It exposes no absolute timestamp.
-pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stream_transport_wait_remaining_millis(
+  self : LunaOnlineFramedService,
 ) -> Int raise LunaOnlineFramedCoordinatorError {
   if self.closed {
     return 0
@@ -101,8 +121,8 @@ pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::release_outbound_authority(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::release_outbound_authority(
+  self : LunaOnlineFramedService,
 ) -> Unit {
   if self.outbound_views.length() == 1 {
     try! self.outbound_views[0].release()
@@ -118,35 +138,49 @@ fn LunaOnlineFramedCoordinator::release_outbound_authority(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::begin_output_disconnect(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::begin_output_disconnect(
+  self : LunaOnlineFramedService,
 ) -> Unit raise LunaOnlineFramedCoordinatorError {
   self.disconnect_requested = true
-  self.drain_requested = true
+  if self.stream_phase == 2 {
+    self.stream_phase = 3
+  }
+  // Once request retirement or cooperative multi-cut owns the cut, repeating
+  // begin_abort is both
+  // unnecessary and unsafe: the lower instance may already have advanced
+  // beyond its abortable phase while maintenance still holds the ticket.
+  if self.maintenance_kind == 2 || self.maintenance_kind == 4 {
+    return
+  }
   self.maintenance_kind = 0
   self.semantic_event_pending = false
   self.event_ack_pending = false
+  self.event_route_sequence = 0UL
+  self.semantic_event_taken = false
   self.stall_active = false
   self.stall_deadline_millis = 0UL
   self.release_outbound_authority()
-  self.pool.begin_drain()
-  self.instance.begin_drain()
-  if self.tickets.length() != 1 {
+  if self.tickets.length() == 0 {
     if self.event_credits.length() != 0 {
       raise luna_coordinator_error(LunaOnlineFramedMaintenance)
     }
     return
   }
-  self.maintenance_kind = 2
-  self.instance.begin_abort(self.ticket()) catch {
-    _ => raise luna_coordinator_error(LunaOnlineFramedMaintenance)
+  if self.ticket().lane < 0 {
+    self.maintenance_kind = 2
+    self.instance.begin_abort(self.ticket()) catch {
+      _ => raise luna_coordinator_error(LunaOnlineFramedMaintenance)
+    }
+    self.event_credits.clear()
+    return
   }
+  self.maintenance_kind = 4
   self.event_credits.clear()
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::enforce_output_stall(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::enforce_output_stall(
+  self : LunaOnlineFramedService,
 ) -> Int {
   let status = self.stall_expired()
   if status == 0 {
@@ -159,10 +193,10 @@ fn LunaOnlineFramedCoordinator::enforce_output_stall(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::start_semantic_event(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::start_semantic_event(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
-  if self.tickets.length() != 1 || self.event_credits.length() != 0 {
+  if self.tickets.length() == 0 || self.event_credits.length() != 0 {
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
   }
   if self.event_epoch == 0xffffffffffffffffUL {
@@ -171,9 +205,11 @@ fn LunaOnlineFramedCoordinator::start_semantic_event(
     }
     return LunaOnlineFramedCoordinatorMaintenanceRequired
   }
-  let credit = self.instance.take_event(self.ticket()) catch {
+  let event_ticket = self.instance.multi_event_ticket()
+  let credit = self.instance.take_event(event_ticket) catch {
     _ => raise luna_coordinator_error(LunaOnlineFramedEvent)
   }
+  self.event_route_sequence = self.route_sequence_for_ticket(event_ticket)
   self.event_credits.push(credit)
   self.event_epoch += 1UL
   let semantic = credit.view() catch {
@@ -200,6 +236,22 @@ fn LunaOnlineFramedCoordinator::start_semantic_event(
     }
     return LunaOnlineFramedCoordinatorMaintenanceRequired
   }
+  self.semantic_event_pending = false
+  self.semantic_event_taken = false
+  let observation_ready = self.publish_event_observation(semantic)
+  if self.stream_mode == 2 {
+    return if observation_ready {
+      LunaOnlineFramedCoordinatorObservationReady
+    } else {
+      LunaOnlineFramedCoordinatorSemanticEventReady
+    }
+  }
+  if self.stream_mode != 1 {
+    self.begin_output_disconnect() catch {
+      _ => ()
+    }
+    raise luna_coordinator_error(LunaOnlineFramedLifecycle)
+  }
   let work = self.outbound.begin(semantic) catch {
     _ => {
       self.begin_output_disconnect() catch {
@@ -209,13 +261,16 @@ fn LunaOnlineFramedCoordinator::start_semantic_event(
     }
   }
   self.outbound_works.push(work)
-  self.semantic_event_pending = false
-  LunaOnlineFramedCoordinatorEventPreparing
+  if observation_ready {
+    LunaOnlineFramedCoordinatorObservationReady
+  } else {
+    LunaOnlineFramedCoordinatorEventPreparing
+  }
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::finish_event_ack(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::finish_event_ack(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
   if self.event_credits.length() != 1 || !self.event_ack_pending {
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
@@ -225,10 +280,12 @@ fn LunaOnlineFramedCoordinator::finish_event_ack(
   }
   self.event_credits.clear()
   self.event_ack_pending = false
+  self.semantic_event_taken = false
   self.stall_active = false
   self.stall_deadline_millis = 0UL
   let kind = self.event_kind
   self.event_kind = 0
+  self.event_route_sequence = 0UL
   if kind == 3 {
     self.maintenance_kind = 0
     self.semantic_event_pending = true
@@ -242,8 +299,8 @@ fn LunaOnlineFramedCoordinator::finish_event_ack(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::progress_outbound_event(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::progress_outbound_event(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
   if self.enforce_output_stall() != 0 {
     return LunaOnlineFramedCoordinatorMaintenanceRequired
@@ -254,6 +311,17 @@ fn LunaOnlineFramedCoordinator::progress_outbound_event(
       return LunaOnlineFramedCoordinatorMaintenanceRequired
     }
     return self.finish_event_ack()
+  }
+  if self.stream_mode == 2 {
+    if self.event_credits.length() != 1 ||
+      self.outbound_views.length() != 0 ||
+      self.outbound_works.length() != 0 {
+      raise luna_coordinator_error(LunaOnlineFramedLifecycle)
+    }
+    return LunaOnlineFramedCoordinatorSemanticEventReady
+  }
+  if self.stream_mode != 1 {
+    raise luna_coordinator_error(LunaOnlineFramedLifecycle)
   }
   if self.outbound_views.length() == 1 {
     return LunaOnlineFramedCoordinatorEventReady
@@ -300,9 +368,12 @@ fn LunaOnlineFramedCoordinator::progress_outbound_event(
 }
 
 ///|
-pub fn LunaOnlineFramedCoordinator::framed_event_remaining(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stream_framed_event_remaining(
+  self : LunaOnlineFramedService,
 ) -> Int raise LunaOnlineFramedCoordinatorError {
+  if self.stream_mode != 1 {
+    raise luna_coordinator_error(LunaOnlineFramedOwnership)
+  }
   if self.enforce_output_stall() != 0 {
     raise luna_coordinator_error(LunaOnlineFramedOutputStall)
   }
@@ -313,12 +384,15 @@ pub fn LunaOnlineFramedCoordinator::framed_event_remaining(
 }
 
 ///|
-pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stream_copy_framed_event_chunk_to(
+  self : LunaOnlineFramedService,
   destination : FixedArray[Byte],
   destination_offset~ : Int,
   maximum_length~ : Int,
 ) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError {
+  if self.stream_mode != 1 {
+    raise luna_coordinator_error(LunaOnlineFramedOwnership)
+  }
   if self.enforce_output_stall() != 0 {
     raise luna_coordinator_error(LunaOnlineFramedOutputStall)
   }
@@ -352,7 +426,8 @@ pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(
   self.offered_bytes = amount
   self.offer_epoch += 1UL
   {
-    coordinator: self,
+    service: self,
+    stream_epoch: self.stream_epoch,
     event_epoch: self.event_epoch,
     offer_epoch: self.offer_epoch,
     length: amount,
@@ -362,9 +437,13 @@ pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(
 ///|
 fn LunaOnlineFramedEventOffer::require_owner(
   self : LunaOnlineFramedEventOffer,
-) -> LunaOnlineFramedCoordinator raise LunaOnlineFramedCoordinatorError {
-  let owner = self.coordinator
+) -> LunaOnlineFramedService raise LunaOnlineFramedCoordinatorError {
+  let owner = self.service
   if self.event_epoch == 0UL ||
+    self.stream_epoch == 0UL ||
+    owner.stream_epoch != self.stream_epoch ||
+    (owner.stream_phase != 2 && owner.stream_phase != 3) ||
+    owner.stream_mode != 1 ||
     self.offer_epoch == 0UL ||
     owner.event_epoch != self.event_epoch ||
     owner.offer_epoch != self.offer_epoch ||

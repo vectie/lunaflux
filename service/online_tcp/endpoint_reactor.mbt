@@ -62,6 +62,14 @@ fn luna_online_tcp_map_coordinator_progress(
     LunaOnlineFramedCoordinatorAdvanced
     | LunaOnlineFramedCoordinatorEventPreparing
     | LunaOnlineFramedCoordinatorEventReady => LunaOnlineTcpAdvanced
+    LunaOnlineFramedCoordinatorSemanticEventReady => {
+      endpoint.begin_disconnect(failure=LunaOnlineTcpCoordinator)
+      LunaOnlineTcpCleanupRequired
+    }
+    LunaOnlineFramedCoordinatorObservationReady => {
+      endpoint.begin_disconnect(failure=LunaOnlineTcpCoordinator)
+      LunaOnlineTcpCleanupRequired
+    }
     LunaOnlineFramedCoordinatorRejectionReady =>
       if endpoint.capture_rejection() {
         LunaOnlineTcpRejected
@@ -172,6 +180,16 @@ pub async fn LunaOnlineTcpEndpoint::progress_on_reactor(
       | LunaOnlineFramedCoordinatorEventPreparing => continue
       LunaOnlineFramedCoordinatorEventReady =>
         return self.write_event_on_reactor()
+      LunaOnlineFramedCoordinatorSemanticEventReady => {
+        self.begin_disconnect(failure=LunaOnlineTcpCoordinator)
+        self.close_transport_on_reactor()
+        return LunaOnlineTcpCleanupRequired
+      }
+      LunaOnlineFramedCoordinatorObservationReady => {
+        self.begin_disconnect(failure=LunaOnlineTcpCoordinator)
+        self.close_transport_on_reactor()
+        return LunaOnlineTcpCleanupRequired
+      }
       LunaOnlineFramedCoordinatorRejectionReady =>
         return self.handle_rejection_on_reactor()
       LunaOnlineFramedCoordinatorMaintenanceRequired => {

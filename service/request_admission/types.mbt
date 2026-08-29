@@ -193,12 +193,18 @@ fn LunaPreparedRequestClaim::activate_claim(
   match self.pool {
     Some(pool) => {
       let lane = pool.lanes[self.lane]
-      validate_pool_time(
-        lane.receipt_at_millis,
-        lane.require_deadline(),
-        (pool.clock_read)(),
+      let time_result : Result[Unit, RequestAdmissionError] = Ok(
+        validate_pool_time(
+          lane.receipt_at_millis,
+          lane.require_deadline(),
+          (pool.clock_read)(),
+        ),
       ) catch {
-        error => {
+        error => Err(error)
+      }
+      match time_result {
+        Ok(_) => ()
+        Err(error) => {
           self.release_resources_only()
           lane.claim = None
           pool.release_lane(self.lane, self.generation)

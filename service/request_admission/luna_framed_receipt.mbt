@@ -55,12 +55,18 @@ fn LunaRequestPreparationPool::offer_framed_lane(
   if length == 0 {
     return 0
   }
-  validate_pool_time(
-    lane.receipt_at_millis,
-    lane.require_current_deadline(),
-    observed_at_millis,
+  let time_result : Result[Unit, RequestAdmissionError] = Ok(
+    validate_pool_time(
+      lane.receipt_at_millis,
+      lane.require_current_deadline(),
+      observed_at_millis,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match time_result {
+    Ok(_) => ()
+    Err(error) => {
       self.fail_lane(lane, error)
       raise error
     }
@@ -198,16 +204,22 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed(
   lane.effective = None
   lane.framed_direct = true
   lane.framed_receipt_complete = false
+  lane.trusted_receipt_bound = false
+  lane.trusted_deadline_millis = 0UL
   lane.framed_work.push(scanner)
   lane.phase = LUNA_PREPARATION_FRAMED_RECEIVING
   lane.failure = None
   lane.claim = None
   lane.last_work_units = 0
   lane.total_work_units = 0UL
-  let consumed = self.offer_framed_lane(
-    lane, source, source_offset, length, receipt,
+  let offer_result : Result[Int, RequestAdmissionError] = Ok(
+    self.offer_framed_lane(lane, source, source_offset, length, receipt),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let consumed = match offer_result {
+    Ok(value) => value
+    Err(error) => {
       if lane.phase != LUNA_PREPARATION_FAILED {
         self.abort_lane_resources(lane)
       }

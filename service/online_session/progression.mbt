@@ -93,7 +93,7 @@ fn LunaOnlineInstance::prepare_string_stop_terminal(
   self.final_tail_length = 0
   try! self.events.publish_usage(
     input_tokens=self.input_tokens,
-    cached_input_tokens=0,
+    cached_input_tokens=self.cached_input_tokens,
     output_tokens=self.output_tokens,
   )
   self.mark_event_published(CompletionUsageEvent)
@@ -123,6 +123,7 @@ fn LunaOnlineInstance::progress_string_cut(
         reason != OnlineStopTokenReached {
         abort("online natural string terminal invariant")
       }
+      self.cached_input_tokens = try! publication.cached_input_tokens()
       self.prepare_string_stop_terminal()
     }
     OnlineSuppressedTokenPublication => {
@@ -147,7 +148,7 @@ fn LunaOnlineInstance::prepare_natural_terminal(
     self.final_tail_length = 0
     try! self.events.publish_usage(
       input_tokens=self.input_tokens,
-      cached_input_tokens=0,
+      cached_input_tokens=self.cached_input_tokens,
       output_tokens=self.output_tokens,
     )
     self.mark_event_published(FailureUsageEvent)
@@ -170,7 +171,7 @@ fn LunaOnlineInstance::prepare_natural_terminal(
     self.final_tail_length = 0
     try! self.events.publish_usage(
       input_tokens=self.input_tokens,
-      cached_input_tokens=0,
+      cached_input_tokens=self.cached_input_tokens,
       output_tokens=self.output_tokens,
     )
     self.mark_event_published(FailureUsageEvent)
@@ -179,7 +180,7 @@ fn LunaOnlineInstance::prepare_natural_terminal(
   self.final_tail_length = tail.copied_bytes()
   try! self.events.publish_usage(
     input_tokens=self.input_tokens,
-    cached_input_tokens=0,
+    cached_input_tokens=self.cached_input_tokens,
     output_tokens=self.output_tokens,
   )
   self.mark_event_published(CompletionUsageEvent)
@@ -206,13 +207,16 @@ fn LunaOnlineInstance::consume_natural_publication(
           terminal_reason != OnlineStopTokenReached {
           abort("online stop-token terminal identity invariant")
         }
+        self.cached_input_tokens = try! terminal.cached_input_tokens()
         self.prepare_natural_terminal(OnlineStopTokenReached)
       } else {
         self.decode_token(lease, publication, true)
       }
     }
-    OnlineTerminalPublication =>
+    OnlineTerminalPublication => {
+      self.cached_input_tokens = try! publication.cached_input_tokens()
       self.prepare_natural_terminal(try! publication.terminal_reason())
+    }
     OnlineSuppressedTokenPublication =>
       abort("online natural publication suppression invariant")
   }

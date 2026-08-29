@@ -4,6 +4,7 @@ package "vectie/lunaflux/service/framed_wire"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
   "vectie/lunaflux/service/luna_event",
 }
 
@@ -27,6 +28,11 @@ pub(all) suberror FramedWireError {
   LunaFramedEventFailed
   LunaFramedEventStale
   LunaFramedEventInvalidRange
+  LunaFramedTextRequestBusy
+  LunaFramedTextRequestNotReady
+  LunaFramedTextRequestFailed
+  LunaFramedTextRequestStale
+  LunaFramedTextRequestInvalidRange
   StaleFrame
 } derive(Eq, @debug.Debug)
 
@@ -48,6 +54,7 @@ pub(all) enum FramedWireLimitRule {
   FrameBytes
   LunaFramedRequestWorkUnits
   LunaFramedEventWorkUnits
+  LunaFramedTextRequestWorkUnits
 } derive(Eq, @debug.Debug)
 
 pub struct FramedWireLimits {
@@ -212,6 +219,60 @@ pub fn LunaFramedRequestWorkspace::begin(Self) -> LunaFramedRequestWork raise Fr
 pub fn LunaFramedRequestWorkspace::new(FramedWireLimits, LunaFramedRequestStepBudget) -> Self
 pub fn LunaFramedRequestWorkspace::required_byte_cells(FramedWireLimits) -> UInt64 raise FramedWireError
 pub fn LunaFramedRequestWorkspace::required_int_cells(FramedWireLimits) -> UInt64 raise FramedWireError
+
+pub(all) enum LunaFramedTextRequestProgress {
+  LunaFramedTextRequestIdle
+  LunaFramedTextRequestAdvanced
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedTextRequestStepBudget {
+  // private fields
+}
+pub fn LunaFramedTextRequestStepBudget::new(Int) -> Self raise FramedWireError
+pub fn LunaFramedTextRequestStepBudget::work_units(Self) -> Int
+
+pub struct LunaFramedTextRequestView {
+  // private fields
+}
+pub fn LunaFramedTextRequestView::copy_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise FramedWireError
+pub fn LunaFramedTextRequestView::length(Self) -> Int raise FramedWireError
+pub fn LunaFramedTextRequestView::release(Self) -> Unit raise FramedWireError
+
+pub struct LunaFramedTextRequestWork {
+  // private fields
+}
+pub fn LunaFramedTextRequestWork::abort(Self) -> Unit raise FramedWireError
+pub fn LunaFramedTextRequestWork::failure(Self) -> FramedWireError raise FramedWireError
+pub fn LunaFramedTextRequestWork::last_work_units(Self) -> Int raise FramedWireError
+pub fn LunaFramedTextRequestWork::progress(Self) -> LunaFramedTextRequestProgress raise FramedWireError
+pub fn LunaFramedTextRequestWork::state(Self) -> LunaFramedTextRequestWorkState raise FramedWireError
+pub fn LunaFramedTextRequestWork::take_view(Self) -> LunaFramedTextRequestView raise FramedWireError
+pub fn LunaFramedTextRequestWork::total_work_units(Self) -> UInt64 raise FramedWireError
+
+pub(all) enum LunaFramedTextRequestWorkState {
+  LunaFramedTextRequestPending
+  LunaFramedTextRequestReady
+  LunaFramedTextRequestFailed
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFramedTextRequestWorkspace {
+  // private fields
+}
+pub fn LunaFramedTextRequestWorkspace::begin_text(Self, byte_count~ : Int, protocol_version~ : @inference.ProtocolVersion, request_id~ : @inference.RequestId, max_new_tokens~ : Int, context_ceiling~ : Int, sampling~ : @inference.SamplingParameters, sampling_seed~ : @inference.SamplingSeed, stream_preference~ : @inference.StreamPreference, deadline~ : @inference.DeadlineBudget) -> LunaFramedTextRequestWrite raise FramedWireError
+pub fn LunaFramedTextRequestWorkspace::begin_text_with_sampling_scalars(Self, byte_count~ : Int, protocol_version~ : @inference.ProtocolVersion, request_id~ : @inference.RequestId, max_new_tokens~ : Int, context_ceiling~ : Int, sampling_mode~ : @inference.SamplingMode, temperature~ : Double, has_top_k~ : Bool, top_k~ : Int, has_top_p~ : Bool, top_p~ : Double, sampling_seed_value~ : UInt64, stop_token_count~ : Int, stop_string_count~ : Int, stream_preference~ : @inference.StreamPreference, deadline~ : @inference.DeadlineBudget) -> LunaFramedTextRequestWrite raise FramedWireError
+pub fn LunaFramedTextRequestWorkspace::new(FramedWireLimits, LunaFramedTextRequestStepBudget, @spec.ModelIdentity, @inference.CacheScope) -> Self raise FramedWireError
+pub fn LunaFramedTextRequestWorkspace::required_byte_cells(FramedWireLimits) -> UInt64 raise FramedWireError
+pub fn LunaFramedTextRequestWorkspace::required_reference_cells(FramedWireLimits) -> UInt64 raise FramedWireError
+
+pub struct LunaFramedTextRequestWrite {
+  // private fields
+}
+pub fn LunaFramedTextRequestWrite::abort(Self) -> Unit raise FramedWireError
+pub fn LunaFramedTextRequestWrite::finish(Self) -> LunaFramedTextRequestWork raise FramedWireError
+pub fn LunaFramedTextRequestWrite::push_byte(Self, Byte) -> Unit raise FramedWireError
+pub fn LunaFramedTextRequestWrite::push_stop_string_byte(Self, Byte) -> Unit raise FramedWireError
+pub fn LunaFramedTextRequestWrite::push_stop_string_length(Self, Int) -> Unit raise FramedWireError
+pub fn LunaFramedTextRequestWrite::push_stop_token(Self, Int) -> Unit raise FramedWireError
 
 pub struct RequestFrameBuffer {
   // private fields

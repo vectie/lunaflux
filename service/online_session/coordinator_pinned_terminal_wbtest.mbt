@@ -12,7 +12,7 @@ test "Luna queued Ready cannot authorize a read before active retirement" {
     )
     let consumed = offered.consumed_bytes()
     if consumed == 0 {
-      ignore(coordinator.pool.progress())
+      ignore(coordinator.service.pool.progress())
     } else {
       cursor += consumed
     }
@@ -21,10 +21,10 @@ test "Luna queued Ready cannot authorize a read before active retirement" {
       fail("Luna queued Ready receipt did not converge")
     }
   }
-  let work = coordinator.queue_head_work()
+  let work = coordinator.service.queue_head_work()
   let mut state = work.state()
   while state == LunaRequestPreparationPending {
-    ignore(coordinator.pool.progress())
+    ignore(coordinator.service.pool.progress())
     state = work.state()
     turns += 1
     if turns > 8192 {
@@ -32,12 +32,18 @@ test "Luna queued Ready cannot authorize a read before active retirement" {
     }
   }
   assert_eq(state, LunaRequestPreparationReady)
-  coordinator.tickets.push({ epoch: 1UL })
-  coordinator.turn_pool = true
-  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorAdvanced)
-  assert_eq(coordinator.queue_count, 1)
-  assert_eq(work.state(), LunaRequestPreparationReady)
-  coordinator.tickets.clear()
-  work.discard()
-  coordinator.pop_queue_head()
+  coordinator.service.instance.phase = LunaRequestActivePhase
+  coordinator.service.tickets.push({ lane: -1, epoch: 1UL })
+  coordinator.service.ticket_sequences.push(1UL)
+  coordinator.service.turn_pool = true
+  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorIdle)
+  assert_true(coordinator.stream.luna_framed_input_clear())
+  assert_false(coordinator.stream.luna_framed_boundary_clear())
+  assert_eq(coordinator.service.queue_count, 1)
+  assert_eq(coordinator.service.prepared.length(), 1)
+  coordinator.service.tickets.clear()
+  coordinator.service.ticket_sequences.clear()
+  coordinator.service.prepared[0].discard()
+  coordinator.service.prepared.clear()
+  coordinator.service.pop_queue_head()
 }

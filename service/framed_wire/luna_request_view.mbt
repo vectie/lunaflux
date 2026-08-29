@@ -363,6 +363,8 @@ fn materialize_luna_framed_request(
   ) catch {
     _ => raise request_invalid(StopTable)
   }
+  // Decoded identity is an untrusted claim until exact admission against a
+  // rebuilt ModelPlan identity.
   let content = @spec.ContentDigest::from_sha256(
     read_digest(workspace.storage, 112, RequestFrame),
   ) catch {

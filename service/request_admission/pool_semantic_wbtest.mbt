@@ -83,7 +83,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
         LunaRequestPreparationStorageBudget::new(
           int_cells=if missing_int { exact_int - 1UL } else { exact_int },
           byte_cells=if missing_int { exact_byte } else { exact_byte - 1UL },
-          reference_cells=7UL,
+          reference_cells=8UL,
         ),
       )
     catch {
@@ -106,7 +106,7 @@ test "semantic storage int and byte cells are mandatory per preparation lane" {
     LunaRequestPreparationStorageBudget::new(
       int_cells=exact_int,
       byte_cells=exact_byte,
-      reference_cells=7UL,
+      reference_cells=8UL,
     ),
   )
   assert_eq(exact.free_lane_count(), 1)

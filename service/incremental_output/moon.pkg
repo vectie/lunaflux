@@ -3,4 +3,8 @@ import {
   "vectie/lunaflux/tokenizer",
 }
 
+import {
+  "moonbitlang/core/encoding/utf8",
+} for "wbtest"
+
 supported_targets = "native"

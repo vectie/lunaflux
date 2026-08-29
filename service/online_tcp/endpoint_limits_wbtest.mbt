@@ -36,3 +36,22 @@ test "Luna online TCP bind validation rejects forged private limits" {
   assert_eq(luna_online_tcp_safe_wait(17, 1000), 17)
   assert_eq(luna_online_tcp_safe_wait(1000, 17), 16)
 }
+
+///|
+test "public transport-wait validator shares endpoint activation invariant" {
+  let limits = try! LunaOnlineTcpLimits::new(
+    read_chunk_bytes=64,
+    write_chunk_bytes=64,
+    accept_timeout_millis=1000,
+    input_idle_timeout_millis=1000,
+    write_timeout_millis=999,
+    reactor_transition_budget=8,
+  )
+  try! limits.require_fits_transport_wait(1000)
+  try limits.require_fits_transport_wait(999) catch {
+    LunaOnlineTcpFailed(LunaOnlineTcpLimits) => ()
+    _ => fail("unexpected transport wait coherence failure")
+  } noraise {
+    _ => fail("undersized transport wait was admitted")
+  }
+}

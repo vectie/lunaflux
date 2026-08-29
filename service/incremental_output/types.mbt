@@ -153,6 +153,7 @@ pub struct LunaIncrementalOutputWorkspace {
   priv mut setup_error_rule : IncrementalOutputRule
   priv mut setup_error_issue : IncrementalOutputIssue
   priv mut pending_count : Int
+  priv mut decoder_at_start : Bool
   priv mut utf8_remaining : Int
   priv mut utf8_codepoint : Int
   priv mut utf8_minimum : Int

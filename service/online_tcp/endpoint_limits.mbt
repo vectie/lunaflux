@@ -29,6 +29,20 @@ fn LunaOnlineTcpLimits::fits_transport_wait(
   self.write_timeout_millis <= maximum_wait_millis
 }
 
+///| Prove that request-owned transport waits dominate both I/O timeouts.
+
+///|
+/// This is the same invariant enforced by endpoint/server activation and is
+/// exposed for pure instance admission so policy validation cannot drift.
+pub fn LunaOnlineTcpLimits::require_fits_transport_wait(
+  self : LunaOnlineTcpLimits,
+  maximum_wait_millis : Int,
+) -> Unit raise LunaOnlineTcpError {
+  if !self.is_valid() || !self.fits_transport_wait(maximum_wait_millis) {
+    raise luna_online_tcp_error(LunaOnlineTcpLimits)
+  }
+}
+
 ///|
 fn luna_online_tcp_safe_wait(
   configured_millis : Int,
@@ -80,4 +94,16 @@ pub fn LunaOnlineTcpLimits::reactor_transition_budget(
   self : LunaOnlineTcpLimits,
 ) -> Int {
   self.reactor_transition_budget
+}
+
+///|
+/// Returns the exact authenticated transport ceiling used by pool-owned short
+/// socket polls. It never exceeds accept, input-idle, or write authority.
+pub fn LunaOnlineTcpLimits::pool_poll_timeout_millis(
+  self : LunaOnlineTcpLimits,
+) -> Int {
+  Int::min(
+    self.accept_timeout_millis,
+    Int::min(self.input_idle_timeout_millis, self.write_timeout_millis),
+  )
 }

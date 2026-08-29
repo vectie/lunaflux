@@ -21,6 +21,23 @@ async fn LunaOnlineTcpOutputFlight::write_once(
 }
 
 ///|
+async fn LunaOnlineTcpOutputFlight::write_once_at(
+  self : LunaOnlineTcpOutputFlight,
+  connection : @socket.Tcp,
+  offset : Int,
+  maximum_length : Int,
+) -> Int {
+  let scratch = self.require_in_flight()
+  if offset < 0 ||
+    maximum_length <= 0 ||
+    offset >= self.length ||
+    maximum_length > self.length - offset {
+    raise LunaOnlineTcpScratchRange
+  }
+  connection.write_once(scratch.immutable, offset~, len=maximum_length)
+}
+
+///|
 async fn LunaOnlineTcpEndpoint::write_event_on_reactor(
   self : LunaOnlineTcpEndpoint,
 ) -> LunaOnlineTcpProgress {

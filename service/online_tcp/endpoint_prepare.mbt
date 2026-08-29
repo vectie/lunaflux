@@ -50,10 +50,7 @@ pub async fn bind_luna_online_tcp_single_endpoint(
     rejection_rule: 0,
     rejection_latched: false,
   }
-  let server = @socket.TcpServer(addr) catch {
-    error if @async.is_being_cancelled() => raise error
-    _ => raise luna_online_tcp_error(LunaOnlineTcpBind)
-  }
+  let server = bind_luna_online_tcp_listener(addr)
   if @async.is_being_cancelled() {
     server.close()
     @async.pause()

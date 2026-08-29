@@ -119,7 +119,7 @@ fn LunaOnlineInstance::latch_worker_step_failure(
 fn LunaOnlineInstance::prepare_cut_terminal(self : LunaOnlineInstance) -> Unit {
   try! self.events.publish_usage(
     input_tokens=self.input_tokens,
-    cached_input_tokens=0,
+    cached_input_tokens=self.cached_input_tokens,
     output_tokens=self.output_tokens,
   )
   let kind = if self.terminal_cut == CallerCancellationCut {
@@ -138,6 +138,7 @@ fn LunaOnlineInstance::prepare_cut_terminal(self : LunaOnlineInstance) -> Unit {
     FailureUsageEvent
   }
   self.terminal_cut = NoTerminalCut
+  self.restarted_failure_terminal_pending = false
   self.mark_event_published(kind)
 }
 
@@ -178,6 +179,7 @@ fn LunaOnlineInstance::progress_terminal_cut(
         reason != OnlineStopTokenReached {
         abort("online natural output failure terminal invariant")
       }
+      self.cached_input_tokens = try! publication.cached_input_tokens()
       self.prepare_cut_terminal()
     }
   }
@@ -191,6 +193,9 @@ pub fn LunaOnlineInstance::progress_terminalization(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    return self.progress_multi_terminalization(ticket)
+  }
   self.require_ticket(ticket)
   if self.events.has_event() {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
@@ -199,16 +204,19 @@ pub fn LunaOnlineInstance::progress_terminalization(
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   self.require_owner()
-  if !self.recovery_close && self.terminal_cut != OutputCancellationCut {
+  if !self.recovery_close &&
+    self.terminal_cut != OutputCancellationCut &&
+    !self.restarted_failure_terminal_pending {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
   let lease = self.lease_owner()
   if self.recovery_close {
-    let recovery = lease.progress_terminal_recovery_status(ResourceUnavailable)
-    match recovery {
-      OnlineTerminalRecoveryRetryable | OnlineTerminalRecoveryStillPending =>
+    match self.advance_recovery_maintenance() {
+      LunaRecoveryMaintenancePending | LunaRecoveryMaintenanceRestarted =>
         return LunaOnlineInstanceTerminalizationRequired
-      OnlineTerminalRecoveryReady => ()
+      LunaRecoveryMaintenanceFailCloseReady => ()
+      LunaRecoveryMaintenanceClosed =>
+        raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     }
   } else if !(try! lease.has_publication()) {
     let step = try! lease.progress_status()
@@ -237,6 +245,10 @@ pub fn LunaOnlineInstance::request_cancel(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    self.request_cancel_multi(ticket)
+    return
+  }
   self.require_active_ticket(ticket)
   self.require_owner()
   if self.terminal_cut != NoTerminalCut || self.string_cut != NoStringCut {
@@ -272,6 +284,10 @@ pub fn LunaOnlineInstance::check_deadline(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> Unit raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    self.check_deadline_multi(ticket)
+    return
+  }
   self.require_active_ticket(ticket)
   self.require_owner()
   if self.terminal_cut != NoTerminalCut || self.string_cut != NoStringCut {

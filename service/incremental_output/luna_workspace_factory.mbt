@@ -132,6 +132,7 @@ fn new_luna_incremental_output_workspace(
     setup_error_rule: Lifecycle,
     setup_error_issue: Invalid,
     pending_count: 0,
+    decoder_at_start: true,
     utf8_remaining: 0,
     utf8_codepoint: 0,
     utf8_minimum: 0,

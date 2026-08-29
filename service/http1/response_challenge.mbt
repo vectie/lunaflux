@@ -1,0 +1,31 @@
+///|
+fn luna_http1_response_challenge_byte(index : Int) -> Byte {
+  match index {
+    0 => b'W'
+    1 => b'W'
+    2 => b'W'
+    3 => b'-'
+    4 => b'A'
+    5 => b'u'
+    6 => b't'
+    7 => b'h'
+    8 => b'e'
+    9 => b'n'
+    10 => b't'
+    11 => b'i'
+    12 => b'c'
+    13 => b'a'
+    14 => b't'
+    15 => b'e'
+    16 => b':'
+    17 => b' '
+    18 => b'B'
+    19 => b'e'
+    20 => b'a'
+    21 => b'r'
+    22 => b'e'
+    23 => b'r'
+    24 => b'\r'
+    _ => b'\n'
+  }
+}

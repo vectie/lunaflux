@@ -69,6 +69,16 @@ hard-receipt interval, never its receipt or absolute deadline. Zero means a
 transport must not begin another blocking operation; completed, object-form,
 and stale Work reject.
 
+Compatibility protocols that must parse or render before canonical framed
+bytes exist use `LunaRequestReceiptWorkspace`. It captures the OS monotonic
+receipt before the first transport byte and returns a generation-bound
+`LunaRequestReceipt` exposing only remaining time and abort. It has no timestamp
+or budget getter. `try_begin_luna_framed_with_receipt` atomically consumes the
+receipt only on admission; draining, saturation, invalid source ranges,
+cross-envelope budgets, clock failure, and expiry leave it live. The later
+frame must carry exactly the workspace's fixed relative DeadlineBudget, so
+parse, render, encode, and preparation all consume the original interval.
+
 Drain promptly retires incomplete receipts; a fully received scanner or later
 import may finish. The validated
 framed View stays private to its lane while expected content and plan digests
@@ -82,7 +92,10 @@ are cooperative. TokenIds reuse their already-validated `TokenBuffer` without
 rescanning or copying. No proportional collection is created by pool progress.
 String stops and cache authority remain in the inference-owned semantic lease.
 The full view exists only through output setup; the scheduler receives the
-narrow O(1) Luna stop-token projection.
+narrow O(1) Luna stop-token projection plus an independently opaque prefix
+projection exposing only validated cache permission/scope bytes. That cache
+projection is bound to the exact tokenizer digest when the scheduler request
+is assembled; it exposes no strings, limits, storage, epoch, or release power.
 
 Preparation publishes one opaque `LunaPreparedRequest` shell, deliberately
 without `Debug`, lane, generation, receipt, or deadline accessors. `take_claim`
@@ -97,7 +110,8 @@ view for the designated online admission bridge: it must not outlive the claim,
 and no other production package may retain or consume it.
 
 String stops remain in private semantic/output owners while only opaque
-stop-token membership enters the scheduler request. Generated pieces can then be copied into
+stop-token membership and cache-identity projections enter the scheduler
+request. Generated pieces can then be copied into
 caller-owned fixed storage with split UTF-8 and cross-token stop matching.
 Known stop-token IDs are exposed only as a bounded membership query and are
 rejected by `push_token_into_status`, preventing their pieces from leaking as
@@ -110,10 +124,11 @@ not the reactor-safe production path. The package does not
 own a scheduler, request handle, socket, or async task. The legacy object-form
 frame materialization path remains only for compatibility; the direct Luna
 framed path does not construct `GenerateRequest`, `Input`, `TextInput`,
-`StopConditions`, `CachePolicy`, or a standalone token buffer. A concrete
-socket/listener coordinator remains open, so end-to-end network ingress is not
-yet claimed even though receipt, scanning, and Luna preparation are fixed-lane
-and cooperatively bounded. `service/online_session` claims the Luna
+`StopConditions`, `CachePolicy`, or a standalone token buffer. This package
+still owns no socket or listener; `service/online_session` and
+`service/online_tcp` now compose its trusted receipt into one-shot, reusable,
+pipeline, and serialized OpenAI ingress. Concurrent-client arbitration remains
+outside that composition. `service/online_session` claims the Luna
 owner, authenticates its scheduler handle and publication sequence, and must
 release the claim on every rejected-admission or terminal path.
 

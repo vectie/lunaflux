@@ -185,6 +185,8 @@ fn parse_event(
         raise event_invalid(CanonicalEncoding)
       }
       require_event_zero(bytes, 24, 48)
+      // Decoded identity is an untrusted claim until exact admission against a
+      // rebuilt ModelPlan identity.
       let content = @spec.ContentDigest::from_sha256(
         read_digest(bytes, 64, EventFrame),
       ) catch {

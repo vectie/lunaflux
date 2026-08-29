@@ -4,6 +4,7 @@ fn LunaOnlineInstance::reset_request(self : LunaOnlineInstance) -> Unit {
     abort("luna online request reset retained prepared claim")
   }
   self.input_tokens = 0
+  self.cached_input_tokens = 0
   self.event_kind = NoSessionEvent
   self.event_taken = false
   self.accepted_acked = false
@@ -15,6 +16,9 @@ fn LunaOnlineInstance::reset_request(self : LunaOnlineInstance) -> Unit {
   self.deferred_cancel = false
   self.failure_kind = NoLatchedFailure
   self.recovery_close = false
+  self.maintenance_state = 0
+  self.restart_observation_pending = false
+  self.restarted_failure_terminal_pending = false
   for index in 0..<self.output.length() {
     self.output[index] = b'\x00'
   }
@@ -35,19 +39,23 @@ fn LunaOnlineInstance::close_terminal_owner(
   self : LunaOnlineInstance,
 ) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError {
   let lease = self.lease_owner()
-  if self.phase == LunaInstanceClosingTerminalPhase {
-    lease.close_terminal() catch {
-      _ => {
-        self.phase = LunaInstanceRetryingTerminalClosePhase
-        raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
-      }
-    }
-  } else if self.phase == LunaInstanceRetryingTerminalClosePhase {
-    lease.retry_close_terminal() catch {
+  if self.maintenance_state == 0 {
+    lease.begin_shutdown_maintenance() catch {
       _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     }
-  } else {
-    abort("luna online terminal close phase invariant")
+    self.maintenance_state = 3
+    self.phase = LunaInstanceRetryingTerminalClosePhase
+    return LunaOnlineInstanceRetirementPending
+  }
+  if self.maintenance_state != 3 {
+    abort("luna online terminal close maintenance invariant")
+  }
+  let progress = lease.progress_maintenance() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
+  match progress {
+    LunaWorkerServiceClosed => ()
+    _ => return LunaOnlineInstanceRetirementPending
   }
   self.release_request_claim()
   self.lease = None
@@ -55,6 +63,135 @@ fn LunaOnlineInstance::close_terminal_owner(
   self.drain_requested = true
   self.phase = LunaInstanceClosedPhase
   LunaOnlineInstanceClosed
+}
+
+///|
+fn LunaOnlineInstance::advance_recovery_maintenance(
+  self : LunaOnlineInstance,
+) -> LunaRecoveryMaintenanceStep raise LunaOnlineInstanceError {
+  let lease = self.lease_owner()
+  if self.maintenance_state == 6 {
+    if self.drain_requested {
+      lease.abandon_restart() catch {
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+      }
+      lease.begin_recovery_maintenance(ResourceUnavailable) catch {
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+      }
+      self.maintenance_state = 1
+      return LunaRecoveryMaintenancePending
+    }
+    let restart = lease.progress_restart_backoff() catch {
+      _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+    }
+    match restart {
+      OnlineWorkerRestartWaiting(_) => return LunaRecoveryMaintenancePending
+      OnlineWorkerRestartForbidden => {
+        lease.abandon_restart() catch {
+          _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+        }
+        lease.begin_recovery_maintenance(ResourceUnavailable) catch {
+          _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+        }
+        self.maintenance_state = 1
+        return LunaRecoveryMaintenancePending
+      }
+      OnlineWorkerRestarted => {
+        lease.prepare_restarted_failure_terminal() catch {
+          _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+        }
+        self.maintenance_state = 0
+        self.recovery_close = false
+        self.restarted_failure_terminal_pending = true
+        self.restart_observation_pending = true
+        return LunaRecoveryMaintenanceRestarted
+      }
+      OnlineWorkerRestartCleanupRequired => {
+        lease.begin_restart_cleanup_maintenance() catch {
+          _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+        }
+        self.maintenance_state = 2
+        return LunaRecoveryMaintenancePending
+      }
+    }
+  }
+  if self.maintenance_state == 0 {
+    lease.begin_recovery_maintenance(ResourceUnavailable) catch {
+      _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+    }
+    self.maintenance_state = 1
+    return LunaRecoveryMaintenancePending
+  }
+  let progress = lease.progress_maintenance() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
+  match progress {
+    LunaWorkerServiceRestartReady => {
+      self.maintenance_state = 6
+      return LunaRecoveryMaintenancePending
+    }
+    // Child cleanup completed, but scheduler/flight retirement remains under
+    // the same cooperative recovery owner.
+    LunaWorkerServiceRecoveryReady => ()
+    LunaWorkerServiceFailCloseReady => {
+      self.maintenance_state = 0
+      self.recovery_close = true
+      return LunaRecoveryMaintenanceFailCloseReady
+    }
+    LunaWorkerServiceClosed => {
+      self.maintenance_state = 0
+      self.recovery_close = true
+      return LunaRecoveryMaintenanceClosed
+    }
+    _ => ()
+  }
+  LunaRecoveryMaintenancePending
+}
+
+///|
+/// Returns a bounded host wake interval without sleeping or advancing restart.
+pub fn LunaOnlineInstance::maintenance_wait_remaining_millis(
+  self : LunaOnlineInstance,
+) -> Int raise LunaOnlineInstanceError {
+  self.require_owner()
+  if self.maintenance_state == 6 {
+    return self.lease_owner().restart_backoff_remaining_millis() catch {
+        _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+      }
+  }
+  if self.maintenance_state == 0 || self.maintenance_state == 5 {
+    return 0
+  }
+  self.lease_owner().maintenance_remaining_millis() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
+}
+
+///|
+fn LunaOnlineInstance::progress_recovery_maintenance(
+  self : LunaOnlineInstance,
+) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError {
+  match self.advance_recovery_maintenance() {
+    LunaRecoveryMaintenanceRestarted =>
+      self.phase = LunaRequestAwaitingTerminalPhase
+    LunaRecoveryMaintenanceFailCloseReady | LunaRecoveryMaintenanceClosed => {
+      self.recovery_close = true
+      self.phase = LunaRequestAwaitingTerminalPhase
+    }
+    LunaRecoveryMaintenancePending => ()
+  }
+  LunaOnlineInstanceRetirementPending
+}
+
+///|
+fn LunaOnlineInstance::take_restart_observation(
+  self : LunaOnlineInstance,
+) -> Bool {
+  if !self.restart_observation_pending {
+    return false
+  }
+  self.restart_observation_pending = false
+  true
 }
 
 ///|
@@ -111,6 +248,9 @@ pub fn LunaOnlineInstance::progress_request_retirement(
   self : LunaOnlineInstance,
   ticket : LunaOnlineRequestTicket,
 ) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError {
+  if ticket.lane >= 0 {
+    return self.progress_multi_retirement(ticket)
+  }
   self.require_ticket(ticket)
   self.require_owner()
   let lease = self.lease_owner()
@@ -149,13 +289,7 @@ pub fn LunaOnlineInstance::progress_request_retirement(
     return LunaOnlineInstanceRetirementPending
   }
   if self.phase == LunaInstanceRecoveringTerminalPhase {
-    let recovery = lease.progress_terminal_recovery_status(ResourceUnavailable)
-    match recovery {
-      OnlineTerminalRecoveryRetryable | OnlineTerminalRecoveryStillPending => ()
-      OnlineTerminalRecoveryReady =>
-        self.phase = LunaRequestAwaitingTerminalPhase
-    }
-    return LunaOnlineInstanceRetirementPending
+    return self.progress_recovery_maintenance()
   }
   if self.phase == LunaInstanceClosingTerminalPhase ||
     self.phase == LunaInstanceRetryingTerminalClosePhase {
@@ -207,17 +341,22 @@ pub fn LunaOnlineInstance::progress_shutdown(
     return LunaOnlineInstanceShutdownPending
   }
   let lease = self.lease_owner()
-  if self.phase == LunaInstanceDrainingPhase {
-    lease.shutdown_clean_empty() catch {
-      _ => {
-        self.phase = LunaInstanceRetryingEmptyClosePhase
-        raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
-      }
-    }
-  } else {
-    lease.retry_close_empty() catch {
+  if self.maintenance_state == 0 {
+    lease.begin_shutdown_maintenance() catch {
       _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     }
+    self.maintenance_state = 3
+    self.phase = LunaInstanceRetryingEmptyClosePhase
+    return LunaOnlineInstanceShutdownPending
+  }
+  if self.maintenance_state != 3 {
+    abort("luna online empty close maintenance invariant")
+  }
+  let progress = lease.progress_maintenance() catch {
+    _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+  }
+  if progress != LunaWorkerServiceClosed {
+    return LunaOnlineInstanceShutdownPending
   }
   self.lease = None
   self.phase = LunaInstanceClosedPhase

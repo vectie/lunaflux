@@ -107,6 +107,12 @@ const LUNA_PREPARATION_FRAMED_SEMANTIC_FINISH : Int = 34
 const LUNA_PREPARATION_FRAMED_RELEASE_VIEW : Int = 35
 
 ///|
+const LUNA_PREPARATION_TYPED_INPUT_BEGIN : Int = 36
+
+///|
+const LUNA_PREPARATION_TYPED_INPUT_COPY : Int = 37
+
+///|
 const LUNA_PREPARATION_MAX_STEP_WORK_UNITS : Int = 65536
 
 ///|
@@ -231,6 +237,7 @@ priv struct LunaRequestPreparationLane {
   framed_workspace : @framed_wire.LunaFramedRequestWorkspace
   framed_work : Array[@framed_wire.LunaFramedRequestWork]
   framed_view : Array[@framed_wire.LunaFramedRequestView]
+  typed_handoff : Array[@inference.LunaTextRequestHandoffClaim]
   mut generation : UInt64
   mut phase : Int
   mut queued : Bool
@@ -258,6 +265,11 @@ priv struct LunaRequestPreparationLane {
   mut semantic_codepoint_width : Int
   mut semantic_codepoint_byte_index : Int
   mut framed_direct : Bool
+  mut typed_direct : Bool
+  mut typed_request_id : @inference.RequestId
+  mut typed_sampling : @inference.LunaValidatedSampling
+  mut typed_sampling_seed : @inference.SamplingSeed
+  mut typed_stream_preference : @inference.StreamPreference
   mut framed_receipt_complete : Bool
   mut framed_model_index : Int
   mut framed_input_kind : Int
@@ -274,6 +286,8 @@ priv struct LunaRequestPreparationLane {
   mut framed_top_p : Double
   mut framed_sampling_seed : UInt64
   mut framed_streaming : Bool
+  mut trusted_receipt_bound : Bool
+  mut trusted_deadline_millis : UInt64
   mut claim : LunaPreparedRequestClaim?
   mut failure : RequestAdmissionError?
   mut last_work_units : Int

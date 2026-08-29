@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/service/api_auth",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/encoding/utf8",
+} for "test"
+
+import {
+  "moonbitlang/core/encoding/utf8",
+} for "wbtest"
+
+supported_targets = "native"

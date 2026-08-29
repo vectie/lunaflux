@@ -49,7 +49,20 @@ fn LunaIncrementalOutputWorkspace::push_token_status_current(
   if !piece.is_ready() {
     return IncrementalOutputStatus(2, 0, false)
   }
-  let total = self.pending_count + piece.copied_bytes()
+  let mut piece_bytes = piece.copied_bytes()
+  let mut next_decoder_at_start = self.decoder_at_start
+  if next_decoder_at_start && piece_bytes > 0 {
+    next_decoder_at_start = false
+    if self.tokenizer.decoder_strips_initial_space() &&
+      self.scratch[self.pending_count] == b' ' {
+      for index in 1..<piece_bytes {
+        self.scratch[self.pending_count + index - 1] = self.scratch[self.pending_count +
+          index]
+      }
+      piece_bytes -= 1
+    }
+  }
+  let total = self.pending_count + piece_bytes
   for index in 0..<self.stop_count {
     self.next_states[index] = self.states[index]
   }
@@ -107,6 +120,7 @@ fn LunaIncrementalOutputWorkspace::push_token_status_current(
     }
     copy_range(self.scratch, 0, destination, destination_offset, output_count)
     self.pending_count = 0
+    self.decoder_at_start = next_decoder_at_start
     self.utf8_remaining = 0
     self.utf8_codepoint = 0
     self.utf8_minimum = 0
@@ -132,6 +146,7 @@ fn LunaIncrementalOutputWorkspace::push_token_status_current(
     self.states[index] = self.next_states[index]
   }
   self.pending_count = retained
+  self.decoder_at_start = next_decoder_at_start
   self.utf8_remaining = remaining
   self.utf8_codepoint = codepoint
   self.utf8_minimum = minimum
@@ -194,6 +209,7 @@ pub fn LunaIncrementalOutputLease::finish_into_status(
   let count = workspace.pending_count
   copy_range(workspace.pending, 0, destination, destination_offset, count)
   workspace.pending_count = 0
+  workspace.decoder_at_start = true
   workspace.lifecycle = OUTPUT_FINISHED
   IncrementalOutputStatus(0, count, false)
 }
@@ -220,6 +236,7 @@ pub fn LunaIncrementalOutputLease::release(
   workspace.phase = LUNA_INCREMENTAL_OUTPUT_IDLE
   workspace.stop_count = 0
   workspace.pending_count = 0
+  workspace.decoder_at_start = true
   workspace.last_work_units = 0
   workspace.lifecycle = OUTPUT_ACTIVE
 }

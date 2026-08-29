@@ -36,8 +36,8 @@ fn luna_rejection_rule_code(rule : LunaOnlineFramedRejectionRule) -> Int {
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::publish_rejection(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::publish_rejection(
+  self : LunaOnlineFramedService,
   sequence : UInt64,
   rule : LunaOnlineFramedRejectionRule,
 ) -> Unit raise LunaOnlineFramedCoordinatorError {
@@ -64,8 +64,8 @@ fn LunaOnlineFramedCoordinator::publish_rejection(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::revoke_stalled_rejection(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::revoke_stalled_rejection(
+  self : LunaOnlineFramedService,
 ) -> Unit {
   self.rejection_epoch = 0UL
   self.rejection_sequence = 0UL
@@ -79,8 +79,8 @@ fn LunaOnlineFramedCoordinator::revoke_stalled_rejection(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::enforce_rejection_stall(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::enforce_rejection_stall(
+  self : LunaOnlineFramedService,
 ) -> Bool {
   if self.rejection_epoch == 0UL {
     return false
@@ -93,8 +93,8 @@ fn LunaOnlineFramedCoordinator::enforce_rejection_stall(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::discard_head_for_drain(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::discard_head_for_drain(
+  self : LunaOnlineFramedService,
 ) -> Unit {
   let head = self.queue_head
   if self.prepared.length() == 1 {
@@ -110,8 +110,8 @@ fn LunaOnlineFramedCoordinator::discard_head_for_drain(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::publish_head_failure(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::publish_head_failure(
+  self : LunaOnlineFramedService,
   error : @request_admission.RequestAdmissionError,
 ) -> Unit raise LunaOnlineFramedCoordinatorError {
   let head = self.queue_head
@@ -128,8 +128,8 @@ fn LunaOnlineFramedCoordinator::publish_head_failure(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::dispatch_prepared(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::dispatch_prepared(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
   let sequence = self.queue_sequences[self.queue_head]
   if self.prepared.is_empty() {
@@ -143,8 +143,16 @@ fn LunaOnlineFramedCoordinator::dispatch_prepared(
     }
     self.prepared.push(prepared)
   }
+  if self.queue_abandoned[self.queue_head] {
+    self.prepared[0].discard() catch {
+      _ => raise luna_coordinator_error(LunaOnlineFramedPreparation)
+    }
+    self.prepared.clear()
+    self.pop_queue_head()
+    return LunaOnlineFramedCoordinatorAdvanced
+  }
   let prepared = self.prepared[0]
-  let admission = self.instance.begin(prepared) catch {
+  let admission = self.instance.begin_multi(prepared) catch {
     _ => {
       // Preflight errors leave Prepared live; lower-admission errors consume
       // it after releasing all lower authority. Either disposition is safe to
@@ -173,7 +181,13 @@ fn LunaOnlineFramedCoordinator::dispatch_prepared(
       let ticket = admission.ticket() catch {
         _ => raise luna_coordinator_error(LunaOnlineFramedLifecycle)
       }
+      let was_empty = self.tickets.is_empty()
       self.tickets.push(ticket)
+      self.ticket_sequences.push(sequence)
+      self.begin_request_timing(ticket)
+      if was_empty {
+        self.worker_failure_observed = false
+      }
       self.prepared.clear()
       self.pop_queue_head()
       self.semantic_event_pending = true
@@ -183,50 +197,32 @@ fn LunaOnlineFramedCoordinator::dispatch_prepared(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::progress_preparation(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::progress_preparation(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
-  if self.tickets.length() == 1 {
-    if self.prepared.length() != 0 {
-      abort("Luna coordinator active ticket/Prepared invariant")
-    }
-    if self.drain_requested && self.queue_count > 0 {
-      self.discard_head_for_drain()
-      return LunaOnlineFramedCoordinatorAdvanced
-    }
-    // Preserve the single ordered stream: preparation may advance behind the
-    // active request, but its Ready/Failed disposition cannot preempt semantic
-    // events that carry no coordinator sequence. Inspect it only after the
-    // ticket retires.
-    return match self.pool.progress() {
-      // A terminal queued Work has left the pool's active ring but remains
-      // pinned behind the active request. This is not transport idleness: a
-      // socket read cannot advance it and may consume an unrelated frame.
-      LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorAdvanced
-      LunaRequestPreparationPoolAwaitingInput =>
-        LunaOnlineFramedCoordinatorAwaitingInput
-      LunaRequestPreparationPoolAdvanced => LunaOnlineFramedCoordinatorAdvanced
-    }
-  }
   if self.prepared.length() == 1 {
     if self.queue_count <= 0 {
       abort("Luna coordinator prepared queue invariant")
     }
-    if self.drain_requested {
+    if self.drain_requested || self.disconnect_requested {
       self.discard_head_for_drain()
       return LunaOnlineFramedCoordinatorAdvanced
     }
-    if self.tickets.is_empty() {
-      return self.dispatch_prepared()
-    }
-    raise luna_coordinator_error(LunaOnlineFramedLifecycle)
+    return self.dispatch_prepared()
   }
   if self.queue_count > 0 {
+    if self.disconnect_requested {
+      self.discard_head_for_drain()
+      return LunaOnlineFramedCoordinatorAdvanced
+    }
     let state = self.queue_head_work().state() catch {
         _ => {
-          if self.drain_requested {
+          if self.drain_requested ||
+            self.disconnect_requested ||
+            self.queue_abandoned[self.queue_head] {
             self.work_slots[self.queue_head].clear()
             self.queue_sequences[self.queue_head] = 0UL
+            self.queue_abandoned[self.queue_head] = false
             self.queue_head = (self.queue_head + 1) % self.work_slots.length()
             self.queue_count -= 1
             self.receipt_slot = -1
@@ -237,24 +233,29 @@ fn LunaOnlineFramedCoordinator::progress_preparation(
       }
     match state {
       LunaRequestPreparationFailed => {
+        if self.queue_abandoned[self.queue_head] {
+          self.discard_head_for_drain()
+          return LunaOnlineFramedCoordinatorAdvanced
+        }
         let failure = self.queue_head_work().failure() catch {
             _ => raise luna_coordinator_error(LunaOnlineFramedPreparation)
           }
-        if self.drain_requested {
+        if self.drain_requested || self.disconnect_requested {
           self.discard_head_for_drain()
+          return LunaOnlineFramedCoordinatorAdvanced
+        }
+        if !self.tickets.is_empty() {
           return LunaOnlineFramedCoordinatorAdvanced
         }
         self.publish_head_failure(failure)
         return LunaOnlineFramedCoordinatorRejectionReady
       }
       LunaRequestPreparationReady => {
-        if self.drain_requested {
+        if self.drain_requested || self.disconnect_requested {
           self.discard_head_for_drain()
           return LunaOnlineFramedCoordinatorAdvanced
         }
-        if self.tickets.is_empty() {
-          return self.dispatch_prepared()
-        }
+        return self.dispatch_prepared()
       }
       LunaRequestPreparationCancelRequested => ()
       LunaRequestPreparationPending => ()
@@ -269,11 +270,14 @@ fn LunaOnlineFramedCoordinator::progress_preparation(
 }
 
 ///|
-fn LunaOnlineFramedCoordinator::progress_instance(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::progress_instance(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
-  let state = self.instance.progress(self.ticket()) catch {
+  let state = self.instance.progress_multi() catch {
     _ => raise luna_coordinator_error(LunaOnlineFramedMaintenance)
+  }
+  if self.publish_worker_failure_if_needed() {
+    return LunaOnlineFramedCoordinatorObservationReady
   }
   match state {
     LunaOnlineInstancePending => LunaOnlineFramedCoordinatorAdvanced
@@ -296,11 +300,14 @@ fn LunaOnlineFramedCoordinator::progress_instance(
 /// Advances at most one preparation, online-instance, or framed-output
 /// transition. Blocking recovery, retirement, and shutdown are never driven
 /// here.
-pub fn LunaOnlineFramedCoordinator::progress(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::progress_reactor_core(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
   if self.closed {
     return LunaOnlineFramedCoordinatorClosed
+  }
+  if self.observation_kind != 0 {
+    return LunaOnlineFramedCoordinatorObservationReady
   }
   if self.rejection_epoch != 0UL {
     if self.enforce_rejection_stall() {
@@ -308,9 +315,15 @@ pub fn LunaOnlineFramedCoordinator::progress(
     }
     return LunaOnlineFramedCoordinatorRejectionReady
   }
+  if self.disconnect_requested && !self.tickets.is_empty() {
+    self.begin_output_disconnect() catch {
+      _ => return LunaOnlineFramedCoordinatorMaintenanceRequired
+    }
+  }
   if self.event_ack_pending ||
     self.outbound_views.length() == 1 ||
-    self.outbound_works.length() == 1 {
+    self.outbound_works.length() == 1 ||
+    (self.stream_mode == 2 && self.event_credits.length() == 1) {
     return self.progress_outbound_event()
   }
   if self.semantic_event_pending {
@@ -325,12 +338,15 @@ pub fn LunaOnlineFramedCoordinator::progress(
     // until those lanes have observed drain and released their authority;
     // shutdown itself remains off-reactor.
     if self.tickets.is_empty() &&
-      (self.queue_count > 0 || !self.pool.is_drained()) {
+      (
+        self.queue_count > 0 ||
+        self.pool.free_lane_count() != self.pool.lane_count()
+      ) {
       return self.progress_preparation()
     }
     return LunaOnlineFramedCoordinatorMaintenanceRequired
   }
-  if self.tickets.length() == 1 && self.queue_count > 0 {
+  if !self.tickets.is_empty() && self.queue_count > 0 {
     if self.turn_pool {
       self.turn_pool = false
       return self.progress_preparation()
@@ -338,7 +354,7 @@ pub fn LunaOnlineFramedCoordinator::progress(
     self.turn_pool = true
     return self.progress_instance()
   }
-  if self.tickets.length() == 1 {
+  if !self.tickets.is_empty() {
     return self.progress_instance()
   }
   if self.queue_count > 0 || !self.pool.is_drained() {
@@ -353,8 +369,8 @@ pub fn LunaOnlineFramedCoordinator::progress(
 }
 
 ///|
-pub fn LunaOnlineFramedCoordinator::take_rejection(
-  self : LunaOnlineFramedCoordinator,
+fn LunaOnlineFramedService::stream_take_rejection(
+  self : LunaOnlineFramedService,
 ) -> LunaOnlineFramedRejectionCredit raise LunaOnlineFramedCoordinatorError {
   if self.enforce_rejection_stall() {
     raise luna_coordinator_error(LunaOnlineFramedOutputStall)
@@ -363,15 +379,22 @@ pub fn LunaOnlineFramedCoordinator::take_rejection(
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
   }
   self.rejection_taken = true
-  { coordinator: self, epoch: self.rejection_epoch }
+  {
+    service: self,
+    stream_epoch: self.stream_epoch,
+    epoch: self.rejection_epoch,
+  }
 }
 
 ///|
 fn LunaOnlineFramedRejectionCredit::require_owner(
   self : LunaOnlineFramedRejectionCredit,
-) -> LunaOnlineFramedCoordinator raise LunaOnlineFramedCoordinatorError {
-  let owner = self.coordinator
+) -> LunaOnlineFramedService raise LunaOnlineFramedCoordinatorError {
+  let owner = self.service
   if self.epoch == 0UL ||
+    self.stream_epoch == 0UL ||
+    owner.stream_epoch != self.stream_epoch ||
+    (owner.stream_phase != 2 && owner.stream_phase != 3) ||
     owner.rejection_epoch != self.epoch ||
     !owner.rejection_taken {
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
@@ -387,6 +410,18 @@ pub fn LunaOnlineFramedRejectionCredit::sequence(
   self : LunaOnlineFramedRejectionCredit,
 ) -> UInt64 raise LunaOnlineFramedCoordinatorError {
   self.require_owner().rejection_sequence
+}
+
+///|
+/// Returns the exact opaque route of this rejected framed submission.
+pub fn LunaOnlineFramedRejectionCredit::request_route(
+  self : LunaOnlineFramedRejectionCredit,
+) -> LunaOnlineFramedRequestRoute raise LunaOnlineFramedCoordinatorError {
+  let sequence = self.require_owner().rejection_sequence
+  if sequence == 0UL {
+    abort("Luna coordinator rejection route invariant")
+  }
+  { sequence, }
 }
 
 ///|

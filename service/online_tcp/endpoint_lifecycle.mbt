@@ -12,6 +12,7 @@ fn luna_online_tcp_rule_code(rule : LunaOnlineTcpRule) -> Int {
     LunaOnlineTcpCoordinator => 9
     LunaOnlineTcpLifecycle => 10
     LunaOnlineTcpOwnership => 11
+    LunaOnlineTcpTelemetry => 12
   }
 }
 
@@ -29,6 +30,7 @@ fn luna_online_tcp_rule_from_code(code : Int) -> LunaOnlineTcpRule {
     9 => LunaOnlineTcpCoordinator
     10 => LunaOnlineTcpLifecycle
     11 => LunaOnlineTcpOwnership
+    12 => LunaOnlineTcpTelemetry
     _ => abort("Luna online TCP failure rule invariant")
   }
 }

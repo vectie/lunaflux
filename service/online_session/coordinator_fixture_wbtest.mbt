@@ -87,7 +87,9 @@ fn coordinator_fixture_frame() -> FixedArray[Byte] raise {
 }
 
 ///|
-fn coordinator_fixture_instance() -> LunaOnlineInstance raise {
+fn coordinator_fixture_instance(
+  multi_lane_count? : Int = 1,
+) -> LunaOnlineInstance raise {
   let inference = coordinator_fixture_inference()
   {
     expected_tokenizer: coordinator_fixture_tokenizer().digest(),
@@ -98,6 +100,7 @@ fn coordinator_fixture_instance() -> LunaOnlineInstance raise {
     events: @luna_event.LunaEventOwner::new(inference),
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),
     input_tokens: 0,
+    cached_input_tokens: 0,
     request_epoch: 0UL,
     event_epoch: 0UL,
     event_kind: NoSessionEvent,
@@ -114,13 +117,19 @@ fn coordinator_fixture_instance() -> LunaOnlineInstance raise {
     worker_code: worker_failure_code(),
     failure_kind: NoLatchedFailure,
     phase: LunaInstanceIdlePhase,
+    maintenance_state: 0,
+    restart_observation_pending: false,
+    restarted_failure_terminal_pending: false,
     drain_requested: false,
     recovery_close: false,
+    multi: new_luna_online_multi_state(multi_lane_count, inference),
   }
 }
 
 ///|
-fn coordinator_fixture() -> LunaOnlineFramedCoordinator raise {
+fn coordinator_fixture(
+  multi_lane_count? : Int = 1,
+) -> LunaOnlineFramedCoordinator raise {
   let inference = coordinator_fixture_inference()
   let tokenizer = coordinator_fixture_tokenizer()
   let limits = @framed_wire.FramedWireLimits::new(
@@ -147,12 +156,16 @@ fn coordinator_fixture() -> LunaOnlineFramedCoordinator raise {
     ),
   )
   let event_budget = @framed_wire.LunaFramedEventStepBudget::new(17)
-  new_luna_online_framed_coordinator(
+  let service = new_luna_online_framed_coordinator(
     pool,
-    coordinator_fixture_instance(),
+    coordinator_fixture_instance(multi_lane_count~),
     @framed_wire.LunaFramedEventWorkspace::new(limits, event_budget),
     event_budget.work_units(),
     inference,
+    limits,
+    coordinator_fixture_identity(),
     clock,
   )
+  let opened = service.open_stream()
+  { service, stream: service.take_open_stream(opened) }
 }
