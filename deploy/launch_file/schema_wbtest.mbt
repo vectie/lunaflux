@@ -35,6 +35,16 @@ fn launch_v4_fp8_fixture(
 }
 
 ///|
+fn launch_v5_qwen3_fixture(
+  approval? : String = "{\"mode\":\"none\"}",
+) -> String {
+  launch_fixture(approval~).replace(
+    old="\"schema\":\"lunaflux.launch.v1\"",
+    new="\"schema\":\"lunaflux.launch.v5\",\"runtime_recipe\":\"dense_qwen3_bf16_paged_aot_v12\"",
+  )
+}
+
+///|
 fn parse_fixture(text : String) -> LaunchFileAdmission raise LaunchFileError {
   let digest = LaunchFileDigest::from_sha256(
     "3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -74,6 +84,42 @@ test "launch v2 authenticates one exact closed runtime recipe" {
     launch_v2_fixture(recipe="dense_mistral_bf16_paged_aot_v7"),
   )
   assert_eq(mistral.runtime_recipe(), DenseMistralBf16PagedAotV7)
+}
+
+///|
+test "launch v5 admits only unapproved dense Qwen3 BF16 v12" {
+  let qwen = try! parse_fixture(launch_v5_qwen3_fixture())
+  assert_eq(qwen.runtime_recipe(), DenseQwen3Bf16PagedAotV12)
+  for
+    substituted in [
+      "dense_llama_i8_paged_aot_v6", "dense_mistral_bf16_paged_aot_v7",
+    ] {
+    try
+      parse_fixture(
+        launch_v5_qwen3_fixture().replace(
+          old="dense_qwen3_bf16_paged_aot_v12",
+          new=substituted,
+        ),
+      )
+    catch {
+      InvalidField(Root) => ()
+      _ => fail("Qwen3 recipe substitution reported an unrelated failure")
+    } noraise {
+      _ => fail("Qwen3 launch admitted another model-family recipe")
+    }
+  }
+  try
+    parse_fixture(
+      launch_v5_qwen3_fixture(
+        approval="{\"mode\":\"external_ed25519_v1\",\"capability_manifest_sha256\":\"4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"key_identity_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"signature_sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"approved_source_sha256\":\"7123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
+      ),
+    )
+  catch {
+    InvalidField(LunaApproval) => ()
+    _ => fail("Qwen3 approval substitution reported an unrelated failure")
+  } noraise {
+    _ => fail("Qwen3 v12 silently discarded an external approval")
+  }
 }
 
 ///|

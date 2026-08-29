@@ -20,6 +20,8 @@ pub fn admit_i8_bootstrap_source_v6(WorkerBootstrapRoots, WorkerI8BootstrapModel
 
 pub fn admit_mistral_bootstrap_source_v7(WorkerBootstrapRoots, WorkerMistralBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
 
+pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(WorkerBootstrapRoots, WorkerQwen3BootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
 pub fn admit_tensor_parallel_approved_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings, TensorParallelBootstrapPolicy) -> EncodedBootstrapSource raise WorkerWireError
 
 pub fn admit_tensor_parallel_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings, TensorParallelBootstrapPolicy) -> EncodedBootstrapSource raise WorkerWireError
@@ -117,6 +119,7 @@ pub fn EncodedBootstrapSource::kernel(Self) -> WorkerBootstrapKernelSource
 pub fn EncodedBootstrapSource::length(Self) -> Int
 pub fn EncodedBootstrapSource::mistral_model_source(Self) -> WorkerMistralBootstrapModelSource?
 pub fn EncodedBootstrapSource::model(Self) -> WorkerBootstrapModelSource
+pub fn EncodedBootstrapSource::qwen3_model_source(Self) -> WorkerQwen3BootstrapModelSource?
 pub fn EncodedBootstrapSource::recipe(Self) -> WorkerBootstrapRecipe
 pub fn EncodedBootstrapSource::roots(Self) -> WorkerBootstrapRoots
 pub fn EncodedBootstrapSource::tensor_parallel_policy(Self) -> TensorParallelBootstrapPolicy?
@@ -320,6 +323,7 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseLlamaFp8ReusablePagedAotApprovedV9
   DenseLlamaBf16PagedAotExtensionsV10
   DenseMistralBf16PagedAotExtensionsV11
+  DenseQwen3Bf16PagedAotV12
 } derive(Eq, @debug.Debug)
 
 pub struct WorkerBootstrapRoots {
@@ -451,6 +455,17 @@ pub struct WorkerParentApprovalSubjects {
 } derive(Eq, @debug.Debug)
 pub fn WorkerParentApprovalSubjects::from_fp8_authorization(@fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3) -> Self
 pub fn WorkerParentApprovalSubjects::from_luna_authorization(@luna_artifact_admission.LunaAotKernelAdmission) -> Self
+
+pub struct WorkerQwen3BootstrapModelSource {
+  // private fields
+}
+pub fn WorkerQwen3BootstrapModelSource::config_digest(Self) -> String
+pub fn WorkerQwen3BootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerQwen3BootstrapModelSource::new(config_locator~ : StringView, numeric_weights_locator~ : StringView, config_digest_sha256~ : StringView, numeric_weight_artifact_sha256~ : StringView, weight_manifest_sha256~ : StringView, tied_embeddings~ : Bool) -> Self raise WorkerWireError
+pub fn WorkerQwen3BootstrapModelSource::numeric_weight_artifact_digest(Self) -> String
+pub fn WorkerQwen3BootstrapModelSource::numeric_weights_locator(Self) -> String
+pub fn WorkerQwen3BootstrapModelSource::tied_embeddings(Self) -> Bool
+pub fn WorkerQwen3BootstrapModelSource::weight_manifest_digest(Self) -> String
 
 pub struct WorkerStartupContract {
   // private fields

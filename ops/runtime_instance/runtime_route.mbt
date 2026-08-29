@@ -20,6 +20,7 @@ fn route_runtime_recipe(
   legacy_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
   i8_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
   mistral_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
+  qwen3_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
   tensor_parallel_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
   fp8_loader : () -> AdmittedRuntimeDescriptor raise RuntimeInstanceError,
 ) -> AdmittedRuntimeDescriptor raise RuntimeInstanceError {
@@ -27,6 +28,7 @@ fn route_runtime_recipe(
     DenseLlamaPagedAotV5 => legacy_loader()
     DenseLlamaI8PagedAotV6 => i8_loader()
     DenseMistralBf16PagedAotV7 => mistral_loader()
+    DenseQwen3Bf16PagedAotV12 => qwen3_loader()
     DenseLlamaTensorParallelPagedAotApprovedV8 => tensor_parallel_loader()
     DenseLlamaFp8ReusablePagedAotApprovedV9 => fp8_loader()
   }
@@ -88,6 +90,24 @@ fn load_runtime_descriptor(
       }
       LegacyRuntimeDescriptor(
         @descriptor_file.load_mistral_v1(
+          model_root,
+          kernel_root,
+          launch.model_root_label(),
+          launch.kernel_root_label(),
+          descriptor_locator,
+          descriptor_digest,
+          limits,
+        ) catch {
+          _ => raise fail(DescriptorAdmission)
+        },
+      )
+    },
+    () => {
+      if luna_approval is Some(_) {
+        raise fail(LaunchAdmission)
+      }
+      LegacyRuntimeDescriptor(
+        @descriptor_file.load_qwen3_v1(
           model_root,
           kernel_root,
           launch.model_root_label(),
@@ -188,6 +208,18 @@ fn load_materialized_runtime_descriptor(
       }
       LegacyRuntimeDescriptor(
         @descriptor_file.load_mistral_v1_materialized(
+          model, kernel, descriptor_locator, descriptor_digest, limits,
+        ) catch {
+          _ => raise fail(DescriptorAdmission)
+        },
+      )
+    },
+    () => {
+      if luna_approval is Some(_) {
+        raise fail(LaunchAdmission)
+      }
+      LegacyRuntimeDescriptor(
+        @descriptor_file.load_qwen3_v1_materialized(
           model, kernel, descriptor_locator, descriptor_digest, limits,
         ) catch {
           _ => raise fail(DescriptorAdmission)

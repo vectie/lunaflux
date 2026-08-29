@@ -226,6 +226,29 @@ priv struct MistralRuntimeDescriptorModelClaims {
 }
 
 ///|
+priv struct Qwen3RuntimeDescriptorClaims {
+  model : Qwen3RuntimeDescriptorModelClaims
+  kernels : RuntimeDescriptorKernelClaims
+  execution : RuntimeDescriptorExecutionClaims
+  worker : RuntimeDescriptorWorkerClaims
+  inference : RuntimeDescriptorInferenceClaims
+  ceilings : RuntimeDescriptorCeilingClaims
+}
+
+///|
+priv struct Qwen3RuntimeDescriptorModelClaims {
+  family : String
+  config_locator : String
+  config_digest : String
+  content_digest : String
+  numeric_weights_locator : String
+  numeric_weight_artifact_digest : String
+  weight_manifest_digest : String
+  tied_embeddings : Bool
+  max_batch_rows : Int
+}
+
+///|
 priv struct RuntimeDescriptorModelClaims {
   config_locator : String
   config_digest : String

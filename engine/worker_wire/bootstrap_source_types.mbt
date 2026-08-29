@@ -10,6 +10,7 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseLlamaFp8ReusablePagedAotApprovedV9
   DenseLlamaBf16PagedAotExtensionsV10
   DenseMistralBf16PagedAotExtensionsV11
+  DenseQwen3Bf16PagedAotV12
 } derive(Debug, Eq)
 
 ///|
@@ -117,6 +118,7 @@ pub struct EncodedBootstrapSource {
   priv i8_model_source : WorkerI8BootstrapModelSource?
   priv i8_execution : WorkerI8BootstrapExecution?
   priv mistral_model_source : WorkerMistralBootstrapModelSource?
+  priv qwen3_model_source : WorkerQwen3BootstrapModelSource?
   priv fp8_model_source : WorkerFp8BootstrapModelSource?
   priv fp8_execution : WorkerFp8BootstrapExecution?
 }
@@ -237,6 +239,14 @@ pub fn EncodedBootstrapSource::mistral_model_source(
   self : EncodedBootstrapSource,
 ) -> WorkerMistralBootstrapModelSource? {
   self.mistral_model_source
+}
+
+///|
+/// Returns exact dense-Qwen3 BF16 source evidence only for recipe v12.
+pub fn EncodedBootstrapSource::qwen3_model_source(
+  self : EncodedBootstrapSource,
+) -> WorkerQwen3BootstrapModelSource? {
+  self.qwen3_model_source
 }
 
 ///|

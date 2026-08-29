@@ -18,6 +18,7 @@ import {
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/mistral_weights",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/qwen3_weights",
 }
 
 // Values
@@ -29,9 +30,11 @@ pub(all) suberror DeviceWorkerBootstrapError {
   Root(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
   Config(@config_file.ModelConfigFileError)
   MistralConfig(@config_reader.ModelConfigReaderError)
+  Qwen3Config(@config_reader.ModelConfigReaderError)
   Plan(@plan.PlanValidationError)
   Weights(@device_materialize.DeviceWeightError)
   MistralWeights(@mistral_weights.MistralWeightsError)
+  Qwen3Weights(@qwen3_weights.Qwen3WeightsError)
   KvLayout(@device_layout.DeviceKvLayoutError)
   DeviceTarget(@catalog.CatalogError)
   DeviceStep(@device_step.DeviceStepError)

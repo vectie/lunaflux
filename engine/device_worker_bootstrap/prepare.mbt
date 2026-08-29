@@ -179,6 +179,9 @@ pub fn prepare(
     source.recipe() == DenseMistralBf16PagedAotExtensionsV11 {
     return prepare_mistral(startup, source)
   }
+  if source.recipe() == DenseQwen3Bf16PagedAotV12 {
+    return prepare_qwen3(startup, source)
+  }
   validate_source_envelope(startup, source)
   let acquired = acquire_roots_with(role => {
     let inherited = match role {

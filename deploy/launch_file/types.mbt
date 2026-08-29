@@ -28,6 +28,7 @@ pub(all) enum LaunchRuntimeRecipe {
   DenseLlamaPagedAotV5
   DenseLlamaI8PagedAotV6
   DenseMistralBf16PagedAotV7
+  DenseQwen3Bf16PagedAotV12
   DenseLlamaTensorParallelPagedAotApprovedV8
   DenseLlamaFp8ReusablePagedAotApprovedV9
 } derive(Debug, Eq)

@@ -31,6 +31,7 @@ fn runtime_recipe_name(recipe : @launch_file.LaunchRuntimeRecipe) -> String {
     DenseLlamaPagedAotV5 => "dense_llama_paged_aot_v5"
     DenseLlamaI8PagedAotV6 => "dense_llama_i8_paged_aot_v6"
     DenseMistralBf16PagedAotV7 => "dense_mistral_bf16_paged_aot_v7"
+    DenseQwen3Bf16PagedAotV12 => "dense_qwen3_bf16_paged_aot_v12"
     DenseLlamaTensorParallelPagedAotApprovedV8 =>
       "dense_llama_tensor_parallel_paged_aot_approved_v8"
     DenseLlamaFp8ReusablePagedAotApprovedV9 =>

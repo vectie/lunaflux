@@ -149,12 +149,14 @@ fn assert_forced_route_failure_never_probes_other_loader(
   expected_legacy_calls : Int,
   expected_i8_calls : Int,
   expected_mistral_calls : Int,
+  expected_qwen3_calls : Int,
   expected_tensor_parallel_calls : Int,
   expected_fp8_calls : Int,
 ) -> Unit {
   let legacy_calls = Ref(0)
   let i8_calls = Ref(0)
   let mistral_calls = Ref(0)
+  let qwen3_calls = Ref(0)
   let tensor_parallel_calls = Ref(0)
   let fp8_calls = Ref(0)
   try
@@ -170,6 +172,10 @@ fn assert_forced_route_failure_never_probes_other_loader(
       },
       () => {
         mistral_calls.val += 1
+        raise fail(DescriptorAdmission)
+      },
+      () => {
+        qwen3_calls.val += 1
         raise fail(DescriptorAdmission)
       },
       () => {
@@ -196,6 +202,9 @@ fn assert_forced_route_failure_never_probes_other_loader(
   if mistral_calls.val != expected_mistral_calls {
     abort("Mistral loader call count drifted")
   }
+  if qwen3_calls.val != expected_qwen3_calls {
+    abort("Qwen3 loader call count drifted")
+  }
   if tensor_parallel_calls.val != expected_tensor_parallel_calls {
     abort("tensor-parallel loader call count drifted")
   }
@@ -213,6 +222,7 @@ test "selected legacy loader failure never probes I8 fallback" {
     0,
     0,
     0,
+    0,
   )
 }
 
@@ -222,6 +232,7 @@ test "selected I8 loader failure never probes legacy fallback" {
     DenseLlamaI8PagedAotV6,
     0,
     1,
+    0,
     0,
     0,
     0,
@@ -237,6 +248,20 @@ test "selected Mistral loader failure never probes legacy or I8 fallback" {
     1,
     0,
     0,
+    0,
+  )
+}
+
+///|
+test "selected Qwen3 loader failure never probes another family" {
+  assert_forced_route_failure_never_probes_other_loader(
+    DenseQwen3Bf16PagedAotV12,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
   )
 }
 
@@ -244,6 +269,7 @@ test "selected Mistral loader failure never probes legacy or I8 fallback" {
 test "selected approved TP loader failure never probes another recipe" {
   assert_forced_route_failure_never_probes_other_loader(
     DenseLlamaTensorParallelPagedAotApprovedV8,
+    0,
     0,
     0,
     0,
@@ -256,6 +282,7 @@ test "selected approved TP loader failure never probes another recipe" {
 test "selected approved FP8 loader failure never probes another recipe" {
   assert_forced_route_failure_never_probes_other_loader(
     DenseLlamaFp8ReusablePagedAotApprovedV9,
+    0,
     0,
     0,
     0,

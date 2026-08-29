@@ -16,7 +16,8 @@ fn validate_bootstrap_source_header(
     version != BOOTSTRAP_SOURCE_VERSION_V8 &&
     version != FP8_BOOTSTRAP_SOURCE_VERSION_V9 &&
     version != BOOTSTRAP_SOURCE_VERSION_V10 &&
-    version != MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 {
+    version != MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 &&
+    version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 {
     raise InvalidBootstrapSource(Version)
   }
   let header_bytes = if version == BOOTSTRAP_SOURCE_VERSION_V2 {
@@ -81,6 +82,11 @@ fn validate_bootstrap_source_header(
       raise InvalidBootstrapSource(Recipe)
     }
     MISTRAL_BOOTSTRAP_SOURCE_HEADER_BYTES_V11
+  } else if version == QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 {
+    if recipe != QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12 {
+      raise InvalidBootstrapSource(Recipe)
+    }
+    QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12
   } else {
     if recipe != MISTRAL_BOOTSTRAP_SOURCE_RECIPE_V7 {
       raise InvalidBootstrapSource(Recipe)
@@ -147,6 +153,9 @@ pub fn decode_bootstrap_source(
   if read_u32(source, 4) == MISTRAL_BOOTSTRAP_SOURCE_VERSION_V7 ||
     read_u32(source, 4) == MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 {
     return decode_mistral_bootstrap_source_v7(source, length)
+  }
+  if read_u32(source, 4) == QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 {
+    return decode_qwen3_bf16_paged_bootstrap_source_v12(source, length)
   }
   if read_u32(source, 4) == FP8_BOOTSTRAP_SOURCE_VERSION_V9 {
     return decode_fp8_reusable_bootstrap_source_v9(source, length)

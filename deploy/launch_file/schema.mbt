@@ -101,6 +101,17 @@ fn parse_launch(
       }
       DenseLlamaFp8ReusablePagedAotApprovedV9
     }
+    "lunaflux.launch.v5" => {
+      validate_fields(root, Root, [
+        "schema", "runtime_recipe", "model_root", "kernel_root", "policy_root", "runtime_descriptor",
+        "instance_policy", "worker_executable", "luna_approval",
+      ])
+      if require_string(root, "runtime_recipe", Root) !=
+        "dense_qwen3_bf16_paged_aot_v12" {
+        raise InvalidField(Root)
+      }
+      DenseQwen3Bf16PagedAotV12
+    }
     _ => raise InvalidField(Root)
   }
   let model_root = require_string(root, "model_root", Root)
@@ -132,6 +143,9 @@ fn parse_launch(
     raise InvalidField(LunaApproval)
   }
   if runtime_recipe == DenseMistralBf16PagedAotV7 && luna_approval is Some(_) {
+    raise InvalidField(LunaApproval)
+  }
+  if runtime_recipe == DenseQwen3Bf16PagedAotV12 && luna_approval is Some(_) {
     raise InvalidField(LunaApproval)
   }
   if runtime_recipe == DenseLlamaTensorParallelPagedAotApprovedV8 &&

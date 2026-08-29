@@ -90,6 +90,26 @@ pub fn load_mistral_v1_materialized(
 }
 
 ///|
+/// Dense-Qwen3 BF16 counterpart of `load_materialized`.
+pub fn load_qwen3_v1_materialized(
+  model : @approved_fs.ApprovedRootMaterializationView,
+  kernel : @approved_fs.ApprovedRootMaterializationView,
+  descriptor_locator : @approved_fs.ApprovedRelativeLocator,
+  expected_digest : RuntimeDescriptorDigest,
+  limits : RuntimeDescriptorFileLimits,
+) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
+  load_qwen3_bound(
+    model.source_root(),
+    kernel.source_root(),
+    model.target_label(),
+    kernel.target_label(),
+    descriptor_locator,
+    expected_digest,
+    limits,
+  )
+}
+
+///|
 /// Production tensor-parallel counterpart of `load_materialized`.
 pub fn load_tensor_parallel_materialized(
   model : @approved_fs.ApprovedRootMaterializationView,

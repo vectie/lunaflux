@@ -331,6 +331,7 @@ pub fn admit_bootstrap_source(
     i8_model_source: None,
     i8_execution: None,
     mistral_model_source: None,
+    qwen3_model_source: None,
     fp8_model_source: None,
     fp8_execution: None,
   }

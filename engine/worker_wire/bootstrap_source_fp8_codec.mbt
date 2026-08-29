@@ -127,6 +127,7 @@ pub fn admit_fp8_reusable_bootstrap_source_v9(
     i8_model_source: None,
     i8_execution: None,
     mistral_model_source: None,
+    qwen3_model_source: None,
     fp8_model_source: Some(model),
     fp8_execution: Some(execution),
   }

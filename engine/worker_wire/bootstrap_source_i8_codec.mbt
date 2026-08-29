@@ -169,6 +169,7 @@ pub fn admit_i8_bootstrap_source_v6(
     i8_model_source: Some(model),
     i8_execution: Some(execution),
     mistral_model_source: None,
+    qwen3_model_source: None,
     fp8_model_source: None,
     fp8_execution: None,
   }

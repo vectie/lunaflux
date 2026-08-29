@@ -37,6 +37,10 @@ pub fn load_mistral_v1(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, Str
 
 pub fn load_mistral_v1_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
 
+pub fn load_qwen3_v1(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_qwen3_v1_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
 pub fn load_tensor_parallel(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval, @luna_capability_manifest.LunaStartupExternalApprovalHandoff) -> TensorParallelRuntimeDescriptorAdmission raise RuntimeDescriptorFileError
 
 pub fn load_tensor_parallel_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval) -> TensorParallelRuntimeDescriptorAdmission raise RuntimeDescriptorFileError
