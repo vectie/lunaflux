@@ -9,6 +9,12 @@ pub struct SamplerScratch {
   priv weights : FixedArray[Double]
   priv mut candidate_count : Int
   priv mut total_weight : Double
+  // Private structural counters make asymptotic regressions testable without
+  // adding production branches or public diagnostics.
+  priv mut order_candidate_visits : Int
+  priv mut order_heap_width : Int
+  priv mut order_sorted_width : Int
+  priv mut order_replacement_sifts : Int
 }
 
 ///|
@@ -24,6 +30,10 @@ pub fn SamplerScratch::new(
     weights: FixedArray::make(capacity, 0.0),
     candidate_count: 0,
     total_weight: 0.0,
+    order_candidate_visits: 0,
+    order_heap_width: 0,
+    order_sorted_width: 0,
+    order_replacement_sifts: 0,
   }
 }
 

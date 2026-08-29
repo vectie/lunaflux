@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/mistral"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/mistral_spec",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn build(@mistral_spec.MistralModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged(@mistral_spec.MistralModelMetadata, batch? : MistralPagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+// Errors
+
+// Types and methods
+pub struct MistralPagedBatchEnvelope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MistralPagedBatchEnvelope::max_batch_rows(Self) -> Int
+pub fn MistralPagedBatchEnvelope::new(Int) -> Self raise @plan.PlanValidationError
+pub fn MistralPagedBatchEnvelope::single_row() -> Self
+
+// Type aliases
+
+// Traits

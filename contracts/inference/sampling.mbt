@@ -18,6 +18,76 @@ pub struct SamplingParameters {
 } derive(Debug, Eq)
 
 ///|
+/// Allocation-free, already-validated sampling scalars for bounded ingress
+/// handoff. Only the request assembly boundary materializes the public object.
+#valtype
+pub struct LunaValidatedSampling {
+  priv mode : SamplingMode
+  priv temperature : Double
+  priv has_top_k : Bool
+  priv top_k : Int
+  priv has_top_p : Bool
+  priv top_p : Double
+}
+
+///|
+pub fn LunaValidatedSampling::greedy() -> Self {
+  {
+    mode: Greedy,
+    temperature: 1.0,
+    has_top_k: false,
+    top_k: 0,
+    has_top_p: false,
+    top_p: 0.0,
+  }
+}
+
+///|
+pub fn LunaValidatedSampling::sample(
+  temperature~ : Double,
+  has_top_k~ : Bool,
+  top_k~ : Int,
+  has_top_p~ : Bool,
+  top_p~ : Double,
+  limits : InferenceLimits,
+) -> Self raise InferenceContractError {
+  if temperature.is_nan() || temperature.is_inf() {
+    raise invalid(Temperature, NonFinite, 0)
+  }
+  if temperature <= 0.0 || temperature > limits.max_temperature() {
+    raise invalid(Temperature, OutOfRange, 0)
+  }
+  if has_top_k && (top_k <= 0 || top_k > limits.max_top_k()) {
+    raise invalid(TopK, OutOfRange, 0)
+  }
+  if has_top_p && (top_p.is_nan() || top_p.is_inf()) {
+    raise invalid(TopP, NonFinite, 0)
+  }
+  if has_top_p && (top_p <= 0.0 || top_p > 1.0) {
+    raise invalid(TopP, OutOfRange, 0)
+  }
+  { mode: Sample, temperature, has_top_k, top_k, has_top_p, top_p }
+}
+
+///|
+pub fn LunaValidatedSampling::materialize(self : Self) -> SamplingParameters {
+  {
+    mode: self.mode,
+    temperature: self.temperature,
+    top_k: if self.has_top_k {
+      Some(self.top_k)
+    } else {
+      None
+    },
+    top_p: if self.has_top_p {
+      Some(self.top_p)
+    } else {
+      None
+    },
+  }
+}
+
+///|
 pub fn SamplingParameters::greedy() -> SamplingParameters {
   { mode: Greedy, temperature: 1.0, top_k: None, top_p: None }
 }

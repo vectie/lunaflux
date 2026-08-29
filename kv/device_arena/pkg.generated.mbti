@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
 
@@ -29,6 +30,7 @@ pub struct DeviceKvArena {
 }
 pub fn DeviceKvArena::arena_bytes(Self) -> Int64
 pub fn DeviceKvArena::close(Self) -> Unit raise DeviceKvArenaError
+pub fn DeviceKvArena::component_argument(Self, @device.Context, @plan.KvLayerId, @device_layout.DeviceKvComponent) -> @device.KernelArgument raise DeviceKvArenaError
 pub fn DeviceKvArena::context_ordinal(Self) -> Int
 pub fn DeviceKvArena::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceKvArena::is_closed(Self) -> Bool

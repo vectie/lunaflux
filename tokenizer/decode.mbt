@@ -12,23 +12,41 @@ pub fn TokenizerSpec::decode_bytes(
     )
   }
   let mut total = 0
+  let mut strip_initial = self.decoder_strip_initial_space
   for token_id in token_ids {
     match self.tokens_by_id.get(token_id) {
       None => raise UnknownTokenId(token_id~)
       Some(token) =>
         if !(token.kind is Special && special_policy is Skip) {
-          if token.piece.length() > self.limits.max_decoded_bytes - total {
+          let mut count = token.decoded_piece.length()
+          if strip_initial && count > 0 {
+            strip_initial = false
+            if token.decoded_piece[0] == b' ' {
+              count -= 1
+            }
+          }
+          if count > self.limits.max_decoded_bytes - total {
             raise DecodedOutputTooLong(maximum=self.limits.max_decoded_bytes)
           }
-          total += token.piece.length()
+          total += count
         }
     }
   }
   let output : Array[Byte] = Array::new(capacity=total)
+  strip_initial = self.decoder_strip_initial_space
   for token_id in token_ids {
     let token = self.tokens_by_id[token_id]
     if !(token.kind is Special && special_policy is Skip) {
-      output.push_iter(token.piece.iter())
+      let mut offset = 0
+      if strip_initial && !token.decoded_piece.is_empty() {
+        strip_initial = false
+        if token.decoded_piece[0] == b' ' {
+          offset = 1
+        }
+      }
+      for index in offset..<token.decoded_piece.length() {
+        output.push(token.decoded_piece[index])
+      }
     }
   }
   Bytes::from_array(output)
@@ -63,7 +81,7 @@ pub fn TokenizerSpec::decoded_piece_bytes(
   if token.kind is Special && special_policy is Skip {
     0
   } else {
-    token.piece.length()
+    token.decoded_piece.length()
   }
 }
 
@@ -88,14 +106,14 @@ pub fn TokenizerSpec::copy_decoded_piece(
   let count = if token.kind is Special && special_policy is Skip {
     0
   } else {
-    token.piece.length()
+    token.decoded_piece.length()
   }
   let available = destination.length() - destination_offset
   if count > available {
     raise DecodeDestinationTooSmall(required=count, available~)
   }
   for index in 0..<count {
-    destination[destination_offset + index] = token.piece[index]
+    destination[destination_offset + index] = token.decoded_piece[index]
   }
   count
 }
@@ -119,13 +137,13 @@ pub fn TokenizerSpec::copy_decoded_piece_status(
   let count = if token.kind is Special && special_policy is Skip {
     0
   } else {
-    token.piece.length()
+    token.decoded_piece.length()
   }
   if count > destination.length() - destination_offset {
     return DecodePieceStatus(3, 0)
   }
   for index in 0..<count {
-    destination[destination_offset + index] = token.piece[index]
+    destination[destination_offset + index] = token.decoded_piece[index]
   }
   DecodePieceStatus(0, count)
 }

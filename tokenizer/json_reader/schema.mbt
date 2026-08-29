@@ -7,6 +7,12 @@ priv struct AddedSpecial {
 }
 
 ///|
+priv enum TokenizerJsonProfile {
+  ByteLevelJson
+  SentencePieceJson(bos_token_id~ : Int)
+}
+
+///|
 fn parse_added_tokens(
   root : Map[String, Json],
   limits : @tokenizer.TokenizerLimits,
@@ -76,7 +82,7 @@ fn parse_added_tokens(
 ///|
 fn validate_root_semantics(
   root : Map[String, Json],
-) -> Unit raise TokenizerJsonError {
+) -> TokenizerJsonProfile raise TokenizerJsonError {
   validate_fields(root, Root, [
     "version", "truncation", "padding", "added_tokens", "normalizer", "pre_tokenizer",
     "post_processor", "decoder", "model",
@@ -87,20 +93,19 @@ fn validate_root_semantics(
   }
   require_null(root, "truncation", Root, Truncation, TruncationBehavior)
   require_null(root, "padding", Root, Padding, PaddingBehavior)
-  require_null(
-    root,
-    "normalizer",
-    Normalizer,
-    NormalizerField,
-    NormalizationBehavior,
-  )
-  validate_pre_tokenizer(
-    require_field(root, "pre_tokenizer", Root, PreTokenizerField),
-  )
-  validate_post_processor(
-    require_field(root, "post_processor", Root, PostProcessorField),
-  )
-  validate_decoder(require_field(root, "decoder", Root, DecoderField))
+  match require_field(root, "normalizer", Root, NormalizerField) {
+    Null => {
+      validate_pre_tokenizer(
+        require_field(root, "pre_tokenizer", Root, PreTokenizerField),
+      )
+      validate_post_processor(
+        require_field(root, "post_processor", Root, PostProcessorField),
+      )
+      validate_decoder(require_field(root, "decoder", Root, DecoderField))
+      ByteLevelJson
+    }
+    _ => validate_sentencepiece_pipeline(root)
+  }
 }
 
 ///|

@@ -1,78 +1,4 @@
 ///|
-fn preferred_before(
-  logits : ArrayView[Double],
-  left_token : Int,
-  right_token : Int,
-) -> Bool {
-  let left = logits[left_token]
-  let right = logits[right_token]
-  left > right || (left == right && left_token < right_token)
-}
-
-///|
-fn worse_than(
-  logits : ArrayView[Double],
-  left_token : Int,
-  right_token : Int,
-) -> Bool {
-  preferred_before(logits, right_token, left_token)
-}
-
-///|
-fn sift_worst_down(
-  token_ids : FixedArray[Int],
-  logits : ArrayView[Double],
-  start : Int,
-  end : Int,
-) -> Unit {
-  let mut root = start
-  while root * 2 + 1 <= end {
-    let child = root * 2 + 1
-    let mut selected = child
-    if child + 1 <= end &&
-      worse_than(logits, token_ids[child + 1], token_ids[child]) {
-      selected = child + 1
-    }
-    if !worse_than(logits, token_ids[selected], token_ids[root]) {
-      break
-    }
-    let swap = token_ids[root]
-    token_ids[root] = token_ids[selected]
-    token_ids[selected] = swap
-    root = selected
-  }
-}
-
-///|
-/// In-place heap sort with a total order: greatest logit first, lowest token ID
-/// first on ties. It uses no temporary collection or recursive call stack.
-fn sort_candidates(
-  token_ids : FixedArray[Int],
-  logits : ArrayView[Double],
-  count : Int,
-) -> Unit {
-  if count <= 1 {
-    return
-  }
-  let mut start = (count - 2) / 2
-  for ;; {
-    sift_worst_down(token_ids, logits, start, count - 1)
-    if start == 0 {
-      break
-    }
-    start = start - 1
-  }
-  let mut end = count - 1
-  while end > 0 {
-    let swap = token_ids[end]
-    token_ids[end] = token_ids[0]
-    token_ids[0] = swap
-    end = end - 1
-    sift_worst_down(token_ids, logits, 0, end)
-  }
-}
-
-///|
 /// Prepares the exact distribution consumed by `stochastic_sample`.
 ///
 /// Processing order is: validate every logit; order by descending logit and
@@ -149,11 +75,14 @@ fn prepare_distribution_scalars(
     }
   }
   let token_count = logits.length()
-  for token_id in 0..<token_count {
-    scratch.token_ids[token_id] = token_id
-  }
-  sort_candidates(scratch.token_ids, logits, token_count)
   let top_k_count = if has_top_k { top_k.min(token_count) } else { token_count }
+  prepare_candidate_order(
+    logits,
+    token_count,
+    top_k_count,
+    has_restrictive_top_k=has_top_k && top_k_count < token_count,
+    scratch,
+  )
   let maximum = logits[scratch.token_ids[0]]
   let mut total = 0.0
   for index in 0..<top_k_count {

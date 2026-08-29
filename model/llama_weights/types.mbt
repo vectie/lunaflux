@@ -2,6 +2,8 @@
 /// Stable reasons a validated safetensors manifest cannot bind to a dense
 /// Llama plan.
 pub(all) suberror LlamaWeightsError {
+  ModelContentMismatch
+  ModelPlanMismatch
   TensorCountMismatch(expected~ : Int, actual~ : Int)
   MissingTensor(reference~ : Int)
   ShapeRankMismatch(reference~ : Int)
@@ -12,16 +14,16 @@ pub(all) suberror LlamaWeightsError {
 /// One immutable mapping from a semantic model-plan tensor reference to
 /// validated safetensors metadata.
 pub struct TensorBinding {
-  reference : @plan.TensorRef
-  tensor : @safetensors.TensorMetadata
+  priv reference : @plan.TensorRef
+  priv tensor : @safetensors.TensorMetadata
 } derive(Debug, Eq)
 
 ///|
 /// Complete ordered weight mapping for one immutable dense Llama model.
 pub struct LlamaWeightBindings {
-  identity : @spec.ModelIdentity
-  bindings : ReadOnlyArray[TensorBinding]
-  materialized_bytes : Int64
+  priv identity : @spec.ModelIdentity
+  priv bindings : ReadOnlyArray[TensorBinding]
+  priv materialized_bytes : Int64
 } derive(Debug, Eq)
 
 ///|

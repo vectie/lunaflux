@@ -52,8 +52,25 @@ fn append_binding(
 /// validation before any device allocation is permitted.
 pub fn bind(
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   tensors : @safetensors.SafetensorsMetadata,
 ) -> LlamaWeightBindings raise LlamaWeightsError {
+  if model.content_digest() != model_plan.identity().content() {
+    raise ModelContentMismatch
+  }
+  let expected_plan = match model_plan.kv_execution() {
+    StatelessFullContext => try! @llama.build(model)
+    PagedKeyValue => {
+      let batch = try! @llama.LlamaPagedBatchEnvelope::new(
+        model_plan.shape_constraints().max_batch_rows(),
+      )
+      try! @llama.build_paged(model, batch~)
+    }
+  }
+  if model_plan != expected_plan ||
+    model_plan.numeric_binding().schema() != model.spec().numeric_schema() {
+    raise ModelPlanMismatch
+  }
   let spec = model.spec()
   let expected_count = checked_tensor_count(spec.layer_count())
   if tensors.tensor_count() != expected_count {
@@ -106,7 +123,7 @@ pub fn bind(
   append_binding(bindings, tensors, "model.norm.weight", [hidden])
   append_binding(bindings, tensors, "lm_head.weight", [vocabulary, hidden])
   {
-    identity: model.identity(),
+    identity: model_plan.identity(),
     bindings: ReadOnlyArray::from_array(bindings),
     materialized_bytes: tensors.materialized_tensor_bytes(),
   }

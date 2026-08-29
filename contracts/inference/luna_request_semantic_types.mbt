@@ -304,6 +304,16 @@ pub struct LunaRequestStopTokenView {
 }
 
 ///|
+/// Cache-only projection of one exact semantic lease. It exposes the validated
+/// permission and scalar scope bytes, but no stop data, inference limits,
+/// release authority, epoch, or storage representation.
+#valtype
+pub struct LunaRequestPrefixView {
+  priv storage : LunaRequestSemanticStorage
+  priv epoch : UInt64
+}
+
+///|
 /// Startup-preallocated mutable owner cell for one transferred retention.
 /// It avoids both a copyable retention alias and Option boxing on admission.
 pub struct LunaRequestStopTokenRetentionSlot {

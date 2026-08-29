@@ -1,5 +1,5 @@
 ///|
-test "digest identities are constructed through checked public authority" {
+test "digest identities are constructed as checked public claim vocabulary" {
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )

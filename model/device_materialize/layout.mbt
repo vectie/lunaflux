@@ -85,6 +85,7 @@ pub fn plan_layout(
   }
   {
     identity: bindings.identity(),
+    numeric_schema_digest: None,
     alignment_bytes,
     arena_bytes: end,
     materialized_bytes: materialized,

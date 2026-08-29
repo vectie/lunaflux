@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn new(tokens_per_page~ : Int, total_page_count~ : Int, block_table_pages_per_request~ : Int, prefix_enabled~ : Bool, max_prefix_entries~ : Int, max_prefix_nodes~ : Int, max_prefix_tokens_per_entry~ : Int, max_prefix_pages~ : Int, max_active_references_per_page~ : Int, max_cached_references_per_page~ : Int, layout_version~ : Int) -> CacheConfig raise CacheConfigError
+pub fn new(tokens_per_page~ : Int, total_page_count~ : Int, block_table_pages_per_request~ : Int, prefix_enabled~ : Bool, max_prefix_entries~ : Int, max_prefix_nodes~ : Int, max_prefix_tokens_per_entry~ : Int, max_prefix_pages~ : Int, max_active_references_per_page~ : Int, max_cached_references_per_page~ : Int, layout_version~ : Int, max_prefix_scope_bytes? : Int) -> CacheConfig raise CacheConfigError
 
 // Errors
 pub(all) suberror CacheConfigError {
@@ -23,6 +23,7 @@ pub struct CacheConfig {
   max_prefix_nodes : Int
   max_prefix_tokens_per_entry : Int
   max_prefix_pages : Int
+  max_prefix_scope_bytes : Int
   max_active_references_per_page : Int
   max_cached_references_per_page : Int
   layout_version : Int
@@ -34,6 +35,7 @@ pub fn CacheConfig::max_cached_references_per_page(Self) -> Int
 pub fn CacheConfig::max_prefix_entries(Self) -> Int
 pub fn CacheConfig::max_prefix_nodes(Self) -> Int
 pub fn CacheConfig::max_prefix_pages(Self) -> Int
+pub fn CacheConfig::max_prefix_scope_bytes(Self) -> Int
 pub fn CacheConfig::max_prefix_tokens_per_entry(Self) -> Int
 pub fn CacheConfig::prefix_enabled(Self) -> Bool
 pub fn CacheConfig::tokens_per_page(Self) -> Int
@@ -47,6 +49,7 @@ pub(all) enum CacheField {
   MaxPrefixNodes
   MaxPrefixTokensPerEntry
   MaxPrefixPages
+  MaxPrefixScopeBytes
   MaxActiveReferencesPerPage
   MaxCachedReferencesPerPage
   LayoutVersion

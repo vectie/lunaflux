@@ -9,6 +9,20 @@ pub(all) enum PlanIdentifierKind {
 } derive(Debug, Eq)
 
 ///|
+/// Startup construction envelope rejected before any plan-owned proportional
+/// storage is allocated.
+pub(all) enum ModelPlanLimitKind {
+  Operations
+  NumericTensors
+  TotalValueInputs
+  ValueInputsPerOperation
+  RuntimeInputsPerOperation
+  OutputsPerOperation
+  CanonicalBytes
+  IncoherentLimits
+} derive(Debug, Eq)
+
+///|
 /// Shape relationship rejected by model-plan validation.
 pub(all) enum PlanShapeRule {
   PositiveDimension
@@ -39,6 +53,14 @@ pub(all) enum PlanGraphRule {
   KvLayerOrder
   KvExecutionContract
   KvExecutionModeMismatch
+  MissingTensor
+  TensorRoleMismatch
+  NumericTensorType
+  NumericTensorShape
+  UnusedParameterTensor
+  UnreferencedNumericMetadata
+  NumericOperationBinding
+  NumericActivationType
 } derive(Debug, Eq)
 
 ///|
@@ -49,4 +71,7 @@ pub(all) suberror PlanValidationError {
   InvalidGraph(PlanGraphRule)
   InvalidWorkspaceBound
   OperationWorkspaceExceedsPlan
+  InvalidLimit(ModelPlanLimitKind)
+  LimitExceeded(ModelPlanLimitKind)
+  CanonicalEncodingMismatch
 } derive(Debug, Eq)

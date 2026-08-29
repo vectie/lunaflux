@@ -1,0 +1,17 @@
+import {
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/numeric_contract",
+} for "test"
+
+supported_targets = "native"

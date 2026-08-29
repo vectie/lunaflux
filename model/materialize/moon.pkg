@@ -6,4 +6,8 @@ import {
   "moonbitlang/x/crypto",
 }
 
+import {
+  "vectie/lunaflux/model/llama",
+} for "test"
+
 supported_targets = "native"

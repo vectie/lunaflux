@@ -1,16 +1,20 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/model/llama_weights",
-  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/safetensors_reader",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
   "vectie/lunaflux/runtime/approved_fs",
   "moonbitlang/x/crypto",
 }
 
 import {
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/safetensors",
 } for "test"
 
@@ -19,6 +23,7 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/llama",
   "vectie/lunaflux/model/safetensors",
 } for "wbtest"
 

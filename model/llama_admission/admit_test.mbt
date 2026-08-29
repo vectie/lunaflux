@@ -95,10 +95,7 @@ test "selected model admission validates all pre-allocation stages" {
   assert_eq(admitted.safetensors().tensor_count(), 12)
   assert_eq(admitted.bindings().length(), 12)
   assert_eq(admitted.plan().operations().length(), 12)
-  assert_eq(
-    admitted.metadata().identity().plan(),
-    admitted.metadata().spec().canonical_plan_digest(),
-  )
+  assert_eq(admitted.metadata().content_digest(), content_digest())
   assert_eq(admitted.plan().identity(), admitted.bindings().identity())
   assert_eq(
     @llama_admission.complete(admitted.metadata(), admitted.safetensors()),

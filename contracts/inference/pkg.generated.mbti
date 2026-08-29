@@ -182,6 +182,15 @@ pub(all) enum Input {
 pub fn Input::from_token_ids(ArrayView[Int], InferenceLimits) -> Self raise InferenceContractError
 pub fn Input::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
 
+pub struct LunaRequestPrefixView {
+  // private fields
+}
+pub fn LunaRequestPrefixView::binds_stop_tokens(Self, LunaRequestStopTokenView) -> Bool
+pub fn LunaRequestPrefixView::cache_permission(Self) -> CachePermission raise InferenceContractError
+pub fn LunaRequestPrefixView::is_live(Self) -> Bool
+pub fn LunaRequestPrefixView::scope_byte_at(Self, Int) -> Byte raise InferenceContractError
+pub fn LunaRequestPrefixView::scope_length(Self) -> Int raise InferenceContractError
+
 pub struct LunaRequestSemanticFailure {
   // private fields
 }
@@ -192,6 +201,7 @@ pub fn LunaRequestSemanticFailure::issue(Self) -> ContractIssue
 pub struct LunaRequestSemanticLease {
   // private fields
 }
+pub fn LunaRequestSemanticLease::prefix_view(Self) -> LunaRequestPrefixView raise InferenceContractError
 pub fn LunaRequestSemanticLease::release(Self) -> Unit raise InferenceContractError
 pub fn LunaRequestSemanticLease::stop_token_view(Self) -> LunaRequestStopTokenView raise InferenceContractError
 pub fn LunaRequestSemanticLease::view(Self) -> LunaRequestSemanticView raise InferenceContractError
@@ -282,6 +292,57 @@ pub fn LunaRequestStopTokenView::is_live(Self) -> Bool
 pub fn LunaRequestStopTokenView::is_stop_token(Self, Int) -> LunaRequestSemanticStopTokenStatus
 pub fn LunaRequestStopTokenView::retain_into(Self, LunaRequestStopTokenRetentionSlot) -> Unit raise InferenceContractError
 
+pub struct LunaTextRequestHandoffClaim {
+  // private fields
+}
+pub fn LunaTextRequestHandoffClaim::prompt_byte_at(Self, Int) -> Byte raise InferenceContractError
+pub fn LunaTextRequestHandoffClaim::prompt_length(Self) -> Int raise InferenceContractError
+pub fn LunaTextRequestHandoffClaim::release(Self) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffClaim::take_semantics(Self) -> LunaRequestSemanticLease raise InferenceContractError
+
+pub struct LunaTextRequestHandoffLease {
+  // private fields
+}
+pub fn LunaTextRequestHandoffLease::deadline(Self) -> DeadlineBudget raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::effective_limits(Self) -> EffectiveLimits raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::inference_limits(Self) -> InferenceLimits raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::model_identity(Self) -> @spec.ModelIdentity raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::prompt_byte_at(Self, Int) -> Byte raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::prompt_length(Self) -> Int raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::release(Self) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::request_id(Self) -> RequestId raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::sampling_seed(Self) -> SamplingSeed raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::semantic_view(Self) -> LunaRequestSemanticView raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::stream_preference(Self) -> StreamPreference raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::take_claim(Self) -> LunaTextRequestHandoffClaim raise InferenceContractError
+pub fn LunaTextRequestHandoffLease::validated_sampling(Self) -> LunaValidatedSampling raise InferenceContractError
+
+pub struct LunaTextRequestHandoffStorage {
+  // private fields
+}
+pub fn LunaTextRequestHandoffStorage::begin(Self, prompt_byte_limit~ : Int, stop_token_count~ : Int, stop_string_count~ : Int, request_id~ : RequestId, effective~ : EffectiveLimits, sampling~ : LunaValidatedSampling, sampling_seed~ : SamplingSeed, stream_preference~ : StreamPreference, deadline~ : DeadlineBudget) -> LunaTextRequestHandoffWrite raise InferenceContractError
+pub fn LunaTextRequestHandoffStorage::new(InferenceLimits, @spec.ModelIdentity, CacheScope, LunaRequestSemanticStepBudget) -> Self raise InferenceContractError
+pub fn LunaTextRequestHandoffStorage::required_byte_cells(InferenceLimits) -> UInt64 raise InferenceContractError
+pub fn LunaTextRequestHandoffStorage::required_int_cells(InferenceLimits) -> UInt64 raise InferenceContractError
+pub fn LunaTextRequestHandoffStorage::required_reference_cells() -> UInt64
+
+pub struct LunaTextRequestHandoffWork {
+  // private fields
+}
+pub fn LunaTextRequestHandoffWork::abort(Self) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffWork::progress(Self) -> LunaRequestSemanticProgress raise InferenceContractError
+pub fn LunaTextRequestHandoffWork::take_lease(Self) -> LunaTextRequestHandoffLease raise InferenceContractError
+
+pub struct LunaTextRequestHandoffWrite {
+  // private fields
+}
+pub fn LunaTextRequestHandoffWrite::abort(Self) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffWrite::finish(Self) -> LunaTextRequestHandoffWork raise InferenceContractError
+pub fn LunaTextRequestHandoffWrite::push_prompt_byte(Self, Byte) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffWrite::push_stop_string_byte(Self, Byte) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffWrite::push_stop_string_length(Self, Int) -> Unit raise InferenceContractError
+pub fn LunaTextRequestHandoffWrite::push_stop_token(Self, Int) -> Unit raise InferenceContractError
+
 pub struct LunaTokenBufferBoundStatus {
   // private fields
 }
@@ -315,6 +376,13 @@ pub fn LunaTokenBufferWrite::abort(Self) -> Unit raise InferenceContractError
 pub fn LunaTokenBufferWrite::push(Self, Int) -> Unit raise InferenceContractError
 pub fn LunaTokenBufferWrite::seal(Self) -> LunaTokenBufferLease raise InferenceContractError
 pub fn LunaTokenBufferWrite::written_count(Self) -> Int raise InferenceContractError
+
+pub struct LunaValidatedSampling {
+  // private fields
+}
+pub fn LunaValidatedSampling::greedy() -> Self
+pub fn LunaValidatedSampling::materialize(Self) -> SamplingParameters
+pub fn LunaValidatedSampling::sample(temperature~ : Double, has_top_k~ : Bool, top_k~ : Int, has_top_p~ : Bool, top_p~ : Double, InferenceLimits) -> Self raise InferenceContractError
 
 pub struct ProtocolVersion {
   // private fields

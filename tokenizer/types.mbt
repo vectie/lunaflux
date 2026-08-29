@@ -3,14 +3,17 @@
 /// only through an explicit special-token policy.
 pub(all) enum TokenKind {
   Normal
+  /// One exact raw byte emitted only when the SentencePiece BPE model cannot
+  /// represent an input Unicode scalar directly.
+  ByteFallback
   Special
 } derive(Debug, Eq)
 
 ///|
 /// One immutable input entry used to construct a tokenizer specification.
 ///
-/// `piece` is the exact byte sequence represented by `token_id`. Normal
-/// entries are BPE symbols; special entries are matched literally.
+/// `piece` is the BPE model piece for `Normal`, the one decoded byte for
+/// `ByteFallback`, and the literal match bytes for `Special`.
 pub(all) struct VocabularyEntry {
   token_id : Int
   piece : Bytes
@@ -111,7 +114,11 @@ pub(all) suberror TokenizerError {
   InvalidDecodeDestination
   DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
+  InvalidUtf8Input(byte_offset~ : Int)
   InvalidUtf16Input(code_unit_offset~ : Int)
+  InvalidSentencePieceToken(entry_index~ : Int)
+  InvalidSentencePieceUnknownToken(token_id~ : Int)
+  InvalidSentencePieceBosToken(token_id~ : Int)
   LunaInvalidStepBudget
   LunaInvalidWorkerCapacity
   LunaTokenizerWorkerBusy

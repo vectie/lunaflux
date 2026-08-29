@@ -8,6 +8,7 @@ fn cache(
   max_prefix_nodes? : Int = 4096,
   max_prefix_tokens_per_entry? : Int = 4096,
   max_prefix_pages? : Int = 1024,
+  max_prefix_scope_bytes? : Int = 256,
   max_active_references_per_page? : Int = 1024,
   max_cached_references_per_page? : Int = 1024,
   layout_version? : Int = 1,
@@ -21,6 +22,7 @@ fn cache(
     max_prefix_nodes~,
     max_prefix_tokens_per_entry~,
     max_prefix_pages~,
+    max_prefix_scope_bytes~,
     max_active_references_per_page~,
     max_cached_references_per_page~,
     layout_version~,
@@ -61,6 +63,7 @@ test "cache preserves exact values and inclusive minima" {
   assert_eq(config.max_prefix_nodes(), 1)
   assert_eq(config.max_prefix_tokens_per_entry(), 1)
   assert_eq(config.max_prefix_pages(), 1)
+  assert_eq(config.max_prefix_scope_bytes(), 256)
   assert_eq(config.max_active_references_per_page(), 1)
   assert_eq(config.max_cached_references_per_page(), 1)
   assert_eq(config.layout_version(), 1)
@@ -76,6 +79,7 @@ test "cache accepts every inclusive hard ceiling" {
     max_prefix_nodes=1_048_576,
     max_prefix_tokens_per_entry=1_048_576,
     max_prefix_pages=1_048_576,
+    max_prefix_scope_bytes=1_048_576,
     max_active_references_per_page=1_048_576,
     max_cached_references_per_page=1_048_576,
     layout_version=1_000_000,
@@ -87,6 +91,7 @@ test "cache accepts every inclusive hard ceiling" {
   assert_eq(config.max_prefix_nodes(), 1_048_576)
   assert_eq(config.max_prefix_tokens_per_entry(), 1_048_576)
   assert_eq(config.max_prefix_pages(), 1_048_576)
+  assert_eq(config.max_prefix_scope_bytes(), 1_048_576)
   assert_eq(config.max_active_references_per_page(), 1_048_576)
   assert_eq(config.max_cached_references_per_page(), 1_048_576)
   assert_eq(config.layout_version(), 1_000_000)
@@ -100,12 +105,14 @@ test "cache accepts an explicitly disabled zero-capacity prefix index" {
     max_prefix_nodes=0,
     max_prefix_tokens_per_entry=0,
     max_prefix_pages=0,
+    max_prefix_scope_bytes=0,
   )
   assert_false(config.prefix_enabled())
   assert_eq(config.max_prefix_entries(), 0)
   assert_eq(config.max_prefix_nodes(), 0)
   assert_eq(config.max_prefix_tokens_per_entry(), 0)
   assert_eq(config.max_prefix_pages(), 0)
+  assert_eq(config.max_prefix_scope_bytes(), 0)
 }
 
 ///|
@@ -170,6 +177,10 @@ test "cache requires every enabled prefix capacity" {
     () => cache(max_prefix_pages=0),
     Invalid(field=MaxPrefixPages, issue=RequiredWhenPrefixEnabled),
   )
+  expect_cache_error(
+    () => cache(max_prefix_scope_bytes=0),
+    Invalid(field=MaxPrefixScopeBytes, issue=RequiredWhenPrefixEnabled),
+  )
 }
 
 ///|
@@ -201,6 +212,10 @@ test "cache rejects every hard-ceiling breach" {
   expect_cache_error(
     () => cache(max_prefix_pages=1_048_577),
     Invalid(field=MaxPrefixPages, issue=AboveMaximum),
+  )
+  expect_cache_error(
+    () => cache(max_prefix_scope_bytes=1_048_577),
+    Invalid(field=MaxPrefixScopeBytes, issue=AboveMaximum),
   )
   expect_cache_error(
     () => cache(max_active_references_per_page=1_048_577),
@@ -287,5 +302,18 @@ test "cache rejects any disabled prefix capacity" {
       )
     },
     Invalid(field=MaxPrefixPages, issue=MustBeZeroWhenPrefixDisabled),
+  )
+  expect_cache_error(
+    () => {
+      cache(
+        prefix_enabled=false,
+        max_prefix_entries=0,
+        max_prefix_nodes=0,
+        max_prefix_tokens_per_entry=0,
+        max_prefix_pages=0,
+        max_prefix_scope_bytes=1,
+      )
+    },
+    Invalid(field=MaxPrefixScopeBytes, issue=MustBeZeroWhenPrefixDisabled),
   )
 }

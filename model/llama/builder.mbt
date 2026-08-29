@@ -22,6 +22,29 @@ fn activation(reference : @plan.ActivationRef) -> @plan.ValueRef {
 }
 
 ///|
+priv enum LlamaOperationWorkspacePolicy {
+  LegacyOperationWorkspaceV1
+  Fp8DynamicActivationWorkspaceV2
+}
+
+///|
+fn llama_operation_workspace_bytes(
+  kind : @plan.OperationKind,
+  policy : LlamaOperationWorkspacePolicy,
+) -> Int64 {
+  match (policy, kind) {
+    (Fp8DynamicActivationWorkspaceV2, GatedMlp) => 8L
+    (
+      Fp8DynamicActivationWorkspaceV2,
+      QkvProjection
+      | OutputProjection
+      | LanguageModelHead,
+    ) => 4L
+    _ => 0L
+  }
+}
+
+///|
 fn append_operation(
   operations : Array[@plan.PlanOperation],
   kind : @plan.OperationKind,
@@ -29,8 +52,10 @@ fn append_operation(
   shape : @plan.OperationShape,
   capability : @plan.KernelCapabilityId,
   runtime_inputs : ArrayView[@plan.OperationRuntimeInput],
+  workspace_policy : LlamaOperationWorkspacePolicy,
 ) -> @plan.ActivationRef raise @plan.PlanValidationError {
   let output = @plan.ActivationRef::new(operations.length())
+  let workspace_bytes = llama_operation_workspace_bytes(kind, workspace_policy)
   let operation = if runtime_inputs.is_empty() {
     @plan.PlanOperation::new_stateless(
       id=@plan.OperationId::new(operations.length()),
@@ -39,7 +64,7 @@ fn append_operation(
       outputs=[output],
       shape~,
       required_capability=capability,
-      workspace_bytes=0L,
+      workspace_bytes~,
     )
   } else {
     @plan.PlanOperation::new_with_runtime_inputs(
@@ -49,7 +74,7 @@ fn append_operation(
       outputs=[output],
       shape~,
       required_capability=capability,
-      workspace_bytes=0L,
+      workspace_bytes~,
       runtime_inputs~,
     )
   }
@@ -87,32 +112,27 @@ fn append_layer_operation(
 }
 
 ///|
-/// Builds one immutable dense Llama v2 semantic plan.
+/// Builds one immutable dense Llama semantic plan.
 ///
 /// All model-family branching terminates in this package. The returned graph
 /// contains no model-family, device, vendor, allocation, or kernel-artifact
-/// switch. Its batch-row ceiling remains the Phase-1 execution envelope;
-/// runtime batching capacity must move to execution planning in a later slice.
+/// switch. Paged plans bind their exact admitted batch-row ceiling into both
+/// shape constraints and the self-authenticated plan identity.
 fn build_with_execution(
   metadata : @spec.LlamaModelMetadata,
   kv_execution : @plan.ModelKvExecution,
+  max_batch_rows : Int,
+  numeric_schema : @numeric_contract.ModelNumericSchema,
+  workspace_policy : LlamaOperationWorkspacePolicy,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let spec = metadata.spec()
-  let identity = match kv_execution {
-    StatelessFullContext => metadata.identity()
-    PagedKeyValue =>
-      try! @spec.ModelIdentity::new(
-        metadata.identity().content(),
-        spec.canonical_paged_plan_digest(),
-      )
-  }
   let hidden = spec.hidden_size()
   let intermediate = spec.intermediate_size()
   let query_heads = spec.attention_head_count()
   let kv_heads = spec.kv_head_count()
   let head_dimension = spec.head_dimension()
   let constraints = @plan.ShapeConstraints::new(
-    max_batch_rows=1,
+    max_batch_rows~,
     max_sequence_tokens=spec.context_length(),
     vocabulary_size=spec.vocabulary_size(),
     hidden_size=hidden,
@@ -154,6 +174,7 @@ fn build_with_execution(
     EmbeddingShape(vocabulary_size=spec.vocabulary_size(), width=hidden),
     @plan.KernelCapabilityId::embedding_lookup(),
     live_runtime,
+    workspace_policy,
   )
   next_tensor += 1
   for layer_index in 0..<spec.layer_count() {
@@ -166,6 +187,7 @@ fn build_with_execution(
       NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
       live_runtime,
+      workspace_policy,
     )
     next_tensor += 1
     let projected = append_operation(
@@ -180,6 +202,7 @@ fn build_with_execution(
       ProjectionShape(input_width=hidden, output_width=qkv_width),
       @plan.KernelCapabilityId::qkv_projection(),
       live_runtime,
+      workspace_policy,
     )
     next_tensor += 3
     let rotary_runtime = match kv_execution {
@@ -240,6 +263,7 @@ fn build_with_execution(
       ProjectionShape(input_width=hidden, output_width=hidden),
       @plan.KernelCapabilityId::dense_projection(),
       live_runtime,
+      workspace_policy,
     )
     next_tensor += 1
     let attention_residual = append_operation(
@@ -249,6 +273,7 @@ fn build_with_execution(
       ElementwiseShape(width=hidden),
       @plan.KernelCapabilityId::residual_add(),
       live_runtime,
+      workspace_policy,
     )
     let mlp_norm = append_operation(
       operations,
@@ -257,6 +282,7 @@ fn build_with_execution(
       NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
       @plan.KernelCapabilityId::rms_norm(),
       live_runtime,
+      workspace_policy,
     )
     next_tensor += 1
     let mlp_output = append_operation(
@@ -271,6 +297,7 @@ fn build_with_execution(
       GatedMlpShape(hidden_size=hidden, intermediate_size=intermediate),
       @plan.KernelCapabilityId::gated_mlp(),
       live_runtime,
+      workspace_policy,
     )
     next_tensor += 3
     hidden_state = append_operation(
@@ -280,6 +307,7 @@ fn build_with_execution(
       ElementwiseShape(width=hidden),
       @plan.KernelCapabilityId::residual_add(),
       live_runtime,
+      workspace_policy,
     )
   }
   let final_norm = append_operation(
@@ -289,6 +317,7 @@ fn build_with_execution(
     NormalizationShape(width=hidden, epsilon=spec.rms_norm_epsilon()),
     @plan.KernelCapabilityId::rms_norm(),
     live_runtime,
+    workspace_policy,
   )
   next_tensor += 1
   let logits = append_operation(
@@ -298,15 +327,18 @@ fn build_with_execution(
     ProjectionShape(input_width=hidden, output_width=spec.vocabulary_size()),
     @plan.KernelCapabilityId::dense_projection(),
     live_runtime,
+    workspace_policy,
   )
   @plan.ModelPlan::new_with_kv_execution(
-    identity~,
+    content_digest=metadata.content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=constraints,
     kv_cache_geometry~,
     workspace_bounds=workspace,
     operations~,
     final_output=logits,
     kv_execution~,
+    numeric_schema~,
   )
 }
 
@@ -317,7 +349,15 @@ fn build_with_execution(
 pub fn build(
   metadata : @spec.LlamaModelMetadata,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
-  build_with_execution(metadata, StatelessFullContext)
+  let spec = metadata.spec()
+  let numeric_schema = spec.numeric_schema()
+  build_with_execution(
+    metadata,
+    StatelessFullContext,
+    1,
+    numeric_schema,
+    LegacyOperationWorkspaceV1,
+  )
 }
 
 ///|
@@ -326,9 +366,20 @@ pub fn build(
 /// Every operation consumes `StepCounts`; rotary and attention additionally
 /// consume their exact positioned-query and page-table inputs. This constructs
 /// no device profile and proves no kernel support. Catalog and executor
-/// admission must reject the plan until they bind the complete graph.
+/// admission must reject the plan until they bind the complete graph. The
+/// optional envelope defaults to the canonical single-row compatibility plan;
+/// every larger envelope derives a distinct authenticated plan identity.
 pub fn build_paged(
   metadata : @spec.LlamaModelMetadata,
+  batch? : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
-  build_with_execution(metadata, PagedKeyValue)
+  let spec = metadata.spec()
+  let numeric_schema = spec.numeric_schema()
+  build_with_execution(
+    metadata,
+    PagedKeyValue,
+    batch.max_batch_rows(),
+    numeric_schema,
+    LegacyOperationWorkspaceV1,
+  )
 }

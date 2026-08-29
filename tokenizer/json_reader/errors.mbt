@@ -42,6 +42,13 @@ pub(all) enum JsonField {
   AddPrefixSpace
   TrimOffsets
   UseRegex
+  Pattern
+  Components
+  Template
+  TypeId
+  SpecialTokens
+  Start
+  Stop
 } derive(Debug, Eq)
 
 ///|

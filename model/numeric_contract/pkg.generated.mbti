@@ -1,0 +1,288 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/numeric_contract"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn load_operation_execution_contract(Bytes, OperationExecutionDigest) -> OperationExecutionContract raise NumericContractError
+
+pub fn load_tensor_storage_contract(Bytes, TensorStorageDigest) -> TensorStorageContract raise NumericContractError
+
+pub fn storage_byte_length(StorageDType, NumericShape) -> Int64 raise NumericContractError
+
+pub fn symmetric_i8_weight_only_v1_accepts_code(Int) -> Bool
+
+// Errors
+pub(all) suberror NumericContractError {
+  InvalidNumericContract(NumericContractRule)
+  TensorStorageDigestMismatch
+  OperationExecutionDigestMismatch
+  NumericSchemaLimitExceeded(NumericSchemaLimit)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AccumulatorDType {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn AccumulatorDType::f32() -> Self
+pub fn AccumulatorDType::i32() -> Self
+
+pub struct ActivationScalePolicy {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ActivationScalePolicy::absent_exact_v1() -> Self
+pub fn ActivationScalePolicy::dynamic_per_tensor_f32_v1() -> Self
+pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_bound_expf_f32_v2() -> Self
+pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1() -> Self
+pub fn ActivationScalePolicy::stage_at(Self, Int) -> ActivationScaleStage?
+pub fn ActivationScalePolicy::stage_count(Self) -> Int
+
+pub struct ActivationScaleStage {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ActivationScaleStage::external_operation_input_v1() -> Self
+pub fn ActivationScaleStage::post_silu_gate_up_product_v1() -> Self
+
+pub struct CodebookLayout {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn CodebookLayout::absent() -> Self
+pub fn CodebookLayout::contiguous_f32_values_v1() -> Self
+
+pub struct CodebookTensorOrdinal {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn CodebookTensorOrdinal::new(NumericTensorOrdinal) -> Self
+pub fn CodebookTensorOrdinal::tensor(Self) -> NumericTensorOrdinal
+
+pub struct ComputeDType {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ComputeDType::absent() -> Self
+pub fn ComputeDType::bfloat16() -> Self
+pub fn ComputeDType::f32() -> Self
+pub fn ComputeDType::f8_e4m3_finite() -> Self
+pub fn ComputeDType::i8() -> Self
+
+pub struct FiniteValuePolicy {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn FiniteValuePolicy::reject_non_finite_v1() -> Self
+
+pub struct ModelNumericSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelNumericSchema::canonical_bytes(Self) -> Bytes
+pub fn ModelNumericSchema::digest(Self) -> ModelNumericSchemaDigest
+pub fn ModelNumericSchema::new(limits~ : ModelNumericSchemaLimits, tensors~ : ArrayView[NumericTensorSchema], operations~ : ArrayView[NumericOperationSchema]) -> Self raise NumericContractError
+pub fn ModelNumericSchema::operations(Self) -> ReadOnlyArray[NumericOperationSchema]
+pub fn ModelNumericSchema::tensors(Self) -> ReadOnlyArray[NumericTensorSchema]
+
+pub struct ModelNumericSchemaDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ModelNumericSchemaDigest::as_hex(Self) -> String
+pub fn ModelNumericSchemaDigest::from_sha256(String) -> Self raise NumericContractError
+
+pub struct ModelNumericSchemaLimits {
+  // private fields
+}
+pub fn ModelNumericSchemaLimits::new(max_tensors~ : Int, max_operations~ : Int, max_rank~ : Int, max_canonical_bytes~ : Int) -> Self raise NumericContractError
+pub fn ModelNumericSchemaLimits::production() -> Self
+
+pub(all) enum NumericContractRule {
+  Identifier
+  ShapeDimension
+  ShapeArithmetic
+  StorageArithmetic
+  UnsupportedValue
+  StorageCombination
+  ExecutionCombination
+  CanonicalBytes
+  Digest
+} derive(Eq, @debug.Debug)
+
+pub struct NumericConversion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NumericConversion::exact_v1() -> Self
+pub fn NumericConversion::finite_values(Self) -> FiniteValuePolicy
+pub fn NumericConversion::new(rounding~ : RoundingPolicy, saturation~ : SaturationPolicy, finite_values~ : FiniteValuePolicy) -> Self raise NumericContractError
+pub fn NumericConversion::quantized_v1() -> Self
+pub fn NumericConversion::rounding(Self) -> RoundingPolicy
+pub fn NumericConversion::saturation(Self) -> SaturationPolicy
+
+pub struct NumericOperationOrdinal {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn NumericOperationOrdinal::as_int(Self) -> Int
+pub fn NumericOperationOrdinal::new(Int) -> Self raise NumericContractError
+
+pub struct NumericOperationSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NumericOperationSchema::execution(Self) -> OperationExecutionContract
+pub fn NumericOperationSchema::new(ordinal~ : NumericOperationOrdinal, execution~ : OperationExecutionContract) -> Self
+pub fn NumericOperationSchema::ordinal(Self) -> NumericOperationOrdinal
+
+pub(all) enum NumericSchemaLimit {
+  SchemaTensorCount
+  SchemaOperationCount
+  SchemaRank
+  SchemaCanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct NumericShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NumericShape::dimension(Self, Int) -> Int64?
+pub fn NumericShape::dimensions(Self) -> ReadOnlyArray[Int64]
+pub fn NumericShape::element_count(Self) -> Int64
+pub fn NumericShape::new(ArrayView[Int64]) -> Self raise NumericContractError
+pub fn NumericShape::rank(Self) -> Int
+
+pub struct NumericTensorOrdinal {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn NumericTensorOrdinal::as_int(Self) -> Int
+pub fn NumericTensorOrdinal::new(Int) -> Self raise NumericContractError
+
+pub struct NumericTensorRole {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn NumericTensorRole::codebook_metadata() -> Self
+pub fn NumericTensorRole::parameter() -> Self
+pub fn NumericTensorRole::scale_metadata() -> Self
+pub fn NumericTensorRole::zero_point_metadata() -> Self
+
+pub struct NumericTensorSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NumericTensorSchema::codebook(Self) -> CodebookTensorOrdinal?
+pub fn NumericTensorSchema::new(ordinal~ : NumericTensorOrdinal, role~ : NumericTensorRole, shape~ : NumericShape, storage~ : TensorStorageContract, scale? : ScaleTensorOrdinal, zero_point? : ZeroPointTensorOrdinal, codebook? : CodebookTensorOrdinal) -> Self raise NumericContractError
+pub fn NumericTensorSchema::ordinal(Self) -> NumericTensorOrdinal
+pub fn NumericTensorSchema::role(Self) -> NumericTensorRole
+pub fn NumericTensorSchema::scale(Self) -> ScaleTensorOrdinal?
+pub fn NumericTensorSchema::shape(Self) -> NumericShape
+pub fn NumericTensorSchema::storage(Self) -> TensorStorageContract
+pub fn NumericTensorSchema::zero_point(Self) -> ZeroPointTensorOrdinal?
+
+pub struct OperationExecutionContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperationExecutionContract::accepts_storage(Self, TensorStorageContract) -> Bool
+pub fn OperationExecutionContract::accumulator(Self) -> AccumulatorDType
+pub fn OperationExecutionContract::activation_compute(Self) -> ComputeDType
+pub fn OperationExecutionContract::activation_input(Self) -> ComputeDType
+pub fn OperationExecutionContract::activation_scale(Self) -> ActivationScalePolicy
+pub fn OperationExecutionContract::canonical_bytes(Self) -> Bytes
+pub fn OperationExecutionContract::conversion(Self) -> NumericConversion
+pub fn OperationExecutionContract::digest(Self) -> OperationExecutionDigest
+pub fn OperationExecutionContract::new(activation_input~ : ComputeDType, activation_compute~ : ComputeDType, activation_scale~ : ActivationScalePolicy, tensor_input~ : ComputeDType, accumulator~ : AccumulatorDType, output~ : ComputeDType, conversion~ : NumericConversion, order~ : OperationOrderPolicy) -> Self raise NumericContractError
+pub fn OperationExecutionContract::order(Self) -> OperationOrderPolicy
+pub fn OperationExecutionContract::output(Self) -> ComputeDType
+pub fn OperationExecutionContract::symmetric_i8_weight_only_v1() -> Self
+pub fn OperationExecutionContract::tensor_input(Self) -> ComputeDType
+
+pub struct OperationExecutionDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn OperationExecutionDigest::as_hex(Self) -> String
+pub fn OperationExecutionDigest::from_sha256(String) -> Self raise NumericContractError
+
+pub struct OperationOrderPolicy {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn OperationOrderPolicy::strict_declared_order_v1() -> Self
+
+pub struct RoundingPolicy {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn RoundingPolicy::exact_no_rounding_v1() -> Self
+pub fn RoundingPolicy::nearest_ties_to_even_v1() -> Self
+
+pub struct SaturationPolicy {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn SaturationPolicy::finite_storage_range_v1() -> Self
+pub fn SaturationPolicy::none_v1() -> Self
+
+pub struct ScaleGranularity {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ScaleGranularity::absent() -> Self
+pub fn ScaleGranularity::per_output_channel() -> Self
+pub fn ScaleGranularity::per_tensor() -> Self
+
+pub struct ScaleTensorOrdinal {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ScaleTensorOrdinal::new(NumericTensorOrdinal) -> Self
+pub fn ScaleTensorOrdinal::tensor(Self) -> NumericTensorOrdinal
+
+pub struct StorageDType {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn StorageDType::bfloat16() -> Self
+pub fn StorageDType::byte_width(Self) -> Int64
+pub fn StorageDType::f32() -> Self
+pub fn StorageDType::f8_e4m3_finite() -> Self
+pub fn StorageDType::i8() -> Self
+
+pub struct StorageEncoding {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn StorageEncoding::affine_v1() -> Self
+pub fn StorageEncoding::codebook_v1() -> Self
+pub fn StorageEncoding::plain_v1() -> Self
+pub fn StorageEncoding::scaled_v1() -> Self
+pub fn StorageEncoding::symmetric_v1() -> Self
+
+pub struct StorageLayout {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn StorageLayout::dense_row_major_v1() -> Self
+
+pub struct TensorStorageContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorStorageContract::canonical_bytes(Self) -> Bytes
+pub fn TensorStorageContract::codebook_layout(Self) -> CodebookLayout
+pub fn TensorStorageContract::conversion(Self) -> NumericConversion
+pub fn TensorStorageContract::digest(Self) -> TensorStorageDigest
+pub fn TensorStorageContract::dtype(Self) -> StorageDType
+pub fn TensorStorageContract::encoding(Self) -> StorageEncoding
+pub fn TensorStorageContract::layout(Self) -> StorageLayout
+pub fn TensorStorageContract::new(dtype~ : StorageDType, layout~ : StorageLayout, encoding~ : StorageEncoding, scale_granularity~ : ScaleGranularity, zero_point~ : ZeroPointMode, codebook_layout~ : CodebookLayout, conversion~ : NumericConversion) -> Self raise NumericContractError
+pub fn TensorStorageContract::requires_codebook(Self) -> Bool
+pub fn TensorStorageContract::requires_scale(Self) -> Bool
+pub fn TensorStorageContract::requires_zero_point_tensor(Self) -> Bool
+pub fn TensorStorageContract::scale_granularity(Self) -> ScaleGranularity
+pub fn TensorStorageContract::symmetric_i8_weight_only_scale_v1() -> Self
+pub fn TensorStorageContract::symmetric_i8_weight_only_v1() -> Self
+pub fn TensorStorageContract::zero_point(Self) -> ZeroPointMode
+
+pub struct TensorStorageDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn TensorStorageDigest::as_hex(Self) -> String
+pub fn TensorStorageDigest::from_sha256(String) -> Self raise NumericContractError
+
+pub struct ZeroPointMode {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ZeroPointMode::absent() -> Self
+pub fn ZeroPointMode::implicit_symmetric_zero_v1() -> Self
+pub fn ZeroPointMode::per_output_channel_tensor_v1() -> Self
+
+pub struct ZeroPointTensorOrdinal {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn ZeroPointTensorOrdinal::new(NumericTensorOrdinal) -> Self
+pub fn ZeroPointTensorOrdinal::tensor(Self) -> NumericTensorOrdinal
+
+// Type aliases
+
+// Traits

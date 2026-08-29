@@ -172,6 +172,7 @@ fn require_bool(
 ///|
 fn require_single_architecture(
   object : Map[String, Json],
+  expected : String,
 ) -> Unit raise ModelConfigReaderError {
   match require_value(object, "architectures", Architectures) {
     Array(values) => {
@@ -179,12 +180,30 @@ fn require_single_architecture(
         raise invalid(Architectures, UnsupportedValue)
       }
       match values[0] {
-        String("LlamaForCausalLM") => ()
+        String(value) if value == expected => ()
         String(_) => raise invalid(Architectures, UnsupportedValue)
         _ => raise invalid(Architectures, InvalidArrayElement)
       }
     }
     _ => raise invalid(Architectures, ExpectedArray)
+  }
+}
+
+///|
+fn optional_nullable_int(
+  object : Map[String, Json],
+  name : String,
+  field : ModelConfigField,
+) -> Int? raise ModelConfigReaderError {
+  match object.get(name) {
+    None | Some(Null) => None
+    Some(value) => {
+      let integer = exact_int64(value, field)
+      if integer < -2147483648L || integer > 2147483647L {
+        raise invalid(field, ExpectedInteger)
+      }
+      Some(integer.to_int())
+    }
   }
 }
 

@@ -19,11 +19,16 @@ pub struct LlamaModelSpec {
 } derive(Debug, Eq)
 
 ///|
-/// Immutable plan-ready model metadata and its cache-salting identity.
+/// Immutable validated model metadata and verified artifact content identity.
 pub struct LlamaModelMetadata {
   priv spec : LlamaModelSpec
-  priv identity : ModelIdentity
+  priv content_digest : ContentDigest
 } derive(Debug, Eq)
+
+///|
+/// Dense Llama emits exactly `3 + 9 * layer_count` plan operations and numeric
+/// tensor entries. This ceiling is the largest layer count within 4096.
+const LLAMA_MODEL_HARD_MAX_LAYER_COUNT : Int = 454
 
 ///|
 /// Validates the v1 dense Llama architecture contract.
@@ -73,7 +78,8 @@ fn LlamaModelSpec::validate(self : LlamaModelSpec) -> Unit raise ModelSpecError 
   if self.intermediate_size <= 0 {
     raise InvalidDimension(Intermediate)
   }
-  if self.layer_count <= 0 {
+  if self.layer_count <= 0 ||
+    self.layer_count > LLAMA_MODEL_HARD_MAX_LAYER_COUNT {
     raise InvalidDimension(LayerCount)
   }
   if self.attention_head_count <= 0 {
@@ -177,21 +183,18 @@ pub fn LlamaModelSpec::kv_dtype(self : LlamaModelSpec) -> ModelDType {
 }
 
 ///|
-/// Constructs plan-ready metadata from independently verified model content.
+/// Constructs metadata from independently verified model content.
 ///
-/// This admission constructor does not accept a caller-supplied plan identity.
-/// It derives the plan digest from the complete validated semantic
-/// specification.
+/// Metadata intentionally carries no execution-plan identity. A validated
+/// `ModelPlan` is the sole authority that can mint that identity after the
+/// complete execution graph is known.
 pub fn LlamaModelMetadata::from_verified_content(
   spec : LlamaModelSpec,
   content : ContentDigest,
 ) -> LlamaModelMetadata raise ModelSpecError {
   spec.validate()
   content.validate()
-  let metadata : LlamaModelMetadata = {
-    spec,
-    identity: ModelIdentity::new(content, spec.canonical_plan_digest()),
-  }
+  let metadata : LlamaModelMetadata = { spec, content_digest: content }
   metadata.validate()
   metadata
 }
@@ -202,8 +205,10 @@ pub fn LlamaModelMetadata::spec(self : LlamaModelMetadata) -> LlamaModelSpec {
 }
 
 ///|
-pub fn LlamaModelMetadata::identity(self : LlamaModelMetadata) -> ModelIdentity {
-  self.identity
+pub fn LlamaModelMetadata::content_digest(
+  self : LlamaModelMetadata,
+) -> ContentDigest {
+  self.content_digest
 }
 
 ///|
@@ -211,8 +216,5 @@ fn LlamaModelMetadata::validate(
   self : LlamaModelMetadata,
 ) -> Unit raise ModelSpecError {
   self.spec.validate()
-  self.identity.validate()
-  if self.identity.plan() != self.spec.canonical_plan_digest() {
-    raise MetadataIdentityMismatch
-  }
+  self.content_digest.validate()
 }

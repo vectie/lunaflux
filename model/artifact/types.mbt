@@ -104,7 +104,7 @@ pub struct ArtifactLimits {
 pub struct ArtifactIdentity {
   model_config : ArtifactDigest
   tokenizer : @tokenizer.TokenizerDigest
-  model : @spec.ModelIdentity
+  model_content : @spec.ContentDigest
 } derive(Debug, Eq)
 
 ///|

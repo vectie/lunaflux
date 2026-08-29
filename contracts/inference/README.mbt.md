@@ -102,3 +102,14 @@ Semantic lease release rejects
 transactionally with `LunaStorageBusy` while either retention remains, and a
 copied retention alias becomes stale after the first release. Storage becomes
 reusable only after both lower owners retire.
+
+`LunaRequestSemanticLease::prefix_view` issues a separate opaque cache-only
+projection of that same exact epoch. It exposes only liveness, validated cache
+permission, and scalar security-scope length/bytes; stale authentication
+precedes every bound check. `binds_stop_tokens` proves that a prefix projection
+and the scheduler's token-only projection came from the same live storage and
+epoch without exposing either identity. The prefix projection carries no stop
+data, inference limits, raw scope storage, release authority, or epoch getter.
+The scheduler's retained stop-token slot therefore pins both projections until
+request retirement, so a cache lookup or publication can never outlive its
+semantic lease.

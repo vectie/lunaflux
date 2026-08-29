@@ -1,12 +1,8 @@
 ///|
-fn plan_test_identity() -> @spec.ModelIdentity {
-  let content = try! @spec.ContentDigest::from_sha256(
+fn plan_test_content() -> @spec.ContentDigest {
+  try! @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
-  let digest = try! @spec.PlanDigest::from_sha256(
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-  )
-  try! @spec.ModelIdentity::new(content, digest)
 }
 
 ///|
@@ -34,6 +30,143 @@ fn plan_test_kv_geometry(
     head_dimension~,
     dtype=BFloat16,
     layout=LayerMajorSplitKeyValueV1,
+  )
+}
+
+///|
+fn plan_test_tensor_shape(
+  operation : @plan.PlanOperation,
+  input_index : Int,
+) -> @numeric_contract.NumericShape {
+  let dimensions : Array[Int64] = match
+    (operation.kind(), operation.shape(), input_index) {
+    (Embedding, EmbeddingShape(vocabulary_size~, width~), 1) =>
+      [Int64::from_int(vocabulary_size), Int64::from_int(width)]
+    (RmsNorm, NormalizationShape(width~, ..), 1) => [Int64::from_int(width)]
+    (QkvProjection, ProjectionShape(input_width~, ..), 1) =>
+      [Int64::from_int(input_width), Int64::from_int(input_width)]
+    (QkvProjection, ProjectionShape(input_width~, output_width~), 2 | 3) =>
+      [
+        Int64::from_int((output_width - input_width) / 2),
+        Int64::from_int(input_width),
+      ]
+    (
+      OutputProjection
+      | LanguageModelHead,
+      ProjectionShape(input_width~, output_width~),
+      1,
+    ) => [Int64::from_int(output_width), Int64::from_int(input_width)]
+    (GatedMlp, GatedMlpShape(hidden_size~, intermediate_size~), 1 | 2) =>
+      [Int64::from_int(intermediate_size), Int64::from_int(hidden_size)]
+    (GatedMlp, GatedMlpShape(hidden_size~, intermediate_size~), 3) =>
+      [Int64::from_int(hidden_size), Int64::from_int(intermediate_size)]
+    // Hostile role tests must reach structural validation before numeric
+    // shape validation; valid tensor positions always match above.
+    _ => []
+  }
+  try! @numeric_contract.NumericShape::new(dimensions)
+}
+
+///|
+fn plan_test_numeric_schema(
+  operations : ArrayView[@plan.PlanOperation],
+) -> @numeric_contract.ModelNumericSchema {
+  let mut tensor_count = 0
+  for operation in operations {
+    for input in operation.inputs() {
+      if input is Tensor(reference) {
+        tensor_count = tensor_count.max(reference.as_int() + 1)
+      }
+    }
+  }
+  let tensor_shapes : Array[@numeric_contract.NumericShape?] = []
+  for _ in 0..<tensor_count {
+    tensor_shapes.push(None)
+  }
+  for operation in operations {
+    for input_index, input in operation.inputs() {
+      match input {
+        Tensor(reference) => {
+          let shape = plan_test_tensor_shape(operation, input_index)
+          match tensor_shapes[reference.as_int()] {
+            Some(previous) =>
+              if previous != shape {
+                abort("plan test tensor has incompatible semantic shapes")
+              }
+            None => tensor_shapes[reference.as_int()] = Some(shape)
+          }
+        }
+        Activation(_) | ModelInput(_) => ()
+      }
+    }
+  }
+  let storage = try! @numeric_contract.TensorStorageContract::new(
+    dtype=@numeric_contract.StorageDType::bfloat16(),
+    layout=@numeric_contract.StorageLayout::dense_row_major_v1(),
+    encoding=@numeric_contract.StorageEncoding::plain_v1(),
+    scale_granularity=@numeric_contract.ScaleGranularity::absent(),
+    zero_point=@numeric_contract.ZeroPointMode::absent(),
+    codebook_layout=@numeric_contract.CodebookLayout::absent(),
+    conversion=@numeric_contract.NumericConversion::exact_v1(),
+  )
+  let tensors : Array[@numeric_contract.NumericTensorSchema] = []
+  for index in 0..<tensor_count {
+    guard tensor_shapes[index] is Some(shape) else {
+      abort("plan test declared an unused tensor")
+    }
+    tensors.push(
+      try! @numeric_contract.NumericTensorSchema::new(
+        ordinal=@numeric_contract.NumericTensorOrdinal::new(index),
+        role=@numeric_contract.NumericTensorRole::parameter(),
+        shape~,
+        storage~,
+      ),
+    )
+  }
+  let numeric_operations : Array[@numeric_contract.NumericOperationSchema] = []
+  for operation in operations {
+    let mut has_activation = false
+    let mut has_tensor = false
+    for input in operation.inputs() {
+      match input {
+        Activation(_) => has_activation = true
+        Tensor(_) => has_tensor = true
+        ModelInput(_) => ()
+      }
+    }
+    let ordinal = try! @numeric_contract.NumericOperationOrdinal::new(
+      operation.id().as_int(),
+    )
+    let execution = try! @numeric_contract.OperationExecutionContract::new(
+      activation_input=if has_activation {
+        @numeric_contract.ComputeDType::bfloat16()
+      } else {
+        @numeric_contract.ComputeDType::absent()
+      },
+      activation_compute=if has_activation {
+        @numeric_contract.ComputeDType::bfloat16()
+      } else {
+        @numeric_contract.ComputeDType::absent()
+      },
+      activation_scale=@numeric_contract.ActivationScalePolicy::absent_exact_v1(),
+      tensor_input=if has_tensor {
+        @numeric_contract.ComputeDType::bfloat16()
+      } else {
+        @numeric_contract.ComputeDType::absent()
+      },
+      accumulator=@numeric_contract.AccumulatorDType::f32(),
+      output=@numeric_contract.ComputeDType::bfloat16(),
+      conversion=@numeric_contract.NumericConversion::exact_v1(),
+      order=@numeric_contract.OperationOrderPolicy::strict_declared_order_v1(),
+    )
+    numeric_operations.push(
+      @numeric_contract.NumericOperationSchema::new(ordinal~, execution~),
+    )
+  }
+  try! @numeric_contract.ModelNumericSchema::new(
+    limits=@numeric_contract.ModelNumericSchemaLimits::production(),
+    tensors~,
+    operations=numeric_operations,
   )
 }
 
@@ -121,12 +254,14 @@ test "stateless plan construction rejects explicitly layered attention" {
   )
   try
     @plan.ModelPlan::new_stateless(
-      identity=plan_test_identity(),
+      content_digest=plan_test_content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
       operations=[attention],
       final_output=@plan.ActivationRef::new(1),
+      numeric_schema=plan_test_numeric_schema([attention]),
     )
   catch {
     InvalidGraph(KvExecutionContract) => ()
@@ -160,12 +295,14 @@ test "model plan copies construction arrays into immutable ordered storage" {
   )
   let operations = [operation]
   let model_plan = @plan.ModelPlan::new_stateless(
-    identity=plan_test_identity(),
+    content_digest=plan_test_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=plan_test_constraints(),
     kv_cache_geometry=plan_test_kv_geometry(),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
     operations~,
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=plan_test_numeric_schema(operations),
   )
   operations.push(operation)
   assert_eq(model_plan.operations().length(), 1)
@@ -182,12 +319,14 @@ test "model plan rejects KV geometry inconsistent with semantic dimensions" {
   )
   try
     @plan.ModelPlan::new_stateless(
-      identity=plan_test_identity(),
+      content_digest=plan_test_content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(kv_head_count=1),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
+      numeric_schema=plan_test_numeric_schema([operation]),
     )
   catch {
     InvalidShape(KvCacheShapeMismatch) => ()
@@ -234,12 +373,14 @@ test "model plan rejects forward activation references" {
   )
   try
     @plan.ModelPlan::new_stateless(
-      identity=plan_test_identity(),
+      content_digest=plan_test_content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
+      numeric_schema=plan_test_numeric_schema([operation]),
     )
   catch {
     InvalidGraph(MissingActivationInput) => ()
@@ -257,12 +398,14 @@ test "operation kind requires its stable semantic capability" {
   )
   try
     @plan.ModelPlan::new_stateless(
-      identity=plan_test_identity(),
+      content_digest=plan_test_content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
+      numeric_schema=plan_test_numeric_schema([operation]),
     )
   catch {
     InvalidGraph(OperationCapabilityMismatch) => ()
@@ -280,12 +423,14 @@ test "operation kinds enforce exact semantic input roles" {
   )
   try
     @plan.ModelPlan::new_stateless(
-      identity=plan_test_identity(),
+      content_digest=plan_test_content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=plan_test_constraints(),
       kv_cache_geometry=plan_test_kv_geometry(),
       workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=4096L),
       operations=[operation],
       final_output=@plan.ActivationRef::new(0),
+      numeric_schema=plan_test_numeric_schema([operation]),
     )
   catch {
     InvalidGraph(OperationInputRoles) => ()

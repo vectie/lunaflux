@@ -22,11 +22,12 @@ truncation, growth, or same-handle size/mtime/ctime change fails without
 publishing a snapshot. Relative labels are locators, never trust identities;
 the independently approved digests remain authoritative.
 
-The validated weights digest becomes `ModelIdentity.content`, while the model
-plan digest is derived from validated configuration semantics. The tokenizer
-digest and configuration-file digest remain separately available through
-`ArtifactIdentity`. Public errors contain only bounded categories and never
-retain paths or file contents.
+The bundle retains only the verified model `ContentDigest`; it cannot publish a
+plan digest before an execution graph exists. A downstream Llama builder passes
+that content plus complete graph and numeric semantics to `ModelPlan`, which
+mints the exact execution identity. The tokenizer and configuration-file
+digests remain separately available through `ArtifactIdentity`. Public errors
+contain only bounded categories and never retain paths or file contents.
 
 This package is not the production weight loader. Production loading must use
 streaming or mapping and place tensor bytes directly into their final device

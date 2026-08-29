@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_reader",
+}
+
+supported_targets = "native"

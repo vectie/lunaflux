@@ -102,34 +102,7 @@ fn test_bindings() -> @llama_weights.LlamaWeightBindings raise {
     payload_bytes=offset.val,
     limits~,
   )
-  @llama_weights.bind(test_model(), metadata)
-}
-
-///|
-fn test_file(payload_bytes : Int) -> Bytes {
-  Bytes::makei(8 + TEST_HEADER_BYTES + payload_bytes, index => {
-    if index == 0 {
-      TEST_HEADER_BYTES.to_byte()
-    } else if index < 8 {
-      b'\x00'
-    } else if index == 8 {
-      b'{'
-    } else if index == 9 {
-      b'}'
-    } else if index < 8 + TEST_HEADER_BYTES {
-      b' '
-    } else {
-      ((index - 8 - TEST_HEADER_BYTES) % 251).to_byte()
-    }
-  })
-}
-
-///|
-fn test_limits() -> @materialize.MaterializationLimits raise {
-  @materialize.MaterializationLimits::new(
-    max_header_bytes=1024,
-    max_tensor_count=32,
-    max_payload_bytes=4096L,
-    max_host_bytes=4096L,
-  )
+  let model = test_model()
+  let plan = @llama.build(model)
+  @llama_weights.bind(model, plan, metadata)
 }

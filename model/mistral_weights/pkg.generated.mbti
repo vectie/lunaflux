@@ -1,0 +1,71 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/mistral_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/mistral",
+  "vectie/lunaflux/model/mistral_spec",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn bind(@mistral_spec.MistralModelMetadata, @plan.ModelPlan, @safetensors.SafetensorsMetadata) -> MistralWeightManifest raise MistralWeightsError
+
+pub fn inspect_full_context_file(@approved_fs.ApprovedRoot, @mistral_spec.MistralModelMetadata, @approved_fs.ApprovedRelativeLocator, expected_artifact_digest~ : @numeric_weight_file.NumericWeightArtifactDigest, limits~ : @numeric_weight_file.NumericWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> MistralWeightFileInspection raise MistralWeightsError
+
+pub fn inspect_paged_file(@approved_fs.ApprovedRoot, @mistral_spec.MistralModelMetadata, @approved_fs.ApprovedRelativeLocator, expected_artifact_digest~ : @numeric_weight_file.NumericWeightArtifactDigest, limits~ : @numeric_weight_file.NumericWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64, batch? : @mistral.MistralPagedBatchEnvelope) -> MistralWeightFileInspection raise MistralWeightsError
+
+// Errors
+pub(all) suberror MistralWeightsError {
+  Mismatch(MistralWeightRule)
+  MissingTensor(reference~ : Int)
+  InvalidTensor(reference~ : Int, MistralWeightRule)
+  InvalidModelPlan(@plan.PlanValidationError)
+  InvalidNumericWeightFile(@numeric_weight_file.NumericWeightFileError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct MistralWeightBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MistralWeightBinding::reference(Self) -> @plan.TensorRef
+pub fn MistralWeightBinding::tensor(Self) -> @safetensors.TensorMetadata
+
+pub struct MistralWeightFileInspection {
+  // private fields
+}
+pub fn MistralWeightFileInspection::artifact_digest(Self) -> @numeric_weight_file.NumericWeightArtifactDigest
+pub fn MistralWeightFileInspection::generic_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+pub fn MistralWeightFileInspection::identity(Self) -> @spec.ModelIdentity
+pub fn MistralWeightFileInspection::layout(Self) -> @device_materialize.DeviceWeightLayout
+pub fn MistralWeightFileInspection::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn MistralWeightFileInspection::route_manifest_sha256(Self) -> String
+
+pub struct MistralWeightManifest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MistralWeightManifest::binding(Self, @plan.TensorRef) -> MistralWeightBinding?
+pub fn MistralWeightManifest::identity(Self) -> @spec.ModelIdentity
+pub fn MistralWeightManifest::length(Self) -> Int
+pub fn MistralWeightManifest::manifest_sha256(Self) -> String
+pub fn MistralWeightManifest::materialized_bytes(Self) -> Int64
+
+pub enum MistralWeightRule {
+  ModelContent
+  ModelPlan
+  TensorCount
+  TensorName
+  TensorDType
+  TensorRank
+  TensorDimension
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

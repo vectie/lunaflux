@@ -11,17 +11,27 @@ pub fn LunaTokenizerWorker::new(
     output_capacity > spec.limits.max_output_tokens {
     raise LunaInvalidWorkerCapacity
   }
+  let node_capacity = spec.worker_symbol_capacity(input_capacity)
   {
     spec,
     input_capacity,
+    node_capacity,
     output_capacity,
     budget,
-    tokens: FixedArray::make(input_capacity, 0),
-    previous: FixedArray::make(input_capacity, LUNA_REMOVED_NODE),
-    next: FixedArray::make(input_capacity, LUNA_REMOVED_NODE),
+    tokens: FixedArray::make(node_capacity, 0),
+    previous: FixedArray::make(node_capacity, LUNA_REMOVED_NODE),
+    next: FixedArray::make(node_capacity, LUNA_REMOVED_NODE),
     input: FixedArray::make(input_capacity, b'\x00'),
     input_length: 0,
     written_input_bytes: 0,
+    ordinary_ready: false,
+    segment_start: true,
+    post_processor_pending: false,
+    scalar_is_meta: false,
+    scalar_direct_token_id: -1,
+    scalar_byte_offset: 0,
+    scalar_byte_length: 0,
+    scalar_source_advance: 0,
     special_policy: AsOrdinary,
     truncation: RejectOverflow,
     output_limit: 0,
@@ -52,6 +62,14 @@ pub fn LunaTokenizerWorker::new(
 fn LunaTokenizerWorker::clear_request(self : LunaTokenizerWorker) -> Unit {
   self.input_length = 0
   self.written_input_bytes = 0
+  self.ordinary_ready = false
+  self.segment_start = true
+  self.post_processor_pending = false
+  self.scalar_is_meta = false
+  self.scalar_direct_token_id = -1
+  self.scalar_byte_offset = 0
+  self.scalar_byte_length = 0
+  self.scalar_source_advance = 0
   self.output_limit = 0
   self.phase = LUNA_WORKER_IDLE
   self.input_offset = 0

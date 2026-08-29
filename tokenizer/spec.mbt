@@ -1,16 +1,26 @@
 ///|
 priv struct StoredToken {
   token_id : Int
+  /// Model-side bytes used for special matching and BPE merge validation.
   piece : Bytes
+  /// Decoder-side bytes after the admitted tokenizer decoder pipeline.
+  decoded_piece : Bytes
   kind : TokenKind
 }
 
 ///|
-/// Validated immutable byte-level BPE specification.
+const TOKENIZER_PROFILE_RAW_BYTE_BPE : Int = 0
+
+///|
+const TOKENIZER_PROFILE_SENTENCEPIECE_BPE : Int = 1
+
+///|
+/// Validated immutable specification for one admitted tokenizer profile.
 ///
-/// This Phase 1 package deliberately models an already-extracted byte-level
-/// BPE vocabulary. It does not claim arbitrary `tokenizer.json` normalizer or
-/// pre-tokenizer compatibility.
+/// LunaFlux supports its raw ByteLevel-BPE contract and one closed
+/// SentencePiece-derived BPE `tokenizer.json` pipeline. This type does not
+/// claim compatibility with arbitrary normalizer, template, decoder, or
+/// SentencePiece profiles.
 pub struct TokenizerSpec {
   priv digest : TokenizerDigest
   priv limits : TokenizerLimits
@@ -23,6 +33,11 @@ pub struct TokenizerSpec {
   priv merge_rank_sorted : FixedArray[Int]
   priv byte_token_ids : FixedArray[Int]
   priv special_tokens : Array[StoredToken]
+  priv profile : Int
+  priv initial_scalar_ids : FixedArray[Int]
+  priv sentencepiece_meta_token_id : Int
+  priv post_processor_token_id : Int
+  priv decoder_strip_initial_space : Bool
   priv vocab_size : Int
   priv merge_count : Int
 }
@@ -118,6 +133,9 @@ pub fn TokenizerSpec::new(
         maximum=limits.max_token_bytes,
       )
     }
+    if entry.kind is ByteFallback {
+      raise InvalidSentencePieceToken(entry_index~)
+    }
     match piece_first_index.get(entry.piece) {
       Some(first_index) =>
         raise DuplicateTokenPiece(first_index~, duplicate_index=entry_index)
@@ -126,12 +144,14 @@ pub fn TokenizerSpec::new(
     let stored : StoredToken = {
       token_id: entry.token_id,
       piece: entry.piece,
+      decoded_piece: entry.piece,
       kind: entry.kind,
     }
     tokens_by_id[entry.token_id] = stored
     match entry.kind {
       Normal => normal_ids_by_piece[entry.piece] = entry.token_id
       Special => special_tokens.push(stored)
+      ByteFallback => abort("raw byte BPE kind validation invariant")
     }
   }
   if special_tokens.length() > limits.max_special_tokens {
@@ -164,9 +184,9 @@ pub fn TokenizerSpec::new(
       result is Some(result_token) else {
       raise InvalidMergeToken(rule_index~)
     }
-    if left_token.kind is Special ||
-      right_token.kind is Special ||
-      result_token.kind is Special {
+    if !(left_token.kind is Normal) ||
+      !(right_token.kind is Normal) ||
+      !(result_token.kind is Normal) {
       raise SpecialTokenInMerge(rule_index~)
     }
     if !pieces_equal_joined(
@@ -221,6 +241,11 @@ pub fn TokenizerSpec::new(
     merge_rank_sorted,
     byte_token_ids,
     special_tokens,
+    profile: TOKENIZER_PROFILE_RAW_BYTE_BPE,
+    initial_scalar_ids: FixedArray::make(0, 0),
+    sentencepiece_meta_token_id: -1,
+    post_processor_token_id: -1,
+    decoder_strip_initial_space: false,
     vocab_size: vocabulary.length(),
     merge_count: merges.length(),
   }
@@ -248,4 +273,13 @@ pub fn TokenizerSpec::merge_count(self : TokenizerSpec) -> Int {
 /// Return a copy of the validated resource limits.
 pub fn TokenizerSpec::limits(self : TokenizerSpec) -> TokenizerLimits {
   self.limits
+}
+
+///|
+/// Whether complete and incremental decode must remove one initial ASCII
+/// space after applying the admitted decoder's piece replacement.
+pub fn TokenizerSpec::decoder_strips_initial_space(
+  self : TokenizerSpec,
+) -> Bool {
+  self.decoder_strip_initial_space
 }

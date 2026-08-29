@@ -19,6 +19,21 @@ fn llama_test_metadata() -> @spec.LlamaModelMetadata raise {
 }
 
 ///|
+test "paged Llama plan has a pinned self-authenticated canonical digest" {
+  let metadata = llama_test_metadata()
+  let first = @llama.build_paged(metadata)
+  let second = @llama.build_paged(metadata)
+  inspect(
+    first.identity().plan().as_hex(),
+    content="18baaeb07037baa1a8783458b2b014220c3619d2e06f510e9cfeec85d2ca701f",
+  )
+  assert_eq(first.identity(), second.identity())
+  assert_false(
+    @llama.build(metadata).identity().plan() == first.identity().plan(),
+  )
+}
+
+///|
 fn copy_operations(
   source : ReadOnlyArray[@plan.PlanOperation],
 ) -> Array[@plan.PlanOperation] {
@@ -27,6 +42,32 @@ fn copy_operations(
     output.push(operation)
   }
   output
+}
+
+///|
+fn numeric_schema_prefix(
+  plan : @plan.ModelPlan,
+  operation_count : Int,
+) -> @numeric_contract.ModelNumericSchema raise {
+  let operations : Array[@numeric_contract.NumericOperationSchema] = []
+  let mut tensor_count = 0
+  for index in 0..<operation_count {
+    operations.push(plan.numeric_binding().schema().operations()[index])
+    for input in plan.operations()[index].inputs() {
+      if input is Tensor(reference) {
+        tensor_count = tensor_count.max(reference.as_int() + 1)
+      }
+    }
+  }
+  let tensors : Array[@numeric_contract.NumericTensorSchema] = []
+  for index in 0..<tensor_count {
+    tensors.push(plan.numeric_binding().schema().tensors()[index])
+  }
+  @numeric_contract.ModelNumericSchema::new(
+    limits=@numeric_contract.ModelNumericSchemaLimits::production(),
+    tensors~,
+    operations~,
+  )
 }
 
 ///|
@@ -185,8 +226,8 @@ test "paged Llama plan owns exact layered runtime and persistent-state semantics
   assert_true(paged.identity() != full_context.identity())
   assert_eq(paged.identity().content(), full_context.identity().content())
   assert_eq(
-    paged.identity().plan(),
-    metadata.spec().canonical_paged_plan_digest(),
+    paged.identity().plan().as_hex(),
+    "18baaeb07037baa1a8783458b2b014220c3619d2e06f510e9cfeec85d2ca701f",
   )
   let expected_attention_inputs : Array[@plan.OperationRuntimeInput] = [
     StepCounts,
@@ -234,6 +275,28 @@ test "paged Llama plan owns exact layered runtime and persistent-state semantics
 }
 
 ///|
+test "paged Llama batch envelope is exact plan identity and workspace geometry" {
+  let metadata = llama_test_metadata()
+  let single = @llama.build_paged(metadata)
+  let batch = @llama.LlamaPagedBatchEnvelope::new(4)
+  let multi = @llama.build_paged(metadata, batch~)
+  assert_eq(multi.shape_constraints().max_batch_rows(), 4)
+  assert_eq(
+    multi.workspace_bounds().max_temporary_bytes(),
+    single.workspace_bounds().max_temporary_bytes() * 4L,
+  )
+  assert_eq(multi.identity().content(), metadata.content_digest())
+  assert_eq(multi.identity(), @llama.build_paged(metadata, batch~).identity())
+  assert_true(multi.identity().plan() != single.identity().plan())
+  try @llama.LlamaPagedBatchEnvelope::new(0) catch {
+    InvalidShape(PositiveDimension) => ()
+    _ => fail("unexpected invalid paged batch failure")
+  } noraise {
+    _ => fail("zero-row paged batch was admitted")
+  }
+}
+
+///|
 test "plan validation rejects inferred, partial, and mode-mismatched KV ownership" {
   let paged = @llama.build_paged(llama_test_metadata())
   let wrong_layer = copy_operations(paged.operations())
@@ -243,13 +306,15 @@ test "plan validation rejects inferred, partial, and mode-mismatched KV ownershi
   )
   try
     @plan.ModelPlan::new_with_kv_execution(
-      identity=paged.identity(),
+      content_digest=paged.identity().content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=paged.shape_constraints(),
       kv_cache_geometry=paged.kv_cache_geometry(),
       workspace_bounds=paged.workspace_bounds(),
       operations=wrong_layer,
       final_output=paged.final_output(),
       kv_execution=PagedKeyValue,
+      numeric_schema=paged.numeric_binding().schema(),
     )
   catch {
     InvalidGraph(KvLayerOrder) => ()
@@ -264,29 +329,33 @@ test "plan validation rejects inferred, partial, and mode-mismatched KV ownershi
   }
   try
     @plan.ModelPlan::new_with_kv_execution(
-      identity=full_context.identity(),
+      content_digest=full_context.identity().content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=full_context.shape_constraints(),
       kv_cache_geometry=full_context.kv_cache_geometry(),
       workspace_bounds=full_context.workspace_bounds(),
       operations=incomplete,
       final_output=@plan.ActivationRef::new(9),
       kv_execution=StatelessFullContext,
+      numeric_schema=numeric_schema_prefix(full_context, incomplete.length()),
     )
   catch {
-    InvalidGraph(KvLayerCoverage) => ()
+    @plan.InvalidGraph(KvLayerCoverage) => ()
     _ => fail("unexpected KV coverage failure")
   } noraise {
     _ => fail("expected incomplete KV coverage rejection")
   }
   try
     @plan.ModelPlan::new_with_kv_execution(
-      identity=paged.identity(),
+      content_digest=paged.identity().content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=paged.shape_constraints(),
       kv_cache_geometry=paged.kv_cache_geometry(),
       workspace_bounds=paged.workspace_bounds(),
       operations=copy_operations(paged.operations()),
       final_output=paged.final_output(),
       kv_execution=StatelessFullContext,
+      numeric_schema=paged.numeric_binding().schema(),
     )
   catch {
     InvalidGraph(KvExecutionModeMismatch) => ()
@@ -307,13 +376,15 @@ test "plan validation rejects inferred, partial, and mode-mismatched KV ownershi
   )
   try
     @plan.ModelPlan::new_with_kv_execution(
-      identity=paged.identity(),
+      content_digest=paged.identity().content(),
+      limits=@plan.ModelPlanLimits::production(),
       shape_constraints=paged.shape_constraints(),
       kv_cache_geometry=paged.kv_cache_geometry(),
       workspace_bounds=paged.workspace_bounds(),
       operations=incomplete_runtime,
       final_output=paged.final_output(),
       kv_execution=PagedKeyValue,
+      numeric_schema=paged.numeric_binding().schema(),
     )
   catch {
     InvalidGraph(KvExecutionContract) => ()
@@ -324,11 +395,29 @@ test "plan validation rejects inferred, partial, and mode-mismatched KV ownershi
 }
 
 ///|
-test "dense Llama plan construction is deterministic" {
-  let first = @llama.build(llama_test_metadata())
-  let second = @llama.build(llama_test_metadata())
+test "one content-only metadata mints distinct deterministic mode and batch plans" {
+  let metadata = llama_test_metadata()
+  let first = @llama.build(metadata)
+  let second = @llama.build(metadata)
+  let paged = @llama.build_paged(metadata)
+  let batched = @llama.build_paged(
+    metadata,
+    batch=@llama.LlamaPagedBatchEnvelope::new(2),
+  )
   assert_eq(first, second)
-  assert_eq(first.identity(), llama_test_metadata().identity())
+  assert_eq(first.identity().content(), metadata.content_digest())
+  assert_eq(paged.identity().content(), metadata.content_digest())
+  assert_eq(batched.identity().content(), metadata.content_digest())
+  assert_false(first.identity().plan() == paged.identity().plan())
+  assert_false(paged.identity().plan() == batched.identity().plan())
+  assert_eq(
+    first.numeric_binding().digest(),
+    metadata.spec().numeric_schema().digest(),
+  )
+  assert_eq(
+    paged.numeric_binding().digest(),
+    metadata.spec().numeric_schema().digest(),
+  )
 }
 
 ///|

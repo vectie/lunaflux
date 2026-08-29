@@ -2,6 +2,7 @@
 package "vectie/lunaflux/model/llama"
 
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
@@ -9,11 +10,54 @@ import {
 // Values
 pub fn build(@spec.LlamaModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
 
-pub fn build_paged(@spec.LlamaModelMetadata) -> @plan.ModelPlan raise @plan.PlanValidationError
+pub fn build_finite_e4m3_fp8_w8a8_v1(@spec.LlamaModelMetadata, LlamaFp8W8A8Policy) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_finite_e4m3_fp8_w8a8_v2(@spec.LlamaModelMetadata, LlamaFp8W8A8V2Policy) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged(@spec.LlamaModelMetadata, batch? : LlamaPagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged_finite_e4m3_fp8_w8a8_v1(@spec.LlamaModelMetadata, LlamaFp8W8A8Policy, batch? : LlamaPagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged_finite_e4m3_fp8_w8a8_v2(@spec.LlamaModelMetadata, LlamaFp8W8A8V2Policy, batch? : LlamaPagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_paged_symmetric_i8_weight_only_v1(@spec.LlamaModelMetadata, LlamaI8WeightOnlyPolicy, batch? : LlamaPagedBatchEnvelope) -> @plan.ModelPlan raise @plan.PlanValidationError
+
+pub fn build_symmetric_i8_weight_only_v1(@spec.LlamaModelMetadata, LlamaI8WeightOnlyPolicy) -> @plan.ModelPlan raise @plan.PlanValidationError
 
 // Errors
+pub(all) suberror LlamaFp8W8A8PolicyError {
+  TiedFp8EmbeddingsUnsupported
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror LlamaI8WeightOnlyPolicyError {
+  TiedEmbeddingsUnsupported
+} derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct LlamaFp8W8A8Policy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LlamaFp8W8A8Policy::new(tied_embeddings~ : Bool) -> Self raise LlamaFp8W8A8PolicyError
+pub fn LlamaFp8W8A8Policy::untied_v1() -> Self
+
+pub struct LlamaFp8W8A8V2Policy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LlamaFp8W8A8V2Policy::new(tied_embeddings~ : Bool) -> Self raise LlamaFp8W8A8PolicyError
+pub fn LlamaFp8W8A8V2Policy::untied_v2() -> Self
+
+pub struct LlamaI8WeightOnlyPolicy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LlamaI8WeightOnlyPolicy::new(tied_embeddings~ : Bool) -> Self raise LlamaI8WeightOnlyPolicyError
+pub fn LlamaI8WeightOnlyPolicy::untied_v1() -> Self
+
+pub struct LlamaPagedBatchEnvelope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LlamaPagedBatchEnvelope::max_batch_rows(Self) -> Int
+pub fn LlamaPagedBatchEnvelope::new(Int) -> Self raise @plan.PlanValidationError
+pub fn LlamaPagedBatchEnvelope::single_row() -> Self
 
 // Type aliases
 

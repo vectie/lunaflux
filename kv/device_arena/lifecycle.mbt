@@ -71,9 +71,9 @@ fn[Resource, ContextIdentity : Eq] validate_owned_region(
 }
 
 ///|
-/// Exact private layer/component span retained for package-local dispatch
-/// construction. It deliberately cannot escape the owning package as a
-/// retainable device argument.
+/// Exact private layer/component span retained for package-local argument
+/// construction. The public bridge exposes only an opaque kernel argument;
+/// allocation and close authority remain here.
 #valtype
 priv struct DeviceKvComponentSpan {
   offset_bytes : Int64

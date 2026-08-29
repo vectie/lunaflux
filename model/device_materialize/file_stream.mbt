@@ -106,6 +106,7 @@ fn streaming_regions(
 ///|
 fn[S : Eq] prepare_streaming_load(
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   source_stamp : S,
   file_bytes : Int64,
   limits : DeviceWeightFileLimits,
@@ -158,7 +159,7 @@ fn[S : Eq] prepare_streaming_load(
   ) catch {
     error => raise InvalidSafetensors(error)
   }
-  let bindings = @llama_weights.bind(model, metadata) catch {
+  let bindings = @llama_weights.bind(model, model_plan, metadata) catch {
     error => raise InvalidLlamaWeights(error)
   }
   let layout = plan_layout(bindings, alignment_bytes~, max_arena_bytes~)
@@ -177,7 +178,7 @@ fn[S : Eq] prepare_streaming_load(
   if verified_stamp != source_stamp {
     raise FileChangedDuringLoad
   }
-  if verified_digest != model.identity().content().as_hex() {
+  if verified_digest != model.content_digest().as_hex() {
     raise ContentDigestMismatch
   }
   { source_stamp, payload_offset_bytes, layout, regions, scratch }
@@ -186,6 +187,7 @@ fn[S : Eq] prepare_streaming_load(
 ///|
 fn[S] inspection_from_prepared(
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   locator : @approved_fs.ApprovedRelativeLocator,
   limits : DeviceWeightFileLimits,
   alignment_bytes : Int64,
@@ -194,6 +196,7 @@ fn[S] inspection_from_prepared(
 ) -> DeviceWeightFileInspection {
   {
     model,
+    model_plan,
     locator,
     limits,
     alignment_bytes,
@@ -224,6 +227,7 @@ fn[S : Eq] readmit_inspection(
 ) -> PreparedStreamingLoad[S] raise DeviceWeightError {
   let prepared = prepare_streaming_load(
     inspection.model,
+    inspection.model_plan,
     source_stamp,
     file_bytes,
     inspection.limits,
@@ -327,6 +331,7 @@ fn[S : Eq, T] transfer_streaming_load(
 ///|
 fn[S : Eq, T] load_streaming_with_resource(
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   source_stamp : S,
   file_bytes : Int64,
   limits : DeviceWeightFileLimits,
@@ -339,12 +344,12 @@ fn[S : Eq, T] load_streaming_with_resource(
   close : (T) -> Unit raise @device.DeviceError,
 ) -> ResourcePreparation[T] raise DeviceWeightError {
   let prepared = prepare_streaming_load(
-    model, source_stamp, file_bytes, limits, alignment_bytes, max_arena_bytes, read,
-    observe_stamp,
+    model, model_plan, source_stamp, file_bytes, limits, alignment_bytes, max_arena_bytes,
+    read, observe_stamp,
   )
   load_prepared_streaming_with_resource(
     prepared,
-    model.identity().content().as_hex(),
+    model.content_digest().as_hex(),
     limits.transfer_chunk_bytes(),
     read,
     observe_stamp,

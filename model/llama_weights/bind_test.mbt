@@ -111,12 +111,14 @@ fn validated(
 
 ///|
 test "complete dense Llama weights bind in semantic TensorRef order" {
+  let model = test_model()
+  let plan = @llama.build(model)
   let (entries, payload_bytes) = valid_entries()
   let tensors = validated(entries, payload_bytes)
-  let bindings = @llama_weights.bind(test_model(), tensors)
+  let bindings = @llama_weights.bind(model, plan, tensors)
   assert_eq(bindings.length(), 12)
   assert_eq(bindings.materialized_bytes(), payload_bytes)
-  assert_eq(bindings.identity(), test_model().identity())
+  assert_eq(bindings.identity(), plan.identity())
   let q_reference = try! @plan.TensorRef::new(2)
   guard bindings.binding(q_reference) is Some(binding) else {
     fail("expected q projection binding")
@@ -128,10 +130,15 @@ test "complete dense Llama weights bind in semantic TensorRef order" {
 ///|
 test "weight bindings cover every TensorRef emitted by the Llama plan" {
   let model = test_model()
+  let plan = @llama.build(model)
   let (entries, payload_bytes) = valid_entries()
-  let bindings = @llama_weights.bind(model, validated(entries, payload_bytes))
+  let bindings = @llama_weights.bind(
+    model,
+    plan,
+    validated(entries, payload_bytes),
+  )
   let referenced = FixedArray::make(bindings.length(), false)
-  for operation in @llama.build(model).operations() {
+  for operation in plan.operations() {
     for input in operation.inputs() {
       match input {
         Tensor(reference) => referenced[reference.as_int()] = true
@@ -146,10 +153,12 @@ test "weight bindings cover every TensorRef emitted by the Llama plan" {
 
 ///|
 test "tensor count mismatch fails before name lookup" {
+  let model = test_model()
+  let plan = @llama.build(model)
   let (entries, payload_bytes) = valid_entries()
   ignore(entries.pop())
   try
-    @llama_weights.bind(test_model(), validated(entries, payload_bytes))
+    @llama_weights.bind(model, plan, validated(entries, payload_bytes))
   catch {
     @llama_weights.LlamaWeightsError::TensorCountMismatch(
       expected=12,
@@ -163,6 +172,8 @@ test "tensor count mismatch fails before name lookup" {
 
 ///|
 test "missing and shape-mismatched tensors fail with bounded references" {
+  let model = test_model()
+  let plan = @llama.build(model)
   let (missing, payload_bytes) = valid_entries()
   let original = missing[2]
   missing[2] = @safetensors.RawTensorMetadata::new(
@@ -173,7 +184,7 @@ test "missing and shape-mismatched tensors fail with bounded references" {
     data_end=original.data_end,
   )
   try
-    @llama_weights.bind(test_model(), validated(missing, payload_bytes))
+    @llama_weights.bind(model, plan, validated(missing, payload_bytes))
   catch {
     @llama_weights.LlamaWeightsError::MissingTensor(reference=2) => ()
     _ => fail("unexpected missing tensor error")
@@ -190,7 +201,7 @@ test "missing and shape-mismatched tensors fail with bounded references" {
     data_end=q.data_end,
   )
   try
-    @llama_weights.bind(test_model(), validated(wrong_shape, wrong_payload))
+    @llama_weights.bind(model, plan, validated(wrong_shape, wrong_payload))
   catch {
     @llama_weights.LlamaWeightsError::ShapeDimensionMismatch(
       reference=2,
@@ -199,5 +210,63 @@ test "missing and shape-mismatched tensors fail with bounded references" {
     _ => fail("unexpected shape error")
   } noraise {
     _ => fail("expected shape mismatch")
+  }
+}
+
+///|
+test "weight bindings retain the admitted paged plan identity" {
+  let model = test_model()
+  let plan = @llama.build_paged(
+    model,
+    batch=@llama.LlamaPagedBatchEnvelope::new(2),
+  )
+  let (entries, payload_bytes) = valid_entries()
+  let bindings = @llama_weights.bind(
+    model,
+    plan,
+    validated(entries, payload_bytes),
+  )
+  assert_eq(bindings.identity(), plan.identity())
+  assert_eq(bindings.identity().content(), model.content_digest())
+}
+
+///|
+test "weight binding rejects substituted plan semantics and content" {
+  let model = test_model()
+  let (entries, payload_bytes) = valid_entries()
+  let tensors = validated(entries, payload_bytes)
+  let baseline = @llama.build(model)
+  let substituted_plan = @plan.ModelPlan::new_with_kv_execution(
+    content_digest=baseline.identity().content(),
+    limits=@plan.ModelPlanLimits::production(),
+    shape_constraints=baseline.shape_constraints(),
+    kv_cache_geometry=baseline.kv_cache_geometry(),
+    workspace_bounds=@plan.WorkspaceBounds::new(
+      max_temporary_bytes=baseline.workspace_bounds().max_temporary_bytes() +
+        64L,
+    ),
+    operations=baseline.operations(),
+    final_output=baseline.final_output(),
+    kv_execution=baseline.kv_execution(),
+    numeric_schema=baseline.numeric_binding().schema(),
+  )
+  try @llama_weights.bind(model, substituted_plan, tensors) catch {
+    ModelPlanMismatch => ()
+    _ => fail("unexpected substituted semantic-plan error")
+  } noraise {
+    _ => fail("foreign workspace semantics bound as model weights")
+  }
+  let foreign_model = @spec.LlamaModelMetadata::from_verified_content(
+    model.spec(),
+    @spec.ContentDigest::from_sha256(
+      "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ),
+  )
+  let foreign_plan = @llama.build(foreign_model)
+  try @llama_weights.bind(model, foreign_plan, tensors) catch {
+    ModelContentMismatch => ()
+    _ => fail("unexpected substituted content error")
+  } noraise {
+    _ => fail("foreign plan content bound as model weights")
   }
 }

@@ -26,6 +26,7 @@ pub(all) enum CacheField {
   MaxPrefixNodes
   MaxPrefixTokensPerEntry
   MaxPrefixPages
+  MaxPrefixScopeBytes
   MaxActiveReferencesPerPage
   MaxCachedReferencesPerPage
   LayoutVersion
@@ -59,6 +60,7 @@ pub struct CacheConfig {
   max_prefix_nodes : Int
   max_prefix_tokens_per_entry : Int
   max_prefix_pages : Int
+  max_prefix_scope_bytes : Int
   max_active_references_per_page : Int
   max_cached_references_per_page : Int
   layout_version : Int
@@ -82,6 +84,7 @@ pub fn new(
   max_active_references_per_page~ : Int,
   max_cached_references_per_page~ : Int,
   layout_version~ : Int,
+  max_prefix_scope_bytes? : Int = 0,
 ) -> CacheConfig raise CacheConfigError {
   require_positive_bounded(tokens_per_page, MAX_TOKENS_PER_PAGE, TokensPerPage)
   require_positive_bounded(
@@ -113,6 +116,11 @@ pub fn new(
     prefix_enabled,
   )
   require_prefix_capacity(max_prefix_pages, MaxPrefixPages, prefix_enabled)
+  require_prefix_capacity(
+    max_prefix_scope_bytes,
+    MaxPrefixScopeBytes,
+    prefix_enabled,
+  )
   if block_table_pages_per_request > total_page_count {
     raise Invalid(field=BlockTablePagesPerRequest, issue=ExceedsTotalPageCount)
   }
@@ -136,10 +144,16 @@ pub fn new(
     max_prefix_nodes,
     max_prefix_tokens_per_entry,
     max_prefix_pages,
+    max_prefix_scope_bytes,
     max_active_references_per_page,
     max_cached_references_per_page,
     layout_version,
   }
+}
+
+///|
+pub fn CacheConfig::max_prefix_scope_bytes(self : CacheConfig) -> Int {
+  self.max_prefix_scope_bytes
 }
 
 ///|

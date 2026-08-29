@@ -114,12 +114,12 @@ fn validate_inert_fields(
 }
 
 ///|
-fn validate_selected_semantics(
+fn validate_llama_semantics(
   object : Map[String, Json],
   hidden_size : Int,
   attention_heads : Int,
 ) -> Unit raise ModelConfigReaderError {
-  require_single_architecture(object)
+  require_single_architecture(object, "LlamaForCausalLM")
   if require_string(object, "model_type", ModelType) != "llama" {
     raise invalid(ModelType, UnsupportedValue)
   }
@@ -197,8 +197,103 @@ fn decode_model(
   ) catch {
     error => raise Validation(error)
   }
-  validate_selected_semantics(object, hidden_size, attention_head_count)
+  validate_llama_semantics(object, hidden_size, attention_head_count)
   @spec.LlamaModelMetadata::from_verified_content(model_spec, content_digest) catch {
+    error => raise Validation(error)
+  }
+}
+
+///|
+fn validate_mistral_semantics(
+  object : Map[String, Json],
+  hidden_size : Int,
+  attention_heads : Int,
+) -> Int? raise ModelConfigReaderError {
+  require_single_architecture(object, "MistralForCausalLM")
+  if require_string(object, "model_type", ModelType) != "mistral" {
+    raise invalid(ModelType, UnsupportedValue)
+  }
+  if require_bool(object, "tie_word_embeddings", TieWordEmbeddings) {
+    raise invalid(TieWordEmbeddings, UnsupportedValue)
+  }
+  check_optional_null(object, "rope_scaling", RopeScaling)
+  check_optional_string(object, "hidden_act", HiddenActivation, "silu")
+  check_optional_bool(object, "attention_bias", AttentionBias, false)
+  check_optional_number(object, "attention_dropout", AttentionDropout, 0.0)
+  check_optional_bool(object, "mlp_bias", MlpBias, false)
+  check_optional_int(
+    object,
+    "head_dim",
+    HeadDimension,
+    hidden_size / attention_heads,
+  )
+  check_optional_int(object, "pretraining_tp", PretrainingTensorParallelism, 1)
+  optional_nullable_int(object, "sliding_window", SlidingWindow)
+}
+
+///|
+fn decode_mistral_model(
+  object : Map[String, Json],
+  content_digest : @spec.ContentDigest,
+) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError {
+  validate_known_fields(object)
+  validate_inert_fields(object)
+  let vocabulary_size = require_int(object, "vocab_size", VocabularySize)
+  let hidden_size = require_int(object, "hidden_size", HiddenSize)
+  let intermediate_size = require_int(
+    object,
+    "intermediate_size",
+    IntermediateSize,
+  )
+  let layer_count = require_int(object, "num_hidden_layers", LayerCount)
+  let attention_head_count = require_int(
+    object,
+    "num_attention_heads",
+    AttentionHeadCount,
+  )
+  let kv_head_count = match
+    optional_int(object, "num_key_value_heads", KvHeadCount) {
+    Some(value) => value
+    None => attention_head_count
+  }
+  let max_position_embeddings = require_int(
+    object,
+    "max_position_embeddings",
+    ContextLength,
+  )
+  let rope_theta = require_number(object, "rope_theta", RopeTheta)
+  let rms_norm_epsilon = optional_finite_number(
+    object,
+    "rms_norm_eps",
+    RmsNormEpsilon,
+    0.000001,
+  )
+  let dtype = require_string(object, "torch_dtype", TorchDType)
+  if dtype != "bfloat16" && dtype != "BF16" {
+    raise invalid(TorchDType, UnsupportedValue)
+  }
+  let sliding_window = validate_mistral_semantics(
+    object, hidden_size, attention_head_count,
+  )
+  let model_spec = @mistral_spec.MistralModelSpec::new(
+    vocabulary_size~,
+    hidden_size~,
+    intermediate_size~,
+    layer_count~,
+    attention_head_count~,
+    kv_head_count~,
+    max_position_embeddings~,
+    sliding_window?,
+    rope_theta~,
+    rms_norm_epsilon~,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  ) catch {
+    error => raise Validation(error)
+  }
+  @mistral_spec.MistralModelMetadata::from_verified_content(
+    model_spec, content_digest,
+  ) catch {
     error => raise Validation(error)
   }
 }

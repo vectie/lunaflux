@@ -37,3 +37,26 @@ fn assert_rejected(
     _ => fail("expected selected-model configuration rejection")
   }
 }
+
+///|
+fn selected_mistral_config() -> String {
+  selected_config()
+  .replace(
+    old="\"architectures\":[\"LlamaForCausalLM\"]",
+    new="\"architectures\":[\"MistralForCausalLM\"]",
+  )
+  .replace(old="\"model_type\":\"llama\"", new="\"model_type\":\"mistral\"")
+  .replace(old="\"sliding_window\":null", new="\"sliding_window\":64")
+}
+
+///|
+fn parse_selected_mistral(
+  document : StringView,
+) -> @mistral_spec.MistralModelMetadata raise @config_reader.ModelConfigReaderError {
+  @config_reader.parse_mistral_string(
+    document,
+    content_digest(),
+    max_bytes=4096,
+    max_depth=8,
+  )
+}

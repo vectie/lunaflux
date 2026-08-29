@@ -204,7 +204,7 @@ async test "valid explicit bundle returns the hashed byte snapshot and metadata"
     assert_eq(bundle.tokenizer().vocab_size(), 256)
     assert_eq(bundle.safetensors().tensor_count(), 1)
     assert_eq(
-      bundle.identity().model().content().as_hex(),
+      bundle.identity().model_content().as_hex(),
       artifact_digest(weights).as_hex(),
     )
     assert_eq(

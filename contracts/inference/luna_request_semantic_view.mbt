@@ -39,6 +39,73 @@ pub fn LunaRequestSemanticLease::stop_token_view(
 }
 
 ///|
+/// Issues the narrow cache-policy projection used by the scheduler prefix
+/// owner. The same semantic lease epoch authenticates every later scalar read.
+pub fn LunaRequestSemanticLease::prefix_view(
+  self : LunaRequestSemanticLease,
+) -> LunaRequestPrefixView raise InferenceContractError {
+  ignore(self.require_storage())
+  { storage: self.storage, epoch: self.epoch }
+}
+
+///|
+/// Reports whether this exact cache-policy projection remains live.
+pub fn LunaRequestPrefixView::is_live(self : LunaRequestPrefixView) -> Bool {
+  self.storage.is_current_epoch(self.epoch) &&
+  self.storage.phase == LUNA_REQUEST_SEMANTIC_LEASED
+}
+
+///|
+/// Proves that the scheduler's cache and stop-token projections came from the
+/// same exact live semantic lease. It exposes no owner or epoch scalar.
+pub fn LunaRequestPrefixView::binds_stop_tokens(
+  self : LunaRequestPrefixView,
+  stop_tokens : LunaRequestStopTokenView,
+) -> Bool {
+  self.is_live() &&
+  stop_tokens.is_live() &&
+  physical_equal(self.storage, stop_tokens.storage) &&
+  self.epoch == stop_tokens.epoch
+}
+
+///|
+/// Returns only the validated scalar cache permission.
+pub fn LunaRequestPrefixView::cache_permission(
+  self : LunaRequestPrefixView,
+) -> CachePermission raise InferenceContractError {
+  if !self.is_live() {
+    raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  self.storage.cache_permission
+}
+
+///|
+/// Returns the validated ASCII scope length after authenticating the epoch.
+pub fn LunaRequestPrefixView::scope_length(
+  self : LunaRequestPrefixView,
+) -> Int raise InferenceContractError {
+  if !self.is_live() {
+    raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  self.storage.cache_scope_length
+}
+
+///|
+/// Reads one validated ASCII scope byte. Stale authentication precedes bounds.
+pub fn LunaRequestPrefixView::scope_byte_at(
+  self : LunaRequestPrefixView,
+  index : Int,
+) -> Byte raise InferenceContractError {
+  if !self.is_live() {
+    raise invalid(LunaRequestSemantic, LunaStorageStale, 0)
+  }
+  if index < 0 || index >= self.storage.cache_scope_length {
+    raise invalid(LunaRequestSemantic, LunaStorageLifecycle, index)
+  }
+  self.storage.cache_scope_bytes[index]
+}
+
+///|
 /// Invalidates the lease and Views only after both lower retention slots release.
 pub fn LunaRequestSemanticLease::release(
   self : LunaRequestSemanticLease,

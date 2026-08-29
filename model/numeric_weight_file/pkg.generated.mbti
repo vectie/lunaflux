@@ -1,0 +1,145 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/numeric_weight_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors_reader",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn inspect_file(@approved_fs.ApprovedRoot, @plan.ModelPlan, @approved_fs.ApprovedRelativeLocator, expected_artifact_digest~ : NumericWeightArtifactDigest, limits~ : NumericWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> NumericWeightFileInspection raise NumericWeightFileError
+
+pub fn load_inspected_file(@device.Context, @approved_fs.ApprovedRoot, NumericWeightFileInspection) -> NumericDeviceWeightPreparation raise NumericWeightFileError
+
+// Errors
+pub(all) suberror NumericWeightFileError {
+  InvalidLimit(NumericWeightFileLimit)
+  InvalidArtifactDigest
+  Closed
+  FileUnavailable
+  UnsupportedFileType
+  FileCloseFailed
+  FileTooLarge
+  FileTruncated
+  FileChanged
+  ArtifactDigestMismatch
+  InvalidSafetensorsPrefix(@safetensors_reader.SafetensorsReaderError)
+  InvalidHeaderEncoding
+  InvalidHeaderJson
+  DuplicateHeaderKey
+  InvalidHeaderEnvelope
+  MissingDocumentMetadata
+  UnexpectedDocumentMetadata
+  FormatMismatch
+  ModelContentMismatch
+  ModelPlanMismatch
+  NumericSchemaMismatch
+  TensorCountMismatch(expected~ : Int, actual~ : Int)
+  MissingTensor(ordinal~ : Int)
+  InvalidTensor(ordinal~ : Int)
+  UnexpectedTensorField(ordinal~ : Int)
+  InvalidTensorDType(ordinal~ : Int)
+  InvalidTensorShape(ordinal~ : Int, axis~ : Int)
+  InvalidTensorRange(ordinal~ : Int)
+  TensorSizeOverflow(ordinal~ : Int)
+  PayloadNotContiguous(ordinal~ : Int)
+  TrailingPayload
+  NonFiniteFp8Code(ordinal~ : Int, element~ : Int)
+  ReservedI8Code(ordinal~ : Int, row~ : Int)
+  InvalidScale(ordinal~ : Int, row~ : Int)
+  ZeroRowScaleMismatch(ordinal~ : Int, row~ : Int)
+  InvalidLayout(@device_materialize.DeviceWeightError)
+  AuthorityMismatch(NumericWeightAuthorityRule)
+  DeviceFailed(@device.DeviceError)
+  CleanupFailed(stage~ : NumericWeightFailureStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AuthenticatedNumericWeightAuthority {
+  // private fields
+}
+pub fn AuthenticatedNumericWeightAuthority::allocation(Self) -> @device.Allocation raise NumericWeightFileError
+pub fn AuthenticatedNumericWeightAuthority::artifact_digest(Self) -> NumericWeightArtifactDigest
+pub fn AuthenticatedNumericWeightAuthority::close(Self) -> Unit raise NumericWeightFileError
+pub fn AuthenticatedNumericWeightAuthority::identity(Self) -> @spec.ModelIdentity
+pub fn AuthenticatedNumericWeightAuthority::layout(Self) -> @device_materialize.DeviceWeightLayout
+pub fn AuthenticatedNumericWeightAuthority::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+
+pub struct FailedNumericDeviceWeightPreparation {
+  // private fields
+}
+pub fn FailedNumericDeviceWeightPreparation::cause(Self) -> NumericWeightFileError
+pub fn FailedNumericDeviceWeightPreparation::cleanup_failure(Self) -> @device.DeviceError
+pub fn FailedNumericDeviceWeightPreparation::is_closed(Self) -> Bool
+pub fn FailedNumericDeviceWeightPreparation::retry_close(Self) -> Unit raise NumericWeightFileError
+pub fn FailedNumericDeviceWeightPreparation::stage(Self) -> NumericWeightFailureStage
+
+pub(all) enum NumericDeviceWeightPreparation {
+  NumericWeightsReady(NumericDeviceWeights)
+  NumericWeightsCleanupRequired(FailedNumericDeviceWeightPreparation)
+}
+
+pub struct NumericDeviceWeights {
+  // private fields
+}
+pub fn NumericDeviceWeights::artifact_digest(Self) -> NumericWeightArtifactDigest
+pub fn NumericDeviceWeights::authenticate(Self, expected_identity~ : @spec.ModelIdentity, expected_schema_digest~ : @numeric_contract.ModelNumericSchemaDigest, expected_layout~ : @device_materialize.DeviceWeightLayout, expected_artifact_digest~ : NumericWeightArtifactDigest) -> AuthenticatedNumericWeightAuthority raise NumericWeightFileError
+pub fn NumericDeviceWeights::close(Self) -> Unit raise NumericWeightFileError
+pub fn NumericDeviceWeights::identity(Self) -> @spec.ModelIdentity
+pub fn NumericDeviceWeights::is_closed(Self) -> Bool
+pub fn NumericDeviceWeights::layout(Self) -> @device_materialize.DeviceWeightLayout
+pub fn NumericDeviceWeights::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+
+pub struct NumericWeightArtifactDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn NumericWeightArtifactDigest::as_hex(Self) -> String
+pub fn NumericWeightArtifactDigest::from_sha256(StringView) -> Self raise NumericWeightFileError
+
+pub(all) enum NumericWeightAuthorityRule {
+  Identity
+  NumericSchema
+  Layout
+  Artifact
+} derive(Eq, @debug.Debug)
+
+pub(all) enum NumericWeightFailureStage {
+  Transfer
+  SourceRevalidation
+  SourceClose
+} derive(Eq, @debug.Debug)
+
+pub struct NumericWeightFileInspection {
+  // private fields
+}
+pub fn NumericWeightFileInspection::artifact_digest(Self) -> NumericWeightArtifactDigest
+pub fn NumericWeightFileInspection::identity(Self) -> @spec.ModelIdentity
+pub fn NumericWeightFileInspection::layout(Self) -> @device_materialize.DeviceWeightLayout
+pub fn NumericWeightFileInspection::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn NumericWeightFileInspection::reauthenticate(Self, @approved_fs.ApprovedRoot) -> Self raise NumericWeightFileError
+
+pub(all) enum NumericWeightFileLimit {
+  FileBytes
+  HeaderBytes
+  TransferChunkBytes
+  TensorCount
+} derive(Eq, @debug.Debug)
+
+pub struct NumericWeightFileLimits {
+  // private fields
+}
+pub fn NumericWeightFileLimits::max_file_bytes(Self) -> Int64
+pub fn NumericWeightFileLimits::max_header_bytes(Self) -> Int
+pub fn NumericWeightFileLimits::max_tensor_count(Self) -> Int
+pub fn NumericWeightFileLimits::new(max_file_bytes~ : Int64, max_header_bytes~ : Int, transfer_chunk_bytes~ : Int, max_tensor_count~ : Int) -> Self raise NumericWeightFileError
+pub fn NumericWeightFileLimits::transfer_chunk_bytes(Self) -> Int
+
+// Type aliases
+
+// Traits

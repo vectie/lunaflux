@@ -9,10 +9,12 @@ import {
 }
 
 // Values
-pub fn bind(@spec.LlamaModelMetadata, @safetensors.SafetensorsMetadata) -> LlamaWeightBindings raise LlamaWeightsError
+pub fn bind(@spec.LlamaModelMetadata, @plan.ModelPlan, @safetensors.SafetensorsMetadata) -> LlamaWeightBindings raise LlamaWeightsError
 
 // Errors
 pub(all) suberror LlamaWeightsError {
+  ModelContentMismatch
+  ModelPlanMismatch
   TensorCountMismatch(expected~ : Int, actual~ : Int)
   MissingTensor(reference~ : Int)
   ShapeRankMismatch(reference~ : Int)
@@ -21,9 +23,7 @@ pub(all) suberror LlamaWeightsError {
 
 // Types and methods
 pub struct LlamaWeightBindings {
-  identity : @spec.ModelIdentity
-  bindings : ReadOnlyArray[TensorBinding]
-  materialized_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaWeightBindings::binding(Self, @plan.TensorRef) -> TensorBinding?
 pub fn LlamaWeightBindings::identity(Self) -> @spec.ModelIdentity
@@ -31,8 +31,7 @@ pub fn LlamaWeightBindings::length(Self) -> Int
 pub fn LlamaWeightBindings::materialized_bytes(Self) -> Int64
 
 pub struct TensorBinding {
-  reference : @plan.TensorRef
-  tensor : @safetensors.TensorMetadata
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorBinding::reference(Self) -> @plan.TensorRef
 pub fn TensorBinding::tensor(Self) -> @safetensors.TensorMetadata

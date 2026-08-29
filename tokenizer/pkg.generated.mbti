@@ -33,7 +33,11 @@ pub(all) suberror TokenizerError {
   InvalidDecodeDestination
   DecodeDestinationTooSmall(required~ : Int, available~ : Int)
   InvalidUtf8Output
+  InvalidUtf8Input(byte_offset~ : Int)
   InvalidUtf16Input(code_unit_offset~ : Int)
+  InvalidSentencePieceToken(entry_index~ : Int)
+  InvalidSentencePieceUnknownToken(token_id~ : Int)
+  InvalidSentencePieceBosToken(token_id~ : Int)
   LunaInvalidStepBudget
   LunaInvalidWorkerCapacity
   LunaTokenizerWorkerBusy
@@ -126,6 +130,7 @@ pub(all) enum SpecialTokenPolicy {
 
 pub(all) enum TokenKind {
   Normal
+  ByteFallback
   Special
 } derive(Eq, @debug.Debug)
 
@@ -153,12 +158,15 @@ pub fn TokenizerSpec::copy_decoded_piece_status(Self, Int, FixedArray[Byte], des
 pub fn TokenizerSpec::decode_bytes(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> Bytes raise TokenizerError
 pub fn TokenizerSpec::decode_text(Self, ArrayView[Int], special_policy~ : DecodeSpecialPolicy) -> String raise TokenizerError
 pub fn TokenizerSpec::decoded_piece_bytes(Self, Int, special_policy~ : DecodeSpecialPolicy) -> Int raise TokenizerError
+pub fn TokenizerSpec::decoder_strips_initial_space(Self) -> Bool
 pub fn TokenizerSpec::digest(Self) -> TokenizerDigest
 pub fn TokenizerSpec::encode_bytes(Self, Bytes, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError
 pub fn TokenizerSpec::encode_text(Self, String, special_policy~ : SpecialTokenPolicy, output_limit~ : Int, truncation~ : TruncationPolicy) -> EncodeResult raise TokenizerError
 pub fn TokenizerSpec::limits(Self) -> TokenizerLimits
+pub fn TokenizerSpec::luna_worker_required_int_cells(Self, Int) -> UInt64 raise TokenizerError
 pub fn TokenizerSpec::merge_count(Self) -> Int
 pub fn TokenizerSpec::new(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
+pub fn TokenizerSpec::new_sentencepiece_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, unknown_token_id~ : Int, bos_token_id~ : Int) -> Self raise TokenizerError
 pub fn TokenizerSpec::vocab_size(Self) -> Int
 
 pub(all) enum TruncationPolicy {

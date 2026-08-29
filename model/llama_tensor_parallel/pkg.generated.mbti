@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/llama_tensor_parallel"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+// Values
+pub fn build_rank_plan(@plan.ModelPlan, @llama_weights.LlamaWeightBindings, rank~ : Int, world_size~ : Int, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> @tensor_parallel_plan.TensorParallelRankPlan raise LlamaTensorParallelError
+
+// Errors
+pub(all) suberror LlamaTensorParallelError {
+  InvalidTopology
+  IdentityMismatch
+  UnsupportedPlan(operation~ : Int)
+  UnsupportedBinding(reference~ : Int)
+  NonDivisible(LlamaTensorParallelDimension)
+  InvalidAlignment
+  ArithmeticOverflow(reference~ : Int)
+  ArenaTooLarge
+  InvalidPhysicalPlan(@tensor_parallel_plan.TensorParallelPlanError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum LlamaTensorParallelDimension {
+  Vocabulary
+  Hidden
+  Intermediate
+  AttentionHeads
+  KeyValueHeads
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

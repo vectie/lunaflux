@@ -5,12 +5,27 @@ The stochastic path consumes the canonical, already validated
 temperature as greedy selection: callers use the existing `greedy` APIs for
 greedy requests, while `stochastic_sample` rejects greedy parameters.
 
-For each call, LunaFlux validates every logit before changing RNG state, orders
+For each call, LunaFlux revokes the previous scratch snapshot, validates every
+logit before writing a new candidate or weight or changing RNG state, orders
 candidates by descending logit with the lowest token ID first on ties, applies
 top-k, computes a maximum-shifted temperature softmax, and finally applies
 top-p to that top-k distribution. Top-p keeps the smallest non-empty leading
 nucleus whose cumulative mass reaches the requested threshold. Sampling then
 renormalizes over the retained nucleus.
+
+An explicit restrictive top-k retains the exact best `K` candidates in a
+worst-root heap and sorts only those candidates. Its worst-case ordering work
+is `O(V log K)` with `O(V)` preallocated scratch. Candidate identity, tie
+order, exponent evaluation, and every floating-point accumulation remain
+identical to sorting the full vocabulary first.
+
+Without a restrictive top-k, the canonical path truthfully remains
+`O(V log V)`. In particular, top-p requires the complete softmax total before
+the nucleus threshold is known. Computing that total in token-ID order or
+sampling unfiltered token-ID intervals directly would change IEEE-754 addition
+order and the fixed-draw token mapping. LunaFlux therefore preserves the
+descending canonical order rather than introducing a hidden truncation or a
+numerically different shortcut.
 
 Greedy and stochastic selection share the same strict finite-logit policy: a
 NaN or either infinity anywhere in the input row rejects the whole row, even
@@ -31,7 +46,8 @@ to already validated plan-frame scalars. This avoids reconstructing a
 heap-backed request parameter object in the isolated worker; replay tests pin
 its result to the canonical parameter path across a bounded sequence.
 
-The source structure and fixed storage establish the intended allocation-free
-steady-state algorithm, but native allocation instrumentation and production
-latency/throughput evidence have not yet been captured. Those performance
-claims remain open until the release gates run on production hardware.
+The source structure, fixed storage, release-C allocation probe, and structural
+work counters establish the intended allocation-free steady-state algorithm
+and its top-k bound. Production latency/throughput evidence has not yet been
+captured; those performance claims remain open until the release gates run on
+production hardware.

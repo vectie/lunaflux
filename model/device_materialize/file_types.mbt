@@ -8,9 +8,9 @@ const MAX_TRANSFER_CHUNK_BYTES : Int = 16 * 1024 * 1024
 /// host-to-device copies are split into chunks no larger than
 /// `transfer_chunk_bytes`; the loader never owns a complete payload snapshot.
 pub struct DeviceWeightFileLimits {
-  max_file_bytes : Int64
-  transfer_chunk_bytes : Int
-  safetensors : @safetensors.HeaderLimits
+  priv max_file_bytes : Int64
+  priv transfer_chunk_bytes : Int
+  priv safetensors : @safetensors.HeaderLimits
 } derive(Debug, Eq)
 
 ///|
@@ -76,6 +76,7 @@ priv struct PreparedStreamingLoad[S] {
 /// completely re-hashes the current file before allocating device memory.
 pub struct DeviceWeightFileInspection {
   priv model : @spec.LlamaModelMetadata
+  priv model_plan : @plan.ModelPlan
   priv locator : @approved_fs.ApprovedRelativeLocator
   priv limits : DeviceWeightFileLimits
   priv alignment_bytes : Int64

@@ -19,22 +19,150 @@ fn inference_limits() -> @inference.InferenceLimits raise {
 }
 
 ///|
+struct TestRootIdentity {
+  model : @spec.ModelIdentity
+  tokenizer : @tokenizer.TokenizerDigest
+  scope : Bytes
+  layout : @radix.PrefixLayout
+}
+
+///|
 fn identity(
   content_digit : String,
   plan_digit : String,
   tokenizer_digit : String,
   scope : Bytes,
   page_size? : Int = 2,
-) -> @radix.PrefixIdentity raise {
-  @radix.PrefixIdentity::new(
-    model_identity=@spec.ModelIdentity::new(
+) -> TestRootIdentity raise {
+  {
+    model: @spec.ModelIdentity::new(
       @spec.ContentDigest::from_sha256(content_digit.repeat(64)),
       @spec.PlanDigest::from_sha256(plan_digit.repeat(64)),
     ),
-    tokenizer=@tokenizer.TokenizerDigest::parse(tokenizer_digit.repeat(64)),
-    scope=@inference.CacheScope::from_ascii(scope, inference_limits()),
-    layout=@radix.PrefixLayout::new(version=1, tokens_per_page=page_size),
+    tokenizer: @tokenizer.TokenizerDigest::parse(tokenizer_digit.repeat(64)),
+    scope,
+    layout: @radix.PrefixLayout::new(version=1, tokens_per_page=page_size),
+  }
+}
+
+///|
+fn request_key(
+  identity : TestRootIdentity,
+  permission? : @inference.CachePermission = ReadWrite,
+) -> (@radix.PrefixRequestKey, @inference.LunaRequestSemanticLease) {
+  let storage = try! @inference.LunaRequestSemanticStorage::new(
+    inference_limits(),
+    try! @inference.LunaRequestSemanticStepBudget::new(17),
   )
+  let write = try! storage.begin(
+    stop_token_count=0,
+    stop_string_count=0,
+    cache_scope_byte_count=identity.scope.length(),
+    cache_permission=permission,
+  )
+  for byte in identity.scope {
+    try! write.push_cache_scope_byte(byte)
+  }
+  let work = try! write.finish()
+  while (try! work.progress()).is_pending() {
+
+  }
+  let lease = try! work.take_lease()
+  (
+    try! @radix.PrefixRequestKey::new(
+      model_identity=identity.model,
+      tokenizer=identity.tokenizer,
+      layout=identity.layout,
+      semantic=try! lease.prefix_view(),
+    ),
+    lease,
+  )
+}
+
+///|
+fn publish_prefix(
+  index : @radix.PrefixIndex,
+  identity : TestRootIdentity,
+  token_values : ArrayView[Int],
+  page_values : ArrayView[@page_allocator.PageId],
+) -> @radix.PrefixEntryId raise @radix.PrefixIndexError {
+  let tokens = @radix.PrefixTokenBuffer::new(
+    if token_values.length() == 0 {
+      1
+    } else {
+      token_values.length()
+    },
+  )
+  for token in token_values {
+    tokens.push_token(token)
+  }
+  let pages = @radix.PrefixPublishBuffer::new(
+    if page_values.length() == 0 {
+      1
+    } else {
+      page_values.length()
+    },
+  )
+  for page in page_values {
+    pages.push_page(page)
+  }
+  let (key, lease) = request_key(identity)
+  defer (try! lease.release())
+  let start = index.try_plan_publish(
+    key,
+    tokens,
+    pages,
+    priority=page_values.length(),
+  )
+  let result = if start.is_planned() {
+    index.publish(start.plan(), tokens, pages, priority=page_values.length())
+  } else if start.is_duplicate() {
+    raise DuplicatePrefix(start.duplicate_entry())
+  } else if start.is_capacity_exhausted() {
+    raise Exhausted
+  } else {
+    raise InvalidLimit(ScopeBytes)
+  }
+  result
+}
+
+///|
+fn lookup_prefix(
+  index : @radix.PrefixIndex,
+  identity : TestRootIdentity,
+  token_values : ArrayView[Int],
+  output : @radix.PrefixLookupBuffer,
+) -> Unit raise @radix.PrefixIndexError {
+  let tokens = @radix.PrefixTokenBuffer::new(
+    if token_values.length() == 0 {
+      1
+    } else {
+      token_values.length()
+    },
+  )
+  for token in token_values {
+    tokens.push_token(token)
+  }
+  let (key, lease) = request_key(identity, permission=ReadOnly)
+  defer (try! lease.release())
+  index.lookup(
+    key,
+    tokens,
+    maximum_reusable_tokens=token_values.length(),
+    output,
+  )
+}
+
+///|
+fn evict_prefix(
+  index : @radix.PrefixIndex,
+  output : @radix.PrefixEvictionBuffer,
+) -> @radix.PrefixEntryId raise @radix.PrefixIndexError {
+  let start = index.try_plan_eviction(output)
+  if !start.is_planned() {
+    abort("expected an eviction plan")
+  }
+  index.commit_eviction(start.plan(), output)
 }
 
 ///|
@@ -45,12 +173,15 @@ fn index_limits(
   pages? : Int = 16,
   active? : Int = 2,
   generation? : Int = 100,
+  max_scope? : Int = 256,
 ) -> @radix.PrefixIndexLimits raise {
   @radix.PrefixIndexLimits::new(
     entry_capacity=entries,
     node_capacity=nodes,
+    token_capacity=tokens,
     max_tokens_per_entry=tokens,
     page_capacity=pages,
+    max_scope_bytes=max_scope,
     max_active_references_per_entry=active,
     max_generation=generation,
   )
@@ -75,19 +206,21 @@ fn physical_pages(count : Int) -> Array[@page_allocator.PageId] raise {
 
 ///|
 test "longest lookup returns only complete pages and copied identities" {
-  let index = @radix.PrefixIndex::new(index_limits())
+  let index = try! @radix.PrefixIndex::new(index_limits())
   let cache_identity = identity("a", "b", "c", b"scope-a")
   let pages = physical_pages(4)
-  let short = index.insert(cache_identity, [1, 2], pages[0:1])
-  let long = index.insert(cache_identity, [1, 2, 3, 4], pages[1:3])
+  let short = publish_prefix(index, cache_identity, [1, 2], pages[0:1])
+  let long = publish_prefix(index, cache_identity, [1, 2, 3, 4], pages[1:3])
   let result = @radix.PrefixLookupBuffer::new(4)
-  index.lookup_longest_full_pages(cache_identity, [1, 2, 3, 4, 99], result)
+  lookup_prefix(index, cache_identity, [1, 2, 3, 4, 99], result)
   assert_eq(result.entry(), Some(long))
   assert_eq(result.matched_tokens(), 4)
   assert_eq(result.page_count(), 2)
-  assert_eq(result.page_at(0), pages[1])
+  // The descendant shares the already-published ancestor anchor. Publishing
+  // an equivalent physical page for the same token run must not replace it.
+  assert_eq(result.page_at(0), pages[0])
   assert_eq(result.page_at(1), pages[2])
-  index.lookup_longest_full_pages(cache_identity, [1, 2, 3], result)
+  lookup_prefix(index, cache_identity, [1, 2, 3], result)
   assert_eq(result.entry(), Some(short))
   assert_eq(result.matched_tokens(), 2)
   index.debug_check_invariants()
@@ -95,10 +228,10 @@ test "longest lookup returns only complete pages and copied identities" {
 
 ///|
 test "model tokenizer scope and layout identities are isolated" {
-  let index = @radix.PrefixIndex::new(index_limits())
+  let index = try! @radix.PrefixIndex::new(index_limits())
   let base = identity("a", "b", "c", b"scope-a")
   let pages = physical_pages(1)
-  ignore(index.insert(base, [7, 8], pages))
+  ignore(publish_prefix(index, base, [7, 8], pages))
   let result = @radix.PrefixLookupBuffer::new(2)
   let variants = [
     identity("d", "b", "c", b"scope-a"),
@@ -108,7 +241,7 @@ test "model tokenizer scope and layout identities are isolated" {
     identity("a", "b", "c", b"scope-a", page_size=1),
   ]
   for variant in variants {
-    index.lookup_longest_full_pages(variant, [7, 8], result)
+    lookup_prefix(index, variant, [7, 8], result)
     assert_eq(result.page_count(), 0)
     assert_eq(result.entry(), None)
   }
@@ -116,26 +249,35 @@ test "model tokenizer scope and layout identities are isolated" {
 
 ///|
 test "insert preflight preserves state on shape and capacity failure" {
-  let index = @radix.PrefixIndex::new(
+  let index = try! @radix.PrefixIndex::new(
     index_limits(entries=2, nodes=3, tokens=8, pages=2),
   )
   let cache_identity = identity("a", "b", "c", b"scope")
   let pages = physical_pages(3)
-  try index.insert(cache_identity, [1, 2, 3], pages[0:1]) catch {
+  try publish_prefix(index, cache_identity, [1, 2, 3], pages[0:1]) catch {
     error => debug_inspect(error, content="InvalidPageCount")
   } noraise {
     _ => fail("expected partial-page rejection")
   }
   assert_eq(index.entry_count(), 0)
-  let first = index.insert(cache_identity, [1, 2], pages[0:1])
+  try
+    publish_prefix(index, cache_identity, [1, 2, 3, 4], [pages[0], pages[0]])
+  catch {
+    InvalidPageCount => ()
+    _ => fail("unexpected duplicate-page rejection")
+  } noraise {
+    _ => fail("duplicate physical page identity was accepted")
+  }
+  assert_eq(index.entry_count(), 0)
+  let first = publish_prefix(index, cache_identity, [1, 2], pages[0:1])
   let before = index.debug_snapshot()
-  try index.insert(cache_identity, [3, 4, 5, 6], pages[1:3]) catch {
+  try publish_prefix(index, cache_identity, [3, 4, 5, 6], pages[1:3]) catch {
     error => debug_inspect(error, content="Exhausted")
   } noraise {
     _ => fail("expected node exhaustion")
   }
   assert_eq(index.debug_snapshot(), before)
-  try index.insert(cache_identity, [1, 2], pages[1:2]) catch {
+  try publish_prefix(index, cache_identity, [1, 2], pages[1:2]) catch {
     DuplicatePrefix(entry) => assert_eq(entry, first)
     _ => fail("unexpected duplicate error")
   } noraise {
@@ -146,15 +288,15 @@ test "insert preflight preserves state on shape and capacity failure" {
 
 ///|
 test "active references guard deterministic eviction and stale generations" {
-  let index = @radix.PrefixIndex::new(
+  let index = try! @radix.PrefixIndex::new(
     index_limits(entries=2, nodes=8, pages=2, active=1),
   )
   let cache_identity = identity("a", "b", "c", b"scope")
   let pages = physical_pages(2)
-  let first = index.insert(cache_identity, [1, 2], pages[0:1])
-  let second = index.insert(cache_identity, [3, 4], pages[1:2])
+  let first = publish_prefix(index, cache_identity, [1, 2], pages[0:1])
+  let second = publish_prefix(index, cache_identity, [3, 4], pages[1:2])
   let lookup = @radix.PrefixLookupBuffer::new(1)
-  index.lookup_longest_full_pages(cache_identity, [1, 2], lookup)
+  lookup_prefix(index, cache_identity, [1, 2], lookup)
   index.retain_active(first)
   assert_eq(index.active_reference_count(first), 1)
   try index.retain_active(first) catch {
@@ -164,7 +306,7 @@ test "active references guard deterministic eviction and stale generations" {
     _ => fail("expected reference overflow")
   }
   let evicted_pages = @radix.PrefixEvictionBuffer::new(1)
-  assert_eq(index.evict_oldest_zero_reference(evicted_pages), second)
+  assert_eq(evict_prefix(index, evicted_pages), second)
   assert_eq(evicted_pages.page_at(0), pages[1])
   try index.retain_active(second) catch {
     StaleEntry(entry) => assert_eq(entry, second)
@@ -179,42 +321,40 @@ test "active references guard deterministic eviction and stale generations" {
   } noraise {
     _ => fail("expected reference underflow")
   }
-  assert_eq(index.evict_oldest_zero_reference(evicted_pages), first)
+  assert_eq(evict_prefix(index, evicted_pages), first)
   index.debug_check_invariants()
 }
 
 ///|
 test "insert copies caller tokens and page run" {
-  let index = @radix.PrefixIndex::new(index_limits())
+  let index = try! @radix.PrefixIndex::new(index_limits())
   let cache_identity = identity("a", "b", "c", b"scope")
   let tokens = [11, 12]
   let pages = physical_pages(2)
   let original = pages[0]
-  ignore(index.insert(cache_identity, tokens, pages[0:1]))
+  ignore(publish_prefix(index, cache_identity, tokens, pages[0:1]))
   tokens[0] = 99
   pages[0] = pages[1]
   let result = @radix.PrefixLookupBuffer::new(1)
-  index.lookup_longest_full_pages(cache_identity, [11, 12], result)
+  lookup_prefix(index, cache_identity, [11, 12], result)
   assert_eq(result.page_at(0), original)
-  index.lookup_longest_full_pages(cache_identity, [99, 12], result)
+  lookup_prefix(index, cache_identity, [99, 12], result)
   assert_eq(result.page_count(), 0)
 }
 
 ///|
 test "too-small result buffers preserve prior output and index state" {
-  let index = @radix.PrefixIndex::new(index_limits())
+  let index = try! @radix.PrefixIndex::new(index_limits())
   let cache_identity = identity("a", "b", "c", b"scope")
   let pages = physical_pages(3)
-  let short = index.insert(cache_identity, [1, 2], pages[0:1])
-  ignore(index.insert(cache_identity, [1, 2, 3, 4], pages[1:3]))
+  let short = publish_prefix(index, cache_identity, [1, 2], pages[0:1])
+  ignore(publish_prefix(index, cache_identity, [3, 4, 5, 6], pages[1:3]))
   let result = @radix.PrefixLookupBuffer::new(1)
-  index.lookup_longest_full_pages(cache_identity, [1, 2], result)
+  lookup_prefix(index, cache_identity, [1, 2], result)
   let before_index = index.debug_snapshot()
   assert_eq(result.entry(), Some(short))
   assert_eq(result.page_at(0), pages[0])
-  try
-    index.lookup_longest_full_pages(cache_identity, [1, 2, 3, 4], result)
-  catch {
+  try lookup_prefix(index, cache_identity, [3, 4, 5, 6], result) catch {
     error => debug_inspect(error, content="ResultBufferTooSmall")
   } noraise {
     _ => fail("expected lookup buffer rejection")
@@ -226,7 +366,7 @@ test "too-small result buffers preserve prior output and index state" {
   index.retain_active(short)
   let eviction = @radix.PrefixEvictionBuffer::new(1)
   let before_eviction = index.debug_snapshot()
-  try index.evict_oldest_zero_reference(eviction) catch {
+  try index.try_plan_eviction(eviction) catch {
     error => debug_inspect(error, content="ResultBufferTooSmall")
   } noraise {
     _ => fail("expected eviction buffer rejection")
@@ -238,14 +378,14 @@ test "too-small result buffers preserve prior output and index state" {
 
 ///|
 test "invalid tokens fail closed without mutating prior lookup output" {
-  let index = @radix.PrefixIndex::new(index_limits())
+  let index = try! @radix.PrefixIndex::new(index_limits())
   let cache_identity = identity("a", "b", "c", b"scope")
   let pages = physical_pages(1)
-  let entry = index.insert(cache_identity, [1, 2], pages)
+  let entry = publish_prefix(index, cache_identity, [1, 2], pages)
   let result = @radix.PrefixLookupBuffer::new(1)
-  index.lookup_longest_full_pages(cache_identity, [1, 2], result)
+  lookup_prefix(index, cache_identity, [1, 2], result)
   let before = index.debug_snapshot()
-  try index.lookup_longest_full_pages(cache_identity, [1, -2], result) catch {
+  try lookup_prefix(index, cache_identity, [1, -2], result) catch {
     InvalidToken(index) => assert_eq(index, 1)
     _ => fail("unexpected invalid-token error")
   } noraise {
@@ -254,7 +394,7 @@ test "invalid tokens fail closed without mutating prior lookup output" {
   assert_eq(index.debug_snapshot(), before)
   assert_eq(result.entry(), Some(entry))
   assert_eq(result.page_at(0), pages[0])
-  try index.insert(cache_identity, [3, -4], pages) catch {
+  try publish_prefix(index, cache_identity, [3, -4], pages) catch {
     InvalidToken(index) => assert_eq(index, 1)
     _ => fail("unexpected invalid-token error")
   } noraise {
@@ -265,7 +405,7 @@ test "invalid tokens fail closed without mutating prior lookup output" {
 
 ///|
 test "deterministic pseudo-random churn preserves invariants" {
-  let index = @radix.PrefixIndex::new(
+  let index = try! @radix.PrefixIndex::new(
     index_limits(entries=4, nodes=12, tokens=8, pages=4, generation=100),
   )
   let cache_identity = identity("a", "b", "c", b"scope")
@@ -274,14 +414,35 @@ test "deterministic pseudo-random churn preserves invariants" {
   let mut state = 17
   for _ in 0..<50 {
     state = (state * 109 + 89) % 997
-    let entry = index.insert(cache_identity, [state, state + 1], pages)
+    let entry = publish_prefix(index, cache_identity, [state, state + 1], pages)
     if state % 3 == 0 {
       index.retain_active(entry)
       index.release_active(entry)
     }
-    assert_eq(index.evict_oldest_zero_reference(eviction), entry)
+    assert_eq(evict_prefix(index, eviction), entry)
     index.debug_check_invariants()
   }
   assert_eq(index.entry_count(), 0)
   assert_eq(index.page_count(), 0)
+}
+
+///|
+test "terminal entry generation retires instead of wrapping" {
+  let index = @radix.PrefixIndex::new(
+    index_limits(entries=1, nodes=2, tokens=2, pages=1, generation=1),
+  )
+  let cache_identity = identity("a", "b", "c", b"scope")
+  let pages = physical_pages(1)
+  let entry = publish_prefix(index, cache_identity, [1, 2], pages)
+  let eviction = @radix.PrefixEvictionBuffer::new(1)
+  assert_eq(evict_prefix(index, eviction), entry)
+  assert_eq(index.entry_count(), 0)
+  assert_eq(index.retired_entry_count(), 1)
+  try publish_prefix(index, cache_identity, [3, 4], pages) catch {
+    Exhausted => ()
+    _ => fail("unexpected retired-entry exhaustion error")
+  } noraise {
+    _ => fail("retired prefix identity wrapped into reuse")
+  }
+  index.debug_check_invariants()
 }

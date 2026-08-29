@@ -3,6 +3,7 @@ package "vectie/lunaflux/model/spec"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/model/numeric_contract",
 }
 
 // Values
@@ -17,7 +18,6 @@ pub(all) suberror ModelSpecError {
   UnsupportedKvDType
   UnknownDType
   InvalidDigest
-  MetadataIdentityMismatch
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -37,16 +37,14 @@ pub(all) enum HeadRelationship {
 pub struct LlamaModelMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LlamaModelMetadata::content_digest(Self) -> ContentDigest
 pub fn LlamaModelMetadata::from_verified_content(LlamaModelSpec, ContentDigest) -> Self raise ModelSpecError
-pub fn LlamaModelMetadata::identity(Self) -> ModelIdentity
 pub fn LlamaModelMetadata::spec(Self) -> LlamaModelSpec
 
 pub struct LlamaModelSpec {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaModelSpec::attention_head_count(Self) -> Int
-pub fn LlamaModelSpec::canonical_paged_plan_digest(Self) -> PlanDigest
-pub fn LlamaModelSpec::canonical_plan_digest(Self) -> PlanDigest
 pub fn LlamaModelSpec::context_length(Self) -> Int
 pub fn LlamaModelSpec::head_dimension(Self) -> Int
 pub fn LlamaModelSpec::hidden_size(Self) -> Int
@@ -55,6 +53,7 @@ pub fn LlamaModelSpec::kv_dtype(Self) -> ModelDType
 pub fn LlamaModelSpec::kv_head_count(Self) -> Int
 pub fn LlamaModelSpec::layer_count(Self) -> Int
 pub fn LlamaModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType) -> Self raise ModelSpecError
+pub fn LlamaModelSpec::numeric_schema(Self) -> @numeric_contract.ModelNumericSchema
 pub fn LlamaModelSpec::rms_norm_epsilon(Self) -> Double
 pub fn LlamaModelSpec::rope_theta(Self) -> Double
 pub fn LlamaModelSpec::vocabulary_size(Self) -> Int
@@ -68,6 +67,7 @@ pub(all) enum ModelDType {
 pub fn ModelDType::parse(StringView) -> Self raise ModelSpecError
 
 pub(all) enum ModelDimension {
+  BatchRows
   Vocabulary
   Hidden
   Intermediate

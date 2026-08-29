@@ -22,12 +22,8 @@ test "selected dense Llama metadata is deterministic across string and bytes" {
   assert_eq(model.weight_dtype(), BFloat16)
   assert_eq(model.kv_dtype(), BFloat16)
   assert_eq(
-    from_string.identity().content().as_hex(),
+    from_string.content_digest().as_hex(),
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  )
-  assert_eq(
-    from_string.identity().plan().as_hex(),
-    "27324d458a6df9e95d2dc38b7ae70b0010b1970d6d47c3c1c8c6c5bee5af6993",
   )
 }
 
@@ -49,6 +45,25 @@ test "BF16 canonical artifact spelling is accepted" {
     new="\"torch_dtype\":\"BF16\"",
   )
   assert_eq(parse_selected(document).spec().weight_dtype(), BFloat16)
+}
+
+///|
+test "config admission rejects Llama layers above the plan ceiling" {
+  let maximum = selected_config().replace(
+    old="\"num_hidden_layers\":2",
+    new="\"num_hidden_layers\":454",
+  )
+  assert_eq(parse_selected(maximum).spec().layer_count(), 454)
+  let excessive = maximum.replace(
+    old="\"num_hidden_layers\":454",
+    new="\"num_hidden_layers\":455",
+  )
+  try parse_selected(excessive) catch {
+    Validation(InvalidDimension(LayerCount)) => ()
+    _ => fail("unexpected config layer-ceiling failure")
+  } noraise {
+    _ => fail("config admitted layers above the plan operation ceiling")
+  }
 }
 
 ///|

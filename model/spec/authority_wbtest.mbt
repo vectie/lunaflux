@@ -75,18 +75,16 @@ test "LlamaModelSpec constructor rejects unsafe divisors before deriving head di
 }
 
 ///|
-test "LlamaModelMetadata defensive validation rejects forged plan identity" {
+test "LlamaModelMetadata defensive validation rejects forged content" {
   let spec = authority_model_spec()
   let content = authority_content_digest()
   let valid = LlamaModelMetadata::from_verified_content(spec, content)
-  let foreign_plan = PlanDigest::from_sha256(
-    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-  )
-  let forged = { ..valid, identity: ModelIdentity::new(content, foreign_plan) }
+  let forged_digest : ContentDigest = { hex: "not-a-digest" }
+  let forged = { ..valid, content_digest: forged_digest }
   try forged.validate() catch {
-    error => debug_inspect(error, content="MetadataIdentityMismatch")
+    error => debug_inspect(error, content="InvalidDigest")
   } noraise {
-    _ => fail("expected metadata identity mismatch")
+    _ => fail("expected metadata content rejection")
   }
 }
 
@@ -110,7 +108,7 @@ test "LlamaModelMetadata constructor revalidates a forged specification first" {
 }
 
 ///|
-test "LlamaModelMetadata rejects forged content digest before identity derivation" {
+test "LlamaModelMetadata rejects forged content digest before retention" {
   let forged_content : ContentDigest = { hex: "not-a-digest" }
   try
     LlamaModelMetadata::from_verified_content(

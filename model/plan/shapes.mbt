@@ -1,20 +1,20 @@
 ///|
 /// Maximum legal runtime shape and model dimensions for one immutable plan.
 pub struct ShapeConstraints {
-  max_batch_rows : Int
-  max_sequence_tokens : Int
-  vocabulary_size : Int
-  hidden_size : Int
-  intermediate_size : Int
-  attention_head_count : Int
-  kv_head_count : Int
-  head_dimension : Int
+  priv max_batch_rows : Int
+  priv max_sequence_tokens : Int
+  priv vocabulary_size : Int
+  priv hidden_size : Int
+  priv intermediate_size : Int
+  priv attention_head_count : Int
+  priv kv_head_count : Int
+  priv head_dimension : Int
 } derive(Debug, Eq)
 
 ///|
 /// Upper bound on temporary storage needed by any legal execution of a plan.
 pub struct WorkspaceBounds {
-  max_temporary_bytes : Int64
+  priv max_temporary_bytes : Int64
 } derive(Debug, Eq)
 
 ///|

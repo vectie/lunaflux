@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+import {
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

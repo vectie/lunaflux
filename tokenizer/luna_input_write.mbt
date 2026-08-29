@@ -32,6 +32,14 @@ pub fn LunaTokenizerWorker::begin_luna_input(
   self.epoch += 1UL
   self.input_length = byte_count
   self.written_input_bytes = 0
+  self.ordinary_ready = false
+  self.segment_start = true
+  self.post_processor_pending = self.spec.post_processor_token_id >= 0
+  self.scalar_is_meta = false
+  self.scalar_direct_token_id = -1
+  self.scalar_byte_offset = 0
+  self.scalar_byte_length = 0
+  self.scalar_source_advance = 0
   self.special_policy = special_policy
   self.truncation = truncation
   self.output_limit = output_limit

@@ -16,16 +16,16 @@ pub(all) enum OperationKind {
 ///|
 /// One immutable node in an ordered semantic model plan.
 pub struct PlanOperation {
-  id : OperationId
-  kind : OperationKind
-  inputs : ReadOnlyArray[ValueRef]
-  outputs : ReadOnlyArray[ActivationRef]
-  shape : OperationShape
-  required_capability : KernelCapabilityId
-  workspace_bytes : Int64
-  kv_layer : KvLayerId?
-  runtime_inputs : ReadOnlyArray[OperationRuntimeInput]
-  persistent_state : PersistentStateAccess
+  priv id : OperationId
+  priv kind : OperationKind
+  priv inputs : ReadOnlyArray[ValueRef]
+  priv outputs : ReadOnlyArray[ActivationRef]
+  priv shape : OperationShape
+  priv required_capability : KernelCapabilityId
+  priv workspace_bytes : Int64
+  priv kv_layer : KvLayerId?
+  priv runtime_inputs : ReadOnlyArray[OperationRuntimeInput]
+  priv persistent_state : PersistentStateAccess
 } derive(Debug, Eq)
 
 ///|

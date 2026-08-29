@@ -14,11 +14,11 @@ pub(all) enum KvCacheLayout {
 /// ownership belong to later KV storage planning. This value records only the
 /// model facts needed to derive those decisions without model-family checks.
 pub struct KvCacheGeometry {
-  layer_count : Int
-  kv_head_count : Int
-  head_dimension : Int
-  dtype : @spec.ModelDType
-  layout : KvCacheLayout
+  priv layer_count : Int
+  priv kv_head_count : Int
+  priv head_dimension : Int
+  priv dtype : @spec.ModelDType
+  priv layout : KvCacheLayout
 } derive(Debug, Eq)
 
 ///|

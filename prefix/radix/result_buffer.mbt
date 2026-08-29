@@ -6,16 +6,19 @@ pub fn PrefixLookupBuffer::new(
     raise InvalidLimit(PageCapacity)
   }
   {
-    pages: FixedArray::make(page_capacity, None),
+    pages: @page_allocator.PageIdStorage::new(page_capacity) catch {
+      _ => raise InvalidLimit(PageCapacity)
+    },
     page_count: 0,
     matched_tokens: 0,
-    entry: None,
+    entry_index: -1,
+    entry_generation: 0,
   }
 }
 
 ///|
 pub fn PrefixLookupBuffer::capacity(self : PrefixLookupBuffer) -> Int {
-  self.pages.length()
+  self.pages.capacity()
 }
 
 ///|
@@ -30,7 +33,26 @@ pub fn PrefixLookupBuffer::matched_tokens(self : PrefixLookupBuffer) -> Int {
 
 ///|
 pub fn PrefixLookupBuffer::entry(self : PrefixLookupBuffer) -> PrefixEntryId? {
-  self.entry
+  if self.entry_index < 0 {
+    None
+  } else {
+    Some(PrefixEntryId(self.entry_index, self.entry_generation))
+  }
+}
+
+///|
+pub fn PrefixLookupBuffer::has_entry(self : PrefixLookupBuffer) -> Bool {
+  self.entry_index >= 0
+}
+
+///|
+pub fn PrefixLookupBuffer::entry_id(
+  self : PrefixLookupBuffer,
+) -> PrefixEntryId raise PrefixIndexError {
+  if self.entry_index < 0 {
+    raise ResultIndexOutOfBounds
+  }
+  PrefixEntryId(self.entry_index, self.entry_generation)
 }
 
 ///|
@@ -41,17 +63,20 @@ pub fn PrefixLookupBuffer::page_at(
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
   }
-  match self.pages[index] {
-    Some(page) => page
-    None => raise ResultIndexOutOfBounds
+  self.pages.read(index) catch {
+    _ => raise ResultIndexOutOfBounds
   }
 }
 
 ///|
 pub fn PrefixLookupBuffer::clear(self : PrefixLookupBuffer) -> Unit {
+  for index in 0..<self.page_count {
+    try! self.pages.clear(index)
+  }
   self.page_count = 0
   self.matched_tokens = 0
-  self.entry = None
+  self.entry_index = -1
+  self.entry_generation = 0
 }
 
 ///|
@@ -61,12 +86,19 @@ pub fn PrefixEvictionBuffer::new(
   if !valid_capacity(page_capacity) {
     raise InvalidLimit(PageCapacity)
   }
-  { pages: FixedArray::make(page_capacity, None), page_count: 0, entry: None }
+  {
+    pages: @page_allocator.PageIdStorage::new(page_capacity) catch {
+      _ => raise InvalidLimit(PageCapacity)
+    },
+    page_count: 0,
+    entry_index: -1,
+    entry_generation: 0,
+  }
 }
 
 ///|
 pub fn PrefixEvictionBuffer::capacity(self : PrefixEvictionBuffer) -> Int {
-  self.pages.length()
+  self.pages.capacity()
 }
 
 ///|
@@ -78,7 +110,11 @@ pub fn PrefixEvictionBuffer::page_count(self : PrefixEvictionBuffer) -> Int {
 pub fn PrefixEvictionBuffer::entry(
   self : PrefixEvictionBuffer,
 ) -> PrefixEntryId? {
-  self.entry
+  if self.entry_index < 0 {
+    None
+  } else {
+    Some(PrefixEntryId(self.entry_index, self.entry_generation))
+  }
 }
 
 ///|
@@ -89,14 +125,17 @@ pub fn PrefixEvictionBuffer::page_at(
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
   }
-  match self.pages[index] {
-    Some(page) => page
-    None => raise ResultIndexOutOfBounds
+  self.pages.read(index) catch {
+    _ => raise ResultIndexOutOfBounds
   }
 }
 
 ///|
 pub fn PrefixEvictionBuffer::clear(self : PrefixEvictionBuffer) -> Unit {
+  for index in 0..<self.page_count {
+    try! self.pages.clear(index)
+  }
   self.page_count = 0
-  self.entry = None
+  self.entry_index = -1
+  self.entry_generation = 0
 }

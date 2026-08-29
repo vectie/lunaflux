@@ -1,16 +1,16 @@
 ///|
 /// Startup bounds for a complete safetensors materialization operation.
 pub struct MaterializationLimits {
-  max_header_bytes : Int
-  max_tensor_count : Int
-  max_payload_bytes : Int64
-  max_host_bytes : Int64
+  priv max_header_bytes : Int
+  priv max_tensor_count : Int
+  priv max_payload_bytes : Int64
+  priv max_host_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Validated lowercase SHA-256 checksum for one tensor's exact payload bytes.
 pub struct TensorChecksum {
-  hex : String
+  priv hex : String
 } derive(Debug, Eq)
 
 ///|
@@ -20,44 +20,44 @@ pub struct TensorChecksum {
 /// copy it during the callback if its destination does not retain MoonBit
 /// values after the call returns.
 pub struct TensorChunk {
-  reference : @plan.TensorRef
-  tensor : @safetensors.TensorMetadata
-  file_offset_bytes : Int64
-  bytes : BytesView
-  checksum : TensorChecksum
+  priv reference : @plan.TensorRef
+  priv tensor : @safetensors.TensorMetadata
+  priv file_offset_bytes : Int64
+  priv bytes : BytesView
+  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
 /// Immutable evidence that one tensor was validated and delivered.
 pub struct TensorReceipt {
-  reference : @plan.TensorRef
-  byte_length : Int64
-  checksum : TensorChecksum
+  priv reference : @plan.TensorRef
+  priv byte_length : Int64
+  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
 /// Ordered evidence for one complete visitor materialization.
 pub struct MaterializationReport {
-  identity : @spec.ModelIdentity
-  tensors : ReadOnlyArray[TensorReceipt]
-  total_bytes : Int64
+  priv identity : @spec.ModelIdentity
+  priv tensors : ReadOnlyArray[TensorReceipt]
+  priv total_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// One independently owned tensor copy for the bounded reference executor.
 pub struct HostTensor {
-  reference : @plan.TensorRef
-  tensor : @safetensors.TensorMetadata
-  bytes : Bytes
-  checksum : TensorChecksum
+  priv reference : @plan.TensorRef
+  priv tensor : @safetensors.TensorMetadata
+  priv bytes : Bytes
+  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
 /// Bounded host-owned weights in semantic `TensorRef` order.
 pub struct HostMaterialization {
-  identity : @spec.ModelIdentity
-  tensors : ReadOnlyArray[HostTensor]
-  total_bytes : Int64
+  priv identity : @spec.ModelIdentity
+  priv tensors : ReadOnlyArray[HostTensor]
+  priv total_bytes : Int64
 } derive(Debug, Eq)
 
 ///|

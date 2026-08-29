@@ -61,12 +61,30 @@ fn parse_text(
 }
 
 ///|
+fn parse_mistral_text(
+  document : StringView,
+  content_digest : @spec.ContentDigest,
+  max_depth : Int,
+) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError {
+  @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
+    InvalidDepthLimit => raise InvalidDepthLimit
+    DepthLimitExceeded(limit~) => raise NestingLimitExceeded(limit~)
+    DuplicateObjectKey(depth~, index~) => raise DuplicateField(depth~, index~)
+    MalformedStructure => raise MalformedJson
+  }
+  let parsed = @json.parse(document) catch { _ => raise MalformedJson }
+  guard parsed is Object(root) else { raise NonObjectRoot }
+  decode_mistral_model(root, content_digest)
+}
+
+///|
 /// Parses selected-model JSON bytes after enforcing byte and nesting bounds.
 ///
 /// The supplied content digest must already have been verified independently.
-/// The plan digest is derived from validated semantic fields rather than
-/// accepted from the caller. This function performs no file access, hashing of
-/// artifact bytes, code loading, or weight materialization.
+/// This content-only parser has no plan-identity authority; a downstream
+/// `ModelPlan` derives identity from the complete validated execution graph.
+/// This function performs no file access, artifact hashing, code loading, or
+/// weight materialization.
 pub fn parse_bytes(
   document : BytesView,
   content_digest : @spec.ContentDigest,
@@ -95,4 +113,37 @@ pub fn parse_string(
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
   parse_text(document, content_digest, max_depth)
+}
+
+///|
+/// Parses the bounded full-attention-compatible Mistral JSON profile.
+///
+/// An admitted sliding window narrows the resulting model context ceiling so
+/// the existing full causal-attention plan remains exact. This parser owns no
+/// file, weight, plan, device, or scheduler authority.
+pub fn parse_mistral_bytes(
+  document : BytesView,
+  content_digest : @spec.ContentDigest,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError {
+  validate_limits(max_bytes, max_depth)
+  if document.length() > max_bytes {
+    raise ByteLimitExceeded(limit=max_bytes)
+  }
+  let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
+  parse_mistral_text(text, content_digest, max_depth)
+}
+
+///|
+/// Parses Mistral JSON text while enforcing its encoded UTF-8 byte bound.
+pub fn parse_mistral_string(
+  document : StringView,
+  content_digest : @spec.ContentDigest,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError {
+  validate_limits(max_bytes, max_depth)
+  validate_utf8_size(document, max_bytes)
+  parse_mistral_text(document, content_digest, max_depth)
 }

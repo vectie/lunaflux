@@ -212,7 +212,7 @@ pub fn load_reference_bundle(
     identity: {
       model_config: config_digest,
       tokenizer: tokenizer_identity,
-      model: model.identity(),
+      model_content: model.content_digest(),
     },
   }
 }

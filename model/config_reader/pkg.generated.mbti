@@ -3,11 +3,16 @@ package "vectie/lunaflux/model/config_reader"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/model/mistral_spec",
   "vectie/lunaflux/model/spec",
 }
 
 // Values
 pub fn parse_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
+
+pub fn parse_mistral_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError
+
+pub fn parse_mistral_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @mistral_spec.MistralModelMetadata raise ModelConfigReaderError
 
 pub fn parse_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @spec.LlamaModelMetadata raise ModelConfigReaderError
 

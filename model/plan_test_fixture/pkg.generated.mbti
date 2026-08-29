@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/plan_test_fixture"
+
+import {
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn synthetic_bf16_numeric_schema(ArrayView[@plan.PlanOperation]) -> @numeric_contract.ModelNumericSchema
+
+pub fn synthetic_fp8_w8a8_numeric_schema(ArrayView[@plan.PlanOperation], ArrayView[@plan.OperationId]) -> @numeric_contract.ModelNumericSchema
+
+pub fn synthetic_symmetric_i8_weight_only_numeric_schema_v1(ArrayView[@plan.PlanOperation], ArrayView[@plan.OperationId]) -> @numeric_contract.ModelNumericSchema
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

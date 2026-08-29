@@ -37,7 +37,7 @@ pub fn complete(
   safetensors : @safetensors.SafetensorsMetadata,
 ) -> LlamaAdmission raise LlamaAdmissionError {
   let plan = @llama.build(metadata) catch { error => raise Plan(error) }
-  let bindings = @llama_weights.bind(metadata, safetensors) catch {
+  let bindings = @llama_weights.bind(metadata, plan, safetensors) catch {
     error => raise Weights(error)
   }
   { metadata, safetensors, plan, bindings }

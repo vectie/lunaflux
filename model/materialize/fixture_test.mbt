@@ -108,7 +108,9 @@ fn test_bindings() -> @llama_weights.LlamaWeightBindings raise {
     payload_bytes~,
     limits~,
   )
-  @llama_weights.bind(test_model(), metadata)
+  let model = test_model()
+  let plan = @llama.build(model)
+  @llama_weights.bind(model, plan, metadata)
 }
 
 ///|

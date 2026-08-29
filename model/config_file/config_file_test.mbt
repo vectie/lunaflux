@@ -52,7 +52,7 @@ async test "approved config snapshot authenticates before parsing and binds inde
       content,
       fixture_limits(),
     )
-    assert_eq(metadata.identity().content(), content)
+    assert_eq(metadata.content_digest(), content)
     assert_eq(metadata.spec().hidden_size(), 16)
     assert_false(root.is_closed())
     root.close()

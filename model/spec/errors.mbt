@@ -1,6 +1,7 @@
 ///|
 /// Dimension whose value violated the dense Llama model contract.
 pub(all) enum ModelDimension {
+  BatchRows
   Vocabulary
   Hidden
   Intermediate
@@ -32,5 +33,4 @@ pub(all) suberror ModelSpecError {
   UnsupportedKvDType
   UnknownDType
   InvalidDigest
-  MetadataIdentityMismatch
 } derive(Debug, Eq)

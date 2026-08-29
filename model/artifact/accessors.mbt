@@ -13,8 +13,10 @@ pub fn ArtifactIdentity::tokenizer(
 }
 
 ///|
-pub fn ArtifactIdentity::model(self : ArtifactIdentity) -> @spec.ModelIdentity {
-  self.model
+pub fn ArtifactIdentity::model_content(
+  self : ArtifactIdentity,
+) -> @spec.ContentDigest {
+  self.model_content
 }
 
 ///|

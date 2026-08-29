@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/mistral_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct MistralModelMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MistralModelMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn MistralModelMetadata::from_verified_content(MistralModelSpec, @spec.ContentDigest) -> Self raise @spec.ModelSpecError
+pub fn MistralModelMetadata::spec(Self) -> MistralModelSpec
+
+pub struct MistralModelSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MistralModelSpec::attention_head_count(Self) -> Int
+pub fn MistralModelSpec::context_length(Self) -> Int
+pub fn MistralModelSpec::head_dimension(Self) -> Int
+pub fn MistralModelSpec::hidden_size(Self) -> Int
+pub fn MistralModelSpec::intermediate_size(Self) -> Int
+pub fn MistralModelSpec::kv_dtype(Self) -> @spec.ModelDType
+pub fn MistralModelSpec::kv_head_count(Self) -> Int
+pub fn MistralModelSpec::layer_count(Self) -> Int
+pub fn MistralModelSpec::max_position_embeddings(Self) -> Int
+pub fn MistralModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, max_position_embeddings~ : Int, sliding_window? : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : @spec.ModelDType, kv_dtype~ : @spec.ModelDType) -> Self raise @spec.ModelSpecError
+pub fn MistralModelSpec::rms_norm_epsilon(Self) -> Double
+pub fn MistralModelSpec::rope_theta(Self) -> Double
+pub fn MistralModelSpec::sliding_window(Self) -> Int?
+pub fn MistralModelSpec::vocabulary_size(Self) -> Int
+pub fn MistralModelSpec::weight_dtype(Self) -> @spec.ModelDType
+
+// Type aliases
+
+// Traits

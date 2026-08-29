@@ -11,6 +11,7 @@ fn wb_inspect_file(file : Bytes) -> DeviceWeightFileInspection raise {
   let limits = wb_stream_limits(transfer_chunk_bytes=23)
   let prepared = prepare_streaming_load(
     model,
+    @llama.build(model),
     wb_stamp(file),
     file.length().to_int64(),
     limits,
@@ -23,6 +24,7 @@ fn wb_inspect_file(file : Bytes) -> DeviceWeightFileInspection raise {
   )
   inspection_from_prepared(
     model,
+    @llama.build(model),
     wb_weight_locator("weights.safetensors"),
     limits,
     64L,
@@ -46,12 +48,13 @@ async test "public inspection admits an exact file without a device context" {
     let inspected = inspect_file(
       root,
       model,
+      @llama.build(model),
       wb_weight_locator("weights.safetensors"),
       limits=wb_stream_limits(),
       alignment_bytes=64L,
       max_arena_bytes=4096L,
     )
-    assert_eq(inspected.content_digest(), model.identity().content())
+    assert_eq(inspected.content_digest(), model.content_digest())
     assert_eq(inspected.layout().arena_bytes(), 768L)
     root.close()
   }
@@ -70,6 +73,7 @@ async test "inspection file failures retain no locator payload" {
       inspect_file(
         root,
         wb_stream_model(wb_stream_file()),
+        wb_stream_plan(wb_stream_file()),
         wb_weight_locator("private-model-name.safetensors"),
         limits=wb_stream_limits(),
         alignment_bytes=64L,
@@ -99,6 +103,7 @@ async test "inspection rejects a non-regular locator" {
       inspect_file(
         root,
         wb_stream_model(wb_stream_file()),
+        wb_stream_plan(wb_stream_file()),
         wb_weight_locator("directory"),
         limits=wb_stream_limits(),
         alignment_bytes=64L,
@@ -137,6 +142,7 @@ async test "inspection rejects symlink locators without payloads" {
       inspect_file(
         root,
         wb_stream_model(file),
+        wb_stream_plan(file),
         wb_weight_locator("weights.link"),
         limits=wb_stream_limits(),
         alignment_bytes=64L,
@@ -180,6 +186,7 @@ async test "inspection reads from the pinned root after namespace replacement" {
     let inspection = inspect_file(
       root,
       wb_stream_model(file),
+      wb_stream_plan(file),
       wb_weight_locator("weights.safetensors"),
       limits=wb_stream_limits(),
       alignment_bytes=64L,
@@ -187,7 +194,7 @@ async test "inspection reads from the pinned root after namespace replacement" {
     )
     assert_eq(
       inspection.content_digest(),
-      wb_stream_model(file).identity().content(),
+      wb_stream_model(file).content_digest(),
     )
     root.close()
   }
@@ -198,8 +205,9 @@ test "weight inspection exposes exact immutable layout evidence" {
   let file = wb_stream_file()
   let inspection = wb_inspect_file(file)
   let model = wb_stream_model(file)
-  assert_eq(inspection.content_digest(), model.identity().content())
-  assert_eq(inspection.layout().identity(), model.identity())
+  let plan = @llama.build(model)
+  assert_eq(inspection.content_digest(), model.content_digest())
+  assert_eq(inspection.layout().identity(), plan.identity())
   assert_eq(inspection.layout().length(), 12)
   assert_eq(inspection.layout().arena_bytes(), 768L)
 }
@@ -262,6 +270,7 @@ test "ctime-only same-handle changes reject inspection admission" {
   try
     prepare_streaming_load(
       wb_stream_model(file),
+      wb_stream_plan(file),
       wb_stamp(file, modified=7, changed=7),
       file.length().to_int64(),
       wb_stream_limits(),
@@ -286,6 +295,7 @@ test "readmission requires exact semantic transfer evidence" {
   let admitted = wb_inspect_file(file)
   let altered : DeviceWeightFileInspection = {
     model: admitted.model,
+    model_plan: admitted.model_plan,
     locator: admitted.locator,
     limits: admitted.limits,
     alignment_bytes: admitted.alignment_bytes,

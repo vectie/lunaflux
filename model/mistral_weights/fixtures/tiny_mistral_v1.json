@@ -1,0 +1,16 @@
+{
+  "schema": "lunaflux.mistral.synthetic-corpus.v1",
+  "license": "CC0-1.0",
+  "redistributable": true,
+  "synthetic": true,
+  "origin": "generated-in-repository-with-no-third-party-weight-bytes",
+  "payload_pattern": "byte_at_global_numeric_payload_offset=(offset*17+3)%256",
+  "model_content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "layers": 2,
+  "operations": 21,
+  "tensors": 21,
+  "sliding_window": 16,
+  "model_plan_sha256": "fe62323c5505ba80399eb12e824d64b7bfa306f4c9c8dc0700e9f30841926970",
+  "weight_manifest_sha256": "d09aa04e1be4c692dce7235132b629e4c0cf0f69f66a464a0e8c56865404b22a",
+  "numeric_artifact_sha256": "5b7d21f7f603be55af33fe341b55d65594cd0862d9e6d9a446f253d7c5af6f50"
+}

@@ -21,16 +21,20 @@ test "valid dense Llama metadata is plan-ready and immutable" {
   assert_eq(spec.kv_head_count(), 8)
   assert_eq(spec.context_length(), 4096)
   assert_eq(spec.rms_norm_epsilon(), 0.000001)
+  let numeric = spec.numeric_schema()
+  assert_eq(numeric.tensors().length(), 9 * spec.layer_count() + 3)
+  assert_eq(numeric.operations().length(), 9 * spec.layer_count() + 3)
+  assert_eq(numeric.digest().as_hex().length(), 64)
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
   let metadata = @spec.LlamaModelMetadata::from_verified_content(spec, content)
   assert_eq(metadata.spec().layer_count(), 32)
-  assert_eq(metadata.identity().content().as_hex(), content.as_hex())
+  assert_eq(metadata.content_digest().as_hex(), content.as_hex())
 }
 
 ///|
-test "canonical plan identity is derived deterministically from semantic fields" {
+test "metadata carries content without minting a plan identity" {
   let base = @spec.LlamaModelSpec::new(
     vocabulary_size=32000,
     hidden_size=16,
@@ -44,40 +48,12 @@ test "canonical plan identity is derived deterministically from semantic fields"
     weight_dtype=BFloat16,
     kv_dtype=BFloat16,
   )
-  assert_eq(
-    base.canonical_plan_digest().as_hex(),
-    "27324d458a6df9e95d2dc38b7ae70b0010b1970d6d47c3c1c8c6c5bee5af6993",
-  )
-  assert_eq(
-    base.canonical_paged_plan_digest().as_hex(),
-    "bc32f10a8f02b9ce74ef9f70e22966ee811bd96f2a8bd254caa87662753c0db0",
-  )
-  assert_true(
-    base.canonical_paged_plan_digest() != base.canonical_plan_digest(),
-  )
-  let changed = @spec.LlamaModelSpec::new(
-    vocabulary_size=32000,
-    hidden_size=16,
-    intermediate_size=32,
-    layer_count=2,
-    attention_head_count=4,
-    kv_head_count=2,
-    context_length=128,
-    rope_theta=20000.0,
-    rms_norm_epsilon=0.000001,
-    weight_dtype=BFloat16,
-    kv_dtype=BFloat16,
-  )
-  assert_true(base.canonical_plan_digest() != changed.canonical_plan_digest())
   let content = @spec.ContentDigest::from_sha256(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
-  assert_eq(
-    @spec.LlamaModelMetadata::from_verified_content(base, content)
-    .identity()
-    .plan(),
-    base.canonical_plan_digest(),
-  )
+  let metadata = @spec.LlamaModelMetadata::from_verified_content(base, content)
+  assert_eq(metadata.content_digest(), content)
+  assert_eq(base.numeric_schema(), base.numeric_schema())
 }
 
 ///|
@@ -157,6 +133,42 @@ test "invalid dimensions and head relationships are rejected" {
     _ => fail("unexpected model error")
   } noraise {
     _ => fail("expected invalid vocabulary")
+  }
+}
+
+///|
+test "Llama layer authority fits the numeric and plan operation ceilings" {
+  let maximum = @spec.LlamaModelSpec::new(
+    vocabulary_size=32,
+    hidden_size=8,
+    intermediate_size=16,
+    layer_count=454,
+    attention_head_count=2,
+    kv_head_count=1,
+    context_length=16,
+    rope_theta=10000.0,
+    weight_dtype=BFloat16,
+    kv_dtype=BFloat16,
+  )
+  assert_eq(3 + 9 * maximum.layer_count(), 4089)
+  try
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=32,
+      hidden_size=8,
+      intermediate_size=16,
+      layer_count=455,
+      attention_head_count=2,
+      kv_head_count=1,
+      context_length=16,
+      rope_theta=10000.0,
+      weight_dtype=BFloat16,
+      kv_dtype=BFloat16,
+    )
+  catch {
+    InvalidDimension(LayerCount) => ()
+    _ => fail("unexpected layer ceiling failure")
+  } noraise {
+    _ => fail("layer count above the plan operation ceiling was admitted")
   }
 }
 

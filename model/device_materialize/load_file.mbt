@@ -151,12 +151,13 @@ fn with_weight_file_load(
 /// `locator` must be a strict relative descendant. The loader opens the file
 /// component-by-component without following symlinks, validates the bounded
 /// header and exact tensor vocabulary, plans every final arena region, hashes
-/// the complete pinned file against the model identity, and rechecks metadata
-/// from that same handle. The validated locator is retained privately in the
-/// returned inert evidence.
+/// the complete pinned file against the model content digest, binds the exact
+/// rebuilt `ModelPlan`, and rechecks metadata from that same handle. The
+/// validated locator is retained privately in the returned inert evidence.
 pub fn inspect_file(
   root : @approved_fs.ApprovedRoot,
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   locator : @approved_fs.ApprovedRelativeLocator,
   limits~ : DeviceWeightFileLimits,
   alignment_bytes~ : Int64,
@@ -166,6 +167,7 @@ pub fn inspect_file(
     let initial_stamp = weight_file_stamp(file)
     let prepared = prepare_streaming_load(
       model,
+      model_plan,
       initial_stamp,
       initial_stamp.byte_count(),
       limits,
@@ -179,7 +181,7 @@ pub fn inspect_file(
       () => weight_file_stamp(file),
     )
     inspection_from_prepared(
-      model, locator, limits, alignment_bytes, max_arena_bytes, prepared,
+      model, model_plan, locator, limits, alignment_bytes, max_arena_bytes, prepared,
     )
   })
 }
@@ -249,6 +251,7 @@ pub fn load_file(
   context : @device.Context,
   root : @approved_fs.ApprovedRoot,
   model : @spec.LlamaModelMetadata,
+  model_plan : @plan.ModelPlan,
   locator : @approved_fs.ApprovedRelativeLocator,
   limits~ : DeviceWeightFileLimits,
   alignment_bytes~ : Int64,
@@ -258,6 +261,7 @@ pub fn load_file(
     let initial_stamp = weight_file_stamp(file)
     let loaded = load_streaming_with_resource(
       model,
+      model_plan,
       initial_stamp,
       initial_stamp.byte_count(),
       limits,

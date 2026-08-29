@@ -1,19 +1,20 @@
 ///|
 /// Final device-arena placement for one semantic model tensor.
 pub struct DeviceWeightRegion {
-  reference : @plan.TensorRef
-  offset_bytes : Int64
-  byte_length : Int64
+  priv reference : @plan.TensorRef
+  priv offset_bytes : Int64
+  priv byte_length : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Deterministic immutable layout for one complete model weight arena.
 pub struct DeviceWeightLayout {
-  identity : @spec.ModelIdentity
-  alignment_bytes : Int64
-  arena_bytes : Int64
-  materialized_bytes : Int64
-  regions : ReadOnlyArray[DeviceWeightRegion]
+  priv identity : @spec.ModelIdentity
+  priv numeric_schema_digest : @numeric_contract.ModelNumericSchemaDigest?
+  priv alignment_bytes : Int64
+  priv arena_bytes : Int64
+  priv materialized_bytes : Int64
+  priv regions : ReadOnlyArray[DeviceWeightRegion]
 } derive(Debug, Eq)
 
 ///|
@@ -25,7 +26,7 @@ pub struct DeviceWeightLayout {
 /// `DeviceWeights` and use the alias only while dispatching device operations.
 pub struct DeviceWeights {
   priv allocation : @device.Allocation
-  layout : DeviceWeightLayout
+  priv layout : DeviceWeightLayout
 }
 
 ///|
@@ -78,6 +79,15 @@ pub fn DeviceWeightLayout::identity(
   self : DeviceWeightLayout,
 ) -> @spec.ModelIdentity {
   self.identity
+}
+
+///|
+/// Exact canonical numeric schema that minted this layout. Legacy
+/// binding-derived layouts return `None`.
+pub fn DeviceWeightLayout::numeric_schema_digest(
+  self : DeviceWeightLayout,
+) -> @numeric_contract.ModelNumericSchemaDigest? {
+  self.numeric_schema_digest
 }
 
 ///|

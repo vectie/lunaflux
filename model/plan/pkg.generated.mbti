@@ -3,6 +3,7 @@ package "vectie/lunaflux/model/plan"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/spec",
 }
 
@@ -15,14 +16,27 @@ pub(all) suberror PlanValidationError {
   InvalidGraph(PlanGraphRule)
   InvalidWorkspaceBound
   OperationWorkspaceExceedsPlan
+  InvalidLimit(ModelPlanLimitKind)
+  LimitExceeded(ModelPlanLimitKind)
+  CanonicalEncodingMismatch
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub struct ActivationRef(Int) derive(Eq, @debug.Debug)
+pub struct ActivationRef {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn ActivationRef::as_int(Self) -> Int
 pub fn ActivationRef::new(Int) -> Self raise PlanValidationError
 
-pub struct KernelCapabilityId(Int) derive(Eq, @debug.Debug)
+pub struct CodebookTensorRef {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CodebookTensorRef::new(TensorRef) -> Self
+pub fn CodebookTensorRef::tensor(Self) -> TensorRef
+
+pub struct KernelCapabilityId {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn KernelCapabilityId::as_int(Self) -> Int
 pub fn KernelCapabilityId::causal_attention() -> Self
 pub fn KernelCapabilityId::dense_projection() -> Self
@@ -37,11 +51,7 @@ pub fn KernelCapabilityId::rms_norm() -> Self
 pub fn KernelCapabilityId::rotary_embedding() -> Self
 
 pub struct KvCacheGeometry {
-  layer_count : Int
-  kv_head_count : Int
-  head_dimension : Int
-  dtype : @spec.ModelDType
-  layout : KvCacheLayout
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn KvCacheGeometry::dtype(Self) -> @spec.ModelDType
 pub fn KvCacheGeometry::head_dimension(Self) -> Int
@@ -55,7 +65,9 @@ pub(all) enum KvCacheLayout {
 } derive(Eq, @debug.Debug)
 pub fn KvCacheLayout::stable_version(Self) -> Int
 
-pub struct KvLayerId(Int) derive(Eq, @debug.Debug)
+pub struct KvLayerId {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn KvLayerId::as_int(Self) -> Int
 pub fn KvLayerId::new(Int) -> Self raise PlanValidationError
 
@@ -68,28 +80,52 @@ pub(all) enum ModelKvExecution {
   PagedKeyValue
 } derive(Eq, @debug.Debug)
 
+pub struct ModelNumericBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelNumericBinding::canonical_bytes(Self) -> Bytes
+pub fn ModelNumericBinding::digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn ModelNumericBinding::operations(Self) -> ReadOnlyArray[OperationNumericBinding]
+pub fn ModelNumericBinding::schema(Self) -> @numeric_contract.ModelNumericSchema
+pub fn ModelNumericBinding::tensors(Self) -> ReadOnlyArray[PlanTensor]
+
 pub struct ModelPlan {
-  identity : @spec.ModelIdentity
-  shape_constraints : ShapeConstraints
-  kv_cache_geometry : KvCacheGeometry
-  workspace_bounds : WorkspaceBounds
-  operations : ReadOnlyArray[PlanOperation]
-  required_capabilities : ReadOnlyArray[KernelCapabilityId]
-  final_output : ActivationRef
-  kv_execution : ModelKvExecution
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ModelPlan::final_output(Self) -> ActivationRef
 pub fn ModelPlan::identity(Self) -> @spec.ModelIdentity
 pub fn ModelPlan::kv_cache_geometry(Self) -> KvCacheGeometry
 pub fn ModelPlan::kv_execution(Self) -> ModelKvExecution
-pub fn ModelPlan::new_stateless(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef) -> Self raise PlanValidationError
-pub fn ModelPlan::new_with_kv_execution(identity~ : @spec.ModelIdentity, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, kv_execution~ : ModelKvExecution) -> Self raise PlanValidationError
+pub fn ModelPlan::new_stateless(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
+pub fn ModelPlan::new_with_kv_execution(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, kv_execution~ : ModelKvExecution, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
+pub fn ModelPlan::numeric_binding(Self) -> ModelNumericBinding
 pub fn ModelPlan::operations(Self) -> ReadOnlyArray[PlanOperation]
 pub fn ModelPlan::required_capabilities(Self) -> ReadOnlyArray[KernelCapabilityId]
 pub fn ModelPlan::shape_constraints(Self) -> ShapeConstraints
+pub fn ModelPlan::tensor(Self, TensorRef) -> PlanTensor?
+pub fn ModelPlan::tensor_count(Self) -> Int
 pub fn ModelPlan::workspace_bounds(Self) -> WorkspaceBounds
 
-pub struct OperationId(Int) derive(Eq, @debug.Debug)
+pub(all) enum ModelPlanLimitKind {
+  Operations
+  NumericTensors
+  TotalValueInputs
+  ValueInputsPerOperation
+  RuntimeInputsPerOperation
+  OutputsPerOperation
+  CanonicalBytes
+  IncoherentLimits
+} derive(Eq, @debug.Debug)
+
+pub struct ModelPlanLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelPlanLimits::new(max_operations~ : Int, max_numeric_tensors~ : Int, max_total_value_inputs~ : Int, max_value_inputs_per_operation~ : Int, max_runtime_inputs_per_operation~ : Int, max_outputs_per_operation~ : Int, max_canonical_bytes~ : Int) -> Self raise PlanValidationError
+pub fn ModelPlanLimits::production() -> Self
+
+pub struct OperationId {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn OperationId::as_int(Self) -> Int
 pub fn OperationId::new(Int) -> Self raise PlanValidationError
 
@@ -104,6 +140,12 @@ pub(all) enum OperationKind {
   GatedMlp
   LanguageModelHead
 } derive(Eq, @debug.Debug)
+
+pub struct OperationNumericBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperationNumericBinding::execution(Self) -> @numeric_contract.OperationExecutionContract
+pub fn OperationNumericBinding::operation(Self) -> OperationId
 
 pub(all) enum OperationRuntimeInput {
   StepCounts
@@ -144,6 +186,14 @@ pub(all) enum PlanGraphRule {
   KvLayerOrder
   KvExecutionContract
   KvExecutionModeMismatch
+  MissingTensor
+  TensorRoleMismatch
+  NumericTensorType
+  NumericTensorShape
+  UnusedParameterTensor
+  UnreferencedNumericMetadata
+  NumericOperationBinding
+  NumericActivationType
 } derive(Eq, @debug.Debug)
 
 pub(all) enum PlanIdentifierKind {
@@ -155,16 +205,7 @@ pub(all) enum PlanIdentifierKind {
 } derive(Eq, @debug.Debug)
 
 pub struct PlanOperation {
-  id : OperationId
-  kind : OperationKind
-  inputs : ReadOnlyArray[ValueRef]
-  outputs : ReadOnlyArray[ActivationRef]
-  shape : OperationShape
-  required_capability : KernelCapabilityId
-  workspace_bytes : Int64
-  kv_layer : KvLayerId?
-  runtime_inputs : ReadOnlyArray[OperationRuntimeInput]
-  persistent_state : PersistentStateAccess
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn PlanOperation::id(Self) -> OperationId
 pub fn PlanOperation::inputs(Self) -> ReadOnlyArray[ValueRef]
@@ -192,15 +233,32 @@ pub(all) enum PlanShapeRule {
   OperationShapeMismatch
 } derive(Eq, @debug.Debug)
 
+pub struct PlanTensor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PlanTensor::codebook(Self) -> CodebookTensorRef?
+pub fn PlanTensor::reference(Self) -> TensorRef
+pub fn PlanTensor::role(Self) -> PlanTensorRole
+pub fn PlanTensor::scale(Self) -> ScaleTensorRef?
+pub fn PlanTensor::shape(Self) -> @numeric_contract.NumericShape
+pub fn PlanTensor::storage(Self) -> @numeric_contract.TensorStorageContract
+pub fn PlanTensor::zero_point(Self) -> ZeroPointTensorRef?
+
+pub(all) enum PlanTensorRole {
+  ParameterTensor
+  ScaleMetadataTensor
+  ZeroPointMetadataTensor
+  CodebookMetadataTensor
+} derive(Eq, @debug.Debug)
+
+pub struct ScaleTensorRef {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ScaleTensorRef::new(TensorRef) -> Self
+pub fn ScaleTensorRef::tensor(Self) -> TensorRef
+
 pub struct ShapeConstraints {
-  max_batch_rows : Int
-  max_sequence_tokens : Int
-  vocabulary_size : Int
-  hidden_size : Int
-  intermediate_size : Int
-  attention_head_count : Int
-  kv_head_count : Int
-  head_dimension : Int
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ShapeConstraints::attention_head_count(Self) -> Int
 pub fn ShapeConstraints::head_dimension(Self) -> Int
@@ -212,7 +270,9 @@ pub fn ShapeConstraints::max_sequence_tokens(Self) -> Int
 pub fn ShapeConstraints::new(max_batch_rows~ : Int, max_sequence_tokens~ : Int, vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int) -> Self raise PlanValidationError
 pub fn ShapeConstraints::vocabulary_size(Self) -> Int
 
-pub struct TensorRef(Int) derive(Eq, @debug.Debug)
+pub struct TensorRef {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn TensorRef::as_int(Self) -> Int
 pub fn TensorRef::new(Int) -> Self raise PlanValidationError
 
@@ -223,10 +283,16 @@ pub(all) enum ValueRef {
 } derive(Eq, @debug.Debug)
 
 pub struct WorkspaceBounds {
-  max_temporary_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkspaceBounds::max_temporary_bytes(Self) -> Int64
 pub fn WorkspaceBounds::new(max_temporary_bytes~ : Int64) -> Self raise PlanValidationError
+
+pub struct ZeroPointTensorRef {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ZeroPointTensorRef::new(TensorRef) -> Self
+pub fn ZeroPointTensorRef::tensor(Self) -> TensorRef
 
 // Type aliases
 

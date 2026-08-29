@@ -9,6 +9,7 @@ fn parse_vocabulary(
   value : Json,
   specials : Map[Int, AddedSpecial],
   limits : @tokenizer.TokenizerLimits,
+  profile : TokenizerJsonProfile,
 ) -> ParsedVocabulary raise TokenizerJsonError {
   guard value is Object(vocab) else {
     raise InvalidField(component=Model, field=Vocab, index=0)
@@ -28,7 +29,16 @@ fn parse_vocabulary(
         }
         (special.piece, @tokenizer.TokenKind::Special)
       }
-      None => (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
+      None =>
+        match profile {
+          ByteLevelJson =>
+            (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
+          SentencePieceJson(..) =>
+            match decode_sentencepiece_byte_fallback(raw_piece) {
+              Some(byte) => ([byte], ByteFallback)
+              None => (@utf8.encode(raw_piece), Normal)
+            }
+        }
     }
     entries.push({ token_id: id, piece, kind })
     raw_id_by_token[raw_piece] = id
@@ -113,6 +123,7 @@ fn parse_merges(
   value : Json,
   vocabulary : ParsedVocabulary,
   limits : @tokenizer.TokenizerLimits,
+  profile : TokenizerJsonProfile,
 ) -> Array[@tokenizer.MergeRule] raise TokenizerJsonError {
   guard value is Array(rows) else {
     raise InvalidField(component=Model, field=Merges, index=0)
@@ -123,8 +134,14 @@ fn parse_merges(
   let rules : Array[@tokenizer.MergeRule] = []
   for index, row in rows {
     let (left_raw, right_raw) = decode_merge_pair(row, index)
-    let left_piece = decode_bytelevel_piece(left_raw, index)
-    let right_piece = decode_bytelevel_piece(right_raw, index)
+    let left_piece = match profile {
+      ByteLevelJson => decode_bytelevel_piece(left_raw, index)
+      SentencePieceJson(..) => @utf8.encode(left_raw)
+    }
+    let right_piece = match profile {
+      ByteLevelJson => decode_bytelevel_piece(right_raw, index)
+      SentencePieceJson(..) => @utf8.encode(right_raw)
+    }
     let left_id = match vocabulary.normal_id_by_piece.get(left_piece) {
       Some(id) => id
       None => raise UnknownMergePiece(index~, part=Left)
@@ -153,6 +170,7 @@ fn parse_model(
   specials : Map[Int, AddedSpecial],
   digest : @tokenizer.TokenizerDigest,
   limits : @tokenizer.TokenizerLimits,
+  profile : TokenizerJsonProfile,
 ) -> @tokenizer.TokenizerSpec raise TokenizerJsonError {
   guard value is Object(model) else {
     raise InvalidField(component=Root, field=ModelField, index=0)
@@ -165,7 +183,6 @@ fn parse_model(
     raise UnsupportedSemantics(component=Model, feature=ModelKind)
   }
   require_null(model, "dropout", Model, Dropout, MergeDropout)
-  require_null(model, "unk_token", Model, UnknownToken, UnknownTokenFallback)
   require_null(
     model,
     "continuing_subword_prefix",
@@ -180,26 +197,115 @@ fn parse_model(
     EndOfWordSuffix,
     WordSuffixes,
   )
-  if require_bool(model, "fuse_unk", Model, FuseUnknown, 0) {
-    raise UnsupportedSemantics(component=Model, feature=UnknownTokenFusion)
-  }
-  if require_bool(model, "byte_fallback", Model, ByteFallback, 0) {
-    raise UnsupportedSemantics(component=Model, feature=ByteFallbackBehavior)
-  }
-  if require_bool(model, "ignore_merges", Model, IgnoreMerges, 0) {
-    raise UnsupportedSemantics(component=Model, feature=IgnoreMergeBehavior)
+  let (unknown_token_id, bos_token_id) = match profile {
+    ByteLevelJson => {
+      require_null(
+        model,
+        "unk_token",
+        Model,
+        UnknownToken,
+        UnknownTokenFallback,
+      )
+      if require_bool(model, "fuse_unk", Model, FuseUnknown, 0) {
+        raise UnsupportedSemantics(component=Model, feature=UnknownTokenFusion)
+      }
+      if require_bool(model, "byte_fallback", Model, ByteFallback, 0) {
+        raise UnsupportedSemantics(
+          component=Model,
+          feature=ByteFallbackBehavior,
+        )
+      }
+      if require_bool(model, "ignore_merges", Model, IgnoreMerges, 0) {
+        raise UnsupportedSemantics(component=Model, feature=IgnoreMergeBehavior)
+      }
+      (-1, -1)
+    }
+    SentencePieceJson(bos_token_id~) => {
+      let unknown = require_string(model, "unk_token", Model, UnknownToken, 0)
+      if unknown != "<unk>" ||
+        !require_bool(model, "fuse_unk", Model, FuseUnknown, 0) ||
+        !require_bool(model, "byte_fallback", Model, ByteFallback, 0) {
+        raise UnsupportedSemantics(
+          component=Model,
+          feature=UnknownTokenFallback,
+        )
+      }
+      match model.get("ignore_merges") {
+        None | Some(Null) | Some(False) => ()
+        _ =>
+          raise UnsupportedSemantics(
+            component=Model,
+            feature=IgnoreMergeBehavior,
+          )
+      }
+      let mut unknown_token_id = -1
+      for id, special in specials {
+        if special.content == unknown {
+          unknown_token_id = id
+        }
+      }
+      if unknown_token_id < 0 {
+        raise UnsupportedSemantics(
+          component=Model,
+          feature=UnknownTokenFallback,
+        )
+      }
+      (unknown_token_id, bos_token_id)
+    }
   }
   let vocabulary = parse_vocabulary(
     require_field(model, "vocab", Model, Vocab),
     specials,
     limits,
+    profile,
   )
   let merges = parse_merges(
     require_field(model, "merges", Model, Merges),
     vocabulary,
     limits,
+    profile,
   )
-  @tokenizer.TokenizerSpec::new(vocabulary.entries, merges, digest, limits) catch {
-    error => raise Validation(error)
+  match profile {
+    ByteLevelJson =>
+      @tokenizer.TokenizerSpec::new(vocabulary.entries, merges, digest, limits) catch {
+        error => raise Validation(error)
+      }
+    SentencePieceJson(..) =>
+      @tokenizer.TokenizerSpec::new_sentencepiece_bpe(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+        unknown_token_id~,
+        bos_token_id~,
+      ) catch {
+        error => raise Validation(error)
+      }
   }
+}
+
+///|
+fn hex_nibble(code : UInt16) -> Int? {
+  if code >= '0' && code <= '9' {
+    Some(code.to_int() - 0x30)
+  } else if code >= 'A' && code <= 'F' {
+    Some(code.to_int() - 0x41 + 10)
+  } else {
+    None
+  }
+}
+
+///|
+fn decode_sentencepiece_byte_fallback(piece : String) -> Byte? {
+  if piece.length() != 6 ||
+    piece[0] != '<' ||
+    piece[1] != '0' ||
+    piece[2] != 'x' ||
+    piece[5] != '>' {
+    return None
+  }
+  guard hex_nibble(piece[3]) is Some(high) && hex_nibble(piece[4]) is Some(low) else {
+    return None
+  }
+  Some(((high << 4) | low).to_byte())
 }

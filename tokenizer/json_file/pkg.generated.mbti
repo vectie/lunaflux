@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tokenizer/json_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn load(@approved_fs.ApprovedRoot, StringView, StringView, @tokenizer.TokenizerDigest, TokenizerFileLimits, @tokenizer.TokenizerLimits) -> TokenizerFileAdmission raise TokenizerFileError
+
+pub fn load_materialized(@approved_fs.ApprovedRootMaterializationView, StringView, @tokenizer.TokenizerDigest, TokenizerFileLimits, @tokenizer.TokenizerLimits) -> TokenizerFileAdmission raise TokenizerFileError
+
+// Errors
+pub(all) suberror TokenizerFileError {
+  InvalidLimit(TokenizerFileLimit)
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge(maximum~ : Int64)
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy(TokenizerFileOperation)
+  FileOperationFailed(TokenizerFileOperation)
+  DigestMismatch
+  InvalidTokenizer
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TokenizerFileAdmission {
+  // private fields
+}
+pub fn TokenizerFileAdmission::digest(Self) -> @tokenizer.TokenizerDigest
+pub fn TokenizerFileAdmission::matches_source(Self, StringView, StringView, @tokenizer.TokenizerDigest, TokenizerFileLimits, @tokenizer.TokenizerLimits) -> Bool
+pub fn TokenizerFileAdmission::spec(Self) -> @tokenizer.TokenizerSpec
+
+pub(all) enum TokenizerFileLimit {
+  FileBytes
+  JsonDepth
+} derive(Eq, @debug.Debug)
+
+pub struct TokenizerFileLimits {
+  // private fields
+}
+pub fn TokenizerFileLimits::max_file_bytes(Self) -> Int
+pub fn TokenizerFileLimits::max_json_depth(Self) -> Int
+pub fn TokenizerFileLimits::new(max_file_bytes~ : Int, max_json_depth~ : Int) -> Self raise TokenizerFileError
+
+pub(all) enum TokenizerFileOperation {
+  BindRoot
+  ValidateLocator
+  Open
+  Snapshot
+  Close
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

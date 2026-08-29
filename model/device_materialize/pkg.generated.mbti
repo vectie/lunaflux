@@ -4,25 +4,31 @@ package "vectie/lunaflux/model/device_materialize"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/model/llama_tensor_parallel",
   "vectie/lunaflux/model/llama_weights",
-  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/safetensors_reader",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn inspect_file(@approved_fs.ApprovedRoot, @spec.LlamaModelMetadata, @approved_fs.ApprovedRelativeLocator, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightFileInspection raise DeviceWeightError
+pub fn inspect_file(@approved_fs.ApprovedRoot, @spec.LlamaModelMetadata, @plan.ModelPlan, @approved_fs.ApprovedRelativeLocator, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightFileInspection raise DeviceWeightError
 
-pub fn load(@device.Context, @llama_weights.LlamaWeightBindings, Bytes, materialization_limits~ : @materialize.MaterializationLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
+pub fn inspect_sharded_file(@approved_fs.ApprovedRoot, @spec.LlamaModelMetadata, @plan.ModelPlan, @approved_fs.ApprovedRelativeLocator, rank~ : Int, world_size~ : Int, alignment_bytes~ : Int64, max_arena_bytes~ : Int64, limits~ : DeviceWeightFileLimits) -> DeviceShardedWeightFileInspection raise DeviceWeightError
 
-pub fn load_file(@device.Context, @approved_fs.ApprovedRoot, @spec.LlamaModelMetadata, @approved_fs.ApprovedRelativeLocator, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
+pub fn load_file(@device.Context, @approved_fs.ApprovedRoot, @spec.LlamaModelMetadata, @plan.ModelPlan, @approved_fs.ApprovedRelativeLocator, limits~ : DeviceWeightFileLimits, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightPreparation raise DeviceWeightError
 
 pub fn load_inspected_file(@device.Context, @approved_fs.ApprovedRoot, DeviceWeightFileInspection) -> DeviceWeightPreparation raise DeviceWeightError
 
+pub fn load_inspected_sharded_file(@device.Context, @approved_fs.ApprovedRoot, DeviceShardedWeightFileInspection) -> DeviceShardedWeightPreparation raise DeviceWeightError
+
 pub fn plan_layout(@llama_weights.LlamaWeightBindings, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightLayout raise DeviceWeightError
+
+pub fn plan_numeric_layout(@plan.ModelPlan, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> DeviceWeightLayout raise DeviceWeightError
 
 // Errors
 pub(all) suberror DeviceWeightError {
@@ -33,7 +39,6 @@ pub(all) suberror DeviceWeightError {
   BindingOrderMismatch(reference~ : Int)
   LayoutSizeOverflow(reference~ : Int)
   ArenaTooLarge
-  UnexpectedTensor(reference~ : Int)
   TensorLengthMismatch(reference~ : Int)
   InvalidFileLimit(DeviceWeightFileLimit)
   FileUnavailable
@@ -45,18 +50,38 @@ pub(all) suberror DeviceWeightError {
   ContentDigestMismatch
   InvalidSafetensors(@safetensors_reader.SafetensorsReaderError)
   InvalidLlamaWeights(@llama_weights.LlamaWeightsError)
-  MaterializationFailed(@materialize.MaterializationError)
+  InvalidTensorParallelPlan(@llama_tensor_parallel.LlamaTensorParallelError)
+  TensorParallelPlanMismatch
+  InvalidShardedTransfer(reference~ : Int, segment~ : Int)
   DeviceFailed(@device.DeviceError)
   CleanupFailed(stage~ : DeviceWeightFailureStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct DeviceShardedWeightFileInspection {
+  // private fields
+}
+pub fn DeviceShardedWeightFileInspection::content_digest(Self) -> @spec.ContentDigest
+pub fn DeviceShardedWeightFileInspection::rank_plan(Self) -> @tensor_parallel_plan.TensorParallelRankPlan
+pub fn DeviceShardedWeightFileInspection::reauthenticate(Self, @approved_fs.ApprovedRoot) -> Self raise DeviceWeightError
+
+pub(all) enum DeviceShardedWeightPreparation {
+  ShardedWeightsReady(DeviceShardedWeights)
+  ShardedWeightsCleanupRequired(FailedDeviceShardedWeightPreparation)
+}
+
+pub struct DeviceShardedWeights {
+  // private fields
+}
+pub fn DeviceShardedWeights::allocation(Self) -> @device.Allocation
+pub fn DeviceShardedWeights::close(Self) -> Unit raise DeviceWeightError
+pub fn DeviceShardedWeights::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceShardedWeights::rank_plan(Self) -> @tensor_parallel_plan.TensorParallelRankPlan
+
 pub(all) enum DeviceWeightFailureStage {
-  TensorValidation
   Transfer
   SourceRevalidation
   SourceClose
-  MaterializationResult
 } derive(Eq, @debug.Debug)
 
 pub struct DeviceWeightFileInspection {
@@ -71,9 +96,7 @@ pub(all) enum DeviceWeightFileLimit {
 } derive(Eq, @debug.Debug)
 
 pub struct DeviceWeightFileLimits {
-  max_file_bytes : Int64
-  transfer_chunk_bytes : Int
-  safetensors : @safetensors.HeaderLimits
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceWeightFileLimits::max_file_bytes(Self) -> Int64
 pub fn DeviceWeightFileLimits::new(max_file_bytes~ : Int64, transfer_chunk_bytes~ : Int, safetensors~ : @safetensors.HeaderLimits) -> Self raise DeviceWeightError
@@ -81,17 +104,14 @@ pub fn DeviceWeightFileLimits::safetensors(Self) -> @safetensors.HeaderLimits
 pub fn DeviceWeightFileLimits::transfer_chunk_bytes(Self) -> Int
 
 pub struct DeviceWeightLayout {
-  identity : @spec.ModelIdentity
-  alignment_bytes : Int64
-  arena_bytes : Int64
-  materialized_bytes : Int64
-  regions : ReadOnlyArray[DeviceWeightRegion]
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceWeightLayout::alignment_bytes(Self) -> Int64
 pub fn DeviceWeightLayout::arena_bytes(Self) -> Int64
 pub fn DeviceWeightLayout::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWeightLayout::length(Self) -> Int
 pub fn DeviceWeightLayout::materialized_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest?
 pub fn DeviceWeightLayout::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
 
 pub(all) enum DeviceWeightPreparation {
@@ -100,9 +120,7 @@ pub(all) enum DeviceWeightPreparation {
 }
 
 pub struct DeviceWeightRegion {
-  reference : @plan.TensorRef
-  offset_bytes : Int64
-  byte_length : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceWeightRegion::byte_length(Self) -> Int64
 pub fn DeviceWeightRegion::end_offset_bytes(Self) -> Int64
@@ -110,7 +128,6 @@ pub fn DeviceWeightRegion::offset_bytes(Self) -> Int64
 pub fn DeviceWeightRegion::reference(Self) -> @plan.TensorRef
 
 pub struct DeviceWeights {
-  layout : DeviceWeightLayout
   // private fields
 }
 pub fn DeviceWeights::allocation(Self) -> @device.Allocation
@@ -118,6 +135,16 @@ pub fn DeviceWeights::close(Self) -> Unit raise DeviceWeightError
 pub fn DeviceWeights::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWeights::layout(Self) -> DeviceWeightLayout
 pub fn DeviceWeights::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
+
+pub struct FailedDeviceShardedWeightPreparation {
+  // private fields
+}
+pub fn FailedDeviceShardedWeightPreparation::cause(Self) -> DeviceWeightError
+pub fn FailedDeviceShardedWeightPreparation::cleanup_failure(Self) -> @device.DeviceError
+pub fn FailedDeviceShardedWeightPreparation::is_closed(Self) -> Bool
+pub fn FailedDeviceShardedWeightPreparation::rank_plan(Self) -> @tensor_parallel_plan.TensorParallelRankPlan
+pub fn FailedDeviceShardedWeightPreparation::retry_close(Self) -> Unit raise DeviceWeightError
+pub fn FailedDeviceShardedWeightPreparation::stage(Self) -> DeviceWeightFailureStage
 
 pub struct FailedDeviceWeightPreparation {
   // private fields

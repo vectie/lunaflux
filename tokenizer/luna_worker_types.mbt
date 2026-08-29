@@ -29,6 +29,9 @@ const LUNA_WORKER_READY : Int = 7
 const LUNA_WORKER_INPUT_WRITE : Int = 8
 
 ///|
+const LUNA_WORKER_SENTENCEPIECE_SCALAR : Int = 9
+
+///|
 const LUNA_REMOVED_NODE : Int = -2
 
 ///|
@@ -96,6 +99,7 @@ pub fn LunaTokenizerStepBudget::work_units(
 pub struct LunaTokenizerWorker {
   priv spec : TokenizerSpec
   priv input_capacity : Int
+  priv node_capacity : Int
   priv output_capacity : Int
   priv budget : LunaTokenizerStepBudget
   priv tokens : FixedArray[Int]
@@ -104,6 +108,14 @@ pub struct LunaTokenizerWorker {
   priv input : FixedArray[Byte]
   priv mut input_length : Int
   priv mut written_input_bytes : Int
+  priv mut ordinary_ready : Bool
+  priv mut segment_start : Bool
+  priv mut post_processor_pending : Bool
+  priv mut scalar_is_meta : Bool
+  priv mut scalar_direct_token_id : Int
+  priv mut scalar_byte_offset : Int
+  priv mut scalar_byte_length : Int
+  priv mut scalar_source_advance : Int
   priv mut special_policy : SpecialTokenPolicy
   priv mut truncation : TruncationPolicy
   priv mut output_limit : Int
@@ -131,7 +143,9 @@ pub struct LunaTokenizerWorker {
 
 ///|
 /// Returns the exact number of startup-preallocated `Int` cells used by one
-/// worker's token, previous-link, and next-link arrays.
+/// raw ByteLevel worker's token, previous-link, and next-link arrays.
+/// Profile-polymorphic callers must use
+/// `TokenizerSpec::luna_worker_required_int_cells` instead.
 pub fn LunaTokenizerWorker::required_int_cells(
   input_capacity : Int,
 ) -> UInt64 raise TokenizerError {
