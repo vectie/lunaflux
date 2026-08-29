@@ -13,6 +13,7 @@ for validator in \
   scripts/validate-fused-candidate-benchmark-qualification.sh \
   scripts/validate-benchmark-evidence-boundaries.sh \
   scripts/validate-openai-comparison-campaign.sh \
+  scripts/validate-qwen3-comparison-harness.sh \
   scripts/validate-phase4-prefix-benchmark-boundaries.sh \
   scripts/validate-luna-profile-priority-boundary.sh \
   scripts/validate-luna-tile-optimizer-promotion-boundary.sh \

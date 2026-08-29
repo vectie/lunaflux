@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+LC_ALL=C
+export LC_ALL
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+
+fail() {
+  printf 'Qwen3 vLLM benchmark server rejected: %s\n' "$1" >&2
+  exit 2
+}
+
+[ "$#" -eq 6 ] || fail 'usage: ABS_ENV_PREFIX EXPECTED_VLLM_VERSION ABS_MODEL_ROOT ABS_MODEL_INVENTORY#sha256=HEX HOST PORT'
+environment=$1
+expected_version=$2
+model_root=$3
+inventory_argument=$4
+host=$5
+port=$6
+
+case "$environment" in /*) ;; *) fail 'Conda environment prefix must be absolute' ;; esac
+[ -d "$environment" ] && [ ! -L "$environment" ] || fail 'Conda environment prefix is unavailable'
+[ "$(CDPATH= cd -- "$environment" && pwd -P)" = "$environment" ] || fail 'Conda environment prefix is not canonical'
+[ -x "$environment/bin/python" ] || fail 'Conda environment Python is unavailable'
+[ "$host" = 127.0.0.1 ] || fail 'server must bind loopback'
+case "$port" in ''|*[!0-9]*) fail 'port is not decimal' ;; esac
+[ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || fail 'port is outside bounds'
+case "$inventory_argument" in /*#sha256=*) ;; *) fail 'model inventory must be digest suffixed' ;; esac
+inventory=${inventory_argument%#sha256=*}
+inventory_sha=${inventory_argument##*#sha256=}
+case "$inventory_sha" in *[!0-9a-f]*|'') fail 'inventory digest is invalid' ;; esac
+[ "${#inventory_sha}" -eq 64 ] || fail 'inventory digest is invalid'
+[ -d "$model_root" ] && [ ! -L "$model_root" ] || fail 'model root is unavailable'
+[ "$(CDPATH= cd -- "$model_root" && pwd -P)" = "$model_root" ] || fail 'model root is not canonical'
+[ -f "$inventory" ] && [ ! -L "$inventory" ] || fail 'model inventory is unavailable'
+if command -v sha256sum >/dev/null 2>&1; then
+  observed_inventory=$(sha256sum "$inventory" | awk '{print $1}')
+else
+  observed_inventory=$(shasum -a 256 "$inventory" | awk '{print $1}')
+fi
+[ "$observed_inventory" = "$inventory_sha" ] || fail 'model inventory digest mismatch'
+python3 -B "$repo_root/benchmarks/qwen3_comparison/verify_model_inventory.py" \
+  "$model_root" "$inventory" "$inventory_sha" || fail 'model inventory payload mismatch'
+grep -Eq '"model_type"[[:space:]]*:[[:space:]]*"qwen3"' "$model_root/config.json" ||
+  fail 'model config is not Qwen3'
+
+observed_version=$("$environment/bin/python" -c \
+  'import importlib.metadata; print(importlib.metadata.version("vllm"))') ||
+  fail 'vLLM Conda environment is unavailable'
+[ "$observed_version" = "$expected_version" ] || fail 'vLLM version pin mismatch'
+
+exec "$environment/bin/python" -m vllm.entrypoints.openai.api_server \
+  --model "$model_root" \
+  --tokenizer "$model_root" \
+  --served-model-name Qwen3-0.6B \
+  --host "$host" \
+  --port "$port" \
+  --dtype bfloat16 \
+  --max-model-len 40960 \
+  --generation-config vllm \
+  --disable-log-stats

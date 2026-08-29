@@ -1,0 +1,100 @@
+{
+  "schema": "lunaflux.qwen3-comparison-campaign.v1",
+  "model": {
+    "family": "qwen3",
+    "model_id": "Qwen3-0.6B",
+    "source_model_root": "/ABSOLUTE/PINNED/Qwen3-0.6B",
+    "source_model_inventory": "/ABSOLUTE/PINNED/Qwen3-0.6B.files.sha256",
+    "source_model_inventory_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "lunaflux_numeric_artifact_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "lunaflux_weight_route_manifest_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "tokenizer": {
+    "tokenizer_json_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "tokenizer_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "add_generation_prompt": true
+  },
+  "sampling": {
+    "mode": "greedy",
+    "temperature": 0,
+    "top_p": 1,
+    "seed": 0
+  },
+  "profiles": [
+    {"name": "prefill-c1", "class": "prefill", "concurrency": 1, "output_tokens": 32, "request_count": 48},
+    {"name": "prefill-c8", "class": "prefill", "concurrency": 8, "output_tokens": 32, "request_count": 64},
+    {"name": "prefill-c32", "class": "prefill", "concurrency": 32, "output_tokens": 32, "request_count": 96},
+    {"name": "decode-c1", "class": "decode", "concurrency": 1, "output_tokens": 256, "request_count": 48},
+    {"name": "decode-c8", "class": "decode", "concurrency": 8, "output_tokens": 256, "request_count": 64},
+    {"name": "decode-c32", "class": "decode", "concurrency": 32, "output_tokens": 256, "request_count": 96}
+  ],
+  "engines": [
+    {
+      "name": "lunaflux",
+      "adapter": "lunaflux-token-ids-sse-v1",
+      "endpoint": "http://127.0.0.1:8100/benchmark/v1/token-ids",
+      "health_endpoint": "http://127.0.0.1:8100/health",
+      "model_alias": "Qwen3-0.6B",
+      "source_model_inventory_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tokenizer_json_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "tokenizer_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "revision_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "configuration_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "executable_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "environment_prefix": "native",
+      "package_version": "PINNED_LUNAFLUX_REVISION"
+    },
+    {
+      "name": "vllm",
+      "adapter": "vllm-completions-sse-v1",
+      "endpoint": "http://127.0.0.1:8101/v1/completions",
+      "health_endpoint": "http://127.0.0.1:8101/health",
+      "model_alias": "Qwen3-0.6B",
+      "source_model_inventory_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tokenizer_json_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "tokenizer_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "revision_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "configuration_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "executable_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "environment_prefix": "/ABSOLUTE/PINNED_VLLM_ENV_PREFIX",
+      "package_version": "PINNED_VLLM_VERSION"
+    },
+    {
+      "name": "sglang",
+      "adapter": "sglang-generate-sse-v1",
+      "endpoint": "http://127.0.0.1:8102/generate",
+      "health_endpoint": "http://127.0.0.1:8102/health",
+      "model_alias": "Qwen3-0.6B",
+      "source_model_inventory_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tokenizer_json_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "tokenizer_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "revision_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "configuration_sha256": "abababababababababababababababababababababababababababababababab",
+      "executable_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "environment_prefix": "/ABSOLUTE/PINNED_SGLANG_ENV_PREFIX",
+      "package_version": "PINNED_SGLANG_VERSION"
+    }
+  ],
+  "gpu": {
+    "nvidia_smi": "/usr/bin/nvidia-smi",
+    "uuid": "GPU-REPLACE-WITH-EXACT-UUID",
+    "sample_interval_millis": 50
+  },
+  "trials_per_profile": 3,
+  "warmup_requests_per_profile": 2,
+  "request_timeout_seconds": 600,
+  "hardware_concurrency_ceiling": 32,
+  "ollama_inference_rule": "forbidden: no Ollama result may be inferred"
+}
