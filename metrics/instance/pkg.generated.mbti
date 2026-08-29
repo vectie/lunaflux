@@ -1,0 +1,98 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/metrics/instance"
+
+// Values
+pub fn luna_instance_counter_count() -> Int
+
+pub fn luna_instance_gauge_count() -> Int
+
+pub fn luna_instance_histogram_bucket_count() -> Int
+
+pub fn luna_instance_histogram_bucket_upper_bound(LunaInstanceHistogram, Int) -> Int raise LunaInstanceMetricsError
+
+pub fn luna_instance_histogram_count() -> Int
+
+// Errors
+pub(all) suberror LunaInstanceMetricsError {
+  Invalid(LunaInstanceMetricRule)
+  StaleSnapshot
+  SnapshotGenerationExhausted
+}
+
+// Types and methods
+pub(all) enum LunaInstanceCounter {
+  Admissions
+  Completions
+  Cancellations
+  Deadlines
+  Failures
+  PromptTokens
+  GeneratedTokens
+  WorkerRestarts
+  WorkerFailures
+  NetworkAccepts
+  NetworkDisconnects
+  NetworkRejections
+  Backpressure
+  PrefixLookups
+  PrefixHits
+  PrefixMisses
+  PrefixEvictions
+  PrefixTokensReused
+  PrefixTokensComputed
+  PrefixPublications
+  GraphHits
+  GraphMisses
+}
+
+pub(all) enum LunaInstanceGauge {
+  QueueDepth
+  ActiveRequests
+  KvPagesUsed
+  KvPagesFree
+  PrefixEntries
+  PrefixPages
+}
+
+pub(all) enum LunaInstanceHistogram {
+  RequestLatencyMillis
+  FirstTokenLatencyMillis
+  InterTokenLatencyMillis
+  ColdStartLatencyMillis
+  BatchRows
+  BatchTokens
+}
+
+pub(all) enum LunaInstanceMetricRule {
+  CounterValue
+  GaugeValue
+  HistogramValue
+  HistogramBucket
+  Snapshot
+}
+
+pub struct LunaInstanceMetrics {
+  // private fields
+}
+pub fn LunaInstanceMetrics::counter_value(Self, LunaInstanceCounter) -> UInt64
+pub fn LunaInstanceMetrics::gauge_value(Self, LunaInstanceGauge) -> Int
+pub fn LunaInstanceMetrics::histogram_bucket_value(Self, LunaInstanceHistogram, Int) -> UInt64 raise LunaInstanceMetricsError
+pub fn LunaInstanceMetrics::new() -> Self
+pub fn LunaInstanceMetrics::record_counter(Self, LunaInstanceCounter, amount? : Int) -> Unit raise LunaInstanceMetricsError
+pub fn LunaInstanceMetrics::record_counter_u64(Self, LunaInstanceCounter, UInt64) -> Unit
+pub fn LunaInstanceMetrics::record_histogram(Self, LunaInstanceHistogram, Int) -> Unit raise LunaInstanceMetricsError
+pub fn LunaInstanceMetrics::reset(Self) -> Unit
+pub fn LunaInstanceMetrics::set_gauge(Self, LunaInstanceGauge, Int) -> Unit raise LunaInstanceMetricsError
+pub fn LunaInstanceMetrics::snapshot(Self) -> LunaInstanceMetricsSnapshot raise LunaInstanceMetricsError
+
+pub struct LunaInstanceMetricsSnapshot {
+  // private fields
+}
+pub fn LunaInstanceMetricsSnapshot::counter_value(Self, LunaInstanceCounter) -> UInt64 raise LunaInstanceMetricsError
+pub fn LunaInstanceMetricsSnapshot::gauge_value(Self, LunaInstanceGauge) -> Int raise LunaInstanceMetricsError
+pub fn LunaInstanceMetricsSnapshot::histogram_bucket_value(Self, LunaInstanceHistogram, Int) -> UInt64 raise LunaInstanceMetricsError
+pub fn LunaInstanceMetricsSnapshot::is_live(Self) -> Bool
+
+// Type aliases
+
+// Traits

@@ -8,7 +8,14 @@ pub fn open_context(ordinal : Int) -> Context raise DeviceError {
   let raw = @cuda.open_context(ordinal) catch {
     error => raise error_from_cuda(error)
   }
-  { raw, ordinal, capability: capability_from_raw(raw_info) }
+  let identity : ContextDeviceIdentity = {
+    ordinal,
+    name: raw_info.name(),
+    uuid: raw_info.uuid(),
+    pci: raw_info.pci(),
+    capability: capability_from_raw(raw_info),
+  }
+  { raw, identity }
 }
 
 ///|

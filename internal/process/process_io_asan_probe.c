@@ -1,6 +1,7 @@
 #include <moonbit.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -15,6 +16,12 @@ int32_t lunaflux_process_try_write(
 );
 int32_t lunaflux_process_try_read(
   lf_process *, uint8_t *, int32_t, int32_t
+);
+int32_t lunaflux_process_inherited_try_write(
+  uint8_t *, int32_t, int32_t
+);
+int32_t lunaflux_process_inherited_try_read(
+  uint8_t *, int32_t, int32_t
 );
 
 static int set_nonblocking(int fd) {
@@ -39,6 +46,101 @@ static void free_bytes(moonbit_bytes_t bytes) {
   if (bytes != NULL) free(Moonbit_object_header(bytes));
 }
 
+static int probe_inherited_duplex(
+  moonbit_bytes_t input,
+  moonbit_bytes_t output
+) {
+  int read_sockets[2] = {-1, -1};
+  int write_sockets[2] = {-1, -1};
+  int saved_stdin = -1;
+  int saved_stdout = -1;
+  int result = 22;
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, read_sockets) != 0 ||
+      socketpair(AF_UNIX, SOCK_STREAM, 0, write_sockets) != 0) {
+    goto cleanup;
+  }
+  if (!set_nonblocking(read_sockets[0]) ||
+      !set_nonblocking(read_sockets[1]) ||
+      !set_nonblocking(write_sockets[0]) ||
+      !set_nonblocking(write_sockets[1])) {
+    result = 23;
+    goto cleanup;
+  }
+  saved_stdin = dup(STDIN_FILENO);
+  saved_stdout = dup(STDOUT_FILENO);
+  if (saved_stdin < 0 || saved_stdout < 0 ||
+      dup2(read_sockets[0], STDIN_FILENO) < 0 ||
+      dup2(write_sockets[0], STDOUT_FILENO) < 0) {
+    result = 24;
+    goto cleanup;
+  }
+  if (lunaflux_process_inherited_try_read(input, 0, 4) != 0) {
+    result = 25;
+    goto cleanup;
+  }
+  if (lunaflux_process_inherited_try_write(output, 0, 4) != 4) {
+    result = 26;
+    goto cleanup;
+  }
+  uint8_t peer[4] = {0, 0, 0, 0};
+  if (recv(write_sockets[1], peer, sizeof(peer), 0) != 4) {
+    result = 27;
+    goto cleanup;
+  }
+  for (int index = 0; index < 4; index += 1) {
+    if (peer[index] != 7) {
+      result = 28;
+      goto cleanup;
+    }
+  }
+  uint8_t first_half[2] = {8, 9};
+  if (send(read_sockets[1], first_half, sizeof(first_half), 0) != 2 ||
+      lunaflux_process_inherited_try_read(input, 0, 4) != 2 ||
+      lunaflux_process_inherited_try_read(input, 2, 2) != 0) {
+    result = 29;
+    goto cleanup;
+  }
+  uint8_t second_half[2] = {10, 11};
+  if (send(read_sockets[1], second_half, sizeof(second_half), 0) != 2 ||
+      lunaflux_process_inherited_try_read(input, 2, 2) != 2 ||
+      input[0] != 8 || input[1] != 9 || input[2] != 10 || input[3] != 11) {
+    result = 30;
+    goto cleanup;
+  }
+  (void)close(read_sockets[1]);
+  read_sockets[1] = -1;
+  struct pollfd inherited_close = {
+    .fd = STDIN_FILENO,
+    .events = POLLIN,
+    .revents = 0,
+  };
+  if (poll(&inherited_close, 1, 1000) <= 0) {
+    result = 31;
+    goto cleanup;
+  }
+  if (lunaflux_process_inherited_try_read(input, 0, 1) !=
+      -LF_PROCESS_CHANNEL_CLOSED) {
+    result = 31;
+    goto cleanup;
+  }
+  result = 0;
+
+cleanup:
+  if (saved_stdin >= 0) {
+    (void)dup2(saved_stdin, STDIN_FILENO);
+    (void)close(saved_stdin);
+  }
+  if (saved_stdout >= 0) {
+    (void)dup2(saved_stdout, STDOUT_FILENO);
+    (void)close(saved_stdout);
+  }
+  for (int index = 0; index < 2; index += 1) {
+    if (read_sockets[index] >= 0) (void)close(read_sockets[index]);
+    if (write_sockets[index] >= 0) (void)close(write_sockets[index]);
+  }
+  return result;
+}
+
 int main(void) {
   if (lf_process_status_from_io_result(-1, EINTR, 0) != LF_PROCESS_PENDING) {
     return 1;
@@ -47,6 +149,10 @@ int main(void) {
     return 2;
   }
   if (lf_process_status_from_io_result(-1, EPIPE, 1) !=
+      LF_PROCESS_CHANNEL_CLOSED) {
+    return 3;
+  }
+  if (lf_process_status_from_io_result(-1, ECONNRESET, 0) !=
       LF_PROCESS_CHANNEL_CLOSED) {
     return 3;
   }
@@ -110,6 +216,12 @@ int main(void) {
   }
   if (!saw_short || !saw_pending) return 19;
   (void)close(sockets[1]);
+  struct pollfd process_close = {
+    .fd = sockets[0],
+    .events = POLLIN,
+    .revents = 0,
+  };
+  if (poll(&process_close, 1, 1000) <= 0) return 20;
   if (lunaflux_process_try_read(&process, input, 0, 1) !=
       -LF_PROCESS_CHANNEL_CLOSED) {
     return 20;
@@ -118,6 +230,8 @@ int main(void) {
   int64_t before = lunaflux_process_monotonic_now();
   int64_t after = lunaflux_process_monotonic_now();
   if (before < 0 || after < before) return 21;
+  int inherited_result = probe_inherited_duplex(input, output);
+  if (inherited_result != 0) return inherited_result;
   free_bytes(input);
   free_bytes(output);
   free_bytes(large);

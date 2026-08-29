@@ -69,6 +69,14 @@ int32_t lunaflux_approved_fs_acquire_prepared_worker_roots(
   lf_approved_handle *model_root,
   lf_approved_handle *kernel_root
 );
+lf_approved_handle *lunaflux_approved_fs_duplicate_worker_root(
+  lf_worker_approved_roots *roots,
+  int32_t role,
+  int32_t *status
+);
+lf_worker_approved_roots *lunaflux_approved_fs_worker_root_spawn_authority(
+  lf_worker_approved_roots *roots
+);
 int32_t lunaflux_approved_fs_worker_roots_is_closed(
   lf_worker_approved_roots *roots
 );

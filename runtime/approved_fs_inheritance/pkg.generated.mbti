@@ -6,6 +6,8 @@ package "vectie/lunaflux/runtime/approved_fs_inheritance"
 // Errors
 
 // Types and methods
+pub type WorkerApprovedRootSpawnAuthority
+
 pub type WorkerApprovedRoots
 
 // Type aliases

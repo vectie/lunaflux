@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/i8_release_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/instance_admission",
+  "vectie/lunaflux/service/online_session",
+}
+
+// Values
+pub fn prepare_owned(@instance_admission.I8RuntimeInstanceAdmission, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> @worker_service.OwnedWorkerServicePreparation raise I8ReleaseWorkerError
+
+pub fn prepare_owned_online_framed(@instance_admission.I8RuntimeInstanceAdmission, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> @online_session.LunaOnlineFramedServicePreparation raise I8ReleaseWorkerError
+
+// Errors
+pub(all) suberror I8ReleaseWorkerError {
+  Invalid(I8ReleaseWorkerRule)
+  Prepare(@worker_service.OwnedWorkerServicePreparationError)
+  OnlinePrepare(@online_session.LunaOnlineInstancePreparationError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum I8ReleaseWorkerRule {
+  SourceRecipe
+  ModelIdentity
+  BootstrapIdentity
+  BootstrapSourceIdentity
+  DeviceAssignment
+  ModelGeneration
+  WorkerEnvelope
+  InferenceEnvelope
+  NumericWeightEnvelope
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

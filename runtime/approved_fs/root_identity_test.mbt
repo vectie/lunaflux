@@ -82,15 +82,22 @@ async test "approved root identity rejects namespace replacement but accepts mov
 }
 
 ///|
-test "root identity validates its absolute label before native traversal" {
-  let root = try! @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  for label in ["", "relative", "/tmp//root", "/tmp/../root"] {
-    try root.require_absolute_identity(label) catch {
-      Invalid(RootPath) => ()
-      _ => fail("unexpected invalid identity label error")
-    } noraise {
-      _ => fail("invalid identity label reached traversal")
+async test "root identity validates its absolute label before native traversal" {
+  @async.with_task_group() <| group => {
+    let temporary = @fs.tmpdir(prefix="lunaflux-approved-fs-label")
+    let root_path = @fs.realpath(temporary)
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(root_path, recursive=true))
     }
+    let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
+    for label in ["", "relative", "/tmp//root", "/tmp/../root"] {
+      try root.require_absolute_identity(label) catch {
+        Invalid(RootPath) => ()
+        _ => fail("unexpected invalid identity label error")
+      } noraise {
+        _ => fail("invalid identity label reached traversal")
+      }
+    }
+    root.close()
   }
-  root.close()
 }

@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/fp8_release_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/instance_admission",
+  "vectie/lunaflux/service/online_session",
+}
+
+// Values
+pub fn prepare_owned_online_framed_v3(@instance_admission.Fp8RuntimeInstanceAdmission, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> @online_session.LunaOnlineFramedServicePreparation raise Fp8ReleaseWorkerError
+
+// Errors
+pub(all) suberror Fp8ReleaseWorkerError {
+  Invalid(Fp8ReleaseWorkerRule)
+  Prepare(@worker_service.OwnedWorkerServicePreparationError)
+  OnlinePrepare(@online_session.LunaOnlineInstancePreparationError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Fp8ReleaseWorkerRule {
+  SourceRecipe
+  ModelIdentity
+  BootstrapIdentity
+  BootstrapSourceIdentity
+  DeviceAssignment
+  ModelGeneration
+  WorkerEnvelope
+  InferenceEnvelope
+  ReusableRecipeIdentity
+  ReleaseAuthorityIdentity
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

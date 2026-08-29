@@ -20,22 +20,56 @@ type Module
 type Function
 
 ///|
+type OrderedKernelExecutor
+
+///|
 type CublasLt
 
 ///|
 type Bf16GemmPlan
 
 ///|
+extern "c" fn raw_collective_interop_link_anchor() -> Unit = "lunaflux_cuda_collective_interop_link_anchor"
+
+///|
+#borrow(context)
+extern "c" fn raw_collective_context_token(
+  context : Context,
+) -> @device_collective_interop.ContextToken = "lunaflux_device_interop_context_token"
+
+///|
+#borrow(region)
+extern "c" fn raw_collective_region_token(
+  region : Allocation,
+) -> @device_collective_interop.RegionToken = "lunaflux_device_interop_region_token"
+
+///|
+#borrow(queue)
+extern "c" fn raw_collective_queue_token(
+  queue : Stream,
+) -> @device_collective_interop.QueueToken = "lunaflux_device_interop_queue_token"
+
+///|
 #borrow(output)
 extern "c" fn raw_probe(output : FixedArray[Int64]) -> Int = "lunaflux_cuda_probe"
 
 ///|
-#borrow(numeric, name)
+#borrow(numeric, name, uuid, pci)
 extern "c" fn raw_device_info(
   ordinal : Int,
   numeric : FixedArray[Int64],
   name : FixedArray[Byte],
+  uuid : FixedArray[Byte],
+  pci : FixedArray[Byte],
 ) -> Int = "lunaflux_cuda_device_info"
+
+///|
+#borrow(output)
+extern "c" fn raw_device_can_access_peer(
+  source_ordinal : Int,
+  destination_ordinal : Int,
+  output : Ref[Int],
+) -> Int = "lunaflux_cuda_device_can_access_peer"
 
 ///|
 #borrow(status)
@@ -197,6 +231,77 @@ extern "c" fn raw_function_launch(
   byte_counts : FixedArray[Int64],
   alignments : FixedArray[Int64],
 ) -> Int = "lunaflux_cuda_function_launch"
+
+///|
+#borrow(context, stream, functions, dimensions, argument_starts, allocations, offsets, byte_counts, alignments, status)
+extern "c" fn raw_ordered_executor_create(
+  context : Context,
+  stream : Stream,
+  functions : FixedArray[Function],
+  dimensions : FixedArray[Int],
+  argument_starts : FixedArray[Int],
+  allocations : FixedArray[Allocation],
+  offsets : FixedArray[Int64],
+  byte_counts : FixedArray[Int64],
+  alignments : FixedArray[Int64],
+  policy : Int,
+  status : Ref[Int],
+) -> OrderedKernelExecutor = "lunaflux_cuda_ordered_executor_create"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_enqueue(
+  executor : OrderedKernelExecutor,
+  index : Int,
+) -> Int = "lunaflux_cuda_ordered_executor_enqueue"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_launch_captured(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_launch_captured"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_mode(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_mode"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_record(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_record"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_poll(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_poll"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_wait(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_wait"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_abort(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_abort"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_reset(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_reset"
+
+///|
+#borrow(executor)
+extern "c" fn raw_ordered_executor_close(
+  executor : OrderedKernelExecutor,
+) -> Int = "lunaflux_cuda_ordered_executor_close"
 
 ///|
 #borrow(context, status)

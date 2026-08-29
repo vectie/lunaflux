@@ -31,7 +31,9 @@ static moonbit_bytes_t make_bytes(int32_t length) {
     1, sizeof(struct moonbit_object) + (size_t)length
   );
   if (header == NULL) return NULL;
-  header->rc = Moonbit_make_dynamic_rc(moonbit_BLOCK_KIND_VAL_ARRAY);
+  header->rc = (int32_t)(
+    (1u << MOONBIT_RC_COUNT_SHIFT) | moonbit_BLOCK_KIND_VAL_ARRAY
+  );
   header->meta = (uint32_t)length;
   return (moonbit_bytes_t)(header + 1);
 }

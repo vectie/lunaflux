@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/inherited_drain"
+
+// Values
+pub fn close(InheritedDrainHandle) -> Int
+
+pub fn is_closed(InheritedDrainHandle) -> Bool
+
+pub fn open_fixed() -> InheritedDrainHandle
+
+pub fn open_status(InheritedDrainHandle) -> Int
+
+pub fn peek(InheritedDrainHandle) -> Int
+
+pub fn try_read(InheritedDrainHandle, FixedArray[Byte], Int, Int) -> Int
+
+pub fn try_write(InheritedDrainHandle, FixedArray[Byte], Int, Int) -> Int
+
+// Errors
+
+// Types and methods
+pub struct InheritedDrainHandle {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

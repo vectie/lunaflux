@@ -134,6 +134,41 @@ lf_worker_approved_roots *lunaflux_approved_fs_acquire_worker_roots(
 }
 
 MOONBIT_FFI_EXPORT
+lf_approved_handle *lunaflux_approved_fs_duplicate_worker_root(
+  lf_worker_approved_roots *roots,
+  int32_t role,
+  int32_t *status
+) {
+  lf_approved_handle *root = lf_new_handle(LF_APPROVED_ROOT);
+  *status = LF_APPROVED_INVALID;
+  if (role != 0 && role != 1) return root;
+  int model_fd = -1;
+  int kernel_fd = -1;
+  *status = lf_worker_roots_begin(roots, &model_fd, &kernel_fd);
+  if (*status != LF_APPROVED_OK) return root;
+  int source_fd = role == 0 ? model_fd : kernel_fd;
+  int owned_fd = fcntl(source_fd, F_DUPFD_CLOEXEC, 5);
+  lf_worker_roots_end(roots);
+  if (owned_fd < 0) {
+    *status = LF_APPROVED_FAILED;
+    return root;
+  }
+  root->fd = owned_fd;
+  atomic_store_explicit(&root->state, 0, memory_order_release);
+  *status = LF_APPROVED_OK;
+  return root;
+}
+
+MOONBIT_FFI_EXPORT
+lf_worker_approved_roots *lunaflux_approved_fs_worker_root_spawn_authority(
+  lf_worker_approved_roots *roots
+) {
+  if (roots == NULL) return NULL;
+  moonbit_incref(roots);
+  return roots;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t lunaflux_approved_fs_worker_roots_is_closed(
   lf_worker_approved_roots *roots
 ) {

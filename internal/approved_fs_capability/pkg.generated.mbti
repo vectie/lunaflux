@@ -6,6 +6,9 @@ package "vectie/lunaflux/internal/approved_fs_capability"
 // Errors
 
 // Types and methods
+#alias(ApprovedExecutableHandle)
+type NativeApprovedExecutableHandle
+
 #alias(ApprovedHandle)
 type NativeApprovedHandle
 

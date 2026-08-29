@@ -76,6 +76,22 @@ pub fn acquire_prepared_worker_roots(
 }
 
 ///|
+pub fn duplicate_worker_root(
+  roots : @inheritance.WorkerApprovedRoots,
+  role : Int,
+  status : Ref[Int],
+) -> ApprovedHandle {
+  raw_duplicate_worker_root(roots, role, status)
+}
+
+///|
+pub fn worker_root_spawn_authority(
+  roots : @inheritance.WorkerApprovedRoots,
+) -> @inheritance.WorkerApprovedRootSpawnAuthority {
+  raw_worker_root_spawn_authority(roots)
+}
+
+///|
 pub fn open_inherited_root(role : Int, status : Ref[Int]) -> ApprovedHandle {
   raw_open_inherited_root(role, status)
 }

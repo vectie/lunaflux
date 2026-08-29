@@ -11,42 +11,78 @@ fn capture_deadline(
 }
 
 ///|
-fn ChildProcess::poison_transfer(self : ChildProcess) -> Unit {
+fn ChildProcess::clear_pending_write(self : ChildProcess) -> Unit {
+  self.write_transfer_active = false
+  self.write_transfer_source = self.empty_transfer_buffer
+  self.write_transfer_offset = 0
+  self.write_transfer_byte_count = 0
+  self.write_transfer_deadline_millis = 0L
+  self.write_transfer_phase = 0
+  self.write_transfer_cursor = 0
+}
+
+///|
+fn ChildProcess::clear_pending_read(self : ChildProcess) -> Unit {
+  self.read_transfer_active = false
+  self.read_transfer_destination = self.empty_transfer_buffer
+  self.read_transfer_staging = self.empty_transfer_buffer
+  self.read_transfer_byte_count = 0
+  self.read_transfer_deadline_millis = 0L
+  self.read_transfer_phase = 0
+  self.read_transfer_cursor = 0
+}
+
+///|
+fn ChildProcess::clear_pending_transfers(self : ChildProcess) -> Unit {
+  self.clear_pending_write()
+  self.clear_pending_read()
+}
+
+///|
+fn ChildProcess::poison_transfers(self : ChildProcess) -> Unit {
   self.failed = true
-  self.clear_pending_transfer()
+  self.clear_pending_transfers()
 }
 
 ///|
-fn ChildProcess::clear_pending_transfer(self : ChildProcess) -> Unit {
-  self.transfer_kind = 0
-  self.transfer_primary = self.empty_transfer_buffer
-  self.transfer_secondary = self.empty_transfer_buffer
-  self.transfer_offset = 0
-  self.transfer_byte_count = 0
-  self.transfer_deadline_millis = 0L
-  self.transfer_phase = 0
-  self.transfer_cursor = 0
-}
-
-///|
-fn ChildProcess::require_unexpired(
+fn ChildProcess::require_transfer_unexpired(
   self : ChildProcess,
   deadline_millis : Int64,
   operation : ProcessOperation,
 ) -> Unit raise ProcessError {
   let now = raw_monotonic_now()
   if now < 0L {
-    self.poison_transfer()
+    self.poison_transfers()
     raise OperationFailed(operation)
   }
   if now >= deadline_millis {
-    self.poison_transfer()
+    self.poison_transfers()
     raise Timeout(operation)
   }
 }
 
 ///|
-fn transferred_or_pending(
+fn ChildProcess::admit_frame_deadline(
+  self : ChildProcess,
+  deadline_millis : Int64,
+  operation : ProcessOperation,
+) -> Unit raise ProcessError {
+  let now = raw_monotonic_now()
+  if now < 0L {
+    self.poison_transfers()
+    raise OperationFailed(operation)
+  }
+  if now >= deadline_millis {
+    self.poison_transfers()
+    raise Timeout(operation)
+  }
+  if deadline_millis - now > 600000L {
+    raise InvalidRange(operation)
+  }
+}
+
+///|
+fn child_transferred_or_pending(
   owner : ChildProcess,
   result : Int,
   operation : ProcessOperation,
@@ -54,29 +90,29 @@ fn transferred_or_pending(
   if result >= 0 {
     return result
   }
-  owner.poison_transfer()
+  owner.poison_transfers()
   raise_status(-result, operation)
   abort("unreachable transfer status")
 }
 
 ///|
-fn validate_progress_count(
+fn validate_child_progress_count(
   owner : ChildProcess,
   transferred : Int,
   remaining : Int,
   operation : ProcessOperation,
 ) -> Unit raise ProcessError {
   if transferred <= 0 || transferred > remaining {
-    owner.poison_transfer()
+    owner.poison_transfers()
     raise OperationFailed(operation)
   }
 }
 
 ///|
-/// Begins one bounded frame write without performing I/O. At most one write
-/// transfer may be active for a child. The deadline covers the complete
-/// prefix and payload and is never reset by partial progress. No read or other
-/// write transfer may be active for the child.
+/// Begins one bounded frame write without performing I/O. One write and one
+/// read may be active concurrently on the same child, but a second write is
+/// rejected. The deadline covers the complete prefix and payload and is never
+/// reset by partial progress. The owner is single-event-loop confined.
 pub fn ChildProcess::begin_write_frame(
   self : ChildProcess,
   source : FixedArray[Byte],
@@ -84,28 +120,71 @@ pub fn ChildProcess::begin_write_frame(
   byte_count~ : Int,
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
+  if timeout_millis <= 0 || timeout_millis > 600000 {
+    raise InvalidRange(Write)
+  }
+  let deadline_millis = capture_deadline(timeout_millis, Write)
+  self.begin_write_frame_at_deadline(
+    source,
+    offset~,
+    byte_count~,
+    deadline_millis~,
+    admit_absolute=false,
+  )
+}
+
+///|
+/// Begins a frame write against one caller-owned absolute monotonic deadline.
+/// The same deadline may be reused for the ordered response read.
+pub fn ChildProcess::begin_write_frame_until(
+  self : ChildProcess,
+  source : FixedArray[Byte],
+  offset~ : Int,
+  byte_count~ : Int,
+  deadline_millis~ : Int64,
+) -> Unit raise ProcessError {
+  self.begin_write_frame_at_deadline(
+    source,
+    offset~,
+    byte_count~,
+    deadline_millis~,
+    admit_absolute=true,
+  )
+}
+
+///|
+fn ChildProcess::begin_write_frame_at_deadline(
+  self : ChildProcess,
+  source : FixedArray[Byte],
+  offset~ : Int,
+  byte_count~ : Int,
+  deadline_millis~ : Int64,
+  admit_absolute~ : Bool,
+) -> Unit raise ProcessError {
   self.require_usable(Write)
-  if self.transfer_kind != 0 {
+  if self.write_transfer_active {
     raise InvalidState(Write)
+  }
+  if self.write_source_conflicts_active_read(source) {
+    raise InvalidRange(Write)
   }
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
-    timeout_millis <= 0 ||
-    timeout_millis > 600000 ||
     offset < 0 ||
     offset > source.length() - byte_count {
     raise InvalidRange(Write)
   }
-  let deadline_millis = capture_deadline(timeout_millis, Write)
+  if admit_absolute {
+    self.admit_frame_deadline(deadline_millis, Write)
+  }
   write_u32_prefix(self.write_prefix, byte_count)
-  self.transfer_primary = source
-  self.transfer_secondary = self.empty_transfer_buffer
-  self.transfer_offset = offset
-  self.transfer_byte_count = byte_count
-  self.transfer_deadline_millis = deadline_millis
-  self.transfer_phase = 0
-  self.transfer_cursor = 0
-  self.transfer_kind = 1
+  self.write_transfer_source = source
+  self.write_transfer_offset = offset
+  self.write_transfer_byte_count = byte_count
+  self.write_transfer_deadline_millis = deadline_millis
+  self.write_transfer_phase = 0
+  self.write_transfer_cursor = 0
+  self.write_transfer_active = true
 }
 
 ///|
@@ -114,84 +193,124 @@ pub fn ChildProcess::begin_write_frame(
 pub fn ChildProcess::progress_write_frame(
   self : ChildProcess,
 ) -> Bool raise ProcessError {
-  let owner = self
-  owner.require_usable(Write)
-  if owner.transfer_kind != 1 {
+  self.require_usable(Write)
+  if !self.write_transfer_active {
     raise InvalidState(Write)
   }
-  owner.require_unexpired(owner.transfer_deadline_millis, Write)
-  let buffer = if owner.transfer_phase == 0 {
-    owner.write_prefix
+  self.require_transfer_unexpired(self.write_transfer_deadline_millis, Write)
+  let buffer = if self.write_transfer_phase == 0 {
+    self.write_prefix
   } else {
-    owner.transfer_primary
+    self.write_transfer_source
   }
-  let base_offset = if owner.transfer_phase == 0 {
+  let base_offset = if self.write_transfer_phase == 0 {
     0
   } else {
-    owner.transfer_offset
+    self.write_transfer_offset
   }
-  let phase_count = if owner.transfer_phase == 0 {
+  let phase_count = if self.write_transfer_phase == 0 {
     4
   } else {
-    owner.transfer_byte_count
+    self.write_transfer_byte_count
   }
-  let remaining = phase_count - owner.transfer_cursor
+  let remaining = phase_count - self.write_transfer_cursor
   let result = raw_try_write(
-    owner.handle,
+    self.handle,
     buffer,
-    base_offset + owner.transfer_cursor,
+    base_offset + self.write_transfer_cursor,
     remaining,
   )
-  let transferred = transferred_or_pending(owner, result, Write)
+  let transferred = child_transferred_or_pending(self, result, Write)
   if transferred == 0 {
     return false
   }
-  validate_progress_count(owner, transferred, remaining, Write)
-  owner.transfer_cursor += transferred
-  if owner.transfer_cursor < phase_count {
+  validate_child_progress_count(self, transferred, remaining, Write)
+  self.write_transfer_cursor += transferred
+  if self.write_transfer_cursor < phase_count {
     return false
   }
-  if owner.transfer_phase == 0 {
-    owner.transfer_phase = 1
-    owner.transfer_cursor = 0
+  if self.write_transfer_phase == 0 {
+    self.write_transfer_phase = 1
+    self.write_transfer_cursor = 0
     return false
   }
-  owner.clear_pending_transfer()
+  self.clear_pending_write()
   true
 }
 
 ///|
 /// Begins one transactional bounded frame read without performing I/O. The
 /// caller supplies separate staging storage at least as large as destination;
-/// neither array may be mutated until the transfer completes or fails. No
-/// write or other read transfer may be active for the child.
+/// neither array may be mutated until the transfer completes or fails. One
+/// read and one write may be active concurrently, but a second read is
+/// rejected. The owner is single-event-loop confined.
 pub fn ChildProcess::begin_read_frame(
   self : ChildProcess,
   destination : FixedArray[Byte],
   staging~ : FixedArray[Byte],
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
+  if timeout_millis <= 0 || timeout_millis > 600000 {
+    raise InvalidRange(Read)
+  }
+  let deadline_millis = capture_deadline(timeout_millis, Read)
+  self.begin_read_frame_at_deadline(
+    destination,
+    staging~,
+    deadline_millis~,
+    admit_absolute=false,
+  )
+}
+
+///|
+/// Begins the ordered response read against the command write's exact
+/// absolute monotonic deadline. Expiry poisons the channel before any read.
+pub fn ChildProcess::begin_read_frame_until(
+  self : ChildProcess,
+  destination : FixedArray[Byte],
+  staging~ : FixedArray[Byte],
+  deadline_millis~ : Int64,
+) -> Unit raise ProcessError {
+  self.begin_read_frame_at_deadline(
+    destination,
+    staging~,
+    deadline_millis~,
+    admit_absolute=true,
+  )
+}
+
+///|
+fn ChildProcess::begin_read_frame_at_deadline(
+  self : ChildProcess,
+  destination : FixedArray[Byte],
+  staging~ : FixedArray[Byte],
+  deadline_millis~ : Int64,
+  admit_absolute~ : Bool,
+) -> Unit raise ProcessError {
   self.require_usable(Read)
-  if self.transfer_kind != 0 {
+  if self.read_transfer_active {
     raise InvalidState(Read)
+  }
+  if self.read_buffer_conflicts_active_write(destination) ||
+    self.read_buffer_conflicts_active_write(staging) {
+    raise InvalidRange(Read)
   }
   if destination.length() <= 0 ||
     destination.length() > self.limits.max_frame_bytes ||
     staging.length() < destination.length() ||
-    physical_equal(destination, staging) ||
-    timeout_millis <= 0 ||
-    timeout_millis > 600000 {
+    physical_equal(destination, staging) {
     raise InvalidRange(Read)
   }
-  let deadline_millis = capture_deadline(timeout_millis, Read)
-  self.transfer_primary = destination
-  self.transfer_secondary = staging
-  self.transfer_offset = 0
-  self.transfer_byte_count = 0
-  self.transfer_deadline_millis = deadline_millis
-  self.transfer_phase = 0
-  self.transfer_cursor = 0
-  self.transfer_kind = 2
+  if admit_absolute {
+    self.admit_frame_deadline(deadline_millis, Read)
+  }
+  self.read_transfer_destination = destination
+  self.read_transfer_staging = staging
+  self.read_transfer_byte_count = 0
+  self.read_transfer_deadline_millis = deadline_millis
+  self.read_transfer_phase = 0
+  self.read_transfer_cursor = 0
+  self.read_transfer_active = true
 }
 
 ///|
@@ -201,60 +320,55 @@ pub fn ChildProcess::begin_read_frame(
 pub fn ChildProcess::progress_read_frame(
   self : ChildProcess,
 ) -> Int? raise ProcessError {
-  let owner = self
-  owner.require_usable(Read)
-  if owner.transfer_kind != 2 {
+  self.require_usable(Read)
+  if !self.read_transfer_active {
     raise InvalidState(Read)
   }
-  owner.require_unexpired(owner.transfer_deadline_millis, Read)
-  let buffer = if owner.transfer_phase == 0 {
-    owner.read_prefix
+  self.require_transfer_unexpired(self.read_transfer_deadline_millis, Read)
+  let buffer = if self.read_transfer_phase == 0 {
+    self.read_prefix
   } else {
-    owner.transfer_secondary
+    self.read_transfer_staging
   }
-  let phase_count = if owner.transfer_phase == 0 {
+  let phase_count = if self.read_transfer_phase == 0 {
     4
   } else {
-    owner.transfer_byte_count
+    self.read_transfer_byte_count
   }
+  let remaining = phase_count - self.read_transfer_cursor
   let result = raw_try_read(
-    owner.handle,
+    self.handle,
     buffer,
-    owner.transfer_cursor,
-    phase_count - owner.transfer_cursor,
+    self.read_transfer_cursor,
+    remaining,
   )
-  let transferred = transferred_or_pending(owner, result, Read)
+  let transferred = child_transferred_or_pending(self, result, Read)
   if transferred == 0 {
     return None
   }
-  validate_progress_count(
-    owner,
-    transferred,
-    phase_count - owner.transfer_cursor,
-    Read,
-  )
-  owner.transfer_cursor += transferred
-  if owner.transfer_cursor < phase_count {
+  validate_child_progress_count(self, transferred, remaining, Read)
+  self.read_transfer_cursor += transferred
+  if self.read_transfer_cursor < phase_count {
     return None
   }
-  if owner.transfer_phase == 0 {
-    let byte_count = read_u32_prefix(owner.read_prefix)
+  if self.read_transfer_phase == 0 {
+    let byte_count = read_u32_prefix(self.read_prefix)
     if byte_count <= 0 ||
-      byte_count > owner.limits.max_frame_bytes ||
-      byte_count > owner.transfer_primary.length() ||
-      byte_count > owner.transfer_secondary.length() {
-      owner.poison_transfer()
+      byte_count > self.limits.max_frame_bytes ||
+      byte_count > self.read_transfer_destination.length() ||
+      byte_count > self.read_transfer_staging.length() {
+      self.poison_transfers()
       raise InvalidRange(Read)
     }
-    owner.transfer_phase = 1
-    owner.transfer_cursor = 0
-    owner.transfer_byte_count = byte_count
+    self.read_transfer_phase = 1
+    self.read_transfer_cursor = 0
+    self.read_transfer_byte_count = byte_count
     return None
   }
-  let byte_count = owner.transfer_byte_count
+  let byte_count = self.read_transfer_byte_count
   for index in 0..<byte_count {
-    owner.transfer_primary[index] = owner.transfer_secondary[index]
+    self.read_transfer_destination[index] = self.read_transfer_staging[index]
   }
-  owner.clear_pending_transfer()
+  self.clear_pending_read()
   Some(byte_count)
 }

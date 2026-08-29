@@ -1,25 +1,10 @@
 ///|
 /// Allocates every managed field of one child owner before native spawn or an
 /// external capability borrow.
-pub fn prepare_child(
-  executable : Bytes,
+fn prepare_approved_child(
+  approved_executable : @executable_capability.ApprovedExecutableHandle,
   limits : ProcessLimits,
-) -> PreparedChildProcess raise ProcessError {
-  if executable.length() == 0 || executable.length() > 1048575 {
-    raise InvalidRange(Close)
-  }
-  for index = 0; index < executable.length(); index = index + 1 {
-    if executable[index] == b'\x00' {
-      raise InvalidRange(Close)
-    }
-  }
-  let path = Bytes::makei(executable.length() + 1, index => {
-    if index == executable.length() {
-      b'\x00'
-    } else {
-      executable[index]
-    }
-  })
+) -> PreparedChildProcess {
   let empty_transfer_buffer = FixedArray::make(0, b'\x00')
   {
     child: {
@@ -27,22 +12,47 @@ pub fn prepare_child(
       limits,
       write_prefix: FixedArray::make(4, b'\x00'),
       read_prefix: FixedArray::make(4, b'\x00'),
-      transfer_kind: 0,
       empty_transfer_buffer,
-      transfer_primary: empty_transfer_buffer,
-      transfer_secondary: empty_transfer_buffer,
-      transfer_offset: 0,
-      transfer_byte_count: 0,
-      transfer_deadline_millis: 0L,
-      transfer_phase: 0,
-      transfer_cursor: 0,
+      write_transfer_active: false,
+      write_transfer_source: empty_transfer_buffer,
+      write_transfer_offset: 0,
+      write_transfer_byte_count: 0,
+      write_transfer_deadline_millis: 0L,
+      write_transfer_phase: 0,
+      write_transfer_cursor: 0,
+      read_transfer_active: false,
+      read_transfer_destination: empty_transfer_buffer,
+      read_transfer_staging: empty_transfer_buffer,
+      read_transfer_byte_count: 0,
+      read_transfer_deadline_millis: 0L,
+      read_transfer_phase: 0,
+      read_transfer_cursor: 0,
+      maintenance_phase: 0,
+      maintenance_phase_started_millis: 0L,
+      maintenance_deadline_millis: 0L,
+      maintenance_resume_phase: 0,
+      maintenance_exit_kind: 0,
+      maintenance_exit_code: 0,
+      maintenance_has_exit: false,
       failed: false,
       closed: true,
     },
-    path,
+    approved_executable,
     consumed: false,
     cleanup_status: 0,
   }
+}
+
+///|
+
+///|
+/// Prepares a child whose executable authority is an already authenticated,
+/// descriptor-pinned object. No path is accepted by this route.
+pub fn prepare_child_from_approved_executable(
+  executable : @executable_capability.ApprovedExecutableHandle,
+  limits : ProcessLimits,
+) -> PreparedChildProcess {
+  prepare_approved_child(executable, limits)
 }
 
 ///|
@@ -55,45 +65,18 @@ fn PreparedChildProcess::require_fresh(
 }
 
 ///|
-pub fn PreparedChildProcess::spawn(
-  self : PreparedChildProcess,
-) -> ChildProcess raise ProcessError {
-  self.require_fresh()
-  self.consumed = true
-  if raw_spawn_prepared(self.child.handle, self.path) != 0 {
-    ignore(raw_close(self.child.handle))
-    raise SpawnFailed
-  }
-  self.child.closed = false
-  self.child
-}
-
-///|
-pub fn spawn(
-  executable : Bytes,
-  limits : ProcessLimits,
-) -> ChildProcess raise ProcessError {
-  prepare_child(executable, limits).spawn()
-}
-
-///|
-pub fn spawn_with_approved_roots(
-  executable : Bytes,
-  roots : @inheritance.WorkerApprovedRoots,
-  limits : ProcessLimits,
-) -> ChildProcess raise ProcessError {
-  prepare_child(executable, limits).spawn_with_approved_roots(roots)
-}
-
-///|
 pub fn PreparedChildProcess::spawn_with_approved_roots(
   self : PreparedChildProcess,
-  roots : @inheritance.WorkerApprovedRoots,
+  roots : @inheritance.WorkerApprovedRootSpawnAuthority,
 ) -> ChildProcess raise ProcessError {
   self.require_fresh()
   self.consumed = true
-  if raw_spawn_prepared_with_approved_roots(self.child.handle, self.path, roots) !=
-    0 {
+  let status = raw_spawn_prepared_with_approved_executable_and_roots(
+    self.child.handle,
+    self.approved_executable,
+    roots,
+  )
+  if status != 0 {
     ignore(raw_close(self.child.handle))
     raise SpawnFailed
   }
@@ -104,15 +87,15 @@ pub fn PreparedChildProcess::spawn_with_approved_roots(
 ///|
 pub fn PreparedChildProcess::spawn_with_approved_roots_status(
   self : PreparedChildProcess,
-  roots : @inheritance.WorkerApprovedRoots,
+  roots : @inheritance.WorkerApprovedRootSpawnAuthority,
 ) -> Int {
   if self.consumed {
     return 1
   }
   self.consumed = true
-  let status = raw_spawn_prepared_with_approved_roots(
+  let status = raw_spawn_prepared_with_approved_executable_and_roots(
     self.child.handle,
-    self.path,
+    self.approved_executable,
     roots,
   )
   if status != 0 {
@@ -138,7 +121,9 @@ pub fn ChildProcess::startup_write_frame_status(
 ) -> Int {
   if self.closed ||
     self.failed ||
-    self.transfer_kind != 0 ||
+    self.maintenance_phase != 0 ||
+    self.write_transfer_active ||
+    self.write_source_conflicts_active_read(source) ||
     byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     byte_count > source.length() ||
@@ -155,7 +140,7 @@ pub fn ChildProcess::startup_write_frame_status(
     timeout_millis,
   )
   if prefix != 0 {
-    self.failed = true
+    self.poison_transfers()
     return prefix
   }
   let payload = raw_write_exact(
@@ -166,7 +151,7 @@ pub fn ChildProcess::startup_write_frame_status(
     timeout_millis,
   )
   if payload != 0 {
-    self.failed = true
+    self.poison_transfers()
   }
   payload
 }
@@ -179,7 +164,9 @@ pub fn ChildProcess::startup_read_frame_status(
 ) -> Int {
   if self.closed ||
     self.failed ||
-    self.transfer_kind != 0 ||
+    self.maintenance_phase != 0 ||
+    self.read_transfer_active ||
+    self.read_buffer_conflicts_active_write(destination) ||
     timeout_millis <= 0 ||
     timeout_millis > 600000 {
     return -2
@@ -192,14 +179,14 @@ pub fn ChildProcess::startup_read_frame_status(
     timeout_millis,
   )
   if prefix != 0 {
-    self.failed = true
+    self.poison_transfers()
     return -(prefix + 1)
   }
   let byte_count = read_u32_prefix(self.read_prefix)
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     byte_count > destination.length() {
-    self.failed = true
+    self.poison_transfers()
     return -2
   }
   let payload = raw_read_exact(
@@ -210,7 +197,7 @@ pub fn ChildProcess::startup_read_frame_status(
     timeout_millis,
   )
   if payload != 0 {
-    self.failed = true
+    self.poison_transfers()
     return -(payload + 1)
   }
   byte_count
@@ -221,7 +208,10 @@ pub fn ChildProcess::startup_close_status(self : ChildProcess) -> Int {
   if self.closed {
     return 0
   }
-  self.clear_pending_transfer()
+  if self.maintenance_phase != 0 {
+    return 1
+  }
+  self.clear_pending_transfers()
   let status = raw_close(self.handle)
   self.closed = raw_is_closed(self.handle)
   if status != 0 {

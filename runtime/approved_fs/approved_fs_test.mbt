@@ -260,3 +260,58 @@ async test "independent same-root owners and close soak remain balanced" {
     }
   }
 }
+
+///|
+async test "worker root role duplicates preserve exact authority after originals close" {
+  @async.with_task_group() <| group => {
+    let temporary = @fs.tmpdir(prefix="lunaflux-approved-fs-role-duplicate")
+    let parent = @fs.realpath(temporary)
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(parent, recursive=true))
+    }
+    let model_path = "\{parent}/model"
+    let kernel_path = "\{parent}/kernel"
+    @fs.mkdir(model_path)
+    @fs.mkdir(kernel_path)
+    @fs.write_file(
+      "\{model_path}/model.bin",
+      b"model",
+      create_mode=CreateOrTruncate,
+    )
+    @fs.write_file(
+      "\{kernel_path}/kernel.bin",
+      b"kernel",
+      create_mode=CreateOrTruncate,
+    )
+    let model = @approved_fs.ApprovedRoot::open_absolute(model_path)
+    let kernel = @approved_fs.ApprovedRoot::open_absolute(kernel_path)
+    let roots = @approved_fs.acquire_worker_approved_roots(
+      model_root=model,
+      kernel_root=kernel,
+    )
+    model.close()
+    kernel.close()
+    let model_copy = @approved_fs.duplicate_worker_approved_root(roots, Model)
+    let kernel_copy = @approved_fs.duplicate_worker_approved_root(roots, Kernel)
+    model_copy.require_absolute_identity(model_path)
+    kernel_copy.require_absolute_identity(kernel_path)
+    let model_file = model_copy.open_file(approved_locator("model.bin"))
+    let kernel_file = kernel_copy.open_file(approved_locator("kernel.bin"))
+    assert_eq(model_file.read_immutable_snapshot(maximum_bytes=5L), b"model")
+    assert_eq(kernel_file.read_immutable_snapshot(maximum_bytes=6L), b"kernel")
+    @approved_fs.close_worker_approved_roots(roots)
+    try @approved_fs.duplicate_worker_approved_root(roots, Model) catch {
+      Invalid(Lifecycle) => ()
+      _ => fail("closed retained roots produced an unexpected error")
+    } noraise {
+      duplicate => {
+        duplicate.close()
+        fail("closed retained roots duplicated authority")
+      }
+    }
+    model_file.close()
+    kernel_file.close()
+    model_copy.close()
+    kernel_copy.close()
+  }
+}

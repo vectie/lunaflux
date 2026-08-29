@@ -24,16 +24,8 @@ fn[T] with_inherited_frame(mode : Int, body : () -> T raise) -> T raise {
   if saved < 0 {
     fail("failed to install inherited frame fixture")
   }
-  try {
-    let result = body()
-    assert_eq(raw_test_restore_stdin(saved), 0)
-    result
-  } catch {
-    error => {
-      assert_eq(raw_test_restore_stdin(saved), 0)
-      raise error
-    }
-  }
+  defer (try! assert_eq(raw_test_restore_stdin(saved), 0))
+  body()
 }
 
 ///|

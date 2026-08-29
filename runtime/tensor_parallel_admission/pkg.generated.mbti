@@ -1,0 +1,104 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/tensor_parallel_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+// Values
+pub fn admit(@device_topology.AdmittedLocalTopology, TensorParallelRuntimeDeclaration) -> TensorParallelRuntimeAdmission raise TensorParallelAdmissionError
+
+// Errors
+pub(all) suberror TensorParallelAdmissionError {
+  Rejected(area~ : TensorParallelAdmissionArea, reason~ : TensorParallelAdmissionReason, rank~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum TensorParallelAdmissionArea {
+  Declaration
+  Support
+  Topology
+  RankBinding
+  RankMemory
+  Aggregate
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelAdmissionReason {
+  InvalidCount
+  InvalidRank
+  InvalidWorld
+  InvalidOrdinal
+  InvalidDeviceIdentity
+  InvalidPeerCount
+  InvalidMemory
+  CrossNodeUnsupported
+  PipelineUnsupported
+  CountMismatch
+  RankMismatch
+  WorldMismatch
+  OrdinalMismatch
+  DeviceIdentityMismatch
+  TargetMismatch
+  IncompletePeerLinks
+  CeilingExceedsPhysical
+  ReservationExceedsCeiling
+  Overflow
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelAggregateCapacity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelAggregateCapacity::activation_workspace_reserved_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::available_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::collective_reserved_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::kv_reserved_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::memory_ceiling_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::minimum_rank_available_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::physical_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::reserved_total_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::weight_reserved_bytes(Self) -> Int64
+
+pub struct TensorParallelRankCapacity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRankCapacity::activation_workspace_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::available_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::collective_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::device_name(Self) -> String
+pub fn TensorParallelRankCapacity::kv_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::memory_ceiling_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::peer_rank_count(Self) -> Int
+pub fn TensorParallelRankCapacity::physical_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::process_ordinal(Self) -> Int
+pub fn TensorParallelRankCapacity::rank(Self) -> Int
+pub fn TensorParallelRankCapacity::reserved_total_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelRankCapacity::weight_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::world_size(Self) -> Int
+
+pub struct TensorParallelRankDeclaration {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRankDeclaration::new(rank~ : Int, world_size~ : Int, process_ordinal~ : Int, device_name~ : StringView, target~ : @catalog.DeviceTarget, peer_rank_count~ : Int, memory_ceiling_bytes~ : Int64, weight_reserved_bytes~ : Int64, activation_workspace_reserved_bytes~ : Int64, kv_reserved_bytes~ : Int64, collective_reserved_bytes~ : Int64) -> Self raise TensorParallelAdmissionError
+
+pub struct TensorParallelRuntimeAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRuntimeAdmission::aggregate_capacity(Self) -> TensorParallelAggregateCapacity
+pub fn TensorParallelRuntimeAdmission::driver_version(Self) -> Int
+pub fn TensorParallelRuntimeAdmission::peer_link_count(Self) -> Int
+pub fn TensorParallelRuntimeAdmission::rank_capacities(Self) -> ReadOnlyArray[TensorParallelRankCapacity]
+pub fn TensorParallelRuntimeAdmission::rank_capacity(Self, Int) -> TensorParallelRankCapacity?
+pub fn TensorParallelRuntimeAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelRuntimeAdmission::world_size(Self) -> Int
+
+pub struct TensorParallelRuntimeDeclaration {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRuntimeDeclaration::new(host_count~ : Int, pipeline_stage_count~ : Int, ArrayView[TensorParallelRankDeclaration]) -> Self raise TensorParallelAdmissionError
+
+// Type aliases
+
+// Traits

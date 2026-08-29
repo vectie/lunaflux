@@ -1,4 +1,6 @@
 import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/internal/nccl",
   "vectie/lunaflux/internal/cuda",
 }
 

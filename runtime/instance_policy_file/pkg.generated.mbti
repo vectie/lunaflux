@@ -1,0 +1,254 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/instance_policy_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn load(@approved_fs.ApprovedRoot, StringView, @approved_fs.ApprovedRelativeLocator, InstancePolicyDigest, InstancePolicyFileLimits) -> InstancePolicyAdmission raise InstancePolicyFileError
+
+pub fn load_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, InstancePolicyDigest, InstancePolicyFileLimits) -> InstancePolicyAdmission raise InstancePolicyFileError
+
+// Errors
+pub(all) suberror ExternalProtocolPolicyError {
+  InvalidExternalProtocolPolicy
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror InstancePolicyFileError {
+  InvalidExpectedDigest
+  InvalidLimit(InstancePolicyLimit)
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge(maximum~ : Int64)
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy(InstancePolicyFileOperation)
+  FileOperationFailed(InstancePolicyFileOperation)
+  DigestMismatch
+  InvalidUtf8
+  MalformedJson
+  JsonDepthExceeded(maximum~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : InstancePolicyArea, index~ : Int)
+  MissingField(area~ : InstancePolicyArea, index~ : Int)
+  InvalidField(area~ : InstancePolicyArea, issue~ : InstancePolicyIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CachePolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CachePolicyClaims::block_table_pages_per_request(Self) -> Int
+pub fn CachePolicyClaims::layout_version(Self) -> Int
+pub fn CachePolicyClaims::max_active_references_per_page(Self) -> Int
+pub fn CachePolicyClaims::max_cached_references_per_page(Self) -> Int
+pub fn CachePolicyClaims::max_prefix_entries(Self) -> Int
+pub fn CachePolicyClaims::max_prefix_nodes(Self) -> Int
+pub fn CachePolicyClaims::max_prefix_pages(Self) -> Int
+pub fn CachePolicyClaims::max_prefix_scope_bytes(Self) -> Int
+pub fn CachePolicyClaims::max_prefix_tokens_per_entry(Self) -> Int
+pub fn CachePolicyClaims::prefix_enabled(Self) -> Bool
+pub fn CachePolicyClaims::tokens_per_page(Self) -> Int
+pub fn CachePolicyClaims::total_page_count(Self) -> Int
+
+pub(all) enum ExternalControlAuthentication {
+  DeploymentBearer
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExternalProtocolMode {
+  NativeFramedV1
+  OpenAiResponsesV1
+} derive(Eq, @debug.Debug)
+
+pub struct ExternalProtocolPolicyClaims {
+  // private fields
+}
+pub fn ExternalProtocolPolicyClaims::control_authentication(Self) -> ExternalControlAuthentication
+pub fn ExternalProtocolPolicyClaims::drain_method(Self) -> String
+pub fn ExternalProtocolPolicyClaims::drain_path(Self) -> String
+pub fn ExternalProtocolPolicyClaims::health_path(Self) -> String
+pub fn ExternalProtocolPolicyClaims::invocation_path(Self) -> String
+pub fn ExternalProtocolPolicyClaims::mode(Self) -> ExternalProtocolMode
+pub fn ExternalProtocolPolicyClaims::new(ExternalProtocolMode, ExternalTransportSecurity, ExternalControlAuthentication, String, String, String, String, String) -> Self raise ExternalProtocolPolicyError
+pub fn ExternalProtocolPolicyClaims::readiness_path(Self) -> String
+pub fn ExternalProtocolPolicyClaims::transport_security(Self) -> ExternalTransportSecurity
+
+pub(all) enum ExternalTransportSecurity {
+  LoopbackPlaintext
+  PrivateNetworkPlaintext
+  DeploymentTls
+} derive(Eq, @debug.Debug)
+
+pub struct InstancePolicyAdmission {
+  // private fields
+}
+pub fn InstancePolicyAdmission::cache(Self) -> CachePolicyClaims
+pub fn InstancePolicyAdmission::digest(Self) -> InstancePolicyDigest
+pub fn InstancePolicyAdmission::external_protocol(Self) -> ExternalProtocolPolicyClaims
+pub fn InstancePolicyAdmission::openai_service(Self) -> OpenAiServicePolicyClaims?
+pub fn InstancePolicyAdmission::preparation(Self) -> PreparationPolicyClaims
+pub fn InstancePolicyAdmission::restart(Self) -> RestartPolicyClaims
+pub fn InstancePolicyAdmission::runtime_descriptor_sha256(Self) -> String
+pub fn InstancePolicyAdmission::scheduler(Self) -> SchedulerPolicyClaims
+pub fn InstancePolicyAdmission::service(Self) -> ServicePolicyClaims
+pub fn InstancePolicyAdmission::telemetry(Self) -> TelemetryPolicyClaims
+pub fn InstancePolicyAdmission::tokenizer(Self) -> TokenizerPolicyClaims
+pub fn InstancePolicyAdmission::transport(Self) -> TransportPolicyClaims
+pub fn InstancePolicyAdmission::worker_process(Self) -> WorkerProcessPolicyClaims
+
+pub(all) enum InstancePolicyArea {
+  Root
+  Tokenizer
+  Scheduler
+  Cache
+  Service
+  ExternalProtocol
+  OpenAiService
+  WorkerProcess
+  Restart
+  Transport
+  Preparation
+  Telemetry
+} derive(Eq, @debug.Debug)
+
+pub struct InstancePolicyDigest(String) derive(Eq, @debug.Debug)
+pub fn InstancePolicyDigest::as_hex(Self) -> String
+pub fn InstancePolicyDigest::from_sha256(StringView) -> Self raise InstancePolicyFileError
+
+pub struct InstancePolicyFileLimits {
+  // private fields
+}
+pub fn InstancePolicyFileLimits::max_json_depth(Self) -> Int
+pub fn InstancePolicyFileLimits::max_policy_bytes(Self) -> Int64
+pub fn InstancePolicyFileLimits::new(max_policy_bytes~ : Int64, max_json_depth~ : Int) -> Self raise InstancePolicyFileError
+
+pub(all) enum InstancePolicyFileOperation {
+  BindRoot
+  Open
+  Snapshot
+  Close
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InstancePolicyIssue {
+  ExpectedObject
+  ExpectedString
+  ExpectedInteger
+  ExpectedBoolean
+  UnsupportedValue
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InstancePolicyLimit {
+  PolicyBytes
+  JsonDepth
+} derive(Eq, @debug.Debug)
+
+pub struct OpenAiServicePolicyClaims {
+  // private fields
+}
+pub fn OpenAiServicePolicyClaims::assistant_cue(Self) -> String
+pub fn OpenAiServicePolicyClaims::assistant_prefix(Self) -> String
+pub fn OpenAiServicePolicyClaims::assistant_suffix(Self) -> String
+pub fn OpenAiServicePolicyClaims::cache_scope_ascii(Self) -> String
+pub fn OpenAiServicePolicyClaims::context_ceiling(Self) -> Int
+pub fn OpenAiServicePolicyClaims::deadline_milliseconds(Self) -> UInt64
+pub fn OpenAiServicePolicyClaims::http_step_work_units(Self) -> Int
+pub fn OpenAiServicePolicyClaims::inbound_step_work_units(Self) -> Int
+pub fn OpenAiServicePolicyClaims::max_body_bytes(Self) -> Int
+pub fn OpenAiServicePolicyClaims::max_head_bytes(Self) -> Int
+pub fn OpenAiServicePolicyClaims::max_messages(Self) -> Int
+pub fn OpenAiServicePolicyClaims::max_new_tokens(Self) -> Int
+pub fn OpenAiServicePolicyClaims::max_rendered_prompt_bytes(Self) -> Int
+pub fn OpenAiServicePolicyClaims::maximum_credential_bytes(Self) -> Int
+pub fn OpenAiServicePolicyClaims::model_alias(Self) -> String
+pub fn OpenAiServicePolicyClaims::outbound_step_work_units(Self) -> Int
+pub fn OpenAiServicePolicyClaims::response_id_prefix(Self) -> String
+pub fn OpenAiServicePolicyClaims::response_step_work_units(Self) -> Int
+pub fn OpenAiServicePolicyClaims::sampling_seed(Self) -> UInt64
+pub fn OpenAiServicePolicyClaims::system_prefix(Self) -> String
+pub fn OpenAiServicePolicyClaims::system_suffix(Self) -> String
+pub fn OpenAiServicePolicyClaims::user_prefix(Self) -> String
+pub fn OpenAiServicePolicyClaims::user_suffix(Self) -> String
+
+pub struct PreparationPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PreparationPolicyClaims::event_work_units(Self) -> Int
+pub fn PreparationPolicyClaims::framed_max_frame_bytes(Self) -> Int
+pub fn PreparationPolicyClaims::lane_count(Self) -> Int
+pub fn PreparationPolicyClaims::step_work_units(Self) -> Int
+pub fn PreparationPolicyClaims::storage_byte_cells(Self) -> UInt64
+pub fn PreparationPolicyClaims::storage_int_cells(Self) -> UInt64
+pub fn PreparationPolicyClaims::storage_reference_cells(Self) -> UInt64
+pub fn PreparationPolicyClaims::total_work_units(Self) -> UInt64
+
+pub struct RestartPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RestartPolicyClaims::initial_backoff_millis(Self) -> UInt64
+pub fn RestartPolicyClaims::maximum_attempts(Self) -> Int
+pub fn RestartPolicyClaims::maximum_backoff_millis(Self) -> UInt64
+pub fn RestartPolicyClaims::stable_after_millis(Self) -> UInt64
+
+pub struct SchedulerPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SchedulerPolicyClaims::emergency_decode_page_reserve(Self) -> Int
+pub fn SchedulerPolicyClaims::max_active_requests(Self) -> Int
+pub fn SchedulerPolicyClaims::max_waiting_requests(Self) -> Int
+pub fn SchedulerPolicyClaims::output_event_capacity(Self) -> Int
+pub fn SchedulerPolicyClaims::prefill_chunk_tokens(Self) -> Int
+pub fn SchedulerPolicyClaims::step_token_budget(Self) -> Int
+pub fn SchedulerPolicyClaims::waiting_age_threshold_steps(Self) -> Int
+
+pub struct ServicePolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ServicePolicyClaims::diagnostic_mode(Self) -> String
+pub fn ServicePolicyClaims::graceful_drain_milliseconds(Self) -> Int
+pub fn ServicePolicyClaims::listen_host(Self) -> String
+pub fn ServicePolicyClaims::listen_port(Self) -> Int
+pub fn ServicePolicyClaims::max_request_bytes(Self) -> Int
+
+pub struct TelemetryPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TelemetryPolicyClaims::instance_log_capacity(Self) -> Int
+
+pub struct TokenizerPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TokenizerPolicyClaims::locator(Self) -> String
+pub fn TokenizerPolicyClaims::max_decoded_bytes(Self) -> Int
+pub fn TokenizerPolicyClaims::max_file_bytes(Self) -> Int
+pub fn TokenizerPolicyClaims::max_input_bytes(Self) -> Int
+pub fn TokenizerPolicyClaims::max_json_depth(Self) -> Int
+pub fn TokenizerPolicyClaims::max_merge_rules(Self) -> Int
+pub fn TokenizerPolicyClaims::max_output_tokens(Self) -> Int
+pub fn TokenizerPolicyClaims::max_special_tokens(Self) -> Int
+pub fn TokenizerPolicyClaims::max_token_bytes(Self) -> Int
+pub fn TokenizerPolicyClaims::max_vocab_entries(Self) -> Int
+pub fn TokenizerPolicyClaims::sha256(Self) -> String
+
+pub struct TransportPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TransportPolicyClaims::accept_timeout_millis(Self) -> Int
+pub fn TransportPolicyClaims::input_idle_timeout_millis(Self) -> Int
+pub fn TransportPolicyClaims::reactor_transition_budget(Self) -> Int
+pub fn TransportPolicyClaims::read_chunk_bytes(Self) -> Int
+pub fn TransportPolicyClaims::write_chunk_bytes(Self) -> Int
+pub fn TransportPolicyClaims::write_timeout_millis(Self) -> Int
+
+pub struct WorkerProcessPolicyClaims {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerProcessPolicyClaims::io_timeout_millis(Self) -> Int
+pub fn WorkerProcessPolicyClaims::max_frame_bytes(Self) -> Int
+pub fn WorkerProcessPolicyClaims::shutdown_timeout_millis(Self) -> Int
+pub fn WorkerProcessPolicyClaims::startup_io_timeout_millis(Self) -> Int
+
+// Type aliases
+
+// Traits

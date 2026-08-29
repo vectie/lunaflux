@@ -15,7 +15,11 @@ pub fn acquire_worker_approved_roots(model_root~ : ApprovedRoot, kernel_root~ : 
 
 pub fn close_worker_approved_roots(@approved_fs_inheritance.WorkerApprovedRoots) -> Unit raise ApprovedFsError
 
+pub fn duplicate_worker_approved_root(@approved_fs_inheritance.WorkerApprovedRoots, ApprovedRootRole) -> ApprovedRoot raise ApprovedFsError
+
 pub fn prepare_worker_approved_roots() -> PreparedWorkerApprovedRoots
+
+pub fn worker_approved_root_spawn_authority(@approved_fs_inheritance.WorkerApprovedRoots) -> @approved_fs_inheritance.WorkerApprovedRootSpawnAuthority
 
 pub fn worker_approved_roots_close_status(@approved_fs_inheritance.WorkerApprovedRoots) -> Int
 
@@ -78,10 +82,17 @@ pub struct ApprovedRoot {
 }
 pub fn ApprovedRoot::close(Self) -> Unit raise ApprovedFsError
 pub fn ApprovedRoot::is_closed(Self) -> Bool
+pub fn ApprovedRoot::materialization_view(Self, StringView, StringView) -> ApprovedRootMaterializationView raise ApprovedFsError
 pub fn ApprovedRoot::open_absolute(StringView) -> Self raise ApprovedFsError
 pub fn ApprovedRoot::open_file(Self, ApprovedRelativeLocator) -> ApprovedFile raise ApprovedFsError
 pub fn ApprovedRoot::open_inherited(ApprovedRootRole) -> Self raise ApprovedFsError
 pub fn ApprovedRoot::require_absolute_identity(Self, StringView) -> Unit raise ApprovedFsError
+
+pub struct ApprovedRootMaterializationView {
+  // private fields
+}
+pub fn ApprovedRootMaterializationView::source_root(Self) -> ApprovedRoot
+pub fn ApprovedRootMaterializationView::target_label(Self) -> String
 
 pub(all) enum ApprovedRootRole {
   Model
@@ -94,6 +105,8 @@ pub struct PreparedWorkerApprovedRoots {
 pub fn PreparedWorkerApprovedRoots::root_owner(Self) -> @approved_fs_inheritance.WorkerApprovedRoots
 
 // Type aliases
+pub using @approved_fs_inheritance {type WorkerApprovedRootSpawnAuthority}
+
 pub using @approved_fs_inheritance {type WorkerApprovedRoots}
 
 // Traits

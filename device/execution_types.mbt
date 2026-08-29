@@ -3,6 +3,7 @@
 /// values deliberately contain no CUDA result codes or vendor strings.
 pub(all) enum DeviceOperation {
   DeviceInventory
+  DevicePeerAccess
   ContextCreate
   ContextClose
   StreamCreate
@@ -25,11 +26,28 @@ pub(all) enum DeviceOperation {
   FunctionLoad
   FunctionClose
   AotKernelLaunch
+  OrderedExecutorCreate
+  OrderedExecutorEnqueue
+  OrderedExecutorGraphLaunch
+  OrderedExecutorRecord
+  OrderedExecutorPoll
+  OrderedExecutorWait
+  OrderedExecutorAbort
+  OrderedExecutorReset
+  OrderedExecutorClose
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
   Bf16GemmPlanClose
   Bf16GemmRun
+  TensorCollectiveContractCreate
+  TensorCollectiveRuntimeAdmission
+  TensorCollectiveGroupIdCreate
+  TensorCollectiveOwnerCreate
+  TensorCollectiveExecute
+  TensorCollectiveInvalidate
+  TensorCollectiveClose
+  TensorCollectiveAbort
 } derive(Debug, Eq)
 
 ///|
@@ -48,22 +66,74 @@ pub(all) suberror DeviceError {
 } derive(Debug, Eq)
 
 ///|
-/// Owns one CUDA context. Child resources retain its native lifetime, while
-/// explicit close remains the primary release mechanism.
-pub struct Context {
-  priv raw : @cuda.Context
+/// Immutable, root-free identity captured from the exact CUDA ordinal opened
+/// by a live context. This value owns no native resource and grants no launch,
+/// memory, or context authority.
+pub struct ContextDeviceIdentity {
   priv ordinal : Int
+  priv name : String
+  priv uuid : String
+  priv pci : String
   priv capability : DeviceCapability
-}
+} derive(Debug, Eq)
 
 ///|
-pub fn Context::ordinal(self : Context) -> Int {
+pub fn ContextDeviceIdentity::ordinal(self : ContextDeviceIdentity) -> Int {
   self.ordinal
 }
 
 ///|
-pub fn Context::capability(self : Context) -> DeviceCapability {
+pub fn ContextDeviceIdentity::name(self : ContextDeviceIdentity) -> String {
+  self.name
+}
+
+///|
+pub fn ContextDeviceIdentity::uuid(self : ContextDeviceIdentity) -> String {
+  self.uuid
+}
+
+///|
+pub fn ContextDeviceIdentity::pci(self : ContextDeviceIdentity) -> String {
+  self.pci
+}
+
+///|
+pub fn ContextDeviceIdentity::capability(
+  self : ContextDeviceIdentity,
+) -> DeviceCapability {
   self.capability
+}
+
+///|
+pub fn ContextDeviceIdentity::total_memory_bytes(
+  self : ContextDeviceIdentity,
+) -> Int64 {
+  self.capability.total_memory_bytes()
+}
+
+///|
+/// Owns one CUDA context. Child resources retain its native lifetime, while
+/// explicit close remains the primary release mechanism.
+pub struct Context {
+  priv raw : @cuda.Context
+  priv identity : ContextDeviceIdentity
+}
+
+///|
+pub fn Context::ordinal(self : Context) -> Int {
+  self.identity.ordinal()
+}
+
+///|
+pub fn Context::capability(self : Context) -> DeviceCapability {
+  self.identity.capability()
+}
+
+///|
+/// Returns only the immutable identity snapshot retained at context open.
+/// The returned value cannot access or extend the native context lifetime.
+pub fn Context::device_identity(self : Context) -> ContextDeviceIdentity {
+  self.identity
 }
 
 ///|
@@ -104,6 +174,41 @@ pub struct Module {
 pub struct Function {
   priv raw : @cuda.Function
 }
+
+///|
+/// One immutable launch record consumed by an ordered executor at startup.
+/// Its function and argument resources are leased natively for the executor's
+/// full lifetime, so aliased deterministic close attempts remain busy.
+pub struct OrderedKernelLaunch {
+  priv function : Function
+  priv dimensions : KernelLaunchDimensions
+  priv arguments : KernelArguments
+}
+
+///|
+/// Owns prevalidated ordered AOT launch records, long-lived native resource
+/// leases, and one reusable completion event for an exact stream.
+pub struct OrderedKernelExecutor {
+  priv raw : @cuda.OrderedKernelExecutor
+  priv kernel_count : Int
+  priv mode : OrderedKernelExecutionMode
+}
+
+///|
+/// Startup admission for one immutable, already authenticated launch list.
+/// Eager fallback is possible only in the explicitly named policy.
+pub(all) enum OrderedKernelExecutionPolicy {
+  OrderedKernelEagerOnly
+  OrderedKernelCaptureRequired
+  OrderedKernelCaptureWithEagerFallback
+} derive(Debug, Eq)
+
+///|
+/// Actual reusable execution mechanism fixed for the executor lifetime.
+pub(all) enum OrderedKernelExecutionMode {
+  OrderedKernelEager
+  OrderedKernelCaptured
+} derive(Debug, Eq)
 
 ///|
 pub struct CublasLt {

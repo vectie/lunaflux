@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <spawn.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -18,7 +17,9 @@
 #include "process_status.h"
 #include "process_io.h"
 #include "process_handle.h"
-extern char **environ;
+#include "process_approved_spawn.h"
+
+/* Executable duplication is header-owned so this archive is link-closed. */
 
 #ifndef LF_PROCESS_KILL
 #define LF_PROCESS_KILL kill
@@ -96,17 +97,19 @@ static lf_process *lf_process_allocate(void) {
 
 static int32_t lf_process_spawn_into(
   lf_process *process,
-  moonbit_bytes_t path,
+  lf_approved_executable *approved_executable,
   lf_worker_approved_roots *roots
 ) {
   if (process == NULL || !process->closed || process->fd >= 0 ||
-      !process->reaped || process->pid > 0 || path == NULL) {
+      !process->reaped || process->pid > 0 || approved_executable == NULL ||
+      roots == NULL) {
     return LF_PROCESS_FAILED;
   }
-  int32_t path_length = Moonbit_array_length(path);
-  if (path_length <= 1 || path_length > 1048576 ||
-      path[path_length - 1] != '\0' ||
-      memchr(path, '\0', (size_t)(path_length - 1)) != NULL) {
+
+  int approved_fd = -1;
+  if (lf_approved_executable_duplicate(
+        approved_executable, &approved_fd
+      ) != LF_APPROVED_CAPABILITY_OK) {
     return LF_PROCESS_FAILED;
   }
 
@@ -116,6 +119,7 @@ static int32_t lf_process_spawn_into(
   if (roots != NULL) {
     if (lf_worker_roots_begin(roots, &model_root, &kernel_root) !=
         LF_APPROVED_CAPABILITY_OK) {
+      if (approved_fd >= 0) (void)LF_PROCESS_CLOSE(approved_fd);
       return LF_PROCESS_FAILED;
     }
     roots_active = 1;
@@ -159,94 +163,15 @@ static int32_t lf_process_spawn_into(
     goto finish;
   }
 
-  posix_spawn_file_actions_t actions;
-  posix_spawnattr_t attributes;
-  if (posix_spawn_file_actions_init(&actions) != 0) {
-    (void)close(sockets[0]);
-    (void)close(sockets[1]);
-    goto finish;
-  }
-  if (posix_spawnattr_init(&attributes) != 0) {
-    (void)posix_spawn_file_actions_destroy(&actions);
-    (void)close(sockets[0]);
-    (void)close(sockets[1]);
-    goto finish;
-  }
-  int setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 0);
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 1);
-  }
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 2);
-  }
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_addclose(&actions, 2);
-  }
-  if (setup == 0 && roots == NULL) {
-    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 3);
-  }
-  if (setup == 0 && roots == NULL) {
-    setup = posix_spawn_file_actions_addclose(&actions, 3);
-  }
-  if (setup == 0 && roots == NULL) {
-    setup = posix_spawn_file_actions_adddup2(&actions, sockets[1], 4);
-  }
-  if (setup == 0 && roots == NULL) {
-    setup = posix_spawn_file_actions_addclose(&actions, 4);
-  }
-  if (setup == 0 && roots != NULL) {
-    setup = posix_spawn_file_actions_adddup2(&actions, model_root, 3);
-  }
-  if (setup == 0 && roots != NULL) {
-    setup = posix_spawn_file_actions_adddup2(&actions, kernel_root, 4);
-  }
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_addclose(&actions, sockets[0]);
-  }
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_addclose(&actions, sockets[1]);
-  }
-  if (setup == 0 && roots != NULL && model_root != sockets[0] &&
-      model_root != sockets[1]) {
-    setup = posix_spawn_file_actions_addclose(&actions, model_root);
-  }
-  if (setup == 0 && roots != NULL && kernel_root != sockets[0] &&
-      kernel_root != sockets[1]) {
-    setup = posix_spawn_file_actions_addclose(&actions, kernel_root);
-  }
-#if defined(__GLIBC__)
-  if (setup == 0) {
-    setup = posix_spawn_file_actions_addclosefrom_np(&actions, 5);
-  }
-#elif !defined(POSIX_SPAWN_CLOEXEC_DEFAULT)
-#error "fixed-FD spawn requires closefrom actions or CLOEXEC-default spawn"
-#endif
-#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
-  short spawn_flags = POSIX_SPAWN_CLOEXEC_DEFAULT;
-  if (setup == 0) {
-    setup = posix_spawnattr_setflags(&attributes, spawn_flags);
-  }
-#endif
   pid_t pid = -1;
-  char *const argv[] = {
-    roots == NULL ? (char *)path : (char *)"lunaflux-worker", NULL
-  };
-  char *const sanitized_environment[] = {NULL};
-  char *const *spawn_environment = roots == NULL
-    ? environ
-    : sanitized_environment;
-  int spawned = setup == 0
-    ? posix_spawn(
-        &pid,
-        (char *)path,
-        &actions,
-        &attributes,
-        argv,
-        spawn_environment
-      )
-    : setup;
-  (void)posix_spawn_file_actions_destroy(&actions);
-  (void)posix_spawnattr_destroy(&attributes);
+  int spawned;
+  spawned = lf_process_spawn_approved(
+    approved_fd, sockets[1], model_root, kernel_root, &pid
+  );
+  if (approved_fd >= 0) {
+    (void)close(approved_fd);
+    approved_fd = -1;
+  }
   (void)close(sockets[1]);
   if (roots_active) {
     lf_worker_roots_end(roots);
@@ -262,6 +187,7 @@ static int32_t lf_process_spawn_into(
   process->closed = 0;
   return LF_PROCESS_OK;
 finish:
+  if (approved_fd >= 0) (void)LF_PROCESS_CLOSE(approved_fd);
   if (roots_active) {
     lf_worker_roots_end(roots);
   }
@@ -274,23 +200,13 @@ lf_process *lunaflux_process_prepare_child(void) {
 }
 
 MOONBIT_FFI_EXPORT
-int32_t lunaflux_process_spawn_prepared(
+int32_t lunaflux_process_spawn_prepared_with_approved_executable_and_roots(
   lf_process *process,
-  moonbit_bytes_t path
-) {
-  return lf_process_spawn_into(process, path, NULL);
-}
-
-MOONBIT_FFI_EXPORT
-int32_t lunaflux_process_spawn_prepared_with_approved_roots(
-  lf_process *process,
-  moonbit_bytes_t path,
+  lf_approved_executable *executable,
   lf_worker_approved_roots *roots
 ) {
-  if (roots == NULL) {
-    return LF_PROCESS_FAILED;
-  }
-  return lf_process_spawn_into(process, path, roots);
+  if (executable == NULL || roots == NULL) return LF_PROCESS_FAILED;
+  return lf_process_spawn_into(process, executable, roots);
 }
 
 static int32_t lf_process_io(
@@ -384,6 +300,7 @@ int32_t lunaflux_process_shutdown_write(lf_process *process) {
 
 static void lf_process_record_exit(lf_process *process, int status) {
   process->reaped = 1;
+  process->pid = -1;
   if (WIFEXITED(status)) {
     process->exit_kind = 0;
     process->exit_code = WEXITSTATUS(status);

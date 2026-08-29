@@ -74,6 +74,20 @@ extern "c" fn raw_acquire_prepared_worker_roots(
 ) -> Int = "lunaflux_approved_fs_acquire_prepared_worker_roots"
 
 ///|
+#borrow(roots, status)
+extern "c" fn raw_duplicate_worker_root(
+  roots : @inheritance.WorkerApprovedRoots,
+  role : Int,
+  status : Ref[Int],
+) -> @cap.ApprovedHandle = "lunaflux_approved_fs_duplicate_worker_root"
+
+///|
+#borrow(roots)
+extern "c" fn raw_worker_root_spawn_authority(
+  roots : @inheritance.WorkerApprovedRoots,
+) -> @inheritance.WorkerApprovedRootSpawnAuthority = "lunaflux_approved_fs_worker_root_spawn_authority"
+
+///|
 #borrow(status)
 extern "c" fn raw_open_inherited_root(
   role : Int,

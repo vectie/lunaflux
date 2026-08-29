@@ -1,0 +1,90 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/logging/instance"
+
+// Values
+
+// Errors
+pub(all) suberror LunaInstanceLogError {
+  LunaInstanceLogInvalid(LunaInstanceLogRule)
+  LunaInstanceLogStaleSnapshot
+  LunaInstanceLogSnapshotGenerationExhausted
+} derive(Eq)
+
+// Types and methods
+pub struct LunaInstanceLog {
+  // private fields
+}
+pub fn LunaInstanceLog::capacity(Self) -> Int
+pub fn LunaInstanceLog::count_at(Self, Int) -> Int raise LunaInstanceLogError
+pub fn LunaInstanceLog::dropped_count(Self) -> UInt64
+pub fn LunaInstanceLog::duration_millis_at(Self, Int) -> Int raise LunaInstanceLogError
+pub fn LunaInstanceLog::event_at(Self, Int) -> LunaInstanceLogEvent raise LunaInstanceLogError
+pub fn LunaInstanceLog::length(Self) -> Int
+pub fn LunaInstanceLog::new(Int) -> Self raise LunaInstanceLogError
+pub fn LunaInstanceLog::reason_at(Self, Int) -> LunaInstanceLogReason raise LunaInstanceLogError
+pub fn LunaInstanceLog::record(Self, LunaInstanceLogEvent, LunaInstanceLogReason, timestamp_millis~ : UInt64, count~ : Int, duration_millis~ : Int) -> Unit raise LunaInstanceLogError
+pub fn LunaInstanceLog::required_int_cells(Int) -> UInt64 raise LunaInstanceLogError
+pub fn LunaInstanceLog::required_uint64_cells(Int) -> UInt64 raise LunaInstanceLogError
+pub fn LunaInstanceLog::reset(Self) -> Unit
+pub fn LunaInstanceLog::snapshot(Self) -> LunaInstanceLogSnapshot raise LunaInstanceLogError
+pub fn LunaInstanceLog::timestamp_millis_at(Self, Int) -> UInt64 raise LunaInstanceLogError
+
+pub(all) enum LunaInstanceLogEvent {
+  LunaInstanceStarting
+  LunaInstanceReady
+  LunaAdmissionAccepted
+  LunaAdmissionRejected
+  LunaRequestCompleted
+  LunaRequestCancelled
+  LunaRequestDeadline
+  LunaRequestFailed
+  LunaWorkerRestarted
+  LunaWorkerFailed
+  LunaNetworkAccepted
+  LunaNetworkDisconnected
+  LunaNetworkRejected
+  LunaBackpressureObserved
+  LunaDrainStarted
+  LunaInstanceClosed
+} derive(Eq)
+
+pub(all) enum LunaInstanceLogReason {
+  LunaLogNoReason
+  LunaLogAuthentication
+  LunaLogValidation
+  LunaLogCapacity
+  LunaLogDeadline
+  LunaLogCancellation
+  LunaLogWorkerExit
+  LunaLogWorkerProtocol
+  LunaLogNetworkRead
+  LunaLogNetworkWrite
+  LunaLogPeerClosed
+  LunaLogServiceDraining
+  LunaLogInternal
+} derive(Eq)
+
+pub(all) enum LunaInstanceLogRule {
+  LunaInstanceLogCapacityRule
+  LunaInstanceLogIndexRule
+  LunaInstanceLogTimestampRule
+  LunaInstanceLogCountRule
+  LunaInstanceLogDurationRule
+  LunaInstanceLogSnapshotRule
+} derive(Eq)
+
+pub struct LunaInstanceLogSnapshot {
+  // private fields
+}
+pub fn LunaInstanceLogSnapshot::count_at(Self, Int) -> Int raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::dropped_count(Self) -> UInt64 raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::duration_millis_at(Self, Int) -> Int raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::event_at(Self, Int) -> LunaInstanceLogEvent raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::is_live(Self) -> Bool
+pub fn LunaInstanceLogSnapshot::length(Self) -> Int raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::reason_at(Self, Int) -> LunaInstanceLogReason raise LunaInstanceLogError
+pub fn LunaInstanceLogSnapshot::timestamp_millis_at(Self, Int) -> UInt64 raise LunaInstanceLogError
+
+// Type aliases
+
+// Traits

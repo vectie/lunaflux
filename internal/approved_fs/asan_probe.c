@@ -1,5 +1,6 @@
 #define _DARWIN_C_SOURCE 1
 #define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700
 
 #include <moonbit.h>
 
@@ -261,6 +262,19 @@ int main(void) {
       LF_APPROVED_BUSY
     );
     assert(lunaflux_approved_fs_worker_roots_is_closed(worker_roots) == 0);
+    lf_approved_handle *model_duplicate =
+      lunaflux_approved_fs_duplicate_worker_root(worker_roots, 0, &status);
+    assert(status == LF_APPROVED_OK);
+    lf_approved_handle *kernel_duplicate =
+      lunaflux_approved_fs_duplicate_worker_root(worker_roots, 1, &status);
+    assert(status == LF_APPROVED_OK);
+    assert(model_duplicate->fd >= 5);
+    assert(kernel_duplicate->fd >= 5);
+    assert(model_duplicate->fd != kernel_duplicate->fd);
+    lf_approved_handle *invalid_duplicate =
+      lunaflux_approved_fs_duplicate_worker_root(worker_roots, 2, &status);
+    assert(status == LF_APPROVED_INVALID);
+    probe_handle_free(invalid_duplicate);
     lf_worker_approved_roots *prepared_roots =
       lunaflux_approved_fs_prepare_worker_roots();
     assert(lunaflux_approved_fs_acquire_prepared_worker_roots(
@@ -338,6 +352,8 @@ int main(void) {
     probe_array_free(destination);
     probe_array_free(stamp);
     probe_handle_free(file);
+    probe_handle_free(model_duplicate);
+    probe_handle_free(kernel_duplicate);
     probe_worker_roots_free(worker_roots);
     probe_handle_free(root);
   }

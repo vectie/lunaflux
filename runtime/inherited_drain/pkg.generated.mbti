@@ -1,0 +1,57 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/inherited_drain"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn prepare_inherited_drain_v1() -> InheritedDrainPreparation raise InheritedDrainError
+
+// Errors
+pub(all) suberror InheritedDrainError {
+  InheritedDrainFailed(InheritedDrainRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct InheritedDrainChannel {
+  // private fields
+}
+pub fn InheritedDrainChannel::begin_response(Self, InheritedDrainResponse) -> Unit raise InheritedDrainError
+pub fn InheritedDrainChannel::close(Self) -> Unit raise InheritedDrainError
+pub fn InheritedDrainChannel::is_closed(Self) -> Bool
+pub fn InheritedDrainChannel::is_live(Self) -> Bool
+pub fn InheritedDrainChannel::progress(Self) -> InheritedDrainProgress
+pub fn InheritedDrainChannel::request_received(Self) -> Bool
+pub fn InheritedDrainChannel::response_confirmed(Self) -> Bool
+
+pub struct InheritedDrainPreparation {
+  // private fields
+}
+pub fn InheritedDrainPreparation::activate(Self) -> InheritedDrainChannel raise InheritedDrainError
+pub fn InheritedDrainPreparation::close(Self) -> Unit raise InheritedDrainError
+
+pub(all) enum InheritedDrainProgress {
+  InheritedDrainPending
+  InheritedDrainRequested
+  InheritedDrainResponseConfirmed
+  InheritedDrainChannelLost
+  InheritedDrainClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InheritedDrainResponse {
+  InheritedDrainAccepted
+  InheritedDrainAlreadyDraining
+  InheritedDrainAlreadyClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InheritedDrainRule {
+  DescriptorUnavailable
+  InvalidDescriptor
+  InvalidState
+  ChannelLost
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

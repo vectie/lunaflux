@@ -51,6 +51,8 @@ typedef struct lf_function {
   atomic_int active_operations;
 } lf_function;
 
+typedef struct lf_ordered_executor lf_ordered_executor;
+
 typedef struct lf_gemm_plan {
   lf_child *cublas;
   cublasLtMatmulDesc_t operation;
@@ -121,6 +123,47 @@ int32_t lunaflux_cuda_function_launch(
   int64_t *offsets,
   int64_t *byte_counts,
   int64_t *alignments
+);
+lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
+  lf_context *context,
+  lf_child *stream,
+  lf_function **functions,
+  int32_t *dimensions,
+  int32_t *argument_starts,
+  lf_allocation **allocations,
+  int64_t *offsets,
+  int64_t *byte_counts,
+  int64_t *alignments,
+  int32_t policy,
+  int32_t *status
+);
+int32_t lunaflux_cuda_ordered_executor_enqueue(
+  lf_ordered_executor *executor,
+  int32_t index
+);
+int32_t lunaflux_cuda_ordered_executor_launch_captured(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_mode(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_record(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_poll(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_wait(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_abort(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_reset(
+  lf_ordered_executor *executor
+);
+int32_t lunaflux_cuda_ordered_executor_close(
+  lf_ordered_executor *executor
 );
 int32_t lunaflux_cuda_copy_to_device(
   lf_allocation *allocation,

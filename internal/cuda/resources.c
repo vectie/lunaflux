@@ -310,7 +310,6 @@ int32_t lunaflux_cuda_event_record(lf_child *event, lf_child *stream) {
   return result;
 }
 
-MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_event_synchronize(lf_child *event) {
   if (event == NULL) return LF_CLOSED;
   int32_t result = lf_operation_begin(&event->state, &event->active_operations);

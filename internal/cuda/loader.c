@@ -1,11 +1,15 @@
 #include "cuda_abi.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #define CUDA_SUCCESS 0
 #define CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR 75
 #define CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR 76
+#define CU_DEVICE_ATTRIBUTE_PCI_BUS_ID 33
+#define CU_DEVICE_ATTRIBUTE_PCI_DEVICE_ID 34
+#define CU_DEVICE_ATTRIBUTE_PCI_DOMAIN_ID 50
 
 static lf_cuda_api loader_api;
 static lf_once loader_once = LF_ONCE_INIT;
@@ -89,6 +93,30 @@ static void lf_load_optional_cublas(lf_cuda_api *api) {
     api->cublasLtMatrixLayoutDestroy != NULL &&
     api->cublasLtMatmul != NULL;
 }
+
+static void lf_load_optional_graph(lf_cuda_api *api) {
+  api->cuStreamBeginCapture =
+    (CUresult (*)(CUstream, int32_t))
+      lf_symbol(api->driver_library, "cuStreamBeginCapture");
+  api->cuStreamEndCapture =
+    (CUresult (*)(CUstream, CUgraph *))
+      lf_symbol(api->driver_library, "cuStreamEndCapture");
+  api->cuGraphInstantiateWithFlags =
+    (CUresult (*)(CUgraphExec *, CUgraph, uint64_t))
+      lf_symbol(api->driver_library, "cuGraphInstantiateWithFlags");
+  api->cuGraphDestroy =
+    (CUresult (*)(CUgraph))lf_symbol(api->driver_library, "cuGraphDestroy");
+  api->cuGraphExecDestroy =
+    (CUresult (*)(CUgraphExec))
+      lf_symbol(api->driver_library, "cuGraphExecDestroy");
+  api->cuGraphLaunch =
+    (CUresult (*)(CUgraphExec, CUstream))
+      lf_symbol(api->driver_library, "cuGraphLaunch");
+  api->graph_available =
+    api->cuStreamBeginCapture != NULL && api->cuStreamEndCapture != NULL &&
+    api->cuGraphInstantiateWithFlags != NULL && api->cuGraphDestroy != NULL &&
+    api->cuGraphExecDestroy != NULL && api->cuGraphLaunch != NULL;
+}
 #endif
 
 #define LF_LOAD_REQUIRED(field, symbol_name)                                   \
@@ -129,6 +157,17 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuDriverGetVersion, "cuDriverGetVersion");
   LF_LOAD_REQUIRED(cuDeviceGetCount, "cuDeviceGetCount");
   LF_LOAD_REQUIRED(cuDeviceGet, "cuDeviceGet");
+  api->cuDeviceGetUuid = (CUresult (*)(CUuuid *, CUdevice))
+    lf_symbol(api->driver_library, "cuDeviceGetUuid_v2");
+  if (api->cuDeviceGetUuid == NULL) {
+    api->cuDeviceGetUuid = (CUresult (*)(CUuuid *, CUdevice))
+      lf_symbol(api->driver_library, "cuDeviceGetUuid");
+  }
+  if (api->cuDeviceGetUuid == NULL) {
+    api->availability = LF_DRIVER_ABI_INCOMPLETE;
+    return;
+  }
+  LF_LOAD_REQUIRED(cuDeviceCanAccessPeer, "cuDeviceCanAccessPeer");
   LF_LOAD_REQUIRED(cuDeviceGetName, "cuDeviceGetName");
   LF_LOAD_REQUIRED(cuDeviceTotalMem, "cuDeviceTotalMem_v2");
   LF_LOAD_REQUIRED(cuDeviceGetAttribute, "cuDeviceGetAttribute");
@@ -137,10 +176,12 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuCtxSetCurrent, "cuCtxSetCurrent");
   LF_LOAD_REQUIRED(cuStreamCreate, "cuStreamCreate");
   LF_LOAD_REQUIRED(cuStreamDestroy, "cuStreamDestroy_v2");
+  LF_LOAD_REQUIRED(cuStreamQuery, "cuStreamQuery");
   LF_LOAD_REQUIRED(cuStreamSynchronize, "cuStreamSynchronize");
   LF_LOAD_REQUIRED(cuEventCreate, "cuEventCreate");
   LF_LOAD_REQUIRED(cuEventDestroy, "cuEventDestroy_v2");
   LF_LOAD_REQUIRED(cuEventRecord, "cuEventRecord");
+  LF_LOAD_REQUIRED(cuEventQuery, "cuEventQuery");
   LF_LOAD_REQUIRED(cuEventSynchronize, "cuEventSynchronize");
   LF_LOAD_REQUIRED(cuEventElapsedTime, "cuEventElapsedTime");
   LF_LOAD_REQUIRED(cuMemAlloc, "cuMemAlloc_v2");
@@ -151,6 +192,7 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuModuleUnload, "cuModuleUnload");
   LF_LOAD_REQUIRED(cuModuleGetFunction, "cuModuleGetFunction");
   LF_LOAD_REQUIRED(cuLaunchKernel, "cuLaunchKernel");
+  lf_load_optional_graph(api);
   if (api->cuInit(0) != CUDA_SUCCESS) {
     api->availability = LF_DRIVER_INITIALIZATION_FAILED;
     return;
@@ -214,7 +256,9 @@ MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_device_info(
   int32_t ordinal,
   int64_t *numeric,
-  uint8_t *name
+  uint8_t *name,
+  uint8_t *uuid,
+  uint8_t *pci
 ) {
   lf_cuda_api *api = lf_cuda_api_get();
   if (api->availability != LF_AVAILABLE) return LF_UNAVAILABLE;
@@ -223,8 +267,13 @@ int32_t lunaflux_cuda_device_info(
   size_t total_memory = 0;
   int32_t major = 0;
   int32_t minor = 0;
+  int32_t pci_domain = 0;
+  int32_t pci_bus = 0;
+  int32_t pci_device = 0;
+  CUuuid local_uuid;
   char local_name[96];
   memset(local_name, 0, sizeof(local_name));
+  memset(&local_uuid, 0, sizeof(local_uuid));
   if (api->cuDeviceGet(&device, ordinal) != CUDA_SUCCESS ||
       api->cuDeviceTotalMem(&total_memory, device) != CUDA_SUCCESS ||
       api->cuDeviceGetAttribute(
@@ -237,6 +286,22 @@ int32_t lunaflux_cuda_device_info(
         CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
         device
       ) != CUDA_SUCCESS ||
+      api->cuDeviceGetAttribute(
+        &pci_domain,
+        CU_DEVICE_ATTRIBUTE_PCI_DOMAIN_ID,
+        device
+      ) != CUDA_SUCCESS ||
+      api->cuDeviceGetAttribute(
+        &pci_bus,
+        CU_DEVICE_ATTRIBUTE_PCI_BUS_ID,
+        device
+      ) != CUDA_SUCCESS ||
+      api->cuDeviceGetAttribute(
+        &pci_device,
+        CU_DEVICE_ATTRIBUTE_PCI_DEVICE_ID,
+        device
+      ) != CUDA_SUCCESS ||
+      api->cuDeviceGetUuid(&local_uuid, device) != CUDA_SUCCESS ||
       api->cuDeviceGetName(local_name, (int32_t)sizeof(local_name), device) !=
         CUDA_SUCCESS) {
     return LF_DRIVER_FAILURE;
@@ -248,5 +313,26 @@ int32_t lunaflux_cuda_device_info(
   numeric[4] = api->cublas_available;
   memcpy(name, local_name, sizeof(local_name));
   name[95] = 0;
+  (void)snprintf(
+    (char *)uuid,
+    41,
+    "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+    (unsigned char)local_uuid.bytes[0], (unsigned char)local_uuid.bytes[1],
+    (unsigned char)local_uuid.bytes[2], (unsigned char)local_uuid.bytes[3],
+    (unsigned char)local_uuid.bytes[4], (unsigned char)local_uuid.bytes[5],
+    (unsigned char)local_uuid.bytes[6], (unsigned char)local_uuid.bytes[7],
+    (unsigned char)local_uuid.bytes[8], (unsigned char)local_uuid.bytes[9],
+    (unsigned char)local_uuid.bytes[10], (unsigned char)local_uuid.bytes[11],
+    (unsigned char)local_uuid.bytes[12], (unsigned char)local_uuid.bytes[13],
+    (unsigned char)local_uuid.bytes[14], (unsigned char)local_uuid.bytes[15]
+  );
+  (void)snprintf(
+    (char *)pci,
+    17,
+    "%08x:%02x:%02x.0",
+    (unsigned int)pci_domain,
+    (unsigned int)pci_bus,
+    (unsigned int)pci_device
+  );
   return LF_OK;
 }

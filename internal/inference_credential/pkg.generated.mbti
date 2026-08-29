@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/inference_credential"
+
+// Values
+pub fn close(InferenceCredentialHandle) -> Int
+
+pub fn is_closed(InferenceCredentialHandle) -> Bool
+
+pub fn open_fixed() -> InferenceCredentialHandle
+
+pub fn open_status(InferenceCredentialHandle) -> Int
+
+pub fn peek(InferenceCredentialHandle) -> Int
+
+pub fn try_read(InferenceCredentialHandle, FixedArray[Byte], Int, Int) -> Int
+
+// Errors
+
+// Types and methods
+pub struct InferenceCredentialHandle {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

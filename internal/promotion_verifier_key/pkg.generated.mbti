@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/promotion_verifier_key"
+
+// Values
+pub fn close(PromotionVerifierKeyHandle) -> Int
+
+pub fn is_closed(PromotionVerifierKeyHandle) -> Bool
+
+pub fn open_fixed() -> PromotionVerifierKeyHandle
+
+pub fn open_status(PromotionVerifierKeyHandle) -> Int
+
+pub fn peek(PromotionVerifierKeyHandle) -> Int
+
+pub fn try_read(PromotionVerifierKeyHandle, FixedArray[Byte], Int, Int) -> Int
+
+// Errors
+
+// Types and methods
+pub struct PromotionVerifierKeyHandle {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

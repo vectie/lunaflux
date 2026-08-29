@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/device_collective_interop"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub type ContextToken
+
+pub type QueueToken
+
+pub type RegionToken
+
+// Type aliases
+
+// Traits

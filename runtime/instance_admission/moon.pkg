@@ -1,0 +1,27 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/config/cache",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/config/scheduler",
+  "vectie/lunaflux/config/service",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/rank_group_process",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/logging/instance",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_policy_file",
+  "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/online_tcp",
+  "vectie/lunaflux/service/online_session",
+  "vectie/lunaflux/service/request_admission",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_file",
+}
+
+supported_targets = "native"

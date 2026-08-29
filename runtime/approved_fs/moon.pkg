@@ -4,6 +4,8 @@ import {
   "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }
 
+supported_targets = "native"
+
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
@@ -21,5 +23,6 @@ options(
     "root_identity_test.mbt": [ "native" ],
     "path.mbt": [ "native" ],
     "types.mbt": [ "native" ],
+    "materialization_view_test.mbt": [ "native" ],
   },
 )

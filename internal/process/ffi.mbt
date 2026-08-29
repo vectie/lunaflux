@@ -5,16 +5,12 @@ priv type NativeChild
 extern "c" fn raw_prepare_child() -> NativeChild = "lunaflux_process_prepare_child"
 
 ///|
-#borrow(child, path)
-extern "c" fn raw_spawn_prepared(child : NativeChild, path : Bytes) -> Int = "lunaflux_process_spawn_prepared"
-
-///|
-#borrow(child, path, roots)
-extern "c" fn raw_spawn_prepared_with_approved_roots(
+#borrow(child, executable, roots)
+extern "c" fn raw_spawn_prepared_with_approved_executable_and_roots(
   child : NativeChild,
-  path : Bytes,
-  roots : @inheritance.WorkerApprovedRoots,
-) -> Int = "lunaflux_process_spawn_prepared_with_approved_roots"
+  executable : @executable_capability.ApprovedExecutableHandle,
+  roots : @inheritance.WorkerApprovedRootSpawnAuthority,
+) -> Int = "lunaflux_process_spawn_prepared_with_approved_executable_and_roots"
 
 ///|
 #borrow(child, source)
@@ -58,6 +54,22 @@ extern "c" fn raw_try_read(
 ) -> Int = "lunaflux_process_try_read"
 
 ///|
+#borrow(source)
+extern "c" fn raw_inherited_try_write(
+  source : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Int = "lunaflux_process_inherited_try_write"
+
+///|
+#borrow(destination)
+extern "c" fn raw_inherited_try_read(
+  destination : FixedArray[Byte],
+  offset : Int,
+  byte_count : Int,
+) -> Int = "lunaflux_process_inherited_try_read"
+
+///|
 #borrow(child)
 extern "c" fn raw_shutdown_write(child : NativeChild) -> Int = "lunaflux_process_shutdown_write"
 
@@ -73,6 +85,21 @@ extern "c" fn raw_wait(
 ///|
 #borrow(child)
 extern "c" fn raw_terminate(child : NativeChild) -> Int = "lunaflux_process_terminate"
+
+///|
+#borrow(child)
+extern "c" fn raw_try_wait(child : NativeChild) -> Int64 = "lunaflux_process_maintenance_try_wait"
+
+///|
+#borrow(child)
+extern "c" fn raw_maintenance_signal(
+  child : NativeChild,
+  signal_kind : Int,
+) -> Int = "lunaflux_process_maintenance_signal"
+
+///|
+#borrow(child)
+extern "c" fn raw_close_reaped(child : NativeChild) -> Int = "lunaflux_process_maintenance_close_reaped"
 
 ///|
 #borrow(child)

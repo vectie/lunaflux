@@ -1,15 +1,24 @@
 supported_targets = "native"
 
 import {
+  "vectie/lunaflux/internal/approved_fs_capability" @executable_capability,
   "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }
+
+import {
+  "vectie/lunaflux/tests/process_native_fixture" @native_fixture,
+} for "wbtest"
 
 options(
   "native-stub": [
     "process.c",
+    "process_approved_spawn.c",
     "process_io.c",
     "process_nonblocking.c",
+    "inherited_wait.c",
+    "process_maintenance.c",
     "child_control.c",
   ],
-  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror -pthread",
+  link: { "native": { "cc-link-flags": "-pthread" } },
 )

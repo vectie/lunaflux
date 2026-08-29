@@ -25,6 +25,7 @@ fn check_status(
     -5 => raise DriverFailure(operation)
     -6 => raise HostAllocationFailed(operation)
     -7 => raise SizeOverflow(operation)
+    -9 => raise InvalidOutput(operation)
     _ => raise Unsupported(operation)
   }
 }
@@ -42,10 +43,26 @@ pub fn probe() -> DriverInventory {
 }
 
 ///|
+fn decode_device_identity(buffer : FixedArray[Byte]) -> String raise CudaError {
+  let mut length = 0
+  while length < buffer.length() && buffer[length] != b'\x00' {
+    length += 1
+  }
+  @utf8.decode(Bytes::from_array(buffer.view(end=length))) catch {
+    _ => raise InvalidOutput(DeviceInventory)
+  }
+}
+
+///|
 pub fn device_info(ordinal : Int) -> RawDeviceInfo raise CudaError {
   let numeric = FixedArray::make(5, 0L)
   let name = FixedArray::make(96, b'\x00')
-  check_status(raw_device_info(ordinal, numeric, name), DeviceInventory)
+  let uuid = FixedArray::make(41, b'\x00')
+  let pci = FixedArray::make(17, b'\x00')
+  check_status(
+    raw_device_info(ordinal, numeric, name, uuid, pci),
+    DeviceInventory,
+  )
   let mut name_length = 0
   while name_length < name.length() && name[name_length] != b'\x00' {
     name_length += 1
@@ -59,6 +76,25 @@ pub fn device_info(ordinal : Int) -> RawDeviceInfo raise CudaError {
     name: @utf8.decode(Bytes::from_array(name.view(end=name_length))) catch {
       _ => raise InvalidOutput(DeviceInventory)
     },
+    uuid: decode_device_identity(uuid),
+    pci: decode_device_identity(pci),
+  }
+}
+
+///|
+pub fn device_can_access_peer(
+  source_ordinal : Int,
+  destination_ordinal : Int,
+) -> Bool raise CudaError {
+  let output = Ref(0)
+  check_status(
+    raw_device_can_access_peer(source_ordinal, destination_ordinal, output),
+    DevicePeerAccess,
+  )
+  match output.val {
+    0 => false
+    1 => true
+    _ => raise InvalidOutput(DevicePeerAccess)
   }
 }
 

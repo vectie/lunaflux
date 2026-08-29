@@ -1,0 +1,17 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+} for "wbtest"

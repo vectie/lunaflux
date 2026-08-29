@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/inference_credential"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/service/api_auth",
+}
+
+// Values
+pub fn prepare_optional_inherited_inference_credential_v1() -> InheritedInferenceCredentialOwner? raise InheritedInferenceCredentialError
+
+// Errors
+pub(all) suberror InheritedInferenceCredentialError {
+  InheritedInferenceCredentialFailed(InheritedInferenceCredentialRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct InheritedInferenceAuthPolicy {
+  // private fields
+}
+pub fn InheritedInferenceAuthPolicy::close(Self) -> Unit
+pub fn InheritedInferenceAuthPolicy::take_for_policy(Self, Int) -> @api_auth.LunaApiAuthPolicy raise InheritedInferenceCredentialError
+
+pub struct InheritedInferenceCredentialOwner {
+  // private fields
+}
+pub fn InheritedInferenceCredentialOwner::close(Self) -> Unit raise InheritedInferenceCredentialError
+pub fn InheritedInferenceCredentialOwner::progress(Self) -> InheritedInferenceCredentialProgress
+pub fn InheritedInferenceCredentialOwner::take_startup_auth_policy_v1(Self, maximum_credential_bytes~ : Int) -> InheritedInferenceAuthPolicy raise InheritedInferenceCredentialError
+
+pub(all) enum InheritedInferenceCredentialProgress {
+  InheritedInferenceCredentialPending
+  InheritedInferenceCredentialReady
+  InheritedInferenceCredentialFailedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum InheritedInferenceCredentialRule {
+  CredentialDescriptorUnavailable
+  CredentialDescriptorInvalid
+  CredentialFrameInvalid
+  CredentialChannelLost
+  CredentialStateInvalid
+  CredentialPolicyInvalid
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

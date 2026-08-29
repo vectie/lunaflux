@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/internal/device_collective_interop",
+}
+
+import {
+  "vectie/lunaflux/internal/cuda",
+} for "test"
+
+import {
+  "vectie/lunaflux/internal/cuda",
+} for "wbtest"
+
+supported_targets = "native"
+
+options(
+  "native-stub": [
+    "collectives.c",
+    "collective_probe.c",
+    "communicator.c",
+    "communicator_ffi.c",
+    "lifecycle_probe.c",
+    "loader.c",
+  ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+)

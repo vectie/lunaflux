@@ -16,6 +16,8 @@ pub fn close(@approved_fs_capability.NativeApprovedHandle) -> Int
 
 pub fn close_worker_roots(@approved_fs_inheritance.WorkerApprovedRoots) -> Int
 
+pub fn duplicate_worker_root(@approved_fs_inheritance.WorkerApprovedRoots, Int, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
+
 pub fn is_closed(@approved_fs_capability.NativeApprovedHandle) -> Bool
 
 pub fn open_file(@approved_fs_capability.NativeApprovedHandle, Bytes, @ref.Ref[Int]) -> @approved_fs_capability.NativeApprovedHandle
@@ -33,6 +35,8 @@ pub fn read_immutable_snapshot(@approved_fs_capability.NativeApprovedHandle, Int
 pub fn require_absolute_identity(@approved_fs_capability.NativeApprovedHandle, Bytes) -> Int
 
 pub fn stamp(@approved_fs_capability.NativeApprovedHandle, FixedArray[Int64]) -> Int
+
+pub fn worker_root_spawn_authority(@approved_fs_inheritance.WorkerApprovedRoots) -> @approved_fs_inheritance.WorkerApprovedRootSpawnAuthority
 
 pub fn worker_roots_is_closed(@approved_fs_inheritance.WorkerApprovedRoots) -> Bool
 

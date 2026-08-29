@@ -41,15 +41,28 @@ pub struct ChildProcess {
   priv limits : ProcessLimits
   priv write_prefix : FixedArray[Byte]
   priv read_prefix : FixedArray[Byte]
-  priv mut transfer_kind : Int
   priv empty_transfer_buffer : FixedArray[Byte]
-  priv mut transfer_primary : FixedArray[Byte]
-  priv mut transfer_secondary : FixedArray[Byte]
-  priv mut transfer_offset : Int
-  priv mut transfer_byte_count : Int
-  priv mut transfer_deadline_millis : Int64
-  priv mut transfer_phase : Int
-  priv mut transfer_cursor : Int
+  priv mut write_transfer_active : Bool
+  priv mut write_transfer_source : FixedArray[Byte]
+  priv mut write_transfer_offset : Int
+  priv mut write_transfer_byte_count : Int
+  priv mut write_transfer_deadline_millis : Int64
+  priv mut write_transfer_phase : Int
+  priv mut write_transfer_cursor : Int
+  priv mut read_transfer_active : Bool
+  priv mut read_transfer_destination : FixedArray[Byte]
+  priv mut read_transfer_staging : FixedArray[Byte]
+  priv mut read_transfer_byte_count : Int
+  priv mut read_transfer_deadline_millis : Int64
+  priv mut read_transfer_phase : Int
+  priv mut read_transfer_cursor : Int
+  priv mut maintenance_phase : Int
+  priv mut maintenance_phase_started_millis : Int64
+  priv mut maintenance_deadline_millis : Int64
+  priv mut maintenance_resume_phase : Int
+  priv mut maintenance_exit_kind : Int
+  priv mut maintenance_exit_code : Int
+  priv mut maintenance_has_exit : Bool
   priv mut failed : Bool
   priv mut closed : Bool
 }
@@ -59,7 +72,7 @@ pub struct ChildProcess {
 /// borrowed. Spawning only installs native pid/fd state into this exact owner.
 pub struct PreparedChildProcess {
   priv child : ChildProcess
-  priv path : Bytes
+  priv approved_executable : @executable_capability.ApprovedExecutableHandle
   priv mut consumed : Bool
   priv mut cleanup_status : Int
 }
@@ -83,6 +96,22 @@ pub struct InheritedChannel {
   priv limits : ProcessLimits
   priv write_prefix : FixedArray[Byte]
   priv read_prefix : FixedArray[Byte]
+  priv empty_transfer_buffer : FixedArray[Byte]
+  priv mut write_transfer_active : Bool
+  priv mut write_transfer_source : FixedArray[Byte]
+  priv mut write_transfer_offset : Int
+  priv mut write_transfer_byte_count : Int
+  priv mut write_transfer_deadline_millis : Int64
+  priv mut write_transfer_phase : Int
+  priv mut write_transfer_cursor : Int
+  priv mut read_transfer_active : Bool
+  priv mut read_transfer_destination : FixedArray[Byte]
+  priv mut read_transfer_staging : FixedArray[Byte]
+  priv mut read_transfer_byte_count : Int
+  priv mut read_transfer_deadline_millis : Int64
+  priv mut read_transfer_phase : Int
+  priv mut read_transfer_cursor : Int
+  priv mut read_transfer_allows_eof : Bool
   priv mut failed : Bool
 }
 
@@ -92,6 +121,23 @@ pub struct InheritedChannel {
 pub struct ChildExit {
   priv kind : Int
   priv code : Int
+}
+
+///|
+/// Scalar progress evidence for owner-resident cooperative child maintenance.
+#valtype
+pub struct ChildProcessMaintenanceProgress {
+  priv kind : Int
+}
+
+///|
+/// Scalar result of one nonblocking liveness observation while the child has
+/// no active transfer or maintenance transition.
+#valtype
+pub struct ChildProcessIdleObservation {
+  priv kind : Int
+  priv exit_kind : Int
+  priv exit_code : Int
 }
 
 ///|
@@ -135,6 +181,68 @@ pub fn ChildExit::kind(self : ChildExit) -> Int {
 ///|
 pub fn ChildExit::code(self : ChildExit) -> Int {
   self.code
+}
+
+///|
+pub fn ChildProcessMaintenanceProgress::is_pending(
+  self : ChildProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 0
+}
+
+///|
+pub fn ChildProcessMaintenanceProgress::is_advanced(
+  self : ChildProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 1
+}
+
+///|
+pub fn ChildProcessMaintenanceProgress::is_complete(
+  self : ChildProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 2
+}
+
+///|
+pub fn ChildProcessMaintenanceProgress::is_cleanup_required(
+  self : ChildProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 3
+}
+
+///|
+/// Returns true after the bounded final-reap interval expired while the exact
+/// unreaped child owner remains retained for later nonblocking poll progress.
+pub fn ChildProcessMaintenanceProgress::is_cleanup_stuck(
+  self : ChildProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 4
+}
+
+///|
+pub fn ChildProcessIdleObservation::is_alive(
+  self : ChildProcessIdleObservation,
+) -> Bool {
+  self.kind == 0
+}
+
+///|
+pub fn ChildProcessIdleObservation::has_exited(
+  self : ChildProcessIdleObservation,
+) -> Bool {
+  self.kind == 1
+}
+
+///|
+/// Returns the exact copied exit evidence after `has_exited` succeeds.
+pub fn ChildProcessIdleObservation::exit(
+  self : ChildProcessIdleObservation,
+) -> ChildExit raise ProcessError {
+  if self.kind != 1 {
+    raise InvalidState(Wait)
+  }
+  { kind: self.exit_kind, code: self.exit_code }
 }
 
 ///|

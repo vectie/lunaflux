@@ -4,6 +4,8 @@ import {
   "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }
 
+supported_targets = "native"
+
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",

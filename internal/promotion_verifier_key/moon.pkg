@@ -1,0 +1,6 @@
+supported_targets = "native"
+
+options(
+  "native-stub": [ "promotion_verifier_key.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)

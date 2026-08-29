@@ -5,8 +5,26 @@ pub struct ApprovedRoot {
 }
 
 ///|
+/// Borrowed offline-materialization view of one pinned source root and the
+/// canonical absolute label that the exact copied bytes will have in the
+/// deployment namespace.
+///
+/// Construction authenticates the source root's current no-follow identity.
+/// It deliberately does not assert that the target label exists on this host;
+/// only the no-overwrite materializer may consume this view. The caller keeps
+/// sole close authority over the underlying `ApprovedRoot`.
+pub struct ApprovedRootMaterializationView {
+  priv source_root : ApprovedRoot
+  priv target_label : String
+}
+
+///|
 /// Opaque reusable owner of ordered model and kernel worker-root leases.
 pub type WorkerApprovedRoots = @inheritance.WorkerApprovedRoots
+
+///|
+/// Capability-limited root-pair view accepted only by the private spawn ABI.
+pub type WorkerApprovedRootSpawnAuthority = @inheritance.WorkerApprovedRootSpawnAuthority
 
 ///|
 /// Closed, authority-free allocation shell consumed by exactly one root-pair

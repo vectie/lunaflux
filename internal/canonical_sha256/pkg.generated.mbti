@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/canonical_sha256"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CanonicalSha256 {
+  // private fields
+}
+pub fn CanonicalSha256::finalize_hex(Self) -> String
+pub fn CanonicalSha256::new() -> Self
+pub fn CanonicalSha256::update_byte(Self, Byte) -> Bool
+pub fn CanonicalSha256::update_bytes(Self, BytesView) -> Bool
+pub fn CanonicalSha256::update_u64_le(Self, UInt64) -> Bool
+
+// Type aliases
+
+// Traits

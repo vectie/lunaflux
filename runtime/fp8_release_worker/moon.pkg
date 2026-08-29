@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/instance_admission",
+  "vectie/lunaflux/service/online_session",
+}
+
+supported_targets = "native"

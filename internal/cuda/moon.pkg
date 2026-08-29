@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/device_collective_interop",
 }
 
 supported_targets = "native"
@@ -9,6 +10,7 @@ options(
     "allocation_lease.c",
     "allocation_lease_probe.c",
     "cublas.c",
+    "collective_interop.c",
     "execution_probe.c",
     "gemm.c",
     "launch.c",
@@ -16,6 +18,12 @@ options(
     "lifecycle_probe.c",
     "loader.c",
     "modules.c",
+    "ordered_executor.c",
+    "ordered_graph.c",
+    "ordered_executor_probe.c",
+    "ordered_graph_probe.c",
+    "peer_access.c",
+    "peer_access_probe.c",
     "region_probe.c",
     "regions.c",
     "resources.c",

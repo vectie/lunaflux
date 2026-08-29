@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/tensor_parallel_collective"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+// Values
+pub fn authenticate_rank_plan(@tensor_parallel_plan.TensorParallelRankPlan, expected_identity~ : @spec.ModelIdentity, max_query_tokens~ : Int) -> @device.TensorCollectiveContract raise TensorParallelCollectiveError
+
+// Errors
+pub(all) suberror TensorParallelCollectiveError {
+  InvalidRankPlan(TensorParallelCollectiveStage)
+  Device(TensorParallelCollectiveStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum TensorParallelCollectiveStage {
+  RankPlanIdentity
+  RankPlanShape
+  CanonicalContract
+  DeviceContract
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -49,6 +49,8 @@ pub struct RawDeviceInfo {
   supports_bf16 : Bool
   cublas_lt_available : Bool
   name : String
+  uuid : String
+  pci : String
 } derive(Debug, Eq)
 
 ///|
@@ -82,8 +84,19 @@ pub fn RawDeviceInfo::name(self : RawDeviceInfo) -> String {
 }
 
 ///|
+pub fn RawDeviceInfo::uuid(self : RawDeviceInfo) -> String {
+  self.uuid
+}
+
+///|
+pub fn RawDeviceInfo::pci(self : RawDeviceInfo) -> String {
+  self.pci
+}
+
+///|
 pub(all) enum CudaOperation {
   DeviceInventory
+  DevicePeerAccess
   ContextCreate
   ContextClose
   StreamCreate
@@ -106,11 +119,37 @@ pub(all) enum CudaOperation {
   FunctionLoad
   FunctionClose
   AotKernelLaunch
+  OrderedExecutorCreate
+  OrderedExecutorEnqueue
+  OrderedExecutorGraphLaunch
+  OrderedExecutorRecord
+  OrderedExecutorPoll
+  OrderedExecutorWait
+  OrderedExecutorAbort
+  OrderedExecutorReset
+  OrderedExecutorClose
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
   Bf16GemmPlanClose
   Bf16GemmRun
+} derive(Debug, Eq)
+
+///|
+/// Startup-only policy for one already authenticated immutable launch list.
+/// The native executor never changes nodes, pointers, or dimensions after
+/// construction.
+pub(all) enum OrderedExecutorPolicy {
+  OrderedExecutorEagerOnly
+  OrderedExecutorCaptureRequired
+  OrderedExecutorCaptureWithEagerFallback
+} derive(Debug, Eq)
+
+///|
+/// Actual immutable execution mode selected during native construction.
+pub(all) enum OrderedExecutorMode {
+  OrderedExecutorEager
+  OrderedExecutorCaptured
 } derive(Debug, Eq)
 
 ///|

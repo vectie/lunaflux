@@ -1,0 +1,88 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/nccl"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/internal/device_collective_interop",
+}
+
+// Values
+pub fn admit_runtime(minimum_version_code~ : Int, maximum_version_code~ : Int) -> NcclRuntimeAdmission raise NcclError
+
+pub fn communicator_id_from_bytes(BytesView) -> NcclCommunicatorId raise NcclError
+
+pub fn probe() -> NcclRuntimeInventory
+
+// Errors
+pub(all) suberror NcclError {
+  Unavailable(NcclOperation)
+  VersionMismatch(NcclOperation)
+  InvalidArgument(NcclOperation)
+  Closed(NcclOperation)
+  Busy(NcclOperation)
+  RuntimeFailure(NcclOperation)
+  GenerationMismatch(NcclOperation)
+  SequenceMismatch(NcclOperation)
+  Failed(NcclOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum NcclAvailability {
+  Available
+  UnsupportedPlatform
+  LibraryMissing
+  AbiIncomplete
+  VersionUnavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) enum NcclCollectiveOperation {
+  AllReduce
+  AllGather
+  ReduceScatter
+} derive(Eq, @debug.Debug)
+
+type NcclCommunicator
+pub fn NcclCommunicator::abort(Self) -> Unit raise NcclError
+pub fn NcclCommunicator::close(Self) -> Unit raise NcclError
+pub fn NcclCommunicator::generation(Self) -> UInt64
+pub fn NcclCommunicator::invalidate(Self, generation~ : UInt64) -> Unit raise NcclError
+pub fn NcclCommunicator::next_collective_sequence(Self) -> UInt64
+pub fn NcclCommunicator::poll_collective(Self) -> Bool raise NcclError
+pub fn NcclCommunicator::poll_ready(Self) -> Bool raise NcclError
+pub fn NcclCommunicator::rank(Self) -> Int
+pub fn NcclCommunicator::submit_bf16(Self, generation~ : UInt64, plan_sequence~ : UInt64, collective_sequence~ : UInt64, operation_id~ : Int, collective_kind~ : NcclCollectiveOperation, context~ : @device_collective_interop.ContextToken, send~ : @device_collective_interop.RegionToken, send_offset~ : Int64, send_elements~ : Int64, receive~ : @device_collective_interop.RegionToken, receive_offset~ : Int64, receive_elements~ : Int64, stream~ : @device_collective_interop.QueueToken) -> Unit raise NcclError
+pub fn NcclCommunicator::world_size(Self) -> Int
+
+pub struct NcclCommunicatorId {
+  // private fields
+}
+pub fn NcclCommunicatorId::to_bytes(Self) -> Bytes
+
+pub(all) enum NcclOperation {
+  RuntimeAdmission
+  CommunicatorIdCreate
+  CommunicatorCreate
+  CollectiveAdmission
+  CollectiveExecution
+  CommunicatorInvalidate
+  CommunicatorClose
+  CommunicatorAbort
+} derive(Eq, @debug.Debug)
+
+pub struct NcclRuntimeAdmission {
+  // private fields
+}
+pub fn NcclRuntimeAdmission::create_communicator(Self, NcclCommunicatorId, world_size~ : Int, rank~ : Int, generation~ : UInt64, previous_plan_sequence~ : UInt64) -> NcclCommunicator raise NcclError
+pub fn NcclRuntimeAdmission::create_communicator_id(Self) -> NcclCommunicatorId raise NcclError
+pub fn NcclRuntimeAdmission::create_communicator_on_context(Self, NcclCommunicatorId, world_size~ : Int, rank~ : Int, generation~ : UInt64, previous_plan_sequence~ : UInt64, context~ : @device_collective_interop.ContextToken) -> NcclCommunicator raise NcclError
+pub fn NcclRuntimeAdmission::version_code(Self) -> Int
+
+pub struct NcclRuntimeInventory {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NcclRuntimeInventory::availability(Self) -> NcclAvailability
+pub fn NcclRuntimeInventory::version_code(Self) -> Int
+
+// Type aliases
+
+// Traits

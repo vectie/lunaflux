@@ -35,12 +35,16 @@ pub fn probe() -> ProbeResult {
         try @cuda.device_info(ordinal) catch {
           _ => return Unavailable(InventoryFailed)
         } noraise {
-          raw =>
-            devices.push({
+          raw => {
+            let info : DeviceInfo = {
               ordinal,
               name: raw.name(),
+              uuid: raw.uuid(),
+              pci: raw.pci(),
               capability: capability_from_raw(raw),
-            })
+            }
+            devices.push(info)
+          }
         }
       }
       Available(

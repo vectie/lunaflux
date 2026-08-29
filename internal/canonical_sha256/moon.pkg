@@ -1,0 +1,9 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/x/crypto",
+} for "wbtest"
+
+supported_targets = "native"

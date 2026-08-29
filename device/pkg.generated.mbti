@@ -6,11 +6,27 @@ import {
 }
 
 // Values
+pub fn admit_finite_fp8_e4m3_w8a8(DeviceCapability) -> DeviceNumericCapability raise DeviceNumericCapabilityError
+
+pub fn admit_symmetric_i8_weight_only_per_output_channel_v1(DeviceCapability) -> DeviceNumericCapability raise DeviceNumericCapabilityError
+
+pub fn admit_tensor_collective_runtime(minimum_version_code~ : Int, maximum_version_code~ : Int) -> TensorCollectiveRuntime raise DeviceError
+
+pub fn can_access_peer(Int, Int) -> Bool raise DeviceError
+
 pub fn open_context(Int) -> Context raise DeviceError
 
 pub fn probe() -> ProbeResult
 
+pub fn probe_tensor_collective_runtime() -> TensorCollectiveRuntimeInventory
+
+pub fn tensor_collective_group_id_from_bytes(BytesView) -> TensorCollectiveGroupId raise DeviceError
+
 // Errors
+pub(all) suberror DeviceCapabilityObservationError {
+  InvalidDeviceCapabilityObservation(DeviceCapabilityObservationRule)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror DeviceError {
   Unavailable(DeviceOperation)
   InvalidArgument(DeviceOperation)
@@ -21,6 +37,10 @@ pub(all) suberror DeviceError {
   SizeOverflow(DeviceOperation)
   Unsupported(DeviceOperation)
   InvalidOutput(DeviceOperation)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeviceNumericCapabilityError {
+  InvalidDeviceNumericCapability(DeviceNumericCapabilityRule)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -57,11 +77,24 @@ pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, 
 pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
 pub fn Context::create_event(Self) -> Event raise DeviceError
+pub fn Context::create_ordered_kernel_executor(Self, Stream, ArrayView[OrderedKernelLaunch], policy? : OrderedKernelExecutionPolicy) -> OrderedKernelExecutor raise DeviceError
 pub fn Context::create_stream(Self) -> Stream raise DeviceError
+pub fn Context::create_tensor_collective_owner(Self, runtime~ : TensorCollectiveRuntime, group_id~ : TensorCollectiveGroupId, contract~ : TensorCollectiveContract, generation~ : UInt64, previous_plan_sequence_value~ : UInt64) -> TensorCollectiveOwner raise DeviceError
+pub fn Context::device_identity(Self) -> ContextDeviceIdentity
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise DeviceError
 pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
 pub fn Context::ordinal(Self) -> Int
 pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise DeviceError
+
+pub struct ContextDeviceIdentity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ContextDeviceIdentity::capability(Self) -> DeviceCapability
+pub fn ContextDeviceIdentity::name(Self) -> String
+pub fn ContextDeviceIdentity::ordinal(Self) -> Int
+pub fn ContextDeviceIdentity::pci(Self) -> String
+pub fn ContextDeviceIdentity::total_memory_bytes(Self) -> Int64
+pub fn ContextDeviceIdentity::uuid(Self) -> String
 
 pub struct CublasLt {
   // private fields
@@ -78,21 +111,66 @@ pub struct DeviceCapability {
 } derive(Eq, @debug.Debug)
 pub fn DeviceCapability::compute_major(Self) -> Int
 pub fn DeviceCapability::compute_minor(Self) -> Int
+pub fn DeviceCapability::from_observed_facts(compute_major~ : Int, compute_minor~ : Int, total_memory_bytes~ : Int64, supports_bf16~ : Bool, supports_cublas_lt~ : Bool) -> Self raise DeviceCapabilityObservationError
 pub fn DeviceCapability::supports_bf16(Self) -> Bool
 pub fn DeviceCapability::supports_cublas_lt(Self) -> Bool
 pub fn DeviceCapability::total_memory_bytes(Self) -> Int64
 
+pub(all) enum DeviceCapabilityObservationRule {
+  InvalidComputeCapability
+  InvalidTotalMemory
+} derive(Eq, @debug.Debug)
+
 pub struct DeviceInfo {
   ordinal : Int
   name : String
+  uuid : String
+  pci : String
   capability : DeviceCapability
 } derive(Eq, @debug.Debug)
 pub fn DeviceInfo::capability(Self) -> DeviceCapability
 pub fn DeviceInfo::name(Self) -> String
 pub fn DeviceInfo::ordinal(Self) -> Int
+pub fn DeviceInfo::pci(Self) -> String
+pub fn DeviceInfo::uuid(Self) -> String
+
+pub struct DeviceNumericCapability {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceNumericCapability::canonical_bytes(Self) -> Bytes
+pub fn DeviceNumericCapability::compute_major(Self) -> Int
+pub fn DeviceNumericCapability::compute_minor(Self) -> Int
+pub fn DeviceNumericCapability::digest(Self) -> DeviceNumericCapabilityDigest
+pub fn DeviceNumericCapability::feature(Self) -> DeviceNumericFeature
+pub fn DeviceNumericCapability::supports_bf16(Self) -> Bool
+pub fn DeviceNumericCapability::supports_cublas_lt(Self) -> Bool
+pub fn DeviceNumericCapability::version(Self) -> DeviceNumericCapabilityVersion
+
+pub struct DeviceNumericCapabilityDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn DeviceNumericCapabilityDigest::as_hex(Self) -> String
+
+pub(all) enum DeviceNumericCapabilityRule {
+  InvalidObservedCapability
+  UnsupportedArchitecture
+  MissingBf16BoundarySupport
+} derive(Eq, @debug.Debug)
+
+pub struct DeviceNumericCapabilityVersion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceNumericCapabilityVersion::as_int(Self) -> Int
+pub fn DeviceNumericCapabilityVersion::v1() -> Self
+
+pub(all) enum DeviceNumericFeature {
+  FiniteFp8E4M3W8A8F32AccumulateBf16OutputV1
+  SymmetricI8WeightOnlyPerOutputChannelF32ScaleF32AccumulateBf16OutputV1
+} derive(Eq, @debug.Debug)
 
 pub(all) enum DeviceOperation {
   DeviceInventory
+  DevicePeerAccess
   ContextCreate
   ContextClose
   StreamCreate
@@ -115,11 +193,28 @@ pub(all) enum DeviceOperation {
   FunctionLoad
   FunctionClose
   AotKernelLaunch
+  OrderedExecutorCreate
+  OrderedExecutorEnqueue
+  OrderedExecutorGraphLaunch
+  OrderedExecutorRecord
+  OrderedExecutorPoll
+  OrderedExecutorWait
+  OrderedExecutorAbort
+  OrderedExecutorReset
+  OrderedExecutorClose
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
   Bf16GemmPlanClose
   Bf16GemmRun
+  TensorCollectiveContractCreate
+  TensorCollectiveRuntimeAdmission
+  TensorCollectiveGroupIdCreate
+  TensorCollectiveOwnerCreate
+  TensorCollectiveExecute
+  TensorCollectiveInvalidate
+  TensorCollectiveClose
+  TensorCollectiveAbort
 } derive(Eq, @debug.Debug)
 
 pub struct Event {
@@ -158,6 +253,36 @@ pub struct Module {
 pub fn Module::close(Self) -> Unit raise DeviceError
 pub fn Module::load_function(Self, Bytes) -> Function raise DeviceError
 
+pub(all) enum OrderedKernelExecutionMode {
+  OrderedKernelEager
+  OrderedKernelCaptured
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OrderedKernelExecutionPolicy {
+  OrderedKernelEagerOnly
+  OrderedKernelCaptureRequired
+  OrderedKernelCaptureWithEagerFallback
+} derive(Eq, @debug.Debug)
+
+pub struct OrderedKernelExecutor {
+  // private fields
+}
+pub fn OrderedKernelExecutor::abort(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::close(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::enqueue(Self, Int) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::execution_mode(Self) -> OrderedKernelExecutionMode
+pub fn OrderedKernelExecutor::kernel_count(Self) -> Int
+pub fn OrderedKernelExecutor::launch_captured(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::poll_completion(Self) -> Bool raise DeviceError
+pub fn OrderedKernelExecutor::record_completion(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::reset(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::wait_completion(Self) -> Unit raise DeviceError
+
+pub struct OrderedKernelLaunch {
+  // private fields
+}
+pub fn OrderedKernelLaunch::new(Function, KernelLaunchDimensions, KernelArguments) -> Self
+
 pub(all) enum ProbeResult {
   Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])
   Unavailable(UnavailableReason)
@@ -168,6 +293,69 @@ pub struct Stream {
 }
 pub fn Stream::close(Self) -> Unit raise DeviceError
 pub fn Stream::synchronize(Self) -> Unit raise DeviceError
+
+pub struct TensorCollectiveContract {
+  // private fields
+}
+pub fn TensorCollectiveContract::digest(Self) -> TensorCollectiveContractDigest
+pub fn TensorCollectiveContract::max_query_tokens(Self) -> Int
+pub fn TensorCollectiveContract::new(digest~ : TensorCollectiveContractDigest, rank~ : Int, world_size~ : Int, max_query_tokens~ : Int, sites~ : ArrayView[TensorCollectiveSite]) -> Self raise DeviceError
+pub fn TensorCollectiveContract::rank(Self) -> Int
+pub fn TensorCollectiveContract::site_count(Self) -> Int
+pub fn TensorCollectiveContract::world_size(Self) -> Int
+
+pub struct TensorCollectiveContractDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorCollectiveContractDigest::as_hex(Self) -> String
+pub fn TensorCollectiveContractDigest::from_sha256(StringView) -> Self raise DeviceError
+
+pub struct TensorCollectiveGroupId {
+  // private fields
+}
+pub fn TensorCollectiveGroupId::to_bytes(Self) -> Bytes
+
+pub(all) enum TensorCollectiveKind {
+  Bf16SumAllReduce
+  Bf16AllGather
+} derive(Eq, @debug.Debug)
+
+pub struct TensorCollectiveOwner {
+  // private fields
+}
+pub fn TensorCollectiveOwner::abort(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::close(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::invalidate(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::poll(Self) -> Bool raise DeviceError
+pub fn TensorCollectiveOwner::poll_ready(Self) -> Bool raise DeviceError
+pub fn TensorCollectiveOwner::submit(Self, generation~ : UInt64, plan_sequence~ : UInt64, global_sequence~ : UInt64, site_sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, live_query_tokens~ : Int, send~ : Allocation, send_offset~ : Int64, receive~ : Allocation, receive_offset~ : Int64, stream~ : Stream) -> Unit raise DeviceError
+
+type TensorCollectiveOwnerState derive(Eq, @debug.Debug)
+
+pub struct TensorCollectiveRuntime {
+  // private fields
+}
+pub fn TensorCollectiveRuntime::collective_runtime_version_code(Self) -> Int
+pub fn TensorCollectiveRuntime::create_group_id(Self) -> TensorCollectiveGroupId raise DeviceError
+
+pub(all) enum TensorCollectiveRuntimeAvailability {
+  CollectiveRuntimeAvailable
+  CollectiveRuntimeUnsupportedPlatform
+  CollectiveRuntimeLibraryMissing
+  CollectiveRuntimeAbiIncomplete
+  CollectiveRuntimeVersionUnavailable
+} derive(Eq, @debug.Debug)
+
+pub struct TensorCollectiveRuntimeInventory {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorCollectiveRuntimeInventory::availability(Self) -> TensorCollectiveRuntimeAvailability
+pub fn TensorCollectiveRuntimeInventory::version_code(Self) -> Int
+
+pub struct TensorCollectiveSite {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorCollectiveSite::new(sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, full_width~ : Int, local_width~ : Int) -> Self raise DeviceError
 
 pub(all) enum UnavailableReason {
   UnsupportedPlatform

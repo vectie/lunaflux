@@ -3,6 +3,7 @@ package "vectie/lunaflux/internal/process"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/internal/approved_fs_capability",
   "vectie/lunaflux/runtime/approved_fs_inheritance",
 }
 
@@ -11,11 +12,7 @@ pub fn exit_failure() -> Unit
 
 pub fn open_inherited(ProcessLimits) -> InheritedChannel
 
-pub fn prepare_child(Bytes, ProcessLimits) -> PreparedChildProcess raise ProcessError
-
-pub fn spawn(Bytes, ProcessLimits) -> ChildProcess raise ProcessError
-
-pub fn spawn_with_approved_roots(Bytes, @approved_fs_inheritance.WorkerApprovedRoots, ProcessLimits) -> ChildProcess raise ProcessError
+pub fn prepare_child_from_approved_executable(@approved_fs_capability.NativeApprovedExecutableHandle, ProcessLimits) -> PreparedChildProcess
 
 // Errors
 pub(all) suberror ProcessError {
@@ -39,11 +36,18 @@ pub struct ChildProcess {
   // private fields
 }
 pub fn ChildProcess::begin_read_frame(Self, FixedArray[Byte], staging~ : FixedArray[Byte], timeout_millis? : Int) -> Unit raise ProcessError
+pub fn ChildProcess::begin_read_frame_until(Self, FixedArray[Byte], staging~ : FixedArray[Byte], deadline_millis~ : Int64) -> Unit raise ProcessError
+pub fn ChildProcess::begin_shutdown_maintenance(Self) -> Unit raise ProcessError
 pub fn ChildProcess::begin_write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, timeout_millis? : Int) -> Unit raise ProcessError
+pub fn ChildProcess::begin_write_frame_until(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, deadline_millis~ : Int64) -> Unit raise ProcessError
 pub fn ChildProcess::close(Self) -> Unit raise ProcessError
 pub fn ChildProcess::is_closed(Self) -> Bool
 pub fn ChildProcess::is_failed(Self) -> Bool
+pub fn ChildProcess::maintenance_exit(Self) -> ChildExit raise ProcessError
+pub fn ChildProcess::maintenance_remaining_millis(Self) -> Int raise ProcessError
+pub fn ChildProcess::observe_idle_exit(Self) -> ChildProcessIdleObservation raise ProcessError
 pub fn ChildProcess::progress_read_frame(Self) -> Int? raise ProcessError
+pub fn ChildProcess::progress_shutdown_maintenance(Self) -> ChildProcessMaintenanceProgress raise ProcessError
 pub fn ChildProcess::progress_write_frame(Self) -> Bool raise ProcessError
 pub fn ChildProcess::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn ChildProcess::read_frame_with_timeout(Self, FixedArray[Byte], timeout_millis~ : Int) -> Int raise ProcessError
@@ -56,13 +60,38 @@ pub fn ChildProcess::wait(Self) -> ChildExit raise ProcessError
 pub fn ChildProcess::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
 pub fn ChildProcess::write_frame_with_timeout(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, timeout_millis~ : Int) -> Unit raise ProcessError
 
+pub struct ChildProcessIdleObservation {
+  // private fields
+}
+pub fn ChildProcessIdleObservation::exit(Self) -> ChildExit raise ProcessError
+pub fn ChildProcessIdleObservation::has_exited(Self) -> Bool
+pub fn ChildProcessIdleObservation::is_alive(Self) -> Bool
+
+pub struct ChildProcessMaintenanceProgress {
+  // private fields
+}
+pub fn ChildProcessMaintenanceProgress::is_advanced(Self) -> Bool
+pub fn ChildProcessMaintenanceProgress::is_cleanup_required(Self) -> Bool
+pub fn ChildProcessMaintenanceProgress::is_cleanup_stuck(Self) -> Bool
+pub fn ChildProcessMaintenanceProgress::is_complete(Self) -> Bool
+pub fn ChildProcessMaintenanceProgress::is_pending(Self) -> Bool
+
 pub struct InheritedChannel {
   // private fields
 }
+pub fn InheritedChannel::begin_read_frame(Self, FixedArray[Byte], staging~ : FixedArray[Byte], timeout_millis? : Int) -> Unit raise ProcessError
+pub fn InheritedChannel::begin_read_frame_or_eof(Self, FixedArray[Byte], staging~ : FixedArray[Byte], timeout_millis? : Int) -> Unit raise ProcessError
+pub fn InheritedChannel::begin_write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int, timeout_millis? : Int) -> Unit raise ProcessError
 pub fn InheritedChannel::expect_clean_eof(Self) -> Unit raise ProcessError
 pub fn InheritedChannel::is_failed(Self) -> Bool
+pub fn InheritedChannel::progress_read_frame(Self) -> Int? raise ProcessError
+pub fn InheritedChannel::progress_read_frame_or_eof(Self) -> Int? raise ProcessError
+pub fn InheritedChannel::progress_write_frame(Self) -> Bool raise ProcessError
 pub fn InheritedChannel::read_frame(Self, FixedArray[Byte]) -> Int raise ProcessError
 pub fn InheritedChannel::read_frame_or_eof(Self, FixedArray[Byte]) -> Int raise ProcessError
+pub fn InheritedChannel::wait_pending_readable(Self, maximum_wait_millis~ : Int) -> Bool raise ProcessError
+pub fn InheritedChannel::wait_pending_writable(Self, maximum_wait_millis~ : Int) -> Bool raise ProcessError
+pub fn InheritedChannel::wait_readable(Self, maximum_wait_millis~ : Int) -> Bool raise ProcessError
 pub fn InheritedChannel::write_frame(Self, FixedArray[Byte], offset~ : Int, byte_count~ : Int) -> Unit raise ProcessError
 
 pub struct PreparedChildProcess {
@@ -70,9 +99,8 @@ pub struct PreparedChildProcess {
 }
 pub fn PreparedChildProcess::child_owner(Self) -> ChildProcess
 pub fn PreparedChildProcess::cleanup_status(Self) -> Int
-pub fn PreparedChildProcess::spawn(Self) -> ChildProcess raise ProcessError
-pub fn PreparedChildProcess::spawn_with_approved_roots(Self, @approved_fs_inheritance.WorkerApprovedRoots) -> ChildProcess raise ProcessError
-pub fn PreparedChildProcess::spawn_with_approved_roots_status(Self, @approved_fs_inheritance.WorkerApprovedRoots) -> Int
+pub fn PreparedChildProcess::spawn_with_approved_roots(Self, @approved_fs_inheritance.WorkerApprovedRootSpawnAuthority) -> ChildProcess raise ProcessError
+pub fn PreparedChildProcess::spawn_with_approved_roots_status(Self, @approved_fs_inheritance.WorkerApprovedRootSpawnAuthority) -> Int
 
 pub(all) enum ProcessLimitRule {
   FrameBytes

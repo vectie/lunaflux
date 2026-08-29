@@ -2,6 +2,7 @@
 fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
   match operation {
     DeviceInventory => DeviceInventory
+    DevicePeerAccess => DevicePeerAccess
     ContextCreate => ContextCreate
     ContextClose => ContextClose
     StreamCreate => StreamCreate
@@ -24,6 +25,15 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     FunctionLoad => FunctionLoad
     FunctionClose => FunctionClose
     AotKernelLaunch => AotKernelLaunch
+    OrderedExecutorCreate => OrderedExecutorCreate
+    OrderedExecutorEnqueue => OrderedExecutorEnqueue
+    OrderedExecutorGraphLaunch => OrderedExecutorGraphLaunch
+    OrderedExecutorRecord => OrderedExecutorRecord
+    OrderedExecutorPoll => OrderedExecutorPoll
+    OrderedExecutorWait => OrderedExecutorWait
+    OrderedExecutorAbort => OrderedExecutorAbort
+    OrderedExecutorReset => OrderedExecutorReset
+    OrderedExecutorClose => OrderedExecutorClose
     CublasLtCreate => CublasLtCreate
     CublasLtClose => CublasLtClose
     Bf16GemmPlanCreate => Bf16GemmPlanCreate

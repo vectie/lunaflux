@@ -53,7 +53,7 @@ int32_t lf_process_status_from_io_result(
       error_number == EWOULDBLOCK) {
     return LF_PROCESS_PENDING;
   }
-  if (write_mode && error_number == EPIPE) {
+  if (error_number == ECONNRESET || (write_mode && error_number == EPIPE)) {
     return LF_PROCESS_CHANNEL_CLOSED;
   }
   return LF_PROCESS_FAILED;

@@ -94,6 +94,41 @@ pub fn ApprovedRoot::require_absolute_identity(
 }
 
 ///|
+/// Binds a pinned, no-follow source root to one canonical deployment target
+/// label for an offline no-overwrite materialization transaction.
+///
+/// This is a typed source-capability/target-label projection, not an aliasing
+/// filesystem check: `source_path` must identify `self` now, while
+/// `target_path` is only validated lexically and is never opened here.
+pub fn ApprovedRoot::materialization_view(
+  self : ApprovedRoot,
+  source_path : StringView,
+  target_path : StringView,
+) -> ApprovedRootMaterializationView raise ApprovedFsError {
+  self.require_absolute_identity(source_path)
+  validate_root_path(target_path)
+  { source_root: self, target_label: target_path.to_owned() }
+}
+
+///|
+/// Borrows the pinned source root for one offline mapped loader. The caller of
+/// `materialization_view` retains the only lifecycle obligation and must not
+/// close it until every mapped loader has returned.
+pub fn ApprovedRootMaterializationView::source_root(
+  self : ApprovedRootMaterializationView,
+) -> ApprovedRoot {
+  self.source_root
+}
+
+///|
+/// Returns the exact canonical deployment label bound by this view.
+pub fn ApprovedRootMaterializationView::target_label(
+  self : ApprovedRootMaterializationView,
+) -> String {
+  self.target_label
+}
+
+///|
 /// Retains an ordered, reusable pair of independently duplicated model and
 /// kernel root capabilities for worker replacement. Neither original root is
 /// consumed, and no descriptor or locator is exposed.
@@ -165,6 +200,37 @@ pub fn acquire_prepared_worker_approved_roots_status(
     model_root.handle,
     kernel_root.handle,
   )
+}
+
+///|
+/// Produces one independently closeable root for an exact role in the retained
+/// worker pair. The pair is leased atomically across duplication, so close is
+/// retryably busy rather than racing the duplicate. No descriptor or path is
+/// exposed and the retained pair remains the sole persistent authority.
+pub fn duplicate_worker_approved_root(
+  roots : WorkerApprovedRoots,
+  role : ApprovedRootRole,
+) -> ApprovedRoot raise ApprovedFsError {
+  let status = Ref(STATUS_INVALID)
+  let handle = @native.duplicate_worker_root(
+    roots,
+    match role {
+      Model => 0
+      Kernel => 1
+    },
+    status,
+  )
+  raise_open_status(status.val, Root)
+  { handle, }
+}
+
+///|
+/// Mints a ref-safe spawn-only view. The retained pair remains the sole close
+/// and role-duplication authority; this view cannot inspect or consume it.
+pub fn worker_approved_root_spawn_authority(
+  roots : WorkerApprovedRoots,
+) -> WorkerApprovedRootSpawnAuthority {
+  @native.worker_root_spawn_authority(roots)
 }
 
 ///|

@@ -1,0 +1,157 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/instance_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/config/service",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/rank_group_process",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_policy_file",
+  "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/online_tcp",
+  "vectie/lunaflux/service/request_admission",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_file",
+}
+
+// Values
+pub fn admit(@descriptor_file.RuntimeDescriptorAdmission, @instance_policy_file.InstancePolicyAdmission, @json_file.TokenizerFileAdmission) -> RuntimeInstanceAdmission raise RuntimeInstanceAdmissionError
+
+pub fn admit_fp8_reusable(@descriptor_file.Fp8RuntimeDescriptorAdmission, @instance_policy_file.InstancePolicyAdmission, @json_file.TokenizerFileAdmission) -> Fp8RuntimeInstanceAdmission raise RuntimeInstanceAdmissionError
+
+pub fn admit_i8(@descriptor_file.I8RuntimeDescriptorAdmission, @instance_policy_file.InstancePolicyAdmission, @json_file.TokenizerFileAdmission) -> I8RuntimeInstanceAdmission raise RuntimeInstanceAdmissionError
+
+pub fn admit_tensor_parallel(@descriptor_file.TensorParallelRuntimeDescriptorAdmission, @instance_policy_file.InstancePolicyAdmission, @json_file.TokenizerFileAdmission) -> TensorParallelRuntimeInstanceAdmission raise RuntimeInstanceAdmissionError
+
+// Errors
+pub suberror RuntimeInstanceAdmissionError {
+  Rejected(RuntimeInstanceAdmissionStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8RuntimeInstanceAdmission {
+  // private fields
+}
+pub fn Fp8RuntimeInstanceAdmission::event_step_budget(Self) -> @framed_wire.LunaFramedEventStepBudget
+pub fn Fp8RuntimeInstanceAdmission::external_protocol(Self) -> @instance_policy_file.ExternalProtocolPolicyClaims
+pub fn Fp8RuntimeInstanceAdmission::framed_limits(Self) -> @framed_wire.FramedWireLimits
+pub fn Fp8RuntimeInstanceAdmission::inference_limits(Self) -> @inference.InferenceLimits
+pub fn Fp8RuntimeInstanceAdmission::openai_service_policy(Self) -> @instance_policy_file.OpenAiServicePolicyClaims?
+pub fn Fp8RuntimeInstanceAdmission::policy_digest(Self) -> @instance_policy_file.InstancePolicyDigest
+pub fn Fp8RuntimeInstanceAdmission::preparation_lane_count(Self) -> Int
+pub fn Fp8RuntimeInstanceAdmission::preparation_step_budget(Self) -> @request_admission.LunaRequestPreparationStepBudget
+pub fn Fp8RuntimeInstanceAdmission::preparation_storage_budget(Self) -> @request_admission.LunaRequestPreparationStorageBudget
+pub fn Fp8RuntimeInstanceAdmission::preparation_work_limit(Self) -> @request_admission.LunaRequestPreparationWorkLimit
+pub fn Fp8RuntimeInstanceAdmission::restart_policy(Self) -> @worker_service.WorkerRestartBackoffPolicy
+pub fn Fp8RuntimeInstanceAdmission::runtime_descriptor(Self) -> @descriptor_file.Fp8RuntimeDescriptorAdmission
+pub fn Fp8RuntimeInstanceAdmission::scheduler_blueprint(Self) -> @core.SchedulerBlueprint
+pub fn Fp8RuntimeInstanceAdmission::service_config(Self) -> @service.ServiceConfig
+pub fn Fp8RuntimeInstanceAdmission::telemetry_capacity(Self) -> Int
+pub fn Fp8RuntimeInstanceAdmission::tokenizer(Self) -> @tokenizer.TokenizerSpec
+pub fn Fp8RuntimeInstanceAdmission::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
+pub fn Fp8RuntimeInstanceAdmission::transport_limits(Self) -> @online_tcp.LunaOnlineTcpLimits
+pub fn Fp8RuntimeInstanceAdmission::worker_binding(Self) -> @worker_service.WorkerServiceBinding
+pub fn Fp8RuntimeInstanceAdmission::worker_process_limits(Self) -> @worker_process.WorkerProcessLimits
+
+pub struct I8RuntimeInstanceAdmission {
+  // private fields
+}
+pub fn I8RuntimeInstanceAdmission::capacity(Self) -> @runtime_resolved.ResolvedRuntimeCapacity
+pub fn I8RuntimeInstanceAdmission::event_step_budget(Self) -> @framed_wire.LunaFramedEventStepBudget
+pub fn I8RuntimeInstanceAdmission::external_protocol(Self) -> @instance_policy_file.ExternalProtocolPolicyClaims
+pub fn I8RuntimeInstanceAdmission::framed_limits(Self) -> @framed_wire.FramedWireLimits
+pub fn I8RuntimeInstanceAdmission::inference_limits(Self) -> @inference.InferenceLimits
+pub fn I8RuntimeInstanceAdmission::openai_service_policy(Self) -> @instance_policy_file.OpenAiServicePolicyClaims?
+pub fn I8RuntimeInstanceAdmission::policy_digest(Self) -> @instance_policy_file.InstancePolicyDigest
+pub fn I8RuntimeInstanceAdmission::preparation_lane_count(Self) -> Int
+pub fn I8RuntimeInstanceAdmission::preparation_step_budget(Self) -> @request_admission.LunaRequestPreparationStepBudget
+pub fn I8RuntimeInstanceAdmission::preparation_storage_budget(Self) -> @request_admission.LunaRequestPreparationStorageBudget
+pub fn I8RuntimeInstanceAdmission::preparation_work_limit(Self) -> @request_admission.LunaRequestPreparationWorkLimit
+pub fn I8RuntimeInstanceAdmission::restart_policy(Self) -> @worker_service.WorkerRestartBackoffPolicy
+pub fn I8RuntimeInstanceAdmission::runtime_descriptor(Self) -> @descriptor_file.I8RuntimeDescriptorAdmission
+pub fn I8RuntimeInstanceAdmission::scheduler_blueprint(Self) -> @core.SchedulerBlueprint
+pub fn I8RuntimeInstanceAdmission::service_config(Self) -> @service.ServiceConfig
+pub fn I8RuntimeInstanceAdmission::telemetry_capacity(Self) -> Int
+pub fn I8RuntimeInstanceAdmission::tokenizer(Self) -> @tokenizer.TokenizerSpec
+pub fn I8RuntimeInstanceAdmission::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
+pub fn I8RuntimeInstanceAdmission::transport_limits(Self) -> @online_tcp.LunaOnlineTcpLimits
+pub fn I8RuntimeInstanceAdmission::worker_binding(Self) -> @worker_service.WorkerServiceBinding
+pub fn I8RuntimeInstanceAdmission::worker_process_limits(Self) -> @worker_process.WorkerProcessLimits
+
+pub struct RuntimeInstanceAdmission {
+  // private fields
+}
+pub fn RuntimeInstanceAdmission::capacity(Self) -> @runtime_resolved.ResolvedRuntimeCapacity
+pub fn RuntimeInstanceAdmission::event_step_budget(Self) -> @framed_wire.LunaFramedEventStepBudget
+pub fn RuntimeInstanceAdmission::external_protocol(Self) -> @instance_policy_file.ExternalProtocolPolicyClaims
+pub fn RuntimeInstanceAdmission::framed_limits(Self) -> @framed_wire.FramedWireLimits
+pub fn RuntimeInstanceAdmission::inference_limits(Self) -> @inference.InferenceLimits
+pub fn RuntimeInstanceAdmission::openai_service_policy(Self) -> @instance_policy_file.OpenAiServicePolicyClaims?
+pub fn RuntimeInstanceAdmission::policy_digest(Self) -> @instance_policy_file.InstancePolicyDigest
+pub fn RuntimeInstanceAdmission::preparation_lane_count(Self) -> Int
+pub fn RuntimeInstanceAdmission::preparation_step_budget(Self) -> @request_admission.LunaRequestPreparationStepBudget
+pub fn RuntimeInstanceAdmission::preparation_storage_budget(Self) -> @request_admission.LunaRequestPreparationStorageBudget
+pub fn RuntimeInstanceAdmission::preparation_work_limit(Self) -> @request_admission.LunaRequestPreparationWorkLimit
+pub fn RuntimeInstanceAdmission::restart_policy(Self) -> @worker_service.WorkerRestartBackoffPolicy
+pub fn RuntimeInstanceAdmission::runtime_descriptor(Self) -> @descriptor_file.RuntimeDescriptorAdmission
+pub fn RuntimeInstanceAdmission::scheduler_blueprint(Self) -> @core.SchedulerBlueprint
+pub fn RuntimeInstanceAdmission::service_config(Self) -> @service.ServiceConfig
+pub fn RuntimeInstanceAdmission::telemetry_capacity(Self) -> Int
+pub fn RuntimeInstanceAdmission::tokenizer(Self) -> @tokenizer.TokenizerSpec
+pub fn RuntimeInstanceAdmission::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
+pub fn RuntimeInstanceAdmission::transport_limits(Self) -> @online_tcp.LunaOnlineTcpLimits
+pub fn RuntimeInstanceAdmission::worker_binding(Self) -> @worker_service.WorkerServiceBinding
+pub fn RuntimeInstanceAdmission::worker_process_limits(Self) -> @worker_process.WorkerProcessLimits
+
+pub enum RuntimeInstanceAdmissionStage {
+  RuntimeDigest
+  TokenizerBinding
+  TokenizerEnvelope
+  Scheduler
+  Cache
+  Layout
+  Service
+  ExternalProtocol
+  WorkerProcess
+  Restart
+  Transport
+  FramedWire
+  Preparation
+  Telemetry
+  Capacity
+  CapabilityRecipe
+  SchedulerBlueprint
+  WorkerBinding
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelRuntimeInstanceAdmission {
+  // private fields
+}
+pub fn TensorParallelRuntimeInstanceAdmission::event_step_budget(Self) -> @framed_wire.LunaFramedEventStepBudget
+pub fn TensorParallelRuntimeInstanceAdmission::external_protocol(Self) -> @instance_policy_file.ExternalProtocolPolicyClaims
+pub fn TensorParallelRuntimeInstanceAdmission::framed_limits(Self) -> @framed_wire.FramedWireLimits
+pub fn TensorParallelRuntimeInstanceAdmission::inference_limits(Self) -> @inference.InferenceLimits
+pub fn TensorParallelRuntimeInstanceAdmission::openai_service_policy(Self) -> @instance_policy_file.OpenAiServicePolicyClaims?
+pub fn TensorParallelRuntimeInstanceAdmission::policy_digest(Self) -> @instance_policy_file.InstancePolicyDigest
+pub fn TensorParallelRuntimeInstanceAdmission::preparation_lane_count(Self) -> Int
+pub fn TensorParallelRuntimeInstanceAdmission::preparation_step_budget(Self) -> @request_admission.LunaRequestPreparationStepBudget
+pub fn TensorParallelRuntimeInstanceAdmission::preparation_storage_budget(Self) -> @request_admission.LunaRequestPreparationStorageBudget
+pub fn TensorParallelRuntimeInstanceAdmission::preparation_work_limit(Self) -> @request_admission.LunaRequestPreparationWorkLimit
+pub fn TensorParallelRuntimeInstanceAdmission::rank_group_process_limits(Self) -> @rank_group_process.RankGroupProcessLimits raise RuntimeInstanceAdmissionError
+pub fn TensorParallelRuntimeInstanceAdmission::restart_policy(Self) -> @worker_service.WorkerRestartBackoffPolicy
+pub fn TensorParallelRuntimeInstanceAdmission::runtime_descriptor(Self) -> @descriptor_file.TensorParallelRuntimeDescriptorAdmission
+pub fn TensorParallelRuntimeInstanceAdmission::scheduler_blueprint(Self) -> @core.SchedulerBlueprint
+pub fn TensorParallelRuntimeInstanceAdmission::service_config(Self) -> @service.ServiceConfig
+pub fn TensorParallelRuntimeInstanceAdmission::telemetry_capacity(Self) -> Int
+pub fn TensorParallelRuntimeInstanceAdmission::tokenizer(Self) -> @tokenizer.TokenizerSpec
+pub fn TensorParallelRuntimeInstanceAdmission::tokenizer_digest(Self) -> @tokenizer.TokenizerDigest
+pub fn TensorParallelRuntimeInstanceAdmission::transport_limits(Self) -> @online_tcp.LunaOnlineTcpLimits
+
+// Type aliases
+
+// Traits

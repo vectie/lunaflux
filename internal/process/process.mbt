@@ -20,6 +20,9 @@ fn ChildProcess::require_open(
   if self.closed {
     raise InvalidState(operation)
   }
+  if self.maintenance_phase != 0 {
+    raise InvalidState(operation)
+  }
 }
 
 ///|
@@ -36,10 +39,27 @@ fn ChildProcess::require_usable(
 ///|
 /// Opens the private socket inherited by a worker on stdin/stdout.
 pub fn open_inherited(limits : ProcessLimits) -> InheritedChannel {
+  let empty_transfer_buffer = FixedArray::make(0, b'\x00')
   {
     limits,
     write_prefix: FixedArray::make(4, b'\x00'),
     read_prefix: FixedArray::make(4, b'\x00'),
+    empty_transfer_buffer,
+    write_transfer_active: false,
+    write_transfer_source: empty_transfer_buffer,
+    write_transfer_offset: 0,
+    write_transfer_byte_count: 0,
+    write_transfer_deadline_millis: 0L,
+    write_transfer_phase: 0,
+    write_transfer_cursor: 0,
+    read_transfer_active: false,
+    read_transfer_destination: empty_transfer_buffer,
+    read_transfer_staging: empty_transfer_buffer,
+    read_transfer_byte_count: 0,
+    read_transfer_deadline_millis: 0L,
+    read_transfer_phase: 0,
+    read_transfer_cursor: 0,
+    read_transfer_allows_eof: false,
     failed: false,
   }
 }
@@ -63,8 +83,11 @@ fn ChildProcess::write_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
-  if self.transfer_kind != 0 {
+  if self.write_transfer_active {
     raise InvalidState(Write)
+  }
+  if self.write_source_conflicts_active_read(source) {
+    raise InvalidRange(Write)
   }
   if offset < 0 ||
     byte_count < 0 ||
@@ -79,7 +102,7 @@ fn ChildProcess::write_exact(
     Write,
   ) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -95,8 +118,11 @@ fn ChildProcess::read_exact(
   timeout_millis? : Int = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
-  if self.transfer_kind != 0 {
+  if self.read_transfer_active {
     raise InvalidState(Read)
+  }
+  if self.read_buffer_conflicts_active_write(destination) {
+    raise InvalidRange(Read)
   }
   if offset < 0 ||
     byte_count < 0 ||
@@ -111,7 +137,7 @@ fn ChildProcess::read_exact(
     Read,
   ) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -160,8 +186,11 @@ pub fn ChildProcess::write_frame_with_timeout(
   timeout_millis~ : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
-  if self.transfer_kind != 0 {
+  if self.write_transfer_active {
     raise InvalidState(Write)
+  }
+  if self.write_source_conflicts_active_read(source) {
+    raise InvalidRange(Write)
   }
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
@@ -197,6 +226,9 @@ pub fn ChildProcess::read_frame_with_timeout(
   timeout_millis~ : Int,
 ) -> Int raise ProcessError {
   self.require_usable(Read)
+  if self.read_buffer_conflicts_active_write(destination) {
+    raise InvalidRange(Read)
+  }
   if timeout_millis <= 0 || timeout_millis > 600000 {
     raise InvalidRange(Read)
   }
@@ -205,7 +237,7 @@ pub fn ChildProcess::read_frame_with_timeout(
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     byte_count > destination.length() {
-    self.failed = true
+    self.poison_transfers()
     raise InvalidRange(Read)
   }
   self.read_exact(destination, offset=0, byte_count~, timeout_millis~)
@@ -230,6 +262,12 @@ fn InheritedChannel::write_exact(
   byte_count : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
+  if self.write_transfer_active {
+    raise InvalidState(Write)
+  }
+  if self.write_source_conflicts_active_read(source) {
+    raise InvalidRange(Write)
+  }
   raise_status(
     raw_inherited_write_exact(
       source,
@@ -240,7 +278,7 @@ fn InheritedChannel::write_exact(
     Write,
   ) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -254,6 +292,9 @@ fn InheritedChannel::read_exact(
   byte_count : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
+  if self.read_transfer_active {
+    raise InvalidState(Read)
+  }
   raise_status(
     raw_inherited_read_exact(
       destination,
@@ -264,7 +305,7 @@ fn InheritedChannel::read_exact(
     Read,
   ) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -279,6 +320,12 @@ pub fn InheritedChannel::write_frame(
   byte_count~ : Int,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
+  if self.write_transfer_active {
+    raise InvalidState(Write)
+  }
+  if self.write_source_conflicts_active_read(source) {
+    raise InvalidRange(Write)
+  }
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     offset < 0 ||
@@ -298,12 +345,15 @@ pub fn InheritedChannel::expect_clean_eof(
   self : InheritedChannel,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
+  if self.read_transfer_active {
+    raise InvalidState(Read)
+  }
   raise_status(
     raw_inherited_expect_clean_eof(self.limits.io_timeout_millis),
     Read,
   ) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -316,12 +366,18 @@ pub fn InheritedChannel::read_frame(
   destination : FixedArray[Byte],
 ) -> Int raise ProcessError {
   self.require_usable(Read)
+  if self.read_transfer_active {
+    raise InvalidState(Read)
+  }
+  if self.read_buffer_conflicts_active_write(destination) {
+    raise InvalidRange(Read)
+  }
   self.read_exact(self.read_prefix, 0, 4)
   let byte_count = read_u32_prefix(self.read_prefix)
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     byte_count > destination.length() {
-    self.failed = true
+    self.poison_transfers()
     raise InvalidRange(Read)
   }
   self.read_exact(destination, 0, byte_count)
@@ -338,6 +394,12 @@ pub fn InheritedChannel::read_frame_or_eof(
   destination : FixedArray[Byte],
 ) -> Int raise ProcessError {
   self.require_usable(Read)
+  if self.read_transfer_active {
+    raise InvalidState(Read)
+  }
+  if self.read_buffer_conflicts_active_write(destination) {
+    raise InvalidRange(Read)
+  }
   let status = raw_inherited_read_prefix_or_eof(
     self.read_prefix,
     self.limits.io_timeout_millis,
@@ -347,7 +409,7 @@ pub fn InheritedChannel::read_frame_or_eof(
   }
   raise_status(status, Read) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -355,7 +417,7 @@ pub fn InheritedChannel::read_frame_or_eof(
   if byte_count <= 0 ||
     byte_count > self.limits.max_frame_bytes ||
     byte_count > destination.length() {
-    self.failed = true
+    self.poison_transfers()
     raise InvalidRange(Read)
   }
   self.read_exact(destination, 0, byte_count)
@@ -368,12 +430,12 @@ pub fn ChildProcess::shutdown_write(
   self : ChildProcess,
 ) -> Unit raise ProcessError {
   self.require_usable(ShutdownWrite)
-  if self.transfer_kind != 0 {
+  if self.write_transfer_active {
     raise InvalidState(ShutdownWrite)
   }
   raise_status(raw_shutdown_write(self.handle), ShutdownWrite) catch {
     error => {
-      self.failed = true
+      self.poison_transfers()
       raise error
     }
   }
@@ -405,7 +467,10 @@ pub fn ChildProcess::close(self : ChildProcess) -> Unit raise ProcessError {
   if self.closed {
     return
   }
-  self.clear_pending_transfer()
+  if self.maintenance_phase != 0 {
+    raise InvalidState(Close)
+  }
+  self.clear_pending_transfers()
   raise_status(raw_close(self.handle), Close) catch {
     error => {
       self.failed = true

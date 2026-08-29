@@ -1,0 +1,197 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/descriptor_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/rank_group_process",
+  "vectie/lunaflux/engine/tensor_parallel_group_transport",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn load(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, luna_approval? : @worker_wire.WorkerBootstrapLunaApproval?, luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff?) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_fp8_reusable_v3(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval, @luna_capability_manifest.LunaStartupExternalApprovalHandoff) -> Fp8RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_fp8_reusable_v3_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval) -> Fp8RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_i8_v2(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> I8RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_i8_v2_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> I8RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, luna_approval? : @worker_wire.WorkerBootstrapLunaApproval?) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_mistral_v1(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_mistral_v1_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_tensor_parallel(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, StringView, StringView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval, @luna_capability_manifest.LunaStartupExternalApprovalHandoff) -> TensorParallelRuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+pub fn load_tensor_parallel_materialized(@approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRootMaterializationView, @approved_fs.ApprovedRelativeLocator, RuntimeDescriptorDigest, RuntimeDescriptorFileLimits, @worker_wire.WorkerBootstrapLunaApproval) -> TensorParallelRuntimeDescriptorAdmission raise RuntimeDescriptorFileError
+
+// Errors
+pub(all) suberror RuntimeDescriptorFileError {
+  InvalidExpectedDigest
+  InvalidLimit(RuntimeDescriptorLimit)
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge(maximum~ : Int64)
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy(RuntimeDescriptorFileOperation)
+  FileOperationFailed(RuntimeDescriptorFileOperation)
+  DigestMismatch
+  InvalidUtf8
+  MalformedJson
+  JsonDepthExceeded(maximum~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : RuntimeDescriptorArea, index~ : Int)
+  MissingField(area~ : RuntimeDescriptorArea, index~ : Int)
+  InvalidField(area~ : RuntimeDescriptorArea, issue~ : RuntimeDescriptorIssue, index~ : Int)
+  AdmissionRejected(RuntimeDescriptorAdmissionStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8RuntimeDescriptorAdmission {
+  // private fields
+}
+pub fn Fp8RuntimeDescriptorAdmission::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn Fp8RuntimeDescriptorAdmission::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
+pub fn Fp8RuntimeDescriptorAdmission::descriptor_digest(Self) -> RuntimeDescriptorDigest
+pub fn Fp8RuntimeDescriptorAdmission::device_ordinal(Self) -> Int
+pub fn Fp8RuntimeDescriptorAdmission::execution(Self) -> @execution_manifest_file.Fp8PagedExecutionAdmissionV5
+pub fn Fp8RuntimeDescriptorAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8RuntimeDescriptorAdmission::startup_contract(Self) -> @worker_wire.WorkerStartupContract
+pub fn Fp8RuntimeDescriptorAdmission::target(Self) -> @catalog.DeviceTarget
+
+pub struct I8RuntimeDescriptorAdmission {
+  // private fields
+}
+pub fn I8RuntimeDescriptorAdmission::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn I8RuntimeDescriptorAdmission::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
+pub fn I8RuntimeDescriptorAdmission::descriptor_digest(Self) -> RuntimeDescriptorDigest
+pub fn I8RuntimeDescriptorAdmission::device_ordinal(Self) -> Int
+pub fn I8RuntimeDescriptorAdmission::execution(Self) -> @execution_manifest_file.I8PagedExecutionAdmissionV4
+pub fn I8RuntimeDescriptorAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn I8RuntimeDescriptorAdmission::startup_contract(Self) -> @worker_wire.WorkerStartupContract
+pub fn I8RuntimeDescriptorAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn I8RuntimeDescriptorAdmission::weight_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+
+pub struct RuntimeDescriptorAdmission {
+  // private fields
+}
+pub fn RuntimeDescriptorAdmission::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn RuntimeDescriptorAdmission::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
+pub fn RuntimeDescriptorAdmission::descriptor_digest(Self) -> RuntimeDescriptorDigest
+pub fn RuntimeDescriptorAdmission::device_ordinal(Self) -> Int
+pub fn RuntimeDescriptorAdmission::execution(Self) -> @execution_manifest_file.PagedExecutionAdmission
+pub fn RuntimeDescriptorAdmission::graph_memory_capacity(Self) -> @runtime_resolved.ResolvedGraphMemoryCapacity
+pub fn RuntimeDescriptorAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn RuntimeDescriptorAdmission::startup_contract(Self) -> @worker_wire.WorkerStartupContract
+pub fn RuntimeDescriptorAdmission::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum RuntimeDescriptorAdmissionStage {
+  KernelConfig
+  ModelIdentity
+  ModelConfig
+  ModelPlan
+  WorkerLimits
+  InferenceLimits
+  DeviceTarget
+  KvLayout
+  WeightInspection
+  DeviceStepLimits
+  ExecutionLimits
+  ExecutionManifest
+  BootstrapManifest
+  BootstrapDigest
+  BootstrapSource
+  StartupContract
+  DeviceWorkerPlan
+  NumericWeightInspection
+  DeviceCapability
+  DeviceNumericCapability
+  I8ProductionPolicy
+  WeightArtifactDigest
+  GraphMemory
+  TensorParallelTopology
+  TensorParallelSource
+  TensorParallelInspection
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeDescriptorArea {
+  Root
+  Model
+  Kernels
+  Execution
+  WorkerLimits
+  InferenceLimits
+  Ceilings
+  TensorParallel
+  TensorParallelRank
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeDescriptorDigest(String) derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorDigest::as_hex(Self) -> String
+pub fn RuntimeDescriptorDigest::from_sha256(StringView) -> Self raise RuntimeDescriptorFileError
+
+pub struct RuntimeDescriptorFileLimits {
+  // private fields
+}
+pub fn RuntimeDescriptorFileLimits::max_descriptor_bytes(Self) -> Int64
+pub fn RuntimeDescriptorFileLimits::max_json_depth(Self) -> Int
+pub fn RuntimeDescriptorFileLimits::new(max_descriptor_bytes~ : Int64, max_json_depth~ : Int) -> Self raise RuntimeDescriptorFileError
+
+pub(all) enum RuntimeDescriptorFileOperation {
+  Open
+  Snapshot
+  Close
+  BindModelRoot
+  BindKernelRoot
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeDescriptorIssue {
+  ExpectedObject
+  ExpectedString
+  ExpectedInteger
+  ExpectedNumber
+  ExpectedBoolean
+  UnsupportedValue
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeDescriptorLimit {
+  DescriptorBytes
+  JsonDepth
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelRuntimeDescriptorAdmission {
+  // private fields
+}
+pub fn TensorParallelRuntimeDescriptorAdmission::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
+pub fn TensorParallelRuntimeDescriptorAdmission::collective_exchange_timeout_millis(Self) -> Int
+pub fn TensorParallelRuntimeDescriptorAdmission::descriptor_digest(Self) -> RuntimeDescriptorDigest
+pub fn TensorParallelRuntimeDescriptorAdmission::inference_limits(Self) -> @inference.InferenceLimits
+pub fn TensorParallelRuntimeDescriptorAdmission::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn TensorParallelRuntimeDescriptorAdmission::model_generation_value(Self) -> UInt64
+pub fn TensorParallelRuntimeDescriptorAdmission::model_metadata(Self) -> @spec.LlamaModelMetadata
+pub fn TensorParallelRuntimeDescriptorAdmission::model_plan(Self) -> @plan.ModelPlan
+pub fn TensorParallelRuntimeDescriptorAdmission::planning_inputs(Self, @rank_group_process.RankGroupProcessLimits, Bytes, StringView) -> @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs raise RuntimeDescriptorFileError
+pub fn TensorParallelRuntimeDescriptorAdmission::topology(Self) -> @device_topology.AdmittedLocalTopology
+pub fn TensorParallelRuntimeDescriptorAdmission::topology_declaration(Self) -> @device_topology.LocalTopologyDeclaration
+pub fn TensorParallelRuntimeDescriptorAdmission::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
+
+// Type aliases
+
+// Traits

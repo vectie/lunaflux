@@ -3,12 +3,19 @@ package "vectie/lunaflux/internal/cuda"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/internal/device_collective_interop",
 }
 
 // Values
+pub fn device_can_access_peer(Int, Int) -> Bool raise CudaError
+
 pub fn device_info(Int) -> RawDeviceInfo raise CudaError
 
+pub fn link_collective_interop() -> Unit
+
 pub fn open_context(Int) -> Context raise CudaError
+
+pub fn prepare_ordered_kernel_executor(Context, Stream, FixedArray[Function], FixedArray[Int], FixedArray[Int], FixedArray[Allocation], FixedArray[Int64], FixedArray[Int64], FixedArray[Int64], policy? : OrderedExecutorPolicy) -> OrderedKernelExecutor raise CudaError
 
 pub fn probe() -> DriverInventory
 
@@ -28,6 +35,7 @@ pub(all) suberror CudaError {
 // Types and methods
 type Allocation
 pub fn Allocation::close(Self) -> Unit raise CudaError
+pub fn Allocation::collective_token(Self) -> @device_collective_interop.RegionToken
 pub fn Allocation::copy_from_host(Self, Bytes, Int64) -> Unit raise CudaError
 pub fn Allocation::copy_from_host_at(Self, Bytes, Int64, Int64, Int64) -> Unit raise CudaError
 pub fn Allocation::copy_to_host(Self, Int64) -> Bytes raise CudaError
@@ -43,6 +51,7 @@ pub fn Bf16GemmPlan::run(Self, Allocation, Int64, Allocation, Int64, Allocation,
 type Context
 pub fn Context::allocate(Self, Int64) -> Allocation raise CudaError
 pub fn Context::close(Self) -> Unit raise CudaError
+pub fn Context::collective_token(Self) -> @device_collective_interop.ContextToken
 pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise CudaError
 pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise CudaError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise CudaError
@@ -58,6 +67,7 @@ pub fn CublasLt::create_bf16_gemm_plan(Self, Int64, Int64, Int64, Int64) -> Bf16
 
 pub(all) enum CudaOperation {
   DeviceInventory
+  DevicePeerAccess
   ContextCreate
   ContextClose
   StreamCreate
@@ -80,6 +90,15 @@ pub(all) enum CudaOperation {
   FunctionLoad
   FunctionClose
   AotKernelLaunch
+  OrderedExecutorCreate
+  OrderedExecutorEnqueue
+  OrderedExecutorGraphLaunch
+  OrderedExecutorRecord
+  OrderedExecutorPoll
+  OrderedExecutorWait
+  OrderedExecutorAbort
+  OrderedExecutorReset
+  OrderedExecutorClose
   CublasLtCreate
   CublasLtClose
   Bf16GemmPlanCreate
@@ -122,6 +141,28 @@ type Module
 pub fn Module::close(Self) -> Unit raise CudaError
 pub fn Module::load_function(Self, Bytes) -> Function raise CudaError
 
+pub(all) enum OrderedExecutorMode {
+  OrderedExecutorEager
+  OrderedExecutorCaptured
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OrderedExecutorPolicy {
+  OrderedExecutorEagerOnly
+  OrderedExecutorCaptureRequired
+  OrderedExecutorCaptureWithEagerFallback
+} derive(Eq, @debug.Debug)
+
+type OrderedKernelExecutor
+pub fn OrderedKernelExecutor::abort(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::close(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::enqueue(Self, Int) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::execution_mode(Self) -> OrderedExecutorMode raise CudaError
+pub fn OrderedKernelExecutor::launch_captured(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::poll_completion(Self) -> Bool raise CudaError
+pub fn OrderedKernelExecutor::record_completion(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::reset(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::wait_completion(Self) -> Unit raise CudaError
+
 pub struct RawDeviceInfo {
   total_memory_bytes : Int64
   compute_major : Int
@@ -129,16 +170,21 @@ pub struct RawDeviceInfo {
   supports_bf16 : Bool
   cublas_lt_available : Bool
   name : String
+  uuid : String
+  pci : String
 } derive(Eq, @debug.Debug)
 pub fn RawDeviceInfo::compute_major(Self) -> Int
 pub fn RawDeviceInfo::compute_minor(Self) -> Int
 pub fn RawDeviceInfo::cublas_lt_available(Self) -> Bool
 pub fn RawDeviceInfo::name(Self) -> String
+pub fn RawDeviceInfo::pci(Self) -> String
 pub fn RawDeviceInfo::supports_bf16(Self) -> Bool
 pub fn RawDeviceInfo::total_memory_bytes(Self) -> Int64
+pub fn RawDeviceInfo::uuid(Self) -> String
 
 type Stream
 pub fn Stream::close(Self) -> Unit raise CudaError
+pub fn Stream::collective_token(Self) -> @device_collective_interop.QueueToken
 pub fn Stream::synchronize(Self) -> Unit raise CudaError
 
 // Type aliases

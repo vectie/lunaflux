@@ -1,2 +1,5 @@
 // Neutral opaque vocabulary shared by the approved-filesystem ABI and the
-// future fixed-FD worker spawn boundary. It owns no native implementation.
+// fixed-FD worker spawn boundary. Native capability operations are
+// header-owned so importing packages cannot acquire an extra link dependency.
+
+supported_targets = "native"
