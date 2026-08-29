@@ -34,6 +34,12 @@ from benchmarks.qwen3_comparison.contract import (  # noqa: E402
     validate_model_inventory,
     validate_campaign,
 )
+from benchmarks.qwen3_comparison.lifecycle import (  # noqa: E402
+    ServerLifecycle,
+    create_model_admission,
+    validate_lunaflux_capacity,
+    validate_model_admission,
+)
 from benchmarks.qwen3_comparison.statistics import correctness_join, summarize  # noqa: E402
 
 
@@ -237,11 +243,12 @@ def run_trial(
         "duration_seconds": duration_seconds,
         "request_throughput_per_second": len(admitted) / duration_seconds,
         "output_token_throughput_per_second": successful_tokens / duration_seconds,
-        "gpu_memory_measurement_scope": "whole-device-with-all-persistent-servers-resident",
+        "gpu_memory_measurement_scope": "whole-device-single-engine-resident",
         "gpu_memory_used_baseline_mib": baseline,
         "gpu_memory_used_peak_mib": peak,
         "gpu_memory_used_delta_peak_mib": peak - baseline,
         "warmup_excluded": True,
+        "execution_policy": engine["execution_policy"],
     }
     return admitted, trial
 
@@ -270,46 +277,78 @@ def run_campaign(
 ) -> None:
     if not output.is_absolute() or output.exists() or output.parent.resolve() != output.parent:
         raise ContractError("output must be a new canonical absolute path")
-    encoder = load_tokenizer(campaign)
-    engines = {engine["name"]: engine for engine in campaign["engines"]}
-    for engine in engines.values():
-        check_health(engine["health_endpoint"])
     stage = Path(tempfile.mkdtemp(prefix=".qwen3-comparison-stage.", dir=output.parent))
     published = False
     try:
+        # This is the campaign's only full source-model inventory scan. Each
+        # server restart consumes the small digest-bound admission receipt.
+        encoder = load_tokenizer(campaign)
+        engines = {engine["name"]: engine for engine in campaign["engines"]}
+        capacity = validate_lunaflux_capacity(
+            engines["lunaflux"], campaign["model"]["model_content_sha256"]
+        )
+        _, admission_sha = create_model_admission(
+            campaign, campaign_sha, stage / "model-admission.json"
+        )
+        admission_argument = f"{stage / 'model-admission.json'}#sha256={admission_sha}"
+        validate_model_admission(
+            admission_argument, Path(campaign["model"]["source_model_root"])
+        )
         raw_root = stage / "raw"
         raw_root.mkdir()
+        log_root = stage / "server-logs"
+        log_root.mkdir()
         request_rows: list[dict[str, Any]] = []
         trial_rows: list[dict[str, Any]] = []
+        lifecycle_rows: list[dict[str, Any]] = []
         order_rows: list[dict[str, Any]] = []
         for profile_index, profile in enumerate(campaign["profiles"]):
-            warm_order = tuple(
-                ("lunaflux", "vllm", "sglang")[(profile_index + offset) % 3]
-                for offset in range(3)
-            )
-            for engine_name in warm_order:
-                warm_profile(
-                    engines[engine_name],
-                    profile,
-                    workload,
-                    campaign["warmup_requests_per_profile"],
-                    campaign["request_timeout_seconds"],
-                    encoder,
-                )
             profile_root = raw_root / profile["name"]
             profile_root.mkdir()
             for trial_ordinal in range(3):
                 cases = _cases_for_trial(workload, profile, trial_ordinal)
                 for order_position, engine_name in enumerate(latin_square_order(trial_ordinal)):
-                    rows, trial = run_trial(
-                        engines[engine_name],
-                        profile,
-                        cases,
-                        trial_ordinal,
-                        order_position,
-                        campaign,
-                        encoder,
+                    coordinate = (
+                        f"{profile_index + 1:02d}-{profile['name']}-"
+                        f"trial-{trial_ordinal + 1}-position-{order_position + 1}-{engine_name}"
                     )
+                    lifecycle = ServerLifecycle(
+                        engines[engine_name],
+                        campaign,
+                        admission_argument,
+                        log_root,
+                        coordinate,
+                    )
+                    lifecycle.start()
+                    rows = []
+                    trial = {}
+                    measured = False
+                    try:
+                        warm_profile(
+                            engines[engine_name],
+                            profile,
+                            workload,
+                            campaign["warmup_requests_per_profile"],
+                            campaign["request_timeout_seconds"],
+                            encoder,
+                        )
+                        rows, trial = run_trial(
+                            engines[engine_name],
+                            profile,
+                            cases,
+                            trial_ordinal,
+                            order_position,
+                            campaign,
+                            encoder,
+                        )
+                        measured = True
+                    finally:
+                        identity = lifecycle.stop()
+                    if not measured:
+                        raise AdapterError(f"coordinate {coordinate} did not complete measurement")
+                    identity["warmup_excluded"] = True
+                    identity["measured_run_complete"] = True
+                    lifecycle_rows.append(identity)
                     _write_jsonl(
                         profile_root
                         / f"trial-{trial_ordinal + 1}-position-{order_position + 1}-{engine_name}.jsonl",
@@ -340,6 +379,7 @@ def run_campaign(
             summary["speed_comparison_valid"] = speed_comparison_valid
             summary["speed_metrics_are_descriptive_only"] = not speed_comparison_valid
         _write_jsonl(stage / "trials.jsonl", trial_rows)
+        _write_jsonl(stage / "lifecycle.jsonl", lifecycle_rows)
         _write_jsonl(stage / "summary.jsonl", summaries)
         _write_jsonl(stage / "correctness.jsonl", correctness)
         _write_json(
@@ -352,7 +392,13 @@ def run_campaign(
                 "engine_order": ["lunaflux", "vllm", "sglang"],
                 "execution_order": order_rows,
                 "warmup_excluded": True,
-                "persistent_servers_required": True,
+                "startup_time_excluded": True,
+                "persistent_servers_required": False,
+                "server_lifecycle": "one-engine-per-target-gpu-coordinate",
+                "model_inventory_full_scan_count": 1,
+                "model_admission_sha256": admission_sha,
+                "lunaflux_authenticated_max_concurrency": capacity["max_concurrency"],
+                "lunaflux_protocol": "diagnostic-token-id-sse-bridge-only",
                 "summary_policy": "median,p95,deterministic-bootstrap-median-ci95",
                 "winner_assumption": "none",
                 "speed_comparison_valid": speed_comparison_valid,

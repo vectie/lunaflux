@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 ENGINES = ("lunaflux", "vllm", "sglang")
@@ -62,6 +63,34 @@ def read_digest_suffixed(argument: str, label: str) -> tuple[Path, bytes, str]:
     if sha256_bytes(payload) != expected:
         raise ContractError(f"{label} digest mismatch")
     return path, payload, expected
+
+
+def validate_digest_suffixed_lexical(argument: Any, label: str) -> None:
+    if not isinstance(argument, str) or "#sha256=" not in argument:
+        raise ContractError(f"{label} must be digest suffixed")
+    raw_path, expected = argument.rsplit("#sha256=", 1)
+    if not Path(raw_path).is_absolute():
+        raise ContractError(f"{label} path must be absolute")
+    require_sha256(expected, f"{label} digest")
+
+
+def engine_bind(engine: dict[str, Any]) -> tuple[str, int]:
+    endpoint = urlsplit(engine["endpoint"])
+    health = urlsplit(engine["health_endpoint"])
+    if (
+        endpoint.scheme != "http"
+        or health.scheme != "http"
+        or endpoint.hostname != "127.0.0.1"
+        or health.hostname != "127.0.0.1"
+        or endpoint.port is None
+        or endpoint.port != health.port
+        or endpoint.username is not None
+        or endpoint.password is not None
+        or health.username is not None
+        or health.password is not None
+    ):
+        raise ContractError("engine endpoints must share one loopback HTTP port")
+    return "127.0.0.1", endpoint.port
 
 
 def validate_model_inventory(root: Path, inventory: Path, expected_sha256: str) -> None:
@@ -273,6 +302,9 @@ def validate_campaign(value: Any) -> dict[str, Any]:
                 "executable_sha256",
                 "environment_prefix",
                 "package_version",
+                "lifecycle",
+                "authenticated_capacity_receipt",
+                "execution_policy",
             },
             "engine",
         )
@@ -284,10 +316,11 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         }.get(name)
         if expected_adapter is None or engine["adapter"] != expected_adapter:
             raise ContractError("engine or adapter is outside the Qwen comparison")
-        if not isinstance(engine["endpoint"], str) or not engine["endpoint"].startswith("http://127.0.0.1:"):
-            raise ContractError("engine endpoint must be loopback HTTP")
-        if not isinstance(engine["health_endpoint"], str) or not engine["health_endpoint"].startswith("http://127.0.0.1:"):
-            raise ContractError("health endpoint must be loopback HTTP")
+        if not isinstance(engine["endpoint"], str) or not isinstance(engine["health_endpoint"], str):
+            raise ContractError("engine endpoints must be strings")
+        engine_bind(engine)
+        if name == "lunaflux" and urlsplit(engine["endpoint"]).path != "/benchmark/v1/token-ids":
+            raise ContractError("LunaFlux requires the diagnostic token-ID SSE bridge")
         if engine["model_alias"] != "Qwen3-0.6B":
             raise ContractError("all engines must expose the same Qwen model alias")
         shared_identities = {
@@ -309,8 +342,58 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         if name == "lunaflux":
             if environment != "native":
                 raise ContractError("LunaFlux environment must be the native runtime")
+            validate_digest_suffixed_lexical(
+                engine["authenticated_capacity_receipt"],
+                "LunaFlux authenticated concurrency-32 capacity receipt",
+            )
         elif not isinstance(environment, str) or not environment.startswith("/"):
             raise ContractError("baseline Conda environment prefix must be absolute")
+        elif engine["authenticated_capacity_receipt"] is not None:
+            raise ContractError("baseline engines cannot claim LunaFlux capacity authority")
+        lifecycle = engine["lifecycle"]
+        if not isinstance(lifecycle, dict):
+            raise ContractError("engine lifecycle must be an object")
+        _require_exact_keys(
+            lifecycle,
+            {
+                "launcher",
+                "launcher_sha256",
+                "runtime_executable_sha256",
+                "startup_timeout_seconds",
+                "shutdown_timeout_seconds",
+                "drain_quiet_millis",
+                "expected_exit_codes",
+            },
+            "engine lifecycle",
+        )
+        if not isinstance(lifecycle["launcher"], str) or not Path(lifecycle["launcher"]).is_absolute():
+            raise ContractError("lifecycle launcher must be absolute")
+        require_sha256(lifecycle["launcher_sha256"], "lifecycle launcher digest")
+        require_sha256(lifecycle["runtime_executable_sha256"], "runtime executable digest")
+        if lifecycle["runtime_executable_sha256"] != engine["executable_sha256"]:
+            raise ContractError("runtime executable identity differs from engine identity")
+        for key, lower, upper in (
+            ("startup_timeout_seconds", 1, 3600),
+            ("shutdown_timeout_seconds", 1, 300),
+            ("drain_quiet_millis", 0, 60000),
+        ):
+            item = lifecycle[key]
+            if not isinstance(item, int) or isinstance(item, bool) or item < lower or item > upper:
+                raise ContractError(f"lifecycle {key} is outside bounds")
+        exit_codes = lifecycle["expected_exit_codes"]
+        if not isinstance(exit_codes, list) or not exit_codes or any(
+            not isinstance(code, int) or isinstance(code, bool) or code < -255 or code > 255
+            for code in exit_codes
+        ):
+            raise ContractError("lifecycle expected exit codes are invalid")
+        policy = engine["execution_policy"]
+        if policy != {
+            "prefix_reuse": False,
+            "scheduler_policy": "fcfs",
+            "kv_cache_dtype": "auto",
+            "max_concurrent_sequences": 32,
+        }:
+            raise ContractError("engine execution/cache policy is not the fair fixed policy")
         observed_engines.append(name)
     if tuple(observed_engines) != ENGINES:
         raise ContractError("engine order must be LunaFlux, vLLM, SGLang")
@@ -318,12 +401,33 @@ def validate_campaign(value: Any) -> dict[str, Any]:
     gpu = value["gpu"]
     if not isinstance(gpu, dict):
         raise ContractError("gpu must be an object")
-    _require_exact_keys(gpu, {"nvidia_smi", "uuid", "sample_interval_millis"}, "gpu")
+    _require_exact_keys(
+        gpu,
+        {
+            "nvidia_smi",
+            "uuid",
+            "sample_interval_millis",
+            "clean_memory_used_max_mib",
+            "clean_timeout_seconds",
+            "clean_poll_interval_millis",
+            "cooldown_seconds",
+        },
+        "gpu",
+    )
     if not Path(gpu["nvidia_smi"]).is_absolute() or not gpu["uuid"].startswith("GPU-"):
         raise ContractError("GPU sampler identity is incomplete")
     interval = gpu["sample_interval_millis"]
     if not isinstance(interval, int) or isinstance(interval, bool) or interval < 10 or interval > 1000:
         raise ContractError("GPU sampling interval is outside bounds")
+    for key, lower, upper in (
+        ("clean_memory_used_max_mib", 0, 8192),
+        ("clean_timeout_seconds", 1, 3600),
+        ("clean_poll_interval_millis", 50, 10000),
+        ("cooldown_seconds", 0, 600),
+    ):
+        item = gpu[key]
+        if not isinstance(item, int) or isinstance(item, bool) or item < lower or item > upper:
+            raise ContractError(f"gpu.{key} is outside bounds")
     return value
 
 

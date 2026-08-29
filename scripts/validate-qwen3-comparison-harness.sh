@@ -16,13 +16,24 @@ sh -n scripts/start-qwen3-vllm-benchmark-server.sh
 sh -n scripts/start-qwen3-sglang-benchmark-server.sh
 python3 -B -m unittest \
   benchmarks.qwen3_comparison.test_campaign \
-  benchmarks.qwen3_comparison.test_adapters
+  benchmarks.qwen3_comparison.test_adapters \
+  benchmarks.qwen3_comparison.test_lifecycle
 python3 -B -m unittest discover -s benchmarks/qwen3_comparison -p 'test_*.py'
 
 for anchor in \
   'Qwen3-0.6B' \
   'input_token_ids_sha256' \
   'validate_model_inventory' \
+  'model_inventory_full_scan_count' \
+  'model-admission.json' \
+  'one-engine-per-target-gpu-coordinate' \
+  'require_clean_gpu' \
+  'start_new_session=True' \
+  'runtime_command_sha256' \
+  'authenticated_capacity_receipt' \
+  'prefix_reuse' \
+  'scheduler_policy' \
+  'diagnostic-token-id-sse-bridge-only' \
   'warmup_excluded' \
   'latin_square_order' \
   'ttft_millis' \
@@ -48,7 +59,10 @@ for server in \
     fail "server requires unsupported conda run: $server"
   fi
   rg -Fq '"model_type"' "$server" || fail "server does not reject non-Qwen config: $server"
-  rg -Fq 'verify_model_inventory.py' "$server" || fail "server does not authenticate the exact model file set: $server"
+  rg -Fq 'verify_model_admission.py' "$server" || fail "server does not consume campaign model admission: $server"
+  if rg -Fq 'verify_model_inventory.py' "$server"; then
+    fail "server rescans the large model inventory on every restart: $server"
+  fi
   if rg -n 'pip install|conda install|modelscope download|huggingface-cli download' "$server"; then
     fail "server command installs or downloads dependencies: $server"
   fi
@@ -56,9 +70,29 @@ for server in \
     fail "server command accepted a missing absolute environment prefix: $server"
   fi
 done
+rg -Fq -- '--no-enable-prefix-caching' scripts/start-qwen3-vllm-benchmark-server.sh ||
+  fail 'vLLM launcher does not disable prefix caching'
+rg -Fq -- '--disable-radix-cache' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not disable radix/prefix caching'
+rg -Fq -- '--scheduling-policy fcfs' scripts/start-qwen3-vllm-benchmark-server.sh ||
+  fail 'vLLM launcher does not bind FCFS scheduling'
+rg -Fq -- '--schedule-policy fcfs' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not bind FCFS scheduling'
 [ -f "$package/verify_model_inventory.py" ] || fail 'exact source-model inventory verifier is absent'
+[ -f "$package/verify_model_admission.py" ] || fail 'campaign-local model admission verifier is absent'
 if python3 -B "$package/verify_model_inventory.py" >/dev/null 2>&1; then
   fail 'source-model inventory verifier accepted missing arguments'
+fi
+if python3 -B "$package/verify_model_admission.py" >/dev/null 2>&1; then
+  fail 'model admission verifier accepted missing arguments'
+fi
+
+if rg -n 'shell[[:space:]]*=[[:space:]]*True|os\.system|subprocess\.call' \
+  "$package"; then
+  fail 'benchmark lifecycle permits arbitrary shell command execution'
+fi
+if rg -Fq 'whole-device-with-all-persistent-servers-resident' "$package"; then
+  fail 'benchmark still contaminates measurements with three resident servers'
 fi
 
 if rg -n -i '\bllama\b' "$package" scripts/start-qwen3-vllm-benchmark-server.sh \

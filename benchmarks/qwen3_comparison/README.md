@@ -13,17 +13,34 @@ text-rendering and direct-tokenization paths. The source-model inventory and
 the LunaFlux converted numeric artifact/route identities are independently
 bound in the campaign.
 
-The three servers must already be persistent and healthy before the campaign
-starts. Warmup requests are issued for every engine/profile and excluded from
-measurement. Each prefill/decode profile runs at concurrency 1, 8, and 32 in
-three fixed Latin-square rounds:
+Servers must not be prestarted. For every Latin-square coordinate the harness
+admits a clean target GPU, launches exactly one engine with a digest-pinned
+absolute launcher, verifies its exact package, process, executable, model, and
+health identity, performs excluded warmups, measures the coordinate, drains
+and terminates the owned process group, waits for cooldown, and admits a clean
+GPU again. Startup, readiness, warmup, drain, shutdown, and cooldown time are
+all outside the measured interval. Each prefill/decode profile runs at
+concurrency 1, 8, and 32 in three fixed Latin-square rounds:
 
 1. LunaFlux, vLLM, SGLang;
 2. vLLM, SGLang, LunaFlux;
 3. SGLang, LunaFlux, vLLM.
 
-The hardware-capacity declaration must admit concurrency 32 or the campaign
-fails before measurement.
+The hardware-capacity declaration must admit concurrency 32. LunaFlux must
+also supply a digest-bound authenticated capacity receipt for the exact model,
+configuration, runtime executable, and diagnostic token-ID bridge with
+`max_concurrency >= 32`; otherwise the campaign fails before measurement.
+Prefix reuse is disabled for LunaFlux, vLLM, and SGLang; all three descriptors
+bind FCFS scheduling, automatic KV-cache dtype, and a 32-sequence ceiling.
+Those policy fields are copied into every trial and lifecycle record so a
+default or flag drift cannot silently enter a speed comparison.
+
+The exact model inventory, including the large weight files, is authenticated
+once during campaign preparation. The harness then writes a small canonical
+campaign-local `model-admission.json` receipt. Every lifecycle launch consumes
+that receipt and its digest plus the immutable canonical model path, so model
+weights are not re-hashed on each restart. The receipt and its creation are
+outside measured work.
 
 ## Preparing exact inputs
 
@@ -41,27 +58,39 @@ python3 -B benchmarks/qwen3_comparison/prepare_corpus.py \
   --output ABS_NEW_TOKENIZED_WORKLOAD_JSONL
 ```
 
-## Persistent baseline commands
+## Lifecycle launcher contract
 
-No environment is created or modified. The named environments and package
-versions must already exist:
+No environment is created or modified. The campaign calls each absolute,
+digest-pinned launcher directly without a shell command string. All launchers
+use this fixed argument contract:
+
+```text
+LAUNCHER ENV_PREFIX_OR_NATIVE EXACT_VERSION ABS_MODEL_ROOT ABS_MODEL_ADMISSION#sha256=HEX 127.0.0.1 PORT
+```
+
+The vLLM and SGLang implementations are:
 
 ```sh
 scripts/start-qwen3-vllm-benchmark-server.sh \
   ABS_PINNED_VLLM_CONDA_ENV_PREFIX EXACT_VLLM_VERSION ABS_PINNED_QWEN3_ROOT \
-  ABS_MODEL_INVENTORY#sha256=MODEL_INVENTORY_SHA256 127.0.0.1 8101
+  ABS_MODEL_ADMISSION#sha256=MODEL_ADMISSION_SHA256 127.0.0.1 8101
 ```
 
 ```sh
 scripts/start-qwen3-sglang-benchmark-server.sh \
   ABS_PINNED_SGLANG_CONDA_ENV_PREFIX EXACT_SGLANG_VERSION ABS_PINNED_QWEN3_ROOT \
-  ABS_MODEL_INVENTORY#sha256=MODEL_INVENTORY_SHA256 127.0.0.1 8102
+  ABS_MODEL_ADMISSION#sha256=MODEL_ADMISSION_SHA256 127.0.0.1 8102
 ```
 
-LunaFlux must expose the canonical token-ID SSE benchmark bridge declared in
-`campaign.template.json`. That bridge is currently the remaining serving-step
-integration requirement; the harness does not substitute a text prompt or a
-different model when it is absent.
+These examples show the strict launcher interface; operators do not start them
+alongside the campaign. The orchestrator starts and stops them one at a time.
+
+LunaFlux must expose the canonical diagnostic token-ID SSE benchmark bridge
+declared in `campaign.template.json`. The standard text-only `/v1/responses`
+endpoint is explicitly rejected because it does not accept the custom exact
+`input_token_ids` protocol. That bridge is currently the remaining
+serving-step integration requirement; the harness does not substitute a text
+prompt or a different model when it is absent.
 
 ## Running
 
@@ -74,7 +103,9 @@ python3 -B benchmarks/qwen3_comparison/campaign.py \
   --output ABS_NEW_RESULT_DIRECTORY
 ```
 
-The output contains raw per-request JSONL, trial JSONL, correctness joins, and
+The output contains raw per-request JSONL, lifecycle JSONL with exact package,
+PID/process-group, executable, command-line, launcher and clean-GPU identity,
+trial JSONL, correctness joins, and
 per-engine/profile summaries for TTFT, inter-token latency, E2E latency,
 request throughput, output-token throughput, error rate, and whole-device GPU
 memory. Summaries contain median, p95, and deterministic bootstrap 95% median
@@ -90,5 +121,10 @@ outside this harness.
 The complete static and hostile test invocation is:
 
 ```sh
+python3 -B -m unittest \
+  benchmarks.qwen3_comparison.test_campaign \
+  benchmarks.qwen3_comparison.test_adapters \
+  benchmarks.qwen3_comparison.test_lifecycle
 python3 -B -m unittest discover -s benchmarks/qwen3_comparison -p 'test_*.py'
+scripts/validate-qwen3-comparison-harness.sh
 ```

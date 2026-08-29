@@ -9,11 +9,11 @@ fail() {
   exit 2
 }
 
-[ "$#" -eq 6 ] || fail 'usage: ABS_ENV_PREFIX EXPECTED_SGLANG_VERSION ABS_MODEL_ROOT ABS_MODEL_INVENTORY#sha256=HEX HOST PORT'
+[ "$#" -eq 6 ] || fail 'usage: ABS_ENV_PREFIX EXPECTED_SGLANG_VERSION ABS_MODEL_ROOT ABS_MODEL_ADMISSION#sha256=HEX HOST PORT'
 environment=$1
 expected_version=$2
 model_root=$3
-inventory_argument=$4
+admission_argument=$4
 host=$5
 port=$6
 
@@ -24,22 +24,11 @@ case "$environment" in /*) ;; *) fail 'Conda environment prefix must be absolute
 [ "$host" = 127.0.0.1 ] || fail 'server must bind loopback'
 case "$port" in ''|*[!0-9]*) fail 'port is not decimal' ;; esac
 [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || fail 'port is outside bounds'
-case "$inventory_argument" in /*#sha256=*) ;; *) fail 'model inventory must be digest suffixed' ;; esac
-inventory=${inventory_argument%#sha256=*}
-inventory_sha=${inventory_argument##*#sha256=}
-case "$inventory_sha" in *[!0-9a-f]*|'') fail 'inventory digest is invalid' ;; esac
-[ "${#inventory_sha}" -eq 64 ] || fail 'inventory digest is invalid'
+case "$admission_argument" in /*#sha256=*) ;; *) fail 'model admission must be digest suffixed' ;; esac
 [ -d "$model_root" ] && [ ! -L "$model_root" ] || fail 'model root is unavailable'
 [ "$(CDPATH= cd -- "$model_root" && pwd -P)" = "$model_root" ] || fail 'model root is not canonical'
-[ -f "$inventory" ] && [ ! -L "$inventory" ] || fail 'model inventory is unavailable'
-if command -v sha256sum >/dev/null 2>&1; then
-  observed_inventory=$(sha256sum "$inventory" | awk '{print $1}')
-else
-  observed_inventory=$(shasum -a 256 "$inventory" | awk '{print $1}')
-fi
-[ "$observed_inventory" = "$inventory_sha" ] || fail 'model inventory digest mismatch'
-python3 -B "$repo_root/benchmarks/qwen3_comparison/verify_model_inventory.py" \
-  "$model_root" "$inventory" "$inventory_sha" || fail 'model inventory payload mismatch'
+python3 -B "$repo_root/benchmarks/qwen3_comparison/verify_model_admission.py" \
+  "$model_root" "$admission_argument" || fail 'campaign model admission mismatch'
 grep -Eq '"model_type"[[:space:]]*:[[:space:]]*"qwen3"' "$model_root/config.json" ||
   fail 'model config is not Qwen3'
 
@@ -57,5 +46,8 @@ exec "$environment/bin/python" -m sglang.launch_server \
   --dtype bfloat16 \
   --context-length 40960 \
   --tp-size 1 \
+  --schedule-policy fcfs \
+  --kv-cache-dtype auto \
+  --max-running-requests 32 \
   --stream-interval 1 \
   --disable-radix-cache

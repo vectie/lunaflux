@@ -48,7 +48,18 @@
       "configuration_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
       "executable_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "environment_prefix": "native",
-      "package_version": "PINNED_LUNAFLUX_REVISION"
+      "package_version": "PINNED_LUNAFLUX_REVISION",
+      "authenticated_capacity_receipt": "/ABSOLUTE/QWEN3_C32_CAPACITY.json#sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "execution_policy": {"prefix_reuse": false, "scheduler_policy": "fcfs", "kv_cache_dtype": "auto", "max_concurrent_sequences": 32},
+      "lifecycle": {
+        "launcher": "/ABSOLUTE/PINNED/start-qwen3-lunaflux-token-id-bridge.sh",
+        "launcher_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "runtime_executable_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "startup_timeout_seconds": 600,
+        "shutdown_timeout_seconds": 60,
+        "drain_quiet_millis": 1000,
+        "expected_exit_codes": [-15, 0]
+      }
     },
     {
       "name": "vllm",
@@ -66,7 +77,18 @@
       "configuration_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
       "executable_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
       "environment_prefix": "/ABSOLUTE/PINNED_VLLM_ENV_PREFIX",
-      "package_version": "PINNED_VLLM_VERSION"
+      "package_version": "PINNED_VLLM_VERSION",
+      "authenticated_capacity_receipt": null,
+      "execution_policy": {"prefix_reuse": false, "scheduler_policy": "fcfs", "kv_cache_dtype": "auto", "max_concurrent_sequences": 32},
+      "lifecycle": {
+        "launcher": "/ABSOLUTE/PINNED/start-qwen3-vllm-benchmark-server.sh",
+        "launcher_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "runtime_executable_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "startup_timeout_seconds": 600,
+        "shutdown_timeout_seconds": 60,
+        "drain_quiet_millis": 1000,
+        "expected_exit_codes": [-15, 0]
+      }
     },
     {
       "name": "sglang",
@@ -84,13 +106,28 @@
       "configuration_sha256": "abababababababababababababababababababababababababababababababab",
       "executable_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
       "environment_prefix": "/ABSOLUTE/PINNED_SGLANG_ENV_PREFIX",
-      "package_version": "PINNED_SGLANG_VERSION"
+      "package_version": "PINNED_SGLANG_VERSION",
+      "authenticated_capacity_receipt": null,
+      "execution_policy": {"prefix_reuse": false, "scheduler_policy": "fcfs", "kv_cache_dtype": "auto", "max_concurrent_sequences": 32},
+      "lifecycle": {
+        "launcher": "/ABSOLUTE/PINNED/start-qwen3-sglang-benchmark-server.sh",
+        "launcher_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "runtime_executable_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "startup_timeout_seconds": 600,
+        "shutdown_timeout_seconds": 60,
+        "drain_quiet_millis": 1000,
+        "expected_exit_codes": [-15, 0]
+      }
     }
   ],
   "gpu": {
     "nvidia_smi": "/usr/bin/nvidia-smi",
     "uuid": "GPU-REPLACE-WITH-EXACT-UUID",
-    "sample_interval_millis": 50
+    "sample_interval_millis": 50,
+    "clean_memory_used_max_mib": 1024,
+    "clean_timeout_seconds": 300,
+    "clean_poll_interval_millis": 1000,
+    "cooldown_seconds": 10
   },
   "trials_per_profile": 3,
   "warmup_requests_per_profile": 2,

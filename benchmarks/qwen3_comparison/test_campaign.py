@@ -48,7 +48,11 @@ def fixture_campaign():
             {
                 "name": name,
                 "adapter": adapter,
-                "endpoint": f"http://127.0.0.1:{port}/generate",
+                "endpoint": (
+                    f"http://127.0.0.1:{port}/benchmark/v1/token-ids"
+                    if name == "lunaflux"
+                    else f"http://127.0.0.1:{port}/generate"
+                ),
                 "health_endpoint": f"http://127.0.0.1:{port}/health",
                 "model_alias": "Qwen3-0.6B",
                 "source_model_inventory_sha256": digest("a"),
@@ -62,6 +66,24 @@ def fixture_campaign():
                 "executable_sha256": digest(str(index + 7)),
                 "environment_prefix": "native" if name == "lunaflux" else "/conda/pinned",
                 "package_version": "pinned-version",
+                "authenticated_capacity_receipt": (
+                    "/capacity.json#sha256=" + digest("a") if name == "lunaflux" else None
+                ),
+                "lifecycle": {
+                    "launcher": f"/launchers/{name}",
+                    "launcher_sha256": digest("a"),
+                    "runtime_executable_sha256": digest(str(index + 7)),
+                    "startup_timeout_seconds": 600,
+                    "shutdown_timeout_seconds": 60,
+                    "drain_quiet_millis": 1000,
+                    "expected_exit_codes": [-15, 0],
+                },
+                "execution_policy": {
+                    "prefix_reuse": False,
+                    "scheduler_policy": "fcfs",
+                    "kv_cache_dtype": "auto",
+                    "max_concurrent_sequences": 32,
+                },
             }
         )
     return {
@@ -90,6 +112,10 @@ def fixture_campaign():
             "nvidia_smi": "/usr/bin/nvidia-smi",
             "uuid": "GPU-exact",
             "sample_interval_millis": 50,
+            "clean_memory_used_max_mib": 1024,
+            "clean_timeout_seconds": 300,
+            "clean_poll_interval_millis": 1000,
+            "cooldown_seconds": 10,
         },
         "trials_per_profile": 3,
         "warmup_requests_per_profile": 2,
@@ -132,6 +158,24 @@ class ContractTests(unittest.TestCase):
     def test_baseline_environment_prefixes_are_absolute(self):
         hostile = copy.deepcopy(fixture_campaign())
         hostile["engines"][1]["environment_prefix"] = "named-environment"
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+
+    def test_lifecycle_and_lunaflux_bridge_fail_closed(self):
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][0]["endpoint"] = "http://127.0.0.1:8100/v1/responses"
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][1]["execution_policy"]["prefix_reuse"] = True
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][1]["lifecycle"]["launcher"] = "relative-launcher"
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][0]["authenticated_capacity_receipt"] = None
         with self.assertRaises(ContractError):
             validate_campaign(hostile)
 
