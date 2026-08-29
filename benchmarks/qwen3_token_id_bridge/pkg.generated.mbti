@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/qwen3_token_id_bridge"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse_qwen3_token_id_request(StringView, Int, Int, Int) -> Qwen3TokenIdRequest raise Qwen3TokenBridgeError
+
+pub fn qwen3_terminal_sse_event() -> Bytes
+
+pub fn qwen3_token_sse_event(Int) -> Bytes
+
+// Errors
+pub(all) suberror Qwen3TokenBridgeError {
+  MalformedRequest
+  UnsupportedRequest
+  RequestTooLarge
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Qwen3TokenIdRequest {
+  // private fields
+}
+pub fn Qwen3TokenIdRequest::input_token_ids(Self) -> ArrayView[Int]
+pub fn Qwen3TokenIdRequest::max_output_tokens(Self) -> Int
+
+// Type aliases
+
+// Traits

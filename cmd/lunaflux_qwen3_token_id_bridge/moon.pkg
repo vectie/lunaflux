@@ -1,0 +1,18 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
+  "moonbitlang/x/sys",
+  "vectie/lunaflux/benchmarks/qwen3_token_id_bridge" @bridge,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/framed_wire",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/lunaflux_qwen3_token_id_bridge"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type BridgeRuntimeError derive(@debug.Debug)
+
+// Types and methods
+type BridgeConfig
+
+type HttpRequest
+
+// Type aliases
+
+// Traits
