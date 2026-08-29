@@ -52,10 +52,17 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(argv[20:], ["151935", "40960"])
 
     def test_server_environment_isolates_exact_measured_gpu(self):
-        environment = lifecycle_environment(fixture_campaign())
+        campaign = fixture_campaign()
+        environment = lifecycle_environment(campaign, campaign["engines"][1])
         self.assertEqual(environment["CUDA_DEVICE_ORDER"], "PCI_BUS_ID")
         self.assertEqual(environment["CUDA_VISIBLE_DEVICES"], "GPU-exact")
         self.assertEqual(environment["PYTHONNOUSERSITE"], "1")
+        self.assertEqual(environment["PATH"], "/conda/pinned/bin:/usr/bin:/bin")
+
+    def test_native_environment_does_not_inherit_a_python_prefix(self):
+        campaign = fixture_campaign()
+        environment = lifecycle_environment(campaign, campaign["engines"][0])
+        self.assertEqual(environment["PATH"], "/usr/bin:/bin")
 
     def test_once_authenticated_model_receipt_is_small_and_root_bound(self):
         with tempfile.TemporaryDirectory() as directory:

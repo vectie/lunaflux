@@ -248,13 +248,18 @@ def lifecycle_argv(
     return argv
 
 
-def lifecycle_environment(campaign: dict[str, Any]) -> dict[str, str]:
+def lifecycle_environment(
+    campaign: dict[str, Any], engine: dict[str, Any] | None = None
+) -> dict[str, str]:
     """Return the minimal environment with the measured GPU explicitly isolated."""
+    path = "/usr/bin:/bin"
+    if engine is not None and engine["environment_prefix"] != "native":
+        path = f'{engine["environment_prefix"]}/bin:{path}'
     return {
         "LC_ALL": "C",
         "LANG": "C",
         "TZ": "UTC",
-        "PATH": "/usr/bin:/bin",
+        "PATH": path,
         "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
         "CUDA_VISIBLE_DEVICES": campaign["gpu"]["uuid"],
         "PYTHONNOUSERSITE": "1",
@@ -353,7 +358,7 @@ class ServerLifecycle:
             stdin=subprocess.DEVNULL,
             stdout=self.stdout,
             stderr=self.stderr,
-            env=lifecycle_environment(self.campaign),
+            env=lifecycle_environment(self.campaign, self.engine),
             close_fds=True,
             start_new_session=True,
         )
