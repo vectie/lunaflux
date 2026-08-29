@@ -1,7 +1,7 @@
 /_build/
 /.mooncakes/
 /.repos/
-/.DS_Store
+.DS_Store
 *.log
 *.pid
 *.local
@@ -16,3 +16,8 @@
 /kernels/cache/
 /benchmarks/results/
 /profiles/
+/trace.json
+/profile.json
+/*.trace
+*.profraw
+*.profdata

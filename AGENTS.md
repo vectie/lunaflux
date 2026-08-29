@@ -36,6 +36,10 @@ not import LunaNexa, MoonGate, or any other MoonSuite product.
   decision explaining why they cannot be divided.
 - No global configuration object or global mutable runtime context.
 - No steady-state heap allocation in the token-step scheduling path.
+- Authenticate deployment, artifact, and device identity once at startup.
+  Production token-step execution must not perform cryptography, filesystem
+  validation, canonical evidence rendering, diagnostic host/device round trips,
+  or qualification-only scans.
 
 ## Validation
 
@@ -51,3 +55,7 @@ moon test --target native --deny-warn
 Kernel or native-ABI changes additionally require sanitizer, deterministic
 correctness, leak, and benchmark gates defined in docs/PLAN.md.
 
+The normal developer loop is `moon fmt`, warning-denied native check, and
+affected-package tests. Expensive physical, sanitizer, soak, and aggregate
+release campaigns run only when their boundary changes or at a phase/release
+boundary; they must not be prerequisites for unrelated edits.
