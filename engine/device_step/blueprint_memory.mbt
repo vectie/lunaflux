@@ -127,16 +127,14 @@ fn live_intervals_overlap(
 fn validate_blueprint_memory_plan(
   model_plan : @plan.ModelPlan,
   memory_plan : @device_memory.DeviceMemoryPlan,
+  expected_token_rows : Int64,
 ) -> Unit raise DeviceStepError {
   let operations = model_plan.operations()
-  let shapes = model_plan.shape_constraints()
-  let token_rows = checked_blueprint_product(
-    shapes.max_batch_rows().to_int64(),
-    shapes.max_sequence_tokens().to_int64(),
-  )
+  let token_rows = expected_token_rows
   let workspace = memory_plan.workspace()
   let workspace_alignment = workspace.alignment_bytes()
-  if memory_plan.token_rows() != token_rows ||
+  if token_rows <= 0L ||
+    memory_plan.token_rows() != token_rows ||
     memory_plan.operation_count() != operations.length() ||
     memory_plan.activation_count() != operations.length() ||
     memory_plan.final_output() != model_plan.final_output() ||

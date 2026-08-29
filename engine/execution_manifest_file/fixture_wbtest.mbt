@@ -139,10 +139,13 @@ fn fixture_target() -> @catalog.DeviceTarget raise {
 }
 
 ///|
-fn fixture_step_limits(rows? : Int = 1) -> @device_step.DeviceStepLimits raise {
+fn fixture_step_limits(
+  rows? : Int = 1,
+  tokens? : Int = 4,
+) -> @device_step.DeviceStepLimits raise {
   @device_step.DeviceStepLimits::new(
     max_rows=rows,
-    max_tokens=4,
+    max_tokens=tokens,
     max_pages=2,
     max_sequence_tokens=8,
     max_token_id=7,

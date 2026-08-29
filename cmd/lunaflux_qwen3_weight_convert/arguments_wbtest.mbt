@@ -13,10 +13,12 @@ test "converter arguments admit one exact bounded offline route" {
     converter_digest('b'),
     "model.safetensors",
     converter_digest('c'),
+    "1",
     "weights.numeric.safetensors",
   ])
   assert_eq(arguments.model_root, "/models/qwen3")
   assert_eq(arguments.source_locator, "model.safetensors")
+  assert_eq(arguments.max_batch_rows, 1)
   assert_eq(arguments.output_locator, "weights.numeric.safetensors")
 }
 
@@ -40,6 +42,7 @@ test "converter arguments reject aliasing, traversal, and noncanonical digests" 
       converter_digest('b'),
       "model.safetensors",
       converter_digest('c'),
+      "1",
       "weights.numeric.safetensors",
     ],
     [
@@ -50,6 +53,7 @@ test "converter arguments reject aliasing, traversal, and noncanonical digests" 
       converter_digest('b'),
       "model.safetensors",
       converter_digest('c'),
+      "1",
       "weights.numeric.safetensors",
     ],
     [
@@ -60,6 +64,7 @@ test "converter arguments reject aliasing, traversal, and noncanonical digests" 
       converter_digest('b'),
       "model.safetensors",
       converter_digest('c'),
+      "1",
       "model.safetensors",
     ],
     [
@@ -70,6 +75,7 @@ test "converter arguments reject aliasing, traversal, and noncanonical digests" 
       converter_digest('b'),
       "nested/model.safetensors",
       converter_digest('c'),
+      "1",
       "weights.numeric.safetensors",
     ],
   ]
@@ -79,6 +85,42 @@ test "converter arguments reject aliasing, traversal, and noncanonical digests" 
       _ => fail("unexpected hostile argument error")
     } noraise {
       _ => fail("hostile converter arguments were admitted")
+    }
+  }
+}
+
+///|
+test "converter arguments admit c32 and reject unusable batch rows" {
+  let arguments = parse_qwen3_weight_convert_arguments([
+    "converter",
+    "/models/qwen3",
+    "config.json",
+    converter_digest('a'),
+    converter_digest('b'),
+    "model.safetensors",
+    converter_digest('c'),
+    "32",
+    "weights.numeric.c32.safetensors",
+  ])
+  assert_eq(arguments.max_batch_rows, 32)
+  for rows in ["0", "4097", "x"] {
+    try
+      parse_qwen3_weight_convert_arguments([
+        "converter",
+        "/models/qwen3",
+        "config.json",
+        converter_digest('a'),
+        converter_digest('b'),
+        "model.safetensors",
+        converter_digest('c'),
+        rows,
+        "weights.numeric.safetensors",
+      ])
+    catch {
+      InvalidArguments => ()
+      _ => fail("unexpected batch-row argument error")
+    } noraise {
+      _ => fail("unusable batch-row argument was admitted")
     }
   }
 }

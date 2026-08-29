@@ -18,6 +18,7 @@ priv struct Qwen3WeightConvertArguments {
   model_content_sha256 : String
   source_locator : String
   source_sha256 : String
+  max_batch_rows : Int
   output_locator : String
 }
 

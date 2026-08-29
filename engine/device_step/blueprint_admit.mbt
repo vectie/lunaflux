@@ -62,12 +62,27 @@ fn validate_blueprint_evidence(
   if contracts.scope() != expected_scope {
     raise blueprint_error(ContractSemantics)
   }
+  let mut has_exact_profile = false
+  for profile in contracts.profiles() {
+    if profile.max_query_rows() == limits.max_rows() &&
+      profile.max_query_tokens() == limits.max_tokens() &&
+      profile.max_page_table_entries() == limits.max_pages() {
+      has_exact_profile = true
+    }
+  }
+  if !has_exact_profile {
+    raise blueprint_error(Profile)
+  }
   if memory_plan.operation_count() != model_plan.operations().length() ||
     memory_plan.token_rows() <= 0L ||
     memory_plan.arena_bytes() <= 0L {
     raise blueprint_error(OperationCount)
   }
-  validate_blueprint_memory_plan(model_plan, memory_plan)
+  validate_blueprint_memory_plan(
+    model_plan,
+    memory_plan,
+    limits.max_tokens().to_int64(),
+  )
   let workspace = memory_plan.workspace()
   if workspace.offset_bytes() < memory_plan.activation_bytes() ||
     workspace.end_offset_bytes() > memory_plan.arena_bytes() {

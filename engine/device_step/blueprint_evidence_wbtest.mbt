@@ -63,6 +63,7 @@ fn blueprint_memory_plan(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
+  full_context? : Bool = false,
 ) -> @device_memory.DeviceMemoryPlan raise {
   let mut rotary_workspace = 0L
   for operation in plan.operations() {
@@ -75,13 +76,22 @@ fn blueprint_memory_plan(
     blueprint_weight_layout(plan),
     blueprint_resolved_catalog(plan, layout, target, rotary_workspace~),
   )
-  @device_memory.plan(
-    static_plan,
-    @device_memory.DeviceMemoryLimits::new(
-      activation_alignment=64L,
-      max_arena_bytes=8192L,
-    ),
+  let limits = @device_memory.DeviceMemoryLimits::new(
+    activation_alignment=64L,
+    max_arena_bytes=8192L,
   )
+  if full_context {
+    @device_memory.plan(static_plan, limits)
+  } else {
+    @device_memory.plan_paged(
+      static_plan,
+      @device_memory.PagedTokenRowEnvelope::new(
+        max_query_rows=2,
+        max_query_tokens=4,
+      ),
+      limits,
+    )
+  }
 }
 
 ///|

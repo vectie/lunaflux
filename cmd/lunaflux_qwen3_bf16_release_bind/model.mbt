@@ -25,7 +25,7 @@ fn load_release_bind_inputs(
         max_bytes=1048576,
         max_depth=16,
       )
-      let batch = @qwen3.Qwen3PagedBatchEnvelope::single_row()
+      let batch = @qwen3.Qwen3PagedBatchEnvelope::new(arguments.max_query_rows)
       let plan = @qwen3.build_paged(metadata, batch~)
       let weights = @qwen3_weights.inspect_paged_file(
         root,

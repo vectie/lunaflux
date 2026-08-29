@@ -102,7 +102,7 @@ fn step_limits(
   arguments : Qwen3ReleaseBindArguments,
 ) -> @device_step.DeviceStepLimits raise Qwen3Bf16ReleaseBindError {
   @device_step.DeviceStepLimits::new(
-    max_rows=1,
+    max_rows=arguments.max_query_rows,
     max_tokens=arguments.max_query_tokens,
     max_pages=arguments.max_page_table_entries,
     max_sequence_tokens=inputs.plan.shape_constraints().max_sequence_tokens(),

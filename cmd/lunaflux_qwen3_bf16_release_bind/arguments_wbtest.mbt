@@ -4,7 +4,7 @@ test "release binder accepts only the exact bounded CLI shape" {
   let parsed = parse_qwen3_release_bind_arguments([
     "binder", "/model", "config.json", digest, digest, "weights.numeric", digest,
     digest, "/compiled", "/toolchain", digest, "13", "1", "115", "8", "8192", "1",
-    "5120", "/new-output",
+    "1", "5120", "/new-output",
   ])
   assert_eq(parsed.compiler_major, 13U)
   assert_eq(parsed.compiler_minor, 1U)
@@ -13,7 +13,7 @@ test "release binder accepts only the exact bounded CLI shape" {
     parse_qwen3_release_bind_arguments([
       "binder", "/model", "config.json", digest, digest, "weights.numeric", digest,
       digest, "/compiled", "/toolchain", digest, "0", "1", "115", "8", "8192", "1",
-      "5120", "/new-output",
+      "1", "5120", "/new-output",
     ])
   catch {
     InvalidArguments => ()
@@ -46,6 +46,7 @@ test "release binder rejects malformed independent digests" {
       "115",
       "8",
       "8192",
+      "1",
       "1",
       "5120",
       "/new-output",
@@ -84,11 +85,12 @@ test "Qwen release geometry and producer ceilings admit the full graph" {
   let digest = "a".repeat(64)
   let arguments = parse_qwen3_release_bind_arguments([
     "binder", "/model", "config.json", digest, digest, "weights.numeric", digest,
-    digest, "/compiled", "/toolchain", digest, "13", "1", "115", "8", "8192", "1",
-    "5120", "/new-output",
+    digest, "/compiled", "/toolchain", digest, "13", "1", "115", "8", "8192", "32",
+    "32", "5120", "/new-output",
   ])
   let profile = release_profile(arguments)
-  assert_eq(profile.max_query_tokens(), 1)
+  assert_eq(profile.max_query_rows(), 32)
+  assert_eq(profile.max_query_tokens(), 32)
   assert_eq(profile.max_page_table_entries(), 5120)
   ignore(release_target())
   ignore(release_compiler(arguments))

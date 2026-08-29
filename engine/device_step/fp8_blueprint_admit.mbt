@@ -67,7 +67,15 @@ fn validate_fp8_blueprint_evidence_v3(
     !layout.is_canonical_for(plan.identity(), plan.kv_cache_geometry()) {
     raise blueprint_error(Layout)
   }
-  validate_blueprint_memory_plan(plan, memory_plan)
+  let shape = plan.shape_constraints()
+  validate_blueprint_memory_plan(
+    plan,
+    memory_plan,
+    checked_blueprint_product(
+      shape.max_batch_rows().to_int64(),
+      shape.max_sequence_tokens().to_int64(),
+    ),
+  )
   if memory_plan.operation_count() != plan.operations().length() ||
     static_plan.operations().length() != plan.operations().length() ||
     static_plan.weight_layout().length() != plan.tensor_count() {

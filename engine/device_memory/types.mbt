@@ -10,6 +10,19 @@ pub struct DeviceMemoryLimits {
 } derive(Debug, Eq)
 
 ///|
+/// Startup-only packed token-row capacity for a paged execution step.
+///
+/// `max_query_rows` binds the model plan's admitted batch-row envelope, while
+/// `max_query_tokens` is the exact activation row capacity shared with the
+/// authenticated paged launch profile and device-step limits. The full model
+/// context remains a KV/page-table bound and is not multiplied into every
+/// transient activation slot.
+pub struct PagedTokenRowEnvelope {
+  priv max_query_rows : Int
+  priv max_query_tokens : Int
+} derive(Debug, Eq)
+
+///|
 /// Stable identifier for a reusable physical activation slot origin.
 pub struct ActivationSlotId {
   priv value : Int
@@ -100,6 +113,31 @@ pub fn DeviceMemoryLimits::activation_alignment(
 ///|
 pub fn DeviceMemoryLimits::max_arena_bytes(self : DeviceMemoryLimits) -> Int64 {
   self.max_arena_bytes
+}
+
+///|
+pub fn PagedTokenRowEnvelope::new(
+  max_query_rows~ : Int,
+  max_query_tokens~ : Int,
+) -> PagedTokenRowEnvelope raise DeviceMemoryError {
+  if max_query_rows <= 0 || max_query_tokens < max_query_rows {
+    raise InvalidPlan(ShapeEnvelope)
+  }
+  { max_query_rows, max_query_tokens }
+}
+
+///|
+pub fn PagedTokenRowEnvelope::max_query_rows(
+  self : PagedTokenRowEnvelope,
+) -> Int {
+  self.max_query_rows
+}
+
+///|
+pub fn PagedTokenRowEnvelope::max_query_tokens(
+  self : PagedTokenRowEnvelope,
+) -> Int {
+  self.max_query_tokens
 }
 
 ///|

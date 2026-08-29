@@ -147,7 +147,12 @@ fn convert_qwen3_weight_file(
     source.bindings().redundant_lm_head_tensor() is None {
     raise SourceAdmission
   }
-  let plan = @qwen3.build_paged(metadata) catch { _ => raise ConversionPlan }
+  let batch = @qwen3.Qwen3PagedBatchEnvelope::new(arguments.max_batch_rows) catch {
+    _ => raise ConversionPlan
+  }
+  let plan = @qwen3.build_paged(metadata, batch~) catch {
+    _ => raise ConversionPlan
+  }
   let conversion = prepare_qwen3_numeric_conversion(plan, source.bindings())
   root.require_absolute_identity(arguments.model_root) catch {
     _ => raise ModelRoot
@@ -192,6 +197,7 @@ fn convert_qwen3_weight_file(
     alignment_bytes=256L,
     max_arena_bytes=conversion.payload_bytes + 310L * 255L,
     expected_route_manifest_sha256=route_sha256,
+    batch~,
   ) catch {
     _ => raise OutputAdmission
   }
@@ -235,6 +241,7 @@ fn run_qwen3_weight_convert(
   println("source_manifest_sha256=" + report.source_manifest_sha256)
   println("output_artifact_sha256=" + report.output_artifact_sha256)
   println("route_manifest_sha256=" + report.route_manifest_sha256)
+  println("max_batch_rows=" + arguments.max_batch_rows.to_string())
   println("tensor_count=310")
   println("redundant_lm_head_omitted=1")
   println("token_step_work=0")

@@ -51,9 +51,72 @@ async test "canonical v2 admits exact multi-row full-graph paged execution" {
       plan.operations().length(),
     )
     assert_eq(admission.artifacts().entry_point_count(), 9)
+    assert_eq(admission.memory_plan().token_rows(), 4L)
     assert_false(root.is_closed())
     root.close()
   }
+}
+
+///|
+async test "canonical v2 admits c32 with bounded packed activation rows" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-execution-manifest-c32")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let metadata = fixture_metadata('0')
+    let batch = @llama.LlamaPagedBatchEnvelope::new(32)
+    let plan = @llama.build_paged(metadata, batch~)
+    let target = fixture_target()
+    let manifest = fixture_manifest(plan, target)
+    write_fixture_file(directory, "execution.json", @utf8.encode(manifest))
+    write_fixture_file(directory, "kernel.cubin", fixture_module_bytes())
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
+    let admission = load_paged(
+      root,
+      @approved_fs.ApprovedRelativeLocator::new("execution.json"),
+      fixture_digest(manifest),
+      plan,
+      fixture_weight_layout(metadata),
+      fixture_layout(plan),
+      target,
+      fixture_step_limits(rows=32, tokens=32),
+      fixture_limits(plan.operations().length()),
+    )
+    assert_eq(admission.memory_plan().token_rows(), 32L)
+    assert_eq(admission.blueprint().limits().max_rows(), 32)
+    assert_eq(admission.blueprint().limits().max_tokens(), 32)
+    root.close()
+  }
+}
+
+///|
+async test "paged admission rejects fewer packed tokens than rows before IO" {
+  let metadata = fixture_metadata('0')
+  let batch = @llama.LlamaPagedBatchEnvelope::new(32)
+  let plan = @llama.build_paged(metadata, batch~)
+  let directory = @fs.tmpdir(prefix="lunaflux-execution-envelope-hostile")
+  let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
+  try
+    load_paged(
+      root,
+      @approved_fs.ApprovedRelativeLocator::new("absent.json"),
+      fixture_digest("absent"),
+      plan,
+      fixture_weight_layout(metadata),
+      fixture_layout(plan),
+      fixture_target(),
+      fixture_step_limits(rows=32, tokens=31),
+      fixture_limits(plan.operations().length()),
+    )
+  catch {
+    UnsupportedModelEnvelope => ()
+    _ => fail("unexpected packed-row envelope rejection")
+  } noraise {
+    _ => fail("hostile packed-row envelope was admitted")
+  }
+  root.close()
+  @fs.rmdir(directory, recursive=true)
 }
 
 ///|

@@ -223,6 +223,10 @@ async test "Qwen3 numeric inspection gates exact route manifest and artifact" {
     let plan = @qwen3.build_paged(metadata)
     let file = qwen3_numeric_fixture(plan)
     @fs.write_file(canonical + "/weights", file, create_mode=CreateNew)
+    let batch32 = @qwen3.Qwen3PagedBatchEnvelope::new(32)
+    let plan32 = @qwen3.build_paged(metadata, batch=batch32)
+    let file32 = qwen3_numeric_fixture(plan32)
+    @fs.write_file(canonical + "/weights32", file32, create_mode=CreateNew)
     let artifact = @numeric_weight_file.NumericWeightArtifactDigest::from_sha256(
       qwen3_file_sha256(file),
     )
@@ -255,6 +259,62 @@ async test "Qwen3 numeric inspection gates exact route manifest and artifact" {
       plan.numeric_binding().digest(),
     )
     assert_eq(inspection.route_manifest_sha256(), manifest)
+    let artifact32 = @numeric_weight_file.NumericWeightArtifactDigest::from_sha256(
+      qwen3_file_sha256(file32),
+    )
+    let locator32 = @approved_fs.ApprovedRelativeLocator::new("weights32")
+    let generic32 = @numeric_weight_file.inspect_file(
+      root,
+      plan32,
+      locator32,
+      expected_artifact_digest=artifact32,
+      limits=qwen3_numeric_limits(),
+      alignment_bytes=64L,
+      max_arena_bytes=131072L,
+    )
+    let manifest32 = qwen3_route_manifest_sha256(plan32, generic32)
+    let inspection32 = inspect_paged_file(
+      root,
+      metadata,
+      locator32,
+      expected_artifact_digest=artifact32,
+      limits=qwen3_numeric_limits(),
+      alignment_bytes=64L,
+      max_arena_bytes=131072L,
+      expected_route_manifest_sha256=manifest32,
+      batch=batch32,
+    )
+    assert_eq(inspection32.identity(), plan32.identity())
+    for
+      hostile in [
+        (locator, artifact, manifest, batch32),
+        (
+          locator32,
+          artifact32,
+          manifest32,
+          @qwen3.Qwen3PagedBatchEnvelope::single_row(),
+        ),
+      ] {
+      let (hostile_locator, hostile_artifact, hostile_manifest, hostile_batch) = hostile
+      try
+        inspect_paged_file(
+          root,
+          metadata,
+          hostile_locator,
+          expected_artifact_digest=hostile_artifact,
+          limits=qwen3_numeric_limits(),
+          alignment_bytes=64L,
+          max_arena_bytes=131072L,
+          expected_route_manifest_sha256=hostile_manifest,
+          batch=hostile_batch,
+        )
+      catch {
+        InvalidNumericWeightFile(_) => ()
+        _ => fail("unexpected cross-capacity artifact rejection")
+      } noraise {
+        _ => fail("numeric artifact crossed its authenticated batch capacity")
+      }
+    }
     try
       inspect_paged_file(
         root,

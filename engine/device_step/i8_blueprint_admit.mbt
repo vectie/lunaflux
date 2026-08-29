@@ -86,7 +86,15 @@ fn validate_i8_blueprint_evidence(
     memory_plan.arena_bytes() <= 0L {
     raise blueprint_error(OperationCount)
   }
-  validate_blueprint_memory_plan(model_plan, memory_plan)
+  let shape = model_plan.shape_constraints()
+  validate_blueprint_memory_plan(
+    model_plan,
+    memory_plan,
+    checked_blueprint_product(
+      shape.max_batch_rows().to_int64(),
+      shape.max_sequence_tokens().to_int64(),
+    ),
+  )
   let semantic = model_plan.operations()
   let physical = static_plan.operations()
   if semantic.length() != physical.length() ||

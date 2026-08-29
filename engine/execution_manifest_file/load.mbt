@@ -47,6 +47,7 @@ pub fn load_paged(
     device_step_limits.max_tokens().to_int64() >
     device_step_limits.max_rows().to_int64() *
     shape.max_sequence_tokens().to_int64() ||
+    device_step_limits.max_tokens() < device_step_limits.max_rows() ||
     model_plan.operations().is_empty() ||
     model_plan.operations().length() > limits.max_operations() {
     raise UnsupportedModelEnvelope
@@ -79,7 +80,14 @@ pub fn load_paged(
   let static_plan = @device_plan.build(model_plan, weight_layout, resolved) catch {
     _ => raise AdmissionRejected(StaticPlan)
   }
-  let memory_plan = @device_memory.plan(static_plan, limits.device_memory()) catch {
+  let memory_plan = @device_memory.plan_paged(
+    static_plan,
+    @device_memory.PagedTokenRowEnvelope::new(
+      max_query_rows=device_step_limits.max_rows(),
+      max_query_tokens=device_step_limits.max_tokens(),
+    ),
+    limits.device_memory(),
+  ) catch {
     _ => raise AdmissionRejected(MemoryPlan)
   }
   let contracts = derive_contracts(

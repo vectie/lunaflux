@@ -254,9 +254,12 @@ fn workspace_region(
 }
 
 ///|
-fn token_row_envelope(
+fn full_context_token_row_envelope(
   static_plan : @device_plan.StaticDevicePlan,
 ) -> Int64 raise DeviceMemoryError {
+  if static_plan.operations().is_empty() {
+    raise InvalidPlan(EmptyOperations)
+  }
   let constraints = static_plan.shape_constraints()
   let operation = static_plan.operations()[0].id()
   let batch_rows = Int64::from_int(constraints.max_batch_rows())
@@ -265,6 +268,29 @@ fn token_row_envelope(
     raise InvalidPlan(ShapeEnvelope)
   }
   checked_multiply(batch_rows, sequence_tokens, operation)
+}
+
+///|
+fn paged_token_row_envelope(
+  static_plan : @device_plan.StaticDevicePlan,
+  envelope : PagedTokenRowEnvelope,
+) -> Int64 raise DeviceMemoryError {
+  if static_plan.operations().is_empty() {
+    raise InvalidPlan(EmptyOperations)
+  }
+  let constraints = static_plan.shape_constraints()
+  let operation = static_plan.operations()[0].id()
+  let rows = Int64::from_int(envelope.max_query_rows())
+  let tokens = Int64::from_int(envelope.max_query_tokens())
+  let sequence_tokens = Int64::from_int(constraints.max_sequence_tokens())
+  if envelope.max_query_rows() != constraints.max_batch_rows() ||
+    rows <= 0L ||
+    tokens < rows ||
+    sequence_tokens <= 0L ||
+    tokens > checked_multiply(rows, sequence_tokens, operation) {
+    raise InvalidPlan(ShapeEnvelope)
+  }
+  tokens
 }
 
 ///|
@@ -304,9 +330,10 @@ fn build_operation_bindings(
 /// is released only after its final consuming operation. The final output is
 /// retained through the completion step. Planning is deterministic and all
 /// arithmetic and the complete arena are checked before device allocation.
-pub fn plan(
+fn plan_with_token_rows(
   static_plan : @device_plan.StaticDevicePlan,
   limits : DeviceMemoryLimits,
+  token_rows : Int64,
 ) -> DeviceMemoryPlan raise DeviceMemoryError {
   let operations = static_plan.operations()
   if operations.length() == 0 {
@@ -318,7 +345,9 @@ pub fn plan(
   if !static_plan.target().supports_bf16() {
     raise InvalidPlan(TargetDtype)
   }
-  let token_rows = token_row_envelope(static_plan)
+  if token_rows <= 0L {
+    raise InvalidPlan(ShapeEnvelope)
+  }
   let logical_sizes : Array[Int64] = []
   let reserved_sizes : Array[Int64] = []
   let last_uses : Array[Int] = []
@@ -423,4 +452,31 @@ pub fn plan(
     bindings: build_operation_bindings(static_plan, regions, workspace),
     final_output: static_plan.final_output(),
   }
+}
+
+///|
+/// Plans the original full-context activation/workspace envelope.
+///
+/// This API is retained for stateless full-prefill/full-recompute consumers.
+pub fn plan(
+  static_plan : @device_plan.StaticDevicePlan,
+  limits : DeviceMemoryLimits,
+) -> DeviceMemoryPlan raise DeviceMemoryError {
+  let token_rows = full_context_token_row_envelope(static_plan)
+  plan_with_token_rows(static_plan, limits, token_rows)
+}
+
+///|
+/// Plans transient activations for the exact packed paged token-row envelope.
+///
+/// The envelope is admitted at startup and must exactly match the model's
+/// batch-row capacity while remaining within its full-context shape. Repeated
+/// token steps consume the resulting immutable plan without allocation.
+pub fn plan_paged(
+  static_plan : @device_plan.StaticDevicePlan,
+  envelope : PagedTokenRowEnvelope,
+  limits : DeviceMemoryLimits,
+) -> DeviceMemoryPlan raise DeviceMemoryError {
+  let token_rows = paged_token_row_envelope(static_plan, envelope)
+  plan_with_token_rows(static_plan, limits, token_rows)
 }

@@ -30,6 +30,12 @@ async fn run_qwen3_release_bind(
   println("tokens_per_page=" + arguments.tokens_per_page.to_string())
   println("total_page_count=" + arguments.total_page_count.to_string())
   println(
+    "max_batch_rows=" +
+    inputs.plan.shape_constraints().max_batch_rows().to_string(),
+  )
+  println("max_query_rows=" + arguments.max_query_rows.to_string())
+  println("max_query_tokens=" + arguments.max_query_tokens.to_string())
+  println(
     "max_sequence_tokens=" +
     inputs.plan.shape_constraints().max_sequence_tokens().to_string(),
   )

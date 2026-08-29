@@ -5,6 +5,22 @@ fn canonical_sha256(value : StringView) -> Bool {
 }
 
 ///|
+fn parse_batch_rows(value : String) -> Int raise Qwen3WeightConvertError {
+  if value.is_empty() || value.length() > 4 {
+    raise InvalidArguments
+  }
+  let mut result = 0
+  for unit in value {
+    guard unit is ('0'..='9') else { raise InvalidArguments }
+    result = result * 10 + unit.to_int() - '0'.to_int()
+  }
+  if result <= 0 || result > 4096 {
+    raise InvalidArguments
+  }
+  result
+}
+
+///|
 fn parse_qwen3_weight_convert_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3WeightConvertArguments raise Qwen3WeightConvertError {
@@ -17,6 +33,7 @@ fn parse_qwen3_weight_convert_arguments(
       model_content_sha256,
       source_locator,
       source_sha256,
+      max_batch_rows,
       output_locator,
     ] else {
     raise InvalidArguments
@@ -52,6 +69,7 @@ fn parse_qwen3_weight_convert_arguments(
     model_content_sha256,
     source_locator,
     source_sha256,
+    max_batch_rows: parse_batch_rows(max_batch_rows),
     output_locator,
   }
 }

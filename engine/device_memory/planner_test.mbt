@@ -152,6 +152,66 @@ test "every v1 operation output is sized from the complete shape envelope" {
 }
 
 ///|
+test "paged planner uses exact packed token rows without changing full context" {
+  let source = memory_static_plan(max_batch_rows=32, max_sequence_tokens=40960)
+  let paged = @device_memory.plan_paged(
+    source,
+    @device_memory.PagedTokenRowEnvelope::new(
+      max_query_rows=32,
+      max_query_tokens=256,
+    ),
+    memory_limits(max_arena_bytes=1048576L),
+  )
+  assert_eq(paged.token_rows(), 256L)
+  assert_eq(source.shape_constraints().max_batch_rows(), 32)
+  assert_eq(source.shape_constraints().max_sequence_tokens(), 40960)
+  let first = paged.region(@plan.ActivationRef::new(0)).unwrap()
+  assert_eq(first.logical_bytes(), 2048L)
+  try
+    @device_memory.plan(source, memory_limits(max_arena_bytes=1048576L))
+  catch {
+    @device_memory.DeviceMemoryError::ArenaLimitExceeded => ()
+    _ => fail("unexpected full-context planner rejection")
+  } noraise {
+    _ => fail("full-context envelope must remain independently enforced")
+  }
+}
+
+///|
+test "paged planner rejects row token and plan-envelope mismatches" {
+  let source = memory_static_plan(max_batch_rows=32, max_sequence_tokens=64)
+  for
+    envelope in [
+      @device_memory.PagedTokenRowEnvelope::new(
+        max_query_rows=31,
+        max_query_tokens=32,
+      ),
+      @device_memory.PagedTokenRowEnvelope::new(
+        max_query_rows=32,
+        max_query_tokens=2049,
+      ),
+    ] {
+    try @device_memory.plan_paged(source, envelope, memory_limits()) catch {
+      @device_memory.DeviceMemoryError::InvalidPlan(ShapeEnvelope) => ()
+      _ => fail("unexpected paged envelope rejection")
+    } noraise {
+      _ => fail("expected hostile paged envelope rejection")
+    }
+  }
+  try
+    @device_memory.PagedTokenRowEnvelope::new(
+      max_query_rows=32,
+      max_query_tokens=31,
+    )
+  catch {
+    InvalidPlan(ShapeEnvelope) => ()
+    _ => fail("unexpected sparse-row rejection")
+  } noraise {
+    _ => fail("every admitted row requires at least one packed token")
+  }
+}
+
+///|
 test "limits overflow and the complete arena ceiling fail closed" {
   for alignment in [0L, 8L, 24L, 131072L] {
     try

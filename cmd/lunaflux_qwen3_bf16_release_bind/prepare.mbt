@@ -40,7 +40,7 @@ fn release_profile(
 ) -> @launch_contract.PagedKernelProfile raise Qwen3Bf16ReleaseBindError {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
-    max_query_rows=1,
+    max_query_rows=arguments.max_query_rows,
     max_query_tokens=arguments.max_query_tokens,
     max_page_table_entries=arguments.max_page_table_entries,
   ) catch {
@@ -79,10 +79,19 @@ fn release_candidates(
   inputs : Qwen3ReleaseBindInputs,
   arguments : Qwen3ReleaseBindArguments,
 ) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise Qwen3Bf16ReleaseBindError {
+  let profile = release_profile(arguments)
+  if profile.max_query_rows() !=
+    inputs.plan.shape_constraints().max_batch_rows() ||
+    profile.max_query_tokens() < profile.max_query_rows() ||
+    profile.max_query_tokens().to_int64() >
+    profile.max_query_rows().to_int64() *
+    inputs.plan.shape_constraints().max_sequence_tokens().to_int64() {
+    raise KernelBinding
+  }
   @luna_bf16_kernel_producer.prepare_luna_bf16_candidate_set(
     inputs.plan,
     release_layout(inputs.plan, arguments),
-    release_profile(arguments),
+    profile,
     release_target(),
     release_compiler(arguments),
     @luna_bf16_kernel_producer.LunaBf16CandidateSetLimits::new(

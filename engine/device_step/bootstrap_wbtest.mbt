@@ -289,7 +289,7 @@ test "device worker bootstrap digest is canonical and complete" {
   assert_eq(first.step_count(), blueprint.steps().length())
   assert_eq(
     first.digest().as_hex(),
-    "effcae2b75f86baa65d35e88a5b4b73cfa06600f21c7c87a742a805d3e8479d8",
+    "b2f4d230ed071ef62f0870b4e8f5edd588b38c876ce6d8b25024ef0c9ede64a2",
   )
   let startup = first.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),

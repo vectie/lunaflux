@@ -1,5 +1,5 @@
 ///|
-fn load_authenticated_single_row_plan(
+fn load_authenticated_paged_plan(
   arguments : Qwen3CandidateExportArguments,
 ) -> @plan.ModelPlan raise Qwen3Bf16CandidateExportCliError {
   let root = @approved_fs.ApprovedRoot::open_absolute(arguments.model_root) catch {
@@ -21,7 +21,7 @@ fn load_authenticated_single_row_plan(
       max_bytes=1048576,
       max_depth=16,
     )
-    let batch = @qwen3.Qwen3PagedBatchEnvelope::single_row()
+    let batch = @qwen3.Qwen3PagedBatchEnvelope::new(arguments.max_query_rows)
     let plan = @qwen3.build_paged(metadata, batch~)
     let inspection = @qwen3_weights.inspect_paged_file(
       root,
@@ -82,11 +82,18 @@ fn prepare_candidate_set(
   }
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
-    max_query_rows=plan.shape_constraints().max_batch_rows(),
+    max_query_rows=arguments.max_query_rows,
     max_query_tokens=arguments.max_query_tokens,
     max_page_table_entries=arguments.max_page_table_entries,
   ) catch {
     _ => raise CandidatePreparation
+  }
+  if profile.max_query_rows() != plan.shape_constraints().max_batch_rows() ||
+    profile.max_query_tokens() < profile.max_query_rows() ||
+    profile.max_query_tokens().to_int64() >
+    profile.max_query_rows().to_int64() *
+    plan.shape_constraints().max_sequence_tokens().to_int64() {
+    raise CandidatePreparation
   }
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
@@ -132,7 +139,7 @@ async fn run_qwen3_candidate_export(
   raw_arguments : ArrayView[String],
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {
   let arguments = parse_qwen3_candidate_export_arguments(raw_arguments)
-  let plan = load_authenticated_single_row_plan(arguments)
+  let plan = load_authenticated_paged_plan(arguments)
   let set = prepare_candidate_set(plan, arguments)
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
@@ -148,6 +155,8 @@ async fn run_qwen3_candidate_export(
   println("model_content_sha256=" + evidence.model_content_sha256())
   println("model_plan_sha256=" + evidence.model_plan_sha256())
   println("target=" + evidence.target())
+  println("max_query_rows=" + arguments.max_query_rows.to_string())
+  println("max_query_tokens=" + arguments.max_query_tokens.to_string())
   println("operation_count=" + evidence.operation_count().to_string())
   println("candidate_root=" + arguments.absolute_new_output + "/candidate-root")
   println(

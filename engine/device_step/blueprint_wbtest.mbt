@@ -70,6 +70,31 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
 }
 
 ///|
+test "paged blueprint rejects a full-context arena for a smaller step envelope" {
+  let metadata = blueprint_metadata()
+  let plan = blueprint_model_plan(metadata)
+  let layout = blueprint_layout(plan)
+  let target = blueprint_target()
+  let contracts = blueprint_contract_set(plan, layout, target)
+  try
+    admit_paged_kv_execution_blueprint(
+      plan,
+      blueprint_limits(),
+      layout,
+      blueprint_memory_plan(metadata, plan, layout, target, full_context=true),
+      blueprint_profile().id(),
+      contracts,
+      blueprint_artifacts(contracts),
+    )
+  catch {
+    InvalidBlueprint(ActivationRegion) => ()
+    _ => fail("unexpected activation-envelope mismatch")
+  } noraise {
+    _ => fail("full-context arena was accepted as exact paged step evidence")
+  }
+}
+
+///|
 test "paged blueprint rejects foreign model identity and device target" {
   let metadata = blueprint_metadata()
   let plan = blueprint_model_plan(metadata)
