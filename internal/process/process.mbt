@@ -97,11 +97,17 @@ fn ChildProcess::write_exact(
     offset > source.length() - byte_count {
     raise InvalidRange(Write)
   }
-  raise_status(
-    raw_write_exact(self.handle, source, offset, byte_count, timeout_millis),
-    Write,
+  let result = Ok(
+    raise_status(
+      raw_write_exact(self.handle, source, offset, byte_count, timeout_millis),
+      Write,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -132,11 +138,23 @@ fn ChildProcess::read_exact(
     offset > destination.length() - byte_count {
     raise InvalidRange(Read)
   }
-  raise_status(
-    raw_read_exact(self.handle, destination, offset, byte_count, timeout_millis),
-    Read,
+  let result = Ok(
+    raise_status(
+      raw_read_exact(
+        self.handle,
+        destination,
+        offset,
+        byte_count,
+        timeout_millis,
+      ),
+      Read,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -268,16 +286,22 @@ fn InheritedChannel::write_exact(
   if self.write_source_conflicts_active_read(source) {
     raise InvalidRange(Write)
   }
-  raise_status(
-    raw_inherited_write_exact(
-      source,
-      offset,
-      byte_count,
-      self.limits.io_timeout_millis,
+  let result = Ok(
+    raise_status(
+      raw_inherited_write_exact(
+        source,
+        offset,
+        byte_count,
+        self.limits.io_timeout_millis,
+      ),
+      Write,
     ),
-    Write,
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -295,16 +319,22 @@ fn InheritedChannel::read_exact(
   if self.read_transfer_active {
     raise InvalidState(Read)
   }
-  raise_status(
-    raw_inherited_read_exact(
-      destination,
-      offset,
-      byte_count,
-      self.limits.io_timeout_millis,
+  let result = Ok(
+    raise_status(
+      raw_inherited_read_exact(
+        destination,
+        offset,
+        byte_count,
+        self.limits.io_timeout_millis,
+      ),
+      Read,
     ),
-    Read,
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -348,11 +378,17 @@ pub fn InheritedChannel::expect_clean_eof(
   if self.read_transfer_active {
     raise InvalidState(Read)
   }
-  raise_status(
-    raw_inherited_expect_clean_eof(self.limits.io_timeout_millis),
-    Read,
+  let result = Ok(
+    raise_status(
+      raw_inherited_expect_clean_eof(self.limits.io_timeout_millis),
+      Read,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -407,8 +443,10 @@ pub fn InheritedChannel::read_frame_or_eof(
   if status == 3 {
     return 0
   }
-  raise_status(status, Read) catch {
-    error => {
+  let result = Ok(raise_status(status, Read)) catch { error => Err(error) }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -433,8 +471,12 @@ pub fn ChildProcess::shutdown_write(
   if self.write_transfer_active {
     raise InvalidState(ShutdownWrite)
   }
-  raise_status(raw_shutdown_write(self.handle), ShutdownWrite) catch {
-    error => {
+  let result = Ok(raise_status(raw_shutdown_write(self.handle), ShutdownWrite)) catch {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.poison_transfers()
       raise error
     }
@@ -471,8 +513,12 @@ pub fn ChildProcess::close(self : ChildProcess) -> Unit raise ProcessError {
     raise InvalidState(Close)
   }
   self.clear_pending_transfers()
-  raise_status(raw_close(self.handle), Close) catch {
-    error => {
+  let result = Ok(raise_status(raw_close(self.handle), Close)) catch {
+    error => Err(error)
+  }
+  match result {
+    Ok(_) => ()
+    Err(error) => {
       self.failed = true
       raise error
     }

@@ -281,8 +281,12 @@ pub fn LunaIncrementalOutputWork::progress(
   let mut used = 0
   while used < workspace.budget.work_units() &&
         workspace.phase != LUNA_INCREMENTAL_OUTPUT_READY {
-    workspace.progress_setup_one() catch {
-      error => {
+    let result = Ok(workspace.progress_setup_one()) catch {
+      error => Err(error)
+    }
+    match result {
+      Ok(_) => ()
+      Err(error) => {
         workspace.last_work_units = used + 1
         raise error
       }

@@ -210,12 +210,18 @@ pub fn LunaStartupVerifierKeyOwner::take_handoff(
   let key = startup_verifier_copy_fixed(self.payload, 64, self.key_length)
   let verifier_offset = 64 + self.key_length
   let authority_offset = verifier_offset + self.verifier_id_length
-  let verifier_key_id = startup_verifier_decode_identifier(
-    self.payload,
-    verifier_offset,
-    self.verifier_id_length,
+  let verifier_key_result = Ok(
+    startup_verifier_decode_identifier(
+      self.payload,
+      verifier_offset,
+      self.verifier_id_length,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let verifier_key_id = match verifier_key_result {
+    Ok(value) => value
+    Err(error) => {
       key.fill(b'\x00')
       rollout.fill(b'\x00')
       tag.fill(b'\x00')
@@ -224,12 +230,18 @@ pub fn LunaStartupVerifierKeyOwner::take_handoff(
       raise error
     }
   }
-  let authority_id = startup_verifier_decode_identifier(
-    self.payload,
-    authority_offset,
-    self.authority_id_length,
+  let authority_result = Ok(
+    startup_verifier_decode_identifier(
+      self.payload,
+      authority_offset,
+      self.authority_id_length,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let authority_id = match authority_result {
+    Ok(value) => value
+    Err(error) => {
       key.fill(b'\x00')
       rollout.fill(b'\x00')
       tag.fill(b'\x00')
@@ -244,13 +256,19 @@ pub fn LunaStartupVerifierKeyOwner::take_handoff(
   let authentication_tag = LunaDetachedSignatureDigest::from_sha256(
     @crypto.bytes_to_hex_string(tag),
   )
-  let policy = LunaExternalApprovalPolicy::new(
-    schema=LUNA_EXTERNAL_APPROVAL_POLICY_SCHEMA,
-    rollout_digest~,
-    verifier_key_id~,
-    authority_id~,
+  let policy_result = Ok(
+    LunaExternalApprovalPolicy::new(
+      schema=LUNA_EXTERNAL_APPROVAL_POLICY_SCHEMA,
+      rollout_digest~,
+      verifier_key_id~,
+      authority_id~,
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let policy = match policy_result {
+    Ok(value) => value
+    Err(error) => {
       key.fill(b'\x00')
       rollout.fill(b'\x00')
       tag.fill(b'\x00')

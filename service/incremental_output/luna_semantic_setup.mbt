@@ -23,8 +23,12 @@ pub fn LunaIncrementalOutputWorkspace::begin_luna_request_semantics(
     raise invalid(LunaIncrementalOutputWorkspace, Unsupported)
   }
   self.setup_semantics.push(semantics)
-  self.begin_setup(stop_count, None, special_policy) catch {
-    error => {
+  let result = Ok(self.begin_setup(stop_count, None, special_policy)) catch {
+    error => Err(error)
+  }
+  match result {
+    Ok(work) => work
+    Err(error) => {
       self.setup_semantics.clear()
       raise error
     }
