@@ -27,7 +27,9 @@ for anchor in \
     fail "serving anchor is absent: $anchor"
 done
 for anchor in \
-  'native-framed-v1|openai-responses-v1' \
+  'native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1' \
+  'native correctness profile requires authenticated c1 release geometry' \
+  'native-framed-c32-benchmark-v1|openai-responses-v1' \
   'policy_schema=lunaflux.instance-policy.v3' \
   '"mode":"openai_responses_v1"' \
   '"invocation_path":"/v1/responses"' \
@@ -35,7 +37,7 @@ for anchor in \
   '"system_prefix":"<|im_start|>system\\n"' \
   '"user_prefix":"<|im_start|>user\\n"' \
   '"assistant_cue":"<|im_start|>assistant\\n"' \
-  'OpenAI benchmark profile requires authenticated c32 release geometry' \
+  'benchmark profile requires authenticated c32 release geometry' \
   'release_max_batch_rows=$(bind_value max_batch_rows)' \
   'release_max_query_rows=$(bind_value max_query_rows)' \
   'release_max_query_tokens=$(bind_value max_query_tokens)' \
@@ -67,14 +69,16 @@ hostile_output=$(sh "$materializer" x x x x x x x x x x x 1 /tmp/qwen-v12-hostil
 printf '%s\n' "$hostile_output" |
   grep -F 'materialization profile is unsupported' >/dev/null ||
   fail 'unsupported profile did not fail at the closed profile boundary'
+scripts/validate-qwen3-capacity-receipt.sh
 for anchor in \
   'Fixed descriptor 5' \
   'LFD1DRN' \
   'Fixed descriptor 6' \
   'LFC1KEY' \
   'native-framed-v1' \
+  'native-framed-c32-benchmark-v1' \
   'openai-responses-v1' \
-  'authenticated c32 release geometry' \
+  'authenticated c32' \
   '/v1/responses'; do
   grep -F "$anchor" "$serving_contract" >/dev/null ||
     fail "Qwen serving contract anchor is absent: $anchor"

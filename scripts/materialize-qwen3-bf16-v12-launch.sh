@@ -16,7 +16,7 @@ fail() {
 
 usage() {
   printf '%s\n' \
-    'usage: materialize-qwen3-bf16-v12-launch.sh ABSOLUTE_MODEL_ROOT CONFIG_SHA256 MODEL_CONTENT_SHA256 TOKENIZER_SHA256 NUMERIC_LOCATOR NUMERIC_SHA256 ROUTE_SHA256 ABSOLUTE_RELEASE_BIND_ROOT ABSOLUTE_RELEASE_BIND_STDOUT#sha256=HEX ABSOLUTE_WORKER#sha256=HEX ABSOLUTE_REFERENCE_CORPUS#sha256=HEX LISTEN_PORT ABSOLUTE_NEW_OUTPUT [native-framed-v1|openai-responses-v1]' >&2
+    'usage: materialize-qwen3-bf16-v12-launch.sh ABSOLUTE_MODEL_ROOT CONFIG_SHA256 MODEL_CONTENT_SHA256 TOKENIZER_SHA256 NUMERIC_LOCATOR NUMERIC_SHA256 ROUTE_SHA256 ABSOLUTE_RELEASE_BIND_ROOT ABSOLUTE_RELEASE_BIND_STDOUT#sha256=HEX ABSOLUTE_WORKER#sha256=HEX ABSOLUTE_REFERENCE_CORPUS#sha256=HEX LISTEN_PORT ABSOLUTE_NEW_OUTPUT [native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1]' >&2
   exit 2
 }
 
@@ -36,7 +36,7 @@ listen_port=${12}
 output=${13}
 materialization_profile=${14:-native-framed-v1}
 case "$materialization_profile" in
-  native-framed-v1|openai-responses-v1) ;;
+  native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1) ;;
   *) fail 'materialization profile is unsupported' ;;
 esac
 
@@ -138,15 +138,20 @@ scheduler_prefill_chunk_tokens=1
 scheduler_output_event_capacity=512
 preparation_lane_count=1
 case "$materialization_profile" in
-  native-framed-v1) ;;
-  openai-responses-v1)
+  native-framed-v1)
+    [ "$(bind_value max_batch_rows)" -eq 1 ] &&
+      [ "$(bind_value max_query_rows)" -eq 1 ] &&
+      [ "$(bind_value max_query_tokens)" -eq 1 ] ||
+      fail 'native correctness profile requires authenticated c1 release geometry'
+    ;;
+  native-framed-c32-benchmark-v1|openai-responses-v1)
     release_max_batch_rows=$(bind_value max_batch_rows)
     release_max_query_rows=$(bind_value max_query_rows)
     release_max_query_tokens=$(bind_value max_query_tokens)
     [ "$release_max_batch_rows" -eq 32 ] &&
       [ "$release_max_query_rows" -eq 32 ] &&
       [ "$release_max_query_tokens" -ge 32 ] ||
-      fail 'OpenAI benchmark profile requires authenticated c32 release geometry'
+      fail 'benchmark profile requires authenticated c32 release geometry'
     max_batch_rows=$release_max_batch_rows
     max_prefill_rows=$release_max_query_rows
     max_decode_rows=$release_max_query_rows
@@ -159,6 +164,10 @@ case "$materialization_profile" in
     scheduler_prefill_chunk_tokens=$release_max_query_tokens
     scheduler_output_event_capacity=16384
     preparation_lane_count=$release_max_batch_rows
+    ;;
+esac
+case "$materialization_profile" in
+  openai-responses-v1)
     policy_schema=lunaflux.instance-policy.v3
     external_protocol_json=',"external_protocol":{"mode":"openai_responses_v1","transport_security":"loopback_plaintext","control_authentication":"deployment_bearer","invocation_path":"/v1/responses","health_path":"/healthz","readiness_path":"/readyz","drain_path":"/v1/drain","drain_method":"POST"}'
     openai_service_json=',"openai_service":{"maximum_credential_bytes":128,"max_head_bytes":65536,"max_body_bytes":1048576,"http_step_work_units":256,"response_step_work_units":256,"inbound_step_work_units":256,"outbound_step_work_units":256,"max_messages":32,"system_prefix":"<|im_start|>system\\n","system_suffix":"<|im_end|>\\n","user_prefix":"<|im_start|>user\\n","user_suffix":"<|im_end|>\\n","assistant_prefix":"<|im_start|>assistant\\n","assistant_suffix":"<|im_end|>\\n","assistant_cue":"<|im_start|>assistant\\n","max_rendered_prompt_bytes":65536,"model_alias":"qwen3-0.6b-bf16","response_id_prefix":"resp_lunaflux_qwen3_","cache_scope_ascii":"qwen3-openai-v1","max_new_tokens":256,"context_ceiling":'"$max_sequence_tokens"',"sampling_seed":1,"deadline_milliseconds":60000}'
