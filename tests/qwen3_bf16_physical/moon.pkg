@@ -1,0 +1,35 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
+  "vectie/lunaflux/model/qwen3_weights",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/release/luna_bf16_candidate_export",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_reader",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

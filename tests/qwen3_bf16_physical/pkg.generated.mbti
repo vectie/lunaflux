@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/qwen3_bf16_physical"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Qwen3PhysicalError derive(@debug.Debug)
+
+// Types and methods
+type Qwen3PhysicalInputs
+
+type Qwen3ProbeBalance
+
+// Type aliases
+
+// Traits

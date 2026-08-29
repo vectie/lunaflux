@@ -1,0 +1,14 @@
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/x/sys",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "supervisor.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)
