@@ -47,7 +47,7 @@ for anchor in \
   'output_token_ids_sha256' \
   'return_token_ids' \
   'output_ids' \
-  'sampling_seed' \
+  'stream_interval' \
   'ignore_eos' \
   'lunaflux_lifecycle' \
   'owned_executables' \
@@ -84,6 +84,8 @@ for server in \
   scripts/start-qwen3-sglang-benchmark-server.sh; do
   rg -Fq 'unset PYTHONHOME PYTHONPATH PYTHONSTARTUP' "$server" ||
     fail "baseline launcher inherits unrelated Python environments: $server"
+  rg -Fq 'PATH=$environment/bin:/usr/bin:/bin' "$server" ||
+    fail "baseline launcher cannot find environment-local runtime tools: $server"
   rg -Fq '"$environment/bin/python"' "$server" || fail "server does not use the absolute pinned Conda environment: $server"
   if rg -Fq 'conda run' "$server"; then
     fail "server requires unsupported conda run: $server"
@@ -106,8 +108,8 @@ rg -Fq -- '--stream-interval 1' scripts/start-qwen3-vllm-benchmark-server.sh ||
   fail 'vLLM launcher does not expose one-token stream timing'
 rg -Fq -- '--disable-radix-cache' scripts/start-qwen3-sglang-benchmark-server.sh ||
   fail 'SGLang launcher does not disable radix/prefix caching'
-rg -Fq -- '--sampling-defaults openai' scripts/start-qwen3-sglang-benchmark-server.sh ||
-  fail 'SGLang launcher does not disable model-specific sampling defaults'
+rg -Fq -- '--random-seed 0' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not bind its process-level random seed'
 rg -Fq -- '--skip-tokenizer-init' scripts/start-qwen3-sglang-benchmark-server.sh ||
   fail 'SGLang launcher does not expose exact streamed output token IDs'
 rg -Fq -- '--stream-interval 1' scripts/start-qwen3-sglang-benchmark-server.sh ||

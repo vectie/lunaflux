@@ -22,6 +22,8 @@ case "$environment" in /*) ;; *) fail 'Conda environment prefix must be absolute
 [ -d "$environment" ] && [ ! -L "$environment" ] || fail 'Conda environment prefix is unavailable'
 [ "$(CDPATH= cd -- "$environment" && pwd -P)" = "$environment" ] || fail 'Conda environment prefix is not canonical'
 [ -x "$environment/bin/python" ] || fail 'Conda environment Python is unavailable'
+PATH=$environment/bin:/usr/bin:/bin
+export PATH
 [ "$host" = 127.0.0.1 ] || fail 'server must bind loopback'
 case "$port" in ''|*[!0-9]*) fail 'port is not decimal' ;; esac
 [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || fail 'port is outside bounds'

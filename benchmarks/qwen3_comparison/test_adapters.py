@@ -99,10 +99,31 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(observation.output_token_ids, [97, 98])
         body = captured[0][1]
         self.assertEqual(body["input_ids"], [21])
-        self.assertEqual(body["sampling_params"]["temperature"], 0)
-        self.assertEqual(body["sampling_params"]["sampling_seed"], 0)
-        self.assertIs(body["sampling_params"]["ignore_eos"], True)
-        self.assertNotIn("seed", body["sampling_params"])
+        self.assertEqual(
+            body["sampling_params"],
+            {
+                "max_new_tokens": 8,
+                "stop": None,
+                "stop_token_ids": [],
+                "temperature": 0,
+                "top_p": 1,
+                "top_k": 1,
+                "min_p": 0,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "repetition_penalty": 1,
+                "min_new_tokens": 0,
+                "n": 1,
+                "json_schema": None,
+                "regex": None,
+                "ebnf": None,
+                "structural_tag": None,
+                "ignore_eos": True,
+                "logit_bias": None,
+                "custom_params": None,
+                "stream_interval": 1,
+            },
+        )
 
     def test_baselines_fail_closed_without_exact_output_token_ids(self):
         for adapter, event in (

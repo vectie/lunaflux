@@ -33,8 +33,11 @@ the lifecycle and memory sampler inspect. Both baseline adapters consume the
 engines' exact streamed output-token IDs: vLLM uses
 `return_token_ids=true`, while SGLang runs with `--skip-tokenizer-init` and
 consumes `/generate`'s cumulative `output_ids` using its native
-`sampling_seed=0` spelling. Text retokenization is never used as a substitute
-for correctness. The exact output IDs from every engine are decoded once by
+server-level `--random-seed 0` spelling. Its request binds every sampling
+parameter explicitly, including greedy `top_k=1`, neutral penalties, no stop
+constraints, `ignore_eos=true`, and a one-token stream interval; model
+generation defaults cannot enter the workload. Text retokenization is never
+used as a substitute for correctness. The exact output IDs from every engine are decoded once by
 the same pinned Qwen tokenizer after the measured response completes. Both
 launchers bind a one-token stream
 interval so per-token timing fails closed if an engine batches token events.
@@ -44,9 +47,8 @@ CUDA-graph paths cold.
 All three adapters also bind `ignore_eos=true`; the prefill and decode profiles
 therefore measure the same fixed 32- and 256-token continuations rather than
 engine-specific EOS stopping behavior.
-SGLang is launched with `--sampling-defaults openai`, matching vLLM's
-`--generation-config vllm` boundary, so model-specific generation defaults
-cannot silently alter the explicit neutral greedy request.
+vLLM is launched with `--generation-config vllm`; SGLang receives the same
+neutral greedy policy explicitly in every native `/generate` request.
 
 The hardware-capacity declaration must admit concurrency 32. LunaFlux must
 also supply a digest-bound authenticated capacity receipt for the exact model,
