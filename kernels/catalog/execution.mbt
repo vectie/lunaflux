@@ -5,10 +5,10 @@
 /// per-layer Key and Value component bases; ordered page metadata indexes the
 /// bound layout without specializing on total physical page count.
 pub struct KernelExecutionSemantics {
-  kv_layer : @plan.KvLayerId?
-  runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
-  persistent_state : @plan.PersistentStateAccess
-  kv_layout : PagedKvLayoutContract?
+  priv kv_layer : @plan.KvLayerId?
+  priv runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
+  priv persistent_state : @plan.PersistentStateAccess
+  priv kv_layout : PagedKvLayoutContract?
 } derive(Debug, Eq)
 
 ///|
@@ -17,9 +17,9 @@ pub struct KernelExecutionSemantics {
 /// Total physical page count is deliberately absent: it sizes admitted
 /// component spans but must not specialize kernel indexing.
 pub struct PagedKvLayoutContract {
-  layout : @plan.KvCacheLayout
-  stable_version : Int
-  tokens_per_page : Int
+  priv layout : @plan.KvCacheLayout
+  priv stable_version : Int
+  priv tokens_per_page : Int
 } derive(Debug, Eq)
 
 ///|

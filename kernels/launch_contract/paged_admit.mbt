@@ -115,6 +115,11 @@ fn validate_paged_operand_set(
   operands : ReadOnlyArray[AotOperand],
   maximum : Int,
 ) -> Unit raise LaunchContractError {
+  for operand in operands {
+    if operand.role is WeightScaleInput(_, _) {
+      raise InvalidOperand(operation.id(), UnexpectedSemanticRole)
+    }
+  }
   if operands.is_empty() || operands.length() > maximum {
     raise OperandCountExceeded(operation=operation.id(), maximum~)
   }
@@ -146,6 +151,8 @@ fn validate_paged_operand_set(
       | WeightInput(_)
       | ActivationInput(_)
       | ActivationOutput(_) => ()
+      WeightScaleInput(_, _) =>
+        raise InvalidOperand(operation.id(), UnexpectedSemanticRole)
     }
   }
 }

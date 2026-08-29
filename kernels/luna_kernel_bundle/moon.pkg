@@ -1,0 +1,25 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/full_graph_manifest",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_aot",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/kernels/luna_cuda_fp8_projection_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/kernels/artifact_file",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan_test_fixture",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

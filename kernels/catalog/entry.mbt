@@ -1,16 +1,18 @@
 ///|
 /// One immutable exact-match catalog entry.
 pub struct CatalogEntry {
-  semantic_version : KernelSemanticVersion
-  operation_kind : @plan.OperationKind
-  operation_shape : @plan.OperationShape
-  capability : @plan.KernelCapabilityId
-  compute_major : Int
-  compute_minor : Int
-  implementation : KernelImplementationId
-  workspace_bytes : Int64
-  workspace_alignment : Int64
-  execution_semantics : KernelExecutionSemantics?
+  priv semantic_version : KernelSemanticVersion
+  priv operation_kind : @plan.OperationKind
+  priv operation_shape : @plan.OperationShape
+  priv capability : @plan.KernelCapabilityId
+  priv compute_major : Int
+  priv compute_minor : Int
+  priv implementation : KernelImplementationId
+  priv workspace_bytes : Int64
+  priv workspace_alignment : Int64
+  priv execution_semantics : KernelExecutionSemantics?
+  priv operation_execution_digest : @numeric_contract.OperationExecutionDigest?
+  priv aot_entry_point : AotKernelEntryPoint?
 } derive(Debug, Eq)
 
 ///|
@@ -79,13 +81,15 @@ fn operation_capability_is_legal(
     RmsNorm => @plan.KernelCapabilityId::rms_norm()
     QkvProjection => @plan.KernelCapabilityId::qkv_projection()
     RotaryEmbedding =>
-      if semantic_version == KernelSemanticVersion::v3() {
+      if semantic_version == KernelSemanticVersion::v3() ||
+        semantic_version == KernelSemanticVersion::v4() {
         @plan.KernelCapabilityId::positioned_rotary_embedding()
       } else {
         @plan.KernelCapabilityId::rotary_embedding()
       }
     CausalAttention =>
-      if semantic_version == KernelSemanticVersion::v3() {
+      if semantic_version == KernelSemanticVersion::v3() ||
+        semantic_version == KernelSemanticVersion::v4() {
         @plan.KernelCapabilityId::paged_causal_attention()
       } else {
         @plan.KernelCapabilityId::causal_attention()
@@ -149,6 +153,8 @@ pub fn CatalogEntry::new(
     workspace_bytes,
     workspace_alignment,
     execution_semantics: None,
+    operation_execution_digest: None,
+    aot_entry_point: None,
   }
 }
 
@@ -214,6 +220,8 @@ pub fn CatalogEntry::new_paged_v3(
     workspace_bytes,
     workspace_alignment,
     execution_semantics: Some(execution_semantics),
+    operation_execution_digest: None,
+    aot_entry_point: None,
   }
 }
 
@@ -275,4 +283,20 @@ pub fn CatalogEntry::execution_semantics(
   self : CatalogEntry,
 ) -> KernelExecutionSemantics? {
   self.execution_semantics
+}
+
+///|
+/// Exact numeric operation ABI for catalog v4; legacy entries return `None`.
+pub fn CatalogEntry::operation_execution_digest(
+  self : CatalogEntry,
+) -> @numeric_contract.OperationExecutionDigest? {
+  self.operation_execution_digest
+}
+
+///|
+/// Exact content-addressed callable identity for catalog v4.
+pub fn CatalogEntry::aot_entry_point(
+  self : CatalogEntry,
+) -> AotKernelEntryPoint? {
+  self.aot_entry_point
 }

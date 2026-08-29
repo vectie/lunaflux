@@ -49,3 +49,38 @@ residual, MLP, and language-model-head launches; supplying any such contract
 fails closed. `admit_paged_graph` instead requires one exact AOT contract for
 every operation and marks the result `FullGraph`. The explicit scope prevents
 partial rotary/attention evidence from being mistaken for a complete graph.
+
+## Full paged graph semantic version 4
+
+`admit_paged_graph_v4` is a separate, opaque catalog-v4 admission API. It
+admits exactly one contract for every operation and profile in the full paged
+graph, in canonical profile-major then operation-major order; it has no KV
+subsequence mode. The caller supplies storage claims but cannot choose their
+semantic association. Runtime inputs come first, then each semantic input. A
+schema-owned scale is placed immediately after its scaled weight as
+`WeightScaleInput(weight, scale)`, followed by outputs, Key then Value KV
+components, and optional workspace.
+
+Weight and scale byte counts come from the canonical numeric storage schema.
+The result retains the model numeric schema digest, and every contract retains
+the exact operation execution digest and catalog-owned AOT entry point. Full
+model identity, KV identity and geometry, semantic version, binding order,
+capability, execution digest, entry point, roles, sizes, and alignments must all
+agree. Caller-supplied launch dimensions are checked for a bounded legal shape
+and retained inertly; this package has no trusted catalog dimension source to
+cross-authenticate them. Missing, extra, duplicate, reordered, or swapped scales
+fail closed, as do scale metadata on unscaled BF16 tensors and any zero-point or
+codebook execution association.
+
+The v4 result is inert evidence. It does not admit an artifact, load or
+materialize weights, allocate device memory, construct device arguments,
+serialize a bootstrap, or launch work. It does not claim device execution,
+tensor parallelism, numerical correctness, performance, support, or readiness.
+It does not claim readiness under any runtime or hardware configuration.
+The legacy v1 and v3 paths reject both catalog v4 and `WeightScaleInput` before
+publication or proportional resource work.
+
+All launch primitives, caller inputs, admitted results, and result sets have
+opaque representations. Public input factories reject more than 32 operands
+before making a defensive array copy; only validated accessors expose the
+owned contents.

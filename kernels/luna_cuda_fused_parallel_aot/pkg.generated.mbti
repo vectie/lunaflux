@@ -1,0 +1,249 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_fused_qkv_rope_kv_promotion_evidence(FusedQkvRopeKvWriteCudaCandidate, FusedParallelDigest, ArrayView[FusedParallelPromotionTrial], FusedParallelPromotionLimits) -> FusedParallelPromotionEvidence raise FusedParallelAotError
+
+pub fn admit_fused_residual_rmsnorm_promotion_evidence(FusedResidualRmsNormCudaCandidate, FusedParallelDigest, ArrayView[FusedParallelPromotionTrial], FusedParallelPromotionLimits) -> FusedParallelPromotionEvidence raise FusedParallelAotError
+
+pub fn bind_fused_qkv_rope_kv_compiled_candidate(FusedQkvRopeKvWriteCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
+pub fn bind_fused_qkv_rope_kv_promotion_evidence(FusedQkvRopeKvWriteCudaCandidate, FusedParallelPromotionEvidence, FusedParallelAotLimits) -> FusedParallelPromotionBinding raise FusedParallelAotError
+
+pub fn bind_fused_qkv_rope_paged_kv_write_production_compiled_candidate(FusedQkvRopeKvWriteProductionCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
+pub fn bind_fused_residual_rmsnorm_compiled_candidate(FusedResidualRmsNormCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
+pub fn bind_fused_residual_rmsnorm_production_compiled_candidate(FusedResidualRmsNormProductionCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
+pub fn bind_fused_residual_rmsnorm_promotion_evidence(FusedResidualRmsNormCudaCandidate, FusedParallelPromotionEvidence, FusedParallelAotLimits) -> FusedParallelPromotionBinding raise FusedParallelAotError
+
+pub fn lower_fused_qkv_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_cuda_projection_aot.ProjectionCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits) -> FusedQkvRopeKvWriteCudaCandidate raise FusedParallelAotError
+
+pub fn lower_fused_qkv_rope_paged_kv_write_production_candidate(FusedQkvRopeKvWriteCudaCandidate, FusedParallelAotLimits) -> FusedQkvRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
+
+pub fn lower_fused_residual_rmsnorm_candidate(@plan.ModelPlan, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits) -> FusedResidualRmsNormCudaCandidate raise FusedParallelAotError
+
+pub fn lower_fused_residual_rmsnorm_production_candidate(FusedResidualRmsNormCudaCandidate, FusedParallelAotLimits) -> FusedResidualRmsNormProductionCudaCandidate raise FusedParallelAotError
+
+// Errors
+pub(all) suberror FusedParallelAotError {
+  FusedParallelInvalid(FusedParallelAotRule)
+  FusedParallelUnsupported(FusedParallelAotRule)
+  FusedParallelMismatch(FusedParallelAotRule)
+  FusedParallelLimitExceeded(FusedParallelAotRule)
+  FusedParallelOverflow(FusedParallelAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FusedParallelAotLimits {
+  // private fields
+}
+pub fn FusedParallelAotLimits::new(maximum_source_bytes~ : Int, maximum_recipe_bytes~ : Int, maximum_promotion_bytes~ : Int) -> Self raise FusedParallelAotError
+
+pub(all) enum FusedParallelAotRule {
+  Limits
+  Plan
+  Operation
+  OperationOrder
+  Shape
+  Profile
+  KvLayout
+  DeviceTarget
+  CompilerPolicy
+  ReferenceFallback
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  StaticResources
+  Source
+  Recipe
+  Digest
+  CompileReceipt
+  CompiledArtifact
+  Determinism
+  KernelAbi
+  Evidence
+  ObservationOrder
+  Correctness
+  MicrobenchmarkWin
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FusedParallelArtifactPurpose {
+  QualificationDiagnostics
+  ProductionFastPath
+} derive(Eq, @debug.Debug)
+
+pub struct FusedParallelCompiledArtifactBinding {
+  // private fields
+}
+pub fn FusedParallelCompiledArtifactBinding::artifact_purpose(Self) -> FusedParallelArtifactPurpose
+pub fn FusedParallelCompiledArtifactBinding::binding_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::binding_record_bytes(Self) -> Bytes
+pub fn FusedParallelCompiledArtifactBinding::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::compile_receipt_bytes(Self) -> Bytes
+pub fn FusedParallelCompiledArtifactBinding::compile_receipt_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::dispatch_canary_per_token(Self) -> UInt
+pub fn FusedParallelCompiledArtifactBinding::driver_identity_sha256(Self) -> String
+pub fn FusedParallelCompiledArtifactBinding::family(Self) -> FusedParallelFamily
+pub fn FusedParallelCompiledArtifactBinding::function_symbol(Self) -> String
+pub fn FusedParallelCompiledArtifactBinding::kernel_abi(Self) -> FusedParallelKernelAbi
+pub fn FusedParallelCompiledArtifactBinding::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedParallelCompiledArtifactBinding::manifest_bindable(Self) -> Bool
+pub fn FusedParallelCompiledArtifactBinding::module_bytes(Self) -> Bytes
+pub fn FusedParallelCompiledArtifactBinding::module_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::qualification_candidate_digest(Self) -> FusedParallelDigest?
+pub fn FusedParallelCompiledArtifactBinding::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::source_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelCompiledArtifactBinding::target(Self) -> @catalog.DeviceTarget
+pub fn FusedParallelCompiledArtifactBinding::toolchain_digest_sha256(Self) -> String
+
+pub struct FusedParallelCompiledArtifactLimits {
+  // private fields
+}
+pub fn FusedParallelCompiledArtifactLimits::new(maximum_module_bytes~ : Int64, maximum_receipt_bytes~ : Int, maximum_binding_bytes~ : Int) -> Self raise FusedParallelAotError
+
+pub struct FusedParallelDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn FusedParallelDigest::as_hex(Self) -> String
+pub fn FusedParallelDigest::from_sha256(String) -> Self raise FusedParallelAotError
+
+pub(all) enum FusedParallelFamily {
+  QkvPositionedRopePagedKvWrite
+  ResidualRmsNorm
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FusedParallelKernelAbi {
+  QkvPositionedRopePagedKvWriteAbiV1
+  QkvPositionedRopePagedKvWriteProductionAbiV2
+  ResidualRmsNormAbiV1
+  ResidualRmsNormProductionAbiV2
+} derive(Eq, @debug.Debug)
+pub fn FusedParallelKernelAbi::canonical_name(Self) -> String
+
+pub(all) enum FusedParallelNumericalPolicy {
+  QkvRopeKvWriteOrderedF32TranscendentalToleranceV1
+  ResidualRmsNormBlock128F32ReductionToleranceV1
+} derive(Eq, @debug.Debug)
+pub fn FusedParallelNumericalPolicy::maximum_absolute_error_ppb(Self) -> Int64
+pub fn FusedParallelNumericalPolicy::maximum_relative_error_ppb(Self) -> Int64
+pub fn FusedParallelNumericalPolicy::name(Self) -> String
+
+pub struct FusedParallelPromotionBinding {
+  // private fields
+}
+pub fn FusedParallelPromotionBinding::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionBinding::digest(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionBinding::evidence(Self) -> FusedParallelPromotionEvidence
+pub fn FusedParallelPromotionBinding::family(Self) -> FusedParallelFamily
+pub fn FusedParallelPromotionBinding::manifest_bindable(Self) -> Bool
+pub fn FusedParallelPromotionBinding::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionBinding::record_bytes(Self) -> Bytes
+pub fn FusedParallelPromotionBinding::source_digest(Self) -> FusedParallelDigest
+
+pub struct FusedParallelPromotionEvidence {
+  // private fields
+}
+pub fn FusedParallelPromotionEvidence::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionEvidence::canonical_bytes(Self) -> Bytes
+pub fn FusedParallelPromotionEvidence::digest(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionEvidence::manifest_bindable(Self) -> Bool
+pub fn FusedParallelPromotionEvidence::static_resource_audit(Self) -> FusedParallelDigest
+pub fn FusedParallelPromotionEvidence::trial_count(Self) -> Int
+
+pub struct FusedParallelPromotionLimits {
+  // private fields
+}
+pub fn FusedParallelPromotionLimits::new(maximum_shapes~ : Int, trials_per_shape~ : Int, maximum_canonical_bytes~ : Int) -> Self raise FusedParallelAotError
+
+pub struct FusedParallelPromotionTrial {
+  // private fields
+}
+pub fn FusedParallelPromotionTrial::new(shape_ordinal~ : Int, trial_ordinal~ : Int, baseline_duration_ns~ : Int64, candidate_duration_ns~ : Int64, maximum_absolute_error_ppb~ : Int64, maximum_relative_error_ppb~ : Int64, correctness~ : FusedParallelDigest, dispatch_canary~ : FusedParallelDigest) -> Self raise FusedParallelAotError
+
+pub struct FusedQkvRopeKvWriteCudaCandidate {
+  // private fields
+}
+pub fn FusedQkvRopeKvWriteCudaCandidate::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn FusedQkvRopeKvWriteCudaCandidate::dispatch_canary(Self) -> UInt
+pub fn FusedQkvRopeKvWriteCudaCandidate::function_symbol(Self) -> String
+pub fn FusedQkvRopeKvWriteCudaCandidate::head_dimension(Self) -> Int
+pub fn FusedQkvRopeKvWriteCudaCandidate::kv_write_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+pub fn FusedQkvRopeKvWriteCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedQkvRopeKvWriteCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn FusedQkvRopeKvWriteCudaCandidate::numerical_policy(Self) -> FusedParallelNumericalPolicy
+pub fn FusedQkvRopeKvWriteCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn FusedQkvRopeKvWriteCudaCandidate::qkv_fallback(Self) -> @luna_cuda_projection_aot.ProjectionCudaLowering
+pub fn FusedQkvRopeKvWriteCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn FusedQkvRopeKvWriteCudaCandidate::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteCudaCandidate::rope_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+pub fn FusedQkvRopeKvWriteCudaCandidate::source_bytes(Self) -> Bytes
+pub fn FusedQkvRopeKvWriteCudaCandidate::source_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn FusedQkvRopeKvWriteCudaCandidate::tokens_per_page(Self) -> Int
+
+pub struct FusedQkvRopeKvWriteProductionCudaCandidate {
+  // private fields
+}
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::function_symbol(Self) -> String
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::qualification_candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::source_digest(Self) -> FusedParallelDigest
+pub fn FusedQkvRopeKvWriteProductionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct FusedResidualRmsNormCudaCandidate {
+  // private fields
+}
+pub fn FusedResidualRmsNormCudaCandidate::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn FusedResidualRmsNormCudaCandidate::dispatch_canary(Self) -> UInt
+pub fn FusedResidualRmsNormCudaCandidate::function_symbol(Self) -> String
+pub fn FusedResidualRmsNormCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedResidualRmsNormCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn FusedResidualRmsNormCudaCandidate::norm_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+pub fn FusedResidualRmsNormCudaCandidate::numerical_policy(Self) -> FusedParallelNumericalPolicy
+pub fn FusedResidualRmsNormCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn FusedResidualRmsNormCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn FusedResidualRmsNormCudaCandidate::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormCudaCandidate::residual_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+pub fn FusedResidualRmsNormCudaCandidate::source_bytes(Self) -> Bytes
+pub fn FusedResidualRmsNormCudaCandidate::source_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn FusedResidualRmsNormCudaCandidate::width(Self) -> Int
+
+pub struct FusedResidualRmsNormProductionCudaCandidate {
+  // private fields
+}
+pub fn FusedResidualRmsNormProductionCudaCandidate::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormProductionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn FusedResidualRmsNormProductionCudaCandidate::function_symbol(Self) -> String
+pub fn FusedResidualRmsNormProductionCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedResidualRmsNormProductionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn FusedResidualRmsNormProductionCudaCandidate::numerical_policy(Self) -> FusedParallelNumericalPolicy
+pub fn FusedResidualRmsNormProductionCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn FusedResidualRmsNormProductionCudaCandidate::qualification_candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormProductionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn FusedResidualRmsNormProductionCudaCandidate::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormProductionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn FusedResidualRmsNormProductionCudaCandidate::source_digest(Self) -> FusedParallelDigest
+pub fn FusedResidualRmsNormProductionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+// Type aliases
+
+// Traits

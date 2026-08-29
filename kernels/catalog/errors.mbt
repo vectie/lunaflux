@@ -10,6 +10,7 @@ pub(all) enum CatalogValidationRule {
   InvalidArtifactDigest
   InvalidAotFamilyId
   InvalidAotEntryPointId
+  AotEntryPointFamilyMismatch
   InvalidWorkspaceBytes
   InvalidWorkspaceAlignment
   OperationShapeMismatch
@@ -26,6 +27,7 @@ pub(all) enum CatalogValidationRule {
 pub(all) suberror CatalogError {
   InvalidCatalog(CatalogValidationRule)
   UnsupportedExecutionContract
+  UnsupportedNumericContract(@plan.OperationId)
   DeviceKvLayoutMismatch
   MissingKernel(@plan.OperationId)
   IncompatibleTarget(@plan.OperationId)

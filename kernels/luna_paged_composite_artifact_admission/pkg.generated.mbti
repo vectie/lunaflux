@@ -1,0 +1,121 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_readonly_aot",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_digest_pinned_fused_production_runtime(Bytes, String) -> DigestPinnedFusedProductionRuntime raise PagedCompositeArtifactError
+
+pub fn admit_paged_attention_readonly_runtime_identity(manifest_sha256~ : String, catalog_sha256~ : String, approval_record_sha256~ : String, runtime_device_sha256~ : String, candidate_sha256~ : String, source_sha256~ : String, recipe_sha256~ : String, fallback_source_sha256~ : String, fallback_recipe_sha256~ : String, compiled_binding_sha256~ : String, module_sha256~ : String, physical_evidence_sha256~ : String, approved_policy_sha256~ : String, toolchain_sha256~ : String, driver_sha256~ : String, target~ : @catalog.DeviceTarget, operation~ : Int, activation~ : Int, input_row_width~ : Int, profile_id~ : Int, profile_rows~ : Int, profile_tokens~ : Int, profile_page_entries~ : Int, tokens_per_page~ : Int, page_stride_bytes~ : Int64, physical_page_capacity~ : Int64, symbol~ : String, abi~ : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyKernelAbi, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, dispatch_canary~ : Int, dispatch_canary_cells~ : Int, approved_device_uuid~ : String, approved_device_pci~ : String, approved_device_name_hex~ : String, approved_device_memory_bytes~ : Int64, manifest_approval~ : @luna_capability_manifest.LunaAdmittedExternalRecord, runtime_device_approval~ : @luna_capability_manifest.LunaAdmittedExternalRecord, live_device~ : @device.ContextDeviceIdentity) -> ApprovedPagedAttentionReadOnlyRuntimeIdentity raise PagedCompositeArtifactError
+
+pub fn export_digest_pinned_fused_production_runtime(ApprovedFusedQkvReadOnlyProductionArtifacts) -> Bytes
+
+pub fn qualified_paged_kv_write_fallback_identity(model_content_sha256~ : String, model_plan_sha256~ : String, candidate_sha256~ : String, source_sha256~ : String, recipe_sha256~ : String, compiled_binding_sha256~ : String, module_sha256~ : String, physical_evidence_sha256~ : String, approved_policy_sha256~ : String, fallback_source_sha256~ : String, fallback_recipe_sha256~ : String, operation~ : @plan.OperationId, activation~ : @plan.ActivationRef, row_width~ : Int, target~ : @catalog.DeviceTarget, profile~ : @launch_contract.PagedKernelProfile, tokens_per_page~ : Int, total_page_count~ : Int, page_stride_bytes~ : Int64, toolchain_sha256~ : String, driver_sha256~ : String) -> QualifiedPagedKvWriteFallbackIdentity raise PagedCompositeArtifactError
+
+pub fn select_fused_qkv_readonly_production_artifacts(@luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelBundle, ApprovedPagedAttentionReadOnlyRuntimeIdentity, QualifiedPagedKvWriteFallbackIdentity) -> ApprovedFusedQkvReadOnlyProductionArtifacts? raise PagedCompositeArtifactError
+
+// Errors
+pub(all) suberror PagedCompositeArtifactError {
+  InvalidPagedCompositeArtifact(PagedCompositeArtifactRule)
+  MismatchedPagedCompositeArtifact(PagedCompositeArtifactRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ApprovedFusedQkvReadOnlyProductionArtifacts {
+  // private fields
+}
+pub fn ApprovedFusedQkvReadOnlyProductionArtifacts::fused_bundle(Self) -> @luna_fused_artifact_admission.ApprovedFusedKernelBundle
+pub fn ApprovedFusedQkvReadOnlyProductionArtifacts::fused_catalog(Self) -> @luna_fused_artifact_admission.ApprovedFusedKernelCatalog
+pub fn ApprovedFusedQkvReadOnlyProductionArtifacts::kv_write_fallback(Self) -> QualifiedPagedKvWriteFallbackIdentity
+pub fn ApprovedFusedQkvReadOnlyProductionArtifacts::readonly_identity(Self) -> ApprovedPagedAttentionReadOnlyRuntimeIdentity
+
+pub struct ApprovedPagedAttentionReadOnlyRuntimeIdentity {
+  // private fields
+}
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::activation_ref(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::approved_device_name_hex(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::approved_device_pci_bus_id(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::approved_device_total_memory_bytes(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::approved_device_uuid(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::approved_policy_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::candidate_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::catalog_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::compiled_binding_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::dispatch_canary_cell_count(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::dispatch_canary_per_token(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::driver_identity_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::fallback_recipe_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::fallback_source_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::function_symbol(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::input_row_width(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::kernel_abi(Self) -> @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyKernelAbi
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::manifest_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::module_bytes(Self) -> Bytes
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::module_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::operation_id(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::page_stride_bytes(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::physical_evidence_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::physical_page_capacity(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::profile_id(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::profile_shape(Self) -> (Int, Int, Int)
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::recipe_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::runtime_device_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::source_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::target(Self) -> @catalog.DeviceTarget
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::tokens_per_page(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::toolchain_digest_sha256(Self) -> String
+
+pub struct DigestPinnedFusedProductionRuntime {
+  // private fields
+}
+pub fn DigestPinnedFusedProductionRuntime::bind_live_device(Self, @device.ContextDeviceIdentity) -> ApprovedFusedQkvReadOnlyProductionArtifacts raise PagedCompositeArtifactError
+pub fn DigestPinnedFusedProductionRuntime::fused_bundle(Self) -> @luna_fused_artifact_admission.ApprovedFusedKernelBundle
+pub fn DigestPinnedFusedProductionRuntime::fused_catalog(Self) -> @luna_fused_artifact_admission.ApprovedFusedKernelCatalog
+
+pub(all) enum PagedCompositeArtifactRule {
+  Approval
+  Digest
+  Module
+  KernelAbi
+  RuntimeDevice
+  Fallback
+} derive(Eq, @debug.Debug)
+
+pub struct QualifiedPagedKvWriteFallbackIdentity {
+  // private fields
+}
+pub fn QualifiedPagedKvWriteFallbackIdentity::approved_policy_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::candidate_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::compiled_binding_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::driver_identity_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::fallback_recipe_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::fallback_source_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::model_content_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::model_plan_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::module_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::operation_id(Self) -> @plan.OperationId
+pub fn QualifiedPagedKvWriteFallbackIdentity::page_stride_bytes(Self) -> Int64
+pub fn QualifiedPagedKvWriteFallbackIdentity::physical_evidence_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::positioned_qkv_activation(Self) -> @plan.ActivationRef
+pub fn QualifiedPagedKvWriteFallbackIdentity::positioned_qkv_row_width(Self) -> Int
+pub fn QualifiedPagedKvWriteFallbackIdentity::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn QualifiedPagedKvWriteFallbackIdentity::recipe_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::source_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::target(Self) -> @catalog.DeviceTarget
+pub fn QualifiedPagedKvWriteFallbackIdentity::tokens_per_page(Self) -> Int
+pub fn QualifiedPagedKvWriteFallbackIdentity::toolchain_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteFallbackIdentity::total_page_count(Self) -> Int
+
+// Type aliases
+
+// Traits

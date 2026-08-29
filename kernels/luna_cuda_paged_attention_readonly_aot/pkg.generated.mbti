@@ -1,0 +1,120 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_paged_attention_readonly_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn bind_paged_attention_readonly_compiled_candidate(PagedAttentionReadOnlyCudaCandidate, Bytes, Bytes, Bytes, PagedAttentionReadOnlyDigest, PagedAttentionReadOnlyCompiledLimits) -> PagedAttentionReadOnlyCompiledBinding raise PagedAttentionReadOnlyAotError
+
+pub fn lower_paged_attention_readonly_cuda_aot_candidate(@luna_cuda_paged_attention_aot.PagedAttentionCudaLowering, @catalog.AotKernelEntryPointId, PagedAttentionReadOnlyAotLimits) -> PagedAttentionReadOnlyCudaCandidate raise PagedAttentionReadOnlyAotError
+
+pub fn lower_paged_attention_readonly_production_cuda_aot_candidate(PagedAttentionReadOnlyCudaCandidate, PagedAttentionReadOnlyAotLimits) -> PagedAttentionReadOnlyProductionCudaCandidate raise PagedAttentionReadOnlyAotError
+
+// Errors
+pub(all) suberror PagedAttentionReadOnlyAotError {
+  PagedAttentionReadOnlyInvalid(PagedAttentionReadOnlyRule)
+  PagedAttentionReadOnlyMismatch(PagedAttentionReadOnlyRule)
+  PagedAttentionReadOnlyLimitExceeded(PagedAttentionReadOnlyRule)
+}
+
+// Types and methods
+pub struct PagedAttentionReadOnlyAotLimits {
+  // private fields
+}
+pub fn PagedAttentionReadOnlyAotLimits::new(maximum_source_bytes~ : Int, maximum_recipe_bytes~ : Int, maximum_canonical_bytes~ : Int) -> Self raise PagedAttentionReadOnlyAotError
+
+pub struct PagedAttentionReadOnlyCompiledBinding {
+  // private fields
+}
+pub fn PagedAttentionReadOnlyCompiledBinding::binding_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCompiledBinding::binding_record_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCompiledBinding::candidate_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCompiledBinding::compile_receipt_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCompiledBinding::compile_receipt_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCompiledBinding::fallback_source_digest(Self) -> String
+pub fn PagedAttentionReadOnlyCompiledBinding::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionReadOnlyCompiledBinding::module_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCompiledBinding::module_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCompiledBinding::promotion_authorized(Self) -> Bool
+pub fn PagedAttentionReadOnlyCompiledBinding::recipe_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCompiledBinding::source_digest(Self) -> PagedAttentionReadOnlyDigest
+
+pub struct PagedAttentionReadOnlyCompiledLimits {
+  // private fields
+}
+pub fn PagedAttentionReadOnlyCompiledLimits::new(maximum_module_bytes~ : Int64, maximum_receipt_bytes~ : Int, maximum_binding_bytes~ : Int) -> Self raise PagedAttentionReadOnlyAotError
+
+pub struct PagedAttentionReadOnlyCudaCandidate {
+  // private fields
+}
+pub fn PagedAttentionReadOnlyCudaCandidate::candidate_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCudaCandidate::canonical_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCudaCandidate::dispatch_canary_per_token(Self) -> Int
+pub fn PagedAttentionReadOnlyCudaCandidate::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PagedAttentionReadOnlyCudaCandidate::function_symbol(Self) -> String
+pub fn PagedAttentionReadOnlyCudaCandidate::input_activation(Self) -> @plan.ActivationRef
+pub fn PagedAttentionReadOnlyCudaCandidate::input_row_width(Self) -> Int
+pub fn PagedAttentionReadOnlyCudaCandidate::kernel_abi(Self) -> PagedAttentionReadOnlyKernelAbi
+pub fn PagedAttentionReadOnlyCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionReadOnlyCudaCandidate::operation_id(Self) -> @plan.OperationId
+pub fn PagedAttentionReadOnlyCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedAttentionReadOnlyCudaCandidate::promotion_authorized(Self) -> Bool
+pub fn PagedAttentionReadOnlyCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCudaCandidate::recipe_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCudaCandidate::reference_fallback(Self) -> @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering
+pub fn PagedAttentionReadOnlyCudaCandidate::source_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyCudaCandidate::source_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct PagedAttentionReadOnlyDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedAttentionReadOnlyDigest::as_hex(Self) -> String
+pub fn PagedAttentionReadOnlyDigest::from_sha256(String) -> Self raise PagedAttentionReadOnlyAotError
+
+pub(all) enum PagedAttentionReadOnlyKernelAbi {
+  RotatedQueryPagedKvReadOnlyRawPointerV1
+  RotatedQueryPagedKvReadOnlyProductionRawPointerV2
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionReadOnlyKernelAbi::canonical_name(Self) -> String
+
+pub struct PagedAttentionReadOnlyProductionCudaCandidate {
+  // private fields
+}
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::candidate_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::canonical_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::function_symbol(Self) -> String
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::kernel_abi(Self) -> PagedAttentionReadOnlyKernelAbi
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::qualification_candidate_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::recipe_digest(Self) -> PagedAttentionReadOnlyDigest
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::source_digest(Self) -> PagedAttentionReadOnlyDigest
+
+pub(all) enum PagedAttentionReadOnlyRule {
+  Limits
+  Reference
+  Operation
+  Profile
+  KvLayout
+  DeviceTarget
+  CompilerPolicy
+  KernelAbi
+  Symbol
+  Source
+  Recipe
+  Digest
+  CompiledArtifact
+  CompileReceipt
+  Determinism
+  Evidence
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -6,43 +6,51 @@
 /// copy. The Bytes constructor accepts an already immutable owned snapshot
 /// without another module-sized copy. The private variants make mixed or
 /// missing ownership states unrepresentable outside this package.
-pub enum KernelModuleInput {
-  AliasedModule(@catalog.AotArtifactDigest, FixedArray[Byte])
-  OwnedModule(@catalog.AotArtifactDigest, Bytes)
+priv enum KernelModuleStorage {
+  AliasedModule(FixedArray[Byte])
+  OwnedModule(Bytes)
+}
+
+///|
+/// Opaque untrusted module declaration accepted only through explicit
+/// ownership-mode factories.
+pub struct KernelModuleInput {
+  priv digest : @catalog.AotArtifactDigest
+  priv storage : KernelModuleStorage
 }
 
 ///|
 /// Untrusted symbol mapping for one exact stable entry-point identity.
 pub struct KernelEntryPointInput {
-  entry_point : @catalog.AotKernelEntryPoint
-  function_symbol : String
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv function_symbol : String
 }
 
 ///|
 /// One admitted immutable AOT module. Each digest is retained exactly once.
 pub struct KernelModule {
-  digest : @catalog.AotArtifactDigest
-  module_bytes : Bytes
+  priv digest : @catalog.AotArtifactDigest
+  priv module_bytes : Bytes
 }
 
 ///|
 /// One admitted immutable mapping from stable identity to bounded CUDA symbol.
 pub struct KernelEntryPoint {
-  entry_point : @catalog.AotKernelEntryPoint
-  module_index : Int
-  function_symbol : String
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv module_index : Int
+  priv function_symbol : String
 }
 
 ///|
 /// Complete immutable modules and entry points required by one exact launch
 /// contract set. Runtime lookup uses integer identities over ordered arrays.
 pub struct KernelArtifactBundle {
-  model_identity : @spec.ModelIdentity
-  device_target : @catalog.DeviceTarget
-  catalog_version : @catalog.CatalogVersion
-  modules : ReadOnlyArray[KernelModule]
-  entry_points : ReadOnlyArray[KernelEntryPoint]
-  total_module_bytes : Int64
+  priv model_identity : @spec.ModelIdentity
+  priv device_target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv modules : ReadOnlyArray[KernelModule]
+  priv entry_points : ReadOnlyArray[KernelEntryPoint]
+  priv total_module_bytes : Int64
 }
 
 ///|
@@ -50,7 +58,7 @@ pub fn KernelModuleInput::new(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : FixedArray[Byte],
 ) -> KernelModuleInput {
-  AliasedModule(digest, module_bytes)
+  { digest, storage: AliasedModule(module_bytes) }
 }
 
 ///|
@@ -62,7 +70,7 @@ pub fn KernelModuleInput::from_bytes(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : Bytes,
 ) -> KernelModuleInput {
-  OwnedModule(digest, module_bytes)
+  { digest, storage: OwnedModule(module_bytes) }
 }
 
 ///|
@@ -71,6 +79,20 @@ pub fn KernelEntryPointInput::new(
   function_symbol~ : String,
 ) -> KernelEntryPointInput {
   { entry_point, function_symbol }
+}
+
+///|
+pub fn KernelEntryPointInput::identity(
+  self : KernelEntryPointInput,
+) -> @catalog.AotKernelEntryPoint {
+  self.entry_point
+}
+
+///|
+pub fn KernelEntryPointInput::function_symbol(
+  self : KernelEntryPointInput,
+) -> String {
+  self.function_symbol
 }
 
 ///|

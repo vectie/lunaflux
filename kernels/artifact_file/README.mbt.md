@@ -29,3 +29,8 @@ serializes or reparses a nested JSON artifact manifest. A deployment still
 supplies the authority that the pinned root is approved and read-only. There is
 no executable metadata, search path, environment lookup, cache, compiler, JIT,
 or fallback channel.
+
+`load_tensor_parallel_admitted` uses that same bounded same-handle module
+loader, then authenticates exact modules and entry points against the supplied
+generic rank-local tensor-parallel launch-contract set. It adds no discovery,
+model-family branch, device authority, or native module loading.

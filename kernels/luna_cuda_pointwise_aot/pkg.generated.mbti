@@ -1,0 +1,114 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_pointwise_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn bind_manifest_pointwise_cuda_aot(PointwiseCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PointwiseManifestCudaLowering raise PointwiseAotError
+
+pub fn canonical_cuda_float_literal(Double) -> String
+
+pub fn content_addressed_cubin_path(String) -> String raise PointwiseAotError
+
+pub fn lower_auxiliary_kv_cache_write_cuda_aot(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PointwiseAotLimits) -> PointwiseCudaLowering raise PointwiseAotError
+
+pub fn lower_pointwise_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PointwiseAotLimits) -> PointwiseCudaLowering raise PointwiseAotError
+
+pub fn lower_reusable_pointwise_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PointwiseAotLimits) -> PointwiseCudaLowering raise PointwiseAotError
+
+// Errors
+pub(all) suberror PointwiseAotError {
+  Invalid(PointwiseAotRule)
+  Unsupported(PointwiseAotRule)
+  Mismatch(PointwiseAotRule)
+  LimitExceeded(PointwiseAotRule)
+  SizeOverflow(PointwiseAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum PointwiseAotFamily {
+  EmbeddingLookup
+  RmsNorm
+  PositionedRotary
+  ResidualAdd
+  KvCacheWrite
+} derive(Eq, @debug.Debug)
+
+pub struct PointwiseAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PointwiseAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise PointwiseAotError
+
+pub(all) enum PointwiseAotRule {
+  Limits
+  Operation
+  Shape
+  RuntimeInputs
+  PersistentState
+  DeviceTarget
+  CompilerPolicy
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  LaunchDimensions
+  Source
+  Recipe
+  Digest
+  KvLayout
+} derive(Eq, @debug.Debug)
+
+pub struct PointwiseCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PointwiseCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PointwiseCudaLowering::family(Self) -> PointwiseAotFamily
+pub fn PointwiseCudaLowering::function_symbol(Self) -> String
+pub fn PointwiseCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PointwiseCudaLowering::manifest_bindable(Self) -> Bool
+pub fn PointwiseCudaLowering::numerical_contract(Self) -> PointwiseNumericalContract
+pub fn PointwiseCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn PointwiseCudaLowering::operation_id(Self) -> @plan.OperationId
+pub fn PointwiseCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PointwiseCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn PointwiseCudaLowering::recipe_digest(Self) -> PointwiseRecipeDigest
+pub fn PointwiseCudaLowering::source_bytes(Self) -> Bytes
+pub fn PointwiseCudaLowering::source_digest(Self) -> PointwiseSourceDigest
+pub fn PointwiseCudaLowering::target(Self) -> @catalog.DeviceTarget
+
+pub struct PointwiseManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PointwiseManifestBindingDigest::as_hex(Self) -> String
+
+pub struct PointwiseManifestCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PointwiseManifestCudaLowering::binding_digest(Self) -> PointwiseManifestBindingDigest
+pub fn PointwiseManifestCudaLowering::binding_record_bytes(Self) -> Bytes
+pub fn PointwiseManifestCudaLowering::candidate(Self) -> PointwiseCudaLowering
+pub fn PointwiseManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PointwiseManifestCudaLowering::manifest_bindable(Self) -> Bool
+
+pub(all) enum PointwiseNumericalContract {
+  BitExactBf16Copy
+  OrderedBf16Add
+  Float32ReductionToleranceV1
+  Float32TranscendentalToleranceV1
+} derive(Eq, @debug.Debug)
+
+pub struct PointwiseRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PointwiseRecipeDigest::as_hex(Self) -> String
+pub fn PointwiseRecipeDigest::from_sha256(String) -> Self raise PointwiseAotError
+
+pub struct PointwiseSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PointwiseSourceDigest::as_hex(Self) -> String
+pub fn PointwiseSourceDigest::from_sha256(String) -> Self raise PointwiseAotError
+
+// Type aliases
+
+// Traits

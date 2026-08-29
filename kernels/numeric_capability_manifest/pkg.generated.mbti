@@ -1,0 +1,114 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/numeric_capability_manifest"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_paged_fp8_e4m3_w8a8(@plan.ModelPlan, @device.DeviceNumericCapability, @catalog.ResolvedKernelCatalog, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, ArrayView[Fp8KernelManifestClaim], Fp8KernelManifestLimits) -> AdmittedFp8KernelArtifacts raise Fp8KernelManifestError
+
+pub fn admit_paged_v4_fp8_e4m3_w8a8(@plan.ModelPlan, @device.DeviceNumericCapability, @catalog.ResolvedKernelCatalog, @launch_contract.PagedV4LaunchContractSet, @artifact.KernelArtifactBundle, ArrayView[Fp8KernelManifestClaim], Fp8KernelManifestLimits) -> AdmittedFp8KernelArtifacts raise Fp8KernelManifestError
+
+pub fn admit_stateless_fp8_e4m3_w8a8(@plan.ModelPlan, @device.DeviceNumericCapability, @catalog.ResolvedKernelCatalog, @launch_contract.LaunchContractSet, @artifact.KernelArtifactBundle, ArrayView[Fp8KernelManifestClaim], Fp8KernelManifestLimits) -> AdmittedFp8KernelArtifacts raise Fp8KernelManifestError
+
+// Errors
+pub(all) suberror Fp8KernelManifestError {
+  InvalidFp8KernelManifest(Fp8KernelManifestRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedFp8KernelArtifacts {
+  // private fields
+}
+pub fn AdmittedFp8KernelArtifacts::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn AdmittedFp8KernelArtifacts::manifest(Self) -> Fp8KernelCapabilityManifest
+
+pub struct Fp8KernelCapabilityManifest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8KernelCapabilityManifest::canonical_bytes(Self) -> Bytes
+pub fn Fp8KernelCapabilityManifest::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn Fp8KernelCapabilityManifest::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
+pub fn Fp8KernelCapabilityManifest::digest(Self) -> Fp8KernelCapabilityManifestDigest
+pub fn Fp8KernelCapabilityManifest::entries(Self) -> ReadOnlyArray[Fp8KernelManifestEntry]
+pub fn Fp8KernelCapabilityManifest::model_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8KernelCapabilityManifest::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Fp8KernelCapabilityManifest::scope(Self) -> Fp8KernelExecutionScope
+pub fn Fp8KernelCapabilityManifest::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8KernelCapabilityManifest::version(Self) -> Fp8KernelCapabilityManifestVersion
+
+pub struct Fp8KernelCapabilityManifestDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8KernelCapabilityManifestDigest::as_hex(Self) -> String
+
+pub struct Fp8KernelCapabilityManifestVersion(Int) derive(Eq, @debug.Debug)
+pub fn Fp8KernelCapabilityManifestVersion::as_int(Self) -> Int
+pub fn Fp8KernelCapabilityManifestVersion::v1() -> Self
+
+pub(all) enum Fp8KernelExecutionScope {
+  StatelessFullContextV1
+  PagedFullGraphV1
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8KernelManifestClaim {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestClaim::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8KernelManifestClaim::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8KernelManifestClaim::new(profile~ : @launch_contract.KernelProfileId, operation~ : @plan.OperationId, execution~ : @numeric_contract.OperationExecutionDigest, entry_point~ : @catalog.AotKernelEntryPoint) -> Self
+pub fn Fp8KernelManifestClaim::operation(Self) -> @plan.OperationId
+pub fn Fp8KernelManifestClaim::profile(Self) -> @launch_contract.KernelProfileId
+
+pub struct Fp8KernelManifestEntry {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestEntry::artifact_module_index(Self) -> Int
+pub fn Fp8KernelManifestEntry::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8KernelManifestEntry::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8KernelManifestEntry::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8KernelManifestEntry::operation(Self) -> @plan.OperationId
+pub fn Fp8KernelManifestEntry::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8KernelManifestEntry::weights(Self) -> ReadOnlyArray[Fp8KernelWeightBinding]
+
+pub struct Fp8KernelManifestLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestLimits::new(max_entries~ : Int, max_canonical_bytes~ : Int) -> Self raise Fp8KernelManifestError
+
+pub(all) enum Fp8KernelManifestRule {
+  Limit
+  ExecutionScope
+  ModelIdentity
+  DeviceCapability
+  DeviceTarget
+  CatalogVersion
+  BindingOrder
+  ExecutionContract
+  MissingFp8Operation
+  VendorOrBf16Fallback
+  ClaimCount
+  ClaimOrder
+  ClaimExecution
+  ClaimEntryPoint
+  ArtifactBundle
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8KernelWeightBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8KernelWeightBinding::scale(Self) -> @plan.ScaleTensorRef
+pub fn Fp8KernelWeightBinding::scale_storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn Fp8KernelWeightBinding::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn Fp8KernelWeightBinding::tensor(Self) -> @plan.TensorRef
+
+// Type aliases
+
+// Traits

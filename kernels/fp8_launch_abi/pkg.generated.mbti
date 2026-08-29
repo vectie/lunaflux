@@ -1,0 +1,210 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/fp8_launch_abi"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/numeric_capability_manifest",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_dynamic_activation_scale_launch(@plan.ModelPlan, @numeric_capability_manifest.AdmittedFp8KernelArtifacts, Fp8LaunchContractSource, operation~ : @plan.OperationId, shape~ : Fp8ExactExecutionShape, weight_scale_regions~ : ArrayView[Fp8LaunchStorageRegion], activation_scale_workspace~ : Fp8LaunchStorageRegion, kernel_workspace~ : Fp8LaunchStorageRegion?) -> Fp8DynamicLaunchAbi raise Fp8LaunchAbiError
+
+pub fn admit_staged_dynamic_activation_scale_launch_v2(@plan.ModelPlan, @numeric_capability_manifest.AdmittedFp8KernelArtifacts, Fp8LaunchContractSource, operation~ : @plan.OperationId, shape~ : Fp8ExactExecutionShape, weight_scale_regions~ : ArrayView[Fp8LaunchStorageRegion], workspace~ : Fp8LaunchStorageRegion) -> Fp8StagedDynamicLaunchAbi raise Fp8LaunchAbiError
+
+// Errors
+pub(all) suberror Fp8LaunchAbiError {
+  InvalidFp8LaunchAbi(Fp8LaunchAbiRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8ActivationScaleStageRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ActivationScaleStageRegion::ordinal(Self) -> Int
+pub fn Fp8ActivationScaleStageRegion::region(Self) -> Fp8LaunchStorageRegion
+pub fn Fp8ActivationScaleStageRegion::stage(Self) -> @numeric_contract.ActivationScaleStage
+
+pub struct Fp8DynamicLaunchAbi {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8DynamicLaunchAbi::activation_scale_workspace(Self) -> Fp8LaunchStorageRegion
+pub fn Fp8DynamicLaunchAbi::digest(Self) -> Fp8LaunchAbiDigest
+pub fn Fp8DynamicLaunchAbi::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8DynamicLaunchAbi::exact_shape(Self) -> Fp8ExactExecutionShape
+pub fn Fp8DynamicLaunchAbi::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8DynamicLaunchAbi::kernel_workspace(Self) -> Fp8LaunchStorageRegion?
+pub fn Fp8DynamicLaunchAbi::manifest_digest(Self) -> @numeric_capability_manifest.Fp8KernelCapabilityManifestDigest
+pub fn Fp8DynamicLaunchAbi::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8DynamicLaunchAbi::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Fp8DynamicLaunchAbi::operation(Self) -> @plan.OperationId
+pub fn Fp8DynamicLaunchAbi::plan_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8DynamicLaunchAbi::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8DynamicLaunchAbi::scale_granularity(Self) -> @numeric_contract.ScaleGranularity
+pub fn Fp8DynamicLaunchAbi::scale_kind(Self) -> Fp8DynamicScaleKind
+pub fn Fp8DynamicLaunchAbi::scale_tensor_regions(Self) -> ReadOnlyArray[Fp8ScaleTensorStorageRegion]
+pub fn Fp8DynamicLaunchAbi::scope(Self) -> Fp8LaunchScope
+pub fn Fp8DynamicLaunchAbi::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8DynamicLaunchAbi::version(Self) -> Fp8LaunchAbiVersion
+pub fn Fp8DynamicLaunchAbi::weight_scales(Self) -> ReadOnlyArray[@numeric_capability_manifest.Fp8KernelWeightBinding]
+pub fn Fp8DynamicLaunchAbi::workspace_alignment(Self) -> Int64
+pub fn Fp8DynamicLaunchAbi::workspace_bytes(Self) -> Int64
+
+pub struct Fp8DynamicLaunchLease {
+  // private fields
+}
+pub fn Fp8DynamicLaunchLease::begin_use(Self, Fp8DynamicLaunchAbi, generation~ : UInt64) -> Unit raise Fp8LaunchAbiError
+pub fn Fp8DynamicLaunchLease::finish_use(Self) -> Unit raise Fp8LaunchAbiError
+pub fn Fp8DynamicLaunchLease::release(Self) -> Unit raise Fp8LaunchAbiError
+
+pub struct Fp8DynamicLaunchOwner {
+  // private fields
+}
+pub fn Fp8DynamicLaunchOwner::abi(Self) -> Fp8DynamicLaunchAbi
+pub fn Fp8DynamicLaunchOwner::acquire(Self, Fp8DynamicLaunchAbi, generation~ : UInt64) -> Fp8DynamicLaunchLease raise Fp8LaunchAbiError
+pub fn Fp8DynamicLaunchOwner::close(Self) -> Unit
+pub fn Fp8DynamicLaunchOwner::new(Fp8DynamicLaunchAbi, generation~ : UInt64) -> Self raise Fp8LaunchAbiError
+pub fn Fp8DynamicLaunchOwner::state(Self) -> Fp8LaunchOwnerState
+
+pub(all) enum Fp8DynamicScaleKind {
+  FiniteE4M3DynamicF32V1
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8ExactExecutionShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ExactExecutionShape::batch_rows(Self) -> Int
+pub fn Fp8ExactExecutionShape::paged_full_graph(profile~ : @launch_contract.KernelProfileId, rows~ : ArrayView[Fp8PagedRowShape]) -> Self raise Fp8LaunchAbiError
+pub fn Fp8ExactExecutionShape::paged_rows(Self) -> ReadOnlyArray[Fp8PagedRowShape]?
+pub fn Fp8ExactExecutionShape::profile(Self) -> @launch_contract.KernelProfileId?
+pub fn Fp8ExactExecutionShape::query_tokens(Self) -> Int64
+pub fn Fp8ExactExecutionShape::scope(Self) -> Fp8LaunchScope
+pub fn Fp8ExactExecutionShape::stateless_full_prefill(profile~ : @launch_contract.KernelProfileId, @device_profile.ExactExecutionShape) -> Self raise Fp8LaunchAbiError
+
+pub struct Fp8LaunchAbiDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8LaunchAbiDigest::as_sha256(Self) -> String
+
+pub(all) enum Fp8LaunchAbiRule {
+  InvalidShape
+  ShapeOverflow
+  InvalidStorageIdentity
+  InvalidStorageRegion
+  RegionOverflow
+  RegionOutOfBounds
+  RegionAlignment
+  RegionStorageMismatch
+  RegionAlias
+  UnsupportedScaleMode
+  ActivationScalePolicy
+  ActivationScaleStage
+  OperationKind
+  ModelIdentity
+  NumericSchema
+  ManifestScope
+  ManifestEntry
+  LaunchContract
+  ExecutionDigest
+  KernelIdentity
+  WorkspaceContract
+  BindingMismatch
+  StaleLease
+  EpochExhausted
+  InvalidTransition
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8LaunchAbiVersion(Int) derive(Eq, @debug.Debug)
+pub fn Fp8LaunchAbiVersion::as_int(Self) -> Int
+pub fn Fp8LaunchAbiVersion::v1() -> Self
+pub fn Fp8LaunchAbiVersion::v2() -> Self
+
+pub(all) enum Fp8LaunchContractSource {
+  Stateless(@launch_contract.LaunchContractSet)
+  Paged(@launch_contract.PagedKvLaunchContractSet)
+  PagedV4(@launch_contract.PagedV4LaunchContractSet)
+}
+
+pub(all) enum Fp8LaunchOwnerState {
+  Available
+  Acquired
+  InUse
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Fp8LaunchScope {
+  StatelessFullPrefillV1
+  PagedFullGraphV1
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8LaunchStorageIdentity(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8LaunchStorageIdentity::as_sha256(Self) -> String
+pub fn Fp8LaunchStorageIdentity::from_sha256(String) -> Self raise Fp8LaunchAbiError
+
+pub struct Fp8LaunchStorageRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8LaunchStorageRegion::alignment(Self) -> Int64
+pub fn Fp8LaunchStorageRegion::byte_length(Self) -> Int64
+pub fn Fp8LaunchStorageRegion::new(storage~ : Fp8LaunchStorageIdentity, storage_bytes~ : Int64, offset~ : Int64, byte_length~ : Int64, alignment~ : Int64) -> Self raise Fp8LaunchAbiError
+pub fn Fp8LaunchStorageRegion::offset(Self) -> Int64
+pub fn Fp8LaunchStorageRegion::storage(Self) -> Fp8LaunchStorageIdentity
+pub fn Fp8LaunchStorageRegion::storage_bytes(Self) -> Int64
+
+pub struct Fp8PagedRowShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8PagedRowShape::context_tokens(Self) -> Int
+pub fn Fp8PagedRowShape::new(query_tokens~ : Int, context_tokens~ : Int, page_table_entries~ : Int) -> Self raise Fp8LaunchAbiError
+pub fn Fp8PagedRowShape::page_table_entries(Self) -> Int
+pub fn Fp8PagedRowShape::query_tokens(Self) -> Int
+
+pub struct Fp8ScaleTensorStorageRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ScaleTensorStorageRegion::region(Self) -> Fp8LaunchStorageRegion
+pub fn Fp8ScaleTensorStorageRegion::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn Fp8ScaleTensorStorageRegion::tensor(Self) -> @plan.ScaleTensorRef
+
+pub struct Fp8StagedDynamicLaunchAbi {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8StagedDynamicLaunchAbi::activation_scale_policy(Self) -> @numeric_contract.ActivationScalePolicy
+pub fn Fp8StagedDynamicLaunchAbi::digest(Self) -> Fp8LaunchAbiDigest
+pub fn Fp8StagedDynamicLaunchAbi::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8StagedDynamicLaunchAbi::exact_shape(Self) -> Fp8ExactExecutionShape
+pub fn Fp8StagedDynamicLaunchAbi::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8StagedDynamicLaunchAbi::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8StagedDynamicLaunchAbi::launch_source_version(Self) -> Fp8V2LaunchContractSourceVersion
+pub fn Fp8StagedDynamicLaunchAbi::manifest_digest(Self) -> @numeric_capability_manifest.Fp8KernelCapabilityManifestDigest
+pub fn Fp8StagedDynamicLaunchAbi::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8StagedDynamicLaunchAbi::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Fp8StagedDynamicLaunchAbi::operation(Self) -> @plan.OperationId
+pub fn Fp8StagedDynamicLaunchAbi::operation_kind(Self) -> @plan.OperationKind
+pub fn Fp8StagedDynamicLaunchAbi::plan_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8StagedDynamicLaunchAbi::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8StagedDynamicLaunchAbi::raw_operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8StagedDynamicLaunchAbi::scale_kind(Self) -> Fp8StagedDynamicScaleKind
+pub fn Fp8StagedDynamicLaunchAbi::scale_tensor_regions(Self) -> ReadOnlyArray[Fp8ScaleTensorStorageRegion]
+pub fn Fp8StagedDynamicLaunchAbi::scope(Self) -> Fp8LaunchScope
+pub fn Fp8StagedDynamicLaunchAbi::stages(Self) -> ReadOnlyArray[Fp8ActivationScaleStageRegion]
+pub fn Fp8StagedDynamicLaunchAbi::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8StagedDynamicLaunchAbi::version(Self) -> Fp8LaunchAbiVersion
+pub fn Fp8StagedDynamicLaunchAbi::weight_scales(Self) -> ReadOnlyArray[@numeric_capability_manifest.Fp8KernelWeightBinding]
+pub fn Fp8StagedDynamicLaunchAbi::workspace(Self) -> Fp8LaunchStorageRegion
+
+pub(all) enum Fp8StagedDynamicScaleKind {
+  SimpleExternalFiniteE4M3F32V2
+  GatedExternalAndPostSiluFiniteE4M3F32V2
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Fp8V2LaunchContractSourceVersion {
+  PagedNumericV4
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

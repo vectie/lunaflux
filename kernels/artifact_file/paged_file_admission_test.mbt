@@ -87,6 +87,7 @@ async test "paged filesystem admission fails closed on version and exports" {
       ]),
     ],
     catalog_version=2,
+    plan=paged_file_plan(),
   )
   try
     @artifact_file.read_paged_manifest(

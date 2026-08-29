@@ -1,20 +1,22 @@
 ///|
 /// Immutable startup catalog. Entry order has no selection priority.
 pub struct KernelCatalog {
-  version : CatalogVersion
-  entries : ReadOnlyArray[CatalogEntry]
+  priv version : CatalogVersion
+  priv entries : ReadOnlyArray[CatalogEntry]
 } derive(Debug, Eq)
 
 ///|
 /// One exact implementation binding aligned with a semantic model operation.
 pub struct KernelBinding {
-  operation_id : @plan.OperationId
-  capability : @plan.KernelCapabilityId
-  semantic_version : KernelSemanticVersion
-  execution_semantics : KernelExecutionSemantics?
-  implementation : KernelImplementationId
-  workspace_bytes : Int64
-  workspace_alignment : Int64
+  priv operation_id : @plan.OperationId
+  priv capability : @plan.KernelCapabilityId
+  priv semantic_version : KernelSemanticVersion
+  priv execution_semantics : KernelExecutionSemantics?
+  priv operation_execution_digest : @numeric_contract.OperationExecutionDigest?
+  priv aot_entry_point : AotKernelEntryPoint?
+  priv implementation : KernelImplementationId
+  priv workspace_bytes : Int64
+  priv workspace_alignment : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -24,6 +26,7 @@ struct AotFamilySemantics {
   operation_shape : @plan.OperationShape
   capability : @plan.KernelCapabilityId
   execution_semantics : KernelExecutionSemantics?
+  operation_execution_digest : @numeric_contract.OperationExecutionDigest?
 } derive(Debug, Eq)
 
 ///|
@@ -63,6 +66,7 @@ fn same_family_semantics(
   existing.operation_kind == entry.operation_kind &&
   existing.operation_shape == entry.operation_shape &&
   existing.capability == entry.capability &&
+  existing.operation_execution_digest == entry.operation_execution_digest &&
   same_family_execution_semantics(
     existing.execution_semantics,
     entry.execution_semantics,
@@ -72,12 +76,12 @@ fn same_family_semantics(
 ///|
 /// Immutable result of resolving every operation in one model plan.
 pub struct ResolvedKernelCatalog {
-  catalog_version : CatalogVersion
-  model_identity : @spec.ModelIdentity
-  device_target : DeviceTarget
-  bindings : ReadOnlyArray[KernelBinding]
-  max_workspace_bytes : Int64
-  max_workspace_alignment : Int64
+  priv catalog_version : CatalogVersion
+  priv model_identity : @spec.ModelIdentity
+  priv device_target : DeviceTarget
+  priv bindings : ReadOnlyArray[KernelBinding]
+  priv max_workspace_bytes : Int64
+  priv max_workspace_alignment : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -85,7 +89,9 @@ pub fn KernelCatalog::new(
   version~ : CatalogVersion,
   entries~ : ArrayView[CatalogEntry],
 ) -> KernelCatalog raise CatalogError {
-  if version != CatalogVersion::v1() && version != CatalogVersion::v3() {
+  if version != CatalogVersion::v1() &&
+    version != CatalogVersion::v3() &&
+    version != CatalogVersion::v4() {
     raise InvalidCatalog(UnsupportedCatalogVersion)
   }
   if entries.is_empty() {
@@ -94,15 +100,19 @@ pub fn KernelCatalog::new(
   if entries.length() > 65536 {
     raise InvalidCatalog(CatalogTooLarge)
   }
-  let expected_semantic_version = if version == CatalogVersion::v1() {
-    KernelSemanticVersion::v1()
-  } else {
-    KernelSemanticVersion::v3()
+  let expected_semantic_version = match version.as_int() {
+    1 => KernelSemanticVersion::v1()
+    3 => KernelSemanticVersion::v3()
+    _ => KernelSemanticVersion::v4()
   }
+  let expects_execution_semantics = version != CatalogVersion::v1()
+  let expects_numeric_digest = version == CatalogVersion::v4()
   let aot_semantics : Map[AotKernelFamily, AotFamilySemantics] = Map([])
   for entry in entries {
     if entry.semantic_version != expected_semantic_version ||
-      (version == CatalogVersion::v1()) != (entry.execution_semantics is None) {
+      (entry.execution_semantics is Some(_)) != expects_execution_semantics ||
+      (entry.operation_execution_digest is Some(_)) != expects_numeric_digest ||
+      (entry.aot_entry_point is Some(_)) != expects_numeric_digest {
       raise InvalidCatalog(CatalogSemanticVersionMismatch)
     }
     match entry.implementation {
@@ -120,6 +130,7 @@ pub fn KernelCatalog::new(
               operation_shape: entry.operation_shape,
               capability: entry.capability,
               execution_semantics: entry.execution_semantics,
+              operation_execution_digest: entry.operation_execution_digest,
             }
         }
     }
@@ -145,6 +156,7 @@ fn semantic_match(
   operation : @plan.PlanOperation,
   geometry : @plan.KvCacheGeometry,
   paged_layout : PagedKvLayoutContract?,
+  operation_execution_digest : @numeric_contract.OperationExecutionDigest?,
 ) -> Bool {
   let execution_matches = match entry.execution_semantics {
     None =>
@@ -168,6 +180,7 @@ fn semantic_match(
         }
       }
   }
+  entry.operation_execution_digest == operation_execution_digest &&
   execution_matches &&
   entry.operation_kind == operation.kind() &&
   entry.operation_shape == operation.shape() &&
@@ -217,13 +230,16 @@ fn select_entry(
   operation : @plan.PlanOperation,
   geometry : @plan.KvCacheGeometry,
   paged_layout : PagedKvLayoutContract?,
+  operation_execution_digest : @numeric_contract.OperationExecutionDigest?,
   target : DeviceTarget,
 ) -> CatalogEntry raise CatalogError {
   let semantic : Array[CatalogEntry] = []
   let architecture : Array[CatalogEntry] = []
   let compatible : Array[CatalogEntry] = []
   for entry in catalog.entries {
-    if semantic_match(entry, operation, geometry, paged_layout) {
+    if semantic_match(
+        entry, operation, geometry, paged_layout, operation_execution_digest,
+      ) {
       semantic.push(entry)
       if architecture_match(entry, target) {
         architecture.push(entry)
@@ -260,6 +276,7 @@ pub fn KernelCatalog::resolve(
     model_plan.kv_execution() != StatelessFullContext {
     raise UnsupportedExecutionContract
   }
+  reject_legacy_i8_execution_contracts(model_plan)
   self.resolve_exact(model_plan, target, None)
 }
 
@@ -278,6 +295,7 @@ pub fn KernelCatalog::resolve_paged(
     model_plan.kv_execution() != PagedKeyValue {
     raise UnsupportedExecutionContract
   }
+  reject_legacy_i8_execution_contracts(model_plan)
   if device_kv_layout.identity() != model_plan.identity() ||
     device_kv_layout.geometry() != model_plan.kv_cache_geometry() ||
     device_kv_layout.stable_layout_version() !=
@@ -304,11 +322,17 @@ fn KernelCatalog::resolve_exact(
   let mut max_workspace_alignment = 1L
   let workspace_limit = model_plan.workspace_bounds().max_temporary_bytes()
   for operation in model_plan.operations() {
+    let operation_execution_digest = if self.version == CatalogVersion::v4() {
+      Some(require_operation_execution_digest(model_plan, operation.id()))
+    } else {
+      None
+    }
     let entry = select_entry(
       self,
       operation,
       model_plan.kv_cache_geometry(),
       paged_layout,
+      operation_execution_digest,
       target,
     )
     let required = aligned_workspace(
@@ -333,6 +357,8 @@ fn KernelCatalog::resolve_exact(
       capability: operation.required_capability(),
       semantic_version: entry.semantic_version,
       execution_semantics: entry.execution_semantics,
+      operation_execution_digest: entry.operation_execution_digest,
+      aot_entry_point: entry.aot_entry_point,
       implementation: entry.implementation,
       workspace_bytes: required,
       workspace_alignment: entry.workspace_alignment,
@@ -346,89 +372,4 @@ fn KernelCatalog::resolve_exact(
     max_workspace_bytes,
     max_workspace_alignment,
   }
-}
-
-///|
-pub fn ResolvedKernelCatalog::model_identity(
-  self : ResolvedKernelCatalog,
-) -> @spec.ModelIdentity {
-  self.model_identity
-}
-
-///|
-pub fn ResolvedKernelCatalog::device_target(
-  self : ResolvedKernelCatalog,
-) -> DeviceTarget {
-  self.device_target
-}
-
-///|
-pub fn KernelBinding::operation_id(self : KernelBinding) -> @plan.OperationId {
-  self.operation_id
-}
-
-///|
-pub fn KernelBinding::capability(
-  self : KernelBinding,
-) -> @plan.KernelCapabilityId {
-  self.capability
-}
-
-///|
-pub fn KernelBinding::semantic_version(
-  self : KernelBinding,
-) -> KernelSemanticVersion {
-  self.semantic_version
-}
-
-///|
-pub fn KernelBinding::execution_semantics(
-  self : KernelBinding,
-) -> KernelExecutionSemantics? {
-  self.execution_semantics
-}
-
-///|
-pub fn KernelBinding::implementation(
-  self : KernelBinding,
-) -> KernelImplementationId {
-  self.implementation
-}
-
-///|
-pub fn KernelBinding::workspace_bytes(self : KernelBinding) -> Int64 {
-  self.workspace_bytes
-}
-
-///|
-pub fn KernelBinding::workspace_alignment(self : KernelBinding) -> Int64 {
-  self.workspace_alignment
-}
-
-///|
-pub fn ResolvedKernelCatalog::catalog_version(
-  self : ResolvedKernelCatalog,
-) -> CatalogVersion {
-  self.catalog_version
-}
-
-///|
-pub fn ResolvedKernelCatalog::bindings(
-  self : ResolvedKernelCatalog,
-) -> ReadOnlyArray[KernelBinding] {
-  self.bindings
-}
-
-///|
-pub fn ResolvedKernelCatalog::max_workspace_bytes(
-  self : ResolvedKernelCatalog,
-) -> Int64 {
-  self.max_workspace_bytes
-}
-
-///|
-pub fn ResolvedKernelCatalog::max_workspace_alignment(
-  self : ResolvedKernelCatalog,
-) -> Int64 {
-  self.max_workspace_alignment
 }

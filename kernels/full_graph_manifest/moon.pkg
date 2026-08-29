@@ -1,0 +1,18 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/artifact_file",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/json",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan_test_fixture",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

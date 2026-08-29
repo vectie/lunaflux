@@ -51,6 +51,7 @@ fn role_expected_by_operation(
       operation.inputs().any(input => input == ModelInput(reference))
     WeightInput(reference) =>
       operation.inputs().any(input => input == Tensor(reference))
+    WeightScaleInput(_, _) => false
     ActivationInput(reference) =>
       operation.inputs().any(input => input == Activation(reference))
     RuntimeInput(_) | PersistentKvComponent(_, _) => false
@@ -145,6 +146,9 @@ pub fn admit(
   inputs : ArrayView[AotLaunchContractInput],
   limits : LaunchContractLimits,
 ) -> LaunchContractSet raise LaunchContractError {
+  if resolved.catalog_version() != @catalog.CatalogVersion::v1() {
+    raise CatalogVersionMismatch
+  }
   if resolved.model_identity() != model_plan.identity() {
     raise IdentityMismatch
   }

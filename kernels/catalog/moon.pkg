@@ -1,8 +1,13 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/plan_test_fixture",
+} for "test"

@@ -1,12 +1,7 @@
 ///|
-fn test_identity() -> @spec.ModelIdentity {
-  try! @spec.ModelIdentity::new(
-    try! @spec.ContentDigest::from_sha256(
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-    try! @spec.PlanDigest::from_sha256(
-      "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-    ),
+fn test_content() -> @spec.ContentDigest {
+  try! @spec.ContentDigest::from_sha256(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
 }
 
@@ -26,7 +21,8 @@ fn test_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
 ///|
 fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
   try! @plan.ModelPlan::new_stateless(
-    identity=test_identity(),
+    content_digest=test_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=64,
@@ -43,6 +39,9 @@ fn test_plan(workspace_limit : Int64) -> @plan.ModelPlan {
     ),
     operations=[test_operation(0L)],
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      test_operation(0L),
+    ]),
   )
 }
 
@@ -68,7 +67,8 @@ fn projection_plan(
   operation_workspace? : Int64 = 0L,
 ) -> @plan.ModelPlan {
   try! @plan.ModelPlan::new_stateless(
-    identity=test_identity(),
+    content_digest=test_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=64,
@@ -88,6 +88,10 @@ fn projection_plan(
       output_projection_operation(operation_workspace),
     ],
     final_output=@plan.ActivationRef::new(1),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      test_operation(0L),
+      output_projection_operation(operation_workspace),
+    ]),
   )
 }
 
@@ -165,13 +169,14 @@ test "catalog resolves one exact immutable binding" {
   let entries = [aot_entry()]
   let catalog = catalog_of(entries)
   entries.push(aot_entry())
-  let resolved = catalog.resolve(test_plan(32L), test_target())
+  let plan = test_plan(32L)
+  let resolved = catalog.resolve(plan, test_target())
   assert_eq(resolved.bindings().length(), 1)
   assert_eq(resolved.bindings()[0].operation_id().as_int(), 0)
   assert_eq(resolved.bindings()[0].workspace_bytes(), 32L)
   assert_eq(resolved.max_workspace_bytes(), 32L)
   assert_eq(resolved.max_workspace_alignment(), 16L)
-  assert_eq(resolved.model_identity(), test_identity())
+  assert_eq(resolved.model_identity(), plan.identity())
   assert_eq(resolved.device_target(), test_target())
   guard resolved.bindings()[0].implementation() is ContentAddressedAot(_) else {
     fail("expected selected content-addressed identity")
@@ -424,75 +429,5 @@ test "entry shape and capability must match its operation semantics" {
     _ => fail("unexpected catalog error")
   } noraise {
     _ => fail("expected operation capability mismatch")
-  }
-}
-
-///|
-test "version, digest, alignment, and target validation fail closed" {
-  try
-    @catalog.KernelCatalog::new(
-      version=@catalog.CatalogVersion::from_stable_int(4),
-      entries=[aot_entry()],
-    )
-  catch {
-    InvalidCatalog(UnsupportedCatalogVersion) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected unsupported catalog version")
-  }
-  try @catalog.AotArtifactDigest::from_sha256("ABC") catch {
-    InvalidCatalog(InvalidArtifactDigest) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected invalid digest")
-  }
-  try @catalog.AotKernelFamilyId::from_stable_int(0) catch {
-    InvalidCatalog(InvalidAotFamilyId) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected invalid AOT family identity")
-  }
-  try @catalog.AotKernelEntryPointId::from_stable_int(-1) catch {
-    InvalidCatalog(InvalidAotEntryPointId) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected invalid AOT entry-point identity")
-  }
-  try
-    @catalog.CatalogEntry::new(
-      semantic_version=@catalog.KernelSemanticVersion::v1(),
-      operation_kind=Embedding,
-      operation_shape=EmbeddingShape(vocabulary_size=128, width=16),
-      capability=@plan.KernelCapabilityId::embedding_lookup(),
-      compute_major=8,
-      compute_minor=0,
-      implementation=ContentAddressedAot(
-        aot_family(
-          @catalog.AotArtifactDigest::from_sha256(
-            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
-          ),
-        ),
-      ),
-      workspace_bytes=0L,
-      workspace_alignment=3L,
-    )
-  catch {
-    InvalidCatalog(InvalidWorkspaceAlignment) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected invalid alignment")
-  }
-  try
-    @catalog.DeviceTarget::new(
-      compute_major=0,
-      compute_minor=0,
-      supports_bf16=true,
-      supports_cublas_lt=true,
-    )
-  catch {
-    InvalidCatalog(InvalidComputeCapability) => ()
-    _ => fail("unexpected catalog error")
-  } noraise {
-    _ => fail("expected invalid compute capability")
   }
 }

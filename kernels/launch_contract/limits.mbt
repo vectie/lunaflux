@@ -1,8 +1,8 @@
 ///|
 pub struct LaunchContractLimits {
-  max_profiles : Int
-  max_contracts : Int
-  max_operands_per_contract : Int
+  priv max_profiles : Int
+  priv max_contracts : Int
+  priv max_operands_per_contract : Int
 } derive(Debug, Eq)
 
 ///|

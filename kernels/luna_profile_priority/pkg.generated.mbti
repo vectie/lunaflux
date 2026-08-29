@@ -1,0 +1,182 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_profile_priority"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_luna_kernel_profile(@plan.ModelPlan, @catalog.DeviceTarget, workload~ : LunaKernelProfileDigest, profiler~ : LunaKernelProfileDigest, sampled_wall_time_ns~ : Int64, declared_attributed_self_time_ns~ : Int64, ArrayView[LunaKernelProfileObservation], LunaKernelProfileLimits) -> LunaKernelProfileCapture raise LunaKernelProfileError
+
+pub fn admit_luna_paged_kernel_profile(@plan.ModelPlan, @launch_contract.PagedKvLaunchContractSet, profile_id~ : @launch_contract.KernelProfileId, workload~ : LunaKernelProfileDigest, profiler~ : LunaKernelProfileDigest, trace~ : LunaKernelProfileDigest, sampled_wall_time_ns~ : Int64, declared_attributed_self_time_ns~ : Int64, ArrayView[LunaPagedKernelProfileObservation], LunaKernelProfileLimits) -> LunaPagedKernelProfileCapture raise LunaKernelProfileError
+
+// Errors
+pub(all) suberror LunaKernelProfileError {
+  LunaKernelProfileInvalid(LunaKernelProfileRule)
+  LunaKernelProfileMismatch(LunaKernelProfileRule)
+  LunaKernelProfileUnsupported(LunaKernelProfileRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaKernelProfileCapture {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileCapture::attributed_self_time_ns(Self) -> Int64
+pub fn LunaKernelProfileCapture::canonical_bytes(Self) -> Bytes
+pub fn LunaKernelProfileCapture::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaKernelProfileCapture::identity(Self) -> @spec.ModelIdentity
+pub fn LunaKernelProfileCapture::observation_count(Self) -> Int
+pub fn LunaKernelProfileCapture::priority(Self) -> LunaProfiledOperationPriority
+pub fn LunaKernelProfileCapture::profiler_digest(Self) -> LunaKernelProfileDigest
+pub fn LunaKernelProfileCapture::sampled_wall_time_ns(Self) -> Int64
+pub fn LunaKernelProfileCapture::target(Self) -> @catalog.DeviceTarget
+pub fn LunaKernelProfileCapture::workload_digest(Self) -> LunaKernelProfileDigest
+
+pub struct LunaKernelProfileDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaKernelProfileDigest::as_hex(Self) -> String
+pub fn LunaKernelProfileDigest::from_sha256(String) -> Self raise LunaKernelProfileError
+
+pub struct LunaKernelProfileLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileLimits::new(maximum_observations~ : Int, maximum_canonical_bytes~ : Int) -> Self raise LunaKernelProfileError
+
+pub struct LunaKernelProfileObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileObservation::call_count(Self) -> Int64
+pub fn LunaKernelProfileObservation::inclusive_time_ns(Self) -> Int64
+pub fn LunaKernelProfileObservation::new(operation_id~ : @plan.OperationId, shape~ : @device_profile.ExactExecutionShape, call_count~ : Int64, self_time_ns~ : Int64, inclusive_time_ns~ : Int64) -> Self raise LunaKernelProfileError
+pub fn LunaKernelProfileObservation::operation_id(Self) -> @plan.OperationId
+pub fn LunaKernelProfileObservation::self_time_ns(Self) -> Int64
+pub fn LunaKernelProfileObservation::shape(Self) -> @device_profile.ExactExecutionShape
+
+pub(all) enum LunaKernelProfileRule {
+  Digest
+  Limit
+  Observation
+  ObservationOrder
+  ExecutionMode
+  Operation
+  Shape
+  Target
+  Timing
+  Total
+  CanonicalBytes
+  Contract
+  PageTable
+  Row
+  RowOrder
+  Counter
+  CounterOrder
+  LaunchIdentity
+} derive(Eq, @debug.Debug)
+
+pub struct LunaPagedKernelProfileCapture {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedKernelProfileCapture::attributed_self_time_ns(Self) -> Int64
+pub fn LunaPagedKernelProfileCapture::canonical_bytes(Self) -> Bytes
+pub fn LunaPagedKernelProfileCapture::contract(Self) -> LunaPagedProfileContract
+pub fn LunaPagedKernelProfileCapture::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedKernelProfileCapture::identity(Self) -> @spec.ModelIdentity
+pub fn LunaPagedKernelProfileCapture::observation_count(Self) -> Int
+pub fn LunaPagedKernelProfileCapture::priority(Self) -> LunaProfiledOperationPriority
+pub fn LunaPagedKernelProfileCapture::profiler_digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedKernelProfileCapture::sampled_wall_time_ns(Self) -> Int64
+pub fn LunaPagedKernelProfileCapture::target(Self) -> @catalog.DeviceTarget
+pub fn LunaPagedKernelProfileCapture::trace_digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedKernelProfileCapture::workload_digest(Self) -> LunaKernelProfileDigest
+
+pub struct LunaPagedKernelProfileObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedKernelProfileObservation::call_count(Self) -> Int64
+pub fn LunaPagedKernelProfileObservation::counters(Self) -> ReadOnlyArray[LunaPagedProfileCounter]
+pub fn LunaPagedKernelProfileObservation::inclusive_time_ns(Self) -> Int64
+pub fn LunaPagedKernelProfileObservation::new(operation_id~ : @plan.OperationId, shape~ : LunaPagedProfileShape, call_count~ : Int64, self_time_ns~ : Int64, inclusive_time_ns~ : Int64, counters? : ArrayView[LunaPagedProfileCounter]) -> Self raise LunaKernelProfileError
+pub fn LunaPagedKernelProfileObservation::operation_id(Self) -> @plan.OperationId
+pub fn LunaPagedKernelProfileObservation::self_time_ns(Self) -> Int64
+pub fn LunaPagedKernelProfileObservation::shape(Self) -> LunaPagedProfileShape
+
+pub struct LunaPagedPageTableTraceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaPagedPageTableTraceDigest::as_hex(Self) -> String
+pub fn LunaPagedPageTableTraceDigest::from_sha256(String) -> Self raise LunaKernelProfileError
+
+pub struct LunaPagedProfileContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileContract::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn LunaPagedProfileContract::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn LunaPagedProfileContract::head_dimension(Self) -> Int
+pub fn LunaPagedProfileContract::kernel_profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn LunaPagedProfileContract::kv_dtype(Self) -> @spec.ModelDType
+pub fn LunaPagedProfileContract::kv_head_count(Self) -> Int
+pub fn LunaPagedProfileContract::launch_identity(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedProfileContract::launches(Self) -> ReadOnlyArray[@launch_contract.PagedKvAotLaunchContract]
+pub fn LunaPagedProfileContract::scope(Self) -> @launch_contract.PagedContractScope
+pub fn LunaPagedProfileContract::tokens_per_page(Self) -> Int
+pub fn LunaPagedProfileContract::total_page_count(Self) -> Int
+
+pub struct LunaPagedProfileCounter {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileCounter::kind(Self) -> LunaPagedProfileCounterKind
+pub fn LunaPagedProfileCounter::new(kind~ : LunaPagedProfileCounterKind, value~ : Int64) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileCounter::value(Self) -> Int64
+
+pub(all) enum LunaPagedProfileCounterKind {
+  KernelLaunchCount
+  DramReadBytes
+  DramWriteBytes
+  L2ReadBytes
+  L2WriteBytes
+} derive(Eq, @debug.Debug)
+
+pub struct LunaPagedProfileRow {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileRow::block_count(Self) -> Int
+pub fn LunaPagedProfileRow::cache_position(Self) -> Int
+pub fn LunaPagedProfileRow::context_length(Self) -> Int
+pub fn LunaPagedProfileRow::new(phase~ : LunaPagedProfileRowPhase, query_length~ : Int, context_length~ : Int, cache_position~ : Int, page_table_start~ : Int, block_count~ : Int) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileRow::page_table_start(Self) -> Int
+pub fn LunaPagedProfileRow::phase(Self) -> LunaPagedProfileRowPhase
+pub fn LunaPagedProfileRow::query_length(Self) -> Int
+
+pub(all) enum LunaPagedProfileRowPhase {
+  PagedPrefill
+  PagedDecode
+} derive(Eq, @debug.Debug)
+
+pub struct LunaPagedProfileShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileShape::decode_row_count(Self) -> Int
+pub fn LunaPagedProfileShape::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedProfileShape::new(tokens_per_page~ : Int, prefill_row_count~ : Int, decode_row_count~ : Int, query_token_count~ : Int, page_table_block_count~ : Int, page_table_trace_digest~ : LunaPagedPageTableTraceDigest, ArrayView[LunaPagedProfileRow]) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileShape::page_table_block_count(Self) -> Int
+pub fn LunaPagedProfileShape::page_table_trace_digest(Self) -> LunaPagedPageTableTraceDigest
+pub fn LunaPagedProfileShape::prefill_row_count(Self) -> Int
+pub fn LunaPagedProfileShape::query_token_count(Self) -> Int
+pub fn LunaPagedProfileShape::rows(Self) -> ReadOnlyArray[LunaPagedProfileRow]
+pub fn LunaPagedProfileShape::tokens_per_page(Self) -> Int
+
+pub struct LunaProfiledOperationPriority {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaProfiledOperationPriority::attributed_self_time_ns(Self) -> Int64
+pub fn LunaProfiledOperationPriority::attributed_share_ppm(Self) -> Int
+pub fn LunaProfiledOperationPriority::capability(Self) -> @plan.KernelCapabilityId
+pub fn LunaProfiledOperationPriority::operation_id(Self) -> @plan.OperationId
+pub fn LunaProfiledOperationPriority::operation_kind(Self) -> @plan.OperationKind
+
+// Type aliases
+
+// Traits

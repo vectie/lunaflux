@@ -12,11 +12,11 @@ const ABSOLUTE_MAX_SYMBOL_BYTES : Int = 1024
 
 ///|
 pub struct KernelArtifactLimits {
-  max_modules : Int
-  max_entry_points : Int
-  max_module_bytes : Int64
-  max_total_module_bytes : Int64
-  max_function_symbol_bytes : Int
+  priv max_modules : Int
+  priv max_entry_points : Int
+  priv max_module_bytes : Int64
+  priv max_total_module_bytes : Int64
+  priv max_function_symbol_bytes : Int
 }
 
 ///|

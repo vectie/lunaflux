@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"

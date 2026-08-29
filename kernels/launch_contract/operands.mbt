@@ -1,9 +1,13 @@
 ///|
+const ABSOLUTE_MAX_OPERANDS_PER_CONTRACT : Int = 32
+
+///|
 /// Semantic address passed at one position in an AOT kernel parameter array.
 /// There is deliberately no scalar or untyped payload variant.
 pub(all) enum AotOperandRole {
   ExternalInput(@plan.ModelInputRef)
   WeightInput(@plan.TensorRef)
+  WeightScaleInput(@plan.TensorRef, @plan.ScaleTensorRef)
   ActivationInput(@plan.ActivationRef)
   RuntimeInput(@plan.OperationRuntimeInput)
   PersistentKvComponent(@plan.KvLayerId, @device_layout.DeviceKvComponent)
@@ -13,9 +17,9 @@ pub(all) enum AotOperandRole {
 
 ///|
 pub struct AotOperand {
-  role : AotOperandRole
-  byte_count : Int64
-  alignment : Int64
+  priv role : AotOperandRole
+  priv byte_count : Int64
+  priv alignment : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -48,4 +52,21 @@ pub fn AotOperand::byte_count(self : AotOperand) -> Int64 {
 ///|
 pub fn AotOperand::alignment(self : AotOperand) -> Int64 {
   self.alignment
+}
+
+///|
+fn checked_owned_operands(
+  operands : ArrayView[AotOperand],
+  operation : @plan.OperationId,
+) -> ReadOnlyArray[AotOperand] raise LaunchContractError {
+  if operands.is_empty() {
+    raise InvalidOperandDefinition(MissingSemanticRole)
+  }
+  if operands.length() > ABSOLUTE_MAX_OPERANDS_PER_CONTRACT {
+    raise OperandCountExceeded(
+      operation~,
+      maximum=ABSOLUTE_MAX_OPERANDS_PER_CONTRACT,
+    )
+  }
+  ReadOnlyArray::from_array(operands)
 }

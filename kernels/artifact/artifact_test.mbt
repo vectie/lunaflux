@@ -1,12 +1,7 @@
 ///|
-fn artifact_identity() -> @spec.ModelIdentity {
-  try! @spec.ModelIdentity::new(
-    try! @spec.ContentDigest::from_sha256(
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-    try! @spec.PlanDigest::from_sha256(
-      "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-    ),
+fn artifact_content() -> @spec.ContentDigest {
+  try! @spec.ContentDigest::from_sha256(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
 }
 
@@ -34,7 +29,8 @@ fn artifact_plan() -> @plan.ModelPlan {
     workspace_bytes=0L,
   )
   try! @plan.ModelPlan::new_stateless(
-    identity=artifact_identity(),
+    content_digest=artifact_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=8,
@@ -55,6 +51,9 @@ fn artifact_plan() -> @plan.ModelPlan {
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[embedding, norm],
     final_output=@plan.ActivationRef::new(1),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      embedding, norm,
+    ]),
   )
 }
 
@@ -207,7 +206,7 @@ fn contract_input(
     profile_id,
   )
   let resolved_operation = try! @plan.OperationId::new(operation_id)
-  @launch_contract.AotLaunchContractInput::new(
+  try! @launch_contract.AotLaunchContractInput::new(
     profile_id=resolved_profile,
     operation_id=resolved_operation,
     entry_point=entry(digest, operation_id + 1, entry_id),

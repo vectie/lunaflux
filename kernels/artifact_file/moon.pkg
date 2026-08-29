@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }
@@ -16,6 +17,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/kv/device_layout",
 } for "test"
 

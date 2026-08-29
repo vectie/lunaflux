@@ -1,0 +1,107 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_kernel_bundle"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/full_graph_manifest",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_aot",
+  "vectie/lunaflux/kernels/luna_cuda_fp8_projection_aot",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_fp8_projection_compiled_operation(@luna_cuda_fp8_projection_aot.Fp8ProjectionManifestCudaLowering, @launch_contract.PagedV4AotLaunchContract, @artifact.KernelArtifactBundle, Bytes, Bytes, LunaDeterministicCompileReceipt, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn admit_fp8_projection_compiled_operation_v2(@luna_cuda_fp8_projection_aot.Fp8ProjectionManifestCudaLoweringV2, @launch_contract.PagedV4AotLaunchContract, @artifact.KernelArtifactBundle, Bytes, Bytes, LunaDeterministicCompileReceipt, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn admit_paged_attention_compiled_operation(@luna_cuda_paged_attention_aot.PagedAttentionManifestCudaLowering, @launch_contract.PagedKvAotLaunchContract, Bytes, Bytes, LunaDeterministicCompileReceipt, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn admit_pointwise_compiled_operation(@luna_cuda_pointwise_aot.PointwiseManifestCudaLowering, @launch_contract.PagedKvAotLaunchContract, Bytes, Bytes, LunaDeterministicCompileReceipt, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn admit_projection_compiled_operation(@luna_cuda_projection_aot.ProjectionManifestCudaLowering, @launch_contract.PagedKvAotLaunchContract, Bytes, Bytes, LunaDeterministicCompileReceipt, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn admit_residual_compiled_operation(@luna_cuda_aot.LunaCudaAotLowering, @luna_cuda_aot.LunaCudaAotArtifact, @luna_cuda_aot.LunaCudaAotSpecializedArtifact, @plan.PlanOperation, @launch_contract.PagedKvAotLaunchContract, LunaKernelBundleLimits) -> LunaKernelCompiledOperation raise LunaKernelBundleError
+
+pub fn model_operation_has_typed_cuda_lowering(@plan.OperationKind) -> Bool
+
+pub fn produce_luna_kernel_bundle(@plan.ModelPlan, @catalog.DeviceTarget, @launch_contract.PagedKvLaunchContractSet, ArrayView[LunaKernelCompiledOperation], LunaKernelBundleLimits) -> LunaKernelBundleInput raise LunaKernelBundleError
+
+// Errors
+pub(all) suberror LunaKernelBundleError {
+  Invalid(LunaKernelBundleRule)
+  Unsupported(LunaKernelBundleRule)
+  Mismatch(rule~ : LunaKernelBundleRule, operation_index~ : Int)
+  LimitExceeded(rule~ : LunaKernelBundleRule, maximum~ : Int64)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaDeterministicCompileReceipt {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaDeterministicCompileReceipt::from_offline_builder(source_digest_sha256~ : String, recipe_digest_sha256~ : String, toolchain_digest_sha256~ : String, driver_identity_sha256~ : String, first_artifact_digest_sha256~ : String, second_artifact_digest_sha256~ : String) -> Self raise LunaKernelBundleError
+
+pub struct LunaKernelBundleInput {
+  // private fields
+}
+pub fn LunaKernelBundleInput::execution_manifest(Self) -> @full_graph_manifest.FullGraphExecutionManifestInput
+pub fn LunaKernelBundleInput::modules(Self) -> ReadOnlyArray[LunaKernelBundleModule]
+pub fn LunaKernelBundleInput::operations(Self) -> ReadOnlyArray[LunaKernelCompiledOperation]
+pub fn LunaKernelBundleInput::total_module_bytes(Self) -> Int64
+
+pub struct LunaKernelBundleLimits {
+  // private fields
+}
+pub fn LunaKernelBundleLimits::new(max_module_bytes~ : Int64, max_total_module_bytes~ : Int64, max_modules~ : Int, max_operations~ : Int, manifest~ : @full_graph_manifest.FullGraphManifestLimits) -> Self raise LunaKernelBundleError
+
+pub struct LunaKernelBundleModule {
+  // private fields
+}
+pub fn LunaKernelBundleModule::digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaKernelBundleModule::module_bytes(Self) -> Bytes
+pub fn LunaKernelBundleModule::relative_path(Self) -> String
+
+pub(all) enum LunaKernelBundleRule {
+  Limits
+  Digest
+  CompileReceipt
+  Determinism
+  ModuleBytes
+  ModuleIdentity
+  SourceIdentity
+  RecipeIdentity
+  OperationIdentity
+  OperationKind
+  EntryPoint
+  LaunchDimensions
+  OperandContract
+  WorkspaceContract
+  ModelIdentity
+  DeviceTarget
+  CatalogVersion
+  OperationCoverage
+  DuplicateOperation
+  DuplicateModule
+  TotalModuleBytes
+  Manifest
+} derive(Eq, @debug.Debug)
+
+pub struct LunaKernelCompiledOperation {
+  // private fields
+}
+pub fn LunaKernelCompiledOperation::device_target(Self) -> @catalog.DeviceTarget
+pub fn LunaKernelCompiledOperation::driver_identity_sha256(Self) -> String
+pub fn LunaKernelCompiledOperation::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaKernelCompiledOperation::operation_id(Self) -> @plan.OperationId
+pub fn LunaKernelCompiledOperation::recipe_digest_sha256(Self) -> String
+pub fn LunaKernelCompiledOperation::source_digest_sha256(Self) -> String
+pub fn LunaKernelCompiledOperation::toolchain_digest_sha256(Self) -> String
+
+// Type aliases
+
+// Traits

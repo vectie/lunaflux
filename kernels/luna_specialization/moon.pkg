@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

@@ -1,0 +1,118 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/i8_inert_capability_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_catalog_only_symmetric_i8_weight_only_v1(@plan.ModelPlan, @device.DeviceNumericCapability, @catalog.ResolvedKernelCatalog, I8InertKernelCapabilityAdmissionLimits) -> I8InertKernelCapabilityAdmission raise I8InertKernelCapabilityAdmissionError
+
+pub fn admit_production_llama_symmetric_i8_weight_only_v1(@plan.ModelPlan, @device.DeviceNumericCapability, @catalog.ResolvedKernelCatalog, I8InertKernelCapabilityAdmissionLimits) -> I8ProductionPolicyAdmission raise I8InertKernelCapabilityAdmissionError
+
+pub fn preflight_production_llama_symmetric_i8_weight_only_v1(@plan.ModelPlan) -> Unit raise I8InertKernelCapabilityAdmissionError
+
+// Errors
+pub(all) suberror I8InertKernelCapabilityAdmissionError {
+  I8InertKernelCapabilityRejected(I8InertKernelCapabilityAdmissionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct I8InertKernelCapabilityAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmission::canonical_bytes(Self) -> Bytes
+pub fn I8InertKernelCapabilityAdmission::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn I8InertKernelCapabilityAdmission::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
+pub fn I8InertKernelCapabilityAdmission::digest(Self) -> I8InertKernelCapabilityAdmissionDigest
+pub fn I8InertKernelCapabilityAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn I8InertKernelCapabilityAdmission::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn I8InertKernelCapabilityAdmission::operations(Self) -> ReadOnlyArray[I8InertOperationEvidence]
+pub fn I8InertKernelCapabilityAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn I8InertKernelCapabilityAdmission::version(Self) -> I8InertKernelCapabilityAdmissionVersion
+
+pub struct I8InertKernelCapabilityAdmissionDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionDigest::as_hex(Self) -> String
+
+pub struct I8InertKernelCapabilityAdmissionLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionLimits::new(max_operations~ : Int, max_weights~ : Int, max_canonical_bytes~ : Int) -> Self raise I8InertKernelCapabilityAdmissionError
+
+pub(all) enum I8InertKernelCapabilityAdmissionRule {
+  Limit
+  ExecutionScope
+  ModelIdentity
+  NumericSchema
+  DeviceCapability
+  DeviceTarget
+  CatalogVersion
+  BindingCount
+  BindingOrder
+  OperationExecution
+  UnsupportedI8Operation
+  MissingI8Operation
+  MixedWeightStorage
+  ScaleBinding
+  DuplicateScale
+  AotBinding
+  Workspace
+  CanonicalBytes
+  ProductionTensorStorage
+  ProductionExecution
+  ProductionScaleCoverage
+  ProductionGraph
+  MixedFp8Execution
+} derive(Eq, @debug.Debug)
+
+pub struct I8InertKernelCapabilityAdmissionVersion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionVersion::as_int(Self) -> Int
+pub fn I8InertKernelCapabilityAdmissionVersion::v1() -> Self
+
+pub struct I8InertOperationEvidence {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8InertOperationEvidence::capability(Self) -> @plan.KernelCapabilityId
+pub fn I8InertOperationEvidence::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn I8InertOperationEvidence::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn I8InertOperationEvidence::operation(Self) -> @plan.OperationId
+pub fn I8InertOperationEvidence::operation_kind(Self) -> @plan.OperationKind
+pub fn I8InertOperationEvidence::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn I8InertOperationEvidence::weights(Self) -> ReadOnlyArray[I8InertWeightEvidence]
+pub fn I8InertOperationEvidence::workspace_alignment(Self) -> Int64
+pub fn I8InertOperationEvidence::workspace_bytes(Self) -> Int64
+
+pub struct I8InertWeightEvidence {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8InertWeightEvidence::output_channel_count(Self) -> Int64
+pub fn I8InertWeightEvidence::scale(Self) -> @plan.ScaleTensorRef
+pub fn I8InertWeightEvidence::scale_shape(Self) -> @numeric_contract.NumericShape
+pub fn I8InertWeightEvidence::scale_storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn I8InertWeightEvidence::shape(Self) -> @numeric_contract.NumericShape
+pub fn I8InertWeightEvidence::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn I8InertWeightEvidence::tensor(Self) -> @plan.TensorRef
+
+pub struct I8ProductionPolicyAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8ProductionPolicyAdmission::catalog_admission(Self) -> I8InertKernelCapabilityAdmission
+pub fn I8ProductionPolicyAdmission::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
+pub fn I8ProductionPolicyAdmission::digest(Self) -> I8InertKernelCapabilityAdmissionDigest
+pub fn I8ProductionPolicyAdmission::i8_parameter_count(Self) -> Int
+pub fn I8ProductionPolicyAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn I8ProductionPolicyAdmission::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn I8ProductionPolicyAdmission::scale_tensor_count(Self) -> Int
+
+// Type aliases
+
+// Traits

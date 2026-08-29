@@ -13,10 +13,10 @@ const ABSOLUTE_MAX_PATH_BYTES : Int = 4096
 /// Module counts, module bytes, aggregate bytes, entry-point counts, and CUDA
 /// symbol bytes remain owned by the existing semantic artifact limits.
 pub struct KernelArtifactFileLimits {
-  max_manifest_bytes : Int64
-  max_json_depth : Int
-  max_path_bytes : Int
-  artifact : @artifact.KernelArtifactLimits
+  priv max_manifest_bytes : Int64
+  priv max_json_depth : Int
+  priv max_path_bytes : Int
+  priv artifact : @artifact.KernelArtifactLimits
 }
 
 ///|

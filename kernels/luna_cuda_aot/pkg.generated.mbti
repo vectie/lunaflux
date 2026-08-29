@@ -1,0 +1,123 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_luna_cuda_aot_output(LunaCudaAotLowering, Bytes, Bytes, LunaCudaOfflineCompileReceipt, LunaCudaAotLimits) -> LunaCudaAotArtifact raise LunaCudaAotError
+
+pub fn bind_luna_cuda_aot_specialization(LunaCudaAotLowering, LunaCudaAotArtifact, @luna_specialization.LunaSpecializationRecord) -> LunaCudaAotSpecializedArtifact raise LunaCudaAotError
+
+pub fn lower_luna_residual_add_cuda_aot(@luna_tile_ir.LunaTileProgram, @luna_tile_ir.LunaTileCudaAotInput, @catalog.DeviceTarget, @device_profile.ExactExecutionShape, @catalog.AotKernelEntryPointId, @luna_specialization.LunaCompilerPolicy, LunaCudaAotLimits) -> LunaCudaAotLowering raise LunaCudaAotError
+
+// Errors
+pub(all) suberror LunaCudaAotError {
+  Invalid(LunaCudaAotRule)
+  Unsupported(LunaCudaAotRule)
+  Mismatch(LunaCudaAotRule)
+  LimitExceeded(LunaCudaAotRule)
+  SizeOverflow(LunaCudaAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaCudaAotArtifact {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCudaAotArtifact::driver_identity_sha256(Self) -> String
+pub fn LunaCudaAotArtifact::evidence_bytes(Self) -> Bytes
+pub fn LunaCudaAotArtifact::evidence_digest(Self) -> LunaCudaEvidenceDigest
+pub fn LunaCudaAotArtifact::function_symbol(Self) -> String
+pub fn LunaCudaAotArtifact::module_bytes(Self) -> Bytes
+pub fn LunaCudaAotArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaCudaAotArtifact::module_relative_path(Self) -> String
+pub fn LunaCudaAotArtifact::recipe_digest(Self) -> LunaCudaRecipeDigest
+pub fn LunaCudaAotArtifact::source_digest(Self) -> LunaCudaSourceDigest
+pub fn LunaCudaAotArtifact::target(Self) -> @catalog.DeviceTarget
+
+pub struct LunaCudaAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCudaAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64, max_evidence_bytes~ : Int) -> Self raise LunaCudaAotError
+
+pub struct LunaCudaAotLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCudaAotLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn LunaCudaAotLowering::element_count(Self) -> Int64
+pub fn LunaCudaAotLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn LunaCudaAotLowering::execution_shape(Self) -> @device_profile.ExactExecutionShape
+pub fn LunaCudaAotLowering::function_symbol(Self) -> String
+pub fn LunaCudaAotLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn LunaCudaAotLowering::operand_byte_count(Self) -> Int64
+pub fn LunaCudaAotLowering::planning_digest(Self) -> @luna_tile_ir.LunaTileCudaAotDigest
+pub fn LunaCudaAotLowering::program_digest(Self) -> @luna_tile_ir.LunaTileProgramDigest
+pub fn LunaCudaAotLowering::recipe_bytes(Self) -> Bytes
+pub fn LunaCudaAotLowering::recipe_digest(Self) -> LunaCudaRecipeDigest
+pub fn LunaCudaAotLowering::source_bytes(Self) -> Bytes
+pub fn LunaCudaAotLowering::source_digest(Self) -> LunaCudaSourceDigest
+pub fn LunaCudaAotLowering::target(Self) -> @catalog.DeviceTarget
+pub fn LunaCudaAotLowering::width(Self) -> Int64
+
+pub(all) enum LunaCudaAotRule {
+  Limits
+  Program
+  PlanningInput
+  DeviceTarget
+  ExecutionShape
+  ElementCount
+  CompilerPolicy
+  Source
+  Recipe
+  Toolchain
+  CompileReceipt
+  Determinism
+  Artifact
+  Evidence
+  Specialization
+} derive(Eq, @debug.Debug)
+
+pub struct LunaCudaAotSpecializedArtifact {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCudaAotSpecializedArtifact::entry_point_input(Self, @catalog.AotKernelFamilyId) -> @artifact.KernelEntryPointInput
+pub fn LunaCudaAotSpecializedArtifact::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn LunaCudaAotSpecializedArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaCudaAotSpecializedArtifact::module_input(Self) -> @artifact.KernelModuleInput
+pub fn LunaCudaAotSpecializedArtifact::module_relative_path(Self) -> String
+pub fn LunaCudaAotSpecializedArtifact::operand_byte_count(Self) -> Int64
+pub fn LunaCudaAotSpecializedArtifact::operation_id(Self) -> @plan.OperationId
+pub fn LunaCudaAotSpecializedArtifact::specialization_digest(Self) -> @luna_specialization.LunaSpecializationDigest
+
+pub struct LunaCudaArtifactDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaCudaArtifactDigest::as_hex(Self) -> String
+pub fn LunaCudaArtifactDigest::from_sha256(String) -> Self raise LunaCudaAotError
+
+pub struct LunaCudaEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaCudaEvidenceDigest::as_hex(Self) -> String
+pub fn LunaCudaEvidenceDigest::from_sha256(String) -> Self raise LunaCudaAotError
+
+pub struct LunaCudaOfflineCompileReceipt {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCudaOfflineCompileReceipt::from_offline_builder(source_digest~ : LunaCudaSourceDigest, recipe_digest~ : LunaCudaRecipeDigest, toolchain_digest_sha256~ : String, driver_identity_sha256~ : String, first_artifact_digest~ : LunaCudaArtifactDigest, second_artifact_digest~ : LunaCudaArtifactDigest) -> Self raise LunaCudaAotError
+
+pub struct LunaCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaCudaRecipeDigest::as_hex(Self) -> String
+pub fn LunaCudaRecipeDigest::from_sha256(String) -> Self raise LunaCudaAotError
+
+pub struct LunaCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaCudaSourceDigest::as_hex(Self) -> String
+pub fn LunaCudaSourceDigest::from_sha256(String) -> Self raise LunaCudaAotError
+
+// Type aliases
+
+// Traits

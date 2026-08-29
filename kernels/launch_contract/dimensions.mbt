@@ -13,13 +13,13 @@ const MAX_SHARED_MEMORY_BYTES : Int = 98304
 ///|
 /// Exact bounded CUDA launch geometry retained as inert startup metadata.
 pub struct AotLaunchDimensions {
-  grid_x : Int
-  grid_y : Int
-  grid_z : Int
-  block_x : Int
-  block_y : Int
-  block_z : Int
-  shared_memory_bytes : Int
+  priv grid_x : Int
+  priv grid_y : Int
+  priv grid_z : Int
+  priv block_x : Int
+  priv block_y : Int
+  priv block_z : Int
+  priv shared_memory_bytes : Int
 } derive(Debug, Eq)
 
 ///|

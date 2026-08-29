@@ -1,6 +1,8 @@
 ///|
 /// Explicit SHA-256 identity supplied independently of the manifest file.
-pub struct KernelManifestDigest(String) derive(Debug, Eq)
+pub struct KernelManifestDigest {
+  priv value : String
+} derive(Debug, Eq)
 
 ///|
 /// Untrusted pairing of one expected module digest and relative file locator.
@@ -57,12 +59,12 @@ pub fn KernelManifestDigest::from_sha256(
   if !is_lower_sha256(value) {
     raise InvalidExpectedManifestDigest
   }
-  KernelManifestDigest(value)
+  { value, }
 }
 
 ///|
 pub fn KernelManifestDigest::as_hex(self : KernelManifestDigest) -> String {
-  self.0
+  self.value
 }
 
 ///|
@@ -82,7 +84,7 @@ pub fn KernelModuleFileInput::new(
 /// fail before immutable source ownership is published. Symbol syntax/length,
 /// entry-point-to-module linkage, and module bytes deliberately remain subject
 /// to downstream semantic artifact admission; `KernelEntryPointInput` exposes
-/// no pre-admission inspection surface to this package.
+/// read-only identity/symbol access but no mutation or result authority.
 pub fn KernelArtifactManifest::admit_files(
   modules : ArrayView[KernelModuleFileInput],
   entry_points : ArrayView[@artifact.KernelEntryPointInput],

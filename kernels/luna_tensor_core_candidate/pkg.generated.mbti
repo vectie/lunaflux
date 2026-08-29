@@ -1,0 +1,82 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_tensor_core_candidate"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+}
+
+// Values
+pub fn lower_luna_tile_bf16_mma16x16x16_tensor_core_candidate(@luna_tile_ir.LunaTileProgram, @luna_tile_ir.LunaTileCudaTranslationUnit, @luna_tile_ir.LunaTileParallelCandidate, LunaTileBf16Mma16x16x16Contract, LunaTileTensorCoreCandidateLimits) -> LunaTileBf16Mma16x16x16Candidate raise LunaTileTensorCoreCandidateError
+
+// Errors
+pub(all) suberror LunaTileTensorCoreCandidateError {
+  LunaTileTensorCoreRejected(LunaTileTensorCoreRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaTileBf16Mma16x16x16Candidate {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaTileBf16Mma16x16x16Candidate::canonical_bytes(Self) -> Bytes
+pub fn LunaTileBf16Mma16x16x16Candidate::digest(Self) -> LunaTileTensorCoreCandidateDigest
+pub fn LunaTileBf16Mma16x16x16Candidate::entry_point(Self) -> String
+pub fn LunaTileBf16Mma16x16x16Candidate::manifest_bindable(Self) -> Bool
+pub fn LunaTileBf16Mma16x16x16Candidate::parallel_plan_digest(Self) -> @luna_tile_ir.LunaTileParallelDigest
+pub fn LunaTileBf16Mma16x16x16Candidate::program_digest(Self) -> @luna_tile_ir.LunaTileProgramDigest
+pub fn LunaTileBf16Mma16x16x16Candidate::promotion_authorized(Self) -> Bool
+pub fn LunaTileBf16Mma16x16x16Candidate::serial_oracle_digest(Self) -> @luna_tile_ir.LunaTileCudaTranslationDigest
+pub fn LunaTileBf16Mma16x16x16Candidate::source_bytes(Self) -> Bytes
+pub fn LunaTileBf16Mma16x16x16Candidate::source_digest(Self) -> LunaTileTensorCoreSourceDigest
+pub fn LunaTileBf16Mma16x16x16Candidate::tile_count(Self) -> Int
+
+pub struct LunaTileBf16Mma16x16x16Contract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaTileBf16Mma16x16x16Contract::new(compute_major~ : Int, compute_minor~ : Int, m~ : Int, n~ : Int, k~ : Int, left_layout~ : LunaTileTensorCoreMatrixLayout, right_layout~ : LunaTileTensorCoreMatrixLayout, accumulator~ : LunaTileTensorCoreAccumulator, output_layout~ : LunaTileTensorCoreMatrixLayout, left_alignment_bytes~ : Int, right_alignment_bytes~ : Int, accumulator_alignment_bytes~ : Int, output_alignment_bytes~ : Int, epilogue~ : LunaTileTensorCoreEpilogue, block_threads~ : Int, maximum_registers_per_thread~ : Int) -> Self raise LunaTileTensorCoreCandidateError
+
+pub(all) enum LunaTileTensorCoreAccumulator {
+  TensorCoreAccumulatorF32
+  TensorCoreAccumulatorBf16
+} derive(Eq, @debug.Debug)
+
+pub struct LunaTileTensorCoreCandidateDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaTileTensorCoreCandidateDigest::as_hex(Self) -> String
+
+pub struct LunaTileTensorCoreCandidateLimits {
+  // private fields
+}
+pub fn LunaTileTensorCoreCandidateLimits::new(maximum_source_bytes~ : Int, maximum_canonical_bytes~ : Int) -> Self raise LunaTileTensorCoreCandidateError
+
+pub(all) enum LunaTileTensorCoreEpilogue {
+  TensorCoreIdentityEpilogue
+  TensorCoreBiasEpilogue
+  TensorCoreSiluEpilogue
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaTileTensorCoreMatrixLayout {
+  TensorCoreRowMajor
+  TensorCoreColumnMajor
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaTileTensorCoreRule {
+  Contract
+  Target
+  Shape
+  Layout
+  DType
+  Alignment
+  Epilogue
+  Resource
+  ProgramProof
+  OracleIdentity
+  ParallelIdentity
+  SourceLimit
+} derive(Eq, @debug.Debug)
+
+pub struct LunaTileTensorCoreSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaTileTensorCoreSourceDigest::as_hex(Self) -> String
+
+// Type aliases
+
+// Traits

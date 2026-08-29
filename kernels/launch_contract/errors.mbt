@@ -33,6 +33,9 @@ pub(all) enum OperandRule {
   PositionalRoleMismatch
   RuntimeInputSizeMismatch
   PersistentKvMismatch
+  NumericTensorMismatch
+  NumericByteCountMismatch
+  UnsupportedNumericMetadata
 } derive(Debug, Eq)
 
 ///|
@@ -44,6 +47,7 @@ pub(all) suberror LaunchContractError {
   InvalidOperand(@plan.OperationId, OperandRule)
   ProfileCountExceeded(maximum~ : Int)
   ContractCountExceeded(maximum~ : Int)
+  ContractCountMismatch
   OperandCountExceeded(operation~ : @plan.OperationId, maximum~ : Int)
   DuplicateProfile(KernelProfileId)
   UnknownProfile(KernelProfileId)
@@ -55,6 +59,8 @@ pub(all) suberror LaunchContractError {
   ContractForVendorKernel(KernelProfileId, @plan.OperationId)
   ContractForNonPagedKvOperation(KernelProfileId, @plan.OperationId)
   KernelFamilyMismatch(KernelProfileId, @plan.OperationId)
+  EntryPointMismatch(KernelProfileId, @plan.OperationId)
+  NumericBindingMismatch(@plan.OperationId)
   UnsupportedExecutionContract
   CatalogVersionMismatch
   DeviceKvLayoutMismatch

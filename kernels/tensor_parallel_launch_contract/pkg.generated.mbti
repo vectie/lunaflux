@@ -1,0 +1,142 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/tensor_parallel_launch_contract"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+// Values
+pub fn admit_paged_rank(@plan.ModelPlan, @tensor_parallel_plan.TensorParallelRankPlan, @device_layout.DeviceKvLayout, @catalog.ResolvedKernelCatalog, expected_rank~ : Int, expected_world_size~ : Int, expected_target~ : @catalog.DeviceTarget, ArrayView[@launch_contract.PagedKernelProfile], ArrayView[TensorParallelAotLaunchContractInput], TensorParallelLaunchContractLimits) -> TensorParallelAotLaunchContractSet raise TensorParallelLaunchContractError
+
+// Errors
+pub(all) suberror TensorParallelLaunchContractError {
+  InvalidTensorParallelLaunchContract(rule~ : TensorParallelLaunchContractRule, profile~ : Int, operation~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TensorParallelAotLaunchContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelAotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
+pub fn TensorParallelAotLaunchContract::collective_after(Self) -> TensorParallelCollectiveAfter
+pub fn TensorParallelAotLaunchContract::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn TensorParallelAotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn TensorParallelAotLaunchContract::head_dimension(Self) -> Int
+pub fn TensorParallelAotLaunchContract::inner_width(Self) -> Int
+pub fn TensorParallelAotLaunchContract::input_width(Self) -> Int
+pub fn TensorParallelAotLaunchContract::kv_head_count(Self) -> Int
+pub fn TensorParallelAotLaunchContract::operands(Self) -> ReadOnlyArray[TensorParallelOperand]
+pub fn TensorParallelAotLaunchContract::operation_id(Self) -> @plan.OperationId
+pub fn TensorParallelAotLaunchContract::operation_kind(Self) -> @plan.OperationKind
+pub fn TensorParallelAotLaunchContract::output_width(Self) -> Int
+pub fn TensorParallelAotLaunchContract::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn TensorParallelAotLaunchContract::query_head_count(Self) -> Int
+
+pub struct TensorParallelAotLaunchContractInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelAotLaunchContractInput::new(profile_id~ : @launch_contract.KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : @launch_contract.AotLaunchDimensions, rank~ : Int, world_size~ : Int, device_target~ : @catalog.DeviceTarget, max_query_rows~ : Int, max_query_tokens~ : Int, max_page_table_entries~ : Int, input_width~ : Int, output_width~ : Int, inner_width~ : Int, query_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int, kv_layout_version~ : Int, tokens_per_page~ : Int) -> Self
+
+pub struct TensorParallelAotLaunchContractSet {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelAotLaunchContractSet::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn TensorParallelAotLaunchContractSet::contracts(Self) -> ReadOnlyArray[TensorParallelAotLaunchContract]
+pub fn TensorParallelAotLaunchContractSet::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn TensorParallelAotLaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelAotLaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelAotLaunchContractSet::profiles(Self) -> ReadOnlyArray[@launch_contract.PagedKernelProfile]
+pub fn TensorParallelAotLaunchContractSet::rank(Self) -> Int
+pub fn TensorParallelAotLaunchContractSet::rank_constants(Self) -> TensorParallelRankConstants
+pub fn TensorParallelAotLaunchContractSet::world_size(Self) -> Int
+
+pub(all) enum TensorParallelCollectiveAfter {
+  NoCollective
+  CollectiveSumAllReduce(sequence~ : Int, width~ : Int)
+  CollectiveLastAxisAllGather(sequence~ : Int, full_width~ : Int, local_width~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelLaunchContractLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelLaunchContractLimits::max_contracts(Self) -> Int
+pub fn TensorParallelLaunchContractLimits::max_operands_per_contract(Self) -> Int
+pub fn TensorParallelLaunchContractLimits::max_profiles(Self) -> Int
+pub fn TensorParallelLaunchContractLimits::new(max_profiles~ : Int, max_contracts~ : Int, max_operands_per_contract~ : Int) -> Self raise TensorParallelLaunchContractError
+
+pub(all) enum TensorParallelLaunchContractRule {
+  InvalidLimit
+  Identity
+  Rank
+  WorldSize
+  DeviceTarget
+  CatalogVersion
+  OperationCount
+  OperationOrder
+  OperationShape
+  TensorCount
+  TensorPlacement
+  TensorExtent
+  TensorRegion
+  FullTensorReplication
+  KvLayout
+  FullKvReplication
+  ProfileCount
+  ProfileEnvelope
+  DuplicateProfile
+  ContractCount
+  ContractOrder
+  ArtifactProfile
+  ArtifactFamily
+  VendorImplementation
+  Binding
+  ExecutionSemantics
+  CollectiveSequence
+  CollectiveOperation
+  CollectiveWidth
+  OperandCount
+  RankConstantsDestination
+  CapacityOverflow
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelOperand::alignment(Self) -> Int64
+pub fn TensorParallelOperand::byte_count(Self) -> Int64
+pub fn TensorParallelOperand::role(Self) -> TensorParallelOperandRole
+
+pub(all) enum TensorParallelOperandRole {
+  RuntimeInput(@plan.OperationRuntimeInput)
+  RankConstants(version~ : Int)
+  ExternalInput(@plan.ModelInputRef)
+  WeightInput(@plan.TensorRef)
+  ActivationInput(@plan.ActivationRef)
+  ActivationOutput(@plan.ActivationRef)
+  PersistentKvComponent(@plan.KvLayerId, @device_layout.DeviceKvComponent)
+  Workspace
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelRankConstants {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRankConstants::alignment(Self) -> Int64
+pub fn TensorParallelRankConstants::byte_count(Self) -> Int64
+pub fn TensorParallelRankConstants::compute_major(Self) -> Int
+pub fn TensorParallelRankConstants::compute_minor(Self) -> Int
+pub fn TensorParallelRankConstants::encode_into(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise TensorParallelLaunchContractError
+pub fn TensorParallelRankConstants::kv_layout_version(Self) -> Int
+pub fn TensorParallelRankConstants::rank(Self) -> Int
+pub fn TensorParallelRankConstants::tokens_per_page(Self) -> Int
+pub fn TensorParallelRankConstants::version(Self) -> Int
+pub fn TensorParallelRankConstants::world_size(Self) -> Int
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,107 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/fp8_release_authority"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/fp8_runtime_recipe",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn admit_reusable_paged_v3(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, @luna_capability_manifest.LunaAdmittedFp8ReusablePagedReleaseManifestV3, @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3, Fp8ReleaseAuthorityLimits) -> Fp8ReusablePagedEnvelopeAuthorityV3 raise Fp8ReleaseAuthorityError
+
+pub fn admit_v2(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, @luna_capability_manifest.LunaAdmittedFp8ReleaseManifestV2, @fp8_runtime_recipe.Fp8RuntimeRecipeV2, Fp8ReleaseAuthorityLimits) -> Fp8ReleaseAuthorityV2 raise Fp8ReleaseAuthorityError
+
+// Errors
+pub(all) suberror Fp8ReleaseAuthorityError {
+  InvalidFp8ReleaseAuthority(Fp8ReleaseAuthorityRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8ReleaseAuthorityDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8ReleaseAuthorityDigest::as_hex(Self) -> String
+
+pub struct Fp8ReleaseAuthorityLimits {
+  // private fields
+}
+pub fn Fp8ReleaseAuthorityLimits::new(max_manifest_bytes~ : Int64, max_module_bytes~ : Int64, max_total_module_bytes~ : Int64, max_operations~ : Int) -> Self raise Fp8ReleaseAuthorityError
+
+pub(all) enum Fp8ReleaseAuthorityRule {
+  Limit
+  TotalModuleBytes
+  ManifestFile
+  ExternalApproval
+  Recipe
+  ModelIdentity
+  Target
+  OperationOrder
+  EntryPoint
+  Symbol
+  LaunchDimensions
+  RawOperands
+  Workspace
+  ModuleFile
+  ModuleDigest
+  ArtifactBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8ReleaseAuthorityV2 {
+  // private fields
+}
+pub fn Fp8ReleaseAuthorityV2::approved_source_identity(Self) -> @luna_capability_manifest.LunaApprovedImmutableSourceIdentity
+pub fn Fp8ReleaseAuthorityV2::digest(Self) -> Fp8ReleaseAuthorityDigest
+pub fn Fp8ReleaseAuthorityV2::operations(Self) -> ReadOnlyArray[Fp8ReleaseOperationAuthorityV2]
+pub fn Fp8ReleaseAuthorityV2::recipe(Self) -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2
+pub fn Fp8ReleaseAuthorityV2::recipe_digest(Self) -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2Digest
+pub fn Fp8ReleaseAuthorityV2::target(Self) -> @catalog.DeviceTarget
+
+pub struct Fp8ReleaseOperationAuthorityV2 {
+  // private fields
+}
+pub fn Fp8ReleaseOperationAuthorityV2::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8ReleaseOperationAuthorityV2::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8ReleaseOperationAuthorityV2::function_symbol(Self) -> String
+pub fn Fp8ReleaseOperationAuthorityV2::module_bytes(Self) -> Bytes
+pub fn Fp8ReleaseOperationAuthorityV2::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8ReleaseOperationAuthorityV2::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8ReleaseOperationAuthorityV2::operation(Self) -> @plan.OperationId
+pub fn Fp8ReleaseOperationAuthorityV2::recipe_digest_sha256(Self) -> String
+pub fn Fp8ReleaseOperationAuthorityV2::source_digest_sha256(Self) -> String
+pub fn Fp8ReleaseOperationAuthorityV2::workspace_alignment(Self) -> Int64
+pub fn Fp8ReleaseOperationAuthorityV2::workspace_bytes(Self) -> Int64
+
+pub struct Fp8ReusablePagedEnvelopeAuthorityV3 {
+  // private fields
+}
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::approved_key_identity(Self) -> @luna_capability_manifest.LunaSignatureKeyIdentityDigest
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::approved_source_identity(Self) -> @luna_capability_manifest.LunaApprovedImmutableSourceIdentity
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::detached_signature_digest(Self) -> @luna_capability_manifest.LunaDetachedSignatureDigest
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::digest(Self) -> Fp8ReleaseAuthorityDigest
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::manifest_digest(Self) -> @luna_capability_manifest.LunaCapabilityManifestDigest
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::operations(Self) -> ReadOnlyArray[Fp8ReusablePagedReleaseOperationV3]
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::recipe(Self) -> @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::recipe_digest(Self) -> @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Digest
+pub fn Fp8ReusablePagedEnvelopeAuthorityV3::target(Self) -> @catalog.DeviceTarget
+
+pub struct Fp8ReusablePagedReleaseOperationV3 {
+  // private fields
+}
+pub fn Fp8ReusablePagedReleaseOperationV3::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8ReusablePagedReleaseOperationV3::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8ReusablePagedReleaseOperationV3::function_symbol(Self) -> String
+pub fn Fp8ReusablePagedReleaseOperationV3::module_bytes(Self) -> Bytes
+pub fn Fp8ReusablePagedReleaseOperationV3::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8ReusablePagedReleaseOperationV3::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8ReusablePagedReleaseOperationV3::operation(Self) -> @plan.OperationId
+pub fn Fp8ReusablePagedReleaseOperationV3::recipe_digest_sha256(Self) -> String
+pub fn Fp8ReusablePagedReleaseOperationV3::source_digest_sha256(Self) -> String
+pub fn Fp8ReusablePagedReleaseOperationV3::workspace_alignment(Self) -> Int64
+pub fn Fp8ReusablePagedReleaseOperationV3::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

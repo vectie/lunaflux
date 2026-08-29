@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/config/kernels"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn new(StringView, StringView, KernelAdmissionPolicy) -> KernelConfig raise KernelConfigError
+
+// Errors
+pub(all) suberror KernelConfigError {
+  Invalid(field~ : KernelConfigField, issue~ : KernelConfigIssue)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum KernelAdmissionPolicy {
+  DeploymentApprovedAotOnly
+  OfflineInspectionOnly
+} derive(Eq, @debug.Debug)
+
+pub struct KernelConfig {
+  // private fields
+}
+pub fn KernelConfig::admission_policy(Self) -> KernelAdmissionPolicy
+pub fn KernelConfig::expected_manifest_digest(Self) -> KernelManifestDigest
+pub fn KernelConfig::manifest_locator(Self) -> @approved_fs.ApprovedRelativeLocator
+pub fn KernelConfig::permits_runtime_readiness(Self) -> Bool
+
+pub(all) enum KernelConfigField {
+  ManifestLocator
+  ExpectedManifestDigest
+  AdmissionPolicy
+} derive(Eq, @debug.Debug)
+
+pub(all) enum KernelConfigIssue {
+  InvalidFormat
+  Unsupported
+} derive(Eq, @debug.Debug)
+
+pub struct KernelManifestDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn KernelManifestDigest::as_hex(Self) -> String
+pub fn KernelManifestDigest::from_sha256(StringView) -> Self raise KernelConfigError
+
+// Type aliases
+
+// Traits

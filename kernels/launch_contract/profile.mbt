@@ -1,5 +1,7 @@
 ///|
-pub struct KernelProfileId(Int) derive(Debug, Eq)
+pub struct KernelProfileId {
+  priv value : Int
+} derive(Debug, Eq)
 
 ///|
 /// Exact full-prefill shape understood by an AOT launch contract.
@@ -8,10 +10,10 @@ pub struct KernelProfileId(Int) derive(Debug, Eq)
 /// entry point admitted for the plan envelope from being reused silently for
 /// a smaller live profile.
 pub struct KernelProfile {
-  id : KernelProfileId
-  batch_rows : Int
-  sequence_tokens : Int
-  token_rows : Int64
+  priv id : KernelProfileId
+  priv batch_rows : Int
+  priv sequence_tokens : Int
+  priv token_rows : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -21,12 +23,12 @@ pub fn KernelProfileId::from_stable_int(
   if value <= 0 {
     raise InvalidProfile(NonPositiveId)
   }
-  KernelProfileId(value)
+  { value, }
 }
 
 ///|
 pub fn KernelProfileId::as_int(self : KernelProfileId) -> Int {
-  self.0
+  self.value
 }
 
 ///|

@@ -1,12 +1,7 @@
 ///|
-fn fixture_identity() -> @spec.ModelIdentity {
-  try! @spec.ModelIdentity::new(
-    try! @spec.ContentDigest::from_sha256(
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-    try! @spec.PlanDigest::from_sha256(
-      "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-    ),
+fn fixture_content() -> @spec.ContentDigest {
+  try! @spec.ContentDigest::from_sha256(
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   )
 }
 
@@ -22,7 +17,8 @@ fn fixture_plan() -> @plan.ModelPlan {
     workspace_bytes=0L,
   )
   try! @plan.ModelPlan::new_stateless(
-    identity=fixture_identity(),
+    content_digest=fixture_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=4,
@@ -43,6 +39,7 @@ fn fixture_plan() -> @plan.ModelPlan {
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[operation],
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([operation]),
   )
 }
 
@@ -166,7 +163,7 @@ fn fixture_contract_input(
     byte_count=rows.to_int64() * 32L,
     alignment=16L,
   )
-  @launch_contract.AotLaunchContractInput::new(
+  try! @launch_contract.AotLaunchContractInput::new(
     profile_id=resolved_profile,
     operation_id~,
     entry_point=fixture_entry(digest, entry_id),
@@ -237,9 +234,11 @@ fn manifest_json(
   modules : ArrayView[String],
   extra_root? : String = "",
   catalog_version? : Int = 1,
+  plan? : @plan.ModelPlan = fixture_plan(),
 ) -> Bytes {
+  let identity = plan.identity()
   @utf8.encode(
-    "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"\{fixture_identity().content().as_hex()}\",\"plan_sha256\":\"\{fixture_identity().plan().as_hex()}\"},\"device_target\":{\"compute_major\":8,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false},\"catalog_version\":\{catalog_version},\"modules\":[\{modules.join(",")}]\{extra_root}}",
+    "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"\{identity.content().as_hex()}\",\"plan_sha256\":\"\{identity.plan().as_hex()}\"},\"device_target\":{\"compute_major\":8,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false},\"catalog_version\":\{catalog_version},\"modules\":[\{modules.join(",")}]\{extra_root}}",
   )
 }
 

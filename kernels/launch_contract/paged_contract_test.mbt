@@ -8,8 +8,57 @@ fn paged_plan_fixture() -> @plan.ModelPlan raise {
     dtype=BFloat16,
     layout=LayerMajorSplitKeyValueV1,
   )
+  let operations = [
+    @plan.PlanOperation::new_with_runtime_inputs(
+      id=@plan.OperationId::new(0),
+      kind=Embedding,
+      inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
+      outputs=[@plan.ActivationRef::new(0)],
+      shape=EmbeddingShape(vocabulary_size=128, width=16),
+      required_capability=@plan.KernelCapabilityId::embedding_lookup(),
+      workspace_bytes=0L,
+      runtime_inputs=[StepCounts],
+    ),
+    @plan.PlanOperation::new_with_execution(
+      id=@plan.OperationId::new(1),
+      kind=RotaryEmbedding,
+      inputs=[Activation(@plan.ActivationRef::new(0))],
+      outputs=[@plan.ActivationRef::new(1)],
+      shape=RotaryShape(
+        query_heads=4,
+        kv_heads=2,
+        head_dimension=4,
+        rope_theta=10000.0,
+      ),
+      required_capability=@plan.KernelCapabilityId::positioned_rotary_embedding(),
+      workspace_bytes=0L,
+      kv_layer=layer,
+      runtime_inputs=[StepCounts, QueryPositions],
+      persistent_state=NoPersistentState,
+    ),
+    @plan.PlanOperation::new_with_execution(
+      id=@plan.OperationId::new(2),
+      kind=CausalAttention,
+      inputs=[Activation(@plan.ActivationRef::new(1))],
+      outputs=[@plan.ActivationRef::new(2)],
+      shape=AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
+      required_capability=@plan.KernelCapabilityId::paged_causal_attention(),
+      workspace_bytes=0L,
+      kv_layer=layer,
+      runtime_inputs=[
+        StepCounts,
+        QueryPositions,
+        QueryRowOffsets,
+        SequenceLengths,
+        PageTableOffsets,
+        PageTablePageIndices,
+      ],
+      persistent_state=KvCacheReadWrite(layer),
+    ),
+  ]
   @plan.ModelPlan::new_with_kv_execution(
-    identity=contract_identity(),
+    content_digest=contract_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=2,
       max_sequence_tokens=8,
@@ -22,56 +71,10 @@ fn paged_plan_fixture() -> @plan.ModelPlan raise {
     ),
     kv_cache_geometry=geometry,
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
-    operations=[
-      @plan.PlanOperation::new_with_runtime_inputs(
-        id=@plan.OperationId::new(0),
-        kind=Embedding,
-        inputs=[ModelInput(TokenIds), Tensor(@plan.TensorRef::new(0))],
-        outputs=[@plan.ActivationRef::new(0)],
-        shape=EmbeddingShape(vocabulary_size=128, width=16),
-        required_capability=@plan.KernelCapabilityId::embedding_lookup(),
-        workspace_bytes=0L,
-        runtime_inputs=[StepCounts],
-      ),
-      @plan.PlanOperation::new_with_execution(
-        id=@plan.OperationId::new(1),
-        kind=RotaryEmbedding,
-        inputs=[Activation(@plan.ActivationRef::new(0))],
-        outputs=[@plan.ActivationRef::new(1)],
-        shape=RotaryShape(
-          query_heads=4,
-          kv_heads=2,
-          head_dimension=4,
-          rope_theta=10000.0,
-        ),
-        required_capability=@plan.KernelCapabilityId::positioned_rotary_embedding(),
-        workspace_bytes=0L,
-        kv_layer=layer,
-        runtime_inputs=[StepCounts, QueryPositions],
-        persistent_state=NoPersistentState,
-      ),
-      @plan.PlanOperation::new_with_execution(
-        id=@plan.OperationId::new(2),
-        kind=CausalAttention,
-        inputs=[Activation(@plan.ActivationRef::new(1))],
-        outputs=[@plan.ActivationRef::new(2)],
-        shape=AttentionShape(query_heads=4, kv_heads=2, head_dimension=4),
-        required_capability=@plan.KernelCapabilityId::paged_causal_attention(),
-        workspace_bytes=0L,
-        kv_layer=layer,
-        runtime_inputs=[
-          StepCounts,
-          QueryPositions,
-          QueryRowOffsets,
-          SequenceLengths,
-          PageTableOffsets,
-          PageTablePageIndices,
-        ],
-        persistent_state=KvCacheReadWrite(layer),
-      ),
-    ],
+    operations~,
     final_output=@plan.ActivationRef::new(2),
     kv_execution=PagedKeyValue,
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema(operations),
   )
 }
 
@@ -186,9 +189,10 @@ fn paged_catalog_fixture(
 
 ///|
 fn paged_layout_fixture() -> @device_layout.DeviceKvLayout raise {
+  let plan = paged_plan_fixture()
   @device_layout.plan(
-    contract_identity(),
-    paged_plan_fixture().kv_cache_geometry(),
+    plan.identity(),
+    plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=4,
       total_page_count=8,
@@ -418,7 +422,7 @@ test "paged v3 rejects wrong layout, mode, and catalog version" {
     layout=LayerMajorSplitKeyValueV1,
   )
   let foreign_layout = @device_layout.plan(
-    contract_identity(),
+    paged_plan_fixture().identity(),
     foreign_geometry,
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=4,

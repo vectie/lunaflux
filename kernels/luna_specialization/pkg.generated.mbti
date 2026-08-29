@@ -1,0 +1,149 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_specialization"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_persisted_luna_specialization(Bytes, LunaSpecializationDigest, LunaSpecializationLimits) -> LunaSpecializationRecord raise LunaSpecializationError
+
+pub fn readmit_persisted_luna_specialization(LunaSpecializationRecord, @plan.ModelPlan, @device_plan.StaticDevicePlan, @device_profile.DeviceExecutionProfile, @catalog.ResolvedKernelCatalog) -> LunaSpecializationRecord raise LunaSpecializationError
+
+pub fn specialize_luna_tile(@plan.ModelPlan, @device_plan.StaticDevicePlan, @device_profile.DeviceExecutionProfile, @catalog.ResolvedKernelCatalog, operation_id~ : @plan.OperationId, entry_point_id~ : LunaSpecializedEntryPointId, @luna_tile_ir.LunaTileProgram, @luna_tile_ir.LunaTileCudaAotInput, LunaCompilerPolicy, LunaNumericalPolicy, LunaSpecializationEvidence, LunaSpecializationLimits) -> LunaSpecializationRecord raise LunaSpecializationError
+
+// Errors
+pub(all) suberror LunaSpecializationError {
+  Invalid(LunaSpecializationRule)
+  Unsupported(LunaSpecializationRule)
+  Mismatch(LunaSpecializationRule)
+  SizeOverflow(LunaSpecializationRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaCompilerIdentity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCompilerIdentity::major(Self) -> Int
+pub fn LunaCompilerIdentity::minor(Self) -> Int
+pub fn LunaCompilerIdentity::new(toolchain_digest_sha256~ : String, major~ : Int, minor~ : Int, patch~ : Int) -> Self raise LunaSpecializationError
+pub fn LunaCompilerIdentity::patch(Self) -> Int
+pub fn LunaCompilerIdentity::toolchain_digest_sha256(Self) -> String
+
+pub struct LunaCompilerPolicy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCompilerPolicy::fused_multiply_add(Self) -> Bool
+pub fn LunaCompilerPolicy::identity(Self) -> LunaCompilerIdentity
+pub fn LunaCompilerPolicy::max_registers(Self) -> Int
+pub fn LunaCompilerPolicy::new(identity~ : LunaCompilerIdentity, optimization_level~ : Int, fused_multiply_add~ : Bool, reassociate~ : Bool, max_registers~ : Int) -> Self raise LunaSpecializationError
+pub fn LunaCompilerPolicy::optimization_level(Self) -> Int
+pub fn LunaCompilerPolicy::reassociate(Self) -> Bool
+
+pub(all) enum LunaNumericalPolicy {
+  LunaBitExactOperationOrderV1
+  LunaToleranceV1(maximum_absolute_error_ppb~ : Int64, maximum_relative_error_ppb~ : Int64, requires_token_agreement~ : Bool)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaQuantizationPolicy {
+  LunaUnquantizedBf16V1
+} derive(Eq, @debug.Debug)
+
+pub struct LunaSpecializationDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaSpecializationDigest::as_hex(Self) -> String
+pub fn LunaSpecializationDigest::from_sha256(String) -> Self raise LunaSpecializationError
+
+pub struct LunaSpecializationEvidence {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaSpecializationEvidence::admitted_tensor_rows(Self) -> LunaSpecializationEvidenceDigest
+pub fn LunaSpecializationEvidence::benchmark(Self) -> LunaSpecializationEvidenceDigest
+pub fn LunaSpecializationEvidence::dispatch_canary(Self) -> LunaSpecializationEvidenceDigest
+pub fn LunaSpecializationEvidence::new(scalar_referee~ : LunaSpecializationEvidenceDigest, admitted_tensor_rows~ : LunaSpecializationEvidenceDigest, dispatch_canary~ : LunaSpecializationEvidenceDigest, benchmark~ : LunaSpecializationEvidenceDigest) -> Self
+pub fn LunaSpecializationEvidence::scalar_referee(Self) -> LunaSpecializationEvidenceDigest
+
+pub struct LunaSpecializationEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaSpecializationEvidenceDigest::as_hex(Self) -> String
+pub fn LunaSpecializationEvidenceDigest::from_sha256(String) -> Self raise LunaSpecializationError
+
+pub struct LunaSpecializationLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaSpecializationLimits::new(max_canonical_bytes~ : Int, max_bound_regions~ : Int) -> Self raise LunaSpecializationError
+
+pub struct LunaSpecializationRecord {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaSpecializationRecord::canonical_bytes(Self) -> Bytes
+pub fn LunaSpecializationRecord::capability(Self) -> @plan.KernelCapabilityId
+pub fn LunaSpecializationRecord::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn LunaSpecializationRecord::compiler_policy(Self) -> LunaCompilerPolicy
+pub fn LunaSpecializationRecord::cuda_aot_digest(Self) -> @luna_tile_ir.LunaTileCudaAotDigest
+pub fn LunaSpecializationRecord::digest(Self) -> LunaSpecializationDigest
+pub fn LunaSpecializationRecord::entry_point_id(Self) -> LunaSpecializedEntryPointId
+pub fn LunaSpecializationRecord::evidence(Self) -> LunaSpecializationEvidence
+pub fn LunaSpecializationRecord::identity(Self) -> @spec.ModelIdentity
+pub fn LunaSpecializationRecord::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaSpecializationRecord::numerical_policy(Self) -> LunaNumericalPolicy
+pub fn LunaSpecializationRecord::operation_id(Self) -> @plan.OperationId
+pub fn LunaSpecializationRecord::operation_kind(Self) -> @plan.OperationKind
+pub fn LunaSpecializationRecord::operation_shape(Self) -> @plan.OperationShape
+pub fn LunaSpecializationRecord::profile_shape(Self) -> @device_profile.ExactExecutionShape
+pub fn LunaSpecializationRecord::program_digest(Self) -> @luna_tile_ir.LunaTileProgramDigest
+pub fn LunaSpecializationRecord::quantization_policy(Self) -> LunaQuantizationPolicy
+pub fn LunaSpecializationRecord::regions(Self) -> ReadOnlyArray[LunaSpecializedRegion]
+pub fn LunaSpecializationRecord::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn LunaSpecializationRecord::target(Self) -> @catalog.DeviceTarget
+pub fn LunaSpecializationRecord::workspace_alignment(Self) -> Int64
+pub fn LunaSpecializationRecord::workspace_bytes(Self) -> Int64
+
+pub(all) enum LunaSpecializationRule {
+  Digest
+  CompilerIdentity
+  CompilerPolicy
+  NumericalPolicy
+  Evidence
+  Identity
+  Target
+  CatalogVersion
+  Operation
+  OperationShape
+  OperationBinding
+  ExecutionProfile
+  TensorOffset
+  TensorLayout
+  Workspace
+  Rope
+  Quantization
+  EntryPoint
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct LunaSpecializedEntryPointId(Int) derive(Eq, Hash, @debug.Debug)
+pub fn LunaSpecializedEntryPointId::as_int(Self) -> Int
+pub fn LunaSpecializedEntryPointId::from_stable_int(Int) -> Self raise LunaSpecializationError
+
+pub struct LunaSpecializedRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaSpecializedRegion::alignment_bytes(Self) -> Int64
+pub fn LunaSpecializedRegion::byte_length(Self) -> Int64
+pub fn LunaSpecializedRegion::offset_bytes(Self) -> Int64
+pub fn LunaSpecializedRegion::semantic_id(Self) -> Int
+pub fn LunaSpecializedRegion::space(Self) -> LunaSpecializedRegionSpace
+
+pub(all) enum LunaSpecializedRegionSpace {
+  LunaWeightArena
+  LunaTokenInput
+  LunaActivationWorkspaceArena
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

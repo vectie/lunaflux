@@ -5,10 +5,10 @@
 /// lengths. The three capacities bind the packed Int32 metadata allocations;
 /// live values remain bounded by v3 `StepCounts` at execution time.
 pub struct PagedKernelProfile {
-  id : KernelProfileId
-  max_query_rows : Int
-  max_query_tokens : Int
-  max_page_table_entries : Int
+  priv id : KernelProfileId
+  priv max_query_rows : Int
+  priv max_query_tokens : Int
+  priv max_page_table_entries : Int
 } derive(Debug, Eq)
 
 ///|

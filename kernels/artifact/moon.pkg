@@ -2,6 +2,7 @@ import {
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
   "vectie/lunaflux/model/spec",
 }
 
@@ -9,6 +10,11 @@ import {
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan_test_fixture",
+  "vectie/lunaflux/model/safetensors",
 } for "test"
 
 supported_targets = "native"

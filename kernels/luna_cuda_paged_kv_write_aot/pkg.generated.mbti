@@ -1,0 +1,160 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_paged_kv_write_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn bind_positioned_paged_kv_write_compiled_artifact(PagedKvWriteCudaCandidate, Bytes, Bytes, Bytes, PagedKvWriteAotLimits) -> PagedKvWriteCompiledArtifact raise PagedKvWriteAotError
+
+pub fn evaluate_positioned_paged_kv_write_fake_campaign(PagedKvWriteCudaCandidate, ArrayView[PagedKvWriteFakeCampaignObservation]) -> PagedKvWriteFakeCampaignReport raise PagedKvWriteAotError
+
+pub fn export_positioned_paged_kv_write_qualification(PagedKvWriteCudaCandidate) -> PagedKvWriteQualificationExport raise PagedKvWriteAotError
+
+pub fn lower_positioned_paged_kv_write_cuda_aot_candidate(@plan.ModelPlan, @plan.PlanOperation, PositionedQkvActivation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedKvWriteAotLimits) -> PagedKvWriteCudaCandidate raise PagedKvWriteAotError
+
+pub fn positioned_paged_kv_write_compile_receipt(PagedKvWriteCudaCandidate, String, Bytes) -> Bytes raise PagedKvWriteAotError
+
+// Errors
+pub(all) suberror PagedKvWriteAotError {
+  Invalid(PagedKvWriteAotRule)
+  Mismatch(PagedKvWriteAotRule)
+  Unsupported(PagedKvWriteAotRule)
+  LimitExceeded(PagedKvWriteAotRule)
+  SizeOverflow(PagedKvWriteAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PagedKvWriteAotLimits {
+  // private fields
+}
+pub fn PagedKvWriteAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64, max_receipt_bytes~ : Int, max_binding_bytes~ : Int) -> Self raise PagedKvWriteAotError
+
+pub(all) enum PagedKvWriteAotRule {
+  Limits
+  Identity
+  Operation
+  Shape
+  Layout
+  Profile
+  Target
+  Compiler
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  ActivationAlias
+  Fallback
+  Source
+  Recipe
+  KernelAbi
+  CompiledArtifact
+  CompileReceipt
+  Determinism
+  Digest
+} derive(Eq, @debug.Debug)
+
+pub struct PagedKvWriteCompiledArtifact {
+  // private fields
+}
+pub fn PagedKvWriteCompiledArtifact::binding_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::binding_record_bytes(Self) -> Bytes
+pub fn PagedKvWriteCompiledArtifact::candidate_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::compile_receipt_bytes(Self) -> Bytes
+pub fn PagedKvWriteCompiledArtifact::compile_receipt_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::driver_identity_sha256(Self) -> String
+pub fn PagedKvWriteCompiledArtifact::function_symbol(Self) -> String
+pub fn PagedKvWriteCompiledArtifact::kernel_abi(Self) -> PagedKvWriteKernelAbi
+pub fn PagedKvWriteCompiledArtifact::manifest_bindable(Self) -> Bool
+pub fn PagedKvWriteCompiledArtifact::module_bytes(Self) -> Bytes
+pub fn PagedKvWriteCompiledArtifact::module_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::promotion_authority(Self) -> Bool
+pub fn PagedKvWriteCompiledArtifact::recipe_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::source_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCompiledArtifact::target(Self) -> @catalog.DeviceTarget
+
+pub struct PagedKvWriteCudaCandidate {
+  // private fields
+}
+pub fn PagedKvWriteCudaCandidate::candidate_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn PagedKvWriteCudaCandidate::dispatch_canary_per_token(Self) -> UInt
+pub fn PagedKvWriteCudaCandidate::fallback_recipe_digest_sha256(Self) -> String
+pub fn PagedKvWriteCudaCandidate::fallback_source_digest_sha256(Self) -> String
+pub fn PagedKvWriteCudaCandidate::function_symbol(Self) -> String
+pub fn PagedKvWriteCudaCandidate::head_dimension(Self) -> Int
+pub fn PagedKvWriteCudaCandidate::kernel_abi(Self) -> PagedKvWriteKernelAbi
+pub fn PagedKvWriteCudaCandidate::kv_heads(Self) -> Int
+pub fn PagedKvWriteCudaCandidate::kv_width(Self) -> Int
+pub fn PagedKvWriteCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PagedKvWriteCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn PagedKvWriteCudaCandidate::model_content_digest_sha256(Self) -> String
+pub fn PagedKvWriteCudaCandidate::model_plan_digest_sha256(Self) -> String
+pub fn PagedKvWriteCudaCandidate::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn PagedKvWriteCudaCandidate::operation_id(Self) -> @plan.OperationId
+pub fn PagedKvWriteCudaCandidate::page_stride_bytes(Self) -> Int64
+pub fn PagedKvWriteCudaCandidate::positioned_qkv_activation(Self) -> @plan.ActivationRef
+pub fn PagedKvWriteCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedKvWriteCudaCandidate::promotion_authority(Self) -> Bool
+pub fn PagedKvWriteCudaCandidate::query_heads(Self) -> Int
+pub fn PagedKvWriteCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn PagedKvWriteCudaCandidate::recipe_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCudaCandidate::source_bytes(Self) -> Bytes
+pub fn PagedKvWriteCudaCandidate::source_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn PagedKvWriteCudaCandidate::tokens_per_page(Self) -> Int
+pub fn PagedKvWriteCudaCandidate::total_page_count(Self) -> Int
+
+pub struct PagedKvWriteDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedKvWriteDigest::as_hex(Self) -> String
+pub fn PagedKvWriteDigest::from_sha256(String) -> Self raise PagedKvWriteAotError
+
+pub struct PagedKvWriteFakeCampaignObservation {
+  // private fields
+}
+pub fn PagedKvWriteFakeCampaignObservation::new(live_tokens~ : Int, kv_width~ : Int, key_writes~ : Int64, value_writes~ : Int64, expected_untouched~ : Int64, observed_untouched~ : Int64) -> Self raise PagedKvWriteAotError
+
+pub struct PagedKvWriteFakeCampaignReport {
+  // private fields
+}
+pub fn PagedKvWriteFakeCampaignReport::candidate_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteFakeCampaignReport::canonical_bytes(Self) -> Bytes
+pub fn PagedKvWriteFakeCampaignReport::digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteFakeCampaignReport::manifest_bindable(Self) -> Bool
+pub fn PagedKvWriteFakeCampaignReport::observation_count(Self) -> Int
+pub fn PagedKvWriteFakeCampaignReport::physical_evidence(Self) -> Bool
+pub fn PagedKvWriteFakeCampaignReport::promotion_authority(Self) -> Bool
+
+pub(all) enum PagedKvWriteKernelAbi {
+  PositionedQkvPagedWriteBf16V1
+} derive(Eq, @debug.Debug)
+pub fn PagedKvWriteKernelAbi::canonical_name(Self) -> String
+
+pub struct PagedKvWriteQualificationExport {
+  // private fields
+}
+pub fn PagedKvWriteQualificationExport::candidate_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteQualificationExport::canonical_bytes(Self) -> Bytes
+pub fn PagedKvWriteQualificationExport::digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteQualificationExport::manifest_bindable(Self) -> Bool
+pub fn PagedKvWriteQualificationExport::physical_evidence(Self) -> Bool
+pub fn PagedKvWriteQualificationExport::promotion_authority(Self) -> Bool
+pub fn PagedKvWriteQualificationExport::recipe_bytes(Self) -> Bytes
+pub fn PagedKvWriteQualificationExport::recipe_digest(Self) -> PagedKvWriteDigest
+pub fn PagedKvWriteQualificationExport::source_bytes(Self) -> Bytes
+pub fn PagedKvWriteQualificationExport::source_digest(Self) -> PagedKvWriteDigest
+
+pub struct PositionedQkvActivation {
+  // private fields
+}
+pub fn PositionedQkvActivation::new(qkv~ : @plan.ActivationRef) -> Self
+
+// Type aliases
+
+// Traits

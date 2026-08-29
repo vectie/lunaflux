@@ -1,0 +1,285 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_capability_manifest"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_luna_external_approved_capability(LunaCapabilityManifestEntry, LunaDetachedSignatureEnvelope, LunaAuthenticatedExternalApproval) -> LunaAdmittedCapabilityManifestEntry raise LunaCapabilityManifestError
+
+pub fn admit_luna_external_approved_fp8_release_v2(LunaFp8ReleaseManifestV2, LunaDetachedSignatureEnvelope, LunaAuthenticatedExternalApproval) -> LunaAdmittedFp8ReleaseManifestV2 raise LunaCapabilityManifestError
+
+pub fn admit_luna_external_approved_fp8_reusable_paged_release_v3(LunaFp8ReusablePagedReleaseManifestV3, LunaDetachedSignatureEnvelope, LunaAuthenticatedExternalApproval) -> LunaAdmittedFp8ReusablePagedReleaseManifestV3 raise LunaCapabilityManifestError
+
+pub fn admit_luna_external_approved_record(Bytes, LunaDetachedSignatureEnvelope, LunaAuthenticatedExternalApproval, maximum_canonical_bytes~ : Int) -> LunaAdmittedExternalRecord raise LunaCapabilityManifestError
+
+pub fn admit_persisted_luna_capability_manifest(Bytes, LunaCapabilityManifestDigest, @luna_specialization.LunaSpecializationRecord, Int) -> LunaCapabilityManifestEntry raise LunaCapabilityManifestError
+
+pub fn prepare_optional_inherited_luna_startup_verifier_key_v1() -> LunaStartupVerifierKeyOwner? raise LunaCapabilityManifestError
+
+// Errors
+pub(all) suberror LunaCapabilityManifestError {
+  Invalid(LunaCapabilityManifestRule)
+  Mismatch(LunaCapabilityManifestRule)
+  Unsupported(LunaCapabilityManifestRule)
+  SizeOverflow(LunaCapabilityManifestRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum LunaAccumulatorDType {
+  LunaAccumulatorFloat32
+} derive(Eq, @debug.Debug)
+
+pub struct LunaAdmittedCapabilityManifestEntry {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaAdmittedCapabilityManifestEntry::approved_key_identity(Self) -> LunaSignatureKeyIdentityDigest
+pub fn LunaAdmittedCapabilityManifestEntry::approved_source_identity(Self) -> LunaApprovedImmutableSourceIdentity
+pub fn LunaAdmittedCapabilityManifestEntry::capability(Self) -> @plan.KernelCapabilityId
+pub fn LunaAdmittedCapabilityManifestEntry::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn LunaAdmittedCapabilityManifestEntry::detached_signature_digest(Self) -> LunaDetachedSignatureDigest
+pub fn LunaAdmittedCapabilityManifestEntry::entry_point_id(Self) -> @luna_specialization.LunaSpecializedEntryPointId
+pub fn LunaAdmittedCapabilityManifestEntry::execution_disposition(Self) -> LunaGraphExecutionDisposition
+pub fn LunaAdmittedCapabilityManifestEntry::graph_metadata(Self) -> LunaGraphCapabilityMetadata
+pub fn LunaAdmittedCapabilityManifestEntry::kv_layout(Self) -> LunaKvLayoutContract
+pub fn LunaAdmittedCapabilityManifestEntry::manifest_digest(Self) -> LunaCapabilityManifestDigest
+pub fn LunaAdmittedCapabilityManifestEntry::minimum_alignment_bytes(Self) -> Int64
+pub fn LunaAdmittedCapabilityManifestEntry::model_identity(Self) -> @spec.ModelIdentity
+pub fn LunaAdmittedCapabilityManifestEntry::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaAdmittedCapabilityManifestEntry::operation_id(Self) -> @plan.OperationId
+pub fn LunaAdmittedCapabilityManifestEntry::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn LunaAdmittedCapabilityManifestEntry::specialization_digest(Self) -> @luna_specialization.LunaSpecializationDigest
+pub fn LunaAdmittedCapabilityManifestEntry::target(Self) -> @catalog.DeviceTarget
+pub fn LunaAdmittedCapabilityManifestEntry::workspace_alignment(Self) -> Int64
+pub fn LunaAdmittedCapabilityManifestEntry::workspace_bytes(Self) -> Int64
+
+pub struct LunaAdmittedExternalRecord {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaAdmittedExternalRecord::approved_key_identity(Self) -> LunaSignatureKeyIdentityDigest
+pub fn LunaAdmittedExternalRecord::approved_source_identity(Self) -> LunaApprovedImmutableSourceIdentity
+pub fn LunaAdmittedExternalRecord::detached_signature_digest(Self) -> LunaDetachedSignatureDigest
+pub fn LunaAdmittedExternalRecord::record_digest(Self) -> LunaCapabilityManifestDigest
+
+pub struct LunaAdmittedFp8ReleaseManifestV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaAdmittedFp8ReleaseManifestV2::approved_source_identity(Self) -> LunaApprovedImmutableSourceIdentity
+pub fn LunaAdmittedFp8ReleaseManifestV2::manifest(Self) -> LunaFp8ReleaseManifestV2
+
+pub struct LunaAdmittedFp8ReusablePagedReleaseManifestV3 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaAdmittedFp8ReusablePagedReleaseManifestV3::approved_key_identity(Self) -> LunaSignatureKeyIdentityDigest
+pub fn LunaAdmittedFp8ReusablePagedReleaseManifestV3::approved_source_identity(Self) -> LunaApprovedImmutableSourceIdentity
+pub fn LunaAdmittedFp8ReusablePagedReleaseManifestV3::detached_signature_digest(Self) -> LunaDetachedSignatureDigest
+pub fn LunaAdmittedFp8ReusablePagedReleaseManifestV3::manifest(Self) -> LunaFp8ReusablePagedReleaseManifestV3
+
+pub struct LunaApprovedImmutableSourceIdentity(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaApprovedImmutableSourceIdentity::as_hex(Self) -> String
+pub fn LunaApprovedImmutableSourceIdentity::from_sha256(String) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaAuthenticatedExternalApproval {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaCapabilityDType {
+  LunaBFloat16
+  LunaFloat16
+  LunaFloat32
+} derive(Eq, @debug.Debug)
+
+pub struct LunaCapabilityManifestDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaCapabilityManifestDigest::as_hex(Self) -> String
+pub fn LunaCapabilityManifestDigest::from_sha256(String) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaCapabilityManifestEntry {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaCapabilityManifestEntry::digest(Self) -> LunaCapabilityManifestDigest
+pub fn LunaCapabilityManifestEntry::from_specialization(specialization~ : @luna_specialization.LunaSpecializationRecord, architecture~ : LunaGpuArchitectureRange, input_dtype~ : LunaCapabilityDType, accumulator_dtype~ : LunaAccumulatorDType, tensor_layout~ : LunaTensorLayoutContract, kv_layout~ : LunaKvLayoutContract, minimum_alignment_bytes~ : Int64, graph~ : LunaGraphCapabilityMetadata, maximum_canonical_bytes~ : Int) -> Self raise LunaCapabilityManifestError
+pub fn LunaCapabilityManifestEntry::signing_bytes(Self) -> Bytes
+pub fn LunaCapabilityManifestEntry::specialization_digest(Self) -> @luna_specialization.LunaSpecializationDigest
+pub fn LunaCapabilityManifestEntry::version(Self) -> LunaCapabilityManifestVersion
+
+pub(all) enum LunaCapabilityManifestRule {
+  Version
+  Digest
+  Architecture
+  DType
+  Layout
+  ShapeClass
+  Alignment
+  Workspace
+  GraphMemory
+  EagerFallback
+  Artifact
+  Specialization
+  Compiler
+  NumericalPolicy
+  Evidence
+  SignatureAlgorithm
+  SignatureEnvelope
+  ExternalApproval
+  ApprovedSource
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct LunaCapabilityManifestVersion(Int) derive(Eq, @debug.Debug)
+pub fn LunaCapabilityManifestVersion::as_int(Self) -> Int
+pub fn LunaCapabilityManifestVersion::v1() -> Self
+
+pub(all) enum LunaDetachedSignatureAlgorithm {
+  LunaExternalEd25519V1
+} derive(Eq, @debug.Debug)
+
+pub struct LunaDetachedSignatureDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaDetachedSignatureDigest::as_hex(Self) -> String
+pub fn LunaDetachedSignatureDigest::from_sha256(String) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaDetachedSignatureEnvelope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaDetachedSignatureEnvelope::new(algorithm~ : LunaDetachedSignatureAlgorithm, key_identity~ : LunaSignatureKeyIdentityDigest, signature_digest~ : LunaDetachedSignatureDigest) -> Self
+
+pub struct LunaExternalApprovalPolicy {
+  // private fields
+}
+pub fn LunaExternalApprovalPolicy::new(schema~ : String, rollout_digest~ : LunaCapabilityManifestDigest, verifier_key_id~ : String, authority_id~ : String) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaExternalApprovalVerifier {
+  // private fields
+}
+pub fn LunaExternalApprovalVerifier::close(Self) -> Unit
+pub fn LunaExternalApprovalVerifier::verify(Self, Bytes, LunaDetachedSignatureEnvelope, LunaExternalSignedApproval, LunaApprovedImmutableSourceIdentity) -> LunaAuthenticatedExternalApproval raise LunaCapabilityManifestError
+
+pub struct LunaExternalSignedApproval {
+  // private fields
+}
+pub fn LunaExternalSignedApproval::new(schema~ : String, rollout_digest~ : LunaCapabilityManifestDigest, verifier_key_id~ : String, authority_id~ : String, manifest_digest~ : LunaCapabilityManifestDigest, algorithm~ : LunaDetachedSignatureAlgorithm, key_identity~ : LunaSignatureKeyIdentityDigest, signature_digest~ : LunaDetachedSignatureDigest, approved_source~ : LunaApprovedImmutableSourceIdentity, authentication_tag~ : LunaDetachedSignatureDigest) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaFp8ReleaseManifestV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaFp8ReleaseManifestV2::digest(Self) -> LunaCapabilityManifestDigest
+pub fn LunaFp8ReleaseManifestV2::model_identity(Self) -> @spec.ModelIdentity
+pub fn LunaFp8ReleaseManifestV2::new(identity~ : @spec.ModelIdentity, target~ : @catalog.DeviceTarget, runtime_recipe_digest_sha256~ : String, operations~ : ArrayView[LunaFp8ReleaseOperationV2], maximum_canonical_bytes~ : Int) -> Self raise LunaCapabilityManifestError
+pub fn LunaFp8ReleaseManifestV2::operations(Self) -> ReadOnlyArray[LunaFp8ReleaseOperationV2]
+pub fn LunaFp8ReleaseManifestV2::runtime_recipe_digest_sha256(Self) -> String
+pub fn LunaFp8ReleaseManifestV2::signing_bytes(Self) -> Bytes
+pub fn LunaFp8ReleaseManifestV2::target(Self) -> @catalog.DeviceTarget
+
+pub struct LunaFp8ReleaseOperationV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaFp8ReleaseOperationV2::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn LunaFp8ReleaseOperationV2::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn LunaFp8ReleaseOperationV2::function_symbol(Self) -> String
+pub fn LunaFp8ReleaseOperationV2::module_locator(Self) -> String
+pub fn LunaFp8ReleaseOperationV2::new(operation~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, module_locator~ : String, function_symbol~ : String, source_digest_sha256~ : String, recipe_digest_sha256~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[@launch_contract.AotOperand], workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise LunaCapabilityManifestError
+pub fn LunaFp8ReleaseOperationV2::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn LunaFp8ReleaseOperationV2::operation(Self) -> @plan.OperationId
+pub fn LunaFp8ReleaseOperationV2::recipe_digest_sha256(Self) -> String
+pub fn LunaFp8ReleaseOperationV2::source_digest_sha256(Self) -> String
+pub fn LunaFp8ReleaseOperationV2::workspace_alignment(Self) -> Int64
+pub fn LunaFp8ReleaseOperationV2::workspace_bytes(Self) -> Int64
+
+pub struct LunaFp8ReusablePagedReleaseManifestV3 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaFp8ReusablePagedReleaseManifestV3::digest(Self) -> LunaCapabilityManifestDigest
+pub fn LunaFp8ReusablePagedReleaseManifestV3::kv_layout_version(Self) -> Int
+pub fn LunaFp8ReusablePagedReleaseManifestV3::model_identity(Self) -> @spec.ModelIdentity
+pub fn LunaFp8ReusablePagedReleaseManifestV3::new(identity~ : @spec.ModelIdentity, target~ : @catalog.DeviceTarget, reusable_recipe_digest_sha256~ : String, profile~ : @launch_contract.PagedKernelProfile, kv_layout_version~ : Int, tokens_per_page~ : Int, operations~ : ArrayView[LunaFp8ReleaseOperationV2], maximum_canonical_bytes~ : Int) -> Self raise LunaCapabilityManifestError
+pub fn LunaFp8ReusablePagedReleaseManifestV3::operations(Self) -> ReadOnlyArray[LunaFp8ReleaseOperationV2]
+pub fn LunaFp8ReusablePagedReleaseManifestV3::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn LunaFp8ReusablePagedReleaseManifestV3::reusable_recipe_digest_sha256(Self) -> String
+pub fn LunaFp8ReusablePagedReleaseManifestV3::signing_bytes(Self) -> Bytes
+pub fn LunaFp8ReusablePagedReleaseManifestV3::target(Self) -> @catalog.DeviceTarget
+pub fn LunaFp8ReusablePagedReleaseManifestV3::tokens_per_page(Self) -> Int
+
+pub struct LunaGpuArchitectureRange {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaGpuArchitectureRange::contains(Self, @catalog.DeviceTarget) -> Bool
+pub fn LunaGpuArchitectureRange::new(minimum_major~ : Int, minimum_minor~ : Int, maximum_major~ : Int, maximum_minor~ : Int) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaGraphCapabilityMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaGraphCapabilityMetadata::capture_safe(Self) -> Bool
+pub fn LunaGraphCapabilityMetadata::eager_fallback_digest(Self) -> LunaValidatedEagerFallbackDigest
+pub fn LunaGraphCapabilityMetadata::graph_memory_alignment(Self) -> Int64
+pub fn LunaGraphCapabilityMetadata::graph_memory_bytes(Self) -> Int64
+pub fn LunaGraphCapabilityMetadata::new(shape_class~ : LunaGraphShapeClass, capture_safe~ : Bool, graph_memory_bytes~ : Int64, graph_memory_alignment~ : Int64, eager_fallback~ : LunaValidatedEagerFallbackDigest) -> Self raise LunaCapabilityManifestError
+pub fn LunaGraphCapabilityMetadata::shape_class(Self) -> LunaGraphShapeClass
+
+pub(all) enum LunaGraphExecutionDisposition {
+  LunaValidatedEagerFallback
+} derive(Eq, @debug.Debug)
+
+pub struct LunaGraphShapeClass {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaGraphShapeClass::batch_rows(Self) -> Int
+pub fn LunaGraphShapeClass::context_tokens(Self) -> Int
+pub fn LunaGraphShapeClass::from_execution_shape(@device_profile.ExactExecutionShape) -> Self
+pub fn LunaGraphShapeClass::phase(Self) -> @device_profile.ExecutionPhase
+pub fn LunaGraphShapeClass::query_tokens_per_row(Self) -> Int
+pub fn LunaGraphShapeClass::token_rows(Self) -> Int64
+
+pub struct LunaKvLayoutContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaKvLayoutContract::new(stable_version~ : Int, tokens_per_page~ : Int) -> Self raise LunaCapabilityManifestError
+pub fn LunaKvLayoutContract::stable_version(Self) -> Int
+pub fn LunaKvLayoutContract::tokens_per_page(Self) -> Int
+
+pub struct LunaParentStartupApprovalWitness {
+  // private fields
+}
+pub fn LunaParentStartupApprovalWitness::authenticate_manifest_claim(Self, Bytes, manifest_digest_sha256~ : String, key_identity_sha256~ : String, signature_digest_sha256~ : String, approved_source_sha256~ : String) -> LunaAuthenticatedExternalApproval raise LunaCapabilityManifestError
+pub fn LunaParentStartupApprovalWitness::from_private_parent_channel_v1(manifest_digest_sha256~ : String, key_identity_sha256~ : String, signature_digest_sha256~ : String, approved_source_sha256~ : String, bootstrap_digest_sha256~ : String, source_digest_sha256~ : String, model_generation~ : UInt64, device_ordinal~ : Int) -> Self raise LunaCapabilityManifestError
+pub fn LunaParentStartupApprovalWitness::require_launch_identity(Self, bootstrap_digest_sha256~ : String, source_digest_sha256~ : String, model_generation~ : UInt64, device_ordinal~ : Int) -> Unit raise LunaCapabilityManifestError
+
+pub struct LunaSignatureKeyIdentityDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaSignatureKeyIdentityDigest::as_hex(Self) -> String
+pub fn LunaSignatureKeyIdentityDigest::from_sha256(String) -> Self raise LunaCapabilityManifestError
+
+pub struct LunaStartupExternalApprovalHandoff {
+  // private fields
+}
+pub fn LunaStartupExternalApprovalHandoff::authenticate_manifest_claim(Self, Bytes, manifest_digest_sha256~ : String, key_identity_sha256~ : String, signature_digest_sha256~ : String, approved_source_sha256~ : String) -> LunaAuthenticatedExternalApproval raise LunaCapabilityManifestError
+pub fn LunaStartupExternalApprovalHandoff::close(Self) -> Unit
+
+pub struct LunaStartupVerifierKeyOwner {
+  // private fields
+}
+pub fn LunaStartupVerifierKeyOwner::close(Self) -> Unit raise LunaCapabilityManifestError
+pub fn LunaStartupVerifierKeyOwner::progress(Self) -> LunaStartupVerifierKeyProgress
+pub fn LunaStartupVerifierKeyOwner::take_handoff(Self) -> LunaStartupExternalApprovalHandoff raise LunaCapabilityManifestError
+
+pub(all) enum LunaStartupVerifierKeyProgress {
+  LunaStartupVerifierKeyPending
+  LunaStartupVerifierKeyReady
+  LunaStartupVerifierKeyFailedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaTensorLayoutContract {
+  LunaRowMajorStridedV1
+} derive(Eq, @debug.Debug)
+
+pub struct LunaValidatedEagerFallbackDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaValidatedEagerFallbackDigest::as_hex(Self) -> String
+pub fn LunaValidatedEagerFallbackDigest::from_sha256(String) -> Self raise LunaCapabilityManifestError
+
+// Type aliases
+
+// Traits

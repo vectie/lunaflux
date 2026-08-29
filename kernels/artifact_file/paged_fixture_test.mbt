@@ -48,7 +48,8 @@ fn paged_file_plan() -> @plan.ModelPlan {
     persistent_state=KvCacheReadWrite(layer),
   )
   try! @plan.ModelPlan::new_with_kv_execution(
-    identity=fixture_identity(),
+    content_digest=fixture_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=2,
       max_sequence_tokens=8,
@@ -70,6 +71,9 @@ fn paged_file_plan() -> @plan.ModelPlan {
     operations=[embedding, rotary, attention],
     final_output=@plan.ActivationRef::new(2),
     kv_execution=PagedKeyValue,
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      embedding, rotary, attention,
+    ]),
   )
 }
 
@@ -247,7 +251,7 @@ fn paged_file_contracts() -> @launch_contract.PagedKvLaunchContractSet {
       shared_memory_bytes=0,
     )
     inputs.push(
-      @launch_contract.PagedKvAotLaunchContractInput::new(
+      try! @launch_contract.PagedKvAotLaunchContractInput::new(
         profile_id~,
         operation_id=resolved_operation_id,
         entry_point=paged_file_entry(digest, operation_id),
@@ -292,5 +296,6 @@ fn paged_valid_manifest(entry_count? : Int = 2) -> Bytes {
       ),
     ],
     catalog_version=3,
+    plan=paged_file_plan(),
   )
 }

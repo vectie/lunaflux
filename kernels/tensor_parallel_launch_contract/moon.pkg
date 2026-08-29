@@ -1,0 +1,17 @@
+import {
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+import {
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/safetensors",
+} for "test"
+
+supported_targets = "native"

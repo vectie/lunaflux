@@ -25,6 +25,7 @@ pub(all) suberror KernelArtifactError {
   InvalidLimit(KernelArtifactLimit)
   ModuleCountExceeded(maximum~ : Int)
   EntryPointCountExceeded(maximum~ : Int)
+  ContractCountExceeded(maximum~ : Int)
   EmptyModule(@catalog.AotArtifactDigest)
   ModuleTooLarge(digest~ : @catalog.AotArtifactDigest, maximum~ : Int64)
   TotalModuleBytesExceeded(maximum~ : Int64)

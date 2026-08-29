@@ -68,7 +68,8 @@ fn paged_artifact_plan() -> @plan.ModelPlan raise {
     )
   }
   @plan.ModelPlan::new_with_kv_execution(
-    identity=artifact_identity(),
+    content_digest=artifact_content(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=2,
       max_sequence_tokens=8,
@@ -84,6 +85,7 @@ fn paged_artifact_plan() -> @plan.ModelPlan raise {
     operations~,
     final_output=@plan.ActivationRef::new(4),
     kv_execution=PagedKeyValue,
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema(operations),
   )
 }
 

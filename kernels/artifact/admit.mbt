@@ -1,17 +1,26 @@
 ///|
+fn append_required_entry_point(
+  required : Array[@catalog.AotKernelEntryPoint],
+  identity : @catalog.AotKernelEntryPoint,
+  maximum : Int,
+) -> Unit raise KernelArtifactError {
+  if required.contains(identity) {
+    return
+  }
+  if required.length() >= maximum {
+    raise EntryPointCountExceeded(maximum~)
+  }
+  required.push(identity)
+}
+
+///|
 fn required_entry_points(
   contracts : @launch_contract.LaunchContractSet,
   maximum : Int,
 ) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for contract in contracts.contracts() {
-    let identity = contract.entry_point()
-    if !required.contains(identity) {
-      if required.length() >= maximum {
-        raise EntryPointCountExceeded(maximum~)
-      }
-      required.push(identity)
-    }
+    append_required_entry_point(required, contract.entry_point(), maximum)
   }
   required
 }
@@ -23,13 +32,19 @@ fn required_paged_entry_points(
 ) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for contract in contracts.contracts() {
-    let identity = contract.entry_point()
-    if !required.contains(identity) {
-      if required.length() >= maximum {
-        raise EntryPointCountExceeded(maximum~)
-      }
-      required.push(identity)
-    }
+    append_required_entry_point(required, contract.entry_point(), maximum)
+  }
+  required
+}
+
+///|
+fn required_tensor_parallel_entry_points(
+  contracts : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
+  maximum : Int,
+) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
+  let required : Array[@catalog.AotKernelEntryPoint] = []
+  for contract in contracts.contracts() {
+    append_required_entry_point(required, contract.entry_point(), maximum)
   }
   required
 }
@@ -110,24 +125,22 @@ fn module_input_index(
 
 ///|
 fn module_input_digest(input : KernelModuleInput) -> @catalog.AotArtifactDigest {
-  match input {
-    AliasedModule(digest, _) | OwnedModule(digest, _) => digest
-  }
+  input.digest
 }
 
 ///|
 fn module_input_length(input : KernelModuleInput) -> Int64 {
-  match input {
-    AliasedModule(_, bytes) => bytes.length().to_int64()
-    OwnedModule(_, bytes) => bytes.length().to_int64()
+  match input.storage {
+    AliasedModule(bytes) => bytes.length().to_int64()
+    OwnedModule(bytes) => bytes.length().to_int64()
   }
 }
 
 ///|
 fn own_module_input(input : KernelModuleInput) -> Bytes {
-  match input {
-    AliasedModule(_, bytes) => Bytes::from_array(bytes)
-    OwnedModule(_, bytes) => bytes
+  match input.storage {
+    AliasedModule(bytes) => Bytes::from_array(bytes)
+    OwnedModule(bytes) => bytes
   }
 }
 
@@ -311,6 +324,16 @@ fn ensure_paged_catalog_version(
 }
 
 ///|
+fn ensure_stateless_catalog_version(
+  actual : @catalog.CatalogVersion,
+) -> Unit raise KernelArtifactError {
+  let expected = @catalog.CatalogVersion::v1()
+  if actual != expected {
+    raise CatalogVersionMismatch(expected~, actual~)
+  }
+}
+
+///|
 /// Admits exactly the precompiled modules and CUDA symbols required by an
 /// admitted launch-contract set.
 ///
@@ -326,6 +349,7 @@ pub fn admit(
   entry_point_inputs : ArrayView[KernelEntryPointInput],
   limits : KernelArtifactLimits,
 ) -> KernelArtifactBundle raise KernelArtifactError {
+  ensure_stateless_catalog_version(contracts.catalog_version())
   let required_entries = required_entry_points(
     contracts,
     limits.max_entry_points,
@@ -357,6 +381,36 @@ pub fn admit_paged_kv(
 ) -> KernelArtifactBundle raise KernelArtifactError {
   ensure_paged_catalog_version(contracts.catalog_version())
   let required_entries = required_paged_entry_points(
+    contracts,
+    limits.max_entry_points,
+  )
+  admit_required(
+    contracts.model_identity(),
+    contracts.device_target(),
+    contracts.catalog_version(),
+    required_entries,
+    module_inputs,
+    entry_point_inputs,
+    limits,
+  )
+}
+
+///|
+/// Admits the exact content-addressed modules and symbols referenced by every
+/// profile/operation contract in one admitted tensor-parallel rank set.
+///
+/// Repeated contracts retain each stable entry-point identity once. Module
+/// ownership, hashing, missing/duplicate/unreferenced checks, and intentional
+/// shared-symbol aliases use the same `admit_required` path as existing AOT
+/// admission. This function acquires no backend or execution authority.
+pub fn admit_tensor_parallel(
+  contracts : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
+  module_inputs : ArrayView[KernelModuleInput],
+  entry_point_inputs : ArrayView[KernelEntryPointInput],
+  limits : KernelArtifactLimits,
+) -> KernelArtifactBundle raise KernelArtifactError {
+  ensure_paged_catalog_version(contracts.catalog_version())
+  let required_entries = required_tensor_parallel_entry_points(
     contracts,
     limits.max_entry_points,
   )

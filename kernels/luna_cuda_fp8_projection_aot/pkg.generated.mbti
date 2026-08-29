@@ -1,0 +1,145 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_fp8_projection_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind_fp8_projection_manifest(Fp8ProjectionCudaLowering, @plan.PlanOperation, @launch_contract.PagedV4AotLaunchContract) -> Fp8ProjectionManifestCudaLowering raise Fp8ProjectionAotError
+
+pub fn bind_fp8_projection_manifest_v2(Fp8ProjectionCudaLoweringV2, @plan.PlanOperation, @launch_contract.PagedV4AotLaunchContract) -> Fp8ProjectionManifestCudaLoweringV2 raise Fp8ProjectionAotError
+
+pub fn derive_fp8_projection_operands(@plan.ModelPlan, operation~ : @plan.OperationId, @launch_contract.PagedKernelProfile) -> ReadOnlyArray[@launch_contract.AotOperand] raise Fp8ProjectionAotError
+
+pub fn derive_fp8_projection_operands_v2(@plan.ModelPlan, operation~ : @plan.OperationId, @launch_contract.PagedKernelProfile) -> ReadOnlyArray[@launch_contract.AotOperand] raise Fp8ProjectionAotError
+
+pub fn lower_fp8_projection_cuda_aot_candidate(@plan.ModelPlan, operation~ : @plan.OperationId, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], Fp8ProjectionAotLimits) -> Fp8ProjectionCudaLowering raise Fp8ProjectionAotError
+
+pub fn lower_fp8_projection_cuda_aot_candidate_v2(@plan.ModelPlan, operation~ : @plan.OperationId, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], Fp8ProjectionAotLimits) -> Fp8ProjectionCudaLoweringV2 raise Fp8ProjectionAotError
+
+// Errors
+pub(all) suberror Fp8ProjectionAotError {
+  Invalid(Fp8ProjectionAotRule)
+  Unsupported(Fp8ProjectionAotRule)
+  Mismatch(Fp8ProjectionAotRule)
+  LimitExceeded(rule~ : Fp8ProjectionAotRule, maximum~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8ProjectionAotLimits {
+  // private fields
+}
+pub fn Fp8ProjectionAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise Fp8ProjectionAotError
+
+pub(all) enum Fp8ProjectionAotRule {
+  Limits
+  ModelIdentity
+  Operation
+  OperationKind
+  NumericExecution
+  ActivationScalePolicy
+  CompoundGatedActivationScale
+  NumericSchema
+  DeviceTarget
+  CompilerPolicy
+  Profile
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  Source
+  Recipe
+  FinalBinding
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8ProjectionCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ProjectionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn Fp8ProjectionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn Fp8ProjectionCudaLowering::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8ProjectionCudaLowering::family(Self) -> Fp8ProjectionFamily
+pub fn Fp8ProjectionCudaLowering::function_symbol(Self) -> String
+pub fn Fp8ProjectionCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8ProjectionCudaLowering::model_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8ProjectionCudaLowering::numerical_contract(Self) -> Fp8ProjectionNumericalContract
+pub fn Fp8ProjectionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8ProjectionCudaLowering::operation_id(Self) -> @plan.OperationId
+pub fn Fp8ProjectionCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn Fp8ProjectionCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn Fp8ProjectionCudaLowering::recipe_digest(Self) -> Fp8ProjectionCudaRecipeDigest
+pub fn Fp8ProjectionCudaLowering::source_bytes(Self) -> Bytes
+pub fn Fp8ProjectionCudaLowering::source_digest(Self) -> Fp8ProjectionCudaSourceDigest
+pub fn Fp8ProjectionCudaLowering::target(Self) -> @catalog.DeviceTarget
+
+pub struct Fp8ProjectionCudaLoweringV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ProjectionCudaLoweringV2::activation_scale_policy(Self) -> @numeric_contract.ActivationScalePolicy
+pub fn Fp8ProjectionCudaLoweringV2::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn Fp8ProjectionCudaLoweringV2::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn Fp8ProjectionCudaLoweringV2::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8ProjectionCudaLoweringV2::family(Self) -> Fp8ProjectionFamily
+pub fn Fp8ProjectionCudaLoweringV2::function_symbol(Self) -> String
+pub fn Fp8ProjectionCudaLoweringV2::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8ProjectionCudaLoweringV2::model_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8ProjectionCudaLoweringV2::numerical_contract(Self) -> Fp8ProjectionV2NumericalContract
+pub fn Fp8ProjectionCudaLoweringV2::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8ProjectionCudaLoweringV2::operation_id(Self) -> @plan.OperationId
+pub fn Fp8ProjectionCudaLoweringV2::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn Fp8ProjectionCudaLoweringV2::recipe_bytes(Self) -> Bytes
+pub fn Fp8ProjectionCudaLoweringV2::recipe_digest(Self) -> Fp8ProjectionCudaRecipeDigest
+pub fn Fp8ProjectionCudaLoweringV2::source_bytes(Self) -> Bytes
+pub fn Fp8ProjectionCudaLoweringV2::source_digest(Self) -> Fp8ProjectionCudaSourceDigest
+pub fn Fp8ProjectionCudaLoweringV2::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8ProjectionCudaLoweringV2::workspace_bytes(Self) -> Int64
+
+pub struct Fp8ProjectionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8ProjectionCudaRecipeDigest::as_hex(Self) -> String
+
+pub struct Fp8ProjectionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8ProjectionCudaSourceDigest::as_hex(Self) -> String
+
+pub(all) enum Fp8ProjectionFamily {
+  QkvProjection
+  DenseProjection
+  GatedMlp
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8ProjectionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8ProjectionManifestBindingDigest::as_hex(Self) -> String
+
+pub struct Fp8ProjectionManifestCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ProjectionManifestCudaLowering::binding_digest(Self) -> Fp8ProjectionManifestBindingDigest
+pub fn Fp8ProjectionManifestCudaLowering::candidate(Self) -> Fp8ProjectionCudaLowering
+pub fn Fp8ProjectionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+
+pub struct Fp8ProjectionManifestCudaLoweringV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8ProjectionManifestCudaLoweringV2::binding_digest(Self) -> Fp8ProjectionManifestBindingDigest
+pub fn Fp8ProjectionManifestCudaLoweringV2::candidate(Self) -> Fp8ProjectionCudaLoweringV2
+pub fn Fp8ProjectionManifestCudaLoweringV2::entry_point(Self) -> @catalog.AotKernelEntryPoint
+
+pub(all) enum Fp8ProjectionNumericalContract {
+  DynamicPerTensorFiniteE4M3F32AccumulateBf16V1
+  DynamicPerTensorFiniteE4M3F32SiluGatedBf16V1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Fp8ProjectionV2NumericalContract {
+  ExternalDynamicPerTensorFiniteE4M3F32AccumulateBf16V2
+  GatedExternalAndPostSiluBoundExpfFiniteE4M3F32AccumulateBf16V2
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

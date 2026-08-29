@@ -1,0 +1,23 @@
+import {
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/kernels/luna_cuda_aot",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan_test_fixture",
+} for "test"
+
+supported_targets = "native"

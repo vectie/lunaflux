@@ -1,0 +1,16 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/fp8_runtime_recipe",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"

@@ -1,0 +1,73 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit_luna_specialized_artifact(@luna_capability_manifest.LunaAdmittedCapabilityManifestEntry, @luna_specialization.LunaSpecializationRecord, @artifact.KernelArtifactBundle, @launch_contract.PagedKvLaunchContractSet) -> LunaAotKernelAdmission raise LunaAotAdmissionError
+
+// Errors
+pub(all) suberror LunaAotAdmissionError {
+  Mismatch(LunaAotAdmissionRule)
+  Missing(LunaAotAdmissionRule)
+  Unsupported(LunaAotAdmissionRule)
+  Ambiguous(LunaAotAdmissionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum LunaAotAdmissionRule {
+  Manifest
+  Specialization
+  ModelIdentity
+  DeviceTarget
+  CatalogVersion
+  ContractScope
+  Operation
+  Capability
+  SemanticVersion
+  Profile
+  KvLayout
+  Alignment
+  EntryPoint
+  Module
+  Workspace
+  Artifact
+  GraphFallback
+} derive(Eq, @debug.Debug)
+
+pub struct LunaAotKernelAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaAotKernelAdmission::approved_key_identity(Self) -> @luna_capability_manifest.LunaSignatureKeyIdentityDigest
+pub fn LunaAotKernelAdmission::approved_source_identity(Self) -> @luna_capability_manifest.LunaApprovedImmutableSourceIdentity
+pub fn LunaAotKernelAdmission::artifact_module_index(Self) -> Int
+pub fn LunaAotKernelAdmission::capability(Self) -> @plan.KernelCapabilityId
+pub fn LunaAotKernelAdmission::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn LunaAotKernelAdmission::detached_signature_digest(Self) -> @luna_capability_manifest.LunaDetachedSignatureDigest
+pub fn LunaAotKernelAdmission::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn LunaAotKernelAdmission::execution_disposition(Self) -> @luna_capability_manifest.LunaGraphExecutionDisposition
+pub fn LunaAotKernelAdmission::graph_metadata(Self) -> @luna_capability_manifest.LunaGraphCapabilityMetadata
+pub fn LunaAotKernelAdmission::identity(Self) -> @spec.ModelIdentity
+pub fn LunaAotKernelAdmission::manifest_digest(Self) -> @luna_capability_manifest.LunaCapabilityManifestDigest
+pub fn LunaAotKernelAdmission::minimum_alignment_bytes(Self) -> Int64
+pub fn LunaAotKernelAdmission::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaAotKernelAdmission::operation_id(Self) -> @plan.OperationId
+pub fn LunaAotKernelAdmission::operation_kind(Self) -> @plan.OperationKind
+pub fn LunaAotKernelAdmission::operation_shape(Self) -> @plan.OperationShape
+pub fn LunaAotKernelAdmission::specialization_digest(Self) -> @luna_specialization.LunaSpecializationDigest
+pub fn LunaAotKernelAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn LunaAotKernelAdmission::workspace_alignment(Self) -> Int64
+pub fn LunaAotKernelAdmission::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

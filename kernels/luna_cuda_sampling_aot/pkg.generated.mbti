@@ -1,0 +1,95 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_sampling_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_greedy_sampling_cuda_artifact(GreedySamplingCudaLowering, Bytes, Bytes, GreedySamplingCompileReceipt, GreedySamplingAotLimits) -> GreedySamplingCudaArtifact raise SamplingBoundaryError
+
+pub fn admit_host_sampling_boundary(@plan.ModelPlan) -> HostSamplingBoundary raise SamplingBoundaryError
+
+pub fn embedded_greedy_sampling_cuda_source(Int, Int) -> String raise SamplingBoundaryError
+
+pub fn greedy_sampling_cuda_function_symbol() -> String
+
+pub fn lower_greedy_sampling_cuda_aot(HostSamplingBoundary, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, Int, GreedySamplingAotLimits) -> GreedySamplingCudaLowering raise SamplingBoundaryError
+
+// Errors
+pub(all) suberror SamplingBoundaryError {
+  Invalid(SamplingBoundaryRule)
+  Unsupported(SamplingBoundaryRule)
+  SizeOverflow(SamplingBoundaryRule)
+  Mismatch(SamplingBoundaryRule)
+  LimitExceeded(SamplingBoundaryRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct GreedySamplingAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GreedySamplingAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64) -> Self raise SamplingBoundaryError
+
+pub struct GreedySamplingCompileReceipt {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GreedySamplingCompileReceipt::from_offline_builder(source_sha256~ : String, recipe_sha256~ : String, toolchain_sha256~ : String, driver_sha256~ : String, first_module_sha256~ : String, second_module_sha256~ : String) -> Self raise SamplingBoundaryError
+
+pub struct GreedySamplingCudaArtifact {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GreedySamplingCudaArtifact::function_symbol(Self) -> String
+pub fn GreedySamplingCudaArtifact::maximum_rows(Self) -> Int
+pub fn GreedySamplingCudaArtifact::module_bytes(Self) -> Bytes
+pub fn GreedySamplingCudaArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn GreedySamplingCudaArtifact::result_row_bytes(Self) -> Int64
+pub fn GreedySamplingCudaArtifact::target(Self) -> @catalog.DeviceTarget
+pub fn GreedySamplingCudaArtifact::vocabulary_size(Self) -> Int
+
+pub struct GreedySamplingCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GreedySamplingCudaLowering::function_symbol(Self) -> String
+pub fn GreedySamplingCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn GreedySamplingCudaLowering::recipe_sha256(Self) -> String
+pub fn GreedySamplingCudaLowering::source_bytes(Self) -> Bytes
+pub fn GreedySamplingCudaLowering::source_sha256(Self) -> String
+
+pub struct HostSamplingBoundary {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn HostSamplingBoundary::final_output(Self) -> @plan.ActivationRef
+pub fn HostSamplingBoundary::logits_row_bytes(Self) -> Int64
+pub fn HostSamplingBoundary::owner(Self) -> SamplingExecutionOwner
+pub fn HostSamplingBoundary::producer(Self) -> @plan.OperationId
+pub fn HostSamplingBoundary::requires_cuda_artifact(Self) -> Bool
+pub fn HostSamplingBoundary::vocabulary_size(Self) -> Int
+
+pub(all) enum SamplingBoundaryRule {
+  FinalOutputProducer
+  FinalOutputKind
+  FinalOutputShape
+  FinalOutputDtype
+  VocabularySize
+  MaximumRows
+  ArtifactLimits
+  ArtifactTarget
+  ArtifactSource
+  ArtifactRecipe
+  ArtifactModule
+  ArtifactDigest
+  ArtifactReceipt
+  ArtifactDeterminism
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SamplingExecutionOwner {
+  HostCompletionOwner
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

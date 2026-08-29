@@ -1,0 +1,103 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_fused_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+}
+
+// Values
+pub fn admit_approved_fused_kernel_bundle(@luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @catalog.DeviceTarget, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, UInt, UInt, ReadOnlyArray[FusedStandaloneFallbackIdentity], ReadOnlyArray[FusedStandaloneFallbackIdentity], @luna_capability_manifest.LunaAdmittedExternalRecord) -> ApprovedFusedKernelBundle raise FusedArtifactAdmissionError
+
+pub fn admit_approved_fused_kernel_catalog(@luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @catalog.DeviceTarget, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, UInt, UInt, ReadOnlyArray[FusedStandaloneFallbackIdentity], ReadOnlyArray[FusedStandaloneFallbackIdentity], @luna_capability_manifest.LunaAdmittedExternalRecord) -> ApprovedFusedKernelCatalog raise FusedArtifactAdmissionError
+
+pub fn admit_digest_pinned_fused_runtime_source(Bytes, String) -> (ApprovedFusedKernelCatalog, ApprovedFusedKernelBundle) raise FusedArtifactAdmissionError
+
+pub fn export_digest_pinned_fused_runtime_source(ApprovedFusedKernelCatalog, ApprovedFusedKernelBundle) -> Bytes raise FusedArtifactAdmissionError
+
+// Errors
+pub(all) suberror FusedArtifactAdmissionError {
+  InvalidFusedArtifact(FusedArtifactAdmissionRule)
+  MismatchedFusedArtifact(FusedArtifactAdmissionRule)
+  MissingFusedArtifact(FusedArtifactAdmissionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ApprovedFusedKernelBundle {
+  // private fields
+}
+pub fn ApprovedFusedKernelBundle::manifest_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelBundle::qkv_module(Self) -> ApprovedFusedKernelModule
+pub fn ApprovedFusedKernelBundle::residual_module(Self) -> ApprovedFusedKernelModule
+pub fn ApprovedFusedKernelBundle::target(Self) -> @catalog.DeviceTarget
+
+pub struct ApprovedFusedKernelCatalog {
+  // private fields
+}
+pub fn ApprovedFusedKernelCatalog::canonical_bytes(Self) -> Bytes
+pub fn ApprovedFusedKernelCatalog::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelCatalog::manifest_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelCatalog::resolve_exact(Self, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @catalog.DeviceTarget, @luna_cuda_fused_parallel_aot.FusedParallelFamily, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest, String, String, String, @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi, @launch_contract.AotLaunchDimensions, @luna_cuda_fused_parallel_aot.FusedParallelDigest, @luna_cuda_fused_parallel_aot.FusedParallelDigest) -> ApprovedFusedKernelModule raise FusedArtifactAdmissionError
+pub fn ApprovedFusedKernelCatalog::target(Self) -> @catalog.DeviceTarget
+
+pub struct ApprovedFusedKernelModule {
+  // private fields
+}
+pub fn ApprovedFusedKernelModule::artifact_purpose(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelArtifactPurpose
+pub fn ApprovedFusedKernelModule::benchmark_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::candidate_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::compile_receipt_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::compiled_binding_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::dispatch_canary_per_token(Self) -> UInt
+pub fn ApprovedFusedKernelModule::driver_identity_sha256(Self) -> String
+pub fn ApprovedFusedKernelModule::fallbacks(Self) -> ReadOnlyArray[FusedStandaloneFallbackIdentity]
+pub fn ApprovedFusedKernelModule::family(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelFamily
+pub fn ApprovedFusedKernelModule::function_symbol(Self) -> String
+pub fn ApprovedFusedKernelModule::kernel_abi(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi
+pub fn ApprovedFusedKernelModule::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ApprovedFusedKernelModule::module_bytes(Self) -> Bytes
+pub fn ApprovedFusedKernelModule::module_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::recipe_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedKernelModule::target(Self) -> @catalog.DeviceTarget
+pub fn ApprovedFusedKernelModule::toolchain_digest_sha256(Self) -> String
+
+pub(all) enum FusedArtifactAdmissionRule {
+  Manifest
+  Family
+  Candidate
+  Compiler
+  Target
+  Launch
+  Symbol
+  KernelAbi
+  Module
+  Receipt
+  Binding
+  Fallback
+  Catalog
+} derive(Eq, @debug.Debug)
+
+pub struct FusedStandaloneFallbackIdentity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FusedStandaloneFallbackIdentity::new(role~ : FusedStandaloneFallbackRole, operation~ : Int, source~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, recipe~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest) -> Self raise FusedArtifactAdmissionError
+pub fn FusedStandaloneFallbackIdentity::operation_index(Self) -> Int
+pub fn FusedStandaloneFallbackIdentity::recipe_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedStandaloneFallbackIdentity::role(Self) -> FusedStandaloneFallbackRole
+pub fn FusedStandaloneFallbackIdentity::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+
+pub(all) enum FusedStandaloneFallbackRole {
+  QkvProjectionFallback
+  PositionedRopeFallback
+  PagedKvWriteFallback
+  ResidualAddFallback
+  RmsNormFallback
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

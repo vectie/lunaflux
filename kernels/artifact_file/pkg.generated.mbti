@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
@@ -17,6 +18,10 @@ pub fn load_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @launch_
 pub fn load_paged_kv(@approved_fs.ApprovedRoot, StringView, KernelManifestDigest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
 
 pub fn load_paged_kv_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @launch_contract.PagedKvLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
+pub fn load_paged_v4_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @launch_contract.PagedV4LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
+
+pub fn load_tensor_parallel_admitted(@approved_fs.ApprovedRoot, KernelArtifactManifest, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError
 
 pub fn read_manifest(BytesView, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> KernelArtifactManifest raise KernelArtifactFileError
 
@@ -87,10 +92,7 @@ pub(all) enum ArtifactPathIssue {
 } derive(Eq, @debug.Debug)
 
 pub struct KernelArtifactFileLimits {
-  max_manifest_bytes : Int64
-  max_json_depth : Int
-  max_path_bytes : Int
-  artifact : @artifact.KernelArtifactLimits
+  // private fields
 }
 pub fn KernelArtifactFileLimits::artifact(Self) -> @artifact.KernelArtifactLimits
 pub fn KernelArtifactFileLimits::max_json_depth(Self) -> Int
@@ -105,7 +107,9 @@ pub fn KernelArtifactManifest::admit_files(ArrayView[KernelModuleFileInput], Arr
 pub fn KernelArtifactManifest::entry_point_count(Self) -> Int
 pub fn KernelArtifactManifest::module_count(Self) -> Int
 
-pub struct KernelManifestDigest(String) derive(Eq, @debug.Debug)
+pub struct KernelManifestDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn KernelManifestDigest::as_hex(Self) -> String
 pub fn KernelManifestDigest::from_sha256(String) -> Self raise KernelArtifactFileError
 

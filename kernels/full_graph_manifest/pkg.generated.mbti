@@ -1,0 +1,73 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/full_graph_manifest"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact_file",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn produce_execution_manifest_v2(@plan.ModelPlan, @catalog.DeviceTarget, @launch_contract.PagedKvLaunchContractSet, ArrayView[FullGraphAotOperationArtifact], FullGraphManifestLimits) -> FullGraphExecutionManifestInput raise FullGraphManifestError
+
+// Errors
+pub(all) suberror FullGraphManifestError {
+  Invalid(FullGraphManifestRule)
+  Mismatch(rule~ : FullGraphManifestRule, operation_index~ : Int)
+  LimitExceeded(rule~ : FullGraphManifestRule, maximum~ : Int64)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FullGraphAotOperationArtifact {
+  // private fields
+}
+pub fn FullGraphAotOperationArtifact::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn FullGraphAotOperationArtifact::function_symbol(Self) -> String
+pub fn FullGraphAotOperationArtifact::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FullGraphAotOperationArtifact::module_relative_path(Self) -> String
+pub fn FullGraphAotOperationArtifact::new(operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, module_relative_path~ : String, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[@launch_contract.AotOperand], workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise FullGraphManifestError
+pub fn FullGraphAotOperationArtifact::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn FullGraphAotOperationArtifact::operation_id(Self) -> @plan.OperationId
+pub fn FullGraphAotOperationArtifact::workspace_alignment(Self) -> Int64
+pub fn FullGraphAotOperationArtifact::workspace_bytes(Self) -> Int64
+
+pub struct FullGraphExecutionManifestInput {
+  // private fields
+}
+pub fn FullGraphExecutionManifestInput::bytes(Self) -> Bytes
+pub fn FullGraphExecutionManifestInput::digest_sha256(Self) -> String
+pub fn FullGraphExecutionManifestInput::entry_point_count(Self) -> Int
+pub fn FullGraphExecutionManifestInput::module_count(Self) -> Int
+pub fn FullGraphExecutionManifestInput::operation_count(Self) -> Int
+
+pub struct FullGraphManifestLimits {
+  // private fields
+}
+pub fn FullGraphManifestLimits::artifact_file(Self) -> @artifact_file.KernelArtifactFileLimits
+pub fn FullGraphManifestLimits::max_manifest_bytes(Self) -> Int64
+pub fn FullGraphManifestLimits::new(max_manifest_bytes~ : Int64, artifact_file~ : @artifact_file.KernelArtifactFileLimits) -> Self raise FullGraphManifestError
+
+pub(all) enum FullGraphManifestRule {
+  Limits
+  ContractScope
+  CatalogVersion
+  ModelIdentity
+  DeviceTarget
+  Profile
+  OperationCoverage
+  OperationOrder
+  EntryPoint
+  LaunchDimensions
+  OperandContract
+  WorkspaceContract
+  ModulePath
+  FunctionSymbol
+  ModuleOrdering
+  ManifestBytes
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

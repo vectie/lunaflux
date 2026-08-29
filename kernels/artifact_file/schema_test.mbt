@@ -75,7 +75,7 @@ test "reader pins schema model device catalog and entry identities" {
 
   let content_mutation = @utf8.encode(
     (try! @utf8.decode(valid_manifest())).replace(
-      old=fixture_identity().content().as_hex(),
+      old=fixture_content().as_hex(),
       new="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
     ),
   )

@@ -1,0 +1,98 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PagedAttentionManifestCudaLowering raise PagedAttentionAotError
+
+pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
+
+pub fn lower_reusable_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
+
+// Errors
+pub(all) suberror PagedAttentionAotError {
+  Invalid(PagedAttentionAotRule)
+  Unsupported(PagedAttentionAotRule)
+  Mismatch(PagedAttentionAotRule)
+  LimitExceeded(PagedAttentionAotRule)
+  SizeOverflow(PagedAttentionAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PagedAttentionAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise PagedAttentionAotError
+
+pub(all) enum PagedAttentionAotRule {
+  Limits
+  Contract
+  Operation
+  Capability
+  SemanticVersion
+  ExecutionSemantics
+  Shape
+  Profile
+  Dimensions
+  OperandOrder
+  OperandBytes
+  KvLayout
+  DeviceTarget
+  CompilerPolicy
+  Source
+  Recipe
+} derive(Eq, @debug.Debug)
+
+pub struct PagedAttentionCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn PagedAttentionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PagedAttentionCudaLowering::function_symbol(Self) -> String
+pub fn PagedAttentionCudaLowering::head_dimension(Self) -> Int
+pub fn PagedAttentionCudaLowering::kv_heads(Self) -> Int
+pub fn PagedAttentionCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PagedAttentionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn PagedAttentionCudaLowering::operation_id(Self) -> @plan.OperationId
+pub fn PagedAttentionCudaLowering::page_stride_bytes(Self) -> Int64
+pub fn PagedAttentionCudaLowering::physical_page_capacity(Self) -> Int64
+pub fn PagedAttentionCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedAttentionCudaLowering::query_heads(Self) -> Int
+pub fn PagedAttentionCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn PagedAttentionCudaLowering::recipe_digest(Self) -> PagedAttentionCudaRecipeDigest
+pub fn PagedAttentionCudaLowering::source_bytes(Self) -> Bytes
+pub fn PagedAttentionCudaLowering::source_digest(Self) -> PagedAttentionCudaSourceDigest
+pub fn PagedAttentionCudaLowering::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionCudaLowering::tokens_per_page(Self) -> Int
+
+pub struct PagedAttentionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedAttentionCudaRecipeDigest::as_hex(Self) -> String
+pub fn PagedAttentionCudaRecipeDigest::from_sha256(String) -> Self raise PagedAttentionAotError
+
+pub struct PagedAttentionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedAttentionCudaSourceDigest::as_hex(Self) -> String
+pub fn PagedAttentionCudaSourceDigest::from_sha256(String) -> Self raise PagedAttentionAotError
+
+pub struct PagedAttentionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedAttentionManifestBindingDigest::as_hex(Self) -> String
+
+pub struct PagedAttentionManifestCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionManifestCudaLowering::binding_digest(Self) -> PagedAttentionManifestBindingDigest
+pub fn PagedAttentionManifestCudaLowering::binding_record_bytes(Self) -> Bytes
+pub fn PagedAttentionManifestCudaLowering::candidate(Self) -> PagedAttentionCudaLowering
+pub fn PagedAttentionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedAttentionManifestCudaLowering::manifest_bindable(Self) -> Bool
+
+// Type aliases
+
+// Traits

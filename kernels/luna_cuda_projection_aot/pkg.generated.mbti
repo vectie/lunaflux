@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_projection_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn bind_manifest_projection_cuda_aot(ProjectionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> ProjectionManifestCudaLowering raise ProjectionAotError
+
+pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+
+pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+
+pub fn projection_content_addressed_cubin_path(String) -> String raise ProjectionAotError
+
+// Errors
+pub(all) suberror ProjectionAotError {
+  Invalid(ProjectionAotRule)
+  Unsupported(ProjectionAotRule)
+  Mismatch(ProjectionAotRule)
+  LimitExceeded(ProjectionAotRule)
+  SizeOverflow(ProjectionAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ProjectionAotFamily {
+  QkvProjection
+  DenseProjection
+  GatedMlp
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise ProjectionAotError
+
+pub(all) enum ProjectionAotRule {
+  Limits
+  Operation
+  Shape
+  RuntimeInputs
+  PersistentState
+  DeviceTarget
+  CompilerPolicy
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  LaunchDimensions
+  Source
+  Recipe
+  Digest
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn ProjectionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn ProjectionCudaLowering::family(Self) -> ProjectionAotFamily
+pub fn ProjectionCudaLowering::function_symbol(Self) -> String
+pub fn ProjectionCudaLowering::input_width(Self) -> Int
+pub fn ProjectionCudaLowering::intermediate_width(Self) -> Int
+pub fn ProjectionCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ProjectionCudaLowering::numerical_contract(Self) -> ProjectionNumericalContract
+pub fn ProjectionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn ProjectionCudaLowering::operation_id(Self) -> @plan.OperationId
+pub fn ProjectionCudaLowering::output_width(Self) -> Int
+pub fn ProjectionCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn ProjectionCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn ProjectionCudaLowering::recipe_digest(Self) -> ProjectionCudaRecipeDigest
+pub fn ProjectionCudaLowering::source_bytes(Self) -> Bytes
+pub fn ProjectionCudaLowering::source_digest(Self) -> ProjectionCudaSourceDigest
+pub fn ProjectionCudaLowering::target(Self) -> @catalog.DeviceTarget
+
+pub struct ProjectionCudaManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionCudaManifestBindingDigest::as_hex(Self) -> String
+
+pub struct ProjectionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionCudaRecipeDigest::as_hex(Self) -> String
+pub fn ProjectionCudaRecipeDigest::from_sha256(String) -> Self raise ProjectionAotError
+
+pub struct ProjectionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionCudaSourceDigest::as_hex(Self) -> String
+pub fn ProjectionCudaSourceDigest::from_sha256(String) -> Self raise ProjectionAotError
+
+pub struct ProjectionManifestCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionManifestCudaLowering::binding_digest(Self) -> ProjectionCudaManifestBindingDigest
+pub fn ProjectionManifestCudaLowering::binding_record_bytes(Self) -> Bytes
+pub fn ProjectionManifestCudaLowering::candidate(Self) -> ProjectionCudaLowering
+pub fn ProjectionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn ProjectionManifestCudaLowering::manifest_bindable(Self) -> Bool
+
+pub(all) enum ProjectionNumericalContract {
+  OrderedF32AccumulationBf16RoundV1
+  OrderedF32SiluGatedBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -270,6 +270,49 @@ pub fn load_paged_kv_admitted(
 }
 
 ///|
+/// Loads one already-admitted file source and performs exact catalog-v4
+/// complete-graph artifact admission. The distinct contract type makes this
+/// path unavailable to every legacy v1/v3 and tensor-parallel caller.
+pub fn load_paged_v4_admitted(
+  approved_root : @approved_fs.ApprovedRoot,
+  source : KernelArtifactManifest,
+  contracts : @launch_contract.PagedV4LaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
+  let loaded = load_admitted_inputs(approved_root, source, limits)
+  @artifact.admit_paged_v4(
+    contracts,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
+    limits.artifact(),
+  ) catch {
+    error => raise ArtifactRejected(error)
+  }
+}
+
+///|
+/// Loads an already admitted inert file source through one caller-owned root,
+/// then authenticates every module and entry point against the exact
+/// rank-local tensor-parallel launch-contract set. No device or native module
+/// is opened by this filesystem boundary.
+pub fn load_tensor_parallel_admitted(
+  approved_root : @approved_fs.ApprovedRoot,
+  source : KernelArtifactManifest,
+  contracts : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
+  limits : KernelArtifactFileLimits,
+) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError {
+  let loaded = load_admitted_inputs(approved_root, source, limits)
+  @artifact.admit_tensor_parallel(
+    contracts,
+    loaded.module_inputs,
+    loaded.manifest.entry_points,
+    limits.artifact(),
+  ) catch {
+    error => raise ArtifactRejected(error)
+  }
+}
+
+///|
 fn sha256_hex(bytes : BytesView) -> String {
   @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
 }

@@ -1,11 +1,11 @@
 ///|
 /// Untrusted metadata for one positioned-rotary or paged-attention operation.
 pub struct PagedKvAotLaunchContractInput {
-  profile_id : KernelProfileId
-  operation_id : @plan.OperationId
-  entry_point : @catalog.AotKernelEntryPoint
-  dimensions : AotLaunchDimensions
-  operands : ReadOnlyArray[AotOperand]
+  priv profile_id : KernelProfileId
+  priv operation_id : @plan.OperationId
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv dimensions : AotLaunchDimensions
+  priv operands : ReadOnlyArray[AotOperand]
 } derive(Debug, Eq)
 
 ///|
@@ -14,22 +14,22 @@ pub struct PagedKvAotLaunchContractInput {
 /// This value is not executable. It contains no device address, CUDA symbol,
 /// compiler path, fallback, or JIT channel.
 pub struct PagedKvAotLaunchContract {
-  profile : PagedKernelProfile
-  operation_id : @plan.OperationId
-  operation_kind : @plan.OperationKind
-  operation_shape : @plan.OperationShape
-  capability : @plan.KernelCapabilityId
-  semantic_version : @catalog.KernelSemanticVersion
-  kv_layer : @plan.KvLayerId?
-  runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
-  persistent_state : @plan.PersistentStateAccess
-  kv_layout_version : Int
-  tokens_per_page : Int
-  entry_point : @catalog.AotKernelEntryPoint
-  dimensions : AotLaunchDimensions
-  operands : ReadOnlyArray[AotOperand]
-  workspace_bytes : Int64
-  workspace_alignment : Int64
+  priv profile : PagedKernelProfile
+  priv operation_id : @plan.OperationId
+  priv operation_kind : @plan.OperationKind
+  priv operation_shape : @plan.OperationShape
+  priv capability : @plan.KernelCapabilityId
+  priv semantic_version : @catalog.KernelSemanticVersion
+  priv kv_layer : @plan.KvLayerId?
+  priv runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
+  priv persistent_state : @plan.PersistentStateAccess
+  priv kv_layout_version : Int
+  priv tokens_per_page : Int
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv dimensions : AotLaunchDimensions
+  priv operands : ReadOnlyArray[AotOperand]
+  priv workspace_bytes : Int64
+  priv workspace_alignment : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -41,13 +41,13 @@ pub(all) enum PagedContractScope {
 
 ///|
 pub struct PagedKvLaunchContractSet {
-  model_identity : @spec.ModelIdentity
-  device_target : @catalog.DeviceTarget
-  catalog_version : @catalog.CatalogVersion
-  scope : PagedContractScope
-  device_kv_layout : @device_layout.DeviceKvLayout
-  profiles : ReadOnlyArray[PagedKernelProfile]
-  contracts : ReadOnlyArray[PagedKvAotLaunchContract]
+  priv model_identity : @spec.ModelIdentity
+  priv device_target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv scope : PagedContractScope
+  priv device_kv_layout : @device_layout.DeviceKvLayout
+  priv profiles : ReadOnlyArray[PagedKernelProfile]
+  priv contracts : ReadOnlyArray[PagedKvAotLaunchContract]
 } derive(Debug, Eq)
 
 ///|
@@ -57,13 +57,13 @@ pub fn PagedKvAotLaunchContractInput::new(
   entry_point~ : @catalog.AotKernelEntryPoint,
   dimensions~ : AotLaunchDimensions,
   operands~ : ArrayView[AotOperand],
-) -> PagedKvAotLaunchContractInput {
+) -> PagedKvAotLaunchContractInput raise LaunchContractError {
   {
     profile_id,
     operation_id,
     entry_point,
     dimensions,
-    operands: ReadOnlyArray::from_array(operands),
+    operands: checked_owned_operands(operands, operation_id),
   }
 }
 

@@ -4,36 +4,36 @@
 /// Construction defensively owns the small operand table. Admission against a
 /// model plan and resolved catalog remains mandatory.
 pub struct AotLaunchContractInput {
-  profile_id : KernelProfileId
-  operation_id : @plan.OperationId
-  entry_point : @catalog.AotKernelEntryPoint
-  dimensions : AotLaunchDimensions
-  operands : ReadOnlyArray[AotOperand]
+  priv profile_id : KernelProfileId
+  priv operation_id : @plan.OperationId
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv dimensions : AotLaunchDimensions
+  priv operands : ReadOnlyArray[AotOperand]
 } derive(Debug, Eq)
 
 ///|
 /// One fully admitted, exact, allocation-free launch description.
 pub struct AotLaunchContract {
-  profile : KernelProfile
-  operation_id : @plan.OperationId
-  operation_kind : @plan.OperationKind
-  operation_shape : @plan.OperationShape
-  capability : @plan.KernelCapabilityId
-  entry_point : @catalog.AotKernelEntryPoint
-  dimensions : AotLaunchDimensions
-  operands : ReadOnlyArray[AotOperand]
-  workspace_bytes : Int64
-  workspace_alignment : Int64
+  priv profile : KernelProfile
+  priv operation_id : @plan.OperationId
+  priv operation_kind : @plan.OperationKind
+  priv operation_shape : @plan.OperationShape
+  priv capability : @plan.KernelCapabilityId
+  priv entry_point : @catalog.AotKernelEntryPoint
+  priv dimensions : AotLaunchDimensions
+  priv operands : ReadOnlyArray[AotOperand]
+  priv workspace_bytes : Int64
+  priv workspace_alignment : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Immutable startup result ordered by profile and then model operation.
 pub struct LaunchContractSet {
-  model_identity : @spec.ModelIdentity
-  device_target : @catalog.DeviceTarget
-  catalog_version : @catalog.CatalogVersion
-  profiles : ReadOnlyArray[KernelProfile]
-  contracts : ReadOnlyArray[AotLaunchContract]
+  priv model_identity : @spec.ModelIdentity
+  priv device_target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv profiles : ReadOnlyArray[KernelProfile]
+  priv contracts : ReadOnlyArray[AotLaunchContract]
 } derive(Debug, Eq)
 
 ///|
@@ -43,13 +43,13 @@ pub fn AotLaunchContractInput::new(
   entry_point~ : @catalog.AotKernelEntryPoint,
   dimensions~ : AotLaunchDimensions,
   operands~ : ArrayView[AotOperand],
-) -> AotLaunchContractInput {
+) -> AotLaunchContractInput raise LaunchContractError {
   {
     profile_id,
     operation_id,
     entry_point,
     dimensions,
-    operands: ReadOnlyArray::from_array(operands),
+    operands: checked_owned_operands(operands, operation_id),
   }
 }
 

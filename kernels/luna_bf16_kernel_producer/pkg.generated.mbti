@@ -1,0 +1,182 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_bf16_kernel_producer"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/kernels/luna_kernel_bundle",
+  "vectie/lunaflux/kernels/luna_profile_priority",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn collect_luna_bf16_profiler_evidence(LunaBf16CandidateSet, @luna_profile_priority.LunaPagedKernelProfileCapture, ArrayView[LunaBf16MicrobenchmarkObservation], ArrayView[LunaBf16EndToEndObservation], LunaBf16ProfilerEvidenceLimits) -> LunaBf16ProfilerEvidence raise LunaBf16PromotionError
+
+pub fn prepare_luna_bf16_candidate_set(@plan.ModelPlan, @device_layout.DeviceKvLayout, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, LunaBf16CandidateSetLimits) -> LunaBf16CandidateSet raise LunaBf16KernelProducerError
+
+pub fn produce_luna_bf16_kernel_release(@plan.ModelPlan, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[LunaBf16OfflineCompilation], LunaBf16KernelProducerLimits) -> LunaBf16KernelReleaseInput raise LunaBf16KernelProducerError
+
+pub fn promote_luna_bf16_kernel_release(LunaBf16CandidateSet, LunaBf16KernelReleaseInput, @luna_profile_priority.LunaPagedKernelProfileCapture, LunaBf16ProfilerEvidence, LunaBf16PromotionLimits) -> LunaBf16OfflinePromotion raise LunaBf16PromotionError
+
+// Errors
+pub(all) suberror LunaBf16KernelProducerError {
+  Invalid(LunaBf16KernelProducerRule)
+  Mismatch(LunaBf16KernelProducerRule)
+  LimitExceeded(LunaBf16KernelProducerRule, maximum~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror LunaBf16PromotionError {
+  LunaBf16PromotionRejected(LunaBf16PromotionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaBf16BenchmarkShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaBf16BenchmarkShape::new(prefill_rows~ : Int, decode_rows~ : Int, query_tokens~ : Int, page_table_entries~ : Int, trace~ : LunaBf16PromotionDigest) -> Self raise LunaBf16PromotionError
+
+pub struct LunaBf16CandidateSet {
+  // private fields
+}
+pub fn LunaBf16CandidateSet::candidate_key(Self, Int) -> String?
+pub fn LunaBf16CandidateSet::candidate_recipe_bytes(Self, Int) -> Bytes?
+pub fn LunaBf16CandidateSet::candidate_set_bytes(Self) -> Bytes
+pub fn LunaBf16CandidateSet::candidate_set_sha256(Self) -> String
+pub fn LunaBf16CandidateSet::candidate_source_bytes(Self, Int) -> Bytes?
+pub fn LunaBf16CandidateSet::candidates(Self) -> ReadOnlyArray[LunaBf16KernelCandidate]
+pub fn LunaBf16CandidateSet::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn LunaBf16CandidateSet::inventory_bytes(Self) -> Bytes
+pub fn LunaBf16CandidateSet::inventory_sha256(Self) -> String
+pub fn LunaBf16CandidateSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn LunaBf16CandidateSet::operation_count(Self) -> Int
+pub fn LunaBf16CandidateSet::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn LunaBf16CandidateSet::target(Self) -> @catalog.DeviceTarget
+pub fn LunaBf16CandidateSet::total_bytes(Self) -> Int
+
+pub struct LunaBf16CandidateSetLimits {
+  // private fields
+}
+pub fn LunaBf16CandidateSetLimits::new(max_operations~ : Int, max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_total_bytes~ : Int) -> Self raise LunaBf16KernelProducerError
+
+pub struct LunaBf16EndToEndObservation {
+  // private fields
+}
+pub fn LunaBf16EndToEndObservation::new(trial_ordinal~ : Int, workload~ : LunaBf16PromotionDigest, baseline_duration_ns~ : Int64, candidate_duration_ns~ : Int64, correctness~ : LunaBf16PromotionDigest, correctness_passed~ : Bool) -> Self raise LunaBf16PromotionError
+
+pub(all) enum LunaBf16KernelCandidate {
+  Pointwise(@luna_cuda_pointwise_aot.PointwiseCudaLowering)
+  Projection(@luna_cuda_projection_aot.ProjectionCudaLowering)
+  PagedAttention(@luna_cuda_paged_attention_aot.PagedAttentionCudaLowering)
+} derive(Eq, @debug.Debug)
+pub fn LunaBf16KernelCandidate::family_name(Self) -> String
+pub fn LunaBf16KernelCandidate::operation_id(Self) -> @plan.OperationId
+pub fn LunaBf16KernelCandidate::recipe_sha256(Self) -> String
+pub fn LunaBf16KernelCandidate::source_sha256(Self) -> String
+pub fn LunaBf16KernelCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct LunaBf16KernelProducerLimits {
+  // private fields
+}
+pub fn LunaBf16KernelProducerLimits::new(max_operations~ : Int, launch_contracts~ : @launch_contract.LaunchContractLimits, bundle~ : @luna_kernel_bundle.LunaKernelBundleLimits) -> Self raise LunaBf16KernelProducerError
+
+pub(all) enum LunaBf16KernelProducerRule {
+  Limits
+  CompleteGraph
+  OperationCoverage
+  OperationIdentity
+  OperationKind
+  DeviceTarget
+  Profile
+  CompilerOutput
+  ReusableFamily
+  Catalog
+  LaunchContracts
+  FinalBinding
+  Bundle
+  Workspace
+  CandidateSet
+  CandidateSource
+  CandidateRecipe
+  CandidateInventory
+} derive(Eq, @debug.Debug)
+
+pub struct LunaBf16KernelReleaseInput {
+  // private fields
+}
+pub fn LunaBf16KernelReleaseInput::bundle(Self) -> @luna_kernel_bundle.LunaKernelBundleInput
+pub fn LunaBf16KernelReleaseInput::catalog(Self) -> @catalog.ResolvedKernelCatalog
+pub fn LunaBf16KernelReleaseInput::contracts(Self) -> @launch_contract.PagedKvLaunchContractSet
+pub fn LunaBf16KernelReleaseInput::has_authenticated_embedded_greedy_sampling(Self) -> Bool
+
+pub struct LunaBf16MicrobenchmarkObservation {
+  // private fields
+}
+pub fn LunaBf16MicrobenchmarkObservation::new(operation~ : @plan.OperationId, shape_ordinal~ : Int, trial_ordinal~ : Int, shape~ : LunaBf16BenchmarkShape, baseline_duration_ns~ : Int64, candidate_duration_ns~ : Int64, correctness~ : LunaBf16PromotionDigest, dispatch_canary~ : LunaBf16PromotionDigest, correctness_passed~ : Bool) -> Self raise LunaBf16PromotionError
+
+pub struct LunaBf16OfflineCompilation {
+  // private fields
+}
+pub fn LunaBf16OfflineCompilation::new(candidate~ : LunaBf16KernelCandidate, first_module~ : Bytes, second_module~ : Bytes, receipt~ : @luna_kernel_bundle.LunaDeterministicCompileReceipt) -> Self
+
+pub struct LunaBf16OfflinePromotion {
+  // private fields
+}
+pub fn LunaBf16OfflinePromotion::candidate_set_digest(Self) -> String
+pub fn LunaBf16OfflinePromotion::digest(Self) -> LunaBf16PromotionDigest
+pub fn LunaBf16OfflinePromotion::launch_contract_digest(Self) -> LunaBf16PromotionDigest
+pub fn LunaBf16OfflinePromotion::operation_count(Self) -> Int
+pub fn LunaBf16OfflinePromotion::profiler_evidence_digest(Self) -> LunaBf16PromotionDigest
+pub fn LunaBf16OfflinePromotion::release_manifest_digest(Self) -> String
+
+pub struct LunaBf16ProfilerEvidence {
+  // private fields
+}
+pub fn LunaBf16ProfilerEvidence::canonical_bytes(Self) -> Bytes
+pub fn LunaBf16ProfilerEvidence::digest(Self) -> LunaBf16PromotionDigest
+pub fn LunaBf16ProfilerEvidence::end_to_end_count(Self) -> Int
+pub fn LunaBf16ProfilerEvidence::microbenchmark_count(Self) -> Int
+
+pub struct LunaBf16ProfilerEvidenceLimits {
+  // private fields
+}
+pub fn LunaBf16ProfilerEvidenceLimits::new(maximum_candidates~ : Int, maximum_shapes_per_candidate~ : Int, trials_per_shape~ : Int, end_to_end_trials~ : Int, maximum_end_to_end_regression_ppm~ : Int, maximum_canonical_bytes~ : Int) -> Self raise LunaBf16PromotionError
+
+pub struct LunaBf16PromotionDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaBf16PromotionDigest::as_hex(Self) -> String
+pub fn LunaBf16PromotionDigest::from_sha256(String) -> Self raise LunaBf16PromotionError
+
+pub struct LunaBf16PromotionLimits {
+  // private fields
+}
+pub fn LunaBf16PromotionLimits::new(maximum_canonical_bytes~ : Int) -> Self raise LunaBf16PromotionError
+
+pub(all) enum LunaBf16PromotionRule {
+  Limits
+  Digest
+  Shape
+  Observation
+  ObservationOrder
+  CandidateCoverage
+  TrialCoverage
+  Correctness
+  MicrobenchmarkWin
+  EndToEndRegression
+  CandidateSet
+  ProfileCapture
+  Target
+  Compiler
+  LaunchContract
+  ReleaseAuthority
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

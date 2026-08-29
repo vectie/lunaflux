@@ -1,0 +1,127 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_paged_attention_parallel_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+}
+
+// Values
+pub fn admit_paged_attention_parallel_promotion_evidence(PagedAttentionParallelCudaCandidate, ArrayView[PagedAttentionParallelPromotionTrial], ArrayView[PagedAttentionParallelEndToEndTrial], PagedAttentionParallelPromotionLimits) -> PagedAttentionParallelPromotionEvidence raise PagedAttentionParallelAotError
+
+pub fn bind_promoted_paged_attention_parallel_release_candidate(PagedAttentionParallelCudaCandidate, @catalog.AotKernelEntryPoint, PagedAttentionParallelDigest, PagedAttentionParallelPromotionEvidence) -> PagedAttentionParallelReleaseCandidate raise PagedAttentionParallelAotError
+
+pub fn lower_paged_attention_parallel_cuda_aot_candidate(@luna_cuda_paged_attention_aot.PagedAttentionCudaLowering, PagedAttentionParallelAotLimits) -> PagedAttentionParallelCudaCandidate raise PagedAttentionParallelAotError
+
+// Errors
+pub(all) suberror PagedAttentionParallelAotError {
+  PagedAttentionParallelInvalid(PagedAttentionParallelAotRule)
+  PagedAttentionParallelUnsupported(PagedAttentionParallelAotRule)
+  PagedAttentionParallelMismatch(PagedAttentionParallelAotRule)
+  PagedAttentionParallelLimitExceeded(PagedAttentionParallelAotRule)
+  PagedAttentionParallelOverflow(PagedAttentionParallelAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PagedAttentionParallelAotLimits {
+  // private fields
+}
+pub fn PagedAttentionParallelAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_canonical_bytes~ : Int) -> Self raise PagedAttentionParallelAotError
+
+pub(all) enum PagedAttentionParallelAotRule {
+  Limits
+  ReferenceCandidate
+  Shape
+  Profile
+  KvLayout
+  DeviceTarget
+  CompilerPolicy
+  LunaTile
+  StaticResources
+  Source
+  Recipe
+  Digest
+  PromotionEvidence
+  ObservationOrder
+  Correctness
+  MicrobenchmarkWin
+  EndToEndRegression
+  CompiledEntryPoint
+} derive(Eq, @debug.Debug)
+
+pub struct PagedAttentionParallelCudaCandidate {
+  // private fields
+}
+pub fn PagedAttentionParallelCudaCandidate::candidate_digest(Self) -> PagedAttentionParallelDigest
+pub fn PagedAttentionParallelCudaCandidate::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PagedAttentionParallelCudaCandidate::function_symbol(Self) -> String
+pub fn PagedAttentionParallelCudaCandidate::head_dimension(Self) -> Int
+pub fn PagedAttentionParallelCudaCandidate::kv_heads(Self) -> Int
+pub fn PagedAttentionParallelCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PagedAttentionParallelCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionParallelCudaCandidate::maximum_context_tokens(Self) -> Int
+pub fn PagedAttentionParallelCudaCandidate::numerical_policy(Self) -> PagedAttentionParallelNumericalPolicy
+pub fn PagedAttentionParallelCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedAttentionParallelCudaCandidate::query_heads(Self) -> Int
+pub fn PagedAttentionParallelCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn PagedAttentionParallelCudaCandidate::recipe_digest(Self) -> PagedAttentionParallelDigest
+pub fn PagedAttentionParallelCudaCandidate::reference_fallback(Self) -> @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering
+pub fn PagedAttentionParallelCudaCandidate::shared_memory_bytes(Self) -> Int
+pub fn PagedAttentionParallelCudaCandidate::source_bytes(Self) -> Bytes
+pub fn PagedAttentionParallelCudaCandidate::source_digest(Self) -> PagedAttentionParallelDigest
+pub fn PagedAttentionParallelCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionParallelCudaCandidate::tile_aot_digest(Self) -> @luna_tile_ir.LunaTileCudaAotDigest
+pub fn PagedAttentionParallelCudaCandidate::tile_program_digest(Self) -> @luna_tile_ir.LunaTileProgramDigest
+pub fn PagedAttentionParallelCudaCandidate::tokens_per_page(Self) -> Int
+
+pub struct PagedAttentionParallelDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn PagedAttentionParallelDigest::as_hex(Self) -> String
+pub fn PagedAttentionParallelDigest::from_sha256(String) -> Self raise PagedAttentionParallelAotError
+
+pub struct PagedAttentionParallelEndToEndTrial {
+  // private fields
+}
+pub fn PagedAttentionParallelEndToEndTrial::new(trial_ordinal~ : Int, baseline_duration_ns~ : Int64, candidate_duration_ns~ : Int64, token_agreement~ : Bool, correctness~ : PagedAttentionParallelDigest) -> Self raise PagedAttentionParallelAotError
+
+pub struct PagedAttentionParallelNumericalPolicy {
+  // private fields
+}
+pub fn PagedAttentionParallelNumericalPolicy::maximum_absolute_error_ppb(Self) -> Int64
+pub fn PagedAttentionParallelNumericalPolicy::maximum_relative_error_ppb(Self) -> Int64
+pub fn PagedAttentionParallelNumericalPolicy::name(Self) -> String
+pub fn PagedAttentionParallelNumericalPolicy::requires_token_agreement(Self) -> Bool
+
+pub struct PagedAttentionParallelPromotionEvidence {
+  // private fields
+}
+pub fn PagedAttentionParallelPromotionEvidence::canonical_bytes(Self) -> Bytes
+pub fn PagedAttentionParallelPromotionEvidence::digest(Self) -> PagedAttentionParallelDigest
+pub fn PagedAttentionParallelPromotionEvidence::end_to_end_count(Self) -> Int
+pub fn PagedAttentionParallelPromotionEvidence::trial_count(Self) -> Int
+
+pub struct PagedAttentionParallelPromotionLimits {
+  // private fields
+}
+pub fn PagedAttentionParallelPromotionLimits::new(maximum_shapes~ : Int, trials_per_shape~ : Int, end_to_end_trials~ : Int, maximum_end_to_end_regression_ppm~ : Int, maximum_canonical_bytes~ : Int) -> Self raise PagedAttentionParallelAotError
+
+pub struct PagedAttentionParallelPromotionTrial {
+  // private fields
+}
+pub fn PagedAttentionParallelPromotionTrial::new(shape_ordinal~ : Int, trial_ordinal~ : Int, baseline_duration_ns~ : Int64, candidate_duration_ns~ : Int64, maximum_absolute_error_ppb~ : Int64, maximum_relative_error_ppb~ : Int64, token_agreement~ : Bool, correctness~ : PagedAttentionParallelDigest, dispatch_canary~ : PagedAttentionParallelDigest) -> Self raise PagedAttentionParallelAotError
+
+pub struct PagedAttentionParallelReleaseCandidate {
+  // private fields
+}
+pub fn PagedAttentionParallelReleaseCandidate::binding_digest(Self) -> PagedAttentionParallelDigest
+pub fn PagedAttentionParallelReleaseCandidate::binding_record_bytes(Self) -> Bytes
+pub fn PagedAttentionParallelReleaseCandidate::candidate(Self) -> PagedAttentionParallelCudaCandidate
+pub fn PagedAttentionParallelReleaseCandidate::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedAttentionParallelReleaseCandidate::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionParallelReleaseCandidate::promotion_digest(Self) -> PagedAttentionParallelDigest
+
+// Type aliases
+
+// Traits
