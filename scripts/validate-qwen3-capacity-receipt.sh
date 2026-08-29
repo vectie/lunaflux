@@ -97,7 +97,8 @@ receipt_sha=$(sha256_file "$receipt")
   >"$scratch/verify.stdout"
 grep -Fx 'outcome=passed' "$scratch/verify.stdout" >/dev/null ||
   fail 'positive receipt did not verify'
-mode=$(stat -f '%Lp' "$receipt" 2>/dev/null || stat -c '%a' "$receipt")
+mode=$(stat -c '%a' "$receipt" 2>/dev/null) ||
+  mode=$(stat -f '%Lp' "$receipt")
 [ "$mode" = 444 ] || fail 'published receipt is not read-only'
 independent_auth=$scratch/independent-authentication.v1
 {
