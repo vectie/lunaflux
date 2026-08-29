@@ -5,15 +5,16 @@ fn owned_online_lease(
 ) -> @worker_service.OnlineWorkerLease raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @worker_service.prepare_owned(
+  let prepared = @worker_service.prepare_owned_approved(
     scheduler_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()
@@ -24,15 +25,16 @@ fn owned_online_lease(
 fn run_owned_online_transfer_evidence(executable : Bytes) -> Unit raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @worker_service.prepare_owned(
+  let prepared = @worker_service.prepare_owned_approved(
     scheduler_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()

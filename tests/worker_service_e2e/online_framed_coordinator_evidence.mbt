@@ -63,7 +63,7 @@ fn prepare_framed_coordinator(
 ) -> @online_session.LunaOnlineFramedCoordinator raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @online_session.prepare_owned_luna_online_framed_coordinator(
+  let prepared = @online_session.prepare_owned_luna_online_framed_coordinator_approved(
     tokenizer,
     tokenizer.digest(),
     identity(),
@@ -80,12 +80,13 @@ fn prepare_framed_coordinator(
     @framed_wire.LunaFramedEventStepBudget::new(17),
     scheduler_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()
@@ -130,6 +131,10 @@ fn progress_coordinator_to_event(
   while attempts < 1000000 {
     match coordinator.progress() {
       LunaOnlineFramedCoordinatorEventReady => return
+      LunaOnlineFramedCoordinatorSemanticEventReady =>
+        raise Failure("native coordinator published semantic-only event")
+      LunaOnlineFramedCoordinatorObservationReady =>
+        raise Failure("compatibility coordinator leaked observation pulse")
       LunaOnlineFramedCoordinatorMaintenanceRequired =>
         ignore(coordinator.progress_off_reactor_maintenance())
       LunaOnlineFramedCoordinatorRejectionReady =>

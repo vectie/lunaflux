@@ -10,6 +10,7 @@ import {
   "vectie/lunaflux/internal/process",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/tests/worker_executable_fixture",
 }
 
 supported_targets = "native"

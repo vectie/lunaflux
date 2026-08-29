@@ -1,48 +1,62 @@
-# Device-worker canonical one-row allocation evidence
+# Device-worker mixed/full-batch allocation evidence
 
 This native release executable prepares one genuine public
-`DeviceWorkerOwner` through the approved-root model, weight, artifact, and
-executor path before measurement. It prebuilds 132 canonical plans and
-validated plan-frame owners plus one reusable completion-frame owner. The
-plans form 44 legitimate three-step request groups, each with its own active
-allocator-issued page. Group A uses ordinary prefill, greedy final prefill,
-then stochastic decode; group B uses ordinary prefill, stochastic final
-prefill, then greedy decode. Every decode consumes the immediately preceding
-sampled token. One cycle warms the aggregate; the next 131 cycles complete the
-22 six-cycle pairs. Each measured cycle authenticates the frame's exact
-request/page generations, row, sampling fields, and expected replay token,
-acquires a fresh completion writer, and calls the exact public
-`DeviceWorkerOwner::execute_frame`. It authenticates the returned completion
-against the submitted plan and expected token; the retained executor separately
-enforces the monotonic plan sequence. The harness then retires/resets that plan
-owner. All pages remain active through measurement and are released afterward.
+`DeviceWorkerOwner` through the approved-root model, weight, schema-v2
+execution-manifest, artifact, and executor path. The paged plan and startup
+contract bind an exact four-row batch identity. Its worker and device-step
+envelopes hold exactly eight query tokens, eight page-table entries, 32
+capability entries, and four completion slots.
 
-A force-included release-only header counts MoonBit managed, array, and string
-allocation entry points. Record, `FixedArray`, and retained dynamic-string
-positive controls independently trip the same active counter. The target
-window remains zero while the fake native device observes exactly eight fixed
-H2D copies and one launch/synchronization per admitted graph step and cycle.
-Ordinary prefill performs no readback; every producing final/decode row performs
-exactly one. No native resource may be created or closed in that window, and
-every fake context child must be closed afterward.
+Before measurement the harness builds 66 validated full-batch plans. Every
+plan has three prefill rows followed by one decode row: an ordinary prefill,
+two final prefills, and one decode. Their token lengths are 3/3/1/1; every row
+owns a distinct two-page CSR segment; completion slots are deliberately
+permuted. The flattened token, page, capability, row, and slot tables fill all
+configured ceilings exactly. Alternating plans swap greedy and stochastic
+sampling across both final-prefill and decode rows.
 
-Outside the measured window, an ordinary-prefill launch fault, greedy-decode
-readback fault, and stochastic-decode non-finite-logit fault traverse the real
-aggregate execute path from explicit sequence-one frames. Each exact bounded
-failure consumes the injected fault, faults the owner, publishes no completion,
-returns the aborted writer owner to reuse, and closes all native resources.
-Package-private device-worker tests separately prove finish-before-submit
-failure ordering and writer reuse.
+The fake final-head kernel writes nonuniform BF16 logits into all eight query
+rows. Each row has row-shifted candidate logits `[4, 3, 2, 1]` and four lower
+tokens. Greedy therefore selects a nonconstant, explicitly nonzero token on
+physical rows 6 and 7. A test-local scalar oracle independently insertion-sorts
+all eight token IDs, applies temperature softmax, top-k, and top-p, then uses
+its own counter mixing and weighted interval selection. Candidate
+probabilities differ, and the oracle does not call the production sampler.
+Every completion is authenticated against the exact
+submitted plan and then checked entry-by-entry and slot-by-slot for request,
+generation, kind, processed count, and selected token. Successful entries must
+also reject the worker-failure accessor.
 
-The fake device demonstrates allocation, authentication, lifecycle order, and
-deterministic sampler replay only. Expected stochastic tokens are computed
-before measurement with the same production sampler, so this is not an
-independent stochastic or CUDA numerical oracle. It is not sanitizer/leak,
-soak, benchmark, or production promotion evidence. The production Llama plan
-currently admits one row, so mixed-row/full-batch evidence remains open.
+One full batch warms the owner. The next 65 full batches execute inside the
+allocation probe. A force-included release-only header counts MoonBit managed,
+array, and string allocation entry points; record, `FixedArray`, and dynamic
+string positive controls prove each counter. The measured window must remain
+zero while the fake device observes exactly seven fixed H2D copies (six
+payloads and the final real-count publication), one launch and synchronization
+per admitted graph operation, and three row readbacks per batch. No native
+resource may be created or closed in the window.
+
+Outside measurement, focused hostile evidence rejects a fifth row and the
+first token/page/capability beyond each exact maximum without corrupting the
+owner. An internally consistent wire frame with an overlong page CSR reaches
+the real device preflight, fails exact `PageCount`, aborts its completion
+writer, faults and closes the separate worker owner, and leaks no page/native
+authority. A startup contract whose bootstrap-source digest differs from the
+admitted contract is rejected before device preparation. Existing launch,
+readback, and nonfinite-logit injections retain their fail-stop and cleanup
+coverage.
+
+The generated-C gate hard-fails missing batch lifecycle helpers and scans each
+reachable out-of-line success body for managed allocation. This is software
+control-flow, ownership, nonuniform fake-logit, deterministic scalar-oracle,
+and warmed allocation evidence. It is not physical CUDA numerical,
+sanitizer/leak, soak, benchmark, or independent statistical-distribution
+promotion evidence.
 
 Run it through:
 
 ```sh
-scripts/validate-device-worker-one-row-allocations.sh
+scripts/validate-device-worker-batch-allocations.sh
 ```
+
+The former one-row script name remains a compatibility wrapper for this gate.

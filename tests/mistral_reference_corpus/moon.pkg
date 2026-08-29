@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+  "moonbitlang/core/strconv",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/reference",
+  "vectie/lunaflux/kernels/reference" @refkernels,
+  "vectie/lunaflux/model/config_reader",
+  "vectie/lunaflux/model/llama_admission",
+  "vectie/lunaflux/model/materialize",
+  "vectie/lunaflux/model/mistral",
+  "vectie/lunaflux/model/mistral_weights",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/sampling",
+} for "test"
+
+supported_targets = "native"

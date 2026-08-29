@@ -1,0 +1,14 @@
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+options(
+  "native-stub": [ "read_fixture.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)

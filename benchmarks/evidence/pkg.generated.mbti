@@ -1,0 +1,146 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/evidence"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn maximum_request_events_per_summary() -> Int
+
+// Errors
+pub(all) suberror BenchmarkEvidenceError {
+  InvalidDigest
+  InvalidEngineIdentity
+  InvalidWorkload
+  InvalidTrial
+  IncorrectOutcomeAccounting
+  CorrectnessNotEstablished
+  InvalidComparisonShape
+  DuplicateTrial
+  BiasedEngineOrder
+  CanonicalEvidenceTooLarge
+  InvalidRequestEvent
+  InvalidEventTimestamp
+  NonCanonicalEventOrder
+  BenchmarkEventLimitExceeded
+  SummaryIntegerOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct BenchmarkComparison {
+  // private fields
+}
+pub fn BenchmarkComparison::admit(environment~ : BenchmarkEnvironment, engines~ : ArrayView[BenchmarkEngineIdentity], workloads~ : ArrayView[BenchmarkWorkload], trials~ : ArrayView[BenchmarkTrial]) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkComparison::canonical_bytes(Self) -> Bytes
+pub fn BenchmarkComparison::digest(Self) -> BenchmarkDigest
+pub fn BenchmarkComparison::trial_count(Self) -> Int
+
+pub struct BenchmarkDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn BenchmarkDigest::as_hex(Self) -> String
+pub fn BenchmarkDigest::from_sha256(String) -> Self raise BenchmarkEvidenceError
+
+pub(all) enum BenchmarkEngine {
+  LunaFlux
+  Vllm
+  Sglang
+} derive(Eq, @debug.Debug)
+
+pub struct BenchmarkEngineIdentity {
+  // private fields
+}
+pub fn BenchmarkEngineIdentity::engine(Self) -> BenchmarkEngine
+pub fn BenchmarkEngineIdentity::new(engine~ : BenchmarkEngine, revision~ : BenchmarkDigest, executable~ : BenchmarkDigest) -> Self
+
+pub struct BenchmarkEnvironment {
+  // private fields
+}
+pub fn BenchmarkEnvironment::new(hardware~ : BenchmarkDigest, driver~ : BenchmarkDigest, toolkit~ : BenchmarkDigest, model~ : BenchmarkDigest, tokenizer~ : BenchmarkDigest, protocol~ : BenchmarkDigest, corpus~ : BenchmarkDigest, randomization~ : BenchmarkDigest) -> Self
+
+pub struct BenchmarkIntegerSummary {
+  // private fields
+}
+pub fn BenchmarkIntegerSummary::count(Self) -> Int
+pub fn BenchmarkIntegerSummary::maximum(Self) -> Int64
+pub fn BenchmarkIntegerSummary::minimum(Self) -> Int64
+pub fn BenchmarkIntegerSummary::p50(Self) -> Int64
+pub fn BenchmarkIntegerSummary::p95(Self) -> Int64
+pub fn BenchmarkIntegerSummary::p99(Self) -> Int64
+pub fn BenchmarkIntegerSummary::total(Self) -> Int64
+
+pub(all) enum BenchmarkProfile {
+  Latency
+  Chat
+  LongPrefill
+  DecodeHeavy
+  PrefixRich
+  PrefixCold
+  Saturation
+  Churn
+  Mixed
+} derive(Eq, @debug.Debug)
+
+pub struct BenchmarkRequestEvent {
+  // private fields
+}
+pub fn BenchmarkRequestEvent::new(request_ordinal~ : Int, outcome~ : BenchmarkRequestOutcome, submitted_at_ns~ : Int64, admitted_at_ns~ : Int64?, first_token_at_ns~ : Int64?, terminal_at_ns~ : Int64, input_tokens~ : Int64, generated_tokens~ : Int64) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkRequestEvent::outcome(Self) -> BenchmarkRequestOutcome
+pub fn BenchmarkRequestEvent::request_ordinal(Self) -> Int
+
+pub(all) enum BenchmarkRequestOutcome {
+  Completed
+  Rejected
+  TimedOut
+  Cancelled
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub struct BenchmarkSummaryEvidence {
+  // private fields
+}
+pub fn BenchmarkSummaryEvidence::admit(engine~ : BenchmarkEngine, profile~ : BenchmarkProfile, ordinal~ : Int, order_position~ : Int, declared_submitted~ : Int, measurement~ : BenchmarkDigest, events~ : ArrayView[BenchmarkRequestEvent]) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkSummaryEvidence::raw_events_canonical_bytes(Self) -> Bytes
+pub fn BenchmarkSummaryEvidence::raw_events_digest(Self) -> BenchmarkDigest
+pub fn BenchmarkSummaryEvidence::summary(Self) -> BenchmarkTrialSummary
+pub fn BenchmarkSummaryEvidence::summary_canonical_bytes(Self) -> Bytes
+pub fn BenchmarkSummaryEvidence::summary_digest(Self) -> BenchmarkDigest
+
+pub struct BenchmarkTrial {
+  // private fields
+}
+pub fn BenchmarkTrial::engine(Self) -> BenchmarkEngine
+pub fn BenchmarkTrial::from_summary(measurements~ : BenchmarkSummaryEvidence, correctness_passed~ : Bool, correctness~ : BenchmarkDigest) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkTrial::new(engine~ : BenchmarkEngine, profile~ : BenchmarkProfile, ordinal~ : Int, order_position~ : Int, submitted~ : Int, completed~ : Int, rejected~ : Int, timed_out~ : Int, cancelled~ : Int, failed~ : Int, correctness_passed~ : Bool, raw_events~ : BenchmarkDigest, correctness~ : BenchmarkDigest, summary~ : BenchmarkDigest) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkTrial::order_position(Self) -> Int
+pub fn BenchmarkTrial::ordinal(Self) -> Int
+pub fn BenchmarkTrial::profile(Self) -> BenchmarkProfile
+
+pub struct BenchmarkTrialSummary {
+  // private fields
+}
+pub fn BenchmarkTrialSummary::cancelled(Self) -> Int
+pub fn BenchmarkTrialSummary::completed(Self) -> Int
+pub fn BenchmarkTrialSummary::decode_ns(Self) -> BenchmarkIntegerSummary
+pub fn BenchmarkTrialSummary::elapsed_ns(Self) -> Int64
+pub fn BenchmarkTrialSummary::end_to_end_ns(Self) -> BenchmarkIntegerSummary
+pub fn BenchmarkTrialSummary::failed(Self) -> Int
+pub fn BenchmarkTrialSummary::generated_tokens(Self) -> Int64
+pub fn BenchmarkTrialSummary::input_tokens(Self) -> Int64
+pub fn BenchmarkTrialSummary::queue_ns(Self) -> BenchmarkIntegerSummary
+pub fn BenchmarkTrialSummary::rejected(Self) -> Int
+pub fn BenchmarkTrialSummary::service_ns(Self) -> BenchmarkIntegerSummary
+pub fn BenchmarkTrialSummary::submitted(Self) -> Int
+pub fn BenchmarkTrialSummary::timed_out(Self) -> Int
+pub fn BenchmarkTrialSummary::ttft_ns(Self) -> BenchmarkIntegerSummary
+
+pub struct BenchmarkWorkload {
+  // private fields
+}
+pub fn BenchmarkWorkload::new(profile~ : BenchmarkProfile, configuration~ : BenchmarkDigest) -> Self
+pub fn BenchmarkWorkload::profile(Self) -> BenchmarkProfile
+
+// Type aliases
+
+// Traits

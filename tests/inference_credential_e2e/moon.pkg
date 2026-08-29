@@ -1,0 +1,11 @@
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/runtime/inference_credential" @credential,
+  "vectie/lunaflux/service/api_auth",
+} for "wbtest"
+
+options(
+  "native-stub": [ "fixture.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)

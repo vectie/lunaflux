@@ -1,0 +1,87 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/luna_fused_candidate_qualification"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+}
+
+// Values
+pub fn fused_candidate_benchmark_minimum_win_percent() -> Int64
+
+pub fn fused_candidate_benchmark_repetitions_per_arm() -> Int
+
+pub fn fused_candidate_benchmark_shape_set_identity() -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+
+pub fn fused_candidate_benchmark_trials_per_shape() -> Int
+
+pub fn fused_candidate_benchmark_warmup_iterations() -> Int
+
+pub fn qualify_fused_qkv_candidate_benchmark(@luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate, FusedCandidateBenchmarkProtocol, ArrayView[FusedCandidateBenchmarkPairedObservation], maximum_evidence_bytes~ : Int) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError
+
+pub fn qualify_fused_residual_rmsnorm_candidate_benchmark(@luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate, FusedCandidateBenchmarkProtocol, ArrayView[FusedCandidateBenchmarkPairedObservation], maximum_evidence_bytes~ : Int) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError
+
+// Errors
+pub(all) suberror FusedCandidateBenchmarkError {
+  InvalidFusedCandidateBenchmark(FusedCandidateBenchmarkStage)
+  MismatchedFusedCandidateBenchmark(FusedCandidateBenchmarkStage)
+  OverflowedFusedCandidateBenchmark(FusedCandidateBenchmarkStage)
+  FusedCandidateBenchmarkLimitExceeded(FusedCandidateBenchmarkStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FusedCandidateBenchmarkArmObservation {
+  // private fields
+}
+pub fn FusedCandidateBenchmarkArmObservation::new(duration_ns~ : Int64, work_units~ : Int64, resources_acquired~ : Int64, resources_released~ : Int64, live_resources_before~ : Int64, live_resources_after~ : Int64, live_bytes_before~ : Int64, live_bytes_after~ : Int64, resource_failures~ : Int64, dispatch_canary_before~ : UInt, dispatch_canary_after~ : UInt) -> Self raise FusedCandidateBenchmarkError
+
+pub(all) enum FusedCandidateBenchmarkPairOrder {
+  BaselineThenCandidate
+  CandidateThenBaseline
+} derive(Eq, @debug.Debug)
+
+pub struct FusedCandidateBenchmarkPairedObservation {
+  // private fields
+}
+pub fn FusedCandidateBenchmarkPairedObservation::new(shape~ : FusedCandidateBenchmarkShape, trial_ordinal~ : Int, repetitions~ : Int, order~ : FusedCandidateBenchmarkPairOrder, baseline~ : FusedCandidateBenchmarkArmObservation, candidate~ : FusedCandidateBenchmarkArmObservation) -> Self raise FusedCandidateBenchmarkError
+
+pub struct FusedCandidateBenchmarkProtocol {
+  // private fields
+}
+pub fn FusedCandidateBenchmarkProtocol::new(candidate~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, shape_set~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, clock~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, resource_collector~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, warmup_iterations~ : Int, trials_per_shape~ : Int, repetitions_per_arm~ : Int) -> Self raise FusedCandidateBenchmarkError
+
+pub struct FusedCandidateBenchmarkQualificationEvidence {
+  // private fields
+}
+pub fn FusedCandidateBenchmarkQualificationEvidence::candidate_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedCandidateBenchmarkQualificationEvidence::canonical_bytes(Self) -> Bytes
+pub fn FusedCandidateBenchmarkQualificationEvidence::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedCandidateBenchmarkQualificationEvidence::family(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelFamily
+pub fn FusedCandidateBenchmarkQualificationEvidence::manifest_bindable(Self) -> Bool
+pub fn FusedCandidateBenchmarkQualificationEvidence::observation_count(Self) -> Int
+pub fn FusedCandidateBenchmarkQualificationEvidence::promotion_authority(Self) -> Bool
+pub fn FusedCandidateBenchmarkQualificationEvidence::shape_set_identity(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+
+pub(all) enum FusedCandidateBenchmarkShape {
+  SingleOrigin
+  SinglePageTail
+  CrossPagePair
+  EightTokenPageBoundaries
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FusedCandidateBenchmarkStage {
+  Protocol
+  CandidateIdentity
+  ShapeCoverage
+  ObservationOrder
+  WorkCounter
+  DispatchCanary
+  ResourceBalance
+  DurationSummary
+  WinPolicy
+  EvidenceSize
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

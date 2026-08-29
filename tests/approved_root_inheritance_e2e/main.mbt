@@ -46,10 +46,10 @@ async fn run(executable : Bytes) -> Unit {
     kernel.close()
     let receive = FixedArray::make(8, b'\x00')
     for iteration in 0..<2 {
-      let child = @process.spawn_with_approved_roots(
+      let child = @worker_executable_fixture.spawn_with_approved_roots(
         executable,
-        roots,
         process_limits(),
+        roots,
       )
       assert_eq(child.read_frame(receive), 8)
       assert_eq(
@@ -83,7 +83,11 @@ async fn run(executable : Bytes) -> Unit {
     @approved_fs.close_worker_approved_roots(roots)
     assert_true(@approved_fs.worker_approved_roots_is_closed(roots))
     try
-      @process.spawn_with_approved_roots(executable, roots, process_limits())
+      @worker_executable_fixture.spawn_with_approved_roots(
+        executable,
+        process_limits(),
+        roots,
+      )
     catch {
       _ => ()
     } noraise {

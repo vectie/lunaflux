@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/approved_bf16_model_physical"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type ApprovedBf16PhysicalError derive(@debug.Debug)
+
+// Types and methods
+type ApprovedBf16Inputs
+
+type ApprovedCorpusCase
+
+// Type aliases
+
+// Traits

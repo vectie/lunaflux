@@ -13,18 +13,19 @@ fn prepare_foundation_instance(
 ) -> @online_session.LunaOnlineInstance raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @online_session.prepare_owned_luna_online_instance(
+  let prepared = @online_session.prepare_owned_luna_online_instance_approved(
     expected_tokenizer,
     identity(),
     inference_limits(),
     scheduler_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()
@@ -131,18 +132,19 @@ fn prepare_lower_reject_foundation_instance(
 ) -> @online_session.LunaOnlineInstance raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @online_session.prepare_owned_luna_online_instance(
+  let prepared = @online_session.prepare_owned_luna_online_instance_approved(
     expected_tokenizer,
     identity(),
     inference_limits(),
     lower_reject_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     lower_reject_startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()

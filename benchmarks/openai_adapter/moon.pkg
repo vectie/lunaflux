@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+  "moonbitlang/core/strconv",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/benchmarks/runner",
+  "vectie/lunaflux/internal/json_guard",
+}
+
+supported_targets = "native"

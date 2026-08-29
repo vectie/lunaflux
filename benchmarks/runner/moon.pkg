@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/runtime/monotonic_clock",
+}
+
+supported_targets = "native"

@@ -1,0 +1,10 @@
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/runtime/inherited_drain" @drain,
+} for "wbtest"
+
+options(
+  "native-stub": [ "fixture.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)

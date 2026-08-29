@@ -1,0 +1,14 @@
+schema=lunaflux-paged-bf16-shape-matrix-pointwise-v1
+source_sha256=58bb572f9df2f58f6af83023a57fabd4f29eb9992c106e319520fb2e63d9a704
+target=sm_120
+output=cubin
+language_standard=c++17
+optimization=3
+fmad=false
+reassociate=false
+max_registers=128
+profile=max_rows:2,max_tokens:3,max_page_entries:3
+families=embedding,rms_norm,positioned_rotary,residual_add
+symbols=lunaflux_probe_embedding_h4,lunaflux_probe_rms_norm_h4,lunaflux_probe_rope_qkv_h4,lunaflux_probe_residual_h4
+capture_safe=true
+runtime_compile=false

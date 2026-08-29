@@ -1,0 +1,36 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/fused_parallel_cuda_probe"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror FusedCudaProbeError {
+  FusedCudaProbeRejected(String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+type FusedCampaignObservation
+
+type FusedProbeBindings
+
+type FusedProbeCandidateContext
+
+type FusedProbeObservation
+
+type FusedProbeOracleModules
+
+type FusedProductionLoadedKernel
+
+type FusedProductionProbeBindings
+
+type FusedProductionProbeCandidates
+
+type FusedProductionProbeObservation
+
+// Type aliases
+
+// Traits

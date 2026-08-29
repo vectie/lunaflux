@@ -83,14 +83,11 @@ fn run_worker() -> Unit raise {
   let mut frame_count = 0
   let mut last_sequence = 0UL
   while running {
-    let length = try channel.read_frame(input) catch {
-      ChannelClosed(Read) => {
-        running = false
-        0
-      }
+    let length = channel.read_frame_or_eof(input) catch {
       _ => raise Failure("persistent online fixture frame receive failed")
-    } noraise {
-      value => value
+    }
+    if length == 0 {
+      running = false
     }
     if running {
       let frame = plan_owner.load(input, length)

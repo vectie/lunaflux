@@ -15,6 +15,7 @@ import {
   "vectie/lunaflux/sampling",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_file",
   "vectie/lunaflux/tokenizer/json_reader",
 } for "test"
 

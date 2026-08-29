@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/fp8_v2_compile_evidence"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Fp8V2CompileCandidateError derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

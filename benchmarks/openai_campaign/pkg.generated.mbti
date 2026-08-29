@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/openai_campaign"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/benchmarks/openai_adapter",
+}
+
+// Values
+pub fn replay_openai_responses_campaign(OpenAIResponsesCampaignDeclaration, ArrayView[Bytes]) -> OpenAIResponsesCampaignReplayEvidence raise OpenAIResponsesCampaignError
+
+// Errors
+pub(all) suberror OpenAIResponsesCampaignError {
+  CampaignInvalidDigest
+  CampaignInvalidJson
+  CampaignInvalidSchema
+  CampaignInvalidDeclaration
+  CampaignInvalidEndpoint
+  CampaignInvalidCredentialBoundary
+  CampaignInvalidShape
+  CampaignInvalidCapture
+  CampaignInvalidTimestamp
+  CampaignInvalidHex
+  CampaignAdapterRejected
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct OpenAIResponsesCampaignDeclaration {
+  // private fields
+}
+pub fn OpenAIResponsesCampaignDeclaration::digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesCampaignDeclaration::endpoint(Self, Int) -> String raise OpenAIResponsesCampaignError
+pub fn OpenAIResponsesCampaignDeclaration::engine_configuration(Self, Int) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError
+pub fn OpenAIResponsesCampaignDeclaration::engine_executable(Self, Int) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError
+pub fn OpenAIResponsesCampaignDeclaration::engine_image(Self, Int) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError
+pub fn OpenAIResponsesCampaignDeclaration::engine_revision(Self, Int) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError
+pub fn OpenAIResponsesCampaignDeclaration::parse(BytesView, String) -> Self raise OpenAIResponsesCampaignError
+
+pub struct OpenAIResponsesCampaignReplayEvidence {
+  // private fields
+}
+pub fn OpenAIResponsesCampaignReplayEvidence::canonical_bytes(Self) -> Bytes
+pub fn OpenAIResponsesCampaignReplayEvidence::declaration_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesCampaignReplayEvidence::digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesCampaignReplayEvidence::measurements(Self) -> @openai_adapter.OpenAIResponsesComparisonMeasurementSet
+pub fn OpenAIResponsesCampaignReplayEvidence::raw_capture_set_digest(Self) -> @evidence.BenchmarkDigest
+
+// Type aliases
+
+// Traits

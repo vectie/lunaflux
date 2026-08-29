@@ -83,6 +83,11 @@ void *lunaflux_device_worker_probe_malloc(size_t size) {
   return libc_malloc(size);
 }
 
+void *lunaflux_device_worker_probe_malloc_raw(size_t size) {
+  count(&direct_count);
+  return libc_malloc(size);
+}
+
 void *lunaflux_device_worker_probe_malloc_array(
   enum moonbit_block_kind kind,
   int shift,

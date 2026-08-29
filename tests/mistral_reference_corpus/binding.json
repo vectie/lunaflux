@@ -1,0 +1,19 @@
+{
+  "schema": "lunaflux.mistral.semantic-reference-corpus.v1",
+  "source_model": "stas/tiny-random-llama-2",
+  "source_revision": "3579d71fd57e04f5a364d824d3a2ec3e913dbb67",
+  "source_model_family": "LlamaForCausalLM",
+  "admitted_model_family": "MistralForCausalLM",
+  "semantics": "exact-dense-plan-equivalence-at-or-below-sliding-window",
+  "fixture_only": true,
+  "production_mistral_artifact": false,
+  "physical_execution_evidence": false,
+  "mistral_config_sha256": "c1ab500fc14070e8ad822e5b5b896d5be80cfbc6f4c7d947064ef0d0a302f866",
+  "model_content_sha256": "852db1b39acb2336abc997440c6f6d6e4ab640f91e5e2aa9e2488d5794159d30",
+  "reference_corpus_sha256": "f4ade303b1b7b3264e86caa15b77cdb2805244e1142b9b74225ed3f36438f1d0",
+  "sliding_window": 256,
+  "maximum_exercised_tokens": 7,
+  "model_cases": 3,
+  "sampled_logits_per_case": 11,
+  "greedy_continuation_tokens": 4
+}

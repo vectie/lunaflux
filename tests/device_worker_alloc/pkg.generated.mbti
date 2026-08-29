@@ -8,9 +8,11 @@ package "vectie/lunaflux/tests/device_worker_alloc"
 // Types and methods
 type PositiveControl
 
-type PreparedCycle
+type PreparedBatchCycle
 
-type PreparedMatrix
+type PreparedBatchMatrix
+
+type PreparedCycle
 
 // Type aliases
 

@@ -17,19 +17,27 @@ network-free end-to-end correctness gate.
 | `model.safetensors` | 210,712 | `852db1b39acb2336abc997440c6f6d6e4ab640f91e5e2aa9e2488d5794159d30` |
 
 The checked-in `config.json` and `model.safetensors` are exact upstream bytes.
-`tokenizer_semantics_probe.json` is a deliberately compact derivative retaining
-the upstream normalizer,
-pre-tokenizer, post-processor, decoder, unknown-token, and byte-fallback
-semantics needed to prove that LunaFlux rejects this tokenizer. It is not
-presented as the upstream tokenizer file.
+`tokenizer_semantics_probe.json` is a deliberately incomplete compact
+derivative retaining marker-shaped normalizer, pre-tokenizer, post-processor,
+decoder, unknown-token, and byte-fallback structures. It proves that LunaFlux
+rejects a nearby document that does not describe the complete closed selected
+profile. It is not presented as the upstream tokenizer file.
 
 Checked-in derivative identities:
 
 | Fixture | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `corpus.json` | 1,794 | `f4ade303b1b7b3264e86caa15b77cdb2805244e1142b9b74225ed3f36438f1d0` |
+| `prefix_referee.json` | 792 | `765d4b80750e377fea131ce140a0a67931724ab06c24dc5e322c7e6b295ab8e3` |
 | `tokenizer_semantics_probe.json` | 796 | `4ac8db0bb211b5bd064b58eaab43a3bd38de593593eceadc7364848fcf4f954f` |
 | `compatible_bytelevel_tokenizer.json` | 48,574 | `82000898a396651e5d3b149c5dec02998427406c78ccdf14084cbf85c63d2686` |
+| `upstream_tokenizer.json` | 64,224 | `fbcdbe15960e43ef351662e7b77a319ceb294b3c5dc2569c23b729fb87e13d7b` |
+
+`upstream_tokenizer.json` is the exact upstream JSON document plus one final
+line-feed byte required by the checked-in text-file representation. The
+independently approved digest above is therefore the LunaFlux artifact
+identity; its parsed tokenizer semantics are byte-for-byte equivalent to the
+upstream document while preserving fail-closed file authentication.
 
 `compatible_bytelevel_tokenizer.json` is a synthetic functional-compatibility
 fixture, not an upstream artifact, not a tokenizer trained for this model, and
@@ -59,19 +67,28 @@ and relative tolerances of `1e-5`. This tolerance covers ordinary Float
 accumulation-order differences while remaining far below observed argmax
 margins.
 
+`prefix_referee.json` is a narrower derived campaign fixture. Its two greedy
+tokens were computed separately for the eight-token full-page prompt and the
+matching nine-token private-tail prompt by the approved scalar BF16 reference
+executor after that executor passed the independently generated corpus above.
+The spawned prefix requests never supply expected output to each other. This
+fixture is independent of the device-worker and prefix-cache path, but it is
+not represented as a fresh external Transformers logit capture.
+
 ## Compatibility result
 
 The model is a compatible dense Llama artifact: BF16, untied embeddings, two
-layers, all 21 exact LunaFlux tensor names, and admitted dimensions. The
-tokenizer is intentionally **not** compatible with LunaFlux's selected
-ByteLevel-BPE subset: it uses prepend/replace normalization, template BOS
-insertion, byte fallback, unknown-token fusion, and no ByteLevel pre-tokenizer.
-Therefore model cases use explicit token IDs and the tokenizer observations are
-provenance evidence, not a claim that LunaFlux can encode this tokenizer.
+layers, all 21 exact LunaFlux tensor names, and admitted dimensions. LunaFlux
+also admits the exact selected upstream `tokenizer.json` through a closed
+SentencePiece-derived BPE profile: prepend/replace normalization, BOS template
+insertion, complete byte fallback, fused-unknown policy, and the ordered
+replace/byte-fallback/fuse/leading-strip decoder. Nearby or general
+SentencePiece profiles remain fail-closed rather than being approximated.
 
 The black-box MoonBit tests verify all artifact digests through the production
-approved-root loader, then run complete LunaFlux admission, exact binding, host
-materialization, text encoding, reference execution, sampled-logit comparison,
-and greedy generation. The upstream tokenizer compatibility result remains
-explicitly negative rather than being silently approximated; the synthetic
-tokenizer proves only the supported functional text-to-token-to-model path.
+approved-root loader, compare the selected text corpus against independently
+recorded upstream token IDs, then run complete LunaFlux admission, exact
+binding, host materialization, tokenizer-produced empty-input tokens, reference
+execution, sampled-logit comparison, and greedy generation. The synthetic
+ByteLevel tokenizer remains separate compatibility evidence for its narrower
+profile; it is no longer a substitute for selected-upstream tokenization.

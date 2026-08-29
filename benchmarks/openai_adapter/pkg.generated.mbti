@@ -1,0 +1,150 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/openai_adapter"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/benchmarks/runner",
+}
+
+// Values
+pub fn admit_openai_comparison_measurements(OpenAIComparisonEnvironmentPins, ArrayView[OpenAIBaselineTrialEvidence]) -> OpenAIComparisonMeasurementSet raise OpenAIBaselineAdapterError
+
+pub fn admit_openai_responses_comparison_measurements(OpenAIComparisonEnvironmentPins, ArrayView[OpenAIResponsesTrialEvidence]) -> OpenAIResponsesComparisonMeasurementSet raise OpenAIBaselineAdapterError
+
+pub fn require_identical_openai_baseline_inputs(OpenAIBaselineInputs, OpenAIBaselineInputs) -> Unit raise OpenAIBaselineAdapterError
+
+pub fn require_identical_openai_comparison_inputs(OpenAIBaselineInputs, OpenAIBaselineInputs, OpenAIBaselineInputs) -> Unit raise OpenAIBaselineAdapterError
+
+// Errors
+pub(all) suberror OpenAIBaselineAdapterError {
+  OpenAIBaselineInvalidIdentity
+  OpenAIBaselineInvalidInputs
+  OpenAIBaselineInputMismatch
+  OpenAIBaselineProtocolIncompatible
+  OpenAIBaselineInvalidLimits
+  OpenAIBaselineInvalidLifecycle
+  OpenAIBaselineInvalidResponseHead
+  OpenAIBaselineEventTooLarge
+  OpenAIBaselineInvalidSse
+  OpenAIBaselineAmbiguousEvent
+  OpenAIBaselineInvalidUsage
+  OpenAIBaselineCollectorRejected
+  OpenAIBaselineIncompleteTrial
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct OpenAIBaselineIdentity {
+  // private fields
+}
+pub fn OpenAIBaselineIdentity::new(@evidence.BenchmarkEngine, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest) -> Self
+
+pub struct OpenAIBaselineInputs {
+  // private fields
+}
+pub fn OpenAIBaselineInputs::new(@evidence.BenchmarkProfile, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, FixedArray[Int64]) -> Self raise OpenAIBaselineAdapterError
+
+pub(all) enum OpenAIBaselineObservedProtocol {
+  ChatCompletionsSseV1
+  ResponsesSseV1
+} derive(Eq, @debug.Debug)
+
+pub struct OpenAIBaselineTrialAdapter {
+  // private fields
+}
+pub fn OpenAIBaselineTrialAdapter::finish(Self) -> OpenAIBaselineTrialEvidence raise OpenAIBaselineAdapterError
+pub fn OpenAIBaselineTrialAdapter::observe_response_head(Self, Int, Int, StringView) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIBaselineTrialAdapter::offer_sse_bytes(Self, Int, BytesView) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIBaselineTrialAdapter::submit(Self, Int) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIBaselineTrialAdapter::terminate_transport(Self, Int, @evidence.BenchmarkRequestOutcome) -> Unit raise OpenAIBaselineAdapterError
+
+pub struct OpenAIBaselineTrialContract {
+  // private fields
+}
+pub fn OpenAIBaselineTrialContract::new(OpenAIBaselineIdentity, OpenAIBaselineInputs, Int, Int, Int, Int) -> Self raise OpenAIBaselineAdapterError
+pub fn OpenAIBaselineTrialContract::start(Self) -> OpenAIBaselineTrialAdapter raise OpenAIBaselineAdapterError
+
+pub struct OpenAIBaselineTrialEvidence {
+  // private fields
+}
+pub fn OpenAIBaselineTrialEvidence::canonical_bytes(Self) -> Bytes
+pub fn OpenAIBaselineTrialEvidence::comparison_executable_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::configuration_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::corpus_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::declared_request_protocol_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::engine_identity(Self) -> @evidence.BenchmarkEngineIdentity
+pub fn OpenAIBaselineTrialEvidence::image_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::measurements(Self) -> @evidence.BenchmarkSummaryEvidence
+pub fn OpenAIBaselineTrialEvidence::observed_protocol(Self) -> OpenAIBaselineObservedProtocol
+pub fn OpenAIBaselineTrialEvidence::protocol_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::revision_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::tokenizer_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIBaselineTrialEvidence::workload(Self) -> @evidence.BenchmarkWorkload
+
+pub struct OpenAIComparisonEnvironmentPins {
+  // private fields
+}
+pub fn OpenAIComparisonEnvironmentPins::new(@evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest, @evidence.BenchmarkDigest) -> Self
+
+pub struct OpenAIComparisonMeasurementSet {
+  // private fields
+}
+pub fn OpenAIComparisonMeasurementSet::engine_identity(Self, Int) -> @evidence.BenchmarkEngineIdentity raise OpenAIBaselineAdapterError
+pub fn OpenAIComparisonMeasurementSet::environment(Self) -> @evidence.BenchmarkEnvironment
+pub fn OpenAIComparisonMeasurementSet::measurements(Self, Int) -> @evidence.BenchmarkSummaryEvidence raise OpenAIBaselineAdapterError
+pub fn OpenAIComparisonMeasurementSet::require_responses_v1_observation(Self) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIComparisonMeasurementSet::trial_count(Self) -> Int
+pub fn OpenAIComparisonMeasurementSet::workload(Self, Int) -> @evidence.BenchmarkWorkload raise OpenAIBaselineAdapterError
+
+pub struct OpenAIResponsesComparisonMeasurementSet {
+  // private fields
+}
+pub fn OpenAIResponsesComparisonMeasurementSet::engine_identity(Self, Int) -> @evidence.BenchmarkEngineIdentity raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesComparisonMeasurementSet::environment(Self) -> @evidence.BenchmarkEnvironment
+pub fn OpenAIResponsesComparisonMeasurementSet::measurements(Self, Int) -> @evidence.BenchmarkSummaryEvidence raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesComparisonMeasurementSet::require_responses_v1_observation(Self) -> Unit
+pub fn OpenAIResponsesComparisonMeasurementSet::trial_count(Self) -> Int
+pub fn OpenAIResponsesComparisonMeasurementSet::workload(Self, Int) -> @evidence.BenchmarkWorkload raise OpenAIBaselineAdapterError
+
+pub struct OpenAIResponsesTrialContract {
+  // private fields
+}
+pub fn OpenAIResponsesTrialContract::new(OpenAIBaselineIdentity, OpenAIBaselineInputs, Int, Int, Int, Int) -> Self raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialContract::start(Self) -> OpenAIResponsesTrialObserver raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialContract::start_captured(Self) -> OpenAIResponsesTrialObserver raise OpenAIBaselineAdapterError
+
+pub struct OpenAIResponsesTrialEvidence {
+  // private fields
+}
+pub fn OpenAIResponsesTrialEvidence::canonical_bytes(Self) -> Bytes
+pub fn OpenAIResponsesTrialEvidence::comparison_executable_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::configuration_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::corpus_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::declared_request_protocol_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::engine_identity(Self) -> @evidence.BenchmarkEngineIdentity
+pub fn OpenAIResponsesTrialEvidence::image_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::measurements(Self) -> @evidence.BenchmarkSummaryEvidence
+pub fn OpenAIResponsesTrialEvidence::observed_protocol(Self) -> OpenAIBaselineObservedProtocol
+pub fn OpenAIResponsesTrialEvidence::protocol_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::revision_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::tokenizer_digest(Self) -> @evidence.BenchmarkDigest
+pub fn OpenAIResponsesTrialEvidence::workload(Self) -> @evidence.BenchmarkWorkload
+
+pub struct OpenAIResponsesTrialObserver {
+  // private fields
+}
+pub fn OpenAIResponsesTrialObserver::finish(Self) -> OpenAIResponsesTrialEvidence raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::observe_response_head(Self, Int, Int, StringView) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::observe_response_head_captured(Self, Int, Int, StringView, @runner.CapturedMonotonicTimestamp) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::offer_sse_bytes(Self, Int, BytesView) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::offer_sse_bytes_captured(Self, Int, BytesView, @runner.CapturedMonotonicTimestamp) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::submit(Self, Int) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::submit_captured(Self, Int, @runner.CapturedMonotonicTimestamp) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::terminate_transport(Self, Int, @evidence.BenchmarkRequestOutcome) -> Unit raise OpenAIBaselineAdapterError
+pub fn OpenAIResponsesTrialObserver::terminate_transport_captured(Self, Int, @evidence.BenchmarkRequestOutcome, @runner.CapturedMonotonicTimestamp) -> Unit raise OpenAIBaselineAdapterError
+
+// Type aliases
+
+// Traits

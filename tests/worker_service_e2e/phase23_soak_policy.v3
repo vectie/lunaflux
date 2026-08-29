@@ -1,0 +1,10 @@
+schema=lunaflux.phase23-soak-policy.v1
+version=luna-phase23-soak-v3
+duration_millis=86400000
+wave_period_millis=2000
+cancel_period_cycles=17
+foreign_rejection_period_cycles=211
+malformed_rejection_period_cycles=337
+reconnect_period_cycles=257
+malformed_counts_as_rejection=1
+required_cumulative_invariants=two_live_waves,batched_waves,backpressured_waves,scheduled_cancel_waves,attempted_cancel_waves,accepted_cancel_waves,cancelled_waves

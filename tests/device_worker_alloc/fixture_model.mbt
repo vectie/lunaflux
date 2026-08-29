@@ -122,7 +122,7 @@ fn fixture_manifest(
       "\"block_x\":32,\"block_y\":1,\"block_z\":1," +
       "\"shared_memory_bytes\":0}}"
   }
-  "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"" +
+  "{\"schema_version\":2,\"model_identity\":{\"content_sha256\":\"" +
   plan.identity().content().as_hex() +
   "\",\"plan_sha256\":\"" +
   plan.identity().plan().as_hex() +

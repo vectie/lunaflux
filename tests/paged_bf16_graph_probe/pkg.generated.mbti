@@ -1,0 +1,13 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/paged_bf16_graph_probe"
+
+// Values
+
+// Errors
+type GraphProbeFailure
+
+// Types and methods
+
+// Type aliases
+
+// Traits

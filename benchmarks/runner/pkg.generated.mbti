@@ -1,0 +1,57 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/benchmarks/runner"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/benchmarks/evidence",
+}
+
+// Values
+pub fn captured_monotonic_nanos_measurement_digest() -> @evidence.BenchmarkDigest
+
+pub fn system_monotonic_millis_measurement_digest() -> @evidence.BenchmarkDigest
+
+// Errors
+pub(all) suberror BenchmarkRunnerError {
+  BenchmarkRunnerInvalidCapacity
+  BenchmarkRunnerInvalidTrial
+  BenchmarkRunnerInvalidRequest
+  BenchmarkRunnerCapacityExhausted
+  BenchmarkRunnerDuplicateRequest
+  BenchmarkRunnerNonCanonicalRequestOrder
+  BenchmarkRunnerInvalidLifecycle
+  BenchmarkRunnerClockUnavailable
+  BenchmarkRunnerClockOutOfRange
+  BenchmarkRunnerClockMovedBackward
+  BenchmarkRunnerIntegerOverflow
+  BenchmarkRunnerIncompleteTrial
+  BenchmarkRunnerAlreadyFinished
+  BenchmarkRunnerEvidenceRejected
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+type BenchmarkRequestState
+
+pub struct BenchmarkTrialCollector {
+  // private fields
+}
+pub fn BenchmarkTrialCollector::admit(Self, request_ordinal~ : Int) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::admit_captured(Self, request_ordinal~ : Int, timestamp~ : CapturedMonotonicTimestamp) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::finish(Self) -> @evidence.BenchmarkSummaryEvidence raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::first_token(Self, request_ordinal~ : Int) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::first_token_captured(Self, request_ordinal~ : Int, timestamp~ : CapturedMonotonicTimestamp) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::new(engine~ : @evidence.BenchmarkEngine, profile~ : @evidence.BenchmarkProfile, ordinal~ : Int, order_position~ : Int, request_capacity~ : Int) -> Self raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::new_captured(engine~ : @evidence.BenchmarkEngine, profile~ : @evidence.BenchmarkProfile, ordinal~ : Int, order_position~ : Int, request_capacity~ : Int) -> Self raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::submit(Self, request_ordinal~ : Int, input_tokens~ : Int64) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::submit_captured(Self, request_ordinal~ : Int, input_tokens~ : Int64, timestamp~ : CapturedMonotonicTimestamp) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::terminate(Self, request_ordinal~ : Int, outcome~ : @evidence.BenchmarkRequestOutcome, generated_tokens~ : Int64) -> Unit raise BenchmarkRunnerError
+pub fn BenchmarkTrialCollector::terminate_captured(Self, request_ordinal~ : Int, outcome~ : @evidence.BenchmarkRequestOutcome, generated_tokens~ : Int64, timestamp~ : CapturedMonotonicTimestamp) -> Unit raise BenchmarkRunnerError
+
+pub struct CapturedMonotonicTimestamp {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CapturedMonotonicTimestamp::from_nanoseconds(Int64) -> Self raise BenchmarkRunnerError
+
+// Type aliases
+
+// Traits

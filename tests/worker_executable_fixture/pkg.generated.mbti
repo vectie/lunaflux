@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/worker_executable_fixture"
+
+import {
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs_inheritance",
+}
+
+// Values
+pub fn admit(Bytes) -> @worker_executable_file.WorkerExecutableAdmission raise WorkerExecutableFixtureError
+
+pub fn cat_path() -> Bytes
+
+pub fn digest(Bytes) -> String raise WorkerExecutableFixtureError
+
+pub fn spawn_with_approved_roots(Bytes, @process.ProcessLimits, @approved_fs_inheritance.WorkerApprovedRoots) -> @process.ChildProcess raise WorkerExecutableFixtureError
+
+// Errors
+pub(all) suberror WorkerExecutableFixtureError
+
+// Types and methods
+
+// Type aliases
+
+// Traits

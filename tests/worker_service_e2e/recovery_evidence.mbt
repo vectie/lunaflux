@@ -1,23 +1,43 @@
 ///|
+fn complete_root_exchange(
+  owner : @worker_process.RootBoundWorkerProcessSupervisor,
+) -> Unit raise {
+  let mut attempts = 0
+  while attempts < 1000000 {
+    match owner.progress_exchange() {
+      ExchangePending => attempts += 1
+      ExchangeCompleted => return
+    }
+  }
+  raise Failure("direct root exchange did not complete")
+}
+
+///|
 fn run_owned_startup_failure_evidence() -> Unit raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  try
-    @worker_service.prepare_owned(
-      scheduler_blueprint(),
-      service_binding(),
+  let prepared = @worker_service.prepare_owned_approved(
+    scheduler_blueprint(),
+    service_binding(),
+    @worker_executable_fixture.admit(
       b"/private/tmp/lunaflux-worker-does-not-exist",
-      startup(),
-      bootstrap_source(),
-      process_limits(),
-      model,
-      kernel,
-    )
-  catch {
-    _ => ()
-  } noraise {
-    _ => raise Failure("missing executable published an owned service")
+    ),
+    startup(),
+    bootstrap_source(),
+    process_limits(),
+    model,
+    kernel,
+    restart_policy(),
+  )
+  if prepared.state() != OwnedServiceCleanupRequired {
+    raise Failure("missing executable published an owned service")
   }
+  let cleanup = prepared.take_cleanup()
+  guard cleanup.cause() is OwnedPhysicalTransportFailure(PhysicalUnavailable) else {
+    raise Failure("missing executable reported the wrong startup failure")
+  }
+  assert_true(cleanup.is_closed())
+  cleanup.retry_close()
   model.close()
   kernel.close()
 }
@@ -88,7 +108,7 @@ fn run_reservation_classification_evidence(executable : Bytes) -> Unit raise {
   }
   reserved_root.begin_recovery()
   try reserved.progress() catch {
-    RootBoundProcess(_) => ()
+    PhysicalTransport(_) => ()
     _ => raise Failure("unexpected reserved-flight loss error")
   } noraise {
     _ => raise Failure("lost reserved child remained service-ready")
@@ -118,7 +138,7 @@ fn run_reservation_classification_evidence(executable : Bytes) -> Unit raise {
   absent_root.retire_received(absent_root.received_for_sequence(1UL))
   ignore(absent.admit(request(403UL), 0UL))
   try absent.progress() catch {
-    RootBoundProcess(_) => ()
+    PhysicalTransport(_) => ()
     _ => raise Failure("unexpected absent-reservation begin error")
   } noraise {
     _ => raise Failure("pre-reservation sequence mismatch started")

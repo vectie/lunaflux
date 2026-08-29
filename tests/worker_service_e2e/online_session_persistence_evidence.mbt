@@ -228,6 +228,6 @@ fn run_online_session_persistence_evidence(
   progress_foundation_to_idle(draining_retry)
   assert_eq(pool.free_lane_count(), 2)
   drain_foundation_instance(retry_instance)
-  assert_eq(instance.progress_shutdown(), LunaOnlineInstanceShutdownClosed)
+  drain_foundation_instance(instance)
   assert_eq(instance.progress_shutdown(), LunaOnlineInstanceShutdownClosed)
 }

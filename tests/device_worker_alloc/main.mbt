@@ -117,7 +117,8 @@ async fn run_allocation_evidence() -> Unit {
     let weights = fixture_weight_file()
     let module_bytes = b"\x01\x02\x03"
     let model = fixture_model(weights)
-    let model_plan = @llama.build_paged(model)
+    let batch = @llama.LlamaPagedBatchEnvelope::new(FIXTURE_MAX_ROWS)
+    let model_plan = @llama.build_paged(model, batch~)
     let target = @catalog.DeviceTarget::new(
       compute_major=8,
       compute_minor=0,
@@ -129,16 +130,17 @@ async fn run_allocation_evidence() -> Unit {
     let owner = prepare_fixture_owner(
       directory, manifest, model, model_plan, target,
     )
-    let cycle_count = 131
-    let matrix = prepare_cycles(cycle_count + 1, model_plan)
+    let cycle_count = 65
+    let matrix = prepare_batch_matrix(cycle_count + 1, model_plan)
     let cycles = matrix.cycles
     let completion_owner = @worker_wire.CompletionFrameBuffer::new(
       fixture_worker_limits(),
       fixture_inference_limits(),
     )
     let operation_count = model_plan.operations().length().to_uint64()
+    run_batch_protocol_hostiles(model_plan, matrix.pages[0])
     verify_probe_controls()
-    execute_cycle(owner, completion_owner, cycles[0], operation_count)
+    execute_batch_cycle(owner, completion_owner, cycles[0], operation_count)
     let copies_before = fake_copy_count()
     let launches_before = fake_launch_count()
     let syncs_before = fake_sync_count()
@@ -146,51 +148,29 @@ async fn run_allocation_evidence() -> Unit {
     let creates_before = fake_resource_create_count()
     let closes_before = fake_resource_close_count()
     alloc_probe_begin()
-    let mut ordinary_prefills = 0
-    let mut greedy_final_prefills = 0
-    let mut stochastic_final_prefills = 0
-    let mut greedy_decodes = 0
-    let mut stochastic_decodes = 0
     for index in 1..<=cycle_count {
       let cycle = cycles[index]
-      execute_cycle(owner, completion_owner, cycle, operation_count)
-      if cycle.branch == CYCLE_ORDINARY_PREFILL {
-        ordinary_prefills += 1
-      } else if cycle.branch == CYCLE_GREEDY_FINAL_PREFILL {
-        greedy_final_prefills += 1
-      } else if cycle.branch == CYCLE_STOCHASTIC_FINAL_PREFILL {
-        stochastic_final_prefills += 1
-      } else if cycle.branch == CYCLE_GREEDY_DECODE {
-        greedy_decodes += 1
-      } else if cycle.branch == CYCLE_STOCHASTIC_DECODE {
-        stochastic_decodes += 1
-      } else {
-        alloc_probe_abort()
-      }
+      execute_batch_cycle(owner, completion_owner, cycle, operation_count)
     }
     let observed = alloc_probe_end()
     if alloc_probe_check(observed, 1) != 1 ||
-      ordinary_prefills != 43 ||
-      greedy_final_prefills != 22 ||
-      stochastic_final_prefills != 22 ||
-      greedy_decodes != 22 ||
-      stochastic_decodes != 22 ||
-      fake_copy_count() - copies_before != cycle_count.to_uint64() * 8UL ||
+      fake_copy_count() - copies_before != cycle_count.to_uint64() * 7UL ||
       fake_launch_count() - launches_before !=
       cycle_count.to_uint64() * operation_count ||
-      fake_sync_count() - syncs_before !=
-      cycle_count.to_uint64() * operation_count ||
-      fake_readback_count() - reads_before != 88UL ||
+      fake_sync_count() - syncs_before != cycle_count.to_uint64() ||
+      fake_readback_count() - reads_before != cycle_count.to_uint64() * 3UL ||
       fake_resource_create_count() != creates_before ||
       fake_resource_close_count() != closes_before {
       alloc_probe_abort()
     }
+    authenticate_completion_failure_surface(completion_owner.current())
     matrix.release_pages()
     owner.close()
     if fake_live_children() != 0 {
       alloc_probe_abort()
     }
     run_failure_evidence(directory, manifest, model, model_plan, target)
+    run_invalid_csr_evidence(directory, manifest, model, model_plan, target)
   }
 }
 

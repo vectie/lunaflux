@@ -1,0 +1,49 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_device_worker",
+  "vectie/lunaflux/engine/tensor_parallel_execution_plan",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [
+    "allocation_probe.c",
+    "fake_device.c",
+    "fake_executor.c",
+    "fake_collective.c",
+  ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  link: {
+    "native": {
+      "cc-flags": "-O2 -include tests/tensor_parallel_device_worker_alloc/runtime_redirect.h",
+    },
+  },
+)

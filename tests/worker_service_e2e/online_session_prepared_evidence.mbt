@@ -152,10 +152,7 @@ fn run_online_session_prepared_evidence(executable : Bytes) -> Unit raise {
     draining_instance.begin(drain_retry_prepared).kind(),
     LunaOnlineInstanceDraining,
   )
-  assert_eq(
-    draining_instance.progress_shutdown(),
-    LunaOnlineInstanceShutdownClosed,
-  )
+  drain_foundation_instance(draining_instance)
   let drain_retry_instance = prepare_foundation_instance(
     executable,
     tokenizer.digest(),

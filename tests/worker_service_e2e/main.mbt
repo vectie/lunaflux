@@ -1,56 +1,11 @@
 ///|
-fn identity() -> @spec.ModelIdentity raise {
-  @spec.ModelIdentity::new(
-    @spec.ContentDigest::from_sha256(
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-    @spec.PlanDigest::from_sha256(
-      "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-    ),
-  )
-}
-
-///|
-fn inference_limits() -> @inference.InferenceLimits raise {
-  @inference.InferenceLimits::new(
-    max_text_bytes=64,
-    max_input_tokens=4,
-    max_new_tokens=2,
-    max_context_tokens=4,
-    max_token_id=31,
-    max_stop_token_ids=1,
-    max_stop_strings=1,
-    max_stop_string_bytes=2,
-    max_trace_bytes=8,
-    max_cache_scope_bytes=8,
-    max_decoded_delta_bytes=8,
-    max_deadline_millis=1000UL,
-    max_top_k=32,
-    max_temperature=4.0,
-  )
-}
-
-///|
-fn worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
-  @worker_protocol.WorkerProtocolLimits::new(
-    max_prefill_rows=1,
-    max_decode_rows=1,
-    max_plan_rows=1,
-    max_plan_tokens=1,
-    max_plan_pages=2,
-    max_capabilities=2,
-    max_completion_slots=1,
-    max_sequence_tokens=4,
-    max_token_id=31,
-  )
-}
-
-///|
-fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
+fn bootstrap_source_for_root(
+  fixture_root : String,
+) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_bootstrap_source(
     @worker_wire.WorkerBootstrapRoots::new(
-      model_root="/private/tmp",
-      kernel_root="/private/tmp",
+      model_root=fixture_root,
+      kernel_root=fixture_root,
     ),
     @worker_wire.WorkerBootstrapModelSource::new(
       config_locator="config.json",
@@ -80,6 +35,11 @@ fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
       max_total_module_bytes=1024L,
     ),
   )
+}
+
+///|
+fn bootstrap_source() -> @worker_wire.EncodedBootstrapSource raise {
+  bootstrap_source_for_root("/private/tmp")
 }
 
 ///|
@@ -147,6 +107,7 @@ fn scheduler_owner() -> @scheduler.Scheduler raise {
 fn request(
   id : UInt64,
   max_new_tokens? : Int = 1,
+  deadline_budget? : UInt64 = 100UL,
 ) -> @scheduler.TokenizedRequest raise {
   let limits = inference_limits()
   @scheduler.TokenizedRequest::new(
@@ -164,7 +125,7 @@ fn request(
     ),
     admission_deadline=@inference.AdmissionDeadline::from_receipt(
       0UL,
-      @inference.DeadlineBudget::from_milliseconds(100UL, limits),
+      @inference.DeadlineBudget::from_milliseconds(deadline_budget, limits),
     ),
   )
 }
@@ -264,8 +225,8 @@ fn process_owner(
 ) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let result = @worker_process.prepare_with_approved_roots(
-    executable,
+  let result = @worker_process.prepare_with_approved_executable(
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
@@ -293,6 +254,10 @@ fn progress_to_ready(
   let mut attempts = 0
   while attempts < 1000000 {
     match service.progress() {
+      ServicePlanPending(sequence) => {
+        assert_true(sequence > expected)
+        attempts += 1
+      }
       ServicePending(sequence) => {
         assert_eq(sequence, expected)
         attempts += 1
@@ -319,20 +284,6 @@ fn commit_ready(
 }
 
 ///|
-fn complete_root_exchange(
-  owner : @worker_process.RootBoundWorkerProcessSupervisor,
-) -> Unit raise {
-  let mut attempts = 0
-  while attempts < 1000000 {
-    match owner.progress_exchange() {
-      ExchangePending => attempts += 1
-      ExchangeCompleted => return
-    }
-  }
-  raise Failure("direct root exchange did not complete")
-}
-
-///|
 async fn run(
   executable : Bytes,
   failure_executable : Bytes?,
@@ -342,8 +293,8 @@ async fn run(
   let scheduler = scheduler_owner()
   let foreign_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let foreign_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let foreign_result = @worker_process.prepare_with_approved_roots(
-    executable,
+  let foreign_result = @worker_process.prepare_with_approved_executable(
+    @worker_executable_fixture.admit(executable),
     foreign_startup(),
     bootstrap_source(),
     process_limits(),
@@ -366,15 +317,16 @@ async fn run(
   foreign.close()
   let owned_model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let owned_kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let owned = @worker_service.prepare_owned(
+  let owned = @worker_service.prepare_owned_approved(
     scheduler_blueprint(),
     service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     startup(),
     bootstrap_source(),
     process_limits(),
     owned_model,
     owned_kernel,
+    restart_policy(),
   )
   owned_model.close()
   owned_kernel.close()
@@ -456,7 +408,15 @@ async fn run(
   assert_eq(service.live_request_count(), 0)
   assert_eq(service.free_page_count(), 8)
   assert_eq(service.allocated_block_table_count(), 0)
-  assert_eq(service.binding(), service_binding())
+  let service_identity = service.identity()
+  assert_eq(service_identity.model_identity(), identity())
+  assert_eq(service_identity.model_generation_value(), 1UL)
+  assert_eq(
+    service_identity.bootstrap_source_digest(),
+    service_binding().bootstrap_source_digest(),
+  )
+  assert_eq(service_identity.worker_limits(), worker_limits())
+  assert_eq(service_identity.inference_limits(), inference_limits())
   ignore(service.admit(request(104UL), 0UL))
   progress_to_ready(service, 4UL)
   commit_ready(service, 4UL)
@@ -474,11 +434,18 @@ async fn run(
 
   run_terminal_drain_evidence(executable)
   run_reservation_classification_evidence(executable)
+  run_worker_plan_overlap_evidence(executable)
   run_online_lease_evidence(executable)
   run_online_session_foundation(executable)
   run_online_framed_outbound_evidence(executable)
   run_online_framed_coordinator_evidence(executable)
+  run_online_multi_service_evidence(executable)
   run_online_tcp_endpoint_evidence(executable)
+  run_luna_reusable_server_evidence(executable, failure_executable)
+  run_luna_pipeline_server_evidence(executable)
+  ignore(run_luna_pipeline_early_cancel_evidence(executable))
+  run_luna_openai_server_evidence(executable)
+  run_luna_openai_pool_evidence(executable)
   run_online_session_prepared_evidence(executable)
   run_online_session_termination_evidence(executable)
   match persistent_executable {

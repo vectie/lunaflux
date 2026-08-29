@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/luna_tile_parallel_cuda_probe"
+
+// Values
+
+// Errors
+type LunaTileParallelCudaProbeError
+
+// Types and methods
+type LunaTileParallelProbeBalance
+
+// Type aliases
+
+// Traits

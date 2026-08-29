@@ -8,6 +8,8 @@ package "vectie/lunaflux/tests/worker_service_e2e"
 // Types and methods
 type FoundationSession
 
+type Phase23SoakLedger
+
 // Type aliases
 
 // Traits

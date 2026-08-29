@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/fp8_v2_cuda_probe"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Fp8V2CudaProbeError derive(Eq, @debug.Debug)
+
+// Types and methods
+type Fp8ProbeBuffer
+
+type Fp8ProbeObservation
+
+type Fp8V2ProbeBalance
+
+type Fp8V2ProbeCandidates
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,16 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/luna_tensor_core_cuda_probe"
+
+// Values
+
+// Errors
+type LunaTensorCoreProbeError
+
+// Types and methods
+type LunaTensorCoreProbeBalance
+
+type LunaTensorCoreProbeObservation
+
+// Type aliases
+
+// Traits

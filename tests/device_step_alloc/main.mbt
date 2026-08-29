@@ -252,7 +252,7 @@ fn main {
   let observed = alloc_probe_end()
   let copies_after = fake_copy_count()
   if alloc_probe_check(observed, 1) != 1 ||
-    copies_after - copies_before != cycle_count.to_uint64() * 8UL {
+    copies_after - copies_before != cycle_count.to_uint64() * 7UL {
     alloc_probe_abort()
   }
 

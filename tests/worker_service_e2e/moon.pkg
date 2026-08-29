@@ -13,15 +13,21 @@ import {
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/logging/instance" @instance_log,
+  "vectie/lunaflux/metrics/instance" @metrics,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core" @scheduler,
+  "vectie/lunaflux/service/api_auth",
   "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/http1",
   "vectie/lunaflux/service/luna_event",
   "vectie/lunaflux/service/online_session",
   "vectie/lunaflux/service/online_tcp",
+  "vectie/lunaflux/service/openai_compat",
   "vectie/lunaflux/service/request_admission",
   "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tests/worker_executable_fixture",
 }
 
 supported_targets = "native"

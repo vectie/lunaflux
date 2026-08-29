@@ -1,0 +1,58 @@
+#ifndef LUNAFLUX_TP_DEVICE_WORKER_RUNTIME_REDIRECT_H
+#define LUNAFLUX_TP_DEVICE_WORKER_RUNTIME_REDIRECT_H
+
+#include "allocation_redirect.h"
+
+#undef lunaflux_cuda_device_info
+#undef lunaflux_cuda_context_create
+
+#define lunaflux_cuda_device_info lunaflux_tp_alloc_fake_device_info
+#define lunaflux_cuda_context_create lunaflux_tp_alloc_fake_context_create
+
+#define lunaflux_cuda_ordered_executor_create \
+  lunaflux_tp_alloc_fake_ordered_executor_create
+#define lunaflux_cuda_ordered_executor_enqueue \
+  lunaflux_tp_alloc_fake_ordered_executor_enqueue
+#define lunaflux_cuda_ordered_executor_launch_captured \
+  lunaflux_tp_alloc_fake_ordered_executor_launch_captured
+#define lunaflux_cuda_ordered_executor_mode \
+  lunaflux_tp_alloc_fake_ordered_executor_mode
+#define lunaflux_cuda_ordered_executor_record \
+  lunaflux_tp_alloc_fake_ordered_executor_record
+#define lunaflux_cuda_ordered_executor_poll \
+  lunaflux_tp_alloc_fake_ordered_executor_poll
+#define lunaflux_cuda_ordered_executor_abort \
+  lunaflux_tp_alloc_fake_ordered_executor_abort
+#define lunaflux_cuda_ordered_executor_reset \
+  lunaflux_tp_alloc_fake_ordered_executor_reset
+#define lunaflux_cuda_ordered_executor_close \
+  lunaflux_tp_alloc_fake_ordered_executor_close
+
+#define lunaflux_cuda_stream_synchronize lunaflux_tp_alloc_blocking_sync
+#define lunaflux_cuda_event_synchronize lunaflux_tp_alloc_blocking_sync
+
+#define lunaflux_nccl_runtime_admit lunaflux_tp_alloc_fake_runtime_admit
+#define lunaflux_nccl_unique_id_create lunaflux_tp_alloc_fake_group_id_create
+#define lunaflux_nccl_communicator_create_on_context \
+  lunaflux_tp_alloc_fake_communicator_create_on_context
+#define lunaflux_nccl_communicator_close \
+  lunaflux_tp_alloc_fake_communicator_close
+#define lunaflux_nccl_communicator_abort \
+  lunaflux_tp_alloc_fake_communicator_abort
+#define lunaflux_nccl_communicator_poll_ready \
+  lunaflux_tp_alloc_fake_communicator_poll_ready
+#define lunaflux_nccl_communicator_submit_bf16 \
+  lunaflux_tp_alloc_fake_communicator_submit_bf16
+#define lunaflux_nccl_communicator_poll_collective_state \
+  lunaflux_tp_alloc_fake_communicator_poll_collective_state
+#define lunaflux_nccl_communicator_invalidate \
+  lunaflux_tp_alloc_fake_communicator_invalidate
+#define lunaflux_nccl_communicator_generation \
+  lunaflux_tp_alloc_fake_communicator_generation
+#define lunaflux_nccl_communicator_next_sequence \
+  lunaflux_tp_alloc_fake_communicator_next_sequence
+#define lunaflux_nccl_communicator_world_size \
+  lunaflux_tp_alloc_fake_communicator_world_size
+#define lunaflux_nccl_communicator_rank lunaflux_tp_alloc_fake_communicator_rank
+
+#endif

@@ -3,10 +3,10 @@ fn finish_online_failure_cleanup(session : FoundationSession) -> Unit raise {
   let mut attempts = 0
   while attempts < 1000000 {
     match session.progress_retirement() {
-      LunaOnlineInstanceClosed => return
+      LunaOnlineInstanceIdle => return
       LunaOnlineInstanceRetirementPending => ()
-      LunaOnlineInstanceIdle =>
-        raise Failure("worker failure recycled poisoned instance authority")
+      LunaOnlineInstanceClosed =>
+        raise Failure("recoverable worker failure closed healthy authority")
     }
     attempts += 1
   }
@@ -60,17 +60,17 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   assert_pool_work_stale(recovery_work)
   recovery_reuse.discard()
   assert_eq(recovery_pool.free_lane_count(), 1)
-  assert_eq(
-    instance
-    .begin(
-      prepare_foundation_request(
-        session_tokenizer(),
-        session_received(Streaming, request_id=916UL),
-      ),
-    )
-    .kind(),
-    LunaOnlineInstanceDraining,
+  let recovered = begin_foundation_session(
+    instance,
+    prepare_foundation_request(
+      session_tokenizer(),
+      session_received(Streaming, request_id=916UL),
+    ),
   )
+  recovered.ack_event()
+  recovered.begin_abort()
+  progress_foundation_to_idle(recovered)
+  drain_foundation_instance(instance)
 
   let cancelled_instance = prepare_default_foundation_instance(executable)
   let cancelled = begin_default_foundation_session(
@@ -97,6 +97,7 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   }
   cancelled.ack_event()
   finish_online_failure_cleanup(cancelled)
+  drain_foundation_instance(cancelled_instance)
 
   let deadline_instance = prepare_default_foundation_instance(executable)
   let deadline = begin_default_foundation_session(
@@ -124,6 +125,7 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   }
   deadline.ack_event()
   finish_online_failure_cleanup(deadline)
+  drain_foundation_instance(deadline_instance)
 
   let aborting_instance = prepare_default_foundation_instance(executable)
   let aborting = begin_default_foundation_session(
@@ -139,4 +141,5 @@ fn run_online_session_progress_failure(executable : Bytes) -> Unit raise {
   }
   aborting.begin_abort()
   finish_online_failure_cleanup(aborting)
+  drain_foundation_instance(aborting_instance)
 }

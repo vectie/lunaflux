@@ -40,7 +40,7 @@ fn assert_execute_failure(
   let closes = fake_resource_close_count()
   fake_set_fault(fault_mode)
   try owner.execute_frame(cycle.frame, writer) catch {
-    Executor(ExecutorLaunchFailed(_, DriverFailure(AotKernelLaunch))) if fault_mode ==
+    Executor(ExecutorLaunchFailed(_, DriverFailure(OrderedExecutorEnqueue))) if fault_mode ==
       1 => ()
     Executor(ExecutorDevice(ActivationReadback, DriverFailure(CopyToHost))) if fault_mode ==
       2 => ()
@@ -59,9 +59,10 @@ fn assert_execute_failure(
     model_plan.operations().length().to_uint64()
   }
   let expected_reads = if fault_mode == 3 { 1UL } else { 0UL }
-  if fake_copy_count() - copies != 8UL ||
+  let expected_syncs = if fault_mode == 1 { 0UL } else { 1UL }
+  if fake_copy_count() - copies != 7UL ||
     fake_launch_count() - launches != expected_launches ||
-    fake_sync_count() - syncs != expected_launches ||
+    fake_sync_count() - syncs != expected_syncs ||
     fake_readback_count() - reads != expected_reads ||
     fake_resource_create_count() != creates ||
     fake_resource_close_count() != closes {

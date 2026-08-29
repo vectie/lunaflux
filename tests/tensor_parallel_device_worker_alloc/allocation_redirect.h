@@ -1,0 +1,141 @@
+#ifndef LUNAFLUX_TP_DEVICE_WORKER_ALLOCATION_REDIRECT_H
+#define LUNAFLUX_TP_DEVICE_WORKER_ALLOCATION_REDIRECT_H
+
+#include "moonbit.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+void *lunaflux_device_worker_probe_malloc(size_t);
+void *lunaflux_device_worker_probe_malloc_raw(size_t);
+void *lunaflux_device_worker_probe_malloc_array(
+  enum moonbit_block_kind,
+  int,
+  int32_t
+);
+moonbit_string_t lunaflux_device_worker_probe_make_string(int32_t, uint16_t);
+moonbit_string_t lunaflux_device_worker_probe_make_string_raw(int32_t);
+moonbit_bytes_t lunaflux_device_worker_probe_make_bytes(int32_t, int);
+moonbit_bytes_t lunaflux_device_worker_probe_make_bytes_raw(int32_t);
+int32_t *lunaflux_device_worker_probe_make_int32_array(int32_t, int32_t);
+int32_t *lunaflux_device_worker_probe_make_int32_array_raw(int32_t);
+void **lunaflux_device_worker_probe_make_ref_array(int32_t, void *);
+void **lunaflux_device_worker_probe_make_ref_array_raw(int32_t);
+int64_t *lunaflux_device_worker_probe_make_int64_array(int32_t, int64_t);
+int64_t *lunaflux_device_worker_probe_make_int64_array_raw(int32_t);
+double *lunaflux_device_worker_probe_make_double_array(int32_t, double);
+double *lunaflux_device_worker_probe_make_double_array_raw(int32_t);
+float *lunaflux_device_worker_probe_make_float_array(int32_t, float);
+float *lunaflux_device_worker_probe_make_float_array_raw(int32_t);
+void **lunaflux_device_worker_probe_make_extern_ref_array(int32_t, void *);
+void **lunaflux_device_worker_probe_make_extern_ref_array_raw(int32_t);
+moonbit_v128_storage_t *lunaflux_device_worker_probe_make_v128_array(
+  int32_t,
+  uint64_t,
+  uint64_t
+);
+moonbit_v128_storage_t *lunaflux_device_worker_probe_make_v128_array_raw(int32_t);
+void *lunaflux_device_worker_probe_make_scalar_valtype_array(
+  int32_t,
+  size_t,
+  void *
+);
+void *lunaflux_device_worker_probe_make_ref_valtype_array(
+  int32_t,
+  size_t,
+  uint32_t,
+  void *
+);
+void *lunaflux_device_worker_probe_make_scalar_valtype_array_raw(
+  int32_t,
+  size_t
+);
+void *lunaflux_device_worker_probe_make_ref_valtype_array_raw(
+  int32_t,
+  size_t,
+  uint32_t
+);
+void **lunaflux_device_worker_probe_make_ref_array_with_blit(
+  int32_t,
+  void *,
+  void *,
+  int32_t,
+  int32_t,
+  int32_t
+);
+void *lunaflux_device_worker_probe_make_external_object(
+  void (*)(void *),
+  uint32_t
+);
+moonbit_string_t lunaflux_device_worker_probe_add_string(
+  moonbit_string_t,
+  moonbit_string_t
+);
+moonbit_string_t lunaflux_device_worker_probe_bytes_sub_string(
+  moonbit_bytes_t,
+  int32_t,
+  int32_t
+);
+
+#define malloc lunaflux_device_worker_probe_malloc
+#define moonbit_malloc_raw lunaflux_device_worker_probe_malloc_raw
+#define moonbit_malloc_array lunaflux_device_worker_probe_malloc_array
+#define moonbit_make_string lunaflux_device_worker_probe_make_string
+#define moonbit_make_string_raw lunaflux_device_worker_probe_make_string_raw
+#define moonbit_make_bytes lunaflux_device_worker_probe_make_bytes
+#define moonbit_make_bytes_raw lunaflux_device_worker_probe_make_bytes_raw
+#define moonbit_make_int32_array lunaflux_device_worker_probe_make_int32_array
+#define moonbit_make_int32_array_raw lunaflux_device_worker_probe_make_int32_array_raw
+#define moonbit_make_ref_array lunaflux_device_worker_probe_make_ref_array
+#define moonbit_make_ref_array_raw lunaflux_device_worker_probe_make_ref_array_raw
+#define moonbit_make_int64_array lunaflux_device_worker_probe_make_int64_array
+#define moonbit_make_int64_array_raw lunaflux_device_worker_probe_make_int64_array_raw
+#define moonbit_make_double_array lunaflux_device_worker_probe_make_double_array
+#define moonbit_make_double_array_raw lunaflux_device_worker_probe_make_double_array_raw
+#define moonbit_make_float_array lunaflux_device_worker_probe_make_float_array
+#define moonbit_make_float_array_raw lunaflux_device_worker_probe_make_float_array_raw
+#define moonbit_make_extern_ref_array lunaflux_device_worker_probe_make_extern_ref_array
+#define moonbit_make_extern_ref_array_raw lunaflux_device_worker_probe_make_extern_ref_array_raw
+#define moonbit_make_v128_array lunaflux_device_worker_probe_make_v128_array
+#define moonbit_make_v128_array_raw lunaflux_device_worker_probe_make_v128_array_raw
+#define moonbit_make_scalar_valtype_array \
+  lunaflux_device_worker_probe_make_scalar_valtype_array
+#define moonbit_make_ref_valtype_array \
+  lunaflux_device_worker_probe_make_ref_valtype_array
+#define moonbit_make_scalar_valtype_array_raw \
+  lunaflux_device_worker_probe_make_scalar_valtype_array_raw
+#define moonbit_make_ref_valtype_array_raw \
+  lunaflux_device_worker_probe_make_ref_valtype_array_raw
+#define moonbit_make_ref_array_with_blit \
+  lunaflux_device_worker_probe_make_ref_array_with_blit
+#define moonbit_make_external_object \
+  lunaflux_device_worker_probe_make_external_object
+#define moonbit_add_string lunaflux_device_worker_probe_add_string
+#define moonbit_unsafe_bytes_sub_string \
+  lunaflux_device_worker_probe_bytes_sub_string
+
+#define lunaflux_cuda_context_close lunaflux_device_worker_fake_context_close
+#define lunaflux_cuda_stream_create lunaflux_device_worker_fake_stream_create
+#define lunaflux_cuda_stream_close lunaflux_device_worker_fake_stream_close
+#define lunaflux_cuda_allocation_create \
+  lunaflux_device_worker_fake_allocation_create
+#define lunaflux_cuda_allocation_close \
+  lunaflux_device_worker_fake_allocation_close
+#define lunaflux_cuda_allocation_lease_create \
+  lunaflux_device_worker_fake_lease_create
+#define lunaflux_cuda_allocation_lease_close \
+  lunaflux_device_worker_fake_lease_close
+#define lunaflux_cuda_context_validate_allocation_region \
+  lunaflux_device_worker_fake_validate_region
+#define lunaflux_cuda_copy_to_device lunaflux_device_worker_fake_copy_to_device
+#define lunaflux_cuda_context_copy_fixed_to_device \
+  lunaflux_device_worker_fake_copy_fixed_to_device
+#define lunaflux_cuda_context_copy_device_to_fixed \
+  lunaflux_device_worker_fake_copy_device_to_fixed
+#define lunaflux_cuda_module_load lunaflux_device_worker_fake_module_load
+#define lunaflux_cuda_module_close lunaflux_device_worker_fake_module_close
+#define lunaflux_cuda_function_load lunaflux_device_worker_fake_function_load
+#define lunaflux_cuda_function_close lunaflux_device_worker_fake_function_close
+#define lunaflux_cuda_function_launch lunaflux_device_worker_fake_function_launch
+
+#endif

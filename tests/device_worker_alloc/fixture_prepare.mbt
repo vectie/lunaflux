@@ -47,14 +47,14 @@ fn fixture_bootstrap_limits() -> @device_step.DeviceBootstrapLimits raise {
 ///|
 fn fixture_worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
   @worker_protocol.WorkerProtocolLimits::new(
-    max_prefill_rows=1,
-    max_decode_rows=1,
-    max_plan_rows=1,
-    max_plan_tokens=4,
-    max_plan_pages=2,
-    max_capabilities=64,
-    max_completion_slots=1,
-    max_sequence_tokens=16,
+    max_prefill_rows=FIXTURE_MAX_ROWS,
+    max_decode_rows=FIXTURE_MAX_ROWS,
+    max_plan_rows=FIXTURE_MAX_ROWS,
+    max_plan_tokens=FIXTURE_MAX_TOKENS,
+    max_plan_pages=FIXTURE_MAX_PAGES,
+    max_capabilities=FIXTURE_MAX_CAPABILITIES,
+    max_completion_slots=FIXTURE_MAX_ROWS,
+    max_sequence_tokens=FIXTURE_MAX_SEQUENCE_TOKENS,
     max_token_id=7,
   )
 }
@@ -82,6 +82,7 @@ fn fixture_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn fixture_startup(
   execution : @execution_manifest_file.PagedExecutionAdmission,
+  source_digest? : String = "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
 ) -> @worker_wire.WorkerStartupContract raise {
   let manifest = @device_step.admit_device_worker_bootstrap(
     execution.blueprint(),
@@ -92,7 +93,7 @@ fn fixture_startup(
   manifest.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),
     bootstrap_source_digest=@worker_wire.WorkerBootstrapSourceDigest::from_sha256(
-      "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+      source_digest,
     ),
     fixture_worker_limits(),
     fixture_inference_limits(),
@@ -149,6 +150,7 @@ fn prepare_fixture_owner(
   let inspection = @device_materialize.inspect_file(
     root,
     model,
+    model_plan,
     @approved_fs.ApprovedRelativeLocator::new("weights.safetensors"),
     limits=weight_limits,
     alignment_bytes=64L,
@@ -159,15 +161,15 @@ fn prepare_fixture_owner(
     model_plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=4,
-      total_page_count=44,
+      total_page_count=64,
       max_arena_bytes=1048576L,
     ),
   )
   let step_limits = @device_step.DeviceStepLimits::new(
-    max_rows=1,
-    max_tokens=4,
-    max_pages=2,
-    max_sequence_tokens=16,
+    max_rows=FIXTURE_MAX_ROWS,
+    max_tokens=FIXTURE_MAX_TOKENS,
+    max_pages=FIXTURE_MAX_PAGES,
+    max_sequence_tokens=FIXTURE_MAX_SEQUENCE_TOKENS,
     max_token_id=7,
   )
   let execution = @execution_manifest_file.load_paged(
@@ -191,16 +193,49 @@ fn prepare_fixture_owner(
     execution~,
     bootstrap_limits=fixture_bootstrap_limits(),
   )
-  let prepared = @device_worker.prepare(startup, root, admitted) catch {
-    error => {
+  let drifted = fixture_startup(
+    execution,
+    source_digest="212233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+  )
+  try @device_worker.prepare(drifted, root, admitted) catch {
+    Invalid(StartupContract) => ()
+    _ => {
+      try! root.close()
+      abort("unexpected bootstrap-source digest drift failure")
+    }
+  } noraise {
+    unexpected => {
+      match unexpected {
+        DeviceWorkerReady(owner) => try! owner.close()
+        DeviceWorkerCleanupRequired(failed) => try! failed.retry_close()
+      }
+      try! root.close()
+      abort("bootstrap-source digest drift was admitted")
+    }
+  }
+  let prepare_result : Result[
+    @device_worker.DeviceWorkerPreparation,
+    @device_worker.DeviceWorkerError,
+  ] = Ok(@device_worker.prepare(startup, root, admitted)) catch {
+    error => Err(error)
+  }
+  let prepared = match prepare_result {
+    Ok(value) => value
+    Err(error) => {
       try! root.close()
       raise error
     }
   }
   match prepared {
     DeviceWorkerReady(owner) => {
-      root.close() catch {
-        error => {
+      let close_result : Result[Unit, @approved_fs.ApprovedFsError] = Ok(
+        root.close(),
+      ) catch {
+        error => Err(error)
+      }
+      match close_result {
+        Ok(_) => ()
+        Err(error) => {
           try! owner.close()
           raise error
         }
@@ -208,8 +243,14 @@ fn prepare_fixture_owner(
       owner
     }
     DeviceWorkerCleanupRequired(failed) => {
-      root.close() catch {
-        error => {
+      let close_result : Result[Unit, @approved_fs.ApprovedFsError] = Ok(
+        root.close(),
+      ) catch {
+        error => Err(error)
+      }
+      match close_result {
+        Ok(_) => ()
+        Err(error) => {
           try! failed.retry_close()
           raise error
         }

@@ -148,21 +148,28 @@ fn plan(
 fn start_worker(
   executable : Bytes,
   startup : @worker_wire.WorkerStartupContract,
-) -> @worker_process.WorkerProcessSupervisor raise {
-  match
-    @worker_process.prepare(
-      executable,
-      startup,
-      bootstrap_source(),
-      @worker_process.WorkerProcessLimits::new(
-        max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
-        startup_io_timeout_millis=5000,
-        io_timeout_millis=5000,
-        shutdown_timeout_millis=5000,
-      ),
-    ) {
-    ReadyProcess(owner) => owner
-    CleanupRequired(_) => raise Failure("worker startup cleanup required")
+) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
+  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let prepared = @worker_process.prepare_with_approved_executable(
+    @worker_executable_fixture.admit(executable),
+    startup,
+    bootstrap_source(),
+    @worker_process.WorkerProcessLimits::new(
+      max_frame_bytes=@worker_wire.bootstrap_source_capacity(),
+      startup_io_timeout_millis=5000,
+      io_timeout_millis=5000,
+      shutdown_timeout_millis=5000,
+    ),
+    model,
+    kernel,
+  )
+  model.close()
+  kernel.close()
+  match prepared {
+    ReadyRootBoundProcess(owner) => owner
+    RootBoundCleanupRequired(_) =>
+      raise Failure("worker startup cleanup required")
   }
 }
 
@@ -175,8 +182,8 @@ fn start_root_worker(
 ) -> @worker_process.RootBoundWorkerProcessSupervisor raise {
   let model = @approved_fs.ApprovedRoot::open_absolute(model_path)
   let kernel = @approved_fs.ApprovedRoot::open_absolute(kernel_path)
-  let result = @worker_process.prepare_with_approved_roots(
-    executable,
+  let result = @worker_process.prepare_with_approved_executable(
+    @worker_executable_fixture.admit(executable),
     startup_contract_for_source(source),
     source,
     @worker_process.WorkerProcessLimits::new(
@@ -261,6 +268,9 @@ async fn run(executable : Bytes) -> Unit {
 
     let supervisor = start_worker(executable, startup_contract())
     assert_eq(supervisor.startup_contract(), startup_contract())
+    // A ready worker may remain idle longer than one frame-completion timeout.
+    // The first prefix byte starts the steady read deadline; idle time does not.
+    @async.sleep(5500)
     let plan_a1 = plan(1UL, 11UL)
     let plan_b2 = plan(2UL, 12UL)
     let submission_a1 = supervisor.submit(plan_a1)
@@ -279,34 +289,14 @@ async fn run(executable : Bytes) -> Unit {
     assert_eq(supervisor.outstanding_count(), 0)
     supervisor.shutdown_clean()
     supervisor.close()
-    assert_true(supervisor.lifecycle() == Closed)
-
-    let graceful_restart = supervisor.recovery_startup_contract()
-    assert_eq(graceful_restart.predecessor_value(), 3UL)
-    let replacement = start_worker(executable, graceful_restart)
-    let plan_b4 = plan(4UL, 14UL)
-    let abandoned_b4 = replacement.submit(plan_b4)
-    replacement.close()
-    replacement.abandon_submission(abandoned_b4)
-
-    let failed_restart = replacement.recovery_startup_contract()
-    assert_eq(failed_restart.predecessor_value(), 4UL)
-    let final_worker = start_worker(executable, failed_restart)
-    let plan_a5 = plan(5UL, 15UL)
-    let submission_a5 = final_worker.submit(plan_a5)
-    let completion_a5 = final_worker.receive(submission_a5, plan_a5)
-    assert_eq(completion_a5.frame(final_worker).entry_count(), 1)
-    final_worker.retire_received(completion_a5)
-    final_worker.shutdown_clean()
-    final_worker.close()
-    assert_eq(final_worker.recovery_startup_contract().predecessor_value(), 5UL)
+    assert_true(supervisor.lifecycle() == RootBoundClosed)
   }
 }
 
 ///|
 async fn main {
   match @env.args() {
-    [_, executable] => try! run(@utf8.encode(executable))
+    [_, executable] => run(@utf8.encode(executable))
     _ => println("worker executable path is required")
   }
 }

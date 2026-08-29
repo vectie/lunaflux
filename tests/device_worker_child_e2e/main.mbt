@@ -162,18 +162,18 @@ async fn run(executable : Bytes) -> Unit {
     )
     model_root.close()
     kernel_root.close()
-    let child = @process.spawn_with_approved_roots(
+    let child = @worker_executable_fixture.spawn_with_approved_roots(
       executable,
-      roots,
       process_limits(),
+      roots,
     )
     send_startup(child, startup, source)
     assert_no_ready_nonzero(child)
 
-    let unexpected = @process.spawn_with_approved_roots(
+    let unexpected = @worker_executable_fixture.spawn_with_approved_roots(
       executable,
-      roots,
       process_limits(),
+      roots,
     )
     let startup_owner = @worker_wire.StartupFrameBuffer::new()
     let configure = startup_owner.encode(Configure, startup)

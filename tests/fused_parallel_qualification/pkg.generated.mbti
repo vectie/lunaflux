@@ -1,0 +1,98 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/fused_parallel_qualification"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compare_qkv_bf16_output(ArrayView[Int], ArrayView[Int]) -> FusedQualificationComparisonSummary raise FusedQualificationError
+
+pub fn compare_residual_norm_bf16_output(ArrayView[Int], ArrayView[Int]) -> FusedQualificationComparisonSummary raise FusedQualificationError
+
+pub fn declared_qualification_shapes() -> ReadOnlyArray[FusedQualificationShape]
+
+pub fn qkv_qualification_fixture(FusedQualificationShape) -> FusedQkvQualificationFixture raise FusedQualificationError
+
+pub fn qualification_bf16_bytes(ArrayView[Int]) -> Bytes
+
+pub fn qualification_block_threads() -> Int
+
+pub fn qualification_cache_elements() -> Int
+
+pub fn qualification_head_dimension() -> Int
+
+pub fn qualification_input_width() -> Int
+
+pub fn qualification_kv_heads() -> Int
+
+pub fn qualification_output_width() -> Int
+
+pub fn qualification_poison_bf16() -> Int
+
+pub fn qualification_query_heads() -> Int
+
+pub fn qualification_tokens_per_page() -> Int
+
+pub fn qualification_total_pages() -> Int
+
+pub fn qualify_qkv_bf16_output(ArrayView[Int], ArrayView[Int]) -> Float raise FusedQualificationError
+
+pub fn qualify_residual_norm_bf16_output(ArrayView[Int], ArrayView[Int]) -> Float raise FusedQualificationError
+
+pub fn residual_norm_qualification_fixture(FusedQualificationShape) -> FusedResidualNormQualificationFixture raise FusedQualificationError
+
+// Errors
+pub(all) suberror FusedQualificationError {
+  InvalidDeclaredShape
+  InvalidRefereeInput
+  RefereeMismatch(index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FusedQkvQualificationFixture {
+  // private fields
+}
+pub fn FusedQkvQualificationFixture::expected_key_cache(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::expected_rotated_qkv(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::expected_value_cache(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::input(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::k_weight(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::q_weight(Self) -> ReadOnlyArray[Int]
+pub fn FusedQkvQualificationFixture::shape(Self) -> FusedQualificationShape
+pub fn FusedQkvQualificationFixture::v_weight(Self) -> ReadOnlyArray[Int]
+
+pub struct FusedQualificationComparisonSummary {
+  // private fields
+}
+pub fn FusedQualificationComparisonSummary::maximum_absolute_error(Self) -> Float
+pub fn FusedQualificationComparisonSummary::maximum_absolute_error_ppb(Self) -> Int64
+pub fn FusedQualificationComparisonSummary::maximum_relative_error_ppb(Self) -> Int64
+
+pub struct FusedQualificationShape {
+  // private fields
+}
+pub fn FusedQualificationShape::expected_dispatch_canary(Self, UInt) -> UInt
+pub fn FusedQualificationShape::name(Self) -> String
+pub fn FusedQualificationShape::ordinal(Self) -> Int
+pub fn FusedQualificationShape::page_table(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::page_table_offsets(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::positions(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::query_row_offsets(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::sequence_lengths(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::step_counts(Self) -> ReadOnlyArray[Int]
+pub fn FusedQualificationShape::token_count(Self) -> Int
+
+pub struct FusedResidualNormQualificationFixture {
+  // private fields
+}
+pub fn FusedResidualNormQualificationFixture::branch(Self) -> ReadOnlyArray[Int]
+pub fn FusedResidualNormQualificationFixture::expected_norm_output(Self) -> ReadOnlyArray[Int]
+pub fn FusedResidualNormQualificationFixture::expected_residual_output(Self) -> ReadOnlyArray[Int]
+pub fn FusedResidualNormQualificationFixture::norm_weight(Self) -> ReadOnlyArray[Int]
+pub fn FusedResidualNormQualificationFixture::residual(Self) -> ReadOnlyArray[Int]
+pub fn FusedResidualNormQualificationFixture::shape(Self) -> FusedQualificationShape
+
+// Type aliases
+
+// Traits

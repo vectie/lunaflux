@@ -1,0 +1,24 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_cuda_paged_kv_write_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/release/luna_paged_kv_write_physical_evidence",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

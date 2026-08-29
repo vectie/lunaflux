@@ -1,0 +1,20 @@
+import {
+  "vectie/lunaflux/engine/rank_child_control",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "fixture.c", "allocation_probe.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  link: {
+    "native": {
+      "cc-flags": "-O2 -include tests/rank_group_wire_alloc/allocation_redirect.h",
+    },
+  },
+)

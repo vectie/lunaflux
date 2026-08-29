@@ -12,7 +12,7 @@ fn tcp_inference_limits() -> @inference.InferenceLimits raise {
     max_trace_bytes=8,
     max_cache_scope_bytes=8,
     max_decoded_delta_bytes=8,
-    max_deadline_millis=10000UL,
+    max_deadline_millis=60000UL,
     max_top_k=32,
     max_temperature=4.0,
   )
@@ -27,13 +27,15 @@ fn tcp_framed_limits() -> @framed_wire.FramedWireLimits raise {
 }
 
 ///|
-fn tcp_startup() -> @worker_wire.WorkerStartupContract raise {
+fn tcp_startup(
+  fixture_root? : String = "/private/tmp",
+) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=bootstrap_source().digest(),
+    bootstrap_source_digest=bootstrap_source_for_root(fixture_root).digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=worker_limits(),
@@ -44,12 +46,14 @@ fn tcp_startup() -> @worker_wire.WorkerStartupContract raise {
 }
 
 ///|
-fn tcp_service_binding() -> @worker_service.WorkerServiceBinding raise {
+fn tcp_service_binding(
+  fixture_root? : String = "/private/tmp",
+) -> @worker_service.WorkerServiceBinding raise {
   @worker_service.WorkerServiceBinding::new(
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=bootstrap_source().digest(),
+    bootstrap_source_digest=bootstrap_source_for_root(fixture_root).digest(),
     device_ordinal=0,
     inference_limits=tcp_inference_limits(),
   )
@@ -104,7 +108,7 @@ fn prepare_tcp_coordinator(
 ) -> @online_session.LunaOnlineFramedCoordinatorPreparation raise {
   let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let prepared = @online_session.prepare_owned_luna_online_framed_coordinator(
+  let prepared = @online_session.prepare_owned_luna_online_framed_coordinator_approved(
     tokenizer,
     tokenizer.digest(),
     identity(),
@@ -121,12 +125,13 @@ fn prepare_tcp_coordinator(
     @framed_wire.LunaFramedEventStepBudget::new(17),
     scheduler_blueprint(),
     tcp_service_binding(),
-    executable,
+    @worker_executable_fixture.admit(executable),
     tcp_startup(),
     bootstrap_source(),
     process_limits(),
     model,
     kernel,
+    restart_policy(),
   )
   model.close()
   kernel.close()
