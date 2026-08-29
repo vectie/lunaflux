@@ -10,6 +10,7 @@ moon test \
   tokenizer/luna_input_write_wbtest.mbt \
   tokenizer/luna_input_equivalence_wbtest.mbt \
   tokenizer/luna_input_integration_wbtest.mbt \
+  tokenizer/sentencepiece_wbtest.mbt \
   --target native --release --deny-warn --warn-list +73
 
 generated_c="_build/native/release/test/tokenizer/tokenizer.whitebox_test.c"
@@ -81,6 +82,14 @@ for symbol in \
   'LunaTokenizerWorker21start__special__match(' \
   'LunaTokenizerWorker22finish__special__match(' \
   'LunaTokenizerWorker24progress__special__match(' \
+  'LunaTokenizerWorker28sentencepiece__invalid__utf8(' \
+  'LunaTokenizerWorker28sentencepiece__scalar__width(' \
+  'LunaTokenizerWorker30compare__sentencepiece__scalar(' \
+  'LunaTokenizerWorker27find__sentencepiece__scalar(' \
+  'LunaTokenizerWorker28start__sentencepiece__scalar(' \
+  'sentencepiece__meta__byte(' \
+  'LunaTokenizerWorker29finish__sentencepiece__scalar(' \
+  'LunaTokenizerWorker31progress__sentencepiece__scalar(' \
   'LunaTokenizerWorker20progress__initialize(' \
   'LunaTokenizerWorker17start__compaction(' \
   'LunaTokenizerWorker27progress__select__adjacency(' \

@@ -96,8 +96,10 @@ for symbol in \
   'LunaOnlineTcpEndpoint19rejection__sequence(' \
   'LunaOnlineTcpEndpoint15rejection__rule(' \
   'LunaOnlineFramedCoordinator34transport__wait__remaining__millis(' \
-  'LunaOnlineFramedCoordinator24stall__remaining__millis(' \
-  'LunaOnlineFramedCoordinator22current__receipt__work(' \
+  'LunaOnlineFramedStream34transport__wait__remaining__millis(' \
+  'LunaOnlineFramedService42stream__transport__wait__remaining__millis(' \
+  'LunaOnlineFramedService24stall__remaining__millis(' \
+  'LunaOnlineFramedService22current__receipt__work(' \
   'LunaRequestPreparationWork40luna__framed__receipt__remaining__millis('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
@@ -128,12 +130,16 @@ if ! rg -q --pcre2 -U \
   exit 1
 fi
 
-# A partial receipt is the only queued-work state that authorizes another body
-# read. Terminal Ready/Failed work pinned behind an active ticket is semantic
-# progress, not transport idleness, and tail backpressure must honor the exact
-# reactor transition quantum before the coordinator is sampled again.
+# AwaitingInput is the only pool disposition that authorizes another body read.
+# A failed queued request pinned behind live multi-request tickets remains
+# semantic progress until those globally ordered tickets retire, and tail
+# backpressure must honor the exact reactor transition quantum before the
+# coordinator is sampled again.
 if ! rg -q --pcre2 -U \
-    'if self\.tickets\.length\(\) == 1 \{[\s\S]*return match self\.pool\.progress\(\) \{[\s\S]*LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorAdvanced[\s\S]*LunaRequestPreparationPoolAwaitingInput =>[[:space:]]*LunaOnlineFramedCoordinatorAwaitingInput[\s\S]*LunaRequestPreparationPoolAdvanced => LunaOnlineFramedCoordinatorAdvanced' \
+    'LunaRequestPreparationFailed => \{[\s\S]*if !self\.tickets\.is_empty\(\) \{[\s\S]*return LunaOnlineFramedCoordinatorAdvanced[\s\S]*self\.publish_head_failure\(failure\)' \
+    service/online_session/coordinator_progress.mbt ||
+  ! rg -q --pcre2 -U \
+    'LunaRequestPreparationPoolIdle => LunaOnlineFramedCoordinatorIdle[\s\S]*LunaRequestPreparationPoolAwaitingInput =>[[:space:]]*LunaOnlineFramedCoordinatorAwaitingInput[\s\S]*LunaRequestPreparationPoolAdvanced => LunaOnlineFramedCoordinatorAdvanced' \
     service/online_session/coordinator_progress.mbt ||
   ! rg -q --pcre2 -U \
     'LunaOnlineFramedCoordinatorAwaitingInput => \{[\s\S]*if self\.tail_length > 0 \{[\s\S]*continue[\s\S]*return self\.read_on_reactor\(\)' \
@@ -166,8 +172,9 @@ fi
 
 if [ "$(rg -c '\.accept\(\)' service/online_tcp/endpoint_ingress.mbt)" -ne 1 ] ||
   [ "$(rg -c '\.read\(' service/online_tcp/endpoint_ingress.mbt)" -ne 1 ] ||
-  [ "$(rg -c '\.write_once\(' service/online_tcp/endpoint_output.mbt)" -ne 2 ] ||
-  [ "$(rg -c 'connection\.write_once\(' service/online_tcp/endpoint_output.mbt)" -ne 1 ]; then
+  [ "$(rg -c '\.write_once\(' service/online_tcp/endpoint_output.mbt)" -ne 3 ] ||
+  [ "$(rg -c 'connection\.write_once\(' service/online_tcp/endpoint_output.mbt)" -ne 2 ] ||
+  [ "$(rg -c 'flights\[0\]\.write_once\(' service/online_tcp/endpoint_output.mbt)" -ne 1 ]; then
   printf '%s\n' 'online TCP endpoint socket operation count drifted' >&2
   exit 1
 fi

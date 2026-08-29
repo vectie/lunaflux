@@ -16,6 +16,7 @@ cc_bin=${CC:-/usr/bin/cc}
   internal/monotonic_clock/monotonic_clock_probe.c \
   -o "$task_dir/probe"
 
-ASAN_OPTIONS=detect_leaks=0:fast_unwind_on_malloc=0 "$task_dir/probe"
+ASAN_OPTIONS=detect_leaks=0:fast_unwind_on_malloc=0 \
+  sh scripts/run-sanitized.sh "$task_dir/probe"
 
 printf '%s\n' 'LunaFlux monotonic clock exact-TU sanitizer gate passed.'

@@ -44,7 +44,7 @@ allocation_lines() {
 contains_unbounded_allocation() {
   allocation_lines |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error' |
-    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference20LunaTokenBuffer(Write|Lease)|46vectie8lunaflux7service19incremental__output2[56]LunaIncrementalOutput(Work|Lease))E4Some\)' |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference(20LunaTokenBuffer(Write|Lease)|21LunaRequestPrefixView)|46vectie8lunaflux7service19incremental__output2[56]LunaIncrementalOutput(Work|Lease))E4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGdE4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0TP(46vectie8lunaflux7service18request__admission(19LunaPreparedRequest|24LunaPreparedRequestClaim)|46vectie8lunaflux9scheduler4core16TokenizedRequest)\)' |
     rg -q .
@@ -59,7 +59,7 @@ fi
 
 assemble="$(extract_definition 'LunaRequestPreparationPool18progress__assemble(')"
 take_prepared="$(extract_definition 'LunaRequestPreparationWork14take__prepared(')"
-tokenized_new="$(extract_definition 'TokenizedRequest3new(')"
+tokenized_new="$(extract_definition 'new__with__prefix(')"
 if [ -z "$assemble" ] || [ -z "$take_prepared" ] ||
   [ -z "$tokenized_new" ] ||
   ! printf '%s\n' "$assemble" |
@@ -77,6 +77,7 @@ fi
 # Every symbol must remain emitted so inlining cannot silently narrow evidence.
 for symbol in \
   'LunaRequestPreparationPool11try__submit(' \
+  'LunaRequestPreparationPool46try__begin__luna__text__handoff__with__receipt(' \
   'LunaRequestPreparationPool11start__lane(' \
   'LunaRequestPreparationPool8progress(' \
   'LunaRequestPreparationPool19progress__lane__one(' \
@@ -86,6 +87,8 @@ for symbol in \
   'LunaRequestPreparationPool24progress__text__tokenize(' \
   'LunaRequestPreparationPool27progress__text__begin__copy(' \
   'LunaRequestPreparationPool20progress__text__copy(' \
+  'LunaRequestPreparationPool29progress__typed__input__begin(' \
+  'LunaRequestPreparationPool28progress__typed__input__copy(' \
   'LunaRequestPreparationPool34progress__semantic__cache__measure(' \
   'LunaRequestPreparationPool25progress__semantic__begin(' \
   'LunaRequestPreparationPool31progress__semantic__token__copy(' \
@@ -124,11 +127,16 @@ for symbol in \
   'LunaRequestSemanticWrite6finish(' \
   'LunaRequestSemanticWork8progress(' \
   'LunaRequestSemanticWork11take__lease(' \
+  'LunaTextRequestHandoffLease11take__claim(' \
+  'LunaTextRequestHandoffLease14prompt__length(' \
+  'LunaTextRequestHandoffClaim15take__semantics(' \
+  'LunaTextRequestHandoffClaim16prompt__byte__at(' \
+  'LunaTextRequestHandoffClaim7release(' \
   'LunaIncrementalOutputWorkspace31begin__luna__request__semantics(' \
   'LunaIncrementalOutputWork8progress(' \
   'LunaIncrementalOutputWork5abort(' \
   'LunaIncrementalOutputWork11take__lease(' \
-  'TokenizedRequest3new('; do
+  'new__with__prefix('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
     printf 'preparation-pool allocation function is missing: %s\n' "$symbol" >&2
@@ -170,12 +178,17 @@ if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
   exit 1
 fi
 
+lane_constructor_source="service/request_admission/pool_lane_new.mbt"
 if rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
     service/request_admission/pool_progress.mbt \
     service/request_admission/pool_semantic_progress.mbt \
     service/request_admission/pool_work.mbt ||
-  [ "$(rg -c 'Array::new\(capacity=1\)' service/request_admission/pool.mbt)" != '5' ] ||
-  rg -n '(^|[^A-Za-z])Array::' service/request_admission/pool.mbt |
+  rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
+    service/request_admission/pool.mbt ||
+  [ "$(rg -c 'Array::new\(capacity=1\)' "$lane_constructor_source")" != '6' ] ||
+  ! rg -q '^fn new_preparation_lane\(' "$lane_constructor_source" ||
+  rg -n 'Map::|HashMap|@utf8\.encode|Bytes::make' "$lane_constructor_source" ||
+  rg -n '(^|[^A-Za-z])Array::' "$lane_constructor_source" |
     rg -v 'Array::new\(capacity=1\)'; then
   printf '%s\n' \
     'preparation-pool progress introduced a growing/proportional collection' >&2

@@ -116,8 +116,6 @@ for symbol in \
   'LunaEventOwner7discard(' \
   'LunaEventOwner4view(' \
   'OnlineWorkerLease6expire(' \
-  'OnlineWorkerLease28progress__terminal__recovery(' \
-  'OnlineWorkerLease36progress__terminal__recovery__status(' \
   'OnlineWorkerLease16progress__status(' \
   'OnlineWorkerLease25retire__terminal__request(' \
   'OnlineWorkerLease22shutdown__clean__empty(' \
@@ -301,7 +299,7 @@ if ! rg -U -q \
   exit 1
 fi
 if ! printf '%s\n' "$terminalization_body" | rg -U -q \
-  -- 'progress__terminal__recovery__status[\s\S]*progress__terminal__cut'; then
+  -- 'advance__recovery__maintenance[\s\S]*progress__terminal__cut'; then
   printf '%s\n' 'off-reactor terminalization does not recover before terminal drain' >&2
   exit 1
 fi
@@ -328,12 +326,14 @@ replace_body="$(extract_definition 'Scheduler45replace__submitted__completion__w
 replacement_preflight_body="$(extract_definition 'Scheduler41preflight__exhausted__failure__retirement(')"
 replacement_commit_body="$(extract_definition 'Scheduler38commit__exhausted__failure__retirement(')"
 recover_body="$(extract_definition 'WorkerService21recover__flight__impl(')"
+recover_physical_body="$(extract_definition 'WorkerService31recover__physical__flight__impl(')"
 if [ -z "$replace_body" ] || [ -z "$replacement_preflight_body" ] ||
-  [ -z "$replacement_commit_body" ] || [ -z "$recover_body" ]; then
+  [ -z "$replacement_commit_body" ] || [ -z "$recover_body" ] ||
+  [ -z "$recover_physical_body" ]; then
   printf '%s\n' 'online-session invalid-completion recovery proof functions are missing' >&2
   exit 1
 fi
-replacement_hot="${replace_body}${replacement_preflight_body}${replacement_commit_body}${recover_body}"
+replacement_hot="${replace_body}${replacement_preflight_body}${replacement_commit_body}${recover_body}${recover_physical_body}"
 if printf '%s\n' "$replacement_hot" | contains_forbidden_allocation; then
   printf '%s\n' 'invalid-completion terminal replacement allocates on steady path' >&2
   exit 1
@@ -352,56 +352,109 @@ if ! printf '%s\n' "$replacement_commit_body" | rg -U -q \
   printf '%s\n' 'terminal replacement commit order drifted' >&2
   exit 1
 fi
-if ! printf '%s\n' "$recover_body" | rg -U -q \
-  -- 'replace__submitted__completion__with__failure[\s\S]*retire__received[\s\S]*clear__flight[\s\S]*->\$[0-9]+ = 2;'; then
+if ! printf '%s\n' "$recover_physical_body" | rg -U -q \
+  -- 'replace__submitted__completion__with__failure[\s\S]*retire__received[\s\S]*finish__recovered__flight'; then
   printf '%s\n' 'service recovery retires process authority before scheduler failure terminal' >&2
   exit 1
 fi
 
-# The exact aggregate/session/cleanup shells must precede rooted authority.
-prepare_body="$(extract_definition 'prepare__owned__luna__online__instance(')"
-if [ -z "$prepare_body" ]; then
+# The pending helper must construct the exact aggregate/session/cleanup shells
+# before its sole caller crosses into rooted authority. Pin the generated helper
+# cardinality so neither a near-name helper nor an extra caller can satisfy the
+# proof by accident.
+prepare_body="$(extract_definition 'prepare__owned__luna__online__instance__with__clock(')"
+pending_body="$(extract_definition 'new__pending__luna__online__preparation(')"
+pending_symbol='_M0FP46vectie8lunaflux7service15online__session39new__pending__luna__online__preparation('
+pending_signature='^struct _M0TURP[A-Za-z0-9_]*[*] _M0FP46vectie8lunaflux7service15online__session39new__pending__luna__online__preparation[(]$'
+pending_signatures="$(awk -v pattern="$pending_signature" \
+  '$0 ~ pattern { count += 1 } END { print count + 0 }' "$generated_c")"
+pending_occurrences="$(awk -v symbol="$pending_symbol" \
+  'index($0, symbol) > 0 { count += 1 } END { print count + 0 }' \
+  "$generated_c")"
+prepare_pending_calls="$(printf '%s\n' "$prepare_body" |
+  awk -v symbol="$pending_symbol" \
+    'index($0, symbol) > 0 { count += 1 } END { print count + 0 }')"
+source_pending_occurrences="$(rg -c \
+  'new_pending_luna_online_preparation\(' \
+  service/online_session/prepare.mbt)"
+if [ -z "$prepare_body" ] || [ -z "$pending_body" ] ||
+  [ "$pending_signatures" != '2' ] || [ "$pending_occurrences" != '3' ] ||
+  [ "$prepare_pending_calls" != '1' ] ||
+  [ "$source_pending_occurrences" != '2' ]; then
   printf '%s\n' 'online-session owned constructor is missing' >&2
   exit 1
 fi
-session_line="$(printf '%s\n' "$prepare_body" | rg -n 'LunaOnlineInstance\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-cleanup_line="$(printf '%s\n' "$prepare_body" | rg -n 'FailedLunaOnlineInstancePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-outcome_line="$(printf '%s\n' "$prepare_body" | rg -n 'LunaOnlineInstancePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-rooted_line="$(printf '%s\n' "$prepare_body" | rg -n 'worker__service14prepare__owned' | head -n 1 | cut -d: -f1)"
-deadline_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'deadline__failure__code' | head -n 1 | cut -d: -f1)"
-output_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'output__failure__code' | head -n 1 | cut -d: -f1)"
-worker_code_line="$(printf '%s\n' "$prepare_body" | rg -n 'worker__failure__code' | head -n 1 | cut -d: -f1)"
+for hostile_signature in \
+  'struct _M0FP46vectie8lunaflux7service15online__session39new__pending__luna__online__preparation_suffix(' \
+  'struct near_M0FP46vectie8lunaflux7service15online__session39new__pending__luna__online__preparation('; do
+  if printf '%s\n' "$hostile_signature" | rg -q "$pending_signature"; then
+    printf '%s\n' \
+      'pending online-owner generated-symbol guard accepted a hostile near name' >&2
+    exit 1
+  fi
+done
+
+session_line="$(printf '%s\n' "$pending_body" | awk \
+  '/LunaOnlineInstance\*\)moonbit_malloc/ { print NR; exit }')"
+cleanup_line="$(printf '%s\n' "$pending_body" | awk \
+  '/FailedLunaOnlineInstancePreparation\*\)moonbit_malloc/ { print NR; exit }')"
+outcome_line="$(printf '%s\n' "$pending_body" | awk \
+  '/LunaOnlineInstancePreparation\*\)moonbit_malloc/ { print NR; exit }')"
+deadline_code_line="$(printf '%s\n' "$pending_body" | awk \
+  '/deadline__failure__code/ { print NR; exit }')"
+output_code_line="$(printf '%s\n' "$pending_body" | awk \
+  '/output__failure__code/ { print NR; exit }')"
+worker_code_line="$(printf '%s\n' "$pending_body" | awk \
+  '/worker__failure__code/ { print NR; exit }')"
+pending_line="$(printf '%s\n' "$prepare_body" | awk \
+  '/new__pending__luna__online__preparation/ { print NR; exit }')"
+rooted_line="$(printf '%s\n' "$prepare_body" | awk \
+  '/worker__service24prepare__owned__approved/ { print NR; exit }')"
+publication_line="$(printf '%s\n' "$prepare_body" | awk \
+  '/publish__owned__luna__online__preparation/ { print NR; exit }')"
 if [ -z "$session_line" ] || [ -z "$cleanup_line" ] ||
-  [ -z "$outcome_line" ] || [ -z "$rooted_line" ] ||
-  [ -z "$deadline_code_line" ] || [ -z "$output_code_line" ] ||
-  [ -z "$worker_code_line" ] ||
-  [ "$session_line" -ge "$rooted_line" ] ||
-  [ "$cleanup_line" -ge "$rooted_line" ] ||
-  [ "$outcome_line" -ge "$rooted_line" ] ||
-  [ "$deadline_code_line" -ge "$rooted_line" ] ||
-  [ "$output_code_line" -ge "$rooted_line" ] ||
-  [ "$worker_code_line" -ge "$rooted_line" ]; then
+  [ -z "$outcome_line" ] || [ -z "$deadline_code_line" ] ||
+  [ -z "$output_code_line" ] || [ -z "$worker_code_line" ] ||
+  [ -z "$pending_line" ] || [ -z "$rooted_line" ] ||
+  [ -z "$publication_line" ] || [ "$pending_line" -ge "$rooted_line" ] ||
+  [ "$rooted_line" -ge "$publication_line" ] ||
+  printf '%s\n' "$pending_body" |
+    rg -q 'prepare__owned__approved|prepare__exchange__with__approved__roots'; then
   printf '%s\n' 'online-session owners are not all allocated before rooted preparation' >&2
   exit 1
 fi
 
 owned_body="$(extract_definition 'prepare__owned__internal(')"
-if [ -z "$owned_body" ]; then
+owned_shell_body="$(extract_definition 'prepare__owned__shell(')"
+owned_shell_symbol='_M0FP46vectie8lunaflux6engine15worker__service21prepare__owned__shell('
+owned_shell_occurrences="$(awk -v symbol="$owned_shell_symbol" \
+  'index($0, symbol) > 0 { count += 1 } END { print count + 0 }' \
+  "$generated_c")"
+owned_shell_calls="$(printf '%s\n' "$owned_body" |
+  awk -v symbol="$owned_shell_symbol" \
+    'index($0, symbol) > 0 { count += 1 } END { print count + 0 }')"
+if [ -z "$owned_body" ] || [ -z "$owned_shell_body" ] ||
+  [ "$owned_shell_occurrences" != '3' ] || [ "$owned_shell_calls" != '1' ]; then
   printf '%s\n' 'owned online internal constructor is missing' >&2
   exit 1
 fi
-admission_line="$(printf '%s\n' "$owned_body" | rg -n 'Scheduler29prepare__exclusive__admission' | head -n 1 | cut -d: -f1)"
-clock_line="$(printf '%s\n' "$owned_body" | rg -n 'MonotonicClock13prepare__read' | head -n 1 | cut -d: -f1)"
-lease_line="$(printf '%s\n' "$owned_body" | rg -n 'OnlineWorkerLease\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-owned_outcome_line="$(printf '%s\n' "$owned_body" | rg -n 'OwnedWorkerServicePreparation\*\)moonbit_malloc' | head -n 1 | cut -d: -f1)"
-owned_rooted_line="$(printf '%s\n' "$owned_body" | rg -n 'prepare__exchange__with__approved__roots' | head -n 1 | cut -d: -f1)"
+admission_line="$(printf '%s\n' "$owned_shell_body" | awk \
+  '/Scheduler29prepare__exclusive__admission/ { print NR; exit }')"
+clock_line="$(printf '%s\n' "$owned_shell_body" | awk \
+  '/MonotonicClock13prepare__read/ { print NR; exit }')"
+lease_line="$(printf '%s\n' "$owned_shell_body" | awk \
+  '/OnlineWorkerLease\*\)moonbit_malloc/ { print NR; exit }')"
+owned_outcome_line="$(printf '%s\n' "$owned_shell_body" | awk \
+  '/service29OwnedWorkerServicePreparation\*\)moonbit_malloc/ { print NR; exit }')"
+owned_shell_line="$(printf '%s\n' "$owned_body" | awk \
+  '/prepare__owned__shell/ { print NR; exit }')"
+owned_rooted_line="$(printf '%s\n' "$owned_body" | awk \
+  '/prepare__owned__physical/ { print NR; exit }')"
 if [ -z "$admission_line" ] || [ -z "$clock_line" ] ||
   [ -z "$lease_line" ] || [ -z "$owned_outcome_line" ] ||
-  [ -z "$owned_rooted_line" ] ||
-  [ "$admission_line" -ge "$owned_rooted_line" ] ||
-  [ "$clock_line" -ge "$owned_rooted_line" ] ||
-  [ "$lease_line" -ge "$owned_rooted_line" ] ||
-  [ "$owned_outcome_line" -ge "$owned_rooted_line" ]; then
+  [ -z "$owned_shell_line" ] || [ -z "$owned_rooted_line" ] ||
+  [ "$owned_shell_line" -ge "$owned_rooted_line" ] ||
+  printf '%s\n' "$owned_shell_body" | rg -q 'prepare__owned__physical'; then
   printf '%s\n' 'online admission/clock/lease shells were not prepared before rooted activation' >&2
   exit 1
 fi
@@ -419,10 +472,87 @@ fi
 
 # After the exact lower take_online succeeds, aggregate publication is only
 # owner installation, lease admission, or already-preallocated result return.
-suffix="$(printf '%s\n' "$prepare_body" | tail -n "+$(printf '%s\n' "$prepare_body" | rg -n 'take__online' | head -n 1 | cut -d: -f1)")"
-if [ -z "$suffix" ] ||
+# Publication now lives in one private helper; pin its sole generated caller.
+publication_body="$(extract_definition 'publish__owned__luna__online__preparation(')"
+publication_symbol='_M0FP46vectie8lunaflux7service15online__session41publish__owned__luna__online__preparation('
+publication_occurrences="$(awk -v symbol="$publication_symbol" \
+  'index($0, symbol) > 0 { count += 1 } END { print count + 0 }' \
+  "$generated_c")"
+publication_calls="$(printf '%s\n' "$prepare_body" |
+  awk -v symbol="$publication_symbol" \
+    'index($0, symbol) > 0 { count += 1 } END { print count + 0 }')"
+suffix="$(printf '%s\n' "$publication_body" | awk \
+  'seen || /take__online/ { seen = 1; print }')"
+if [ -z "$publication_body" ] || [ "$publication_occurrences" != '3' ] ||
+  [ "$publication_calls" != '1' ] || [ -z "$suffix" ] ||
   printf '%s\n' "$suffix" | contains_forbidden_allocation; then
   printf '%s\n' 'online-session post-transfer publication introduced allocation' >&2
+  exit 1
+fi
+
+# Multi-request publication routing must remain one direct preallocated table
+# probe. A route scan can turn one scheduler publication into 65,536 reactor
+# quanta and is therefore a structural hot-path regression even if it does not
+# allocate.
+if rg -q 'route_scan|for .*multi\.lanes|while .*multi\.lanes' \
+  service/online_session/online_multi_progress.mbt \
+  service/online_session/online_multi_types.mbt; then
+  printf '%s\n' 'online-session publication routing reintroduced a lane scan' >&2
+  exit 1
+fi
+if ! rg -U -q \
+  'let lane_index = self\.multi\.routes\.resolve\(route\)[\s\S]*matches_publication_route\(route\)[\s\S]*multi_consume_publication\(lane_index\)' \
+  service/online_session/online_multi_progress.mbt ||
+  ! rg -q 'session_lanes : FixedArray\[Int\]' \
+  service/online_session/online_multi_routes.mbt ||
+  ! rg -q 'generations : FixedArray\[UInt64\]' \
+  service/online_session/online_multi_routes.mbt ||
+  ! rg -U -q \
+  'let route = try! request\.publication_route\(\)[\s\S]*retire_terminal\(\)[\s\S]*routes\.clear\(route, lane_index\)' \
+  service/online_session/online_multi_lifecycle.mbt; then
+  printf '%s\n' 'online-session direct route authentication/clear boundary drifted' >&2
+  exit 1
+fi
+
+# Crash-loop replacement is an explicitly configured, cooperative maintenance
+# phase. Recovery cleanup/invalidation must publish RestartReady before the
+# delay owner can sample its clock or spawn, and readiness stays non-ready
+# while that maintenance obligation is retained.
+if ! rg -U -q \
+  'pub fn prepare_owned_luna_online_instance_approved\([\s\S]*restart_policy : @worker_service\.WorkerRestartBackoffPolicy[\s\S]*prepare_owned_luna_online_instance_with_clock\([\s\S]*restart_policy' \
+  service/online_session/prepare.mbt ||
+  ! rg -U -q \
+  'pub fn prepare_owned_luna_online_framed_service_approved\([\s\S]*restart_policy : @worker_service\.WorkerRestartBackoffPolicy[\s\S]*prepare_owned_luna_online_instance_with_clock\([\s\S]*restart_policy' \
+  service/online_session/coordinator_prepare.mbt ||
+  ! rg -U -q \
+  'pub fn prepare_owned_luna_online_framed_coordinator_approved\([\s\S]*restart_policy : @worker_service\.WorkerRestartBackoffPolicy[\s\S]*prepare_owned_luna_online_framed_service_approved_internal\([\s\S]*restart_policy' \
+  service/online_session/coordinator_prepare.mbt; then
+  printf '%s\n' \
+    'online-session production preparation lost explicit restart policy' >&2
+  exit 1
+fi
+for recovery_source in \
+  service/online_session/lifecycle.mbt \
+  service/online_session/online_multi_recovery.mbt; do
+  if ! rg -U -q \
+      'LunaWorkerServiceRestartReady => \{[\s\S]*maintenance_state = 6[\s\S]*LunaRecoveryMaintenancePending' \
+      "$recovery_source" ||
+    ! rg -U -q \
+      'maintenance_state == 6[\s\S]*drain_requested[\s\S]*abandon_restart\(\)[\s\S]*progress_restart_backoff\(\)' \
+      "$recovery_source"; then
+    printf 'online-session restart delay/cleanup ordering drifted: %s\n' \
+      "$recovery_source" >&2
+    exit 1
+  fi
+done
+if ! rg -U -q \
+  'pub fn LunaOnlineInstance::maintenance_wait_remaining_millis[\s\S]*maintenance_state == 6[\s\S]*restart_backoff_remaining_millis\(\)' \
+  service/online_session/lifecycle.mbt ||
+  ! rg -U -q \
+  'pub fn LunaOnlineFramedService::readiness[\s\S]*maintenance_kind != 0[\s\S]*LunaOnlineFramedServiceMaintenanceRequired' \
+  service/online_session/framed_service_owner.mbt; then
+  printf '%s\n' \
+    'online-session restart wake/readiness boundary drifted' >&2
   exit 1
 fi
 

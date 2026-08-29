@@ -56,7 +56,7 @@ for symbol in \
   'Scheduler26commit__admission__request(' \
   'OnlineWorkerLease25invalidate__device__state(' \
   'Scheduler27advance__terminated__handle(' \
-  'Scheduler32invalidate__device__state__exact('; do
+  'Scheduler25invalidate__device__state('; do
   body="$(extract_definition "$generated_c" "$symbol")"
   if [ -z "$body" ]; then
     printf 'online-lease allocation function is missing: %s\n' "$symbol" >&2

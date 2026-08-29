@@ -49,7 +49,7 @@ contains_proportional_allocation() {
   allocation_lines |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error82vectie_2flunaflux_2fservice_2frequest__admission_2eRequestAdmissionError_2eInvalid\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC15error5Error63vectie_2flunaflux_2fscheduler_2fcore_2eSchedulerError_2eInvalid\)' |
-    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference20LunaTokenBuffer(Write|Lease)|46vectie8lunaflux7service19incremental__output26LunaIncrementalOutputLease)E4Some\)' |
+    rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGRP(36vectie8lunaflux9tokenizer(17LunaTokenizerWork|23LunaTokenizerInputWrite)|46vectie8lunaflux9contracts9inference(20LunaTokenBuffer(Write|Lease)|21LunaRequestPrefixView)|46vectie8lunaflux7service19incremental__output26LunaIncrementalOutputLease)E4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0DTPC16option6OptionGdE4Some\)' |
     rg -v 'moonbit_malloc\(sizeof\(struct _M0TP(46vectie8lunaflux7service18request__admission24LunaPreparedRequestClaim|46vectie8lunaflux9scheduler4core16TokenizedRequest)\)' |
     rg -q .
@@ -90,7 +90,7 @@ for symbol in \
   'LunaRequestPreparationPool31progress__framed__release__view(' \
   'LunaRequestPreparationPool23progress__output__setup(' \
   'LunaRequestPreparationPool18progress__assemble(' \
-  'TokenizedRequest3new('; do
+  'new__with__prefix('; do
   body="$(extract_definition "$symbol")"
   if [ -z "$body" ]; then
     printf 'direct framed-preparation function is missing: %s\n' "$symbol" >&2

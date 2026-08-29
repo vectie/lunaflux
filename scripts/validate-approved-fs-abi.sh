@@ -55,8 +55,9 @@ if ! rg -q 'LF_APPROVED_IDENTITY_MISMATCH = 10' \
   failed=1
 fi
 
-if rg -n 'supported_targets|supported-targets' runtime/approved_fs/moon.pkg; then
-  printf '%s\n' 'approved filesystem must gate native files, not the package' >&2
+if ! rg -q '^supported_targets = "native"$' runtime/approved_fs/moon.pkg ||
+  ! rg -q '^supported_targets = "native"$' internal/approved_fs/moon.pkg; then
+  printf '%s\n' 'approved filesystem native packages must declare their target' >&2
   failed=1
 fi
 
@@ -95,6 +96,21 @@ if ! rg -q 'lunaflux_approved_fs_prepare_worker_roots' \
   ! rg -q 'LF_APPROVED_STATE_PREPARING' \
     internal/approved_fs_capability/approved_fs_capability.h; then
   printf '%s\n' 'prepared worker-root ABI lacks atomic one-shot acquisition' >&2
+  failed=1
+fi
+
+if ! rg -q 'lunaflux_approved_fs_worker_root_spawn_authority' \
+    internal/approved_fs/inheritance.c ||
+  ! rg -q 'moonbit_incref\(roots\)' internal/approved_fs/inheritance.c ||
+  ! rg -q '^pub type WorkerApprovedRootSpawnAuthority$' \
+    runtime/approved_fs_inheritance/types.mbt ||
+  [ "$(rg -c 'WorkerApprovedRootSpawnAuthority' \
+    runtime/approved_fs/api.mbt 2>/dev/null || true)" -ne 1 ] ||
+  ! rg -U -q \
+    'pub fn worker_approved_root_spawn_authority\([\s\S]*\) -> WorkerApprovedRootSpawnAuthority \{' \
+    runtime/approved_fs/api.mbt; then
+  printf '%s\n' \
+    'spawn-only root view must remain ref-safe, opaque, and free of owner operations' >&2
   failed=1
 fi
 
