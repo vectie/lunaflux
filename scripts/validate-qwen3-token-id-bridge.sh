@@ -47,9 +47,11 @@ moon check --target native --deny-warn --warn-list +73 \
   benchmarks/qwen3_token_id_bridge cmd/lunaflux_qwen3_token_id_bridge
 moon test --target native --deny-warn --warn-list +73 \
   benchmarks/qwen3_token_id_bridge cmd/lunaflux_qwen3_token_id_bridge
-git diff --check -- \
-  benchmarks/qwen3_token_id_bridge cmd/lunaflux_qwen3_token_id_bridge \
-  scripts/start-qwen3-lunaflux-token-id-bridge.sh \
-  scripts/validate-qwen3-token-id-bridge.sh
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git diff --check -- \
+    benchmarks/qwen3_token_id_bridge cmd/lunaflux_qwen3_token_id_bridge \
+    scripts/start-qwen3-lunaflux-token-id-bridge.sh \
+    scripts/validate-qwen3-token-id-bridge.sh
+fi
 
 printf '%s\n' 'qwen3 token-ID bridge boundary passed'
