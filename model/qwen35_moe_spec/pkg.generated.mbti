@@ -1,0 +1,77 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen35_moe_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum Qwen35AuxiliaryDType {
+  BFloat16
+  Float32
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Qwen35HybridLayerKind {
+  GatedDeltaLinearAttention
+  FullAttention
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Qwen35MatrixDType {
+  Fp8E4M3
+} derive(Eq, @debug.Debug)
+
+pub struct Qwen35MoeTextMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen35MoeTextMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Qwen35MoeTextMetadata::from_verified_config(@spec.ContentDigest) -> Self
+pub fn Qwen35MoeTextMetadata::spec(Self) -> Qwen35MoeTextSpec
+
+pub struct Qwen35MoeTextSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Qwen35MoeTextSpec::attention_head_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::attention_output_gate(Self) -> Bool
+pub fn Qwen35MoeTextSpec::context_length(Self) -> Int
+pub fn Qwen35MoeTextSpec::expert_intermediate_size(Self) -> Int
+pub fn Qwen35MoeTextSpec::experts_per_token(Self) -> Int
+pub fn Qwen35MoeTextSpec::fp8_block_columns(Self) -> Int
+pub fn Qwen35MoeTextSpec::fp8_block_rows(Self) -> Int
+pub fn Qwen35MoeTextSpec::full_attention_interval(Self) -> Int
+pub fn Qwen35MoeTextSpec::has_learned_shared_expert_gate(Self) -> Bool
+pub fn Qwen35MoeTextSpec::head_dimension(Self) -> Int
+pub fn Qwen35MoeTextSpec::hidden_size(Self) -> Int
+pub fn Qwen35MoeTextSpec::inverse_scale_dtype(Self) -> Qwen35AuxiliaryDType
+pub fn Qwen35MoeTextSpec::kv_head_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::layer_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::layer_kind(Self, Int) -> Qwen35HybridLayerKind?
+pub fn Qwen35MoeTextSpec::linear_convolution_width(Self) -> Int
+pub fn Qwen35MoeTextSpec::linear_key_head_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::linear_key_head_dimension(Self) -> Int
+pub fn Qwen35MoeTextSpec::linear_value_head_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::linear_value_head_dimension(Self) -> Int
+pub fn Qwen35MoeTextSpec::matrix_dtype(Self) -> Qwen35MatrixDType
+pub fn Qwen35MoeTextSpec::mrope_interleaved(Self) -> Bool
+pub fn Qwen35MoeTextSpec::mrope_section(Self, Int) -> Int?
+pub fn Qwen35MoeTextSpec::mrope_section_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::mtp_execution_enabled(Self) -> Bool
+pub fn Qwen35MoeTextSpec::partial_rotary_factor(Self) -> Double
+pub fn Qwen35MoeTextSpec::pinned_35b_a3b_fp8_text_only() -> Self
+pub fn Qwen35MoeTextSpec::recurrent_state_dtype(Self) -> Qwen35AuxiliaryDType
+pub fn Qwen35MoeTextSpec::rope_theta(Self) -> Double
+pub fn Qwen35MoeTextSpec::routed_expert_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::shared_expert_intermediate_size(Self) -> Int
+pub fn Qwen35MoeTextSpec::source_mtp_layer_count(Self) -> Int
+pub fn Qwen35MoeTextSpec::tied_embeddings(Self) -> Bool
+pub fn Qwen35MoeTextSpec::uses_dynamic_activation_scaling(Self) -> Bool
+pub fn Qwen35MoeTextSpec::vision_execution_enabled(Self) -> Bool
+pub fn Qwen35MoeTextSpec::vocabulary_size(Self) -> Int
+
+// Type aliases
+
+// Traits

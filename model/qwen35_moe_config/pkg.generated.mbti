@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen35_moe_config"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/qwen35_moe_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn parse_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError
+
+pub fn parse_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError
+
+// Errors
+pub(all) suberror Qwen35ConfigError {
+  InvalidByteLimit
+  InvalidDepthLimit
+  ByteLimitExceeded(limit~ : Int)
+  NestingLimitExceeded(limit~ : Int)
+  InvalidUtf8
+  MalformedJson
+  NonObjectRoot
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(area~ : Qwen35ConfigArea, index~ : Int)
+  MissingField(area~ : Qwen35ConfigArea, field~ : Qwen35ConfigField)
+  InvalidValue(area~ : Qwen35ConfigArea, field~ : Qwen35ConfigField, issue~ : Qwen35ConfigValueIssue, index~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Qwen35ConfigArea {
+  Root
+  Text
+  Rope
+  Quantization
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Qwen35ConfigField {
+  Architectures
+  RootModelType
+  TextConfig
+  QuantizationConfig
+  VisionConfig
+  TieWordEmbeddings
+  TokenId
+  TransformersVersion
+  TextModelType
+  WeightDType
+  VocabularySize
+  HiddenSize
+  LayerCount
+  LayerTypes
+  ContextLength
+  AttentionHeadCount
+  KvHeadCount
+  HeadDimension
+  AttentionBias
+  AttentionDropout
+  AttentionOutputGate
+  FullAttentionInterval
+  HiddenActivation
+  InitializerRange
+  LinearConvWidth
+  LinearKeyHeadCount
+  LinearKeyHeadDimension
+  LinearValueHeadCount
+  LinearValueHeadDimension
+  RecurrentStateDType
+  ExpertIntermediateSize
+  RoutedExpertCount
+  ExpertsPerToken
+  SharedExpertIntermediateSize
+  OutputRouterLogits
+  RouterAuxLoss
+  MtpLayerCount
+  MtpDedicatedEmbeddings
+  PartialRotaryFactor
+  RmsNormEpsilon
+  RopeParameters
+  UseCache
+  PadTokenId
+  RopeInterleaved
+  RopeSections
+  RopeTheta
+  RopeType
+  ActivationScheme
+  Fp8Format
+  QuantizationMethod
+  ModulesNotConverted
+  WeightBlockSize
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Qwen35ConfigValueIssue {
+  ExpectedObject
+  ExpectedString
+  ExpectedInteger
+  ExpectedNumber
+  ExpectedBoolean
+  ExpectedArray
+  ExpectedNull
+  InvalidArrayElement
+  MissingRequiredEntry
+  UnsupportedValue
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
