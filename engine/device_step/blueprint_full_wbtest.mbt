@@ -15,7 +15,7 @@ fn full_runtime_bytes(
 
 ///|
 fn full_static_plan(
-  metadata : @spec.LlamaModelMetadata,
+  _metadata : @spec.LlamaModelMetadata,
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
@@ -28,7 +28,7 @@ fn full_static_plan(
   }
   @device_plan.build(
     plan,
-    blueprint_weight_layout(metadata),
+    blueprint_weight_layout(plan),
     blueprint_resolved_catalog(plan, layout, target, rotary_workspace~),
   )
 }

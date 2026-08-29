@@ -128,6 +128,7 @@ pub fn admit_paged_graph_execution_blueprint(
   profile_id : @launch_contract.KernelProfileId,
   contracts : @launch_contract.PagedKvLaunchContractSet,
   artifacts : @artifact.KernelArtifactBundle,
+  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
 ) -> PagedKvExecutionBlueprint raise DeviceStepError {
   validate_blueprint_evidence(
     model_plan,
@@ -163,7 +164,12 @@ pub fn admit_paged_graph_execution_blueprint(
       ),
     )
   }
-  {
+  let graph_metadata = match luna_authorization {
+    Some(authorization) => Some(authorization.graph_metadata())
+    None => None
+  }
+  let graph_memory = derive_graph_memory_evidence(graph_metadata)
+  let blueprint : PagedKvExecutionBlueprint = {
     identity: model_plan.identity(),
     target: contracts.device_target(),
     catalog_version: contracts.catalog_version(),
@@ -174,6 +180,13 @@ pub fn admit_paged_graph_execution_blueprint(
     weight_arena_bytes: static_plan.weight_arena_bytes(),
     weight_alignment: static_plan.weight_alignment(),
     activation_workspace_arena_bytes: memory_plan.arena_bytes(),
+    graph_memory,
+    graph_shape: match graph_metadata {
+      Some(graph) => Some(graph.shape_class())
+      None => None
+    },
     steps: ReadOnlyArray::from_array(steps),
   }
+  validate_luna_execution_authorization(blueprint, luna_authorization)
+  blueprint
 }

@@ -10,6 +10,7 @@ import {
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/llama",
   "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/safetensors",
 } for "test"
 

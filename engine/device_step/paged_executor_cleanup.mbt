@@ -9,6 +9,59 @@ fn remember_paged_failure(
 }
 
 ///|
+fn close_paged_ordered_executor(
+  resources : PagedGraphResources,
+  first : Ref[DeviceStepError?],
+) -> Unit {
+  match resources.ordered_executor {
+    Some(owner) if owner.open => {
+      let mut drained = false
+      try owner.resource.abort() catch {
+        error =>
+          remember_paged_failure(first, ExecutorDevice(OrderedExecutor, error))
+      } noraise {
+        _ => drained = true
+      }
+      if drained {
+        try owner.resource.close() catch {
+          error =>
+            remember_paged_failure(
+              first,
+              ExecutorDevice(OrderedExecutor, error),
+            )
+        } noraise {
+          _ => owner.open = false
+        }
+      }
+    }
+    _ => ()
+  }
+}
+
+///|
+fn paged_ordered_executor_open(resources : PagedGraphResources) -> Bool {
+  match resources.ordered_executor {
+    Some(owner) => owner.open
+    None => false
+  }
+}
+
+///|
+/// Preserves every launch dependency until the ordered executor has drained
+/// and released its native leases. Close failures therefore retain one exact
+/// retryable aggregate rather than cascading Busy errors across dependencies.
+fn run_paged_ordered_dependency_close(
+  close_ordered : () -> Unit,
+  ordered_open : () -> Bool,
+  close_dependencies : () -> Unit,
+) -> Unit {
+  close_ordered()
+  if !ordered_open() {
+    close_dependencies()
+  }
+}
+
+///|
 fn close_paged_functions(
   resources : PagedGraphResources,
   first : Ref[DeviceStepError?],
@@ -102,6 +155,29 @@ fn close_paged_lease(
 }
 
 ///|
+fn paged_weight_lease_open(resources : PagedGraphResources) -> Bool {
+  match resources.weight_lease {
+    Some(lease) => lease.open
+    None => false
+  }
+}
+
+///|
+/// Preserves the lifetime dependency between the allocation lease and its
+/// numeric-weight owner. `close_lease` records rather than raises its failure,
+/// so the post-attempt liveness observation is the only authority to proceed.
+fn run_paged_weight_dependency_close(
+  close_lease : () -> Unit,
+  lease_open : () -> Bool,
+  close_numeric : () -> Unit,
+) -> Unit {
+  close_lease()
+  if !lease_open() {
+    close_numeric()
+  }
+}
+
+///|
 fn close_paged_stream(
   resources : PagedGraphResources,
   first : Ref[DeviceStepError?],
@@ -118,21 +194,101 @@ fn close_paged_stream(
 }
 
 ///|
+fn close_numeric_weights(
+  resources : PagedGraphResources,
+  first : Ref[DeviceStepError?],
+) -> Unit {
+  match resources.numeric_weights {
+    Some(I8NumericWeights(owner)) =>
+      try owner.close() catch {
+        error => remember_paged_failure(first, error)
+      } noraise {
+        _ => resources.numeric_weights = None
+      }
+    Some(Bf16NumericWeights(owner)) =>
+      try owner.close() catch {
+        _ => remember_paged_failure(first, NumericWeightClose)
+      } noraise {
+        _ => resources.numeric_weights = None
+      }
+    Some(Fp8NumericWeights(owner)) =>
+      try owner.close() catch {
+        _ => remember_paged_failure(first, NumericWeightClose)
+      } noraise {
+        _ => resources.numeric_weights = None
+      }
+    None => ()
+  }
+}
+
+///|
+/// Applies the dependency-ordered close sequence shared by production cleanup
+/// and the host failure-injection tests. Individual close stages retain their
+/// own retryable state and accumulate the first error without short-circuiting.
+fn run_paged_close_order(stages : ReadOnlyArray[() -> Unit]) -> Unit {
+  for stage in stages {
+    stage()
+  }
+}
+
+///|
 fn close_paged_resources(
   resources : PagedGraphResources,
 ) -> Unit raise DeviceStepError {
   let first : Ref[DeviceStepError?] = Ref(None)
-  close_paged_functions(resources, first)
-  close_paged_modules(resources, first)
-  close_paged_allocation(resources.persistent_kv, PersistentKvArena, first)
-  close_paged_allocation(
-    resources.activation_workspace,
-    ActivationWorkspaceArena,
-    first,
+  run_paged_ordered_dependency_close(
+    () => close_paged_ordered_executor(resources, first),
+    () => paged_ordered_executor_open(resources),
+    () => {
+      run_paged_close_order(
+        ReadOnlyArray::from_array([
+          () => close_paged_functions(resources, first),
+          () => close_paged_modules(resources, first),
+          () => {
+            close_paged_allocation(
+              resources.greedy_sampling_results,
+              SamplingResult,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
+              resources.fused_dispatch_canary,
+              FusedDispatchCanary,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
+              resources.persistent_kv,
+              PersistentKvArena,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
+              resources.activation_workspace,
+              ActivationWorkspaceArena,
+              first,
+            )
+          },
+          () => close_paged_descriptor(resources, first),
+          () => {
+            run_paged_weight_dependency_close(
+              () => close_paged_lease(resources, first),
+              () => paged_weight_lease_open(resources),
+              () => close_numeric_weights(resources, first),
+            )
+          },
+          () => close_paged_stream(resources, first),
+        ]),
+      )
+    },
   )
-  close_paged_descriptor(resources, first)
-  close_paged_lease(resources, first)
-  close_paged_stream(resources, first)
+  if paged_ordered_executor_open(resources) {
+    guard first.val is Some(error) else { raise InvalidExecutor(ResourceState) }
+    raise error
+  }
   if first.val is Some(error) {
     raise error
   }
@@ -158,11 +314,17 @@ pub fn FailedPagedGraphPreparation::retry_close(
     return
   }
   self.lifecycle = GraphClosingFailed
-  close_paged_resources(self.resources) catch {
-    error => {
+  let outcome : Result[Unit, DeviceStepError] = Ok(
+    close_paged_resources(self.resources),
+  ) catch {
+    error => Err(error)
+  }
+  match outcome {
+    Err(error) => {
       self.cleanup_failure = error
       raise error
     }
+    Ok(_) => ()
   }
   self.lifecycle = GraphClosed
 }

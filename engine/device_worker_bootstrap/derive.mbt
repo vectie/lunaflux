@@ -18,8 +18,20 @@ fn validate_source_envelope(
   if source.digest() != startup.bootstrap_source_digest() {
     raise Invalid(SourceDigest)
   }
-  if source.recipe() != DenseLlamaPagedAotV1 {
-    raise Invalid(Recipe)
+  match source.recipe() {
+    DenseLlamaPagedAotV2 =>
+      if source.kernel().luna_approval() is Some(_) {
+        raise Invalid(Recipe)
+      }
+    DenseLlamaPagedAotV3 =>
+      if source.kernel().luna_approval() is None {
+        raise Invalid(Recipe)
+      }
+    DenseLlamaBf16PagedAotExtensionsV10 =>
+      if source.kernel().luna_approval() is Some(_) {
+        raise Invalid(Recipe)
+      }
+    _ => raise Invalid(Recipe)
   }
 }
 
@@ -30,15 +42,13 @@ fn validate_runtime_envelope(
   execution : @worker_wire.WorkerBootstrapExecution,
 ) -> Unit raise DeviceWorkerBootstrapError {
   let spec = model.spec()
-  if model.identity().content() != startup.identity().content() {
+  if model.content_digest() != startup.identity().content() {
     raise Invalid(ModelIdentity)
   }
   let worker = startup.worker_limits()
   let inference = startup.inference_limits()
-  if worker.max_plan_rows() != 1 ||
-    worker.max_prefill_rows() > 1 ||
-    worker.max_decode_rows() > 1 ||
-    worker.max_plan_tokens() > spec.context_length() ||
+  if worker.max_prefill_rows() > worker.max_plan_rows() ||
+    worker.max_decode_rows() > worker.max_plan_rows() ||
     worker.max_sequence_tokens() > spec.context_length() ||
     worker.max_token_id() >= spec.vocabulary_size() ||
     worker.max_completion_slots() < worker.max_plan_rows() {
@@ -53,10 +63,14 @@ fn validate_runtime_envelope(
     raise Invalid(InferenceEnvelope)
   }
   let context = spec.context_length().to_int64()
+  let rows = worker.max_plan_rows().to_int64()
   let tokens_per_page = execution.tokens_per_page().to_int64()
   let pages_per_sequence = (context + tokens_per_page - 1L) / tokens_per_page
+  if worker.max_plan_tokens().to_int64() > rows * context {
+    raise Invalid(WorkerEnvelope)
+  }
   if worker.max_plan_pages() > execution.total_page_count() ||
-    worker.max_plan_pages().to_int64() > pages_per_sequence {
+    worker.max_plan_pages().to_int64() > rows * pages_per_sequence {
     raise Invalid(PageEnvelope)
   }
 }
@@ -184,7 +198,14 @@ fn inspect_model_inputs(
   }
   validate_runtime_envelope(startup, model, source.execution())
   let exact_count = exact_graph_count(model.spec().layer_count())
-  let plan = @llama.build_paged(model) catch { error => raise Plan(error) }
+  let batch = @llama.LlamaPagedBatchEnvelope::new(
+    startup.worker_limits().max_plan_rows(),
+  ) catch {
+    error => raise Plan(error)
+  }
+  let plan = @llama.build_paged(model, batch~) catch {
+    error => raise Plan(error)
+  }
   if plan.operations().length() != exact_count ||
     plan.identity() != startup.identity() {
     raise Invalid(ModelIdentity)
@@ -227,6 +248,7 @@ fn inspect_model_inputs(
   let weights = @device_materialize.inspect_file(
     model_root,
     model,
+    plan,
     weights_locator,
     limits=file_limits,
     alignment_bytes=RECIPE_ALIGNMENT_BYTES,

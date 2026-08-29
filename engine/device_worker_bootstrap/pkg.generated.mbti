@@ -6,31 +6,44 @@ import {
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/device_worker",
   "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/fp8_device_worker_v3",
+  "vectie/lunaflux/engine/i8_device_worker",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/config_file",
+  "vectie/lunaflux/model/config_reader",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/mistral_weights",
   "vectie/lunaflux/model/plan",
 }
 
 // Values
-pub fn prepare(@worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError
+pub fn prepare(@worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness?) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError
 
 // Errors
 pub(all) suberror DeviceWorkerBootstrapError {
   Invalid(DeviceWorkerBootstrapRule)
   Root(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
   Config(@config_file.ModelConfigFileError)
+  MistralConfig(@config_reader.ModelConfigReaderError)
   Plan(@plan.PlanValidationError)
   Weights(@device_materialize.DeviceWeightError)
+  MistralWeights(@mistral_weights.MistralWeightsError)
   KvLayout(@device_layout.DeviceKvLayoutError)
   DeviceTarget(@catalog.CatalogError)
   DeviceStep(@device_step.DeviceStepError)
   ExecutionManifest(@execution_manifest_file.ExecutionManifestFileError)
   Worker(@device_worker.DeviceWorkerError)
+  I8Worker(@i8_device_worker.I8DeviceWorkerError)
+  Fp8Worker(@fp8_device_worker_v3.Fp8DeviceWorkerV3Error)
+  FusedArtifact(@luna_fused_artifact_admission.FusedArtifactAdmissionError)
   CleanupRoot(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
   CleanupWorker(@device_worker.DeviceWorkerError)
+  CleanupI8Worker(@i8_device_worker.I8DeviceWorkerError)
+  CleanupFp8Worker(@fp8_device_worker_v3.Fp8DeviceWorkerV3Error)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -52,6 +65,7 @@ pub struct DeviceWorkerBootstrapOwner {
 }
 pub fn DeviceWorkerBootstrapOwner::close(Self) -> Unit raise DeviceWorkerBootstrapError
 pub fn DeviceWorkerBootstrapOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerBootstrapError
+pub fn DeviceWorkerBootstrapOwner::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise DeviceWorkerBootstrapError
 pub fn DeviceWorkerBootstrapOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerBootstrapError
 
 pub(all) enum DeviceWorkerBootstrapPreparation {
@@ -71,6 +85,9 @@ pub(all) enum DeviceWorkerBootstrapRule {
   PageEnvelope
   RecipeLimit
   ReadinessContract
+  NumericCapability
+  NumericWeightArtifact
+  ReleaseIdentity
 } derive(Eq, @debug.Debug)
 
 pub struct FailedDeviceWorkerBootstrapPreparation {

@@ -14,8 +14,10 @@ fixed-capacity little-endian Int32 device operands:
 The isolated-worker path accepts the equivalent canonical
 `ValidatedPlanFrame` through `stage_frame`. It validates sequence, generation,
 counts, tokens, capabilities, CSR tables, page-generation structure, and
-physical-page bounds directly from fixed wire storage before host mutation or
-device upload. No scheduler heap-owner capability is required in that path;
+physical-page bounds directly from fixed wire storage in one scan. Accepted
+cells populate private reusable host scratch during that scan, but no device
+upload or staged authority is published until every field passes. No scheduler
+heap-owner capability is required in that path;
 the in-process `stage` method remains for the compatibility boundary.
 
 Rows retain protocol order: prefill first, then decode. Prefill positions are
@@ -31,13 +33,23 @@ carry equivalent generation and page-lease authority.
 
 The owner is confined to the worker that owns its borrowed device context.
 Host buffers and seven matching device allocations are created once at
-startup. A stage performs a complete read-only preflight before writing host
-storage, including plan-sequence and stage-epoch authorization. The startup
-limits bind the loaded model's exact maximum sequence length and token ID;
-protocol admission is never trusted as the only semantic envelope. Staging
-then uploads an invalid zero counts header, all payloads, and the real counts
-header last. Any upload failure poisons the owner, preventing kernel binding,
-finish, or another stage until deterministic close.
+startup. A stage authorizes plan sequence and stage epoch, then validates and
+fills private host scratch in one bounded scan. The startup limits bind the
+loaded model's exact maximum sequence length and token ID; protocol admission
+is never trusted as the only semantic envelope. Staging uploads six payload
+operands and publishes the real counts header last. It performs no diagnostic
+zero-count upload. Any upload failure poisons the owner, preventing kernel
+binding, finish, or another stage until deterministic close.
+
+`prepare` remains the world-one constructor and accepts only the model plan's
+complete canonical KV geometry. `prepare_rank_local` is the narrow
+tensor-parallel constructor: it consumes the admitted tensor-parallel KV plan,
+authenticates the exact model identity and generation, obtains one rank's
+canonical local layout, and re-derives its local KV-head geometry from the
+semantic model plan. It retains no rank, topology, weight, collective, or
+device-owner authority. Both constructors enter the same seven-buffer
+allocation and cleanup transaction only after all immutable evidence is
+validated.
 
 This staging slice exposes neither launch arguments nor any allocation alias.
 A future executor in this owner package must mediate launch under lifecycle
@@ -59,6 +71,13 @@ The narrow blueprint accepts only a `KvSubsequence` launch-contract set.
 binds token IDs, exact verified weight regions, every activation/workspace
 region, and persistent KV. Scope mismatches fail closed; both results remain
 inert and expose no resource authority.
+
+The full-graph blueprint also retains one opaque authenticated graph-memory
+state: absent, capture-unsupported, or a positive aligned declared upper bound.
+Missing and unsupported accounting never acquire a fabricated zero-byte
+scalar. Bootstrap admission re-derives the state from the exact Phase-5
+authorization before hashing it into the existing canonical authorization
+section.
 
 `admit_device_worker_bootstrap` hashes the complete admitted full-graph
 blueprint and artifact evidence into a bounded canonical binary schema. The
@@ -82,26 +101,56 @@ sample_completion_frame -> finish` is the equivalent isolated-worker path.
 The latter authenticates the exact retained frame owner and epoch and appends
 the canonical completion while deliberately leaving the writer open. Its
 aggregate owner must finish the executor before submitting the writer, so a
-finish failure cannot publish a completion. Every launch synchronizes, and any
-partial launch failure permanently poisons execution and descriptor state. The
-completion phase reads only each producing row's retained BF16 vocabulary
-logits into startup-owned fixed storage, rejects non-finite values, applies
-greedy or counter-addressed stochastic selection using the row's exact
-`(sampling seed, output index)`, and appends to the exact frame-bound completion
-writer. All reads and selections finish before the first completion entry is
-written. The writer remains open for explicit submit after executor finish or
-abort after any failure; a readback or invalid-logit failure poisons the
-executor.
+finish failure cannot publish a completion. Preparation explicitly selects
+ordered eager, required capture, or capture with authenticated eager fallback.
+Capture occurs only during startup from the exact prebuilt AOT sequence; warm
+execution either launches that immutable graph exec or enqueues the same
+ordered base and then waits once on the reusable completion event. No live
+descriptor value constructs or updates graph nodes. Any partial eager launch,
+graph launch, record, or wait failure drains the retained stream and
+permanently poisons execution and descriptor state. Completion follows its
+retained startup placement. Host mode reads each producing row's BF16
+vocabulary logits into fixed storage and applies greedy or counter-addressed
+stochastic selection using the exact `(sampling seed, output index)`.
+Embedded-CUDA mode accepts greedy rows only, launches the fixed reducer already
+co-compiled into the authenticated LM-head module, and copies one eight-byte
+result cell per producing row into startup-owned storage. Greedy compatibility
+is fused into the mandatory row preflight rather than a second scan. All reads
+and selections finish before the first completion entry is written. The writer
+remains open for explicit submit after executor finish or abort after any
+failure; a readback or invalid-logit failure poisons the executor.
+
+The reusable FP8-v3 frame route keeps one scalar admission record for the
+executor lifetime. Each accepted frame mutates that record in place and clears
+it on consume or poison, so publication does not box per-frame evidence. It
+shares the same single validation/host-staging scan and retained summary plus
+frame-owner/epoch authentication as BF16. A poisoned graph remains poisoned;
+only a freshly prepared executor is recovery authority.
+
+Fused residual/RMSNorm preparation also separates qualification from the token
+path. Qualification accepts only the seven-argument canary ABI and owns its
+four-byte device cell plus fixed host observation. `ProductionFastPath`
+accepts only the distinct six-argument ABI; it allocates no canary, appends no
+diagnostic kernel argument, performs no canary atomic, and performs no
+per-execution host/device proof copy or CPU validation. Artifact, model,
+target, fallback, and operation-adjacency authentication still completes once
+during startup, before the module or executor is opened.
+
 Close invalidates execution first and then attempts every independent resource
 in reverse dependency order; failed cleanup retains explicit retry authority.
 
-This is a full AOT graph dispatch owner, but not yet serving or numerical-
-correctness evidence. The separate native release gate in
-`tests/device_step_alloc` currently instruments the warmed descriptor
-`stage_frame`/`finish` path over prebuilt received frames, proves record and
-fixed-array positive controls independently, and exercises every fixed H2D
-call through a bounded test seam.
-Generated-C allocation review covers the launch lifecycle, while a
-positive-controlled full `stage`/`execute`/`sample_completion`/`finish` runtime
-gate, physical CUDA model correctness (including logits and sampled tokens),
-sanitizer, leak, and benchmark evidence remain open before Phase 3 promotion.
+This full AOT graph dispatch owner is composed by the BF16 and symmetric-I8
+worker/service paths. The narrow `tests/device_step_alloc` executable still
+instruments warmed descriptor staging and fixed-H2D behavior. The separate
+`tests/device_worker_alloc` executable prepares the public BF16
+`DeviceWorkerOwner` through approved-root weight and schema-v2 manifest
+admission, then exercises mixed/full-batch
+`stage_frame`/`execute`/`sample_completion_frame`/`finish` cycles with fake
+device modules, nonuniform BF16 logits, an independent scalar sampling oracle,
+warmed allocation checks, hostile frames, and deterministic resource closure.
+
+That positive control proves the production MoonBit executor and ownership
+path, not emitted CUDA numerics or a spawned physical service. An approved
+full-model kernel bundle, physical logits and sampled-token agreement, device-KV
+cached decode, successful physical child/service execution, full sanitizer/leak
+coverage, soak, and benchmarks remain required for promotion.

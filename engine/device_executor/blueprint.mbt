@@ -34,6 +34,11 @@ fn validate_top_level_evidence(
   artifacts : @artifact.KernelArtifactBundle,
   context_target_matches : Bool,
 ) -> Unit raise DeviceExecutorError {
+  if static_plan.catalog_version() != @catalog.CatalogVersion::v1() ||
+    contracts.catalog_version() != @catalog.CatalogVersion::v1() ||
+    artifacts.catalog_version() != @catalog.CatalogVersion::v1() {
+    raise InvalidPlan(CatalogVersion)
+  }
   let identity = static_plan.identity()
   if memory_plan.identity() != identity ||
     profile.identity() != identity ||
@@ -120,6 +125,7 @@ fn input_region(
       }
       None
     }
+    WeightScaleInput(_, _) => None
     ActivationInput(reference) => {
       for input in operation_profile.inputs() {
         if input is Activation(value) && value.reference() == reference {

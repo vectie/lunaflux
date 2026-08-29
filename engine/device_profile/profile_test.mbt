@@ -200,8 +200,14 @@ test "shape and plan envelope mismatches fail closed" {
 test "maximum memory envelope is not substituted for another static plan" {
   let semantic_small = profile_embedding_plan(1, 8)
   let semantic_large = profile_embedding_plan(1, 16)
-  let static_small = profile_static_plan(semantic=semantic_small)
-  let static_large = profile_static_plan(semantic=semantic_large)
+  let static_small = profile_static_plan(
+    semantic=semantic_small,
+    layout=profile_numeric_layout(semantic_small),
+  )
+  let static_large = profile_static_plan(
+    semantic=semantic_large,
+    layout=profile_numeric_layout(semantic_large),
+  )
   let memory_large = profile_memory_plan(static_plan=static_large)
   try
     @device_profile.build(
@@ -213,7 +219,7 @@ test "maximum memory envelope is not substituted for another static plan" {
       ),
     )
   catch {
-    InvalidPlan(MaximumTokenRows) => ()
+    InvalidPlan(Identity) => ()
     _ => fail("unexpected maximum-envelope mismatch error")
   } noraise {
     _ => fail("expected exact static/memory envelope mismatch")
@@ -223,7 +229,10 @@ test "maximum memory envelope is not substituted for another static plan" {
 ///|
 test "multi-batch terminal rows are precomputed without assuming contiguity" {
   let semantic = profile_embedding_plan(2, 8)
-  let static_plan = profile_static_plan(semantic~)
+  let static_plan = profile_static_plan(
+    semantic~,
+    layout=profile_numeric_layout(semantic),
+  )
   let memory_plan = profile_memory_plan(static_plan~)
   let profile = @device_profile.build(
     static_plan,
@@ -247,7 +256,11 @@ test "multi-batch terminal rows are precomputed without assuming contiguity" {
 ///|
 test "zero workspace is a valid omitted-operand view" {
   let semantic = profile_embedding_plan(1, 8)
-  let static_plan = profile_static_plan(semantic~, workspace_bytes=0L)
+  let static_plan = profile_static_plan(
+    semantic~,
+    layout=profile_numeric_layout(semantic),
+    workspace_bytes=0L,
+  )
   let memory_plan = profile_memory_plan(static_plan~)
   let profile = @device_profile.build(
     static_plan,

@@ -14,12 +14,13 @@ pub(all) enum StaticInput {
 /// One immutable semantic operation paired with its exact startup-selected
 /// kernel binding.
 pub struct StaticOperation {
-  id : @plan.OperationId
-  kind : @plan.OperationKind
-  shape : @plan.OperationShape
-  inputs : ReadOnlyArray[StaticInput]
-  outputs : ReadOnlyArray[@plan.ActivationRef]
-  binding : @catalog.KernelBinding
+  priv id : @plan.OperationId
+  priv kind : @plan.OperationKind
+  priv shape : @plan.OperationShape
+  priv inputs : ReadOnlyArray[StaticInput]
+  priv outputs : ReadOnlyArray[@plan.ActivationRef]
+  priv binding : @catalog.KernelBinding
+  priv operation_execution_digest : @numeric_contract.OperationExecutionDigest
 } derive(Debug, Eq)
 
 ///|
@@ -29,17 +30,16 @@ pub struct StaticOperation {
 /// model, weight-arena, workspace, target, and kernel-selection facts for a
 /// later executor.
 pub struct StaticDevicePlan {
-  identity : @spec.ModelIdentity
-  shape_constraints : @plan.ShapeConstraints
-  target : @catalog.DeviceTarget
-  catalog_version : @catalog.CatalogVersion
-  weight_arena_bytes : Int64
-  weight_alignment : Int64
-  weight_tensor_count : Int
-  workspace_bytes : Int64
-  workspace_alignment : Int64
-  operations : ReadOnlyArray[StaticOperation]
-  final_output : @plan.ActivationRef
+  priv identity : @spec.ModelIdentity
+  priv shape_constraints : @plan.ShapeConstraints
+  priv target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv numeric_schema_digest : @numeric_contract.ModelNumericSchemaDigest
+  priv weight_layout : @device_materialize.DeviceWeightLayout
+  priv workspace_bytes : Int64
+  priv workspace_alignment : Int64
+  priv operations : ReadOnlyArray[StaticOperation]
+  priv final_output : @plan.ActivationRef
 } derive(Debug, Eq)
 
 ///|
@@ -79,6 +79,13 @@ pub fn StaticOperation::binding(
 }
 
 ///|
+pub fn StaticOperation::operation_execution_digest(
+  self : StaticOperation,
+) -> @numeric_contract.OperationExecutionDigest {
+  self.operation_execution_digest
+}
+
+///|
 pub fn StaticDevicePlan::identity(
   self : StaticDevicePlan,
 ) -> @spec.ModelIdentity {
@@ -107,18 +114,34 @@ pub fn StaticDevicePlan::catalog_version(
 }
 
 ///|
+pub fn StaticDevicePlan::numeric_schema_digest(
+  self : StaticDevicePlan,
+) -> @numeric_contract.ModelNumericSchemaDigest {
+  self.numeric_schema_digest
+}
+
+///|
+/// Returns the complete already-authenticated parameter and numeric-metadata
+/// placement. This is inert read-only planning evidence, not an allocation.
+pub fn StaticDevicePlan::weight_layout(
+  self : StaticDevicePlan,
+) -> @device_materialize.DeviceWeightLayout {
+  self.weight_layout
+}
+
+///|
 pub fn StaticDevicePlan::weight_arena_bytes(self : StaticDevicePlan) -> Int64 {
-  self.weight_arena_bytes
+  self.weight_layout.arena_bytes()
 }
 
 ///|
 pub fn StaticDevicePlan::weight_alignment(self : StaticDevicePlan) -> Int64 {
-  self.weight_alignment
+  self.weight_layout.alignment_bytes()
 }
 
 ///|
 pub fn StaticDevicePlan::weight_tensor_count(self : StaticDevicePlan) -> Int {
-  self.weight_tensor_count
+  self.weight_layout.length()
 }
 
 ///|

@@ -119,13 +119,26 @@ fn device_plan_test_bindings() -> @llama_weights.LlamaWeightBindings raise {
       max_materialized_tensor_bytes=4096L,
     ),
   )
-  @llama_weights.bind(device_plan_test_model(), metadata)
+  let model = device_plan_test_model()
+  let plan = @llama.build(model)
+  @llama_weights.bind(model, plan, metadata)
 }
 
 ///|
 fn device_plan_test_layout() -> @device_materialize.DeviceWeightLayout raise {
   @device_materialize.plan_layout(
     device_plan_test_bindings(),
+    alignment_bytes=64L,
+    max_arena_bytes=4096L,
+  )
+}
+
+///|
+fn device_plan_numeric_layout(
+  model_plan : @plan.ModelPlan,
+) -> @device_materialize.DeviceWeightLayout raise {
+  @device_materialize.plan_numeric_layout(
+    model_plan,
     alignment_bytes=64L,
     max_arena_bytes=4096L,
   )

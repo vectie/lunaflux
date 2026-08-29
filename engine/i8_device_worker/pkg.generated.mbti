@@ -1,0 +1,85 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/i8_device_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model_plan~ : @plan.ModelPlan, inspection~ : @numeric_weight_file.NumericWeightFileInspection, execution~ : @execution_manifest_file.I8PagedExecutionAdmissionV4, expected_total_memory_bytes~ : Int64) -> I8DeviceWorkerPlan raise I8DeviceWorkerError
+
+pub fn prepare(@worker_wire.WorkerStartupContract, @approved_fs.ApprovedRoot, I8DeviceWorkerPlan) -> I8DeviceWorkerPreparation raise I8DeviceWorkerError
+
+// Errors
+pub suberror I8DeviceWorkerError {
+  Invalid(I8DeviceWorkerRule)
+  Bootstrap(@device_step.DeviceBootstrapError)
+  Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
+  Device(@device.DeviceError)
+  NumericWeights(@numeric_weight_file.NumericWeightFileError)
+  ExecutionManifest(@execution_manifest_file.ExecutionManifestFileError)
+  Executor(@device_step.DeviceStepError)
+  CleanupContext(@device.DeviceError)
+  CleanupNumericWeights(@numeric_weight_file.NumericWeightFileError)
+  CleanupExecutionManifest(@execution_manifest_file.ExecutionManifestFileError)
+  CleanupExecutor(@device_step.DeviceStepError)
+  CompletionAbortFailed(primary~ : I8DeviceWorkerError, abort~ : @worker_wire.WorkerWireError)
+  InvalidLifecycle(I8DeviceWorkerLifecycle)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FailedI8DeviceWorkerPreparation {
+  // private fields
+}
+pub fn FailedI8DeviceWorkerPreparation::cause(Self) -> I8DeviceWorkerError
+pub fn FailedI8DeviceWorkerPreparation::cleanup_failure(Self) -> I8DeviceWorkerError
+pub fn FailedI8DeviceWorkerPreparation::is_closed(Self) -> Bool
+pub fn FailedI8DeviceWorkerPreparation::retry_close(Self) -> Unit raise I8DeviceWorkerError
+
+pub enum I8DeviceWorkerLifecycle {
+  WorkerReady
+  WorkerFaulted
+  WorkerClosingFailed
+  WorkerClosed
+} derive(Eq, @debug.Debug)
+
+pub struct I8DeviceWorkerOwner {
+  // private fields
+}
+pub fn I8DeviceWorkerOwner::close(Self) -> Unit raise I8DeviceWorkerError
+pub fn I8DeviceWorkerOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise I8DeviceWorkerError
+pub fn I8DeviceWorkerOwner::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise I8DeviceWorkerError
+pub fn I8DeviceWorkerOwner::lifecycle(Self) -> I8DeviceWorkerLifecycle
+pub fn I8DeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise I8DeviceWorkerError
+
+pub struct I8DeviceWorkerPlan {
+  // private fields
+}
+
+pub enum I8DeviceWorkerPreparation {
+  I8DeviceWorkerReady(I8DeviceWorkerOwner)
+  I8DeviceWorkerCleanupRequired(FailedI8DeviceWorkerPreparation)
+}
+
+pub enum I8DeviceWorkerRule {
+  StartupContract
+  ModelIdentity
+  NumericWeightEnvelope
+  DeviceOrdinal
+  DeviceTarget
+  DeviceNumericCapability
+  ResourceState
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

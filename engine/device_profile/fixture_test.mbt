@@ -117,7 +117,7 @@ fn profile_test_layout(
     ),
   )
   @device_materialize.plan_layout(
-    @llama_weights.bind(model, metadata),
+    @llama_weights.bind(model, @llama.build(model), metadata),
     alignment_bytes=64L,
     max_arena_bytes=4096L,
   )
@@ -209,6 +209,17 @@ fn profile_static_plan(
 }
 
 ///|
+fn profile_numeric_layout(
+  semantic : @plan.ModelPlan,
+) -> @device_materialize.DeviceWeightLayout raise {
+  @device_materialize.plan_numeric_layout(
+    semantic,
+    alignment_bytes=64L,
+    max_arena_bytes=4096L,
+  )
+}
+
+///|
 fn profile_memory_plan(
   static_plan? : @device_plan.StaticDevicePlan = try! profile_static_plan(),
 ) -> @device_memory.DeviceMemoryPlan raise {
@@ -237,7 +248,8 @@ fn profile_embedding_plan(
     workspace_bytes=0L,
   )
   @plan.ModelPlan::new_stateless(
-    identity=model.identity(),
+    content_digest=model.content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows~,
       max_sequence_tokens~,
@@ -258,5 +270,6 @@ fn profile_embedding_plan(
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[operation],
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([operation]),
   )
 }

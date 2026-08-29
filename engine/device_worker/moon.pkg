@@ -4,7 +4,12 @@ import {
   "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }

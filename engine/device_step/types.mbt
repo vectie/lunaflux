@@ -24,7 +24,8 @@ pub struct DeviceStepOwner {
   priv mut stage_epoch : UInt64
   priv mut has_accepted_predecessor : Bool
   priv mut accepted_predecessor_value : UInt64
-  priv mut staged_sequence_value : UInt64
+  priv mut staged_summary : DeviceStepSummary
+  priv mut staged_plan_owner : @worker_protocol.PlanBufferIdentity?
   priv mut staged_wire_owner : @worker_wire.PlanFrameOwnerIdentity?
   priv mut staged_wire_epoch : UInt64
 }
@@ -58,6 +59,18 @@ priv struct DeviceStepSummary {
   row_count : Int
   token_count : Int
   page_count : Int
+} derive(Eq)
+
+///|
+fn empty_device_step_summary() -> DeviceStepSummary {
+  {
+    sequence_value: 0UL,
+    prefill_count: 0,
+    decode_count: 0,
+    row_count: 0,
+    token_count: 0,
+    page_count: 0,
+  }
 }
 
 ///|

@@ -1,0 +1,109 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/fp8_device_executor"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/fp8_runtime_recipe",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn prepare_v2(@device.Context, @fp8_release_authority.Fp8ReleaseAuthorityV2, @numeric_weight_file.AuthenticatedNumericWeightAuthority, Fp8DeviceExecutorLimits) -> Fp8DeviceExecutorPreparation raise Fp8DeviceExecutorError
+
+// Errors
+pub(all) suberror Fp8DeviceExecutorError {
+  InvalidFp8DeviceExecutor(Fp8DeviceExecutorRule)
+  Fp8OperationRejected(operation~ : @plan.OperationId, rule~ : Fp8DeviceExecutorRule)
+  Fp8DeviceFailure(Fp8DeviceExecutorResource, @device.DeviceError)
+  Fp8WeightFailure(@numeric_weight_file.NumericWeightFileError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ExecutedFp8Operation {
+  // private fields
+}
+
+pub struct FailedFp8DeviceExecutorPreparation {
+  // private fields
+}
+pub fn FailedFp8DeviceExecutorPreparation::cause(Self) -> Fp8DeviceExecutorError
+pub fn FailedFp8DeviceExecutorPreparation::cleanup_failure(Self) -> Fp8DeviceExecutorError
+pub fn FailedFp8DeviceExecutorPreparation::is_closed(Self) -> Bool
+pub fn FailedFp8DeviceExecutorPreparation::retry_close(Self) -> Unit raise Fp8DeviceExecutorError
+
+pub struct Fp8DeviceExecutor {
+  // private fields
+}
+pub fn Fp8DeviceExecutor::close(Self) -> Unit raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::copy_activation_output(Self, ExecutedFp8Operation, @plan.ActivationRef, FixedArray[Byte], destination_offset? : Int64) -> Unit raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::execute(Self, @plan.OperationId) -> ExecutedFp8Operation raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::finish(Self, ExecutedFp8Operation) -> Unit raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::lifecycle(Self) -> Fp8DeviceExecutorLifecycle
+pub fn Fp8DeviceExecutor::operation_count(Self) -> Int
+pub fn Fp8DeviceExecutor::recipe_digest(Self) -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2Digest
+pub fn Fp8DeviceExecutor::write_activation_input(Self, @plan.ActivationRef, FixedArray[Byte], source_offset? : Int64) -> Unit raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::write_external_input(Self, @plan.ModelInputRef, FixedArray[Byte], source_offset? : Int64) -> Unit raise Fp8DeviceExecutorError
+pub fn Fp8DeviceExecutor::write_runtime_input(Self, @plan.OperationRuntimeInput, FixedArray[Byte], source_offset? : Int64) -> Unit raise Fp8DeviceExecutorError
+
+pub(all) enum Fp8DeviceExecutorLifecycle {
+  ExecutorReady
+  ExecutorExecuting
+  ExecutorExecuted
+  ExecutorPoisoned
+  ExecutorClosingFailed
+  ExecutorClosed
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8DeviceExecutorLimits {
+  // private fields
+}
+pub fn Fp8DeviceExecutorLimits::new(max_operations~ : Int, max_ephemeral_allocations~ : Int, max_ephemeral_bytes~ : Int64) -> Self raise Fp8DeviceExecutorError
+
+pub(all) enum Fp8DeviceExecutorPreparation {
+  Fp8ExecutorReady(Fp8DeviceExecutor)
+  Fp8ExecutorCleanupRequired(FailedFp8DeviceExecutorPreparation)
+}
+
+pub(all) enum Fp8DeviceExecutorResource {
+  WeightLease
+  Stream
+  Workspace
+  Ephemeral
+  Module
+  Function
+  Arguments
+  InputUpload
+  Launch
+  ScaleReadback
+  OutputReadback
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Fp8DeviceExecutorRule {
+  Limit
+  RecipeVersion
+  Target
+  NumericCapability
+  WeightAuthority
+  ReleaseCount
+  ReleaseOrder
+  ReleaseAuthority
+  ArtifactModule
+  ArtifactSymbol
+  LaunchDimensions
+  RawOperands
+  Workspace
+  EphemeralRegion
+  Operation
+  Output
+  ScaleEvidence
+  Owner
+  Epoch
+  ResourceState
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

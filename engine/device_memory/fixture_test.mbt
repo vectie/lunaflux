@@ -114,8 +114,10 @@ fn memory_test_layout() -> @device_materialize.DeviceWeightLayout raise {
       max_materialized_tensor_bytes=4096L,
     ),
   )
+  let model = memory_test_model()
+  let plan = @llama.build(model)
   @device_materialize.plan_layout(
-    @llama_weights.bind(memory_test_model(), metadata),
+    @llama_weights.bind(model, plan, metadata),
     alignment_bytes=64L,
     max_arena_bytes=4096L,
   )
@@ -162,31 +164,44 @@ fn memory_semantic_plan(
     ),
     memory_operation(
       2,
+      QkvProjection,
+      [
+        Activation(@plan.ActivationRef::new(1)),
+        Tensor(@plan.TensorRef::new(2)),
+        Tensor(@plan.TensorRef::new(3)),
+        Tensor(@plan.TensorRef::new(4)),
+      ],
+      ProjectionShape(input_width=4, output_width=8),
+      @plan.KernelCapabilityId::qkv_projection(),
+    ),
+    memory_operation(
+      3,
       OutputProjection,
-      [Activation(@plan.ActivationRef::new(1)), Tensor(@plan.TensorRef::new(5))],
+      [Activation(@plan.ActivationRef::new(2)), Tensor(@plan.TensorRef::new(5))],
       ProjectionShape(input_width=4, output_width=4),
       @plan.KernelCapabilityId::dense_projection(),
     ),
     memory_operation(
-      3,
+      4,
       ResidualAdd,
       [
         Activation(@plan.ActivationRef::new(0)),
-        Activation(@plan.ActivationRef::new(2)),
+        Activation(@plan.ActivationRef::new(3)),
       ],
       ElementwiseShape(width=4),
       @plan.KernelCapabilityId::residual_add(),
     ),
     memory_operation(
-      4,
+      5,
       RmsNorm,
-      [Activation(@plan.ActivationRef::new(3)), Tensor(@plan.TensorRef::new(6))],
+      [Activation(@plan.ActivationRef::new(4)), Tensor(@plan.TensorRef::new(6))],
       NormalizationShape(width=4, epsilon=0.000001),
       @plan.KernelCapabilityId::rms_norm(),
     ),
   ]
   @plan.ModelPlan::new_stateless(
-    identity=memory_test_model().identity(),
+    content_digest=memory_test_model().content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows~,
       max_sequence_tokens~,
@@ -206,7 +221,8 @@ fn memory_semantic_plan(
     ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=512L),
     operations~,
-    final_output=@plan.ActivationRef::new(4),
+    final_output=@plan.ActivationRef::new(5),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema(operations),
   )
 }
 
@@ -272,7 +288,11 @@ fn memory_static_plan(
   let semantic = memory_semantic_plan(max_batch_rows~, max_sequence_tokens~)
   @device_plan.build(
     semantic,
-    memory_test_layout(),
+    @device_materialize.plan_numeric_layout(
+      semantic,
+      alignment_bytes=64L,
+      max_arena_bytes=4096L,
+    ),
     memory_catalog_for(semantic, workspace_bytes~, workspace_alignment~),
   )
 }

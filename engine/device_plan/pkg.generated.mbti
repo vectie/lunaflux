@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
@@ -22,8 +23,10 @@ pub(all) suberror DevicePlanError {
   BindingCountMismatch
   BindingOrderMismatch(@plan.OperationId)
   BindingCapabilityMismatch(@plan.OperationId)
+  NumericBindingCountMismatch
+  NumericBindingOrderMismatch(@plan.OperationId)
+  InvalidKernelBinding(@plan.OperationId, KernelBindingRule)
   MissingWeightRegion(@plan.OperationId, @plan.TensorRef)
-  InvalidWeightRegion(@plan.OperationId, @plan.TensorRef, WeightRegionRule)
   WorkspaceMismatch(@plan.OperationId, WorkspaceRule)
   WorkspaceOverflow(@plan.OperationId)
   WorkspaceSummaryMismatch(WorkspaceRule)
@@ -32,7 +35,16 @@ pub(all) suberror DevicePlanError {
 // Types and methods
 pub(all) enum IdentitySource {
   WeightContent
+  WeightPlan
+  WeightNumericSchema
   KernelCatalog
+} derive(Eq, @debug.Debug)
+
+pub(all) enum KernelBindingRule {
+  SemanticVersion
+  NumericDigest
+  AotEntryPoint
+  LegacyNumericDigest
 } derive(Eq, @debug.Debug)
 
 pub(all) enum PlanBound {
@@ -42,26 +54,18 @@ pub(all) enum PlanBound {
 } derive(Eq, @debug.Debug)
 
 pub struct StaticDevicePlan {
-  identity : @spec.ModelIdentity
-  shape_constraints : @plan.ShapeConstraints
-  target : @catalog.DeviceTarget
-  catalog_version : @catalog.CatalogVersion
-  weight_arena_bytes : Int64
-  weight_alignment : Int64
-  weight_tensor_count : Int
-  workspace_bytes : Int64
-  workspace_alignment : Int64
-  operations : ReadOnlyArray[StaticOperation]
-  final_output : @plan.ActivationRef
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn StaticDevicePlan::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn StaticDevicePlan::final_output(Self) -> @plan.ActivationRef
 pub fn StaticDevicePlan::identity(Self) -> @spec.ModelIdentity
+pub fn StaticDevicePlan::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn StaticDevicePlan::operations(Self) -> ReadOnlyArray[StaticOperation]
 pub fn StaticDevicePlan::shape_constraints(Self) -> @plan.ShapeConstraints
 pub fn StaticDevicePlan::target(Self) -> @catalog.DeviceTarget
 pub fn StaticDevicePlan::weight_alignment(Self) -> Int64
 pub fn StaticDevicePlan::weight_arena_bytes(Self) -> Int64
+pub fn StaticDevicePlan::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
 pub fn StaticDevicePlan::weight_tensor_count(Self) -> Int
 pub fn StaticDevicePlan::workspace_alignment(Self) -> Int64
 pub fn StaticDevicePlan::workspace_bytes(Self) -> Int64
@@ -73,17 +77,13 @@ pub(all) enum StaticInput {
 } derive(Eq, @debug.Debug)
 
 pub struct StaticOperation {
-  id : @plan.OperationId
-  kind : @plan.OperationKind
-  shape : @plan.OperationShape
-  inputs : ReadOnlyArray[StaticInput]
-  outputs : ReadOnlyArray[@plan.ActivationRef]
-  binding : @catalog.KernelBinding
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn StaticOperation::binding(Self) -> @catalog.KernelBinding
 pub fn StaticOperation::id(Self) -> @plan.OperationId
 pub fn StaticOperation::inputs(Self) -> ReadOnlyArray[StaticInput]
 pub fn StaticOperation::kind(Self) -> @plan.OperationKind
+pub fn StaticOperation::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn StaticOperation::outputs(Self) -> ReadOnlyArray[@plan.ActivationRef]
 pub fn StaticOperation::shape(Self) -> @plan.OperationShape
 
@@ -92,6 +92,8 @@ pub(all) enum WeightArenaRule {
   InvalidAlignment
   EmptyRegionSet
   RegionCount
+  MaterializedSizeMismatch
+  TerminalExtentMismatch
 } derive(Eq, @debug.Debug)
 
 pub(all) enum WeightRegionRule {
@@ -99,6 +101,7 @@ pub(all) enum WeightRegionRule {
   NegativeOffset
   NonPositiveLength
   MisalignedOffset
+  NonCanonicalOffset
   EndOverflow
   OutsideArena
   OverlappingPrevious

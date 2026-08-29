@@ -44,6 +44,13 @@ pub(all) enum PagedKvBlueprintRule {
   PersistentKvRegion
   ArtifactEntryPoint
   ArtifactModule
+  NumericSchema
+  NumericPolicy
+  DeviceNumericCapability
+  OperationNumericDigest
+  ScaleRegion
+  MixedFp8Execution
+  GraphMemory
 } derive(Debug, Eq)
 
 ///|
@@ -78,6 +85,41 @@ pub(all) enum PagedGraphResource {
   Module
   Function
   KernelArguments
+  OrderedExecutor
+  FusedDispatchCanary
+  SamplingResult
+} derive(Debug, Eq)
+
+///|
+pub(all) enum FusedGroupedOperationRule {
+  Catalog
+  Target
+  Family
+  Generation
+  OperationOrder
+  StandaloneFallback
+  KernelAbi
+  Launch
+  GraphCapture
+  Resource
+  ReadOnlyCatalog
+  PagedKvWriteQualification
+  ModelIdentity
+  Profile
+  KvLayout
+  Activation
+  Toolchain
+  Driver
+  RuntimeDevice
+  StreamOrder
+  DispatchAuthority
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror FusedGroupedOperationError {
+  InvalidFusedGroupedOperation(FusedGroupedOperationRule)
+  MismatchedFusedGroupedOperation(FusedGroupedOperationRule)
+  QkvRequiresReadOnlyAttentionSplit
 } derive(Debug, Eq)
 
 ///|
@@ -92,6 +134,11 @@ pub(all) enum PagedGraphExecutorRule {
   ArtifactModule
   LaunchDimensions
   SamplingOutput
+  SamplingMode
+  SamplingArtifact
+  Fp8FrameEnvelope
+  Fp8FrameAdmission
+  Fp8ScaleEvidence
   ResourceState
 } derive(Debug, Eq)
 
@@ -105,6 +152,16 @@ pub(all) enum PagedGraphLifecycle {
   GraphPoisoned
   GraphClosingFailed
   GraphClosed
+} derive(Debug, Eq)
+
+///|
+/// Startup-only selection for an already admitted immutable launch sequence.
+/// The fallback variant is the sole policy that permits capture unavailability
+/// to select the ordered eager base.
+pub(all) enum PagedGraphExecutionPolicy {
+  PagedOrderedEagerOnly
+  PagedCapturedRequired
+  PagedCapturedWithEagerFallback
 } derive(Debug, Eq)
 
 ///|
@@ -123,6 +180,7 @@ pub(all) suberror DeviceStepError {
   StaleStage
   StageOwnerMismatch
   StageEpochOverflow
+  DescriptorArgumentMismatch(DeviceStepStage)
   AllocationSizeMismatch(DeviceStepStage)
   InvalidExecutor(PagedGraphExecutorRule)
   InvalidExecutorOperation(@plan.OperationId, PagedGraphExecutorRule)
@@ -135,6 +193,7 @@ pub(all) suberror DeviceStepError {
   ExecutorSampling(@sampling.SamplingError)
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
+  NumericWeightClose
   Protocol(@worker_protocol.WorkerProtocolError)
   Wire(@worker_wire.WorkerWireError)
   Device(DeviceStepStage, @device.DeviceError)

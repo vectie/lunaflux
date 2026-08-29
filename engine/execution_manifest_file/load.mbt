@@ -1,5 +1,5 @@
 ///|
-/// Loads and admits one exact canonical v1 paged execution manifest.
+/// Loads and admits one exact canonical v2 ordinary or v3 specialized manifest.
 ///
 /// The caller retains the pinned root. The independently typed digest binds
 /// the immutable snapshot before parsing. Model semantics, memory placement,
@@ -15,10 +15,12 @@ pub fn load_paged(
   target : @catalog.DeviceTarget,
   device_step_limits : @device_step.DeviceStepLimits,
   limits : ExecutionManifestFileLimits,
+  luna_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
 ) -> PagedExecutionAdmission raise ExecutionManifestFileError {
   let shape = model_plan.shape_constraints()
-  if shape.max_batch_rows() != 1 ||
-    device_step_limits.max_rows() != 1 ||
+  if shape.max_batch_rows() != device_step_limits.max_rows() ||
     model_plan.kv_execution() != PagedKeyValue ||
     weight_layout.identity().content() != model_plan.identity().content() ||
     kv_layout.identity() != model_plan.identity() ||
@@ -53,6 +55,26 @@ pub fn load_paged(
     approved_root, locator, expected_digest, limits,
   )
   let claims = parse_manifest(bytes, model_plan, target, limits)
+  // Locator admission is pure and must reject ambient paths before any
+  // evidence artifact can be opened, even when the independent startup
+  // verifier is absent or hostile.
+  let luna_locators = validate_luna_evidence_locators(
+    claims.luna_authorization,
+    claims.modules,
+  )
+  match
+    (
+      claims.luna_authorization,
+      luna_approval,
+      luna_verifier,
+      luna_parent_witness,
+    ) {
+    (None, None, None, None)
+    | (Some(_), Some(_), Some(_), None)
+    | (Some(_), Some(_), None, Some(_)) => ()
+    _ => raise AdmissionRejected(LunaExternalApproval)
+  }
+  preflight_luna_approval_binding(claims.luna_authorization, luna_approval)
   let resolved = derive_catalog(claims, model_plan, kv_layout, target)
   let static_plan = @device_plan.build(model_plan, weight_layout, resolved) catch {
     _ => raise AdmissionRejected(StaticPlan)
@@ -82,6 +104,21 @@ pub fn load_paged(
   ) catch {
     _ => raise AdmissionRejected(ArtifactFiles)
   }
+  let luna_authorization = admit_luna_authorization(
+    approved_root,
+    claims.luna_authorization,
+    luna_locators,
+    luna_approval,
+    luna_verifier,
+    luna_parent_witness,
+    model_plan,
+    static_plan,
+    memory_plan,
+    resolved,
+    artifacts,
+    contracts,
+    limits,
+  )
   let blueprint = @device_step.admit_paged_graph_execution_blueprint(
     model_plan,
     device_step_limits,
@@ -91,6 +128,7 @@ pub fn load_paged(
     claims.profile_id,
     contracts,
     artifacts,
+    luna_authorization~,
   ) catch {
     _ => raise AdmissionRejected(Blueprint)
   }
@@ -104,6 +142,7 @@ pub fn load_paged(
     profile_id: claims.profile_id,
     contracts,
     artifacts,
+    luna_authorization,
     blueprint,
   }
 }

@@ -98,6 +98,170 @@ fn bootstrap_fixture(
 }
 
 ///|
+fn bootstrap_i8_digest_fixture() -> (
+  @plan.ModelPlan,
+  @device.DeviceNumericCapability,
+  @i8_admission.I8InertKernelCapabilityAdmissionDigest,
+  @catalog.DeviceTarget,
+) raise {
+  let base = blueprint_model_plan(blueprint_metadata())
+  let selected = [@plan.OperationId::new(2)]
+  let numeric_schema = @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+    base.operations(),
+    selected,
+  )
+  let plan = @plan.ModelPlan::new_with_kv_execution(
+    content_digest=base.identity().content(),
+    limits=@plan.ModelPlanLimits::production(),
+    shape_constraints=base.shape_constraints(),
+    kv_cache_geometry=base.kv_cache_geometry(),
+    workspace_bounds=base.workspace_bounds(),
+    operations=base.operations(),
+    final_output=base.final_output(),
+    kv_execution=base.kv_execution(),
+    numeric_schema~,
+  )
+  let target = @catalog.DeviceTarget::new(
+    compute_major=8,
+    compute_minor=9,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let layout = blueprint_layout(plan)
+  let digest = @catalog.AotArtifactDigest::from_sha256(
+    "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+  )
+  let entries : Array[@catalog.CatalogEntry] = []
+  for index, operation in plan.operations() {
+    let kv_layout = if operation.persistent_state() is KvCacheReadWrite(_) {
+      Some(
+        @catalog.PagedKvLayoutContract::new(
+          layout=layout.geometry().layout(),
+          stable_version=layout.stable_layout_version(),
+          tokens_per_page=layout.tokens_per_page(),
+        ),
+      )
+    } else {
+      None
+    }
+    entries.push(
+      @catalog.CatalogEntry::new_paged_v4(
+        operation_kind=operation.kind(),
+        operation_shape=operation.shape(),
+        capability=operation.required_capability(),
+        execution_semantics=@catalog.KernelExecutionSemantics::paged_v3(
+          kv_layer=operation.kv_layer(),
+          runtime_inputs=operation.runtime_inputs(),
+          persistent_state=operation.persistent_state(),
+          kv_layout~,
+        ),
+        operation_execution_digest=plan.numeric_binding().operations()[index]
+          .execution()
+          .digest(),
+        aot_entry_point=@catalog.AotKernelEntryPoint::new(
+          family=@catalog.AotKernelFamily::new(
+            module_digest=digest,
+            family_id=@catalog.AotKernelFamilyId::from_stable_int(index + 1),
+          ),
+          entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(
+            index + 1,
+          ),
+        ),
+        compute_major=8,
+        compute_minor=9,
+        implementation=ContentAddressedAot(
+          @catalog.AotKernelFamily::new(
+            module_digest=digest,
+            family_id=@catalog.AotKernelFamilyId::from_stable_int(index + 1),
+          ),
+        ),
+        workspace_bytes=operation.workspace_bytes(),
+        workspace_alignment=if operation.workspace_bytes() > 0L {
+          16L
+        } else {
+          1L
+        },
+      ),
+    )
+  }
+  let resolved = @catalog.KernelCatalog::new(
+    version=@catalog.CatalogVersion::v4(),
+    entries~,
+  ).resolve_paged_v4(plan, layout, target)
+  let observed = @device.DeviceCapability::from_observed_facts(
+    compute_major=8,
+    compute_minor=9,
+    total_memory_bytes=8L * 1024L * 1024L * 1024L,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let device_numeric = @device.admit_symmetric_i8_weight_only_per_output_channel_v1(
+    observed,
+  )
+  let admission = @i8_admission.admit_catalog_only_symmetric_i8_weight_only_v1(
+    plan,
+    device_numeric,
+    resolved,
+    @i8_admission.I8InertKernelCapabilityAdmissionLimits::new(
+      max_operations=16,
+      max_weights=32,
+      max_canonical_bytes=16384,
+    ),
+  )
+  (plan, device_numeric, admission.digest(), target)
+}
+
+///|
+test "I8 bootstrap-v3 startup method binds exact digest and runtime envelope" {
+  let (plan, device_numeric, i8_digest, target) = bootstrap_i8_digest_fixture()
+  let manifest : I8DeviceWorkerBootstrapManifestV3 = {
+    digest: @worker_wire.WorkerBootstrapDigest::from_sha256(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ),
+    identity: plan.identity(),
+    numeric_schema_digest: plan.numeric_binding().digest(),
+    i8_admission_digest: i8_digest,
+    device_numeric_digest: device_numeric.digest(),
+    device_ordinal: 0,
+    target,
+    catalog_version: @catalog.CatalogVersion::v4(),
+    limits: blueprint_limits(),
+    module_count: 1,
+    entry_point_count: plan.operations().length(),
+    step_count: plan.operations().length(),
+  }
+  let source = @worker_wire.WorkerBootstrapSourceDigest::from_sha256(
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  )
+  let startup = manifest.worker_startup_contract(
+    @worker_protocol.ModelPlanGeneration::first(),
+    bootstrap_source_digest=source,
+    bootstrap_worker_limits(),
+    bootstrap_inference_limits(),
+    has_predecessor=false,
+    predecessor_value=0UL,
+  )
+  assert_eq(startup.identity(), manifest.identity())
+  assert_eq(startup.bootstrap_digest(), manifest.digest())
+  assert_eq(startup.bootstrap_source_digest(), source)
+  try
+    manifest.worker_startup_contract(
+      @worker_protocol.ModelPlanGeneration::first(),
+      bootstrap_source_digest=source,
+      bootstrap_worker_limits(max_sequence_tokens=9),
+      bootstrap_inference_limits(),
+      has_predecessor=false,
+      predecessor_value=0UL,
+    )
+  catch {
+    InvalidBootstrap(RuntimeEnvelope) => ()
+    _ => fail("unexpected I8 startup-envelope rejection")
+  } noraise {
+    _ => fail("oversized I8 worker envelope was admitted")
+  }
+}
+
+///|
 test "device worker bootstrap digest is canonical and complete" {
   let (blueprint, artifacts) = bootstrap_fixture()
   let first = admit_device_worker_bootstrap(
@@ -125,7 +289,7 @@ test "device worker bootstrap digest is canonical and complete" {
   assert_eq(first.step_count(), blueprint.steps().length())
   assert_eq(
     first.digest().as_hex(),
-    "a55eaf90b9e52e5de7b21d72fd48b1740400d51c7c9575daad5d923ba6aa2a2c",
+    "effcae2b75f86baa65d35e88a5b4b73cfa06600f21c7c87a742a805d3e8479d8",
   )
   let startup = first.worker_startup_contract(
     @worker_protocol.ModelPlanGeneration::first(),

@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+supported_targets = "native"

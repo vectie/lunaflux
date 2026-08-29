@@ -1,10 +1,10 @@
 ///|
 fn device_plan_one_operation(
-  identity : @spec.ModelIdentity,
-  tensor_reference? : Int = 0,
+  content : @spec.ContentDigest,
 ) -> @plan.ModelPlan raise {
   @plan.ModelPlan::new_stateless(
-    identity~,
+    content_digest=content,
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=device_plan_base_constraints(),
     kv_cache_geometry=@plan.KvCacheGeometry::new(
       layer_count=1,
@@ -14,8 +14,11 @@ fn device_plan_one_operation(
       layout=LayerMajorSplitKeyValueV1,
     ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
-    operations=[device_plan_embedding(tensor_reference)],
+    operations=[device_plan_embedding(0)],
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      device_plan_embedding(0),
+    ]),
   )
 }
 
@@ -51,7 +54,8 @@ fn device_plan_two_operations(
     workspace_bytes=second_workspace,
   )
   @plan.ModelPlan::new_stateless(
-    identity=device_plan_test_model().identity(),
+    content_digest=device_plan_test_model().content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=device_plan_base_constraints(),
     kv_cache_geometry=@plan.KvCacheGeometry::new(
       layer_count=1,
@@ -63,6 +67,10 @@ fn device_plan_two_operations(
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations=[device_plan_embedding(0), second],
     final_output=@plan.ActivationRef::new(1),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      device_plan_embedding(0),
+      second,
+    ]),
   )
 }
 
@@ -103,27 +111,46 @@ test "identity mismatches fail before operation planning" {
 ///|
 test "weight content is reusable across exact execution-plan identities" {
   let model = device_plan_test_model()
-  let paged_identity = @spec.ModelIdentity::new(
-    model.identity().content(),
-    @spec.PlanDigest::from_sha256(
-      "1111111111111111111111111111111111111111111111111111111111111111",
-    ),
-  )
-  let semantic = device_plan_one_operation(paged_identity)
+  let semantic = device_plan_one_operation(model.content_digest())
   let planned = @device_plan.build(
     semantic,
-    device_plan_test_layout(),
+    device_plan_numeric_layout(semantic),
     device_plan_catalog_for(semantic),
   )
-  assert_eq(planned.identity(), paged_identity)
-  assert_eq(planned.weight_tensor_count(), 12)
+  assert_eq(planned.identity(), semantic.identity())
+  assert_eq(planned.weight_tensor_count(), semantic.tensor_count())
 }
 
 ///|
 test "missing semantic tensor region fails closed" {
-  let semantic = device_plan_one_operation(
-    device_plan_test_model().identity(),
-    tensor_reference=12,
+  let base = @llama.build(device_plan_test_model())
+  let operations : Array[@plan.PlanOperation] = []
+  for operation in base.operations() {
+    operations.push(operation)
+  }
+  let extra_id = @plan.OperationId::new(operations.length())
+  let extra_output = @plan.ActivationRef::new(operations.length())
+  operations.push(
+    @plan.PlanOperation::new_stateless(
+      id=extra_id,
+      kind=LanguageModelHead,
+      inputs=[Activation(base.final_output()), Tensor(@plan.TensorRef::new(12))],
+      outputs=[extra_output],
+      shape=ProjectionShape(input_width=4, output_width=8),
+      required_capability=@plan.KernelCapabilityId::dense_projection(),
+      workspace_bytes=0L,
+    ),
+  )
+  let semantic = @plan.ModelPlan::new_with_kv_execution(
+    content_digest=base.identity().content(),
+    limits=@plan.ModelPlanLimits::production(),
+    shape_constraints=base.shape_constraints(),
+    kv_cache_geometry=base.kv_cache_geometry(),
+    workspace_bounds=base.workspace_bounds(),
+    operations~,
+    final_output=extra_output,
+    kv_execution=base.kv_execution(),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema(operations),
   )
   try
     @device_plan.build(
@@ -132,10 +159,7 @@ test "missing semantic tensor region fails closed" {
       device_plan_catalog_for(semantic),
     )
   catch {
-    @device_plan.DevicePlanError::MissingWeightRegion(operation, tensor) => {
-      assert_eq(operation.as_int(), 0)
-      assert_eq(tensor.as_int(), 12)
-    }
+    @device_plan.DevicePlanError::InvalidWeightArena(RegionCount) => ()
     _ => fail("unexpected region error")
   } noraise {
     _ => fail("expected missing region")
@@ -143,40 +167,25 @@ test "missing semantic tensor region fails closed" {
 }
 
 ///|
-test "weight regions must match exact semantic BF16 byte sizes" {
-  let semantic = device_plan_one_operation(
-    device_plan_test_model().identity(),
-    tensor_reference=1,
+test "weight regions accept exact numeric-schema byte sizes" {
+  let semantic = device_plan_two_operations(OutputProjection)
+  let layout = device_plan_numeric_layout(semantic)
+  let planned = try! @device_plan.build(
+    semantic,
+    layout,
+    device_plan_catalog_for(semantic),
   )
-  try
-    @device_plan.build(
-      semantic,
-      device_plan_test_layout(),
-      device_plan_catalog_for(semantic),
-    )
-  catch {
-    @device_plan.DevicePlanError::InvalidWeightRegion(
-      operation,
-      tensor,
-      ByteLengthMismatch
-    ) => {
-      assert_eq(operation.as_int(), 0)
-      assert_eq(tensor.as_int(), 1)
-    }
-    _ => fail("unexpected semantic weight-size error")
-  } noraise {
-    _ => fail("expected semantic weight-size rejection")
-  }
+  assert_eq(planned.weight_layout(), layout)
 }
 
 ///|
 test "binding count order and capability are revalidated" {
-  let one = device_plan_one_operation(device_plan_test_model().identity())
+  let one = device_plan_one_operation(device_plan_test_model().content_digest())
   let two = device_plan_two_operations(RmsNorm)
   try
     @device_plan.build(
       two,
-      device_plan_test_layout(),
+      device_plan_numeric_layout(two),
       device_plan_catalog_for(one),
     )
   catch {
@@ -189,7 +198,7 @@ test "binding count order and capability are revalidated" {
   try
     @device_plan.build(
       different,
-      device_plan_test_layout(),
+      device_plan_numeric_layout(different),
       device_plan_catalog_for(two),
     )
   catch {
@@ -208,7 +217,7 @@ test "kernel workspace must satisfy the current semantic operation" {
   try
     @device_plan.build(
       larger,
-      device_plan_test_layout(),
+      device_plan_numeric_layout(larger),
       device_plan_catalog_for(smaller, workspace_bytes=16L),
     )
   catch {

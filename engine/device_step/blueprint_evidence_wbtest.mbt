@@ -59,7 +59,7 @@ fn blueprint_resolved_catalog(
 
 ///|
 fn blueprint_memory_plan(
-  metadata : @spec.LlamaModelMetadata,
+  _metadata : @spec.LlamaModelMetadata,
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
@@ -72,7 +72,7 @@ fn blueprint_memory_plan(
   }
   let static_plan = @device_plan.build(
     plan,
-    blueprint_weight_layout(metadata),
+    blueprint_weight_layout(plan),
     blueprint_resolved_catalog(plan, layout, target, rotary_workspace~),
   )
   @device_memory.plan(
@@ -283,7 +283,7 @@ fn blueprint_limits(max_tokens? : Int = 4) -> DeviceStepLimits raise {
 
 ///|
 fn blueprint_v1_artifacts(
-  identity : @spec.ModelIdentity,
+  content : @spec.ContentDigest,
   target : @catalog.DeviceTarget,
 ) -> @artifact.KernelArtifactBundle raise {
   let operation = @plan.PlanOperation::new_stateless(
@@ -296,7 +296,8 @@ fn blueprint_v1_artifacts(
     workspace_bytes=0L,
   )
   let model = @plan.ModelPlan::new_stateless(
-    identity~,
+    content_digest=content,
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=1,
@@ -317,6 +318,7 @@ fn blueprint_v1_artifacts(
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[operation],
     final_output=@plan.ActivationRef::new(0),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([operation]),
   )
   let digest = @catalog.AotArtifactDigest::from_sha256(
     "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",

@@ -125,7 +125,9 @@ fn test_weights(
     payload_bytes=payload.length().to_int64(),
     limits=header_limits,
   )
-  let bindings = @llama_weights.bind(test_model(), metadata)
+  let model = test_model()
+  let plan = @llama.build(model)
+  let bindings = @llama_weights.bind(model, plan, metadata)
   let file : Array[Byte] = [header_bytes.to_byte(), 0, 0, 0, 0, 0, 0, 0]
   file.push(b'{')
   file.push(b'}')

@@ -5,14 +5,18 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/config/cache",
   "vectie/lunaflux/config/scheduler",
+  "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/prefix/radix",
 }
 
 // Values
 pub fn resolve(@scheduler.SchedulerConfig, @cache.CacheConfig, @plan.ShapeConstraints, @worker_protocol.WorkerProtocolLimits) -> ResolvedRuntimeCapacity raise RuntimeCapacityError
+
+pub fn resolve_graph_memory(@device_step.PagedKvExecutionBlueprint, Int64?, weight_reserved_bytes~ : Int64, activation_workspace_reserved_bytes~ : Int64, kv_reserved_bytes~ : Int64) -> ResolvedGraphMemoryCapacity raise RuntimeCapacityError
 
 // Errors
 pub(all) suberror RuntimeCapacityError {
@@ -20,6 +24,16 @@ pub(all) suberror RuntimeCapacityError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct ResolvedGraphMemoryCapacity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ResolvedGraphMemoryCapacity::arena_reserved_total_bytes(Self) -> Int64
+pub fn ResolvedGraphMemoryCapacity::availability(Self) -> RuntimeGraphMemoryAvailability
+pub fn ResolvedGraphMemoryCapacity::declared_alignment_bytes(Self) -> Int64?
+pub fn ResolvedGraphMemoryCapacity::declared_upper_bound_bytes(Self) -> Int64?
+pub fn ResolvedGraphMemoryCapacity::descriptor_ceiling_bytes(Self) -> Int64?
+pub fn ResolvedGraphMemoryCapacity::device_startup_upper_bound_bytes(Self) -> Int64?
+
 pub struct ResolvedRuntimeCapacity {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -31,12 +45,17 @@ pub fn ResolvedRuntimeCapacity::emergency_decode_page_reserve(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_active_requests(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_rows_per_step(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_waiting_requests(Self) -> Int
+pub fn ResolvedRuntimeCapacity::maximum_generated_tokens_per_request(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_batch_rows(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_sequence_tokens(Self) -> Int
 pub fn ResolvedRuntimeCapacity::output_event_capacity(Self) -> Int
 pub fn ResolvedRuntimeCapacity::page_allocator_limits(Self) -> @page_allocator.PageAllocatorLimits
 pub fn ResolvedRuntimeCapacity::plan_buffer_count(Self) -> Int
 pub fn ResolvedRuntimeCapacity::prefill_chunk_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::prefix_enabled(Self) -> Bool
+pub fn ResolvedRuntimeCapacity::prefix_index_limits(Self) -> @radix.PrefixIndexLimits?
+pub fn ResolvedRuntimeCapacity::prefix_layout(Self) -> @radix.PrefixLayout
+pub fn ResolvedRuntimeCapacity::required_recompute_history_cells(Self) -> Int
 pub fn ResolvedRuntimeCapacity::required_worker_page_table_cells(Self) -> Int
 pub fn ResolvedRuntimeCapacity::step_token_budget(Self) -> Int
 pub fn ResolvedRuntimeCapacity::tokens_per_page(Self) -> Int
@@ -65,6 +84,7 @@ pub(all) enum RuntimeCapacityReason {
   CombinedConfiguredCapacity
   MinimumOfActiveAndTokenBudget
   RowsTimesContextPages
+  RequestSlotsTimesMaximumGeneratedTokens
   FixedDoubleBuffer
   OwnerMaximumGenerationDefault
 } derive(Eq, @debug.Debug)
@@ -80,11 +100,16 @@ pub(all) enum RuntimeCapacityRule {
   WorkerCompletionSlots
   WorkerSequenceTokens
   WorkerPlanPages
+  RecomputeHistoryCapacity
   WorkerTokenIdRange
   OutputEventCapacity
   ModelBatchRows
   PageAllocatorLimits
   BlockTableLimits
+  PrefixIndexLimits
+  GraphMemoryEvidence
+  GraphMemoryCeiling
+  DeviceMemoryUpperBound
 } derive(Eq, @debug.Debug)
 
 pub(all) enum RuntimeCapacitySubject {
@@ -92,9 +117,16 @@ pub(all) enum RuntimeCapacitySubject {
   TotalRequestSlots
   MaxRowsPerStep
   WorkerPageTableCells
+  RecomputeHistoryCells
   PlanBufferCount
   PageGenerationLimit
   BlockTableGenerationLimit
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeGraphMemoryAvailability {
+  GraphAccountingAbsent
+  GraphAccountingUnsupported
+  GraphAccountingBounded
 } derive(Eq, @debug.Debug)
 
 // Type aliases

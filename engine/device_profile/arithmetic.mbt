@@ -72,9 +72,9 @@ fn checked_token_bytes(rows : Int64) -> Int64 raise DeviceProfileError {
 ///|
 fn checked_region_id(value : Int64) -> ProfileRegionId raise DeviceProfileError {
   if value < 0L || value > MAX_PROFILE_REGION_ID {
-    raise InvalidRegion(ProfileRegionId(0), IdentifierOverflow)
+    raise InvalidRegion({ value: 0 }, IdentifierOverflow)
   }
-  ProfileRegionId(value.to_int())
+  { value: value.to_int() }
 }
 
 ///|
@@ -86,9 +86,9 @@ fn checked_region_id_add(
     right < 0L ||
     right > MAX_PROFILE_REGION_ID ||
     left > MAX_PROFILE_REGION_ID - right {
-    raise InvalidRegion(ProfileRegionId(0), IdentifierOverflow)
+    raise InvalidRegion({ value: 0 }, IdentifierOverflow)
   }
-  ProfileRegionId((left + right).to_int())
+  { value: (left + right).to_int() }
 }
 
 ///|

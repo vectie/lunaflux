@@ -11,6 +11,9 @@ pub(all) enum DeviceWorkerBootstrapRule {
   PageEnvelope
   RecipeLimit
   ReadinessContract
+  NumericCapability
+  NumericWeightArtifact
+  ReleaseIdentity
 } derive(Debug, Eq)
 
 ///|
@@ -33,15 +36,22 @@ pub(all) suberror DeviceWorkerBootstrapError {
   Invalid(DeviceWorkerBootstrapRule)
   Root(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
   Config(@config_file.ModelConfigFileError)
+  MistralConfig(@config_reader.ModelConfigReaderError)
   Plan(@plan.PlanValidationError)
   Weights(@device_materialize.DeviceWeightError)
+  MistralWeights(@mistral_weights.MistralWeightsError)
   KvLayout(@device_layout.DeviceKvLayoutError)
   DeviceTarget(@catalog.CatalogError)
   DeviceStep(@device_step.DeviceStepError)
   ExecutionManifest(@execution_manifest_file.ExecutionManifestFileError)
   Worker(@device_worker.DeviceWorkerError)
+  I8Worker(@i8_device_worker.I8DeviceWorkerError)
+  Fp8Worker(@fp8_device_worker_v3.Fp8DeviceWorkerV3Error)
+  FusedArtifact(@luna_fused_artifact_admission.FusedArtifactAdmissionError)
   CleanupRoot(role~ : BootstrapRootRole, issue~ : BootstrapRootIssue)
   CleanupWorker(@device_worker.DeviceWorkerError)
+  CleanupI8Worker(@i8_device_worker.I8DeviceWorkerError)
+  CleanupFp8Worker(@fp8_device_worker_v3.Fp8DeviceWorkerV3Error)
 } derive(Debug, Eq)
 
 ///|
@@ -58,15 +68,26 @@ priv enum BootstrapRootAcquisition {
 
 ///|
 priv enum BootstrapWorkerAuthority {
-  Ready(@device_worker.DeviceWorkerOwner)
-  Failed(@device_worker.FailedDeviceWorkerPreparation)
+  LegacyReady(@device_worker.DeviceWorkerOwner)
+  LegacyFailed(@device_worker.FailedDeviceWorkerPreparation)
+  I8Ready(@i8_device_worker.I8DeviceWorkerOwner)
+  I8Failed(@i8_device_worker.FailedI8DeviceWorkerPreparation)
+  Fp8Ready(@fp8_device_worker_v3.Fp8DeviceWorkerOwnerV3)
+  Fp8Failed(@fp8_device_worker_v3.FailedFp8DeviceWorkerPreparationV3)
+}
+
+///|
+priv enum BootstrapReadyWorker {
+  Legacy(@device_worker.DeviceWorkerOwner)
+  I8(@i8_device_worker.I8DeviceWorkerOwner)
+  Fp8(@fp8_device_worker_v3.Fp8DeviceWorkerOwnerV3)
 }
 
 ///|
 /// Opaque ready owner. No root, locator, file inspection, execution plan, or
 /// native/device resource is exposed.
 pub struct DeviceWorkerBootstrapOwner {
-  priv worker : @device_worker.DeviceWorkerOwner
+  priv worker : BootstrapReadyWorker
 }
 
 ///|

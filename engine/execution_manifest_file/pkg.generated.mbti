@@ -3,21 +3,45 @@ package "vectie/lunaflux/engine/execution_manifest_file"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",
   "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/fp8_runtime_recipe",
+  "vectie/lunaflux/engine/fp8_startup_admission",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_execution_plan",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/artifact_file",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/kernels/i8_inert_capability_admission",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/numeric_capability_manifest",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_weight_file",
   "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/tensor_parallel_plan",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn load_paged(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @device_materialize.DeviceWeightLayout, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @device_step.DeviceStepLimits, ExecutionManifestFileLimits) -> PagedExecutionAdmission raise ExecutionManifestFileError
+pub fn load_paged(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @device_materialize.DeviceWeightLayout, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @device_step.DeviceStepLimits, ExecutionManifestFileLimits, luna_approval? : @worker_wire.WorkerBootstrapLunaApproval?, luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff?, luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness?) -> PagedExecutionAdmission raise ExecutionManifestFileError
+
+pub fn load_paged_fp8_v5(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @numeric_weight_file.NumericWeightFileInspection, @device_layout.DeviceKvLayout, @device.DeviceNumericCapability, @catalog.DeviceTarget, @device_step.DeviceStepLimits, ExecutionManifestFileLimits, @numeric_capability_manifest.Fp8KernelManifestLimits, @fp8_startup_admission.Fp8StartupAdmissionLimits, @fp8_runtime_recipe.Fp8RuntimeRecipeV2Limits, @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Limits, @worker_wire.WorkerBootstrapLunaApproval, @fp8_release_authority.Fp8ReleaseAuthorityLimits, verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff?, parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness?) -> Fp8PagedExecutionAdmissionV5 raise ExecutionManifestFileError
+
+pub fn load_paged_i8_v4(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @device_materialize.DeviceWeightLayout, @device_layout.DeviceKvLayout, @device.DeviceNumericCapability, @catalog.DeviceTarget, @device_step.DeviceStepLimits, device_ordinal~ : Int, ExecutionManifestFileLimits, @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits, @device_step.DeviceBootstrapLimits) -> I8PagedExecutionAdmissionV4 raise ExecutionManifestFileError
+
+pub fn load_tensor_parallel(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRelativeLocator, ExecutionManifestDigest, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_plan.TensorParallelRankPlan, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @device_layout.DeviceKvLayout, @tensor_parallel_kv_plan.TensorParallelKvRankBinding, @catalog.DeviceTarget, @device_step.DeviceStepLimits, ExecutionManifestFileLimits, @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits, @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, external_approval? : @worker_wire.WorkerBootstrapLunaApproval?) -> TensorParallelExecutionAdmission raise ExecutionManifestFileError
+
+pub fn prepare_paged_i8_v4_executor(@device.Context, I8PagedExecutorTransferV4, @worker_protocol.ModelPlanGeneration, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> @device_step.PagedGraphPreparation raise ExecutionManifestFileError
 
 // Errors
 pub(all) suberror ExecutionManifestFileError {
@@ -51,7 +75,22 @@ pub(all) enum ExecutionManifestAdmissionStage {
   LaunchContracts
   ArtifactSource
   ArtifactFiles
+  TensorParallelSpecialization
+  TensorParallelLaunchContracts
+  TensorParallelExecutionPlan
+  LunaSpecialization
+  LunaExecutionProfile
+  LunaCapability
+  LunaExternalApproval
+  LunaArtifactAuthorization
   Blueprint
+  I8ProductionPolicy
+  I8BootstrapV3
+  Fp8NumericLayout
+  Fp8KernelManifest
+  Fp8StartupV2
+  Fp8RuntimeRecipeV2
+  Fp8ReusableRecipeV3
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ExecutionManifestArea {
@@ -62,6 +101,8 @@ pub(all) enum ExecutionManifestArea {
   Module
   Operation
   Dimensions
+  LunaAuthorization
+  NumericAuthorization
 } derive(Eq, @debug.Debug)
 
 pub struct ExecutionManifestDigest(String) derive(Eq, @debug.Debug)
@@ -88,6 +129,13 @@ pub(all) enum ExecutionManifestIdentityPart {
   Bf16Support
   CublasLtSupport
   CatalogVersion
+  NumericSchemaDigest
+  I8AdmissionDigest
+  DeviceNumericDigest
+  WeightArtifactDigest
+  Fp8KernelManifestDigest
+  Fp8RuntimeRecipeDigest
+  Fp8ReusableRecipeDigest
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ExecutionManifestIssue {
@@ -119,6 +167,49 @@ pub(all) enum ExecutionManifestOperation {
   Close
 } derive(Eq, @debug.Debug)
 
+pub struct Fp8PagedExecutionAdmissionV5 {
+  // private fields
+}
+pub fn Fp8PagedExecutionAdmissionV5::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn Fp8PagedExecutionAdmissionV5::contracts(Self) -> @launch_contract.PagedV4LaunchContractSet
+pub fn Fp8PagedExecutionAdmissionV5::device_step_limits(Self) -> @device_step.DeviceStepLimits
+pub fn Fp8PagedExecutionAdmissionV5::exact_recipe(Self) -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2
+pub fn Fp8PagedExecutionAdmissionV5::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn Fp8PagedExecutionAdmissionV5::memory_plan(Self) -> @device_memory.DeviceMemoryPlan
+pub fn Fp8PagedExecutionAdmissionV5::model_plan(Self) -> @plan.ModelPlan
+pub fn Fp8PagedExecutionAdmissionV5::numeric_artifacts(Self) -> @numeric_capability_manifest.AdmittedFp8KernelArtifacts
+pub fn Fp8PagedExecutionAdmissionV5::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn Fp8PagedExecutionAdmissionV5::release_authority(Self) -> @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3
+pub fn Fp8PagedExecutionAdmissionV5::reusable_recipe(Self) -> @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3
+pub fn Fp8PagedExecutionAdmissionV5::startup(Self) -> @fp8_startup_admission.Fp8StartupAdmissionV2
+pub fn Fp8PagedExecutionAdmissionV5::static_plan(Self) -> @device_plan.StaticDevicePlan
+pub fn Fp8PagedExecutionAdmissionV5::weight_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+
+pub struct I8PagedExecutionAdmissionV4 {
+  // private fields
+}
+pub fn I8PagedExecutionAdmissionV4::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn I8PagedExecutionAdmissionV4::bind_loaded_executor_transfer(Self, @device_step.I8LoadedExecutionBlueprint) -> I8PagedExecutorTransferV4 raise ExecutionManifestFileError
+pub fn I8PagedExecutionAdmissionV4::blueprint(Self) -> @device_step.I8PagedExecutionBlueprint
+pub fn I8PagedExecutionAdmissionV4::bootstrap_manifest(Self) -> @device_step.I8DeviceWorkerBootstrapManifestV3
+pub fn I8PagedExecutionAdmissionV4::contracts(Self) -> @launch_contract.PagedV4LaunchContractSet
+pub fn I8PagedExecutionAdmissionV4::device_numeric_capability(Self) -> @device.DeviceNumericCapability
+pub fn I8PagedExecutionAdmissionV4::device_step_limits(Self) -> @device_step.DeviceStepLimits
+pub fn I8PagedExecutionAdmissionV4::join_loaded_weights(Self, @numeric_weight_file.AuthenticatedNumericWeightAuthority) -> @device_step.I8LoadedExecutionBlueprint raise ExecutionManifestFileError
+pub fn I8PagedExecutionAdmissionV4::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn I8PagedExecutionAdmissionV4::memory_plan(Self) -> @device_memory.DeviceMemoryPlan
+pub fn I8PagedExecutionAdmissionV4::model_plan(Self) -> @plan.ModelPlan
+pub fn I8PagedExecutionAdmissionV4::production_policy(Self) -> @i8_inert_capability_admission.I8ProductionPolicyAdmission
+pub fn I8PagedExecutionAdmissionV4::profile_id(Self) -> @launch_contract.KernelProfileId
+pub fn I8PagedExecutionAdmissionV4::static_plan(Self) -> @device_plan.StaticDevicePlan
+pub fn I8PagedExecutionAdmissionV4::weight_artifact_digest(Self) -> @numeric_weight_file.NumericWeightArtifactDigest
+pub fn I8PagedExecutionAdmissionV4::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
+
+pub struct I8PagedExecutorTransferV4 {
+  // private fields
+}
+pub fn I8PagedExecutorTransferV4::close(Self) -> Unit raise ExecutionManifestFileError
+
 pub struct PagedExecutionAdmission {
   // private fields
 }
@@ -127,11 +218,26 @@ pub fn PagedExecutionAdmission::blueprint(Self) -> @device_step.PagedKvExecution
 pub fn PagedExecutionAdmission::contracts(Self) -> @launch_contract.PagedKvLaunchContractSet
 pub fn PagedExecutionAdmission::device_step_limits(Self) -> @device_step.DeviceStepLimits
 pub fn PagedExecutionAdmission::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedExecutionAdmission::luna_authorization(Self) -> @luna_artifact_admission.LunaAotKernelAdmission?
 pub fn PagedExecutionAdmission::memory_plan(Self) -> @device_memory.DeviceMemoryPlan
 pub fn PagedExecutionAdmission::model_plan(Self) -> @plan.ModelPlan
 pub fn PagedExecutionAdmission::profile_id(Self) -> @launch_contract.KernelProfileId
 pub fn PagedExecutionAdmission::static_plan(Self) -> @device_plan.StaticDevicePlan
 pub fn PagedExecutionAdmission::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
+
+pub struct TensorParallelExecutionAdmission {
+  // private fields
+}
+pub fn TensorParallelExecutionAdmission::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn TensorParallelExecutionAdmission::contracts(Self) -> @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet
+pub fn TensorParallelExecutionAdmission::device_plan(Self) -> @tensor_parallel_device_plan.TensorParallelDevicePlan
+pub fn TensorParallelExecutionAdmission::execution_plan(Self) -> @tensor_parallel_execution_plan.TensorParallelExecutionPlan
+pub fn TensorParallelExecutionAdmission::local_kv_binding(Self) -> @tensor_parallel_kv_plan.TensorParallelKvRankBinding
+pub fn TensorParallelExecutionAdmission::local_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn TensorParallelExecutionAdmission::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn TensorParallelExecutionAdmission::model_plan(Self) -> @plan.ModelPlan
+pub fn TensorParallelExecutionAdmission::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn TensorParallelExecutionAdmission::rank_plan(Self) -> @tensor_parallel_plan.TensorParallelRankPlan
 
 // Type aliases
 

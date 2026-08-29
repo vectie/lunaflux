@@ -1,0 +1,32 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/fp8_startup_admission",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/fp8_launch_abi",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/numeric_capability_manifest",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/numeric_capability_manifest",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/plan_test_fixture",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+} for "test"

@@ -1,12 +1,13 @@
 ///|
-async test "canonical v1 admits one immutable full-graph paged execution" {
+async test "canonical v2 admits exact multi-row full-graph paged execution" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-execution-manifest")
     group.add_defer() <| () => {
       @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
     }
     let metadata = fixture_metadata('0')
-    let plan = @llama.build_paged(metadata)
+    let batch = @llama.LlamaPagedBatchEnvelope::new(2)
+    let plan = @llama.build_paged(metadata, batch~)
     let weights = fixture_weight_layout(metadata)
     assert_true(weights.identity().plan() != plan.identity().plan())
     assert_eq(weights.identity().content(), plan.identity().content())
@@ -23,7 +24,7 @@ async test "canonical v1 admits one immutable full-graph paged execution" {
       weights,
       fixture_layout(plan),
       target,
-      fixture_step_limits(),
+      fixture_step_limits(rows=2),
       fixture_limits(plan.operations().length()),
     ) catch {
       AdmissionRejected(Catalog) => abort("catalog admission failed")
@@ -56,14 +57,207 @@ async test "canonical v1 admits one immutable full-graph paged execution" {
 }
 
 ///|
-async test "v1 rejects foreign weight content and multi-row specialization" {
+fn v3_manifest_claim(
+  valid : String,
+  operation_id : Int,
+  specialization_locator? : String = "luna/residual.specialization",
+) -> String {
+  valid.replace(
+    old="\"schema_version\":2",
+    new="\"schema_version\":3,\"luna_authorization\":{" +
+      "\"operation_id\":" +
+      operation_id.to_string() +
+      "," +
+      "\"specialization_locator\":\"" +
+      specialization_locator +
+      "\"," +
+      "\"specialization_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"," +
+      "\"capability_locator\":\"luna/residual.capability\"," +
+      "\"capability_sha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"," +
+      "\"signature_algorithm\":\"external_ed25519_v1\"," +
+      "\"key_identity_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"," +
+      "\"signature_sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"}",
+  )
+}
+
+///|
+fn first_residual_operation_id(plan : @plan.ModelPlan) -> Int {
+  for operation in plan.operations() {
+    if operation.kind() == ResidualAdd {
+      return operation.id().as_int()
+    }
+  }
+  abort("fixture has no residual operation")
+}
+
+///|
+fn v3_approval(
+  manifest_digest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+) -> @worker_wire.WorkerBootstrapLunaApproval raise {
+  @worker_wire.WorkerBootstrapLunaApproval::from_untrusted_wire_claim(
+    manifest_digest_sha256=manifest_digest,
+    key_identity_sha256="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    signature_digest_sha256="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    approved_source_sha256="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  )
+}
+
+///|
+async test "v3 rejects mismatched approval before ordinary module open" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-execution-luna-binding")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let metadata = fixture_metadata('0')
+    let plan = @llama.build_paged(metadata)
+    let target = fixture_target()
+    let specialized = v3_manifest_claim(
+      fixture_manifest(plan, target),
+      first_residual_operation_id(plan),
+    )
+    write_fixture_file(directory, "v3.json", @utf8.encode(specialized))
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
+    try
+      load_paged(
+        root,
+        @approved_fs.ApprovedRelativeLocator::new("v3.json"),
+        fixture_digest(specialized),
+        plan,
+        fixture_weight_layout(metadata),
+        fixture_layout(plan),
+        target,
+        fixture_step_limits(),
+        fixture_limits(plan.operations().length()),
+        luna_approval=Some(
+          v3_approval(
+            manifest_digest="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          ),
+        ),
+      )
+    catch {
+      AdmissionRejected(LunaExternalApproval) => ()
+      AdmissionRejected(ArtifactFiles) =>
+        fail("module opened before Luna approval binding")
+      _ => fail("unexpected Luna approval-binding failure")
+    } noraise {
+      _ => fail("mismatched Luna approval was admitted")
+    }
+    root.close()
+  }
+}
+
+///|
+async test "v3 requires independent approval and v2 rejects unused approval" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-execution-luna-approval")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let metadata = fixture_metadata('0')
+    let plan = @llama.build_paged(metadata)
+    let target = fixture_target()
+    let ordinary = fixture_manifest(plan, target)
+    let specialized = v3_manifest_claim(
+      ordinary,
+      first_residual_operation_id(plan),
+    )
+    write_fixture_file(directory, "v2.json", @utf8.encode(ordinary))
+    write_fixture_file(directory, "v3.json", @utf8.encode(specialized))
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
+    try
+      load_paged(
+        root,
+        @approved_fs.ApprovedRelativeLocator::new("v3.json"),
+        fixture_digest(specialized),
+        plan,
+        fixture_weight_layout(metadata),
+        fixture_layout(plan),
+        target,
+        fixture_step_limits(),
+        fixture_limits(plan.operations().length()),
+      )
+    catch {
+      AdmissionRejected(LunaExternalApproval) => ()
+      _ => fail("unexpected missing Luna approval failure")
+    } noraise {
+      _ => fail("v3 admitted without independent approval")
+    }
+    try
+      load_paged(
+        root,
+        @approved_fs.ApprovedRelativeLocator::new("v2.json"),
+        fixture_digest(ordinary),
+        plan,
+        fixture_weight_layout(metadata),
+        fixture_layout(plan),
+        target,
+        fixture_step_limits(),
+        fixture_limits(plan.operations().length()),
+        luna_approval=Some(v3_approval()),
+      )
+    catch {
+      AdmissionRejected(LunaExternalApproval) => ()
+      _ => fail("unexpected unused Luna approval failure")
+    } noraise {
+      _ => fail("v2 consumed an unused Luna approval")
+    }
+    root.close()
+  }
+}
+
+///|
+async test "v3 validates both evidence locators before artifact open" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-execution-luna-locator")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let metadata = fixture_metadata('0')
+    let plan = @llama.build_paged(metadata)
+    let target = fixture_target()
+    let invalid = v3_manifest_claim(
+      fixture_manifest(plan, target),
+      first_residual_operation_id(plan),
+      specialization_locator="../residual.specialization",
+    )
+    write_fixture_file(directory, "v3.json", @utf8.encode(invalid))
+    let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
+    try
+      load_paged(
+        root,
+        @approved_fs.ApprovedRelativeLocator::new("v3.json"),
+        fixture_digest(invalid),
+        plan,
+        fixture_weight_layout(metadata),
+        fixture_layout(plan),
+        target,
+        fixture_step_limits(),
+        fixture_limits(plan.operations().length()),
+        luna_approval=Some(v3_approval()),
+      )
+    catch {
+      AdmissionRejected(LunaSpecialization) => ()
+      AdmissionRejected(ArtifactFiles) =>
+        fail("artifact opened before Luna locator admission")
+      _ => fail("unexpected Luna locator failure")
+    } noraise {
+      _ => fail("ambient Luna locator was admitted")
+    }
+    root.close()
+  }
+}
+
+///|
+async test "v2 rejects foreign weight content and row-envelope mismatch" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-execution-envelope")
     group.add_defer() <| () => {
       @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
     }
     let metadata = fixture_metadata('0')
-    let plan = @llama.build_paged(metadata)
+    let batch = @llama.LlamaPagedBatchEnvelope::new(2)
+    let plan = @llama.build_paged(metadata, batch~)
     let target = fixture_target()
     let manifest = fixture_manifest(plan, target)
     write_fixture_file(directory, "execution.json", @utf8.encode(manifest))
@@ -80,7 +274,7 @@ async test "v1 rejects foreign weight content and multi-row specialization" {
         fixture_weight_layout(fixture_metadata('1')),
         fixture_layout(plan),
         target,
-        fixture_step_limits(),
+        fixture_step_limits(rows=2),
         fixture_limits(plan.operations().length()),
       )
     catch {
@@ -98,7 +292,7 @@ async test "v1 rejects foreign weight content and multi-row specialization" {
         fixture_weight_layout(metadata),
         fixture_layout(plan),
         target,
-        fixture_step_limits(rows=2),
+        fixture_step_limits(),
         fixture_limits(
           plan.operations().length(),
           entry_points=plan.operations().length() + 1,
@@ -106,9 +300,9 @@ async test "v1 rejects foreign weight content and multi-row specialization" {
       )
     catch {
       UnsupportedModelEnvelope => ()
-      _ => fail("unexpected multi-row failure")
+      _ => fail("unexpected row-envelope failure")
     } noraise {
-      _ => fail("multi-row v1 specialization was admitted")
+      _ => fail("mismatched row envelope was admitted")
     }
     root.close()
   }
@@ -122,8 +316,8 @@ test "schema rejects duplicate, unknown, and reordered declarations" {
   let limits = fixture_limits(plan.operations().length())
   let valid = fixture_manifest(plan, target)
   let duplicate = valid.replace(
-    old="\"schema_version\":1",
-    new="\"schema_version\":1,\"schema_version\":1",
+    old="\"schema_version\":2",
+    new="\"schema_version\":2,\"schema_version\":2",
   )
   try parse_manifest(@utf8.encode(duplicate), plan, target, limits) catch {
     DuplicateField(_) => ()

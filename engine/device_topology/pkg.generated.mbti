@@ -1,0 +1,107 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/device_topology"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+// Values
+pub fn admit_local_topology(LocalTopologyDeclaration, LocalTopologyProbeProjection) -> AdmittedLocalTopology raise LocalTopologyError
+
+pub fn admit_local_topology_from_inventory(LocalTopologyDeclaration) -> AdmittedLocalTopology raise LocalTopologyError
+
+pub fn admit_rank_ordered_local_topology(ArrayView[Int], @catalog.DeviceTarget) -> AdmittedRankOrderedLocalTopology raise LocalTopologyError
+
+// Errors
+pub(all) suberror LocalTopologyError {
+  InvalidLocalTopology(area~ : LocalTopologyArea, rule~ : LocalTopologyRule, first~ : Int, second~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedLocalTopology {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdmittedLocalTopology::driver_version(Self) -> Int
+pub fn AdmittedLocalTopology::link_count(Self) -> Int
+pub fn AdmittedLocalTopology::rank(Self, Int) -> LocalTopologyRank?
+pub fn AdmittedLocalTopology::target(Self) -> @catalog.DeviceTarget
+pub fn AdmittedLocalTopology::world_size(Self) -> Int
+
+pub struct AdmittedRankOrderedLocalTopology {
+  // private fields
+}
+pub fn AdmittedRankOrderedLocalTopology::declaration(Self) -> LocalTopologyDeclaration
+pub fn AdmittedRankOrderedLocalTopology::topology(Self) -> AdmittedLocalTopology
+
+pub struct LocalPeerAccess {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalPeerAccess::new(source_ordinal~ : Int, destination_ordinal~ : Int) -> Self raise LocalTopologyError
+
+pub struct LocalProbeDevice {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalProbeDevice::new(ordinal~ : Int, name~ : StringView, total_memory_bytes~ : Int64, target~ : @catalog.DeviceTarget) -> Self raise LocalTopologyError
+
+pub(all) enum LocalTopologyArea {
+  DeclarationRanks
+  DeclarationLinks
+  ProbeDevices
+  ProbeLinks
+  AdmissionRanks
+  AdmissionLinks
+} derive(Eq, @debug.Debug)
+
+pub struct LocalTopologyDeclaration {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalTopologyDeclaration::link_count(Self) -> Int
+pub fn LocalTopologyDeclaration::new(ArrayView[LocalTopologyRank], ArrayView[LocalTopologyLink]) -> Self raise LocalTopologyError
+pub fn LocalTopologyDeclaration::rank(Self, Int) -> LocalTopologyRank?
+pub fn LocalTopologyDeclaration::rank_count(Self) -> Int
+
+pub struct LocalTopologyLink {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalTopologyLink::direct(lower_rank~ : Int, upper_rank~ : Int) -> Self raise LocalTopologyError
+
+pub struct LocalTopologyProbeProjection {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalTopologyProbeProjection::device_count(Self) -> Int
+pub fn LocalTopologyProbeProjection::from_local_inventory() -> Self raise LocalTopologyError
+pub fn LocalTopologyProbeProjection::from_observations(driver_version~ : Int, ArrayView[LocalProbeDevice], ArrayView[LocalPeerAccess]) -> Self raise LocalTopologyError
+pub fn LocalTopologyProbeProjection::from_probe(@device.ProbeResult, ArrayView[LocalPeerAccess]) -> Self raise LocalTopologyError
+pub fn LocalTopologyProbeProjection::peer_access_count(Self) -> Int
+
+pub struct LocalTopologyRank {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LocalTopologyRank::name(Self) -> String
+pub fn LocalTopologyRank::new(ordinal~ : Int, name~ : StringView, total_memory_bytes~ : Int64, target~ : @catalog.DeviceTarget) -> Self raise LocalTopologyError
+pub fn LocalTopologyRank::ordinal(Self) -> Int
+pub fn LocalTopologyRank::target(Self) -> @catalog.DeviceTarget
+pub fn LocalTopologyRank::total_memory_bytes(Self) -> Int64
+
+pub(all) enum LocalTopologyRule {
+  TooFew
+  TooMany
+  InvalidOrdinal
+  InvalidName
+  InvalidMemory
+  RankOrder
+  Duplicate
+  Incomplete
+  Unsupported
+  HeterogeneousTarget
+  ProbeUnavailable
+  CountMismatch
+  IdentityMismatch
+  TargetMismatch
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

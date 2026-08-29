@@ -40,6 +40,31 @@ fn cache_fixture(
 }
 
 ///|
+fn prefix_cache_fixture(
+  max_prefix_entries? : Int = 64,
+  max_prefix_nodes? : Int = 1024,
+  max_prefix_tokens_per_entry? : Int = 256,
+  max_prefix_pages? : Int = 256,
+  max_prefix_scope_bytes? : Int = 64,
+  max_active_references_per_page? : Int = 1024,
+) -> @cache.CacheConfig {
+  try! @cache.new(
+    tokens_per_page=16,
+    total_page_count=4096,
+    block_table_pages_per_request=256,
+    prefix_enabled=true,
+    max_prefix_entries~,
+    max_prefix_nodes~,
+    max_prefix_tokens_per_entry~,
+    max_prefix_pages~,
+    max_prefix_scope_bytes~,
+    max_active_references_per_page~,
+    max_cached_references_per_page=1024,
+    layout_version=7,
+  )
+}
+
+///|
 fn shape_fixture(
   max_batch_rows? : Int = 8,
   max_sequence_tokens? : Int = 4096,

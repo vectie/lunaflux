@@ -153,6 +153,7 @@ fn write_frame_prefill(
   layout : @device_layout.DeviceKvLayout,
   limits : DeviceStepLimits,
   required : FixedArray[@plan.KernelCapabilityId],
+  greedy_only : Bool,
   write : Bool,
 ) -> Int64 raise DeviceStepError {
   let row = frame.prefill_row(row_index) catch {
@@ -169,6 +170,11 @@ fn write_frame_prefill(
   }
   let capability_length = row.capability_length() catch {
     error => raise wire_error(error)
+  }
+  if greedy_only &&
+    (row.produces_token() catch { error => raise wire_error(error) }) &&
+    (row.sampling_mode_value() catch { error => raise wire_error(error) }) != 0 {
+    raise InvalidExecutor(SamplingMode)
   }
   validate_frame_capabilities(
     frame, capability_start, capability_length, required,
@@ -225,6 +231,7 @@ fn write_frame_decode(
   layout : @device_layout.DeviceKvLayout,
   limits : DeviceStepLimits,
   required : FixedArray[@plan.KernelCapabilityId],
+  greedy_only : Bool,
   write : Bool,
 ) -> Int64 raise DeviceStepError {
   let row = frame.decode_row(decode_index) catch {
@@ -238,6 +245,10 @@ fn write_frame_decode(
   }
   let capability_length = row.capability_length() catch {
     error => raise wire_error(error)
+  }
+  if greedy_only &&
+    (row.sampling_mode_value() catch { error => raise wire_error(error) }) != 0 {
+    raise InvalidExecutor(SamplingMode)
   }
   validate_frame_capabilities(
     frame, capability_start, capability_length, required,
@@ -288,6 +299,7 @@ fn preflight_frame_and_write(
   host : DeviceStepHostBuffers,
   required : FixedArray[@plan.KernelCapabilityId],
   write : Bool,
+  greedy_only? : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   let summary = validate_frame_counts(
     frame, expected_generation, layout, limits, expected_identity,
@@ -297,7 +309,7 @@ fn preflight_frame_and_write(
   for index in 0..<summary.prefill_count {
     let cursor = write_frame_prefill(
       frame, host, index, token_end, page_end, summary, layout, limits, required,
-      write,
+      greedy_only, write,
     )
     token_end = cursor_token_end(cursor)
     page_end = cursor_page_end(cursor)
@@ -314,6 +326,7 @@ fn preflight_frame_and_write(
       layout,
       limits,
       required,
+      greedy_only,
       write,
     )
     token_end = cursor_token_end(cursor)

@@ -2,6 +2,8 @@
 /// Identity-bearing startup input that did not match the model plan.
 pub(all) enum IdentitySource {
   WeightContent
+  WeightPlan
+  WeightNumericSchema
   KernelCatalog
 } derive(Debug, Eq)
 
@@ -20,6 +22,7 @@ pub(all) enum WeightRegionRule {
   NegativeOffset
   NonPositiveLength
   MisalignedOffset
+  NonCanonicalOffset
   EndOverflow
   OutsideArena
   OverlappingPrevious
@@ -33,6 +36,17 @@ pub(all) enum WeightArenaRule {
   InvalidAlignment
   EmptyRegionSet
   RegionCount
+  MaterializedSizeMismatch
+  TerminalExtentMismatch
+} derive(Debug, Eq)
+
+///|
+/// Exact catalog evidence required by one static semantic operation.
+pub(all) enum KernelBindingRule {
+  SemanticVersion
+  NumericDigest
+  AotEntryPoint
+  LegacyNumericDigest
 } derive(Debug, Eq)
 
 ///|
@@ -61,8 +75,10 @@ pub(all) suberror DevicePlanError {
   BindingCountMismatch
   BindingOrderMismatch(@plan.OperationId)
   BindingCapabilityMismatch(@plan.OperationId)
+  NumericBindingCountMismatch
+  NumericBindingOrderMismatch(@plan.OperationId)
+  InvalidKernelBinding(@plan.OperationId, KernelBindingRule)
   MissingWeightRegion(@plan.OperationId, @plan.TensorRef)
-  InvalidWeightRegion(@plan.OperationId, @plan.TensorRef, WeightRegionRule)
   WorkspaceMismatch(@plan.OperationId, WorkspaceRule)
   WorkspaceOverflow(@plan.OperationId)
   WorkspaceSummaryMismatch(WorkspaceRule)

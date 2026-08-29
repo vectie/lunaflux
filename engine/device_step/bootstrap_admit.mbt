@@ -2,6 +2,7 @@
 fn validate_bootstrap_inputs(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
+  luna_authorization : @luna_artifact_admission.LunaAotKernelAdmission?,
   device_ordinal : Int,
   limits : DeviceBootstrapLimits,
 ) -> Unit raise DeviceBootstrapError {
@@ -45,12 +46,27 @@ fn validate_bootstrap_inputs(
       raise InvalidBootstrap(Artifact)
     }
   }
+  validate_luna_execution_authorization(blueprint, luna_authorization) catch {
+    _ => raise InvalidBootstrap(Blueprint)
+  }
+  let expected_graph_memory = derive_graph_memory_evidence(
+    match luna_authorization {
+      Some(authorization) => Some(authorization.graph_metadata())
+      None => None
+    },
+  ) catch {
+    _ => raise InvalidBootstrap(Blueprint)
+  }
+  if blueprint.graph_memory_evidence() != expected_graph_memory {
+    raise InvalidBootstrap(Blueprint)
+  }
 }
 
 ///|
 fn encode_bootstrap(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
+  luna_authorization : @luna_artifact_admission.LunaAotKernelAdmission?,
   device_ordinal : Int,
   limits : DeviceBootstrapLimits,
 ) -> Bytes raise DeviceBootstrapError {
@@ -134,6 +150,53 @@ fn encode_bootstrap(
       encoder.append_i64(operand.alignment())
     }
   }
+  match luna_authorization {
+    None => ()
+    Some(authorization) => {
+      encoder.append_string("LUNA-EXECUTION-AUTHORIZATION-V1")
+      encoder.append_string(authorization.manifest_digest().as_hex())
+      encoder.append_string(authorization.specialization_digest().as_hex())
+      encoder.append_string(authorization.identity().content().as_hex())
+      encoder.append_string(authorization.identity().plan().as_hex())
+      let target = authorization.target()
+      encoder.append_int(target.compute_major())
+      encoder.append_int(target.compute_minor())
+      encoder.append_int(if target.supports_bf16() { 1 } else { 0 })
+      encoder.append_int(if target.supports_cublas_lt() { 1 } else { 0 })
+      encoder.append_int(authorization.catalog_version().as_int())
+      encoder.append_int(authorization.operation_id().as_int())
+      encoder.append_int(operation_kind_code(authorization.operation_kind()))
+      match authorization.operation_shape() {
+        ElementwiseShape(width~) => {
+          encoder.append_int(6)
+          encoder.append_int(width)
+        }
+        _ => raise InvalidBootstrap(Blueprint)
+      }
+      encoder.append_int(authorization.capability().as_int())
+      encoder.append_entry_identity(authorization.entry_point())
+      encoder.append_string(authorization.module_digest().sha256())
+      encoder.append_int(authorization.artifact_module_index())
+      encoder.append_i64(authorization.workspace_bytes())
+      encoder.append_i64(authorization.workspace_alignment())
+      encoder.append_i64(authorization.minimum_alignment_bytes())
+      encoder.append_string(authorization.approved_source_identity().as_hex())
+      encoder.append_string(authorization.approved_key_identity().as_hex())
+      encoder.append_string(authorization.detached_signature_digest().as_hex())
+      let graph = authorization.graph_metadata()
+      let shape = graph.shape_class()
+      encoder.append_int(shape.phase().as_stable_int())
+      encoder.append_int(shape.batch_rows())
+      encoder.append_int(shape.query_tokens_per_row())
+      encoder.append_int(shape.context_tokens())
+      encoder.append_i64(shape.token_rows())
+      encoder.append_int(if graph.capture_safe() { 1 } else { 0 })
+      encoder.append_i64(graph.graph_memory_bytes())
+      encoder.append_i64(graph.graph_memory_alignment())
+      encoder.append_string(graph.eager_fallback_digest().as_hex())
+      encoder.append_int(1)
+    }
+  }
   Bytes::from_array(encoder.bytes)
 }
 
@@ -147,9 +210,14 @@ pub fn admit_device_worker_bootstrap(
   artifacts : @artifact.KernelArtifactBundle,
   device_ordinal~ : Int,
   limits : DeviceBootstrapLimits,
+  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
 ) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError {
-  validate_bootstrap_inputs(blueprint, artifacts, device_ordinal, limits)
-  let canonical = encode_bootstrap(blueprint, artifacts, device_ordinal, limits)
+  validate_bootstrap_inputs(
+    blueprint, artifacts, luna_authorization, device_ordinal, limits,
+  )
+  let canonical = encode_bootstrap(
+    blueprint, artifacts, luna_authorization, device_ordinal, limits,
+  )
   let digest = @worker_wire.WorkerBootstrapDigest::from_sha256(
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   ) catch {
@@ -162,6 +230,7 @@ pub fn admit_device_worker_bootstrap(
     target: blueprint.target(),
     catalog_version: blueprint.catalog_version(),
     limits: blueprint.limits(),
+    graph_memory: blueprint.graph_memory_evidence(),
     module_count: artifacts.module_count(),
     entry_point_count: artifacts.entry_point_count(),
     step_count: blueprint.steps().length(),

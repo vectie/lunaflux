@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"

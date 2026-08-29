@@ -53,7 +53,12 @@ fn worker_test_startup() -> @worker_wire.WorkerStartupContract raise {
 
 ///|
 fn empty_worker_resources() -> DeviceWorkerResources {
-  { executor: None, weights: None, context: None }
+  {
+    executor: None,
+    weights: None,
+    context: None,
+    numeric_weights_owned_by_executor: false,
+  }
 }
 
 ///|
@@ -154,70 +159,6 @@ test "received startup must equal every independently admitted field" {
     }
   }
   validate_received_startup(expected, expected)
-}
-
-///|
-test "model metadata canonically binds the paged plan identity" {
-  let metadata = @spec.LlamaModelMetadata::from_verified_content(
-    @spec.LlamaModelSpec::new(
-      vocabulary_size=8,
-      hidden_size=4,
-      intermediate_size=8,
-      layer_count=1,
-      attention_head_count=2,
-      kv_head_count=1,
-      context_length=8,
-      rope_theta=10000.0,
-      weight_dtype=BFloat16,
-      kv_dtype=BFloat16,
-    ),
-    @spec.ContentDigest::from_sha256(
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-  )
-  let paged = @llama.build_paged(metadata)
-  assert_true(metadata.identity().plan() != paged.identity().plan())
-  validate_model_identity(metadata, paged.identity())
-  try validate_model_identity(metadata, metadata.identity()) catch {
-    Invalid(ModelIdentity) => ()
-    _ => fail("unexpected arbitrary plan-digest error")
-  } noraise {
-    _ => fail("same-content arbitrary plan digest was accepted")
-  }
-  let different_spec = @spec.LlamaModelMetadata::from_verified_content(
-    @spec.LlamaModelSpec::new(
-      vocabulary_size=8,
-      hidden_size=4,
-      intermediate_size=8,
-      layer_count=1,
-      attention_head_count=2,
-      kv_head_count=1,
-      context_length=8,
-      rope_theta=20000.0,
-      rms_norm_epsilon=0.00001,
-      weight_dtype=BFloat16,
-      kv_dtype=BFloat16,
-    ),
-    metadata.identity().content(),
-  )
-  try validate_model_identity(different_spec, paged.identity()) catch {
-    Invalid(ModelIdentity) => ()
-    _ => fail("unexpected foreign semantic-plan error")
-  } noraise {
-    _ => fail("different RoPE/epsilon metadata was accepted")
-  }
-  let foreign = @spec.ModelIdentity::new(
-    @spec.ContentDigest::from_sha256(
-      "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ),
-    paged.identity().plan(),
-  )
-  try validate_model_identity(metadata, foreign) catch {
-    Invalid(ModelIdentity) => ()
-    _ => fail("unexpected foreign model-content error")
-  } noraise {
-    _ => fail("foreign model content was accepted")
-  }
 }
 
 ///|

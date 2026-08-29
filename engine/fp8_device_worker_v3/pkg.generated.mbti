@@ -1,0 +1,81 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/fp8_device_worker_v3"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn admit_plan_v3(@worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @execution_manifest_file.Fp8PagedExecutionAdmissionV5, Int64) -> Fp8DeviceWorkerPlanV3 raise Fp8DeviceWorkerV3Error
+
+pub fn prepare_v3(@worker_wire.WorkerStartupContract, @approved_fs.ApprovedRoot, Fp8DeviceWorkerPlanV3) -> Fp8DeviceWorkerPreparationV3 raise Fp8DeviceWorkerV3Error
+
+// Errors
+pub suberror Fp8DeviceWorkerV3Error {
+  Invalid(Fp8DeviceWorkerV3Rule)
+  Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
+  Device(@device.DeviceError)
+  NumericWeights(@numeric_weight_file.NumericWeightFileError)
+  Executor(@device_step.DeviceStepError)
+  CleanupContext(@device.DeviceError)
+  CleanupNumericWeights(@numeric_weight_file.NumericWeightFileError)
+  CleanupExecutor(@device_step.DeviceStepError)
+  CompletionAbortFailed(primary~ : Fp8DeviceWorkerV3Error, abort~ : @worker_wire.WorkerWireError)
+  InvalidLifecycle(Fp8DeviceWorkerV3Lifecycle)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FailedFp8DeviceWorkerPreparationV3 {
+  // private fields
+}
+pub fn FailedFp8DeviceWorkerPreparationV3::cause(Self) -> Fp8DeviceWorkerV3Error
+pub fn FailedFp8DeviceWorkerPreparationV3::cleanup_failure(Self) -> Fp8DeviceWorkerV3Error
+pub fn FailedFp8DeviceWorkerPreparationV3::is_closed(Self) -> Bool
+pub fn FailedFp8DeviceWorkerPreparationV3::retry_close(Self) -> Unit raise Fp8DeviceWorkerV3Error
+
+pub struct Fp8DeviceWorkerOwnerV3 {
+  // private fields
+}
+pub fn Fp8DeviceWorkerOwnerV3::close(Self) -> Unit raise Fp8DeviceWorkerV3Error
+pub fn Fp8DeviceWorkerOwnerV3::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise Fp8DeviceWorkerV3Error
+pub fn Fp8DeviceWorkerOwnerV3::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise Fp8DeviceWorkerV3Error
+pub fn Fp8DeviceWorkerOwnerV3::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise Fp8DeviceWorkerV3Error
+
+pub struct Fp8DeviceWorkerPlanV3 {
+  // private fields
+}
+
+pub enum Fp8DeviceWorkerPreparationV3 {
+  Fp8DeviceWorkerReadyV3(Fp8DeviceWorkerOwnerV3)
+  Fp8DeviceWorkerCleanupRequiredV3(FailedFp8DeviceWorkerPreparationV3)
+}
+
+pub enum Fp8DeviceWorkerV3Lifecycle {
+  WorkerReady
+  WorkerFaulted
+  WorkerClosingFailed
+  WorkerClosed
+} derive(Eq, @debug.Debug)
+
+pub enum Fp8DeviceWorkerV3Rule {
+  StartupContract
+  SourceRecipe
+  ModelIdentity
+  ReleaseIdentity
+  DeviceOrdinal
+  DeviceTarget
+  DeviceNumericCapability
+  ResourceState
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

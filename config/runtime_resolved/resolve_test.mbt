@@ -19,6 +19,8 @@ test "realistic startup capacity resolves exact component envelopes" {
   assert_eq(capacity.waiting_age_threshold_steps(), 128)
   assert_eq(capacity.output_event_capacity(), 128)
   assert_eq(capacity.max_rows_per_step(), 8)
+  assert_eq(capacity.maximum_generated_tokens_per_request(), 4095)
+  assert_eq(capacity.required_recompute_history_cells(), 163800)
   assert_eq(capacity.required_worker_page_table_cells(), 2048)
   assert_eq(capacity.plan_buffer_count(), 2)
   assert_eq(capacity.worker_max_capabilities(), 256)
@@ -53,6 +55,115 @@ test "active concurrency may exceed one submitted model batch" {
 }
 
 ///|
+test "prefix startup binds only active tables and exact radix identity layout" {
+  let capacity = @runtime_resolved.resolve(
+    scheduler_fixture(max_active_requests=8, max_waiting_requests=32),
+    prefix_cache_fixture(),
+    shape_fixture(),
+    worker_fixture(),
+  )
+  assert_true(capacity.prefix_enabled())
+  assert_eq(capacity.block_table_limits().table_capacity(), 8)
+  assert_eq(capacity.prefix_layout().version(), 7)
+  assert_eq(capacity.prefix_layout().tokens_per_page(), 16)
+  guard capacity.prefix_index_limits() is Some(limits) else {
+    fail("enabled prefix limits were absent")
+  }
+  assert_eq(limits.entry_capacity(), 64)
+  assert_eq(limits.node_capacity(), 1024)
+  assert_eq(limits.token_capacity(), 1024)
+  assert_eq(limits.max_tokens_per_entry(), 256)
+  assert_eq(limits.page_capacity(), 256)
+  assert_eq(limits.max_scope_bytes(), 64)
+  assert_eq(limits.max_active_references_per_entry(), 8)
+}
+
+///|
+test "large waiting capacity retains logical storage without physical owners" {
+  let capacity = @runtime_resolved.resolve(
+    scheduler_fixture(
+      step_token_budget=2,
+      max_active_requests=2,
+      max_waiting_requests=1024,
+      prefill_chunk_tokens=2,
+      output_event_capacity=2,
+    ),
+    prefix_cache_fixture(max_active_references_per_page=2),
+    shape_fixture(max_batch_rows=2, max_sequence_tokens=64),
+    worker_fixture(
+      max_prefill_rows=2,
+      max_decode_rows=2,
+      max_plan_rows=2,
+      max_plan_tokens=2,
+      max_plan_pages=8,
+      max_completion_slots=2,
+      max_sequence_tokens=64,
+    ),
+  )
+  assert_eq(capacity.max_active_requests(), 2)
+  assert_eq(capacity.max_waiting_requests(), 1024)
+  assert_eq(capacity.total_request_slots(), 1026)
+  assert_eq(capacity.required_recompute_history_cells(), 64638)
+  assert_eq(capacity.block_table_limits().table_capacity(), 2)
+  guard capacity.prefix_index_limits() is Some(limits) else {
+    fail("enabled prefix limits were absent")
+  }
+  assert_eq(limits.max_active_references_per_entry(), 2)
+  assert_eq(
+    capacity.page_allocator_limits().max_active_references_per_page(),
+    2,
+  )
+}
+
+///|
+test "prefix aggregate scope arena is rejected before scheduler allocation" {
+  expect_capacity_error(
+    () => {
+      @runtime_resolved.resolve(
+        scheduler_fixture(),
+        prefix_cache_fixture(
+          max_prefix_entries=65536,
+          max_prefix_nodes=65536,
+          max_prefix_scope_bytes=257,
+        ),
+        shape_fixture(),
+        worker_fixture(),
+      )
+    },
+    Invalid(PrefixIndexLimits),
+  )
+}
+
+///|
+test "prefix startup rejects unusable page-aligned publication envelopes" {
+  expect_capacity_error(
+    () => {
+      @runtime_resolved.resolve(
+        scheduler_fixture(),
+        prefix_cache_fixture(max_prefix_tokens_per_entry=15),
+        shape_fixture(),
+        worker_fixture(),
+      )
+    },
+    Invalid(PrefixIndexLimits),
+  )
+  expect_capacity_error(
+    () => {
+      @runtime_resolved.resolve(
+        scheduler_fixture(),
+        prefix_cache_fixture(
+          max_prefix_tokens_per_entry=256,
+          max_prefix_pages=15,
+        ),
+        shape_fixture(),
+        worker_fixture(),
+      )
+    },
+    Invalid(PrefixIndexLimits),
+  )
+}
+
+///|
 test "ceiling context pages accepts the exact non-divisible boundary" {
   let capacity = @runtime_resolved.resolve(
     scheduler_fixture(),
@@ -80,13 +191,15 @@ test "identical startup inputs resolve equal values and decisions" {
   )
   assert_eq(first, second)
   let decisions = first.decisions()
-  assert_eq(decisions.length(), 7)
+  assert_eq(decisions.length(), 8)
   assert_eq(decisions[0].subject(), ContextPagesPerRequest)
   assert_eq(decisions[0].reason(), CeilingDivision)
   assert_eq(decisions[2].subject(), MaxRowsPerStep)
   assert_eq(decisions[2].reason(), MinimumOfActiveAndTokenBudget)
-  assert_eq(decisions[4].reason(), FixedDoubleBuffer)
-  assert_eq(decisions[5].reason(), OwnerMaximumGenerationDefault)
+  assert_eq(decisions[4].subject(), RecomputeHistoryCells)
+  assert_eq(decisions[4].reason(), RequestSlotsTimesMaximumGeneratedTokens)
+  assert_eq(decisions[5].reason(), FixedDoubleBuffer)
+  assert_eq(decisions[6].reason(), OwnerMaximumGenerationDefault)
 }
 
 ///|
@@ -258,5 +371,40 @@ test "canonical block-table materialization rejects excessive page cells" {
       )
     },
     Invalid(BlockTableLimits),
+  )
+}
+
+///|
+test "recompute history rejects checked slot times token overflow" {
+  expect_capacity_error(
+    () => {
+      @runtime_resolved.resolve(
+        scheduler_fixture(
+          step_token_budget=1,
+          max_active_requests=65536,
+          max_waiting_requests=983040,
+          prefill_chunk_tokens=1,
+          emergency_decode_page_reserve=1,
+          output_event_capacity=1,
+        ),
+        cache_fixture(total_page_count=257, block_table_pages_per_request=256),
+        shape_fixture(
+          max_batch_rows=1,
+          max_sequence_tokens=4096,
+          vocabulary_size=128,
+        ),
+        worker_fixture(
+          max_prefill_rows=1,
+          max_decode_rows=1,
+          max_plan_rows=1,
+          max_plan_tokens=1,
+          max_plan_pages=256,
+          max_completion_slots=1,
+          max_sequence_tokens=4096,
+          max_token_id=127,
+        ),
+      )
+    },
+    Invalid(RecomputeHistoryCapacity),
   )
 }

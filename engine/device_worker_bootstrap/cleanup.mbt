@@ -60,10 +60,29 @@ fn close_worker_authority(
   authority : BootstrapWorkerAuthority,
 ) -> Unit raise DeviceWorkerBootstrapError {
   match authority {
-    Ready(owner) => owner.close() catch { error => raise CleanupWorker(error) }
-    Failed(owner) =>
+    LegacyReady(owner) =>
+      owner.close() catch {
+        error => raise CleanupWorker(error)
+      }
+    LegacyFailed(owner) =>
       owner.retry_close() catch {
         error => raise CleanupWorker(error)
+      }
+    I8Ready(owner) =>
+      owner.close() catch {
+        error => raise CleanupI8Worker(error)
+      }
+    I8Failed(owner) =>
+      owner.retry_close() catch {
+        error => raise CleanupI8Worker(error)
+      }
+    Fp8Ready(owner) =>
+      owner.close() catch {
+        error => raise CleanupFp8Worker(error)
+      }
+    Fp8Failed(owner) =>
+      owner.retry_close() catch {
+        error => raise CleanupFp8Worker(error)
       }
   }
 }
@@ -171,8 +190,10 @@ pub fn FailedDeviceWorkerBootstrapPreparation::retry_close(
 pub fn DeviceWorkerBootstrapOwner::close(
   self : DeviceWorkerBootstrapOwner,
 ) -> Unit raise DeviceWorkerBootstrapError {
-  self.worker.close() catch {
-    error => raise Worker(error)
+  match self.worker {
+    Legacy(owner) => owner.close() catch { error => raise Worker(error) }
+    I8(owner) => owner.close() catch { error => raise I8Worker(error) }
+    Fp8(owner) => owner.close() catch { error => raise Fp8Worker(error) }
   }
 }
 
@@ -180,8 +201,19 @@ pub fn DeviceWorkerBootstrapOwner::close(
 pub fn DeviceWorkerBootstrapOwner::readiness_contract(
   self : DeviceWorkerBootstrapOwner,
 ) -> @worker_wire.WorkerStartupContract raise DeviceWorkerBootstrapError {
-  self.worker.readiness_contract() catch {
-    error => raise Worker(error)
+  match self.worker {
+    Legacy(owner) =>
+      owner.readiness_contract() catch {
+        error => raise Worker(error)
+      }
+    I8(owner) =>
+      owner.readiness_contract() catch {
+        error => raise I8Worker(error)
+      }
+    Fp8(owner) =>
+      owner.readiness_contract() catch {
+        error => raise Fp8Worker(error)
+      }
   }
 }
 
@@ -191,7 +223,18 @@ pub fn DeviceWorkerBootstrapOwner::execute_frame(
   plan : @worker_wire.ValidatedPlanFrame,
   completion : @worker_wire.CompletionFrameWriter,
 ) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerBootstrapError {
-  self.worker.execute_frame(plan, completion) catch {
-    error => raise Worker(error)
+  match self.worker {
+    Legacy(owner) =>
+      owner.execute_frame(plan, completion) catch {
+        error => raise Worker(error)
+      }
+    I8(owner) =>
+      owner.execute_frame(plan, completion) catch {
+        error => raise I8Worker(error)
+      }
+    Fp8(owner) =>
+      owner.execute_frame(plan, completion) catch {
+        error => raise Fp8Worker(error)
+      }
   }
 }

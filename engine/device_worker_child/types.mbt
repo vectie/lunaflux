@@ -16,4 +16,5 @@ priv struct ChildSteadyBuffers {
   completion_owner : @worker_wire.CompletionFrameBuffer
   input : FixedArray[Byte]
   output : FixedArray[Byte]
+  graph_output : FixedArray[Byte]
 }

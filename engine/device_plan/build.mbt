@@ -5,7 +5,7 @@ const MAX_OPERATIONS : Int = 4096
 const MAX_INPUTS_PER_OPERATION : Int = 64
 
 ///|
-const MAX_TOTAL_INPUTS : Int = 8192
+const MAX_TOTAL_INPUTS : Int = 16384
 
 ///|
 const MAX_WEIGHT_REGIONS : Int = 65536
@@ -68,171 +68,38 @@ fn validate_workspace(
 }
 
 ///|
-fn weight_region_error(
-  tensor : @plan.TensorRef,
-  region : @device_materialize.DeviceWeightRegion,
-  arena_bytes : Int64,
-  arena_alignment : Int64,
-) -> WeightRegionRule? {
-  if region.reference() != tensor {
-    return Some(ReferenceMismatch)
-  }
-  let offset = region.offset_bytes()
-  let byte_length = region.byte_length()
-  if offset < 0L {
-    return Some(NegativeOffset)
-  }
-  if byte_length <= 0L {
-    return Some(NonPositiveLength)
-  }
-  if offset % arena_alignment != 0L {
-    return Some(MisalignedOffset)
-  }
-  if offset > MAX_INT64 - byte_length {
-    return Some(EndOverflow)
-  }
-  if offset + byte_length > arena_bytes {
-    return Some(OutsideArena)
-  }
-  None
-}
-
-///|
-fn validate_weight_layout(
-  layout : @device_materialize.DeviceWeightLayout,
+fn validate_graph_bounds(
+  operations : ReadOnlyArray[@plan.PlanOperation],
 ) -> Unit raise DevicePlanError {
-  if layout.arena_bytes() <= 0L {
-    raise InvalidWeightArena(NonPositiveSize)
+  if operations.length() > MAX_OPERATIONS {
+    raise BoundExceeded(OperationCount)
   }
-  let alignment = layout.alignment_bytes()
-  if alignment < 16L || alignment > 4096L || !is_power_of_two(alignment) {
-    raise InvalidWeightArena(InvalidAlignment)
-  }
-  if layout.length() <= 0 {
-    raise InvalidWeightArena(EmptyRegionSet)
-  }
-  if layout.length() > MAX_WEIGHT_REGIONS {
-    raise InvalidWeightArena(RegionCount)
-  }
-  let mut previous_end = 0L
-  for index in 0..<layout.length() {
-    let tensor = try! @plan.TensorRef::new(index)
-    guard layout.region(tensor) is Some(region) else {
-      raise MissingLayoutRegion(tensor)
+  let mut total_inputs = 0
+  for operation in operations {
+    let input_count = operation.inputs().length()
+    if input_count > MAX_INPUTS_PER_OPERATION {
+      raise BoundExceeded(InputsPerOperation)
     }
-    match weight_region_error(tensor, region, layout.arena_bytes(), alignment) {
-      Some(rule) => raise InvalidLayoutRegion(tensor, rule)
-      None => ()
+    if total_inputs > MAX_TOTAL_INPUTS - input_count {
+      raise BoundExceeded(TotalInputCount)
     }
-    if region.offset_bytes() < previous_end {
-      raise InvalidLayoutRegion(tensor, OverlappingPrevious)
-    }
-    previous_end = region.end_offset_bytes()
+    total_inputs += input_count
   }
-}
-
-///|
-fn validate_weight_region(
-  operation_id : @plan.OperationId,
-  tensor : @plan.TensorRef,
-  region : @device_materialize.DeviceWeightRegion,
-  arena_bytes : Int64,
-  arena_alignment : Int64,
-) -> Unit raise DevicePlanError {
-  match weight_region_error(tensor, region, arena_bytes, arena_alignment) {
-    Some(rule) => raise InvalidWeightRegion(operation_id, tensor, rule)
-    None => ()
-  }
-}
-
-///|
-fn expected_bf16_weight_bytes(
-  operation : @plan.PlanOperation,
-  input_index : Int,
-  tensor : @plan.TensorRef,
-  constraints : @plan.ShapeConstraints,
-) -> Int64 raise DevicePlanError {
-  let dimensions : (Int64, Int64) = match operation.kind() {
-    Embedding =>
-      (
-        Int64::from_int(constraints.vocabulary_size()),
-        Int64::from_int(constraints.hidden_size()),
-      )
-    RmsNorm => (1L, Int64::from_int(constraints.hidden_size()))
-    QkvProjection => {
-      let hidden = Int64::from_int(constraints.hidden_size())
-      let kv_width = Int64::from_int(
-        constraints.kv_head_count() * constraints.head_dimension(),
-      )
-      if input_index == 1 {
-        (hidden, hidden)
-      } else {
-        (kv_width, hidden)
-      }
-    }
-    OutputProjection =>
-      match operation.shape() {
-        ProjectionShape(input_width~, output_width~) =>
-          (Int64::from_int(output_width), Int64::from_int(input_width))
-        _ => (0L, 0L)
-      }
-    GatedMlp => {
-      let hidden = Int64::from_int(constraints.hidden_size())
-      let intermediate = Int64::from_int(constraints.intermediate_size())
-      if input_index == 3 {
-        (hidden, intermediate)
-      } else {
-        (intermediate, hidden)
-      }
-    }
-    LanguageModelHead =>
-      (
-        Int64::from_int(constraints.vocabulary_size()),
-        Int64::from_int(constraints.hidden_size()),
-      )
-    RotaryEmbedding | CausalAttention | ResidualAdd => (0L, 0L)
-  }
-  let (rows, columns) = dimensions
-  if rows <= 0L ||
-    columns <= 0L ||
-    rows > MAX_INT64 / columns ||
-    rows * columns > MAX_INT64 / 2L {
-    raise InvalidWeightRegion(operation.id(), tensor, ByteLengthMismatch)
-  }
-  rows * columns * 2L
 }
 
 ///|
 fn resolve_inputs(
   operation : @plan.PlanOperation,
   layout : @device_materialize.DeviceWeightLayout,
-  constraints : @plan.ShapeConstraints,
 ) -> ReadOnlyArray[StaticInput] raise DevicePlanError {
   let resolved : Array[StaticInput] = []
-  for input_index, input in operation.inputs() {
+  for input in operation.inputs() {
     match input {
       ModelInput(reference) => resolved.push(ExternalInput(reference))
       Activation(reference) => resolved.push(ActivationValue(reference))
       Tensor(reference) => {
         guard layout.region(reference) is Some(region) else {
           raise MissingWeightRegion(operation.id(), reference)
-        }
-        validate_weight_region(
-          operation.id(),
-          reference,
-          region,
-          layout.arena_bytes(),
-          layout.alignment_bytes(),
-        )
-        if region.byte_length() !=
-          expected_bf16_weight_bytes(
-            operation, input_index, reference, constraints,
-          ) {
-          raise InvalidWeightRegion(
-            operation.id(),
-            reference,
-            ByteLengthMismatch,
-          )
         }
         resolved.push(WeightRegion(region))
       }
@@ -253,34 +120,23 @@ pub fn build(
   weight_layout : @device_materialize.DeviceWeightLayout,
   resolved_catalog : @catalog.ResolvedKernelCatalog,
 ) -> StaticDevicePlan raise DevicePlanError {
-  if weight_layout.identity().content() != model_plan.identity().content() {
-    raise IdentityMismatch(WeightContent)
-  }
-  if resolved_catalog.model_identity() != model_plan.identity() {
-    raise IdentityMismatch(KernelCatalog)
-  }
-  validate_weight_layout(weight_layout)
+  validate_plan_identities(model_plan, weight_layout, resolved_catalog)
   let operations = model_plan.operations()
+  let numeric_binding = model_plan.numeric_binding()
+  let numeric_operations = numeric_binding.operations()
   let bindings = resolved_catalog.bindings()
-  if operations.length() > MAX_OPERATIONS {
-    raise BoundExceeded(OperationCount)
-  }
+  validate_graph_bounds(operations)
   if bindings.length() != operations.length() {
     raise BindingCountMismatch
   }
-  let mut total_inputs = 0
+  if numeric_operations.length() != operations.length() {
+    raise NumericBindingCountMismatch
+  }
+  validate_weight_layout(model_plan, weight_layout)
   let mut max_workspace_bytes = 0L
   let mut max_workspace_alignment = 1L
   let static_operations : Array[StaticOperation] = []
   for index, operation in operations {
-    let input_count = operation.inputs().length()
-    if input_count > MAX_INPUTS_PER_OPERATION {
-      raise BoundExceeded(InputsPerOperation)
-    }
-    if total_inputs > MAX_TOTAL_INPUTS - input_count {
-      raise BoundExceeded(TotalInputCount)
-    }
-    total_inputs = total_inputs + input_count
     let binding = bindings[index]
     if binding.operation_id() != operation.id() {
       raise BindingOrderMismatch(operation.id())
@@ -288,6 +144,17 @@ pub fn build(
     if binding.capability() != operation.required_capability() {
       raise BindingCapabilityMismatch(operation.id())
     }
+    let numeric_operation = numeric_operations[index]
+    if numeric_operation.operation() != operation.id() {
+      raise NumericBindingOrderMismatch(operation.id())
+    }
+    let execution_digest = numeric_operation.execution().digest()
+    validate_kernel_numeric_binding(
+      operation.id(),
+      execution_digest,
+      resolved_catalog.catalog_version(),
+      binding,
+    )
     validate_workspace(
       operation,
       binding,
@@ -303,13 +170,10 @@ pub fn build(
       id: operation.id(),
       kind: operation.kind(),
       shape: operation.shape(),
-      inputs: resolve_inputs(
-        operation,
-        weight_layout,
-        model_plan.shape_constraints(),
-      ),
+      inputs: resolve_inputs(operation, weight_layout),
       outputs: operation.outputs(),
       binding,
+      operation_execution_digest: execution_digest,
     })
   }
   if resolved_catalog.max_workspace_bytes() != max_workspace_bytes {
@@ -323,9 +187,8 @@ pub fn build(
     shape_constraints: model_plan.shape_constraints(),
     target: resolved_catalog.device_target(),
     catalog_version: resolved_catalog.catalog_version(),
-    weight_arena_bytes: weight_layout.arena_bytes(),
-    weight_alignment: weight_layout.alignment_bytes(),
-    weight_tensor_count: weight_layout.length(),
+    numeric_schema_digest: numeric_binding.digest(),
+    weight_layout,
     workspace_bytes: max_workspace_bytes,
     workspace_alignment: max_workspace_alignment,
     operations: ReadOnlyArray::from_array(static_operations),

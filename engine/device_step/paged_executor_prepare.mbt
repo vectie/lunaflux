@@ -6,8 +6,12 @@ fn empty_paged_resources() -> PagedGraphResources {
     weight_lease: None,
     activation_workspace: None,
     persistent_kv: None,
+    fused_dispatch_canary: None,
+    greedy_sampling_results: None,
     modules: [],
     functions: [],
+    ordered_executor: None,
+    numeric_weights: None,
   }
 }
 
@@ -232,39 +236,47 @@ fn prepare_paged_steps(
 }
 
 ///|
-fn prepare_paged_completion_scratch(
-  model_plan : @plan.ModelPlan,
-  memory_plan : @device_memory.DeviceMemoryPlan,
-  limits : DeviceStepLimits,
-) -> PagedCompletionScratch raise DeviceStepError {
-  let vocabulary_size = model_plan.shape_constraints().vocabulary_size()
-  let row_bytes = vocabulary_size.to_int64() * 2L
-  let token_rows = memory_plan.token_rows()
-  guard token_rows > 0L &&
-    memory_plan.region(model_plan.final_output()) is Some(output) &&
-    output.is_retained_output() &&
-    output.logical_bytes() % token_rows == 0L &&
-    output.logical_bytes() / token_rows == row_bytes else {
-    raise InvalidExecutor(SamplingOutput)
+fn prepare_paged_ordered_executor(
+  context : @device.Context,
+  steps : ReadOnlyArray[PreparedPagedGraphStep],
+  resources : PagedGraphResources,
+  graph_policy : PagedGraphExecutionPolicy,
+) -> Unit raise DeviceStepError {
+  guard resources.stream is Some(stream) && stream.open else {
+    raise InvalidExecutor(ResourceState)
   }
-  let sampling_limits = @sampling.SamplingLimits::new(
-    limits.max_rows(),
-    vocabulary_size,
+  let launches : Array[@device.OrderedKernelLaunch] = []
+  for step in steps {
+    guard resources.functions.get(step.function_index) is Some(function) &&
+      function.open else {
+      raise InvalidExecutor(ResourceState)
+    }
+    launches.push(
+      @device.OrderedKernelLaunch::new(
+        function.resource,
+        step.dimensions,
+        step.arguments,
+      ),
+    )
+  }
+  let executor = context.create_ordered_kernel_executor(
+    stream.resource,
+    launches[:],
+    policy=paged_ordered_device_policy(graph_policy),
   ) catch {
-    error => raise ExecutorSampling(error)
+    error => raise ExecutorDevice(OrderedExecutor, error)
   }
-  let sampler = @sampling.SamplerScratch::new(vocabulary_size, sampling_limits) catch {
-    error => raise ExecutorSampling(error)
-  }
-  {
-    final_output_offset: output.offset_bytes(),
-    row_bytes,
-    vocabulary_size,
-    limits: sampling_limits,
-    sampler,
-    encoded_logits: FixedArray::make(row_bytes.to_int(), b'\x00'),
-    logits: FixedArray::make(vocabulary_size, 0.0),
-    selected_tokens: FixedArray::make(limits.max_rows(), 0),
+  resources.ordered_executor = Some({ resource: executor, open: true })
+}
+
+///|
+fn paged_ordered_device_policy(
+  policy : PagedGraphExecutionPolicy,
+) -> @device.OrderedKernelExecutionPolicy {
+  match policy {
+    PagedOrderedEagerOnly => OrderedKernelEagerOnly
+    PagedCapturedRequired => OrderedKernelCaptureRequired
+    PagedCapturedWithEagerFallback => OrderedKernelCaptureWithEagerFallback
   }
 }
 
@@ -303,15 +315,46 @@ pub fn prepare_paged_graph_executor(
   artifacts : @artifact.KernelArtifactBundle,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,
+  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
+  fused_residual_span? : ApprovedFusedResidualRmsNormSpan? = None,
+  fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
+  diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
+  sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let blueprint = admit_paged_graph_execution_blueprint(
-    model_plan, limits, layout, static_plan, memory_plan, profile_id, contracts,
+    model_plan,
+    limits,
+    layout,
+    static_plan,
+    memory_plan,
+    profile_id,
+    contracts,
     artifacts,
+    luna_authorization~,
   )
   validate_predecessor_seed(
     has_accepted_predecessor, accepted_predecessor_value,
   )
   validate_executor_evidence(context, blueprint, weights)
+  match fused_residual_span {
+    Some(span) =>
+      if span.model_generation() != model_generation ||
+        span.target() != blueprint.target() ||
+        !fused_dispatch_policy_allows_graph(diagnostic_policy, graph_policy) ||
+        !fused_dispatch_policy_allows_span(diagnostic_policy, span.kernel_abi()) {
+        raise InvalidExecutor(ResourceState)
+      }
+    None => ()
+  }
+  match fused_qkv_readonly_span {
+    Some(span) =>
+      if span.model_generation() != model_generation ||
+        span.target() != blueprint.target() {
+        raise InvalidExecutor(ResourceState)
+      }
+    None => ()
+  }
   let completion = prepare_paged_completion_scratch(
     model_plan, memory_plan, limits,
   )
@@ -392,15 +435,34 @@ pub fn prepare_paged_graph_executor(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let steps = prepare_paged_steps(
+  let model_steps = prepare_paged_production_steps(
+    context,
     blueprint,
     function_indices,
     descriptor.resources,
     weight,
     activation_workspace,
     persistent_kv,
+    resources,
+    fused_residual_span,
+    fused_qkv_readonly_span,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  PagedReady({ resources, steps, completion, lifecycle: GraphReady })
+  finish_paged_sampling_preparation(
+    context,
+    model_plan,
+    blueprint,
+    artifacts,
+    limits,
+    sampling_policy,
+    completion,
+    descriptor.resources,
+    activation_workspace,
+    model_steps,
+    resources,
+    graph_policy,
+    fused_residual_span,
+    diagnostic_policy,
+  )
 }

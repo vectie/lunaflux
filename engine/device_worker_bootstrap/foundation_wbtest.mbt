@@ -4,6 +4,9 @@ fn bootstrap_test_startup(
   content? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   inference_context? : Int = 16,
   inference_token_id? : Int = 7,
+  plan_rows? : Int = 1,
+  plan_tokens? : Int = 4,
+  plan_pages? : Int = 2,
 ) -> @worker_wire.WorkerStartupContract raise {
   let identity = @spec.ModelIdentity::new(
     @spec.ContentDigest::from_sha256(content),
@@ -20,13 +23,13 @@ fn bootstrap_test_startup(
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=@worker_protocol.WorkerProtocolLimits::new(
-      max_prefill_rows=1,
-      max_decode_rows=1,
-      max_plan_rows=1,
-      max_plan_tokens=4,
-      max_plan_pages=2,
+      max_prefill_rows=plan_rows,
+      max_decode_rows=plan_rows,
+      max_plan_rows=plan_rows,
+      max_plan_tokens=plan_tokens,
+      max_plan_pages=plan_pages,
       max_capabilities=64,
-      max_completion_slots=1,
+      max_completion_slots=plan_rows,
       max_sequence_tokens=16,
       max_token_id=7,
     ),
@@ -177,6 +180,47 @@ test "narrower inference envelope remains valid" {
     startup.identity().content(),
   )
   validate_runtime_envelope(startup, model, source.execution())
+}
+
+///|
+test "multi-row runtime envelope uses checked token and page products" {
+  let source = bootstrap_test_source()
+  let startup = bootstrap_test_startup(
+    source.digest(),
+    plan_rows=2,
+    plan_tokens=32,
+    plan_pages=8,
+  )
+  let model = @spec.LlamaModelMetadata::from_verified_content(
+    @spec.LlamaModelSpec::new(
+      vocabulary_size=8,
+      hidden_size=4,
+      intermediate_size=6,
+      layer_count=1,
+      attention_head_count=2,
+      kv_head_count=1,
+      context_length=16,
+      rope_theta=10000.0,
+      weight_dtype=BFloat16,
+      kv_dtype=BFloat16,
+    ),
+    startup.identity().content(),
+  )
+  validate_runtime_envelope(startup, model, source.execution())
+  let excess_tokens = bootstrap_test_startup(
+    source.digest(),
+    plan_rows=2,
+    plan_tokens=33,
+    plan_pages=8,
+  )
+  try
+    validate_runtime_envelope(excess_tokens, model, source.execution())
+  catch {
+    Invalid(WorkerEnvelope) => ()
+    _ => fail("unexpected multi-row token envelope failure")
+  } noraise {
+    _ => fail("row-multiplied token overflow was admitted")
+  }
 }
 
 ///|

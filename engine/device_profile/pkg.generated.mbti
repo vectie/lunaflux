@@ -25,10 +25,7 @@ pub(all) suberror DeviceProfileError {
 
 // Types and methods
 pub struct ActivationValueView {
-  reference : @plan.ActivationRef
-  width : Int64
-  token_rows : Int64
-  region : ExecutionRegionView
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ActivationValueView::reference(Self) -> @plan.ActivationRef
 pub fn ActivationValueView::region(Self) -> ExecutionRegionView
@@ -36,14 +33,7 @@ pub fn ActivationValueView::token_rows(Self) -> Int64
 pub fn ActivationValueView::width(Self) -> Int64
 
 pub struct DeviceExecutionProfile {
-  identity : @spec.ModelIdentity
-  target : @catalog.DeviceTarget
-  shape : ExactExecutionShape
-  token_staging : ExecutionRegionView
-  token_staging_capacity_bytes : Int64
-  regions : ReadOnlyArray[ExecutionRegionView]
-  operations : ReadOnlyArray[OperationExecutionProfile]
-  final_output : FinalOutputView
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceExecutionProfile::final_output(Self) -> FinalOutputView
 pub fn DeviceExecutionProfile::identity(Self) -> @spec.ModelIdentity
@@ -57,11 +47,7 @@ pub fn DeviceExecutionProfile::token_staging(Self) -> ExecutionRegionView
 pub fn DeviceExecutionProfile::token_staging_capacity_bytes(Self) -> Int64
 
 pub struct ExactExecutionShape {
-  phase : ExecutionPhase
-  batch_rows : Int
-  query_tokens_per_row : Int
-  context_tokens : Int
-  token_rows : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExactExecutionShape::batch_rows(Self) -> Int
 pub fn ExactExecutionShape::context_tokens(Self) -> Int
@@ -73,9 +59,7 @@ pub fn ExactExecutionShape::query_tokens_per_row(Self) -> Int
 pub fn ExactExecutionShape::token_rows(Self) -> Int64
 
 pub struct ExactKernelShape {
-  batch_rows : Int
-  sequence_tokens : Int
-  token_rows : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExactKernelShape::batch_rows(Self) -> Int
 pub fn ExactKernelShape::sequence_tokens(Self) -> Int
@@ -94,12 +78,7 @@ pub(all) enum ExecutionPhase {
 pub fn ExecutionPhase::as_stable_int(Self) -> Int
 
 pub struct ExecutionRegionView {
-  id : ProfileRegionId
-  space : ExecutionBufferSpace
-  offset_bytes : Int64
-  logical_bytes : Int64
-  reserved_bytes : Int64
-  alignment_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExecutionRegionView::alignment_bytes(Self) -> Int64
 pub fn ExecutionRegionView::end_offset_bytes(Self) -> Int64
@@ -115,10 +94,7 @@ pub(all) enum FinalOutputSemantics {
 } derive(Eq, @debug.Debug)
 
 pub struct FinalOutputView {
-  semantics : FinalOutputSemantics
-  value : ActivationValueView
-  row_bytes : Int64
-  selected_rows : ReadOnlyArray[FinalRowView]
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn FinalOutputView::row_bytes(Self) -> Int64
 pub fn FinalOutputView::selected_rows(Self) -> ReadOnlyArray[FinalRowView]
@@ -126,11 +102,7 @@ pub fn FinalOutputView::semantics(Self) -> FinalOutputSemantics
 pub fn FinalOutputView::value(Self) -> ActivationValueView
 
 pub struct FinalRowView {
-  batch_index : Int
-  backing_region : ProfileRegionId
-  offset_bytes : Int64
-  byte_length : Int64
-  alignment_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn FinalRowView::alignment_bytes(Self) -> Int64
 pub fn FinalRowView::backing_region(Self) -> ProfileRegionId
@@ -140,11 +112,7 @@ pub fn FinalRowView::end_offset_bytes(Self) -> Int64
 pub fn FinalRowView::offset_bytes(Self) -> Int64
 
 pub struct OperationExecutionProfile {
-  operation_id : @plan.OperationId
-  kernel_shape : ExactKernelShape
-  inputs : ReadOnlyArray[OperationInputView]
-  outputs : ReadOnlyArray[ActivationValueView]
-  workspace : ExecutionRegionView
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn OperationExecutionProfile::inputs(Self) -> ReadOnlyArray[OperationInputView]
 pub fn OperationExecutionProfile::kernel_shape(Self) -> ExactKernelShape
@@ -173,6 +141,7 @@ pub(all) enum ProfileOperationRule {
 pub(all) enum ProfilePlanRule {
   Identity
   Target
+  CatalogVersion
   EmptyOperations
   OperationCount
   OperationOrder
@@ -182,7 +151,9 @@ pub(all) enum ProfilePlanRule {
   Workspace
 } derive(Eq, @debug.Debug)
 
-pub struct ProfileRegionId(Int) derive(Eq, @debug.Debug)
+pub struct ProfileRegionId {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn ProfileRegionId::as_int(Self) -> Int
 pub fn ProfileRegionId::from_stable_int(Int) -> Self raise DeviceProfileError
 

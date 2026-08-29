@@ -67,6 +67,16 @@ fn poison_paged_completion(
 }
 
 ///|
+fn[T] poison_paged_completion_and_raise(
+  executor : PagedGraphExecutor,
+  descriptor : DeviceStepOwner,
+  error : DeviceStepError,
+) -> T raise DeviceStepError {
+  poison_paged_completion(executor, descriptor)
+  raise error
+}
+
+///|
 fn read_and_select_paged_row(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
@@ -104,13 +114,8 @@ fn read_and_select_paged_row(
     _ => ()
   }
   decode_paged_bf16_logits(scratch)
-  try select_paged_logit(scratch, parameters, seed_value, sample_index) catch {
-    error => {
-      poison_paged_completion(executor, descriptor)
-      raise error
-    }
-  } noraise {
-    token => token
+  select_paged_logit(scratch, parameters, seed_value, sample_index) catch {
+    error => poison_paged_completion_and_raise(executor, descriptor, error)
   }
 }
 
@@ -120,27 +125,23 @@ fn validate_completion_plan(
   plan : @worker_protocol.SubmittedSchedulePlan,
   writer : @worker_protocol.CompletionWriter,
 ) -> DeviceStepSummary raise DeviceStepError {
+  guard descriptor.staged_plan_owner is Some(owner) else {
+    raise InvalidExecutor(ResourceState)
+  }
+  let actual_owner = plan.buffer_identity() catch {
+    error => raise Protocol(error)
+  }
+  let sequence_value = plan.sequence_wire() catch {
+    error => raise Protocol(error)
+  }
+  if !owner.same_owner(actual_owner) ||
+    sequence_value != descriptor.staged_summary.sequence_value {
+    raise ExecutorOwnerMismatch
+  }
   writer.validate_plan(plan) catch {
     error => raise Protocol(error)
   }
-  let summary = preflight_and_write(
-    plan,
-    descriptor.model_generation_value,
-    descriptor.identity,
-    descriptor.layout,
-    descriptor.limits,
-    descriptor.host,
-    descriptor.required_capabilities,
-    false,
-  )
-  if summary.sequence_value != descriptor.staged_sequence_value ||
-    summary.prefill_count != read_paged_i32(descriptor.host.counts, 0) ||
-    summary.decode_count != read_paged_i32(descriptor.host.counts, 1) ||
-    summary.row_count != read_paged_i32(descriptor.host.counts, 2) ||
-    summary.token_count != read_paged_i32(descriptor.host.counts, 3) {
-    raise InvalidPlan(Counts)
-  }
-  summary
+  descriptor.staged_summary
 }
 
 ///|
@@ -256,6 +257,7 @@ pub fn PagedGraphExecutor::sample_completion(
 ) -> @worker_protocol.SubmittedCompletion raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_completion_plan(descriptor, plan, writer)
+  copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
   for prefill_index in 0..<summary.prefill_count {
     let row = try plan.prefill_row(prefill_index) catch {
       error => raise Protocol(error)
@@ -283,15 +285,22 @@ pub fn PagedGraphExecutor::sample_completion(
       } noraise {
         value => value
       }
-      self.completion.selected_tokens[prefill_index] = read_and_select_paged_row(
-        self,
-        descriptor,
-        prefill_index,
-        summary.token_count,
-        parameters,
-        seed_value,
-        sample_index,
-      )
+      match self.completion.mode {
+        HostLogitsCompletion =>
+          self.completion.selected_tokens[prefill_index] = read_and_select_paged_row(
+            self,
+            descriptor,
+            prefill_index,
+            summary.token_count,
+            parameters,
+            seed_value,
+            sample_index,
+          )
+        CudaGreedyCompletion(_) =>
+          self.completion.selected_tokens[prefill_index] = select_paged_cuda_greedy_result(
+            self, descriptor, prefill_index,
+          )
+      }
     }
   }
   for decode_index in 0..<summary.decode_count {
@@ -316,15 +325,22 @@ pub fn PagedGraphExecutor::sample_completion(
     } noraise {
       value => value
     }
-    self.completion.selected_tokens[row_index] = read_and_select_paged_row(
-      self,
-      descriptor,
-      row_index,
-      summary.token_count,
-      parameters,
-      seed_value,
-      sample_index,
-    )
+    match self.completion.mode {
+      HostLogitsCompletion =>
+        self.completion.selected_tokens[row_index] = read_and_select_paged_row(
+          self,
+          descriptor,
+          row_index,
+          summary.token_count,
+          parameters,
+          seed_value,
+          sample_index,
+        )
+      CudaGreedyCompletion(_) =>
+        self.completion.selected_tokens[row_index] = select_paged_cuda_greedy_result(
+          self, descriptor, row_index,
+        )
+    }
   }
   append_paged_completion(
     plan,

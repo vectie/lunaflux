@@ -13,6 +13,13 @@ completely re-admits the retained descendant beneath an independently approved
 pinned root without re-inspecting it, streams weights through one reusable
 fixed host buffer, and prepares the complete paged executor.
 
+The inert plan also retains the startup-authenticated sampling placement.
+Absent placement selects host sampling. Explicit embedded-CUDA greedy must join
+the exact final LM-head artifact and prepares its module function and fixed
+result scratch once; any mismatch fails startup without fallback. Both the
+legacy Llama admission and numeric BF16 Mistral admission use the same rule.
+Stochastic/top-k/top-p requests remain explicit host mode.
+
 Weight readiness additionally requires successful terminal source-file close.
 If both that close and cleanup of an otherwise-ready allocation fail, the
 weight owner retains retryable `SourceClose` cleanup authority and worker
@@ -41,14 +48,16 @@ This package does not write the process `Ready` frame or own the worker
 channel; the child entry point must call `readiness_contract` and only then
 encode that exact value. CPU tests cover immutable admission and lifecycle
 orchestration. A positive-controlled native release harness additionally
-prepares a genuine owner, warms it, and proves 131 exact canonical one-row
-ordinary-prefill/final-prefill/decode and greedy/stochastic
+prepares a genuine owner, warms one production-reachable schema-v2 four-row
+batch, and proves the next 65 mixed/full-batch ordinary-prefill,
+final-prefill/decode, greedy, and stochastic
 `execute_frame`/completion-authentication/plan-retirement cycles perform no
 MoonBit managed, array, or string allocation and create no native resource.
-Its fake device checks exact request/page generations, transfer, launch,
-synchronization, readback, publication, and cleanup counts; injected
+Its fake device checks exact request/page generations, varied row token counts
+and page CSR, transfer, launch, synchronization, readback, publication, and
+cleanup counts. Nonuniform row-dependent BF16 logits are checked by an
+independent scalar temperature/top-k/top-p oracle; injected
 launch/readback/non-finite faults prove aggregate fail-stop and writer reuse.
-This is allocation, control-flow, and deterministic same-sampler replay
-evidence only. Mixed-row batching, independent stochastic correctness,
-physical CUDA numerical correctness, sanitizer/leak, soak, and benchmark
-evidence remain promotion gates.
+This is allocation and software-path numerical evidence only. Physical CUDA
+numerical correctness, sanitizer/leak, soak, and benchmark evidence remain
+promotion gates.

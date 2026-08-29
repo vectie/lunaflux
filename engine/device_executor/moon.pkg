@@ -13,8 +13,7 @@ import {
 }
 
 import {
-  "vectie/lunaflux/model/llama_weights",
-  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/plan_test_fixture",
 } for "wbtest"
 
 supported_targets = "native"

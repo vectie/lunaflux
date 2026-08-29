@@ -19,6 +19,7 @@ fn load_execution(
   source : @worker_wire.EncodedBootstrapSource,
   kernel_root : @approved_fs.ApprovedRoot,
   derived : DerivedBootstrap,
+  luna_parent_witness : @luna_capability_manifest.LunaParentStartupApprovalWitness?,
 ) -> @execution_manifest_file.PagedExecutionAdmission raise DeviceWorkerBootstrapError {
   let kernel = source.kernel()
   let locator = @approved_fs.ApprovedRelativeLocator::new(
@@ -41,6 +42,8 @@ fn load_execution(
     derived.target,
     derived.step_limits,
     derived.execution_limits,
+    luna_approval=kernel.luna_approval(),
+    luna_parent_witness~,
   ) catch {
     error => raise ExecutionManifest(error)
   }
@@ -51,6 +54,7 @@ fn prepare_with_roots(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   roots : BootstrapRoots,
+  luna_parent_witness : @luna_capability_manifest.LunaParentStartupApprovalWitness?,
 ) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError {
   let model_root = match roots.model {
     Some(root) => root
@@ -73,8 +77,20 @@ fn prepare_with_roots(
   let derived = inspect_model_inputs(startup, source, model_root) catch {
     error => return preparation_failed(roots, None, error)
   }
-  let execution = load_execution(source, kernel_root, derived) catch {
+  let execution = load_execution(
+    source, kernel_root, derived, luna_parent_witness,
+  ) catch {
     error => return preparation_failed(roots, None, error)
+  }
+  let fused_runtime = load_optional_fused_runtime(source, kernel_root) catch {
+    error => return preparation_failed(roots, None, error)
+  }
+  let sampling_policy = @device_worker.admit_bootstrap_sampling_policy(
+    source,
+    derived.plan,
+    execution,
+  ) catch {
+    error => return preparation_failed(roots, None, Worker(error))
   }
   let worker_plan = @device_worker.admit_plan(
     startup~,
@@ -82,6 +98,13 @@ fn prepare_with_roots(
     weight_inspection=derived.weights,
     execution~,
     bootstrap_limits=derived.bootstrap_limits,
+    sampling_policy~,
+    fused_catalog=fused_runtime.map(runtime => runtime.catalog),
+    fused_bundle=fused_runtime.map(runtime => runtime.bundle),
+    fused_qkv_readonly_source=match fused_runtime {
+      Some(runtime) => runtime.production
+      None => None
+    },
   ) catch {
     error => return preparation_failed(roots, None, Worker(error))
   }
@@ -93,31 +116,33 @@ fn prepare_with_roots(
         error => raise Worker(error)
       }
       match prepared {
-        DeviceWorkerReady(owner) => Ready(owner)
-        DeviceWorkerCleanupRequired(failed) => Failed(failed)
+        DeviceWorkerReady(owner) => LegacyReady(owner)
+        DeviceWorkerCleanupRequired(failed) => LegacyFailed(failed)
       }
     },
     authority => {
       match authority {
-        Failed(failed) => Some(Worker(failed.cause()))
-        Ready(_) => None
+        LegacyFailed(failed) => Some(Worker(failed.cause()))
+        LegacyReady(_) => None
+        _ => Some(Invalid(Recipe))
       }
     },
     () => close_model_root(roots),
     authority => {
       match authority {
-        Ready(owner) =>
+        LegacyReady(owner) =>
           owner.readiness_contract() catch {
             error => raise Worker(error)
           }
-        Failed(failed) => raise Worker(failed.cause())
+        LegacyFailed(failed) => raise Worker(failed.cause())
+        _ => raise Invalid(Recipe)
       }
     },
     (authority, error) => preparation_failed(roots, authority, error),
     authority => {
       match authority {
-        Ready(owner) => ChildReady({ worker: owner })
-        Failed(_) => abort("failed worker passed readiness barrier")
+        LegacyReady(owner) => ChildReady({ worker: Legacy(owner) })
+        _ => abort("invalid worker passed readiness barrier")
       }
     },
   )
@@ -129,7 +154,31 @@ fn prepare_with_roots(
 pub fn prepare(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
+  luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
 ) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError {
+  match (source.kernel().luna_approval(), luna_parent_witness) {
+    (None, None) => ()
+    (Some(_), Some(witness)) =>
+      witness.require_launch_identity(
+        bootstrap_digest_sha256=startup.bootstrap_digest().as_hex(),
+        source_digest_sha256=startup.bootstrap_source_digest().as_hex(),
+        model_generation=startup.model_generation_value(),
+        device_ordinal=startup.device_ordinal(),
+      ) catch {
+        _ => raise Invalid(Recipe)
+      }
+    _ => raise Invalid(Recipe)
+  }
+  if source.recipe() == DenseLlamaFp8ReusablePagedAotApprovedV9 {
+    return prepare_fp8(startup, source, luna_parent_witness)
+  }
+  if source.recipe() == DenseLlamaI8PagedAotV6 {
+    return prepare_i8(startup, source)
+  }
+  if source.recipe() == DenseMistralBf16PagedAotV7 ||
+    source.recipe() == DenseMistralBf16PagedAotExtensionsV11 {
+    return prepare_mistral(startup, source)
+  }
   validate_source_envelope(startup, source)
   let acquired = acquire_roots_with(role => {
     let inherited = match role {
@@ -141,7 +190,8 @@ pub fn prepare(
     }
   })
   match acquired {
-    RootsAcquired(roots) => prepare_with_roots(startup, source, roots)
+    RootsAcquired(roots) =>
+      prepare_with_roots(startup, source, roots, luna_parent_witness)
     RootCleanupRequired(preparation) => preparation
   }
 }

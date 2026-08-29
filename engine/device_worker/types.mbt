@@ -26,9 +26,11 @@ pub(all) suberror DeviceWorkerError {
   Wire(@worker_wire.WorkerWireError)
   Device(@device.DeviceError)
   Weights(@device_materialize.DeviceWeightError)
+  NumericWeights(@numeric_weight_file.NumericWeightFileError)
   Executor(@device_step.DeviceStepError)
   CleanupContext(@device.DeviceError)
   CleanupWeights(@device_materialize.DeviceWeightError)
+  CleanupNumericWeights(@numeric_weight_file.NumericWeightFileError)
   CleanupExecutor(@device_step.DeviceStepError)
   CompletionAbortFailed(
     primary~ : DeviceWorkerError,
@@ -47,6 +49,8 @@ priv enum ExecutorOwner {
 priv enum WeightOwner {
   Complete(@device_materialize.DeviceWeights)
   Failed(@device_materialize.FailedDeviceWeightPreparation)
+  NumericComplete(@numeric_weight_file.NumericDeviceWeights)
+  NumericFailed(@numeric_weight_file.FailedNumericDeviceWeightPreparation)
 }
 
 ///|
@@ -54,6 +58,7 @@ priv struct DeviceWorkerResources {
   mut executor : ExecutorOwner?
   mut weights : WeightOwner?
   mut context : @device.Context?
+  mut numeric_weights_owned_by_executor : Bool
 }
 
 ///|
@@ -61,9 +66,15 @@ priv struct DeviceWorkerResources {
 /// no device or native resource and exposes no mutable execution owner.
 pub struct DeviceWorkerPlan {
   priv startup : @worker_wire.WorkerStartupContract
-  priv weight_inspection : @device_materialize.DeviceWeightFileInspection
+  priv model_plan : @plan.ModelPlan
+  priv weight_inspection : @device_materialize.DeviceWeightFileInspection?
+  priv numeric_weight_inspection : @numeric_weight_file.NumericWeightFileInspection?
   priv execution : @execution_manifest_file.PagedExecutionAdmission
   priv manifest : @device_step.DeviceWorkerBootstrapManifest
+  priv sampling_policy : @device_step.PagedSamplingExecutionPolicy
+  priv fused_residual_span : @device_step.ApprovedFusedResidualRmsNormSpan?
+  priv fused_qkv_readonly_artifacts : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts?
+  priv fused_qkv_readonly_source : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?
 }
 
 ///|
@@ -77,7 +88,7 @@ pub struct DeviceWorkerOwner {
 }
 
 ///|
-pub(all) enum DeviceWorkerPreparation {
+pub enum DeviceWorkerPreparation {
   DeviceWorkerReady(DeviceWorkerOwner)
   DeviceWorkerCleanupRequired(FailedDeviceWorkerPreparation)
 }

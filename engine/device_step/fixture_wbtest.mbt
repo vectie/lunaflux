@@ -165,18 +165,6 @@ fn preflight_then_write(
   limits : DeviceStepLimits,
   host : DeviceStepHostBuffers,
 ) -> DeviceStepSummary raise DeviceStepError {
-  ignore(
-    preflight_and_write(
-      plan,
-      expected_generation,
-      expected_identity,
-      layout,
-      limits,
-      host,
-      step_required_capabilities(),
-      false,
-    ),
-  )
   preflight_and_write(
     plan,
     expected_generation,

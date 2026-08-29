@@ -13,6 +13,7 @@ pub(all) enum ProfileShapeRule {
 pub(all) enum ProfilePlanRule {
   Identity
   Target
+  CatalogVersion
   EmptyOperations
   OperationCount
   OperationOrder

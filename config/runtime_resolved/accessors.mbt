@@ -113,6 +113,20 @@ pub fn ResolvedRuntimeCapacity::required_worker_page_table_cells(
 }
 
 ///|
+pub fn ResolvedRuntimeCapacity::maximum_generated_tokens_per_request(
+  self : ResolvedRuntimeCapacity,
+) -> Int {
+  self.maximum_generated_tokens_per_request
+}
+
+///|
+pub fn ResolvedRuntimeCapacity::required_recompute_history_cells(
+  self : ResolvedRuntimeCapacity,
+) -> Int {
+  self.required_recompute_history_cells
+}
+
+///|
 pub fn ResolvedRuntimeCapacity::plan_buffer_count(
   _self : ResolvedRuntimeCapacity,
 ) -> Int {
@@ -206,12 +220,35 @@ pub fn ResolvedRuntimeCapacity::page_allocator_limits(
 }
 
 ///|
-/// Canonical active-request block-table limits. Waiting requests own no table.
-/// The generation ceiling is the owner package's maximum default.
+/// Canonical request block-table limits. With prefix reuse enabled, waiting
+/// requests may pin an authenticated shared-page table before activation; the
+/// capacity therefore covers all request slots. The generation ceiling is the
+/// owner package's maximum default.
 pub fn ResolvedRuntimeCapacity::block_table_limits(
   self : ResolvedRuntimeCapacity,
 ) -> @block_table.BlockTableLimits {
   self.block_table_limits
+}
+
+///|
+pub fn ResolvedRuntimeCapacity::prefix_enabled(
+  self : ResolvedRuntimeCapacity,
+) -> Bool {
+  self.prefix_index_limits is Some(_)
+}
+
+///|
+pub fn ResolvedRuntimeCapacity::prefix_index_limits(
+  self : ResolvedRuntimeCapacity,
+) -> @radix.PrefixIndexLimits? {
+  self.prefix_index_limits
+}
+
+///|
+pub fn ResolvedRuntimeCapacity::prefix_layout(
+  self : ResolvedRuntimeCapacity,
+) -> @radix.PrefixLayout {
+  self.prefix_layout
 }
 
 ///|

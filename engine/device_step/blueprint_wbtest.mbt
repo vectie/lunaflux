@@ -41,7 +41,7 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
   assert_eq(result.profile(), blueprint_profile())
   assert_eq(result.steps().length(), 2)
   let rotary = result.steps()[0]
-  assert_eq(rotary.operation_id(), @plan.OperationId::new(2))
+  assert_eq(rotary.operation_id(), @plan.OperationId::new(3))
   assert_eq(rotary.operation_kind(), RotaryEmbedding)
   assert_eq(rotary.kv_layer(), Some(@plan.KvLayerId::new(0)))
   assert_eq(
@@ -56,7 +56,7 @@ test "paged blueprint preserves exact inert semantic and physical bindings" {
   assert_eq(rotary.operands()[2].space(), ActivationWorkspaceArena)
   assert_eq(rotary.operands()[4].space(), ActivationWorkspaceArena)
   let attention = result.steps()[1]
-  assert_eq(attention.operation_id(), @plan.OperationId::new(3))
+  assert_eq(attention.operation_id(), @plan.OperationId::new(4))
   assert_eq(
     attention.capability(),
     @plan.KernelCapabilityId::paged_causal_attention(),
@@ -186,18 +186,20 @@ test "paged blueprint requires exact profile limits and layout" {
       memory,
       @launch_contract.KernelProfileId::from_stable_int(1),
       contracts,
-      blueprint_v1_artifacts(plan.identity(), target),
+      blueprint_v1_artifacts(plan.identity().content(), target),
     )
   catch {
-    InvalidBlueprint(CatalogVersion) => ()
-    _ => fail("unexpected foreign catalog error")
+    // A separately authenticated v1 fixture can no longer borrow this plan's
+    // digest. Exact identity rejection correctly precedes catalog inspection.
+    InvalidBlueprint(Identity) => ()
+    _ => fail("unexpected foreign artifact identity error")
   } noraise {
     _ => fail("expected foreign catalog rejection")
   }
 }
 
 ///|
-test "paged blueprint rejects foreign artifact entries and operation order" {
+test "paged blueprint rejects foreign artifact entries and operation graph" {
   let metadata = blueprint_metadata()
   let plan = blueprint_model_plan(metadata)
   let layout = blueprint_layout(plan)
@@ -225,7 +227,7 @@ test "paged blueprint rejects foreign artifact entries and operation order" {
   } noraise {
     _ => fail("expected foreign artifact rejection")
   }
-  let reordered = blueprint_model_plan(metadata, leading_norm=true)
+  let reordered = blueprint_model_plan(metadata, extra_projection=true)
   let reordered_layout = blueprint_layout(reordered)
   try
     admit_paged_kv_execution_blueprint(
@@ -238,7 +240,7 @@ test "paged blueprint rejects foreign artifact entries and operation order" {
       blueprint_artifacts(contracts),
     )
   catch {
-    InvalidBlueprintOperation(_, OperationOrder) => ()
+    InvalidBlueprint(Identity) => ()
     _ => fail("unexpected operation-order error")
   } noraise {
     _ => fail("expected operation-order rejection")
@@ -252,7 +254,7 @@ test "paged blueprint rejects same-identity foreign activation liveness graph" {
   let layout = blueprint_layout(plan)
   let target = blueprint_target()
   let contracts = blueprint_contract_set(plan, layout, target)
-  let foreign = blueprint_model_plan(metadata, replace_qkv_with_norm=true)
+  let foreign = blueprint_model_plan(metadata, replace_qkv_with_projection=true)
   let foreign_layout = blueprint_layout(foreign)
   try
     admit_paged_kv_execution_blueprint(
@@ -265,8 +267,7 @@ test "paged blueprint rejects same-identity foreign activation liveness graph" {
       blueprint_artifacts(contracts),
     )
   catch {
-    InvalidBlueprintOperation(_, ActivationRegion) => ()
-    InvalidBlueprint(ActivationRegion) => ()
+    InvalidBlueprint(Identity) => ()
     _ => fail("unexpected foreign activation-liveness error")
   } noraise {
     _ => fail("expected foreign activation-liveness rejection")
@@ -293,7 +294,7 @@ test "paged blueprint rejects same-identity foreign operation shape" {
       blueprint_artifacts(contracts),
     )
   catch {
-    InvalidBlueprintOperation(_, ContractSemantics) => ()
+    InvalidBlueprint(Identity) => ()
     _ => fail("unexpected foreign operation-shape error")
   } noraise {
     _ => fail("expected foreign operation-shape rejection")
@@ -348,7 +349,7 @@ test "paged blueprint rejects activation size alignment and workspace drift" {
       blueprint_artifacts(exact_contracts),
     )
   catch {
-    InvalidBlueprintOperation(_, OperandSize) => ()
+    InvalidBlueprint(Identity) => ()
     _ => fail("unexpected workspace drift error")
   } noraise {
     _ => fail("expected workspace drift rejection")

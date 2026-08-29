@@ -179,6 +179,7 @@ fn write_prefill_row(
   tokens_per_page : Int,
   limits : DeviceStepLimits,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
+  greedy_only : Bool,
   write : Bool,
 ) -> Int64 raise DeviceStepError {
   let row = plan.prefill_row(row_index) catch {
@@ -188,6 +189,12 @@ fn write_prefill_row(
   let pages = row.page_table() catch { error => raise protocol_error(error) }
   let capabilities = row.capabilities() catch {
     error => raise protocol_error(error)
+  }
+  if greedy_only &&
+    (row.produces_token() catch { error => raise protocol_error(error) }) &&
+    (row.sampling() catch { error => raise protocol_error(error) }).mode() !=
+    Greedy {
+    raise InvalidExecutor(SamplingMode)
   }
   validate_capabilities(plan, capabilities, required_capabilities)
   let sequence_start = row.sequence_token_start() catch {
@@ -248,6 +255,7 @@ fn write_decode_row(
   tokens_per_page : Int,
   limits : DeviceStepLimits,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
+  greedy_only : Bool,
   write : Bool,
 ) -> Int64 raise DeviceStepError {
   let row = plan.decode_row(decode_index) catch {
@@ -257,6 +265,11 @@ fn write_decode_row(
   let pages = row.page_table() catch { error => raise protocol_error(error) }
   let capabilities = row.capabilities() catch {
     error => raise protocol_error(error)
+  }
+  if greedy_only &&
+    (row.sampling() catch { error => raise protocol_error(error) }).mode() !=
+    Greedy {
+    raise InvalidExecutor(SamplingMode)
   }
   validate_capabilities(plan, capabilities, required_capabilities)
   let position = row.sequence_token_position() catch {
@@ -322,6 +335,7 @@ fn preflight_and_write(
   host : DeviceStepHostBuffers,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
   write : Bool,
+  greedy_only? : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   let summary = validate_identity_and_counts(
     plan, expected_generation, layout, limits, expected_identity,
@@ -340,6 +354,7 @@ fn preflight_and_write(
       layout.tokens_per_page(),
       limits,
       required_capabilities,
+      greedy_only,
       write,
     )
     token_end = cursor_token_end(cursor)
@@ -359,6 +374,7 @@ fn preflight_and_write(
       layout.tokens_per_page(),
       limits,
       required_capabilities,
+      greedy_only,
       write,
     )
     token_end = cursor_token_end(cursor)

@@ -20,110 +20,6 @@ fn executor_test_metadata(
 }
 
 ///|
-fn executor_append_tensor(
-  entries : Array[@safetensors.RawTensorMetadata],
-  name : String,
-  shape : ArrayView[Int64],
-  offset : Ref[Int64],
-) -> Unit {
-  let start = offset.val
-  let end = shape.fold(init=2L, (size, dimension) => size * dimension) + start
-  entries.push(
-    @safetensors.RawTensorMetadata::new(
-      name~,
-      dtype="BF16",
-      shape~,
-      data_start=start,
-      data_end=end,
-    ),
-  )
-  offset.val = end
-}
-
-///|
-fn executor_test_layout(
-  metadata : @spec.LlamaModelMetadata,
-) -> @device_materialize.DeviceWeightLayout raise {
-  let entries : Array[@safetensors.RawTensorMetadata] = []
-  let offset = Ref(0L)
-  executor_append_tensor(entries, "model.embed_tokens.weight", [8L, 4L], offset)
-  executor_append_tensor(
-    entries,
-    "model.layers.0.input_layernorm.weight",
-    [4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.self_attn.q_proj.weight",
-    [4L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.self_attn.k_proj.weight",
-    [2L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.self_attn.v_proj.weight",
-    [2L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.self_attn.o_proj.weight",
-    [4L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.post_attention_layernorm.weight",
-    [4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.mlp.gate_proj.weight",
-    [6L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.mlp.up_proj.weight",
-    [6L, 4L],
-    offset,
-  )
-  executor_append_tensor(
-    entries,
-    "model.layers.0.mlp.down_proj.weight",
-    [4L, 6L],
-    offset,
-  )
-  executor_append_tensor(entries, "model.norm.weight", [4L], offset)
-  executor_append_tensor(entries, "lm_head.weight", [8L, 4L], offset)
-  let safetensors = @safetensors.validate_metadata(
-    entries,
-    encoded_header_bytes=16,
-    payload_bytes=offset.val,
-    limits=@safetensors.HeaderLimits::new(
-      max_header_bytes=4096,
-      max_tensor_count=32,
-      max_rank=2,
-      max_name_length=128,
-      max_payload_bytes=4096L,
-      max_materialized_tensor_bytes=4096L,
-    ),
-  )
-  @device_materialize.plan_layout(
-    @llama_weights.bind(metadata, safetensors),
-    alignment_bytes=64L,
-    max_arena_bytes=4096L,
-  )
-}
-
-///|
 fn executor_test_semantic_plan(
   metadata : @spec.LlamaModelMetadata,
 ) -> @plan.ModelPlan raise {
@@ -141,7 +37,7 @@ fn executor_test_semantic_plan(
     kind=LanguageModelHead,
     inputs=[
       Activation(@plan.ActivationRef::new(0)),
-      Tensor(@plan.TensorRef::new(11)),
+      Tensor(@plan.TensorRef::new(0)),
     ],
     outputs=[@plan.ActivationRef::new(1)],
     shape=ProjectionShape(input_width=4, output_width=8),
@@ -149,7 +45,8 @@ fn executor_test_semantic_plan(
     workspace_bytes=0L,
   )
   @plan.ModelPlan::new_stateless(
-    identity=metadata.identity(),
+    content_digest=metadata.content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=1,
       max_sequence_tokens=4,
@@ -164,6 +61,9 @@ fn executor_test_semantic_plan(
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=0L),
     operations=[embedding, head],
     final_output=@plan.ActivationRef::new(1),
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema([
+      embedding, head,
+    ]),
   )
 }
 
@@ -233,7 +133,11 @@ fn executor_test_fixture(
 ) -> ExecutorTestFixture raise {
   let metadata = executor_test_metadata()
   let semantic = executor_test_semantic_plan(metadata)
-  let layout = executor_test_layout(metadata)
+  let layout = @device_materialize.plan_numeric_layout(
+    semantic,
+    alignment_bytes=64L,
+    max_arena_bytes=4096L,
+  )
   let digest = @catalog.AotArtifactDigest::from_sha256(
     "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
   )

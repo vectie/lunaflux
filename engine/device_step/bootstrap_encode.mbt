@@ -107,6 +107,7 @@ fn BootstrapEncoder::append_role(
       self.append_int(2)
       self.append_int(reference.as_int())
     }
+    WeightScaleInput(_, _) => raise InvalidBootstrap(Blueprint)
     ActivationInput(reference) => {
       self.append_int(3)
       self.append_int(reference.as_int())

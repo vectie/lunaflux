@@ -5,42 +5,44 @@
 /// alignment padding, and the shared kernel workspace. The token-row envelope
 /// is derived from the static plan's checked shape constraints.
 pub struct DeviceMemoryLimits {
-  activation_alignment : Int64
-  max_arena_bytes : Int64
+  priv activation_alignment : Int64
+  priv max_arena_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Stable identifier for a reusable physical activation slot origin.
-pub struct ActivationSlotId(Int) derive(Debug, Eq)
+pub struct ActivationSlotId {
+  priv value : Int
+} derive(Debug, Eq)
 
 ///|
 /// Immutable placement and liveness of one semantic activation value.
 pub struct ActivationRegion {
-  reference : @plan.ActivationRef
-  slot : ActivationSlotId
-  offset_bytes : Int64
-  logical_bytes : Int64
-  reserved_bytes : Int64
-  produced_by : @plan.OperationId
-  live_through_step : Int
-  retained_output : Bool
+  priv reference : @plan.ActivationRef
+  priv slot : ActivationSlotId
+  priv offset_bytes : Int64
+  priv logical_bytes : Int64
+  priv reserved_bytes : Int64
+  priv produced_by : @plan.OperationId
+  priv live_through_step : Int
+  priv retained_output : Bool
 } derive(Debug, Eq)
 
 ///|
 /// One aligned workspace region reused by every operation in sequence.
 pub struct WorkspaceRegion {
-  offset_bytes : Int64
-  byte_length : Int64
-  alignment_bytes : Int64
+  priv offset_bytes : Int64
+  priv byte_length : Int64
+  priv alignment_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Pre-resolved activation inputs and outputs for one static operation.
 pub struct OperationMemoryBinding {
-  operation_id : @plan.OperationId
-  activation_inputs : ReadOnlyArray[ActivationRegion]
-  activation_outputs : ReadOnlyArray[ActivationRegion]
-  workspace : WorkspaceRegion
+  priv operation_id : @plan.OperationId
+  priv activation_inputs : ReadOnlyArray[ActivationRegion]
+  priv activation_outputs : ReadOnlyArray[ActivationRegion]
+  priv workspace : WorkspaceRegion
 } derive(Debug, Eq)
 
 ///|
@@ -49,17 +51,17 @@ pub struct OperationMemoryBinding {
 /// Repeated token steps consume only these prebuilt regions and bindings; the
 /// plan itself performs no allocation and owns no native resource.
 pub struct DeviceMemoryPlan {
-  identity : @spec.ModelIdentity
-  target : @catalog.DeviceTarget
-  limits : DeviceMemoryLimits
-  token_rows : Int64
-  activation_bytes : Int64
-  workspace : WorkspaceRegion
-  arena_bytes : Int64
-  slot_count : Int
-  regions : ReadOnlyArray[ActivationRegion]
-  bindings : ReadOnlyArray[OperationMemoryBinding]
-  final_output : @plan.ActivationRef
+  priv identity : @spec.ModelIdentity
+  priv target : @catalog.DeviceTarget
+  priv limits : DeviceMemoryLimits
+  priv token_rows : Int64
+  priv activation_bytes : Int64
+  priv workspace : WorkspaceRegion
+  priv arena_bytes : Int64
+  priv slot_count : Int
+  priv regions : ReadOnlyArray[ActivationRegion]
+  priv bindings : ReadOnlyArray[OperationMemoryBinding]
+  priv final_output : @plan.ActivationRef
 } derive(Debug, Eq)
 
 ///|
@@ -69,7 +71,7 @@ pub struct DeviceMemoryPlan {
 /// should remain here, and `close` must run before the context is closed.
 pub struct DeviceMemoryArena {
   priv allocation : @device.Allocation
-  plan : DeviceMemoryPlan
+  priv plan : DeviceMemoryPlan
 }
 
 ///|
@@ -102,7 +104,7 @@ pub fn DeviceMemoryLimits::max_arena_bytes(self : DeviceMemoryLimits) -> Int64 {
 
 ///|
 pub fn ActivationSlotId::as_int(self : ActivationSlotId) -> Int {
-  self.0
+  self.value
 }
 
 ///|

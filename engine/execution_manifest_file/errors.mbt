@@ -18,6 +18,8 @@ pub(all) enum ExecutionManifestArea {
   Module
   Operation
   Dimensions
+  LunaAuthorization
+  NumericAuthorization
 } derive(Debug, Eq)
 
 ///|
@@ -43,6 +45,13 @@ pub(all) enum ExecutionManifestIdentityPart {
   Bf16Support
   CublasLtSupport
   CatalogVersion
+  NumericSchemaDigest
+  I8AdmissionDigest
+  DeviceNumericDigest
+  WeightArtifactDigest
+  Fp8KernelManifestDigest
+  Fp8RuntimeRecipeDigest
+  Fp8ReusableRecipeDigest
 } derive(Debug, Eq)
 
 ///|
@@ -60,7 +69,22 @@ pub(all) enum ExecutionManifestAdmissionStage {
   LaunchContracts
   ArtifactSource
   ArtifactFiles
+  TensorParallelSpecialization
+  TensorParallelLaunchContracts
+  TensorParallelExecutionPlan
+  LunaSpecialization
+  LunaExecutionProfile
+  LunaCapability
+  LunaExternalApproval
+  LunaArtifactAuthorization
   Blueprint
+  I8ProductionPolicy
+  I8BootstrapV3
+  Fp8NumericLayout
+  Fp8KernelManifest
+  Fp8StartupV2
+  Fp8RuntimeRecipeV2
+  Fp8ReusableRecipeV3
 } derive(Debug, Eq)
 
 ///|

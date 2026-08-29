@@ -13,11 +13,11 @@ pub(all) enum ExecutionPhase {
 /// explicit: every step recomputes the complete sequence because this graph
 /// has no KV-cache input or paged-attention state.
 pub struct ExactExecutionShape {
-  phase : ExecutionPhase
-  batch_rows : Int
-  query_tokens_per_row : Int
-  context_tokens : Int
-  token_rows : Int64
+  priv phase : ExecutionPhase
+  priv batch_rows : Int
+  priv query_tokens_per_row : Int
+  priv context_tokens : Int
+  priv token_rows : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -26,9 +26,9 @@ pub struct ExactExecutionShape {
 /// Full prefill and full recompute share this key when their dimensions are
 /// identical because both execute the same stateless full-sequence graph.
 pub struct ExactKernelShape {
-  batch_rows : Int
-  sequence_tokens : Int
-  token_rows : Int64
+  priv batch_rows : Int
+  priv sequence_tokens : Int
+  priv token_rows : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -41,7 +41,9 @@ pub(all) enum ExecutionBufferSpace {
 
 ///|
 /// Stable integer region identity within one `DeviceExecutionProfile`.
-pub struct ProfileRegionId(Int) derive(Debug, Eq)
+pub struct ProfileRegionId {
+  priv value : Int
+} derive(Debug, Eq)
 
 ///|
 /// One immutable logical slice of a reusable device allocation.
@@ -50,21 +52,21 @@ pub struct ProfileRegionId(Int) derive(Debug, Eq)
 /// capacity already planned for its buffer space and is never expanded during
 /// dispatch.
 pub struct ExecutionRegionView {
-  id : ProfileRegionId
-  space : ExecutionBufferSpace
-  offset_bytes : Int64
-  logical_bytes : Int64
-  reserved_bytes : Int64
-  alignment_bytes : Int64
+  priv id : ProfileRegionId
+  priv space : ExecutionBufferSpace
+  priv offset_bytes : Int64
+  priv logical_bytes : Int64
+  priv reserved_bytes : Int64
+  priv alignment_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Exact activation value metadata used to validate operation dataflow.
 pub struct ActivationValueView {
-  reference : @plan.ActivationRef
-  width : Int64
-  token_rows : Int64
-  region : ExecutionRegionView
+  priv reference : @plan.ActivationRef
+  priv width : Int64
+  priv token_rows : Int64
+  priv region : ExecutionRegionView
 } derive(Debug, Eq)
 
 ///|
@@ -81,11 +83,11 @@ pub(all) enum OperationInputView {
 /// `kernel_shape` must be matched exactly by the selected AOT/vendor execution
 /// plan. The maximum memory-envelope shape is not a compatible substitute.
 pub struct OperationExecutionProfile {
-  operation_id : @plan.OperationId
-  kernel_shape : ExactKernelShape
-  inputs : ReadOnlyArray[OperationInputView]
-  outputs : ReadOnlyArray[ActivationValueView]
-  workspace : ExecutionRegionView
+  priv operation_id : @plan.OperationId
+  priv kernel_shape : ExactKernelShape
+  priv inputs : ReadOnlyArray[OperationInputView]
+  priv outputs : ReadOnlyArray[ActivationValueView]
+  priv workspace : ExecutionRegionView
 } derive(Debug, Eq)
 
 ///|
@@ -102,11 +104,11 @@ pub(all) enum FinalOutputSemantics {
 /// retains one exact physical-region meaning while the row carries a narrower
 /// offset and length.
 pub struct FinalRowView {
-  batch_index : Int
-  backing_region : ProfileRegionId
-  offset_bytes : Int64
-  byte_length : Int64
-  alignment_bytes : Int64
+  priv batch_index : Int
+  priv backing_region : ProfileRegionId
+  priv offset_bytes : Int64
+  priv byte_length : Int64
+  priv alignment_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
@@ -117,10 +119,10 @@ pub struct FinalRowView {
 /// activation rows. Multi-batch prefill rows may be non-contiguous and are
 /// therefore represented individually.
 pub struct FinalOutputView {
-  semantics : FinalOutputSemantics
-  value : ActivationValueView
-  row_bytes : Int64
-  selected_rows : ReadOnlyArray[FinalRowView]
+  priv semantics : FinalOutputSemantics
+  priv value : ActivationValueView
+  priv row_bytes : Int64
+  priv selected_rows : ReadOnlyArray[FinalRowView]
 } derive(Debug, Eq)
 
 ///|
@@ -129,14 +131,14 @@ pub struct FinalOutputView {
 /// Building this value may allocate its bounded metadata arrays. Reading its
 /// operation, input, output, workspace, and terminal views does not allocate.
 pub struct DeviceExecutionProfile {
-  identity : @spec.ModelIdentity
-  target : @catalog.DeviceTarget
-  shape : ExactExecutionShape
-  token_staging : ExecutionRegionView
-  token_staging_capacity_bytes : Int64
-  regions : ReadOnlyArray[ExecutionRegionView]
-  operations : ReadOnlyArray[OperationExecutionProfile]
-  final_output : FinalOutputView
+  priv identity : @spec.ModelIdentity
+  priv target : @catalog.DeviceTarget
+  priv shape : ExactExecutionShape
+  priv token_staging : ExecutionRegionView
+  priv token_staging_capacity_bytes : Int64
+  priv regions : ReadOnlyArray[ExecutionRegionView]
+  priv operations : ReadOnlyArray[OperationExecutionProfile]
+  priv final_output : FinalOutputView
 } derive(Debug, Eq)
 
 ///|
@@ -218,7 +220,7 @@ pub fn ExecutionPhase::as_stable_int(self : ExecutionPhase) -> Int {
 
 ///|
 pub fn ProfileRegionId::as_int(self : ProfileRegionId) -> Int {
-  self.0
+  self.value
 }
 
 ///|

@@ -77,6 +77,9 @@ fn validate_plan_pair(
   static_plan : @device_plan.StaticDevicePlan,
   memory_plan : @device_memory.DeviceMemoryPlan,
 ) -> Unit raise DeviceProfileError {
+  if static_plan.catalog_version() == @catalog.CatalogVersion::v4() {
+    raise InvalidPlan(CatalogVersion)
+  }
   if static_plan.identity() != memory_plan.identity() {
     raise InvalidPlan(Identity)
   }
@@ -376,7 +379,7 @@ pub fn build(
   let maximum_rows = memory_plan.token_rows()
   let token_capacity = checked_token_bytes(maximum_rows)
   let token_staging = {
-    id: ProfileRegionId(0),
+    id: { value: 0 },
     space: TokenInput,
     offset_bytes: 0L,
     logical_bytes: checked_token_bytes(shape.token_rows()),

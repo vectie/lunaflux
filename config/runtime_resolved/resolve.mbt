@@ -62,11 +62,11 @@ fn materialize_page_allocator_limits(
 
 ///|
 fn materialize_block_table_limits(
-  scheduler : @scheduler.SchedulerConfig,
   cache : @cache.CacheConfig,
+  table_capacity : Int,
 ) -> @block_table.BlockTableLimits raise RuntimeCapacityError {
   @block_table.BlockTableLimits::new(
-    table_capacity=scheduler.max_active_requests(),
+    table_capacity~,
     max_pages_per_table=cache.block_table_pages_per_request(),
     tokens_per_page=cache.tokens_per_page(),
   ) catch {
@@ -167,13 +167,59 @@ pub fn resolve(
     required_worker_page_table_cells,
     WorkerPlanPages,
   )
+  let maximum_generated_tokens_per_request = model_max_sequence_tokens - 1
+  let required_recompute_history_cells = match
+    checked_multiply_nonnegative(
+      total_request_slots, maximum_generated_tokens_per_request,
+    ) {
+    Some(value) => value
+    None => raise Invalid(RecomputeHistoryCapacity)
+  }
   let page_allocator_limits = materialize_page_allocator_limits(cache)
-  let block_table_limits = materialize_block_table_limits(scheduler, cache)
+  let block_table_capacity = scheduler.max_active_requests()
+  let block_table_limits = materialize_block_table_limits(
+    cache, block_table_capacity,
+  )
+  let prefix_layout = @radix.PrefixLayout::new(
+    version=cache.layout_version(),
+    tokens_per_page=cache.tokens_per_page(),
+  ) catch {
+    _ => raise Invalid(PrefixIndexLimits)
+  }
+  let prefix_index_limits = if cache.prefix_enabled() {
+    if cache.max_active_references_per_page() < scheduler.max_active_requests() {
+      raise Invalid(PrefixIndexLimits)
+    }
+    if cache.max_prefix_tokens_per_entry() < tokens_per_page ||
+      cache.max_prefix_pages() <
+      cache.max_prefix_tokens_per_entry() / tokens_per_page {
+      raise Invalid(PrefixIndexLimits)
+    }
+    Some(
+      @radix.PrefixIndexLimits::new(
+        entry_capacity=cache.max_prefix_entries(),
+        node_capacity=cache.max_prefix_nodes(),
+        token_capacity=cache.max_prefix_nodes(),
+        max_tokens_per_entry=cache.max_prefix_tokens_per_entry(),
+        page_capacity=cache.max_prefix_pages(),
+        max_scope_bytes=cache.max_prefix_scope_bytes(),
+        max_active_references_per_entry=scheduler.max_active_requests(),
+      ) catch {
+        _ => raise Invalid(PrefixIndexLimits)
+      },
+    )
+  } else {
+    None
+  }
   let decisions : Array[RuntimeCapacityDecision] = [
     { subject: ContextPagesPerRequest, reason: CeilingDivision },
     { subject: TotalRequestSlots, reason: CombinedConfiguredCapacity },
     { subject: MaxRowsPerStep, reason: MinimumOfActiveAndTokenBudget },
     { subject: WorkerPageTableCells, reason: RowsTimesContextPages },
+    {
+      subject: RecomputeHistoryCells,
+      reason: RequestSlotsTimesMaximumGeneratedTokens,
+    },
     { subject: PlanBufferCount, reason: FixedDoubleBuffer },
     { subject: PageGenerationLimit, reason: OwnerMaximumGenerationDefault },
     {
@@ -196,6 +242,8 @@ pub fn resolve(
     output_event_capacity,
     max_rows_per_step,
     required_worker_page_table_cells,
+    maximum_generated_tokens_per_request,
+    required_recompute_history_cells,
     model_max_batch_rows: shapes.max_batch_rows(),
     model_max_sequence_tokens,
     worker_max_prefill_rows: worker.max_prefill_rows(),
@@ -209,6 +257,8 @@ pub fn resolve(
     worker_max_token_id: worker.max_token_id(),
     page_allocator_limits,
     block_table_limits,
+    prefix_index_limits,
+    prefix_layout,
     decisions: ReadOnlyArray::from_array(decisions),
   }
 }

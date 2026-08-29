@@ -5,14 +5,14 @@ test "liveness planning deterministically reuses aligned activation slots" {
   assert_eq(result.identity(), source.identity())
   assert_eq(result.target(), source.target())
   assert_eq(result.token_rows(), 6L)
-  assert_eq(result.activation_count(), 5)
-  assert_eq(result.operation_count(), 5)
-  assert_eq(result.slot_count(), 3)
-  assert_eq(result.activation_bytes(), 192L)
-  assert_eq(result.workspace().offset_bytes(), 192L)
+  assert_eq(result.activation_count(), 6)
+  assert_eq(result.operation_count(), 6)
+  assert_eq(result.slot_count(), 4)
+  assert_eq(result.activation_bytes(), 256L)
+  assert_eq(result.workspace().offset_bytes(), 256L)
   assert_eq(result.workspace().byte_length(), 32L)
   assert_eq(result.workspace().alignment_bytes(), 16L)
-  assert_eq(result.arena_bytes(), 224L)
+  assert_eq(result.arena_bytes(), 288L)
   let offsets : Array[Int64] = []
   let slots : Array[Int] = []
   let live_through : Array[Int] = []
@@ -21,17 +21,17 @@ test "liveness planning deterministically reuses aligned activation slots" {
       fail("missing activation region")
     }
     assert_eq(region.reference().as_int(), reference)
-    assert_eq(region.logical_bytes(), 48L)
-    assert_eq(region.reserved_bytes(), 64L)
+    assert_eq(region.logical_bytes(), if reference == 2 { 96L } else { 48L })
+    assert_eq(region.reserved_bytes(), if reference == 2 { 128L } else { 64L })
     assert_eq(region.offset_bytes() % 64L, 0L)
     assert_true(region.end_offset_bytes() <= result.activation_bytes())
     offsets.push(region.offset_bytes())
     slots.push(region.slot().as_int())
     live_through.push(region.live_through_step())
   }
-  assert_eq(offsets, [0L, 64L, 128L, 64L, 0L])
-  assert_eq(slots, [0, 1, 2, 1, 0])
-  assert_eq(live_through, [3, 2, 3, 4, 5])
+  assert_eq(offsets, [0L, 64L, 128L, 64L, 128L, 192L])
+  assert_eq(slots, [0, 1, 2, 1, 2, 3])
+  assert_eq(live_through, [4, 2, 3, 4, 5, 6])
   assert_eq(@device_memory.plan(source, memory_limits()), result)
 }
 
@@ -57,20 +57,20 @@ test "simultaneously live values never overlap and final output survives" {
   let final_region = result.region(final_reference).unwrap()
   assert_true(final_region.is_retained_output())
   assert_eq(final_region.live_through_step(), result.operation_count())
-  assert_eq(final_region.offset_bytes(), 0L)
+  assert_eq(final_region.offset_bytes(), 192L)
 }
 
 ///|
 test "operation bindings are immutable semantic slices of the shared arena" {
   let result = @device_memory.plan(memory_static_plan(), memory_limits())
-  let residual = result.operation_binding(@plan.OperationId::new(3)).unwrap()
-  assert_eq(residual.operation_id().as_int(), 3)
+  let residual = result.operation_binding(@plan.OperationId::new(4)).unwrap()
+  assert_eq(residual.operation_id().as_int(), 4)
   assert_eq(residual.activation_inputs().length(), 2)
   assert_eq(residual.activation_inputs()[0].reference().as_int(), 0)
-  assert_eq(residual.activation_inputs()[1].reference().as_int(), 2)
+  assert_eq(residual.activation_inputs()[1].reference().as_int(), 3)
   assert_eq(residual.activation_outputs().length(), 1)
-  assert_eq(residual.activation_outputs()[0].reference().as_int(), 3)
-  assert_eq(residual.activation_outputs()[0].offset_bytes(), 64L)
+  assert_eq(residual.activation_outputs()[0].reference().as_int(), 4)
+  assert_eq(residual.activation_outputs()[0].offset_bytes(), 128L)
   for index in 0..<result.operation_count() {
     let binding = result
       .operation_binding(@plan.OperationId::new(index))
@@ -86,7 +86,7 @@ test "workspace padding obeys its stronger alignment and the total ceiling" {
     workspace_alignment=256L,
   )
   let result = @device_memory.plan(static_plan, memory_limits())
-  assert_eq(result.activation_bytes(), 192L)
+  assert_eq(result.activation_bytes(), 256L)
   assert_eq(result.workspace().offset_bytes(), 256L)
   assert_eq(result.workspace().alignment_bytes(), 256L)
   assert_eq(result.workspace().byte_length(), 256L)
@@ -179,7 +179,7 @@ test "limits overflow and the complete arena ceiling fail closed" {
   try
     @device_memory.plan(
       memory_static_plan(),
-      memory_limits(max_arena_bytes=223L),
+      memory_limits(max_arena_bytes=287L),
     )
   catch {
     @device_memory.DeviceMemoryError::ArenaLimitExceeded => ()

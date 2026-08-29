@@ -10,6 +10,7 @@ fn completion_test_scratch(size : Int) -> PagedCompletionScratch {
     encoded_logits: FixedArray::make(size * 2, b'\x00'),
     logits: FixedArray::make(size, 0.0),
     selected_tokens: FixedArray::make(2, 0),
+    mode: HostLogitsCompletion,
   }
 }
 

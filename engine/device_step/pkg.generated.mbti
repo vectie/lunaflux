@@ -7,28 +7,72 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/kernels/i8_inert_capability_admission",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+  "vectie/lunaflux/kernels/luna_cuda_sampling_aot",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
+  "vectie/lunaflux/kernels/luna_kernel_bundle",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/sampling",
 }
 
 // Values
-pub fn admit_device_worker_bootstrap(PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, device_ordinal~ : Int, DeviceBootstrapLimits) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError
+pub fn admit_approved_fused_residual_rmsnorm_span(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_kernel_bundle.LunaKernelBundleInput, @luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelModule) -> ApprovedFusedResidualRmsNormSpan raise FusedGroupedOperationError
 
-pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
+pub fn admit_device_worker_bootstrap(PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, device_ordinal~ : Int, DeviceBootstrapLimits, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError
+
+pub fn admit_fp8_paged_graph_execution_blueprint_v3(@fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.PagedV4LaunchContractSet) -> Fp8PagedExecutionBlueprintV3 raise DeviceStepError
+
+pub fn admit_fused_qkv_readonly_attention_composite_requirement(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_kernel_bundle.LunaKernelBundleInput, @luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelModule, @luna_paged_composite_artifact_admission.ApprovedPagedAttentionReadOnlyRuntimeIdentity, @device.ContextDeviceIdentity, @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity) -> FusedQkvReadOnlyAttentionCompositeRequirement raise FusedGroupedOperationError
+
+pub fn admit_i8_device_worker_bootstrap_v3(I8PagedExecutionBlueprint, device_ordinal~ : Int, DeviceBootstrapLimits) -> I8DeviceWorkerBootstrapManifestV3 raise DeviceBootstrapError
+
+pub fn admit_i8_paged_graph_execution_blueprint_v1(@plan.ModelPlan, @device.DeviceNumericCapability, @i8_inert_capability_admission.I8ProductionPolicyAdmission, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedV4LaunchContractSet, @artifact.KernelArtifactBundle) -> I8PagedExecutionBlueprint raise DeviceStepError
+
+pub fn admit_paged_cuda_greedy_sampling(@plan.ModelPlan, @artifact.KernelArtifactBundle, @luna_cuda_sampling_aot.GreedySamplingCudaArtifact) -> PagedSamplingExecutionPolicy raise DeviceStepError
+
+pub fn admit_paged_embedded_cuda_greedy_sampling(@plan.ModelPlan, PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle) -> PagedSamplingExecutionPolicy raise DeviceStepError
+
+pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?) -> PagedKvExecutionBlueprint raise DeviceStepError
 
 pub fn admit_paged_kv_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle) -> PagedKvExecutionBlueprint raise DeviceStepError
 
+pub fn admit_production_fused_qkv_readonly_attention_span(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts, @device.ContextDeviceIdentity) -> ApprovedFusedQkvReadOnlyAttentionSpan raise FusedGroupedOperationError
+
+pub fn admit_production_fused_residual_rmsnorm_span(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelBundle) -> ApprovedFusedResidualRmsNormSpan raise FusedGroupedOperationError
+
+pub fn join_i8_loaded_execution_blueprint_v1(I8PagedExecutionBlueprint, I8DeviceWorkerBootstrapManifestV3, @numeric_weight_file.AuthenticatedNumericWeightAuthority, expected_weight_artifact_digest~ : @numeric_weight_file.NumericWeightArtifactDigest) -> I8LoadedExecutionBlueprint raise DeviceStepError
+
 pub fn prepare(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
 
-pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> PagedGraphPreparation raise DeviceStepError
+pub fn prepare_fp8_paged_graph_executor_v3(@device.Context, @worker_protocol.ModelPlanGeneration, Fp8PagedExecutionBlueprintV3, @numeric_weight_file.AuthenticatedNumericWeightAuthority, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, graph_policy? : PagedGraphExecutionPolicy, diagnostic_policy? : PagedExecutionDiagnosticPolicy) -> PagedGraphPreparation raise DeviceStepError
+
+pub fn prepare_i8_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device.DeviceNumericCapability, I8LoadedExecutionBlueprint, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, graph_policy? : PagedGraphExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
+
+pub fn prepare_numeric_bf16_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @numeric_weight_file.AuthenticatedNumericWeightAuthority, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, sampling_policy? : PagedSamplingExecutionPolicy, fused_residual_span? : ApprovedFusedResidualRmsNormSpan?, fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?) -> PagedGraphPreparation raise DeviceStepError
+
+pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, fused_residual_span? : ApprovedFusedResidualRmsNormSpan?, fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, diagnostic_policy? : PagedExecutionDiagnosticPolicy, sampling_policy? : PagedSamplingExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
+
+pub fn prepare_rank_local(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_kv_plan.TensorParallelKvPlan, Int, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
+
+pub fn require_fused_qkv_read_only_attention_split(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelModule) -> FusedQkvReadOnlyAttentionSplitRequirement raise FusedGroupedOperationError
+
+pub fn validate_paged_sampling_execution_policy(@plan.ModelPlan, PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, PagedSamplingExecutionPolicy) -> Unit raise DeviceStepError
 
 // Errors
 pub(all) suberror DeviceBootstrapError {
@@ -47,6 +91,7 @@ pub(all) suberror DeviceStepError {
   StaleStage
   StageOwnerMismatch
   StageEpochOverflow
+  DescriptorArgumentMismatch(DeviceStepStage)
   AllocationSizeMismatch(DeviceStepStage)
   InvalidExecutor(PagedGraphExecutorRule)
   InvalidExecutorOperation(@plan.OperationId, PagedGraphExecutorRule)
@@ -56,12 +101,33 @@ pub(all) suberror DeviceStepError {
   ExecutorSampling(@sampling.SamplingError)
   ExecutorOwnerMismatch
   ExecutorEpochMismatch
+  NumericWeightClose
   Protocol(@worker_protocol.WorkerProtocolError)
   Wire(@worker_wire.WorkerWireError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
 
+pub(all) suberror FusedGroupedOperationError {
+  InvalidFusedGroupedOperation(FusedGroupedOperationRule)
+  MismatchedFusedGroupedOperation(FusedGroupedOperationRule)
+  QkvRequiresReadOnlyAttentionSplit
+} derive(Eq, @debug.Debug)
+
 // Types and methods
+pub struct ApprovedFusedQkvReadOnlyAttentionSpan {
+  // private fields
+}
+pub fn ApprovedFusedQkvReadOnlyAttentionSpan::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn ApprovedFusedQkvReadOnlyAttentionSpan::operation_indices(Self) -> (Int, Int, Int)
+
+pub struct ApprovedFusedResidualRmsNormSpan {
+  // private fields
+}
+pub fn ApprovedFusedResidualRmsNormSpan::catalog_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedResidualRmsNormSpan::manifest_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedResidualRmsNormSpan::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn ApprovedFusedResidualRmsNormSpan::operation_indices(Self) -> (Int, Int)
+
 pub struct DeviceBootstrapLimits {
   // private fields
 }
@@ -111,8 +177,10 @@ pub struct DeviceStepOwner {
   // private fields
 }
 pub fn DeviceStepOwner::close(Self) -> Unit raise DeviceStepError
+pub fn DeviceStepOwner::descriptor_argument(Self, DeviceStepStage, byte_count~ : Int64, alignment~ : Int64) -> @device.KernelArgument raise DeviceStepError
 pub fn DeviceStepOwner::finish(Self, StagedDeviceStep) -> Unit raise DeviceStepError
 pub fn DeviceStepOwner::lifecycle(Self) -> DeviceStepLifecycle
+pub fn DeviceStepOwner::rederive_staged(Self, UInt64) -> StagedDeviceStep raise DeviceStepError
 pub fn DeviceStepOwner::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedDeviceStep raise DeviceStepError
 pub fn DeviceStepOwner::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedDeviceStep raise DeviceStepError
 
@@ -154,6 +222,7 @@ pub fn DeviceWorkerBootstrapManifest::device_ordinal(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::device_step_limits(Self) -> DeviceStepLimits
 pub fn DeviceWorkerBootstrapManifest::digest(Self) -> @worker_wire.WorkerBootstrapDigest
 pub fn DeviceWorkerBootstrapManifest::entry_point_count(Self) -> Int
+pub fn DeviceWorkerBootstrapManifest::graph_memory_evidence(Self) -> PagedGraphMemoryEvidence
 pub fn DeviceWorkerBootstrapManifest::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWorkerBootstrapManifest::module_count(Self) -> Int
 pub fn DeviceWorkerBootstrapManifest::step_count(Self) -> Int
@@ -180,17 +249,160 @@ pub fn FailedPagedGraphPreparation::cleanup_failure(Self) -> DeviceStepError
 pub fn FailedPagedGraphPreparation::is_closed(Self) -> Bool
 pub fn FailedPagedGraphPreparation::retry_close(Self) -> Unit raise DeviceStepError
 
+pub struct Fp8PagedExecutionBlueprintV3 {
+  // private fields
+}
+pub fn Fp8PagedExecutionBlueprintV3::activation_workspace_arena_bytes(Self) -> Int64
+pub fn Fp8PagedExecutionBlueprintV3::artifacts(Self) -> @artifact.KernelArtifactBundle
+pub fn Fp8PagedExecutionBlueprintV3::authority(Self) -> @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3
+pub fn Fp8PagedExecutionBlueprintV3::fp8_workspace_base(Self) -> Int64
+pub fn Fp8PagedExecutionBlueprintV3::fp8_workspace_bytes(Self) -> Int64
+pub fn Fp8PagedExecutionBlueprintV3::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn Fp8PagedExecutionBlueprintV3::limits(Self) -> DeviceStepLimits
+pub fn Fp8PagedExecutionBlueprintV3::memory_plan(Self) -> @device_memory.DeviceMemoryPlan
+pub fn Fp8PagedExecutionBlueprintV3::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn Fp8PagedExecutionBlueprintV3::steps(Self) -> ReadOnlyArray[Fp8PagedExecutionStepV3]
+pub fn Fp8PagedExecutionBlueprintV3::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
+
+pub struct Fp8PagedExecutionStepV3 {
+  // private fields
+}
+pub fn Fp8PagedExecutionStepV3::artifact_module_index(Self) -> Int
+pub fn Fp8PagedExecutionStepV3::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8PagedExecutionStepV3::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8PagedExecutionStepV3::function_symbol(Self) -> String
+pub fn Fp8PagedExecutionStepV3::is_fp8_release_operation(Self) -> Bool
+pub fn Fp8PagedExecutionStepV3::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
+pub fn Fp8PagedExecutionStepV3::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8PagedExecutionStepV3::operation_id(Self) -> @plan.OperationId
+pub fn Fp8PagedExecutionStepV3::operation_kind(Self) -> @plan.OperationKind
+
+pub(all) enum FusedGroupedOperationRule {
+  Catalog
+  Target
+  Family
+  Generation
+  OperationOrder
+  StandaloneFallback
+  KernelAbi
+  Launch
+  GraphCapture
+  Resource
+  ReadOnlyCatalog
+  PagedKvWriteQualification
+  ModelIdentity
+  Profile
+  KvLayout
+  Activation
+  Toolchain
+  Driver
+  RuntimeDevice
+  StreamOrder
+  DispatchAuthority
+} derive(Eq, @debug.Debug)
+
+pub struct FusedQkvReadOnlyAttentionCompositeRequirement {
+  // private fields
+}
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::dispatch_authorized(Self) -> Bool
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::full_qkv_row_width(Self) -> Int
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::operation_indices(Self) -> (Int, Int, Int)
+pub fn FusedQkvReadOnlyAttentionCompositeRequirement::positioned_qkv_activation(Self) -> @plan.ActivationRef
+
+pub struct FusedQkvReadOnlyAttentionSplitRequirement {
+  // private fields
+}
+pub fn FusedQkvReadOnlyAttentionSplitRequirement::manifest_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedQkvReadOnlyAttentionSplitRequirement::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn FusedQkvReadOnlyAttentionSplitRequirement::operation_indices(Self) -> (Int, Int, Int)
+
+pub struct I8DeviceWorkerBootstrapManifestV3 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8DeviceWorkerBootstrapManifestV3::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn I8DeviceWorkerBootstrapManifestV3::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
+pub fn I8DeviceWorkerBootstrapManifestV3::device_ordinal(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::device_step_limits(Self) -> DeviceStepLimits
+pub fn I8DeviceWorkerBootstrapManifestV3::digest(Self) -> @worker_wire.WorkerBootstrapDigest
+pub fn I8DeviceWorkerBootstrapManifestV3::entry_point_count(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::i8_admission_digest(Self) -> @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionDigest
+pub fn I8DeviceWorkerBootstrapManifestV3::identity(Self) -> @spec.ModelIdentity
+pub fn I8DeviceWorkerBootstrapManifestV3::module_count(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn I8DeviceWorkerBootstrapManifestV3::step_count(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::target(Self) -> @catalog.DeviceTarget
+pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(Self, @worker_protocol.ModelPlanGeneration, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError
+
+pub struct I8LoadedExecutionBlueprint {
+  // private fields
+}
+pub fn I8LoadedExecutionBlueprint::blueprint(Self) -> I8PagedExecutionBlueprint
+pub fn I8LoadedExecutionBlueprint::bootstrap_manifest(Self) -> I8DeviceWorkerBootstrapManifestV3
+pub fn I8LoadedExecutionBlueprint::close(Self) -> Unit raise DeviceStepError
+pub fn I8LoadedExecutionBlueprint::weight_artifact_digest(Self) -> @numeric_weight_file.NumericWeightArtifactDigest
+
+pub struct I8PagedExecutionBlueprint {
+  // private fields
+}
+pub fn I8PagedExecutionBlueprint::activation_workspace_arena_bytes(Self) -> Int64
+pub fn I8PagedExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn I8PagedExecutionBlueprint::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
+pub fn I8PagedExecutionBlueprint::i8_admission_digest(Self) -> @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionDigest
+pub fn I8PagedExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
+pub fn I8PagedExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn I8PagedExecutionBlueprint::limits(Self) -> DeviceStepLimits
+pub fn I8PagedExecutionBlueprint::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn I8PagedExecutionBlueprint::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn I8PagedExecutionBlueprint::steps(Self) -> ReadOnlyArray[I8PagedExecutionStep]
+pub fn I8PagedExecutionBlueprint::target(Self) -> @catalog.DeviceTarget
+pub fn I8PagedExecutionBlueprint::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
+
+pub struct I8PagedExecutionStep {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn I8PagedExecutionStep::artifact_module_index(Self) -> Int
+pub fn I8PagedExecutionStep::capability(Self) -> @plan.KernelCapabilityId
+pub fn I8PagedExecutionStep::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn I8PagedExecutionStep::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn I8PagedExecutionStep::function_symbol(Self) -> String
+pub fn I8PagedExecutionStep::kv_layer(Self) -> @plan.KvLayerId?
+pub fn I8PagedExecutionStep::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
+pub fn I8PagedExecutionStep::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn I8PagedExecutionStep::operation_id(Self) -> @plan.OperationId
+pub fn I8PagedExecutionStep::operation_kind(Self) -> @plan.OperationKind
+pub fn I8PagedExecutionStep::semantic_version(Self) -> @catalog.KernelSemanticVersion
+
+pub struct PagedCudaGreedySamplingAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PagedExecutionDiagnosticPolicy {
+  ProductionFastPath
+  QualificationDiagnostics
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PagedGraphExecutionPolicy {
+  PagedOrderedEagerOnly
+  PagedCapturedRequired
+  PagedCapturedWithEagerFallback
+} derive(Eq, @debug.Debug)
+
 pub struct PagedGraphExecutor {
   // private fields
 }
 pub fn PagedGraphExecutor::close(Self) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::execute(Self, StagedPagedGraphExecution) -> ExecutedPagedGraphExecution raise DeviceStepError
 pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit raise DeviceStepError
+pub fn PagedGraphExecutor::graph_runtime_telemetry(Self) -> PagedGraphRuntimeTelemetry
 pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
+pub fn PagedGraphExecutor::observe_offline_selected_logits(Self, ExecutedPagedGraphExecution, Int, ArrayView[Int], FixedArray[Double]) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::sample_completion(Self, ExecutedPagedGraphExecution, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.CompletionWriter) -> @worker_protocol.SubmittedCompletion raise DeviceStepError
 pub fn PagedGraphExecutor::sample_completion_frame(Self, ExecutedPagedGraphExecution, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError
 pub fn PagedGraphExecutor::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedPagedGraphExecution raise DeviceStepError
+pub fn PagedGraphExecutor::uses_fused_residual_rmsnorm(Self) -> Bool
 
 pub(all) enum PagedGraphExecutorRule {
   BlueprintScope
@@ -202,6 +414,11 @@ pub(all) enum PagedGraphExecutorRule {
   ArtifactModule
   LaunchDimensions
   SamplingOutput
+  SamplingMode
+  SamplingArtifact
+  Fp8FrameEnvelope
+  Fp8FrameAdmission
+  Fp8ScaleEvidence
   ResourceState
 } derive(Eq, @debug.Debug)
 
@@ -214,6 +431,19 @@ pub(all) enum PagedGraphLifecycle {
   GraphClosingFailed
   GraphClosed
 } derive(Eq, @debug.Debug)
+
+pub(all) enum PagedGraphMemoryAvailability {
+  GraphMemoryAbsent
+  GraphMemoryUnsupported
+  GraphMemoryBounded
+} derive(Eq, @debug.Debug)
+
+pub struct PagedGraphMemoryEvidence {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedGraphMemoryEvidence::alignment_bytes(Self) -> Int64?
+pub fn PagedGraphMemoryEvidence::availability(Self) -> PagedGraphMemoryAvailability
+pub fn PagedGraphMemoryEvidence::declared_upper_bound_bytes(Self) -> Int64?
 
 pub(all) enum PagedGraphPreparation {
   PagedReady(PagedGraphExecutor)
@@ -229,7 +459,32 @@ pub(all) enum PagedGraphResource {
   Module
   Function
   KernelArguments
+  OrderedExecutor
+  FusedDispatchCanary
+  SamplingResult
 } derive(Eq, @debug.Debug)
+
+pub struct PagedGraphRuntimeTelemetry {
+  // private fields
+}
+pub fn PagedGraphRuntimeTelemetry::graph_hits(Self) -> UInt64
+pub fn PagedGraphRuntimeTelemetry::graph_misses(Self) -> UInt64
+pub fn PagedGraphRuntimeTelemetry::selected_path(Self) -> PagedGraphSelectedPath
+pub fn PagedGraphRuntimeTelemetry::selected_shape_class(Self) -> PagedGraphSelectedShapeClass?
+
+pub(all) enum PagedGraphSelectedPath {
+  PagedGraphCaptured
+  PagedGraphOrderedEager
+} derive(Eq, @debug.Debug)
+
+pub struct PagedGraphSelectedShapeClass {
+  // private fields
+}
+pub fn PagedGraphSelectedShapeClass::batch_rows(Self) -> Int
+pub fn PagedGraphSelectedShapeClass::context_tokens(Self) -> Int
+pub fn PagedGraphSelectedShapeClass::phase(Self) -> @device_profile.ExecutionPhase
+pub fn PagedGraphSelectedShapeClass::query_tokens_per_row(Self) -> Int
+pub fn PagedGraphSelectedShapeClass::token_rows(Self) -> Int64
 
 pub(all) enum PagedKvBlueprintRule {
   Identity
@@ -249,6 +504,13 @@ pub(all) enum PagedKvBlueprintRule {
   PersistentKvRegion
   ArtifactEntryPoint
   ArtifactModule
+  NumericSchema
+  NumericPolicy
+  DeviceNumericCapability
+  OperationNumericDigest
+  ScaleRegion
+  MixedFp8Execution
+  GraphMemory
 } derive(Eq, @debug.Debug)
 
 pub struct PagedKvExecutionBlueprint {
@@ -256,6 +518,7 @@ pub struct PagedKvExecutionBlueprint {
 } derive(Eq, @debug.Debug)
 pub fn PagedKvExecutionBlueprint::activation_workspace_arena_bytes(Self) -> Int64
 pub fn PagedKvExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn PagedKvExecutionBlueprint::graph_memory_evidence(Self) -> PagedGraphMemoryEvidence
 pub fn PagedKvExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
 pub fn PagedKvExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedKvExecutionBlueprint::limits(Self) -> DeviceStepLimits
@@ -296,7 +559,19 @@ pub(all) enum PagedKvOperandSpace {
   PersistentKvArena
 } derive(Eq, @debug.Debug)
 
+pub(all) enum PagedSamplingExecutionPolicy {
+  PagedHostSampling
+  PagedCudaGreedySampling(PagedCudaGreedySamplingAdmission)
+} derive(Eq, @debug.Debug)
+
 pub struct StagedDeviceStep(DeviceStepOwner, UInt64)
+pub fn StagedDeviceStep::detach_frame_authentication(Self, @worker_wire.ValidatedPlanFrame) -> Unit raise DeviceStepError
+pub fn StagedDeviceStep::epoch_value(Self) -> UInt64
+pub fn StagedDeviceStep::last_token_index(Self, Int) -> Int raise DeviceStepError
+pub fn StagedDeviceStep::row_count(Self) -> Int raise DeviceStepError
+pub fn StagedDeviceStep::sequence_value(Self) -> UInt64 raise DeviceStepError
+pub fn StagedDeviceStep::token_count(Self) -> Int raise DeviceStepError
+pub fn StagedDeviceStep::validate_frame(Self, @worker_wire.ValidatedPlanFrame) -> Unit raise DeviceStepError
 
 pub struct StagedPagedGraphExecution {
   // private fields

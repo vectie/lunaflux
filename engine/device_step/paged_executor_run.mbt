@@ -19,13 +19,66 @@ fn complete_descriptor(
 }
 
 ///|
-fn open_paged_stream(
+fn open_paged_ordered_executor(
   resources : PagedGraphResources,
-) -> @device.Stream raise DeviceStepError {
-  guard resources.stream is Some(owner) && owner.open else {
+) -> @device.OrderedKernelExecutor raise DeviceStepError {
+  guard resources.ordered_executor is Some(owner) && owner.open else {
     raise InvalidExecutor(ResourceState)
   }
   owner.resource
+}
+
+///|
+fn abort_paged_ordered_executor(
+  executor : @device.OrderedKernelExecutor,
+) -> Unit {
+  try executor.abort() catch {
+    _ => ()
+  } noraise {
+    _ => ()
+  }
+}
+
+///|
+fn poison_fp8_graph_lifecycle(executor : PagedGraphExecutor) -> Unit {
+  clear_fp8_frame_admission_v3(executor)
+  executor.lifecycle = GraphPoisoned
+}
+
+///|
+fn poison_fp8_ordered_execution(
+  executor : PagedGraphExecutor,
+  descriptor : DeviceStepOwner,
+  ordered : @device.OrderedKernelExecutor,
+  error : DeviceStepError,
+) -> Unit raise DeviceStepError {
+  poison_fp8_graph_lifecycle(executor)
+  descriptor.lifecycle = Poisoned
+  abort_paged_ordered_executor(ordered)
+  raise error
+}
+
+///|
+fn[T] propagate_descriptor_poison(
+  executor : PagedGraphExecutor,
+  descriptor : DeviceStepOwner,
+  error : DeviceStepError,
+) -> T raise DeviceStepError {
+  if descriptor.lifecycle() == Poisoned {
+    executor.lifecycle = GraphPoisoned
+  }
+  raise error
+}
+
+///|
+fn poison_fp8_frame_publication(
+  executor : PagedGraphExecutor,
+  descriptor : DeviceStepOwner,
+  error : DeviceStepError,
+) -> Unit raise DeviceStepError {
+  poison_fp8_graph_lifecycle(executor)
+  descriptor.lifecycle = Poisoned
+  raise error
 }
 
 ///|
@@ -70,14 +123,15 @@ pub fn PagedGraphExecutor::stage(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
+  if self.fp8_frame_envelope is Some(_) {
+    raise InvalidExecutor(Fp8FrameAdmission)
+  }
   let descriptor = complete_descriptor(self.resources)
-  let staged = descriptor.stage(plan) catch {
-    error => {
-      if descriptor.lifecycle() == Poisoned {
-        self.lifecycle = GraphPoisoned
-      }
-      raise error
-    }
+  let staged = descriptor.stage_with_sampling_mode(
+    plan,
+    self.completion.mode is CudaGreedyCompletion(_),
+  ) catch {
+    error => propagate_descriptor_poison(self, descriptor, error)
   }
   self.lifecycle = GraphStaged
   { executor: self, epoch: staged.1 }
@@ -92,12 +146,28 @@ pub fn PagedGraphExecutor::stage_frame(
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   let descriptor = complete_descriptor(self.resources)
-  let staged = descriptor.stage_frame(frame) catch {
-    error => {
-      if descriptor.lifecycle() == Poisoned {
-        self.lifecycle = GraphPoisoned
+  let staged = match self.fp8_frame_envelope {
+    Some(envelope) => {
+      let summary = preflight_fp8_frame_v3(descriptor, frame, envelope)
+      let staged = descriptor.stage_preflighted_frame(frame, summary) catch {
+        error => propagate_descriptor_poison(self, descriptor, error)
       }
-      raise error
+      authenticate_and_publish_fp8_frame_token_v3(
+        self, descriptor, frame, staged, summary,
+      ) catch {
+        error => poison_fp8_frame_publication(self, descriptor, error)
+      }
+      staged
+    }
+    None => {
+      let staged = descriptor.stage_frame_with_sampling_mode(
+        frame,
+        self.completion.mode is CudaGreedyCompletion(_),
+      ) catch {
+        error => propagate_descriptor_poison(self, descriptor, error)
+      }
+      clear_fp8_frame_admission_v3(self)
+      staged
     }
   }
   self.lifecycle = GraphStaged
@@ -105,39 +175,70 @@ pub fn PagedGraphExecutor::stage_frame(
 }
 
 ///|
-/// Launches every admitted full-graph AOT step in semantic order. Each native
-/// launch synchronizes before returning. Any failure permanently poisons this
-/// owner because preceding operations may already have mutated activation or
-/// persistent KV storage.
+/// Enqueues every admitted full-graph AOT step in semantic order and waits on
+/// one reusable completion event after the final launch. Any failure drains
+/// the retained stream and permanently poisons this owner because preceding
+/// operations may already have mutated activation or persistent KV storage.
 pub fn PagedGraphExecutor::execute(
   self : PagedGraphExecutor,
   staged : StagedPagedGraphExecution,
 ) -> ExecutedPagedGraphExecution raise DeviceStepError {
   let descriptor = authenticate_staged_paged(staged, self)
-  let stream = open_paged_stream(self.resources)
+  authenticate_and_consume_fp8_frame_token_v3(self, descriptor, staged)
+  let ordered = open_paged_ordered_executor(self.resources)
+  arm_fused_dispatch_canary(self, descriptor) catch {
+    error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
+  }
+  arm_fp8_scale_evidence_v3(self) catch {
+    error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
+  }
   self.lifecycle = GraphExecuting
-  let mut index = 0
-  while index < self.steps.length() {
-    let step = self.steps[index]
-    guard self.resources.functions.get(step.function_index) is Some(function) &&
-      function.open else {
+  match ordered.execution_mode() {
+    OrderedKernelCaptured =>
+      ordered.launch_captured() catch {
+        error => {
+          self.lifecycle = GraphPoisoned
+          descriptor.lifecycle = Poisoned
+          abort_paged_ordered_executor(ordered)
+          raise ExecutorDevice(OrderedExecutor, error)
+        }
+      }
+    OrderedKernelEager =>
+      for index in 0..<self.steps.length() {
+        let step = self.steps[index]
+        ordered.enqueue(index) catch {
+          error => {
+            self.lifecycle = GraphPoisoned
+            descriptor.lifecycle = Poisoned
+            abort_paged_ordered_executor(ordered)
+            raise ExecutorLaunchFailed(step.operation_id, error)
+          }
+        }
+      }
+  }
+  ordered.record_completion() catch {
+    error => {
       self.lifecycle = GraphPoisoned
       descriptor.lifecycle = Poisoned
-      raise InvalidExecutor(ResourceState)
+      abort_paged_ordered_executor(ordered)
+      raise ExecutorDevice(OrderedExecutor, error)
     }
-    function.resource.launch_synchronous(
-      step.dimensions,
-      step.arguments,
-      stream,
-    ) catch {
-      error => {
-        self.lifecycle = GraphPoisoned
-        descriptor.lifecycle = Poisoned
-        raise ExecutorLaunchFailed(step.operation_id, error)
-      }
-    }
-    index += 1
   }
+  ordered.wait_completion() catch {
+    error => {
+      self.lifecycle = GraphPoisoned
+      descriptor.lifecycle = Poisoned
+      abort_paged_ordered_executor(ordered)
+      raise ExecutorDevice(OrderedExecutor, error)
+    }
+  }
+  validate_fused_dispatch_canary(self, descriptor, staged.epoch) catch {
+    error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
+  }
+  validate_fp8_scale_evidence_v3(self) catch {
+    error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
+  }
+  self.graph_telemetry.record_completed()
   self.lifecycle = GraphExecuted
   { executor: self, epoch: staged.epoch }
 }
@@ -151,5 +252,13 @@ pub fn PagedGraphExecutor::finish(
 ) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   descriptor.finish(StagedDeviceStep(descriptor, executed.epoch))
+  let ordered = open_paged_ordered_executor(self.resources)
+  ordered.reset() catch {
+    error => {
+      self.lifecycle = GraphPoisoned
+      descriptor.lifecycle = Poisoned
+      raise ExecutorDevice(OrderedExecutor, error)
+    }
+  }
   self.lifecycle = GraphReady
 }

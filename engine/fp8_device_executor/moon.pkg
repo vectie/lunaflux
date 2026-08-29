@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/fp8_runtime_recipe",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/fp8_launch_abi",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"

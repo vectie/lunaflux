@@ -8,13 +8,21 @@ import {
   "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
   "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model~ : @spec.LlamaModelMetadata, weight_inspection~ : @device_materialize.DeviceWeightFileInspection, execution~ : @execution_manifest_file.PagedExecutionAdmission, bootstrap_limits~ : @device_step.DeviceBootstrapLimits) -> DeviceWorkerPlan raise DeviceWorkerError
+pub fn admit_bootstrap_sampling_policy(@worker_wire.EncodedBootstrapSource, @plan.ModelPlan, @execution_manifest_file.PagedExecutionAdmission) -> @device_step.PagedSamplingExecutionPolicy raise DeviceWorkerError
+
+pub fn admit_numeric_bf16_plan_v1(startup~ : @worker_wire.WorkerStartupContract, model_plan~ : @plan.ModelPlan, weight_inspection~ : @numeric_weight_file.NumericWeightFileInspection, execution~ : @execution_manifest_file.PagedExecutionAdmission, bootstrap_limits~ : @device_step.DeviceBootstrapLimits, sampling_policy? : @device_step.PagedSamplingExecutionPolicy, fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog?, fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle?, fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts?, fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?) -> DeviceWorkerPlan raise DeviceWorkerError
+
+pub fn admit_plan(startup~ : @worker_wire.WorkerStartupContract, model~ : @spec.LlamaModelMetadata, weight_inspection~ : @device_materialize.DeviceWeightFileInspection, execution~ : @execution_manifest_file.PagedExecutionAdmission, bootstrap_limits~ : @device_step.DeviceBootstrapLimits, sampling_policy? : @device_step.PagedSamplingExecutionPolicy, fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog?, fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle?, fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts?, fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?) -> DeviceWorkerPlan raise DeviceWorkerError
 
 pub fn prepare(@worker_wire.WorkerStartupContract, @approved_fs.ApprovedRoot, DeviceWorkerPlan) -> DeviceWorkerPreparation raise DeviceWorkerError
 
@@ -26,9 +34,11 @@ pub(all) suberror DeviceWorkerError {
   Wire(@worker_wire.WorkerWireError)
   Device(@device.DeviceError)
   Weights(@device_materialize.DeviceWeightError)
+  NumericWeights(@numeric_weight_file.NumericWeightFileError)
   Executor(@device_step.DeviceStepError)
   CleanupContext(@device.DeviceError)
   CleanupWeights(@device_materialize.DeviceWeightError)
+  CleanupNumericWeights(@numeric_weight_file.NumericWeightFileError)
   CleanupExecutor(@device_step.DeviceStepError)
   CompletionAbortFailed(primary~ : DeviceWorkerError, abort~ : @worker_wire.WorkerWireError)
   InvalidLifecycle(DeviceWorkerLifecycle)
@@ -47,6 +57,7 @@ pub struct DeviceWorkerOwner {
 }
 pub fn DeviceWorkerOwner::close(Self) -> Unit raise DeviceWorkerError
 pub fn DeviceWorkerOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerError
+pub fn DeviceWorkerOwner::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise DeviceWorkerError
 pub fn DeviceWorkerOwner::lifecycle(Self) -> DeviceWorkerLifecycle
 pub fn DeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerError
 
@@ -54,7 +65,7 @@ pub struct DeviceWorkerPlan {
   // private fields
 }
 
-pub(all) enum DeviceWorkerPreparation {
+pub enum DeviceWorkerPreparation {
   DeviceWorkerReady(DeviceWorkerOwner)
   DeviceWorkerCleanupRequired(FailedDeviceWorkerPreparation)
 }

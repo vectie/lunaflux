@@ -78,74 +78,6 @@ fn admission_model(file : BytesView) -> @spec.LlamaModelMetadata raise {
 }
 
 ///|
-fn admission_manifest(
-  plan : @plan.ModelPlan,
-  target : @catalog.DeviceTarget,
-  module_bytes : BytesView,
-) -> String {
-  let digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
-  let kinds : Array[@plan.OperationKind] = []
-  let mut entries = ""
-  let mut operations = ""
-  for index, operation in plan.operations() {
-    if index > 0 {
-      operations += ","
-    }
-    let mut kind_index = 0
-    for candidate_index, candidate in kinds {
-      if candidate == operation.kind() {
-        kind_index = candidate_index + 1
-      }
-    }
-    if kind_index == 0 {
-      kinds.push(operation.kind())
-      kind_index = kinds.length()
-      if kind_index > 1 {
-        entries += ","
-      }
-      entries += "{\"family_id\":" +
-        kind_index.to_string() +
-        ",\"entry_point_id\":" +
-        kind_index.to_string() +
-        ",\"symbol\":\"kernel_" +
-        kind_index.to_string() +
-        "\"}"
-    }
-    let workspace = operation.workspace_bytes()
-    operations += "{\"operation_id\":" +
-      operation.id().as_int().to_string() +
-      ",\"module_index\":0,\"family_id\":" +
-      kind_index.to_string() +
-      ",\"entry_point_id\":" +
-      kind_index.to_string() +
-      ",\"workspace_bytes\":" +
-      workspace.to_string() +
-      ",\"workspace_alignment\":" +
-      (if workspace > 0L { "16" } else { "1" }) +
-      ",\"dimensions\":{\"grid_x\":1,\"grid_y\":1,\"grid_z\":1," +
-      "\"block_x\":32,\"block_y\":1,\"block_z\":1," +
-      "\"shared_memory_bytes\":0}}"
-  }
-  "{\"schema_version\":1,\"model_identity\":{\"content_sha256\":\"" +
-  plan.identity().content().as_hex() +
-  "\",\"plan_sha256\":\"" +
-  plan.identity().plan().as_hex() +
-  "\"},\"device_target\":{\"compute_major\":" +
-  target.compute_major().to_string() +
-  ",\"compute_minor\":" +
-  target.compute_minor().to_string() +
-  ",\"supports_bf16\":true,\"supports_cublas_lt\":false}," +
-  "\"catalog_version\":3,\"profile\":{\"id\":1},\"modules\":[{" +
-  "\"sha256\":\"" +
-  digest +
-  "\",\"path\":\"kernel.cubin\",\"entry_points\":[" +
-  entries +
-  "]}],\"operations\":[" +
-  operations +
-  "]}"
-}
-
-///|
 fn admission_execution_limits(
   operation_count : Int,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise {
@@ -188,6 +120,46 @@ fn admission_bootstrap_limits() -> @device_step.DeviceBootstrapLimits raise {
     max_operands_per_step=16,
     max_symbol_bytes=64,
     max_canonical_bytes=16384,
+  )
+}
+
+///|
+fn admission_sampling_source(
+  sampling_runtime : @worker_wire.WorkerBootstrapSamplingRuntime,
+) -> @worker_wire.EncodedBootstrapSource raise {
+  @worker_wire.admit_bootstrap_source(
+    @worker_wire.WorkerBootstrapRoots::new(
+      model_root="/model",
+      kernel_root="/kernel",
+    ),
+    @worker_wire.WorkerBootstrapModelSource::new(
+      config_locator="config.json",
+      weights_locator="weights.safetensors",
+      config_digest_sha256="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    ),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator="execution.json",
+      manifest_digest_sha256="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      sampling_runtime~,
+    ),
+    @worker_wire.WorkerBootstrapExecution::new(
+      compute_major=8,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+      tokens_per_page=4,
+      total_page_count=8,
+    ),
+    @worker_wire.WorkerBootstrapCeilings::new(
+      max_model_config_bytes=4096,
+      max_weight_file_bytes=4096L,
+      max_weight_arena_bytes=4096L,
+      max_activation_arena_bytes=65536L,
+      max_kv_arena_bytes=65536L,
+      max_execution_manifest_bytes=65536L,
+      max_module_bytes=4096L,
+      max_total_module_bytes=4096L,
+    ),
   )
 }
 
@@ -235,6 +207,24 @@ fn admission_startup(
     ),
     has_predecessor=false,
     predecessor_value=0UL,
+  )
+}
+
+///|
+fn admission_startup_with_identity(
+  base : @worker_wire.WorkerStartupContract,
+  identity : @spec.ModelIdentity,
+) -> @worker_wire.WorkerStartupContract raise {
+  @worker_wire.WorkerStartupContract::new(
+    identity~,
+    bootstrap_digest=base.bootstrap_digest(),
+    bootstrap_source_digest=base.bootstrap_source_digest(),
+    device_ordinal=base.device_ordinal(),
+    model_generation_value=base.model_generation_value(),
+    worker_limits=base.worker_limits(),
+    inference_limits=base.inference_limits(),
+    has_predecessor=base.has_predecessor(),
+    predecessor_value=base.predecessor_value(),
   )
 }
 
@@ -290,6 +280,7 @@ async test "admission rejects swapped inspection and aggregate layout evidence" 
     let inspection64 = @device_materialize.inspect_file(
       root,
       model,
+      plan,
       locator,
       limits=file_limits,
       alignment_bytes=64L,
@@ -298,6 +289,7 @@ async test "admission rejects swapped inspection and aggregate layout evidence" 
     let inspection128 = @device_materialize.inspect_file(
       root,
       model,
+      plan,
       locator,
       limits=file_limits,
       alignment_bytes=128L,
@@ -353,6 +345,37 @@ async test "admission rejects swapped inspection and aggregate layout evidence" 
     )
     let startup64 = admission_startup(execution64)
     let startup128 = admission_startup(execution128)
+    validate_authenticated_model_plan(model, startup64, execution64)
+    let alternate_plan = @llama.build(model)
+    let substituted_identity_startup = admission_startup_with_identity(
+      startup64,
+      alternate_plan.identity(),
+    )
+    assert_false(alternate_plan.identity() == plan.identity())
+    try
+      validate_authenticated_model_plan(
+        model, substituted_identity_startup, execution64,
+      )
+    catch {
+      Invalid(ModelIdentity) => ()
+      _ => fail("unexpected injected startup identity error")
+    } noraise {
+      _ => fail("substituted rebuilt-plan identity was accepted")
+    }
+    let foreign_model = @spec.LlamaModelMetadata::from_verified_content(
+      model.spec(),
+      @spec.ContentDigest::from_sha256(
+        "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      ),
+    )
+    try
+      validate_authenticated_model_plan(foreign_model, startup64, execution64)
+    catch {
+      Invalid(ModelIdentity) => ()
+      _ => fail("unexpected substituted model-content error")
+    } noraise {
+      _ => fail("foreign model content was accepted for retained plan")
+    }
     ignore(
       admit_plan(
         startup=startup64,
@@ -362,6 +385,36 @@ async test "admission rejects swapped inspection and aggregate layout evidence" 
         bootstrap_limits=admission_bootstrap_limits(),
       ),
     )
+    let sampling_policy = @device_step.admit_paged_embedded_cuda_greedy_sampling(
+      plan,
+      execution64.blueprint(),
+      execution64.artifacts(),
+    )
+    assert_eq(
+      admit_bootstrap_sampling_policy(
+        admission_sampling_source(HostSamplingRuntime),
+        plan,
+        execution64,
+      ),
+      PagedHostSampling,
+    )
+    assert_eq(
+      admit_bootstrap_sampling_policy(
+        admission_sampling_source(EmbeddedCudaGreedyV1),
+        plan,
+        execution64,
+      ),
+      sampling_policy,
+    )
+    let greedy_worker = admit_plan(
+      startup=startup64,
+      model~,
+      weight_inspection=inspection64,
+      execution=execution64,
+      bootstrap_limits=admission_bootstrap_limits(),
+      sampling_policy~,
+    )
+    assert_eq(greedy_worker.sampling_policy, sampling_policy)
     ignore(
       admit_plan(
         startup=startup128,

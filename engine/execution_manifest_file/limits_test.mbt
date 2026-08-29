@@ -1,5 +1,5 @@
 ///|
-test "canonical v1 operation ceiling is exact" {
+test "canonical v2 operation ceiling is exact" {
   let artifact = @artifact.KernelArtifactLimits::new(
     max_modules=1,
     max_entry_points=4096,

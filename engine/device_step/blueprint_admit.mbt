@@ -341,6 +341,8 @@ fn bind_blueprint_operand(
       bind_weight_operand(
         operation, reference, operand, static_operation, static_plan,
       )
+    WeightScaleInput(_, _) =>
+      raise blueprint_operation_error(operation, OperandRole)
   }
 }
 
@@ -487,6 +489,8 @@ pub fn admit_paged_kv_execution_blueprint(
     weight_arena_bytes: 0L,
     weight_alignment: 1L,
     activation_workspace_arena_bytes: memory_plan.arena_bytes(),
+    graph_memory: derive_graph_memory_evidence(None),
+    graph_shape: None,
     steps: ReadOnlyArray::from_array(steps),
   }
 }

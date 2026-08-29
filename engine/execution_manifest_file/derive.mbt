@@ -267,7 +267,9 @@ fn derive_contracts(
           layout,
           profile,
         ),
-      ),
+      ) catch {
+        _ => raise AdmissionRejected(LaunchContracts)
+      },
     )
   }
   @launch_contract.admit_paged_graph(

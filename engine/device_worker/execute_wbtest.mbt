@@ -69,8 +69,13 @@ fn fake_owner_execution(
   if lifecycle.val != WorkerReady {
     raise InvalidLifecycle(lifecycle.val)
   }
-  fake_execution_transaction(fail_at, calls) catch {
-    primary => {
+  let outcome : Result[String, DeviceWorkerError] = Ok(
+    fake_execution_transaction(fail_at, calls),
+  ) catch {
+    primary => Err(primary)
+  }
+  match outcome {
+    Err(primary) => {
       lifecycle.val = WorkerFaulted
       calls.push("abort")
       if abort_fails {
@@ -81,6 +86,7 @@ fn fake_owner_execution(
       }
       raise primary
     }
+    Ok(completion) => completion
   }
 }
 

@@ -9,6 +9,15 @@ fn require_lifecycle(
 }
 
 ///|
+fn poison_stage_owner(
+  owner : DeviceStepOwner,
+  error : DeviceStepError,
+) -> Unit raise DeviceStepError {
+  owner.lifecycle = Poisoned
+  raise error
+}
+
+///|
 fn validate_next_sequence(
   has_accepted_predecessor : Bool,
   accepted_predecessor_value : UInt64,
@@ -36,22 +45,27 @@ fn preflight_stage_then_write(
   has_accepted_predecessor : Bool,
   accepted_predecessor_value : UInt64,
   stage_epoch : UInt64,
+  greedy_only? : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
-  let summary = preflight_and_write(
-    plan, expected_generation, expected_identity, layout, limits, host, required_capabilities,
-    false,
-  )
-  validate_next_sequence(
-    has_accepted_predecessor,
-    accepted_predecessor_value,
-    summary.sequence_value,
-  )
   if stage_epoch == 18446744073709551615UL {
     raise StageEpochOverflow
   }
+  let sequence_value = plan.sequence_wire() catch {
+    error => raise protocol_error(error)
+  }
+  validate_next_sequence(
+    has_accepted_predecessor, accepted_predecessor_value, sequence_value,
+  )
   preflight_and_write(
-    plan, expected_generation, expected_identity, layout, limits, host, required_capabilities,
+    plan,
+    expected_generation,
+    expected_identity,
+    layout,
+    limits,
+    host,
+    required_capabilities,
     true,
+    greedy_only~,
   )
 }
 
@@ -65,13 +79,6 @@ fn publish_counts(
   write_i32(host.counts, 2, summary.row_count)
   write_i32(host.counts, 3, summary.token_count)
   write_i32(host.counts, 4, summary.page_count)
-}
-
-///|
-fn invalidate_counts(host : DeviceStepHostBuffers) -> Unit {
-  for index in 0..<COUNTS_LENGTH {
-    write_i32(host.counts, index, 0)
-  }
 }
 
 ///|
@@ -98,14 +105,6 @@ fn upload_owner_transaction(
   owner : DeviceStepOwner,
   summary : DeviceStepSummary,
 ) -> Unit raise DeviceStepError {
-  invalidate_counts(owner.host)
-  copy_operand(
-    owner,
-    Counts,
-    owner.resources.counts,
-    owner.host.counts,
-    COUNTS_LENGTH,
-  )
   copy_operand(
     owner,
     TokenIds,
@@ -159,15 +158,15 @@ fn upload_owner_transaction(
 }
 
 ///|
-/// Validates and uploads one submitted plan into reusable worker-owned storage.
-/// Validation is complete before host writes. Device counts are invalidated
-/// first, payload operands upload next, and real counts publish last. Any copy
-/// failure poisons the owner so stale prior counts can never be dispatched.
-pub fn DeviceStepOwner::stage(
+fn DeviceStepOwner::stage_with_sampling_mode(
   self : DeviceStepOwner,
   plan : @worker_protocol.SubmittedSchedulePlan,
+  greedy_only : Bool,
 ) -> StagedDeviceStep raise DeviceStepError {
   require_lifecycle(self.lifecycle, Ready)
+  let plan_owner = plan.buffer_identity() catch {
+    error => raise protocol_error(error)
+  }
   let summary = preflight_stage_then_write(
     plan,
     self.model_generation_value,
@@ -179,15 +178,14 @@ pub fn DeviceStepOwner::stage(
     self.has_accepted_predecessor,
     self.accepted_predecessor_value,
     self.stage_epoch,
+    greedy_only~,
   )
   upload_owner_transaction(self, summary) catch {
-    error => {
-      self.lifecycle = Poisoned
-      raise error
-    }
+    error => poison_stage_owner(self, error)
   }
   self.stage_epoch = self.stage_epoch + 1UL
-  self.staged_sequence_value = summary.sequence_value
+  self.staged_summary = summary
+  self.staged_plan_owner = Some(plan_owner)
   self.staged_wire_owner = None
   self.staged_wire_epoch = 0UL
   self.lifecycle = Staged
@@ -195,58 +193,39 @@ pub fn DeviceStepOwner::stage(
 }
 
 ///|
+/// Validates and uploads one submitted plan into reusable worker-owned storage.
+/// Validation and host staging share one bounded scan; no device write occurs
+/// until that scan succeeds. Payload operands upload first and real counts
+/// publish last. Any copy failure poisons the owner, so a stale prior count
+/// publication can never be dispatched through this capability.
+pub fn DeviceStepOwner::stage(
+  self : DeviceStepOwner,
+  plan : @worker_protocol.SubmittedSchedulePlan,
+) -> StagedDeviceStep raise DeviceStepError {
+  self.stage_with_sampling_mode(plan, false)
+}
+
+///|
 /// Validates and uploads one canonical received plan frame without requiring
 /// any scheduler heap-owner capability in the worker process. The same
 /// transaction and poison rules as `stage` apply.
+fn DeviceStepOwner::stage_frame_with_sampling_mode(
+  self : DeviceStepOwner,
+  frame : @worker_wire.ValidatedPlanFrame,
+  greedy_only : Bool,
+) -> StagedDeviceStep raise DeviceStepError {
+  self.stage_preflighted_frame(
+    frame,
+    self.preflight_validated_frame(frame, greedy_only~),
+  )
+}
+
+///|
 pub fn DeviceStepOwner::stage_frame(
   self : DeviceStepOwner,
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> StagedDeviceStep raise DeviceStepError {
-  require_lifecycle(self.lifecycle, Ready)
-  let frame_owner = frame.owner_identity() catch { error => raise Wire(error) }
-  let frame_epoch = frame.epoch_value() catch { error => raise Wire(error) }
-  let summary = preflight_frame_and_write(
-    frame,
-    self.model_generation_value,
-    self.identity,
-    self.layout,
-    self.limits,
-    self.host,
-    self.required_capabilities,
-    false,
-  )
-  validate_next_sequence(
-    self.has_accepted_predecessor,
-    self.accepted_predecessor_value,
-    summary.sequence_value,
-  )
-  if self.stage_epoch == 18446744073709551615UL {
-    raise StageEpochOverflow
-  }
-  ignore(
-    preflight_frame_and_write(
-      frame,
-      self.model_generation_value,
-      self.identity,
-      self.layout,
-      self.limits,
-      self.host,
-      self.required_capabilities,
-      true,
-    ),
-  )
-  upload_owner_transaction(self, summary) catch {
-    error => {
-      self.lifecycle = Poisoned
-      raise error
-    }
-  }
-  self.stage_epoch += 1UL
-  self.staged_sequence_value = summary.sequence_value
-  self.staged_wire_owner = Some(frame_owner)
-  self.staged_wire_epoch = frame_epoch
-  self.lifecycle = Staged
-  StagedDeviceStep(self, self.stage_epoch)
+  self.stage_frame_with_sampling_mode(frame, false)
 }
 
 ///|
@@ -271,7 +250,9 @@ pub fn DeviceStepOwner::finish(
 ) -> Unit raise DeviceStepError {
   staged.authenticate(self)
   self.has_accepted_predecessor = true
-  self.accepted_predecessor_value = self.staged_sequence_value
+  self.accepted_predecessor_value = self.staged_summary.sequence_value
+  self.staged_summary = empty_device_step_summary()
+  self.staged_plan_owner = None
   self.staged_wire_owner = None
   self.staged_wire_epoch = 0UL
   self.lifecycle = Ready

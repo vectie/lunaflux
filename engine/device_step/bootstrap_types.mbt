@@ -38,10 +38,32 @@ pub struct DeviceWorkerBootstrapManifest {
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv limits : DeviceStepLimits
+  priv graph_memory : PagedGraphMemoryEvidence
   priv module_count : Int
   priv entry_point_count : Int
   priv step_count : Int
 }
+
+///|
+/// Inert digest-bound bootstrap-v3 evidence for production symmetric-I8.
+///
+/// This type can mint only the digest-bound worker protocol startup contract.
+/// Loaded numeric-weight authority must still join this manifest and its
+/// blueprint before executor preparation can publish a software owner.
+pub struct I8DeviceWorkerBootstrapManifestV3 {
+  priv digest : @worker_wire.WorkerBootstrapDigest
+  priv identity : @spec.ModelIdentity
+  priv numeric_schema_digest : @numeric_contract.ModelNumericSchemaDigest
+  priv i8_admission_digest : @i8_admission.I8InertKernelCapabilityAdmissionDigest
+  priv device_numeric_digest : @device.DeviceNumericCapabilityDigest
+  priv device_ordinal : Int
+  priv target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv limits : DeviceStepLimits
+  priv module_count : Int
+  priv entry_point_count : Int
+  priv step_count : Int
+} derive(Debug, Eq)
 
 ///|
 pub fn DeviceBootstrapLimits::new(
@@ -123,6 +145,15 @@ pub fn DeviceWorkerBootstrapManifest::device_step_limits(
 }
 
 ///|
+/// Returns the exact authenticated graph-memory availability and bound encoded
+/// by this bootstrap admission.
+pub fn DeviceWorkerBootstrapManifest::graph_memory_evidence(
+  self : DeviceWorkerBootstrapManifest,
+) -> PagedGraphMemoryEvidence {
+  self.graph_memory
+}
+
+///|
 pub fn DeviceWorkerBootstrapManifest::module_count(
   self : DeviceWorkerBootstrapManifest,
 ) -> Int {
@@ -147,6 +178,132 @@ pub fn DeviceWorkerBootstrapManifest::step_count(
 /// Constructs the only process-startup contract for this admitted bootstrap.
 pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   self : DeviceWorkerBootstrapManifest,
+  model_generation : @worker_protocol.ModelPlanGeneration,
+  bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest,
+  worker_limits : @worker_protocol.WorkerProtocolLimits,
+  inference_limits : @inference.InferenceLimits,
+  has_predecessor~ : Bool,
+  predecessor_value~ : UInt64,
+) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
+  let device = self.limits
+  if worker_limits.max_plan_rows() > device.max_rows() ||
+    worker_limits.max_prefill_rows() > device.max_rows() ||
+    worker_limits.max_decode_rows() > device.max_rows() ||
+    worker_limits.max_plan_tokens() > device.max_tokens() ||
+    worker_limits.max_plan_pages() > device.max_pages() ||
+    worker_limits.max_sequence_tokens() > device.max_sequence_tokens() ||
+    worker_limits.max_token_id() > device.max_token_id() ||
+    inference_limits.max_context_tokens() > device.max_sequence_tokens() ||
+    inference_limits.max_context_tokens() > worker_limits.max_sequence_tokens() ||
+    inference_limits.max_token_id() > device.max_token_id() ||
+    inference_limits.max_token_id() > worker_limits.max_token_id() {
+    raise InvalidBootstrap(RuntimeEnvelope)
+  }
+  @worker_wire.WorkerStartupContract::new(
+    identity=self.identity,
+    bootstrap_digest=self.digest,
+    bootstrap_source_digest~,
+    device_ordinal=self.device_ordinal,
+    model_generation_value=model_generation.value(),
+    worker_limits~,
+    inference_limits~,
+    has_predecessor~,
+    predecessor_value~,
+  ) catch {
+    error => raise BootstrapWire(error)
+  }
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::digest(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @worker_wire.WorkerBootstrapDigest {
+  self.digest
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::identity(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @spec.ModelIdentity {
+  self.identity
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::numeric_schema_digest(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @numeric_contract.ModelNumericSchemaDigest {
+  self.numeric_schema_digest
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::i8_admission_digest(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @i8_admission.I8InertKernelCapabilityAdmissionDigest {
+  self.i8_admission_digest
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::device_numeric_digest(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @device.DeviceNumericCapabilityDigest {
+  self.device_numeric_digest
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::device_ordinal(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> Int {
+  self.device_ordinal
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::target(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @catalog.DeviceTarget {
+  self.target
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::catalog_version(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> @catalog.CatalogVersion {
+  self.catalog_version
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::device_step_limits(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> DeviceStepLimits {
+  self.limits
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::module_count(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> Int {
+  self.module_count
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::entry_point_count(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> Int {
+  self.entry_point_count
+}
+
+///|
+pub fn I8DeviceWorkerBootstrapManifestV3::step_count(
+  self : I8DeviceWorkerBootstrapManifestV3,
+) -> Int {
+  self.step_count
+}
+
+///|
+/// Constructs the process-startup contract bound to this exact numeric-v3
+/// bootstrap identity. This authorizes only worker protocol startup; loaded
+/// weight joining and executor preparation remain separate mandatory gates.
+pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(
+  self : I8DeviceWorkerBootstrapManifestV3,
   model_generation : @worker_protocol.ModelPlanGeneration,
   bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest,
   worker_limits : @worker_protocol.WorkerProtocolLimits,

@@ -22,109 +22,11 @@ fn blueprint_metadata(
 }
 
 ///|
-fn blueprint_append_tensor(
-  entries : Array[@safetensors.RawTensorMetadata],
-  name : String,
-  shape : ArrayView[Int64],
-  offset : Ref[Int64],
-) -> Unit {
-  let start = offset.val
-  let end = shape.fold(init=2L, (size, dimension) => size * dimension) + start
-  entries.push(
-    @safetensors.RawTensorMetadata::new(
-      name~,
-      dtype="BF16",
-      shape~,
-      data_start=start,
-      data_end=end,
-    ),
-  )
-  offset.val = end
-}
-
-///|
 fn blueprint_weight_layout(
-  metadata : @spec.LlamaModelMetadata,
+  plan : @plan.ModelPlan,
 ) -> @device_materialize.DeviceWeightLayout raise {
-  let entries : Array[@safetensors.RawTensorMetadata] = []
-  let offset = Ref(0L)
-  blueprint_append_tensor(
-    entries,
-    "model.embed_tokens.weight",
-    [8L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.input_layernorm.weight",
-    [4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.self_attn.q_proj.weight",
-    [4L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.self_attn.k_proj.weight",
-    [2L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.self_attn.v_proj.weight",
-    [2L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.self_attn.o_proj.weight",
-    [4L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.post_attention_layernorm.weight",
-    [4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.mlp.gate_proj.weight",
-    [6L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.mlp.up_proj.weight",
-    [6L, 4L],
-    offset,
-  )
-  blueprint_append_tensor(
-    entries,
-    "model.layers.0.mlp.down_proj.weight",
-    [4L, 6L],
-    offset,
-  )
-  blueprint_append_tensor(entries, "model.norm.weight", [4L], offset)
-  blueprint_append_tensor(entries, "lm_head.weight", [8L, 4L], offset)
-  let tensors = @safetensors.validate_metadata(
-    entries,
-    encoded_header_bytes=16,
-    payload_bytes=offset.val,
-    limits=@safetensors.HeaderLimits::new(
-      max_header_bytes=4096,
-      max_tensor_count=32,
-      max_rank=2,
-      max_name_length=128,
-      max_payload_bytes=4096L,
-      max_materialized_tensor_bytes=4096L,
-    ),
-  )
-  @device_materialize.plan_layout(
-    @llama_weights.bind(metadata, tensors),
+  @device_materialize.plan_numeric_layout(
+    plan,
     alignment_bytes=64L,
     max_arena_bytes=4096L,
   )
@@ -154,10 +56,11 @@ fn blueprint_operation(
 ///|
 fn blueprint_model_plan(
   metadata : @spec.LlamaModelMetadata,
-  leading_norm? : Bool = false,
+  extra_projection? : Bool = false,
   rotary_workspace? : Int64 = 64L,
-  replace_qkv_with_norm? : Bool = false,
+  replace_qkv_with_projection? : Bool = false,
   rope_theta? : Double = 10000.0,
+  final_language_model_head? : Bool = false,
 ) -> @plan.ModelPlan raise {
   let operations : Array[@plan.PlanOperation] = []
   operations.push(
@@ -171,28 +74,40 @@ fn blueprint_model_plan(
     ),
   )
   let mut source = @plan.ActivationRef::new(0)
-  if leading_norm {
+  operations.push(
+    blueprint_operation(
+      1,
+      RmsNorm,
+      [Activation(source), Tensor(@plan.TensorRef::new(1))],
+      NormalizationShape(width=4, epsilon=0.000001),
+      @plan.KernelCapabilityId::rms_norm(),
+      0L,
+    ),
+  )
+  source = @plan.ActivationRef::new(1)
+  if extra_projection {
+    let projection_id = operations.length()
     operations.push(
       blueprint_operation(
-        1,
-        RmsNorm,
-        [Activation(source), Tensor(@plan.TensorRef::new(1))],
-        NormalizationShape(width=4, epsilon=0.000001),
-        @plan.KernelCapabilityId::rms_norm(),
+        projection_id,
+        OutputProjection,
+        [Activation(source), Tensor(@plan.TensorRef::new(5))],
+        ProjectionShape(input_width=4, output_width=4),
+        @plan.KernelCapabilityId::dense_projection(),
         0L,
       ),
     )
-    source = @plan.ActivationRef::new(1)
+    source = @plan.ActivationRef::new(projection_id)
   }
   let qkv_id = operations.length()
-  if replace_qkv_with_norm {
+  if replace_qkv_with_projection {
     operations.push(
       blueprint_operation(
         qkv_id,
-        RmsNorm,
-        [Activation(source), Tensor(@plan.TensorRef::new(1))],
-        NormalizationShape(width=4, epsilon=0.000001),
-        @plan.KernelCapabilityId::rms_norm(),
+        OutputProjection,
+        [Activation(source), Tensor(@plan.TensorRef::new(2))],
+        ProjectionShape(input_width=4, output_width=4),
+        @plan.KernelCapabilityId::dense_projection(),
         0L,
       ),
     )
@@ -256,8 +171,28 @@ fn blueprint_model_plan(
       persistent_state=KvCacheReadWrite(layer),
     ),
   )
+  let final_output = if final_language_model_head {
+    let head_id = operations.length()
+    operations.push(
+      blueprint_operation(
+        head_id,
+        LanguageModelHead,
+        [
+          Activation(@plan.ActivationRef::new(attention_id)),
+          Tensor(@plan.TensorRef::new(5)),
+        ],
+        ProjectionShape(input_width=4, output_width=8),
+        @plan.KernelCapabilityId::dense_projection(),
+        0L,
+      ),
+    )
+    @plan.ActivationRef::new(head_id)
+  } else {
+    @plan.ActivationRef::new(attention_id)
+  }
   @plan.ModelPlan::new_with_kv_execution(
-    identity=metadata.identity(),
+    content_digest=metadata.content_digest(),
+    limits=@plan.ModelPlanLimits::production(),
     shape_constraints=@plan.ShapeConstraints::new(
       max_batch_rows=2,
       max_sequence_tokens=8,
@@ -277,8 +212,9 @@ fn blueprint_model_plan(
     ),
     workspace_bounds=@plan.WorkspaceBounds::new(max_temporary_bytes=64L),
     operations~,
-    final_output=@plan.ActivationRef::new(attention_id),
+    final_output~,
     kv_execution=PagedKeyValue,
+    numeric_schema=@plan_test_fixture.synthetic_bf16_numeric_schema(operations),
   )
 }
 

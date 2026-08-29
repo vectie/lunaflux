@@ -1,0 +1,204 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/fp8_runtime_recipe"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/fp8_startup_admission",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/fp8_launch_abi",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/numeric_weight_file",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit(@fp8_startup_admission.Fp8StartupAdmission, @numeric_weight_file.NumericWeightFileInspection, ArrayView[@fp8_launch_abi.Fp8DynamicLaunchAbi], ArrayView[Fp8LaunchWeightRegionClaim], Fp8RuntimeRecipeLimits) -> Fp8RuntimeRecipe raise Fp8RuntimeRecipeError
+
+pub fn admit_reusable_paged_v3(Fp8RuntimeRecipeV2, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, Fp8ReusablePagedRecipeV3Limits) -> Fp8ReusablePagedRecipeV3 raise Fp8ReusablePagedRecipeV3Error
+
+pub fn admit_v2(@fp8_startup_admission.Fp8StartupAdmissionV2, @numeric_weight_file.NumericWeightFileInspection, ArrayView[@fp8_launch_abi.Fp8StagedDynamicLaunchAbi], ArrayView[Fp8LaunchWeightRegionClaimV2], Fp8RuntimeRecipeV2Limits) -> Fp8RuntimeRecipeV2 raise Fp8RuntimeRecipeV2Error
+
+// Errors
+pub(all) suberror Fp8ReusablePagedRecipeV3Error {
+  InvalidFp8ReusablePagedRecipeV3(Fp8ReusablePagedRecipeV3Rule)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror Fp8RuntimeRecipeError {
+  InvalidFp8RuntimeRecipe(Fp8RuntimeRecipeRule)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror Fp8RuntimeRecipeV2Error {
+  InvalidFp8RuntimeRecipeV2(Fp8RuntimeRecipeV2Rule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Fp8LaunchWeightBinding {
+  // private fields
+}
+pub fn Fp8LaunchWeightBinding::operation(Self) -> @plan.OperationId
+pub fn Fp8LaunchWeightBinding::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8LaunchWeightBinding::regions(Self) -> ReadOnlyArray[Fp8WeightOperandStorageRegion]
+
+pub struct Fp8LaunchWeightBindingV2 {
+  // private fields
+}
+pub fn Fp8LaunchWeightBindingV2::operation(Self) -> @plan.OperationId
+pub fn Fp8LaunchWeightBindingV2::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8LaunchWeightBindingV2::regions(Self) -> ReadOnlyArray[Fp8WeightOperandStorageRegion]
+
+pub struct Fp8LaunchWeightRegionClaim {
+  // private fields
+}
+pub fn Fp8LaunchWeightRegionClaim::new(profile~ : @launch_contract.KernelProfileId, operation~ : @plan.OperationId, regions~ : ArrayView[@fp8_launch_abi.Fp8LaunchStorageRegion]) -> Self raise Fp8RuntimeRecipeError
+
+pub struct Fp8LaunchWeightRegionClaimV2 {
+  // private fields
+}
+pub fn Fp8LaunchWeightRegionClaimV2::new(profile~ : @launch_contract.KernelProfileId, operation~ : @plan.OperationId, regions~ : ArrayView[@fp8_launch_abi.Fp8LaunchStorageRegion]) -> Self raise Fp8RuntimeRecipeV2Error
+
+pub struct Fp8ReusablePagedLaunchV3 {
+  // private fields
+}
+pub fn Fp8ReusablePagedLaunchV3::activation_scale_policy(Self) -> @numeric_contract.ActivationScalePolicy
+pub fn Fp8ReusablePagedLaunchV3::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn Fp8ReusablePagedLaunchV3::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8ReusablePagedLaunchV3::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn Fp8ReusablePagedLaunchV3::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8ReusablePagedLaunchV3::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn Fp8ReusablePagedLaunchV3::operation(Self) -> @plan.OperationId
+pub fn Fp8ReusablePagedLaunchV3::operation_kind(Self) -> @plan.OperationKind
+pub fn Fp8ReusablePagedLaunchV3::scale_tensor_regions(Self) -> ReadOnlyArray[@fp8_launch_abi.Fp8ScaleTensorStorageRegion]
+pub fn Fp8ReusablePagedLaunchV3::stage_at(Self, Int) -> @numeric_contract.ActivationScaleStage?
+pub fn Fp8ReusablePagedLaunchV3::stage_count(Self) -> Int
+pub fn Fp8ReusablePagedLaunchV3::workspace_alignment(Self) -> Int64
+pub fn Fp8ReusablePagedLaunchV3::workspace_bytes(Self) -> Int64
+pub fn Fp8ReusablePagedLaunchV3::workspace_offset(Self) -> Int64
+
+pub struct Fp8ReusablePagedRecipeV3 {
+  // private fields
+}
+pub fn Fp8ReusablePagedRecipeV3::canonical_bytes(Self) -> Bytes
+pub fn Fp8ReusablePagedRecipeV3::digest(Self) -> Fp8ReusablePagedRecipeV3Digest
+pub fn Fp8ReusablePagedRecipeV3::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn Fp8ReusablePagedRecipeV3::launches(Self) -> ReadOnlyArray[Fp8ReusablePagedLaunchV3]
+pub fn Fp8ReusablePagedRecipeV3::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn Fp8ReusablePagedRecipeV3::startup(Self) -> @fp8_startup_admission.Fp8StartupAdmissionV2
+pub fn Fp8ReusablePagedRecipeV3::weight_bindings(Self) -> ReadOnlyArray[Fp8LaunchWeightBindingV2]
+pub fn Fp8ReusablePagedRecipeV3::weight_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+pub fn Fp8ReusablePagedRecipeV3::workspace_capacity_bytes(Self) -> Int64
+
+pub struct Fp8ReusablePagedRecipeV3Digest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8ReusablePagedRecipeV3Digest::as_hex(Self) -> String
+
+pub struct Fp8ReusablePagedRecipeV3Limits {
+  // private fields
+}
+pub fn Fp8ReusablePagedRecipeV3Limits::new(max_launches~ : Int, max_workspace_arena_bytes~ : Int64, max_canonical_bytes~ : Int) -> Self raise Fp8ReusablePagedRecipeV3Error
+
+pub(all) enum Fp8ReusablePagedRecipeV3Rule {
+  Limit
+  Profile
+  ModelEnvelope
+  KvLayout
+  LaunchOrder
+  LaunchAuthority
+  Workspace
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8RuntimeRecipe {
+  // private fields
+}
+pub fn Fp8RuntimeRecipe::canonical_bytes(Self) -> Bytes
+pub fn Fp8RuntimeRecipe::digest(Self) -> Fp8RuntimeRecipeDigest
+pub fn Fp8RuntimeRecipe::launches(Self) -> ReadOnlyArray[@fp8_launch_abi.Fp8DynamicLaunchAbi]
+pub fn Fp8RuntimeRecipe::startup(Self) -> @fp8_startup_admission.Fp8StartupAdmission
+pub fn Fp8RuntimeRecipe::weight_bindings(Self) -> ReadOnlyArray[Fp8LaunchWeightBinding]
+pub fn Fp8RuntimeRecipe::weight_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+pub fn Fp8RuntimeRecipe::weight_storage(Self) -> @fp8_launch_abi.Fp8LaunchStorageIdentity
+pub fn Fp8RuntimeRecipe::workspace_bytes(Self) -> Int64
+pub fn Fp8RuntimeRecipe::workspace_storage(Self) -> @fp8_launch_abi.Fp8LaunchStorageIdentity
+
+pub struct Fp8RuntimeRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8RuntimeRecipeDigest::as_hex(Self) -> String
+
+pub struct Fp8RuntimeRecipeLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeLimits::new(max_launches~ : Int, max_workspace_bytes~ : Int64, max_canonical_bytes~ : Int) -> Self raise Fp8RuntimeRecipeError
+
+pub(all) enum Fp8RuntimeRecipeRule {
+  Limit
+  WeightIdentity
+  WeightSchema
+  WeightLayout
+  LaunchCount
+  LaunchOrder
+  LaunchBinding
+  WeightStorage
+  WeightRegion
+  WorkspaceStorage
+  WorkspaceCapacity
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8RuntimeRecipeV2 {
+  // private fields
+}
+pub fn Fp8RuntimeRecipeV2::canonical_bytes(Self) -> Bytes
+pub fn Fp8RuntimeRecipeV2::digest(Self) -> Fp8RuntimeRecipeV2Digest
+pub fn Fp8RuntimeRecipeV2::launches(Self) -> ReadOnlyArray[@fp8_launch_abi.Fp8StagedDynamicLaunchAbi]
+pub fn Fp8RuntimeRecipeV2::startup(Self) -> @fp8_startup_admission.Fp8StartupAdmissionV2
+pub fn Fp8RuntimeRecipeV2::weight_bindings(Self) -> ReadOnlyArray[Fp8LaunchWeightBindingV2]
+pub fn Fp8RuntimeRecipeV2::weight_inspection(Self) -> @numeric_weight_file.NumericWeightFileInspection
+pub fn Fp8RuntimeRecipeV2::weight_storage(Self) -> @fp8_launch_abi.Fp8LaunchStorageIdentity
+pub fn Fp8RuntimeRecipeV2::workspace_capacity_bytes(Self) -> Int64
+pub fn Fp8RuntimeRecipeV2::workspace_storage(Self) -> @fp8_launch_abi.Fp8LaunchStorageIdentity
+pub fn Fp8RuntimeRecipeV2::workspaces(Self) -> ReadOnlyArray[Fp8WorkspaceBindingV2]
+
+pub struct Fp8RuntimeRecipeV2Digest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Fp8RuntimeRecipeV2Digest::as_hex(Self) -> String
+
+pub struct Fp8RuntimeRecipeV2Limits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeV2Limits::new(max_launches~ : Int, max_workspace_arena_bytes~ : Int64, max_canonical_bytes~ : Int) -> Self raise Fp8RuntimeRecipeV2Error
+
+pub(all) enum Fp8RuntimeRecipeV2Rule {
+  Limit
+  StartupVersion
+  WeightIdentity
+  WeightSchema
+  WeightLayout
+  LaunchVersion
+  LaunchCount
+  LaunchOrder
+  LaunchBinding
+  LaunchAuthority
+  WeightStorage
+  WeightRegion
+  WorkspaceStorage
+  WorkspaceCapacity
+  StageBinding
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Fp8WeightOperandStorageRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Fp8WeightOperandStorageRegion::region(Self) -> @fp8_launch_abi.Fp8LaunchStorageRegion
+pub fn Fp8WeightOperandStorageRegion::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
+pub fn Fp8WeightOperandStorageRegion::tensor(Self) -> @plan.TensorRef
+
+pub struct Fp8WorkspaceBindingV2 {
+  // private fields
+}
+pub fn Fp8WorkspaceBindingV2::operation(Self) -> @plan.OperationId
+pub fn Fp8WorkspaceBindingV2::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8WorkspaceBindingV2::workspace(Self) -> @fp8_launch_abi.Fp8LaunchStorageRegion
+
+// Type aliases
+
+// Traits

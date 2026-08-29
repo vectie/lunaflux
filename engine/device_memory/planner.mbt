@@ -380,7 +380,7 @@ pub fn plan(
     let reference = operation.outputs()[0]
     regions.push({
       reference,
-      slot: ActivationSlotId(slot_for_offset(slot_offsets, offset)),
+      slot: { value: slot_for_offset(slot_offsets, offset) },
       offset_bytes: offset,
       logical_bytes: logical_sizes[index],
       reserved_bytes: required,

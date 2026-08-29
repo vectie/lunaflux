@@ -29,6 +29,14 @@ fn close_weights(
       owner.retry_close() catch {
         error => raise CleanupWeights(error)
       }
+    Some(NumericComplete(owner)) =>
+      owner.close() catch {
+        error => raise CleanupNumericWeights(error)
+      }
+    Some(NumericFailed(owner)) =>
+      owner.retry_close() catch {
+        error => raise CleanupNumericWeights(error)
+      }
     None => return
   }
   resources.weights = None
@@ -48,7 +56,10 @@ fn close_context(
 ///|
 fn resources_complete(resources : DeviceWorkerResources) -> Bool {
   resources.executor is Some(Complete(_)) &&
-  resources.weights is Some(Complete(_)) &&
+  (
+    resources.weights is Some(Complete(_)) ||
+    resources.numeric_weights_owned_by_executor
+  ) &&
   resources.context is Some(_)
 }
 
@@ -118,11 +129,17 @@ pub fn FailedDeviceWorkerPreparation::retry_close(
     return
   }
   self.lifecycle = WorkerClosingFailed
-  close_resources(self.resources) catch {
-    error => {
+  let outcome : Result[Unit, DeviceWorkerError] = Ok(
+    close_resources(self.resources),
+  ) catch {
+    error => Err(error)
+  }
+  match outcome {
+    Err(error) => {
       self.cleanup_failure = error
       raise error
     }
+    Ok(_) => ()
   }
   self.lifecycle = WorkerClosed
 }

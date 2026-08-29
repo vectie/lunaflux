@@ -85,11 +85,17 @@ pub fn FailedDeviceStepPreparation::retry_close(
     self.lifecycle,
     lifecycle => self.lifecycle = lifecycle,
     () => {
-      close_partial(self.resources) catch {
-        error => {
+      let outcome : Result[Unit, DeviceStepError] = Ok(
+        close_partial(self.resources),
+      ) catch {
+        error => Err(error)
+      }
+      match outcome {
+        Err(error) => {
           self.cleanup_failure = error
           raise error
         }
+        Ok(_) => ()
       }
     },
   )

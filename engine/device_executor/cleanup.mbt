@@ -260,11 +260,17 @@ pub fn FailedDevicePreparation::retry_close(
     lifecycle => self.lifecycle = lifecycle,
     () => (),
     () => {
-      close_all_retry_safe(self.resources) catch {
-        error => {
+      let outcome : Result[Unit, DeviceExecutorError] = Ok(
+        close_all_retry_safe(self.resources),
+      ) catch {
+        error => Err(error)
+      }
+      match outcome {
+        Err(error) => {
           self.cleanup_failure = error
           raise error
         }
+        Ok(_) => ()
       }
     },
   )

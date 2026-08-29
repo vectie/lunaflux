@@ -4,31 +4,36 @@ priv struct FakePagedStep {
 }
 
 ///|
-fn[Step] run_paged_step_range(
+fn[Step] run_paged_ordered_step_range(
   steps : ReadOnlyArray[Step],
   lifecycle : PagedGraphLifecycle,
   set_lifecycle : (PagedGraphLifecycle) -> Unit,
-  operation : (Step) -> @plan.OperationId,
-  launch : (Step) -> Unit raise @device.DeviceError,
+  enqueue : (Int, Step) -> Unit raise DeviceStepError,
+  record : () -> Unit raise DeviceStepError,
+  wait : () -> Unit raise DeviceStepError,
+  abort : () -> Unit,
 ) -> Unit raise DeviceStepError {
   require_paged_lifecycle(lifecycle, GraphStaged)
   set_lifecycle(GraphExecuting)
-  let mut index = 0
-  while index < steps.length() {
-    let step = steps[index]
-    launch(step) catch {
-      error => {
-        set_lifecycle(GraphPoisoned)
-        raise ExecutorLaunchFailed(operation(step), error)
-      }
-    }
-    index += 1
+  let mut execution_complete = false
+  defer (if !execution_complete {
+    set_lifecycle(GraphPoisoned)
+    abort()
+  })
+  for index, step in steps {
+    enqueue(index, step)
   }
+  record()
+  wait()
   set_lifecycle(GraphExecuted)
+  execution_complete = true
 }
 
 ///|
-fn dummy_paged_executor(lifecycle : PagedGraphLifecycle) -> PagedGraphExecutor {
+fn dummy_paged_executor(
+  lifecycle : PagedGraphLifecycle,
+  fp8_frame_admission? : Fp8FrameAdmissionStateV3? = None,
+) -> PagedGraphExecutor {
   let limits = try! @sampling.SamplingLimits::new(1, 1)
   {
     resources: empty_paged_resources(),
@@ -42,7 +47,14 @@ fn dummy_paged_executor(lifecycle : PagedGraphLifecycle) -> PagedGraphExecutor {
       encoded_logits: FixedArray::make(2, b'\x00'),
       logits: FixedArray::make(1, 0.0),
       selected_tokens: FixedArray::make(1, 0),
+      mode: HostLogitsCompletion,
     },
+    fp8_frame_envelope: None,
+    fp8_frame_admission,
+    fp8_scale_evidence: None,
+    graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
+    fused_residual_span: None,
+    fused_dispatch_canary: None,
     lifecycle,
   }
 }
@@ -64,6 +76,161 @@ fn executor_test_submitted_plan() -> @worker_protocol.SubmittedSchedulePlan rais
 }
 
 ///|
+fn executor_test_stochastic_plan() -> @worker_protocol.SubmittedSchedulePlan raise {
+  let allocator = step_allocator()
+  let buffer = @worker_protocol.SchedulePlanBuffer::new(step_protocol_limits())
+  let inference_limits = @inference.InferenceLimits::new(
+    max_text_bytes=16,
+    max_input_tokens=16,
+    max_new_tokens=16,
+    max_context_tokens=16,
+    max_token_id=64,
+    max_stop_token_ids=1,
+    max_stop_strings=1,
+    max_stop_string_bytes=1,
+    max_trace_bytes=1,
+    max_cache_scope_bytes=1,
+    max_decoded_delta_bytes=1,
+    max_deadline_millis=1UL,
+    max_top_k=64,
+    max_temperature=4.0,
+  )
+  buffer.append_final_prefill(
+    request_id=step_request(2UL),
+    request_generation=@inference.RequestGeneration::initial(),
+    sequence_token_start=0,
+    tokens=[1],
+    pages=[allocator.allocate_one()],
+    capabilities=step_required_capability_array(),
+    sampling=@inference.SamplingParameters::sample(
+      temperature=1.0,
+      top_k=2,
+      inference_limits,
+    ),
+    sampling_seed=step_sampling_seed(),
+    sample_index=0,
+    completion_slot=step_slot(0),
+  )
+  submit_step_buffer(buffer, token_budget=1)
+}
+
+///|
+test "CUDA greedy startup mode rejects stochastic work before staging" {
+  let limits = step_device_limits()
+  try
+    preflight_and_write(
+      executor_test_stochastic_plan(),
+      1UL,
+      step_test_identity(),
+      step_test_layout(),
+      limits,
+      make_host_buffers(limits),
+      step_required_capabilities(),
+      false,
+      greedy_only=true,
+    )
+  catch {
+    InvalidExecutor(SamplingMode) => ()
+    _ => fail("unexpected CUDA-greedy sampling-mode failure")
+  } noraise {
+    _ => fail("greedy-only preflight silently accepted stochastic work")
+  }
+}
+
+///|
+test "CUDA greedy startup admission rejects an arbitrary offline module" {
+  let metadata = blueprint_metadata()
+  let model = blueprint_model_plan(metadata)
+  let sampling_model = @llama.build_paged(metadata)
+  let layout = blueprint_layout(model)
+  let target = blueprint_target()
+  let static_plan = full_static_plan(metadata, model, layout, target)
+  let memory = blueprint_memory_plan(metadata, model, layout, target)
+  let contracts = full_contract_set(model, static_plan, memory, layout, target)
+  let artifacts = blueprint_artifacts(contracts)
+  let compiler = @luna_specialization.LunaCompilerPolicy::new(
+    identity=@luna_specialization.LunaCompilerIdentity::new(
+      toolchain_digest_sha256="2".repeat(64),
+      major=13,
+      minor=0,
+      patch=0,
+    ),
+    optimization_level=3,
+    fused_multiply_add=false,
+    reassociate=false,
+    max_registers=64,
+  )
+  let limits = @luna_cuda_sampling_aot.GreedySamplingAotLimits::new(
+    max_source_bytes=16384,
+    max_recipe_bytes=4096,
+    max_module_bytes=65536L,
+  )
+  let lowering = @luna_cuda_sampling_aot.lower_greedy_sampling_cuda_aot(
+    @luna_cuda_sampling_aot.admit_host_sampling_boundary(sampling_model),
+    target,
+    compiler,
+    blueprint_limits().max_rows(),
+    limits,
+  )
+  let arbitrary = b"caller-selected-unmanifested-cubin"
+  let digest = @crypto.bytes_to_hex_string(@crypto.sha256(arbitrary))
+  let receipt = @luna_cuda_sampling_aot.GreedySamplingCompileReceipt::from_offline_builder(
+    source_sha256=lowering.source_sha256(),
+    recipe_sha256=lowering.recipe_sha256(),
+    toolchain_sha256="2".repeat(64),
+    driver_sha256="3".repeat(64),
+    first_module_sha256=digest,
+    second_module_sha256=digest,
+  )
+  let artifact = @luna_cuda_sampling_aot.admit_greedy_sampling_cuda_artifact(
+    lowering, arbitrary, arbitrary, receipt, limits,
+  )
+  try
+    admit_paged_cuda_greedy_sampling(sampling_model, artifacts, artifact)
+  catch {
+    InvalidExecutor(SamplingArtifact) => ()
+    _ => fail("unexpected unmanifested-sampler rejection")
+  } noraise {
+    _ => fail("unmanifested arbitrary sampling module acquired load authority")
+  }
+}
+
+///|
+test "embedded CUDA greedy admission binds the exact LM-head module" {
+  let metadata = blueprint_metadata()
+  let model = blueprint_model_plan(metadata, final_language_model_head=true)
+  let layout = blueprint_layout(model)
+  let target = blueprint_target()
+  let static_plan = full_static_plan(metadata, model, layout, target)
+  let memory = blueprint_memory_plan(metadata, model, layout, target)
+  let contracts = full_contract_set(model, static_plan, memory, layout, target)
+  let artifacts = blueprint_artifacts(contracts)
+  let blueprint = admit_paged_graph_execution_blueprint(
+    model,
+    blueprint_limits(),
+    layout,
+    static_plan,
+    memory,
+    blueprint_profile().id(),
+    contracts,
+    artifacts,
+  )
+  let policy = admit_paged_embedded_cuda_greedy_sampling(
+    model, blueprint, artifacts,
+  )
+  guard policy is PagedCudaGreedySampling(admission) else {
+    fail("embedded reducer did not select CUDA greedy mode")
+  }
+  assert_eq(
+    admission.function_symbol,
+    @luna_cuda_sampling_aot.greedy_sampling_cuda_function_symbol(),
+  )
+  assert_eq(admission.vocabulary_size, 8)
+  assert_eq(admission.maximum_rows, blueprint_limits().max_rows())
+  validate_paged_sampling_execution_policy(model, blueprint, artifacts, policy)
+}
+
+///|
 test "public paged capabilities reject lifecycle and foreign owners" {
   let closed = dummy_paged_executor(GraphClosed)
   try closed.stage(executor_test_submitted_plan()) catch {
@@ -74,6 +241,7 @@ test "public paged capabilities reject lifecycle and foreign owners" {
   }
   let first = dummy_paged_executor(GraphStaged)
   let second = dummy_paged_executor(GraphStaged)
+  let before = second.graph_runtime_telemetry()
   let staged : StagedPagedGraphExecution = { executor: first, epoch: 1UL }
   try second.execute(staged) catch {
     ExecutorOwnerMismatch => ()
@@ -81,6 +249,10 @@ test "public paged capabilities reject lifecycle and foreign owners" {
   } noraise {
     _ => fail("foreign staged capability was admitted")
   }
+  let after = second.graph_runtime_telemetry()
+  assert_eq(after.selected_path(), before.selected_path())
+  assert_eq(after.graph_hits(), before.graph_hits())
+  assert_eq(after.graph_misses(), before.graph_misses())
   first.lifecycle = GraphExecuted
   second.lifecycle = GraphExecuted
   let executed : ExecutedPagedGraphExecution = { executor: first, epoch: 1UL }
@@ -91,6 +263,10 @@ test "public paged capabilities reject lifecycle and foreign owners" {
     _ => fail("foreign executed capability was admitted")
   }
   let missing = dummy_paged_executor(GraphExecuted)
+  assert_eq(
+    closed.graph_runtime_telemetry().selected_path(),
+    PagedGraphOrderedEager,
+  )
   let missing_capability : ExecutedPagedGraphExecution = {
     executor: missing,
     epoch: 1UL,
@@ -108,70 +284,81 @@ test "public paged capabilities reject lifecycle and foreign owners" {
 }
 
 ///|
-test "paged execution launches semantic order and completes exactly once" {
+test "ordered paged execution records and waits once after semantic enqueue" {
   let lifecycle = Ref(GraphStaged)
-  let launches : Array[Int] = []
+  let actions : Array[String] = []
   let steps = ReadOnlyArray::from_array([
     { operation: @plan.OperationId::new(0) },
     { operation: @plan.OperationId::new(1) },
     { operation: @plan.OperationId::new(2) },
   ])
-  run_paged_step_range(
+  run_paged_ordered_step_range(
     steps,
     lifecycle.val,
     state => lifecycle.val = state,
-    step => step.operation,
-    step => launches.push(step.operation.as_int()),
+    (index, step) => actions.push("enqueue:\{index}:\{step.operation.as_int()}"),
+    () => actions.push("record"),
+    () => actions.push("wait"),
+    () => actions.push("abort"),
   )
-  assert_eq(launches, [0, 1, 2])
+  assert_eq(actions, [
+    "enqueue:0:0", "enqueue:1:1", "enqueue:2:2", "record", "wait",
+  ])
   assert_eq(lifecycle.val, GraphExecuted)
-  try
-    run_paged_step_range(
-      steps,
-      lifecycle.val,
-      state => lifecycle.val = state,
-      step => step.operation,
-      _ => (),
-    )
-  catch {
-    InvalidExecutorLifecycle(expected=GraphStaged, actual=GraphExecuted) => ()
-    _ => fail("unexpected repeated execution error")
-  } noraise {
-    _ => fail("repeated execution was admitted")
-  }
 }
 
 ///|
-test "paged launch failure poisons and reports exact operation" {
+test "ordered paged execution drains and poisons after partial enqueue" {
   let lifecycle = Ref(GraphStaged)
-  let launches = Ref(0)
+  let actions : Array[String] = []
   let steps = ReadOnlyArray::from_array([
     { operation: @plan.OperationId::new(0) },
     { operation: @plan.OperationId::new(1) },
     { operation: @plan.OperationId::new(2) },
   ])
   try
-    run_paged_step_range(
+    run_paged_ordered_step_range(
       steps,
       lifecycle.val,
       state => lifecycle.val = state,
-      step => step.operation,
-      step => {
-        launches.val += 1
+      (index, step) => {
+        actions.push("enqueue:\{index}")
         if step.operation.as_int() == 1 {
-          raise DriverFailure(AotKernelLaunch)
+          raise ExecutorLaunchFailed(
+            step.operation,
+            DriverFailure(OrderedExecutorEnqueue),
+          )
         }
       },
+      () => actions.push("record"),
+      () => actions.push("wait"),
+      () => actions.push("abort"),
     )
   catch {
-    ExecutorLaunchFailed(operation, DriverFailure(AotKernelLaunch)) =>
+    ExecutorLaunchFailed(operation, DriverFailure(OrderedExecutorEnqueue)) =>
       assert_eq(operation.as_int(), 1)
-    _ => fail("unexpected paged launch failure")
+    _ => fail("unexpected ordered paged launch failure")
   } noraise {
-    _ => fail("injected launch failure was swallowed")
+    _ => fail("injected ordered launch failure was swallowed")
   }
-  assert_eq(launches.val, 2)
+  assert_eq(actions, ["enqueue:0", "enqueue:1", "abort"])
   assert_eq(lifecycle.val, GraphPoisoned)
+}
+
+///|
+test "paged graph policy admits eager fallback only by explicit variant" {
+  assert_eq(
+    paged_ordered_device_policy(PagedOrderedEagerOnly),
+    OrderedKernelEagerOnly,
+  )
+  assert_eq(
+    paged_ordered_device_policy(PagedCapturedRequired),
+    OrderedKernelCaptureRequired,
+  )
+  assert_eq(
+    paged_ordered_device_policy(PagedCapturedWithEagerFallback),
+    OrderedKernelCaptureWithEagerFallback,
+  )
 }
 
 ///|

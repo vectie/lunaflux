@@ -13,27 +13,16 @@ fn validate_wire_completion_plan(
   if !matches {
     raise ExecutorOwnerMismatch
   }
+  let sequence_value = frame.sequence_value() catch {
+    error => raise Wire(error)
+  }
+  if sequence_value != descriptor.staged_summary.sequence_value {
+    raise ExecutorOwnerMismatch
+  }
   writer.validate_plan(frame) catch {
     error => raise Wire(error)
   }
-  let summary = preflight_frame_and_write(
-    frame,
-    descriptor.model_generation_value,
-    descriptor.identity,
-    descriptor.layout,
-    descriptor.limits,
-    descriptor.host,
-    descriptor.required_capabilities,
-    false,
-  )
-  if summary.sequence_value != descriptor.staged_sequence_value ||
-    summary.prefill_count != read_paged_i32(descriptor.host.counts, 0) ||
-    summary.decode_count != read_paged_i32(descriptor.host.counts, 1) ||
-    summary.row_count != read_paged_i32(descriptor.host.counts, 2) ||
-    summary.token_count != read_paged_i32(descriptor.host.counts, 3) {
-    raise InvalidPlan(Counts)
-  }
-  summary
+  descriptor.staged_summary
 }
 
 ///|
@@ -75,18 +64,11 @@ fn select_paged_wire_logit(
     }
   }
   decode_paged_bf16_logits(scratch)
-  try
-    select_paged_scalar_logit(
-      scratch, sampling_mode, temperature, has_top_k, top_k, has_top_p, top_p, seed_value,
-      sample_index,
-    )
-  catch {
-    error => {
-      poison_paged_completion(executor, descriptor)
-      raise error
-    }
-  } noraise {
-    token => token
+  select_paged_scalar_logit(
+    scratch, sampling_mode, temperature, has_top_k, top_k, has_top_p, top_p, seed_value,
+    sample_index,
+  ) catch {
+    error => poison_paged_completion_and_raise(executor, descriptor, error)
   }
 }
 
@@ -142,36 +124,42 @@ fn sample_wire_prefill(
   let row = frame.prefill_row(index) catch { error => raise Wire(error) }
   let produces = row.produces_token() catch { error => raise Wire(error) }
   if produces {
-    executor.completion.selected_tokens[index] = select_paged_wire_logit(
-      executor,
-      descriptor,
-      index,
-      token_count,
-      row.sampling_mode_value() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_temperature() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_has_top_k() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_top_k_value() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_has_top_p() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_top_p_value() catch {
-        error => raise Wire(error)
-      },
-      row.sampling_seed_value() catch {
-        error => raise Wire(error)
-      },
-      row.sample_index() catch {
-        error => raise Wire(error)
-      },
-    )
+    executor.completion.selected_tokens[index] = match
+      executor.completion.mode {
+      CudaGreedyCompletion(_) =>
+        select_paged_cuda_greedy_result(executor, descriptor, index)
+      HostLogitsCompletion =>
+        select_paged_wire_logit(
+          executor,
+          descriptor,
+          index,
+          token_count,
+          row.sampling_mode_value() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_temperature() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_has_top_k() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_top_k_value() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_has_top_p() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_top_p_value() catch {
+            error => raise Wire(error)
+          },
+          row.sampling_seed_value() catch {
+            error => raise Wire(error)
+          },
+          row.sample_index() catch {
+            error => raise Wire(error)
+          },
+        )
+    }
   }
 }
 
@@ -185,36 +173,42 @@ fn sample_wire_decode(
   token_count : Int,
 ) -> Unit raise DeviceStepError {
   let row = frame.decode_row(decode_index) catch { error => raise Wire(error) }
-  executor.completion.selected_tokens[row_index] = select_paged_wire_logit(
-    executor,
-    descriptor,
-    row_index,
-    token_count,
-    row.sampling_mode_value() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_temperature() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_has_top_k() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_top_k_value() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_has_top_p() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_top_p_value() catch {
-      error => raise Wire(error)
-    },
-    row.sampling_seed_value() catch {
-      error => raise Wire(error)
-    },
-    row.sample_index() catch {
-      error => raise Wire(error)
-    },
-  )
+  executor.completion.selected_tokens[row_index] = match
+    executor.completion.mode {
+    CudaGreedyCompletion(_) =>
+      select_paged_cuda_greedy_result(executor, descriptor, row_index)
+    HostLogitsCompletion =>
+      select_paged_wire_logit(
+        executor,
+        descriptor,
+        row_index,
+        token_count,
+        row.sampling_mode_value() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_temperature() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_has_top_k() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_top_k_value() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_has_top_p() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_top_p_value() catch {
+          error => raise Wire(error)
+        },
+        row.sampling_seed_value() catch {
+          error => raise Wire(error)
+        },
+        row.sample_index() catch {
+          error => raise Wire(error)
+        },
+      )
+  }
 }
 
 ///|
@@ -260,6 +254,7 @@ pub fn PagedGraphExecutor::sample_completion_frame(
 ) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_wire_completion_plan(descriptor, frame, writer)
+  copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
   for index in 0..<summary.prefill_count {
     sample_wire_prefill(self, descriptor, frame, index, summary.token_count)
   }

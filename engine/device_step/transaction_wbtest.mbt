@@ -16,8 +16,6 @@ fn fake_upload_transaction(
   summary : DeviceStepSummary,
   upload : (DeviceStepStage, FixedArray[Byte], Int) -> Unit raise DeviceStepError,
 ) -> Unit raise DeviceStepError {
-  invalidate_counts(host)
-  upload(Counts, host.counts, COUNTS_LENGTH)
   upload(TokenIds, host.token_ids, summary.token_count)
   upload(TokenPositions, host.token_positions, summary.token_count)
   upload(QueryRowOffsets, host.query_row_offsets, summary.row_count + 1)
@@ -37,38 +35,33 @@ fn fake_publish_or_poison(
   upload : (DeviceStepStage, FixedArray[Byte], Int) -> Unit raise DeviceStepError,
 ) -> Unit raise DeviceStepError {
   require_lifecycle(lifecycle, Ready)
-  fake_upload_transaction(host, summary, upload) catch {
-    error => {
-      set_lifecycle(Poisoned)
-      raise error
-    }
-  }
+  let mut upload_complete = false
+  defer (if !upload_complete { set_lifecycle(Poisoned) })
+  fake_upload_transaction(host, summary, upload)
+  upload_complete = true
 }
 
 ///|
-test "upload invalidates counts first and publishes real counts last" {
+test "upload publishes payloads before one real count header" {
   let host = make_host_buffers(step_device_limits())
   publish_counts(host, transaction_summary())
   let calls = Ref(0)
-  let first_count = Ref(-1)
-  let last_count = Ref(-1)
+  let count_value = Ref(-1)
+  let count_call = Ref(-1)
   fake_upload_transaction(host, transaction_summary(), (stage, buffer, _cells) => {
     if stage == Counts {
-      if calls.val == 0 {
-        first_count.val = read_host_i32(buffer, 0)
-      } else {
-        last_count.val = read_host_i32(buffer, 0)
-      }
+      count_value.val = read_host_i32(buffer, 0)
+      count_call.val = calls.val
     }
     calls.val += 1
   })
-  assert_eq(calls.val, 8)
-  assert_eq(first_count.val, 0)
-  assert_eq(last_count.val, 1)
+  assert_eq(calls.val, 7)
+  assert_eq(count_call.val, 6)
+  assert_eq(count_value.val, 1)
 }
 
 ///|
-test "failure after prior success poisons and leaves zero counts publication" {
+test "payload failure poisons owner without a diagnostic count upload" {
   let host = make_host_buffers(step_device_limits())
   let lifecycle : Ref[DeviceStepLifecycle] = Ref(Ready)
   fake_publish_or_poison(
@@ -93,7 +86,7 @@ test "failure after prior success poisons and leaves zero counts publication" {
           device_count_header.val = read_host_i32(buffer, 0)
         }
         calls.val += 1
-        if calls.val == 3 {
+        if stage == TokenPositions {
           raise Device(TokenPositions, Busy(CopyToDevice))
         }
       },
@@ -105,7 +98,7 @@ test "failure after prior success poisons and leaves zero counts publication" {
     _ => fail("expected upload failure")
   }
   assert_true(lifecycle.val == Poisoned)
-  assert_eq(device_count_header.val, 0)
+  assert_eq(device_count_header.val, 1)
   try
     fake_publish_or_poison(
       lifecycle.val,

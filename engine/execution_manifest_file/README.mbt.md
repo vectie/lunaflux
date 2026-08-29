@@ -1,13 +1,13 @@
 # Execution manifest file admission
 
-This package synchronously admits one canonical
-`DenseLlamaPagedAotV1` execution manifest through a caller-owned
+This package synchronously admits one canonical paged-AOT schema-v2 execution
+manifest through a caller-owned
 `ApprovedRoot` and an independently constructed `ApprovedRelativeLocator`.
 The expected `ExecutionManifestDigest` is a separate lowercase SHA-256 value;
 an immutable same-handle snapshot is closed successfully and hashed before
 parsing or publishing any admission.
 
-The v1 document contains only implementation claims: exact model identity,
+The v2 document contains only implementation claims: exact model identity,
 device target, catalog version 3, one profile identifier, lexically ordered
 content-addressed module/export declarations, and one operation declaration in
 canonical model-plan order. Each operation selects a module family, entry
@@ -24,12 +24,22 @@ the exact full-graph operand roles/sizes/alignments, admits a single
 loads immutable module snapshots through the same approved root, and finally
 admits the device-step blueprint.
 
-Canonical v1 intentionally supports only the current Llama recipe with
-`max_batch_rows == 1`. Multi-row execution requires a model-plan identity and
-execution-manifest schema revision; a manifest cannot specialize around that
-boundary. All filesystem and lower-layer semantic failures are mapped to
+Canonical v2 admits the exact batch-row envelope already bound into the typed
+model-plan identity. `DeviceStepLimits.max_rows` must equal that plan ceiling;
+token and page envelopes are checked with widened row-multiplied arithmetic
+against sequence geometry and physical page capacity. The JSON cannot override
+or specialize any of those typed bounds. All filesystem and lower-layer semantic failures are mapped to
 payload-safe file classes or admission stages, without retaining a path,
 symbol, JSON value, descriptor, errno, or lower-layer error payload.
+
+`load_tensor_parallel` reuses that same snapshot, parser, manifest claims, and
+full semantic catalog derivation for an exact rank-local execution admission.
+It cross-authenticates model generation, the sharded file inspection, generic
+rank plan, device plan, device ordinal, target, and local KV binding before deriving one profile,
+the rank-local AOT contracts, exact artifact bundle, and immutable physical
+execution plan. The returned admission owns no filesystem or device authority
+and never constructs a full-model weight layout. Schema v3 Luna specialization
+is rejected until an exact tensor-parallel specialization contract exists.
 
 `PagedExecutionAdmission` is inert. It retains the exact weight layout and the
 eight typed execution inputs

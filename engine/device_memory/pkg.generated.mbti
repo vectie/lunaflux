@@ -30,14 +30,7 @@ pub(all) suberror DeviceMemoryError {
 
 // Types and methods
 pub struct ActivationRegion {
-  reference : @plan.ActivationRef
-  slot : ActivationSlotId
-  offset_bytes : Int64
-  logical_bytes : Int64
-  reserved_bytes : Int64
-  produced_by : @plan.OperationId
-  live_through_step : Int
-  retained_output : Bool
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn ActivationRegion::end_offset_bytes(Self) -> Int64
 pub fn ActivationRegion::is_retained_output(Self) -> Bool
@@ -49,11 +42,12 @@ pub fn ActivationRegion::reference(Self) -> @plan.ActivationRef
 pub fn ActivationRegion::reserved_bytes(Self) -> Int64
 pub fn ActivationRegion::slot(Self) -> ActivationSlotId
 
-pub struct ActivationSlotId(Int) derive(Eq, @debug.Debug)
+pub struct ActivationSlotId {
+  // private fields
+} derive(Eq, @debug.Debug)
 pub fn ActivationSlotId::as_int(Self) -> Int
 
 pub struct DeviceMemoryArena {
-  plan : DeviceMemoryPlan
   // private fields
 }
 pub fn DeviceMemoryArena::allocation(Self) -> @device.Allocation
@@ -72,25 +66,14 @@ pub(all) enum DeviceMemoryLimitRule {
 } derive(Eq, @debug.Debug)
 
 pub struct DeviceMemoryLimits {
-  activation_alignment : Int64
-  max_arena_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceMemoryLimits::activation_alignment(Self) -> Int64
 pub fn DeviceMemoryLimits::max_arena_bytes(Self) -> Int64
 pub fn DeviceMemoryLimits::new(activation_alignment~ : Int64, max_arena_bytes~ : Int64) -> Self raise DeviceMemoryError
 
 pub struct DeviceMemoryPlan {
-  identity : @spec.ModelIdentity
-  target : @catalog.DeviceTarget
-  limits : DeviceMemoryLimits
-  token_rows : Int64
-  activation_bytes : Int64
-  workspace : WorkspaceRegion
-  arena_bytes : Int64
-  slot_count : Int
-  regions : ReadOnlyArray[ActivationRegion]
-  bindings : ReadOnlyArray[OperationMemoryBinding]
-  final_output : @plan.ActivationRef
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceMemoryPlan::activation_bytes(Self) -> Int64
 pub fn DeviceMemoryPlan::activation_count(Self) -> Int
@@ -122,10 +105,7 @@ pub(all) enum DeviceMemoryPlanRule {
 } derive(Eq, @debug.Debug)
 
 pub struct OperationMemoryBinding {
-  operation_id : @plan.OperationId
-  activation_inputs : ReadOnlyArray[ActivationRegion]
-  activation_outputs : ReadOnlyArray[ActivationRegion]
-  workspace : WorkspaceRegion
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn OperationMemoryBinding::activation_inputs(Self) -> ReadOnlyArray[ActivationRegion]
 pub fn OperationMemoryBinding::activation_outputs(Self) -> ReadOnlyArray[ActivationRegion]
@@ -133,9 +113,7 @@ pub fn OperationMemoryBinding::operation_id(Self) -> @plan.OperationId
 pub fn OperationMemoryBinding::workspace(Self) -> WorkspaceRegion
 
 pub struct WorkspaceRegion {
-  offset_bytes : Int64
-  byte_length : Int64
-  alignment_bytes : Int64
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkspaceRegion::alignment_bytes(Self) -> Int64
 pub fn WorkspaceRegion::byte_length(Self) -> Int64
