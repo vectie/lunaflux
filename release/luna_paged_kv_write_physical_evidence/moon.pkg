@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/core/strconv",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/canonical_sha256",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_kv_write_aot",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

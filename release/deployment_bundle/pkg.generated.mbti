@@ -1,0 +1,88 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/deployment_bundle"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/release/evidence",
+}
+
+// Values
+pub fn admit_deployment_bundle_evidence(Bytes, expected_digest~ : DeploymentBundleDigest, limits~ : DeploymentBundleLimits) -> DeploymentBundleEvidence raise DeploymentBundleError
+
+// Errors
+pub(all) suberror DeploymentBundleError {
+  InvalidLimit
+  InvalidExpectedDigest
+  EvidenceTooLarge
+  InvalidUtf8
+  NonCanonicalEvidence
+  InvalidField(DeploymentBundleArea)
+  DigestMismatch
+  ReleaseEvidenceRejected
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeploymentBundleArchitecture {
+  X86_64
+  Aarch64
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeploymentBundleArea {
+  Evidence
+  BaseImage
+  Architecture
+  LaunchFile
+  RuntimeDescriptor
+  InstancePolicy
+  Executable
+  ModelInventory
+  PolicyInventory
+  KernelManifest
+  KernelInventory
+  RuntimeLibraryInventory
+  RootfsInventory
+  AssemblyInput
+  Assembler
+  Policy
+} derive(Eq, @debug.Debug)
+
+pub struct DeploymentBundleDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn DeploymentBundleDigest::as_hex(Self) -> String
+pub fn DeploymentBundleDigest::from_sha256(StringView) -> Self raise DeploymentBundleError
+
+pub struct DeploymentBundleEvidence {
+  // private fields
+}
+pub fn DeploymentBundleEvidence::architecture(Self) -> DeploymentBundleArchitecture
+pub fn DeploymentBundleEvidence::as_release_artifact(Self, StringView, @evidence.ReleaseCampaignLimits) -> @evidence.ReleaseEvidenceArtifact raise DeploymentBundleError
+pub fn DeploymentBundleEvidence::assembler_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::assembly_input_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::base_image(Self) -> String
+pub fn DeploymentBundleEvidence::canonical_bytes(Self) -> Bytes
+pub fn DeploymentBundleEvidence::digest(Self) -> DeploymentBundleDigest
+pub fn DeploymentBundleEvidence::instance_policy_relative(Self) -> String
+pub fn DeploymentBundleEvidence::instance_policy_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::kernel_inventory_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::kernel_manifest_relative(Self) -> String
+pub fn DeploymentBundleEvidence::kernel_manifest_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::launch_file_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::lunaflux_executable_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::model_inventory_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::policy_inventory_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::rootfs_inventory_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::runtime_descriptor_relative(Self) -> String
+pub fn DeploymentBundleEvidence::runtime_descriptor_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::runtime_library_inventory_sha256(Self) -> String
+pub fn DeploymentBundleEvidence::worker_executable_sha256(Self) -> String
+
+pub struct DeploymentBundleLimits {
+  // private fields
+}
+pub fn DeploymentBundleLimits::maximum_base_image_bytes(Self) -> Int
+pub fn DeploymentBundleLimits::maximum_bytes(Self) -> Int
+pub fn DeploymentBundleLimits::maximum_locator_bytes(Self) -> Int
+pub fn DeploymentBundleLimits::new(maximum_bytes~ : Int, maximum_base_image_bytes~ : Int, maximum_locator_bytes~ : Int) -> Self raise DeploymentBundleError
+
+// Type aliases
+
+// Traits

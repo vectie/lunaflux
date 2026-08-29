@@ -1,0 +1,28 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/internal/approved_fs_capability" @cap,
+  "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/tests/worker_executable_native_probe" @native_probe,
+} for "test"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/tests/worker_executable_native_probe" @native_probe,
+} for "wbtest"
+
+options(
+  "native-stub": [ "approved_executable.c" ],
+  "stub-cc-flags": "-D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror",
+)

@@ -1,0 +1,133 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_tile_optimizer_promotion"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_tensor_core_candidate",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/release/luna_tensor_core_physical_evidence",
+}
+
+// Values
+pub fn admit_external_luna_tile_optimizer_promotion(LunaTilePromotionApprovalRecord, @luna_capability_manifest.LunaDetachedSignatureEnvelope, @luna_capability_manifest.LunaAuthenticatedExternalApproval) -> ApprovedLunaTileOptimizerCatalogEntry raise LunaTileOptimizerPromotionError
+
+pub fn admit_luna_tile_paired_benchmark_win(path~ : LunaTileOptimizerPath, candidate~ : LunaTileOptimizerDigest, fallback~ : LunaTileOptimizerDigest, physical~ : LunaTileOptimizerDigest, observations~ : ArrayView[LunaTilePairedBenchmarkObservation], minimum_win_ppm~ : Int) -> AdmittedLunaTilePairedBenchmarkWin raise LunaTileOptimizerPromotionError
+
+pub fn admit_luna_tile_simt_physical_evidence(@luna_tile_ir.LunaTileParallelCandidate, @luna_tile_ir.LunaTileCudaTranslationUnit, Bytes, Bytes, expected_files_manifest_digest~ : LunaTileOptimizerDigest) -> AdmittedLunaTileSimtPhysicalEvidence raise LunaTileOptimizerPromotionError
+
+pub fn prepare_luna_tile_simt_promotion_record(@luna_tile_ir.LunaTileParallelCandidate, @luna_tile_ir.LunaTileCudaTranslationUnit, AdmittedLunaTileSimtPhysicalEvidence, AdmittedLunaTilePairedBenchmarkWin, LunaTilePromotionArtifactInput, deployment~ : LunaTilePromotionDeploymentIdentity, promotion_epoch~ : UInt64) -> LunaTilePromotionApprovalRecord raise LunaTileOptimizerPromotionError
+
+pub fn prepare_luna_tile_tensor_core_promotion_record(@luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Candidate, @luna_tile_ir.LunaTileParallelCandidate, @luna_tensor_core_physical_evidence.AdmittedLunaTensorCorePhysicalEvidence, AdmittedLunaTilePairedBenchmarkWin, LunaTilePromotionArtifactInput, deployment~ : LunaTilePromotionDeploymentIdentity, promotion_epoch~ : UInt64) -> LunaTilePromotionApprovalRecord raise LunaTileOptimizerPromotionError
+
+pub fn select_luna_tile_optimizer_at_startup(ApprovedLunaTileOptimizerCatalogEntry?, deployment~ : LunaTilePromotionDeploymentIdentity, promotion_epoch~ : UInt64, candidate~ : LunaTileOptimizerDigest, fallback~ : LunaTileOptimizerDigest) -> LunaTileStartupSelection raise LunaTileOptimizerPromotionError
+
+// Errors
+pub(all) suberror LunaTileOptimizerPromotionError {
+  LunaTileOptimizerPromotionInvalid(LunaTileOptimizerPromotionRule)
+  LunaTileOptimizerPromotionMismatch(LunaTileOptimizerPromotionRule)
+  LunaTileOptimizerPromotionUnsupported(LunaTileOptimizerPromotionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedLunaTilePairedBenchmarkWin {
+  // private fields
+}
+pub fn AdmittedLunaTilePairedBenchmarkWin::candidate_total_ns(Self) -> Int64
+pub fn AdmittedLunaTilePairedBenchmarkWin::canonical_bytes(Self) -> Bytes
+pub fn AdmittedLunaTilePairedBenchmarkWin::digest(Self) -> LunaTileOptimizerDigest
+pub fn AdmittedLunaTilePairedBenchmarkWin::fallback_total_ns(Self) -> Int64
+pub fn AdmittedLunaTilePairedBenchmarkWin::observation_count(Self) -> Int
+pub fn AdmittedLunaTilePairedBenchmarkWin::observed_win_ppm(Self) -> Int
+
+pub struct AdmittedLunaTileSimtPhysicalEvidence {
+  // private fields
+}
+pub fn AdmittedLunaTileSimtPhysicalEvidence::candidate_digest(Self) -> @luna_tile_ir.LunaTileParallelDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::canonical_bytes(Self) -> Bytes
+pub fn AdmittedLunaTileSimtPhysicalEvidence::digest(Self) -> LunaTileOptimizerDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::manifest_bindable(Self) -> Bool
+pub fn AdmittedLunaTileSimtPhysicalEvidence::module_digest(Self) -> LunaTileOptimizerDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::promotion_authorized(Self) -> Bool
+pub fn AdmittedLunaTileSimtPhysicalEvidence::sealed_result_digest(Self) -> LunaTileOptimizerDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::serial_fallback_digest(Self) -> @luna_tile_ir.LunaTileCudaTranslationDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::serial_module_digest(Self) -> LunaTileOptimizerDigest
+pub fn AdmittedLunaTileSimtPhysicalEvidence::source_digest(Self) -> @luna_tile_ir.LunaTileCudaSourceDigest
+
+pub struct ApprovedLunaTileOptimizerCatalogEntry {
+  // private fields
+}
+pub fn ApprovedLunaTileOptimizerCatalogEntry::benchmark_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::candidate_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::deployment_identity(Self) -> LunaTilePromotionDeploymentIdentity
+pub fn ApprovedLunaTileOptimizerCatalogEntry::digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::entry_point(Self) -> String
+pub fn ApprovedLunaTileOptimizerCatalogEntry::external_approval_record(Self) -> @luna_capability_manifest.LunaAdmittedExternalRecord
+pub fn ApprovedLunaTileOptimizerCatalogEntry::fallback_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::manifest_bindable(Self) -> Bool
+pub fn ApprovedLunaTileOptimizerCatalogEntry::module_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::path(Self) -> LunaTileOptimizerPath
+pub fn ApprovedLunaTileOptimizerCatalogEntry::physical_evidence_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::promotion_epoch(Self) -> UInt64
+pub fn ApprovedLunaTileOptimizerCatalogEntry::source_digest(Self) -> LunaTileOptimizerDigest
+pub fn ApprovedLunaTileOptimizerCatalogEntry::startup_selectable(Self) -> Bool
+
+pub struct LunaTileOptimizerDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaTileOptimizerDigest::as_hex(Self) -> String
+pub fn LunaTileOptimizerDigest::from_sha256(String) -> Self raise LunaTileOptimizerPromotionError
+
+pub(all) enum LunaTileOptimizerPath {
+  LunaTileParallelSimtV1
+  LunaTileTensorCoreBf16Mma16x16x16V1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaTileOptimizerPromotionRule {
+  Digest
+  Candidate
+  Fallback
+  Target
+  PhysicalEvidence
+  Benchmark
+  NonWin
+  Artifact
+  ExternalApproval
+  Deployment
+  Replay
+  CanonicalBytes
+} derive(Eq, @debug.Debug)
+
+pub struct LunaTilePairedBenchmarkObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaTilePairedBenchmarkObservation::new(candidate_time_ns~ : Int64, fallback_time_ns~ : Int64) -> Self raise LunaTileOptimizerPromotionError
+
+pub struct LunaTilePromotionApprovalRecord {
+  // private fields
+}
+pub fn LunaTilePromotionApprovalRecord::benchmark_digest(Self) -> LunaTileOptimizerDigest
+pub fn LunaTilePromotionApprovalRecord::candidate_digest(Self) -> LunaTileOptimizerDigest
+pub fn LunaTilePromotionApprovalRecord::canonical_bytes(Self) -> Bytes
+pub fn LunaTilePromotionApprovalRecord::digest(Self) -> LunaTileOptimizerDigest
+pub fn LunaTilePromotionApprovalRecord::entry_point(Self) -> String
+pub fn LunaTilePromotionApprovalRecord::fallback_digest(Self) -> LunaTileOptimizerDigest
+pub fn LunaTilePromotionApprovalRecord::path(Self) -> LunaTileOptimizerPath
+pub fn LunaTilePromotionApprovalRecord::physical_evidence_digest(Self) -> LunaTileOptimizerDigest
+pub fn LunaTilePromotionApprovalRecord::source_digest(Self) -> LunaTileOptimizerDigest
+
+pub struct LunaTilePromotionArtifactInput {
+  // private fields
+}
+pub fn LunaTilePromotionArtifactInput::new(module_digest~ : LunaTileOptimizerDigest, entry_point~ : String) -> Self raise LunaTileOptimizerPromotionError
+
+pub struct LunaTilePromotionDeploymentIdentity(LunaTileOptimizerDigest) derive(Eq, @debug.Debug)
+pub fn LunaTilePromotionDeploymentIdentity::as_hex(Self) -> String
+pub fn LunaTilePromotionDeploymentIdentity::from_sha256(String) -> Self raise LunaTileOptimizerPromotionError
+
+pub(all) enum LunaTileStartupSelection {
+  LunaTileBaselineSelected
+  LunaTileApprovedOptimizerSelected(ApprovedLunaTileOptimizerCatalogEntry)
+}
+
+// Type aliases
+
+// Traits

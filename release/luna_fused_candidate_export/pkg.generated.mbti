@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_fused_candidate_export"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub async fn export_new(LunaFusedCandidateQualificationSet, String) -> LunaFusedCandidateExportEvidence
+
+pub fn prepare_qualification_set(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_bf16_kernel_producer.LunaBf16CandidateSet) -> LunaFusedCandidateQualificationSet raise LunaFusedCandidateExportError
+
+// Errors
+pub(all) suberror LunaFusedCandidateExportError {
+  FusedCandidateExportFailed(LunaFusedCandidateExportStage)
+  FusedCandidateExportFailedAndCleanup(LunaFusedCandidateExportStage, LunaFusedCandidateExportStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaFusedCandidateExportEvidence {
+  // private fields
+}
+pub fn LunaFusedCandidateExportEvidence::declaration_sha256(Self) -> String
+pub fn LunaFusedCandidateExportEvidence::export_record_sha256(Self) -> String
+pub fn LunaFusedCandidateExportEvidence::inventory_sha256(Self) -> String
+
+pub(all) enum LunaFusedCandidateExportStage {
+  Qualification
+  OutputPath
+  Create
+  Write
+  Publish
+  Cleanup
+} derive(Eq, @debug.Debug)
+
+pub struct LunaFusedCandidateQualificationSet {
+  // private fields
+}
+pub fn LunaFusedCandidateQualificationSet::declaration_bytes(Self) -> Bytes
+pub fn LunaFusedCandidateQualificationSet::declaration_sha256(Self) -> String
+pub fn LunaFusedCandidateQualificationSet::inventory_bytes(Self) -> Bytes
+pub fn LunaFusedCandidateQualificationSet::inventory_sha256(Self) -> String
+pub fn LunaFusedCandidateQualificationSet::kv_write_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+pub fn LunaFusedCandidateQualificationSet::manifest_bindable(Self) -> Bool
+pub fn LunaFusedCandidateQualificationSet::qkv_candidate(Self) -> @luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate
+pub fn LunaFusedCandidateQualificationSet::qkv_fallback(Self) -> @luna_cuda_projection_aot.ProjectionCudaLowering
+pub fn LunaFusedCandidateQualificationSet::residual_norm_candidate(Self) -> @luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate
+pub fn LunaFusedCandidateQualificationSet::rope_fallback(Self) -> @luna_cuda_pointwise_aot.PointwiseCudaLowering
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/deploy/worker_executable_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn verify(StringView, WorkerExecutableDigest, WorkerExecutableFileLimits) -> WorkerExecutableAdmission raise WorkerExecutableFileError
+
+pub fn verify_materialized(@approved_fs.ApprovedRootMaterializationView, StringView, StringView, WorkerExecutableDigest, WorkerExecutableFileLimits) -> MaterializedWorkerExecutableEvidence raise WorkerExecutableFileError
+
+// Errors
+pub(all) suberror WorkerExecutableFileError {
+  InvalidPath
+  InvalidDigest
+  InvalidLimit
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy
+  FileOperationFailed
+  DigestMismatch
+  UnsupportedPlatform
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct MaterializedWorkerExecutableEvidence {
+  // private fields
+}
+pub fn MaterializedWorkerExecutableEvidence::activation_path(Self) -> Bytes
+pub fn MaterializedWorkerExecutableEvidence::digest(Self) -> WorkerExecutableDigest
+
+pub struct WorkerExecutableAdmission {
+  // private fields
+}
+pub fn WorkerExecutableAdmission::activation_path(Self) -> Bytes
+pub fn WorkerExecutableAdmission::close(Self) -> Unit raise WorkerExecutableFileError
+pub fn WorkerExecutableAdmission::digest(Self) -> WorkerExecutableDigest
+pub fn WorkerExecutableAdmission::is_activation_live(Self) -> Bool
+pub fn WorkerExecutableAdmission::prepare_child(Self, @process.ProcessLimits) -> @process.PreparedChildProcess raise WorkerExecutableFileError
+
+pub struct WorkerExecutableDigest(String) derive(Eq, @debug.Debug)
+pub fn WorkerExecutableDigest::as_hex(Self) -> String
+pub fn WorkerExecutableDigest::from_sha256(StringView) -> Self raise WorkerExecutableFileError
+
+pub struct WorkerExecutableFileLimits {
+  // private fields
+}
+pub fn WorkerExecutableFileLimits::new(maximum_bytes~ : Int64) -> Self raise WorkerExecutableFileError
+
+// Type aliases
+
+// Traits

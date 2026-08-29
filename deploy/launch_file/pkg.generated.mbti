@@ -1,0 +1,87 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/deploy/launch_file"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn load_argument(StringView, LaunchFileLimits) -> LaunchFileAdmission raise LaunchFileError
+
+// Errors
+pub(all) suberror LaunchFileError {
+  InvalidLimit
+  InvalidArgument
+  InvalidExpectedDigest
+  InvalidField(LaunchFileArea)
+  MissingField(LaunchFileArea)
+  UnknownField(LaunchFileArea)
+  DuplicateField
+  MalformedJson
+  JsonDepthExceeded
+  FileUnavailable
+  UnsupportedFileType
+  FileTooLarge
+  FileTruncated
+  FileChangedDuringRead
+  FileBusy
+  FileOperationFailed
+  DigestMismatch
+  InvalidUtf8
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LaunchFileAdmission {
+  // private fields
+}
+pub fn LaunchFileAdmission::descriptor_locator(Self) -> String
+pub fn LaunchFileAdmission::descriptor_sha256(Self) -> String
+pub fn LaunchFileAdmission::digest(Self) -> LaunchFileDigest
+pub fn LaunchFileAdmission::kernel_root_label(Self) -> String
+pub fn LaunchFileAdmission::luna_approval(Self) -> LaunchLunaApproval?
+pub fn LaunchFileAdmission::model_root_label(Self) -> String
+pub fn LaunchFileAdmission::policy_locator(Self) -> String
+pub fn LaunchFileAdmission::policy_root_label(Self) -> String
+pub fn LaunchFileAdmission::policy_sha256(Self) -> String
+pub fn LaunchFileAdmission::runtime_recipe(Self) -> LaunchRuntimeRecipe
+pub fn LaunchFileAdmission::worker_executable_path(Self) -> String
+pub fn LaunchFileAdmission::worker_executable_sha256(Self) -> String
+
+pub(all) enum LaunchFileArea {
+  Argument
+  Root
+  RuntimeDescriptor
+  InstancePolicy
+  WorkerExecutable
+  LunaApproval
+} derive(Eq, @debug.Debug)
+
+pub struct LaunchFileDigest(String) derive(Eq, @debug.Debug)
+pub fn LaunchFileDigest::as_hex(Self) -> String
+
+pub struct LaunchFileLimits {
+  // private fields
+}
+pub fn LaunchFileLimits::maximum_bytes(Self) -> Int64
+pub fn LaunchFileLimits::maximum_json_depth(Self) -> Int
+pub fn LaunchFileLimits::new(maximum_bytes~ : Int64, maximum_json_depth~ : Int) -> Self raise LaunchFileError
+
+pub struct LaunchLunaApproval {
+  // private fields
+}
+pub fn LaunchLunaApproval::approved_source_sha256(Self) -> String
+pub fn LaunchLunaApproval::capability_manifest_sha256(Self) -> String
+pub fn LaunchLunaApproval::key_identity_sha256(Self) -> String
+pub fn LaunchLunaApproval::signature_sha256(Self) -> String
+
+pub(all) enum LaunchRuntimeRecipe {
+  DenseLlamaPagedAotV5
+  DenseLlamaI8PagedAotV6
+  DenseMistralBf16PagedAotV7
+  DenseLlamaTensorParallelPagedAotApprovedV8
+  DenseLlamaFp8ReusablePagedAotApprovedV9
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

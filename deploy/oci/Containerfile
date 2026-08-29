@@ -1,0 +1,21 @@
+# BASE_IMAGE is a deployment input. It must be an untagged CUDA runtime
+# reference ending in @sha256:<64 lowercase hex>; verify-oci-context.sh enforces
+# that contract before this file is used. No fallback or example digest exists.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+# Labels are inventory hints only. They do not authenticate the binary, model,
+# descriptor, kernel manifest, modules, base image, or deployment approval.
+LABEL org.opencontainers.image.title="LunaFlux"
+LABEL org.opencontainers.image.description="MoonBit-native bounded inference runtime"
+LABEL io.lunaflux.labels.authority="diagnostic-only"
+
+# The externally assembled context already carries fail-closed modes and exact
+# SHA-256 inventory. No compiler, package manager, shell step, or JIT is used.
+COPY --chown=0:0 rootfs/ /
+COPY --chown=0:0 metadata/ /usr/share/lunaflux/
+
+USER 65532:65532
+WORKDIR /
+HEALTHCHECK NONE
+ENTRYPOINT ["/opt/lunaflux/bin/lunaflux"]

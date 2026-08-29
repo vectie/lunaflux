@@ -1,0 +1,160 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_fused_physical_evidence"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/benchmarks/luna_fused_candidate_qualification",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
+}
+
+// Values
+pub fn adapt_approved_fused_kernel_catalog(ApprovedFusedProductionManifest) -> @luna_fused_artifact_admission.ApprovedFusedKernelCatalog raise FusedProductionManifestError
+
+pub fn adapt_approved_fused_runtime_identities(ApprovedFusedProductionManifest) -> (@luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelBundle) raise FusedProductionManifestError
+
+pub fn adapt_fused_qkv_readonly_production_artifacts(ApprovedFusedProductionManifest, @luna_paged_composite_artifact_admission.ApprovedPagedAttentionReadOnlyRuntimeIdentity, @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity) -> @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? raise FusedProductionManifestError
+
+pub fn admit_approved_fused_production_manifest(ApprovedFusedManifestArtifacts) -> ApprovedFusedProductionManifest raise FusedProductionManifestError
+
+pub fn admit_external_fused_manifest_approval(FusedManifestApprovalRecord, @luna_capability_manifest.LunaDetachedSignatureEnvelope, @luna_capability_manifest.LunaAuthenticatedExternalApproval) -> ApprovedFusedManifestArtifacts raise FusedPhysicalEvidenceError
+
+pub fn admit_fused_physical_evidence(@luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, Bytes, expected_digest~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, expected_approved_policy_digest~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest) -> AdmittedFusedPhysicalEvidence raise FusedPhysicalEvidenceError
+
+pub fn prepare_fused_manifest_approval_record(AdmittedFusedPhysicalEvidence, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding, @luna_fused_candidate_qualification.FusedCandidateBenchmarkQualificationEvidence, @luna_fused_candidate_qualification.FusedCandidateBenchmarkQualificationEvidence) -> FusedManifestApprovalRecord raise FusedPhysicalEvidenceError
+
+// Errors
+pub(all) suberror FusedPhysicalEvidenceError {
+  FusedPhysicalEvidenceInvalid(FusedPhysicalEvidenceRule)
+  FusedPhysicalEvidenceMismatch(FusedPhysicalEvidenceRule)
+  FusedPhysicalEvidenceLimitExceeded
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror FusedProductionManifestError {
+  InvalidFusedProductionManifest(FusedProductionManifestRule)
+  MismatchedFusedProductionManifest(FusedProductionManifestRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedFusedPhysicalEvidence {
+  // private fields
+}
+pub fn AdmittedFusedPhysicalEvidence::approved_policy_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::artifact_directory_seal_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::canonical_bytes(Self) -> Bytes
+pub fn AdmittedFusedPhysicalEvidence::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::evidence_directory_seal_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::manifest_bindable(Self) -> Bool
+pub fn AdmittedFusedPhysicalEvidence::promotion_authorized(Self) -> Bool
+pub fn AdmittedFusedPhysicalEvidence::qkv_candidate_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::qkv_compile_receipt_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::qkv_cubin_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::qkv_dispatch_canary(Self) -> UInt
+pub fn AdmittedFusedPhysicalEvidence::qkv_dispatch_canary_per_token(Self) -> UInt
+pub fn AdmittedFusedPhysicalEvidence::qkv_observed_absolute_error_ppb(Self) -> Int64
+pub fn AdmittedFusedPhysicalEvidence::qkv_observed_relative_error_ppb(Self) -> Int64
+pub fn AdmittedFusedPhysicalEvidence::qkv_recipe_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::qkv_source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::referee_shape_set_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::residual_candidate_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::residual_compile_receipt_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::residual_cubin_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::residual_dispatch_canary(Self) -> UInt
+pub fn AdmittedFusedPhysicalEvidence::residual_dispatch_canary_per_token(Self) -> UInt
+pub fn AdmittedFusedPhysicalEvidence::residual_observed_absolute_error_ppb(Self) -> Int64
+pub fn AdmittedFusedPhysicalEvidence::residual_observed_relative_error_ppb(Self) -> Int64
+pub fn AdmittedFusedPhysicalEvidence::residual_recipe_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn AdmittedFusedPhysicalEvidence::residual_source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+
+pub struct ApprovedFusedManifestArtifacts {
+  // private fields
+}
+pub fn ApprovedFusedManifestArtifacts::approval_record(Self) -> FusedManifestApprovalRecord
+pub fn ApprovedFusedManifestArtifacts::approved_key_identity(Self) -> @luna_capability_manifest.LunaSignatureKeyIdentityDigest
+pub fn ApprovedFusedManifestArtifacts::approved_source_identity(Self) -> @luna_capability_manifest.LunaApprovedImmutableSourceIdentity
+pub fn ApprovedFusedManifestArtifacts::detached_signature_digest(Self) -> @luna_capability_manifest.LunaDetachedSignatureDigest
+pub fn ApprovedFusedManifestArtifacts::external_approval_record(Self) -> @luna_capability_manifest.LunaAdmittedExternalRecord
+pub fn ApprovedFusedManifestArtifacts::manifest_bindable(Self) -> Bool
+pub fn ApprovedFusedManifestArtifacts::promotion_authorized(Self) -> Bool
+pub fn ApprovedFusedManifestArtifacts::qkv_compiled_artifact(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding
+pub fn ApprovedFusedManifestArtifacts::residual_compiled_artifact(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding
+
+pub struct ApprovedFusedProductionFamily {
+  // private fields
+}
+pub fn ApprovedFusedProductionFamily::benchmark_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionFamily::compiled_artifact(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding
+pub fn ApprovedFusedProductionFamily::dispatch_canary_per_token(Self) -> UInt
+pub fn ApprovedFusedProductionFamily::fallbacks(Self) -> ReadOnlyArray[@luna_fused_artifact_admission.FusedStandaloneFallbackIdentity]
+pub fn ApprovedFusedProductionFamily::family(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelFamily
+
+pub struct ApprovedFusedProductionManifest {
+  // private fields
+}
+pub fn ApprovedFusedProductionManifest::approval_record_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionManifest::approved_key_identity(Self) -> @luna_capability_manifest.LunaSignatureKeyIdentityDigest
+pub fn ApprovedFusedProductionManifest::approved_source_identity(Self) -> @luna_capability_manifest.LunaApprovedImmutableSourceIdentity
+pub fn ApprovedFusedProductionManifest::canonical_bytes(Self) -> Bytes
+pub fn ApprovedFusedProductionManifest::detached_signature_digest(Self) -> @luna_capability_manifest.LunaDetachedSignatureDigest
+pub fn ApprovedFusedProductionManifest::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionManifest::external_approval_record(Self) -> @luna_capability_manifest.LunaAdmittedExternalRecord
+pub fn ApprovedFusedProductionManifest::manifest_bindable(Self) -> Bool
+pub fn ApprovedFusedProductionManifest::physical_artifact_seal_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionManifest::physical_evidence_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionManifest::physical_evidence_seal_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedFusedProductionManifest::production_authorized(Self) -> Bool
+pub fn ApprovedFusedProductionManifest::qkv_family(Self) -> ApprovedFusedProductionFamily
+pub fn ApprovedFusedProductionManifest::residual_family(Self) -> ApprovedFusedProductionFamily
+pub fn ApprovedFusedProductionManifest::target(Self) -> @catalog.DeviceTarget
+
+pub struct FusedManifestApprovalRecord {
+  // private fields
+}
+pub fn FusedManifestApprovalRecord::canonical_bytes(Self) -> Bytes
+pub fn FusedManifestApprovalRecord::digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedManifestApprovalRecord::manifest_bindable(Self) -> Bool
+pub fn FusedManifestApprovalRecord::promotion_authorized(Self) -> Bool
+
+pub(all) enum FusedPhysicalEvidenceRule {
+  CanonicalDocument
+  Digest
+  Family
+  Candidate
+  Compiler
+  Target
+  Geometry
+  Artifact
+  Referee
+  Numerical
+  DispatchCanary
+  Sanitizer
+  ResourceBalance
+  Seal
+  Benchmark
+  ExternalApproval
+  Authority
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FusedProductionManifestRule {
+  Authority
+  Approval
+  PhysicalEvidence
+  BenchmarkEvidence
+  Family
+  Candidate
+  Compiler
+  Target
+  Launch
+  Symbol
+  KernelAbi
+  Artifact
+  Fallback
+  CanonicalDocument
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

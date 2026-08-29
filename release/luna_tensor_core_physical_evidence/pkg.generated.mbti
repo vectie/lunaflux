@@ -1,0 +1,79 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_tensor_core_physical_evidence"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_tensor_core_candidate",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+}
+
+// Values
+pub fn admit_luna_tile_tensor_core_physical_evidence(@luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Candidate, @luna_tile_ir.LunaTileCudaTranslationUnit, @luna_tile_ir.LunaTileParallelCandidate, Bytes, Bytes, Bytes, LunaTensorCorePhysicalEvidenceDigest, LunaTensorCorePhysicalEvidenceLimits) -> AdmittedLunaTensorCorePhysicalEvidence raise LunaTensorCorePhysicalEvidenceError
+
+pub fn lower_and_bind_externally_qualified_luna_tile_bf16_mma16x16x16(@luna_tile_ir.LunaTileProgram, @luna_tile_ir.LunaTileCudaTranslationUnit, @luna_tile_ir.LunaTileParallelCandidate, @luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Contract, @luna_tensor_core_candidate.LunaTileTensorCoreCandidateLimits, AdmittedLunaTensorCorePhysicalEvidence) -> QualifiedLunaTileBf16Mma16x16x16Artifact raise LunaTensorCorePhysicalEvidenceError
+
+// Errors
+pub(all) suberror LunaTensorCorePhysicalEvidenceError {
+  LunaTensorCorePhysicalEvidenceInvalid(LunaTensorCorePhysicalEvidenceRule)
+  LunaTensorCorePhysicalEvidenceMismatch(LunaTensorCorePhysicalEvidenceRule)
+  LunaTensorCorePhysicalEvidenceLimitExceeded
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdmittedLunaTensorCorePhysicalEvidence {
+  // private fields
+}
+pub fn AdmittedLunaTensorCorePhysicalEvidence::candidate_digest(Self) -> String
+pub fn AdmittedLunaTensorCorePhysicalEvidence::canonical_bytes(Self) -> Bytes
+pub fn AdmittedLunaTensorCorePhysicalEvidence::cubin_digest(Self) -> LunaTensorCorePhysicalEvidenceDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::digest(Self) -> LunaTensorCorePhysicalEvidenceDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::driver_identity_digest(Self) -> LunaTensorCorePhysicalEvidenceDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::files_manifest_digest(Self) -> LunaTensorCorePhysicalEvidenceDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::instruction_family(Self) -> String
+pub fn AdmittedLunaTensorCorePhysicalEvidence::manifest_bindable(Self) -> Bool
+pub fn AdmittedLunaTensorCorePhysicalEvidence::numeric_case_count(Self) -> Int
+pub fn AdmittedLunaTensorCorePhysicalEvidence::outer_seal_digest(Self) -> LunaTensorCorePhysicalEvidenceDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::parallel_fallback_digest(Self) -> @luna_tile_ir.LunaTileParallelDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::promotion_authorized(Self) -> Bool
+pub fn AdmittedLunaTensorCorePhysicalEvidence::registers_per_thread(Self) -> Int
+pub fn AdmittedLunaTensorCorePhysicalEvidence::serial_oracle_digest(Self) -> @luna_tile_ir.LunaTileCudaTranslationDigest
+pub fn AdmittedLunaTensorCorePhysicalEvidence::source_digest(Self) -> String
+
+pub struct LunaTensorCorePhysicalEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn LunaTensorCorePhysicalEvidenceDigest::as_hex(Self) -> String
+pub fn LunaTensorCorePhysicalEvidenceDigest::from_sha256(String) -> Self raise LunaTensorCorePhysicalEvidenceError
+
+pub struct LunaTensorCorePhysicalEvidenceLimits {
+  // private fields
+}
+pub fn LunaTensorCorePhysicalEvidenceLimits::new(maximum_result_bytes~ : Int, maximum_manifest_bytes~ : Int) -> Self raise LunaTensorCorePhysicalEvidenceError
+
+pub(all) enum LunaTensorCorePhysicalEvidenceRule {
+  CanonicalDocument
+  Digest
+  Candidate
+  Oracle
+  ParallelFallback
+  Target
+  Device
+  Compiler
+  Sass
+  Resource
+  Numerical
+  Sanitizer
+  Seal
+  Authority
+} derive(Eq, @debug.Debug)
+
+pub struct QualifiedLunaTileBf16Mma16x16x16Artifact {
+  // private fields
+}
+pub fn QualifiedLunaTileBf16Mma16x16x16Artifact::candidate(Self) -> @luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Candidate
+pub fn QualifiedLunaTileBf16Mma16x16x16Artifact::evidence(Self) -> AdmittedLunaTensorCorePhysicalEvidence
+pub fn QualifiedLunaTileBf16Mma16x16x16Artifact::manifest_bindable(Self) -> Bool
+pub fn QualifiedLunaTileBf16Mma16x16x16Artifact::physically_qualified(Self) -> Bool
+pub fn QualifiedLunaTileBf16Mma16x16x16Artifact::promotion_authorized(Self) -> Bool
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,54 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/kernel_root"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+}
+
+// Values
+pub fn plan_luna_bf16_kernel_root(@luna_bf16_kernel_producer.LunaBf16KernelReleaseInput, LunaKernelRootLimits) -> LunaKernelRootPlan raise LunaKernelRootError
+
+// Errors
+pub(all) suberror LunaKernelRootError {
+  Invalid(LunaKernelRootRule)
+  LimitExceeded(LunaKernelRootRule, maximum~ : Int64)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaKernelRootFile {
+  // private fields
+}
+pub fn LunaKernelRootFile::bytes(Self) -> Bytes
+pub fn LunaKernelRootFile::digest_sha256(Self) -> String
+pub fn LunaKernelRootFile::relative_path(Self) -> String
+
+pub struct LunaKernelRootLimits {
+  // private fields
+}
+pub fn LunaKernelRootLimits::new(max_files~ : Int, max_inventory_bytes~ : Int, max_evidence_bytes~ : Int) -> Self raise LunaKernelRootError
+
+pub struct LunaKernelRootPlan {
+  // private fields
+}
+pub fn LunaKernelRootPlan::evidence_bytes(Self) -> Bytes
+pub fn LunaKernelRootPlan::evidence_sha256(Self) -> String
+pub fn LunaKernelRootPlan::files(Self) -> ReadOnlyArray[LunaKernelRootFile]
+pub fn LunaKernelRootPlan::identity_sha256(Self) -> String
+pub fn LunaKernelRootPlan::inventory_bytes(Self) -> Bytes
+pub fn LunaKernelRootPlan::inventory_sha256(Self) -> String
+pub fn LunaKernelRootPlan::manifest_relative(Self) -> String
+pub fn LunaKernelRootPlan::manifest_sha256(Self) -> String
+
+pub(all) enum LunaKernelRootRule {
+  Limits
+  Manifest
+  Module
+  ModuleOrdering
+  Inventory
+  Evidence
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

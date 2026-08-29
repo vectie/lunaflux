@@ -1,0 +1,134 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_paged_attention_readonly_production"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_readonly_aot",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
+  "vectie/lunaflux/release/luna_paged_attention_readonly_physical_evidence",
+}
+
+// Values
+pub fn adapt_paged_attention_readonly_runtime_identity(ApprovedPagedAttentionReadOnlyCatalog, ApprovedPagedAttentionReadOnlyRuntimeDevice, @device.ContextDeviceIdentity) -> @luna_paged_composite_artifact_admission.ApprovedPagedAttentionReadOnlyRuntimeIdentity raise ReadOnlyProductionError
+
+pub fn admit_approved_paged_attention_readonly_catalog(ApprovedPagedAttentionReadOnlyManifest) -> ApprovedPagedAttentionReadOnlyCatalog raise ReadOnlyProductionError
+
+pub fn admit_approved_paged_attention_readonly_manifest(ApprovedPagedAttentionReadOnlyArtifacts) -> ApprovedPagedAttentionReadOnlyManifest raise ReadOnlyProductionError
+
+pub fn admit_external_paged_attention_readonly_approval(PagedAttentionReadOnlyApprovalRecord, @luna_capability_manifest.LunaDetachedSignatureEnvelope, @luna_capability_manifest.LunaAuthenticatedExternalApproval) -> ApprovedPagedAttentionReadOnlyArtifacts raise ReadOnlyProductionError
+
+pub fn admit_external_paged_attention_readonly_runtime_device(PagedAttentionReadOnlyRuntimeDeviceRecord, @luna_capability_manifest.LunaDetachedSignatureEnvelope, @luna_capability_manifest.LunaAuthenticatedExternalApproval) -> ApprovedPagedAttentionReadOnlyRuntimeDevice raise ReadOnlyProductionError
+
+pub fn prepare_paged_attention_readonly_approval_record(@luna_paged_attention_readonly_physical_evidence.QualifiedPagedAttentionReadOnlyArtifact, @luna_paged_attention_readonly_physical_evidence.ApprovedPagedAttentionReadOnlyPhysicalPolicy) -> PagedAttentionReadOnlyApprovalRecord raise ReadOnlyProductionError
+
+pub fn prepare_paged_attention_readonly_runtime_device_record(ApprovedPagedAttentionReadOnlyModule, @device.ContextDeviceIdentity) -> PagedAttentionReadOnlyRuntimeDeviceRecord raise ReadOnlyProductionError
+
+// Errors
+pub(all) suberror ReadOnlyProductionError {
+  InvalidReadOnlyProduction(ReadOnlyProductionRule)
+  MismatchedReadOnlyProduction(ReadOnlyProductionRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ApprovedPagedAttentionReadOnlyArtifacts {
+  // private fields
+}
+
+pub struct ApprovedPagedAttentionReadOnlyCatalog {
+  // private fields
+}
+pub fn ApprovedPagedAttentionReadOnlyCatalog::digest(Self) -> ReadOnlyProductionDigest
+pub fn ApprovedPagedAttentionReadOnlyCatalog::manifest_digest(Self) -> ReadOnlyProductionDigest
+pub fn ApprovedPagedAttentionReadOnlyCatalog::resolve_exact(Self, ReadOnlyProductionDigest, @catalog.DeviceTarget, String, String, String, String, String, String, String, Int, Int, Int, @launch_contract.PagedKernelProfile, String, @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyKernelAbi, @launch_contract.AotLaunchDimensions) -> ApprovedPagedAttentionReadOnlyModule raise ReadOnlyProductionError
+pub fn ApprovedPagedAttentionReadOnlyCatalog::target(Self) -> @catalog.DeviceTarget
+
+pub struct ApprovedPagedAttentionReadOnlyManifest {
+  // private fields
+}
+pub fn ApprovedPagedAttentionReadOnlyManifest::canonical_bytes(Self) -> Bytes
+pub fn ApprovedPagedAttentionReadOnlyManifest::digest(Self) -> ReadOnlyProductionDigest
+pub fn ApprovedPagedAttentionReadOnlyManifest::manifest_bindable(Self) -> Bool
+pub fn ApprovedPagedAttentionReadOnlyManifest::production_authorized(Self) -> Bool
+
+pub struct ApprovedPagedAttentionReadOnlyModule {
+  // private fields
+}
+pub fn ApprovedPagedAttentionReadOnlyModule::activation_ref(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::approved_device_name_hex(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::approved_device_pci_bus_id(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::approved_device_total_memory_bytes(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyModule::approved_device_uuid(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::approved_physical_policy_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::candidate_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::compile_receipt_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::compiled_binding_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::dispatch_canary_cell_count(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::dispatch_canary_per_token(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::driver_identity_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::fallback_recipe_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::fallback_source_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::function_symbol(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::input_row_width(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::kernel_abi_name(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ApprovedPagedAttentionReadOnlyModule::manifest_digest(Self) -> ReadOnlyProductionDigest
+pub fn ApprovedPagedAttentionReadOnlyModule::module_bytes(Self) -> Bytes
+pub fn ApprovedPagedAttentionReadOnlyModule::module_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::operation_id(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::page_stride_bytes(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyModule::physical_evidence_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::physical_files_manifest_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::physical_outer_seal_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::physical_page_capacity(Self) -> Int64
+pub fn ApprovedPagedAttentionReadOnlyModule::profile_id(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::profile_shape(Self) -> (Int, Int, Int)
+pub fn ApprovedPagedAttentionReadOnlyModule::recipe_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::source_digest_sha256(Self) -> String
+pub fn ApprovedPagedAttentionReadOnlyModule::target(Self) -> @catalog.DeviceTarget
+pub fn ApprovedPagedAttentionReadOnlyModule::tokens_per_page(Self) -> Int
+pub fn ApprovedPagedAttentionReadOnlyModule::toolchain_digest_sha256(Self) -> String
+
+pub struct ApprovedPagedAttentionReadOnlyRuntimeDevice {
+  // private fields
+}
+pub fn ApprovedPagedAttentionReadOnlyRuntimeDevice::digest(Self) -> ReadOnlyProductionDigest
+pub fn ApprovedPagedAttentionReadOnlyRuntimeDevice::matches_module(Self, ApprovedPagedAttentionReadOnlyModule, @device.ContextDeviceIdentity) -> Bool
+
+pub struct PagedAttentionReadOnlyApprovalRecord {
+  // private fields
+}
+
+pub struct PagedAttentionReadOnlyRuntimeDeviceRecord {
+  // private fields
+}
+
+pub struct ReadOnlyProductionDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ReadOnlyProductionDigest::as_hex(Self) -> String
+pub fn ReadOnlyProductionDigest::from_sha256(String) -> Self raise ReadOnlyProductionError
+
+pub(all) enum ReadOnlyProductionRule {
+  Qualification
+  PhysicalPolicy
+  ExternalApproval
+  RuntimeDevice
+  Candidate
+  CompiledArtifact
+  PhysicalEvidence
+  Target
+  Profile
+  Layout
+  Operation
+  Activation
+  KernelAbi
+  Launch
+  Canary
+  Catalog
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_tensor_core_candidate",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/release/luna_tensor_core_physical_evidence",
+}
+
+supported_targets = "native"

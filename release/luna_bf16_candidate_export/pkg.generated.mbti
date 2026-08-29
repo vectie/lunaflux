@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_bf16_candidate_export"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+}
+
+// Values
+pub async fn export_new(@luna_bf16_kernel_producer.LunaBf16CandidateSet, String) -> LunaBf16CandidateExportEvidence
+
+// Errors
+pub(all) suberror LunaBf16CandidateExportError {
+  ExportFailed(LunaBf16CandidateExportStage)
+  ExportFailedAndCleanup(LunaBf16CandidateExportStage, LunaBf16CandidateExportStage)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct LunaBf16CandidateExportEvidence {
+  // private fields
+}
+pub fn LunaBf16CandidateExportEvidence::candidate_root_relative(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::candidate_set_sha256(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::export_record_sha256(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::inventory_relative(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::inventory_sha256(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::model_content_sha256(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::model_plan_sha256(Self) -> String
+pub fn LunaBf16CandidateExportEvidence::operation_count(Self) -> Int
+pub fn LunaBf16CandidateExportEvidence::target(Self) -> String
+
+pub(all) enum LunaBf16CandidateExportStage {
+  OutputPath
+  CandidateSet
+  Create
+  Write
+  Publish
+  Cleanup
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

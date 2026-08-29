@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/luna_paged_kv_write_physical_evidence"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_cuda_paged_kv_write_aot",
+  "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn adapt_qualified_paged_kv_write_fallback_identity(QualifiedPagedKvWriteArtifact) -> @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity raise PagedKvWritePhysicalError
+
+pub fn admit_qualified_paged_kv_write_artifact(@luna_cuda_paged_kv_write_aot.PagedKvWriteCudaCandidate, @luna_cuda_paged_kv_write_aot.PagedKvWriteCompiledArtifact, Bytes, expected_evidence_digest~ : @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest, expected_approved_policy_digest~ : @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest) -> QualifiedPagedKvWriteArtifact raise PagedKvWritePhysicalError
+
+// Errors
+pub(all) suberror PagedKvWritePhysicalError {
+  Invalid(PagedKvWritePhysicalRule)
+  Mismatch(PagedKvWritePhysicalRule)
+  LimitExceeded
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum PagedKvWritePhysicalRule {
+  Canonical
+  Digest
+  Policy
+  Candidate
+  Compiled
+  Target
+  Oracle
+  Canary
+  Sanitizer
+  Resource
+  Seal
+  Authority
+} derive(Eq, @debug.Debug)
+
+pub struct QualifiedPagedKvWriteArtifact {
+  // private fields
+}
+pub fn QualifiedPagedKvWriteArtifact::approved_policy_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::candidate_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::compile_receipt_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::compiled_binding_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::device_pci(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::device_uuid(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::dispatch_canary_per_token(Self) -> UInt
+pub fn QualifiedPagedKvWriteArtifact::driver_identity_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::evidence_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::fallback_recipe_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::fallback_source_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::files_manifest_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::function_symbol(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::head_dimension(Self) -> Int
+pub fn QualifiedPagedKvWriteArtifact::kernel_abi(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteKernelAbi
+pub fn QualifiedPagedKvWriteArtifact::kv_heads(Self) -> Int
+pub fn QualifiedPagedKvWriteArtifact::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn QualifiedPagedKvWriteArtifact::manifest_bindable(Self) -> Bool
+pub fn QualifiedPagedKvWriteArtifact::model_content_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::model_plan_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::module_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::operation_id(Self) -> @plan.OperationId
+pub fn QualifiedPagedKvWriteArtifact::outer_seal_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::page_stride_bytes(Self) -> Int64
+pub fn QualifiedPagedKvWriteArtifact::positioned_qkv_activation(Self) -> @plan.ActivationRef
+pub fn QualifiedPagedKvWriteArtifact::positioned_qkv_row_width(Self) -> Int
+pub fn QualifiedPagedKvWriteArtifact::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn QualifiedPagedKvWriteArtifact::promotion_authority(Self) -> Bool
+pub fn QualifiedPagedKvWriteArtifact::query_heads(Self) -> Int
+pub fn QualifiedPagedKvWriteArtifact::recipe_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::runtime_dispatch_authority(Self) -> Bool
+pub fn QualifiedPagedKvWriteArtifact::source_digest(Self) -> @luna_cuda_paged_kv_write_aot.PagedKvWriteDigest
+pub fn QualifiedPagedKvWriteArtifact::target(Self) -> @catalog.DeviceTarget
+pub fn QualifiedPagedKvWriteArtifact::tokens_per_page(Self) -> Int
+pub fn QualifiedPagedKvWriteArtifact::toolchain_digest_sha256(Self) -> String
+pub fn QualifiedPagedKvWriteArtifact::total_page_count(Self) -> Int
+
+// Type aliases
+
+// Traits
