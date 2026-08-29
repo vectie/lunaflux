@@ -3,6 +3,433 @@
 This file records implemented behavior, not intended architecture. A phase is
 not complete until every gate in [PLAN.md](PLAN.md) passes.
 
+Formal phase ledger: Phases 0 through 4 have crossed their declared gates.
+Phases 5 through 9 remain open. References below to a complete graph, a Ready
+rank, startup admission, or a locally complete software slice are scoped
+claims and do not close those five phase gates.
+
+## Latest sealed physical qualification — 2026-08-28
+
+The exact final30 source archive SHA-256 is
+`1b951694414dbd9fc9d796eb9532580d82e0bb6a101ad289194ec58cd8d12eaa`.
+On Linux it passes the warning-denied 506-task native check, 2,297/2,297 native
+tests, the pinned-executable and child-control sanitizer gates, the
+activation-allocation gate, and the process/worker authority ABI boundaries.
+The complete RTX 5060 Ti `sm120` campaign is sealed at
+`/tmp/lunaflux-final30-current-source-physical-20260828` on the validation
+host. `RESULT.txt` records `outcome=passed`, `exit_status=0`, and
+`terminal_stage=complete`; the independently rechecked evidence manifest
+SHA-256 is
+`94852d96c82390ffa427d2ce630c89086bec4f64b8395c431ed31d2fccd9a8cc`.
+
+The campaign rebuilt worker SHA-256
+`e4aa8ae78538c166fdf65ea256151f1d2b8c6b4b0bc990948c8558fd7fed6c25`,
+compiled the authenticated offline-only AOT set with CUDA 13.1.115, used no
+request-path JIT, and passed baseline/prefix materialization, spawned physical
+execution, native listener readiness, broad BF16 qualification, non-routable
+OpenAI qualification, and physical prefix reuse. Listener evidence proves the
+exact admission transition `Listening/Ready -> Connected/NotReady ->
+Listening/Ready` while health remains healthy; it ends with one balanced
+accept/disconnect, all 32 KV pages free, and closed listener/child authority.
+Broad serving ends with five balanced accepts/disconnects, two isolated
+rejections, four completions plus one cancellation, and exact resource balance.
+GPU inventory returned to 15/22 MiB with no compute process. This is positive
+single-GPU BF16 evidence only; it is not positive I8, FP8, tensor-parallel, or
+NCCL evidence.
+
+The Phase 2/3 v3 2,300-wave fast and timer replays both pass on the same Linux
+source with 4,600 requests, 4,465 completions, 135 cancellations, 16
+rejections, 41 balanced accepts/disconnects, and closed queue/active/KV/pending
+and child resources. The exact-final29 24-hour run is active under systemd user
+unit `lunaflux-final29-phase23-soak-24h-20260828.service`, with evidence at
+`/tmp/lunaflux-final29-phase23-soak-24h-20260828`. Its immutable worker-service,
+worker-echo, policy, and wrapper hashes have been rechecked. At the
+2026-08-29 08:19 CST checkpoint both immutable processes were alive after
+9 hours 47 minutes, the result remained pending, and runtime stdout/stderr were
+both empty. This is running evidence, not a pass. The preceding final7 attempt
+has no `RESULT.txt` because
+host loss removed its transient unit; its zero-byte runtime logs and immutable
+artifacts remain preserved as infrastructure-interrupted evidence.
+
+## Prior final7 physical qualification — 2026-08-28
+
+The latest sealed portable source archive is
+`bd1c9a275435ab25a0fb11ce539fde1745945bf542e6389250d4383a50c6e313`.
+Its Linux phase boundary passes `moon info`, `moon fmt --check`, warning-denied
+native check, and 2,065/2,065 native tests. A fresh RTX 5060 Ti `sm120`
+campaign rebuilt and authenticated the child and AOT set, then passed
+spawned execution, one-request serving, broad bounded BF16 serving,
+caller-authorized loopback Responses, a real-timestamp benchmark measurement,
+and eight-token prefix reuse. Broad serving covered concurrent requests,
+active-plus-waiting saturation, cancellation, foreign-model rejection,
+malformed-frame isolation, same-owner post-malformed recovery, fresh-owner
+restart, drain, 22 ordered events, five balanced accepts/disconnects, two
+rejections, all 32 KV pages restored, and closed listener/child authority.
+
+The sealed evidence manifest
+`56599642163a25771c6d3b58c2a2f5023ac3c0ebf52b9cc1f75979a88f8f2ae6`
+verifies completely. The pass archive is retained locally at
+`/private/tmp/lunaflux-physical-evidence-20260828-final7-bd1c9a275435-rerun1-pass.tar.gz`
+with SHA-256
+`2d1441f36929ee8bdfeeac7bc5ffdc11e9fdb06de7ee6b7c9ed350cf30ad09c6`.
+GPU memory returned exactly to 15/23 MiB and no compute process remained.
+OpenAI evidence remains explicitly non-routable and not production-ready.
+
+An independent lower-level sweep on the same source passed 128 CUDA primitive
+cycles, all eight BF16 kernel families, paged attention, a 128-cycle captured
+complete graph, the five-case/160-launch shape matrix, and two byte-identical
+approved-model runs with `1031,2185,688,2844`. Its sealed manifest SHA-256 is
+`72f6a42ce7d0ae3d8f9c5c70eb8a8091a38c0026ea681cb90540fa29477e1229`;
+the local archive SHA-256 is
+`8bb86a6cce09fc299bc5c6461b09cd3626cac850e420015fda2ad991afa27cb0`.
+The product-owned Phase 7 diagnostic rejects the heterogeneous `sm120`/`sm75`
+no-peer node with missing NCCL before context, allocation, communicator, or
+rank authority. That exact-source Phase 8 probe rejects I8 on `sm120` before
+context or allocation authority; current software now admits exact `sm120`, so
+the probe records the historical policy rather than current target support.
+Their local evidence archive SHA-256 values are
+`855e253214b5d9ed727811dac66a3548f541a2a261d03fac30f37428f6fcdd90`
+and
+`d31bed457d6fd8a08f417def68581b3ea443e31911b4eaedf729d3b424386bb8`.
+These are fail-closed passes, not positive tensor-parallel/NCCL or I8 evidence.
+
+The final7 Phase 2/3 source used the digest-pinned v3 soak policy
+`ab268f305c71658b53b9f8347eb77a79d1fd4c414fc01faa0492a48e3886751a`.
+Its real-worker smoke and 2,300-wave fast diagnostic pass with balanced
+resources and a closed child. The two historical v2 24-hour passes remain
+valid only for their frozen source. Linux testing exposed and fixed the soak
+harness's remaining macOS-only `/private/tmp` fixture root by making the runner
+supply an explicit approved root. Its 24-hour v3 run was launched as systemd
+user unit `lunaflux-phase23-soak-v3-final7-20260828.service`, with preserved evidence at
+`/home/jiaanguo/lunaflux-phase23-soak-v3-evidence-20260828-final7-bd1c9a275435`.
+Host loss removed the transient unit before any `RESULT.txt`; this is
+infrastructure-interrupted evidence, not a pass.
+Exact identities and the preserved non-promoted final5 static-gate failure are
+recorded in
+[PHYSICAL_VALIDATION_2026-08-27.md](PHYSICAL_VALIDATION_2026-08-27.md).
+
+## Post-final7 qualification carried by final30 — 2026-08-28
+
+The final30 source includes the post-final7 additions below and has been rebuilt
+on the NVIDIA host. The full Linux suite and exact sealed-final30 physical
+campaign pass, and the exact-final29 v3 soak remains active. Individual claims below stay
+scoped: this does not promote public networking, comparative benchmarks,
+Mistral/FP8 hardware support, OCI/SBOM, or general release readiness.
+
+Final30 also closes several local authority gaps without manufacturing external
+approval. Offline comparison verification now independently pins the live
+trial driver and sanitizes its replay environment; fused-kernel candidate
+evidence binds ordered trials, numerical tolerances, per-shape aggregates, and
+static-resource audit identity. Phase 6 adds a versioned non-authoritative
+`legacy-doctor --json`; Phase 7 rejects noncanonical failure-reason/rank pairs; Phase 8
+adds an authenticated fixture-only Mistral correctness corpus; and Phase 6/9
+release assembly binds the exact first-party Apache-2.0 license and canonical
+product-license inventory. The sibling LunaNexa repository now has an opaque
+authority-only adapter projection that retains the exact launch-manifest
+identity. Positive performance, supported quantization hardware, homogeneous
+NCCL, approved OCI/SBOM/provenance, actual deployment-issued verifier
+key/policy and signed
+receipt set, an approved promotion-catalog entry, TLS/auth, and reviewer
+acceptance remain open.
+
+## Current software-validated source state — 2026-08-29
+
+The exact current tree passes the complete 2,448/2,448 native matrix, aggregate
+dependency/debt boundary, and focused authority/allocation/performance gates
+locally. A non-overwriting portable handoff is sealed only after these checks;
+its digest belongs to the external handoff record so sealing does not create a
+self-referential source hash. Everything below this heading remains
+source/software state only: it is not part of final30 physical evidence, does
+not alter the active final29 soak, and makes no new NVIDIA, performance,
+sanitizer, or release claim until a named post-soak current-source campaign
+verifies.
+
+Subsequent local debt hardening removes every compiler-reported unnecessary
+MoonBit annotation and makes warning 73 a permanent aggregate boundary. It also
+centralizes exact `DeviceTarget`/numeric-capability matching for FP8 and I8,
+replaces a stale caller-constructible external-protocol report with the private
+fail-closed instance-policy join, and separates authenticated bootstrap-source
+encoding from untrusted decode validation without changing wire bytes. The
+descriptor admission now retains its inert worker-plan proof privately instead
+of exporting an unused accessor, and two unused qualification-only runtime
+owner methods are no longer public. Authority validators now describe the
+actual private credential-policy join and the opaque snapshot-pinned worker
+executable graph. A further source-only pass removes the last public raw-Bytes
+device loader so device materialization is exclusively ApprovedRoot-backed and
+digest-authenticated, removes a dead scheduler retirement counter while adding
+generation-exhaustion coverage, and replaces optimizer-dependent Result/defer
+cleanup envelopes in request preparation and incremental output with direct
+fail-cleanup paths, and removes the same optimizer-dependent defer envelope from
+blocking inherited-frame I/O. Native ordered-executor construction now retains every
+returned event, graph, and graph-exec handle plus its parent leases until
+destruction actually succeeds, including combined create/destroy failures. The
+worker-service shutdown and close paths now retain explicit retryable lifecycle
+state through direct failure catches, and the root-bound worker-process package
+keeps its recovery startup contract private. The fused physical-campaign
+source composition, admission, benchmark-qualification, cleanup, and hostile transaction additions
+plus generic LunaTile translation, graph telemetry, and fused approval-boundary
+work pass their focused warning-denied native and hostile/static boundaries.
+The generic serial oracle now also anchors a deterministic inert
+parallel SIMT candidate with exact block/warp/lane mapping, a uniform staged
+pipeline, lifetime-planned shared storage, tensor-core eligibility recording,
+and conservative cross-instruction global-write disjointness. It has no
+compiler, device, manifest, runtime, or promotion authority. An isolated
+exporter and campaign runner now compose deterministic double compilation,
+serial-oracle comparison, memcheck/racecheck, and an immutable evidence seal,
+but the campaign has not run on NVIDIA hardware.
+
+The same LunaTile graph now feeds one narrowly typed exact-`sm120` BF16
+row-major `m16n16k16` WMMA source candidate with F32 accumulation/output,
+32-byte global alignment, one warp per tile, and an identity epilogue. Its
+test-only probe/campaign binds deterministic CUBIN pairs, independent CPU and
+serial-CUDA numerics, dual-disassembler SASS instruction counts, resource
+bounds, memcheck/racecheck/initcheck, cleanup balance, and a non-circular
+three-file seal. A separate release package admits the exact positional result
+and critical manifest entries, then exposes an opaque evidence-aware lowering
+join that retains the serial and SIMT fallback identities. The existing
+evidence-free tensor-core requirement still rejects. Candidate, evidence, and
+qualified-wrapper types remain manifest-ineligible and promotion-ineligible.
+All source, fake-tool, hostile-substitution, and admission gates pass locally;
+no NVIDIA execution, physical SASS/numeric result, performance win, production
+consumer, or promotion is claimed for either new route.
+Rooted single-worker graph telemetry now crosses the child boundary in a fixed
+80-byte checksummed sidecar: completion is unpublished until the matching
+sequence/path/shape/counters validate, replacement counters aggregate with
+saturation, and native/OpenAI instance metrics consume monotonic deltas without
+steady-path allocation. Tensor-parallel transport explicitly publishes
+telemetry absence rather than a fabricated miss. A bounded opaque `bench`
+command uses one digest-pinned live deployment admission for a fixed
+token-0/two-output greedy request, records real monotonic events, and drains the
+owner before emitting evidence with comparison and promotion authority absent.
+Focused hostile/sanitizer and allocation suites plus the complete aggregate
+dependency/debt sweep pass. These are
+local source and architecture results; they do not extend final30 physical
+evidence.
+
+The current source retains qualification-only paths for positioned full-QKV
+paged-KV write, read-only paged attention, and residual-plus-RMSNorm. It now
+also has production-fast-path V2 admission, resource preparation, and execution:
+legacy Llama and generic numeric-BF16/Mistral worker APIs can replace the exact
+residual/RMSNorm span with one launch and the QKV/RoPE/attention span with a
+fused writer plus read-only attention. Startup authenticates artifacts, plan
+adjacency, fallback identities, raw-pointer ABIs, and live-device identity once;
+the token step performs no canary, hashing, filesystem work, diagnostic
+host/device transfer, or qualification scan. Residual V2 preserves the
+authenticated graph policy; its diagnostic qualification ABI remains
+eager-only. Missing optional artifacts retain
+standalone execution. Descriptor-pinned optional artifacts now cross the exact
+runtime descriptor/bootstrap into deployed children for Llama and numeric BF16;
+the QKV composite binds only after child-side live-device identity
+authentication. None of these V2 routes has current-source physical CUDA,
+sanitizer, performance, or promotion qualification.
+
+The lower production-V2 and literal spawned `device-greedy`/
+`device-greedy-fused-v2` harnesses now reach those production boundaries and
+compare a fixed eight-byte device result with an independent host full-logits
+referee. Their software/static gates pass; they have not run on NVIDIA
+hardware.
+
+Kernel approval verification is now reachable from a startup-owned bounded
+FD-7 key capability with no public arbitrary-key constructor. The parent
+consumes, closes, and wipes the deployment key before child activation, then
+creates a fresh one-shot attestation bound to the exact admitted manifest,
+approved source, pinned launch identity, generation, and ordinal. The child
+never receives the deployment key. Stale, substituted, absent, and replayed
+attestations fail closed before `Ready`; absent external approval leaves
+baseline inference standalone.
+
+Paged profile capture now binds exact launch identity, mixed row/cache/
+position/page geometry, a diagnostic-only page-table trace digest, and bounded
+sorted operation counters. The LunaTile optimizer-promotion owner remains
+inert and non-bindable: no generic fixture operation can become a real catalog
+operation until an authenticated specializer maps its exact operands, shape,
+and numerical contract, in addition to sealed paired evidence and external
+approval.
+
+The runtime now serves bounded bodyless `GET /healthz`, `GET /readyz`, and
+`GET /metrics` observation. OpenAI Responses serves them on its inference
+origin and creates no second control listener; native-framed mode retains a
+separate loopback-only HTTP control listener. A fixed inherited Unix-stream
+capability on descriptor 5 gives the opaque one-argument CLI one local,
+allocation-free drain command whose accepted/idempotent/closed responses and
+listener-first cleanup are tied to the singular runtime owner. A distinct
+descriptor-6 Unix-stream capability now admits one bounded read-once inference
+credential, closes the channel, and wipes its source scratch before runtime
+resource construction. Instance-policy v3 binds loopback plaintext or exact
+wildcard-only `private_network_plaintext` OpenAI Responses plus its credential
+ceiling. LunaNexa parses the same-origin publication and maps a wildcard origin
+to the inspected private container address before bounded health/readiness
+probes and invocation. Native v1/v2 reject a credential and OpenAI v2 remains
+fail-closed. Focused HTTP
+tests, a real local loopback hostile-client test, the inherited-drain native
+ABI, ASan/UBSan, allocation, CLI-activation, and lifecycle suites pass. This
+does not implement TLS, public routing, external authorization, or generation
+fencing; those deployment gates remain open and no public HTTP drain route
+exists. The copied opaque API-auth policy, verifier aliases, and presented
+Bearer/header/body parser storage are deterministically overwritten on owner
+close; startup rejection paths wipe before abandoning ownership. Constant-time
+credential comparison scales with the configured credential length rather than
+the larger accepted-input ceiling.
+Authenticated OpenAI JSON now lands directly in fixed typed handoff storage.
+The same receipt remains bound from byte-one capture through authentication,
+parsing, template expansion, semantic validation, and admission, with no JSON
+tree, prompt `String`/`Bytes` copy, canonical request-frame render/checksum/
+reparse, `GenerateRequest`, or `TextInput` intermediary.
+
+Two locally proven qualification harnesses now cover broader owner lifetimes.
+The context-churn campaign cycles fresh child owners across bounded context
+ceilings, while the actual-context campaign sends independently fixed 8-token
+and 9-token requests through the production spawned owner and checks exact
+plans, KV state, terminal events, and cleanup. Their focused warning-denied
+checks and tests pass. Neither campaign has run on physical CUDA, so neither is
+long-context capacity, leak, soak, or performance promotion evidence.
+
+The benchmark boundary now includes a real OpenAI Responses SSE observer, an
+offline admission tool, and a deterministic external-process campaign owner
+for exactly 81 observations: three engines, nine profiles, and three trials in
+fixed Latin-square order. It accepts only digest-pinned replay, trial-driver,
+correctness, live-engine-identity, and process-supervisor tools; keeps
+credentials on inherited descriptors; seals raw captures, identity evidence,
+correctness records, and complete process-cleanup receipts; and hands the set
+back to the existing comparison authority. A driver cannot self-assert an
+engine: the separate live verifier must bind the declared revision, image,
+configuration, and executable digest. Hostile fake-engine, wrong-identity,
+malformed-framing, failed-correctness, timeout, substitution, and no-overwrite
+gates pass locally. The handoff deliberately reports
+`comparison_authority=none` and no physical measurement claim. No approved
+live vLLM/SGLang identities, external correctness/identity policy, live
+81-trial capture set, or comparative result has been produced.
+
+Phase 8 now has software-complete runtime routes for the bounded Mistral and
+reusable FP8 additions. Strict `MistralForCausalLM` configuration and
+content-bound metadata reuse the existing dense 21-operation stateless and
+paged plan; exact BF16 weight binding/materialization plus strict regular and
+materialized descriptors reuse the common BF16 worker/service owner without a
+scheduler or KV branch. Its family, weight, descriptor, worker-wire, and
+socket-backed runtime gates pass. A digest-authenticated fixture-only corpus now
+proves exact dense-plan and 21-weight equivalence and replays logits, argmax,
+and continuations without claiming production authority. A production-approved
+artifact and correctness corpus, physical numerics, accuracy, memory,
+performance, and readiness remain open.
+
+The FP8 numeric owner admits only canonical `F8_E4M3`, rejects both E4M3FN NaN
+codes in bounded chunks, validates positive finite scalar-F32 scales, and
+performs two-pass authenticated final-arena transfer. The complete dense-Llama
+W8A8 builder, exact file inspection, v2 launch ABI, deterministic CUDA 12 AOT
+source, and closed artifact/symbol binder remain byte-compatible with the
+pinned v1 route. Exact-shape v2 stays inert and single-shot. The additive
+reusable PagedV4 v3 production route reconstructs a digest-pinned schema-v5
+manifest, accepts only opaque externally approved CUBIN release authority,
+re-admits model/plan/profile/target/raw ABI/workspace/KV limits in the child,
+prepares the mixed graph executor, validates unique sentinel-initialized scale
+cells before publication, and joins the existing rooted service through
+regular or materialized descriptor and one-argument CLI paths. Hostile
+substitution, cleanup/restart, materialized-route, and socket-backed software
+gates pass. Exact `sm120` is now admitted across device, descriptor, bootstrap,
+and CUDA-v2 software boundaries alongside `sm89`/`sm90`; adjacent targets fail
+closed. No current-source physical FP8 numerical campaign has qualified this
+route; sanitizer/leak balance, soak, accuracy, memory, performance, and release
+promotion remain open.
+
+Phase 5 now has a separate offline/startup profile-priority admission package.
+It binds sorted stateless full-context observations, workload and profiler
+digests, model plan, and device target into one canonical digest, then deterministically
+selects the operation with the greatest attributed self time. This supplies a
+bounded input to later optimization work only; it neither captures a profile
+nor proves kernel correctness, benchmark improvement, or release promotion.
+A disjoint paged path derives target, selected profile, and complete device-KV
+layout from an admitted paged launch set, binds exact mixed-row/cache/position/
+page geometry plus bounded sorted operation counters, and rejects uncovered
+operations or substituted authority. Its page-table trace digest is explicitly
+an unauthoritative raw-trace claim.
+
+The following exact-current-source paragraphs are retained as historical
+qualification records for earlier snapshots.
+
+The next exact-source physical rerun is locally staged but has not started
+while the mandatory Phase 2/3 soak owns the NVIDIA host. The current-source
+runner now executes the existing qualification-only context-churn and actual
+8-token/9-token modes with the authenticated launch and freshly built worker,
+then requires canonical evidence digests and final GPU/process balance. A
+generic filesystem-only evidence helper now owns deterministic manifests and
+read-only sealing without acquiring schema, admission, or promotion authority.
+OCI verification additionally rejects regular files with hard-link aliases;
+crash-recovery verification uses independent copies for the OCI subtree so the
+same invariant is preserved. The external-process comparison campaign now
+seals all 326 canonical invocations beside their 326 supervisor receipts, so
+offline replay independently checks exact argument hashes, timeout/grace, and
+credential-descriptor scope. The strict native check, all 2,253 native tests,
+the two context source gates, immutable-evidence hostile gate, OCI and atomic
+recovery hostile gates, current-source runner gate, and the exhaustive fake
+81-trial comparison gate pass locally. None of these local results is physical
+context evidence, a live cross-engine measurement, or an OCI promotion claim.
+
+The latest exact-current-source archive is
+`847c8493a4d43faf8517969be8780eace00380b69fa9c6b7894d3fd9e45b36ac`.
+It passes 2,038/2,038 native tests on Linux and a fresh RTX 5060 Ti `sm120`
+campaign that rebuilds the child, rematerializes both authenticated launches,
+and passes spawned execution, native serving, caller-authorized OpenAI
+Responses loopback qualification, a real-timestamp LunaFlux benchmark trial,
+and physical eight-token prefix reuse. All 209 sealed physical files, source
+stability, release digests, empty runtime stderr, and final GPU/process balance
+were independently verified after download. Exact hashes and the preserved
+pre-fix `TIME_WAIT` failure are recorded in
+[PHYSICAL_VALIDATION_2026-08-27.md](PHYSICAL_VALIDATION_2026-08-27.md).
+
+All TCP listener owners now share one `SO_REUSEADDR` bind policy so an
+authenticated server-side close cannot block same-address restart in
+`TIME_WAIT`. `SO_REUSEPORT` is never enabled and a concurrently live exact bind
+still fails. OpenAI qualification remains explicitly non-routable: generic
+production readiness stays false, TLS and a health endpoint are unclaimed, and
+production v2 admission continues to fail closed until the missing deployment
+owners and approvals exist.
+
+The portable source snapshot with SHA-256
+`99887e5f4687889fd30f3927508a4adc49ff0b1f052117f87bca9b8c069d9e83`
+passes the Linux warning-denied native check (434 tasks) and 2,010/2,010 native
+tests. On the RTX 5060 Ti (`sm120`), the CUDA primitive, eight BF16 kernel
+families, paged attention, capture-required complete graph, five-case shape
+matrix, and two byte-identical approved-model runs pass. Spawned execution,
+the production native listener fixture, concurrent framed slow/fast-client
+progress, the 10,000-request service balance campaign, the soak diagnostic,
+and ten sanitizer/native-ABI gates also pass. The approved-model continuation
+is `1031,2185,688,2844`, selected-logit maximum absolute error is
+`0.0005459413`, and final GPU process and memory balance is exact.
+
+The scheduler now snapshots exact request-local cached-token usage before slot
+recycling and carries it through worker and online-session terminal
+publication. The bounded spawned-prefix validator checks independent expected
+tokens and exact cached-token evidence without inferring from global telemetry.
+The startup-fixed native framed connection pool owns one service and semantic
+stream across independent incremental clients; its physical Linux campaign
+proves that a one-byte-at-a-time client cannot block a complete fast request.
+The authenticated runtime owner now selects that pool, or the corresponding
+OpenAI pool, whenever the admitted preparation/scheduler request-slot capacity
+is greater than one. Exact capacity one retains the prior singleton behavior.
+Both production routes share readiness, drain, cold-start, observation metrics,
+and deterministic cleanup with their fixed-capacity owner; no per-request pool
+construction was added.
+The canonical benchmark runner now collects checked lifecycle and timing
+records into digest-bound evidence without adding process, network, or device
+authority.
+
+This is supported-BF16 correctness and bounded-serving evidence, not whole-plan
+promotion. Positive I8 remains open even though current software admission now
+includes exact `sm120` with `sm89` and `sm90`.
+The tensor-parallel software route now binds a nonzero canonical group-template
+digest through descriptor, materialized preflight, child re-admission, and the
+live generation/rendezvous group digest; fake multi-rank, substitution,
+restart, and cleanup gates pass. Positive tensor-parallel/NCCL remains open
+pending a homogeneous peer-capable node with NCCL. Physical prefix reuse and a
+single LunaFlux listener measurement now pass for the pinned tiny BF16
+workload. The complete LunaFlux/vLLM/SGLang
+comparison remains open: the current adapter deliberately brands Chat
+Completions SSE and cannot approve the production Responses protocol, the host
+has no pinned baseline images or container runtime, and the nine-profile,
+three-trial matrix has not run. The sealed final30 campaign rebuilt its child;
+the older paragraph above remains historical evidence for the preceding
+archive.
+
 ## Completed foundation
 
 - Phase 0 product, architecture, lifecycle, benchmark, and debt contracts.
@@ -47,17 +474,80 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   server, TLS/HTTP adapter, or fleet ingress. Async runtime and socket
   allocation remain outside the narrower warmed payload/helper allocation
   proof.
-- A bounded `tokenizer.json` adapter for the selected byte-level BPE contract,
-  with duplicate-key rejection and explicit rejection of unsupported tokenizer
-  semantics.
+- A reusable native-framed `LunaOnlineTcpServer` now retains one listener and
+  one `LunaOnlineFramedService` across sequential connections. Its compatibility
+  bind accepts one request per connection; its pipeline bind admits bounded
+  coalesced or later frames into fixed request lanes on the same connection.
+  The compatibility bind preserves fragmented first-frame tails and discards a
+  coalesced second frame; the pipeline bind retains and admits that exact tail.
+  Both confirm bounded partial writes before ACK/release, close the listener
+  first on drain, and record finite instance metrics/log events before
+  observation ACK. Real worker-process loopback evidence covers accept timeout reuse,
+  rejection without response bytes, normal completion, cancellation, exact
+  failure recovery ordering, post-restart listener reuse, disconnect at
+  FailureUsage, and stale snapshot/resource cleanup. This is serialized native
+  framed ingress, not HTTP/OpenAI, TLS, concurrent clients, or a fleet server;
+  async runtime/socket allocation remains outside its warmed synchronous helper
+  proof.
+- The fixed-lane service balance gate now completes 10,000 monotonically
+  identified requests in 1,000 waves on one rooted worker service, including
+  natural completion, cancellation, queued expiry, terminal-ring
+  backpressure, ten empty-worker recoveries, and final cooperative
+  shutdown/reap. It reconciles request IDs, physical and pending work,
+  publication rings, block tables, and KV ownership. Its approved-root fixture
+  is now supplied as a canonical per-run temporary directory rather than the
+  macOS-only `/private/tmp`; the same 10,000-request proof passes on Linux.
+  This is finite release
+  evidence separate from the 24-hour soak. The frozen v1 low-rate soak aborted
+  on a harness overconstraint that required every balanced wave to enter the
+  two-row histogram bucket; service, request, and KV balances were intact at
+  the observed boundary. The v2 policy records two-live, batched,
+  backpressured, scheduled-cancel, attempted-cancel, accepted-cancel, and
+  actually cancelled waves cumulatively. It permits balanced non-batched waves
+  and treats an exact typed coordinator rejection as a non-mutating missed
+  cancellation. The digest-pinned v2 campaign started under launchd on
+  2026-08-24 as `lunaflux.phase23.soak.v2.20260824T125416Z` and produced two
+  independent `24h-pass` records. Both measured 86,400,002 milliseconds,
+  completed 43,200 waves and 86,400 requests, balanced 833 accepts with 833
+  disconnects, restored all eight KV pages, and closed with zero queued,
+  active, used-KV, and pending resources plus `child_closed`; stderr is empty.
+  The service, worker, source, runner, stdout, and stderr SHA-256 values are
+  preserved with the campaign evidence. The exact keepalive label was removed
+  after the second pass so a third run could not append another record.
+  A separate immutable attempt at
+  `/private/tmp/lunaflux-phase23-soak-launchd.VwfUIV` exited 134 after 4,204
+  seconds. Its service hash matches its manifest, but the binary
+  self-identifies as the already rejected v1 soak policy; the failure is the
+  known v1 harness false negative and is not runtime promotion evidence.
+- A separate serialized `LunaOnlineOpenAIServer` composes the bounded HTTP/1,
+  bearer-authentication, OpenAI JSON translation, trusted framed-service, and
+  semantic SSE engines without materializing an intermediate request object.
+  It supports Responses and Chat Completions over sequential one-request
+  connections, confirms every partial socket write before semantic delivery,
+  records observation telemetry before ACK, and preserves request deadlines
+  across HTTP, JSON, framed admission, and output phases. Real worker-process
+  loopback evidence covers wrong credentials without an Admission, fragmented
+  HTTP/JSON input, both routes, terminal Usage/Completion ordering, bounded
+  partial output, rejection/error reuse, receipt expiry, and listener reuse.
+  This remains a native, serialized HTTP/1.1 foundation: it is not TLS,
+  keep-alive/pipelining, concurrent-client arbitration, or a fleet endpoint;
+  async runtime/socket allocation is outside its warmed synchronous helper
+  proof.
+- A bounded `tokenizer.json` adapter for the selected raw ByteLevel-BPE
+  contract and the exact closed SentencePiece-derived BPE profile shipped with
+  the pinned upstream model, with duplicate-key rejection and explicit
+  rejection of unsupported tokenizer semantics.
 - A digest-pinned synthetic compatibility tokenizer for the selected 3,000-row
   reference model. It proves the supported ByteLevel-BPE path from `Luna*c` to
   exact token IDs, independently recorded logits, the greedy token, and a
-  four-token continuation. This is functional integration evidence, not a
-  claim of upstream SentencePiece compatibility or trained tokenizer quality.
+  four-token continuation. This remains functional evidence for the narrower
+  ByteLevel profile rather than trained-tokenizer quality evidence.
 - Validated dense Llama-style BF16 dimensions and content identities, with the
-  plan identity derived canonically from the complete validated semantic spec
-  rather than trusted as caller input.
+  plan identity minted only after `ModelPlan` validates and owns the complete
+  graph, execution mode, limits, KV/workspace semantics, capabilities, final
+  output, and numeric-schema digest. Constructors accept no caller plan digest
+  or model identity. Llama metadata is content-only, and `ModelPlan` is the sole
+  authority that can mint an authenticated plan identity.
 - A bounded selected-model architecture JSON adapter that rejects remote code,
   tied embeddings, and unsupported dense-Llama variants.
 - Bounded decoded safetensors metadata validation, including checked tensor
@@ -68,6 +558,74 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - An immutable architecture-neutral operation plan and dense Llama family
   builder with explicit shape, workspace, RoPE, activation, tensor-reference,
   and semantic kernel-capability contracts.
+- Phase-8 numeric admission foundations now define a mandatory canonical model
+  numeric schema with separate tensor-storage and operation-execution
+  contracts. Operation schema v2 distinguishes BF16 graph activation input
+  from finite-E4M3 internal activation compute and digest-binds the complete
+  dynamic per-tensor F32 scaling convention. A closed device capability policy
+  admits only exact compute pairs 8.9, 9.0, and 12.0. The FP8 kernel
+  manifest cross-authenticates the exact model schema, observed target facts,
+  AOT catalog/launch entry points, one admitted artifact bundle, and each FP8
+  weight plus scalar-F32 scale identity. A final pure startup join rejects
+  substituted or incomplete evidence before publication. The authenticated
+  numeric-weight owner additionally admits exact `F8_E4M3`, rejects both
+  E4M3FN NaN codes and invalid scalar-F32 scales in a bounded first pass, and
+  copies only the reauthenticated snapshot into the final arena. The
+  all-or-nothing dense-Llama FP8 builder binds every eligible projection and
+  scalar scale into full-context or paged plan identity; the family file
+  facade preserves typed plan/file failures and rejects mode/batch replay. A
+  staged dynamic-scale ABI further joins the plan and manifest to an exact
+  PagedV4 raw launch contract, complete dimensions and operand order, an exact
+  four- or eight-byte Workspace, schema-derived scale cells, and a fenced
+  lease lifecycle. Separate v2 offline lowering emits deterministic finite-
+  E4M3 CUDA 12 source for simple projections and compound gated MLP, then a
+  non-circular binder joins the candidate to exact contract, CUBIN receipt,
+  artifact, module, and symbol authority. Exact-shape v2 remains inert.
+  Reusable PagedV4 v3 now has schema-v5 manifest reconstruction, opaque
+  external release admission, child-side re-admission, exact mixed-graph
+  executor preparation, unique sentinel-checked scale evidence, and
+  regular/materialized descriptor, worker, service, and CLI routing. Focused
+  software gates pass, including exact `sm120` admission and adjacent-target
+  rejection. No current-source physical FP8 numerical correctness,
+  sanitizer/leak balance,
+  soak, memory improvement, benchmark, or readiness claim has been made, so
+  Phase 8 remains open.
+- Symmetric-I8 weight-only v1 now freezes rank-two `[out_channels,
+  in_channels]` storage with one owned rank-one plain-F32 per-output scale,
+  implicit zero only, signed codes `[-127, 127]` with `-128` rejected, BF16
+  activation boundaries, F32 accumulation, and BF16 output. Synthetic plan
+  fixtures make multi-weight selection atomic. A distinct closed
+  8.9/9.0/12.0 device feature exists solely as software target admission.
+  Catalog v4
+  exact-digest selection now binds each operation to one content-addressed AOT
+  family and catalog-owned entry point. A pure numeric layout places the full
+  parameter/scale/zero-point/codebook table, and an opaque static plan joins
+  that exact layout schema, full model identity, selected entry point, and
+  operation execution digest. Legacy v1/v3 reject I8, while the legacy device
+  execution-profile bridge rejects v4. A distinct opaque catalog-v4 full-paged-
+  graph launch boundary now derives the complete operand sequence from the
+  model plan, places each schema-owned scale immediately after its weight, and
+  authenticates the numeric schema digest, per-operation execution digest, and
+  exact catalog entry point. The production dense-Llama builder now emits this
+  policy atomically for every projection and the language-model head. A strict
+  authenticated numeric-weight file loader binds the model, plan, schema,
+  artifact, tensor layout, ranges, and per-output scales before allocation,
+  reauthenticates the same immutable snapshot, streams directly into the final
+  device layout, and returns retryable cleanup ownership on failure. Manifest
+  schema/catalog v4 and bootstrap v3 retain the exact admitted memory plan,
+  artifact bundle, launch sequence, and numeric authority through a serialized
+  I8 executor. Runtime descriptor v2 and common worker bootstrap recipe v6 bind
+  those inputs to an independently admitted instance policy, tokenizer,
+  scheduler blueprint, worker executable, process limits, roots, and restart
+  policy. Digest-authenticated launch schema v2 selects that closed recipe in
+  the existing one-argument native command, with no legacy-loader fallback,
+  and converges on the same framed service, listener, drain, restart, and
+  cleanup owner. The child rebuilds the plan, re-observes the device numeric
+  capability, reauthenticates weights, and publishes readiness only after the
+  executor is complete. Host and fake-seam validation does not establish
+  physical-CUDA numerical correctness, sanitizer/leak balance, device soak,
+  accuracy, memory improvement, performance, hardware support, or production
+  readiness, so Phase 8 remains open.
 - Exact dense-Llama weight-manifest binding that validates safetensors names,
   shapes, completeness, and plan tensor-reference order before allocation.
 - A single selected-Llama admission boundary that proves configuration,
@@ -98,7 +656,7 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   weights once, executes validated operation plans, and performs bounded greedy
   generation. Pinned tiny-model fixtures cover non-degenerate attention and MLP
   paths with independently derived logits.
-- A substantive `lunaflux plan` command that authenticates a bounded model
+- A substantive `lunaflux legacy-config-plan` compatibility command that authenticates a bounded model
   configuration under an approved root, builds the exact paged-Llama semantic
   plan, and explains shapes, operation count, workspace, required kernel
   capabilities, and KV page/capacity decisions. It closes filesystem authority
@@ -114,9 +672,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
 - Bounded deterministic greedy sampling with stable lowest-token tie breaking,
   plus temperature/top-k/top-p stochastic sampling over fixed scratch storage.
   The stochastic path rejects non-finite logits before advancing its specified
-  xorshift64 stream and preserves deterministic lowest-token tie ordering.
-  Online/device integration, whole-path allocation instrumentation, and
-  production performance evidence remain open.
+  xorshift64 stream and preserves deterministic lowest-token tie ordering. The
+  native and OpenAI paths now carry canonical temperature, top-k, top-p, seed,
+  stop-token, and stop-string inputs through bounded parsing, framed transport,
+  scheduler suppression, incremental UTF-8 matching, and device/fake-seam
+  selection. Physical-CUDA numerics and production performance remain open.
 - A private dynamically loaded CUDA Driver/cuBLASLt ABI with opaque handles,
   explicit retryable resource release, parent-child ownership, and a semantic
   public device inventory. Unsupported hosts report a typed unavailability
@@ -140,10 +700,11 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   fallback. Content-addressed bindings distinguish a module digest, semantic
   kernel family, and profile-specific entry-point identity. The vendor GEMM
   contract is limited to operation layouts representable by its narrow ABI.
-- An immutable static device plan that proves the semantic plan, exact weight
-  layout, and resolved kernel catalog share identity and target, then resolves
-  every operation input, output, workspace, and kernel binding before
-  execution preparation.
+- An immutable static device plan that validates the complete canonical numeric
+  tensor layout before resolving operation inputs. It retains the exact model
+  numeric-schema digest and per-operation execution digests. Legacy catalogs
+  preserve content-only plan reuse; v4 requires full model identity and an
+  exact catalog-owned AOT entry point before inert plan publication.
 - A deterministic exact BF16 activation/workspace memory plan with liveness-
   checked slot reuse, retained terminal output, bounded aligned arena size,
   one startup allocation, and explicit close.
@@ -229,28 +790,34 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   submission, and permanently poisons a staged owner after any partial transfer
   failure. A positive-controlled native release gate proves the warmed public
   descriptor `stage`/`finish` path performs no generated/runtime allocation.
-- An owner-mediated synchronous full-paged-graph executor that leases the
+- An owner-mediated ordered full-paged-graph executor that leases the
   caller-owned weight allocation and privately owns descriptor buffers,
   activation/workspace and persistent-KV allocations, stream, modules,
   functions, dimensions, and argument lists. Exact staged/executed capabilities
-  enforce lifecycle order; any partial launch failure poisons the executor, and
-  partial construction or close retains explicit retryable cleanup authority.
+  enforce lifecycle order. It enqueues exact authenticated operations and waits
+  on one reusable completion event; any partial launch/wait failure poisons and
+  drains the executor, and partial construction or close retains explicit
+  retryable cleanup authority.
 - Owner-mediated BF16 terminal-logit readback and completion construction for
   that executor. Startup binds the retained LM-head row geometry and allocates
   fixed readback/logit/selection scratch; successful execution reads only
-  producing rows, rejects non-finite logits, applies greedy or
-  counter-addressed stochastic selection from exact request seed/output index,
-  and appends to the exact-plan completion writer while leaving publication to
+  producing rows for explicit host sampling, rejects non-finite logits, and
+  applies counter-addressed stochastic selection from the exact request seed
+  and output index. It appends to the exact-plan completion writer while leaving publication to
   the aggregate owner after executor finish. A positive-controlled native
-  release harness now proves a warm public device-worker owner completes 131
-  exact canonical one-row ordinary-prefill/final-prefill/decode and
-  greedy/stochastic execute/authenticate/retire/reset cycles without MoonBit
-  managed/array/string allocation or native resource creation, with exact fake
-  transfer/launch/synchronize/readback counts and balanced page/native close.
-  Fake launch/readback/non-finite faults also prove no completion publication,
-  owner faulting, writer reuse, and cleanup. Mixed-row/full-batch execution,
-  independent stochastic correctness, physical CUDA numerical correctness,
-  and promotion evidence remain open.
+  release harness now proves a warm public device-worker owner completes the
+  production-reachable schema-v2 mixed/full-batch ordinary-prefill,
+  final-prefill, decode, and greedy/stochastic lifecycle without MoonBit
+  managed/array/string allocation or native resource creation. Nonuniform
+  row-dependent fake BF16 logits and an independent scalar oracle cover varied
+  row token counts, page CSR, completion slots, and stochastic selection. Fake
+  launch/readback/non-finite faults also prove no completion publication, owner
+  faulting, writer reuse, and cleanup. An authenticated bootstrap may instead
+  select the AOT device greedy reducer, which returns one fixed eight-byte
+  result per producing row and never falls back to host sampling when its exact
+  embedded artifact is absent or mismatched. Sampling placement is fixed before
+  token execution. Physical CUDA numerical correctness and promotion evidence
+  remain open.
 - A canonical transport-independent inference request and streaming-event
   contract with immutable token/text inputs, exact model identity, bounded
   sampling/stops/deadlines/cache scope, monotonic usage, and payload-safe public
@@ -289,8 +856,9 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   until explicit ACK. Positive-controlled release-C gates cover the warm online
   and cooperative framing paths. The fixed-lane preparation pool now feeds this
   boundary. This owner deliberately excludes socket operations; the native
-  one-shot endpoint composes partial writes and transport ownership, while
-  reusable listener dispatch remains open.
+  one-shot endpoint, reusable native-framed Server, and serialized OpenAI HTTP
+  Server compose partial writes and transport ownership. TLS, keep-alive, and
+  concurrent-client arbitration remain open.
 - A startup-preallocated, generation-authenticated
   `LunaRequestSemanticStorage` foundation can now stream structurally bounded
   stop-token, stop-string, cache-scope, permission, and inference-limit data
@@ -330,8 +898,8 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   enforces the hard pre-frame and exact request deadlines, compares the selected
   model digests bytewise before input mutation, and accounts receipt bytes plus
   scanner/import work under the same lane ceiling. The native one-shot endpoint
-  composes this path; reusable and multi-connection ingress orchestration
-  remains open.
+  and both serialized reusable Servers compose this path; concurrent
+  multi-connection ingress orchestration remains open.
 - A transport-neutral `LunaOnlineFramedCoordinator` now exclusively composes
   one direct-framed preparation pool, one persistent online instance, and one
   cooperative framed-event workspace under a shared monotonic clock. It owns a
@@ -348,7 +916,7 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   positive-controlled release-C and exact MBTI gates cover warmed transport
   paths and capability opacity. This coordinator itself is not a TCP listener
   or socket writer. The separate one-shot endpoint owns one connection and
-  kernel partial-write retry; reusable connection arbitration, host timer
+  kernel partial-write retry; concurrent connection arbitration, host timer
   wakeups, and multi-client fairness remain the next network-adapter boundary.
 - A native-only, private online-TCP output scratch now owns one dynamic `Bytes`
   payload backing and a retained mutable `FixedArray[Byte]` view of that same
@@ -377,8 +945,10 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   little-endian plan and completion frames now detach that protocol from heap
   owner capabilities: each receive validates checksum, exact counts/ranges,
   identities, sampling fields, outcomes, and canonical table coverage before
-  replacing an epoch. Startup scratch provides O(n log n) uniqueness checks
-  and O(1) completion-slot lookup without steady-state allocation. The service
+  replacing an epoch. Startup-sized open-addressed identity tables provide
+  O(1) duplicate and completion-slot lookup without steady-state allocation.
+  Plan construction fills each scalar draft and its retained tables in one
+  pass. The service
   authenticates each received completion frame against the retained exact plan
   and converts it into the paired scheduler completion owner without retiring
   work, preserving publication-backpressure retry. An exclusive worker-side
@@ -390,7 +960,17 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   epoch, applies validated scalar sampling fields, and freezes a canonical
   completion frame directly; no scheduler plan or completion owner is
   reconstructed in the isolated side.
-  The private native layer now provides shell-free exact-executable spawn, an
+  The private native layer now provides shell-free descriptor-pinned
+  exact-executable spawn. Linux admission snapshots and hashes one no-follow
+  descriptor, copies the authenticated bytes into an exactly sealed memfd,
+  and later duplicates that opaque capability into `fexecve(5)` without a
+  second pathname open. Unsupported live-spawn platforms fail closed. Parent
+  signals are blocked before fork; the child resets every catchable
+  disposition while blocked, closes descriptors 6 through `UINT_MAX`, and
+  installs its empty final mask immediately before exec. The public raw-path
+  preparation surfaces have been removed; test fixtures authenticate through
+  the same admission and remain outside generated production APIs. The layer
+  also provides an
   inherited socketpair endpoint authenticated by construction, fixed-buffer
   exact I/O with an unbounded idle first-byte wait and bounded partial-frame
   deadlines, bounded wait/terminate, and deterministic kill/reap close. A legacy
@@ -401,13 +981,15 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   channel now has a separately linked child-side frame runtime and gates
   covering three monotonic echo exchanges, A/B/A reuse, retained
   response inspection, EOF, zero exit, and reap. That legacy echo child
-  performs an exact checksummed Configure/BootstrapSource/Ready handshake that binds model
+  performs an exact checksummed
+  Configure/BootstrapSource/ParentApprovalAttestation/Ready handshake that binds model
   identity, an admitted-bootstrap SHA-256 derived from graph/artifact evidence,
   a bootstrap-source SHA-256 derived from canonical `EncodedBootstrapSource`
   bytes, model generation,
   exact process-visible device ordinal, predecessor, worker limits, and
-  inference limits. It canonically decodes and checks the source before the
-  fixture publishes protocol readiness. Startup
+  inference limits. It canonically decodes and checks the source and consumes
+  the exact launch-bound one-shot parent attestation before the fixture
+  publishes protocol readiness. Startup
   cleanup retains explicit authority after a double failure, and submission
   rejects a foreign model generation before transport mutation. The echo child
   returns deterministic protocol completions rather than opening CUDA; the
@@ -435,21 +1017,22 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   ordinary approved roots, constructs both mutable owners internally, and
   publishes a one-shot ready-or-cleanup shell. The alias-taking constructor is
   fixture-only. Worker buffers, child ownership, executable snapshot, and
-  Configure/source/expected-Ready frames are preallocated before root
+  Configure/source/parent-attestation/expected-Ready frames are preallocated before root
   acquisition; native spawn, scalar handshake validation and cleanup, and
   owner publication allocate no managed objects with rooted authority live.
   The owned service now also makes a permanent Raw-versus-Online family
-  choice. Its restricted epoch lease authenticates sequential streaming
-  request epochs, exact generation/position/publication order, monotonic
+  choice. Its restricted epoch lease authenticates startup-bounded streaming
+  request lanes, exact generation/position/publication order, monotonic
   admission/deadline
   time, cancellation cuts, worker-loss recovery, and deterministic close
   without exposing scheduler/process/handle owners. The alias-free
-  `LunaOnlineInstance` prepares that worker once, consumes one externally
-  prepared `LunaPreparedRequest` claim at a time under a fresh opaque ticket,
-  publishes one canonical Accepted credit, and provides exact request
+  `LunaOnlineInstance` prepares that worker once, consumes externally prepared
+  `LunaPreparedRequest` claims into fixed lanes under fresh opaque tickets,
+  publishes through one canonical event credit, and provides exact request
   retirement plus off-reactor abort/recovery/instance-shutdown paths. Healthy retirement
   preserves the worker, lease epoch, publication cursor, and plan history;
-  worker/protocol/device failure remains close-only. The instance owns no
+  worker/protocol/device failure cooperatively replaces the worker before the
+  affected request's recovered terminal is published. The instance owns no
   tokenizer or raw receipt state; Busy and Draining leave prepared authority
   retryable, exact preparation mismatches fail before lower mutation, and
   destructive claim transfer rejects retained-alias replay.
@@ -500,11 +1083,21 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   randomized ownership fixtures. Canonical inline `PageIdStorage` and
   `BlockTableIdStorage` retain optional identities without boxed option cells;
   they do not acquire or release the underlying resources.
-- A fixed-capacity logical token-prefix trie with full-page-only longest-prefix
-  reuse, complete cache identity salting, generational entry IDs, transactional
-  result buffers, active references, deterministic zero-reference eviction,
-  and explicit bounded linear-scan complexity. It never owns device memory or
-  mutates physical page ownership.
+- A compressed startup-preallocated token radix with full-page-only
+  longest-prefix reuse, complete cache identity salting, fixed entry/node/token/
+  page/scope arenas, transactional result and publication buffers, active
+  references, and deterministic priority/LRU zero-reference eviction. The
+  scheduler integrates lookup, page/block-table acquisition and rollback,
+  final-prefill publication, cache-disable/read-only/read-write policy,
+  fairness-bounded reusable-depth priority, and bounded cache telemetry. The
+  full salted-root and `(root,parent,first-token)` child indexes are balanced;
+  every arena uses an `O(1)` free stack, the exact zero-reference victim is a
+  min-heap, duplicate pages are rejected by fixed-scratch heapsort, direct
+  protector metadata avoids descendant scans, and compaction visits only the
+  changed ancestry. Waiting slots retain logical candidate evidence only;
+  activation exact-revalidates and transactionally acquires references with
+  rollback at every scheduler checkpoint. The radix package owns no device
+  memory and imports no device implementation.
 - Focused scheduler and cache configuration records for token/request budgets,
   chunked prefill, waiting-age policy, the two-plan-buffer invariant, bounded
   generated-token publication, physical page/block-table limits, prefix
@@ -544,83 +1137,372 @@ not complete until every gate in [PLAN.md](PLAN.md) passes.
   an admitted host snapshot, closes the root, and produces offline greedy
   tokens.
 - A reusable depth-bounded JSON duplicate-key guard for map-backed parsers.
+- A Phase 5 kernel-program and offline-release foundation spanning
+  semantically neutral LunaTile validation/serialization, a generic
+  deterministic serial-reference CUDA translation for affine copy,
+  asynchronous copy, barriers, pipeline stages, MMA, reductions, and
+  elementwise operations, and exact BF16 family reference
+  lowerings for embedding, RMSNorm, positioned RoPE, residual, projections,
+  gated MLP, and mixed paged attention, one closed deterministic CUBIN builder,
+  and deterministic schema-v2 full-graph manifest production. Pointwise,
+  projection, and paged-attention artifacts use a non-circular candidate ->
+  offline compile -> final-contract binder, and bundle admission accepts only
+  those opaque bound forms. Authenticated startup may select the embedded AOT
+  greedy reducer, while temperature/top-k/top-p remain on the preallocated host
+  path; no sampling placement decision occurs in a token step. The execution owner now enqueues the
+  exact BF16/I8 graph and waits once rather than synchronizing every operation.
+  Its startup-only CUDA graph seam can capture that exact prebuilt function,
+  geometry, and operand sequence into one reusable graph exec on the retained
+  stream. Optional ABI absence falls back only under the explicit fallback
+  policy; required capture fails closed. No warmed path builds or updates
+  nodes, and graph/event close failures retain dependency leases for retry.
+  Opaque graph telemetry derives captured hits or ordered-eager misses from the
+  actual private executor mode, retains the authenticated selected shape, and
+  updates allocation-free saturating counters only after successful completion.
+  Fake-driver and ASan/UBSan evidence pass. A capture-required sm120 add-one
+  probe also passed 128 exact launch/poll/close cycles without selecting eager
+  fallback. A typed BF16 release producer now turns exact two-build CUBIN
+  evidence into catalog-v3 families, full launch contracts, strict family
+  bindings, a canonical schema-v2 manifest, and an exact kernel-root plan. Its
+  two-layer fixture proves 21 operations reuse nine physical modules without
+  catalog ambiguity. The authenticated model-plan candidate export and strict
+  offline compilation join are complete. Authenticated graph-memory accounting
+  now distinguishes eager-only absence from a v2 declared capture upper bound,
+  includes the bound exactly once in the startup ceiling, and rejects missing,
+  unsupported, under-ceiling, or overflowing joins. A separate profile-priority
+  admission deterministically binds stateless full-context observations to the
+  immutable plan and target and identifies the largest self-time operation. It
+  also has a disjoint paged path derived from an admitted launch set, with
+  exact mixed-row/cache/position/page geometry, a trace-only page-table digest,
+  and bounded sorted operation counters. It has no profiler, compiler,
+  kernel-promotion, or runtime authority. The separate evidence-gated LunaTile
+  promotion owner remains inert until a real-operation specializer maps exact
+  operands, shape, and numerical contract. Broad shape coverage and
+  performance remain unclaimed.
+  A native approved-tiny-model campaign harness now pins the exact upstream
+  model content, upstream tokenizer, canonical single-row plan, legacy runtime
+  recipe, and independently supplied child executable digest. It reaches the
+  production spawned child/service preparation and an owner-preserving offline
+  validator submits one fixed two-token framed request through the existing
+  service boundary. Only the pinned `1031,2185` token events, consecutive
+  one-row/one-token prefill/decode plan sequences, same-page KV residency, and
+  terminal Usage/Completed facts can produce its opaque result. The validator
+  deterministically disconnects, drains, closes, and reaps before returning;
+  it exposes no service, worker, device, scheduler, or selected logits. This is
+  The r14 physical campaign passed this pre-listener path. The later r17
+  campaign crossed the production native loopback listener and passed the
+  exact five-event request plus network/KV/listener/child balance. This remains
+  one bounded request, not broad, concurrent, TLS, or performance proof.
+  A separate product-owned offline exporter now lowers an authenticated
+  `ModelPlan` into the exact canonical candidate declaration, generated CUDA
+  sources, typed recipes, and independent SHA-256 inventory consumed by the
+  offline BF16 builder. Publication is atomic and no-overwrite. Its native
+  adapter authenticates and closes the approved model root before exporting
+  the fixed sm120 envelope with an exact bounded compiler major/minor/patch
+  identity. It invokes no compiler and owns no process, device, runtime,
+  worker, or serving authority. The separately approved CUDA 13.1.115 campaign
+  has compiled and executed the pinned model, while the exporter itself still
+  confers no readiness.
+  No production path imports compiler/process authority or performs JIT.
+- A Phase 6 operator foundation spanning strict byte-bounded configuration
+  documents, focused immutable records and startup explanations, inspection-
+  safe kernel metadata, and `run`, `doctor`, `plan`, `bench`, and
+  `inspect-kernels` preflights. A strict `lunaflux.runtime.v1` loader accepts
+  an independently pinned descriptor plus separately approved model and kernel
+  roots, then composes the existing model, weights, KV, execution-manifest,
+  bootstrap, startup-contract, and inert device-worker admissions. It opens no
+  device and retains no root; host plan and kernel inspection may succeed even
+  when physical hardware admission does not. Legacy run/bench preflight always
+  reports false readiness instead of inventing model, kernel, benchmark, or
+  service state. The separate digest-suffixed one-argument `run` path admits a
+  fixed launch envelope and exact instance policy, verifies its worker binary
+  and assigned CUDA target, and composes the existing live worker/service/TCP
+  owners. It can publish readiness only while that exact listener and lower
+  service remain live; drain or failure clears readiness. The offline
+  deployment-bundle assembler requires exact launch/model/policy/kernel/library
+  inventories, preserves model bytes outside the OCI rootfs, never overwrites
+  an output, and rejects substituted or ambient files, PTX/JIT content, and
+  injected partial-transfer failure. `lunaflux validate-release` shares the
+  live startup semantic join and authenticates descriptor, policy, model,
+  kernels, tokenizer, bootstrap, and worker executable without device,
+  process, or listener authority; it closes all approved roots before returning
+  canonical digest evidence. The separate atomic materialization workflow now
+  pins a digest-authenticated host preflight executable, claims one new output,
+  assembles beneath that private claim, and maps each no-follow staged source
+  capability to the exact final absolute label encoded by launch/bootstrap
+  evidence. It publishes only after semantic evidence, tool/materializer
+  digests, exact inventories, and source-target/no-overwrite flags verify.
+  Semantic rejection, target substitution, and injected partial publication
+  before verified-stage installation remove the exact empty claim and retain no
+  output. Publication itself is now an explicit recoverable v2 transaction:
+  canonical output and current uid are claim-bound, prepared evidence binds the
+  exact inventories, and only the six-entry prefix state can resume. Crash
+  fixtures cover every prefix transition; hard-link, symlink, FIFO, unknown,
+  non-prefix, canonical-output, and inventory substitutions are refusal-only.
+  Recovery never recursively deletes an output. This does not prove the supplied
+  tool's build provenance, an OCI image, SBOM, reviewer approval, or physical
+  inference.
+- Restrictive top-k sampling now uses fixed-scratch `O(V log K)` selection with
+  canonical logit-descending/token-ascending ties. Unrestricted and top-p
+  sampling retain canonical `O(V log V)` ordering for exact floating-point and
+  RNG replay. Whole-row finite validation precedes output mutation.
+- Multi-request online publication routing is a startup-preallocated one-probe
+  table authenticated by exact worker generation and live request identity;
+  terminal retirement clears the exact mapping only after lower retirement.
+  Native and OpenAI servers share one private telemetry bridge with exact-once
+  unsigned prefix-counter deltas, current gauges, plan histograms, KV-total and
+  shape drift detection, and sticky degradation.
+- The inert benchmark-evidence package now admits at most 8,192 canonical
+  terminal request records per trial, rejects reordered/missing/malformed or
+  overflowing measurements, and derives deterministic integer nearest-rank
+  p50/p95/p99 queue, TTFT, service, decode, and end-to-end summaries. Separate
+  domain-bound raw and summary digests retain every failure/rejection and feed
+  the existing complete three-engine/nine-profile/three-trial comparison.
+  This is evidence structure, not a runner or performance claim.
+- Phase 5 now also has two isolated block-128 fused AOT families: QKV with
+  positioned RoPE and paged split-K/V write, and residual addition with the
+  immediately following RMSNorm. Exact plan adjacency, BF16 shape/layout,
+  target, strict compiler, profile, fallback identities, operands, alignments,
+  source, recipe, toolchain, numerical policy, and dispatch canary are bound.
+  A source-owned qualification exporter derives their exact canonical envelope
+  from the authenticated model plan and KV layout and publishes it atomically
+  without compiler, device, runtime, or promotion authority. An independent
+  test-only scalar referee covers four page-boundary shape classes with fixed
+  tolerances and exact-cell corruption detection. The existing closed offline
+  builder accepts both exact fused recipe schemas, and a typed candidate-only
+  binder requires two byte-identical CUBINs plus the canonical receipt and a
+  separately pinned receipt digest while binding source, recipe, compiler,
+  target, geometry, symbol, and ABI. Scalar differential, page-edge, canary,
+  deterministic lowering, hostile substitution, static-resource, exporter,
+  builder, and compiled-binding tests pass locally. A source-only physical
+  campaign now composes deterministic double builds, the public device facade,
+  exact-cell scalar comparison, memcheck and racecheck, typed evidence
+  admission, and independent artifact/measurement/outer seals without a
+  self-referential digest. `CAMPAIGN_RESULT.txt` is covered by the outer
+  manifest. Admission binds the two asserted inner manifest digests but does
+  not inspect or certify filesystem modes. Hostile fake-tool transactions reject
+  dirty or ambiguous sanitizer output, runtime stderr, tool identity drift,
+  noncanonical numerics, partial output, overwrite, and unsafe output names.
+  A separate fixed-shape paired benchmark evidence package remains inert and
+  makes no timing claim. Production V2 lowers away qualification canaries and
+  supplies exact startup-admitted runtime artifacts. Both legacy Llama and
+  numeric-BF16/Mistral worker APIs prepare the residual/RMSNorm and
+  QKV/RoPE/KV-write/read-only-attention replacements while retaining the
+  standalone path when optional artifacts are absent. Descriptor-pinned
+  optional artifacts now reach deployed Llama and numeric-BF16 children, with
+  the QKV aggregate admitted only after live-device identity authentication.
+  Physical CUDA correctness,
+  sanitizer/race, benchmark-win, mixed-workload, and reviewer evidence remain
+  open.
 - A repository guard for package direction, sibling-product independence,
   CUDA ABI ownership, Python exclusion, temporary debt markers, and source-size
   review thresholds.
 
 ## Explicitly not implemented or not yet proven
 
-- The typed LunaTile IR and its offline specialization system are Phase 5
-  architecture, not current implementation. Existing model, device, execution,
-  launch-contract, catalog, and artifact-admission types establish inputs to
-  that future boundary, but LunaFlux does not yet partially evaluate them into
-  typed specialization records or generated kernel families. No current
-  artifact therefore claims baked model/layout/codebook constants, a
-  specialization compiler, or specialization-specific differential and
-  end-to-end benchmark evidence.
-- The tokenizer shipped with the pinned upstream model uses SentencePiece
-  normalization, template processing, unknown-token fusion, and byte fallback,
-  and is correctly rejected rather than approximated by the selected
-  ByteLevel-BPE contract. The selected ByteLevel subset is independently corpus
-  validated, and the checked-in synthetic compatibility fixture now proves its
-  text-to-model composition against this model. Production use still requires
-  an independently approved tokenizer with suitable trained semantics; the
-  synthetic fixture is not such an artifact.
+- Phase 5 now has deterministic CUDA source emission for the initial BF16
+  families, a physically exercised offline CUBIN builder, non-circular
+  candidate-to-final binding for pointwise/projection/attention, and a complete
+  typed reference-kernel bundle producer. All eight BF16 reference families
+  and the capture-required primitive graph lifecycle passed scoped sm120
+  correctness probes. A complete tiny twelve-launch paged-BF16 graph then
+  passed 128 required-capture cycles with mixed prefill/decode KV writes,
+  fourteen independently refereed boundaries, exact fixture logits/token,
+  closed resources, and empty stderr. A bounded five-case shape matrix then
+  passed 40 captured graph launches. The pinned upstream tiny BF16 model also
+  passed physical sm120 execution from its canonical 21-operation offline AOT
+  build: eleven selected logits matched within `0.0005459413`, greedy tokens
+  were `1031,2185,688,2844`, same-page KV persisted, and resources closed.
+  The pinned spawned worker/service path now has one physical two-token
+  pre-listener execution pass with exact plan/KV balance and child cleanup.
+  One bounded native-listener request now passes physically. Optimized kernels,
+  broader production shapes and contexts, leak/soak coverage, and
+  kernel/end-to-end benchmarks remain open. External
+  deployment approval is binding evidence. LunaFlux does not independently
+  verify the deployment's detached-signature scheme; it authenticates the
+  startup-supplied approval binding privately.
+- The exact tokenizer shipped with the pinned upstream model is now admitted by
+  a closed SentencePiece-derived BPE profile covering its normalization, BOS
+  template, complete byte fallback, fused-unknown policy, and ordered decoder.
+  Its independently recorded token IDs and empty-input text-to-model reference
+  execution pass through the authenticated production loader. General
+  SentencePiece variants remain rejected; production use still requires an
+  independently approved tokenizer artifact and deployment identity.
 - The streaming device loader now uses pinned approved-root and regular-file
   capabilities rather than ambient string paths. Deployment approval and
   read-only mount policy remain external trust inputs. Low-level fixed
   descriptor-role inheritance, production supervisor retention across restart,
   and child reconstruction from those roles are implemented and proven.
-- Physical-CUDA validation of driver loading, transfers, modules, function
-  launches, events, numerical BF16 GEMM and AOT correctness, implicit-heuristic
-  shape support, and repeated resource balance. Local C stubs pass a manually
-  instrumented ASan/UBSan run, but the MoonBit runtime was not instrumented and
-  macOS leak detection was unavailable, so the full sanitizer/leak gate remains
-  open.
+- The 2026-08-27 NVIDIA campaign physically validates the private CUDA
+  primitive boundary on an RTX 5060 Ti: driver loading, 4 KiB transfers,
+  events, exact BF16 GEMM, PTX module/function loading, direct and ordered AOT
+  launches, and deterministic closure passed 128 cycles with unchanged device
+  memory. A generated residual-add CUBIN subsequently passed another 128 exact
+  BF16 ordered-executor cycles, and the digest-pinned reference paged-attention
+  fixture passed mixed prefill/decode output and KV-write comparison with
+  maximum absolute error `0.0104694`. A final current-fixture campaign compiled
+  and numerically checked embedding, RMSNorm, RoPE, residual, QKV, dense output,
+  gated MLP, and LM-head kernels for three adversarial live tokens. A separate
+  capture-required graph campaign passed 128 cycles without eager fallback. A
+  later complete synthetic mini-Llama graph composed twelve real AOT launches
+  for 128 captured cycles and matched all fourteen CPU-refereed boundaries,
+  both KV arenas, final logits, and greedy token exactly. These campaigns closed
+  with empty runtime stderr. The final integrated source snapshot
+  `8351d804...41ae8` repeated that graph result and also passed 1,902/1,902
+  Linux native tests, the portable 10,000-request Phase 2/3 balance proof, all
+  BF16 release and I8 software gates, CUDA ABI, both warmed device-worker
+  allocation gates, ordered-executor ASan/UBSan, Phase 2/3 diagnostic, and
+  release-evidence gates. Its I8 physical probe produced an explicit
+  fail-closed result before resources were opened: that sealed source admitted
+  only `sm89|sm90`. Current software admission also includes exact `sm120`, so
+  the older rejection remains historical rather than current policy. Eight native ASan/UBSan probes
+  and the CUDA/NCCL ABI gates also pass; the MoonBit runtime itself was not
+  sanitizer-instrumented.
+  The later clean-source campaign `d3d2a556...7064e` added approved tiny-model
+  BF16 numerical evidence on the same sm120 device, with authenticated weights,
+  AOT artifacts, required graph capture, same-page KV persistence, and closed
+  resources. Its final Linux native check was warning-free and 1,936/1,936
+  tests passed. That historical snapshot's hardware sweep repeated the
+  five-case BF16 shape matrix, its then-exact sm120 I8 rejection, bidirectional no-peer inventory, and
+  the CUDA-peer/topology/NCCL static sanitizer gates. Physical NCCL remains
+  unavailable. This is not positive I8, performance, or general readiness
+  evidence. A later r14 campaign separately proves the pinned spawned-worker
+  pre-listener service path.
+  A product-owned Phase-7 physical topology diagnostic now composes the CUDA
+  inventory, canonical directed peer matrix, strict typed topology admission,
+  and dynamic collective-runtime admission into deterministic immutable
+  schema-v1 evidence. The mixed sm120/sm75 no-peer machine is an expected
+  exit-zero rejection rather than degraded tensor parallelism; missing
+  `libnccl.so.2` remains a typed diagnostic and grants no communicator.
+  See [PHYSICAL_VALIDATION_2026-08-27.md](PHYSICAL_VALIDATION_2026-08-27.md).
+- The final 2026-08-28 integrated archive
+  `cfef45b...60bb` passed warning-denied Linux native check and 1,957/1,957
+  native tests. Its OCI, deterministic bundle-assembly, atomic
+  materialization, deployment-boundary, and spawned-execution static contract
+  gates passed with empty stderr. The same source repeated the approved tiny
+  BF16 model on sm120 with authenticated weights and AOT artifacts, required
+  graph capture, maximum selected-logit error `0.0005459413`, greedy tokens
+  `1031,2185,688,2844`, same-page KV persistence, explicit closure, and no
+  remaining compute process. The root-bound concurrent OpenAI pool also passed
+  slow/fast-client progress, connection reuse, retirement, and drain. This is
+  historical r9 result did not include spawned-worker physical CUDA. The later
+  r14 campaign closes that narrow token-level pre-listener gap; positive I8,
+  tensor parallelism, general serving readiness, and benchmarks remain unpromoted.
 - Physical and numerical proof for the new paged path. The semantic graph,
   host page/table ownership, reusable device descriptor, persistent device KV
   allocation, exact all-AOT launch ABI, artifact admission, physical blueprint,
-  synchronous owner-mediated full-graph dispatch, and aggregate readiness owner
-  are implemented. No
-  production paged-kernel bundle has yet passed real-CUDA model correctness,
-  sanitizer, leak, soak, or benchmark gates. Generated logits and sampled
-  completions are structurally wired through the spawned child and worker
-  service, but that path has not passed physical-CUDA numerical validation. The
+  single-wait ordered full-graph dispatch, and aggregate readiness owner
+  are implemented. The synthetic twelve-launch graph and pinned tiny-model
+  21-operation graph have now passed real-CUDA logits, sampled-token, KV-write,
+  capture, and closure validation, and a bounded five-case shape matrix passed.
+  The r14 approved deployment crossed the spawned child and owned framed-
+  service path for one pinned two-token request, with exact `1031,2185`
+  output, consecutive prefill/decode plans, one-page geometry, balanced
+  retirement, empty stderr, and full child/device cleanup. A later r17
+  campaign crossed the actual native loopback listener with exact event order,
+  one accept/disconnect, restored 32-page balance, and closed listener/child
+  authority. Broader shape/context, full leak/soak, TLS, and comparative
+  benchmark gates remain open; the latest final7 campaign closes the bounded
+  broad-listener qualification described above.
+  A fresh portable current-source r20 requalification then passed all 12
+  bounded physical cases on the same sm120 GPU: the warning-denied Linux check,
+  primitive and BF16-family probes, paged attention, 128-cycle complete graph,
+  five-case/160-launch shape matrix, and two byte-identical approved-model
+  runs. The selected-logit error remained `0.0005459413`, tokens remained
+  `1031,2185,688,2844`, resources closed, and no compute process survived. A
+  separate listener rerun repeated the exact five-event stream and balance.
+  That snapshot again rejected I8 on sm120 and the heterogeneous sm120/sm75
+  no-peer topology before resource authority; current software admission has
+  since added exact sm120. These results do not
+  add cached-prefix, positive I8, homogeneous tensor-parallel/NCCL,
+  concurrency, soak, or performance evidence.
+  The
   stateless reference interpreter remains the correctness oracle and
   deliberately recomputes full sequences.
-- Reusable public network ingress/API adapters, continuous batching with
-  global fairness/preemption, live worker overlap, physically proven paged
-  execution, prefix integration, or telemetry. The public in-process
+- TLS, HTTP keep-alive/pipelining, or broad spawned-service paged/cached
+  execution and listener concurrency. The public in-process
   `LunaOnlineInstance`
-  retains one worker across sequential healthy requests and implements
+  retains one worker across startup-bounded concurrent request lanes and implements
   generated-text decoding, sampling-result consumption, exact
   one-credit Token/Usage/Completed/Failed publication, cancellation, deadlines,
-  request retirement, explicit drain, and close-only failure terminalization.
+  request retirement, explicit drain, and cooperative failure recovery with a
+  canonical failure terminal before the restarted worker is reused.
   The
   scheduler registry/lifecycle, worker, sampling, page-allocation, block-table,
   prefix-index, and runtime-capacity foundations exist, and the scheduler,
   root-bound service, spawned device child, and device-worker aggregate are now
-  connected. The native one-shot TCP endpoint proves one serialized connection
-  and framed protocol path, but there is still no reusable listener,
-  multi-client protocol adapter, host off-reactor executor, or physical-CUDA
-  serving evidence, so no bounded-latency serving claim is made.
+  connected. The native pipeline server proves two live requests, a real
+  two-row/two-token plan, deterministic global event order, cancellation
+  isolation, and balanced lane/KV retirement on one socket. The reusable
+  native-framed and OpenAI HTTP servers prove listener reuse and bounded
+  telemetry. The bounded root-bound OpenAI connection pool now proves that a
+  slow client cannot block a fast client, and proves exact connection reuse,
+  retirement, and drain. There is still no TLS, HTTP keep-alive/pipelining,
+  public-network promotion, or broad context/profile evidence. The latest
+  final7 campaign adds bounded physical concurrent-request, saturation,
+  rejection/recovery, restart, drain, and one-request latency qualification;
+  it does not make a general production-latency claim.
 
-The `lunaflux doctor` command reports the semantic CUDA inventory, bounded
-reference loading, and offline executor status. `lunaflux plan` now
-authenticates model configuration and reports the derived semantic plan,
-required capabilities, and exact KV-capacity decision without materializing
-weights or resolving a kernel manifest. `lunaflux reference` reads
-digest-pinned files and runs the correctness executor. All retain production
-readiness as false.
+Canonical `lunaflux doctor`, `lunaflux plan`, and
+`lunaflux inspect-kernels` now take the same digest-suffixed deployment operand
+as `run` and `bench`. They authenticate the recipe-specific runtime-instance
+join, close every root, and publish only root-free evidence without opening a
+device, spawning a child, or binding a listener. Malformed and unpinned
+operands cannot fall through to weaker model-root preflight. The older host,
+MODEL-only, separate-root, and caller-declared configuration diagnostics remain
+only under visibly named `legacy-*` compatibility commands and never report
+readiness. `lunaflux reference` remains the digest-pinned correctness executor.
+A compiler/JIT-free OCI source contract, exact
+context/base verifier, Linux-only build wrapper, hostile static gates, and
+deployment runbook now exist. Their structural packaging, assembly,
+materialization, and deployment-boundary gates passed on Linux in the sealed
+final7 campaign, but no approved Linux/CUDA image, base/builder provenance,
+final-rootfs/SBOM scan, reproducible final digest, or physical image readiness
+is proven. A separate deterministic final-release inventory now joins the
+externally approved OCI digest, SBOM, license inventory, provenance, kernel
+manifest, rootfs scan, runtime contracts, and exact source identity while
+preserving exact authenticator/tool bytes and replaying every approval.
+Hostile substitution, symlink, hard-link, cross-subject replay, authenticator
+substitution, no-overwrite, deterministic replay, and partial-publication
+gates pass locally. The external authenticator allowlist and actual approved
+artifacts are not fabricated by this wiring, so this is not a completed
+image/release claim. Doctor preflight is not service activation. All incomplete
+paths retain production readiness as false.
 
-## Next correctness gate
+## Next first-release gate
 
-Phase 1 promotion still requires `doctor` evidence for admitted model files and
-the resolved kernel manifest, weight-verified extension of the current semantic
-`plan` report, and a physical-CUDA runner proving
-transfers, module/function launches, BF16 GEMM and AOT numerics, balanced
-repeated load/run/unload, concurrent resource stress, and the complete
-sanitizer and leak gates. Physical concurrency/race evidence also remains open.
-Physical device-KV correctness and true cached decode evidence remain open.
-Performance and production-readiness claims remain out of scope until physical
-correctness, resource balance, soak, and benchmark evidence passes.
+The authenticated single-GPU BF16 loader, complete paged execution path,
+spawned worker, bounded native listener, pinned cached-prefix case, exact
+resource balance, and one real-timestamp LunaFlux measurement now have physical
+evidence. Loopback health/readiness and the inherited local drain capability
+are now implemented and locally proven. The remaining first-release work is
+physical and publicly routable approval for those controls, deployment-owned
+TLS/authentication/generation fencing, a fresh current-v3 24-hour
+soak, physical context-churn/actual-context and broader device-leak coverage,
+the full pinned and counterbalanced LunaFlux/vLLM/SGLang comparison, an approved final
+OCI with SBOM/provenance/rootfs scan, and an actually routable opaque LunaNexa
+deployment with reviewer acceptance. Full MoonBit-runtime sanitizer
+instrumentation and broader physical concurrency/race evidence also remain
+open. Positive I8 and tensor-parallel/NCCL evidence are later capability gates,
+not blockers for the initial single-GPU BF16 release.
+
+The sibling LunaNexa repository now also has an authenticated rollout-scoped
+ten-subject promotion verifier with deployment-injected HMAC-SHA256 key
+ownership, constant-time receipt authentication, deterministic key wiping,
+private catalog construction, and hostile substitution/replay coverage. The
+legacy caller-claim inspector remains deliberately non-routable, and no public
+catalog or approval-input constructor exists. Production keys and policies,
+issued signed receipts, and an approved catalog entry remain deployment-owned;
+none is committed, so no deployment has been promoted.
+
+LunaFlux external approval is now capability-safe: public signed evidence is
+inert, the admitted approval is opaque, and the HMAC-SHA256 verifier exact-binds
+immutable rollout policy, manifest bytes, detached envelope, and approved
+source with closed-state rejection, constant-time tag comparison, and key/pad/
+digest wiping. No public arbitrary-key constructor exists. The trusted
+startup verifier-key handoff and per-child one-shot attestation bridge are now
+integrated, and legacy worker bootstrap approval claims still fail closed.
+Promotion nevertheless remains inert because no deployment-issued key/policy,
+signed receipt set, approved catalog entry, sealed performance evidence, or
+real-operation mapping is committed. Baseline inference does not depend on
+this promotion seam and is unaffected.

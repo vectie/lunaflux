@@ -6,6 +6,35 @@ Benchmarks decide whether an optimization ships. They do not decorate release
 notes. Every comparison records enough information to reproduce model,
 hardware, software, workload, warm-up, and measurement conditions.
 
+The executable `benchmarks/evidence` admission package enforces the comparison
+shape before any summary can become release evidence. It requires all three
+engines, all nine workload profiles, three trials per engine/profile, complete
+request-outcome accounting, correctness evidence before speed, independently
+bound raw events and summaries, and a counterbalanced engine order. It emits a
+canonical digest only; admission is not a performance result or promotion.
+
+The separate `benchmarks/runner` package now owns executable, startup-bounded
+request lifecycle collection for one trial. It samples the process-monotonic
+clock at millisecond resolution, records canonical submit/admit/first-token/
+terminal transitions, rejects rollback, duplicate requests, missing terminal
+outcomes, capacity drift, and integer overflow, and passes exact ordinal-ordered
+records to `benchmarks/evidence`. It has no process, filesystem, network,
+device, correctness, or baseline authority. Future pinned LunaFlux, vLLM, and
+SGLang campaign adapters own those capabilities outside the collector and must
+bind their configuration and clock/collection schema into published evidence.
+
+The host-side `scripts/run-openai-comparison-campaign.sh` now supplies that
+external-process wiring without entering the serving runtime. It authenticates
+the existing Responses declaration, requires independently pinned process,
+trial, correctness, and live-engine-identity tools, observes exact
+revision/image/configuration/executable identities before every trial, executes
+the complete 81-trial matrix in fixed Latin-square order, seals byte-exact raw
+captures and correctness artifacts, and invokes the existing offline replay.
+Timeout/cancellation and empty-process-group receipts are mandatory. Its
+deterministic handoff remains authority-free until an external verifier joins
+the real correctness artifacts to `benchmarks/evidence` and named reviewers
+accept the physical comparison.
+
 ## Baselines
 
 Pin exact revisions or container digests for:

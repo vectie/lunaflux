@@ -54,6 +54,27 @@ Preallocated arrays, views, arenas, integer capability IDs, and bounded rings
 are preferred. Performance-sensitive unsafe/native code requires a safe wrapper
 and a differential test.
 
+## Hardening and validation placement
+
+- Authenticate deployment, artifact, and live-device identity once during
+  startup admission; retain the resulting typed runtime state.
+- Production token execution must not perform cryptography, filesystem
+  validation, evidence rendering, diagnostic host/device transfers, canary
+  observation, or qualification-only scans.
+- Runtime packages consume admitted model, kernel, and device contracts. They
+  must not depend on release-evidence or campaign packages; physical evidence
+  decides promotion in the release pipeline, not dispatch inside the engine.
+- Ingress keeps only the bounded parsing, credential, and request checks needed
+  for untrusted input. It must not replay artifact or deployment admission.
+- The normal edit loop is formatting, warning-denied native checking, and tests
+  for affected packages. Sanitizers, physical hardware campaigns, soaks,
+  benchmarks, and release assembly run only for their changed boundary or a
+  phase/release gate.
+
+Hardening that materially increases steady-state latency, memory traffic, or
+routine edit/test latency requires an architecture decision and a measured
+justification. Prefer moving it to startup or an explicit qualification mode.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.
@@ -84,6 +105,10 @@ No feature is complete without:
 - compatibility failure fixtures;
 - benchmark comparison when a hot path changes.
 
+The aggregate repository boundary also runs the native MoonBit compiler with
+warning 73 enabled and warnings denied. Redundant package annotations therefore
+remain a checked debt boundary instead of relying on periodic manual cleanup.
+
 Snapshots are reviewed evidence, not blindly updated output.
 
 ## Removal rule
@@ -109,4 +134,3 @@ Every change should answer:
 6. Are public errors bounded and payload-safe?
 7. What deterministic test proves the transition?
 8. What benchmark would expose a regression?
-

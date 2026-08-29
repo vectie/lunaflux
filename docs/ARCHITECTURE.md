@@ -2,7 +2,7 @@
 
 This document defines the target architecture. Implemented evidence and open
 gates are recorded in [STATUS.md](STATUS.md); present-tense topology below does
-not by itself claim that the online service or device-KV path exists today.
+not by itself claim physical-CUDA readiness or release performance.
 
 ## System context
 
@@ -117,7 +117,12 @@ rings, host page/block-table owners, and distinct paired reusable A/B plan and
 completion owners. `build_next` transactionally
 activates eligible requests, reserves decode resources before prefill, emits the
 protocol's prefill-first row order, and restores exact plan/table/page identity
-on failure. Exact-epoch completion leases and ordered full-batch retirement
+on failure. Eligible aged prefills precede decode, while a persistent decode
+cursor provides global round-robin service among ready decode rows.
+Recompute-only preemption selects a non-inflight victim in persistent cursor
+order, releases its device-derived KV pages, retains dense generated-token
+history, and replays the prompt plus generated history except the latest
+retained decode input. Exact-epoch completion leases and ordered full-batch retirement
 preflight publication and KV-release obligations before state mutation, then
 publish final-prefill/decode tokens and recycle exact owners. Corresponding
 plan/completion data can now be detached from heap capabilities through
@@ -132,8 +137,9 @@ pairs, permits two monotonic submissions, receives oldest first, and retains a
 validated completion epoch until scheduler acceptance succeeds. A separately
 linked inherited-channel child proves the complete framing lifecycle with
 deterministic protocol completions. Before plan traffic, the parent sends a
-fixed Configure frame followed by the canonical bounded bootstrap source. The
-child decodes and verifies its independently bound digest before Ready. Configure
+fixed Configure frame, the canonical bounded bootstrap source, and one
+parent-approval attestation. The child decodes and verifies the source plus
+that exact launch-bound attestation before Ready. Configure
 binds the exact model identity, an admitted-bootstrap SHA-256 derived from
 graph/artifact evidence, a bootstrap-source SHA-256 derived from canonical
 `EncodedBootstrapSource` bytes, process-visible device ordinal, model
@@ -141,13 +147,29 @@ generation, predecessor, worker limits, and inference
 limits; the supervisor publishes protocol readiness only after an identical
 Ready response. The admitted-bootstrap SHA-256 is derived from the admitted full-graph blueprint
 and artifact bundle's canonical module, symbol, launch, layout, operand,
-device-step envelope, and exact assignment evidence. A distinct service-owned
-immutable binding supplies the expected bootstrap and bootstrap-source digests,
-ordinal, and inference limits rather than trusting the child's echo; scheduler-retained
-identity, generation, predecessor, and exact worker limits complete the
-comparison at join and replacement.
+device-step envelope, and exact assignment evidence. The service retains a
+backend-neutral identity containing model identity and generation,
+bootstrap-source digest, worker limits, and inference limits. Single-worker
+bootstrap digest/ordinal and tensor-parallel rank/topology evidence stay in
+private physical bindings rather than being synthesized into one public shape;
+the scheduler predecessor completes the comparison at join and replacement.
 
-The canonical paged-Llama v1 execution source is admitted synchronously by
+Plan construction fills one scalar row draft and its retained
+token/page/capability tables in a single pass. Startup-sized open-addressed
+identity tables provide `O(1)` duplicate and completion-slot lookup;
+the worker validates one received frame once, stages it directly, and publishes
+completion against the same retained epoch.
+
+The deployment approval verifier key is not a public runtime input. Startup
+receives exact bounded bytes once through a narrow FD-7 capability, constructs
+the verifier privately, and deterministically wipes and closes the source
+before child activation. The deployment key never crosses into the child.
+After verification, the parent derives a fresh per-child one-shot attestation
+bound to the exact manifest, approved source, executable launch identity,
+generation, and ordinal. Missing, stale, substituted, and replayed records fail
+closed; absent external approval preserves the standalone baseline path.
+
+The canonical paged-Llama v2 execution source is admitted synchronously by
 `engine/execution_manifest_file` through a caller-owned approved root. Its
 opaque inert aggregate retains the exact plans, FullGraph contracts, admitted
 artifacts, and blueprint needed by device-worker admission without owning a
@@ -177,9 +199,11 @@ activation or spawn, each encoded absolute model/kernel label must match the
 exact corresponding caller-owned approved directory capability through
 no-follow opaque identity admission. Replacement continues from the retained
 pair and does not re-resolve ambient labels. The root-bound service admits one
-outstanding plan from the reusable A/B storage because the production child
-reads, executes, and publishes completion serially; two-slot overlap remains a
-legacy echo/transport fixture and future event-loop work. A failed child is closed and
+physical plan because the production child reads, executes, and publishes
+completion serially. During that flight the scheduler may construct and retain
+exact plan N+1 in the other A/B owner; a later call submits it only after N is
+retired from both scheduler and process. Concurrent physical two-slot exchange
+remains legacy transport evidence and future event-loop work. A failed child is closed and
 reaped before the service commits each exact submitted plan as a scheduler worker failure and
 retires its supervisor obligation in sequence order. The service then
 terminally invalidates every remaining device-backed request and
@@ -192,15 +216,25 @@ responses through scheduler backpressure, and exposes request/event methods so
 callers do not retain a separate mutable scheduler API alias. Production
 construction now starts from an immutable scheduler blueprint and ordinary
 approved roots, constructing both mutable owners internally; the old
-alias-taking constructor is explicitly fixture-only. Its independent
-binding is retained unchanged across replacements. Restart
-policy/backoff and live overlap remain open. Global fairness/preemption,
-prefix integration, and network ingress also remain open. The owned service
+alias-taking constructor is explicitly fixture-only. Its independent binding
+is retained unchanged across replacements. An explicit immutable online
+restart policy now applies capped exponential delay only after exact child
+cleanup, scheduler obligation retirement, and device invalidation. The
+existing lease clock drives cooperative cached scalar wake bounds; no owner
+sleeps. Attempts use private non-reusing generations, fail closed on clock,
+timestamp, generation, or attempt drift, and reset only after a committed
+sequence later than the current replacement's authenticated predecessor equals
+the scheduler's retired sequence beyond the stability deadline. One serialized
+spawned-child physical request has passed; concurrent physical child traffic
+remains open. Global scheduler fairness,
+recompute-only preemption, and compressed prefix reuse are implemented.
+The owned service
 now contains a restricted permanent
 Raw-versus-Online ownership lease with exact request/publication sequencing,
 trusted monotonic admission/expiry, recovery, and close authority. The public
-in-process `LunaOnlineInstance` above it owns one scheduler and rooted worker
-across sequential healthy request epochs. The cooperative fixed-lane
+in-process `LunaOnlineInstance` above it owns one scheduler and a rooted single
+worker or generation-scoped tensor-parallel group across a startup-bounded set
+of live request lanes. The cooperative fixed-lane
 preparation boundary consumes a trusted receipt into a revocable
 `LunaPreparedRequest` shell around one exact-generation claim. A central FIFO
 quantum owner advances retained UTF-8 tokenization, token copying, and
@@ -212,23 +246,40 @@ Busy, draining, and exhausted-epoch outcomes precede destructive claim transfer;
 foreign preparation bindings fail before semantic-event or scheduler mutation.
 Begin also preflights exact event-epoch headroom before publishing Accepted or
 consuming the claim. Each transferred claim is authenticated by an opaque Luna
-ticket. `take_event` issues the only request/event-epoch credit; its view grants
-read authority and its ACK alone advances the semantic owner. Framed and other
-protocol adapters receive only that view. Token decoding, cancellation,
-deadline enforcement, and terminal failure remain owned by the instance.
-Final acknowledgement retires only request-local state; the lease epoch,
-publication history, plan predecessor, and worker remain live. Explicit
-instance drain is the only healthy worker-close path, while authenticated
-worker, protocol, or device failure remains close-only. The byte-BPE layer,
+ticket. One global event credit serializes caller-visible publication across
+lanes; its view grants read authority and its ACK alone advances the exact
+semantic owner. Framed and other protocol adapters receive only that view.
+Token decoding, cancellation, deadline enforcement, and terminal failure remain
+owned by the instance. Final acknowledgement plus authenticated lower
+retirement recycles only that lane; other lanes, the lease epoch, publication
+history, plan predecessor, and worker remain live. Explicit instance drain owns
+healthy worker close. Authenticated worker, protocol, or device failure
+cooperatively restarts the worker before publishing the affected request's
+recovered terminal. The byte-BPE layer,
 canonical request-frame scanner, and request-preparation pool have reusable
 operation-budgeted Luna work. The pool captures trusted receipt time before
 byte one and imports a validated frame view directly into its preallocated
 token, semantic, and output owners without object-form request materialization.
 The object materializer remains a synchronous compatibility path; adapter
-dispatch and network transport remain above this aggregate. The native
-one-shot endpoint composes one such path without claiming a standalone reactor,
-reusable listener, or multi-client service. Child
-ownership, executable and fixed handshake storage are preallocated; native
+dispatch and network transport remain above this aggregate. Native one-shot,
+reusable max-one, fixed-lane pipeline, serialized OpenAI HTTP, and bounded
+OpenAI connection-pool owners compose that boundary. The pool provides exact
+fixed-capacity concurrent-client arbitration; none of these owners claims an
+unbounded or fleet reactor.
+The production runtime chooses between those owners from the authenticated
+preparation lane count: one lane keeps the singleton compatibility owner, while
+two or more lanes select the startup-preallocated native-framed or OpenAI
+connection pool. Instance admission already requires that lane count to equal
+the scheduler's total request slots, so ingress cannot create more request
+authorities than the service was built to own. For OpenAI Responses, the
+inference listener also serves the exact bounded `/healthz`, `/readyz`, and
+`/metrics` routes, so inference and observation have one origin and there is no
+second control listener. Native-framed mode retains a separate loopback-only
+HTTP control listener. Authenticated `private_network_plaintext` mode is
+limited to OpenAI on `0.0.0.0` or `::` inside an isolated deployment network;
+LunaNexa maps that wildcard publication to an inspected private container
+address. This grants neither public exposure nor TLS authority.
+Child ownership, executable and fixed handshake storage are preallocated; native
 spawn, scalar handshake
 validation and cleanup, and owner publication allocate no managed objects
 while rooted authority is live.
@@ -262,9 +313,14 @@ manifest. The v1 engine has one page size and one full-attention layout.
 The radix index answers which token prefix is reusable. The page allocator
 answers where reusable KV resides. These are separate packages.
 
-Each radix node stores token edges, immutable page runs, security/cache scope,
-reference count, and deterministic eviction metadata. It never stores a GPU
-tensor or device pointer.
+The implemented radix uses fixed startup arenas for path-compressed token
+edges, immutable full-page anchors, copied security/cache scope bytes, active
+references, and deterministic priority/LRU eviction metadata. It never stores
+a GPU tensor or device pointer. Scheduler lookup is bounded by the last fully
+reusable page before the request-private tail; acquired references and block
+tables are transactional, and cache publication occurs only after final
+prefill. Aged fairness remains absolute while unaged requests may use reusable
+depth as a deterministic priority.
 
 Only full pages are shared in v1. A partial tail remains request-private.
 Eviction removes only zero-reference cached runs. Prefix identity is salted by:
@@ -417,10 +473,81 @@ claim bit equality only when operation ordering is preserved; reassociating or
 vendor paths require an explicit tolerance contract. A microbenchmark win is
 insufficient when the operation is not an end-to-end hotspot.
 
-This subsection is target architecture. The current repository has typed model,
-device, launch, and artifact-admission foundations, but no LunaTile IR,
-specialization compiler, or specialization-record implementation yet; those
-belong to Phase 5.
+The current software foundation implements typed LunaTile views,
+instructions, constraints, validation, canonical serialization, deterministic
+memory planning, and canonical CUDA AOT planning input. Generic programs remain
+semantically neutral. Closed BF16 lowering families now emit deterministic
+source and recipes for embedding, RMSNorm, positioned RoPE, residual add,
+projection, gated MLP, language-model head, and paged attention. An offline
+builder compiles an already produced candidate set twice and publishes exact
+CUBIN bytes and receipts. Strict post-compile binders join those bytes to final
+catalog-v3 launch contracts, and the inert `luna_kernel_bundle` package proves
+full model-plan coverage while producing canonical schema-v2 manifest bytes and
+a content-addressed module inventory. Greedy sampling may use a separately
+authenticated AOT device reducer that publishes one fixed result cell per
+producing row. Temperature, top-k, and top-p retain an explicit startup-selected
+host mode; the authenticated bootstrap records that placement and it is never
+chosen inside the token step.
+
+Runtime manifest admission independently rederives the complete model, memory,
+KV, launch, and artifact contract before loading exact module bytes. The paged
+executor can use ordered eager execution or an explicitly selected startup-only
+capture policy. The BF16 production worker derives capture with validated eager
+fallback only from authenticated capture-safe Luna graph metadata; absent or
+capture-unsupported metadata remains ordered eager. The current I8 production-
+worker constructor retains the eager default. Symmetric-I8 weight-only and
+finite-E4M3 FP8 software target admission is closed over exact `sm89`, `sm90`,
+and `sm120`; adjacent architectures remain rejected. I8 materialization,
+catalog-v4 contracts, manifest/bootstrap joins, and the same serialized
+executor/service path also exist as typed software control paths. FP8 likewise
+has authenticated materialization, AOT launch, reusable paged-executor,
+descriptor, worker, and service joins. These are software capabilities, not
+physical quantized correctness or performance claims. External deployment
+approval remains binding evidence. LunaFlux does not independently validate
+the deployment's detached-signature scheme; it privately authenticates the
+startup-supplied approval binding and never accepts caller-constructed approval
+claims.
+
+Optional production-fast-path V2 spans are executable in both the legacy Llama
+and generic numeric-BF16/Mistral worker APIs. Residual plus RMSNorm is replaced
+by one prepared launch; positioned QKV/RoPE/KV-write plus read-only paged
+attention is replaced by two. Startup authenticates the exact catalog,
+modules, plan adjacency, fallback identities, raw-pointer ABIs, and live device.
+Token execution performs no artifact authentication, filesystem validation,
+canary transfer, or qualification scan. Residual V2 preserves the authenticated
+CUDA graph policy; the diagnostic qualification ABI remains eager-only.
+Descriptor-pinned optional artifacts cross the exact runtime
+descriptor/bootstrap into deployed children for both Llama and numeric BF16;
+the QKV composite is admitted only after the child authenticates its live
+device identity. Missing artifacts preserve the standalone graph.
+Current-source physical CUDA/performance qualification remains an open gate.
+
+A lower production-V2 physical harness and a literal spawned
+`device-greedy`/`device-greedy-fused-v2` harness now reach these production
+boundaries and compare the fixed eight-byte device result with an independent
+host full-logits referee. Only their software/static gates have run in this
+worktree; they carry no current physical or performance result.
+
+Paged profile-priority capture binds the exact launch set, target/profile,
+mixed row/cache/position/page geometry, diagnostic page-table trace digest, and
+bounded sorted counters. It has no execution or page ownership. A separate
+LunaTile promotion owner remains evidence-gated and inert: even with sealed
+paired wins and external approval, no generic fixture operation becomes a
+catalog entry until an authenticated real-operation specializer maps exact
+operands, shape, and numerical contract.
+
+The product-owned BF16 candidate exporter, offline builder, final-contract
+binder, deployment materializer, and spawned runtime now form one bounded
+approved-model path. Its pinned tiny-BF16 r14 campaign passed physical paged
+prefill and same-page decode with exact token agreement and deterministic
+cleanup. A later bounded loopback campaign also crossed the actual native
+listener with exact events and network/KV cleanup. This is deliberately
+narrower than release promotion: broad/concurrent listener serving, true
+cached-prefix execution, broad shapes and contexts, physical
+sanitizer/leak evidence, and benchmark comparison remain open. The I8 path has
+typed software admission but no positive physical execution evidence.
+Tensor-parallel physical promotion and a suitable trained production tokenizer
+also remain open.
 
 The initial catalog uses a narrow cuBLASLt path only where one semantic
 operation is representable by its single-GEMM ABI, and uses custom AOT families
@@ -454,6 +581,11 @@ NCCL follows the same pattern in a later phase.
 
 The native typed protocol is canonical. OpenAI compatibility translates at the
 outer edge and cannot change scheduler or model vocabulary.
+After bearer authentication, the HTTP parser writes directly into a
+startup-preallocated typed handoff. One receipt remains bound from byte-one
+capture through JSON parsing, chat-template expansion, semantic validation,
+and request admission. The route constructs no JSON tree, `String`/`Bytes`
+prompt copy, canonical request frame, `GenerateRequest`, or `TextInput`.
 
 API tasks are asynchronous and bounded. Slow clients receive bounded buffering
 and eventually backpressure or cancellation. They cannot hold scheduler locks;
@@ -472,13 +604,72 @@ ResolvedPlan containing:
 - unsupported requested capabilities;
 - safety reserves and graph-capture shape classes.
 
-The CLI command lunaflux plan prints this structure before model
+The compatibility command `lunaflux legacy-config-plan` prints this structure before model
 materialization. Components receive only the configuration subset they use.
 
-The implemented subset is `ResolvedRuntimeCapacity`: it checks scheduler,
-cache, model-shape, worker-protocol, page, block-table, and output-publication
-envelopes and materializes bounded host-owner limits. The full device/kernel
-`ResolvedPlan` and its CLI explanation remain target behavior.
+The implemented subset includes a strict byte-bounded configuration document
+reader, focused immutable records, deterministic startup decisions,
+`ResolvedRuntimeCapacity`, and inspection-safe operator preflights. Runtime
+capacity checks scheduler, cache/prefix, model-shape, worker-protocol, page,
+block-table, and output-publication envelopes and materializes bounded
+host-owner limits. The explicitly named `legacy-*` model-root commands admit
+the model root and report an explicit not-ready result rather than fabricating
+resolution. Their separate-root forms accept separately
+approved model/kernel roots and an independently digest-pinned strict runtime
+descriptor. That startup-only boundary composes model metadata, weight
+inspection, KV layout, paged execution-manifest admission, bootstrap source,
+startup contract, and an inert device-worker plan while opening no device and
+retaining no filesystem capability. Canonical `doctor`, `plan`, and
+`inspect-kernels` instead consume the same digest-suffixed deployment admission
+as live run/bench, close every root, and publish only root-free evidence without
+device, process, or listener authority. A focused ops report projects the
+legacy separate-root admission into checked weight, activation/workspace, KV, artifact, worker, and
+inference scalars without filesystem or device authority. Scheduler/cache and
+service capacity remain explicitly unavailable because descriptor v1 does not
+admit their configuration. Broad physical device/kernel promotion, benchmarks,
+and listener-level live traffic remain open.
+
+The production run boundary accepts exactly one absolute deployment-root label
+with an independent `#sha256=` digest for its fixed launch file. Launch-file
+evidence is root-free. The runtime owner opens separate model, kernel, and
+policy authorities, closes policy authority after the pure instance join,
+checks the exact assigned CUDA target before process/listener activation, and
+passes model/kernel authority into the existing online service exactly once.
+The worker executable is opened componentwise without following symlinks and
+snapshot-hashed through that same descriptor. Linux live admission copies the
+authenticated bytes into an exactly sealed private memfd; process activation
+duplicates the opaque capability and uses `fexecve` without a second pathname
+open or hash. The retained path and digest remain deployment evidence only.
+Live activation fails closed on platforms without this pinned execution route;
+root-free materialization evidence is a distinct type that no spawn API accepts.
+
+Opaque CLI inference authentication is admitted through a deployment-created,
+preconnected Unix stream at inherited descriptor 6, separate from the
+descriptor-5 drain capability. A fixed bounded frame is read exactly once, the
+channel is closed, and source scratch is wiped before model, device, worker, or
+listener construction. Digest-bound instance-policy v3 supplies the complete
+OpenAI Responses construction contract, including the maximum accepted
+credential length. Its transport is either exact loopback plaintext or exact
+private-network plaintext on a wildcard container listener; native v1/v2
+reject credentials and OpenAI v2 remains fail-closed. Neither mode establishes
+TLS or public routing.
+The retained opaque API-auth policy has one idempotent full-buffer close shared
+by every verifier alias. OpenAI server/pool terminal drain and startup rejection
+propagate that close; HTTP reuse wipes prior used head/body cells and terminal
+close wipes its complete fixed request storage. Constant-time credential
+comparison touches the configured credential length, not the larger maximum
+input capacity, while retaining bounded preallocated storage.
+
+Offline release materialization does not weaken that live identity rule.
+`ApprovedRootMaterializationView` first authenticates one pinned no-follow
+source root at its actual staging label, then carries a separately validated
+canonical target label without pretending that target exists on the release
+host. Only mapped descriptor, policy, tokenizer, and worker-file loaders may
+borrow this view. They reconstruct the same launch-selected semantic recipe
+with final target labels while reading exact staged bytes. The no-overwrite
+materializer keeps the output beneath an authenticated cleanup claim until the
+root-free join evidence and exact bundle both verify; failure deletes only that
+claim. Live startup continues to require real target-namespace identity.
 
 ## Failure model
 
