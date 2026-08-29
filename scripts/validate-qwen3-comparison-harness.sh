@@ -14,6 +14,8 @@ fail() {
 
 sh -n scripts/start-qwen3-vllm-benchmark-server.sh
 sh -n scripts/start-qwen3-sglang-benchmark-server.sh
+sh -n scripts/start-qwen3-lunaflux-token-id-bridge.sh
+sh -n scripts/start-qwen3-lunaflux-benchmark-server.sh
 python3 -B -m unittest \
   benchmarks.qwen3_comparison.test_campaign \
   benchmarks.qwen3_comparison.test_adapters \
@@ -28,8 +30,9 @@ for anchor in \
   'model-admission.json' \
   'one-engine-per-target-gpu-coordinate' \
   'require_clean_gpu' \
+  'CUDA_VISIBLE_DEVICES' \
   'start_new_session=True' \
-  'runtime_command_sha256' \
+  'process_group_leader_command_sha256' \
   'authenticated_capacity_receipt' \
   'prefix_reuse' \
   'scheduler_policy' \
@@ -42,6 +45,12 @@ for anchor in \
   'output_token_throughput_per_second' \
   'gpu_memory_used_peak_mib' \
   'output_token_ids_sha256' \
+  'return_token_ids' \
+  'output_ids' \
+  'sampling_seed' \
+  'ignore_eos' \
+  'lunaflux_lifecycle' \
+  'owned_executables' \
   'token_timing_exact' \
   'output_count_consistent' \
   'median_ci95' \
@@ -50,6 +59,25 @@ for anchor in \
   'forbidden: no Ollama result may be inferred'; do
   rg -Fq "$anchor" "$package" || fail "required contract anchor is absent: $anchor"
 done
+if rg -Fq '_append_retokenized_timestamps' "$package"; then
+  fail 'baseline adapter retained text retokenization as a token-ID fallback'
+fi
+
+for anchor in \
+  'native runtime executable' \
+  'native supervisor executable' \
+  'token-ID bridge executable' \
+  'runtime_origin=luna+tcp://' \
+  'drain_trigger'; do
+  rg -Fq "$anchor" scripts/start-qwen3-lunaflux-benchmark-server.sh ||
+    fail "combined LunaFlux lifecycle anchor is absent: $anchor"
+done
+if rg -Fq 'python3' scripts/start-qwen3-lunaflux-token-id-bridge.sh; then
+  fail 'production token-ID bridge launcher acquired a Python dependency'
+fi
+rg -Fq 'verify-qwen3-authenticated-capacity.sh' \
+  scripts/start-qwen3-lunaflux-benchmark-server.sh ||
+  fail 'combined LunaFlux lifecycle does not verify exact c32 authority'
 
 for server in \
   scripts/start-qwen3-vllm-benchmark-server.sh \
@@ -72,8 +100,16 @@ for server in \
 done
 rg -Fq -- '--no-enable-prefix-caching' scripts/start-qwen3-vllm-benchmark-server.sh ||
   fail 'vLLM launcher does not disable prefix caching'
+rg -Fq -- '--stream-interval 1' scripts/start-qwen3-vllm-benchmark-server.sh ||
+  fail 'vLLM launcher does not expose one-token stream timing'
 rg -Fq -- '--disable-radix-cache' scripts/start-qwen3-sglang-benchmark-server.sh ||
   fail 'SGLang launcher does not disable radix/prefix caching'
+rg -Fq -- '--sampling-defaults openai' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not disable model-specific sampling defaults'
+rg -Fq -- '--skip-tokenizer-init' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not expose exact streamed output token IDs'
+rg -Fq -- '--stream-interval 1' scripts/start-qwen3-sglang-benchmark-server.sh ||
+  fail 'SGLang launcher does not expose one-token stream timing'
 rg -Fq -- '--scheduling-policy fcfs' scripts/start-qwen3-vllm-benchmark-server.sh ||
   fail 'vLLM launcher does not bind FCFS scheduling'
 rg -Fq -- '--schedule-policy fcfs' scripts/start-qwen3-sglang-benchmark-server.sh ||

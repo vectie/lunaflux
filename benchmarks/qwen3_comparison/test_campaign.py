@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from benchmarks.qwen3_comparison.contract import (
     ContractError,
@@ -17,6 +18,7 @@ from benchmarks.qwen3_comparison.contract import (
     validate_campaign,
 )
 from benchmarks.qwen3_comparison.statistics import correctness_join, distribution, summarize
+from benchmarks.qwen3_comparison.campaign import warm_profile
 
 
 def digest(character: str = "a") -> str:
@@ -51,7 +53,11 @@ def fixture_campaign():
                 "endpoint": (
                     f"http://127.0.0.1:{port}/benchmark/v1/token-ids"
                     if name == "lunaflux"
-                    else f"http://127.0.0.1:{port}/generate"
+                    else (
+                        f"http://127.0.0.1:{port}/v1/completions"
+                        if name == "vllm"
+                        else f"http://127.0.0.1:{port}/generate"
+                    )
                 ),
                 "health_endpoint": f"http://127.0.0.1:{port}/health",
                 "model_alias": "Qwen3-0.6B",
@@ -61,13 +67,33 @@ def fixture_campaign():
                 "tokenizer_json_sha256": digest("f"),
                 "tokenizer_config_sha256": digest("1"),
                 "chat_template_sha256": digest("2"),
-                "revision_sha256": digest(str(index + 1)),
+                "revision_sha256": digest("1") if name == "lunaflux" else None,
                 "configuration_sha256": digest(str(index + 4)),
                 "executable_sha256": digest(str(index + 7)),
                 "environment_prefix": "native" if name == "lunaflux" else "/conda/pinned",
-                "package_version": "pinned-version",
+                "package_version": digest("1") if name == "lunaflux" else "pinned-version",
                 "authenticated_capacity_receipt": (
                     "/capacity.json#sha256=" + digest("a") if name == "lunaflux" else None
+                ),
+                "lunaflux_lifecycle": (
+                    {
+                        "runtime_executable": "/runtime/lunaflux#sha256=" + digest("7"),
+                        "supervisor_executable": "/runtime/supervisor#sha256=" + digest("a"),
+                        "bridge_executable": "/runtime/bridge#sha256=" + digest("b"),
+                        "deployment": "/deployment#sha256=" + digest("4"),
+                        "tokenizer_json": "/model/tokenizer.json#sha256=" + digest("f"),
+                        "launch_file": "/deployment/lunaflux.launch.json#sha256="
+                        + digest("4"),
+                        "release_bind": "/release-bind.v1#sha256=" + digest("e"),
+                        "runtime_address": "127.0.0.1:8200",
+                        "model_plan_sha256": digest("d"),
+                        "max_input_tokens": 4096,
+                        "max_output_tokens": 256,
+                        "max_token_id": 151935,
+                        "max_context_tokens": 40960,
+                    }
+                    if name == "lunaflux"
+                    else None
                 ),
                 "lifecycle": {
                     "launcher": f"/launchers/{name}",
@@ -83,6 +109,7 @@ def fixture_campaign():
                     "scheduler_policy": "fcfs",
                     "kv_cache_dtype": "auto",
                     "max_concurrent_sequences": 32,
+                    "ignore_eos": True,
                 },
             }
         )
@@ -105,7 +132,13 @@ def fixture_campaign():
             "chat_template_sha256": digest("2"),
             "add_generation_prompt": True,
         },
-        "sampling": {"mode": "greedy", "temperature": 0, "top_p": 1, "seed": 0},
+        "sampling": {
+            "mode": "greedy",
+            "temperature": 0,
+            "top_p": 1,
+            "seed": 0,
+            "ignore_eos": True,
+        },
         "profiles": profiles,
         "engines": engines,
         "gpu": {
@@ -118,7 +151,7 @@ def fixture_campaign():
             "cooldown_seconds": 10,
         },
         "trials_per_profile": 3,
-        "warmup_requests_per_profile": 2,
+        "warmup_rounds_per_profile": 2,
         "request_timeout_seconds": 600,
         "hardware_concurrency_ceiling": 32,
         "ollama_inference_rule": "forbidden: no Ollama result may be inferred",
@@ -161,6 +194,16 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             validate_campaign(hostile)
 
+    def test_only_lunaflux_can_claim_an_exact_source_revision(self):
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][1]["revision_sha256"] = digest("6")
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][0]["revision_sha256"] = None
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+
     def test_lifecycle_and_lunaflux_bridge_fail_closed(self):
         hostile = copy.deepcopy(fixture_campaign())
         hostile["engines"][0]["endpoint"] = "http://127.0.0.1:8100/v1/responses"
@@ -176,6 +219,20 @@ class ContractTests(unittest.TestCase):
             validate_campaign(hostile)
         hostile = copy.deepcopy(fixture_campaign())
         hostile["engines"][0]["authenticated_capacity_receipt"] = None
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][0]["lunaflux_lifecycle"] = None
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+
+    def test_baseline_endpoint_paths_are_exact(self):
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][1]["endpoint"] = "http://127.0.0.1:8101/generate"
+        with self.assertRaises(ContractError):
+            validate_campaign(hostile)
+        hostile = copy.deepcopy(fixture_campaign())
+        hostile["engines"][2]["health_endpoint"] = "http://127.0.0.1:8102/health?full=1"
         with self.assertRaises(ContractError):
             validate_campaign(hostile)
 
@@ -226,6 +283,42 @@ class ContractTests(unittest.TestCase):
 
 
 class SummaryTests(unittest.TestCase):
+    def test_warmup_rounds_fill_the_profile_concurrency(self):
+        profile = {
+            "name": "prefill-c8",
+            "class": "prefill",
+            "concurrency": 8,
+            "output_tokens": 32,
+            "request_count": 32,
+        }
+        workload = [
+            {
+                "case_id": f"prefill-{ordinal}",
+                "profile_class": "prefill",
+                "input_token_ids": [ordinal],
+                "input_tokens": 1,
+                "input_token_ids_sha256": digest("a"),
+            }
+            for ordinal in range(32)
+        ]
+        observed = []
+
+        def request(*args):
+            observed.append(args[4])
+            return {
+                "ok": True,
+                "token_timing_exact": True,
+                "output_count_consistent": True,
+            }
+
+        with patch(
+            "benchmarks.qwen3_comparison.campaign._request_row", side_effect=request
+        ):
+            warm_profile(
+                {"name": "vllm"}, profile, workload, 2, 60, lambda text: []
+            )
+        self.assertEqual(sorted(observed), list(range(16)))
+
     def test_descriptive_statistics_have_median_p95_and_ci(self):
         summary = distribution([1, 2, 3, 4], "fixture")
         self.assertEqual(summary["median"], 2.5)

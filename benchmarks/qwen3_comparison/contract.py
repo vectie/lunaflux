@@ -171,7 +171,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             "engines",
             "gpu",
             "trials_per_profile",
-            "warmup_requests_per_profile",
+            "warmup_rounds_per_profile",
             "request_timeout_seconds",
             "hardware_concurrency_ceiling",
             "ollama_inference_rule",
@@ -233,11 +233,12 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         "temperature": 0,
         "top_p": 1,
         "seed": 0,
+        "ignore_eos": True,
     }:
         raise ContractError("sampling must be exact deterministic greedy")
     if value["trials_per_profile"] != 3:
         raise ContractError("three counterbalanced trials are required")
-    warmups = value["warmup_requests_per_profile"]
+    warmups = value["warmup_rounds_per_profile"]
     if not isinstance(warmups, int) or isinstance(warmups, bool) or warmups < 1:
         raise ContractError("at least one excluded warmup request is required")
     timeout = value["request_timeout_seconds"]
@@ -305,6 +306,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
                 "lifecycle",
                 "authenticated_capacity_receipt",
                 "execution_policy",
+                "lunaflux_lifecycle",
             },
             "engine",
         )
@@ -319,8 +321,22 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         if not isinstance(engine["endpoint"], str) or not isinstance(engine["health_endpoint"], str):
             raise ContractError("engine endpoints must be strings")
         engine_bind(engine)
-        if name == "lunaflux" and urlsplit(engine["endpoint"]).path != "/benchmark/v1/token-ids":
-            raise ContractError("LunaFlux requires the diagnostic token-ID SSE bridge")
+        endpoint = urlsplit(engine["endpoint"])
+        health = urlsplit(engine["health_endpoint"])
+        expected_path = {
+            "lunaflux": "/benchmark/v1/token-ids",
+            "vllm": "/v1/completions",
+            "sglang": "/generate",
+        }[name]
+        if (
+            endpoint.path != expected_path
+            or endpoint.query
+            or endpoint.fragment
+            or health.path != "/health"
+            or health.query
+            or health.fragment
+        ):
+            raise ContractError(f"engine.{name} endpoint paths are not exact")
         if engine["model_alias"] != "Qwen3-0.6B":
             raise ContractError("all engines must expose the same Qwen model alias")
         shared_identities = {
@@ -334,22 +350,113 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         for key, expected in shared_identities.items():
             if engine[key] != expected:
                 raise ContractError(f"engine.{name}.{key} differs from the shared Qwen input")
-        for key in ("revision_sha256", "configuration_sha256", "executable_sha256"):
+        for key in ("configuration_sha256", "executable_sha256"):
             require_sha256(engine[key], f"engine.{name}.{key}")
         if not isinstance(engine["package_version"], str) or not engine["package_version"]:
             raise ContractError("engine package version pin is missing")
         environment = engine["environment_prefix"]
         if name == "lunaflux":
+            require_sha256(engine["revision_sha256"], "engine.lunaflux.revision_sha256")
+            if engine["package_version"] != engine["revision_sha256"]:
+                raise ContractError("LunaFlux package revision identity differs")
             if environment != "native":
                 raise ContractError("LunaFlux environment must be the native runtime")
             validate_digest_suffixed_lexical(
                 engine["authenticated_capacity_receipt"],
                 "LunaFlux authenticated concurrency-32 capacity receipt",
             )
+            native = engine["lunaflux_lifecycle"]
+            if not isinstance(native, dict):
+                raise ContractError("LunaFlux combined runtime lifecycle is missing")
+            _require_exact_keys(
+                native,
+                {
+                    "runtime_executable",
+                    "supervisor_executable",
+                    "bridge_executable",
+                    "deployment",
+                    "tokenizer_json",
+                    "launch_file",
+                    "release_bind",
+                    "runtime_address",
+                    "model_plan_sha256",
+                    "max_input_tokens",
+                    "max_output_tokens",
+                    "max_token_id",
+                    "max_context_tokens",
+                },
+                "LunaFlux combined runtime lifecycle",
+            )
+            for key in (
+                "runtime_executable",
+                "supervisor_executable",
+                "bridge_executable",
+                "deployment",
+                "tokenizer_json",
+                "launch_file",
+                "release_bind",
+            ):
+                validate_digest_suffixed_lexical(native[key], f"LunaFlux {key}")
+            if native["runtime_executable"].rsplit("#sha256=", 1)[1] != engine[
+                "executable_sha256"
+            ]:
+                raise ContractError("LunaFlux runtime executable identity differs")
+            tokenizer_path = native["tokenizer_json"].rsplit("#sha256=", 1)[0]
+            if (
+                tokenizer_path != str(root / "tokenizer.json")
+                or native["tokenizer_json"].rsplit("#sha256=", 1)[1]
+                != tokenizer["tokenizer_json_sha256"]
+            ):
+                raise ContractError("LunaFlux bridge tokenizer identity differs")
+            deployment_path, deployment_digest = native["deployment"].rsplit(
+                "#sha256=", 1
+            )
+            launch_path, launch_digest = native["launch_file"].rsplit("#sha256=", 1)
+            if (
+                launch_path != str(Path(deployment_path) / "lunaflux.launch.json")
+                or deployment_digest != launch_digest
+                or deployment_digest != engine["configuration_sha256"]
+            ):
+                raise ContractError("LunaFlux deployment launch identity differs")
+            runtime_endpoint = urlsplit("luna+tcp://" + native["runtime_address"])
+            _, bridge_port = engine_bind(engine)
+            if (
+                runtime_endpoint.hostname != "127.0.0.1"
+                or runtime_endpoint.port is None
+                or runtime_endpoint.port == bridge_port
+                or runtime_endpoint.username is not None
+                or runtime_endpoint.password is not None
+                or runtime_endpoint.path
+                or runtime_endpoint.query
+                or runtime_endpoint.fragment
+            ):
+                raise ContractError("LunaFlux native runtime address is not exact loopback")
+            require_sha256(native["model_plan_sha256"], "LunaFlux model plan digest")
+            for key in (
+                "max_input_tokens",
+                "max_output_tokens",
+                "max_token_id",
+                "max_context_tokens",
+            ):
+                item = native[key]
+                if not isinstance(item, int) or isinstance(item, bool) or item <= 0:
+                    raise ContractError(f"LunaFlux {key} is invalid")
+            if native["max_input_tokens"] + native["max_output_tokens"] > native[
+                "max_context_tokens"
+            ]:
+                raise ContractError("LunaFlux benchmark limits exceed context")
+            if native["max_output_tokens"] < max(
+                profile["output_tokens"] for profile in profiles
+            ):
+                raise ContractError("LunaFlux output limit does not admit every profile")
         elif not isinstance(environment, str) or not environment.startswith("/"):
             raise ContractError("baseline Conda environment prefix must be absolute")
+        elif engine["revision_sha256"] is not None:
+            raise ContractError("baseline engines cannot claim an unauthenticated revision")
         elif engine["authenticated_capacity_receipt"] is not None:
             raise ContractError("baseline engines cannot claim LunaFlux capacity authority")
+        elif engine["lunaflux_lifecycle"] is not None:
+            raise ContractError("baseline engines cannot claim LunaFlux lifecycle authority")
         lifecycle = engine["lifecycle"]
         if not isinstance(lifecycle, dict):
             raise ContractError("engine lifecycle must be an object")
@@ -392,6 +499,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             "scheduler_policy": "fcfs",
             "kv_cache_dtype": "auto",
             "max_concurrent_sequences": 32,
+            "ignore_eos": True,
         }:
             raise ContractError("engine execution/cache policy is not the fair fixed policy")
         observed_engines.append(name)

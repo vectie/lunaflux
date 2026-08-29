@@ -112,6 +112,7 @@ def validate_lunaflux_capacity(
         raise ContractError("LunaFlux capacity receipt fields are not exact")
     if canonical_json_bytes(receipt) != payload:
         raise ContractError("LunaFlux capacity receipt is not canonical")
+    native = engine["lunaflux_lifecycle"]
     if (
         receipt["schema"] != "lunaflux.qwen3-authenticated-capacity.v1"
         or receipt["authenticated"] is not True
@@ -121,6 +122,8 @@ def validate_lunaflux_capacity(
         or receipt["model_content_sha256"] != model_content_sha256
         or receipt["configuration_sha256"] != engine["configuration_sha256"]
         or receipt["runtime_executable_sha256"] != engine["executable_sha256"]
+        or receipt["token_id_sse_bridge_sha256"]
+        != native["bridge_executable"].rsplit("#sha256=", 1)[1]
     ):
         raise ContractError("LunaFlux authenticated concurrency-32 capacity is not admitted")
     require_sha256(receipt["token_id_sse_bridge_sha256"], "token-ID SSE bridge digest")
@@ -184,6 +187,8 @@ def _verify_launcher(engine: dict[str, Any]) -> Path:
 
 def _verify_package_version(engine: dict[str, Any]) -> None:
     if engine["name"] == "lunaflux":
+        if engine["package_version"] != engine["revision_sha256"]:
+            raise ContractError("LunaFlux package revision identity mismatch")
         return
     distribution = {"vllm": "vllm", "sglang": "sglang"}[engine["name"]]
     interpreter = Path(engine["environment_prefix"]) / "bin/python"
@@ -210,7 +215,7 @@ def lifecycle_argv(
 ) -> list[str]:
     """Construct the only admitted launcher argv; no campaign shell text is accepted."""
     host, port = engine_bind(engine)
-    return [
+    argv = [
         engine["lifecycle"]["launcher"],
         engine["environment_prefix"],
         engine["package_version"],
@@ -219,6 +224,98 @@ def lifecycle_argv(
         host,
         str(port),
     ]
+    if engine["name"] == "lunaflux":
+        native = engine["lunaflux_lifecycle"]
+        argv.extend(
+            [
+                native["runtime_executable"],
+                native["supervisor_executable"],
+                native["bridge_executable"],
+                native["deployment"],
+                native["tokenizer_json"],
+                native["launch_file"],
+                native["release_bind"],
+                engine["authenticated_capacity_receipt"],
+                native["runtime_address"],
+                campaign["model"]["model_content_sha256"],
+                native["model_plan_sha256"],
+                str(native["max_input_tokens"]),
+                str(native["max_output_tokens"]),
+                str(native["max_token_id"]),
+                str(native["max_context_tokens"]),
+            ]
+        )
+    return argv
+
+
+def lifecycle_environment(campaign: dict[str, Any]) -> dict[str, str]:
+    """Return the minimal environment with the measured GPU explicitly isolated."""
+    return {
+        "LC_ALL": "C",
+        "LANG": "C",
+        "TZ": "UTC",
+        "PATH": "/usr/bin:/bin",
+        "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+        "CUDA_VISIBLE_DEVICES": campaign["gpu"]["uuid"],
+        "PYTHONNOUSERSITE": "1",
+    }
+
+
+def _digest_suffixed_regular_file(argument: str, label: str) -> tuple[Path, str]:
+    raw_path, expected = argument.rsplit("#sha256=", 1)
+    path = Path(raw_path)
+    if (
+        not path.is_absolute()
+        or not path.is_file()
+        or path.is_symlink()
+        or path.resolve() != path
+        or sha256_file(path) != expected
+    ):
+        raise ContractError(f"{label} identity mismatch")
+    return path, expected
+
+
+def _process_group_executables(process_group: int) -> dict[str, list[int]]:
+    """Return exact executable paths for all live Linux process-group members."""
+    observed: dict[str, list[int]] = {}
+    for proc_root in Path("/proc").iterdir():
+        if not proc_root.name.isdecimal():
+            continue
+        try:
+            stat = (proc_root / "stat").read_text()
+            fields = stat[stat.rfind(")") + 2 :].split()
+            if len(fields) < 3 or int(fields[2]) != process_group:
+                continue
+            executable = str((proc_root / "exe").resolve(strict=True))
+        except (FileNotFoundError, PermissionError, ValueError):
+            continue
+        observed.setdefault(executable, []).append(int(proc_root.name))
+    return observed
+
+
+def _lunaflux_process_identities(
+    engine: dict[str, Any], process_group: int
+) -> dict[str, dict[str, Any]]:
+    native = engine["lunaflux_lifecycle"]
+    observed = _process_group_executables(process_group)
+    identities: dict[str, dict[str, Any]] = {}
+    for role, key in (
+        ("native_runtime", "runtime_executable"),
+        ("native_supervisor", "supervisor_executable"),
+        ("token_id_bridge", "bridge_executable"),
+    ):
+        path, digest = _digest_suffixed_regular_file(native[key], f"LunaFlux {role}")
+        pids = observed.get(str(path), [])
+        if len(pids) != 1:
+            raise ContractError(
+                f"LunaFlux {role} is not the unique owned process-group member"
+            )
+        identities[role] = {
+            "pid": pids[0],
+            "executable": str(path),
+            "executable_sha256": digest,
+        }
+    return identities
 
 
 class ServerLifecycle:
@@ -256,7 +353,7 @@ class ServerLifecycle:
             stdin=subprocess.DEVNULL,
             stdout=self.stdout,
             stderr=self.stderr,
-            env={"LC_ALL": "C", "LANG": "C", "TZ": "UTC", "PATH": "/usr/bin:/bin"},
+            env=lifecycle_environment(self.campaign),
             close_fds=True,
             start_new_session=True,
         )
@@ -279,8 +376,22 @@ class ServerLifecycle:
             process_group = os.getpgid(self.process.pid)
             if process_group != self.process.pid:
                 raise ContractError(f"{self.engine['name']} did not create an owned process group")
-            if executable_sha != self.engine["lifecycle"]["runtime_executable_sha256"]:
-                raise ContractError(f"{self.engine['name']} runtime executable identity mismatch")
+            if self.engine["name"] == "lunaflux":
+                owned_executables = _lunaflux_process_identities(
+                    self.engine, process_group
+                )
+            else:
+                if executable_sha != self.engine["lifecycle"]["runtime_executable_sha256"]:
+                    raise ContractError(
+                        f"{self.engine['name']} runtime executable identity mismatch"
+                    )
+                owned_executables = {
+                    "server": {
+                        "pid": self.process.pid,
+                        "executable": str(executable),
+                        "executable_sha256": executable_sha,
+                    }
+                }
             self.identity = {
                 "schema": "lunaflux.qwen3-server-lifecycle.v1",
                 "engine": self.engine["name"],
@@ -291,9 +402,10 @@ class ServerLifecycle:
                 "launcher_sha256": self.engine["lifecycle"]["launcher_sha256"],
                 "package_version": self.engine["package_version"],
                 "execution_policy": self.engine["execution_policy"],
-                "runtime_executable": str(executable),
-                "runtime_executable_sha256": executable_sha,
-                "runtime_command_sha256": sha256_bytes(command_bytes),
+                "process_group_leader_executable": str(executable),
+                "process_group_leader_executable_sha256": executable_sha,
+                "process_group_leader_command_sha256": sha256_bytes(command_bytes),
+                "owned_executables": owned_executables,
                 "model_admission_sha256": self.model_admission_argument.rsplit("#sha256=", 1)[1],
                 "pre_start_clean_gpu": clean,
                 "health_ready": True,
@@ -322,7 +434,10 @@ class ServerLifecycle:
         process = self.process
         if process.poll() is None:
             try:
-                os.killpg(process.pid, signal.SIGTERM)
+                if self.engine["name"] == "lunaflux":
+                    os.kill(process.pid, signal.SIGTERM)
+                else:
+                    os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
             try:

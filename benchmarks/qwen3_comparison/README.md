@@ -15,7 +15,8 @@ bound in the campaign.
 
 Servers must not be prestarted. For every Latin-square coordinate the harness
 admits a clean target GPU, launches exactly one engine with a digest-pinned
-absolute launcher, verifies its exact package, process, executable, model, and
+absolute launcher, verifies its exact package, process group, executable
+identities, model, and
 health identity, performs excluded warmups, measures the coordinate, drains
 and terminates the owned process group, waits for cooldown, and admits a clean
 GPU again. Startup, readiness, warmup, drain, shutdown, and cooldown time are
@@ -25,6 +26,27 @@ concurrency 1, 8, and 32 in three fixed Latin-square rounds:
 1. LunaFlux, vLLM, SGLang;
 2. vLLM, SGLang, LunaFlux;
 3. SGLang, LunaFlux, vLLM.
+
+The child environment binds `CUDA_DEVICE_ORDER=PCI_BUS_ID` and
+`CUDA_VISIBLE_DEVICES` to the same GPU UUID that
+the lifecycle and memory sampler inspect. Both baseline adapters consume the
+engines' exact streamed output-token IDs: vLLM uses
+`return_token_ids=true`, while SGLang runs with `--skip-tokenizer-init` and
+consumes `/generate`'s cumulative `output_ids` using its native
+`sampling_seed=0` spelling. Text retokenization is never used as a substitute
+for correctness. The exact output IDs from every engine are decoded once by
+the same pinned Qwen tokenizer after the measured response completes. Both
+launchers bind a one-token stream
+interval so per-token timing fails closed if an engine batches token events.
+Each configured warmup is a complete round at the profile's declared
+concurrency, rather than a sequential request that leaves c8/c32 batching and
+CUDA-graph paths cold.
+All three adapters also bind `ignore_eos=true`; the prefill and decode profiles
+therefore measure the same fixed 32- and 256-token continuations rather than
+engine-specific EOS stopping behavior.
+SGLang is launched with `--sampling-defaults openai`, matching vLLM's
+`--generation-config vllm` boundary, so model-specific generation defaults
+cannot silently alter the explicit neutral greedy request.
 
 The hardware-capacity declaration must admit concurrency 32. LunaFlux must
 also supply a digest-bound authenticated capacity receipt for the exact model,
@@ -61,8 +83,8 @@ python3 -B benchmarks/qwen3_comparison/prepare_corpus.py \
 ## Lifecycle launcher contract
 
 No environment is created or modified. The campaign calls each absolute,
-digest-pinned launcher directly without a shell command string. All launchers
-use this fixed argument contract:
+digest-pinned launcher directly without a shell command string. The vLLM and
+SGLang launchers use this fixed argument contract:
 
 ```text
 LAUNCHER ENV_PREFIX_OR_NATIVE EXACT_VERSION ABS_MODEL_ROOT ABS_MODEL_ADMISSION#sha256=HEX 127.0.0.1 PORT
@@ -84,13 +106,39 @@ scripts/start-qwen3-sglang-benchmark-server.sh \
 
 These examples show the strict launcher interface; operators do not start them
 alongside the campaign. The orchestrator starts and stops them one at a time.
+Their `revision_sha256` fields are required to be `null`: a wheel distribution
+version is not a source revision. Reproducibility instead binds the observed
+installed distribution version, launcher and Python executable hashes, fixed
+CLI arguments, model inventory, GPU identity, and workload. LunaFlux alone
+binds its real lowercase source revision SHA-256 in both `revision_sha256` and
+`package_version`.
 
-LunaFlux must expose the canonical diagnostic token-ID SSE benchmark bridge
-declared in `campaign.template.json`. The standard text-only `/v1/responses`
-endpoint is explicitly rejected because it does not accept the custom exact
-`input_token_ids` protocol. That bridge is currently the remaining
-serving-step integration requirement; the harness does not substitute a text
-prompt or a different model when it is absent.
+LunaFlux uses the same first six lifecycle fields followed by the digest-bound
+native runtime, supervisor, token-ID bridge, deployment, tokenizer, launch,
+release binding, capacity receipt, native address, model identities, and
+token/context limits
+declared by `lunaflux_lifecycle`. Its combined launcher remains the process
+group leader: it starts the supervisor/native runtime, waits for the exact
+native readiness and runtime origin, then starts the bridge. A TERM to the
+leader first closes the bridge and then asks the native supervisor to drain.
+The lifecycle record independently finds and hashes the runtime, supervisor,
+and bridge executables among that owned process group's live children. Thus a
+prestarted native service cannot bypass the clean-GPU admission or be mistaken
+for the measured engine.
+Before opening the GPU, the benchmark launcher reconstructs and verifies the
+capacity receipt from the exact c32 release binding, native-framed deployment,
+runtime executable, and bridge executable. A free-form authentication digest
+is not accepted.
+
+This orchestration lives only in
+`scripts/start-qwen3-lunaflux-benchmark-server.sh`. The production-facing
+`start-qwen3-lunaflux-token-id-bridge.sh` remains a pure 12-argument executable
+handoff with no Python dependency.
+
+The standard text-only `/v1/responses` endpoint is explicitly rejected because
+it does not accept the custom exact `input_token_ids` protocol. The harness
+does not substitute a text prompt or a different model when the bridge is
+absent.
 
 ## Running
 

@@ -53,7 +53,10 @@ def _event_payloads(response: Any):
             raise AdapterError("stream contains malformed JSON") from error
         if not isinstance(value, dict):
             raise AdapterError("stream event is not an object")
+        if "error" in value:
+            raise AdapterError("stream reported an engine error")
         yield value
+    raise AdapterError("stream ended without the terminal [DONE] event")
 
 
 def _post_stream(url: str, body: dict[str, Any], timeout_seconds: float):
@@ -64,20 +67,6 @@ def _post_stream(url: str, body: dict[str, Any], timeout_seconds: float):
         method="POST",
     )
     return urllib.request.urlopen(request, timeout=timeout_seconds)
-
-
-def _append_retokenized_timestamps(
-    output_text: str,
-    prior_ids: list[int],
-    observed_ns: int,
-    encode: Callable[[str], list[int]],
-    timestamps: list[int],
-) -> list[int]:
-    current = encode(output_text)
-    if current[: len(prior_ids)] != prior_ids:
-        raise AdapterError("streaming text retokenization retracted an emitted token")
-    timestamps.extend([observed_ns] * (len(current) - len(prior_ids)))
-    return current
 
 
 def generate(
@@ -102,7 +91,7 @@ def _generate_vllm(
     input_ids: list[int],
     output_limit: int,
     timeout: float,
-    encode: Callable[[str], list[int]],
+    _encode: Callable[[str], list[int]],
 ) -> GenerationObservation:
     body = {
         "model": engine["model_alias"],
@@ -112,8 +101,10 @@ def _generate_vllm(
         "top_p": 1,
         "n": 1,
         "seed": 0,
+        "ignore_eos": True,
         "stream": True,
         "stream_options": {"include_usage": True},
+        "return_token_ids": True,
     }
     output = ""
     token_ids: list[int] = []
@@ -136,12 +127,21 @@ def _generate_vllm(
             fragment = choices[0].get("text", "")
             if not isinstance(fragment, str):
                 raise AdapterError("vLLM stream text is invalid")
-            if fragment:
+            raw_token_ids = choices[0].get("token_ids")
+            if raw_token_ids is None and not fragment:
+                raw_token_ids = []
+            if not isinstance(raw_token_ids, list) or any(
+                not isinstance(token_id, int)
+                or isinstance(token_id, bool)
+                or token_id < 0
+                for token_id in raw_token_ids
+            ):
+                raise AdapterError("vLLM stream omitted exact output token IDs")
+            if raw_token_ids:
                 chunks += 1
-                output += fragment
-                token_ids = _append_retokenized_timestamps(
-                    output, token_ids, time.perf_counter_ns(), encode, timestamps
-                )
+                timestamps.extend([time.perf_counter_ns()] * len(raw_token_ids))
+                token_ids.extend(raw_token_ids)
+            output += fragment
         terminal = time.perf_counter_ns()
     return GenerationObservation(output, token_ids, timestamps, terminal, status, reported, chunks)
 
@@ -151,7 +151,7 @@ def _generate_sglang(
     input_ids: list[int],
     output_limit: int,
     timeout: float,
-    encode: Callable[[str], list[int]],
+    _encode: Callable[[str], list[int]],
 ) -> GenerationObservation:
     body = {
         "input_ids": input_ids,
@@ -159,7 +159,8 @@ def _generate_sglang(
             "max_new_tokens": output_limit,
             "temperature": 0,
             "top_p": 1,
-            "seed": 0,
+            "sampling_seed": 0,
+            "ignore_eos": True,
         },
         "stream": True,
     }
@@ -173,15 +174,21 @@ def _generate_sglang(
         if status < 200 or status >= 300:
             raise AdapterError(f"SGLang returned HTTP {status}")
         for event in _event_payloads(response):
-            text = event.get("text", "")
-            if not isinstance(text, str):
-                raise AdapterError("SGLang stream text is invalid")
-            if text:
+            raw_token_ids = event.get("output_ids")
+            if not isinstance(raw_token_ids, list) or any(
+                not isinstance(token_id, int)
+                or isinstance(token_id, bool)
+                or token_id < 0
+                for token_id in raw_token_ids
+            ):
+                raise AdapterError("SGLang stream omitted exact output token IDs")
+            if raw_token_ids[: len(token_ids)] != token_ids:
+                raise AdapterError("SGLang output-token stream is not cumulative")
+            new_token_ids = raw_token_ids[len(token_ids) :]
+            token_ids = list(raw_token_ids)
+            if new_token_ids:
                 chunks += 1
-                output = text if text.startswith(output) else output + text
-                token_ids = _append_retokenized_timestamps(
-                    output, token_ids, time.perf_counter_ns(), encode, timestamps
-                )
+                timestamps.extend([time.perf_counter_ns()] * len(new_token_ids))
             meta = event.get("meta_info")
             if isinstance(meta, dict) and isinstance(meta.get("completion_tokens"), int):
                 reported = meta["completion_tokens"]
@@ -200,19 +207,28 @@ def _generate_lunaflux(
         "model": engine["model_alias"],
         "input_token_ids": input_ids,
         "max_output_tokens": output_limit,
-        "sampling": {"mode": "greedy", "temperature": 0, "top_p": 1, "seed": 0},
+        "sampling": {
+            "mode": "greedy",
+            "temperature": 0,
+            "top_p": 1,
+            "seed": 0,
+            "ignore_eos": True,
+        },
         "stream": True,
     }
     output_fragments: list[str] = []
     token_ids: list[int] = []
     timestamps: list[int] = []
     chunks = 0
+    terminal_seen = False
     with _post_stream(engine["endpoint"], body, timeout) as response:
         status = response.status
         if status < 200 or status >= 300:
             raise AdapterError(f"LunaFlux returned HTTP {status}")
         for event in _event_payloads(response):
             if event.get("schema") == "lunaflux.benchmark-token.v1":
+                if terminal_seen:
+                    raise AdapterError("LunaFlux emitted a token after its terminal event")
                 token_id = event.get("token_id")
                 text = event.get("text")
                 if not isinstance(token_id, int) or isinstance(token_id, bool) or token_id < 0:
@@ -223,9 +239,19 @@ def _generate_lunaflux(
                 timestamps.append(time.perf_counter_ns())
                 output_fragments.append(text)
                 chunks += 1
-            elif event.get("schema") != "lunaflux.benchmark-terminal.v1":
+            elif event.get("schema") == "lunaflux.benchmark-terminal.v1":
+                if terminal_seen:
+                    raise AdapterError("LunaFlux emitted duplicate terminal events")
+                text = event.get("text")
+                if not isinstance(text, str):
+                    raise AdapterError("LunaFlux terminal text is invalid")
+                output_fragments.append(text)
+                terminal_seen = True
+            else:
                 raise AdapterError("LunaFlux benchmark stream event is invalid")
         terminal = time.perf_counter_ns()
+    if not terminal_seen:
+        raise AdapterError("LunaFlux stream omitted its terminal event")
     return GenerationObservation(
         "".join(output_fragments), token_ids, timestamps, terminal, status, len(token_ids), chunks
     )

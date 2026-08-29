@@ -47,7 +47,7 @@ class AdapterTests(unittest.TestCase):
             captured.append((url, body, timeout))
             return FixtureResponse(
                 [
-                    {"choices": [{"text": "a"}]},
+                    {"choices": [{"text": "a", "token_ids": [97]}]},
                     {"choices": [], "usage": {"completion_tokens": 1}},
                 ]
             )
@@ -65,6 +65,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(body["prompt"], [11, 12])
         self.assertEqual(body["temperature"], 0)
         self.assertEqual(body["max_tokens"], 4)
+        self.assertIs(body["return_token_ids"], True)
+        self.assertNotIn("stream_interval", body)
+        self.assertIs(body["ignore_eos"], True)
 
     def test_sglang_cumulative_stream_is_not_duplicated(self):
         captured = []
@@ -73,8 +76,14 @@ class AdapterTests(unittest.TestCase):
             captured.append((url, body, timeout))
             return FixtureResponse(
                 [
-                    {"text": "a", "meta_info": {"completion_tokens": 1}},
-                    {"text": "ab", "meta_info": {"completion_tokens": 2}},
+                    {
+                        "output_ids": [97],
+                        "meta_info": {"completion_tokens": 1},
+                    },
+                    {
+                        "output_ids": [97, 98],
+                        "meta_info": {"completion_tokens": 2},
+                    },
                 ]
             )
 
@@ -86,11 +95,100 @@ class AdapterTests(unittest.TestCase):
                 5,
                 lambda text: [ord(character) for character in text],
             )
-        self.assertEqual(observation.output_text, "ab")
+        self.assertEqual(observation.output_text, "")
         self.assertEqual(observation.output_token_ids, [97, 98])
         body = captured[0][1]
         self.assertEqual(body["input_ids"], [21])
         self.assertEqual(body["sampling_params"]["temperature"], 0)
+        self.assertEqual(body["sampling_params"]["sampling_seed"], 0)
+        self.assertIs(body["sampling_params"]["ignore_eos"], True)
+        self.assertNotIn("seed", body["sampling_params"])
+
+    def test_baselines_fail_closed_without_exact_output_token_ids(self):
+        for adapter, event in (
+            ("vllm-completions-sse-v1", {"choices": [{"text": "a"}]}),
+            (
+                "sglang-generate-sse-v1",
+                {"meta_info": {"completion_tokens": 1}},
+            ),
+        ):
+            with self.subTest(adapter=adapter), patch(
+                "benchmarks.qwen3_comparison.adapters._post_stream",
+                lambda url, body, timeout, event=event: FixtureResponse([event]),
+            ):
+                with self.assertRaises(AdapterError):
+                    generate(self.engine(adapter), [1], 1, 5, lambda text: [97])
+
+    def test_sglang_rejects_non_cumulative_output_ids(self):
+        response = FixtureResponse(
+            [
+                {"output_ids": [97], "meta_info": {}},
+                {"output_ids": [98], "meta_info": {}},
+            ]
+        )
+        with patch(
+            "benchmarks.qwen3_comparison.adapters._post_stream",
+            lambda url, body, timeout: response,
+        ):
+            with self.assertRaisesRegex(AdapterError, "not cumulative"):
+                generate(
+                    self.engine("sglang-generate-sse-v1"),
+                    [1],
+                    2,
+                    5,
+                    lambda text: [97, 98],
+                )
+
+    def test_sglang_cumulative_stream_preserves_repeated_token_ids(self):
+        response = FixtureResponse(
+            [
+                {"output_ids": [97], "meta_info": {}},
+                {"output_ids": [97, 97], "meta_info": {}},
+            ]
+        )
+        with patch(
+            "benchmarks.qwen3_comparison.adapters._post_stream",
+            lambda url, body, timeout: response,
+        ):
+            observation = generate(
+                self.engine("sglang-generate-sse-v1"),
+                [1],
+                2,
+                5,
+                lambda text: [97, 97],
+            )
+        self.assertEqual(observation.output_token_ids, [97, 97])
+
+    def test_stream_engine_error_fails_even_when_done_follows(self):
+        response = FixtureResponse([{"error": {"message": "bad request"}}])
+        with patch(
+            "benchmarks.qwen3_comparison.adapters._post_stream",
+            lambda url, body, timeout: response,
+        ):
+            with self.assertRaisesRegex(AdapterError, "engine error"):
+                generate(
+                    self.engine("sglang-generate-sse-v1"),
+                    [1],
+                    1,
+                    5,
+                    lambda text: [97],
+                )
+
+    def test_stream_without_done_fails_closed(self):
+        response = FixtureResponse([{"choices": [{"text": "a", "token_ids": [97]}]}])
+        response.lines.pop()
+        with patch(
+            "benchmarks.qwen3_comparison.adapters._post_stream",
+            lambda url, body, timeout: response,
+        ):
+            with self.assertRaisesRegex(AdapterError, "without the terminal"):
+                generate(
+                    self.engine("vllm-completions-sse-v1"),
+                    [1],
+                    1,
+                    5,
+                    lambda text: [97],
+                )
 
     def test_lunaflux_bridge_retains_exact_output_token_id(self):
         captured = []
@@ -104,7 +202,10 @@ class AdapterTests(unittest.TestCase):
                         "token_id": 7,
                         "text": "a",
                     },
-                    {"schema": "lunaflux.benchmark-terminal.v1"},
+                    {
+                        "schema": "lunaflux.benchmark-terminal.v1",
+                        "text": "b",
+                    },
                 ]
             )
 
@@ -117,9 +218,39 @@ class AdapterTests(unittest.TestCase):
                 lambda text: [],
             )
         self.assertEqual(observation.output_token_ids, [7])
+        self.assertEqual(observation.output_text, "ab")
         body = captured[0][1]
         self.assertEqual(body["input_token_ids"], [31])
         self.assertEqual(body["sampling"]["mode"], "greedy")
+        self.assertIs(body["sampling"]["ignore_eos"], True)
+
+    def test_lunaflux_bridge_requires_one_typed_terminal_event(self):
+        for events in (
+            [
+                {
+                    "schema": "lunaflux.benchmark-token.v1",
+                    "token_id": 7,
+                    "text": "a",
+                }
+            ],
+            [{"schema": "lunaflux.benchmark-terminal.v1"}],
+            [
+                {"schema": "lunaflux.benchmark-terminal.v1", "text": ""},
+                {"schema": "lunaflux.benchmark-terminal.v1", "text": ""},
+            ],
+        ):
+            with self.subTest(events=events), patch(
+                "benchmarks.qwen3_comparison.adapters._post_stream",
+                lambda url, body, timeout, events=events: FixtureResponse(events),
+            ):
+                with self.assertRaises(AdapterError):
+                    generate(
+                        self.engine("lunaflux-token-ids-sse-v1"),
+                        [31],
+                        2,
+                        5,
+                        lambda text: [],
+                    )
 
     def test_non_sse_payload_fails_closed(self):
         with patch(

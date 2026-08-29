@@ -39,12 +39,13 @@ observed_version=$("$environment/bin/python" -c \
 
 exec "$environment/bin/python" -m sglang.launch_server \
   --model-path "$model_root" \
-  --tokenizer-path "$model_root" \
   --served-model-name Qwen3-0.6B \
   --host "$host" \
   --port "$port" \
   --dtype bfloat16 \
   --context-length 40960 \
+  --sampling-defaults openai \
+  --skip-tokenizer-init \
   --tp-size 1 \
   --schedule-policy fcfs \
   --kv-cache-dtype auto \

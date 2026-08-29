@@ -50,4 +50,5 @@ exec "$environment/bin/python" -m vllm.entrypoints.openai.api_server \
   --scheduling-policy fcfs \
   --kv-cache-dtype auto \
   --max-num-seqs 32 \
+  --stream-interval 1 \
   --disable-log-stats

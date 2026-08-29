@@ -53,6 +53,16 @@ class TokenEncoder:
             encoded = self.tokenizer.encode(text, add_special_tokens=False)
         return [int(value) for value in encoded]
 
+    def decode(self, token_ids: list[int]) -> str:
+        with self.lock:
+            return str(
+                self.tokenizer.decode(
+                    token_ids,
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False,
+                )
+            )
+
 
 def _sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
@@ -140,6 +150,7 @@ def _request_row(
             for index in range(1, len(timestamps))
         ]
         output_ids_sha = sha256_bytes(canonical_json_bytes(observation.output_token_ids))
+        output_text = encoder.decode(observation.output_token_ids)
         return {
             **base,
             "ok": True,
@@ -152,12 +163,13 @@ def _request_row(
             "output_tokens": len(observation.output_token_ids),
             "server_reported_output_tokens": observation.server_reported_output_tokens,
             "output_token_ids_sha256": output_ids_sha,
-            "output_text_utf8_sha256": sha256_bytes(observation.output_text.encode()),
+            "output_text_utf8_sha256": sha256_bytes(output_text.encode()),
             "stream_chunk_count": observation.stream_chunk_count,
             "token_timing_exact": bool(observation.output_token_ids)
             and observation.stream_chunk_count == len(observation.output_token_ids),
             "output_count_consistent": observation.server_reported_output_tokens
-            in (None, len(observation.output_token_ids)),
+            in (None, len(observation.output_token_ids))
+            and len(observation.output_token_ids) == profile["output_tokens"],
         }
     except Exception as error:
         terminal = time.perf_counter_ns()
@@ -262,9 +274,28 @@ def warm_profile(
     encoder: TokenEncoder,
 ) -> None:
     cases = [row for row in workload if row["profile_class"] == profile["class"]]
-    for ordinal in range(count):
-        row = _request_row(engine, profile, cases[ordinal % len(cases)], -1, ordinal, timeout_seconds, encoder)
-        if not row["ok"]:
+    for round_ordinal in range(count):
+        with ThreadPoolExecutor(max_workers=profile["concurrency"]) as executor:
+            futures = [
+                executor.submit(
+                    _request_row,
+                    engine,
+                    profile,
+                    cases[(round_ordinal * profile["concurrency"] + ordinal) % len(cases)],
+                    -1,
+                    round_ordinal * profile["concurrency"] + ordinal,
+                    timeout_seconds,
+                    encoder,
+                )
+                for ordinal in range(profile["concurrency"])
+            ]
+            rows = [future.result() for future in as_completed(futures)]
+        if any(
+            not row["ok"]
+            or not row["token_timing_exact"]
+            or not row["output_count_consistent"]
+            for row in rows
+        ):
             raise AdapterError(f"excluded warmup failed for {engine['name']}/{profile['name']}")
 
 
@@ -328,7 +359,7 @@ def run_campaign(
                             engines[engine_name],
                             profile,
                             workload,
-                            campaign["warmup_requests_per_profile"],
+                            campaign["warmup_rounds_per_profile"],
                             campaign["request_timeout_seconds"],
                             encoder,
                         )
@@ -393,7 +424,7 @@ def run_campaign(
                 "execution_order": order_rows,
                 "warmup_excluded": True,
                 "startup_time_excluded": True,
-                "persistent_servers_required": False,
+                "persistent_servers_required": True,
                 "server_lifecycle": "one-engine-per-target-gpu-coordinate",
                 "model_inventory_full_scan_count": 1,
                 "model_admission_sha256": admission_sha,
