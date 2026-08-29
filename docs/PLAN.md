@@ -68,10 +68,13 @@ still not positive quantized execution evidence.
 The current Phase 2/3 soak policy is digest-pinned v3. Its real-worker smoke
 and both 2,300-wave fast and timer diagnostics pass on final29. The earlier
 final7 24-hour attempt is infrastructure-interrupted after host loss and has no
-terminal result. Its exact-final29 replacement is active under systemd user
-unit `lunaflux-final29-phase23-soak-24h-20260828.service`, with evidence at
-`/tmp/lunaflux-final29-phase23-soak-24h-20260828`. It is not a pass until
-terminal evidence verifies at least 86,400,000 ms and exact resource balance.
+terminal result. Its exact-final29 replacement passes with 86,400,012
+milliseconds of wrapper time and 86,400,002 milliseconds measured by the
+worker, positive required wave counters, 833 balanced accepts/disconnects, and
+exact queue/active/KV/pending/child resource balance. Evidence manifest
+`a49609d819e143adf1e63d99f0ee97014a58d095baaffd0f9a3c2eb43ff8788f`
+rehashes completely; the local archive SHA-256 is
+`3a105bb7ef9665c86e8dabec1808ef61da838c3579bcb4929e05948e623d4fb0`.
 The two historical v2 24-hour passes remain authoritative only for their
 frozen v2 source. This physical qualification does not waive the remaining
 public routability/TLS/control approval, full baseline comparison,
@@ -79,7 +82,7 @@ OCI/SBOM/provenance/signing, LunaNexa integration, positive I8, or positive
 homogeneous tensor-parallel/NCCL gates.
 
 Post-final7 additions are carried by the sealed final30 source, full Linux
-suite, and sealed final30 physical campaign; the final29 soak is running. They
+suite, and sealed final30 physical campaign; the final29 soak also passes. They
 add exact loopback `/healthz` and `/readyz` observation,
 one inherited descriptor-5 Unix-stream drain capability for the opaque CLI,
 one separate descriptor-6 read-once inference-credential capability with
@@ -106,9 +109,10 @@ dependency/debt boundary, and focused authority/allocation/performance gates
 locally. A non-overwriting portable handoff is sealed only after these checks;
 its digest belongs to the external handoff record so sealing does not create a
 self-referential source hash. This is source and software-validation state
-only: it is not part of sealed final30 physical evidence, does not modify the
-active final29 soak, and carries no new NVIDIA, sanitizer, benchmark, or
-release evidence until a named post-soak current-source campaign verifies.
+only: it is not part of sealed final30 physical evidence, does not change the
+exact-source scope of the completed final29 soak, and carries no new NVIDIA,
+sanitizer, benchmark, or release evidence until a named post-soak
+current-source campaign verifies.
 
 After final30, local-only debt hardening centralizes FP8/I8 numeric target
 matching in the kernel catalog, makes the external-protocol instance join
@@ -204,10 +208,10 @@ never receives the deployment key, and stale/substituted/replayed records fail
 closed before `Ready`. Missing external approval preserves standalone
 inference.
 
-The next exact-source hardware campaign is prepared behind the still-running
-Phase 2/3 soak. Its runner now includes the qualification-only context-churn
-and actual 8-token/9-token modes, binds both to the freshly built authenticated
-launch/worker, verifies canonical evidence digests, and retains final
+The next exact-source hardware campaign was prepared behind the Phase 2/3
+soak, which has now passed. Its runner includes the qualification-only
+context-churn and actual 8-token/9-token modes, binds both to the freshly built
+authenticated launch/worker, verifies canonical evidence digests, and retains final
 GPU/process balance as the terminal gate. Immutable directory manifest/sealing
 mechanics are shared without moving campaign schema or promotion decisions out
 of their owners. OCI verification rejects every rootfs/metadata regular file
@@ -255,8 +259,8 @@ The remaining hardware/evidence gates are explicit:
   requires the actual pinned, counterbalanced LunaFlux/vLLM/SGLang nine-profile
   trial matrix plus independent correctness authority;
 - the existing two 24-hour Phase 2/3 v2 soak passes remain authoritative for
-  their frozen source; current v3 smoke plus fast/timer evidence pass, while
-  the exact-final29 24-hour run remains active and unpromoted.
+  their frozen source; current v3 smoke plus fast/timer evidence and the
+  exact-final29 24-hour run pass for their exact source.
 
 Detailed command outcomes, artifact identities, and evidence hashes are in
 [PHYSICAL_VALIDATION_2026-08-27.md](PHYSICAL_VALIDATION_2026-08-27.md).

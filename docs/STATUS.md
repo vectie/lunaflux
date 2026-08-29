@@ -40,14 +40,18 @@ NCCL evidence.
 The Phase 2/3 v3 2,300-wave fast and timer replays both pass on the same Linux
 source with 4,600 requests, 4,465 completions, 135 cancellations, 16
 rejections, 41 balanced accepts/disconnects, and closed queue/active/KV/pending
-and child resources. The exact-final29 24-hour run is active under systemd user
-unit `lunaflux-final29-phase23-soak-24h-20260828.service`, with evidence at
-`/tmp/lunaflux-final29-phase23-soak-24h-20260828`. Its immutable worker-service,
-worker-echo, policy, and wrapper hashes have been rechecked. At the
-2026-08-29 08:19 CST checkpoint both immutable processes were alive after
-9 hours 47 minutes, the result remained pending, and runtime stdout/stderr were
-both empty. This is running evidence, not a pass. The preceding final7 attempt
-has no `RESULT.txt` because
+and child resources. The exact-final29 24-hour run also passes. Its terminal
+record reports 86,400,012 milliseconds, while the worker's single terminal
+line measures 86,400,002 milliseconds across 43,200 cycles and 86,400 requests.
+All required wave counters are positive, accepts equal disconnects at 833, and
+resources close at `queue0,active0,kv_used0,kv_free8,pending0,child_closed`.
+Every entry in evidence manifest
+`a49609d819e143adf1e63d99f0ee97014a58d095baaffd0f9a3c2eb43ff8788f`
+rehashes successfully, stderr is empty, and the verified local archive at
+`/private/tmp/lunaflux-final29-phase23-soak-24h-20260828-pass.tar.gz` has
+SHA-256
+`3a105bb7ef9665c86e8dabec1808ef61da838c3579bcb4929e05948e623d4fb0`.
+The preceding final7 attempt has no `RESULT.txt` because
 host loss removed its transient unit; its zero-byte runtime logs and immutable
 artifacts remain preserved as infrastructure-interrupted evidence.
 
@@ -111,8 +115,8 @@ recorded in
 ## Post-final7 qualification carried by final30 — 2026-08-28
 
 The final30 source includes the post-final7 additions below and has been rebuilt
-on the NVIDIA host. The full Linux suite and exact sealed-final30 physical
-campaign pass, and the exact-final29 v3 soak remains active. Individual claims below stay
+on the NVIDIA host. The full Linux suite, exact sealed-final30 physical
+campaign, and exact-final29 v3 soak pass. Individual claims below stay
 scoped: this does not promote public networking, comparative benchmarks,
 Mistral/FP8 hardware support, OCI/SBOM, or general release readiness.
 
@@ -140,9 +144,9 @@ locally. A non-overwriting portable handoff is sealed only after these checks;
 its digest belongs to the external handoff record so sealing does not create a
 self-referential source hash. Everything below this heading remains
 source/software state only: it is not part of final30 physical evidence, does
-not alter the active final29 soak, and makes no new NVIDIA, performance,
-sanitizer, or release claim until a named post-soak current-source campaign
-verifies.
+not change the exact-source scope of the completed final29 soak, and makes no
+new NVIDIA, performance, sanitizer, or release claim until a named post-soak
+current-source campaign verifies.
 
 Subsequent local debt hardening removes every compiler-reported unnecessary
 MoonBit annotation and makes warning 73 a permanent aggregate boundary. It also
@@ -346,11 +350,12 @@ an unauthoritative raw-trace claim.
 The following exact-current-source paragraphs are retained as historical
 qualification records for earlier snapshots.
 
-The next exact-source physical rerun is locally staged but has not started
-while the mandatory Phase 2/3 soak owns the NVIDIA host. The current-source
-runner now executes the existing qualification-only context-churn and actual
-8-token/9-token modes with the authenticated launch and freshly built worker,
-then requires canonical evidence digests and final GPU/process balance. A
+The next exact-source physical rerun was locally staged but had not started
+while the mandatory Phase 2/3 soak owned the NVIDIA host; that soak has now
+passed. The current-source runner executes the existing qualification-only
+context-churn and actual 8-token/9-token modes with the authenticated launch
+and freshly built worker, then requires canonical evidence digests and final
+GPU/process balance. A
 generic filesystem-only evidence helper now owns deterministic manifests and
 read-only sealing without acquiring schema, admission, or promotion authority.
 OCI verification additionally rejects regular files with hard-link aliases;
@@ -1477,8 +1482,8 @@ resource balance, and one real-timestamp LunaFlux measurement now have physical
 evidence. Loopback health/readiness and the inherited local drain capability
 are now implemented and locally proven. The remaining first-release work is
 physical and publicly routable approval for those controls, deployment-owned
-TLS/authentication/generation fencing, a fresh current-v3 24-hour
-soak, physical context-churn/actual-context and broader device-leak coverage,
+TLS/authentication/generation fencing, physical context-churn/actual-context
+and broader device-leak coverage,
 the full pinned and counterbalanced LunaFlux/vLLM/SGLang comparison, an approved final
 OCI with SBOM/provenance/rootfs scan, and an actually routable opaque LunaNexa
 deployment with reviewer acceptance. Full MoonBit-runtime sanitizer

@@ -10,16 +10,15 @@
 > prefix reuse, sampling and stops, AOT capability admission, telemetry, and
 > operator preflight. Authenticated loopback Responses, the pinned physical
 > cached-prefix check, and one real-timestamp LunaFlux measurement now pass.
-> First-release promotion remains open for routable TLS/control approval,
-> the active current-v3 24-hour soak, the full
-> pinned vLLM/SGLang comparison, final OCI/SBOM/provenance evidence, and
+> First-release promotion remains open for routable TLS/control approval, the
+> full pinned vLLM/SGLang comparison, final OCI/SBOM/provenance evidence, and
 > LunaNexa routability. I8 and FP8 software admission now includes exact
 > `sm120`, but positive physical quantized execution and positive tensor
 > parallelism on homogeneous peer-capable NCCL hardware remain post-v1 gates.
 > The corrected historical Phase 2/3 v2 soak completed two 24-hour balance
 > passes. Current v3 smoke plus both 2,300-wave fast and timer diagnostics pass.
 > The exact final30 source passes 2,297/2,297 Linux tests and a fresh complete
-> single-GPU BF16 campaign; the exact-final29 24-hour rerun remains active after
+> single-GPU BF16 campaign. The exact-final29 v3 24-hour rerun also passes after
 > host loss interrupted the preceding final7 attempt without terminal evidence.
 > The newer exact current-source archive passes the complete 2,448/2,448 native
 > matrix and aggregate dependency/debt boundary locally, is sealed and uploaded
@@ -469,9 +468,14 @@ The current source is now explicitly v3 because malformed connection-terminal
 input contributes one typed network rejection. Its digest-bound smoke and
 2,300-wave fast real-worker diagnostic pass with complete resource balance.
 The historical v2 records are not relabeled. The exact-final29 v3 24-hour run
-is active under its independent systemd user unit; it is not a pass until its
-terminal evidence verifies. Host loss interrupted the preceding final7 attempt
-without terminal evidence.
+passed with 86,400,012 milliseconds of wrapper time and 86,400,002 milliseconds
+measured by the worker, 86,400 requests over 43,200 cycles, positive required
+wave counters, 833 balanced accepts/disconnects, `kv_free8`, and closed
+queue/active/KV/pending/child resources. Its exact evidence manifest SHA-256 is
+`a49609d819e143adf1e63d99f0ee97014a58d095baaffd0f9a3c2eb43ff8788f`;
+the downloaded evidence archive SHA-256 is
+`3a105bb7ef9665c86e8dabec1808ef61da838c3579bcb4929e05948e623d4fb0`.
+Host loss interrupted the preceding final7 attempt without terminal evidence.
 
 ## Validation
 

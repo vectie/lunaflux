@@ -31,8 +31,8 @@ prefix reuse. All runtime stderr files are empty, network and KV resources are
 balanced, both listeners and children close, GPU memory returns to 15/22 MiB,
 and no compute process remains. The separate restored-host Phase 7 diagnostic
 again rejects the heterogeneous `sm120`/`sm75`, no-peer, no-NCCL topology before
-resource authority. The exact-final29 24-hour soak remained active with empty
-stdout/stderr throughout this campaign.
+resource authority. The exact-final29 24-hour soak was active with empty
+stdout/stderr throughout this campaign and later passed as recorded below.
 
 This is positive exact-current-source single-GPU BF16 evidence only. It does
 not claim positive I8/FP8, homogeneous tensor-parallel/NCCL, public TLS, the
@@ -77,11 +77,22 @@ pass. GPU memory returned to 15/22 MiB and no compute process remained.
 The final29 Phase 2/3 v3 fast and timer diagnostics each pass 2,300 waves and
 4,600 requests with 4,465 completions, 135 cancellations, 16 rejections, 41
 balanced accepts/disconnects, positive batching/backpressure/cancellation
-counters, `kv_free8`, and closed child authority. The final29 24-hour soak is
-active under `lunaflux-final29-phase23-soak-24h-20260828.service`; evidence is
-`/tmp/lunaflux-final29-phase23-soak-24h-20260828`. Runtime stdout/stderr are
-zero bytes at the initial checkpoint, so this remains running evidence, not a
-pass. The prior final7 soak is preserved as infrastructure-interrupted after
+counters, `kv_free8`, and closed child authority. The final29 24-hour soak also
+passes. `RESULT.txt` records `outcome=passed`, `exit_status=0`, and
+`elapsed_millis=86400012`; the worker's single terminal line measures
+86,400,002 milliseconds across 43,200 cycles and 86,400 requests, with every
+required wave counter positive, 833 balanced accepts/disconnects, and final
+resources `queue0,active0,kv_used0,kv_free8,pending0,child_closed`. Runtime
+stderr is empty. Every entry in `FILES.sha256` rehashes successfully and the
+manifest SHA-256 is
+`a49609d819e143adf1e63d99f0ee97014a58d095baaffd0f9a3c2eb43ff8788f`.
+The immutable remote archive is
+`/home/jiaanguo/lunaflux-final29-phase23-soak-24h-20260828-pass.tar.gz`;
+the independently downloaded local copy is
+`/private/tmp/lunaflux-final29-phase23-soak-24h-20260828-pass.tar.gz`.
+Both are 2,064,860 bytes with SHA-256
+`3a105bb7ef9665c86e8dabec1808ef61da838c3579bcb4929e05948e623d4fb0`.
+The prior final7 soak is preserved as infrastructure-interrupted after
 host loss removed its transient unit before `RESULT.txt`.
 
 This closes the exact-current-source bounded BF16 physical campaign only. It
