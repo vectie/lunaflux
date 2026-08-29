@@ -118,11 +118,12 @@ fn qwen3_scan_letters(
   input : FixedArray[Byte],
   length : Int,
   offset : Int,
+  include_marks~ : Bool,
 ) -> Int raise TokenizerError {
   let mut cursor = offset
   while cursor < length {
     let (scalar, width) = qwen3_scalar_at(input, length, cursor)
-    if !qwen3_is_letter(scalar) {
+    if !qwen3_is_letter(scalar) && !(include_marks && qwen35_is_mark(scalar)) {
       break
     }
     cursor += width
@@ -135,14 +136,15 @@ fn qwen3_pretoken_end(
   input : FixedArray[Byte],
   length : Int,
   offset : Int,
+  include_marks~ : Bool,
 ) -> Int raise TokenizerError {
   let contraction = qwen3_contraction_end(input, length, offset)
   if contraction >= 0 {
     return contraction
   }
   let (first, first_width) = qwen3_scalar_at(input, length, offset)
-  if qwen3_is_letter(first) {
-    return qwen3_scan_letters(input, length, offset)
+  if qwen3_is_letter(first) || (include_marks && qwen35_is_mark(first)) {
+    return qwen3_scan_letters(input, length, offset, include_marks~)
   }
   if first != 0x0d &&
     first != 0x0a &&
@@ -151,8 +153,8 @@ fn qwen3_pretoken_end(
     offset + first_width < length {
     let next_offset = offset + first_width
     let (next, _) = qwen3_scalar_at(input, length, next_offset)
-    if qwen3_is_letter(next) {
-      return qwen3_scan_letters(input, length, next_offset)
+    if qwen3_is_letter(next) || (include_marks && qwen35_is_mark(next)) {
+      return qwen3_scan_letters(input, length, next_offset, include_marks~)
     }
   }
   if qwen3_is_number(first) {
@@ -163,6 +165,7 @@ fn qwen3_pretoken_end(
     let (next, _) = qwen3_scalar_at(input, length, offset + 1)
     if !qwen3_is_whitespace(next) &&
       !qwen3_is_letter(next) &&
+      !(include_marks && qwen35_is_mark(next)) &&
       !qwen3_is_number(next) {
       symbol_start = offset + 1
     }
@@ -170,12 +173,14 @@ fn qwen3_pretoken_end(
   let (symbol, _) = qwen3_scalar_at(input, length, symbol_start)
   if !qwen3_is_whitespace(symbol) &&
     !qwen3_is_letter(symbol) &&
+    !(include_marks && qwen35_is_mark(symbol)) &&
     !qwen3_is_number(symbol) {
     let mut cursor = symbol_start
     while cursor < length {
       let (scalar, width) = qwen3_scalar_at(input, length, cursor)
       if qwen3_is_whitespace(scalar) ||
         qwen3_is_letter(scalar) ||
+        (include_marks && qwen35_is_mark(scalar)) ||
         qwen3_is_number(scalar) {
         break
       }

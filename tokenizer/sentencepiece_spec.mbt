@@ -67,7 +67,8 @@ fn TokenizerSpec::worker_symbol_capacity(
   }
   if self.profile == TOKENIZER_PROFILE_SENTENCEPIECE_BPE {
     sentencepiece_symbol_capacity(input_capacity)
-  } else if self.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+  } else if self.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
+    self.profile == TOKENIZER_PROFILE_QWEN35_BPE {
     if input_capacity > (1_073_741_824 - 1) / QWEN3_NFC_MAX_UTF8_EXPANSION {
       raise LunaInvalidWorkerCapacity
     }

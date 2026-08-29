@@ -18,12 +18,17 @@ const TOKENIZER_PROFILE_SENTENCEPIECE_BPE : Int = 1
 const TOKENIZER_PROFILE_QWEN3_BPE : Int = 2
 
 ///|
+const TOKENIZER_PROFILE_QWEN35_BPE : Int = 3
+
+///|
 /// Validated immutable specification for one admitted tokenizer profile.
 ///
 /// LunaFlux supports its raw ByteLevel-BPE contract, one closed
-/// SentencePiece-derived BPE `tokenizer.json` pipeline, and the pinned Qwen3
-/// NFC/regex ByteLevel-BPE pipeline. This type does not claim compatibility
-/// with arbitrary normalizer, template, decoder, or model-family profiles.
+/// SentencePiece-derived BPE `tokenizer.json` pipeline, the pinned dense Qwen3
+/// NFC/regex ByteLevel-BPE pipeline, and the separately pinned Qwen3.5/Qwen3.6
+/// NFC/mark-aware ByteLevel-BPE pipeline. This type does not claim
+/// compatibility with arbitrary normalizer, template, decoder, or model-family
+/// profiles.
 pub struct TokenizerSpec {
   priv digest : TokenizerDigest
   priv limits : TokenizerLimits
@@ -114,6 +119,29 @@ pub fn TokenizerSpec::new_qwen3_bpe(
     digest,
     limits,
     profile=TOKENIZER_PROFILE_QWEN3_BPE,
+  )
+}
+
+///|
+/// Construct the exact NFC plus mark-aware Qwen3.5/Qwen3.6-regex
+/// ByteLevel-BPE profile.
+///
+/// JSON admission separately pins the 248,044-entry ordinary vocabulary, the
+/// 26 exact added tokens, the regex, and all ByteLevel options. Keeping this
+/// constructor distinct prevents a dense Qwen3 artifact from being silently
+/// reinterpreted under the newer mark-aware split semantics.
+pub fn TokenizerSpec::new_qwen35_bpe(
+  vocabulary : ArrayView[VocabularyEntry],
+  merges : ArrayView[MergeRule],
+  digest : TokenizerDigest,
+  limits : TokenizerLimits,
+) -> TokenizerSpec raise TokenizerError {
+  new_bytelevel_bpe(
+    vocabulary,
+    merges,
+    digest,
+    limits,
+    profile=TOKENIZER_PROFILE_QWEN35_BPE,
   )
 }
 

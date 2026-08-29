@@ -43,12 +43,14 @@ fn LunaTokenizerWorker::finish_special_match(
     self.input_offset += self.best_special_bytes
     self.segment_start = true
     self.ordinary_ready = false
-    if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+    if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
+      self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE {
       self.qwen_segment_end = -1
     }
   } else if self.spec.profile == TOKENIZER_PROFILE_SENTENCEPIECE_BPE {
     self.ordinary_ready = true
-  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
+    self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE {
     self.append_symbol(
       self.spec.byte_token_ids[self.input[self.input_offset].to_int()],
     )
@@ -269,7 +271,8 @@ fn LunaTokenizerWorker::progress_initialize(
     self.scan_left = self.head
     self.selected_rank = -1
     self.phase = LUNA_WORKER_SELECT_ADJACENCY
-  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+  } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
+    self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE {
     if self.qwen_segment_end >= 0 && self.input_offset >= self.qwen_segment_end {
       self.append_symbol(LUNA_PRETOKEN_BOUNDARY)
       self.qwen_segment_end = -1
@@ -279,6 +282,7 @@ fn LunaTokenizerWorker::progress_initialize(
           self.input,
           self.input_length,
           self.input_offset,
+          include_marks=self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE,
         )
       }
       if self.special_policy is AsOrdinary ||

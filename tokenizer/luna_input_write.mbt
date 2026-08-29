@@ -102,7 +102,8 @@ pub fn LunaTokenizerInputWrite::finish(
   if worker.written_input_bytes != worker.input_length {
     raise LunaInvalidInputWrite
   }
-  worker.phase = if worker.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE {
+  worker.phase = if worker.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
+    worker.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE {
     LUNA_WORKER_QWEN3_NORMALIZE
   } else {
     LUNA_WORKER_INITIALIZE

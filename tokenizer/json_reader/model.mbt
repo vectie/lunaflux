@@ -31,7 +31,7 @@ fn parse_vocabulary(
       }
       None =>
         match profile {
-          ByteLevelJson | Qwen3Json =>
+          ByteLevelJson | Qwen3Json | Qwen35Json =>
             (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
           SentencePieceJson(..) =>
             match decode_sentencepiece_byte_fallback(raw_piece) {
@@ -48,7 +48,7 @@ fn parse_vocabulary(
   }
   for _, special in specials {
     match profile {
-      Qwen3Json =>
+      Qwen3Json | Qwen35Json =>
         if raw_id_by_token.contains(special.content) {
           raise AddedTokenContentMismatch(index=special.source_index)
         }
@@ -59,11 +59,13 @@ fn parse_vocabulary(
         }
     }
   }
-  if profile is Qwen3Json {
-    if entries.length() != QWEN3_FIRST_ADDED_TOKEN_ID {
+  let qwen_first = qwen_profile_first_added(profile)
+  let qwen_last = qwen_profile_last_added(profile)
+  if qwen_first >= 0 {
+    if entries.length() != qwen_first {
       raise InvalidField(component=Model, field=Vocab, index=entries.length())
     }
-    for id in QWEN3_FIRST_ADDED_TOKEN_ID..<=QWEN3_LAST_ADDED_TOKEN_ID {
+    for id in qwen_first..<=qwen_last {
       guard specials.get(id) is Some(added) else {
         raise UnsupportedSemantics(
           component=AddedToken,
@@ -164,11 +166,13 @@ fn parse_merges(
   for index, row in rows {
     let (left_raw, right_raw) = decode_merge_pair(row, index)
     let left_piece = match profile {
-      ByteLevelJson | Qwen3Json => decode_bytelevel_piece(left_raw, index)
+      ByteLevelJson | Qwen3Json | Qwen35Json =>
+        decode_bytelevel_piece(left_raw, index)
       SentencePieceJson(..) => @utf8.encode(left_raw)
     }
     let right_piece = match profile {
-      ByteLevelJson | Qwen3Json => decode_bytelevel_piece(right_raw, index)
+      ByteLevelJson | Qwen3Json | Qwen35Json =>
+        decode_bytelevel_piece(right_raw, index)
       SentencePieceJson(..) => @utf8.encode(right_raw)
     }
     let left_id = match vocabulary.normal_id_by_piece.get(left_piece) {
@@ -213,7 +217,7 @@ fn parse_model(
   }
   require_null(model, "dropout", Model, Dropout, MergeDropout)
   match profile {
-    Qwen3Json => {
+    Qwen3Json | Qwen35Json => {
       if require_string(
           model,
           "continuing_subword_prefix",
@@ -247,7 +251,7 @@ fn parse_model(
     }
   }
   let (unknown_token_id, bos_token_id) = match profile {
-    ByteLevelJson | Qwen3Json => {
+    ByteLevelJson | Qwen3Json | Qwen35Json => {
       require_null(
         model,
         "unk_token",
@@ -321,6 +325,15 @@ fn parse_model(
       }
     Qwen3Json =>
       @tokenizer.TokenizerSpec::new_qwen3_bpe(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+      ) catch {
+        error => raise Validation(error)
+      }
+    Qwen35Json =>
+      @tokenizer.TokenizerSpec::new_qwen35_bpe(
         vocabulary.entries,
         merges,
         digest,

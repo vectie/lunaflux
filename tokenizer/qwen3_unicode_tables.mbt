@@ -48,6 +48,29 @@ fn qwen3_is_letter(scalar : Int) -> Bool {
 }
 
 ///|
+/// Exact Unicode 17.0.0 `General_Category=Mark` membership used only by the
+/// separately admitted Qwen3.5/Qwen3.6 split regex.
+fn qwen35_is_mark(scalar : Int) -> Bool {
+  let record_bytes = 6
+  let mut low = 0
+  let mut high = qwen35_unicode_mark_ranges.length() / record_bytes
+  while low < high {
+    let middle = low + (high - low) / 2
+    let offset = middle * record_bytes
+    let first = qwen3_unicode_u24(qwen35_unicode_mark_ranges, offset)
+    let last = qwen3_unicode_u24(qwen35_unicode_mark_ranges, offset + 3)
+    if scalar < first {
+      high = middle
+    } else if scalar > last {
+      low = middle + 1
+    } else {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn qwen3_canonical_combining_class(scalar : Int) -> Int {
   let record_bytes = 7
   let mut low = 0

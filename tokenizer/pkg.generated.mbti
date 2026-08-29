@@ -168,6 +168,7 @@ pub fn TokenizerSpec::limits(Self) -> TokenizerLimits
 pub fn TokenizerSpec::luna_worker_required_int_cells(Self, Int) -> UInt64 raise TokenizerError
 pub fn TokenizerSpec::merge_count(Self) -> Int
 pub fn TokenizerSpec::new(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
+pub fn TokenizerSpec::new_qwen35_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_qwen3_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_sentencepiece_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, unknown_token_id~ : Int, bos_token_id~ : Int) -> Self raise TokenizerError
 pub fn TokenizerSpec::vocab_size(Self) -> Int

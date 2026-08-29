@@ -53,7 +53,9 @@ fn qwen3_added_tokens() -> Array[Json] {
     entries.push(
       Json::object({
         "id": Json::number(id.to_double()),
-        "content": Json::string(qwen3_added_token_content(id).unwrap()),
+        "content": Json::string(
+          qwen_added_token_content(id - QWEN3_FIRST_ADDED_TOKEN_ID).unwrap(),
+        ),
         "single_word": Json::boolean(false),
         "lstrip": Json::boolean(false),
         "rstrip": Json::boolean(false),

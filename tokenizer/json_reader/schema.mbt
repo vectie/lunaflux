@@ -12,6 +12,7 @@ priv enum TokenizerJsonProfile {
   ByteLevelJson
   SentencePieceJson(bos_token_id~ : Int)
   Qwen3Json
+  Qwen35Json
 }
 
 ///|
@@ -21,38 +22,78 @@ const QWEN3_FIRST_ADDED_TOKEN_ID : Int = 151643
 const QWEN3_LAST_ADDED_TOKEN_ID : Int = 151668
 
 ///|
+const QWEN35_FIRST_ADDED_TOKEN_ID : Int = 248044
+
+///|
+const QWEN35_LAST_ADDED_TOKEN_ID : Int = 248069
+
+///|
 const QWEN3_SPLIT_REGEX : String = "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
 
 ///|
-fn qwen3_added_token_content(id : Int) -> String? {
-  match id {
-    151643 => Some("<|endoftext|>")
-    151644 => Some("<|im_start|>")
-    151645 => Some("<|im_end|>")
-    151646 => Some("<|object_ref_start|>")
-    151647 => Some("<|object_ref_end|>")
-    151648 => Some("<|box_start|>")
-    151649 => Some("<|box_end|>")
-    151650 => Some("<|quad_start|>")
-    151651 => Some("<|quad_end|>")
-    151652 => Some("<|vision_start|>")
-    151653 => Some("<|vision_end|>")
-    151654 => Some("<|vision_pad|>")
-    151655 => Some("<|image_pad|>")
-    151656 => Some("<|video_pad|>")
-    151657 => Some("<tool_call>")
-    151658 => Some("</tool_call>")
-    151659 => Some("<|fim_prefix|>")
-    151660 => Some("<|fim_middle|>")
-    151661 => Some("<|fim_suffix|>")
-    151662 => Some("<|fim_pad|>")
-    151663 => Some("<|repo_name|>")
-    151664 => Some("<|file_sep|>")
-    151665 => Some("<tool_response>")
-    151666 => Some("</tool_response>")
-    151667 => Some("<think>")
-    151668 => Some("</think>")
+const QWEN35_SPLIT_REGEX : String = "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?[\\p{L}\\p{M}]+|\\p{N}| ?[^\\s\\p{L}\\p{M}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
+
+///|
+fn qwen_added_token_content(offset : Int) -> String? {
+  match offset {
+    0 => Some("<|endoftext|>")
+    1 => Some("<|im_start|>")
+    2 => Some("<|im_end|>")
+    3 => Some("<|object_ref_start|>")
+    4 => Some("<|object_ref_end|>")
+    5 => Some("<|box_start|>")
+    6 => Some("<|box_end|>")
+    7 => Some("<|quad_start|>")
+    8 => Some("<|quad_end|>")
+    9 => Some("<|vision_start|>")
+    10 => Some("<|vision_end|>")
+    11 => Some("<|vision_pad|>")
+    12 => Some("<|image_pad|>")
+    13 => Some("<|video_pad|>")
+    14 => Some("<tool_call>")
+    15 => Some("</tool_call>")
+    16 => Some("<|fim_prefix|>")
+    17 => Some("<|fim_middle|>")
+    18 => Some("<|fim_suffix|>")
+    19 => Some("<|fim_pad|>")
+    20 => Some("<|repo_name|>")
+    21 => Some("<|file_sep|>")
+    22 => Some("<tool_response>")
+    23 => Some("</tool_response>")
+    24 => Some("<think>")
+    25 => Some("</think>")
     _ => None
+  }
+}
+
+///|
+fn qwen_profile_first_added(profile : TokenizerJsonProfile) -> Int {
+  match profile {
+    Qwen3Json => QWEN3_FIRST_ADDED_TOKEN_ID
+    Qwen35Json => QWEN35_FIRST_ADDED_TOKEN_ID
+    _ => -1
+  }
+}
+
+///|
+fn qwen_profile_last_added(profile : TokenizerJsonProfile) -> Int {
+  match profile {
+    Qwen3Json => QWEN3_LAST_ADDED_TOKEN_ID
+    Qwen35Json => QWEN35_LAST_ADDED_TOKEN_ID
+    _ => -1
+  }
+}
+
+///|
+fn qwen_profile_added_content(
+  profile : TokenizerJsonProfile,
+  id : Int,
+) -> String? {
+  let first = qwen_profile_first_added(profile)
+  if first < 0 {
+    None
+  } else {
+    qwen_added_token_content(id - first)
   }
 }
 
@@ -112,11 +153,12 @@ fn parse_added_tokens(
       raise InvalidField(component=AddedToken, field=Id, index~)
     }
     match profile {
-      Qwen3Json => {
-        guard id == QWEN3_FIRST_ADDED_TOKEN_ID + index &&
-          qwen3_added_token_content(id) is Some(expected) &&
+      Qwen3Json | Qwen35Json => {
+        let first = qwen_profile_first_added(profile)
+        guard id == first + index &&
+          qwen_profile_added_content(profile, id) is Some(expected) &&
           content == expected &&
-          special == (id <= 151656) else {
+          special == (id <= first + 13) else {
           raise UnsupportedSemantics(
             component=AddedToken,
             feature=Qwen3AddedTokens,
@@ -135,9 +177,9 @@ fn parse_added_tokens(
     by_id[id] = { id, content, piece, special, source_index: index }
     content_ids[content] = id
   }
-  if profile is Qwen3Json &&
-    entries.length() !=
-    QWEN3_LAST_ADDED_TOKEN_ID - QWEN3_FIRST_ADDED_TOKEN_ID + 1 {
+  let first = qwen_profile_first_added(profile)
+  let last = qwen_profile_last_added(profile)
+  if first >= 0 && entries.length() != last - first + 1 {
     raise UnsupportedSemantics(component=AddedToken, feature=Qwen3AddedTokens)
   }
   by_id
@@ -172,10 +214,7 @@ fn validate_root_semantics(
       if normalizer.get("type") is Some(String("NFC")) {
         match require_field(root, "pre_tokenizer", Root, PreTokenizerField) {
           Object(pretokenizer) if pretokenizer.get("type")
-            is Some(String("Sequence")) => {
-            validate_qwen3_pipeline(root)
-            Qwen3Json
-          }
+            is Some(String("Sequence")) => validate_qwen3_pipeline(root)
           _ =>
             raise UnsupportedSemantics(
               component=Normalizer,
@@ -190,7 +229,9 @@ fn validate_root_semantics(
 }
 
 ///|
-fn validate_qwen3_split(value : Json) -> Unit raise TokenizerJsonError {
+fn validate_qwen3_split(
+  value : Json,
+) -> TokenizerJsonProfile raise TokenizerJsonError {
   let object = require_component_object(value, PreTokenizer)
   validate_fields(object, PreTokenizer, [
     "type", "pattern", "behavior", "invert",
@@ -208,19 +249,21 @@ fn validate_qwen3_split(value : Json) -> Unit raise TokenizerJsonError {
     PreTokenizer,
   )
   validate_fields(pattern, PreTokenizer, ["Regex"])
-  if require_string(pattern, "Regex", PreTokenizer, Pattern, 0) !=
-    QWEN3_SPLIT_REGEX {
-    raise UnsupportedSemantics(
-      component=PreTokenizer,
-      feature=Qwen3PreTokenization,
-    )
+  match require_string(pattern, "Regex", PreTokenizer, Pattern, 0) {
+    QWEN3_SPLIT_REGEX => Qwen3Json
+    QWEN35_SPLIT_REGEX => Qwen35Json
+    _ =>
+      raise UnsupportedSemantics(
+        component=PreTokenizer,
+        feature=Qwen3PreTokenization,
+      )
   }
 }
 
 ///|
 fn validate_qwen3_pipeline(
   root : Map[String, Json],
-) -> Unit raise TokenizerJsonError {
+) -> TokenizerJsonProfile raise TokenizerJsonError {
   let normalizer = require_component_object(
     require_field(root, "normalizer", Root, NormalizerField),
     Normalizer,
@@ -250,7 +293,7 @@ fn validate_qwen3_pipeline(
       feature=Qwen3PreTokenization,
     )
   }
-  validate_qwen3_split(split)
+  let profile = validate_qwen3_split(split)
   let (add_prefix, use_regex) = validate_bytelevel_component(
     bytelevel,
     PreTokenizer,
@@ -292,6 +335,7 @@ fn validate_qwen3_pipeline(
       feature=Qwen3PreTokenization,
     )
   }
+  profile
 }
 
 ///|
