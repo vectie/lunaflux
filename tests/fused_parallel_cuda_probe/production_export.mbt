@@ -124,67 +124,73 @@ async fn export_fused_production_probe_inputs(args : Array[String]) -> Unit {
   let (context, production) = fused_production_probe_candidates(args[2])
   let staging = args[3] + ".partial"
   @fs.mkdir(staging, permission=0o700)
-  try {
-    @fs.mkdir(staging + "/sources", permission=0o700)
-    @fs.mkdir(staging + "/recipes", permission=0o700)
-    production_export_write_new(
-      staging + "/sources/production_qkv_v2.cu",
-      production.qkv.source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/production_qkv_v2.recipe",
-      production.qkv.recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/sources/production_readonly_attention_v2.cu",
-      production.readonly_candidate.source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/production_readonly_attention_v2.recipe",
-      production.readonly_candidate.recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/sources/production_residual_rmsnorm_v2.cu",
-      production.residual.source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/production_residual_rmsnorm_v2.recipe",
-      production.residual.recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/sources/oracle_qkv.cu",
-      context.qualification.qkv_fallback().source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/oracle_qkv.recipe",
-      context.qualification.qkv_fallback().recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/sources/oracle_rope.cu",
-      context.qualification.rope_fallback().source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/oracle_rope.recipe",
-      context.qualification.rope_fallback().recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/sources/oracle_attention.cu",
-      production.oracle_attention.source_bytes(),
-    )
-    production_export_write_new(
-      staging + "/recipes/oracle_attention.recipe",
-      production.oracle_attention.recipe_bytes(),
-    )
-    production_export_write_new(
-      staging + "/IDENTITIES.v1",
-      production_export_identities(context, production),
-    )
-    @fs.rename(staging, args[3], replace=false)
-  } catch {
-    error => {
+  let export_result : Result[Unit, Error] = Ok(
+    {
+      @fs.mkdir(staging + "/sources", permission=0o700)
+      @fs.mkdir(staging + "/recipes", permission=0o700)
+      production_export_write_new(
+        staging + "/sources/production_qkv_v2.cu",
+        production.qkv.source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/production_qkv_v2.recipe",
+        production.qkv.recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/sources/production_readonly_attention_v2.cu",
+        production.readonly_candidate.source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/production_readonly_attention_v2.recipe",
+        production.readonly_candidate.recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/sources/production_residual_rmsnorm_v2.cu",
+        production.residual.source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/production_residual_rmsnorm_v2.recipe",
+        production.residual.recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/sources/oracle_qkv.cu",
+        context.qualification.qkv_fallback().source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/oracle_qkv.recipe",
+        context.qualification.qkv_fallback().recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/sources/oracle_rope.cu",
+        context.qualification.rope_fallback().source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/oracle_rope.recipe",
+        context.qualification.rope_fallback().recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/sources/oracle_attention.cu",
+        production.oracle_attention.source_bytes(),
+      )
+      production_export_write_new(
+        staging + "/recipes/oracle_attention.recipe",
+        production.oracle_attention.recipe_bytes(),
+      )
+      production_export_write_new(
+        staging + "/IDENTITIES.v1",
+        production_export_identities(context, production),
+      )
+      @fs.rename(staging, args[3], replace=false)
+    },
+  ) catch {
+    error => Err(error)
+  }
+  match export_result {
+    Err(error) => {
       production_export_cleanup(staging)
       raise error
     }
+    Ok(_) => ()
   }
   println(
     "outcome=fused-production-v2-inputs-exported authority=qualification-only manifest_bindable=0 promotion_authority=0",

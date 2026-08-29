@@ -371,14 +371,20 @@ pub fn LunaRequestPreparationPool::try_submit(
   }
   let lane_index = self.pop_free_lane()
   received.consumed = true
-  self.start_lane(lane_index, received) catch {
-    error => {
+  let start_result : Result[Unit, RequestAdmissionError] = Ok(
+    self.start_lane(lane_index, received),
+  ) catch {
+    error => Err(error)
+  }
+  match start_result {
+    Err(error) => {
       let lane = self.lanes[lane_index]
       lane.queued = false
       self.abort_lane_resources(lane)
       self.reset_lane_to_idle(lane_index)
       raise error
     }
+    Ok(_) => ()
   }
   self.enqueue_active(lane_index)
   preparation_admission(

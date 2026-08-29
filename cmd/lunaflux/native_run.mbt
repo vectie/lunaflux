@@ -313,19 +313,30 @@ async fn[T] close_runtime_after_drain_attach_failure(
 /// Drives bounded lower transitions; cancellation always closes before exit.
 async fn run_native_model(model : String) -> Unit {
   let credential = acquire_opaque_inference_credential()
-  let promotion = acquire_luna_promotion_verifier() catch {
-    error => {
+  let promotion_result : Result[
+    @luna_capability_manifest.LunaStartupExternalApprovalHandoff?,
+    Error,
+  ] = Ok(acquire_luna_promotion_verifier()) catch { error => Err(error) }
+  let promotion = match promotion_result {
+    Err(error) => {
       close_untransferred_startup_inputs(credential, None)
       raise error
     }
+    Ok(value) => value
   }
   // The opaque process path requires possession of the deployment-created
   // inherited FD 5 capability before model/device/listener construction.
-  let drain = @inherited_drain.prepare_inherited_drain_v1() catch {
-    error => {
+  let drain_result : Result[@inherited_drain.InheritedDrainPreparation, Error] = Ok(
+    @inherited_drain.prepare_inherited_drain_v1(),
+  ) catch {
+    error => Err(error)
+  }
+  let drain = match drain_result {
+    Err(error) => {
       close_untransferred_startup_inputs(credential, promotion)
       raise error
     }
+    Ok(value) => value
   }
   let owner = @runtime_instance.prepare_opaque_cli(
     model,

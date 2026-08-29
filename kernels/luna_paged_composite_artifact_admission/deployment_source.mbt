@@ -364,10 +364,17 @@ pub fn admit_digest_pinned_fused_production_runtime(
   ) catch {
     _ => raise InvalidPagedCompositeArtifact(Fallback)
   }
-  let selected = select_fused_qkv_readonly_production_artifacts(
-    catalog, bundle, ro, kv,
+  let selected_result : Result[
+    ApprovedFusedQkvReadOnlyProductionArtifacts?,
+    PagedCompositeArtifactError,
+  ] = Ok(
+    select_fused_qkv_readonly_production_artifacts(catalog, bundle, ro, kv),
   ) catch {
-    error => raise error
+    error => Err(error)
+  }
+  let selected = match selected_result {
+    Err(error) => raise error
+    Ok(value) => value
   }
   guard selected is Some(artifacts) else {
     raise MismatchedPagedCompositeArtifact(KernelAbi)

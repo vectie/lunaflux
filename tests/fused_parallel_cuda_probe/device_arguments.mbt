@@ -7,13 +7,15 @@ fn probe_launch_synchronous(
   balance : FusedProbeResourceBalance,
 ) -> Unit raise {
   balance.pending_work += 1
-  try function_.launch_synchronous(dimensions, arguments, stream) catch {
-    error => {
-      balance.pending_work -= 1
-      raise error
-    }
-  } noraise {
-    _ => balance.pending_work -= 1
+  let launch_result : Result[Unit, Error] = Ok(
+    function_.launch_synchronous(dimensions, arguments, stream),
+  ) catch {
+    error => Err(error)
+  }
+  balance.pending_work -= 1
+  match launch_result {
+    Err(error) => raise error
+    Ok(_) => ()
   }
 }
 

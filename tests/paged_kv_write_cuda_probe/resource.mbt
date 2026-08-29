@@ -50,12 +50,14 @@ fn kv_launch(
   balance : KvProbeBalance,
 ) -> Unit raise {
   balance.pending += 1
-  try function_.launch_synchronous(dimensions, arguments, stream) catch {
-    error => {
-      balance.pending -= 1
-      raise error
-    }
-  } noraise {
-    _ => balance.pending -= 1
+  let launch_result : Result[Unit, Error] = Ok(
+    function_.launch_synchronous(dimensions, arguments, stream),
+  ) catch {
+    error => Err(error)
+  }
+  balance.pending -= 1
+  match launch_result {
+    Err(error) => raise error
+    Ok(_) => ()
   }
 }

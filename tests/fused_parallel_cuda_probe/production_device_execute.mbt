@@ -13,16 +13,20 @@ fn load_fused_production_kernel(
 ) -> FusedProductionLoadedKernel raise {
   let module_ = context.load_module(cubin)
   balance.modules += 1
-  let function_ = try module_.load_function(@utf8.encode(symbol)) catch {
-    error => {
+  let function_result : Result[@device.Function, Error] = Ok(
+    module_.load_function(@utf8.encode(symbol)),
+  ) catch {
+    error => Err(error)
+  }
+  let function_ = match function_result {
+    Err(error) => {
       module_.close() catch {
         _ => balance.cleanup_failures += 1
       }
       balance.modules -= 1
       raise error
     }
-  } noraise {
-    value => value
+    Ok(value) => value
   }
   balance.functions += 1
   { module_, function_ }
@@ -67,18 +71,21 @@ fn run_fused_production_captured(
     "production capture-required executor did not capture",
   )
   balance.pending_work += 1
-  try {
-    executor.launch_captured()
-    executor.record_completion()
-    executor.wait_completion()
-    executor.reset()
-  } catch {
-    error => {
-      balance.pending_work -= 1
-      raise error
-    }
+  let launch_result : Result[Unit, Error] = Ok(
+    {
+      executor.launch_captured()
+      executor.record_completion()
+      executor.wait_completion()
+      executor.reset()
+    },
+  ) catch {
+    error => Err(error)
   }
   balance.pending_work -= 1
+  match launch_result {
+    Err(error) => raise error
+    Ok(_) => ()
+  }
 }
 
 ///|

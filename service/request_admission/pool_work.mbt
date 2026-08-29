@@ -86,15 +86,21 @@ pub fn LunaRequestPreparationWork::take_prepared(
   if lane.phase != LUNA_PREPARATION_READY {
     raise Invalid(LunaPreparedLifecycle)
   }
-  validate_pool_time(
-    lane.receipt_at_millis,
-    lane.require_current_deadline(),
-    (self.pool.clock_read)(),
+  let time_result : Result[Unit, RequestAdmissionError] = Ok(
+    validate_pool_time(
+      lane.receipt_at_millis,
+      lane.require_current_deadline(),
+      (self.pool.clock_read)(),
+    ),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  match time_result {
+    Err(error) => {
       self.pool.fail_lane(lane, error)
       raise error
     }
+    Ok(_) => ()
   }
   let claim = match lane.claim {
     Some(value) => value

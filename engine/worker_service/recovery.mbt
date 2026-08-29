@@ -253,17 +253,29 @@ fn WorkerService::shutdown_clean_impl(
     self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }
-  self.require_transport().shutdown_clean() catch {
-    error => {
+  let shutdown_result : Result[Unit, WorkerServiceError] = Ok(
+    self.require_transport().shutdown_clean(),
+  ) catch {
+    error => Err(error)
+  }
+  match shutdown_result {
+    Err(error) => {
       self.lifecycle = ServiceRecovering
       raise error
     }
+    Ok(_) => ()
   }
-  self.require_transport().close() catch {
-    error => {
+  let close_result : Result[Unit, WorkerServiceError] = Ok(
+    self.require_transport().close(),
+  ) catch {
+    error => Err(error)
+  }
+  match close_result {
+    Err(error) => {
       self.lifecycle = ServiceClosingFailed
       raise error
     }
+    Ok(_) => ()
   }
   self.lifecycle = ServiceClosed
 }
@@ -296,11 +308,17 @@ fn WorkerService::close_impl(
   if self.lifecycle == ServiceRestartForbidden {
     raise Invalid(Lifecycle)
   }
-  self.require_transport().close() catch {
-    error => {
+  let close_result : Result[Unit, WorkerServiceError] = Ok(
+    self.require_transport().close(),
+  ) catch {
+    error => Err(error)
+  }
+  match close_result {
+    Err(error) => {
       self.lifecycle = ServiceClosingFailed
       raise error
     }
+    Ok(_) => ()
   }
   self.lifecycle = ServiceClosed
 }
