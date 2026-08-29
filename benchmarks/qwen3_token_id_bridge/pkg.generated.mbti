@@ -10,8 +10,6 @@ pub fn parse_qwen3_token_id_request(StringView, Int, Int, Int) -> Qwen3TokenIdRe
 
 pub fn qwen3_terminal_sse_event() -> Bytes
 
-pub fn qwen3_token_sse_event(Int) -> Bytes
-
 // Errors
 pub(all) suberror Qwen3TokenBridgeError {
   MalformedRequest
@@ -25,6 +23,12 @@ pub struct Qwen3TokenIdRequest {
 }
 pub fn Qwen3TokenIdRequest::input_token_ids(Self) -> ArrayView[Int]
 pub fn Qwen3TokenIdRequest::max_output_tokens(Self) -> Int
+
+pub struct Qwen3TokenSseBuffer {
+  // private fields
+}
+pub fn Qwen3TokenSseBuffer::new() -> Self
+pub fn Qwen3TokenSseBuffer::stage(Self, Int) -> Bytes
 
 // Type aliases
 
