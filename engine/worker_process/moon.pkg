@@ -1,11 +1,15 @@
 import {
+  "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
   "vectie/lunaflux/internal/process",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 import {
+  "vectie/lunaflux/tests/worker_executable_fixture",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "vectie/lunaflux/contracts/inference",

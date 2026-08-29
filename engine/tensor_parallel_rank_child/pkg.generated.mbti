@@ -1,0 +1,124 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_rank_child"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/rank_child_control",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_device_worker",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/tensor_parallel_rank_configure",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/config_file",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn open_configure_receiver(@rank_group_wire.RankGroupWireLimits, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> TensorParallelRankChildConfigureReceiver raise TensorParallelRankChildError
+
+pub fn prepare_configured_rank_child(TensorParallelRankChildConfigured) -> TensorParallelRankChildPreparation raise TensorParallelRankChildError
+
+pub fn run() -> Bool
+
+// Errors
+pub(all) suberror TensorParallelRankChildError {
+  Invalid(TensorParallelRankChildRule)
+  Control(@rank_child_control.RankChildControlError)
+  Configure(@tensor_parallel_rank_configure.TensorParallelRankConfigureError)
+  Worker(@tensor_parallel_device_worker.TensorParallelDeviceWorkerError)
+  Root(@approved_fs.ApprovedFsError)
+  Topology(@device_topology.LocalTopologyError)
+  Config(@config_file.ModelConfigFileError)
+  Plan(@plan.PlanValidationError)
+  Weights(@device_materialize.DeviceWeightError)
+  Runtime(@tensor_parallel_worker_bootstrap.TensorParallelWorkerBootstrapError)
+  Kv(@tensor_parallel_kv_plan.TensorParallelKvPlanError)
+  DevicePlan(@tensor_parallel_device_plan.TensorParallelDevicePlanError)
+  Manifest(@execution_manifest_file.ExecutionManifestFileError)
+  Device(@device.DeviceError)
+  Wire(@worker_wire.WorkerWireError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FailedTensorParallelRankChildPreparation {
+  // private fields
+}
+pub fn FailedTensorParallelRankChildPreparation::cause(Self) -> TensorParallelRankChildError
+pub fn FailedTensorParallelRankChildPreparation::cleanup_failure(Self) -> TensorParallelRankChildError?
+pub fn FailedTensorParallelRankChildPreparation::is_closed(Self) -> Bool
+pub fn FailedTensorParallelRankChildPreparation::retry_close(Self) -> Unit raise TensorParallelRankChildError
+
+pub(all) enum TensorParallelRankChildConfigureProgress {
+  ConfigurePending
+  ConfigureReady(TensorParallelRankChildConfigured)
+}
+
+pub struct TensorParallelRankChildConfigureReceiver {
+  // private fields
+}
+pub fn TensorParallelRankChildConfigureReceiver::begin(Self) -> Unit raise TensorParallelRankChildError
+pub fn TensorParallelRankChildConfigureReceiver::progress(Self) -> TensorParallelRankChildConfigureProgress raise TensorParallelRankChildError
+pub fn TensorParallelRankChildConfigureReceiver::wait_pending(Self) -> Unit raise TensorParallelRankChildError
+
+pub struct TensorParallelRankChildConfigured {
+  // private fields
+}
+pub fn TensorParallelRankChildConfigured::contract(Self) -> @tensor_parallel_rank_configure.TensorParallelRankConfigureContract
+
+pub(all) enum TensorParallelRankChildControlProgress {
+  ControlPending
+  ControlAdvanced
+  ControlClosed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelRankChildPreparation {
+  RankChildStarting(TensorParallelRankChildStarting)
+  RankChildCleanupRequired(FailedTensorParallelRankChildPreparation)
+}
+
+pub struct TensorParallelRankChildReady {
+  // private fields
+}
+pub fn TensorParallelRankChildReady::close_worker_after_failure(Self) -> Unit raise TensorParallelRankChildError
+pub fn TensorParallelRankChildReady::control(Self) -> @rank_child_control.RankChildControl
+pub fn TensorParallelRankChildReady::progress_control(Self) -> TensorParallelRankChildControlProgress raise TensorParallelRankChildError
+pub fn TensorParallelRankChildReady::wait_pending(Self) -> Unit raise TensorParallelRankChildError
+pub fn TensorParallelRankChildReady::worker(Self) -> @tensor_parallel_device_worker.TensorParallelDeviceWorkerOwner
+
+pub(all) enum TensorParallelRankChildReadyProgress {
+  CollectivePending
+  ReadySending
+  ReadyPublished
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelRankChildRule {
+  ControlBoundary
+  ConfigureFrame
+  BindingMismatch
+  WorkerMismatch
+  InvalidLifecycle
+  SourcePolicy
+  ModelEnvelope
+  Limit
+  PlanFrame
+  Completion
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelRankChildStarting {
+  // private fields
+}
+pub fn TensorParallelRankChildStarting::close_worker_after_failure(Self) -> Unit raise TensorParallelRankChildError
+pub fn TensorParallelRankChildStarting::progress_ready(Self) -> TensorParallelRankChildReadyProgress raise TensorParallelRankChildError
+pub fn TensorParallelRankChildStarting::ready(Self) -> TensorParallelRankChildReady raise TensorParallelRankChildError
+pub fn TensorParallelRankChildStarting::wait_pending(Self) -> Unit raise TensorParallelRankChildError
+
+// Type aliases
+
+// Traits

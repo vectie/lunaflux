@@ -39,57 +39,32 @@ fn Scheduler::allocate_slot(self : Scheduler) -> Int raise SchedulerError {
 }
 
 ///|
-fn Scheduler::enqueue_waiting(self : Scheduler, index : Int) -> Unit {
-  self.waiting_next[index] = NO_INDEX
-  if self.waiting_tail == NO_INDEX {
-    self.waiting_head = index
-    self.waiting_tail = index
-  } else {
-    self.waiting_next[self.waiting_tail] = index
-    self.waiting_tail = index
-  }
-  self.waiting_count += 1
-}
-
-///|
-fn Scheduler::remove_waiting(self : Scheduler, index : Int) -> Unit {
-  let mut previous = NO_INDEX
-  let mut current = self.waiting_head
-  while current != NO_INDEX {
-    if current == index {
-      let next = self.waiting_next[current]
-      if previous == NO_INDEX {
-        self.waiting_head = next
-      } else {
-        self.waiting_next[previous] = next
-      }
-      if self.waiting_tail == current {
-        self.waiting_tail = previous
-      }
-      self.waiting_next[current] = NO_INDEX
-      self.waiting_count -= 1
-      return
-    }
-    previous = current
-    current = self.waiting_next[current]
-  }
-}
-
-///|
 fn Scheduler::recycle_slot(self : Scheduler, index : Int) -> Unit {
+  if self.prefix_entry_indices[index] != NO_INDEX ||
+    (try! self.request_tables.is_occupied(index)) {
+    abort("scheduler prefix recycle ownership invariant")
+  }
   try! self.request_stop_tokens[index].release()
   self.requests[index] = None
   self.deadlines[index] = 0UL
   self.admitted_steps[index] = 0UL
   self.processed_inputs[index] = 0
+  self.prefill_cursors[index] = 0
   self.output_counts[index] = 0
   self.in_flight[index] = false
   self.decode_tokens[index] = 0
+  self.recompute_required[index] = false
+  self.recompute_processed[index] = 0
+  self.prefix_matched_tokens[index] = 0
+  self.prefix_candidate_entry_indices[index] = NO_INDEX
+  self.prefix_candidate_entry_generations[index] = 0
+  self.prefix_candidate_tokens[index] = 0
+  self.waiting_prev[index] = NO_INDEX
   self.waiting_next[index] = NO_INDEX
+  self.waiting_link_generations[index] = 0
   self.live_count -= 1
   if self.slot_generations[index] == MAX_SLOT_GENERATION {
     self.slot_states[index] = SLOT_RETIRED
-    self.retired_slot_count += 1
     return
   }
   self.slot_states[index] = SLOT_FREE
@@ -130,6 +105,7 @@ fn Scheduler::allocate_publication_sequence(
 ///|
 fn Scheduler::enqueue_terminal(
   self : Scheduler,
+  slot : Int,
   request_id : @inference.RequestId,
   generation : @inference.RequestGeneration,
   reason : TerminalReason,
@@ -138,10 +114,16 @@ fn Scheduler::enqueue_terminal(
     raise invalid(TerminalNoticeCapacity, Backpressured)
   }
   let sequence = self.allocate_publication_sequence()
+  self.deadline_remove(slot)
   let index = self.terminal_tail
+  self.terminal_slot_indices[index] = slot
+  self.terminal_slot_generations[index] = self.slot_generations[slot]
+  self.terminal_route_lanes[index] = self.publication_route_lanes[slot]
+  self.terminal_route_generations[index] = self.publication_route_generations[slot]
   self.terminal_request_ids[index] = request_id
   self.terminal_generations[index] = generation
   self.terminal_reasons[index] = reason
+  self.terminal_cached_input_tokens[index] = self.prefix_matched_tokens[slot]
   self.terminal_sequences[index] = sequence
   self.terminal_tail = (index + 1) % self.terminal_request_ids.length()
   self.terminal_count += 1
@@ -228,6 +210,30 @@ pub fn Scheduler::new(
   } noraise {
     arena => arena
   }
+  let prefix_index = match capacity.prefix_index_limits() {
+    Some(limits) => Some(try! @radix.PrefixIndex::new(limits))
+    None => None
+  }
+  let prefix_tokens = match capacity.prefix_index_limits() {
+    Some(limits) =>
+      Some(try! @radix.PrefixTokenBuffer::new(limits.max_tokens_per_entry()))
+    None => None
+  }
+  let prefix_pages = match capacity.prefix_index_limits() {
+    Some(limits) =>
+      Some(try! @radix.PrefixPublishBuffer::new(limits.page_capacity()))
+    None => None
+  }
+  let prefix_lookup = match capacity.prefix_index_limits() {
+    Some(limits) =>
+      Some(try! @radix.PrefixLookupBuffer::new(limits.page_capacity()))
+    None => None
+  }
+  let prefix_eviction = match capacity.prefix_index_limits() {
+    Some(limits) =>
+      Some(try! @radix.PrefixEvictionBuffer::new(limits.page_capacity()))
+    None => None
+  }
   let plan_a = try
     @worker_protocol.SchedulePlanBuffer::new(worker_limits)
   catch {
@@ -242,6 +248,10 @@ pub fn Scheduler::new(
   } noraise {
     owner => owner
   }
+  let plan_buffer_binding = scheduler_plan_buffer_binding(
+    plan_a.identity(),
+    plan_b.identity(),
+  )
   let completion_a = try
     @worker_protocol.CompletionBuffer::new(worker_limits)
   catch {
@@ -305,6 +315,11 @@ pub fn Scheduler::new(
     model_identity,
     page_allocator,
     block_tables,
+    prefix_index,
+    prefix_tokens,
+    prefix_pages,
+    prefix_lookup,
+    prefix_eviction,
     model_plan_generation,
     intermediate_prefill_recipe,
     final_prefill_recipe,
@@ -312,6 +327,7 @@ pub fn Scheduler::new(
     completion_slots,
     plan_a,
     plan_b,
+    plan_buffer_binding,
     completion_a,
     completion_b,
     request_tables,
@@ -329,12 +345,41 @@ pub fn Scheduler::new(
     deadlines: FixedArray::make(slots, 0UL),
     admitted_steps: FixedArray::make(slots, 0UL),
     processed_inputs: FixedArray::make(slots, 0),
+    prefill_cursors: FixedArray::make(slots, 0),
     output_counts: FixedArray::make(slots, 0),
     in_flight: FixedArray::make(slots, false),
     decode_tokens: FixedArray::make(slots, 0),
+    generated_history: FixedArray::make(
+      capacity.required_recompute_history_cells(),
+      0,
+    ),
+    recompute_required: FixedArray::make(slots, false),
+    recompute_processed: FixedArray::make(slots, 0),
+    prefix_entry_indices: FixedArray::make(slots, NO_INDEX),
+    prefix_entry_generations: FixedArray::make(slots, 0),
+    prefix_matched_tokens: FixedArray::make(slots, 0),
+    prefix_candidate_entry_indices: FixedArray::make(slots, NO_INDEX),
+    prefix_candidate_entry_generations: FixedArray::make(slots, 0),
+    prefix_candidate_tokens: FixedArray::make(slots, 0),
+    prefix_selection_pages: try! @page_allocator.PageIdStorage::new(
+      capacity.worker_max_plan_pages(),
+    ),
+    prefix_selection_offsets: FixedArray::make(rows, 0),
+    prefix_selection_counts: FixedArray::make(rows, 0),
+    prefix_selection_entries: FixedArray::make(rows, NO_INDEX),
+    prefix_selection_entry_generations: FixedArray::make(rows, 0),
+    waiting_prev: FixedArray::make(slots, NO_INDEX),
     waiting_next: FixedArray::make(slots, NO_INDEX),
+    waiting_link_generations: FixedArray::make(slots, 0),
+    waiting_selection_heap: FixedArray::make(slots, NO_INDEX),
+    waiting_selection_ranks: FixedArray::make(slots, 0),
+    deadline_heap_slots: FixedArray::make(slots, NO_INDEX),
+    deadline_heap_generations: FixedArray::make(slots, 0),
+    deadline_heap_positions: FixedArray::make(slots, NO_INDEX),
+    deadline_due_heap: FixedArray::make(slots, NO_INDEX),
     free_next,
     active_slots: FixedArray::make(capacity.max_active_requests(), NO_INDEX),
+    active_positions: FixedArray::make(slots, NO_INDEX),
     prefill_slots: FixedArray::make(rows, NO_INDEX),
     prefill_tokens: FixedArray::make(rows, 0),
     decode_slots: FixedArray::make(rows, NO_INDEX),
@@ -349,7 +394,12 @@ pub fn Scheduler::new(
       @inference.RequestGeneration::initial(),
     ),
     terminal_reasons: FixedArray::make(slots, CancelledByCaller),
+    terminal_cached_input_tokens: FixedArray::make(slots, 0),
     terminal_sequences: FixedArray::make(slots, 0UL),
+    terminal_slot_indices: FixedArray::make(slots, NO_INDEX),
+    terminal_slot_generations: FixedArray::make(slots, 0),
+    terminal_route_lanes: FixedArray::make(slots, NO_INDEX),
+    terminal_route_generations: FixedArray::make(slots, 0UL),
     output_request_ids: FixedArray::make(
       capacity.output_event_capacity(),
       placeholder_id,
@@ -361,14 +411,32 @@ pub fn Scheduler::new(
     output_token_ids: FixedArray::make(capacity.output_event_capacity(), 0),
     output_positions: FixedArray::make(capacity.output_event_capacity(), 0),
     output_sequences: FixedArray::make(capacity.output_event_capacity(), 0UL),
+    output_slot_indices: FixedArray::make(
+      capacity.output_event_capacity(),
+      NO_INDEX,
+    ),
+    output_slot_generations: FixedArray::make(
+      capacity.output_event_capacity(),
+      0,
+    ),
+    output_route_lanes: FixedArray::make(
+      capacity.output_event_capacity(),
+      NO_INDEX,
+    ),
+    output_route_generations: FixedArray::make(
+      capacity.output_event_capacity(),
+      0UL,
+    ),
+    publication_route_lanes: FixedArray::make(slots, NO_INDEX),
+    publication_route_generations: FixedArray::make(slots, 0UL),
     free_head: 0,
     free_tail: slots - 1,
     waiting_head: NO_INDEX,
     waiting_tail: NO_INDEX,
     waiting_count: 0,
     active_count: 0,
+    deadline_heap_count: 0,
     live_count: 0,
-    retired_slot_count: 0,
     terminal_head: 0,
     terminal_tail: 0,
     terminal_count: 0,
@@ -380,11 +448,24 @@ pub fn Scheduler::new(
     step: 0UL,
     last_plan_sequence: 0UL,
     last_retired_plan_sequence: 0UL,
+    telemetry_plan_sequence: 0UL,
+    telemetry_plan_rows: 0,
+    telemetry_plan_tokens: 0,
     plan_a_sequence: 0UL,
     plan_b_sequence: 0UL,
     prefill_count: 0,
     decode_count: 0,
     journal_count: 0,
+    preemption_cursor: NO_INDEX,
+    decode_cursor: NO_INDEX,
+    pending_decode_cursor: NO_INDEX,
+    waiting_selection_count: 0,
+    waiting_unlink_link_touches: 0,
+    selection_waiting_visits: 0,
+    selection_active_visits: 0,
+    prefix_selection_page_count: 0,
+    deadline_live_visits: 0,
+    deadline_due_pops: 0,
     cancel_reserved: false,
     exclusive_admission_reserved: false,
     cancel_slot: NO_INDEX,
@@ -394,41 +475,13 @@ pub fn Scheduler::new(
     cancel_publication_cursor: 0UL,
     cancel_step: 0UL,
     cancel_token_taken: false,
-  }
-}
-
-///|
-fn Scheduler::checked_handle_index(
-  self : Scheduler,
-  handle : RequestHandle,
-) -> Int raise SchedulerError {
-  let index = handle.slot().index()
-  if index < 0 ||
-    index >= self.slot_states.length() ||
-    self.slot_generations[index] != handle.slot().generation() ||
-    self.slot_states[index] == SLOT_FREE ||
-    self.slot_states[index] == SLOT_RETIRED {
-    raise invalid(Request, Stale)
-  }
-  guard self.requests[index] is Some(request) else {
-    raise invalid(RequestState, InvalidTransition)
-  }
-  if request.request_id() != handle.request_id() ||
-    self.request_generations[index] != handle.request_generation() {
-    raise invalid(Request, Stale)
-  }
-  index
-}
-
-///|
-fn scheduler_state(state : Int) -> SchedulerRequestState {
-  match state {
-    SLOT_WAITING => Waiting
-    SLOT_PREFILL => Prefill
-    SLOT_DECODE => Decode
-    SLOT_FINISHING => Finishing
-    SLOT_CANCELLED => Cancelled
-    SLOT_DEADLINE => DeadlineExpired
-    _ => Failed
+    prefix_lookups: 0UL,
+    prefix_hits: 0UL,
+    prefix_misses: 0UL,
+    prefix_evictions: 0UL,
+    prefix_tokens_reused: 0UL,
+    prefix_tokens_computed: 0UL,
+    prefix_publications: 0UL,
+    prefix_candidate_discoveries: 0UL,
   }
 }

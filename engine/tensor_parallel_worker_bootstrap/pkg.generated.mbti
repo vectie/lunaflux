@@ -1,0 +1,137 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_execution_plan",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/tensor_parallel_admission",
+}
+
+// Values
+pub fn admit(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.EncodedBootstrapSource, ArrayView[@worker_wire.WorkerStartupContract], ArrayView[@device_materialize.DeviceShardedWeightFileInspection], ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], ArrayView[@tensor_parallel_execution_plan.TensorParallelExecutionPlan], @tensor_parallel_kv_plan.TensorParallelKvPlan, @device.TensorCollectiveGroupId, collective_runtime_version_code~ : Int) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError
+
+pub fn admit_runtime_policy(@worker_wire.EncodedBootstrapSource, @device_topology.AdmittedLocalTopology) -> @tensor_parallel_admission.TensorParallelRuntimeAdmission raise TensorParallelWorkerBootstrapError
+
+pub fn admit_with_template(StringView, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.EncodedBootstrapSource, ArrayView[@worker_wire.WorkerStartupContract], ArrayView[@device_materialize.DeviceShardedWeightFileInspection], ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], ArrayView[@tensor_parallel_execution_plan.TensorParallelExecutionPlan], @tensor_parallel_kv_plan.TensorParallelKvPlan, @device.TensorCollectiveGroupId, collective_runtime_version_code~ : Int) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError
+
+pub fn tensor_parallel_rank_envelope_frame_bytes() -> Int
+
+pub fn worker_contract_digest(@worker_wire.WorkerStartupContract) -> TensorParallelWorkerContractDigest raise TensorParallelWorkerBootstrapError
+
+// Errors
+pub(all) suberror TensorParallelWorkerBootstrapError {
+  Rejected(rule~ : TensorParallelWorkerBootstrapRule, rank~ : Int)
+  DestinationTooSmall
+  FrameEpochOverflow
+  StaleFrame
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TensorParallelDevicePlanDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelDevicePlanDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelGroupBootstrap {
+  // private fields
+}
+pub fn TensorParallelGroupBootstrap::collective_runtime_version_code(Self) -> Int
+pub fn TensorParallelGroupBootstrap::digest(Self) -> TensorParallelGroupBootstrapDigest
+pub fn TensorParallelGroupBootstrap::group_generation_value(Self) -> UInt64
+pub fn TensorParallelGroupBootstrap::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelGroupBootstrap::model_generation_value(Self) -> UInt64
+pub fn TensorParallelGroupBootstrap::rank_envelope(Self, Int) -> TensorParallelRankBootstrapEnvelope?
+pub fn TensorParallelGroupBootstrap::template_digest_sha256(Self) -> String
+pub fn TensorParallelGroupBootstrap::topology_digest(Self) -> TensorParallelTopologyDigest
+pub fn TensorParallelGroupBootstrap::world_size(Self) -> Int
+
+pub struct TensorParallelGroupBootstrapDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupBootstrapDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelKvBindingDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelKvBindingDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelRankBootstrapEnvelope {
+  // private fields
+}
+pub fn TensorParallelRankBootstrapEnvelope::authenticate_local(Self, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.WorkerStartupContract, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_execution_plan.TensorParallelExecutionPlan, @tensor_parallel_kv_plan.TensorParallelKvRankBinding, expected_group_digest~ : TensorParallelGroupBootstrapDigest, expected_rendezvous_id~ : @device.TensorCollectiveGroupId, expected_collective_runtime_version_code~ : Int) -> @device.TensorCollectiveContract raise TensorParallelWorkerBootstrapError
+pub fn TensorParallelRankBootstrapEnvelope::collective_digest(Self) -> @device.TensorCollectiveContractDigest
+pub fn TensorParallelRankBootstrapEnvelope::collective_runtime_version_code(Self) -> Int
+pub fn TensorParallelRankBootstrapEnvelope::device_ordinal(Self) -> Int
+pub fn TensorParallelRankBootstrapEnvelope::device_plan_digest(Self) -> TensorParallelDevicePlanDigest
+pub fn TensorParallelRankBootstrapEnvelope::execution_plan_digest_sha256(Self) -> String
+pub fn TensorParallelRankBootstrapEnvelope::group_digest(Self) -> TensorParallelGroupBootstrapDigest
+pub fn TensorParallelRankBootstrapEnvelope::group_generation_value(Self) -> UInt64
+pub fn TensorParallelRankBootstrapEnvelope::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelRankBootstrapEnvelope::kv_digest(Self) -> TensorParallelKvBindingDigest
+pub fn TensorParallelRankBootstrapEnvelope::model_generation_value(Self) -> UInt64
+pub fn TensorParallelRankBootstrapEnvelope::rank(Self) -> Int
+pub fn TensorParallelRankBootstrapEnvelope::rendezvous_id(Self) -> @device.TensorCollectiveGroupId
+pub fn TensorParallelRankBootstrapEnvelope::topology_digest(Self) -> TensorParallelTopologyDigest
+pub fn TensorParallelRankBootstrapEnvelope::worker_digest(Self) -> TensorParallelWorkerContractDigest
+pub fn TensorParallelRankBootstrapEnvelope::world_size(Self) -> Int
+
+pub struct TensorParallelRankEnvelopeFrameBuffer {
+  // private fields
+}
+pub fn TensorParallelRankEnvelopeFrameBuffer::capacity(Self) -> Int
+pub fn TensorParallelRankEnvelopeFrameBuffer::encode(Self, TensorParallelRankBootstrapEnvelope) -> ValidatedTensorParallelRankEnvelopeFrame raise TensorParallelWorkerBootstrapError
+pub fn TensorParallelRankEnvelopeFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedTensorParallelRankEnvelopeFrame raise TensorParallelWorkerBootstrapError
+pub fn TensorParallelRankEnvelopeFrameBuffer::new() -> Self
+
+pub struct TensorParallelTopologyDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelTopologyDigest::as_sha256(Self) -> String
+
+pub(all) enum TensorParallelWorkerBootstrapRule {
+  FrameMagic
+  FrameVersion
+  FrameLength
+  FrameChecksum
+  FrameReserved
+  Digest
+  ModelIdentity
+  ModelGeneration
+  GroupGeneration
+  WorldSize
+  Rank
+  DeviceOrdinal
+  Topology
+  WorkerContract
+  DevicePlan
+  ExecutionPlan
+  CollectiveContract
+  KvContract
+  RendezvousId
+  DuplicateRank
+  IncompleteRankSet
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelWorkerContractDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelWorkerContractDigest::as_sha256(Self) -> String
+
+pub struct ValidatedTensorParallelRankEnvelopeFrame(TensorParallelRankEnvelopeFrameBuffer, UInt64)
+pub fn ValidatedTensorParallelRankEnvelopeFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise TensorParallelWorkerBootstrapError
+pub fn ValidatedTensorParallelRankEnvelopeFrame::envelope(Self) -> TensorParallelRankBootstrapEnvelope raise TensorParallelWorkerBootstrapError
+pub fn ValidatedTensorParallelRankEnvelopeFrame::length(Self) -> Int raise TensorParallelWorkerBootstrapError
+
+// Type aliases
+
+// Traits

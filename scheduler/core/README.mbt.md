@@ -15,9 +15,11 @@ tokens. Later plan construction still reads each authenticated token needed to
 populate a bounded prefill row.
 
 Stop-token semantics cross the boundary only through an opaque token-only Luna
-projection. Stop strings, cache policy, inference limits, raw token IDs, and
-full semantic views are not scheduler inputs. Admission authenticates the
-projection, then retains one exact semantic authority after every request
+projection. Cache-aware admission adds a second narrow opaque projection that
+exposes only validated permission and security-scope bytes, bound to the exact
+tokenizer digest; stop strings, inference limits, raw token arrays, and full
+semantic views are not scheduler inputs. Legacy `TokenizedRequest::new` remains
+explicitly cache-disabled. Admission authenticates the projections, then retains one exact semantic authority after every request
 preflight and deadline check and immediately before the first scheduler
 mutation. Prepared admission lets the online worker acquire its independent
 retention before sampling the clock and committing. The semantic lease cannot
@@ -25,8 +27,11 @@ release while either retention is live; every slot recycle releases the
 scheduler retention exactly once. Completion uses bounded allocation-free
 membership and maps stale authority to `Request`/`Stale` before mutation.
 
-The owner allocates fixed request-slot arrays and one intrusive FIFO waiting
-queue at startup. A scheduler-global `RequestGeneration` sequence advances on
+The owner allocates fixed request-slot arrays and one intrusive waiting queue
+at startup. Unaged admission candidates prefer the largest reusable full-page
+prefix, with FIFO as the exact tie-break. Once the oldest eligible request
+reaches the configured age bound it has absolute priority, so cache affinity
+cannot starve ordinary work. A scheduler-global `RequestGeneration` sequence advances on
 every admission, cancellation, and deadline transition, so re-admitting the
 same external request ID cannot make an old worker completion current even if
 the new request occupies a different slot. Slot generations independently
@@ -73,7 +78,13 @@ aliased stale shell cannot later admit.
 After an unrecoverable worker-instance loss, `drain_instance_loss` retires at
 most one live request per call, publishes `WorkerFailed`, and releases active
 page/table authority or removes one waiting request transactionally. Terminal
-backpressure mutates nothing; `Complete` means no live request remains.
+backpressure mutates nothing; `Complete` means no live request remains and any
+device-derived cached prefix anchors have been released.
+Recoverable device-state invalidation also clears every cached physical prefix
+anchor. Waiting requests retain only logical match evidence, never a table,
+page, or radix-entry reference, so invalidation clears that evidence before the
+replacement worker becomes usable; no old `PageId` can cross the device
+generation boundary.
 
 Startup authenticates separate immutable intermediate-prefill, final-prefill,
 and decode capability recipes against the selected model identity and loaded
@@ -82,8 +93,14 @@ retains the exact resolved worker-protocol limits for downstream owner binding,
 and allocates two physically distinct plan owners plus fixed selection and
 ownership journals.
 
-`build_next` activates FIFO waiting requests only after a complete submitted
-plan exists. It reserves decode work before prefill policy, preserves the
+`build_next` keeps waiting requests logically queued while selecting work.
+Only a selected row generation-checks its exact salted prefix evidence and
+transactionally retains the matching entry/pages into fixed plan scratch. A
+stale candidate is cleared immediately and falls back to uncached admission or
+remains waiting without physical authority; all pre-submit checkpoint and
+build failures release the exact selected references. Hits and reused-token
+telemetry commit only with a successfully submitted plan. The scheduler
+reserves decode work before prefill policy, preserves the
 physical emergency page reserve for prefill, and serializes prefill rows before
 decode rows as required by the worker protocol. Page, block-table, and plan
 checkpoints make a failed build restore exact owner identities and FIFO state.
@@ -120,15 +137,38 @@ then use `complete_submitted` to reauthenticate and retry the exact current
 completion without retaining or reconstructing a mutable owner.
 
 Normal scheduling states do not allocate error payloads: `build_next` returns
-the flat value-type `BuildNextOutcome` for idle, two-owner backpressure, or a
-submitted identity. `submitted_plan` resolves only the exact current owner and
-epoch. Completion slots use a fixed O(1) index, and token/terminal dequeue uses
-direct value results after checking the corresponding count. A second plan may
-use the other owner while the first is in flight; a third attempt reports
-value-type backpressure until ordered completion retirement frees a side.
+the flat value-type `BuildNextOutcome` for idle, two-owner backpressure, one
+completed recompute-preemption transition, or a submitted identity.
+`submitted_plan` resolves only an exact submitted owner and rejects the
+preemption outcome. Completion slots use a fixed O(1) index, and token/terminal
+dequeue uses direct value results after checking the corresponding count. A
+second plan may use the other owner while the first is in flight; a third
+attempt reports value-type backpressure before any preemption policy mutation.
 
-The scheduler claims aging only among eligible prefills, not global bounded
-waiting or recomputation-based preemption.
+An exactly eligible aged prefill is selected before decode rows. An ineligible
+aged row reserves no token or page budget. When active-room or page pressure is
+the blocker, deterministic zero-active-reference prefix eviction is attempted
+before the scheduler may preempt one non-inflight active prefill or
+decode in persistent slot-cursor order. It releases only device-derived KV
+state and places the request back in the FIFO. Generated-token history remains
+in dense startup storage. Replay uses ordinary non-sampling prefill over the
+prompt plus all generated tokens except the retained latest token, then resumes
+decode; the public processed-input count remains unchanged. Preemption can
+temporarily raise the internal waiting count above the configured admission
+waiting bound, but never above the fixed total-slot capacity, and new admission
+remains blocked by its normal capacity checks. Decode row selection uses a
+separate commit-only round-robin cursor so every ready slot is eventually
+selected when ready decodes exceed the row limit.
+
+`LunaSchedulerTelemetry` is an allocation-free scalar snapshot of waiting
+depth, active requests, exact KV pages used/free, prefix lookups/hits/misses,
+evictions, reused/computed tokens, publications, and live prefix entries/pages.
+The separate value-type
+`LunaSchedulerPlanTelemetry` retains the last successfully submitted plan's
+sequence, row count, and token budget. Those plan scalars change only with the
+same transaction that commits submission; failed, idle, backpressured, and
+preemption-only builds cannot advance them. Neither snapshot exposes a plan,
+page, table, request, mutable owner, or generation capability.
 Cancellation or deadline expiry of submitted work advances the authenticated
 request generation immediately, but intentionally leaves page/table ownership
 attached until completion proves device work is retired; stale work cannot
@@ -136,8 +176,14 @@ advance request state or publish a token.
 The reusable worker protocol now distinguishes intermediate prefill from a
 final prompt chunk that samples the first output token; this scheduler uses
 that distinction when building rows. Stop strings remain an outer incremental
-output concern and cannot cross the scheduler's token-only projection. Prefix
-reuse, generated
-text decoding, process I/O and supervision, recomputation-based preemption, runtime
-allocation instrumentation, and device KV execution remain outside this
-package's current evidence.
+output concern. Prefix lookup reuses only complete pages strictly before the
+last prompt token, so every request preserves its caller-visible processed
+input count, generation, deadline, generated-token history, and final-logit
+semantics. Final prefill may publish full prompt pages under `ReadWrite`; the
+scheduler preflights and retains physical cached references before committing
+radix metadata, and releases only page IDs returned by deterministic eviction.
+Duplicate publication, full prefix capacity, and an empty eviction set remain
+opaque scalar start outcomes on this warmed path rather than typed exceptions.
+The radix package never mutates page ownership. Physical CUDA numerical reuse,
+hardware benchmarks, generated text decoding, and process I/O remain separate
+evidence gates.

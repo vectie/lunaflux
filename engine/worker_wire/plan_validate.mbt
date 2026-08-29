@@ -300,12 +300,12 @@ pub fn PlanFrameBuffer::load(
     length,
     self.worker_limits,
     self.inference_limits,
-    self.storage.length(),
+    self.capacity(),
     self.validation_requests,
     self.validation_slots,
   )
   for index in 0..<length {
-    self.storage[index] = source[index]
+    self.storage[self.frame_offset + index] = source[index]
   }
   self.epoch += 1UL
   self.length = length
@@ -326,6 +326,7 @@ pub fn ValidatedPlanFrame::copy_to(
     raise DestinationTooSmall
   }
   for index in 0..<owner.length {
-    destination[destination_offset + index] = owner.storage[index]
+    destination[destination_offset + index] = owner.storage[owner.frame_offset +
+      index]
   }
 }

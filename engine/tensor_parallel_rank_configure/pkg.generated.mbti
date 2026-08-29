@@ -1,0 +1,80 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_rank_configure"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+pub fn compose_rank_configure(@rank_group_wire.RankGroupWireBinding, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @device_topology.LocalTopologyDeclaration, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError
+
+pub fn decode_rank_configure(FixedArray[Byte], Int, @rank_group_wire.RankGroupWireBinding) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError
+
+pub fn tensor_parallel_rank_configure_capacity() -> Int
+
+// Errors
+pub(all) suberror TensorParallelRankConfigureError {
+  Invalid(TensorParallelRankConfigureRule)
+  StaleFrame
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TensorParallelRankConfigureContract {
+  // private fields
+}
+pub fn TensorParallelRankConfigureContract::binding(Self) -> @rank_group_wire.RankGroupWireBinding
+pub fn TensorParallelRankConfigureContract::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
+pub fn TensorParallelRankConfigureContract::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise TensorParallelRankConfigureError
+pub fn TensorParallelRankConfigureContract::digest(Self) -> TensorParallelRankConfigureDigest
+pub fn TensorParallelRankConfigureContract::length(Self) -> Int
+pub fn TensorParallelRankConfigureContract::rank_envelope(Self) -> @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope
+pub fn TensorParallelRankConfigureContract::startup(Self) -> @worker_wire.WorkerStartupContract
+pub fn TensorParallelRankConfigureContract::topology(Self) -> @device_topology.LocalTopologyDeclaration
+
+pub struct TensorParallelRankConfigureDigest(String) derive(Eq, @debug.Debug)
+pub fn TensorParallelRankConfigureDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelRankConfigureFrameBuffer {
+  // private fields
+}
+pub fn TensorParallelRankConfigureFrameBuffer::capacity(Self) -> Int
+pub fn TensorParallelRankConfigureFrameBuffer::encode(Self, TensorParallelRankConfigureContract) -> ValidatedTensorParallelRankConfigureFrame raise TensorParallelRankConfigureError
+pub fn TensorParallelRankConfigureFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedTensorParallelRankConfigureFrame raise TensorParallelRankConfigureError
+pub fn TensorParallelRankConfigureFrameBuffer::new(@rank_group_wire.RankGroupWireBinding) -> Self
+
+pub(all) enum TensorParallelRankConfigureRule {
+  Limit
+  Magic
+  Version
+  Length
+  Checksum
+  Reserved
+  Digest
+  Startup
+  BootstrapSource
+  Topology
+  RankEnvelope
+  ModelIdentity
+  ModelGeneration
+  GroupGeneration
+  Rank
+  WorldSize
+  DeviceOrdinal
+  Predecessor
+  Binding
+  Destination
+  FrameEpoch
+} derive(Eq, @debug.Debug)
+
+pub struct ValidatedTensorParallelRankConfigureFrame(TensorParallelRankConfigureFrameBuffer, UInt64)
+pub fn ValidatedTensorParallelRankConfigureFrame::contract(Self) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError
+pub fn ValidatedTensorParallelRankConfigureFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise TensorParallelRankConfigureError
+pub fn ValidatedTensorParallelRankConfigureFrame::length(Self) -> Int raise TensorParallelRankConfigureError
+
+// Type aliases
+
+// Traits

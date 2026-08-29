@@ -39,10 +39,10 @@ fn SchedulePlanBuffer::start_draft(
     completion_slot.value() >= self.limits.max_completion_slots() {
     raise InvalidCompletionSlot
   }
-  if self.has_request(request_id) {
+  if self.has_request_identity(request_id) {
     raise InvalidRowDescriptor(kind~, rule=DuplicateRequest)
   }
-  if self.has_slot(completion_slot) {
+  if self.has_completion_slot_identity(completion_slot) {
     raise InvalidRowDescriptor(kind~, rule=DuplicateCompletionSlot)
   }
   match kind {
@@ -309,6 +309,7 @@ pub fn PlanRowDraft::commit(
       owner.decode_count = row + 1
     }
   }
+  owner.track_row_identity(owner.draft_request_id, owner.draft_completion_slot)
   owner.draft_open = false
 }
 

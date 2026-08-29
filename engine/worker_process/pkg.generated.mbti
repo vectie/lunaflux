@@ -3,17 +3,18 @@ package "vectie/lunaflux/engine/worker_process"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn prepare(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits) -> WorkerProcessPreparation raise WorkerProcessError
+pub fn prepare_exchange_with_approved_executable(@worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, UInt64, parent_approval? : @worker_wire.WorkerParentApprovalSubjects?) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
 
-pub fn prepare_exchange_with_approved_roots(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, UInt64) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
-
-pub fn prepare_with_approved_roots(Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
+pub fn prepare_with_approved_executable(@worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, parent_approval? : @worker_wire.WorkerParentApprovalSubjects?) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError
 
 // Errors
 pub(all) suberror RootBoundWorkerProcessError {
@@ -53,10 +54,12 @@ pub fn FailedWorkerProcessStartup::retry_close(Self) -> Unit raise WorkerProcess
 
 pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
 pub fn ReceivedWorkerCompletion::frame(Self, WorkerProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise WorkerProcessError
+pub fn ReceivedWorkerCompletion::graph_telemetry(Self, WorkerProcessSupervisor) -> @worker_wire.WorkerGraphTelemetry raise WorkerProcessError
 pub fn ReceivedWorkerCompletion::sequence_value(Self) -> UInt64
 
 pub struct RootBoundReceivedWorkerCompletion(RootBoundWorkerProcessSupervisor, Int, UInt64)
 pub fn RootBoundReceivedWorkerCompletion::frame(Self, RootBoundWorkerProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise RootBoundWorkerProcessError
+pub fn RootBoundReceivedWorkerCompletion::graph_telemetry(Self, RootBoundWorkerProcessSupervisor) -> @worker_wire.WorkerGraphTelemetry raise RootBoundWorkerProcessError
 pub fn RootBoundReceivedWorkerCompletion::sequence_value(Self) -> UInt64
 
 pub enum RootBoundWorkerExchangeProgress {
@@ -70,6 +73,8 @@ pub(all) enum RootBoundWorkerProcessFailure {
   KernelRootBinding(@approved_fs.ApprovedFsError)
   RootsBusy
   RootsCloseFailed
+  ExecutableBusy
+  ExecutableCloseFailed
 } derive(Eq, @debug.Debug)
 
 pub(all) enum RootBoundWorkerProcessLifecycle {
@@ -97,8 +102,11 @@ pub struct RootBoundWorkerProcessSupervisor {
 }
 pub fn RootBoundWorkerProcessSupervisor::abandon_submission(Self, RootBoundWorkerSubmission) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::active_exchange_sequence(Self) -> UInt64 raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::begin_close_maintenance(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::begin_exchange(Self, @worker_protocol.SubmittedSchedulePlan) -> UInt64 raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::begin_recovery(Self) -> Unit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::begin_recovery_maintenance(Self) -> Unit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::begin_replacement_cleanup_maintenance(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn RootBoundWorkerProcessSupervisor::cause(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::child_cleanup_failure(Self) -> RootBoundWorkerProcessFailure?
@@ -108,11 +116,13 @@ pub fn RootBoundWorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::has_exchange_capacity(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::is_closed(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::lifecycle(Self) -> RootBoundWorkerProcessLifecycle
+pub fn RootBoundWorkerProcessSupervisor::maintenance_exit(Self) -> WorkerProcessExit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::maintenance_remaining_millis(Self) -> Int raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn RootBoundWorkerProcessSupervisor::progress_exchange(Self) -> RootBoundWorkerExchangeProgress raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::progress_maintenance(Self) -> WorkerProcessMaintenanceProgress raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::receive(Self, RootBoundWorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
-pub fn RootBoundWorkerProcessSupervisor::recovery_startup_contract(Self) -> @worker_wire.WorkerStartupContract raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::restart(Self) -> RootBoundWorkerProcessRestart raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::retire_received(Self, RootBoundReceivedWorkerCompletion) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(Self) -> Unit raise RootBoundWorkerProcessError
@@ -122,10 +132,17 @@ pub fn RootBoundWorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.
 pub fn RootBoundWorkerProcessSupervisor::submission_for_sequence(Self, UInt64) -> RootBoundWorkerSubmission raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> RootBoundWorkerSubmission raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::validate_abandonment(Self, RootBoundWorkerSubmission) -> Unit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::validate_recovery_binding(Self, @spec.ModelIdentity, @worker_wire.WorkerBootstrapDigest, @worker_wire.WorkerBootstrapSourceDigest, Int, UInt64, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, UInt64) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::validate_retirement(Self, RootBoundReceivedWorkerCompletion) -> Unit raise RootBoundWorkerProcessError
 
 pub struct RootBoundWorkerSubmission(RootBoundWorkerProcessSupervisor, Int, UInt64)
 pub fn RootBoundWorkerSubmission::sequence_value(Self) -> UInt64
+
+pub struct WorkerProcessExit {
+  // private fields
+}
+pub fn WorkerProcessExit::code(Self) -> Int
+pub fn WorkerProcessExit::kind(Self) -> Int
 
 pub(all) enum WorkerProcessLifecycle {
   Ready
@@ -142,6 +159,15 @@ pub fn WorkerProcessLimits::max_frame_bytes(Self) -> Int
 pub fn WorkerProcessLimits::new(max_frame_bytes~ : Int, startup_io_timeout_millis~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> Self raise WorkerProcessError
 pub fn WorkerProcessLimits::shutdown_timeout_millis(Self) -> Int
 pub fn WorkerProcessLimits::startup_io_timeout_millis(Self) -> Int
+
+pub struct WorkerProcessMaintenanceProgress {
+  // private fields
+}
+pub fn WorkerProcessMaintenanceProgress::is_advanced(Self) -> Bool
+pub fn WorkerProcessMaintenanceProgress::is_cleanup_required(Self) -> Bool
+pub fn WorkerProcessMaintenanceProgress::is_cleanup_stuck(Self) -> Bool
+pub fn WorkerProcessMaintenanceProgress::is_complete(Self) -> Bool
+pub fn WorkerProcessMaintenanceProgress::is_pending(Self) -> Bool
 
 pub(all) enum WorkerProcessPreparation {
   ReadyProcess(WorkerProcessSupervisor)
@@ -162,16 +188,20 @@ pub struct WorkerProcessSupervisor {
   // private fields
 }
 pub fn WorkerProcessSupervisor::abandon_submission(Self, WorkerSubmission) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::begin_shutdown_maintenance(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn WorkerProcessSupervisor::close(Self) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::has_capacity(Self) -> Bool
 pub fn WorkerProcessSupervisor::lifecycle(Self) -> WorkerProcessLifecycle
 pub fn WorkerProcessSupervisor::outstanding_count(Self) -> Int
+pub fn WorkerProcessSupervisor::progress_shutdown_maintenance(Self) -> WorkerProcessMaintenanceProgress raise WorkerProcessError
 pub fn WorkerProcessSupervisor::receive(Self, WorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> ReceivedWorkerCompletion raise WorkerProcessError
 pub fn WorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> ReceivedWorkerCompletion raise WorkerProcessError
 pub fn WorkerProcessSupervisor::recovery_startup_contract(Self) -> @worker_wire.WorkerStartupContract raise WorkerProcessError
 pub fn WorkerProcessSupervisor::retire_received(Self, ReceivedWorkerCompletion) -> Unit raise WorkerProcessError
 pub fn WorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::shutdown_maintenance_exit(Self) -> WorkerProcessExit raise WorkerProcessError
+pub fn WorkerProcessSupervisor::shutdown_maintenance_remaining_millis(Self) -> Int raise WorkerProcessError
 pub fn WorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.WorkerStartupContract
 pub fn WorkerProcessSupervisor::submission_for_sequence(Self, UInt64) -> WorkerSubmission raise WorkerProcessError
 pub fn WorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> WorkerSubmission raise WorkerProcessError

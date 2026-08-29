@@ -1,199 +1,4 @@
 ///|
-fn smaller(left : Int, right : Int) -> Int {
-  if left < right {
-    left
-  } else {
-    right
-  }
-}
-
-///|
-fn Scheduler::clear_selection(self : Scheduler) -> Unit {
-  self.prefill_count = 0
-  self.decode_count = 0
-  self.journal_count = 0
-}
-
-///|
-fn Scheduler::table_page_count(
-  self : Scheduler,
-  slot : Int,
-) -> Int raise SchedulerError {
-  let table = try self.request_tables.read(slot) catch {
-    error => raise BlockTable(error)
-  } noraise {
-    value => value
-  }
-  try self.block_tables.page_count(table) catch {
-    error => raise BlockTable(error)
-  } noraise {
-    value => value
-  }
-}
-
-///|
-fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
-  self.clear_selection()
-  let row_limit = self.capacity.max_rows_per_step()
-  let mut token_left = self.capacity.step_token_budget()
-  let mut virtual_free = self.page_allocator.free_page_count()
-  let mut plan_pages = 0
-  let mut plan_capabilities = 0
-  let mut oldest_prefill = self.waiting_head
-  for active_index in 0..<self.active_count {
-    let slot = self.active_slots[active_index]
-    if self.slot_states[slot] == SLOT_PREFILL &&
-      !self.in_flight[slot] &&
-      (
-        oldest_prefill == NO_INDEX ||
-        self.admitted_steps[slot] < self.admitted_steps[oldest_prefill]
-      ) {
-      oldest_prefill = slot
-    }
-  }
-  let aged = oldest_prefill != NO_INDEX &&
-    self.step - self.admitted_steps[oldest_prefill] >=
-    self.capacity.waiting_age_threshold_steps().to_uint64()
-  let reserved_prefill = if aged {
-    let request = self.requests[oldest_prefill].unwrap()
-    let remaining = request.input_tokens().length() -
-      self.processed_inputs[oldest_prefill]
-    smaller(remaining, self.capacity.prefill_chunk_tokens())
-  } else {
-    0
-  }
-  for active_index in 0..<self.active_count {
-    let slot = self.active_slots[active_index]
-    if self.slot_states[slot] == SLOT_DECODE &&
-      !self.in_flight[slot] &&
-      self.decode_count + self.prefill_count < row_limit &&
-      token_left > reserved_prefill {
-      let old_pages = self.table_page_count(slot)
-      let request = self.requests[slot].unwrap()
-      let kv_tokens = request.input_tokens().length() + self.output_counts[slot]
-      let target_pages = ceiling_pages(
-        kv_tokens,
-        self.capacity.tokens_per_page(),
-      )
-      let needed = target_pages - old_pages
-      if needed <= virtual_free &&
-        plan_pages + target_pages <= self.capacity.worker_max_plan_pages() &&
-        plan_capabilities + self.decode_recipe.length() <=
-        self.capacity.worker_max_capabilities() {
-        self.decode_slots[self.decode_count] = slot
-        self.decode_count += 1
-        token_left -= 1
-        virtual_free -= needed
-        plan_pages += target_pages
-        plan_capabilities += self.decode_recipe.length()
-      }
-    }
-  }
-  let mut current = if aged { oldest_prefill } else { self.waiting_head }
-  let mut active_room = self.capacity.max_active_requests() - self.active_count
-  while current != NO_INDEX &&
-        self.prefill_count + self.decode_count < row_limit &&
-        token_left > 0 {
-    let next = if self.slot_states[current] == SLOT_WAITING {
-      self.waiting_next[current]
-    } else if aged && current == oldest_prefill {
-      self.waiting_head
-    } else {
-      NO_INDEX
-    }
-    if !self.in_flight[current] &&
-      (
-        self.slot_states[current] == SLOT_PREFILL ||
-        (self.slot_states[current] == SLOT_WAITING && active_room > 0)
-      ) {
-      let request = self.requests[current].unwrap()
-      let remaining = request.input_tokens().length() -
-        self.processed_inputs[current]
-      let chunk = smaller(
-        remaining,
-        smaller(self.capacity.prefill_chunk_tokens(), token_left),
-      )
-      let old_pages = if self.slot_states[current] == SLOT_WAITING {
-        0
-      } else {
-        self.table_page_count(current)
-      }
-      let target_pages = ceiling_pages(
-        self.processed_inputs[current] + chunk,
-        self.capacity.tokens_per_page(),
-      )
-      let needed = target_pages - old_pages
-      let recipe_length = if self.processed_inputs[current] + chunk ==
-        request.input_tokens().length() {
-        self.final_prefill_recipe.length()
-      } else {
-        self.intermediate_prefill_recipe.length()
-      }
-      if chunk > 0 &&
-        virtual_free - needed >= self.capacity.emergency_decode_page_reserve() &&
-        plan_pages + target_pages <= self.capacity.worker_max_plan_pages() &&
-        plan_capabilities + recipe_length <=
-        self.capacity.worker_max_capabilities() {
-        self.prefill_slots[self.prefill_count] = current
-        self.prefill_tokens[self.prefill_count] = chunk
-        self.prefill_count += 1
-        token_left -= chunk
-        virtual_free -= needed
-        plan_pages += target_pages
-        plan_capabilities += recipe_length
-        if self.slot_states[current] == SLOT_WAITING {
-          active_room -= 1
-        }
-      }
-    }
-    current = next
-  }
-  for active_index in 0..<self.active_count {
-    let slot = self.active_slots[active_index]
-    if self.prefill_count + self.decode_count >= row_limit || token_left == 0 {
-      break
-    }
-    if self.slot_states[slot] == SLOT_PREFILL &&
-      (!aged || slot != oldest_prefill) &&
-      !self.in_flight[slot] {
-      let request = self.requests[slot].unwrap()
-      let remaining = request.input_tokens().length() -
-        self.processed_inputs[slot]
-      let chunk = smaller(
-        remaining,
-        smaller(self.capacity.prefill_chunk_tokens(), token_left),
-      )
-      let old_pages = self.table_page_count(slot)
-      let target_pages = ceiling_pages(
-        self.processed_inputs[slot] + chunk,
-        self.capacity.tokens_per_page(),
-      )
-      let needed = target_pages - old_pages
-      let recipe_length = if self.processed_inputs[slot] + chunk ==
-        request.input_tokens().length() {
-        self.final_prefill_recipe.length()
-      } else {
-        self.intermediate_prefill_recipe.length()
-      }
-      if chunk > 0 &&
-        virtual_free - needed >= self.capacity.emergency_decode_page_reserve() &&
-        plan_pages + target_pages <= self.capacity.worker_max_plan_pages() &&
-        plan_capabilities + recipe_length <=
-        self.capacity.worker_max_capabilities() {
-        self.prefill_slots[self.prefill_count] = slot
-        self.prefill_tokens[self.prefill_count] = chunk
-        self.prefill_count += 1
-        token_left -= chunk
-        virtual_free -= needed
-        plan_pages += target_pages
-        plan_capabilities += recipe_length
-      }
-    }
-  }
-  self.capacity.step_token_budget() - token_left
-}
-
-///|
 fn Scheduler::row_table(
   self : Scheduler,
   slot : Int,
@@ -216,6 +21,13 @@ fn Scheduler::row_table(
     } noraise {
       value => value
     }
+    self.journal_tables.write(self.journal_count, table) catch {
+      error => raise BlockTable(error)
+    }
+    self.journal_slots[self.journal_count] = slot
+    self.journal_old_page_counts[self.journal_count] = 0
+    self.journal_appended[self.journal_count] = false
+    self.journal_count += 1
     table
   }
 }
@@ -230,20 +42,50 @@ fn Scheduler::append_pages(
 ) -> Unit raise SchedulerError {
   let needed = target_count - old_count
   if needed > 0 {
-    self.journal_tables.write(self.journal_count, table) catch {
-      error => raise BlockTable(error)
+    let mut journal = -1
+    for index in 0..<self.journal_count {
+      if self.journal_slots[index] == slot &&
+        (try! self.journal_tables.read(index)) == table {
+        journal = index
+        break
+      }
     }
-    self.journal_slots[self.journal_count] = slot
-    self.journal_old_page_counts[self.journal_count] = old_count
-    self.journal_appended[self.journal_count] = false
-    self.journal_count += 1
+    if journal < 0 {
+      journal = self.journal_count
+      self.journal_tables.write(journal, table) catch {
+        error => raise BlockTable(error)
+      }
+      self.journal_slots[journal] = slot
+      self.journal_count += 1
+    }
+    self.journal_old_page_counts[journal] = old_count
+    self.journal_appended[journal] = false
     self.page_allocator.allocate_run(needed, self.page_run) catch {
       error => raise PageAllocator(error)
     }
     self.block_tables.append_run(table, self.page_run) catch {
       error => raise BlockTable(error)
     }
-    self.journal_appended[self.journal_count - 1] = true
+    self.journal_appended[journal] = true
+  }
+}
+
+///|
+fn Scheduler::stage_selected_prefix_pages(
+  self : Scheduler,
+  row : Int,
+  table : @block_table.BlockTableId,
+) -> Unit raise SchedulerError {
+  let offset = self.prefix_selection_offsets[row]
+  for index in 0..<self.prefix_selection_counts[row] {
+    let page = try self.prefix_selection_pages.read(offset + index) catch {
+      error => raise PageAllocator(error)
+    } noraise {
+      value => value
+    }
+    self.block_tables.append_page(table, page) catch {
+      error => raise BlockTable(error)
+    }
   }
 }
 
@@ -274,6 +116,41 @@ fn Scheduler::push_table(
 }
 
 ///|
+fn[T] rollback_row_draft(
+  draft : @worker_protocol.PlanRowDraft,
+  error : SchedulerError,
+) -> T raise SchedulerError {
+  try! draft.rollback()
+  raise error
+}
+
+///|
+fn[T] rollback_prefix_selection(
+  scheduler : Scheduler,
+  error : SchedulerError,
+) -> T raise SchedulerError {
+  scheduler.rollback_selected_prefixes()
+  raise error
+}
+
+///|
+fn[T] rollback_plan_build(
+  scheduler : Scheduler,
+  plan : @worker_protocol.SchedulePlanBuffer,
+  plan_checkpoint : @worker_protocol.PlanBuildCheckpoint,
+  table_checkpoint : @block_table.BlockTableAllocationCheckpoint,
+  page_checkpoint : @page_allocator.PageAllocationCheckpoint,
+  error : SchedulerError,
+) -> T raise SchedulerError {
+  try! plan.rollback_to(plan_checkpoint)
+  scheduler.rollback_selected_prefixes()
+  scheduler.rollback_tables(table_checkpoint)
+  try! scheduler.block_tables.rollback_to(table_checkpoint)
+  try! scheduler.page_allocator.rollback_to(page_checkpoint)
+  raise error
+}
+
+///|
 fn Scheduler::build_prefill_row(
   self : Scheduler,
   plan : @worker_protocol.SchedulePlanBuffer,
@@ -281,9 +158,10 @@ fn Scheduler::build_prefill_row(
 ) -> Unit raise SchedulerError {
   let slot = self.prefill_slots[row]
   let request = self.requests[slot].unwrap()
-  let start = self.processed_inputs[slot]
+  let start = self.prefill_start(slot)
   let length = self.prefill_tokens[row]
   let table = self.row_table(slot)
+  self.stage_selected_prefix_pages(row, table)
   let old_count = try self.block_tables.page_count(table) catch {
     error => raise BlockTable(error)
   } noraise {
@@ -292,7 +170,9 @@ fn Scheduler::build_prefill_row(
   let target = ceiling_pages(start + length, self.capacity.tokens_per_page())
   self.append_pages(table, old_count, target, slot)
   let completion = self.completion_slots[row]
-  let is_final = start + length == request.input_tokens().length()
+  let is_recompute = self.recompute_required[slot]
+  let is_final = !is_recompute &&
+    start + length == request.input_tokens().length()
   let draft = try {
     if is_final {
       plan.begin_final_prefill(
@@ -319,7 +199,7 @@ fn Scheduler::build_prefill_row(
   }
   try {
     for index in start..<(start + length) {
-      let token = request.input_token_at(index)
+      let token = self.prefill_token_at(slot, index)
       draft.push_token(token) catch {
         error => raise WorkerProtocol(error)
       }
@@ -337,10 +217,7 @@ fn Scheduler::build_prefill_row(
       error => raise WorkerProtocol(error)
     }
   } catch {
-    error => {
-      try! draft.rollback()
-      raise error
-    }
+    error => rollback_row_draft(draft, error)
   }
 }
 
@@ -390,10 +267,7 @@ fn Scheduler::build_decode_row(
       error => raise WorkerProtocol(error)
     }
   } catch {
-    error => {
-      try! draft.rollback()
-      raise error
-    }
+    error => rollback_row_draft(draft, error)
   }
 }
 
@@ -426,7 +300,13 @@ pub fn Scheduler::build_next(
   } else {
     raise invalid(Plan, Exhausted)
   }
-  let token_budget = self.select_rows()
+  let preempted = self.preempt_for_aged_waiter()
+  if preempted {
+    return BuildPreempted
+  }
+  let token_budget = self.select_rows() catch {
+    error => rollback_prefix_selection(self, error)
+  }
   if token_budget == 0 {
     return BuildIdle
   }
@@ -435,12 +315,16 @@ pub fn Scheduler::build_next(
   let has_previous = self.last_plan_sequence != 0UL
   let previous_sequence_value = self.last_plan_sequence
   let table_checkpoint = try self.block_tables.checkpoint() catch {
-    error => raise BlockTable(error)
+    error => {
+      self.rollback_selected_prefixes()
+      raise BlockTable(error)
+    }
   } noraise {
     value => value
   }
   let page_checkpoint = try self.page_allocator.checkpoint() catch {
     error => {
+      self.rollback_selected_prefixes()
       try! self.block_tables.rollback_to(table_checkpoint)
       raise PageAllocator(error)
     }
@@ -449,6 +333,7 @@ pub fn Scheduler::build_next(
   }
   let plan_checkpoint = try plan.checkpoint() catch {
     error => {
+      self.rollback_selected_prefixes()
       try! self.block_tables.rollback_to(table_checkpoint)
       try! self.page_allocator.rollback_to(page_checkpoint)
       raise WorkerProtocol(error)
@@ -474,18 +359,17 @@ pub fn Scheduler::build_next(
       error => raise WorkerProtocol(error)
     }
   } catch {
-    error => {
-      try! plan.rollback_to(plan_checkpoint)
-      self.rollback_tables(table_checkpoint)
-      try! self.block_tables.rollback_to(table_checkpoint)
-      try! self.page_allocator.rollback_to(page_checkpoint)
-      raise error
-    }
-  } noraise {
-    value => value
+    error =>
+      rollback_plan_build(
+        self, plan, plan_checkpoint, table_checkpoint, page_checkpoint, error,
+      )
   }
   self.commit_plan_state(side)
+  self.commit_selected_prefixes()
   self.last_plan_sequence = sequence_value
+  self.telemetry_plan_sequence = sequence_value
+  self.telemetry_plan_rows = self.prefill_count + self.decode_count
+  self.telemetry_plan_tokens = token_budget
   if side == 0 {
     self.plan_a_sequence = sequence_value
   } else {

@@ -31,7 +31,7 @@ fn write_valid_decode_row(
 fn valid_two_decode_frame() -> FixedArray[Byte] {
   let length = 272
   let bytes = FixedArray::make(length, b'\x00')
-  write_plan_header(bytes, length, 1UL, 1UL, 2, 2, 2, 2, 0, 2)
+  write_plan_header(bytes, 0, length, 1UL, 1UL, 2, 2, 2, 2, 0, 2)
   write_i32(bytes, 64, 10)
   write_i32(bytes, 68, 11)
   write_i32(bytes, 72, 0)

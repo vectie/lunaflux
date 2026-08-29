@@ -1,0 +1,118 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_kv_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/tensor_parallel_admission",
+}
+
+// Values
+pub fn admit(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_admission.TensorParallelRuntimeAdmission, ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], tokens_per_page~ : Int, total_page_count~ : Int) -> TensorParallelKvPlan raise TensorParallelKvPlanError
+
+pub fn admit_from_topology(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_topology.AdmittedLocalTopology, @tensor_parallel_admission.TensorParallelRuntimeAdmission, tokens_per_page~ : Int, total_page_count~ : Int) -> TensorParallelKvPlan raise TensorParallelKvPlanError
+
+// Errors
+pub(all) suberror TensorParallelKvPlanError {
+  RejectedTensorParallelKvPlan(rule~ : TensorParallelKvPlanRule, rank~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+type RankDeviceFacts derive(Eq, @debug.Debug)
+
+type RankRuntimeFacts derive(Eq, @debug.Debug)
+
+pub struct TensorParallelKvContractDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelKvContractDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelKvPageRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelKvPageRegion::logical_bytes(Self) -> Int64
+pub fn TensorParallelKvPageRegion::offset_bytes(Self) -> Int64
+pub fn TensorParallelKvPageRegion::page_generation(Self) -> Int
+pub fn TensorParallelKvPageRegion::page_index(Self) -> Int
+pub fn TensorParallelKvPageRegion::rank(Self) -> Int
+pub fn TensorParallelKvPageRegion::reserved_bytes(Self) -> Int64
+
+pub struct TensorParallelKvPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelKvPlan::element_offset_bytes(Self, @worker_protocol.ModelPlanGeneration, Int, @page_allocator.PageId, Int, @device_layout.DeviceKvComponent, Int, Int, Int) -> Int64 raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::full_arena_bytes(Self) -> Int64
+pub fn TensorParallelKvPlan::generation_value(Self) -> UInt64
+pub fn TensorParallelKvPlan::global_kv_head_count(Self) -> Int
+pub fn TensorParallelKvPlan::head_dimension(Self) -> Int
+pub fn TensorParallelKvPlan::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelKvPlan::layer_count(Self) -> Int
+pub fn TensorParallelKvPlan::layout_version(Self) -> Int
+pub fn TensorParallelKvPlan::local_kv_head_count(Self) -> Int
+pub fn TensorParallelKvPlan::page_logical_bytes(Self) -> Int64
+pub fn TensorParallelKvPlan::page_region(Self, @worker_protocol.ModelPlanGeneration, Int, @page_allocator.PageId, Int, @device_layout.DeviceKvComponent) -> TensorParallelKvPageRegion raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::page_stride_bytes(Self) -> Int64
+pub fn TensorParallelKvPlan::rank_arena_bytes(Self) -> Int64
+pub fn TensorParallelKvPlan::rank_binding(Self, Int) -> TensorParallelKvRankBinding raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::rank_kv_reservation_bytes(Self, Int) -> Int64 raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::rank_layout(Self, Int) -> @device_layout.DeviceKvLayout raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::require_current_contract(Self, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, Int) -> Unit raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::require_current_generation(Self, @worker_protocol.ModelPlanGeneration) -> Unit raise TensorParallelKvPlanError
+pub fn TensorParallelKvPlan::tokens_per_page(Self) -> Int
+pub fn TensorParallelKvPlan::total_page_count(Self) -> Int
+pub fn TensorParallelKvPlan::world_size(Self) -> Int
+
+pub(all) enum TensorParallelKvPlanRule {
+  BindingCount
+  Rank
+  WorldSize
+  ModelIdentity
+  ModelGeneration
+  DeviceTarget
+  DeviceOrdinal
+  LayoutVersion
+  KvHeadDivisibility
+  RankArenaCeiling
+  SizeOverflow
+  FullArenaReplication
+  PageIndex
+  LayerIndex
+  TokenIndex
+  LocalKvHeadIndex
+  HeadDimensionIndex
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelKvRankBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelKvRankBinding::arena_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::component_stride_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::digest(Self) -> TensorParallelKvContractDigest
+pub fn TensorParallelKvRankBinding::generation_value(Self) -> UInt64
+pub fn TensorParallelKvRankBinding::global_kv_head_count(Self) -> Int
+pub fn TensorParallelKvRankBinding::head_dimension(Self) -> Int
+pub fn TensorParallelKvRankBinding::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelKvRankBinding::kv_reservation_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::layer_count(Self) -> Int
+pub fn TensorParallelKvRankBinding::layer_stride_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::layout_version(Self) -> Int
+pub fn TensorParallelKvRankBinding::local_kv_head_count(Self) -> Int
+pub fn TensorParallelKvRankBinding::page_logical_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::page_stride_bytes(Self) -> Int64
+pub fn TensorParallelKvRankBinding::process_ordinal(Self) -> Int
+pub fn TensorParallelKvRankBinding::rank(Self) -> Int
+pub fn TensorParallelKvRankBinding::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelKvRankBinding::tokens_per_page(Self) -> Int
+pub fn TensorParallelKvRankBinding::total_page_count(Self) -> Int
+pub fn TensorParallelKvRankBinding::world_size(Self) -> Int
+
+// Type aliases
+
+// Traits

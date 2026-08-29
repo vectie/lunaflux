@@ -4,7 +4,7 @@ fn ValidatedPlanFrame::read_i32_at(
   offset : Int,
 ) -> Int raise WorkerWireError {
   let owner = self.owner()
-  read_i32(owner.storage, offset)
+  read_i32(owner.storage, owner.frame_offset + offset)
 }
 
 ///|
@@ -13,7 +13,7 @@ fn ValidatedPlanFrame::read_u64_at(
   offset : Int,
 ) -> UInt64 raise WorkerWireError {
   let owner = self.owner()
-  read_u64(owner.storage, offset)
+  read_u64(owner.storage, owner.frame_offset + offset)
 }
 
 ///|
@@ -128,7 +128,7 @@ pub fn ValidatedPlanFrame::prefill_row(
   index : Int,
 ) -> PlanFramePrefillRow raise WorkerWireError {
   let owner = self.owner()
-  if index < 0 || index >= read_i32(owner.storage, 48) {
+  if index < 0 || index >= read_i32(owner.storage, owner.frame_offset + 48) {
     raise InvalidFrame(PrefillRow)
   }
   PlanFramePrefillRow(owner, self.1, index)
@@ -140,7 +140,7 @@ pub fn ValidatedPlanFrame::decode_row(
   index : Int,
 ) -> PlanFrameDecodeRow raise WorkerWireError {
   let owner = self.owner()
-  if index < 0 || index >= read_i32(owner.storage, 52) {
+  if index < 0 || index >= read_i32(owner.storage, owner.frame_offset + 52) {
     raise InvalidFrame(DecodeRow)
   }
   PlanFrameDecodeRow(owner, self.1, index)

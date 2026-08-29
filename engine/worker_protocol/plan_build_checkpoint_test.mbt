@@ -109,3 +109,30 @@ test "checkpoint rejects wrong owner superseded handle and open draft" {
     _ => fail("expected rollback to fail")
   }
 }
+
+///|
+test "identity tracker preserves colliding retained rows across rollback" {
+  let buffer = @worker_protocol.SchedulePlanBuffer::new(protocol_limits())
+  let pages = allocator()
+  // Capacity is 16 for these limits, so 1 and 17 share an initial bucket.
+  append_checkpoint_prefill(buffer, pages, 1UL, 10, 0)
+  let checkpoint = buffer.checkpoint()
+  append_checkpoint_prefill(buffer, pages, 17UL, 11, 1)
+  buffer.rollback_to(checkpoint)
+  try append_checkpoint_prefill(buffer, pages, 1UL, 12, 2) catch {
+    @worker_protocol.InvalidRowDescriptor(kind=Prefill, rule=DuplicateRequest) =>
+      ()
+    _ => fail("retained colliding identity reported the wrong error")
+  } noraise {
+    _ => fail("rollback forgot a retained request identity")
+  }
+  append_checkpoint_prefill(buffer, pages, 17UL, 13, 1)
+  let submitted = buffer.submit(
+    sequence=@worker_protocol.PlanSequence::first(),
+    model_plan_generation=model_generation(1UL),
+    token_budget=2,
+    None,
+    model_generation(1UL),
+  )
+  assert_eq(submitted.row_count(), 2)
+}

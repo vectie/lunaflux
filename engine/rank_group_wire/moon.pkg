@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

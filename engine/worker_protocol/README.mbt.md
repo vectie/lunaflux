@@ -43,7 +43,10 @@ Schedulers may instead build a row through an authenticated `PlanRowDraft`:
 begin, push scalar token/page/capability cells from existing immutable storage,
 then commit the exact suffix or roll it back. Until commit, no row descriptor
 is visible. This closes the temporary-array bridge for token buffers and block
-tables without importing either implementation package.
+tables without importing either implementation package. The production
+scheduler uses that draft as a single-pass direct transport into the retained
+plan owner; it does not construct an intermediate row object or rebuild the
+plan in the worker.
 
 `RowCapabilityRecipe` is the startup-owned bridge from a model plan to those
 drafts. It is pinned to an exact model identity and loaded-plan generation,
@@ -84,7 +87,7 @@ diagnostic formatting. Errors contain only bounded categories and indices.
 This does not itself make a production scheduler. Convenience `ArrayView`
 append callers may allocate their source arrays; allocation-sensitive
 integration uses scalar drafts and reusable completion buffers. A transport
-ring and live worker overlap remain separate phase gates. `retire` is an
+ring and live worker overlap remain separate owners. `retire` is an
 ownership assertion after external completion has been authenticated—the
 protocol cannot observe device progress itself.
 

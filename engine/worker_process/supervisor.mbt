@@ -102,46 +102,19 @@ fn prepare_spawn_failed(
 }
 
 ///|
-fn closed_startup_error(
-  failed : FailedWorkerProcessStartup,
-) -> WorkerProcessError {
-  startup_raw_cause(failed)
-}
-
-///|
 fn prepare_preflighted(
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
   prepared : PreparedWorkerProcessStartup,
   roots : @approved_fs.WorkerApprovedRoots,
 ) -> WorkerProcessPreparation {
-  let spawn_status = prepared.child.spawn_with_approved_roots_status(roots)
+  let spawn_status = prepared.child.spawn_with_approved_roots_status(
+    @approved_fs.worker_approved_root_spawn_authority(roots),
+  )
   if spawn_status != 0 {
     return prepare_spawn_failed(prepared)
   }
   prepare_spawned(source, limits, prepared, prepared.child.child_owner())
-}
-
-///|
-/// Compatibility-only spawn for deterministic echo fixtures. Production
-/// workers use `prepare_with_approved_roots`, which retains exact root leases
-/// across every replacement.
-pub fn prepare(
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  limits : WorkerProcessLimits,
-) -> WorkerProcessPreparation raise WorkerProcessError {
-  let prepared = preflight_prepare(executable, startup, source, limits)
-  let child = prepared.child.spawn() catch {
-    error => raise transport_error(error)
-  }
-  let result = prepare_spawned(source, limits, prepared, child)
-  match result {
-    CleanupRequired(failed) if failed.is_closed() && failed.cleanup_status == 0 =>
-      raise closed_startup_error(failed)
-    _ => result
-  }
 }
 
 ///|
@@ -188,10 +161,8 @@ pub fn WorkerProcessSupervisor::submit(
   }
   let transport = if side == 0 { self.tx_a } else { self.tx_b }
   let length = frame.length() catch { error => raise Wire(error) }
-  frame.copy_to(transport, destination_offset=0) catch {
-    error => raise Wire(error)
-  }
-  self.require_child().write_frame(transport, offset=0, byte_count=length) catch {
+  let offset = frame.transport_offset() catch { error => raise Wire(error) }
+  self.require_child().write_frame(transport, offset~, byte_count=length) catch {
     error => self.fail_process(error)
   }
   if side == 0 {
@@ -277,17 +248,14 @@ pub fn WorkerProcessSupervisor::receive(
         raise transport_error(error)
       }
     }
-  self.accept_completion_bytes(side, plan, length)
-}
-
-///|
-fn WorkerProcessSupervisor::accept_completion_bytes(
-  self : WorkerProcessSupervisor,
-  side : Int,
-  plan : @worker_protocol.SubmittedSchedulePlan,
-  length : Int,
-) -> ReceivedWorkerCompletion raise WorkerProcessError {
   self.accept_completion_bytes_in_place(side, plan, length)
+  let graph_length = self.require_child().read_frame(self.graph_rx) catch {
+      error => {
+        self.lifecycle = Failed
+        raise transport_error(error)
+      }
+    }
+  self.accept_graph_telemetry_bytes_in_place(side, graph_length)
   let sequence = if side == 0 { self.sequence_a } else { self.sequence_b }
   ReceivedWorkerCompletion(self, side, sequence)
 }
@@ -319,11 +287,6 @@ fn WorkerProcessSupervisor::accept_completion_bytes_in_place(
       self.lifecycle = Failed
       raise Wire(error)
     }
-  }
-  if side == 0 {
-    self.state_a = 2
-  } else {
-    self.state_b = 2
   }
 }
 
@@ -388,8 +351,10 @@ pub fn WorkerProcessSupervisor::retire_received(
 ) -> Unit raise WorkerProcessError {
   self.validate_retirement(received)
   if received.1 == 0 {
+    self.graph_telemetry_a.clear()
     self.state_a = 0
   } else {
+    self.graph_telemetry_b.clear()
     self.state_b = 0
   }
   self.last_retired = received.2
@@ -403,6 +368,9 @@ pub fn WorkerProcessSupervisor::close(
 ) -> Unit raise WorkerProcessError {
   if self.lifecycle == Closed {
     return
+  }
+  if self.maintenance_phase == 1 {
+    raise Invalid(Lifecycle)
   }
   self.lifecycle = ClosingFailed
   self.require_child().close() catch {

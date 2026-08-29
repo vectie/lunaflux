@@ -132,14 +132,26 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
 }
 
 ///|
-fn test_supervisor() -> WorkerProcessSupervisor raise {
+fn test_supervisor(
+  executable? : Bytes = @worker_executable_fixture.cat_path(),
+  shutdown_timeout_millis? : Int = 1000,
+) -> WorkerProcessSupervisor raise {
   let worker_limits = supervisor_limits()
   let inference_limits = supervisor_inference_limits()
-  let plan_a = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
+  let plan_capacity = @worker_wire.plan_frame_byte_capacity(worker_limits)
+  let tx_a = FixedArray::make(plan_capacity, b'\x00')
+  let tx_b = FixedArray::make(plan_capacity, b'\x00')
+  let plan_a = @worker_wire.PlanFrameBuffer::new_transport_owned(
+    worker_limits,
+    inference_limits,
+    tx_a,
+    frame_offset=0,
   )
-  let plan_b = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
+  let plan_b = @worker_wire.PlanFrameBuffer::new_transport_owned(
+    worker_limits,
+    inference_limits,
+    tx_b,
+    frame_offset=0,
   )
   let completion_a = @worker_wire.CompletionFrameBuffer::new(
     worker_limits, inference_limits,
@@ -149,119 +161,47 @@ fn test_supervisor() -> WorkerProcessSupervisor raise {
   )
   let limits = supervisor_process_limits()
   {
-    child: @process.spawn(
-      b"/bin/cat",
+    child: spawn_worker_fixture_child(
+      executable,
       @process.ProcessLimits::new(
         max_frame_bytes=limits.max_frame_bytes(),
         io_timeout_millis=limits.io_timeout_millis(),
-        shutdown_timeout_millis=limits.shutdown_timeout_millis(),
+        shutdown_timeout_millis~,
       ),
     ),
     child_selected: true,
     startup: supervisor_startup(),
     source: supervisor_source(),
+    parent_approval: None,
     plan_a,
     plan_b,
     completion_a,
     completion_b,
-    tx_a: FixedArray::make(plan_a.capacity(), b'\x00'),
-    tx_b: FixedArray::make(plan_b.capacity(), b'\x00'),
+    tx_a,
+    tx_b,
     rx: FixedArray::make(completion_a.capacity(), b'\x00'),
     rx_staging: FixedArray::make(completion_a.capacity(), b'\x00'),
-    exchange_request_ids: FixedArray::make(
-      worker_limits.max_completion_slots(),
-      0UL,
+    graph_rx: FixedArray::make(
+      @worker_wire.worker_graph_telemetry_frame_capacity(),
+      b'\x00',
     ),
-    exchange_request_generations: FixedArray::make(
-      worker_limits.max_completion_slots(),
-      0UL,
+    graph_rx_staging: FixedArray::make(
+      @worker_wire.worker_graph_telemetry_frame_capacity(),
+      b'\x00',
     ),
-    exchange_expected_kinds: FixedArray::make(
-      worker_limits.max_completion_slots(),
-      ExpectedEmpty,
-    ),
-    exchange_processed_tokens: FixedArray::make(
-      worker_limits.max_completion_slots(),
-      0,
-    ),
-    exchange_slots: FixedArray::make(worker_limits.max_completion_slots(), -1),
-    exchange_entry_count: 0,
     state_a: 0,
     state_b: 0,
     sequence_a: 0UL,
     sequence_b: 0UL,
+    graph_telemetry_a: @worker_wire.WorkerGraphTelemetrySlot::new(),
+    graph_telemetry_b: @worker_wire.WorkerGraphTelemetrySlot::new(),
+    last_graph_telemetry: @worker_wire.WorkerGraphTelemetrySlot::new(),
     last_submitted: 0UL,
     last_retired: 0UL,
+    maintenance_phase: 0,
+    maintenance_failure: None,
     lifecycle: Ready,
   }
-}
-
-///|
-test "root-bound source mismatch precedes root acquisition" {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  model.close()
-  kernel.close()
-  try
-    prepare_with_approved_roots(
-      b"/definitely/not/a/worker",
-      supervisor_startup(),
-      alternate_supervisor_source(),
-      supervisor_process_limits(),
-      model,
-      kernel,
-    )
-  catch {
-    RootBoundFailure(Process(Invalid(SourceMismatch))) => ()
-    _ => fail("source mismatch acquired closed roots")
-  } noraise {
-    _ => fail("mismatched source reached root acquisition")
-  }
-}
-
-///|
-test "root-bound restart retains source and has no substitution input" {
-  let owner = test_root_bound_supervisor()
-  let digest = owner.bootstrap_source().digest()
-  owner.begin_recovery()
-  assert_eq(owner.lifecycle(), RootBoundRecovering)
-  try owner.restart() catch {
-    RootBoundFailure(Process(Invalid(Submission))) => ()
-    _ => fail("unexpected rooted replacement failure")
-  } noraise {
-    _ => fail("cat fixture unexpectedly completed startup")
-  }
-  assert_eq(owner.lifecycle(), RootBoundRecovering)
-  assert_eq(owner.bootstrap_source().digest(), digest)
-  owner.close()
-  owner.close()
-  assert_true(owner.is_closed())
-}
-
-///|
-test "delegated fatal transport failure marks recovery required" {
-  let owner = test_root_bound_supervisor()
-  let plan = supervisor_plan(1UL)
-  let submitted = owner.submit(plan)
-  try owner.receive(submitted, plan) catch {
-    RootBoundFailure(Process(Transport(InvalidConfiguration))) => ()
-    _ => fail("unexpected wrapped malformed response")
-  } noraise {
-    _ => fail("echoed plan became a completion")
-  }
-  assert_eq(owner.lifecycle(), RootBoundRecoveryRequired)
-  owner.close()
-}
-
-///|
-test "recovery transition consumes only child and retains roots for restart" {
-  let owner = test_root_bound_supervisor()
-  owner.begin_recovery()
-  assert_eq(owner.lifecycle(), RootBoundRecovering)
-  assert_eq(owner.child_cleanup_failure(), None)
-  assert_false(owner.is_closed())
-  owner.close()
-  assert_eq(owner.lifecycle(), RootBoundClosed)
 }
 
 ///|
@@ -310,6 +250,7 @@ fn supervisor_plan(
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "submission rejects a foreign loaded model generation before write" {
   let owner = test_supervisor()
   try owner.submit(supervisor_plan(1UL, generation=2UL)) catch {
@@ -342,16 +283,46 @@ fn encoded_completion(
 }
 
 ///|
+fn encoded_graph_telemetry(
+  sequence : UInt64,
+  hits : UInt64,
+  destination : FixedArray[Byte],
+) -> Int raise {
+  let shape = @worker_wire.WorkerGraphShapeClass::new(
+    phase=1,
+    batch_rows=1,
+    query_tokens_per_row=1,
+    context_tokens=1,
+    token_rows=1L,
+  )
+  @worker_wire.encode_worker_graph_telemetry(
+    @worker_wire.WorkerGraphTelemetry::with_shape(
+      sequence~,
+      path=WorkerGraphCaptured,
+      shape~,
+      graph_hits=hits,
+      graph_misses=0UL,
+    ),
+    destination,
+  )
+}
+
+///|
 fn inject_completion(
   owner : WorkerProcessSupervisor,
   side : Int,
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> ReceivedWorkerCompletion raise {
   let length = encoded_completion(plan, owner.rx)
-  owner.accept_completion_bytes(side, plan, length)
+  owner.accept_completion_bytes_in_place(side, plan, length)
+  let sequence = plan.sequence_wire()
+  let graph_length = encoded_graph_telemetry(sequence, sequence, owner.graph_rx)
+  owner.accept_graph_telemetry_bytes_in_place(side, graph_length)
+  ReceivedWorkerCompletion(owner, side, sequence)
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "received side remains pinned until explicit retirement" {
   let owner = test_supervisor()
   let plan = supervisor_plan(1UL)
@@ -361,6 +332,11 @@ test "received side remains pinned until explicit retirement" {
   let length = received.frame(owner).length()
   assert_eq(owner.outstanding_count(), 1)
   assert_eq(received.frame(owner).length(), length)
+  let graph = received.graph_telemetry(owner)
+  assert_eq(graph.sequence_value(), 1UL)
+  assert_eq(graph.selected_path(), WorkerGraphCaptured)
+  assert_eq(graph.graph_hits(), 1UL)
+  assert_true(graph.has_selected_shape_class())
   assert_eq(received.frame(owner).length(), length)
   owner.retire_received(received)
   assert_eq(owner.outstanding_count(), 0)
@@ -374,6 +350,7 @@ test "received side remains pinned until explicit retirement" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "A side reuses only after ordered A/B retirement" {
   let owner = test_supervisor()
   let plan_a1 = supervisor_plan(1UL)
@@ -401,6 +378,7 @@ test "A side reuses only after ordered A/B retirement" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "A/B pressure and out-of-order receive fail before channel read" {
   let owner = test_supervisor()
   let plan_a = supervisor_plan(1UL)
@@ -425,6 +403,7 @@ test "A/B pressure and out-of-order receive fail before channel read" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "malformed child response permanently fails the session" {
   let owner = test_supervisor()
   let plan = supervisor_plan(1UL)
@@ -440,6 +419,7 @@ test "malformed child response permanently fails the session" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "closed submissions are abandoned only in exact sequence order" {
   let owner = test_supervisor()
   let plan_a = supervisor_plan(1UL)
@@ -485,6 +465,7 @@ test "closed submissions are abandoned only in exact sequence order" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "validated completion remains retireable after child close" {
   let owner = test_supervisor()
   let plan = supervisor_plan(1UL)

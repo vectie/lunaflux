@@ -71,8 +71,11 @@ fn Scheduler::install_admission_request(
   self.request_generations[index] = generation
   self.deadlines[index] = deadline
   self.admitted_steps[index] = self.step
+  self.processed_inputs[index] = 0
+  self.prefill_cursors[index] = self.prefix_matched_tokens[index]
   self.live_count += 1
   self.enqueue_waiting(index)
+  self.deadline_insert(index)
   index
 }
 
@@ -88,7 +91,20 @@ fn Scheduler::commit_admission_request(
   }
   let retained_index = self.free_head
   request.retain_stop_tokens_into(self.request_stop_tokens[retained_index])
+  self.discover_prefix_candidate(request, retained_index) catch {
+    error => release_admission_stop_tokens(self, retained_index, error)
+  }
   ignore(self.install_admission_request(request, retained_index))
+}
+
+///|
+fn[T] release_admission_stop_tokens(
+  scheduler : Scheduler,
+  retained_index : Int,
+  error : SchedulerError,
+) -> T raise SchedulerError {
+  try! scheduler.request_stop_tokens[retained_index].release()
+  raise error
 }
 
 ///|
@@ -106,7 +122,20 @@ pub fn Scheduler::prepare_admission(
     },
     committed: false,
     retention_issued: false,
+    publication_route: empty_publication_route(),
   }
+}
+
+///|
+/// Binds the caller's fixed publication route before scheduler mutation.
+pub fn PreparedAdmission::bind_publication_route(
+  self : PreparedAdmission,
+  route : SchedulerPublicationRoute,
+) -> Unit raise SchedulerError {
+  if self.committed || self.publication_route.generation() != 0UL {
+    raise invalid(Request, InvalidTransition)
+  }
+  self.publication_route = route
 }
 
 ///|
@@ -138,6 +167,8 @@ pub fn Scheduler::commit_admission(
   }
   prepared.handle.slot = SchedulerSlotId(index, self.slot_generations[index])
   prepared.handle.request_generation = self.request_generations[index]
+  self.publication_route_lanes[index] = prepared.publication_route.lane()
+  self.publication_route_generations[index] = prepared.publication_route.generation()
   prepared.committed = true
 }
 
@@ -168,9 +199,23 @@ pub fn Scheduler::prepare_exclusive_admission(
     committed: false,
     consumed: false,
     retention_issued: false,
+    publication_route: empty_publication_route(),
   }
   self.exclusive_admission_reserved = true
   prepared
+}
+
+///|
+pub fn PreparedExclusiveAdmission::bind_publication_route(
+  self : PreparedExclusiveAdmission,
+  route : SchedulerPublicationRoute,
+) -> Unit raise SchedulerError {
+  if self.consumed ||
+    self.publication_route.generation() != 0UL ||
+    !self.owner.exclusive_admission_reserved {
+    raise invalid(Request, InvalidTransition)
+  }
+  self.publication_route = route
 }
 
 ///|
@@ -231,9 +276,21 @@ pub fn Scheduler::commit_exclusive_admission(
   } noraise {
     _ => ()
   }
+  try self.discover_prefix_candidate(prepared.request, retained_index) catch {
+    _ => {
+      try! self.request_stop_tokens[retained_index].release()
+      self.exclusive_admission_reserved = false
+      prepared.consumed = true
+      return ExclusiveAdmissionInvalidated
+    }
+  } noraise {
+    _ => ()
+  }
   let index = self.install_admission_request(prepared.request, retained_index)
   prepared.handle.slot = SchedulerSlotId(index, self.slot_generations[index])
   prepared.handle.request_generation = self.request_generations[index]
+  self.publication_route_lanes[index] = prepared.publication_route.lane()
+  self.publication_route_generations[index] = prepared.publication_route.generation()
   prepared.committed = true
   prepared.consumed = true
   self.exclusive_admission_reserved = false

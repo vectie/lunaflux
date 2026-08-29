@@ -327,8 +327,7 @@ fn make_decode_active(
   owner.slot_states[slot] = SLOT_DECODE
   owner.output_counts[slot] = output_count
   owner.decode_tokens[slot] = token
-  owner.active_slots[owner.active_count] = slot
-  owner.active_count += 1
+  owner.add_active(slot)
 }
 
 ///|
@@ -350,6 +349,7 @@ test "stale block-table page generation rejects plan construction transactionall
   try! owner.page_allocator.validate_active(current)
   let free_pages = owner.free_page_count()
   let allocated_tables = owner.allocated_block_table_count()
+  let decode_cursor = owner.decode_cursor
   try owner.build_next() catch {
     PageAllocator(StalePage(page)) => assert_eq(page, stale)
     _ => fail("unexpected stale page plan-construction failure")
@@ -362,6 +362,7 @@ test "stale block-table page generation rejects plan construction transactionall
   assert_eq(owner.plan_a_sequence, 0UL)
   assert_eq(owner.last_plan_sequence, 0UL)
   assert_eq(owner.journal_count, 0)
+  assert_eq(owner.decode_cursor, decode_cursor)
   assert_false(owner.status(handle.request_id()).unwrap().in_flight())
   try! owner.page_allocator.validate_active(current)
   try owner.page_allocator.validate_active(stale) catch {
@@ -461,4 +462,12 @@ test "post-allocation row failure restores exact page and table ownership" {
   let restored = try! plan.page_at(1)
   assert_eq(restored.index(), 1)
   assert_eq(restored.generation(), 1)
+}
+
+///|
+test "scheduler blueprint publishes exact fixed request-slot capacity" {
+  let blueprint = wb_blueprint_with_capacity(3, 5)
+  assert_eq(blueprint.request_slot_capacity(), 8)
+  let owner = try! blueprint.instantiate()
+  assert_eq(owner.slot_states.length(), blueprint.request_slot_capacity())
 }

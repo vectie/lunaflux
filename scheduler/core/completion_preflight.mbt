@@ -98,11 +98,12 @@ fn Scheduler::validate_prefill_progress(
   } noraise {
     value => value
   }
-  let request = self.requests[slot].unwrap()
-  if start != self.processed_inputs[slot] ||
-    self.output_counts[slot] != 0 ||
-    processed <= 0 ||
-    processed > request.input_tokens().length() - start {
+  let expected_start = self.prefill_start(slot)
+  let target = self.prefill_target(slot)
+  if start != expected_start || processed <= 0 || processed > target - start {
+    raise invalid(Completion, Mismatch)
+  }
+  if !self.recompute_required[slot] && self.output_counts[slot] != 0 {
     raise invalid(Completion, Mismatch)
   }
   let produces_token = try descriptor.produces_token() catch {
@@ -110,7 +111,9 @@ fn Scheduler::validate_prefill_progress(
   } noraise {
     value => value
   }
-  if produces_token != (start + processed == request.input_tokens().length()) {
+  let expected_produces = !self.recompute_required[slot] &&
+    start + processed == target
+  if produces_token != expected_produces {
     raise invalid(Completion, Mismatch)
   }
 }

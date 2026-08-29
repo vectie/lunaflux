@@ -5,6 +5,8 @@ import {
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/prefix/radix",
 }
 
 supported_targets = "native"

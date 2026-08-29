@@ -1,0 +1,201 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/rank_group_wire"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn decode_rank_group_wire_configure(FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedConfigure raise RankGroupWireError
+
+pub fn decode_rank_group_wire_header(FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedHeader raise RankGroupWireError
+
+pub fn encode_rank_group_wire_control_into(FixedArray[Byte], RankGroupWireLimits, RankGroupWireBinding, RankGroupWireKind, RankGroupWireDirection, RankGroupWireSlot?, UInt64) -> Int raise RankGroupWireError
+
+pub fn encode_rank_group_wire_payload_into(FixedArray[Byte], RankGroupWireLimits, RankGroupWireBinding, RankGroupWireKind, RankGroupWireDirection, RankGroupWireSlot?, UInt64, FixedArray[Byte], Int) -> Int raise RankGroupWireError
+
+pub fn rank_group_wire_header_bytes() -> Int
+
+pub fn seal_rank_group_wire_embedded_payload(FixedArray[Byte], RankGroupWireLimits, RankGroupWireBinding, RankGroupWireKind, RankGroupWireDirection, RankGroupWireSlot?, UInt64, Int) -> Int raise RankGroupWireError
+
+pub fn validate_rank_group_wire_binding(FixedArray[Byte], Int, RankGroupWireLimits, RankGroupWireBinding) -> RankGroupWireDecodedHeader raise RankGroupWireError
+
+// Errors
+pub(all) suberror RankGroupWireError {
+  Invalid(RankGroupWireRule)
+  ProtocolFault(RankGroupWireRule)
+  TranscriptFaulted(RankGroupWireRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RankGroupWireBinding {
+  // private fields
+}
+pub fn RankGroupWireBinding::collective_digest(Self) -> String
+pub fn RankGroupWireBinding::device_plan_digest(Self) -> String
+pub fn RankGroupWireBinding::execution_plan_digest(Self) -> String
+pub fn RankGroupWireBinding::group_digest(Self) -> String
+pub fn RankGroupWireBinding::group_generation_value(Self) -> UInt64
+pub fn RankGroupWireBinding::identity(Self) -> @spec.ModelIdentity
+pub fn RankGroupWireBinding::kv_digest(Self) -> String
+pub fn RankGroupWireBinding::model_generation_value(Self) -> UInt64
+pub fn RankGroupWireBinding::new(identity~ : @spec.ModelIdentity, model_generation_value~ : UInt64, group_generation_value~ : UInt64, rank~ : Int, world_size~ : Int, group_digest~ : String, topology_digest~ : String, worker_digest~ : String, device_plan_digest~ : String, execution_plan_digest~ : String, collective_digest~ : String, kv_digest~ : String) -> Self raise RankGroupWireError
+pub fn RankGroupWireBinding::rank(Self) -> Int
+pub fn RankGroupWireBinding::topology_digest(Self) -> String
+pub fn RankGroupWireBinding::worker_digest(Self) -> String
+pub fn RankGroupWireBinding::world_size(Self) -> Int
+
+pub struct RankGroupWireDecodedConfigure {
+  // private fields
+}
+pub fn RankGroupWireDecodedConfigure::binding(Self) -> RankGroupWireBinding
+pub fn RankGroupWireDecodedConfigure::header(Self) -> RankGroupWireDecodedHeader
+
+pub struct RankGroupWireDecodedHeader {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RankGroupWireDecodedHeader::direction(Self) -> RankGroupWireDirection
+pub fn RankGroupWireDecodedHeader::kind(Self) -> RankGroupWireKind
+pub fn RankGroupWireDecodedHeader::length(Self) -> Int
+pub fn RankGroupWireDecodedHeader::payload_length(Self) -> Int
+pub fn RankGroupWireDecodedHeader::sequence_value(Self) -> UInt64
+pub fn RankGroupWireDecodedHeader::slot(Self) -> RankGroupWireSlot?
+
+pub(all) enum RankGroupWireDirection {
+  ParentToChild
+  ChildToParent
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupWireFrameBuffer {
+  // private fields
+}
+pub fn RankGroupWireFrameBuffer::capacity(Self) -> Int
+pub fn RankGroupWireFrameBuffer::encode_configure_payload(Self, RankGroupWireBinding, FixedArray[Byte], Int) -> ValidatedRankGroupWireFrame raise RankGroupWireError
+pub fn RankGroupWireFrameBuffer::encode_control(Self, RankGroupWireBinding, RankGroupWireKind, RankGroupWireDirection, RankGroupWireSlot?, UInt64) -> ValidatedRankGroupWireFrame raise RankGroupWireError
+pub fn RankGroupWireFrameBuffer::encode_payload(Self, RankGroupWireBinding, RankGroupWireKind, RankGroupWireDirection, RankGroupWireSlot, UInt64, FixedArray[Byte], Int) -> ValidatedRankGroupWireFrame raise RankGroupWireError
+pub fn RankGroupWireFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedRankGroupWireFrame raise RankGroupWireError
+pub fn RankGroupWireFrameBuffer::new(RankGroupWireLimits) -> Self
+
+pub(all) enum RankGroupWireKind {
+  Configure
+  Ready
+  Submit
+  PollComplete
+  Pending
+  Complete
+  PlanFailed(RankGroupWirePlanFailure)
+  Abort
+  Aborted
+  Drain
+  Drained
+  Close
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RankGroupWireLifecycle {
+  NewGroup
+  Configuring
+  ReadyGroup
+  Executing
+  Polling
+  Aborting
+  AbortedPlan
+  Draining
+  DrainedGroup
+  Closing
+  ClosedGroup
+  Faulted
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupWireLimits {
+  // private fields
+}
+pub fn RankGroupWireLimits::max_frame_bytes(Self) -> Int
+pub fn RankGroupWireLimits::max_payload_bytes(Self) -> Int
+pub fn RankGroupWireLimits::new(max_payload_bytes~ : Int) -> Self raise RankGroupWireError
+
+pub(all) enum RankGroupWirePlanFailure {
+  CollectiveFailure
+  RankExecutionFailure
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupWireRankTranscript {
+  // private fields
+}
+pub fn RankGroupWireRankTranscript::abandon_on_transport_loss(Self) -> Unit
+pub fn RankGroupWireRankTranscript::accept_child(Self, FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedHeader raise RankGroupWireError
+pub fn RankGroupWireRankTranscript::accept_configure(Self, FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedConfigure raise RankGroupWireError
+pub fn RankGroupWireRankTranscript::accept_parent(Self, FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedHeader raise RankGroupWireError
+pub fn RankGroupWireRankTranscript::active_sequence_value(Self) -> UInt64
+pub fn RankGroupWireRankTranscript::active_slot(Self) -> RankGroupWireSlot?
+pub fn RankGroupWireRankTranscript::admit_ready(Self, RankGroupWireBinding, previous_sequence_value~ : UInt64) -> Unit raise RankGroupWireError
+pub fn RankGroupWireRankTranscript::binding(Self) -> RankGroupWireBinding?
+pub fn RankGroupWireRankTranscript::failure_rule(Self) -> RankGroupWireRule?
+pub fn RankGroupWireRankTranscript::lifecycle(Self) -> RankGroupWireLifecycle
+pub fn RankGroupWireRankTranscript::new() -> Self
+pub fn RankGroupWireRankTranscript::plan_failure(Self) -> RankGroupWirePlanFailure?
+pub fn RankGroupWireRankTranscript::previous_sequence_value(Self) -> UInt64
+
+pub(all) enum RankGroupWireRule {
+  Limit
+  Magic
+  Version
+  Length
+  Checksum
+  Reserved
+  Kind
+  Direction
+  Slot
+  Payload
+  Digest
+  ModelIdentity
+  ModelGeneration
+  GroupGeneration
+  Rank
+  WorldSize
+  Sequence
+  Binding
+  Lifecycle
+  TransportLost
+  FrameEpoch
+  Destination
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RankGroupWireSlot {
+  A
+  B
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupWireTranscript {
+  // private fields
+}
+pub fn RankGroupWireTranscript::abandon_on_transport_loss(Self) -> Unit
+pub fn RankGroupWireTranscript::accept(Self, ValidatedRankGroupWireFrame) -> Unit raise RankGroupWireError
+pub fn RankGroupWireTranscript::accept_bytes(Self, FixedArray[Byte], Int, RankGroupWireLimits) -> RankGroupWireDecodedHeader raise RankGroupWireError
+pub fn RankGroupWireTranscript::active_sequence_value(Self) -> UInt64
+pub fn RankGroupWireTranscript::active_slot(Self) -> RankGroupWireSlot?
+pub fn RankGroupWireTranscript::binding(Self, Int) -> RankGroupWireBinding?
+pub fn RankGroupWireTranscript::failure_rule(Self) -> RankGroupWireRule?
+pub fn RankGroupWireTranscript::lifecycle(Self) -> RankGroupWireLifecycle
+pub fn RankGroupWireTranscript::load_and_accept(Self, RankGroupWireFrameBuffer, FixedArray[Byte], Int) -> Unit raise RankGroupWireError
+pub fn RankGroupWireTranscript::new(ArrayView[RankGroupWireBinding], previous_sequence_value~ : UInt64) -> Self raise RankGroupWireError
+pub fn RankGroupWireTranscript::plan_failure(Self) -> RankGroupWirePlanFailure?
+pub fn RankGroupWireTranscript::plan_failure_rank(Self) -> Int?
+pub fn RankGroupWireTranscript::previous_sequence_value(Self) -> UInt64
+pub fn RankGroupWireTranscript::world_size(Self) -> Int
+
+pub struct ValidatedRankGroupWireFrame(RankGroupWireFrameBuffer, UInt64)
+pub fn ValidatedRankGroupWireFrame::binding(Self) -> RankGroupWireBinding raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::copy_payload_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::direction(Self) -> RankGroupWireDirection raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::kind(Self) -> RankGroupWireKind raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::length(Self) -> Int raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::payload_length(Self) -> Int raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::sequence_value(Self) -> UInt64 raise RankGroupWireError
+pub fn ValidatedRankGroupWireFrame::slot(Self) -> RankGroupWireSlot? raise RankGroupWireError
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,139 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/rank_group_process"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_rank_configure",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/runtime/approved_fs_inheritance",
+}
+
+// Values
+pub fn prepare_rank_group_process_approved(@worker_executable_file.WorkerExecutableAdmission, ArrayView[RankGroupProcessRankStartup], ArrayView[@worker_protocol.PlanBufferIdentity], previous_plan_sequence_value~ : UInt64, RankGroupProcessLimits) -> PreparedRankGroupProcess raise RankGroupProcessError
+
+// Errors
+pub(all) suberror RankGroupProcessError {
+  Invalid(RankGroupProcessRule)
+  Backpressured
+  Failed(RankGroupProcessFailure)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AcceptedRankGroupCompletion(RankGroupProcessSupervisor, UInt64)
+
+pub struct PreparedRankGroupProcess(RankGroupProcessSupervisor)
+pub fn PreparedRankGroupProcess::spawn_with_approved_root_spawn_authority(Self, @approved_fs_inheritance.WorkerApprovedRootSpawnAuthority) -> RankGroupProcessPreparation raise RankGroupProcessError
+
+pub(all) enum RankGroupProcessCleanupFailure {
+  RankChildCleanupFailed(rank~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RankGroupProcessCleanupProgress {
+  CleanupAdvanced
+  CleanupPending
+  CleanupStuck(rank~ : Int)
+  CleanupComplete
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RankGroupProcessFailure {
+  Spawn(rank~ : Int)
+  StartupTransport(rank~ : Int)
+  TransportLost(rank~ : Int)
+  CollectiveFailed(rank~ : Int)
+  RankExecutionFailed(rank~ : Int)
+  IdleRankExit(rank~ : Int, kind~ : Int, code~ : Int)
+  Wire(@rank_group_wire.RankGroupWireError)
+  Protocol(@rank_group_protocol.RankGroupError)
+  WorkerWire(@worker_wire.WorkerWireError)
+  GraphTelemetry(rank~ : Int)
+  RankConfigure(@tensor_parallel_rank_configure.TensorParallelRankConfigureError)
+  Clock
+  DeadlineExpired
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RankGroupProcessLifecycle {
+  Prepared
+  Ready
+  Submitting
+  Polling
+  CompletionReady
+  CompletionAccepted
+  Aborting
+  Draining
+  Closing
+  Faulted
+  Cleaning
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupProcessLimits {
+  // private fields
+}
+pub fn RankGroupProcessLimits::collective_exchange_timeout_millis(Self) -> Int
+pub fn RankGroupProcessLimits::max_payload_bytes(Self) -> Int
+pub fn RankGroupProcessLimits::new(max_payload_bytes~ : Int, startup_io_timeout_millis~ : Int, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int, collective_exchange_timeout_millis~ : Int) -> Self raise RankGroupProcessError
+
+pub(all) enum RankGroupProcessPreparation {
+  ReadyRankGroupProcess(RankGroupProcessSupervisor)
+  RankGroupProcessCleanupRequired(RankGroupProcessSupervisor)
+}
+
+pub(all) enum RankGroupProcessProgress {
+  ProcessAdvanced
+  ProcessPending
+  ProcessCompletionReady
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupProcessRankStartup {
+  // private fields
+}
+pub fn RankGroupProcessRankStartup::binding(Self) -> @rank_group_wire.RankGroupWireBinding
+pub fn RankGroupProcessRankStartup::configure(Self) -> @tensor_parallel_rank_configure.TensorParallelRankConfigureContract
+pub fn RankGroupProcessRankStartup::new(@tensor_parallel_rank_configure.TensorParallelRankConfigureContract) -> Self
+
+pub(all) enum RankGroupProcessRule {
+  Limit
+  Binding
+  Lifecycle
+  Owner
+  Sequence
+  Deadline
+  Submission
+  Completion
+  SchedulerCommit
+  Cleanup
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupProcessSupervisor {
+  // private fields
+}
+pub fn RankGroupProcessSupervisor::accept_completion(Self, ReceivedRankGroupCompletion, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> AcceptedRankGroupCompletion raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::accepted_completion_for_sequence(Self, UInt64) -> AcceptedRankGroupCompletion raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::begin(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::begin_cleanup(Self) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::begin_close(Self) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::cleanup_failure(Self) -> RankGroupProcessCleanupFailure?
+pub fn RankGroupProcessSupervisor::failure(Self) -> RankGroupProcessFailure?
+pub fn RankGroupProcessSupervisor::group_generation_value(Self) -> UInt64
+pub fn RankGroupProcessSupervisor::inspect_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::lifecycle(Self) -> RankGroupProcessLifecycle
+pub fn RankGroupProcessSupervisor::probe_idle_rank(Self) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::progress(Self, @worker_protocol.SubmittedSchedulePlan) -> RankGroupProcessProgress raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::progress_cleanup(Self) -> RankGroupProcessCleanupProgress raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::progress_close(Self) -> RankGroupProcessProgress raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::received_completion(Self) -> ReceivedRankGroupCompletion raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::retire_after_scheduler_commit(Self, AcceptedRankGroupCompletion) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::take_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::world_size(Self) -> Int
+
+pub struct ReceivedRankGroupCompletion(RankGroupProcessSupervisor, UInt64)
+pub fn ReceivedRankGroupCompletion::frame(Self, RankGroupProcessSupervisor) -> @worker_wire.ValidatedCompletionFrame raise RankGroupProcessError
+pub fn ReceivedRankGroupCompletion::graph_telemetry(Self, RankGroupProcessSupervisor) -> @worker_wire.WorkerGraphTelemetry raise RankGroupProcessError
+
+// Type aliases
+
+// Traits

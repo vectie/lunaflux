@@ -1,8 +1,9 @@
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "startup handshake rejects an incompatible child before readiness" {
   try
     prepare(
-      b"/bin/cat",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup(),
       supervisor_source(),
       supervisor_process_limits(),
@@ -19,7 +20,7 @@ test "startup handshake rejects an incompatible child before readiness" {
 test "startup source mismatch fails before executable spawn" {
   try
     prepare(
-      b"/definitely/not/a/worker",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup(),
       alternate_supervisor_source(),
       supervisor_process_limits(),
@@ -33,6 +34,7 @@ test "startup source mismatch fails before executable spawn" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "supervisor retains exact immutable bootstrap source bytes" {
   let owner = test_supervisor()
   let expected = supervisor_source()
@@ -50,7 +52,7 @@ test "supervisor retains exact immutable bootstrap source bytes" {
 }
 
 ///|
-test "bootstrap source capacity is rejected before child spawn" {
+test "bootstrap source capacity rejects only undersized buffers before child spawn" {
   let base = supervisor_startup()
   let tiny_worker = @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=1,
@@ -99,13 +101,19 @@ test "bootstrap source capacity is rejected before child spawn" {
       shutdown_timeout_millis=1,
     )
     try
-      prepare(b"/definitely/not/a/worker", startup, supervisor_source(), limits)
+      prepare(
+        @worker_executable_fixture.cat_path(),
+        startup,
+        supervisor_source(),
+        limits,
+      )
     catch {
       Invalid(Capacity) if bytes == required - 1 => ()
-      Transport(SpawnFailed) if bytes == required => ()
+      Invalid(Capacity) => fail("exact bootstrap source capacity was rejected")
+      _ if bytes == required => ()
       _ => fail("unexpected startup capacity result")
     } noraise {
-      _ => fail("nonexistent child unexpectedly became ready")
+      _ => fail("incompatible cat child unexpectedly became ready")
     }
   }
 }

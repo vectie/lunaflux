@@ -16,6 +16,8 @@ pub(all) enum RootBoundWorkerProcessFailure {
   KernelRootBinding(@approved_fs.ApprovedFsError)
   RootsBusy
   RootsCloseFailed
+  ExecutableBusy
+  ExecutableCloseFailed
 } derive(Debug, Eq)
 
 ///|
@@ -38,7 +40,7 @@ pub(all) suberror RootBoundWorkerProcessError {
 /// Instance-lifetime owner of one exact executable, limits, canonical source,
 /// child sequence domain, and opaque model/kernel root lease pair.
 pub struct RootBoundWorkerProcessSupervisor {
-  priv executable : Bytes
+  priv approved_executable : @worker_executable_file.WorkerExecutableAdmission
   priv limits : WorkerProcessLimits
   priv roots : @approved_fs.WorkerApprovedRoots
   priv mut roots_selected : Bool
@@ -53,12 +55,15 @@ pub struct RootBoundWorkerProcessSupervisor {
   priv mut exchange_phase : Int
   priv mut exchange_side : Int
   priv mut exchange_sequence : UInt64
+  priv exchange_plan : @worker_protocol.SubmittedSchedulePlanSlot
+  priv mut maintenance_mode : Int
   priv mut lifecycle : RootBoundWorkerProcessLifecycle
 }
 
 ///|
 /// Cleanup-only result when initial startup did not publish a supervisor.
 pub struct FailedRootBoundWorkerProcessStartup {
+  priv approved_executable : @worker_executable_file.WorkerExecutableAdmission
   priv roots : @approved_fs.WorkerApprovedRoots
   priv mut roots_selected : Bool
   priv mut child : FailedWorkerProcessStartup?

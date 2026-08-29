@@ -151,6 +151,19 @@ fn wb_service_binding() -> WorkerServiceBinding {
 }
 
 ///|
+fn wb_worker_service_identity() -> WorkerServiceIdentity {
+  let scheduler = wb_service_scheduler()
+  let binding = wb_service_binding()
+  try! worker_service_identity(
+    scheduler.model_identity(),
+    scheduler.model_plan_generation().value(),
+    binding.bootstrap_source_digest(),
+    scheduler.worker_protocol_limits(),
+    binding.inference_limits(),
+  )
+}
+
+///|
 fn wb_startup_contract(
   identity? : @spec.ModelIdentity = wb_service_identity(),
   bootstrap_digest_hex? : String = wb_service_digest_hex(),
@@ -188,7 +201,14 @@ fn expect_binding_rule(
   startup : @worker_wire.WorkerStartupContract,
   expected : WorkerServiceRule,
 ) -> Unit raise {
-  try validate_startup_contract(scheduler, binding, startup) catch {
+  try
+    validate_startup_contract(
+      scheduler,
+      wb_worker_service_identity(),
+      binding,
+      startup,
+    )
+  catch {
     Invalid(rule) => assert_eq(rule, expected)
     _ => fail("unexpected worker-service binding error")
   } noraise {
@@ -200,6 +220,7 @@ fn expect_binding_rule(
 test "exact startup contract matches independent service binding" {
   validate_startup_contract(
     wb_service_scheduler(),
+    wb_worker_service_identity(),
     wb_service_binding(),
     wb_startup_contract(),
   )

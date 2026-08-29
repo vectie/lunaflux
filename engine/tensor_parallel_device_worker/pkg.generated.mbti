@@ -1,0 +1,158 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_device_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_execution_plan",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
+  "vectie/lunaflux/kv/device_arena",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/sampling",
+}
+
+// Values
+pub fn admit_plan(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.WorkerStartupContract, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, @artifact.KernelArtifactBundle, @launch_contract.PagedKernelProfile, @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, @tensor_parallel_kv_plan.TensorParallelKvPlan, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest, @device.TensorCollectiveGroupId, collective_runtime_version_code~ : Int) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError
+
+pub fn prepare(@approved_fs.ApprovedRoot, @device.TensorCollectiveRuntime, TensorParallelDeviceWorkerPlan) -> TensorParallelDeviceWorkerPreparation raise TensorParallelDeviceWorkerError
+
+// Errors
+pub(all) suberror TensorParallelDeviceWorkerError {
+  Invalid(TensorParallelDeviceWorkerRule)
+  Bootstrap(@tensor_parallel_worker_bootstrap.TensorParallelWorkerBootstrapError)
+  ExecutionPlan(@tensor_parallel_execution_plan.TensorParallelExecutionPlanError)
+  Protocol(@worker_protocol.WorkerProtocolError)
+  Wire(@worker_wire.WorkerWireError)
+  Device(TensorParallelDeviceWorkerResource, @device.DeviceError)
+  Weights(@device_materialize.DeviceWeightError)
+  Descriptor(@device_step.DeviceStepError)
+  Kv(@device_arena.DeviceKvArenaError)
+  Sampling(@sampling.SamplingError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ExecutedTensorParallelDeviceExecution(TensorParallelDeviceWorkerOwner, UInt64, @worker_wire.PlanFrameOwnerIdentity, UInt64)
+
+pub struct FailedTensorParallelDeviceWorkerPreparation {
+  // private fields
+}
+pub fn FailedTensorParallelDeviceWorkerPreparation::cause(Self) -> TensorParallelDeviceWorkerError
+pub fn FailedTensorParallelDeviceWorkerPreparation::cleanup_failure(Self) -> TensorParallelDeviceWorkerError
+pub fn FailedTensorParallelDeviceWorkerPreparation::is_closed(Self) -> Bool
+pub fn FailedTensorParallelDeviceWorkerPreparation::retry_close(Self) -> Unit raise TensorParallelDeviceWorkerError
+
+pub struct StagedTensorParallelDeviceExecution(TensorParallelDeviceWorkerOwner, UInt64, @worker_wire.PlanFrameOwnerIdentity, UInt64)
+
+pub struct TensorParallelDeviceExecutionProgress(TensorParallelDeviceWorkerOwner, UInt64, @worker_wire.PlanFrameOwnerIdentity, UInt64, Bool)
+pub fn TensorParallelDeviceExecutionProgress::executed(Self) -> ExecutedTensorParallelDeviceExecution raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceExecutionProgress::is_pending(Self) -> Bool
+
+pub(all) enum TensorParallelDeviceWorkerFailureClass {
+  CollectiveFailure
+  RankExecutionFailure
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelDeviceWorkerLifecycle {
+  WorkerStarting
+  WorkerReady
+  WorkerStaged
+  WorkerExecuting
+  WorkerCollectivePending
+  WorkerDevicePending
+  WorkerExecuted
+  WorkerDraining
+  WorkerFaulted
+  WorkerClosingFailed
+  WorkerClosed
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelDeviceWorkerOwner {
+  // private fields
+}
+pub fn TensorParallelDeviceWorkerOwner::abort_plan(Self) -> Unit raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::begin_drain(Self) -> Unit raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::cleanup_failure(Self) -> TensorParallelDeviceWorkerError?
+pub fn TensorParallelDeviceWorkerOwner::close(Self) -> Unit raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::failure_class(Self) -> TensorParallelDeviceWorkerFailureClass?
+pub fn TensorParallelDeviceWorkerOwner::finish_follower(Self, ExecutedTensorParallelDeviceExecution, @worker_wire.ValidatedPlanFrame) -> TensorParallelFollowerExecutionAck raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::finish_leader_frame(Self, ExecutedTensorParallelDeviceExecution, @worker_wire.ValidatedPlanFrame) -> @worker_wire.ValidatedCompletionFrame raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::graph_runtime_telemetry(Self, UInt64) -> @worker_wire.WorkerGraphTelemetry raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::lifecycle(Self) -> TensorParallelDeviceWorkerLifecycle
+pub fn TensorParallelDeviceWorkerOwner::poll_startup(Self) -> Bool raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::primary_failure(Self) -> TensorParallelDeviceWorkerError?
+pub fn TensorParallelDeviceWorkerOwner::progress_execution(Self, StagedTensorParallelDeviceExecution, @worker_wire.ValidatedPlanFrame) -> TensorParallelDeviceExecutionProgress raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedTensorParallelDeviceExecution raise TensorParallelDeviceWorkerError
+
+pub struct TensorParallelDeviceWorkerPlan {
+  // private fields
+}
+
+pub(all) enum TensorParallelDeviceWorkerPreparation {
+  TensorParallelWorkerPrepared(TensorParallelDeviceWorkerOwner)
+  TensorParallelWorkerCleanupRequired(FailedTensorParallelDeviceWorkerPreparation)
+}
+
+pub(all) enum TensorParallelDeviceWorkerResource {
+  Collective
+  Function
+  Module
+  KernelExecutor
+  Stream
+  PersistentKv
+  ActivationWorkspace
+  RankConstants
+  Descriptor
+  ShardedWeights
+  Context
+  CompletionWriter
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelDeviceWorkerRule {
+  StartupContract
+  ExecutionPlan
+  ModelGeneration
+  GroupGeneration
+  Rank
+  WorldSize
+  DeviceOrdinal
+  DeviceTarget
+  ProfileEnvelope
+  KvBinding
+  WeightBinding
+  ArtifactBinding
+  DescriptorBinding
+  RankConstants
+  ActivationWorkspace
+  FinalOutput
+  CollectiveOrder
+  PlanFrame
+  CompletionRole
+  ResourceState
+  SequenceOverflow
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelFollowerExecutionAck {
+  // private fields
+}
+pub fn TensorParallelFollowerExecutionAck::group_generation_value(Self) -> UInt64
+pub fn TensorParallelFollowerExecutionAck::model_generation_value(Self) -> UInt64
+pub fn TensorParallelFollowerExecutionAck::plan_sequence_value(Self) -> UInt64
+pub fn TensorParallelFollowerExecutionAck::rank(Self) -> Int
+pub fn TensorParallelFollowerExecutionAck::world_size(Self) -> Int
+
+// Type aliases
+
+// Traits

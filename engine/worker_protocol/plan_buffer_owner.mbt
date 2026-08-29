@@ -34,42 +34,6 @@ fn SchedulePlanBuffer::require_state(
 }
 
 ///|
-fn SchedulePlanBuffer::has_request(
-  self : SchedulePlanBuffer,
-  request_id : @inference.RequestId,
-) -> Bool {
-  for index in 0..<self.prefill_count {
-    if self.prefill_request_ids[index] == request_id {
-      return true
-    }
-  }
-  for index in 0..<self.decode_count {
-    if self.decode_request_ids[index] == request_id {
-      return true
-    }
-  }
-  false
-}
-
-///|
-fn SchedulePlanBuffer::has_slot(
-  self : SchedulePlanBuffer,
-  completion_slot : CompletionSlot,
-) -> Bool {
-  for index in 0..<self.prefill_count {
-    if self.prefill_completion_slots[index] == completion_slot {
-      return true
-    }
-  }
-  for index in 0..<self.decode_count {
-    if self.decode_completion_slots[index] == completion_slot {
-      return true
-    }
-  }
-  false
-}
-
-///|
 fn SchedulePlanBuffer::preflight_row(
   self : SchedulePlanBuffer,
   kind : WorkerRowKind,
@@ -111,10 +75,10 @@ fn SchedulePlanBuffer::preflight_row(
     completion_slot.value() >= self.limits.max_completion_slots() {
     raise InvalidCompletionSlot
   }
-  if self.has_request(request_id) {
+  if self.has_request_identity(request_id) {
     raise InvalidRowDescriptor(kind~, rule=DuplicateRequest)
   }
-  if self.has_slot(completion_slot) {
+  if self.has_completion_slot_identity(completion_slot) {
     raise InvalidRowDescriptor(kind~, rule=DuplicateCompletionSlot)
   }
 }
@@ -154,7 +118,11 @@ pub fn SchedulePlanBuffer::new(
   } noraise {
     storage => storage
   }
+  let identity_capacity = request_identity_tracker_capacity(
+    limits.max_plan_rows(),
+  )
   {
+    identity: { marker: Ref(0) },
     limits,
     state: Writable,
     epoch: 1UL,
@@ -186,6 +154,13 @@ pub fn SchedulePlanBuffer::new(
     draft_token_start: 0,
     draft_page_start: 0,
     draft_capability_start: 0,
+    identity_tracker_generation: 1UL,
+    request_identity_keys: FixedArray::make(identity_capacity, 0UL),
+    request_identity_generations: FixedArray::make(identity_capacity, 0UL),
+    completion_slot_generations: FixedArray::make(
+      limits.max_completion_slots(),
+      0UL,
+    ),
     tokens: FixedArray::make(limits.max_plan_tokens(), 0),
     pages,
     capabilities: FixedArray::make(
@@ -237,6 +212,15 @@ pub fn SchedulePlanBuffer::new(
 }
 
 ///|
+/// Returns payload-free identity for admitting this reusable buffer into a
+/// preallocated coordinator. The identity grants no read or mutation access.
+pub fn SchedulePlanBuffer::identity(
+  self : SchedulePlanBuffer,
+) -> PlanBufferIdentity {
+  self.identity
+}
+
+///|
 fn SchedulePlanBuffer::validate_contents(
   self : SchedulePlanBuffer,
   token_budget : Int,
@@ -249,75 +233,14 @@ fn SchedulePlanBuffer::validate_contents(
     self.capability_count,
     self.limits,
   )
-  for index in 0..<self.token_count {
-    validate_token(self.tokens[index], index, self.limits)
-  }
-  let mut token_end = 0
-  let mut page_end = 0
-  let mut capability_end = 0
-  let mut scheduled_tokens = 0
-  for index in 0..<self.prefill_count {
-    token_end = validate_actual_range(
-      Prefill,
-      index,
-      self.prefill_token_starts[index],
-      self.prefill_token_lengths[index],
-      self.token_count,
-      token_end,
-    )
-    page_end = validate_actual_range(
-      Prefill,
-      index,
-      self.prefill_page_starts[index],
-      self.prefill_page_lengths[index],
-      self.page_count,
-      page_end,
-    )
-    capability_end = validate_actual_range(
-      Prefill,
-      index,
-      self.prefill_capability_starts[index],
-      self.prefill_capability_lengths[index],
-      self.capability_count,
-      capability_end,
-    )
-    scheduled_tokens = scheduled_tokens + self.prefill_token_lengths[index]
-  }
-  for index in 0..<self.decode_count {
-    token_end = validate_actual_range(
-      Decode,
-      index,
-      self.decode_token_starts[index],
-      1,
-      self.token_count,
-      token_end,
-    )
-    page_end = validate_actual_range(
-      Decode,
-      index,
-      self.decode_page_starts[index],
-      self.decode_page_lengths[index],
-      self.page_count,
-      page_end,
-    )
-    capability_end = validate_actual_range(
-      Decode,
-      index,
-      self.decode_capability_starts[index],
-      self.decode_capability_lengths[index],
-      self.capability_count,
-      capability_end,
-    )
-    scheduled_tokens = scheduled_tokens + 1
-  }
   validate_plan_finish(
-    token_end,
     self.token_count,
-    page_end,
+    self.token_count,
     self.page_count,
-    capability_end,
+    self.page_count,
     self.capability_count,
-    scheduled_tokens,
+    self.capability_count,
+    self.token_count,
     token_budget,
     self.limits,
   )
@@ -443,6 +366,7 @@ pub fn SchedulePlanBuffer::reset(
   self.checkpoint_capability_count = 0
   self.checkpoint_prefill_count = 0
   self.checkpoint_decode_count = 0
+  self.advance_identity_tracker_generation()
   self.epoch = self.epoch + 1UL
   self.state = Writable
 }

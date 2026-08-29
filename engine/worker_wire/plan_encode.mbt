@@ -184,6 +184,7 @@ fn preflight_plan_for_encode(
 ///|
 fn write_plan_header(
   bytes : FixedArray[Byte],
+  frame_offset : Int,
   length : Int,
   sequence : UInt64,
   generation : UInt64,
@@ -194,20 +195,20 @@ fn write_plan_header(
   prefill_count : Int,
   decode_count : Int,
 ) -> Unit {
-  write_u32(bytes, 0, plan_magic)
-  write_u32(bytes, 4, wire_version)
-  write_u32(bytes, 8, plan_kind)
-  write_i32(bytes, 12, length)
-  write_u64(bytes, 16, sequence)
-  write_u64(bytes, 24, generation)
-  write_i32(bytes, 32, token_budget)
-  write_i32(bytes, 36, token_count)
-  write_i32(bytes, 40, page_count)
-  write_i32(bytes, 44, capability_count)
-  write_i32(bytes, 48, prefill_count)
-  write_i32(bytes, 52, decode_count)
-  write_u32(bytes, 56, 0)
-  write_u32(bytes, plan_checksum_offset, 0)
+  write_u32(bytes, frame_offset, plan_magic)
+  write_u32(bytes, frame_offset + 4, wire_version)
+  write_u32(bytes, frame_offset + 8, plan_kind)
+  write_i32(bytes, frame_offset + 12, length)
+  write_u64(bytes, frame_offset + 16, sequence)
+  write_u64(bytes, frame_offset + 24, generation)
+  write_i32(bytes, frame_offset + 32, token_budget)
+  write_i32(bytes, frame_offset + 36, token_count)
+  write_i32(bytes, frame_offset + 40, page_count)
+  write_i32(bytes, frame_offset + 44, capability_count)
+  write_i32(bytes, frame_offset + 48, prefill_count)
+  write_i32(bytes, frame_offset + 52, decode_count)
+  write_u32(bytes, frame_offset + 56, 0)
+  write_u32(bytes, frame_offset + plan_checksum_offset, 0)
 }
 
 ///|
@@ -347,7 +348,7 @@ pub fn PlanFrameBuffer::encode_plan(
   let length = exact_plan_frame_bytes(
     token_count, page_count, capability_count, prefill_count, decode_count,
   )
-  if length > self.storage.length() {
+  if length > self.capacity() {
     raise InvalidLimit(PlanFrameBytes)
   }
   if self.epoch == 0xffffffffffffffffUL {
@@ -358,6 +359,7 @@ pub fn PlanFrameBuffer::encode_plan(
   )
   write_plan_header(
     self.storage,
+    self.frame_offset,
     length,
     sequence,
     generation,
@@ -368,7 +370,7 @@ pub fn PlanFrameBuffer::encode_plan(
     prefill_count,
     decode_count,
   )
-  let token_offset = token_table_offset()
+  let token_offset = self.frame_offset + token_table_offset()
   for index in 0..<token_count {
     write_i32(
       self.storage,
@@ -378,13 +380,14 @@ pub fn PlanFrameBuffer::encode_plan(
       },
     )
   }
-  let page_offset = page_table_offset(token_count)
+  let page_offset = self.frame_offset + page_table_offset(token_count)
   for index in 0..<page_count {
     let page = plan.page_at(index) catch { error => raise Protocol(error) }
     write_i32(self.storage, page_offset + index * 8, page.index())
     write_i32(self.storage, page_offset + index * 8 + 4, page.generation())
   }
-  let capability_offset = capability_table_offset(token_count, page_count)
+  let capability_offset = self.frame_offset +
+    capability_table_offset(token_count, page_count)
   for index in 0..<capability_count {
     let capability = try plan.capability_at(index) catch {
       error => raise Protocol(error)
@@ -393,9 +396,8 @@ pub fn PlanFrameBuffer::encode_plan(
     }
     write_i32(self.storage, capability_offset + index * 4, capability.as_int())
   }
-  let prefill_offset = prefill_table_offset(
-    token_count, page_count, capability_count,
-  )
+  let prefill_offset = self.frame_offset +
+    prefill_table_offset(token_count, page_count, capability_count)
   for index in 0..<prefill_count {
     write_prefill_row(
       self.storage,
@@ -405,9 +407,10 @@ pub fn PlanFrameBuffer::encode_plan(
       },
     )
   }
-  let decode_offset = decode_table_offset(
-    token_count, page_count, capability_count, prefill_count,
-  )
+  let decode_offset = self.frame_offset +
+    decode_table_offset(
+      token_count, page_count, capability_count, prefill_count,
+    )
   for index in 0..<decode_count {
     write_decode_row(
       self.storage,
@@ -419,8 +422,8 @@ pub fn PlanFrameBuffer::encode_plan(
   }
   write_u32(
     self.storage,
-    plan_checksum_offset,
-    frame_checksum(self.storage, length),
+    self.frame_offset + plan_checksum_offset,
+    frame_checksum_at(self.storage, self.frame_offset, length),
   )
   self.epoch += 1UL
   self.length = length

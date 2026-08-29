@@ -6,18 +6,11 @@ fn WorkerService::commit_received(
   let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
     error => raise scheduler_error(error)
   }
-  let received = self.require_process().received_for_sequence(sequence) catch {
-      error => raise root_bound_process_error(error)
-    }
-  self.require_process().validate_retirement(received) catch {
-    error => raise root_bound_process_error(error)
-  }
   let commit = match self.flight {
     FlightReceived(_) => {
-      let frame = received.frame(self.require_process()) catch {
-        error => raise root_bound_process_error(error)
-      }
+      let frame = self.require_transport().received_frame(sequence)
       let completion = bridge_completion(self.scheduler, plan, frame)
+      self.require_transport().accept_completion(sequence, plan, completion)
       self.flight = FlightAccepted(sequence)
       self.scheduler.complete(plan, completion) catch {
         error => raise scheduler_error(error)
@@ -32,9 +25,18 @@ fn WorkerService::commit_received(
   if commit is CompletionBackpressured {
     return ServiceBackpressured
   }
-  try! self.require_process().retire_received(received)
+  self.require_transport().retire_accepted(sequence)
   self.clear_flight()
   ServiceCommitted(sequence)
+}
+
+///|
+fn[T] enter_service_recovery(
+  service : WorkerService,
+  error : WorkerServiceError,
+) -> T raise WorkerServiceError {
+  service.lifecycle = ServiceRecovering
+  raise error
 }
 
 ///|
@@ -46,7 +48,13 @@ fn WorkerService::progress_impl(
   self.require_lifecycle(ServiceReady)
   match self.flight {
     FlightEmpty => {
-      if !self.require_process().has_exchange_capacity() {
+      self.require_transport().probe_idle_health() catch {
+        error => enter_service_recovery(self, error)
+      }
+      if self.has_pending_plan() {
+        return self.start_pending_plan()
+      }
+      if !self.require_transport().has_exchange_capacity() {
         return ServiceBackpressured
       }
       let outcome = self.scheduler.build_next() catch {
@@ -58,32 +66,40 @@ fn WorkerService::progress_impl(
       if outcome.is_backpressured() {
         return ServiceBackpressured
       }
+      if outcome.is_preempted() {
+        return ServiceAdvanced
+      }
       let plan = self.scheduler.submitted_plan(outcome) catch {
         error => raise scheduler_error(error)
       }
       let sequence = plan.sequence_wire() catch {
         error => raise Scheduler(WorkerProtocol(error))
       }
-      self.flight = FlightPlanned(sequence)
-      let actual = self.require_process().begin_exchange(plan) catch {
-          error => {
-            self.lifecycle = ServiceRecovering
-            try self.require_process().submission_for_sequence(sequence) catch {
-              RootBoundFailure(Process(Invalid(Submission))) => ()
-              _ => ()
-            } noraise {
-              _ => self.flight = FlightSubmitted(sequence)
-            }
-            raise root_bound_process_error(error)
-          }
-        }
-      if actual != sequence {
-        self.lifecycle = ServiceRecovering
-        raise Invalid(Sequence)
-      }
-      self.flight = FlightSubmitted(sequence)
-      ServiceStarted(sequence)
+      self.stage_pending_plan(sequence)
+      self.start_pending_plan()
     }
+    FlightSubmitted(_) => {
+      if !self.has_pending_plan() {
+        let outcome = self.scheduler.build_next() catch {
+          error => raise scheduler_error(error)
+        }
+        if outcome.is_preempted() {
+          return ServiceAdvanced
+        }
+        if outcome.is_submitted() {
+          let plan = self.scheduler.submitted_plan(outcome) catch {
+            error => raise scheduler_error(error)
+          }
+          let sequence = plan.sequence_wire() catch {
+            error => raise Scheduler(WorkerProtocol(error))
+          }
+          self.stage_pending_plan(sequence)
+          return ServicePlanPending(sequence)
+        }
+      }
+      self.progress_existing_flight_impl()
+    }
+    FlightReceived(_) | FlightAccepted(_) => self.commit_received()
     _ => self.progress_existing_flight_impl()
   }
 }
@@ -98,15 +114,24 @@ fn WorkerService::progress_existing_flight_impl(
   self.require_lifecycle(ServiceReady)
   match self.flight {
     FlightSubmitted(sequence) => {
-      let result = self.require_process().progress_exchange() catch {
-          error => {
-            self.lifecycle = ServiceRecovering
-            raise root_bound_process_error(error)
-          }
+      let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
+        error => raise scheduler_error(error)
+      }
+      let result = self.require_transport().progress_exchange(plan) catch {
+          error => enter_service_recovery(self, error)
         }
       match result {
-        ExchangePending => ServicePending(sequence)
-        ExchangeCompleted => {
+        PhysicalExchangePending => ServicePending(sequence)
+        PhysicalExchangeCompleted => {
+          let transport = self.require_transport()
+          if transport.supports_graph_telemetry() {
+            let graph_report = transport.received_graph_telemetry(sequence) catch {
+              error => enter_service_recovery(self, error)
+            }
+            self.graph_telemetry.record_child_report(sequence, graph_report) catch {
+              error => enter_service_recovery(self, error)
+            }
+          }
           self.flight = FlightReceived(sequence)
           ServiceCompletionReady(sequence)
         }

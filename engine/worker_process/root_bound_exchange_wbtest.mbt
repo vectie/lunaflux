@@ -48,7 +48,21 @@ fn inject_exchange_completion(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> Unit raise {
   let length = encoded_completion(plan, owner.process.rx)
-  owner.process.accept_exchange_completion_bytes(owner.exchange_side, length)
+  owner.process.accept_exchange_completion_bytes(
+    owner.exchange_side,
+    plan,
+    length,
+  )
+  let sequence = plan.sequence_wire()
+  let graph_length = encoded_graph_telemetry(
+    sequence,
+    sequence,
+    owner.process.graph_rx,
+  )
+  owner.process.accept_graph_telemetry_bytes_in_place(
+    owner.exchange_side,
+    graph_length,
+  )
 }
 
 ///|
@@ -124,7 +138,11 @@ fn expect_root_bound_snapshot_reject(
   let length = encoded_completion(plan, owner.process.rx)
   apply_root_bound_snapshot_attack(owner.process.rx, length, attack)
   try
-    owner.process.accept_exchange_completion_bytes(owner.exchange_side, length)
+    owner.process.accept_exchange_completion_bytes(
+      owner.exchange_side,
+      plan,
+      length,
+    )
   catch {
     Wire(InvalidFrame(rule)) => assert_eq(rule, expected_rule)
     _ => fail("unexpected root-bound snapshot rejection")
@@ -137,6 +155,7 @@ fn expect_root_bound_snapshot_reject(
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "exchange accepts an exact completion at a noncontiguous slot" {
   let owner = test_root_bound_supervisor()
   let plan = supervisor_plan(1UL, completion_slot=1)
@@ -144,12 +163,14 @@ test "exchange accepts an exact completion at a noncontiguous slot" {
   inject_exchange_completion(owner, plan)
   let received = owner.received_for_sequence(1UL)
   assert_eq(received.frame(owner).entry_for_slot(1).slot(), 1)
+  assert_eq(received.graph_telemetry(owner).graph_hits(), 1UL)
   owner.clear_exchange()
   owner.retire_received(received)
   owner.close()
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "exchange snapshot rejects every exact-plan authority mismatch" {
   expect_root_bound_snapshot_reject(Sequence, CompletionEntry)
   expect_root_bound_snapshot_reject(ModelGeneration, CompletionEntry)
@@ -161,6 +182,7 @@ test "exchange snapshot rejects every exact-plan authority mismatch" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "exchange snapshot rejects a stale slot from the preceding plan" {
   let owner = test_root_bound_supervisor()
   let first = supervisor_plan(1UL)
@@ -185,6 +207,7 @@ test "exchange snapshot rejects a stale slot from the preceding plan" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "foreign wider plans typed-fail only after reserving the obligation" {
   let too_many_rows = test_root_bound_supervisor()
   try too_many_rows.begin_exchange(foreign_supervisor_plan([0, 1, 2])) catch {

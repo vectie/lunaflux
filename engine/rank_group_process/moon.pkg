@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_rank_configure",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/monotonic_clock",
+}
+
+import {
+  "vectie/lunaflux/tests/worker_executable_fixture",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"
+
+supported_targets = "native"

@@ -1,0 +1,15 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/tensor_parallel_admission",
+}
+
+supported_targets = "native"

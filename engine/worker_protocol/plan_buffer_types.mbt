@@ -1,4 +1,28 @@
 ///|
+/// Opaque startup identity for one reusable plan-buffer owner. It contains no
+/// plan payload or mutation authority and remains stable across buffer epochs.
+pub struct PlanBufferIdentity {
+  priv marker : Ref[Int]
+}
+
+///|
+/// Startup-preallocated holder for one exact submitted owner and epoch. It is
+/// used by asynchronous transports to retain immutable plan authority without
+/// allocating an `Option[SubmittedSchedulePlan]` on each token step.
+pub struct SubmittedSchedulePlanSlot {
+  priv mut owner : SchedulePlanBuffer?
+  priv mut epoch : UInt64
+}
+
+///|
+pub fn PlanBufferIdentity::same_owner(
+  self : PlanBufferIdentity,
+  other : PlanBufferIdentity,
+) -> Bool {
+  physical_equal(self.marker, other.marker)
+}
+
+///|
 /// Startup-allocated mutable owner of one reusable scheduler-to-worker plan.
 ///
 /// The scheduler owns this value. A worker receives only a
@@ -13,6 +37,7 @@
 /// reusable completion ingress remains a separate worker-to-scheduler phase
 /// gate.
 pub struct SchedulePlanBuffer {
+  priv identity : PlanBufferIdentity
   priv limits : WorkerProtocolLimits
   priv mut state : PlanBufferState
   priv mut epoch : UInt64
@@ -44,6 +69,10 @@ pub struct SchedulePlanBuffer {
   priv mut draft_token_start : Int
   priv mut draft_page_start : Int
   priv mut draft_capability_start : Int
+  priv mut identity_tracker_generation : UInt64
+  priv request_identity_keys : FixedArray[UInt64]
+  priv request_identity_generations : FixedArray[UInt64]
+  priv completion_slot_generations : FixedArray[UInt64]
   priv tokens : FixedArray[Int]
   priv pages : @page_allocator.PageIdStorage
   priv capabilities : FixedArray[@plan.KernelCapabilityId]

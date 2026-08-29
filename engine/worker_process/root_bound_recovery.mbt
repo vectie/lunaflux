@@ -5,6 +5,9 @@
 pub fn RootBoundWorkerProcessSupervisor::begin_recovery(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Unit raise RootBoundWorkerProcessError {
+  if self.maintenance_mode > 0 {
+    raise RootBoundInvalidLifecycle
+  }
   if self.lifecycle != RootBoundReady &&
     self.lifecycle != RootBoundRecoveryRequired &&
     self.lifecycle != RootBoundRecoveryClosingFailed {
@@ -47,14 +50,13 @@ pub fn RootBoundWorkerProcessSupervisor::restart(
   let startup = self.process.recovery_startup_contract() catch {
     error => raise RootBoundFailure(Process(error))
   }
-  let prepared = preflight_prepare(
-    self.executable,
+  let prepared = preflight_root_bound_executable(
+    self.approved_executable,
     startup,
     self.process.bootstrap_source(),
     self.limits,
-  ) catch {
-    error => raise RootBoundFailure(Process(error))
-  }
+    self.process.parent_approval,
+  )
   let result = prepare_preflighted(
     self.process.bootstrap_source(),
     self.limits,
@@ -65,6 +67,7 @@ pub fn RootBoundWorkerProcessSupervisor::restart(
     ReadyProcess(replacement) => {
       self.process = replacement
       self.clear_exchange()
+      self.maintenance_mode = 0
       self.cause = None
       self.child_cleanup_failure = None
       self.lifecycle = RootBoundReady
@@ -133,6 +136,9 @@ pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(
 pub fn RootBoundWorkerProcessSupervisor::close(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Unit raise RootBoundWorkerProcessError {
+  if self.maintenance_mode > 0 {
+    raise RootBoundInvalidLifecycle
+  }
   self.clear_exchange()
   if self.lifecycle == RootBoundClosed {
     return
@@ -175,10 +181,26 @@ pub fn RootBoundWorkerProcessSupervisor::close(
   )
   self.child_cleanup_failure = attempt.child_failure
   self.roots_cleanup_failure = attempt.roots_failure
-  self.lifecycle = if !attempt.child_live && !attempt.roots_live {
+  let executable_failure = close_approved_executable(self.approved_executable)
+  let executable_live = approved_executable_live(self.approved_executable)
+  self.lifecycle = if !attempt.child_live &&
+    !attempt.roots_live &&
+    !executable_live {
     RootBoundClosed
   } else {
     RootBoundClosingFailed
+  }
+  if executable_failure is Some(failure) {
+    if attempt.child_failure is Some(child) {
+      if attempt.roots_failure is Some(roots) {
+        raise RootBoundTripleFailure(child, roots, failure)
+      }
+      raise RootBoundCompoundFailure(child, failure)
+    }
+    if attempt.roots_failure is Some(roots) {
+      raise RootBoundCompoundFailure(roots, failure)
+    }
+    raise RootBoundFailure(failure)
   }
   raise_cleanup_attempt(attempt)
 }

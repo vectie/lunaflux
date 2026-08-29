@@ -2,23 +2,66 @@
 const BOOTSTRAP_SOURCE_MAGIC : UInt = 0x5342464c
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION : UInt = 1
+const BOOTSTRAP_SOURCE_VERSION_V2 : UInt = 2
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE : Int = 1
+const BOOTSTRAP_SOURCE_VERSION_V3 : UInt = 3
 
 ///|
-const BOOTSTRAP_SOURCE_HEADER_BYTES : Int = 184
+const BOOTSTRAP_SOURCE_VERSION_V5 : UInt = 5
+
+///|
+const BOOTSTRAP_SOURCE_VERSION_V8 : UInt = 8
+
+///|
+const BOOTSTRAP_SOURCE_VERSION_V10 : UInt = 10
+
+///|
+const BOOTSTRAP_SOURCE_RECIPE_V2 : Int = 2
+
+///|
+const BOOTSTRAP_SOURCE_RECIPE_V3 : Int = 3
+
+///|
+const BOOTSTRAP_SOURCE_RECIPE_V5 : Int = 5
+
+///|
+const BOOTSTRAP_SOURCE_RECIPE_V8 : Int = 8
+
+///|
+const BOOTSTRAP_SOURCE_RECIPE_V10 : Int = 10
+
+///|
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V2 : Int = 184
+
+///|
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V3 : Int = 312
+
+///|
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V10 : Int = 224
 
 ///|
 const BOOTSTRAP_SOURCE_DIGEST_BYTES : Int = 32
 
 ///|
-const BOOTSTRAP_SOURCE_CAPACITY : Int = 20696
+/// Shared maximum for legacy, tensor-parallel, and production-I8 sources.
+const BOOTSTRAP_SOURCE_CAPACITY : Int = 20744
 
 ///|
 pub fn bootstrap_source_capacity() -> Int {
   BOOTSTRAP_SOURCE_CAPACITY
+}
+
+///|
+fn bootstrap_source_header_bytes(kernel : WorkerBootstrapKernelSource) -> Int {
+  if kernel.fused_runtime is Some(_) ||
+    kernel.sampling_runtime == EmbeddedCudaGreedyV1 {
+    BOOTSTRAP_SOURCE_HEADER_BYTES_V10
+  } else if kernel.luna_approval is Some(_) {
+    BOOTSTRAP_SOURCE_HEADER_BYTES_V3
+  } else {
+    BOOTSTRAP_SOURCE_HEADER_BYTES_V2
+  }
 }
 
 ///|
@@ -101,14 +144,19 @@ fn bootstrap_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerBootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
-) -> FixedArray[Int] {
-  FixedArray::from_array([
+) -> Array[Int] {
+  let lengths = [
     @utf8.encode(roots.model_root).length(),
     @utf8.encode(model.config_locator).length(),
     @utf8.encode(model.weights_locator).length(),
     @utf8.encode(roots.kernel_root).length(),
     @utf8.encode(kernel.manifest_locator).length(),
-  ])
+  ]
+  match kernel.fused_runtime {
+    Some(source) => lengths.push(@utf8.encode(source.locator).length())
+    None => ()
+  }
+  lengths
 }
 
 ///|
@@ -122,7 +170,15 @@ pub fn admit_bootstrap_source(
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   let lengths = bootstrap_source_lengths(roots, model, kernel)
-  let mut length = BOOTSTRAP_SOURCE_HEADER_BYTES + BOOTSTRAP_SOURCE_DIGEST_BYTES
+  if kernel.luna_approval is Some(_) &&
+    (
+      kernel.fused_runtime is Some(_) ||
+      kernel.sampling_runtime == EmbeddedCudaGreedyV1
+    ) {
+    raise InvalidBootstrapSource(Recipe)
+  }
+  let header_bytes = bootstrap_source_header_bytes(kernel)
+  let mut length = header_bytes + BOOTSTRAP_SOURCE_DIGEST_BYTES
   for item in lengths {
     if item <= 0 || item > BOOTSTRAP_SOURCE_MAX_PATH_BYTES {
       raise InvalidLimit(BootstrapSourceBytes)
@@ -133,13 +189,70 @@ pub fn admit_bootstrap_source(
     raise InvalidLimit(BootstrapSourceBytes)
   }
   let storage = FixedArray::make(BOOTSTRAP_SOURCE_CAPACITY, b'\x00')
+  let recipe = if kernel.fused_runtime is Some(_) ||
+    kernel.sampling_runtime == EmbeddedCudaGreedyV1 {
+    DenseLlamaBf16PagedAotExtensionsV10
+  } else if kernel.luna_approval is Some(_) {
+    DenseLlamaPagedAotV3
+  } else {
+    DenseLlamaPagedAotV2
+  }
   write_u32(storage, 0, BOOTSTRAP_SOURCE_MAGIC)
-  write_u32(storage, 4, BOOTSTRAP_SOURCE_VERSION)
-  write_i32(storage, 8, BOOTSTRAP_SOURCE_RECIPE)
+  write_u32(
+    storage,
+    4,
+    if recipe == DenseLlamaBf16PagedAotExtensionsV10 {
+      BOOTSTRAP_SOURCE_VERSION_V10
+    } else if recipe == DenseLlamaPagedAotV3 {
+      BOOTSTRAP_SOURCE_VERSION_V3
+    } else {
+      BOOTSTRAP_SOURCE_VERSION_V2
+    },
+  )
+  write_i32(
+    storage,
+    8,
+    if recipe == DenseLlamaBf16PagedAotExtensionsV10 {
+      BOOTSTRAP_SOURCE_RECIPE_V10
+    } else if recipe == DenseLlamaPagedAotV3 {
+      BOOTSTRAP_SOURCE_RECIPE_V3
+    } else {
+      BOOTSTRAP_SOURCE_RECIPE_V2
+    },
+  )
   write_i32(storage, 12, length)
-  write_u32(storage, 16, 0)
-  for index, item in lengths {
-    write_i32(storage, 20 + index * 4, item)
+  write_u32(
+    storage,
+    16,
+    if recipe == DenseLlamaPagedAotV3 {
+      1
+    } else if recipe == DenseLlamaBf16PagedAotExtensionsV10 {
+      2
+    } else {
+      0
+    },
+  )
+  for index in 0..<5 {
+    write_i32(storage, 20 + index * 4, lengths[index])
+  }
+  if recipe == DenseLlamaBf16PagedAotExtensionsV10 {
+    write_i32(
+      storage,
+      216,
+      if kernel.fused_runtime is Some(_) {
+        lengths[5]
+      } else {
+        0
+      },
+    )
+    write_u32(
+      storage,
+      220,
+      match kernel.sampling_runtime {
+        HostSamplingRuntime => 0U
+        EmbeddedCudaGreedyV1 => 1U
+      },
+    )
   }
   write_i32(storage, 40, execution.compute_major)
   write_i32(storage, 44, execution.compute_minor)
@@ -174,7 +287,20 @@ pub fn admit_bootstrap_source(
   )
   write_bootstrap_source_digest(storage, 120, model.config_digest)
   write_bootstrap_source_digest(storage, 152, kernel.manifest_digest)
-  let mut cursor = BOOTSTRAP_SOURCE_HEADER_BYTES
+  match kernel.luna_approval {
+    Some(approval) => {
+      write_bootstrap_source_digest(storage, 184, approval.manifest_digest)
+      write_bootstrap_source_digest(storage, 216, approval.key_identity)
+      write_bootstrap_source_digest(storage, 248, approval.signature_digest)
+      write_bootstrap_source_digest(storage, 280, approval.approved_source)
+    }
+    None => ()
+  }
+  match kernel.fused_runtime {
+    Some(source) => write_bootstrap_source_digest(storage, 184, source.digest)
+    None => ()
+  }
+  let mut cursor = header_bytes
   cursor = write_bootstrap_source_string(storage, cursor, roots.model_root)
   cursor = write_bootstrap_source_string(storage, cursor, model.config_locator)
   cursor = write_bootstrap_source_string(storage, cursor, model.weights_locator)
@@ -184,129 +310,30 @@ pub fn admit_bootstrap_source(
     cursor,
     kernel.manifest_locator,
   )
+  match kernel.fused_runtime {
+    Some(source) =>
+      cursor = write_bootstrap_source_string(storage, cursor, source.locator)
+    None => ()
+  }
   let digest = bootstrap_source_digest_of(storage, cursor)
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
-  { storage, length, digest, roots, model, kernel, execution, ceilings }
-}
-
-///|
-fn validate_bootstrap_source_header(
-  source : FixedArray[Byte],
-  length : Int,
-) -> Unit raise WorkerWireError {
-  if length < BOOTSTRAP_SOURCE_HEADER_BYTES + BOOTSTRAP_SOURCE_DIGEST_BYTES ||
-    length > BOOTSTRAP_SOURCE_CAPACITY ||
-    source.length() < length ||
-    read_i32(source, 12) != length {
-    raise InvalidBootstrapSource(Length)
+  {
+    storage,
+    length,
+    digest,
+    roots,
+    model,
+    kernel,
+    execution,
+    ceilings,
+    recipe,
+    tensor_parallel_policy: None,
+    i8_model_source: None,
+    i8_execution: None,
+    mistral_model_source: None,
+    fp8_model_source: None,
+    fp8_execution: None,
   }
-  if read_u32(source, 0) != BOOTSTRAP_SOURCE_MAGIC {
-    raise InvalidBootstrapSource(Magic)
-  }
-  if read_u32(source, 4) != BOOTSTRAP_SOURCE_VERSION {
-    raise InvalidBootstrapSource(Version)
-  }
-  if read_i32(source, 8) != BOOTSTRAP_SOURCE_RECIPE {
-    raise InvalidBootstrapSource(Recipe)
-  }
-  if read_u32(source, 16) != 0 || (read_u32(source, 48) & 0xfffffffc) != 0 {
-    raise InvalidBootstrapSource(Reserved)
-  }
-  let expected = bootstrap_source_digest_of(
-    source,
-    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
-  )
-  if bootstrap_source_raw_digest(source, length - BOOTSTRAP_SOURCE_DIGEST_BYTES) !=
-    expected {
-    raise InvalidBootstrapSource(Integrity)
-  }
-}
-
-///|
-fn bootstrap_source_read_i64(source : FixedArray[Byte], offset : Int) -> Int64 {
-  read_u64(source, offset).reinterpret_as_int64()
-}
-
-///|
-/// Validates and owns one untrusted canonical bootstrap-source frame. This
-/// proves internal integrity and lexical path syntax only; it does not grant
-/// filesystem authority or establish that a root is stable or read-only.
-/// Rejected inputs publish no partially decoded value and retain no alias to
-/// `source`.
-pub fn decode_bootstrap_source(
-  source : FixedArray[Byte],
-  length : Int,
-) -> EncodedBootstrapSource raise WorkerWireError {
-  validate_bootstrap_source_header(source, length)
-  let lengths = FixedArray::make(5, 0)
-  let mut payload_bytes = 0
-  for index in 0..<5 {
-    let item = read_i32(source, 20 + index * 4)
-    if item <= 0 || item > BOOTSTRAP_SOURCE_MAX_PATH_BYTES {
-      raise InvalidBootstrapSource(Length)
-    }
-    if payload_bytes > BOOTSTRAP_SOURCE_CAPACITY - item {
-      raise InvalidBootstrapSource(Length)
-    }
-    lengths[index] = item
-    payload_bytes += item
-  }
-  if BOOTSTRAP_SOURCE_HEADER_BYTES +
-    payload_bytes +
-    BOOTSTRAP_SOURCE_DIGEST_BYTES !=
-    length {
-    raise InvalidBootstrapSource(Length)
-  }
-  let values = FixedArray::make(5, "")
-  let mut cursor = BOOTSTRAP_SOURCE_HEADER_BYTES
-  for index in 0..<5 {
-    values[index] = read_bootstrap_source_string(source, cursor, lengths[index])
-    cursor += lengths[index]
-  }
-  let roots = WorkerBootstrapRoots::new(
-    model_root=values[0],
-    kernel_root=values[3],
-  )
-  let model = WorkerBootstrapModelSource::new(
-    config_locator=values[1],
-    weights_locator=values[2],
-    config_digest_sha256=bootstrap_source_raw_digest(source, 120).as_hex(),
-  )
-  let kernel = WorkerBootstrapKernelSource::new(
-    manifest_locator=values[4],
-    manifest_digest_sha256=bootstrap_source_raw_digest(source, 152).as_hex(),
-  )
-  let flags = read_u32(source, 48)
-  let execution = WorkerBootstrapExecution::new(
-    compute_major=read_i32(source, 40),
-    compute_minor=read_i32(source, 44),
-    supports_bf16=(flags & 1) != 0,
-    supports_cublas_lt=(flags & 2) != 0,
-    tokens_per_page=read_i32(source, 52),
-    total_page_count=read_i32(source, 56),
-  )
-  let ceilings = WorkerBootstrapCeilings::new(
-    max_model_config_bytes=read_i32(source, 60),
-    max_weight_file_bytes=bootstrap_source_read_i64(source, 64),
-    max_weight_arena_bytes=bootstrap_source_read_i64(source, 72),
-    max_activation_arena_bytes=bootstrap_source_read_i64(source, 80),
-    max_kv_arena_bytes=bootstrap_source_read_i64(source, 88),
-    max_execution_manifest_bytes=bootstrap_source_read_i64(source, 96),
-    max_module_bytes=bootstrap_source_read_i64(source, 104),
-    max_total_module_bytes=bootstrap_source_read_i64(source, 112),
-  )
-  let canonical = admit_bootstrap_source(
-    roots, model, kernel, execution, ceilings,
-  )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }
 
 ///|

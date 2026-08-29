@@ -70,5 +70,6 @@ pub fn SchedulePlanBuffer::rollback_to(
   self.capability_count = self.checkpoint_capability_count
   self.prefill_count = self.checkpoint_prefill_count
   self.decode_count = self.checkpoint_decode_count
+  self.rebuild_identity_tracker()
   self.checkpoint_epoch = self.checkpoint_epoch + 1UL
 }

@@ -39,6 +39,15 @@ fn append_worker_failure_rows(
 }
 
 ///|
+fn[T] abort_failure_writer(
+  writer : @worker_protocol.CompletionWriter,
+  error : SchedulerError,
+) -> T raise SchedulerError {
+  try! writer.abort()
+  raise error
+}
+
+///|
 fn Scheduler::preflight_exhausted_failure_retirement(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
@@ -153,6 +162,7 @@ fn Scheduler::commit_exhausted_failure_retirement(
       self.slot_states[slot] == SLOT_DECODE {
       let request = self.requests[slot].unwrap()
       try! self.enqueue_terminal(
+        slot,
         request.request_id(),
         self.request_generations[slot],
         WorkerFailed,
@@ -196,12 +206,7 @@ pub fn Scheduler::fail_plan(
     CompletionWritable => {
       let writer = self.completion_writer(plan)
       append_worker_failure_rows(writer, plan, failure) catch {
-        error => {
-          writer.abort() catch {
-            abort_error => raise WorkerProtocol(abort_error)
-          }
-          raise error
-        }
+        error => abort_failure_writer(writer, error)
       }
       writer.submit() catch {
         error => raise WorkerProtocol(error)

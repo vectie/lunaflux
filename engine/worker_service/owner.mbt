@@ -1,11 +1,4 @@
 ///|
-fn root_bound_process_error(
-  error : @worker_process.RootBoundWorkerProcessError,
-) -> WorkerServiceError {
-  RootBoundProcess(error)
-}
-
-///|
 fn scheduler_error(error : @core.SchedulerError) -> WorkerServiceError {
   Scheduler(error)
 }
@@ -31,10 +24,11 @@ fn WorkerService::require_raw_mode(
 
 ///|
 fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int {
-  match self.flight {
+  let physical = match self.flight {
     FlightEmpty => 0
     _ => 1
   }
+  physical + (if self.pending_plan_sequence == 0UL { 0 } else { 1 })
 }
 
 ///|
@@ -46,17 +40,20 @@ fn WorkerService::flight_sequence_value(
     FlightPlanned(sequence)
     | FlightSubmitted(sequence)
     | FlightReceived(sequence)
-    | FlightAccepted(sequence) => sequence
+    | FlightAccepted(sequence)
+    | FlightPendingFailure(sequence, _, _) => sequence
   }
 }
 
 ///|
 fn validate_startup_contract(
   scheduler : @core.Scheduler,
+  identity : WorkerServiceIdentity,
   binding : WorkerServiceBinding,
   contract : @worker_wire.WorkerStartupContract,
 ) -> Unit raise WorkerServiceError {
-  if contract.identity() != scheduler.model_identity() {
+  if contract.identity() != scheduler.model_identity() ||
+    contract.identity() != identity.model_identity {
     raise Invalid(Identity)
   }
   if contract.bootstrap_digest() != binding.bootstrap_digest() {
@@ -69,13 +66,17 @@ fn validate_startup_contract(
     raise Invalid(DeviceAssignment)
   }
   if contract.model_generation_value() !=
-    scheduler.model_plan_generation().value() {
+    scheduler.model_plan_generation().value() ||
+    contract.model_generation_value() != identity.model_generation_value {
     raise Invalid(Generation)
   }
-  if contract.worker_limits() != scheduler.worker_protocol_limits() {
+  if contract.worker_limits() != scheduler.worker_protocol_limits() ||
+    contract.worker_limits() != identity.worker_limits {
     raise Invalid(WorkerEnvelope)
   }
-  if contract.inference_limits() != binding.inference_limits() {
+  if contract.inference_limits() != binding.inference_limits() ||
+    contract.inference_limits() != identity.inference_limits ||
+    contract.bootstrap_source_digest() != identity.bootstrap_source_digest {
     raise Invalid(InferenceEnvelope)
   }
   let submitted = scheduler.last_submitted_plan_sequence()
@@ -98,37 +99,55 @@ pub fn new_fixture(
   if process.lifecycle() != RootBoundReady {
     raise Invalid(Lifecycle)
   }
-  validate_startup_contract(scheduler, binding, process.startup_contract())
-  process.claim_exchange(scheduler.last_retired_plan_sequence()) catch {
-    error => raise root_bound_process_error(error)
-  }
+  let identity = worker_service_identity(
+    scheduler.model_identity(),
+    scheduler.model_plan_generation().value(),
+    binding.bootstrap_source_digest(),
+    scheduler.worker_protocol_limits(),
+    binding.inference_limits(),
+  )
+  validate_startup_contract(
+    scheduler,
+    identity,
+    binding,
+    process.startup_contract(),
+  )
+  let transport = rooted_single_transport(process)
+  transport.claim(scheduler.last_retired_plan_sequence())
   {
     scheduler,
-    binding,
-    process: Some(process),
+    identity,
+    physical_binding: RootedSingleBinding(binding),
+    transport,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: false,
     ownership_mode: FixtureRawOwnership,
     online_epoch: 0UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
 }
 
 ///|
-fn WorkerService::require_process(
+fn WorkerService::require_transport(
   self : WorkerService,
-) -> @worker_process.RootBoundWorkerProcessSupervisor {
-  match self.process {
-    Some(process) => process
-    None => abort("worker service process installation invariant")
+) -> WorkerPhysicalTransport {
+  if self.transport is Uninstalled {
+    abort("worker service physical transport installation invariant")
   }
+  self.transport
 }
 
 ///|
-/// Returns the immutable deployment binding retained for every replacement.
-pub fn WorkerService::binding(self : WorkerService) -> WorkerServiceBinding {
-  self.binding
+/// Returns the immutable backend-neutral identity retained for every
+/// replacement.
+pub fn WorkerService::identity(self : WorkerService) -> WorkerServiceIdentity {
+  self.identity
 }
 
 ///|

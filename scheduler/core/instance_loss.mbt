@@ -14,6 +14,7 @@ pub fn Scheduler::drain_instance_loss(
     raise invalid(Plan, InvalidTransition)
   }
   if self.live_count == 0 {
+    self.clear_cached_prefix_device_state()
     return Complete
   }
   if self.terminal_available() == 0 {
@@ -42,6 +43,7 @@ pub fn Scheduler::drain_instance_loss(
     self.request_generations[slot] = self.allocate_request_generation()
     self.slot_states[slot] = SLOT_FAILED
     self.enqueue_terminal(
+      slot,
       request.request_id(),
       self.request_generations[slot],
       WorkerFailed,
@@ -49,6 +51,7 @@ pub fn Scheduler::drain_instance_loss(
     self.release_active_request(slot)
   }
   if self.live_count == 0 {
+    self.clear_cached_prefix_device_state()
     Complete
   } else {
     Remaining(self.live_count)

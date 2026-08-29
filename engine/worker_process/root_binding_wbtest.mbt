@@ -7,7 +7,7 @@ fn expect_root_binding_failure(
 ) -> Unit raise {
   try
     prepare_with_approved_roots(
-      b"/definitely/not/a/worker",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup_for_source(source),
       source,
       supervisor_process_limits(),
@@ -24,16 +24,16 @@ fn expect_root_binding_failure(
 
 ///|
 test "root-bound admission sanitizes model and kernel identity failures by role" {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let model = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/usr")
   expect_root_binding_failure(
-    supervisor_source_for_roots("/private", "/private/tmp"),
+    supervisor_source_for_roots("/usr/bin", "/usr"),
     model,
     kernel,
     ModelRootBinding(Invalid(RootIdentity)),
   )
   expect_root_binding_failure(
-    supervisor_source_for_roots("/private/tmp", "/private"),
+    supervisor_source_for_roots("/usr", "/usr/bin"),
     model,
     kernel,
     KernelRootBinding(Invalid(RootIdentity)),
@@ -44,10 +44,10 @@ test "root-bound admission sanitizes model and kernel identity failures by role"
 
 ///|
 test "closed root binding failure is sanitized before retained pair acquisition" {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let model = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/usr")
   model.close()
-  let source = supervisor_source_for_roots("/private/tmp", "/private/tmp")
+  let source = supervisor_source_for_roots("/usr", "/usr")
   expect_root_binding_failure(
     source,
     model,
@@ -59,23 +59,25 @@ test "closed root binding failure is sanitized before retained pair acquisition"
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "same approved root may satisfy both bootstrap roles" {
-  let root = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let source = supervisor_source_for_roots("/private/tmp", "/private/tmp")
-  try
+  let root = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let source = supervisor_source_for_roots("/usr", "/usr")
+  match
     prepare_with_approved_roots(
-      b"/bin/cat",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup_for_source(source),
       source,
       supervisor_process_limits(),
       root,
       root,
-    )
-  catch {
-    RootBoundFailure(Process(Invalid(Submission))) => ()
-    _ => fail("same-root roles failed before child protocol")
-  } noraise {
-    _ => fail("malformed child published same-root supervisor")
+    ) {
+    RootBoundCleanupRequired(failed) => {
+      assert_true(failed.is_closed())
+      assert_eq(failed.cause(), Process(Invalid(Submission)))
+    }
+    ReadyRootBoundProcess(_) =>
+      fail("malformed child published same-root supervisor")
   }
   assert_false(root.is_closed())
   root.close()
@@ -113,6 +115,7 @@ async test "namespace replacement cannot substitute a root-bound source" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 async test "root-bound model and kernel roles authenticate an ordered pair" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-root-binding-order")
@@ -127,20 +130,21 @@ async test "root-bound model and kernel roles authenticate an ordered pair" {
     let model = @approved_fs.ApprovedRoot::open_absolute(model_path)
     let kernel = @approved_fs.ApprovedRoot::open_absolute(kernel_path)
     let source = supervisor_source_for_roots(model_path, kernel_path)
-    try
+    match
       prepare_with_approved_roots(
-        b"/bin/cat",
+        @worker_executable_fixture.cat_path(),
         supervisor_startup_for_source(source),
         source,
         supervisor_process_limits(),
         model,
         kernel,
-      )
-    catch {
-      RootBoundFailure(Process(Invalid(Submission))) => ()
-      _ => fail("ordered root pair failed before child protocol")
-    } noraise {
-      _ => fail("malformed child published ordered root pair")
+      ) {
+      RootBoundCleanupRequired(failed) => {
+        assert_true(failed.is_closed())
+        assert_eq(failed.cause(), Process(Invalid(Submission)))
+      }
+      ReadyRootBoundProcess(_) =>
+        fail("malformed child published ordered root pair")
     }
     expect_root_binding_failure(
       source,

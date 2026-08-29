@@ -246,6 +246,7 @@ test "semantic invalid submitted completion is replaced by exact failure" {
   )
   let invalid = try! writer.submit()
   owner.processed_inputs[owner.plan_a_slots[0]] = 1
+  owner.prefill_cursors[owner.plan_a_slots[0]] = 1
   try owner.complete(plan, invalid) catch {
     Invalid(field=Completion, issue=Mismatch) => ()
     _ => fail("unexpected semantic completion error")

@@ -1,0 +1,22 @@
+import {
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+} for "wbtest"
+
+supported_targets = "native"

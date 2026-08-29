@@ -159,10 +159,12 @@ pub fn Scheduler::commit_cancel_reservation(
   let index = self.cancel_slot
   let generation = try! self.allocate_request_generation()
   if self.slot_states[index] == SLOT_WAITING {
+    self.release_waiting_prefix(index)
     self.remove_waiting(index)
     self.slot_states[index] = SLOT_CANCELLED
     self.request_generations[index] = generation
     try! self.enqueue_terminal(
+      index,
       self.cancel_request_id,
       generation,
       CancelledByCaller,
@@ -172,6 +174,7 @@ pub fn Scheduler::commit_cancel_reservation(
     self.request_generations[index] = generation
     self.slot_states[index] = SLOT_CANCELLED
     try! self.enqueue_terminal(
+      index,
       self.cancel_request_id,
       generation,
       CancelledByCaller,

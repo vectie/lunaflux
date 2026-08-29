@@ -8,10 +8,12 @@ fn owned_test_cleanup() -> FailedOwnedWorkerServicePreparation {
   {
     initial: None,
     ready_process: None,
+    group: None,
     cause_kind: 3,
     service_cause: None,
     process_cause: Some(owned_test_process_error()),
     cleanup_process_failure: Some(owned_test_process_error()),
+    cleanup_group_failure: false,
     closed: true,
     reported_consumed_failure: false,
   }
@@ -30,7 +32,7 @@ test "owned preparation shell transfers only the selected owner once" {
   assert_eq(prepared.state(), OwnedServiceCleanupRequired)
   assert_eq(
     prepared.take_cleanup().cause(),
-    OwnedProcessFailure(owned_test_process_error()),
+    OwnedPhysicalTransportFailure(PhysicalCleanupFailed),
   )
   try prepared.take_cleanup() catch {
     OwnedPreparationFailure(OwnedServiceFailure(Invalid(Lifecycle))) => ()
@@ -52,7 +54,7 @@ test "consumed cleanup failure is reported once and cause persists" {
   let cause = cleanup.cause()
   try cleanup.retry_close() catch {
     OwnedPreparationFailure(
-      OwnedProcessFailure(RootBoundFailure(RootsCloseFailed))
+      OwnedPhysicalTransportFailure(PhysicalCleanupFailed)
     ) => ()
     _ => fail("unexpected consumed cleanup evidence")
   } noraise {

@@ -2,6 +2,9 @@
 fn wb_terminal_online_lease() -> OnlineWorkerLease {
   let scheduler = wb_service_scheduler()
   let prepared = scheduler.prepare_admission(wb_online_request())
+  try! prepared.bind_publication_route(
+    try! @core.SchedulerPublicationRoute::new(0, 1UL),
+  )
   let semantic_retention = @inference.LunaRequestStopTokenRetentionSlot::new()
   try! prepared.retain_stop_tokens_into(semantic_retention)
   try! scheduler.commit_admission(prepared, 0UL)
@@ -13,30 +16,37 @@ fn wb_terminal_online_lease() -> OnlineWorkerLease {
   }
   let service : WorkerService = {
     scheduler,
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 7UL,
     online_publication_cursor: 11UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  {
+  wb_online_lane_lease(
     service,
-    epoch: 7UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: OnlineRequestTerminal,
-    prepared_admission: None,
+    @monotonic_clock.MonotonicClock::system(),
+    None,
+    @monotonic_clock.MonotonicClock::system().prepare_read(),
+    Some(handle),
+    ONLINE_LANE_TERMINAL,
+    terminal_generation,
+    handle.request_generation(),
+    0,
+    3,
+    false,
     semantic_retention,
-    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
-    handle: Some(handle),
-    request_generation: terminal_generation,
-    cut_source_generation: handle.request_generation(),
-    publication_cursor: 11UL,
-    expected_position: 3,
-    cancel_reserved: false,
-  }
+    epoch=7UL,
+    publication_cursor=11UL,
+  )
 }
 
 ///|
@@ -89,30 +99,36 @@ fn wb_empty_online_lease(
 ) -> OnlineWorkerLease {
   let service : WorkerService = {
     scheduler: wb_service_scheduler(),
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 17UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  {
+  wb_online_lane_lease(
     service,
-    epoch: 17UL,
     clock,
-    request_phase: OnlineRequestEmpty,
-    prepared_admission: None,
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
-    prepared_clock_read: clock.prepare_read(),
-    handle: None,
-    request_generation: @inference.RequestGeneration::initial(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
-    publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: false,
-  }
+    None,
+    clock.prepare_read(),
+    None,
+    ONLINE_LANE_EMPTY,
+    @inference.RequestGeneration::initial(),
+    @inference.RequestGeneration::initial(),
+    0,
+    0,
+    false,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+    epoch=17UL,
+  )
 }
 
 ///|
@@ -137,15 +153,18 @@ test "terminal request retirement resets only request-local state" {
   )
   lease.preflight_terminal_request_retirement(service, true)
   lease.commit_terminal_request_retirement()
-  assert_true(lease.request_phase == OnlineRequestEmpty)
-  assert_true(lease.handle is None)
-  assert_eq(lease.request_generation, @inference.RequestGeneration::initial())
+  assert_eq(lease.active_lane_count, 0)
+  assert_eq(lease.lane_handles[0].length(), 0)
   assert_eq(
-    lease.cut_source_generation,
+    lease.lane_request_generations[0],
     @inference.RequestGeneration::initial(),
   )
-  assert_eq(lease.expected_position, 0)
-  assert_false(lease.cancel_reserved)
+  assert_eq(
+    lease.lane_cut_source_generations[0],
+    @inference.RequestGeneration::initial(),
+  )
+  assert_eq(lease.lane_expected_positions[0], 0)
+  assert_eq(lease.cancel_lane, -1)
   assert_eq(lease.epoch, epoch)
   assert_eq(lease.publication_cursor, publication_cursor)
   assert_eq(service.online_publication_cursor, service_publication_cursor)
@@ -169,26 +188,26 @@ test "terminal retirement preserves monotonic publication history across readmis
 
   let first_received_at = try! clock.now_millis()
   try! lease.admit(wb_retirement_request(1201UL, first_received_at))
-  let first_handle = lease.handle.unwrap()
+  let first_handle = lease.lane_handles[0][0]
   let first_generation = first_handle.request_generation()
   assert_eq(try! lease.reserve_cancel(), OnlineCancelReserved)
   assert_eq(try! lease.commit_cancel(), OnlineCancelCommitted)
   let first_terminal = try! lease.take_publication()
   assert_eq(first_terminal.kind(), OnlineTerminalPublication)
   assert_eq(first_terminal.publication_sequence(), 1UL)
-  assert_true(lease.request_phase == OnlineRequestTerminal)
+  assert_eq(lease.lane_phases[0], ONLINE_LANE_TERMINAL)
   assert_eq(lease.publication_cursor, 1UL)
   assert_eq(service.online_publication_cursor, 1UL)
 
   wb_retire_terminal_request(lease)
-  assert_true(lease.request_phase == OnlineRequestEmpty)
+  assert_eq(lease.active_lane_count, 0)
   assert_eq(lease.epoch, lease_epoch)
   assert_eq(lease.publication_cursor, 1UL)
   assert_eq(service.online_publication_cursor, 1UL)
 
   let second_received_at = try! clock.now_millis()
   try! lease.admit(wb_retirement_request(1202UL, second_received_at))
-  let second_handle = lease.handle.unwrap()
+  let second_handle = lease.lane_handles[0][0]
   assert_true(second_handle != first_handle)
   assert_true(second_handle.request_id() != first_handle.request_id())
   assert_true(second_handle.request_generation() != first_generation)
@@ -211,11 +230,12 @@ test "terminal retirement preserves monotonic publication history across readmis
 ///|
 test "terminal request retirement preflights every retained obligation" {
   let wrong_phase = wb_terminal_online_lease()
-  wrong_phase.request_phase = OnlineRequestLive
+  wrong_phase.lane_phases[0] = ONLINE_LANE_LIVE
   assert_terminal_retirement_rejected(wrong_phase, true)
 
   let reserved = wb_terminal_online_lease()
-  reserved.cancel_reserved = true
+  reserved.cancel_lane = 0
+  reserved.cancel_generation = reserved.lane_generations[0]
   assert_terminal_retirement_rejected(reserved, true)
 
   let prepared = wb_terminal_online_lease()

@@ -1,0 +1,143 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/rank_group_protocol"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror RankGroupError {
+  Invalid(RankGroupRule)
+  InvalidLifecycle(expected~ : RankGroupLifecycle, actual~ : RankGroupLifecycle)
+  ProtocolFault(RankGroupRule)
+  GroupFaulted(RankGroupFailureReason)
+  NotReady(RankGroupRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CompletedRankGroupPlan(RankGroupOwner, UInt64)
+pub fn CompletedRankGroupPlan::validate_completion(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise RankGroupError
+
+pub struct RankDrainAck(UInt64, UInt64, Int, Int)
+pub fn RankDrainAck::from_wire(group_generation_value~ : UInt64, plan_sequence_value~ : UInt64, rank~ : Int, world_size~ : Int) -> Self raise RankGroupError
+
+pub struct RankDrainLease(RankGroupOwner, UInt64, Int)
+pub fn RankDrainLease::ack(Self) -> RankDrainAck raise RankGroupError
+pub fn RankDrainLease::rank(Self) -> Int raise RankGroupError
+
+pub struct RankExecutionAck(UInt64, UInt64, UInt64, Int, Int)
+pub fn RankExecutionAck::from_wire(group_generation_value~ : UInt64, plan_sequence_value~ : UInt64, model_plan_generation_value~ : UInt64, rank~ : Int, world_size~ : Int) -> Self raise RankGroupError
+pub fn RankExecutionAck::rank(Self) -> Int
+
+pub(all) enum RankGroupFailureReason {
+  ProtocolViolation(RankGroupRule)
+  DeadlineExpired
+  RankLost
+  CollectiveFailure
+  RankExecutionFailure
+  HostFailure
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupFailureReport(UInt64, UInt64, RankGroupFailureReason, Int, Int)
+pub fn RankGroupFailureReport::failed_rank(Self) -> Int
+pub fn RankGroupFailureReport::group_generation_value(Self) -> UInt64
+pub fn RankGroupFailureReport::has_canonical_failure_rank(Self) -> Bool
+pub fn RankGroupFailureReport::plan_sequence_value(Self) -> UInt64
+pub fn RankGroupFailureReport::reason(Self) -> RankGroupFailureReason
+pub fn RankGroupFailureReport::world_size(Self) -> Int
+
+pub struct RankGroupGeneration {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn RankGroupGeneration::first() -> Self
+pub fn RankGroupGeneration::from_wire(UInt64) -> Self raise RankGroupError
+pub fn RankGroupGeneration::next(Self) -> Self raise RankGroupError
+pub fn RankGroupGeneration::value(Self) -> UInt64
+
+pub(all) enum RankGroupLifecycle {
+  Ready
+  Executing
+  Completed
+  Faulted
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub struct RankGroupOwner {
+  // private fields
+}
+pub fn RankGroupOwner::accept_drain_ack(Self, RankDrainAck) -> Unit raise RankGroupError
+pub fn RankGroupOwner::accept_follower_ack(Self, SubmittedRankGroupPlan, RankExecutionAck) -> Unit raise RankGroupError
+pub fn RankGroupOwner::begin(Self, @worker_protocol.SubmittedSchedulePlan, started_tick~ : UInt64, deadline_tick~ : UInt64) -> SubmittedRankGroupPlan raise RankGroupError
+pub fn RankGroupOwner::close(Self) -> Unit raise RankGroupError
+pub fn RankGroupOwner::close_faulted(Self) -> Unit raise RankGroupError
+pub fn RankGroupOwner::complete_leader(Self, RankPlanLease, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> CompletedRankGroupPlan raise RankGroupError
+pub fn RankGroupOwner::drain_complete(Self) -> Bool raise RankGroupError
+pub fn RankGroupOwner::drain_lease(Self, Int) -> RankDrainLease raise RankGroupError
+pub fn RankGroupOwner::expire_if_due(Self, SubmittedRankGroupPlan, UInt64) -> Bool raise RankGroupError
+pub fn RankGroupOwner::followers_complete(Self, SubmittedRankGroupPlan) -> Bool raise RankGroupError
+pub fn RankGroupOwner::generation(Self) -> RankGroupGeneration
+pub fn RankGroupOwner::identity(Self) -> @spec.ModelIdentity
+pub fn RankGroupOwner::lifecycle(Self) -> RankGroupLifecycle
+pub fn RankGroupOwner::mark_drain_rank_lost(Self, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::new(identity~ : @spec.ModelIdentity, model_plan_generation~ : @worker_protocol.ModelPlanGeneration, generation~ : RankGroupGeneration, world_size~ : Int, previous_plan_sequence_value~ : UInt64, plan_buffer_identities~ : ArrayView[@worker_protocol.PlanBufferIdentity]) -> Self raise RankGroupError
+pub fn RankGroupOwner::previous_plan_sequence_value(Self) -> UInt64
+pub fn RankGroupOwner::reauthenticate_completed(Self, UInt64) -> CompletedRankGroupPlan raise RankGroupError
+pub fn RankGroupOwner::reauthenticate_submitted(Self, @worker_protocol.SubmittedSchedulePlan) -> SubmittedRankGroupPlan raise RankGroupError
+pub fn RankGroupOwner::report_active_host_failure(Self) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_begin_host_failure(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_collective_failure(Self, SubmittedRankGroupPlan, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_idle_host_failure(Self) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_idle_rank_loss(Self, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_rank_execution_failure(Self, SubmittedRankGroupPlan, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_rank_loss(Self, SubmittedRankGroupPlan, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_supervisor_failure(Self, @worker_protocol.SubmittedSchedulePlan, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::report_supervisor_rank_loss(Self, @worker_protocol.SubmittedSchedulePlan, Int) -> Unit raise RankGroupError
+pub fn RankGroupOwner::retire_completed(Self, CompletedRankGroupPlan) -> Unit raise RankGroupError
+pub fn RankGroupOwner::take_failure(Self) -> RankGroupFailureReport raise RankGroupError
+pub fn RankGroupOwner::world_size(Self) -> Int
+
+pub(all) enum RankGroupRule {
+  WorldSize
+  Rank
+  LeaderRank
+  FollowerRank
+  GroupGeneration
+  GroupEpoch
+  ModelPlanGeneration
+  PlanSequence
+  Submission
+  PlanBufferSet
+  Completion
+  DuplicateFollowerAck
+  FollowersPending
+  Deadline
+  TimeRegression
+  FailurePublication
+  LostRankDrain
+  DuplicateDrainAck
+  DrainPending
+} derive(Eq, @debug.Debug)
+
+pub struct RankPlanLease(RankGroupOwner, UInt64, Int)
+pub fn RankPlanLease::deadline_tick(Self) -> UInt64 raise RankGroupError
+pub fn RankPlanLease::follower_ack(Self) -> RankExecutionAck raise RankGroupError
+pub fn RankPlanLease::group_generation_value(Self) -> UInt64 raise RankGroupError
+pub fn RankPlanLease::model_identity(Self) -> @spec.ModelIdentity raise RankGroupError
+pub fn RankPlanLease::model_plan_generation_value(Self) -> UInt64 raise RankGroupError
+pub fn RankPlanLease::plan_sequence_value(Self) -> UInt64 raise RankGroupError
+pub fn RankPlanLease::rank(Self) -> Int raise RankGroupError
+pub fn RankPlanLease::world_size(Self) -> Int raise RankGroupError
+
+pub struct SubmittedRankGroupPlan(RankGroupOwner, UInt64)
+pub fn SubmittedRankGroupPlan::deadline_tick(Self) -> UInt64 raise RankGroupError
+pub fn SubmittedRankGroupPlan::lease(Self, @worker_protocol.SubmittedSchedulePlan, Int) -> RankPlanLease raise RankGroupError
+pub fn SubmittedRankGroupPlan::sequence_value(Self) -> UInt64 raise RankGroupError
+pub fn SubmittedRankGroupPlan::validate_plan(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise RankGroupError
+
+// Type aliases
+
+// Traits

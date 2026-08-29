@@ -4,8 +4,12 @@
 pub fn OnlineWorkerLease::begin_recovery(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
-  ignore(self.require_pending_handle())
-  self.require_current().begin_recovery_impl()
+  let service = self.require_current()
+  if self.active_lane_count == 0 {
+    raise Invalid(Lifecycle)
+  }
+  service.require_no_maintenance()
+  service.begin_recovery_impl()
 }
 
 ///|
@@ -14,7 +18,9 @@ pub fn OnlineWorkerLease::recover_flight(
   self : OnlineWorkerLease,
   failure : @worker_protocol.WorkerFailure,
 ) -> UInt64 raise WorkerServiceError {
-  self.require_current().recover_flight_impl(failure)
+  let service = self.require_current()
+  service.require_no_maintenance()
+  service.recover_flight_impl(failure)
 }
 
 ///|
@@ -23,41 +29,84 @@ pub fn OnlineWorkerLease::invalidate_device_state(
   self : OnlineWorkerLease,
 ) -> Int raise WorkerServiceError {
   let service = self.require_current()
-  let handle = self.require_pending_handle()
+  service.require_no_maintenance()
+  self.invalidate_device_state_exact_impl(service)
+}
+
+///|
+fn OnlineWorkerLease::invalidate_device_state_exact_impl(
+  self : OnlineWorkerLease,
+  service : WorkerService,
+) -> Int raise WorkerServiceError {
   service.require_lifecycle(ServiceDeviceInvalidationRequired)
-  let result = service.scheduler.invalidate_device_state_exact(handle) catch {
+  if self.active_lane_count == 0 {
+    raise Invalid(Recovery)
+  }
+  for lane in 0..<self.lane_phases.length() {
+    if self.lane_phases[lane] != ONLINE_LANE_EMPTY &&
+      self.lane_restart_dispositions[lane] != 0 {
+      raise Invalid(Recovery)
+    }
+  }
+  let invalidated = service.scheduler.invalidate_device_state() catch {
     error => raise scheduler_error(error)
   }
-  match result {
-    ExactDeviceNoChange => {
-      service.lifecycle = ServiceRestartReady
-      0
+  for lane in 0..<self.lane_phases.length() {
+    if self.lane_phases[lane] == ONLINE_LANE_LIVE {
+      self.lane_cut_source_generations[lane] = self.lane_request_generations[lane]
+      self.lane_phases[lane] = ONLINE_LANE_TERMINATION_PENDING
+      self.lane_restart_dispositions[lane] = 1
+    } else if self.lane_phases[lane] == ONLINE_LANE_TERMINATION_PENDING {
+      self.lane_restart_dispositions[lane] = 2
     }
-    ExactDeviceInvalidated(count, generation) => {
-      self.cut_source_generation = self.request_generation
-      try! service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
-      service.lifecycle = ServiceRestartReady
-      count
-    }
-    ExactDeviceAlreadyTerminal(generation) => {
-      self.cut_source_generation = self.request_generation
-      try! service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
-      service.lifecycle = ServiceRestartReady
-      0
-    }
+  }
+  service.lifecycle = ServiceRestartReady
+  invalidated
+}
+
+///|
+/// Converts the exact request retained across a successful worker restart into
+/// one authenticated WorkerFailed terminal. Active requests already own that
+/// terminal after device invalidation; a waiting request is terminalized only
+/// after the replacement worker is proven ready. Semantic retention remains
+/// live until ordinary terminal-request retirement.
+pub fn OnlineWorkerLease::prepare_restarted_failure_terminal(
+  self : OnlineWorkerLease,
+) -> Unit raise WorkerServiceError {
+  if !self.progress_restarted_failure_terminals() {
+    raise Invalid(Recovery)
   }
 }
 
 ///|
-/// Starts the retained exact replacement only after device invalidation.
-pub fn OnlineWorkerLease::restart(
+/// Converts at most one waiting request retained across a successful restart
+/// into an authenticated WorkerFailed terminal. False retains all lane and
+/// scheduler authority for the next cooperative call.
+pub fn OnlineWorkerLease::progress_restarted_failure_terminals(
   self : OnlineWorkerLease,
-) -> WorkerServiceRestart raise WorkerServiceError {
-  self.require_current().restart_impl()
+) -> Bool raise WorkerServiceError {
+  let service = self.require_current()
+  service.require_no_maintenance()
+  service.require_lifecycle(ServiceReady)
+  if service.raw_outstanding_count() != 0 {
+    raise Invalid(Recovery)
+  }
+  for lane in 0..<self.lane_phases.length() {
+    if self.lane_phases[lane] != ONLINE_LANE_EMPTY &&
+      self.lane_restart_dispositions[lane] == 0 {
+      raise Invalid(Recovery)
+    }
+  }
+  if service.scheduler.live_request_count() == 0 {
+    return true
+  }
+  let progress = service.scheduler.drain_instance_loss() catch {
+    error => raise scheduler_error(error)
+  }
+  match progress {
+    Remaining(_) => false
+    Complete => true
+  }
 }
 
 ///|
@@ -65,7 +114,18 @@ pub fn OnlineWorkerLease::restart(
 pub fn OnlineWorkerLease::retry_restart_cleanup(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
-  self.require_current().retry_restart_cleanup_impl()
+  let service = self.require_current()
+  service.require_no_maintenance()
+  service.retry_restart_cleanup_impl()
+}
+
+///|
+/// Starts bounded cleanup of a failed replacement while retaining this exact
+/// online lease and request generation.
+pub fn OnlineWorkerLease::begin_restart_cleanup_maintenance(
+  self : OnlineWorkerLease,
+) -> Unit raise WorkerServiceError {
+  self.require_current().begin_restart_cleanup_maintenance_impl()
 }
 
 ///|
@@ -73,7 +133,9 @@ pub fn OnlineWorkerLease::retry_restart_cleanup(
 pub fn OnlineWorkerLease::abandon_restart(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
-  self.require_current().abandon_restart_impl()
+  let service = self.require_current()
+  service.require_no_maintenance()
+  service.abandon_restart_impl()
 }
 
 ///|
@@ -84,28 +146,158 @@ pub fn OnlineWorkerLease::drain_restart_forbidden(
   self : OnlineWorkerLease,
 ) -> @core.InstanceLossDrain raise WorkerServiceError {
   let service = self.require_current()
-  let handle = self.require_pending_handle()
+  service.require_no_maintenance()
+  self.drain_restart_forbidden_exact_impl(service)
+}
+
+///|
+fn OnlineWorkerLease::drain_restart_forbidden_exact_impl(
+  self : OnlineWorkerLease,
+  service : WorkerService,
+) -> @core.InstanceLossDrain raise WorkerServiceError {
+  let request = self.compatibility_request()
+  let lane = request.lane
+  let handle = request.require_pending_handle()
   service.require_lifecycle(ServiceRestartForbidden)
+  // Device invalidation may already have terminalized the sole active
+  // request. Its queued WorkerFailed publication owns the fresh generation;
+  // `take_publication` authenticates that terminal and advances the retained
+  // lane. Do not try to drain or advance the old handle twice.
+  if service.scheduler.live_request_count() == 0 {
+    service.lifecycle = ServiceTerminalCloseReady
+    return Complete
+  }
   let exact = service.scheduler.drain_instance_loss_exact(handle) catch {
     error => raise scheduler_error(error)
   }
   match exact {
     ExactLossRemaining(count, generation) => {
-      self.cut_source_generation = self.request_generation
+      self.lane_cut_source_generations[lane] = self.lane_request_generations[lane]
       try! service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
+      self.lane_request_generations[lane] = generation
+      self.lane_phases[lane] = ONLINE_LANE_TERMINATION_PENDING
       Remaining(count)
     }
     ExactLossComplete(generation) => {
-      self.cut_source_generation = self.request_generation
+      self.lane_cut_source_generations[lane] = self.lane_request_generations[lane]
       try! service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
+      self.lane_request_generations[lane] = generation
+      self.lane_phases[lane] = ONLINE_LANE_TERMINATION_PENDING
       service.lifecycle = ServiceTerminalCloseReady
       Complete
     }
   }
+}
+
+///|
+fn OnlineWorkerLease::drain_restart_forbidden_progress(
+  self : OnlineWorkerLease,
+  service : WorkerService,
+) -> @core.InstanceLossDrain raise WorkerServiceError {
+  service.require_lifecycle(ServiceRestartForbidden)
+  let progress = service.scheduler.drain_instance_loss() catch {
+    error => raise scheduler_error(error)
+  }
+  for lane in 0..<self.lane_phases.length() {
+    if self.lane_phases[lane] == ONLINE_LANE_LIVE {
+      self.lane_cut_source_generations[lane] = self.lane_request_generations[lane]
+      self.lane_phases[lane] = ONLINE_LANE_TERMINATION_PENDING
+    }
+  }
+  if progress is Complete {
+    service.lifecycle = ServiceTerminalCloseReady
+  }
+  progress
+}
+
+///|
+/// Starts cooperative recovery for the exact authenticated online request.
+pub fn OnlineWorkerLease::begin_recovery_maintenance(
+  self : OnlineWorkerLease,
+  failure : @worker_protocol.WorkerFailure,
+) -> Unit raise WorkerServiceError {
+  if self.active_lane_count == 0 {
+    raise Invalid(Lifecycle)
+  }
+  self.require_current().begin_recovery_maintenance_impl(failure)
+}
+
+///|
+/// Starts cooperative terminal close without releasing semantic retention
+/// before child and root retirement complete.
+pub fn OnlineWorkerLease::begin_shutdown_maintenance(
+  self : OnlineWorkerLease,
+) -> Unit raise WorkerServiceError {
+  let service = self.require_current()
+  if self.cancel_lane >= 0 || self.active_lane_count > 1 {
+    raise Invalid(Lifecycle)
+  }
+  if self.active_lane_count == 1 {
+    let request = self.compatibility_request()
+    if self.lane_phases[request.lane] != ONLINE_LANE_TERMINAL ||
+      !self.lane_semantic_retentions[request.lane].is_live() {
+      raise Invalid(Lifecycle)
+    }
+  } else if self.active_lane_count == 0 {
+    for lane in 0..<self.lane_semantic_retentions.length() {
+      if self.lane_semantic_retentions[lane].is_live() {
+        raise Invalid(Lifecycle)
+      }
+    }
+  }
+  service.begin_shutdown_maintenance_impl()
+}
+
+///|
+/// Advances one authenticated online maintenance transition. Exact request
+/// generation changes remain in this lease and never escape as raw handles.
+pub fn OnlineWorkerLease::progress_maintenance(
+  self : OnlineWorkerLease,
+) -> LunaWorkerServiceMaintenanceProgress raise WorkerServiceError {
+  let service = self.require_current()
+  if service.maintenance_mode == MAINTENANCE_RECOVERY &&
+    service.maintenance_phase == MAINTENANCE_INVALIDATE {
+    ignore(self.invalidate_device_state_exact_impl(service)) catch {
+      Scheduler(Invalid(issue=Backpressured, ..)) =>
+        return LunaWorkerServiceMaintenancePending
+      error => raise error
+    }
+    service.maintenance_mode = MAINTENANCE_NONE
+    service.maintenance_phase = 0
+    return LunaWorkerServiceRestartReady
+  }
+  if service.maintenance_mode == MAINTENANCE_RECOVERY &&
+    service.maintenance_phase == MAINTENANCE_DRAIN {
+    let result = self.drain_restart_forbidden_progress(service) catch {
+      Scheduler(Invalid(issue=Backpressured, ..)) =>
+        return LunaWorkerServiceMaintenancePending
+      error => raise error
+    }
+    if result is Complete {
+      service.maintenance_mode = MAINTENANCE_NONE
+      service.maintenance_phase = 0
+      return LunaWorkerServiceFailCloseReady
+    }
+    return LunaWorkerServiceMaintenanceAdvanced
+  }
+  let progress = service.progress_maintenance_impl()
+  if progress is LunaWorkerServiceClosed {
+    if self.active_lane_count == 1 {
+      let lane = self.compatibility_request().lane
+      if self.lane_phases[lane] == ONLINE_LANE_TERMINAL {
+        self.release_lane(lane)
+      }
+    }
+    service.ownership_mode = OnlineRetiredOwnership
+  }
+  progress
+}
+
+///|
+pub fn OnlineWorkerLease::maintenance_remaining_millis(
+  self : OnlineWorkerLease,
+) -> Int raise WorkerServiceError {
+  self.require_current().maintenance_remaining_millis_impl()
 }
 
 ///|
@@ -118,17 +310,25 @@ pub fn OnlineWorkerLease::progress_terminal_recovery(
   failure : @worker_protocol.WorkerFailure,
 ) -> OnlineTerminalRecoveryProgress raise WorkerServiceError {
   let service = self.require_current()
+  if service.maintenance_mode != MAINTENANCE_NONE {
+    let progress = self.progress_maintenance()
+    match progress {
+      LunaWorkerServiceFailCloseReady =>
+        return OnlineTerminalRecoveryPublicationReady
+      LunaWorkerServiceRestartReady => {
+        self.abandon_restart()
+        return OnlineTerminalRecoveryPending
+      }
+      _ => return OnlineTerminalRecoveryPending
+    }
+  }
   match service.lifecycle {
     ServiceReady => {
-      self.begin_recovery()
+      self.begin_recovery_maintenance(failure)
       OnlineTerminalRecoveryPending
     }
     ServiceRecovering => {
-      if service.require_process().lifecycle() == RootBoundRecovering {
-        ignore(self.recover_flight(failure))
-      } else {
-        self.begin_recovery()
-      }
+      self.begin_recovery_maintenance(failure)
       OnlineTerminalRecoveryPending
     }
     ServiceDeviceInvalidationRequired => {
@@ -146,173 +346,4 @@ pub fn OnlineWorkerLease::progress_terminal_recovery(
     ServiceTerminalCloseReady => OnlineTerminalRecoveryPublicationReady
     _ => raise Invalid(Recovery)
   }
-}
-
-///|
-/// Nonraising recovery disposition for an aggregate that already owns this
-/// lease. A lower close/reap/invalidation failure retains authority and is
-/// reported as retryable instead of allocating a post-mutation error.
-pub fn OnlineWorkerLease::progress_terminal_recovery_status(
-  self : OnlineWorkerLease,
-  failure : @worker_protocol.WorkerFailure,
-) -> OnlineTerminalRecoveryStatus {
-  try self.progress_terminal_recovery(failure) catch {
-    _ => OnlineTerminalRecoveryRetryable
-  } noraise {
-    OnlineTerminalRecoveryPending => OnlineTerminalRecoveryStillPending
-    OnlineTerminalRecoveryPublicationReady => OnlineTerminalRecoveryReady
-  }
-}
-
-///|
-fn OnlineWorkerLease::preflight_terminal_request_retirement(
-  self : OnlineWorkerLease,
-  service : WorkerService,
-  has_exchange_capacity : Bool,
-) -> Unit raise WorkerServiceError {
-  if self.request_phase != OnlineRequestTerminal ||
-    self.cancel_reserved ||
-    self.prepared_admission is Some(_) ||
-    service.lifecycle != ServiceReady ||
-    service.raw_outstanding_count() != 0 ||
-    !service.scheduler.is_quiescent() ||
-    !has_exchange_capacity {
-    raise Invalid(Lifecycle)
-  }
-}
-
-///|
-fn OnlineWorkerLease::commit_terminal_request_retirement(
-  self : OnlineWorkerLease,
-) -> Unit {
-  self.release_required_semantic_retention()
-  self.handle = None
-  self.request_generation = @inference.RequestGeneration::initial()
-  self.cut_source_generation = @inference.RequestGeneration::initial()
-  self.expected_position = 0
-  self.cancel_reserved = false
-  self.request_phase = OnlineRequestEmpty
-}
-
-///|
-/// Retires only the exact completed request while preserving the live worker,
-/// scheduler history, lease epoch, ownership family, and publication cursor.
-/// The complete preflight precedes the nonraising request-local reset.
-pub fn OnlineWorkerLease::retire_terminal_request(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  self.preflight_terminal_request_retirement(
-    service,
-    service.require_process().has_exchange_capacity(),
-  )
-  self.commit_terminal_request_retirement()
-}
-
-///|
-/// Cleanly closes a healthy service only after its exact terminal publication
-/// and every scheduler/process obligation have been retired.
-pub fn OnlineWorkerLease::shutdown_clean(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != OnlineRequestTerminal || self.cancel_reserved {
-    raise Invalid(Lifecycle)
-  }
-  service.shutdown_clean_impl()
-  self.release_required_semantic_retention()
-  self.request_phase = OnlineRequestRetired
-  service.ownership_mode = OnlineRetiredOwnership
-}
-
-///|
-/// Closes an online-family service before admission, including after a prior
-/// session was released and a fresh epoch was claimed solely for cleanup.
-pub fn OnlineWorkerLease::shutdown_clean_empty(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != OnlineRequestEmpty ||
-    self.cancel_reserved ||
-    self.semantic_retention.is_live() ||
-    !service.scheduler.is_quiescent() {
-    raise Invalid(Lifecycle)
-  }
-  service.shutdown_clean_impl()
-  self.request_phase = OnlineRequestRetired
-  service.ownership_mode = OnlineRetiredOwnership
-}
-
-///|
-/// Force-closes only from an already terminally drained recovery phase.
-pub fn OnlineWorkerLease::close_terminal(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != OnlineRequestTerminal ||
-    self.cancel_reserved ||
-    service.lifecycle != ServiceTerminalCloseReady {
-    raise Invalid(Lifecycle)
-  }
-  service.close_impl()
-  self.release_required_semantic_retention()
-  self.request_phase = OnlineRequestRetired
-  service.ownership_mode = OnlineRetiredOwnership
-}
-
-///|
-/// Retries a terminal close without restoring raw authority.
-pub fn OnlineWorkerLease::retry_close_terminal(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != OnlineRequestTerminal || self.cancel_reserved {
-    raise Invalid(Lifecycle)
-  }
-  match terminal_close_retry_action(service.lifecycle) {
-    1 => service.close_impl()
-    2 => service.retry_close_impl()
-    _ => abort("terminal close retry action invariant")
-  }
-  self.release_required_semantic_retention()
-  self.request_phase = OnlineRequestRetired
-  service.ownership_mode = OnlineRetiredOwnership
-}
-
-///|
-fn terminal_close_retry_action(
-  lifecycle : WorkerServiceLifecycle,
-) -> Int raise WorkerServiceError {
-  if lifecycle == ServiceRecovering {
-    1
-  } else if lifecycle == ServiceClosingFailed {
-    2
-  } else {
-    raise Invalid(Lifecycle)
-  }
-}
-
-///|
-/// Retries a failed empty-session clean close without granting raw authority.
-pub fn OnlineWorkerLease::retry_close_empty(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  let service = self.require_current()
-  if self.request_phase != OnlineRequestEmpty || self.cancel_reserved {
-    raise Invalid(Lifecycle)
-  }
-  if self.semantic_retention.is_live() {
-    raise Invalid(Lifecycle)
-  }
-  if service.lifecycle == ServiceReady {
-    service.shutdown_clean_impl()
-  } else if service.lifecycle == ServiceRecovering {
-    service.close_impl()
-  } else if service.lifecycle == ServiceClosingFailed {
-    service.retry_close_impl()
-  } else {
-    raise Invalid(Lifecycle)
-  }
-  self.request_phase = OnlineRequestRetired
-  service.ownership_mode = OnlineRetiredOwnership
 }

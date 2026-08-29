@@ -21,6 +21,14 @@ fn perform_startup_handshake_status(
   if source_status != 0 {
     return 100 + source_status
   }
+  let attestation_status = child.startup_write_frame_status(
+    prepared.attestation_outgoing,
+    prepared.attestation_outgoing_length,
+    startup_io_timeout_millis,
+  )
+  if attestation_status != 0 {
+    return 100 + attestation_status
+  }
   let response_length = child.startup_read_frame_status(
     prepared.startup_incoming,
     startup_io_timeout_millis,
@@ -40,32 +48,73 @@ fn perform_startup_handshake_status(
 }
 
 ///|
-fn preflight_prepare(
-  executable : Bytes,
+/// Validates the immutable startup envelope without borrowing executable or
+/// root authority. Root-bound preparation uses this before role validation so
+/// source/capacity errors remain platform-independent.
+fn validate_preflight_envelope(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
-) -> PreparedWorkerProcessStartup raise WorkerProcessError {
+) -> Unit raise WorkerProcessError {
   if source.digest() != startup.bootstrap_source_digest() {
     raise Invalid(SourceMismatch)
   }
-  if executable.length() == 0 {
-    raise Invalid(Submission)
-  }
-  for index = 0; index < executable.length(); index = index + 1 {
-    if executable[index] == b'\x00' {
-      raise Invalid(Submission)
-    }
-  }
   let worker_limits = startup.worker_limits()
-  let inference_limits = startup.inference_limits()
-  let plan_a = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
+  let plan_capacity = @worker_wire.plan_frame_byte_capacity(worker_limits) catch {
+    error => raise Wire(error)
+  }
+  let completion_capacity = @worker_wire.completion_frame_byte_capacity(
+    worker_limits,
   ) catch {
     error => raise Wire(error)
   }
-  let plan_b = @worker_wire.PlanFrameBuffer::new(
-    worker_limits, inference_limits,
+  let required = plan_capacity
+    .max(completion_capacity)
+    .max(@worker_wire.StartupFrameBuffer::new().capacity())
+    .max(source.capacity())
+  if required > limits.max_frame_bytes {
+    raise Invalid(Capacity)
+  }
+  ignore(
+    @process.ProcessLimits::new(
+      max_frame_bytes=limits.max_frame_bytes,
+      io_timeout_millis=limits.io_timeout_millis,
+      shutdown_timeout_millis=limits.shutdown_timeout_millis,
+    ) catch {
+      error => raise transport_error(error)
+    },
+  )
+}
+
+///|
+fn preflight_prepare_with_authority(
+  executable : @worker_executable_file.WorkerExecutableAdmission,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  limits : WorkerProcessLimits,
+  parent_approval : @worker_wire.WorkerParentApprovalSubjects?,
+) -> PreparedWorkerProcessStartup raise WorkerProcessError {
+  validate_preflight_envelope(startup, source, limits)
+  let worker_limits = startup.worker_limits()
+  let inference_limits = startup.inference_limits()
+  let plan_capacity = @worker_wire.plan_frame_byte_capacity(worker_limits) catch {
+    error => raise Wire(error)
+  }
+  let tx_a = FixedArray::make(plan_capacity, b'\x00')
+  let tx_b = FixedArray::make(plan_capacity, b'\x00')
+  let plan_a = @worker_wire.PlanFrameBuffer::new_transport_owned(
+    worker_limits,
+    inference_limits,
+    tx_a,
+    frame_offset=0,
+  ) catch {
+    error => raise Wire(error)
+  }
+  let plan_b = @worker_wire.PlanFrameBuffer::new_transport_owned(
+    worker_limits,
+    inference_limits,
+    tx_b,
+    frame_offset=0,
   ) catch {
     error => raise Wire(error)
   }
@@ -96,17 +145,16 @@ fn preflight_prepare(
     error => raise transport_error(error)
   }
   let startup_sender = @worker_wire.StartupFrameBuffer::new()
-  let executable_snapshot = Bytes::makei(executable.length(), index => {
-    executable[index]
-  })
-  let child_preparation = @process.prepare_child(
-    executable_snapshot, process_limits,
-  ) catch {
-    error => raise transport_error(error)
+  let child_preparation = executable.prepare_child(process_limits) catch {
+    _ => raise Transport(SpawnFailed)
   }
   let child = child_preparation.child_owner()
   let startup_outgoing = FixedArray::make(startup_sender.capacity(), b'\x00')
   let source_outgoing = FixedArray::make(source.length(), b'\x00')
+  let attestation_outgoing = FixedArray::make(
+    @worker_wire.parent_approval_attestation_capacity(),
+    b'\x00',
+  )
   let startup_incoming = FixedArray::make(startup_sender.capacity(), b'\x00')
   let expected_ready = FixedArray::make(startup_sender.capacity(), b'\x00')
   let configure = startup_sender.encode(Configure, startup) catch {
@@ -121,6 +169,25 @@ fn preflight_prepare(
   source.copy_to(source_outgoing, destination_offset=0) catch {
     error => raise Wire(error)
   }
+  let attestation_outgoing_length = match parent_approval {
+    None =>
+      @worker_wire.encode_absent_parent_approval_attestation_v1(
+        attestation_outgoing,
+      ) catch {
+        error => raise Wire(error)
+      }
+    Some(subjects) =>
+      @worker_wire.encode_parent_approval_subjects_attestation_v1(
+        attestation_outgoing,
+        subjects,
+        bootstrap_digest_sha256=startup.bootstrap_digest().as_hex(),
+        source_digest_sha256=startup.bootstrap_source_digest().as_hex(),
+        model_generation=startup.model_generation_value(),
+        device_ordinal=startup.device_ordinal(),
+      ) catch {
+        error => raise Wire(error)
+      }
+  }
   let ready = startup_sender.encode(Ready, startup) catch {
     error => raise Wire(error)
   }
@@ -130,35 +197,22 @@ fn preflight_prepare(
   ready.copy_to(expected_ready, destination_offset=0) catch {
     error => raise Wire(error)
   }
-  let tx_a = FixedArray::make(plan_a.capacity(), b'\x00')
-  let tx_b = FixedArray::make(plan_b.capacity(), b'\x00')
   let rx = FixedArray::make(completion_a.capacity(), b'\x00')
   let rx_staging = FixedArray::make(completion_a.capacity(), b'\x00')
-  let exchange_request_ids = FixedArray::make(
-    worker_limits.max_completion_slots(),
-    0UL,
+  let graph_rx = FixedArray::make(
+    @worker_wire.worker_graph_telemetry_frame_capacity(),
+    b'\x00',
   )
-  let exchange_request_generations = FixedArray::make(
-    worker_limits.max_completion_slots(),
-    0UL,
-  )
-  let exchange_expected_kinds = FixedArray::make(
-    worker_limits.max_completion_slots(),
-    ExpectedEmpty,
-  )
-  let exchange_processed_tokens = FixedArray::make(
-    worker_limits.max_completion_slots(),
-    0,
-  )
-  let exchange_slots = FixedArray::make(
-    worker_limits.max_completion_slots(),
-    -1,
+  let graph_rx_staging = FixedArray::make(
+    @worker_wire.worker_graph_telemetry_frame_capacity(),
+    b'\x00',
   )
   let supervisor : WorkerProcessSupervisor = {
     child,
     child_selected: false,
     startup,
     source,
+    parent_approval,
     plan_a,
     plan_b,
     completion_a,
@@ -167,16 +221,15 @@ fn preflight_prepare(
     tx_b,
     rx,
     rx_staging,
-    exchange_request_ids,
-    exchange_request_generations,
-    exchange_expected_kinds,
-    exchange_processed_tokens,
-    exchange_slots,
-    exchange_entry_count: 0,
+    graph_rx,
+    graph_rx_staging,
     state_a: 0,
     state_b: 0,
     sequence_a: 0UL,
     sequence_b: 0UL,
+    graph_telemetry_a: @worker_wire.WorkerGraphTelemetrySlot::new(),
+    graph_telemetry_b: @worker_wire.WorkerGraphTelemetrySlot::new(),
+    last_graph_telemetry: @worker_wire.WorkerGraphTelemetrySlot::new(),
     last_submitted: if startup.has_predecessor() {
       startup.predecessor_value()
     } else {
@@ -187,6 +240,8 @@ fn preflight_prepare(
     } else {
       0UL
     },
+    maintenance_phase: 0,
+    maintenance_failure: None,
     lifecycle: Ready,
   }
   let failed : FailedWorkerProcessStartup = {
@@ -195,18 +250,34 @@ fn preflight_prepare(
     cause_kind: 0,
     cause_status: 0,
     cleanup_status: 0,
+    cleanup_active: false,
     closed: false,
   }
   {
-    executable: executable_snapshot,
+    approved_executable: executable,
     child: child_preparation,
     startup_outgoing,
     startup_outgoing_length,
     source_outgoing,
+    attestation_outgoing,
+    attestation_outgoing_length,
     startup_incoming,
     expected_ready,
     expected_ready_length,
     supervisor,
     failed,
   }
+}
+
+///|
+fn preflight_prepare_approved(
+  executable : @worker_executable_file.WorkerExecutableAdmission,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  limits : WorkerProcessLimits,
+  parent_approval : @worker_wire.WorkerParentApprovalSubjects?,
+) -> PreparedWorkerProcessStartup raise WorkerProcessError {
+  preflight_prepare_with_authority(
+    executable, startup, source, limits, parent_approval,
+  )
 }

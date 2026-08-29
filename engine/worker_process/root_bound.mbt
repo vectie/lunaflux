@@ -1,197 +1,34 @@
 ///|
-fn root_failure(
-  error : @approved_fs.ApprovedFsError,
-) -> RootBoundWorkerProcessFailure {
-  match error {
-    Busy(_) => RootsBusy
-    _ => RootsCloseFailed
-  }
-}
-
-///|
-fn close_root_pair(
-  roots : @approved_fs.WorkerApprovedRoots,
-) -> RootBoundWorkerProcessFailure? {
-  try @approved_fs.close_worker_approved_roots(roots) catch {
-    error => Some(root_failure(error))
-  } noraise {
-    _ => None
-  }
-}
-
-///|
-fn close_root_pair_status(roots : @approved_fs.WorkerApprovedRoots) -> Int {
-  @approved_fs.worker_approved_roots_close_status(roots)
-}
-
-///|
-fn root_failure_status(status : Int) -> RootBoundWorkerProcessFailure? {
-  if status == 0 {
-    None
-  } else if status == 7 {
-    Some(RootsBusy)
-  } else {
-    Some(RootsCloseFailed)
-  }
-}
-
-///|
-fn roots_still_live(roots : @approved_fs.WorkerApprovedRoots) -> Bool {
-  !@approved_fs.worker_approved_roots_is_closed(roots)
-}
-
-///|
-fn RootBoundWorkerProcessSupervisor::require_roots(
-  self : RootBoundWorkerProcessSupervisor,
-) -> @approved_fs.WorkerApprovedRoots {
-  if !self.roots_selected {
-    abort("root-bound roots selection invariant")
-  }
-  self.roots
-}
-
-///|
-/// Acquires a private duplicate pair from caller-owned roots and uses it for
-/// the initial child and every replacement. The input roots are only borrowed;
-/// no public API accepts or returns the retained pair.
-fn prepare_root_bound(
-  executable : Bytes,
+pub fn prepare_with_approved_executable(
+  executable : @worker_executable_file.WorkerExecutableAdmission,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
-  exchange_claimed : Bool,
-  expected_predecessor : UInt64,
+  parent_approval? : @worker_wire.WorkerParentApprovalSubjects? = None,
 ) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError {
-  if source.digest() != startup.bootstrap_source_digest() {
-    raise RootBoundFailure(Process(Invalid(SourceMismatch)))
-  }
-  if exchange_claimed &&
-    (
-      startup.has_predecessor() != (expected_predecessor != 0UL) ||
-      startup.predecessor_value() != expected_predecessor
-    ) {
-    raise RootBoundFailure(Process(Invalid(Sequence)))
-  }
-  let prepared = preflight_prepare(executable, startup, source, limits) catch {
-    error => raise RootBoundFailure(Process(error))
-  }
-  let labels = source.roots()
-  require_model_root_binding(model_root, labels.model_root())
-  require_kernel_root_binding(kernel_root, labels.kernel_root())
-  let prepared_roots = @approved_fs.prepare_worker_approved_roots()
-  let roots = prepared_roots.root_owner()
-  let ready_owner : RootBoundWorkerProcessSupervisor = {
-    executable: prepared.executable,
-    limits,
-    roots,
-    roots_selected: false,
-    process: prepared.supervisor,
-    failed_replacement: None,
-    cause: None,
-    child_cleanup_failure: None,
-    roots_cleanup_failure: None,
-    transport_mode: if exchange_claimed {
-      2
-    } else {
-      0
-    },
-    exchange_epoch: 0UL,
-    active_exchange_epoch: 0UL,
-    exchange_phase: -1,
-    exchange_side: -1,
-    exchange_sequence: 0UL,
-    lifecycle: RootBoundReady,
-  }
-  let failed_owner : FailedRootBoundWorkerProcessStartup = {
-    roots,
-    roots_selected: false,
-    child: None,
-    child_cleanup_process: None,
-    child_cleanup_native: None,
-    roots_cleanup_status: 0,
-    closed: false,
-  }
-  let root_activation_status = @approved_fs.acquire_prepared_worker_approved_roots_status(
-    prepared_roots, model_root, kernel_root,
-  )
-  if root_activation_status != 0 {
-    raise RootBoundFailure(
-      if root_activation_status == 7 {
-        RootsBusy
-      } else {
-        RootsCloseFailed
-      },
-    )
-  }
-  let startup_result = prepare_preflighted(source, limits, prepared, roots)
-  match startup_result {
-    ReadyProcess(process) =>
-      publish_ready_root_bound(ready_owner, failed_owner, process)
-    CleanupRequired(child) => {
-      let roots_status = close_root_pair_status(roots)
-      let roots_live = roots_still_live(roots)
-      if !child.is_closed() || roots_live {
-        return publish_live_root_bound_cleanup(
-          ready_owner, failed_owner, child, roots_live, roots_status,
-        )
-      }
-      ready_owner.roots_selected = false
-      failed_owner.roots_selected = false
-      failed_owner.child = Some(child)
-      failed_owner.roots_cleanup_status = roots_status
-      failed_owner.closed = true
-      let roots_failure = root_failure_status(roots_status)
-      let primary = Process(child.cause())
-      let child_cleanup = if child.cleanup_status == 0 {
-        None
-      } else {
-        Some(Process(child.cleanup_failure()))
-      }
-      match (child_cleanup, roots_failure) {
-        (Some(child_failure), Some(root_failure)) =>
-          raise RootBoundTripleFailure(primary, child_failure, root_failure)
-        (Some(cleanup), None) =>
-          raise RootBoundCompoundFailure(primary, cleanup)
-        (None, Some(cleanup)) =>
-          raise RootBoundCompoundFailure(primary, cleanup)
-        (None, None) => raise RootBoundFailure(primary)
-      }
-    }
-  }
-}
-
-///|
-/// Acquires a reusable rooted supervisor without selecting a transport mode.
-pub fn prepare_with_approved_roots(
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  limits : WorkerProcessLimits,
-  model_root : @approved_fs.ApprovedRoot,
-  kernel_root : @approved_fs.ApprovedRoot,
-) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError {
-  prepare_root_bound(
-    executable, startup, source, limits, model_root, kernel_root, false, 0UL,
+  prepare_root_bound_with_authority(
+    executable, startup, source, limits, model_root, kernel_root, false, 0UL, parent_approval,
   )
 }
 
 ///|
-/// Production aggregate preparation. Exact predecessor evidence is validated
-/// before root acquisition and exchange mode is installed nonfallibly in the
-/// preallocated ready owner after startup succeeds.
-pub fn prepare_exchange_with_approved_roots(
-  executable : Bytes,
+/// Production activation from the exact pinned executable object. This route
+/// never accepts, reopens, or rehashes a pathname.
+pub fn prepare_exchange_with_approved_executable(
+  executable : @worker_executable_file.WorkerExecutableAdmission,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   limits : WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
   expected_predecessor : UInt64,
+  parent_approval? : @worker_wire.WorkerParentApprovalSubjects? = None,
 ) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError {
-  prepare_root_bound(
+  prepare_root_bound_with_authority(
     executable, startup, source, limits, model_root, kernel_root, true, expected_predecessor,
+    parent_approval,
   )
 }
 
@@ -202,7 +39,7 @@ pub fn prepare_exchange_with_approved_roots(
 pub fn FailedRootBoundWorkerProcessStartup::retry_close(
   self : FailedRootBoundWorkerProcessStartup,
 ) -> Unit raise RootBoundWorkerProcessError {
-  if self.closed {
+  if self.closed && !approved_executable_live(self.approved_executable) {
     return
   }
   let prior_child_failure = self.child_cleanup_failure()
@@ -250,7 +87,22 @@ pub fn FailedRootBoundWorkerProcessStartup::retry_close(
     Some(_) => 1
     None => 0
   }
-  self.closed = !attempt.child_live && !attempt.roots_live
+  let executable_failure = close_approved_executable(self.approved_executable)
+  self.closed = !attempt.child_live &&
+    !attempt.roots_live &&
+    !approved_executable_live(self.approved_executable)
+  if executable_failure is Some(failure) {
+    if child_failure is Some(child) {
+      if roots_failure is Some(roots) {
+        raise RootBoundTripleFailure(child, roots, failure)
+      }
+      raise RootBoundCompoundFailure(child, failure)
+    }
+    if roots_failure is Some(roots) {
+      raise RootBoundCompoundFailure(roots, failure)
+    }
+    raise RootBoundFailure(failure)
+  }
   raise_cleanup_attempt({
     child_live: attempt.child_live,
     roots_live: attempt.roots_live,
@@ -311,14 +163,33 @@ pub fn RootBoundWorkerProcessSupervisor::shutdown_clean(
 }
 
 ///|
-pub fn RootBoundWorkerProcessSupervisor::recovery_startup_contract(
+pub fn RootBoundWorkerProcessSupervisor::validate_recovery_binding(
   self : RootBoundWorkerProcessSupervisor,
-) -> @worker_wire.WorkerStartupContract raise RootBoundWorkerProcessError {
+  identity : @spec.ModelIdentity,
+  bootstrap_digest : @worker_wire.WorkerBootstrapDigest,
+  bootstrap_source_digest : @worker_wire.WorkerBootstrapSourceDigest,
+  device_ordinal : Int,
+  model_generation_value : UInt64,
+  worker_limits : @worker_protocol.WorkerProtocolLimits,
+  inference_limits : @inference.InferenceLimits,
+  predecessor_value : UInt64,
+) -> Unit raise RootBoundWorkerProcessError {
   if self.lifecycle != RootBoundRecovering {
     raise RootBoundInvalidLifecycle
   }
-  self.process.recovery_startup_contract() catch {
+  let contract = self.process.recovery_startup_contract() catch {
     error => raise RootBoundFailure(Process(error))
+  }
+  if contract.identity() != identity ||
+    contract.bootstrap_digest() != bootstrap_digest ||
+    contract.bootstrap_source_digest() != bootstrap_source_digest ||
+    contract.device_ordinal() != device_ordinal ||
+    contract.model_generation_value() != model_generation_value ||
+    contract.worker_limits() != worker_limits ||
+    contract.inference_limits() != inference_limits ||
+    contract.has_predecessor() != (predecessor_value != 0UL) ||
+    contract.predecessor_value() != predecessor_value {
+    raise RootBoundOwnerMismatch
   }
 }
 
@@ -429,6 +300,21 @@ pub fn RootBoundReceivedWorkerCompletion::frame(
     raise RootBoundOwnerMismatch
   }
   ReceivedWorkerCompletion(owner.process, self.1, self.2).frame(owner.process) catch {
+    error => raise RootBoundFailure(Process(error))
+  }
+}
+
+///|
+pub fn RootBoundReceivedWorkerCompletion::graph_telemetry(
+  self : RootBoundReceivedWorkerCompletion,
+  owner : RootBoundWorkerProcessSupervisor,
+) -> @worker_wire.WorkerGraphTelemetry raise RootBoundWorkerProcessError {
+  if !physical_equal(self.0, owner) {
+    raise RootBoundOwnerMismatch
+  }
+  ReceivedWorkerCompletion(owner.process, self.1, self.2).graph_telemetry(
+    owner.process,
+  ) catch {
     error => raise RootBoundFailure(Process(error))
   }
 }

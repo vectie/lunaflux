@@ -1,0 +1,135 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_group_transport"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/rank_group_process",
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/tensor_parallel_execution_plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn prepare_tensor_parallel_group_transport_approved(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, ArrayView[@worker_protocol.PlanBufferIdentity], previous_plan_sequence_value~ : UInt64) -> TensorParallelGroupTransport raise TensorParallelGroupTransportError
+
+// Errors
+pub(all) suberror TensorParallelGroupTransportError {
+  Rejected(rule~ : TensorParallelGroupTransportRule, rank~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TensorParallelGroupAcceptedCompletion(@rank_group_process.AcceptedRankGroupCompletion)
+
+pub(all) enum TensorParallelGroupCleanupProgress {
+  GroupCleanupAdvanced
+  GroupCleanupPending
+  GroupCleanupStuck(rank~ : Int)
+  GroupReplacementReady
+  GroupCloseComplete
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelGroupPlanningInputs {
+  // private fields
+}
+pub fn TensorParallelGroupPlanningInputs::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
+pub fn TensorParallelGroupPlanningInputs::inference_limits(Self) -> @inference.InferenceLimits
+pub fn TensorParallelGroupPlanningInputs::model_generation_value(Self) -> UInt64
+pub fn TensorParallelGroupPlanningInputs::model_identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelGroupPlanningInputs::new(source~ : @worker_wire.EncodedBootstrapSource, model_plan~ : @plan.ModelPlan, model_generation~ : @worker_protocol.ModelPlanGeneration, topology_declaration~ : @device_topology.LocalTopologyDeclaration, topology~ : @device_topology.AdmittedLocalTopology, inspection_blueprints~ : ArrayView[@device_materialize.DeviceShardedWeightFileInspection], device_step_limits~ : @device_step.DeviceStepLimits, manifest_limits~ : @execution_manifest_file.ExecutionManifestFileLimits, launch_limits~ : @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits, execution_limits~ : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, process_limits~ : @rank_group_process.RankGroupProcessLimits, admitted_rank_child_activation_path~ : Bytes, rank_child_executable_digest_sha256~ : StringView) -> Self raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupPlanningInputs::template_digest(Self) -> TensorParallelGroupTemplateDigest
+pub fn TensorParallelGroupPlanningInputs::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
+
+pub struct TensorParallelGroupReceivedCompletion(@rank_group_process.ReceivedRankGroupCompletion)
+
+pub(all) enum TensorParallelGroupStart {
+  GroupReady
+  GroupCleanupRequired
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelGroupTemplateDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupTemplateDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelGroupTransport {
+  // private fields
+}
+pub fn TensorParallelGroupTransport::abandon_cleaned_submission(Self, UInt64) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::accept_completion(Self, TensorParallelGroupReceivedCompletion, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> TensorParallelGroupAcceptedCompletion raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::accepted_completion_for_sequence(Self, UInt64) -> TensorParallelGroupAcceptedCompletion raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::begin(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::begin_close(Self) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::begin_recovery(Self) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::completion_frame(Self, TensorParallelGroupReceivedCompletion) -> @worker_wire.ValidatedCompletionFrame raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::failure_report_invalid(Self) -> Bool
+pub fn TensorParallelGroupTransport::graph_telemetry(Self, TensorParallelGroupReceivedCompletion) -> @worker_wire.WorkerGraphTelemetry raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::group_generation_value(Self) -> UInt64
+pub fn TensorParallelGroupTransport::has_exchange_capacity(Self) -> Bool
+pub fn TensorParallelGroupTransport::has_failure_publication_obligation(Self) -> Bool
+pub fn TensorParallelGroupTransport::has_received(Self, UInt64) -> Bool
+pub fn TensorParallelGroupTransport::has_recovery_obligation(Self) -> Bool
+pub fn TensorParallelGroupTransport::has_submission(Self, UInt64) -> Bool
+pub fn TensorParallelGroupTransport::lifecycle(Self) -> TensorParallelGroupTransportLifecycle
+pub fn TensorParallelGroupTransport::model_generation_value(Self) -> UInt64
+pub fn TensorParallelGroupTransport::previous_plan_sequence_value(Self) -> UInt64
+pub fn TensorParallelGroupTransport::probe_idle_rank(Self) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::progress(Self, @worker_protocol.SubmittedSchedulePlan) -> @rank_group_process.RankGroupProcessProgress raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::progress_cleanup(Self) -> TensorParallelGroupCleanupProgress raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::received_completion(Self) -> TensorParallelGroupReceivedCompletion raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::retire_after_scheduler_commit(Self, TensorParallelGroupAcceptedCompletion) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::retire_scheduler_only_failure(Self, UInt64) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::start(Self) -> TensorParallelGroupStart raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::take_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::taken_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::validate_service_identity(Self, model_identity~ : @spec.ModelIdentity, model_generation_value~ : UInt64, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, previous_plan_sequence_value~ : UInt64) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::world_size(Self) -> Int
+
+pub(all) enum TensorParallelGroupTransportLifecycle {
+  Prepared
+  Ready
+  Faulted
+  Recovering
+  Closing
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelGroupTransportRule {
+  Limit
+  Lifecycle
+  Source
+  Root
+  ModelIdentity
+  ModelGeneration
+  Topology
+  RankInspection
+  RankCapacity
+  DevicePlan
+  KvPlan
+  Manifest
+  ExecutionPlan
+  CollectiveRuntime
+  GroupGeneration
+  Rendezvous
+  WorkerContract
+  Bootstrap
+  Configure
+  Process
+  SchedulerPredecessor
+  Completion
+  Cleanup
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

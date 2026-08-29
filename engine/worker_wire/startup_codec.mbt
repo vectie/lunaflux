@@ -261,6 +261,8 @@ pub fn ValidatedStartupFrame::contract(
   self : ValidatedStartupFrame,
 ) -> WorkerStartupContract raise WorkerWireError {
   let bytes = self.owner().storage
+  // Decoded identity is an untrusted claim until exact admission against a
+  // rebuilt ModelPlan identity.
   let content = @spec.ContentDigest::from_sha256(read_digest(bytes, 40)) catch {
     _ => raise InvalidFrame(StartupIdentity)
   }

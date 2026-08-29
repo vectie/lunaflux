@@ -7,6 +7,10 @@ fn Scheduler::enqueue_generated_token(
   let request = self.requests[slot].unwrap()
   let sequence = self.allocate_publication_sequence()
   let index = self.output_tail
+  self.output_slot_indices[index] = slot
+  self.output_slot_generations[index] = self.slot_generations[slot]
+  self.output_route_lanes[index] = self.publication_route_lanes[slot]
+  self.output_route_generations[index] = self.publication_route_generations[slot]
   self.output_request_ids[index] = request.request_id()
   self.output_generations[index] = self.request_generations[slot]
   self.output_token_ids[index] = token
@@ -29,6 +33,24 @@ fn Scheduler::terminal_reason_for_token(
 }
 
 ///|
+fn Scheduler::record_prompt_compute(
+  self : Scheduler,
+  slot : Int,
+  start : Int,
+  processed : Int,
+) -> Unit {
+  let input_length = self.requests[slot].unwrap().input_tokens().length()
+  let bounded_start = Int::min(start, input_length)
+  let bounded_end = Int::min(start + processed, input_length)
+  if bounded_end > bounded_start {
+    self.prefix_tokens_computed = Scheduler::prefix_saturating_add(
+      self.prefix_tokens_computed,
+      bounded_end - bounded_start,
+    )
+  }
+}
+
+///|
 fn Scheduler::commit_current_completion(
   self : Scheduler,
   slot : Int,
@@ -37,21 +59,45 @@ fn Scheduler::commit_current_completion(
   let kind = try! entry.kind()
   match kind {
     PrefillCompletion => {
-      self.processed_inputs[slot] += try! entry.processed_tokens()
-      self.slot_states[slot] = SLOT_PREFILL
+      let processed = try! entry.processed_tokens()
+      self.record_prompt_compute(slot, self.prefill_start(slot), processed)
+      if self.recompute_required[slot] {
+        self.recompute_processed[slot] += processed
+        if self.recompute_processed[slot] == self.recompute_target(slot) {
+          self.recompute_required[slot] = false
+          self.recompute_processed[slot] = 0
+          self.slot_states[slot] = SLOT_DECODE
+        } else {
+          self.slot_states[slot] = SLOT_PREFILL
+        }
+      } else {
+        self.prefill_cursors[slot] += processed
+        if self.prefill_cursors[slot] > self.processed_inputs[slot] {
+          self.processed_inputs[slot] = self.prefill_cursors[slot]
+        }
+        self.slot_states[slot] = SLOT_PREFILL
+      }
       self.in_flight[slot] = false
     }
     FinalPrefillCompletion => {
       let token = try! entry.token_id()
-      self.processed_inputs[slot] += try! entry.processed_tokens()
+      let request = self.requests[slot].unwrap()
+      let processed = try! entry.processed_tokens()
+      self.record_prompt_compute(slot, self.prefill_start(slot), processed)
+      self.prefill_cursors[slot] += processed
+      if self.prefill_cursors[slot] > self.processed_inputs[slot] {
+        self.processed_inputs[slot] = self.prefill_cursors[slot]
+      }
+      self.publish_prompt_prefix(slot)
       try! self.enqueue_generated_token(slot, token)
+      self.store_generated_token(slot, self.output_counts[slot], token)
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
-      let request = self.requests[slot].unwrap()
       let stopped = try! self.request_stops_on_token(slot, token)
       if stopped ||
         self.output_counts[slot] >= request.effective_limits().max_new_tokens() {
         try! self.enqueue_terminal(
+          slot,
           request.request_id(),
           self.request_generations[slot],
           self.terminal_reason_for_token(stopped),
@@ -66,6 +112,7 @@ fn Scheduler::commit_current_completion(
     DecodeCompletion => {
       let token = try! entry.token_id()
       try! self.enqueue_generated_token(slot, token)
+      self.store_generated_token(slot, self.output_counts[slot], token)
       self.decode_tokens[slot] = token
       self.output_counts[slot] += 1
       let request = self.requests[slot].unwrap()
@@ -73,6 +120,7 @@ fn Scheduler::commit_current_completion(
       if stopped ||
         self.output_counts[slot] >= request.effective_limits().max_new_tokens() {
         try! self.enqueue_terminal(
+          slot,
           request.request_id(),
           self.request_generations[slot],
           self.terminal_reason_for_token(stopped),
@@ -87,6 +135,7 @@ fn Scheduler::commit_current_completion(
     FailedCompletion => {
       let request = self.requests[slot].unwrap()
       try! self.enqueue_terminal(
+        slot,
         request.request_id(),
         self.request_generations[slot],
         WorkerFailed,

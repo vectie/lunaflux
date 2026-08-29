@@ -10,9 +10,10 @@ fn Scheduler::status_at(self : Scheduler, index : Int) -> RequestStatus {
       request_id: request.request_id(),
       request_generation: self.request_generations[index],
     },
-    state: scheduler_state(self.slot_states[index]),
+    state: self.scheduler_state(index),
     input_tokens: request.input_tokens().length(),
     processed_input_tokens: self.processed_inputs[index],
+    cached_input_tokens: self.prefix_matched_tokens[index],
     output_tokens: self.output_counts[index],
     deadline_at_millis: self.deadlines[index],
     in_flight: self.in_flight[index],
@@ -82,11 +83,6 @@ pub fn Scheduler::last_retired_plan_sequence(self : Scheduler) -> UInt64 {
 }
 
 ///|
-pub fn Scheduler::retired_slot_count(self : Scheduler) -> Int {
-  self.retired_slot_count
-}
-
-///|
 pub fn Scheduler::terminal_notice_count(self : Scheduler) -> Int {
   self.terminal_count
 }
@@ -101,6 +97,7 @@ pub fn Scheduler::is_pristine(self : Scheduler) -> Bool {
   self.live_count == 0 &&
   self.waiting_count == 0 &&
   self.active_count == 0 &&
+  self.deadline_heap_count == 0 &&
   self.output_count == 0 &&
   self.terminal_count == 0 &&
   self.publication_cursor == 0UL &&
@@ -119,6 +116,7 @@ pub fn Scheduler::is_quiescent(self : Scheduler) -> Bool {
   self.live_count == 0 &&
   self.waiting_count == 0 &&
   self.active_count == 0 &&
+  self.deadline_heap_count == 0 &&
   self.output_count == 0 &&
   self.terminal_count == 0 &&
   self.last_plan_sequence == self.last_retired_plan_sequence &&

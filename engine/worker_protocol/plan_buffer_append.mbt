@@ -118,6 +118,7 @@ fn SchedulePlanBuffer::append_prefill_row(
   self.page_count = page_start + pages.length()
   self.capability_count = capability_start + capabilities.length()
   self.prefill_count = row + 1
+  self.track_row_identity(request_id, completion_slot)
 }
 
 ///|
@@ -179,4 +180,5 @@ pub fn SchedulePlanBuffer::append_decode(
   self.page_count = page_start + pages.length()
   self.capability_count = capability_start + capabilities.length()
   self.decode_count = row + 1
+  self.track_row_identity(request_id, completion_slot)
 }

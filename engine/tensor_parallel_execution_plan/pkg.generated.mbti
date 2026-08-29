@@ -1,0 +1,172 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/tensor_parallel_execution_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@plan.ModelPlan, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, @tensor_parallel_device_plan.TensorParallelDevicePlan, @artifact.KernelArtifactBundle, @launch_contract.PagedKernelProfile, TensorParallelExecutionPlanLimits) -> TensorParallelExecutionPlan raise TensorParallelExecutionPlanError
+
+// Errors
+pub(all) suberror TensorParallelExecutionPlanError {
+  InvalidTensorParallelExecutionPlan(rule~ : TensorParallelExecutionPlanRule, operation~ : Int, operand~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TensorParallelActivationBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelActivationBinding::live_through_step(Self) -> Int
+pub fn TensorParallelActivationBinding::produced_by(Self) -> @plan.OperationId
+pub fn TensorParallelActivationBinding::reference(Self) -> @plan.ActivationRef
+pub fn TensorParallelActivationBinding::region(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelActivationBinding::slot(Self) -> Int
+
+pub struct TensorParallelCollectiveBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelCollectiveBinding::kind(Self) -> TensorParallelPhysicalCollectiveKind
+pub fn TensorParallelCollectiveBinding::local_send_bytes(Self) -> Int64
+pub fn TensorParallelCollectiveBinding::local_send_offset_bytes(Self) -> Int64
+pub fn TensorParallelCollectiveBinding::operation_id(Self) -> @plan.OperationId
+pub fn TensorParallelCollectiveBinding::receive_bytes(Self) -> Int64
+pub fn TensorParallelCollectiveBinding::region(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelCollectiveBinding::sequence(Self) -> Int
+
+pub struct TensorParallelDescriptorBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelDescriptorBinding::region(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelDescriptorBinding::role(Self) -> TensorParallelDescriptorRole
+
+pub(all) enum TensorParallelDescriptorRole {
+  RuntimeDescriptor(@plan.OperationRuntimeInput)
+  ExternalDescriptor(@plan.ModelInputRef)
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelExecutionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelExecutionPlan::activation(Self, @plan.ActivationRef) -> TensorParallelActivationBinding?
+pub fn TensorParallelExecutionPlan::activation_count(Self) -> Int
+pub fn TensorParallelExecutionPlan::activation_workspace_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlan::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn TensorParallelExecutionPlan::collective(Self, Int) -> TensorParallelCollectiveBinding?
+pub fn TensorParallelExecutionPlan::collective_count(Self) -> Int
+pub fn TensorParallelExecutionPlan::collective_exact(Self, Int) -> TensorParallelCollectiveBinding raise TensorParallelExecutionPlanError
+pub fn TensorParallelExecutionPlan::descriptor_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlan::descriptors(Self) -> ReadOnlyArray[TensorParallelDescriptorBinding]
+pub fn TensorParallelExecutionPlan::device_ordinal(Self) -> Int
+pub fn TensorParallelExecutionPlan::digest(Self) -> TensorParallelExecutionPlanDigest
+pub fn TensorParallelExecutionPlan::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelExecutionPlan::kv_arena_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlan::operation(Self, @plan.OperationId) -> TensorParallelOperationBinding?
+pub fn TensorParallelExecutionPlan::operation_count(Self) -> Int
+pub fn TensorParallelExecutionPlan::operation_exact(Self, @plan.OperationId) -> TensorParallelOperationBinding raise TensorParallelExecutionPlanError
+pub fn TensorParallelExecutionPlan::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn TensorParallelExecutionPlan::rank(Self) -> Int
+pub fn TensorParallelExecutionPlan::rank_constants(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelExecutionPlan::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelExecutionPlan::weight_arena_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlan::workspace(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelExecutionPlan::world_size(Self) -> Int
+
+pub struct TensorParallelExecutionPlanDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelExecutionPlanDigest::as_sha256(Self) -> String
+
+pub struct TensorParallelExecutionPlanLimits {
+  // private fields
+}
+pub fn TensorParallelExecutionPlanLimits::artifact_limits(Self) -> @artifact.KernelArtifactLimits
+pub fn TensorParallelExecutionPlanLimits::max_activation_workspace_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlanLimits::max_collectives(Self) -> Int
+pub fn TensorParallelExecutionPlanLimits::max_descriptor_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlanLimits::max_descriptors(Self) -> Int
+pub fn TensorParallelExecutionPlanLimits::max_operands(Self) -> Int
+pub fn TensorParallelExecutionPlanLimits::max_operations(Self) -> Int
+pub fn TensorParallelExecutionPlanLimits::new(max_operations~ : Int, max_operands~ : Int, max_descriptors~ : Int, max_collectives~ : Int, max_descriptor_bytes~ : Int64, max_activation_workspace_bytes~ : Int64, artifact_limits~ : @artifact.KernelArtifactLimits) -> Self raise TensorParallelExecutionPlanError
+
+pub(all) enum TensorParallelExecutionPlanRule {
+  InvalidLimit
+  ModelIdentity
+  Rank
+  WorldSize
+  DeviceTarget
+  CatalogVersion
+  Profile
+  OperationCount
+  OperationOrder
+  OperationKind
+  OperationCapability
+  ArtifactBundle
+  ArtifactEntry
+  ArtifactModule
+  Operand
+  Descriptor
+  RankConstants
+  WeightRegion
+  FullShardedWeight
+  KvRegion
+  ActivationRegion
+  WorkspaceRegion
+  CollectiveCount
+  CollectiveSequence
+  CollectiveGeometry
+  Alignment
+  CapacityOverflow
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TensorParallelMemorySpace {
+  DescriptorSpace
+  RankConstantsSpace
+  WeightSpace
+  PersistentKvSpace
+  ActivationWorkspaceSpace
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelOperationBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelOperationBinding::capability(Self) -> @plan.KernelCapabilityId
+pub fn TensorParallelOperationBinding::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn TensorParallelOperationBinding::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn TensorParallelOperationBinding::function_symbol(Self) -> String
+pub fn TensorParallelOperationBinding::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn TensorParallelOperationBinding::operands(Self) -> ReadOnlyArray[TensorParallelPhysicalOperand]
+pub fn TensorParallelOperationBinding::operation_id(Self) -> @plan.OperationId
+pub fn TensorParallelOperationBinding::operation_kind(Self) -> @plan.OperationKind
+
+pub(all) enum TensorParallelPhysicalCollectiveKind {
+  InPlaceSumAllReduce
+  InPlaceLastAxisAllGather
+} derive(Eq, @debug.Debug)
+
+pub struct TensorParallelPhysicalOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelPhysicalOperand::region(Self) -> TensorParallelScalarRegion
+pub fn TensorParallelPhysicalOperand::role(Self) -> @tensor_parallel_launch_contract.TensorParallelOperandRole
+
+pub struct TensorParallelScalarRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelScalarRegion::alignment(Self) -> Int64
+pub fn TensorParallelScalarRegion::byte_count(Self) -> Int64
+pub fn TensorParallelScalarRegion::end_offset_bytes(Self) -> Int64
+pub fn TensorParallelScalarRegion::offset_bytes(Self) -> Int64
+pub fn TensorParallelScalarRegion::reserved_bytes(Self) -> Int64
+pub fn TensorParallelScalarRegion::space(Self) -> TensorParallelMemorySpace
+
+// Type aliases
+
+// Traits

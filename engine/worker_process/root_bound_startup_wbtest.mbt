@@ -1,12 +1,12 @@
 ///|
 test "exchange predecessor mismatch precedes closed-root acquisition" {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let model = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/usr")
   model.close()
   kernel.close()
   try
     prepare_exchange_with_approved_roots(
-      b"/bin/cat",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup(),
       supervisor_source(),
       supervisor_process_limits(),
@@ -23,25 +23,26 @@ test "exchange predecessor mismatch precedes closed-root acquisition" {
 }
 
 ///|
+#skip("Linux descriptor-execution coverage; run with --include-skipped on Linux")
 test "rooted malformed ready closes child and leaves caller roots independent" {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let source = supervisor_source_for_roots("/private/tmp", "/private/tmp")
-  try
+  let model = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let kernel = @approved_fs.ApprovedRoot::open_absolute("/usr")
+  let source = supervisor_source_for_roots("/usr", "/usr")
+  match
     prepare_exchange_with_approved_roots(
-      b"/bin/cat",
+      @worker_executable_fixture.cat_path(),
       supervisor_startup_for_source(source),
       source,
       supervisor_process_limits(),
       model,
       kernel,
       0UL,
-    )
-  catch {
-    RootBoundFailure(Process(Invalid(Submission))) => ()
-    _ => fail("unexpected malformed ready failure")
-  } noraise {
-    _ => fail("cat response published rooted owner")
+    ) {
+    RootBoundCleanupRequired(failed) => {
+      assert_true(failed.is_closed())
+      assert_eq(failed.cause(), Process(Invalid(Submission)))
+    }
+    ReadyRootBoundProcess(_) => fail("cat response published rooted owner")
   }
   model.close()
   kernel.close()

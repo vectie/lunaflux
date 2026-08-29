@@ -82,6 +82,14 @@ pub fn SchedulerBlueprint::worker_protocol_limits(
 }
 
 ///|
+/// Returns the fixed request-slot count allocated by `instantiate`.
+pub fn SchedulerBlueprint::request_slot_capacity(
+  self : SchedulerBlueprint,
+) -> Int {
+  self.capacity.total_request_slots()
+}
+
+///|
 /// Allocates a fresh, independent scheduler owner.
 pub fn SchedulerBlueprint::instantiate(
   self : SchedulerBlueprint,

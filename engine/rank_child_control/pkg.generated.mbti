@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/rank_child_control"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+pub fn open_rank_child_control(@rank_group_wire.RankGroupWireLimits, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> RankChildControl raise RankChildControlError
+
+// Errors
+pub(all) suberror RankChildControlError {
+  Invalid(RankChildControlRule)
+  Failed(RankChildControlRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RankChildControl {
+  // private fields
+}
+pub fn RankChildControl::accept_submit(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_aborted(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_closed(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_collective_failed(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_drained(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_execution_failed(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_follower_complete(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_graph_telemetry_sidecar(Self, @worker_wire.WorkerGraphTelemetry) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_leader_complete(Self, RankChildInbound, FixedArray[Byte], payload_length~ : Int) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_pending(Self, RankChildInbound) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_ready(Self, RankChildInbound, @rank_group_wire.RankGroupWireBinding, previous_sequence_value~ : UInt64) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_receive(Self) -> Unit raise RankChildControlError
+pub fn RankChildControl::fail_local_admission(Self) -> Unit raise RankChildControlError
+pub fn RankChildControl::failure_rule(Self) -> RankChildControlRule?
+pub fn RankChildControl::inbound(Self) -> RankChildInbound raise RankChildControlError
+pub fn RankChildControl::is_failed(Self) -> Bool
+pub fn RankChildControl::lifecycle(Self) -> @rank_group_wire.RankGroupWireLifecycle
+pub fn RankChildControl::progress_receive(Self) -> RankChildReceiveProgress raise RankChildControlError
+pub fn RankChildControl::progress_send(Self) -> RankChildSendProgress raise RankChildControlError
+pub fn RankChildControl::wait_peer_readable(Self, maximum_wait_millis~ : Int) -> Bool raise RankChildControlError
+pub fn RankChildControl::wait_receive(Self, maximum_wait_millis~ : Int) -> Bool raise RankChildControlError
+pub fn RankChildControl::wait_send(Self, maximum_wait_millis~ : Int) -> Bool raise RankChildControlError
+
+pub(all) enum RankChildControlRule {
+  Limit
+  Lifecycle
+  Binding
+  Epoch
+  Payload
+  ReceiveBusy
+  SendBusy
+  Transport
+  Wire
+  LocalAdmission
+} derive(Eq, @debug.Debug)
+
+pub struct RankChildInbound(RankChildControl, UInt64)
+pub fn RankChildInbound::binding(Self) -> @rank_group_wire.RankGroupWireBinding raise RankChildControlError
+pub fn RankChildInbound::copy_payload_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise RankChildControlError
+pub fn RankChildInbound::kind(Self) -> @rank_group_wire.RankGroupWireKind raise RankChildControlError
+pub fn RankChildInbound::payload_length(Self) -> Int raise RankChildControlError
+pub fn RankChildInbound::sequence_value(Self) -> UInt64 raise RankChildControlError
+pub fn RankChildInbound::slot(Self) -> @rank_group_wire.RankGroupWireSlot? raise RankChildControlError
+
+pub struct RankChildReceiveProgress {
+  // private fields
+}
+pub fn RankChildReceiveProgress::has_inbound(Self) -> Bool
+pub fn RankChildReceiveProgress::is_clean_eof(Self) -> Bool
+pub fn RankChildReceiveProgress::is_held(Self) -> Bool
+pub fn RankChildReceiveProgress::is_pending(Self) -> Bool
+
+pub struct RankChildSendProgress {
+  // private fields
+}
+pub fn RankChildSendProgress::is_complete(Self) -> Bool
+pub fn RankChildSendProgress::is_pending(Self) -> Bool
+
+// Type aliases
+
+// Traits

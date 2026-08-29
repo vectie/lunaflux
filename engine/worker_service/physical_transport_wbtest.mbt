@@ -1,0 +1,44 @@
+///|
+test "physical transport erases rooted backend failures exactly" {
+  assert_eq(
+    physical_transport_error(RootBoundFailure(Process(Backpressured))),
+    PhysicalTransport(PhysicalBackpressured),
+  )
+  assert_eq(
+    physical_transport_error(RootBoundFailure(Process(Invalid(Completion)))),
+    PhysicalTransport(PhysicalInvalidOutput),
+  )
+  assert_eq(
+    physical_transport_error(
+      RootBoundFailure(Process(Transport(ChannelClosed))),
+    ),
+    PhysicalTransport(PhysicalUnavailable),
+  )
+  assert_eq(
+    physical_transport_error(RootBoundInvalidLifecycle),
+    PhysicalTransport(PhysicalLifecycleViolation),
+  )
+  assert_eq(
+    physical_transport_error(
+      RootBoundCompoundFailure(
+        Process(Transport(ChannelClosed)),
+        RootsCloseFailed,
+      ),
+    ),
+    PhysicalTransport(PhysicalCleanupFailed),
+  )
+}
+
+///|
+test "cleanup operation never leaks backend failure detail" {
+  assert_eq(
+    physical_cleanup_error(
+      RootBoundFailure(Process(Transport(OperationFailed))),
+    ),
+    PhysicalTransport(PhysicalCleanupFailed),
+  )
+  assert_eq(
+    physical_cleanup_error(RootBoundOwnerMismatch),
+    PhysicalTransport(PhysicalLifecycleViolation),
+  )
+}

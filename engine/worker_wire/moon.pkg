@@ -3,6 +3,9 @@ import {
   "moonbitlang/x/crypto",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/fp8_release_authority",
   "vectie/lunaflux/model/spec",
 }
 

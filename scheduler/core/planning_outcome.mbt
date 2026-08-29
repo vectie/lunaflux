@@ -8,6 +8,7 @@ pub fn Scheduler::submitted_plan(
   match outcome {
     BuildIdle => raise invalid(Plan, NoRunnableWork)
     BuildBackpressured => raise invalid(Plan, Backpressured)
+    BuildPreempted => raise invalid(Plan, NoRunnableWork)
     BuildSubmitted(side, sequence) => {
       let owner = if side == 0 {
         if self.plan_a_sequence != sequence {

@@ -125,6 +125,11 @@ pub fn PageTableView::length(Self) -> Int
 pub fn PageTableView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn PageTableView::start(Self) -> Int
 
+pub struct PlanBufferIdentity {
+  // private fields
+}
+pub fn PlanBufferIdentity::same_owner(Self, Self) -> Bool
+
 pub(all) enum PlanBufferState {
   Writable
   Submitted
@@ -214,6 +219,7 @@ pub fn SchedulePlanBuffer::checkpoint(Self) -> PlanBuildCheckpoint raise WorkerP
 pub fn SchedulePlanBuffer::commit_draft(Self, PlanRowDraft) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::current_submitted(Self) -> SubmittedSchedulePlan raise WorkerProtocolError
 pub fn SchedulePlanBuffer::epoch(Self) -> UInt64
+pub fn SchedulePlanBuffer::identity(Self) -> PlanBufferIdentity
 pub fn SchedulePlanBuffer::new(WorkerProtocolLimits) -> Self raise WorkerProtocolError
 pub fn SchedulePlanBuffer::reset(Self, RetiredSchedulePlan) -> Unit raise WorkerProtocolError
 pub fn SchedulePlanBuffer::retire(Self, SubmittedSchedulePlan) -> RetiredSchedulePlan raise WorkerProtocolError
@@ -270,6 +276,7 @@ pub fn SubmittedPrefillRow::sequence_token_start(Self) -> Int raise WorkerProtoc
 pub fn SubmittedPrefillRow::tokens(Self) -> TokenRange raise WorkerProtocolError
 
 pub struct SubmittedSchedulePlan(SchedulePlanBuffer, UInt64)
+pub fn SubmittedSchedulePlan::buffer_identity(Self) -> PlanBufferIdentity raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::capability_at(Self, Int) -> @plan.KernelCapabilityId raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::capability_count(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::decode_count(Self) -> Int raise WorkerProtocolError
@@ -286,6 +293,14 @@ pub fn SubmittedSchedulePlan::sequence_wire(Self) -> UInt64 raise WorkerProtocol
 pub fn SubmittedSchedulePlan::token_at(Self, Int) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::token_budget(Self) -> Int raise WorkerProtocolError
 pub fn SubmittedSchedulePlan::token_count(Self) -> Int raise WorkerProtocolError
+
+pub struct SubmittedSchedulePlanSlot {
+  // private fields
+}
+pub fn SubmittedSchedulePlanSlot::clear(Self) -> Unit
+pub fn SubmittedSchedulePlanSlot::current(Self) -> SubmittedSchedulePlan raise WorkerProtocolError
+pub fn SubmittedSchedulePlanSlot::new() -> Self
+pub fn SubmittedSchedulePlanSlot::retain(Self, SubmittedSchedulePlan) -> Unit raise WorkerProtocolError
 
 pub struct TokenRange(Int, Int) derive(Eq, @debug.Debug)
 pub fn TokenRange::end(Self) -> Int

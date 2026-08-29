@@ -21,7 +21,7 @@ fn source_fixture() -> @worker_wire.EncodedBootstrapSource raise {
       config_digest_sha256=source_digest_a(),
     ),
     @worker_wire.WorkerBootstrapKernelSource::new(
-      manifest_locator="manifests/paged-v1.json",
+      manifest_locator="manifests/paged-v2.json",
       manifest_digest_sha256=source_digest_b(),
     ),
     @worker_wire.WorkerBootstrapExecution::new(
@@ -46,14 +46,60 @@ fn source_fixture() -> @worker_wire.EncodedBootstrapSource raise {
 }
 
 ///|
+fn source_v3_fixture(
+  approved_source? : String = source_digest_b(),
+) -> @worker_wire.EncodedBootstrapSource raise {
+  let ordinary = source_fixture()
+  @worker_wire.admit_bootstrap_source(
+    ordinary.roots(),
+    ordinary.model(),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator=ordinary.kernel().manifest_locator(),
+      manifest_digest_sha256=ordinary.kernel().manifest_digest(),
+      luna_approval=Some(
+        @worker_wire.WorkerBootstrapLunaApproval::from_untrusted_wire_claim(
+          manifest_digest_sha256=source_digest_a(),
+          key_identity_sha256=source_digest_b(),
+          signature_digest_sha256=source_digest_a(),
+          approved_source_sha256=approved_source,
+        ),
+      ),
+    ),
+    ordinary.execution(),
+    ordinary.ceilings(),
+  )
+}
+
+///|
+fn source_v10_fused_fixture() -> @worker_wire.EncodedBootstrapSource raise {
+  let ordinary = source_fixture()
+  @worker_wire.admit_bootstrap_source(
+    ordinary.roots(),
+    ordinary.model(),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator=ordinary.kernel().manifest_locator(),
+      manifest_digest_sha256=ordinary.kernel().manifest_digest(),
+      fused_runtime=Some(
+        @worker_wire.WorkerBootstrapFusedRuntimeSource::new(
+          locator="aggregates/fused-runtime.v1",
+          digest_sha256=source_digest_a(),
+        ),
+      ),
+    ),
+    ordinary.execution(),
+    ordinary.ceilings(),
+  )
+}
+
+///|
 test "canonical bootstrap source has stable bytes, digest, and roundtrip" {
   let encoded = source_fixture()
-  assert_eq(encoded.recipe(), DenseLlamaPagedAotV1)
+  assert_eq(encoded.recipe(), DenseLlamaPagedAotV2)
   assert_eq(encoded.capacity(), @worker_wire.bootstrap_source_capacity())
   assert_eq(encoded.length(), 316)
   assert_eq(
     encoded.digest().as_hex(),
-    "149fe5d3cc1b528ee15c570deac49581f15bab1411af3617850c3b01f3975acb",
+    "1aa7ca648cfd4c246fe6fa7687ee78b4254365a9ec22e98c1e2aa4961ccd979f",
   )
   let transport = FixedArray::make(encoded.capacity(), b'\x55')
   encoded.copy_to(transport, destination_offset=0)
@@ -67,7 +113,7 @@ test "canonical bootstrap source has stable bytes, digest, and roundtrip" {
   assert_eq(decoded.model().config_locator(), "config.json")
   assert_eq(decoded.model().weights_locator(), "weights/model.safetensors")
   assert_eq(decoded.model().config_digest(), source_digest_a())
-  assert_eq(decoded.kernel().manifest_locator(), "manifests/paged-v1.json")
+  assert_eq(decoded.kernel().manifest_locator(), "manifests/paged-v2.json")
   assert_eq(decoded.kernel().manifest_digest(), source_digest_b())
   assert_eq(decoded.execution().compute_major(), 8)
   assert_eq(decoded.execution().compute_minor(), 0)
@@ -88,6 +134,97 @@ test "canonical bootstrap source has stable bytes, digest, and roundtrip" {
   for index in 0..<encoded.length() {
     assert_eq(second[index], transport[index])
   }
+}
+
+///|
+test "fused bootstrap source is canonical, bounded, and roundtrips exactly" {
+  let encoded = source_v10_fused_fixture()
+  assert_eq(encoded.recipe(), DenseLlamaBf16PagedAotExtensionsV10)
+  let transport = FixedArray::make(encoded.capacity(), b'\x55')
+  encoded.copy_to(transport, destination_offset=0)
+  let decoded = @worker_wire.decode_bootstrap_source(
+    transport,
+    encoded.length(),
+  )
+  assert_eq(decoded.digest(), encoded.digest())
+  guard decoded.kernel().fused_runtime_source() is Some(source) else {
+    fail("fused source disappeared during canonical decode")
+  }
+  assert_eq(source.locator(), "aggregates/fused-runtime.v1")
+  assert_eq(source.digest_sha256(), source_digest_a())
+}
+
+///|
+test "embedded greedy placement roundtrips without a fused descriptor" {
+  let ordinary = source_fixture()
+  let encoded = @worker_wire.admit_bootstrap_source(
+    ordinary.roots(),
+    ordinary.model(),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator=ordinary.kernel().manifest_locator(),
+      manifest_digest_sha256=ordinary.kernel().manifest_digest(),
+      sampling_runtime=EmbeddedCudaGreedyV1,
+    ),
+    ordinary.execution(),
+    ordinary.ceilings(),
+  )
+  assert_eq(encoded.recipe(), DenseLlamaBf16PagedAotExtensionsV10)
+  let transport = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(transport, destination_offset=0)
+  let decoded = @worker_wire.decode_bootstrap_source(
+    transport,
+    encoded.length(),
+  )
+  assert_eq(decoded.kernel().sampling_runtime(), EmbeddedCudaGreedyV1)
+  assert_eq(decoded.kernel().fused_runtime_source(), None)
+}
+
+///|
+test "fused bootstrap source rejects manifest locator alias" {
+  try
+    ignore(
+      @worker_wire.WorkerBootstrapKernelSource::new(
+        manifest_locator="manifests/paged-v2.json",
+        manifest_digest_sha256=source_digest_b(),
+        fused_runtime=Some(
+          @worker_wire.WorkerBootstrapFusedRuntimeSource::new(
+            locator="manifests/paged-v2.json",
+            digest_sha256=source_digest_a(),
+          ),
+        ),
+      ),
+    )
+  catch {
+    InvalidBootstrapSource(DuplicateLocator) => ()
+    _ => fail("unexpected fused locator-alias rejection")
+  } noraise {
+    _ => fail("fused source aliased the execution manifest")
+  }
+}
+
+///|
+test "worker bootstrap digest retains exact untrusted Luna claim" {
+  let encoded = source_v3_fixture()
+  assert_eq(encoded.recipe(), DenseLlamaPagedAotV3)
+  let transport = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(transport, destination_offset=0)
+  let decoded = @worker_wire.decode_bootstrap_source(
+    transport,
+    encoded.length(),
+  )
+  assert_eq(decoded.recipe(), DenseLlamaPagedAotV3)
+  guard decoded.kernel().luna_approval() is Some(approval) else {
+    fail("specialized approval was dropped")
+  }
+  assert_eq(approval.manifest_digest(), source_digest_a())
+  assert_eq(approval.key_identity(), source_digest_b())
+  assert_eq(approval.signature_digest(), source_digest_a())
+  assert_eq(approval.approved_source(), source_digest_b())
+  assert_eq(decoded.digest(), encoded.digest())
+  assert_true(
+    encoded.digest() !=
+    source_v3_fixture(approved_source="f".repeat(64)).digest(),
+  )
 }
 
 ///|
@@ -134,7 +271,28 @@ test "decoded bootstrap source owns bytes independently of transport" {
 }
 
 ///|
-test "bootstrap source admits its exact maximum canonical capacity" {
+test "rejected bootstrap source is stateless and leaves its carrier untouched" {
+  let encoded = source_fixture()
+  let valid = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(valid, destination_offset=0)
+  let hostile = FixedArray::makei(valid.length(), index => valid[index])
+  hostile[184] = hostile[184] ^ b'\x01'
+  let retained = FixedArray::makei(hostile.length(), index => hostile[index])
+  try @worker_wire.decode_bootstrap_source(hostile, encoded.length()) catch {
+    InvalidBootstrapSource(Integrity) => ()
+    _ => fail("unexpected hostile bootstrap-source error")
+  } noraise {
+    _ => fail("integrity-substituted bootstrap source was accepted")
+  }
+  for index in 0..<hostile.length() {
+    assert_eq(hostile[index], retained[index])
+  }
+  let decoded = @worker_wire.decode_bootstrap_source(valid, encoded.length())
+  assert_eq(decoded.digest(), encoded.digest())
+}
+
+///|
+test "ordinary bootstrap maximum remains bounded by shared v5 capacity" {
   let roots = @worker_wire.WorkerBootstrapRoots::new(
     model_root="/" + "a".repeat(4095),
     kernel_root="/" + "b".repeat(4095),
@@ -156,7 +314,9 @@ test "bootstrap source admits its exact maximum canonical capacity" {
     base.execution(),
     base.ceilings(),
   )
-  assert_eq(maximum.length(), @worker_wire.bootstrap_source_capacity())
+  // Ordinary canonical length remains stable while the shared transport
+  // capacity covers the larger production-I8 v6 source as well.
+  assert_true(maximum.length() <= @worker_wire.bootstrap_source_capacity())
   let bytes = FixedArray::make(maximum.capacity(), b'\x00')
   maximum.copy_to(bytes, destination_offset=0)
   let decoded = @worker_wire.decode_bootstrap_source(bytes, maximum.length())

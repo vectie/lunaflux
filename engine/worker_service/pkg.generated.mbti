@@ -4,9 +4,14 @@ package "vectie/lunaflux/engine/worker_service"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/tensor_parallel_group_transport",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock",
   "vectie/lunaflux/scheduler/core",
@@ -15,9 +20,11 @@ import {
 // Values
 pub fn new_fixture(@core.Scheduler, WorkerServiceBinding, @worker_process.RootBoundWorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
 
-pub fn prepare_owned(@core.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+pub fn prepare_owned_approved(@core.SchedulerBlueprint, WorkerServiceBinding, @worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, WorkerRestartBackoffPolicy) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 
-pub fn prepare_owned_online(@core.SchedulerBlueprint, WorkerServiceBinding, Bytes, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @core.TokenizedRequest, @monotonic_clock.MonotonicClock) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+pub fn prepare_owned_tensor_parallel_approved(@core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, WorkerRestartBackoffPolicy) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+
+pub fn prepare_owned_tensor_parallel_online_approved(@core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @core.TokenizedRequest, @monotonic_clock.MonotonicClock, WorkerRestartBackoffPolicy) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 
 // Errors
 pub(all) suberror OwnedWorkerServicePreparationError {
@@ -27,7 +34,7 @@ pub(all) suberror OwnedWorkerServicePreparationError {
 
 pub(all) suberror WorkerServiceError {
   Invalid(WorkerServiceRule)
-  RootBoundProcess(@worker_process.RootBoundWorkerProcessError)
+  PhysicalTransport(WorkerPhysicalTransportFailure)
   Scheduler(@core.SchedulerError)
 } derive(Eq, @debug.Debug)
 
@@ -39,6 +46,42 @@ pub fn FailedOwnedWorkerServicePreparation::cause(Self) -> OwnedWorkerServiceFai
 pub fn FailedOwnedWorkerServicePreparation::cleanup_failure(Self) -> OwnedWorkerServiceFailure?
 pub fn FailedOwnedWorkerServicePreparation::is_closed(Self) -> Bool
 pub fn FailedOwnedWorkerServicePreparation::retry_close(Self) -> Unit raise OwnedWorkerServicePreparationError
+
+pub struct LunaOnlineWorkerAdmission {
+  // private fields
+}
+pub fn LunaOnlineWorkerAdmission::kind(Self) -> LunaOnlineWorkerAdmissionKind
+pub fn LunaOnlineWorkerAdmission::request(Self) -> LunaOnlineWorkerRequest raise WorkerServiceError
+
+pub(all) enum LunaOnlineWorkerAdmissionKind {
+  LunaOnlineWorkerAdmitted
+  LunaOnlineWorkerSaturated
+  LunaOnlineWorkerDraining
+} derive(Eq, @debug.Debug)
+
+pub struct LunaOnlineWorkerRequest {
+  // private fields
+}
+pub fn LunaOnlineWorkerRequest::abort_cancel(Self) -> Unit raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::commit_cancel(Self) -> OnlineCancelReservationCommit raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::expire(Self) -> OnlineExpiry raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::is_live(Self) -> Bool
+pub fn LunaOnlineWorkerRequest::matches_publication_route(Self, @core.SchedulerPublicationRoute) -> Bool
+pub fn LunaOnlineWorkerRequest::publication_route(Self) -> @core.SchedulerPublicationRoute raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::retire_terminal(Self) -> Unit raise WorkerServiceError
+pub fn LunaOnlineWorkerRequest::take_reserved_token(Self) -> OnlineWorkerPublication raise WorkerServiceError
+
+pub(all) enum LunaWorkerServiceMaintenanceProgress {
+  LunaWorkerServiceMaintenancePending
+  LunaWorkerServiceMaintenanceAdvanced
+  LunaWorkerServiceMaintenanceCleanupRequired
+  LunaWorkerServiceMaintenanceCleanupStuck
+  LunaWorkerServiceRecoveryReady
+  LunaWorkerServiceFailCloseReady
+  LunaWorkerServiceRestartReady
+  LunaWorkerServiceClosed
+} derive(Eq, @debug.Debug)
 
 pub(all) enum OnlineCancelReservationCommit {
   OnlineCancelCommitted
@@ -79,22 +122,37 @@ pub struct OnlineWorkerLease {
 }
 pub fn OnlineWorkerLease::abandon_restart(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::abort_cancel(Self) -> Unit raise WorkerServiceError
+pub fn OnlineWorkerLease::active_request_count(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerLease::admit(Self, @core.TokenizedRequest) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::begin_recovery(Self) -> Unit raise WorkerServiceError
+pub fn OnlineWorkerLease::begin_recovery_maintenance(Self, @worker_protocol.WorkerFailure) -> Unit raise WorkerServiceError
+pub fn OnlineWorkerLease::begin_restart_cleanup_maintenance(Self) -> Unit raise WorkerServiceError
+pub fn OnlineWorkerLease::begin_shutdown_maintenance(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::close_terminal(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::commit_cancel(Self) -> OnlineCancelReservationCommit raise WorkerServiceError
 pub fn OnlineWorkerLease::commit_prepared_admission(Self) -> OnlinePreparedAdmissionCommit
 pub fn OnlineWorkerLease::drain_restart_forbidden(Self) -> @core.InstanceLossDrain raise WorkerServiceError
 pub fn OnlineWorkerLease::expire(Self) -> OnlineExpiry raise WorkerServiceError
+pub fn OnlineWorkerLease::has_luna_graph_runtime_telemetry(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::has_publication(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::invalidate_device_state(Self) -> Int raise WorkerServiceError
+pub fn OnlineWorkerLease::luna_graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise WorkerServiceError
+pub fn OnlineWorkerLease::luna_scheduler_plan_telemetry(Self) -> @core.LunaSchedulerPlanTelemetry raise WorkerServiceError
+pub fn OnlineWorkerLease::luna_scheduler_telemetry(Self) -> @core.LunaSchedulerTelemetry raise WorkerServiceError
+pub fn OnlineWorkerLease::maintenance_remaining_millis(Self) -> Int raise WorkerServiceError
+pub fn OnlineWorkerLease::next_publication_route(Self) -> @core.SchedulerPublicationRoute raise WorkerServiceError
+pub fn OnlineWorkerLease::prepare_restarted_failure_terminal(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_maintenance(Self) -> LunaWorkerServiceMaintenanceProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_restart_backoff(Self) -> OnlineWorkerRestartProgress raise WorkerServiceError
+pub fn OnlineWorkerLease::progress_restarted_failure_terminals(Self) -> Bool raise WorkerServiceError
 pub fn OnlineWorkerLease::progress_status(Self) -> OnlineWorkerStep raise WorkerServiceError
 pub fn OnlineWorkerLease::progress_terminal_recovery(Self, @worker_protocol.WorkerFailure) -> OnlineTerminalRecoveryProgress raise WorkerServiceError
 pub fn OnlineWorkerLease::progress_terminal_recovery_status(Self, @worker_protocol.WorkerFailure) -> OnlineTerminalRecoveryStatus
 pub fn OnlineWorkerLease::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
+pub fn OnlineWorkerLease::request_capacity(Self) -> Int
 pub fn OnlineWorkerLease::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
-pub fn OnlineWorkerLease::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
+pub fn OnlineWorkerLease::restart_backoff_remaining_millis(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerLease::retire_terminal_request(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_close_empty(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::retry_close_terminal(Self) -> Unit raise WorkerServiceError
@@ -103,11 +161,14 @@ pub fn OnlineWorkerLease::shutdown_clean(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::shutdown_clean_empty(Self) -> Unit raise WorkerServiceError
 pub fn OnlineWorkerLease::take_publication(Self) -> OnlineWorkerPublication raise WorkerServiceError
 pub fn OnlineWorkerLease::take_reserved_token(Self) -> OnlineWorkerPublication raise WorkerServiceError
+pub fn OnlineWorkerLease::try_admit_request(Self, @core.TokenizedRequest) -> LunaOnlineWorkerAdmission raise WorkerServiceError
 
-pub struct OnlineWorkerPublication(Int, Int, Int, UInt64)
+pub struct OnlineWorkerPublication(Int, Int, Int, UInt64, Int, UInt64)
+pub fn OnlineWorkerPublication::cached_input_tokens(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerPublication::kind(Self) -> OnlineWorkerPublicationKind
 pub fn OnlineWorkerPublication::position(Self) -> Int raise WorkerServiceError
 pub fn OnlineWorkerPublication::publication_sequence(Self) -> UInt64
+pub fn OnlineWorkerPublication::route(Self) -> @core.SchedulerPublicationRoute
 pub fn OnlineWorkerPublication::terminal_reason(Self) -> OnlineWorkerTerminalReason raise WorkerServiceError
 pub fn OnlineWorkerPublication::token_id(Self) -> Int raise WorkerServiceError
 
@@ -115,6 +176,13 @@ pub(all) enum OnlineWorkerPublicationKind {
   OnlineGeneratedTokenPublication
   OnlineSuppressedTokenPublication
   OnlineTerminalPublication
+} derive(Eq, @debug.Debug)
+
+pub(all) enum OnlineWorkerRestartProgress {
+  OnlineWorkerRestartWaiting(Int)
+  OnlineWorkerRestarted
+  OnlineWorkerRestartCleanupRequired
+  OnlineWorkerRestartForbidden
 } derive(Eq, @debug.Debug)
 
 pub(all) enum OnlineWorkerStep {
@@ -134,7 +202,7 @@ pub(all) enum OnlineWorkerTerminalReason {
 
 pub(all) enum OwnedWorkerServiceFailure {
   OwnedSchedulerFailure(@core.SchedulerError)
-  OwnedProcessFailure(@worker_process.RootBoundWorkerProcessError)
+  OwnedPhysicalTransportFailure(WorkerPhysicalTransportFailure)
   OwnedServiceFailure(WorkerServiceError)
 } derive(Eq, @debug.Debug)
 
@@ -152,6 +220,19 @@ pub(all) enum OwnedWorkerServicePreparationState {
   OwnedServiceCleanupRequired
 } derive(Eq, @debug.Debug)
 
+pub(all) enum WorkerPhysicalTransportFailure {
+  PhysicalBackpressured
+  PhysicalInvalidOutput
+  PhysicalUnavailable
+  PhysicalCleanupFailed
+  PhysicalLifecycleViolation
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerRestartBackoffPolicy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerRestartBackoffPolicy::new(initial_delay_millis~ : UInt64, maximum_delay_millis~ : UInt64, stable_success_millis~ : UInt64, maximum_attempts~ : Int) -> Self raise WorkerServiceError
+
 pub struct WorkerService {
   // private fields
 }
@@ -159,19 +240,24 @@ pub fn WorkerService::abandon_restart(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::admit(Self, @core.TokenizedRequest, UInt64) -> @core.RequestHandle raise WorkerServiceError
 pub fn WorkerService::allocated_block_table_count(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::begin_recovery(Self) -> Unit raise WorkerServiceError
-pub fn WorkerService::binding(Self) -> WorkerServiceBinding
+pub fn WorkerService::begin_recovery_maintenance(Self, @worker_protocol.WorkerFailure) -> Unit raise WorkerServiceError
+pub fn WorkerService::begin_restart_cleanup_maintenance(Self) -> Unit raise WorkerServiceError
+pub fn WorkerService::begin_shutdown_maintenance(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::cancel(Self, @core.RequestHandle) -> Unit raise WorkerServiceError
 pub fn WorkerService::close(Self) -> Unit raise WorkerServiceError
 pub fn WorkerService::drain_restart_forbidden(Self) -> @core.InstanceLossDrain raise WorkerServiceError
 pub fn WorkerService::expire_deadlines(Self, UInt64) -> Int raise WorkerServiceError
 pub fn WorkerService::free_page_count(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::generated_token_count(Self) -> Int raise WorkerServiceError
+pub fn WorkerService::identity(Self) -> WorkerServiceIdentity
 pub fn WorkerService::invalidate_device_state(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::lifecycle(Self) -> WorkerServiceLifecycle
 pub fn WorkerService::live_request_count(Self) -> Int raise WorkerServiceError
+pub fn WorkerService::maintenance_remaining_millis(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::next_publication_kind(Self) -> @core.SchedulerPublicationKind raise WorkerServiceError
 pub fn WorkerService::outstanding_count(Self) -> Int raise WorkerServiceError
 pub fn WorkerService::progress(Self) -> WorkerServiceProgress raise WorkerServiceError
+pub fn WorkerService::progress_maintenance(Self) -> LunaWorkerServiceMaintenanceProgress raise WorkerServiceError
 pub fn WorkerService::recover_flight(Self, @worker_protocol.WorkerFailure) -> UInt64 raise WorkerServiceError
 pub fn WorkerService::restart(Self) -> WorkerServiceRestart raise WorkerServiceError
 pub fn WorkerService::retry_close(Self) -> Unit raise WorkerServiceError
@@ -190,7 +276,17 @@ pub fn WorkerServiceBinding::bootstrap_digest(Self) -> @worker_wire.WorkerBootst
 pub fn WorkerServiceBinding::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
 pub fn WorkerServiceBinding::device_ordinal(Self) -> Int
 pub fn WorkerServiceBinding::inference_limits(Self) -> @inference.InferenceLimits
-pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits) -> Self raise WorkerServiceError
+pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, fp8_authorization? : @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3?) -> Self raise WorkerServiceError
+pub fn WorkerServiceBinding::parent_approval(Self) -> @worker_wire.WorkerParentApprovalSubjects?
+
+pub struct WorkerServiceIdentity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerServiceIdentity::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
+pub fn WorkerServiceIdentity::inference_limits(Self) -> @inference.InferenceLimits
+pub fn WorkerServiceIdentity::model_generation_value(Self) -> UInt64
+pub fn WorkerServiceIdentity::model_identity(Self) -> @spec.ModelIdentity
+pub fn WorkerServiceIdentity::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
 pub(all) enum WorkerServiceLifecycle {
   ServiceReady
@@ -206,7 +302,9 @@ pub(all) enum WorkerServiceLifecycle {
 
 pub enum WorkerServiceProgress {
   ServiceIdle
+  ServiceAdvanced
   ServiceBackpressured
+  ServicePlanPending(UInt64)
   ServiceStarted(UInt64)
   ServicePending(UInt64)
   ServiceCompletionReady(UInt64)
@@ -232,6 +330,7 @@ pub(all) enum WorkerServiceRule {
   Recovery
   OwnershipMode
   Clock
+  RestartBackoff
   WorkerOutput
 } derive(Eq, @debug.Debug)
 

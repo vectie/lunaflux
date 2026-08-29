@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/internal/process",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

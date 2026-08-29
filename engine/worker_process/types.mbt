@@ -39,15 +39,6 @@ pub(all) suberror WorkerProcessError {
 } derive(Debug, Eq)
 
 ///|
-#valtype
-priv enum ExpectedCompletionKind {
-  ExpectedEmpty
-  ExpectedPrefill
-  ExpectedFinalPrefill
-  ExpectedDecode
-} derive(Eq)
-
-///|
 /// Public limits owned by the supervisor boundary, not its native ABI. Startup
 /// I/O has a separate per-prefix/per-payload timeout from steady plan traffic.
 pub struct WorkerProcessLimits {
@@ -64,6 +55,7 @@ pub struct WorkerProcessSupervisor {
   priv mut child_selected : Bool
   priv startup : @worker_wire.WorkerStartupContract
   priv source : @worker_wire.EncodedBootstrapSource
+  priv parent_approval : @worker_wire.WorkerParentApprovalSubjects?
   priv plan_a : @worker_wire.PlanFrameBuffer
   priv plan_b : @worker_wire.PlanFrameBuffer
   priv completion_a : @worker_wire.CompletionFrameBuffer
@@ -72,18 +64,19 @@ pub struct WorkerProcessSupervisor {
   priv tx_b : FixedArray[Byte]
   priv rx : FixedArray[Byte]
   priv rx_staging : FixedArray[Byte]
-  priv exchange_request_ids : FixedArray[UInt64]
-  priv exchange_request_generations : FixedArray[UInt64]
-  priv exchange_expected_kinds : FixedArray[ExpectedCompletionKind]
-  priv exchange_processed_tokens : FixedArray[Int]
-  priv exchange_slots : FixedArray[Int]
-  priv mut exchange_entry_count : Int
+  priv graph_rx : FixedArray[Byte]
+  priv graph_rx_staging : FixedArray[Byte]
   priv mut state_a : Int
   priv mut state_b : Int
   priv mut sequence_a : UInt64
   priv mut sequence_b : UInt64
+  priv graph_telemetry_a : @worker_wire.WorkerGraphTelemetrySlot
+  priv graph_telemetry_b : @worker_wire.WorkerGraphTelemetrySlot
+  priv last_graph_telemetry : @worker_wire.WorkerGraphTelemetrySlot
   priv mut last_submitted : UInt64
   priv mut last_retired : UInt64
+  priv mut maintenance_phase : Int
+  priv mut maintenance_failure : WorkerProcessError?
   priv mut lifecycle : WorkerProcessLifecycle
 }
 
@@ -93,11 +86,13 @@ pub struct WorkerProcessSupervisor {
 /// Ready bytes are validated and allocated before root acquisition. Startup
 /// I/O, exact Ready comparison, and cleanup use scalar status paths.
 priv struct PreparedWorkerProcessStartup {
-  executable : Bytes
+  approved_executable : @worker_executable_file.WorkerExecutableAdmission
   child : @process.PreparedChildProcess
   startup_outgoing : FixedArray[Byte]
   startup_outgoing_length : Int
   source_outgoing : FixedArray[Byte]
+  attestation_outgoing : FixedArray[Byte]
+  attestation_outgoing_length : Int
   startup_incoming : FixedArray[Byte]
   expected_ready : FixedArray[Byte]
   expected_ready_length : Int
@@ -121,6 +116,7 @@ pub struct FailedWorkerProcessStartup {
   priv mut cause_kind : Int
   priv mut cause_status : Int
   priv mut cleanup_status : Int
+  priv mut cleanup_active : Bool
   priv mut closed : Bool
 }
 
@@ -133,6 +129,21 @@ pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)
 /// Completion-frame retention capability held through scheduler acceptance.
 #valtype
 pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
+
+///|
+/// Allocation-free scalar progress evidence for owner-resident child cleanup.
+#valtype
+pub struct WorkerProcessMaintenanceProgress {
+  priv kind : Int
+}
+
+///|
+/// Exact payload-safe exit evidence copied out of the private process owner.
+#valtype
+pub struct WorkerProcessExit {
+  priv kind : Int
+  priv code : Int
+}
 
 ///|
 pub fn WorkerProcessLimits::new(
@@ -239,6 +250,9 @@ pub fn FailedWorkerProcessStartup::is_closed(
 pub fn FailedWorkerProcessStartup::retry_close(
   self : FailedWorkerProcessStartup,
 ) -> Unit raise WorkerProcessError {
+  if self.cleanup_active {
+    raise Invalid(Lifecycle)
+  }
   if self.closed {
     return
   }
@@ -254,6 +268,68 @@ pub fn FailedWorkerProcessStartup::retry_close(
   self.child_selected = !self.closed
   if status != 0 {
     raise transport_status_error(status)
+  }
+}
+
+///|
+fn FailedWorkerProcessStartup::begin_cleanup_maintenance(
+  self : FailedWorkerProcessStartup,
+) -> Unit raise WorkerProcessError {
+  if self.closed || self.cleanup_active || !self.child_selected {
+    raise Invalid(Lifecycle)
+  }
+  self.child.begin_shutdown_maintenance() catch {
+    error => raise transport_error(error)
+  }
+  self.cleanup_active = true
+}
+
+///|
+fn FailedWorkerProcessStartup::progress_cleanup_maintenance(
+  self : FailedWorkerProcessStartup,
+) -> WorkerProcessMaintenanceProgress raise WorkerProcessError {
+  if !self.cleanup_active || self.closed || !self.child_selected {
+    raise Invalid(Lifecycle)
+  }
+  let progress = self.child.progress_shutdown_maintenance() catch {
+    error => {
+      self.cleanup_status = 4
+      raise transport_error(error)
+    }
+  }
+  if progress.is_cleanup_required() {
+    self.cleanup_status = 4
+    return worker_maintenance_cleanup_required
+  }
+  if progress.is_cleanup_stuck() {
+    return worker_maintenance_cleanup_stuck
+  }
+  if progress.is_complete() {
+    self.closed = self.child.is_closed()
+    self.child_selected = !self.closed
+    self.cleanup_active = false
+    if !self.closed {
+      self.cleanup_status = 4
+      return worker_maintenance_cleanup_required
+    }
+    return worker_maintenance_complete
+  }
+  if progress.is_advanced() {
+    worker_maintenance_advanced
+  } else {
+    worker_maintenance_pending
+  }
+}
+
+///|
+fn FailedWorkerProcessStartup::cleanup_maintenance_remaining_millis(
+  self : FailedWorkerProcessStartup,
+) -> Int raise WorkerProcessError {
+  if !self.cleanup_active || self.closed {
+    raise Invalid(Lifecycle)
+  }
+  self.child.maintenance_remaining_millis() catch {
+    error => raise transport_error(error)
   }
 }
 
@@ -282,6 +358,53 @@ pub fn ReceivedWorkerCompletion::sequence_value(
   self : ReceivedWorkerCompletion,
 ) -> UInt64 {
   self.2
+}
+
+///|
+pub fn WorkerProcessMaintenanceProgress::is_pending(
+  self : WorkerProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 0
+}
+
+///|
+pub fn WorkerProcessMaintenanceProgress::is_advanced(
+  self : WorkerProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 1
+}
+
+///|
+pub fn WorkerProcessMaintenanceProgress::is_complete(
+  self : WorkerProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 2
+}
+
+///|
+pub fn WorkerProcessMaintenanceProgress::is_cleanup_required(
+  self : WorkerProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 3
+}
+
+///|
+/// Returns true when the bounded final-reap interval expired but the same
+/// retained supervisor can still make later nonblocking reap progress.
+pub fn WorkerProcessMaintenanceProgress::is_cleanup_stuck(
+  self : WorkerProcessMaintenanceProgress,
+) -> Bool {
+  self.kind == 4
+}
+
+///|
+pub fn WorkerProcessExit::kind(self : WorkerProcessExit) -> Int {
+  self.kind
+}
+
+///|
+pub fn WorkerProcessExit::code(self : WorkerProcessExit) -> Int {
+  self.code
 }
 
 ///|

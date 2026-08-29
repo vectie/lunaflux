@@ -115,14 +115,64 @@ pub fn WorkerBootstrapModelSource::new(
 pub fn WorkerBootstrapKernelSource::new(
   manifest_locator~ : StringView,
   manifest_digest_sha256~ : StringView,
+  luna_approval? : WorkerBootstrapLunaApproval? = None,
+  fused_runtime? : WorkerBootstrapFusedRuntimeSource? = None,
+  sampling_runtime? : WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
 ) -> WorkerBootstrapKernelSource raise WorkerWireError {
   validate_bootstrap_locator(manifest_locator)
   if !bootstrap_source_is_sha256(manifest_digest_sha256) {
     raise InvalidBootstrapSource(Digest)
   }
+  if fused_runtime is Some(source) && source.locator[:] == manifest_locator {
+    raise InvalidBootstrapSource(DuplicateLocator)
+  }
   {
     manifest_locator: manifest_locator.to_owned(),
     manifest_digest: manifest_digest_sha256.to_owned(),
+    luna_approval,
+    fused_runtime,
+    sampling_runtime,
+  }
+}
+
+///|
+/// Validates an inert fused-runtime descendant and independent content digest.
+/// Filesystem identity is admitted later beneath the inherited kernel root.
+pub fn WorkerBootstrapFusedRuntimeSource::new(
+  locator~ : StringView,
+  digest_sha256~ : StringView,
+) -> WorkerBootstrapFusedRuntimeSource raise WorkerWireError {
+  validate_bootstrap_locator(locator)
+  if !bootstrap_source_is_sha256(digest_sha256) {
+    raise InvalidBootstrapSource(Digest)
+  }
+  { locator: locator.to_owned(), digest: digest_sha256.to_owned() }
+}
+
+///|
+/// Parses bounded scalar wire data as an inert, untrusted claim. It neither
+/// verifies external approval nor grants manifest or execution authority.
+pub fn WorkerBootstrapLunaApproval::from_untrusted_wire_claim(
+  manifest_digest_sha256~ : StringView,
+  key_identity_sha256~ : StringView,
+  signature_digest_sha256~ : StringView,
+  approved_source_sha256~ : StringView,
+) -> WorkerBootstrapLunaApproval raise WorkerWireError {
+  for
+    value in [
+      manifest_digest_sha256, key_identity_sha256, signature_digest_sha256, approved_source_sha256,
+    ] {
+    if !bootstrap_source_is_sha256(value) ||
+      value ==
+      "0000000000000000000000000000000000000000000000000000000000000000" {
+      raise InvalidBootstrapSource(Digest)
+    }
+  }
+  {
+    manifest_digest: manifest_digest_sha256.to_owned(),
+    key_identity: key_identity_sha256.to_owned(),
+    signature_digest: signature_digest_sha256.to_owned(),
+    approved_source: approved_source_sha256.to_owned(),
   }
 }
 

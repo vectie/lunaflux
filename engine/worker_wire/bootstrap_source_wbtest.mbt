@@ -11,7 +11,7 @@ fn wb_source() -> EncodedBootstrapSource raise {
       config_digest_sha256="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     ),
     WorkerBootstrapKernelSource::new(
-      manifest_locator="manifests/paged-v1.json",
+      manifest_locator="manifests/paged-v2.json",
       manifest_digest_sha256="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     ),
     WorkerBootstrapExecution::new(
@@ -73,7 +73,7 @@ fn expect_source_rule(
 ///|
 test "bootstrap source integrity covers every payload byte" {
   let (bytes, length) = wb_source_bytes()
-  bytes[BOOTSTRAP_SOURCE_HEADER_BYTES] = b'X'
+  bytes[BOOTSTRAP_SOURCE_HEADER_BYTES_V2] = b'X'
   expect_source_rule(bytes, length, Integrity)
 }
 
@@ -83,10 +83,10 @@ test "bootstrap source validates structural header fields distinctly" {
   magic[0] = b'X'
   expect_source_rule(magic, length, Magic)
   let (version, _) = wb_source_bytes()
-  write_u32(version, 4, 2)
+  write_u32(version, 4, 1)
   expect_source_rule(version, length, Version)
   let (recipe, _) = wb_source_bytes()
-  write_i32(recipe, 8, 2)
+  write_i32(recipe, 8, 1)
   expect_source_rule(recipe, length, Recipe)
   let (reserved, _) = wb_source_bytes()
   write_u32(reserved, 16, 1)
@@ -102,12 +102,12 @@ test "bootstrap source validates structural header fields distinctly" {
 ///|
 test "integrity-valid source still validates UTF-8 paths and ceilings" {
   let (utf8, length) = wb_source_bytes()
-  utf8[BOOTSTRAP_SOURCE_HEADER_BYTES] = b'\xff'
+  utf8[BOOTSTRAP_SOURCE_HEADER_BYTES_V2] = b'\xff'
   wb_recompute_integrity(utf8, length)
   expect_source_rule(utf8, length, Utf8)
 
   let (traversal, _) = wb_source_bytes()
-  let config_offset = BOOTSTRAP_SOURCE_HEADER_BYTES + read_i32(traversal, 20)
+  let config_offset = BOOTSTRAP_SOURCE_HEADER_BYTES_V2 + read_i32(traversal, 20)
   let replacement = @utf8.encode("../fig.json")
   assert_eq(replacement.length(), read_i32(traversal, 24))
   for index in 0..<replacement.length() {

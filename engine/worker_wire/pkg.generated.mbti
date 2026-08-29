@@ -5,11 +5,24 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/kernels/fp8_release_authority",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
   "vectie/lunaflux/model/spec",
 }
 
 // Values
 pub fn admit_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn admit_fp8_reusable_bootstrap_source_v9(WorkerBootstrapRoots, WorkerFp8BootstrapModelSource, WorkerBootstrapKernelSource, WorkerFp8BootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn admit_i8_bootstrap_source_v6(WorkerBootstrapRoots, WorkerI8BootstrapModelSource, WorkerBootstrapKernelSource, WorkerI8BootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn admit_mistral_bootstrap_source_v7(WorkerBootstrapRoots, WorkerMistralBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn admit_tensor_parallel_approved_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings, TensorParallelBootstrapPolicy) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn admit_tensor_parallel_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings, TensorParallelBootstrapPolicy) -> EncodedBootstrapSource raise WorkerWireError
 
 pub fn bootstrap_source_capacity() -> Int
 
@@ -17,7 +30,29 @@ pub fn completion_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> 
 
 pub fn decode_bootstrap_source(FixedArray[Byte], Int) -> EncodedBootstrapSource raise WorkerWireError
 
+pub fn decode_fp8_reusable_bootstrap_source_v9(FixedArray[Byte], Int) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn decode_i8_bootstrap_source_v6(FixedArray[Byte], Int) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn decode_mistral_bootstrap_source_v7(FixedArray[Byte], Int) -> EncodedBootstrapSource raise WorkerWireError
+
+pub fn decode_parent_approval_attestation_v1(FixedArray[Byte], Int) -> @luna_capability_manifest.LunaParentStartupApprovalWitness? raise WorkerWireError
+
+pub fn decode_worker_graph_telemetry(FixedArray[Byte], Int) -> WorkerGraphTelemetry raise WorkerWireError
+
+pub fn encode_absent_parent_approval_attestation_v1(FixedArray[Byte]) -> Int raise WorkerWireError
+
+pub fn encode_parent_approval_subjects_attestation_v1(FixedArray[Byte], WorkerParentApprovalSubjects, bootstrap_digest_sha256~ : String, source_digest_sha256~ : String, model_generation~ : UInt64, device_ordinal~ : Int) -> Int raise WorkerWireError
+
+pub fn encode_worker_graph_telemetry(WorkerGraphTelemetry, FixedArray[Byte]) -> Int raise WorkerWireError
+
+pub fn i8_bootstrap_source_v6_capacity() -> Int
+
+pub fn parent_approval_attestation_capacity() -> Int
+
 pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int raise WorkerWireError
+
+pub fn worker_graph_telemetry_frame_capacity() -> Int
 
 // Errors
 pub(all) suberror WorkerWireError {
@@ -73,19 +108,28 @@ pub fn EncodedBootstrapSource::ceilings(Self) -> WorkerBootstrapCeilings
 pub fn EncodedBootstrapSource::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
 pub fn EncodedBootstrapSource::digest(Self) -> WorkerBootstrapSourceDigest
 pub fn EncodedBootstrapSource::execution(Self) -> WorkerBootstrapExecution
+pub fn EncodedBootstrapSource::fp8_execution(Self) -> WorkerFp8BootstrapExecution?
+pub fn EncodedBootstrapSource::fp8_model_source(Self) -> WorkerFp8BootstrapModelSource?
+pub fn EncodedBootstrapSource::has_valid_tensor_parallel_recipe_binding(Self) -> Bool
+pub fn EncodedBootstrapSource::i8_execution(Self) -> WorkerI8BootstrapExecution?
+pub fn EncodedBootstrapSource::i8_model_source(Self) -> WorkerI8BootstrapModelSource?
 pub fn EncodedBootstrapSource::kernel(Self) -> WorkerBootstrapKernelSource
 pub fn EncodedBootstrapSource::length(Self) -> Int
+pub fn EncodedBootstrapSource::mistral_model_source(Self) -> WorkerMistralBootstrapModelSource?
 pub fn EncodedBootstrapSource::model(Self) -> WorkerBootstrapModelSource
 pub fn EncodedBootstrapSource::recipe(Self) -> WorkerBootstrapRecipe
 pub fn EncodedBootstrapSource::roots(Self) -> WorkerBootstrapRoots
+pub fn EncodedBootstrapSource::tensor_parallel_policy(Self) -> TensorParallelBootstrapPolicy?
 
 pub struct PlanFrameBuffer {
   // private fields
 }
 pub fn PlanFrameBuffer::capacity(Self) -> Int
+pub fn PlanFrameBuffer::current(Self) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::encode_plan(Self, @worker_protocol.SubmittedSchedulePlan) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
+pub fn PlanFrameBuffer::new_transport_owned(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, FixedArray[Byte], frame_offset~ : Int) -> Self raise WorkerWireError
 
 pub struct PlanFrameDecodeRow(PlanFrameBuffer, UInt64, Int)
 pub fn PlanFrameDecodeRow::capability_length(Self) -> Int raise WorkerWireError
@@ -144,6 +188,28 @@ pub(all) enum StartupFrameKind {
   Ready
 } derive(Eq, @debug.Debug)
 
+pub struct TensorParallelBootstrapPolicy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelBootstrapPolicy::collective_exchange_timeout_millis(Self) -> Int
+pub fn TensorParallelBootstrapPolicy::maximum_collective_runtime_version_code(Self) -> Int
+pub fn TensorParallelBootstrapPolicy::minimum_collective_runtime_version_code(Self) -> Int
+pub fn TensorParallelBootstrapPolicy::new(ArrayView[TensorParallelRankRuntimeClaim], minimum_collective_runtime_version_code~ : Int, maximum_collective_runtime_version_code~ : Int, collective_exchange_timeout_millis~ : Int) -> Self raise WorkerWireError
+pub fn TensorParallelBootstrapPolicy::rank(Self, Int) -> TensorParallelRankRuntimeClaim?
+pub fn TensorParallelBootstrapPolicy::rank_count(Self) -> Int
+
+pub struct TensorParallelRankRuntimeClaim {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TensorParallelRankRuntimeClaim::activation_workspace_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankRuntimeClaim::collective_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankRuntimeClaim::device_ordinal(Self) -> Int
+pub fn TensorParallelRankRuntimeClaim::kv_reserved_bytes(Self) -> Int64
+pub fn TensorParallelRankRuntimeClaim::memory_ceiling_bytes(Self) -> Int64
+pub fn TensorParallelRankRuntimeClaim::new(rank~ : Int, device_ordinal~ : Int, memory_ceiling_bytes~ : Int64, weight_reserved_bytes~ : Int64, activation_workspace_reserved_bytes~ : Int64, kv_reserved_bytes~ : Int64, collective_reserved_bytes~ : Int64) -> Self raise WorkerWireError
+pub fn TensorParallelRankRuntimeClaim::rank(Self) -> Int
+pub fn TensorParallelRankRuntimeClaim::weight_reserved_bytes(Self) -> Int64
+
 pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
 pub fn ValidatedCompletionFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise WorkerWireError
 pub fn ValidatedCompletionFrame::entry(Self, Int) -> CompletionFrameEntry raise WorkerWireError
@@ -174,6 +240,7 @@ pub fn ValidatedPlanFrame::sequence_value(Self) -> UInt64 raise WorkerWireError
 pub fn ValidatedPlanFrame::token_at(Self, Int) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::token_budget(Self) -> Int raise WorkerWireError
 pub fn ValidatedPlanFrame::token_count(Self) -> Int raise WorkerWireError
+pub fn ValidatedPlanFrame::transport_offset(Self) -> Int raise WorkerWireError
 
 pub struct ValidatedStartupFrame(StartupFrameBuffer, UInt64)
 pub fn ValidatedStartupFrame::contract(Self) -> WorkerStartupContract raise WorkerWireError
@@ -209,12 +276,31 @@ pub fn WorkerBootstrapExecution::supports_cublas_lt(Self) -> Bool
 pub fn WorkerBootstrapExecution::tokens_per_page(Self) -> Int
 pub fn WorkerBootstrapExecution::total_page_count(Self) -> Int
 
+pub struct WorkerBootstrapFusedRuntimeSource {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapFusedRuntimeSource::digest_sha256(Self) -> String
+pub fn WorkerBootstrapFusedRuntimeSource::locator(Self) -> String
+pub fn WorkerBootstrapFusedRuntimeSource::new(locator~ : StringView, digest_sha256~ : StringView) -> Self raise WorkerWireError
+
 pub struct WorkerBootstrapKernelSource {
   // private fields
 } derive(Eq)
+pub fn WorkerBootstrapKernelSource::fused_runtime_source(Self) -> WorkerBootstrapFusedRuntimeSource?
+pub fn WorkerBootstrapKernelSource::luna_approval(Self) -> WorkerBootstrapLunaApproval?
 pub fn WorkerBootstrapKernelSource::manifest_digest(Self) -> String
 pub fn WorkerBootstrapKernelSource::manifest_locator(Self) -> String
-pub fn WorkerBootstrapKernelSource::new(manifest_locator~ : StringView, manifest_digest_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapKernelSource::new(manifest_locator~ : StringView, manifest_digest_sha256~ : StringView, luna_approval? : WorkerBootstrapLunaApproval?, fused_runtime? : WorkerBootstrapFusedRuntimeSource?, sampling_runtime? : WorkerBootstrapSamplingRuntime) -> Self raise WorkerWireError
+pub fn WorkerBootstrapKernelSource::sampling_runtime(Self) -> WorkerBootstrapSamplingRuntime
+
+pub struct WorkerBootstrapLunaApproval {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapLunaApproval::approved_source(Self) -> String
+pub fn WorkerBootstrapLunaApproval::from_untrusted_wire_claim(manifest_digest_sha256~ : StringView, key_identity_sha256~ : StringView, signature_digest_sha256~ : StringView, approved_source_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapLunaApproval::key_identity(Self) -> String
+pub fn WorkerBootstrapLunaApproval::manifest_digest(Self) -> String
+pub fn WorkerBootstrapLunaApproval::signature_digest(Self) -> String
 
 pub struct WorkerBootstrapModelSource {
   // private fields
@@ -225,7 +311,15 @@ pub fn WorkerBootstrapModelSource::new(config_locator~ : StringView, weights_loc
 pub fn WorkerBootstrapModelSource::weights_locator(Self) -> String
 
 pub(all) enum WorkerBootstrapRecipe {
-  DenseLlamaPagedAotV1
+  DenseLlamaPagedAotV2
+  DenseLlamaPagedAotV3
+  DenseLlamaTensorParallelPagedAotV5
+  DenseLlamaI8PagedAotV6
+  DenseMistralBf16PagedAotV7
+  DenseLlamaTensorParallelPagedAotApprovedV8
+  DenseLlamaFp8ReusablePagedAotApprovedV9
+  DenseLlamaBf16PagedAotExtensionsV10
+  DenseMistralBf16PagedAotExtensionsV11
 } derive(Eq, @debug.Debug)
 
 pub struct WorkerBootstrapRoots {
@@ -234,6 +328,11 @@ pub struct WorkerBootstrapRoots {
 pub fn WorkerBootstrapRoots::kernel_root(Self) -> String
 pub fn WorkerBootstrapRoots::model_root(Self) -> String
 pub fn WorkerBootstrapRoots::new(model_root~ : StringView, kernel_root~ : StringView) -> Self raise WorkerWireError
+
+pub(all) enum WorkerBootstrapSamplingRuntime {
+  HostSamplingRuntime
+  EmbeddedCudaGreedyV1
+} derive(Eq, @debug.Debug)
 
 pub struct WorkerBootstrapSourceDigest(String) derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapSourceDigest::as_hex(Self) -> String
@@ -256,6 +355,102 @@ pub(all) enum WorkerBootstrapSourceRule {
   Integrity
   CanonicalEncoding
 } derive(Eq, @debug.Debug)
+
+pub struct WorkerFp8BootstrapExecution {
+  // private fields
+}
+pub fn WorkerFp8BootstrapExecution::compute_major(Self) -> Int
+pub fn WorkerFp8BootstrapExecution::compute_minor(Self) -> Int
+pub fn WorkerFp8BootstrapExecution::new(Int, Int, Int64, Bool, Bool, Int, Int, StringView) -> Self raise WorkerWireError
+pub fn WorkerFp8BootstrapExecution::reusable_recipe_digest(Self) -> String
+pub fn WorkerFp8BootstrapExecution::supports_bf16(Self) -> Bool
+pub fn WorkerFp8BootstrapExecution::supports_cublas_lt(Self) -> Bool
+pub fn WorkerFp8BootstrapExecution::tokens_per_page(Self) -> Int
+pub fn WorkerFp8BootstrapExecution::total_memory_bytes(Self) -> Int64
+pub fn WorkerFp8BootstrapExecution::total_page_count(Self) -> Int
+
+pub struct WorkerFp8BootstrapModelSource {
+  // private fields
+}
+pub fn WorkerFp8BootstrapModelSource::config_digest(Self) -> String
+pub fn WorkerFp8BootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerFp8BootstrapModelSource::new(StringView, StringView, StringView, StringView) -> Self raise WorkerWireError
+pub fn WorkerFp8BootstrapModelSource::numeric_weight_artifact_digest(Self) -> String
+pub fn WorkerFp8BootstrapModelSource::numeric_weights_locator(Self) -> String
+
+pub(all) enum WorkerGraphExecutionPath {
+  WorkerGraphCaptured
+  WorkerGraphOrderedEager
+} derive(Eq, @debug.Debug)
+
+pub struct WorkerGraphShapeClass {
+  // private fields
+}
+pub fn WorkerGraphShapeClass::batch_rows(Self) -> Int
+pub fn WorkerGraphShapeClass::context_tokens(Self) -> Int
+pub fn WorkerGraphShapeClass::new(phase~ : Int, batch_rows~ : Int, query_tokens_per_row~ : Int, context_tokens~ : Int, token_rows~ : Int64) -> Self raise WorkerWireError
+pub fn WorkerGraphShapeClass::phase(Self) -> Int
+pub fn WorkerGraphShapeClass::query_tokens_per_row(Self) -> Int
+pub fn WorkerGraphShapeClass::token_rows(Self) -> Int64
+
+pub struct WorkerGraphTelemetry {
+  // private fields
+}
+pub fn WorkerGraphTelemetry::graph_hits(Self) -> UInt64
+pub fn WorkerGraphTelemetry::graph_misses(Self) -> UInt64
+pub fn WorkerGraphTelemetry::has_selected_shape_class(Self) -> Bool
+pub fn WorkerGraphTelemetry::selected_path(Self) -> WorkerGraphExecutionPath
+pub fn WorkerGraphTelemetry::selected_shape_class(Self) -> WorkerGraphShapeClass raise WorkerWireError
+pub fn WorkerGraphTelemetry::sequence_value(Self) -> UInt64
+pub fn WorkerGraphTelemetry::with_shape(sequence~ : UInt64, path~ : WorkerGraphExecutionPath, shape~ : WorkerGraphShapeClass, graph_hits~ : UInt64, graph_misses~ : UInt64) -> Self raise WorkerWireError
+pub fn WorkerGraphTelemetry::without_shape(sequence~ : UInt64, path~ : WorkerGraphExecutionPath, graph_hits~ : UInt64, graph_misses~ : UInt64) -> Self raise WorkerWireError
+
+pub struct WorkerGraphTelemetrySlot {
+  // private fields
+}
+pub fn WorkerGraphTelemetrySlot::clear(Self) -> Unit
+pub fn WorkerGraphTelemetrySlot::current(Self) -> WorkerGraphTelemetry raise WorkerWireError
+pub fn WorkerGraphTelemetrySlot::is_available(Self) -> Bool
+pub fn WorkerGraphTelemetrySlot::new() -> Self
+pub fn WorkerGraphTelemetrySlot::store(Self, WorkerGraphTelemetry) -> Unit
+
+pub struct WorkerI8BootstrapExecution {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerI8BootstrapExecution::compute_major(Self) -> Int
+pub fn WorkerI8BootstrapExecution::compute_minor(Self) -> Int
+pub fn WorkerI8BootstrapExecution::new(compute_major~ : Int, compute_minor~ : Int, total_memory_bytes~ : Int64, supports_bf16~ : Bool, supports_cublas_lt~ : Bool, tokens_per_page~ : Int, total_page_count~ : Int) -> Self raise WorkerWireError
+pub fn WorkerI8BootstrapExecution::supports_bf16(Self) -> Bool
+pub fn WorkerI8BootstrapExecution::supports_cublas_lt(Self) -> Bool
+pub fn WorkerI8BootstrapExecution::tokens_per_page(Self) -> Int
+pub fn WorkerI8BootstrapExecution::total_memory_bytes(Self) -> Int64
+pub fn WorkerI8BootstrapExecution::total_page_count(Self) -> Int
+
+pub struct WorkerI8BootstrapModelSource {
+  // private fields
+}
+pub fn WorkerI8BootstrapModelSource::config_digest(Self) -> String
+pub fn WorkerI8BootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerI8BootstrapModelSource::new(config_locator~ : StringView, numeric_weights_locator~ : StringView, config_digest_sha256~ : StringView, numeric_weight_artifact_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerI8BootstrapModelSource::numeric_weight_artifact_digest(Self) -> String
+pub fn WorkerI8BootstrapModelSource::numeric_weights_locator(Self) -> String
+
+pub struct WorkerMistralBootstrapModelSource {
+  // private fields
+}
+pub fn WorkerMistralBootstrapModelSource::config_digest(Self) -> String
+pub fn WorkerMistralBootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerMistralBootstrapModelSource::new(config_locator~ : StringView, numeric_weights_locator~ : StringView, config_digest_sha256~ : StringView, numeric_weight_artifact_sha256~ : StringView, weight_manifest_sha256~ : StringView, sliding_window_tokens~ : Int) -> Self raise WorkerWireError
+pub fn WorkerMistralBootstrapModelSource::numeric_weight_artifact_digest(Self) -> String
+pub fn WorkerMistralBootstrapModelSource::numeric_weights_locator(Self) -> String
+pub fn WorkerMistralBootstrapModelSource::sliding_window_tokens(Self) -> Int
+pub fn WorkerMistralBootstrapModelSource::weight_manifest_digest(Self) -> String
+
+pub struct WorkerParentApprovalSubjects {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkerParentApprovalSubjects::from_fp8_authorization(@fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3) -> Self
+pub fn WorkerParentApprovalSubjects::from_luna_authorization(@luna_artifact_admission.LunaAotKernelAdmission) -> Self
 
 pub struct WorkerStartupContract {
   // private fields

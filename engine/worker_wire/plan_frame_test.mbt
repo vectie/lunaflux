@@ -93,6 +93,25 @@ test "re-encoding invalidates prior authenticated views" {
 }
 
 ///|
+test "current plan view rederives only the retained encoded epoch" {
+  let owner = @worker_wire.PlanFrameBuffer::new(
+    wire_protocol_limits(),
+    wire_inference_limits(),
+  )
+  try owner.current() catch {
+    StaleFrame => ()
+    _ => fail("unexpected empty current frame error")
+  } noraise {
+    _ => fail("empty plan buffer exposed a current frame")
+  }
+  let encoded = owner.encode_plan(submitted_wire_fixture())
+  let current = owner.current()
+  assert_eq(current.epoch_value(), encoded.epoch_value())
+  assert_eq(current.length(), encoded.length())
+  assert_eq(current.sequence_value(), encoded.sequence_value())
+}
+
+///|
 test "invalid transport preserves prior received frame" {
   let sender = @worker_wire.PlanFrameBuffer::new(
     wire_protocol_limits(),
@@ -162,4 +181,29 @@ test "canonical encoding is byte-for-byte deterministic" {
   for index in 0..<left.length() {
     assert_eq(left_bytes[index], right_bytes[index])
   }
+}
+
+///|
+test "transport-owned plan frame encodes at its immutable offset" {
+  let limits = wire_protocol_limits()
+  let offset = 17
+  let storage = FixedArray::make(
+    offset + plan_frame_byte_capacity(limits),
+    b'\x5a',
+  )
+  let owner = PlanFrameBuffer::new_transport_owned(
+    limits,
+    wire_inference_limits(),
+    storage,
+    frame_offset=offset,
+  )
+  let frame = owner.encode_plan(submitted_wire_fixture())
+  assert_eq(frame.transport_offset(), offset)
+  for index in 0..<offset {
+    assert_eq(storage[index], b'\x5a')
+  }
+  let copied = FixedArray::make(frame.length(), b'\x00')
+  frame.copy_to(copied, destination_offset=0)
+  let receiver = PlanFrameBuffer::new(limits, wire_inference_limits())
+  assert_eq(receiver.load(copied, copied.length()).sequence_value(), 1UL)
 }

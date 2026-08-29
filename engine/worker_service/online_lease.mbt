@@ -19,32 +19,49 @@ fn OnlineWorkerLease::require_current(
 }
 
 ///|
-fn OnlineWorkerLease::require_live_handle(
-  self : OnlineWorkerLease,
+fn LunaOnlineWorkerRequest::require_live_handle(
+  self : LunaOnlineWorkerRequest,
 ) -> @core.RequestHandle raise WorkerServiceError {
-  ignore(self.require_current())
-  if self.request_phase != OnlineRequestLive {
-    raise Invalid(Lifecycle)
+  let lease = self.require_live_lane()
+  if lease.lane_handles[self.lane].length() != 1 {
+    abort("Luna online worker handle invariant")
   }
-  match self.handle {
-    Some(handle) => handle
-    None => abort("online worker handle invariant")
-  }
+  lease.lane_handles[self.lane][0]
 }
 
 ///|
-fn OnlineWorkerLease::require_pending_handle(
-  self : OnlineWorkerLease,
+fn LunaOnlineWorkerRequest::require_pending_handle(
+  self : LunaOnlineWorkerRequest,
 ) -> @core.RequestHandle raise WorkerServiceError {
-  ignore(self.require_current())
-  if self.request_phase != OnlineRequestLive &&
-    self.request_phase != OnlineRequestTerminationPending {
+  let lease = self.require_lane()
+  if lease.lane_phases[self.lane] != ONLINE_LANE_LIVE &&
+    lease.lane_phases[self.lane] != ONLINE_LANE_TERMINATION_PENDING {
     raise Invalid(Lifecycle)
   }
-  match self.handle {
-    Some(handle) => handle
-    None => abort("online worker handle invariant")
+  if lease.lane_handles[self.lane].length() != 1 {
+    abort("Luna online worker handle invariant")
   }
+  lease.lane_handles[self.lane][0]
+}
+
+///|
+fn OnlineWorkerLease::compatibility_request(
+  self : OnlineWorkerLease,
+) -> LunaOnlineWorkerRequest raise WorkerServiceError {
+  ignore(self.require_current())
+  if self.active_lane_count != 1 ||
+    self.compatibility_lane < 0 ||
+    self.compatibility_generation == 0UL {
+    raise Invalid(Lifecycle)
+  }
+  let request : LunaOnlineWorkerRequest = {
+    lease: self,
+    lease_epoch: self.epoch,
+    lane: self.compatibility_lane,
+    generation: self.compatibility_generation,
+  }
+  ignore(request.require_lane())
+  request
 }
 
 ///|
@@ -54,7 +71,7 @@ fn WorkerService::can_claim_raw(self : WorkerService) -> Bool {
   self.lifecycle == ServiceReady &&
   self.raw_outstanding_count() == 0 &&
   self.scheduler.is_pristine() &&
-  self.require_process().has_exchange_capacity()
+  self.require_transport().has_exchange_capacity()
 }
 
 ///|
@@ -62,34 +79,42 @@ pub fn OnlineWorkerLease::progress(
   self : OnlineWorkerLease,
 ) -> WorkerServiceProgress raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase == OnlineRequestLive {
-    if service.scheduler.generated_token_count() != 0 ||
-      service.scheduler.terminal_notice_count() != 0 {
-      raise Invalid(Lifecycle)
-    }
-    return service.progress_impl()
+  if self.active_lane_count == 0 {
+    raise Invalid(Lifecycle)
   }
-  if (
-      self.request_phase == OnlineRequestTerminationPending ||
-      self.request_phase == OnlineRequestTerminal
-    ) &&
-    service.raw_outstanding_count() != 0 {
+  // A logical cut may publish its terminal while the exact physical exchange
+  // is still live. Retire that already-owned flight before applying the
+  // publication backpressure that prevents construction of a new plan.
+  if service.raw_outstanding_count() != 0 {
     return service.progress_existing_flight_impl()
   }
-  raise Invalid(Lifecycle)
+  if service.scheduler.generated_token_count() != 0 ||
+    service.scheduler.terminal_notice_count() != 0 {
+    raise Invalid(Lifecycle)
+  }
+  if service.scheduler.live_request_count() == 0 {
+    raise Invalid(Lifecycle)
+  }
+  let progress = service.progress_impl()
+  match progress {
+    // This commit is emitted only by the currently owned physical flight.
+    // The private replacement generation additionally requires a sequence
+    // newer than the scheduler predecessor captured after that replacement
+    // spawned, so a stale completion cannot reset crash-loop attempts.
+    ServiceCommitted(sequence) =>
+      self.record_stable_replacement_commit(service, sequence)
+    _ => ()
+  }
+  progress
 }
 
 ///|
 fn classify_online_worker_error(error : WorkerServiceError) -> Int {
   match error {
     Scheduler(Invalid(issue=Backpressured, ..)) => 0
-    RootBoundProcess(RootBoundFailure(Process(Backpressured))) => 0
-    RootBoundProcess(
-      RootBoundFailure(
-        Process(Wire(_) | Protocol(_) | Invalid(Completion | Sequence))
-      )
-    ) => 1
-    RootBoundProcess(_) => 2
+    PhysicalTransport(PhysicalBackpressured) => 0
+    PhysicalTransport(PhysicalInvalidOutput) => 1
+    PhysicalTransport(_) => 2
     Scheduler(WorkerProtocol(_)) | Invalid(WorkerOutput) => 1
     Scheduler(
       Invalid(
@@ -142,12 +167,26 @@ pub fn OnlineWorkerLease::has_publication(
   self : OnlineWorkerLease,
 ) -> Bool raise WorkerServiceError {
   let service = self.require_current()
-  if self.request_phase == OnlineRequestTerminationPending &&
-    service.raw_outstanding_count() != 0 {
-    return false
+  service.raw_outstanding_count() == 0 &&
+  (
+    service.scheduler.generated_token_count() > 0 ||
+    service.scheduler.terminal_notice_count() > 0
+  )
+}
+
+///|
+/// Returns the authenticated fixed-lane route of the globally oldest
+/// publication without consuming it.
+pub fn OnlineWorkerLease::next_publication_route(
+  self : OnlineWorkerLease,
+) -> @core.SchedulerPublicationRoute raise WorkerServiceError {
+  let service = self.require_current()
+  if service.raw_outstanding_count() != 0 {
+    raise Invalid(Lifecycle)
   }
-  service.scheduler.generated_token_count() > 0 ||
-  service.scheduler.terminal_notice_count() > 0
+  service.scheduler.next_publication_route() catch {
+    error => raise scheduler_error(error)
+  }
 }
 
 ///|
@@ -201,10 +240,33 @@ pub fn OnlineWorkerPublication::terminal_reason(
 }
 
 ///|
+/// Returns the exact request-local full-page prefix reuse captured by the
+/// scheduler before terminal slot retirement. Token and suppressed-token
+/// publications do not own terminal usage and reject this accessor.
+pub fn OnlineWorkerPublication::cached_input_tokens(
+  self : OnlineWorkerPublication,
+) -> Int raise WorkerServiceError {
+  if self.0 != 1 || self.1 < 0 {
+    raise Invalid(Sequence)
+  }
+  self.1
+}
+
+///|
 pub fn OnlineWorkerPublication::publication_sequence(
   self : OnlineWorkerPublication,
 ) -> UInt64 {
   self.3
+}
+
+///|
+/// Returns the opaque caller route copied before scheduler admission. It is
+/// sufficient for an owning aggregate to select one fixed request lane and
+/// grants no scheduler or request mutation authority.
+pub fn OnlineWorkerPublication::route(
+  self : OnlineWorkerPublication,
+) -> @core.SchedulerPublicationRoute {
+  try! @core.SchedulerPublicationRoute::new(self.4, self.5)
 }
 
 ///|
@@ -235,183 +297,71 @@ pub fn OnlineWorkerLease::take_publication(
   self : OnlineWorkerLease,
 ) -> OnlineWorkerPublication raise WorkerServiceError {
   let service = self.require_current()
-  let handle = self.require_pending_handle()
-  if self.request_phase == OnlineRequestTerminationPending &&
-    service.raw_outstanding_count() != 0 {
+  if service.raw_outstanding_count() != 0 {
     raise Invalid(Lifecycle)
   }
   let publication = service.scheduler.take_next_publication() catch {
     error => raise scheduler_error(error)
   }
+  let route = publication.route()
+  let lane = route.lane()
+  let generation = route.generation()
+  if lane < 0 ||
+    lane >= self.lane_phases.length() ||
+    generation == 0UL ||
+    self.lane_generations[lane] != generation ||
+    self.lane_phases[lane] == ONLINE_LANE_EMPTY ||
+    self.lane_handles[lane].length() != 1 {
+    abort("Luna online publication route invariant")
+  }
+  let handle = self.lane_handles[lane][0]
   if publication.request_id() != handle.request_id() {
     abort("online publication request invariant")
   }
   self.advance_publication(publication.publication_sequence())
   match publication.kind() {
     GeneratedTokenPublication => {
-      if publication.request_generation() != self.request_generation {
-        if self.request_phase != OnlineRequestTerminationPending ||
-          publication.request_generation() != self.cut_source_generation {
+      if publication.request_generation() != self.lane_request_generations[lane] {
+        if self.lane_phases[lane] != ONLINE_LANE_TERMINATION_PENDING ||
+          publication.request_generation() !=
+          self.lane_cut_source_generations[lane] {
           abort("online token generation invariant")
         }
       }
       let notice = try! publication.generated_token_notice()
-      if notice.position() != self.expected_position {
+      if notice.position() != self.lane_expected_positions[lane] {
         abort("online token position invariant")
       }
-      self.expected_position += 1
-      let kind = if self.request_phase == OnlineRequestLive { 0 } else { 2 }
+      self.lane_expected_positions[lane] += 1
+      let kind = if self.lane_phases[lane] == ONLINE_LANE_LIVE { 0 } else { 2 }
       OnlineWorkerPublication(
         kind,
         notice.token_id(),
         notice.position(),
         notice.publication_sequence(),
+        lane,
+        generation,
       )
     }
     TerminalPublication => {
       let notice = try! publication.terminal_notice()
-      if notice.request_generation() != self.request_generation {
-        abort("online terminal generation invariant")
+      if notice.request_generation() != self.lane_request_generations[lane] {
+        if self.lane_phases[lane] != ONLINE_LANE_TERMINATION_PENDING ||
+          notice.reason() != WorkerFailed {
+          abort("online terminal generation invariant")
+        }
+        self.lane_request_generations[lane] = notice.request_generation()
       }
-      self.request_phase = OnlineRequestTerminal
+      self.lane_phases[lane] = ONLINE_LANE_TERMINAL
+      self.lane_restart_dispositions[lane] = 0
       OnlineWorkerPublication(
         1,
-        0,
+        notice.cached_input_tokens(),
         online_terminal_code(notice.reason()),
         notice.publication_sequence(),
+        lane,
+        generation,
       )
     }
-  }
-}
-
-///|
-pub fn OnlineWorkerLease::reserve_cancel(
-  self : OnlineWorkerLease,
-) -> OnlineCancelReservationStart raise WorkerServiceError {
-  let service = self.require_current()
-  let handle = self.require_live_handle()
-  let result = service.scheduler.reserve_cancel_exact(handle) catch {
-    error => raise scheduler_error(error)
-  }
-  match result {
-    CancelReserved => {
-      self.cancel_reserved = true
-      OnlineCancelReserved
-    }
-    CancelNaturalTerminal => OnlineCancelNaturalTerminal
-  }
-}
-
-///|
-pub fn OnlineWorkerLease::take_reserved_token(
-  self : OnlineWorkerLease,
-) -> OnlineWorkerPublication raise WorkerServiceError {
-  let service = self.require_current()
-  if !self.cancel_reserved {
-    raise Invalid(Lifecycle)
-  }
-  let handle = self.require_live_handle()
-  let notice = service.scheduler.take_reserved_generated_token() catch {
-    error => raise scheduler_error(error)
-  }
-  if notice.request_id() != handle.request_id() ||
-    notice.request_generation() != self.request_generation {
-    abort("online reserved token invariant")
-  }
-  if notice.position() != self.expected_position {
-    abort("online reserved token position invariant")
-  }
-  self.expected_position += 1
-  self.advance_publication(notice.publication_sequence())
-  OnlineWorkerPublication(
-    0,
-    notice.token_id(),
-    notice.position(),
-    notice.publication_sequence(),
-  )
-}
-
-///|
-pub fn OnlineWorkerLease::commit_cancel(
-  self : OnlineWorkerLease,
-) -> OnlineCancelReservationCommit raise WorkerServiceError {
-  ignore(self.require_current())
-  let result = self.service.scheduler.commit_cancel_reservation()
-  self.cancel_reserved = false
-  match result {
-    CancelCommitted(generation) => {
-      let handle = match self.handle {
-        Some(value) => value
-        None => abort("online cancel handle invariant")
-      }
-      self.cut_source_generation = self.request_generation
-      try! self.service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
-      OnlineCancelCommitted
-    }
-    CancelReservationAbsent => OnlineCancelReservationAbsent
-  }
-}
-
-///|
-pub fn OnlineWorkerLease::abort_cancel(
-  self : OnlineWorkerLease,
-) -> Unit raise WorkerServiceError {
-  ignore(self.require_current())
-  self.service.scheduler.abort_cancel_reservation()
-  self.cancel_reserved = false
-}
-
-///|
-pub fn OnlineWorkerLease::expire(
-  self : OnlineWorkerLease,
-) -> OnlineExpiry raise WorkerServiceError {
-  let service = self.require_current()
-  let handle = self.require_live_handle()
-  let now = match
-    read_expiry_clock(
-      service.scheduler.has_exact_natural_terminal(handle),
-      self,
-      read_online_lease_clock,
-    ) {
-    ExpiryNaturalTerminal => return OnlineDeadlineNaturalTerminal
-    ExpiryClockSample(value) => value
-  }
-  let expired = service.scheduler.expire_exact_or_natural(handle, now) catch {
-    error => raise scheduler_error(error)
-  }
-  match expired {
-    ExactDeadlinePending => OnlineDeadlinePending
-    ExactDeadlineNaturalTerminal => OnlineDeadlineNaturalTerminal
-    ExactDeadlineExpired(generation) => {
-      self.cut_source_generation = self.request_generation
-      try! service.scheduler.advance_terminated_handle(handle, generation)
-      self.request_generation = generation
-      self.request_phase = OnlineRequestTerminationPending
-      OnlineDeadlineCommitted
-    }
-  }
-}
-
-///|
-fn[T] read_expiry_clock(
-  has_natural_terminal : Bool,
-  owner : T,
-  read_clock : (T) -> UInt64 raise WorkerServiceError,
-) -> OnlineExpiryClockPreflight raise WorkerServiceError {
-  if has_natural_terminal {
-    ExpiryNaturalTerminal
-  } else {
-    ExpiryClockSample(read_clock(owner))
-  }
-}
-
-///|
-fn read_online_lease_clock(
-  lease : OnlineWorkerLease,
-) -> UInt64 raise WorkerServiceError {
-  lease.clock.now_millis() catch {
-    _ => raise Invalid(Clock)
   }
 }

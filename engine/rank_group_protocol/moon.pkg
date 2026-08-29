@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+} for "test"
+
+supported_targets = "native"

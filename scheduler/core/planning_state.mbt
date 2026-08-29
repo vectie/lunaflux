@@ -26,8 +26,7 @@ fn Scheduler::commit_plan_state(self : Scheduler, side : Int) -> Unit {
     slots[row] = slot
     if self.slot_states[slot] == SLOT_WAITING {
       self.remove_waiting(slot)
-      self.active_slots[self.active_count] = slot
-      self.active_count += 1
+      self.add_active(slot)
     }
     self.slot_states[slot] = SLOT_PREFILL
     self.in_flight[slot] = true
@@ -46,4 +45,5 @@ fn Scheduler::commit_plan_state(self : Scheduler, side : Int) -> Unit {
     try! self.journal_tables.clear(index)
   }
   self.journal_count = 0
+  self.decode_cursor = self.pending_decode_cursor
 }

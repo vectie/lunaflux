@@ -1,9 +1,15 @@
 import {
+  "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/tensor_parallel_group_transport",
+  "vectie/lunaflux/engine/rank_group_protocol",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/scheduler/core",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/fp8_release_authority",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock",
 }

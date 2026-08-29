@@ -8,30 +8,6 @@ fn row_error(
 }
 
 ///|
-fn validate_actual_range(
-  kind : WorkerRowKind,
-  index : Int,
-  start : Int,
-  length : Int,
-  actual_length : Int,
-  expected_start : Int,
-) -> Int raise WorkerProtocolError {
-  if start < 0 {
-    row_error(kind, index, NegativeRangeStart)
-  }
-  if length <= 0 {
-    row_error(kind, index, EmptyRange)
-  }
-  if start > actual_length || length > actual_length - start {
-    row_error(kind, index, RangeOutsideTable)
-  }
-  if start != expected_start {
-    row_error(kind, index, NonContiguousRange)
-  }
-  start + length
-}
-
-///|
 fn validate_token(
   token : Int,
   index : Int,

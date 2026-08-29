@@ -1,7 +1,15 @@
 ///|
 /// Versioned recipe understood by the isolated device-worker bootstrap builder.
 pub(all) enum WorkerBootstrapRecipe {
-  DenseLlamaPagedAotV1
+  DenseLlamaPagedAotV2
+  DenseLlamaPagedAotV3
+  DenseLlamaTensorParallelPagedAotV5
+  DenseLlamaI8PagedAotV6
+  DenseMistralBf16PagedAotV7
+  DenseLlamaTensorParallelPagedAotApprovedV8
+  DenseLlamaFp8ReusablePagedAotApprovedV9
+  DenseLlamaBf16PagedAotExtensionsV10
+  DenseMistralBf16PagedAotExtensionsV11
 } derive(Debug, Eq)
 
 ///|
@@ -33,7 +41,37 @@ pub struct WorkerBootstrapModelSource {
 pub struct WorkerBootstrapKernelSource {
   priv manifest_locator : String
   priv manifest_digest : String
+  priv luna_approval : WorkerBootstrapLunaApproval?
+  priv fused_runtime : WorkerBootstrapFusedRuntimeSource?
+  priv sampling_runtime : WorkerBootstrapSamplingRuntime
 } derive(Eq)
+
+///|
+/// Startup-selected sampling placement. The host mode preserves full
+/// stochastic support; embedded CUDA greedy is valid only for greedy requests.
+pub(all) enum WorkerBootstrapSamplingRuntime {
+  HostSamplingRuntime
+  EmbeddedCudaGreedyV1
+} derive(Debug, Eq)
+
+///|
+/// Digest-pinned optional fused-runtime descriptor below the inherited kernel
+/// root. This is inert wire evidence: it grants neither filesystem nor module
+/// loading authority.
+pub struct WorkerBootstrapFusedRuntimeSource {
+  priv locator : String
+  priv digest : String
+} derive(Debug, Eq)
+
+///|
+/// Inert scalar copy of an independently verified deployment approval.
+/// Construction validates canonical identities but performs no signature check.
+pub struct WorkerBootstrapLunaApproval {
+  priv manifest_digest : String
+  priv key_identity : String
+  priv signature_digest : String
+  priv approved_source : String
+} derive(Debug, Eq)
 
 ///|
 /// Capacity-independent device target and physical KV-page geometry.
@@ -49,7 +87,7 @@ pub struct WorkerBootstrapExecution {
 ///|
 /// Exact startup ceilings consumed by focused model, artifact, and device-plan
 /// readers. Parser depths, transfer chunks, alignments, and profile identity are
-/// fixed by `DenseLlamaPagedAotV1` rather than repeated here.
+/// fixed by `DenseLlamaPagedAotV2` rather than repeated here.
 pub struct WorkerBootstrapCeilings {
   priv max_model_config_bytes : Int
   priv max_weight_file_bytes : Int64
@@ -74,7 +112,16 @@ pub struct EncodedBootstrapSource {
   priv kernel : WorkerBootstrapKernelSource
   priv execution : WorkerBootstrapExecution
   priv ceilings : WorkerBootstrapCeilings
+  priv recipe : WorkerBootstrapRecipe
+  priv tensor_parallel_policy : TensorParallelBootstrapPolicy?
+  priv i8_model_source : WorkerI8BootstrapModelSource?
+  priv i8_execution : WorkerI8BootstrapExecution?
+  priv mistral_model_source : WorkerMistralBootstrapModelSource?
+  priv fp8_model_source : WorkerFp8BootstrapModelSource?
+  priv fp8_execution : WorkerFp8BootstrapExecution?
 }
+
+///|
 
 ///|
 pub fn WorkerBootstrapSourceDigest::from_sha256(
@@ -112,9 +159,25 @@ pub fn EncodedBootstrapSource::digest(
 
 ///|
 pub fn EncodedBootstrapSource::recipe(
-  _self : EncodedBootstrapSource,
+  self : EncodedBootstrapSource,
 ) -> WorkerBootstrapRecipe {
-  DenseLlamaPagedAotV1
+  self.recipe
+}
+
+///|
+/// Returns true only for a canonical tensor-parallel recipe/approval pair.
+/// Legacy v5 remains explicitly unapproved; production v8 requires an
+/// approval whose immutable-source identity is the exact manifest digest.
+pub fn EncodedBootstrapSource::has_valid_tensor_parallel_recipe_binding(
+  self : EncodedBootstrapSource,
+) -> Bool {
+  match (self.recipe, self.kernel.luna_approval) {
+    (DenseLlamaTensorParallelPagedAotV5, None) => true
+    (DenseLlamaTensorParallelPagedAotApprovedV8, Some(approval)) =>
+      approval.manifest_digest == self.kernel.manifest_digest &&
+      approval.approved_source == self.kernel.manifest_digest
+    _ => false
+  }
 }
 
 ///|
@@ -150,6 +213,44 @@ pub fn EncodedBootstrapSource::ceilings(
   self : EncodedBootstrapSource,
 ) -> WorkerBootstrapCeilings {
   self.ceilings
+}
+
+///|
+/// Returns typed production-I8 source evidence only for recipe v6.
+pub fn EncodedBootstrapSource::i8_model_source(
+  self : EncodedBootstrapSource,
+) -> WorkerI8BootstrapModelSource? {
+  self.i8_model_source
+}
+
+///|
+/// Returns typed production-I8 device facts only for recipe v6.
+pub fn EncodedBootstrapSource::i8_execution(
+  self : EncodedBootstrapSource,
+) -> WorkerI8BootstrapExecution? {
+  self.i8_execution
+}
+
+///|
+/// Returns exact Mistral source evidence only for recipe v7.
+pub fn EncodedBootstrapSource::mistral_model_source(
+  self : EncodedBootstrapSource,
+) -> WorkerMistralBootstrapModelSource? {
+  self.mistral_model_source
+}
+
+///|
+pub fn EncodedBootstrapSource::fp8_model_source(
+  self : EncodedBootstrapSource,
+) -> WorkerFp8BootstrapModelSource? {
+  self.fp8_model_source
+}
+
+///|
+pub fn EncodedBootstrapSource::fp8_execution(
+  self : EncodedBootstrapSource,
+) -> WorkerFp8BootstrapExecution? {
+  self.fp8_execution
 }
 
 ///|
@@ -195,6 +296,69 @@ pub fn WorkerBootstrapKernelSource::manifest_digest(
   self : WorkerBootstrapKernelSource,
 ) -> String {
   self.manifest_digest
+}
+
+///|
+pub fn WorkerBootstrapKernelSource::luna_approval(
+  self : WorkerBootstrapKernelSource,
+) -> WorkerBootstrapLunaApproval? {
+  self.luna_approval
+}
+
+///|
+pub fn WorkerBootstrapKernelSource::fused_runtime_source(
+  self : WorkerBootstrapKernelSource,
+) -> WorkerBootstrapFusedRuntimeSource? {
+  self.fused_runtime
+}
+
+///|
+pub fn WorkerBootstrapKernelSource::sampling_runtime(
+  self : WorkerBootstrapKernelSource,
+) -> WorkerBootstrapSamplingRuntime {
+  self.sampling_runtime
+}
+
+///|
+pub fn WorkerBootstrapFusedRuntimeSource::locator(
+  self : WorkerBootstrapFusedRuntimeSource,
+) -> String {
+  self.locator
+}
+
+///|
+pub fn WorkerBootstrapFusedRuntimeSource::digest_sha256(
+  self : WorkerBootstrapFusedRuntimeSource,
+) -> String {
+  self.digest
+}
+
+///|
+pub fn WorkerBootstrapLunaApproval::manifest_digest(
+  self : WorkerBootstrapLunaApproval,
+) -> String {
+  self.manifest_digest
+}
+
+///|
+pub fn WorkerBootstrapLunaApproval::key_identity(
+  self : WorkerBootstrapLunaApproval,
+) -> String {
+  self.key_identity
+}
+
+///|
+pub fn WorkerBootstrapLunaApproval::signature_digest(
+  self : WorkerBootstrapLunaApproval,
+) -> String {
+  self.signature_digest
+}
+
+///|
+pub fn WorkerBootstrapLunaApproval::approved_source(
+  self : WorkerBootstrapLunaApproval,
+) -> String {
+  self.approved_source
 }
 
 ///|

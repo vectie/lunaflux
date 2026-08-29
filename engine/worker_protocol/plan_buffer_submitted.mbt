@@ -21,6 +21,15 @@ pub fn SchedulePlanBuffer::current_submitted(
 }
 
 ///|
+/// Returns the stable payload-free identity of this submission's exact owner
+/// after reauthenticating its current epoch and lifecycle.
+pub fn SubmittedSchedulePlan::buffer_identity(
+  self : SubmittedSchedulePlan,
+) -> PlanBufferIdentity raise WorkerProtocolError {
+  self.authenticate().identity
+}
+
+///|
 fn SubmittedSchedulePlan::authenticate_owner(
   self : SubmittedSchedulePlan,
   owner : SchedulePlanBuffer,

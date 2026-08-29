@@ -37,10 +37,19 @@ fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
 
 ///|
 fn frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
+  frame_checksum_at(bytes, 0, length)
+}
+
+///|
+fn frame_checksum_at(
+  bytes : FixedArray[Byte],
+  frame_offset : Int,
+  length : Int,
+) -> UInt {
   let mut hash : UInt = 2166136261
   for index in 0..<length {
     if index < plan_checksum_offset || index >= plan_checksum_offset + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
+      hash = (hash ^ bytes[frame_offset + index].to_uint()) * 16777619
     }
   }
   hash

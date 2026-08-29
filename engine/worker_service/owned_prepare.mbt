@@ -9,7 +9,9 @@ fn owned_failure(
 fn initial_primary(
   failed : @worker_process.FailedRootBoundWorkerProcessStartup,
 ) -> OwnedWorkerServiceFailure {
-  OwnedProcessFailure(RootBoundFailure(failed.cause()))
+  OwnedPhysicalTransportFailure(
+    physical_transport_failure(RootBoundFailure(failed.cause())),
+  )
 }
 
 ///|
@@ -17,10 +19,8 @@ fn initial_cleanup_evidence(
   failed : @worker_process.FailedRootBoundWorkerProcessStartup,
 ) -> OwnedWorkerServiceFailure? {
   match (failed.child_cleanup_failure(), failed.roots_cleanup_failure()) {
-    (Some(child), Some(roots)) =>
-      Some(OwnedProcessFailure(RootBoundCompoundFailure(child, roots)))
-    (Some(child), None) => Some(OwnedProcessFailure(RootBoundFailure(child)))
-    (None, Some(roots)) => Some(OwnedProcessFailure(RootBoundFailure(roots)))
+    (Some(_), Some(_)) | (Some(_), None) | (None, Some(_)) =>
+      Some(OwnedPhysicalTransportFailure(PhysicalCleanupFailed))
     (None, None) => None
   }
 }
@@ -31,7 +31,7 @@ fn validate_owned_preflight(
   binding : WorkerServiceBinding,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-) -> Unit raise OwnedWorkerServicePreparationError {
+) -> WorkerServiceIdentity raise OwnedWorkerServicePreparationError {
   if source.digest() != startup.bootstrap_source_digest() {
     raise owned_failure(OwnedServiceFailure(Invalid(BootstrapSourceIdentity)))
   }
@@ -60,6 +60,15 @@ fn validate_owned_preflight(
   if startup.has_predecessor() || startup.predecessor_value() != 0UL {
     raise owned_failure(OwnedServiceFailure(Invalid(Sequence)))
   }
+  worker_service_identity(
+    blueprint.model_identity(),
+    blueprint.model_plan_generation().value(),
+    source.digest(),
+    blueprint.worker_protocol_limits(),
+    binding.inference_limits(),
+  ) catch {
+    error => raise owned_failure(OwnedServiceFailure(error))
+  }
 }
 
 ///|
@@ -76,32 +85,27 @@ fn install_owned_ready(
   service : WorkerService,
   process : @worker_process.RootBoundWorkerProcessSupervisor,
 ) -> OwnedWorkerServicePreparation {
-  service.process = Some(process)
+  service.transport = rooted_single_transport(process)
   prepared.state = OwnedServiceReady
   prepared
 }
 
 ///|
-/// Constructs both mutable owners internally. The ordinary roots are borrowed;
-/// the returned preparation shell retains either the service or the only
-/// remaining cleanup authority. The shell and both possible owners are
-/// allocated before root acquisition.
-fn prepare_owned_internal(
+/// Allocates the scheduler/service/online publication family once, before any
+/// physical root is retained. Both physical preparations use this exact shell.
+fn prepare_owned_shell(
   blueprint : @core.SchedulerBlueprint,
-  binding : WorkerServiceBinding,
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  process_limits : @worker_process.WorkerProcessLimits,
-  model_root : @approved_fs.ApprovedRoot,
-  kernel_root : @approved_fs.ApprovedRoot,
+  scheduler : @core.Scheduler,
+  identity : WorkerServiceIdentity,
+  physical_binding : WorkerPhysicalBinding,
   online_request : @core.TokenizedRequest?,
   online_clock : @monotonic_clock.MonotonicClock,
-) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
-  validate_owned_preflight(blueprint, binding, startup, source)
-  let scheduler = blueprint.instantiate() catch {
-    error => raise owned_failure(OwnedSchedulerFailure(error))
-  }
+  restart_policy : WorkerRestartBackoffPolicy,
+) -> (
+  OwnedWorkerServicePreparation,
+  WorkerService,
+  FailedOwnedWorkerServicePreparation,
+) raise OwnedWorkerServicePreparationError {
   let prepared_admission = match online_request {
     Some(request) =>
       Some(
@@ -111,24 +115,33 @@ fn prepare_owned_internal(
       )
     None => None
   }
+  let online_lane_count = blueprint.request_slot_capacity()
   let service : WorkerService = {
     scheduler,
-    binding,
-    process: None,
+    identity,
+    physical_binding,
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: true,
     ownership_mode: OnlineEligibleOwnership,
     online_epoch: 0UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
   let failed_owner : FailedOwnedWorkerServicePreparation = {
     initial: None,
     ready_process: None,
+    group: None,
     cause_kind: 0,
     service_cause: None,
     process_cause: None,
     cleanup_process_failure: None,
+    cleanup_group_failure: false,
     closed: false,
     reported_consumed_failure: false,
   }
@@ -136,16 +149,48 @@ fn prepare_owned_internal(
     service,
     epoch: 0UL,
     clock: online_clock,
-    request_phase: OnlineRequestEmpty,
+    restart_policy,
+    restart_attempts: 0,
+    restart_generation: 0UL,
+    restart_phase: 0,
+    restart_delay_millis: 0UL,
+    restart_deadline_millis: 0UL,
+    restart_cached_remaining_millis: 0,
+    restart_stability_generation: 0UL,
+    restart_stability_deadline_millis: 0UL,
+    restart_stability_predecessor: 0UL,
+    restart_clock_initialized: false,
+    restart_last_clock_millis: 0UL,
+    restart_forbidden: false,
     prepared_admission,
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
     prepared_clock_read: online_clock.prepare_read(),
-    handle: None,
-    request_generation: @inference.RequestGeneration::initial(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
+    lane_phases: FixedArray::make(online_lane_count, 0),
+    lane_generations: FixedArray::make(online_lane_count, 0UL),
+    lane_handles: FixedArray::makei(online_lane_count, _ => {
+      Array::new(capacity=1)
+    }),
+    lane_semantic_retentions: FixedArray::makei(online_lane_count, _ => {
+      @inference.LunaRequestStopTokenRetentionSlot::new()
+    }),
+    lane_request_generations: FixedArray::make(
+      online_lane_count,
+      @inference.RequestGeneration::initial(),
+    ),
+    lane_cut_source_generations: FixedArray::make(
+      online_lane_count,
+      @inference.RequestGeneration::initial(),
+    ),
+    lane_restart_dispositions: FixedArray::make(online_lane_count, 0),
+    lane_expected_positions: FixedArray::make(online_lane_count, 0),
+    free_lanes: FixedArray::makei(online_lane_count, index => index),
+    free_head: 0,
+    free_count: online_lane_count,
+    active_lane_count: 0,
+    compatibility_lane: -1,
+    compatibility_generation: 0UL,
     publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: false,
+    cancel_lane: -1,
+    cancel_generation: 0UL,
   }
   let outcome : OwnedWorkerServicePreparation = {
     service: Some(service),
@@ -154,7 +199,66 @@ fn prepare_owned_internal(
     state: OwnedServiceCleanupRequired,
     consumed: false,
   }
-  let rooted = @worker_process.prepare_exchange_with_approved_roots(
+  (outcome, service, failed_owner)
+}
+
+///|
+/// Constructs both owners before root acquisition; ordinary roots are borrowed.
+fn prepare_owned_physical(
+  executable : @worker_executable_file.WorkerExecutableAdmission,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  process_limits : @worker_process.WorkerProcessLimits,
+  model_root : @approved_fs.ApprovedRoot,
+  kernel_root : @approved_fs.ApprovedRoot,
+  predecessor : UInt64,
+  parent_approval : @worker_wire.WorkerParentApprovalSubjects?,
+) -> @worker_process.RootBoundWorkerProcessPreparation raise OwnedWorkerServicePreparationError {
+  @worker_process.prepare_exchange_with_approved_executable(
+    executable,
+    startup,
+    source,
+    process_limits,
+    model_root,
+    kernel_root,
+    predecessor,
+    parent_approval~,
+  ) catch {
+    error =>
+      raise owned_failure(
+        OwnedPhysicalTransportFailure(physical_transport_failure(error)),
+      )
+  }
+}
+
+///|
+fn prepare_owned_internal(
+  blueprint : @core.SchedulerBlueprint,
+  binding : WorkerServiceBinding,
+  executable : @worker_executable_file.WorkerExecutableAdmission,
+  startup : @worker_wire.WorkerStartupContract,
+  source : @worker_wire.EncodedBootstrapSource,
+  process_limits : @worker_process.WorkerProcessLimits,
+  model_root : @approved_fs.ApprovedRoot,
+  kernel_root : @approved_fs.ApprovedRoot,
+  online_request : @core.TokenizedRequest?,
+  online_clock : @monotonic_clock.MonotonicClock,
+  restart_policy : WorkerRestartBackoffPolicy,
+) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
+  let identity = validate_owned_preflight(blueprint, binding, startup, source)
+  let scheduler = blueprint.instantiate() catch {
+    error => raise owned_failure(OwnedSchedulerFailure(error))
+  }
+  let (outcome, service, failed_owner) = prepare_owned_shell(
+    blueprint,
+    scheduler,
+    identity,
+    RootedSingleBinding(binding),
+    online_request,
+    online_clock,
+    restart_policy,
+  )
+  let rooted = prepare_owned_physical(
     executable,
     startup,
     source,
@@ -162,25 +266,16 @@ fn prepare_owned_internal(
     model_root,
     kernel_root,
     scheduler.last_retired_plan_sequence(),
-  ) catch {
-    error => raise owned_failure(OwnedProcessFailure(error))
-  }
+    binding.parent_approval(),
+  )
   match rooted {
     RootBoundCleanupRequired(failed) => {
-      if failed.is_closed() {
-        let primary = initial_primary(failed)
-        match initial_cleanup_evidence(failed) {
-          Some(cleanup) =>
-            raise OwnedPreparationCompoundFailure(primary, cleanup)
-          None => raise OwnedPreparationFailure(primary)
-        }
-      }
       failed_owner.initial = Some(failed)
       failed_owner.cause_kind = 1
+      failed_owner.closed = failed.is_closed()
       publish_cleanup(outcome)
     }
     ReadyRootBoundProcess(process) => {
-      service.process = Some(process)
       if !service.production_owned {
         abort("owned service provenance invariant")
       }
@@ -190,16 +285,17 @@ fn prepare_owned_internal(
 }
 
 ///|
-/// Constructs an online-eligible owned service without an admitted request.
-pub fn prepare_owned(
+/// Production preparation from one exact pinned worker executable.
+pub fn prepare_owned_approved(
   blueprint : @core.SchedulerBlueprint,
   binding : WorkerServiceBinding,
-  executable : Bytes,
+  executable : @worker_executable_file.WorkerExecutableAdmission,
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
   process_limits : @worker_process.WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
+  restart_policy : WorkerRestartBackoffPolicy,
 ) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
   prepare_owned_internal(
     blueprint,
@@ -212,36 +308,7 @@ pub fn prepare_owned(
     kernel_root,
     None,
     @monotonic_clock.MonotonicClock::system(),
-  )
-}
-
-///|
-/// Preallocates the exact scheduler admission/handle shell before rooted worker
-/// activation. This boundary-restricted constructor never exposes the request;
-/// the returned online lease may only commit it through the no-input method.
-pub fn prepare_owned_online(
-  blueprint : @core.SchedulerBlueprint,
-  binding : WorkerServiceBinding,
-  executable : Bytes,
-  startup : @worker_wire.WorkerStartupContract,
-  source : @worker_wire.EncodedBootstrapSource,
-  process_limits : @worker_process.WorkerProcessLimits,
-  model_root : @approved_fs.ApprovedRoot,
-  kernel_root : @approved_fs.ApprovedRoot,
-  request : @core.TokenizedRequest,
-  clock : @monotonic_clock.MonotonicClock,
-) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
-  prepare_owned_internal(
-    blueprint,
-    binding,
-    executable,
-    startup,
-    source,
-    process_limits,
-    model_root,
-    kernel_root,
-    Some(request),
-    clock,
+    restart_policy,
   )
 }
 
@@ -327,7 +394,7 @@ pub fn OwnedWorkerServicePreparation::take_online(
     service.online_epoch == 0xffffffffffffffffUL ||
     service.lifecycle != ServiceReady ||
     service.raw_outstanding_count() != 0 ||
-    !service.require_process().has_exchange_capacity() {
+    !service.require_transport().has_exchange_capacity() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
   let next_epoch = service.online_epoch + 1UL
@@ -336,8 +403,8 @@ pub fn OwnedWorkerServicePreparation::take_online(
     None => abort("owned online lease invariant")
   }
   if online.prepared_admission is Some(_) ||
-    online.semantic_retention.is_live() ||
-    online.request_phase != OnlineRequestEmpty ||
+    online.active_lane_count != 0 ||
+    online.free_count != online.lane_phases.length() ||
     !service.scheduler.is_pristine() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
@@ -366,10 +433,10 @@ pub fn OwnedWorkerServicePreparation::take_prepared_online(
     service.online_epoch == 0xffffffffffffffffUL ||
     service.lifecycle != ServiceReady ||
     service.raw_outstanding_count() != 0 ||
-    !service.require_process().has_exchange_capacity() ||
+    !service.require_transport().has_exchange_capacity() ||
     online.prepared_admission is None ||
-    online.semantic_retention.is_live() ||
-    online.request_phase != OnlineRequestEmpty {
+    online.active_lane_count != 0 ||
+    online.free_count != online.lane_phases.length() {
     raise owned_failure(OwnedServiceFailure(Invalid(OwnershipMode)))
   }
   let exclusive = match online.prepared_admission {
@@ -386,114 +453,4 @@ pub fn OwnedWorkerServicePreparation::take_prepared_online(
     online.clock,
     service.online_epoch + 1UL,
   )
-}
-
-///|
-/// Transfers the cleanup owner once. The failed service shell never escapes.
-pub fn OwnedWorkerServicePreparation::take_cleanup(
-  self : OwnedWorkerServicePreparation,
-) -> FailedOwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError {
-  if self.consumed || self.state != OwnedServiceCleanupRequired {
-    raise owned_failure(OwnedServiceFailure(Invalid(Lifecycle)))
-  }
-  self.consumed = true
-  self.service = None
-  self.online = None
-  self.cleanup
-}
-
-///|
-pub fn FailedOwnedWorkerServicePreparation::cause(
-  self : FailedOwnedWorkerServicePreparation,
-) -> OwnedWorkerServiceFailure {
-  match self.cause_kind {
-    1 =>
-      match self.initial {
-        Some(failed) => initial_primary(failed)
-        None => abort("owned initial cleanup cause invariant")
-      }
-    2 =>
-      match self.service_cause {
-        Some(error) => OwnedServiceFailure(error)
-        None => abort("owned service cleanup cause invariant")
-      }
-    3 =>
-      match self.process_cause {
-        Some(error) => OwnedProcessFailure(error)
-        None => abort("owned process cleanup cause invariant")
-      }
-    _ => abort("owned cleanup cause invariant")
-  }
-}
-
-///|
-pub fn FailedOwnedWorkerServicePreparation::cleanup_failure(
-  self : FailedOwnedWorkerServicePreparation,
-) -> OwnedWorkerServiceFailure? {
-  match self.cleanup_process_failure {
-    Some(error) => Some(OwnedProcessFailure(error))
-    None =>
-      match self.initial {
-        Some(failed) => initial_cleanup_evidence(failed)
-        None => None
-      }
-  }
-}
-
-///|
-pub fn FailedOwnedWorkerServicePreparation::is_closed(
-  self : FailedOwnedWorkerServicePreparation,
-) -> Bool {
-  self.closed
-}
-
-///|
-pub fn FailedOwnedWorkerServicePreparation::retry_close(
-  self : FailedOwnedWorkerServicePreparation,
-) -> Unit raise OwnedWorkerServicePreparationError {
-  if self.closed {
-    if !self.reported_consumed_failure &&
-      self.cleanup_process_failure is Some(error) {
-      self.reported_consumed_failure = true
-      raise owned_failure(OwnedProcessFailure(error))
-    }
-    return
-  }
-  self.cleanup_process_failure = None
-  if self.initial is Some(failed) {
-    try failed.retry_close() catch {
-      error => {
-        self.cleanup_process_failure = Some(error)
-        if !failed.is_closed() {
-          raise owned_failure(OwnedProcessFailure(error))
-        }
-      }
-    } noraise {
-      _ => ()
-    }
-  }
-  if self.ready_process is Some(process) {
-    try process.close() catch {
-      error => {
-        self.cleanup_process_failure = Some(error)
-        if !process.is_closed() {
-          raise owned_failure(OwnedProcessFailure(error))
-        }
-      }
-    } noraise {
-      _ => ()
-    }
-    if process.is_closed() {
-      self.ready_process = None
-    }
-  }
-  let initial_closed = match self.initial {
-    Some(failed) => failed.is_closed()
-    None => true
-  }
-  self.closed = initial_closed && self.ready_process is None
-  if self.closed && self.cleanup_process_failure is Some(error) {
-    self.reported_consumed_failure = true
-    raise owned_failure(OwnedProcessFailure(error))
-  }
 }

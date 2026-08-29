@@ -8,6 +8,7 @@ pub struct PreparedAdmission {
   priv handle : RequestHandle
   priv mut committed : Bool
   priv mut retention_issued : Bool
+  priv mut publication_route : SchedulerPublicationRoute
 }
 
 ///|
@@ -20,6 +21,7 @@ pub struct PreparedExclusiveAdmission {
   priv mut committed : Bool
   priv mut consumed : Bool
   priv mut retention_issued : Bool
+  priv mut publication_route : SchedulerPublicationRoute
 }
 
 ///|

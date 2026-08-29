@@ -91,6 +91,7 @@ test "completion publishes in plan order through overlapping plans" {
   }
   let first_output = first_publication.generated_token_notice()
   assert_eq(first_output.publication_sequence(), 1UL)
+  assert_eq(first_publication.request_slot(), first.slot())
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
   let second_output = owner.take_generated_token()
   assert_eq(second_output.publication_sequence(), 2UL)
@@ -114,6 +115,7 @@ test "completion publishes in plan order through overlapping plans" {
   }
   let first_terminal = first_terminal_publication.terminal_notice()
   assert_eq(first_terminal.publication_sequence(), 4UL)
+  assert_eq(first_terminal_publication.request_slot(), first.slot())
   assert_eq(owner.next_publication_kind(), GeneratedTokenPublication)
   try owner.take_terminal_notice() catch {
     Invalid(field=PublicationSequence, issue=OutOfOrder) => ()

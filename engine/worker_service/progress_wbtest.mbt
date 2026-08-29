@@ -2,8 +2,78 @@
 test "release allocation gate retains service progress symbols" {
   let _ = WorkerService::progress
   let _ = WorkerService::commit_received
+  let _ = WorkerService::start_pending_plan
+  let _ = WorkerService::recover_pending_failure
+  let _ = WorkerService::progress_maintenance
+  let _ = WorkerService::maintenance_remaining_millis
+  let _ = OnlineWorkerLease::progress_maintenance
+  let _ = OnlineWorkerLease::maintenance_remaining_millis
   assert_eq(Bytes::make(17, b'Q').length(), 17)
   assert_eq(owned_preparation_allocation_positive_control().length(), 19)
+}
+
+///|
+test "pending plan scalar state is exact and stale lookup is transactional" {
+  let service : WorkerService = {
+    scheduler: wb_service_scheduler(),
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
+    flight: FlightEmpty,
+    pending_plan_sequence: 9UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
+    lifecycle: ServiceReady,
+    production_owned: false,
+    ownership_mode: FixtureRawOwnership,
+    online_epoch: 0UL,
+    online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
+  }
+  assert_eq(service.raw_outstanding_count(), 1)
+  try service.start_pending_plan() catch {
+    Scheduler(Invalid(field=Plan, issue=Stale)) => ()
+    _ => fail("unexpected stale pending-plan error")
+  } noraise {
+    _ => fail("stale pending plan reached the process")
+  }
+  assert_eq(service.pending_plan_sequence, 9UL)
+  assert_true(service.flight is FlightEmpty)
+  assert_eq(service.lifecycle, ServiceReady)
+
+  service.flight = FlightSubmitted(8UL)
+  assert_eq(service.raw_outstanding_count(), 2)
+  assert_eq(try! ServicePlanPending(9UL).sequence_value(), 9UL)
+}
+
+///|
+test "stale recovery pending plan retains exact retry authority" {
+  let service : WorkerService = {
+    scheduler: wb_service_scheduler(),
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
+    flight: FlightPendingFailure(11UL, 10UL, false),
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
+    lifecycle: ServiceRecovering,
+    production_owned: false,
+    ownership_mode: FixtureRawOwnership,
+    online_epoch: 0UL,
+    online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
+  }
+  try service.recover_pending_failure(ExecutionFailed) catch {
+    Scheduler(Invalid(field=Plan, issue=Stale)) => ()
+    _ => fail("unexpected stale pending recovery error")
+  } noraise {
+    _ => fail("stale pending recovery was consumed")
+  }
+  assert_true(service.flight is FlightPendingFailure(11UL, 10UL, false))
+  assert_eq(service.lifecycle, ServiceRecovering)
 }
 
 ///|
@@ -111,7 +181,7 @@ test "prepared online retention saturation invalidates without scheduler mutatio
   assert_true(scheduler.is_pristine())
   assert_eq(scheduler.live_request_count(), 0)
   assert_true(lease.prepared_admission is None)
-  assert_false(lease.semantic_retention.is_live())
+  assert_false(lease.lane_semantic_retentions[0].is_live())
   try! external_a.release()
   try! external_b.release()
   try! semantic_lease.release()
@@ -125,30 +195,35 @@ fn wb_prepared_online_lease(
 ) -> OnlineWorkerLease {
   let service : WorkerService = {
     scheduler,
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  {
+  wb_online_lane_lease(
     service,
-    epoch: 1UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: OnlineRequestEmpty,
-    prepared_admission: Some(prepared),
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
+    @monotonic_clock.MonotonicClock::system(),
+    Some(prepared),
     prepared_clock_read,
-    handle: None,
-    request_generation: @inference.RequestGeneration::initial(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
-    publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: false,
-  }
+    None,
+    ONLINE_LANE_EMPTY,
+    @inference.RequestGeneration::initial(),
+    @inference.RequestGeneration::initial(),
+    0,
+    0,
+    false,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+  )
 }
 
 ///|
@@ -180,39 +255,44 @@ test "prepared online expiry clears reservation and retains empty cleanup author
   assert_true(scheduler.is_pristine())
   assert_eq(scheduler.live_request_count(), 0)
   assert_true(lease.prepared_admission is None)
-  assert_true(lease.request_phase == OnlineRequestEmpty)
+  assert_eq(lease.active_lane_count, 0)
 }
 
 ///|
 test "online restart-forbidden drain authenticates exact request" {
   let scheduler = wb_service_scheduler()
-  let handle = try! scheduler.admit(wb_online_request(), 0UL)
+  let handle = wb_admit_routed(scheduler, wb_online_request())
   let service : WorkerService = {
     scheduler,
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceRestartForbidden,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  let lease : OnlineWorkerLease = {
+  let lease = wb_online_lane_lease(
     service,
-    epoch: 1UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: OnlineRequestLive,
-    prepared_admission: None,
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
-    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
-    handle: Some(handle),
-    request_generation: handle.request_generation(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
-    publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: false,
-  }
+    @monotonic_clock.MonotonicClock::system(),
+    None,
+    @monotonic_clock.MonotonicClock::system().prepare_read(),
+    Some(handle),
+    ONLINE_LANE_LIVE,
+    handle.request_generation(),
+    @inference.RequestGeneration::initial(),
+    0,
+    0,
+    false,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+  )
   assert_eq(lease.drain_restart_forbidden(), Complete)
   assert_eq(service.lifecycle(), ServiceTerminalCloseReady)
   let terminal = lease.take_publication()
@@ -222,33 +302,38 @@ test "online restart-forbidden drain authenticates exact request" {
 ///|
 test "online terminal recovery wrapper drains restart-forbidden request" {
   let scheduler = wb_service_scheduler()
-  let handle = try! scheduler.admit(wb_online_request(), 0UL)
+  let handle = wb_admit_routed(scheduler, wb_online_request())
   let service : WorkerService = {
     scheduler,
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceRestartForbidden,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  let lease : OnlineWorkerLease = {
+  let lease = wb_online_lane_lease(
     service,
-    epoch: 1UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: OnlineRequestLive,
-    prepared_admission: None,
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
-    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
-    handle: Some(handle),
-    request_generation: handle.request_generation(),
-    cut_source_generation: @inference.RequestGeneration::initial(),
-    publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: false,
-  }
+    @monotonic_clock.MonotonicClock::system(),
+    None,
+    @monotonic_clock.MonotonicClock::system().prepare_read(),
+    Some(handle),
+    ONLINE_LANE_LIVE,
+    handle.request_generation(),
+    @inference.RequestGeneration::initial(),
+    0,
+    0,
+    false,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+  )
   assert_eq(
     lease.progress_terminal_recovery(ResourceUnavailable),
     OnlineTerminalRecoveryPending,
@@ -270,15 +355,11 @@ test "online worker step classification is bounded and state-aware" {
     0,
   )
   assert_eq(
-    classify_online_worker_error(
-      RootBoundProcess(RootBoundFailure(Process(Backpressured))),
-    ),
+    classify_online_worker_error(PhysicalTransport(PhysicalBackpressured)),
     0,
   )
   assert_eq(
-    classify_online_worker_error(
-      RootBoundProcess(RootBoundFailure(Process(Invalid(Completion)))),
-    ),
+    classify_online_worker_error(PhysicalTransport(PhysicalInvalidOutput)),
     1,
   )
   assert_eq(classify_online_worker_error(Invalid(WorkerOutput)), 1)
@@ -289,9 +370,7 @@ test "online worker step classification is bounded and state-aware" {
     1,
   )
   assert_eq(
-    classify_online_worker_error(
-      RootBoundProcess(RootBoundFailure(Process(Transport(ChannelClosed)))),
-    ),
+    classify_online_worker_error(PhysicalTransport(PhysicalUnavailable)),
     2,
   )
   assert_eq(classify_online_worker_error(Invalid(Lifecycle)), 2)
@@ -328,30 +407,35 @@ test "out-of-phase reserved dequeue preserves scheduler publication" {
   assert_eq(try! scheduler.reserve_cancel_exact(handle), CancelReserved)
   let service : WorkerService = {
     scheduler,
-    binding: wb_service_binding(),
-    process: None,
+    identity: wb_worker_service_identity(),
+    physical_binding: RootedSingleBinding(wb_service_binding()),
+    transport: Uninstalled,
     flight: FlightEmpty,
+    pending_plan_sequence: 0UL,
+    maintenance_mode: MAINTENANCE_NONE,
+    maintenance_phase: 0,
+    maintenance_failure: ExecutionFailed,
     lifecycle: ServiceReady,
     production_owned: true,
     ownership_mode: OnlineActiveOwnership,
     online_epoch: 1UL,
     online_publication_cursor: 0UL,
+    graph_telemetry: new_worker_service_graph_telemetry(),
   }
-  let lease : OnlineWorkerLease = {
+  let lease = wb_online_lane_lease(
     service,
-    epoch: 1UL,
-    clock: @monotonic_clock.MonotonicClock::system(),
-    request_phase: OnlineRequestTerminationPending,
-    prepared_admission: None,
-    semantic_retention: @inference.LunaRequestStopTokenRetentionSlot::new(),
-    prepared_clock_read: @monotonic_clock.MonotonicClock::system().prepare_read(),
-    handle: Some(handle),
-    request_generation: handle.request_generation(),
-    cut_source_generation: admitted.request_generation(),
-    publication_cursor: 0UL,
-    expected_position: 0,
-    cancel_reserved: true,
-  }
+    @monotonic_clock.MonotonicClock::system(),
+    None,
+    @monotonic_clock.MonotonicClock::system().prepare_read(),
+    Some(handle),
+    ONLINE_LANE_TERMINATION_PENDING,
+    handle.request_generation(),
+    admitted.request_generation(),
+    0,
+    0,
+    true,
+    @inference.LunaRequestStopTokenRetentionSlot::new(),
+  )
   try lease.take_reserved_token() catch {
     Invalid(Lifecycle) => ()
     _ => fail("unexpected out-of-phase reserved dequeue error")
