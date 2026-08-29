@@ -2,6 +2,7 @@
 set -eu
 LC_ALL=C
 export LC_ALL
+unset PYTHONHOME PYTHONPATH PYTHONSTARTUP
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 
 fail() {

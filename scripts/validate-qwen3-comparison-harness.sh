@@ -82,6 +82,8 @@ rg -Fq 'verify-qwen3-authenticated-capacity.sh' \
 for server in \
   scripts/start-qwen3-vllm-benchmark-server.sh \
   scripts/start-qwen3-sglang-benchmark-server.sh; do
+  rg -Fq 'unset PYTHONHOME PYTHONPATH PYTHONSTARTUP' "$server" ||
+    fail "baseline launcher inherits unrelated Python environments: $server"
   rg -Fq '"$environment/bin/python"' "$server" || fail "server does not use the absolute pinned Conda environment: $server"
   if rg -Fq 'conda run' "$server"; then
     fail "server requires unsupported conda run: $server"
