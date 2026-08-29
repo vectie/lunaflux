@@ -258,16 +258,12 @@ pub fn render(
   let kv_budget_bytes = parse_kv_budget(kv_budget_text)
   let tokens_per_page = parse_tokens_per_page(tokens_per_page_text)
   let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
+  let mut root_open = true
+  defer (if root_open { root.close() catch { _ => () } })
   let evidence = admit_plan_evidence(
     root, locator, config_digest, model_digest, kv_budget_bytes, tokens_per_page,
-  ) catch {
-    error => {
-      root.close() catch {
-        _ => ()
-      }
-      raise error
-    }
-  }
+  )
+  root_open = false
   root.close()
   render_plan_evidence(evidence)
 }

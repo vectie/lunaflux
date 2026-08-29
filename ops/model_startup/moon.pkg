@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/device" @hardware,
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"

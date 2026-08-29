@@ -1,0 +1,16 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/benchmarks/openai_adapter",
+  "vectie/lunaflux/benchmarks/openai_campaign",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/engine/device_profile",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

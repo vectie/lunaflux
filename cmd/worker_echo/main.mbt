@@ -37,16 +37,18 @@ fn run_worker() -> Unit raise {
   channel.write_frame(startup_output, offset=0, byte_count=ready_length)
   let input = FixedArray::make(plan_owner.capacity(), b'\x00')
   let output = FixedArray::make(completion_owner.capacity(), b'\x00')
+  let graph_output = FixedArray::make(
+    @worker_wire.worker_graph_telemetry_frame_capacity(),
+    b'\x00',
+  )
+  let mut graph_misses = 0UL
   let mut running = true
   while running {
-    let length = try channel.read_frame(input) catch {
-      ChannelClosed(Read) => {
-        running = false
-        0
-      }
+    let length = channel.read_frame_or_eof(input) catch {
       _ => raise Failure("worker frame receive failed")
-    } noraise {
-      value => value
+    }
+    if length == 0 {
+      running = false
     }
     if running {
       let frame = plan_owner.load(input, length)
@@ -66,6 +68,19 @@ fn run_worker() -> Unit raise {
       let output_length = completion.length()
       completion.copy_to(output, destination_offset=0)
       channel.write_frame(output, offset=0, byte_count=output_length)
+      if graph_misses != 0xffffffffffffffffUL {
+        graph_misses += 1UL
+      }
+      let graph = @worker_wire.WorkerGraphTelemetry::without_shape(
+        sequence=completion.sequence_value(),
+        path=WorkerGraphOrderedEager,
+        graph_hits=0UL,
+        graph_misses~,
+      )
+      let graph_length = @worker_wire.encode_worker_graph_telemetry(
+        graph, graph_output,
+      )
+      channel.write_frame(graph_output, offset=0, byte_count=graph_length)
     }
   }
 }

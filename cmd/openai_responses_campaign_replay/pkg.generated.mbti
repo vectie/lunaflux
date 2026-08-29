@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/openai_responses_campaign_replay"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type OpenAIResponsesReplayCliError derive(Eq, @debug.Debug)
+
+type Phase4PrefixGateError derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

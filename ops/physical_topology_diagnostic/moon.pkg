@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_topology",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+supported_targets = "native"

@@ -11,7 +11,11 @@ import {
 type CliError derive(Eq, @debug.Debug)
 
 // Types and methods
+type NativeDrainAction derive(Eq, @debug.Debug)
+
 type ReferenceArgument derive(Eq, @debug.Debug)
+
+type ReleaseDiagnosticArgument derive(Eq, @debug.Debug)
 
 // Type aliases
 

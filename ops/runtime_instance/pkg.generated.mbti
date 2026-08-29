@@ -1,0 +1,519 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/runtime_instance"
+
+import {
+  "moonbitlang/async/socket",
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/benchmarks/evidence",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/launch_file",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/release/deployment_bundle",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/inference_credential",
+  "vectie/lunaflux/runtime/inherited_drain",
+  "vectie/lunaflux/runtime/instance_policy_file",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/openai_compat",
+}
+
+// Values
+pub async fn benchmark_local_deployment(StringView, RuntimeInstanceFileLimits) -> RuntimeLocalBenchmarkEvidence
+
+pub fn preflight_materialized_release(StringView, RuntimeInstanceFileLimits, @deployment_bundle.DeploymentBundleLimits) -> RuntimeReleaseAdmission raise RuntimeInstanceError
+
+pub fn preflight_release(StringView, RuntimeInstanceFileLimits) -> RuntimeReleaseAdmission raise RuntimeInstanceError
+
+pub fn prepare(StringView, RuntimeInstanceFileLimits) -> RuntimeInstanceOwner raise RuntimeInstanceError
+
+pub fn prepare_opaque_cli(StringView, RuntimeInstanceFileLimits, @inference_credential.InheritedInferenceAuthPolicy?, promotion_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff?) -> RuntimeInstanceOwner raise RuntimeInstanceError
+
+// Errors
+pub(all) suberror RuntimeInstanceError {
+  RuntimeInstanceFailed(RuntimeInstanceStage)
+  RuntimeInstanceFailedAndCleanup(RuntimeInstanceStage, RuntimeInstanceStage)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror RuntimeLocalBenchmarkError {
+  RuntimeLocalBenchmarkFailed(RuntimeLocalBenchmarkRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeOpenAiQualificationValidationError {
+  RuntimeOpenAiQualificationValidationFailed(RuntimeOpenAiQualificationValidationRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedBenchmarkError {
+  RuntimeSpawnedBenchmarkFailed(RuntimeSpawnedBenchmarkRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedBroadServingValidationError {
+  RuntimeSpawnedBroadServingValidationFailed(RuntimeSpawnedBroadServingValidationRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedContextChurnError {
+  RuntimeSpawnedContextChurnFailed(RuntimeSpawnedContextChurnRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedLongContextError {
+  RuntimeSpawnedLongContextFailed(RuntimeSpawnedLongContextRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedPrefixValidationError {
+  RuntimeSpawnedPrefixValidationFailed(RuntimeSpawnedPrefixValidationRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedServingValidationError {
+  RuntimeSpawnedServingValidationFailed(RuntimeSpawnedServingValidationRule)
+} derive(Eq, @debug.Debug)
+
+pub suberror RuntimeSpawnedValidationError {
+  RuntimeSpawnedValidationFailed(RuntimeSpawnedValidationRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RuntimeBoundEndpoint {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RuntimeBoundEndpoint::origin(Self) -> String
+pub fn RuntimeBoundEndpoint::protocol(Self) -> RuntimeServiceProtocol
+
+pub struct RuntimeInstanceFileLimits {
+  // private fields
+}
+pub fn RuntimeInstanceFileLimits::new(launch~ : @launch_file.LaunchFileLimits, descriptor~ : @descriptor_file.RuntimeDescriptorFileLimits, policy~ : @instance_policy_file.InstancePolicyFileLimits, executable~ : @worker_executable_file.WorkerExecutableFileLimits) -> Self
+
+pub(all) enum RuntimeInstanceHealth {
+  RuntimeStarting
+  RuntimeHealthy
+  RuntimeUnhealthy
+  RuntimeClosed
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeInstanceOwner {
+  // private fields
+}
+pub fn RuntimeInstanceOwner::attach_inherited_drain_v1(Self, @inherited_drain.InheritedDrainPreparation) -> Unit raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::begin_drain(Self) -> Unit raise RuntimeInstanceError
+pub async fn RuntimeInstanceOwner::benchmark_spawned_serving_request(Self, RuntimeSpawnedBenchmarkContract) -> RuntimeSpawnedBenchmarkResult
+pub async fn RuntimeInstanceOwner::bind_openai_production(Self, RuntimeOpenAiProductionPolicy) -> Unit raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::bound_endpoint(Self) -> RuntimeBoundEndpoint raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::cleanup_complete(Self) -> Bool
+pub fn RuntimeInstanceOwner::control_origin(Self) -> String raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::health(Self) -> RuntimeInstanceHealth
+pub fn RuntimeInstanceOwner::openai_production_local_addr(Self) -> @socket.Addr raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::openai_qualification_readiness(Self) -> RuntimeOpenAiQualificationReadiness
+pub fn RuntimeInstanceOwner::phase(Self) -> RuntimeInstancePhase
+pub async fn RuntimeInstanceOwner::progress(Self) -> RuntimeInstanceProgress
+pub fn RuntimeInstanceOwner::readiness(Self) -> RuntimeInstanceReadiness
+pub fn RuntimeInstanceOwner::require_spawned_physical_handoff(Self) -> Unit raise RuntimeInstanceError
+pub fn RuntimeInstanceOwner::service_protocol(Self) -> RuntimeServiceProtocol
+pub fn RuntimeInstanceOwner::startup_measurement(Self) -> RuntimeStartupMeasurement raise RuntimeInstanceError
+pub async fn RuntimeInstanceOwner::validate_openai_qualification(Self, RuntimeOpenAiQualificationPolicy, RuntimeOpenAiQualificationValidationContract) -> RuntimeOpenAiQualificationValidationResult
+pub async fn RuntimeInstanceOwner::validate_spawned_broad_serving(Self, RuntimeSpawnedBroadServingValidationContract) -> RuntimeSpawnedBroadServingValidationResult
+pub fn RuntimeInstanceOwner::validate_spawned_context_churn(Self, RuntimeSpawnedContextChurnContract) -> RuntimeSpawnedContextChurnResult raise RuntimeSpawnedContextChurnError
+pub fn RuntimeInstanceOwner::validate_spawned_long_context(Self, RuntimeSpawnedLongContextContract) -> RuntimeSpawnedLongContextResult raise RuntimeSpawnedLongContextError
+pub fn RuntimeInstanceOwner::validate_spawned_physical_request(Self, RuntimeSpawnedValidationContract) -> RuntimeSpawnedValidationResult raise RuntimeSpawnedValidationError
+pub fn RuntimeInstanceOwner::validate_spawned_prefix_reuse(Self, RuntimeSpawnedPrefixValidationContract) -> RuntimeSpawnedPrefixValidationResult raise RuntimeSpawnedPrefixValidationError
+pub async fn RuntimeInstanceOwner::validate_spawned_serving_request(Self, RuntimeSpawnedServingValidationContract) -> RuntimeSpawnedServingValidationResult
+
+pub(all) enum RuntimeInstancePhase {
+  Starting
+  HealthyNotReady
+  Ready
+  OpenAiQualificationReady
+  Draining
+  Closed
+  Failed
+} derive(Eq, @debug.Debug)
+
+pub enum RuntimeInstanceProgress {
+  RuntimeStartingProgress
+  RuntimeReadyProgress
+  RuntimeServingProgress
+  RuntimeDrainingProgress
+  RuntimeClosedProgress
+  RuntimeFailedProgress
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeInstanceReadiness {
+  RuntimeNotReady
+  RuntimeReady
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeInstanceStage {
+  DeploymentBundleAdmission
+  MaterializationBinding
+  LaunchAdmission
+  ModelRootAdmission
+  KernelRootAdmission
+  PolicyRootAdmission
+  DescriptorAdmission
+  PolicyAdmission
+  TokenizerAdmission
+  InstanceAdmission
+  PolicyClose
+  PhysicalDeviceAdmission
+  WorkerExecutableAdmission
+  ServicePreparation
+  OpenAiQualification
+  OpenAiProduction
+  SpawnedPhysicalHandoff
+  ListenerBinding
+  InheritedDrainBinding
+  InheritedCredentialBinding
+  ColdStartTelemetry
+  Cleanup
+  Lifecycle
+  Clock
+} derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceStage::code(Self) -> String
+
+pub struct RuntimeLocalBenchmarkEvidence {
+  // private fields
+}
+pub fn RuntimeLocalBenchmarkEvidence::canonical_bytes(Self) -> Bytes
+pub fn RuntimeLocalBenchmarkEvidence::cold_start_latency_millis(Self) -> Int
+pub fn RuntimeLocalBenchmarkEvidence::comparison_admitted(Self) -> Bool
+pub fn RuntimeLocalBenchmarkEvidence::digest(Self) -> @evidence.BenchmarkDigest
+pub fn RuntimeLocalBenchmarkEvidence::first_token(Self) -> Int
+pub fn RuntimeLocalBenchmarkEvidence::promotion_authorized(Self) -> Bool
+pub fn RuntimeLocalBenchmarkEvidence::raw_events_canonical_bytes(Self) -> Bytes
+pub fn RuntimeLocalBenchmarkEvidence::second_token(Self) -> Int
+pub fn RuntimeLocalBenchmarkEvidence::startup_readiness(Self) -> RuntimeInstanceReadiness
+pub fn RuntimeLocalBenchmarkEvidence::summary_canonical_bytes(Self) -> Bytes
+
+pub(all) enum RuntimeLocalBenchmarkRule {
+  LocalBenchmarkRelease
+  LocalBenchmarkContract
+  LocalBenchmarkRuntime
+  LocalBenchmarkEvidence
+  LocalBenchmarkCleanup
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeOpenAiLoopbackIngressApproval {
+  // private fields
+}
+pub fn RuntimeOpenAiLoopbackIngressApproval::approve_authenticated_loopback() -> Self
+
+pub struct RuntimeOpenAiProductionPolicy {
+  // private fields
+}
+pub fn RuntimeOpenAiProductionPolicy::new(RuntimeOpenAiLoopbackIngressApproval, @http1.LunaHttp1Limits, @http1.LunaHttp1StepBudget, @http1.LunaHttp1ResponseStepBudget, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAIInboundLimits, @openai_compat.LunaOpenAIChatTemplate, FixedArray[Byte], FixedArray[Byte], @inference.CacheScope, Int, Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget) -> Self raise RuntimeInstanceError
+
+pub struct RuntimeOpenAiQualificationPolicy {
+  // private fields
+}
+pub fn RuntimeOpenAiQualificationPolicy::new(@http1.LunaHttp1Limits, @http1.LunaHttp1StepBudget, @http1.LunaHttp1ResponseStepBudget, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAICompatStepBudget, @openai_compat.LunaOpenAIInboundLimits, @openai_compat.LunaOpenAIChatTemplate, FixedArray[Byte], FixedArray[Byte], @inference.CacheScope, Int, Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget) -> Self raise RuntimeInstanceError
+
+pub(all) enum RuntimeOpenAiQualificationReadiness {
+  OpenAiQualificationNotReady
+  OpenAiQualificationListenerReady
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeOpenAiQualificationValidationContract {
+  // private fields
+}
+pub fn RuntimeOpenAiQualificationValidationContract::new(FixedArray[Byte], Int, Int, Int) -> Self raise RuntimeOpenAiQualificationValidationError
+
+pub struct RuntimeOpenAiQualificationValidationResult {
+  // private fields
+}
+pub fn RuntimeOpenAiQualificationValidationResult::admissions(Self) -> UInt64
+pub fn RuntimeOpenAiQualificationValidationResult::completions(Self) -> UInt64
+pub fn RuntimeOpenAiQualificationValidationResult::event_count(Self) -> Int
+pub fn RuntimeOpenAiQualificationValidationResult::kv_pages_free(Self) -> Int
+pub fn RuntimeOpenAiQualificationValidationResult::network_accepts(Self) -> UInt64
+pub fn RuntimeOpenAiQualificationValidationResult::network_disconnects(Self) -> UInt64
+pub fn RuntimeOpenAiQualificationValidationResult::network_rejections(Self) -> UInt64
+
+pub enum RuntimeOpenAiQualificationValidationRule {
+  OpenAiQualificationContract
+  OpenAiQualificationOwner
+  OpenAiQualificationConnect
+  OpenAiQualificationIngress
+  OpenAiQualificationResponse
+  OpenAiQualificationAuthentication
+  OpenAiQualificationEventOrder
+  OpenAiQualificationMetrics
+  OpenAiQualificationPostDrainAdmission
+  OpenAiQualificationCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeOpenAiQualificationValidationRule::code(Self) -> String
+
+pub struct RuntimeReleaseAdmission {
+  // private fields
+}
+pub fn RuntimeReleaseAdmission::evidence(Self) -> String
+pub fn RuntimeReleaseAdmission::evidence_sha256(Self) -> String
+pub fn RuntimeReleaseAdmission::model_content_sha256(Self) -> String
+pub fn RuntimeReleaseAdmission::model_plan_sha256(Self) -> String
+pub fn RuntimeReleaseAdmission::runtime_recipe(Self) -> String
+pub fn RuntimeReleaseAdmission::tokenizer_sha256(Self) -> String
+pub fn RuntimeReleaseAdmission::worker_executable_sha256(Self) -> String
+
+pub enum RuntimeServiceProtocol {
+  RuntimeNativeFramedV1
+  RuntimeOpenAiResponsesV1
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeSpawnedBenchmarkContract {
+  // private fields
+}
+pub fn RuntimeSpawnedBenchmarkContract::new(RuntimeSpawnedServingValidationContract, @evidence.BenchmarkProfile, Int, Int) -> Self raise RuntimeSpawnedBenchmarkError
+
+pub struct RuntimeSpawnedBenchmarkResult {
+  // private fields
+}
+pub fn RuntimeSpawnedBenchmarkResult::measurements(Self) -> @evidence.BenchmarkSummaryEvidence
+pub fn RuntimeSpawnedBenchmarkResult::serving(Self) -> RuntimeSpawnedServingValidationResult
+pub fn RuntimeSpawnedBenchmarkResult::startup_measurement(Self) -> RuntimeStartupMeasurement
+
+pub enum RuntimeSpawnedBenchmarkRule {
+  SpawnedBenchmarkContract
+  SpawnedBenchmarkCollector
+  SpawnedBenchmarkServing
+  SpawnedBenchmarkCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedBenchmarkRule::code(Self) -> String
+
+pub struct RuntimeSpawnedBroadServingValidationContract {
+  // private fields
+}
+pub fn RuntimeSpawnedBroadServingValidationContract::new(FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], @spec.ModelIdentity, Int, Int, Int, Int, Int, @inference.InferenceLimits, Int, Int, Int) -> Self raise RuntimeSpawnedBroadServingValidationError
+
+pub struct RuntimeSpawnedBroadServingValidationResult {
+  // private fields
+}
+pub fn RuntimeSpawnedBroadServingValidationResult::backpressure_count(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::cancellation_count(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::completion_count(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::event_count(Self) -> Int
+pub fn RuntimeSpawnedBroadServingValidationResult::kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedBroadServingValidationResult::network_accepts(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::network_disconnects(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::network_rejections(Self) -> UInt64
+pub fn RuntimeSpawnedBroadServingValidationResult::request_count(Self) -> UInt64
+
+pub enum RuntimeSpawnedBroadServingValidationRule {
+  BroadServingContract
+  BroadServingOwner
+  BroadServingHealth
+  BroadServingReadiness
+  BroadServingConnect
+  BroadServingIngress
+  BroadServingConcurrency
+  BroadServingCancellation
+  BroadServingPairAccepted0
+  BroadServingPairAccepted1
+  BroadServingPairRemainingRead
+  BroadServingPairRemainingAcceptedShape
+  BroadServingPairRemainingToken0Shape
+  BroadServingPairRemainingToken1Shape
+  BroadServingPairRemainingTokenPosition
+  BroadServingPairRemainingUsageShape
+  BroadServingPairRemainingCompletedShape
+  BroadServingPairRemainingUnexpectedEvent
+  BroadServingPairRemainingCount
+  BroadServingRecoveryAccepted
+  BroadServingRecoveryToken0
+  BroadServingRecoveryToken1
+  BroadServingRecoveryUsage
+  BroadServingRecoveryCompleted
+  BroadServingBackpressure
+  BroadServingRejection
+  BroadServingMalformedTransition
+  BroadServingMalformedUnexpectedOwnerFailure
+  BroadServingMalformedRequestMetrics
+  BroadServingMalformedNetworkMetrics
+  BroadServingMalformedResourceMetrics
+  BroadServingMalformedReuseAccepted
+  BroadServingMalformedReuseToken0
+  BroadServingMalformedReuseToken1
+  BroadServingMalformedReuseUsage
+  BroadServingMalformedReuseCompleted
+  BroadServingMalformedReuseRequestMetrics
+  BroadServingMalformedReuseNetworkMetrics
+  BroadServingMalformedReuseResourceMetrics
+  BroadServingRecovery
+  BroadServingMetrics
+  BroadServingCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedBroadServingValidationRule::code(Self) -> String
+
+pub struct RuntimeSpawnedContextChurnContract {
+  // private fields
+}
+pub fn RuntimeSpawnedContextChurnContract::new(FixedArray[Byte], Int, FixedArray[Byte], Int, FixedArray[Byte], Int, @spec.ModelIdentity, Int, Int, Int, Int, @inference.InferenceLimits, Int, Int) -> Self raise RuntimeSpawnedContextChurnError
+
+pub struct RuntimeSpawnedContextChurnResult {
+  // private fields
+}
+pub fn RuntimeSpawnedContextChurnResult::event_count(Self) -> Int
+pub fn RuntimeSpawnedContextChurnResult::final_kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedContextChurnResult::initial_kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedContextChurnResult::last_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedContextChurnResult::network_accepts(Self) -> UInt64
+pub fn RuntimeSpawnedContextChurnResult::network_disconnects(Self) -> UInt64
+pub fn RuntimeSpawnedContextChurnResult::network_rejections(Self) -> UInt64
+pub fn RuntimeSpawnedContextChurnResult::plan_count(Self) -> Int
+pub fn RuntimeSpawnedContextChurnResult::request_count(Self) -> Int
+
+pub enum RuntimeSpawnedContextChurnRule {
+  SpawnedContextChurnContract
+  SpawnedContextChurnOwner
+  SpawnedContextChurnIngress
+  SpawnedContextChurnEvent
+  SpawnedContextChurnPlan
+  SpawnedContextChurnMetrics
+  SpawnedContextChurnCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedContextChurnRule::code(Self) -> String
+
+pub struct RuntimeSpawnedLongContextContract {
+  // private fields
+}
+pub fn RuntimeSpawnedLongContextContract::new(FixedArray[Byte], FixedArray[Byte], @spec.ModelIdentity, Int, Int, Int, Int, @inference.InferenceLimits, Int, Int) -> Self raise RuntimeSpawnedLongContextError
+
+pub struct RuntimeSpawnedLongContextResult {
+  // private fields
+}
+pub fn RuntimeSpawnedLongContextResult::event_count(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::final_kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::first_token(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::initial_kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::input_tokens_processed(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::last_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedLongContextResult::plan_count(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::request_count(Self) -> Int
+pub fn RuntimeSpawnedLongContextResult::second_token(Self) -> Int
+
+pub enum RuntimeSpawnedLongContextRule {
+  SpawnedLongContextContract
+  SpawnedLongContextOwner
+  SpawnedLongContextIngress
+  SpawnedLongContextEvent
+  SpawnedLongContextPlan
+  SpawnedLongContextKv
+  SpawnedLongContextTelemetry
+  SpawnedLongContextCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedLongContextRule::code(Self) -> String
+
+pub struct RuntimeSpawnedPrefixValidationContract {
+  // private fields
+}
+pub fn RuntimeSpawnedPrefixValidationContract::new(FixedArray[Byte], FixedArray[Byte], @spec.ModelIdentity, Int, Int, Int, Int, Int, Int, Int, Int) -> Self raise RuntimeSpawnedPrefixValidationError
+
+pub struct RuntimeSpawnedPrefixValidationResult {
+  // private fields
+}
+pub fn RuntimeSpawnedPrefixValidationResult::first_terminal_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::first_token(Self) -> Int
+pub fn RuntimeSpawnedPrefixValidationResult::initial_kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedPrefixValidationResult::kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedPrefixValidationResult::prefix_hits(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::prefix_lookups(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::prefix_misses(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::prefix_publications(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::retained_prefix_pages(Self) -> Int
+pub fn RuntimeSpawnedPrefixValidationResult::reused_tokens(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::second_terminal_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedPrefixValidationResult::second_token(Self) -> Int
+
+pub enum RuntimeSpawnedPrefixValidationRule {
+  SpawnedPrefixContract
+  SpawnedPrefixOwner
+  SpawnedPrefixIngress
+  SpawnedPrefixRejected
+  SpawnedPrefixEvent
+  SpawnedPrefixPlan
+  SpawnedPrefixUsage
+  SpawnedPrefixTelemetry
+  SpawnedPrefixCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedPrefixValidationRule::code(Self) -> String
+
+pub(all) enum RuntimeSpawnedSamplingExpectation {
+  AnySpawnedSamplingRuntime
+  HostSamplingRuntimeExpected
+  EmbeddedCudaGreedyExpected
+} derive(Eq, @debug.Debug)
+
+pub struct RuntimeSpawnedServingValidationContract {
+  // private fields
+}
+pub fn RuntimeSpawnedServingValidationContract::new(FixedArray[Byte], @spec.ModelIdentity, Int, Int, Int, Int, Int, @inference.InferenceLimits, Int, Int, Int) -> Self raise RuntimeSpawnedServingValidationError
+
+pub struct RuntimeSpawnedServingValidationResult {
+  // private fields
+}
+pub fn RuntimeSpawnedServingValidationResult::event_count(Self) -> Int
+pub fn RuntimeSpawnedServingValidationResult::first_token(Self) -> Int
+pub fn RuntimeSpawnedServingValidationResult::kv_pages_free(Self) -> Int
+pub fn RuntimeSpawnedServingValidationResult::network_accepts(Self) -> UInt64
+pub fn RuntimeSpawnedServingValidationResult::network_disconnects(Self) -> UInt64
+pub fn RuntimeSpawnedServingValidationResult::second_token(Self) -> Int
+
+pub enum RuntimeSpawnedServingValidationRule {
+  SpawnedServingContract
+  SpawnedServingOwner
+  SpawnedServingHealth
+  SpawnedServingReadiness
+  SpawnedServingConnect
+  SpawnedServingIngress
+  SpawnedServingEvent
+  SpawnedServingAccepted
+  SpawnedServingFirstToken
+  SpawnedServingSecondToken
+  SpawnedServingUsage
+  SpawnedServingCompleted
+  SpawnedServingMetrics
+  SpawnedServingCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedServingValidationRule::code(Self) -> String
+
+pub struct RuntimeSpawnedValidationContract {
+  // private fields
+}
+pub fn RuntimeSpawnedValidationContract::new(FixedArray[Byte], @spec.ModelIdentity, Int, Int, Int, Int, Int, Int) -> Self raise RuntimeSpawnedValidationError
+pub fn RuntimeSpawnedValidationContract::with_execution_expectation(Self, RuntimeSpawnedSamplingExpectation, Bool) -> Self
+
+pub struct RuntimeSpawnedValidationResult {
+  // private fields
+}
+pub fn RuntimeSpawnedValidationResult::decode_graph_hits(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::decode_graph_misses(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::decode_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::first_token(Self) -> Int
+pub fn RuntimeSpawnedValidationResult::graph_captured(Self) -> Bool
+pub fn RuntimeSpawnedValidationResult::kv_page_count(Self) -> Int
+pub fn RuntimeSpawnedValidationResult::prefill_graph_hits(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::prefill_graph_misses(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::prefill_plan_sequence(Self) -> UInt64
+pub fn RuntimeSpawnedValidationResult::second_token(Self) -> Int
+
+pub enum RuntimeSpawnedValidationRule {
+  SpawnedValidationContract
+  SpawnedValidationOwner
+  SpawnedValidationIngress
+  SpawnedValidationRejected
+  SpawnedValidationObservation
+  SpawnedValidationEvent
+  SpawnedValidationPlan
+  SpawnedValidationKv
+  SpawnedValidationCleanup
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedValidationRule::code(Self) -> String
+
+pub struct RuntimeStartupMeasurement {
+  // private fields
+}
+pub fn RuntimeStartupMeasurement::cold_start_latency_millis(Self) -> Int
+pub fn RuntimeStartupMeasurement::readiness(Self) -> RuntimeInstanceReadiness
+
+// Type aliases
+
+// Traits

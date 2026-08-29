@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/model_startup"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/descriptor_file",
+}
+
+// Values
+pub fn outcome_line(LunaModelPreparationOutcome) -> String
+
+pub fn preflight(String) -> LunaModelPreparationOutcome raise LunaModelStartupError
+
+pub fn preflight_pinned(String, String, String, String) -> LunaPinnedModelPreflight raise LunaModelStartupError
+
+// Errors
+pub(all) suberror LunaModelStartupError {
+  Failed(LunaModelStartupStage)
+  FailedAndClose(primary~ : LunaModelStartupStage, cleanup~ : LunaModelStartupCleanup)
+  CloseFailed(LunaModelStartupCleanup)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum LunaModelPhysicalGate {
+  UnsupportedPlatform
+  DriverLibraryMissing
+  DriverAbiIncomplete
+  DriverInitializationFailed
+  NoDevices
+  InventoryFailed
+  AssignedDeviceMissing
+  DeviceTargetMismatch
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaModelPreparationOutcome {
+  LunaModelPreflightComplete
+  LunaModelNotPrepared(LunaModelPreparationPrerequisite)
+  LunaModelPhysicalGate(LunaModelPhysicalGate)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaModelPreparationPrerequisite {
+  DigestPinnedRuntimeDescriptorAdmission
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaModelStartupCleanup {
+  ModelRoot
+  KernelRoot
+  BothRoots
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LunaModelStartupStage {
+  ModelRootAdmission
+  KernelRootAdmission
+  DescriptorLocatorAdmission
+  DescriptorDigestAdmission
+  DescriptorLimitAdmission
+  RuntimeDescriptorAdmission
+  ModelRootClose
+  KernelRootClose
+} derive(Eq, @debug.Debug)
+
+pub struct LunaPinnedModelPreflight {
+  // private fields
+}
+pub fn LunaPinnedModelPreflight::admission(Self) -> @descriptor_file.RuntimeDescriptorAdmission?
+pub fn LunaPinnedModelPreflight::outcome(Self) -> LunaModelPreparationOutcome
+
+// Type aliases
+
+// Traits

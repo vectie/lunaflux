@@ -1,0 +1,18 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/device_memory",
+  "vectie/lunaflux/engine/device_step",
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/device_materialize",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_admission",
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/config/service",
+  "vectie/lunaflux/tokenizer",
+}
+
+supported_targets = "native"

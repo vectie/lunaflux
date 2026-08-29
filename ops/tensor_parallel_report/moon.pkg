@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/runtime/tensor_parallel_admission",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+import {
+  "vectie/lunaflux/engine/device_topology",
+} for "test"
+
+supported_targets = "native"

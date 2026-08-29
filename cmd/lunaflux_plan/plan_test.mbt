@@ -11,7 +11,7 @@ async test "plan command admits a real config and derives deterministic KV capac
       #|LunaFlux admitted startup plan
       #|model config sha256: 9197475bfcc987a4f9361dbc22b33397b101372c137c228b6a6fd7e4adf21622; evidence: authenticated snapshot
       #|model content sha256: 852db1b39acb2336abc997440c6f6d6e4ab640f91e5e2aa9e2488d5794159d30; evidence: caller-declared, not weight-verified
-      #|model plan sha256: 3d1e5c05d24eb8c8cd576dbc64c15d59c0aad3f8310f3accabd4d0c9b52699db; evidence: derived from authenticated config
+      #|model plan sha256: 22103eddad1277154b79321e53893ad579e47d040d62b896f5596624e0b7be3e; evidence: derived from authenticated config
       #|architecture: dense Llama; reason: authenticated bounded config
       #|execution semantics: paged KV
       #|operation count: 21

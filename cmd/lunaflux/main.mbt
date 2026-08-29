@@ -2,9 +2,43 @@
 fn print_usage() -> Unit {
   println("LunaFlux \{@contracts.protocol_version()}")
   println("usage:")
-  println("  lunaflux doctor")
+  println("  lunaflux run ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>")
   println(
-    "  lunaflux plan ROOT CONFIG_REL CONFIG_SHA256 DECLARED_MODEL_SHA256 KV_BUDGET_BYTES TOKENS_PER_PAGE",
+    "  lunaflux validate-release ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>",
+  )
+  println(
+    "  lunaflux validate-materialized-release ABSOLUTE_BUNDLE_ROOT#sha256=<64-lowercase-hex>",
+  )
+  println(
+    "  lunaflux doctor ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>",
+  )
+  println("  lunaflux plan ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>")
+  println("  lunaflux bench ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>")
+  println(
+    "  lunaflux inspect-kernels ABSOLUTE_DEPLOYMENT_ROOT#sha256=<64-lowercase-hex>",
+  )
+  println("legacy compatibility (never ready):")
+  println("  lunaflux legacy-doctor")
+  println("  lunaflux legacy-doctor --json")
+  println("  lunaflux legacy-plan MODEL")
+  println("  lunaflux legacy-inspect-kernels MODEL")
+  println(
+    "  lunaflux legacy-run MODEL_ROOT KERNEL_ROOT DESCRIPTOR_REL DESCRIPTOR_SHA256",
+  )
+  println(
+    "  lunaflux legacy-doctor MODEL_ROOT KERNEL_ROOT DESCRIPTOR_REL DESCRIPTOR_SHA256",
+  )
+  println(
+    "  lunaflux legacy-plan MODEL_ROOT KERNEL_ROOT DESCRIPTOR_REL DESCRIPTOR_SHA256",
+  )
+  println(
+    "  lunaflux legacy-bench MODEL_ROOT KERNEL_ROOT DESCRIPTOR_REL DESCRIPTOR_SHA256",
+  )
+  println(
+    "  lunaflux legacy-inspect-kernels MODEL_ROOT KERNEL_ROOT DESCRIPTOR_REL DESCRIPTOR_SHA256",
+  )
+  println(
+    "  lunaflux legacy-config-plan ROOT CONFIG_REL CONFIG_SHA256 DECLARED_MODEL_SHA256 KV_BUDGET_BYTES TOKENS_PER_PAGE",
   )
   println(
     "  lunaflux reference ROOT CONFIG_REL TOKENIZER_REL WEIGHTS_REL CONFIG_SHA TOKENIZER_SHA WEIGHTS_SHA MAX_NEW TOKEN_IDS",
@@ -145,10 +179,17 @@ fn run_reference(
   // Absolute path admission is confined to this deployment boundary. The
   // artifact package sees only the pinned root and opaque relative source.
   let root = @approved_fs.ApprovedRoot::open_absolute(root_path)
-  let bundle = @artifact.load_reference_bundle(
-    root, source, expected, artifact_limits,
+  let bundle_result : Result[
+    @artifact.ReferenceArtifactBundle,
+    @artifact.ArtifactError,
+  ] = Ok(
+    @artifact.load_reference_bundle(root, source, expected, artifact_limits),
   ) catch {
-    error => {
+    error => Err(error)
+  }
+  let bundle = match bundle_result {
+    Ok(value) => value
+    Err(error) => {
       root.close() catch {
         _ => ()
       }
@@ -186,86 +227,83 @@ fn run_reference(
 }
 
 ///|
-fn unavailable_device_reason(reason : @hardware.UnavailableReason) -> String {
-  match reason {
-    UnsupportedPlatform => "unsupported platform"
-    DriverLibraryMissing => "driver library missing"
-    DriverAbiIncomplete => "driver ABI incomplete"
-    DriverInitializationFailed => "driver initialization failed"
-    NoDevices => "no devices"
-    InventoryFailed => "inventory failed"
+async fn run_cli(arguments : ArrayView[String]) -> Unit {
+  match exact_opaque_run_argument(arguments) {
+    Some(model) => run_native_model(model)
+    None =>
+      match exact_opaque_bench_argument(arguments) {
+        Some(deployment) => run_native_benchmark(deployment)
+        None =>
+          match exact_release_diagnostic_argument(arguments) {
+            Some(command) => run_release_diagnostic(command)
+            None =>
+              match arguments {
+                [
+                  _,
+                  command,
+                  model_root,
+                  kernel_root,
+                  descriptor_relative,
+                  descriptor_sha256,
+                ] =>
+                  match legacy_pinned_command(command) {
+                    Some(legacy_command) =>
+                      run_pinned_operator_command(
+                        legacy_command, model_root, kernel_root, descriptor_relative,
+                        descriptor_sha256,
+                      )
+                    None => print_usage()
+                  }
+                [_, "validate-release", deployment] =>
+                  validate_release(deployment)
+                [_, "validate-materialized-release", bundle] =>
+                  validate_materialized_release(bundle)
+                [_, "legacy-doctor"] => print_doctor()
+                [_, "legacy-doctor", "--json"] => print_doctor_json()
+                [_, "legacy-plan", model_root] =>
+                  run_operator_command("plan", model_root)
+                [_, "legacy-inspect-kernels", model_root] =>
+                  run_operator_command("inspect-kernels", model_root)
+                [
+                  _,
+                  "legacy-config-plan",
+                  root_path,
+                  config_locator,
+                  config_sha,
+                  model_sha,
+                  kv_budget_bytes,
+                  tokens_per_page,
+                ] =>
+                  @lunaflux_plan.run(
+                    root_path, config_locator, config_sha, model_sha, kv_budget_bytes,
+                    tokens_per_page,
+                  )
+                [
+                  _,
+                  "reference",
+                  root_path,
+                  config_locator,
+                  tokenizer_locator,
+                  weights_locator,
+                  config_sha,
+                  tokenizer_sha,
+                  weights_sha,
+                  maximum_new,
+                  token_ids,
+                ] =>
+                  run_reference(
+                    root_path, config_locator, tokenizer_locator, weights_locator,
+                    config_sha, tokenizer_sha, weights_sha, maximum_new, token_ids,
+                  )
+                [_, "version"] => println(@contracts.protocol_version())
+                _ => print_usage()
+              }
+          }
+      }
   }
 }
 
 ///|
-fn print_doctor() -> Unit {
-  println("LunaFlux foundation inspection")
-  println("contracts: ready")
-  println("configuration validators: ready")
-  println("bounded tokenizer JSON admission: ready")
-  println("bounded model metadata and weight-manifest validation: ready")
-  match @hardware.probe() {
-    Available(driver_version~, devices~) =>
-      println(
-        "CUDA device probe: available; driver \{driver_version}; devices \{devices.length()}",
-      )
-    Unavailable(reason) =>
-      println(
-        "CUDA device probe: unavailable; \{unavailable_device_reason(reason)}",
-      )
-  }
-  println("offline reference executor: ready (correctness only)")
-  println("bounded reference bundle loading: ready (whole-file snapshot)")
-  println(
-    "streaming device weight loading: implemented (approved read-only regular-file contract)",
-  )
-  println("exact static device executor: implemented")
-  println(
-    "physical CUDA correctness and resource gates: not proven on this host",
-  )
-  println("readiness: false")
-}
-
-///|
-fn run_cli(arguments : ArrayView[String]) -> Unit raise {
-  match arguments {
-    [_, "doctor"] => print_doctor()
-    [
-      _,
-      "plan",
-      root_path,
-      config_locator,
-      config_sha,
-      model_sha,
-      kv_budget_bytes,
-      tokens_per_page,
-    ] =>
-      @lunaflux_plan.run(
-        root_path, config_locator, config_sha, model_sha, kv_budget_bytes, tokens_per_page,
-      )
-    [
-      _,
-      "reference",
-      root_path,
-      config_locator,
-      tokenizer_locator,
-      weights_locator,
-      config_sha,
-      tokenizer_sha,
-      weights_sha,
-      maximum_new,
-      token_ids,
-    ] =>
-      run_reference(
-        root_path, config_locator, tokenizer_locator, weights_locator, config_sha,
-        tokenizer_sha, weights_sha, maximum_new, token_ids,
-      )
-    [_, "version"] => println(@contracts.protocol_version())
-    _ => print_usage()
-  }
-}
-
-///|
-fn main raise {
-  run_cli(@env.args())
+async fn main {
+  try! run_cli(@env.args())
 }

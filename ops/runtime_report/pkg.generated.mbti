@@ -1,0 +1,37 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/runtime_report"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_admission",
+}
+
+// Values
+pub fn build(@descriptor_file.RuntimeDescriptorAdmission) -> RuntimeReport raise RuntimeReportError
+
+pub fn build_instance(@instance_admission.RuntimeInstanceAdmission) -> RuntimeInstanceReport raise RuntimeReportError
+
+pub fn render(RuntimeReport) -> String
+
+pub fn render_instance(RuntimeInstanceReport) -> String
+
+// Errors
+pub(all) suberror RuntimeReportError {
+  InvalidAdmission
+  InconsistentAdmission
+  DeviceBytesOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RuntimeInstanceReport {
+  // private fields
+}
+
+pub struct RuntimeReport {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

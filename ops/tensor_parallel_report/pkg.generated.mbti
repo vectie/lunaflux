@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/tensor_parallel_report"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/tensor_parallel_admission",
+}
+
+// Values
+pub fn build(@tensor_parallel_admission.TensorParallelRuntimeAdmission) -> TensorParallelCapacityReport
+
+pub fn render(TensorParallelCapacityReport) -> String
+
+pub fn render_rejection(@tensor_parallel_admission.TensorParallelAdmissionError) -> String
+
+// Errors
+
+// Types and methods
+pub struct TensorParallelCapacityReport {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

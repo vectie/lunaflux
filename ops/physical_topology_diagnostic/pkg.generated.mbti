@@ -1,0 +1,86 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/physical_topology_diagnostic"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/device_topology",
+}
+
+// Values
+pub fn evaluate_observations(driver_version~ : Int, ArrayView[PhysicalTopologyDeviceObservation], ArrayView[PhysicalPeerObservation], collective~ : PhysicalCollectiveObservation) -> PhysicalTopologyDiagnosticEvidence raise PhysicalTopologyDiagnosticError
+
+pub fn render(PhysicalTopologyDiagnosticEvidence) -> String
+
+pub fn run_local() -> PhysicalTopologyDiagnosticEvidence
+
+// Errors
+pub(all) suberror PhysicalTopologyDiagnosticError {
+  InvalidObservation
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct PhysicalCollectiveObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PhysicalCollectiveObservation::admitted_version_code(Self) -> Int
+pub fn PhysicalCollectiveObservation::availability(Self) -> @device.TensorCollectiveRuntimeAvailability
+pub fn PhysicalCollectiveObservation::new(availability~ : @device.TensorCollectiveRuntimeAvailability, version_code~ : Int, admitted_version_code~ : Int) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalCollectiveObservation::version_code(Self) -> Int
+
+pub struct PhysicalPeerObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PhysicalPeerObservation::accessible(Self) -> Bool
+pub fn PhysicalPeerObservation::destination_ordinal(Self) -> Int
+pub fn PhysicalPeerObservation::new(source_ordinal~ : Int, destination_ordinal~ : Int, accessible~ : Bool) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalPeerObservation::source_ordinal(Self) -> Int
+
+pub struct PhysicalTopologyDeviceObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PhysicalTopologyDeviceObservation::capability(Self) -> @device.DeviceCapability
+pub fn PhysicalTopologyDeviceObservation::name(Self) -> String
+pub fn PhysicalTopologyDeviceObservation::new(ordinal~ : Int, name~ : StringView, capability~ : @device.DeviceCapability) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalTopologyDeviceObservation::ordinal(Self) -> Int
+
+pub struct PhysicalTopologyDiagnosticEvidence {
+  // private fields
+}
+pub fn PhysicalTopologyDiagnosticEvidence::admitted_topology(Self) -> @device_topology.AdmittedLocalTopology?
+pub fn PhysicalTopologyDiagnosticEvidence::collective(Self) -> PhysicalCollectiveObservation
+pub fn PhysicalTopologyDiagnosticEvidence::device(Self, Int) -> PhysicalTopologyDeviceObservation?
+pub fn PhysicalTopologyDiagnosticEvidence::device_count(Self) -> Int
+pub fn PhysicalTopologyDiagnosticEvidence::driver_version(Self) -> Int
+pub fn PhysicalTopologyDiagnosticEvidence::peer(Self, Int) -> PhysicalPeerObservation?
+pub fn PhysicalTopologyDiagnosticEvidence::peer_count(Self) -> Int
+pub fn PhysicalTopologyDiagnosticEvidence::peer_query_complete(Self) -> Bool
+pub fn PhysicalTopologyDiagnosticEvidence::rejection(Self) -> PhysicalTopologyDiagnosticRejection?
+pub fn PhysicalTopologyDiagnosticEvidence::schema_version(Self) -> Int
+pub fn PhysicalTopologyDiagnosticEvidence::status(Self) -> PhysicalTopologyDiagnosticStatus
+
+pub(all) enum PhysicalTopologyDiagnosticRejection {
+  DeviceUnavailable(@device.UnavailableReason)
+  PeerQueryFailed(source_rank~ : Int, destination_rank~ : Int)
+  TopologyRejected(stage~ : PhysicalTopologyDiagnosticStage, area~ : @device_topology.LocalTopologyArea, rule~ : @device_topology.LocalTopologyRule, first~ : Int, second~ : Int)
+  CollectiveUnavailable(@device.TensorCollectiveRuntimeAvailability)
+  CollectiveVersionRejected
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PhysicalTopologyDiagnosticStage {
+  DeviceProbe
+  PeerProbe
+  TopologyProjection
+  TopologyDeclaration
+  TopologyAdmission
+  CollectiveRuntime
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PhysicalTopologyDiagnosticStatus {
+  PhysicalTopologySupported
+  PhysicalTopologyRejected
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,54 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "vectie/lunaflux/benchmarks/evidence" @benchmark_evidence,
+  "vectie/lunaflux/benchmarks/runner" @benchmark_runner,
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/deploy/launch_file",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/device" @hardware,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_capability_manifest",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_admission",
+  "vectie/lunaflux/runtime/i8_release_worker",
+  "vectie/lunaflux/runtime/fp8_release_worker",
+  "vectie/lunaflux/runtime/inherited_drain",
+  "vectie/lunaflux/runtime/inference_credential",
+  "vectie/lunaflux/runtime/instance_policy_file",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/release/deployment_bundle",
+  "vectie/lunaflux/metrics/instance" @metrics,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/luna_event",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/framed_wire",
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/openai_compat",
+  "vectie/lunaflux/service/online_session",
+  "vectie/lunaflux/service/online_tcp",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_file",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/deploy/launch_file",
+  "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/runtime/descriptor_file",
+  "vectie/lunaflux/runtime/instance_policy_file",
+} for "test"

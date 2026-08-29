@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/kernel_inspection"
+
+import {
+  "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/kernels/luna_artifact_admission",
+}
+
+// Values
+pub fn render(@luna_artifact_admission.LunaAotKernelAdmission) -> String
+
+pub fn render_paged(@execution_manifest_file.PagedExecutionAdmission) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

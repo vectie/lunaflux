@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/ops/physical_topology_diagnostic",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
