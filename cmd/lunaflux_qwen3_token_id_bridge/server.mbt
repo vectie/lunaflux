@@ -21,7 +21,12 @@ async fn bridge_generate(
   }
   let decoder = @framed_wire.EventFrameBuffer::new(framed)
   let storage = FixedArray::make(decoder.capacity(), b'\x00')
-  let sse = @bridge.Qwen3TokenSseBuffer::new()
+  let detokenizer = @bridge.Qwen3IncrementalDetokenizer::new(config.tokenizer) catch {
+    _ => raise NativeProtocol("Qwen tokenizer decode state is invalid")
+  }
+  let sse = @bridge.Qwen3TokenSseBuffer::new(
+    max_text_bytes=detokenizer.max_delta_bytes(),
+  )
   guard bridge_read_event(native, decoder, storage) is Accepted(_) else {
     raise NativeProtocol("native request was not accepted")
   }
@@ -38,7 +43,10 @@ async fn bridge_generate(
           token_count >= request.max_output_tokens() {
           raise NativeProtocol("native token sequence is invalid")
         }
-        bridge_write_all(http, sse.stage(token.token_id()))
+        let text = detokenizer.advance(token.token_id()) catch {
+          _ => raise NativeProtocol("native token cannot be decoded")
+        }
+        bridge_write_all(http, sse.stage(token.token_id(), text))
         token_count += 1
       }
       Usage(usage) => {
@@ -53,7 +61,10 @@ async fn bridge_generate(
           completed.final_usage().output_tokens() != token_count {
           raise NativeProtocol("native terminal usage differs")
         }
-        bridge_write_all(http, @bridge.qwen3_terminal_sse_event())
+        let trailing_text = detokenizer.finish() catch {
+          _ => raise NativeProtocol("native terminal text cannot be decoded")
+        }
+        bridge_write_all(http, sse.terminal(trailing_text))
         return
       }
       Failed(_) | Accepted(_) =>

@@ -38,11 +38,20 @@ fn bridge_identity_path(
 }
 
 ///|
+fn bridge_identity_digest(
+  argument : String,
+  label : String,
+) -> String raise BridgeRuntimeError {
+  let path = bridge_identity_path(argument, label)
+  argument[path.length() + "#sha256=".length():].to_owned()
+}
+
+///|
 async fn bridge_authenticate_file(
   argument : String,
   maximum_bytes : Int,
   label : String,
-) -> Unit raise BridgeRuntimeError {
+) -> Bytes raise BridgeRuntimeError {
   let marker = "#sha256="
   let path = bridge_identity_path(argument, label)
   let index = path.length()
@@ -64,6 +73,7 @@ async fn bridge_authenticate_file(
     bridge_digest(bytes) != expected {
     raise StartupIdentity(label + " digest or size differs")
   }
+  bytes
 }
 
 ///|
@@ -75,10 +85,20 @@ async fn bridge_config(
       "usage: lunaflux_qwen3_token_id_bridge BRIDGE_EXECUTABLE#sha256=HEX TOKENIZER_JSON#sha256=HEX LAUNCH#sha256=HEX C32_CAPACITY_RECEIPT#sha256=HEX LISTEN_ADDR RUNTIME_ADDR MODEL_CONTENT_SHA256 MODEL_PLAN_SHA256 MAX_INPUT_TOKENS MAX_OUTPUT_TOKENS MAX_TOKEN_ID MAX_CONTEXT_TOKENS",
     )
   }
-  bridge_authenticate_file(args[1], 134217728, "bridge executable")
-  bridge_authenticate_file(args[2], 33554432, "Qwen tokenizer")
-  bridge_authenticate_file(args[3], 16777216, "Qwen launch")
-  bridge_authenticate_file(args[4], 1048576, "concurrency-32 capacity receipt")
+  ignore(bridge_authenticate_file(args[1], 134217728, "bridge executable"))
+  let tokenizer_bytes = bridge_authenticate_file(
+    args[2],
+    33554432,
+    "Qwen tokenizer",
+  )
+  ignore(bridge_authenticate_file(args[3], 16777216, "Qwen launch"))
+  ignore(
+    bridge_authenticate_file(
+      args[4],
+      1048576,
+      "concurrency-32 capacity receipt",
+    ),
+  )
   let actual_executable = @fs.realpath(args[0]) catch {
     _ => raise StartupIdentity("running bridge executable is unavailable")
   }
@@ -98,6 +118,32 @@ async fn bridge_config(
   if !args[5].has_prefix("127.0.0.1:") || !args[6].has_prefix("127.0.0.1:") {
     raise InvalidArgument("bridge and native service must use exact loopback")
   }
+  if max_token_id >= 1048576 {
+    raise InvalidArgument("maximum token ID exceeds the Qwen bridge bound")
+  }
+  let tokenizer_digest = @tokenizer.TokenizerDigest::parse(
+    bridge_identity_digest(args[2], "Qwen tokenizer"),
+  ) catch {
+    _ => raise StartupIdentity("Qwen tokenizer digest is invalid")
+  }
+  let tokenizer_limits : @tokenizer.TokenizerLimits = {
+    max_input_bytes: 33554432,
+    max_output_tokens,
+    max_decoded_bytes: 33554432,
+    max_vocab_entries: max_token_id + 1,
+    max_merge_rules: max_token_id + 1,
+    max_token_bytes: 4096,
+    max_special_tokens: 512,
+  }
+  let tokenizer = @json_reader.parse_bytes(
+    tokenizer_bytes,
+    digest=tokenizer_digest,
+    limits=tokenizer_limits,
+    max_bytes=33554432,
+    max_depth=128,
+  ) catch {
+    _ => raise StartupIdentity("Qwen tokenizer schema is unsupported")
+  }
   {
     listen_addr: @socket.Addr::parse(args[5]) catch {
       _ => raise InvalidArgument("listen address is malformed")
@@ -105,6 +151,7 @@ async fn bridge_config(
     runtime_addr: @socket.Addr::parse(args[6]) catch {
       _ => raise InvalidArgument("native runtime address is malformed")
     },
+    tokenizer,
     model_content_sha256: args[7],
     model_plan_sha256: args[8],
     max_input_tokens,

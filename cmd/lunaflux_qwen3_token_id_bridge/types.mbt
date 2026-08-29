@@ -10,6 +10,7 @@ suberror BridgeRuntimeError {
 struct BridgeConfig {
   listen_addr : @socket.Addr
   runtime_addr : @socket.Addr
+  tokenizer : @tokenizer.TokenizerSpec
   model_content_sha256 : String
   model_plan_sha256 : String
   max_input_tokens : Int

@@ -6,6 +6,13 @@ pub(all) suberror Qwen3TokenBridgeError {
 } derive(Eq, Debug)
 
 ///|
+pub(all) suberror Qwen3DetokenizerError {
+  InvalidDetokenizer
+  DetokenizerFinished
+  TokenDecodeFailed
+} derive(Eq, Debug)
+
+///|
 pub struct Qwen3TokenIdRequest {
   priv input_token_ids : Array[Int]
   priv max_output_tokens : Int
@@ -32,9 +39,11 @@ pub struct Qwen3TokenSseBuffer {
 }
 
 ///|
-pub fn Qwen3TokenSseBuffer::new() -> Qwen3TokenSseBuffer {
+pub fn Qwen3TokenSseBuffer::new(
+  max_text_bytes? : Int = 4096,
+) -> Qwen3TokenSseBuffer {
   {
-    storage: FixedArray::make(128, b'\x00'),
+    storage: FixedArray::make(160 + Int::max(max_text_bytes, 0) * 6, b'\x00'),
     digits: FixedArray::make(10, b'0'),
   }
 }

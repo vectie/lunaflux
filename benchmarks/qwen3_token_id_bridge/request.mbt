@@ -61,11 +61,14 @@ pub fn parse_qwen3_token_id_request(
   }
   if input_values.is_empty() ||
     input_values.length() > max_input_tokens ||
-    !bridge_exact_fields(sampling, ["mode", "temperature", "top_p", "seed"]) ||
+    !bridge_exact_fields(sampling, [
+      "mode", "temperature", "top_p", "seed", "ignore_eos",
+    ]) ||
     !(sampling.get("mode") is Some(String("greedy"))) ||
     !(sampling.get("temperature") is Some(Number(0.0, ..))) ||
     !(sampling.get("top_p") is Some(Number(1.0, ..))) ||
-    !(sampling.get("seed") is Some(Number(0.0, ..))) {
+    !(sampling.get("seed") is Some(Number(0.0, ..))) ||
+    !(sampling.get("ignore_eos") is Some(True)) {
     raise UnsupportedRequest
   }
   let ids : Array[Int] = []

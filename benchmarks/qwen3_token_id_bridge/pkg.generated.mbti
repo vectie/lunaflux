@@ -3,14 +3,19 @@ package "vectie/lunaflux/benchmarks/qwen3_token_id_bridge"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/tokenizer",
 }
 
 // Values
 pub fn parse_qwen3_token_id_request(StringView, Int, Int, Int) -> Qwen3TokenIdRequest raise Qwen3TokenBridgeError
 
-pub fn qwen3_terminal_sse_event() -> Bytes
-
 // Errors
+pub(all) suberror Qwen3DetokenizerError {
+  InvalidDetokenizer
+  DetokenizerFinished
+  TokenDecodeFailed
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror Qwen3TokenBridgeError {
   MalformedRequest
   UnsupportedRequest
@@ -18,6 +23,14 @@ pub(all) suberror Qwen3TokenBridgeError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct Qwen3IncrementalDetokenizer {
+  // private fields
+}
+pub fn Qwen3IncrementalDetokenizer::advance(Self, Int) -> Bytes raise Qwen3DetokenizerError
+pub fn Qwen3IncrementalDetokenizer::finish(Self) -> Bytes raise Qwen3DetokenizerError
+pub fn Qwen3IncrementalDetokenizer::max_delta_bytes(Self) -> Int
+pub fn Qwen3IncrementalDetokenizer::new(@tokenizer.TokenizerSpec) -> Self raise Qwen3DetokenizerError
+
 pub struct Qwen3TokenIdRequest {
   // private fields
 }
@@ -27,8 +40,9 @@ pub fn Qwen3TokenIdRequest::max_output_tokens(Self) -> Int
 pub struct Qwen3TokenSseBuffer {
   // private fields
 }
-pub fn Qwen3TokenSseBuffer::new() -> Self
-pub fn Qwen3TokenSseBuffer::stage(Self, Int) -> Bytes
+pub fn Qwen3TokenSseBuffer::new(max_text_bytes? : Int) -> Self
+pub fn Qwen3TokenSseBuffer::stage(Self, Int, BytesView) -> Bytes
+pub fn Qwen3TokenSseBuffer::terminal(Self, BytesView) -> Bytes
 
 // Type aliases
 
