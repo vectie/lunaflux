@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,22 @@ def _file_sha(path: Path) -> str:
     if not path.is_file() or path.is_symlink():
         raise ContractError(f"pinned file is unavailable: {path.name}")
     return sha256_bytes(path.read_bytes())
+
+
+def _direct_token_ids(value: Any) -> list[int]:
+    """Normalize tokenizer chat output across Transformers releases."""
+    if isinstance(value, Mapping):
+        if "input_ids" not in value:
+            raise ContractError("Qwen direct tokenization omitted input_ids")
+        value = value["input_ids"]
+    if not isinstance(value, (list, tuple)):
+        raise ContractError("Qwen direct tokenization returned an unsupported value")
+    token_ids: list[int] = []
+    for token in value:
+        if not isinstance(token, int) or isinstance(token, bool) or token < 0:
+            raise ContractError("Qwen direct tokenization returned invalid token IDs")
+        token_ids.append(token)
+    return token_ids
 
 
 def _load_sources(payload: bytes) -> list[dict[str, Any]]:
@@ -132,7 +149,7 @@ def main() -> int:
                     )
                     encoded = tokenizer.encode(rendered, add_special_tokens=False)
                     token_ids = [int(value) for value in encoded]
-                    direct_ids = [int(value) for value in direct]
+                    direct_ids = _direct_token_ids(direct)
                     if token_ids != direct_ids:
                         raise ContractError("Qwen chat rendering/tokenization paths disagree")
                     output.write(
