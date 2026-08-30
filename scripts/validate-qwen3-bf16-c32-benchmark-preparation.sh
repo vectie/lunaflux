@@ -35,7 +35,9 @@ for exact in \
   'input_idle_timeout_millis\":60000,\"write_timeout_millis\":60000' \
   'scheduler_max_active_requests + scheduler_max_waiting_requests' \
   'preparation_storage_int_cells=38282560' \
-  'preparation_storage_byte_cells=80498880' \
+  'tokenizer_max_token_bytes=4096' \
+  'max_decoded_delta_bytes=$((tokenizer_max_token_bytes + 3))' \
+  'preparation_storage_byte_cells=80499072' \
   'for request_id in $(seq 1 32)' \
   'event_sequence == '\''token:92648,token:4532,terminal,done'\''' \
   'export CUDA_VISIBLE_DEVICES="$expected_uuid"' \
