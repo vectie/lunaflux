@@ -40,6 +40,12 @@ if grep -Fq 'kill -TERM -- "-$pgid"' "$campaign" "$common"; then
   fail 'normal cleanup must not TERM the whole owned process group'
 fi
 
+if grep -Fq 'Qwen c32 CLI build emitted stderr' "$campaign"; then
+  fail 'successful Moon builds must not be rejected for progress on stderr'
+fi
+grep -Fq 'status plus --deny-warn is the admission boundary' "$campaign" ||
+  fail 'Moon build stderr preservation rationale is absent'
+
 for forbidden in \
   'run-qwen3-bf16-physical-campaign.sh' \
   'run-qwen3-bf16-v12-serving-physical-campaign.sh' \
