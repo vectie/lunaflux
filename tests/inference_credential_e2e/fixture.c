@@ -64,6 +64,19 @@ lf_credential_peer *lunaflux_inference_credential_fixture_install(
       (void)close(pipes[1]);
     }
     if (pipes[0] != LF_CREDENTIAL_FIXED_FD) (void)close(pipes[0]);
+    if (mode == 2) {
+      int descriptor_flags = fcntl(LF_CREDENTIAL_FIXED_FD, F_GETFD, 0);
+      if (descriptor_flags < 0 ||
+          fcntl(
+            LF_CREDENTIAL_FIXED_FD,
+            F_SETFD,
+            descriptor_flags | FD_CLOEXEC
+          ) != 0) {
+        (void)close(LF_CREDENTIAL_FIXED_FD);
+        (void)close(peer->fd);
+        peer->fd = -1;
+      }
+    }
   }
   return peer;
 }
@@ -106,4 +119,10 @@ int32_t lunaflux_inference_credential_fixture_clear_fixed(void) {
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_inference_credential_fixture_fixed_closed(void) {
   return fcntl(LF_CREDENTIAL_FIXED_FD, F_GETFD, 0) < 0 && errno == EBADF;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_inference_credential_fixture_fixed_cloexec(void) {
+  int descriptor_flags = fcntl(LF_CREDENTIAL_FIXED_FD, F_GETFD, 0);
+  return descriptor_flags >= 0 && (descriptor_flags & FD_CLOEXEC) != 0;
 }

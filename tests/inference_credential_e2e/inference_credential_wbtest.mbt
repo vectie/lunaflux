@@ -16,6 +16,19 @@ test "optional credential distinguishes missing and invalid FD 6" {
 }
 
 ///|
+test "optional credential preserves runtime-owned CLOEXEC FD 6" {
+  let peer = fixture_install(2)
+  defer ignore(fixture_close(peer))
+  assert_true(fixture_fixed_cloexec())
+  assert_true(
+    @credential.prepare_optional_inherited_inference_credential_v1() is None,
+  )
+  assert_true(fixture_fixed_cloexec())
+  assert_false(fixture_fixed_closed())
+  ignore(fixture_clear_fixed())
+}
+
+///|
 test "fragmented credential becomes one opaque constant-bound policy" {
   let peer = fixture_install(0)
   defer ignore(fixture_close(peer))

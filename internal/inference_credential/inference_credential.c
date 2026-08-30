@@ -51,10 +51,12 @@ lf_inference_credential *lunaflux_inference_credential_open_fixed(void) {
   lf_inference_credential *owner =
     (lf_inference_credential *)moonbit_make_external_object(
       lf_inference_credential_finalize, sizeof(lf_inference_credential)
-    );
+  );
   owner->fd = -1;
   owner->status = LF_CREDENTIAL_UNAVAILABLE;
-  if (fcntl(LF_CREDENTIAL_FIXED_FD, F_GETFD, 0) < 0) return owner;
+  int descriptor_flags = fcntl(LF_CREDENTIAL_FIXED_FD, F_GETFD, 0);
+  if (descriptor_flags < 0) return owner;
+  if ((descriptor_flags & FD_CLOEXEC) != 0) return owner;
   if (!lf_inference_credential_validate(LF_CREDENTIAL_FIXED_FD)) {
     owner->status = LF_CREDENTIAL_INVALID;
     (void)close(LF_CREDENTIAL_FIXED_FD);

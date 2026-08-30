@@ -28,6 +28,9 @@ extern "c" fn fixture_clear_fixed() -> Int = "lunaflux_inference_credential_fixt
 extern "c" fn fixture_fixed_closed() -> Bool = "lunaflux_inference_credential_fixture_fixed_closed"
 
 ///|
+extern "c" fn fixture_fixed_cloexec() -> Bool = "lunaflux_inference_credential_fixture_fixed_cloexec"
+
+///|
 fn credential_frame(secret : FixedArray[Byte]) -> FixedArray[Byte] {
   let frame = FixedArray::make(12 + secret.length(), b'\x00')
   frame[0] = b'L'
