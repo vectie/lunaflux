@@ -1,5 +1,7 @@
 ///|
-fn qwen3_source_fixture() -> @worker_wire.EncodedBootstrapSource raise {
+fn qwen3_source_fixture(
+  sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(
       model_root="/srv/lunaflux/qwen3",
@@ -16,6 +18,7 @@ fn qwen3_source_fixture() -> @worker_wire.EncodedBootstrapSource raise {
     @worker_wire.WorkerBootstrapKernelSource::new(
       manifest_locator="manifests/qwen3-bf16-paged.json",
       manifest_digest_sha256=source_digest_b(),
+      sampling_runtime~,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
       compute_major=8,
@@ -56,7 +59,17 @@ test "Qwen3 v12 roundtrips exact tied BF16 source claims" {
 }
 
 ///|
-test "Qwen3 v12 rejects untied or extended runtime modes" {
+test "Qwen3 v12 roundtrips embedded CUDA greedy sampling" {
+  let encoded = qwen3_source_fixture(sampling_runtime=EmbeddedCudaGreedyV1)
+  let frame = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(frame, destination_offset=0)
+  let decoded = @worker_wire.decode_bootstrap_source(frame, encoded.length())
+  assert_eq(decoded.digest(), encoded.digest())
+  assert_eq(decoded.kernel().sampling_runtime(), EmbeddedCudaGreedyV1)
+}
+
+///|
+test "Qwen3 v12 rejects untied runtime modes" {
   try
     @worker_wire.WorkerQwen3BootstrapModelSource::new(
       config_locator="config.json",

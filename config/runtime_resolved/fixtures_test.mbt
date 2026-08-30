@@ -23,6 +23,7 @@ fn cache_fixture(
   tokens_per_page? : Int = 16,
   total_page_count? : Int = 4096,
   block_table_pages_per_request? : Int = 256,
+  max_active_references_per_page? : Int = 1024,
 ) -> @cache.CacheConfig {
   try! @cache.new(
     tokens_per_page~,
@@ -33,7 +34,7 @@ fn cache_fixture(
     max_prefix_nodes=0,
     max_prefix_tokens_per_entry=0,
     max_prefix_pages=0,
-    max_active_references_per_page=1024,
+    max_active_references_per_page~,
     max_cached_references_per_page=1024,
     layout_version=1,
   )

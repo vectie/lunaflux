@@ -50,6 +50,7 @@ pub(all) enum RuntimeCapacityReason {
   CombinedConfiguredCapacity
   MinimumOfActiveAndTokenBudget
   RowsTimesContextPages
+  MinimumOfRowAndPhysicalReferenceBounds
   RequestSlotsTimesMaximumGeneratedTokens
   FixedDoubleBuffer
   OwnerMaximumGenerationDefault

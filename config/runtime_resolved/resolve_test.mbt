@@ -327,6 +327,60 @@ test "worker flattened page tables cover every maximum-sized row" {
 }
 
 ///|
+test "physical pages bound flattened tables without active sharing" {
+  let scheduler = scheduler_fixture(
+    step_token_budget=256,
+    max_active_requests=32,
+    max_waiting_requests=32,
+    prefill_chunk_tokens=256,
+    output_event_capacity=16384,
+  )
+  let cache = cache_fixture(
+    tokens_per_page=8,
+    total_page_count=8192,
+    block_table_pages_per_request=5120,
+    max_active_references_per_page=1,
+  )
+  let shapes = shape_fixture(
+    max_batch_rows=32,
+    max_sequence_tokens=40960,
+    vocabulary_size=151936,
+  )
+  let worker = worker_fixture(
+    max_prefill_rows=32,
+    max_decode_rows=32,
+    max_plan_rows=32,
+    max_plan_tokens=256,
+    max_plan_pages=8192,
+    max_completion_slots=32,
+    max_sequence_tokens=40960,
+    max_token_id=151935,
+  )
+  let capacity = @runtime_resolved.resolve(scheduler, cache, shapes, worker)
+  assert_eq(capacity.required_worker_page_table_cells(), 8192)
+  expect_capacity_error(
+    () => {
+      @runtime_resolved.resolve(
+        scheduler,
+        cache,
+        shapes,
+        worker_fixture(
+          max_prefill_rows=32,
+          max_decode_rows=32,
+          max_plan_rows=32,
+          max_plan_tokens=256,
+          max_plan_pages=8191,
+          max_completion_slots=32,
+          max_sequence_tokens=40960,
+          max_token_id=151935,
+        ),
+      )
+    },
+    Invalid(WorkerPlanPages),
+  )
+}
+
+///|
 test "worker token IDs cover the complete model vocabulary" {
   expect_capacity_error(
     () => {

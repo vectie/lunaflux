@@ -83,8 +83,11 @@ fn materialize_block_table_limits(
 /// every worker row/completion envelope must independently support that full
 /// ceiling. Active concurrency may exceed this per-step row ceiling.
 ///
-/// Worker page storage is conservative by construction: each scheduled row
-/// may carry a complete context-sized page table in the flattened plan.
+/// Worker page storage is bounded by both the row/context envelope and the
+/// number of active references that the physical page pool can own. This
+/// avoids requiring an impossible all-rows-full envelope when the KV pool is
+/// smaller, while retaining the larger bound when active page sharing permits
+/// duplicate flattened references.
 pub fn resolve(
   scheduler : @scheduler.SchedulerConfig,
   cache : @cache.CacheConfig,
@@ -157,11 +160,22 @@ pub fn resolve(
     shapes.vocabulary_size() - 1,
     WorkerTokenIdRange,
   )
-  let required_worker_page_table_cells = match
+  let row_context_page_table_cells = match
     checked_multiply_nonnegative(max_rows_per_step, context_pages_per_request) {
     Some(value) => value
     None => raise Invalid(WorkerPlanPages)
   }
+  let physical_reference_page_table_cells = match
+    checked_multiply_nonnegative(
+      total_page_count,
+      cache.max_active_references_per_page(),
+    ) {
+    Some(value) => value
+    None => MAX_SAFE_INT
+  }
+  let required_worker_page_table_cells = Int::min(
+    row_context_page_table_cells, physical_reference_page_table_cells,
+  )
   require_at_least(
     worker.max_plan_pages(),
     required_worker_page_table_cells,
@@ -215,7 +229,10 @@ pub fn resolve(
     { subject: ContextPagesPerRequest, reason: CeilingDivision },
     { subject: TotalRequestSlots, reason: CombinedConfiguredCapacity },
     { subject: MaxRowsPerStep, reason: MinimumOfActiveAndTokenBudget },
-    { subject: WorkerPageTableCells, reason: RowsTimesContextPages },
+    {
+      subject: WorkerPageTableCells,
+      reason: MinimumOfRowAndPhysicalReferenceBounds,
+    },
     {
       subject: RecomputeHistoryCells,
       reason: RequestSlotsTimesMaximumGeneratedTokens,

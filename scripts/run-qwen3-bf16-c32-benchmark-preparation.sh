@@ -217,7 +217,7 @@ is_sha256 "$numeric_sha" && is_sha256 "$route_sha" ||
 candidate=$artifact_root/candidate
 "$exporter" "$model_root" config.json "$config_sha" "$model_content_sha" \
   "$numeric_locator" "$numeric_sha" "$route_sha" "$toolchain_sha" \
-  13 1 115 8 8192 32 256 5120 "$candidate" \
+  13 1 115 8 8192 32 256 8192 "$candidate" \
   >"$logs/candidate-export.stdout" 2>"$logs/candidate-export.stderr" ||
   fail 'Qwen c32 candidate export failed'
 [[ ! -s $logs/candidate-export.stderr ]] || fail 'candidate export emitted stderr'
@@ -242,14 +242,14 @@ compiled=$artifact_root/compiled
 release=$artifact_root/release
 "$binder" "$model_root" config.json "$config_sha" "$model_content_sha" \
   "$numeric_locator" "$numeric_sha" "$route_sha" "$compiled" \
-  "$toolchain_manifest" "$toolchain_sha" 13 1 115 8 8192 32 256 5120 \
+  "$toolchain_manifest" "$toolchain_sha" 13 1 115 8 8192 32 256 8192 \
   "$release" >"$artifact_root/release-bind.stdout" \
   2>"$logs/release-bind.stderr" || fail 'Qwen c32 release bind failed'
 [[ ! -s $logs/release-bind.stderr ]] || fail 'release bind emitted stderr'
 release_bind=$artifact_root/release-bind.stdout
 release_bind_sha=$(sha256_file "$release_bind")
 for exact in 'max_batch_rows=32' 'max_query_rows=32' 'max_query_tokens=256' \
-  'tokens_per_page=8' 'total_page_count=8192' 'max_page_table_entries=5120' \
+  'tokens_per_page=8' 'total_page_count=8192' 'max_page_table_entries=8192' \
   'target=sm_120' 'compiler_invoked=0' 'device_opened=0'; do
   grep -Fxq "$exact" "$release_bind" || fail "release bind lost: $exact"
 done
@@ -448,7 +448,7 @@ release_bind_max_query_rows=32
 release_bind_max_query_tokens=256
 tokens_per_page=8
 total_page_count=8192
-max_page_table_entries=5120
+max_page_table_entries=8192
 authenticated_capacity=32
 concurrent_correctness_requests=32
 output_tokens_per_request=2

@@ -37,9 +37,7 @@ fn parse_qwen3_descriptor(
   if !tied_embeddings {
     raise invalid_field(Model, UnsupportedValue)
   }
-  if kernels.fused_runtime is Some(_) ||
-    kernels.sampling_runtime != HostSamplingRuntime ||
-    kernels.bootstrap_digest == "" {
+  if kernels.fused_runtime is Some(_) || kernels.bootstrap_digest == "" {
     raise invalid_field(Kernels, UnsupportedValue)
   }
   {
@@ -73,6 +71,6 @@ fn parse_qwen3_descriptor(
     execution: parse_execution(root),
     worker: parse_worker(root),
     inference: parse_inference(root),
-    ceilings: parse_ceilings(root, graph_memory_required=true),
+    ceilings: parse_ceilings(root, graph_memory_required=false),
   }
 }

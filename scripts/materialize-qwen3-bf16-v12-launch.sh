@@ -98,8 +98,23 @@ bind_value() {
   [ "$(bind_value device_opened)" = 0 ] &&
   [ "$(bind_value runtime_authority)" = 0 ] ||
   fail 'release binder crossed its offline boundary'
-[ "$(bind_value authenticated_embedded_greedy_sampling)" = 0 ] ||
-  fail 'Qwen v12 must retain host sampling'
+sampling_runtime_json=
+sampling_runtime=host
+authenticated_embedded_greedy_sampling=$(
+  bind_value authenticated_embedded_greedy_sampling
+)
+case "$materialization_profile" in
+  native-framed-c32-benchmark-v1)
+    [ "$authenticated_embedded_greedy_sampling" = 1 ] ||
+      fail 'Qwen c32 benchmark requires authenticated device greedy sampling'
+    sampling_runtime_json=',"sampling_runtime":"embedded_cuda_greedy_v1"'
+    sampling_runtime=embedded_cuda_greedy_v1
+    ;;
+  native-framed-v1|openai-responses-v1)
+    [ "$authenticated_embedded_greedy_sampling" = 0 ] ||
+      fail 'Qwen host-sampling profile admitted device greedy sampling'
+    ;;
+esac
 
 model_plan_sha=$(bind_value model_plan_sha256)
 manifest_relative=$(bind_value kernel_manifest_relative)
@@ -121,6 +136,12 @@ done
 [ "$tokens_per_page" -gt 0 ] && [ "$total_page_count" -gt 0 ] &&
   [ "$max_sequence_tokens" -gt 0 ] && [ "$max_page_table_entries" -gt 0 ] ||
   fail 'release-bind geometry is invalid'
+context_page_table_entries=$((
+  (max_sequence_tokens + tokens_per_page - 1) / tokens_per_page
+))
+[ "$context_page_table_entries" -le "$max_page_table_entries" ] &&
+  [ "$max_page_table_entries" -le "$total_page_count" ] ||
+  fail 'release-bind page-table geometry is inconsistent'
 
 policy_schema=lunaflux.instance-policy.v1
 external_protocol_json=
@@ -130,6 +151,7 @@ max_prefill_rows=1
 max_decode_rows=1
 max_plan_rows=1
 max_plan_tokens=1
+max_plan_pages=$max_page_table_entries
 max_completion_slots=1
 scheduler_step_token_budget=1
 scheduler_max_active_requests=1
@@ -157,6 +179,7 @@ case "$materialization_profile" in
     max_decode_rows=$release_max_query_rows
     max_plan_rows=$release_max_query_rows
     max_plan_tokens=$release_max_query_tokens
+    max_plan_pages=$max_page_table_entries
     max_completion_slots=$release_max_query_rows
     scheduler_step_token_budget=$release_max_query_tokens
     scheduler_max_active_requests=$release_max_batch_rows
@@ -243,20 +266,24 @@ cp "$scratch/kernel-assemble.stdout" "$output/evidence/kernel-assemble.stdout"
 cp "$scratch/kernel-assemble.stderr" "$output/evidence/kernel-assemble.stderr"
 
 descriptor=$output/model-root/runtime/descriptor.json
-printf '%s\n' "{\"schema_version\":\"lunaflux.runtime.qwen3_bf16.v1\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":true,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_page_table_entries,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":4096,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":2147483648,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647,\"max_graph_capture_bytes\":2147483648}}" >"$descriptor"
+printf '%s\n' "{\"schema_version\":\"lunaflux.runtime.qwen3_bf16.v1\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$sampling_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":true,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_plan_pages,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":4096,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":2147483648,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647}}" >"$descriptor"
 descriptor_sha=$(bundle_sha256_file "$descriptor")
 
 policy=$output/policy-root/instance/policy.json
-printf '%s\n' "{\"schema_version\":\"$policy_schema\",\"runtime_descriptor_sha256\":\"$descriptor_sha\",\"tokenizer\":{\"locator\":\"tokenizer.json\",\"sha256\":\"$tokenizer_sha\",\"max_file_bytes\":67108864,\"max_json_depth\":64,\"max_input_bytes\":65536,\"max_output_tokens\":65536,\"max_decoded_bytes\":1048576,\"max_vocab_entries\":200000,\"max_merge_rules\":1000000,\"max_token_bytes\":4096,\"max_special_tokens\":64},\"scheduler\":{\"step_token_budget\":$scheduler_step_token_budget,\"max_active_requests\":$scheduler_max_active_requests,\"max_waiting_requests\":$scheduler_max_waiting_requests,\"prefill_chunk_tokens\":$scheduler_prefill_chunk_tokens,\"emergency_decode_page_reserve\":1,\"waiting_age_threshold_steps\":8,\"output_event_capacity\":$scheduler_output_event_capacity},\"cache\":{\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"block_table_pages_per_request\":$max_page_table_entries,\"prefix_enabled\":false,\"max_prefix_entries\":0,\"max_prefix_nodes\":0,\"max_prefix_tokens_per_entry\":0,\"max_prefix_pages\":0,\"max_prefix_scope_bytes\":0,\"max_active_references_per_page\":1,\"max_cached_references_per_page\":1,\"layout_version\":1},\"service\":{\"listen_host\":\"127.0.0.1\",\"listen_port\":$listen_port,\"max_request_bytes\":1048576,\"graceful_drain_milliseconds\":30000,\"diagnostic_mode\":\"normal\"}$external_protocol_json$openai_service_json,\"worker_process\":{\"max_frame_bytes\":1048576,\"startup_io_timeout_millis\":600000,\"io_timeout_millis\":600000,\"shutdown_timeout_millis\":600000},\"restart\":{\"initial_backoff_millis\":10,\"maximum_backoff_millis\":1000,\"stable_after_millis\":1000,\"maximum_attempts\":3},\"transport\":{\"read_chunk_bytes\":65536,\"write_chunk_bytes\":65536,\"accept_timeout_millis\":1000,\"input_idle_timeout_millis\":600000,\"write_timeout_millis\":600000,\"reactor_transition_budget\":256},\"preparation\":{\"framed_max_frame_bytes\":1048576,\"lane_count\":$preparation_lane_count,\"step_work_units\":256,\"total_work_units\":10000000,\"storage_int_cells\":2000000,\"storage_byte_cells\":8388608,\"storage_reference_cells\":200000,\"event_work_units\":256},\"telemetry\":{\"instance_log_capacity\":4096}}" >"$policy"
+printf '%s\n' "{\"schema_version\":\"$policy_schema\",\"runtime_descriptor_sha256\":\"$descriptor_sha\",\"tokenizer\":{\"locator\":\"tokenizer.json\",\"sha256\":\"$tokenizer_sha\",\"max_file_bytes\":67108864,\"max_json_depth\":64,\"max_input_bytes\":65536,\"max_output_tokens\":65536,\"max_decoded_bytes\":1048576,\"max_vocab_entries\":200000,\"max_merge_rules\":1000000,\"max_token_bytes\":4096,\"max_special_tokens\":64},\"scheduler\":{\"step_token_budget\":$scheduler_step_token_budget,\"max_active_requests\":$scheduler_max_active_requests,\"max_waiting_requests\":$scheduler_max_waiting_requests,\"prefill_chunk_tokens\":$scheduler_prefill_chunk_tokens,\"emergency_decode_page_reserve\":1,\"waiting_age_threshold_steps\":8,\"output_event_capacity\":$scheduler_output_event_capacity},\"cache\":{\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"block_table_pages_per_request\":$context_page_table_entries,\"prefix_enabled\":false,\"max_prefix_entries\":0,\"max_prefix_nodes\":0,\"max_prefix_tokens_per_entry\":0,\"max_prefix_pages\":0,\"max_prefix_scope_bytes\":0,\"max_active_references_per_page\":1,\"max_cached_references_per_page\":1,\"layout_version\":1},\"service\":{\"listen_host\":\"127.0.0.1\",\"listen_port\":$listen_port,\"max_request_bytes\":1048576,\"graceful_drain_milliseconds\":30000,\"diagnostic_mode\":\"normal\"}$external_protocol_json$openai_service_json,\"worker_process\":{\"max_frame_bytes\":1048576,\"startup_io_timeout_millis\":600000,\"io_timeout_millis\":600000,\"shutdown_timeout_millis\":600000},\"restart\":{\"initial_backoff_millis\":10,\"maximum_backoff_millis\":1000,\"stable_after_millis\":1000,\"maximum_attempts\":3},\"transport\":{\"read_chunk_bytes\":65536,\"write_chunk_bytes\":65536,\"accept_timeout_millis\":1000,\"input_idle_timeout_millis\":600000,\"write_timeout_millis\":600000,\"reactor_transition_budget\":256},\"preparation\":{\"framed_max_frame_bytes\":1048576,\"lane_count\":$preparation_lane_count,\"step_work_units\":256,\"total_work_units\":10000000,\"storage_int_cells\":2000000,\"storage_byte_cells\":8388608,\"storage_reference_cells\":200000,\"event_work_units\":256},\"telemetry\":{\"instance_log_capacity\":4096}}" >"$policy"
 policy_sha=$(bundle_sha256_file "$policy")
 
 launch=$output/lunaflux.launch.json
 printf '%s\n' "{\"schema\":\"lunaflux.launch.v5\",\"runtime_recipe\":\"dense_qwen3_bf16_paged_aot_v12\",\"model_root\":\"$output/model-root\",\"kernel_root\":\"$output/kernel-release/kernel-root\",\"policy_root\":\"$output/policy-root\",\"runtime_descriptor\":{\"locator\":\"runtime/descriptor.json\",\"sha256\":\"$descriptor_sha\"},\"instance_policy\":{\"locator\":\"instance/policy.json\",\"sha256\":\"$policy_sha\"},\"worker_executable\":{\"path\":\"$output/bin/lunaflux-device-worker\",\"sha256\":\"$worker_sha\"},\"luna_approval\":{\"mode\":\"none\"}}" >"$launch"
 launch_sha=$(bundle_sha256_file "$launch")
 
-moon run --target native cmd/lunaflux -- validate-release \
+if ! moon run --target native cmd/lunaflux -- validate-release \
   "$output#sha256=$launch_sha" >"$scratch/preflight.stdout" \
-  2>"$scratch/preflight.stderr" || fail 'Qwen release preflight failed'
+  2>"$scratch/preflight.stderr"; then
+  sed -n '1,160p' "$scratch/preflight.stdout" >&2
+  sed -n '1,160p' "$scratch/preflight.stderr" >&2
+  fail 'Qwen release preflight failed'
+fi
 for exact in \
   'schema=lunaflux-release-preflight.v1' \
   'runtime_recipe=dense_qwen3_bf16_paged_aot_v12' \
@@ -296,7 +323,7 @@ printf 'bootstrap_sha256=%s\n' "$bootstrap_sha"
 printf 'bootstrap_source_sha256=%s\n' "$bootstrap_source_sha"
 printf 'reference_corpus_sha256=%s\n' "$corpus_sha"
 printf 'listen_addr=127.0.0.1:%s\n' "$listen_port"
-printf '%s\n' 'sampling_runtime=host'
+printf 'sampling_runtime=%s\n' "$sampling_runtime"
 printf 'materialization_profile=%s\n' "$materialization_profile"
 printf 'external_protocol=%s\n' "$(if [ "$materialization_profile" = openai-responses-v1 ]; then printf '%s' openai-responses-v1; else printf '%s' native-framed-v1; fi)"
 printf 'max_batch_rows=%s\n' "$max_batch_rows"

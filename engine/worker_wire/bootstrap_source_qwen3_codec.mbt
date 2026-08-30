@@ -24,7 +24,8 @@ fn qwen3_source_lengths(
 
 ///|
 /// Canonically frames one dense-Qwen3 BF16 paged source. Recipe v12 rejects
-/// fused, embedded-sampling, approval, untied-output, and non-BF16 modes.
+/// fused, approval, untied-output, and non-BF16 modes; its reserved sampling
+/// word distinguishes host sampling from authenticated embedded CUDA greedy.
 pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
   roots : WorkerBootstrapRoots,
   model : WorkerQwen3BootstrapModelSource,
@@ -34,7 +35,6 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
 ) -> EncodedBootstrapSource raise WorkerWireError {
   if kernel.luna_approval() is Some(_) ||
     kernel.fused_runtime_source() is Some(_) ||
-    kernel.sampling_runtime() != HostSamplingRuntime ||
     !execution.supports_bf16() ||
     !model.tied_embeddings() {
     raise InvalidBootstrapSource(Recipe)
@@ -104,7 +104,14 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
   )
   write_bootstrap_source_digest(storage, 216, model.weight_manifest_digest())
   write_i32(storage, 248, 1)
-  write_u32(storage, 252, 0U)
+  write_u32(
+    storage,
+    252,
+    match kernel.sampling_runtime() {
+      HostSamplingRuntime => 0U
+      EmbeddedCudaGreedyV1 => 1U
+    },
+  )
   write_u64(storage, 256, 0UL)
   let values = [
     roots.model_root(),
@@ -154,7 +161,7 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
     read_i32(source, 12) != length ||
     read_u32(source, 16) != 0U ||
     read_i32(source, 248) != 1 ||
-    read_u32(source, 252) != 0U ||
+    read_u32(source, 252) > 1U ||
     read_u64(source, 256) != 0UL {
     raise InvalidBootstrapSource(Reserved)
   }
@@ -194,6 +201,11 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
   let kernel = WorkerBootstrapKernelSource::new(
     manifest_locator=values[4],
     manifest_digest_sha256=bootstrap_source_raw_digest(source, 152).as_hex(),
+    sampling_runtime=if read_u32(source, 252) == 1U {
+      EmbeddedCudaGreedyV1
+    } else {
+      HostSamplingRuntime
+    },
   )
   let execution = WorkerBootstrapExecution::new(
     compute_major=read_i32(source, 40),
