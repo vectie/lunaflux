@@ -13,13 +13,16 @@ line_of() {
 }
 
 credential_line=$(line_of 'let credential = acquire_opaque_inference_credential()')
-drain_line=$(line_of 'let drain = @inherited_drain.prepare_inherited_drain_v1()')
+drain_prepare_line=$(line_of '@inherited_drain\.prepare_inherited_drain_v1()')
+drain_line=$(line_of 'let drain = match drain_result')
 owner_line=$(line_of 'let owner = @runtime_instance\.prepare_opaque_cli\(')
 attach_line=$(line_of 'owner\.attach_inherited_drain_v1\(drain\)')
 
-if [ -z "$credential_line" ] || [ -z "$drain_line" ] || \
+if [ -z "$credential_line" ] || [ -z "$drain_prepare_line" ] || \
+  [ -z "$drain_line" ] || \
   [ -z "$owner_line" ] || [ -z "$attach_line" ] || \
-  [ "$credential_line" -ge "$drain_line" ] || \
+  [ "$credential_line" -ge "$drain_prepare_line" ] || \
+  [ "$drain_prepare_line" -ge "$drain_line" ] || \
   [ "$drain_line" -ge "$owner_line" ] || \
   [ "$owner_line" -ge "$attach_line" ]; then
   printf '%s\n' 'opaque CLI capability acquisition/activation ordering drifted' >&2
