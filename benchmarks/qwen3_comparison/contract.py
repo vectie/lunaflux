@@ -418,7 +418,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
                 or deployment_digest != engine["configuration_sha256"]
             ):
                 raise ContractError("LunaFlux deployment launch identity differs")
-            runtime_endpoint = urlsplit("luna+tcp://" + native["runtime_address"])
+            runtime_endpoint = urlsplit("tcp://" + native["runtime_address"])
             _, bridge_port = engine_bind(engine)
             if (
                 runtime_endpoint.hostname != "127.0.0.1"

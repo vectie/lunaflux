@@ -67,6 +67,7 @@ for anchor in \
   'native runtime executable' \
   'native supervisor executable' \
   'token-ID bridge executable' \
+  "grep -Fxc 'readiness: true'" \
   'runtime_origin=tcp://' \
   'drain_trigger'; do
   rg -Fq "$anchor" scripts/start-qwen3-lunaflux-benchmark-server.sh ||
@@ -97,8 +98,11 @@ rg -Fq '[[ $runtime_origin == tcp://127.0.0.1:* ]]' "$physical_campaign" ||
 fixture_cli=tests/qwen3_bf16_serving_supervisor/fixture-cli.sh
 rg -Fq 'runtime_origin=tcp://127.0.0.1:19001' "$fixture_cli" ||
   fail 'supervisor fixture does not publish the canonical native origin'
-for canonical_consumer in "$physical_campaign" "$fixture_cli"; do
-  if rg -Fq 'runtime_origin=luna+tcp://' "$canonical_consumer"; then
+rg -Fq 'startup_measurement_readiness: true' "$fixture_cli" ||
+  fail 'supervisor fixture does not cover startup measurement readiness'
+for canonical_consumer in "$physical_campaign" "$fixture_cli" \
+  benchmarks/qwen3_comparison/contract.py; do
+  if rg -Fq 'luna+tcp://' "$canonical_consumer"; then
     fail "non-canonical native origin remains: $canonical_consumer"
   fi
 done

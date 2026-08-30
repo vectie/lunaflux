@@ -178,14 +178,15 @@ supervisor_pid=$!
 ready=0
 attempt=0
 while [ "$attempt" -lt 6000 ]; do
+  kill -0 "$supervisor_pid" 2>/dev/null || break
   if [ -f "$runtime_stdout" ] &&
     grep -Fxq 'readiness: true' "$runtime_stdout" &&
     grep -Fxq 'runtime_protocol=native-framed-v1' "$runtime_stdout" &&
     grep -Fxq "runtime_origin=tcp://$runtime_address" "$runtime_stdout"; then
+    kill -0 "$supervisor_pid" 2>/dev/null || break
     ready=1
     break
   fi
-  kill -0 "$supervisor_pid" 2>/dev/null || break
   attempt=$((attempt + 1))
   sleep 0.1
 done
@@ -193,8 +194,14 @@ if [ "$ready" -ne 1 ]; then
   shutdown || true
   fail 'native runtime did not publish exact readiness before bridge startup'
 fi
-[ "$(grep -Fc 'readiness: true' "$runtime_stdout")" -eq 1 ] || fail 'native readiness publication is duplicated'
-[ "$(grep -Fc "runtime_origin=tcp://$runtime_address" "$runtime_stdout")" -eq 1 ] || fail 'native runtime origin publication is duplicated'
+if [ "$(grep -Fxc 'readiness: true' "$runtime_stdout")" -ne 1 ]; then
+  shutdown || true
+  fail 'native readiness publication is duplicated'
+fi
+if [ "$(grep -Fxc "runtime_origin=tcp://$runtime_address" "$runtime_stdout")" -ne 1 ]; then
+  shutdown || true
+  fail 'native runtime origin publication is duplicated'
+fi
 
 (
   bridge_child=''
