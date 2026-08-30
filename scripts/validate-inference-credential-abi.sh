@@ -41,7 +41,8 @@ if ! rg -q 'vectie/lunaflux/internal/inference_credential' \
     runtime/inference_credential/moon.pkg ||
   rg -n 'internal/inference_credential' --glob 'moon.pkg' \
     --glob '!runtime/inference_credential/moon.pkg' \
-    --glob '!internal/inference_credential/moon.pkg'; then
+    --glob '!internal/inference_credential/moon.pkg' \
+    --glob '!**/_build/**'; then
   printf '%s\n' 'only the public credential wrapper may import its ABI owner' >&2
   exit 1
 fi
