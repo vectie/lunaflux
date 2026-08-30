@@ -6,7 +6,7 @@ printf '%s\n' \
   'LunaFlux native framed service' \
   'health: healthy' \
   'readiness: true' \
-  'runtime_origin=luna+tcp://127.0.0.1:19001' \
+  'runtime_origin=tcp://127.0.0.1:19001' \
   'control_origin=http://127.0.0.1:19002' \
   'runtime_protocol=native-framed-v1'
 IFS= read -r command <&5

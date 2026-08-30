@@ -189,10 +189,18 @@ test "opaque CLI startup measurement is exact and payload-safe" {
 }
 
 ///|
+test "native stdout flush status rejects every nonzero result" {
+  assert_true(native_stdout_flush_succeeded(0))
+  for failure in [-1, 1, 2] {
+    assert_false(native_stdout_flush_succeeded(failure))
+  }
+}
+
+///|
 test "opaque CLI publishes exact machine-readable serving and control origins" {
   assert_eq(
-    runtime_origin_line("http://127.0.0.1:8080"),
-    "runtime_origin=http://127.0.0.1:8080",
+    runtime_origin_line("tcp://127.0.0.1:8080"),
+    "runtime_origin=tcp://127.0.0.1:8080",
   )
   assert_eq(
     control_origin_line("http://127.0.0.1:43127"),

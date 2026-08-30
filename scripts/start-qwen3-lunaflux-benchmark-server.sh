@@ -181,7 +181,7 @@ while [ "$attempt" -lt 6000 ]; do
   if [ -f "$runtime_stdout" ] &&
     grep -Fxq 'readiness: true' "$runtime_stdout" &&
     grep -Fxq 'runtime_protocol=native-framed-v1' "$runtime_stdout" &&
-    grep -Fxq "runtime_origin=luna+tcp://$runtime_address" "$runtime_stdout"; then
+    grep -Fxq "runtime_origin=tcp://$runtime_address" "$runtime_stdout"; then
     ready=1
     break
   fi
@@ -194,7 +194,7 @@ if [ "$ready" -ne 1 ]; then
   fail 'native runtime did not publish exact readiness before bridge startup'
 fi
 [ "$(grep -Fc 'readiness: true' "$runtime_stdout")" -eq 1 ] || fail 'native readiness publication is duplicated'
-[ "$(grep -Fc "runtime_origin=luna+tcp://$runtime_address" "$runtime_stdout")" -eq 1 ] || fail 'native runtime origin publication is duplicated'
+[ "$(grep -Fc "runtime_origin=tcp://$runtime_address" "$runtime_stdout")" -eq 1 ] || fail 'native runtime origin publication is duplicated'
 
 (
   bridge_child=''

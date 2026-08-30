@@ -67,10 +67,40 @@ for anchor in \
   'native runtime executable' \
   'native supervisor executable' \
   'token-ID bridge executable' \
-  'runtime_origin=luna+tcp://' \
+  'runtime_origin=tcp://' \
   'drain_trigger'; do
   rg -Fq "$anchor" scripts/start-qwen3-lunaflux-benchmark-server.sh ||
     fail "combined LunaFlux lifecycle anchor is absent: $anchor"
+done
+if rg -Fq 'runtime_origin=luna+tcp://' \
+  scripts/start-qwen3-lunaflux-benchmark-server.sh; then
+  fail 'combined LunaFlux lifecycle expects a non-canonical native origin'
+fi
+readiness_line=$(rg -n -F 'println(readiness_line)' \
+  cmd/lunaflux/native_run.mbt | cut -d: -f1)
+flush_line=$(rg -n -F 'if !flush_native_stdout_after_readiness_publication()' \
+  cmd/lunaflux/native_run.mbt | cut -d: -f1)
+case "$readiness_line" in
+  ''|*[!0-9]*) fail 'native readiness publication placement is absent' ;;
+esac
+case "$flush_line" in
+  ''|*[!0-9]*) fail 'native readiness flush placement is absent' ;;
+esac
+[ "$flush_line" -eq $((readiness_line + 1)) ] ||
+  fail 'native readiness stdout is not flushed immediately after publication'
+rg -Fq 'return fflush(stdout) == 0 ? 0 : 1;' \
+  cmd/lunaflux/native_stdout.c ||
+  fail 'native readiness flush does not report stdout failure'
+physical_campaign=scripts/run-qwen3-bf16-v12-serving-physical-campaign.sh
+rg -Fq '[[ $runtime_origin == tcp://127.0.0.1:* ]]' "$physical_campaign" ||
+  fail 'physical campaign does not admit the canonical native origin'
+fixture_cli=tests/qwen3_bf16_serving_supervisor/fixture-cli.sh
+rg -Fq 'runtime_origin=tcp://127.0.0.1:19001' "$fixture_cli" ||
+  fail 'supervisor fixture does not publish the canonical native origin'
+for canonical_consumer in "$physical_campaign" "$fixture_cli"; do
+  if rg -Fq 'runtime_origin=luna+tcp://' "$canonical_consumer"; then
+    fail "non-canonical native origin remains: $canonical_consumer"
+  fi
 done
 if rg -Fq 'python3' scripts/start-qwen3-lunaflux-token-id-bridge.sh; then
   fail 'production token-ID bridge launcher acquired a Python dependency'

@@ -253,11 +253,11 @@ for name in runtime_origin control_origin; do
 done
 runtime_origin=$(sed -n 's/^runtime_origin=//p' "$runtime_stdout")
 control_origin=$(sed -n 's/^control_origin=//p' "$runtime_stdout")
-[[ $runtime_origin == luna+tcp://127.0.0.1:* ]] ||
+[[ $runtime_origin == tcp://127.0.0.1:* ]] ||
   fail 'native runtime origin is not exact loopback'
 [[ $control_origin == http://127.0.0.1:* && $control_origin != "$runtime_origin" ]] ||
   fail 'native control origin is not the separate loopback control listener'
-runtime_address=${runtime_origin#luna+tcp://}
+runtime_address=${runtime_origin#tcp://}
 
 "$curl" --fail --silent --show-error --max-time 30 \
   "$control_origin/healthz" -o "$logs/health.body" ||

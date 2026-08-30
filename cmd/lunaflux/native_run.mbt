@@ -393,6 +393,16 @@ async fn run_native_model(model : String) -> Unit {
           )
           println(latency_line)
           println(readiness_line)
+          if !flush_native_stdout_after_readiness_publication() {
+            let closed = drain_native_owner(owner)
+            if !closed {
+              raise @runtime_instance.RuntimeInstanceFailedAndCleanup(
+                ColdStartTelemetry,
+                Cleanup,
+              )
+            }
+            raise @runtime_instance.RuntimeInstanceFailed(ColdStartTelemetry)
+          }
           ready_printed = true
         }
       Closed => return
