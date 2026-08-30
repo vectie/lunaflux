@@ -2,6 +2,7 @@
 fn bootstrap_qwen3_test_source(
   artifact? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   manifest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -19,6 +20,7 @@ fn bootstrap_qwen3_test_source(
     @worker_wire.WorkerBootstrapKernelSource::new(
       manifest_locator="execution.json",
       manifest_digest_sha256="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      sampling_runtime~,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
       compute_major=8,
@@ -39,6 +41,17 @@ fn bootstrap_qwen3_test_source(
       max_total_module_bytes=4096L,
     ),
   )
+}
+
+///|
+test "Qwen3 source envelope admits authenticated embedded greedy sampling" {
+  let source = bootstrap_qwen3_test_source(
+    sampling_runtime=EmbeddedCudaGreedyV1,
+  )
+  let startup = bootstrap_test_startup(source.digest())
+  let model = validate_qwen3_source_envelope(startup, source)
+  assert_true(model.tied_embeddings())
+  assert_eq(source.kernel().sampling_runtime(), EmbeddedCudaGreedyV1)
 }
 
 ///|

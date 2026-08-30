@@ -19,9 +19,11 @@ fn validate_qwen3_source_envelope(
   }
   if source.recipe() != DenseQwen3Bf16PagedAotV12 ||
     source.kernel().luna_approval() is Some(_) ||
-    source.kernel().fused_runtime_source() is Some(_) ||
-    source.kernel().sampling_runtime() != HostSamplingRuntime {
+    source.kernel().fused_runtime_source() is Some(_) {
     raise Invalid(Recipe)
+  }
+  match source.kernel().sampling_runtime() {
+    HostSamplingRuntime | EmbeddedCudaGreedyV1 => ()
   }
   guard source.qwen3_model_source() is Some(model_source) else {
     raise Invalid(Recipe)
