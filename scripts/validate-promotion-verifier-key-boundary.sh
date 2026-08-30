@@ -42,7 +42,8 @@ if ! rg -q 'vectie/lunaflux/internal/promotion_verifier_key' \
     kernels/luna_capability_manifest/moon.pkg ||
   rg -n 'internal/promotion_verifier_key' --glob 'moon.pkg' \
     --glob '!kernels/luna_capability_manifest/moon.pkg' \
-    --glob '!internal/promotion_verifier_key/moon.pkg'; then
+    --glob '!internal/promotion_verifier_key/moon.pkg' \
+    --glob '!**/_build/**'; then
   printf '%s\n' 'only the Luna capability owner may import the verifier-key ABI' >&2
   exit 1
 fi
@@ -58,7 +59,8 @@ private_parent_constructor_calls=$(rg -l \
   'LunaParentStartupApprovalWitness::from_private_parent_channel_v1' \
   --glob '*.mbt' \
   --glob '!kernels/luna_capability_manifest/parent_startup_attestation.mbt' \
-  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' || true)
+  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' \
+  --glob '!**/_build/**' || true)
 if [ "$private_parent_constructor_calls" != \
     'engine/worker_wire/parent_approval_attestation.mbt' ]; then
   printf '%s\n' \
@@ -71,7 +73,8 @@ parent_attestation_decoder_calls=$(rg -l \
   'decode_parent_approval_attestation_v1' \
   --glob '*.mbt' \
   --glob '!engine/worker_wire/parent_approval_attestation.mbt' \
-  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' || true)
+  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' \
+  --glob '!**/_build/**' || true)
 if [ "$parent_attestation_decoder_calls" != \
     'engine/device_worker_child/run.mbt' ]; then
   printf '%s\n' \
@@ -83,7 +86,8 @@ fi
 launch_identity_calls=$(rg -l '\.require_launch_identity\(' \
   --glob '*.mbt' \
   --glob '!kernels/luna_capability_manifest/parent_startup_attestation.mbt' \
-  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' || true)
+  --glob '!**/*_test.mbt' --glob '!**/*_wbtest.mbt' \
+  --glob '!**/_build/**' || true)
 if [ "$launch_identity_calls" != 'engine/device_worker_bootstrap/prepare.mbt' ]; then
   printf '%s\n' \
     'parent approval launch identity validation escaped child bootstrap' >&2
@@ -105,14 +109,23 @@ if rg -n 'pub fn encode_parent_approval_attestation_v1' \
   exit 1
 fi
 
-promotion_line=$(rg -n -m 1 'let promotion = acquire_luna_promotion_verifier\(\)' \
+promotion_prepare_line=$(rg -n -m 1 'Ok\(acquire_luna_promotion_verifier\(\)\)' \
   cmd/lunaflux/native_run.mbt | cut -d: -f1)
-drain_line=$(rg -n -m 1 'let drain = @inherited_drain.prepare_inherited_drain_v1\(\)' \
+promotion_line=$(rg -n -m 1 'let promotion = match promotion_result' \
+  cmd/lunaflux/native_run.mbt | cut -d: -f1)
+drain_prepare_line=$(rg -n -m 1 '@inherited_drain\.prepare_inherited_drain_v1\(\)' \
+  cmd/lunaflux/native_run.mbt | cut -d: -f1)
+drain_line=$(rg -n -m 1 'let drain = match drain_result' \
   cmd/lunaflux/native_run.mbt | cut -d: -f1)
 owner_line=$(rg -n -m 1 'let owner = @runtime_instance\.prepare_opaque_cli\(' \
   cmd/lunaflux/native_run.mbt | cut -d: -f1)
-if [ -z "$promotion_line" ] || [ -z "$drain_line" ] || [ -z "$owner_line" ] ||
-  [ "$promotion_line" -ge "$drain_line" ] || [ "$drain_line" -ge "$owner_line" ]; then
+if [ -z "$promotion_prepare_line" ] || [ -z "$promotion_line" ] || \
+  [ -z "$drain_prepare_line" ] || [ -z "$drain_line" ] || \
+  [ -z "$owner_line" ] || \
+  [ "$promotion_prepare_line" -ge "$promotion_line" ] || \
+  [ "$promotion_line" -ge "$drain_prepare_line" ] || \
+  [ "$drain_prepare_line" -ge "$drain_line" ] || \
+  [ "$drain_line" -ge "$owner_line" ]; then
   printf '%s\n' 'promotion verifier startup acquisition ordering drifted' >&2
   exit 1
 fi
