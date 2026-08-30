@@ -24,7 +24,7 @@ test "pure instance join rejects descriptor tokenizer layout and capacity substi
         "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", tokenizer,
       )
     },
-    () => require_tokenizer_envelope(32000, 32001, 4096, 4096, 128, 128, 8, 8),
+    () => require_tokenizer_envelope(32001, 32000, 4096, 4096, 128, 128, 8, 8),
     () => require_blueprint_capacity(8, 7),
     () => require_service_frame_bytes(4096, 8192),
     () => require_preparation_lanes(7, 8),
@@ -43,6 +43,13 @@ test "pure instance join rejects descriptor tokenizer layout and capacity substi
       _ => fail("instance coherence substitution was admitted")
     }
   }
+}
+
+///|
+test "tokenizer vocabulary may occupy a padded model vocabulary prefix" {
+  try! require_tokenizer_envelope(
+    151669, 151936, 65536, 65536, 65536, 4096, 1048576, 4096,
+  )
 }
 
 ///|

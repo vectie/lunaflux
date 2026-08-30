@@ -45,7 +45,7 @@ fn require_tokenizer_envelope(
   tokenizer_decoded_bytes : Int,
   inference_delta_bytes : Int,
 ) -> Unit raise RuntimeInstanceAdmissionError {
-  if tokenizer_vocabulary != model_vocabulary ||
+  if tokenizer_vocabulary > model_vocabulary ||
     tokenizer_input_bytes < inference_text_bytes ||
     tokenizer_output_tokens < inference_input_tokens ||
     tokenizer_decoded_bytes < inference_delta_bytes {

@@ -159,6 +159,8 @@ scheduler_max_waiting_requests=1
 scheduler_prefill_chunk_tokens=1
 scheduler_output_event_capacity=512
 preparation_lane_count=1
+preparation_storage_int_cells=2000000
+preparation_storage_byte_cells=8388608
 case "$materialization_profile" in
   native-framed-v1)
     [ "$(bind_value max_batch_rows)" -eq 1 ] &&
@@ -186,7 +188,11 @@ case "$materialization_profile" in
     scheduler_max_waiting_requests=$release_max_batch_rows
     scheduler_prefill_chunk_tokens=$release_max_query_tokens
     scheduler_output_event_capacity=16384
-    preparation_lane_count=$release_max_batch_rows
+    preparation_lane_count=$((
+      scheduler_max_active_requests + scheduler_max_waiting_requests
+    ))
+    preparation_storage_int_cells=38282560
+    preparation_storage_byte_cells=80498880
     ;;
 esac
 case "$materialization_profile" in
@@ -270,7 +276,7 @@ printf '%s\n' "{\"schema_version\":\"lunaflux.runtime.qwen3_bf16.v1\",\"model\":
 descriptor_sha=$(bundle_sha256_file "$descriptor")
 
 policy=$output/policy-root/instance/policy.json
-printf '%s\n' "{\"schema_version\":\"$policy_schema\",\"runtime_descriptor_sha256\":\"$descriptor_sha\",\"tokenizer\":{\"locator\":\"tokenizer.json\",\"sha256\":\"$tokenizer_sha\",\"max_file_bytes\":67108864,\"max_json_depth\":64,\"max_input_bytes\":65536,\"max_output_tokens\":65536,\"max_decoded_bytes\":1048576,\"max_vocab_entries\":200000,\"max_merge_rules\":1000000,\"max_token_bytes\":4096,\"max_special_tokens\":64},\"scheduler\":{\"step_token_budget\":$scheduler_step_token_budget,\"max_active_requests\":$scheduler_max_active_requests,\"max_waiting_requests\":$scheduler_max_waiting_requests,\"prefill_chunk_tokens\":$scheduler_prefill_chunk_tokens,\"emergency_decode_page_reserve\":1,\"waiting_age_threshold_steps\":8,\"output_event_capacity\":$scheduler_output_event_capacity},\"cache\":{\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"block_table_pages_per_request\":$context_page_table_entries,\"prefix_enabled\":false,\"max_prefix_entries\":0,\"max_prefix_nodes\":0,\"max_prefix_tokens_per_entry\":0,\"max_prefix_pages\":0,\"max_prefix_scope_bytes\":0,\"max_active_references_per_page\":1,\"max_cached_references_per_page\":1,\"layout_version\":1},\"service\":{\"listen_host\":\"127.0.0.1\",\"listen_port\":$listen_port,\"max_request_bytes\":1048576,\"graceful_drain_milliseconds\":30000,\"diagnostic_mode\":\"normal\"}$external_protocol_json$openai_service_json,\"worker_process\":{\"max_frame_bytes\":1048576,\"startup_io_timeout_millis\":600000,\"io_timeout_millis\":600000,\"shutdown_timeout_millis\":600000},\"restart\":{\"initial_backoff_millis\":10,\"maximum_backoff_millis\":1000,\"stable_after_millis\":1000,\"maximum_attempts\":3},\"transport\":{\"read_chunk_bytes\":65536,\"write_chunk_bytes\":65536,\"accept_timeout_millis\":1000,\"input_idle_timeout_millis\":600000,\"write_timeout_millis\":600000,\"reactor_transition_budget\":256},\"preparation\":{\"framed_max_frame_bytes\":1048576,\"lane_count\":$preparation_lane_count,\"step_work_units\":256,\"total_work_units\":10000000,\"storage_int_cells\":2000000,\"storage_byte_cells\":8388608,\"storage_reference_cells\":200000,\"event_work_units\":256},\"telemetry\":{\"instance_log_capacity\":4096}}" >"$policy"
+printf '%s\n' "{\"schema_version\":\"$policy_schema\",\"runtime_descriptor_sha256\":\"$descriptor_sha\",\"tokenizer\":{\"locator\":\"tokenizer.json\",\"sha256\":\"$tokenizer_sha\",\"max_file_bytes\":67108864,\"max_json_depth\":64,\"max_input_bytes\":65536,\"max_output_tokens\":65536,\"max_decoded_bytes\":1048576,\"max_vocab_entries\":200000,\"max_merge_rules\":1000000,\"max_token_bytes\":4096,\"max_special_tokens\":64},\"scheduler\":{\"step_token_budget\":$scheduler_step_token_budget,\"max_active_requests\":$scheduler_max_active_requests,\"max_waiting_requests\":$scheduler_max_waiting_requests,\"prefill_chunk_tokens\":$scheduler_prefill_chunk_tokens,\"emergency_decode_page_reserve\":1,\"waiting_age_threshold_steps\":8,\"output_event_capacity\":$scheduler_output_event_capacity},\"cache\":{\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"block_table_pages_per_request\":$context_page_table_entries,\"prefix_enabled\":false,\"max_prefix_entries\":0,\"max_prefix_nodes\":0,\"max_prefix_tokens_per_entry\":0,\"max_prefix_pages\":0,\"max_prefix_scope_bytes\":0,\"max_active_references_per_page\":1,\"max_cached_references_per_page\":1,\"layout_version\":1},\"service\":{\"listen_host\":\"127.0.0.1\",\"listen_port\":$listen_port,\"max_request_bytes\":1048576,\"graceful_drain_milliseconds\":30000,\"diagnostic_mode\":\"normal\"}$external_protocol_json$openai_service_json,\"worker_process\":{\"max_frame_bytes\":1048576,\"startup_io_timeout_millis\":600000,\"io_timeout_millis\":600000,\"shutdown_timeout_millis\":600000},\"restart\":{\"initial_backoff_millis\":10,\"maximum_backoff_millis\":1000,\"stable_after_millis\":1000,\"maximum_attempts\":3},\"transport\":{\"read_chunk_bytes\":65536,\"write_chunk_bytes\":65536,\"accept_timeout_millis\":1000,\"input_idle_timeout_millis\":60000,\"write_timeout_millis\":60000,\"reactor_transition_budget\":256},\"preparation\":{\"framed_max_frame_bytes\":1048576,\"lane_count\":$preparation_lane_count,\"step_work_units\":256,\"total_work_units\":10000000,\"storage_int_cells\":$preparation_storage_int_cells,\"storage_byte_cells\":$preparation_storage_byte_cells,\"storage_reference_cells\":200000,\"event_work_units\":256},\"telemetry\":{\"instance_log_capacity\":4096}}" >"$policy"
 policy_sha=$(bundle_sha256_file "$policy")
 
 launch=$output/lunaflux.launch.json
