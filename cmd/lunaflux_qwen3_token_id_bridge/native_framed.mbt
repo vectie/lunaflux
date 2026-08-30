@@ -1,4 +1,17 @@
 ///|
+fn bridge_request_deadline_millis() -> UInt64 {
+  60000UL
+}
+
+///|
+fn bridge_internal_greedy_seed() -> UInt64 {
+  // The public benchmark workload uses seed zero for cross-engine parity, but
+  // LunaFlux reserves zero as an invalid internal seed. Greedy sampling does
+  // not consume randomness, so normalize it to the canonical non-zero seed.
+  1UL
+}
+
+///|
 fn bridge_limits(
   config : BridgeConfig,
 ) -> @inference.InferenceLimits raise BridgeRuntimeError {
@@ -14,7 +27,7 @@ fn bridge_limits(
     max_trace_bytes=1,
     max_cache_scope_bytes=32,
     max_decoded_delta_bytes=4096,
-    max_deadline_millis=600000UL,
+    max_deadline_millis=bridge_request_deadline_millis(),
     max_top_k=config.max_token_id + 1,
     max_temperature=2.0,
   ) catch {
@@ -44,10 +57,13 @@ fn bridge_request_frame(
     context_ceiling=request.input_token_ids().length() +
       request.max_output_tokens(),
     sampling=@inference.SamplingParameters::greedy(),
-    sampling_seed=@inference.SamplingSeed::new(0UL),
+    sampling_seed=@inference.SamplingSeed::new(bridge_internal_greedy_seed()),
     stops=@inference.StopConditions::new([], [], limits),
     stream_preference=Streaming,
-    deadline=@inference.DeadlineBudget::from_milliseconds(600000UL, limits),
+    deadline=@inference.DeadlineBudget::from_milliseconds(
+      bridge_request_deadline_millis(),
+      limits,
+    ),
     cache=@inference.CachePolicy::new(
       @inference.CacheScope::from_ascii(b"qwen3-benchmark", limits),
       Disabled,
