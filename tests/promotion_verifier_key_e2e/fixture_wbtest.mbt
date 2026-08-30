@@ -28,6 +28,9 @@ extern "c" fn fixture_clear_fixed() -> Int = "lunaflux_promotion_verifier_fixtur
 extern "c" fn fixture_fixed_closed() -> Bool = "lunaflux_promotion_verifier_fixture_fixed_closed"
 
 ///|
+extern "c" fn fixture_fixed_cloexec() -> Bool = "lunaflux_promotion_verifier_fixture_fixed_cloexec"
+
+///|
 fn verifier_frame() -> FixedArray[Byte] {
   let key = b"0123456789abcdef0123456789abcdef"
   let verifier = b"release-key-1"

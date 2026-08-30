@@ -18,6 +18,19 @@ test "optional promotion verifier distinguishes missing and invalid FD 7" {
 }
 
 ///|
+test "optional promotion verifier preserves runtime-owned CLOEXEC FD 7" {
+  let peer = fixture_install(2)
+  defer ignore(fixture_close(peer))
+  assert_true(fixture_fixed_cloexec())
+  assert_true(
+    @manifest.prepare_optional_inherited_luna_startup_verifier_key_v1() is None,
+  )
+  assert_true(fixture_fixed_cloexec())
+  assert_false(fixture_fixed_closed())
+  ignore(fixture_clear_fixed())
+}
+
+///|
 test "fragmented exact verifier frame becomes one opaque handoff" {
   let peer = fixture_install(0)
   defer ignore(fixture_close(peer))

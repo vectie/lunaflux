@@ -93,6 +93,24 @@ int main(void) {
   assert(close(pipes[1]) == 0);
   probe_free(invalid);
 
+  int runtime_pipe[2] = {-1, -1};
+  assert(pipe(runtime_pipe) == 0);
+  if (runtime_pipe[0] != 7) {
+    assert(dup2(runtime_pipe[0], 7) == 7);
+    assert(close(runtime_pipe[0]) == 0);
+  }
+  int descriptor_flags = fcntl(7, F_GETFD, 0);
+  assert(descriptor_flags >= 0);
+  assert(fcntl(7, F_SETFD, descriptor_flags | FD_CLOEXEC) == 0);
+  lf_promotion_verifier_key *runtime_owned =
+    lunaflux_promotion_verifier_key_open_fixed();
+  assert(lunaflux_promotion_verifier_key_open_status(runtime_owned) == 1);
+  assert((fcntl(7, F_GETFD, 0) & FD_CLOEXEC) != 0);
+  assert(lunaflux_promotion_verifier_key_close(runtime_owned) == 0);
+  assert(close(7) == 0);
+  assert(close(runtime_pipe[1]) == 0);
+  probe_free(runtime_owned);
+
   int peer[1] = {-1};
   install_fixed_socket(peer);
   lf_promotion_verifier_key *owner =

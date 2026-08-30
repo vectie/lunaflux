@@ -53,10 +53,12 @@ lf_promotion_verifier_key *lunaflux_promotion_verifier_key_open_fixed(void) {
     (lf_promotion_verifier_key *)moonbit_make_external_object(
       lf_promotion_verifier_key_finalize,
       sizeof(lf_promotion_verifier_key)
-    );
+  );
   owner->fd = -1;
   owner->status = LF_PROMOTION_KEY_UNAVAILABLE;
-  if (fcntl(LF_PROMOTION_KEY_FIXED_FD, F_GETFD, 0) < 0) return owner;
+  int descriptor_flags = fcntl(LF_PROMOTION_KEY_FIXED_FD, F_GETFD, 0);
+  if (descriptor_flags < 0) return owner;
+  if ((descriptor_flags & FD_CLOEXEC) != 0) return owner;
   if (!lf_promotion_verifier_key_validate(LF_PROMOTION_KEY_FIXED_FD)) {
     owner->status = LF_PROMOTION_KEY_INVALID;
     (void)close(LF_PROMOTION_KEY_FIXED_FD);
