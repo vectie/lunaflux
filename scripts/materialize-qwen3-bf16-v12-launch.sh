@@ -49,11 +49,17 @@ if [ -n "$fused_residual_argument" ]; then
   bundle_require_canonical_absolute_file "$fused_residual"
   bundle_require_digest "$fused_residual" "$fused_residual_sha" \
     'reusable fused residual runtime'
-  [ "$(sed -n '1p' "$fused_residual")" = \
-    'schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1' ] ||
-    fail 'reusable fused residual runtime schema is invalid'
+  case "$(sed -n '1p' "$fused_residual")" in
+    schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1)
+      fused_runtime_locator=reusable-fused-residual.runtime.v1
+      ;;
+    schema=lunaflux-reusable-fused-runtime-bundle.v2)
+      fused_runtime_locator=reusable-fused-runtime-bundle.v2
+      ;;
+    *) fail 'reusable fused runtime schema is invalid' ;;
+  esac
   descriptor_schema=lunaflux.runtime.qwen3_bf16.v2
-  fused_runtime_json=',"fused_runtime":{"locator":"reusable-fused-residual.runtime.v1","sha256":"'"$fused_residual_sha"'"}'
+  fused_runtime_json=',"fused_runtime":{"locator":"'"$fused_runtime_locator"'","sha256":"'"$fused_residual_sha"'"}'
 fi
 
 case "$bind_argument" in /*#sha256=*) ;; *) usage ;; esac
