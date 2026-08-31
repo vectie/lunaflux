@@ -183,7 +183,7 @@ fn prepare_qwen_fused_production_set(
       max_source_bytes=1048576,
       max_recipe_bytes=65536,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenKvWritePreparation
     }
     let kv_write = @luna_cuda_pointwise_aot.lower_auxiliary_kv_cache_write_cuda_aot(
       operation,
@@ -195,14 +195,14 @@ fn prepare_qwen_fused_production_set(
       kv_operands,
       pointwise_limits,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenKvWritePreparation
     }
     let fused_limits = @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
       maximum_source_bytes=1048576,
       maximum_recipe_bytes=65536,
       maximum_promotion_bytes=65536,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenIngressPreparation
     }
     let ingress_qualification = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       plan,
@@ -215,35 +215,35 @@ fn prepare_qwen_fused_production_set(
       set.compiler_policy(),
       fused_limits,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenIngressPreparation
     }
     let ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
       ingress_qualification, fused_limits,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenIngressPreparation
     }
     let readonly_limits = @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyAotLimits::new(
       maximum_source_bytes=1048576,
       maximum_recipe_bytes=65536,
       maximum_canonical_bytes=65536,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenReadOnlyPreparation
     }
     let readonly_qualification = @luna_cuda_paged_attention_readonly_aot.lower_paged_attention_readonly_cuda_aot_candidate(
       attention,
       @catalog.AotKernelEntryPointId::from_stable_int(3902),
       readonly_limits,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenReadOnlyPreparation
     }
     let attention_read = @luna_cuda_paged_attention_readonly_aot.lower_paged_attention_readonly_production_cuda_aot_candidate(
       readonly_qualification, readonly_limits,
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise QwenReadOnlyPreparation
     }
     return { first_operation: index, ingress, attention_read }
   }
-  raise CandidatePreparation
+  raise QwenFusionMissing
 }
 
 ///|
@@ -300,7 +300,7 @@ fn prepare_residual_rmsnorm_candidate(
         maximum_promotion_bytes=65536,
       ),
     ) catch {
-      _ => raise CandidatePreparation
+      _ => raise ResidualFusionPreparation
     }
   }
   raise CandidatePreparation
@@ -314,12 +314,6 @@ async fn run_qwen3_candidate_export(
   let plan = load_authenticated_paged_plan(arguments)
   let layout = prepare_device_layout(plan, arguments)
   let set = prepare_candidate_set(plan, layout, arguments)
-  let evidence = @luna_bf16_candidate_export.export_new(
-    set,
-    arguments.absolute_new_output,
-  ) catch {
-    _ => raise Publication
-  }
   let residual = prepare_residual_rmsnorm_candidate(plan, set)
   let production = @luna_cuda_fused_parallel_aot.lower_fused_residual_rmsnorm_production_candidate(
     residual,
@@ -329,9 +323,15 @@ async fn run_qwen3_candidate_export(
       maximum_promotion_bytes=65536,
     ),
   ) catch {
-    _ => raise CandidatePreparation
+    _ => raise ResidualProductionPreparation
   }
   let qwen_fused = prepare_qwen_fused_production_set(plan, layout, set)
+  let evidence = @luna_bf16_candidate_export.export_new(
+    set,
+    arguments.absolute_new_output,
+  ) catch {
+    _ => raise Publication
+  }
   let fused_root = arguments.absolute_new_output + "/reusable-fused-residual"
   write_new_candidate_pair(
     fused_root,
@@ -447,5 +447,13 @@ async fn run_qwen3_candidate_export(
 
 ///|
 async fn main {
-  try! run_qwen3_candidate_export(@env.args())
+  try run_qwen3_candidate_export(@env.args()) catch {
+    error => {
+      println("outcome=failed")
+      println("error=" + candidate_export_error_name(error))
+      abort("Qwen3 BF16 candidate export failed")
+    }
+  } noraise {
+    _ => ()
+  }
 }

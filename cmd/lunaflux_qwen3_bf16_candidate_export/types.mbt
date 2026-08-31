@@ -4,8 +4,33 @@ suberror Qwen3Bf16CandidateExportCliError {
   ModelAdmission
   ModelRootCleanup
   CandidatePreparation
+  ResidualFusionPreparation
+  ResidualProductionPreparation
+  QwenKvWritePreparation
+  QwenIngressPreparation
+  QwenReadOnlyPreparation
+  QwenFusionMissing
   Publication
 } derive(Debug, Eq)
+
+///|
+fn candidate_export_error_name(
+  error : Qwen3Bf16CandidateExportCliError,
+) -> String {
+  match error {
+    InvalidArguments => "invalid-arguments"
+    ModelAdmission => "model-admission"
+    ModelRootCleanup => "model-root-cleanup"
+    CandidatePreparation => "candidate-preparation"
+    ResidualFusionPreparation => "residual-fusion-preparation"
+    ResidualProductionPreparation => "residual-production-preparation"
+    QwenKvWritePreparation => "qwen-kv-write-preparation"
+    QwenIngressPreparation => "qwen-ingress-preparation"
+    QwenReadOnlyPreparation => "qwen-readonly-preparation"
+    QwenFusionMissing => "qwen-fusion-missing"
+    Publication => "publication"
+  }
+}
 
 ///|
 priv struct Qwen3CandidateExportArguments {
