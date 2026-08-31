@@ -62,6 +62,40 @@ test "generated source covers mixed prefill decode without grid synchronization"
 }
 
 ///|
+test "phase bundle emits independent prefill and decode entry points" {
+  let contract = pa_attention_contract()
+  let bundle = lower_paged_attention_cuda_aot_phase_bundle(
+    pa_plan().operations()[2],
+    contract.profile(),
+    pa_layout(),
+    @catalog.AotKernelEntryPointId::from_stable_int(31),
+    @catalog.AotKernelEntryPointId::from_stable_int(32),
+    pa_target(),
+    pa_compiler(),
+    contract.operands(),
+    pa_limits(),
+  )
+  assert_eq(bundle.prefill().execution_phase(), Prefill)
+  assert_eq(bundle.decode().execution_phase(), Decode)
+  assert_true(
+    @utf8.decode(bundle.prefill().source_bytes()).contains(
+      "if (row >= prefill_count) continue;",
+    ),
+  )
+  assert_true(
+    @utf8.decode(bundle.decode().source_bytes()).contains(
+      "row < prefill_count || row_end - row_start != 1",
+    ),
+  )
+  let prefill_recipe = @utf8.decode(bundle.prefill().recipe_bytes())
+  let decode_recipe = @utf8.decode(bundle.decode().recipe_bytes())
+  assert_true(prefill_recipe.contains("mode=prefill\n"))
+  assert_true(prefill_recipe.contains("attention_traversal=query-tile\n"))
+  assert_true(decode_recipe.contains("mode=decode\n"))
+  assert_true(decode_recipe.contains("attention_traversal=key-value-split\n"))
+}
+
+///|
 test "binder rejects foreign geometry and lowering rejects target/compiler semantics" {
   let candidate = pa_lowering()
   try

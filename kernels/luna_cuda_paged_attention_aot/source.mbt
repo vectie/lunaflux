@@ -6,6 +6,7 @@ fn paged_attention_symbol(id : @catalog.AotKernelEntryPointId) -> String {
 ///|
 fn paged_attention_cuda_source(
   symbol : String,
+  phase : @luna_attention_strategy.AttentionExecutionPhase,
   query_heads : Int,
   kv_heads : Int,
   head_dimension : Int,
@@ -21,6 +22,12 @@ fn paged_attention_cuda_source(
   let qkv_width = query_width + 2 * kv_width
   let group_size = query_heads / kv_heads
   let page_stride_values = page_stride_bytes / 2L
+  let phase_guard = match phase {
+    MixedCompatibility => ""
+    Prefill => "  if (row >= prefill_count) continue;\n"
+    Decode =>
+      "  if (row < prefill_count || row_end - row_start != 1) continue;\n"
+  }
   @utf8.encode(
     "#include <cuda_bf16.h>\n" +
     "#include <math_constants.h>\n" +
@@ -56,6 +63,7 @@ fn paged_attention_cuda_source(
     "  int row = 0;\n" +
     "  while (row + 1 < row_count && token >= query_row_offsets[row + 1]) ++row;\n" +
     "  const int row_start = query_row_offsets[row], row_end = query_row_offsets[row + 1];\n" +
+    phase_guard +
     "  const int page_start = page_table_offsets[row], page_end = page_table_offsets[row + 1];\n" +
     "  const int output_offset = token * " +
     query_width.to_string() +

@@ -17,6 +17,7 @@ pub fn PagedAttentionAotLimits::new(
 
 ///|
 pub struct PagedAttentionCudaLowering {
+  priv execution_phase : @luna_attention_strategy.AttentionExecutionPhase
   priv target : @catalog.DeviceTarget
   priv operation_id : @plan.OperationId
   priv entry_point_id : @catalog.AotKernelEntryPointId
@@ -38,6 +39,14 @@ pub struct PagedAttentionCudaLowering {
 } derive(Debug, Eq)
 
 ///|
+/// Independent prefill/decode CUDA candidates sharing one semantic plan.
+pub struct PagedAttentionPhaseCudaBundle {
+  priv dispatch_plan : @luna_attention_strategy.AttentionDispatchPlan
+  priv prefill : PagedAttentionCudaLowering
+  priv decode : PagedAttentionCudaLowering
+} derive(Debug, Eq)
+
+///|
 /// Exact post-compile join to the final content-addressed full-graph contract.
 pub struct PagedAttentionManifestCudaLowering {
   priv candidate : PagedAttentionCudaLowering
@@ -51,6 +60,34 @@ pub fn PagedAttentionCudaLowering::target(
   self : PagedAttentionCudaLowering,
 ) -> @catalog.DeviceTarget {
   self.target
+}
+
+///|
+pub fn PagedAttentionCudaLowering::execution_phase(
+  self : PagedAttentionCudaLowering,
+) -> @luna_attention_strategy.AttentionExecutionPhase {
+  self.execution_phase
+}
+
+///|
+pub fn PagedAttentionPhaseCudaBundle::dispatch_plan(
+  self : PagedAttentionPhaseCudaBundle,
+) -> @luna_attention_strategy.AttentionDispatchPlan {
+  self.dispatch_plan
+}
+
+///|
+pub fn PagedAttentionPhaseCudaBundle::prefill(
+  self : PagedAttentionPhaseCudaBundle,
+) -> PagedAttentionCudaLowering {
+  self.prefill
+}
+
+///|
+pub fn PagedAttentionPhaseCudaBundle::decode(
+  self : PagedAttentionPhaseCudaBundle,
+) -> PagedAttentionCudaLowering {
+  self.decode
 }
 
 ///|

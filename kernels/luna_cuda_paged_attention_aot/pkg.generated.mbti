@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
@@ -14,6 +15,8 @@ import {
 pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PagedAttentionManifestCudaLowering raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
+
+pub fn lower_paged_attention_cuda_aot_phase_bundle(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionPhaseCudaBundle raise PagedAttentionAotError
 
 pub fn lower_reusable_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
@@ -56,6 +59,7 @@ pub struct PagedAttentionCudaLowering {
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
 pub fn PagedAttentionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PagedAttentionCudaLowering::execution_phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn PagedAttentionCudaLowering::function_symbol(Self) -> String
 pub fn PagedAttentionCudaLowering::head_dimension(Self) -> Int
 pub fn PagedAttentionCudaLowering::kv_heads(Self) -> Int
@@ -92,6 +96,13 @@ pub fn PagedAttentionManifestCudaLowering::binding_record_bytes(Self) -> Bytes
 pub fn PagedAttentionManifestCudaLowering::candidate(Self) -> PagedAttentionCudaLowering
 pub fn PagedAttentionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
 pub fn PagedAttentionManifestCudaLowering::manifest_bindable(Self) -> Bool
+
+pub struct PagedAttentionPhaseCudaBundle {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionPhaseCudaBundle::decode(Self) -> PagedAttentionCudaLowering
+pub fn PagedAttentionPhaseCudaBundle::dispatch_plan(Self) -> @luna_attention_strategy.AttentionDispatchPlan
+pub fn PagedAttentionPhaseCudaBundle::prefill(Self) -> PagedAttentionCudaLowering
 
 // Type aliases
 

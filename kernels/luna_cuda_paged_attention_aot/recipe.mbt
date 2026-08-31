@@ -24,11 +24,39 @@ fn paged_attention_recipe(
   head_dimension : Int,
   page_stride_bytes : Int64,
   physical_page_capacity : Int64,
+  phase : @luna_attention_strategy.AttentionExecutionPhase,
+  phase_plan : @luna_attention_strategy.AttentionPhasePlan?,
 ) -> Bytes {
   let identity = compiler.identity()
+  let mode = match phase {
+    MixedCompatibility => "mixed-prefill-decode"
+    Prefill => "prefill"
+    Decode => "decode"
+  }
+  let strategy_record = match phase_plan {
+    None => ""
+    Some(strategy) =>
+      "attention_traversal=" +
+      (match strategy.traversal() {
+        QueryTile => "query-tile"
+        KeyValueSplit => "key-value-split"
+      }) +
+      "\nattention_reduction=" +
+      (match strategy.reduction() {
+        OnlineSoftmax => "online-softmax"
+        SplitOnlineSoftmaxMerge => "split-online-softmax-merge"
+      }) +
+      "\nquery_tile=" +
+      strategy.query_tile().to_string() +
+      "\nkey_value_splits=" +
+      strategy.key_value_splits().to_string() +
+      "\n"
+  }
   @utf8.encode(
     "schema=lunaflux-paged-attention-cuda-aot-recipe-v1\n" +
-    "mode=mixed-prefill-decode\n" +
+    "mode=" +
+    mode +
+    "\n" +
     "source_sha256=" +
     source_digest.as_hex() +
     "\n" +
@@ -102,6 +130,7 @@ fn paged_attention_recipe(
     dimensions.shared_memory_bytes().to_string() +
     "\n" +
     "manifest_bindable=false\n" +
+    strategy_record +
     "abi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
     "page_table_offsets,page_table_page_indices,qkv,output,key_cache,value_cache\n" +
     "operands=" +

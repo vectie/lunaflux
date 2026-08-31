@@ -7,7 +7,7 @@
 /// canonical split cache, while reading current-chunk K/V directly from the
 /// immutable QKV activation. Consequently correctness does not rely on a
 /// grid-wide synchronization or cross-block cache visibility.
-pub fn lower_paged_attention_cuda_aot_candidate(
+fn lower_paged_attention_cuda_aot_phase_candidate(
   operation : @plan.PlanOperation,
   profile : @launch_contract.PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
@@ -16,14 +16,25 @@ pub fn lower_paged_attention_cuda_aot_candidate(
   compiler : @luna_specialization.LunaCompilerPolicy,
   operands : ArrayView[@launch_contract.AotOperand],
   limits : PagedAttentionAotLimits,
+  phase : @luna_attention_strategy.AttentionExecutionPhase,
+  phase_plan : @luna_attention_strategy.AttentionPhasePlan?,
 ) -> PagedAttentionCudaLowering raise PagedAttentionAotError {
   let (query_heads, kv_heads, head_dimension, page_stride, page_capacity) = paged_attention_validate_candidate(
     operation, profile, layout, operands, target, compiler,
   )
-  let function_symbol = paged_attention_symbol(entry_point_id)
+  let function_symbol = match phase {
+    MixedCompatibility => paged_attention_symbol(entry_point_id)
+    Prefill =>
+      "lunaflux_paged_attention_bf16_prefill_v1_ep_" +
+      entry_point_id.as_int().to_string()
+    Decode =>
+      "lunaflux_paged_attention_bf16_decode_v1_ep_" +
+      entry_point_id.as_int().to_string()
+  }
   let dimensions = paged_attention_expected_dimensions(profile, query_heads)
   let source = paged_attention_cuda_source(
     function_symbol,
+    phase,
     query_heads,
     kv_heads,
     head_dimension,
@@ -56,11 +67,14 @@ pub fn lower_paged_attention_cuda_aot_candidate(
     head_dimension,
     page_stride,
     page_capacity,
+    phase,
+    phase_plan,
   )
   if recipe.length() > limits.max_recipe_bytes {
     raise LimitExceeded(Recipe)
   }
   {
+    execution_phase: phase,
     target,
     operation_id: operation.id(),
     entry_point_id,
@@ -82,6 +96,98 @@ pub fn lower_paged_attention_cuda_aot_candidate(
       paged_attention_sha256(recipe),
     ),
   }
+}
+
+///|
+/// Lowers the compatibility entry that handles both scheduler phases.
+pub fn lower_paged_attention_cuda_aot_candidate(
+  operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
+  layout : @device_layout.DeviceKvLayout,
+  entry_point_id : @catalog.AotKernelEntryPointId,
+  target : @catalog.DeviceTarget,
+  compiler : @luna_specialization.LunaCompilerPolicy,
+  operands : ArrayView[@launch_contract.AotOperand],
+  limits : PagedAttentionAotLimits,
+) -> PagedAttentionCudaLowering raise PagedAttentionAotError {
+  lower_paged_attention_cuda_aot_phase_candidate(
+    operation,
+    profile,
+    layout,
+    entry_point_id,
+    target,
+    compiler,
+    operands,
+    limits,
+    MixedCompatibility,
+    None,
+  )
+}
+
+///|
+/// Emits separate phase-specific candidates; mixed batches dispatch both.
+pub fn lower_paged_attention_cuda_aot_phase_bundle(
+  operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
+  layout : @device_layout.DeviceKvLayout,
+  prefill_entry_point_id : @catalog.AotKernelEntryPointId,
+  decode_entry_point_id : @catalog.AotKernelEntryPointId,
+  target : @catalog.DeviceTarget,
+  compiler : @luna_specialization.LunaCompilerPolicy,
+  operands : ArrayView[@launch_contract.AotOperand],
+  limits : PagedAttentionAotLimits,
+) -> PagedAttentionPhaseCudaBundle raise PagedAttentionAotError {
+  if prefill_entry_point_id == decode_entry_point_id {
+    raise Invalid(Operation)
+  }
+  let (query_heads, kv_heads, head_dimension) = match operation.shape() {
+    AttentionShape(query_heads~, kv_heads~, head_dimension~) =>
+      (query_heads, kv_heads, head_dimension)
+    _ => raise Invalid(Operation)
+  }
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads~,
+    kv_heads~,
+    head_dimension~,
+    tokens_per_page=layout.tokens_per_page(),
+  ) catch {
+    _ => raise Invalid(Operation)
+  }
+  let maximum_context_tokens = profile.max_page_table_entries() *
+    layout.tokens_per_page()
+  let dispatch_plan = @luna_attention_strategy.plan_attention_dispatch(
+    shape,
+    maximum_context_tokens,
+    profile.max_query_tokens(),
+    1,
+  ) catch {
+    _ => raise Invalid(Operation)
+  }
+  let prefill = lower_paged_attention_cuda_aot_phase_candidate(
+    operation,
+    profile,
+    layout,
+    prefill_entry_point_id,
+    target,
+    compiler,
+    operands,
+    limits,
+    Prefill,
+    Some(dispatch_plan.prefill()),
+  )
+  let decode = lower_paged_attention_cuda_aot_phase_candidate(
+    operation,
+    profile,
+    layout,
+    decode_entry_point_id,
+    target,
+    compiler,
+    operands,
+    limits,
+    Decode,
+    Some(dispatch_plan.decode()),
+  )
+  { dispatch_plan, prefill, decode }
 }
 
 ///|
