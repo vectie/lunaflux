@@ -144,6 +144,7 @@ fn progress_coordinator_to_event(
       LunaOnlineFramedCoordinatorAwaitingInput =>
         raise Failure("complete framed request unexpectedly awaited input")
       LunaOnlineFramedCoordinatorIdle
+      | LunaOnlineFramedCoordinatorWaiting
       | LunaOnlineFramedCoordinatorAdvanced
       | LunaOnlineFramedCoordinatorEventPreparing
       | LunaOnlineFramedCoordinatorDraining => ()

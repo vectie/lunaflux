@@ -104,8 +104,11 @@ async fn qualification_connect(
   owner : RuntimeInstanceOwner,
   timeout_millis : Int,
 ) -> @socket.Tcp raise RuntimeOpenAiQualificationValidationError {
+  let addr = owner.singular_ingress_addr() catch {
+    _ => raise openai_qualification_validation_error(OpenAiQualificationConnect)
+  }
   let connected = @async.with_timeout_opt(timeout_millis, () => {
-    @socket.Tcp::connect(owner.openai_servers[0].local_addr())
+    @socket.Tcp::connect(addr)
   }) catch {
     _ => raise openai_qualification_validation_error(OpenAiQualificationConnect)
   }
@@ -134,7 +137,7 @@ async fn qualification_wait_connected(
       owner.openai_qualification_readiness() != OpenAiQualificationListenerReady {
       raise openai_qualification_validation_error(OpenAiQualificationOwner)
     }
-    if owner.openai_servers[0].state() == LunaOnlineTcpServerConnected {
+    if owner.openai_qualification_ingress_active() {
       return
     }
     if turn % 64 == 63 {
@@ -174,7 +177,7 @@ async fn qualification_wait_retired(
       _ =>
         raise openai_qualification_validation_error(OpenAiQualificationMetrics)
     }
-    if owner.openai_servers[0].state() == LunaOnlineTcpServerListening &&
+    if owner.openai_qualification_ingress_idle() &&
       disconnected == expected_disconnects {
       return
     }
@@ -231,7 +234,7 @@ async fn qualification_operational_connect(
 ///|
 async fn qualification_wait_operational_state(
   owner : RuntimeInstanceOwner,
-  expected : @online_tcp.LunaOnlineTcpServerState,
+  connected : Bool,
   turn_limit : Int,
 ) -> Unit raise RuntimeOpenAiQualificationValidationError {
   for turn in 0..<turn_limit {
@@ -247,9 +250,12 @@ async fn qualification_wait_operational_state(
       owner.openai_qualification_readiness() != OpenAiQualificationListenerReady {
       raise openai_qualification_validation_error(OpenAiQualificationOwner)
     }
-    if owner.openai_servers.length() == 1 &&
-      owner.controls.length() == 0 &&
-      owner.openai_servers[0].state() == expected {
+    let reached = if connected {
+      owner.openai_qualification_ingress_active()
+    } else {
+      owner.openai_qualification_ingress_idle()
+    }
+    if reached {
       return
     }
     if turn % 64 == 63 {
@@ -274,21 +280,13 @@ async fn qualification_operational_exchange(
   )
   let mut open = true
   defer (if open { client.close() })
-  qualification_wait_operational_state(
-    owner,
-    LunaOnlineTcpServerConnected,
-    contract.turn_limit,
-  )
+  qualification_wait_operational_state(owner, true, contract.turn_limit)
   qualification_write_all(
     client,
     @utf8.encode("GET " + path + " HTTP/1.1\r\nHost: localhost\r\n\r\n"),
     contract.io_timeout_millis,
   )
-  qualification_wait_operational_state(
-    owner,
-    LunaOnlineTcpServerListening,
-    contract.turn_limit,
-  )
+  qualification_wait_operational_state(owner, false, contract.turn_limit)
   let response = qualification_read_all(
     client,
     1024,

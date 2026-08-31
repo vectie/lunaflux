@@ -2,6 +2,9 @@
 const RUNTIME_CONTROL_MAX_HEAD_BYTES : Int = 1024
 
 ///|
+const RUNTIME_CONTROL_FAIRNESS_TRANSITIONS : Int = 64
+
+///|
 fn runtime_control_limits() -> @http1.LunaHttp1ControlLimits raise RuntimeInstanceError {
   @http1.LunaHttp1ControlLimits::new(
     max_head_bytes=RUNTIME_CONTROL_MAX_HEAD_BYTES,
@@ -75,6 +78,22 @@ async fn RuntimeInstanceOwner::progress_control(
   let progress = self.controls[0].progress_on_reactor()
   progress != LunaOnlineHttpControlFailedProgress &&
   self.controls[0].state() != LunaOnlineHttpControlFailed
+}
+
+///|
+async fn RuntimeInstanceOwner::progress_control_after_ingress(
+  self : RuntimeInstanceOwner,
+  ingress_backpressured : Bool,
+) -> Bool {
+  if self.control_deferred_transitions < RUNTIME_CONTROL_FAIRNESS_TRANSITIONS {
+    self.control_deferred_transitions += 1
+  }
+  if !ingress_backpressured &&
+    self.control_deferred_transitions < RUNTIME_CONTROL_FAIRNESS_TRANSITIONS {
+    return true
+  }
+  self.control_deferred_transitions = 0
+  self.progress_control()
 }
 
 ///|

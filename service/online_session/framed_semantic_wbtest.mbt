@@ -114,6 +114,23 @@ test "Luna semantic delivery is exact once and ACKs only on later progress" {
 }
 
 ///|
+test "Luna held semantic event is never advertised ready twice" {
+  let compatibility = coordinator_fixture()
+  let service = compatibility.service
+  retire_fixture_stream(compatibility.stream)
+  let stream = open_fixture_semantic_stream(service)
+  stage_fixture_semantic_credit(service, 1)
+  let semantic = stream.take_semantic_event()
+  service.cooperative_handoff = false
+  assert_eq(stream.progress(), LunaOnlineFramedCoordinatorEventPreparing)
+  service.cooperative_handoff = true
+  assert_eq(stream.progress(), LunaOnlineFramedCoordinatorEventPreparing)
+  semantic.delivered()
+  clear_fixture_semantic_credit(service)
+  retire_fixture_stream(stream)
+}
+
+///|
 test "Luna semantic event aliases stale across a reused stream epoch" {
   let compatibility = coordinator_fixture()
   let service = compatibility.service

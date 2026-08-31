@@ -142,6 +142,7 @@ fn empty_owner_for_state_test(
     started_at_millis: 0UL,
     cold_start_recorded: false,
     cold_start_latency_millis: -1,
+    control_deferred_transitions: 0,
   }
 }
 

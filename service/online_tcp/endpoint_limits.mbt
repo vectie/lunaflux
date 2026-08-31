@@ -97,13 +97,22 @@ pub fn LunaOnlineTcpLimits::reactor_transition_budget(
 }
 
 ///|
+const LUNA_ONLINE_POOL_POLL_MAX_MILLIS : Int = 1
+
+///|
 /// Returns the exact authenticated transport ceiling used by pool-owned short
-/// socket polls. It never exceeds accept, input-idle, or write authority.
+/// socket polls. A pool shares one cooperative reactor across listener,
+/// connections, and service progress, so an idle socket must never retain that
+/// reactor for an operational timeout. The one-millisecond quantum remains
+/// within every authenticated accept, input-idle, and write authority.
 pub fn LunaOnlineTcpLimits::pool_poll_timeout_millis(
   self : LunaOnlineTcpLimits,
 ) -> Int {
   Int::min(
-    self.accept_timeout_millis,
-    Int::min(self.input_idle_timeout_millis, self.write_timeout_millis),
+    LUNA_ONLINE_POOL_POLL_MAX_MILLIS,
+    Int::min(
+      self.accept_timeout_millis,
+      Int::min(self.input_idle_timeout_millis, self.write_timeout_millis),
+    ),
   )
 }

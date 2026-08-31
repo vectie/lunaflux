@@ -73,6 +73,7 @@ pub struct LunaOnlineInstanceAdmission {
 #valtype
 pub(all) enum LunaOnlineInstanceProgress {
   LunaOnlineInstancePending
+  LunaOnlineInstanceWaiting
   LunaOnlineInstanceEventReady
   LunaOnlineInstanceTerminalizationRequired
   LunaOnlineInstanceRequestRetirementRequired

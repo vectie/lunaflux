@@ -31,12 +31,36 @@ fn LunaOnlineOpenAIConnectionSlot::begin_http_error(
 }
 
 ///|
+fn luna_openai_pool_http_error_reason(
+  kind : @http1.LunaHttp1ErrorResponseKind,
+) -> @instance_log.LunaInstanceLogReason {
+  match kind {
+    LunaHttp1AuthenticationError => LunaLogAuthentication
+    LunaHttp1ValidationError => LunaLogValidation
+    LunaHttp1CapacityError => LunaLogCapacity
+    LunaHttp1ServiceError => LunaLogInternal
+  }
+}
+
+///|
+fn LunaOnlineOpenAIConnectionPool::begin_slot_http_error(
+  self : LunaOnlineOpenAIConnectionPool,
+  index : Int,
+  kind : @http1.LunaHttp1ErrorResponseKind,
+) -> Bool {
+  self.telemetry.record_network_rejection_only(
+    luna_openai_pool_http_error_reason(kind),
+  )
+  self.slots[index].begin_http_error(kind)
+}
+
+///|
 fn LunaOnlineOpenAIConnectionPool::fail_slot_http(
   self : LunaOnlineOpenAIConnectionPool,
   index : Int,
   kind : @http1.LunaHttp1ErrorResponseKind,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
-  if !self.slots[index].begin_http_error(kind) {
+  if !self.begin_slot_http_error(index, kind) {
     self.begin_slot_retirement(index)
   }
   LunaOnlineOpenAIConnectionPoolAdvanced

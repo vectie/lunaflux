@@ -281,6 +281,7 @@ fn LunaOnlineFramedService::progress_instance(
   }
   match state {
     LunaOnlineInstancePending => LunaOnlineFramedCoordinatorAdvanced
+    LunaOnlineInstanceWaiting => LunaOnlineFramedCoordinatorWaiting
     LunaOnlineInstanceEventReady => {
       self.semantic_event_pending = true
       LunaOnlineFramedCoordinatorAdvanced

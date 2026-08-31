@@ -71,7 +71,12 @@ int lf_process_spawn_approved(
       _exit(126);
     }
     char *const argv[] = {(char *)"lunaflux-worker", NULL};
-    char *const sanitized_environment[] = {NULL};
+    /* Keep the child environment closed while exposing only the audited
+     * distroless and NVIDIA library roots required before worker main. */
+    char *const sanitized_environment[] = {
+      (char *)"LD_LIBRARY_PATH=/opt/lunaflux/lib:/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu",
+      NULL,
+    };
     if (sigprocmask(SIG_SETMASK, &empty_mask, NULL) != 0) _exit(126);
     fexecve(5, argv, sanitized_environment);
     _exit(127);

@@ -83,6 +83,7 @@ fn capture_prepared_owner(
     started_at_millis,
     cold_start_recorded: false,
     cold_start_latency_millis: -1,
+    control_deferred_transitions: 0,
   }
   match service.state() {
     LunaOnlineInstanceReady => owner.preparations.push(service)

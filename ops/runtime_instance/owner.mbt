@@ -174,7 +174,7 @@ pub async fn RuntimeInstanceOwner::progress(
         self.framed_pools.length() == 0 &&
         self.openai_servers.length() == 0 &&
         self.openai_pools.length() == 0 {
-        ignore(self.servers[0].progress_on_reactor())
+        let ingress = self.servers[0].progress_on_reactor()
         if self.servers[0].health() == LunaOnlineTcpServerFailed {
           self.phase = Failed
           return RuntimeFailedProgress
@@ -184,7 +184,10 @@ pub async fn RuntimeInstanceOwner::progress(
           self.phase = Failed
           return RuntimeFailedProgress
         }
-        if !self.progress_control() {
+        if !self.progress_control_after_ingress(
+            ingress == LunaOnlineTcpServerBackpressured ||
+            ingress == LunaOnlineTcpServerAcceptTimedOut,
+          ) {
           self.phase = Failed
           return RuntimeFailedProgress
         }
@@ -193,14 +196,16 @@ pub async fn RuntimeInstanceOwner::progress(
         self.servers.length() == 0 &&
         self.openai_servers.length() == 0 &&
         self.openai_pools.length() == 0 {
-        ignore(self.framed_pools[0].progress_on_reactor())
+        let ingress = self.framed_pools[0].progress_on_reactor()
         if self.framed_pools[0].health() == LunaOnlineTcpServerFailed ||
           self.framed_pools[0].state() == LunaOnlineFramedConnectionPoolDraining ||
           self.framed_pools[0].state() == LunaOnlineFramedConnectionPoolClosed {
           self.phase = Failed
           return RuntimeFailedProgress
         }
-        if !self.progress_control() {
+        if !self.progress_control_after_ingress(
+            ingress == LunaOnlineFramedConnectionPoolBackpressured,
+          ) {
           self.phase = Failed
           return RuntimeFailedProgress
         }
@@ -209,7 +214,7 @@ pub async fn RuntimeInstanceOwner::progress(
         self.servers.length() == 0 &&
         self.framed_pools.length() == 0 &&
         self.openai_pools.length() == 0 {
-        ignore(self.openai_servers[0].progress_on_reactor())
+        let ingress = self.openai_servers[0].progress_on_reactor()
         if self.openai_servers[0].health() == LunaOnlineTcpServerFailed {
           self.phase = Failed
           return RuntimeFailedProgress
@@ -219,7 +224,10 @@ pub async fn RuntimeInstanceOwner::progress(
           self.phase = Failed
           return RuntimeFailedProgress
         }
-        if !self.progress_control() {
+        if !self.progress_control_after_ingress(
+            ingress == LunaOnlineTcpServerBackpressured ||
+            ingress == LunaOnlineTcpServerAcceptTimedOut,
+          ) {
           self.phase = Failed
           return RuntimeFailedProgress
         }
@@ -228,14 +236,16 @@ pub async fn RuntimeInstanceOwner::progress(
         self.servers.length() == 0 &&
         self.framed_pools.length() == 0 &&
         self.openai_servers.length() == 0 {
-        ignore(self.openai_pools[0].progress_on_reactor())
+        let ingress = self.openai_pools[0].progress_on_reactor()
         if self.openai_pools[0].health() == LunaOnlineTcpServerFailed ||
           self.openai_pools[0].state() == LunaOnlineOpenAIConnectionPoolDraining ||
           self.openai_pools[0].state() == LunaOnlineOpenAIConnectionPoolClosed {
           self.phase = Failed
           return RuntimeFailedProgress
         }
-        if !self.progress_control() {
+        if !self.progress_control_after_ingress(
+            ingress == LunaOnlineOpenAIConnectionPoolBackpressured,
+          ) {
           self.phase = Failed
           return RuntimeFailedProgress
         }

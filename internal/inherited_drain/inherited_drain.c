@@ -58,7 +58,13 @@ lf_inherited_drain *lunaflux_inherited_drain_open_fixed(void) {
     owner->status = LF_DRAIN_INVALID;
     return owner;
   }
-  int moved = fcntl(LF_DRAIN_FIXED_FD, F_DUPFD_CLOEXEC, 6);
+  /*
+   * Descriptors 6 and 7 are reserved startup channels for the inference
+   * credential and optional promotion verifier.  Moving the drain owner to
+   * either slot makes a later optional-channel probe observe the wrong Unix
+   * socket.  Keep every runtime-owned duplicate above the reserved range.
+   */
+  int moved = fcntl(LF_DRAIN_FIXED_FD, F_DUPFD_CLOEXEC, 8);
   if (moved < 0) {
     owner->status = LF_DRAIN_INVALID;
     return owner;

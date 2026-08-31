@@ -84,6 +84,7 @@ pub fn LunaOnlineFramedCoordinatorPreparation::take_ready(Self) -> LunaOnlineFra
 
 pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorIdle
+  LunaOnlineFramedCoordinatorWaiting
   LunaOnlineFramedCoordinatorAwaitingInput
   LunaOnlineFramedCoordinatorAdvanced
   LunaOnlineFramedCoordinatorEventPreparing
@@ -337,6 +338,7 @@ pub(all) enum LunaOnlineInstancePreparationState {
 
 pub(all) enum LunaOnlineInstanceProgress {
   LunaOnlineInstancePending
+  LunaOnlineInstanceWaiting
   LunaOnlineInstanceEventReady
   LunaOnlineInstanceTerminalizationRequired
   LunaOnlineInstanceRequestRetirementRequired

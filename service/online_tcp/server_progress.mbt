@@ -95,6 +95,7 @@ fn LunaOnlineTcpServer::map_stream_progress(
       LunaOnlineTcpServerAdvanced
     }
     LunaOnlineFramedCoordinatorIdle
+    | LunaOnlineFramedCoordinatorWaiting
     | LunaOnlineFramedCoordinatorAwaitingInput =>
       LunaOnlineTcpServerBackpressured
     LunaOnlineFramedCoordinatorAdvanced

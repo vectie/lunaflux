@@ -389,7 +389,8 @@ fn LunaOnlineInstance::progress_multi(
           LunaOnlineInstancePending
         }
       }
-      OnlineWorkerAdvanced | OnlineWorkerRetryable => LunaOnlineInstancePending
+      OnlineWorkerAdvanced => LunaOnlineInstancePending
+      OnlineWorkerWaiting | OnlineWorkerRetryable => LunaOnlineInstanceWaiting
     }
   }
 }

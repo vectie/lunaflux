@@ -48,6 +48,7 @@ fn capture_openai_qualification_metrics(
 ///|
 fn openai_qualification_initial_metrics_valid(
   sample : OpenAiQualificationMetricSample,
+  operational_connections : UInt64,
 ) -> Bool {
   sample.admissions == 0UL &&
   sample.completions == 0UL &&
@@ -57,8 +58,8 @@ fn openai_qualification_initial_metrics_valid(
   sample.prompt_tokens == 0UL &&
   sample.generated_tokens == 0UL &&
   sample.worker_failures == 0UL &&
-  sample.network_accepts == 0UL &&
-  sample.network_disconnects == 0UL &&
+  sample.network_accepts == operational_connections &&
+  sample.network_disconnects == operational_connections &&
   sample.network_rejections == 0UL &&
   sample.queue_depth == 0 &&
   sample.active_requests == 0 &&
@@ -69,23 +70,23 @@ fn openai_qualification_initial_metrics_valid(
 ///|
 fn openai_qualification_terminal_metrics_valid(
   sample : OpenAiQualificationMetricSample,
-  initial_kv_pages_free : Int,
+  initial : OpenAiQualificationMetricSample,
 ) -> Bool {
-  sample.admissions == 1UL &&
-  sample.completions == 1UL &&
-  sample.cancellations == 0UL &&
-  sample.deadlines == 0UL &&
-  sample.failures == 0UL &&
-  sample.prompt_tokens > 0UL &&
-  sample.generated_tokens == 2UL &&
-  sample.worker_failures == 0UL &&
-  sample.network_accepts == 3UL &&
-  sample.network_disconnects == 3UL &&
-  sample.network_rejections == 2UL &&
+  sample.admissions == initial.admissions + 1UL &&
+  sample.completions == initial.completions + 1UL &&
+  sample.cancellations == initial.cancellations &&
+  sample.deadlines == initial.deadlines &&
+  sample.failures == initial.failures &&
+  sample.prompt_tokens > initial.prompt_tokens &&
+  sample.generated_tokens == initial.generated_tokens + 2UL &&
+  sample.worker_failures == initial.worker_failures &&
+  sample.network_accepts == initial.network_accepts + 3UL &&
+  sample.network_disconnects == initial.network_disconnects + 3UL &&
+  sample.network_rejections == initial.network_rejections + 2UL &&
   sample.queue_depth == 0 &&
   sample.active_requests == 0 &&
   sample.kv_pages_used == 0 &&
-  sample.kv_pages_free == initial_kv_pages_free
+  sample.kv_pages_free == initial.kv_pages_free
 }
 
 ///|
@@ -101,6 +102,10 @@ async fn refuse_openai_post_drain_connection(
   owner : RuntimeInstanceOwner,
   timeout_millis : Int,
 ) -> Bool {
+  if owner.openai_qualification_readiness() != OpenAiQualificationListenerReady {
+    return false
+  }
+  let addr = owner.singular_ingress_addr() catch { _ => return false }
   owner.begin_drain() catch {
     _ => return false
   }
@@ -109,9 +114,7 @@ async fn refuse_openai_post_drain_connection(
   }
   ignore(owner.progress() catch { _ => return false })
   let connected = try
-    @async.with_timeout_opt(timeout_millis, () => {
-      @socket.Tcp::connect(owner.openai_servers[0].local_addr())
-    })
+    @async.with_timeout_opt(timeout_millis, () => @socket.Tcp::connect(addr))
   catch {
     _ => return true
   } noraise {
@@ -182,7 +185,14 @@ async fn run_openai_qualification_validation(
     raise openai_qualification_validation_error(OpenAiQualificationResponse)
   }
   let initial = capture_openai_qualification_metrics(owner)
-  if !openai_qualification_initial_metrics_valid(initial) {
+  let operational_connections = if owner.openai_pools.length() == 1 {
+    2UL
+  } else {
+    0UL
+  }
+  if !openai_qualification_initial_metrics_valid(
+      initial, operational_connections,
+    ) {
     raise openai_qualification_validation_error(OpenAiQualificationMetrics)
   }
   let model = qualification_decode(policy.server.model_alias)
@@ -196,7 +206,7 @@ async fn run_openai_qualification_validation(
   let missing_response = qualification_exchange(
     owner,
     qualification_http_request(None, body),
-    1UL,
+    initial.network_disconnects + 1UL,
     contract,
   )
   if !openai_qualification_error_response(missing_response) {
@@ -207,7 +217,7 @@ async fn run_openai_qualification_validation(
   let wrong_response = qualification_exchange(
     owner,
     qualification_http_request(Some(wrong), body),
-    2UL,
+    initial.network_disconnects + 2UL,
     contract,
   )
   if !openai_qualification_error_response(wrong_response) {
@@ -218,7 +228,7 @@ async fn run_openai_qualification_validation(
   let response = qualification_exchange(
     owner,
     qualification_http_request(Some(credential), body),
-    3UL,
+    initial.network_disconnects + 3UL,
     contract,
   )
   if !response.contains("HTTP/1.1 200 OK") ||
@@ -229,10 +239,7 @@ async fn run_openai_qualification_validation(
     raise openai_qualification_validation_error(OpenAiQualificationEventOrder)
   }
   let terminal = capture_openai_qualification_metrics(owner)
-  if !openai_qualification_terminal_metrics_valid(
-      terminal,
-      initial.kv_pages_free,
-    ) {
+  if !openai_qualification_terminal_metrics_valid(terminal, initial) {
     raise openai_qualification_validation_error(OpenAiQualificationMetrics)
   }
   if !(refuse_openai_post_drain_connection(owner, contract.io_timeout_millis) catch {
@@ -244,11 +251,12 @@ async fn run_openai_qualification_validation(
   }
   {
     event_count: 5,
-    network_accepts: terminal.network_accepts,
-    network_disconnects: terminal.network_disconnects,
-    network_rejections: terminal.network_rejections,
-    admissions: terminal.admissions,
-    completions: terminal.completions,
+    network_accepts: terminal.network_accepts - initial.network_accepts,
+    network_disconnects: terminal.network_disconnects -
+    initial.network_disconnects,
+    network_rejections: terminal.network_rejections - initial.network_rejections,
+    admissions: terminal.admissions - initial.admissions,
+    completions: terminal.completions - initial.completions,
     kv_pages_free: terminal.kv_pages_free,
   }
 }

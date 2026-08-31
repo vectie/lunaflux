@@ -35,6 +35,7 @@ test "Luna online TCP bind validation rejects forged private limits" {
   assert_eq(luna_online_tcp_safe_wait(1000, 2), 1)
   assert_eq(luna_online_tcp_safe_wait(17, 1000), 17)
   assert_eq(luna_online_tcp_safe_wait(1000, 17), 16)
+  assert_eq(waits.pool_poll_timeout_millis(), 1)
 }
 
 ///|

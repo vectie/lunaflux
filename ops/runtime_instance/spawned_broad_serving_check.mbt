@@ -102,6 +102,7 @@ fn broad_serving_pair_metrics_valid(
   sample : BroadServingMetricSample,
   input_tokens : Int,
   initial_kv_pages_free : Int,
+  pooled? : Bool = false,
 ) -> Bool {
   sample.admissions == 3UL &&
   sample.completions == 2UL &&
@@ -111,9 +112,9 @@ fn broad_serving_pair_metrics_valid(
   sample.prompt_tokens == (input_tokens * 3).to_uint64() &&
   sample.generated_tokens == 3UL &&
   sample.worker_failures == 0UL &&
-  sample.backpressure > 0UL &&
-  sample.network_accepts == 1UL &&
-  sample.network_disconnects == 0UL &&
+  (pooled || sample.backpressure > 0UL) &&
+  sample.network_accepts == (if pooled { 3UL } else { 1UL }) &&
+  sample.network_disconnects == (if pooled { 3UL } else { 0UL }) &&
   sample.network_rejections == 0UL &&
   sample.queue_depth == 0 &&
   sample.active_requests == 0 &&
@@ -122,9 +123,41 @@ fn broad_serving_pair_metrics_valid(
 }
 
 ///|
+fn broad_serving_pool_cancel_boundary_valid(
+  sample : BroadServingMetricSample,
+) -> Bool {
+  sample.admissions >= 1UL &&
+  sample.admissions <= 2UL &&
+  sample.active_requests + sample.queue_depth == 2 &&
+  sample.completions == 0UL &&
+  sample.cancellations == 0UL &&
+  sample.generated_tokens == 0UL &&
+  sample.failures == 0UL &&
+  sample.deadlines == 0UL &&
+  sample.worker_failures == 0UL &&
+  sample.network_rejections == 0UL
+}
+
+///|
+fn broad_serving_pool_cancel_progress_valid(
+  sample : BroadServingMetricSample,
+) -> Bool {
+  sample.admissions >= 1UL &&
+  sample.admissions <= 2UL &&
+  sample.cancellations <= 1UL &&
+  sample.completions <= 1UL &&
+  sample.generated_tokens <= 2UL &&
+  sample.failures == 0UL &&
+  sample.deadlines == 0UL &&
+  sample.worker_failures == 0UL &&
+  sample.network_rejections == 0UL
+}
+
+///|
 fn broad_serving_malformed_request_metrics_valid(
   sample : BroadServingMetricSample,
   input_tokens : Int,
+  pooled? : Bool = false,
 ) -> Bool {
   sample.admissions == 4UL &&
   sample.completions == 3UL &&
@@ -134,15 +167,16 @@ fn broad_serving_malformed_request_metrics_valid(
   sample.prompt_tokens == (input_tokens * 4).to_uint64() &&
   sample.generated_tokens == 5UL &&
   sample.worker_failures == 0UL &&
-  sample.backpressure > 0UL
+  (pooled || sample.backpressure > 0UL)
 }
 
 ///|
 fn broad_serving_malformed_network_metrics_valid(
   sample : BroadServingMetricSample,
+  pooled? : Bool = false,
 ) -> Bool {
-  sample.network_accepts == 4UL &&
-  sample.network_disconnects == 4UL &&
+  sample.network_accepts == (if pooled { 6UL } else { 4UL }) &&
+  sample.network_disconnects == (if pooled { 6UL } else { 4UL }) &&
   sample.network_rejections == 2UL
 }
 
@@ -161,6 +195,7 @@ fn broad_serving_resource_metrics_valid(
 fn broad_serving_final_request_metrics_valid(
   sample : BroadServingMetricSample,
   input_tokens : Int,
+  pooled? : Bool = false,
 ) -> Bool {
   sample.admissions == 5UL &&
   sample.completions == 4UL &&
@@ -170,15 +205,16 @@ fn broad_serving_final_request_metrics_valid(
   sample.prompt_tokens == (input_tokens * 5).to_uint64() &&
   sample.generated_tokens == 7UL &&
   sample.worker_failures == 0UL &&
-  sample.backpressure > 0UL
+  (pooled || sample.backpressure > 0UL)
 }
 
 ///|
 fn broad_serving_final_network_metrics_valid(
   sample : BroadServingMetricSample,
+  pooled? : Bool = false,
 ) -> Bool {
-  sample.network_accepts == 5UL &&
-  sample.network_disconnects == 5UL &&
+  sample.network_accepts == (if pooled { 7UL } else { 5UL }) &&
+  sample.network_disconnects == (if pooled { 7UL } else { 5UL }) &&
   sample.network_rejections == 2UL
 }
 

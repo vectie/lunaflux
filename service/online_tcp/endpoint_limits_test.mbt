@@ -11,6 +11,7 @@ test "Luna online TCP limits reject every unbounded envelope" {
   assert_eq(valid.read_chunk_bytes(), 4096)
   assert_eq(valid.write_chunk_bytes(), 4096)
   assert_eq(valid.reactor_transition_budget(), 17)
+  assert_eq(valid.pool_poll_timeout_millis(), 1)
   for capacity in [0, 16777217] {
     try
       LunaOnlineTcpLimits::new(

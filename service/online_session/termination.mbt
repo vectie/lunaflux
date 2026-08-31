@@ -111,7 +111,7 @@ fn LunaOnlineInstance::latch_worker_step_failure(
       self.recovery_close = true
       true
     }
-    OnlineWorkerAdvanced | OnlineWorkerRetryable => false
+    OnlineWorkerAdvanced | OnlineWorkerWaiting | OnlineWorkerRetryable => false
   }
 }
 

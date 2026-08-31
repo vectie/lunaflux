@@ -122,6 +122,7 @@ fn next_spawned_validation_event(
       | LunaOnlineFramedCoordinatorAwaitingInput =>
         raise spawned_validation_error(SpawnedValidationEvent)
       LunaOnlineFramedCoordinatorIdle
+      | LunaOnlineFramedCoordinatorWaiting
       | LunaOnlineFramedCoordinatorAdvanced
       | LunaOnlineFramedCoordinatorEventPreparing
       | LunaOnlineFramedCoordinatorMaintenanceRequired => ()

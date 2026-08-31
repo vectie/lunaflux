@@ -126,6 +126,10 @@ async fn run_broad_serving_pair(
   contract : RuntimeSpawnedBroadServingValidationContract,
   initial_kv_pages_free : Int,
 ) -> Unit {
+  if owner.broad_serving_uses_framed_pool() {
+    run_broad_serving_pool_pair(owner, contract, initial_kv_pages_free)
+    return
+  }
   let client = connect_broad_serving_client(owner, contract.io_timeout_millis)
   let mut client_open = true
   defer (if client_open { client.close() })
@@ -151,6 +155,8 @@ async fn run_broad_serving_foreign_rejection(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
 ) -> Unit {
+  let pooled = owner.broad_serving_uses_framed_pool()
+  let expected_accepts = if pooled { 4UL } else { 2UL }
   let client = connect_broad_serving_client(owner, contract.io_timeout_millis)
   let mut client_open = true
   defer (if client_open { client.close() })
@@ -160,7 +166,13 @@ async fn run_broad_serving_foreign_rejection(
     contract.foreign_frame,
     contract.io_timeout_millis,
   )
-  retire_broad_serving_client(owner, contract.turn_limit, 2UL, 2UL, 1UL)
+  retire_broad_serving_client(
+    owner,
+    contract.turn_limit,
+    expected_accepts,
+    expected_accepts,
+    1UL,
+  )
   client.close()
   client_open = false
   let sample = capture_broad_serving_metrics(owner)
@@ -180,6 +192,8 @@ async fn run_broad_serving_recovery(
   contract : RuntimeSpawnedBroadServingValidationContract,
   initial_kv_pages_free : Int,
 ) -> Unit {
+  let pooled = owner.broad_serving_uses_framed_pool()
+  let expected_accepts = if pooled { 5UL } else { 3UL }
   let client = connect_broad_serving_client(owner, contract.io_timeout_millis)
   let mut client_open = true
   defer (if client_open { client.close() })
@@ -262,14 +276,7 @@ async fn run_broad_serving_recovery(
     if owner.health() != RuntimeHealthy {
       raise broad_serving_error(BroadServingHealth)
     }
-    if owner.servers.length() != 1 ||
-      owner.servers[0].state() != LunaOnlineTcpServerConnected ||
-      !spawned_serving_live_state_valid(
-        owner.phase(),
-        owner.health(),
-        owner.readiness(),
-        owner.servers[0].state(),
-      ) {
+    if !owner.spawned_serving_terminal_ingress_live() {
       raise broad_serving_error(BroadServingReadiness)
     }
     let sample = capture_broad_serving_metrics(owner)
@@ -282,7 +289,13 @@ async fn run_broad_serving_recovery(
       sample.kv_pages_free == initial_kv_pages_free {
       client.close()
       client_open = false
-      retire_broad_serving_client(owner, contract.turn_limit, 3UL, 3UL, 1UL)
+      retire_broad_serving_client(
+        owner,
+        contract.turn_limit,
+        expected_accepts,
+        expected_accepts,
+        1UL,
+      )
       return
     }
     if turn % 64 == 63 {

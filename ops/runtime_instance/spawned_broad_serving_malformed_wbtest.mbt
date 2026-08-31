@@ -106,6 +106,68 @@ test "broad serving malformed retirement and reuse balances are exact" {
 }
 
 ///|
+test "broad serving framed pool retirement and reuse network balances are exact" {
+  let malformed = broad_serving_malformed_metric_fixture(
+    accepts=6UL,
+    disconnects=6UL,
+    backpressure=0UL,
+  )
+  assert_true(
+    broad_serving_malformed_request_metrics_valid(malformed, 1, pooled=true),
+  )
+  assert_false(broad_serving_malformed_request_metrics_valid(malformed, 1))
+  assert_true(
+    broad_serving_malformed_network_metrics_valid(malformed, pooled=true),
+  )
+  assert_false(broad_serving_malformed_network_metrics_valid(malformed))
+  let final_sample = broad_serving_final_metric_fixture(
+    accepts=7UL,
+    disconnects=7UL,
+    backpressure=0UL,
+  )
+  assert_true(
+    broad_serving_final_request_metrics_valid(final_sample, 1, pooled=true),
+  )
+  assert_false(broad_serving_final_request_metrics_valid(final_sample, 1))
+  assert_true(
+    broad_serving_final_network_metrics_valid(final_sample, pooled=true),
+  )
+  assert_false(broad_serving_final_network_metrics_valid(final_sample))
+}
+
+///|
+test "broad serving result publishes the exact typed ingress owner" {
+  let singleton : RuntimeSpawnedBroadServingValidationResult = {
+    ingress_owner: BroadServingSingletonServer,
+    request_count: 5UL,
+    completion_count: 4UL,
+    cancellation_count: 1UL,
+    event_count: 22,
+    backpressure_count: 1UL,
+    network_accepts: 5UL,
+    network_disconnects: 5UL,
+    network_rejections: 2UL,
+    kv_pages_free: 32,
+  }
+  let pool : RuntimeSpawnedBroadServingValidationResult = {
+    ingress_owner: BroadServingFramedConnectionPool,
+    request_count: 5UL,
+    completion_count: 4UL,
+    cancellation_count: 1UL,
+    event_count: 20,
+    backpressure_count: 0UL,
+    network_accepts: 7UL,
+    network_disconnects: 7UL,
+    network_rejections: 2UL,
+    kv_pages_free: 32,
+  }
+  assert_true(singleton.ingress_owner() == BroadServingSingletonServer)
+  assert_eq(singleton.ingress_owner().code(), "singleton-server")
+  assert_true(pool.ingress_owner() == BroadServingFramedConnectionPool)
+  assert_eq(pool.ingress_owner().code(), "framed-connection-pool")
+}
+
+///|
 test "broad serving malformed diagnostics are stable and payload free" {
   let rules : Array[(RuntimeSpawnedBroadServingValidationRule, String)] = [
     (BroadServingMalformedTransition, "malformed_transition"),

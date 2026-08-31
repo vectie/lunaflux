@@ -40,6 +40,7 @@ fn LunaOnlineFramedConnectionSlot::activate(
 ///|
 async fn LunaOnlineFramedConnectionPool::accept_one(
   self : LunaOnlineFramedConnectionPool,
+  poll_timeout_millis : Int,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   if self.listeners.length() != 1 ||
     self.active_connections >= self.slots.length() {
@@ -49,10 +50,9 @@ async fn LunaOnlineFramedConnectionPool::accept_one(
   if slot_index < 0 {
     return LunaOnlineFramedConnectionPoolBackpressured
   }
-  let accepted = @async.with_timeout_opt(
-    self.pool_limits.io_poll_timeout_millis,
-    () => self.listeners[0].accept(),
-  ) catch {
+  let accepted = @async.with_timeout_opt(poll_timeout_millis, () => {
+    self.listeners[0].accept()
+  }) catch {
     error if @async.is_being_cancelled() => raise error
     _ => {
       self.fail_and_drain()

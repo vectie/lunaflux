@@ -38,6 +38,135 @@ fn spawned_serving_bound_state_valid(
 }
 
 ///|
+fn spawned_serving_ingress_shape_valid(
+  server_count : Int,
+  framed_pool_count : Int,
+  openai_server_count : Int,
+  openai_pool_count : Int,
+) -> Bool {
+  server_count + framed_pool_count == 1 &&
+  openai_server_count == 0 &&
+  openai_pool_count == 0
+}
+
+///|
+fn spawned_serving_pool_live_state_valid(
+  phase : RuntimeInstancePhase,
+  health : RuntimeInstanceHealth,
+  readiness : RuntimeInstanceReadiness,
+  pool_state : @online_tcp.LunaOnlineFramedConnectionPoolState,
+  active_connections : Int,
+) -> Bool {
+  if phase != Ready ||
+    health != RuntimeHealthy ||
+    readiness != RuntimeReady ||
+    active_connections < 0 {
+    return false
+  }
+  match pool_state {
+    LunaOnlineFramedConnectionPoolListening => active_connections == 0
+    LunaOnlineFramedConnectionPoolActive => active_connections > 0
+    LunaOnlineFramedConnectionPoolDraining
+    | LunaOnlineFramedConnectionPoolFailed
+    | LunaOnlineFramedConnectionPoolClosed => false
+  }
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_ingress_shape_valid(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  spawned_serving_ingress_shape_valid(
+    self.servers.length(),
+    self.framed_pools.length(),
+    self.openai_servers.length(),
+    self.openai_pools.length(),
+  )
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_ingress_live(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  if !self.spawned_serving_ingress_shape_valid() {
+    return false
+  }
+  if self.servers.length() == 1 {
+    return spawned_serving_live_state_valid(
+      self.phase(),
+      self.health(),
+      self.readiness(),
+      self.servers[0].state(),
+    )
+  }
+  spawned_serving_pool_live_state_valid(
+    self.phase(),
+    self.health(),
+    self.readiness(),
+    self.framed_pools[0].state(),
+    self.framed_pools[0].active_connection_count(),
+  )
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_ingress_active(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  if !self.spawned_serving_ingress_live() {
+    return false
+  }
+  if self.servers.length() == 1 {
+    return self.servers[0].state() == LunaOnlineTcpServerConnected
+  }
+  self.framed_pools[0].state() == LunaOnlineFramedConnectionPoolActive &&
+  self.framed_pools[0].active_connection_count() == 1
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_ingress_listening(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  if !self.spawned_serving_ingress_live() {
+    return false
+  }
+  if self.servers.length() == 1 {
+    return self.servers[0].state() == LunaOnlineTcpServerListening
+  }
+  self.framed_pools[0].state() == LunaOnlineFramedConnectionPoolListening &&
+  self.framed_pools[0].active_connection_count() == 0
+}
+
+///|
+fn spawned_serving_terminal_ingress_state_valid(
+  server_count : Int,
+  framed_pool_count : Int,
+  server_active : Bool,
+  framed_pool_live : Bool,
+) -> Bool {
+  (server_count == 1 && framed_pool_count == 0 && server_active) ||
+  (server_count == 0 && framed_pool_count == 1 && framed_pool_live)
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_terminal_ingress_live(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  spawned_serving_terminal_ingress_state_valid(
+    self.servers.length(),
+    self.framed_pools.length(),
+    self.spawned_serving_ingress_active(),
+    self.spawned_serving_ingress_live(),
+  )
+}
+
+///|
+fn RuntimeInstanceOwner::spawned_serving_terminal_disconnected(
+  self : RuntimeInstanceOwner,
+) -> Bool {
+  self.servers.length() == 0 && self.framed_pools.length() == 1
+}
+
+///|
 fn spawned_serving_live_state_valid(
   phase : RuntimeInstancePhase,
   health : RuntimeInstanceHealth,

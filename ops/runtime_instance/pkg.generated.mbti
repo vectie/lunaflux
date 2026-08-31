@@ -279,6 +279,12 @@ pub enum RuntimeSpawnedBenchmarkRule {
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedBenchmarkRule::code(Self) -> String
 
+pub(all) enum RuntimeSpawnedBroadServingIngressOwner {
+  BroadServingSingletonServer
+  BroadServingFramedConnectionPool
+} derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedBroadServingIngressOwner::code(Self) -> String
+
 pub struct RuntimeSpawnedBroadServingValidationContract {
   // private fields
 }
@@ -291,6 +297,7 @@ pub fn RuntimeSpawnedBroadServingValidationResult::backpressure_count(Self) -> U
 pub fn RuntimeSpawnedBroadServingValidationResult::cancellation_count(Self) -> UInt64
 pub fn RuntimeSpawnedBroadServingValidationResult::completion_count(Self) -> UInt64
 pub fn RuntimeSpawnedBroadServingValidationResult::event_count(Self) -> Int
+pub fn RuntimeSpawnedBroadServingValidationResult::ingress_owner(Self) -> RuntimeSpawnedBroadServingIngressOwner
 pub fn RuntimeSpawnedBroadServingValidationResult::kv_pages_free(Self) -> Int
 pub fn RuntimeSpawnedBroadServingValidationResult::network_accepts(Self) -> UInt64
 pub fn RuntimeSpawnedBroadServingValidationResult::network_disconnects(Self) -> UInt64

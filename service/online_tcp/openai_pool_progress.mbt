@@ -54,6 +54,12 @@ fn LunaOnlineOpenAIConnectionPool::capture_rejection(
       LunaHttp1ServiceError
     _ => LunaHttp1ValidationError
   }
+  let reason : @instance_log.LunaInstanceLogReason = match rejection_rule {
+    LunaOnlineFramedRejectedDeadline => LunaLogDeadline
+    LunaOnlineFramedRejectedCapacity => LunaLogCapacity
+    LunaOnlineFramedRejectedService => LunaLogInternal
+    _ => LunaLogValidation
+  }
   if slot.sse_started ||
     slot.phase == LUNA_OPENAI_POOL_RETIRING ||
     !slot.output.is_idle() {
@@ -67,7 +73,8 @@ fn LunaOnlineOpenAIConnectionPool::capture_rejection(
     self.begin_slot_retirement(index)
     return LunaOnlineOpenAIConnectionPoolAdvanced
   }
-  if !slot.begin_http_error(kind) {
+  self.telemetry.record_admission_rejection(reason)
+  if !self.begin_slot_http_error(index, kind) {
     rejection.ack() catch {
       _ => self.begin_drain()
     }

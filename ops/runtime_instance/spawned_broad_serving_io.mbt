@@ -69,9 +69,44 @@ async fn read_broad_serving_event(
   timeout_millis : Int,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> @inference.StreamEvent {
-  read_spawned_serving_event(owner, client, storage, decoder, timeout_millis) catch {
-    _ => raise broad_serving_error(failure_rule)
+  let mut cursor = 0
+  let mut declared = 16
+  for _ in 0..<timeout_millis {
+    if cursor >= declared {
+      return decoder.load(storage, declared).event() catch {
+          _ => raise broad_serving_error(failure_rule)
+        }
+    }
+    let remaining = declared - cursor
+    let received = @async.with_timeout_opt(1, () => {
+      client.read(storage, offset=cursor, max_len=remaining)
+    }) catch {
+      _ => raise broad_serving_error(failure_rule)
+    }
+    let count = match received {
+      Some(value) => value
+      None => {
+        ignore(owner.progress())
+        if owner.health() != RuntimeHealthy ||
+          !owner.spawned_serving_ingress_live() {
+          raise broad_serving_error(failure_rule)
+        }
+        @async.pause()
+        continue
+      }
+    }
+    if count <= 0 || count > remaining {
+      raise broad_serving_error(failure_rule)
+    }
+    cursor += count
+    if cursor == 16 {
+      declared = spawned_serving_read_u32(storage, 12)
+      if declared < 16 || declared > storage.length() {
+        raise broad_serving_error(failure_rule)
+      }
+    }
   }
+  raise broad_serving_error(failure_rule)
 }
 
 ///|
@@ -87,18 +122,11 @@ async fn retire_broad_serving_client(
     if owner.health() != RuntimeHealthy {
       raise broad_serving_error(BroadServingHealth)
     }
-    if owner.servers.length() != 1 ||
-      !spawned_serving_live_state_valid(
-        owner.phase(),
-        owner.health(),
-        owner.readiness(),
-        owner.servers[0].state(),
-      ) {
+    if !owner.spawned_serving_ingress_live() {
       raise broad_serving_error(BroadServingReadiness)
     }
     let sample = capture_broad_serving_metrics(owner)
-    if owner.servers.length() == 1 &&
-      owner.servers[0].state() == LunaOnlineTcpServerListening &&
+    if owner.spawned_serving_ingress_listening() &&
       sample.network_accepts == expected_accepts &&
       sample.network_disconnects == expected_disconnects &&
       sample.network_rejections == expected_rejections &&

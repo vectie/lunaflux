@@ -200,6 +200,7 @@ fn next_multi_stream_event(
       LunaOnlineFramedCoordinatorClosed =>
         raise Failure("multi stream closed before terminal events")
       LunaOnlineFramedCoordinatorIdle
+      | LunaOnlineFramedCoordinatorWaiting
       | LunaOnlineFramedCoordinatorAwaitingInput
       | LunaOnlineFramedCoordinatorAdvanced
       | LunaOnlineFramedCoordinatorEventPreparing

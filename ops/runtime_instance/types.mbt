@@ -190,6 +190,7 @@ pub struct RuntimeInstanceOwner {
   priv started_at_millis : UInt64
   priv mut cold_start_recorded : Bool
   priv mut cold_start_latency_millis : Int
+  priv mut control_deferred_transitions : Int
 }
 
 ///|

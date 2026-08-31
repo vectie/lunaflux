@@ -22,6 +22,23 @@ fn LunaOnlineTcpOutputWrite::copy_framed_event_view_at(
 }
 
 ///|
+fn luna_online_framed_pool_event_copy_amount(
+  write_chunk_bytes : Int,
+  event_work_units : Int,
+  remaining : Int,
+) -> Int {
+  Int::min(remaining, Int::min(write_chunk_bytes, event_work_units))
+}
+
+///|
+fn luna_online_framed_pool_discard_after_transport_cut(
+  phase : Int,
+  cancel_requested : Bool,
+) -> Bool {
+  cancel_requested || phase == LUNA_FRAMED_POOL_RETIRING
+}
+
+///|
 fn LunaOnlineFramedConnectionPool::capture_semantic_event(
   self : LunaOnlineFramedConnectionPool,
 ) -> LunaOnlineFramedConnectionPoolProgress {
@@ -54,8 +71,21 @@ fn LunaOnlineFramedConnectionPool::capture_semantic_event(
     !slot.semantic_events.is_empty() ||
     !slot.event_works.is_empty() ||
     !slot.event_views.is_empty() {
-    event.cancel_and_discard() catch {
-      _ => ()
+    let discard_after_cut = luna_online_framed_pool_discard_after_transport_cut(
+      slot.phase,
+      slot.cancel_requested,
+    )
+    try {
+      if discard_after_cut {
+        event.discard_after_transport_cut()
+      } else {
+        event.cancel_and_discard()
+      }
+    } catch {
+      _ => {
+        self.fail_and_drain()
+        return LunaOnlineFramedConnectionPoolFailedProgress
+      }
     }
     slot.cancel_requested = true
     self.begin_slot_retirement(index)
@@ -165,8 +195,9 @@ fn LunaOnlineFramedConnectionPool::progress_slot_event_copy(
     slot.event_copy_cursor >= total {
     return self.retire_invalid_slot(index)
   }
-  let amount = Int::min(
+  let amount = luna_online_framed_pool_event_copy_amount(
     self.tcp_limits.write_chunk_bytes,
+    self.pool_limits.event_work_units,
     total - slot.event_copy_cursor,
   )
   let copied = slot.output_writes[0].copy_framed_event_view_at(

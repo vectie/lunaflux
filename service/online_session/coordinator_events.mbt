@@ -318,6 +318,9 @@ fn LunaOnlineFramedService::progress_outbound_event(
       self.outbound_works.length() != 0 {
       raise luna_coordinator_error(LunaOnlineFramedLifecycle)
     }
+    if self.semantic_event_taken {
+      return LunaOnlineFramedCoordinatorEventPreparing
+    }
     return LunaOnlineFramedCoordinatorSemanticEventReady
   }
   if self.stream_mode != 1 {

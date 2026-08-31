@@ -22,6 +22,18 @@ fn LunaOnlineFramedConnectionPool::capture_observation(
 }
 
 ///|
+fn luna_online_framed_pool_rejection_reason(
+  rule : @online_session.LunaOnlineFramedRejectionRule,
+) -> @instance_log.LunaInstanceLogReason {
+  match rule {
+    LunaOnlineFramedRejectedDeadline => LunaLogDeadline
+    LunaOnlineFramedRejectedCapacity => LunaLogCapacity
+    LunaOnlineFramedRejectedService => LunaLogInternal
+    _ => LunaLogValidation
+  }
+}
+
+///|
 fn LunaOnlineFramedConnectionPool::capture_rejection(
   self : LunaOnlineFramedConnectionPool,
 ) -> LunaOnlineFramedConnectionPoolProgress {
@@ -41,6 +53,15 @@ fn LunaOnlineFramedConnectionPool::capture_rejection(
     }
   }
   let index = self.find_route_slot(route)
+  let rule = rejection.rule() catch {
+    _ => {
+      rejection.ack() catch {
+        _ => ()
+      }
+      self.fail_and_drain()
+      return LunaOnlineFramedConnectionPoolFailedProgress
+    }
+  }
   rejection.ack() catch {
     _ => {
       self.fail_and_drain()
@@ -51,6 +72,9 @@ fn LunaOnlineFramedConnectionPool::capture_rejection(
     self.fail_and_drain()
     return LunaOnlineFramedConnectionPoolFailedProgress
   }
+  self.telemetry.record_network_rejection(
+    luna_online_framed_pool_rejection_reason(rule),
+  )
   self.begin_slot_retirement(index)
   LunaOnlineFramedConnectionPoolAdvanced
 }
@@ -68,6 +92,7 @@ fn LunaOnlineFramedConnectionPool::progress_service_once(
         return LunaOnlineFramedConnectionPoolFailedProgress
       }
     }
+  self.service_waiting = progress == LunaOnlineFramedCoordinatorWaiting
   match progress {
     LunaOnlineFramedCoordinatorObservationReady => self.capture_observation()
     LunaOnlineFramedCoordinatorRejectionReady => self.capture_rejection()
@@ -78,6 +103,7 @@ fn LunaOnlineFramedConnectionPool::progress_service_once(
       LunaOnlineFramedConnectionPoolFailedProgress
     }
     LunaOnlineFramedCoordinatorIdle
+    | LunaOnlineFramedCoordinatorWaiting
     | LunaOnlineFramedCoordinatorAwaitingInput =>
       LunaOnlineFramedConnectionPoolBackpressured
     _ => LunaOnlineFramedConnectionPoolAdvanced
@@ -110,8 +136,10 @@ fn LunaOnlineFramedConnectionPool::progress_slot_local(
 fn LunaOnlineFramedConnectionPool::progress_one_local(
   self : LunaOnlineFramedConnectionPool,
 ) -> LunaOnlineFramedConnectionPoolProgress? {
+  let start = self.io_cursor
+  let mut saw_backpressure = false
   for offset in 0..<self.slots.length() {
-    let index = (self.io_cursor + offset) % self.slots.length()
+    let index = (start + offset) % self.slots.length()
     let slot = self.slots[index]
     let has_local_progress = match slot.phase {
       LUNA_FRAMED_POOL_RECEIVING => slot.input_tail_length > 0
@@ -124,19 +152,31 @@ fn LunaOnlineFramedConnectionPool::progress_one_local(
     }
     if has_local_progress {
       self.io_cursor = (index + 1) % self.slots.length()
-      return Some(self.progress_slot_local(index))
+      let progress = self.progress_slot_local(index)
+      if progress != LunaOnlineFramedConnectionPoolBackpressured {
+        return Some(progress)
+      }
+      saw_backpressure = true
     }
   }
-  None
+  if saw_backpressure {
+    Some(LunaOnlineFramedConnectionPoolBackpressured)
+  } else {
+    None
+  }
 }
 
 ///|
-async fn LunaOnlineFramedConnectionPool::progress_one_io(
+fn luna_online_framed_local_progress_preempts_writer(
+  progress : LunaOnlineFramedConnectionPoolProgress,
+) -> Bool {
+  progress != LunaOnlineFramedConnectionPoolBackpressured
+}
+
+///|
+async fn LunaOnlineFramedConnectionPool::progress_one_writer(
   self : LunaOnlineFramedConnectionPool,
 ) -> LunaOnlineFramedConnectionPoolProgress? {
-  // A published event cell must be released before the shared stream can
-  // expose another event for that route. Drain every writable slot ahead of
-  // idle input polls so a partial client cannot perturb event ownership.
   for offset in 0..<self.slots.length() {
     let index = (self.io_cursor + offset) % self.slots.length()
     if self.slots[index].phase == LUNA_FRAMED_POOL_WRITING {
@@ -144,21 +184,22 @@ async fn LunaOnlineFramedConnectionPool::progress_one_io(
       return Some(self.write_slot_output(index))
     }
   }
-  for offset in 0..<self.slots.length() {
-    let index = (self.io_cursor + offset) % self.slots.length()
-    if self.slots[index].phase == LUNA_FRAMED_POOL_RECEIVING {
-      self.io_cursor = (index + 1) % self.slots.length()
-      return Some(self.read_slot_request(index))
-    }
-  }
   None
 }
 
 ///|
-fn LunaOnlineFramedConnectionPool::has_writing_slot(
+async fn LunaOnlineFramedConnectionPool::progress_one_input_io(
   self : LunaOnlineFramedConnectionPool,
-) -> Bool {
-  self.slots.any(fn(slot) { slot.phase == LUNA_FRAMED_POOL_WRITING })
+  poll_timeout_millis : Int,
+) -> LunaOnlineFramedConnectionPoolProgress? {
+  for offset in 0..<self.slots.length() {
+    let index = (self.io_cursor + offset) % self.slots.length()
+    if self.slots[index].phase == LUNA_FRAMED_POOL_RECEIVING {
+      self.io_cursor = (index + 1) % self.slots.length()
+      return Some(self.read_slot_request(index, poll_timeout_millis))
+    }
+  }
+  None
 }
 
 ///|
@@ -221,7 +262,13 @@ fn LunaOnlineFramedConnectionPool::progress_drain(
 }
 
 ///|
-/// Advances bounded owner state and performs at most one short socket poll.
+/// Advances local and service work before polling an idle socket.
+///
+/// A live inference request crosses many cooperative service states. Polling
+/// every active peer before each such state adds the socket timeout to every
+/// token-step transition. Writable output remains first so an event credit is
+/// released promptly; otherwise service work is drained until it reports real
+/// backpressure, and only then may one input/listener poll block this turn.
 pub async fn LunaOnlineFramedConnectionPool::progress_on_reactor(
   self : LunaOnlineFramedConnectionPool,
 ) -> LunaOnlineFramedConnectionPoolProgress {
@@ -232,32 +279,62 @@ pub async fn LunaOnlineFramedConnectionPool::progress_on_reactor(
     return self.progress_drain()
   }
   match self.progress_one_local() {
-    Some(progress) => {
-      if progress == LunaOnlineFramedConnectionPoolBackpressured {
-        return self.progress_service_once()
+    Some(progress) =>
+      if luna_online_framed_local_progress_preempts_writer(progress) {
+        return progress
       }
-      return progress
-    }
+    // A retiring slot may still be waiting for lower route retirement while
+    // another slot owns a fully encoded event. Do not let that local
+    // backpressure bypass the writer: advancing the service first could
+    // publish the next event for a slot whose previous event is still in
+    // flight, forcing a spurious transport cancellation.
     None => ()
   }
+  match self.progress_one_writer() {
+    Some(progress) => return progress
+    None => ()
+  }
+  let service_progress = self.progress_service_once()
+  if service_progress != LunaOnlineFramedConnectionPoolBackpressured {
+    return service_progress
+  }
+  if self.service_waiting && self.service_probe_cooldown > 0 {
+    self.service_probe_cooldown -= 1
+    return service_progress
+  }
   let can_accept = self.active_connections < self.slots.length()
-  if can_accept && self.accept_turn {
+  let poll_timeout_millis = if self.service_waiting {
+    0
+  } else {
+    self.pool_limits.io_poll_timeout_millis
+  }
+  if can_accept && (self.service_waiting || self.accept_turn) {
     self.accept_turn = false
-    return self.accept_one()
+    let accepted = self.accept_one(poll_timeout_millis)
+    if accepted != LunaOnlineFramedConnectionPoolBackpressured {
+      self.service_probe_cooldown = 0
+      return accepted
+    }
   }
   self.accept_turn = can_accept
-  let polled_writer = self.has_writing_slot()
-  match self.progress_one_io() {
-    Some(progress) =>
-      if progress == LunaOnlineFramedConnectionPoolBackpressured {
-        if polled_writer {
-          progress
-        } else {
-          self.progress_service_once()
-        }
+  // Active one-request connections are observed by response writes and the
+  // request deadline. Speculative reads race with an idle peer and add a
+  // socket poll to the token-step reactor.
+  match self.progress_one_input_io(poll_timeout_millis) {
+    Some(progress) => {
+      self.service_probe_cooldown = if self.service_waiting &&
+        progress == LunaOnlineFramedConnectionPoolBackpressured {
+        32
       } else {
-        progress
+        0
       }
-    None => self.progress_service_once()
+      progress
+    }
+    None => {
+      if self.service_waiting {
+        self.service_probe_cooldown = 32
+      }
+      service_progress
+    }
   }
 }

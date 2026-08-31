@@ -91,6 +91,7 @@ int main(void) {
   lf_inherited_drain *owner = lunaflux_inherited_drain_open_fixed();
   assert(lunaflux_inherited_drain_open_status(owner) == 0);
   assert(fcntl(5, F_GETFD, 0) < 0);
+  assert(fcntl(7, F_GETFD, 0) < 0);
   moonbit_bytes_t input = probe_bytes(8);
   moonbit_bytes_t output = probe_bytes(8);
   const uint8_t command[8] = {'L', 'F', 'D', '1', 'D', 'R', 'N', '\n'};

@@ -135,9 +135,30 @@ pub struct RuntimeSpawnedBroadServingValidationContract {
 }
 
 ///|
+/// The exact native ingress authority that produced the broad-serving
+/// qualification result. The distinction keeps saturation evidence truthful:
+/// a singleton listener observes scheduler backpressure, while a connection
+/// pool proves saturation by deferring admission at its connection capacity.
+pub(all) enum RuntimeSpawnedBroadServingIngressOwner {
+  BroadServingSingletonServer
+  BroadServingFramedConnectionPool
+} derive(Debug, Eq)
+
+///|
+pub fn RuntimeSpawnedBroadServingIngressOwner::code(
+  self : RuntimeSpawnedBroadServingIngressOwner,
+) -> String {
+  match self {
+    BroadServingSingletonServer => "singleton-server"
+    BroadServingFramedConnectionPool => "framed-connection-pool"
+  }
+}
+
+///|
 /// Immutable qualification scalars published only after the native listener,
 /// service, scheduler, worker child, and KV authority have closed.
 pub struct RuntimeSpawnedBroadServingValidationResult {
+  priv ingress_owner : RuntimeSpawnedBroadServingIngressOwner
   priv request_count : UInt64
   priv completion_count : UInt64
   priv cancellation_count : UInt64
@@ -147,6 +168,13 @@ pub struct RuntimeSpawnedBroadServingValidationResult {
   priv network_disconnects : UInt64
   priv network_rejections : UInt64
   priv kv_pages_free : Int
+}
+
+///|
+pub fn RuntimeSpawnedBroadServingValidationResult::ingress_owner(
+  self : RuntimeSpawnedBroadServingValidationResult,
+) -> RuntimeSpawnedBroadServingIngressOwner {
+  self.ingress_owner
 }
 
 ///|

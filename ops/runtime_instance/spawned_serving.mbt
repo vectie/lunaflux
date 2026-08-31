@@ -16,7 +16,8 @@ async fn bind_spawned_serving_listener(owner : RuntimeInstanceOwner) -> Unit {
     ) {
     raise spawned_serving_error(SpawnedServingReadiness)
   }
-  if owner.progress() != RuntimeReadyProgress || owner.servers.length() != 1 {
+  if owner.progress() != RuntimeReadyProgress ||
+    !owner.spawned_serving_ingress_shape_valid() {
     raise spawned_serving_error(SpawnedServingOwner)
   }
   if owner.health() != RuntimeHealthy {
@@ -41,16 +42,10 @@ async fn accept_spawned_serving_client(
     if owner.health() != RuntimeHealthy {
       raise spawned_serving_error(SpawnedServingHealth)
     }
-    if owner.servers.length() != 1 ||
-      !spawned_serving_live_state_valid(
-        owner.phase(),
-        owner.health(),
-        owner.readiness(),
-        owner.servers[0].state(),
-      ) {
+    if !owner.spawned_serving_ingress_live() {
       raise spawned_serving_error(SpawnedServingReadiness)
     }
-    if owner.servers[0].state() == LunaOnlineTcpServerConnected {
+    if owner.spawned_serving_ingress_active() {
       return
     }
     if turn % 64 == 63 {
@@ -71,14 +66,7 @@ async fn progress_spawned_serving_request(
     if owner.health() != RuntimeHealthy {
       raise spawned_serving_error(SpawnedServingHealth)
     }
-    if owner.servers.length() != 1 ||
-      owner.servers[0].state() != LunaOnlineTcpServerConnected ||
-      !spawned_serving_live_state_valid(
-        owner.phase(),
-        owner.health(),
-        owner.readiness(),
-        owner.servers[0].state(),
-      ) {
+    if !owner.spawned_serving_terminal_ingress_live() {
       raise spawned_serving_error(SpawnedServingReadiness)
     }
     let sample = capture_spawned_serving_metrics(owner)
@@ -86,7 +74,7 @@ async fn progress_spawned_serving_request(
         sample,
         contract.input_tokens,
         initial_kv_pages_free,
-        false,
+        owner.spawned_serving_terminal_disconnected(),
       ) {
       return sample
     }
@@ -115,18 +103,11 @@ async fn retire_spawned_serving_client(
     if owner.health() != RuntimeHealthy {
       raise spawned_serving_error(SpawnedServingHealth)
     }
-    if owner.servers.length() != 1 ||
-      !spawned_serving_live_state_valid(
-        owner.phase(),
-        owner.health(),
-        owner.readiness(),
-        owner.servers[0].state(),
-      ) {
+    if !owner.spawned_serving_ingress_live() {
       raise spawned_serving_error(SpawnedServingReadiness)
     }
     let sample = capture_spawned_serving_metrics(owner)
-    if owner.servers.length() == 1 &&
-      owner.servers[0].state() == LunaOnlineTcpServerListening &&
+    if owner.spawned_serving_ingress_listening() &&
       spawned_serving_terminal_metrics_valid(
         sample,
         contract.input_tokens,

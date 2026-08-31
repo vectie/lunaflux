@@ -44,6 +44,7 @@ pub struct LunaOnlineFramedRequestRoute {
 #valtype
 pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorIdle
+  LunaOnlineFramedCoordinatorWaiting
   LunaOnlineFramedCoordinatorAwaitingInput
   LunaOnlineFramedCoordinatorAdvanced
   LunaOnlineFramedCoordinatorEventPreparing

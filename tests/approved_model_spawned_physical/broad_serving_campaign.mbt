@@ -1,10 +1,32 @@
 ///|
+fn broad_serving_ingress_evidence(
+  owner : @runtime_instance.RuntimeSpawnedBroadServingIngressOwner,
+) -> String {
+  match owner {
+    BroadServingSingletonServer =>
+      "ingress_owner=singleton-server\n" +
+      "saturation_boundary=active-plus-waiting\n" +
+      "saturation_proof=scheduler-backpressure\n" +
+      "saturation_backpressure=pass\n" +
+      "connection_capacity_deferral=not-exercised-singleton-server\n" +
+      "overload_rejection=not-exercised-single-connection-owner\n"
+    BroadServingFramedConnectionPool =>
+      "ingress_owner=framed-connection-pool\n" +
+      "saturation_boundary=connection-capacity\n" +
+      "saturation_proof=connection-capacity-deferral\n" +
+      "saturation_backpressure=not-claimed\n" +
+      "connection_capacity_deferral=pass\n" +
+      "overload_rejection=not-exercised-capacity-deferral\n"
+  }
+}
+
+///|
 fn encode_broad_serving_campaign_evidence(
   release : @runtime_instance.RuntimeReleaseAdmission,
   result : @runtime_instance.RuntimeSpawnedBroadServingValidationResult,
   restart : @runtime_instance.RuntimeSpawnedServingValidationResult,
 ) -> String {
-  let evidence = "schema=lunaflux-approved-model-broad-bf16-serving-qualification.v1\n" +
+  let evidence = "schema=lunaflux-approved-model-broad-bf16-serving-qualification.v2\n" +
     "campaign_scope=qualification-only\n" +
     "production_readiness=not-claimed\n" +
     "performance_baseline=not-established\n" +
@@ -27,11 +49,10 @@ fn encode_broad_serving_campaign_evidence(
     "physical_executor=spawned-current-source\n" +
     "mixed_concurrent_requests=pass\n" +
     "concurrent_request_count=2\n" +
-    "saturation_boundary=active-plus-waiting\n" +
-    "saturation_backpressure=pass\n" +
+    broad_serving_ingress_evidence(result.ingress_owner()) +
     "backpressure_count=" +
     result.backpressure_count().to_string() +
-    "\noverload_rejection=not-exercised-single-connection-owner\n" +
+    "\n" +
     "cancellation_isolation=pass\n" +
     "cancellation_count=" +
     result.cancellation_count().to_string() +

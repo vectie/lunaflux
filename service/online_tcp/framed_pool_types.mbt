@@ -116,6 +116,8 @@ pub struct LunaOnlineFramedConnectionPool {
   priv mut ingress_slot : Int
   priv mut io_cursor : Int
   priv mut accept_turn : Bool
+  priv mut service_waiting : Bool
+  priv mut service_probe_cooldown : Int
   priv mut drain_requested : Bool
   priv mut failed : Bool
   priv mut stream_disconnect_started : Bool

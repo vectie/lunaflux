@@ -52,7 +52,7 @@ fn luna_online_tcp_map_coordinator_progress(
   progress : @online_session.LunaOnlineFramedCoordinatorProgress,
 ) -> LunaOnlineTcpProgress {
   match progress {
-    LunaOnlineFramedCoordinatorIdle =>
+    LunaOnlineFramedCoordinatorIdle | LunaOnlineFramedCoordinatorWaiting =>
       if endpoint.drain_requested || endpoint.disconnect_requested {
         LunaOnlineTcpCleanupRequired
       } else {
@@ -156,7 +156,7 @@ pub async fn LunaOnlineTcpEndpoint::progress_on_reactor(
     transitions += 1
     self.tail_backpressured = false
     match progress {
-      LunaOnlineFramedCoordinatorIdle => {
+      LunaOnlineFramedCoordinatorIdle | LunaOnlineFramedCoordinatorWaiting => {
         if self.drain_requested || self.disconnect_requested {
           self.phase = LUNA_ONLINE_TCP_DRAINING
           return LunaOnlineTcpCleanupRequired

@@ -145,6 +145,8 @@ pub async fn bind_luna_online_framed_connection_pool(
     ingress_slot: -1,
     io_cursor: 0,
     accept_turn: true,
+    service_waiting: false,
+    service_probe_cooldown: 0,
     drain_requested: false,
     failed: false,
     stream_disconnect_started: false,

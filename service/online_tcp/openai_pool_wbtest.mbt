@@ -90,3 +90,22 @@ test "OpenAI pool recognizes the final write for immediate flight release" {
   assert_false(luna_openai_pool_write_completes(9, 17, 0))
   assert_false(luna_openai_pool_write_completes(9, 17, 9))
 }
+
+///|
+test "OpenAI pool maps every HTTP rejection to telemetry reason" {
+  assert_true(
+    luna_openai_pool_http_error_reason(LunaHttp1AuthenticationError) ==
+    LunaLogAuthentication,
+  )
+  assert_true(
+    luna_openai_pool_http_error_reason(LunaHttp1ValidationError) ==
+    LunaLogValidation,
+  )
+  assert_true(
+    luna_openai_pool_http_error_reason(LunaHttp1CapacityError) ==
+    LunaLogCapacity,
+  )
+  assert_true(
+    luna_openai_pool_http_error_reason(LunaHttp1ServiceError) == LunaLogInternal,
+  )
+}

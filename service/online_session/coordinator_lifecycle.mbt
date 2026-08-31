@@ -185,7 +185,8 @@ fn LunaOnlineFramedService::progress_maintenance_core(
   }
   if self.stream_mode == 2 &&
     self.event_credits.length() == 1 &&
-    !self.event_ack_pending {
+    !self.event_ack_pending &&
+    !self.semantic_event_taken {
     if self.enforce_output_stall() != 0 {
       return LunaOnlineFramedCoordinatorMaintenanceRequired
     }
@@ -202,6 +203,7 @@ fn LunaOnlineFramedService::progress_maintenance_core(
   }
   if self.event_ack_pending ||
     self.outbound_works.length() == 1 ||
+    self.semantic_event_taken ||
     self.semantic_event_pending {
     return LunaOnlineFramedCoordinatorEventPreparing
   }
@@ -237,7 +239,7 @@ fn LunaOnlineFramedService::progress_maintenance_core(
         self.maintenance_kind = 2
         return LunaOnlineFramedCoordinatorMaintenanceRequired
       }
-      LunaOnlineInstancePending =>
+      LunaOnlineInstancePending | LunaOnlineInstanceWaiting =>
         return LunaOnlineFramedCoordinatorMaintenanceRequired
     }
   }
@@ -286,7 +288,9 @@ fn LunaOnlineFramedService::progress_maintenance_core(
     match progress {
       LunaOnlineInstanceTerminalizationRequired => self.maintenance_kind = 1
       LunaOnlineInstanceRequestRetirementRequired => self.maintenance_kind = 2
-      LunaOnlineInstancePending | LunaOnlineInstanceEventReady => ()
+      LunaOnlineInstancePending
+      | LunaOnlineInstanceWaiting
+      | LunaOnlineInstanceEventReady => ()
     }
     return LunaOnlineFramedCoordinatorMaintenanceRequired
   }

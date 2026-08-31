@@ -14,7 +14,11 @@ int main(void) {
   sigset_t mask;
   struct sigaction action;
   struct stat info;
-  if (environ == NULL || environ[0] != NULL ||
+  static const char expected_environment[] =
+    "LD_LIBRARY_PATH=/opt/lunaflux/lib:/usr/local/nvidia/lib64:"
+    "/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu";
+  if (environ == NULL || environ[0] == NULL || environ[1] != NULL ||
+      strcmp(environ[0], expected_environment) != 0 ||
       sigprocmask(SIG_SETMASK, NULL, &mask) != 0 ||
       sigismember(&mask, SIGTERM) != 0 || sigismember(&mask, SIGUSR1) != 0 ||
       sigaction(SIGTERM, NULL, &action) != 0 || action.sa_handler != SIG_DFL ||

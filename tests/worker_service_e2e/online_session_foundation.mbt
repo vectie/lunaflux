@@ -162,12 +162,13 @@ fn progress_foundation_to_event(session : FoundationSession) -> Unit raise {
         match session.progress_terminalization() {
           LunaOnlineInstanceEventReady => return
           LunaOnlineInstanceTerminalizationRequired
-          | LunaOnlineInstancePending => ()
+          | LunaOnlineInstancePending
+          | LunaOnlineInstanceWaiting => ()
           LunaOnlineInstanceRequestRetirementRequired =>
             raise Failure("online request retired during terminalization")
         }
       LunaOnlineInstanceEventReady => return
-      LunaOnlineInstancePending => ()
+      LunaOnlineInstancePending | LunaOnlineInstanceWaiting => ()
       LunaOnlineInstanceRequestRetirementRequired =>
         raise Failure("online request retired before publishing its event")
     }
@@ -184,7 +185,7 @@ fn progress_foundation_to_terminalization(
   while attempts < 1000000 {
     match session.progress() {
       LunaOnlineInstanceTerminalizationRequired => return
-      LunaOnlineInstancePending => ()
+      LunaOnlineInstancePending | LunaOnlineInstanceWaiting => ()
       LunaOnlineInstanceEventReady =>
         raise Failure("online failure unexpectedly published on reactor")
       LunaOnlineInstanceRequestRetirementRequired =>

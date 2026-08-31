@@ -3,11 +3,14 @@ async fn connect_spawned_serving_client(
   owner : RuntimeInstanceOwner,
   timeout_millis : Int,
 ) -> @socket.Tcp {
-  if owner.servers.length() != 1 {
+  if !owner.spawned_serving_ingress_shape_valid() {
     raise spawned_serving_error(SpawnedServingOwner)
   }
+  let addr = owner.singular_ingress_addr() catch {
+    _ => raise spawned_serving_error(SpawnedServingOwner)
+  }
   let connected = @async.with_timeout_opt(timeout_millis, () => {
-    @socket.Tcp::connect(owner.servers[0].local_addr())
+    @socket.Tcp::connect(addr)
   }) catch {
     _ => raise spawned_serving_error(SpawnedServingConnect)
   }
@@ -80,14 +83,7 @@ async fn read_spawned_serving_event(
         if owner.health() != RuntimeHealthy {
           raise spawned_serving_error(SpawnedServingHealth)
         }
-        if owner.servers.length() != 1 ||
-          owner.servers[0].state() != LunaOnlineTcpServerConnected ||
-          !spawned_serving_live_state_valid(
-            owner.phase(),
-            owner.health(),
-            owner.readiness(),
-            owner.servers[0].state(),
-          ) {
+        if !owner.spawned_serving_ingress_active() {
           raise spawned_serving_error(SpawnedServingReadiness)
         }
         @async.pause()

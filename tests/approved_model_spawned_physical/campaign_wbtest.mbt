@@ -188,13 +188,37 @@ test "broad BF16 campaign is qualification-only and names unexercised cases" {
     "malformed_native_frame=fail-closed-connection-isolation-pass\n" +
     "post_malformed_same_owner_recovery=pass\n" +
     "malformed_http=not-exercised-native-framed-owner\n" +
-    "overload_rejection=not-exercised-single-connection-owner\n"
+    broad_serving_ingress_evidence(BroadServingFramedConnectionPool)
   assert_true(scope.contains("campaign_scope=qualification-only"))
   assert_true(scope.contains("fail-closed-connection-isolation-pass"))
   assert_true(scope.contains("post_malformed_same_owner_recovery=pass"))
   assert_true(scope.contains("malformed_http=not-exercised"))
+  assert_true(scope.contains("saturation_proof=connection-capacity-deferral"))
+  assert_true(scope.contains("saturation_backpressure=not-claimed"))
   assert_false(scope.contains("production_readiness=pass"))
   assert_false(scope.contains("performance_baseline=pass"))
+}
+
+///|
+test "broad BF16 ingress evidence preserves both exact saturation proofs" {
+  assert_eq(
+    broad_serving_ingress_evidence(BroadServingSingletonServer),
+    "ingress_owner=singleton-server\n" +
+    "saturation_boundary=active-plus-waiting\n" +
+    "saturation_proof=scheduler-backpressure\n" +
+    "saturation_backpressure=pass\n" +
+    "connection_capacity_deferral=not-exercised-singleton-server\n" +
+    "overload_rejection=not-exercised-single-connection-owner\n",
+  )
+  assert_eq(
+    broad_serving_ingress_evidence(BroadServingFramedConnectionPool),
+    "ingress_owner=framed-connection-pool\n" +
+    "saturation_boundary=connection-capacity\n" +
+    "saturation_proof=connection-capacity-deferral\n" +
+    "saturation_backpressure=not-claimed\n" +
+    "connection_capacity_deferral=pass\n" +
+    "overload_rejection=not-exercised-capacity-deferral\n",
+  )
 }
 
 ///|

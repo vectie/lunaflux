@@ -8,6 +8,16 @@ fn LunaOnlineFramedConnectionPool::retire_invalid_slot(
 }
 
 ///|
+fn LunaOnlineFramedConnectionPool::retire_rejected_slot(
+  self : LunaOnlineFramedConnectionPool,
+  index : Int,
+) -> LunaOnlineFramedConnectionPoolProgress {
+  self.telemetry.record_network_rejection(LunaLogValidation)
+  self.begin_slot_retirement(index)
+  LunaOnlineFramedConnectionPoolAdvanced
+}
+
+///|
 fn LunaOnlineFramedConnectionPool::offer_slot_request_tail(
   self : LunaOnlineFramedConnectionPool,
   index : Int,
@@ -39,7 +49,7 @@ fn LunaOnlineFramedConnectionPool::offer_slot_request_tail(
     _ => return self.retire_invalid_slot(index)
   }
   match state {
-    LunaFramedRequestFailed => self.retire_invalid_slot(index)
+    LunaFramedRequestFailed => self.retire_rejected_slot(index)
     LunaFramedRequestReady => {
       if slot.input_tail_length != 0 {
         return self.retire_invalid_slot(index)
@@ -59,6 +69,7 @@ fn LunaOnlineFramedConnectionPool::offer_slot_request_tail(
 async fn LunaOnlineFramedConnectionPool::read_slot_request(
   self : LunaOnlineFramedConnectionPool,
   index : Int,
+  poll_timeout_millis : Int,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 ||
@@ -79,7 +90,7 @@ async fn LunaOnlineFramedConnectionPool::read_slot_request(
     self.tcp_limits.read_chunk_bytes,
     slot.input.length() - slot.input_cursor,
   )
-  let received = @async.with_timeout_opt(wait, () => {
+  let received = @async.with_timeout_opt(Int::min(wait, poll_timeout_millis), () => {
     slot.connections[0].read(
       slot.input,
       offset=slot.input_cursor,
@@ -151,7 +162,7 @@ fn LunaOnlineFramedConnectionPool::progress_slot_validation(
   }
   match state {
     LunaFramedRequestReady => self.finish_slot_request_validation(index)
-    LunaFramedRequestFailed => self.retire_invalid_slot(index)
+    LunaFramedRequestFailed => self.retire_rejected_slot(index)
     LunaFramedRequestReceivingPrefix | LunaFramedRequestReceivingBody => {
       slot.phase = LUNA_FRAMED_POOL_RECEIVING
       LunaOnlineFramedConnectionPoolAdvanced

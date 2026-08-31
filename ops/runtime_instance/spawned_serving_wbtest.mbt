@@ -204,6 +204,84 @@ test "spawned serving health and readiness evidence is phase exact" {
 }
 
 ///|
+test "spawned serving admits exactly one native server or framed pool" {
+  assert_true(spawned_serving_ingress_shape_valid(1, 0, 0, 0))
+  assert_true(spawned_serving_ingress_shape_valid(0, 1, 0, 0))
+  assert_false(spawned_serving_ingress_shape_valid(1, 1, 0, 0))
+  assert_false(spawned_serving_ingress_shape_valid(0, 0, 0, 0))
+  assert_false(spawned_serving_ingress_shape_valid(0, 1, 1, 0))
+  assert_false(spawned_serving_ingress_shape_valid(0, 1, 0, 1))
+}
+
+///|
+test "spawned serving framed pool requires exact live connection balance" {
+  assert_true(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeReady,
+      LunaOnlineFramedConnectionPoolListening,
+      0,
+    ),
+  )
+  assert_true(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeReady,
+      LunaOnlineFramedConnectionPoolActive,
+      1,
+    ),
+  )
+  assert_false(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeReady,
+      LunaOnlineFramedConnectionPoolListening,
+      1,
+    ),
+  )
+  assert_false(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeNotReady,
+      LunaOnlineFramedConnectionPoolActive,
+      1,
+    ),
+  )
+  assert_false(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeReady,
+      LunaOnlineFramedConnectionPoolActive,
+      0,
+    ),
+  )
+  assert_false(
+    spawned_serving_pool_live_state_valid(
+      Ready,
+      RuntimeHealthy,
+      RuntimeReady,
+      LunaOnlineFramedConnectionPoolDraining,
+      0,
+    ),
+  )
+}
+
+///|
+test "spawned serving terminal ingress preserves server and pool lifecycle" {
+  assert_true(spawned_serving_terminal_ingress_state_valid(1, 0, true, false))
+  assert_true(spawned_serving_terminal_ingress_state_valid(0, 1, false, true))
+  assert_false(spawned_serving_terminal_ingress_state_valid(1, 0, false, true))
+  assert_false(spawned_serving_terminal_ingress_state_valid(0, 1, true, false))
+  assert_false(spawned_serving_terminal_ingress_state_valid(1, 1, true, true))
+  assert_false(spawned_serving_terminal_ingress_state_valid(0, 0, false, false))
+}
+
+///|
 test "spawned serving terminal metrics require exact request and KV balance" {
   assert_true(
     spawned_serving_terminal_metrics_valid(
