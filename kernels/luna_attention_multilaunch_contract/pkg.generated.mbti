@@ -1,0 +1,85 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_multilaunch_contract"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_attention_decode_multilaunch_contract(operation_id~ : @plan.OperationId, profile~ : @launch_contract.PagedKernelProfile, target~ : @catalog.DeviceTarget, workspace~ : AttentionDecodeWorkspaceContract, partial~ : AttentionOrderedLaunchInput, merge~ : AttentionOrderedLaunchInput, limits~ : AttentionMultiLaunchLimits) -> AttentionDecodeMultiLaunchContract raise AttentionMultiLaunchContractError
+
+// Errors
+pub(all) suberror AttentionMultiLaunchContractError {
+  InvalidAttentionMultiLaunchContract(AttentionMultiLaunchContractRule)
+  MismatchedAttentionMultiLaunchContract(AttentionMultiLaunchContractRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AttentionDecodeLaunchStage {
+  Partial
+  Merge
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionDecodeMultiLaunchContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionDecodeMultiLaunchContract::launches(Self) -> ReadOnlyArray[AttentionOrderedLaunchContract]
+pub fn AttentionDecodeMultiLaunchContract::operation_id(Self) -> @plan.OperationId
+pub fn AttentionDecodeMultiLaunchContract::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn AttentionDecodeMultiLaunchContract::target(Self) -> @catalog.DeviceTarget
+pub fn AttentionDecodeMultiLaunchContract::workspace(Self) -> AttentionDecodeWorkspaceContract
+
+pub struct AttentionDecodeWorkspaceContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionDecodeWorkspaceContract::alignment(Self) -> Int64
+pub fn AttentionDecodeWorkspaceContract::new(scalar~ : AttentionWorkspaceScalar, split_count~ : Int, partial_count~ : Int64, maximum_offset_bytes~ : Int64, denominator_offset_bytes~ : Int64, numerator_offset_bytes~ : Int64, total_bytes~ : Int64, alignment~ : Int64, limits~ : AttentionMultiLaunchLimits) -> Self raise AttentionMultiLaunchContractError
+pub fn AttentionDecodeWorkspaceContract::partial_count(Self) -> Int64
+pub fn AttentionDecodeWorkspaceContract::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
+pub fn AttentionDecodeWorkspaceContract::scalar(Self) -> AttentionWorkspaceScalar
+pub fn AttentionDecodeWorkspaceContract::split_count(Self) -> Int
+pub fn AttentionDecodeWorkspaceContract::total_bytes(Self) -> Int64
+
+pub(all) enum AttentionMultiLaunchContractRule {
+  Limits
+  Operation
+  Target
+  Workspace
+  Launch
+  Module
+  Symbol
+  Operand
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionMultiLaunchLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionMultiLaunchLimits::maximum_workspace_bytes(Self) -> Int64
+pub fn AttentionMultiLaunchLimits::new(maximum_workspace_bytes~ : Int64, maximum_symbol_bytes~ : Int, maximum_operands_per_launch~ : Int) -> Self raise AttentionMultiLaunchContractError
+
+pub struct AttentionOrderedLaunchContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionOrderedLaunchContract::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AttentionOrderedLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn AttentionOrderedLaunchContract::function_symbol(Self) -> String
+pub fn AttentionOrderedLaunchContract::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn AttentionOrderedLaunchContract::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn AttentionOrderedLaunchContract::ordinal(Self) -> Int
+pub fn AttentionOrderedLaunchContract::stage(Self) -> AttentionDecodeLaunchStage
+
+pub struct AttentionOrderedLaunchInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionOrderedLaunchInput::new(stage~ : AttentionDecodeLaunchStage, entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[@launch_contract.AotOperand]) -> Self raise AttentionMultiLaunchContractError
+
+pub(all) enum AttentionWorkspaceScalar {
+  F32
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

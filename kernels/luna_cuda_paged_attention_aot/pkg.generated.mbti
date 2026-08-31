@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_attention_multilaunch_contract",
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
@@ -13,6 +14,8 @@ import {
 
 // Values
 pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PagedAttentionManifestCudaLowering raise PagedAttentionAotError
+
+pub fn bind_manifest_paged_attention_decode_split_cuda_aot(PagedAttentionDecodeSplitCudaBundle, @plan.PlanOperation, @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
@@ -91,19 +94,36 @@ pub struct PagedAttentionDecodeSplitCudaBundle {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionDecodeSplitCudaBundle::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn PagedAttentionDecodeSplitCudaBundle::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedAttentionDecodeSplitCudaBundle::dispatch_plan(Self) -> @luna_attention_strategy.AttentionDispatchPlan
 pub fn PagedAttentionDecodeSplitCudaBundle::entry_point_ids(Self) -> (@catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId)
 pub fn PagedAttentionDecodeSplitCudaBundle::function_symbols(Self) -> (String, String)
+pub fn PagedAttentionDecodeSplitCudaBundle::head_dimension(Self) -> Int
+pub fn PagedAttentionDecodeSplitCudaBundle::kv_heads(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::launch_dimensions(Self) -> (@launch_contract.AotLaunchDimensions, @launch_contract.AotLaunchDimensions)
 pub fn PagedAttentionDecodeSplitCudaBundle::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionDecodeSplitCudaBundle::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn PagedAttentionDecodeSplitCudaBundle::operation_id(Self) -> @plan.OperationId
+pub fn PagedAttentionDecodeSplitCudaBundle::page_stride_bytes(Self) -> Int64
+pub fn PagedAttentionDecodeSplitCudaBundle::physical_page_capacity(Self) -> Int64
 pub fn PagedAttentionDecodeSplitCudaBundle::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedAttentionDecodeSplitCudaBundle::query_heads(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::recipe_bytes(Self) -> Bytes
 pub fn PagedAttentionDecodeSplitCudaBundle::recipe_digest(Self) -> PagedAttentionCudaRecipeDigest
 pub fn PagedAttentionDecodeSplitCudaBundle::source_bytes(Self) -> Bytes
 pub fn PagedAttentionDecodeSplitCudaBundle::source_digest(Self) -> PagedAttentionCudaSourceDigest
 pub fn PagedAttentionDecodeSplitCudaBundle::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionDecodeSplitCudaBundle::tokens_per_page(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::workspace_plan(Self) -> @luna_attention_strategy.AttentionDecodeWorkspacePlan
+
+pub struct PagedAttentionDecodeSplitManifestCudaBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_digest(Self) -> PagedAttentionManifestBindingDigest
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_record_bytes(Self) -> Bytes
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::candidate(Self) -> PagedAttentionDecodeSplitCudaBundle
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::contract(Self) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::manifest_bindable(Self) -> Bool
 
 pub struct PagedAttentionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionManifestBindingDigest::as_hex(Self) -> String

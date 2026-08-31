@@ -339,3 +339,177 @@ test "decode split candidate fails closed on workspace and entry geometry" {
     _ => fail("expected entry rejection")
   }
 }
+
+///|
+fn pa_decode_split_multilaunch_contract(
+  candidate : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle,
+  partial_symbol? : String = "",
+  partial_entry_id? : Int = 41,
+  workspace_partial_count? : Int64 = 0L,
+) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract raise {
+  let limits = @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits::new(
+    maximum_workspace_bytes=1048576L,
+    maximum_symbol_bytes=256,
+    maximum_operands_per_launch=16,
+  )
+  let candidate_workspace = candidate.workspace_plan()
+  let candidate_partial_count = candidate_workspace.partial_count()
+  let partial_count = if workspace_partial_count == 0L {
+    candidate_partial_count
+  } else {
+    workspace_partial_count
+  }
+  let scalar_bytes = partial_count * 4L
+  let total_bytes = if partial_count == candidate_partial_count {
+    candidate_workspace.total_bytes()
+  } else {
+    scalar_bytes * 2L +
+    partial_count * candidate.head_dimension().to_int64() * 4L
+  }
+  let workspace = @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract::new(
+    scalar=F32,
+    split_count=candidate_workspace.split_count(),
+    partial_count~,
+    maximum_offset_bytes=0L,
+    denominator_offset_bytes=scalar_bytes,
+    numerator_offset_bytes=scalar_bytes * 2L,
+    total_bytes~,
+    alignment=16L,
+    limits~,
+  )
+  let source_operands = candidate.operands()
+  let workspace_operand = pa_operand(
+    Workspace,
+    workspace.total_bytes(),
+    workspace.alignment(),
+  )
+  let partial_operands = [
+    source_operands[0],
+    source_operands[1],
+    source_operands[2],
+    source_operands[3],
+    source_operands[4],
+    source_operands[5],
+    source_operands[6],
+    source_operands[8],
+    source_operands[9],
+    workspace_operand,
+  ]
+  let merge_operands = [
+    source_operands[0],
+    source_operands[2],
+    workspace_operand,
+    source_operands[7],
+  ]
+  let family = @catalog.AotKernelFamily::new(
+    module_digest=@catalog.AotArtifactDigest::from_sha256("a".repeat(64)),
+    family_id=@catalog.AotKernelFamilyId::from_stable_int(91),
+  )
+  let (candidate_partial_symbol, merge_symbol) = candidate.function_symbols()
+  let (partial_dimensions, merge_dimensions) = candidate.launch_dimensions()
+  @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
+    operation_id=candidate.operation_id(),
+    profile=candidate.profile(),
+    target=candidate.target(),
+    workspace~,
+    partial=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
+      stage=Partial,
+      entry_point=@catalog.AotKernelEntryPoint::new(
+        family~,
+        entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(
+          partial_entry_id,
+        ),
+      ),
+      function_symbol=if partial_symbol.is_empty() {
+        candidate_partial_symbol
+      } else {
+        partial_symbol
+      },
+      dimensions=partial_dimensions,
+      operands=partial_operands,
+    ),
+    merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
+      stage=Merge,
+      entry_point=@catalog.AotKernelEntryPoint::new(
+        family~,
+        entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(42),
+      ),
+      function_symbol=merge_symbol,
+      dimensions=merge_dimensions,
+      operands=merge_operands,
+    ),
+    limits~,
+  )
+}
+
+///|
+test "decode split production binding authenticates two ordered launches" {
+  let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
+  let contract = pa_decode_split_multilaunch_contract(candidate)
+  let binding = @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+    candidate,
+    pa_plan().operations()[2],
+    contract,
+  )
+  assert_true(binding.manifest_bindable())
+  assert_eq(binding.candidate(), candidate)
+  assert_eq(binding.contract(), contract)
+  let launches = binding.contract().launches()
+  assert_eq(launches.length(), 2)
+  assert_eq(launches[0].stage(), Partial)
+  assert_eq(launches[1].stage(), Merge)
+  assert_eq(launches[0].module_digest().sha256(), "a".repeat(64))
+  let record = @utf8.decode(binding.binding_record_bytes())
+  assert_true(record.contains("launch_count=2\n"))
+  assert_true(record.contains("launch_order=partial,merge\n"))
+  assert_true(record.contains("workspace_scalar=f32\n"))
+  assert_true(record.contains("workspace=128/16\n"))
+  assert_true(record.contains("manifest_bindable=true\n"))
+}
+
+///|
+test "decode split production binding rejects symbol entry and workspace drift" {
+  let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        partial_symbol="foreign_partial",
+      ),
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected symbol rejection")
+  } noraise {
+    _ => fail("foreign symbol was bound")
+  }
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(candidate, partial_entry_id=43),
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected entry rejection")
+  } noraise {
+    _ => fail("foreign entry point was bound")
+  }
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        workspace_partial_count=16L,
+      ),
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected workspace rejection")
+  } noraise {
+    _ => fail("foreign workspace was bound")
+  }
+}
