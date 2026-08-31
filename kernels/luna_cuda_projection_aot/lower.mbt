@@ -40,6 +40,7 @@ fn projection_finish_candidate(
     parameters,
     profile.max_query_tokens(),
     profile.max_query_rows(),
+    dispatch_plan,
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
   )
@@ -47,7 +48,9 @@ fn projection_finish_candidate(
     raise LimitExceeded(Source)
   }
   let source_digest = ProjectionCudaSourceDigest(projection_sha256(source))
-  let numerical_contract = projection_numerical_contract(parameters)
+  let numerical_contract = projection_numerical_contract(
+    parameters, dispatch_plan,
+  )
   let recipe = projection_recipe(
     parameters,
     operation.id(),

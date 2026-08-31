@@ -293,7 +293,9 @@ fn projection_roles(
   for output in operation.outputs() {
     roles.push(ActivationOutput(output))
   }
-  if projection_decode_workspace_bytes(projection_parameters(operation)) > 0L {
+  let parameters = projection_parameters(operation)
+  let dispatch = projection_dispatch_plan(parameters, 2)
+  if projection_decode_workspace_bytes(parameters, dispatch) > 0L {
     roles.push(Workspace)
   }
   roles
@@ -403,8 +405,14 @@ fn projection_dimensions(
   profile : @launch_contract.PagedKernelProfile,
   parameters : ProjectionParameters,
 ) -> @launch_contract.AotLaunchDimensions raise ProjectionAotError {
-  let tensor_core = projection_tensor_core_eligible(parameters)
-  let tensor_core_mlp = projection_tensor_core_mlp_eligible(parameters)
+  let dispatch = projection_dispatch_plan(
+    parameters,
+    profile.max_query_tokens(),
+  )
+  let tensor_core = projection_tensor_core_eligible(parameters, dispatch)
+  let tensor_core_mlp = projection_tensor_core_mlp_eligible(
+    parameters, dispatch,
+  )
   let shared_memory_bytes = if tensor_core {
     8192L
   } else if tensor_core_mlp {

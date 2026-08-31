@@ -9,24 +9,29 @@ fn projection_tensor_core_prelude() -> String {
 }
 
 ///|
-fn projection_tensor_core_eligible(parameters : ProjectionParameters) -> Bool {
+fn projection_tensor_core_eligible(
+  parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+) -> Bool {
   parameters.family != GatedMlp &&
-  projection_dispatch_plan(parameters, 2).prefill().kernel_class() == MatrixTile
+  dispatch.prefill().kernel_class() == MatrixTile
 }
 
 ///|
 fn projection_tensor_core_mlp_eligible(
   parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> Bool {
   parameters.family == GatedMlp &&
-  projection_dispatch_plan(parameters, 2).prefill().kernel_class() == MatrixTile
+  dispatch.prefill().kernel_class() == MatrixTile
 }
 
 ///|
 fn projection_decode_workspace_bytes(
   parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> Int64 {
-  if projection_tensor_core_mlp_eligible(parameters) {
+  if projection_tensor_core_mlp_eligible(parameters, dispatch) {
     parameters.intermediate_width.to_int64() * 2L
   } else {
     0L
@@ -38,7 +43,11 @@ fn projection_workspace_bytes(
   parameters : ProjectionParameters,
   profile : @launch_contract.PagedKernelProfile,
 ) -> Int64 raise ProjectionAotError {
-  let row_bytes = projection_decode_workspace_bytes(parameters)
+  let dispatch = projection_dispatch_plan(
+    parameters,
+    profile.max_query_tokens(),
+  )
+  let row_bytes = projection_decode_workspace_bytes(parameters, dispatch)
   if row_bytes == 0L {
     0L
   } else {

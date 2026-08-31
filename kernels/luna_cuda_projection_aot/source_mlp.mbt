@@ -270,24 +270,25 @@ fn projection_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
 ) -> Bytes raise ProjectionAotError {
   match parameters.family {
     QkvProjection =>
-      if projection_tensor_core_eligible(parameters) {
+      if projection_tensor_core_eligible(parameters, dispatch) {
         projection_tensor_core_qkv_source(symbol, parameters, maximum_tokens)
       } else {
         projection_qkv_source(symbol, parameters, maximum_tokens)
       }
     DenseProjection =>
-      if projection_tensor_core_eligible(parameters) {
+      if projection_tensor_core_eligible(parameters, dispatch) {
         projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
       } else {
         projection_dense_source(symbol, parameters, maximum_tokens)
       }
     LanguageModelHead => {
-      let base = if projection_tensor_core_eligible(parameters) {
+      let base = if projection_tensor_core_eligible(parameters, dispatch) {
         projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
       } else {
         projection_dense_source(symbol, parameters, maximum_tokens)
@@ -305,7 +306,7 @@ fn projection_source(
       @utf8.encode(source + reducer)
     }
     GatedMlp =>
-      if projection_tensor_core_mlp_eligible(parameters) {
+      if projection_tensor_core_mlp_eligible(parameters, dispatch) {
         projection_tensor_core_mlp_source(symbol, parameters, maximum_tokens)
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)

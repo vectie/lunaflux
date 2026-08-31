@@ -89,11 +89,12 @@ fn projection_operand_recipe(
 ///|
 fn projection_numerical_contract(
   parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> ProjectionNumericalContract {
-  if projection_tensor_core_mlp_eligible(parameters) {
+  if projection_tensor_core_mlp_eligible(parameters, dispatch) {
     return TensorCoreF32SiluGatedBf16RoundV1
   }
-  if projection_tensor_core_eligible(parameters) {
+  if projection_tensor_core_eligible(parameters, dispatch) {
     return TensorCoreF32AccumulationBf16RoundV1
   }
   match parameters.family {
