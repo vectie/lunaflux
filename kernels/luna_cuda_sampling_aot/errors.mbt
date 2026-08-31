@@ -15,6 +15,8 @@ pub(all) enum SamplingBoundaryRule {
   ArtifactDigest
   ArtifactReceipt
   ArtifactDeterminism
+  DeviceSamplingPlan
+  DeviceSamplingParameters
 } derive(Debug, Eq)
 
 ///|

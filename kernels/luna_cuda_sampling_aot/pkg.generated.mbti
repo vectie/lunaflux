@@ -4,18 +4,27 @@ package "vectie/lunaflux/kernels/luna_cuda_sampling_aot"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_sampling_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
 
 // Values
+pub fn admit_device_sampling_cuda_artifact(DeviceSamplingCudaLowering, Bytes, Bytes, DeviceSamplingCompileReceipt, DeviceSamplingAotLimits) -> DeviceSamplingCudaArtifact raise SamplingBoundaryError
+
 pub fn admit_greedy_sampling_cuda_artifact(GreedySamplingCudaLowering, Bytes, Bytes, GreedySamplingCompileReceipt, GreedySamplingAotLimits) -> GreedySamplingCudaArtifact raise SamplingBoundaryError
 
 pub fn admit_host_sampling_boundary(@plan.ModelPlan) -> HostSamplingBoundary raise SamplingBoundaryError
 
+pub fn device_sampling_cuda_abi_v2(@luna_sampling_strategy.SamplingDevicePlan) -> DeviceSamplingCudaAbiV2 raise SamplingBoundaryError
+
+pub fn device_sampling_cuda_function_symbol() -> String
+
 pub fn embedded_greedy_sampling_cuda_source(Int, Int) -> String raise SamplingBoundaryError
 
 pub fn greedy_sampling_cuda_function_symbol() -> String
+
+pub fn lower_device_sampling_cuda_aot(@luna_sampling_strategy.SamplingDevicePlan, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, DeviceSamplingAotLimits) -> DeviceSamplingCudaLowering raise SamplingBoundaryError
 
 pub fn lower_greedy_sampling_cuda_aot(HostSamplingBoundary, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, Int, GreedySamplingAotLimits) -> GreedySamplingCudaLowering raise SamplingBoundaryError
 
@@ -29,6 +38,58 @@ pub(all) suberror SamplingBoundaryError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct DeviceSamplingAotLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceSamplingAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64) -> Self raise SamplingBoundaryError
+
+pub struct DeviceSamplingCompileReceipt {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCompileReceipt::from_offline_builder(source_sha256~ : String, recipe_sha256~ : String, toolchain_sha256~ : String, driver_sha256~ : String, first_module_sha256~ : String, second_module_sha256~ : String) -> Self raise SamplingBoundaryError
+
+pub struct DeviceSamplingCudaAbiV2 {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaAbiV2::block_x(Self) -> Int
+pub fn DeviceSamplingCudaAbiV2::function_symbol(Self) -> String
+pub fn DeviceSamplingCudaAbiV2::grid_x(Self) -> Int
+pub fn DeviceSamplingCudaAbiV2::manifest_bindable(Self) -> Bool
+pub fn DeviceSamplingCudaAbiV2::operands(Self) -> ReadOnlyArray[DeviceSamplingCudaOperandV2]
+pub fn DeviceSamplingCudaAbiV2::parameter_bytes(Self) -> Int64
+pub fn DeviceSamplingCudaAbiV2::result_bytes(Self) -> Int64
+pub fn DeviceSamplingCudaAbiV2::workspace_bytes(Self) -> Int64
+
+pub struct DeviceSamplingCudaArtifact {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaArtifact::function_symbol(Self) -> String
+pub fn DeviceSamplingCudaArtifact::manifest_bindable(Self) -> Bool
+pub fn DeviceSamplingCudaArtifact::module_bytes(Self) -> Bytes
+pub fn DeviceSamplingCudaArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn DeviceSamplingCudaArtifact::plan(Self) -> @luna_sampling_strategy.SamplingDevicePlan
+pub fn DeviceSamplingCudaArtifact::target(Self) -> @catalog.DeviceTarget
+
+pub struct DeviceSamplingCudaLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaLowering::function_symbol(Self) -> String
+pub fn DeviceSamplingCudaLowering::plan(Self) -> @luna_sampling_strategy.SamplingDevicePlan
+pub fn DeviceSamplingCudaLowering::recipe_bytes(Self) -> Bytes
+pub fn DeviceSamplingCudaLowering::recipe_sha256(Self) -> String
+pub fn DeviceSamplingCudaLowering::source_bytes(Self) -> Bytes
+pub fn DeviceSamplingCudaLowering::source_sha256(Self) -> String
+pub fn DeviceSamplingCudaLowering::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum DeviceSamplingCudaOperandV2 {
+  SamplingCounts
+  SamplingRowOffsets
+  SamplingBf16Logits
+  SamplingParametersV2
+  SamplingWorkspace
+  SamplingResults
+} derive(Eq, @debug.Debug)
+
 pub struct GreedySamplingAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -84,6 +145,8 @@ pub(all) enum SamplingBoundaryRule {
   ArtifactDigest
   ArtifactReceipt
   ArtifactDeterminism
+  DeviceSamplingPlan
+  DeviceSamplingParameters
 } derive(Eq, @debug.Debug)
 
 pub(all) enum SamplingExecutionOwner {

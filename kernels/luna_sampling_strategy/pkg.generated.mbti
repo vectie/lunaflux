@@ -1,0 +1,56 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_sampling_strategy"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn plan_device_sampling(maximum_rows~ : Int, vocabulary_size~ : Int, maximum_top_k~ : Int, maximum_workspace_bytes~ : Int64) -> SamplingDevicePlan raise SamplingStrategyError
+
+pub fn select_sampling_route(SamplingDevicePlan, mode~ : Int, temperature~ : Double, has_top_k~ : Bool, top_k~ : Int, has_top_p~ : Bool, top_p~ : Double) -> SamplingRoute raise SamplingStrategyError
+
+// Errors
+pub(all) suberror SamplingStrategyError {
+  InvalidSamplingStrategy(SamplingStrategyRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct SamplingDevicePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SamplingDevicePlan::candidate_token_offset_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::candidate_weight_offset_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::maximum_rows(Self) -> Int
+pub fn SamplingDevicePlan::maximum_top_k(Self) -> Int
+pub fn SamplingDevicePlan::parameter_row_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::result_row_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::vocabulary_size(Self) -> Int
+pub fn SamplingDevicePlan::workspace_bytes(Self) -> Int64
+
+pub(all) enum SamplingParameterField {
+  Mode
+  TopK
+  Temperature
+  TopP
+  Seed
+  SampleIndex
+  Flags
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SamplingRoute {
+  DeviceGreedy
+  DeviceRestrictiveTopK
+  HostCanonical
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SamplingStrategyRule {
+  Shape
+  CandidateBound
+  Workspace
+  Parameters
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

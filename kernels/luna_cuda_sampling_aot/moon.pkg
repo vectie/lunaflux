@@ -2,6 +2,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_sampling_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/plan",
