@@ -52,7 +52,181 @@ test "generated projection sources retain exact canonical ABIs" {
   assert_true(mlp.contains("const __nv_bfloat16 *up_weight"))
   assert_true(mlp.contains("const __nv_bfloat16 *down_weight"))
   assert_true(mlp.contains("expf(-gate)"))
+  assert_true(mlp.contains("extern __shared__ float combined[];"))
+  assert_true(mlp.contains("const int token = (int)blockIdx.x;"))
+  assert_true(mlp.contains("__syncthreads();"))
   assert_true(mlp.contains("__float2bfloat16_rn(output_accumulator)"))
+  assert_eq(
+    projection_fixture_lowering(5).launch_dimensions().shared_memory_bytes(),
+    32,
+  )
+  assert_eq(projection_fixture_lowering(5).launch_dimensions().grid_x(), 4)
+}
+
+///|
+test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
+  let operation = projection_fixture_operation(
+    9,
+    GatedMlp,
+    [
+      Activation(@plan.ActivationRef::new(8)),
+      Tensor(@plan.TensorRef::new(12)),
+      Tensor(@plan.TensorRef::new(13)),
+      Tensor(@plan.TensorRef::new(14)),
+    ],
+    GatedMlpShape(hidden_size=1024, intermediate_size=3072),
+    @plan.KernelCapabilityId::gated_mlp(),
+  )
+  let operands = [
+    projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(
+      ActivationInput(@plan.ActivationRef::new(8)),
+      8192L,
+      16L,
+    ),
+    projection_fixture_operand(
+      WeightInput(@plan.TensorRef::new(12)),
+      6291456L,
+      16L,
+    ),
+    projection_fixture_operand(
+      WeightInput(@plan.TensorRef::new(13)),
+      6291456L,
+      16L,
+    ),
+    projection_fixture_operand(
+      WeightInput(@plan.TensorRef::new(14)),
+      6291456L,
+      16L,
+    ),
+    projection_fixture_operand(
+      ActivationOutput(@plan.ActivationRef::new(9)),
+      8192L,
+      16L,
+    ),
+    projection_fixture_operand(Workspace, 24576L, 16L),
+  ]
+  let profile = projection_fixture_contracts().contracts()[5].profile()
+  let lowering = lower_projection_cuda_aot_candidate(
+    operation,
+    profile,
+    @catalog.AotKernelEntryPointId::from_stable_int(10),
+    projection_fixture_target(),
+    projection_fixture_compiler(),
+    operands,
+    projection_fixture_limits(),
+  )
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("__nv_bfloat16 *workspace"))
+  assert_true(source.contains("_down(const int32_t *counts"))
+  assert_true(
+    source.contains("workspace[(unsigned long long)(row_start + tile_row)"),
+  )
+  assert_true(source.contains("* 16;"))
+  assert_true(source.contains("float gate_values[8];"))
+  assert_true(
+    source.contains(
+      "load_matrix_sync(a, input + (unsigned long long)row_start * 1024ULL",
+    ),
+  )
+  assert_true(
+    source.contains(
+      "load_matrix_sync(a, workspace + (unsigned long long)row_start * 3072ULL",
+    ),
+  )
+  assert_false(source.contains("__nv_bfloat16 *a_tile"))
+  assert_true(source.contains("row_start + tile_row < token_count"))
+  assert_true(source.contains("if (token_count == 1)"))
+  assert_true(source.contains("__shfl_down_sync"))
+  assert_true(source.contains("if (warp >= 4) return;"))
+  assert_true(source.contains("const int group_count = 16;"))
+  assert_true(source.contains("work_group += (int)gridDim.x"))
+  assert_true(source.contains("group_index * 64 + warp * 16"))
+  assert_eq(lowering.launch_dimensions().grid_x(), 12)
+  assert_eq(lowering.launch_dimensions().block_x(), 512)
+  assert_eq(lowering.launch_dimensions().shared_memory_bytes(), 16384)
+  assert_true(@utf8.decode(lowering.recipe_bytes()).contains("block=512,1,1\n"))
+}
+
+///|
+test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
+  let operation = projection_fixture_operation(
+    10,
+    LanguageModelHead,
+    [Activation(@plan.ActivationRef::new(9)), Tensor(@plan.TensorRef::new(0))],
+    ProjectionShape(input_width=1024, output_width=151936),
+    @plan.KernelCapabilityId::dense_projection(),
+  )
+  let operands = [
+    projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(
+      ActivationInput(@plan.ActivationRef::new(9)),
+      8192L,
+      16L,
+    ),
+    projection_fixture_operand(
+      WeightInput(@plan.TensorRef::new(0)),
+      311164928L,
+      16L,
+    ),
+    projection_fixture_operand(
+      ActivationOutput(@plan.ActivationRef::new(10)),
+      1215488L,
+      16L,
+    ),
+  ]
+  let profile = projection_fixture_contracts().contracts()[5].profile()
+  let lowering = lower_projection_cuda_aot_candidate(
+    operation,
+    profile,
+    @catalog.AotKernelEntryPointId::from_stable_int(11),
+    projection_fixture_target(),
+    projection_fixture_compiler(),
+    operands,
+    projection_fixture_limits(),
+  )
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("if (counts[2] == 1)"))
+  assert_true(source.contains("const unsigned long long live_row"))
+  assert_true(source.contains("nvcuda::wmma::mma_sync"))
+  assert_true(source.contains("__shfl_down_sync"))
+  assert_eq(lowering.launch_dimensions().grid_x(), 1187)
+}
+
+///|
+test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
+  let qkv_parameters : ProjectionParameters = {
+    family: QkvProjection,
+    input_width: 1024,
+    query_width: 2048,
+    output_width: 4096,
+    intermediate_width: 1024,
+  }
+  let qkv = @utf8.decode(
+    projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256),
+  )
+  assert_true(qkv.contains("if (token_count == 1)"))
+  assert_true(qkv.contains("__shfl_down_sync"))
+  assert_true(qkv.contains("nvcuda::wmma::mma_sync"))
+  assert_true(qkv.contains("const int group_count = 32;"))
+  assert_true(qkv.contains("blockIdx.x / group_count) * 16"))
+  let dense_parameters : ProjectionParameters = {
+    family: DenseProjection,
+    input_width: 1024,
+    query_width: 0,
+    output_width: 1024,
+    intermediate_width: 0,
+  }
+  let dense = @utf8.decode(
+    projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256),
+  )
+  assert_true(dense.contains("if (token_count == 1)"))
+  assert_true(dense.contains("__shfl_down_sync"))
+  assert_true(dense.contains("nvcuda::wmma::mma_sync"))
+  assert_true(dense.contains("const int group_count = 8;"))
+  let profile = projection_fixture_contracts().contracts()[1].profile()
+  assert_eq(projection_dimensions(profile, qkv_parameters).grid_x(), 512)
+  assert_eq(projection_dimensions(profile, dense_parameters).grid_x(), 128)
 }
 
 ///|
@@ -138,6 +312,7 @@ test "candidate recipe excludes final module identity" {
   assert_false(recipe.contains("family_id="))
   assert_true(recipe.contains("entry_point_id=2\n"))
   assert_true(recipe.contains("grid=1,1,1\nblock=256,1,1\n"))
+  assert_true(recipe.contains("shared_memory_bytes=0\n"))
   assert_true(recipe.contains("manifest_bindable=false\n"))
   assert_true(
     recipe.contains(

@@ -159,10 +159,13 @@ pub fn produce_luna_bf16_kernel_release(
     }
     let semantics = operation_semantics(operation, layout)
     let operands = candidate_operands(candidate)
-    let workspace_alignment = candidate_workspace_alignment(operation, operands)
+    let workspace_bytes = candidate_workspace_bytes(operation, profile)
+    let workspace_alignment = candidate_workspace_alignment(
+      operation, profile, operands,
+    )
     let family = match
       reusable_binding_index(
-        families, operation, semantics, workspace_alignment,
+        families, operation, profile, semantics, workspace_alignment,
       ) {
       Some(binding_index) => {
         let binding = families[binding_index]
@@ -189,7 +192,7 @@ pub fn produce_luna_bf16_kernel_release(
           operation_shape: operation.shape(),
           capability: operation.required_capability(),
           semantics,
-          workspace_bytes: operation.workspace_bytes(),
+          workspace_bytes,
           workspace_alignment,
           family: fresh,
           entry_point_id: candidate_entry_point_id(candidate),
@@ -205,7 +208,7 @@ pub fn produce_luna_bf16_kernel_release(
             compute_major=target.compute_major(),
             compute_minor=target.compute_minor(),
             implementation=ContentAddressedAot(fresh),
-            workspace_bytes=operation.workspace_bytes(),
+            workspace_bytes~,
             workspace_alignment~,
           ) catch {
             _ => raise Invalid(Catalog)

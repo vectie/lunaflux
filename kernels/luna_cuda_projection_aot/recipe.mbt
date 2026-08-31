@@ -13,6 +13,10 @@ fn projection_numerical_tag(contract : ProjectionNumericalContract) -> String {
   match contract {
     OrderedF32AccumulationBf16RoundV1 => "ordered_f32_mul_add_bf16_round_v1"
     OrderedF32SiluGatedBf16RoundV1 => "ordered_f32_silu_gated_bf16_round_v1"
+    TensorCoreF32AccumulationBf16RoundV1 =>
+      "tensor_core_f32_accumulation_bf16_round_v1"
+    TensorCoreF32SiluGatedBf16RoundV1 =>
+      "tensor_core_f32_silu_gated_bf16_round_v1"
   }
 }
 
@@ -73,9 +77,15 @@ fn projection_operand_recipe(
 
 ///|
 fn projection_numerical_contract(
-  family : ProjectionAotFamily,
+  parameters : ProjectionParameters,
 ) -> ProjectionNumericalContract {
-  match family {
+  if projection_tensor_core_mlp_eligible(parameters) {
+    return TensorCoreF32SiluGatedBf16RoundV1
+  }
+  if projection_tensor_core_eligible(parameters) {
+    return TensorCoreF32AccumulationBf16RoundV1
+  }
+  match parameters.family {
     GatedMlp => OrderedF32SiluGatedBf16RoundV1
     QkvProjection | DenseProjection | LanguageModelHead =>
       OrderedF32AccumulationBf16RoundV1
@@ -170,7 +180,11 @@ fn projection_recipe(
     "grid=" +
     dimensions.grid_x().to_string() +
     ",1,1\n" +
-    "block=256,1,1\nmanifest_bindable=false\n" +
+    "block=" +
+    dimensions.block_x().to_string() +
+    ",1,1\nshared_memory_bytes=" +
+    dimensions.shared_memory_bytes().to_string() +
+    "\nmanifest_bindable=false\n" +
     (if embed_greedy_sampling {
       "embedded_sampling=greedy_bf16_rows_v1\n" +
       "sampling_function_symbol=" +

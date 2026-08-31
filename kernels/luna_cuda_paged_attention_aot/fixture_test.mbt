@@ -202,7 +202,7 @@ fn pa_dimensions(
     grid_x=3,
     grid_y=if attention { 2 } else { 1 },
     grid_z=1,
-    block_x=if attention { 1 } else { 32 },
+    block_x=32,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

@@ -173,6 +173,7 @@ fn projection_fixture_dimensions(
   let block = if operation == 3 { 1 } else { 256 }
   let grid_x = match operation {
     3 => 4
+    5 => 4
     _ => 1
   }
   @launch_contract.AotLaunchDimensions::new(
@@ -182,7 +183,7 @@ fn projection_fixture_dimensions(
     block_x=block,
     block_y=1,
     block_z=1,
-    shared_memory_bytes=0,
+    shared_memory_bytes=if operation == 5 { 32 } else { 0 },
   )
 }
 

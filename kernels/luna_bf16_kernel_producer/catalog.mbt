@@ -29,9 +29,11 @@ fn operation_semantics(
 ///|
 fn candidate_workspace_alignment(
   operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
   operands : ReadOnlyArray[@launch_contract.AotOperand],
 ) -> Int64 raise LunaBf16KernelProducerError {
-  if operation.workspace_bytes() == 0L {
+  let expected_bytes = candidate_workspace_bytes(operation, profile)
+  if expected_bytes == 0L {
     for operand in operands {
       if operand.role() == Workspace {
         raise Mismatch(Workspace)
@@ -42,7 +44,7 @@ fn candidate_workspace_alignment(
   let mut found : Int64? = None
   for operand in operands {
     if operand.role() == Workspace {
-      if found is Some(_) || operand.byte_count() != operation.workspace_bytes() {
+      if found is Some(_) || operand.byte_count() != expected_bytes {
         raise Mismatch(Workspace)
       }
       found = Some(operand.alignment())
@@ -56,6 +58,7 @@ fn candidate_workspace_alignment(
 fn reusable_key_matches(
   binding : ReusableFamilyBinding,
   operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
   semantics : @catalog.KernelExecutionSemantics,
   workspace_alignment : Int64,
 ) -> Bool {
@@ -63,7 +66,7 @@ fn reusable_key_matches(
   binding.operation_shape == operation.shape() &&
   binding.capability == operation.required_capability() &&
   binding.semantics == semantics &&
-  binding.workspace_bytes == operation.workspace_bytes() &&
+  binding.workspace_bytes == candidate_workspace_bytes(operation, profile) &&
   binding.workspace_alignment == workspace_alignment
 }
 
@@ -71,11 +74,14 @@ fn reusable_key_matches(
 fn reusable_binding_index(
   bindings : ArrayView[ReusableFamilyBinding],
   operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
   semantics : @catalog.KernelExecutionSemantics,
   workspace_alignment : Int64,
 ) -> Int? {
   for index, binding in bindings {
-    if reusable_key_matches(binding, operation, semantics, workspace_alignment) {
+    if reusable_key_matches(
+        binding, operation, profile, semantics, workspace_alignment,
+      ) {
       return Some(index)
     }
   }

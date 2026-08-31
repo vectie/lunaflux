@@ -60,10 +60,10 @@ fn paged_attention_expected_dimensions(
   query_heads : Int,
 ) -> @launch_contract.AotLaunchDimensions raise PagedAttentionAotError {
   @launch_contract.AotLaunchDimensions::new(
-    grid_x=profile.max_query_tokens(),
+    grid_x=Int::min(profile.max_query_tokens(), 32),
     grid_y=query_heads,
     grid_z=1,
-    block_x=1,
+    block_x=32,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

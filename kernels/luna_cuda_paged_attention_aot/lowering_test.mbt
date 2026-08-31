@@ -11,16 +11,17 @@ test "paged attention lowering is deterministic and preserves exact v3 ABI" {
   assert_eq(first.physical_page_capacity(), 4L)
   assert_eq(first.launch_dimensions().grid_x(), 3)
   assert_eq(first.launch_dimensions().grid_y(), 2)
-  assert_eq(first.launch_dimensions().block_x(), 1)
+  assert_eq(first.launch_dimensions().block_x(), 32)
+  assert_eq(first.launch_dimensions().shared_memory_bytes(), 0)
   assert_eq(first.operands().length(), 10)
   assert_eq(first.entry_point_id(), pa_entry(3).entry_point_id())
   assert_eq(
     first.source_digest().as_hex(),
-    "437bc28e313c554cfedfe1b775a646413ad08c5599b632a3d7d87777c69989e1",
+    "93883127bd5039aaf8810b4eeaef89e7f7bc13e46df29b5ca0613cb7d0bb36e0",
   )
   assert_eq(
     first.recipe_digest().as_hex(),
-    "8e3cdc25e8a41d64c20ac29cde60abd25f6ffb19177f9a0dd5348d23d852730c",
+    "b373b71fb2b38b2a935d95d853075d988de377559cb9aa4ba2d5c044e6bc7d20",
   )
   assert_eq(first.operands()[0].role(), RuntimeInput(StepCounts))
   assert_eq(
@@ -37,20 +38,22 @@ test "paged attention lowering is deterministic and preserves exact v3 ABI" {
 test "generated source covers mixed prefill decode without grid synchronization" {
   let lowering = pa_lowering()
   let source = @utf8.decode(lowering.source_bytes())
-  assert_true(source.contains("const int prefill_count = counts[0];"))
-  assert_true(source.contains("const int decode_count = counts[1];"))
+  assert_true(source.contains("const int prefill_count = counts[0]"))
+  assert_true(source.contains("decode_count = counts[1]"))
   assert_true(source.contains("key_cache[cache_index] = qkv["))
   assert_true(source.contains("in_chunk") == false)
   assert_true(source.contains("key_position >= chunk_start"))
-  assert_true(source.contains("float maximum = -CUDART_INF_F;"))
-  assert_true(source.contains("__float2bfloat16_rn(accumulator)"))
+  assert_true(source.contains("maximum = -CUDART_INF_F"))
+  assert_true(source.contains("accumulator[item] / denominator"))
+  assert_true(source.contains("__shfl_down_sync"))
   assert_false(source.contains("__syncthreads"))
   assert_false(source.contains("malloc"))
   let recipe = @utf8.decode(lowering.recipe_bytes())
   assert_true(recipe.contains("mode=mixed-prefill-decode\n"))
   assert_true(recipe.contains("language_standard=c++17\n"))
   assert_true(recipe.contains("grid=3,2,1\n"))
-  assert_true(recipe.contains("block=1,1,1\n"))
+  assert_true(recipe.contains("block=32,1,1\n"))
+  assert_true(recipe.contains("shared_memory_bytes=0\n"))
   assert_true(recipe.contains("manifest_bindable=false\n"))
   assert_false(recipe.contains("module_sha256="))
   assert_true(recipe.contains("kv_write=fused-current-token\n"))

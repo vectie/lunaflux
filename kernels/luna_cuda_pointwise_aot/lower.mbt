@@ -88,6 +88,16 @@ pub fn lower_pointwise_cuda_aot_candidate(
         profile.max_query_tokens().to_int64(),
         (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
       )
+    PositionedRotary => {
+      let rotary_width = (parameters.query_heads + parameters.kv_heads) *
+        parameters.head_dimension
+      let work_per_token = parameters.head_dimension / 2 +
+        (parameters.width - rotary_width + 31) / 32
+      checked_mul(
+        profile.max_query_tokens().to_int64(),
+        work_per_token.to_int64(),
+      )
+    }
     _ =>
       checked_mul(
         profile.max_query_tokens().to_int64(),
@@ -142,6 +152,16 @@ pub fn lower_reusable_pointwise_cuda_aot_candidate(
         profile.max_query_tokens().to_int64(),
         (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
       )
+    PositionedRotary => {
+      let rotary_width = (parameters.query_heads + parameters.kv_heads) *
+        parameters.head_dimension
+      let work_per_token = parameters.head_dimension / 2 +
+        (parameters.width - rotary_width + 31) / 32
+      checked_mul(
+        profile.max_query_tokens().to_int64(),
+        work_per_token.to_int64(),
+      )
+    }
     _ =>
       checked_mul(
         profile.max_query_tokens().to_int64(),

@@ -19,6 +19,7 @@ intermediate_width=2
 max_query_tokens=4
 grid=1,1,1
 block=256,1,1
+shared_memory_bytes=0
 manifest_bindable=false
 vendor_fast_path=row-major-weight-transpose-compatible
 numerical_contract=ordered_f32_mul_add_bf16_round_v1

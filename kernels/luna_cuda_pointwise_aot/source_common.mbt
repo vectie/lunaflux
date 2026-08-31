@@ -100,14 +100,16 @@ fn pointwise_dimensions(
   if maximum_work_items <= 0L {
     raise Invalid(LaunchDimensions)
   }
-  let threads = 256L
+  let threads = if family == PositionedRotary { 32L } else { 256L }
   let reduction_family = family == RmsNorm || family == QkRmsNorm
   if !reduction_family && maximum_work_items > 9223372036854775552L {
     raise SizeOverflow(LaunchDimensions)
   }
   let grid_x = match family {
-    RmsNorm | QkRmsNorm => maximum_work_items
-    _ => (maximum_work_items + threads - 1L) / threads
+    RmsNorm => Int64::min(maximum_work_items, 64L)
+    QkRmsNorm => Int64::min((maximum_work_items + 7L) / 8L, 32L)
+    PositionedRotary => Int64::min(maximum_work_items, 64L)
+    _ => Int64::min((maximum_work_items + threads - 1L) / threads, 32L)
   }
   if grid_x <= 0L || grid_x > 2147483647L {
     raise LimitExceeded(LaunchDimensions)
@@ -116,7 +118,7 @@ fn pointwise_dimensions(
     grid_x=grid_x.to_int(),
     grid_y=1,
     grid_z=1,
-    block_x=256,
+    block_x=threads.to_int(),
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

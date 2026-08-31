@@ -21,6 +21,27 @@ fn candidate_matrix_bytes(
 }
 
 ///|
+/// Qwen-sized tile MLPs use one BF16 intermediate row as decode scratch. The
+/// semantic plan remains unchanged; the selected kernel binding owns this
+/// backend-specific temporary region inside the plan's existing workspace
+/// envelope.
+fn candidate_workspace_bytes(
+  operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
+) -> Int64 {
+  match (operation.kind(), operation.shape()) {
+    (GatedMlp, GatedMlpShape(hidden_size~, intermediate_size~)) if hidden_size >
+      0 &&
+      hidden_size % 256 == 0 &&
+      intermediate_size > 0 &&
+      intermediate_size % 256 == 0 &&
+      intermediate_size <= 3840 =>
+      intermediate_size.to_int64() * profile.max_query_tokens().to_int64() * 2L
+    _ => operation.workspace_bytes()
+  }
+}
+
+///|
 fn candidate_runtime_bytes(
   input : @plan.OperationRuntimeInput,
   profile : @launch_contract.PagedKernelProfile,
@@ -147,9 +168,6 @@ fn derive_candidate_operands(
   profile : @launch_contract.PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
 ) -> Array[@launch_contract.AotOperand] raise LunaBf16KernelProducerError {
-  if operation.workspace_bytes() != 0L {
-    raise Mismatch(Workspace)
-  }
   let result : Array[@launch_contract.AotOperand] = []
   for runtime in operation.runtime_inputs() {
     result.push(
@@ -224,6 +242,10 @@ fn derive_candidate_operands(
         ),
       )
     }
+  }
+  let workspace_bytes = candidate_workspace_bytes(operation, profile)
+  if workspace_bytes > 0L {
+    result.push(candidate_operand(Workspace, workspace_bytes, 16L))
   }
   result
 }

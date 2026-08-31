@@ -236,6 +236,9 @@ fn pointwise_parameters(
         raise Mismatch(Operation)
       }
       let width = qkv_width(query_heads, kv_heads, head_dimension)
+      if query_heads + kv_heads > 32 {
+        raise Unsupported(Shape)
+      }
       {
         family: PositionedRotary,
         width,

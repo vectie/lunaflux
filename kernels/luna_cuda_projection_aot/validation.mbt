@@ -204,7 +204,7 @@ fn projection_bind_qkv_widths(
 ///|
 fn projection_roles(
   operation : @plan.PlanOperation,
-) -> Array[@launch_contract.AotOperandRole] {
+) -> Array[@launch_contract.AotOperandRole] raise ProjectionAotError {
   let roles : Array[@launch_contract.AotOperandRole] = [
     RuntimeInput(StepCounts),
   ]
@@ -219,6 +219,9 @@ fn projection_roles(
   }
   for output in operation.outputs() {
     roles.push(ActivationOutput(output))
+  }
+  if projection_decode_workspace_bytes(projection_parameters(operation)) > 0L {
+    roles.push(Workspace)
   }
   roles
 }
@@ -305,6 +308,7 @@ fn validate_projection_operands(
         result
       }
       ActivationOutput(_) => output_bytes
+      Workspace => projection_workspace_bytes(parameters, profile)
       _ => raise Mismatch(OperandOrder)
     }
     if operand.byte_count() != expected_bytes {
@@ -312,6 +316,7 @@ fn validate_projection_operands(
     }
     let expected_alignment = match role {
       RuntimeInput(_) => 4L
+      Workspace => PROJECTION_VALUE_ALIGNMENT
       _ => PROJECTION_VALUE_ALIGNMENT
     }
     if operand.alignment() != expected_alignment {
@@ -323,17 +328,55 @@ fn validate_projection_operands(
 ///|
 fn projection_dimensions(
   profile : @launch_contract.PagedKernelProfile,
-  output_width : Int,
+  parameters : ProjectionParameters,
 ) -> @launch_contract.AotLaunchDimensions raise ProjectionAotError {
-  let work = projection_checked_mul(
-    profile.max_query_tokens().to_int64(),
-    output_width.to_int64(),
-  )
-  let threads = 256L
+  let tensor_core = projection_tensor_core_eligible(parameters)
+  let tensor_core_mlp = projection_tensor_core_mlp_eligible(parameters)
+  let shared_memory_bytes = if tensor_core {
+    8192L
+  } else if tensor_core_mlp {
+    16384L
+  } else if parameters.family == GatedMlp &&
+    parameters.intermediate_width <= 24576 {
+    projection_checked_mul(parameters.intermediate_width.to_int64(), 4L)
+  } else {
+    0L
+  }
+  let work = if tensor_core {
+    let output_tile_groups = (parameters.output_width.to_int64() + 127L) / 128L
+    if parameters.family == LanguageModelHead {
+      output_tile_groups
+    } else {
+      let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
+      let prompt_work = projection_checked_mul(output_tile_groups, row_tiles)
+      let decode_work = (parameters.output_width.to_int64() + 7L) / 8L
+      if prompt_work > decode_work {
+        prompt_work
+      } else {
+        decode_work
+      }
+    }
+  } else if tensor_core_mlp {
+    let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
+    let intermediate_groups = parameters.intermediate_width.to_int64() / 256L
+    projection_checked_mul(row_tiles, intermediate_groups)
+  } else if shared_memory_bytes > 0L {
+    profile.max_query_tokens().to_int64()
+  } else {
+    projection_checked_mul(
+      profile.max_query_tokens().to_int64(),
+      parameters.output_width.to_int64(),
+    )
+  }
+  let threads = if tensor_core_mlp { 512L } else { 256L }
   if work > 9223372036854775807L - (threads - 1L) {
     raise SizeOverflow(LaunchDimensions)
   }
-  let grid = (work + threads - 1L) / threads
+  let grid = if tensor_core || tensor_core_mlp || shared_memory_bytes > 0L {
+    work
+  } else {
+    (work + threads - 1L) / threads
+  }
   if grid <= 0L || grid > 2147483647L {
     raise LimitExceeded(LaunchDimensions)
   }
@@ -341,10 +384,10 @@ fn projection_dimensions(
     grid_x=grid.to_int(),
     grid_y=1,
     grid_z=1,
-    block_x=256,
+    block_x=threads.to_int(),
     block_y=1,
     block_z=1,
-    shared_memory_bytes=0,
+    shared_memory_bytes=shared_memory_bytes.to_int(),
   ) catch {
     _ => raise Invalid(LaunchDimensions)
   }
@@ -355,6 +398,15 @@ fn validate_projection_contract(
   operation : @plan.PlanOperation,
   contract : @launch_contract.PagedKvAotLaunchContract,
 ) -> Unit raise ProjectionAotError {
+  let parameters = projection_bind_qkv_widths(
+    operation,
+    projection_parameters(operation),
+    contract.operands(),
+  )
+  let workspace_bytes = projection_workspace_bytes(
+    parameters,
+    contract.profile(),
+  )
   if contract.operation_id() != operation.id() ||
     contract.operation_kind() != operation.kind() ||
     contract.operation_shape() != operation.shape() ||
@@ -363,21 +415,14 @@ fn validate_projection_contract(
     contract.kv_layer() != operation.kv_layer() ||
     contract.runtime_inputs() != operation.runtime_inputs() ||
     contract.persistent_state() != operation.persistent_state() ||
-    contract.workspace_bytes() != operation.workspace_bytes() ||
-    contract.workspace_bytes() != 0L ||
+    contract.workspace_bytes() < operation.workspace_bytes() ||
+    contract.workspace_bytes() != workspace_bytes ||
     contract.workspace_alignment() <= 0L ||
     (contract.workspace_alignment() & (contract.workspace_alignment() - 1L)) !=
     0L {
     raise Mismatch(Operation)
   }
-  let expected = projection_dimensions(
-    contract.profile(),
-    projection_bind_qkv_widths(
-      operation,
-      projection_parameters(operation),
-      contract.operands(),
-    ).output_width,
-  )
+  let expected = projection_dimensions(contract.profile(), parameters)
   if contract.dimensions() != expected {
     raise Mismatch(LaunchDimensions)
   }

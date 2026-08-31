@@ -210,7 +210,7 @@ test "Qwen candidate set binds capability-11 Q/K normalization ABI" {
     fail("Q/K normalization did not use the pointwise AOT family")
   }
   assert_eq(qk.family(), QkRmsNorm)
-  assert_eq(qk.launch_dimensions().grid_x(), 4)
+  assert_eq(qk.launch_dimensions().grid_x(), 1)
   let operands = qk.operands()
   assert_eq(operands.length(), 5)
   assert_eq(operands[0].byte_count(), 20L)
@@ -220,10 +220,10 @@ test "Qwen candidate set binds capability-11 Q/K normalization ABI" {
   assert_eq(operands[4].byte_count(), 32L)
   let source = @utf8.decode(qk.source_bytes())
   assert_true(source.contains("packed_head < 2 ? q_norm : k_norm"))
-  assert_true(source.contains("output[base + lane] = input[base + lane]"))
+  assert_true(source.contains("output[base + column] = input[base + column]"))
   let recipe = @utf8.decode(qk.recipe_bytes())
   assert_true(recipe.contains("family=qk_rms_norm\n"))
-  assert_true(recipe.contains("grid=4,1,1\n"))
+  assert_true(recipe.contains("grid=1,1,1\n"))
 
   let compilations : Array[LunaBf16OfflineCompilation] = []
   for candidate in set.candidates() {
@@ -238,7 +238,7 @@ test "Qwen candidate set binds capability-11 Q/K normalization ABI" {
   )
   let contract = release.contracts().contracts()[3]
   assert_eq(contract.capability(), @plan.KernelCapabilityId::qk_rms_norm())
-  assert_eq(contract.dimensions().grid_x(), 4)
+  assert_eq(contract.dimensions().grid_x(), 1)
   assert_eq(contract.operands(), qk.operands())
   assert_eq(release.bundle().operations()[3].operation_id().as_int(), 3)
 }

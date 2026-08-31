@@ -85,21 +85,36 @@ test "manifest pointwise families lower deterministically with exact ABIs" {
         assert_true(source.contains("token < 16"))
       }
       RmsNorm => {
-        assert_true(source.contains("__shared__ float partial[256]"))
+        assert_eq(first.launch_dimensions().block_x(), 256)
+        assert_true(source.contains("if (blockDim.x != 256)"))
+        assert_true(source.contains("row = (int)blockIdx.x"))
+        assert_true(source.contains("__shared__ float warp_sums[8]"))
+        assert_true(source.contains("__shfl_down_sync"))
+        assert_true(source.contains("__syncthreads"))
         assert_true(source.contains("0.00001f"))
       }
       QkRmsNorm => {
-        assert_eq(first.launch_dimensions().grid_x(), 16)
+        assert_eq(first.launch_dimensions().grid_x(), 2)
         assert_true(source.contains("const __nv_bfloat16 *q_norm"))
         assert_true(source.contains("const __nv_bfloat16 *k_norm"))
-        assert_true(source.contains("partial[0] / 4.0f + 0.000001f"))
+        assert_true(
+          source.contains("__shfl_sync(0xffffffffU, sum, 0) / 4.0f + 0.000001f"),
+        )
         assert_true(source.contains("packed_head < 2 ? q_norm : k_norm"))
-        assert_true(source.contains("output[base + lane] = input[base + lane]"))
+        assert_true(
+          source.contains("output[base + column] = input[base + column]"),
+        )
       }
       ResidualAdd => assert_true(source.contains("__float2bfloat16_rn(sum)"))
       PositionedRotary => {
         assert_true(source.contains("powf(10000.0f, exponent)"))
-        assert_true(source.contains("column >= 12"))
+        assert_true(source.contains("positions[row]"))
+        assert_true(source.contains("if (lane < 3) { const int head = lane"))
+        assert_true(source.contains("__shfl_sync"))
+        assert_true(source.contains("if (blockDim.x != 32)"))
+        assert_true(source.contains("const unsigned long long first_offset"))
+        assert_true(source.contains("const unsigned long long second_offset"))
+        assert_true(source.contains("if (item >= 2)"))
       }
       _ => fail("unexpected manifest family")
     }

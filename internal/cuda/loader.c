@@ -14,10 +14,10 @@
 static lf_cuda_api loader_api;
 static lf_once loader_once = LF_ONCE_INIT;
 
-/* Driver and cuBLASLt libraries intentionally remain loaded for process
- * lifetime. The immutable dispatch table is published once, and unloading it
- * would invalidate function pointers while contexts or child resources may
- * still be alive. The bounded library handles are therefore loader state, not
+/* Driver libraries intentionally remain loaded for process lifetime. The
+ * immutable dispatch table is published once, and unloading it would
+ * invalidate function pointers while contexts or child resources may still be
+ * alive. The bounded library handles are therefore loader state, not
  * per-engine resources. */
 
 #if !defined(__APPLE__)
@@ -40,58 +40,10 @@ static void *lf_symbol(lf_library library, const char *name) {
 #endif
 
 static void lf_load_optional_cublas(lf_cuda_api *api) {
-  static const char *names[] = {
-#if defined(_WIN32)
-    "cublasLt64_13.dll",
-    "cublasLt64_12.dll",
-    "cublasLt64_11.dll"
-#else
-    "libcublasLt.so.13",
-    "libcublasLt.so.12",
-    "libcublasLt.so.11",
-    "libcublasLt.so"
-#endif
-  };
-  for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i += 1) {
-    api->cublas_library = lf_open_library(names[i]);
-    if (api->cublas_library != NULL) break;
-  }
-  if (api->cublas_library == NULL) return;
-  api->cublasLtCreate = (int32_t (*)(cublasLtHandle_t *))
-    lf_symbol(api->cublas_library, "cublasLtCreate");
-  api->cublasLtDestroy = (int32_t (*)(cublasLtHandle_t))
-    lf_symbol(api->cublas_library, "cublasLtDestroy");
-  api->cublasLtMatmulDescCreate =
-    (int32_t (*)(cublasLtMatmulDesc_t *, int32_t, int32_t))
-      lf_symbol(api->cublas_library, "cublasLtMatmulDescCreate");
-  api->cublasLtMatmulDescSetAttribute =
-    (int32_t (*)(cublasLtMatmulDesc_t, int32_t, const void *, size_t))
-      lf_symbol(api->cublas_library, "cublasLtMatmulDescSetAttribute");
-  api->cublasLtMatmulDescDestroy =
-    (int32_t (*)(cublasLtMatmulDesc_t))
-      lf_symbol(api->cublas_library, "cublasLtMatmulDescDestroy");
-  api->cublasLtMatrixLayoutCreate =
-    (int32_t (*)(cublasLtMatrixLayout_t *, int32_t, uint64_t, uint64_t,
-                 int64_t))
-      lf_symbol(api->cublas_library, "cublasLtMatrixLayoutCreate");
-  api->cublasLtMatrixLayoutDestroy =
-    (int32_t (*)(cublasLtMatrixLayout_t))
-      lf_symbol(api->cublas_library, "cublasLtMatrixLayoutDestroy");
-  api->cublasLtMatmul =
-    (int32_t (*)(cublasLtHandle_t, cublasLtMatmulDesc_t, const void *,
-                 const void *, cublasLtMatrixLayout_t, const void *,
-                 cublasLtMatrixLayout_t, const void *, const void *,
-                 cublasLtMatrixLayout_t, void *, cublasLtMatrixLayout_t,
-                 const void *, void *, size_t, CUstream))
-      lf_symbol(api->cublas_library, "cublasLtMatmul");
-  api->cublas_available =
-    api->cublasLtCreate != NULL && api->cublasLtDestroy != NULL &&
-    api->cublasLtMatmulDescCreate != NULL &&
-    api->cublasLtMatmulDescSetAttribute != NULL &&
-    api->cublasLtMatmulDescDestroy != NULL &&
-    api->cublasLtMatrixLayoutCreate != NULL &&
-    api->cublasLtMatrixLayoutDestroy != NULL &&
-    api->cublasLtMatmul != NULL;
+  /* Production AOT releases must not discover or retain an optional cuBLASLt
+   * execution path. Their signed descriptors admit only compiled kernels. */
+  api->cublas_library = NULL;
+  api->cublas_available = 0;
 }
 
 static void lf_load_optional_graph(lf_cuda_api *api) {

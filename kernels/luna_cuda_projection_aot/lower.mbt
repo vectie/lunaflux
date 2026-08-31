@@ -30,19 +30,20 @@ fn projection_finish_candidate(
     operands,
   )
   validate_projection_operands(operation, parameters, profile, operands)
-  let dimensions = projection_dimensions(profile, parameters.output_width)
+  let dimensions = projection_dimensions(profile, parameters)
   let source = projection_source(
     symbol,
     parameters,
     profile.max_query_tokens(),
     profile.max_query_rows(),
     embed_greedy_sampling,
+    dimensions.shared_memory_bytes() > 0,
   )
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }
   let source_digest = ProjectionCudaSourceDigest(projection_sha256(source))
-  let numerical_contract = projection_numerical_contract(parameters.family)
+  let numerical_contract = projection_numerical_contract(parameters)
   let recipe = projection_recipe(
     parameters,
     operation.id(),

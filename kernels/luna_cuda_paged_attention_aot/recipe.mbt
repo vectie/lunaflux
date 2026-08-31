@@ -95,15 +95,19 @@ fn paged_attention_recipe(
     "," +
     dimensions.grid_y().to_string() +
     ",1\n" +
-    "block=1,1,1\n" +
-    "shared_memory_bytes=0\n" +
+    "block=" +
+    dimensions.block_x().to_string() +
+    ",1,1\n" +
+    "shared_memory_bytes=" +
+    dimensions.shared_memory_bytes().to_string() +
+    "\n" +
     "manifest_bindable=false\n" +
     "abi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
     "page_table_offsets,page_table_page_indices,qkv,output,key_cache,value_cache\n" +
     "operands=" +
     paged_attention_operand_recipe(operands) +
     "\n" +
-    "numerics=bf16-input-fp32-accum-stable-softmax-reference-v1\n" +
+    "numerics=bf16-input-fp32-accum-online-softmax-warp-tiled-v3\n" +
     "kv_write=fused-current-token\n" +
     "in_chunk_kv_source=qkv-activation\n",
   )

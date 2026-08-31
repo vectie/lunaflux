@@ -101,6 +101,8 @@ pub fn ProjectionManifestCudaLowering::manifest_bindable(Self) -> Bool
 pub(all) enum ProjectionNumericalContract {
   OrderedF32AccumulationBf16RoundV1
   OrderedF32SiluGatedBf16RoundV1
+  TensorCoreF32AccumulationBf16RoundV1
+  TensorCoreF32SiluGatedBf16RoundV1
 } derive(Eq, @debug.Debug)
 
 // Type aliases
