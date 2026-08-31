@@ -140,3 +140,28 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   )
   assert_true(recipe.contains("manifest_bindable=false\n"))
 }
+
+///|
+test "Qwen fused production companion removes the diagnostic canary" {
+  let qualification = qwen_fused_test_candidate()
+  let production = lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+    qualification,
+    fused_test_limits(),
+  )
+  assert_eq(
+    production.qualification_candidate_digest(),
+    qualification.candidate_digest(),
+  )
+  assert_eq(production.semantic_plan().operation_indices(), (2, 3, 4, 5))
+  let source = @utf8.decode(production.source_bytes())
+  assert_false(source.contains("dispatch_canary"))
+  assert_true(source.contains("q_norm_weight"))
+  let recipe = @utf8.decode(production.recipe_bytes())
+  assert_true(recipe.contains("diagnostic_canary=absent\n"))
+  assert_true(
+    recipe.contains(
+      "release_binding=external-approval-and-production-physical-gate-required\n",
+    ),
+  )
+  assert_false(production.manifest_bindable())
+}

@@ -145,6 +145,86 @@ fn qwen_fused_recipe(
 }
 
 ///|
+fn qwen_fused_production_recipe(
+  source_digest : FusedParallelDigest,
+  qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
+  symbol : String,
+) -> Bytes {
+  let semantic = qualification.semantic
+  let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
+  let (input_width, output_width) = semantic.projection_shape()
+  let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
+  let profile = qualification.profile
+  @utf8.encode(
+    "schema=lunaflux-fused-parallel-cuda-aot-candidate.v2\n" +
+    "family=qkv-qknorm-positioned-rope-paged-kvwrite-production-head-tiled\n" +
+    "execution_policy=production-fast-path\n" +
+    "qualification_candidate_sha256=" +
+    qualification.candidate_digest.as_hex() +
+    "\nsource_sha256=" +
+    source_digest.as_hex() +
+    "\nfunction_symbol=" +
+    symbol +
+    "\ntarget=sm_" +
+    qualification.target.compute_major().to_string() +
+    qualification.target.compute_minor().to_string() +
+    "\nprofile_id=" +
+    profile.id().as_int().to_string() +
+    "\nmax_query_rows=" +
+    profile.max_query_rows().to_string() +
+    "\nmax_query_tokens=" +
+    profile.max_query_tokens().to_string() +
+    "\nmax_page_table_entries=" +
+    profile.max_page_table_entries().to_string() +
+    "\nblock=128,1,1\ngrid=" +
+    profile.max_query_tokens().to_string() +
+    ",1,1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
+    fused_compiler_record(qualification.compiler) +
+    "qkv_operation_id=" +
+    qkv_index.to_string() +
+    "\nqk_norm_operation_id=" +
+    qk_norm_index.to_string() +
+    "\nrope_operation_id=" +
+    rope_index.to_string() +
+    "\nattention_operation_id=" +
+    attention_index.to_string() +
+    "\nshape=" +
+    input_width.to_string() +
+    "," +
+    output_width.to_string() +
+    "," +
+    query_heads.to_string() +
+    "," +
+    kv_heads.to_string() +
+    "," +
+    head_dimension.to_string() +
+    "\nnorm_epsilon=" +
+    semantic.norm_epsilon().to_string() +
+    "\nrope_theta=" +
+    semantic.rope_theta().to_string() +
+    "\ntokens_per_page=" +
+    qualification.layout.tokens_per_page().to_string() +
+    "\ntotal_page_count=" +
+    qualification.layout.total_page_count().to_string() +
+    "\nqkv_fallback_source_sha256=" +
+    qualification.qkv_fallback.source_digest().as_hex() +
+    "\nqk_norm_fallback_source_sha256=" +
+    qualification.qk_norm_fallback.source_digest().as_hex() +
+    "\nrope_fallback_source_sha256=" +
+    qualification.rope_fallback.source_digest().as_hex() +
+    "\nkv_write_fallback_source_sha256=" +
+    qualification.kv_write_fallback.source_digest().as_hex() +
+    "\nabi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
+    "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
+    "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache\n" +
+    "reference_fallback=four-distinct-correctness-kernels\n" +
+    "aot_only=true\nruntime_jit=false\n" +
+    "release_binding=external-approval-and-production-physical-gate-required\n" +
+    "manifest_bindable=false\n",
+  )
+}
+
+///|
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
@@ -213,7 +293,11 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   let function_symbol = "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_strict_v1"
   let dispatch_canary = 269U
   let source = qwen_fused_source(
-    function_symbol, semantic, layout, profile, dispatch_canary,
+    function_symbol,
+    semantic,
+    layout,
+    profile,
+    Some(dispatch_canary),
   )
   if source.length() > limits.maximum_source_bytes {
     raise FusedParallelLimitExceeded(Source)
@@ -247,6 +331,43 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     recipe_digest,
     candidate_digest: fused_candidate_digest(
       "qkv-qknorm-positioned-rope-paged-kvwrite", source_digest, recipe_digest,
+    ),
+  }
+}
+
+///|
+pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+  qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
+  limits : FusedParallelAotLimits,
+) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError {
+  let function_symbol = "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+  let source = qwen_fused_source(
+    function_symbol,
+    qualification.semantic,
+    qualification.layout,
+    qualification.profile,
+    None,
+  )
+  if source.length() > limits.maximum_source_bytes {
+    raise FusedParallelLimitExceeded(Source)
+  }
+  let source_digest = fused_parallel_digest(source)
+  let recipe = qwen_fused_production_recipe(
+    source_digest, qualification, function_symbol,
+  )
+  if recipe.length() > limits.maximum_recipe_bytes {
+    raise FusedParallelLimitExceeded(Recipe)
+  }
+  let recipe_digest = fused_parallel_digest(recipe)
+  {
+    qualification,
+    function_symbol,
+    source,
+    source_digest,
+    recipe,
+    recipe_digest,
+    candidate_digest: fused_candidate_digest(
+      "qkv-qknorm-positioned-rope-paged-kvwrite-production", source_digest, recipe_digest,
     ),
   }
 }

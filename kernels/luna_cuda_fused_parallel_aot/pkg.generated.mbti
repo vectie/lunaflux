@@ -36,6 +36,8 @@ pub fn lower_fused_qkv_rope_paged_kv_write_production_candidate(FusedQkvRopeKvWr
 
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_cuda_projection_aot.ProjectionCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError
 
+pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(FusedQwenQkvQkNormRopeKvWriteCudaCandidate, FusedParallelAotLimits) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
+
 pub fn lower_fused_residual_rmsnorm_candidate(@plan.ModelPlan, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits) -> FusedResidualRmsNormCudaCandidate raise FusedParallelAotError
 
 pub fn lower_fused_residual_rmsnorm_production_candidate(FusedResidualRmsNormCudaCandidate, FusedParallelAotLimits) -> FusedResidualRmsNormProductionCudaCandidate raise FusedParallelAotError
@@ -220,6 +222,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::fallback_source_digests(Self)
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::function_symbol(Self) -> String
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::kv_layout(Self) -> @device_layout.DeviceKvLayout
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::manifest_bindable(Self) -> Bool
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::numerical_policy(Self) -> FusedParallelNumericalPolicy
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::recipe_bytes(Self) -> Bytes
@@ -228,6 +231,24 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::semantic_plan(Self) -> @luna_
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::source_bytes(Self) -> Bytes
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::source_digest(Self) -> FusedParallelDigest
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate {
+  // private fields
+}
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::function_symbol(Self) -> String
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::qualification_candidate_digest(Self) -> FusedParallelDigest
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::recipe_digest(Self) -> FusedParallelDigest
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::semantic_plan(Self) -> @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_digest(Self) -> FusedParallelDigest
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::target(Self) -> @catalog.DeviceTarget
 
 pub struct FusedResidualRmsNormCudaCandidate {
   // private fields

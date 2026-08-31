@@ -4,7 +4,7 @@ fn qwen_fused_source(
   semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
-  dispatch_canary : UInt,
+  dispatch_canary : UInt?,
 ) -> Bytes {
   let (input_width, output_width) = semantic.projection_shape()
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
@@ -44,6 +44,10 @@ fn qwen_fused_source(
     "LL\n",
   )
   out.write_string("extern \"C\" __global__ void " + symbol + "(\n")
+  let canary_argument = match dispatch_canary {
+    Some(_) => ",\n  unsigned int* dispatch_canary"
+    None => ""
+  }
   out.write_string(
     "  const int* step_counts, const int* query_positions,\n" +
     "  const int* query_row_offsets, const int* sequence_lengths,\n" +
@@ -52,9 +56,17 @@ fn qwen_fused_source(
     "  const __nv_bfloat16* k_weight, const __nv_bfloat16* v_weight,\n" +
     "  const __nv_bfloat16* q_norm_weight,\n" +
     "  const __nv_bfloat16* k_norm_weight, __nv_bfloat16* rotated_qkv,\n" +
-    "  __nv_bfloat16* key_cache, __nv_bfloat16* value_cache,\n" +
-    "  unsigned int* dispatch_canary) {\n",
+    "  __nv_bfloat16* key_cache, __nv_bfloat16* value_cache" +
+    canary_argument +
+    ") {\n",
   )
+  let canary_publication = match dispatch_canary {
+    Some(value) =>
+      "  if (lane == 0) atomicAdd(dispatch_canary, " +
+      value.to_string() +
+      "u);\n"
+    None => ""
+  }
   out.write_string(
     "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.y != 0 || blockIdx.z != 0) return;\n" +
     "  const int token = (int)blockIdx.x;\n" +
@@ -143,9 +155,7 @@ fn qwen_fused_source(
     "    }\n" +
     "    __syncthreads();\n" +
     "  }\n" +
-    "  if (lane == 0) atomicAdd(dispatch_canary, " +
-    dispatch_canary.to_string() +
-    "u);\n" +
+    canary_publication +
     "}\n",
   )
   @utf8.encode(out.to_string())

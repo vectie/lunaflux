@@ -107,3 +107,108 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::dispatch_canary(
 ) -> UInt {
   self.dispatch_canary
 }
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::manifest_bindable(
+  _self : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
+) -> Bool {
+  false
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::qualification_candidate_digest(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> FusedParallelDigest {
+  self.qualification.candidate_digest
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::semantic_plan(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan {
+  self.qualification.semantic
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::target(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @catalog.DeviceTarget {
+  self.qualification.target
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::profile(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @launch_contract.PagedKernelProfile {
+  self.qualification.profile
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::compiler_policy(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @luna_specialization.LunaCompilerPolicy {
+  self.qualification.compiler
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::kv_layout(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @device_layout.DeviceKvLayout {
+  self.qualification.layout
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::launch_dimensions(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @launch_contract.AotLaunchDimensions {
+  self.qualification.dimensions
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::function_symbol(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> String {
+  self.function_symbol
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_bytes(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> Bytes {
+  self.source
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_digest(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> FusedParallelDigest {
+  self.source_digest
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::recipe_bytes(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> Bytes {
+  self.recipe
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::recipe_digest(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> FusedParallelDigest {
+  self.recipe_digest
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::candidate_digest(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> FusedParallelDigest {
+  self.candidate_digest
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::manifest_bindable(
+  _self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> Bool {
+  false
+}

@@ -154,6 +154,19 @@ pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
 }
 
 ///|
+/// Canary-free production companion derived from the exact Qwen qualification
+/// candidate. It is still inert until compiled and admitted by a runtime.
+pub struct FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate {
+  priv qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate
+  priv function_symbol : String
+  priv source : Bytes
+  priv source_digest : FusedParallelDigest
+  priv recipe : Bytes
+  priv recipe_digest : FusedParallelDigest
+  priv candidate_digest : FusedParallelDigest
+}
+
+///|
 pub struct FusedResidualRmsNormCudaCandidate {
   priv residual_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
   priv norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
