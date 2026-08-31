@@ -186,7 +186,7 @@ pub(all) enum DeviceSamplingCudaOperandV2 {
 } derive(Debug, Eq)
 
 ///|
-/// Startup-sized launch seam for a future paged-manifest revision.
+/// Startup-sized launch seam for the manifest-owned embedded v2 reducer.
 pub struct DeviceSamplingCudaAbiV2 {
   priv function_symbol : String
   priv operands : ReadOnlyArray[DeviceSamplingCudaOperandV2]
@@ -246,5 +246,5 @@ pub fn DeviceSamplingCudaAbiV2::result_bytes(
 pub fn DeviceSamplingCudaAbiV2::manifest_bindable(
   _self : DeviceSamplingCudaAbiV2,
 ) -> Bool {
-  false
+  true
 }

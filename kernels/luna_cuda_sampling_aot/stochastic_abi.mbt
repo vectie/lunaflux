@@ -12,8 +12,8 @@ fn device_sampling_abi_bytes(
 }
 
 ///|
-/// Returns the exact future binding surface without granting current manifest
-/// authority. No model, artifact, module, or device resource is opened.
+/// Returns the exact binding surface without granting module authority. The
+/// device-step admission separately joins it to a manifest-owned module.
 pub fn device_sampling_cuda_abi_v2(
   plan : @luna_sampling_strategy.SamplingDevicePlan,
 ) -> DeviceSamplingCudaAbiV2 raise SamplingBoundaryError {

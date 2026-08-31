@@ -90,7 +90,7 @@ test "restrictive top-k lowering fixes ABI order RNG and nucleus semantics" {
   assert_eq(abi.parameter_bytes(), 160L)
   assert_eq(abi.workspace_bytes(), 3072L)
   assert_eq(abi.result_bytes(), 32L)
-  assert_false(abi.manifest_bindable())
+  assert_true(abi.manifest_bindable())
 }
 
 ///|
