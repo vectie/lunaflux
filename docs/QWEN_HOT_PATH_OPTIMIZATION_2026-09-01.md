@@ -27,24 +27,41 @@ claim that production dispatch uses the kernel.
   context length to a power-of-two graph slot. `device_step` selects and seals
   the slot into the staged execution capability before descriptor publication,
   without a runtime bucket scan or heap allocation.
+- Reusable fused-runtime bundle v2 is now executable for Qwen. Startup expands
+  one compiled ingress/read-only module pair over every shape-identical
+  `QKV -> QK RMSNorm -> RoPE -> Attention` layer, loads each module once, and
+  atomically replaces four graph steps with two. The same bundle can retain the
+  already-working residual/RMSNorm fusion. Worker plans keep only typed spans;
+  Llama and Mistral reject this Qwen-only bundle.
+- The Qwen ingress CUDA lowering now launches one block per token and projected
+  head instead of serializing all Q/K/V heads in one block.
+- `luna_sampling_strategy` now owns a bounded, backend-neutral stochastic
+  sampling plan and fixed workspace ABI. The CUDA backend lowers temperature,
+  explicit top-k, top-p-prefix sampling, deterministic counter RNG, and
+  non-finite rejection to an offline AOT candidate. Existing production greedy
+  sampling is unchanged.
 
 ## Remaining before the whole series is production-complete
 
-1. Extend the fused runtime sidecar from residual-only payloads to a bounded
-   multi-family bundle and replace each admitted Qwen ingress span with the
-   compiled `QKV+QKNorm+RoPE+KV-write` production entry.
-2. Give the CUDA decode-attention ABI bounded split-K workspace, implement
-   partial online-softmax state and deterministic merge, then physically tune
-   split counts by context bucket.
-3. Materialize one captured native ordered executor per admitted graph slot and
-   dispatch the staged slot to that owner. The current staging selection still
-   launches the existing single maximum-shape executor.
+1. Compile and package the new Qwen ingress/read-only/residual bundle for the
+   target GPU, then run end-to-end numerical and benchmark qualification. The
+   runtime join is complete, but a source-level join is not a performance claim.
+2. Extend the production manifest with bounded decode split-K workspace and two
+   ordered launches. Partial online-softmax plus deterministic merge exists as
+   a non-bindable CUDA candidate; split count still needs physical tuning by
+   context bucket.
+3. Materialize captured native ordered executors for useful non-maximum graph
+   buckets. The current sparse O(1) dispatcher owns one exact maximum-envelope
+   executor per prefill/decode/mixed phase and uses eager fallback for other
+   buckets.
 4. Feed physical projection measurements into signed/offline autotune records;
    the generic selector exists, but CUDA release production still uses its
    deterministic default capability plan.
-5. Run current-source Qwen physical correctness and performance campaigns on
-   the target GPU after these runtime joins. No benchmark claim is made by this
-   document.
+5. Add parameter, workspace, and result operands to the sampling manifest and
+   executor before binding stochastic v2. It remains `manifest_bindable=false`;
+   pure full-vocabulary top-p continues to use the canonical host route.
+6. Quantized Qwen routing and speculative draft/verify execution remain later
+   work. No benchmark claim is made by this document.
 
 ## Architectural boundary
 
