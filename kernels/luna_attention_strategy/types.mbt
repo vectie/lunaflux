@@ -23,6 +23,8 @@ pub(all) enum AttentionStrategyRule {
   Phase
   Tile
   Split
+  Workspace
+  Partition
 } derive(Debug, Eq)
 
 ///|
@@ -52,4 +54,32 @@ pub struct AttentionDispatchPlan {
   priv shape : AttentionShape
   priv prefill : AttentionPhasePlan
   priv decode : AttentionPhasePlan
+} derive(Debug, Eq)
+
+///|
+/// One contiguous key/value interval assigned to a decode partial reduction.
+/// Intervals are ordered, disjoint, page aligned except for the terminal end,
+/// and cover the complete admitted context envelope.
+pub struct AttentionKeyValuePartition {
+  priv split_index : Int
+  priv begin_token : Int
+  priv end_token : Int
+} derive(Debug, Eq)
+
+///|
+/// Backend-neutral F32 partial-online-softmax workspace geometry.
+///
+/// Storage is three contiguous regions: maximums, denominators, then numerator
+/// vectors. Backends may lower those regions differently, but may not change
+/// their deterministic row/head/split indexing or merge order.
+pub struct AttentionDecodeWorkspacePlan {
+  priv maximum_rows : Int
+  priv maximum_context_tokens : Int
+  priv split_count : Int
+  priv partial_count : Int64
+  priv maximum_offset_bytes : Int64
+  priv denominator_offset_bytes : Int64
+  priv numerator_offset_bytes : Int64
+  priv total_bytes : Int64
+  priv partitions : ReadOnlyArray[AttentionKeyValuePartition]
 } derive(Debug, Eq)

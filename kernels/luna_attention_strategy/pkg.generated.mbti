@@ -8,12 +8,25 @@ import {
 // Values
 pub fn plan_attention_dispatch(AttentionShape, Int, Int, Int) -> AttentionDispatchPlan raise AttentionStrategyError
 
+pub fn plan_decode_attention_workspace(AttentionShape, AttentionPhasePlan, Int, Int, Int64) -> AttentionDecodeWorkspacePlan raise AttentionStrategyError
+
 // Errors
 pub(all) suberror AttentionStrategyError {
   InvalidAttentionStrategy(AttentionStrategyRule)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionDecodeWorkspacePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionDecodeWorkspacePlan::maximum_context_tokens(Self) -> Int
+pub fn AttentionDecodeWorkspacePlan::maximum_rows(Self) -> Int
+pub fn AttentionDecodeWorkspacePlan::partial_count(Self) -> Int64
+pub fn AttentionDecodeWorkspacePlan::partitions(Self) -> ReadOnlyArray[AttentionKeyValuePartition]
+pub fn AttentionDecodeWorkspacePlan::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
+pub fn AttentionDecodeWorkspacePlan::split_count(Self) -> Int
+pub fn AttentionDecodeWorkspacePlan::total_bytes(Self) -> Int64
+
 pub struct AttentionDispatchPlan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -26,6 +39,12 @@ pub(all) enum AttentionExecutionPhase {
   Prefill
   Decode
 } derive(Eq, @debug.Debug)
+
+pub struct AttentionKeyValuePartition {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionKeyValuePartition::split_index(Self) -> Int
+pub fn AttentionKeyValuePartition::token_range(Self) -> (Int, Int)
 
 pub struct AttentionPhasePlan {
   // private fields
@@ -52,6 +71,8 @@ pub(all) enum AttentionStrategyRule {
   Phase
   Tile
   Split
+  Workspace
+  Partition
 } derive(Eq, @debug.Debug)
 
 pub(all) enum AttentionTraversal {

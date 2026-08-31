@@ -178,3 +178,164 @@ test "digest constructors reject non-canonical values" {
     _ => fail("expected source digest rejection")
   }
 }
+
+///|
+fn pa_decode_split_profile(
+  max_page_table_entries : Int,
+) -> @launch_contract.PagedKernelProfile raise {
+  @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(9),
+    max_query_rows=2,
+    max_query_tokens=3,
+    max_page_table_entries~,
+  )
+}
+
+///|
+fn pa_decode_split_operands(
+  max_page_table_entries : Int,
+) -> Array[@launch_contract.AotOperand] raise {
+  let layer = @plan.KvLayerId::new(0)
+  [
+    pa_operand(RuntimeInput(StepCounts), 20L, 4L),
+    pa_operand(RuntimeInput(QueryPositions), 12L, 4L),
+    pa_operand(RuntimeInput(QueryRowOffsets), 12L, 4L),
+    pa_operand(RuntimeInput(SequenceLengths), 8L, 4L),
+    pa_operand(RuntimeInput(PageTableOffsets), 12L, 4L),
+    pa_operand(
+      RuntimeInput(PageTablePageIndices),
+      max_page_table_entries.to_int64() * 4L,
+      4L,
+    ),
+    pa_operand(ActivationInput(@plan.ActivationRef::new(1)), 48L, 16L),
+    pa_operand(ActivationOutput(@plan.ActivationRef::new(2)), 24L, 16L),
+    pa_operand(PersistentKvComponent(layer, Key), 1024L, 256L),
+    pa_operand(PersistentKvComponent(layer, Value), 1024L, 256L),
+  ]
+}
+
+///|
+fn pa_decode_split_lowering(
+  max_page_table_entries? : Int = 3,
+  maximum_key_value_splits? : Int = 8,
+  maximum_workspace_bytes? : Int64 = 1048576L,
+) -> @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle raise {
+  let profile = pa_decode_split_profile(max_page_table_entries)
+  @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
+    pa_plan().operations()[2],
+    profile,
+    pa_layout(),
+    @catalog.AotKernelEntryPointId::from_stable_int(41),
+    @catalog.AotKernelEntryPointId::from_stable_int(42),
+    pa_target(),
+    pa_compiler(),
+    pa_decode_split_operands(max_page_table_entries),
+    maximum_key_value_splits,
+    maximum_workspace_bytes,
+    pa_limits(),
+  )
+}
+
+///|
+test "decode split candidate is deterministic and one split covers the ordinary interval" {
+  let first = pa_decode_split_lowering()
+  let second = pa_decode_split_lowering()
+  assert_eq(first, second)
+  assert_false(first.manifest_bindable())
+  assert_eq(first.workspace_plan().split_count(), 1)
+  assert_eq(first.workspace_plan().partitions()[0].token_range(), (0, 6))
+  assert_eq(first.workspace_plan().total_bytes(), 64L)
+  let (partial, merge) = first.launch_dimensions()
+  assert_eq((partial.grid_x(), partial.grid_y(), partial.grid_z()), (2, 2, 1))
+  assert_eq((merge.grid_x(), merge.grid_y(), merge.grid_z()), (2, 2, 1))
+  let source = @utf8.decode(first.source_bytes())
+  assert_true(source.contains("decode_split_partial_v1_ep_41"))
+  assert_true(source.contains("decode_split_merge_v1_ep_42"))
+  assert_true(source.contains("for (int split = 0; split < 1; ++split)"))
+  assert_true(source.contains("accumulator[item] / denominator"))
+  let recipe = @utf8.decode(first.recipe_bytes())
+  assert_true(recipe.contains("manifest_bindable=false\n"))
+  assert_true(recipe.contains("partitions=0:0-6\n"))
+  assert_true(recipe.contains("workspace_total_bytes=64\n"))
+}
+
+///|
+test "decode split candidate uses bounded partial workspace and ascending merge" {
+  let lowering = pa_decode_split_lowering(
+    max_page_table_entries=1024,
+    maximum_key_value_splits=8,
+  )
+  let workspace = lowering.workspace_plan()
+  assert_eq(workspace.split_count(), 2)
+  assert_eq(workspace.partitions()[0].token_range(), (0, 1024))
+  assert_eq(workspace.partitions()[1].token_range(), (1024, 2048))
+  assert_eq(workspace.total_bytes(), 128L)
+  let (partial, merge) = lowering.launch_dimensions()
+  assert_eq(partial.grid_z(), 2)
+  assert_eq(merge.grid_z(), 1)
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("const int partition_begin_page = split * 512"))
+  assert_true(source.contains("for (int split = 0; split < 2; ++split)"))
+  assert_true(source.contains("part_denominator * new_scale"))
+  assert_true(source.contains("partial_numerator[partial * 2ULL + d]"))
+  assert_true(source.contains("!isfinite(part_denominator)"))
+  assert_true(source.contains("current_physical_page"))
+  let recipe = @utf8.decode(lowering.recipe_bytes())
+  assert_true(recipe.contains("merge_order=ascending-split-index\n"))
+  assert_true(recipe.contains("partitions=0:0-1024,1:1024-2048\n"))
+}
+
+///|
+test "decode split source preserves uneven page-balanced partitions" {
+  let lowering = pa_decode_split_lowering(
+    max_page_table_entries=2049,
+    maximum_key_value_splits=8,
+  )
+  let workspace = lowering.workspace_plan()
+  assert_eq(workspace.split_count(), 4)
+  assert_eq(workspace.partitions()[0].token_range(), (0, 1026))
+  assert_eq(workspace.partitions()[1].token_range(), (1026, 2050))
+  assert_eq(workspace.partitions()[2].token_range(), (2050, 3074))
+  assert_eq(workspace.partitions()[3].token_range(), (3074, 4098))
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("const int partition_begin_page = split * 512"))
+  assert_true(source.contains("+ (split < 1 ? split : 1);"))
+  assert_true(
+    source.contains("const int partition_pages = 512 + (split < 1 ? 1 : 0);"),
+  )
+  let recipe = @utf8.decode(lowering.recipe_bytes())
+  assert_true(
+    recipe.contains("partitions=0:0-1026,1:1026-2050,2:2050-3074,3:3074-4098\n"),
+  )
+}
+
+///|
+test "decode split candidate fails closed on workspace and entry geometry" {
+  try pa_decode_split_lowering(maximum_workspace_bytes=16L) catch {
+    @luna_cuda_paged_attention_aot.Unsupported(Profile) => ()
+    _ => fail("unexpected workspace rejection")
+  } noraise {
+    _ => fail("expected workspace rejection")
+  }
+  let profile = pa_decode_split_profile(3)
+  try
+    @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
+      pa_plan().operations()[2],
+      profile,
+      pa_layout(),
+      @catalog.AotKernelEntryPointId::from_stable_int(41),
+      @catalog.AotKernelEntryPointId::from_stable_int(41),
+      pa_target(),
+      pa_compiler(),
+      pa_decode_split_operands(3),
+      8,
+      1048576L,
+      pa_limits(),
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Invalid(Operation) => ()
+    _ => fail("unexpected entry rejection")
+  } noraise {
+    _ => fail("expected entry rejection")
+  }
+}

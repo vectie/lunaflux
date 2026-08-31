@@ -56,3 +56,70 @@ pub fn AttentionDispatchPlan::decode(
 ) -> AttentionPhasePlan {
   self.decode
 }
+
+///|
+pub fn AttentionKeyValuePartition::split_index(
+  self : AttentionKeyValuePartition,
+) -> Int {
+  self.split_index
+}
+
+///|
+pub fn AttentionKeyValuePartition::token_range(
+  self : AttentionKeyValuePartition,
+) -> (Int, Int) {
+  (self.begin_token, self.end_token)
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::maximum_rows(
+  self : AttentionDecodeWorkspacePlan,
+) -> Int {
+  self.maximum_rows
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::maximum_context_tokens(
+  self : AttentionDecodeWorkspacePlan,
+) -> Int {
+  self.maximum_context_tokens
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::split_count(
+  self : AttentionDecodeWorkspacePlan,
+) -> Int {
+  self.split_count
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::partial_count(
+  self : AttentionDecodeWorkspacePlan,
+) -> Int64 {
+  self.partial_count
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::region_offsets_bytes(
+  self : AttentionDecodeWorkspacePlan,
+) -> (Int64, Int64, Int64) {
+  (
+    self.maximum_offset_bytes,
+    self.denominator_offset_bytes,
+    self.numerator_offset_bytes,
+  )
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::total_bytes(
+  self : AttentionDecodeWorkspacePlan,
+) -> Int64 {
+  self.total_bytes
+}
+
+///|
+pub fn AttentionDecodeWorkspacePlan::partitions(
+  self : AttentionDecodeWorkspacePlan,
+) -> ReadOnlyArray[AttentionKeyValuePartition] {
+  self.partitions
+}

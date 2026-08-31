@@ -18,6 +18,8 @@ pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_con
 
 pub fn lower_paged_attention_cuda_aot_phase_bundle(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionPhaseCudaBundle raise PagedAttentionAotError
 
+pub fn lower_paged_attention_decode_split_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], Int, Int64, PagedAttentionAotLimits) -> PagedAttentionDecodeSplitCudaBundle raise PagedAttentionAotError
+
 pub fn lower_reusable_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
 // Errors
@@ -84,6 +86,24 @@ pub fn PagedAttentionCudaRecipeDigest::from_sha256(String) -> Self raise PagedAt
 pub struct PagedAttentionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionCudaSourceDigest::as_hex(Self) -> String
 pub fn PagedAttentionCudaSourceDigest::from_sha256(String) -> Self raise PagedAttentionAotError
+
+pub struct PagedAttentionDecodeSplitCudaBundle {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedAttentionDecodeSplitCudaBundle::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn PagedAttentionDecodeSplitCudaBundle::dispatch_plan(Self) -> @luna_attention_strategy.AttentionDispatchPlan
+pub fn PagedAttentionDecodeSplitCudaBundle::entry_point_ids(Self) -> (@catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId)
+pub fn PagedAttentionDecodeSplitCudaBundle::function_symbols(Self) -> (String, String)
+pub fn PagedAttentionDecodeSplitCudaBundle::launch_dimensions(Self) -> (@launch_contract.AotLaunchDimensions, @launch_contract.AotLaunchDimensions)
+pub fn PagedAttentionDecodeSplitCudaBundle::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionDecodeSplitCudaBundle::operation_id(Self) -> @plan.OperationId
+pub fn PagedAttentionDecodeSplitCudaBundle::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn PagedAttentionDecodeSplitCudaBundle::recipe_bytes(Self) -> Bytes
+pub fn PagedAttentionDecodeSplitCudaBundle::recipe_digest(Self) -> PagedAttentionCudaRecipeDigest
+pub fn PagedAttentionDecodeSplitCudaBundle::source_bytes(Self) -> Bytes
+pub fn PagedAttentionDecodeSplitCudaBundle::source_digest(Self) -> PagedAttentionCudaSourceDigest
+pub fn PagedAttentionDecodeSplitCudaBundle::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionDecodeSplitCudaBundle::workspace_plan(Self) -> @luna_attention_strategy.AttentionDecodeWorkspacePlan
 
 pub struct PagedAttentionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionManifestBindingDigest::as_hex(Self) -> String

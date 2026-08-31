@@ -23,7 +23,7 @@ This is deliberately a correctness implementation, not a performance claim.
 It allocates no workspace and rejects contracts with a workspace, a foreign
 operand order, non-v3 semantics, noncanonical KV layout, unsupported BF16
 target, reassociating compiler policy, or launch dimensions other than
-`grid=(max_query_tokens, query_heads, 1), block=(1,1,1)`. The package invokes
+`grid=(max_query_tokens, query_heads, 1), block=(32,1,1)`. The package invokes
 no compiler, process, filesystem, CUDA runtime, or JIT path. Release tooling
 must compile the source offline and admit the resulting content-addressed
 CUBIN through the existing artifact boundary. Only then may
@@ -38,3 +38,16 @@ independent host referee, and verifies fused KV writes. Merely adding this
 script is not physical-CUDA evidence. The native test pins the exact generated
 source and current non-bindable recipe digests; the validation script hashes both
 checked fixtures and rejects any drift before the physical probe can use them.
+
+The additive `PagedAttentionDecodeSplitCudaBundle` is a separate, deterministic
+two-stage decode candidate. Its partial kernel assigns page-aligned context
+partitions, stores F32 maximum/denominator/numerator tuples in one bounded
+workspace, and its merge kernel combines those tuples strictly by ascending
+split index. The backend-neutral partition and workspace geometry is owned by
+`luna_attention_strategy`; warp-32 and CUDA source details remain here.
+
+This split candidate is deliberately `manifest_bindable=false`. The current
+paged launch schema owns one attention launch and no F32 partial-workspace
+operand. Production use therefore requires a versioned two-launch contract
+that explicitly names the partial and merge entry points plus the exact
+workspace bytes; the existing single-stage manifest path is unchanged.
