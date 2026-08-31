@@ -20,8 +20,8 @@ fn qwen_bucket_step_index(
 
 ///|
 /// Derives the only currently safe smaller-bucket launch contract from the
-/// approved Qwen composite ABI. Both fused launches are explicitly admitted
-/// as one block per query token; no baseline or projection geometry is guessed.
+/// approved Qwen composite ABI. Ingress uses one block per query token while
+/// readonly attention uses a bounded grid-stride token traversal.
 fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
@@ -40,7 +40,8 @@ fn prepare_qwen_graph_launch_contract(
     let ingress = span.ingress_launch()
     let readonly_launch = span.readonly_launch()
     if ingress.grid_x() != blueprint.profile().max_query_tokens() ||
-      readonly_launch.grid_x() != blueprint.profile().max_query_tokens() {
+      readonly_launch.grid_x() <= 0 ||
+      readonly_launch.grid_x() > blueprint.profile().max_query_tokens() {
       raise InvalidExecutor(GraphBucket)
     }
     let ingress_index = qwen_bucket_step_index(steps, qkv.operation_id())
@@ -48,7 +49,7 @@ fn prepare_qwen_graph_launch_contract(
     match (launches[ingress_index], launches[readonly_index]) {
       (FixedBucketLaunch, FixedBucketLaunch) => {
         launches[ingress_index] = QueryTokenGridX(ingress)
-        launches[readonly_index] = QueryTokenGridX(readonly_launch)
+        launches[readonly_index] = QueryTokenCappedGridX(readonly_launch)
       }
       _ => raise InvalidExecutor(GraphBucket)
     }
@@ -75,6 +76,20 @@ fn paged_scaled_query_token_launch(
   ) catch {
     _ => raise InvalidExecutor(GraphBucket)
   }
+}
+
+///|
+fn paged_capped_query_token_launch(
+  source : @launch_contract.AotLaunchDimensions,
+  query_token_bound : Int,
+) -> @launch_contract.AotLaunchDimensions raise DeviceStepError {
+  if query_token_bound <= 0 {
+    raise InvalidExecutor(GraphBucket)
+  }
+  paged_scaled_query_token_launch(
+    source,
+    Int::min(source.grid_x(), query_token_bound),
+  )
 }
 
 ///|
@@ -113,6 +128,10 @@ fn paged_ordered_launches(
           Some(QueryTokenGridX(source)) =>
             paged_device_launch_dimensions(
               paged_scaled_query_token_launch(source, bound),
+            )
+          Some(QueryTokenCappedGridX(source)) =>
+            paged_device_launch_dimensions(
+              paged_capped_query_token_launch(source, bound),
             )
           _ => step.dimensions
         }

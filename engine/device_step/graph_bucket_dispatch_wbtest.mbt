@@ -73,6 +73,22 @@ test "query-token launch scaling changes only grid x" {
 }
 
 ///|
+test "grid-stride query-token launch scales up to its admitted cap" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=32,
+    grid_y=16,
+    grid_z=1,
+    block_x=32,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+  assert_eq(paged_capped_query_token_launch(source, 8).grid_x(), 8)
+  assert_eq(paged_capped_query_token_launch(source, 32).grid_x(), 32)
+  assert_eq(paged_capped_query_token_launch(source, 256).grid_x(), 32)
+}
+
+///|
 fn graph_dispatch_bucket(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   phase : @luna_execution_graph_strategy.ExecutionGraphPhase,

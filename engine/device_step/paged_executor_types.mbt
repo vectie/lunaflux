@@ -39,6 +39,7 @@ priv struct PagedOwnedOrderedExecutor {
 priv enum PagedBucketStepLaunch {
   FixedBucketLaunch
   QueryTokenGridX(@launch_contract.AotLaunchDimensions)
+  QueryTokenCappedGridX(@launch_contract.AotLaunchDimensions)
 }
 
 ///|
