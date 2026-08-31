@@ -115,3 +115,52 @@ pub struct ApprovedReusableFusedResidualRuntime {
   priv launch : @launch_contract.AotLaunchDimensions
   priv module_bytes : Bytes
 }
+
+///|
+/// Production ABI vocabulary for the bounded reusable runtime bundle. Each
+/// variant names one exact semantic family; incompatible or future ABIs must
+/// be admitted by a new schema rather than reinterpreted silently.
+pub(all) enum ReusableFusedRuntimeKernelAbi {
+  ResidualRmsNormProductionV2
+  QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+  QwenPagedAttentionReadOnlyProductionV2
+} derive(Debug, Eq)
+
+///|
+/// Startup-side module input used only to export a digest-pinned runtime
+/// bundle. It is not executable authority. The constructor enforces the exact
+/// contiguous operation span required by the ABI before canonicalization.
+pub struct ReusableFusedRuntimeModuleInput {
+  priv abi : ReusableFusedRuntimeKernelAbi
+  priv first_operation : Int
+  priv operation_count : Int
+  priv symbol : String
+  priv launch : @launch_contract.AotLaunchDimensions
+  priv module_bytes : Bytes
+}
+
+///|
+/// One module admitted from the exact digest-pinned runtime bundle. Runtime
+/// owners may extract these immutable fields during startup; token execution
+/// never parses or revalidates the canonical sidecar.
+pub struct ApprovedReusableFusedRuntimeModule {
+  priv abi : ReusableFusedRuntimeKernelAbi
+  priv first_operation : Int
+  priv operation_count : Int
+  priv symbol : String
+  priv launch : @launch_contract.AotLaunchDimensions
+  priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv module_bytes : Bytes
+}
+
+///|
+/// Bounded multi-family startup admission. At most one module for each known
+/// ABI is retained, so lookup and later runtime materialization have a fixed
+/// upper bound independent of requests or model depth.
+pub struct ApprovedReusableFusedRuntimeBundle {
+  priv source_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv model_content : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv model_plan : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv target : @catalog.DeviceTarget
+  priv modules : ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
+}

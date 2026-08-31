@@ -18,9 +18,13 @@ pub fn admit_digest_pinned_fused_runtime_source(Bytes, String) -> (ApprovedFused
 
 pub fn admit_digest_pinned_reusable_fused_residual_runtime(Bytes, String) -> ApprovedReusableFusedResidualRuntime raise FusedArtifactAdmissionError
 
+pub fn admit_digest_pinned_reusable_fused_runtime_bundle(Bytes, String) -> ApprovedReusableFusedRuntimeBundle raise FusedArtifactAdmissionError
+
 pub fn export_digest_pinned_fused_runtime_source(ApprovedFusedKernelCatalog, ApprovedFusedKernelBundle) -> Bytes raise FusedArtifactAdmissionError
 
 pub fn export_reusable_fused_residual_runtime(model_content_sha256~ : String, model_plan_sha256~ : String, target~ : @catalog.DeviceTarget, residual_operation~ : Int, norm_operation~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes) -> Bytes raise FusedArtifactAdmissionError
+
+pub fn export_reusable_fused_runtime_bundle(model_content_sha256~ : String, model_plan_sha256~ : String, target~ : @catalog.DeviceTarget, modules~ : ArrayView[ReusableFusedRuntimeModuleInput]) -> Bytes raise FusedArtifactAdmissionError
 
 // Errors
 pub(all) suberror FusedArtifactAdmissionError {
@@ -81,6 +85,34 @@ pub fn ApprovedReusableFusedResidualRuntime::operation_indices(Self) -> (Int, In
 pub fn ApprovedReusableFusedResidualRuntime::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
 pub fn ApprovedReusableFusedResidualRuntime::target(Self) -> @catalog.DeviceTarget
 
+pub struct ApprovedReusableFusedRuntimeBundle {
+  // private fields
+}
+pub fn ApprovedReusableFusedRuntimeBundle::model_content_sha256(Self) -> String
+pub fn ApprovedReusableFusedRuntimeBundle::model_plan_sha256(Self) -> String
+pub fn ApprovedReusableFusedRuntimeBundle::module_for(Self, ReusableFusedRuntimeKernelAbi) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::modules(Self) -> ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(Self) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_operation_index(Self) -> Int?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_operation_indices(Self) -> (Int, Int, Int, Int)?
+pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_module(Self) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(Self) -> (Int, Int)?
+pub fn ApprovedReusableFusedRuntimeBundle::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedReusableFusedRuntimeBundle::target(Self) -> @catalog.DeviceTarget
+
+pub struct ApprovedReusableFusedRuntimeModule {
+  // private fields
+}
+pub fn ApprovedReusableFusedRuntimeModule::first_operation_index(Self) -> Int
+pub fn ApprovedReusableFusedRuntimeModule::function_symbol(Self) -> String
+pub fn ApprovedReusableFusedRuntimeModule::kernel_abi(Self) -> ReusableFusedRuntimeKernelAbi
+pub fn ApprovedReusableFusedRuntimeModule::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ApprovedReusableFusedRuntimeModule::module_bytes(Self) -> Bytes
+pub fn ApprovedReusableFusedRuntimeModule::module_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn ApprovedReusableFusedRuntimeModule::operation_count(Self) -> Int
+pub fn ApprovedReusableFusedRuntimeModule::operation_span(Self) -> (Int, Int)
+
 pub(all) enum FusedArtifactAdmissionRule {
   Manifest
   Family
@@ -113,6 +145,17 @@ pub(all) enum FusedStandaloneFallbackRole {
   ResidualAddFallback
   RmsNormFallback
 } derive(Eq, @debug.Debug)
+
+pub(all) enum ReusableFusedRuntimeKernelAbi {
+  ResidualRmsNormProductionV2
+  QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+  QwenPagedAttentionReadOnlyProductionV2
+} derive(Eq, @debug.Debug)
+
+pub struct ReusableFusedRuntimeModuleInput {
+  // private fields
+}
+pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes) -> Self raise FusedArtifactAdmissionError
 
 // Type aliases
 
