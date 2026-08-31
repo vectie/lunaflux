@@ -130,6 +130,30 @@ pub struct FusedQkvRopeKvWriteProductionCudaCandidate {
 }
 
 ///|
+/// CUDA lowering of the backend-neutral Qwen attention-ingress fusion plan.
+/// All vendor decisions remain private to this backend package.
+pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
+  priv semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
+  priv qkv_fallback : @luna_cuda_projection_aot.ProjectionCudaLowering
+  priv qk_norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
+  priv rope_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
+  priv kv_write_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
+  priv target : @catalog.DeviceTarget
+  priv profile : @launch_contract.PagedKernelProfile
+  priv compiler : @luna_specialization.LunaCompilerPolicy
+  priv layout : @device_layout.DeviceKvLayout
+  priv dimensions : @launch_contract.AotLaunchDimensions
+  priv numerical_policy : FusedParallelNumericalPolicy
+  priv function_symbol : String
+  priv dispatch_canary : UInt
+  priv source : Bytes
+  priv source_digest : FusedParallelDigest
+  priv recipe : Bytes
+  priv recipe_digest : FusedParallelDigest
+  priv candidate_digest : FusedParallelDigest
+}
+
+///|
 pub struct FusedResidualRmsNormCudaCandidate {
   priv residual_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
   priv norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering

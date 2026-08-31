@@ -1,0 +1,252 @@
+///|
+fn qwen_fused_validate_fallbacks(
+  plan : @plan.ModelPlan,
+  layout : @device_layout.DeviceKvLayout,
+  semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
+  qkv : @luna_cuda_projection_aot.ProjectionCudaLowering,
+  qk_norm : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  rope : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  kv_write : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+) -> Unit raise FusedParallelAotError {
+  let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
+  let qkv_operation = fused_find_operation(
+    plan,
+    @plan.OperationId::new(qkv_index) catch {
+      _ => raise FusedParallelMismatch(Operation)
+    },
+  )
+  let qk_norm_operation = fused_find_operation(
+    plan,
+    @plan.OperationId::new(qk_norm_index) catch {
+      _ => raise FusedParallelMismatch(Operation)
+    },
+  )
+  let rope_operation = fused_find_operation(
+    plan,
+    @plan.OperationId::new(rope_index) catch {
+      _ => raise FusedParallelMismatch(Operation)
+    },
+  )
+  let attention = fused_find_operation(
+    plan,
+    @plan.OperationId::new(attention_index) catch {
+      _ => raise FusedParallelMismatch(Operation)
+    },
+  )
+  if qkv.operation_id() != qkv_operation.id() ||
+    qk_norm.operation_id() != qk_norm_operation.id() ||
+    rope.operation_id() != rope_operation.id() ||
+    kv_write.operation_id() != attention.id() ||
+    !fused_exact_roles(qkv.operands(), fused_operation_roles(qkv_operation)) ||
+    !fused_exact_roles(
+      qk_norm.operands(),
+      fused_operation_roles(qk_norm_operation),
+    ) ||
+    !fused_exact_roles(rope.operands(), fused_operation_roles(rope_operation)) {
+    raise FusedParallelMismatch(OperandOrder)
+  }
+  let kv_roles : Array[@launch_contract.AotOperandRole] = []
+  for runtime in attention.runtime_inputs() {
+    kv_roles.push(RuntimeInput(runtime))
+  }
+  kv_roles.push(ActivationInput(semantic.positioned_qkv()))
+  kv_roles.push(PersistentKvComponent(semantic.kv_layer(), Key))
+  kv_roles.push(PersistentKvComponent(semantic.kv_layer(), Value))
+  if !fused_exact_roles(kv_write.operands(), kv_roles) {
+    raise FusedParallelMismatch(OperandOrder)
+  }
+  for operand in kv_write.operands() {
+    match operand.role() {
+      PersistentKvComponent(_, _) =>
+        if operand.byte_count() != layout.component_stride_bytes() {
+          raise FusedParallelMismatch(OperandSize)
+        }
+      _ => ()
+    }
+  }
+}
+
+///|
+fn qwen_fused_recipe(
+  plan : @plan.ModelPlan,
+  semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
+  layout : @device_layout.DeviceKvLayout,
+  qkv : @luna_cuda_projection_aot.ProjectionCudaLowering,
+  qk_norm : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  rope : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  kv_write : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  target : @catalog.DeviceTarget,
+  profile : @launch_contract.PagedKernelProfile,
+  compiler : @luna_specialization.LunaCompilerPolicy,
+  symbol : String,
+  dispatch_canary : UInt,
+  source_digest : FusedParallelDigest,
+) -> Bytes {
+  let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
+  let (input_width, output_width) = semantic.projection_shape()
+  let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
+  @utf8.encode(
+    fused_common_recipe(
+      "qkv-qknorm-positioned-rope-paged-kvwrite-head-tiled",
+      target,
+      profile,
+      compiler,
+      source_digest,
+      symbol,
+      dispatch_canary,
+      QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+      0,
+    ) +
+    "semantic_family=qkv-qknorm-positioned-rope-paged-kvwrite\n" +
+    "model_content_sha256=" +
+    plan.identity().content().as_hex() +
+    "\nmodel_plan_sha256=" +
+    plan.identity().plan().as_hex() +
+    "\nqkv_operation_id=" +
+    qkv_index.to_string() +
+    "\nqk_norm_operation_id=" +
+    qk_norm_index.to_string() +
+    "\nrope_operation_id=" +
+    rope_index.to_string() +
+    "\nattention_operation_id=" +
+    attention_index.to_string() +
+    "\nshape=" +
+    input_width.to_string() +
+    "," +
+    output_width.to_string() +
+    "," +
+    query_heads.to_string() +
+    "," +
+    kv_heads.to_string() +
+    "," +
+    head_dimension.to_string() +
+    "\nnorm_epsilon=" +
+    semantic.norm_epsilon().to_string() +
+    "\nrope_theta=" +
+    semantic.rope_theta().to_string() +
+    "\ntokens_per_page=" +
+    layout.tokens_per_page().to_string() +
+    "\ntotal_page_count=" +
+    layout.total_page_count().to_string() +
+    "\nqkv_fallback_source_sha256=" +
+    qkv.source_digest().as_hex() +
+    "\nqk_norm_fallback_source_sha256=" +
+    qk_norm.source_digest().as_hex() +
+    "\nrope_fallback_source_sha256=" +
+    rope.source_digest().as_hex() +
+    "\nkv_write_fallback_source_sha256=" +
+    kv_write.source_digest().as_hex() +
+    "\nabi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
+    "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
+    "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache," +
+    "dispatch_canary\nreference_fallback=four-distinct-correctness-kernels\n" +
+    "aot_only=true\nruntime_jit=false\nmanifest_bindable=false\n",
+  )
+}
+
+///|
+pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
+  plan : @plan.ModelPlan,
+  layout : @device_layout.DeviceKvLayout,
+  qkv_fallback : @luna_cuda_projection_aot.ProjectionCudaLowering,
+  qk_norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  rope_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  kv_write_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  target : @catalog.DeviceTarget,
+  compiler : @luna_specialization.LunaCompilerPolicy,
+  limits : FusedParallelAotLimits,
+) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError {
+  let profile = qkv_fallback.profile()
+  fused_validate_common(profile, target, compiler)
+  if qkv_fallback.family() != QkvProjection ||
+    qk_norm_fallback.family() != QkRmsNorm ||
+    rope_fallback.family() != PositionedRotary ||
+    kv_write_fallback.family() != KvCacheWrite ||
+    qkv_fallback.target() != target ||
+    qk_norm_fallback.target() != target ||
+    rope_fallback.target() != target ||
+    kv_write_fallback.target() != target ||
+    qkv_fallback.compiler_policy() != compiler ||
+    qk_norm_fallback.profile() != profile ||
+    rope_fallback.profile() != profile ||
+    kv_write_fallback.profile() != profile {
+    raise FusedParallelMismatch(ReferenceFallback)
+  }
+  let semantic = @luna_fusion_plan.match_qkv_qknorm_positioned_rope_paged_kv_write(
+    plan,
+    qkv_fallback.operation_id(),
+  ) catch {
+    _ => raise FusedParallelMismatch(Operation)
+  }
+  let (_, _, head_dimension) = semantic.attention_shape()
+  if head_dimension > FUSED_PARALLEL_THREADS ||
+    !fused_is_power_of_two(head_dimension) ||
+    !layout.is_canonical_for(plan.identity(), plan.kv_cache_geometry()) ||
+    layout.geometry().dtype() != BFloat16 ||
+    layout.geometry().layout() != LayerMajorSplitKeyValueV1 ||
+    layout.geometry().head_dimension() != head_dimension ||
+    layout.tokens_per_page() < 8 ||
+    layout.tokens_per_page() > 256 {
+    raise FusedParallelMismatch(KvLayout)
+  }
+  qwen_fused_validate_fallbacks(
+    plan, layout, semantic, qkv_fallback, qk_norm_fallback, rope_fallback, kv_write_fallback,
+  )
+  fused_validate_operand_alignments(qkv_fallback.operands(), 16L)
+  fused_validate_operand_alignments(qk_norm_fallback.operands(), 16L)
+  fused_validate_operand_alignments(rope_fallback.operands(), 16L)
+  fused_validate_operand_alignments(
+    kv_write_fallback.operands(),
+    layout.segment_alignment_bytes(),
+  )
+  let dimensions = @launch_contract.AotLaunchDimensions::new(
+    grid_x=profile.max_query_tokens(),
+    grid_y=1,
+    grid_z=1,
+    block_x=FUSED_PARALLEL_THREADS,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  ) catch {
+    _ => raise FusedParallelUnsupported(StaticResources)
+  }
+  let function_symbol = "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_strict_v1"
+  let dispatch_canary = 269U
+  let source = qwen_fused_source(
+    function_symbol, semantic, layout, profile, dispatch_canary,
+  )
+  if source.length() > limits.maximum_source_bytes {
+    raise FusedParallelLimitExceeded(Source)
+  }
+  let source_digest = fused_parallel_digest(source)
+  let recipe = qwen_fused_recipe(
+    plan, semantic, layout, qkv_fallback, qk_norm_fallback, rope_fallback, kv_write_fallback,
+    target, profile, compiler, function_symbol, dispatch_canary, source_digest,
+  )
+  if recipe.length() > limits.maximum_recipe_bytes {
+    raise FusedParallelLimitExceeded(Recipe)
+  }
+  let recipe_digest = fused_parallel_digest(recipe)
+  {
+    semantic,
+    qkv_fallback,
+    qk_norm_fallback,
+    rope_fallback,
+    kv_write_fallback,
+    target,
+    profile,
+    compiler,
+    layout,
+    dimensions,
+    numerical_policy: QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+    function_symbol,
+    dispatch_canary,
+    source,
+    source_digest,
+    recipe,
+    recipe_digest,
+    candidate_digest: fused_candidate_digest(
+      "qkv-qknorm-positioned-rope-paged-kvwrite", source_digest, recipe_digest,
+    ),
+  }
+}
