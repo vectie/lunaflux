@@ -158,7 +158,7 @@ if [ -z "$runner_build" ] || [ -z "$runner_digest" ] ||
   fail 'current-source child build/digest/materialize/execute order is invalid'
 fi
 
-for mode in context-churn long-context; do
+for mode in context-churn; do
   mode_line=$(rg -n '^  "\$campaign" '"$mode"' ' "$runner" | cut -d: -f1)
   log_line=$(sed -n "$((mode_line - 1))p" "$runner")
   tracked_line=$(sed -n "$((mode_line - 2))p" "$runner")
@@ -172,6 +172,18 @@ for mode in context-churn long-context; do
     '  "$launch_root#sha256=$launch_sha" "$worker_sha" ||' ] ||
     fail "current-source $mode lost exact launch/child authority"
 done
+
+long_context_log_line=$(sed -n "$((runner_long_context - 1))p" "$runner")
+long_context_tracked_line=$(sed -n "$((runner_long_context - 2))p" "$runner")
+long_context_authority_line=$(sed -n "$((runner_long_context + 1))p" "$runner")
+[ "$long_context_tracked_line" = 'lunaflux_run_tracked_campaign \' ] ||
+  fail 'current-source long-context bypasses tracked process-group ownership'
+[ "$long_context_log_line" = \
+  '  "$logs/long-context.stdout" "$logs/long-context.stderr" \' ] ||
+  fail 'current-source long-context lost its dedicated immutable evidence streams'
+[ "$long_context_authority_line" = \
+  '  "$prefix_launch_root#sha256=$prefix_launch_sha" "$worker_sha" ||' ] ||
+  fail 'current-source long-context lost its exact max-input-9 launch authority'
 
 for mode in context-churn long-context; do
   mode_count=$(rg -c '^  "\$campaign" '"$mode"' ' "$runner")

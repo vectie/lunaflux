@@ -1,4 +1,14 @@
 ///|
+fn bridge_runtime_error_message(error : BridgeRuntimeError) -> String {
+  match error {
+    InvalidArgument(message)
+    | StartupIdentity(message)
+    | HttpRequest(message)
+    | NativeProtocol(message) => message
+  }
+}
+
+///|
 async fn bridge_generate(
   http : @socket.Tcp,
   config : BridgeConfig,
@@ -124,7 +134,9 @@ async fn bridge_handle(
       sequence.val += 1UL
       let response_started = Ref(false)
       bridge_generate(connection, config, benchmark, id, response_started) catch {
-        _ =>
+        error => {
+          let message = bridge_runtime_error_message(error)
+          println("bridge request failed: " + message)
           // Before the SSE head this reports a bounded upstream failure. If
           // streaming already began, the closed connection is the only honest
           // failure signal; a fake terminal event would corrupt timings.
@@ -134,7 +146,15 @@ async fn bridge_handle(
             ) catch {
               _ => ()
             }
+          } else {
+            bridge_write_all(
+              connection,
+              @utf8.encode("event: error\ndata: " + message + "\n\n"),
+            ) catch {
+              _ => ()
+            }
           }
+        }
       }
     }
     _ =>

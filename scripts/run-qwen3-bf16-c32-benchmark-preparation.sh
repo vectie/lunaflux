@@ -5,8 +5,10 @@ TZ=UTC
 export LC_ALL TZ
 umask 077
 
+failure_reason='unexpected preparation exit'
 fail() {
-  printf 'Qwen3 c32 benchmark preparation rejected: %s\n' "$1" >&2
+  failure_reason=$1
+  printf 'Qwen3 c32 benchmark preparation rejected: %s\n' "$failure_reason" >&2
   exit 1
 }
 
@@ -146,11 +148,25 @@ cleanup() {
   if [[ $published -ne 1 ]]; then
     if [[ -d ${stage:-} ]]; then
       chmod -R u+rwX "$stage" 2>/dev/null || true
-      rm -rf -- "$stage"
-    fi
-    if [[ $artifact_created -eq 1 && -d $artifact_root ]]; then
-      chmod -R u+rwX "$artifact_root" 2>/dev/null || true
-      rm -rf -- "$artifact_root"
+      failure_output=${evidence_output}.failed
+      if [[ -e $failure_output || -L $failure_output ]]; then
+        failure_output=${failure_output}.$$
+      fi
+      {
+        printf 'schema=lunaflux-qwen3-bf16-c32-benchmark-preparation-failure.v1\n'
+        printf 'outcome=failed\n'
+        printf 'reason=%s\n' "$failure_reason"
+        printf 'artifact_root=%s\n' "$artifact_root"
+        printf 'diagnostic_only=true\n'
+        printf 'sealed=false\n'
+      } >"$stage/FAILURE.txt"
+      mv -- "$stage" "$failure_output"
+      stage=
+      printf 'Qwen3 c32 benchmark preparation retained failure diagnostics: evidence=%s artifacts=%s\n' \
+        "$failure_output" "$artifact_root" >&2
+    elif [[ $artifact_created -eq 1 && -d $artifact_root ]]; then
+      printf 'Qwen3 c32 benchmark preparation retained failed artifacts: artifacts=%s\n' \
+        "$artifact_root" >&2
     fi
   fi
 }

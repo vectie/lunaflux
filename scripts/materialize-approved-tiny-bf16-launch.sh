@@ -43,7 +43,8 @@ external_protocol_json=
 openai_service_json=
 sampling_runtime_json=',"sampling_runtime":"embedded_cuda_greedy_v1"'
 fused_runtime_json=
-descriptor_schema=lunaflux.runtime.v4
+descriptor_schema=lunaflux.runtime.v5
+graph_capture_ceiling_json=
 fused_runtime_argument=
 if [ "$#" -eq 9 ] || [ "$#" -eq 17 ]; then
   case "$9" in
@@ -70,11 +71,13 @@ if [ "$#" -eq 9 ] || [ "$#" -eq 17 ]; then
       [ "$#" -eq 9 ] || usage
       materialization_profile=host-sampling-referee-v1
       sampling_runtime_json=
-      descriptor_schema=lunaflux.runtime.v3
+      descriptor_schema=lunaflux.runtime.v1
       ;;
     fused-v2-device-greedy-v1)
       [ "$#" -eq 17 ] || usage
       materialization_profile=fused-v2-device-greedy-v1
+      descriptor_schema=lunaflux.runtime.v4
+      graph_capture_ceiling_json=',"max_graph_capture_bytes":33554432'
       fused_runtime_argument=${10}
       qkv_argument=${11}
       readonly_argument=${12}
@@ -321,7 +324,7 @@ cp "$worker_source" "$output/bin/lunaflux-device-worker"
 chmod 555 "$output/bin/lunaflux-device-worker"
 
 descriptor=$output/model-root/runtime/descriptor.json
-printf '%s\n' "{\"schema_version\":\"$descriptor_schema\",\"model\":{\"config_locator\":\"config.json\",\"config_sha256\":\"$approved_config_sha\",\"weights_locator\":\"model.safetensors\",\"content_sha256\":\"$approved_model_sha\",\"max_batch_rows\":1},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$fused_runtime_json$sampling_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":true,\"tokens_per_page\":8,\"total_page_count\":32,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":1,\"max_decode_rows\":1,\"max_plan_rows\":1,\"max_plan_tokens\":1,\"max_plan_pages\":32,\"max_capabilities\":64,\"max_completion_slots\":1,\"max_sequence_tokens\":256,\"max_token_id\":2999},\"inference_limits\":{\"max_text_bytes\":1024,\"max_input_tokens\":$descriptor_max_input_tokens,\"max_new_tokens\":8,\"max_context_tokens\":256,\"max_token_id\":2999,\"max_stop_token_ids\":4,\"max_stop_strings\":4,\"max_stop_string_bytes\":32,\"max_trace_bytes\":32,\"max_cache_scope_bytes\":32,\"max_decoded_delta_bytes\":512,\"max_deadline_millis\":60000,\"max_top_k\":3000,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":65536,\"max_weight_file_bytes\":210712,\"max_weight_arena_bytes\":1048576,\"max_activation_arena_bytes\":33554432,\"max_kv_arena_bytes\":1048576,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":67108864,\"max_graph_capture_bytes\":33554432}}" >"$descriptor"
+printf '%s\n' "{\"schema_version\":\"$descriptor_schema\",\"model\":{\"config_locator\":\"config.json\",\"config_sha256\":\"$approved_config_sha\",\"weights_locator\":\"model.safetensors\",\"content_sha256\":\"$approved_model_sha\",\"max_batch_rows\":1},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$fused_runtime_json$sampling_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false,\"tokens_per_page\":8,\"total_page_count\":32,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":1,\"max_decode_rows\":1,\"max_plan_rows\":1,\"max_plan_tokens\":1,\"max_plan_pages\":32,\"max_capabilities\":64,\"max_completion_slots\":1,\"max_sequence_tokens\":256,\"max_token_id\":2999},\"inference_limits\":{\"max_text_bytes\":1024,\"max_input_tokens\":$descriptor_max_input_tokens,\"max_new_tokens\":8,\"max_context_tokens\":256,\"max_token_id\":2999,\"max_stop_token_ids\":4,\"max_stop_strings\":4,\"max_stop_string_bytes\":32,\"max_trace_bytes\":32,\"max_cache_scope_bytes\":32,\"max_decoded_delta_bytes\":512,\"max_deadline_millis\":60000,\"max_top_k\":3000,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":65536,\"max_weight_file_bytes\":210712,\"max_weight_arena_bytes\":1048576,\"max_activation_arena_bytes\":33554432,\"max_kv_arena_bytes\":1048576,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":67108864$graph_capture_ceiling_json}}" >"$descriptor"
 descriptor_sha=$(bundle_sha256_file "$descriptor")
 
 policy=$output/policy-root/instance/policy.json

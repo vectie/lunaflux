@@ -107,8 +107,10 @@ struct Kernel {
     function = nullptr;
   }
 
-  void launch(unsigned grid_x, void **arguments) const {
-    cuda_ok(cuLaunchKernel(function, grid_x, 1, 1, 256, 1, 1, 0, nullptr, arguments, nullptr),
+  void launch(unsigned grid_x, void **arguments,
+              unsigned shared_memory_bytes = 0) const {
+    cuda_ok(cuLaunchKernel(function, grid_x, 1, 1, 256, 1, 1,
+                          shared_memory_bytes, nullptr, arguments, nullptr),
             "cuLaunchKernel");
     cuda_ok(cuCtxSynchronize(), "cuCtxSynchronize");
   }
@@ -371,7 +373,7 @@ void test_mlp(const std::string &module_path, Buffer &counts) {
                 "lunaflux_luna_gated_mlp_bf16_reference_v1_op_5_ep_6");
   void *args[] = {&counts.pointer, &in.pointer, &gd.pointer,
                   &ud.pointer, &dd.pointer, &out.pointer};
-  kernel.launch(1, args);
+  kernel.launch(4, args, 32);
   std::vector<float> expected(16, 91.0F);
   for (size_t row = 0; row < 3; ++row) {
     for (size_t column = 0; column < 4; ++column) {

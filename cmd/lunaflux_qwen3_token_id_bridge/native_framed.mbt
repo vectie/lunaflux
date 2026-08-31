@@ -12,15 +12,18 @@ fn bridge_internal_greedy_seed() -> UInt64 {
 }
 
 ///|
-fn bridge_limits(
-  config : BridgeConfig,
+fn bridge_limits_for_bounds(
+  max_input_tokens : Int,
+  max_output_tokens : Int,
+  max_token_id : Int,
+  max_context_tokens : Int,
 ) -> @inference.InferenceLimits raise BridgeRuntimeError {
   @inference.InferenceLimits::new(
     max_text_bytes=1,
-    max_input_tokens=config.max_input_tokens,
-    max_new_tokens=config.max_output_tokens,
-    max_context_tokens=config.max_context_tokens,
-    max_token_id=config.max_token_id,
+    max_input_tokens~,
+    max_new_tokens=max_output_tokens,
+    max_context_tokens~,
+    max_token_id~,
     max_stop_token_ids=1,
     max_stop_strings=1,
     max_stop_string_bytes=1,
@@ -28,7 +31,7 @@ fn bridge_limits(
     max_cache_scope_bytes=32,
     max_decoded_delta_bytes=4096,
     max_deadline_millis=bridge_request_deadline_millis(),
-    max_top_k=config.max_token_id + 1,
+    max_top_k=max_token_id + 1,
     max_temperature=2.0,
   ) catch {
     _ => raise NativeProtocol("inference limits are invalid")
@@ -36,15 +39,28 @@ fn bridge_limits(
 }
 
 ///|
-fn bridge_request_frame(
+fn bridge_limits(
   config : BridgeConfig,
+) -> @inference.InferenceLimits raise BridgeRuntimeError {
+  bridge_limits_for_bounds(
+    config.max_input_tokens,
+    config.max_output_tokens,
+    config.max_token_id,
+    config.max_context_tokens,
+  )
+}
+
+///|
+fn bridge_request_frame_for_identity(
+  model_content_sha256 : String,
+  model_plan_sha256 : String,
   request : @bridge.Qwen3TokenIdRequest,
   request_id : UInt64,
   limits : @inference.InferenceLimits,
 ) -> Bytes raise BridgeRuntimeError {
   let identity = @spec.ModelIdentity::new(
-    @spec.ContentDigest::from_sha256(config.model_content_sha256),
-    @spec.PlanDigest::from_sha256(config.model_plan_sha256),
+    @spec.ContentDigest::from_sha256(model_content_sha256),
+    @spec.PlanDigest::from_sha256(model_plan_sha256),
   ) catch {
     _ => raise NativeProtocol("model identity is invalid")
   }
@@ -93,6 +109,22 @@ fn bridge_request_frame(
 }
 
 ///|
+fn bridge_request_frame(
+  config : BridgeConfig,
+  request : @bridge.Qwen3TokenIdRequest,
+  request_id : UInt64,
+  limits : @inference.InferenceLimits,
+) -> Bytes raise BridgeRuntimeError {
+  bridge_request_frame_for_identity(
+    config.model_content_sha256,
+    config.model_plan_sha256,
+    request,
+    request_id,
+    limits,
+  )
+}
+
+///|
 fn bridge_event_length(prefix : FixedArray[Byte]) -> Int {
   prefix[12].to_int() |
   (prefix[13].to_int() << 8) |
@@ -114,8 +146,10 @@ async fn bridge_read_event(
     }) catch {
       _ => raise NativeProtocol("native event read failed")
     }
-    guard count is Some(received) && received > 0 else {
-      raise NativeProtocol("native event read timed out")
+    let received = match count {
+      None => raise NativeProtocol("native event read timed out")
+      Some(0) => raise NativeProtocol("native event stream closed early")
+      Some(received) => received
     }
     offset += received
     if offset == 16 {

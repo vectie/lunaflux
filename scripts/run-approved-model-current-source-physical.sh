@@ -360,9 +360,9 @@ host_referee_launch_sha=$(sed -n 's/^launch_sha256=//p' "$logs/materialize-host-
 grep -Fxq 'materialization_profile=host-sampling-referee-v1' \
   "$logs/materialize-host-referee.stdout" ||
   fail 'host-sampling referee profile was not selected'
-grep -Fq '"schema_version":"lunaflux.runtime.v3"' \
+grep -Fq '"schema_version":"lunaflux.runtime.v1"' \
   "$host_referee_root/model-root/runtime/descriptor.json" ||
-  fail 'host-sampling referee descriptor is not legacy host schema v3'
+  fail 'host-sampling referee descriptor is not eager-only host schema v1'
 if grep -Fq 'sampling_runtime' \
   "$host_referee_root/model-root/runtime/descriptor.json"; then
   fail 'host-sampling referee descriptor retained embedded sampling'
@@ -487,7 +487,7 @@ lunaflux_run_tracked_campaign \
 [ ! -s "$logs/broad-bf16-serving.stderr" ] ||
   fail 'broad BF16 serving qualification emitted stderr'
 for exact in \
-  'schema=lunaflux-approved-model-broad-bf16-serving-qualification.v1' \
+  'schema=lunaflux-approved-model-broad-bf16-serving-qualification.v2' \
   'campaign_scope=qualification-only' \
   'production_readiness=not-claimed' \
   'performance_baseline=not-established' \
@@ -496,8 +496,6 @@ for exact in \
   'model_dtype=bf16' \
   'mixed_concurrent_requests=pass' \
   'concurrent_request_count=2' \
-  'saturation_backpressure=pass' \
-  'overload_rejection=not-exercised-single-connection-owner' \
   'cancellation_isolation=pass' \
   'cancellation_count=1' \
   'typed_foreign_model_rejection=pass' \
@@ -509,9 +507,6 @@ for exact in \
   'drain_transition=pass' \
   'request_count=5' \
   'completion_count=4' \
-  'event_count=22' \
-  'network_accepts=5' \
-  'network_disconnects=5' \
   'network_rejections=2' \
   'kv_pages_used_after_cases=0' \
   'kv_pages_free_after_cases=32' \
@@ -526,9 +521,43 @@ for exact in \
   grep -Fxq "$exact" "$logs/broad-bf16-serving.stdout" ||
     fail "broad BF16 serving evidence lost: $exact"
 done
-grep -Eq '^backpressure_count=[1-9][0-9]*$' \
-  "$logs/broad-bf16-serving.stdout" ||
-  fail 'broad BF16 serving qualification omitted physical backpressure'
+broad_ingress_owner=$(sed -n \
+  's/^ingress_owner=//p' "$logs/broad-bf16-serving.stdout")
+case "$broad_ingress_owner" in
+  framed-connection-pool)
+    for exact in \
+      'saturation_boundary=connection-capacity' \
+      'saturation_proof=connection-capacity-deferral' \
+      'saturation_backpressure=not-claimed' \
+      'backpressure_count=0' \
+      'connection_capacity_deferral=pass' \
+      'overload_rejection=not-exercised-capacity-deferral' \
+      'event_count=20' \
+      'network_accepts=7' \
+      'network_disconnects=7'; do
+      grep -Fxq "$exact" "$logs/broad-bf16-serving.stdout" ||
+        fail "pooled broad BF16 evidence lost: $exact"
+    done
+    ;;
+  singleton-server)
+    for exact in \
+      'saturation_boundary=active-plus-waiting' \
+      'saturation_proof=scheduler-backpressure' \
+      'saturation_backpressure=pass' \
+      'connection_capacity_deferral=not-exercised-singleton-server' \
+      'overload_rejection=not-exercised-single-connection-owner' \
+      'event_count=22' \
+      'network_accepts=5' \
+      'network_disconnects=5'; do
+      grep -Fxq "$exact" "$logs/broad-bf16-serving.stdout" ||
+        fail "singleton broad BF16 evidence lost: $exact"
+    done
+    grep -Eq '^backpressure_count=[1-9][0-9]*$' \
+      "$logs/broad-bf16-serving.stdout" ||
+      fail 'singleton broad BF16 evidence omitted scheduler backpressure'
+    ;;
+  *) fail 'broad BF16 evidence omitted its typed ingress owner' ;;
+esac
 grep -Eq '^broad_bf16_serving_qualification_sha256=[0-9a-f]{64}$' \
   "$logs/broad-bf16-serving.stdout" ||
   fail 'broad BF16 serving qualification omitted its canonical digest'
@@ -692,7 +721,7 @@ stage=physical-long-context
 lunaflux_run_tracked_campaign \
   "$logs/long-context.stdout" "$logs/long-context.stderr" \
   "$campaign" long-context \
-  "$launch_root#sha256=$launch_sha" "$worker_sha" ||
+  "$prefix_launch_root#sha256=$prefix_launch_sha" "$worker_sha" ||
   fail 'physical actual long-context qualification failed'
 [ ! -s "$logs/long-context.stderr" ] ||
   fail 'physical actual long-context qualification emitted stderr'

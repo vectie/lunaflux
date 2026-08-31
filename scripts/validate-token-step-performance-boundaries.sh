@@ -72,10 +72,10 @@ greedy_copy_body="$(sed -n \
 
 for anchor in \
   'authenticated_embedded_greedy_sampling' \
-  'descriptor_schema=lunaflux.runtime.v4' \
+  'descriptor_schema=lunaflux.runtime.v5' \
   'sampling_runtime_json=' \
   'embedded_cuda_greedy_v1' \
-  'descriptor_schema=lunaflux.runtime.v3'; do
+  'descriptor_schema=lunaflux.runtime.v1'; do
   rg -Fq "$anchor" "$materializer" ||
     fail "materialized greedy default is missing: $anchor"
 done

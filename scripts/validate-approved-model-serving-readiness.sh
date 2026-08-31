@@ -36,7 +36,13 @@ if ! rg -Fq 'owner.require_spawned_physical_handoff()' "$owner" ||
   ! rg -Fq 'owner.readiness()' "$owner" ||
   ! rg -Fq 'RuntimeHealthy' "$owner" ||
   ! rg -Fq 'RuntimeReady' "$owner" ||
-  ! rg -Fq '@socket.Tcp::connect(owner.servers[0].local_addr())' "$io" ||
+  ! rg -Fq '@socket.Tcp::connect(addr)' "$io" ||
+  ! rg -Fq 'owner.singular_ingress_addr()' "$io" ||
+  ! rg -Fq 'owner.spawned_serving_ingress_active()' "$owner" "$io" ||
+  ! rg -Fq 'owner.spawned_serving_ingress_listening()' "$owner" ||
+  ! rg -Fq 'owner.spawned_serving_terminal_ingress_live()' "$owner" ||
+  ! rg -Fq 'owner.spawned_serving_terminal_disconnected()' "$owner" ||
+  ! rg -Fq 'self.framed_pools[0].active_connection_count()' "$checks" ||
   ! rg -Fq '@framed_wire.EventFrameBuffer::new' "$owner" ||
   ! rg -Fq 'client.close()' "$owner"; then
   fail 'serving validator no longer crosses the opaque owner and real listener'
@@ -63,7 +69,7 @@ done
 if ! rg -Fq 'owner.begin_drain()' "$owner" ||
   ! rg -Fq 'owner.cleanup_complete()' "$owner" ||
   ! rg -Fq 'spawned_serving_closed_state_valid' "$owner" ||
-  ! rg -Fq 'owner.servers[0].state() == LunaOnlineTcpServerListening' "$owner";
+  ! rg -Fq 'owner.spawned_serving_ingress_listening()' "$owner";
 then
   fail 'serving validator can publish before listener child or KV cleanup'
 fi
@@ -113,6 +119,12 @@ if rg -n 'tls_validation=pass|performance_validation=pass' \
   ! rg -Fq 'serving evidence scope excludes TLS and performance claims' \
     "$tests" ||
   ! rg -Fq 'spawned serving terminal metrics require exact request and KV balance' \
+    ops/runtime_instance/spawned_serving_wbtest.mbt ||
+  ! rg -Fq 'spawned serving admits exactly one native server or framed pool' \
+    ops/runtime_instance/spawned_serving_wbtest.mbt ||
+  ! rg -Fq 'spawned serving framed pool requires exact live connection balance' \
+    ops/runtime_instance/spawned_serving_wbtest.mbt ||
+  ! rg -Fq 'spawned serving terminal ingress preserves server and pool lifecycle' \
     ops/runtime_instance/spawned_serving_wbtest.mbt ||
   ! rg -Fq 'spawned serving request rejects buffered cacheable and sampled variants' \
     ops/runtime_instance/spawned_serving_wbtest.mbt ||

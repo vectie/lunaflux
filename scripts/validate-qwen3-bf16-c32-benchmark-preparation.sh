@@ -76,6 +76,13 @@ grep -Fq 'authentication_work=request_path=0,startup_offline_only=1' "$campaign"
   fail 'startup-only authentication boundary is absent'
 grep -Fq 'all_requests_matched_qwen_greedy_prefix=true' "$campaign" ||
   fail 'c32 correctness result is absent'
+grep -Fq 'lunaflux-qwen3-bf16-c32-benchmark-preparation-failure.v1' "$campaign" ||
+  fail 'failed preparation diagnostics are not retained'
+grep -Fq 'diagnostic_only=true' "$campaign" ||
+  fail 'retained failure output is not marked diagnostic-only'
+if grep -Fq 'rm -rf -- "$artifact_root"' "$campaign"; then
+  fail 'failed preparation still deletes compiled artifacts'
+fi
 "$repo_root/scripts/validate-qwen3-capacity-receipt.sh" >/dev/null ||
   fail 'authenticated capacity receipt hostile validation failed'
 printf '%s\n' 'Qwen3 BF16 c32 benchmark preparation validation passed.'

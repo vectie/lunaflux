@@ -9,6 +9,7 @@ fail() {
 
 runtime_mbti='ops/runtime_instance/pkg.generated.mbti'
 owner='ops/runtime_instance/spawned_broad_serving.mbt'
+pool='ops/runtime_instance/spawned_broad_serving_pool.mbt'
 malformed='ops/runtime_instance/spawned_broad_serving_malformed.mbt'
 io='ops/runtime_instance/spawned_broad_serving_io.mbt'
 shared_io='ops/runtime_instance/spawned_serving_io.mbt'
@@ -18,6 +19,7 @@ campaign='tests/approved_model_spawned_physical/broad_serving_campaign.mbt'
 request='tests/approved_model_spawned_physical/request.mbt'
 main='tests/approved_model_spawned_physical/main.mbt'
 tests='ops/runtime_instance/spawned_broad_serving_wbtest.mbt'
+pool_tests='ops/runtime_instance/spawned_broad_serving_pool_wbtest.mbt'
 malformed_tests='ops/runtime_instance/spawned_broad_serving_malformed_wbtest.mbt'
 shared_io_tests='ops/runtime_instance/spawned_serving_io_wbtest.mbt'
 campaign_tests='tests/approved_model_spawned_physical/campaign_wbtest.mbt'
@@ -26,6 +28,7 @@ runner='scripts/run-approved-model-current-source-physical.sh'
 for required in \
   'pub async fn RuntimeInstanceOwner::validate_spawned_broad_serving' \
   'pub fn RuntimeSpawnedBroadServingValidationResult::request_count' \
+  'pub fn RuntimeSpawnedBroadServingValidationResult::ingress_owner' \
   'pub fn RuntimeSpawnedBroadServingValidationResult::completion_count' \
   'pub fn RuntimeSpawnedBroadServingValidationResult::cancellation_count' \
   'pub fn RuntimeSpawnedBroadServingValidationResult::backpressure_count' \
@@ -35,6 +38,16 @@ for required in \
   'pub fn RuntimeSpawnedBroadServingValidationResult::kv_pages_free'; do
   if ! rg -Fq "$required" "$runtime_mbti"; then
     fail "broad BF16 opaque public seam lost: $required"
+  fi
+done
+
+for typed_owner in \
+  'pub(all) enum RuntimeSpawnedBroadServingIngressOwner' \
+  '  BroadServingSingletonServer' \
+  '  BroadServingFramedConnectionPool' \
+  'pub fn RuntimeSpawnedBroadServingIngressOwner::code'; do
+  if ! rg -Fq "$typed_owner" "$runtime_mbti"; then
+    fail "broad BF16 typed ingress owner lost: $typed_owner"
   fi
 done
 
@@ -120,7 +133,7 @@ for crossing in \
   'owner.progress()' \
   'drain_spawned_serving_owner' \
   'self.cleanup_complete()'; do
-  if ! rg -Fq "$crossing" "$owner" "$io"; then
+  if ! rg -Fq "$crossing" "$owner" "$pool" "$io"; then
     fail "broad BF16 owner crossing lost: $crossing"
   fi
 done
@@ -143,10 +156,13 @@ for case_gate in \
   'run_broad_serving_malformed_fail_closed' \
   'run_broad_serving_post_malformed_recovery' \
   'owner.phase() != Ready' \
-  'LunaOnlineTcpServerListening' \
-  'retire_broad_serving_client(owner, contract.turn_limit, 5UL, 5UL, 2UL)' \
-  'event_count: 22'; do
-  if ! rg -Fq "$case_gate" "$owner" "$malformed"; then
+  'owner.spawned_serving_ingress_listening()' \
+  'expected_accepts = if pooled { 7UL } else { 5UL }' \
+  'event_count: if pooled' \
+  'ingress_owner: if pooled' \
+  'await_broad_serving_pool_connections(owner, 2, contract.turn_limit)' \
+  'cancelled.close()'; do
+  if ! rg -Fq "$case_gate" "$owner" "$pool" "$malformed"; then
     fail "broad BF16 physical case lost: $case_gate"
   fi
 done
@@ -155,7 +171,7 @@ if ! rg -Fq '[_, "broad-serving", deployment_argument, expected_worker_sha256]' 
     "$main" ||
   ! rg -Fq 'owner.validate_spawned_broad_serving(contract)' "$campaign" ||
   ! rg -Fq 'broad_campaign_validation_contract' "$request" ||
-  ! rg -Fq 'lunaflux-approved-model-broad-bf16-serving-qualification.v1' \
+  ! rg -Fq 'lunaflux-approved-model-broad-bf16-serving-qualification.v2' \
     "$runner"; then
   fail 'broad BF16 current-source runner integration is incomplete'
 fi
@@ -172,8 +188,16 @@ for evidence in \
   'performance_baseline=not-established' \
   'benchmark_claim=not-made' \
   'mixed_concurrent_requests=pass' \
+  'ingress_owner=singleton-server' \
+  'ingress_owner=framed-connection-pool' \
+  'saturation_proof=scheduler-backpressure' \
+  'saturation_proof=connection-capacity-deferral' \
   'saturation_backpressure=pass' \
+  'saturation_backpressure=not-claimed' \
+  'connection_capacity_deferral=not-exercised-singleton-server' \
+  'connection_capacity_deferral=pass' \
   'overload_rejection=not-exercised-single-connection-owner' \
+  'overload_rejection=not-exercised-capacity-deferral' \
   'cancellation_isolation=pass' \
   'typed_foreign_model_rejection=pass' \
   'malformed_native_frame=fail-closed-connection-isolation-pass' \
@@ -205,7 +229,9 @@ while IFS= read -r file; do
   fi
 done < <(printf '%s\n' \
   "$owner" "$malformed" "$io" "$shared_io" "$checks" "$types" \
-  "$campaign" "$tests" "$malformed_tests" "$shared_io_tests" | sort)
+  "$pool" \
+  "$campaign" "$tests" "$pool_tests" "$malformed_tests" \
+  "$shared_io_tests" | sort)
 
 if [ "$failed" -ne 0 ]; then
   exit 1
