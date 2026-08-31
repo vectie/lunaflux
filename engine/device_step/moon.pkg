@@ -43,6 +43,8 @@ import {
   "vectie/lunaflux/engine/device_profile",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
   "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/kernels/luna_specialization",

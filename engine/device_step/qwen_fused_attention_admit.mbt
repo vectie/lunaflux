@@ -1,0 +1,222 @@
+///|
+fn require_qwen_fused_attention_plan_span(
+  plan : @plan.ModelPlan,
+  blueprint : PagedKvExecutionBlueprint,
+  qkv_index : Int,
+) -> Unit raise FusedGroupedOperationError {
+  let qk_norm_index = qkv_index + 1
+  let rope_index = qkv_index + 2
+  let attention_index = qkv_index + 3
+  guard qkv_index >= 0 &&
+    plan.operations().get(qkv_index) is Some(qkv) &&
+    plan.operations().get(qk_norm_index) is Some(qk_norm) &&
+    plan.operations().get(rope_index) is Some(rope) &&
+    plan.operations().get(attention_index) is Some(attention) &&
+    qkv.kind() == QkvProjection &&
+    qk_norm.kind() == QkRmsNorm &&
+    rope.kind() == RotaryEmbedding &&
+    attention.kind() == CausalAttention &&
+    qkv.outputs().get(0) is Some(qkv_output) &&
+    qk_norm.inputs().get(0) is Some(Activation(qk_norm_input)) &&
+    qk_norm.outputs().get(0) is Some(qk_norm_output) &&
+    rope.inputs().get(0) is Some(Activation(rope_input)) &&
+    rope.outputs().get(0) is Some(rope_output) &&
+    attention.inputs().get(0) is Some(Activation(attention_input)) &&
+    qkv_output == qk_norm_input &&
+    qk_norm_output == rope_input &&
+    rope_output == attention_input &&
+    qkv.shape() is ProjectionShape(output_width~, ..) &&
+    qk_norm.shape()
+    is QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) &&
+    rope.shape()
+    is RotaryShape(
+      query_heads=rope_query_heads,
+      kv_heads=rope_kv_heads,
+      head_dimension=rope_head_dimension,
+      ..
+    ) &&
+    attention.shape()
+    is AttentionShape(
+      query_heads=attention_query_heads,
+      kv_heads=attention_kv_heads,
+      head_dimension=attention_head_dimension
+    ) &&
+    query_heads == rope_query_heads &&
+    query_heads == attention_query_heads &&
+    kv_heads == rope_kv_heads &&
+    kv_heads == attention_kv_heads &&
+    head_dimension == rope_head_dimension &&
+    head_dimension == attention_head_dimension &&
+    output_width == (query_heads + 2 * kv_heads) * head_dimension &&
+    rope.kv_layer() == attention.kv_layer() &&
+    blueprint.steps().get(qkv_index) is Some(qkv_step) &&
+    blueprint.steps().get(qk_norm_index) is Some(qk_norm_step) &&
+    blueprint.steps().get(rope_index) is Some(rope_step) &&
+    blueprint.steps().get(attention_index) is Some(attention_step) &&
+    qkv_step.operation_id() == qkv.id() &&
+    qk_norm_step.operation_id() == qk_norm.id() &&
+    rope_step.operation_id() == rope.id() &&
+    attention_step.operation_id() == attention.id() &&
+    qkv_step.operation_kind() == QkvProjection &&
+    qk_norm_step.operation_kind() == QkRmsNorm &&
+    rope_step.operation_kind() == RotaryEmbedding &&
+    attention_step.operation_kind() == CausalAttention else {
+    raise MismatchedFusedGroupedOperation(OperationOrder)
+  }
+}
+
+///|
+fn qwen_fused_attention_shapes_equal(
+  operations : ReadOnlyArray[@plan.PlanOperation],
+  seed_qkv : Int,
+  candidate_qkv : Int,
+) -> Bool {
+  for offset in 0..<4 {
+    guard operations.get(seed_qkv + offset) is Some(seed) &&
+      operations.get(candidate_qkv + offset) is Some(candidate) else {
+      return false
+    }
+    if seed.kind() != candidate.kind() || seed.shape() != candidate.shape() {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn qwen_fused_binding_role_shape_equal(
+  left : @launch_contract.AotOperandRole,
+  right : @launch_contract.AotOperandRole,
+) -> Bool {
+  match (left, right) {
+    (ExternalInput(a), ExternalInput(b)) => a == b
+    (WeightInput(_), WeightInput(_)) => true
+    (WeightScaleInput(_, _), WeightScaleInput(_, _)) => true
+    (ActivationInput(_), ActivationInput(_)) => true
+    (RuntimeInput(a), RuntimeInput(b)) => a == b
+    (PersistentKvComponent(_, a), PersistentKvComponent(_, b)) => a == b
+    (ActivationOutput(_), ActivationOutput(_)) => true
+    (Workspace, Workspace) => true
+    _ => false
+  }
+}
+
+///|
+fn qwen_fused_blueprint_step_shape_equal(
+  seed : PagedKvExecutionStep,
+  candidate : PagedKvExecutionStep,
+) -> Bool {
+  if seed.operation_kind() != candidate.operation_kind() ||
+    seed.capability() != candidate.capability() ||
+    seed.semantic_version() != candidate.semantic_version() ||
+    seed.dimensions() != candidate.dimensions() ||
+    seed.operands().length() != candidate.operands().length() {
+    return false
+  }
+  for index, left in seed.operands() {
+    let right = candidate.operands()[index]
+    if !qwen_fused_binding_role_shape_equal(left.role(), right.role()) ||
+      left.space() != right.space() ||
+      left.byte_count() != right.byte_count() ||
+      left.alignment() != right.alignment() {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn require_qwen_fused_blueprint_span_shape(
+  blueprint : PagedKvExecutionBlueprint,
+  seed_qkv : Int,
+  candidate_qkv : Int,
+) -> Unit raise FusedGroupedOperationError {
+  for offset in 0..<4 {
+    guard blueprint.steps().get(seed_qkv + offset) is Some(seed) &&
+      blueprint.steps().get(candidate_qkv + offset) is Some(candidate) &&
+      qwen_fused_blueprint_step_shape_equal(seed, candidate) else {
+      raise MismatchedFusedGroupedOperation(OperationOrder)
+    }
+  }
+}
+
+///|
+/// Expands one digest-pinned Qwen ingress V4/read-only V2 module pair over
+/// every graph-identical QKV -> QkRmsNorm -> RoPE -> Attention layer span.
+/// Parsing, model identity, shape matching, and blueprint joins all complete
+/// during startup; the resulting spans require no token-step validation.
+pub fn admit_reusable_qwen_fused_attention_spans(
+  plan : @plan.ModelPlan,
+  generation : @worker_protocol.ModelPlanGeneration,
+  blueprint : PagedKvExecutionBlueprint,
+  runtime : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle,
+) -> ReadOnlyArray[ApprovedQwenFusedAttentionSpan] raise FusedGroupedOperationError {
+  if runtime.model_content_sha256() != plan.identity().content().as_hex() ||
+    runtime.model_plan_sha256() != plan.identity().plan().as_hex() ||
+    blueprint.identity() != plan.identity() ||
+    runtime.target() != blueprint.target() {
+    raise MismatchedFusedGroupedOperation(ModelIdentity)
+  }
+  guard runtime.qwen_qkv_qknorm_rope_kv_write_module() is Some(ingress) &&
+    runtime.qwen_paged_attention_readonly_module() is Some(readonly_module) &&
+    ingress.kernel_abi() == QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 &&
+    readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
+    runtime.qwen_qkv_qknorm_rope_kv_write_operation_indices()
+    is Some((seed_qkv, seed_qk_norm, seed_rope, seed_attention)) &&
+    runtime.qwen_paged_attention_readonly_operation_index()
+    is Some(readonly_attention) &&
+    seed_qk_norm == seed_qkv + 1 &&
+    seed_rope == seed_qkv + 2 &&
+    seed_attention == seed_qkv + 3 &&
+    readonly_attention == seed_attention else {
+    raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
+  require_qwen_fused_attention_plan_span(plan, blueprint, seed_qkv)
+  guard plan.operations()[seed_qk_norm].shape()
+    is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
+    blueprint.steps()[seed_attention].dimensions() ==
+    readonly_module.launch_dimensions() &&
+    ingress.launch_dimensions().grid_x() ==
+    blueprint.profile().max_query_tokens() &&
+    ingress.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
+    ingress.launch_dimensions().grid_z() == 1 &&
+    ingress.launch_dimensions().block_x() == 128 &&
+    ingress.launch_dimensions().block_y() == 1 &&
+    ingress.launch_dimensions().block_z() == 1 &&
+    ingress.launch_dimensions().shared_memory_bytes() == 0 else {
+    raise MismatchedFusedGroupedOperation(Launch)
+  }
+  let operations = plan.operations()
+  let spans : Array[ApprovedQwenFusedAttentionSpan] = []
+  if operations.length() < 4 {
+    raise MismatchedFusedGroupedOperation(OperationOrder)
+  }
+  for qkv_index in 0..<(operations.length() - 3) {
+    if !qwen_fused_attention_shapes_equal(operations, seed_qkv, qkv_index) {
+      continue
+    }
+    require_qwen_fused_attention_plan_span(plan, blueprint, qkv_index)
+    require_qwen_fused_blueprint_span_shape(blueprint, seed_qkv, qkv_index)
+    spans.push({
+      generation,
+      target: runtime.target(),
+      runtime_digest: runtime.source_digest(),
+      ingress_module_digest: ingress.module_digest(),
+      ingress_module_bytes: ingress.module_bytes(),
+      ingress_symbol: ingress.function_symbol(),
+      ingress_launch: ingress.launch_dimensions(),
+      readonly_module_digest: readonly_module.module_digest(),
+      readonly_module_bytes: readonly_module.module_bytes(),
+      readonly_symbol: readonly_module.function_symbol(),
+      readonly_launch: readonly_module.launch_dimensions(),
+      qkv_index,
+      qk_norm_index: qkv_index + 1,
+      rope_index: qkv_index + 2,
+      attention_index: qkv_index + 3,
+    })
+  }
+  if spans.is_empty() {
+    raise MismatchedFusedGroupedOperation(OperationOrder)
+  }
+  ReadOnlyArray::from_array(spans)
+}

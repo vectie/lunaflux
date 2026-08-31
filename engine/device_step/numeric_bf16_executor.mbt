@@ -54,6 +54,7 @@ fn prepare_numeric_bf16_graph_resources(
   sampling_policy : PagedSamplingExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
+  qwen_fused_attention_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> PagedGraphPreparation raise DeviceStepError {
   validate_predecessor_seed(
     has_accepted_predecessor, accepted_predecessor_value,
@@ -146,6 +147,7 @@ fn prepare_numeric_bf16_graph_resources(
     resources,
     fused_residual_spans,
     fused_qkv_readonly_span,
+    qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
@@ -192,6 +194,8 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
   ),
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
+  qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
+  ),
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
   resources.numeric_weights = Some(Bf16NumericWeights(weights))
@@ -239,10 +243,20 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
       }
     None => ()
   }
+  for span in qwen_fused_attention_spans {
+    if span.model_generation() != model_generation ||
+      span.target() != blueprint.target() {
+      return paged_construction_failed(
+        resources,
+        InvalidExecutor(ResourceState),
+      )
+    }
+  }
   prepare_numeric_bf16_graph_resources(
     context, model_plan, model_generation, layout, limits, blueprint, memory_plan,
     artifacts, weight, resources, has_accepted_predecessor, accepted_predecessor_value,
     graph_policy, sampling_policy, fused_residual_spans, fused_qkv_readonly_span,
+    qwen_fused_attention_spans,
   ) catch {
     error => paged_construction_failed(resources, error)
   }

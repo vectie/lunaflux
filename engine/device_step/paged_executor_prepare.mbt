@@ -318,6 +318,8 @@ pub fn prepare_paged_graph_executor(
   fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
   ),
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
+  qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
+  ),
   diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
   sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
 ) -> PagedGraphPreparation raise DeviceStepError {
@@ -351,6 +353,12 @@ pub fn prepare_paged_graph_executor(
         raise InvalidExecutor(ResourceState)
       }
     None => ()
+  }
+  for span in qwen_fused_attention_spans {
+    if span.model_generation() != model_generation ||
+      span.target() != blueprint.target() {
+      raise InvalidExecutor(ResourceState)
+    }
   }
   let completion = prepare_paged_completion_scratch(
     model_plan, memory_plan, limits,
@@ -446,6 +454,7 @@ pub fn prepare_paged_graph_executor(
     resources,
     fused_residual_spans,
     fused_qkv_readonly_span,
+    qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }

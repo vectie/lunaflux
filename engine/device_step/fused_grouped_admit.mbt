@@ -354,6 +354,76 @@ pub fn admit_reusable_fused_residual_rmsnorm_spans(
 }
 
 ///|
+/// Expands the optional residual/RMSNorm V2 member of the shared reusable
+/// runtime bundle. Absence is an explicit empty result; another module family
+/// is never reinterpreted as residual authority.
+pub fn admit_reusable_fused_residual_rmsnorm_bundle_spans(
+  plan : @plan.ModelPlan,
+  generation : @worker_protocol.ModelPlanGeneration,
+  blueprint : PagedKvExecutionBlueprint,
+  runtime : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle,
+) -> ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] raise FusedGroupedOperationError {
+  guard runtime.residual_rmsnorm_module() is Some(module_) else {
+    return ReadOnlyArray::from_array([])
+  }
+  if module_.kernel_abi() != ResidualRmsNormProductionV2 ||
+    runtime.model_content_sha256() != plan.identity().content().as_hex() ||
+    runtime.model_plan_sha256() != plan.identity().plan().as_hex() ||
+    blueprint.identity() != plan.identity() ||
+    runtime.target() != blueprint.target() {
+    raise MismatchedFusedGroupedOperation(ModelIdentity)
+  }
+  guard runtime.residual_rmsnorm_operation_indices()
+    is Some((seed_residual_index, seed_norm_index)) &&
+    seed_norm_index == seed_residual_index + 1 &&
+    plan.operations().get(seed_residual_index) is Some(seed_residual) &&
+    plan.operations().get(seed_norm_index) is Some(seed_norm) &&
+    seed_residual.kind() == ResidualAdd &&
+    seed_norm.kind() == RmsNorm else {
+    raise MismatchedFusedGroupedOperation(OperationOrder)
+  }
+  let spans : Array[ApprovedFusedResidualRmsNormSpan] = []
+  let operations = plan.operations()
+  let steps = blueprint.steps()
+  for residual_index in 0..<(operations.length() - 1) {
+    let norm_index = residual_index + 1
+    let residual = operations[residual_index]
+    let norm = operations[norm_index]
+    if residual.kind() != ResidualAdd ||
+      norm.kind() != RmsNorm ||
+      residual.shape() != seed_residual.shape() ||
+      norm.shape() != seed_norm.shape() {
+      continue
+    }
+    guard steps.get(residual_index) is Some(residual_step) &&
+      steps.get(norm_index) is Some(norm_step) &&
+      residual_step.operation_id() == residual.id() &&
+      norm_step.operation_id() == norm.id() &&
+      residual_step.operation_kind() == ResidualAdd &&
+      norm_step.operation_kind() == RmsNorm else {
+      raise MismatchedFusedGroupedOperation(OperationOrder)
+    }
+    spans.push({
+      generation,
+      manifest: runtime.source_digest(),
+      catalog: runtime.source_digest(),
+      target: runtime.target(),
+      module_bytes: module_.module_bytes(),
+      function_symbol: module_.function_symbol(),
+      launch: module_.launch_dimensions(),
+      abi: ResidualRmsNormProductionAbiV2,
+      dispatch_canary_per_token: 0U,
+      residual_index,
+      norm_index,
+    })
+  }
+  if spans.is_empty() {
+    raise MismatchedFusedGroupedOperation(OperationOrder)
+  }
+  ReadOnlyArray::from_array(spans)
+}
+
+///|
 /// Reauthenticates the QKV catalog entry and exact adjacency, but returns no
 /// executable authority. `PagedKvExecutionBlueprint` currently has only a
 /// monolithic attention launch whose KV write cannot be safely replaced.

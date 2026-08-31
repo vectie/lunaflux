@@ -59,7 +59,11 @@ pub fn admit_production_fused_residual_rmsnorm_span(@plan.ModelPlan, @worker_pro
 
 pub fn admit_production_fused_residual_rmsnorm_spans(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedFusedKernelCatalog, @luna_fused_artifact_admission.ApprovedFusedKernelBundle) -> ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] raise FusedGroupedOperationError
 
+pub fn admit_reusable_fused_residual_rmsnorm_bundle_spans(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle) -> ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] raise FusedGroupedOperationError
+
 pub fn admit_reusable_fused_residual_rmsnorm_spans(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime) -> ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] raise FusedGroupedOperationError
+
+pub fn admit_reusable_qwen_fused_attention_spans(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, PagedKvExecutionBlueprint, @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle) -> ReadOnlyArray[ApprovedQwenFusedAttentionSpan] raise FusedGroupedOperationError
 
 pub fn join_i8_loaded_execution_blueprint_v1(I8PagedExecutionBlueprint, I8DeviceWorkerBootstrapManifestV3, @numeric_weight_file.AuthenticatedNumericWeightAuthority, expected_weight_artifact_digest~ : @numeric_weight_file.NumericWeightArtifactDigest) -> I8LoadedExecutionBlueprint raise DeviceStepError
 
@@ -69,9 +73,9 @@ pub fn prepare_fp8_paged_graph_executor_v3(@device.Context, @worker_protocol.Mod
 
 pub fn prepare_i8_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device.DeviceNumericCapability, I8LoadedExecutionBlueprint, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, graph_policy? : PagedGraphExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
 
-pub fn prepare_numeric_bf16_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @numeric_weight_file.AuthenticatedNumericWeightAuthority, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, sampling_policy? : PagedSamplingExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?) -> PagedGraphPreparation raise DeviceStepError
+pub fn prepare_numeric_bf16_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @numeric_weight_file.AuthenticatedNumericWeightAuthority, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, sampling_policy? : PagedSamplingExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan]) -> PagedGraphPreparation raise DeviceStepError
 
-pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, diagnostic_policy? : PagedExecutionDiagnosticPolicy, sampling_policy? : PagedSamplingExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
+pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan], diagnostic_policy? : PagedExecutionDiagnosticPolicy, sampling_policy? : PagedSamplingExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
 
 pub fn prepare_rank_local(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_kv_plan.TensorParallelKvPlan, Int, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
 
@@ -132,6 +136,12 @@ pub fn ApprovedFusedResidualRmsNormSpan::catalog_digest(Self) -> @luna_cuda_fuse
 pub fn ApprovedFusedResidualRmsNormSpan::manifest_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
 pub fn ApprovedFusedResidualRmsNormSpan::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
 pub fn ApprovedFusedResidualRmsNormSpan::operation_indices(Self) -> (Int, Int)
+
+pub struct ApprovedQwenFusedAttentionSpan {
+  // private fields
+}
+pub fn ApprovedQwenFusedAttentionSpan::model_generation(Self) -> @worker_protocol.ModelPlanGeneration
+pub fn ApprovedQwenFusedAttentionSpan::operation_indices(Self) -> (Int, Int, Int, Int)
 
 pub struct DeviceBootstrapLimits {
   // private fields

@@ -14,6 +14,7 @@ fn prepare_paged_production_steps(
   resources : PagedGraphResources,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
+  qwen_fused_attention_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
   let fused_residual_function = match fused_residual_spans.get(0) {
     Some(span) =>
@@ -27,6 +28,15 @@ fn prepare_paged_production_steps(
         prepare_fused_qkv_readonly_resources(context, span, resources),
       )
     None => ()
+  }
+  let qwen_fused_attention_functions = if qwen_fused_attention_spans.is_empty() {
+    None
+  } else {
+    Some(
+      prepare_qwen_fused_attention_resources(
+        context, qwen_fused_attention_spans, resources,
+      ),
+    )
   }
   let baseline = prepare_paged_steps(
     blueprint, function_indices, descriptor, weight, activation, kv,
@@ -65,23 +75,48 @@ fn prepare_paged_production_steps(
     (None, None) => None
     _ => raise InvalidExecutor(ResourceState)
   }
+  let qwen_ingress_replacements : Array[PreparedPagedGraphStep] = []
+  let qwen_readonly_replacements : Array[PreparedPagedGraphStep] = []
+  match qwen_fused_attention_functions {
+    Some(functions) =>
+      for span in qwen_fused_attention_spans {
+        let prepared = prepare_qwen_fused_attention_steps(
+          blueprint,
+          span,
+          functions.0,
+          functions.1,
+          descriptor,
+          weight,
+          activation,
+          kv,
+        )
+        qwen_ingress_replacements.push(prepared.0)
+        qwen_readonly_replacements.push(prepared.1)
+      }
+    None =>
+      if !qwen_fused_attention_spans.is_empty() {
+        raise InvalidExecutor(ResourceState)
+      }
+  }
   let replaced = replace_paged_production_spans(
     baseline,
     ReadOnlyArray::from_array(residual_replacements),
     fused_residual_spans,
     qkv_readonly_replacements,
     fused_qkv_readonly_span,
+    ReadOnlyArray::from_array(qwen_ingress_replacements),
+    ReadOnlyArray::from_array(qwen_readonly_replacements),
+    qwen_fused_attention_spans,
   )
   let expanded : Array[PreparedPagedGraphStep] = []
   for prepared in replaced {
     expanded.push(prepared)
-    let mut split_function_index = -1
-    for step_index, step in blueprint.steps() {
-      if step.operation_id() == prepared.operation_id {
-        split_function_index = split_decode_indices[step_index]
-        break
-      }
-    }
+    let split_function_index = paged_production_split_decode_function(
+      prepared.operation_id,
+      blueprint,
+      split_decode_indices,
+      qwen_fused_attention_spans,
+    )
     if split_function_index >= 0 {
       expanded.push({
         operation_id: prepared.operation_id,
@@ -92,4 +127,29 @@ fn prepare_paged_production_steps(
     }
   }
   ReadOnlyArray::from_array(expanded)
+}
+
+///|
+/// A Qwen read-only replacement already covers mixed prefill/decode attention
+/// and retains the semantic attention operation id. It must not inherit a
+/// legacy split-decode companion attached to the eliminated baseline step.
+fn paged_production_split_decode_function(
+  operation : @plan.OperationId,
+  blueprint : PagedKvExecutionBlueprint,
+  split_decode_indices : FixedArray[Int],
+  qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> Int {
+  for span in qwen_spans {
+    let indices = span.operation_indices()
+    match blueprint.steps().get(indices.3) {
+      Some(attention) => if attention.operation_id() == operation { return -1 }
+      None => ()
+    }
+  }
+  for step_index, step in blueprint.steps() {
+    if step.operation_id() == operation {
+      return split_decode_indices[step_index]
+    }
+  }
+  -1
 }
