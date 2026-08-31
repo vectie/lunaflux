@@ -139,6 +139,12 @@ pub fn PagedGraphExecutor::stage(
   ) catch {
     error => propagate_descriptor_poison(self, descriptor, error)
   }
+  stage_paged_device_sampling_plan(self, descriptor, plan) catch {
+    error => {
+      poison_paged_completion(self, descriptor)
+      raise error
+    }
+  }
   self.lifecycle = GraphStaged
   { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
 }
@@ -173,6 +179,12 @@ pub fn PagedGraphExecutor::stage_frame(
         self.completion.mode is CudaGreedyCompletion(_),
       ) catch {
         error => propagate_descriptor_poison(self, descriptor, error)
+      }
+      stage_paged_device_sampling_frame(self, descriptor, frame) catch {
+        error => {
+          poison_paged_completion(self, descriptor)
+          raise error
+        }
       }
       clear_fp8_frame_admission_v3(self)
       staged

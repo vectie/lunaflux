@@ -32,18 +32,7 @@ fn paged_graph_phase(
 }
 
 ///|
-fn paged_graph_phase_index(
-  phase : @luna_execution_graph_strategy.ExecutionGraphPhase,
-) -> Int {
-  match phase {
-    PrefillGraph => 0
-    DecodeGraph => 1
-    MixedGraph => 2
-  }
-}
-
-///|
-fn paged_exact_maximum_graph_slots(
+fn paged_maximum_graph_slots(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
 ) -> FixedArray[Int] raise DeviceStepError {
@@ -54,10 +43,15 @@ fn paged_exact_maximum_graph_slots(
     MixedGraph,
   ]
   for index, phase in phases {
+    let query_tokens = if phase == DecodeGraph {
+      profile.max_query_rows()
+    } else {
+      profile.max_query_tokens()
+    }
     let shape = @luna_execution_graph_strategy.ExecutionGraphShape::new(
       phase~,
       batch_rows=profile.max_query_rows(),
-      query_tokens=profile.max_query_tokens(),
+      query_tokens~,
       context_tokens=paged_graph_maximum_context_tokens(),
     ) catch {
       _ => raise InvalidExecutor(GraphBucket)
@@ -74,17 +68,71 @@ fn PagedOrderedExecutorDispatch::select(
   self : PagedOrderedExecutorDispatch,
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
 ) -> Int raise DeviceStepError {
-  let phase = paged_graph_phase_index(bucket.phase())
-  if bucket.slot() == self.exact_slots[phase] {
-    let exact = self.exact_slot_owner_indices[phase]
-    if exact >= 0 {
-      return exact
+  let slot = bucket.slot()
+  if slot >= 0 && slot < self.slot_owner_indices.length() {
+    let owner = self.slot_owner_indices[slot]
+    if owner >= 0 {
+      return owner
     }
   }
   if self.fallback_owner_index >= 0 {
     self.fallback_owner_index
   } else {
     raise InvalidExecutor(GraphBucket)
+  }
+}
+
+///|
+fn paged_decode_capture_bounds(
+  profile : @launch_contract.PagedKernelProfile,
+) -> ReadOnlyArray[Int] {
+  let maximum = profile.max_query_rows()
+  let candidates : FixedArray[Int] = [1, 8, 16, 32]
+  let bounds : Array[Int] = []
+  for candidate in candidates {
+    let bound = Int::min(candidate, maximum)
+    if bound < maximum && !bounds.contains(bound) {
+      bounds.push(bound)
+    }
+  }
+  if maximum < profile.max_query_tokens() && !bounds.contains(maximum) {
+    bounds.push(maximum)
+  }
+  ReadOnlyArray::from_array(bounds)
+}
+
+///|
+fn map_paged_decode_capture_owner(
+  table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
+  row_bound : Int,
+  query_token_bound : Int,
+  owner_index : Int,
+  slot_owner_indices : FixedArray[Int],
+) -> Unit raise DeviceStepError {
+  for rows in 1..<=row_bound {
+    for tokens in 1..<=query_token_bound {
+      let mut context = 1
+      while context <= paged_graph_maximum_context_tokens() {
+        let slot = table
+          .select(
+            @luna_execution_graph_strategy.ExecutionGraphShape::new(
+              phase=DecodeGraph,
+              batch_rows=rows,
+              query_tokens=tokens,
+              context_tokens=context,
+            ) catch {
+              _ => raise InvalidExecutor(GraphBucket)
+            },
+          )
+          .slot() catch {
+            _ => raise InvalidExecutor(GraphBucket)
+          }
+        if slot_owner_indices[slot] < 0 {
+          slot_owner_indices[slot] = owner_index
+        }
+        context *= 2
+      }
+    }
   }
 }
 

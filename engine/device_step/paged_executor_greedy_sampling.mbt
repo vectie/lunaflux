@@ -117,6 +117,10 @@ pub fn validate_paged_sampling_execution_policy(
         raise InvalidExecutor(SamplingArtifact)
       }
     }
+    PagedCudaRestrictiveTopKV2(admission) =>
+      validate_paged_cuda_device_sampling_admission(
+        model_plan, blueprint, artifacts, admission,
+      )
   }
 }
 
@@ -253,6 +257,7 @@ fn prepare_paged_cuda_greedy_step(
 fn prepare_paged_sampling_execution(
   context : @device.Context,
   model_plan : @plan.ModelPlan,
+  blueprint : PagedKvExecutionBlueprint,
   limits : DeviceStepLimits,
   policy : PagedSamplingExecutionPolicy,
   artifacts : @artifact.KernelArtifactBundle,
@@ -269,6 +274,14 @@ fn prepare_paged_sampling_execution(
         steps,
         prepare_paged_cuda_greedy_step(
           context, model_plan, limits, admission, artifacts, completion, descriptor,
+          activation, resources,
+        ),
+      )
+    PagedCudaRestrictiveTopKV2(admission) =>
+      append_paged_steps(
+        steps,
+        prepare_paged_cuda_device_sampling_step(
+          context, model_plan, blueprint, admission, artifacts, completion, descriptor,
           activation, resources,
         ),
       )
@@ -293,8 +306,8 @@ fn finish_paged_sampling_preparation(
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
-    context, model_plan, limits, policy, artifacts, completion, descriptor, activation,
-    model_steps, resources,
+    context, model_plan, blueprint, limits, policy, artifacts, completion, descriptor,
+    activation, model_steps, resources,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }

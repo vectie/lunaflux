@@ -260,6 +260,27 @@ fn close_paged_resources(
           },
           () => {
             close_paged_allocation(
+              resources.device_sampling_results,
+              SamplingResult,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
+              resources.device_sampling_workspace,
+              SamplingWorkspace,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
+              resources.device_sampling_parameters,
+              SamplingParameters,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
               resources.fused_dispatch_canary,
               FusedDispatchCanary,
               first,

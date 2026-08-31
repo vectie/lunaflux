@@ -88,6 +88,8 @@ pub(all) enum PagedGraphResource {
   OrderedExecutor
   FusedDispatchCanary
   SamplingResult
+  SamplingParameters
+  SamplingWorkspace
 } derive(Debug, Eq)
 
 ///|

@@ -36,13 +36,26 @@ priv struct PagedOwnedOrderedExecutor {
 }
 
 ///|
-/// Sparse startup admission for ordered executors. Only the exact maximum
-/// shape may name the capture-enabled owner. Every other selected bucket uses
-/// an explicit eager fallback, or the same legal max-envelope captured owner
-/// when capture is required and no eager route is permitted.
+priv enum PagedBucketStepLaunch {
+  FixedBucketLaunch
+  QueryTokenGridX(@launch_contract.AotLaunchDimensions)
+}
+
+///|
+/// Startup-only proof that selected Qwen composite steps have an admitted
+/// one-block-per-query-token launch ABI. Unlisted steps retain their exact
+/// manifest geometry in every bucket.
+priv struct PagedGraphLaunchContract {
+  step_launches : FixedArray[PagedBucketStepLaunch]
+}
+
+///|
+/// Allocation-free slot dispatch for startup-materialized ordered executors.
+/// A negative slot selects only the explicit fallback owner. Captured-required
+/// mode may use its maximum-envelope capture as that fallback; the policy that
+/// admits eager fallback owns a distinct eager executor instead.
 priv struct PagedOrderedExecutorDispatch {
-  exact_slots : FixedArray[Int]
-  exact_slot_owner_indices : FixedArray[Int]
+  slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
 }
@@ -69,9 +82,13 @@ priv struct PagedGraphResources {
   mut persistent_kv : PagedOwnedAllocation?
   mut fused_dispatch_canary : PagedOwnedAllocation?
   mut greedy_sampling_results : PagedOwnedAllocation?
+  mut device_sampling_parameters : PagedOwnedAllocation?
+  mut device_sampling_workspace : PagedOwnedAllocation?
+  mut device_sampling_results : PagedOwnedAllocation?
   modules : Array[PagedOwnedModule]
   functions : Array[PagedOwnedFunction]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
+  mut graph_launch_contract : PagedGraphLaunchContract?
   mut numeric_weights : PagedNumericWeightOwner?
 }
 
@@ -104,14 +121,22 @@ priv struct PagedCompletionScratch {
 }
 
 ///|
-priv enum PagedSamplingCompletionMode {
-  HostLogitsCompletion
-  CudaGreedyCompletion(FixedArray[Byte])
+priv struct PagedDeviceSamplingScratch {
+  plan : @luna_sampling_strategy.SamplingDevicePlan
+  parameters : FixedArray[Byte]
+  results : FixedArray[Byte]
 }
 
 ///|
-/// Startup-only sampling placement. `PagedCudaGreedySampling` admits only
-/// greedy requests; stochastic modes are rejected while staging.
+priv enum PagedSamplingCompletionMode {
+  HostLogitsCompletion
+  CudaGreedyCompletion(FixedArray[Byte])
+  CudaRestrictiveTopKCompletion(PagedDeviceSamplingScratch)
+}
+
+///|
+/// Startup-only greedy sampling placement. Stochastic modes are rejected while
+/// this policy is active.
 pub struct PagedCudaGreedySamplingAdmission {
   priv model_identity : @spec.ModelIdentity
   priv target : @catalog.DeviceTarget
@@ -126,9 +151,24 @@ pub struct PagedCudaGreedySamplingAdmission {
 } derive(Debug, Eq)
 
 ///|
+/// Startup-only admission for the restrictive top-k v2 reducer co-compiled
+/// into the exact manifest-owned language-model-head module.
+pub struct PagedCudaDeviceSamplingAdmission {
+  priv model_identity : @spec.ModelIdentity
+  priv target : @catalog.DeviceTarget
+  priv catalog_version : @catalog.CatalogVersion
+  priv module_index : Int
+  priv module_digest : @catalog.AotArtifactDigest
+  priv module_bytes : Bytes
+  priv function_symbol : String
+  priv plan : @luna_sampling_strategy.SamplingDevicePlan
+} derive(Debug, Eq)
+
+///|
 pub(all) enum PagedSamplingExecutionPolicy {
   PagedHostSampling
   PagedCudaGreedySampling(PagedCudaGreedySamplingAdmission)
+  PagedCudaRestrictiveTopKV2(PagedCudaDeviceSamplingAdmission)
 } derive(Debug, Eq)
 
 ///|

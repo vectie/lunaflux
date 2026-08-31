@@ -8,9 +8,13 @@ fn empty_paged_resources() -> PagedGraphResources {
     persistent_kv: None,
     fused_dispatch_canary: None,
     greedy_sampling_results: None,
+    device_sampling_parameters: None,
+    device_sampling_workspace: None,
+    device_sampling_results: None,
     modules: [],
     functions: [],
     ordered_executors: [],
+    graph_launch_contract: None,
     numeric_weights: None,
   }
 }
@@ -455,6 +459,11 @@ pub fn prepare_paged_graph_executor(
     fused_residual_spans,
     fused_qkv_readonly_span,
     qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
+    blueprint, model_steps, qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }

@@ -62,10 +62,10 @@ fn dummy_paged_executor(
     graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
     graph_bucket_table,
     ordered_dispatch: {
-      exact_slots: try! paged_exact_maximum_graph_slots(
-        graph_bucket_table, profile,
+      slot_owner_indices: FixedArray::make(
+        graph_bucket_table.bucket_count(),
+        -1,
       ),
-      exact_slot_owner_indices: FixedArray::make(3, -1),
       fallback_owner_index: 0,
       telemetry_owner_index: 0,
     },

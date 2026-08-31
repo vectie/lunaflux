@@ -128,6 +128,57 @@ fn sample_wire_prefill(
       executor.completion.mode {
       CudaGreedyCompletion(_) =>
         select_paged_cuda_greedy_result(executor, descriptor, index)
+      CudaRestrictiveTopKCompletion(scratch) => {
+        let mode = row.sampling_mode_value() catch {
+          error => raise Wire(error)
+        }
+        let temperature = row.sampling_temperature() catch {
+          error => raise Wire(error)
+        }
+        let has_top_k = row.sampling_has_top_k() catch {
+          error => raise Wire(error)
+        }
+        let top_k = row.sampling_top_k_value() catch {
+          error => raise Wire(error)
+        }
+        let has_top_p = row.sampling_has_top_p() catch {
+          error => raise Wire(error)
+        }
+        let top_p = row.sampling_top_p_value() catch {
+          error => raise Wire(error)
+        }
+        if paged_device_sampling_route(
+            scratch.plan,
+            mode,
+            temperature,
+            has_top_k,
+            top_k,
+            has_top_p,
+            top_p,
+          ) ==
+          DeviceRestrictiveTopK {
+          select_paged_cuda_device_sampling_result(executor, descriptor, index)
+        } else {
+          select_paged_wire_logit(
+            executor,
+            descriptor,
+            index,
+            token_count,
+            mode,
+            temperature,
+            has_top_k,
+            top_k,
+            has_top_p,
+            top_p,
+            row.sampling_seed_value() catch {
+              error => raise Wire(error)
+            },
+            row.sample_index() catch {
+              error => raise Wire(error)
+            },
+          )
+        }
+      }
       HostLogitsCompletion =>
         select_paged_wire_logit(
           executor,
@@ -177,6 +228,57 @@ fn sample_wire_decode(
     executor.completion.mode {
     CudaGreedyCompletion(_) =>
       select_paged_cuda_greedy_result(executor, descriptor, row_index)
+    CudaRestrictiveTopKCompletion(scratch) => {
+      let mode = row.sampling_mode_value() catch { error => raise Wire(error) }
+      let temperature = row.sampling_temperature() catch {
+        error => raise Wire(error)
+      }
+      let has_top_k = row.sampling_has_top_k() catch {
+        error => raise Wire(error)
+      }
+      let top_k = row.sampling_top_k_value() catch {
+        error => raise Wire(error)
+      }
+      let has_top_p = row.sampling_has_top_p() catch {
+        error => raise Wire(error)
+      }
+      let top_p = row.sampling_top_p_value() catch {
+        error => raise Wire(error)
+      }
+      if paged_device_sampling_route(
+          scratch.plan,
+          mode,
+          temperature,
+          has_top_k,
+          top_k,
+          has_top_p,
+          top_p,
+        ) ==
+        DeviceRestrictiveTopK {
+        select_paged_cuda_device_sampling_result(
+          executor, descriptor, row_index,
+        )
+      } else {
+        select_paged_wire_logit(
+          executor,
+          descriptor,
+          row_index,
+          token_count,
+          mode,
+          temperature,
+          has_top_k,
+          top_k,
+          has_top_p,
+          top_p,
+          row.sampling_seed_value() catch {
+            error => raise Wire(error)
+          },
+          row.sample_index() catch {
+            error => raise Wire(error)
+          },
+        )
+      }
+    }
     HostLogitsCompletion =>
       select_paged_wire_logit(
         executor,
@@ -255,6 +357,7 @@ pub fn PagedGraphExecutor::sample_completion_frame(
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_wire_completion_plan(descriptor, frame, writer)
   copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
+  copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
   for index in 0..<summary.prefill_count {
     sample_wire_prefill(self, descriptor, frame, index, summary.token_count)
   }

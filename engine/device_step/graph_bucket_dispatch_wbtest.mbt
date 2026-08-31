@@ -13,15 +13,62 @@ fn graph_dispatch_fixture(
     max_page_table_entries=256,
   )
   let table = new_paged_graph_bucket_table(profile)
+  let slot_owner_indices = FixedArray::make(table.bucket_count(), -1)
+  for slot in paged_maximum_graph_slots(table, profile) {
+    slot_owner_indices[slot] = 2
+  }
   (
     table,
     profile,
-    {
-      exact_slots: paged_exact_maximum_graph_slots(table, profile),
-      exact_slot_owner_indices: FixedArray::make(3, 2),
-      fallback_owner_index,
-      telemetry_owner_index: 2,
-    },
+    { slot_owner_indices, fallback_owner_index, telemetry_owner_index: 2 },
+  )
+}
+
+///|
+test "decode capture bounds stop before the maximum envelope" {
+  let (_, profile, _) = graph_dispatch_fixture(7)
+  let table = new_paged_graph_bucket_table(profile)
+  assert_eq(paged_decode_capture_bounds(profile), [1, 8, 16, 32])
+  let maximum_slots = paged_maximum_graph_slots(table, profile)
+  let live_decode = graph_dispatch_bucket(table, DecodeGraph, 32, 32, 1048576)
+  assert_eq(maximum_slots[1], live_decode.slot())
+}
+
+///|
+test "decode bucket owners map exact compatible slots to the smallest owner" {
+  let (table, _, dispatch) = graph_dispatch_fixture(7)
+  map_paged_decode_capture_owner(table, 8, 8, 4, dispatch.slot_owner_indices)
+  let one = graph_dispatch_bucket(table, DecodeGraph, 1, 1, 1)
+  let eight = graph_dispatch_bucket(table, DecodeGraph, 8, 8, 65536)
+  let larger = graph_dispatch_bucket(table, DecodeGraph, 16, 16, 65536)
+  assert_eq(dispatch.select(one), 4)
+  assert_eq(dispatch.select(eight), 4)
+  assert_eq(dispatch.select(larger), 7)
+}
+
+///|
+test "query-token launch scaling changes only grid x" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=32,
+    grid_y=14,
+    grid_z=1,
+    block_x=128,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+  let scaled = paged_scaled_query_token_launch(source, 8)
+  assert_eq(
+    (
+      scaled.grid_x(),
+      scaled.grid_y(),
+      scaled.grid_z(),
+      scaled.block_x(),
+      scaled.block_y(),
+      scaled.block_z(),
+      scaled.shared_memory_bytes(),
+    ),
+    (8, 14, 1, 128, 1, 1, 0),
   )
 }
 
@@ -56,7 +103,11 @@ test "sparse graph dispatch selects the shared exact max-envelope owner" {
       table,
       phase,
       32,
-      64,
+      if phase == DecodeGraph {
+        32
+      } else {
+        64
+      },
       paged_graph_maximum_context_tokens(),
     )
     assert_eq(dispatch.select(bucket), 2)

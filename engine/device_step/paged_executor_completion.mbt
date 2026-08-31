@@ -258,6 +258,7 @@ pub fn PagedGraphExecutor::sample_completion(
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_completion_plan(descriptor, plan, writer)
   copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
+  copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
   for prefill_index in 0..<summary.prefill_count {
     let row = try plan.prefill_row(prefill_index) catch {
       error => raise Protocol(error)
@@ -300,6 +301,34 @@ pub fn PagedGraphExecutor::sample_completion(
           self.completion.selected_tokens[prefill_index] = select_paged_cuda_greedy_result(
             self, descriptor, prefill_index,
           )
+        CudaRestrictiveTopKCompletion(scratch) =>
+          self.completion.selected_tokens[prefill_index] = if paged_device_sampling_route(
+              scratch.plan,
+              match parameters.mode() {
+                Greedy => 0
+                Sample => 1
+              },
+              parameters.temperature(),
+              parameters.top_k() is Some(_),
+              parameters.top_k().unwrap_or(0),
+              parameters.top_p() is Some(_),
+              parameters.top_p().unwrap_or(0.0),
+            ) ==
+            DeviceRestrictiveTopK {
+            select_paged_cuda_device_sampling_result(
+              self, descriptor, prefill_index,
+            )
+          } else {
+            read_and_select_paged_row(
+              self,
+              descriptor,
+              prefill_index,
+              summary.token_count,
+              parameters,
+              seed_value,
+              sample_index,
+            )
+          }
       }
     }
   }
@@ -340,6 +369,32 @@ pub fn PagedGraphExecutor::sample_completion(
         self.completion.selected_tokens[row_index] = select_paged_cuda_greedy_result(
           self, descriptor, row_index,
         )
+      CudaRestrictiveTopKCompletion(scratch) =>
+        self.completion.selected_tokens[row_index] = if paged_device_sampling_route(
+            scratch.plan,
+            match parameters.mode() {
+              Greedy => 0
+              Sample => 1
+            },
+            parameters.temperature(),
+            parameters.top_k() is Some(_),
+            parameters.top_k().unwrap_or(0),
+            parameters.top_p() is Some(_),
+            parameters.top_p().unwrap_or(0.0),
+          ) ==
+          DeviceRestrictiveTopK {
+          select_paged_cuda_device_sampling_result(self, descriptor, row_index)
+        } else {
+          read_and_select_paged_row(
+            self,
+            descriptor,
+            row_index,
+            summary.token_count,
+            parameters,
+            seed_value,
+            sample_index,
+          )
+        }
     }
   }
   append_paged_completion(

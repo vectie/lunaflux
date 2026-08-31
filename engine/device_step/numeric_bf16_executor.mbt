@@ -151,6 +151,11 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
+    blueprint, model_steps, qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   finish_paged_sampling_preparation(
     context,
     model_plan,
