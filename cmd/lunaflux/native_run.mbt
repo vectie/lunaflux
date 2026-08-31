@@ -157,6 +157,20 @@ enum NativeDrainAction {
 } derive(Debug, Eq)
 
 ///|
+/// Classifies only terminal runtime state. Poll count is deliberately absent:
+/// a healthy production listener has no lifetime budget.
+fn native_serve_should_continue(
+  phase : @runtime_instance.RuntimeInstancePhase,
+  cleanup_complete : Bool,
+) -> Bool {
+  match phase {
+    Closed => false
+    Failed if cleanup_complete => false
+    _ => true
+  }
+}
+
+///|
 fn native_drain_action(
   phase : @runtime_instance.RuntimeInstancePhase,
   cleanup_complete : Bool,
@@ -310,7 +324,8 @@ async fn[T] close_runtime_after_drain_attach_failure(
 }
 
 ///|
-/// Drives bounded lower transitions; cancellation always closes before exit.
+/// Serves until cancellation, a completed drain, or a real runtime failure.
+/// Cancellation always closes the owner before exit.
 async fn run_native_model(model : String) -> Unit {
   let credential = acquire_opaque_inference_credential()
   let promotion_result : Result[
@@ -353,7 +368,7 @@ async fn run_native_model(model : String) -> Unit {
     error => close_runtime_after_drain_attach_failure(owner, drain, error)
   }
   let mut ready_printed = false
-  for transitions = 0; transitions < 1048576; transitions = transitions + 1 {
+  for ;; {
     if @async.is_being_cancelled() {
       let closed = drain_native_owner(owner)
       if !closed {
@@ -367,7 +382,8 @@ async fn run_native_model(model : String) -> Unit {
       return
     }
     ignore(owner.progress())
-    match owner.phase() {
+    let phase = owner.phase()
+    match phase {
       Ready =>
         if !ready_printed {
           match owner.service_protocol() {
@@ -405,16 +421,16 @@ async fn run_native_model(model : String) -> Unit {
           }
           ready_printed = true
         }
-      Closed => return
-      Failed if owner.cleanup_complete() =>
-        raise @runtime_instance.RuntimeInstanceFailed(Lifecycle)
       _ => ()
     }
+    if !native_serve_should_continue(phase, owner.cleanup_complete()) {
+      match phase {
+        Closed => return
+        Failed => raise @runtime_instance.RuntimeInstanceFailed(Lifecycle)
+        _ => ()
+      }
+    }
   }
-  if drain_native_owner(owner) {
-    raise @runtime_instance.RuntimeInstanceFailed(Lifecycle)
-  }
-  raise @runtime_instance.RuntimeInstanceFailedAndCleanup(Lifecycle, Cleanup)
 }
 
 ///|

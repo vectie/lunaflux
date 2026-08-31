@@ -73,6 +73,23 @@ test "native cleanup retries a failed first drain request" {
 }
 
 ///|
+test "native serving continues beyond the former progress poll budget" {
+  let former_budget = 1048576
+  let required_polls = former_budget + 1
+  let mut polls = 0
+  let mut should_continue = false
+  for _ in 0..<required_polls {
+    should_continue = native_serve_should_continue(Ready, false)
+    polls += 1
+  }
+  assert_eq(polls, 1048577)
+  assert_true(should_continue)
+  assert_false(native_serve_should_continue(Closed, true))
+  assert_false(native_serve_should_continue(Failed, true))
+  assert_true(native_serve_should_continue(Failed, false))
+}
+
+///|
 test "opaque run CLI admits exactly one deployment argument" {
   assert_eq(
     exact_opaque_run_argument(["lunaflux", "run", "/deployment#sha256=digest"]),
