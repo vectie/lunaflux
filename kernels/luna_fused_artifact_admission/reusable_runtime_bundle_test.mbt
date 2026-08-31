@@ -1,11 +1,12 @@
 ///|
 fn runtime_bundle_test_launch(
   block_x : Int,
+  grid_y : Int,
   shared_memory_bytes : Int,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=32,
-    grid_y=1,
+    grid_y~,
     grid_z=1,
     block_x~,
     block_y=1,
@@ -31,6 +32,11 @@ fn runtime_bundle_test_input(
         32
       } else {
         128
+      },
+      if abi == QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 {
+        8
+      } else {
+        1
       },
       if abi == ResidualRmsNormProductionV2 {
         512

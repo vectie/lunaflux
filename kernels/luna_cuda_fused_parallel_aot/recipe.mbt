@@ -28,6 +28,7 @@ fn fused_common_recipe(
   symbol : String,
   canary : UInt,
   numerical : FusedParallelNumericalPolicy,
+  grid_y : Int,
   shared_memory_bytes : Int,
 ) -> String {
   "schema=lunaflux-fused-parallel-cuda-aot-candidate.v1\nfamily=" +
@@ -49,7 +50,9 @@ fn fused_common_recipe(
   symbol +
   "\nblock=128,1,1\ngrid=" +
   profile.max_query_tokens().to_string() +
-  ",1,1\nshared_memory_bytes=" +
+  "," +
+  grid_y.to_string() +
+  ",1\nshared_memory_bytes=" +
   shared_memory_bytes.to_string() +
   "\ndispatch_canary=" +
   canary.to_string() +
@@ -79,7 +82,7 @@ fn fused_qkv_recipe(
 ) -> Bytes {
   let record = fused_common_recipe(
       "qkv-positioned-rope-paged-kvwrite-block128", target, profile, compiler, candidate_source,
-      symbol, canary, numerical, 0,
+      symbol, canary, numerical, 1, 0,
     ) +
     "model_content_sha256=" +
     parameters.model_content +
@@ -241,6 +244,7 @@ fn fused_residual_norm_recipe(
       symbol,
       canary,
       numerical,
+      1,
       FUSED_PARALLEL_THREADS * 4,
     ) +
     "model_content_sha256=" +

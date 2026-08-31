@@ -62,13 +62,13 @@ fn qwen_fused_source(
   )
   let canary_publication = match dispatch_canary {
     Some(value) =>
-      "  if (lane == 0) atomicAdd(dispatch_canary, " +
+      "  if (lane == 0 && head == 0) atomicAdd(dispatch_canary, " +
       value.to_string() +
       "u);\n"
     None => ""
   }
   out.write_string(
-    "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.y != 0 || blockIdx.z != 0) return;\n" +
+    "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z != 0) return;\n" +
     "  const int token = (int)blockIdx.x;\n" +
     "  const int prefill = step_counts[0], decode = step_counts[1];\n" +
     "  const int rows = step_counts[2], tokens = step_counts[3];\n" +
@@ -98,7 +98,8 @@ fn qwen_fused_source(
     "  const int lane = (int)threadIdx.x;\n" +
     "  const int qk_heads = LF_QUERY_HEADS + LF_KV_HEADS;\n" +
     "  const int all_heads = qk_heads + LF_KV_HEADS;\n" +
-    "  for (int head = 0; head < all_heads; ++head) {\n" +
+    "  const int head = (int)blockIdx.y;\n" +
+    "  if (head < 0 || head >= all_heads) return;\n" +
     "    const bool is_query = head < LF_QUERY_HEADS;\n" +
     "    const bool is_key = head >= LF_QUERY_HEADS && head < qk_heads;\n" +
     "    const int component = lane;\n" +
@@ -154,7 +155,6 @@ fn qwen_fused_source(
     "      }\n" +
     "    }\n" +
     "    __syncthreads();\n" +
-    "  }\n" +
     canary_publication +
     "}\n",
   )

@@ -101,7 +101,7 @@ fn reusable_runtime_validate_module(
     symbol.contains("\n") ||
     symbol.contains("\r") ||
     launch.grid_x() <= 0 ||
-    launch.grid_y() != 1 ||
+    launch.grid_y() <= 0 ||
     launch.grid_z() != 1 ||
     launch.block_x() <= 0 ||
     launch.block_y() != 1 ||

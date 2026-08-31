@@ -95,6 +95,7 @@ fn qwen_fused_recipe(
       symbol,
       dispatch_canary,
       QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+      query_heads + 2 * kv_heads,
       0,
     ) +
     "semantic_family=qkv-qknorm-positioned-rope-paged-kvwrite\n" +
@@ -178,7 +179,9 @@ fn qwen_fused_production_recipe(
     profile.max_page_table_entries().to_string() +
     "\nblock=128,1,1\ngrid=" +
     profile.max_query_tokens().to_string() +
-    ",1,1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
+    "," +
+    (query_heads + 2 * kv_heads).to_string() +
+    ",1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
     fused_compiler_record(qualification.compiler) +
     "qkv_operation_id=" +
     qkv_index.to_string() +
@@ -258,7 +261,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   ) catch {
     _ => raise FusedParallelMismatch(Operation)
   }
-  let (_, _, head_dimension) = semantic.attention_shape()
+  let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
   if head_dimension > FUSED_PARALLEL_THREADS ||
     !fused_is_power_of_two(head_dimension) ||
     !layout.is_canonical_for(plan.identity(), plan.kv_cache_geometry()) ||
@@ -281,7 +284,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   )
   let dimensions = @launch_contract.AotLaunchDimensions::new(
     grid_x=profile.max_query_tokens(),
-    grid_y=1,
+    grid_y=query_heads + 2 * kv_heads,
     grid_z=1,
     block_x=FUSED_PARALLEL_THREADS,
     block_y=1,
