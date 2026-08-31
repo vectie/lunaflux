@@ -158,6 +158,39 @@ async fn bridge_write_all(
 }
 
 ///|
+fn bridge_http_chunk(bytes : Bytes) -> Bytes {
+  let prefix = @utf8.encode(bytes.length().to_string(radix=16) + "\r\n")
+  let prefix_length = prefix.length()
+  let payload_length = bytes.length()
+  Bytes::makei(prefix_length + payload_length + 2, index => {
+    if index < prefix_length {
+      prefix[index]
+    } else if index < prefix_length + payload_length {
+      bytes[index - prefix_length]
+    } else if index == prefix_length + payload_length {
+      b'\r'
+    } else {
+      b'\n'
+    }
+  })
+}
+
+///|
+async fn bridge_write_http_chunk(
+  connection : @socket.Tcp,
+  bytes : Bytes,
+) -> Unit raise BridgeRuntimeError {
+  bridge_write_all(connection, bridge_http_chunk(bytes))
+}
+
+///|
+async fn bridge_finish_http_chunks(
+  connection : @socket.Tcp,
+) -> Unit raise BridgeRuntimeError {
+  bridge_write_all(connection, b"0\r\n\r\n")
+}
+
+///|
 async fn bridge_json_response(
   connection : @socket.Tcp,
   status : String,

@@ -7,7 +7,6 @@ import argparse
 import concurrent.futures
 import json
 import math
-import statistics
 import time
 import urllib.request
 
@@ -27,7 +26,7 @@ def percentile(values: list[float], fraction: float) -> float:
 
 def invoke(
     url: str, body: bytes, timeout: float
-) -> tuple[float, tuple[int, ...], str]:
+) -> tuple[float, tuple[int, ...], bool, str]:
     request = urllib.request.Request(
         url,
         data=body,
@@ -42,13 +41,21 @@ def invoke(
         payload = response.read().decode("utf-8")
     elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000.0
     tokens = []
+    terminal_events = 0
+    done_events = 0
     for line in payload.splitlines():
+        if line == "data: [DONE]":
+            done_events += 1
+            continue
         if not line.startswith("data: {"):
             continue
         event = json.loads(line[6:])
         if event.get("schema") == "lunaflux.benchmark-token.v1":
             tokens.append(int(event["token_id"]))
-    return elapsed_ms, tuple(tokens), payload
+        elif event.get("schema") == "lunaflux.benchmark-terminal.v1":
+            terminal_events += 1
+    complete = terminal_events == 1 and done_events == 1
+    return elapsed_ms, tuple(tokens), complete, payload
 
 
 def main() -> int:
@@ -66,10 +73,11 @@ def main() -> int:
     body = open(arguments.request_json, "rb").read()
     expected = tuple(int(value) for value in arguments.expected.split(",") if value)
     for _ in range(arguments.warmups):
-        _, tokens, payload = invoke(arguments.url, body, arguments.timeout)
-        if tokens != expected:
+        _, tokens, complete, payload = invoke(arguments.url, body, arguments.timeout)
+        if tokens != expected or not complete:
             raise RuntimeError(
-                f"warmup output differs: {tokens!r}; payload={payload!r}"
+                "warmup output differs or is incomplete: "
+                f"tokens={tokens!r}; complete={complete!r}; payload={payload!r}"
             )
     started = time.perf_counter_ns()
     with concurrent.futures.ThreadPoolExecutor(
@@ -81,17 +89,18 @@ def main() -> int:
         ]
         observations = [future.result() for future in futures]
     wall_seconds = (time.perf_counter_ns() - started) / 1_000_000_000.0
-    latencies = [elapsed for elapsed, _, _ in observations]
+    latencies = [elapsed for elapsed, _, _, _ in observations]
     mismatches = [
         {
             "index": index,
             "tokens": tokens,
+            "complete": complete,
             "payload": payload,
         }
-        for index, (_, tokens, payload) in enumerate(observations)
-        if tokens != expected
+        for index, (_, tokens, complete, payload) in enumerate(observations)
+        if tokens != expected or not complete
     ]
-    output_tokens = sum(len(tokens) for _, tokens, _ in observations)
+    output_tokens = sum(len(tokens) for _, tokens, _, _ in observations)
     print(
         json.dumps(
             {
@@ -105,7 +114,7 @@ def main() -> int:
                 "requests_per_second": arguments.requests / wall_seconds,
                 "output_tokens_per_second": output_tokens / wall_seconds,
                 "latency_ms": {
-                    "mean": statistics.fmean(latencies),
+                    "mean": sum(latencies) / len(latencies),
                     "min": min(latencies),
                     "p50": percentile(latencies, 0.50),
                     "p95": percentile(latencies, 0.95),

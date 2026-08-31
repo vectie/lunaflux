@@ -21,6 +21,15 @@ test "benchmark HTTP head accepts exact endpoint with case-insensitive headers" 
 }
 
 ///|
+test "chunked benchmark responses frame payload and terminal boundary" {
+  assert_eq(@utf8.decode(bridge_http_chunk(b"abc")), "3\r\nabc\r\n")
+  assert_eq(
+    @utf8.decode(bridge_http_chunk(b"0123456789abcdef")),
+    "10\r\n0123456789abcdef\r\n",
+  )
+}
+
+///|
 test "benchmark HTTP head rejects smuggling and unbounded bodies" {
   for
     hostile in [

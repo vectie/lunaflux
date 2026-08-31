@@ -41,7 +41,7 @@ async fn bridge_generate(
     raise NativeProtocol("native request was not accepted")
   }
   bridge_write_all(
-    http, b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nConnection: close\r\nX-Accel-Buffering: no\r\n\r\n",
+    http, b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nTransfer-Encoding: chunked\r\nConnection: close\r\nX-Accel-Buffering: no\r\n\r\n",
   )
   response_started.val = true
   let mut token_count = 0
@@ -56,7 +56,7 @@ async fn bridge_generate(
         let text = detokenizer.advance(token.token_id()) catch {
           _ => raise NativeProtocol("native token cannot be decoded")
         }
-        bridge_write_all(http, sse.stage(token.token_id(), text))
+        bridge_write_http_chunk(http, sse.stage(token.token_id(), text))
         token_count += 1
       }
       Usage(usage) => {
@@ -74,7 +74,8 @@ async fn bridge_generate(
         let trailing_text = detokenizer.finish() catch {
           _ => raise NativeProtocol("native terminal text cannot be decoded")
         }
-        bridge_write_all(http, sse.terminal(trailing_text))
+        bridge_write_http_chunk(http, sse.terminal(trailing_text))
+        bridge_finish_http_chunks(http)
         return
       }
       Failed(_) | Accepted(_) =>
@@ -147,10 +148,13 @@ async fn bridge_handle(
               _ => ()
             }
           } else {
-            bridge_write_all(
+            bridge_write_http_chunk(
               connection,
               @utf8.encode("event: error\ndata: " + message + "\n\n"),
             ) catch {
+              _ => ()
+            }
+            bridge_finish_http_chunks(connection) catch {
               _ => ()
             }
           }
