@@ -33,6 +33,54 @@ fn candidate_export_error_name(
 }
 
 ///|
+fn fused_parallel_rule_name(
+  rule : @luna_cuda_fused_parallel_aot.FusedParallelAotRule,
+) -> String {
+  match rule {
+    Limits => "limits"
+    Plan => "plan"
+    Operation => "operation"
+    OperationOrder => "operation-order"
+    Shape => "shape"
+    Profile => "profile"
+    KvLayout => "kv-layout"
+    DeviceTarget => "device-target"
+    CompilerPolicy => "compiler-policy"
+    ReferenceFallback => "reference-fallback"
+    OperandOrder => "operand-order"
+    OperandSize => "operand-size"
+    OperandAlignment => "operand-alignment"
+    StaticResources => "static-resources"
+    Source => "source"
+    Recipe => "recipe"
+    Digest => "digest"
+    CompileReceipt => "compile-receipt"
+    CompiledArtifact => "compiled-artifact"
+    Determinism => "determinism"
+    KernelAbi => "kernel-abi"
+    Evidence => "evidence"
+    ObservationOrder => "observation-order"
+    Correctness => "correctness"
+    MicrobenchmarkWin => "microbenchmark-win"
+  }
+}
+
+///|
+fn fused_parallel_error_name(
+  error : @luna_cuda_fused_parallel_aot.FusedParallelAotError,
+) -> String {
+  match error {
+    FusedParallelInvalid(rule) => "invalid-" + fused_parallel_rule_name(rule)
+    FusedParallelUnsupported(rule) =>
+      "unsupported-" + fused_parallel_rule_name(rule)
+    FusedParallelMismatch(rule) => "mismatch-" + fused_parallel_rule_name(rule)
+    FusedParallelLimitExceeded(rule) =>
+      "limit-exceeded-" + fused_parallel_rule_name(rule)
+    FusedParallelOverflow(rule) => "overflow-" + fused_parallel_rule_name(rule)
+  }
+}
+
+///|
 priv struct Qwen3CandidateExportArguments {
   model_root : String
   config_locator : String

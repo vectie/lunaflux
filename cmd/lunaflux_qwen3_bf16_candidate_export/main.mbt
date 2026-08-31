@@ -300,7 +300,10 @@ fn prepare_residual_rmsnorm_candidate(
         maximum_promotion_bytes=65536,
       ),
     ) catch {
-      _ => raise ResidualFusionPreparation
+      error => {
+        println("residual_fusion_detail=" + fused_parallel_error_name(error))
+        raise ResidualFusionPreparation
+      }
     }
   }
   raise CandidatePreparation
