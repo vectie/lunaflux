@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/plan",
+}
+
+import {
+  "vectie/lunaflux/model/qwen3",
+  "vectie/lunaflux/model/qwen3_spec",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"
+
+supported_targets = "native"

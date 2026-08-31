@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_fusion_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn find_qkv_qknorm_positioned_rope_paged_kv_write_plans(@plan.ModelPlan) -> ReadOnlyArray[QkvQkNormPositionedRopePagedKvWritePlan]
+
+pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(@plan.ModelPlan, @plan.OperationId) -> QkvQkNormPositionedRopePagedKvWritePlan raise FusionPlanError
+
+// Errors
+pub(all) suberror FusionPlanError {
+  InvalidFusionPlan(FusionPlanRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum FusionPlanRule {
+  OperationOrder
+  Dataflow
+  Shape
+  PersistentState
+} derive(Eq, @debug.Debug)
+
+pub(all) enum FusionSemanticFamily {
+  QkvQkNormPositionedRopePagedKvWrite
+} derive(Eq, @debug.Debug)
+
+pub struct QkvQkNormPositionedRopePagedKvWritePlan {
+  // private fields
+}
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::attention_shape(Self) -> (Int, Int, Int)
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::family(Self) -> FusionSemanticFamily
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::kv_layer(Self) -> @plan.KvLayerId
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::norm_epsilon(Self) -> Double
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::operation_indices(Self) -> (Int, Int, Int, Int)
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::positioned_qkv(Self) -> @plan.ActivationRef
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::projection_shape(Self) -> (Int, Int)
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::rope_theta(Self) -> Double
+
+// Type aliases
+
+// Traits
