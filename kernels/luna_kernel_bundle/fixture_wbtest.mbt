@@ -251,7 +251,7 @@ fn bundle_fixture_dimensions(
     grid_x=if operation == 2 { 4 } else { operation + 1 },
     grid_y=if operation == 2 { 4 } else { 1 },
     grid_z=1,
-    block_x=if operation == 2 { 1 } else { 256 },
+    block_x=if operation == 2 { 32 } else { 256 },
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

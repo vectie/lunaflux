@@ -62,7 +62,7 @@ test "fused QKV RoPE KV lowering is deterministic bounded and fallback distinct"
   assert_false(source.contains("weight[inner *"))
   assert_true(
     @utf8.decode(fixture.qkv.source_bytes()).contains(
-      "weight_base = (unsigned long long)local_column * 128ULL",
+      "weight_base = (unsigned long long)selected_column * 128ULL",
     ),
   )
   assert_true(source.contains("powf(LF_ROPE_THETA"))
