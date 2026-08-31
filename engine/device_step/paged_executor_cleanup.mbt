@@ -9,12 +9,23 @@ fn remember_paged_failure(
 }
 
 ///|
-fn close_paged_ordered_executor(
+fn run_reverse_paged_executor_close(
+  count : Int,
+  close_one : (Int) -> Unit,
+) -> Unit {
+  for index = count - 1; index >= 0; index = index - 1 {
+    close_one(index)
+  }
+}
+
+///|
+fn close_paged_ordered_executors(
   resources : PagedGraphResources,
   first : Ref[DeviceStepError?],
 ) -> Unit {
-  match resources.ordered_executor {
-    Some(owner) if owner.open => {
+  run_reverse_paged_executor_close(resources.ordered_executors.length(), index => {
+    let owner = resources.ordered_executors[index]
+    if owner.open {
       let mut drained = false
       try owner.resource.abort() catch {
         error =>
@@ -34,16 +45,12 @@ fn close_paged_ordered_executor(
         }
       }
     }
-    _ => ()
-  }
+  })
 }
 
 ///|
 fn paged_ordered_executor_open(resources : PagedGraphResources) -> Bool {
-  match resources.ordered_executor {
-    Some(owner) => owner.open
-    None => false
-  }
+  resources.ordered_executors.any(owner => owner.open)
 }
 
 ///|
@@ -237,7 +244,7 @@ fn close_paged_resources(
 ) -> Unit raise DeviceStepError {
   let first : Ref[DeviceStepError?] = Ref(None)
   run_paged_ordered_dependency_close(
-    () => close_paged_ordered_executor(resources, first),
+    () => close_paged_ordered_executors(resources, first),
     () => paged_ordered_executor_open(resources),
     () => {
       run_paged_close_order(

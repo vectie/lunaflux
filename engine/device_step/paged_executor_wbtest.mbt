@@ -41,6 +41,7 @@ fn dummy_paged_executor(
     max_query_tokens=1,
     max_page_table_entries=1,
   )
+  let graph_bucket_table = new_paged_graph_bucket_table(profile)
   {
     resources: empty_paged_resources(),
     steps: ReadOnlyArray::from_array([]),
@@ -59,7 +60,15 @@ fn dummy_paged_executor(
     fp8_frame_admission,
     fp8_scale_evidence: None,
     graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
-    graph_bucket_table: new_paged_graph_bucket_table(profile),
+    graph_bucket_table,
+    ordered_dispatch: {
+      exact_slots: try! paged_exact_maximum_graph_slots(
+        graph_bucket_table, profile,
+      ),
+      exact_slot_owner_indices: FixedArray::make(3, -1),
+      fallback_owner_index: 0,
+      telemetry_owner_index: 0,
+    },
     fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,
     lifecycle,
@@ -285,6 +294,7 @@ test "public paged capabilities reject lifecycle and foreign owners" {
     executor: first,
     epoch: 1UL,
     graph_bucket,
+    ordered_executor_index: 0,
   }
   try second.execute(staged) catch {
     ExecutorOwnerMismatch => ()
@@ -298,7 +308,11 @@ test "public paged capabilities reject lifecycle and foreign owners" {
   assert_eq(after.graph_misses(), before.graph_misses())
   first.lifecycle = GraphExecuted
   second.lifecycle = GraphExecuted
-  let executed : ExecutedPagedGraphExecution = { executor: first, epoch: 1UL }
+  let executed : ExecutedPagedGraphExecution = {
+    executor: first,
+    epoch: 1UL,
+    ordered_executor_index: 0,
+  }
   try second.finish(executed) catch {
     ExecutorOwnerMismatch => ()
     _ => fail("unexpected foreign executed capability error")
@@ -313,6 +327,7 @@ test "public paged capabilities reject lifecycle and foreign owners" {
   let missing_capability : ExecutedPagedGraphExecution = {
     executor: missing,
     epoch: 1UL,
+    ordered_executor_index: 0,
   }
   let plan = executor_test_submitted_plan()
   let writer = @worker_protocol.CompletionBuffer::new(step_protocol_limits()).writer_for(

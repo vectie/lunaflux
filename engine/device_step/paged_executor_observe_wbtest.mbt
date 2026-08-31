@@ -29,6 +29,7 @@ test "offline selected-logit observer requires the exact completed owner" {
   let closed_execution : ExecutedPagedGraphExecution = {
     executor: closed,
     epoch: 1UL,
+    ordered_executor_index: 0,
   }
   try
     closed.observe_offline_selected_logits(

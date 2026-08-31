@@ -271,11 +271,22 @@ pub fn prepare_fp8_paged_graph_executor_v3(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  prepare_paged_ordered_executor(context, steps, resources, graph_policy) catch {
+  let graph_bucket_table = new_paged_graph_bucket_table(blueprint.profile())
+  let ordered_dispatch = prepare_paged_ordered_executors(
+    context,
+    steps,
+    resources,
+    graph_policy,
+    graph_bucket_table,
+    blueprint.profile(),
+  ) catch {
     error => return paged_construction_failed(resources, error)
   }
   let graph_telemetry = new_paged_graph_telemetry(
-    open_paged_ordered_executor(resources).execution_mode(),
+    open_paged_ordered_executor(
+      resources,
+      ordered_dispatch.telemetry_owner_index,
+    ).execution_mode(),
     None,
   )
   PagedReady({
@@ -295,7 +306,8 @@ pub fn prepare_fp8_paged_graph_executor_v3(
     }),
     fp8_scale_evidence: scale_evidence,
     graph_telemetry,
-    graph_bucket_table: new_paged_graph_bucket_table(blueprint.profile()),
+    graph_bucket_table,
+    ordered_dispatch,
     fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,
     lifecycle: GraphReady,

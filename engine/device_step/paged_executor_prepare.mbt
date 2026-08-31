@@ -10,7 +10,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     greedy_sampling_results: None,
     modules: [],
     functions: [],
-    ordered_executor: None,
+    ordered_executors: [],
     numeric_weights: None,
   }
 }
@@ -276,51 +276,6 @@ fn prepare_paged_steps(
     })
   }
   ReadOnlyArray::from_array(prepared)
-}
-
-///|
-fn prepare_paged_ordered_executor(
-  context : @device.Context,
-  steps : ReadOnlyArray[PreparedPagedGraphStep],
-  resources : PagedGraphResources,
-  graph_policy : PagedGraphExecutionPolicy,
-) -> Unit raise DeviceStepError {
-  guard resources.stream is Some(stream) && stream.open else {
-    raise InvalidExecutor(ResourceState)
-  }
-  let launches : Array[@device.OrderedKernelLaunch] = []
-  for step in steps {
-    guard resources.functions.get(step.function_index) is Some(function) &&
-      function.open else {
-      raise InvalidExecutor(ResourceState)
-    }
-    launches.push(
-      @device.OrderedKernelLaunch::new(
-        function.resource,
-        step.dimensions,
-        step.arguments,
-      ),
-    )
-  }
-  let executor = context.create_ordered_kernel_executor(
-    stream.resource,
-    launches[:],
-    policy=paged_ordered_device_policy(graph_policy),
-  ) catch {
-    error => raise ExecutorDevice(OrderedExecutor, error)
-  }
-  resources.ordered_executor = Some({ resource: executor, open: true })
-}
-
-///|
-fn paged_ordered_device_policy(
-  policy : PagedGraphExecutionPolicy,
-) -> @device.OrderedKernelExecutionPolicy {
-  match policy {
-    PagedOrderedEagerOnly => OrderedKernelEagerOnly
-    PagedCapturedRequired => OrderedKernelCaptureRequired
-    PagedCapturedWithEagerFallback => OrderedKernelCaptureWithEagerFallback
-  }
 }
 
 ///|

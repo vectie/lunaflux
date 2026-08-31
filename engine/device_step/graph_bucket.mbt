@@ -1,11 +1,16 @@
 ///|
+fn paged_graph_maximum_context_tokens() -> Int {
+  1048576
+}
+
+///|
 fn new_paged_graph_bucket_table(
   profile : @launch_contract.PagedKernelProfile,
 ) -> @luna_execution_graph_strategy.ExecutionGraphBucketTable {
   @luna_execution_graph_strategy.build_execution_graph_bucket_table(
     profile.max_query_rows(),
     profile.max_query_tokens(),
-    1048576,
+    paged_graph_maximum_context_tokens(),
     65536,
   ) catch {
     _ => abort("validated paged profile rejected by graph buckets")
@@ -23,6 +28,63 @@ fn paged_graph_phase(
     DecodeGraph
   } else {
     MixedGraph
+  }
+}
+
+///|
+fn paged_graph_phase_index(
+  phase : @luna_execution_graph_strategy.ExecutionGraphPhase,
+) -> Int {
+  match phase {
+    PrefillGraph => 0
+    DecodeGraph => 1
+    MixedGraph => 2
+  }
+}
+
+///|
+fn paged_exact_maximum_graph_slots(
+  table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
+  profile : @launch_contract.PagedKernelProfile,
+) -> FixedArray[Int] raise DeviceStepError {
+  let slots = FixedArray::make(3, -1)
+  let phases : FixedArray[@luna_execution_graph_strategy.ExecutionGraphPhase] = [
+    PrefillGraph,
+    DecodeGraph,
+    MixedGraph,
+  ]
+  for index, phase in phases {
+    let shape = @luna_execution_graph_strategy.ExecutionGraphShape::new(
+      phase~,
+      batch_rows=profile.max_query_rows(),
+      query_tokens=profile.max_query_tokens(),
+      context_tokens=paged_graph_maximum_context_tokens(),
+    ) catch {
+      _ => raise InvalidExecutor(GraphBucket)
+    }
+    slots[index] = table.select(shape).slot() catch {
+        _ => raise InvalidExecutor(GraphBucket)
+      }
+  }
+  slots
+}
+
+///|
+fn PagedOrderedExecutorDispatch::select(
+  self : PagedOrderedExecutorDispatch,
+  bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
+) -> Int raise DeviceStepError {
+  let phase = paged_graph_phase_index(bucket.phase())
+  if bucket.slot() == self.exact_slots[phase] {
+    let exact = self.exact_slot_owner_indices[phase]
+    if exact >= 0 {
+      return exact
+    }
+  }
+  if self.fallback_owner_index >= 0 {
+    self.fallback_owner_index
+  } else {
+    raise InvalidExecutor(GraphBucket)
   }
 }
 

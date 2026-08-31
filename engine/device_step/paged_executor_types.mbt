@@ -36,6 +36,18 @@ priv struct PagedOwnedOrderedExecutor {
 }
 
 ///|
+/// Sparse startup admission for ordered executors. Only the exact maximum
+/// shape may name the capture-enabled owner. Every other selected bucket uses
+/// an explicit eager fallback, or the same legal max-envelope captured owner
+/// when capture is required and no eager route is permitted.
+priv struct PagedOrderedExecutorDispatch {
+  exact_slots : FixedArray[Int]
+  exact_slot_owner_indices : FixedArray[Int]
+  fallback_owner_index : Int
+  telemetry_owner_index : Int
+}
+
+///|
 priv enum PagedDescriptorOwner {
   Complete(DeviceStepOwner)
   Failed(FailedDeviceStepPreparation)
@@ -59,7 +71,7 @@ priv struct PagedGraphResources {
   mut greedy_sampling_results : PagedOwnedAllocation?
   modules : Array[PagedOwnedModule]
   functions : Array[PagedOwnedFunction]
-  mut ordered_executor : PagedOwnedOrderedExecutor?
+  ordered_executors : Array[PagedOwnedOrderedExecutor]
   mut numeric_weights : PagedNumericWeightOwner?
 }
 
@@ -168,6 +180,7 @@ pub struct PagedGraphExecutor {
   priv fp8_scale_evidence : Fp8ScaleEvidenceV3?
   priv graph_telemetry : PagedGraphTelemetryOwner
   priv graph_bucket_table : @luna_execution_graph_strategy.ExecutionGraphBucketTable
+  priv ordered_dispatch : PagedOrderedExecutorDispatch
   priv fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan]
   priv fused_dispatch_canary : FusedDispatchCanaryState?
   priv mut lifecycle : PagedGraphLifecycle
@@ -180,6 +193,7 @@ pub struct StagedPagedGraphExecution {
   priv executor : PagedGraphExecutor
   priv epoch : UInt64
   priv graph_bucket : @luna_execution_graph_strategy.ExecutionGraphBucket
+  priv ordered_executor_index : Int
 }
 
 ///|
@@ -195,6 +209,7 @@ pub fn StagedPagedGraphExecution::graph_bucket(
 pub struct ExecutedPagedGraphExecution {
   priv executor : PagedGraphExecutor
   priv epoch : UInt64
+  priv ordered_executor_index : Int
 }
 
 ///|

@@ -232,10 +232,12 @@ pub fn prepare_i8_paged_graph_executor_v1(
   let completion = evidence.completion
   let functions = evidence.functions
   let function_indices = evidence.function_indices
+  let graph_bucket_table = new_paged_graph_bucket_table(blueprint.profile())
   let descriptor : Ref[DeviceStepOwner?] = Ref(None)
   let activation_workspace : Ref[@device.Allocation?] = Ref(None)
   let persistent_kv : Ref[@device.Allocation?] = Ref(None)
   let prepared_steps : Ref[ReadOnlyArray[PreparedPagedGraphStep]?] = Ref(None)
+  let ordered_dispatch : Ref[PagedOrderedExecutorDispatch?] = Ref(None)
   let stages : Array[() -> Unit raise DeviceStepError] = [
     () => {
       let outcome = prepare(
@@ -328,7 +330,16 @@ pub fn prepare_i8_paged_graph_executor_v1(
       guard prepared_steps.val is Some(steps) else {
         raise InvalidExecutor(ResourceState)
       }
-      prepare_paged_ordered_executor(context, steps, resources, graph_policy)
+      ordered_dispatch.val = Some(
+        prepare_paged_ordered_executors(
+          context,
+          steps,
+          resources,
+          graph_policy,
+          graph_bucket_table,
+          blueprint.profile(),
+        ),
+      )
     },
   ]
   match
@@ -337,7 +348,8 @@ pub fn prepare_i8_paged_graph_executor_v1(
     }) {
     Some(failure) => failure
     None => {
-      guard prepared_steps.val is Some(steps) else {
+      guard prepared_steps.val is Some(steps) &&
+        ordered_dispatch.val is Some(dispatch) else {
         return paged_construction_failed(
           resources,
           InvalidExecutor(ResourceState),
@@ -351,10 +363,11 @@ pub fn prepare_i8_paged_graph_executor_v1(
         fp8_frame_admission: None,
         fp8_scale_evidence: None,
         graph_telemetry: new_paged_graph_telemetry(
-          open_paged_ordered_executor(resources).execution_mode(),
+          open_paged_ordered_executor(resources, dispatch.telemetry_owner_index).execution_mode(),
           None,
         ),
-        graph_bucket_table: new_paged_graph_bucket_table(blueprint.profile()),
+        graph_bucket_table,
+        ordered_dispatch: dispatch,
         fused_residual_spans: ReadOnlyArray::from_array([]),
         fused_dispatch_canary: None,
         lifecycle: GraphReady,

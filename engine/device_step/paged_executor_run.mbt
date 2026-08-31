@@ -21,8 +21,9 @@ fn complete_descriptor(
 ///|
 fn open_paged_ordered_executor(
   resources : PagedGraphResources,
+  index : Int,
 ) -> @device.OrderedKernelExecutor raise DeviceStepError {
-  guard resources.ordered_executor is Some(owner) && owner.open else {
+  guard resources.ordered_executors.get(index) is Some(owner) && owner.open else {
     raise InvalidExecutor(ResourceState)
   }
   owner.resource
@@ -130,6 +131,7 @@ pub fn PagedGraphExecutor::stage(
     self.graph_bucket_table,
     plan,
   )
+  let ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
   let descriptor = complete_descriptor(self.resources)
   let staged = descriptor.stage_with_sampling_mode(
     plan,
@@ -138,7 +140,7 @@ pub fn PagedGraphExecutor::stage(
     error => propagate_descriptor_poison(self, descriptor, error)
   }
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1, graph_bucket }
+  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
 }
 
 ///|
@@ -150,6 +152,7 @@ pub fn PagedGraphExecutor::stage_frame(
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)
+  let ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
   let descriptor = complete_descriptor(self.resources)
   let staged = match self.fp8_frame_envelope {
     Some(envelope) => {
@@ -176,7 +179,7 @@ pub fn PagedGraphExecutor::stage_frame(
     }
   }
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1, graph_bucket }
+  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
 }
 
 ///|
@@ -190,7 +193,10 @@ pub fn PagedGraphExecutor::execute(
 ) -> ExecutedPagedGraphExecution raise DeviceStepError {
   let descriptor = authenticate_staged_paged(staged, self)
   authenticate_and_consume_fp8_frame_token_v3(self, descriptor, staged)
-  let ordered = open_paged_ordered_executor(self.resources)
+  let ordered = open_paged_ordered_executor(
+    self.resources,
+    staged.ordered_executor_index,
+  )
   arm_fused_dispatch_canary(self, descriptor) catch {
     error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
   }
@@ -243,9 +249,13 @@ pub fn PagedGraphExecutor::execute(
   validate_fp8_scale_evidence_v3(self) catch {
     error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
   }
-  self.graph_telemetry.record_completed()
+  self.graph_telemetry.record_completed(ordered.execution_mode())
   self.lifecycle = GraphExecuted
-  { executor: self, epoch: staged.epoch }
+  {
+    executor: self,
+    epoch: staged.epoch,
+    ordered_executor_index: staged.ordered_executor_index,
+  }
 }
 
 ///|
@@ -257,7 +267,10 @@ pub fn PagedGraphExecutor::finish(
 ) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   descriptor.finish(StagedDeviceStep(descriptor, executed.epoch))
-  let ordered = open_paged_ordered_executor(self.resources)
+  let ordered = open_paged_ordered_executor(
+    self.resources,
+    executed.ordered_executor_index,
+  )
   ordered.reset() catch {
     error => {
       self.lifecycle = GraphPoisoned

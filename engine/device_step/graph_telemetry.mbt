@@ -76,13 +76,14 @@ fn new_paged_graph_telemetry(
 ///|
 fn PagedGraphTelemetryOwner::record_completed(
   self : PagedGraphTelemetryOwner,
+  mode : @device.OrderedKernelExecutionMode,
 ) -> Unit {
-  match self.selected_path {
-    PagedGraphCaptured =>
+  match mode {
+    OrderedKernelCaptured =>
       if self.graph_hits != 0xffffffffffffffffUL {
         self.graph_hits += 1UL
       }
-    PagedGraphOrderedEager =>
+    OrderedKernelEager =>
       if self.graph_misses != 0xffffffffffffffffUL {
         self.graph_misses += 1UL
       }

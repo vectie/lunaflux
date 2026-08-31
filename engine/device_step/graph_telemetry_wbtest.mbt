@@ -29,8 +29,8 @@ test "actual captured mode records only graph hits with authenticated shape" {
   assert_eq(shape.query_tokens_per_row(), 5)
   assert_eq(shape.context_tokens(), 5)
   assert_eq(shape.token_rows(), 15L)
-  telemetry.record_completed()
-  telemetry.record_completed()
+  telemetry.record_completed(OrderedKernelCaptured)
+  telemetry.record_completed(OrderedKernelCaptured)
   let completed = telemetry.snapshot()
   assert_eq(completed.graph_hits(), 2UL)
   assert_eq(completed.graph_misses(), 0UL)
@@ -41,7 +41,7 @@ test "actual captured mode records only graph hits with authenticated shape" {
 ///|
 test "actual eager mode records misses and never fabricates shape evidence" {
   let telemetry = new_paged_graph_telemetry(OrderedKernelEager, None)
-  telemetry.record_completed()
+  telemetry.record_completed(OrderedKernelEager)
   let report = telemetry.snapshot()
   assert_eq(report.selected_path(), PagedGraphOrderedEager)
   assert_true(report.selected_shape_class() is None)
@@ -56,12 +56,12 @@ test "graph runtime counters saturate without wrapping or changing selection" {
     Some(graph_telemetry_shape(1, 1)),
   )
   hit.graph_hits = 0xffffffffffffffffUL
-  hit.record_completed()
+  hit.record_completed(OrderedKernelCaptured)
   assert_eq(hit.snapshot().graph_hits(), 0xffffffffffffffffUL)
   assert_eq(hit.snapshot().selected_path(), PagedGraphCaptured)
   let miss = new_paged_graph_telemetry(OrderedKernelEager, None)
   miss.graph_misses = 0xffffffffffffffffUL
-  miss.record_completed()
+  miss.record_completed(OrderedKernelEager)
   assert_eq(miss.snapshot().graph_misses(), 0xffffffffffffffffUL)
   assert_eq(miss.snapshot().selected_path(), PagedGraphOrderedEager)
 }
