@@ -18,7 +18,10 @@ fail() {
 sh -n "$materializer" || fail 'materializer syntax is invalid'
 for anchor in \
   'lunaflux.runtime.qwen3_bf16.v1' \
+  'lunaflux.runtime.qwen3_bf16.v2' \
   'dense_qwen3_bf16_paged_aot_v12' \
+  'augment-luna-kernel-root-plan-with-fused-runtime.sh' \
+  'reusable-fused-residual.runtime.v1' \
   'authenticated_embedded_greedy_sampling' \
   'sampling_runtime=host' \
   'validate-release' \
@@ -26,6 +29,9 @@ for anchor in \
   grep -R -F "$anchor" "$materializer" tests/qwen3_bf16_physical >/dev/null ||
     fail "serving anchor is absent: $anchor"
 done
+if grep -F 'cp "$fused_residual"' "$materializer" >/dev/null; then
+  fail 'reusable fused residual runtime bypasses kernel-root plan assembly'
+fi
 for anchor in \
   'native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1' \
   'native correctness profile requires authenticated c1 release geometry' \

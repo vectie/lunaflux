@@ -1,11 +1,14 @@
 import {
-  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
   "moonbitlang/core/strconv",
+  "moonbitlang/core/env",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
-  "vectie/lunaflux/kernels/luna_capability_manifest",
-  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
 }
 
 supported_targets = "native"
+
+pkgtype(kind: "executable")

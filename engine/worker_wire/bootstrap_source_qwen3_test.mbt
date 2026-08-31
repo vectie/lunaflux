@@ -1,6 +1,7 @@
 ///|
 fn qwen3_source_fixture(
   sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+  fused_runtime? : @worker_wire.WorkerBootstrapFusedRuntimeSource? = None,
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -19,6 +20,7 @@ fn qwen3_source_fixture(
       manifest_locator="manifests/qwen3-bf16-paged.json",
       manifest_digest_sha256=source_digest_b(),
       sampling_runtime~,
+      fused_runtime~,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
       compute_major=8,
@@ -66,6 +68,28 @@ test "Qwen3 v12 roundtrips embedded CUDA greedy sampling" {
   let decoded = @worker_wire.decode_bootstrap_source(frame, encoded.length())
   assert_eq(decoded.digest(), encoded.digest())
   assert_eq(decoded.kernel().sampling_runtime(), EmbeddedCudaGreedyV1)
+}
+
+///|
+test "Qwen3 v13 roundtrips reusable fused runtime" {
+  let encoded = qwen3_source_fixture(
+    fused_runtime=Some(
+      @worker_wire.WorkerBootstrapFusedRuntimeSource::new(
+        locator="aggregates/fused-runtime.v1",
+        digest_sha256=source_digest_a(),
+      ),
+    ),
+  )
+  assert_eq(encoded.recipe(), DenseQwen3Bf16PagedAotExtensionsV13)
+  let frame = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(frame, destination_offset=0)
+  let decoded = @worker_wire.decode_bootstrap_source(frame, encoded.length())
+  assert_eq(decoded.digest(), encoded.digest())
+  guard decoded.kernel().fused_runtime_source() is Some(fused) else {
+    fail("Qwen3 v13 fused runtime was discarded")
+  }
+  assert_eq(fused.locator(), "aggregates/fused-runtime.v1")
+  assert_eq(fused.digest_sha256(), source_digest_a())
 }
 
 ///|

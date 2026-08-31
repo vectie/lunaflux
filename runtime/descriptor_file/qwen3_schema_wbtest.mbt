@@ -53,6 +53,31 @@ test "Qwen3 bootstrap source preserves embedded CUDA greedy sampling" {
 }
 
 ///|
+test "Qwen3 v2 descriptor carries reusable fused runtime into bootstrap" {
+  let extended = qwen3_descriptor_fixture()
+    .replace(
+      old="lunaflux.runtime.qwen3_bf16.v1",
+      new="lunaflux.runtime.qwen3_bf16.v2",
+    )
+    .replace(
+      old="\"admitted_bootstrap_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"",
+      new="\"admitted_bootstrap_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"fused_runtime\":{\"locator\":\"fused.runtime.v1\",\"sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
+    )
+  let claims = parse_qwen3_fixture(extended)
+  guard claims.kernels.fused_runtime is Some(fused) else {
+    fail("Qwen3 v2 lost its fused runtime")
+  }
+  assert_eq(fused.locator, "fused.runtime.v1")
+  let source = admit_qwen3_source(
+    "/srv/lunaflux/qwen3",
+    "/srv/lunaflux/kernels",
+    claims,
+    admit_ceilings(claims.ceilings),
+  )
+  assert_eq(source.recipe(), DenseQwen3Bf16PagedAotExtensionsV13)
+}
+
+///|
 test "Qwen3 descriptor rejects family and tied-mode substitution" {
   let canonical = qwen3_descriptor_fixture()
   for

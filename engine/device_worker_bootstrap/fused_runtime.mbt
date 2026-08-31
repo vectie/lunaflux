@@ -36,9 +36,10 @@ fn read_fused_runtime_snapshot(
 /// Loads the optional descriptor-pinned source once while the inherited kernel
 /// root is still open. Absence deliberately preserves the standalone plan.
 priv struct LoadedOptionalFusedRuntime {
-  catalog : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog
-  bundle : @luna_fused_artifact_admission.ApprovedFusedKernelBundle
+  catalog : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog?
+  bundle : @luna_fused_artifact_admission.ApprovedFusedKernelBundle?
   production : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?
+  reusable_residual : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime?
 }
 
 ///|
@@ -62,7 +63,23 @@ fn load_optional_fused_runtime(
   let is_production = text.has_prefix(
     "schema=lunaflux-fused-production-runtime-source.v1\n",
   )
-  if is_production {
+  let is_reusable_residual = text.has_prefix(
+    "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
+  )
+  if is_reusable_residual {
+    let residual = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_residual_runtime(
+      canonical,
+      fused.digest_sha256(),
+    ) catch {
+      error => raise FusedArtifact(error)
+    }
+    Some({
+      catalog: None,
+      bundle: None,
+      production: None,
+      reusable_residual: Some(residual),
+    })
+  } else if is_production {
     let production = @luna_paged_composite_artifact_admission.admit_digest_pinned_fused_production_runtime(
       canonical,
       fused.digest_sha256(),
@@ -70,9 +87,10 @@ fn load_optional_fused_runtime(
       _ => raise Invalid(Digest)
     }
     Some({
-      catalog: production.fused_catalog(),
-      bundle: production.fused_bundle(),
+      catalog: Some(production.fused_catalog()),
+      bundle: Some(production.fused_bundle()),
       production: Some(production),
+      reusable_residual: None,
     })
   } else {
     let pair = @luna_fused_artifact_admission.admit_digest_pinned_fused_runtime_source(
@@ -81,6 +99,11 @@ fn load_optional_fused_runtime(
     ) catch {
       error => raise FusedArtifact(error)
     }
-    Some({ catalog: pair.0, bundle: pair.1, production: None })
+    Some({
+      catalog: Some(pair.0),
+      bundle: Some(pair.1),
+      production: None,
+      reusable_residual: None,
+    })
   }
 }

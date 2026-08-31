@@ -8,18 +8,32 @@ const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12 : Int = 12
 const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12 : Int = 264
 
 ///|
+const QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 : UInt = 13
+
+///|
+const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V13 : Int = 13
+
+///|
+const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V13 : Int = 296
+
+///|
 fn qwen3_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerQwen3BootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
 ) -> Array[Int] {
-  [
+  let lengths = [
     @utf8.encode(roots.model_root()).length(),
     @utf8.encode(model.config_locator()).length(),
     @utf8.encode(model.numeric_weights_locator()).length(),
     @utf8.encode(roots.kernel_root()).length(),
     @utf8.encode(kernel.manifest_locator()).length(),
   ]
+  match kernel.fused_runtime_source() {
+    Some(source) => lengths.push(@utf8.encode(source.locator()).length())
+    None => ()
+  }
+  lengths
 }
 
 ///|
@@ -34,14 +48,18 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   if kernel.luna_approval() is Some(_) ||
-    kernel.fused_runtime_source() is Some(_) ||
     !execution.supports_bf16() ||
     !model.tied_embeddings() {
     raise InvalidBootstrapSource(Recipe)
   }
   let lengths = qwen3_source_lengths(roots, model, kernel)
-  let mut length = QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12 +
-    BOOTSTRAP_SOURCE_DIGEST_BYTES
+  let extensions = kernel.fused_runtime_source() is Some(_)
+  let header_bytes = if extensions {
+    QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V13
+  } else {
+    QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12
+  }
+  let mut length = header_bytes + BOOTSTRAP_SOURCE_DIGEST_BYTES
   for item in lengths {
     if item <= 0 || item > BOOTSTRAP_SOURCE_MAX_PATH_BYTES {
       raise InvalidLimit(BootstrapSourceBytes)
@@ -53,10 +71,26 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
   }
   let storage = FixedArray::make(BOOTSTRAP_SOURCE_CAPACITY, b'\x00')
   write_u32(storage, 0, BOOTSTRAP_SOURCE_MAGIC)
-  write_u32(storage, 4, QWEN3_BOOTSTRAP_SOURCE_VERSION_V12)
-  write_i32(storage, 8, QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12)
+  write_u32(
+    storage,
+    4,
+    if extensions {
+      QWEN3_BOOTSTRAP_SOURCE_VERSION_V13
+    } else {
+      QWEN3_BOOTSTRAP_SOURCE_VERSION_V12
+    },
+  )
+  write_i32(
+    storage,
+    8,
+    if extensions {
+      QWEN3_BOOTSTRAP_SOURCE_RECIPE_V13
+    } else {
+      QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12
+    },
+  )
   write_i32(storage, 12, length)
-  write_u32(storage, 16, 0U)
+  write_u32(storage, 16, if extensions { 2U } else { 0U })
   for index in 0..<5 {
     write_i32(storage, 20 + index * 4, lengths[index])
   }
@@ -112,7 +146,16 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
       EmbeddedCudaGreedyV1 => 1U
     },
   )
-  write_u64(storage, 256, 0UL)
+  if extensions {
+    write_i32(storage, 256, lengths[5])
+    write_u32(storage, 260, 0U)
+    guard kernel.fused_runtime_source() is Some(fused) else {
+      raise InvalidBootstrapSource(Recipe)
+    }
+    write_bootstrap_source_digest(storage, 264, fused.digest_sha256())
+  } else {
+    write_u64(storage, 256, 0UL)
+  }
   let values = [
     roots.model_root(),
     model.config_locator(),
@@ -120,9 +163,14 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
     roots.kernel_root(),
     kernel.manifest_locator(),
   ]
-  let mut cursor = QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12
+  let mut cursor = header_bytes
   for value in values {
     cursor = write_bootstrap_source_string(storage, cursor, value)
+  }
+  match kernel.fused_runtime_source() {
+    Some(source) =>
+      cursor = write_bootstrap_source_string(storage, cursor, source.locator())
+    None => ()
   }
   let digest = bootstrap_source_digest_of(storage, cursor)
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
@@ -135,7 +183,11 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
     kernel,
     execution,
     ceilings,
-    recipe: DenseQwen3Bf16PagedAotV12,
+    recipe: if extensions {
+      DenseQwen3Bf16PagedAotExtensionsV13
+    } else {
+      DenseQwen3Bf16PagedAotV12
+    },
     tensor_parallel_policy: None,
     i8_model_source: None,
     i8_execution: None,
@@ -151,24 +203,44 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
   source : FixedArray[Byte],
   length : Int,
 ) -> EncodedBootstrapSource raise WorkerWireError {
-  let header = QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12
+  let extensions = read_u32(source, 4) == QWEN3_BOOTSTRAP_SOURCE_VERSION_V13
+  let header = if extensions {
+    QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V13
+  } else {
+    QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12
+  }
   if source.length() < header ||
     length < header + BOOTSTRAP_SOURCE_DIGEST_BYTES ||
     length > BOOTSTRAP_SOURCE_CAPACITY ||
     read_u32(source, 0) != BOOTSTRAP_SOURCE_MAGIC ||
-    read_u32(source, 4) != QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 ||
-    read_i32(source, 8) != QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12 ||
+    (if extensions {
+      read_i32(source, 8) != QWEN3_BOOTSTRAP_SOURCE_RECIPE_V13
+    } else {
+      read_u32(source, 4) != QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 ||
+      read_i32(source, 8) != QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12
+    }) ||
     read_i32(source, 12) != length ||
-    read_u32(source, 16) != 0U ||
+    read_u32(source, 16) != (if extensions { 2U } else { 0U }) ||
     read_i32(source, 248) != 1 ||
     read_u32(source, 252) > 1U ||
-    read_u64(source, 256) != 0UL {
+    (if extensions {
+      read_i32(source, 256) <= 0 ||
+      read_i32(source, 256) > BOOTSTRAP_SOURCE_MAX_PATH_BYTES ||
+      read_u32(source, 260) != 0U
+    } else {
+      read_u64(source, 256) != 0UL
+    }) {
     raise InvalidBootstrapSource(Reserved)
   }
-  let lengths = FixedArray::make(5, 0)
+  let value_count = if extensions { 6 } else { 5 }
+  let lengths = FixedArray::make(value_count, 0)
   let mut payload = 0
-  for index in 0..<5 {
-    let item = read_i32(source, 20 + index * 4)
+  for index in 0..<value_count {
+    let item = if index == 5 {
+      read_i32(source, 256)
+    } else {
+      read_i32(source, 20 + index * 4)
+    }
     if item <= 0 ||
       item > BOOTSTRAP_SOURCE_MAX_PATH_BYTES ||
       payload > BOOTSTRAP_SOURCE_CAPACITY - item {
@@ -180,9 +252,9 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
   if header + payload + BOOTSTRAP_SOURCE_DIGEST_BYTES != length {
     raise InvalidBootstrapSource(Length)
   }
-  let values = FixedArray::make(5, "")
+  let values = FixedArray::make(value_count, "")
   let mut cursor = header
-  for index in 0..<5 {
+  for index in 0..<value_count {
     values[index] = read_bootstrap_source_string(source, cursor, lengths[index])
     cursor += lengths[index]
   }
@@ -201,6 +273,16 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
   let kernel = WorkerBootstrapKernelSource::new(
     manifest_locator=values[4],
     manifest_digest_sha256=bootstrap_source_raw_digest(source, 152).as_hex(),
+    fused_runtime=if extensions {
+      Some(
+        WorkerBootstrapFusedRuntimeSource::new(
+          locator=values[5],
+          digest_sha256=bootstrap_source_raw_digest(source, 264).as_hex(),
+        ),
+      )
+    } else {
+      None
+    },
     sampling_runtime=if read_u32(source, 252) == 1U {
       EmbeddedCudaGreedyV1
     } else {

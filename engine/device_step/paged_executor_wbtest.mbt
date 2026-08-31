@@ -53,7 +53,7 @@ fn dummy_paged_executor(
     fp8_frame_admission,
     fp8_scale_evidence: None,
     graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
-    fused_residual_span: None,
+    fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,
     lifecycle,
   }

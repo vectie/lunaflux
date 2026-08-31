@@ -360,7 +360,8 @@ pub fn prepare_paged_graph_executor(
   accepted_predecessor_value~ : UInt64,
   luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
   graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
-  fused_residual_span? : ApprovedFusedResidualRmsNormSpan? = None,
+  fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
+  ),
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
   diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
   sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
@@ -380,15 +381,13 @@ pub fn prepare_paged_graph_executor(
     has_accepted_predecessor, accepted_predecessor_value,
   )
   validate_executor_evidence(context, blueprint, weights)
-  match fused_residual_span {
-    Some(span) =>
-      if span.model_generation() != model_generation ||
-        span.target() != blueprint.target() ||
-        !fused_dispatch_policy_allows_graph(diagnostic_policy, graph_policy) ||
-        !fused_dispatch_policy_allows_span(diagnostic_policy, span.kernel_abi()) {
-        raise InvalidExecutor(ResourceState)
-      }
-    None => ()
+  for span in fused_residual_spans {
+    if span.model_generation() != model_generation ||
+      span.target() != blueprint.target() ||
+      !fused_dispatch_policy_allows_graph(diagnostic_policy, graph_policy) ||
+      !fused_dispatch_policy_allows_span(diagnostic_policy, span.kernel_abi()) {
+      raise InvalidExecutor(ResourceState)
+    }
   }
   match fused_qkv_readonly_span {
     Some(span) =>
@@ -490,7 +489,7 @@ pub fn prepare_paged_graph_executor(
     activation_workspace,
     persistent_kv,
     resources,
-    fused_residual_span,
+    fused_residual_spans,
     fused_qkv_readonly_span,
   ) catch {
     error => return paged_construction_failed(resources, error)
@@ -508,7 +507,7 @@ pub fn prepare_paged_graph_executor(
     model_steps,
     resources,
     graph_policy,
-    fused_residual_span,
+    fused_residual_spans,
     diagnostic_policy,
   )
 }

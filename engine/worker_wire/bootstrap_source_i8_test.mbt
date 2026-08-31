@@ -115,7 +115,7 @@ test "common codec rejects foreign version paired with I8 v6 recipe" {
   i8.copy_to(bytes, destination_offset=0)
   // Recipe remains v6, but a foreign version must fail at the common version
   // gate before any I8 payload interpretation.
-  bytes[4] = b'\x0d'
+  bytes[4] = b'\x0e'
   try @worker_wire.decode_bootstrap_source(bytes, i8.length()) catch {
     InvalidBootstrapSource(Version) => ()
     _ => fail("foreign version reported the wrong common-codec failure")

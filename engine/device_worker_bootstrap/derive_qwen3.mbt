@@ -17,9 +17,11 @@ fn validate_qwen3_source_envelope(
   if source.digest() != startup.bootstrap_source_digest() {
     raise Invalid(SourceDigest)
   }
-  if source.recipe() != DenseQwen3Bf16PagedAotV12 ||
-    source.kernel().luna_approval() is Some(_) ||
-    source.kernel().fused_runtime_source() is Some(_) {
+  if (
+      source.recipe() != DenseQwen3Bf16PagedAotV12 &&
+      source.recipe() != DenseQwen3Bf16PagedAotExtensionsV13
+    ) ||
+    source.kernel().luna_approval() is Some(_) {
     raise Invalid(Recipe)
   }
   match source.kernel().sampling_runtime() {

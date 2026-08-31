@@ -354,7 +354,7 @@ pub fn prepare_i8_paged_graph_executor_v1(
           open_paged_ordered_executor(resources).execution_mode(),
           None,
         ),
-        fused_residual_span: None,
+        fused_residual_spans: ReadOnlyArray::from_array([]),
         fused_dispatch_canary: None,
         lifecycle: GraphReady,
       })

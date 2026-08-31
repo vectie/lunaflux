@@ -66,23 +66,28 @@ fn validate_weight_evidence(
 }
 
 ///|
-fn admit_optional_fused_residual_span(
+fn admit_optional_fused_residual_spans(
   model_plan : @plan.ModelPlan,
   generation : @worker_protocol.ModelPlanGeneration,
   blueprint : @device_step.PagedKvExecutionBlueprint,
   fused_catalog : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog?,
   fused_bundle : @luna_fused_artifact_admission.ApprovedFusedKernelBundle?,
-) -> @device_step.ApprovedFusedResidualRmsNormSpan? raise DeviceWorkerError {
-  match (fused_catalog, fused_bundle) {
-    (None, None) => None
-    (Some(catalog), Some(bundle)) =>
-      Some(
-        @device_step.admit_production_fused_residual_rmsnorm_span(
-          model_plan, generation, blueprint, catalog, bundle,
-        ) catch {
-          _ => raise Invalid(ResourceState)
-        },
-      )
+  reusable_fused_residual_runtime : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime?,
+) -> ReadOnlyArray[@device_step.ApprovedFusedResidualRmsNormSpan] raise DeviceWorkerError {
+  match (fused_catalog, fused_bundle, reusable_fused_residual_runtime) {
+    (None, None, None) => ReadOnlyArray::from_array([])
+    (Some(catalog), Some(bundle), None) =>
+      @device_step.admit_production_fused_residual_rmsnorm_spans(
+        model_plan, generation, blueprint, catalog, bundle,
+      ) catch {
+        _ => raise Invalid(ResourceState)
+      }
+    (None, None, Some(runtime)) =>
+      @device_step.admit_reusable_fused_residual_rmsnorm_spans(
+        model_plan, generation, blueprint, runtime,
+      ) catch {
+        _ => raise Invalid(ResourceState)
+      }
     _ => raise Invalid(ResourceState)
   }
 }
@@ -100,6 +105,7 @@ pub fn admit_plan(
   sampling_policy? : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
   fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
   fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
+  reusable_fused_residual_runtime? : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
   fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
   fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
@@ -136,12 +142,13 @@ pub fn admit_plan(
     fused_qkv_readonly_source is Some(_) {
     raise Invalid(ResourceState)
   }
-  let fused_residual_span = admit_optional_fused_residual_span(
+  let fused_residual_spans = admit_optional_fused_residual_spans(
     execution.model_plan(),
     generation,
     blueprint,
     fused_catalog,
     fused_bundle,
+    reusable_fused_residual_runtime,
   )
   {
     startup: admitted_startup,
@@ -151,7 +158,7 @@ pub fn admit_plan(
     execution,
     manifest,
     sampling_policy,
-    fused_residual_span,
+    fused_residual_spans,
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -169,6 +176,7 @@ pub fn admit_numeric_bf16_plan_v1(
   sampling_policy? : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
   fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
   fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
+  reusable_fused_residual_runtime? : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
   fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
   fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
@@ -207,12 +215,13 @@ pub fn admit_numeric_bf16_plan_v1(
     fused_qkv_readonly_source is Some(_) {
     raise Invalid(ResourceState)
   }
-  let fused_residual_span = admit_optional_fused_residual_span(
+  let fused_residual_spans = admit_optional_fused_residual_spans(
     model_plan,
     generation,
     execution.blueprint(),
     fused_catalog,
     fused_bundle,
+    reusable_fused_residual_runtime,
   )
   {
     startup: admitted_startup,
@@ -222,7 +231,7 @@ pub fn admit_numeric_bf16_plan_v1(
     execution,
     manifest,
     sampling_policy,
-    fused_residual_span,
+    fused_residual_spans,
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -323,7 +332,7 @@ pub fn prepare(
         luna_authorization=execution.luna_authorization(),
         graph_policy~,
         sampling_policy=plan.sampling_policy,
-        fused_residual_span=plan.fused_residual_span,
+        fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),
@@ -372,7 +381,7 @@ pub fn prepare(
         luna_authorization=execution.luna_authorization(),
         graph_policy~,
         sampling_policy=plan.sampling_policy,
-        fused_residual_span=plan.fused_residual_span,
+        fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),

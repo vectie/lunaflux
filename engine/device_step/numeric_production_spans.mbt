@@ -1,35 +1,36 @@
 ///|
 fn replace_paged_production_spans(
   baseline : ReadOnlyArray[PreparedPagedGraphStep],
-  residual_replacement : PreparedPagedGraphStep?,
-  residual_span : ApprovedFusedResidualRmsNormSpan?,
+  residual_replacements : ReadOnlyArray[PreparedPagedGraphStep],
+  residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   qkv_readonly_replacements : (PreparedPagedGraphStep, PreparedPagedGraphStep)?,
   qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
-  let residual_indices = match (residual_replacement, residual_span) {
-    (Some(_), Some(span)) => Some(span.operation_indices())
-    (None, None) => None
-    _ => raise InvalidExecutor(ResourceState)
+  if residual_replacements.length() != residual_spans.length() {
+    raise InvalidExecutor(ResourceState)
   }
   let qkv_indices = match (qkv_readonly_replacements, qkv_readonly_span) {
     (Some(_), Some(span)) => Some(span.operation_indices())
     (None, None) => None
     _ => raise InvalidExecutor(ResourceState)
   }
-  match (residual_indices, qkv_indices) {
-    (Some(residual), Some(qkv)) =>
-      if residual.0 == qkv.0 ||
-        residual.0 == qkv.1 ||
-        residual.0 == qkv.2 ||
-        residual.1 == qkv.0 ||
-        residual.1 == qkv.1 ||
-        residual.1 == qkv.2 {
-        raise InvalidExecutor(ResourceState)
-      }
-    _ => ()
+  for span in residual_spans {
+    let residual = span.operation_indices()
+    match qkv_indices {
+      Some(qkv) =>
+        if residual.0 == qkv.0 ||
+          residual.0 == qkv.1 ||
+          residual.0 == qkv.2 ||
+          residual.1 == qkv.0 ||
+          residual.1 == qkv.1 ||
+          residual.1 == qkv.2 {
+          raise InvalidExecutor(ResourceState)
+        }
+      None => ()
+    }
   }
-  match (residual_indices, qkv_indices, qkv_readonly_replacements) {
-    (None, Some(indices), Some(replacements)) =>
+  match (residual_spans.is_empty(), qkv_indices, qkv_readonly_replacements) {
+    (true, Some(indices), Some(replacements)) =>
       return replace_fused_qkv_readonly_span(
         baseline,
         replacements.0,
@@ -55,17 +56,21 @@ fn replace_paged_production_spans(
       }
       _ => ()
     }
-    match (residual_indices, residual_replacement) {
-      (Some(indices), Some(replacement)) => {
-        if index == indices.0 {
-          output.push(replacement)
-          continue
-        }
-        if index == indices.1 {
-          continue
-        }
+    let mut residual_replaced = false
+    for span_index, span in residual_spans {
+      let indices = span.operation_indices()
+      if index == indices.0 {
+        output.push(residual_replacements[span_index])
+        residual_replaced = true
+        break
       }
-      _ => ()
+      if index == indices.1 {
+        residual_replaced = true
+        break
+      }
+    }
+    if residual_replaced {
+      continue
     }
     output.push(step)
   }

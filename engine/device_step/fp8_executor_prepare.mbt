@@ -295,7 +295,7 @@ pub fn prepare_fp8_paged_graph_executor_v3(
     }),
     fp8_scale_evidence: scale_evidence,
     graph_telemetry,
-    fused_residual_span: None,
+    fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,
     lifecycle: GraphReady,
   })

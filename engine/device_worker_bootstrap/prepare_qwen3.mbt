@@ -49,6 +49,9 @@ fn prepare_qwen3_with_roots(
   let execution = load_qwen3_execution(source, kernel_root, derived) catch {
     error => return preparation_failed(roots, None, error)
   }
+  let fused_runtime = load_optional_fused_runtime(source, kernel_root) catch {
+    error => return preparation_failed(roots, None, error)
+  }
   let sampling_policy = @device_worker.admit_bootstrap_sampling_policy(
     source,
     derived.plan,
@@ -63,6 +66,22 @@ fn prepare_qwen3_with_roots(
     execution~,
     bootstrap_limits=derived.bootstrap_limits,
     sampling_policy~,
+    fused_catalog=match fused_runtime {
+      Some(runtime) => runtime.catalog
+      None => None
+    },
+    fused_bundle=match fused_runtime {
+      Some(runtime) => runtime.bundle
+      None => None
+    },
+    reusable_fused_residual_runtime=match fused_runtime {
+      Some(runtime) => runtime.reusable_residual
+      None => None
+    },
+    fused_qkv_readonly_source=match fused_runtime {
+      Some(runtime) => runtime.production
+      None => None
+    },
   ) catch {
     error => return preparation_failed(roots, None, Worker(error))
   }

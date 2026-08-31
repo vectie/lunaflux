@@ -11,6 +11,7 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseLlamaBf16PagedAotExtensionsV10
   DenseMistralBf16PagedAotExtensionsV11
   DenseQwen3Bf16PagedAotV12
+  DenseQwen3Bf16PagedAotExtensionsV13
 } derive(Debug, Eq)
 
 ///|

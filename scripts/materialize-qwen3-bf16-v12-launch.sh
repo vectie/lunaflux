@@ -16,11 +16,11 @@ fail() {
 
 usage() {
   printf '%s\n' \
-    'usage: materialize-qwen3-bf16-v12-launch.sh ABSOLUTE_MODEL_ROOT CONFIG_SHA256 MODEL_CONTENT_SHA256 TOKENIZER_SHA256 NUMERIC_LOCATOR NUMERIC_SHA256 ROUTE_SHA256 ABSOLUTE_RELEASE_BIND_ROOT ABSOLUTE_RELEASE_BIND_STDOUT#sha256=HEX ABSOLUTE_WORKER#sha256=HEX ABSOLUTE_REFERENCE_CORPUS#sha256=HEX LISTEN_PORT ABSOLUTE_NEW_OUTPUT [native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1]' >&2
+    'usage: materialize-qwen3-bf16-v12-launch.sh ABSOLUTE_MODEL_ROOT CONFIG_SHA256 MODEL_CONTENT_SHA256 TOKENIZER_SHA256 NUMERIC_LOCATOR NUMERIC_SHA256 ROUTE_SHA256 ABSOLUTE_RELEASE_BIND_ROOT ABSOLUTE_RELEASE_BIND_STDOUT#sha256=HEX ABSOLUTE_WORKER#sha256=HEX ABSOLUTE_REFERENCE_CORPUS#sha256=HEX LISTEN_PORT ABSOLUTE_NEW_OUTPUT [native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1] [ABSOLUTE_REUSABLE_FUSED_RESIDUAL_RUNTIME#sha256=HEX]' >&2
   exit 2
 }
 
-case "$#" in 13|14) ;; *) usage ;; esac
+case "$#" in 13|14|15) ;; *) usage ;; esac
 model_root=$1
 config_sha=$2
 model_content_sha=$3
@@ -35,10 +35,26 @@ corpus_argument=${11}
 listen_port=${12}
 output=${13}
 materialization_profile=${14:-native-framed-v1}
+fused_residual_argument=${15:-}
 case "$materialization_profile" in
   native-framed-v1|native-framed-c32-benchmark-v1|openai-responses-v1) ;;
   *) fail 'materialization profile is unsupported' ;;
 esac
+fused_runtime_json=
+descriptor_schema=lunaflux.runtime.qwen3_bf16.v1
+if [ -n "$fused_residual_argument" ]; then
+  case "$fused_residual_argument" in /*#sha256=*) ;; *) usage ;; esac
+  fused_residual=${fused_residual_argument%#sha256=*}
+  fused_residual_sha=${fused_residual_argument##*#sha256=}
+  bundle_require_canonical_absolute_file "$fused_residual"
+  bundle_require_digest "$fused_residual" "$fused_residual_sha" \
+    'reusable fused residual runtime'
+  [ "$(sed -n '1p' "$fused_residual")" = \
+    'schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1' ] ||
+    fail 'reusable fused residual runtime schema is invalid'
+  descriptor_schema=lunaflux.runtime.qwen3_bf16.v2
+  fused_runtime_json=',"fused_runtime":{"locator":"reusable-fused-residual.runtime.v1","sha256":"'"$fused_residual_sha"'"}'
+fi
 
 case "$bind_argument" in /*#sha256=*) ;; *) usage ;; esac
 bind_stdout=${bind_argument%#sha256=*}
@@ -253,6 +269,26 @@ cp "$inventory" "$kernel_source/kernel.files.sha256"
 mkdir "$kernel_source/payload"
 cp -R "$payload/." "$kernel_source/payload/"
 
+if [ -n "$fused_residual_argument" ]; then
+  augmented_kernel_source=$scratch/fused-residual-kernel-source
+  "$repo_root/scripts/augment-luna-kernel-root-plan-with-fused-runtime.sh" \
+    "$kernel_source#sha256=$kernel_plan_sha" \
+    "$fused_residual#sha256=$fused_residual_sha" \
+    "$augmented_kernel_source" >"$scratch/kernel-augment.stdout" \
+    2>"$scratch/kernel-augment.stderr" ||
+    fail 'reusable fused residual kernel-root augmentation failed'
+  [ ! -s "$scratch/kernel-augment.stderr" ] ||
+    fail 'reusable fused residual kernel-root augmentation emitted stderr'
+  kernel_source=$augmented_kernel_source
+  inventory_sha=$(sed -n 's/^kernel_inventory_sha256=//p' \
+    "$scratch/kernel-augment.stdout")
+  kernel_plan_sha=$(sed -n 's/^kernel_plan_sha256=//p' \
+    "$scratch/kernel-augment.stdout")
+  bundle_is_lower_sha256 "$inventory_sha" &&
+    bundle_is_lower_sha256 "$kernel_plan_sha" ||
+    fail 'reusable fused residual kernel-root augmentation emitted invalid digests'
+fi
+
 mkdir "$output"
 output_created=1
 mkdir -p "$output/model-root/runtime" "$output/policy-root/instance" \
@@ -262,6 +298,8 @@ mkdir -p "$output/model-root/runtime" "$output/policy-root/instance" \
   >"$scratch/kernel-assemble.stdout" 2>"$scratch/kernel-assemble.stderr" ||
   fail 'kernel-root assembly failed'
 "$repo_root/scripts/verify-luna-kernel-root.sh" "$output/kernel-release" >/dev/null
+[ "$(bundle_sha256_file "$output/kernel-release/kernel.files.sha256")" = \
+  "$inventory_sha" ] || fail 'assembled kernel inventory mismatch'
 
 cp "$config" "$output/model-root/config.json"
 cp "$tokenizer" "$output/model-root/tokenizer.json"
@@ -274,7 +312,7 @@ cp "$scratch/kernel-assemble.stdout" "$output/evidence/kernel-assemble.stdout"
 cp "$scratch/kernel-assemble.stderr" "$output/evidence/kernel-assemble.stderr"
 
 descriptor=$output/model-root/runtime/descriptor.json
-printf '%s\n' "{\"schema_version\":\"lunaflux.runtime.qwen3_bf16.v1\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$sampling_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_plan_pages,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":$max_decoded_delta_bytes,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":2147483648,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647}}" >"$descriptor"
+printf '%s\n' "{\"schema_version\":\"$descriptor_schema\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$sampling_runtime_json$fused_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_plan_pages,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":$max_decoded_delta_bytes,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":2147483648,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647}}" >"$descriptor"
 descriptor_sha=$(bundle_sha256_file "$descriptor")
 
 policy=$output/policy-root/instance/policy.json

@@ -66,8 +66,18 @@ fn prepare_mistral_with_roots(
     execution~,
     bootstrap_limits=derived.bootstrap_limits,
     sampling_policy~,
-    fused_catalog=fused_runtime.map(runtime => runtime.catalog),
-    fused_bundle=fused_runtime.map(runtime => runtime.bundle),
+    fused_catalog=match fused_runtime {
+      Some(runtime) => runtime.catalog
+      None => None
+    },
+    fused_bundle=match fused_runtime {
+      Some(runtime) => runtime.bundle
+      None => None
+    },
+    reusable_fused_residual_runtime=match fused_runtime {
+      Some(runtime) => runtime.reusable_residual
+      None => None
+    },
     fused_qkv_readonly_source=match fused_runtime {
       Some(runtime) => runtime.production
       None => None

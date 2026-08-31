@@ -72,7 +72,9 @@ pub struct DeviceWorkerPlan {
   priv execution : @execution_manifest_file.PagedExecutionAdmission
   priv manifest : @device_step.DeviceWorkerBootstrapManifest
   priv sampling_policy : @device_step.PagedSamplingExecutionPolicy
-  priv fused_residual_span : @device_step.ApprovedFusedResidualRmsNormSpan?
+  priv fused_residual_spans : ReadOnlyArray[
+    @device_step.ApprovedFusedResidualRmsNormSpan,
+  ]
   priv fused_qkv_readonly_artifacts : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts?
   priv fused_qkv_readonly_source : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?
 }

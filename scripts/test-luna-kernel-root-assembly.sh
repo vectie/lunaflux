@@ -67,6 +67,29 @@ output=$test_root/assembled
 grep -qx 'kernel_manifest_relative=lunaflux.execution.json' "$test_root/assemble.out"
 [ -f "$output/kernel-root/sha256/$module_digest.cubin" ]
 
+runtime=$test_root/reusable-fused-residual.runtime.v1
+printf '%s\n' \
+  'schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1' \
+  'payload=fixture' >"$runtime"
+runtime_digest=$(lbf_sha256_file "$runtime")
+augmented_source=$test_root/augmented-source
+"$repo_root/scripts/augment-luna-kernel-root-plan-with-fused-runtime.sh" \
+  "$source_root#sha256=$plan_sha" "$runtime#sha256=$runtime_digest" \
+  "$augmented_source" >"$test_root/augment.out"
+augmented_plan_sha=$(sed -n 's/^kernel_plan_sha256=//p' \
+  "$test_root/augment.out")
+lbf_is_sha256 "$augmented_plan_sha" ||
+  lbf_fail 'reusable fused residual augmentation omitted plan digest'
+augmented_output=$test_root/augmented-output
+"$repo_root/scripts/assemble-luna-kernel-root.sh" \
+  "$augmented_source#sha256=$augmented_plan_sha" "$augmented_output" >/dev/null
+"$repo_root/scripts/verify-luna-kernel-root.sh" "$augmented_output" >/dev/null
+[ -f "$augmented_output/kernel-root/reusable-fused-residual.runtime.v1" ] ||
+  lbf_fail 'reusable fused residual runtime was not assembled'
+[ "$(lbf_sha256_file \
+  "$augmented_output/kernel-root/reusable-fused-residual.runtime.v1")" = \
+  "$runtime_digest" ] || lbf_fail 'reusable fused residual runtime changed'
+
 if "$repo_root/scripts/assemble-luna-kernel-root.sh" \
   "$source_root#sha256=$plan_sha" "$output" >/dev/null 2>&1; then
   lbf_fail 'kernel-root assembler overwrote existing output'

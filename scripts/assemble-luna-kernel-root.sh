@@ -147,6 +147,12 @@ while IFS= read -r line; do
         'schema=lunaflux-fused-production-runtime-source.v1' ] ||
         lbf_fail 'fused production runtime source schema is invalid'
       ;;
+    reusable-fused-residual.runtime.v1)
+      observed_fused_runtime=$((observed_fused_runtime + 1))
+      [ "$(sed -n '1p' "$file")" = \
+        'schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1' ] ||
+        lbf_fail 'reusable fused residual runtime schema is invalid'
+      ;;
     *) lbf_fail "unsupported kernel-root payload: $relative" ;;
   esac
 done <"$inventory"
@@ -155,7 +161,7 @@ done <"$inventory"
 [ "$observed_module_bytes" -eq "$total_module_bytes" ] ||
   lbf_fail 'kernel-root module byte total mismatch'
 [ "$observed_fused_runtime" -le 1 ] ||
-  lbf_fail 'kernel-root contains multiple fused production runtime sources'
+  lbf_fail 'kernel-root contains multiple fused runtime sources'
 if grep -E -i 'nvrtc|runtime[_-]?jit|developer[_-]?jit|\.ptx|source[_-]?(path|code)' \
   "$payload/$manifest_relative" >/dev/null 2>&1; then
   lbf_fail 'execution manifest contains compiler, PTX, JIT, or source authority'

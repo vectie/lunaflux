@@ -167,7 +167,7 @@ pub struct PagedGraphExecutor {
   priv fp8_frame_admission : Fp8FrameAdmissionStateV3?
   priv fp8_scale_evidence : Fp8ScaleEvidenceV3?
   priv graph_telemetry : PagedGraphTelemetryOwner
-  priv fused_residual_span : ApprovedFusedResidualRmsNormSpan?
+  priv fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan]
   priv fused_dispatch_canary : FusedDispatchCanaryState?
   priv mut lifecycle : PagedGraphLifecycle
 }
@@ -215,7 +215,7 @@ pub fn PagedGraphExecutor::lifecycle(
 pub fn PagedGraphExecutor::uses_fused_residual_rmsnorm(
   self : PagedGraphExecutor,
 ) -> Bool {
-  self.fused_residual_span is Some(_)
+  !self.fused_residual_spans.is_empty()
 }
 
 ///|

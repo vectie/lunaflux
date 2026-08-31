@@ -289,7 +289,7 @@ fn finish_paged_sampling_preparation(
   model_steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
   graph_policy : PagedGraphExecutionPolicy,
-  fused_residual_span : ApprovedFusedResidualRmsNormSpan?,
+  fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
@@ -313,9 +313,9 @@ fn finish_paged_sampling_preparation(
     fp8_frame_admission: None,
     fp8_scale_evidence: None,
     graph_telemetry,
-    fused_residual_span,
+    fused_residual_spans,
     fused_dispatch_canary: prepare_fused_dispatch_diagnostics(
-      diagnostic_policy, fused_residual_span,
+      diagnostic_policy, fused_residual_spans,
     ),
     lifecycle: GraphReady,
   })

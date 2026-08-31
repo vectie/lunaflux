@@ -123,6 +123,16 @@ fn admit_qwen3_source(
   let kernel = @worker_wire.WorkerBootstrapKernelSource::new(
     manifest_locator=claims.kernels.manifest_locator,
     manifest_digest_sha256=claims.kernels.manifest_digest,
+    fused_runtime=match claims.kernels.fused_runtime {
+      Some(fused) =>
+        Some(
+          @worker_wire.WorkerBootstrapFusedRuntimeSource::new(
+            locator=fused.locator,
+            digest_sha256=fused.digest,
+          ),
+        )
+      None => None
+    },
     sampling_runtime=claims.kernels.sampling_runtime,
   ) catch {
     _ => raise AdmissionRejected(BootstrapSource)

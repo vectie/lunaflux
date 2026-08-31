@@ -135,6 +135,37 @@ fn prepare_candidate_set(
 }
 
 ///|
+fn prepare_residual_rmsnorm_candidate(
+  plan : @plan.ModelPlan,
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+) -> @luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate raise Qwen3Bf16CandidateExportCliError {
+  let candidates = set.candidates()
+  for index in 0..<(candidates.length() - 1) {
+    guard candidates[index] is Pointwise(residual) &&
+      residual.family() == ResidualAdd &&
+      candidates[index + 1] is Pointwise(norm) &&
+      norm.family() == RmsNorm else {
+      continue
+    }
+    return @luna_cuda_fused_parallel_aot.lower_fused_residual_rmsnorm_candidate(
+      plan,
+      residual,
+      norm,
+      set.target(),
+      set.compiler_policy(),
+      @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
+        maximum_source_bytes=1048576,
+        maximum_recipe_bytes=65536,
+        maximum_promotion_bytes=65536,
+      ),
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+  }
+  raise CandidatePreparation
+}
+
+///|
 async fn run_qwen3_candidate_export(
   raw_arguments : ArrayView[String],
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {
@@ -144,6 +175,39 @@ async fn run_qwen3_candidate_export(
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
     arguments.absolute_new_output,
+  ) catch {
+    _ => raise Publication
+  }
+  let residual = prepare_residual_rmsnorm_candidate(plan, set)
+  let production = @luna_cuda_fused_parallel_aot.lower_fused_residual_rmsnorm_production_candidate(
+    residual,
+    @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
+      maximum_source_bytes=1048576,
+      maximum_recipe_bytes=65536,
+      maximum_promotion_bytes=65536,
+    ),
+  ) catch {
+    _ => raise CandidatePreparation
+  }
+  let fused_root = arguments.absolute_new_output + "/reusable-fused-residual"
+  @fs.mkdir(fused_root, permission=0o700) catch {
+    _ => raise Publication
+  }
+  @fs.write_file(
+    fused_root + "/kernel.cu",
+    production.source_bytes(),
+    create_mode=CreateNew,
+    permission=0o600,
+    sync=Full,
+  ) catch {
+    _ => raise Publication
+  }
+  @fs.write_file(
+    fused_root + "/kernel.recipe",
+    production.recipe_bytes(),
+    create_mode=CreateNew,
+    permission=0o600,
+    sync=Full,
   ) catch {
     _ => raise Publication
   }
@@ -171,6 +235,12 @@ async fn run_qwen3_candidate_export(
   println("device_opened=0")
   println("runtime_authority=0")
   println("physical_readiness=0")
+  println("reusable_fused_residual_source=" + fused_root + "/kernel.cu")
+  println("reusable_fused_residual_recipe=" + fused_root + "/kernel.recipe")
+  println(
+    "reusable_fused_residual_candidate_sha256=" +
+    production.candidate_digest().as_hex(),
+  )
 }
 
 ///|

@@ -55,9 +55,9 @@ fn prepare_fp8_scale_diagnostics(
 ///|
 fn prepare_fused_dispatch_diagnostics(
   policy : PagedExecutionDiagnosticPolicy,
-  span : ApprovedFusedResidualRmsNormSpan?,
+  spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
 ) -> FusedDispatchCanaryState? {
-  match (policy, span) {
+  match (policy, spans.get(0)) {
     (QualificationDiagnostics, Some(approved)) if approved.uses_qualification_canary() =>
       Some({
         per_token: approved.dispatch_canary_per_token(),

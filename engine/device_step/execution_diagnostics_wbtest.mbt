@@ -4,7 +4,11 @@ test "production execution policy allocates no diagnostic host state" {
     prepare_fp8_scale_diagnostics(ProductionFastPath, 64L, 128L) is None,
   )
   assert_true(
-    prepare_fused_dispatch_diagnostics(ProductionFastPath, None) is None,
+    prepare_fused_dispatch_diagnostics(
+      ProductionFastPath,
+      ReadOnlyArray::from_array([]),
+    )
+    is None,
   )
 }
 

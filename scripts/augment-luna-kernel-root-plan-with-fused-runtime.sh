@@ -27,9 +27,15 @@ lbf_is_sha256 "$runtime_sha" || lbf_fail 'fused runtime digest is invalid'
   lbf_fail 'source plan digest mismatch'
 [ "$(lbf_sha256_file "$runtime")" = "$runtime_sha" ] ||
   lbf_fail 'fused runtime digest mismatch'
-[ "$(sed -n '1p' "$runtime")" = \
-  'schema=lunaflux-fused-production-runtime-source.v1' ] ||
-  lbf_fail 'fused runtime schema is invalid'
+case "$(sed -n '1p' "$runtime")" in
+  schema=lunaflux-fused-production-runtime-source.v1)
+    runtime_relative=fused-production.runtime.v1
+    ;;
+  schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1)
+    runtime_relative=reusable-fused-residual.runtime.v1
+    ;;
+  *) lbf_fail 'fused runtime schema is invalid' ;;
+esac
 
 case "$output" in /*) ;; *) lbf_fail 'output path must be absolute' ;; esac
 case "$output" in /|*//*|*/./*|*/../*|*/.|*/..|*[!A-Za-z0-9._/-]*)
@@ -41,9 +47,12 @@ output_parent=$(CDPATH= cd -- "$(dirname -- "$output")" && pwd -P)
 [ "$output_parent/$(basename -- "$output")" = "$output" ] ||
   lbf_fail 'output parent is not canonical'
 
-scratch=$(mktemp -d /tmp/lunaflux-fused-kernel-plan.XXXXXX) ||
+scratch=$(realpath -- "$(mktemp -d /tmp/lunaflux-fused-kernel-plan.XXXXXX)") ||
   lbf_fail 'could not create scratch directory'
-cleanup() { rm -rf -- "$scratch"; }
+cleanup() {
+  chmod -R u+w "$scratch" 2>/dev/null || true
+  rm -rf -- "$scratch"
+}
 trap cleanup EXIT HUP INT TERM
 "$repo_root/scripts/assemble-luna-kernel-root.sh" "$source_argument" \
   "$scratch/original" >/dev/null
@@ -51,7 +60,7 @@ trap cleanup EXIT HUP INT TERM
 stage=$scratch/stage
 mkdir "$stage" "$stage/payload"
 cp -R "$source_root/payload/." "$stage/payload/"
-cp "$runtime" "$stage/payload/fused-production.runtime.v1"
+cp "$runtime" "$stage/payload/$runtime_relative"
 find "$stage/payload" -type f -print | sed "s#^$stage/payload/##" | LC_ALL=C sort |
   while IFS= read -r relative; do
     printf '%s  %s\n' "$(lbf_sha256_file "$stage/payload/$relative")" "$relative"
@@ -80,6 +89,7 @@ identity_sha=$(lbf_sha256_file "$scratch/identity")
 plan_sha=$(lbf_sha256_file "$stage/kernel-root.plan.v1")
 mv "$stage" "$output"
 trap - EXIT HUP INT TERM
+chmod -R u+w "$scratch" 2>/dev/null || true
 rm -rf -- "$scratch"
 printf '%s\n' 'schema=lunaflux-fused-kernel-root-augmentation.v1'
 printf 'parent_plan_sha256=%s\n' "$source_sha"

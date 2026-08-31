@@ -1,10 +1,12 @@
 import {
   "moonbitlang/async",
+  "moonbitlang/async/fs",
   "moonbitlang/core/env",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
+  "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/config_reader",

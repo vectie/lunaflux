@@ -99,3 +99,19 @@ pub struct ApprovedFusedKernelCatalog {
   priv canonical : Bytes
   priv digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 }
+
+///|
+/// Digest-pinned, shape-reusable production residual/RMSNorm module. One seed
+/// pair binds its exact model shape; device-step admission may reuse the same
+/// AOT function for identical pairs in that model without token-step checks.
+pub struct ApprovedReusableFusedResidualRuntime {
+  priv source_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv model_content : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv model_plan : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv target : @catalog.DeviceTarget
+  priv residual_operation : Int
+  priv norm_operation : Int
+  priv symbol : String
+  priv launch : @launch_contract.AotLaunchDimensions
+  priv module_bytes : Bytes
+}

@@ -207,3 +207,59 @@ pub fn ApprovedFusedKernelCatalog::digest(
 ) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest {
   self.digest
 }
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::source_digest(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest {
+  self.source_digest
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::model_content_sha256(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> String {
+  self.model_content.as_hex()
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::model_plan_sha256(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> String {
+  self.model_plan.as_hex()
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::target(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> @catalog.DeviceTarget {
+  self.target
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::operation_indices(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> (Int, Int) {
+  (self.residual_operation, self.norm_operation)
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::function_symbol(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> String {
+  self.symbol
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::launch_dimensions(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> @launch_contract.AotLaunchDimensions {
+  self.launch
+}
+
+///|
+pub fn ApprovedReusableFusedResidualRuntime::module_bytes(
+  self : ApprovedReusableFusedResidualRuntime,
+) -> Bytes {
+  self.module_bytes
+}

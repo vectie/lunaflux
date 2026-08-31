@@ -99,8 +99,18 @@ fn prepare_with_roots(
     execution~,
     bootstrap_limits=derived.bootstrap_limits,
     sampling_policy~,
-    fused_catalog=fused_runtime.map(runtime => runtime.catalog),
-    fused_bundle=fused_runtime.map(runtime => runtime.bundle),
+    fused_catalog=match fused_runtime {
+      Some(runtime) => runtime.catalog
+      None => None
+    },
+    fused_bundle=match fused_runtime {
+      Some(runtime) => runtime.bundle
+      None => None
+    },
+    reusable_fused_residual_runtime=match fused_runtime {
+      Some(runtime) => runtime.reusable_residual
+      None => None
+    },
     fused_qkv_readonly_source=match fused_runtime {
       Some(runtime) => runtime.production
       None => None
@@ -179,7 +189,8 @@ pub fn prepare(
     source.recipe() == DenseMistralBf16PagedAotExtensionsV11 {
     return prepare_mistral(startup, source)
   }
-  if source.recipe() == DenseQwen3Bf16PagedAotV12 {
+  if source.recipe() == DenseQwen3Bf16PagedAotV12 ||
+    source.recipe() == DenseQwen3Bf16PagedAotExtensionsV13 {
     return prepare_qwen3(startup, source)
   }
   validate_source_envelope(startup, source)

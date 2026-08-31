@@ -52,7 +52,7 @@ fn prepare_numeric_bf16_graph_resources(
   accepted_predecessor_value : UInt64,
   graph_policy : PagedGraphExecutionPolicy,
   sampling_policy : PagedSamplingExecutionPolicy,
-  fused_residual_span : ApprovedFusedResidualRmsNormSpan?,
+  fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
 ) -> PagedGraphPreparation raise DeviceStepError {
   validate_predecessor_seed(
@@ -144,7 +144,7 @@ fn prepare_numeric_bf16_graph_resources(
     activation,
     kv,
     resources,
-    fused_residual_span,
+    fused_residual_spans,
     fused_qkv_readonly_span,
   ) catch {
     error => return paged_construction_failed(resources, error)
@@ -162,7 +162,7 @@ fn prepare_numeric_bf16_graph_resources(
     model_steps,
     resources,
     graph_policy,
-    fused_residual_span,
+    fused_residual_spans,
     ProductionFastPath,
   )
 }
@@ -189,7 +189,8 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
   graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
   sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
-  fused_residual_span? : ApprovedFusedResidualRmsNormSpan? = None,
+  fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
+  ),
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
@@ -216,21 +217,16 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  match fused_residual_span {
-    Some(span) =>
-      if span.model_generation() != model_generation ||
-        span.target() != blueprint.target() ||
-        !fused_dispatch_policy_allows_graph(ProductionFastPath, graph_policy) ||
-        !fused_dispatch_policy_allows_span(
-          ProductionFastPath,
-          span.kernel_abi(),
-        ) {
-        return paged_construction_failed(
-          resources,
-          InvalidExecutor(ResourceState),
-        )
-      }
-    None => ()
+  for span in fused_residual_spans {
+    if span.model_generation() != model_generation ||
+      span.target() != blueprint.target() ||
+      !fused_dispatch_policy_allows_graph(ProductionFastPath, graph_policy) ||
+      !fused_dispatch_policy_allows_span(ProductionFastPath, span.kernel_abi()) {
+      return paged_construction_failed(
+        resources,
+        InvalidExecutor(ResourceState),
+      )
+    }
   }
   match fused_qkv_readonly_span {
     Some(span) =>
@@ -246,7 +242,7 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   prepare_numeric_bf16_graph_resources(
     context, model_plan, model_generation, layout, limits, blueprint, memory_plan,
     artifacts, weight, resources, has_accepted_predecessor, accepted_predecessor_value,
-    graph_policy, sampling_policy, fused_residual_span, fused_qkv_readonly_span,
+    graph_policy, sampling_policy, fused_residual_spans, fused_qkv_readonly_span,
   ) catch {
     error => paged_construction_failed(resources, error)
   }

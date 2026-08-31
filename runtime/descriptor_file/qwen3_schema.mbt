@@ -22,8 +22,9 @@ fn parse_qwen3_descriptor(
     "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
     "ceilings",
   ])
-  if require_string(root, "schema_version", Root) !=
-    "lunaflux.runtime.qwen3_bf16.v1" {
+  let schema_version = require_string(root, "schema_version", Root)
+  if schema_version != "lunaflux.runtime.qwen3_bf16.v1" &&
+    schema_version != "lunaflux.runtime.qwen3_bf16.v2" {
     raise invalid_field(Root, UnsupportedValue)
   }
   let object = require_object(root, "model", Root, index=1)
@@ -37,7 +38,9 @@ fn parse_qwen3_descriptor(
   if !tied_embeddings {
     raise invalid_field(Model, UnsupportedValue)
   }
-  if kernels.fused_runtime is Some(_) || kernels.bootstrap_digest == "" {
+  if (schema_version == "lunaflux.runtime.qwen3_bf16.v2") !=
+    (kernels.fused_runtime is Some(_)) ||
+    kernels.bootstrap_digest == "" {
     raise invalid_field(Kernels, UnsupportedValue)
   }
   {

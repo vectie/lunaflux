@@ -12,16 +12,13 @@ fn prepare_paged_production_steps(
   activation : @device.Allocation,
   kv : @device.Allocation,
   resources : PagedGraphResources,
-  fused_residual_span : ApprovedFusedResidualRmsNormSpan?,
+  fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
-  let mut fused_residual_function : Int? = None
-  match fused_residual_span {
+  let fused_residual_function = match fused_residual_spans.get(0) {
     Some(span) =>
-      fused_residual_function = Some(
-        prepare_fused_residual_resources(context, span, resources),
-      )
-    None => ()
+      Some(prepare_fused_residual_resources(context, span, resources))
+    None => None
   }
   let mut fused_qkv_readonly_functions : (Int, Int)? = None
   match fused_qkv_readonly_span {
@@ -34,17 +31,21 @@ fn prepare_paged_production_steps(
   let baseline = prepare_paged_steps(
     blueprint, function_indices, descriptor, weight, activation, kv,
   )
-  let residual_replacement = match
-    (fused_residual_span, fused_residual_function) {
-    (Some(span), Some(function_index)) =>
-      Some(
-        prepare_fused_residual_step(
-          blueprint, span, function_index, resources, descriptor, weight, activation,
-          kv,
-        ),
-      )
-    (None, None) => None
-    _ => raise InvalidExecutor(ResourceState)
+  let residual_replacements : Array[PreparedPagedGraphStep] = []
+  match fused_residual_function {
+    Some(function_index) =>
+      for span in fused_residual_spans {
+        residual_replacements.push(
+          prepare_fused_residual_step(
+            blueprint, span, function_index, resources, descriptor, weight, activation,
+            kv,
+          ),
+        )
+      }
+    None =>
+      if !fused_residual_spans.is_empty() {
+        raise InvalidExecutor(ResourceState)
+      }
   }
   let qkv_readonly_replacements = match
     (fused_qkv_readonly_span, fused_qkv_readonly_functions) {
@@ -65,7 +66,10 @@ fn prepare_paged_production_steps(
     _ => raise InvalidExecutor(ResourceState)
   }
   let replaced = replace_paged_production_spans(
-    baseline, residual_replacement, fused_residual_span, qkv_readonly_replacements,
+    baseline,
+    ReadOnlyArray::from_array(residual_replacements),
+    fused_residual_spans,
+    qkv_readonly_replacements,
     fused_qkv_readonly_span,
   )
   let expanded : Array[PreparedPagedGraphStep] = []
