@@ -26,6 +26,18 @@ pub struct RuntimeReleaseAdmission {
 }
 
 ///|
+/// Preserves the typed release-admission failure for CLI and deployment-tool
+/// diagnostics. The raising API remains the production control path.
+pub fn preflight_release_result(
+  deployment : StringView,
+  limits : RuntimeInstanceFileLimits,
+) -> Result[RuntimeReleaseAdmission, RuntimeInstanceError] {
+  Ok(preflight_release(deployment, limits)) catch {
+    error => Err(error)
+  }
+}
+
+///|
 fn runtime_recipe_name(recipe : @launch_file.LaunchRuntimeRecipe) -> String {
   match recipe {
     DenseLlamaPagedAotV5 => "dense_llama_paged_aot_v5"

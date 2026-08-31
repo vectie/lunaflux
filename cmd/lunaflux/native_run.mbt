@@ -123,13 +123,32 @@ fn materialized_bundle_limits() -> @deployment_bundle.DeploymentBundleLimits rai
 }
 
 ///|
+fn release_preflight_error_line(
+  error : @runtime_instance.RuntimeInstanceError,
+) -> String {
+  match error {
+    RuntimeInstanceFailed(stage) => "release_preflight_error=" + stage.code()
+    RuntimeInstanceFailedAndCleanup(stage, cleanup) =>
+      "release_preflight_error=" + stage.code() + ",cleanup=" + cleanup.code()
+  }
+}
+
+///|
 /// Publishes only root-free offline evidence after the production semantic join
 /// has consumed every filesystem authority. No device or listener is opened.
 fn validate_release(deployment : String) -> Unit raise {
-  let admitted = @runtime_instance.preflight_release(
+  let result = @runtime_instance.preflight_release_result(
     deployment,
     native_run_file_limits(),
   )
+  let admitted = match result {
+    Ok(value) => value
+    Err(error) => {
+      println(release_preflight_error_line(error))
+      let _ = flush_native_stdout_after_readiness_publication()
+      raise error
+    }
+  }
   println(admitted.evidence())
   println("release_preflight_sha256={admitted.evidence_sha256()}")
 }
