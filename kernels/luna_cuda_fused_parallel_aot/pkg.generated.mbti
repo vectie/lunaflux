@@ -24,6 +24,10 @@ pub fn bind_fused_qkv_rope_kv_promotion_evidence(FusedQkvRopeKvWriteCudaCandidat
 
 pub fn bind_fused_qkv_rope_paged_kv_write_production_compiled_candidate(FusedQkvRopeKvWriteProductionCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
 
+pub fn bind_fused_qwen_qkv_qknorm_rope_kv_compiled_candidate(FusedQwenQkvQkNormRopeKvWriteCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
+pub fn bind_fused_qwen_qkv_qknorm_rope_kv_production_compiled_candidate(FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
+
 pub fn bind_fused_residual_rmsnorm_compiled_candidate(FusedResidualRmsNormCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
 
 pub fn bind_fused_residual_rmsnorm_production_compiled_candidate(FusedResidualRmsNormProductionCudaCandidate, Bytes, Bytes, Bytes, FusedParallelDigest, FusedParallelCompiledArtifactLimits) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError
@@ -131,6 +135,8 @@ pub(all) enum FusedParallelFamily {
 pub(all) enum FusedParallelKernelAbi {
   QkvPositionedRopePagedKvWriteAbiV1
   QkvPositionedRopePagedKvWriteProductionAbiV2
+  QwenQkvQkNormPositionedRopePagedKvWriteAbiV3
+  QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4
   ResidualRmsNormAbiV1
   ResidualRmsNormProductionAbiV2
 } derive(Eq, @debug.Debug)

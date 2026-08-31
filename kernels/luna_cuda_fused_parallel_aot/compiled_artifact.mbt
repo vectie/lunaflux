@@ -74,7 +74,8 @@ fn fused_require_recipe_abi(
   }
   match abi {
     ResidualRmsNormProductionAbiV2
-    | QkvPositionedRopePagedKvWriteProductionAbiV2 =>
+    | QkvPositionedRopePagedKvWriteProductionAbiV2
+    | QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4 =>
       if abi_count != 1 ||
         canary_count != 0 ||
         diagnostic_absent_count != 1 ||
@@ -227,7 +228,8 @@ fn fused_bind_compiled_candidate(
   }
   match abi {
     ResidualRmsNormProductionAbiV2
-    | QkvPositionedRopePagedKvWriteProductionAbiV2 =>
+    | QkvPositionedRopePagedKvWriteProductionAbiV2
+    | QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4 =>
       if dispatch_canary_per_token != 0U || qualification_candidate is None {
         raise FusedParallelInvalid(CompiledArtifact)
       }
@@ -238,7 +240,9 @@ fn fused_bind_compiled_candidate(
   }
   let purpose = match abi {
     ResidualRmsNormProductionAbiV2
-    | QkvPositionedRopePagedKvWriteProductionAbiV2 => ProductionFastPath
+    | QkvPositionedRopePagedKvWriteProductionAbiV2
+    | QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4 =>
+      ProductionFastPath
     _ => QualificationDiagnostics
   }
   if first_module.length().to_int64() > limits.maximum_module_bytes ||
@@ -471,6 +475,71 @@ pub fn bind_fused_qkv_rope_paged_kv_write_production_compiled_candidate(
     qualification.dimensions,
     candidate.function_symbol,
     QkvPositionedRopePagedKvWriteProductionAbiV2,
+    0U,
+    Some(qualification.candidate_digest),
+    first_module,
+    second_module,
+    compile_receipt,
+    expected_compile_receipt_digest,
+    limits,
+  )
+}
+
+///|
+/// Binds deterministic offline output for the Qwen qualification ABI.
+pub fn bind_fused_qwen_qkv_qknorm_rope_kv_compiled_candidate(
+  candidate : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
+  first_module : Bytes,
+  second_module : Bytes,
+  compile_receipt : Bytes,
+  expected_compile_receipt_digest : FusedParallelDigest,
+  limits : FusedParallelCompiledArtifactLimits,
+) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError {
+  fused_bind_compiled_candidate(
+    QkvPositionedRopePagedKvWrite,
+    candidate.candidate_digest,
+    candidate.source,
+    candidate.source_digest,
+    candidate.recipe,
+    candidate.recipe_digest,
+    candidate.compiler,
+    candidate.target,
+    candidate.dimensions,
+    candidate.function_symbol,
+    QwenQkvQkNormPositionedRopePagedKvWriteAbiV3,
+    candidate.dispatch_canary,
+    None,
+    first_module,
+    second_module,
+    compile_receipt,
+    expected_compile_receipt_digest,
+    limits,
+  )
+}
+
+///|
+/// Binds deterministic offline output for the canary-free Qwen ABI.
+pub fn bind_fused_qwen_qkv_qknorm_rope_kv_production_compiled_candidate(
+  candidate : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+  first_module : Bytes,
+  second_module : Bytes,
+  compile_receipt : Bytes,
+  expected_compile_receipt_digest : FusedParallelDigest,
+  limits : FusedParallelCompiledArtifactLimits,
+) -> FusedParallelCompiledArtifactBinding raise FusedParallelAotError {
+  let qualification = candidate.qualification
+  fused_bind_compiled_candidate(
+    QkvPositionedRopePagedKvWrite,
+    candidate.candidate_digest,
+    candidate.source,
+    candidate.source_digest,
+    candidate.recipe,
+    candidate.recipe_digest,
+    qualification.compiler,
+    qualification.target,
+    qualification.dimensions,
+    candidate.function_symbol,
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4,
     0U,
     Some(qualification.candidate_digest),
     first_module,

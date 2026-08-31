@@ -6,6 +6,8 @@
 pub(all) enum FusedParallelKernelAbi {
   QkvPositionedRopePagedKvWriteAbiV1
   QkvPositionedRopePagedKvWriteProductionAbiV2
+  QwenQkvQkNormPositionedRopePagedKvWriteAbiV3
+  QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4
   ResidualRmsNormAbiV1
   ResidualRmsNormProductionAbiV2
 } derive(Debug, Eq)
@@ -29,6 +31,15 @@ pub fn FusedParallelKernelAbi::canonical_name(
       "step_counts,query_positions,query_row_offsets,sequence_lengths," +
       "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
       "v_weight,rotated_qkv,key_cache,value_cache"
+    QwenQkvQkNormPositionedRopePagedKvWriteAbiV3 =>
+      "step_counts,query_positions,query_row_offsets,sequence_lengths," +
+      "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
+      "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache," +
+      "dispatch_canary"
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionAbiV4 =>
+      "step_counts,query_positions,query_row_offsets,sequence_lengths," +
+      "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
+      "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache"
     ResidualRmsNormAbiV1 =>
       "step_counts,residual,branch,norm_weight,residual_output," +
       "norm_output,dispatch_canary"
