@@ -159,6 +159,7 @@ pub fn admit_plan(
     manifest,
     sampling_policy,
     fused_residual_spans,
+    reusable_qwen_fused_attention_spans: ReadOnlyArray::from_array([]),
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -177,6 +178,7 @@ pub fn admit_numeric_bf16_plan_v1(
   fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
   fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
   reusable_fused_residual_runtime? : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
+  reusable_fused_runtime_bundle? : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle? = None,
   fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
   fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
@@ -215,14 +217,48 @@ pub fn admit_numeric_bf16_plan_v1(
     fused_qkv_readonly_source is Some(_) {
     raise Invalid(ResourceState)
   }
-  let fused_residual_spans = admit_optional_fused_residual_spans(
+  let reusable_qwen_fused_runtime = admit_optional_reusable_qwen_runtime_bundle(
     model_plan,
-    generation,
-    execution.blueprint(),
+    manifest.target(),
+    reusable_fused_runtime_bundle,
+    reusable_fused_residual_runtime,
     fused_catalog,
     fused_bundle,
-    reusable_fused_residual_runtime,
+    fused_qkv_readonly_artifacts,
+    fused_qkv_readonly_source,
   )
+  let fused_residual_spans = match reusable_qwen_fused_runtime {
+    Some(runtime) if runtime.residual_rmsnorm_module() is Some(_) =>
+      @device_step.admit_reusable_fused_residual_rmsnorm_bundle_spans(
+        model_plan,
+        generation,
+        execution.blueprint(),
+        runtime,
+      ) catch {
+        _ => raise Invalid(ResourceState)
+      }
+    _ =>
+      admit_optional_fused_residual_spans(
+        model_plan,
+        generation,
+        execution.blueprint(),
+        fused_catalog,
+        fused_bundle,
+        reusable_fused_residual_runtime,
+      )
+  }
+  let reusable_qwen_fused_attention_spans = match reusable_qwen_fused_runtime {
+    Some(runtime) =>
+      @device_step.admit_reusable_qwen_fused_attention_spans(
+        model_plan,
+        generation,
+        execution.blueprint(),
+        runtime,
+      ) catch {
+        _ => raise Invalid(ResourceState)
+      }
+    None => ReadOnlyArray::from_array([])
+  }
   {
     startup: admitted_startup,
     model_plan,
@@ -232,6 +268,7 @@ pub fn admit_numeric_bf16_plan_v1(
     manifest,
     sampling_policy,
     fused_residual_spans,
+    reusable_qwen_fused_attention_spans,
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -334,6 +371,7 @@ pub fn prepare(
         sampling_policy=plan.sampling_policy,
         fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
+        qwen_fused_attention_spans=plan.reusable_qwen_fused_attention_spans,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),
       ) catch {
@@ -383,6 +421,7 @@ pub fn prepare(
         sampling_policy=plan.sampling_policy,
         fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
+        qwen_fused_attention_spans=plan.reusable_qwen_fused_attention_spans,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),
       ) catch {

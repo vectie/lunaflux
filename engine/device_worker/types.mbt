@@ -75,6 +75,9 @@ pub struct DeviceWorkerPlan {
   priv fused_residual_spans : ReadOnlyArray[
     @device_step.ApprovedFusedResidualRmsNormSpan,
   ]
+  priv reusable_qwen_fused_attention_spans : ReadOnlyArray[
+    @device_step.ApprovedQwenFusedAttentionSpan,
+  ]
   priv fused_qkv_readonly_artifacts : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts?
   priv fused_qkv_readonly_source : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?
 }

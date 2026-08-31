@@ -85,6 +85,9 @@ fn prepare_with_roots(
   let fused_runtime = load_optional_fused_runtime(source, kernel_root) catch {
     error => return preparation_failed(roots, None, error)
   }
+  reject_reusable_qwen_bundle_for_non_qwen(fused_runtime) catch {
+    error => return preparation_failed(roots, None, error)
+  }
   let sampling_policy = @device_worker.admit_bootstrap_sampling_policy(
     source,
     derived.plan,

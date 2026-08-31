@@ -78,6 +78,10 @@ fn prepare_qwen3_with_roots(
       Some(runtime) => runtime.reusable_residual
       None => None
     },
+    reusable_fused_runtime_bundle=match fused_runtime {
+      Some(runtime) => runtime.reusable_bundle
+      None => None
+    },
     fused_qkv_readonly_source=match fused_runtime {
       Some(runtime) => runtime.production
       None => None

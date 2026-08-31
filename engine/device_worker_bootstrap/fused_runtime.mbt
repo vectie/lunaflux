@@ -40,6 +40,42 @@ priv struct LoadedOptionalFusedRuntime {
   bundle : @luna_fused_artifact_admission.ApprovedFusedKernelBundle?
   production : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime?
   reusable_residual : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime?
+  reusable_bundle : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle?
+}
+
+///|
+priv enum FusedRuntimeSourceSchema {
+  ReusableBundleV2
+  ReusableResidualV1
+  ProductionV1
+  LegacyCatalogV1
+}
+
+///|
+fn classify_fused_runtime_source(text : String) -> FusedRuntimeSourceSchema {
+  if text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v2\n") {
+    ReusableBundleV2
+  } else if text.has_prefix(
+      "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
+    ) {
+    ReusableResidualV1
+  } else if text.has_prefix(
+      "schema=lunaflux-fused-production-runtime-source.v1\n",
+    ) {
+    ProductionV1
+  } else {
+    LegacyCatalogV1
+  }
+}
+
+///|
+fn reject_reusable_qwen_bundle_for_non_qwen(
+  runtime : LoadedOptionalFusedRuntime?,
+) -> Unit raise DeviceWorkerBootstrapError {
+  match runtime {
+    Some(loaded) if loaded.reusable_bundle is Some(_) => raise Invalid(Recipe)
+    _ => ()
+  }
 }
 
 ///|
@@ -60,50 +96,66 @@ fn load_optional_fused_runtime(
     module_bytes * 4L + 65536L,
   )
   let text = @utf8.decode(canonical) catch { _ => raise Invalid(Digest) }
-  let is_production = text.has_prefix(
-    "schema=lunaflux-fused-production-runtime-source.v1\n",
-  )
-  let is_reusable_residual = text.has_prefix(
-    "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
-  )
-  if is_reusable_residual {
-    let residual = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_residual_runtime(
-      canonical,
-      fused.digest_sha256(),
-    ) catch {
-      error => raise FusedArtifact(error)
+  match classify_fused_runtime_source(text) {
+    ReusableBundleV2 => {
+      let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+        canonical,
+        fused.digest_sha256(),
+      ) catch {
+        error => raise FusedArtifact(error)
+      }
+      Some({
+        catalog: None,
+        bundle: None,
+        production: None,
+        reusable_residual: None,
+        reusable_bundle: Some(bundle),
+      })
     }
-    Some({
-      catalog: None,
-      bundle: None,
-      production: None,
-      reusable_residual: Some(residual),
-    })
-  } else if is_production {
-    let production = @luna_paged_composite_artifact_admission.admit_digest_pinned_fused_production_runtime(
-      canonical,
-      fused.digest_sha256(),
-    ) catch {
-      _ => raise Invalid(Digest)
+    ReusableResidualV1 => {
+      let residual = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_residual_runtime(
+        canonical,
+        fused.digest_sha256(),
+      ) catch {
+        error => raise FusedArtifact(error)
+      }
+      Some({
+        catalog: None,
+        bundle: None,
+        production: None,
+        reusable_residual: Some(residual),
+        reusable_bundle: None,
+      })
     }
-    Some({
-      catalog: Some(production.fused_catalog()),
-      bundle: Some(production.fused_bundle()),
-      production: Some(production),
-      reusable_residual: None,
-    })
-  } else {
-    let pair = @luna_fused_artifact_admission.admit_digest_pinned_fused_runtime_source(
-      canonical,
-      fused.digest_sha256(),
-    ) catch {
-      error => raise FusedArtifact(error)
+    ProductionV1 => {
+      let production = @luna_paged_composite_artifact_admission.admit_digest_pinned_fused_production_runtime(
+        canonical,
+        fused.digest_sha256(),
+      ) catch {
+        _ => raise Invalid(Digest)
+      }
+      Some({
+        catalog: Some(production.fused_catalog()),
+        bundle: Some(production.fused_bundle()),
+        production: Some(production),
+        reusable_residual: None,
+        reusable_bundle: None,
+      })
     }
-    Some({
-      catalog: Some(pair.0),
-      bundle: Some(pair.1),
-      production: None,
-      reusable_residual: None,
-    })
+    LegacyCatalogV1 => {
+      let pair = @luna_fused_artifact_admission.admit_digest_pinned_fused_runtime_source(
+        canonical,
+        fused.digest_sha256(),
+      ) catch {
+        error => raise FusedArtifact(error)
+      }
+      Some({
+        catalog: Some(pair.0),
+        bundle: Some(pair.1),
+        production: None,
+        reusable_residual: None,
+        reusable_bundle: None,
+      })
+    }
   }
 }
