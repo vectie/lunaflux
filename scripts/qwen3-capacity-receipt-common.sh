@@ -122,7 +122,7 @@ qcap_admit_inputs() {
     [ -f "$qcap_file" ] && [ ! -L "$qcap_file" ] ||
       qcap_fail 'Qwen deployment runtime configuration is absent'
   done
-  grep -F '"schema_version":"lunaflux.runtime.qwen3_bf16.v1"' "$qcap_descriptor" >/dev/null &&
+  grep -E '"schema_version":"lunaflux\.runtime\.qwen3_bf16\.v(1|2)"' "$qcap_descriptor" >/dev/null &&
     grep -E '"max_batch_rows":32([,}])' "$qcap_descriptor" >/dev/null ||
     qcap_fail 'Qwen runtime descriptor is not c32'
   grep -F '"schema_version":"lunaflux.instance-policy.v1"' "$qcap_policy" >/dev/null &&

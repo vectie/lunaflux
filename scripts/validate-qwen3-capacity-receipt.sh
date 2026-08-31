@@ -122,6 +122,15 @@ grep -F "\"authentication_sha256\":\"$independent_auth_sha\"" "$receipt" >/dev/n
   fail 'receipt authentication digest is not independently reproducible'
 
 cp "$deployment/model-root/runtime/descriptor.json" "$scratch/descriptor.c32"
+sed 's/lunaflux.runtime.qwen3_bf16.v1/lunaflux.runtime.qwen3_bf16.v2/' \
+  "$scratch/descriptor.c32" >"$deployment/model-root/runtime/descriptor.json"
+v2_receipt=$scratch/capacity-v2.json
+"$materializer" "$bind#sha256=$bind_sha" \
+  "$deployment#sha256=$launch_sha" "$runtime#sha256=$runtime_sha" \
+  "$bridge#sha256=$bridge_sha" "$v2_receipt" >/dev/null ||
+  fail 'fused Qwen v2 descriptor did not produce a c32 capacity receipt'
+cp "$scratch/descriptor.c32" "$deployment/model-root/runtime/descriptor.json"
+
 sed 's/"max_batch_rows":32/"max_batch_rows":320/' \
   "$scratch/descriptor.c32" >"$deployment/model-root/runtime/descriptor.json"
 if "$materializer" "$bind#sha256=$bind_sha" \
