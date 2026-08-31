@@ -4,6 +4,10 @@ fn readonly_symbol(id : @catalog.AotKernelEntryPointId) -> String {
 }
 
 ///|
+/// Emits one warp per active query-head tile. The preceding fused ingress
+/// kernel has already published every current-token K/V row into the paged
+/// cache, so this kernel only traverses cache pages and performs online
+/// softmax; no current-chunk fallback or KV mutation remains.
 fn readonly_cuda_source(
   symbol : String,
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
@@ -23,31 +27,18 @@ fn readonly_cuda_source(
     None => ""
   }
   let canary_publication = match diagnostic_canary_per_token {
-    Some(value) => "\n  dispatch_canary[token] = " + value.to_string() + "U;"
+    Some(value) =>
+      "\n    if (query_head == 0 && lane == 0) dispatch_canary[token] = " +
+      value.to_string() +
+      "U;"
     None => ""
   }
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math_constants.h>\n" +
-    "static __device__ __forceinline__ float lf_readonly_cache_load_v1(\n" +
-    "    const __nv_bfloat16 *cache, const int *page_indices, int page_start,\n" +
-    "    int page_end, int key_position, int kv_head, int component) {\n" +
-    "  const int page_slot = page_start + key_position / " +
-    tokens_per_page.to_string() +
-    ";\n  if (page_slot < page_start || page_slot >= page_end) return CUDART_NAN_F;\n" +
-    "  const int physical_page = page_indices[page_slot];\n" +
-    "  if (physical_page < 0 || (unsigned long long)physical_page >= " +
-    reference.physical_page_capacity().to_string() +
-    "ULL) return CUDART_NAN_F;\n" +
-    "  const int token_in_page = key_position % " +
-    tokens_per_page.to_string() +
-    ";\n  const unsigned long long cache_index =\n" +
-    "      (unsigned long long)physical_page * " +
-    page_stride_values.to_string() +
-    "ULL + ((unsigned long long)token_in_page * " +
-    kv_heads.to_string() +
-    "ULL + kv_head) * " +
-    head_dimension.to_string() +
-    "ULL + component;\n  return __bfloat162float(cache[cache_index]);\n}\n" +
+    "#define LF_READONLY_WARP_THREADS 32\n" +
+    "static __device__ __forceinline__ float lf_readonly_reduce_sum_v3(float value) {\n" +
+    "  for (int offset = 16; offset > 0; offset >>= 1) value += __shfl_down_sync(0xffffffffU, value, offset);\n" +
+    "  return __shfl_sync(0xffffffffU, value, 0);\n}\n" +
     "extern \"C\" __global__ void " +
     symbol +
     "(\n" +
@@ -58,7 +49,10 @@ fn readonly_cuda_source(
     "    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache" +
     canary_argument +
     ") {\n" +
-    "  const int token = (int)blockIdx.x;\n" +
+    "  const int lane = (int)threadIdx.x, query_head = (int)blockIdx.y;\n" +
+    "  if (blockDim.x != LF_READONLY_WARP_THREADS || query_head >= " +
+    query_heads.to_string() +
+    ") return;\n" +
     "  const int prefill_count = counts[0], decode_count = counts[1];\n" +
     "  const int row_count = counts[2], token_count = counts[3];\n" +
     "  const int page_entry_count = counts[4];\n" +
@@ -70,72 +64,115 @@ fn readonly_cuda_source(
     profile.max_query_tokens().to_string() +
     " || page_entry_count <= 0 || page_entry_count > " +
     profile.max_page_table_entries().to_string() +
-    " || token >= token_count || blockIdx.y != 0) return;\n" +
-    "  int row = 0;\n" +
-    "  while (row + 1 < row_count && token >= query_row_offsets[row + 1]) ++row;\n" +
-    "  const int row_start = query_row_offsets[row];\n" +
-    "  const int row_end = query_row_offsets[row + 1];\n" +
-    "  const int page_start = page_table_offsets[row];\n" +
-    "  const int page_end = page_table_offsets[row + 1];\n" +
-    "  if (row_start < 0 || row_start >= row_end || row_end > token_count ||\n" +
-    "      page_start < 0 || page_start >= page_end || page_end > page_entry_count) return;\n" +
-    "  const int query_position = query_positions[token];\n" +
-    "  if (query_position < query_positions[row_start] ||\n" +
-    "      query_position >= sequence_lengths[row] ||\n" +
-    "      page_end - page_start != (sequence_lengths[row] + " +
-    (tokens_per_page - 1).to_string() +
-    ") / " +
-    tokens_per_page.to_string() +
     ") return;\n" +
-    "  for (int query_head = 0; query_head < " +
-    query_heads.to_string() +
-    "; ++query_head) {\n" +
-    "    const int kv_head = query_head / " +
-    group_size.to_string() +
-    ";\n    const int query_offset = token * " +
-    input_row_width.to_string() +
-    " + query_head * " +
-    head_dimension.to_string() +
-    ";\n    const float scale = rsqrtf((float)" +
-    head_dimension.to_string() +
-    ");\n    float maximum = -CUDART_INF_F;\n" +
-    "    for (int key_position = 0; key_position <= query_position; ++key_position) {\n" +
-    "      float dot = 0.0f;\n      for (int d = 0; d < " +
-    head_dimension.to_string() +
-    "; ++d) {\n" +
-    "        dot += __bfloat162float(rotated_qkv_rows[query_offset + d]) *\n" +
-    "            lf_readonly_cache_load_v1(key_cache, page_table_page_indices,\n" +
-    "                page_start, page_end, key_position, kv_head, d);\n      }\n" +
-    "      maximum = fmaxf(maximum, dot * scale);\n    }\n" +
-    "    float denominator = 0.0f;\n" +
-    "    for (int key_position = 0; key_position <= query_position; ++key_position) {\n" +
-    "      float dot = 0.0f;\n      for (int d = 0; d < " +
-    head_dimension.to_string() +
-    "; ++d) {\n" +
-    "        dot += __bfloat162float(rotated_qkv_rows[query_offset + d]) *\n" +
-    "            lf_readonly_cache_load_v1(key_cache, page_table_page_indices,\n" +
-    "                page_start, page_end, key_position, kv_head, d);\n      }\n" +
-    "      denominator += expf(dot * scale - maximum);\n    }\n" +
-    "    for (int d = 0; d < " +
-    head_dimension.to_string() +
-    "; ++d) {\n      float accumulator = 0.0f;\n" +
-    "      for (int key_position = 0; key_position <= query_position; ++key_position) {\n" +
-    "        float dot = 0.0f;\n        for (int qd = 0; qd < " +
-    head_dimension.to_string() +
-    "; ++qd) {\n" +
-    "          dot += __bfloat162float(rotated_qkv_rows[query_offset + qd]) *\n" +
-    "              lf_readonly_cache_load_v1(key_cache, page_table_page_indices,\n" +
-    "                  page_start, page_end, key_position, kv_head, qd);\n        }\n" +
-    "        const float value = lf_readonly_cache_load_v1(value_cache,\n" +
-    "            page_table_page_indices, page_start, page_end, key_position, kv_head, d);\n" +
-    "        accumulator += expf(dot * scale - maximum) * value / denominator;\n" +
-    "      }\n      const int output_offset = token * " +
+    "  for (int token = (int)blockIdx.x; token < token_count; token += (int)gridDim.x) {\n" +
+    "    int row = 0;\n" +
+    "    while (row + 1 < row_count && token >= query_row_offsets[row + 1]) ++row;\n" +
+    "    const int row_start = query_row_offsets[row], row_end = query_row_offsets[row + 1];\n" +
+    "    const int page_start = page_table_offsets[row], page_end = page_table_offsets[row + 1];\n" +
+    "    const int output_offset = token * " +
     query_width.to_string() +
     " + query_head * " +
     head_dimension.to_string() +
-    ";\n      output[output_offset + d] = __float2bfloat16_rn(accumulator);\n" +
-    "    }\n  }" +
+    ";\n" +
+    "    if (row_start < 0 || row_start >= row_end || row_end > token_count ||\n" +
+    "        page_start < 0 || page_start >= page_end || page_end > page_entry_count) {\n" +
+    "      for (int d = lane; d < " +
+    head_dimension.to_string() +
+    "; d += LF_READONLY_WARP_THREADS) output[output_offset + d] = __float2bfloat16_rn(CUDART_NAN_F);\n" +
+    "      continue;\n    }\n" +
+    "    const int query_position = query_positions[token];\n" +
+    "    if (query_position < query_positions[row_start] ||\n" +
+    "        query_position >= sequence_lengths[row] ||\n" +
+    "        page_end - page_start != (sequence_lengths[row] + " +
+    (tokens_per_page - 1).to_string() +
+    ") / " +
+    tokens_per_page.to_string() +
+    ") {\n" +
+    "      for (int d = lane; d < " +
+    head_dimension.to_string() +
+    "; d += LF_READONLY_WARP_THREADS) output[output_offset + d] = __float2bfloat16_rn(CUDART_NAN_F);\n" +
+    "      continue;\n    }\n" +
+    "    const int kv_head = query_head / " +
+    group_size.to_string() +
+    ";\n" +
+    "    const int query_offset = token * " +
+    input_row_width.to_string() +
+    " + query_head * " +
+    head_dimension.to_string() +
+    ";\n" +
+    "    const float scale = rsqrtf((float)" +
+    head_dimension.to_string() +
+    ");\n" +
+    "    float maximum = -CUDART_INF_F, denominator = 0.0f;\n" +
+    "    float accumulator[" +
+    ((head_dimension + 31) / 32).to_string() +
+    "];\n" +
+    "    #pragma unroll\n" +
+    "    for (int item = 0; item < " +
+    ((head_dimension + 31) / 32).to_string() +
+    "; ++item) accumulator[item] = 0.0f;\n" +
+    "    bool valid = true;\n" +
+    "    for (int key_position = 0; key_position <= query_position; ++key_position) {\n" +
+    "      const int logical_page = key_position / " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "      const int physical_page = page_table_page_indices[page_start + logical_page];\n" +
+    "      if (physical_page < 0 || (unsigned long long)physical_page >= " +
+    reference.physical_page_capacity().to_string() +
+    "ULL) { valid = false; break; }\n" +
+    "      const int token_in_page = key_position % " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "      const unsigned long long cache_base = (unsigned long long)physical_page * " +
+    page_stride_values.to_string() +
+    "ULL + ((unsigned long long)token_in_page * " +
+    kv_heads.to_string() +
+    "ULL + kv_head) * " +
+    head_dimension.to_string() +
+    "ULL;\n" +
+    "      const __nv_bfloat16 *key_vector = key_cache + cache_base;\n" +
+    "      const __nv_bfloat16 *value_vector = value_cache + cache_base;\n" +
+    "      float partial = 0.0f;\n" +
+    "      for (int d = lane; d < " +
+    head_dimension.to_string() +
+    "; d += LF_READONLY_WARP_THREADS)\n" +
+    "        partial += __bfloat162float(rotated_qkv_rows[query_offset + d]) * __bfloat162float(key_vector[d]);\n" +
+    "      const float score = lf_readonly_reduce_sum_v3(partial) * scale;\n" +
+    "      float old_scale = 0.0f, new_scale = 0.0f;\n" +
+    "      if (lane == 0) {\n" +
+    "        const float next_maximum = fmaxf(maximum, score);\n" +
+    "        old_scale = denominator == 0.0f ? 0.0f : expf(maximum - next_maximum);\n" +
+    "        new_scale = expf(score - next_maximum);\n" +
+    "        maximum = next_maximum; denominator = denominator * old_scale + new_scale;\n" +
+    "      }\n" +
+    "      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);\n" +
+    "      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);\n" +
+    "      #pragma unroll\n" +
+    "      for (int item = 0; item < " +
+    ((head_dimension + 31) / 32).to_string() +
+    "; ++item) {\n" +
+    "        const int d = lane + item * LF_READONLY_WARP_THREADS;\n" +
+    "        if (d < " +
+    head_dimension.to_string() +
+    ") accumulator[item] = accumulator[item] * old_scale + new_scale * __bfloat162float(value_vector[d]);\n" +
+    "      }\n    }\n" +
+    "    denominator = __shfl_sync(0xffffffffU, denominator, 0);\n" +
+    "    if (!valid || denominator <= 0.0f) {\n" +
+    "      for (int d = lane; d < " +
+    head_dimension.to_string() +
+    "; d += LF_READONLY_WARP_THREADS) output[output_offset + d] = __float2bfloat16_rn(CUDART_NAN_F);\n" +
+    "      continue;\n    }\n" +
+    "    #pragma unroll\n" +
+    "    for (int item = 0; item < " +
+    ((head_dimension + 31) / 32).to_string() +
+    "; ++item) {\n" +
+    "      const int d = lane + item * LF_READONLY_WARP_THREADS;\n" +
+    "      if (d < " +
+    head_dimension.to_string() +
+    ") output[output_offset + d] = __float2bfloat16_rn(accumulator[item] / denominator);\n" +
+    "    }" +
     canary_publication +
-    "\n}\n",
+    "\n  }\n}\n",
   )
 }

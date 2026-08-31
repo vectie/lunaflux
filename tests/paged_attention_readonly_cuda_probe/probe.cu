@@ -1,6 +1,7 @@
 #include <cuda.h>
 #include <cuda_bf16.h>
 #include <cuda_runtime.h>
+#include <math_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -242,7 +243,9 @@ bool run_case(CUfunction function, const Case& test, float* cpu_error,
   void* args[] = {&d_counts.data, &d_positions.data, &d_rows.data, &d_lengths.data,
     &d_page_offsets.data, &d_pages.data, &d_query.data, &d_output.data,
     &d_key.data, &d_value.data, &d_canary.data};
-  CHECK_CU(cuLaunchKernel(function, kCanaryCells, 1, 1, 1, 1, 1, 0, nullptr, args, nullptr));
+  const unsigned int grid_x = std::min(tokens, 32);
+  CHECK_CU(cuLaunchKernel(function, grid_x, kQueryHeads, 1, 32, 1, 1, 0,
+                          nullptr, args, nullptr));
   serial_ordered_f32_oracle<<<1, 1>>>(d_counts.data, d_positions.data, d_rows.data,
     d_lengths.data, d_page_offsets.data, d_pages.data, d_query.data, d_serial.data,
     d_key.data, d_value.data);
@@ -330,7 +333,7 @@ int main(int argc, char** argv) {
   std::snprintf(pci_bus_id, sizeof(pci_bus_id), "%08x:%02x:%02x.0",
     properties.pciDomainID, properties.pciBusID, properties.pciDeviceID);
   std::printf(
-    "outcome=paged-attention-readonly-sm120-qualification-pass cycles=%d case_families=origin,page-tail,cross-page,multirow,long-context scheduler_modes=prefill-only,decode-only,mixed-prefill-decode numeric_case_count=%lld candidate_launches=%d serial_launches=%d cpu_vs_candidate_max_abs_error=%.9g serial_vs_candidate_max_abs_error=%.9g absolute_tolerance=0.0078125 relative_tolerance=0.01 output_dtype=bf16 cpu_oracle=independent-ordered-f32-v1 serial_cuda_oracle=independent-ordered-f32-kernel-v1 cache_snapshot_bytes=%d cache_snapshot_unchanged=true input_guards_unchanged=true output_guards_unchanged=true dispatch_symbol_resolved=true dispatch_grid_x=260 dispatch_canary_per_token=65624 dispatch_canary_cell_count=260 dispatch_canary_exact=true dispatch_canary_tail_zero=true dispatch_canary_sum_checked=true input_row_width=8 target=sm_120 device_ordinal=0 device_uuid=%s device_pci_bus_id=%s device_name_hex=%s device_total_memory_bytes=%zu resources=module0,allocation0,device_bytes0,pending0,cleanup0 manifest_bindable=false promotion_authority=absent\n",
+    "outcome=paged-attention-readonly-sm120-qualification-pass cycles=%d case_families=origin,page-tail,cross-page,multirow,long-context scheduler_modes=prefill-only,decode-only,mixed-prefill-decode numeric_case_count=%lld candidate_launches=%d serial_launches=%d cpu_vs_candidate_max_abs_error=%.9g serial_vs_candidate_max_abs_error=%.9g absolute_tolerance=0.0078125 relative_tolerance=0.01 output_dtype=bf16 cpu_oracle=independent-ordered-f32-v1 serial_cuda_oracle=independent-ordered-f32-kernel-v1 cache_snapshot_bytes=%d cache_snapshot_unchanged=true input_guards_unchanged=true output_guards_unchanged=true dispatch_symbol_resolved=true dispatch_grid_x_max=32 dispatch_grid_y=2 dispatch_block_x=32 dispatch_canary_per_token=65624 dispatch_canary_cell_count=260 dispatch_canary_exact=true dispatch_canary_tail_zero=true dispatch_canary_sum_checked=true input_row_width=8 target=sm_120 device_ordinal=0 device_uuid=%s device_pci_bus_id=%s device_name_hex=%s device_total_memory_bytes=%zu resources=module0,allocation0,device_bytes0,pending0,cleanup0 manifest_bindable=false promotion_authority=absent\n",
     cycles, values_checked, cycles * 5, cycles * 5, cpu_error, serial_error,
     2 * kCacheValues * static_cast<int>(sizeof(unsigned short)),
     device_uuid(properties.uuid).c_str(), pci_bus_id,

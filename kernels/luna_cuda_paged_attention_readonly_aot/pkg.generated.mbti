@@ -61,6 +61,7 @@ pub fn PagedAttentionReadOnlyCudaCandidate::function_symbol(Self) -> String
 pub fn PagedAttentionReadOnlyCudaCandidate::input_activation(Self) -> @plan.ActivationRef
 pub fn PagedAttentionReadOnlyCudaCandidate::input_row_width(Self) -> Int
 pub fn PagedAttentionReadOnlyCudaCandidate::kernel_abi(Self) -> PagedAttentionReadOnlyKernelAbi
+pub fn PagedAttentionReadOnlyCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn PagedAttentionReadOnlyCudaCandidate::manifest_bindable(Self) -> Bool
 pub fn PagedAttentionReadOnlyCudaCandidate::operation_id(Self) -> @plan.OperationId
 pub fn PagedAttentionReadOnlyCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
@@ -89,6 +90,7 @@ pub fn PagedAttentionReadOnlyProductionCudaCandidate::candidate_digest(Self) -> 
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::canonical_bytes(Self) -> Bytes
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::function_symbol(Self) -> String
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::kernel_abi(Self) -> PagedAttentionReadOnlyKernelAbi
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::manifest_bindable(Self) -> Bool
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::qualification_candidate_digest(Self) -> PagedAttentionReadOnlyDigest
 pub fn PagedAttentionReadOnlyProductionCudaCandidate::recipe_bytes(Self) -> Bytes

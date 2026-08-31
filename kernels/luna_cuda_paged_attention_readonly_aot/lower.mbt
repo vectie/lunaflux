@@ -8,6 +8,23 @@ fn readonly_bool(value : Bool) -> String {
 }
 
 ///|
+fn readonly_launch_dimensions(
+  reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
+) -> @launch_contract.AotLaunchDimensions raise PagedAttentionReadOnlyAotError {
+  @launch_contract.AotLaunchDimensions::new(
+    grid_x=Int::min(reference.profile().max_query_tokens(), 32),
+    grid_y=reference.query_heads(),
+    grid_z=1,
+    block_x=32,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  ) catch {
+    _ => raise PagedAttentionReadOnlyInvalid(Profile)
+  }
+}
+
+///|
 fn readonly_require_exact_reference(
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
   entry_point_id : @catalog.AotKernelEntryPointId,
@@ -95,6 +112,7 @@ fn readonly_recipe(
   input_row_width : Int,
   input_activation : @plan.ActivationRef,
   dispatch_canary_per_token : Int,
+  launch : @launch_contract.AotLaunchDimensions,
 ) -> Bytes {
   let target = reference.target()
   let profile = reference.profile()
@@ -163,9 +181,12 @@ fn readonly_recipe(
     "\nphysical_page_capacity=" +
     reference.physical_page_capacity().to_string() +
     "\ngrid=" +
-    profile.max_query_tokens().to_string() +
+    launch.grid_x().to_string() +
     "," +
-    "1,1\nblock=1,1,1\nshared_memory_bytes=0\n" +
+    launch.grid_y().to_string() +
+    ",1\nblock=" +
+    launch.block_x().to_string() +
+    ",1,1\nshared_memory_bytes=0\n" +
     "raw_pointer_abi=" +
     abi.canonical_name() +
     "\nrotated_query_only=true\nfull_qkv_row_stride_bound=true\n" +
@@ -186,6 +207,7 @@ fn readonly_production_recipe(
   qualification : PagedAttentionReadOnlyCudaCandidate,
   symbol : String,
   source_digest : PagedAttentionReadOnlyDigest,
+  launch : @launch_contract.AotLaunchDimensions,
 ) -> Bytes {
   let reference = qualification.reference
   let target = reference.target()
@@ -241,8 +263,12 @@ fn readonly_production_recipe(
     "\nphysical_page_capacity=" +
     reference.physical_page_capacity().to_string() +
     "\ngrid=" +
-    profile.max_query_tokens().to_string() +
-    ",1,1\nblock=1,1,1\nshared_memory_bytes=0\nraw_pointer_abi=" +
+    launch.grid_x().to_string() +
+    "," +
+    launch.grid_y().to_string() +
+    ",1\nblock=" +
+    launch.block_x().to_string() +
+    ",1,1\nshared_memory_bytes=0\nraw_pointer_abi=" +
     RotatedQueryPagedKvReadOnlyProductionRawPointerV2.canonical_name() +
     "\ndiagnostic_canary=absent\nrotated_query_only=true\n" +
     "full_qkv_row_stride_bound=true\nkv_cache_access=read_only\n" +
@@ -284,9 +310,10 @@ pub fn lower_paged_attention_readonly_cuda_aot_candidate(
     raise PagedAttentionReadOnlyLimitExceeded(Source)
   }
   let source_digest = readonly_digest(source)
+  let launch = readonly_launch_dimensions(reference)
   let recipe = readonly_recipe(
     reference, entry_point_id, symbol, abi, source_digest, input_row_width, input_activation,
-    dispatch_canary_per_token,
+    dispatch_canary_per_token, launch,
   )
   if recipe.length() > limits.maximum_recipe_bytes {
     raise PagedAttentionReadOnlyLimitExceeded(Recipe)
@@ -342,6 +369,7 @@ pub fn lower_paged_attention_readonly_cuda_aot_candidate(
     input_row_width,
     input_activation,
     dispatch_canary_per_token,
+    launch,
     source,
     source_digest,
     recipe,
@@ -369,7 +397,10 @@ pub fn lower_paged_attention_readonly_production_cuda_aot_candidate(
     raise PagedAttentionReadOnlyLimitExceeded(Source)
   }
   let source_digest = readonly_digest(source)
-  let recipe = readonly_production_recipe(qualification, symbol, source_digest)
+  let launch = qualification.launch
+  let recipe = readonly_production_recipe(
+    qualification, symbol, source_digest, launch,
+  )
   if recipe.length() > limits.maximum_recipe_bytes {
     raise PagedAttentionReadOnlyLimitExceeded(Recipe)
   }
@@ -395,6 +426,7 @@ pub fn lower_paged_attention_readonly_production_cuda_aot_candidate(
     qualification,
     function_symbol: symbol,
     kernel_abi: RotatedQueryPagedKvReadOnlyProductionRawPointerV2,
+    launch,
     source,
     source_digest,
     recipe,

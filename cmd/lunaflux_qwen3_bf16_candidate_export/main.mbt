@@ -441,10 +441,16 @@ async fn run_qwen3_candidate_export(
     "reusable_qwen_readonly_function_symbol=" +
     qwen_fused.attention_read.function_symbol(),
   )
+  let readonly_launch = qwen_fused.attention_read.launch_dimensions()
   println(
     "reusable_qwen_readonly_launch=" +
-    arguments.max_query_tokens.to_string() +
-    ",1,1,0",
+    readonly_launch.grid_x().to_string() +
+    "," +
+    readonly_launch.grid_y().to_string() +
+    "," +
+    readonly_launch.block_x().to_string() +
+    "," +
+    readonly_launch.shared_memory_bytes().to_string(),
   )
 }
 

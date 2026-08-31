@@ -57,6 +57,7 @@ pub struct PagedAttentionReadOnlyCudaCandidate {
   priv input_row_width : Int
   priv input_activation : @plan.ActivationRef
   priv dispatch_canary_per_token : Int
+  priv launch : @launch_contract.AotLaunchDimensions
   priv source : Bytes
   priv source_digest : PagedAttentionReadOnlyDigest
   priv recipe : Bytes
@@ -72,6 +73,7 @@ pub struct PagedAttentionReadOnlyProductionCudaCandidate {
   priv qualification : PagedAttentionReadOnlyCudaCandidate
   priv function_symbol : String
   priv kernel_abi : PagedAttentionReadOnlyKernelAbi
+  priv launch : @launch_contract.AotLaunchDimensions
   priv source : Bytes
   priv source_digest : PagedAttentionReadOnlyDigest
   priv recipe : Bytes
@@ -151,6 +153,13 @@ pub fn PagedAttentionReadOnlyCudaCandidate::dispatch_canary_per_token(
 }
 
 ///|
+pub fn PagedAttentionReadOnlyCudaCandidate::launch_dimensions(
+  self : PagedAttentionReadOnlyCudaCandidate,
+) -> @launch_contract.AotLaunchDimensions {
+  self.launch
+}
+
+///|
 pub fn PagedAttentionReadOnlyCudaCandidate::source_bytes(
   self : PagedAttentionReadOnlyCudaCandidate,
 ) -> Bytes {
@@ -225,6 +234,13 @@ pub fn PagedAttentionReadOnlyProductionCudaCandidate::kernel_abi(
   self : PagedAttentionReadOnlyProductionCudaCandidate,
 ) -> PagedAttentionReadOnlyKernelAbi {
   self.kernel_abi
+}
+
+///|
+pub fn PagedAttentionReadOnlyProductionCudaCandidate::launch_dimensions(
+  self : PagedAttentionReadOnlyProductionCudaCandidate,
+) -> @launch_contract.AotLaunchDimensions {
+  self.launch
 }
 
 ///|

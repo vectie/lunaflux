@@ -174,8 +174,14 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   require_qwen_fused_attention_plan_span(plan, blueprint, seed_qkv)
   guard plan.operations()[seed_qk_norm].shape()
     is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
-    blueprint.steps()[seed_attention].dimensions() ==
-    readonly_module.launch_dimensions() &&
+    readonly_module.launch_dimensions().grid_x() ==
+    Int::min(blueprint.profile().max_query_tokens(), 32) &&
+    readonly_module.launch_dimensions().grid_y() == query_heads &&
+    readonly_module.launch_dimensions().grid_z() == 1 &&
+    readonly_module.launch_dimensions().block_x() == 32 &&
+    readonly_module.launch_dimensions().block_y() == 1 &&
+    readonly_module.launch_dimensions().block_z() == 1 &&
+    readonly_module.launch_dimensions().shared_memory_bytes() == 0 &&
     ingress.launch_dimensions().grid_x() ==
     blueprint.profile().max_query_tokens() &&
     ingress.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
