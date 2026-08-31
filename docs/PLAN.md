@@ -893,6 +893,13 @@ GEMM remains cuBLASLt/CUTLASS until evidence justifies replacement.
 - maintain explicit eager fallback capability only when validated;
 - no graph construction on live request data;
 - report graph hit/miss and selected shape class;
+
+The implementation target is now named an execution-graph bucket. CUDA Graph
+is the first backend. Prepare distinct `1`, `2-8`, `9-16`, and `17-32` row
+buckets where the model envelope permits, so decode does not launch a maximum-
+capacity graph whose kernels immediately return. Bucket selection is resolved
+from prevalidated scalar counts and indexes prebuilt graph executors without
+allocation.
 - bound graph memory in the startup plan.
 
 ### Gate

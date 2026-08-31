@@ -148,6 +148,18 @@ not change the exact-source scope of the completed final29 soak, and makes no
 new NVIDIA, performance, sanitizer, or release claim until a named post-soak
 current-source campaign verifies.
 
+Performance work is now tracked independently in
+[PERFORMANCE_ROADMAP.md](PERFORMANCE_ROADMAP.md). The current dense
+Qwen3-0.6B BF16 concurrency-one, two-token measurement is about 25.46 ms versus
+21.60 ms for SGLang and 11.63 ms for vLLM on the same comparison host. This is
+a narrow decode-oriented datapoint, not a throughput claim. The actionable
+gaps are the roughly 311 launches in the unfused Qwen step, a single
+hand-written projection strategy, one-warp serial paged attention, production
+fusion not yet selected by that Qwen deployment, and maximum-envelope graph
+capture instead of shape buckets. Current feature work therefore prioritizes
+shape-aware projection, phase-specific tiled attention, real graph fusion, and
+execution-graph buckets; release-evidence work is not on this hot-path loop.
+
 Subsequent local debt hardening removes every compiler-reported unnecessary
 MoonBit annotation and makes warning 73 a permanent aggregate boundary. It also
 centralizes exact `DeviceTarget`/numeric-capability matching for FP8 and I8,

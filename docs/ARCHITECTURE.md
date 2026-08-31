@@ -412,6 +412,16 @@ allocation-instrumentation, sampling/readback, and serving gates.
 
 The engine begins with a kernel catalog, not a universal compiler.
 
+Performance specialization is shape- and capability-driven. Model builders
+produce semantic operations and legal shape classes; they do not choose CUDA,
+WMMA, a warp count, or a vendor library. LunaTile strategy selection separates
+decode GEMV, small-row tiled GEMM, large-row tiled GEMM, prefill attention, and
+decode attention before backend lowering. A backend may then use generated
+tiles or an AOT vendor implementation. Likewise, an execution-graph bucket is
+the portable contract; CUDA Graph is one backend realization. See
+[PERFORMANCE_ROADMAP.md](PERFORMANCE_ROADMAP.md) for the current measured gaps
+and optimization order.
+
 The constrained LunaTile IR describes:
 
 - typed tensor views with shape, strides, dtype, address space, and alignment;
