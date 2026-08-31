@@ -65,7 +65,7 @@ fn fused_validate_common(
     profile.max_query_tokens() < profile.max_query_rows() ||
     profile.max_query_tokens() > FUSED_PARALLEL_MAX_QUERY_TOKENS ||
     profile.max_page_table_entries() < profile.max_query_rows() ||
-    profile.max_page_table_entries() > 4096 {
+    profile.max_page_table_entries() > 8192 {
     raise FusedParallelUnsupported(Profile)
   }
 }
