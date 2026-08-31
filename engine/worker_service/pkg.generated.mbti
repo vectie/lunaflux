@@ -187,6 +187,7 @@ pub(all) enum OnlineWorkerRestartProgress {
 
 pub(all) enum OnlineWorkerStep {
   OnlineWorkerAdvanced
+  OnlineWorkerWaiting
   OnlineWorkerRetryable
   OnlineWorkerOutputInvalid
   OnlineWorkerUnavailable

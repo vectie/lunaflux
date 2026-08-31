@@ -106,3 +106,15 @@ test "graph telemetry shape packing preserves every maximum-width field" {
   assert_eq(shape.context_tokens(), maximum)
   assert_eq(shape.token_rows(), token_rows)
 }
+
+///|
+test "graph telemetry samples warmup and sparse steady steps" {
+  for sequence in 1UL..<=4UL {
+    assert_true(@worker_wire.worker_graph_telemetry_sample_required(sequence))
+  }
+  assert_false(@worker_wire.worker_graph_telemetry_sample_required(0UL))
+  assert_false(@worker_wire.worker_graph_telemetry_sample_required(5UL))
+  assert_false(@worker_wire.worker_graph_telemetry_sample_required(63UL))
+  assert_true(@worker_wire.worker_graph_telemetry_sample_required(64UL))
+  assert_false(@worker_wire.worker_graph_telemetry_sample_required(65UL))
+}

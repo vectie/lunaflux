@@ -61,7 +61,9 @@ fn prepare_numeric_bf16_graph_resources(
   let completion = prepare_paged_completion_scratch(
     model_plan, memory_plan, limits,
   )
-  let (functions, function_indices) = collect_paged_functions(blueprint)
+  let (functions, function_indices, split_decode_indices) = collect_paged_functions(
+    blueprint,
+  )
   let descriptor_outcome = prepare(
     context,
     model_plan,
@@ -136,6 +138,7 @@ fn prepare_numeric_bf16_graph_resources(
     context,
     blueprint,
     function_indices,
+    split_decode_indices,
     descriptor.resources,
     weight,
     activation,

@@ -275,11 +275,13 @@ fn WorkerPhysicalTransport::received_frame(
 ///|
 fn WorkerPhysicalTransport::supports_graph_telemetry(
   self : WorkerPhysicalTransport,
+  sequence : UInt64,
 ) -> Bool {
   match self {
     Uninstalled =>
       abort("worker service physical transport installation invariant")
-    RootedSingle(_) => true
+    RootedSingle(_) =>
+      @worker_wire.worker_graph_telemetry_sample_required(sequence)
     TensorParallelGroup(_) => true
   }
 }

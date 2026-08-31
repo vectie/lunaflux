@@ -157,6 +157,14 @@ pub fn worker_graph_telemetry_frame_capacity() -> Int {
 }
 
 ///|
+/// Keeps graph-path diagnostics off the steady token-step transport. The
+/// first four steps establish warmup behavior; later cumulative samples retain
+/// visibility without adding a second IPC frame to every completion.
+pub fn worker_graph_telemetry_sample_required(sequence : UInt64) -> Bool {
+  sequence > 0UL && (sequence <= 4UL || sequence % 64UL == 0UL)
+}
+
+///|
 pub fn WorkerGraphTelemetry::sequence_value(
   self : WorkerGraphTelemetry,
 ) -> UInt64 {

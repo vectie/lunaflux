@@ -6,6 +6,7 @@ fn prepare_paged_production_steps(
   context : @device.Context,
   blueprint : PagedKvExecutionBlueprint,
   function_indices : FixedArray[Int],
+  split_decode_indices : FixedArray[Int],
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -63,8 +64,28 @@ fn prepare_paged_production_steps(
     (None, None) => None
     _ => raise InvalidExecutor(ResourceState)
   }
-  replace_paged_production_spans(
+  let replaced = replace_paged_production_spans(
     baseline, residual_replacement, fused_residual_span, qkv_readonly_replacements,
     fused_qkv_readonly_span,
   )
+  let expanded : Array[PreparedPagedGraphStep] = []
+  for prepared in replaced {
+    expanded.push(prepared)
+    let mut split_function_index = -1
+    for step_index, step in blueprint.steps() {
+      if step.operation_id() == prepared.operation_id {
+        split_function_index = split_decode_indices[step_index]
+        break
+      }
+    }
+    if split_function_index >= 0 {
+      expanded.push({
+        operation_id: prepared.operation_id,
+        function_index: split_function_index,
+        dimensions: prepared.dimensions,
+        arguments: prepared.arguments,
+      })
+    }
+  }
+  ReadOnlyArray::from_array(expanded)
 }

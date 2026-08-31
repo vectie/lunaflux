@@ -6,7 +6,7 @@ test "BF16 production graph policy derives eager and explicit fallback exactly" 
   )
   assert_eq(
     select_authenticated_bf16_graph_policy(false, true),
-    PagedOrderedEagerOnly,
+    PagedCapturedWithEagerFallback,
   )
   assert_eq(
     select_authenticated_bf16_graph_policy(true, false),

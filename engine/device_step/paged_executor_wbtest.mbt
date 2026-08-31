@@ -380,12 +380,16 @@ test "full blueprint builds one exact function map per entry point" {
     contracts,
     blueprint_artifacts(contracts),
   )
-  let (functions, indices) = collect_paged_functions(blueprint)
+  let (functions, indices, split_decode_indices) = collect_paged_functions(
+    blueprint,
+  )
   assert_eq(functions.length(), blueprint.steps().length())
   assert_eq(indices.length(), blueprint.steps().length())
+  assert_eq(split_decode_indices.length(), blueprint.steps().length())
   for index, function in functions {
     assert_eq(indices[index], index)
     assert_eq(function.identity, blueprint.steps()[index].entry_point())
     assert_eq(function.module_index, 0)
+    assert_eq(split_decode_indices[index], -1)
   }
 }

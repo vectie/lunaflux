@@ -111,3 +111,27 @@ test "descriptor v3 remains standalone and v4 owns optional startup extensions" 
     _ => fail("descriptor v3 silently accepted v4 startup extensions")
   }
 }
+
+///|
+test "descriptor v5 admits eager-only startup extensions without graph authority" {
+  let v5 = graph_descriptor_fixture()
+    .replace(old="lunaflux.runtime.v1", new="lunaflux.runtime.v5")
+    .replace(
+      old="\"admitted_bootstrap_sha256\":\"3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"",
+      new="\"admitted_bootstrap_sha256\":\"3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"sampling_runtime\":\"embedded_cuda_greedy_v1\"",
+    )
+  let claims = parse_graph_descriptor_fixture(v5)
+  assert_eq(claims.kernels.sampling_runtime, EmbeddedCudaGreedyV1)
+  assert_eq(claims.ceilings.max_graph_capture_bytes, None)
+  assert_eq(admit_graph_capture_ceiling(claims.ceilings), None)
+  try
+    parse_graph_descriptor_fixture(
+      v5.replace(old="lunaflux.runtime.v5", new="lunaflux.runtime.v1"),
+    )
+  catch {
+    InvalidField(area=Kernels, issue=UnsupportedValue, index=_) => ()
+    _ => fail("unexpected descriptor v1 extension failure")
+  } noraise {
+    _ => fail("descriptor v1 silently accepted v5 startup extensions")
+  }
+}

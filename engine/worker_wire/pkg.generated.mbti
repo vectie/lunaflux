@@ -56,6 +56,8 @@ pub fn plan_frame_byte_capacity(@worker_protocol.WorkerProtocolLimits) -> Int ra
 
 pub fn worker_graph_telemetry_frame_capacity() -> Int
 
+pub fn worker_graph_telemetry_sample_required(UInt64) -> Bool
+
 // Errors
 pub(all) suberror WorkerWireError {
   InvalidLimit(WorkerWireLimitRule)

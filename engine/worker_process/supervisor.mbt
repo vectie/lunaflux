@@ -249,13 +249,17 @@ pub fn WorkerProcessSupervisor::receive(
       }
     }
   self.accept_completion_bytes_in_place(side, plan, length)
-  let graph_length = self.require_child().read_frame(self.graph_rx) catch {
-      error => {
-        self.lifecycle = Failed
-        raise transport_error(error)
+  if @worker_wire.worker_graph_telemetry_sample_required(submission.2) {
+    let graph_length = self.require_child().read_frame(self.graph_rx) catch {
+        error => {
+          self.lifecycle = Failed
+          raise transport_error(error)
+        }
       }
-    }
-  self.accept_graph_telemetry_bytes_in_place(side, graph_length)
+    self.accept_graph_telemetry_bytes_in_place(side, graph_length)
+  } else {
+    self.accept_unsampled_graph_telemetry(side)
+  }
   let sequence = if side == 0 { self.sequence_a } else { self.sequence_b }
   ReceivedWorkerCompletion(self, side, sequence)
 }

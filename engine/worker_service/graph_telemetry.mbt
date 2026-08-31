@@ -103,8 +103,8 @@ fn WorkerServiceGraphTelemetryOwner::record_child_report(
         self.child_misses == 0xffffffffffffffffUL && self.child_hits == hits
     })
   if !saturated_step &&
-    !((delta_hits == 1UL && delta_misses == 0UL) ||
-    (delta_hits == 0UL && delta_misses == 1UL)) {
+    !((delta_hits > 0UL && delta_misses == 0UL) ||
+    (delta_hits == 0UL && delta_misses > 0UL)) {
     raise Invalid(WorkerOutput)
   }
   let (aggregate_hits, aggregate_misses) = if self.aggregate.is_available() {

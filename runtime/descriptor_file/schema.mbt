@@ -25,7 +25,7 @@ fn parse_descriptor(
   ])
   let schema_version = require_string(root, "schema_version", Root)
   let graph_memory_required = match schema_version {
-    "lunaflux.runtime.v1" => false
+    "lunaflux.runtime.v1" | "lunaflux.runtime.v5" => false
     "lunaflux.runtime.v2" | "lunaflux.runtime.v3" | "lunaflux.runtime.v4" =>
       true
     _ => raise invalid_field(Root, UnsupportedValue)
@@ -33,7 +33,9 @@ fn parse_descriptor(
   let kernels = parse_kernels(root)
   let has_extensions = kernels.fused_runtime is Some(_) ||
     kernels.sampling_runtime == EmbeddedCudaGreedyV1
-  if (schema_version == "lunaflux.runtime.v4") != has_extensions {
+  let extension_schema = schema_version == "lunaflux.runtime.v4" ||
+    schema_version == "lunaflux.runtime.v5"
+  if extension_schema != has_extensions {
     raise invalid_field(Kernels, UnsupportedValue)
   }
   {

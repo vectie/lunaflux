@@ -124,7 +124,7 @@ fn WorkerService::progress_existing_flight_impl(
         PhysicalExchangePending => ServicePending(sequence)
         PhysicalExchangeCompleted => {
           let transport = self.require_transport()
-          if transport.supports_graph_telemetry() {
+          if transport.supports_graph_telemetry(sequence) {
             let graph_report = transport.received_graph_telemetry(sequence) catch {
               error => enter_service_recovery(self, error)
             }

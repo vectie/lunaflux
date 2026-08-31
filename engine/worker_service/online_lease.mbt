@@ -158,7 +158,12 @@ pub fn OnlineWorkerLease::progress_status(
       }
     }
   } noraise {
-    _ => OnlineWorkerAdvanced
+    progress =>
+      match progress {
+        ServiceIdle | ServiceBackpressured | ServicePending(_) =>
+          OnlineWorkerWaiting
+        _ => OnlineWorkerAdvanced
+      }
   }
 }
 

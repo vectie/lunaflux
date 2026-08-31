@@ -44,6 +44,17 @@ test "service graph telemetry aggregates authenticated replacement counters" {
 }
 
 ///|
+test "service graph telemetry admits a cumulative sparse sample" {
+  let owner = new_worker_service_graph_telemetry()
+  owner.record_child_report(4UL, wb_graph_report(4UL, 4UL, 0UL))
+  owner.record_child_report(64UL, wb_graph_report(64UL, 64UL, 0UL))
+  let aggregate = owner.aggregate.current()
+  assert_eq(aggregate.sequence_value(), 64UL)
+  assert_eq(aggregate.graph_hits(), 64UL)
+  assert_eq(aggregate.graph_misses(), 0UL)
+}
+
+///|
 test "service graph telemetry rejects regressions and replacement substitution" {
   let regressed = new_worker_service_graph_telemetry()
   regressed.record_child_report(1UL, wb_graph_report(1UL, 1UL, 0UL))

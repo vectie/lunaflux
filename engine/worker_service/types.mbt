@@ -183,6 +183,7 @@ pub(all) enum LunaWorkerServiceMaintenanceProgress {
 #valtype
 pub(all) enum OnlineWorkerStep {
   OnlineWorkerAdvanced
+  OnlineWorkerWaiting
   OnlineWorkerRetryable
   OnlineWorkerOutputInvalid
   OnlineWorkerUnavailable

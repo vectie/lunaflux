@@ -129,11 +129,33 @@ fn paged_function_index(
 }
 
 ///|
+fn paged_function_symbol_index(
+  functions : Array[PagedFunctionBlueprint],
+  module_index : Int,
+  symbol : StringView,
+) -> Int? {
+  for index, function in functions {
+    if function.module_index == module_index &&
+      function.symbol == symbol.to_owned() {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn paged_step_has_split_decode_mlp(step : PagedKvExecutionStep) -> Bool {
+  step.operation_kind() == GatedMlp &&
+  step.operands().any(operand => operand.role() == Workspace)
+}
+
+///|
 fn collect_paged_functions(
   blueprint : PagedKvExecutionBlueprint,
-) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int]) {
+) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int], FixedArray[Int]) {
   let functions : Array[PagedFunctionBlueprint] = []
   let indices = FixedArray::make(blueprint.steps().length(), 0)
+  let split_decode_indices = FixedArray::make(blueprint.steps().length(), -1)
   for step_index, step in blueprint.steps() {
     match paged_function_index(functions, step.entry_point()) {
       Some(index) => indices[step_index] = index
@@ -147,7 +169,28 @@ fn collect_paged_functions(
       }
     }
   }
-  (ReadOnlyArray::from_array(functions), indices)
+  for step_index, step in blueprint.steps() {
+    if paged_step_has_split_decode_mlp(step) {
+      let symbol = step.function_symbol() + "_down"
+      match
+        paged_function_symbol_index(
+          functions,
+          step.artifact_module_index(),
+          symbol,
+        ) {
+        Some(index) => split_decode_indices[step_index] = index
+        None => {
+          functions.push({
+            identity: step.entry_point(),
+            module_index: step.artifact_module_index(),
+            symbol,
+          })
+          split_decode_indices[step_index] = functions.length() - 1
+        }
+      }
+    }
+  }
+  (ReadOnlyArray::from_array(functions), indices, split_decode_indices)
 }
 
 ///|
@@ -358,7 +401,9 @@ pub fn prepare_paged_graph_executor(
   let completion = prepare_paged_completion_scratch(
     model_plan, memory_plan, limits,
   )
-  let (functions, function_indices) = collect_paged_functions(blueprint)
+  let (functions, function_indices, split_decode_indices) = collect_paged_functions(
+    blueprint,
+  )
   let resources = empty_paged_resources()
   let descriptor_outcome = prepare(
     context,
@@ -439,6 +484,7 @@ pub fn prepare_paged_graph_executor(
     context,
     blueprint,
     function_indices,
+    split_decode_indices,
     descriptor.resources,
     weight,
     activation_workspace,

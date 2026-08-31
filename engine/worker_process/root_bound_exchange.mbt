@@ -270,6 +270,15 @@ pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
     ) catch {
       error => self.fail_exchange(error)
     }
+    if !@worker_wire.worker_graph_telemetry_sample_required(
+        self.exchange_sequence,
+      ) {
+      self.process.accept_unsampled_graph_telemetry(self.exchange_side) catch {
+        error => self.fail_exchange(error)
+      }
+      self.clear_exchange()
+      return ExchangeCompleted
+    }
     self.process
     .require_child()
     .begin_read_frame(

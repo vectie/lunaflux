@@ -49,14 +49,14 @@ fn valid_graph_counter_step(
       (if old_hits == 0xffffffffffffffffUL {
         hits == old_hits
       } else {
-        hits == old_hits + 1UL
+        hits > old_hits
       })
     WorkerGraphOrderedEager =>
       hits == old_hits &&
       (if old_misses == 0xffffffffffffffffUL {
         misses == old_misses
       } else {
-        misses == old_misses + 1UL
+        misses > old_misses
       })
   }
 }
@@ -121,6 +121,31 @@ fn WorkerProcessSupervisor::accept_graph_telemetry_bytes_in_place(
     self.state_b = 2
   }
   self.last_graph_telemetry.store(report)
+}
+
+///|
+fn WorkerProcessSupervisor::accept_unsampled_graph_telemetry(
+  self : WorkerProcessSupervisor,
+  side : Int,
+) -> Unit raise WorkerProcessError {
+  if side == 0 {
+    if self.state_a != 1 {
+      self.lifecycle = Failed
+      raise Invalid(Completion)
+    }
+    self.graph_telemetry_a.clear()
+    self.state_a = 2
+  } else if side == 1 {
+    if self.state_b != 1 {
+      self.lifecycle = Failed
+      raise Invalid(Completion)
+    }
+    self.graph_telemetry_b.clear()
+    self.state_b = 2
+  } else {
+    self.lifecycle = Failed
+    raise Invalid(Completion)
+  }
 }
 
 ///|

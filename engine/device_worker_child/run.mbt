@@ -158,21 +158,23 @@ fn serve_frames(
       let sequence = completion.sequence_value() catch {
         _ => raise StartupFailed
       }
-      let report = owner.graph_runtime_telemetry() catch {
-        _ => raise StartupFailed
-      }
-      let graph_length = @worker_wire.encode_worker_graph_telemetry(
-        child_graph_telemetry(sequence, report),
-        buffers.graph_output,
-      ) catch {
-        _ => raise StartupFailed
-      }
-      channel.write_frame(
-        buffers.graph_output,
-        offset=0,
-        byte_count=graph_length,
-      ) catch {
-        _ => raise StartupFailed
+      if @worker_wire.worker_graph_telemetry_sample_required(sequence) {
+        let report = owner.graph_runtime_telemetry() catch {
+          _ => raise StartupFailed
+        }
+        let graph_length = @worker_wire.encode_worker_graph_telemetry(
+          child_graph_telemetry(sequence, report),
+          buffers.graph_output,
+        ) catch {
+          _ => raise StartupFailed
+        }
+        channel.write_frame(
+          buffers.graph_output,
+          offset=0,
+          byte_count=graph_length,
+        ) catch {
+          _ => raise StartupFailed
+        }
       }
     },
   )
