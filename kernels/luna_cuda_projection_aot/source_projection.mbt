@@ -11,17 +11,7 @@ fn projection_tensor_core_prelude() -> String {
 ///|
 fn projection_tensor_core_eligible(parameters : ProjectionParameters) -> Bool {
   parameters.family != GatedMlp &&
-  parameters.input_width % 16 == 0 &&
-  parameters.output_width % 16 == 0 &&
-  (
-    parameters.family != QkvProjection ||
-    (
-      parameters.query_width > 0 &&
-      parameters.query_width % 16 == 0 &&
-      parameters.intermediate_width > 0 &&
-      parameters.intermediate_width % 16 == 0
-    )
-  )
+  projection_dispatch_plan(parameters, 2).prefill().kernel_class() == MatrixTile
 }
 
 ///|
@@ -29,10 +19,7 @@ fn projection_tensor_core_mlp_eligible(
   parameters : ProjectionParameters,
 ) -> Bool {
   parameters.family == GatedMlp &&
-  parameters.input_width % 256 == 0 &&
-  parameters.output_width % 256 == 0 &&
-  parameters.intermediate_width % 256 == 0 &&
-  parameters.intermediate_width <= 3840
+  projection_dispatch_plan(parameters, 2).prefill().kernel_class() == MatrixTile
 }
 
 ///|

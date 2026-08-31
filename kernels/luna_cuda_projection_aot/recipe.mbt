@@ -21,6 +21,17 @@ fn projection_numerical_tag(contract : ProjectionNumericalContract) -> String {
 }
 
 ///|
+fn projection_strategy_tag(
+  strategy : @luna_projection_strategy.ProjectionStrategy,
+) -> String {
+  match strategy.kernel_class() {
+    ScalarTile => "scalar-tile"
+    SubgroupGemv => "subgroup-gemv"
+    MatrixTile => "matrix-tile"
+  }
+}
+
+///|
 fn projection_bool_tag(value : Bool) -> String {
   if value {
     "true"
@@ -117,6 +128,7 @@ fn projection_recipe(
   operands : ArrayView[@launch_contract.AotOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   numerical_contract : ProjectionNumericalContract,
+  dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan,
   function_symbol : String,
   source_digest : ProjectionCudaSourceDigest,
   embed_greedy_sampling : Bool,
@@ -198,6 +210,15 @@ fn projection_recipe(
       ""
     }) +
     "vendor_fast_path=row-major-weight-transpose-compatible\n" +
+    "decode_strategy=" +
+    projection_strategy_tag(dispatch_plan.decode()) +
+    "\ndecode_row_bucket=" +
+    dispatch_plan.decode().row_bucket().to_string() +
+    "\nprefill_strategy=" +
+    projection_strategy_tag(dispatch_plan.prefill()) +
+    "\nprefill_row_bucket=" +
+    dispatch_plan.prefill().row_bucket().to_string() +
+    "\n" +
     "numerical_contract=" +
     projection_numerical_tag(numerical_contract) +
     "\n" +

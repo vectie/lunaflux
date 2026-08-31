@@ -41,6 +41,7 @@ pub struct ProjectionCudaLowering {
   priv input_width : Int
   priv output_width : Int
   priv intermediate_width : Int
+  priv dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_contract : ProjectionNumericalContract
@@ -116,6 +117,14 @@ pub fn ProjectionCudaLowering::intermediate_width(
   self : ProjectionCudaLowering,
 ) -> Int {
   self.intermediate_width
+}
+
+///|
+/// Backend-neutral decode/prefill strategy selected before CUDA lowering.
+pub fn ProjectionCudaLowering::dispatch_plan(
+  self : ProjectionCudaLowering,
+) -> @luna_projection_strategy.ProjectionDispatchPlan {
+  self.dispatch_plan
 }
 
 ///|

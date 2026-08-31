@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
@@ -61,6 +62,7 @@ pub struct ProjectionCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn ProjectionCudaLowering::dispatch_plan(Self) -> @luna_projection_strategy.ProjectionDispatchPlan
 pub fn ProjectionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
 pub fn ProjectionCudaLowering::family(Self) -> ProjectionAotFamily
 pub fn ProjectionCudaLowering::function_symbol(Self) -> String

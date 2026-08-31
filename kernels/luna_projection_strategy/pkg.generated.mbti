@@ -1,0 +1,94 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_projection_strategy"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn plan_projection_dispatch(ProjectionShape, Int, ProjectionCapabilities) -> ProjectionDispatchPlan raise ProjectionStrategyError
+
+pub fn projection_row_bucket(Int) -> Int raise ProjectionStrategyError
+
+pub fn select_projection_autotune_record(ArrayView[ProjectionAutotuneRecord], String, String, ProjectionShape, ProjectionPhase, Int) -> ProjectionAutotuneRecord raise ProjectionStrategyError
+
+// Errors
+pub(all) suberror ProjectionStrategyError {
+  InvalidProjectionStrategy(ProjectionStrategyRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ProjectionAutotuneRecord {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionAutotuneRecord::median_latency_ns(Self) -> Int64
+pub fn ProjectionAutotuneRecord::new(device_class~ : String, numeric_format~ : String, shape~ : ProjectionShape, strategy~ : ProjectionStrategy, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise ProjectionStrategyError
+pub fn ProjectionAutotuneRecord::sample_count(Self) -> Int
+pub fn ProjectionAutotuneRecord::strategy(Self) -> ProjectionStrategy
+
+pub struct ProjectionCapabilities {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionCapabilities::matrix_tile(Self) -> ProjectionTile?
+pub fn ProjectionCapabilities::new(subgroup_width~ : Int, matrix_tile? : ProjectionTile?) -> Self raise ProjectionStrategyError
+pub fn ProjectionCapabilities::subgroup_width(Self) -> Int
+
+pub struct ProjectionDispatchPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionDispatchPlan::decode(Self) -> ProjectionStrategy
+pub fn ProjectionDispatchPlan::prefill(Self) -> ProjectionStrategy
+pub fn ProjectionDispatchPlan::shape(Self) -> ProjectionShape
+
+pub(all) enum ProjectionKernelClass {
+  ScalarTile
+  SubgroupGemv
+  MatrixTile
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionPhase {
+  Decode
+  Prefill
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionSemanticFamily {
+  Qkv
+  Dense
+  GatedMlp
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionShape::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionShape::family(Self) -> ProjectionSemanticFamily
+pub fn ProjectionShape::new(ProjectionSemanticFamily, input_width~ : Int, output_width~ : Int, intermediate_width? : Int) -> Self raise ProjectionStrategyError
+
+pub struct ProjectionStrategy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionStrategy::kernel_class(Self) -> ProjectionKernelClass
+pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile) -> Self raise ProjectionStrategyError
+pub fn ProjectionStrategy::phase(Self) -> ProjectionPhase
+pub fn ProjectionStrategy::row_bucket(Self) -> Int
+pub fn ProjectionStrategy::stable_id(Self) -> Int
+pub fn ProjectionStrategy::tile(Self) -> ProjectionTile
+
+pub(all) enum ProjectionStrategyRule {
+  Shape
+  Capability
+  Bucket
+  Measurement
+  Candidate
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionTile {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTile::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionTile::new(rows~ : Int, columns~ : Int, reduction~ : Int) -> Self raise ProjectionStrategyError
+
+// Type aliases
+
+// Traits

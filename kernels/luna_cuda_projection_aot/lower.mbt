@@ -30,6 +30,10 @@ fn projection_finish_candidate(
     operands,
   )
   validate_projection_operands(operation, parameters, profile, operands)
+  let dispatch_plan = projection_dispatch_plan(
+    parameters,
+    profile.max_query_tokens(),
+  )
   let dimensions = projection_dimensions(profile, parameters)
   let source = projection_source(
     symbol,
@@ -54,6 +58,7 @@ fn projection_finish_candidate(
     operands,
     dimensions,
     numerical_contract,
+    dispatch_plan,
     symbol,
     source_digest,
     embed_greedy_sampling,
@@ -70,6 +75,7 @@ fn projection_finish_candidate(
     input_width: parameters.input_width,
     output_width: parameters.output_width,
     intermediate_width: parameters.intermediate_width,
+    dispatch_plan,
     operands: ReadOnlyArray::from_array(operands),
     dimensions,
     numerical_contract,

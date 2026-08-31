@@ -17,6 +17,79 @@ priv struct ProjectionParameters {
 }
 
 ///|
+/// CUDA's private capability adapter into the backend-neutral strategy layer.
+fn projection_dispatch_plan(
+  parameters : ProjectionParameters,
+  maximum_rows : Int,
+) -> @luna_projection_strategy.ProjectionDispatchPlan {
+  let family = match parameters.family {
+    QkvProjection => @luna_projection_strategy.Qkv
+    DenseProjection => Dense
+    GatedMlp => GatedMlp
+    LanguageModelHead => LanguageModelHead
+  }
+  let shape = @luna_projection_strategy.ProjectionShape::new(
+    family,
+    input_width=parameters.input_width,
+    output_width=parameters.output_width,
+    intermediate_width=parameters.intermediate_width,
+  ) catch {
+    _ => abort("validated projection shape rejected by strategy")
+  }
+  let matrix_tile = if parameters.family == GatedMlp {
+    if parameters.input_width % 256 == 0 &&
+      parameters.output_width % 256 == 0 &&
+      parameters.intermediate_width % 256 == 0 &&
+      parameters.intermediate_width <= 3840 {
+      Some(
+        @luna_projection_strategy.ProjectionTile::new(
+          rows=16,
+          columns=256,
+          reduction=256,
+        ) catch {
+          _ => abort("static CUDA MLP tile rejected")
+        },
+      )
+    } else {
+      None
+    }
+  } else if parameters.input_width % 16 == 0 &&
+    parameters.output_width % 16 == 0 &&
+    (
+      parameters.family != QkvProjection ||
+      (
+        parameters.query_width > 0 &&
+        parameters.query_width % 16 == 0 &&
+        parameters.intermediate_width > 0 &&
+        parameters.intermediate_width % 16 == 0
+      )
+    ) {
+    Some(
+      @luna_projection_strategy.ProjectionTile::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ) catch {
+        _ => abort("static CUDA matrix tile rejected")
+      },
+    )
+  } else {
+    None
+  }
+  let capabilities = @luna_projection_strategy.ProjectionCapabilities::new(
+    subgroup_width=32,
+    matrix_tile~,
+  ) catch {
+    _ => abort("static CUDA projection capability rejected")
+  }
+  @luna_projection_strategy.plan_projection_dispatch(
+    shape, maximum_rows, capabilities,
+  ) catch {
+    _ => abort("validated projection strategy rejected")
+  }
+}
+
+///|
 fn projection_checked_mul(
   left : Int64,
   right : Int64,
