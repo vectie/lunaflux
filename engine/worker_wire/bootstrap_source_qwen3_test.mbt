@@ -24,7 +24,7 @@ fn qwen3_source_fixture(
       compute_major=8,
       compute_minor=9,
       supports_bf16=true,
-      supports_cublas_lt=true,
+      supports_cublas_lt=false,
       tokens_per_page=16,
       total_page_count=4096,
     ),

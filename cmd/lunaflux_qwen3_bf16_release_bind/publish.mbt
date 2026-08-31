@@ -244,7 +244,7 @@ fn derive_qwen3_bootstrap_source(
       compute_major=12,
       compute_minor=0,
       supports_bf16=true,
-      supports_cublas_lt=true,
+      supports_cublas_lt=false,
       tokens_per_page=arguments.tokens_per_page,
       total_page_count=arguments.total_page_count,
     ),

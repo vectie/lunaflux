@@ -99,7 +99,7 @@ fn prepare_candidate_set(
     compute_major=12,
     compute_minor=0,
     supports_bf16=true,
-    supports_cublas_lt=true,
+    supports_cublas_lt=false,
   ) catch {
     _ => raise CandidatePreparation
   }

@@ -7,10 +7,11 @@ fn select_authenticated_bf16_graph_policy(
   has_luna_authorization : Bool,
   capture_safe : Bool,
 ) -> @device_step.PagedGraphExecutionPolicy {
-  // Authorization governs optional specialized kernels, not whether the
-  // already-bound ordinary AOT launch list is graph-capturable.
-  let _ = has_luna_authorization
-  if !capture_safe {
+  // Capture is legal only when the authenticated execution authorization also
+  // carries the bounded graph-memory metadata consumed by startup capacity
+  // admission. An ordinary AOT launch list remains eager even when its
+  // pointers are stable; stability alone is not a memory-accounting contract.
+  if !has_luna_authorization || !capture_safe {
     PagedOrderedEagerOnly
   } else {
     PagedCapturedWithEagerFallback
@@ -22,9 +23,8 @@ fn authenticated_bf16_graph_policy(
   execution : @execution_manifest_file.PagedExecutionAdmission,
 ) -> @device_step.PagedGraphExecutionPolicy {
   match execution.luna_authorization() {
-    // The ordinary BF16 path is already an immutable, pointer-stable AOT
-    // launch list. Capture it directly; a failed driver capture falls back to
-    // the same ordered eager executor without changing execution semantics.
+    // Without authenticated graph metadata there is no bounded capture-memory
+    // contract. Keep the ordinary AOT launch list ordered and eager.
     None => select_authenticated_bf16_graph_policy(false, true)
     Some(authorization) =>
       // Artifact admission currently has exactly one execution disposition.
