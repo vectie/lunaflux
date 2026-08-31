@@ -65,11 +65,11 @@ fn load_authenticated_paged_plan(
 }
 
 ///|
-fn prepare_candidate_set(
+fn prepare_device_layout(
   plan : @plan.ModelPlan,
   arguments : Qwen3CandidateExportArguments,
-) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise Qwen3Bf16CandidateExportCliError {
-  let layout = @device_layout.plan(
+) -> @device_layout.DeviceKvLayout raise Qwen3Bf16CandidateExportCliError {
+  @device_layout.plan(
     plan.identity(),
     plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
@@ -80,6 +80,14 @@ fn prepare_candidate_set(
   ) catch {
     _ => raise CandidatePreparation
   }
+}
+
+///|
+fn prepare_candidate_set(
+  plan : @plan.ModelPlan,
+  layout : @device_layout.DeviceKvLayout,
+  arguments : Qwen3CandidateExportArguments,
+) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise Qwen3Bf16CandidateExportCliError {
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
     max_query_rows=arguments.max_query_rows,
@@ -135,6 +143,139 @@ fn prepare_candidate_set(
 }
 
 ///|
+priv struct QwenFusedProductionSet {
+  first_operation : Int
+  ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
+  attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
+}
+
+///|
+fn prepare_qwen_fused_production_set(
+  plan : @plan.ModelPlan,
+  layout : @device_layout.DeviceKvLayout,
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
+  let candidates = set.candidates()
+  for index in 0..<(candidates.length() - 3) {
+    guard candidates[index] is Projection(qkv) &&
+      candidates[index + 1] is Pointwise(qk_norm) &&
+      qk_norm.family() == QkRmsNorm &&
+      candidates[index + 2] is Pointwise(rope) &&
+      rope.family() == PositionedRotary &&
+      candidates[index + 3] is PagedAttention(attention) else {
+      continue
+    }
+    let operation = plan.operations()[index + 3]
+    if plan.operations()[index].kind() != QkvProjection ||
+      plan.operations()[index + 1].kind() != QkRmsNorm ||
+      plan.operations()[index + 2].kind() != RotaryEmbedding ||
+      operation.kind() != CausalAttention {
+      continue
+    }
+    let kv_operands : Array[@launch_contract.AotOperand] = []
+    for operand in attention.operands() {
+      match operand.role() {
+        ActivationOutput(_) => ()
+        _ => kv_operands.push(operand)
+      }
+    }
+    let pointwise_limits = @luna_cuda_pointwise_aot.PointwiseAotLimits::new(
+      max_source_bytes=1048576,
+      max_recipe_bytes=65536,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let kv_write = @luna_cuda_pointwise_aot.lower_auxiliary_kv_cache_write_cuda_aot(
+      operation,
+      set.profile(),
+      layout,
+      @catalog.AotKernelEntryPointId::from_stable_int(3901),
+      set.target(),
+      set.compiler_policy(),
+      kv_operands,
+      pointwise_limits,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let fused_limits = @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
+      maximum_source_bytes=1048576,
+      maximum_recipe_bytes=65536,
+      maximum_promotion_bytes=65536,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let ingress_qualification = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
+      plan,
+      layout,
+      qkv,
+      qk_norm,
+      rope,
+      kv_write,
+      set.target(),
+      set.compiler_policy(),
+      fused_limits,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+      ingress_qualification, fused_limits,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let readonly_limits = @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyAotLimits::new(
+      maximum_source_bytes=1048576,
+      maximum_recipe_bytes=65536,
+      maximum_canonical_bytes=65536,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let readonly_qualification = @luna_cuda_paged_attention_readonly_aot.lower_paged_attention_readonly_cuda_aot_candidate(
+      attention,
+      @catalog.AotKernelEntryPointId::from_stable_int(3902),
+      readonly_limits,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    let attention_read = @luna_cuda_paged_attention_readonly_aot.lower_paged_attention_readonly_production_cuda_aot_candidate(
+      readonly_qualification, readonly_limits,
+    ) catch {
+      _ => raise CandidatePreparation
+    }
+    return { first_operation: index, ingress, attention_read }
+  }
+  raise CandidatePreparation
+}
+
+///|
+async fn write_new_candidate_pair(
+  root : String,
+  source : Bytes,
+  recipe : Bytes,
+) -> Unit raise Qwen3Bf16CandidateExportCliError {
+  @fs.mkdir(root, permission=0o700) catch {
+    _ => raise Publication
+  }
+  @fs.write_file(
+    root + "/kernel.cu",
+    source,
+    create_mode=CreateNew,
+    permission=0o600,
+    sync=Full,
+  ) catch {
+    _ => raise Publication
+  }
+  @fs.write_file(
+    root + "/kernel.recipe",
+    recipe,
+    create_mode=CreateNew,
+    permission=0o600,
+    sync=Full,
+  ) catch {
+    _ => raise Publication
+  }
+}
+
+///|
 fn prepare_residual_rmsnorm_candidate(
   plan : @plan.ModelPlan,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
@@ -171,7 +312,8 @@ async fn run_qwen3_candidate_export(
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {
   let arguments = parse_qwen3_candidate_export_arguments(raw_arguments)
   let plan = load_authenticated_paged_plan(arguments)
-  let set = prepare_candidate_set(plan, arguments)
+  let layout = prepare_device_layout(plan, arguments)
+  let set = prepare_candidate_set(plan, layout, arguments)
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
     arguments.absolute_new_output,
@@ -189,28 +331,26 @@ async fn run_qwen3_candidate_export(
   ) catch {
     _ => raise CandidatePreparation
   }
+  let qwen_fused = prepare_qwen_fused_production_set(plan, layout, set)
   let fused_root = arguments.absolute_new_output + "/reusable-fused-residual"
-  @fs.mkdir(fused_root, permission=0o700) catch {
-    _ => raise Publication
-  }
-  @fs.write_file(
-    fused_root + "/kernel.cu",
+  write_new_candidate_pair(
+    fused_root,
     production.source_bytes(),
-    create_mode=CreateNew,
-    permission=0o600,
-    sync=Full,
-  ) catch {
-    _ => raise Publication
-  }
-  @fs.write_file(
-    fused_root + "/kernel.recipe",
     production.recipe_bytes(),
-    create_mode=CreateNew,
-    permission=0o600,
-    sync=Full,
-  ) catch {
-    _ => raise Publication
-  }
+  )
+  let ingress_root = arguments.absolute_new_output + "/reusable-qwen-ingress"
+  write_new_candidate_pair(
+    ingress_root,
+    qwen_fused.ingress.source_bytes(),
+    qwen_fused.ingress.recipe_bytes(),
+  )
+  let readonly_root = arguments.absolute_new_output +
+    "/reusable-qwen-readonly-attention"
+  write_new_candidate_pair(
+    readonly_root,
+    qwen_fused.attention_read.source_bytes(),
+    qwen_fused.attention_read.recipe_bytes(),
+  )
   println("schema=lunaflux-qwen3-bf16-candidate-export-cli.v1")
   println("recipe=dense_qwen3_bf16_paged_aot_v12")
   println(
@@ -240,6 +380,68 @@ async fn run_qwen3_candidate_export(
   println(
     "reusable_fused_residual_candidate_sha256=" +
     production.candidate_digest().as_hex(),
+  )
+  println(
+    "reusable_fused_residual_first_operation=" +
+    residual.residual_fallback().operation_id().as_int().to_string(),
+  )
+  println(
+    "reusable_fused_residual_function_symbol=" + production.function_symbol(),
+  )
+  let residual_launch = production.launch_dimensions()
+  println(
+    "reusable_fused_residual_launch=" +
+    residual_launch.grid_x().to_string() +
+    "," +
+    residual_launch.grid_y().to_string() +
+    "," +
+    residual_launch.block_x().to_string() +
+    "," +
+    residual_launch.shared_memory_bytes().to_string(),
+  )
+  println("reusable_qwen_ingress_source=" + ingress_root + "/kernel.cu")
+  println("reusable_qwen_ingress_recipe=" + ingress_root + "/kernel.recipe")
+  println(
+    "reusable_qwen_ingress_candidate_sha256=" +
+    qwen_fused.ingress.candidate_digest().as_hex(),
+  )
+  println(
+    "reusable_qwen_ingress_first_operation=" +
+    qwen_fused.first_operation.to_string(),
+  )
+  println(
+    "reusable_qwen_ingress_function_symbol=" +
+    qwen_fused.ingress.function_symbol(),
+  )
+  let ingress_launch = qwen_fused.ingress.launch_dimensions()
+  println(
+    "reusable_qwen_ingress_launch=" +
+    ingress_launch.grid_x().to_string() +
+    "," +
+    ingress_launch.grid_y().to_string() +
+    "," +
+    ingress_launch.block_x().to_string() +
+    "," +
+    ingress_launch.shared_memory_bytes().to_string(),
+  )
+  println("reusable_qwen_readonly_source=" + readonly_root + "/kernel.cu")
+  println("reusable_qwen_readonly_recipe=" + readonly_root + "/kernel.recipe")
+  println(
+    "reusable_qwen_readonly_candidate_sha256=" +
+    qwen_fused.attention_read.candidate_digest().as_hex(),
+  )
+  println(
+    "reusable_qwen_readonly_operation=" +
+    (qwen_fused.first_operation + 3).to_string(),
+  )
+  println(
+    "reusable_qwen_readonly_function_symbol=" +
+    qwen_fused.attention_read.function_symbol(),
+  )
+  println(
+    "reusable_qwen_readonly_launch=" +
+    arguments.max_query_tokens.to_string() +
+    ",1,1,0",
   )
 }
 
