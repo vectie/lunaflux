@@ -19,6 +19,7 @@ import {
   "vectie/lunaflux/kernels/luna_artifact_admission",
   "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
   "vectie/lunaflux/kernels/luna_cuda_sampling_aot",
+  "vectie/lunaflux/kernels/luna_execution_graph_strategy",
   "vectie/lunaflux/kernels/luna_fused_artifact_admission",
   "vectie/lunaflux/kernels/luna_kernel_bundle",
   "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
@@ -423,6 +424,7 @@ pub(all) enum PagedGraphExecutorRule {
   Fp8FrameEnvelope
   Fp8FrameAdmission
   Fp8ScaleEvidence
+  GraphBucket
   ResourceState
 } derive(Eq, @debug.Debug)
 
@@ -580,6 +582,7 @@ pub fn StagedDeviceStep::validate_frame(Self, @worker_wire.ValidatedPlanFrame) -
 pub struct StagedPagedGraphExecution {
   // private fields
 }
+pub fn StagedPagedGraphExecution::graph_bucket(Self) -> @luna_execution_graph_strategy.ExecutionGraphBucket
 
 // Type aliases
 

@@ -313,6 +313,7 @@ fn finish_paged_sampling_preparation(
     fp8_frame_admission: None,
     fp8_scale_evidence: None,
     graph_telemetry,
+    graph_bucket_table: new_paged_graph_bucket_table(blueprint.profile()),
     fused_residual_spans,
     fused_dispatch_canary: prepare_fused_dispatch_diagnostics(
       diagnostic_policy, fused_residual_spans,

@@ -139,6 +139,7 @@ pub(all) enum PagedGraphExecutorRule {
   Fp8FrameEnvelope
   Fp8FrameAdmission
   Fp8ScaleEvidence
+  GraphBucket
   ResourceState
 } derive(Debug, Eq)
 

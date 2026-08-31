@@ -1,0 +1,49 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_execution_graph_strategy"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn build_execution_graph_bucket_table(Int, Int, Int, Int) -> ExecutionGraphBucketTable raise ExecutionGraphBucketError
+
+// Errors
+pub(all) suberror ExecutionGraphBucketError {
+  InvalidExecutionGraphBucket(ExecutionGraphBucketRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ExecutionGraphBucket {
+  // private fields
+}
+pub fn ExecutionGraphBucket::phase(Self) -> ExecutionGraphPhase
+pub fn ExecutionGraphBucket::slot(Self) -> Int
+pub fn ExecutionGraphBucket::upper_bounds(Self) -> (Int, Int, Int)
+
+pub(all) enum ExecutionGraphBucketRule {
+  Shape
+  Limit
+  Capacity
+} derive(Eq, @debug.Debug)
+
+pub struct ExecutionGraphBucketTable {
+  // private fields
+}
+pub fn ExecutionGraphBucketTable::bucket_count(Self) -> Int
+pub fn ExecutionGraphBucketTable::select(Self, ExecutionGraphShape) -> ExecutionGraphBucket raise ExecutionGraphBucketError
+
+pub(all) enum ExecutionGraphPhase {
+  PrefillGraph
+  DecodeGraph
+  MixedGraph
+} derive(Eq, @debug.Debug)
+
+pub struct ExecutionGraphShape {
+  // private fields
+}
+pub fn ExecutionGraphShape::new(phase~ : ExecutionGraphPhase, batch_rows~ : Int, query_tokens~ : Int, context_tokens~ : Int) -> Self raise ExecutionGraphBucketError
+
+// Type aliases
+
+// Traits

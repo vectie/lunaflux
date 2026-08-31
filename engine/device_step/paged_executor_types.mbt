@@ -167,6 +167,7 @@ pub struct PagedGraphExecutor {
   priv fp8_frame_admission : Fp8FrameAdmissionStateV3?
   priv fp8_scale_evidence : Fp8ScaleEvidenceV3?
   priv graph_telemetry : PagedGraphTelemetryOwner
+  priv graph_bucket_table : @luna_execution_graph_strategy.ExecutionGraphBucketTable
   priv fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan]
   priv fused_dispatch_canary : FusedDispatchCanaryState?
   priv mut lifecycle : PagedGraphLifecycle
@@ -178,6 +179,14 @@ pub struct PagedGraphExecutor {
 pub struct StagedPagedGraphExecution {
   priv executor : PagedGraphExecutor
   priv epoch : UInt64
+  priv graph_bucket : @luna_execution_graph_strategy.ExecutionGraphBucket
+}
+
+///|
+pub fn StagedPagedGraphExecution::graph_bucket(
+  self : StagedPagedGraphExecution,
+) -> @luna_execution_graph_strategy.ExecutionGraphBucket {
+  self.graph_bucket
 }
 
 ///|

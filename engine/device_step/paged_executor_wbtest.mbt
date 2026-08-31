@@ -35,6 +35,12 @@ fn dummy_paged_executor(
   fp8_frame_admission? : Fp8FrameAdmissionStateV3? = None,
 ) -> PagedGraphExecutor {
   let limits = try! @sampling.SamplingLimits::new(1, 1)
+  let profile = try! @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(1),
+    max_query_rows=1,
+    max_query_tokens=1,
+    max_page_table_entries=1,
+  )
   {
     resources: empty_paged_resources(),
     steps: ReadOnlyArray::from_array([]),
@@ -53,6 +59,7 @@ fn dummy_paged_executor(
     fp8_frame_admission,
     fp8_scale_evidence: None,
     graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
+    graph_bucket_table: new_paged_graph_bucket_table(profile),
     fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,
     lifecycle,
@@ -112,6 +119,22 @@ fn executor_test_stochastic_plan() -> @worker_protocol.SubmittedSchedulePlan rai
     completion_slot=step_slot(0),
   )
   submit_step_buffer(buffer, token_budget=1)
+}
+
+///|
+test "submitted schedules select a phase-specific graph bucket before staging" {
+  let profile = @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(77),
+    max_query_rows=8,
+    max_query_tokens=32,
+    max_page_table_entries=64,
+  )
+  let bucket = select_submitted_graph_bucket(
+    new_paged_graph_bucket_table(profile),
+    executor_test_submitted_plan(),
+  )
+  assert_eq(bucket.phase(), PrefillGraph)
+  assert_eq(bucket.upper_bounds(), (1, 1, 1))
 }
 
 ///|
@@ -242,7 +265,27 @@ test "public paged capabilities reject lifecycle and foreign owners" {
   let first = dummy_paged_executor(GraphStaged)
   let second = dummy_paged_executor(GraphStaged)
   let before = second.graph_runtime_telemetry()
-  let staged : StagedPagedGraphExecution = { executor: first, epoch: 1UL }
+  let table = new_paged_graph_bucket_table(
+    try! @launch_contract.PagedKernelProfile::new(
+      id=@launch_contract.KernelProfileId::from_stable_int(1),
+      max_query_rows=1,
+      max_query_tokens=1,
+      max_page_table_entries=1,
+    ),
+  )
+  let graph_bucket = try! table.select(
+    try! @luna_execution_graph_strategy.ExecutionGraphShape::new(
+      phase=PrefillGraph,
+      batch_rows=1,
+      query_tokens=1,
+      context_tokens=1,
+    ),
+  )
+  let staged : StagedPagedGraphExecution = {
+    executor: first,
+    epoch: 1UL,
+    graph_bucket,
+  }
   try second.execute(staged) catch {
     ExecutorOwnerMismatch => ()
     _ => fail("unexpected foreign staged capability error")

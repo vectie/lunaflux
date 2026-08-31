@@ -126,6 +126,10 @@ pub fn PagedGraphExecutor::stage(
   if self.fp8_frame_envelope is Some(_) {
     raise InvalidExecutor(Fp8FrameAdmission)
   }
+  let graph_bucket = select_submitted_graph_bucket(
+    self.graph_bucket_table,
+    plan,
+  )
   let descriptor = complete_descriptor(self.resources)
   let staged = descriptor.stage_with_sampling_mode(
     plan,
@@ -134,7 +138,7 @@ pub fn PagedGraphExecutor::stage(
     error => propagate_descriptor_poison(self, descriptor, error)
   }
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1 }
+  { executor: self, epoch: staged.1, graph_bucket }
 }
 
 ///|
@@ -145,6 +149,7 @@ pub fn PagedGraphExecutor::stage_frame(
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
+  let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)
   let descriptor = complete_descriptor(self.resources)
   let staged = match self.fp8_frame_envelope {
     Some(envelope) => {
@@ -171,7 +176,7 @@ pub fn PagedGraphExecutor::stage_frame(
     }
   }
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1 }
+  { executor: self, epoch: staged.1, graph_bucket }
 }
 
 ///|
