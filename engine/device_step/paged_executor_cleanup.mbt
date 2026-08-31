@@ -295,6 +295,13 @@ fn close_paged_resources(
           },
           () => {
             close_paged_allocation(
+              resources.qwen_fused_attention_sidecar,
+              ActivationWorkspaceArena,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
               resources.activation_workspace,
               ActivationWorkspaceArena,
               first,

@@ -5,6 +5,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     stream: None,
     weight_lease: None,
     activation_workspace: None,
+    qwen_fused_attention_sidecar: None,
     persistent_kv: None,
     fused_dispatch_canary: None,
     greedy_sampling_results: None,

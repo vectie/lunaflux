@@ -4,16 +4,51 @@ fn qwen_fused_ingress_argument_count() -> Int {
 }
 
 ///|
+fn qwen_fused_attention_sidecar_shape_from_bindings(
+  rotated : PagedKvOperandBinding,
+  readonly_input : PagedKvOperandBinding,
+) -> (Int64, Int64) raise DeviceStepError {
+  if !same_composite_region(rotated, readonly_input) ||
+    rotated.byte_count() <= 0L ||
+    rotated.alignment() <= 0L {
+    raise InvalidExecutor(ResourceState)
+  }
+  (rotated.byte_count(), rotated.alignment())
+}
+
+///|
+fn qwen_fused_attention_sidecar_shape(
+  blueprint : PagedKvExecutionBlueprint,
+  span : ApprovedQwenFusedAttentionSpan,
+) -> (Int64, Int64) raise DeviceStepError {
+  let (_, _, rope_index, attention_index) = span.operation_indices()
+  guard blueprint.steps().get(rope_index) is Some(rope_step) &&
+    blueprint.steps().get(attention_index) is Some(attention_step) else {
+    raise InvalidExecutor(ResourceState)
+  }
+  let rotated = unique_composite_binding(rope_step, role => {
+    role is ActivationOutput(_)
+  })
+  let readonly_input = unique_composite_binding(attention_step, role => {
+    role is ActivationInput(_)
+  })
+  qwen_fused_attention_sidecar_shape_from_bindings(rotated, readonly_input)
+}
+
+///|
 fn prepare_qwen_fused_attention_resources(
   context : @device.Context,
+  blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
   resources : PagedGraphResources,
-) -> (Int, Int) raise DeviceStepError {
+) -> (Int, Int, @device.Allocation) raise DeviceStepError {
   guard spans.get(0) is Some(first) else {
     raise InvalidExecutor(ResourceState)
   }
+  let sidecar_shape = qwen_fused_attention_sidecar_shape(blueprint, first)
   for span in spans {
-    if !span.same_runtime_modules(first) {
+    if !span.same_runtime_modules(first) ||
+      qwen_fused_attention_sidecar_shape(blueprint, span) != sidecar_shape {
       raise InvalidExecutor(ResourceState)
     }
   }
@@ -29,7 +64,28 @@ fn prepare_qwen_fused_attention_resources(
     first.readonly_function_symbol(),
     resources,
   )
-  (ingress, readonly_function)
+  if resources.qwen_fused_attention_sidecar is Some(_) {
+    raise InvalidExecutor(ResourceState)
+  }
+  let sidecar = context.allocate(sidecar_shape.0) catch {
+    error => raise ExecutorDevice(ActivationWorkspaceArena, error)
+  }
+  resources.qwen_fused_attention_sidecar = Some({
+    resource: sidecar,
+    open: true,
+  })
+  if sidecar.byte_count() != sidecar_shape.0 {
+    raise InvalidExecutor(AllocationSize)
+  }
+  context.validate_allocation_region(
+    sidecar,
+    offset=0L,
+    byte_count=sidecar_shape.0,
+    alignment=sidecar_shape.1,
+  ) catch {
+    error => raise ExecutorDevice(KernelArguments, error)
+  }
+  (ingress, readonly_function, sidecar)
 }
 
 ///|
@@ -50,15 +106,55 @@ fn qwen_fused_attention_weights(
 }
 
 ///|
-fn qwen_fused_regions_overlap(
-  left : PagedKvOperandBinding,
-  right : PagedKvOperandBinding,
-) -> Bool {
-  if left.space() != right.space() {
-    return false
+fn qwen_fused_sidecar_argument(
+  binding : PagedKvOperandBinding,
+  sidecar : @device.Allocation,
+) -> @device.KernelArgument raise DeviceStepError {
+  @device.KernelArgument::device_region(
+    sidecar,
+    offset=0L,
+    byte_count=binding.byte_count(),
+    alignment=binding.alignment(),
+  ) catch {
+    error => raise ExecutorDevice(KernelArguments, error)
   }
-  left.offset_bytes() < right.offset_bytes() + right.byte_count() &&
-  right.offset_bytes() < left.offset_bytes() + left.byte_count()
+}
+
+///|
+fn prepare_qwen_fused_attention_launch(
+  operation : @plan.OperationId,
+  function_index : Int,
+  launch : @launch_contract.AotLaunchDimensions,
+  bindings : ArrayView[PagedKvOperandBinding],
+  sidecar_binding_index : Int,
+  sidecar : @device.Allocation,
+  descriptor : DeviceStepResources,
+  weight : @device.Allocation,
+  activation : @device.Allocation,
+  kv : @device.Allocation,
+) -> PreparedPagedGraphStep raise DeviceStepError {
+  if sidecar_binding_index < 0 || sidecar_binding_index >= bindings.length() {
+    raise executor_operation_error(operation, ResourceState)
+  }
+  let arguments : Array[@device.KernelArgument] = []
+  for index, binding in bindings {
+    arguments.push(
+      if index == sidecar_binding_index {
+        qwen_fused_sidecar_argument(binding, sidecar)
+      } else {
+        composite_binding_argument(binding, descriptor, weight, activation, kv)
+      },
+    )
+  }
+  let packed = @device.KernelArguments::new(arguments) catch {
+    error => raise ExecutorDevice(KernelArguments, error)
+  }
+  {
+    operation_id: operation,
+    function_index,
+    dimensions: composite_launch_dimensions(launch, operation),
+    arguments: packed,
+  }
 }
 
 ///|
@@ -71,6 +167,7 @@ fn prepare_qwen_fused_attention_steps(
   weight : @device.Allocation,
   activation : @device.Allocation,
   kv : @device.Allocation,
+  sidecar : @device.Allocation,
 ) -> (PreparedPagedGraphStep, PreparedPagedGraphStep) raise DeviceStepError {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = span.operation_indices()
   guard blueprint.steps().get(qkv_index) is Some(qkv_step) &&
@@ -152,22 +249,6 @@ fn prepare_qwen_fused_attention_steps(
   let value_cache = unique_composite_binding(attention_step, role => {
     role is PersistentKvComponent(_, Value)
   })
-  if qwen_fused_regions_overlap(qkv_input, rotated) ||
-    qwen_fused_regions_overlap(rotated, output) ||
-    qwen_fused_regions_overlap(rotated, key_cache) ||
-    qwen_fused_regions_overlap(rotated, value_cache) {
-    raise InvalidExecutor(ResourceState)
-  }
-  for binding in qkv_weights {
-    if qwen_fused_regions_overlap(rotated, binding) {
-      raise InvalidExecutor(ResourceState)
-    }
-  }
-  for binding in qk_norm_weights {
-    if qwen_fused_regions_overlap(rotated, binding) {
-      raise InvalidExecutor(ResourceState)
-    }
-  }
   let ingress_bindings : Array[PagedKvOperandBinding] = []
   for binding in runtime {
     ingress_bindings.push(binding)
@@ -194,21 +275,25 @@ fn prepare_qwen_fused_attention_steps(
     raise InvalidExecutor(ResourceState)
   }
   (
-    prepare_composite_launch(
+    prepare_qwen_fused_attention_launch(
       qkv_step.operation_id(),
       ingress_function,
       span.ingress_launch(),
       ingress_bindings,
+      ingress_bindings.length() - 3,
+      sidecar,
       descriptor,
       weight,
       activation,
       kv,
     ),
-    prepare_composite_launch(
+    prepare_qwen_fused_attention_launch(
       attention_step.operation_id(),
       readonly_function,
       span.readonly_launch(),
       readonly_bindings,
+      readonly_bindings.length() - 4,
+      sidecar,
       descriptor,
       weight,
       activation,

@@ -34,7 +34,7 @@ fn prepare_paged_production_steps(
   } else {
     Some(
       prepare_qwen_fused_attention_resources(
-        context, qwen_fused_attention_spans, resources,
+        context, blueprint, qwen_fused_attention_spans, resources,
       ),
     )
   }
@@ -89,6 +89,7 @@ fn prepare_paged_production_steps(
           weight,
           activation,
           kv,
+          functions.2,
         )
         qwen_ingress_replacements.push(prepared.0)
         qwen_readonly_replacements.push(prepared.1)

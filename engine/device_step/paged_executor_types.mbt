@@ -79,6 +79,7 @@ priv struct PagedGraphResources {
   mut stream : PagedOwnedStream?
   mut weight_lease : PagedOwnedLease?
   mut activation_workspace : PagedOwnedAllocation?
+  mut qwen_fused_attention_sidecar : PagedOwnedAllocation?
   mut persistent_kv : PagedOwnedAllocation?
   mut fused_dispatch_canary : PagedOwnedAllocation?
   mut greedy_sampling_results : PagedOwnedAllocation?

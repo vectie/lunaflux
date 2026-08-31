@@ -282,24 +282,15 @@ test "Qwen four-step replacement is ordered and rejects overlap" {
 }
 
 ///|
-test "Qwen fused ingress range overlap is exact across allocation spaces" {
-  let left = qwen_fused_test_binding(ActivationWorkspaceArena, 64L, 64L)
-  assert_true(
-    qwen_fused_regions_overlap(
-      left,
-      qwen_fused_test_binding(ActivationWorkspaceArena, 96L, 64L),
-    ),
+test "Qwen fused sidecar preserves the complete rotated QKV region" {
+  let rotated = qwen_fused_test_binding(ActivationWorkspaceArena, 64L, 2048L)
+  let readonly_binding = qwen_fused_test_binding(
+    ActivationWorkspaceArena,
+    64L,
+    2048L,
   )
-  assert_false(
-    qwen_fused_regions_overlap(
-      left,
-      qwen_fused_test_binding(ActivationWorkspaceArena, 128L, 64L),
-    ),
-  )
-  assert_false(
-    qwen_fused_regions_overlap(
-      left,
-      qwen_fused_test_binding(WeightArena, 64L, 64L),
-    ),
+  assert_eq(
+    qwen_fused_attention_sidecar_shape_from_bindings(rotated, readonly_binding),
+    (2048L, 16L),
   )
 }
