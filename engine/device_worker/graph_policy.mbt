@@ -1,17 +1,18 @@
 ///|
-/// Selects only modes representable by the current authenticated production
-/// manifest. Every admitted Luna authorization already carries the exact
-/// validated eager-fallback disposition; capture safety decides whether that
-/// fallback surrounds a startup capture attempt or remains the eager primary.
+/// Selects the backend execution mode for one immutable AOT launch list.
+///
+/// External Luna authorization authenticates an optional specialization; it
+/// is not permission to use a CUDA execution primitive. Stable function,
+/// geometry, argument, allocation, and stream ownership are already enforced
+/// by the private ordered executor. Consequently an ordinary AOT graph may be
+/// captured at startup with an eager fallback even when no specialization was
+/// supplied. An authorization that explicitly marks its specialization unsafe
+/// for capture still forces eager execution.
 fn select_authenticated_bf16_graph_policy(
-  has_luna_authorization : Bool,
+  _has_luna_authorization : Bool,
   capture_safe : Bool,
 ) -> @device_step.PagedGraphExecutionPolicy {
-  // Capture is legal only when the authenticated execution authorization also
-  // carries the bounded graph-memory metadata consumed by startup capacity
-  // admission. An ordinary AOT launch list remains eager even when its
-  // pointers are stable; stability alone is not a memory-accounting contract.
-  if !has_luna_authorization || !capture_safe {
+  if !capture_safe {
     PagedOrderedEagerOnly
   } else {
     PagedCapturedWithEagerFallback
@@ -23,8 +24,9 @@ fn authenticated_bf16_graph_policy(
   execution : @execution_manifest_file.PagedExecutionAdmission,
 ) -> @device_step.PagedGraphExecutionPolicy {
   match execution.luna_authorization() {
-    // Without authenticated graph metadata there is no bounded capture-memory
-    // contract. Keep the ordinary AOT launch list ordered and eager.
+    // The baseline AOT graph owns only startup-stable backend resources. It may
+    // use capture without claiming specialization shape or graph-memory
+    // metadata; telemetry therefore retains no asserted specialization shape.
     None => select_authenticated_bf16_graph_policy(false, true)
     Some(authorization) =>
       // Artifact admission currently has exactly one execution disposition.

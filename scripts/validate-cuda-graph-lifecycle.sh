@@ -40,7 +40,7 @@ fi
 if ! rg -q 'policy == LF_ORDERED_CAPTURE_WITH_EAGER_FALLBACK' \
   internal/cuda/ordered_graph.c ||
   ! rg -q 'PagedCapturedWithEagerFallback => OrderedKernelCaptureWithEagerFallback' \
-    engine/device_step/paged_executor_prepare.mbt; then
+    engine/device_step/paged_ordered_executor_prepare.mbt; then
   echo 'eager fallback is not guarded by the explicit admitted policy' >&2
   exit 1
 fi

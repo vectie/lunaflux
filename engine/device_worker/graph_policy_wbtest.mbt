@@ -6,7 +6,7 @@ test "BF16 production graph policy derives eager and explicit fallback exactly" 
   )
   assert_eq(
     select_authenticated_bf16_graph_policy(false, true),
-    PagedOrderedEagerOnly,
+    PagedCapturedWithEagerFallback,
   )
   assert_eq(
     select_authenticated_bf16_graph_policy(true, false),
@@ -31,10 +31,10 @@ test "BF16 production graph policy does not fabricate capture-required authority
 }
 
 ///|
-test "BF16 production graph policy requires authenticated graph accounting" {
+test "BF16 production graph policy does not gate stable AOT capture on external approval" {
   assert_eq(
     select_authenticated_bf16_graph_policy(false, true),
-    PagedOrderedEagerOnly,
+    PagedCapturedWithEagerFallback,
   )
   assert_eq(
     select_authenticated_bf16_graph_policy(true, true),
