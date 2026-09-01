@@ -94,6 +94,66 @@ test "grid-stride query-token launch scales up to its admitted cap" {
 }
 
 ///|
+test "projection buckets remove maximum-envelope decode blocks" {
+  let dense = @launch_contract.AotLaunchDimensions::new(
+    grid_x=4096,
+    grid_y=1,
+    grid_z=1,
+    block_x=256,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=8192,
+  )
+  let dense_rule = ProjectionTensorCoreGridX(dense, 2048)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 1), 256)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 8), 16)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 32), 32)
+  let scaled = paged_bucket_launch(dense_rule, 8)
+  assert_eq(
+    (scaled.grid_x(), scaled.block_x(), scaled.shared_memory_bytes()),
+    (16, 256, 8192),
+  )
+}
+
+///|
+test "gated MLP buckets independently scale up and down projections" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=3072,
+    grid_y=1,
+    grid_z=1,
+    block_x=512,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=16384,
+  )
+  let up = ProjectionMlpUpGridX(source, 3072)
+  let down = ProjectionMlpDownGridX(source, 1024)
+  assert_eq(paged_projection_bucket_grid_x(up, 1), 192)
+  assert_eq(paged_projection_bucket_grid_x(up, 8), 12)
+  assert_eq(paged_projection_bucket_grid_x(up, 32), 24)
+  assert_eq(paged_projection_bucket_grid_x(down, 1), 64)
+  assert_eq(paged_projection_bucket_grid_x(down, 8), 16)
+  assert_eq(paged_projection_bucket_grid_x(down, 32), 32)
+}
+
+///|
+test "scalar projection bucket keeps only live output work" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=16384,
+    grid_y=1,
+    grid_z=1,
+    block_x=256,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+  let rule = ProjectionScalarGridX(source, 1024)
+  assert_eq(paged_projection_bucket_grid_x(rule, 1), 4)
+  assert_eq(paged_projection_bucket_grid_x(rule, 8), 32)
+  assert_eq(paged_projection_bucket_grid_x(rule, 32), 128)
+}
+
+///|
 fn graph_dispatch_bucket(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   phase : @luna_execution_graph_strategy.ExecutionGraphPhase,

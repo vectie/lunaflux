@@ -19,9 +19,142 @@ fn qwen_bucket_step_index(
 }
 
 ///|
+fn paged_projection_output_width(
+  blueprint : PagedKvExecutionBlueprint,
+  step : PagedKvExecutionStep,
+) -> Int raise DeviceStepError {
+  let mut bytes = -1L
+  for operand in step.operands() {
+    if operand.role() is ActivationOutput(_) {
+      if bytes >= 0L {
+        raise executor_operation_error(step.operation_id(), GraphBucket)
+      }
+      bytes = operand.byte_count()
+    }
+  }
+  let row_bytes = blueprint.profile().max_query_tokens().to_int64() * 2L
+  if bytes <= 0L || row_bytes <= 0L || bytes % row_bytes != 0L {
+    raise executor_operation_error(step.operation_id(), GraphBucket)
+  }
+  let width = bytes / row_bytes
+  if width <= 0L || width > 2147483647L {
+    raise executor_operation_error(step.operation_id(), GraphBucket)
+  }
+  width.to_int()
+}
+
+///|
+fn paged_projection_intermediate_width(
+  blueprint : PagedKvExecutionBlueprint,
+  step : PagedKvExecutionStep,
+) -> Int raise DeviceStepError {
+  let mut bytes = -1L
+  for operand in step.operands() {
+    if operand.role() == Workspace {
+      if bytes >= 0L {
+        raise executor_operation_error(step.operation_id(), GraphBucket)
+      }
+      bytes = operand.byte_count()
+    }
+  }
+  let row_bytes = blueprint.profile().max_query_tokens().to_int64() * 2L
+  if bytes <= 0L || row_bytes <= 0L || bytes % row_bytes != 0L {
+    raise executor_operation_error(step.operation_id(), GraphBucket)
+  }
+  let width = bytes / row_bytes
+  if width <= 0L || width > 2147483647L {
+    raise executor_operation_error(step.operation_id(), GraphBucket)
+  }
+  width.to_int()
+}
+
+///|
+fn paged_blueprint_step(
+  blueprint : PagedKvExecutionBlueprint,
+  operation : @plan.OperationId,
+) -> PagedKvExecutionStep raise DeviceStepError {
+  let mut found : PagedKvExecutionStep? = None
+  for step in blueprint.steps() {
+    if step.operation_id() == operation {
+      if found is Some(_) {
+        raise executor_operation_error(operation, GraphBucket)
+      }
+      found = Some(step)
+    }
+  }
+  guard found is Some(step) else {
+    raise executor_operation_error(operation, GraphBucket)
+  }
+  step
+}
+
+///|
+fn prepare_projection_bucket_launches(
+  blueprint : PagedKvExecutionBlueprint,
+  steps : ReadOnlyArray[PreparedPagedGraphStep],
+  launches : FixedArray[PagedBucketStepLaunch],
+) -> Unit raise DeviceStepError {
+  let mlp_occurrences : Array[Int] = []
+  for index, prepared in steps {
+    let step = paged_blueprint_step(blueprint, prepared.operation_id)
+    let source = step.dimensions()
+    match step.operation_kind() {
+      QkvProjection | OutputProjection => {
+        let output_width = paged_projection_output_width(blueprint, step)
+        launches[index] = if source.block_x() == 256 &&
+          source.shared_memory_bytes() == 8192 {
+          ProjectionTensorCoreGridX(source, output_width)
+        } else {
+          ProjectionScalarGridX(source, output_width)
+        }
+      }
+      LanguageModelHead => ()
+      GatedMlp => {
+        let workspace = step
+          .operands()
+          .any(operand => operand.role() == Workspace)
+        if workspace {
+          let mut occurrence = 0
+          for operation in mlp_occurrences {
+            if operation == prepared.operation_id.as_int() {
+              occurrence += 1
+            }
+          }
+          if occurrence > 1 {
+            raise executor_operation_error(prepared.operation_id, GraphBucket)
+          }
+          mlp_occurrences.push(prepared.operation_id.as_int())
+          launches[index] = if occurrence == 0 {
+            ProjectionMlpUpGridX(
+              source,
+              paged_projection_intermediate_width(blueprint, step),
+            )
+          } else {
+            ProjectionMlpDownGridX(
+              source,
+              paged_projection_output_width(blueprint, step),
+            )
+          }
+        } else if source.shared_memory_bytes() > 0 {
+          launches[index] = QueryTokenCappedGridX(source)
+        } else {
+          launches[index] = ProjectionScalarGridX(
+            source,
+            paged_projection_output_width(blueprint, step),
+          )
+        }
+      }
+      _ => ()
+    }
+  }
+}
+
+///|
 /// Derives the only currently safe smaller-bucket launch contract from the
 /// approved Qwen composite ABI. Postprocess uses one block per query token while
-/// readonly attention uses a bounded grid-stride token traversal.
+/// readonly attention uses a bounded grid-stride token traversal. Projection
+/// rules use their admitted shape-specific decode/prefill geometry, avoiding a
+/// maximum-token grid full of empty blocks during decode.
 fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
@@ -31,6 +164,7 @@ fn prepare_qwen_graph_launch_contract(
     return None
   }
   let launches = FixedArray::make(steps.length(), FixedBucketLaunch)
+  prepare_projection_bucket_launches(blueprint, steps, launches)
   for span in spans {
     let (_, qk_norm_index, _, attention_index) = span.operation_indices()
     guard blueprint.steps().get(qk_norm_index) is Some(qk_norm) &&
@@ -97,6 +231,86 @@ fn paged_capped_query_token_launch(
 }
 
 ///|
+fn paged_ceil_div(value : Int, divisor : Int) -> Int raise DeviceStepError {
+  if value <= 0 || divisor <= 0 || value > 2147483647 - (divisor - 1) {
+    raise InvalidExecutor(GraphBucket)
+  }
+  (value + divisor - 1) / divisor
+}
+
+///|
+fn paged_projection_bucket_grid_x(
+  rule : PagedBucketStepLaunch,
+  query_token_bound : Int,
+) -> Int raise DeviceStepError {
+  if query_token_bound <= 0 {
+    raise InvalidExecutor(GraphBucket)
+  }
+  match rule {
+    FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
+    QueryTokenCappedGridX(source) =>
+      Int::min(source.grid_x(), query_token_bound)
+    ProjectionTensorCoreGridX(source, output_width) => {
+      let grid = if query_token_bound == 1 {
+        paged_ceil_div(output_width, 8)
+      } else {
+        paged_ceil_div(output_width, 128) *
+        paged_ceil_div(query_token_bound, 16)
+      }
+      Int::min(source.grid_x(), grid)
+    }
+    ProjectionScalarGridX(source, output_width) => {
+      if query_token_bound > 2147483647 / output_width {
+        raise InvalidExecutor(GraphBucket)
+      }
+      Int::min(
+        source.grid_x(),
+        paged_ceil_div(query_token_bound * output_width, source.block_x()),
+      )
+    }
+    ProjectionMlpUpGridX(source, intermediate_width) => {
+      let grid = if query_token_bound == 1 {
+        paged_ceil_div(intermediate_width, 16)
+      } else {
+        paged_ceil_div(query_token_bound, 16) *
+        paged_ceil_div(intermediate_width, 256)
+      }
+      Int::min(source.grid_x(), grid)
+    }
+    ProjectionMlpDownGridX(source, output_width) => {
+      let grid = if query_token_bound == 1 {
+        paged_ceil_div(output_width, 16)
+      } else {
+        paged_ceil_div(query_token_bound, 16) * paged_ceil_div(output_width, 64)
+      }
+      Int::min(source.grid_x(), grid)
+    }
+  }
+}
+
+///|
+fn paged_bucket_launch(
+  rule : PagedBucketStepLaunch,
+  query_token_bound : Int,
+) -> @launch_contract.AotLaunchDimensions raise DeviceStepError {
+  if rule is QueryTokenCappedGridX(source) {
+    return paged_capped_query_token_launch(source, query_token_bound)
+  }
+  let source = match rule {
+    FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
+    QueryTokenCappedGridX(value)
+    | ProjectionTensorCoreGridX(value, _)
+    | ProjectionScalarGridX(value, _)
+    | ProjectionMlpUpGridX(value, _)
+    | ProjectionMlpDownGridX(value, _) => value
+  }
+  paged_scaled_query_token_launch(
+    source,
+    paged_projection_bucket_grid_x(rule, query_token_bound),
+  )
+}
+
+///|
 fn paged_device_launch_dimensions(
   source : @launch_contract.AotLaunchDimensions,
 ) -> @device.KernelLaunchDimensions raise DeviceStepError {
@@ -129,11 +343,9 @@ fn paged_ordered_launches(
       (query_token_bound, resources.graph_launch_contract) {
       (Some(bound), Some(contract)) =>
         match contract.step_launches.get(index) {
-          Some(QueryTokenCappedGridX(source)) =>
-            paged_device_launch_dimensions(
-              paged_capped_query_token_launch(source, bound),
-            )
-          _ => step.dimensions
+          Some(FixedBucketLaunch) | None => step.dimensions
+          Some(rule) =>
+            paged_device_launch_dimensions(paged_bucket_launch(rule, bound))
         }
       _ => step.dimensions
     }
@@ -206,6 +418,25 @@ fn prepare_paged_ordered_executors(
   let mut fallback_owner_index = -1
   let telemetry_owner_index = match graph_policy {
     PagedOrderedEagerOnly => {
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_decode_capture_bounds(profile) {
+          let launches = paged_ordered_launches(
+            steps,
+            resources,
+            query_token_bound=Some(bound),
+          )
+          let owner = prepare_one_paged_ordered_executor(
+            context,
+            launches[:],
+            baseline_operation_ids,
+            resources,
+            OrderedKernelEagerOnly,
+          )
+          map_paged_decode_capture_owner(
+            table, bound, bound, owner, slot_owner_indices,
+          )
+        }
+      }
       fallback_owner_index = prepare_one_paged_ordered_executor(
         context,
         maximum_launches[:],
