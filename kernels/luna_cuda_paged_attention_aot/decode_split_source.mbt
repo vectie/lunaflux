@@ -19,10 +19,6 @@ fn paged_attention_decode_split_cuda_source(
   let group_size = query_heads / kv_heads
   let page_stride_values = page_stride_bytes / 2L
   let split_count = workspace.split_count()
-  let maximum_context_tokens = workspace.maximum_context_tokens()
-  let page_count = 1 + (maximum_context_tokens - 1) / tokens_per_page
-  let base_pages_per_split = page_count / split_count
-  let larger_split_count = page_count % split_count
   let (maximum_offset_bytes, denominator_offset_bytes, numerator_offset_bytes) = workspace.region_offsets_bytes()
   let maximum_offset = maximum_offset_bytes / 4L
   let denominator_offset = denominator_offset_bytes / 4L
@@ -113,18 +109,16 @@ fn paged_attention_decode_split_cuda_source(
     "; d += LF_BLOCK_THREADS) partial_numerator[d] = CUDART_NAN_F;\n" +
     "    return;\n" +
     "  }\n" +
-    "  const int partition_begin_page = split * " +
-    base_pages_per_split.to_string() +
-    " + (split < " +
-    larger_split_count.to_string() +
-    " ? split : " +
-    larger_split_count.to_string() +
-    ");\n" +
-    "  const int partition_pages = " +
-    base_pages_per_split.to_string() +
-    " + (split < " +
-    larger_split_count.to_string() +
-    " ? 1 : 0);\n" +
+    "  const int live_page_count = page_end - page_start;\n" +
+    "  const int base_pages_per_split = live_page_count / " +
+    split_count.to_string() +
+    ", larger_split_count = live_page_count % " +
+    split_count.to_string() +
+    ";\n" +
+    "  const int partition_begin_page = split * base_pages_per_split +\n" +
+    "      (split < larger_split_count ? split : larger_split_count);\n" +
+    "  const int partition_pages = base_pages_per_split +\n" +
+    "      (split < larger_split_count ? 1 : 0);\n" +
     "  const int partition_begin = partition_begin_page * " +
     tokens_per_page.to_string() +
     ", partition_limit = (partition_begin_page + partition_pages) * " +

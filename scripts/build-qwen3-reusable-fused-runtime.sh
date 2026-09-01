@@ -188,6 +188,61 @@ validate_module attention reusable-qwen-readonly-attention \
   paged-attention-rotated-q-paged-kv-readonly-production \
   model_operation_id function_symbol reusable-generic
 
+split_root=$candidate_output/reusable-qwen-decode-split-attention
+split_source=$split_root/kernel.cu
+split_recipe=$split_root/kernel.recipe
+lbf_require_absolute_file "$split_source"
+lbf_require_absolute_file "$split_recipe"
+[ "$(lbf_recipe_value schema "$split_recipe")" = \
+  lunaflux-paged-attention-decode-split-cuda-aot-recipe-v1 ] ||
+  lbf_fail 'decode split recipe schema mismatch'
+[ "$(lbf_recipe_value target "$split_recipe")" = sm_120 ] ||
+  lbf_fail 'decode split target mismatch'
+[ "$(lbf_recipe_value toolchain_sha256 "$split_recipe")" = "$toolchain_sha" ] ||
+  lbf_fail 'decode split toolchain identity mismatch'
+[ "$(lbf_recipe_value compiler_version "$split_recipe")" = "$compiler_version" ] ||
+  lbf_fail 'decode split compiler version mismatch'
+[ "$(lbf_recipe_value reassociate "$split_recipe")" = false ] ||
+  lbf_fail 'decode split enables reassociation'
+[ "$(lbf_recipe_value fmad "$split_recipe")" = false ] ||
+  lbf_fail 'decode split FMAD policy mismatch'
+[ "$(lbf_sha256_file "$split_source")" = \
+  "$(lbf_recipe_value source_sha256 "$split_recipe")" ] ||
+  lbf_fail 'decode split source digest mismatch'
+split_operation=$(lbf_recipe_value operation_id "$split_recipe")
+split_partial_symbol=$(lbf_recipe_value partial_function_symbol "$split_recipe")
+split_merge_symbol=$(lbf_recipe_value merge_function_symbol "$split_recipe")
+lbf_is_uint "$split_operation" || lbf_fail 'decode split operation is invalid'
+grep -Fq "void $split_partial_symbol(" "$split_source" ||
+  lbf_fail 'decode split partial symbol is absent'
+grep -Fq "void $split_merge_symbol(" "$split_source" ||
+  lbf_fail 'decode split merge symbol is absent'
+
+# The readonly and decode split entries deliberately share one reusable CUBIN.
+# The runtime ABI distinguishes this V3 module from older readonly-only V2
+# bundles, while prefill continues to launch the readonly entry.
+combined_source=$scratch/attention-combined.cu
+cat "$candidate_output/reusable-qwen-readonly-attention/kernel.cu" \
+  "$split_source" >"$combined_source"
+combined_root=$scratch/attention-combined
+mkdir "$combined_root" "$combined_root/first" "$combined_root/second"
+for pass in first second; do
+  cp "$combined_source" "$combined_root/$pass/kernel.cu"
+  (
+    cd "$combined_root/$pass"
+    LC_ALL=C TZ=UTC SOURCE_DATE_EPOCH=0 CUDA_CACHE_DISABLE=1 \
+      "$nvcc" $common_flags kernel.cu -o kernel.cubin >compiler.log 2>&1
+  ) || lbf_fail 'combined attention compiler invocation failed'
+  [ -s "$combined_root/$pass/kernel.cubin" ] ||
+    lbf_fail 'combined attention compiler produced an empty CUBIN'
+  [ ! -s "$combined_root/$pass/compiler.log" ] ||
+    lbf_fail 'combined attention compiler emitted diagnostics'
+done
+cmp -s "$combined_root/first/kernel.cubin" \
+  "$combined_root/second/kernel.cubin" ||
+  lbf_fail 'combined attention compiler output is not deterministic'
+cp "$combined_root/first/kernel.cubin" "$stage/attention.cubin"
+
 module_row() {
   awk -F, -v name="$1" '$1 == name { print; found=1 } END { exit !found }' "$table"
 }
@@ -206,6 +261,8 @@ IFS=, read -r _ attention_operation attention_grid_x attention_grid_y \
   attention_block_x attention_shared <<EOF
 $attention_row
 EOF
+[ "$split_operation" = "$attention_operation" ] ||
+  lbf_fail 'decode split and readonly operation identities differ'
 
 runtime=$stage/reusable-fused-runtime-bundle.v3
 "$exporter" "$model_content_sha" "$model_plan_sha" \
@@ -236,5 +293,5 @@ printf '%s\n' 'schema=lunaflux-qwen3-reusable-fused-runtime-build.v1'
 printf 'runtime=%s/reusable-fused-runtime-bundle.v3\n' "$output"
 printf 'runtime_sha256=%s\n' \
   "$(lbf_sha256_file "$output/reusable-fused-runtime-bundle.v3")"
-printf '%s\n' 'compiler_invocations=6'
+printf '%s\n' 'compiler_invocations=8'
 printf '%s\n' 'device_opened=0'

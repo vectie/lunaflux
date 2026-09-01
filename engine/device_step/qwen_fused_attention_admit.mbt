@@ -160,7 +160,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   guard runtime.qwen_qknorm_rope_kv_write_module() is Some(postprocess) &&
     runtime.qwen_paged_attention_readonly_module() is Some(readonly_module) &&
     postprocess.kernel_abi() == QwenQkNormPositionedRopePagedKvWriteProductionV2 &&
-    readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
+    (
+      readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
+      readonly_module.kernel_abi() ==
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+    ) &&
     runtime.qwen_qknorm_rope_kv_write_operation_indices()
     is Some((seed_qk_norm, seed_rope, seed_attention)) &&
     runtime.qwen_paged_attention_readonly_operation_index()

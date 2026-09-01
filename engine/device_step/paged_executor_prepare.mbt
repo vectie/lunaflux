@@ -327,7 +327,7 @@ pub fn prepare_paged_graph_executor(
   qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
   ),
   decode_split_bindings? : ReadOnlyArray[
-    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ] = ReadOnlyArray::from_array([]),
   decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
   diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
@@ -484,6 +484,11 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let decode_split_minimum_context_tokens = paged_decode_split_minimum_context_tokens(
+    decode_split_bindings,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint, model_steps, qwen_fused_attention_spans,
   ) catch {
@@ -505,5 +510,6 @@ pub fn prepare_paged_graph_executor(
     graph_policy,
     fused_residual_spans,
     diagnostic_policy,
+    decode_split_minimum_context_tokens~,
   )
 }

@@ -255,7 +255,8 @@ test "decode split candidate is deterministic and one split covers the ordinary 
   assert_true(source.contains("accumulator[item] / denominator"))
   let recipe = @utf8.decode(first.recipe_bytes())
   assert_true(recipe.contains("manifest_bindable=false\n"))
-  assert_true(recipe.contains("partitions=0:0-6\n"))
+  assert_true(recipe.contains("partition_mode=live-page-balanced\n"))
+  assert_true(recipe.contains("maximum_partition_envelope=0:0-6\n"))
   assert_true(recipe.contains("workspace_total_bytes=64\n"))
 }
 
@@ -274,7 +275,10 @@ test "decode split candidate uses bounded partial workspace and ascending merge"
   assert_eq(partial.grid_z(), 2)
   assert_eq(merge.grid_z(), 1)
   let source = @utf8.decode(lowering.source_bytes())
-  assert_true(source.contains("const int partition_begin_page = split * 512"))
+  assert_true(
+    source.contains("const int live_page_count = page_end - page_start"),
+  )
+  assert_true(source.contains("live_page_count / 2"))
   assert_true(source.contains("for (int split = 0; split < 2; ++split)"))
   assert_true(source.contains("part_denominator * new_scale"))
   assert_true(source.contains("partial_numerator[partial * 2ULL + d]"))
@@ -282,7 +286,9 @@ test "decode split candidate uses bounded partial workspace and ascending merge"
   assert_true(source.contains("current_physical_page"))
   let recipe = @utf8.decode(lowering.recipe_bytes())
   assert_true(recipe.contains("merge_order=ascending-split-index\n"))
-  assert_true(recipe.contains("partitions=0:0-1024,1:1024-2048\n"))
+  assert_true(
+    recipe.contains("maximum_partition_envelope=0:0-1024,1:1024-2048\n"),
+  )
 }
 
 ///|
@@ -298,14 +304,15 @@ test "decode split source preserves uneven page-balanced partitions" {
   assert_eq(workspace.partitions()[2].token_range(), (2050, 3074))
   assert_eq(workspace.partitions()[3].token_range(), (3074, 4098))
   let source = @utf8.decode(lowering.source_bytes())
-  assert_true(source.contains("const int partition_begin_page = split * 512"))
-  assert_true(source.contains("+ (split < 1 ? split : 1);"))
-  assert_true(
-    source.contains("const int partition_pages = 512 + (split < 1 ? 1 : 0);"),
-  )
+  assert_true(source.contains("live_page_count / 4"))
+  assert_true(source.contains("live_page_count % 4"))
+  assert_true(source.contains("split < larger_split_count ? split"))
+  assert_true(source.contains("split < larger_split_count ? 1 : 0"))
   let recipe = @utf8.decode(lowering.recipe_bytes())
   assert_true(
-    recipe.contains("partitions=0:0-1026,1:1026-2050,2:2050-3074,3:3074-4098\n"),
+    recipe.contains(
+      "maximum_partition_envelope=0:0-1026,1:1026-2050,2:2050-3074,3:3074-4098\n",
+    ),
   )
 }
 
@@ -470,6 +477,40 @@ test "decode split production binding authenticates two ordered launches" {
   assert_true(record.contains("workspace_scalar=f32\n"))
   assert_true(record.contains("workspace=128/16\n"))
   assert_true(record.contains("manifest_bindable=true\n"))
+}
+
+///|
+test "reusable decode split runtime binds exact operation and module" {
+  let operation = pa_plan().operations()[2]
+  let profile = pa_decode_split_profile(1024)
+  let module_bytes = @utf8.encode("reusable-readonly-plus-split-module")
+  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
+  let binding = @luna_cuda_paged_attention_aot.bind_reusable_paged_attention_decode_split_cuda_aot(
+    operation,
+    profile,
+    pa_layout(),
+    pa_target(),
+    pa_decode_split_operands(1024),
+    module_bytes,
+    module_digest,
+    @catalog.AotKernelEntryPointId::from_stable_int(41),
+    @catalog.AotKernelEntryPointId::from_stable_int(42),
+    8,
+    1048576L,
+  )
+  assert_true(binding.manifest_bindable())
+  assert_eq(binding.operation_id(), operation.id())
+  assert_eq(binding.profile(), profile)
+  assert_eq(binding.device_kv_layout(), pa_layout())
+  assert_eq(binding.target(), pa_target())
+  assert_eq(binding.module_bytes(), module_bytes)
+  let launches = binding.contract().launches()
+  assert_eq(launches.length(), 2)
+  assert_eq(launches[0].stage(), Partial)
+  assert_eq(launches[1].stage(), Merge)
+  assert_eq(launches[0].dimensions().grid_z(), 2)
+  assert_eq(launches[1].dimensions().grid_z(), 1)
+  assert_eq(launches[0].module_digest().sha256(), module_digest)
 }
 
 ///|

@@ -51,7 +51,8 @@ fn reusable_qwen_test_module(
       grid_x=1,
       grid_y=1,
       grid_z=1,
-      block_x=if abi == QwenPagedAttentionReadOnlyProductionV2 {
+      block_x=if abi == QwenPagedAttentionReadOnlyProductionV2 ||
+        abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 {
         32
       } else {
         128

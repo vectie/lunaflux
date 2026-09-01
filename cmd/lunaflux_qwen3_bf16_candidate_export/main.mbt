@@ -147,6 +147,7 @@ priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
+  attention_decode_split : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle
 }
 
 ///|
@@ -302,7 +303,30 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenReadOnlyPreparation
     }
-    return { first_operation: index, postprocess, attention_read }
+    let attention_decode_split = @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
+      operation,
+      set.profile(),
+      layout,
+      @catalog.AotKernelEntryPointId::from_stable_int(3903),
+      @catalog.AotKernelEntryPointId::from_stable_int(3904),
+      set.target(),
+      set.compiler_policy(),
+      attention.operands(),
+      8,
+      268435456L,
+      @luna_cuda_paged_attention_aot.PagedAttentionAotLimits::new(
+        max_source_bytes=1048576,
+        max_recipe_bytes=65536,
+      ),
+    ) catch {
+      _ => raise QwenDecodeSplitPreparation
+    }
+    return {
+      first_operation: index,
+      postprocess,
+      attention_read,
+      attention_decode_split,
+    }
   }
   raise QwenFusionMissing
 }
@@ -415,6 +439,13 @@ async fn run_qwen3_candidate_export(
     qwen_fused.attention_read.source_bytes(),
     qwen_fused.attention_read.recipe_bytes(),
   )
+  let decode_split_root = arguments.absolute_new_output +
+    "/reusable-qwen-decode-split-attention"
+  write_new_candidate_pair(
+    decode_split_root,
+    qwen_fused.attention_decode_split.source_bytes(),
+    qwen_fused.attention_decode_split.recipe_bytes(),
+  )
   println("schema=lunaflux-qwen3-bf16-candidate-export-cli.v1")
   println("recipe=dense_qwen3_bf16_paged_aot_v12")
   println(
@@ -512,6 +543,34 @@ async fn run_qwen3_candidate_export(
     readonly_launch.block_x().to_string() +
     "," +
     readonly_launch.shared_memory_bytes().to_string(),
+  )
+  println(
+    "reusable_qwen_decode_split_source=" + decode_split_root + "/kernel.cu",
+  )
+  println(
+    "reusable_qwen_decode_split_recipe=" + decode_split_root + "/kernel.recipe",
+  )
+  println(
+    "reusable_qwen_decode_split_candidate_sha256=" +
+    qwen_fused.attention_decode_split.source_digest().as_hex(),
+  )
+  let (partial_symbol, merge_symbol) = qwen_fused.attention_decode_split.function_symbols()
+  println("reusable_qwen_decode_split_partial_symbol=" + partial_symbol)
+  println("reusable_qwen_decode_split_merge_symbol=" + merge_symbol)
+  let (partial_launch, merge_launch) = qwen_fused.attention_decode_split.launch_dimensions()
+  println(
+    "reusable_qwen_decode_split_launches=" +
+    partial_launch.grid_x().to_string() +
+    "," +
+    partial_launch.grid_y().to_string() +
+    "," +
+    partial_launch.grid_z().to_string() +
+    ";" +
+    merge_launch.grid_x().to_string() +
+    "," +
+    merge_launch.grid_y().to_string() +
+    "," +
+    merge_launch.grid_z().to_string(),
   )
 }
 

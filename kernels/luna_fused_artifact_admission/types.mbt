@@ -124,6 +124,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionReadOnlyProductionV2
+  QwenPagedAttentionReadOnlyDecodeSplitProductionV3
 } derive(Debug, Eq)
 
 ///|

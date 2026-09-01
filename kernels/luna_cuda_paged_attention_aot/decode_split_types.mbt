@@ -42,6 +42,20 @@ pub struct PagedAttentionDecodeSplitManifestCudaBinding {
 } derive(Debug, Eq)
 
 ///|
+/// Startup-only runtime binding for one reusable decode split-K module.
+/// Unlike the offline candidate binding, this record carries no compiler or
+/// source recipe: those identities were consumed by the digest-pinned runtime
+/// bundle before this exact model operation and launch contract are joined.
+pub struct PagedAttentionDecodeSplitRuntimeCudaBinding {
+  priv operation_id : @plan.OperationId
+  priv profile : @launch_contract.PagedKernelProfile
+  priv layout : @device_layout.DeviceKvLayout
+  priv target : @catalog.DeviceTarget
+  priv contract : @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
+  priv module_bytes : Bytes
+} derive(Debug, Eq)
+
+///|
 pub fn PagedAttentionDecodeSplitCudaBundle::dispatch_plan(
   self : PagedAttentionDecodeSplitCudaBundle,
 ) -> @luna_attention_strategy.AttentionDispatchPlan {
@@ -238,4 +252,68 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::manifest_bindable(
   _self : PagedAttentionDecodeSplitManifestCudaBinding,
 ) -> Bool {
   true
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::operation_id(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> @plan.OperationId {
+  self.operation_id
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::profile(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> @launch_contract.PagedKernelProfile {
+  self.profile
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::device_kv_layout(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> @device_layout.DeviceKvLayout {
+  self.layout
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::target(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> @catalog.DeviceTarget {
+  self.target
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::contract(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract {
+  self.contract
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::module_bytes(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> Bytes {
+  self.module_bytes
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::manifest_bindable(
+  _self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> Bool {
+  true
+}
+
+///|
+/// Erases offline-only candidate metadata after its exact manifest join.
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::runtime_binding(
+  self : PagedAttentionDecodeSplitManifestCudaBinding,
+) -> PagedAttentionDecodeSplitRuntimeCudaBinding {
+  {
+    operation_id: self.candidate.operation_id,
+    profile: self.candidate.profile,
+    layout: self.candidate.layout,
+    target: self.candidate.target,
+    contract: self.contract,
+    module_bytes: self.module_bytes,
+  }
 }

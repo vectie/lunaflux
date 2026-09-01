@@ -71,7 +71,19 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
-  self.module_for(QwenPagedAttentionReadOnlyProductionV2)
+  match self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3) {
+    Some(module_) => Some(module_)
+    None => self.module_for(QwenPagedAttentionReadOnlyProductionV2)
+  }
+}
+
+///|
+/// Returns the phase-specialized readonly module only when it also carries
+/// the stable decode split-K partial and merge entries.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3)
 }
 
 ///|

@@ -12,6 +12,39 @@ fn decode_split_workspace_operand(
 }
 
 ///|
+fn decode_split_launch_operands(
+  operands : ReadOnlyArray[@launch_contract.AotOperand],
+  workspace : @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract,
+) -> (
+  ReadOnlyArray[@launch_contract.AotOperand],
+  ReadOnlyArray[@launch_contract.AotOperand],
+) raise PagedAttentionAotError {
+  if operands.length() != 10 {
+    raise Mismatch(Contract)
+  }
+  let workspace_operand = decode_split_workspace_operand(workspace)
+  let partial : Array[@launch_contract.AotOperand] = [
+    operands[0],
+    operands[1],
+    operands[2],
+    operands[3],
+    operands[4],
+    operands[5],
+    operands[6],
+    operands[8],
+    operands[9],
+    workspace_operand,
+  ]
+  let merge : Array[@launch_contract.AotOperand] = [
+    operands[0],
+    operands[2],
+    workspace_operand,
+    operands[7],
+  ]
+  (ReadOnlyArray::from_array(partial), ReadOnlyArray::from_array(merge))
+}
+
+///|
 fn decode_split_expected_launch_operands(
   candidate : PagedAttentionDecodeSplitCudaBundle,
   workspace : @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract,
@@ -19,29 +52,7 @@ fn decode_split_expected_launch_operands(
   ReadOnlyArray[@launch_contract.AotOperand],
   ReadOnlyArray[@launch_contract.AotOperand],
 ) raise PagedAttentionAotError {
-  if candidate.operands.length() != 10 {
-    raise Mismatch(Contract)
-  }
-  let workspace_operand = decode_split_workspace_operand(workspace)
-  let partial : Array[@launch_contract.AotOperand] = [
-    candidate.operands[0],
-    candidate.operands[1],
-    candidate.operands[2],
-    candidate.operands[3],
-    candidate.operands[4],
-    candidate.operands[5],
-    candidate.operands[6],
-    candidate.operands[8],
-    candidate.operands[9],
-    workspace_operand,
-  ]
-  let merge : Array[@launch_contract.AotOperand] = [
-    candidate.operands[0],
-    candidate.operands[2],
-    workspace_operand,
-    candidate.operands[7],
-  ]
-  (ReadOnlyArray::from_array(partial), ReadOnlyArray::from_array(merge))
+  decode_split_launch_operands(candidate.operands, workspace)
 }
 
 ///|

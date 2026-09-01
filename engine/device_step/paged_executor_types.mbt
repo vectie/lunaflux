@@ -64,6 +64,7 @@ priv struct PagedOrderedExecutorDispatch {
   fallback_owner_index : Int
   telemetry_owner_index : Int
   decode_split_owner_index : Int
+  decode_split_minimum_context_tokens : Int
 }
 
 ///|

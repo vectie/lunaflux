@@ -82,7 +82,7 @@ fn paged_attention_decode_split_recipe(
     numerator_offset.to_string() +
     "\nworkspace_total_bytes=" +
     workspace.total_bytes().to_string() +
-    "\npartitions=" +
+    "\npartition_mode=live-page-balanced\nmaximum_partition_envelope=" +
     partitions.to_string() +
     "\npartial_abi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
     "page_table_offsets,page_table_page_indices,qkv,key_cache,value_cache,workspace\n" +

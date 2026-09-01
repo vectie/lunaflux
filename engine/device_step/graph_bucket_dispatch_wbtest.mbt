@@ -25,6 +25,7 @@ fn graph_dispatch_fixture(
       fallback_owner_index,
       telemetry_owner_index: 2,
       decode_split_owner_index: -1,
+      decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     },
   )
 }

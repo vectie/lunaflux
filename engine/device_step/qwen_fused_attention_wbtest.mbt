@@ -170,6 +170,21 @@ test "reusable Qwen runtime expands one module pair over every identical layer" 
   assert_eq(spans.length(), 28)
   assert_eq(spans[0].operation_indices(), (2, 3, 4, 5))
   assert_eq(spans[27].operation_indices(), (272, 273, 274, 275))
+  let first_attention = blueprint.steps()[5]
+  assert_true(
+    paged_decode_split_uses_qwen_sidecar(
+      blueprint,
+      first_attention.operation_id(),
+      spans[0],
+    ),
+  )
+  assert_false(
+    paged_decode_split_uses_qwen_sidecar(
+      blueprint,
+      blueprint.steps()[6].operation_id(),
+      spans[0],
+    ),
+  )
   for span in spans {
     assert_true(span.same_runtime_modules(spans[0]))
   }

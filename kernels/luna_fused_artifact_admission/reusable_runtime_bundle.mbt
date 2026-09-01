@@ -15,6 +15,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2"
     QwenPagedAttentionReadOnlyProductionV2 =>
       "qwen-paged-attention-readonly-production-v2"
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 =>
+      "qwen-paged-attention-readonly-decode-split-production-v3"
   }
 }
 
@@ -28,6 +30,8 @@ fn reusable_runtime_parse_abi(
       QwenQkNormPositionedRopePagedKvWriteProductionV2
     "qwen-paged-attention-readonly-production-v2" =>
       QwenPagedAttentionReadOnlyProductionV2
+    "qwen-paged-attention-readonly-decode-split-production-v3" =>
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3
     _ => raise InvalidFusedArtifact(Family)
   }
 }
@@ -40,6 +44,7 @@ fn reusable_runtime_required_operation_count(
     ResidualRmsNormProductionV2 => 2
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
     QwenPagedAttentionReadOnlyProductionV2 => 1
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
   }
 }
 
@@ -49,6 +54,7 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     ResidualRmsNormProductionV2 => 0
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 2
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 3
   }
 }
 
@@ -78,7 +84,15 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
       QwenPagedAttentionReadOnlyProductionV2,
     ) => first_b == first_a + 2
     (
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+    ) => first_b == first_a + 2
+    (
       QwenPagedAttentionReadOnlyProductionV2,
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
+    ) => first_a == first_b + 2
+    (
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
       QwenQkNormPositionedRopePagedKvWriteProductionV2,
     ) => first_a == first_b + 2
     _ => false
@@ -320,6 +334,7 @@ pub fn export_reusable_fused_runtime_bundle(
     ResidualRmsNormProductionV2,
     QwenQkNormPositionedRopePagedKvWriteProductionV2,
     QwenPagedAttentionReadOnlyProductionV2,
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
   ]
   let mut ordinal = 0
   for abi in canonical_abis {

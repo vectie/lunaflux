@@ -9,6 +9,7 @@ suberror Qwen3Bf16CandidateExportCliError {
   QwenKvWritePreparation
   QwenIngressPreparation
   QwenReadOnlyPreparation
+  QwenDecodeSplitPreparation
   QwenFusionMissing
   Publication
 } derive(Debug, Eq)
@@ -27,6 +28,7 @@ fn candidate_export_error_name(
     QwenKvWritePreparation => "qwen-kv-write-preparation"
     QwenIngressPreparation => "qwen-ingress-preparation"
     QwenReadOnlyPreparation => "qwen-readonly-preparation"
+    QwenDecodeSplitPreparation => "qwen-decode-split-preparation"
     QwenFusionMissing => "qwen-fusion-missing"
     Publication => "publication"
   }

@@ -2,6 +2,15 @@
 const PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES : Int64 = 268435456L
 
 ///|
+const PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD : Int = 2147483647
+
+///|
+/// Initial backend-neutral split-K crossover: each partial owns at least 32
+/// complete KV pages. This keeps launch/merge overhead away from short decode
+/// while the startup autotune table is still being generalized.
+const PAGED_DECODE_SPLIT_MINIMUM_PAGES_PER_PARTITION : Int = 32
+
+///|
 priv struct PreparedPagedDecodeSplit {
   operation_id : @plan.OperationId
   partial : PreparedPagedGraphStep
@@ -42,7 +51,7 @@ fn paged_attention_phase_route(
 ///|
 fn paged_decode_split_workspace_envelope(
   bindings : ReadOnlyArray[
-    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
   maximum_workspace_bytes : Int64,
 ) -> (Int64, Int64) raise DeviceStepError {
@@ -59,6 +68,44 @@ fn paged_decode_split_workspace_envelope(
     ReadOnlyArray::from_array(shapes),
     maximum_workspace_bytes,
   )
+}
+
+///|
+/// Select split-K only after every partial has a useful live page interval.
+fn paged_decode_split_minimum_context_tokens(
+  bindings : ReadOnlyArray[
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
+  ],
+) -> Int raise DeviceStepError {
+  if bindings.is_empty() {
+    return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
+  }
+  let mut selected = -1
+  for binding in bindings {
+    let split_count = binding.contract().workspace().split_count()
+    let tokens_per_page = binding.device_kv_layout().tokens_per_page()
+    if split_count <= 1 || tokens_per_page <= 0 {
+      raise executor_operation_error(binding.operation_id(), ResourceState)
+    }
+    if split_count >
+      PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD /
+      PAGED_DECODE_SPLIT_MINIMUM_PAGES_PER_PARTITION {
+      raise executor_operation_error(binding.operation_id(), ResourceState)
+    }
+    let minimum_pages = split_count *
+      PAGED_DECODE_SPLIT_MINIMUM_PAGES_PER_PARTITION
+    if minimum_pages >
+      PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD / tokens_per_page {
+      raise executor_operation_error(binding.operation_id(), ResourceState)
+    }
+    let threshold = minimum_pages * tokens_per_page
+    if selected < 0 {
+      selected = threshold
+    } else if selected != threshold {
+      raise executor_operation_error(binding.operation_id(), ResourceState)
+    }
+  }
+  selected
 }
 
 ///|
@@ -138,11 +185,46 @@ fn paged_decode_split_step(
 }
 
 ///|
+/// Returns the Qwen fused ingress sidecar shape when split decode replaces the
+/// attention operation owned by that fused span. The model graph and span
+/// decide the route; the CUDA launch preparation only binds the selected
+/// allocation.
+fn paged_decode_split_uses_qwen_sidecar(
+  blueprint : PagedKvExecutionBlueprint,
+  operation : @plan.OperationId,
+  span : ApprovedQwenFusedAttentionSpan,
+) -> Bool raise DeviceStepError {
+  let (_, _, _, attention_index) = span.operation_indices()
+  guard blueprint.steps().get(attention_index) is Some(attention) else {
+    raise InvalidExecutor(ResourceState)
+  }
+  attention.operation_id() == operation
+}
+
+///|
+fn paged_decode_split_qwen_sidecar_shape(
+  blueprint : PagedKvExecutionBlueprint,
+  operation : @plan.OperationId,
+  qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> (Int64, Int64)? raise DeviceStepError {
+  let mut selected : (Int64, Int64)? = None
+  for span in qwen_spans {
+    if paged_decode_split_uses_qwen_sidecar(blueprint, operation, span) {
+      if selected is Some(_) {
+        raise executor_operation_error(operation, ResourceState)
+      }
+      selected = Some(qwen_fused_attention_sidecar_shape(blueprint, span))
+    }
+  }
+  selected
+}
+
+///|
 fn paged_decode_split_rejects_composite_overlap(
   blueprint : PagedKvExecutionBlueprint,
   operation : @plan.OperationId,
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
-  qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  _qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> Unit raise DeviceStepError {
   match fused_qkv_readonly_span {
     Some(span) => {
@@ -156,21 +238,16 @@ fn paged_decode_split_rejects_composite_overlap(
     }
     None => ()
   }
-  for span in qwen_spans {
-    let (_, _, _, attention_index) = span.operation_indices()
-    guard blueprint.steps().get(attention_index) is Some(attention) else {
-      raise InvalidExecutor(ResourceState)
-    }
-    if attention.operation_id() == operation {
-      raise executor_operation_error(operation, ResourceState)
-    }
-  }
+  // Qwen's fused ingress and readonly attention deliberately share the
+  // attention operation. Decode split-K replaces only the readonly decode
+  // launch; prefill retains that launch and ingress keeps ownership of KV
+  // writes. The phase-specific executor prevents simultaneous execution.
 }
 
 ///|
 fn paged_decode_split_loaded_module(
   context : @device.Context,
-  binding : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+  binding : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   loaded : Array[PagedDecodeSplitLoadedModule],
   resources : PagedGraphResources,
 ) -> Int raise DeviceStepError {
@@ -219,6 +296,7 @@ fn paged_decode_split_argument(
   step : PagedKvExecutionStep,
   operand : @launch_contract.AotOperand,
   workspace : @device.Allocation,
+  qwen_sidecar : @device.Allocation?,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -232,6 +310,20 @@ fn paged_decode_split_argument(
       alignment=operand.alignment(),
     ) catch {
       error => raise ExecutorDevice(KernelArguments, error)
+    }
+  }
+  if operand.role() is ActivationInput(_) {
+    match qwen_sidecar {
+      Some(sidecar) =>
+        return @device.KernelArgument::device_region(
+          sidecar,
+          offset=0L,
+          byte_count=operand.byte_count(),
+          alignment=operand.alignment(),
+        ) catch {
+          error => raise ExecutorDevice(KernelArguments, error)
+        }
+      None => ()
     }
   }
   let binding = unique_composite_binding(step, role => role == operand.role())
@@ -250,6 +342,7 @@ fn validate_paged_decode_split_operand(
   operand : @launch_contract.AotOperand,
   workspace_bytes : Int64,
   workspace_alignment : Int64,
+  qwen_sidecar_shape : (Int64, Int64)?,
 ) -> Unit raise DeviceStepError {
   if operand.role() == Workspace {
     if operand.byte_count() > workspace_bytes ||
@@ -257,6 +350,17 @@ fn validate_paged_decode_split_operand(
       raise executor_operation_error(operation, ResourceState)
     }
     return
+  }
+  if operand.role() is ActivationInput(_) {
+    match qwen_sidecar_shape {
+      Some(shape) => {
+        if operand.byte_count() != shape.0 || operand.alignment() > shape.1 {
+          raise executor_operation_error(operation, ResourceState)
+        }
+        return
+      }
+      None => ()
+    }
   }
   let binding = unique_composite_binding(step, role => role == operand.role())
   if binding.byte_count() != operand.byte_count() ||
@@ -270,7 +374,7 @@ fn validate_paged_decode_split_operand(
 fn validate_paged_decode_split_bindings(
   blueprint : PagedKvExecutionBlueprint,
   bindings : ReadOnlyArray[
-    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
   workspace_bytes : Int64,
   workspace_alignment : Int64,
@@ -279,11 +383,10 @@ fn validate_paged_decode_split_bindings(
 ) -> Unit raise DeviceStepError {
   let admitted_operations : Array[Int] = []
   for binding in bindings {
-    let candidate = binding.candidate()
-    let operation = candidate.operation_id()
-    if candidate.target() != blueprint.target() ||
-      candidate.profile() != blueprint.profile() ||
-      candidate.device_kv_layout() != blueprint.layout() ||
+    let operation = binding.operation_id()
+    if binding.target() != blueprint.target() ||
+      binding.profile() != blueprint.profile() ||
+      binding.device_kv_layout() != blueprint.layout() ||
       admitted_operations.contains(operation.as_int()) {
       raise executor_operation_error(operation, ResourceState)
     }
@@ -291,6 +394,9 @@ fn validate_paged_decode_split_bindings(
       blueprint, operation, fused_qkv_readonly_span, qwen_spans,
     )
     let step = paged_decode_split_step(blueprint, operation)
+    let qwen_sidecar_shape = paged_decode_split_qwen_sidecar_shape(
+      blueprint, operation, qwen_spans,
+    )
     let launches = binding.contract().launches()
     if launches.length() != 2 ||
       launches[0].stage() != Partial ||
@@ -300,7 +406,7 @@ fn validate_paged_decode_split_bindings(
     for launch in launches {
       for operand in launch.operands() {
         validate_paged_decode_split_operand(
-          operation, step, operand, workspace_bytes, workspace_alignment,
+          operation, step, operand, workspace_bytes, workspace_alignment, qwen_sidecar_shape,
         )
       }
     }
@@ -315,6 +421,7 @@ fn prepare_paged_decode_split_launch(
   function_index : Int,
   launch : @luna_attention_multilaunch_contract.AttentionOrderedLaunchContract,
   workspace : @device.Allocation,
+  qwen_sidecar : @device.Allocation?,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -324,7 +431,8 @@ fn prepare_paged_decode_split_launch(
   for operand in launch.operands() {
     arguments.push(
       paged_decode_split_argument(
-        operation, step, operand, workspace, descriptor, weight, activation, kv,
+        operation, step, operand, workspace, qwen_sidecar, descriptor, weight, activation,
+        kv,
       ),
     )
   }
@@ -344,7 +452,7 @@ fn prepare_paged_decode_split_steps(
   blueprint : PagedKvExecutionBlueprint,
   baseline : ReadOnlyArray[PreparedPagedGraphStep],
   bindings : ReadOnlyArray[
-    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
   maximum_workspace_bytes : Int64,
   descriptor : DeviceStepResources,
@@ -387,11 +495,10 @@ fn prepare_paged_decode_split_steps(
   let loaded_functions : Array[PagedDecodeSplitLoadedFunction] = []
   let prepared : Array[PreparedPagedDecodeSplit] = []
   for binding in bindings {
-    let candidate = binding.candidate()
-    let operation = candidate.operation_id()
-    if candidate.target() != blueprint.target() ||
-      candidate.profile() != blueprint.profile() ||
-      candidate.device_kv_layout() != blueprint.layout() {
+    let operation = binding.operation_id()
+    if binding.target() != blueprint.target() ||
+      binding.profile() != blueprint.profile() ||
+      binding.device_kv_layout() != blueprint.layout() {
       raise executor_operation_error(operation, ResourceState)
     }
     if prepared.any(item => item.operation_id == operation) {
@@ -401,6 +508,20 @@ fn prepare_paged_decode_split_steps(
       blueprint, operation, fused_qkv_readonly_span, qwen_spans,
     )
     let step = paged_decode_split_step(blueprint, operation)
+    let qwen_sidecar_shape = paged_decode_split_qwen_sidecar_shape(
+      blueprint, operation, qwen_spans,
+    )
+    let qwen_sidecar = match qwen_sidecar_shape {
+      Some(shape) => {
+        guard resources.qwen_fused_attention_sidecar is Some(sidecar) &&
+          sidecar.open &&
+          sidecar.resource.byte_count() == shape.0 else {
+          raise executor_operation_error(operation, ResourceState)
+        }
+        Some(sidecar.resource)
+      }
+      None => None
+    }
     let module_index = paged_decode_split_loaded_module(
       context, binding, loaded_modules, resources,
     )
@@ -430,6 +551,7 @@ fn prepare_paged_decode_split_steps(
         partial_function,
         launches[0],
         workspace,
+        qwen_sidecar,
         descriptor,
         weight,
         activation,
@@ -441,6 +563,7 @@ fn prepare_paged_decode_split_steps(
         merge_function,
         launches[1],
         workspace,
+        qwen_sidecar,
         descriptor,
         weight,
         activation,

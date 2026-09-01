@@ -173,13 +173,12 @@ fn paged_attention_validate_operand_bytes(
 }
 
 ///|
-fn paged_attention_validate_candidate(
+fn paged_attention_validate_runtime_candidate(
   operation : @plan.PlanOperation,
   profile : @launch_contract.PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
   operands : ArrayView[@launch_contract.AotOperand],
   target : @catalog.DeviceTarget,
-  compiler : @luna_specialization.LunaCompilerPolicy,
 ) -> (Int, Int, Int, Int64, Int64) raise PagedAttentionAotError {
   if operation.kind() != CausalAttention {
     raise Unsupported(Operation)
@@ -214,9 +213,6 @@ fn paged_attention_validate_candidate(
   if !target.supports_bf16() {
     raise Unsupported(DeviceTarget)
   }
-  if compiler.reassociate() {
-    raise Unsupported(CompilerPolicy)
-  }
   if operation.workspace_bytes() != 0L || operands.length() != 10 {
     raise Unsupported(Contract)
   }
@@ -239,4 +235,21 @@ fn paged_attention_validate_candidate(
     raise Mismatch(KvLayout)
   }
   (query_heads, kv_heads, head_dimension, page_stride, page_capacity)
+}
+
+///|
+fn paged_attention_validate_candidate(
+  operation : @plan.PlanOperation,
+  profile : @launch_contract.PagedKernelProfile,
+  layout : @device_layout.DeviceKvLayout,
+  operands : ArrayView[@launch_contract.AotOperand],
+  target : @catalog.DeviceTarget,
+  compiler : @luna_specialization.LunaCompilerPolicy,
+) -> (Int, Int, Int, Int64, Int64) raise PagedAttentionAotError {
+  if compiler.reassociate() {
+    raise Unsupported(CompilerPolicy)
+  }
+  paged_attention_validate_runtime_candidate(
+    operation, profile, layout, operands, target,
+  )
 }

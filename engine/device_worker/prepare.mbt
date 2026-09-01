@@ -160,6 +160,7 @@ pub fn admit_plan(
     sampling_policy,
     fused_residual_spans,
     reusable_qwen_fused_attention_spans: ReadOnlyArray::from_array([]),
+    qwen_decode_split_bindings: ReadOnlyArray::from_array([]),
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -259,6 +260,9 @@ pub fn admit_numeric_bf16_plan_v1(
       }
     None => ReadOnlyArray::from_array([])
   }
+  let qwen_decode_split_bindings = admit_reusable_qwen_decode_split_bindings(
+    model_plan, execution, reusable_qwen_fused_runtime,
+  )
   {
     startup: admitted_startup,
     model_plan,
@@ -269,6 +273,7 @@ pub fn admit_numeric_bf16_plan_v1(
     sampling_policy,
     fused_residual_spans,
     reusable_qwen_fused_attention_spans,
+    qwen_decode_split_bindings,
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
   }
@@ -372,6 +377,7 @@ pub fn prepare(
         fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
         qwen_fused_attention_spans=plan.reusable_qwen_fused_attention_spans,
+        decode_split_bindings=plan.qwen_decode_split_bindings,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),
       ) catch {
@@ -422,6 +428,7 @@ pub fn prepare(
         fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
         qwen_fused_attention_spans=plan.reusable_qwen_fused_attention_spans,
+        decode_split_bindings=plan.qwen_decode_split_bindings,
         has_accepted_predecessor=plan.startup.has_predecessor(),
         accepted_predecessor_value=plan.startup.predecessor_value(),
       ) catch {

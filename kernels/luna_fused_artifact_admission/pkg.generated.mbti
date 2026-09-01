@@ -92,6 +92,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::model_content_sha256(Self) -> String
 pub fn ApprovedReusableFusedRuntimeBundle::model_plan_sha256(Self) -> String
 pub fn ApprovedReusableFusedRuntimeBundle::module_for(Self, ReusableFusedRuntimeKernelAbi) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::modules(Self) -> ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_operation_index(Self) -> Int?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
@@ -150,6 +151,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionReadOnlyProductionV2
+  QwenPagedAttentionReadOnlyDecodeSplitProductionV3
 } derive(Eq, @debug.Debug)
 
 pub struct ReusableFusedRuntimeModuleInput {

@@ -305,6 +305,7 @@ fn finish_paged_sampling_preparation(
   graph_policy : PagedGraphExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
+  decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
     context, model_plan, blueprint, limits, policy, artifacts, completion, descriptor,
@@ -326,6 +327,7 @@ fn finish_paged_sampling_preparation(
     graph_bucket_table,
     blueprint.profile(),
     decode_steps~,
+    decode_split_minimum_context_tokens~,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }

@@ -28,7 +28,8 @@ fn runtime_bundle_test_input(
     operation_count~,
     function_symbol="lunaflux_" + suffix,
     launch=runtime_bundle_test_launch(
-      if abi == QwenPagedAttentionReadOnlyProductionV2 {
+      if abi == QwenPagedAttentionReadOnlyProductionV2 ||
+        abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 {
         32
       } else {
         128
@@ -99,6 +100,42 @@ test "reusable fused runtime bundle admits three typed families once" {
   assert_eq(admitted.residual_rmsnorm_operation_indices(), Some((17, 18)))
   assert_eq(qwen.function_symbol(), "lunaflux_qwen_write")
   assert_eq(qwen.module_bytes(), b"cubin-qwen_write")
+}
+
+///|
+test "V3 Qwen attention module retains readonly and decode split authority" {
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let canonical = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target~,
+    modules=[
+      runtime_bundle_test_input(
+        QwenQkNormPositionedRopePagedKvWriteProductionV2,
+        3,
+        3,
+        "qwen_write",
+      ),
+      runtime_bundle_test_input(
+        QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+        5,
+        1,
+        "qwen_attention_split",
+      ),
+    ],
+  )
+  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+    canonical,
+    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+  )
+  assert_true(admitted.qwen_paged_attention_readonly_module() is Some(_))
+  assert_true(admitted.qwen_paged_attention_decode_split_module() is Some(_))
+  assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), Some(5))
 }
 
 ///|
