@@ -5,6 +5,9 @@ const FUSED_PARALLEL_THREADS : Int = 128
 const FUSED_PARALLEL_MAX_QUERY_TOKENS : Int = 1024
 
 ///|
+const FUSED_PARALLEL_MAX_PAGE_TABLE_ENTRIES : Int = 8192
+
+///|
 const FUSED_PARALLEL_MAX_WIDTH : Int = 16384
 
 ///|
@@ -65,7 +68,7 @@ fn fused_validate_common(
     profile.max_query_tokens() < profile.max_query_rows() ||
     profile.max_query_tokens() > FUSED_PARALLEL_MAX_QUERY_TOKENS ||
     profile.max_page_table_entries() < profile.max_query_rows() ||
-    profile.max_page_table_entries() > 8192 {
+    profile.max_page_table_entries() > FUSED_PARALLEL_MAX_PAGE_TABLE_ENTRIES {
     raise FusedParallelUnsupported(Profile)
   }
 }
