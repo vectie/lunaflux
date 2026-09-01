@@ -8,11 +8,11 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
   assert_eq(first.candidate_digest(), second.candidate_digest())
   assert_eq(
     first.function_symbol(),
-    "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v1",
+    "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2",
   )
   assert_eq(
     first.kernel_abi(),
-    QwenQkNormPositionedRopePagedKvWriteProductionV1,
+    QwenQkNormPositionedRopePagedKvWriteProductionV2,
   )
   assert_eq(
     first.kernel_abi().canonical_name(),
@@ -36,7 +36,7 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
     source.contains("const __nv_bfloat16* __restrict__ key_norm_weight"),
   )
   assert_true(source.contains("token += (int)gridDim.x"))
-  assert_true(source.contains("gridDim.x != 4096"))
+  assert_true(source.contains("gridDim.x == 0 || gridDim.x > 4096"))
   assert_false(source.contains("for (int row_check"))
   assert_true(source.contains("lane < LF_HEAD_DIM / 2"))
   assert_true(source.contains("rope_cosine[lane] = cosf(angle)"))
@@ -55,6 +55,7 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
   assert_true(recipe.contains("projection_weights_read=false\n"))
   assert_true(recipe.contains("gemm_included=false\n"))
   assert_true(recipe.contains("grid_stride_tokens=true\n"))
+  assert_true(recipe.contains("grid_x_policy=query-token-capped\n"))
   assert_true(recipe.contains("manifest_bindable=false\n"))
 }
 

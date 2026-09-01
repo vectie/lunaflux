@@ -70,7 +70,7 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     operands: ReadOnlyArray::from_array(operands),
     dimensions,
     symbol: postprocess_production_symbol,
-    abi: QwenQkNormPositionedRopePagedKvWriteProductionV1,
+    abi: QwenQkNormPositionedRopePagedKvWriteProductionV2,
     alias_contract,
     source,
     source_digest,

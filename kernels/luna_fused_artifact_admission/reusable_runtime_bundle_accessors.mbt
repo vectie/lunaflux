@@ -62,7 +62,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
-  self.module_for(QwenQkNormPositionedRopePagedKvWriteProductionV1)
+  self.module_for(QwenQkNormPositionedRopePagedKvWriteProductionV2)
 }
 
 ///|

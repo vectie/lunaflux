@@ -110,7 +110,7 @@ pub fn QkNormRopePagedKvWriteDigest::as_hex(Self) -> String
 pub fn QkNormRopePagedKvWriteDigest::from_sha256(String) -> Self raise QkNormRopePagedKvWriteAotError
 
 pub(all) enum QkNormRopePagedKvWriteKernelAbi {
-  QwenQkNormPositionedRopePagedKvWriteProductionV1
+  QwenQkNormPositionedRopePagedKvWriteProductionV2
 } derive(Eq, @debug.Debug)
 pub fn QkNormRopePagedKvWriteKernelAbi::canonical_name(Self) -> String
 

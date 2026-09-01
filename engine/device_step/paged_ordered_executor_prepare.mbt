@@ -151,16 +151,16 @@ fn prepare_projection_bucket_launches(
 
 ///|
 fn paged_qwen_postprocess_bucket_launch(
-  _source : @launch_contract.AotLaunchDimensions,
+  source : @launch_contract.AotLaunchDimensions,
 ) -> PagedBucketStepLaunch {
-  FixedBucketLaunch
+  QueryTokenCappedGridX(source)
 }
 
 ///|
 /// Derives the only currently safe smaller-bucket launch contract from the
-/// approved Qwen composite ABI. The reusable postprocess kernel deliberately
-/// authenticates its full grid before using a grid-stride token traversal, so
-/// its launch remains fixed. Readonly attention can use a smaller bounded grid.
+/// approved Qwen composite ABI. The V2 reusable postprocess and readonly
+/// attention kernels both authenticate a bounded grid and use grid-stride token
+/// traversal, so graph buckets may cap their grid at the admitted token bound.
 /// Projection rules use their admitted shape-specific decode/prefill geometry,
 /// avoiding maximum-envelope decode work where the kernel ABI permits it.
 fn prepare_qwen_graph_launch_contract(
@@ -194,10 +194,6 @@ fn prepare_qwen_graph_launch_contract(
     let readonly_index = qwen_bucket_step_index(steps, attention.operation_id())
     match (launches[postprocess_index], launches[readonly_index]) {
       (FixedBucketLaunch, FixedBucketLaunch) => {
-        // qwen_qknorm_rope_kvwrite_production_v1 rejects any launch whose
-        // gridDim.x differs from the authenticated maximum-token envelope.
-        // Keeping this fixed is correctness-critical even though its body is
-        // grid-stride.
         launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
           postprocess,
         )

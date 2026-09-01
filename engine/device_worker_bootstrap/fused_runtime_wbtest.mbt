@@ -21,7 +21,7 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
     target~,
     modules=[
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-        abi=QwenQkNormPositionedRopePagedKvWriteProductionV1,
+        abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
         first_operation=3,
         operation_count=3,
         function_symbol="lunaflux_qwen_postprocess",

@@ -148,7 +148,7 @@ pub(all) enum FusedStandaloneFallbackRole {
 
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
-  QwenQkNormPositionedRopePagedKvWriteProductionV1
+  QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionReadOnlyProductionV2
 } derive(Eq, @debug.Debug)
 

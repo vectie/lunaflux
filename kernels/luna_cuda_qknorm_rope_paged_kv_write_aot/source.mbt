@@ -1,5 +1,5 @@
 ///|
-let postprocess_production_symbol : String = "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v1"
+let postprocess_production_symbol : String = "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2"
 
 ///|
 fn postprocess_cuda_float_literal(value : Double) -> String {
@@ -77,7 +77,7 @@ fn postprocess_source(
     "  __nv_bfloat16* __restrict__ rotated_qkv,\n" +
     "  __nv_bfloat16* __restrict__ key_cache,\n" +
     "  __nv_bfloat16* __restrict__ value_cache) {\n" +
-    "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z != 0 || gridDim.x != " +
+    "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z != 0 || gridDim.x == 0 || gridDim.x > " +
     grid_x.to_string() +
     " || gridDim.y != LF_PACKED_HEADS) return;\n" +
     "  const int lane = (int)threadIdx.x;\n" +

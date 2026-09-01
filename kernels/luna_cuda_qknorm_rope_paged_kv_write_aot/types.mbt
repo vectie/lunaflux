@@ -3,7 +3,7 @@
 /// The name records the first model-plan consumer without putting model-family
 /// branching into the lowering implementation.
 pub(all) enum QkNormRopePagedKvWriteKernelAbi {
-  QwenQkNormPositionedRopePagedKvWriteProductionV1
+  QwenQkNormPositionedRopePagedKvWriteProductionV2
 } derive(Debug, Eq)
 
 ///|
@@ -11,7 +11,7 @@ pub fn QkNormRopePagedKvWriteKernelAbi::canonical_name(
   self : QkNormRopePagedKvWriteKernelAbi,
 ) -> String {
   match self {
-    QwenQkNormPositionedRopePagedKvWriteProductionV1 =>
+    QwenQkNormPositionedRopePagedKvWriteProductionV2 =>
       "step_counts,query_positions,query_row_offsets,sequence_lengths," +
       "page_table_offsets,page_table_page_indices,projected_qkv," +
       "query_norm_weight,key_norm_weight,rotated_qkv,key_cache,value_cache"

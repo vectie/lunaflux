@@ -70,7 +70,7 @@ fn qwen_fused_test_runtime(
   ingress_grid_y? : Int = 32,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-    abi=QwenQkNormPositionedRopePagedKvWriteProductionV1,
+    abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
     first_operation=3,
     operation_count=3,
     function_symbol="qwen_postprocess",

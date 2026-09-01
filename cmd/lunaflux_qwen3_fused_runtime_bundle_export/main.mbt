@@ -197,10 +197,10 @@ async fn run(
       module_bytes=residual_bytes,
     ),
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenQkNormPositionedRopePagedKvWriteProductionV1,
+      abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
       first_operation=args.ingress.first_operation + 1,
       operation_count=3,
-      function_symbol="lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v1",
+      function_symbol="lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2",
       launch=launch_dimensions(args.ingress),
       module_bytes=ingress_bytes,
     ),

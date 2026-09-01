@@ -47,7 +47,7 @@ fn postprocess_recipe(
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
   let identity = compiler.identity()
   @utf8.encode(
-    "schema=lunaflux-qknorm-rope-paged-kv-write-candidate.v1\n" +
+    "schema=lunaflux-qknorm-rope-paged-kv-write-candidate.v2\n" +
     "family=qknorm-positioned-rope-paged-kv-write\n" +
     "execution_policy=projection-postprocess-production\n" +
     "projection_included=false\nprojection_weights_read=false\ngemm_included=false\n" +
@@ -145,14 +145,14 @@ fn postprocess_recipe(
     postprocess_production_symbol +
     "\n" +
     "abi=" +
-    QkNormRopePagedKvWriteKernelAbi::QwenQkNormPositionedRopePagedKvWriteProductionV1.canonical_name() +
+    QkNormRopePagedKvWriteKernelAbi::QwenQkNormPositionedRopePagedKvWriteProductionV2.canonical_name() +
     "\n" +
     "grid=" +
     dimensions.grid_x().to_string() +
     "," +
     dimensions.grid_y().to_string() +
     ",1\n" +
-    "grid_stride_tokens=true\nblock=128,1,1\nshared_memory_bytes=0\n" +
+    "grid_x_policy=query-token-capped\ngrid_stride_tokens=true\nblock=128,1,1\nshared_memory_bytes=0\n" +
     "alias_contract=" +
     alias_contract.canonical_name() +
     "\n" +

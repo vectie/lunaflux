@@ -94,7 +94,7 @@ test "grid-stride query-token launch scales up to its admitted cap" {
 }
 
 ///|
-test "Qwen postprocess keeps its authenticated full grid in decode buckets" {
+test "Qwen postprocess V2 caps its grid to the decode bucket" {
   let source = @launch_contract.AotLaunchDimensions::new(
     grid_x=256,
     grid_y=32,
@@ -104,7 +104,13 @@ test "Qwen postprocess keeps its authenticated full grid in decode buckets" {
     block_z=1,
     shared_memory_bytes=0,
   )
-  assert_true(paged_qwen_postprocess_bucket_launch(source) is FixedBucketLaunch)
+  guard paged_qwen_postprocess_bucket_launch(source)
+    is QueryTokenCappedGridX(admitted) else {
+    fail("Qwen postprocess V2 did not expose a token-capped grid")
+  }
+  assert_eq(admitted, source)
+  assert_eq(paged_bucket_launch(QueryTokenCappedGridX(admitted), 1).grid_x(), 1)
+  assert_eq(paged_bucket_launch(QueryTokenCappedGridX(admitted), 8).grid_x(), 8)
 }
 
 ///|

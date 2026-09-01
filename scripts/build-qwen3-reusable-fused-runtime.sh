@@ -181,7 +181,7 @@ validate_module residual reusable-fused-residual \
   residual-rmsnorm-production-block128 residual_operation_id function_symbol \
   model-bound
 validate_module ingress reusable-qwen-ingress \
-  lunaflux-qknorm-rope-paged-kv-write-candidate.v1 \
+  lunaflux-qknorm-rope-paged-kv-write-candidate.v2 \
   qknorm-positioned-rope-paged-kv-write qkv_operation symbol model-bound
 validate_module attention reusable-qwen-readonly-attention \
   lunaflux-paged-attention-readonly-cuda-aot-candidate.v2 \

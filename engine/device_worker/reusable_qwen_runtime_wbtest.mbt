@@ -77,7 +77,7 @@ fn reusable_qwen_test_bundle(
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let modules = [
     reusable_qwen_test_module(
-      QwenQkNormPositionedRopePagedKvWriteProductionV1,
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
       3,
       3,
       "lunaflux_qwen_postprocess",
