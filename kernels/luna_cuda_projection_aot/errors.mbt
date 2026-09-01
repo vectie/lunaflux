@@ -3,6 +3,7 @@ pub(all) enum ProjectionAotRule {
   Limits
   Operation
   Shape
+  Strategy
   RuntimeInputs
   PersistentState
   DeviceTarget

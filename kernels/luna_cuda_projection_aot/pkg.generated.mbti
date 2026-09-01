@@ -15,7 +15,13 @@ pub fn bind_manifest_projection_cuda_aot(ProjectionCudaLowering, @plan.PlanOpera
 
 pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
 
+pub fn lower_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+
 pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+
+pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+
+pub fn prepare_projection_cuda_runtime_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord]) -> @luna_projection_strategy.ProjectionRuntimeDispatch raise ProjectionAotError
 
 pub fn projection_content_addressed_cubin_path(String) -> String raise ProjectionAotError
 
@@ -45,6 +51,7 @@ pub(all) enum ProjectionAotRule {
   Limits
   Operation
   Shape
+  Strategy
   RuntimeInputs
   PersistentState
   DeviceTarget

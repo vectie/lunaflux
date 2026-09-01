@@ -6,11 +6,11 @@ import {
 }
 
 // Values
+pub fn build_projection_runtime_dispatch(ArrayView[ProjectionAutotuneRecord], backend~ : ProjectionBackendId, target~ : ProjectionTargetId, numeric_type~ : ProjectionNumericType, shape~ : ProjectionShape, maximum_rows~ : Int, capabilities~ : ProjectionCapabilities) -> ProjectionRuntimeDispatch raise ProjectionStrategyError
+
 pub fn plan_projection_dispatch(ProjectionShape, Int, ProjectionCapabilities) -> ProjectionDispatchPlan raise ProjectionStrategyError
 
 pub fn projection_row_bucket(Int) -> Int raise ProjectionStrategyError
-
-pub fn select_projection_autotune_record(ArrayView[ProjectionAutotuneRecord], String, String, ProjectionShape, ProjectionPhase, Int) -> ProjectionAutotuneRecord raise ProjectionStrategyError
 
 // Errors
 pub(all) suberror ProjectionStrategyError {
@@ -18,13 +18,30 @@ pub(all) suberror ProjectionStrategyError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct ProjectionAutotuneKey {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionAutotuneKey::backend(Self) -> ProjectionBackendId
+pub fn ProjectionAutotuneKey::new(backend~ : ProjectionBackendId, target~ : ProjectionTargetId, numeric_type~ : ProjectionNumericType, shape~ : ProjectionShape, strategy~ : ProjectionStrategy) -> Self
+pub fn ProjectionAutotuneKey::numeric_type(Self) -> ProjectionNumericType
+pub fn ProjectionAutotuneKey::shape(Self) -> ProjectionShape
+pub fn ProjectionAutotuneKey::strategy(Self) -> ProjectionStrategy
+pub fn ProjectionAutotuneKey::target(Self) -> ProjectionTargetId
+
 pub struct ProjectionAutotuneRecord {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAutotuneRecord::key(Self) -> ProjectionAutotuneKey
 pub fn ProjectionAutotuneRecord::median_latency_ns(Self) -> Int64
-pub fn ProjectionAutotuneRecord::new(device_class~ : String, numeric_format~ : String, shape~ : ProjectionShape, strategy~ : ProjectionStrategy, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise ProjectionStrategyError
+pub fn ProjectionAutotuneRecord::new(key~ : ProjectionAutotuneKey, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise ProjectionStrategyError
 pub fn ProjectionAutotuneRecord::sample_count(Self) -> Int
 pub fn ProjectionAutotuneRecord::strategy(Self) -> ProjectionStrategy
+
+pub struct ProjectionBackendId {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionBackendId::new(String) -> Self raise ProjectionStrategyError
+pub fn ProjectionBackendId::stable_name(Self) -> StringView
 
 pub struct ProjectionCapabilities {
   // private fields
@@ -46,9 +63,39 @@ pub(all) enum ProjectionKernelClass {
   MatrixTile
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ProjectionNumericType {
+  ProjectionBFloat16
+  ProjectionFloat16
+  ProjectionFloat32
+  ProjectionSignedInt8
+  ProjectionFloat8
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ProjectionPhase {
   Decode
   Prefill
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionRuntimeDispatch {
+  // private fields
+}
+pub fn ProjectionRuntimeDispatch::backend(Self) -> ProjectionBackendId
+pub fn ProjectionRuntimeDispatch::dispatch_plan(Self, Int) -> ProjectionDispatchPlan raise ProjectionStrategyError
+pub fn ProjectionRuntimeDispatch::maximum_rows(Self) -> Int
+pub fn ProjectionRuntimeDispatch::numeric_type(Self) -> ProjectionNumericType
+pub fn ProjectionRuntimeDispatch::select(Self, Int) -> ProjectionSelectedStrategy raise ProjectionStrategyError
+pub fn ProjectionRuntimeDispatch::shape(Self) -> ProjectionShape
+pub fn ProjectionRuntimeDispatch::target(Self) -> ProjectionTargetId
+
+pub struct ProjectionSelectedStrategy {
+  // private fields
+}
+pub fn ProjectionSelectedStrategy::source(Self) -> ProjectionSelectionSource
+pub fn ProjectionSelectedStrategy::strategy(Self) -> ProjectionStrategy
+
+pub(all) enum ProjectionSelectionSource {
+  OfflineAutotune
+  StaticFallback
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ProjectionSemanticFamily {
@@ -69,11 +116,18 @@ pub struct ProjectionStrategy {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionStrategy::kernel_class(Self) -> ProjectionKernelClass
-pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile) -> Self raise ProjectionStrategyError
+pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, strategy_class? : ProjectionStrategyClass?, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile) -> Self raise ProjectionStrategyError
 pub fn ProjectionStrategy::phase(Self) -> ProjectionPhase
 pub fn ProjectionStrategy::row_bucket(Self) -> Int
 pub fn ProjectionStrategy::stable_id(Self) -> Int
+pub fn ProjectionStrategy::strategy_class(Self) -> ProjectionStrategyClass
 pub fn ProjectionStrategy::tile(Self) -> ProjectionTile
+
+pub(all) enum ProjectionStrategyClass {
+  DecodeGemv
+  SmallRowTiledGemm
+  LargeRowTiledGemm
+} derive(Eq, @debug.Debug)
 
 pub(all) enum ProjectionStrategyRule {
   Shape
@@ -81,7 +135,17 @@ pub(all) enum ProjectionStrategyRule {
   Bucket
   Measurement
   Candidate
+  Backend
+  Target
+  Duplicate
+  Conflict
 } derive(Eq, @debug.Debug)
+
+pub struct ProjectionTargetId {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTargetId::new(String) -> Self raise ProjectionStrategyError
+pub fn ProjectionTargetId::stable_name(Self) -> StringView
 
 pub struct ProjectionTile {
   // private fields

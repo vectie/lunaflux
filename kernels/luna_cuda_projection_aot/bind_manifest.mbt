@@ -108,7 +108,7 @@ pub fn bind_manifest_projection_cuda_aot(
     operation_parameters,
     contract.operands(),
   )
-  validate_projection_contract(operation, contract)
+  validate_projection_contract(operation, contract, candidate.dispatch_plan)
   if contract.profile() != candidate.profile ||
     contract.dimensions() != candidate.dimensions ||
     contract.operands() != candidate.operands ||
@@ -120,6 +120,7 @@ pub fn bind_manifest_projection_cuda_aot(
     parameters,
     candidate.profile,
     contract.operands(),
+    candidate.dispatch_plan,
   )
   let binding_record = projection_manifest_binding_record(
     candidate, contract, contracts,

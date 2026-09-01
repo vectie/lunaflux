@@ -21,12 +21,40 @@ pub(all) enum ProjectionKernelClass {
 } derive(Debug, Eq)
 
 ///|
+/// Backend-neutral workload class. Backends lower the selected class to their
+/// own SIMD, subgroup, matrix, or library implementation.
+pub(all) enum ProjectionStrategyClass {
+  DecodeGemv
+  SmallRowTiledGemm
+  LargeRowTiledGemm
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ProjectionNumericType {
+  ProjectionBFloat16
+  ProjectionFloat16
+  ProjectionFloat32
+  ProjectionSignedInt8
+  ProjectionFloat8
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ProjectionSelectionSource {
+  OfflineAutotune
+  StaticFallback
+} derive(Debug, Eq)
+
+///|
 pub(all) enum ProjectionStrategyRule {
   Shape
   Capability
   Bucket
   Measurement
   Candidate
+  Backend
+  Target
+  Duplicate
+  Conflict
 } derive(Debug, Eq)
 
 ///|
@@ -56,9 +84,20 @@ pub struct ProjectionCapabilities {
 } derive(Debug, Eq)
 
 ///|
+pub struct ProjectionBackendId {
+  priv stable_name : String
+} derive(Debug, Eq)
+
+///|
+pub struct ProjectionTargetId {
+  priv stable_name : String
+} derive(Debug, Eq)
+
+///|
 pub struct ProjectionStrategy {
   priv stable_id : Int
   priv phase : ProjectionPhase
+  priv strategy_class : ProjectionStrategyClass
   priv kernel_class : ProjectionKernelClass
   priv row_bucket : Int
   priv tile : ProjectionTile
@@ -72,12 +111,37 @@ pub struct ProjectionDispatchPlan {
 } derive(Debug, Eq)
 
 ///|
-/// One offline measurement. Runtime request handling never benchmarks.
-pub struct ProjectionAutotuneRecord {
-  priv device_class : String
-  priv numeric_format : String
+pub struct ProjectionAutotuneKey {
+  priv backend : ProjectionBackendId
+  priv target : ProjectionTargetId
+  priv numeric_type : ProjectionNumericType
   priv shape : ProjectionShape
   priv strategy : ProjectionStrategy
+} derive(Debug, Eq)
+
+///|
+/// One offline measurement. Runtime request handling never benchmarks.
+pub struct ProjectionAutotuneRecord {
+  priv key : ProjectionAutotuneKey
   priv median_latency_ns : Int64
   priv sample_count : Int
 } derive(Debug, Eq)
+
+///|
+#valtype
+pub struct ProjectionSelectedStrategy {
+  priv strategy : ProjectionStrategy
+  priv source : ProjectionSelectionSource
+}
+
+///|
+/// Startup-built constant-time dispatch table. Request-time selection performs
+/// only bounds checks, a fixed comparison ladder, and one FixedArray lookup.
+pub struct ProjectionRuntimeDispatch {
+  priv backend : ProjectionBackendId
+  priv target : ProjectionTargetId
+  priv numeric_type : ProjectionNumericType
+  priv shape : ProjectionShape
+  priv maximum_rows : Int
+  priv slots : FixedArray[ProjectionSelectedStrategy]
+}

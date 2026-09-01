@@ -40,9 +40,35 @@ pub fn ProjectionCapabilities::new(
 }
 
 ///|
+fn valid_projection_identity(value : StringView) -> Bool {
+  value.length() > 0 && value.length() <= 128
+}
+
+///|
+pub fn ProjectionBackendId::new(
+  stable_name : String,
+) -> ProjectionBackendId raise ProjectionStrategyError {
+  if !valid_projection_identity(stable_name) {
+    raise InvalidProjectionStrategy(Backend)
+  }
+  { stable_name, }
+}
+
+///|
+pub fn ProjectionTargetId::new(
+  stable_name : String,
+) -> ProjectionTargetId raise ProjectionStrategyError {
+  if !valid_projection_identity(stable_name) {
+    raise InvalidProjectionStrategy(Target)
+  }
+  { stable_name, }
+}
+
+///|
 pub fn ProjectionStrategy::new(
   stable_id~ : Int,
   phase~ : ProjectionPhase,
+  strategy_class? : ProjectionStrategyClass? = None,
   kernel_class~ : ProjectionKernelClass,
   row_bucket~ : Int,
   tile~ : ProjectionTile,
@@ -50,33 +76,60 @@ pub fn ProjectionStrategy::new(
   if stable_id <= 0 || row_bucket <= 0 {
     raise InvalidProjectionStrategy(Candidate)
   }
-  if phase == Decode && row_bucket != 1 {
+  if projection_row_bucket(row_bucket) != row_bucket ||
+    (phase == Decode && row_bucket != 1) ||
+    (phase == Prefill && row_bucket == 1) {
     raise InvalidProjectionStrategy(Bucket)
   }
-  { stable_id, phase, kernel_class, row_bucket, tile }
+  let resolved_class = match strategy_class {
+    Some(value) => value
+    None =>
+      if phase == Decode {
+        DecodeGemv
+      } else if row_bucket <= 8 {
+        SmallRowTiledGemm
+      } else {
+        LargeRowTiledGemm
+      }
+  }
+  let valid_class = match (phase, resolved_class) {
+    (Decode, DecodeGemv) => row_bucket == 1
+    (Prefill, SmallRowTiledGemm) => row_bucket <= 8
+    (Prefill, LargeRowTiledGemm) => row_bucket > 8
+    _ => false
+  }
+  if !valid_class {
+    raise InvalidProjectionStrategy(Candidate)
+  }
+  {
+    stable_id,
+    phase,
+    strategy_class: resolved_class,
+    kernel_class,
+    row_bucket,
+    tile,
+  }
+}
+
+///|
+pub fn ProjectionAutotuneKey::new(
+  backend~ : ProjectionBackendId,
+  target~ : ProjectionTargetId,
+  numeric_type~ : ProjectionNumericType,
+  shape~ : ProjectionShape,
+  strategy~ : ProjectionStrategy,
+) -> ProjectionAutotuneKey {
+  { backend, target, numeric_type, shape, strategy }
 }
 
 ///|
 pub fn ProjectionAutotuneRecord::new(
-  device_class~ : String,
-  numeric_format~ : String,
-  shape~ : ProjectionShape,
-  strategy~ : ProjectionStrategy,
+  key~ : ProjectionAutotuneKey,
   median_latency_ns~ : Int64,
   sample_count~ : Int,
 ) -> ProjectionAutotuneRecord raise ProjectionStrategyError {
-  if device_class.length() == 0 ||
-    numeric_format.length() == 0 ||
-    median_latency_ns <= 0L ||
-    sample_count < 3 {
+  if median_latency_ns <= 0L || sample_count < 3 {
     raise InvalidProjectionStrategy(Measurement)
   }
-  {
-    device_class,
-    numeric_format,
-    shape,
-    strategy,
-    median_latency_ns,
-    sample_count,
-  }
+  { key, median_latency_ns, sample_count }
 }

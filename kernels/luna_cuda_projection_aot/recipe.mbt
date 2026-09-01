@@ -32,6 +32,17 @@ fn projection_strategy_tag(
 }
 
 ///|
+fn projection_strategy_class_tag(
+  strategy : @luna_projection_strategy.ProjectionStrategy,
+) -> String {
+  match strategy.strategy_class() {
+    DecodeGemv => "decode-gemv"
+    SmallRowTiledGemm => "small-row-tiled-gemm"
+    LargeRowTiledGemm => "large-row-tiled-gemm"
+  }
+}
+
+///|
 fn projection_bool_tag(value : Bool) -> String {
   if value {
     "true"
@@ -213,10 +224,14 @@ fn projection_recipe(
     "vendor_fast_path=row-major-weight-transpose-compatible\n" +
     "decode_strategy=" +
     projection_strategy_tag(dispatch_plan.decode()) +
+    "\ndecode_strategy_class=" +
+    projection_strategy_class_tag(dispatch_plan.decode()) +
     "\ndecode_row_bucket=" +
     dispatch_plan.decode().row_bucket().to_string() +
     "\nprefill_strategy=" +
     projection_strategy_tag(dispatch_plan.prefill()) +
+    "\nprefill_strategy_class=" +
+    projection_strategy_class_tag(dispatch_plan.prefill()) +
     "\nprefill_row_bucket=" +
     dispatch_plan.prefill().row_bucket().to_string() +
     "\n" +

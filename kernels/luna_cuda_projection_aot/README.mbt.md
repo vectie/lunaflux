@@ -24,6 +24,15 @@ so it is not substituted into the ordered paged AOT manifest by this package.
 The sources here are correctness-grade release artifacts, not performance
 claims, and physical CUDA evidence remains a separate gate.
 
+Projection workload policy is prepared before source generation through the
+backend-neutral `ProjectionRuntimeDispatch`. CUDA contributes only target and
+capability facts, then lowers the selected `DecodeGemv`,
+`SmallRowTiledGemm`, or `LargeRowTiledGemm` strategy into its private subgroup,
+scalar, or WMMA implementation. Offline autotune records may replace the
+static strategy at startup; the compatibility entry points build the same
+runtime table with an empty record set. Source generation does not classify
+shapes or scan tuning records.
+
 `fixtures/physical_sm120` records the exact generated CUDA and recipe bytes for
 small QKV, dense-projection, gated-MLP, and language-model-head numerical
 shapes. `physical_fixture_wbtest.mbt` binds both SHA-256 values to fresh typed

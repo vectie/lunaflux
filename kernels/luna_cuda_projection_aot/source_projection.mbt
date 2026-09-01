@@ -42,11 +42,8 @@ fn projection_decode_workspace_bytes(
 fn projection_workspace_bytes(
   parameters : ProjectionParameters,
   profile : @launch_contract.PagedKernelProfile,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> Int64 raise ProjectionAotError {
-  let dispatch = projection_dispatch_plan(
-    parameters,
-    profile.max_query_tokens(),
-  )
   let row_bytes = projection_decode_workspace_bytes(parameters, dispatch)
   if row_bytes == 0L {
     0L

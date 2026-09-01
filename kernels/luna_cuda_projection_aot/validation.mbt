@@ -17,18 +17,17 @@ priv struct ProjectionParameters {
 }
 
 ///|
-/// CUDA's private capability adapter into the backend-neutral strategy layer.
-fn projection_dispatch_plan(
+/// CUDA's private shape adapter into the backend-neutral strategy layer.
+fn projection_strategy_shape(
   parameters : ProjectionParameters,
-  maximum_rows : Int,
-) -> @luna_projection_strategy.ProjectionDispatchPlan {
+) -> @luna_projection_strategy.ProjectionShape {
   let family = match parameters.family {
     QkvProjection => @luna_projection_strategy.Qkv
     DenseProjection => Dense
     GatedMlp => GatedMlp
     LanguageModelHead => LanguageModelHead
   }
-  let shape = @luna_projection_strategy.ProjectionShape::new(
+  @luna_projection_strategy.ProjectionShape::new(
     family,
     input_width=parameters.input_width,
     output_width=parameters.output_width,
@@ -36,6 +35,13 @@ fn projection_dispatch_plan(
   ) catch {
     _ => abort("validated projection shape rejected by strategy")
   }
+}
+
+///|
+/// CUDA capabilities are lowering facts, not workload-selection policy.
+fn projection_cuda_capabilities(
+  parameters : ProjectionParameters,
+) -> @luna_projection_strategy.ProjectionCapabilities {
   let matrix_tile = if parameters.family == GatedMlp {
     if parameters.input_width % 256 == 0 &&
       parameters.output_width % 256 == 0 &&
@@ -76,17 +82,106 @@ fn projection_dispatch_plan(
   } else {
     None
   }
-  let capabilities = @luna_projection_strategy.ProjectionCapabilities::new(
+  @luna_projection_strategy.ProjectionCapabilities::new(
     subgroup_width=32,
     matrix_tile~,
   ) catch {
     _ => abort("static CUDA projection capability rejected")
   }
-  @luna_projection_strategy.plan_projection_dispatch(
-    shape, maximum_rows, capabilities,
-  ) catch {
-    _ => abort("validated projection strategy rejected")
+}
+
+///|
+fn projection_cuda_backend_id() -> @luna_projection_strategy.ProjectionBackendId {
+  @luna_projection_strategy.ProjectionBackendId::new("cuda-aot-v1") catch {
+    _ => abort("static CUDA backend identity rejected")
   }
+}
+
+///|
+fn projection_cuda_target_id(
+  target : @catalog.DeviceTarget,
+) -> @luna_projection_strategy.ProjectionTargetId {
+  @luna_projection_strategy.ProjectionTargetId::new(
+    "sm_" +
+    target.compute_major().to_string() +
+    target.compute_minor().to_string(),
+  ) catch {
+    _ => abort("validated CUDA target identity rejected")
+  }
+}
+
+///|
+fn projection_build_runtime_dispatch(
+  parameters : ProjectionParameters,
+  maximum_rows : Int,
+  target : @catalog.DeviceTarget,
+  records : ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord],
+) -> @luna_projection_strategy.ProjectionRuntimeDispatch raise ProjectionAotError {
+  @luna_projection_strategy.build_projection_runtime_dispatch(
+    records,
+    backend=projection_cuda_backend_id(),
+    target=projection_cuda_target_id(target),
+    numeric_type=ProjectionBFloat16,
+    shape=projection_strategy_shape(parameters),
+    maximum_rows~,
+    capabilities=projection_cuda_capabilities(parameters),
+  ) catch {
+    _ => raise Invalid(Strategy)
+  }
+}
+
+///|
+fn projection_validate_runtime_dispatch(
+  runtime : @luna_projection_strategy.ProjectionRuntimeDispatch,
+  parameters : ProjectionParameters,
+  maximum_rows : Int,
+  target : @catalog.DeviceTarget,
+) -> @luna_projection_strategy.ProjectionDispatchPlan raise ProjectionAotError {
+  if runtime.backend() != projection_cuda_backend_id() ||
+    runtime.target() != projection_cuda_target_id(target) ||
+    runtime.numeric_type() != ProjectionBFloat16 ||
+    runtime.shape() != projection_strategy_shape(parameters) ||
+    runtime.maximum_rows() < maximum_rows {
+    raise Mismatch(Strategy)
+  }
+  let dispatch = runtime.dispatch_plan(maximum_rows) catch {
+    _ => raise Mismatch(Strategy)
+  }
+  let capabilities = projection_cuda_capabilities(parameters)
+  let subgroup = capabilities.subgroup_width()
+  let decode = dispatch.decode()
+  let prefill = dispatch.prefill()
+  let expected_decode_tile = @luna_projection_strategy.ProjectionTile::new(
+    rows=1,
+    columns=subgroup,
+    reduction=subgroup,
+  ) catch {
+    _ => raise Invalid(Strategy)
+  }
+  if decode.tile() != expected_decode_tile {
+    raise Mismatch(Strategy)
+  }
+  let prefill_supported = match prefill.kernel_class() {
+    MatrixTile => capabilities.matrix_tile() == Some(prefill.tile())
+    ScalarTile =>
+      prefill.tile() ==
+      (@luna_projection_strategy.ProjectionTile::new(
+        rows=1,
+        columns=subgroup,
+        reduction=1,
+      ) catch {
+        _ => raise Invalid(Strategy)
+      })
+    SubgroupGemv => false
+  }
+  let pair_supported = match (decode.kernel_class(), prefill.kernel_class()) {
+    (SubgroupGemv, MatrixTile) | (ScalarTile, ScalarTile) => true
+    _ => false
+  }
+  if !prefill_supported || !pair_supported {
+    raise Mismatch(Strategy)
+  }
+  dispatch
 }
 
 ///|
@@ -245,7 +340,7 @@ fn projection_bind_qkv_widths(
   if parameters.family != QkvProjection {
     return parameters
   }
-  let roles = projection_roles(operation)
+  let roles = projection_roles(operation, false)
   if operands.length() != roles.length() || operands.length() != 6 {
     raise Mismatch(OperandOrder)
   }
@@ -277,7 +372,8 @@ fn projection_bind_qkv_widths(
 ///|
 fn projection_roles(
   operation : @plan.PlanOperation,
-) -> Array[@launch_contract.AotOperandRole] raise ProjectionAotError {
+  include_workspace : Bool,
+) -> Array[@launch_contract.AotOperandRole] {
   let roles : Array[@launch_contract.AotOperandRole] = [
     RuntimeInput(StepCounts),
   ]
@@ -293,9 +389,7 @@ fn projection_roles(
   for output in operation.outputs() {
     roles.push(ActivationOutput(output))
   }
-  let parameters = projection_parameters(operation)
-  let dispatch = projection_dispatch_plan(parameters, 2)
-  if projection_decode_workspace_bytes(parameters, dispatch) > 0L {
+  if include_workspace {
     roles.push(Workspace)
   }
   roles
@@ -351,8 +445,12 @@ fn validate_projection_operands(
   parameters : ProjectionParameters,
   profile : @launch_contract.PagedKernelProfile,
   operands : ArrayView[@launch_contract.AotOperand],
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> Unit raise ProjectionAotError {
-  let roles = projection_roles(operation)
+  let roles = projection_roles(
+    operation,
+    projection_decode_workspace_bytes(parameters, dispatch) > 0L,
+  )
   if operands.length() != roles.length() {
     raise Mismatch(OperandOrder)
   }
@@ -383,7 +481,7 @@ fn validate_projection_operands(
         result
       }
       ActivationOutput(_) => output_bytes
-      Workspace => projection_workspace_bytes(parameters, profile)
+      Workspace => projection_workspace_bytes(parameters, profile, dispatch)
       _ => raise Mismatch(OperandOrder)
     }
     if operand.byte_count() != expected_bytes {
@@ -404,11 +502,8 @@ fn validate_projection_operands(
 fn projection_dimensions(
   profile : @launch_contract.PagedKernelProfile,
   parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> @launch_contract.AotLaunchDimensions raise ProjectionAotError {
-  let dispatch = projection_dispatch_plan(
-    parameters,
-    profile.max_query_tokens(),
-  )
   let tensor_core = projection_tensor_core_eligible(parameters, dispatch)
   let tensor_core_mlp = projection_tensor_core_mlp_eligible(
     parameters, dispatch,
@@ -478,6 +573,7 @@ fn projection_dimensions(
 fn validate_projection_contract(
   operation : @plan.PlanOperation,
   contract : @launch_contract.PagedKvAotLaunchContract,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> Unit raise ProjectionAotError {
   let parameters = projection_bind_qkv_widths(
     operation,
@@ -487,6 +583,7 @@ fn validate_projection_contract(
   let workspace_bytes = projection_workspace_bytes(
     parameters,
     contract.profile(),
+    dispatch,
   )
   if contract.operation_id() != operation.id() ||
     contract.operation_kind() != operation.kind() ||
@@ -503,7 +600,7 @@ fn validate_projection_contract(
     0L {
     raise Mismatch(Operation)
   }
-  let expected = projection_dimensions(contract.profile(), parameters)
+  let expected = projection_dimensions(contract.profile(), parameters, dispatch)
   if contract.dimensions() != expected {
     raise Mismatch(LaunchDimensions)
   }

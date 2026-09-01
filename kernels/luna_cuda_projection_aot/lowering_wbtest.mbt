@@ -225,8 +225,169 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
   assert_true(dense.contains("nvcuda::wmma::mma_sync"))
   assert_true(dense.contains("const int group_count = 8;"))
   let profile = projection_fixture_contracts().contracts()[1].profile()
-  assert_eq(projection_dimensions(profile, qkv_parameters).grid_x(), 512)
-  assert_eq(projection_dimensions(profile, dense_parameters).grid_x(), 128)
+  let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
+  let qkv_dispatch = projection_build_runtime_dispatch(
+    qkv_parameters,
+    profile.max_query_tokens(),
+    projection_fixture_target(),
+    records,
+  ).dispatch_plan(profile.max_query_tokens())
+  let dense_dispatch = projection_build_runtime_dispatch(
+    dense_parameters,
+    profile.max_query_tokens(),
+    projection_fixture_target(),
+    records,
+  ).dispatch_plan(profile.max_query_tokens())
+  assert_eq(
+    projection_dimensions(profile, qkv_parameters, qkv_dispatch).grid_x(),
+    512,
+  )
+  assert_eq(
+    projection_dimensions(profile, dense_parameters, dense_dispatch).grid_x(),
+    128,
+  )
+}
+
+///|
+test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
+  let operation = projection_fixture_operation(
+    11,
+    OutputProjection,
+    [Activation(@plan.ActivationRef::new(9)), Tensor(@plan.TensorRef::new(15))],
+    ProjectionShape(input_width=1024, output_width=1024),
+    @plan.KernelCapabilityId::dense_projection(),
+  )
+  let operands = [
+    projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(
+      ActivationInput(@plan.ActivationRef::new(9)),
+      8192L,
+      16L,
+    ),
+    projection_fixture_operand(
+      WeightInput(@plan.TensorRef::new(15)),
+      2097152L,
+      16L,
+    ),
+    projection_fixture_operand(
+      ActivationOutput(@plan.ActivationRef::new(11)),
+      8192L,
+      16L,
+    ),
+  ]
+  let target = projection_fixture_target()
+  let profile = projection_fixture_contracts().contracts()[5].profile()
+  let shape = @luna_projection_strategy.ProjectionShape::new(
+    Dense,
+    input_width=1024,
+    output_width=1024,
+  )
+  let strategy = @luna_projection_strategy.ProjectionStrategy::new(
+    stable_id=700,
+    phase=Prefill,
+    strategy_class=Some(SmallRowTiledGemm),
+    kernel_class=ScalarTile,
+    row_bucket=8,
+    tile=@luna_projection_strategy.ProjectionTile::new(
+      rows=1,
+      columns=32,
+      reduction=1,
+    ),
+  )
+  let decode_strategy = @luna_projection_strategy.ProjectionStrategy::new(
+    stable_id=699,
+    phase=Decode,
+    strategy_class=Some(DecodeGemv),
+    kernel_class=ScalarTile,
+    row_bucket=1,
+    tile=@luna_projection_strategy.ProjectionTile::new(
+      rows=1,
+      columns=32,
+      reduction=32,
+    ),
+  )
+  let prefill_record = @luna_projection_strategy.ProjectionAutotuneRecord::new(
+    key=@luna_projection_strategy.ProjectionAutotuneKey::new(
+      backend=@luna_projection_strategy.ProjectionBackendId::new("cuda-aot-v1"),
+      target=@luna_projection_strategy.ProjectionTargetId::new("sm_90"),
+      numeric_type=ProjectionBFloat16,
+      shape~,
+      strategy~,
+    ),
+    median_latency_ns=90L,
+    sample_count=9,
+  )
+  let decode_record = @luna_projection_strategy.ProjectionAutotuneRecord::new(
+    key=@luna_projection_strategy.ProjectionAutotuneKey::new(
+      backend=@luna_projection_strategy.ProjectionBackendId::new("cuda-aot-v1"),
+      target=@luna_projection_strategy.ProjectionTargetId::new("sm_90"),
+      numeric_type=ProjectionBFloat16,
+      shape~,
+      strategy=decode_strategy,
+    ),
+    median_latency_ns=80L,
+    sample_count=9,
+  )
+  let runtime = prepare_projection_cuda_runtime_dispatch(
+    operation,
+    profile,
+    target,
+    operands,
+    [prefill_record, decode_record],
+  )
+  assert_eq(runtime.select(4).source(), OfflineAutotune)
+  let lowering = lower_projection_cuda_aot_candidate_with_dispatch(
+    operation,
+    profile,
+    @catalog.AotKernelEntryPointId::from_stable_int(12),
+    target,
+    projection_fixture_compiler(),
+    operands,
+    runtime,
+    projection_fixture_limits(),
+  )
+  assert_eq(lowering.dispatch_plan().prefill().stable_id(), 700)
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_false(source.contains("nvcuda::wmma::mma_sync"))
+  assert_true(source.contains("accumulator = __fadd_rn(accumulator, product)"))
+  let recipe = @utf8.decode(lowering.recipe_bytes())
+  assert_true(recipe.contains("prefill_strategy=scalar-tile\n"))
+  assert_true(recipe.contains("prefill_strategy_class=small-row-tiled-gemm\n"))
+  let fallback = lower_projection_cuda_aot_candidate(
+    operation,
+    profile,
+    @catalog.AotKernelEntryPointId::from_stable_int(12),
+    target,
+    projection_fixture_compiler(),
+    operands,
+    projection_fixture_limits(),
+  )
+  assert_true(
+    @utf8.decode(fallback.source_bytes()).contains("nvcuda::wmma::mma_sync"),
+  )
+  let foreign_target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=true,
+  )
+  try
+    lower_projection_cuda_aot_candidate_with_dispatch(
+      operation,
+      profile,
+      @catalog.AotKernelEntryPointId::from_stable_int(12),
+      foreign_target,
+      projection_fixture_compiler(),
+      operands,
+      runtime,
+      projection_fixture_limits(),
+    )
+  catch {
+    Mismatch(Strategy) => ()
+    _ => fail("unexpected foreign projection strategy rejection")
+  } noraise {
+    _ => fail("expected target-bound projection strategy rejection")
+  }
 }
 
 ///|
