@@ -150,6 +150,22 @@ priv struct QwenFusedProductionSet {
 }
 
 ///|
+fn qwen_postprocess_activation_input(
+  operand : @launch_contract.AotOperand,
+) -> @launch_contract.AotOperand raise Qwen3Bf16CandidateExportCliError {
+  guard operand.role() is ActivationOutput(reference) else {
+    raise QwenIngressPreparation
+  }
+  @launch_contract.AotOperand::new(
+    role=ActivationInput(reference),
+    byte_count=operand.byte_count(),
+    alignment=operand.alignment(),
+  ) catch {
+    _ => raise QwenIngressPreparation
+  }
+}
+
+///|
 fn qwen_postprocess_operands(
   qkv : @luna_cuda_projection_aot.ProjectionCudaLowering,
   qk_norm : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
@@ -164,7 +180,10 @@ fn qwen_postprocess_operands(
   }
   for operand in qkv.operands() {
     if operand.role() is ActivationOutput(_) {
-      operands.push(operand)
+      // Projection writes this allocation, while postprocess reads it. Only
+      // the ABI direction changes; extent and alignment remain admitted by
+      // the projection lowering.
+      operands.push(qwen_postprocess_activation_input(operand))
     }
   }
   for operand in qk_norm.operands() {
