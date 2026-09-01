@@ -102,7 +102,16 @@ fn static_projection_strategy(
 ) -> ProjectionStrategy raise ProjectionStrategyError {
   let subgroup = capabilities.subgroup_width()
   if row_bucket == 1 {
-    let kernel_class = if shape.input_width % subgroup == 0 {
+    // Gated MLP decode can use the subgroup path only when the backend also
+    // supplies its matrix-tiled gate/up/down companion. Without that
+    // companion the admitted implementation is the scalar fused kernel for
+    // every row count, so the strategy must not claim an unavailable GEMV.
+    let gated_mlp_subgroup_supported = match capabilities.matrix_tile() {
+      Some(tile) => projection_matrix_eligible(shape, tile)
+      None => false
+    }
+    let kernel_class = if shape.input_width % subgroup == 0 &&
+      (shape.family() != GatedMlp || gated_mlp_subgroup_supported) {
       SubgroupGemv
     } else {
       ScalarTile

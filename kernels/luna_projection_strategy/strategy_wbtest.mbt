@@ -112,6 +112,36 @@ test "projection row buckets have explicit serving classes and extensible prefil
 }
 
 ///|
+test "gated MLP decode does not claim a missing tiled companion" {
+  let shape = ProjectionShape::new(
+    GatedMlp,
+    input_width=128,
+    output_width=128,
+    intermediate_width=256,
+  )
+  let capabilities = ProjectionCapabilities::new(
+    subgroup_width=32,
+    matrix_tile=None,
+  )
+  let plan = plan_projection_dispatch(shape, 8, capabilities)
+  assert_eq(plan.decode().kernel_class(), ScalarTile)
+  assert_eq(plan.prefill().kernel_class(), ScalarTile)
+  let tiled_shape = ProjectionShape::new(
+    GatedMlp,
+    input_width=1024,
+    output_width=1024,
+    intermediate_width=3072,
+  )
+  let tiled_capabilities = ProjectionCapabilities::new(
+    subgroup_width=32,
+    matrix_tile=Some(ProjectionTile::new(rows=16, columns=256, reduction=256)),
+  )
+  let tiled = plan_projection_dispatch(tiled_shape, 8, tiled_capabilities)
+  assert_eq(tiled.decode().kernel_class(), SubgroupGemv)
+  assert_eq(tiled.prefill().kernel_class(), MatrixTile)
+}
+
+///|
 test "offline autotune selection is deterministic and record order independent" {
   let backend = ProjectionBackendId::new("portable")
   let target = ProjectionTargetId::new("fixture-a")
