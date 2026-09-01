@@ -94,6 +94,20 @@ test "grid-stride query-token launch scales up to its admitted cap" {
 }
 
 ///|
+test "Qwen postprocess keeps its authenticated full grid in decode buckets" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=256,
+    grid_y=32,
+    grid_z=1,
+    block_x=128,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+  assert_true(paged_qwen_postprocess_bucket_launch(source) is FixedBucketLaunch)
+}
+
+///|
 test "projection buckets remove maximum-envelope decode blocks" {
   let dense = @launch_contract.AotLaunchDimensions::new(
     grid_x=4096,

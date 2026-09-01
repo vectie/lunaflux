@@ -47,9 +47,9 @@ priv enum PagedBucketStepLaunch {
 }
 
 ///|
-/// Startup-only proof that selected Qwen composite steps have an admitted
-/// one-block-per-query-token launch ABI. Unlisted steps retain their exact
-/// manifest geometry in every bucket.
+/// Startup-only proof that selected Qwen and projection steps admit smaller
+/// launch geometry. Unlisted steps retain their exact manifest geometry in
+/// every bucket, including kernels that authenticate the full launch grid.
 priv struct PagedGraphLaunchContract {
   step_launches : FixedArray[PagedBucketStepLaunch]
 }

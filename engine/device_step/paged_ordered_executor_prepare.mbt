@@ -150,11 +150,19 @@ fn prepare_projection_bucket_launches(
 }
 
 ///|
+fn paged_qwen_postprocess_bucket_launch(
+  _source : @launch_contract.AotLaunchDimensions,
+) -> PagedBucketStepLaunch {
+  FixedBucketLaunch
+}
+
+///|
 /// Derives the only currently safe smaller-bucket launch contract from the
-/// approved Qwen composite ABI. Postprocess uses one block per query token while
-/// readonly attention uses a bounded grid-stride token traversal. Projection
-/// rules use their admitted shape-specific decode/prefill geometry, avoiding a
-/// maximum-token grid full of empty blocks during decode.
+/// approved Qwen composite ABI. The reusable postprocess kernel deliberately
+/// authenticates its full grid before using a grid-stride token traversal, so
+/// its launch remains fixed. Readonly attention can use a smaller bounded grid.
+/// Projection rules use their admitted shape-specific decode/prefill geometry,
+/// avoiding maximum-envelope decode work where the kernel ABI permits it.
 fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
@@ -186,7 +194,13 @@ fn prepare_qwen_graph_launch_contract(
     let readonly_index = qwen_bucket_step_index(steps, attention.operation_id())
     match (launches[postprocess_index], launches[readonly_index]) {
       (FixedBucketLaunch, FixedBucketLaunch) => {
-        launches[postprocess_index] = QueryTokenCappedGridX(postprocess)
+        // qwen_qknorm_rope_kvwrite_production_v1 rejects any launch whose
+        // gridDim.x differs from the authenticated maximum-token envelope.
+        // Keeping this fixed is correctness-critical even though its body is
+        // grid-stride.
+        launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
+          postprocess,
+        )
         launches[readonly_index] = QueryTokenCappedGridX(readonly_launch)
       }
       _ => raise InvalidExecutor(GraphBucket)
@@ -447,12 +461,31 @@ fn prepare_paged_ordered_executors(
       fallback_owner_index
     }
     PagedCapturedRequired | PagedCapturedWithEagerFallback => {
-      // One maximum-envelope graph is valid for every admitted shape because
-      // live row/token counts remain in the reusable descriptor and every AOT
-      // kernel bounds its work from those counts. Keeping one graph also avoids
-      // multiplying graph storage at startup. Bucket-specialized captured
-      // graphs require independent physical qualification before replacing
-      // this universally valid owner.
+      // Qwen's composite launch contract can safely specialize fixed graph
+      // geometry while retaining the same reusable descriptor and allocation
+      // addresses. Capture the common decode buckets up front so c1/c8 do not
+      // replay the maximum-token grid full of empty blocks. The maximum graph
+      // remains the universal fallback for prefill, mixed, and uncommon decode
+      // shapes.
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_decode_capture_bounds(profile) {
+          let launches = paged_ordered_launches(
+            steps,
+            resources,
+            query_token_bound=Some(bound),
+          )
+          let owner = prepare_one_paged_ordered_executor(
+            context,
+            launches[:],
+            baseline_operation_ids,
+            resources,
+            paged_ordered_device_policy(graph_policy),
+          )
+          map_paged_decode_capture_owner(
+            table, bound, bound, owner, slot_owner_indices,
+          )
+        }
+      }
       let maximum = prepare_one_paged_ordered_executor(
         context,
         maximum_launches[:],
