@@ -200,6 +200,7 @@ printf '%s\n' "$gpu_identity" >"$logs/device-identity.txt"
 moon build cmd/lunaflux_qwen3_weight_convert \
   cmd/lunaflux_qwen3_bf16_candidate_export \
   cmd/lunaflux_qwen3_bf16_release_bind \
+  cmd/lunaflux_qwen3_fused_runtime_bundle_export \
   --target native --release --deny-warn --warn-list +73 \
   >"$logs/moon-build.stdout" 2>"$logs/moon-build.stderr" ||
   fail 'Qwen c32 preparation CLIs did not build'
@@ -210,7 +211,8 @@ moon build cmd/lunaflux_qwen3_weight_convert \
 converter=$repo_root/_build/native/release/build/cmd/lunaflux_qwen3_weight_convert/lunaflux_qwen3_weight_convert.exe
 exporter=$repo_root/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe
 binder=$repo_root/_build/native/release/build/cmd/lunaflux_qwen3_bf16_release_bind/lunaflux_qwen3_bf16_release_bind.exe
-for executable in "$converter" "$exporter" "$binder"; do
+fused_exporter=$repo_root/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe
+for executable in "$converter" "$exporter" "$binder" "$fused_exporter"; do
   [[ -x $executable && -f $executable && ! -L $executable ]] ||
     fail 'a Qwen c32 preparation CLI is absent'
 done
@@ -240,8 +242,22 @@ candidate=$artifact_root/candidate
 [[ $(field max_query_rows "$logs/candidate-export.stdout") == 32 &&
    $(field max_query_tokens "$logs/candidate-export.stdout") == 256 ]] ||
   fail 'candidate export geometry is not production c32'
+model_plan_sha=$(field model_plan_sha256 "$logs/candidate-export.stdout")
+is_sha256 "$model_plan_sha" || fail 'candidate export model plan is malformed'
 candidate_inventory=$candidate/candidate.files.sha256
 candidate_inventory_sha=$(sha256_file "$candidate_inventory")
+fused_exporter_sha=$(sha256_file "$fused_exporter")
+fused_compiled=$artifact_root/reusable-fused-runtime
+"$repo_root/scripts/build-qwen3-reusable-fused-runtime.sh" "$nvcc" \
+  "$toolchain_argument" "$candidate" "$model_content_sha" \
+  "$model_plan_sha" "$fused_exporter#sha256=$fused_exporter_sha" \
+  "$fused_compiled" >"$logs/fused-runtime-build.stdout" \
+  2>"$logs/fused-runtime-build.stderr" ||
+  fail 'Qwen reusable fused runtime build failed'
+[[ ! -s $logs/fused-runtime-build.stderr ]] ||
+  fail 'Qwen reusable fused runtime build emitted stderr'
+fused_runtime=$fused_compiled/reusable-fused-runtime-bundle.v3
+fused_runtime_sha=$(sha256_file "$fused_runtime")
 
 compiled=$artifact_root/compiled
 "$repo_root/scripts/build-luna-bf16-kernel-set.sh" "$nvcc" \
@@ -277,7 +293,7 @@ deployment=$artifact_root/deployment
   "$numeric_locator" "$numeric_sha" "$route_sha" "$release" \
   "$release_bind#sha256=$release_bind_sha" "$worker_argument" \
   "$corpus_argument" "$runtime_port" "$deployment" \
-  native-framed-c32-benchmark-v1 \
+  native-framed-c32-benchmark-v1 "$fused_runtime#sha256=$fused_runtime_sha" \
   >"$logs/deployment-materialize.stdout" 2>"$logs/deployment-materialize.stderr" ||
   fail 'Qwen c32 deployment materialization failed'
 [[ ! -s $logs/deployment-materialize.stderr ]] ||

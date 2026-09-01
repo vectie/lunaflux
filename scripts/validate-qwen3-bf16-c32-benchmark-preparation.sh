@@ -7,12 +7,13 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 campaign=$repo_root/scripts/run-qwen3-bf16-c32-benchmark-preparation.sh
 common=$repo_root/scripts/qwen3-c32-preparation-common.sh
 materializer=$repo_root/scripts/materialize-qwen3-bf16-v12-launch.sh
+fused_builder=$repo_root/scripts/build-qwen3-reusable-fused-runtime.sh
 fail() {
   printf 'Qwen3 c32 benchmark preparation validation rejected: %s\n' "$1" >&2
   exit 1
 }
 
-bash -n "$campaign" "$common" "$materializer" ||
+bash -n "$campaign" "$common" "$materializer" "$fused_builder" ||
   fail 'campaign/helper syntax is invalid'
 set +e
 usage_output=$("$campaign" 2>&1)
@@ -26,6 +27,9 @@ for exact in \
   '13 1 115 8 8192 32 256 8192 "$candidate"' \
   '"$toolchain_manifest" "$toolchain_sha" 13 1 115 8 8192 32 256 8192' \
   'native-framed-c32-benchmark-v1' \
+  'cmd/lunaflux_qwen3_fused_runtime_bundle_export' \
+  'build-qwen3-reusable-fused-runtime.sh' \
+  '"$fused_runtime#sha256=$fused_runtime_sha"' \
   'materialize-qwen3-authenticated-capacity.sh' \
   'verify-qwen3-authenticated-capacity.sh' \
   'Qwen c32 benchmark requires authenticated device greedy sampling' \
@@ -46,6 +50,18 @@ for exact in \
   'benchmark_performance_claim=not-made'; do
   grep -Fq "$exact" "$campaign" "$common" "$materializer" ||
     fail "campaign boundary is absent: $exact"
+done
+
+for exact in \
+  'reusable-fused-residual' \
+  'reusable-qwen-ingress' \
+  'reusable-qwen-readonly-attention' \
+  'model-bound' \
+  'reusable-generic' \
+  'compiler_invocations=6' \
+  'reusable-fused-runtime-bundle.v3'; do
+  grep -Fq "$exact" "$fused_builder" ||
+    fail "reusable Qwen fused-runtime build boundary is absent: $exact"
 done
 
 if grep -Fq 'max_graph_capture_bytes' "$materializer"; then
