@@ -37,6 +37,7 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::kv_layer(Self) -> @plan.KvLayerI
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::norm_epsilon(Self) -> Double
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::operation_indices(Self) -> (Int, Int, Int, Int)
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::positioned_qkv(Self) -> @plan.ActivationRef
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::projected_qkv(Self) -> @plan.ActivationRef
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::projection_shape(Self) -> (Int, Int)
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::rope_theta(Self) -> Double
 

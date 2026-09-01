@@ -1,6 +1,6 @@
 ///|
-fn qwen_fused_ingress_argument_count() -> Int {
-  15
+fn qwen_fused_postprocess_argument_count() -> Int {
+  12
 }
 
 ///|
@@ -52,10 +52,10 @@ fn prepare_qwen_fused_attention_resources(
       raise InvalidExecutor(ResourceState)
     }
   }
-  let ingress = prepare_composite_function(
+  let postprocess = prepare_composite_function(
     context,
-    first.ingress_module_bytes(),
-    first.ingress_function_symbol(),
+    first.postprocess_module_bytes(),
+    first.postprocess_function_symbol(),
     resources,
   )
   let readonly_function = prepare_composite_function(
@@ -85,7 +85,7 @@ fn prepare_qwen_fused_attention_resources(
   ) catch {
     error => raise ExecutorDevice(KernelArguments, error)
   }
-  (ingress, readonly_function, sidecar)
+  (postprocess, readonly_function, sidecar)
 }
 
 ///|
@@ -212,9 +212,6 @@ fn prepare_qwen_fused_attention_steps(
       role == RuntimeInput(PageTablePageIndices)
     }),
   ]
-  let qkv_input = unique_composite_binding(qkv_step, role => {
-    role is ActivationInput(_)
-  })
   let qkv_output = unique_composite_binding(qkv_step, role => {
     role is ActivationOutput(_)
   })
@@ -238,7 +235,6 @@ fn prepare_qwen_fused_attention_steps(
     !same_composite_region(rotated, readonly_input) {
     raise InvalidExecutor(ResourceState)
   }
-  let qkv_weights = qwen_fused_attention_weights(qkv_step, 3)
   let qk_norm_weights = qwen_fused_attention_weights(qk_norm_step, 2)
   let output = unique_composite_binding(attention_step, role => {
     role is ActivationOutput(_)
@@ -249,19 +245,16 @@ fn prepare_qwen_fused_attention_steps(
   let value_cache = unique_composite_binding(attention_step, role => {
     role is PersistentKvComponent(_, Value)
   })
-  let ingress_bindings : Array[PagedKvOperandBinding] = []
+  let postprocess_bindings : Array[PagedKvOperandBinding] = []
   for binding in runtime {
-    ingress_bindings.push(binding)
+    postprocess_bindings.push(binding)
   }
-  ingress_bindings.push(qkv_input)
-  for binding in qkv_weights {
-    ingress_bindings.push(binding)
-  }
+  postprocess_bindings.push(qkv_output)
   for binding in qk_norm_weights {
-    ingress_bindings.push(binding)
+    postprocess_bindings.push(binding)
   }
   for binding in [rotated, key_cache, value_cache] {
-    ingress_bindings.push(binding)
+    postprocess_bindings.push(binding)
   }
   let readonly_bindings : Array[PagedKvOperandBinding] = []
   for binding in runtime {
@@ -270,17 +263,17 @@ fn prepare_qwen_fused_attention_steps(
   for binding in [readonly_input, output, key_cache, value_cache] {
     readonly_bindings.push(binding)
   }
-  if ingress_bindings.length() != qwen_fused_ingress_argument_count() ||
+  if postprocess_bindings.length() != qwen_fused_postprocess_argument_count() ||
     readonly_bindings.length() != readonly_attention_production_argument_count() {
     raise InvalidExecutor(ResourceState)
   }
   (
     prepare_qwen_fused_attention_launch(
-      qkv_step.operation_id(),
+      qk_norm_step.operation_id(),
       ingress_function,
-      span.ingress_launch(),
-      ingress_bindings,
-      ingress_bindings.length() - 3,
+      span.postprocess_launch(),
+      postprocess_bindings,
+      postprocess_bindings.length() - 3,
       sidecar,
       descriptor,
       weight,
@@ -306,40 +299,12 @@ fn prepare_qwen_fused_attention_steps(
 fn[Step] replace_qwen_fused_attention_spans(
   baseline : ReadOnlyArray[Step],
   qkv_indices : ReadOnlyArray[Int],
-  ingress : ReadOnlyArray[Step],
+  postprocess : ReadOnlyArray[Step],
   readonly_steps : ReadOnlyArray[Step],
 ) -> ReadOnlyArray[Step] raise DeviceStepError {
-  if qkv_indices.length() != ingress.length() ||
-    qkv_indices.length() != readonly_steps.length() {
-    raise InvalidExecutor(ResourceState)
-  }
-  let replacement_for = FixedArray::make(baseline.length(), -1)
-  let skipped = FixedArray::make(baseline.length(), false)
-  for replacement_index, qkv_index in qkv_indices {
-    if qkv_index < 0 ||
-      qkv_index > baseline.length() - 4 ||
-      replacement_for[qkv_index] >= 0 {
-      raise InvalidExecutor(ResourceState)
-    }
-    for offset in 0..<4 {
-      if skipped[qkv_index + offset] {
-        raise InvalidExecutor(ResourceState)
-      }
-      skipped[qkv_index + offset] = true
-    }
-    replacement_for[qkv_index] = replacement_index
-  }
-  let output : Array[Step] = []
-  for index, step in baseline {
-    let replacement = replacement_for[index]
-    if replacement >= 0 {
-      output.push(ingress[replacement])
-      output.push(readonly_steps[replacement])
-    } else if !skipped[index] {
-      output.push(step)
-    }
-  }
-  ReadOnlyArray::from_array(output)
+  replace_projection_postprocess_attention_spans(
+    baseline, qkv_indices, postprocess, readonly_steps,
+  )
 }
 
 ///|

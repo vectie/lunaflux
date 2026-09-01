@@ -1,5 +1,5 @@
 ///|
-/// One startup-approved Qwen attention ingress/read-only replacement.
+/// One startup-approved Qwen projection/postprocess/read-only replacement.
 ///
 /// Every value is bound to one immutable model-plan generation. The two AOT
 /// modules are retained here so paged executor preparation can load each
@@ -8,10 +8,10 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv target : @catalog.DeviceTarget
   priv runtime_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv ingress_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv ingress_module_bytes : Bytes
-  priv ingress_symbol : String
-  priv ingress_launch : @launch_contract.AotLaunchDimensions
+  priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv postprocess_module_bytes : Bytes
+  priv postprocess_symbol : String
+  priv postprocess_launch : @launch_contract.AotLaunchDimensions
   priv readonly_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv readonly_module_bytes : Bytes
   priv readonly_symbol : String
@@ -49,33 +49,33 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   other : ApprovedQwenFusedAttentionSpan,
 ) -> Bool {
   self.runtime_digest == other.runtime_digest &&
-  self.ingress_module_digest == other.ingress_module_digest &&
-  self.ingress_symbol == other.ingress_symbol &&
-  self.ingress_launch == other.ingress_launch &&
+  self.postprocess_module_digest == other.postprocess_module_digest &&
+  self.postprocess_symbol == other.postprocess_symbol &&
+  self.postprocess_launch == other.postprocess_launch &&
   self.readonly_module_digest == other.readonly_module_digest &&
   self.readonly_symbol == other.readonly_symbol &&
   self.readonly_launch == other.readonly_launch
 }
 
 ///|
-fn ApprovedQwenFusedAttentionSpan::ingress_module_bytes(
+fn ApprovedQwenFusedAttentionSpan::postprocess_module_bytes(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> Bytes {
-  self.ingress_module_bytes
+  self.postprocess_module_bytes
 }
 
 ///|
-fn ApprovedQwenFusedAttentionSpan::ingress_function_symbol(
+fn ApprovedQwenFusedAttentionSpan::postprocess_function_symbol(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> String {
-  self.ingress_symbol
+  self.postprocess_symbol
 }
 
 ///|
-fn ApprovedQwenFusedAttentionSpan::ingress_launch(
+fn ApprovedQwenFusedAttentionSpan::postprocess_launch(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> @launch_contract.AotLaunchDimensions {
-  self.ingress_launch
+  self.postprocess_launch
 }
 
 ///|

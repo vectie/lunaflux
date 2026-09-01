@@ -239,6 +239,19 @@ fn run_paged_close_order(stages : ReadOnlyArray[() -> Unit]) -> Unit {
 }
 
 ///|
+fn run_paged_attention_allocation_close_order(
+  close_decode_split : () -> Unit,
+  close_qwen_sidecar : () -> Unit,
+  close_persistent_kv : () -> Unit,
+  close_activation : () -> Unit,
+) -> Unit {
+  close_decode_split()
+  close_qwen_sidecar()
+  close_persistent_kv()
+  close_activation()
+}
+
+///|
 fn close_paged_resources(
   resources : PagedGraphResources,
 ) -> Unit raise DeviceStepError {
@@ -287,24 +300,35 @@ fn close_paged_resources(
             )
           },
           () => {
-            close_paged_allocation(
-              resources.persistent_kv,
-              PersistentKvArena,
-              first,
-            )
-          },
-          () => {
-            close_paged_allocation(
-              resources.qwen_fused_attention_sidecar,
-              ActivationWorkspaceArena,
-              first,
-            )
-          },
-          () => {
-            close_paged_allocation(
-              resources.activation_workspace,
-              ActivationWorkspaceArena,
-              first,
+            run_paged_attention_allocation_close_order(
+              () => {
+                close_paged_allocation(
+                  resources.decode_split_workspace,
+                  DecodeSplitWorkspace,
+                  first,
+                )
+              },
+              () => {
+                close_paged_allocation(
+                  resources.qwen_fused_attention_sidecar,
+                  ActivationWorkspaceArena,
+                  first,
+                )
+              },
+              () => {
+                close_paged_allocation(
+                  resources.persistent_kv,
+                  PersistentKvArena,
+                  first,
+                )
+              },
+              () => {
+                close_paged_allocation(
+                  resources.activation_workspace,
+                  ActivationWorkspaceArena,
+                  first,
+                )
+              },
             )
           },
           () => close_paged_descriptor(resources, first),

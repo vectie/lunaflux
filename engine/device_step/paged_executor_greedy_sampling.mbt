@@ -300,6 +300,7 @@ fn finish_paged_sampling_preparation(
   descriptor : DeviceStepResources,
   activation : @device.Allocation,
   model_steps : ReadOnlyArray[PreparedPagedGraphStep],
+  decode_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   resources : PagedGraphResources,
   graph_policy : PagedGraphExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
@@ -311,6 +312,11 @@ fn finish_paged_sampling_preparation(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let decode_steps = match decode_model_steps {
+    Some(model_decode) =>
+      Some(append_paged_sampling_suffix(model_steps, steps, model_decode))
+    None => None
+  }
   let graph_bucket_table = new_paged_graph_bucket_table(blueprint.profile())
   let ordered_dispatch = prepare_paged_ordered_executors(
     context,
@@ -319,6 +325,7 @@ fn finish_paged_sampling_preparation(
     graph_policy,
     graph_bucket_table,
     blueprint.profile(),
+    decode_steps~,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
@@ -331,7 +338,6 @@ fn finish_paged_sampling_preparation(
   )
   PagedReady({
     resources,
-    steps,
     completion,
     fp8_frame_envelope: None,
     fp8_frame_admission: None,

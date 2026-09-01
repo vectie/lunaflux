@@ -33,7 +33,7 @@ fn runtime_bundle_test_input(
       } else {
         128
       },
-      if abi == QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 {
+      if abi == QwenQkNormPositionedRopePagedKvWriteProductionV1 {
         8
       } else {
         1
@@ -59,9 +59,9 @@ test "reusable fused runtime bundle admits three typed families once" {
   let inputs = [
     runtime_bundle_test_input(ResidualRmsNormProductionV2, 17, 2, "residual"),
     runtime_bundle_test_input(
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      2,
-      4,
+      QwenQkNormPositionedRopePagedKvWriteProductionV1,
+      3,
+      3,
       "qwen_write",
     ),
     runtime_bundle_test_input(
@@ -86,14 +86,14 @@ test "reusable fused runtime bundle admits three typed families once" {
   assert_eq(admitted.model_plan_sha256(), "2".repeat(64))
   assert_eq(admitted.target(), target)
   assert_eq(admitted.modules().length(), 3)
-  guard admitted.module_for(QwenQkvQkNormPositionedRopePagedKvWriteProductionV4)
+  guard admitted.module_for(QwenQkNormPositionedRopePagedKvWriteProductionV1)
     is Some(qwen) else {
     fail("Qwen fused write module missing")
   }
-  assert_eq(qwen.operation_span(), (2, 4))
+  assert_eq(qwen.operation_span(), (3, 3))
   assert_eq(
-    admitted.qwen_qkv_qknorm_rope_kv_write_operation_indices(),
-    Some((2, 3, 4, 5)),
+    admitted.qwen_qknorm_rope_kv_write_operation_indices(),
+    Some((3, 4, 5)),
   )
   assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), Some(5))
   assert_eq(admitted.residual_rmsnorm_operation_indices(), Some((17, 18)))
@@ -198,9 +198,9 @@ test "reusable fused runtime ABI enforces family operation cardinality" {
   try
     ignore(
       runtime_bundle_test_input(
-        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+        QwenQkNormPositionedRopePagedKvWriteProductionV1,
         2,
-        3,
+        2,
         "truncated_qwen",
       ),
     )
@@ -213,7 +213,7 @@ test "reusable fused runtime ABI enforces family operation cardinality" {
 }
 
 ///|
-test "Qwen ingress entry cannot authorize absent readonly attention" {
+test "Qwen postprocess entry cannot authorize absent readonly attention" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -226,9 +226,9 @@ test "Qwen ingress entry cannot authorize absent readonly attention" {
     target~,
     modules=[
       runtime_bundle_test_input(
-        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-        2,
-        4,
+        QwenQkNormPositionedRopePagedKvWriteProductionV1,
+        3,
+        3,
         "qwen_write_only",
       ),
     ],
@@ -237,7 +237,7 @@ test "Qwen ingress entry cannot authorize absent readonly attention" {
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
-  assert_true(admitted.qwen_qkv_qknorm_rope_kv_write_module() is Some(_))
+  assert_true(admitted.qwen_qknorm_rope_kv_write_module() is Some(_))
   assert_true(admitted.qwen_paged_attention_readonly_module() is None)
   assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), None)
 }
@@ -264,9 +264,9 @@ test "reusable fused runtime bundle rejects overlapping operation authority" {
             "residual",
           ),
           runtime_bundle_test_input(
-            QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-            2,
-            4,
+            QwenQkNormPositionedRopePagedKvWriteProductionV1,
+            3,
+            3,
             "qwen_write",
           ),
         ],
@@ -281,7 +281,7 @@ test "reusable fused runtime bundle rejects overlapping operation authority" {
 }
 
 ///|
-test "Qwen readonly overlap is restricted to the ingress terminal operation" {
+test "Qwen readonly overlap is restricted to the postprocess terminal operation" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -296,9 +296,9 @@ test "Qwen readonly overlap is restricted to the ingress terminal operation" {
         target~,
         modules=[
           runtime_bundle_test_input(
-            QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-            2,
-            4,
+            QwenQkNormPositionedRopePagedKvWriteProductionV1,
+            3,
+            3,
             "qwen_write",
           ),
           runtime_bundle_test_input(

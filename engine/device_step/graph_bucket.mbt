@@ -68,6 +68,13 @@ fn PagedOrderedExecutorDispatch::select(
   self : PagedOrderedExecutorDispatch,
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
 ) -> Int raise DeviceStepError {
+  if paged_attention_phase_route(
+      bucket.phase(),
+      self.decode_split_owner_index >= 0,
+    ) ==
+    DecodeSplitAttentionPhase {
+    return self.decode_split_owner_index
+  }
   let slot = bucket.slot()
   if slot >= 0 && slot < self.slot_owner_indices.length() {
     let owner = self.slot_owner_indices[slot]

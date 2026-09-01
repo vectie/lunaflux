@@ -34,5 +34,6 @@ pub struct QkvQkNormPositionedRopePagedKvWritePlan {
   priv head_dimension : Int
   priv norm_epsilon : Double
   priv rope_theta : Double
+  priv projected_qkv : @plan.ActivationRef
   priv positioned_qkv : @plan.ActivationRef
 }

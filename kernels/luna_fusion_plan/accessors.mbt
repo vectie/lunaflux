@@ -53,6 +53,16 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::rope_theta(
 }
 
 ///|
+/// Activation produced by the separately lowerable QKV projection. Keeping
+/// this identity in semantic IR lets a backend fuse the post-projection work
+/// without replacing a faster shape-selected projection kernel.
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::projected_qkv(
+  self : QkvQkNormPositionedRopePagedKvWritePlan,
+) -> @plan.ActivationRef {
+  self.projected_qkv
+}
+
+///|
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::positioned_qkv(
   self : QkvQkNormPositionedRopePagedKvWritePlan,
 ) -> @plan.ActivationRef {

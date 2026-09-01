@@ -32,13 +32,13 @@ priv struct PagedOwnedFunction {
 ///|
 priv struct PagedOwnedOrderedExecutor {
   resource : @device.OrderedKernelExecutor
+  operation_ids : ReadOnlyArray[@plan.OperationId]
   mut open : Bool
 }
 
 ///|
 priv enum PagedBucketStepLaunch {
   FixedBucketLaunch
-  QueryTokenGridX(@launch_contract.AotLaunchDimensions)
   QueryTokenCappedGridX(@launch_contract.AotLaunchDimensions)
 }
 
@@ -59,6 +59,7 @@ priv struct PagedOrderedExecutorDispatch {
   slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
+  decode_split_owner_index : Int
 }
 
 ///|
@@ -81,6 +82,7 @@ priv struct PagedGraphResources {
   mut weight_lease : PagedOwnedLease?
   mut activation_workspace : PagedOwnedAllocation?
   mut qwen_fused_attention_sidecar : PagedOwnedAllocation?
+  mut decode_split_workspace : PagedOwnedAllocation?
   mut persistent_kv : PagedOwnedAllocation?
   mut fused_dispatch_canary : PagedOwnedAllocation?
   mut greedy_sampling_results : PagedOwnedAllocation?
@@ -215,7 +217,6 @@ priv struct FusedDispatchCanaryState {
 /// arguments, or close authority for its private native resources.
 pub struct PagedGraphExecutor {
   priv resources : PagedGraphResources
-  priv steps : ReadOnlyArray[PreparedPagedGraphStep]
   priv completion : PagedCompletionScratch
   priv fp8_frame_envelope : Fp8PagedFrameEnvelopeV3?
   priv fp8_frame_admission : Fp8FrameAdmissionStateV3?

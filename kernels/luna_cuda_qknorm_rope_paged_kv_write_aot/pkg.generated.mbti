@@ -1,0 +1,119 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_qknorm_rope_paged_kv_write_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_fusion_plan",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+}
+
+// Values
+pub fn admit_reproducibly_compiled_qknorm_rope_paged_kv_write_module(QkNormRopePagedKvWriteCudaCandidate, Bytes, Bytes, Bytes, QkNormRopePagedKvWriteAotLimits) -> QkNormRopePagedKvWriteCompiledModule raise QkNormRopePagedKvWriteAotError
+
+pub fn bind_compiled_qknorm_rope_paged_kv_write_cuda_aot(QkNormRopePagedKvWriteCudaCandidate, QkNormRopePagedKvWriteCompiledModule, QkNormRopePagedKvWriteAotLimits) -> QkNormRopePagedKvWriteCudaBinding raise QkNormRopePagedKvWriteAotError
+
+pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(@plan.ModelPlan, @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], QkNormRopePagedKvWriteAotLimits) -> QkNormRopePagedKvWriteCudaCandidate raise QkNormRopePagedKvWriteAotError
+
+pub fn qknorm_rope_paged_kv_write_compile_receipt(QkNormRopePagedKvWriteCudaCandidate, String, Bytes) -> Bytes raise QkNormRopePagedKvWriteAotError
+
+// Errors
+pub(all) suberror QkNormRopePagedKvWriteAotError {
+  Invalid(QkNormRopePagedKvWriteAotRule)
+  Mismatch(QkNormRopePagedKvWriteAotRule)
+  Unsupported(QkNormRopePagedKvWriteAotRule)
+  LimitExceeded(QkNormRopePagedKvWriteAotRule)
+  SizeOverflow(QkNormRopePagedKvWriteAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct QkNormRopePagedKvWriteAliasContract {
+  // private fields
+}
+pub fn QkNormRopePagedKvWriteAliasContract::canonical_name(Self) -> String
+pub fn QkNormRopePagedKvWriteAliasContract::requires_nonoverlap(Self, Int, Int) -> Bool
+
+pub struct QkNormRopePagedKvWriteAotLimits {
+  // private fields
+}
+pub fn QkNormRopePagedKvWriteAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64, max_receipt_bytes~ : Int, max_binding_bytes~ : Int, maximum_grid_x? : Int) -> Self raise QkNormRopePagedKvWriteAotError
+
+pub(all) enum QkNormRopePagedKvWriteAotRule {
+  Limits
+  SemanticPlan
+  OperationSpan
+  Shape
+  Layout
+  Profile
+  Target
+  Compiler
+  OperandOrder
+  OperandSize
+  OperandAlignment
+  AliasContract
+  Source
+  Recipe
+  CompiledModule
+  CompileReceipt
+  Binding
+  Determinism
+  Reference
+} derive(Eq, @debug.Debug)
+
+pub struct QkNormRopePagedKvWriteCompiledModule {
+  // private fields
+}
+pub fn QkNormRopePagedKvWriteCompiledModule::compile_receipt_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCompiledModule::compile_receipt_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCompiledModule::module_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCompiledModule::module_digest(Self) -> QkNormRopePagedKvWriteDigest
+
+pub struct QkNormRopePagedKvWriteCudaBinding {
+  // private fields
+}
+pub fn QkNormRopePagedKvWriteCudaBinding::alias_contract(Self) -> QkNormRopePagedKvWriteAliasContract
+pub fn QkNormRopePagedKvWriteCudaBinding::binding_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCudaBinding::binding_record_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCudaBinding::function_symbol(Self) -> String
+pub fn QkNormRopePagedKvWriteCudaBinding::kernel_abi(Self) -> QkNormRopePagedKvWriteKernelAbi
+pub fn QkNormRopePagedKvWriteCudaBinding::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn QkNormRopePagedKvWriteCudaBinding::manifest_bindable(Self) -> Bool
+pub fn QkNormRopePagedKvWriteCudaBinding::module_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCudaBinding::module_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCudaBinding::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+
+pub struct QkNormRopePagedKvWriteCudaCandidate {
+  // private fields
+}
+pub fn QkNormRopePagedKvWriteCudaCandidate::alias_contract(Self) -> QkNormRopePagedKvWriteAliasContract
+pub fn QkNormRopePagedKvWriteCudaCandidate::candidate_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn QkNormRopePagedKvWriteCudaCandidate::function_symbol(Self) -> String
+pub fn QkNormRopePagedKvWriteCudaCandidate::kernel_abi(Self) -> QkNormRopePagedKvWriteKernelAbi
+pub fn QkNormRopePagedKvWriteCudaCandidate::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn QkNormRopePagedKvWriteCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn QkNormRopePagedKvWriteCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn QkNormRopePagedKvWriteCudaCandidate::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn QkNormRopePagedKvWriteCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
+pub fn QkNormRopePagedKvWriteCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCudaCandidate::recipe_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCudaCandidate::semantic_plan(Self) -> @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
+pub fn QkNormRopePagedKvWriteCudaCandidate::source_bytes(Self) -> Bytes
+pub fn QkNormRopePagedKvWriteCudaCandidate::source_digest(Self) -> QkNormRopePagedKvWriteDigest
+pub fn QkNormRopePagedKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct QkNormRopePagedKvWriteDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn QkNormRopePagedKvWriteDigest::as_hex(Self) -> String
+pub fn QkNormRopePagedKvWriteDigest::from_sha256(String) -> Self raise QkNormRopePagedKvWriteAotError
+
+pub(all) enum QkNormRopePagedKvWriteKernelAbi {
+  QwenQkNormPositionedRopePagedKvWriteProductionV1
+} derive(Eq, @debug.Debug)
+pub fn QkNormRopePagedKvWriteKernelAbi::canonical_name(Self) -> String
+
+// Type aliases
+
+// Traits

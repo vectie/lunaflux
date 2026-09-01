@@ -18,6 +18,7 @@ import {
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_artifact_admission",
   "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
+  "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
   "vectie/lunaflux/kernels/luna_cuda_sampling_aot",
   "vectie/lunaflux/kernels/luna_execution_graph_strategy",
   "vectie/lunaflux/kernels/luna_fused_artifact_admission",
@@ -47,6 +48,8 @@ pub fn admit_i8_paged_graph_execution_blueprint_v1(@plan.ModelPlan, @device.Devi
 
 pub fn admit_paged_cuda_greedy_sampling(@plan.ModelPlan, @artifact.KernelArtifactBundle, @luna_cuda_sampling_aot.GreedySamplingCudaArtifact) -> PagedSamplingExecutionPolicy raise DeviceStepError
 
+pub fn admit_paged_embedded_cuda_device_sampling_v2(@plan.ModelPlan, PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle, maximum_top_k~ : Int, maximum_workspace_bytes~ : Int64) -> PagedSamplingExecutionPolicy raise DeviceStepError
+
 pub fn admit_paged_embedded_cuda_greedy_sampling(@plan.ModelPlan, PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle) -> PagedSamplingExecutionPolicy raise DeviceStepError
 
 pub fn admit_paged_graph_execution_blueprint(@plan.ModelPlan, DeviceStepLimits, @device_layout.DeviceKvLayout, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?) -> PagedKvExecutionBlueprint raise DeviceStepError
@@ -73,9 +76,9 @@ pub fn prepare_fp8_paged_graph_executor_v3(@device.Context, @worker_protocol.Mod
 
 pub fn prepare_i8_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device.DeviceNumericCapability, I8LoadedExecutionBlueprint, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, graph_policy? : PagedGraphExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
 
-pub fn prepare_numeric_bf16_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @numeric_weight_file.AuthenticatedNumericWeightAuthority, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, sampling_policy? : PagedSamplingExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan]) -> PagedGraphPreparation raise DeviceStepError
+pub fn prepare_numeric_bf16_paged_graph_executor_v1(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @numeric_weight_file.AuthenticatedNumericWeightAuthority, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, sampling_policy? : PagedSamplingExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan], decode_split_bindings? : ReadOnlyArray[@luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding], decode_split_maximum_workspace_bytes? : Int64) -> PagedGraphPreparation raise DeviceStepError
 
-pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan], diagnostic_policy? : PagedExecutionDiagnosticPolicy, sampling_policy? : PagedSamplingExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
+pub fn prepare_paged_graph_executor(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_layout.DeviceKvLayout, DeviceStepLimits, @device_plan.StaticDevicePlan, @device_memory.DeviceMemoryPlan, @launch_contract.KernelProfileId, @device_materialize.DeviceWeights, @launch_contract.PagedKvLaunchContractSet, @artifact.KernelArtifactBundle, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, graph_policy? : PagedGraphExecutionPolicy, fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan], fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan?, qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan], decode_split_bindings? : ReadOnlyArray[@luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding], decode_split_maximum_workspace_bytes? : Int64, diagnostic_policy? : PagedExecutionDiagnosticPolicy, sampling_policy? : PagedSamplingExecutionPolicy) -> PagedGraphPreparation raise DeviceStepError
 
 pub fn prepare_rank_local(@device.Context, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_kv_plan.TensorParallelKvPlan, Int, DeviceStepLimits, has_accepted_predecessor~ : Bool, accepted_predecessor_value~ : UInt64) -> DeviceStepPreparation raise DeviceStepError
 
@@ -389,6 +392,10 @@ pub fn I8PagedExecutionStep::operation_id(Self) -> @plan.OperationId
 pub fn I8PagedExecutionStep::operation_kind(Self) -> @plan.OperationKind
 pub fn I8PagedExecutionStep::semantic_version(Self) -> @catalog.KernelSemanticVersion
 
+pub struct PagedCudaDeviceSamplingAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+
 pub struct PagedCudaGreedySamplingAdmission {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -478,6 +485,9 @@ pub(all) enum PagedGraphResource {
   OrderedExecutor
   FusedDispatchCanary
   SamplingResult
+  SamplingParameters
+  SamplingWorkspace
+  DecodeSplitWorkspace
 } derive(Eq, @debug.Debug)
 
 pub struct PagedGraphRuntimeTelemetry {
@@ -578,6 +588,7 @@ pub(all) enum PagedKvOperandSpace {
 pub(all) enum PagedSamplingExecutionPolicy {
   PagedHostSampling
   PagedCudaGreedySampling(PagedCudaGreedySamplingAdmission)
+  PagedCudaRestrictiveTopKV2(PagedCudaDeviceSamplingAdmission)
 } derive(Eq, @debug.Debug)
 
 pub struct StagedDeviceStep(DeviceStepOwner, UInt64)

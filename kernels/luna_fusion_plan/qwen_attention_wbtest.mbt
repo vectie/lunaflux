@@ -35,6 +35,7 @@ test "Qwen fusion plan matches QKV QKNorm RoPE and paged KV write" {
   assert_eq(first.attention_shape(), (4, 2, 32))
   assert_eq(first.norm_epsilon(), 0.000001)
   assert_eq(first.rope_theta(), 1000000.0)
+  assert_eq(first.projected_qkv(), plan.operations()[2].outputs()[0])
   assert_eq(first.kv_layer().as_int(), 0)
 }
 

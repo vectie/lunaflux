@@ -70,10 +70,10 @@ fn qwen_fused_test_runtime(
   ingress_grid_y? : Int = 32,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-    abi=QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    first_operation=2,
-    operation_count=4,
-    function_symbol="qwen_ingress",
+    abi=QwenQkNormPositionedRopePagedKvWriteProductionV1,
+    first_operation=3,
+    operation_count=3,
+    function_symbol="qwen_postprocess",
     launch=@launch_contract.AotLaunchDimensions::new(
       grid_x=blueprint.profile().max_query_tokens(),
       grid_y=ingress_grid_y,
@@ -83,7 +83,7 @@ fn qwen_fused_test_runtime(
       block_z=1,
       shared_memory_bytes=0,
     ),
-    module_bytes=b"qwen-ingress-module",
+    module_bytes=b"qwen-postprocess-module",
   )
   let modules : Array[
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput,
@@ -253,7 +253,7 @@ test "shared runtime bundle preserves reusable residual fusion" {
 }
 
 ///|
-test "Qwen four-step replacement is ordered and rejects overlap" {
+test "Qwen postprocess replacement preserves fast projection and rejects overlap" {
   let baseline = ReadOnlyArray::from_array([
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
   ])
@@ -263,7 +263,7 @@ test "Qwen four-step replacement is ordered and rejects overlap" {
     ReadOnlyArray::from_array([20, 80]),
     ReadOnlyArray::from_array([50, 110]),
   )
-  assert_eq(replaced, [0, 1, 20, 50, 6, 7, 80, 110])
+  assert_eq(replaced, [0, 1, 2, 20, 50, 6, 7, 8, 80, 110])
   try
     ignore(
       replace_qwen_fused_attention_spans(

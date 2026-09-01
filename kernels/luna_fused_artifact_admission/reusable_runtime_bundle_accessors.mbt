@@ -56,12 +56,13 @@ pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_module(
 }
 
 ///|
-/// Returns only the admitted Qwen ingress fusion entry. The separate readonly
-/// attention accessor must also succeed before a composite can be authorized.
-pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_module(
+/// Returns only the admitted Qwen post-projection fusion entry. The fast QKV
+/// projection remains a distinct launch; the separate readonly attention
+/// accessor must also succeed before a composite can be authorized.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
-  self.module_for(QwenQkvQkNormPositionedRopePagedKvWriteProductionV4)
+  self.module_for(QwenQkNormPositionedRopePagedKvWriteProductionV1)
 }
 
 ///|
@@ -85,17 +86,16 @@ pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(
 }
 
 ///|
-pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_operation_indices(
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_indices(
   self : ApprovedReusableFusedRuntimeBundle,
-) -> (Int, Int, Int, Int)? {
-  match self.qwen_qkv_qknorm_rope_kv_write_module() {
+) -> (Int, Int, Int)? {
+  match self.qwen_qknorm_rope_kv_write_module() {
     Some(module_) =>
       Some(
         (
           module_.first_operation,
           module_.first_operation + 1,
           module_.first_operation + 2,
-          module_.first_operation + 3,
         ),
       )
     None => None

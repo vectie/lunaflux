@@ -30,6 +30,17 @@ fn open_paged_ordered_executor(
 }
 
 ///|
+fn open_paged_ordered_executor_operations(
+  resources : PagedGraphResources,
+  index : Int,
+) -> ReadOnlyArray[@plan.OperationId] raise DeviceStepError {
+  guard resources.ordered_executors.get(index) is Some(owner) && owner.open else {
+    raise InvalidExecutor(ResourceState)
+  }
+  owner.operation_ids
+}
+
+///|
 fn abort_paged_ordered_executor(
   executor : @device.OrderedKernelExecutor,
 ) -> Unit {
@@ -203,6 +214,10 @@ pub fn PagedGraphExecutor::execute(
     self.resources,
     staged.ordered_executor_index,
   )
+  let ordered_operations = open_paged_ordered_executor_operations(
+    self.resources,
+    staged.ordered_executor_index,
+  )
   arm_fused_dispatch_canary(self, descriptor) catch {
     error => poison_fp8_ordered_execution(self, descriptor, ordered, error)
   }
@@ -221,14 +236,13 @@ pub fn PagedGraphExecutor::execute(
         }
       }
     OrderedKernelEager =>
-      for index in 0..<self.steps.length() {
-        let step = self.steps[index]
+      for index in 0..<ordered_operations.length() {
         ordered.enqueue(index) catch {
           error => {
             self.lifecycle = GraphPoisoned
             descriptor.lifecycle = Poisoned
             abort_paged_ordered_executor(ordered)
-            raise ExecutorLaunchFailed(step.operation_id, error)
+            raise ExecutorLaunchFailed(ordered_operations[index], error)
           }
         }
       }

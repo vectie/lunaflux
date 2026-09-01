@@ -20,7 +20,7 @@ fn qwen_bucket_step_index(
 
 ///|
 /// Derives the only currently safe smaller-bucket launch contract from the
-/// approved Qwen composite ABI. Ingress uses one block per query token while
+/// approved Qwen composite ABI. Postprocess uses one block per query token while
 /// readonly attention uses a bounded grid-stride token traversal.
 fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
@@ -32,23 +32,27 @@ fn prepare_qwen_graph_launch_contract(
   }
   let launches = FixedArray::make(steps.length(), FixedBucketLaunch)
   for span in spans {
-    let (qkv_index, _, _, attention_index) = span.operation_indices()
-    guard blueprint.steps().get(qkv_index) is Some(qkv) &&
+    let (_, qk_norm_index, _, attention_index) = span.operation_indices()
+    guard blueprint.steps().get(qk_norm_index) is Some(qk_norm) &&
       blueprint.steps().get(attention_index) is Some(attention) else {
       raise InvalidExecutor(GraphBucket)
     }
-    let ingress = span.ingress_launch()
+    let postprocess = span.postprocess_launch()
     let readonly_launch = span.readonly_launch()
-    if ingress.grid_x() != blueprint.profile().max_query_tokens() ||
+    if postprocess.grid_x() !=
+      Int::min(blueprint.profile().max_query_tokens(), 4096) ||
       readonly_launch.grid_x() <= 0 ||
       readonly_launch.grid_x() > blueprint.profile().max_query_tokens() {
       raise InvalidExecutor(GraphBucket)
     }
-    let ingress_index = qwen_bucket_step_index(steps, qkv.operation_id())
+    let postprocess_index = qwen_bucket_step_index(
+      steps,
+      qk_norm.operation_id(),
+    )
     let readonly_index = qwen_bucket_step_index(steps, attention.operation_id())
-    match (launches[ingress_index], launches[readonly_index]) {
+    match (launches[postprocess_index], launches[readonly_index]) {
       (FixedBucketLaunch, FixedBucketLaunch) => {
-        launches[ingress_index] = QueryTokenGridX(ingress)
+        launches[postprocess_index] = QueryTokenCappedGridX(postprocess)
         launches[readonly_index] = QueryTokenCappedGridX(readonly_launch)
       }
       _ => raise InvalidExecutor(GraphBucket)
@@ -125,10 +129,6 @@ fn paged_ordered_launches(
       (query_token_bound, resources.graph_launch_contract) {
       (Some(bound), Some(contract)) =>
         match contract.step_launches.get(index) {
-          Some(QueryTokenGridX(source)) =>
-            paged_device_launch_dimensions(
-              paged_scaled_query_token_launch(source, bound),
-            )
           Some(QueryTokenCappedGridX(source)) =>
             paged_device_launch_dimensions(
               paged_capped_query_token_launch(source, bound),
@@ -152,6 +152,7 @@ fn paged_ordered_launches(
 fn prepare_one_paged_ordered_executor(
   context : @device.Context,
   launches : ArrayView[@device.OrderedKernelLaunch],
+  operation_ids : ReadOnlyArray[@plan.OperationId],
   resources : PagedGraphResources,
   policy : @device.OrderedKernelExecutionPolicy,
 ) -> Int raise DeviceStepError {
@@ -165,7 +166,14 @@ fn prepare_one_paged_ordered_executor(
   ) catch {
     error => raise ExecutorDevice(OrderedExecutor, error)
   }
-  resources.ordered_executors.push({ resource: executor, open: true })
+  if operation_ids.length() != launches.length() {
+    raise InvalidExecutor(ResourceState)
+  }
+  resources.ordered_executors.push({
+    resource: executor,
+    operation_ids,
+    open: true,
+  })
   resources.ordered_executors.length() - 1
 }
 
@@ -188,8 +196,12 @@ fn prepare_paged_ordered_executors(
   graph_policy : PagedGraphExecutionPolicy,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
+  decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
 ) -> PagedOrderedExecutorDispatch raise DeviceStepError {
   let maximum_launches = paged_ordered_launches(steps, resources)
+  let baseline_operation_ids = ReadOnlyArray::from_array(
+    steps.map(step => step.operation_id),
+  )
   let slot_owner_indices = FixedArray::make(table.bucket_count(), -1)
   let mut fallback_owner_index = -1
   let telemetry_owner_index = match graph_policy {
@@ -197,6 +209,7 @@ fn prepare_paged_ordered_executors(
       fallback_owner_index = prepare_one_paged_ordered_executor(
         context,
         maximum_launches[:],
+        baseline_operation_ids,
         resources,
         OrderedKernelEagerOnly,
       )
@@ -213,6 +226,7 @@ fn prepare_paged_ordered_executors(
           let owner = prepare_one_paged_ordered_executor(
             context,
             launches[:],
+            baseline_operation_ids,
             resources,
             paged_ordered_device_policy(graph_policy),
           )
@@ -224,6 +238,7 @@ fn prepare_paged_ordered_executors(
       let maximum = prepare_one_paged_ordered_executor(
         context,
         maximum_launches[:],
+        baseline_operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
       )
@@ -238,6 +253,7 @@ fn prepare_paged_ordered_executors(
           prepare_one_paged_ordered_executor(
             context,
             maximum_launches[:],
+            baseline_operation_ids,
             resources,
             OrderedKernelEagerOnly,
           )
@@ -246,5 +262,26 @@ fn prepare_paged_ordered_executors(
       maximum
     }
   }
-  { slot_owner_indices, fallback_owner_index, telemetry_owner_index }
+  let decode_split_owner_index = match decode_steps {
+    Some(selected) => {
+      let launches = paged_ordered_launches(selected, resources)
+      let operation_ids = ReadOnlyArray::from_array(
+        selected.map(step => step.operation_id),
+      )
+      prepare_one_paged_ordered_executor(
+        context,
+        launches[:],
+        operation_ids,
+        resources,
+        paged_ordered_device_policy(graph_policy),
+      )
+    }
+    None => -1
+  }
+  {
+    slot_owner_indices,
+    fallback_owner_index,
+    telemetry_owner_index,
+    decode_split_owner_index,
+  }
 }

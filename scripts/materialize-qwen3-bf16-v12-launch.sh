@@ -53,8 +53,8 @@ if [ -n "$fused_residual_argument" ]; then
     schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1)
       fused_runtime_locator=reusable-fused-residual.runtime.v1
       ;;
-    schema=lunaflux-reusable-fused-runtime-bundle.v2)
-      fused_runtime_locator=reusable-fused-runtime-bundle.v2
+    schema=lunaflux-reusable-fused-runtime-bundle.v3)
+      fused_runtime_locator=reusable-fused-runtime-bundle.v3
       ;;
     *) fail 'reusable fused runtime schema is invalid' ;;
   esac

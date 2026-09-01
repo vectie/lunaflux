@@ -291,7 +291,6 @@ pub fn prepare_fp8_paged_graph_executor_v3(
   )
   PagedReady({
     resources,
-    steps,
     completion,
     fp8_frame_envelope: Some(frame_envelope),
     fp8_frame_admission: Some({

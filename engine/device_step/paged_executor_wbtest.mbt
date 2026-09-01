@@ -44,7 +44,6 @@ fn dummy_paged_executor(
   let graph_bucket_table = new_paged_graph_bucket_table(profile)
   {
     resources: empty_paged_resources(),
-    steps: ReadOnlyArray::from_array([]),
     completion: {
       final_output_offset: 0L,
       row_bytes: 2L,
@@ -68,6 +67,7 @@ fn dummy_paged_executor(
       ),
       fallback_owner_index: 0,
       telemetry_owner_index: 0,
+      decode_split_owner_index: -1,
     },
     fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,

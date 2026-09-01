@@ -34,8 +34,8 @@ case "$(sed -n '1p' "$runtime")" in
   schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1)
     runtime_relative=reusable-fused-residual.runtime.v1
     ;;
-  schema=lunaflux-reusable-fused-runtime-bundle.v2)
-    runtime_relative=reusable-fused-runtime-bundle.v2
+  schema=lunaflux-reusable-fused-runtime-bundle.v3)
+    runtime_relative=reusable-fused-runtime-bundle.v3
     ;;
   *) lbf_fail 'fused runtime schema is invalid' ;;
 esac

@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/cmd/lunaflux_qwen3_fused_runtime_bundle_export"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type Qwen3FusedRuntimeBundleExportError derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

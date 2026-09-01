@@ -36,6 +36,7 @@ pub struct PagedAttentionDecodeSplitCudaBundle {
 pub struct PagedAttentionDecodeSplitManifestCudaBinding {
   priv candidate : PagedAttentionDecodeSplitCudaBundle
   priv contract : @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
+  priv module_bytes : Bytes
   priv binding_record : Bytes
   priv binding_digest : PagedAttentionManifestBindingDigest
 } derive(Debug, Eq)
@@ -216,6 +217,13 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_record_bytes(
   self : PagedAttentionDecodeSplitManifestCudaBinding,
 ) -> Bytes {
   self.binding_record
+}
+
+///|
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::module_bytes(
+  self : PagedAttentionDecodeSplitManifestCudaBinding,
+) -> Bytes {
+  self.module_bytes
 }
 
 ///|

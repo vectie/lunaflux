@@ -21,10 +21,10 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
     target~,
     modules=[
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-        abi=QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-        first_operation=2,
-        operation_count=4,
-        function_symbol="lunaflux_qwen_ingress",
+        abi=QwenQkNormPositionedRopePagedKvWriteProductionV1,
+        first_operation=3,
+        operation_count=3,
+        function_symbol="lunaflux_qwen_postprocess",
         launch~,
         module_bytes=b"qwen-ingress",
       ),
@@ -45,13 +45,13 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
 }
 
 ///|
-test "fused runtime schema selects reusable bundle v2 before legacy" {
+test "fused runtime schema selects reusable bundle v3 before legacy" {
   match
     classify_fused_runtime_source(
-      "schema=lunaflux-reusable-fused-runtime-bundle.v2\nmodule-count=2\n",
+      "schema=lunaflux-reusable-fused-runtime-bundle.v3\nmodule-count=2\n",
     ) {
-    ReusableBundleV2 => ()
-    _ => fail("reusable fused runtime bundle v2 was not selected")
+    ReusableBundleV3 => ()
+    _ => fail("reusable fused runtime bundle v3 was not selected")
   }
   match
     classify_fused_runtime_source(

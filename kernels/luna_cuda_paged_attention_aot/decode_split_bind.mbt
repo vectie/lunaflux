@@ -169,7 +169,11 @@ pub fn bind_manifest_paged_attention_decode_split_cuda_aot(
   candidate : PagedAttentionDecodeSplitCudaBundle,
   operation : @plan.PlanOperation,
   contract : @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract,
+  module_bytes : Bytes,
 ) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError {
+  if module_bytes.is_empty() || module_bytes.length() > 8388608 {
+    raise LimitExceeded(Source)
+  }
   if operation.id() != candidate.operation_id ||
     contract.operation_id() != candidate.operation_id ||
     contract.profile() != candidate.profile ||
@@ -216,6 +220,10 @@ pub fn bind_manifest_paged_attention_decode_split_cuda_aot(
     launches[1].dimensions() != candidate.merge_dimensions {
     raise Mismatch(Contract)
   }
+  if launches[0].module_digest().sha256() !=
+    paged_attention_sha256(module_bytes) {
+    raise Mismatch(Contract)
+  }
   let (partial_operands, merge_operands) = decode_split_expected_launch_operands(
     candidate, workspace,
   )
@@ -227,6 +235,7 @@ pub fn bind_manifest_paged_attention_decode_split_cuda_aot(
   {
     candidate,
     contract,
+    module_bytes,
     binding_record,
     binding_digest: PagedAttentionManifestBindingDigest(
       paged_attention_sha256(binding_record),

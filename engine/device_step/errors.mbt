@@ -90,6 +90,7 @@ pub(all) enum PagedGraphResource {
   SamplingResult
   SamplingParameters
   SamplingWorkspace
+  DecodeSplitWorkspace
 } derive(Debug, Eq)
 
 ///|

@@ -94,8 +94,8 @@ pub fn ApprovedReusableFusedRuntimeBundle::module_for(Self, ReusableFusedRuntime
 pub fn ApprovedReusableFusedRuntimeBundle::modules(Self) -> ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_operation_index(Self) -> Int?
-pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
-pub fn ApprovedReusableFusedRuntimeBundle::qwen_qkv_qknorm_rope_kv_write_operation_indices(Self) -> (Int, Int, Int, Int)?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_indices(Self) -> (Int, Int, Int)?
 pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(Self) -> (Int, Int)?
 pub fn ApprovedReusableFusedRuntimeBundle::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -148,7 +148,7 @@ pub(all) enum FusedStandaloneFallbackRole {
 
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
-  QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+  QwenQkNormPositionedRopePagedKvWriteProductionV1
   QwenPagedAttentionReadOnlyProductionV2
 } derive(Eq, @debug.Debug)
 

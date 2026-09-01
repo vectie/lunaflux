@@ -6,6 +6,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     weight_lease: None,
     activation_workspace: None,
     qwen_fused_attention_sidecar: None,
+    decode_split_workspace: None,
     persistent_kv: None,
     fused_dispatch_canary: None,
     greedy_sampling_results: None,
@@ -325,6 +326,10 @@ pub fn prepare_paged_graph_executor(
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
   qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
   ),
+  decode_split_bindings? : ReadOnlyArray[
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+  ] = ReadOnlyArray::from_array([]),
+  decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
   diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
   sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
 ) -> PagedGraphPreparation raise DeviceStepError {
@@ -463,6 +468,22 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let decode_model_steps = prepare_paged_decode_split_steps(
+    context,
+    blueprint,
+    model_steps,
+    decode_split_bindings,
+    decode_split_maximum_workspace_bytes,
+    descriptor.resources,
+    weight,
+    activation_workspace,
+    persistent_kv,
+    resources,
+    fused_qkv_readonly_span,
+    qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint, model_steps, qwen_fused_attention_spans,
   ) catch {
@@ -479,6 +500,7 @@ pub fn prepare_paged_graph_executor(
     descriptor.resources,
     activation_workspace,
     model_steps,
+    decode_model_steps,
     resources,
     graph_policy,
     fused_residual_spans,

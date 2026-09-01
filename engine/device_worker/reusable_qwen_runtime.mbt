@@ -56,14 +56,13 @@ fn validate_reusable_qwen_runtime_bundle(
   if bundle.target() != target {
     raise Invalid(DeviceTarget)
   }
-  guard bundle.qwen_qkv_qknorm_rope_kv_write_operation_indices()
-    is Some(
-      (qkv_operation, qk_norm_operation, rope_operation, attention_operation)
-    ) &&
+  guard bundle.qwen_qknorm_rope_kv_write_operation_indices()
+    is Some((qk_norm_operation, rope_operation, attention_operation)) &&
     bundle.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_operation) else {
     raise Invalid(ResourceState)
   }
+  let qkv_operation = qk_norm_operation - 1
   if readonly_operation != attention_operation {
     raise Invalid(ResourceState)
   }

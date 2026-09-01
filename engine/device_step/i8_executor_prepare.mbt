@@ -348,7 +348,7 @@ pub fn prepare_i8_paged_graph_executor_v1(
     }) {
     Some(failure) => failure
     None => {
-      guard prepared_steps.val is Some(steps) &&
+      guard prepared_steps.val is Some(_) &&
         ordered_dispatch.val is Some(dispatch) else {
         return paged_construction_failed(
           resources,
@@ -357,7 +357,6 @@ pub fn prepare_i8_paged_graph_executor_v1(
       }
       PagedReady({
         resources,
-        steps,
         completion,
         fp8_frame_envelope: None,
         fp8_frame_admission: None,

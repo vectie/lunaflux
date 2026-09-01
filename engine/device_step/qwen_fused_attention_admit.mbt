@@ -157,18 +157,21 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     runtime.target() != blueprint.target() {
     raise MismatchedFusedGroupedOperation(ModelIdentity)
   }
-  guard runtime.qwen_qkv_qknorm_rope_kv_write_module() is Some(ingress) &&
+  guard runtime.qwen_qknorm_rope_kv_write_module() is Some(postprocess) &&
     runtime.qwen_paged_attention_readonly_module() is Some(readonly_module) &&
-    ingress.kernel_abi() == QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 &&
+    postprocess.kernel_abi() == QwenQkNormPositionedRopePagedKvWriteProductionV1 &&
     readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
-    runtime.qwen_qkv_qknorm_rope_kv_write_operation_indices()
-    is Some((seed_qkv, seed_qk_norm, seed_rope, seed_attention)) &&
+    runtime.qwen_qknorm_rope_kv_write_operation_indices()
+    is Some((seed_qk_norm, seed_rope, seed_attention)) &&
     runtime.qwen_paged_attention_readonly_operation_index()
-    is Some(readonly_attention) &&
-    seed_qk_norm == seed_qkv + 1 &&
-    seed_rope == seed_qkv + 2 &&
-    seed_attention == seed_qkv + 3 &&
-    readonly_attention == seed_attention else {
+    is Some(readonly_attention) else {
+    raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
+  let seed_qkv = seed_qk_norm - 1
+  if seed_qk_norm <= 0 ||
+    seed_rope != seed_qk_norm + 1 ||
+    seed_attention != seed_qk_norm + 2 ||
+    readonly_attention != seed_attention {
     raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   require_qwen_fused_attention_plan_span(plan, blueprint, seed_qkv)
@@ -182,14 +185,14 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_module.launch_dimensions().block_y() == 1 &&
     readonly_module.launch_dimensions().block_z() == 1 &&
     readonly_module.launch_dimensions().shared_memory_bytes() == 0 &&
-    ingress.launch_dimensions().grid_x() ==
-    blueprint.profile().max_query_tokens() &&
-    ingress.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
-    ingress.launch_dimensions().grid_z() == 1 &&
-    ingress.launch_dimensions().block_x() == 128 &&
-    ingress.launch_dimensions().block_y() == 1 &&
-    ingress.launch_dimensions().block_z() == 1 &&
-    ingress.launch_dimensions().shared_memory_bytes() == 0 else {
+    postprocess.launch_dimensions().grid_x() ==
+    Int::min(blueprint.profile().max_query_tokens(), 4096) &&
+    postprocess.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
+    postprocess.launch_dimensions().grid_z() == 1 &&
+    postprocess.launch_dimensions().block_x() == 128 &&
+    postprocess.launch_dimensions().block_y() == 1 &&
+    postprocess.launch_dimensions().block_z() == 1 &&
+    postprocess.launch_dimensions().shared_memory_bytes() == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
   let operations = plan.operations()
@@ -207,10 +210,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       generation,
       target: runtime.target(),
       runtime_digest: runtime.source_digest(),
-      ingress_module_digest: ingress.module_digest(),
-      ingress_module_bytes: ingress.module_bytes(),
-      ingress_symbol: ingress.function_symbol(),
-      ingress_launch: ingress.launch_dimensions(),
+      postprocess_module_digest: postprocess.module_digest(),
+      postprocess_module_bytes: postprocess.module_bytes(),
+      postprocess_symbol: postprocess.function_symbol(),
+      postprocess_launch: postprocess.launch_dimensions(),
       readonly_module_digest: readonly_module.module_digest(),
       readonly_module_bytes: readonly_module.module_bytes(),
       readonly_symbol: readonly_module.function_symbol(),

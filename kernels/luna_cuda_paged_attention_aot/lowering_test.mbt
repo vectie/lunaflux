@@ -343,6 +343,7 @@ test "decode split candidate fails closed on workspace and entry geometry" {
 ///|
 fn pa_decode_split_multilaunch_contract(
   candidate : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle,
+  module_digest? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   partial_symbol? : String = "",
   partial_entry_id? : Int = 41,
   workspace_partial_count? : Int64 = 0L,
@@ -402,7 +403,7 @@ fn pa_decode_split_multilaunch_contract(
     source_operands[7],
   ]
   let family = @catalog.AotKernelFamily::new(
-    module_digest=@catalog.AotArtifactDigest::from_sha256("a".repeat(64)),
+    module_digest=@catalog.AotArtifactDigest::from_sha256(module_digest),
     family_id=@catalog.AotKernelFamilyId::from_stable_int(91),
   )
   let (candidate_partial_symbol, merge_symbol) = candidate.function_symbols()
@@ -445,11 +446,14 @@ fn pa_decode_split_multilaunch_contract(
 ///|
 test "decode split production binding authenticates two ordered launches" {
   let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
-  let contract = pa_decode_split_multilaunch_contract(candidate)
+  let module_bytes = @utf8.encode("compiled-split-module")
+  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
+  let contract = pa_decode_split_multilaunch_contract(candidate, module_digest~)
   let binding = @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
     candidate,
     pa_plan().operations()[2],
     contract,
+    module_bytes,
   )
   assert_true(binding.manifest_bindable())
   assert_eq(binding.candidate(), candidate)
@@ -458,7 +462,8 @@ test "decode split production binding authenticates two ordered launches" {
   assert_eq(launches.length(), 2)
   assert_eq(launches[0].stage(), Partial)
   assert_eq(launches[1].stage(), Merge)
-  assert_eq(launches[0].module_digest().sha256(), "a".repeat(64))
+  assert_eq(launches[0].module_digest().sha256(), module_digest)
+  assert_eq(binding.module_bytes(), module_bytes)
   let record = @utf8.decode(binding.binding_record_bytes())
   assert_true(record.contains("launch_count=2\n"))
   assert_true(record.contains("launch_order=partial,merge\n"))
@@ -470,14 +475,18 @@ test "decode split production binding authenticates two ordered launches" {
 ///|
 test "decode split production binding rejects symbol entry and workspace drift" {
   let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
+  let module_bytes = @utf8.encode("compiled-split-module")
+  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
   try
     @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
       candidate,
       pa_plan().operations()[2],
       pa_decode_split_multilaunch_contract(
         candidate,
+        module_digest~,
         partial_symbol="foreign_partial",
       ),
+      module_bytes,
     )
   catch {
     @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
@@ -489,7 +498,12 @@ test "decode split production binding rejects symbol entry and workspace drift" 
     @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
       candidate,
       pa_plan().operations()[2],
-      pa_decode_split_multilaunch_contract(candidate, partial_entry_id=43),
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        module_digest~,
+        partial_entry_id=43,
+      ),
+      module_bytes,
     )
   catch {
     @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
@@ -503,8 +517,10 @@ test "decode split production binding rejects symbol entry and workspace drift" 
       pa_plan().operations()[2],
       pa_decode_split_multilaunch_contract(
         candidate,
+        module_digest~,
         workspace_partial_count=16L,
       ),
+      module_bytes,
     )
   catch {
     @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()

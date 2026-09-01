@@ -145,8 +145,47 @@ fn prepare_candidate_set(
 ///|
 priv struct QwenFusedProductionSet {
   first_operation : Int
-  ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
+  postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
+}
+
+///|
+fn qwen_postprocess_operands(
+  qkv : @luna_cuda_projection_aot.ProjectionCudaLowering,
+  qk_norm : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  rope : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+  kv_write : @luna_cuda_pointwise_aot.PointwiseCudaLowering,
+) -> Array[@launch_contract.AotOperand] raise Qwen3Bf16CandidateExportCliError {
+  let operands : Array[@launch_contract.AotOperand] = []
+  for operand in kv_write.operands() {
+    if operand.role() is RuntimeInput(_) {
+      operands.push(operand)
+    }
+  }
+  for operand in qkv.operands() {
+    if operand.role() is ActivationOutput(_) {
+      operands.push(operand)
+    }
+  }
+  for operand in qk_norm.operands() {
+    if operand.role() is WeightInput(_) {
+      operands.push(operand)
+    }
+  }
+  for operand in rope.operands() {
+    if operand.role() is ActivationOutput(_) {
+      operands.push(operand)
+    }
+  }
+  for operand in kv_write.operands() {
+    if operand.role() is PersistentKvComponent(_, _) {
+      operands.push(operand)
+    }
+  }
+  if operands.length() != 12 {
+    raise QwenIngressPreparation
+  }
+  operands
 }
 
 ///|
@@ -197,28 +236,31 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenKvWritePreparation
     }
-    let fused_limits = @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
-      maximum_source_bytes=1048576,
-      maximum_recipe_bytes=65536,
-      maximum_promotion_bytes=65536,
+    let semantic = @luna_fusion_plan.match_qkv_qknorm_positioned_rope_paged_kv_write(
+      plan,
+      qkv.operation_id(),
     ) catch {
       _ => raise QwenIngressPreparation
     }
-    let ingress_qualification = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
+    let postprocess_limits = @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteAotLimits::new(
+      max_source_bytes=1048576,
+      max_recipe_bytes=65536,
+      max_module_bytes=8388608L,
+      max_receipt_bytes=65536,
+      max_binding_bytes=65536,
+      maximum_grid_x=4096,
+    ) catch {
+      _ => raise QwenIngressPreparation
+    }
+    let postprocess = @luna_cuda_qknorm_rope_paged_kv_write_aot.lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
       plan,
+      semantic,
+      set.profile(),
       layout,
-      qkv,
-      qk_norm,
-      rope,
-      kv_write,
       set.target(),
       set.compiler_policy(),
-      fused_limits,
-    ) catch {
-      _ => raise QwenIngressPreparation
-    }
-    let ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
-      ingress_qualification, fused_limits,
+      qwen_postprocess_operands(qkv, qk_norm, rope, kv_write),
+      postprocess_limits,
     ) catch {
       _ => raise QwenIngressPreparation
     }
@@ -241,7 +283,7 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenReadOnlyPreparation
     }
-    return { first_operation: index, ingress, attention_read }
+    return { first_operation: index, postprocess, attention_read }
   }
   raise QwenFusionMissing
 }
@@ -344,8 +386,8 @@ async fn run_qwen3_candidate_export(
   let ingress_root = arguments.absolute_new_output + "/reusable-qwen-ingress"
   write_new_candidate_pair(
     ingress_root,
-    qwen_fused.ingress.source_bytes(),
-    qwen_fused.ingress.recipe_bytes(),
+    qwen_fused.postprocess.source_bytes(),
+    qwen_fused.postprocess.recipe_bytes(),
   )
   let readonly_root = arguments.absolute_new_output +
     "/reusable-qwen-readonly-attention"
@@ -406,7 +448,7 @@ async fn run_qwen3_candidate_export(
   println("reusable_qwen_ingress_recipe=" + ingress_root + "/kernel.recipe")
   println(
     "reusable_qwen_ingress_candidate_sha256=" +
-    qwen_fused.ingress.candidate_digest().as_hex(),
+    qwen_fused.postprocess.candidate_digest().as_hex(),
   )
   println(
     "reusable_qwen_ingress_first_operation=" +
@@ -414,9 +456,9 @@ async fn run_qwen3_candidate_export(
   )
   println(
     "reusable_qwen_ingress_function_symbol=" +
-    qwen_fused.ingress.function_symbol(),
+    qwen_fused.postprocess.function_symbol(),
   )
-  let ingress_launch = qwen_fused.ingress.launch_dimensions()
+  let ingress_launch = qwen_fused.postprocess.launch_dimensions()
   println(
     "reusable_qwen_ingress_launch=" +
     ingress_launch.grid_x().to_string() +

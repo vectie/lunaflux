@@ -153,10 +153,10 @@ while IFS= read -r line; do
         'schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1' ] ||
         lbf_fail 'reusable fused residual runtime schema is invalid'
       ;;
-    reusable-fused-runtime-bundle.v2)
+    reusable-fused-runtime-bundle.v3)
       observed_fused_runtime=$((observed_fused_runtime + 1))
       [ "$(sed -n '1p' "$file")" = \
-        'schema=lunaflux-reusable-fused-runtime-bundle.v2' ] ||
+        'schema=lunaflux-reusable-fused-runtime-bundle.v3' ] ||
         lbf_fail 'reusable fused runtime bundle schema is invalid'
       ;;
     *) lbf_fail "unsupported kernel-root payload: $relative" ;;

@@ -30,16 +30,16 @@ fn replace_paged_production_spans(
       indices.2 != indices.0 + 2 ||
       indices.3 != indices.0 + 3 ||
       indices.3 >= baseline.length() ||
-      qwen_starts[indices.0] >= 0 {
+      qwen_starts[indices.1] >= 0 {
       raise InvalidExecutor(ResourceState)
     }
-    for index in [indices.0, indices.1, indices.2, indices.3] {
+    for index in [indices.1, indices.2, indices.3] {
       if qwen_covered[index] {
         raise InvalidExecutor(ResourceState)
       }
       qwen_covered[index] = true
     }
-    qwen_starts[indices.0] = span_index
+    qwen_starts[indices.1] = span_index
   }
   for span in residual_spans {
     let residual = span.operation_indices()

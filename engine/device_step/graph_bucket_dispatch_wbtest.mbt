@@ -20,7 +20,12 @@ fn graph_dispatch_fixture(
   (
     table,
     profile,
-    { slot_owner_indices, fallback_owner_index, telemetry_owner_index: 2 },
+    {
+      slot_owner_indices,
+      fallback_owner_index,
+      telemetry_owner_index: 2,
+      decode_split_owner_index: -1,
+    },
   )
 }
 

@@ -51,7 +51,11 @@ fn reusable_qwen_test_module(
       grid_x=1,
       grid_y=1,
       grid_z=1,
-      block_x=if abi == ResidualRmsNormProductionV2 { 128 } else { 32 },
+      block_x=if abi == QwenPagedAttentionReadOnlyProductionV2 {
+        32
+      } else {
+        128
+      },
       block_y=1,
       block_z=1,
       shared_memory_bytes=if abi == ResidualRmsNormProductionV2 {
@@ -73,10 +77,10 @@ fn reusable_qwen_test_bundle(
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let modules = [
     reusable_qwen_test_module(
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      2,
-      4,
-      "lunaflux_qwen_ingress",
+      QwenQkNormPositionedRopePagedKvWriteProductionV1,
+      3,
+      3,
+      "lunaflux_qwen_postprocess",
     ),
   ]
   if include_readonly {

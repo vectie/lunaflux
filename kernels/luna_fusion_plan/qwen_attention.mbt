@@ -105,6 +105,7 @@ pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(
     head_dimension,
     norm_epsilon,
     rope_theta,
+    projected_qkv: projected,
     positioned_qkv: positioned,
   }
 }

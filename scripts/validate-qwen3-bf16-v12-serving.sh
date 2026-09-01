@@ -22,7 +22,7 @@ for anchor in \
   'dense_qwen3_bf16_paged_aot_v12' \
   'augment-luna-kernel-root-plan-with-fused-runtime.sh' \
   'reusable-fused-residual.runtime.v1' \
-  'reusable-fused-runtime-bundle.v2' \
+  'reusable-fused-runtime-bundle.v3' \
   'authenticated_embedded_greedy_sampling' \
   'sampling_runtime=host' \
   'validate-release' \

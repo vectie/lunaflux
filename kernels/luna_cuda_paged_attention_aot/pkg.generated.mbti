@@ -15,7 +15,7 @@ import {
 // Values
 pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PagedAttentionManifestCudaLowering raise PagedAttentionAotError
 
-pub fn bind_manifest_paged_attention_decode_split_cuda_aot(PagedAttentionDecodeSplitCudaBundle, @plan.PlanOperation, @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError
+pub fn bind_manifest_paged_attention_decode_split_cuda_aot(PagedAttentionDecodeSplitCudaBundle, @plan.PlanOperation, @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract, Bytes) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
@@ -124,6 +124,7 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_record_bytes(Self) 
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::candidate(Self) -> PagedAttentionDecodeSplitCudaBundle
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::contract(Self) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::module_bytes(Self) -> Bytes
 
 pub struct PagedAttentionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionManifestBindingDigest::as_hex(Self) -> String

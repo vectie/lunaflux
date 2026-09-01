@@ -11,8 +11,8 @@ const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 16000000
 fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
   match abi {
     ResidualRmsNormProductionV2 => "residual-rmsnorm-production-v2"
-    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 =>
-      "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4"
+    QwenQkNormPositionedRopePagedKvWriteProductionV1 =>
+      "qwen-qknorm-positioned-rope-paged-kvwrite-production-v1"
     QwenPagedAttentionReadOnlyProductionV2 =>
       "qwen-paged-attention-readonly-production-v2"
   }
@@ -24,8 +24,8 @@ fn reusable_runtime_parse_abi(
 ) -> ReusableFusedRuntimeKernelAbi raise FusedArtifactAdmissionError {
   match name {
     "residual-rmsnorm-production-v2" => ResidualRmsNormProductionV2
-    "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4" =>
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+    "qwen-qknorm-positioned-rope-paged-kvwrite-production-v1" =>
+      QwenQkNormPositionedRopePagedKvWriteProductionV1
     "qwen-paged-attention-readonly-production-v2" =>
       QwenPagedAttentionReadOnlyProductionV2
     _ => raise InvalidFusedArtifact(Family)
@@ -38,7 +38,7 @@ fn reusable_runtime_required_operation_count(
 ) -> Int {
   match abi {
     ResidualRmsNormProductionV2 => 2
-    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 4
+    QwenQkNormPositionedRopePagedKvWriteProductionV1 => 3
     QwenPagedAttentionReadOnlyProductionV2 => 1
   }
 }
@@ -47,7 +47,7 @@ fn reusable_runtime_required_operation_count(
 fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
   match abi {
     ResidualRmsNormProductionV2 => 0
-    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 1
+    QwenQkNormPositionedRopePagedKvWriteProductionV1 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 2
   }
 }
@@ -74,13 +74,13 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
 ) -> Bool {
   match (abi_a, abi_b) {
     (
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      QwenQkNormPositionedRopePagedKvWriteProductionV1,
       QwenPagedAttentionReadOnlyProductionV2,
-    ) => first_b == first_a + 3
+    ) => first_b == first_a + 2
     (
       QwenPagedAttentionReadOnlyProductionV2,
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    ) => first_a == first_b + 3
+      QwenQkNormPositionedRopePagedKvWriteProductionV1,
+    ) => first_a == first_b + 2
     _ => false
   }
 }
@@ -311,14 +311,14 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  out.write_string("schema=lunaflux-reusable-fused-runtime-bundle.v2\n")
+  out.write_string("schema=lunaflux-reusable-fused-runtime-bundle.v3\n")
   out.write_string("model_content_sha256=" + model_content_sha256 + "\n")
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
   out.write_string("module_count=" + modules.length().to_string() + "\n")
   let canonical_abis = [
     ResidualRmsNormProductionV2,
-    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+    QwenQkNormPositionedRopePagedKvWriteProductionV1,
     QwenPagedAttentionReadOnlyProductionV2,
   ]
   let mut ordinal = 0
@@ -353,7 +353,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
-  if reader.value("schema") != "lunaflux-reusable-fused-runtime-bundle.v2" {
+  if reader.value("schema") != "lunaflux-reusable-fused-runtime-bundle.v3" {
     raise InvalidFusedArtifact(Manifest)
   }
   let model_content = fused_deployment_digest(

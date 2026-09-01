@@ -55,6 +55,10 @@ fn prepare_numeric_bf16_graph_resources(
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
   qwen_fused_attention_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  decode_split_bindings : ReadOnlyArray[
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+  ],
+  decode_split_maximum_workspace_bytes : Int64,
 ) -> PagedGraphPreparation raise DeviceStepError {
   validate_predecessor_seed(
     has_accepted_predecessor, accepted_predecessor_value,
@@ -151,6 +155,22 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let decode_model_steps = prepare_paged_decode_split_steps(
+    context,
+    blueprint,
+    model_steps,
+    decode_split_bindings,
+    decode_split_maximum_workspace_bytes,
+    descriptor.resources,
+    weight,
+    activation,
+    kv,
+    resources,
+    fused_qkv_readonly_span,
+    qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint, model_steps, qwen_fused_attention_spans,
   ) catch {
@@ -167,6 +187,7 @@ fn prepare_numeric_bf16_graph_resources(
     descriptor.resources,
     activation,
     model_steps,
+    decode_model_steps,
     resources,
     graph_policy,
     fused_residual_spans,
@@ -201,6 +222,10 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
   qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
   ),
+  decode_split_bindings? : ReadOnlyArray[
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitManifestCudaBinding,
+  ] = ReadOnlyArray::from_array([]),
+  decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
   resources.numeric_weights = Some(Bf16NumericWeights(weights))
@@ -261,7 +286,7 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
     context, model_plan, model_generation, layout, limits, blueprint, memory_plan,
     artifacts, weight, resources, has_accepted_predecessor, accepted_predecessor_value,
     graph_policy, sampling_policy, fused_residual_spans, fused_qkv_readonly_span,
-    qwen_fused_attention_spans,
+    qwen_fused_attention_spans, decode_split_bindings, decode_split_maximum_workspace_bytes,
   ) catch {
     error => paged_construction_failed(resources, error)
   }
