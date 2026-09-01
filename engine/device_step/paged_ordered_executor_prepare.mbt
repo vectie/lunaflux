@@ -447,25 +447,12 @@ fn prepare_paged_ordered_executors(
       fallback_owner_index
     }
     PagedCapturedRequired | PagedCapturedWithEagerFallback => {
-      if resources.graph_launch_contract is Some(_) {
-        for bound in paged_decode_capture_bounds(profile) {
-          let launches = paged_ordered_launches(
-            steps,
-            resources,
-            query_token_bound=Some(bound),
-          )
-          let owner = prepare_one_paged_ordered_executor(
-            context,
-            launches[:],
-            baseline_operation_ids,
-            resources,
-            paged_ordered_device_policy(graph_policy),
-          )
-          map_paged_decode_capture_owner(
-            table, bound, bound, owner, slot_owner_indices,
-          )
-        }
-      }
+      // One maximum-envelope graph is valid for every admitted shape because
+      // live row/token counts remain in the reusable descriptor and every AOT
+      // kernel bounds its work from those counts. Keeping one graph also avoids
+      // multiplying graph storage at startup. Bucket-specialized captured
+      // graphs require independent physical qualification before replacing
+      // this universally valid owner.
       let maximum = prepare_one_paged_ordered_executor(
         context,
         maximum_launches[:],
@@ -478,18 +465,11 @@ fn prepare_paged_ordered_executors(
           slot_owner_indices[slot] = maximum
         }
       }
-      fallback_owner_index = match graph_policy {
-        PagedCapturedRequired => maximum
-        PagedCapturedWithEagerFallback =>
-          prepare_one_paged_ordered_executor(
-            context,
-            maximum_launches[:],
-            baseline_operation_ids,
-            resources,
-            OrderedKernelEagerOnly,
-          )
-        PagedOrderedEagerOnly => abort("unreachable graph policy")
-      }
+      // Capture-with-fallback reports OrderedKernelEager from this same owner
+      // when the backend lacks graph support; no duplicate launch list is
+      // needed. Non-maximum buckets therefore use the selected maximum owner
+      // in either backend mode.
+      fallback_owner_index = maximum
       maximum
     }
   }
