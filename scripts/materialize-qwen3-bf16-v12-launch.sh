@@ -366,6 +366,7 @@ chmod 755 "$output"
 
 complete=1
 trap - EXIT HUP INT TERM
+chmod -R u+w "$scratch" 2>/dev/null || true
 rm -rf -- "$scratch"
 printf '%s\n' 'schema=lunaflux-qwen3-v12-launch-materialization.v1'
 printf 'deployment_root=%s\n' "$output"
