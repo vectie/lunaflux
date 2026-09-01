@@ -161,22 +161,33 @@ fn projection_validate_runtime_dispatch(
   if decode.tile() != expected_decode_tile {
     raise Mismatch(Strategy)
   }
-  let prefill_supported = match prefill.kernel_class() {
-    MatrixTile => capabilities.matrix_tile() == Some(prefill.tile())
-    ScalarTile =>
-      prefill.tile() ==
-      (@luna_projection_strategy.ProjectionTile::new(
-        rows=1,
-        columns=subgroup,
-        reduction=1,
-      ) catch {
-        _ => raise Invalid(Strategy)
-      })
-    SubgroupGemv => false
+  // A single-row profile has no admitted prefill bucket. The neutral runtime
+  // therefore returns its decode selection for both fields. Validate that
+  // exact alias instead of requiring a prefill-only kernel that can never run.
+  let prefill_supported = if maximum_rows == 1 {
+    prefill == decode
+  } else {
+    match prefill.kernel_class() {
+      MatrixTile => capabilities.matrix_tile() == Some(prefill.tile())
+      ScalarTile =>
+        prefill.tile() ==
+        (@luna_projection_strategy.ProjectionTile::new(
+          rows=1,
+          columns=subgroup,
+          reduction=1,
+        ) catch {
+          _ => raise Invalid(Strategy)
+        })
+      SubgroupGemv => false
+    }
   }
-  let pair_supported = match (decode.kernel_class(), prefill.kernel_class()) {
-    (SubgroupGemv, MatrixTile) | (ScalarTile, ScalarTile) => true
-    _ => false
+  let pair_supported = if maximum_rows == 1 {
+    prefill == decode
+  } else {
+    match (decode.kernel_class(), prefill.kernel_class()) {
+      (SubgroupGemv, MatrixTile) | (ScalarTile, ScalarTile) => true
+      _ => false
+    }
   }
   if !prefill_supported || !pair_supported {
     raise Mismatch(Strategy)

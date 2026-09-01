@@ -249,6 +249,42 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
 }
 
 ///|
+test "single-row profiles reuse the exact decode projection strategy" {
+  let target = projection_fixture_target()
+  let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
+  let scalar_parameters : ProjectionParameters = {
+    family: DenseProjection,
+    input_width: 4,
+    query_width: 0,
+    output_width: 8,
+    intermediate_width: 0,
+  }
+  let scalar_runtime = projection_build_runtime_dispatch(
+    scalar_parameters, 1, target, records,
+  )
+  let scalar = projection_validate_runtime_dispatch(
+    scalar_runtime, scalar_parameters, 1, target,
+  )
+  assert_eq(scalar.decode(), scalar.prefill())
+  assert_eq(scalar.decode().kernel_class(), ScalarTile)
+  let subgroup_parameters : ProjectionParameters = {
+    family: DenseProjection,
+    input_width: 32,
+    query_width: 0,
+    output_width: 64,
+    intermediate_width: 0,
+  }
+  let subgroup_runtime = projection_build_runtime_dispatch(
+    subgroup_parameters, 1, target, records,
+  )
+  let subgroup = projection_validate_runtime_dispatch(
+    subgroup_runtime, subgroup_parameters, 1, target,
+  )
+  assert_eq(subgroup.decode(), subgroup.prefill())
+  assert_eq(subgroup.decode().kernel_class(), SubgroupGemv)
+}
+
+///|
 test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   let operation = projection_fixture_operation(
     11,
