@@ -443,7 +443,7 @@ fn prepare_paged_ordered_executors(
   let mut fallback_owner_index = -1
   let telemetry_owner_index = match graph_policy {
     PagedOrderedEagerOnly => {
-      if resources.graph_launch_contract is Some(_) {
+      if resources.graph_launch_contract is Some(_) && decode_steps is None {
         for bound in paged_decode_capture_bounds(profile) {
           let launches = paged_ordered_launches(
             steps,
@@ -478,7 +478,7 @@ fn prepare_paged_ordered_executors(
       // replay the maximum-token grid full of empty blocks. The maximum graph
       // remains the universal fallback for prefill, mixed, and uncommon decode
       // shapes.
-      if resources.graph_launch_contract is Some(_) {
+      if resources.graph_launch_contract is Some(_) && decode_steps is None {
         for bound in paged_decode_capture_bounds(profile) {
           let launches = paged_ordered_launches(
             steps,
@@ -519,13 +519,38 @@ fn prepare_paged_ordered_executors(
   }
   let decode_owner_index = match decode_steps {
     Some(selected) => {
-      let launches = paged_ordered_launches(selected, resources)
       let operation_ids = ReadOnlyArray::from_array(
         selected.map(step => step.operation_id),
       )
+      if resources.graph_launch_contract is Some(_) {
+        clear_paged_decode_capture_owners(
+          table,
+          profile.max_query_rows(),
+          profile.max_query_rows(),
+          slot_owner_indices,
+        )
+        for bound in paged_decode_capture_bounds(profile) {
+          let launches = paged_ordered_launches(
+            selected,
+            resources,
+            query_token_bound=Some(bound),
+          )
+          let owner = prepare_one_paged_ordered_executor(
+            context,
+            launches[:],
+            operation_ids,
+            resources,
+            paged_ordered_device_policy(graph_policy),
+          )
+          map_paged_decode_capture_owner(
+            table, bound, bound, owner, slot_owner_indices,
+          )
+        }
+      }
+      let maximum_launches = paged_ordered_launches(selected, resources)
       prepare_one_paged_ordered_executor(
         context,
-        launches[:],
+        maximum_launches[:],
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),

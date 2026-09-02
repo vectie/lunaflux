@@ -54,6 +54,37 @@ test "decode bucket owners map exact compatible slots to the smallest owner" {
 }
 
 ///|
+test "phase-specific decode owners replace baseline slots without touching prefill" {
+  let (table, profile, baseline) = graph_dispatch_fixture(7)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    slot_owner_indices: baseline.slot_owner_indices,
+    fallback_owner_index: baseline.fallback_owner_index,
+    telemetry_owner_index: baseline.telemetry_owner_index,
+    decode_owner_index: 12,
+    decode_split_owner_index: baseline.decode_split_owner_index,
+    decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,
+  }
+  let prefill = graph_dispatch_bucket(table, PrefillGraph, 32, 64, 1048576)
+  assert_eq(dispatch.select(prefill), 2)
+  map_paged_decode_capture_owner(table, 8, 8, 4, dispatch.slot_owner_indices)
+  clear_paged_decode_capture_owners(
+    table,
+    profile.max_query_rows(),
+    profile.max_query_rows(),
+    dispatch.slot_owner_indices,
+  )
+  map_paged_decode_capture_owner(table, 1, 1, 8, dispatch.slot_owner_indices)
+  map_paged_decode_capture_owner(table, 8, 8, 9, dispatch.slot_owner_indices)
+  let one = graph_dispatch_bucket(table, DecodeGraph, 1, 1, 65536)
+  let eight = graph_dispatch_bucket(table, DecodeGraph, 8, 8, 65536)
+  let larger = graph_dispatch_bucket(table, DecodeGraph, 16, 16, 65536)
+  assert_eq(dispatch.select(one), 8)
+  assert_eq(dispatch.select(eight), 9)
+  assert_eq(dispatch.select(larger), 12)
+  assert_eq(dispatch.select(prefill), 2)
+}
+
+///|
 test "query-token launch scaling changes only grid x" {
   let source = @launch_contract.AotLaunchDimensions::new(
     grid_x=32,

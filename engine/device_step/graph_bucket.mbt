@@ -77,15 +77,15 @@ fn PagedOrderedExecutorDispatch::select(
     context_tokens >= self.decode_split_minimum_context_tokens {
     return self.decode_split_owner_index
   }
-  if bucket.phase() == DecodeGraph && self.decode_owner_index >= 0 {
-    return self.decode_owner_index
-  }
   let slot = bucket.slot()
   if slot >= 0 && slot < self.slot_owner_indices.length() {
     let owner = self.slot_owner_indices[slot]
     if owner >= 0 {
       return owner
     }
+  }
+  if bucket.phase() == DecodeGraph && self.decode_owner_index >= 0 {
+    return self.decode_owner_index
   }
   if self.fallback_owner_index >= 0 {
     self.fallback_owner_index
@@ -142,6 +142,42 @@ fn map_paged_decode_capture_owner(
         if slot_owner_indices[slot] < 0 {
           slot_owner_indices[slot] = owner_index
         }
+        context *= 2
+      }
+    }
+  }
+}
+
+///|
+/// Removes only decode-slot owners before a phase-specific decode launch list
+/// is materialized. Prefill and mixed owners remain intact. The following
+/// ascending-bound mapping then preserves the smallest compatible owner for
+/// every decode bucket.
+fn clear_paged_decode_capture_owners(
+  table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
+  row_bound : Int,
+  query_token_bound : Int,
+  slot_owner_indices : FixedArray[Int],
+) -> Unit raise DeviceStepError {
+  for rows in 1..<=row_bound {
+    for tokens in 1..<=query_token_bound {
+      let mut context = 1
+      while context <= paged_graph_maximum_context_tokens() {
+        let slot = table
+          .select(
+            @luna_execution_graph_strategy.ExecutionGraphShape::new(
+              phase=DecodeGraph,
+              batch_rows=rows,
+              query_tokens=tokens,
+              context_tokens=context,
+            ) catch {
+              _ => raise InvalidExecutor(GraphBucket)
+            },
+          )
+          .slot() catch {
+            _ => raise InvalidExecutor(GraphBucket)
+          }
+        slot_owner_indices[slot] = -1
         context *= 2
       }
     }
