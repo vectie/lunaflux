@@ -89,7 +89,7 @@ test "attention compiler generates portable long-prefill tile candidates" {
   assert_eq(matrix_async.memory(), AttentionAsyncStagedShared)
   assert_eq(matrix_async.tile().dimensions(), (16, 128, 128))
   assert_eq(matrix_async.execution_geometry(), (8, 3, 16))
-  assert_eq(matrix_async.shared_memory_bytes(), 225408L)
+  assert_eq(matrix_async.shared_memory_bytes(), 225424L)
   let plan = compile_attention_tile_plan(
     [],
     backend=AttentionBackendId::new("portable"),

@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+}
+
+import {
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "vectie/lunaflux/kernels/luna_attention_tile_schedule",
+} for "wbtest"
+
+supported_targets = "native"

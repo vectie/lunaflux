@@ -51,11 +51,6 @@ fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int {
 }
 
 ///|
-fn ceil_div(value : Int, divisor : Int) -> Int {
-  1 + (value - 1) / divisor
-}
-
-///|
 /// Refines the generic functional schedule into CUDA launch and instruction
 /// primitives. All vendor decisions are confined to this lowering boundary.
 pub fn lower_attention_tile_schedule_to_cuda(
@@ -90,7 +85,11 @@ pub fn lower_attention_tile_schedule_to_cuda(
   if shared_memory_bytes > maximum_shared_memory_bytes {
     raise InvalidCudaAttentionTileLowering(SharedMemory)
   }
-  let grid_x = ceil_div(query_rows, query_tile)
+  // Ragged batches need at most one potential tile origin per query row. The
+  // generated kernel maps the dense upper-bound ordinal to sequence-aligned
+  // query tiles and returns surplus blocks. A later runtime worklist may
+  // compact this without changing the generic schedule.
+  let grid_x = query_rows
   let grid_y = query_heads
   if grid_x <= 0 || grid_x > 2147483647 || grid_y <= 0 || grid_y > 65535 {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)

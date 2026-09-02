@@ -1,0 +1,47 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_attention_tile_source"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
+}
+
+// Values
+pub fn emit_cuda_attention_tile_source(@luna_cuda_attention_tile_lowering.CudaAttentionTileLowering, CudaPagedAttentionTileAbi, String, Int) -> CudaAttentionTileSource raise CudaAttentionTileSourceError
+
+// Errors
+pub(all) suberror CudaAttentionTileSourceError {
+  InvalidCudaAttentionTileSource(CudaAttentionTileSourceRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CudaAttentionTileSource {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileSource::abi(Self) -> CudaPagedAttentionTileAbi
+pub fn CudaAttentionTileSource::bytes(Self) -> Bytes
+pub fn CudaAttentionTileSource::digest(Self) -> CudaAttentionTileSourceDigest
+pub fn CudaAttentionTileSource::lowering_digest(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLoweringDigest
+pub fn CudaAttentionTileSource::symbol(Self) -> StringView
+
+pub struct CudaAttentionTileSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn CudaAttentionTileSourceDigest::as_hex(Self) -> String
+
+pub(all) enum CudaAttentionTileSourceRule {
+  InvalidAbi
+  InvalidSymbol
+  UnsupportedLowering
+  SourceLimit
+} derive(Eq, @debug.Debug)
+
+pub struct CudaPagedAttentionTileAbi {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPagedAttentionTileAbi::layout(Self) -> (Int, Int64, Int64)
+pub fn CudaPagedAttentionTileAbi::limits(Self) -> (Int, Int, Int)
+pub fn CudaPagedAttentionTileAbi::new(query_heads~ : Int, key_value_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int, input_row_width~ : Int, page_stride_values~ : Int64, physical_page_capacity~ : Int64, maximum_query_rows~ : Int, maximum_query_tokens~ : Int, maximum_page_entries~ : Int) -> Self raise CudaAttentionTileSourceError
+pub fn CudaPagedAttentionTileAbi::shape(Self) -> (Int, Int, Int, Int)
+
+// Type aliases
+
+// Traits

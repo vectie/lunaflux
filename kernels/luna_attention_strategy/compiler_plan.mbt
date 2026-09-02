@@ -81,9 +81,9 @@ fn attention_candidate_shared_bytes(
     8L,
     Candidate,
   )
-  let online_state_bytes = attention_checked_product(
-    query_tile.to_int64(),
-    8L,
+  let online_state_bytes = attention_checked_add(
+    attention_checked_product(query_tile.to_int64(), 8L, Candidate),
+    16L,
     Candidate,
   )
   attention_checked_add(
