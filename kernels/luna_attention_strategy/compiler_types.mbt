@@ -55,6 +55,10 @@ pub struct AttentionCompileProblem {
   priv shape : AttentionShape
   priv phase : AttentionExecutionPhase
   priv numeric_type : AttentionNumericType
+  /// Number of independent sequences in the launch bucket. This is distinct
+  /// from `query_rows`: decode has one query token per sequence, while the
+  /// bucket can still contain many sequences.
+  priv batch_rows : Int
   priv query_rows : Int
   priv context_tokens : Int
   priv causal : Bool

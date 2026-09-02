@@ -45,11 +45,14 @@ pub fn AttentionCompileProblem::new(
   shape~ : AttentionShape,
   phase~ : AttentionExecutionPhase,
   numeric_type~ : AttentionNumericType,
+  batch_rows? : Int = 1,
   query_rows~ : Int,
   context_tokens~ : Int,
   causal~ : Bool,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
   if phase == MixedCompatibility ||
+    batch_rows <= 0 ||
+    batch_rows > 1048576 ||
     query_rows <= 0 ||
     query_rows > 1048576 ||
     context_tokens <= 0 ||
@@ -57,7 +60,7 @@ pub fn AttentionCompileProblem::new(
     (phase == Decode && query_rows != 1) {
     raise InvalidAttentionStrategy(Problem)
   }
-  { shape, phase, numeric_type, query_rows, context_tokens, causal }
+  { shape, phase, numeric_type, batch_rows, query_rows, context_tokens, causal }
 }
 
 ///|

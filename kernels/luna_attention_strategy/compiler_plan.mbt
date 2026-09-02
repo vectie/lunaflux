@@ -431,6 +431,7 @@ fn attention_candidate_static_cost(
   candidate : AttentionTileCandidate,
 ) -> Int64 raise AttentionStrategyError {
   let (query_rows, context_tokens) = problem.dimensions()
+  let batch_rows = problem.batch_rows().to_int64()
   let (query_tile, key_value_tile, head_columns) = candidate.tile.dimensions()
   let query_tiles = attention_ceil_div(query_rows, query_tile).to_int64()
   let key_value_tiles = attention_ceil_div(context_tokens, key_value_tile).to_int64()
@@ -477,7 +478,11 @@ fn attention_candidate_static_cost(
   )
   let (query_heads, _, _, _) = problem.shape.dimensions()
   let scheduling_cost = attention_checked_product(
-    attention_checked_product(query_tiles, query_heads.to_int64(), Candidate),
+    attention_checked_product(
+      attention_checked_product(query_tiles, batch_rows, Candidate),
+      query_heads.to_int64(),
+      Candidate,
+    ),
     4096L,
     Candidate,
   )

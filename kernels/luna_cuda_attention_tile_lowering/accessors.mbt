@@ -27,6 +27,13 @@ pub fn CudaAttentionTileLowering::target(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::phase(
+  self : CudaAttentionTileLowering,
+) -> @luna_attention_strategy.AttentionExecutionPhase {
+  self.phase
+}
+
+///|
 pub fn CudaAttentionTileLowering::compute(
   self : CudaAttentionTileLowering,
 ) -> CudaAttentionComputePrimitive {

@@ -241,3 +241,26 @@ test "attention compile problem separates prefill and decode invariants" {
     Problem,
   )
 }
+
+///|
+test "decode compile problem keeps token shape separate from batch rows" {
+  let decode = AttentionCompileProblem::new(
+    shape=compiler_test_shape(),
+    phase=Decode,
+    numeric_type=AttentionBFloat16,
+    batch_rows=32,
+    query_rows=1,
+    context_tokens=4096,
+    causal=true,
+  )
+  assert_eq(decode.batch_rows(), 32)
+  assert_eq(decode.dimensions(), (1, 4096))
+  let candidates = generate_attention_tile_candidates(
+    decode,
+    compiler_test_capabilities(),
+  )
+  assert_eq(candidates.length(), 3)
+  assert_eq(candidates[0].stable_id(), 400)
+  assert_eq(candidates[1].stable_id(), 410)
+  assert_eq(candidates[2].stable_id(), 411)
+}

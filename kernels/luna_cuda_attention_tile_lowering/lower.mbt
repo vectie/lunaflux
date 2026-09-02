@@ -58,6 +58,17 @@ fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int {
 }
 
 ///|
+fn attention_phase_code(
+  phase : @luna_attention_strategy.AttentionExecutionPhase,
+) -> Int {
+  match phase {
+    Prefill => 1
+    Decode => 2
+    MixedCompatibility => 3
+  }
+}
+
+///|
 fn has_rewrite_rule(
   optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
   expected : @luna_attention_tile_optimizer.AttentionTileRewriteRule,
@@ -115,7 +126,11 @@ pub fn lower_attention_tile_schedule_to_cuda(
   // generated kernel maps the dense upper-bound ordinal to sequence-aligned
   // query tiles and returns surplus blocks. A later runtime worklist may
   // compact this without changing the generic schedule.
-  let grid_x = query_rows
+  let grid_x = match problem.phase() {
+    Decode => problem.batch_rows()
+    Prefill => query_rows
+    MixedCompatibility => raise InvalidCudaAttentionTileLowering(InvalidLaunch)
+  }
   let grid_y = query_heads
   if grid_x <= 0 || grid_x > 2147483647 || grid_y <= 0 || grid_y > 65535 {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
@@ -123,11 +138,12 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
   let builder = StringBuilder()
-  builder <+ "luna-cuda-attention-tile-lowering-v1\n"
+  builder <+ "luna-cuda-attention-tile-lowering-v2\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "optimization_sha256=\{optimization.digest().as_hex()}\n"
   builder <+ "schedule_sha256=\{schedule.digest().as_hex()}\n"
   builder <+ "target=sm_\{target.compute_major()}\{target.compute_minor()}\n"
+  builder <+ "phase=\{attention_phase_code(problem.phase())}\n"
   builder <+ "primitive=\{cuda_compute_code(compute)},\{cuda_copy_code(copy)}\n"
   builder <+
     "launch=\{grid_x},\{grid_y},\{block_threads},\{shared_memory_bytes}\n"
@@ -139,6 +155,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     optimization_digest: optimization.digest(),
     schedule_digest: schedule.digest(),
     target,
+    phase: problem.phase(),
     compute,
     copy,
     grid_x,

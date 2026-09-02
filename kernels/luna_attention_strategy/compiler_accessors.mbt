@@ -59,6 +59,13 @@ pub fn AttentionCompileProblem::numeric_type(
 }
 
 ///|
+pub fn AttentionCompileProblem::batch_rows(
+  self : AttentionCompileProblem,
+) -> Int {
+  self.batch_rows
+}
+
+///|
 pub fn AttentionCompileProblem::dimensions(
   self : AttentionCompileProblem,
 ) -> (Int, Int) {

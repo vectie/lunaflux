@@ -196,11 +196,11 @@ fn canonical_attention_tile_program(
   let (tile_query, tile_key_value, tile_head) = candidate.tile().dimensions()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
-  builder <+ "luna-attention-tile-ir-v1\n"
+  builder <+ "luna-attention-tile-ir-v2\n"
   builder <+
     "shape=\{query_heads},\{key_value_heads},\{head_dimension},\{tokens_per_page}\n"
   builder <+
-    "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
+    "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{problem.batch_rows()},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
   builder <+
     "candidate=\{candidate.stable_id()},\{attention_compute_code(candidate.compute())},\{attention_memory_code(candidate.memory())}\n"
   builder <+

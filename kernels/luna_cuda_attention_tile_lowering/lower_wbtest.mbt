@@ -121,3 +121,52 @@ test "CUDA lowering rejects optimization from another semantic program" {
     _ => fail("mismatched functional optimization was accepted")
   }
 }
+
+///|
+test "decode CUDA lowering launches one block per admitted batch row" {
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads=16,
+    kv_heads=4,
+    head_dimension=128,
+    tokens_per_page=16,
+  )
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape~,
+    phase=Decode,
+    numeric_type=AttentionBFloat16,
+    batch_rows=32,
+    query_rows=1,
+    context_tokens=4096,
+    causal=true,
+  )
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=262144L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+  )
+  let selected = @luna_attention_strategy.compile_attention_tile_plan(
+    [],
+    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+    target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+    problem~,
+    capabilities~,
+  )
+  let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
+  let lowering = lower_attention_tile_schedule_to_cuda(
+    program,
+    @luna_attention_tile_optimizer.optimize_attention_tile_program(program),
+    @luna_attention_tile_schedule.schedule_attention_tile_program(program),
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    262144L,
+  )
+  assert_eq(lowering.phase(), Decode)
+  assert_eq(lowering.launch(), (32, 16, 128, 66844L))
+  assert_eq(lowering.compute(), CudaSubgroupShuffleDot)
+}

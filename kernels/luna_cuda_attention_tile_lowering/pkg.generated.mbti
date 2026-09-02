@@ -4,6 +4,7 @@ package "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
   "vectie/lunaflux/kernels/luna_attention_tile_optimizer",
   "vectie/lunaflux/kernels/luna_attention_tile_schedule",
@@ -40,6 +41,7 @@ pub fn CudaAttentionTileLowering::copy(Self) -> CudaAttentionCopyPrimitive
 pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest
 pub fn CudaAttentionTileLowering::launch(Self) -> (Int, Int, Int, Int64)
 pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimizationDigest
+pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)
 pub fn CudaAttentionTileLowering::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn CudaAttentionTileLowering::schedule_digest(Self) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest

@@ -51,9 +51,10 @@ pub(all) enum AttentionCandidateSource {
 pub struct AttentionCompileProblem {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionCompileProblem::batch_rows(Self) -> Int
 pub fn AttentionCompileProblem::dimensions(Self) -> (Int, Int)
 pub fn AttentionCompileProblem::is_causal(Self) -> Bool
-pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool) -> Self raise AttentionStrategyError
+pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool) -> Self raise AttentionStrategyError
 pub fn AttentionCompileProblem::numeric_type(Self) -> AttentionNumericType
 pub fn AttentionCompileProblem::phase(Self) -> AttentionExecutionPhase
 pub fn AttentionCompileProblem::shape(Self) -> AttentionShape
