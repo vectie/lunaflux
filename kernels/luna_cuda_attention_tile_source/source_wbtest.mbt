@@ -253,7 +253,8 @@ test "compiler decode source reuses one KV tile across grouped query heads" {
     required in [
       "#define LF_QUERY_HEADS_PER_BLOCK 4", "key_value_head * LF_QUERY_HEADS_PER_BLOCK + warp",
       "for (int key = 0; key < active_keys; ++key)", "denominator > 0.0f ? accumulator[item] / denominator",
-      "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
+      "denominator = __shfl_sync(0xffffffffU, denominator, 0);", "const __nv_bfloat16 *key_cache",
+      "const __nv_bfloat16 *value_cache",
     ] {
     assert_true(source.contains(required))
   }

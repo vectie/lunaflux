@@ -120,25 +120,6 @@ fn child_graph_telemetry(
 }
 
 ///|
-fn device_worker_execution_failure_code(
-  error : @device_worker_bootstrap.DeviceWorkerBootstrapError,
-) -> String {
-  match error {
-    Worker(Executor(ExecutorLaunchFailed(_, _))) => "executor_launch_failed"
-    Worker(Executor(ExecutorDevice(OrderedExecutor, _))) =>
-      "ordered_executor_failed"
-    Worker(Executor(ExecutorDevice(ActivationReadback, _))) =>
-      "activation_readback_failed"
-    Worker(Executor(ExecutorDevice(_, _))) => "executor_device_failed"
-    Worker(Executor(_)) => "executor_failed"
-    Worker(_) => "worker_failed"
-    I8Worker(_) => "i8_worker_failed"
-    Fp8Worker(_) => "fp8_worker_failed"
-    _ => "bootstrap_worker_failed"
-  }
-}
-
-///|
 fn serve_frames(
   channel : @process.InheritedChannel,
   owner : @device_worker_bootstrap.DeviceWorkerBootstrapOwner,
@@ -163,18 +144,7 @@ fn serve_frames(
     },
     (plan, writer) => {
       owner.execute_frame(plan, writer) catch {
-        error => {
-          // The worker protocol uses a dedicated inherited channel, so a
-          // failure-only diagnostic on stdout cannot corrupt plan/completion
-          // framing. Keep the exact typed cause visible to the supervising
-          // runtime; otherwise every device failure is indistinguishable from
-          // a lost child and performance work becomes guesswork.
-          println(
-            "LunaFlux device worker execution failure=" +
-            device_worker_execution_failure_code(error),
-          )
-          raise StartupFailed
-        }
+        _ => raise StartupFailed
       }
     },
     completion => {

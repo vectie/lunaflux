@@ -554,6 +554,7 @@ fn emit_cuda_decode_attention_tile_source(
     $|    __syncthreads();
     $|  }
     $|
+    $|  denominator = __shfl_sync(0xffffffffU, denominator, 0);
     $|  #pragma unroll
     $|  for (int item = 0; item < \{accumulator_items}; ++item) {
     $|    const int component = lane + item * 32;
