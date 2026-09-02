@@ -24,6 +24,9 @@ typedef struct lf_graph_probe_state {
   int32_t graph_destroys;
   int32_t graph_launches;
   int32_t graph_exec_destroys;
+  int32_t function_attribute_sets;
+  int32_t function_attribute;
+  int32_t function_attribute_value;
   int32_t event_records;
   int32_t event_waits;
   int32_t event_destroys;
@@ -153,9 +156,11 @@ static CUresult lf_graph_kernel_launch(
   void **parameters,
   void **extra
 ) {
+  uint32_t expected_shared =
+    lf_active_graph_probe->function_attribute_sets == 0 ? 0 : 66844;
   if (function != LF_GRAPH_FUNCTION || grid_x != 1 || grid_y != 1 ||
       grid_z != 1 || block_x != 32 || block_y != 1 || block_z != 1 ||
-      shared_memory_bytes != 0 || stream != LF_GRAPH_STREAM ||
+      shared_memory_bytes != expected_shared || stream != LF_GRAPH_STREAM ||
       parameters == NULL || parameters[0] == NULL || extra != NULL) return 1;
   CUdeviceptr address = 0;
   memcpy(&address, parameters[0], sizeof(address));
@@ -163,6 +168,18 @@ static CUresult lf_graph_kernel_launch(
   if (lf_active_graph_probe->capturing != 0) {
     lf_active_graph_probe->captured_launches += 1;
   }
+  return 0;
+}
+
+static CUresult lf_graph_function_set_attribute(
+  CUfunction function,
+  int32_t attribute,
+  int32_t value
+) {
+  if (function != LF_GRAPH_FUNCTION) return 1;
+  lf_active_graph_probe->function_attribute_sets += 1;
+  lf_active_graph_probe->function_attribute = attribute;
+  lf_active_graph_probe->function_attribute_value = value;
   return 0;
 }
 
@@ -209,6 +226,7 @@ static int32_t lf_run_graph_probe(int32_t mode) {
   api.cuEventDestroy = lf_graph_event_destroy;
   api.cuEventRecord = lf_graph_event_record;
   api.cuEventSynchronize = lf_graph_event_wait;
+  api.cuFuncSetAttribute = lf_graph_function_set_attribute;
   api.cuLaunchKernel = lf_graph_kernel_launch;
   if (mode != 2 && mode != 5) {
     api.graph_available = 1;
@@ -264,7 +282,7 @@ static int32_t lf_run_graph_probe(int32_t mode) {
   dimensions[3] = 32;
   dimensions[4] = 1;
   dimensions[5] = 1;
-  dimensions[6] = 0;
+  dimensions[6] = mode == 9 ? 66844 : 0;
   starts[0] = 0;
   starts[1] = 1;
   allocations[0] = allocation;
@@ -317,7 +335,8 @@ static int32_t lf_run_graph_probe(int32_t mode) {
   } else if (status != LF_OK || executor == NULL) {
     result = 200;
   } else {
-    int32_t expected_mode = mode == 0 || mode == 3 || mode == 4 || mode == 8
+    int32_t expected_mode =
+      mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9
       ? LF_ORDERED_MODE_CAPTURED
       : LF_ORDERED_MODE_EAGER;
     if (lunaflux_cuda_ordered_executor_mode(executor) != expected_mode) {
@@ -391,7 +410,8 @@ static int32_t lf_run_graph_probe(int32_t mode) {
        atomic_load(&allocation->active_operations) != 0)) {
     result = 207;
   }
-  int32_t captured = mode == 0 || mode == 3 || mode == 4 || mode == 8;
+  int32_t captured =
+    mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9;
   if (result == 0 && mode != 5 && mode != 6 && mode != 7 &&
       (state.begin_captures != captured ||
        state.end_captures != captured ||
@@ -403,6 +423,13 @@ static int32_t lf_run_graph_probe(int32_t mode) {
        state.event_records != 1 || state.event_waits != 1 ||
        state.event_destroys != 1)) {
     result = 208;
+  }
+  if (result == 0 &&
+      (state.function_attribute_sets != (mode == 9 ? 1 : 0) ||
+       (mode == 9 &&
+        (state.function_attribute != 8 ||
+         state.function_attribute_value != 66844)))) {
+    result = 219;
   }
   moonbit_decref(executor);
   moonbit_decref(alignments);
@@ -425,7 +452,7 @@ MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_test_ordered_graph(int32_t cycles) {
   if (cycles < 1 || cycles > 10000) return LF_INVALID_ARGUMENT;
   for (int32_t cycle = 0; cycle < cycles; cycle += 1) {
-    int32_t mode = cycle % 9;
+    int32_t mode = cycle % 10;
     int32_t result = lf_run_graph_probe(mode);
     if (result != LF_OK) return result;
   }

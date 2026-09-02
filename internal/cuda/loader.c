@@ -143,6 +143,7 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuModuleLoadData, "cuModuleLoadData");
   LF_LOAD_REQUIRED(cuModuleUnload, "cuModuleUnload");
   LF_LOAD_REQUIRED(cuModuleGetFunction, "cuModuleGetFunction");
+  LF_LOAD_REQUIRED(cuFuncSetAttribute, "cuFuncSetAttribute");
   LF_LOAD_REQUIRED(cuLaunchKernel, "cuLaunchKernel");
   lf_load_optional_graph(api);
   if (api->cuInit(0) != CUDA_SUCCESS) {

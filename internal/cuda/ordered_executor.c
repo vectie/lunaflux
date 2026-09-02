@@ -5,6 +5,25 @@
 #include <string.h>
 
 #define CUDA_SUCCESS 0
+#define CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES 8
+#define LF_DEFAULT_DYNAMIC_SHARED_MEMORY_BYTES 49152
+
+static int32_t lf_prepare_dynamic_shared_memory(
+  lf_ordered_executor *executor,
+  lf_ordered_kernel *kernel
+) {
+  int32_t shared = kernel->dimensions[6];
+  if (shared <= LF_DEFAULT_DYNAMIC_SHARED_MEMORY_BYTES) return LF_OK;
+  if (executor->context->api->cuFuncSetAttribute == NULL) {
+    return LF_UNSUPPORTED;
+  }
+  return lf_cuda_map_result(executor->context->api->cuFuncSetAttribute(
+    kernel->function->handle,
+    CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
+    shared
+  ));
+}
+
 int32_t lf_ordered_operation_begin(lf_ordered_executor *executor) {
   int32_t result = lf_operation_begin(
     &executor->state, &executor->active_operations
@@ -188,7 +207,7 @@ static int32_t lf_prepare_ordered_kernel(
     kernel->kernel_parameters[index] = &kernel->argument_values[index];
   }
   kernel->argument_count = argument_count;
-  return LF_OK;
+  return lf_prepare_dynamic_shared_memory(executor, kernel);
 }
 
 MOONBIT_FFI_EXPORT
