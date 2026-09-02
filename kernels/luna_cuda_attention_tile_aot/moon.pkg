@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_compiler",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+}
+
+supported_targets = "native"

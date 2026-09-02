@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_attention_tile_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_compiler",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
+}
+
+// Values
+pub fn compile_cuda_attention_tile_aot(CudaAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> CudaAttentionTileAotCompilation raise CudaAttentionTileAotError
+
+// Errors
+pub(all) suberror CudaAttentionTileAotError {
+  InvalidCudaAttentionTileAot(CudaAttentionTileAotRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CudaAttentionTileAotCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileAotCompilation::canonical_bytes(Self) -> Bytes
+pub fn CudaAttentionTileAotCompilation::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaAttentionTileAotCompilation::functional(Self) -> @luna_attention_tile_compiler.ScheduledAttentionTileCompilation
+pub fn CudaAttentionTileAotCompilation::lowering(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering
+pub fn CudaAttentionTileAotCompilation::source(Self) -> @luna_cuda_attention_tile_source.CudaAttentionTileSource
+
+pub struct CudaAttentionTileAotDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn CudaAttentionTileAotDigest::as_hex(Self) -> String
+
+pub struct CudaAttentionTileAotRequest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, symbol~ : String, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+
+pub(all) enum CudaAttentionTileAotRule {
+  InvalidRequest
+  FunctionalCompilation
+  DeviceLowering
+  SourceEmission
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
