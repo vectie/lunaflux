@@ -5,7 +5,34 @@ fn projection_cuda_prelude() -> String {
 
 ///|
 fn projection_tensor_core_prelude() -> String {
-  "#include <cuda_bf16.h>\n#include <mma.h>\n#include <math.h>\n#include <stdint.h>\n"
+  "#include <cuda_bf16.h>\n#include <mma.h>\n#include <math.h>\n#include <stdint.h>\n" +
+  "static __device__ __forceinline__ float lf_projection_warp_dot(const __nv_bfloat16 *input, const __nv_bfloat16 *weight, int width) {\n" +
+  "  const int lane = (int)threadIdx.x & 31; float value = 0.0f;\n" +
+  "  for (int inner = lane * 2; inner < width; inner += 64) {\n" +
+  "    const __nv_bfloat162 input_pair = *reinterpret_cast<const __nv_bfloat162 *>(input + inner);\n" +
+  "    const __nv_bfloat162 weight_pair = *reinterpret_cast<const __nv_bfloat162 *>(weight + inner);\n" +
+  "    const float2 input_values = __bfloat1622float2(input_pair);\n" +
+  "    const float2 weight_values = __bfloat1622float2(weight_pair);\n" +
+  "    value = __fadd_rn(value, __fmul_rn(input_values.x, weight_values.x));\n" +
+  "    value = __fadd_rn(value, __fmul_rn(input_values.y, weight_values.y));\n" +
+  "  }\n" +
+  "  for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+  "  return __shfl_sync(0xffffffffU, value, 0);\n" +
+  "}\n" +
+  "static __device__ __forceinline__ void lf_projection_warp_dot2(const __nv_bfloat16 *input, const __nv_bfloat16 *left_weight, const __nv_bfloat16 *right_weight, int width, float *left, float *right) {\n" +
+  "  const int lane = (int)threadIdx.x & 31; float left_value = 0.0f, right_value = 0.0f;\n" +
+  "  for (int inner = lane * 2; inner < width; inner += 64) {\n" +
+  "    const float2 input_values = __bfloat1622float2(*reinterpret_cast<const __nv_bfloat162 *>(input + inner));\n" +
+  "    const float2 left_values = __bfloat1622float2(*reinterpret_cast<const __nv_bfloat162 *>(left_weight + inner));\n" +
+  "    const float2 right_values = __bfloat1622float2(*reinterpret_cast<const __nv_bfloat162 *>(right_weight + inner));\n" +
+  "    left_value = __fadd_rn(left_value, __fmul_rn(input_values.x, left_values.x));\n" +
+  "    left_value = __fadd_rn(left_value, __fmul_rn(input_values.y, left_values.y));\n" +
+  "    right_value = __fadd_rn(right_value, __fmul_rn(input_values.x, right_values.x));\n" +
+  "    right_value = __fadd_rn(right_value, __fmul_rn(input_values.y, right_values.y));\n" +
+  "  }\n" +
+  "  for (int delta = 16; delta > 0; delta >>= 1) { left_value = __fadd_rn(left_value, __shfl_down_sync(0xffffffffU, left_value, delta)); right_value = __fadd_rn(right_value, __shfl_down_sync(0xffffffffU, right_value, delta)); }\n" +
+  "  *left = __shfl_sync(0xffffffffU, left_value, 0); *right = __shfl_sync(0xffffffffU, right_value, 0);\n" +
+  "}\n"
 }
 
 ///|
@@ -82,11 +109,10 @@ fn projection_tensor_core_dense_source(
       ") return;\n" +
       "    const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
-      "ULL; float value = 0.0f;\n" +
-      "    for (int inner = lane; inner < " +
+      "ULL;\n" +
+      "    const float value = lf_projection_warp_dot(input, weight + weight_base, " +
       parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner])));\n" +
-      "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+      ");\n" +
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
       "    return;\n  }\n" +
       "  const int group_count = " +
@@ -120,11 +146,10 @@ fn projection_tensor_core_dense_source(
       ") break;\n" +
       "      const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
-      "ULL; float value = 0.0f;\n" +
-      "      for (int inner = lane; inner < " +
+      "ULL;\n" +
+      "      const float value = lf_projection_warp_dot(input + input_base, weight + weight_base, " +
       parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner])));\n" +
-      "      for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+      ");\n" +
       "      if (lane == 0) output[output_base + output_column] = __float2bfloat16_rn(value);\n" +
       "    } return;\n" +
       "  }\n"
@@ -208,11 +233,10 @@ fn projection_tensor_core_qkv_source(
     "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
     "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
     parameters.input_width.to_string() +
-    "ULL; float value = 0.0f;\n" +
-    "    for (int inner = lane; inner < " +
+    "ULL;\n" +
+    "    const float value = lf_projection_warp_dot(input, selected_weight + weight_base, " +
     parameters.input_width.to_string() +
-    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner])));\n" +
-    "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+    ");\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     "  const int group_count = " +
