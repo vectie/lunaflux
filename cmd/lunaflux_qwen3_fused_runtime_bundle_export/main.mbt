@@ -371,7 +371,7 @@ async fn run(
       abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
       first_operation=args.attention_read.first_operation,
       operation_count=1,
-      function_symbol="lunaflux_paged_attention_bf16_readonly_production_v2_ep_3902",
+      function_symbol="lunaflux_attention_decode_tile_compiler_v1",
       launch=launch_dimensions(args.attention_read),
       module_bytes=attention_bytes,
     ) catch {

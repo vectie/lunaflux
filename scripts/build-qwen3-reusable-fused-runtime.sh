@@ -187,9 +187,9 @@ validate_module prefill reusable-qwen-prefill-attention \
   lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-tile \
   model_operation_id function_symbol reusable-generic
-validate_module attention reusable-qwen-readonly-attention \
-  lunaflux-paged-attention-readonly-cuda-aot-candidate.v2 \
-  paged-attention-rotated-q-paged-kv-readonly-production \
+validate_module attention reusable-qwen-decode-attention \
+  lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
+  paged-attention-decode-functional-tile \
   model_operation_id function_symbol reusable-generic
 
 split_root=$candidate_output/reusable-qwen-decode-split-attention
@@ -222,11 +222,10 @@ grep -Fq "void $split_partial_symbol(" "$split_source" ||
 grep -Fq "void $split_merge_symbol(" "$split_source" ||
   lbf_fail 'decode split merge symbol is absent'
 
-# The readonly and decode split entries deliberately share one reusable CUBIN.
-# The runtime ABI distinguishes this V3 module from older readonly-only V2
-# bundles, while prefill continues to launch the readonly entry.
+# Compiler decode and the long-context split-K entries deliberately share one
+# reusable CUBIN. Prefill is a separate compiler-generated module.
 combined_source=$scratch/attention-combined.cu
-cat "$candidate_output/reusable-qwen-readonly-attention/kernel.cu" \
+cat "$candidate_output/reusable-qwen-decode-attention/kernel.cu" \
   "$split_source" >"$combined_source"
 combined_root=$scratch/attention-combined
 mkdir "$combined_root" "$combined_root/first" "$combined_root/second"

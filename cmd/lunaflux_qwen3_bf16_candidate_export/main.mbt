@@ -147,6 +147,7 @@ priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   attention_prefill : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+  attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
   attention_decode_split : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle
 }
@@ -262,8 +263,111 @@ fn prepare_qwen_compiler_prefill(
 }
 
 ///|
-fn qwen_compiler_prefill_recipe(
+fn prepare_qwen_compiler_decode(
+  plan : @plan.ModelPlan,
+  layout : @device_layout.DeviceKvLayout,
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  qkv_index : Int,
+  attention_index : Int,
+) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
+  guard plan.operations()[qkv_index].shape()
+    is ProjectionShape(output_width~, ..) &&
+    plan.operations()[attention_index].shape()
+    is AttentionShape(query_heads~, kv_heads~, head_dimension~) else {
+    raise QwenReadOnlyPreparation
+  }
+  let maximum_rows = set.profile().max_query_rows()
+  let maximum_tokens = set.profile().max_query_tokens()
+  if maximum_tokens < maximum_rows || layout.page_stride_bytes() % 2L != 0L {
+    raise QwenReadOnlyPreparation
+  }
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape=@luna_attention_strategy.AttentionShape::new(
+      query_heads~,
+      kv_heads~,
+      head_dimension~,
+      tokens_per_page=layout.tokens_per_page(),
+    ),
+    phase=Decode,
+    numeric_type=AttentionBFloat16,
+    batch_rows=maximum_rows,
+    query_rows=1,
+    context_tokens=plan.shape_constraints().max_sequence_tokens(),
+    causal=true,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=100000L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let backend = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend() catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let target = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target() catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+    problem, capabilities,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  guard candidates.filter(candidate => candidate.stable_id() == 410)
+    is [candidate] else {
+    raise QwenReadOnlyPreparation
+  }
+  let records = [
+    @luna_attention_strategy.AttentionAutotuneRecord::new(
+      key=@luna_attention_strategy.AttentionAutotuneKey::new(
+        backend~,
+        target~,
+        problem~,
+        candidate~,
+      ),
+      median_latency_ns=41048L,
+      sample_count=100,
+    ),
+  ] catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot(
+    @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
+      backend~,
+      target_id=target,
+      problem~,
+      capabilities~,
+      device_target=set.target(),
+      maximum_shared_memory_bytes=100000L,
+      abi=@luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
+        query_heads~,
+        key_value_heads=kv_heads,
+        head_dimension~,
+        tokens_per_page=layout.tokens_per_page(),
+        input_row_width=output_width,
+        page_stride_values=layout.page_stride_bytes() / 2L,
+        physical_page_capacity=layout.total_page_count().to_int64(),
+        maximum_query_rows=maximum_rows,
+        maximum_query_tokens=maximum_tokens,
+        maximum_page_entries=set.profile().max_page_table_entries(),
+      ),
+      symbol="lunaflux_attention_decode_tile_compiler_v1",
+      maximum_source_bytes=1048576,
+    ),
+    records,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+}
+
+///|
+fn qwen_compiler_attention_recipe(
   operation : Int,
+  family : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   compiled : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
 ) -> Bytes {
@@ -274,7 +378,9 @@ fn qwen_compiler_prefill_recipe(
   let (grid_x, grid_y, block_x, shared) = lowering.launch()
   @utf8.encode(
     "schema=lunaflux-attention-tile-compiler-cuda-aot-candidate.v1\n" +
-    "family=paged-attention-prefill-functional-tile\n" +
+    "family=" +
+    family +
+    "\n" +
     "model_operation_id=" +
     operation.to_string() +
     "\nfunction_symbol=" +
@@ -491,10 +597,18 @@ fn prepare_qwen_fused_production_set(
       index,
       index + 3,
     )
+    let attention_decode = prepare_qwen_compiler_decode(
+      plan,
+      layout,
+      set,
+      index,
+      index + 3,
+    )
     return {
       first_operation: index,
       postprocess,
       attention_prefill,
+      attention_decode,
       attention_read,
       attention_decode_split,
     }
@@ -615,10 +729,23 @@ async fn run_qwen3_candidate_export(
   write_new_candidate_pair(
     prefill_root,
     qwen_fused.attention_prefill.source().bytes(),
-    qwen_compiler_prefill_recipe(
+    qwen_compiler_attention_recipe(
       qwen_fused.first_operation + 3,
+      "paged-attention-prefill-functional-tile",
       set,
       qwen_fused.attention_prefill,
+    ),
+  )
+  let decode_root = arguments.absolute_new_output +
+    "/reusable-qwen-decode-attention"
+  write_new_candidate_pair(
+    decode_root,
+    qwen_fused.attention_decode.source().bytes(),
+    qwen_compiler_attention_recipe(
+      qwen_fused.first_operation + 3,
+      "paged-attention-decode-functional-tile",
+      set,
+      qwen_fused.attention_decode,
     ),
   )
   let decode_split_root = arguments.absolute_new_output +
@@ -744,6 +871,25 @@ async fn run_qwen3_candidate_export(
     prefill_block_x.to_string() +
     "," +
     prefill_shared.to_string(),
+  )
+  println("reusable_qwen_decode_source=" + decode_root + "/kernel.cu")
+  println("reusable_qwen_decode_recipe=" + decode_root + "/kernel.recipe")
+  println(
+    "reusable_qwen_decode_compilation_sha256=" +
+    qwen_fused.attention_decode.digest().as_hex(),
+  )
+  let (decode_grid_x, decode_grid_y, decode_block_x, decode_shared) = qwen_fused.attention_decode
+    .lowering()
+    .launch()
+  println(
+    "reusable_qwen_decode_launch=" +
+    decode_grid_x.to_string() +
+    "," +
+    decode_grid_y.to_string() +
+    "," +
+    decode_block_x.to_string() +
+    "," +
+    decode_shared.to_string(),
   )
   println(
     "reusable_qwen_decode_split_source=" + decode_split_root + "/kernel.cu",

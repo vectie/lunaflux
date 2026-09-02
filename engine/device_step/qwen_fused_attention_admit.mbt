@@ -209,6 +209,17 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_launch.block_x() == 128 &&
     readonly_launch.shared_memory_bytes() == 0
   }
+  let valid_decode_launch = if decode_module.function_symbol() ==
+    "lunaflux_attention_decode_tile_compiler_v1" {
+    decode_launch.grid_x() == maximum_rows &&
+    decode_launch.block_x() == 128 &&
+    decode_launch.shared_memory_bytes() > 0 &&
+    decode_launch.shared_memory_bytes() <= 100000
+  } else {
+    decode_launch.grid_x() == Int::min(maximum_tokens, 128) &&
+    decode_launch.block_x() == 128 &&
+    decode_launch.shared_memory_bytes() == 0
+  }
   guard plan.operations()[seed_qk_norm].shape()
     is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
     maximum_tokens >= maximum_rows &&
@@ -217,13 +228,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_launch.grid_z() == 1 &&
     readonly_launch.block_y() == 1 &&
     readonly_launch.block_z() == 1 &&
-    decode_launch.grid_x() == Int::min(maximum_tokens, 128) &&
     decode_launch.grid_y() == query_heads &&
     decode_launch.grid_z() == 1 &&
-    decode_launch.block_x() == 128 &&
+    valid_decode_launch &&
     decode_launch.block_y() == 1 &&
     decode_launch.block_z() == 1 &&
-    decode_launch.shared_memory_bytes() == 0 &&
     postprocess.launch_dimensions().grid_x() ==
     Int::min(blueprint.profile().max_query_tokens(), 4096) &&
     postprocess.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&

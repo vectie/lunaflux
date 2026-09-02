@@ -150,15 +150,15 @@ fn qwen_fused_test_runtime(
         abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
         first_operation=5,
         operation_count=1,
-        function_symbol="qwen_decode",
+        function_symbol="lunaflux_attention_decode_tile_compiler_v1",
         launch=@launch_contract.AotLaunchDimensions::new(
-          grid_x=Int::min(blueprint.profile().max_query_tokens(), 128),
+          grid_x=blueprint.profile().max_query_rows(),
           grid_y=16,
           grid_z=1,
           block_x=128,
           block_y=1,
           block_z=1,
-          shared_memory_bytes=0,
+          shared_memory_bytes=66844,
         ),
         module_bytes=b"qwen-decode-module",
       ),
@@ -283,9 +283,17 @@ test "reusable Qwen runtime admits separate compiler prefill and decode kernels"
   assert_eq(spans.length(), 28)
   assert_true(spans[0].has_phase_specific_attention())
   assert_eq(spans[0].readonly_function_symbol(), "qwen_compiler_prefill")
-  assert_eq(spans[0].decode_function_symbol(), "qwen_decode")
+  assert_eq(
+    spans[0].decode_function_symbol(),
+    "lunaflux_attention_decode_tile_compiler_v1",
+  )
   assert_eq(spans[0].readonly_launch().block_x(), 256)
   assert_eq(spans[0].decode_launch().block_x(), 128)
+  assert_eq(
+    spans[0].decode_launch().grid_x(),
+    blueprint.profile().max_query_rows(),
+  )
+  assert_eq(spans[0].decode_launch().shared_memory_bytes(), 66844)
 }
 
 ///|
