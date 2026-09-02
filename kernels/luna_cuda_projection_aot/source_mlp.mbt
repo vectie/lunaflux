@@ -69,6 +69,7 @@ fn projection_tensor_core_mlp_source(
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
+    projection_tensor_core_dual_dot_source() +
     "extern \"C\" __global__ void " +
     symbol +
     "(const int32_t *counts, const __nv_bfloat16 *input, " +

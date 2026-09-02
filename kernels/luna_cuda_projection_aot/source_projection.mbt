@@ -18,7 +18,11 @@ fn projection_tensor_core_prelude() -> String {
   "  }\n" +
   "  for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
   "  return __shfl_sync(0xffffffffU, value, 0);\n" +
-  "}\n" +
+  "}\n"
+}
+
+///|
+fn projection_tensor_core_dual_dot_source() -> String {
   "static __device__ __forceinline__ void lf_projection_warp_dot2(const __nv_bfloat16 *input, const __nv_bfloat16 *left_weight, const __nv_bfloat16 *right_weight, int width, float *left, float *right) {\n" +
   "  const int lane = (int)threadIdx.x & 31; float left_value = 0.0f, right_value = 0.0f;\n" +
   "  for (int inner = lane * 2; inner < width; inner += 64) {\n" +
