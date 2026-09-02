@@ -17,9 +17,6 @@ pub(all) enum ProjectionPhase {
 pub(all) enum ProjectionKernelClass {
   ScalarTile
   SubgroupGemv
-  /// Matrix-unit GEMV obtained by padding the single live row inside a tile.
-  /// The padding policy is semantic; the device backend chooses its matrix ISA.
-  PaddedMatrixGemv
   MatrixTile
 } derive(Debug, Eq)
 
@@ -83,7 +80,6 @@ pub struct ProjectionTile {
 ///|
 pub struct ProjectionCapabilities {
   priv subgroup_width : Int
-  priv padded_matrix_vector_tile : ProjectionTile?
   priv matrix_tile : ProjectionTile?
 } derive(Debug, Eq)
 

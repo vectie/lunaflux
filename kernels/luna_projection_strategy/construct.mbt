@@ -29,7 +29,6 @@ pub fn ProjectionTile::new(
 ///|
 pub fn ProjectionCapabilities::new(
   subgroup_width~ : Int,
-  padded_matrix_vector_tile? : ProjectionTile? = None,
   matrix_tile? : ProjectionTile? = None,
 ) -> ProjectionCapabilities raise ProjectionStrategyError {
   if subgroup_width <= 0 ||
@@ -37,7 +36,7 @@ pub fn ProjectionCapabilities::new(
     (subgroup_width & (subgroup_width - 1)) != 0 {
     raise InvalidProjectionStrategy(Capability)
   }
-  { subgroup_width, padded_matrix_vector_tile, matrix_tile }
+  { subgroup_width, matrix_tile }
 }
 
 ///|

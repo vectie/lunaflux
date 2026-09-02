@@ -66,7 +66,6 @@ fn projection_tensor_core_mlp_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
-  padded_matrix_decode : Bool,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
@@ -80,62 +79,23 @@ fn projection_tensor_core_mlp_source(
     "  const int lane = (int)threadIdx.x & 31;\n" +
     "  if (blockDim.x != 512) return;\n" +
     "  if (token_count == 1) {\n" +
-    (if padded_matrix_decode {
-      "    const int column = (int)blockIdx.x * 256 + warp * 16;\n" +
-      "    extern __shared__ __align__(16) unsigned char shared_bytes[];\n" +
-      "    __nv_bfloat16 *input_tile = reinterpret_cast<__nv_bfloat16 *>(shared_bytes);\n" +
-      "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
-      "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> bg, bu;\n" +
-      "    nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> cg, cu;\n" +
-      "    nvcuda::wmma::fill_fragment(cg, 0.0f); nvcuda::wmma::fill_fragment(cu, 0.0f);\n" +
-      "    for (int inner = 0; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 16) {\n" +
-      "      if ((int)threadIdx.x < 256) { const int element = (int)threadIdx.x; const int tile_row = element >> 4, tile_column = element & 15; input_tile[element] = tile_row == 0 ? input[inner + tile_column] : __float2bfloat16_rn(0.0f); }\n" +
-      "      __syncthreads();\n" +
-      "      if (column < " +
-      parameters.intermediate_width.to_string() +
-      ") { nvcuda::wmma::load_matrix_sync(a, input_tile, 16); nvcuda::wmma::load_matrix_sync(bg, gate_weight + (unsigned long long)column * " +
-      parameters.input_width.to_string() +
-      "ULL + inner, " +
-      parameters.input_width.to_string() +
-      "); nvcuda::wmma::load_matrix_sync(bu, up_weight + (unsigned long long)column * " +
-      parameters.input_width.to_string() +
-      "ULL + inner, " +
-      parameters.input_width.to_string() +
-      "); nvcuda::wmma::mma_sync(cg, a, bg, cg); nvcuda::wmma::mma_sync(cu, a, bu, cu); }\n" +
-      "      __syncthreads();\n" +
-      "    }\n" +
-      "    float *warp_output = reinterpret_cast<float *>(shared_bytes) + warp * 256;\n" +
-      "    if (column < " +
-      parameters.intermediate_width.to_string() +
-      ") nvcuda::wmma::store_matrix_sync(warp_output, cg, 16, nvcuda::wmma::mem_row_major);\n" +
-      "    __syncwarp(); const float gate = lane < 16 ? warp_output[lane] : 0.0f; __syncwarp();\n" +
-      "    if (column < " +
-      parameters.intermediate_width.to_string() +
-      ") nvcuda::wmma::store_matrix_sync(warp_output, cu, 16, nvcuda::wmma::mem_row_major);\n" +
-      "    __syncwarp(); if (lane < 16 && column + lane < " +
-      parameters.intermediate_width.to_string() +
-      ") { const float up = warp_output[lane]; workspace[column + lane] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up); }\n"
-    } else {
-      "    const int intermediate = (int)blockIdx.x * 16 + warp;\n" +
-      "    if (intermediate >= " +
-      parameters.intermediate_width.to_string() +
-      ") return;\n" +
-      "    const unsigned long long weight_base = (unsigned long long)intermediate * " +
-      parameters.input_width.to_string() +
-      "ULL;\n" +
-      "    float gate = 0.0f, up = 0.0f;\n" +
-      "    for (int inner = lane; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 32) {\n" +
-      "      const float input_value = __bfloat162float(input[inner]);\n" +
-      "      gate = __fadd_rn(gate, __fmul_rn(input_value, __bfloat162float(gate_weight[weight_base + inner])));\n" +
-      "      up = __fadd_rn(up, __fmul_rn(input_value, __bfloat162float(up_weight[weight_base + inner])));\n" +
-      "    }\n" +
-      "    for (int delta = 16; delta > 0; delta >>= 1) { gate = __fadd_rn(gate, __shfl_down_sync(0xffffffffU, gate, delta)); up = __fadd_rn(up, __shfl_down_sync(0xffffffffU, up, delta)); }\n" +
-      "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n"
-    }) +
+    "    const int intermediate = (int)blockIdx.x * 16 + warp;\n" +
+    "    if (intermediate >= " +
+    parameters.intermediate_width.to_string() +
+    ") return;\n" +
+    "    const unsigned long long weight_base = (unsigned long long)intermediate * " +
+    parameters.input_width.to_string() +
+    "ULL;\n" +
+    "    float gate = 0.0f, up = 0.0f;\n" +
+    "    for (int inner = lane; inner < " +
+    parameters.input_width.to_string() +
+    "; inner += 32) {\n" +
+    "      const float input_value = __bfloat162float(input[inner]);\n" +
+    "      gate = __fadd_rn(gate, __fmul_rn(input_value, __bfloat162float(gate_weight[weight_base + inner])));\n" +
+    "      up = __fadd_rn(up, __fmul_rn(input_value, __bfloat162float(up_weight[weight_base + inner])));\n" +
+    "    }\n" +
+    "    for (int delta = 16; delta > 0; delta >>= 1) { gate = __fadd_rn(gate, __shfl_down_sync(0xffffffffU, gate, delta)); up = __fadd_rn(up, __shfl_down_sync(0xffffffffU, up, delta)); }\n" +
+    "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
     "    return;\n  }\n" +
     "  const int group_count = " +
     (parameters.intermediate_width / 256).to_string() +
@@ -194,39 +154,19 @@ fn projection_tensor_core_mlp_source(
     "  if (blockDim.x != 512) return;\n" +
     "  const int warp = (int)threadIdx.x >> 5, lane = (int)threadIdx.x & 31;\n" +
     "  if (token_count == 1) {\n" +
-    (if padded_matrix_decode {
-      "    const int column = (int)blockIdx.x * 256 + warp * 16;\n" +
-      "    extern __shared__ __align__(16) unsigned char shared_bytes[]; __nv_bfloat16 *input_tile = reinterpret_cast<__nv_bfloat16 *>(shared_bytes);\n" +
-      "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a; nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b; nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c; nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
-      "    for (int inner = 0; inner < " +
-      parameters.intermediate_width.to_string() +
-      "; inner += 16) { if ((int)threadIdx.x < 256) { const int element = (int)threadIdx.x; const int tile_row = element >> 4, tile_column = element & 15; input_tile[element] = tile_row == 0 ? workspace[inner + tile_column] : __float2bfloat16_rn(0.0f); } __syncthreads(); if (column < " +
-      parameters.output_width.to_string() +
-      ") { nvcuda::wmma::load_matrix_sync(a, input_tile, 16); nvcuda::wmma::load_matrix_sync(b, down_weight + (unsigned long long)column * " +
-      parameters.intermediate_width.to_string() +
-      "ULL + inner, " +
-      parameters.intermediate_width.to_string() +
-      "); nvcuda::wmma::mma_sync(c, a, b, c); } __syncthreads(); }\n" +
-      "    float *warp_output = reinterpret_cast<float *>(shared_bytes) + warp * 256; if (column < " +
-      parameters.output_width.to_string() +
-      ") nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major); __syncwarp(); if (lane < 16 && column + lane < " +
-      parameters.output_width.to_string() +
-      ") output[column + lane] = __float2bfloat16_rn(warp_output[lane]);\n"
-    } else {
-      "    const int output_column = (int)blockIdx.x * 16 + warp;\n" +
-      "    if (output_column >= " +
-      parameters.output_width.to_string() +
-      ") return;\n" +
-      "    const unsigned long long weight_base = (unsigned long long)output_column * " +
-      parameters.intermediate_width.to_string() +
-      "ULL;\n" +
-      "    float value = 0.0f;\n" +
-      "    for (int inner = lane; inner < " +
-      parameters.intermediate_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(workspace[inner]), __bfloat162float(down_weight[weight_base + inner])));\n" +
-      "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
-      "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n"
-    }) +
+    "    const int output_column = (int)blockIdx.x * 16 + warp;\n" +
+    "    if (output_column >= " +
+    parameters.output_width.to_string() +
+    ") return;\n" +
+    "    const unsigned long long weight_base = (unsigned long long)output_column * " +
+    parameters.intermediate_width.to_string() +
+    "ULL;\n" +
+    "    float value = 0.0f;\n" +
+    "    for (int inner = lane; inner < " +
+    parameters.intermediate_width.to_string() +
+    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(workspace[inner]), __bfloat162float(down_weight[weight_base + inner])));\n" +
+    "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+    "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     "  if (warp >= 4) return;\n" +
     "  const int group_count = " +
@@ -337,34 +277,19 @@ fn projection_source(
   match parameters.family {
     QkvProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_qkv_source(
-          symbol,
-          parameters,
-          maximum_tokens,
-          projection_padded_matrix_decode_eligible(dispatch),
-        )
+        projection_tensor_core_qkv_source(symbol, parameters, maximum_tokens)
       } else {
         projection_qkv_source(symbol, parameters, maximum_tokens)
       }
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(
-          symbol,
-          parameters,
-          maximum_tokens,
-          projection_padded_matrix_decode_eligible(dispatch),
-        )
+        projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
       } else {
         projection_dense_source(symbol, parameters, maximum_tokens)
       }
     LanguageModelHead => {
       let base = if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(
-          symbol,
-          parameters,
-          maximum_tokens,
-          projection_padded_matrix_decode_eligible(dispatch),
-        )
+        projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
       } else {
         projection_dense_source(symbol, parameters, maximum_tokens)
       }
@@ -382,12 +307,7 @@ fn projection_source(
     }
     GatedMlp =>
       if projection_tensor_core_mlp_eligible(parameters, dispatch) {
-        projection_tensor_core_mlp_source(
-          symbol,
-          parameters,
-          maximum_tokens,
-          projection_padded_matrix_decode_eligible(dispatch),
-        )
+        projection_tensor_core_mlp_source(symbol, parameters, maximum_tokens)
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)
       } else {

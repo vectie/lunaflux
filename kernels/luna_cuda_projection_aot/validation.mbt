@@ -82,33 +82,8 @@ fn projection_cuda_capabilities(
   } else {
     None
   }
-  let padded_matrix_vector_tile = if parameters.input_width % 16 == 0 &&
-    parameters.output_width % 16 == 0 &&
-    (parameters.family != GatedMlp || parameters.intermediate_width % 16 == 0) &&
-    (
-      parameters.family != QkvProjection ||
-      (
-        parameters.query_width > 0 &&
-        parameters.query_width % 16 == 0 &&
-        parameters.intermediate_width > 0 &&
-        parameters.intermediate_width % 16 == 0
-      )
-    ) {
-    Some(
-      @luna_projection_strategy.ProjectionTile::new(
-        rows=16,
-        columns=16,
-        reduction=16,
-      ) catch {
-        _ => abort("static CUDA padded matrix-vector tile rejected")
-      },
-    )
-  } else {
-    None
-  }
   @luna_projection_strategy.ProjectionCapabilities::new(
     subgroup_width=32,
-    padded_matrix_vector_tile~,
     matrix_tile~,
   ) catch {
     _ => abort("static CUDA projection capability rejected")
@@ -176,20 +151,14 @@ fn projection_validate_runtime_dispatch(
   let subgroup = capabilities.subgroup_width()
   let decode = dispatch.decode()
   let prefill = dispatch.prefill()
-  let subgroup_decode_tile = @luna_projection_strategy.ProjectionTile::new(
+  let expected_decode_tile = @luna_projection_strategy.ProjectionTile::new(
     rows=1,
     columns=subgroup,
     reduction=subgroup,
   ) catch {
     _ => raise Invalid(Strategy)
   }
-  let decode_supported = match decode.kernel_class() {
-    ScalarTile | SubgroupGemv => decode.tile() == subgroup_decode_tile
-    PaddedMatrixGemv =>
-      capabilities.padded_matrix_vector_tile() == Some(decode.tile())
-    MatrixTile => false
-  }
-  if !decode_supported {
+  if decode.tile() != expected_decode_tile {
     raise Mismatch(Strategy)
   }
   // A single-row profile has no admitted prefill bucket. The neutral runtime
@@ -209,16 +178,14 @@ fn projection_validate_runtime_dispatch(
         ) catch {
           _ => raise Invalid(Strategy)
         })
-      SubgroupGemv | PaddedMatrixGemv => false
+      SubgroupGemv => false
     }
   }
   let pair_supported = if maximum_rows == 1 {
     prefill == decode
   } else {
     match (decode.kernel_class(), prefill.kernel_class()) {
-      (PaddedMatrixGemv, MatrixTile)
-      | (SubgroupGemv, MatrixTile)
-      | (ScalarTile, ScalarTile) => true
+      (SubgroupGemv, MatrixTile) | (ScalarTile, ScalarTile) => true
       _ => false
     }
   }

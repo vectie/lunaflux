@@ -289,7 +289,7 @@ fn paged_projection_bucket_grid_x(
       Int::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
     ProjectionTensorCoreGridX(source, output_width) => {
       let grid = if query_token_bound == 1 {
-        paged_ceil_div(output_width, 128)
+        paged_ceil_div(output_width, 8)
       } else {
         paged_ceil_div(output_width, 128) *
         paged_ceil_div(query_token_bound, 16)
@@ -307,7 +307,7 @@ fn paged_projection_bucket_grid_x(
     }
     ProjectionMlpUpGridX(source, intermediate_width) => {
       let grid = if query_token_bound == 1 {
-        paged_ceil_div(intermediate_width, 256)
+        paged_ceil_div(intermediate_width, 16)
       } else {
         paged_ceil_div(query_token_bound, 16) *
         paged_ceil_div(intermediate_width, 256)
@@ -316,7 +316,7 @@ fn paged_projection_bucket_grid_x(
     }
     ProjectionMlpDownGridX(source, output_width) => {
       let grid = if query_token_bound == 1 {
-        paged_ceil_div(output_width, 256)
+        paged_ceil_div(output_width, 16)
       } else {
         paged_ceil_div(query_token_bound, 16) * paged_ceil_div(output_width, 64)
       }

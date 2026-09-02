@@ -23,13 +23,6 @@ pub fn ProjectionCapabilities::subgroup_width(
 }
 
 ///|
-pub fn ProjectionCapabilities::padded_matrix_vector_tile(
-  self : ProjectionCapabilities,
-) -> ProjectionTile? {
-  self.padded_matrix_vector_tile
-}
-
-///|
 pub fn ProjectionCapabilities::matrix_tile(
   self : ProjectionCapabilities,
 ) -> ProjectionTile? {

@@ -64,7 +64,7 @@ test "generated projection sources retain exact canonical ABIs" {
 }
 
 ///|
-test "Qwen-shaped MLP uses tiled prefill and padded matrix decode" {
+test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   let operation = projection_fixture_operation(
     9,
     GatedMlp,
@@ -137,8 +137,7 @@ test "Qwen-shaped MLP uses tiled prefill and padded matrix decode" {
   assert_false(source.contains("__nv_bfloat16 *a_tile"))
   assert_true(source.contains("row_start + tile_row < token_count"))
   assert_true(source.contains("if (token_count == 1)"))
-  assert_true(source.contains("tile_row == 0 ? input[inner + tile_column]"))
-  assert_true(source.contains("column + lane < 3072"))
+  assert_true(source.contains("__shfl_down_sync"))
   assert_true(source.contains("if (warp >= 4) return;"))
   assert_true(source.contains("const int group_count = 16;"))
   assert_true(source.contains("work_group += (int)gridDim.x"))
@@ -150,7 +149,7 @@ test "Qwen-shaped MLP uses tiled prefill and padded matrix decode" {
 }
 
 ///|
-test "Qwen-shaped language head uses tiled prefill and padded matrix sampling" {
+test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
   let operation = projection_fixture_operation(
     10,
     LanguageModelHead,
@@ -190,7 +189,7 @@ test "Qwen-shaped language head uses tiled prefill and padded matrix sampling" {
   assert_true(source.contains("if (counts[2] == 1)"))
   assert_true(source.contains("const unsigned long long live_row"))
   assert_true(source.contains("nvcuda::wmma::mma_sync"))
-  assert_true(source.contains("tile_row == 0 ? (input + input_base)"))
+  assert_true(source.contains("__shfl_down_sync"))
   assert_eq(lowering.launch_dimensions().grid_x(), 1187)
 }
 
@@ -204,7 +203,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     intermediate_width: 1024,
   }
   let qkv = @utf8.decode(
-    projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256, false),
+    projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256),
   )
   assert_true(qkv.contains("if (token_count == 1)"))
   assert_true(qkv.contains("__shfl_down_sync"))
@@ -219,9 +218,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     intermediate_width: 0,
   }
   let dense = @utf8.decode(
-    projection_tensor_core_dense_source(
-      "qwen_dense", dense_parameters, 256, false,
-    ),
+    projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256),
   )
   assert_true(dense.contains("if (token_count == 1)"))
   assert_true(dense.contains("__shfl_down_sync"))
@@ -284,7 +281,7 @@ test "single-row profiles reuse the exact decode projection strategy" {
     subgroup_runtime, subgroup_parameters, 1, target,
   )
   assert_eq(subgroup.decode(), subgroup.prefill())
-  assert_eq(subgroup.decode().kernel_class(), PaddedMatrixGemv)
+  assert_eq(subgroup.decode().kernel_class(), SubgroupGemv)
 }
 
 ///|

@@ -205,7 +205,7 @@ test "projection buckets remove maximum-envelope decode blocks" {
     shared_memory_bytes=8192,
   )
   let dense_rule = ProjectionTensorCoreGridX(dense, 2048)
-  assert_eq(paged_projection_bucket_grid_x(dense_rule, 1), 16)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 1), 256)
   assert_eq(paged_projection_bucket_grid_x(dense_rule, 8), 16)
   assert_eq(paged_projection_bucket_grid_x(dense_rule, 32), 32)
   let scaled = paged_bucket_launch(dense_rule, 8)
@@ -228,10 +228,10 @@ test "gated MLP buckets independently scale up and down projections" {
   )
   let up = ProjectionMlpUpGridX(source, 3072)
   let down = ProjectionMlpDownGridX(source, 1024)
-  assert_eq(paged_projection_bucket_grid_x(up, 1), 12)
+  assert_eq(paged_projection_bucket_grid_x(up, 1), 192)
   assert_eq(paged_projection_bucket_grid_x(up, 8), 12)
   assert_eq(paged_projection_bucket_grid_x(up, 32), 24)
-  assert_eq(paged_projection_bucket_grid_x(down, 1), 4)
+  assert_eq(paged_projection_bucket_grid_x(down, 1), 64)
   assert_eq(paged_projection_bucket_grid_x(down, 8), 16)
   assert_eq(paged_projection_bucket_grid_x(down, 32), 32)
 }
