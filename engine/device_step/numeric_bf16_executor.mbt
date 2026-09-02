@@ -139,7 +139,7 @@ fn prepare_numeric_bf16_graph_resources(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let model_steps = prepare_paged_production_steps(
+  let (model_steps, phase_decode_model_steps) = prepare_paged_production_steps(
     context,
     blueprint,
     function_indices,
@@ -155,10 +155,14 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let decode_model_steps = prepare_paged_decode_split_steps(
+  let decode_baseline = match phase_decode_model_steps {
+    Some(steps) => steps
+    None => model_steps
+  }
+  let split_decode_model_steps = prepare_paged_decode_split_steps(
     context,
     blueprint,
-    model_steps,
+    decode_baseline,
     decode_split_bindings,
     decode_split_maximum_workspace_bytes,
     descriptor.resources,
@@ -170,6 +174,10 @@ fn prepare_numeric_bf16_graph_resources(
     qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
+  }
+  let decode_model_steps = match split_decode_model_steps {
+    Some(steps) => Some(steps)
+    None => phase_decode_model_steps
   }
   let decode_split_minimum_context_tokens = paged_decode_split_minimum_context_tokens(
     decode_split_bindings,

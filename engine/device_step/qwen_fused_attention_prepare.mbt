@@ -41,7 +41,7 @@ fn prepare_qwen_fused_attention_resources(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
   resources : PagedGraphResources,
-) -> (Int, Int, @device.Allocation) raise DeviceStepError {
+) -> (Int, Int, Int, @device.Allocation) raise DeviceStepError {
   guard spans.get(0) is Some(first) else {
     raise InvalidExecutor(ResourceState)
   }
@@ -64,6 +64,16 @@ fn prepare_qwen_fused_attention_resources(
     first.readonly_function_symbol(),
     resources,
   )
+  let decode_function = if first.has_phase_specific_attention() {
+    prepare_composite_function(
+      context,
+      first.decode_module_bytes(),
+      first.decode_function_symbol(),
+      resources,
+    )
+  } else {
+    readonly_function
+  }
   if resources.qwen_fused_attention_sidecar is Some(_) {
     raise InvalidExecutor(ResourceState)
   }
@@ -85,7 +95,7 @@ fn prepare_qwen_fused_attention_resources(
   ) catch {
     error => raise ExecutorDevice(KernelArguments, error)
   }
-  (postprocess, readonly_function, sidecar)
+  (postprocess, readonly_function, decode_function, sidecar)
 }
 
 ///|
@@ -163,6 +173,7 @@ fn prepare_qwen_fused_attention_steps(
   span : ApprovedQwenFusedAttentionSpan,
   ingress_function : Int,
   readonly_function : Int,
+  readonly_launch : @launch_contract.AotLaunchDimensions,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -283,7 +294,7 @@ fn prepare_qwen_fused_attention_steps(
     prepare_qwen_fused_attention_launch(
       attention_step.operation_id(),
       readonly_function,
-      span.readonly_launch(),
+      readonly_launch,
       readonly_bindings,
       readonly_bindings.length() - 4,
       sidecar,

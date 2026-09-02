@@ -78,6 +78,32 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
 }
 
 ///|
+/// Returns the dedicated compiler-generated prefill entry when present.
+/// Older V3 bundles remain executable by using their mixed readonly kernel for
+/// both phases; a bundle containing both V2 and V3 keeps the V3 entry reserved
+/// for decode.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  match self.module_for(QwenPagedAttentionReadOnlyProductionV2) {
+    Some(module_) => Some(module_)
+    None => self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3)
+  }
+}
+
+///|
+/// Returns the decode entry, falling back to an older mixed V2 module only
+/// when the bundle predates phase-specific attention compilation.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  match self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3) {
+    Some(module_) => Some(module_)
+    None => self.module_for(QwenPagedAttentionReadOnlyProductionV2)
+  }
+}
+
+///|
 /// Returns the phase-specialized readonly module only when it also carries
 /// the stable decode split-K partial and merge entries.
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(

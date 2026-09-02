@@ -183,6 +183,10 @@ validate_module residual reusable-fused-residual \
 validate_module ingress reusable-qwen-ingress \
   lunaflux-qknorm-rope-paged-kv-write-candidate.v2 \
   qknorm-positioned-rope-paged-kv-write qkv_operation symbol model-bound
+validate_module prefill reusable-qwen-prefill-attention \
+  lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
+  paged-attention-prefill-functional-tile \
+  model_operation_id function_symbol reusable-generic
 validate_module attention reusable-qwen-readonly-attention \
   lunaflux-paged-attention-readonly-cuda-aot-candidate.v2 \
   paged-attention-rotated-q-paged-kv-readonly-production \
@@ -249,6 +253,7 @@ module_row() {
 residual_row=$(module_row residual)
 ingress_row=$(module_row ingress)
 attention_row=$(module_row attention)
+prefill_row=$(module_row prefill)
 IFS=, read -r _ residual_operation residual_grid_x residual_grid_y \
   residual_block_x residual_shared <<EOF
 $residual_row
@@ -261,8 +266,14 @@ IFS=, read -r _ attention_operation attention_grid_x attention_grid_y \
   attention_block_x attention_shared <<EOF
 $attention_row
 EOF
+IFS=, read -r _ prefill_operation prefill_grid_x prefill_grid_y \
+  prefill_block_x prefill_shared <<EOF
+$prefill_row
+EOF
 [ "$split_operation" = "$attention_operation" ] ||
   lbf_fail 'decode split and readonly operation identities differ'
+[ "$prefill_operation" = "$attention_operation" ] ||
+  lbf_fail 'compiler prefill and readonly operation identities differ'
 
 runtime=$stage/reusable-fused-runtime-bundle.v3
 "$exporter" "$model_content_sha" "$model_plan_sha" \
@@ -270,6 +281,8 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$residual_block_x" "$residual_shared" "$stage/residual.cubin" \
   "$ingress_operation" "$ingress_grid_x" "$ingress_grid_y" \
   "$ingress_block_x" "$ingress_shared" "$stage/ingress.cubin" \
+  "$prefill_operation" "$prefill_grid_x" "$prefill_grid_y" \
+  "$prefill_block_x" "$prefill_shared" "$stage/prefill.cubin" \
   "$attention_operation" "$attention_grid_x" "$attention_grid_y" \
   "$attention_block_x" "$attention_shared" "$stage/attention.cubin" \
   "$runtime" >"$scratch/export.stdout" 2>"$scratch/export.stderr" ||
@@ -277,7 +290,7 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
 [ ! -s "$scratch/export.stderr" ] ||
   lbf_fail 'reusable fused runtime bundle exporter emitted stderr'
 
-for module in residual ingress attention; do
+for module in residual ingress prefill attention; do
   printf '%s  %s.cubin\n' "$(lbf_sha256_file "$stage/$module.cubin")" "$module"
 done >"$stage/FILES.sha256"
 printf '%s  reusable-fused-runtime-bundle.v3\n' \
@@ -293,5 +306,5 @@ printf '%s\n' 'schema=lunaflux-qwen3-reusable-fused-runtime-build.v1'
 printf 'runtime=%s/reusable-fused-runtime-bundle.v3\n' "$output"
 printf 'runtime_sha256=%s\n' \
   "$(lbf_sha256_file "$output/reusable-fused-runtime-bundle.v3")"
-printf '%s\n' 'compiler_invocations=8'
+printf '%s\n' 'compiler_invocations=10'
 printf '%s\n' 'device_opened=0'

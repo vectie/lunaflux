@@ -15,7 +15,10 @@ fn prepare_paged_production_steps(
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
   qwen_fused_attention_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
+) -> (
+  ReadOnlyArray[PreparedPagedGraphStep],
+  ReadOnlyArray[PreparedPagedGraphStep]?,
+) raise DeviceStepError {
   let fused_residual_function = match fused_residual_spans.get(0) {
     Some(span) =>
       Some(prepare_fused_residual_resources(context, span, resources))
@@ -77,6 +80,8 @@ fn prepare_paged_production_steps(
   }
   let qwen_ingress_replacements : Array[PreparedPagedGraphStep] = []
   let qwen_readonly_replacements : Array[PreparedPagedGraphStep] = []
+  let qwen_decode_replacements : Array[PreparedPagedGraphStep] = []
+  let mut has_phase_specific_qwen_attention = false
   match qwen_fused_attention_functions {
     Some(functions) =>
       for span in qwen_fused_attention_spans {
@@ -85,21 +90,41 @@ fn prepare_paged_production_steps(
           span,
           functions.0,
           functions.1,
+          span.readonly_launch(),
           descriptor,
           weight,
           activation,
           kv,
-          functions.2,
+          functions.3,
         )
         qwen_ingress_replacements.push(prepared.0)
         qwen_readonly_replacements.push(prepared.1)
+        if span.has_phase_specific_attention() {
+          has_phase_specific_qwen_attention = true
+          qwen_decode_replacements.push(
+            prepare_qwen_fused_attention_steps(
+              blueprint,
+              span,
+              functions.0,
+              functions.2,
+              span.decode_launch(),
+              descriptor,
+              weight,
+              activation,
+              kv,
+              functions.3,
+            ).1,
+          )
+        } else {
+          qwen_decode_replacements.push(prepared.1)
+        }
       }
     None =>
       if !qwen_fused_attention_spans.is_empty() {
         raise InvalidExecutor(ResourceState)
       }
   }
-  let replaced = replace_paged_production_spans(
+  let prefill_replaced = replace_paged_production_spans(
     baseline,
     ReadOnlyArray::from_array(residual_replacements),
     fused_residual_spans,
@@ -109,8 +134,24 @@ fn prepare_paged_production_steps(
     ReadOnlyArray::from_array(qwen_readonly_replacements),
     qwen_fused_attention_spans,
   )
+  let decode_replaced = if has_phase_specific_qwen_attention {
+    Some(
+      replace_paged_production_spans(
+        baseline,
+        ReadOnlyArray::from_array(residual_replacements),
+        fused_residual_spans,
+        qkv_readonly_replacements,
+        fused_qkv_readonly_span,
+        ReadOnlyArray::from_array(qwen_ingress_replacements),
+        ReadOnlyArray::from_array(qwen_decode_replacements),
+        qwen_fused_attention_spans,
+      ),
+    )
+  } else {
+    None
+  }
   let expanded : Array[PreparedPagedGraphStep] = []
-  for prepared in replaced {
+  for prepared in prefill_replaced {
     expanded.push(prepared)
     let split_function_index = paged_production_split_decode_function(
       prepared.operation_id,
@@ -127,7 +168,31 @@ fn prepare_paged_production_steps(
       })
     }
   }
-  ReadOnlyArray::from_array(expanded)
+  let expanded_decode = match decode_replaced {
+    Some(decode_steps) => {
+      let result : Array[PreparedPagedGraphStep] = []
+      for prepared in decode_steps {
+        result.push(prepared)
+        let split_function_index = paged_production_split_decode_function(
+          prepared.operation_id,
+          blueprint,
+          split_decode_indices,
+          qwen_fused_attention_spans,
+        )
+        if split_function_index >= 0 {
+          result.push({
+            operation_id: prepared.operation_id,
+            function_index: split_function_index,
+            dimensions: prepared.dimensions,
+            arguments: prepared.arguments,
+          })
+        }
+      }
+      Some(ReadOnlyArray::from_array(result))
+    }
+    None => None
+  }
+  (ReadOnlyArray::from_array(expanded), expanded_decode)
 }
 
 ///|

@@ -158,17 +158,24 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     raise MismatchedFusedGroupedOperation(ModelIdentity)
   }
   guard runtime.qwen_qknorm_rope_kv_write_module() is Some(postprocess) &&
-    runtime.qwen_paged_attention_readonly_module() is Some(readonly_module) &&
+    runtime.qwen_paged_attention_prefill_module() is Some(readonly_module) &&
+    runtime.qwen_paged_attention_decode_module() is Some(decode_module) &&
     postprocess.kernel_abi() == QwenQkNormPositionedRopePagedKvWriteProductionV2 &&
     (
       readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
       readonly_module.kernel_abi() ==
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3
     ) &&
+    (
+      decode_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
+      decode_module.kernel_abi() ==
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+    ) &&
     runtime.qwen_qknorm_rope_kv_write_operation_indices()
     is Some((seed_qk_norm, seed_rope, seed_attention)) &&
     runtime.qwen_paged_attention_readonly_operation_index()
-    is Some(readonly_attention) else {
+    is Some(readonly_attention) &&
+    decode_module.operation_span() == (readonly_attention, 1) else {
     raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   let seed_qkv = seed_qk_norm - 1
@@ -179,16 +186,44 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   require_qwen_fused_attention_plan_span(plan, blueprint, seed_qkv)
+  let phase_specific = readonly_module.module_digest() !=
+    decode_module.module_digest() ||
+    readonly_module.function_symbol() != decode_module.function_symbol() ||
+    readonly_module.launch_dimensions() != decode_module.launch_dimensions()
+  let readonly_launch = readonly_module.launch_dimensions()
+  let decode_launch = decode_module.launch_dimensions()
+  let maximum_rows = blueprint.profile().max_query_rows()
+  let maximum_tokens = blueprint.profile().max_query_tokens()
+  let compiler_prefill_grid = maximum_rows +
+    (maximum_tokens - maximum_rows + 15) / 16
+  let valid_prefill_launch = if phase_specific {
+    readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
+    decode_module.kernel_abi() ==
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
+    readonly_launch.grid_x() == compiler_prefill_grid &&
+    readonly_launch.block_x() == 256 &&
+    readonly_launch.shared_memory_bytes() > 0 &&
+    readonly_launch.shared_memory_bytes() <= 100000
+  } else {
+    readonly_launch.grid_x() == Int::min(maximum_tokens, 128) &&
+    readonly_launch.block_x() == 128 &&
+    readonly_launch.shared_memory_bytes() == 0
+  }
   guard plan.operations()[seed_qk_norm].shape()
     is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
-    readonly_module.launch_dimensions().grid_x() ==
-    Int::min(blueprint.profile().max_query_tokens(), 128) &&
-    readonly_module.launch_dimensions().grid_y() == query_heads &&
-    readonly_module.launch_dimensions().grid_z() == 1 &&
-    readonly_module.launch_dimensions().block_x() == 128 &&
-    readonly_module.launch_dimensions().block_y() == 1 &&
-    readonly_module.launch_dimensions().block_z() == 1 &&
-    readonly_module.launch_dimensions().shared_memory_bytes() == 0 &&
+    maximum_tokens >= maximum_rows &&
+    valid_prefill_launch &&
+    readonly_launch.grid_y() == query_heads &&
+    readonly_launch.grid_z() == 1 &&
+    readonly_launch.block_y() == 1 &&
+    readonly_launch.block_z() == 1 &&
+    decode_launch.grid_x() == Int::min(maximum_tokens, 128) &&
+    decode_launch.grid_y() == query_heads &&
+    decode_launch.grid_z() == 1 &&
+    decode_launch.block_x() == 128 &&
+    decode_launch.block_y() == 1 &&
+    decode_launch.block_z() == 1 &&
+    decode_launch.shared_memory_bytes() == 0 &&
     postprocess.launch_dimensions().grid_x() ==
     Int::min(blueprint.profile().max_query_tokens(), 4096) &&
     postprocess.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
@@ -222,6 +257,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       readonly_module_bytes: readonly_module.module_bytes(),
       readonly_symbol: readonly_module.function_symbol(),
       readonly_launch: readonly_module.launch_dimensions(),
+      decode_module_digest: decode_module.module_digest(),
+      decode_module_bytes: decode_module.module_bytes(),
+      decode_symbol: decode_module.function_symbol(),
+      decode_launch: decode_module.launch_dimensions(),
       qkv_index,
       qk_norm_index: qkv_index + 1,
       rope_index: qkv_index + 2,

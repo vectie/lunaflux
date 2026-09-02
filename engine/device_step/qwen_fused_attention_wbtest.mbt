@@ -68,6 +68,7 @@ fn qwen_fused_test_runtime(
   include_residual? : Bool = false,
   include_readonly? : Bool = true,
   ingress_grid_y? : Int = 32,
+  phase_specific_attention? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
@@ -115,7 +116,41 @@ fn qwen_fused_test_runtime(
         abi=QwenPagedAttentionReadOnlyProductionV2,
         first_operation=5,
         operation_count=1,
-        function_symbol="qwen_readonly",
+        function_symbol=if phase_specific_attention {
+          "qwen_compiler_prefill"
+        } else {
+          "qwen_readonly"
+        },
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=if phase_specific_attention {
+            blueprint.profile().max_query_rows() +
+            (
+              blueprint.profile().max_query_tokens() -
+              blueprint.profile().max_query_rows() +
+              15
+            ) /
+            16
+          } else {
+            Int::min(blueprint.profile().max_query_tokens(), 128)
+          },
+          grid_y=16,
+          grid_z=1,
+          block_x=if phase_specific_attention { 256 } else { 128 },
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=if phase_specific_attention { 31952 } else { 0 },
+        ),
+        module_bytes=b"qwen-readonly-module",
+      ),
+    )
+  }
+  if phase_specific_attention {
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="qwen_decode",
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=Int::min(blueprint.profile().max_query_tokens(), 128),
           grid_y=16,
@@ -125,7 +160,7 @@ fn qwen_fused_test_runtime(
           block_z=1,
           shared_memory_bytes=0,
         ),
-        module_bytes=b"qwen-readonly-module",
+        module_bytes=b"qwen-decode-module",
       ),
     )
   }
@@ -228,6 +263,29 @@ test "reusable Qwen runtime requires both ingress and readonly modules" {
   } noraise {
     _ => fail("Qwen ingress-only bundle reached executable span admission")
   }
+}
+
+///|
+test "reusable Qwen runtime admits separate compiler prefill and decode kernels" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  assert_eq(spans.length(), 28)
+  assert_true(spans[0].has_phase_specific_attention())
+  assert_eq(spans[0].readonly_function_symbol(), "qwen_compiler_prefill")
+  assert_eq(spans[0].decode_function_symbol(), "qwen_decode")
+  assert_eq(spans[0].readonly_launch().block_x(), 256)
+  assert_eq(spans[0].decode_launch().block_x(), 128)
 }
 
 ///|

@@ -1,5 +1,5 @@
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 3
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 4
 
 ///|
 const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int = 8388608
@@ -95,6 +95,14 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
       QwenQkNormPositionedRopePagedKvWriteProductionV2,
     ) => first_a == first_b + 2
+    (
+      QwenPagedAttentionReadOnlyProductionV2,
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+    ) => first_a == first_b
+    (
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+      QwenPagedAttentionReadOnlyProductionV2,
+    ) => first_a == first_b
     _ => false
   }
 }
