@@ -1,5 +1,11 @@
 ///|
 fn main raise {
+  let requested_candidate = match @env.args() {
+    [_, "290"] => Some(290)
+    [_, "291"] => Some(291)
+    [_, "300"] => Some(300)
+    _ => None
+  }
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
@@ -28,13 +34,39 @@ fn main raise {
       ),
     ),
   )
+  let backend = @luna_attention_strategy.AttentionBackendId::new("cuda")
+  let target = @luna_attention_strategy.AttentionTargetId::new("sm120-probe")
+  let records = match requested_candidate {
+    None => []
+    Some(stable_id) => {
+      let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+        problem, capabilities,
+      )
+      guard candidates.filter(candidate => candidate.stable_id() == stable_id)
+        is [candidate] else {
+        raise Failure("requested attention tile candidate is unavailable")
+      }
+      [
+        @luna_attention_strategy.AttentionAutotuneRecord::new(
+          key=@luna_attention_strategy.AttentionAutotuneKey::new(
+            backend~,
+            target~,
+            problem~,
+            candidate~,
+          ),
+          median_latency_ns=1L,
+          sample_count=3,
+        ),
+      ]
+    }
+  }
   let compiled = @luna_attention_tile_compiler.compile_attention_tile(
     @luna_attention_tile_compiler.AttentionTileCompilerRequest::new(
-      backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
-      target=@luna_attention_strategy.AttentionTargetId::new("sm120-probe"),
+      backend~,
+      target~,
       problem~,
       capabilities~,
-      [],
+      records,
     ),
   )
   let lowering = @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(

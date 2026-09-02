@@ -98,9 +98,9 @@ test "matrix-tiled prefill source is deterministic and consumes the schedule" {
   for
     required in [
       "#define LF_QUERY_TILE 16", "#define LF_KEY_VALUE_TILE 64", "wmma::mma_sync",
-      "AttentionTileFoldKeyValueStream", "running_denominator[query] * previous_scale + tile_sum",
-      "tile_ordinal < tile_prefix + row_tiles", "const __nv_bfloat16 *key_cache",
-      "const __nv_bfloat16 *value_cache",
+      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 53392", "AttentionTileFoldKeyValueStream",
+      "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
+      "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
     ] {
     if required == "AttentionTileFoldKeyValueStream" {
       assert_false(source.contains(required))

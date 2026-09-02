@@ -12,7 +12,6 @@ static constexpr int tokens_per_page = 16;
 static constexpr int query_width = query_heads * head_dimension;
 static constexpr int input_row_width = 3072;
 static constexpr int page_stride_values = 8192;
-static constexpr int dynamic_shared_bytes = 86160;
 
 static void require_cuda(cudaError_t status, const char *step) {
   if (status != cudaSuccess) {
@@ -133,18 +132,43 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
   require_cuda(
       cudaFuncSetAttribute(lunaflux_attention_prefill_tile_v1,
                            cudaFuncAttributeMaxDynamicSharedMemorySize,
-                           dynamic_shared_bytes),
+                           LF_SHARED_MEMORY_BYTES),
       "cudaFuncSetAttribute");
-  lunaflux_attention_prefill_tile_v1<<<dim3(128, query_heads), 256,
-                                       dynamic_shared_bytes>>>(
-      d_counts, d_positions, d_row_offsets, d_sequence_lengths, d_page_offsets,
-      d_page_indices, d_qkv, d_output, d_keys, d_values);
+  const auto launch = [&]() {
+    lunaflux_attention_prefill_tile_v1<<<dim3(128, query_heads),
+                                         LF_BLOCK_THREADS,
+                                         LF_SHARED_MEMORY_BYTES>>>(
+        d_counts, d_positions, d_row_offsets, d_sequence_lengths,
+        d_page_offsets, d_page_indices, d_qkv, d_output, d_keys, d_values);
+  };
+  launch();
   require_cuda(cudaGetLastError(), "kernel launch");
   require_cuda(cudaDeviceSynchronize(), "kernel synchronize");
   require_cuda(cudaMemcpy(output.data(), d_output,
                           output.size() * sizeof(__nv_bfloat16),
                           cudaMemcpyDeviceToHost),
                "cudaMemcpyDeviceToHost");
+
+  for (int warmup = 0; warmup < 10; ++warmup) launch();
+  require_cuda(cudaDeviceSynchronize(), "benchmark warmup");
+  cudaEvent_t begin = nullptr;
+  cudaEvent_t end = nullptr;
+  require_cuda(cudaEventCreate(&begin), "cudaEventCreate begin");
+  require_cuda(cudaEventCreate(&end), "cudaEventCreate end");
+  require_cuda(cudaEventRecord(begin), "cudaEventRecord begin");
+  for (int iteration = 0; iteration < 100; ++iteration) launch();
+  require_cuda(cudaEventRecord(end), "cudaEventRecord end");
+  require_cuda(cudaEventSynchronize(end), "cudaEventSynchronize end");
+  float elapsed_millis = 0.0f;
+  require_cuda(cudaEventElapsedTime(&elapsed_millis, begin, end),
+               "cudaEventElapsedTime");
+  require_cuda(cudaEventDestroy(begin), "cudaEventDestroy begin");
+  require_cuda(cudaEventDestroy(end), "cudaEventDestroy end");
+  std::printf(
+      "benchmark_case=%s tokens=%d rows=%zu key_value_tile=%d "
+      "block_threads=%d shared_memory_bytes=%lld mean_microseconds=%g\n",
+      name, token_count, lengths.size(), LF_KEY_VALUE_TILE, LF_BLOCK_THREADS,
+      static_cast<long long>(LF_SHARED_MEMORY_BYTES), elapsed_millis * 10.0f);
 
   float maximum_absolute_error = 0.0f;
   for (int query = 0; query < token_count; ++query) {

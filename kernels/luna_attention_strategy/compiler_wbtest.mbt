@@ -83,7 +83,13 @@ test "attention compiler generates portable long-prefill tile candidates" {
     problem,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 8)
+  assert_eq(candidates.length(), 10)
+  let matrix_narrow = compiler_candidate_with_id(candidates, 290)
+  assert_eq(matrix_narrow.compute(), AttentionMatrixDot)
+  assert_eq(matrix_narrow.memory(), AttentionStagedShared)
+  assert_eq(matrix_narrow.tile().dimensions(), (16, 32, 128))
+  assert_eq(matrix_narrow.execution_geometry(), (4, 1, 16))
+  assert_eq(matrix_narrow.shared_memory_bytes(), 32912L)
   let matrix_async = compiler_candidate_with_id(candidates, 301)
   assert_eq(matrix_async.compute(), AttentionMatrixDot)
   assert_eq(matrix_async.memory(), AttentionAsyncStagedShared)
@@ -112,9 +118,10 @@ test "attention compiler prunes unsupported pipelines and matrix operations" {
     supports_async_copy=false,
   )
   let candidates = generate_attention_tile_candidates(problem, constrained)
-  assert_eq(candidates.length(), 2)
+  assert_eq(candidates.length(), 3)
   assert_eq(candidates[0].stable_id(), 100)
   assert_eq(candidates[1].stable_id(), 200)
+  assert_eq(candidates[2].stable_id(), 210)
   let plan = compile_attention_tile_plan(
     [],
     backend=AttentionBackendId::new("portable"),
@@ -122,7 +129,7 @@ test "attention compiler prunes unsupported pipelines and matrix operations" {
     problem~,
     capabilities=constrained,
   )
-  assert_eq(plan.candidate().stable_id(), 200)
+  assert_eq(plan.candidate().stable_id(), 210)
 }
 
 ///|

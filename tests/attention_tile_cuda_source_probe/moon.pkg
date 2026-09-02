@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
   "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
 }
 
 supported_targets = "native"

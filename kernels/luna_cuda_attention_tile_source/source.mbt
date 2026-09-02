@@ -19,7 +19,7 @@ pub fn emit_cuda_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let (query_tile, key_value_tile, head_dimension) = lowering.tile()
-  let (_, _, block_threads, _) = lowering.launch()
+  let (_, _, block_threads, shared_memory_bytes) = lowering.launch()
   let (pipeline_stages, vector_bytes) = lowering.pipeline()
   let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
   let (input_row_width, page_stride_values, physical_page_capacity) = abi.layout()
@@ -32,7 +32,7 @@ pub fn emit_cuda_attention_tile_source(
     head_dimension % 16 != 0 ||
     block_threads < key_value_tile / 16 * 32 ||
     block_threads > 1024 ||
-    pipeline_stages < 2 ||
+    pipeline_stages < 1 ||
     pipeline_stages > 4 ||
     vector_bytes != 16 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
@@ -48,6 +48,7 @@ pub fn emit_cuda_attention_tile_source(
     $|#define LF_KEY_VALUE_TILE \{key_value_tile}
     $|#define LF_HEAD_DIMENSION \{head_dimension}
     $|#define LF_BLOCK_THREADS \{block_threads}
+    $|#define LF_SHARED_MEMORY_BYTES \{shared_memory_bytes}
     $|#define LF_PIPELINE_STAGES \{pipeline_stages}
     $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
     $|
