@@ -29,6 +29,29 @@ fn LunaOnlineInstance::decode_token(
     abort("online natural stop token decode invariant")
   }
   self.output_tokens += 1
+  if claim.token_ids_only() {
+    let published = self.events.publish_token_status(
+      token_id~,
+      position=try! publication.position(),
+      self.output,
+      source_offset=0,
+      length=0,
+    )
+    match published {
+      LunaEventPublishReady => ()
+      LunaEventPublishPayloadInvalid => {
+        self.begin_output_failure(lease, natural_terminal)
+        return
+      }
+      LunaEventPublishEpochExhausted | LunaEventPublishCreditUnavailable =>
+        abort("Luna token-id event publication invariant")
+    }
+    if !natural_terminal {
+      try! lease.abort_cancel()
+    }
+    self.mark_event_published(TokenEvent)
+    return
+  }
   let step = claim.push_token_into_status(
     token_id,
     self.output,
@@ -163,9 +186,18 @@ fn LunaOnlineInstance::prepare_natural_terminal(
       raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
     }
   }
-  let tail = self
-    .claim_owner()
-    .finish_into_status(self.output, destination_offset=0)
+  let claim = self.claim_owner()
+  if claim.token_ids_only() {
+    self.final_tail_length = 0
+    try! self.events.publish_usage(
+      input_tokens=self.input_tokens,
+      cached_input_tokens=self.cached_input_tokens,
+      output_tokens=self.output_tokens,
+    )
+    self.mark_event_published(CompletionUsageEvent)
+    return
+  }
+  let tail = claim.finish_into_status(self.output, destination_offset=0)
   if !tail.is_ready() {
     self.failure_kind = OutputLatchedFailure
     self.final_tail_length = 0

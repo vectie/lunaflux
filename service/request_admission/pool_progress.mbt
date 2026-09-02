@@ -311,6 +311,13 @@ fn LunaRequestPreparationPool::progress_assemble(
   } else {
     lane.require_request().stream_preference()
   }
+  let token_ids_only = if lane.typed_direct {
+    false
+  } else if lane.framed_direct {
+    lane.framed_token_ids_only
+  } else {
+    lane.require_request().stream_preference() == TokenIdsStreaming
+  }
   let scheduler_request = @core.TokenizedRequest::new_with_prefix(
     request_id~,
     model_identity=self.expected_model,
@@ -320,7 +327,7 @@ fn LunaRequestPreparationPool::progress_assemble(
     stop_tokens=lane.require_semantic_lease().stop_token_view() catch {
         _ => raise Invalid(SchedulerContract)
       },
-    stream_preference~,
+    stream_preference=if token_ids_only { Streaming } else { stream_preference },
     effective_limits=lane.require_effective(),
     admission_deadline=lane.require_current_deadline(),
     tokenizer_digest=self.tokenizer.digest(),
@@ -344,6 +351,7 @@ fn LunaRequestPreparationPool::progress_assemble(
     tokenizer_digest: self.tokenizer.digest(),
     inference_limits: self.inference,
     input_tokens: tokens.length(),
+    token_ids_only,
   }
   lane.token_lease = None
   lane.output_lease = None

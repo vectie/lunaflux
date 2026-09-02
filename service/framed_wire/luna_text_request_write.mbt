@@ -58,6 +58,9 @@ pub fn LunaFramedTextRequestWorkspace::begin_text_with_sampling_scalars(
   if self.phase != LUNA_TEXT_IDLE {
     raise LunaFramedTextRequestBusy
   }
+  if stream_preference == TokenIdsStreaming {
+    raise InvalidFrame(frame=RequestFrame, rule=Flags)
+  }
   let inference = self.limits.inference_limits()
   let minimum_stop_bytes = if stop_token_count < 0 || stop_string_count < 0 {
     -1
@@ -137,7 +140,11 @@ pub fn LunaFramedTextRequestWorkspace::begin_text_with_sampling_scalars(
   self.top_k = effective_top_k
   self.top_p_bits = effective_top_p.reinterpret_as_uint64()
   self.sampling_seed = sampling_seed_value
-  self.stream = stream_preference is Streaming
+  self.stream = match stream_preference {
+    Streaming => true
+    Buffered => false
+    TokenIdsStreaming => abort("Luna text request output invariant")
+  }
   self.deadline_millis = deadline.milliseconds()
   self.phase = LUNA_TEXT_WRITING
   { workspace: self, epoch: self.epoch }

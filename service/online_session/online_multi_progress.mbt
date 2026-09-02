@@ -81,9 +81,13 @@ fn LunaOnlineInstance::multi_prepare_natural_terminal(
     OnlineMaximumOutputReached => FinishTokenLimit
     _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
   }
-  let tail = self
-    .multi_claim_owner(lane_index)
-    .finish_into_status(lane.output, destination_offset=0)
+  let claim = self.multi_claim_owner(lane_index)
+  if claim.token_ids_only() {
+    lane.final_tail_length = 0
+    self.multi_publish_usage(lane_index, CompletionUsageEvent)
+    return
+  }
+  let tail = claim.finish_into_status(lane.output, destination_offset=0)
   if !tail.is_ready() {
     lane.failure_kind = OutputLatchedFailure
     lane.final_tail_length = 0
@@ -160,6 +164,24 @@ fn LunaOnlineInstance::multi_decode_token(
   lane.output_tokens += 1
   if claim.is_stop_token(token_id) {
     lane.string_cut = NaturalStringCut
+    return
+  }
+  if claim.token_ids_only() {
+    let published = self.events.publish_token_status(
+      token_id~,
+      position=try! publication.position(),
+      lane.output,
+      source_offset=0,
+      length=0,
+    )
+    match published {
+      LunaEventPublishReady =>
+        self.mark_multi_event_published(lane_index, TokenEvent)
+      LunaEventPublishPayloadInvalid =>
+        self.multi_begin_output_failure(lane_index)
+      LunaEventPublishEpochExhausted | LunaEventPublishCreditUnavailable =>
+        abort("Luna online multi token-id publication invariant")
+    }
     return
   }
   let step = claim.push_token_into_status(

@@ -206,6 +206,7 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
   lane.framed_top_p = 0.0
   lane.framed_sampling_seed = 0UL
   lane.framed_streaming = false
+  lane.framed_token_ids_only = false
   lane.trusted_receipt_bound = false
   lane.trusted_deadline_millis = 0UL
   lane.last_work_units = 0

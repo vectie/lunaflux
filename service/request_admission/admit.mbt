@@ -279,7 +279,10 @@ fn finish_preparation(
     sampling=prepared.request.sampling(),
     sampling_seed=prepared.request.sampling_seed(),
     stop_tokens~,
-    stream_preference=prepared.request.stream_preference(),
+    stream_preference=match prepared.request.stream_preference() {
+      TokenIdsStreaming => Streaming
+      preference => preference
+    },
     effective_limits=prepared.effective,
     admission_deadline=prepared.deadline,
     tokenizer_digest=tokenizer.digest(),
@@ -305,6 +308,7 @@ fn finish_preparation(
     tokenizer_digest: tokenizer.digest(),
     inference_limits: inference,
     input_tokens: prepared.tokens.length(),
+    token_ids_only: prepared.request.stream_preference() == TokenIdsStreaming,
   }
   { claim: Some(claim) }
 }

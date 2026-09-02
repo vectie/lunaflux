@@ -112,6 +112,7 @@ fn encode_request_payload(
   }
   match request.stream_preference() {
     Streaming => flags = flags | 16
+    TokenIdsStreaming => flags = flags | 16 | 64
     _ => ()
   }
   match request.trace() {

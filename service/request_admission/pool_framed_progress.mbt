@@ -188,8 +188,10 @@ fn LunaRequestPreparationPool::progress_framed_bind_scalars(
   }
   lane.framed_streaming = match stream_preference {
     Streaming => true
+    TokenIdsStreaming => true
     Buffered => false
   }
+  lane.framed_token_ids_only = stream_preference == TokenIdsStreaming
   lane.framed_stop_token_count = view.stop_token_count() catch {
     _ => raise Invalid(FrameContract)
   }

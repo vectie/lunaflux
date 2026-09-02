@@ -115,7 +115,7 @@ test "request token input and greedy canonical form roundtrip" {
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(3UL),
     stops=@inference.StopConditions::new([], [], inference),
-    stream_preference=Buffered,
+    stream_preference=TokenIdsStreaming,
     deadline=@inference.DeadlineBudget::from_milliseconds(50UL, inference),
     cache=@inference.CachePolicy::new(
       @inference.CacheScope::from_ascii(b"scope", inference),
@@ -131,11 +131,11 @@ test "request token input and greedy canonical form roundtrip" {
   for index, byte in bytes {
     source[index] = byte
   }
-  match
-    RequestFrameBuffer::new(fixture_limits())
+  let decoded = RequestFrameBuffer::new(fixture_limits())
     .load(source, bytes.length())
     .request()
-    .input() {
+  assert_eq(decoded.stream_preference(), TokenIdsStreaming)
+  match decoded.input() {
     TokenIds(value) => assert_eq(try! value.token_at(2), 3)
     _ => fail("expected token input")
   }
@@ -165,6 +165,11 @@ test "request mutations reject magic checksum reserved and semantic flags" {
   assert_request_rejected(source, source.length())
   frame.copy_to(source, destination_offset=0)
   source[252] = b'X'
+  write_u32(source, 16, frame_checksum(source, source.length()))
+  assert_request_rejected(source, source.length())
+  frame.copy_to(source, destination_offset=0)
+  write_u32(source, 20, read_u32(source, 20) | 64)
+  write_u32(source, 20, read_u32(source, 20) & 0xffffffef)
   write_u32(source, 16, frame_checksum(source, source.length()))
   assert_request_rejected(source, source.length())
   frame.copy_to(source, destination_offset=0)

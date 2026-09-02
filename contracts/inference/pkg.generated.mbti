@@ -450,6 +450,7 @@ pub(all) enum StreamEvent {
 
 pub(all) enum StreamPreference {
   Streaming
+  TokenIdsStreaming
   Buffered
 } derive(Eq, @debug.Debug)
 

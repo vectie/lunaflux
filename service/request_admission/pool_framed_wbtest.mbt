@@ -30,8 +30,8 @@ fn framed_token_request() -> @inference.GenerateRequest raise {
       limits,
     ),
     sampling_seed=base.sampling_seed(),
-    stops=base.stops(),
-    stream_preference=base.stream_preference(),
+    stops=@inference.StopConditions::new([], [], limits),
+    stream_preference=TokenIdsStreaming,
     deadline=base.deadline(),
     cache=base.cache(),
     trace=base.trace(),
@@ -124,6 +124,8 @@ test "direct framed token IDs bind sampling without object-form preparation" {
   assert_eq(request.sampling().temperature(), 0.75)
   assert_eq(request.sampling().top_k(), Some(8))
   assert_eq(request.sampling().top_p(), Some(0.9))
+  assert_eq(request.stream_preference(), Streaming)
+  assert_true(claim.token_ids_only())
   claim.release()
 }
 

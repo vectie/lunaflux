@@ -420,6 +420,37 @@ test "canonical request validates exact token context without overflow" {
 }
 
 ///|
+test "token-id streaming rejects text stop semantics" {
+  let cfg = limits()
+  try
+    @inference.GenerateRequest::new(
+      protocol_version=@inference.ProtocolVersion::v1(),
+      request_id=@inference.RequestId::new(9UL),
+      model_identity=model_identity(),
+      input=@inference.Input::from_token_ids([1, 2, 3], cfg),
+      max_new_tokens=4,
+      context_ceiling=7,
+      sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=@inference.SamplingSeed::new(19UL),
+      stops=@inference.StopConditions::new([], [b"END"], cfg),
+      stream_preference=TokenIdsStreaming,
+      deadline=@inference.DeadlineBudget::from_milliseconds(250UL, cfg),
+      cache=cache(),
+      trace=None,
+      limits=cfg,
+    )
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content="Invalid(field=StopString, issue=Inconsistent, index=0)",
+      )
+  } noraise {
+    _ => fail("expected token-id streaming stop-string rejection")
+  }
+}
+
+///|
 test "admission deadline is captured once at receipt with checked arithmetic" {
   let cfg = limits()
   let budget = @inference.DeadlineBudget::from_milliseconds(250UL, cfg)

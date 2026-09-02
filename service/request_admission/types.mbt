@@ -78,6 +78,7 @@ pub struct LunaPreparedRequestClaim {
   priv tokenizer_digest : @tokenizer.TokenizerDigest
   priv inference_limits : @inference.InferenceLimits
   priv input_tokens : Int
+  priv token_ids_only : Bool
 }
 
 ///|
@@ -237,6 +238,16 @@ pub fn LunaPreparedRequestClaim::is_stop_token(
     },
   )
   self.stop_tokens.is_stop_token(token_id).is_present()
+}
+
+///|
+/// Whether this claim publishes exact token IDs without incrementally decoding
+/// text. This is intended for native token consumers such as benchmark and
+/// model-to-model pipelines.
+pub fn LunaPreparedRequestClaim::token_ids_only(
+  self : LunaPreparedRequestClaim,
+) -> Bool {
+  self.token_ids_only
 }
 
 ///|

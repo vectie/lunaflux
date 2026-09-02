@@ -72,7 +72,8 @@ fn LunaFramedRequestWorkspace::progress_header_one(
   match self.phase_index {
     0 => {
       self.flags = read_u32(self.storage, 20)
-      if (self.flags & 0xffffffc0) != 0 {
+      if (self.flags & 0xffffff80) != 0 ||
+        ((self.flags & 64) != 0 && (self.flags & 16) == 0) {
         self.fail_rule(Flags)
       }
     }

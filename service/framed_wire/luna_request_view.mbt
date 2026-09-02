@@ -170,7 +170,10 @@ pub fn LunaFramedRequestView::sampling_seed_value(
 pub fn LunaFramedRequestView::stream_preference(
   self : LunaFramedRequestView,
 ) -> @inference.StreamPreference raise FramedWireError {
-  if (self.require_workspace().flags & 16) != 0 {
+  let flags = self.require_workspace().flags
+  if (flags & 64) != 0 {
+    TokenIdsStreaming
+  } else if (flags & 16) != 0 {
     Streaming
   } else {
     Buffered

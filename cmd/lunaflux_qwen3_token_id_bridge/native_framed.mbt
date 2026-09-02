@@ -75,7 +75,7 @@ fn bridge_request_frame_for_identity(
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=@inference.SamplingSeed::new(bridge_internal_greedy_seed()),
     stops=@inference.StopConditions::new([], [], limits),
-    stream_preference=Streaming,
+    stream_preference=TokenIdsStreaming,
     deadline=@inference.DeadlineBudget::from_milliseconds(
       bridge_request_deadline_millis(),
       limits,

@@ -286,6 +286,7 @@ priv struct LunaRequestPreparationLane {
   mut framed_top_p : Double
   mut framed_sampling_seed : UInt64
   mut framed_streaming : Bool
+  mut framed_token_ids_only : Bool
   mut trusted_receipt_bound : Bool
   mut trusted_deadline_millis : UInt64
   mut claim : LunaPreparedRequestClaim?

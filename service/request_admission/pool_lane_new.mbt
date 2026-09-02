@@ -104,6 +104,7 @@ fn new_preparation_lane(
     framed_top_p: 0.0,
     framed_sampling_seed: 0UL,
     framed_streaming: false,
+    framed_token_ids_only: false,
     trusted_receipt_bound: false,
     trusted_deadline_millis: 0UL,
     claim: None,

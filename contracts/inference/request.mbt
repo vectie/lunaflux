@@ -2,6 +2,7 @@
 /// Whether the caller requests token events or one buffered completion.
 pub(all) enum StreamPreference {
   Streaming
+  TokenIdsStreaming
   Buffered
 } derive(Debug, Eq)
 
@@ -284,6 +285,9 @@ pub fn GenerateRequest::new(
   sampling.validate(limits)
   sampling_seed.validate()
   stops.validate(limits)
+  if stream_preference == TokenIdsStreaming && stops.strings().length() > 0 {
+    raise invalid(StopString, Inconsistent, 0)
+  }
   deadline.validate(limits)
   cache.scope().validate(limits)
   match trace {
