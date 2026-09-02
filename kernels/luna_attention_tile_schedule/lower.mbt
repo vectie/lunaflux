@@ -34,6 +34,7 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
     AttentionGroupedQuerySubgroupDot => 3
+    AttentionGroupedQuerySplitSubgroupDot => 6
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
   }
@@ -117,7 +118,10 @@ pub fn schedule_attention_tile_program(
     raise InvalidAttentionTileSchedule(InvalidVector)
   }
   let query_head_tile = match candidate.compute() {
-    AttentionGroupedQuerySubgroupDot => subgroups_per_block
+    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot => {
+      let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
+      query_heads / key_value_heads
+    }
     AttentionScalarDot
     | AttentionSubgroupDot
     | AttentionMatrixDot

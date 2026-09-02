@@ -610,6 +610,10 @@ pub fn emit_cuda_attention_tile_source(
         emit_cuda_direct_attention_tile_source(
           lowering, abi, symbol, maximum_source_bytes,
         )
+      } else if lowering.compute() == CudaGroupedQuerySplitSubgroupShuffleDot {
+        emit_cuda_grouped_split_decode_attention_tile_source(
+          lowering, abi, symbol, maximum_source_bytes,
+        )
       } else {
         emit_cuda_decode_attention_tile_source(
           lowering, abi, symbol, maximum_source_bytes,

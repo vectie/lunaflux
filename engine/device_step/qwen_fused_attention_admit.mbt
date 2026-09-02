@@ -212,6 +212,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.grid_y() == query_heads &&
     decode_launch.block_x() == 32 &&
     decode_launch.shared_memory_bytes() == 0
+  let split_grouped_decode = compiler_decode &&
+    decode_launch.grid_y() == kv_heads &&
+    decode_launch.block_x() > query_heads / kv_heads * 32 &&
+    decode_launch.block_x() <= 256 &&
+    decode_launch.block_x() % (query_heads / kv_heads * 32) == 0 &&
+    decode_launch.shared_memory_bytes() > 0
   let valid_prefill_launch = if phase_specific {
     readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
     decode_module.kernel_abi() ==
@@ -236,6 +242,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.grid_y() == query_heads &&
     decode_launch.block_x() == 32 &&
     decode_launch.shared_memory_bytes() == 0
+  } else if split_grouped_decode {
+    decode_launch.grid_x() == maximum_rows &&
+    decode_launch.grid_y() == kv_heads &&
+    decode_launch.block_x() <= 256 &&
+    decode_launch.shared_memory_bytes() > 0 &&
+    decode_launch.shared_memory_bytes() <= 100000
   } else {
     decode_launch.grid_x() == Int::min(maximum_tokens, 128) &&
     decode_launch.block_x() == 128 &&
@@ -247,7 +259,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_launch.grid_z() == 1 &&
     readonly_launch.block_y() == 1 &&
     readonly_launch.block_z() == 1 &&
-    (grouped_decode || direct_decode || decode_launch.grid_y() == query_heads) &&
+    (
+      grouped_decode ||
+      split_grouped_decode ||
+      direct_decode ||
+      decode_launch.grid_y() == query_heads
+    ) &&
     decode_launch.grid_z() == 1 &&
     valid_decode_launch &&
     decode_launch.block_y() == 1 &&

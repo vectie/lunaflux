@@ -70,6 +70,7 @@ fn qwen_fused_test_runtime(
   ingress_grid_y? : Int = 32,
   phase_specific_attention? : Bool = false,
   direct_compiler_decode? : Bool = false,
+  split_compiler_decode? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
@@ -156,7 +157,13 @@ fn qwen_fused_test_runtime(
           grid_x=blueprint.profile().max_query_rows(),
           grid_y=if direct_compiler_decode { 16 } else { 8 },
           grid_z=1,
-          block_x=if direct_compiler_decode { 32 } else { 64 },
+          block_x=if direct_compiler_decode {
+            32
+          } else if split_compiler_decode {
+            256
+          } else {
+            64
+          },
           block_y=1,
           block_z=1,
           shared_memory_bytes=if direct_compiler_decode { 0 } else { 34076 },
@@ -175,6 +182,28 @@ fn qwen_fused_test_runtime(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
+}
+
+///|
+test "reusable Qwen runtime admits split grouped compiler decode kernel" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    split_compiler_decode=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  assert_eq(spans.length(), 28)
+  assert_eq(spans[0].decode_launch().grid_y(), 8)
+  assert_eq(spans[0].decode_launch().block_x(), 256)
+  assert_eq(spans[0].decode_launch().shared_memory_bytes(), 34076)
 }
 
 ///|

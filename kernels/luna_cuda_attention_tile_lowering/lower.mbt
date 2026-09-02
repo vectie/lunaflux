@@ -7,6 +7,8 @@ fn cuda_compute_primitive(
     AttentionScalarDot => CudaScalarFma
     AttentionSubgroupDot => CudaSubgroupShuffleDot
     AttentionGroupedQuerySubgroupDot => CudaGroupedQuerySubgroupShuffleDot
+    AttentionGroupedQuerySplitSubgroupDot =>
+      CudaGroupedQuerySplitSubgroupShuffleDot
     AttentionMatrixDot =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixMultiplyAccumulate
@@ -45,6 +47,7 @@ fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
     CudaScalarFma => 1
     CudaSubgroupShuffleDot => 2
     CudaGroupedQuerySubgroupShuffleDot => 3
+    CudaGroupedQuerySplitSubgroupShuffleDot => 6
     CudaMatrixMultiplyAccumulate => 4
     CudaMatrixQkPvMultiplyAccumulate => 5
   }

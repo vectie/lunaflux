@@ -307,3 +307,28 @@ test "compiler decode source reuses one KV tile across grouped query heads" {
   assert_false(source.contains("nvcuda::wmma"))
   assert_false(source.contains("partial_numerators"))
 }
+
+///|
+test "compiler split decode source preserves GQA reuse and key parallelism" {
+  let lowering = source_test_decode_lowering(candidate_id=430)
+  assert_eq(lowering.phase(), Decode)
+  assert_eq(lowering.compute(), CudaGroupedQuerySplitSubgroupShuffleDot)
+  assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
+  assert_eq(lowering.launch(), (32, 4, 256, 34076L))
+  let source = @utf8.decode(
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "lunaflux_attention_decode_split_v1",
+      1048576,
+    ).bytes(),
+  )
+  for
+    required in [
+      "#define LF_QUERY_HEADS_PER_BLOCK 4", "#define LF_SPLITS_PER_HEAD 2", "const int query_in_group = warp / LF_SPLITS_PER_HEAD",
+      "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)", "partial_numerators",
+      "merged_denominator",
+    ] {
+    assert_true(source.contains(required))
+  }
+}

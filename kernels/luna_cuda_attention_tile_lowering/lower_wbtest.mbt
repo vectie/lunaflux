@@ -123,7 +123,7 @@ test "CUDA lowering rejects optimization from another semantic program" {
 }
 
 ///|
-test "decode CUDA lowering keeps the static-cost direct subgroup schedule" {
+test "decode CUDA lowering splits each grouped query head across subgroups" {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
@@ -167,7 +167,7 @@ test "decode CUDA lowering keeps the static-cost direct subgroup schedule" {
     262144L,
   )
   assert_eq(lowering.phase(), Decode)
-  assert_eq(lowering.launch(), (32, 16, 32, 0L))
-  assert_eq(lowering.compute(), CudaScalarFma)
-  assert_eq(lowering.copy(), CudaDirectGlobalLoad)
+  assert_eq(lowering.launch(), (32, 4, 256, 34076L))
+  assert_eq(lowering.compute(), CudaGroupedQuerySplitSubgroupShuffleDot)
+  assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
 }

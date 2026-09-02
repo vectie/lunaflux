@@ -259,13 +259,16 @@ test "decode compile problem keeps token shape separate from batch rows" {
     decode,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 4)
+  assert_eq(candidates.length(), 5)
   assert_eq(candidates[0].stable_id(), 400)
   assert_eq(candidates[1].stable_id(), 410)
   assert_eq(candidates[2].stable_id(), 411)
   assert_eq(candidates[3].stable_id(), 420)
   assert_eq(candidates[3].compute(), AttentionGroupedQuerySubgroupDot)
   assert_eq(candidates[3].execution_geometry(), (4, 1, 8))
+  assert_eq(candidates[4].stable_id(), 430)
+  assert_eq(candidates[4].compute(), AttentionGroupedQuerySplitSubgroupDot)
+  assert_eq(candidates[4].execution_geometry(), (8, 1, 8))
   let plan = compile_attention_tile_plan(
     [],
     backend=AttentionBackendId::new("portable"),
@@ -273,6 +276,6 @@ test "decode compile problem keeps token shape separate from batch rows" {
     problem=decode,
     capabilities=compiler_test_capabilities(),
   )
-  assert_eq(plan.candidate().stable_id(), 400)
+  assert_eq(plan.candidate().stable_id(), 430)
   assert_eq(plan.source(), AttentionStaticCostModel)
 }

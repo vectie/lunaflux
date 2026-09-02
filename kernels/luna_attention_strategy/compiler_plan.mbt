@@ -82,6 +82,7 @@ fn attention_candidate_shared_bytes(
     AttentionScalarDot
     | AttentionSubgroupDot
     | AttentionGroupedQuerySubgroupDot
+    | AttentionGroupedQuerySplitSubgroupDot
     | AttentionMatrixDot => 4L
   }
   let score_and_weight_bytes = attention_checked_product(
@@ -131,12 +132,24 @@ fn attention_candidate_compatible(
     return false
   }
   match candidate.compute {
-    AttentionGroupedQuerySubgroupDot => {
+    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot => {
       let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
+      let group_size = if key_value_heads > 0 {
+        query_heads / key_value_heads
+      } else {
+        0
+      }
       problem.phase == Decode &&
       key_value_heads > 0 &&
       query_heads % key_value_heads == 0 &&
-      candidate.subgroups_per_block == query_heads / key_value_heads
+      (match candidate.compute {
+        AttentionGroupedQuerySubgroupDot =>
+          candidate.subgroups_per_block == group_size
+        AttentionGroupedQuerySplitSubgroupDot =>
+          candidate.subgroups_per_block > group_size &&
+          candidate.subgroups_per_block % group_size == 0
+        _ => false
+      })
     }
     AttentionMatrixDot | AttentionMatrixQkPv =>
       match capabilities.matrix_shape {
@@ -450,6 +463,28 @@ pub fn generate_attention_tile_candidates(
           Some(candidate) => candidates.push(candidate)
           None => ()
         }
+        let maximum_subgroups = capabilities.max_threads_per_block /
+          capabilities.subgroup_width
+        let split_subgroups = Int::min(8, maximum_subgroups)
+        if split_subgroups > query_heads_per_group &&
+          split_subgroups % query_heads_per_group == 0 {
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              430,
+              AttentionGroupedQuerySplitSubgroupDot,
+              AttentionStagedShared,
+              1,
+              64,
+              split_subgroups,
+              1,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+        }
       }
     }
   }
@@ -489,6 +524,8 @@ fn attention_candidate_static_cost(
     AttentionSubgroupDot => candidate.subgroups_per_block.to_int64() * 8L
     AttentionGroupedQuerySubgroupDot =>
       candidate.subgroups_per_block.to_int64() * 8L
+    AttentionGroupedQuerySplitSubgroupDot =>
+      candidate.subgroups_per_block.to_int64() * 8L
     AttentionMatrixDot | AttentionMatrixQkPv =>
       candidate.subgroups_per_block.to_int64() * 64L
   }
@@ -507,8 +544,10 @@ fn attention_candidate_static_cost(
     AttentionStagedShared => 2L
     AttentionAsyncStagedShared => 1L
   }
+  let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
   let query_head_group = match candidate.compute {
-    AttentionGroupedQuerySubgroupDot => candidate.subgroups_per_block.to_int64()
+    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot =>
+      (query_heads / key_value_heads).to_int64()
     AttentionScalarDot
     | AttentionSubgroupDot
     | AttentionMatrixDot
@@ -520,7 +559,6 @@ fn attention_candidate_static_cost(
       Candidate,
     ) /
     query_head_group
-  let (query_heads, _, _, _) = problem.shape.dimensions()
   let scheduling_cost = attention_checked_product(
     attention_checked_product(
       attention_checked_product(query_tiles, batch_rows, Candidate),
@@ -530,32 +568,9 @@ fn attention_candidate_static_cost(
     4096L,
     Candidate,
   )
-  // A staged schedule synchronizes every resident block around each K/V tile.
-  // The previous model counted byte reuse but treated barriers as free, which
-  // made shared-memory decode win on paper while losing to the direct warp
-  // fold on real GPUs. Offline measurements still override this portable
-  // prior; the prior now prices the synchronization that the lowering emits.
-  let synchronization_unit = match candidate.memory {
-    AttentionDirectGlobal => 0L
-    AttentionStagedShared => 2048L
-    AttentionAsyncStagedShared => 512L
-  }
-  let synchronization_cost = attention_checked_product(
-    attention_checked_product(
-      attention_checked_product(query_tiles, batch_rows, Candidate),
-      query_heads.to_int64() / query_head_group,
-      Candidate,
-    ),
-    attention_checked_product(key_value_tiles, synchronization_unit, Candidate),
-    Candidate,
-  )
   attention_checked_add(
-    attention_checked_add(
-      attention_checked_add(arithmetic_cost, memory_cost, Candidate),
-      scheduling_cost,
-      Candidate,
-    ),
-    synchronization_cost,
+    attention_checked_add(arithmetic_cost, memory_cost, Candidate),
+    scheduling_cost,
     Candidate,
   )
 }
