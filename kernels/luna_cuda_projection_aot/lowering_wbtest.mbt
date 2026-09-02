@@ -117,8 +117,19 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
     projection_fixture_limits(),
   )
   let source = @utf8.decode(lowering.source_bytes())
+  assert_eq(
+    lowering.numerical_contract(),
+    TensorCorePrefillFmaDecodeF32SiluGatedBf16RoundV1,
+  )
+  assert_true(
+    @utf8.decode(lowering.recipe_bytes()).contains(
+      "numerical_contract=tensor_core_prefill_fma_decode_f32_silu_gated_bf16_round_v1",
+    ),
+  )
   assert_true(source.contains("__nv_bfloat16 *workspace"))
   assert_true(source.contains("_down(const int32_t *counts"))
+  assert_true(source.contains("gate = fmaf(input_value"))
+  assert_true(source.contains("value = fmaf(__bfloat162float(workspace"))
   assert_true(
     source.contains("workspace[(unsigned long long)(row_start + tile_row)"),
   )
@@ -206,6 +217,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256),
   )
   assert_true(qkv.contains("if (token_count == 1)"))
+  assert_true(qkv.contains("value = fmaf(__bfloat162float(input[inner])"))
   assert_true(qkv.contains("__shfl_down_sync"))
   assert_true(qkv.contains("nvcuda::wmma::mma_sync"))
   assert_true(qkv.contains("const int group_count = 32;"))
@@ -221,6 +233,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256),
   )
   assert_true(dense.contains("if (token_count == 1)"))
+  assert_true(dense.contains("value = fmaf(__bfloat162float(input[inner])"))
   assert_true(dense.contains("__shfl_down_sync"))
   assert_true(dense.contains("nvcuda::wmma::mma_sync"))
   assert_true(dense.contains("const int group_count = 8;"))
@@ -238,6 +251,10 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_fixture_target(),
     records,
   ).dispatch_plan(profile.max_query_tokens())
+  assert_eq(
+    projection_numerical_contract(qkv_parameters, qkv_dispatch),
+    TensorCorePrefillFmaDecodeF32Bf16RoundV1,
+  )
   assert_eq(
     projection_dimensions(profile, qkv_parameters, qkv_dispatch).grid_x(),
     512,

@@ -85,7 +85,7 @@ fn projection_tensor_core_dense_source(
       "ULL; float value = 0.0f;\n" +
       "    for (int inner = lane; inner < " +
       parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner])));\n" +
+      "; inner += 32) value = fmaf(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner]), value);\n" +
       "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
       "    return;\n  }\n" +
@@ -123,7 +123,7 @@ fn projection_tensor_core_dense_source(
       "ULL; float value = 0.0f;\n" +
       "      for (int inner = lane; inner < " +
       parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner])));\n" +
+      "; inner += 32) value = fmaf(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner]), value);\n" +
       "      for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
       "      if (lane == 0) output[output_base + output_column] = __float2bfloat16_rn(value);\n" +
       "    } return;\n" +
@@ -211,7 +211,7 @@ fn projection_tensor_core_qkv_source(
     "ULL; float value = 0.0f;\n" +
     "    for (int inner = lane; inner < " +
     parameters.input_width.to_string() +
-    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner])));\n" +
+    "; inner += 32) value = fmaf(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner]), value);\n" +
     "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
