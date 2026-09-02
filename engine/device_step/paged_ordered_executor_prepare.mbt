@@ -471,8 +471,8 @@ fn prepare_paged_ordered_executors(
   let mut fallback_owner_index = -1
   let telemetry_owner_index = match graph_policy {
     PagedOrderedEagerOnly => {
-      if resources.graph_launch_contract is Some(_) && decode_steps is None {
-        for bound in paged_decode_capture_bounds(profile) {
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_prefill_capture_bounds(profile) {
           let launches = paged_ordered_launches(
             steps,
             resources,
@@ -485,9 +485,32 @@ fn prepare_paged_ordered_executors(
             resources,
             OrderedKernelEagerOnly,
           )
-          map_paged_decode_capture_owner(
-            table, bound, bound, owner, slot_owner_indices,
+          map_paged_prefill_capture_owner(
+            table,
+            profile.max_query_rows(),
+            bound,
+            owner,
+            slot_owner_indices,
           )
+        }
+        if decode_steps is None {
+          for bound in paged_decode_capture_bounds(profile) {
+            let launches = paged_ordered_launches(
+              steps,
+              resources,
+              query_token_bound=Some(bound),
+            )
+            let owner = prepare_one_paged_ordered_executor(
+              context,
+              launches[:],
+              baseline_operation_ids,
+              resources,
+              OrderedKernelEagerOnly,
+            )
+            map_paged_decode_capture_owner(
+              table, bound, bound, owner, slot_owner_indices,
+            )
+          }
         }
       }
       fallback_owner_index = prepare_one_paged_ordered_executor(
@@ -506,8 +529,8 @@ fn prepare_paged_ordered_executors(
       // replay the maximum-token grid full of empty blocks. The maximum graph
       // remains the universal fallback for prefill, mixed, and uncommon decode
       // shapes.
-      if resources.graph_launch_contract is Some(_) && decode_steps is None {
-        for bound in paged_decode_capture_bounds(profile) {
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_prefill_capture_bounds(profile) {
           let launches = paged_ordered_launches(
             steps,
             resources,
@@ -520,9 +543,32 @@ fn prepare_paged_ordered_executors(
             resources,
             paged_ordered_device_policy(graph_policy),
           )
-          map_paged_decode_capture_owner(
-            table, bound, bound, owner, slot_owner_indices,
+          map_paged_prefill_capture_owner(
+            table,
+            profile.max_query_rows(),
+            bound,
+            owner,
+            slot_owner_indices,
           )
+        }
+        if decode_steps is None {
+          for bound in paged_decode_capture_bounds(profile) {
+            let launches = paged_ordered_launches(
+              steps,
+              resources,
+              query_token_bound=Some(bound),
+            )
+            let owner = prepare_one_paged_ordered_executor(
+              context,
+              launches[:],
+              baseline_operation_ids,
+              resources,
+              paged_ordered_device_policy(graph_policy),
+            )
+            map_paged_decode_capture_owner(
+              table, bound, bound, owner, slot_owner_indices,
+            )
+          }
         }
       }
       let maximum = prepare_one_paged_ordered_executor(

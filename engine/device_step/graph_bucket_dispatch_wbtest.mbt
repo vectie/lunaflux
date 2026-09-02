@@ -42,6 +42,21 @@ test "decode capture bounds stop before the maximum envelope" {
 }
 
 ///|
+test "prefill capture bounds cover powers of two below the maximum envelope" {
+  let (_, profile, _) = graph_dispatch_fixture(7)
+  assert_eq(paged_prefill_capture_bounds(profile), [8, 16, 32])
+  let larger = @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(92),
+    max_query_rows=32,
+    max_query_tokens=4096,
+    max_page_table_entries=256,
+  )
+  assert_eq(paged_prefill_capture_bounds(larger), [
+    8, 16, 32, 64, 128, 256, 512, 1024, 2048,
+  ])
+}
+
+///|
 test "decode bucket owners map exact compatible slots to the smallest owner" {
   let (table, _, dispatch) = graph_dispatch_fixture(7)
   map_paged_decode_capture_owner(table, 8, 8, 4, dispatch.slot_owner_indices)
@@ -51,6 +66,26 @@ test "decode bucket owners map exact compatible slots to the smallest owner" {
   assert_eq(dispatch.select(one), 4)
   assert_eq(dispatch.select(eight), 4)
   assert_eq(dispatch.select(larger), 7)
+}
+
+///|
+test "prefill bucket owners map live token capacities without touching larger buckets" {
+  let (table, profile, dispatch) = graph_dispatch_fixture(7)
+  map_paged_prefill_capture_owner(
+    table,
+    profile.max_query_rows(),
+    16,
+    5,
+    dispatch.slot_owner_indices,
+  )
+  let small = graph_dispatch_bucket(table, PrefillGraph, 4, 12, 256)
+  let exact = graph_dispatch_bucket(table, PrefillGraph, 16, 16, 65536)
+  let larger = graph_dispatch_bucket(table, PrefillGraph, 16, 32, 65536)
+  let decode = graph_dispatch_bucket(table, DecodeGraph, 8, 8, 65536)
+  assert_eq(dispatch.select(small), 5)
+  assert_eq(dispatch.select(exact), 5)
+  assert_eq(dispatch.select(larger), 7)
+  assert_eq(dispatch.select(decode), 7)
 }
 
 ///|

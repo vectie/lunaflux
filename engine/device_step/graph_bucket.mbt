@@ -114,6 +114,28 @@ fn paged_decode_capture_bounds(
 }
 
 ///|
+/// Prefill launch lists are specialized by live query-token capacity rather
+/// than replaying the maximum profile envelope. These are execution-graph
+/// buckets, not CUDA-specific shapes: a device backend may capture them or
+/// execute the same immutable launch list eagerly.
+fn paged_prefill_capture_bounds(
+  profile : @launch_contract.PagedKernelProfile,
+) -> ReadOnlyArray[Int] {
+  let maximum = profile.max_query_tokens()
+  let candidates : FixedArray[Int] = [
+    8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096,
+  ]
+  let bounds : Array[Int] = []
+  for candidate in candidates {
+    let bound = Int::min(candidate, maximum)
+    if bound < maximum && !bounds.contains(bound) {
+      bounds.push(bound)
+    }
+  }
+  ReadOnlyArray::from_array(bounds)
+}
+
+///|
 fn map_paged_decode_capture_owner(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   row_bound : Int,
@@ -129,6 +151,45 @@ fn map_paged_decode_capture_owner(
           .select(
             @luna_execution_graph_strategy.ExecutionGraphShape::new(
               phase=DecodeGraph,
+              batch_rows=rows,
+              query_tokens=tokens,
+              context_tokens=context,
+            ) catch {
+              _ => raise InvalidExecutor(GraphBucket)
+            },
+          )
+          .slot() catch {
+            _ => raise InvalidExecutor(GraphBucket)
+          }
+        if slot_owner_indices[slot] < 0 {
+          slot_owner_indices[slot] = owner_index
+        }
+        context *= 2
+      }
+    }
+  }
+}
+
+///|
+/// Maps every valid prefill shape covered by one query-token capacity to its
+/// smallest already-built owner. A prefill row contributes at least one query
+/// token, so impossible row-count/token-count combinations are not populated.
+fn map_paged_prefill_capture_owner(
+  table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
+  row_bound : Int,
+  query_token_bound : Int,
+  owner_index : Int,
+  slot_owner_indices : FixedArray[Int],
+) -> Unit raise DeviceStepError {
+  let maximum_rows = Int::min(row_bound, query_token_bound)
+  for rows in 1..<=maximum_rows {
+    for tokens in rows..<=query_token_bound {
+      let mut context = 1
+      while context <= paged_graph_maximum_context_tokens() {
+        let slot = table
+          .select(
+            @luna_execution_graph_strategy.ExecutionGraphShape::new(
+              phase=PrefillGraph,
               batch_rows=rows,
               query_tokens=tokens,
               context_tokens=context,
