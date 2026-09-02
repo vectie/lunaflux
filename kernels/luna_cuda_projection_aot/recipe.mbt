@@ -27,6 +27,7 @@ fn projection_strategy_tag(
   match strategy.kernel_class() {
     ScalarTile => "scalar-tile"
     SubgroupGemv => "subgroup-gemv"
+    PaddedMatrixGemv => "padded-matrix-gemv"
     MatrixTile => "matrix-tile"
   }
 }

@@ -27,6 +27,68 @@ fn projection_tensor_core_mlp_eligible(
 }
 
 ///|
+fn projection_padded_matrix_decode_eligible(
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+) -> Bool {
+  dispatch.decode().kernel_class() == PaddedMatrixGemv
+}
+
+///|
+/// Emits the common backend lowering for a one-row matrix-vector operation.
+/// The semantic strategy pads one live row to a matrix tile; CUDA maps that
+/// tile to WMMA while all warps share the same staged input row.
+fn projection_padded_matrix_gemv_body(
+  input_pointer : String,
+  weight_pointer : String,
+  output_pointer : String,
+  input_width : Int,
+  output_width : Int,
+) -> String {
+  "    extern __shared__ __align__(16) unsigned char shared_bytes[];\n" +
+  "    __nv_bfloat16 *input_tile = reinterpret_cast<__nv_bfloat16 *>(shared_bytes);\n" +
+  "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
+  "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
+  "    nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
+  "    nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
+  "    for (int inner = 0; inner < " +
+  input_width.to_string() +
+  "; inner += 16) {\n" +
+  "      for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
+  "        const int tile_row = element >> 4, tile_column = element & 15;\n" +
+  "        input_tile[element] = tile_row == 0 ? " +
+  input_pointer +
+  "[inner + tile_column] : __float2bfloat16_rn(0.0f);\n" +
+  "      }\n" +
+  "      __syncthreads();\n" +
+  "      if (column < " +
+  output_width.to_string() +
+  ") {\n" +
+  "        nvcuda::wmma::load_matrix_sync(a, input_tile, 16);\n" +
+  "        nvcuda::wmma::load_matrix_sync(b, " +
+  weight_pointer +
+  " + (unsigned long long)selected_column * " +
+  input_width.to_string() +
+  "ULL + inner, " +
+  input_width.to_string() +
+  ");\n" +
+  "        nvcuda::wmma::mma_sync(c, a, b, c);\n" +
+  "      }\n" +
+  "      __syncthreads();\n" +
+  "    }\n" +
+  "    float *warp_output = reinterpret_cast<float *>(shared_bytes) + warp * 256;\n" +
+  "    if (column < " +
+  output_width.to_string() +
+  ") nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
+  "    __syncwarp();\n" +
+  "    if (lane < 16 && column + lane < " +
+  output_width.to_string() +
+  ") " +
+  output_pointer +
+  "[column + lane] = __float2bfloat16_rn(warp_output[lane]);\n" +
+  "    return;\n"
+}
+
+///|
 fn projection_decode_workspace_bytes(
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
@@ -65,6 +127,7 @@ fn projection_tensor_core_dense_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  padded_matrix_decode : Bool,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
@@ -77,18 +140,31 @@ fn projection_tensor_core_dense_source(
     "  const int lane = (int)threadIdx.x & 31;\n" +
     (if parameters.family != LanguageModelHead {
       "  if (token_count == 1) {\n" +
-      "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
-      parameters.output_width.to_string() +
-      ") return;\n" +
-      "    const unsigned long long weight_base = (unsigned long long)output_column * " +
-      parameters.input_width.to_string() +
-      "ULL; float value = 0.0f;\n" +
-      "    for (int inner = lane; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner])));\n" +
-      "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
-      "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
-      "    return;\n  }\n" +
+      (if padded_matrix_decode {
+        "    const int column = (int)blockIdx.x * 128 + warp * 16;\n" +
+        "    const int selected_column = column;\n" +
+        projection_padded_matrix_gemv_body(
+          "input",
+          "weight",
+          "output",
+          parameters.input_width,
+          parameters.output_width,
+        )
+      } else {
+        "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
+        parameters.output_width.to_string() +
+        ") return;\n" +
+        "    const unsigned long long weight_base = (unsigned long long)output_column * " +
+        parameters.input_width.to_string() +
+        "ULL; float value = 0.0f;\n" +
+        "    for (int inner = lane; inner < " +
+        parameters.input_width.to_string() +
+        "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner])));\n" +
+        "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+        "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
+        "    return;\n"
+      }) +
+      "  }\n" +
       "  const int group_count = " +
       ((parameters.output_width + 127) / 128).to_string() +
       ";\n" +
@@ -104,7 +180,25 @@ fn projection_tensor_core_dense_source(
       parameters.output_width.to_string() +
       ") return;\n"
     }) +
-    (if parameters.family == LanguageModelHead {
+    (if parameters.family == LanguageModelHead && padded_matrix_decode {
+      "  if (counts[2] == 1) {\n" +
+      "    const unsigned long long live_row = (unsigned long long)(token_count - 1);\n" +
+      "    const unsigned long long input_base = live_row * " +
+      parameters.input_width.to_string() +
+      "ULL;\n" +
+      "    const unsigned long long output_base = live_row * " +
+      parameters.output_width.to_string() +
+      "ULL;\n" +
+      "    const int selected_column = column;\n" +
+      projection_padded_matrix_gemv_body(
+        "(input + input_base)",
+        "weight",
+        "(output + output_base)",
+        parameters.input_width,
+        parameters.output_width,
+      ) +
+      "  }\n"
+    } else if parameters.family == LanguageModelHead {
       "  if (counts[2] == 1) {\n" +
       "    const unsigned long long live_row = (unsigned long long)(token_count - 1);\n" +
       "    const unsigned long long input_base = live_row * " +
@@ -180,6 +274,7 @@ fn projection_tensor_core_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  padded_matrix_decode : Bool,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
@@ -192,29 +287,52 @@ fn projection_tensor_core_qkv_source(
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
     "  if (token_count == 1) {\n" +
-    "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
-    parameters.output_width.to_string() +
-    ") return;\n" +
-    "    const __nv_bfloat16 *selected_weight = query_weight;\n" +
-    "    int selected_column = output_column;\n" +
-    "    if (output_column >= " +
-    parameters.query_width.to_string() +
-    ") { selected_column -= " +
-    parameters.query_width.to_string() +
-    "; if (selected_column >= " +
-    parameters.intermediate_width.to_string() +
-    ") { selected_column -= " +
-    parameters.intermediate_width.to_string() +
-    "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
-    "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
-    parameters.input_width.to_string() +
-    "ULL; float value = 0.0f;\n" +
-    "    for (int inner = lane; inner < " +
-    parameters.input_width.to_string() +
-    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner])));\n" +
-    "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
-    "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
-    "    return;\n  }\n" +
+    (if padded_matrix_decode {
+      "    const int column = (int)blockIdx.x * 128 + warp * 16;\n" +
+      "    const __nv_bfloat16 *selected_weight = query_weight;\n" +
+      "    int selected_column = column;\n" +
+      "    if (column >= " +
+      parameters.query_width.to_string() +
+      ") { selected_column -= " +
+      parameters.query_width.to_string() +
+      "; if (selected_column >= " +
+      parameters.intermediate_width.to_string() +
+      ") { selected_column -= " +
+      parameters.intermediate_width.to_string() +
+      "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
+      projection_padded_matrix_gemv_body(
+        "input",
+        "selected_weight",
+        "output",
+        parameters.input_width,
+        parameters.output_width,
+      )
+    } else {
+      "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
+      parameters.output_width.to_string() +
+      ") return;\n" +
+      "    const __nv_bfloat16 *selected_weight = query_weight;\n" +
+      "    int selected_column = output_column;\n" +
+      "    if (output_column >= " +
+      parameters.query_width.to_string() +
+      ") { selected_column -= " +
+      parameters.query_width.to_string() +
+      "; if (selected_column >= " +
+      parameters.intermediate_width.to_string() +
+      ") { selected_column -= " +
+      parameters.intermediate_width.to_string() +
+      "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
+      "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
+      parameters.input_width.to_string() +
+      "ULL; float value = 0.0f;\n" +
+      "    for (int inner = lane; inner < " +
+      parameters.input_width.to_string() +
+      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner])));\n" +
+      "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+      "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
+      "    return;\n"
+    }) +
+    "  }\n" +
     "  const int group_count = " +
     ((parameters.output_width + 127) / 128).to_string() +
     ";\n" +

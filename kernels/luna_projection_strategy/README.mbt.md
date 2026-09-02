@@ -8,7 +8,7 @@ offline autotune measurements. The explicit workload classes are
 bounded runtime maximum. It deliberately contains no CUDA, warp, WMMA, SM,
 HIP, or device-instruction vocabulary.
 
-Backends translate `SubgroupGemv`, `MatrixTile`, and `ScalarTile` into their
+Backends translate `SubgroupGemv`, `PaddedMatrixGemv`, `MatrixTile`, and `ScalarTile` into their
 private lowering. Each offline measurement key binds backend, target, numeric
 type, projection shape, and full strategy identity. Stable strategy identifiers
 must be unique inside one bound shape and bucket. Startup rejects duplicate or

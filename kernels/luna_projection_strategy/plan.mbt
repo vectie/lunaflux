@@ -110,19 +110,34 @@ fn static_projection_strategy(
       Some(tile) => projection_matrix_eligible(shape, tile)
       None => false
     }
-    let kernel_class = if shape.input_width % subgroup == 0 &&
-      (shape.family() != GatedMlp || gated_mlp_subgroup_supported) {
-      SubgroupGemv
-    } else {
-      ScalarTile
+    let padded_matrix = match capabilities.padded_matrix_vector_tile() {
+      Some(tile) if projection_matrix_eligible(shape, tile) => Some(tile)
+      _ => None
+    }
+    let (kernel_class, tile, stable_id) = match padded_matrix {
+      Some(tile) if shape.family() != GatedMlp || gated_mlp_subgroup_supported =>
+        (PaddedMatrixGemv, tile, 102)
+      _ if shape.input_width % subgroup == 0 &&
+        (shape.family() != GatedMlp || gated_mlp_subgroup_supported) =>
+        (
+          SubgroupGemv,
+          ProjectionTile::new(rows=1, columns=subgroup, reduction=subgroup),
+          101,
+        )
+      _ =>
+        (
+          ScalarTile,
+          ProjectionTile::new(rows=1, columns=subgroup, reduction=subgroup),
+          100,
+        )
     }
     ProjectionStrategy::new(
-      stable_id=if kernel_class == SubgroupGemv { 101 } else { 100 },
+      stable_id~,
       phase=Decode,
       strategy_class=Some(DecodeGemv),
       kernel_class~,
       row_bucket=1,
-      tile=ProjectionTile::new(rows=1, columns=subgroup, reduction=subgroup),
+      tile~,
     )
   } else {
     let strategy_class = if row_bucket <= 8 {
@@ -189,6 +204,10 @@ fn compatible_projection_candidate(
     ScalarTile => true
     SubgroupGemv =>
       row_bucket == 1 && shape.input_width % capabilities.subgroup_width() == 0
+    PaddedMatrixGemv =>
+      row_bucket == 1 &&
+      capabilities.padded_matrix_vector_tile() == Some(strategy.tile()) &&
+      projection_matrix_eligible(shape, strategy.tile())
     MatrixTile =>
       row_bucket > 1 && projection_matrix_eligible(shape, strategy.tile())
   }
