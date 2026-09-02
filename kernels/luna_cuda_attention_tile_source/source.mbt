@@ -134,7 +134,8 @@ pub fn emit_cuda_attention_tile_source(
     $|      token_count > \{maximum_query_tokens} || page_entry_count <= 0 ||
     $|      page_entry_count > \{maximum_page_entries}) return;
     $|
-    $|  const int tile_ordinal = (int)blockIdx.x;
+    $|  for (int tile_ordinal = (int)blockIdx.x; ;
+    $|       tile_ordinal += (int)gridDim.x) {
     $|  int row = -1, token_base = 0, tile_prefix = 0;
     $|  for (int candidate_row = 0; candidate_row < row_count; ++candidate_row) {
     $|    const int begin = query_row_offsets[candidate_row];
@@ -341,6 +342,8 @@ pub fn emit_cuda_attention_tile_source(
     $|        query_head * LF_HEAD_DIMENSION + component;
     $|    output[output_index] = __float2bfloat16_rn(
     $|        denominator > 0.0f ? accumulator[linear] / denominator : CUDART_NAN_F);
+    $|  }
+    $|  __syncthreads();
     $|  }
     $|}
   let bytes = @utf8.encode(source)

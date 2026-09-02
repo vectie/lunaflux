@@ -197,7 +197,11 @@ fn prepare_qwen_graph_launch_contract(
         launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
           postprocess,
         )
-        launches[readonly_index] = QueryTokenCappedGridX(readonly_launch)
+        launches[readonly_index] = if span.has_phase_specific_attention() {
+          QueryTileCappedGridX(readonly_launch, 16)
+        } else {
+          QueryTokenCappedGridX(readonly_launch)
+        }
       }
       _ => raise InvalidExecutor(GraphBucket)
     }
@@ -260,6 +264,8 @@ fn paged_projection_bucket_grid_x(
     FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
     QueryTokenCappedGridX(source) =>
       Int::min(source.grid_x(), query_token_bound)
+    QueryTileCappedGridX(source, query_tile) =>
+      Int::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
     ProjectionTensorCoreGridX(source, output_width) => {
       let grid = if query_token_bound == 1 {
         paged_ceil_div(output_width, 8)
@@ -306,9 +312,16 @@ fn paged_bucket_launch(
   if rule is QueryTokenCappedGridX(source) {
     return paged_capped_query_token_launch(source, query_token_bound)
   }
+  if rule is QueryTileCappedGridX(source, query_tile) {
+    return paged_capped_query_token_launch(
+      source,
+      paged_ceil_div(query_token_bound, query_tile),
+    )
+  }
   let source = match rule {
     FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
     QueryTokenCappedGridX(value)
+    | QueryTileCappedGridX(value, _)
     | ProjectionTensorCoreGridX(value, _)
     | ProjectionScalarGridX(value, _)
     | ProjectionMlpUpGridX(value, _)

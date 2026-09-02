@@ -115,6 +115,24 @@ test "Qwen postprocess V2 caps its grid to the decode bucket" {
 }
 
 ///|
+test "compiler attention buckets launch query tiles instead of token blocks" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=496,
+    grid_y=16,
+    grid_z=1,
+    block_x=256,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=31952,
+  )
+  let rule = QueryTileCappedGridX(source, 16)
+  assert_eq(paged_bucket_launch(rule, 1).grid_x(), 1)
+  assert_eq(paged_bucket_launch(rule, 128).grid_x(), 8)
+  assert_eq(paged_bucket_launch(rule, 512).grid_x(), 32)
+  assert_eq(paged_bucket_launch(rule, 4096).grid_x(), 256)
+}
+
+///|
 test "projection buckets remove maximum-envelope decode blocks" {
   let dense = @launch_contract.AotLaunchDimensions::new(
     grid_x=4096,
