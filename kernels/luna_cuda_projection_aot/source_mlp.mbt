@@ -69,7 +69,6 @@ fn projection_tensor_core_mlp_source(
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
-    projection_tensor_core_dual_dot_source() +
     "extern \"C\" __global__ void " +
     symbol +
     "(const int32_t *counts, const __nv_bfloat16 *input, " +
@@ -88,9 +87,14 @@ fn projection_tensor_core_mlp_source(
     parameters.input_width.to_string() +
     "ULL;\n" +
     "    float gate = 0.0f, up = 0.0f;\n" +
-    "    lf_projection_warp_dot2(input, gate_weight + weight_base, up_weight + weight_base, " +
+    "    for (int inner = lane; inner < " +
     parameters.input_width.to_string() +
-    ", &gate, &up);\n" +
+    "; inner += 32) {\n" +
+    "      const float input_value = __bfloat162float(input[inner]);\n" +
+    "      gate = __fadd_rn(gate, __fmul_rn(input_value, __bfloat162float(gate_weight[weight_base + inner])));\n" +
+    "      up = __fadd_rn(up, __fmul_rn(input_value, __bfloat162float(up_weight[weight_base + inner])));\n" +
+    "    }\n" +
+    "    for (int delta = 16; delta > 0; delta >>= 1) { gate = __fadd_rn(gate, __shfl_down_sync(0xffffffffU, gate, delta)); up = __fadd_rn(up, __shfl_down_sync(0xffffffffU, up, delta)); }\n" +
     "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
     "    return;\n  }\n" +
     "  const int group_count = " +
@@ -157,9 +161,11 @@ fn projection_tensor_core_mlp_source(
     "    const unsigned long long weight_base = (unsigned long long)output_column * " +
     parameters.intermediate_width.to_string() +
     "ULL;\n" +
-    "    const float value = lf_projection_warp_dot(workspace, down_weight + weight_base, " +
+    "    float value = 0.0f;\n" +
+    "    for (int inner = lane; inner < " +
     parameters.intermediate_width.to_string() +
-    ");\n" +
+    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(workspace[inner]), __bfloat162float(down_weight[weight_base + inner])));\n" +
+    "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     "  if (warp >= 4) return;\n" +

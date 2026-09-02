@@ -119,9 +119,6 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   let source = @utf8.decode(lowering.source_bytes())
   assert_true(source.contains("__nv_bfloat16 *workspace"))
   assert_true(source.contains("_down(const int32_t *counts"))
-  assert_true(source.contains("lf_projection_warp_dot2(input"))
-  assert_true(source.contains("lf_projection_warp_dot(workspace"))
-  assert_true(source.contains("__bfloat1622float2"))
   assert_true(
     source.contains("workspace[(unsigned long long)(row_start + tile_row)"),
   )
@@ -209,8 +206,6 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256),
   )
   assert_true(qkv.contains("if (token_count == 1)"))
-  assert_true(qkv.contains("lf_projection_warp_dot(input, selected_weight"))
-  assert_true(qkv.contains("__bfloat1622float2"))
   assert_true(qkv.contains("__shfl_down_sync"))
   assert_true(qkv.contains("nvcuda::wmma::mma_sync"))
   assert_true(qkv.contains("const int group_count = 32;"))
@@ -226,8 +221,6 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256),
   )
   assert_true(dense.contains("if (token_count == 1)"))
-  assert_true(dense.contains("lf_projection_warp_dot(input, weight"))
-  assert_true(dense.contains("__bfloat1622float2"))
   assert_true(dense.contains("__shfl_down_sync"))
   assert_true(dense.contains("nvcuda::wmma::mma_sync"))
   assert_true(dense.contains("const int group_count = 8;"))
