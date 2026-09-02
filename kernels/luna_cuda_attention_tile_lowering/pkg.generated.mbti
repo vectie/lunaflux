@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "vectie/lunaflux/kernels/luna_attention_tile_schedule",
+}
+
+// Values
+pub fn lower_attention_tile_schedule_to_cuda(@luna_attention_tile_ir.AttentionTileProgram, @luna_attention_tile_schedule.AttentionTileSchedule, @catalog.DeviceTarget, Int64) -> CudaAttentionTileLowering raise CudaAttentionTileLoweringError
+
+// Errors
+pub(all) suberror CudaAttentionTileLoweringError {
+  InvalidCudaAttentionTileLowering(CudaAttentionTileLoweringRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum CudaAttentionComputePrimitive {
+  CudaScalarFma
+  CudaSubgroupShuffleDot
+  CudaMatrixMultiplyAccumulate
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CudaAttentionCopyPrimitive {
+  CudaDirectGlobalLoad
+  CudaCooperativeSharedLoad
+  CudaAsynchronousSharedLoad
+} derive(Eq, @debug.Debug)
+
+pub struct CudaAttentionTileLowering {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileLowering::canonical_bytes(Self) -> Bytes
+pub fn CudaAttentionTileLowering::compute(Self) -> CudaAttentionComputePrimitive
+pub fn CudaAttentionTileLowering::copy(Self) -> CudaAttentionCopyPrimitive
+pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest
+pub fn CudaAttentionTileLowering::launch(Self) -> (Int, Int, Int, Int64)
+pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)
+pub fn CudaAttentionTileLowering::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+pub fn CudaAttentionTileLowering::schedule_digest(Self) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest
+pub fn CudaAttentionTileLowering::target(Self) -> @catalog.DeviceTarget
+pub fn CudaAttentionTileLowering::tile(Self) -> (Int, Int, Int)
+
+pub struct CudaAttentionTileLoweringDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn CudaAttentionTileLoweringDigest::as_hex(Self) -> String
+
+pub(all) enum CudaAttentionTileLoweringRule {
+  UnsupportedTarget
+  UnsupportedCompute
+  UnsupportedCopy
+  InvalidLaunch
+  SharedMemory
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
