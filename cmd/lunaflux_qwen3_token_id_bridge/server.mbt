@@ -78,8 +78,17 @@ async fn bridge_generate(
         bridge_finish_http_chunks(http)
         return
       }
-      Failed(_) | Accepted(_) =>
-        raise NativeProtocol("native stream terminated unexpectedly")
+      Failed(failure) => {
+        let disposition = if failure.retryable() {
+          ":retryable"
+        } else {
+          ":terminal"
+        }
+        raise NativeProtocol(
+          "native stream failed: " + failure.code().as_string() + disposition,
+        )
+      }
+      Accepted(_) => raise NativeProtocol("native stream repeated acceptance")
     }
   }
 }
