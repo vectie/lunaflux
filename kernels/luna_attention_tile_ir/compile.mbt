@@ -147,6 +147,7 @@ fn attention_compute_code(
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
     AttentionMatrixDot => 3
+    AttentionMatrixQkPv => 4
   }
 }
 

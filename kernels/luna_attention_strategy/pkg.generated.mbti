@@ -167,6 +167,7 @@ pub(all) enum AttentionTileCompute {
   AttentionScalarDot
   AttentionSubgroupDot
   AttentionMatrixDot
+  AttentionMatrixQkPv
 } derive(Eq, @debug.Debug)
 
 pub(all) enum AttentionTileMemory {

@@ -12,6 +12,12 @@ fn cuda_compute_primitive(
       } else {
         raise InvalidCudaAttentionTileLowering(UnsupportedCompute)
       }
+    AttentionMatrixQkPv =>
+      if target.compute_major() >= 8 && target.supports_bf16() {
+        CudaMatrixQkPvMultiplyAccumulate
+      } else {
+        raise InvalidCudaAttentionTileLowering(UnsupportedCompute)
+      }
   }
 }
 
@@ -38,6 +44,7 @@ fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
     CudaScalarFma => 1
     CudaSubgroupShuffleDot => 2
     CudaMatrixMultiplyAccumulate => 3
+    CudaMatrixQkPvMultiplyAccumulate => 4
   }
 }
 

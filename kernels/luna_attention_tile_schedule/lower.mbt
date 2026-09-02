@@ -34,6 +34,7 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
     AttentionMatrixDot => 3
+    AttentionMatrixQkPv => 4
   }
 }
 

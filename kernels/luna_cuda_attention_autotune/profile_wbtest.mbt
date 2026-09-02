@@ -38,7 +38,7 @@ test "sm120 profile replays immutable measurements into generic selection" {
   let problem = sm120_profile_problem()
   let capabilities = sm120_profile_capabilities()
   let records = cuda_sm120_rtx5060ti_prefill_records(problem, capabilities)
-  assert_eq(records.length(), 3)
+  assert_eq(records.length(), 5)
   let first = @luna_attention_strategy.compile_attention_tile_plan(
     records,
     backend=cuda_sm120_rtx5060ti_backend(),
@@ -55,7 +55,7 @@ test "sm120 profile replays immutable measurements into generic selection" {
   )
   assert_eq(first, repeated)
   assert_eq(first.source(), AttentionOfflineAutotune)
-  assert_eq(first.candidate().stable_id(), 290)
+  assert_eq(first.candidate().stable_id(), 310)
 }
 
 ///|

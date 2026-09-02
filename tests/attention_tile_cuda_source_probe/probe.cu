@@ -1,5 +1,6 @@
 #include "generated_attention_tile.cu"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -155,20 +156,26 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
   cudaEvent_t end = nullptr;
   require_cuda(cudaEventCreate(&begin), "cudaEventCreate begin");
   require_cuda(cudaEventCreate(&end), "cudaEventCreate end");
-  require_cuda(cudaEventRecord(begin), "cudaEventRecord begin");
-  for (int iteration = 0; iteration < 100; ++iteration) launch();
-  require_cuda(cudaEventRecord(end), "cudaEventRecord end");
-  require_cuda(cudaEventSynchronize(end), "cudaEventSynchronize end");
-  float elapsed_millis = 0.0f;
-  require_cuda(cudaEventElapsedTime(&elapsed_millis, begin, end),
-               "cudaEventElapsedTime");
+  std::vector<float> latency_samples;
+  for (int sample = 0; sample < 9; ++sample) {
+    require_cuda(cudaEventRecord(begin), "cudaEventRecord begin");
+    for (int iteration = 0; iteration < 40; ++iteration) launch();
+    require_cuda(cudaEventRecord(end), "cudaEventRecord end");
+    require_cuda(cudaEventSynchronize(end), "cudaEventSynchronize end");
+    float elapsed_millis = 0.0f;
+    require_cuda(cudaEventElapsedTime(&elapsed_millis, begin, end),
+                 "cudaEventElapsedTime");
+    latency_samples.push_back(elapsed_millis * 25.0f);
+  }
   require_cuda(cudaEventDestroy(begin), "cudaEventDestroy begin");
   require_cuda(cudaEventDestroy(end), "cudaEventDestroy end");
+  std::sort(latency_samples.begin(), latency_samples.end());
+  const float median_microseconds = latency_samples[latency_samples.size() / 2];
   std::printf(
       "benchmark_case=%s tokens=%d rows=%zu key_value_tile=%d "
-      "block_threads=%d shared_memory_bytes=%lld mean_microseconds=%g\n",
+      "block_threads=%d shared_memory_bytes=%lld median_microseconds=%g\n",
       name, token_count, lengths.size(), LF_KEY_VALUE_TILE, LF_BLOCK_THREADS,
-      static_cast<long long>(LF_SHARED_MEMORY_BYTES), elapsed_millis * 10.0f);
+      static_cast<long long>(LF_SHARED_MEMORY_BYTES), median_microseconds);
 
   float maximum_absolute_error = 0.0f;
   for (int query = 0; query < token_count; ++query) {

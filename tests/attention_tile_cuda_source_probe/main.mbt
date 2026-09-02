@@ -4,6 +4,8 @@ fn main raise {
     [_, "290"] => Some(290)
     [_, "291"] => Some(291)
     [_, "300"] => Some(300)
+    [_, "310"] => Some(310)
+    [_, "311"] => Some(311)
     _ => None
   }
   let shape = @luna_attention_strategy.AttentionShape::new(

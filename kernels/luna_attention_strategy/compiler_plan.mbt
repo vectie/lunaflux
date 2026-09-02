@@ -27,6 +27,7 @@ fn attention_ceil_div(value : Int, divisor : Int) -> Int {
 ///|
 fn attention_candidate_shared_bytes(
   problem : AttentionCompileProblem,
+  compute : AttentionTileCompute,
   query_tile : Int,
   key_value_tile : Int,
   pipeline_stages : Int,
@@ -76,13 +77,17 @@ fn attention_candidate_shared_bytes(
     key_value_tile.to_int64(),
     Candidate,
   )
+  let probability_bytes = match compute {
+    AttentionMatrixQkPv => 2L
+    AttentionScalarDot | AttentionSubgroupDot | AttentionMatrixDot => 4L
+  }
   let score_and_weight_bytes = attention_checked_product(
     score_elements,
-    8L,
+    4L + probability_bytes,
     Candidate,
   )
   let online_state_bytes = attention_checked_add(
-    attention_checked_product(query_tile.to_int64(), 8L, Candidate),
+    attention_checked_product(query_tile.to_int64(), 12L, Candidate),
     16L,
     Candidate,
   )
@@ -123,7 +128,7 @@ fn attention_candidate_compatible(
     return false
   }
   match candidate.compute {
-    AttentionMatrixDot =>
+    AttentionMatrixDot | AttentionMatrixQkPv =>
       match capabilities.matrix_shape {
         None => false
         Some(matrix) => {
@@ -160,7 +165,7 @@ fn make_attention_candidate(
     pipeline_stages,
     vector_bytes,
     shared_memory_bytes: attention_candidate_shared_bytes(
-      problem, query_rows, key_value_rows, pipeline_stages, memory,
+      problem, compute, query_rows, key_value_rows, pipeline_stages, memory,
     ),
   }
   if attention_candidate_compatible(problem, capabilities, candidate) {
@@ -319,6 +324,32 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
       minimum_context_tokens: 32,
     },
     {
+      stable_id: 310,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionStagedShared,
+      query_rows: 16,
+      key_value_rows: 32,
+      subgroups_per_block: 8,
+      pipeline_stages: 1,
+      vector_bytes: 16,
+      minimum_query_rows: 16,
+      minimum_context_tokens: 32,
+    },
+    {
+      stable_id: 311,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionStagedShared,
+      query_rows: 16,
+      key_value_rows: 64,
+      subgroups_per_block: 8,
+      pipeline_stages: 1,
+      vector_bytes: 16,
+      minimum_query_rows: 16,
+      minimum_context_tokens: 32,
+    },
+    {
       stable_id: 400,
       phase: Decode,
       compute: AttentionScalarDot,
@@ -421,7 +452,8 @@ fn attention_candidate_static_cost(
   let arithmetic_divisor = match candidate.compute {
     AttentionScalarDot => 1L
     AttentionSubgroupDot => candidate.subgroups_per_block.to_int64() * 8L
-    AttentionMatrixDot => candidate.subgroups_per_block.to_int64() * 64L
+    AttentionMatrixDot | AttentionMatrixQkPv =>
+      candidate.subgroups_per_block.to_int64() * 64L
   }
   let arithmetic_cost = dot_work / arithmetic_divisor
   let key_value_bytes = attention_checked_product(

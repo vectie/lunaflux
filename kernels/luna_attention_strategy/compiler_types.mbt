@@ -5,6 +5,7 @@ pub(all) enum AttentionTileCompute {
   AttentionScalarDot
   AttentionSubgroupDot
   AttentionMatrixDot
+  AttentionMatrixQkPv
 } derive(Debug, Eq)
 
 ///|

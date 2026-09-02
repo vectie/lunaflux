@@ -14,7 +14,9 @@ pub fn emit_cuda_attention_tile_source(
   if maximum_source_bytes <= 0 || maximum_source_bytes > 16777216 {
     raise InvalidCudaAttentionTileSource(SourceLimit)
   }
-  if lowering.compute() != CudaMatrixMultiplyAccumulate ||
+  let compute = lowering.compute()
+  if !(compute == CudaMatrixMultiplyAccumulate ||
+    compute == CudaMatrixQkPvMultiplyAccumulate) ||
     lowering.copy() != CudaCooperativeSharedLoad {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
@@ -40,6 +42,51 @@ pub fn emit_cuda_attention_tile_source(
   let query_width = query_heads * head_dimension
   let group_size = query_heads / key_value_heads
   let values_per_vector = vector_bytes / 2
+  let probability_type = if compute == CudaMatrixQkPvMultiplyAccumulate {
+    "__nv_bfloat16"
+  } else {
+    "float"
+  }
+  let probability_store = if compute == CudaMatrixQkPvMultiplyAccumulate {
+    "        weights[query * LF_KEY_VALUE_TILE + key] = __float2bfloat16_rn(weight);\n"
+  } else {
+    "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
+  }
+  let value_accumulation = if compute == CudaMatrixQkPvMultiplyAccumulate {
+    "    if (warp < LF_HEAD_DIMENSION / 16) {\n" +
+    "      using namespace nvcuda;\n" +
+    "      const int output_column = warp * 16;\n" +
+    "      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> probability_fragment;\n" +
+    "      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::row_major> value_fragment;\n" +
+    "      wmma::fragment<wmma::accumulator, 16, 16, 16, float> output_fragment;\n" +
+    "      wmma::load_matrix_sync(output_fragment, accumulator + output_column, LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
+    "      #pragma unroll\n" +
+    "      for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {\n" +
+    "        wmma::load_matrix_sync(probability_fragment, weights + reduction, LF_KEY_VALUE_TILE);\n" +
+    "        wmma::load_matrix_sync(value_fragment,\n" +
+    "            value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
+    "                reduction * LF_HEAD_DIMENSION + output_column,\n" +
+    "            LF_HEAD_DIMENSION);\n" +
+    "        wmma::mma_sync(output_fragment, probability_fragment, value_fragment, output_fragment);\n" +
+    "      }\n" +
+    "      wmma::store_matrix_sync(accumulator + output_column, output_fragment,\n" +
+    "          LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
+    "    }\n"
+  } else {
+    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "         linear += LF_BLOCK_THREADS) {\n" +
+    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "      const int component = linear % LF_HEAD_DIMENSION;\n" +
+    "      float partial = 0.0f;\n" +
+    "      #pragma unroll 4\n" +
+    "      for (int key = 0; key < LF_KEY_VALUE_TILE; ++key)\n" +
+    "        partial += weights[query * LF_KEY_VALUE_TILE + key] *\n" +
+    "            __bfloat162float(value_tiles[\n" +
+    "                stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
+    "                key * LF_HEAD_DIMENSION + component]);\n" +
+    "      accumulator[linear] += partial;\n" +
+    "    }\n"
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -124,13 +171,15 @@ pub fn emit_cuda_attention_tile_source(
     $|  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
     $|  float *scores = reinterpret_cast<float *>(shared_cursor);
     $|  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);
-    $|  float *weights = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);
+    $|  \{probability_type} *weights = reinterpret_cast<\{probability_type} *>(shared_cursor);
+    $|  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(\{probability_type});
     $|  float *accumulator = reinterpret_cast<float *>(shared_cursor);
     $|  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(float);
     $|  float *running_maximum = reinterpret_cast<float *>(shared_cursor);
     $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
     $|  float *running_denominator = reinterpret_cast<float *>(shared_cursor);
+    $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
+    $|  float *previous_scales = reinterpret_cast<float *>(shared_cursor);
     $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
     $|  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);
     $|
@@ -252,24 +301,24 @@ pub fn emit_cuda_attention_tile_source(
     $|          ? 0.0f : expf(previous_maximum - next_maximum);
     $|      if (lane == 0) {
     $|        running_maximum[query] = next_maximum;
-    $|        weights[query * LF_KEY_VALUE_TILE] = previous_scale;
+    $|        previous_scales[query] = previous_scale;
     $|      }
     $|    }
     $|    __syncthreads();
     $|    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;
     $|         linear += LF_BLOCK_THREADS) {
     $|      const int query = linear / LF_HEAD_DIMENSION;
-    $|      accumulator[linear] *= weights[query * LF_KEY_VALUE_TILE];
+    $|      accumulator[linear] *= previous_scales[query];
     $|    }
     $|    __syncthreads();
     $|
     $|    for (int query = warp; query < active_queries; query += warp_count) {
-    $|      const float previous_scale = weights[query * LF_KEY_VALUE_TILE];
+    $|      const float previous_scale = previous_scales[query];
     $|      const float maximum = running_maximum[query];
     $|      float local_sum = 0.0f;
     $|      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {
     $|        const float weight = expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);
-    $|        weights[query * LF_KEY_VALUE_TILE + key] = weight;
+    $|\{probability_store}
     $|        local_sum += weight;
     $|      }
     $|      const float tile_sum = lf_warp_sum(local_sum);
@@ -279,19 +328,7 @@ pub fn emit_cuda_attention_tile_source(
     $|    }
     $|    __syncthreads();
     $|
-    $|    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;
-    $|         linear += LF_BLOCK_THREADS) {
-    $|      const int query = linear / LF_HEAD_DIMENSION;
-    $|      const int component = linear % LF_HEAD_DIMENSION;
-    $|      float partial = 0.0f;
-    $|      #pragma unroll 4
-    $|      for (int key = 0; key < LF_KEY_VALUE_TILE; ++key)
-    $|        partial += weights[query * LF_KEY_VALUE_TILE + key] *
-    $|            __bfloat162float(value_tiles[
-    $|                stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    $|                key * LF_HEAD_DIMENSION + component]);
-    $|      accumulator[linear] += partial;
-    $|    }
+    $|\{value_accumulation}
     $|    __syncthreads();
     $|  }
     $|

@@ -41,9 +41,11 @@ pub fn cuda_sm120_rtx5060ti_prefill_records(
     problem, capabilities,
   )
   let measured : Array[(Int, Int64)] = [
-    (290, 56681L),
-    (291, 105666L),
-    (300, 67623L),
+    (290, 56506L),
+    (291, 106508L),
+    (300, 67645L),
+    (310, 31048L),
+    (311, 47146L),
   ]
   ReadOnlyArray::from_array(
     measured.map(item => {

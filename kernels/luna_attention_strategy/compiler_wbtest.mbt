@@ -83,19 +83,24 @@ test "attention compiler generates portable long-prefill tile candidates" {
     problem,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 10)
+  assert_eq(candidates.length(), 12)
   let matrix_narrow = compiler_candidate_with_id(candidates, 290)
   assert_eq(matrix_narrow.compute(), AttentionMatrixDot)
   assert_eq(matrix_narrow.memory(), AttentionStagedShared)
   assert_eq(matrix_narrow.tile().dimensions(), (16, 32, 128))
   assert_eq(matrix_narrow.execution_geometry(), (4, 1, 16))
-  assert_eq(matrix_narrow.shared_memory_bytes(), 32912L)
+  assert_eq(matrix_narrow.shared_memory_bytes(), 32976L)
+  let dual_matrix = compiler_candidate_with_id(candidates, 310)
+  assert_eq(dual_matrix.compute(), AttentionMatrixQkPv)
+  assert_eq(dual_matrix.tile().dimensions(), (16, 32, 128))
+  assert_eq(dual_matrix.execution_geometry(), (8, 1, 16))
+  assert_eq(dual_matrix.shared_memory_bytes(), 31952L)
   let matrix_async = compiler_candidate_with_id(candidates, 301)
   assert_eq(matrix_async.compute(), AttentionMatrixDot)
   assert_eq(matrix_async.memory(), AttentionAsyncStagedShared)
   assert_eq(matrix_async.tile().dimensions(), (16, 128, 128))
   assert_eq(matrix_async.execution_geometry(), (8, 3, 16))
-  assert_eq(matrix_async.shared_memory_bytes(), 225424L)
+  assert_eq(matrix_async.shared_memory_bytes(), 225488L)
   let plan = compile_attention_tile_plan(
     [],
     backend=AttentionBackendId::new("portable"),

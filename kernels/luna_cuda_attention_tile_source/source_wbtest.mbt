@@ -3,6 +3,7 @@ fn source_test_lowering(
   supports_async_copy : Bool,
   maximum_shared_memory_bytes : Int64,
   maximum_pipeline_stages : Int,
+  candidate_id? : Int? = None,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -32,10 +33,35 @@ fn source_test_lowering(
       ),
     ),
   )
+  let backend = @luna_attention_strategy.AttentionBackendId::new("cuda")
+  let target = @luna_attention_strategy.AttentionTargetId::new("sm120-fixture")
+  let records = match candidate_id {
+    None => []
+    Some(stable_id) => {
+      guard @luna_attention_strategy.generate_attention_tile_candidates(
+          problem, capabilities,
+        ).filter(candidate => candidate.stable_id() == stable_id)
+        is [candidate] else {
+        raise Failure("source-test candidate unavailable")
+      }
+      [
+        @luna_attention_strategy.AttentionAutotuneRecord::new(
+          key=@luna_attention_strategy.AttentionAutotuneKey::new(
+            backend~,
+            target~,
+            problem~,
+            candidate~,
+          ),
+          median_latency_ns=1L,
+          sample_count=3,
+        ),
+      ]
+    }
+  }
   let selected = @luna_attention_strategy.compile_attention_tile_plan(
-    [],
-    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
-    target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+    records,
+    backend~,
+    target~,
     problem~,
     capabilities~,
   )
@@ -98,7 +124,7 @@ test "matrix-tiled prefill source is deterministic and consumes the schedule" {
   for
     required in [
       "#define LF_QUERY_TILE 16", "#define LF_KEY_VALUE_TILE 64", "wmma::mma_sync",
-      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 53392", "AttentionTileFoldKeyValueStream",
+      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 53456", "AttentionTileFoldKeyValueStream",
       "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
     ] {
@@ -108,6 +134,26 @@ test "matrix-tiled prefill source is deterministic and consumes the schedule" {
       assert_true(source.contains(required))
     }
   }
+}
+
+///|
+test "dual-matrix source lowers probability-value multiplication to MMA" {
+  let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(310))
+  assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
+  assert_eq(lowering.tile(), (16, 32, 128))
+  assert_eq(lowering.launch(), (128, 16, 256, 31952L))
+  let source = @utf8.decode(
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "lunaflux_attention_prefill_tile_v1",
+      1048576,
+    ).bytes(),
+  )
+  assert_true(source.contains("__nv_bfloat16 *weights"))
+  assert_true(source.contains("__float2bfloat16_rn(weight)"))
+  assert_true(source.contains("wmma::load_matrix_sync(probability_fragment"))
+  assert_true(source.contains("wmma::load_matrix_sync(value_fragment"))
 }
 
 ///|
