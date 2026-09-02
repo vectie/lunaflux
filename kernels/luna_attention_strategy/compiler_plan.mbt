@@ -71,7 +71,30 @@ fn attention_candidate_shared_bytes(
     4L,
     Candidate,
   )
-  attention_checked_add(operand_bytes, accumulator_bytes, Candidate)
+  let score_elements = attention_checked_product(
+    query_tile.to_int64(),
+    key_value_tile.to_int64(),
+    Candidate,
+  )
+  let score_and_weight_bytes = attention_checked_product(
+    score_elements,
+    8L,
+    Candidate,
+  )
+  let online_state_bytes = attention_checked_product(
+    query_tile.to_int64(),
+    8L,
+    Candidate,
+  )
+  attention_checked_add(
+    attention_checked_add(
+      attention_checked_add(operand_bytes, accumulator_bytes, Candidate),
+      score_and_weight_bytes,
+      Candidate,
+    ),
+    online_state_bytes,
+    Candidate,
+  )
 }
 
 ///|

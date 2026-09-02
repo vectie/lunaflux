@@ -66,7 +66,7 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
   assert_eq(first.schedule_digest(), schedule.digest())
   assert_eq(first.compute(), CudaMatrixMultiplyAccumulate)
   assert_eq(first.copy(), CudaAsynchronousSharedLoad)
-  assert_eq(first.launch(), (8, 16, 256, 208896L))
+  assert_eq(first.launch(), (8, 16, 256, 225408L))
   assert_eq(first.tile(), (16, 128, 128))
   assert_eq(first.pipeline(), (3, 16))
   assert_eq(first.digest().as_hex().length(), 64)

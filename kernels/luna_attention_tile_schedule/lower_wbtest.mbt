@@ -58,6 +58,6 @@ test "attention schedule exposes portable parallel map and online fold" {
   assert_eq(first.loops()[3].geometry(), (128, 8))
   assert_eq(first.compute(), AttentionMatrixDot)
   assert_eq(first.memory(), AttentionAsyncStagedShared)
-  assert_eq(first.execution_geometry(), (8, 3, 16, 208896L))
+  assert_eq(first.execution_geometry(), (8, 3, 16, 225408L))
   assert_eq(first.digest().as_hex().length(), 64)
 }
