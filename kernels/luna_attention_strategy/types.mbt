@@ -25,6 +25,14 @@ pub(all) enum AttentionStrategyRule {
   Split
   Workspace
   Partition
+  Capability
+  Problem
+  Measurement
+  Candidate
+  Backend
+  Target
+  Duplicate
+  Conflict
 } derive(Debug, Eq)
 
 ///|

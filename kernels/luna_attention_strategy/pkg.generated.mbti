@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn compile_attention_tile_plan(ArrayView[AttentionAutotuneRecord], backend~ : AttentionBackendId, target~ : AttentionTargetId, problem~ : AttentionCompileProblem, capabilities~ : AttentionCompilerCapabilities) -> CompiledAttentionTilePlan raise AttentionStrategyError
+
+pub fn generate_attention_tile_candidates(AttentionCompileProblem, AttentionCompilerCapabilities) -> ReadOnlyArray[AttentionTileCandidate] raise AttentionStrategyError
+
 pub fn plan_attention_dispatch(AttentionShape, Int, Int, Int) -> AttentionDispatchPlan raise AttentionStrategyError
 
 pub fn plan_decode_attention_workspace(AttentionShape, AttentionPhasePlan, Int, Int, Int64) -> AttentionDecodeWorkspacePlan raise AttentionStrategyError
@@ -16,6 +20,53 @@ pub(all) suberror AttentionStrategyError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionAutotuneKey {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionAutotuneKey::backend(Self) -> AttentionBackendId
+pub fn AttentionAutotuneKey::candidate(Self) -> AttentionTileCandidate
+pub fn AttentionAutotuneKey::new(backend~ : AttentionBackendId, target~ : AttentionTargetId, problem~ : AttentionCompileProblem, candidate~ : AttentionTileCandidate) -> Self
+pub fn AttentionAutotuneKey::problem(Self) -> AttentionCompileProblem
+pub fn AttentionAutotuneKey::target(Self) -> AttentionTargetId
+
+pub struct AttentionAutotuneRecord {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionAutotuneRecord::key(Self) -> AttentionAutotuneKey
+pub fn AttentionAutotuneRecord::median_latency_ns(Self) -> Int64
+pub fn AttentionAutotuneRecord::new(key~ : AttentionAutotuneKey, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise AttentionStrategyError
+pub fn AttentionAutotuneRecord::sample_count(Self) -> Int
+
+pub struct AttentionBackendId {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionBackendId::new(String) -> Self raise AttentionStrategyError
+pub fn AttentionBackendId::stable_name(Self) -> StringView
+
+pub(all) enum AttentionCandidateSource {
+  AttentionOfflineAutotune
+  AttentionStaticCostModel
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionCompileProblem {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionCompileProblem::dimensions(Self) -> (Int, Int)
+pub fn AttentionCompileProblem::is_causal(Self) -> Bool
+pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool) -> Self raise AttentionStrategyError
+pub fn AttentionCompileProblem::numeric_type(Self) -> AttentionNumericType
+pub fn AttentionCompileProblem::phase(Self) -> AttentionExecutionPhase
+pub fn AttentionCompileProblem::shape(Self) -> AttentionShape
+
+pub struct AttentionCompilerCapabilities {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionCompilerCapabilities::limits(Self) -> (Int, Int64, Int)
+pub fn AttentionCompilerCapabilities::matrix_shape(Self) -> AttentionMatrixShape?
+pub fn AttentionCompilerCapabilities::new(subgroup_width~ : Int, max_threads_per_block~ : Int, max_shared_memory_bytes~ : Int64, max_pipeline_stages~ : Int, supports_async_copy~ : Bool, matrix_shape? : AttentionMatrixShape?) -> Self raise AttentionStrategyError
+pub fn AttentionCompilerCapabilities::subgroup_width(Self) -> Int
+pub fn AttentionCompilerCapabilities::supports_async_copy(Self) -> Bool
+
 pub struct AttentionDecodeWorkspacePlan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -46,6 +97,19 @@ pub struct AttentionKeyValuePartition {
 pub fn AttentionKeyValuePartition::split_index(Self) -> Int
 pub fn AttentionKeyValuePartition::token_range(Self) -> (Int, Int)
 
+pub struct AttentionMatrixShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionMatrixShape::dimensions(Self) -> (Int, Int, Int)
+pub fn AttentionMatrixShape::new(rows~ : Int, columns~ : Int, reduction~ : Int) -> Self raise AttentionStrategyError
+
+pub(all) enum AttentionNumericType {
+  AttentionBFloat16
+  AttentionFloat16
+  AttentionFloat32
+  AttentionFloat8
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionPhasePlan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -73,12 +137,61 @@ pub(all) enum AttentionStrategyRule {
   Split
   Workspace
   Partition
+  Capability
+  Problem
+  Measurement
+  Candidate
+  Backend
+  Target
+  Duplicate
+  Conflict
 } derive(Eq, @debug.Debug)
+
+pub struct AttentionTargetId {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTargetId::new(String) -> Self raise AttentionStrategyError
+pub fn AttentionTargetId::stable_name(Self) -> StringView
+
+pub struct AttentionTileCandidate {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileCandidate::compute(Self) -> AttentionTileCompute
+pub fn AttentionTileCandidate::execution_geometry(Self) -> (Int, Int, Int)
+pub fn AttentionTileCandidate::memory(Self) -> AttentionTileMemory
+pub fn AttentionTileCandidate::shared_memory_bytes(Self) -> Int64
+pub fn AttentionTileCandidate::stable_id(Self) -> Int
+pub fn AttentionTileCandidate::tile(Self) -> AttentionTileShape
+
+pub(all) enum AttentionTileCompute {
+  AttentionScalarDot
+  AttentionSubgroupDot
+  AttentionMatrixDot
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionTileMemory {
+  AttentionDirectGlobal
+  AttentionStagedShared
+  AttentionAsyncStagedShared
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionTileShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileShape::dimensions(Self) -> (Int, Int, Int)
 
 pub(all) enum AttentionTraversal {
   QueryTile
   KeyValueSplit
 } derive(Eq, @debug.Debug)
+
+pub struct CompiledAttentionTilePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CompiledAttentionTilePlan::candidate(Self) -> AttentionTileCandidate
+pub fn CompiledAttentionTilePlan::problem(Self) -> AttentionCompileProblem
+pub fn CompiledAttentionTilePlan::source(Self) -> AttentionCandidateSource
+pub fn CompiledAttentionTilePlan::static_cost(Self) -> Int64
 
 // Type aliases
 
