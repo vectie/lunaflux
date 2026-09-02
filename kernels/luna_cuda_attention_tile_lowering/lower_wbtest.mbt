@@ -1,6 +1,9 @@
 ///|
-fn cuda_lower_test_program_and_schedule() -> (
+fn cuda_lower_test_program_and_schedule(
+  causal? : Bool = true,
+) -> (
   @luna_attention_tile_ir.AttentionTileProgram,
+  @luna_attention_tile_optimizer.AttentionTileOptimization,
   @luna_attention_tile_schedule.AttentionTileSchedule,
 ) raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
@@ -15,7 +18,7 @@ fn cuda_lower_test_program_and_schedule() -> (
     numeric_type=AttentionBFloat16,
     query_rows=128,
     context_tokens=4096,
-    causal=true,
+    causal~,
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,
@@ -41,13 +44,14 @@ fn cuda_lower_test_program_and_schedule() -> (
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
   (
     program,
+    @luna_attention_tile_optimizer.optimize_attention_tile_program(program),
     @luna_attention_tile_schedule.schedule_attention_tile_program(program),
   )
 }
 
 ///|
 test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
-  let (program, schedule) = cuda_lower_test_program_and_schedule()
+  let (program, optimization, schedule) = cuda_lower_test_program_and_schedule()
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -55,14 +59,15 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
     supports_cublas_lt=false,
   )
   let first = lower_attention_tile_schedule_to_cuda(
-    program, schedule, target, 262144L,
+    program, optimization, schedule, target, 262144L,
   )
   let repeated = lower_attention_tile_schedule_to_cuda(
-    program, schedule, target, 262144L,
+    program, optimization, schedule, target, 262144L,
   )
   assert_eq(first.digest(), repeated.digest())
   assert_eq(first.canonical_bytes(), repeated.canonical_bytes())
   assert_eq(first.program_digest(), program.digest())
+  assert_eq(first.optimization_digest(), optimization.digest())
   assert_eq(first.schedule_digest(), schedule.digest())
   assert_eq(first.compute(), CudaMatrixMultiplyAccumulate)
   assert_eq(first.copy(), CudaAsynchronousSharedLoad)
@@ -74,7 +79,7 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
 
 ///|
 test "CUDA lowering rejects target shared-memory overcommit" {
-  let (program, schedule) = cuda_lower_test_program_and_schedule()
+  let (program, optimization, schedule) = cuda_lower_test_program_and_schedule()
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -82,11 +87,37 @@ test "CUDA lowering rejects target shared-memory overcommit" {
     supports_cublas_lt=false,
   )
   try
-    lower_attention_tile_schedule_to_cuda(program, schedule, target, 49152L)
+    lower_attention_tile_schedule_to_cuda(
+      program, optimization, schedule, target, 49152L,
+    )
   catch {
     InvalidCudaAttentionTileLowering(SharedMemory) => ()
     _ => fail("unexpected shared-memory rejection")
   } noraise {
     _ => fail("shared-memory overcommit was accepted")
+  }
+}
+
+///|
+test "CUDA lowering rejects optimization from another semantic program" {
+  let (program, _, schedule) = cuda_lower_test_program_and_schedule()
+  let (_, noncausal_optimization, _) = cuda_lower_test_program_and_schedule(
+    causal=false,
+  )
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  try
+    lower_attention_tile_schedule_to_cuda(
+      program, noncausal_optimization, schedule, target, 262144L,
+    )
+  catch {
+    InvalidCudaAttentionTileLowering(InvalidOptimization) => ()
+    _ => fail("unexpected optimization mismatch rejection")
+  } noraise {
+    _ => fail("mismatched functional optimization was accepted")
   }
 }

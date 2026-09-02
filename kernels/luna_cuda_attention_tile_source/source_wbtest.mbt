@@ -66,11 +66,15 @@ fn source_test_lowering(
     capabilities~,
   )
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
+  let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    program,
+  )
   let schedule = @luna_attention_tile_schedule.schedule_attention_tile_program(
     program,
   )
   @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     program,
+    optimization,
     schedule,
     @catalog.DeviceTarget::new(
       compute_major=12,

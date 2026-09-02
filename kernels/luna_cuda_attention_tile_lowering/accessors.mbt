@@ -6,6 +6,13 @@ pub fn CudaAttentionTileLowering::program_digest(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::optimization_digest(
+  self : CudaAttentionTileLowering,
+) -> @luna_attention_tile_optimizer.AttentionTileOptimizationDigest {
+  self.optimization_digest
+}
+
+///|
 pub fn CudaAttentionTileLowering::schedule_digest(
   self : CudaAttentionTileLowering,
 ) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest {

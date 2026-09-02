@@ -1,6 +1,7 @@
 import {
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "vectie/lunaflux/kernels/luna_attention_tile_optimizer",
   "vectie/lunaflux/kernels/luna_attention_tile_schedule",
   "vectie/lunaflux/kernels/catalog",
   "moonbitlang/core/encoding/utf8",

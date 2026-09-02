@@ -21,6 +21,7 @@ pub struct CudaAttentionTileLoweringDigest(String) derive(Debug, Eq, Hash)
 /// model, scheduler, generic attention strategy, or LunaTile semantic layers.
 pub struct CudaAttentionTileLowering {
   priv program_digest : @luna_attention_tile_ir.AttentionTileProgramDigest
+  priv optimization_digest : @luna_attention_tile_optimizer.AttentionTileOptimizationDigest
   priv schedule_digest : @luna_attention_tile_schedule.AttentionTileScheduleDigest
   priv target : @catalog.DeviceTarget
   priv compute : CudaAttentionComputePrimitive
@@ -43,6 +44,7 @@ pub(all) enum CudaAttentionTileLoweringRule {
   UnsupportedTarget
   UnsupportedCompute
   UnsupportedCopy
+  InvalidOptimization
   InvalidLaunch
   SharedMemory
 } derive(Debug, Eq)

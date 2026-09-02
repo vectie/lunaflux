@@ -58,10 +58,24 @@ fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int {
 }
 
 ///|
+fn has_rewrite_rule(
+  optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
+  expected : @luna_attention_tile_optimizer.AttentionTileRewriteRule,
+) -> Bool {
+  for region in optimization.regions() {
+    if region.rule() == expected {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Refines the generic functional schedule into CUDA launch and instruction
 /// primitives. All vendor decisions are confined to this lowering boundary.
 pub fn lower_attention_tile_schedule_to_cuda(
   program : @luna_attention_tile_ir.AttentionTileProgram,
+  optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
   schedule : @luna_attention_tile_schedule.AttentionTileSchedule,
   target : @catalog.DeviceTarget,
   maximum_shared_memory_bytes : Int64,
@@ -72,6 +86,11 @@ pub fn lower_attention_tile_schedule_to_cuda(
     target.compute_minor() > 9 ||
     maximum_shared_memory_bytes <= 0L {
     raise InvalidCudaAttentionTileLowering(UnsupportedTarget)
+  }
+  if optimization.program_digest() != program.digest() ||
+    !has_rewrite_rule(optimization, FuseScoreTransform) ||
+    !has_rewrite_rule(optimization, FuseOnlineSoftmaxFold) {
+    raise InvalidCudaAttentionTileLowering(InvalidOptimization)
   }
   if schedule.program_digest() != program.digest() {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
@@ -106,6 +125,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v1\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
+  builder <+ "optimization_sha256=\{optimization.digest().as_hex()}\n"
   builder <+ "schedule_sha256=\{schedule.digest().as_hex()}\n"
   builder <+ "target=sm_\{target.compute_major()}\{target.compute_minor()}\n"
   builder <+ "primitive=\{cuda_compute_code(compute)},\{cuda_copy_code(copy)}\n"
@@ -116,6 +136,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let canonical = @utf8.encode(builder.to_string())
   {
     program_digest: program.digest(),
+    optimization_digest: optimization.digest(),
     schedule_digest: schedule.digest(),
     target,
     compute,

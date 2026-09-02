@@ -18,6 +18,7 @@ pub fn compile_cuda_attention_tile_aot(
   }
   let lowering = @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     functional.program(),
+    functional.optimization(),
     functional.schedule(),
     request.device_target,
     request.maximum_shared_memory_bytes,
