@@ -317,7 +317,7 @@ fn prepare_qwen_compiler_decode(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
-  guard candidates.filter(candidate => candidate.stable_id() == 410)
+  guard candidates.filter(candidate => candidate.stable_id() == 420)
     is [candidate] else {
     raise QwenReadOnlyPreparation
   }
@@ -329,7 +329,7 @@ fn prepare_qwen_compiler_decode(
         problem~,
         candidate~,
       ),
-      median_latency_ns=41048L,
+      median_latency_ns=42048L,
       sample_count=100,
     ),
   ] catch {
