@@ -12,8 +12,6 @@ pub(all) enum ProjectionNumericalContract {
   OrderedF32SiluGatedBf16RoundV1
   TensorCoreF32AccumulationBf16RoundV1
   TensorCoreF32SiluGatedBf16RoundV1
-  TensorCorePrefillFmaDecodeF32Bf16RoundV1
-  TensorCorePrefillFmaDecodeF32SiluGatedBf16RoundV1
 } derive(Debug, Eq)
 
 ///|

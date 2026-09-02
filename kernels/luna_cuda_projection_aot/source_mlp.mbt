@@ -91,8 +91,8 @@ fn projection_tensor_core_mlp_source(
     parameters.input_width.to_string() +
     "; inner += 32) {\n" +
     "      const float input_value = __bfloat162float(input[inner]);\n" +
-    "      gate = fmaf(input_value, __bfloat162float(gate_weight[weight_base + inner]), gate);\n" +
-    "      up = fmaf(input_value, __bfloat162float(up_weight[weight_base + inner]), up);\n" +
+    "      gate = __fadd_rn(gate, __fmul_rn(input_value, __bfloat162float(gate_weight[weight_base + inner])));\n" +
+    "      up = __fadd_rn(up, __fmul_rn(input_value, __bfloat162float(up_weight[weight_base + inner])));\n" +
     "    }\n" +
     "    for (int delta = 16; delta > 0; delta >>= 1) { gate = __fadd_rn(gate, __shfl_down_sync(0xffffffffU, gate, delta)); up = __fadd_rn(up, __shfl_down_sync(0xffffffffU, up, delta)); }\n" +
     "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
@@ -164,7 +164,7 @@ fn projection_tensor_core_mlp_source(
     "    float value = 0.0f;\n" +
     "    for (int inner = lane; inner < " +
     parameters.intermediate_width.to_string() +
-    "; inner += 32) value = fmaf(__bfloat162float(workspace[inner]), __bfloat162float(down_weight[weight_base + inner]), value);\n" +
+    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(workspace[inner]), __bfloat162float(down_weight[weight_base + inner])));\n" +
     "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +

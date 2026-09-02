@@ -17,10 +17,6 @@ fn projection_numerical_tag(contract : ProjectionNumericalContract) -> String {
       "tensor_core_f32_accumulation_bf16_round_v1"
     TensorCoreF32SiluGatedBf16RoundV1 =>
       "tensor_core_f32_silu_gated_bf16_round_v1"
-    TensorCorePrefillFmaDecodeF32Bf16RoundV1 =>
-      "tensor_core_prefill_fma_decode_f32_bf16_round_v1"
-    TensorCorePrefillFmaDecodeF32SiluGatedBf16RoundV1 =>
-      "tensor_core_prefill_fma_decode_f32_silu_gated_bf16_round_v1"
   }
 }
 
@@ -107,10 +103,10 @@ fn projection_numerical_contract(
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
 ) -> ProjectionNumericalContract {
   if projection_tensor_core_mlp_eligible(parameters, dispatch) {
-    return TensorCorePrefillFmaDecodeF32SiluGatedBf16RoundV1
+    return TensorCoreF32SiluGatedBf16RoundV1
   }
   if projection_tensor_core_eligible(parameters, dispatch) {
-    return TensorCorePrefillFmaDecodeF32Bf16RoundV1
+    return TensorCoreF32AccumulationBf16RoundV1
   }
   match parameters.family {
     GatedMlp => OrderedF32SiluGatedBf16RoundV1
