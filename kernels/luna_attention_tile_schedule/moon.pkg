@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+}
+
+supported_targets = "native"

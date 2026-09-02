@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_tile_schedule"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+}
+
+// Values
+pub fn schedule_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileSchedule raise AttentionTileScheduleError
+
+// Errors
+pub(all) suberror AttentionTileScheduleError {
+  InvalidAttentionTileSchedule(AttentionTileScheduleRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AttentionIterationAxis {
+  AttentionQueryRowAxis
+  AttentionQueryHeadAxis
+  AttentionKeyValueAxis
+  AttentionHeadColumnAxis
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionIterationKind {
+  AttentionParallelMap
+  AttentionSequentialFold
+  AttentionVectorMap
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionLoopCombinator {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionLoopCombinator::axis(Self) -> AttentionIterationAxis
+pub fn AttentionLoopCombinator::geometry(Self) -> (Int, Int)
+pub fn AttentionLoopCombinator::kind(Self) -> AttentionIterationKind
+
+pub struct AttentionTileSchedule {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileSchedule::canonical_bytes(Self) -> Bytes
+pub fn AttentionTileSchedule::compute(Self) -> @luna_attention_strategy.AttentionTileCompute
+pub fn AttentionTileSchedule::digest(Self) -> AttentionTileScheduleDigest
+pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
+pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
+pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
+pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+
+pub struct AttentionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AttentionTileScheduleDigest::as_hex(Self) -> String
+
+pub(all) enum AttentionTileScheduleRule {
+  InvalidProblem
+  InvalidTile
+  InvalidVector
+  InvalidLoopNest
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
