@@ -488,10 +488,6 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let decode_model_steps = match split_decode_model_steps {
-    Some(steps) => Some(steps)
-    None => phase_decode_model_steps
-  }
   let decode_split_minimum_context_tokens = paged_decode_split_minimum_context_tokens(
     decode_split_bindings,
   ) catch {
@@ -513,7 +509,8 @@ pub fn prepare_paged_graph_executor(
     descriptor.resources,
     activation_workspace,
     model_steps,
-    decode_model_steps,
+    phase_decode_model_steps,
+    split_decode_model_steps,
     resources,
     graph_policy,
     fused_residual_spans,

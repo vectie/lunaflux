@@ -21,12 +21,13 @@ test "decode split dispatch owns only decode buckets" {
     slot_owner_indices: base.slot_owner_indices,
     fallback_owner_index: base.fallback_owner_index,
     telemetry_owner_index: base.telemetry_owner_index,
+    decode_owner_index: 9,
     decode_split_owner_index: 11,
     decode_split_minimum_context_tokens: 2048,
   }
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 1024)),
-    7,
+    9,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 16384)),

@@ -67,6 +67,7 @@ fn dummy_paged_executor(
       ),
       fallback_owner_index: 0,
       telemetry_owner_index: 0,
+      decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     },

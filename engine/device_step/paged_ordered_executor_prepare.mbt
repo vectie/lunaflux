@@ -432,6 +432,7 @@ fn prepare_paged_ordered_executors(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
   decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
 ) -> PagedOrderedExecutorDispatch raise DeviceStepError {
   let maximum_launches = paged_ordered_launches(steps, resources)
@@ -516,7 +517,23 @@ fn prepare_paged_ordered_executors(
       maximum
     }
   }
-  let decode_split_owner_index = match decode_steps {
+  let decode_owner_index = match decode_steps {
+    Some(selected) => {
+      let launches = paged_ordered_launches(selected, resources)
+      let operation_ids = ReadOnlyArray::from_array(
+        selected.map(step => step.operation_id),
+      )
+      prepare_one_paged_ordered_executor(
+        context,
+        launches[:],
+        operation_ids,
+        resources,
+        paged_ordered_device_policy(graph_policy),
+      )
+    }
+    None => -1
+  }
+  let decode_split_owner_index = match decode_split_steps {
     Some(selected) => {
       let launches = paged_ordered_launches(selected, resources)
       let operation_ids = ReadOnlyArray::from_array(
@@ -536,6 +553,7 @@ fn prepare_paged_ordered_executors(
     slot_owner_indices,
     fallback_owner_index,
     telemetry_owner_index,
+    decode_owner_index,
     decode_split_owner_index,
     decode_split_minimum_context_tokens,
   }

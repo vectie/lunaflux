@@ -175,10 +175,6 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let decode_model_steps = match split_decode_model_steps {
-    Some(steps) => Some(steps)
-    None => phase_decode_model_steps
-  }
   let decode_split_minimum_context_tokens = paged_decode_split_minimum_context_tokens(
     decode_split_bindings,
   ) catch {
@@ -200,7 +196,8 @@ fn prepare_numeric_bf16_graph_resources(
     descriptor.resources,
     activation,
     model_steps,
-    decode_model_steps,
+    phase_decode_model_steps,
+    split_decode_model_steps,
     resources,
     graph_policy,
     fused_residual_spans,
