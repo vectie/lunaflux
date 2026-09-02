@@ -184,6 +184,8 @@ test "matrix-tiled prefill source is deterministic and consumes the schedule" {
       assert_true(source.contains(required))
     }
   }
+  assert_true(source.contains("row_count != prefill_count + decode_count"))
+  assert_false(source.contains("decode_count != 0"))
 }
 
 ///|

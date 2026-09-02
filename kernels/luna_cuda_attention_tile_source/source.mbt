@@ -129,7 +129,9 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  const int row_count = counts[2];
     $|  const int token_count = counts[3];
     $|  const int page_entry_count = counts[4];
-    $|  if (prefill_count <= 0 || decode_count != 0 || row_count != prefill_count ||
+    $|  if (prefill_count < 0 || decode_count < 0 ||
+    $|      prefill_count + decode_count <= 0 ||
+    $|      row_count != prefill_count + decode_count ||
     $|      row_count > \{maximum_query_rows} || token_count <= 0 ||
     $|      token_count > \{maximum_query_tokens} || page_entry_count <= 0 ||
     $|      page_entry_count > \{maximum_page_entries}) return;
