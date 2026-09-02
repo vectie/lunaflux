@@ -312,29 +312,7 @@ fn prepare_qwen_compiler_decode(
   let target = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target() catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
-    problem, capabilities,
-  ) catch {
-    _ => raise QwenReadOnlyPreparation
-  }
-  guard candidates.filter(candidate => candidate.stable_id() == 420)
-    is [candidate] else {
-    raise QwenReadOnlyPreparation
-  }
-  let records = [
-    @luna_attention_strategy.AttentionAutotuneRecord::new(
-      key=@luna_attention_strategy.AttentionAutotuneKey::new(
-        backend~,
-        target~,
-        problem~,
-        candidate~,
-      ),
-      median_latency_ns=42048L,
-      sample_count=100,
-    ),
-  ] catch {
-    _ => raise QwenReadOnlyPreparation
-  }
+  let records : Array[@luna_attention_strategy.AttentionAutotuneRecord] = []
   @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot(
     @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
       backend~,

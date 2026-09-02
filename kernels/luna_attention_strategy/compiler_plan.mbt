@@ -530,9 +530,32 @@ fn attention_candidate_static_cost(
     4096L,
     Candidate,
   )
+  // A staged schedule synchronizes every resident block around each K/V tile.
+  // The previous model counted byte reuse but treated barriers as free, which
+  // made shared-memory decode win on paper while losing to the direct warp
+  // fold on real GPUs. Offline measurements still override this portable
+  // prior; the prior now prices the synchronization that the lowering emits.
+  let synchronization_unit = match candidate.memory {
+    AttentionDirectGlobal => 0L
+    AttentionStagedShared => 2048L
+    AttentionAsyncStagedShared => 512L
+  }
+  let synchronization_cost = attention_checked_product(
+    attention_checked_product(
+      attention_checked_product(query_tiles, batch_rows, Candidate),
+      query_heads.to_int64() / query_head_group,
+      Candidate,
+    ),
+    attention_checked_product(key_value_tiles, synchronization_unit, Candidate),
+    Candidate,
+  )
   attention_checked_add(
-    attention_checked_add(arithmetic_cost, memory_cost, Candidate),
-    scheduling_cost,
+    attention_checked_add(
+      attention_checked_add(arithmetic_cost, memory_cost, Candidate),
+      scheduling_cost,
+      Candidate,
+    ),
+    synchronization_cost,
     Candidate,
   )
 }

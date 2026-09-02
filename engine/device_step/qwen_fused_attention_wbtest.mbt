@@ -69,6 +69,7 @@ fn qwen_fused_test_runtime(
   include_readonly? : Bool = true,
   ingress_grid_y? : Int = 32,
   phase_specific_attention? : Bool = false,
+  direct_compiler_decode? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
@@ -153,12 +154,12 @@ fn qwen_fused_test_runtime(
         function_symbol="lunaflux_attention_decode_tile_compiler_v1",
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=blueprint.profile().max_query_rows(),
-          grid_y=8,
+          grid_y=if direct_compiler_decode { 16 } else { 8 },
           grid_z=1,
-          block_x=64,
+          block_x=if direct_compiler_decode { 32 } else { 64 },
           block_y=1,
           block_z=1,
-          shared_memory_bytes=34076,
+          shared_memory_bytes=if direct_compiler_decode { 0 } else { 34076 },
         ),
         module_bytes=b"qwen-decode-module",
       ),
@@ -174,6 +175,28 @@ fn qwen_fused_test_runtime(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
+}
+
+///|
+test "reusable Qwen runtime admits direct compiler decode kernel" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    direct_compiler_decode=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  assert_eq(spans.length(), 28)
+  assert_eq(spans[0].decode_launch().grid_y(), 16)
+  assert_eq(spans[0].decode_launch().block_x(), 32)
+  assert_eq(spans[0].decode_launch().shared_memory_bytes(), 0)
 }
 
 ///|

@@ -103,7 +103,9 @@ fn source_test_abi() -> CudaPagedAttentionTileAbi raise {
 }
 
 ///|
-fn source_test_decode_lowering() -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
+fn source_test_decode_lowering(
+  candidate_id? : Int = 420,
+) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
@@ -126,8 +128,26 @@ fn source_test_decode_lowering() -> @luna_cuda_attention_tile_lowering.CudaAtten
     max_pipeline_stages=2,
     supports_async_copy=false,
   )
+  guard @luna_attention_strategy.generate_attention_tile_candidates(
+      problem, capabilities,
+    ).filter(candidate => candidate.stable_id() == candidate_id)
+    is [candidate] else {
+    raise Failure("decode source-test candidate unavailable")
+  }
+  let records = [
+    @luna_attention_strategy.AttentionAutotuneRecord::new(
+      key=@luna_attention_strategy.AttentionAutotuneKey::new(
+        backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+        target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+        problem~,
+        candidate~,
+      ),
+      median_latency_ns=1L,
+      sample_count=3,
+    ),
+  ]
   let selected = @luna_attention_strategy.compile_attention_tile_plan(
-    [],
+    records,
     backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
     target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
     problem~,
@@ -146,6 +166,32 @@ fn source_test_decode_lowering() -> @luna_cuda_attention_tile_lowering.CudaAtten
     ),
     100000L,
   )
+}
+
+///|
+test "compiler direct decode source keeps one subgroup per query head" {
+  let lowering = source_test_decode_lowering(candidate_id=400)
+  assert_eq(lowering.phase(), Decode)
+  assert_eq(lowering.compute(), CudaScalarFma)
+  assert_eq(lowering.copy(), CudaDirectGlobalLoad)
+  assert_eq(lowering.launch(), (32, 16, 32, 0L))
+  let source = @utf8.decode(
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "lunaflux_attention_decode_direct_v1",
+      1048576,
+    ).bytes(),
+  )
+  for
+    required in [
+      "const int local_row = (int)blockIdx.x", "query_head = (int)blockIdx.y", "const int key_value_head = query_head / 4",
+      "lf_direct_warp_sum", "denominator = __shfl_sync(0xffffffffU, denominator, 0)",
+    ] {
+    assert_true(source.contains(required))
+  }
+  assert_false(source.contains("extern __shared__"))
+  assert_false(source.contains("__syncthreads"))
 }
 
 ///|

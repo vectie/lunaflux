@@ -596,13 +596,25 @@ pub fn emit_cuda_attention_tile_source(
   }
   match lowering.phase() {
     Prefill =>
-      emit_cuda_prefill_attention_tile_source(
-        lowering, abi, symbol, maximum_source_bytes,
-      )
+      if lowering.copy() == CudaDirectGlobalLoad {
+        emit_cuda_direct_attention_tile_source(
+          lowering, abi, symbol, maximum_source_bytes,
+        )
+      } else {
+        emit_cuda_prefill_attention_tile_source(
+          lowering, abi, symbol, maximum_source_bytes,
+        )
+      }
     Decode =>
-      emit_cuda_decode_attention_tile_source(
-        lowering, abi, symbol, maximum_source_bytes,
-      )
+      if lowering.copy() == CudaDirectGlobalLoad {
+        emit_cuda_direct_attention_tile_source(
+          lowering, abi, symbol, maximum_source_bytes,
+        )
+      } else {
+        emit_cuda_decode_attention_tile_source(
+          lowering, abi, symbol, maximum_source_bytes,
+        )
+      }
     MixedCompatibility =>
       raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }

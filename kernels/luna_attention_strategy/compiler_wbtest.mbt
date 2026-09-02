@@ -273,5 +273,6 @@ test "decode compile problem keeps token shape separate from batch rows" {
     problem=decode,
     capabilities=compiler_test_capabilities(),
   )
-  assert_eq(plan.candidate().stable_id(), 420)
+  assert_eq(plan.candidate().stable_id(), 400)
+  assert_eq(plan.source(), AttentionStaticCostModel)
 }
