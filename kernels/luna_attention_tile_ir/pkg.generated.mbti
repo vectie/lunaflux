@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_tile_ir"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+}
+
+// Values
+pub fn compile_attention_tile_ir(@luna_attention_strategy.CompiledAttentionTilePlan) -> AttentionTileProgram raise AttentionTileIrError
+
+// Errors
+pub(all) suberror AttentionTileIrError {
+  InvalidAttentionTileIr(AttentionTileIrRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AttentionTileBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileBinding::expression(Self) -> AttentionTileExpression
+pub fn AttentionTileBinding::id(Self) -> AttentionTileValueId
+pub fn AttentionTileBinding::kind(Self) -> AttentionTileValueKind
+
+pub(all) enum AttentionTileExpression {
+  AttentionTileInput(AttentionTileInputRole)
+  AttentionTileDot(AttentionTileValueId, AttentionTileValueId)
+  AttentionTileScale(AttentionTileValueId)
+  AttentionTileCausalMask(AttentionTileValueId)
+  AttentionTileOnlineSoftmax(scores~ : AttentionTileValueId, values~ : AttentionTileValueId)
+  AttentionTileFoldKeyValueStream(AttentionTileValueId)
+  AttentionTileNormalize(AttentionTileValueId)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionTileInputRole {
+  QueryTileStream
+  PagedKeyTileStream
+  PagedValueTileStream
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionTileIrRule {
+  InvalidValueId
+  InvalidTopology
+  InvalidValueKind
+  InvalidRoot
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionTileProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileProgram::bindings(Self) -> ReadOnlyArray[AttentionTileBinding]
+pub fn AttentionTileProgram::candidate(Self) -> @luna_attention_strategy.AttentionTileCandidate
+pub fn AttentionTileProgram::canonical_bytes(Self) -> Bytes
+pub fn AttentionTileProgram::digest(Self) -> AttentionTileProgramDigest
+pub fn AttentionTileProgram::problem(Self) -> @luna_attention_strategy.AttentionCompileProblem
+pub fn AttentionTileProgram::root(Self) -> AttentionTileValueId
+
+pub struct AttentionTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AttentionTileProgramDigest::as_hex(Self) -> String
+
+pub struct AttentionTileValueId(Int) derive(Eq, Hash, @debug.Debug)
+pub fn AttentionTileValueId::as_int(Self) -> Int
+pub fn AttentionTileValueId::from_stable_int(Int) -> Self raise AttentionTileIrError
+
+pub(all) enum AttentionTileValueKind {
+  QueryTileValue
+  KeyTileValue
+  ValueTileValue
+  ScoreTileValue
+  OnlineSoftmaxStateValue
+  OutputTileValue
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
