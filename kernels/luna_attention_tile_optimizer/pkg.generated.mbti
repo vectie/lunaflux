@@ -1,0 +1,55 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_tile_optimizer"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+}
+
+// Values
+pub fn optimize_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileOptimization raise AttentionTileOptimizerError
+
+// Errors
+pub(all) suberror AttentionTileOptimizerError {
+  InvalidAttentionTileOptimization(AttentionTileOptimizerRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AttentionTileOptimization {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileOptimization::canonical_bytes(Self) -> Bytes
+pub fn AttentionTileOptimization::digest(Self) -> AttentionTileOptimizationDigest
+pub fn AttentionTileOptimization::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+pub fn AttentionTileOptimization::regions(Self) -> ReadOnlyArray[AttentionTileRewriteRegion]
+pub fn AttentionTileOptimization::trace(Self) -> ReadOnlyArray[AttentionTileRewriteStep]
+
+pub struct AttentionTileOptimizationDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AttentionTileOptimizationDigest::as_hex(Self) -> String
+
+pub(all) enum AttentionTileOptimizerRule {
+  InvalidRewritePipeline
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionTileRewriteRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileRewriteRegion::members(Self) -> ReadOnlyArray[@luna_attention_tile_ir.AttentionTileValueId]
+pub fn AttentionTileRewriteRegion::root(Self) -> @luna_attention_tile_ir.AttentionTileValueId
+pub fn AttentionTileRewriteRegion::rule(Self) -> AttentionTileRewriteRule
+
+pub(all) enum AttentionTileRewriteRule {
+  FuseScoreTransform
+  FuseOnlineSoftmaxFold
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionTileRewriteStep {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileRewriteStep::changed(Self) -> Bool
+pub fn AttentionTileRewriteStep::region_count(Self) -> Int
+pub fn AttentionTileRewriteStep::rule(Self) -> AttentionTileRewriteRule
+
+// Type aliases
+
+// Traits

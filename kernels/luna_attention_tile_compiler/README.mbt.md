@@ -2,7 +2,9 @@
 
 This package is the pure compiler core between model-independent attention
 problems and backend lowering. Its typed stages are `Request -> Selected ->
-Semantic -> Scheduled`; no pass can consume a value from the wrong phase.
+Semantic -> Optimized -> Scheduled`; no pass can consume a value from the
+wrong phase. Optimization is a bounded pure pass fold that returns immutable
+equational regions and a deterministic trace.
 
 Autotune records and portable device capabilities are explicit immutable
 inputs. The passes perform no I/O, mutate no global compiler state, and return

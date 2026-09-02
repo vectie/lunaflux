@@ -23,8 +23,8 @@ records and preallocated resources.
   reductions, and capabilities. Exhaustive matching makes a newly added
   operation visible to every compiler pass.
 - Compiler phases have distinct types. For attention these are Request,
-  Selected, Semantic, and Scheduled; a backend cannot lower an unelaborated or
-  unscheduled program.
+  Selected, Semantic, Optimized, and Scheduled; a backend cannot lower an
+  unelaborated, unoptimized, or unscheduled program.
 - Ordered recurrence is explicit. Attention uses a sequential online-softmax
   fold over paged K/V tiles, surrounded by parallel maps over query tiles,
   heads, and output columns.
@@ -75,6 +75,8 @@ The implemented path is:
 
 - luna_attention_strategy: pure candidate generation and autotune selection;
 - luna_attention_tile_ir: immutable attention semantic value graph;
+- luna_attention_tile_optimizer: bounded pure equational pass pipeline and
+  immutable rewrite-region extraction;
 - luna_attention_tile_schedule: backend-neutral parallel maps and ordered K/V
   fold;
 - luna_attention_tile_compiler: phase-typed pure pass composition;

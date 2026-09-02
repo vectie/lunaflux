@@ -27,17 +27,45 @@ pub fn SemanticAttentionTileCompilation::program(
 }
 
 ///|
+pub fn OptimizedAttentionTileCompilation::plan(
+  self : OptimizedAttentionTileCompilation,
+) -> @luna_attention_strategy.CompiledAttentionTilePlan {
+  self.semantic.selected.plan
+}
+
+///|
+pub fn OptimizedAttentionTileCompilation::program(
+  self : OptimizedAttentionTileCompilation,
+) -> @luna_attention_tile_ir.AttentionTileProgram {
+  self.semantic.program
+}
+
+///|
+pub fn OptimizedAttentionTileCompilation::optimization(
+  self : OptimizedAttentionTileCompilation,
+) -> @luna_attention_tile_optimizer.AttentionTileOptimization {
+  self.optimization
+}
+
+///|
 pub fn ScheduledAttentionTileCompilation::plan(
   self : ScheduledAttentionTileCompilation,
 ) -> @luna_attention_strategy.CompiledAttentionTilePlan {
-  self.semantic.selected.plan
+  self.optimized.semantic.selected.plan
 }
 
 ///|
 pub fn ScheduledAttentionTileCompilation::program(
   self : ScheduledAttentionTileCompilation,
 ) -> @luna_attention_tile_ir.AttentionTileProgram {
-  self.semantic.program
+  self.optimized.semantic.program
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::optimization(
+  self : ScheduledAttentionTileCompilation,
+) -> @luna_attention_tile_optimizer.AttentionTileOptimization {
+  self.optimized.optimization
 }
 
 ///|

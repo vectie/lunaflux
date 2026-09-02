@@ -28,30 +28,46 @@ pub fn elaborate_attention_tile(
 }
 
 ///|
+/// Applies the backend-neutral functional rewrite pipeline.
+pub fn optimize_attention_tile(
+  semantic : SemanticAttentionTileCompilation,
+) -> OptimizedAttentionTileCompilation raise AttentionTileCompilerError {
+  let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    semantic.program,
+  ) catch {
+    _ => raise InvalidAttentionTileCompilation(FunctionalOptimization)
+  }
+  { semantic, optimization }
+}
+
+///|
 /// Derives an immutable map/fold schedule without assigning vendor concepts.
 pub fn schedule_attention_tile(
-  semantic : SemanticAttentionTileCompilation,
+  optimized : OptimizedAttentionTileCompilation,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
   let schedule = @luna_attention_tile_schedule.schedule_attention_tile_program(
-    semantic.program,
+    optimized.semantic.program,
   ) catch {
     _ => raise InvalidAttentionTileCompilation(ScheduleDerivation)
   }
-  let candidate = semantic.selected.plan.candidate()
+  let candidate = optimized.semantic.selected.plan.candidate()
   let canonical = @utf8.encode(
     "luna-attention-functional-compilation-v1\n" +
     "candidate=" +
     candidate.stable_id().to_string() +
     "\n" +
     "program=" +
-    semantic.program.digest().as_hex() +
+    optimized.semantic.program.digest().as_hex() +
+    "\n" +
+    "optimization=" +
+    optimized.optimization.digest().as_hex() +
     "\n" +
     "schedule=" +
     schedule.digest().as_hex() +
     "\n",
   )
   {
-    semantic,
+    optimized,
     schedule,
     canonical,
     digest: AttentionTileCompilationDigest(
@@ -61,11 +77,13 @@ pub fn schedule_attention_tile(
 }
 
 ///|
-/// Total composition of the three pure compiler passes.
+/// Total composition of the four pure compiler passes.
 pub fn compile_attention_tile(
   request : AttentionTileCompilerRequest,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
   schedule_attention_tile(
-    elaborate_attention_tile(select_attention_tile(request)),
+    optimize_attention_tile(
+      elaborate_attention_tile(select_attention_tile(request)),
+    ),
   )
 }

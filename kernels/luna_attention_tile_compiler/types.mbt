@@ -27,11 +27,17 @@ pub struct SemanticAttentionTileCompilation {
 } derive(Debug, Eq)
 
 ///|
+pub struct OptimizedAttentionTileCompilation {
+  priv semantic : SemanticAttentionTileCompilation
+  priv optimization : @luna_attention_tile_optimizer.AttentionTileOptimization
+} derive(Debug, Eq)
+
+///|
 pub struct AttentionTileCompilationDigest(String) derive(Debug, Eq, Hash)
 
 ///|
 pub struct ScheduledAttentionTileCompilation {
-  priv semantic : SemanticAttentionTileCompilation
+  priv optimized : OptimizedAttentionTileCompilation
   priv schedule : @luna_attention_tile_schedule.AttentionTileSchedule
   priv canonical : Bytes
   priv digest : AttentionTileCompilationDigest
@@ -41,6 +47,7 @@ pub struct ScheduledAttentionTileCompilation {
 pub(all) enum AttentionTileCompilerRule {
   StrategySelection
   SemanticElaboration
+  FunctionalOptimization
   ScheduleDerivation
 } derive(Debug, Eq)
 

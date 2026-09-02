@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_tile_compiler"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "vectie/lunaflux/kernels/luna_attention_tile_optimizer",
+  "vectie/lunaflux/kernels/luna_attention_tile_schedule",
+}
+
+// Values
+pub fn compile_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
+
+pub fn elaborate_attention_tile(SelectedAttentionTileCompilation) -> SemanticAttentionTileCompilation raise AttentionTileCompilerError
+
+pub fn optimize_attention_tile(SemanticAttentionTileCompilation) -> OptimizedAttentionTileCompilation raise AttentionTileCompilerError
+
+pub fn schedule_attention_tile(OptimizedAttentionTileCompilation) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
+
+pub fn select_attention_tile(AttentionTileCompilerRequest) -> SelectedAttentionTileCompilation raise AttentionTileCompilerError
+
+// Errors
+pub(all) suberror AttentionTileCompilerError {
+  InvalidAttentionTileCompilation(AttentionTileCompilerRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AttentionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AttentionTileCompilationDigest::as_hex(Self) -> String
+
+pub struct AttentionTileCompilerRequest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileCompilerRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> Self
+pub fn AttentionTileCompilerRequest::problem(Self) -> @luna_attention_strategy.AttentionCompileProblem
+
+pub(all) enum AttentionTileCompilerRule {
+  StrategySelection
+  SemanticElaboration
+  FunctionalOptimization
+  ScheduleDerivation
+} derive(Eq, @debug.Debug)
+
+pub struct OptimizedAttentionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OptimizedAttentionTileCompilation::optimization(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimization
+pub fn OptimizedAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
+pub fn OptimizedAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
+
+pub struct ScheduledAttentionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ScheduledAttentionTileCompilation::canonical_bytes(Self) -> Bytes
+pub fn ScheduledAttentionTileCompilation::digest(Self) -> AttentionTileCompilationDigest
+pub fn ScheduledAttentionTileCompilation::optimization(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimization
+pub fn ScheduledAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
+pub fn ScheduledAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
+pub fn ScheduledAttentionTileCompilation::schedule(Self) -> @luna_attention_tile_schedule.AttentionTileSchedule
+
+pub struct SelectedAttentionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SelectedAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
+
+pub struct SemanticAttentionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SemanticAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
+pub fn SemanticAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
+
+// Type aliases
+
+// Traits
