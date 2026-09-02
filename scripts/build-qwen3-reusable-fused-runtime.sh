@@ -226,7 +226,9 @@ grep -Fq "void $split_merge_symbol(" "$split_source" ||
 # reusable CUBIN. Prefill is a separate compiler-generated module.
 combined_source=$scratch/attention-combined.cu
 cat "$candidate_output/reusable-qwen-decode-attention/kernel.cu" \
-  "$split_source" >"$combined_source"
+  >"$combined_source"
+printf '%s\n' '#undef LF_BLOCK_THREADS' >>"$combined_source"
+cat "$split_source" >>"$combined_source"
 combined_root=$scratch/attention-combined
 mkdir "$combined_root" "$combined_root/first" "$combined_root/second"
 for pass in first second; do
