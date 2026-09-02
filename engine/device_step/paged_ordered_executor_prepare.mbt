@@ -172,7 +172,9 @@ fn prepare_qwen_graph_launch_contract(
     return None
   }
   let launches = FixedArray::make(steps.length(), FixedBucketLaunch)
+  let decode_launches = FixedArray::make(steps.length(), FixedBucketLaunch)
   prepare_projection_bucket_launches(blueprint, steps, launches)
+  prepare_projection_bucket_launches(blueprint, steps, decode_launches)
   for span in spans {
     let (_, qk_norm_index, _, attention_index) = span.operation_indices()
     guard blueprint.steps().get(qk_norm_index) is Some(qk_norm) &&
@@ -192,8 +194,19 @@ fn prepare_qwen_graph_launch_contract(
       qk_norm.operation_id(),
     )
     let readonly_index = qwen_bucket_step_index(steps, attention.operation_id())
-    match (launches[postprocess_index], launches[readonly_index]) {
-      (FixedBucketLaunch, FixedBucketLaunch) => {
+    match
+      (
+        launches[postprocess_index],
+        launches[readonly_index],
+        decode_launches[postprocess_index],
+        decode_launches[readonly_index],
+      ) {
+      (
+        FixedBucketLaunch,
+        FixedBucketLaunch,
+        FixedBucketLaunch,
+        FixedBucketLaunch,
+      ) => {
         launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
           postprocess,
         )
@@ -202,11 +215,19 @@ fn prepare_qwen_graph_launch_contract(
         } else {
           QueryTokenCappedGridX(readonly_launch)
         }
+        decode_launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
+          postprocess,
+        )
+        decode_launches[readonly_index] = if span.has_phase_specific_attention() {
+          QueryTokenCappedGridX(span.decode_launch())
+        } else {
+          QueryTokenCappedGridX(readonly_launch)
+        }
       }
       _ => raise InvalidExecutor(GraphBucket)
     }
   }
-  Some({ step_launches: launches })
+  Some({ step_launches: launches, decode_step_launches: decode_launches })
 }
 
 ///|
@@ -355,6 +376,7 @@ fn paged_ordered_launches(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
   query_token_bound? : Int? = None,
+  phase_decode? : Bool = false,
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
@@ -364,12 +386,18 @@ fn paged_ordered_launches(
     }
     let dimensions = match
       (query_token_bound, resources.graph_launch_contract) {
-      (Some(bound), Some(contract)) =>
-        match contract.step_launches.get(index) {
+      (Some(bound), Some(contract)) => {
+        let launch_contract = if phase_decode {
+          contract.decode_step_launches
+        } else {
+          contract.step_launches
+        }
+        match launch_contract.get(index) {
           Some(FixedBucketLaunch) | None => step.dimensions
           Some(rule) =>
             paged_device_launch_dimensions(paged_bucket_launch(rule, bound))
         }
+      }
       _ => step.dimensions
     }
     launches.push(
@@ -534,6 +562,7 @@ fn prepare_paged_ordered_executors(
             selected,
             resources,
             query_token_bound=Some(bound),
+            phase_decode=true,
           )
           let owner = prepare_one_paged_ordered_executor(
             context,

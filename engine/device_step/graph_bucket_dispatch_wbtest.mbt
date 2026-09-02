@@ -165,6 +165,35 @@ test "compiler attention buckets launch query tiles instead of token blocks" {
 }
 
 ///|
+test "phase-specific compiler decode scales one row per block" {
+  let prefill = @launch_contract.AotLaunchDimensions::new(
+    grid_x=256,
+    grid_y=16,
+    grid_z=1,
+    block_x=256,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=31952,
+  )
+  let decode = @launch_contract.AotLaunchDimensions::new(
+    grid_x=32,
+    grid_y=8,
+    grid_z=1,
+    block_x=256,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=34076,
+  )
+  let prefill_scaled = paged_bucket_launch(QueryTileCappedGridX(prefill, 16), 8)
+  let scaled = paged_bucket_launch(QueryTokenCappedGridX(decode), 8)
+  assert_eq(prefill_scaled.grid_x(), 1)
+  assert_eq(
+    (scaled.grid_x(), scaled.grid_y(), scaled.shared_memory_bytes()),
+    (8, 8, 34076),
+  )
+}
+
+///|
 test "projection buckets remove maximum-envelope decode blocks" {
   let dense = @launch_contract.AotLaunchDimensions::new(
     grid_x=4096,

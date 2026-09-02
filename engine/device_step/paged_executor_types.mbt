@@ -53,6 +53,7 @@ priv enum PagedBucketStepLaunch {
 /// every bucket, including kernels that authenticate the full launch grid.
 priv struct PagedGraphLaunchContract {
   step_launches : FixedArray[PagedBucketStepLaunch]
+  decode_step_launches : FixedArray[PagedBucketStepLaunch]
 }
 
 ///|
