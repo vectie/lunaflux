@@ -1,0 +1,69 @@
+///|
+pub fn AttentionTileCompilerRequest::problem(
+  self : AttentionTileCompilerRequest,
+) -> @luna_attention_strategy.AttentionCompileProblem {
+  self.problem
+}
+
+///|
+pub fn SelectedAttentionTileCompilation::plan(
+  self : SelectedAttentionTileCompilation,
+) -> @luna_attention_strategy.CompiledAttentionTilePlan {
+  self.plan
+}
+
+///|
+pub fn SemanticAttentionTileCompilation::plan(
+  self : SemanticAttentionTileCompilation,
+) -> @luna_attention_strategy.CompiledAttentionTilePlan {
+  self.selected.plan
+}
+
+///|
+pub fn SemanticAttentionTileCompilation::program(
+  self : SemanticAttentionTileCompilation,
+) -> @luna_attention_tile_ir.AttentionTileProgram {
+  self.program
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::plan(
+  self : ScheduledAttentionTileCompilation,
+) -> @luna_attention_strategy.CompiledAttentionTilePlan {
+  self.semantic.selected.plan
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::program(
+  self : ScheduledAttentionTileCompilation,
+) -> @luna_attention_tile_ir.AttentionTileProgram {
+  self.semantic.program
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::schedule(
+  self : ScheduledAttentionTileCompilation,
+) -> @luna_attention_tile_schedule.AttentionTileSchedule {
+  self.schedule
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::canonical_bytes(
+  self : ScheduledAttentionTileCompilation,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn ScheduledAttentionTileCompilation::digest(
+  self : ScheduledAttentionTileCompilation,
+) -> AttentionTileCompilationDigest {
+  self.digest
+}
+
+///|
+pub fn AttentionTileCompilationDigest::as_hex(
+  self : AttentionTileCompilationDigest,
+) -> String {
+  self.0
+}

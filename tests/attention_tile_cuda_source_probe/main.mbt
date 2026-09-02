@@ -28,20 +28,18 @@ fn main raise {
       ),
     ),
   )
-  let selected = @luna_attention_strategy.compile_attention_tile_plan(
-    [],
-    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
-    target=@luna_attention_strategy.AttentionTargetId::new("sm120-probe"),
-    problem~,
-    capabilities~,
-  )
-  let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
-  let schedule = @luna_attention_tile_schedule.schedule_attention_tile_program(
-    program,
+  let compiled = @luna_attention_tile_compiler.compile_attention_tile(
+    @luna_attention_tile_compiler.AttentionTileCompilerRequest::new(
+      backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+      target=@luna_attention_strategy.AttentionTargetId::new("sm120-probe"),
+      problem~,
+      capabilities~,
+      [],
+    ),
   )
   let lowering = @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
-    program,
-    schedule,
+    compiled.program(),
+    compiled.schedule(),
     @catalog.DeviceTarget::new(
       compute_major=12,
       compute_minor=0,
