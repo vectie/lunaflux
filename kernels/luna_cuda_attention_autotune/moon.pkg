@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+}
+
+supported_targets = "native"

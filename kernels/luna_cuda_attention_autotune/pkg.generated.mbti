@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_attention_autotune"
+
+import {
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+}
+
+// Values
+pub fn cuda_sm120_rtx5060ti_backend() -> @luna_attention_strategy.AttentionBackendId raise
+
+pub fn cuda_sm120_rtx5060ti_prefill_records(@luna_attention_strategy.AttentionCompileProblem, @luna_attention_strategy.AttentionCompilerCapabilities) -> ReadOnlyArray[@luna_attention_strategy.AttentionAutotuneRecord] raise
+
+pub fn cuda_sm120_rtx5060ti_target() -> @luna_attention_strategy.AttentionTargetId raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
