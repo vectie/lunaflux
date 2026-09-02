@@ -206,6 +206,99 @@ fn readonly_test_attention(
 }
 
 ///|
+fn readonly_test_tiled_softmax16(
+  scores : FixedArray[Float],
+  values : FixedArray[Float],
+  width : Int,
+) -> FixedArray[Float] {
+  let output = FixedArray::make(width, 0.0F)
+  let weights = FixedArray::make(16, 0.0F)
+  let mut maximum = -3.4028235e38F
+  let mut denominator = 0.0F
+  for base = 0; base < scores.length(); base = base + 16 {
+    let mut next_maximum = maximum
+    for item in 0..<16 {
+      weights[item] = 0.0F
+      let index = base + item
+      if index < scores.length() {
+        next_maximum = next_maximum.max(scores[index])
+      }
+    }
+    let old_scale = if denominator == 0.0F {
+      0.0F
+    } else {
+      @math.expf(maximum - next_maximum)
+    }
+    let mut next_denominator = denominator * old_scale
+    for item in 0..<16 {
+      let index = base + item
+      if index < scores.length() {
+        weights[item] = @math.expf(scores[index] - next_maximum)
+        next_denominator += weights[item]
+      }
+    }
+    for component in 0..<width {
+      let mut weighted = 0.0F
+      for item in 0..<16 {
+        let index = base + item
+        if index < scores.length() {
+          weighted += weights[item] * values[index * width + component]
+        }
+      }
+      output[component] = output[component] * old_scale + weighted
+    }
+    maximum = next_maximum
+    denominator = next_denominator
+  }
+  for component in 0..<width {
+    output[component] /= denominator
+  }
+  output
+}
+
+///|
+fn readonly_test_scalar_softmax(
+  scores : FixedArray[Float],
+  values : FixedArray[Float],
+  width : Int,
+) -> FixedArray[Float] {
+  let mut maximum = scores[0]
+  for index in 1..<scores.length() {
+    maximum = maximum.max(scores[index])
+  }
+  let weights = FixedArray::makei(scores.length(), index => {
+    @math.expf(scores[index] - maximum)
+  })
+  let mut denominator = 0.0F
+  for weight in weights {
+    denominator += weight
+  }
+  FixedArray::makei(width, component => {
+    let mut accumulator = 0.0F
+    for index in 0..<scores.length() {
+      accumulator += weights[index] * values[index * width + component]
+    }
+    accumulator / denominator
+  })
+}
+
+///|
+fn readonly_test_softmax_tile_case(count : Int) -> Unit raise {
+  let width = 7
+  let scores = FixedArray::makei(count, index => {
+    Float::from_int((index * 13 + count * 7) % 29 - 14) * 0.1875F
+  })
+  let values = FixedArray::makei(count * width, index => {
+    Float::from_int((index * 17 + count * 3) % 41 - 20) * 0.03125F
+  })
+  let tiled = readonly_test_tiled_softmax16(scores, values, width)
+  let scalar = readonly_test_scalar_softmax(scores, values, width)
+  for component in 0..<width {
+    assert_true((tiled[component] - scalar[component]).abs() <= 0.000001F)
+  }
+}
+
+///|
 fn readonly_test_case(
   sequence_length : Int,
   chunk_start : Int,
@@ -275,4 +368,13 @@ test "read-only attention matches fused write-attend scalar and page boundary ca
 ///|
 test "read-only attention matches long context and leaves cache bytes/canaries unchanged" {
   readonly_test_case(257, 254, 3, 16, 32)
+}
+
+///|
+test "sixteen-key online-softmax tiles match stable scalar softmax across tails" {
+  readonly_test_softmax_tile_case(1)
+  readonly_test_softmax_tile_case(4)
+  readonly_test_softmax_tile_case(5)
+  readonly_test_softmax_tile_case(17)
+  readonly_test_softmax_tile_case(257)
 }

@@ -12,10 +12,10 @@ fn readonly_launch_dimensions(
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
 ) -> @launch_contract.AotLaunchDimensions raise PagedAttentionReadOnlyAotError {
   @launch_contract.AotLaunchDimensions::new(
-    grid_x=Int::min(reference.profile().max_query_tokens(), 32),
+    grid_x=Int::min(reference.profile().max_query_tokens(), 128),
     grid_y=reference.query_heads(),
     grid_z=1,
-    block_x=32,
+    block_x=128,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,
@@ -187,6 +187,8 @@ fn readonly_recipe(
     ",1\nblock=" +
     launch.block_x().to_string() +
     ",1,1\nshared_memory_bytes=0\n" +
+    "attention_key_tile=16\nattention_key_warps=4\nattention_keys_per_warp=4\n" +
+    "attention_block_threads=128\nattention_token_grid_cap=128\n" +
     "raw_pointer_abi=" +
     abi.canonical_name() +
     "\nrotated_query_only=true\nfull_qkv_row_stride_bound=true\n" +
@@ -268,7 +270,9 @@ fn readonly_production_recipe(
     launch.grid_y().to_string() +
     ",1\nblock=" +
     launch.block_x().to_string() +
-    ",1,1\nshared_memory_bytes=0\nraw_pointer_abi=" +
+    ",1,1\nshared_memory_bytes=0\n" +
+    "attention_key_tile=16\nattention_key_warps=4\nattention_keys_per_warp=4\n" +
+    "attention_block_threads=128\nattention_token_grid_cap=128\nraw_pointer_abi=" +
     RotatedQueryPagedKvReadOnlyProductionRawPointerV2.canonical_name() +
     "\ndiagnostic_canary=absent\nrotated_query_only=true\n" +
     "full_qkv_row_stride_bound=true\nkv_cache_access=read_only\n" +

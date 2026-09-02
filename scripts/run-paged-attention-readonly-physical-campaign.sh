@@ -185,7 +185,7 @@ resource=$stage/builds/resource/compiler.stderr
 read -r registers shared < <(sed -nE 's/^ptxas info[[:space:]]*: Used ([0-9]+) registers, ([0-9]+) bytes smem(,.*)?$/\1 \2/p' "$resource")
 read -r stack spill_store spill_load < <(sed -nE 's/^[[:space:]]*([0-9]+) bytes stack frame, ([0-9]+) bytes spill stores, ([0-9]+) bytes spill loads$/\1 \2 \3/p' "$resource")
 [[ $registers =~ ^[0-9]+$ && $shared =~ ^[0-9]+$ && $stack =~ ^[0-9]+$ && $spill_store =~ ^[0-9]+$ && $spill_load =~ ^[0-9]+$ ]] || fail 'resource facts malformed'
-(( registers <= 128 && shared == 0 && stack == 0 && spill_store == 0 && spill_load == 0 )) || fail 'resource bound exceeded'
+(( registers <= 128 && shared <= 512 && stack == 0 && spill_store == 0 && spill_load == 0 )) || fail 'resource bound exceeded'
 "$cuobjdump" --dump-resource-usage "$cubin" >"$stage/measurements/cuobjdump-resources.stdout" 2>"$stage/measurements/cuobjdump-resources.stderr"
 [[ ! -s $stage/measurements/cuobjdump-resources.stderr ]] || fail 'resource dump emitted stderr'
 line_count=$(grep -Ec '(^|[[:space:]])REG:[0-9]+([[:space:]]|$)' "$stage/measurements/cuobjdump-resources.stdout")
@@ -225,7 +225,7 @@ for exact in 'outcome=paged-attention-readonly-sm120-qualification-pass ' \
   'scheduler_modes=prefill-only,decode-only,mixed-prefill-decode ' \
   'cache_snapshot_unchanged=true ' 'input_guards_unchanged=true ' 'output_guards_unchanged=true ' \
   'dispatch_symbol_resolved=true ' "dispatch_canary_per_token=$dispatch_canary " \
-  'dispatch_grid_x_max=32 ' 'dispatch_grid_y=2 ' 'dispatch_block_x=32 ' \
+  'dispatch_grid_x_max=128 ' 'dispatch_grid_y=2 ' 'dispatch_block_x=128 ' \
   "dispatch_canary_cell_count=$canary_cells " 'dispatch_canary_exact=true ' \
   'dispatch_canary_tail_zero=true ' 'dispatch_canary_sum_checked=true ' \
   "input_row_width=$input_row_width " 'target=sm_120 ' \
@@ -298,11 +298,11 @@ printf '%s\n' 'schema=lunaflux-paged-attention-readonly-physical-campaign.v1' \
   "cuobjdump_sass_sha256=$(sha256_file "$stage/measurements/cuobjdump-sass.stdout")" \
   "cuobjdump_sass_instruction_count=$cu_count" "nvdisasm_sass_sha256=$(sha256_file "$stage/measurements/nvdisasm-sass.stdout")" \
   "nvdisasm_sass_instruction_count=$nv_count" 'sass_global_load_observed=true' 'sass_global_store_observed=true' \
-  "registers_per_thread=$registers" 'register_bound=128' "static_shared_bytes=$shared" 'static_shared_bound=0' \
+  "registers_per_thread=$registers" 'register_bound=128' "static_shared_bytes=$shared" 'static_shared_bound=512' \
   "stack_bytes=$stack" "local_bytes=$local_bytes" "spill_store_bytes=$spill_store" "spill_load_bytes=$spill_load" \
   'resource_bounds_passed=true' 'case_families=origin,page-tail,cross-page,multirow,long-context' \
   'scheduler_modes=prefill-only,decode-only,mixed-prefill-decode' \
-  'dispatch_grid_x_max=32' 'dispatch_grid_y=2' 'dispatch_block_x=32' \
+  'dispatch_grid_x_max=128' 'dispatch_grid_y=2' 'dispatch_block_x=128' \
   "numeric_case_count=$numeric_cases" 'output_dtype=bf16' 'absolute_tolerance=0.0078125' 'relative_tolerance=0.01' \
   "cpu_vs_candidate_max_abs_error=$cpu_error" "serial_vs_candidate_max_abs_error=$serial_error" \
   'cpu_oracle=independent-ordered-f32-v1' 'serial_cuda_oracle=independent-ordered-f32-kernel-v1' \

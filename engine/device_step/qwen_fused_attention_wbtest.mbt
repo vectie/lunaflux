@@ -117,10 +117,10 @@ fn qwen_fused_test_runtime(
         operation_count=1,
         function_symbol="qwen_readonly",
         launch=@launch_contract.AotLaunchDimensions::new(
-          grid_x=Int::min(blueprint.profile().max_query_tokens(), 32),
+          grid_x=Int::min(blueprint.profile().max_query_tokens(), 128),
           grid_y=16,
           grid_z=1,
-          block_x=32,
+          block_x=128,
           block_y=1,
           block_z=1,
           shared_memory_bytes=0,

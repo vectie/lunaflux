@@ -10,7 +10,7 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
     grid_x=1,
     grid_y=1,
     grid_z=1,
-    block_x=32,
+    block_x=128,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

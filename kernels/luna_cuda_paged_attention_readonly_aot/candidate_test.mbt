@@ -34,6 +34,11 @@ test "read-only paged attention binds exact fallback layout profile target and A
       "kv_cache_mutation=none",
       "dispatch_canary_per_token=65624",
       "dispatch_canary_cell_count=3",
+      "attention_key_tile=16",
+      "attention_key_warps=4",
+      "attention_keys_per_warp=4",
+      "attention_block_threads=128",
+      "attention_token_grid_cap=128",
       "manifest_bindable=false",
       "promotion_authority=none",
     ] {
@@ -48,6 +53,11 @@ test "read-only CUDA source has separate symbol/raw ABI and no KV write channel"
   assert_true(source.contains("const __nv_bfloat16 *rotated_qkv_rows"))
   assert_true(source.contains("const __nv_bfloat16 *key_cache"))
   assert_true(source.contains("const __nv_bfloat16 *value_cache"))
+  assert_true(source.contains("#define LF_READONLY_KEY_WARPS 4"))
+  assert_true(source.contains("#define LF_READONLY_KEYS_PER_WARP 4"))
+  assert_true(source.contains("#define LF_READONLY_KEY_TILE 16"))
+  assert_true(source.contains("key_base += LF_READONLY_KEY_TILE"))
+  assert_true(source.contains("float weighted_value = 0.0f"))
   assert_true(source.contains("output[output_offset + d] ="))
   assert_true(source.contains("query_offset = token * 8 + query_head * 2"))
   assert_true(source.contains("dispatch_canary[token] = 65624U"))
@@ -56,6 +66,7 @@ test "read-only CUDA source has separate symbol/raw ABI and no KV write channel"
   assert_false(source.contains("*key_cache ="))
   assert_false(source.contains("*value_cache ="))
   assert_false(source.contains("const __nv_bfloat16 *qkv,"))
+  assert_eq(candidate.launch_dimensions().block_x(), 128)
   assert_false(
     candidate.function_symbol() ==
     candidate.reference_fallback().function_symbol(),
@@ -172,8 +183,15 @@ test "production readonly candidate is exact deterministic and canary free" {
   let recipe = @utf8.decode(first.recipe_bytes())
   assert_false(source.contains("dispatch_canary"))
   assert_true(source.contains("const __nv_bfloat16 *value_cache)"))
+  assert_true(source.contains("#define LF_READONLY_BLOCK_THREADS 128"))
+  assert_true(source.contains("tile_weights[key]"))
   assert_true(source.contains("output[output_offset + d] ="))
   assert_true(recipe.contains("execution_policy=production-fast-path\n"))
+  assert_true(recipe.contains("attention_key_tile=16\n"))
+  assert_true(recipe.contains("attention_key_warps=4\n"))
+  assert_true(recipe.contains("attention_keys_per_warp=4\n"))
+  assert_true(recipe.contains("attention_block_threads=128\n"))
+  assert_true(recipe.contains("attention_token_grid_cap=128\n"))
   assert_true(recipe.contains("diagnostic_canary=absent\n"))
   assert_false(recipe.contains("dispatch_canary_per_token="))
   assert_false(first.manifest_bindable())
