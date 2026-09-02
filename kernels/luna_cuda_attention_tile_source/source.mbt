@@ -2,7 +2,7 @@
 /// Emits the first production-shaped matrix-tiled prefill kernel from the
 /// functional schedule. K/V tiles are loaded once and reused by a complete
 /// query tile; online softmax and PV accumulation remain fused.
-pub fn emit_cuda_attention_tile_source(
+fn emit_cuda_prefill_attention_tile_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
@@ -358,5 +358,282 @@ pub fn emit_cuda_attention_tile_source(
     digest: CudaAttentionTileSourceDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
     ),
+  }
+}
+
+///|
+/// Emits the compiler-selected decode schedule. Four independent subgroups
+/// traverse disjoint keys, retain online-softmax partials in registers, and
+/// merge those partials once after the paged K/V stream is exhausted.
+fn emit_cuda_decode_attention_tile_source(
+  lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
+  abi : CudaPagedAttentionTileAbi,
+  symbol : String,
+  maximum_source_bytes : Int,
+) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
+  let compute = lowering.compute()
+  let copy = lowering.copy()
+  let (query_tile, key_value_tile, head_dimension) = lowering.tile()
+  let (_, _, block_threads, _) = lowering.launch()
+  let (pipeline_stages, vector_bytes) = lowering.pipeline()
+  let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
+  let (input_row_width, page_stride_values, physical_page_capacity) = abi.layout()
+  let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
+  if compute != CudaSubgroupShuffleDot ||
+    copy != CudaCooperativeSharedLoad ||
+    query_tile != 1 ||
+    key_value_tile != 64 ||
+    head_dimension != abi_head_dimension ||
+    block_threads != 128 ||
+    pipeline_stages != 2 ||
+    vector_bytes != 8 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let query_width = query_heads * head_dimension
+  let group_size = query_heads / key_value_heads
+  let accumulator_items = (head_dimension + 31) / 32
+  let source =
+    $|#include <cuda_bf16.h>
+    $|#include <math_constants.h>
+    $|#define LF_BLOCK_THREADS 128
+    $|#define LF_WARP_COUNT 4
+    $|#define LF_KEY_VALUE_TILE 64
+    $|#define LF_HEAD_DIMENSION \{head_dimension}
+    $|#define LF_PIPELINE_STAGES 2
+    $|
+    $|static __device__ __forceinline__ float lf_decode_warp_sum(float value) {
+    $|  for (int offset = 16; offset > 0; offset >>= 1)
+    $|    value += __shfl_down_sync(0xffffffffU, value, offset);
+    $|  return __shfl_sync(0xffffffffU, value, 0);
+    $|}
+    $|
+    $|extern "C" __global__ void \{symbol}(
+    $|    const int *counts, const int *query_positions,
+    $|    const int *query_row_offsets, const int *sequence_lengths,
+    $|    const int *page_table_offsets, const int *page_table_page_indices,
+    $|    const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,
+    $|    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache) {
+    $|  const int thread = (int)threadIdx.x;
+    $|  const int lane = thread & 31;
+    $|  const int warp = thread >> 5;
+    $|  const int local_row = (int)blockIdx.x;
+    $|  const int query_head = (int)blockIdx.y;
+    $|  if (blockDim.x != LF_BLOCK_THREADS || query_head >= \{query_heads}) return;
+    $|
+    $|  const int prefill_count = counts[0];
+    $|  const int decode_count = counts[1];
+    $|  const int row_count = counts[2];
+    $|  const int token_count = counts[3];
+    $|  const int page_entry_count = counts[4];
+    $|  if (prefill_count < 0 || decode_count <= 0 ||
+    $|      row_count != prefill_count + decode_count ||
+    $|      row_count > \{maximum_query_rows} || token_count <= 0 ||
+    $|      token_count > \{maximum_query_tokens} || page_entry_count <= 0 ||
+    $|      page_entry_count > \{maximum_page_entries} || local_row >= decode_count)
+    $|    return;
+    $|
+    $|  const int row = prefill_count + local_row;
+    $|  const int token = query_row_offsets[row];
+    $|  const int row_end = query_row_offsets[row + 1];
+    $|  const int sequence_length = sequence_lengths[row];
+    $|  const int query_position = token >= 0 && token < token_count
+    $|      ? query_positions[token] : -1;
+    $|  const int page_start = page_table_offsets[row];
+    $|  const int page_end = page_table_offsets[row + 1];
+    $|  const int output_offset = token * \{query_width} +
+    $|      query_head * LF_HEAD_DIMENSION;
+    $|  if (token < 0 || row_end != token + 1 || row_end > token_count ||
+    $|      query_position < 0 || query_position >= sequence_length ||
+    $|      page_start < 0 || page_start >= page_end ||
+    $|      page_end > page_entry_count ||
+    $|      page_end - page_start !=
+    $|          (sequence_length + \{tokens_per_page - 1}) / \{tokens_per_page}) {
+    $|    if (token >= 0 && token < token_count && lane == 0 && warp == 0)
+    $|      output[output_offset] = __float2bfloat16_rn(CUDART_NAN_F);
+    $|    return;
+    $|  }
+    $|
+    $|  extern __shared__ __align__(16) unsigned char shared_arena[];
+    $|  __nv_bfloat16 *key_tiles =
+    $|      reinterpret_cast<__nv_bfloat16 *>(shared_arena);
+    $|  __nv_bfloat16 *value_tiles = key_tiles +
+    $|      LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|  int *tile_valid = reinterpret_cast<int *>(value_tiles +
+    $|      LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
+    $|  const int key_value_head = query_head / \{group_size};
+    $|  const unsigned long long query_offset =
+    $|      (unsigned long long)token * \{input_row_width}ULL +
+    $|      (unsigned long long)query_head * LF_HEAD_DIMENSION;
+    $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
+    $|  float maximum = -CUDART_INF_F;
+    $|  float denominator = 0.0f;
+    $|  float accumulator[\{accumulator_items}];
+    $|  #pragma unroll
+    $|  for (int item = 0; item < \{accumulator_items}; ++item)
+    $|    accumulator[item] = 0.0f;
+    $|
+    $|  for (int key_base = 0, tile_index = 0; key_base <= query_position;
+    $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
+    $|    const int stage = tile_index & (LF_PIPELINE_STAGES - 1);
+    $|    const int active_keys = min(LF_KEY_VALUE_TILE, query_position + 1 - key_base);
+    $|    if (thread == 0) *tile_valid = 1;
+    $|    __syncthreads();
+    $|    for (int linear = thread;
+    $|         linear < LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|         linear += LF_BLOCK_THREADS) {
+    $|      const int key = linear / LF_HEAD_DIMENSION;
+    $|      const int component = linear % LF_HEAD_DIMENSION;
+    $|      __nv_bfloat16 staged_key = __float2bfloat16_rn(0.0f);
+    $|      __nv_bfloat16 staged_value = __float2bfloat16_rn(0.0f);
+    $|      if (key < active_keys) {
+    $|        const int key_position = key_base + key;
+    $|        const int page_slot = page_start + key_position / \{tokens_per_page};
+    $|        const int physical_page =
+    $|            page_slot < page_end ? page_table_page_indices[page_slot] : -1;
+    $|        if (physical_page < 0 ||
+    $|            (unsigned long long)physical_page >= \{physical_page_capacity}ULL) {
+    $|          atomicExch(tile_valid, 0);
+    $|        } else {
+    $|          const int token_in_page = key_position % \{tokens_per_page};
+    $|          const unsigned long long cache_index =
+    $|              (unsigned long long)physical_page * \{page_stride_values}ULL +
+    $|              ((unsigned long long)token_in_page * \{key_value_heads}ULL +
+    $|                  key_value_head) * LF_HEAD_DIMENSION + component;
+    $|          staged_key = key_cache[cache_index];
+    $|          staged_value = value_cache[cache_index];
+    $|        }
+    $|      }
+    $|      const unsigned long long stage_offset =
+    $|          (unsigned long long)stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
+    $|          linear;
+    $|      key_tiles[stage_offset] = staged_key;
+    $|      value_tiles[stage_offset] = staged_value;
+    $|    }
+    $|    __syncthreads();
+    $|    if (!*tile_valid) return;
+    $|    const __nv_bfloat16 *stage_keys = key_tiles +
+    $|        stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|    const __nv_bfloat16 *stage_values = value_tiles +
+    $|        stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|    for (int key = warp; key < active_keys; key += LF_WARP_COUNT) {
+    $|      float partial = 0.0f;
+    $|      for (int component = lane; component < LF_HEAD_DIMENSION;
+    $|           component += 32)
+    $|        partial += __bfloat162float(rotated_qkv_rows[query_offset + component]) *
+    $|            __bfloat162float(stage_keys[key * LF_HEAD_DIMENSION + component]);
+    $|      const float score = lf_decode_warp_sum(partial) * scale;
+    $|      float old_scale = 0.0f;
+    $|      float new_scale = 0.0f;
+    $|      if (lane == 0) {
+    $|        const float next_maximum = fmaxf(maximum, score);
+    $|        old_scale = denominator == 0.0f
+    $|            ? 0.0f : expf(maximum - next_maximum);
+    $|        new_scale = expf(score - next_maximum);
+    $|        maximum = next_maximum;
+    $|        denominator = denominator * old_scale + new_scale;
+    $|      }
+    $|      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);
+    $|      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);
+    $|      #pragma unroll
+    $|      for (int item = 0; item < \{accumulator_items}; ++item) {
+    $|        const int component = lane + item * 32;
+    $|        if (component < LF_HEAD_DIMENSION)
+    $|          accumulator[item] = accumulator[item] * old_scale + new_scale *
+    $|              __bfloat162float(stage_values[
+    $|                  key * LF_HEAD_DIMENSION + component]);
+    $|      }
+    $|    }
+    $|    __syncthreads();
+    $|  }
+    $|
+    $|  // The staged K/V arena is dead now; reuse it for the subgroup merge.
+    $|  float *partial_numerators = reinterpret_cast<float *>(shared_arena);
+    $|  float *partial_maxima = partial_numerators +
+    $|      LF_WARP_COUNT * LF_HEAD_DIMENSION;
+    $|  float *partial_denominators = partial_maxima + LF_WARP_COUNT;
+    $|  if (lane == 0) {
+    $|    partial_maxima[warp] = maximum;
+    $|    partial_denominators[warp] = denominator;
+    $|  }
+    $|  #pragma unroll
+    $|  for (int item = 0; item < \{accumulator_items}; ++item) {
+    $|    const int component = lane + item * 32;
+    $|    if (component < LF_HEAD_DIMENSION)
+    $|      partial_numerators[warp * LF_HEAD_DIMENSION + component] =
+    $|          accumulator[item];
+    $|  }
+    $|  __syncthreads();
+    $|  if (thread == 0) {
+    $|    float merged_maximum = partial_maxima[0];
+    $|    for (int candidate = 1; candidate < LF_WARP_COUNT; ++candidate)
+    $|      merged_maximum = fmaxf(merged_maximum, partial_maxima[candidate]);
+    $|    float merged_denominator = 0.0f;
+    $|    for (int candidate = 0; candidate < LF_WARP_COUNT; ++candidate)
+    $|      merged_denominator += partial_denominators[candidate] *
+    $|          expf(partial_maxima[candidate] - merged_maximum);
+    $|    partial_maxima[0] = merged_maximum;
+    $|    partial_denominators[0] = merged_denominator;
+    $|  }
+    $|  __syncthreads();
+    $|  if (warp == 0) {
+    $|    const float merged_maximum = partial_maxima[0];
+    $|    const float merged_denominator = partial_denominators[0];
+    $|    #pragma unroll
+    $|    for (int item = 0; item < \{accumulator_items}; ++item) {
+    $|      const int component = lane + item * 32;
+    $|      if (component < LF_HEAD_DIMENSION) {
+    $|        float merged = 0.0f;
+    $|        for (int candidate = 0; candidate < LF_WARP_COUNT; ++candidate)
+    $|          merged += partial_numerators[
+    $|              candidate * LF_HEAD_DIMENSION + component] *
+    $|              expf(partial_maxima[candidate] - merged_maximum);
+    $|        output[output_offset + component] = __float2bfloat16_rn(
+    $|            merged_denominator > 0.0f
+    $|                ? merged / merged_denominator : CUDART_NAN_F);
+    $|      }
+    $|    }
+    $|  }
+    $|}
+  let bytes = @utf8.encode(source)
+  if bytes.length() > maximum_source_bytes {
+    raise InvalidCudaAttentionTileSource(SourceLimit)
+  }
+  {
+    lowering_digest: lowering.digest(),
+    abi,
+    symbol,
+    bytes,
+    digest: CudaAttentionTileSourceDigest(
+      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+    ),
+  }
+}
+
+///|
+/// Emits CUDA only after the generic strategy, LunaTile IR, functional
+/// rewrites, and immutable schedule have selected a phase-specific lowering.
+pub fn emit_cuda_attention_tile_source(
+  lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
+  abi : CudaPagedAttentionTileAbi,
+  symbol : String,
+  maximum_source_bytes : Int,
+) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
+  if !valid_cuda_symbol(symbol) {
+    raise InvalidCudaAttentionTileSource(InvalidSymbol)
+  }
+  if maximum_source_bytes <= 0 || maximum_source_bytes > 16777216 {
+    raise InvalidCudaAttentionTileSource(SourceLimit)
+  }
+  match lowering.phase() {
+    Prefill =>
+      emit_cuda_prefill_attention_tile_source(
+        lowering, abi, symbol, maximum_source_bytes,
+      )
+    Decode =>
+      emit_cuda_decode_attention_tile_source(
+        lowering, abi, symbol, maximum_source_bytes,
+      )
+    MixedCompatibility =>
+      raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
 }

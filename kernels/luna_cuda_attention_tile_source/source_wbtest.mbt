@@ -103,6 +103,52 @@ fn source_test_abi() -> CudaPagedAttentionTileAbi raise {
 }
 
 ///|
+fn source_test_decode_lowering() -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads=16,
+    kv_heads=4,
+    head_dimension=128,
+    tokens_per_page=16,
+  )
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape~,
+    phase=Decode,
+    numeric_type=AttentionBFloat16,
+    batch_rows=32,
+    query_rows=1,
+    context_tokens=4096,
+    causal=true,
+  )
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=100000L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+  )
+  let selected = @luna_attention_strategy.compile_attention_tile_plan(
+    [],
+    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+    target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+    problem~,
+    capabilities~,
+  )
+  let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
+  @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
+    program,
+    @luna_attention_tile_optimizer.optimize_attention_tile_program(program),
+    @luna_attention_tile_schedule.schedule_attention_tile_program(program),
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    100000L,
+  )
+}
+
+///|
 test "matrix-tiled prefill source is deterministic and consumes the schedule" {
   let lowering = source_test_lowering(false, 100000L, 2)
   assert_eq(lowering.compute(), CudaMatrixMultiplyAccumulate)
@@ -177,4 +223,37 @@ test "source emitter rejects an asynchronous schedule until its copy lowering ex
   } noraise {
     _ => fail("unsupported asynchronous source was emitted")
   }
+}
+
+///|
+test "compiler decode source partitions keys across four subgroups" {
+  let lowering = source_test_decode_lowering()
+  assert_eq(lowering.phase(), Decode)
+  assert_eq(lowering.compute(), CudaSubgroupShuffleDot)
+  assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
+  assert_eq(lowering.launch(), (32, 16, 128, 66844L))
+  let first = emit_cuda_attention_tile_source(
+    lowering,
+    source_test_abi(),
+    "lunaflux_attention_decode_tile_v1",
+    1048576,
+  )
+  let repeated = emit_cuda_attention_tile_source(
+    lowering,
+    source_test_abi(),
+    "lunaflux_attention_decode_tile_v1",
+    1048576,
+  )
+  assert_eq(first.digest(), repeated.digest())
+  assert_eq(first.bytes(), repeated.bytes())
+  let source = @utf8.decode(first.bytes())
+  for
+    required in [
+      "#define LF_WARP_COUNT 4", "for (int key = warp; key < active_keys; key += LF_WARP_COUNT)",
+      "reuse it for the subgroup merge", "partial_denominators[candidate]", "const __nv_bfloat16 *key_cache",
+      "const __nv_bfloat16 *value_cache",
+    ] {
+    assert_true(source.contains(required))
+  }
+  assert_false(source.contains("nvcuda::wmma"))
 }
