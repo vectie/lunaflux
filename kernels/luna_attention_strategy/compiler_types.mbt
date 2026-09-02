@@ -4,6 +4,9 @@
 pub(all) enum AttentionTileCompute {
   AttentionScalarDot
   AttentionSubgroupDot
+  /// One subgroup owns each query head in a grouped-query attention group.
+  /// The block shares the corresponding K/V tile across those subgroups.
+  AttentionGroupedQuerySubgroupDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Debug, Eq)

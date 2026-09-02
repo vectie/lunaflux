@@ -153,12 +153,12 @@ fn qwen_fused_test_runtime(
         function_symbol="lunaflux_attention_decode_tile_compiler_v1",
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=blueprint.profile().max_query_rows(),
-          grid_y=16,
+          grid_y=8,
           grid_z=1,
-          block_x=128,
+          block_x=64,
           block_y=1,
           block_z=1,
-          shared_memory_bytes=66844,
+          shared_memory_bytes=34076,
         ),
         module_bytes=b"qwen-decode-module",
       ),
@@ -288,12 +288,12 @@ test "reusable Qwen runtime admits separate compiler prefill and decode kernels"
     "lunaflux_attention_decode_tile_compiler_v1",
   )
   assert_eq(spans[0].readonly_launch().block_x(), 256)
-  assert_eq(spans[0].decode_launch().block_x(), 128)
+  assert_eq(spans[0].decode_launch().block_x(), 64)
   assert_eq(
     spans[0].decode_launch().grid_x(),
     blueprint.profile().max_query_rows(),
   )
-  assert_eq(spans[0].decode_launch().shared_memory_bytes(), 66844)
+  assert_eq(spans[0].decode_launch().shared_memory_bytes(), 34076)
 }
 
 ///|

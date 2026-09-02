@@ -22,6 +22,7 @@ pub(all) suberror CudaAttentionTileLoweringError {
 pub(all) enum CudaAttentionComputePrimitive {
   CudaScalarFma
   CudaSubgroupShuffleDot
+  CudaGroupedQuerySubgroupShuffleDot
   CudaMatrixMultiplyAccumulate
   CudaMatrixQkPvMultiplyAccumulate
 } derive(Eq, @debug.Debug)

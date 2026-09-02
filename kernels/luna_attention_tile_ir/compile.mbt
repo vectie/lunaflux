@@ -146,8 +146,9 @@ fn attention_compute_code(
   match compute {
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
-    AttentionMatrixDot => 3
-    AttentionMatrixQkPv => 4
+    AttentionGroupedQuerySubgroupDot => 3
+    AttentionMatrixDot => 4
+    AttentionMatrixQkPv => 5
   }
 }
 

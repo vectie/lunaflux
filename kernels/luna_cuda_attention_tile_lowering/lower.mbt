@@ -6,6 +6,7 @@ fn cuda_compute_primitive(
   match compute {
     AttentionScalarDot => CudaScalarFma
     AttentionSubgroupDot => CudaSubgroupShuffleDot
+    AttentionGroupedQuerySubgroupDot => CudaGroupedQuerySubgroupShuffleDot
     AttentionMatrixDot =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixMultiplyAccumulate
@@ -43,8 +44,9 @@ fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
   match compute {
     CudaScalarFma => 1
     CudaSubgroupShuffleDot => 2
-    CudaMatrixMultiplyAccumulate => 3
-    CudaMatrixQkPvMultiplyAccumulate => 4
+    CudaGroupedQuerySubgroupShuffleDot => 3
+    CudaMatrixMultiplyAccumulate => 4
+    CudaMatrixQkPvMultiplyAccumulate => 5
   }
 }
 
@@ -131,7 +133,11 @@ pub fn lower_attention_tile_schedule_to_cuda(
     Prefill => query_rows
     MixedCompatibility => raise InvalidCudaAttentionTileLowering(InvalidLaunch)
   }
-  let grid_y = query_heads
+  let query_head_tile = schedule.loops()[1].geometry().1
+  if query_head_tile <= 0 || query_heads % query_head_tile != 0 {
+    raise InvalidCudaAttentionTileLowering(InvalidLaunch)
+  }
+  let grid_y = query_heads / query_head_tile
   if grid_x <= 0 || grid_x > 2147483647 || grid_y <= 0 || grid_y > 65535 {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
   }

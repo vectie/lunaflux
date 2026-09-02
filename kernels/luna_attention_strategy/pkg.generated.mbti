@@ -167,6 +167,7 @@ pub fn AttentionTileCandidate::tile(Self) -> AttentionTileShape
 pub(all) enum AttentionTileCompute {
   AttentionScalarDot
   AttentionSubgroupDot
+  AttentionGroupedQuerySubgroupDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Eq, @debug.Debug)

@@ -2,6 +2,7 @@
 pub(all) enum CudaAttentionComputePrimitive {
   CudaScalarFma
   CudaSubgroupShuffleDot
+  CudaGroupedQuerySubgroupShuffleDot
   CudaMatrixMultiplyAccumulate
   CudaMatrixQkPvMultiplyAccumulate
 } derive(Debug, Eq)

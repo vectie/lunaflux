@@ -228,12 +228,12 @@ test "source emitter rejects an asynchronous schedule until its copy lowering ex
 }
 
 ///|
-test "compiler decode source partitions keys across four subgroups" {
+test "compiler decode source reuses one KV tile across grouped query heads" {
   let lowering = source_test_decode_lowering()
   assert_eq(lowering.phase(), Decode)
-  assert_eq(lowering.compute(), CudaSubgroupShuffleDot)
+  assert_eq(lowering.compute(), CudaGroupedQuerySubgroupShuffleDot)
   assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
-  assert_eq(lowering.launch(), (32, 16, 128, 66844L))
+  assert_eq(lowering.launch(), (32, 4, 128, 34076L))
   let first = emit_cuda_attention_tile_source(
     lowering,
     source_test_abi(),
@@ -251,11 +251,12 @@ test "compiler decode source partitions keys across four subgroups" {
   let source = @utf8.decode(first.bytes())
   for
     required in [
-      "#define LF_WARP_COUNT 4", "for (int key = warp; key < active_keys; key += LF_WARP_COUNT)",
-      "reuse it for the subgroup merge", "partial_denominators[candidate]", "const __nv_bfloat16 *key_cache",
-      "const __nv_bfloat16 *value_cache",
+      "#define LF_QUERY_HEADS_PER_BLOCK 4", "key_value_head * LF_QUERY_HEADS_PER_BLOCK + warp",
+      "for (int key = 0; key < active_keys; ++key)", "denominator > 0.0f ? accumulator[item] / denominator",
+      "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
     ] {
     assert_true(source.contains(required))
   }
   assert_false(source.contains("nvcuda::wmma"))
+  assert_false(source.contains("partial_numerators"))
 }

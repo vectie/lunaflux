@@ -196,6 +196,14 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let maximum_tokens = blueprint.profile().max_query_tokens()
   let compiler_prefill_grid = maximum_rows +
     (maximum_tokens - maximum_rows + 15) / 16
+  guard plan.operations()[seed_qk_norm].shape()
+    is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
+    kv_heads > 0 &&
+    query_heads % kv_heads == 0 else {
+    raise MismatchedFusedGroupedOperation(Launch)
+  }
+  let grouped_decode = decode_module.function_symbol() ==
+    "lunaflux_attention_decode_tile_compiler_v1"
   let valid_prefill_launch = if phase_specific {
     readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
     decode_module.kernel_abi() ==
@@ -209,10 +217,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_launch.block_x() == 128 &&
     readonly_launch.shared_memory_bytes() == 0
   }
-  let valid_decode_launch = if decode_module.function_symbol() ==
-    "lunaflux_attention_decode_tile_compiler_v1" {
+  let valid_decode_launch = if grouped_decode {
     decode_launch.grid_x() == maximum_rows &&
-    decode_launch.block_x() == 128 &&
+    decode_launch.grid_y() == kv_heads &&
+    decode_launch.block_x() == query_heads / kv_heads * 32 &&
     decode_launch.shared_memory_bytes() > 0 &&
     decode_launch.shared_memory_bytes() <= 100000
   } else {
@@ -220,15 +228,13 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.block_x() == 128 &&
     decode_launch.shared_memory_bytes() == 0
   }
-  guard plan.operations()[seed_qk_norm].shape()
-    is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
-    maximum_tokens >= maximum_rows &&
+  guard maximum_tokens >= maximum_rows &&
     valid_prefill_launch &&
     readonly_launch.grid_y() == query_heads &&
     readonly_launch.grid_z() == 1 &&
     readonly_launch.block_y() == 1 &&
     readonly_launch.block_z() == 1 &&
-    decode_launch.grid_y() == query_heads &&
+    (grouped_decode || decode_launch.grid_y() == query_heads) &&
     decode_launch.grid_z() == 1 &&
     valid_decode_launch &&
     decode_launch.block_y() == 1 &&

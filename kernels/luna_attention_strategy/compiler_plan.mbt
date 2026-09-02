@@ -79,7 +79,10 @@ fn attention_candidate_shared_bytes(
   )
   let probability_bytes = match compute {
     AttentionMatrixQkPv => 2L
-    AttentionScalarDot | AttentionSubgroupDot | AttentionMatrixDot => 4L
+    AttentionScalarDot
+    | AttentionSubgroupDot
+    | AttentionGroupedQuerySubgroupDot
+    | AttentionMatrixDot => 4L
   }
   let score_and_weight_bytes = attention_checked_product(
     score_elements,
@@ -128,6 +131,13 @@ fn attention_candidate_compatible(
     return false
   }
   match candidate.compute {
+    AttentionGroupedQuerySubgroupDot => {
+      let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
+      problem.phase == Decode &&
+      key_value_heads > 0 &&
+      query_heads % key_value_heads == 0 &&
+      candidate.subgroups_per_block == query_heads / key_value_heads
+    }
     AttentionMatrixDot | AttentionMatrixQkPv =>
       match capabilities.matrix_shape {
         None => false
@@ -419,6 +429,30 @@ pub fn generate_attention_tile_candidates(
       )
     }
   })
+  if problem.phase == Decode {
+    let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
+    if key_value_heads > 0 && query_heads % key_value_heads == 0 {
+      let query_heads_per_group = query_heads / key_value_heads
+      if query_heads_per_group > 1 {
+        match
+          make_attention_candidate(
+            problem,
+            capabilities,
+            420,
+            AttentionGroupedQuerySubgroupDot,
+            AttentionStagedShared,
+            1,
+            64,
+            query_heads_per_group,
+            1,
+            8,
+          ) {
+          Some(candidate) => candidates.push(candidate)
+          None => ()
+        }
+      }
+    }
+  }
   if candidates.length() == 0 {
     raise InvalidAttentionStrategy(Capability)
   }
@@ -453,6 +487,8 @@ fn attention_candidate_static_cost(
   let arithmetic_divisor = match candidate.compute {
     AttentionScalarDot => 1L
     AttentionSubgroupDot => candidate.subgroups_per_block.to_int64() * 8L
+    AttentionGroupedQuerySubgroupDot =>
+      candidate.subgroups_per_block.to_int64() * 8L
     AttentionMatrixDot | AttentionMatrixQkPv =>
       candidate.subgroups_per_block.to_int64() * 64L
   }
@@ -471,16 +507,24 @@ fn attention_candidate_static_cost(
     AttentionStagedShared => 2L
     AttentionAsyncStagedShared => 1L
   }
+  let query_head_group = match candidate.compute {
+    AttentionGroupedQuerySubgroupDot => candidate.subgroups_per_block.to_int64()
+    AttentionScalarDot
+    | AttentionSubgroupDot
+    | AttentionMatrixDot
+    | AttentionMatrixQkPv => 1L
+  }
   let memory_cost = attention_checked_product(
-    key_value_bytes,
-    memory_multiplier,
-    Candidate,
-  )
+      key_value_bytes,
+      memory_multiplier,
+      Candidate,
+    ) /
+    query_head_group
   let (query_heads, _, _, _) = problem.shape.dimensions()
   let scheduling_cost = attention_checked_product(
     attention_checked_product(
       attention_checked_product(query_tiles, batch_rows, Candidate),
-      query_heads.to_int64(),
+      query_heads.to_int64() / query_head_group,
       Candidate,
     ),
     4096L,
