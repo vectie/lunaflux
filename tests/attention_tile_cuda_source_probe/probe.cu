@@ -5,6 +5,15 @@
 #include <cstdlib>
 #include <vector>
 
+static constexpr int query_heads = 16;
+static constexpr int key_value_heads = 4;
+static constexpr int head_dimension = 128;
+static constexpr int tokens_per_page = 16;
+static constexpr int query_width = query_heads * head_dimension;
+static constexpr int input_row_width = 3072;
+static constexpr int page_stride_values = 8192;
+static constexpr int dynamic_shared_bytes = 86160;
+
 static void require_cuda(cudaError_t status, const char *step) {
   if (status != cudaSuccess) {
     std::fprintf(stderr, "%s: %s\n", step, cudaGetErrorString(status));
@@ -23,51 +32,90 @@ static T *device_copy(const std::vector<T> &host) {
   return device;
 }
 
-int main() {
-  constexpr int query_heads = 16;
-  constexpr int key_value_heads = 4;
-  constexpr int head_dimension = 128;
-  constexpr int token_count = 16;
-  constexpr int query_width = query_heads * head_dimension;
-  constexpr int input_row_width = 3072;
-  constexpr int page_stride_values = 8192;
-  constexpr int dynamic_shared_bytes = 86160;
+static float query_value(int row, int position, int head, int component) {
+  return 0.0007f * float(row + 1) + 0.0003f * float(position + 1) +
+         0.0001f * float(head + 1) +
+         0.0002f * float((component % 11) - 5);
+}
 
-  std::vector<int> counts{1, 0, 1, token_count, 1};
+static float key_value(int row, int position, int head, int component) {
+  return 0.0009f * float(row + 1) + 0.0004f * float(position + 1) +
+         0.0002f * float(head + 1) +
+         0.0001f * float((component % 7) - 3);
+}
+
+static float value_value(int row, int position, int head, int component) {
+  return 0.003f * float(row + 1) + 0.001f * float(position + 1) +
+         0.0005f * float(head + 1) +
+         0.0002f * float((component % 13) - 6);
+}
+
+static float run_case(const char *name, const std::vector<int> &lengths) {
+  int token_count = 0;
+  int page_count = 0;
+  for (int length : lengths) {
+    token_count += length;
+    page_count += (length + tokens_per_page - 1) / tokens_per_page;
+  }
+  if (lengths.empty() || lengths.size() > 32 || token_count > 128 ||
+      page_count > 16) {
+    std::fprintf(stderr, "invalid probe case=%s\n", name);
+    std::exit(3);
+  }
+
+  std::vector<int> counts{int(lengths.size()), 0, int(lengths.size()),
+                          token_count, page_count};
   std::vector<int> positions(token_count);
-  for (int token = 0; token < token_count; ++token) positions[token] = token;
-  std::vector<int> row_offsets{0, token_count};
-  std::vector<int> sequence_lengths{token_count};
-  std::vector<int> page_offsets{0, 1};
-  std::vector<int> page_indices{0};
+  std::vector<int> row_offsets(lengths.size() + 1, 0);
+  std::vector<int> sequence_lengths(lengths);
+  std::vector<int> page_offsets(lengths.size() + 1, 0);
+  std::vector<int> page_indices(page_count);
+  std::vector<int> token_rows(token_count);
   std::vector<__nv_bfloat16> qkv(token_count * input_row_width);
-  std::vector<__nv_bfloat16> keys(page_stride_values);
-  std::vector<__nv_bfloat16> values(page_stride_values);
+  std::vector<__nv_bfloat16> keys(16 * page_stride_values);
+  std::vector<__nv_bfloat16> values(16 * page_stride_values);
   std::vector<__nv_bfloat16> output(token_count * query_width);
 
-  for (int token = 0; token < token_count; ++token) {
-    for (int head = 0; head < query_heads; ++head) {
-      for (int component = 0; component < head_dimension; ++component) {
-        const float value = 0.002f * float(token + 1) +
-                            0.0001f * float(head + 1) +
-                            0.0003f * float((component % 11) - 5);
-        qkv[token * input_row_width + head * head_dimension + component] =
-            __float2bfloat16_rn(value);
+  int token_base = 0;
+  int page_base = 0;
+  for (int row = 0; row < int(lengths.size()); ++row) {
+    const int length = lengths[row];
+    const int row_pages = (length + tokens_per_page - 1) / tokens_per_page;
+    row_offsets[row] = token_base;
+    page_offsets[row] = page_base;
+    for (int logical_page = 0; logical_page < row_pages; ++logical_page)
+      page_indices[page_base + logical_page] = page_base + logical_page;
+    for (int position = 0; position < length; ++position) {
+      const int token = token_base + position;
+      positions[token] = position;
+      token_rows[token] = row;
+      for (int head = 0; head < query_heads; ++head) {
+        for (int component = 0; component < head_dimension; ++component) {
+          qkv[token * input_row_width + head * head_dimension + component] =
+              __float2bfloat16_rn(
+                  query_value(row, position, head, component));
+        }
+      }
+      const int physical_page = page_base + position / tokens_per_page;
+      const int token_in_page = position % tokens_per_page;
+      for (int head = 0; head < key_value_heads; ++head) {
+        for (int component = 0; component < head_dimension; ++component) {
+          const int cache_index = physical_page * page_stride_values +
+                                  (token_in_page * key_value_heads + head) *
+                                      head_dimension +
+                                  component;
+          keys[cache_index] = __float2bfloat16_rn(
+              key_value(row, position, head, component));
+          values[cache_index] = __float2bfloat16_rn(
+              value_value(row, position, head, component));
+        }
       }
     }
-    for (int head = 0; head < key_value_heads; ++head) {
-      for (int component = 0; component < head_dimension; ++component) {
-        const int index =
-            (token * key_value_heads + head) * head_dimension + component;
-        keys[index] = __float2bfloat16_rn(
-            0.0015f * float(token + 1) + 0.0002f * float(head + 1) +
-            0.0001f * float((component % 7) - 3));
-        values[index] = __float2bfloat16_rn(
-            0.01f * float(token + 1) + 0.001f * float(head + 1) +
-            0.0002f * float((component % 13) - 6));
-      }
-    }
+    token_base += length;
+    page_base += row_pages;
   }
+  row_offsets[lengths.size()] = token_base;
+  page_offsets[lengths.size()] = page_base;
 
   int *d_counts = device_copy(counts);
   int *d_positions = device_copy(positions);
@@ -100,23 +148,32 @@ int main() {
 
   float maximum_absolute_error = 0.0f;
   for (int query = 0; query < token_count; ++query) {
+    const int row = token_rows[query];
+    const int query_position = positions[query];
+    const int row_page_base = page_offsets[row];
     for (int head = 0; head < query_heads; ++head) {
       const int key_value_head = head / (query_heads / key_value_heads);
-      std::vector<float> scores(query + 1);
+      std::vector<float> scores(query_position + 1);
       float maximum = -INFINITY;
-      for (int key = 0; key <= query; ++key) {
+      for (int key_position = 0; key_position <= query_position;
+           ++key_position) {
+        const int physical_page =
+            page_indices[row_page_base + key_position / tokens_per_page];
+        const int token_in_page = key_position % tokens_per_page;
         float dot = 0.0f;
         for (int component = 0; component < head_dimension; ++component) {
+          const int cache_index = physical_page * page_stride_values +
+                                  (token_in_page * key_value_heads +
+                                   key_value_head) *
+                                      head_dimension +
+                                  component;
           dot += __bfloat162float(
                      qkv[query * input_row_width + head * head_dimension +
                          component]) *
-                 __bfloat162float(
-                     keys[(key * key_value_heads + key_value_head) *
-                              head_dimension +
-                          component]);
+                 __bfloat162float(keys[cache_index]);
         }
-        scores[key] = dot / std::sqrt(float(head_dimension));
-        maximum = std::fmax(maximum, scores[key]);
+        scores[key_position] = dot / std::sqrt(float(head_dimension));
+        maximum = std::fmax(maximum, scores[key_position]);
       }
       float denominator = 0.0f;
       for (float &score : scores) {
@@ -125,12 +182,18 @@ int main() {
       }
       for (int component = 0; component < head_dimension; ++component) {
         float expected = 0.0f;
-        for (int key = 0; key <= query; ++key) {
-          expected += scores[key] / denominator *
-                      __bfloat162float(
-                          values[(key * key_value_heads + key_value_head) *
-                                     head_dimension +
-                                 component]);
+        for (int key_position = 0; key_position <= query_position;
+             ++key_position) {
+          const int physical_page =
+              page_indices[row_page_base + key_position / tokens_per_page];
+          const int token_in_page = key_position % tokens_per_page;
+          const int cache_index = physical_page * page_stride_values +
+                                  (token_in_page * key_value_heads +
+                                   key_value_head) *
+                                      head_dimension +
+                                  component;
+          expected += scores[key_position] / denominator *
+                      __bfloat162float(values[cache_index]);
         }
         const float actual = __bfloat162float(
             output[query * query_width + head * head_dimension + component]);
@@ -151,11 +214,28 @@ int main() {
   cudaFree(d_values);
   cudaFree(d_output);
   if (!(maximum_absolute_error <= 0.0025f)) {
-    std::fprintf(stderr, "maximum_absolute_error=%g\n",
+    std::fprintf(stderr, "case=%s maximum_absolute_error=%g\n", name,
                  maximum_absolute_error);
-    return 1;
+    std::exit(1);
   }
-  std::printf("outcome=passed maximum_absolute_error=%g\n",
-              maximum_absolute_error);
+  std::printf("case=%s tokens=%d rows=%zu maximum_absolute_error=%g\n", name,
+              token_count, lengths.size(), maximum_absolute_error);
+  return maximum_absolute_error;
+}
+
+int main() {
+  float maximum_absolute_error = 0.0f;
+  maximum_absolute_error =
+      std::fmax(maximum_absolute_error, run_case("single-16", {16}));
+  maximum_absolute_error =
+      std::fmax(maximum_absolute_error, run_case("single-65", {65}));
+  maximum_absolute_error =
+      std::fmax(maximum_absolute_error, run_case("single-128", {128}));
+  maximum_absolute_error =
+      std::fmax(maximum_absolute_error, run_case("ragged-17-65", {17, 65}));
+  std::printf(
+      "outcome=passed token_vectors=16,65,128,17+65 "
+      "maximum_absolute_error=%g\n",
+      maximum_absolute_error);
   return 0;
 }
