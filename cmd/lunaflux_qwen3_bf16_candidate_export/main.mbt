@@ -440,21 +440,33 @@ fn qwen_compiler_attention_recipe(
     compiler.reassociate().to_string() +
     "\nmax_registers=" +
     compiler.max_registers().to_string() +
-    "\ngrid=" +
-    grid_x.to_string() +
-    "," +
-    grid_y.to_string() +
-    ",1\nblock=" +
-    block_x.to_string() +
-    ",1,1\npartial_shared_memory_bytes=" +
-    shared.to_string() +
-    "\nmerge_shared_memory_bytes=0" +
+    qwen_compiler_single_launch_record(grid_x, grid_y, block_x, shared) +
     "\nfunctional_sha256=" +
     compiled.functional().digest().as_hex() +
     "\nlowering_sha256=" +
     lowering.digest().as_hex() +
     "\n",
   )
+}
+
+///|
+/// Canonical launch fragment for one compiler-generated kernel. Partitioned
+/// attention deliberately uses a different recipe constructor because it owns
+/// two entry points and a workspace.
+fn qwen_compiler_single_launch_record(
+  grid_x : Int,
+  grid_y : Int,
+  block_x : Int,
+  shared_memory_bytes : Int64,
+) -> String {
+  "\ngrid=" +
+  grid_x.to_string() +
+  "," +
+  grid_y.to_string() +
+  ",1\nblock=" +
+  block_x.to_string() +
+  ",1,1\nshared_memory_bytes=" +
+  shared_memory_bytes.to_string()
 }
 
 ///|
