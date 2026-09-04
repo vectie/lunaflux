@@ -37,6 +37,7 @@ fn graph_dispatch_fixture(
       prefill_split_owner_index: -1,
       prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_query_tile: 1,
+      prefill_split_partition_count: 1,
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -145,13 +146,14 @@ test "prefill bucket owners map live token capacities without touching larger bu
 }
 
 ///|
-test "partitioned prefill retains batched rows and long single-tile query maps" {
+test "partitioned prefill scales context threshold with query parallelism" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     ..base,
     prefill_split_owner_index: 13,
     prefill_split_minimum_context_tokens: 512,
     prefill_split_query_tile: 32,
+    prefill_split_partition_count: 2,
   }
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 32, 256)),
@@ -173,6 +175,18 @@ test "partitioned prefill retains batched rows and long single-tile query maps" 
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 4096)),
     7,
   )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 4, 64, 1024)),
+    7,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 4, 64, 4096)),
+    13,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 64, 4096)),
+    7,
+  )
 }
 
 ///|
@@ -183,6 +197,7 @@ test "partitioned prefill selects the smallest compiled query bucket" {
     prefill_split_owner_index: 15,
     prefill_split_minimum_context_tokens: 512,
     prefill_split_query_tile: 32,
+    prefill_split_partition_count: 2,
   }
   map_paged_prefill_capture_owner(
     table,
@@ -212,7 +227,7 @@ test "partitioned prefill selects the smallest compiled query bucket" {
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 64, 4096)),
-    7,
+    15,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 12, 256)),
@@ -234,6 +249,7 @@ test "phase-specific decode owners replace baseline slots without touching prefi
     prefill_split_owner_index: baseline.prefill_split_owner_index,
     prefill_split_minimum_context_tokens: baseline.prefill_split_minimum_context_tokens,
     prefill_split_query_tile: baseline.prefill_split_query_tile,
+    prefill_split_partition_count: baseline.prefill_split_partition_count,
     decode_owner_index: 12,
     decode_split_owner_index: baseline.decode_split_owner_index,
     decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,

@@ -191,6 +191,11 @@ fn prepare_numeric_bf16_graph_resources(
     error => return paged_construction_failed(resources, error)
   }
   let prefill_split_query_tile = qwen_partitioned_prefill_query_tile(
+    blueprint, qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  let prefill_split_partition_count = qwen_partitioned_prefill_partition_count(
     qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
@@ -230,6 +235,7 @@ fn prepare_numeric_bf16_graph_resources(
     prefill_wide_minimum_query_tokens~,
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,
+    prefill_split_partition_count~,
     decode_split_minimum_context_tokens~,
   )
 }

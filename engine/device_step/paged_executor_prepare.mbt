@@ -505,6 +505,11 @@ pub fn prepare_paged_graph_executor(
     error => return paged_construction_failed(resources, error)
   }
   let prefill_split_query_tile = qwen_partitioned_prefill_query_tile(
+    blueprint, qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  let prefill_split_partition_count = qwen_partitioned_prefill_partition_count(
     qwen_fused_attention_spans,
   ) catch {
     error => return paged_construction_failed(resources, error)
@@ -544,6 +549,7 @@ pub fn prepare_paged_graph_executor(
     prefill_wide_minimum_query_tokens~,
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,
+    prefill_split_partition_count~,
     decode_split_minimum_context_tokens~,
   )
 }

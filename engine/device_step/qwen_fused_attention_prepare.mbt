@@ -565,31 +565,60 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 }
 
 ///|
-/// Returns the query tile used to compile the low-parallelism partition map.
-/// The partitioned compiler intentionally receives exactly one query tile, so
-/// its admitted grid-X is also the immutable tile extent. Runtime dispatch
-/// uses this backend-neutral extent to avoid adding KV partitions only for a
-/// single row whose query map already exposes independent tiles. Batched and
-/// mixed rows retain the partitioned reduction until the baseline kernel's
-/// cross-row numerical contract is independently established.
+/// Returns a conservative query-tile extent for low-parallelism routing.
+/// Grid-X is launch coverage, so it must never be reinterpreted as tile width.
+/// The profile row bound supplies the semantic limit until the reusable bundle
+/// carries the compiler tile as first-class dispatch metadata.
 fn qwen_partitioned_prefill_query_tile(
+  blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> Int raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
     first.partitioned_prefill() is Some(first_pipeline) else {
     return 1
   }
-  let query_tile = first_pipeline.partial_launch.grid_x()
+  // Grid-X is the maximum number of logical query tiles, not their extent.
+  // The admitted Qwen profile bounds live rows and the selected compiler tile
+  // cannot exceed that bound. Taking the smaller value is conservative for a
+  // future non-power-of-two profile: it may skip split-K, never over-dispatch.
+  let query_tile = Int::min(
+    blueprint.profile().max_query_rows(),
+    first_pipeline.partial_launch.grid_x(),
+  )
   if query_tile <= 0 {
     raise InvalidExecutor(ResourceState)
   }
   for span in spans {
     guard span.partitioned_prefill() is Some(pipeline) &&
-      pipeline.partial_launch.grid_x() == query_tile else {
+      pipeline.partial_launch.grid_x() == first_pipeline.partial_launch.grid_x() else {
       raise InvalidExecutor(ResourceState)
     }
   }
   query_tile
+}
+
+///|
+/// Returns the immutable number of associative KV partitions emitted by the
+/// functional compiler. Bucket selection uses it as portable parallelism
+/// metadata and never inspects a CUDA symbol on the token path.
+fn qwen_partitioned_prefill_partition_count(
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> Int raise DeviceStepError {
+  guard spans.get(0) is Some(first) &&
+    first.partitioned_prefill() is Some(first_pipeline) else {
+    return 1
+  }
+  let partitions = first_pipeline.partial_launch.grid_z()
+  if partitions <= 1 {
+    raise InvalidExecutor(ResourceState)
+  }
+  for span in spans {
+    guard span.partitioned_prefill() is Some(pipeline) &&
+      pipeline.partial_launch.grid_z() == partitions else {
+      raise InvalidExecutor(ResourceState)
+    }
+  }
+  partitions
 }
 
 ///|

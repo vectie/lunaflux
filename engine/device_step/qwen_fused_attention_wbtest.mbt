@@ -73,6 +73,7 @@ fn qwen_fused_test_runtime(
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
   wide_query_prefill? : Bool = false,
+  wide_query_prefill_alias_selected? : Bool = false,
   partitioned_prefill? : Bool = false,
   partitioned_prefill_grid_x? : Int = -1,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
@@ -194,7 +195,11 @@ fn qwen_fused_test_runtime(
         abi=QwenPagedAttentionPrefillWideQueryProductionV5,
         first_operation=5,
         operation_count=1,
-        function_symbol="lunaflux_attention_prefill_tile_compiler_v1_c314",
+        function_symbol=if wide_query_prefill_alias_selected {
+          "qwen_compiler_prefill"
+        } else {
+          "lunaflux_attention_prefill_tile_compiler_v1_c314"
+        },
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=blueprint.profile().max_query_rows() +
             (
@@ -208,9 +213,17 @@ fn qwen_fused_test_runtime(
           block_x=256,
           block_y=1,
           block_z=1,
-          shared_memory_bytes=70032,
+          shared_memory_bytes=if wide_query_prefill_alias_selected {
+            31952
+          } else {
+            70032
+          },
         ),
-        module_bytes=b"qwen-wide-prefill-module",
+        module_bytes=if wide_query_prefill_alias_selected {
+          b"qwen-readonly-module"
+        } else {
+          b"qwen-wide-prefill-module"
+        },
       ),
     )
   }
@@ -343,6 +356,27 @@ test "reusable Qwen runtime admits wide-query prefill frontier member" {
   assert_eq(variant.query_tile_rows, 64)
   assert_eq(variant.launch.shared_memory_bytes(), 70032)
   assert_eq(qwen_wide_prefill_minimum_query_tokens(spans), 64)
+}
+
+///|
+test "selected prefill alias does not create a fake wide-query executor" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    full_ingress=true,
+    wide_query_prefill=true,
+    wide_query_prefill_alias_selected=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  assert_true(spans[0].wide_query_prefill() is None)
 }
 
 ///|
@@ -529,9 +563,10 @@ test "Qwen runtime admits compiler partition-map fold merge prefill" {
     2 * 16 * blueprint.layout().tokens_per_page(),
   )
   assert_eq(
-    qwen_partitioned_prefill_query_tile(spans),
-    pipeline.partial_launch.grid_x(),
+    qwen_partitioned_prefill_query_tile(blueprint, spans),
+    blueprint.profile().max_query_rows(),
   )
+  assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 
 ///|
@@ -557,7 +592,8 @@ test "Qwen runtime admits low-parallelism partition grid specialization" {
   }
   assert_eq(pipeline.partial_launch.grid_x(), 2)
   assert_eq(pipeline.merge_launch.grid_x(), 2)
-  assert_eq(qwen_partitioned_prefill_query_tile(spans), 2)
+  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 2)
+  assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 
 ///|

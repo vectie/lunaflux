@@ -74,10 +74,22 @@ fn PagedOrderedExecutorDispatch::select(
   } else {
     2147483647
   }
+  let prefill_split_context_multiple = if self.prefill_split_partition_count > 1 &&
+    prefill_query_tiles <= self.prefill_split_partition_count {
+    2
+  } else if prefill_query_tiles <= 1073741823 {
+    prefill_query_tiles * 2
+  } else {
+    2147483647
+  }
+  let prefill_split_has_enough_work = self.prefill_split_minimum_context_tokens >
+    0 &&
+    context_tokens >= self.prefill_split_minimum_context_tokens &&
+    context_tokens / self.prefill_split_minimum_context_tokens >=
+    prefill_split_context_multiple
   if self.prefill_split_owner_index >= 0 &&
     (bucket.phase() == PrefillGraph || bucket.phase() == MixedGraph) &&
-    context_tokens >= self.prefill_split_minimum_context_tokens &&
-    (batch_rows > 1 || prefill_query_tiles == 1) {
+    prefill_split_has_enough_work {
     let slot = bucket.slot()
     if slot >= 0 && slot < self.prefill_split_slot_owner_indices.length() {
       let owner = self.prefill_split_slot_owner_indices[slot]

@@ -290,7 +290,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let wide_query_prefill = match runtime.qwen_wide_query_prefill_module() {
     Some(module_) => {
       let launch = module_.launch_dimensions()
-      if module_.kernel_abi() != QwenPagedAttentionPrefillWideQueryProductionV5 ||
+      if module_.module_digest() == readonly_module.module_digest() &&
+        module_.function_symbol() == readonly_module.function_symbol() &&
+        launch == readonly_launch {
+        // A stable bundle slot may carry the selected prefill module when the
+        // semantic profile has no strictly wider query tile. Do not build a
+        // duplicate executor or route a bucket through a fake specialization.
+        None
+      } else if module_.kernel_abi() !=
+        QwenPagedAttentionPrefillWideQueryProductionV5 ||
         module_.operation_span() != (seed_attention, 1) ||
         launch.grid_x() != compiler_prefill_grid ||
         launch.grid_y() != query_heads ||
@@ -301,14 +309,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         launch.shared_memory_bytes() <= 0 ||
         launch.shared_memory_bytes() > 100000 {
         raise MismatchedFusedGroupedOperation(Launch)
+      } else {
+        Some({
+          module_digest: module_.module_digest(),
+          module_bytes: module_.module_bytes(),
+          symbol: module_.function_symbol(),
+          launch,
+          query_tile_rows: 64,
+        })
       }
-      Some({
-        module_digest: module_.module_digest(),
-        module_bytes: module_.module_bytes(),
-        symbol: module_.function_symbol(),
-        launch,
-        query_tile_rows: 64,
-      })
     }
     None => None
   }
