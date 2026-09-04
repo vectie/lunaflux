@@ -9,6 +9,8 @@ import {
 // Values
 pub fn emit_cuda_attention_tile_source(@luna_cuda_attention_tile_lowering.CudaAttentionTileLowering, CudaPagedAttentionTileAbi, String, Int) -> CudaAttentionTileSource raise CudaAttentionTileSourceError
 
+pub fn emit_cuda_partitioned_attention_tile_source(@luna_cuda_attention_tile_lowering.CudaAttentionTileLowering, CudaPagedAttentionTileAbi, String, String, Int64, Int) -> CudaPartitionedAttentionTileSource raise CudaAttentionTileSourceError
+
 // Errors
 pub(all) suberror CudaAttentionTileSourceError {
   InvalidCudaAttentionTileSource(CudaAttentionTileSourceRule)
@@ -31,6 +33,7 @@ pub(all) enum CudaAttentionTileSourceRule {
   InvalidAbi
   InvalidSymbol
   UnsupportedLowering
+  WorkspaceLimit
   SourceLimit
 } derive(Eq, @debug.Debug)
 
@@ -41,6 +44,23 @@ pub fn CudaPagedAttentionTileAbi::layout(Self) -> (Int, Int64, Int64)
 pub fn CudaPagedAttentionTileAbi::limits(Self) -> (Int, Int, Int)
 pub fn CudaPagedAttentionTileAbi::new(query_heads~ : Int, key_value_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int, input_row_width~ : Int, page_stride_values~ : Int64, physical_page_capacity~ : Int64, maximum_query_rows~ : Int, maximum_query_tokens~ : Int, maximum_page_entries~ : Int) -> Self raise CudaAttentionTileSourceError
 pub fn CudaPagedAttentionTileAbi::shape(Self) -> (Int, Int, Int, Int)
+
+pub struct CudaPartitionedAttentionTileSource {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionTileSource::abi(Self) -> CudaPagedAttentionTileAbi
+pub fn CudaPartitionedAttentionTileSource::bytes(Self) -> Bytes
+pub fn CudaPartitionedAttentionTileSource::digest(Self) -> CudaAttentionTileSourceDigest
+pub fn CudaPartitionedAttentionTileSource::lowering_digest(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLoweringDigest
+pub fn CudaPartitionedAttentionTileSource::symbols(Self) -> (StringView, StringView)
+pub fn CudaPartitionedAttentionTileSource::workspace(Self) -> CudaPartitionedAttentionWorkspace
+
+pub struct CudaPartitionedAttentionWorkspace {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionWorkspace::partial_state_count(Self) -> Int64
+pub fn CudaPartitionedAttentionWorkspace::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
+pub fn CudaPartitionedAttentionWorkspace::total_bytes(Self) -> Int64
 
 // Type aliases
 

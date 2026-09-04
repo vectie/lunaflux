@@ -130,6 +130,29 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
   require_cuda(cudaMalloc(&d_output, output.size() * sizeof(__nv_bfloat16)),
                "cudaMalloc output");
 
+#ifdef LF_PARTITIONED_PROBE
+  float *d_workspace = nullptr;
+  constexpr unsigned long long workspace_values =
+      LF_PARTIAL_STATE_COUNT * (2ULL + LF_HEAD_DIMENSION);
+  require_cuda(cudaMalloc(&d_workspace, workspace_values * sizeof(float)),
+               "cudaMalloc partitioned workspace");
+  require_cuda(
+      cudaFuncSetAttribute(lunaflux_attention_prefill_partitioned_partial_v1,
+                           cudaFuncAttributeMaxDynamicSharedMemorySize,
+                           LF_SHARED_MEMORY_BYTES),
+      "cudaFuncSetAttribute partitioned partial");
+  const auto launch = [&]() {
+    lunaflux_attention_prefill_partitioned_partial_v1
+        <<<dim3(128, query_heads, LF_KEY_VALUE_PARTITIONS), LF_BLOCK_THREADS,
+           LF_SHARED_MEMORY_BYTES>>>(
+            d_counts, d_positions, d_row_offsets, d_sequence_lengths,
+            d_page_offsets, d_page_indices, d_qkv, d_keys, d_values,
+            d_workspace);
+    lunaflux_attention_prefill_partitioned_merge_v1
+        <<<dim3(128, query_heads), LF_MERGE_BLOCK_THREADS>>>(
+            d_counts, d_row_offsets, d_workspace, d_output);
+  };
+#else
   require_cuda(
       cudaFuncSetAttribute(lunaflux_attention_prefill_tile_v1,
                            cudaFuncAttributeMaxDynamicSharedMemorySize,
@@ -142,6 +165,7 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
         d_counts, d_positions, d_row_offsets, d_sequence_lengths,
         d_page_offsets, d_page_indices, d_qkv, d_output, d_keys, d_values);
   };
+#endif
   launch();
   require_cuda(cudaGetLastError(), "kernel launch");
   require_cuda(cudaDeviceSynchronize(), "kernel synchronize");
@@ -178,6 +202,11 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
       static_cast<long long>(LF_SHARED_MEMORY_BYTES), median_microseconds);
 
   float maximum_absolute_error = 0.0f;
+  int maximum_error_query = -1;
+  int maximum_error_head = -1;
+  int maximum_error_component = -1;
+  float maximum_error_expected = 0.0f;
+  float maximum_error_actual = 0.0f;
   for (int query = 0; query < token_count; ++query) {
     const int row = token_rows[query];
     const int query_position = positions[query];
@@ -228,8 +257,15 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
         }
         const float actual = __bfloat162float(
             output[query * query_width + head * head_dimension + component]);
-        maximum_absolute_error =
-            std::fmax(maximum_absolute_error, std::fabs(actual - expected));
+        const float absolute_error = std::fabs(actual - expected);
+        if (absolute_error > maximum_absolute_error) {
+          maximum_absolute_error = absolute_error;
+          maximum_error_query = query;
+          maximum_error_head = head;
+          maximum_error_component = component;
+          maximum_error_expected = expected;
+          maximum_error_actual = actual;
+        }
       }
     }
   }
@@ -244,9 +280,16 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
   cudaFree(d_keys);
   cudaFree(d_values);
   cudaFree(d_output);
+#ifdef LF_PARTITIONED_PROBE
+  cudaFree(d_workspace);
+#endif
   if (!(maximum_absolute_error <= 0.0025f)) {
-    std::fprintf(stderr, "case=%s maximum_absolute_error=%g\n", name,
-                 maximum_absolute_error);
+    std::fprintf(
+        stderr,
+        "case=%s maximum_absolute_error=%g query=%d head=%d component=%d "
+        "expected=%g actual=%g\n",
+        name, maximum_absolute_error, maximum_error_query, maximum_error_head,
+        maximum_error_component, maximum_error_expected, maximum_error_actual);
     std::exit(1);
   }
   std::printf("case=%s tokens=%d rows=%zu maximum_absolute_error=%g\n", name,

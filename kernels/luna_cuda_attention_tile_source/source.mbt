@@ -370,7 +370,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      const int key = linear % LF_KEY_VALUE_TILE;
     $|      const int key_position = key_base + key;
     $|      const int query_position = query < active_queries ? query_positions[token_base + query] : -1;
-    $|      scores[linear] = query < active_queries && key_position <= query_position
+    $|      scores[linear] = query < active_queries &&
+    $|          key_position < partition_end && key_position <= query_position
     $|          ? scores[linear] * scale : -CUDART_INF_F;
     $|    }
     $|    __syncthreads();

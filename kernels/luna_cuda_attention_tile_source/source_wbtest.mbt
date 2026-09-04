@@ -465,8 +465,8 @@ test "partitioned emitter preserves tiled partials and associative merge" {
     required in [
       "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_PARTITIONS 8", "const int split = (int)blockIdx.z",
       "const int partition_begin = split * base_keys_per_partition", "state * LF_HEAD_DIMENSION + component] = accumulator[linear]",
-      "extern \"C\" __global__ void lunaflux_attention_prefill_merge_v1", "const float merge_scale = expf(part_maximum - merged_maximum)",
-      "merged_numerator / merged_denominator",
+      "key_position < partition_end && key_position <= query_position", "extern \"C\" __global__ void lunaflux_attention_prefill_merge_v1",
+      "const float merge_scale = expf(part_maximum - merged_maximum)", "merged_numerator / merged_denominator",
     ] {
     assert_true(source.contains(required))
   }
