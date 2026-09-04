@@ -545,9 +545,8 @@ fn projection_dimensions(
     if parameters.family == LanguageModelHead {
       8704L
     } else {
-      // QKV and dense currently use one mixed prefill/decode entry point.
-      // Its established WMMA lowering owns only eight 16x16 F32 result tiles.
-      // A larger cooperative prompt tile belongs to a future prefill-only ABI.
+      // QKV and dense reuse one 8 KiB arena across disjoint BF16 tile and FP32
+      // accumulator lifetimes. The mixed entry point retains its GEMV branch.
       8192L
     }
   } else if tensor_core_mlp {
@@ -559,11 +558,13 @@ fn projection_dimensions(
     0L
   }
   let work = if tensor_core {
-    let output_tile_groups = (parameters.output_width.to_int64() + 127L) / 128L
     if parameters.family == LanguageModelHead {
+      let output_tile_groups = (parameters.output_width.to_int64() + 127L) /
+        128L
       output_tile_groups
     } else {
-      let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
+      let output_tile_groups = (parameters.output_width.to_int64() + 31L) / 32L
+      let row_tiles = (profile.max_query_tokens().to_int64() + 63L) / 64L
       let prompt_work = projection_checked_mul(output_tile_groups, row_tiles)
       let decode_work = (parameters.output_width.to_int64() + 7L) / 8L
       if prompt_work > decode_work {

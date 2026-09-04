@@ -241,12 +241,12 @@ test "projection buckets remove maximum-envelope decode blocks" {
   )
   let dense_rule = ProjectionTensorCoreGridX(dense, 2048)
   assert_eq(paged_projection_bucket_grid_x(dense_rule, 1), 256)
-  assert_eq(paged_projection_bucket_grid_x(dense_rule, 8), 16)
-  assert_eq(paged_projection_bucket_grid_x(dense_rule, 32), 32)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 8), 64)
+  assert_eq(paged_projection_bucket_grid_x(dense_rule, 32), 64)
   let scaled = paged_bucket_launch(dense_rule, 8)
   assert_eq(
     (scaled.grid_x(), scaled.block_x(), scaled.shared_memory_bytes()),
-    (16, 256, 8192),
+    (64, 256, 8192),
   )
 }
 
