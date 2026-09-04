@@ -1,0 +1,7 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
+}
+
+supported_targets = "native"
