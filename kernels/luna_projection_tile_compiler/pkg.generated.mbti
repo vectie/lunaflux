@@ -103,7 +103,7 @@ pub(all) enum ProjectionTileExpression {
   ProjectionPositionedRotary(ProjectionTileValueId)
   ProjectionStoreAndCommitPagedKv(ProjectionTileValueId)
   ProjectionStore(ProjectionTileValueId)
-} derive(Eq, @debug.Debug)
+} derive(Eq, Hash, @debug.Debug)
 
 pub struct ProjectionTileOptimization {
   // private fields
@@ -172,7 +172,7 @@ pub(all) enum ProjectionTileValueKind {
   ProjectionNormalizedRows
   ProjectionPositionedRows
   ProjectionOutputRows
-} derive(Eq, @debug.Debug)
+} derive(Eq, Hash, @debug.Debug)
 
 pub(all) enum ProjectionTileWeightRole {
   ProjectionDenseWeight
@@ -181,15 +181,17 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionDownWeight
   ProjectionQueryNormWeight
   ProjectionKeyNormWeight
-} derive(Eq, @debug.Debug)
+} derive(Eq, Hash, @debug.Debug)
 
 pub struct ScheduledProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ScheduledProjectionTileCompilation::digest(Self) -> ProjectionTileCompilationDigest
+pub fn ScheduledProjectionTileCompilation::eliminated_bindings(Self) -> (Int, Int)
 pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
 pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
 pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
+pub fn ScheduledProjectionTileCompilation::source_program(Self) -> ProjectionTileProgram
 
 pub struct SelectedProjectionTileCompilation {
   // private fields

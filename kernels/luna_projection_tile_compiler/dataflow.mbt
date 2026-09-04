@@ -25,7 +25,13 @@ fn projection_binding(
 fn projection_has_effect(expression : ProjectionTileExpression) -> Bool {
   match expression {
     ProjectionStore(_) | ProjectionStoreAndCommitPagedKv(_) => true
-    _ => false
+    ProjectionTileInput
+    | ProjectionTileWeight(_)
+    | ProjectionSelectQueryRowEnds(_)
+    | ProjectionDot(_, _)
+    | ProjectionSiluGate(_, _)
+    | ProjectionQkHeadRmsNorm(_, _, _)
+    | ProjectionPositionedRotary(_) => false
   }
 }
 

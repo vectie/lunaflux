@@ -17,7 +17,7 @@ pub(all) enum ProjectionTileValueKind {
   ProjectionNormalizedRows
   ProjectionPositionedRows
   ProjectionOutputRows
-} derive(Debug, Eq)
+} derive(Debug, Eq, Hash)
 
 ///|
 pub(all) enum ProjectionTileWeightRole {
@@ -27,7 +27,7 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionDownWeight
   ProjectionQueryNormWeight
   ProjectionKeyNormWeight
-} derive(Debug, Eq)
+} derive(Debug, Eq, Hash)
 
 ///|
 /// Backend-neutral parameters for an attention-ingress projection epilogue.
@@ -65,7 +65,7 @@ pub(all) enum ProjectionTileExpression {
   ProjectionPositionedRotary(ProjectionTileValueId)
   ProjectionStoreAndCommitPagedKv(ProjectionTileValueId)
   ProjectionStore(ProjectionTileValueId)
-} derive(Debug, Eq)
+} derive(Debug, Eq, Hash)
 
 ///|
 pub struct ProjectionTileBinding {
@@ -195,6 +195,7 @@ pub struct SemanticProjectionTileCompilation {
 ///|
 pub struct OptimizedProjectionTileCompilation {
   priv semantic : SemanticProjectionTileCompilation
+  priv normalized : ProjectionTileNormalization
   priv optimization : ProjectionTileOptimization
 } derive(Debug, Eq)
 

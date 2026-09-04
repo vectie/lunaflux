@@ -200,7 +200,26 @@ pub fn ProjectionTileScheduleDigest::as_hex(
 pub fn ScheduledProjectionTileCompilation::program(
   self : ScheduledProjectionTileCompilation,
 ) -> ProjectionTileProgram {
+  self.optimized.normalized.program
+}
+
+///|
+/// Original graph for diagnostics; program() is the normalized graph consumed
+/// by use-def analysis and scheduling.
+pub fn ScheduledProjectionTileCompilation::source_program(
+  self : ScheduledProjectionTileCompilation,
+) -> ProjectionTileProgram {
   self.optimized.semantic.program
+}
+
+///|
+/// (Exact common subexpressions merged, unreachable pure bindings removed).
+/// Counts describe the source transformation, not the compiled-code identity.
+pub fn ScheduledProjectionTileCompilation::eliminated_bindings(
+  self : ScheduledProjectionTileCompilation,
+) -> (Int, Int) {
+  let normalized = self.optimized.normalized
+  (normalized.common_subexpressions, normalized.dead_bindings)
 }
 
 ///|

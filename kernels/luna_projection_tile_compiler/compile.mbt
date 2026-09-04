@@ -247,8 +247,10 @@ fn projection_rewrite_code(rule : ProjectionTileRewriteRule) -> Int {
 pub fn optimize_projection_tile(
   semantic : SemanticProjectionTileCompilation,
 ) -> OptimizedProjectionTileCompilation {
-  let selected = semantic.program.demand == QueryRowEnds
-  let facts = projection_dataflow_facts(semantic.program)
+  let normalized = normalize_projection_tile(semantic)
+  let program = normalized.program
+  let selected = program.demand == QueryRowEnds
+  let facts = projection_dataflow_facts(program)
   let gated_mlp = facts.gated_intermediate
   // Input reuse is a semantic sharing opportunity only when the
   // functional graph has multiple consumers of the same input value. A lone
@@ -264,7 +266,7 @@ pub fn optimize_projection_tile(
     { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp },
   ]
   let fused_attention_ingress = facts.exclusive_attention_ingress &&
-    semantic.program.epilogue is ProjectionAttentionIngress(_)
+    program.epilogue is ProjectionAttentionIngress(_)
   if fused_attention_ingress {
     trace.push({ rule: FuseAttentionIngressEpilogue, changed: true })
     trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true })
@@ -274,18 +276,18 @@ pub fn optimize_projection_tile(
   let trace = ReadOnlyArray::from_array(trace)
   let builder = StringBuilder()
   builder <+ "luna-projection-tile-optimization-v3\n"
-  builder <+ "program_sha256=\{semantic.program.digest.0}\n"
+  builder <+ "program_sha256=\{program.digest.0}\n"
   for step in trace {
     builder <+ "pass=\{projection_rewrite_code(step.rule)},\{step.changed}\n"
   }
   let canonical = @utf8.encode(builder.to_string())
   let optimization = ProjectionTileOptimization::{
-    program_digest: semantic.program.digest,
+    program_digest: program.digest,
     trace,
     canonical,
     digest: ProjectionTileOptimizationDigest(projection_tile_sha256(canonical)),
   }
-  { semantic, optimization }
+  { semantic, normalized, optimization }
 }
 
 ///|
@@ -296,7 +298,7 @@ fn projection_schedule_canonical(
 ) -> Bytes {
   let builder = StringBuilder()
   builder <+ "luna-projection-tile-schedule-v4\n"
-  builder <+ "program_sha256=\{optimized.semantic.program.digest.0}\n"
+  builder <+ "program_sha256=\{optimized.normalized.program.digest.0}\n"
   builder <+ "optimization_sha256=\{optimized.optimization.digest.0}\n"
   for schedule_loop in loops {
     let kind = if schedule_loop.kind == ProjectionParallelMap { 1 } else { 2 }
@@ -422,7 +424,7 @@ pub fn schedule_projection_tile(
     optimized, loops, reuse_input_tile,
   )
   let schedule = ProjectionTileSchedule::{
-    program_digest: optimized.semantic.program.digest,
+    program_digest: optimized.normalized.program.digest,
     optimization_digest: optimized.optimization.digest,
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
@@ -443,7 +445,7 @@ pub fn schedule_projection_tile(
   let compilation_canonical = @utf8.encode(
     "luna-projection-functional-compilation-v4\n" +
     "program_sha256=" +
-    optimized.semantic.program.digest.0 +
+    optimized.normalized.program.digest.0 +
     "\noptimization_sha256=" +
     optimized.optimization.digest.0 +
     "\nschedule_sha256=" +
