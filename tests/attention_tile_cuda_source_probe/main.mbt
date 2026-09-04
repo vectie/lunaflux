@@ -88,7 +88,7 @@ fn main raise {
     tokens_per_page=16,
     input_row_width=3072,
     page_stride_values=8192L,
-    physical_page_capacity=16L,
+    physical_page_capacity=256L,
     maximum_query_rows=32,
     maximum_query_tokens=128,
     maximum_page_entries=256,

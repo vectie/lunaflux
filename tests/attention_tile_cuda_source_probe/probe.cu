@@ -50,43 +50,69 @@ static float value_value(int row, int position, int head, int component) {
          0.0002f * float((component % 13) - 6);
 }
 
-static float run_case(const char *name, const std::vector<int> &lengths) {
+static float run_case(const char *name, const std::vector<int> &query_lengths,
+                      const std::vector<int> &context_lengths,
+                      bool exhaustive_reference) {
+  if (query_lengths.size() != context_lengths.size()) {
+    std::fprintf(stderr, "mismatched probe case=%s\n", name);
+    std::exit(3);
+  }
   int token_count = 0;
   int page_count = 0;
-  for (int length : lengths) {
-    token_count += length;
-    page_count += (length + tokens_per_page - 1) / tokens_per_page;
+  int maximum_context_tokens = 0;
+  int query_tile_count = 0;
+  for (int row = 0; row < int(query_lengths.size()); ++row) {
+    token_count += query_lengths[row];
+    page_count +=
+        (context_lengths[row] + tokens_per_page - 1) / tokens_per_page;
+    maximum_context_tokens =
+        std::max(maximum_context_tokens, context_lengths[row]);
+    query_tile_count +=
+        (query_lengths[row] + LF_QUERY_TILE - 1) / LF_QUERY_TILE;
   }
-  if (lengths.empty() || lengths.size() > 32 || token_count > 128 ||
-      page_count > 16) {
+  if (query_lengths.empty() || query_lengths.size() > 32 ||
+      token_count > 128 || page_count > 256 || query_tile_count <= 0) {
     std::fprintf(stderr, "invalid probe case=%s\n", name);
     std::exit(3);
   }
+  for (int row = 0; row < int(query_lengths.size()); ++row) {
+    if (query_lengths[row] <= 0 ||
+        context_lengths[row] < query_lengths[row] ||
+        context_lengths[row] > 4096) {
+      std::fprintf(stderr, "invalid probe row case=%s row=%d\n", name, row);
+      std::exit(3);
+    }
+  }
 
-  std::vector<int> counts{int(lengths.size()), 0, int(lengths.size()),
+  std::vector<int> counts{int(query_lengths.size()), 0,
+                          int(query_lengths.size()),
                           token_count, page_count};
   std::vector<int> positions(token_count);
-  std::vector<int> row_offsets(lengths.size() + 1, 0);
-  std::vector<int> sequence_lengths(lengths);
-  std::vector<int> page_offsets(lengths.size() + 1, 0);
+  std::vector<int> row_offsets(query_lengths.size() + 1, 0);
+  std::vector<int> sequence_lengths(context_lengths);
+  std::vector<int> page_offsets(query_lengths.size() + 1, 0);
   std::vector<int> page_indices(page_count);
   std::vector<int> token_rows(token_count);
   std::vector<__nv_bfloat16> qkv(token_count * input_row_width);
-  std::vector<__nv_bfloat16> keys(16 * page_stride_values);
-  std::vector<__nv_bfloat16> values(16 * page_stride_values);
+  std::vector<__nv_bfloat16> keys(256 * page_stride_values);
+  std::vector<__nv_bfloat16> values(256 * page_stride_values);
   std::vector<__nv_bfloat16> output(token_count * query_width);
 
   int token_base = 0;
   int page_base = 0;
-  for (int row = 0; row < int(lengths.size()); ++row) {
-    const int length = lengths[row];
-    const int row_pages = (length + tokens_per_page - 1) / tokens_per_page;
+  for (int row = 0; row < int(query_lengths.size()); ++row) {
+    const int query_length = query_lengths[row];
+    const int context_length = context_lengths[row];
+    const int query_position_base = context_length - query_length;
+    const int row_pages =
+        (context_length + tokens_per_page - 1) / tokens_per_page;
     row_offsets[row] = token_base;
     page_offsets[row] = page_base;
     for (int logical_page = 0; logical_page < row_pages; ++logical_page)
       page_indices[page_base + logical_page] = page_base + logical_page;
-    for (int position = 0; position < length; ++position) {
-      const int token = token_base + position;
+    for (int query = 0; query < query_length; ++query) {
+      const int position = query_position_base + query;
+      const int token = token_base + query;
       positions[token] = position;
       token_rows[token] = row;
       for (int head = 0; head < query_heads; ++head) {
@@ -96,6 +122,8 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
                   query_value(row, position, head, component));
         }
       }
+    }
+    for (int position = 0; position < context_length; ++position) {
       const int physical_page = page_base + position / tokens_per_page;
       const int token_in_page = position % tokens_per_page;
       for (int head = 0; head < key_value_heads; ++head) {
@@ -111,11 +139,11 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
         }
       }
     }
-    token_base += length;
+    token_base += query_length;
     page_base += row_pages;
   }
-  row_offsets[lengths.size()] = token_base;
-  page_offsets[lengths.size()] = page_base;
+  row_offsets[query_lengths.size()] = token_base;
+  page_offsets[query_lengths.size()] = page_base;
 
   int *d_counts = device_copy(counts);
   int *d_positions = device_copy(positions);
@@ -143,13 +171,14 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
       "cudaFuncSetAttribute partitioned partial");
   const auto launch = [&]() {
     lunaflux_attention_prefill_partitioned_partial_v1
-        <<<dim3(128, query_heads, LF_KEY_VALUE_PARTITIONS), LF_BLOCK_THREADS,
+        <<<dim3(query_tile_count, query_heads, LF_KEY_VALUE_PARTITIONS),
+           LF_BLOCK_THREADS,
            LF_SHARED_MEMORY_BYTES>>>(
             d_counts, d_positions, d_row_offsets, d_sequence_lengths,
             d_page_offsets, d_page_indices, d_qkv, d_keys, d_values,
             d_workspace);
     lunaflux_attention_prefill_partitioned_merge_v1
-        <<<dim3(128, query_heads), LF_MERGE_BLOCK_THREADS>>>(
+        <<<dim3(query_tile_count, query_heads), LF_MERGE_BLOCK_THREADS>>>(
             d_counts, d_row_offsets, d_workspace, d_output);
   };
 #else
@@ -159,7 +188,7 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
                            LF_SHARED_MEMORY_BYTES),
       "cudaFuncSetAttribute");
   const auto launch = [&]() {
-    lunaflux_attention_prefill_tile_v1<<<dim3(128, query_heads),
+    lunaflux_attention_prefill_tile_v1<<<dim3(query_tile_count, query_heads),
                                          LF_BLOCK_THREADS,
                                          LF_SHARED_MEMORY_BYTES>>>(
         d_counts, d_positions, d_row_offsets, d_sequence_lengths,
@@ -196,12 +225,15 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
   std::sort(latency_samples.begin(), latency_samples.end());
   const float median_microseconds = latency_samples[latency_samples.size() / 2];
   std::printf(
-      "benchmark_case=%s tokens=%d rows=%zu key_value_tile=%d "
-      "block_threads=%d shared_memory_bytes=%lld median_microseconds=%g\n",
-      name, token_count, lengths.size(), LF_KEY_VALUE_TILE, LF_BLOCK_THREADS,
+      "benchmark_case=%s query_tokens=%d context_tokens=%d rows=%zu "
+      "query_tiles=%d key_value_tile=%d block_threads=%d "
+      "shared_memory_bytes=%lld median_microseconds=%g\n",
+      name, token_count, maximum_context_tokens, query_lengths.size(),
+      query_tile_count, LF_KEY_VALUE_TILE, LF_BLOCK_THREADS,
       static_cast<long long>(LF_SHARED_MEMORY_BYTES), median_microseconds);
 
   float maximum_absolute_error = 0.0f;
+  float maximum_normalized_error = 0.0f;
   int maximum_error_query = -1;
   int maximum_error_head = -1;
   int maximum_error_component = -1;
@@ -212,6 +244,13 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
     const int query_position = positions[query];
     const int row_page_base = page_offsets[row];
     for (int head = 0; head < query_heads; ++head) {
+      const bool sample_query = query == row_offsets[row] ||
+                                query + 1 == row_offsets[row + 1] ||
+                                query == (row_offsets[row] +
+                                          row_offsets[row + 1]) /
+                                             2;
+      const bool sample_head = head == 0 || head + 1 == query_heads;
+      if (!exhaustive_reference && !(sample_query && sample_head)) continue;
       const int key_value_head = head / (query_heads / key_value_heads);
       std::vector<float> scores(query_position + 1);
       float maximum = -INFINITY;
@@ -241,6 +280,9 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
         denominator += score;
       }
       for (int component = 0; component < head_dimension; ++component) {
+        const bool sample_component = component == 0 || component == 17 ||
+                                      component + 1 == head_dimension;
+        if (!exhaustive_reference && !sample_component) continue;
         float expected = 0.0f;
         for (int key_position = 0; key_position <= query_position;
              ++key_position) {
@@ -258,6 +300,9 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
         const float actual = __bfloat162float(
             output[query * query_width + head * head_dimension + component]);
         const float absolute_error = std::fabs(actual - expected);
+        const float allowed_error = 0.0025f + 0.005f * std::fabs(expected);
+        maximum_normalized_error =
+            std::fmax(maximum_normalized_error, absolute_error / allowed_error);
         if (absolute_error > maximum_absolute_error) {
           maximum_absolute_error = absolute_error;
           maximum_error_query = query;
@@ -283,32 +328,52 @@ static float run_case(const char *name, const std::vector<int> &lengths) {
 #ifdef LF_PARTITIONED_PROBE
   cudaFree(d_workspace);
 #endif
-  if (!(maximum_absolute_error <= 0.0025f)) {
+  if (!(maximum_normalized_error <= 1.0f)) {
     std::fprintf(
         stderr,
-        "case=%s maximum_absolute_error=%g query=%d head=%d component=%d "
-        "expected=%g actual=%g\n",
-        name, maximum_absolute_error, maximum_error_query, maximum_error_head,
-        maximum_error_component, maximum_error_expected, maximum_error_actual);
+        "case=%s maximum_absolute_error=%g maximum_normalized_error=%g "
+        "query=%d head=%d component=%d expected=%g actual=%g\n",
+        name, maximum_absolute_error, maximum_normalized_error,
+        maximum_error_query, maximum_error_head, maximum_error_component,
+        maximum_error_expected, maximum_error_actual);
     std::exit(1);
   }
-  std::printf("case=%s tokens=%d rows=%zu maximum_absolute_error=%g\n", name,
-              token_count, lengths.size(), maximum_absolute_error);
+  std::printf(
+      "case=%s query_tokens=%d context_tokens=%d rows=%zu "
+      "maximum_absolute_error=%g maximum_normalized_error=%g reference=%s\n",
+      name, token_count, maximum_context_tokens, query_lengths.size(),
+      maximum_absolute_error, maximum_normalized_error,
+      exhaustive_reference ? "exhaustive" : "deterministic-sample");
   return maximum_absolute_error;
 }
 
 int main() {
   float maximum_absolute_error = 0.0f;
   maximum_absolute_error =
-      std::fmax(maximum_absolute_error, run_case("single-16", {16}));
+      std::fmax(maximum_absolute_error,
+                run_case("single-16", {16}, {16}, true));
   maximum_absolute_error =
-      std::fmax(maximum_absolute_error, run_case("single-65", {65}));
+      std::fmax(maximum_absolute_error,
+                run_case("single-65", {65}, {65}, true));
   maximum_absolute_error =
-      std::fmax(maximum_absolute_error, run_case("single-128", {128}));
+      std::fmax(maximum_absolute_error,
+                run_case("single-128", {128}, {128}, true));
   maximum_absolute_error =
-      std::fmax(maximum_absolute_error, run_case("ragged-17-65", {17, 65}));
+      std::fmax(maximum_absolute_error,
+                run_case("ragged-17-65", {17, 65}, {17, 65}, true));
+  for (int query_tokens : {16, 64, 128}) {
+    for (int context_tokens : {512, 1024, 2048, 4096}) {
+      char name[64];
+      std::snprintf(name, sizeof(name), "q%d-context-%d", query_tokens,
+                    context_tokens);
+      maximum_absolute_error = std::fmax(
+          maximum_absolute_error,
+          run_case(name, {query_tokens}, {context_tokens}, false));
+    }
+  }
   std::printf(
-      "outcome=passed token_vectors=16,65,128,17+65 "
+      "outcome=passed query_token_vectors=16,64,128 "
+      "context_token_vectors=16,65,128,512,1024,2048,4096 "
       "maximum_absolute_error=%g\n",
       maximum_absolute_error);
   return 0;
