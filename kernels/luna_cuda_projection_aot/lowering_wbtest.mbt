@@ -276,7 +276,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
   )
   assert_eq(
     projection_dimensions(profile, qkv_parameters, qkv_dispatch).shared_memory_bytes(),
-    11264,
+    8192,
   )
   assert_eq(
     projection_dimensions(profile, dense_parameters, dense_dispatch).grid_x(),
@@ -437,10 +437,25 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_true(
     @utf8.decode(fallback.source_bytes()).contains("nvcuda::wmma::mma_sync"),
   )
-  assert_true(
+  assert_false(
     @utf8.decode(fallback.source_bytes()).contains("__nv_bfloat16 *input_tile"),
   )
-  assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 11264)
+  assert_true(fallback.tile_compilation().schedule().reuse_input_tile())
+  assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 8192)
+  let prefill_only_source = projection_source(
+    "projection_prefill_only",
+    projection_parameters(operation),
+    profile.max_query_tokens(),
+    profile.max_query_rows(),
+    fallback.dispatch_plan(),
+    fallback.tile_compilation(),
+    PrefillOnlyProjection,
+    false,
+    false,
+  )
+  assert_true(
+    @utf8.decode(prefill_only_source).contains("__nv_bfloat16 *input_tile"),
+  )
   let foreign_target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,

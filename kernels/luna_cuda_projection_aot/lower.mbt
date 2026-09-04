@@ -64,6 +64,7 @@ fn projection_finish_candidate(
     profile.max_query_rows(),
     dispatch_plan,
     tile_compilation,
+    MixedPrefillDecodeProjection,
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
   )
