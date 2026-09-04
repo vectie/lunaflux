@@ -2,6 +2,7 @@
 pub(all) enum AttentionIterationKind {
   AttentionParallelMap
   AttentionSequentialFold
+  AttentionAssociativeFold
   AttentionVectorMap
 } derive(Debug, Eq)
 
@@ -9,7 +10,9 @@ pub(all) enum AttentionIterationKind {
 pub(all) enum AttentionIterationAxis {
   AttentionQueryRowAxis
   AttentionQueryHeadAxis
+  AttentionKeyValuePartitionAxis
   AttentionKeyValueAxis
+  AttentionSoftmaxPartitionAxis
   AttentionHeadColumnAxis
 } derive(Debug, Eq)
 
@@ -38,6 +41,7 @@ pub struct AttentionTileSchedule {
   priv pipeline_stages : Int
   priv vector_bytes : Int
   priv shared_memory_bytes : Int64
+  priv key_value_partitions : Int
   priv canonical : Bytes
   priv digest : AttentionTileScheduleDigest
 } derive(Debug, Eq)

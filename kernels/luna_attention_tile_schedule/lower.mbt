@@ -14,7 +14,8 @@ fn iteration_kind_code(kind : AttentionIterationKind) -> Int {
   match kind {
     AttentionParallelMap => 1
     AttentionSequentialFold => 2
-    AttentionVectorMap => 3
+    AttentionAssociativeFold => 3
+    AttentionVectorMap => 4
   }
 }
 
@@ -23,8 +24,10 @@ fn iteration_axis_code(axis : AttentionIterationAxis) -> Int {
   match axis {
     AttentionQueryRowAxis => 1
     AttentionQueryHeadAxis => 2
-    AttentionKeyValueAxis => 3
-    AttentionHeadColumnAxis => 4
+    AttentionKeyValuePartitionAxis => 3
+    AttentionKeyValueAxis => 4
+    AttentionSoftmaxPartitionAxis => 5
+    AttentionHeadColumnAxis => 6
   }
 }
 
@@ -52,16 +55,33 @@ fn memory_code(memory : @luna_attention_strategy.AttentionTileMemory) -> Int {
 ///|
 fn validate_schedule_loops(
   loops : ReadOnlyArray[AttentionLoopCombinator],
+  key_value_partitions : Int,
 ) -> Unit raise AttentionTileScheduleError {
-  if loops.length() != 4 ||
+  if key_value_partitions <= 0 ||
+    loops.length() < 2 ||
     loops[0].kind != AttentionParallelMap ||
     loops[0].axis != AttentionQueryRowAxis ||
     loops[1].kind != AttentionParallelMap ||
-    loops[1].axis != AttentionQueryHeadAxis ||
-    loops[2].kind != AttentionSequentialFold ||
-    loops[2].axis != AttentionKeyValueAxis ||
-    loops[3].kind != AttentionVectorMap ||
-    loops[3].axis != AttentionHeadColumnAxis {
+    loops[1].axis != AttentionQueryHeadAxis {
+    raise InvalidAttentionTileSchedule(InvalidLoopNest)
+  }
+  if key_value_partitions == 1 {
+    if loops.length() != 4 ||
+      loops[2].kind != AttentionSequentialFold ||
+      loops[2].axis != AttentionKeyValueAxis ||
+      loops[3].kind != AttentionVectorMap ||
+      loops[3].axis != AttentionHeadColumnAxis {
+      raise InvalidAttentionTileSchedule(InvalidLoopNest)
+    }
+  } else if loops.length() != 6 ||
+    loops[2].kind != AttentionParallelMap ||
+    loops[2].axis != AttentionKeyValuePartitionAxis ||
+    loops[3].kind != AttentionSequentialFold ||
+    loops[3].axis != AttentionKeyValueAxis ||
+    loops[4].kind != AttentionAssociativeFold ||
+    loops[4].axis != AttentionSoftmaxPartitionAxis ||
+    loops[5].kind != AttentionVectorMap ||
+    loops[5].axis != AttentionHeadColumnAxis {
     raise InvalidAttentionTileSchedule(InvalidLoopNest)
   }
   for combinator in loops {
@@ -75,12 +95,14 @@ fn validate_schedule_loops(
 fn canonical_schedule(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   loops : ReadOnlyArray[AttentionLoopCombinator],
+  key_value_partitions : Int,
 ) -> Bytes {
   let candidate = program.candidate()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
-  builder <+ "luna-attention-tile-schedule-v1\n"
+  builder <+ "luna-attention-tile-schedule-v2\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
+  builder <+ "kv_partitions=\{key_value_partitions}\n"
   for combinator in loops {
     builder <+
       "loop=\{iteration_kind_code(combinator.kind)},\{iteration_axis_code(combinator.axis)},\{combinator.extent},\{combinator.tile}\n"
@@ -99,6 +121,32 @@ fn canonical_schedule(
 /// order explicit before any backend chooses concrete threads or instructions.
 pub fn schedule_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
+) -> AttentionTileSchedule raise AttentionTileScheduleError {
+  schedule_attention_tile_program_with_partitions(program, 1)
+}
+
+///|
+/// Materializes the optimizer's pure partition/merge decision into explicit
+/// map/fold combinators. Backends may map the partition map to blocks,
+/// workgroups, threads, or CPU tasks without changing the merge semantics.
+pub fn schedule_optimized_attention_tile_program(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
+) -> AttentionTileSchedule raise AttentionTileScheduleError {
+  if optimization.program_digest() != program.digest() {
+    raise InvalidAttentionTileSchedule(InvalidProblem)
+  }
+  let partitions = match optimization.reduction_topology() {
+    AttentionOrderedOnlineSoftmaxFold => 1
+    AttentionPartitionedOnlineSoftmaxFold(count) => count
+  }
+  schedule_attention_tile_program_with_partitions(program, partitions)
+}
+
+///|
+fn schedule_attention_tile_program_with_partitions(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  key_value_partitions : Int,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
   let problem = program.problem()
   let candidate = program.candidate()
@@ -127,7 +175,7 @@ pub fn schedule_attention_tile_program(
     | AttentionMatrixDot
     | AttentionMatrixQkPv => 1
   }
-  let loops = ReadOnlyArray::from_array([
+  let prefix : Array[AttentionLoopCombinator] = [
     {
       kind: AttentionParallelMap,
       axis: AttentionQueryRowAxis,
@@ -140,21 +188,57 @@ pub fn schedule_attention_tile_program(
       extent: query_heads,
       tile: query_head_tile,
     },
-    {
-      kind: AttentionSequentialFold,
-      axis: AttentionKeyValueAxis,
-      extent: context_tokens,
-      tile: key_value_tile,
-    },
-    {
-      kind: AttentionVectorMap,
-      axis: AttentionHeadColumnAxis,
-      extent: head_dimension,
-      tile: vector_elements,
-    },
-  ])
-  validate_schedule_loops(loops)
-  let canonical = canonical_schedule(program, loops)
+  ]
+  let suffix : Array[AttentionLoopCombinator] = if key_value_partitions == 1 {
+    [
+      {
+        kind: AttentionSequentialFold,
+        axis: AttentionKeyValueAxis,
+        extent: context_tokens,
+        tile: key_value_tile,
+      },
+      {
+        kind: AttentionVectorMap,
+        axis: AttentionHeadColumnAxis,
+        extent: head_dimension,
+        tile: vector_elements,
+      },
+    ]
+  } else {
+    let partition_span = 1 + (context_tokens - 1) / key_value_partitions
+    [
+      {
+        kind: AttentionParallelMap,
+        axis: AttentionKeyValuePartitionAxis,
+        extent: context_tokens,
+        tile: partition_span,
+      },
+      {
+        kind: AttentionSequentialFold,
+        axis: AttentionKeyValueAxis,
+        extent: partition_span,
+        tile: key_value_tile,
+      },
+      {
+        kind: AttentionAssociativeFold,
+        axis: AttentionSoftmaxPartitionAxis,
+        extent: key_value_partitions,
+        tile: 1,
+      },
+      {
+        kind: AttentionVectorMap,
+        axis: AttentionHeadColumnAxis,
+        extent: head_dimension,
+        tile: vector_elements,
+      },
+    ]
+  }
+  for combinator in suffix {
+    prefix.push(combinator)
+  }
+  let loops = ReadOnlyArray::from_array(prefix)
+  validate_schedule_loops(loops, key_value_partitions)
+  let canonical = canonical_schedule(program, loops, key_value_partitions)
   let shared_memory_bytes = candidate.shared_memory_bytes()
   {
     program_digest: program.digest(),
@@ -165,6 +249,7 @@ pub fn schedule_attention_tile_program(
     pipeline_stages,
     vector_bytes,
     shared_memory_bytes,
+    key_value_partitions,
     canonical,
     digest: AttentionTileScheduleDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

@@ -4,6 +4,17 @@
 pub(all) enum AttentionTileRewriteRule {
   FuseScoreTransform
   FuseOnlineSoftmaxFold
+  PartitionOnlineSoftmaxFold
+} derive(Debug, Eq)
+
+///|
+/// Backend-neutral reduction topology selected by the pure optimizer. A
+/// partitioned fold computes independent online-softmax monoids over
+/// contiguous KV ranges and combines them with the associative log-sum-exp
+/// merge law.
+pub(all) enum AttentionTileReductionTopology {
+  AttentionOrderedOnlineSoftmaxFold
+  AttentionPartitionedOnlineSoftmaxFold(Int)
 } derive(Debug, Eq)
 
 ///|
@@ -32,6 +43,7 @@ pub struct AttentionTileOptimization {
   priv program_digest : @luna_attention_tile_ir.AttentionTileProgramDigest
   priv regions : ReadOnlyArray[AttentionTileRewriteRegion]
   priv trace : ReadOnlyArray[AttentionTileRewriteStep]
+  priv reduction_topology : AttentionTileReductionTopology
   priv canonical : Bytes
   priv digest : AttentionTileOptimizationDigest
 } derive(Debug, Eq)

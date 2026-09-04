@@ -60,6 +60,13 @@ pub fn AttentionTileSchedule::execution_geometry(
 }
 
 ///|
+pub fn AttentionTileSchedule::key_value_partitions(
+  self : AttentionTileSchedule,
+) -> Int {
+  self.key_value_partitions
+}
+
+///|
 pub fn AttentionTileSchedule::canonical_bytes(
   self : AttentionTileSchedule,
 ) -> Bytes {

@@ -199,6 +199,50 @@ fn apply_online_softmax_fold_pass(
 }
 
 ///|
+fn attention_partition_count(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+) -> Int {
+  let problem = program.problem()
+  let (_, context_tokens) = problem.dimensions()
+  let (_, key_value_tile, _) = program.candidate().tile().dimensions()
+  if problem.phase() != Prefill || context_tokens < 1024 {
+    return 1
+  }
+  let key_value_tiles = 1 + (context_tokens - 1) / key_value_tile
+  let desired = Int::min(8, 1 + (context_tokens - 1) / 512)
+  Int::max(1, Int::min(desired, key_value_tiles))
+}
+
+///|
+fn apply_partition_online_softmax_pass(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  regions : ReadOnlyArray[AttentionTileRewriteRegion],
+) -> AttentionRewritePassResult {
+  if attention_partition_count(program) == 1 {
+    return { regions, changed: false }
+  }
+  let bindings = program.bindings()
+  for binding in bindings {
+    match online_softmax_fold_members(program, binding) {
+      Some(members) => {
+        let root = members[members.length() - 1]
+        if contains_region_root(regions, PartitionOnlineSoftmaxFold, root) {
+          return { regions, changed: false }
+        }
+        let next = append_region(regions, {
+          rule: PartitionOnlineSoftmaxFold,
+          members,
+          root,
+        })
+        return { regions: next, changed: true }
+      }
+      None => ()
+    }
+  }
+  { regions, changed: false }
+}
+
+///|
 fn apply_rewrite_pass(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
@@ -207,6 +251,8 @@ fn apply_rewrite_pass(
   match rule {
     FuseScoreTransform => apply_score_transform_pass(program, regions)
     FuseOnlineSoftmaxFold => apply_online_softmax_fold_pass(program, regions)
+    PartitionOnlineSoftmaxFold =>
+      apply_partition_online_softmax_pass(program, regions)
   }
 }
 
@@ -237,6 +283,16 @@ fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int {
   match rule {
     FuseScoreTransform => 1
     FuseOnlineSoftmaxFold => 2
+    PartitionOnlineSoftmaxFold => 3
+  }
+}
+
+///|
+fn reduction_topology_code(topology : AttentionTileReductionTopology) -> String {
+  match topology {
+    AttentionOrderedOnlineSoftmaxFold => "ordered:1"
+    AttentionPartitionedOnlineSoftmaxFold(partitions) =>
+      "partitioned:\{partitions}"
   }
 }
 
@@ -245,10 +301,12 @@ fn canonical_optimization(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
   trace : ReadOnlyArray[AttentionTileRewriteStep],
+  reduction_topology : AttentionTileReductionTopology,
 ) -> Bytes {
   let builder = StringBuilder()
-  builder <+ "luna-attention-tile-optimization-v1\n"
+  builder <+ "luna-attention-tile-optimization-v2\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
+  builder <+ "reduction=\{reduction_topology_code(reduction_topology)}\n"
   for step in trace {
     builder <+
       "pass=\{rewrite_rule_code(step.rule)},\{step.changed},\{step.region_count}\n"
@@ -273,6 +331,7 @@ pub fn optimize_attention_tile_program(
   let passes = ReadOnlyArray::from_array([
     FuseScoreTransform,
     FuseOnlineSoftmaxFold,
+    PartitionOnlineSoftmaxFold,
   ])
   let state = run_rewrite_pipeline(program, passes, 0, {
     regions: ReadOnlyArray::from_array([]),
@@ -281,11 +340,23 @@ pub fn optimize_attention_tile_program(
   if state.trace.length() != passes.length() || state.regions.length() == 0 {
     raise InvalidAttentionTileOptimization(InvalidRewritePipeline)
   }
-  let canonical = canonical_optimization(program, state.regions, state.trace)
+  let partition_count = attention_partition_count(program)
+  let reduction_topology = if partition_count == 1 {
+    AttentionOrderedOnlineSoftmaxFold
+  } else {
+    AttentionPartitionedOnlineSoftmaxFold(partition_count)
+  }
+  let canonical = canonical_optimization(
+    program,
+    state.regions,
+    state.trace,
+    reduction_topology,
+  )
   {
     program_digest: program.digest(),
     regions: state.regions,
     trace: state.trace,
+    reduction_topology,
     canonical,
     digest: AttentionTileOptimizationDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

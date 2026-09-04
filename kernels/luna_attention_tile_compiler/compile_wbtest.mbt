@@ -48,7 +48,7 @@ test "functional attention compiler composes typed immutable passes" {
   assert_eq(selected.plan().candidate().stable_id(), 314)
   assert_eq(semantic.plan(), selected.plan())
   assert_eq(optimized.plan(), selected.plan())
-  assert_eq(optimized.optimization().regions().length(), 2)
+  assert_eq(optimized.optimization().regions().length(), 3)
   assert_eq(scheduled, composed)
   assert_eq(scheduled.program(), semantic.program())
   assert_eq(scheduled.schedule().program_digest(), semantic.program().digest())

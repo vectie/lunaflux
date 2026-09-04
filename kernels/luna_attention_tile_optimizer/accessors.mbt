@@ -62,6 +62,13 @@ pub fn AttentionTileOptimization::trace(
 }
 
 ///|
+pub fn AttentionTileOptimization::reduction_topology(
+  self : AttentionTileOptimization,
+) -> AttentionTileReductionTopology {
+  self.reduction_topology
+}
+
+///|
 pub fn AttentionTileOptimization::canonical_bytes(
   self : AttentionTileOptimization,
 ) -> Bytes {
