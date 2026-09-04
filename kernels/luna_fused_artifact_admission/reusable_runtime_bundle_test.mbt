@@ -3,11 +3,12 @@ fn runtime_bundle_test_launch(
   block_x : Int,
   grid_y : Int,
   shared_memory_bytes : Int,
+  grid_z? : Int = 1,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=32,
     grid_y~,
-    grid_z=1,
+    grid_z~,
     block_x~,
     block_y=1,
     block_z=1,
@@ -140,6 +141,60 @@ test "V4 Qwen full ingress owns projection through KV write" {
   assert_eq(ingress.function_symbol(), "lunaflux_qwen_full_ingress")
   assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), Some(5))
   assert_true(admitted.qwen_qknorm_rope_kv_write_module() is None)
+}
+
+///|
+test "partitioned prefill preserves ordered partial and merge entries" {
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let attention_operation = 5
+  let module_bytes = b"partitioned-prefill-cubin"
+  let canonical = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target~,
+    modules=[
+      ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+        first_operation=attention_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+        launch=runtime_bundle_test_launch(256, 16, 31952, grid_z=2),
+        module_bytes~,
+      ),
+      ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+        first_operation=attention_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+        launch=runtime_bundle_test_launch(256, 16, 0),
+        module_bytes~,
+      ),
+      runtime_bundle_test_input(
+        QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+        attention_operation,
+        1,
+        "qwen_decode",
+      ),
+    ],
+  )
+  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+    canonical,
+    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+  )
+  guard admitted.qwen_partitioned_prefill_partial_module() is Some(partial) &&
+    admitted.qwen_partitioned_prefill_merge_module() is Some(merge) else {
+    fail("partitioned prefill module pair missing")
+  }
+  assert_eq(partial.operation_span(), (attention_operation, 1))
+  assert_eq(partial.launch_dimensions().grid_z(), 2)
+  assert_eq(merge.operation_span(), (attention_operation, 1))
+  assert_eq(merge.launch_dimensions().grid_z(), 1)
+  assert_eq(partial.module_digest(), merge.module_digest())
 }
 
 ///|

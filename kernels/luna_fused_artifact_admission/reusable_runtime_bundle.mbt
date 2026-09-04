@@ -1,11 +1,11 @@
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 4
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 6
 
 ///|
 const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int = 8388608
 
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 16000000
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 32000000
 
 ///|
 fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
@@ -15,6 +15,10 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4"
     QwenQkNormPositionedRopePagedKvWriteProductionV2 =>
       "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2"
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 =>
+      "qwen-paged-attention-prefill-partitioned-partial-production-v4"
+    QwenPagedAttentionPrefillPartitionedMergeProductionV4 =>
+      "qwen-paged-attention-prefill-partitioned-merge-production-v4"
     QwenPagedAttentionReadOnlyProductionV2 =>
       "qwen-paged-attention-readonly-production-v2"
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 =>
@@ -32,6 +36,10 @@ fn reusable_runtime_parse_abi(
       QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
     "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2" =>
       QwenQkNormPositionedRopePagedKvWriteProductionV2
+    "qwen-paged-attention-prefill-partitioned-partial-production-v4" =>
+      QwenPagedAttentionPrefillPartitionedPartialProductionV4
+    "qwen-paged-attention-prefill-partitioned-merge-production-v4" =>
+      QwenPagedAttentionPrefillPartitionedMergeProductionV4
     "qwen-paged-attention-readonly-production-v2" =>
       QwenPagedAttentionReadOnlyProductionV2
     "qwen-paged-attention-readonly-decode-split-production-v3" =>
@@ -48,6 +56,8 @@ fn reusable_runtime_required_operation_count(
     ResidualRmsNormProductionV2 => 2
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 4
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 1
+    QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
   }
@@ -59,8 +69,10 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     ResidualRmsNormProductionV2 => 0
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 1
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 2
-    QwenPagedAttentionReadOnlyProductionV2 => 3
-    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 4
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 3
+    QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 4
+    QwenPagedAttentionReadOnlyProductionV2 => 5
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 6
   }
 }
 
@@ -84,9 +96,38 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   abi_b : ReusableFusedRuntimeKernelAbi,
   first_b : Int,
 ) -> Bool {
+  let reader_a = abi_a ==
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
+    abi_a == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
+    abi_a == QwenPagedAttentionReadOnlyProductionV2 ||
+    abi_a == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  let reader_b = abi_b ==
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
+    abi_b == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
+    abi_b == QwenPagedAttentionReadOnlyProductionV2 ||
+    abi_b == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  if reader_a && reader_b {
+    return first_a == first_b
+  }
   match (abi_a, abi_b) {
     (
       QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+    ) => first_b == first_a + 3
+    (
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+    ) => first_b == first_a + 3
+    (
+      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+    ) => first_a == first_b + 3
+    (
+      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+    ) => first_a == first_b + 3
+    (
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
       QwenPagedAttentionReadOnlyProductionV2,
     ) => first_b == first_a + 3
     (
@@ -103,6 +144,22 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
     ) => first_a == first_b + 3
     (
       QwenQkNormPositionedRopePagedKvWriteProductionV2,
+      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+    ) => first_b == first_a + 2
+    (
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
+      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+    ) => first_b == first_a + 2
+    (
+      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
+    ) => first_a == first_b + 2
+    (
+      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
+    ) => first_a == first_b + 2
+    (
+      QwenQkNormPositionedRopePagedKvWriteProductionV2,
       QwenPagedAttentionReadOnlyProductionV2,
     ) => first_b == first_a + 2
     (
@@ -117,14 +174,6 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
       QwenQkNormPositionedRopePagedKvWriteProductionV2,
     ) => first_a == first_b + 2
-    (
-      QwenPagedAttentionReadOnlyProductionV2,
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-    ) => first_a == first_b
-    (
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-      QwenPagedAttentionReadOnlyProductionV2,
-    ) => first_a == first_b
     _ => false
   }
 }
@@ -138,6 +187,12 @@ fn reusable_runtime_validate_module(
   launch : @launch_contract.AotLaunchDimensions,
   module_bytes : Bytes,
 ) -> Unit raise FusedArtifactAdmissionError {
+  let valid_grid_z = if abi ==
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 {
+    launch.grid_z() > 1
+  } else {
+    launch.grid_z() == 1
+  }
   if first_operation < 0 ||
     operation_count != reusable_runtime_required_operation_count(abi) ||
     first_operation > 0x7fffffff - operation_count ||
@@ -146,7 +201,7 @@ fn reusable_runtime_validate_module(
     symbol.contains("\r") ||
     launch.grid_x() <= 0 ||
     launch.grid_y() <= 0 ||
-    launch.grid_z() != 1 ||
+    !valid_grid_z ||
     launch.block_x() <= 0 ||
     launch.block_y() != 1 ||
     launch.block_z() != 1 ||
@@ -364,6 +419,8 @@ pub fn export_reusable_fused_runtime_bundle(
     ResidualRmsNormProductionV2,
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
     QwenQkNormPositionedRopePagedKvWriteProductionV2,
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+    QwenPagedAttentionPrefillPartitionedMergeProductionV4,
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
   ]

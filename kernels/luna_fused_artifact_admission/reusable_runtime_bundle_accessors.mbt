@@ -76,6 +76,20 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_full_attention_ingress_module(
 }
 
 ///|
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_partial_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionPrefillPartitionedPartialProductionV4)
+}
+
+///|
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_merge_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionPrefillPartitionedMergeProductionV4)
+}
+
+///|
 /// Returns only the admitted Qwen cache-read-only attention entry. It cannot
 /// be substituted by the Qwen ingress module or inferred from its presence.
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
