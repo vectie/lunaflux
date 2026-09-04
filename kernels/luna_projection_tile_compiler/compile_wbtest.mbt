@@ -45,6 +45,7 @@ test "functional projection compiler prunes unobserved prompt logits" {
   assert_true(trace[1].changed())
   assert_false(trace[2].changed())
   assert_false(compiled.schedule().reuse_input_tile())
+  assert_eq(compiled.schedule().row_tail_policy(), ScalarRowTail)
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 32, 16),
@@ -193,6 +194,7 @@ test "attention ingress epilogue fuses pure QKV consumers and KV commit" {
   assert_eq(trace[6].rule(), ElideProjectedQkvRoundTrip)
   assert_true(trace[6].changed())
   assert_true(compiled.schedule().fuses_attention_ingress_epilogue())
+  assert_eq(compiled.schedule().row_tail_policy(), ZeroPaddedMatrixRowTail)
   let loops = compiled.schedule().loops()
   assert_eq(loops.length(), 5)
   assert_eq(

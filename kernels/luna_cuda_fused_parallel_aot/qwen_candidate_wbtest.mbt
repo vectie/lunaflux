@@ -139,6 +139,15 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_true(
     source.contains("__shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM]"),
   )
+  assert_true(
+    source.contains("__shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16]"),
+  )
+  assert_true(source.contains("const bool partial_row_tile"))
+  assert_true(
+    source.contains(
+      "nvcuda::wmma::load_matrix_sync(a, &padded_input[0][0], 16)",
+    ),
+  )
   let recipe = @utf8.decode(first.recipe_bytes())
   assert_true(
     recipe.contains(

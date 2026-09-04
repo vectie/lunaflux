@@ -136,6 +136,15 @@ pub(all) enum ProjectionIterationAxis {
 } derive(Debug, Eq)
 
 ///|
+/// Backend-neutral handling for the final, partially populated projection
+/// row tile. Matrix backends lower zero padding with their own local-memory
+/// and matrix-instruction vocabulary; scalar backends retain the live extent.
+pub(all) enum ProjectionRowTailPolicy {
+  ScalarRowTail
+  ZeroPaddedMatrixRowTail
+} derive(Debug, Eq)
+
+///|
 pub struct ProjectionLoopCombinator {
   priv kind : ProjectionIterationKind
   priv axis : ProjectionIterationAxis

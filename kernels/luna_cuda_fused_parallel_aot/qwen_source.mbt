@@ -19,6 +19,7 @@ fn qwen_fused_source(
   let (_, _, _, tile_columns) = column_loop.components()
   let (_, _, _, tile_reduction) = reduction_loop.components()
   if !tile_compilation.schedule().fuses_attention_ingress_epilogue() ||
+    tile_compilation.schedule().row_tail_policy() != ZeroPaddedMatrixRowTail ||
     tile_rows != 16 ||
     tile_columns != 16 ||
     tile_reduction != 16 ||
@@ -112,7 +113,8 @@ fn qwen_fused_source(
     "  const int matrix_head = is_query ? head : (is_key ? head - LF_QUERY_HEADS : head - LF_QK_HEADS);\n" +
     "  const __nv_bfloat16* matrix = is_query ? q_weight : (is_key ? k_weight : v_weight);\n" +
     "  __shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM];\n" +
-    "  if (tokens == 1 || token_begin + LF_TILE_ROWS > tokens) {\n" +
+    "  __shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16];\n" +
+    "  if (tokens == 1) {\n" +
     "    for (int local_row = warp; local_row < LF_TILE_ROWS; local_row += LF_WARPS) {\n" +
     "      const int token = token_begin + local_row;\n" +
     "      if (token < tokens) for (int component = lane; component < LF_HEAD_DIM; component += 32) {\n" +
@@ -130,10 +132,22 @@ fn qwen_fused_source(
     "      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
     "      nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
     "      nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
+    "      const bool partial_row_tile = token_begin + LF_TILE_ROWS > tokens;\n" +
     "      for (int inner = 0; inner < LF_INPUT_WIDTH; inner += 16) {\n" +
-    "        nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)token_begin * LF_INPUT_WIDTH + inner, LF_INPUT_WIDTH);\n" +
+    "        if (partial_row_tile) {\n" +
+    "          for (int element = (int)threadIdx.x; element < LF_TILE_ROWS * 16; element += LF_BLOCK_THREADS) {\n" +
+    "            const int local_row = element >> 4, local_inner = element & 15;\n" +
+    "            padded_input[local_row][local_inner] = token_begin + local_row < tokens ?\n" +
+    "              input[(unsigned long long)(token_begin + local_row) * LF_INPUT_WIDTH + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
+    "          }\n" +
+    "          __syncthreads();\n" +
+    "          nvcuda::wmma::load_matrix_sync(a, &padded_input[0][0], 16);\n" +
+    "        } else {\n" +
+    "          nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)token_begin * LF_INPUT_WIDTH + inner, LF_INPUT_WIDTH);\n" +
+    "        }\n" +
     "        nvcuda::wmma::load_matrix_sync(b, matrix + (unsigned long long)(matrix_head * LF_HEAD_DIM + column_base) * LF_INPUT_WIDTH + inner, LF_INPUT_WIDTH);\n" +
     "        nvcuda::wmma::mma_sync(c, a, b, c);\n" +
+    "        if (partial_row_tile) __syncthreads();\n" +
     "      }\n" +
     "      nvcuda::wmma::store_matrix_sync(&projected[0][column_base], c, LF_HEAD_DIM, nvcuda::wmma::mem_row_major);\n" +
     "    }\n" +
