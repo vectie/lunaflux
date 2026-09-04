@@ -545,8 +545,8 @@ fn projection_dimensions(
     if parameters.family == LanguageModelHead {
       8704L
     } else {
-      // QKV and dense reuse one 8 KiB arena across disjoint BF16 tile and FP32
-      // accumulator lifetimes. The mixed entry point retains its GEMV branch.
+      // Direct-fragment QKV and dense use one 8 KiB FP32 accumulator arena.
+      // The mixed entry point retains its allocation-free GEMV decode branch.
       8192L
     }
   } else if tensor_core_mlp {
@@ -563,8 +563,9 @@ fn projection_dimensions(
         128L
       output_tile_groups
     } else {
-      let output_tile_groups = (parameters.output_width.to_int64() + 31L) / 32L
-      let row_tiles = (profile.max_query_tokens().to_int64() + 63L) / 64L
+      let output_tile_groups = (parameters.output_width.to_int64() + 127L) /
+        128L
+      let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
       let prompt_work = projection_checked_mul(output_tile_groups, row_tiles)
       let decode_work = (parameters.output_width.to_int64() + 7L) / 8L
       if prompt_work > decode_work {

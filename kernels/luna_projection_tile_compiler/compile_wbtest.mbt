@@ -43,8 +43,8 @@ test "functional projection compiler prunes unobserved prompt logits" {
   assert_eq(trace.length(), 5)
   assert_true(trace[0].changed())
   assert_true(trace[1].changed())
-  assert_true(trace[2].changed())
-  assert_true(compiled.schedule().reuse_input_tile())
+  assert_false(trace[2].changed())
+  assert_false(compiled.schedule().reuse_input_tile())
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 32, 16),
@@ -63,6 +63,8 @@ test "functional projection compiler preserves all-row dense semantics" {
   )
   assert_eq(compiled.program().bindings().length(), 4)
   assert_false(compiled.optimization().trace()[0].changed())
+  assert_false(compiled.optimization().trace()[2].changed())
+  assert_false(compiled.schedule().reuse_input_tile())
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 256, 16),

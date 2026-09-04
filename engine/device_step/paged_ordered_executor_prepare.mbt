@@ -291,7 +291,8 @@ fn paged_projection_bucket_grid_x(
       let grid = if query_token_bound == 1 {
         paged_ceil_div(output_width, 8)
       } else {
-        paged_ceil_div(output_width, 32) * paged_ceil_div(query_token_bound, 64)
+        paged_ceil_div(output_width, 128) *
+        paged_ceil_div(query_token_bound, 16)
       }
       Int::min(source.grid_x(), grid)
     }

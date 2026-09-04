@@ -302,7 +302,7 @@ fn projection_source(
             symbol, parameters, maximum_tokens,
           )
         } else {
-          projection_tensor_core_qkv_legacy_source(
+          projection_tensor_core_direct_qkv_source(
             symbol, parameters, maximum_tokens,
           )
         }
@@ -316,7 +316,7 @@ fn projection_source(
             symbol, parameters, maximum_tokens,
           )
         } else {
-          projection_tensor_core_dense_legacy_source(
+          projection_tensor_core_direct_dense_source(
             symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
           )
         }
@@ -327,7 +327,7 @@ fn projection_source(
       }
     LanguageModelHead => {
       let base = if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_legacy_source(
+        projection_tensor_core_direct_dense_source(
           symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       } else {

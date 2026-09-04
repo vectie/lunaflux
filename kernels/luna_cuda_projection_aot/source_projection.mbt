@@ -61,7 +61,7 @@ fn projection_count_guard(maximum_tokens : Int) -> String {
 }
 
 ///|
-fn projection_tensor_core_dense_legacy_source(
+fn projection_tensor_core_direct_dense_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
@@ -224,7 +224,7 @@ fn projection_tensor_core_dense_legacy_source(
 }
 
 ///|
-fn projection_tensor_core_qkv_legacy_source(
+fn projection_tensor_core_direct_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,

@@ -184,15 +184,21 @@ pub fn optimize_projection_tile(
 ) -> OptimizedProjectionTileCompilation {
   let selected = semantic.program.demand == QueryRowEnds
   let gated_mlp = semantic.program.shape.family() == GatedMlp
+  // Input reuse is a semantic common-subexpression elimination only when the
+  // functional graph has multiple consumers of the same input value. A lone
+  // projection has one Dot consumer; staging its input across output tiles is
+  // a backend scheduling candidate whose synchronization cost must be proven,
+  // not an unconditional functional rewrite.
+  let shared_input_value = gated_mlp
   let trace = ReadOnlyArray::from_array([
     { rule: PruneUnobservedTokenRows, changed: selected },
     { rule: HoistSelectedInputTile, changed: selected },
-    { rule: ReuseInputTileAcrossOutputTiles, changed: true },
+    { rule: ReuseInputTileAcrossOutputTiles, changed: shared_input_value },
     { rule: FuseSiblingInputTraversals, changed: gated_mlp },
     { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp },
   ])
   let builder = StringBuilder()
-  builder <+ "luna-projection-tile-optimization-v2\n"
+  builder <+ "luna-projection-tile-optimization-v3\n"
   builder <+ "program_sha256=\{semantic.program.digest.0}\n"
   for step in trace {
     builder <+ "pass=\{projection_rewrite_code(step.rule)},\{step.changed}\n"
@@ -211,9 +217,10 @@ pub fn optimize_projection_tile(
 fn projection_schedule_canonical(
   optimized : OptimizedProjectionTileCompilation,
   loops : ArrayView[ProjectionLoopCombinator],
+  reuse_input_tile : Bool,
 ) -> Bytes {
   let builder = StringBuilder()
-  builder <+ "luna-projection-tile-schedule-v2\n"
+  builder <+ "luna-projection-tile-schedule-v3\n"
   builder <+ "program_sha256=\{optimized.semantic.program.digest.0}\n"
   builder <+ "optimization_sha256=\{optimized.optimization.digest.0}\n"
   for schedule_loop in loops {
@@ -228,7 +235,7 @@ fn projection_schedule_canonical(
     builder <+
       "loop=\{kind},\{axis},\{schedule_loop.extent},\{schedule_loop.tile}\n"
   }
-  builder <+ "reuse_input_tile=true\n"
+  builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
   builder <+
     "reuse_intermediate_tile=\{optimized.semantic.program.shape.family() == GatedMlp}\n"
   @utf8.encode(builder.to_string())
@@ -303,19 +310,22 @@ pub fn schedule_projection_tile(
       },
     ]
   }
-  let canonical = projection_schedule_canonical(optimized, loops)
+  let reuse_input_tile = request.dispatch.shape().family() == GatedMlp
+  let canonical = projection_schedule_canonical(
+    optimized, loops, reuse_input_tile,
+  )
   let schedule = ProjectionTileSchedule::{
     program_digest: optimized.semantic.program.digest,
     optimization_digest: optimized.optimization.digest,
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
-    reuse_input_tile: true,
+    reuse_input_tile,
     reuse_intermediate_tile: request.dispatch.shape().family() == GatedMlp,
     canonical,
     digest: ProjectionTileScheduleDigest(projection_tile_sha256(canonical)),
   }
   let compilation_canonical = @utf8.encode(
-    "luna-projection-functional-compilation-v2\n" +
+    "luna-projection-functional-compilation-v3\n" +
     "program_sha256=" +
     optimized.semantic.program.digest.0 +
     "\noptimization_sha256=" +
