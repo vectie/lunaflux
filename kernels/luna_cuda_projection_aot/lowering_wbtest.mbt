@@ -439,24 +439,28 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_true(
     @utf8.decode(fallback.source_bytes()).contains("nvcuda::wmma::mma_sync"),
   )
-  assert_false(
+  assert_true(
     @utf8.decode(fallback.source_bytes()).contains("__nv_bfloat16 *input_tile"),
+  )
+  assert_true(
+    @utf8.decode(fallback.source_bytes()).contains(
+      "store_matrix_sync(output + (unsigned long long)row",
+    ),
   )
   assert_true(fallback.tile_compilation().schedule().reuse_input_tile())
   assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 8192)
-  let prefill_only_source = projection_source(
-    "projection_prefill_only",
+  let compiler_source = projection_source(
+    "projection_compiler",
     projection_parameters(operation),
     profile.max_query_tokens(),
     profile.max_query_rows(),
     fallback.dispatch_plan(),
     fallback.tile_compilation(),
-    PrefillOnlyProjection,
     false,
     false,
   )
   assert_true(
-    @utf8.decode(prefill_only_source).contains("__nv_bfloat16 *input_tile"),
+    @utf8.decode(compiler_source).contains("__nv_bfloat16 *input_tile"),
   )
   let foreign_target = @catalog.DeviceTarget::new(
     compute_major=12,

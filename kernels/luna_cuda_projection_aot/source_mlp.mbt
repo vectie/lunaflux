@@ -284,12 +284,6 @@ fn projection_mlp_shared_source(
 }
 
 ///|
-priv enum ProjectionKernelPhaseContract {
-  MixedPrefillDecodeProjection
-  PrefillOnlyProjection
-} derive(Eq)
-
-///|
 fn projection_source(
   symbol : String,
   parameters : ProjectionParameters,
@@ -297,22 +291,17 @@ fn projection_source(
   maximum_rows : Int,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
-  phase_contract : ProjectionKernelPhaseContract,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
 ) -> Bytes raise ProjectionAotError {
   match parameters.family {
     QkvProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        if phase_contract == PrefillOnlyProjection &&
-          tile_compilation.schedule().reuse_input_tile() {
+        if tile_compilation.schedule().reuse_input_tile() {
           projection_tensor_core_cooperative_qkv_source(
             symbol, parameters, maximum_tokens,
           )
         } else {
-          // The current ABI shares one entry point between prefill and decode.
-          // Reusing a cooperative prompt tile is a prefill-only lowering and
-          // must not change the mixed entry point's launch contract.
           projection_tensor_core_qkv_legacy_source(
             symbol, parameters, maximum_tokens,
           )
@@ -322,8 +311,7 @@ fn projection_source(
       }
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        if phase_contract == PrefillOnlyProjection &&
-          tile_compilation.schedule().reuse_input_tile() {
+        if tile_compilation.schedule().reuse_input_tile() {
           projection_tensor_core_cooperative_dense_source(
             symbol, parameters, maximum_tokens,
           )
