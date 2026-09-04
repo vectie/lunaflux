@@ -141,9 +141,11 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_true(source.contains("float gate_values[8];"))
   assert_true(
     source.contains(
-      "load_matrix_sync(a, input + (unsigned long long)row_start * 1024ULL",
+      "input_tile[element] = row_start + tile_row < token_count ? input[",
     ),
   )
+  assert_true(source.contains("load_matrix_sync(a, input_tile, 16)"))
+  assert_true(source.contains("element < 256"))
   assert_true(
     source.contains(
       "load_matrix_sync(a, workspace + (unsigned long long)row_start * 3072ULL",

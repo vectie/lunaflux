@@ -105,6 +105,12 @@ fn projection_tensor_core_mlp_source(
     "  if (row_start >= token_count) return;\n" +
     "  const int column = group_index * 256 + warp * 16;\n" +
     "  extern __shared__ unsigned char shared_bytes[];\n" +
+    // The functional projection schedule marks this input tile as invariant
+    // across the sixteen output-column tiles owned by the block. Lower that
+    // invariant once into shared memory instead of issuing sixteen identical
+    // global-memory loads. The input tile and accumulator spill reuse the same
+    // storage at disjoint lifetime intervals, so the launch ABI remains stable.
+    "  __nv_bfloat16 *input_tile = reinterpret_cast<__nv_bfloat16 *>(shared_bytes);\n" +
     "  float *tile_output = reinterpret_cast<float *>(shared_bytes);\n" +
     "  float *warp_output = tile_output + warp * 256;\n" +
     "    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
@@ -114,11 +120,14 @@ fn projection_tensor_core_mlp_source(
     "    for (int inner = 0; inner < " +
     parameters.input_width.to_string() +
     "; inner += 16) {\n" +
-    "      nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row_start * " +
+    "      for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
+    "        const int tile_row = element >> 4, tile_column = element & 15;\n" +
+    "        input_tile[element] = row_start + tile_row < token_count ? input[(unsigned long long)(row_start + tile_row) * " +
     parameters.input_width.to_string() +
-    "ULL + inner, " +
-    parameters.input_width.to_string() +
-    ");\n" +
+    "ULL + inner + tile_column] : __float2bfloat16_rn(0.0f);\n" +
+    "      }\n" +
+    "      __syncthreads();\n" +
+    "      nvcuda::wmma::load_matrix_sync(a, input_tile, 16);\n" +
     "      nvcuda::wmma::load_matrix_sync(bg, gate_weight + (unsigned long long)column * " +
     parameters.input_width.to_string() +
     "ULL + inner, " +
@@ -130,6 +139,7 @@ fn projection_tensor_core_mlp_source(
     parameters.input_width.to_string() +
     ");\n" +
     "      nvcuda::wmma::mma_sync(cg, a, bg, cg); nvcuda::wmma::mma_sync(cu, a, bu, cu);\n" +
+    "      __syncthreads();\n" +
     "    }\n" +
     "    nvcuda::wmma::store_matrix_sync(warp_output, cg, 16, nvcuda::wmma::mem_row_major);\n" +
     "    __syncwarp();\n" +
