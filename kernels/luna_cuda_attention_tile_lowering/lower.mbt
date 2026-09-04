@@ -154,6 +154,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   }
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
+  let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v3\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
@@ -166,6 +167,8 @@ pub fn lower_attention_tile_schedule_to_cuda(
     "launch=\{grid_x},\{grid_y},\{key_value_partitions},\{block_threads},\{shared_memory_bytes}\n"
   builder <+ "tile=\{query_tile},\{key_value_tile},\{head_dimension}\n"
   builder <+ "pipeline=\{pipeline_stages},\{vector_bytes}\n"
+  builder <+
+    "hoist_paged_key_value_page_lookup=\{hoist_paged_key_value_page_lookup}\n"
   let canonical = @utf8.encode(builder.to_string())
   {
     program_digest: program.digest(),
@@ -185,6 +188,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     pipeline_stages,
     vector_bytes,
     shared_memory_bytes,
+    hoist_paged_key_value_page_lookup,
     canonical,
     digest: CudaAttentionTileLoweringDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

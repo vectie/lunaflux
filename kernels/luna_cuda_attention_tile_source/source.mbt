@@ -45,6 +45,77 @@ fn emit_cuda_prefill_attention_tile_source(
   let query_width = query_heads * head_dimension
   let group_size = query_heads / key_value_heads
   let values_per_vector = vector_bytes / 2
+  let vectors_per_key = head_dimension / values_per_vector
+  if vectors_per_key <= 0 || vectors_per_key > 32 || 32 % vectors_per_key != 0 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let paged_key_value_load = if lowering.hoists_paged_key_value_page_lookup() {
+    "      int physical_page = -1;\n" +
+    "      if (key_position < partition_end && key_position < sequence_length &&\n" +
+    "          key_position <= maximum_query_position && component == 0) {\n" +
+    "        const int logical_page = key_position / " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "        const int page_slot = page_start + logical_page;\n" +
+    "        physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;\n" +
+    "        if (physical_page < 0 || (unsigned long long)physical_page >= " +
+    physical_page_capacity.to_string() +
+    "ULL) {\n" +
+    "          atomicExch(&tile_valid, 0);\n" +
+    "          physical_page = -1;\n" +
+    "        }\n" +
+    "      }\n" +
+    "      const int page_source_lane =\n" +
+    "          (lane / " +
+    vectors_per_key.to_string() +
+    ") * " +
+    vectors_per_key.to_string() +
+    ";\n" +
+    "      physical_page = __shfl_sync(0xffffffffU, physical_page, page_source_lane);\n" +
+    "      if (physical_page >= 0) {\n" +
+    "        const int token_in_page = key_position % " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "        const unsigned long long cache_index =\n" +
+    "            (unsigned long long)physical_page * " +
+    page_stride_values.to_string() +
+    "ULL +\n" +
+    "            ((unsigned long long)token_in_page * " +
+    key_value_heads.to_string() +
+    "ULL + key_value_head) *\n" +
+    "            LF_HEAD_DIMENSION + component;\n" +
+    "        packed_key = *reinterpret_cast<const uint4 *>(key_cache + cache_index);\n" +
+    "        packed_value = *reinterpret_cast<const uint4 *>(value_cache + cache_index);\n" +
+    "      }\n"
+  } else {
+    "      if (key_position < partition_end && key_position < sequence_length &&\n" +
+    "          key_position <= maximum_query_position) {\n" +
+    "        const int logical_page = key_position / " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "        const int page_slot = page_start + logical_page;\n" +
+    "        const int physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;\n" +
+    "        if (physical_page < 0 || (unsigned long long)physical_page >= " +
+    physical_page_capacity.to_string() +
+    "ULL) {\n" +
+    "          atomicExch(&tile_valid, 0);\n" +
+    "        } else {\n" +
+    "          const int token_in_page = key_position % " +
+    tokens_per_page.to_string() +
+    ";\n" +
+    "          const unsigned long long cache_index =\n" +
+    "              (unsigned long long)physical_page * " +
+    page_stride_values.to_string() +
+    "ULL +\n" +
+    "              ((unsigned long long)token_in_page * " +
+    key_value_heads.to_string() +
+    "ULL + key_value_head) *\n" +
+    "              LF_HEAD_DIMENSION + component;\n" +
+    "          packed_key = *reinterpret_cast<const uint4 *>(key_cache + cache_index);\n" +
+    "          packed_value = *reinterpret_cast<const uint4 *>(value_cache + cache_index);\n" +
+    "        }\n" +
+    "      }\n"
+  }
   let probability_type = if compute == CudaMatrixQkPvMultiplyAccumulate {
     "__nv_bfloat16"
   } else {
@@ -312,23 +383,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      const int key_position = key_base + key;
     $|      uint4 packed_key = make_uint4(0U, 0U, 0U, 0U);
     $|      uint4 packed_value = make_uint4(0U, 0U, 0U, 0U);
-    $|      if (key_position < partition_end && key_position < sequence_length &&
-    $|          key_position <= maximum_query_position) {
-    $|        const int logical_page = key_position / \{tokens_per_page};
-    $|        const int page_slot = page_start + logical_page;
-    $|        const int physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;
-    $|        if (physical_page < 0 || (unsigned long long)physical_page >= \{physical_page_capacity}ULL) {
-    $|          atomicExch(&tile_valid, 0);
-    $|        } else {
-    $|          const int token_in_page = key_position % \{tokens_per_page};
-    $|          const unsigned long long cache_index =
-    $|              (unsigned long long)physical_page * \{page_stride_values}ULL +
-    $|              ((unsigned long long)token_in_page * \{key_value_heads}ULL + key_value_head) *
-    $|              LF_HEAD_DIMENSION + component;
-    $|          packed_key = *reinterpret_cast<const uint4 *>(key_cache + cache_index);
-    $|          packed_value = *reinterpret_cast<const uint4 *>(value_cache + cache_index);
-    $|        }
-    $|      }
+    $|\{paged_key_value_load}
     $|      __nv_bfloat16 *stage_keys = key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|      __nv_bfloat16 *stage_values = value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|      *reinterpret_cast<uint4 *>(stage_keys + first_value) = packed_key;

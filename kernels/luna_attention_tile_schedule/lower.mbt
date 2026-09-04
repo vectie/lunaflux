@@ -96,6 +96,7 @@ fn canonical_schedule(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   loops : ReadOnlyArray[AttentionLoopCombinator],
   key_value_partitions : Int,
+  hoist_paged_key_value_page_lookup : Bool,
 ) -> Bytes {
   let candidate = program.candidate()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
@@ -103,6 +104,8 @@ fn canonical_schedule(
   builder <+ "luna-attention-tile-schedule-v2\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "kv_partitions=\{key_value_partitions}\n"
+  builder <+
+    "hoist_paged_key_value_page_lookup=\{hoist_paged_key_value_page_lookup}\n"
   for combinator in loops {
     builder <+
       "loop=\{iteration_kind_code(combinator.kind)},\{iteration_axis_code(combinator.axis)},\{combinator.extent},\{combinator.tile}\n"
@@ -122,7 +125,25 @@ fn canonical_schedule(
 pub fn schedule_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
-  schedule_attention_tile_program_with_partitions(program, 1)
+  schedule_attention_tile_program_with_partitions(program, 1, false)
+}
+
+///|
+/// Schedules the optimizer's non-topological rewrites while retaining one
+/// ordered KV fold. This is the ordinary single-kernel path; the partitioned
+/// entry point below additionally materializes the associative split/merge.
+pub fn schedule_rewritten_attention_tile_program(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
+) -> AttentionTileSchedule raise AttentionTileScheduleError {
+  if optimization.program_digest() != program.digest() {
+    raise InvalidAttentionTileSchedule(InvalidProblem)
+  }
+  schedule_attention_tile_program_with_partitions(
+    program,
+    1,
+    attention_optimization_has_rule(optimization, HoistPagedKeyValuePageLookup),
+  )
 }
 
 ///|
@@ -140,13 +161,26 @@ pub fn schedule_optimized_attention_tile_program(
     AttentionOrderedOnlineSoftmaxFold => 1
     AttentionPartitionedOnlineSoftmaxFold(count) => count
   }
-  schedule_attention_tile_program_with_partitions(program, partitions)
+  schedule_attention_tile_program_with_partitions(
+    program,
+    partitions,
+    attention_optimization_has_rule(optimization, HoistPagedKeyValuePageLookup),
+  )
+}
+
+///|
+fn attention_optimization_has_rule(
+  optimization : @luna_attention_tile_optimizer.AttentionTileOptimization,
+  expected : @luna_attention_tile_optimizer.AttentionTileRewriteRule,
+) -> Bool {
+  optimization.regions().any(region => region.rule() == expected)
 }
 
 ///|
 fn schedule_attention_tile_program_with_partitions(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   key_value_partitions : Int,
+  hoist_paged_key_value_page_lookup : Bool,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
   let problem = program.problem()
   let candidate = program.candidate()
@@ -238,7 +272,9 @@ fn schedule_attention_tile_program_with_partitions(
   }
   let loops = ReadOnlyArray::from_array(prefix)
   validate_schedule_loops(loops, key_value_partitions)
-  let canonical = canonical_schedule(program, loops, key_value_partitions)
+  let canonical = canonical_schedule(
+    program, loops, key_value_partitions, hoist_paged_key_value_page_lookup,
+  )
   let shared_memory_bytes = candidate.shared_memory_bytes()
   {
     program_digest: program.digest(),
@@ -250,6 +286,7 @@ fn schedule_attention_tile_program_with_partitions(
     vector_bytes,
     shared_memory_bytes,
     key_value_partitions,
+    hoist_paged_key_value_page_lookup,
     canonical,
     digest: AttentionTileScheduleDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

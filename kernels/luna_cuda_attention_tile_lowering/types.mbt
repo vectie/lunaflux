@@ -39,6 +39,7 @@ pub struct CudaAttentionTileLowering {
   priv pipeline_stages : Int
   priv vector_bytes : Int
   priv shared_memory_bytes : Int64
+  priv hoist_paged_key_value_page_lookup : Bool
   priv canonical : Bytes
   priv digest : CudaAttentionTileLoweringDigest
 } derive(Debug, Eq)

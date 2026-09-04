@@ -42,6 +42,7 @@ pub struct AttentionTileSchedule {
   priv vector_bytes : Int
   priv shared_memory_bytes : Int64
   priv key_value_partitions : Int
+  priv hoist_paged_key_value_page_lookup : Bool
   priv canonical : Bytes
   priv digest : AttentionTileScheduleDigest
 } derive(Debug, Eq)

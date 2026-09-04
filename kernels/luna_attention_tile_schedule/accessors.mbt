@@ -67,6 +67,13 @@ pub fn AttentionTileSchedule::key_value_partitions(
 }
 
 ///|
+pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(
+  self : AttentionTileSchedule,
+) -> Bool {
+  self.hoist_paged_key_value_page_lookup
+}
+
+///|
 pub fn AttentionTileSchedule::canonical_bytes(
   self : AttentionTileSchedule,
 ) -> Bytes {

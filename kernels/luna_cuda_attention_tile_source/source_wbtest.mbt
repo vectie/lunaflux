@@ -69,8 +69,8 @@ fn source_test_lowering(
   let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
     program,
   )
-  let schedule = @luna_attention_tile_schedule.schedule_attention_tile_program(
-    program,
+  let schedule = @luna_attention_tile_schedule.schedule_rewritten_attention_tile_program(
+    program, optimization,
   )
   @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     program,
@@ -200,6 +200,7 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
   assert_eq(lowering.tile(), (64, 32, 128))
+  assert_true(lowering.hoists_paged_key_value_page_lookup())
   let first = emit_cuda_attention_tile_source(
     lowering,
     source_test_abi(),
@@ -223,6 +224,7 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
       "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 78608", "AttentionTileFoldKeyValueStream",
       "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
+      "const int page_source_lane", "__shfl_sync(0xffffffffU, physical_page, page_source_lane)",
     ] {
     if required == "AttentionTileFoldKeyValueStream" {
       assert_false(source.contains(required))
@@ -269,6 +271,8 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
     ).bytes(),
   )
   assert_true(source.contains("#define LF_QUERY_TILE 32"))
+  assert_true(source.contains("component == 0"))
+  assert_true(source.contains("(lane / 16) * 16"))
   assert_true(
     source.contains(
       "for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16)",

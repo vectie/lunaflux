@@ -49,11 +49,12 @@ test "functional attention compiler composes typed immutable passes" {
   assert_eq(selected.plan().candidate().stable_id(), 314)
   assert_eq(semantic.plan(), selected.plan())
   assert_eq(optimized.plan(), selected.plan())
-  assert_eq(optimized.optimization().regions().length(), 2)
+  assert_eq(optimized.optimization().regions().length(), 3)
   assert_eq(scheduled, composed)
   assert_eq(scheduled.program(), semantic.program())
   assert_eq(scheduled.schedule().program_digest(), semantic.program().digest())
   assert_eq(scheduled.optimization(), optimized.optimization())
+  assert_true(scheduled.schedule().hoists_paged_key_value_page_lookup())
   assert_eq(scheduled.canonical_bytes().length() > 0, true)
   assert_eq(scheduled.digest().as_hex().length(), 64)
 }
@@ -78,7 +79,7 @@ test "partitioned compiler path materializes optimizer reduction topology" {
   assert_eq(first.schedule().loops().length(), 6)
   assert_eq(
     first.optimization().reduction_topology(),
-    @luna_attention_tile_optimizer.AttentionPartitionedOnlineSoftmaxFold(2),
+    AttentionPartitionedOnlineSoftmaxFold(2),
   )
   assert_false(first.digest() == compile_attention_tile(request).digest())
 }

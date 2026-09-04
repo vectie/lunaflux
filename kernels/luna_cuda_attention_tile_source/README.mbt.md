@@ -9,3 +9,9 @@ matrix.
 
 The source ABI is backend-private. Model and scheduler packages see only the
 generic attention problem, semantic IR, and schedule.
+
+When the functional optimizer selects paged-row address hoisting, the CUDA
+terminal lowering computes one page-table address per logical K/V row and
+broadcasts it across that row's vector fragments. This removes repeated page
+division and table loads without exposing CUDA subgroup vocabulary above the
+backend boundary.

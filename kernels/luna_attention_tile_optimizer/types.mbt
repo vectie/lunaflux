@@ -2,6 +2,7 @@
 /// Backend-neutral equational rewrites recognized by the attention optimizer.
 /// The names describe semantic regions, never device instructions.
 pub(all) enum AttentionTileRewriteRule {
+  HoistPagedKeyValuePageLookup
   FuseScoreTransform
   FuseOnlineSoftmaxFold
   PartitionOnlineSoftmaxFold

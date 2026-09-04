@@ -5,10 +5,15 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
+  "vectie/lunaflux/kernels/luna_attention_tile_optimizer",
 }
 
 // Values
 pub fn schedule_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileSchedule raise AttentionTileScheduleError
+
+pub fn schedule_optimized_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram, @luna_attention_tile_optimizer.AttentionTileOptimization) -> AttentionTileSchedule raise AttentionTileScheduleError
+
+pub fn schedule_rewritten_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram, @luna_attention_tile_optimizer.AttentionTileOptimization) -> AttentionTileSchedule raise AttentionTileScheduleError
 
 // Errors
 pub(all) suberror AttentionTileScheduleError {
@@ -19,13 +24,16 @@ pub(all) suberror AttentionTileScheduleError {
 pub(all) enum AttentionIterationAxis {
   AttentionQueryRowAxis
   AttentionQueryHeadAxis
+  AttentionKeyValuePartitionAxis
   AttentionKeyValueAxis
+  AttentionSoftmaxPartitionAxis
   AttentionHeadColumnAxis
 } derive(Eq, @debug.Debug)
 
 pub(all) enum AttentionIterationKind {
   AttentionParallelMap
   AttentionSequentialFold
+  AttentionAssociativeFold
   AttentionVectorMap
 } derive(Eq, @debug.Debug)
 
@@ -43,6 +51,8 @@ pub fn AttentionTileSchedule::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileSchedule::compute(Self) -> @luna_attention_strategy.AttentionTileCompute
 pub fn AttentionTileSchedule::digest(Self) -> AttentionTileScheduleDigest
 pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
+pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(Self) -> Bool
+pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest

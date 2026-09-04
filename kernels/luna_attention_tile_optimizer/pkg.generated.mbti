@@ -21,6 +21,7 @@ pub struct AttentionTileOptimization {
 pub fn AttentionTileOptimization::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileOptimization::digest(Self) -> AttentionTileOptimizationDigest
 pub fn AttentionTileOptimization::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+pub fn AttentionTileOptimization::reduction_topology(Self) -> AttentionTileReductionTopology
 pub fn AttentionTileOptimization::regions(Self) -> ReadOnlyArray[AttentionTileRewriteRegion]
 pub fn AttentionTileOptimization::trace(Self) -> ReadOnlyArray[AttentionTileRewriteStep]
 
@@ -31,6 +32,11 @@ pub(all) enum AttentionTileOptimizerRule {
   InvalidRewritePipeline
 } derive(Eq, @debug.Debug)
 
+pub(all) enum AttentionTileReductionTopology {
+  AttentionOrderedOnlineSoftmaxFold
+  AttentionPartitionedOnlineSoftmaxFold(Int)
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionTileRewriteRegion {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -39,8 +45,10 @@ pub fn AttentionTileRewriteRegion::root(Self) -> @luna_attention_tile_ir.Attenti
 pub fn AttentionTileRewriteRegion::rule(Self) -> AttentionTileRewriteRule
 
 pub(all) enum AttentionTileRewriteRule {
+  HoistPagedKeyValuePageLookup
   FuseScoreTransform
   FuseOnlineSoftmaxFold
+  PartitionOnlineSoftmaxFold
 } derive(Eq, @debug.Debug)
 
 pub struct AttentionTileRewriteStep {

@@ -45,8 +45,9 @@ pub fn optimize_attention_tile(
 pub fn schedule_attention_tile(
   optimized : OptimizedAttentionTileCompilation,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
-  let schedule = @luna_attention_tile_schedule.schedule_attention_tile_program(
+  let schedule = @luna_attention_tile_schedule.schedule_rewritten_attention_tile_program(
     optimized.semantic.program,
+    optimized.optimization,
   ) catch {
     _ => raise InvalidAttentionTileCompilation(ScheduleDerivation)
   }

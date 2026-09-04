@@ -74,6 +74,7 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
   assert_eq(first.copy(), CudaCooperativeSharedLoad)
   assert_eq(first.launch(), (128, 16, 256, 107280L))
   assert_eq(first.key_value_partitions(), 1)
+  assert_false(first.hoists_paged_key_value_page_lookup())
   assert_eq(first.tile(), (64, 64, 128))
   assert_eq(first.pipeline(), (1, 16))
   assert_eq(first.digest().as_hex().length(), 64)
@@ -100,6 +101,7 @@ test "CUDA lowering preserves functional KV partition topology" {
     262144L,
   )
   assert_eq(lowering.key_value_partitions(), 2)
+  assert_true(lowering.hoists_paged_key_value_page_lookup())
   assert_true(
     @utf8.decode(lowering.canonical_bytes()).contains(
       "launch=64,16,2,256,107280",

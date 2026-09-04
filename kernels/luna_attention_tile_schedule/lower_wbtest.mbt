@@ -61,6 +61,7 @@ test "attention schedule exposes portable parallel map and online fold" {
   assert_eq(first.compute(), AttentionMatrixQkPv)
   assert_eq(first.memory(), AttentionStagedShared)
   assert_eq(first.execution_geometry(), (8, 1, 16, 107280L))
+  assert_false(first.hoists_paged_key_value_page_lookup())
   assert_eq(first.digest().as_hex().length(), 64)
 }
 
@@ -74,6 +75,7 @@ test "long prefill schedule exposes parallel KV partitions and associative merge
     program, optimization,
   )
   assert_eq(schedule.key_value_partitions(), 2)
+  assert_true(schedule.hoists_paged_key_value_page_lookup())
   assert_eq(schedule.loops().length(), 6)
   assert_eq(schedule.loops()[2].kind(), AttentionParallelMap)
   assert_eq(schedule.loops()[2].axis(), AttentionKeyValuePartitionAxis)
@@ -84,4 +86,22 @@ test "long prefill schedule exposes parallel KV partitions and associative merge
   assert_eq(schedule.loops()[4].axis(), AttentionSoftmaxPartitionAxis)
   assert_eq(schedule.loops()[4].geometry(), (2, 1))
   assert_eq(schedule.loops()[5].kind(), AttentionVectorMap)
+}
+
+///|
+test "single-fold rewritten schedule preserves optimizer page lookup hoist" {
+  let program = schedule_test_program()
+  let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    program,
+  )
+  let schedule = schedule_rewritten_attention_tile_program(
+    program, optimization,
+  )
+  assert_eq(schedule.key_value_partitions(), 1)
+  assert_true(schedule.hoists_paged_key_value_page_lookup())
+  assert_true(
+    @utf8.decode(schedule.canonical_bytes()).contains(
+      "hoist_paged_key_value_page_lookup=true",
+    ),
+  )
 }

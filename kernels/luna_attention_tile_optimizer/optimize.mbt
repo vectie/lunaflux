@@ -138,6 +138,43 @@ fn apply_score_transform_pass(
 }
 
 ///|
+/// Page identity is invariant across every vector fragment of one paged K/V
+/// row and is shared by the key and value loads. Recording this common region
+/// lets a terminal backend compute the address once and distribute it with its
+/// native subgroup primitive instead of repeating integer page arithmetic for
+/// every vector fragment.
+fn apply_paged_key_value_page_lookup_pass(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  regions : ReadOnlyArray[AttentionTileRewriteRegion],
+) -> AttentionRewritePassResult {
+  let mut key : @luna_attention_tile_ir.AttentionTileValueId? = None
+  let mut value : @luna_attention_tile_ir.AttentionTileValueId? = None
+  for binding in program.bindings() {
+    match binding.expression() {
+      AttentionTileInput(PagedKeyTileStream) => key = Some(binding.id())
+      AttentionTileInput(PagedValueTileStream) => value = Some(binding.id())
+      _ => ()
+    }
+  }
+  match (key, value) {
+    (Some(key), Some(value)) =>
+      if contains_region_root(regions, HoistPagedKeyValuePageLookup, value) {
+        { regions, changed: false }
+      } else {
+        {
+          regions: append_region(regions, {
+            rule: HoistPagedKeyValuePageLookup,
+            members: ReadOnlyArray::from_array([key, value]),
+            root: value,
+          }),
+          changed: true,
+        }
+      }
+    _ => { regions, changed: false }
+  }
+}
+
+///|
 fn online_softmax_fold_members(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   normalize : @luna_attention_tile_ir.AttentionTileBinding,
@@ -270,6 +307,8 @@ fn apply_rewrite_pass(
   rule : AttentionTileRewriteRule,
 ) -> AttentionRewritePassResult {
   match rule {
+    HoistPagedKeyValuePageLookup =>
+      apply_paged_key_value_page_lookup_pass(program, regions)
     FuseScoreTransform => apply_score_transform_pass(program, regions)
     FuseOnlineSoftmaxFold => apply_online_softmax_fold_pass(program, regions)
     PartitionOnlineSoftmaxFold =>
@@ -302,9 +341,10 @@ fn run_rewrite_pipeline(
 ///|
 fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int {
   match rule {
-    FuseScoreTransform => 1
-    FuseOnlineSoftmaxFold => 2
-    PartitionOnlineSoftmaxFold => 3
+    HoistPagedKeyValuePageLookup => 1
+    FuseScoreTransform => 2
+    FuseOnlineSoftmaxFold => 3
+    PartitionOnlineSoftmaxFold => 4
   }
 }
 
@@ -350,6 +390,7 @@ pub fn optimize_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
 ) -> AttentionTileOptimization raise AttentionTileOptimizerError {
   let passes = ReadOnlyArray::from_array([
+    HoistPagedKeyValuePageLookup,
     FuseScoreTransform,
     FuseOnlineSoftmaxFold,
     PartitionOnlineSoftmaxFold,

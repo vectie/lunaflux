@@ -78,6 +78,13 @@ pub fn CudaAttentionTileLowering::pipeline(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.hoist_paged_key_value_page_lookup
+}
+
+///|
 pub fn CudaAttentionTileLowering::canonical_bytes(
   self : CudaAttentionTileLowering,
 ) -> Bytes {
