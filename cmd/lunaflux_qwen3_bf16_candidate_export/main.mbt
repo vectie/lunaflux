@@ -510,20 +510,13 @@ fn qwen_compiler_partitioned_attention_recipe(
     compiler.reassociate().to_string() +
     "\nmax_registers=" +
     compiler.max_registers().to_string() +
-    "\npartial_grid=" +
-    grid_x.to_string() +
-    "," +
-    grid_y.to_string() +
-    "," +
-    lowering.key_value_partitions().to_string() +
-    "\nmerge_grid=" +
-    grid_x.to_string() +
-    "," +
-    grid_y.to_string() +
-    ",1\nblock=" +
-    block_x.to_string() +
-    ",1,1\nshared_memory_bytes=" +
-    shared.to_string() +
+    qwen_compiler_partitioned_launch_record(
+      grid_x,
+      grid_y,
+      lowering.key_value_partitions(),
+      block_x,
+      shared,
+    ) +
     "\nworkspace_bytes=" +
     workspace.total_bytes().to_string() +
     "\nworkspace_offsets=" +
@@ -538,6 +531,33 @@ fn qwen_compiler_partitioned_attention_recipe(
     lowering.digest().as_hex() +
     "\n",
   )
+}
+
+///|
+/// Canonical launch fragment for the partial and merge entry points emitted by
+/// the partitioned functional attention compilation.
+fn qwen_compiler_partitioned_launch_record(
+  grid_x : Int,
+  grid_y : Int,
+  partitions : Int,
+  block_x : Int,
+  partial_shared_memory_bytes : Int64,
+) -> String {
+  "\npartial_grid=" +
+  grid_x.to_string() +
+  "," +
+  grid_y.to_string() +
+  "," +
+  partitions.to_string() +
+  "\nmerge_grid=" +
+  grid_x.to_string() +
+  "," +
+  grid_y.to_string() +
+  ",1\nblock=" +
+  block_x.to_string() +
+  ",1,1\npartial_shared_memory_bytes=" +
+  partial_shared_memory_bytes.to_string() +
+  "\nmerge_shared_memory_bytes=0"
 }
 
 ///|
