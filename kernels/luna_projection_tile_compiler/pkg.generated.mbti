@@ -1,0 +1,194 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_projection_tile_compiler"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
+}
+
+// Values
+pub fn compile_projection_tile(ProjectionTileCompilerRequest) -> ScheduledProjectionTileCompilation
+
+pub fn elaborate_projection_tile(SelectedProjectionTileCompilation) -> SemanticProjectionTileCompilation
+
+pub fn optimize_projection_tile(SemanticProjectionTileCompilation) -> OptimizedProjectionTileCompilation
+
+pub fn schedule_projection_tile(OptimizedProjectionTileCompilation) -> ScheduledProjectionTileCompilation
+
+pub fn select_projection_tile(ProjectionTileCompilerRequest) -> SelectedProjectionTileCompilation
+
+// Errors
+pub(all) suberror ProjectionTileCompilerError {
+  InvalidProjectionTileCompilation(ProjectionTileCompilerRule)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct OptimizedProjectionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionAttentionIngressEpilogue {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionAttentionIngressEpilogue::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, norm_epsilon~ : Double, rope_theta~ : Double) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, Double)
+pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
+
+pub(all) enum ProjectionIterationAxis {
+  ProjectionRowAxis
+  ProjectionIntermediateColumnAxis
+  ProjectionOutputColumnAxis
+  ProjectionReductionAxis
+  ProjectionIntermediateReductionAxis
+  ProjectionHeadAxis
+  ProjectionHeadComponentAxis
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionIterationKind {
+  ProjectionParallelMap
+  ProjectionSequentialFold
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionLoopCombinator {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionLoopCombinator::components(Self) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int)
+
+pub(all) enum ProjectionResultDemand {
+  AllTokenRows
+  QueryRowEnds
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionTileBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileBinding::expression(Self) -> ProjectionTileExpression
+pub fn ProjectionTileBinding::id(Self) -> ProjectionTileValueId
+pub fn ProjectionTileBinding::kind(Self) -> ProjectionTileValueKind
+
+pub struct ProjectionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileCompilationDigest::as_hex(Self) -> String
+
+pub struct ProjectionTileCompilerRequest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue) -> Self raise ProjectionTileCompilerError
+
+pub(all) enum ProjectionTileCompilerRule {
+  InvalidProblem
+  InvalidDemand
+  InvalidSemanticProgram
+  InvalidRewritePipeline
+  InvalidSchedule
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionTileEpilogue {
+  ProjectionStoreRows
+  ProjectionAttentionIngress(ProjectionAttentionIngressEpilogue)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionTileExpression {
+  ProjectionTileInput
+  ProjectionTileWeight(ProjectionTileWeightRole)
+  ProjectionSelectQueryRowEnds(ProjectionTileValueId)
+  ProjectionDot(ProjectionTileValueId, ProjectionTileValueId)
+  ProjectionSiluGate(ProjectionTileValueId, ProjectionTileValueId)
+  ProjectionQkHeadRmsNorm(ProjectionTileValueId, ProjectionTileValueId, ProjectionTileValueId)
+  ProjectionPositionedRotary(ProjectionTileValueId)
+  ProjectionStoreAndCommitPagedKv(ProjectionTileValueId)
+  ProjectionStore(ProjectionTileValueId)
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionTileOptimization {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileOptimization::digest(Self) -> ProjectionTileOptimizationDigest
+pub fn ProjectionTileOptimization::trace(Self) -> ReadOnlyArray[ProjectionTileRewriteStep]
+
+pub struct ProjectionTileOptimizationDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileOptimizationDigest::as_hex(Self) -> String
+
+pub struct ProjectionTileProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileProgram::bindings(Self) -> ReadOnlyArray[ProjectionTileBinding]
+pub fn ProjectionTileProgram::demand(Self) -> ProjectionResultDemand
+pub fn ProjectionTileProgram::digest(Self) -> ProjectionTileProgramDigest
+pub fn ProjectionTileProgram::epilogue(Self) -> ProjectionTileEpilogue
+pub fn ProjectionTileProgram::root(Self) -> ProjectionTileValueId
+
+pub struct ProjectionTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileProgramDigest::as_hex(Self) -> String
+
+pub(all) enum ProjectionTileRewriteRule {
+  PruneUnobservedTokenRows
+  HoistSelectedInputTile
+  ReuseInputTileAcrossOutputTiles
+  FuseSiblingInputTraversals
+  ReuseIntermediateTileAcrossOutputTiles
+  FuseAttentionIngressEpilogue
+  ElideProjectedQkvRoundTrip
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionTileRewriteStep {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileRewriteStep::changed(Self) -> Bool
+pub fn ProjectionTileRewriteStep::rule(Self) -> ProjectionTileRewriteRule
+
+pub struct ProjectionTileSchedule {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTileSchedule::demand(Self) -> ProjectionResultDemand
+pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
+pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool
+pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
+pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
+pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
+
+pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileScheduleDigest::as_hex(Self) -> String
+
+pub struct ProjectionTileValueId(Int) derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileValueId::as_int(Self) -> Int
+
+pub(all) enum ProjectionTileValueKind {
+  ProjectionInputRows
+  ProjectionSelectedRows
+  ProjectionWeights
+  ProjectionIntermediateRows
+  ProjectionAccumulator
+  ProjectionNormalizedRows
+  ProjectionPositionedRows
+  ProjectionOutputRows
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionTileWeightRole {
+  ProjectionDenseWeight
+  ProjectionGateWeight
+  ProjectionUpWeight
+  ProjectionDownWeight
+  ProjectionQueryNormWeight
+  ProjectionKeyNormWeight
+} derive(Eq, @debug.Debug)
+
+pub struct ScheduledProjectionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ScheduledProjectionTileCompilation::digest(Self) -> ProjectionTileCompilationDigest
+pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
+pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
+pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
+
+pub struct SelectedProjectionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+pub struct SemanticProjectionTileCompilation {
+  // private fields
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

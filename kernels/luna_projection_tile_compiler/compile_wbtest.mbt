@@ -149,3 +149,81 @@ test "functional projection compilation is referentially transparent" {
   assert_eq(first, second)
   assert_eq(first.digest().as_hex().length(), 64)
 }
+
+///|
+test "attention ingress epilogue fuses pure QKV consumers and KV commit" {
+  let epilogue = ProjectionAttentionIngressEpilogue::new(
+    query_heads=4,
+    kv_heads=2,
+    head_dimension=128,
+    norm_epsilon=0.000001,
+    rope_theta=1000000.0,
+  )
+  let compiled = compile_projection_tile(
+    ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
+      dispatch=projection_compiler_dispatch(Qkv),
+      maximum_rows=32,
+      maximum_tokens=256,
+      epilogue~,
+    ),
+  )
+  assert_eq(compiled.program().epilogue(), ProjectionAttentionIngress(epilogue))
+  let bindings = compiled.program().bindings()
+  assert_eq(bindings.length(), 8)
+  assert_eq(
+    bindings[5].expression(),
+    ProjectionQkHeadRmsNorm(
+      ProjectionTileValueId(4),
+      ProjectionTileValueId(2),
+      ProjectionTileValueId(3),
+    ),
+  )
+  assert_eq(
+    bindings[6].expression(),
+    ProjectionPositionedRotary(ProjectionTileValueId(5)),
+  )
+  assert_eq(
+    bindings[7].expression(),
+    ProjectionStoreAndCommitPagedKv(ProjectionTileValueId(6)),
+  )
+  let trace = compiled.optimization().trace()
+  assert_eq(trace.length(), 7)
+  assert_eq(trace[5].rule(), FuseAttentionIngressEpilogue)
+  assert_true(trace[5].changed())
+  assert_eq(trace[6].rule(), ElideProjectedQkvRoundTrip)
+  assert_true(trace[6].changed())
+  assert_true(compiled.schedule().fuses_attention_ingress_epilogue())
+  let loops = compiled.schedule().loops()
+  assert_eq(loops.length(), 5)
+  assert_eq(
+    loops[3].components(),
+    (ProjectionParallelMap, ProjectionHeadAxis, 8, 1),
+  )
+  assert_eq(
+    loops[4].components(),
+    (ProjectionParallelMap, ProjectionHeadComponentAxis, 128, 128),
+  )
+}
+
+///|
+test "attention ingress epilogue rejects projection/head shape drift" {
+  let epilogue = ProjectionAttentionIngressEpilogue::new(
+    query_heads=8,
+    kv_heads=2,
+    head_dimension=128,
+    norm_epsilon=0.000001,
+    rope_theta=1000000.0,
+  )
+  ignore(
+    ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
+      dispatch=projection_compiler_dispatch(Qkv),
+      maximum_rows=32,
+      maximum_tokens=256,
+      epilogue~,
+    ),
+  ) catch {
+    InvalidProjectionTileCompilation(InvalidDemand) => return
+    _ => fail("unexpected projection compiler error")
+  }
+  fail("shape-drifting attention ingress reached scheduling")
+}

@@ -14,6 +14,8 @@ pub(all) enum ProjectionTileValueKind {
   ProjectionWeights
   ProjectionIntermediateRows
   ProjectionAccumulator
+  ProjectionNormalizedRows
+  ProjectionPositionedRows
   ProjectionOutputRows
 } derive(Debug, Eq)
 
@@ -23,6 +25,26 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionGateWeight
   ProjectionUpWeight
   ProjectionDownWeight
+  ProjectionQueryNormWeight
+  ProjectionKeyNormWeight
+} derive(Debug, Eq)
+
+///|
+/// Backend-neutral parameters for an attention-ingress projection epilogue.
+/// The compiler sees heads and scalar semantics; subgroup and device details
+/// are introduced only by a terminal lowering.
+pub struct ProjectionAttentionIngressEpilogue {
+  priv query_heads : Int
+  priv kv_heads : Int
+  priv head_dimension : Int
+  priv norm_epsilon : Double
+  priv rope_theta : Double
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ProjectionTileEpilogue {
+  ProjectionStoreRows
+  ProjectionAttentionIngress(ProjectionAttentionIngressEpilogue)
 } derive(Debug, Eq)
 
 ///|
@@ -35,6 +57,13 @@ pub(all) enum ProjectionTileExpression {
   ProjectionSelectQueryRowEnds(ProjectionTileValueId)
   ProjectionDot(ProjectionTileValueId, ProjectionTileValueId)
   ProjectionSiluGate(ProjectionTileValueId, ProjectionTileValueId)
+  ProjectionQkHeadRmsNorm(
+    ProjectionTileValueId,
+    ProjectionTileValueId,
+    ProjectionTileValueId
+  )
+  ProjectionPositionedRotary(ProjectionTileValueId)
+  ProjectionStoreAndCommitPagedKv(ProjectionTileValueId)
   ProjectionStore(ProjectionTileValueId)
 } derive(Debug, Eq)
 
@@ -52,6 +81,7 @@ pub struct ProjectionTileProgramDigest(String) derive(Debug, Eq, Hash)
 pub struct ProjectionTileProgram {
   priv shape : @luna_projection_strategy.ProjectionShape
   priv demand : ProjectionResultDemand
+  priv epilogue : ProjectionTileEpilogue
   priv maximum_rows : Int
   priv maximum_tokens : Int
   priv bindings : ReadOnlyArray[ProjectionTileBinding]
@@ -67,6 +97,8 @@ pub(all) enum ProjectionTileRewriteRule {
   ReuseInputTileAcrossOutputTiles
   FuseSiblingInputTraversals
   ReuseIntermediateTileAcrossOutputTiles
+  FuseAttentionIngressEpilogue
+  ElideProjectedQkvRoundTrip
 } derive(Debug, Eq)
 
 ///|
@@ -99,6 +131,8 @@ pub(all) enum ProjectionIterationAxis {
   ProjectionOutputColumnAxis
   ProjectionReductionAxis
   ProjectionIntermediateReductionAxis
+  ProjectionHeadAxis
+  ProjectionHeadComponentAxis
 } derive(Debug, Eq)
 
 ///|
@@ -120,6 +154,7 @@ pub struct ProjectionTileSchedule {
   priv loops : ReadOnlyArray[ProjectionLoopCombinator]
   priv reuse_input_tile : Bool
   priv reuse_intermediate_tile : Bool
+  priv fuse_attention_ingress_epilogue : Bool
   priv canonical : Bytes
   priv digest : ProjectionTileScheduleDigest
 } derive(Debug, Eq)
@@ -130,6 +165,7 @@ pub struct ProjectionTileCompilerRequest {
   priv maximum_rows : Int
   priv maximum_tokens : Int
   priv demand : ProjectionResultDemand
+  priv epilogue : ProjectionTileEpilogue
 } derive(Debug, Eq)
 
 ///|

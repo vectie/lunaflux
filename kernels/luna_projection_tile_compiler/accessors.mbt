@@ -46,6 +46,27 @@ pub fn ProjectionTileProgram::demand(
 }
 
 ///|
+pub fn ProjectionTileProgram::epilogue(
+  self : ProjectionTileProgram,
+) -> ProjectionTileEpilogue {
+  self.epilogue
+}
+
+///|
+pub fn ProjectionAttentionIngressEpilogue::shape(
+  self : ProjectionAttentionIngressEpilogue,
+) -> (Int, Int, Int) {
+  (self.query_heads, self.kv_heads, self.head_dimension)
+}
+
+///|
+pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(
+  self : ProjectionAttentionIngressEpilogue,
+) -> (Double, Double) {
+  (self.norm_epsilon, self.rope_theta)
+}
+
+///|
 pub fn ProjectionTileProgram::digest(
   self : ProjectionTileProgram,
 ) -> ProjectionTileProgramDigest {
@@ -127,6 +148,13 @@ pub fn ProjectionTileSchedule::reuse_intermediate_tile(
   self : ProjectionTileSchedule,
 ) -> Bool {
   self.reuse_intermediate_tile
+}
+
+///|
+pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(
+  self : ProjectionTileSchedule,
+) -> Bool {
+  self.fuse_attention_ingress_epilogue
 }
 
 ///|

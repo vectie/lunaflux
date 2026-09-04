@@ -22,6 +22,11 @@ fn projection_expression_code(expression : ProjectionTileExpression) -> Int {
     ProjectionTileWeight(ProjectionUpWeight) => 7
     ProjectionTileWeight(ProjectionDownWeight) => 8
     ProjectionSiluGate(_, _) => 9
+    ProjectionTileWeight(ProjectionQueryNormWeight) => 10
+    ProjectionTileWeight(ProjectionKeyNormWeight) => 11
+    ProjectionQkHeadRmsNorm(_, _, _) => 12
+    ProjectionPositionedRotary(_) => 13
+    ProjectionStoreAndCommitPagedKv(_) => 14
   }
 }
 
@@ -34,6 +39,10 @@ fn projection_expression_operands(
     ProjectionSelectQueryRowEnds(input) | ProjectionStore(input) => [input]
     ProjectionDot(left, right) | ProjectionSiluGate(left, right) =>
       [left, right]
+    ProjectionQkHeadRmsNorm(value, query_weight, key_weight) =>
+      [value, query_weight, key_weight]
+    ProjectionPositionedRotary(value)
+    | ProjectionStoreAndCommitPagedKv(value) => [value]
   }
 }
 
@@ -51,6 +60,12 @@ fn projection_program_canonical(
   builder <+ "shape=\{input_width},\{output_width},\{intermediate_width}\n"
   builder <+ "demand=\{if request.demand == QueryRowEnds { 2 } else { 1 }}\n"
   builder <+ "bounds=\{request.maximum_rows},\{request.maximum_tokens}\n"
+  match request.epilogue {
+    ProjectionStoreRows => builder <+ "epilogue=store\n"
+    ProjectionAttentionIngress(spec) =>
+      builder <+
+        "epilogue=attention-ingress,\{spec.query_heads},\{spec.kv_heads},\{spec.head_dimension},\{spec.norm_epsilon},\{spec.rope_theta}\n"
+  }
   for binding in bindings {
     builder <+
       "binding=\{binding.id.0},\{projection_expression_code(binding.expression)}"
@@ -121,6 +136,51 @@ pub fn elaborate_projection_tile(
       ],
       store.id,
     )
+  } else if selected.request.epilogue is ProjectionAttentionIngress(_) {
+    guard selected.request.epilogue is ProjectionAttentionIngress(_) else {
+      abort("checked attention ingress epilogue disappeared")
+    }
+    let weight = ProjectionTileBinding::{
+      id: projection_tile_value_id(1),
+      kind: ProjectionWeights,
+      expression: ProjectionTileWeight(ProjectionDenseWeight),
+    }
+    let query_norm = ProjectionTileBinding::{
+      id: projection_tile_value_id(2),
+      kind: ProjectionWeights,
+      expression: ProjectionTileWeight(ProjectionQueryNormWeight),
+    }
+    let key_norm = ProjectionTileBinding::{
+      id: projection_tile_value_id(3),
+      kind: ProjectionWeights,
+      expression: ProjectionTileWeight(ProjectionKeyNormWeight),
+    }
+    let dot = ProjectionTileBinding::{
+      id: projection_tile_value_id(4),
+      kind: ProjectionAccumulator,
+      expression: ProjectionDot(input.id, weight.id),
+    }
+    let normalized = ProjectionTileBinding::{
+      id: projection_tile_value_id(5),
+      kind: ProjectionNormalizedRows,
+      expression: ProjectionQkHeadRmsNorm(dot.id, query_norm.id, key_norm.id),
+    }
+    let positioned = ProjectionTileBinding::{
+      id: projection_tile_value_id(6),
+      kind: ProjectionPositionedRows,
+      expression: ProjectionPositionedRotary(normalized.id),
+    }
+    let committed = ProjectionTileBinding::{
+      id: projection_tile_value_id(7),
+      kind: ProjectionOutputRows,
+      expression: ProjectionStoreAndCommitPagedKv(positioned.id),
+    }
+    (
+      [
+        input, weight, query_norm, key_norm, dot, normalized, positioned, committed,
+      ],
+      committed.id,
+    )
   } else {
     let weight = ProjectionTileBinding::{
       id: projection_tile_value_id(1),
@@ -157,6 +217,7 @@ pub fn elaborate_projection_tile(
   let program = ProjectionTileProgram::{
     shape: selected.request.dispatch.shape(),
     demand: selected.request.demand,
+    epilogue: selected.request.epilogue,
     maximum_rows: selected.request.maximum_rows,
     maximum_tokens: selected.request.maximum_tokens,
     bindings: ReadOnlyArray::from_array(bindings),
@@ -175,6 +236,8 @@ fn projection_rewrite_code(rule : ProjectionTileRewriteRule) -> Int {
     ReuseInputTileAcrossOutputTiles => 3
     FuseSiblingInputTraversals => 4
     ReuseIntermediateTileAcrossOutputTiles => 5
+    FuseAttentionIngressEpilogue => 6
+    ElideProjectedQkvRoundTrip => 7
   }
 }
 
@@ -190,13 +253,20 @@ pub fn optimize_projection_tile(
   // a backend scheduling candidate whose synchronization cost must be proven,
   // not an unconditional functional rewrite.
   let shared_input_value = gated_mlp
-  let trace = ReadOnlyArray::from_array([
+  let trace = [
     { rule: PruneUnobservedTokenRows, changed: selected },
     { rule: HoistSelectedInputTile, changed: selected },
     { rule: ReuseInputTileAcrossOutputTiles, changed: shared_input_value },
     { rule: FuseSiblingInputTraversals, changed: gated_mlp },
     { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp },
-  ])
+  ]
+  let fused_attention_ingress = semantic.program.epilogue
+    is ProjectionAttentionIngress(_)
+  if fused_attention_ingress {
+    trace.push({ rule: FuseAttentionIngressEpilogue, changed: true })
+    trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true })
+  }
+  let trace = ReadOnlyArray::from_array(trace)
   let builder = StringBuilder()
   builder <+ "luna-projection-tile-optimization-v3\n"
   builder <+ "program_sha256=\{semantic.program.digest.0}\n"
@@ -231,6 +301,8 @@ fn projection_schedule_canonical(
       ProjectionReductionAxis => 3
       ProjectionIntermediateColumnAxis => 4
       ProjectionIntermediateReductionAxis => 5
+      ProjectionHeadAxis => 6
+      ProjectionHeadComponentAxis => 7
     }
     builder <+
       "loop=\{kind},\{axis},\{schedule_loop.extent},\{schedule_loop.tile}\n"
@@ -262,7 +334,10 @@ pub fn schedule_projection_tile(
     extent: row_extent,
     tile: tile_rows,
   }
-  let loops = if request.dispatch.shape().family() == GatedMlp {
+  let loops : Array[ProjectionLoopCombinator] = if request.dispatch
+    .shape()
+    .family() ==
+    GatedMlp {
     let (_, output_width, intermediate_width) = request.dispatch
       .shape()
       .dimensions()
@@ -310,6 +385,23 @@ pub fn schedule_projection_tile(
       },
     ]
   }
+  match request.epilogue {
+    ProjectionAttentionIngress(spec) => {
+      loops.push({
+        kind: ProjectionParallelMap,
+        axis: ProjectionHeadAxis,
+        extent: spec.query_heads + 2 * spec.kv_heads,
+        tile: 1,
+      })
+      loops.push({
+        kind: ProjectionParallelMap,
+        axis: ProjectionHeadComponentAxis,
+        extent: spec.head_dimension,
+        tile: spec.head_dimension,
+      })
+    }
+    ProjectionStoreRows => ()
+  }
   // Sibling gate/up dots share the same SSA input fragment already. Turning
   // that semantic reuse into a cross-warp shared-memory tile adds two block
   // barriers per reduction tile, so the conservative schedule keeps the
@@ -326,6 +418,8 @@ pub fn schedule_projection_tile(
     loops: ReadOnlyArray::from_array(loops),
     reuse_input_tile,
     reuse_intermediate_tile: request.dispatch.shape().family() == GatedMlp,
+    fuse_attention_ingress_epilogue: request.epilogue
+    is ProjectionAttentionIngress(_),
     canonical,
     digest: ProjectionTileScheduleDigest(projection_tile_sha256(canonical)),
   }
