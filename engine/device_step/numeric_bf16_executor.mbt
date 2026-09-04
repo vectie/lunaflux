@@ -139,7 +139,7 @@ fn prepare_numeric_bf16_graph_resources(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let (model_steps, phase_decode_model_steps) = prepare_paged_production_steps(
+  let (model_steps, phase_decode_model_steps, partitioned_prefill_model_steps) = prepare_paged_production_steps(
     context,
     blueprint,
     function_indices,
@@ -180,6 +180,11 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let prefill_split_minimum_context_tokens = qwen_partitioned_prefill_minimum_context_tokens(
+    blueprint, qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint, model_steps, qwen_fused_attention_spans,
   ) catch {
@@ -196,12 +201,14 @@ fn prepare_numeric_bf16_graph_resources(
     descriptor.resources,
     activation,
     model_steps,
+    partitioned_prefill_model_steps,
     phase_decode_model_steps,
     split_decode_model_steps,
     resources,
     graph_policy,
     fused_residual_spans,
     ProductionFastPath,
+    prefill_split_minimum_context_tokens~,
     decode_split_minimum_context_tokens~,
   )
 }

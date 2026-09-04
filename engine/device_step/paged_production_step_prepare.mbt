@@ -18,6 +18,7 @@ fn prepare_paged_production_steps(
 ) -> (
   ReadOnlyArray[PreparedPagedGraphStep],
   ReadOnlyArray[PreparedPagedGraphStep]?,
+  ReadOnlyArray[PreparedPagedGraphStep]?,
 ) raise DeviceStepError {
   let fused_residual_function = match fused_residual_spans.get(0) {
     Some(span) =>
@@ -88,14 +89,14 @@ fn prepare_paged_production_steps(
         let prepared = prepare_qwen_fused_attention_steps(
           blueprint,
           span,
-          functions.0,
-          functions.1,
+          functions.ingress_function,
+          functions.prefill_function,
           span.readonly_launch(),
           descriptor,
           weight,
           activation,
           kv,
-          functions.3,
+          functions.sidecar,
         )
         qwen_ingress_replacements.push(prepared.0)
         qwen_readonly_replacements.push(prepared.1)
@@ -105,14 +106,14 @@ fn prepare_paged_production_steps(
             prepare_qwen_fused_attention_steps(
               blueprint,
               span,
-              functions.0,
-              functions.2,
+              functions.ingress_function,
+              functions.decode_function,
               span.decode_launch(),
               descriptor,
               weight,
               activation,
               kv,
-              functions.3,
+              functions.sidecar,
             ).1,
           )
         } else {
@@ -192,7 +193,12 @@ fn prepare_paged_production_steps(
     }
     None => None
   }
-  (ReadOnlyArray::from_array(expanded), expanded_decode)
+  let expanded = ReadOnlyArray::from_array(expanded)
+  let partitioned_prefill = prepare_qwen_partitioned_prefill_steps(
+    context, blueprint, expanded, qwen_fused_attention_spans, descriptor, weight,
+    activation, kv, resources,
+  )
+  (expanded, expanded_decode, partitioned_prefill)
 }
 
 ///|

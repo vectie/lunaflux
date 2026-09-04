@@ -300,6 +300,13 @@ fn close_paged_resources(
             )
           },
           () => {
+            close_paged_allocation(
+              resources.prefill_partition_workspace,
+              DecodeSplitWorkspace,
+              first,
+            )
+          },
+          () => {
             run_paged_attention_allocation_close_order(
               () => {
                 close_paged_allocation(

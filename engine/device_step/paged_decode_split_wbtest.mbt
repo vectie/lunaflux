@@ -21,6 +21,8 @@ test "decode split dispatch owns only decode buckets" {
     slot_owner_indices: base.slot_owner_indices,
     fallback_owner_index: base.fallback_owner_index,
     telemetry_owner_index: base.telemetry_owner_index,
+    prefill_split_owner_index: -1,
+    prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     decode_owner_index: 9,
     decode_split_owner_index: 11,
     decode_split_minimum_context_tokens: 2048,

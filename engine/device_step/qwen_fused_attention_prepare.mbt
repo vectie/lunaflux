@@ -9,6 +9,14 @@ fn qwen_fused_full_ingress_argument_count() -> Int {
 }
 
 ///|
+priv struct PreparedQwenFusedAttentionResources {
+  ingress_function : Int
+  prefill_function : Int
+  decode_function : Int
+  sidecar : @device.Allocation
+}
+
+///|
 fn qwen_fused_attention_sidecar_shape_from_bindings(
   rotated : PagedKvOperandBinding,
   readonly_input : PagedKvOperandBinding,
@@ -46,7 +54,7 @@ fn prepare_qwen_fused_attention_resources(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
   resources : PagedGraphResources,
-) -> (Int, Int, Int, @device.Allocation) raise DeviceStepError {
+) -> PreparedQwenFusedAttentionResources raise DeviceStepError {
   guard spans.get(0) is Some(first) else {
     raise InvalidExecutor(ResourceState)
   }
@@ -100,7 +108,12 @@ fn prepare_qwen_fused_attention_resources(
   ) catch {
     error => raise ExecutorDevice(KernelArguments, error)
   }
-  (postprocess, readonly_function, decode_function, sidecar)
+  {
+    ingress_function: postprocess,
+    prefill_function: readonly_function,
+    decode_function,
+    sidecar,
+  }
 }
 
 ///|
@@ -328,6 +341,213 @@ fn prepare_qwen_fused_attention_steps(
       kv,
     ),
   )
+}
+
+///|
+fn qwen_partitioned_prefill_workspace_argument(
+  workspace : @device.Allocation,
+  bytes : Int64,
+  alignment : Int64,
+) -> @device.KernelArgument raise DeviceStepError {
+  @device.KernelArgument::device_region(
+    workspace,
+    offset=0L,
+    byte_count=bytes,
+    alignment~,
+  ) catch {
+    error => raise ExecutorDevice(KernelArguments, error)
+  }
+}
+
+///|
+fn qwen_partitioned_prefill_step(
+  operation : @plan.OperationId,
+  function_index : Int,
+  launch : @launch_contract.AotLaunchDimensions,
+  arguments : ArrayView[@device.KernelArgument],
+) -> PreparedPagedGraphStep raise DeviceStepError {
+  {
+    operation_id: operation,
+    function_index,
+    dimensions: composite_launch_dimensions(launch, operation),
+    arguments: @device.KernelArguments::new(arguments) catch {
+      error => raise ExecutorDevice(KernelArguments, error)
+    },
+  }
+}
+
+///|
+fn prepare_qwen_partitioned_prefill_steps(
+  context : @device.Context,
+  blueprint : PagedKvExecutionBlueprint,
+  baseline : ReadOnlyArray[PreparedPagedGraphStep],
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  descriptor : DeviceStepResources,
+  weight : @device.Allocation,
+  activation : @device.Allocation,
+  kv : @device.Allocation,
+  resources : PagedGraphResources,
+) -> ReadOnlyArray[PreparedPagedGraphStep]? raise DeviceStepError {
+  guard spans.get(0) is Some(first) else { return None }
+  guard first.partitioned_prefill() is Some(pipeline) else { return None }
+  for span in spans {
+    if span.partitioned_prefill() != Some(pipeline) {
+      raise InvalidExecutor(ResourceState)
+    }
+  }
+  if resources.prefill_partition_workspace is Some(_) ||
+    pipeline.workspace_bytes <= 0L ||
+    pipeline.workspace_bytes > 1073741824L {
+    raise InvalidExecutor(ResourceState)
+  }
+  let workspace = context.allocate(pipeline.workspace_bytes) catch {
+    error => raise ExecutorDevice(DecodeSplitWorkspace, error)
+  }
+  resources.prefill_partition_workspace = Some({
+    resource: workspace,
+    open: true,
+  })
+  context.validate_allocation_region(
+    workspace,
+    offset=0L,
+    byte_count=pipeline.workspace_bytes,
+    alignment=pipeline.workspace_alignment,
+  ) catch {
+    error => raise ExecutorDevice(DecodeSplitWorkspace, error)
+  }
+  let partial_function = prepare_composite_function(
+    context,
+    pipeline.module_bytes,
+    pipeline.partial_symbol,
+    resources,
+  )
+  let merge_function = prepare_composite_function(
+    context,
+    pipeline.module_bytes,
+    pipeline.merge_symbol,
+    resources,
+  )
+  let replacements : Array[
+    (Int, PreparedPagedGraphStep, PreparedPagedGraphStep),
+  ] = []
+  for span in spans {
+    let (_, _, rope_index, attention_index) = span.operation_indices()
+    guard blueprint.steps().get(rope_index) is Some(rope_step) &&
+      blueprint.steps().get(attention_index) is Some(attention_step) else {
+      raise InvalidExecutor(ResourceState)
+    }
+    let counts = unique_composite_binding(attention_step, role => {
+      role == RuntimeInput(StepCounts)
+    })
+    let row_offsets = unique_composite_binding(attention_step, role => {
+      role == RuntimeInput(QueryRowOffsets)
+    })
+    let rotated = unique_composite_binding(rope_step, role => {
+      role is ActivationOutput(_)
+    })
+    let key_cache = unique_composite_binding(attention_step, role => {
+      role is PersistentKvComponent(_, Key)
+    })
+    let value_cache = unique_composite_binding(attention_step, role => {
+      role is PersistentKvComponent(_, Value)
+    })
+    let output = unique_composite_binding(attention_step, role => {
+      role is ActivationOutput(_)
+    })
+    guard resources.qwen_fused_attention_sidecar is Some(sidecar) &&
+      sidecar.open else {
+      raise InvalidExecutor(ResourceState)
+    }
+    let workspace_argument = qwen_partitioned_prefill_workspace_argument(
+      workspace,
+      pipeline.workspace_bytes,
+      pipeline.workspace_alignment,
+    )
+    let runtime_bindings = [
+      counts,
+      unique_composite_binding(attention_step, role => {
+        role == RuntimeInput(QueryPositions)
+      }),
+      row_offsets,
+      unique_composite_binding(attention_step, role => {
+        role == RuntimeInput(SequenceLengths)
+      }),
+      unique_composite_binding(attention_step, role => {
+        role == RuntimeInput(PageTableOffsets)
+      }),
+      unique_composite_binding(attention_step, role => {
+        role == RuntimeInput(PageTablePageIndices)
+      }),
+    ]
+    let partial_arguments : Array[@device.KernelArgument] = []
+    for binding in runtime_bindings {
+      partial_arguments.push(
+        composite_binding_argument(binding, descriptor, weight, activation, kv),
+      )
+    }
+    partial_arguments.push(
+      qwen_fused_sidecar_argument(rotated, sidecar.resource),
+    )
+    for binding in [key_cache, value_cache] {
+      partial_arguments.push(
+        composite_binding_argument(binding, descriptor, weight, activation, kv),
+      )
+    }
+    partial_arguments.push(workspace_argument)
+    let merge_arguments : Array[@device.KernelArgument] = [
+      composite_binding_argument(counts, descriptor, weight, activation, kv),
+      composite_binding_argument(
+        row_offsets, descriptor, weight, activation, kv,
+      ),
+      workspace_argument,
+      composite_binding_argument(output, descriptor, weight, activation, kv),
+    ]
+    replacements.push(
+      (
+        attention_step.operation_id().as_int(),
+        qwen_partitioned_prefill_step(
+          attention_step.operation_id(),
+          partial_function,
+          pipeline.partial_launch,
+          partial_arguments,
+        ),
+        qwen_partitioned_prefill_step(
+          attention_step.operation_id(),
+          merge_function,
+          pipeline.merge_launch,
+          merge_arguments,
+        ),
+      ),
+    )
+  }
+  Some(
+    replace_paged_decode_split_steps(
+      baseline,
+      ReadOnlyArray::from_array(replacements),
+      step => step.operation_id.as_int(),
+    ),
+  )
+}
+
+///|
+fn qwen_partitioned_prefill_minimum_context_tokens(
+  blueprint : PagedKvExecutionBlueprint,
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> Int raise DeviceStepError {
+  guard spans.get(0) is Some(first) else {
+    return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
+  }
+  guard first.partitioned_prefill() is Some(pipeline) else {
+    return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
+  }
+  let partitions = pipeline.partial_launch.grid_z()
+  let tokens_per_page = blueprint.layout().tokens_per_page()
+  if partitions <= 1 ||
+    tokens_per_page <= 0 ||
+    partitions > 2147483647 / 16 / tokens_per_page {
+    raise InvalidExecutor(ResourceState)
+  }
+  partitions * 16 * tokens_per_page
 }
 
 ///|

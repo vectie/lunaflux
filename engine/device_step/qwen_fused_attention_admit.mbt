@@ -141,6 +141,37 @@ fn require_qwen_fused_blueprint_span_shape(
 }
 
 ///|
+fn qwen_partitioned_workspace_product(
+  left : Int64,
+  right : Int64,
+) -> Int64 raise FusedGroupedOperationError {
+  if left <= 0L || right <= 0L || left > 9223372036854775807L / right {
+    raise MismatchedFusedGroupedOperation(Launch)
+  }
+  left * right
+}
+
+///|
+fn qwen_partitioned_prefill_workspace_bytes(
+  maximum_tokens : Int,
+  query_heads : Int,
+  head_dimension : Int,
+  partitions : Int,
+) -> Int64 raise FusedGroupedOperationError {
+  let states = qwen_partitioned_workspace_product(
+    qwen_partitioned_workspace_product(
+      maximum_tokens.to_int64(),
+      query_heads.to_int64(),
+    ),
+    partitions.to_int64(),
+  )
+  qwen_partitioned_workspace_product(
+    qwen_partitioned_workspace_product(states, (head_dimension + 2).to_int64()),
+    4L,
+  )
+}
+
+///|
 /// Expands one digest-pinned Qwen ingress V4/read-only V2 module pair over
 /// every graph-identical QKV -> QkRmsNorm -> RoPE -> Attention layer span.
 /// Parsing, model identity, shape matching, and blueprint joins all complete
@@ -165,8 +196,18 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         None => None
       }
   }
+  let partitioned_modules = match
+    (
+      runtime.qwen_partitioned_prefill_partial_module(),
+      runtime.qwen_partitioned_prefill_merge_module(),
+    ) {
+    (Some(partial), Some(merge)) => Some((partial, merge))
+    (None, None) => None
+    _ => raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
+  let prefill_module = runtime.qwen_paged_attention_prefill_module()
   guard ingress_selection is Some((postprocess, includes_projection)) &&
-    runtime.qwen_paged_attention_prefill_module() is Some(readonly_module) &&
+    prefill_module is Some(readonly_module) &&
     runtime.qwen_paged_attention_decode_module() is Some(decode_module) &&
     (
       (
@@ -225,7 +266,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let compiler_prefill_grid = maximum_rows +
     (maximum_tokens - maximum_rows + 15) / 16
   guard plan.operations()[seed_qk_norm].shape()
-    is QkNormalizationShape(query_heads~, kv_heads~, ..) &&
+    is QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) &&
     kv_heads > 0 &&
     query_heads % kv_heads == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
@@ -246,7 +287,56 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.block_x() <= 256 &&
     decode_launch.block_x() % (query_heads / kv_heads * 32) == 0 &&
     decode_launch.shared_memory_bytes() > 0
-  let valid_prefill_launch = if phase_specific {
+  let partitioned_prefill = match partitioned_modules {
+    Some((partial, merge)) => {
+      let partial_launch = partial.launch_dimensions()
+      let merge_launch = merge.launch_dimensions()
+      if partial.kernel_abi() !=
+        QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
+        merge.kernel_abi() !=
+        QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
+        partial.operation_span() != (seed_attention, 1) ||
+        merge.operation_span() != (seed_attention, 1) ||
+        partial.module_digest() != merge.module_digest() ||
+        partial.module_bytes() != merge.module_bytes() ||
+        partial_launch.grid_x() != compiler_prefill_grid ||
+        partial_launch.grid_y() != query_heads ||
+        partial_launch.grid_z() <= 1 ||
+        partial_launch.block_x() != 256 ||
+        partial_launch.block_y() != 1 ||
+        partial_launch.block_z() != 1 ||
+        partial_launch.shared_memory_bytes() <= 0 ||
+        partial_launch.shared_memory_bytes() > 100000 ||
+        merge_launch.grid_x() != partial_launch.grid_x() ||
+        merge_launch.grid_y() != partial_launch.grid_y() ||
+        merge_launch.grid_z() != 1 ||
+        merge_launch.block_x() != partial_launch.block_x() ||
+        merge_launch.block_y() != 1 ||
+        merge_launch.block_z() != 1 ||
+        merge_launch.shared_memory_bytes() != 0 {
+        raise MismatchedFusedGroupedOperation(Launch)
+      }
+      Some({
+        module_digest: partial.module_digest(),
+        module_bytes: partial.module_bytes(),
+        partial_symbol: partial.function_symbol(),
+        partial_launch,
+        merge_symbol: merge.function_symbol(),
+        merge_launch,
+        workspace_bytes: qwen_partitioned_prefill_workspace_bytes(
+          maximum_tokens,
+          query_heads,
+          head_dimension,
+          partial_launch.grid_z(),
+        ),
+        workspace_alignment: 16L,
+      })
+    }
+    None => None
+  }
+  let valid_prefill_launch = if partitioned_prefill is Some(_) {
+    true
+  } else if phase_specific {
     readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
     decode_module.kernel_abi() ==
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
@@ -339,6 +429,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module_bytes: decode_module.module_bytes(),
       decode_symbol: decode_module.function_symbol(),
       decode_launch: decode_module.launch_dimensions(),
+      partitioned_prefill,
       qkv_index,
       qk_norm_index: qkv_index + 1,
       rope_index: qkv_index + 2,

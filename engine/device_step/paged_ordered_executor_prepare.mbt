@@ -160,7 +160,8 @@ fn paged_qwen_postprocess_bucket_launch(
 /// Derives the only currently safe smaller-bucket launch contract from the
 /// approved Qwen composite ABI. The V2 reusable postprocess and readonly
 /// attention kernels both authenticate a bounded grid and use grid-stride token
-/// traversal, so graph buckets may cap their grid at the admitted token bound.
+/// traversal. Full ingress maps one block to a 16-token tile; the legacy
+/// postprocess maps one block to one token.
 /// Projection rules use their admitted shape-specific decode/prefill geometry,
 /// avoiding maximum-envelope decode work where the kernel ABI permits it.
 fn prepare_qwen_graph_launch_contract(
@@ -176,22 +177,31 @@ fn prepare_qwen_graph_launch_contract(
   prepare_projection_bucket_launches(blueprint, steps, launches)
   prepare_projection_bucket_launches(blueprint, steps, decode_launches)
   for span in spans {
-    let (_, qk_norm_index, _, attention_index) = span.operation_indices()
-    guard blueprint.steps().get(qk_norm_index) is Some(qk_norm) &&
+    let (qkv_index, qk_norm_index, _, attention_index) = span.operation_indices()
+    let ingress_index = if span.ingress_includes_projection() {
+      qkv_index
+    } else {
+      qk_norm_index
+    }
+    guard blueprint.steps().get(ingress_index) is Some(ingress) &&
       blueprint.steps().get(attention_index) is Some(attention) else {
       raise InvalidExecutor(GraphBucket)
     }
     let postprocess = span.postprocess_launch()
     let readonly_launch = span.readonly_launch()
-    if postprocess.grid_x() !=
-      Int::min(blueprint.profile().max_query_tokens(), 4096) ||
+    let expected_ingress_grid = if span.ingress_includes_projection() {
+      (blueprint.profile().max_query_tokens() + 15) / 16
+    } else {
+      Int::min(blueprint.profile().max_query_tokens(), 4096)
+    }
+    if postprocess.grid_x() != expected_ingress_grid ||
       readonly_launch.grid_x() <= 0 ||
       readonly_launch.grid_x() > blueprint.profile().max_query_tokens() {
       raise InvalidExecutor(GraphBucket)
     }
     let postprocess_index = qwen_bucket_step_index(
       steps,
-      qk_norm.operation_id(),
+      ingress.operation_id(),
     )
     let readonly_index = qwen_bucket_step_index(steps, attention.operation_id())
     match
@@ -201,23 +211,22 @@ fn prepare_qwen_graph_launch_contract(
         decode_launches[postprocess_index],
         decode_launches[readonly_index],
       ) {
-      (
-        FixedBucketLaunch,
-        FixedBucketLaunch,
-        FixedBucketLaunch,
-        FixedBucketLaunch,
-      ) => {
-        launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
-          postprocess,
-        )
+      (_, FixedBucketLaunch, _, FixedBucketLaunch) => {
+        launches[postprocess_index] = if span.ingress_includes_projection() {
+          QueryTileCappedGridX(postprocess, 16)
+        } else {
+          paged_qwen_postprocess_bucket_launch(postprocess)
+        }
         launches[readonly_index] = if span.has_phase_specific_attention() {
           QueryTileCappedGridX(readonly_launch, 16)
         } else {
           QueryTokenCappedGridX(readonly_launch)
         }
-        decode_launches[postprocess_index] = paged_qwen_postprocess_bucket_launch(
-          postprocess,
-        )
+        decode_launches[postprocess_index] = if span.ingress_includes_projection() {
+          QueryTileCappedGridX(postprocess, 16)
+        } else {
+          paged_qwen_postprocess_bucket_launch(postprocess)
+        }
         decode_launches[readonly_index] = if span.has_phase_specific_attention() {
           QueryTokenCappedGridX(span.decode_launch())
         } else {
@@ -459,6 +468,8 @@ fn prepare_paged_ordered_executors(
   graph_policy : PagedGraphExecutionPolicy,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
+  prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -591,6 +602,22 @@ fn prepare_paged_ordered_executors(
       maximum
     }
   }
+  let prefill_split_owner_index = match prefill_split_steps {
+    Some(selected) => {
+      let launches = paged_ordered_launches(selected, resources)
+      let operation_ids = ReadOnlyArray::from_array(
+        selected.map(step => step.operation_id),
+      )
+      prepare_one_paged_ordered_executor(
+        context,
+        launches[:],
+        operation_ids,
+        resources,
+        paged_ordered_device_policy(graph_policy),
+      )
+    }
+    None => -1
+  }
   let decode_owner_index = match decode_steps {
     Some(selected) => {
       let operation_ids = ReadOnlyArray::from_array(
@@ -653,6 +680,8 @@ fn prepare_paged_ordered_executors(
     slot_owner_indices,
     fallback_owner_index,
     telemetry_owner_index,
+    prefill_split_owner_index,
+    prefill_split_minimum_context_tokens,
     decode_owner_index,
     decode_split_owner_index,
     decode_split_minimum_context_tokens,

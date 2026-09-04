@@ -65,6 +65,8 @@ priv struct PagedOrderedExecutorDispatch {
   slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
+  prefill_split_owner_index : Int
+  prefill_split_minimum_context_tokens : Int
   decode_owner_index : Int
   decode_split_owner_index : Int
   decode_split_minimum_context_tokens : Int
@@ -90,6 +92,7 @@ priv struct PagedGraphResources {
   mut weight_lease : PagedOwnedLease?
   mut activation_workspace : PagedOwnedAllocation?
   mut qwen_fused_attention_sidecar : PagedOwnedAllocation?
+  mut prefill_partition_workspace : PagedOwnedAllocation?
   mut decode_split_workspace : PagedOwnedAllocation?
   mut persistent_kv : PagedOwnedAllocation?
   mut fused_dispatch_canary : PagedOwnedAllocation?

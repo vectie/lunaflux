@@ -300,12 +300,14 @@ fn finish_paged_sampling_preparation(
   descriptor : DeviceStepResources,
   activation : @device.Allocation,
   model_steps : ReadOnlyArray[PreparedPagedGraphStep],
+  prefill_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   resources : PagedGraphResources,
   graph_policy : PagedGraphExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
+  prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
@@ -317,6 +319,13 @@ fn finish_paged_sampling_preparation(
   let decode_steps = match decode_model_steps {
     Some(model_decode) =>
       Some(append_paged_sampling_suffix(model_steps, steps, model_decode))
+    None => None
+  }
+  let prefill_split_steps = match prefill_split_model_steps {
+    Some(model_prefill_split) =>
+      Some(
+        append_paged_sampling_suffix(model_steps, steps, model_prefill_split),
+      )
     None => None
   }
   let decode_split_steps = match decode_split_model_steps {
@@ -332,6 +341,8 @@ fn finish_paged_sampling_preparation(
     graph_policy,
     graph_bucket_table,
     blueprint.profile(),
+    prefill_split_steps~,
+    prefill_split_minimum_context_tokens~,
     decode_steps~,
     decode_split_steps~,
     decode_split_minimum_context_tokens~,

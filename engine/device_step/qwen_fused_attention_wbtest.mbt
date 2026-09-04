@@ -72,6 +72,7 @@ fn qwen_fused_test_runtime(
   direct_compiler_decode? : Bool = false,
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
+  partitioned_prefill? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -182,6 +183,57 @@ fn qwen_fused_test_runtime(
           shared_memory_bytes=if direct_compiler_decode { 0 } else { 34076 },
         ),
         module_bytes=b"qwen-decode-module",
+      ),
+    )
+  }
+  if partitioned_prefill {
+    let shared_module = b"qwen-partitioned-prefill-module"
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=blueprint.profile().max_query_rows() +
+            (
+              blueprint.profile().max_query_tokens() -
+              blueprint.profile().max_query_rows() +
+              15
+            ) /
+            16,
+          grid_y=16,
+          grid_z=2,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=31952,
+        ),
+        module_bytes=shared_module,
+      ),
+    )
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=blueprint.profile().max_query_rows() +
+            (
+              blueprint.profile().max_query_tokens() -
+              blueprint.profile().max_query_rows() +
+              15
+            ) /
+            16,
+          grid_y=16,
+          grid_z=1,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=0,
+        ),
+        module_bytes=shared_module,
       ),
     )
   }
@@ -394,6 +446,36 @@ test "reusable Qwen runtime admits separate compiler prefill and decode kernels"
     blueprint.profile().max_query_rows(),
   )
   assert_eq(spans[0].decode_launch().shared_memory_bytes(), 34076)
+}
+
+///|
+test "Qwen runtime admits compiler partition-map fold merge prefill" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    full_ingress=true,
+    partitioned_prefill=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  guard spans[0].partitioned_prefill() is Some(pipeline) else {
+    fail("partitioned Qwen prefill missing")
+  }
+  assert_eq(pipeline.partial_launch.grid_z(), 2)
+  assert_eq(pipeline.merge_launch.grid_z(), 1)
+  assert_eq(pipeline.merge_launch.shared_memory_bytes(), 0)
+  assert_true(pipeline.workspace_bytes > 0L)
+  assert_eq(
+    qwen_partitioned_prefill_minimum_context_tokens(blueprint, spans),
+    2 * 16 * blueprint.layout().tokens_per_page(),
+  )
 }
 
 ///|

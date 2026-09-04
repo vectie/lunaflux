@@ -24,6 +24,8 @@ fn graph_dispatch_fixture(
       slot_owner_indices,
       fallback_owner_index,
       telemetry_owner_index: 2,
+      prefill_split_owner_index: -1,
+      prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -99,12 +101,40 @@ test "prefill bucket owners map live token capacities without touching larger bu
 }
 
 ///|
+test "partitioned prefill owns long prefill and continuous mixed buckets" {
+  let (table, _, base) = graph_dispatch_fixture(7)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    ..base,
+    prefill_split_owner_index: 13,
+    prefill_split_minimum_context_tokens: 512,
+  }
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 32, 256)),
+    7,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 32, 4096)),
+    13,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 8, 32, 4096)),
+    13,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 4096)),
+    7,
+  )
+}
+
+///|
 test "phase-specific decode owners replace baseline slots without touching prefill" {
   let (table, profile, baseline) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     slot_owner_indices: baseline.slot_owner_indices,
     fallback_owner_index: baseline.fallback_owner_index,
     telemetry_owner_index: baseline.telemetry_owner_index,
+    prefill_split_owner_index: baseline.prefill_split_owner_index,
+    prefill_split_minimum_context_tokens: baseline.prefill_split_minimum_context_tokens,
     decode_owner_index: 12,
     decode_split_owner_index: baseline.decode_split_owner_index,
     decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,

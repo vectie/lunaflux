@@ -69,6 +69,11 @@ fn PagedOrderedExecutorDispatch::select(
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
 ) -> Int raise DeviceStepError {
   let (_, _, context_tokens) = bucket.upper_bounds()
+  if self.prefill_split_owner_index >= 0 &&
+    (bucket.phase() == PrefillGraph || bucket.phase() == MixedGraph) &&
+    context_tokens >= self.prefill_split_minimum_context_tokens {
+    return self.prefill_split_owner_index
+  }
   if paged_attention_phase_route(
       bucket.phase(),
       self.decode_split_owner_index >= 0,
