@@ -178,31 +178,40 @@ fn projection_tensor_core_mlp_source(
     "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
-    "  if (warp >= 4) return;\n" +
     "  const int group_count = " +
     (parameters.output_width / 64).to_string() +
     "; const int live_groups = ((token_count + 15) / 16) * group_count;\n" +
+    // All warps remain live at the block barriers. Eight warps cooperatively
+    // stage the invariant workspace tile; the four output warps consume it.
+    // The same storage becomes the accumulator spill only after the final
+    // reduction-tile barrier, preserving the existing 16 KiB launch contract.
+    "  extern __shared__ unsigned char shared_bytes[];\n" +
+    "  __nv_bfloat16 *input_tile = reinterpret_cast<__nv_bfloat16 *>(shared_bytes);\n" +
+    "  float *tile_output = reinterpret_cast<float *>(shared_bytes);\n" +
     "  for (int work_group = (int)blockIdx.x; work_group < live_groups; work_group += (int)gridDim.x) {\n" +
     "  const int group_index = work_group % group_count;\n" +
     "  const int row_start = (work_group / group_count) * 16;\n" +
     "  const int column = group_index * 64 + warp * 16;\n" +
-    "  extern __shared__ unsigned char shared_bytes[]; float *warp_output = reinterpret_cast<float *>(shared_bytes) + warp * 256;\n" +
+    "  float *warp_output = tile_output + warp * 256;\n" +
     "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a; nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b; nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c; nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
     "  for (int inner = 0; inner < " +
     parameters.intermediate_width.to_string() +
-    "; inner += 16) { nvcuda::wmma::load_matrix_sync(a, workspace + (unsigned long long)row_start * " +
+    "; inner += 16) {\n" +
+    "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) { const int tile_row = element >> 4, tile_column = element & 15; input_tile[element] = row_start + tile_row < token_count ? workspace[(unsigned long long)(row_start + tile_row) * " +
     parameters.intermediate_width.to_string() +
-    "ULL + inner, " +
-    parameters.intermediate_width.to_string() +
-    "); nvcuda::wmma::load_matrix_sync(b, down_weight + (unsigned long long)column * " +
+    "ULL + inner + tile_column] : __float2bfloat16_rn(0.0f); }\n" +
+    "    __syncthreads();\n" +
+    "    if (warp < 4) { nvcuda::wmma::load_matrix_sync(a, input_tile, 16); nvcuda::wmma::load_matrix_sync(b, down_weight + (unsigned long long)column * " +
     parameters.intermediate_width.to_string() +
     "ULL + inner, " +
     parameters.intermediate_width.to_string() +
     "); nvcuda::wmma::mma_sync(c, a, b, c); }\n" +
-    "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major); __syncwarp();\n  #pragma unroll\n" +
+    "    __syncthreads();\n  }\n" +
+    "  if (warp < 4) { nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major); __syncwarp();\n  #pragma unroll\n" +
     "  for (int item = 0; item < 8; ++item) { const int element = lane + item * 32; const int tile_row = element >> 4, tile_column = element & 15; if (row_start + tile_row < token_count) output[(unsigned long long)(row_start + tile_row) * " +
     parameters.output_width.to_string() +
-    "ULL + column + tile_column] = __float2bfloat16_rn(warp_output[element]); }\n  }\n}\n",
+    "ULL + column + tile_column] = __float2bfloat16_rn(warp_output[element]); } }\n" +
+    "  __syncthreads();\n  }\n}\n",
   )
 }
 
