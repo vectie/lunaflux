@@ -63,6 +63,22 @@ test "functional attention compiler composes typed immutable passes" {
 }
 
 ///|
+test "functional compiler retains the non-dominated attention kernel family" {
+  let request = functional_compiler_request([])
+  let frontier = compile_attention_tile_frontier(request)
+  let stable_ids = frontier
+    .variants()
+    .map(variant => variant.plan().candidate().stable_id())
+  assert_true(stable_ids.contains(312))
+  assert_true(stable_ids.contains(314))
+  assert_eq(frontier.selected().plan().candidate().stable_id(), 312)
+  assert_eq(frontier.selected(), compile_attention_tile(request))
+  assert_eq(frontier.digest().as_hex().length(), 64)
+  assert_true(frontier.canonical_bytes().length() > 0)
+  assert_eq(frontier, compile_attention_tile_frontier(request))
+}
+
+///|
 test "offline autotune remains authoritative over resource feedback" {
   let base = functional_compiler_request([])
   let problem = base.problem()
@@ -87,6 +103,11 @@ test "offline autotune remains authoritative over resource feedback" {
   let compiled = compile_attention_tile(functional_compiler_request([record]))
   assert_eq(compiled.plan().source(), AttentionOfflineAutotune)
   assert_eq(compiled.plan().candidate().stable_id(), 310)
+  let frontier = compile_attention_tile_frontier(
+    functional_compiler_request([record]),
+  )
+  assert_eq(frontier.variants().length(), 1)
+  assert_eq(frontier.selected(), compiled)
 }
 
 ///|

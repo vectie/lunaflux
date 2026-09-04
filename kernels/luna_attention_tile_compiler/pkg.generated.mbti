@@ -12,6 +12,8 @@ import {
 // Values
 pub fn compile_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
 
+pub fn compile_attention_tile_frontier(AttentionTileCompilerRequest) -> AttentionTileCompilationFrontier raise AttentionTileCompilerError
+
 pub fn compile_partitioned_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
 
 pub fn elaborate_attention_tile(SelectedAttentionTileCompilation) -> SemanticAttentionTileCompilation raise AttentionTileCompilerError
@@ -32,6 +34,14 @@ pub(all) suberror AttentionTileCompilerError {
 // Types and methods
 pub struct AttentionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileCompilationDigest::as_hex(Self) -> String
+
+pub struct AttentionTileCompilationFrontier {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileCompilationFrontier::canonical_bytes(Self) -> Bytes
+pub fn AttentionTileCompilationFrontier::digest(Self) -> AttentionTileCompilationDigest
+pub fn AttentionTileCompilationFrontier::selected(Self) -> ScheduledAttentionTileCompilation
+pub fn AttentionTileCompilationFrontier::variants(Self) -> ReadOnlyArray[ScheduledAttentionTileCompilation]
 
 pub struct AttentionTileCompilerRequest {
   // private fields

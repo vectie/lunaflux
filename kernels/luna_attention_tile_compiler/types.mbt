@@ -44,6 +44,17 @@ pub struct ScheduledAttentionTileCompilation {
 } derive(Debug, Eq)
 
 ///|
+/// Immutable non-dominated kernel family for one semantic attention problem.
+/// A later execution-graph compiler may choose among these variants for its
+/// runtime buckets without rerunning semantic optimization or device probes.
+pub struct AttentionTileCompilationFrontier {
+  priv selected : ScheduledAttentionTileCompilation
+  priv variants : ReadOnlyArray[ScheduledAttentionTileCompilation]
+  priv canonical : Bytes
+  priv digest : AttentionTileCompilationDigest
+} derive(Debug, Eq)
+
+///|
 pub(all) enum AttentionTileCompilerRule {
   StrategySelection
   SemanticElaboration

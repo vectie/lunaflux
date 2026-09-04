@@ -90,6 +90,34 @@ pub fn ScheduledAttentionTileCompilation::digest(
 }
 
 ///|
+pub fn AttentionTileCompilationFrontier::selected(
+  self : AttentionTileCompilationFrontier,
+) -> ScheduledAttentionTileCompilation {
+  self.selected
+}
+
+///|
+pub fn AttentionTileCompilationFrontier::variants(
+  self : AttentionTileCompilationFrontier,
+) -> ReadOnlyArray[ScheduledAttentionTileCompilation] {
+  self.variants
+}
+
+///|
+pub fn AttentionTileCompilationFrontier::canonical_bytes(
+  self : AttentionTileCompilationFrontier,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn AttentionTileCompilationFrontier::digest(
+  self : AttentionTileCompilationFrontier,
+) -> AttentionTileCompilationDigest {
+  self.digest
+}
+
+///|
 pub fn AttentionTileCompilationDigest::as_hex(
   self : AttentionTileCompilationDigest,
 ) -> String {

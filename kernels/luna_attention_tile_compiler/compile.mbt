@@ -167,6 +167,101 @@ fn compile_static_attention_tile_candidate(
 }
 
 ///|
+/// True when `left` is never more expensive and never larger than `right`,
+/// with at least one strict improvement. Both metrics are compiler values:
+/// static semantic work and post-rewrite peak shared storage. Vendor-specific
+/// occupancy or instruction names are deliberately absent.
+fn attention_tile_dominates(
+  left : ScheduledAttentionTileCompilation,
+  right : ScheduledAttentionTileCompilation,
+) -> Bool {
+  let left_cost = left.plan().static_cost()
+  let right_cost = right.plan().static_cost()
+  let (_, _, _, left_shared) = left.schedule().execution_geometry()
+  let (_, _, _, right_shared) = right.schedule().execution_geometry()
+  left_cost <= right_cost &&
+  left_shared <= right_shared &&
+  (left_cost < right_cost || left_shared < right_shared)
+}
+
+///|
+/// Compiles the non-dominated kernel family for one semantic problem. The
+/// result is a pure Pareto frontier rather than a guessed runtime winner:
+/// execution-graph buckets can later select a throughput- or residency-biased
+/// member without rebuilding the compiler pipeline. Exact offline autotune is
+/// authoritative and therefore collapses the frontier to its measured winner.
+pub fn compile_attention_tile_frontier(
+  request : AttentionTileCompilerRequest,
+) -> AttentionTileCompilationFrontier raise AttentionTileCompilerError {
+  let selected = select_attention_tile(request)
+  let variants : ReadOnlyArray[ScheduledAttentionTileCompilation] = if selected
+    .plan()
+    .source() ==
+    AttentionOfflineAutotune {
+    ReadOnlyArray::from_array([
+      schedule_attention_tile(
+        optimize_attention_tile(elaborate_attention_tile(selected)),
+      ),
+    ])
+  } else {
+    let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+      request.problem,
+      request.capabilities,
+    ) catch {
+      _ => raise InvalidAttentionTileCompilation(StrategySelection)
+    }
+    let compiled = candidates.map(candidate => {
+      compile_static_attention_tile_candidate(request, candidate)
+    })
+    compiled.filter(candidate => {
+      !compiled.any(other => {
+        other.plan().candidate().stable_id() !=
+        candidate.plan().candidate().stable_id() &&
+        attention_tile_dominates(other, candidate)
+      })
+    })
+  }
+  if variants.length() == 0 {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
+  let resource_selected = variants[1:].fold(init=variants[0], (
+    current,
+    candidate,
+  ) => {
+    let current_score = attention_tile_resource_score(request, current)
+    let candidate_score = attention_tile_resource_score(request, candidate)
+    if candidate_score < current_score ||
+      (
+        candidate_score == current_score &&
+        candidate.plan().candidate().stable_id() <
+        current.plan().candidate().stable_id()
+      ) {
+      candidate
+    } else {
+      current
+    }
+  })
+  let builder = StringBuilder()
+  builder <+ "luna-attention-functional-frontier-v1\n"
+  builder <+ "selected=\{resource_selected.digest().as_hex()}\n"
+  builder <+ "variants=\{variants.length()}\n"
+  for variant in variants {
+    let (_, _, _, shared) = variant.schedule().execution_geometry()
+    builder <+
+      "variant=\{variant.plan().candidate().stable_id()},\{variant.plan().static_cost()},\{shared},\{variant.digest().as_hex()}\n"
+  }
+  let canonical = @utf8.encode(builder.to_string())
+  {
+    selected: resource_selected,
+    variants,
+    canonical,
+    digest: AttentionTileCompilationDigest(
+      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+    ),
+  }
+}
+
+///|
 /// Total composition of the pure compiler passes. Immutable offline autotune
 /// observations retain authority. Without an exact observation, every bounded
 /// candidate is elaborated, optimized, and scheduled, then the optimized peak
@@ -174,32 +269,5 @@ fn compile_static_attention_tile_candidate(
 pub fn compile_attention_tile(
   request : AttentionTileCompilerRequest,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
-  let selected = select_attention_tile(request)
-  if selected.plan().source() == AttentionOfflineAutotune {
-    return schedule_attention_tile(
-      optimize_attention_tile(elaborate_attention_tile(selected)),
-    )
-  }
-  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
-    request.problem,
-    request.capabilities,
-  ) catch {
-    _ => raise InvalidAttentionTileCompilation(StrategySelection)
-  }
-  let initial = compile_static_attention_tile_candidate(request, candidates[0])
-  candidates[1:].fold(init=initial, (current, candidate) => {
-    let compiled = compile_static_attention_tile_candidate(request, candidate)
-    let current_score = attention_tile_resource_score(request, current)
-    let compiled_score = attention_tile_resource_score(request, compiled)
-    if compiled_score < current_score ||
-      (
-        compiled_score == current_score &&
-        compiled.plan().candidate().stable_id() <
-        current.plan().candidate().stable_id()
-      ) {
-      compiled
-    } else {
-      current
-    }
-  })
+  compile_attention_tile_frontier(request).selected()
 }

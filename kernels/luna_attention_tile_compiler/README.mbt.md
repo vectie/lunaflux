@@ -20,3 +20,9 @@ bounded candidate set and feeds each optimized schedule's peak shared storage
 back into a conservative two-workgroup occupancy score. Functional liveness
 therefore influences tile selection instead of only shrinking an already
 selected kernel. Exact immutable autotune observations remain authoritative.
+
+`compile_attention_tile_frontier` retains every non-dominated combination of
+semantic work and optimized peak storage. This is the functional boundary for
+multi-versioned kernels: an execution-graph compiler can assign different
+frontier members to short, medium, and long buckets without embedding device
+names in model graphs or rerunning compiler passes in the request path.
