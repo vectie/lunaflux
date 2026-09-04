@@ -178,6 +178,22 @@ test "partitioned prefill preserves ordered partial and merge entries" {
         launch=runtime_bundle_test_launch(256, 16, 0),
         module_bytes~,
       ),
+      ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+        first_operation=attention_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
+        launch=runtime_bundle_test_launch(256, 16, 31952, grid_z=8),
+        module_bytes~,
+      ),
+      ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
+        first_operation=attention_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
+        launch=runtime_bundle_test_launch(256, 16, 0),
+        module_bytes~,
+      ),
       runtime_bundle_test_input(
         QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
         attention_operation,
@@ -199,6 +215,18 @@ test "partitioned prefill preserves ordered partial and merge entries" {
   assert_eq(merge.operation_span(), (attention_operation, 1))
   assert_eq(merge.launch_dimensions().grid_z(), 1)
   assert_eq(partial.module_digest(), merge.module_digest())
+  guard admitted.qwen_partitioned8_prefill_partial_module()
+    is Some(deep_partial) &&
+    admitted.qwen_partitioned8_prefill_merge_module() is Some(deep_merge) else {
+    fail("partitioned8 prefill module pair missing")
+  }
+  assert_eq(deep_partial.launch_dimensions().grid_z(), 8)
+  assert_eq(
+    deep_partial.function_symbol(),
+    "lunaflux_attention_prefill_partitioned_partial_v1_p8",
+  )
+  assert_eq(deep_merge.launch_dimensions().grid_z(), 1)
+  assert_eq(deep_partial.module_digest(), deep_merge.module_digest())
 }
 
 ///|

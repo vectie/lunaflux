@@ -98,6 +98,8 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_mod
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_operation_index(Self) -> Int?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned8_prefill_merge_module(Self) -> ApprovedReusableFusedRuntimeModule?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned8_prefill_partial_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_merge_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_partial_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
@@ -159,6 +161,8 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionPrefillPartitionedPartialProductionV4
   QwenPagedAttentionPrefillPartitionedMergeProductionV4
+  QwenPagedAttentionPrefillPartitioned8PartialProductionV6
+  QwenPagedAttentionPrefillPartitioned8MergeProductionV6
   QwenPagedAttentionPrefillWideQueryProductionV5
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3

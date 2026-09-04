@@ -90,6 +90,20 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_merge_module
 }
 
 ///|
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned8_prefill_partial_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionPrefillPartitioned8PartialProductionV6)
+}
+
+///|
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned8_prefill_merge_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionPrefillPartitioned8MergeProductionV6)
+}
+
+///|
 /// Returns the optional wider-query prefill frontier member. It has the same
 /// attention semantics as the selected prefill module but a distinct AOT
 /// symbol and launch shape for startup-materialized bucket dispatch.

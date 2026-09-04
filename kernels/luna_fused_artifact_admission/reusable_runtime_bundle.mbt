@@ -1,5 +1,5 @@
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 7
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 9
 
 ///|
 const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int = 8388608
@@ -19,6 +19,10 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-paged-attention-prefill-partitioned-partial-production-v4"
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 =>
       "qwen-paged-attention-prefill-partitioned-merge-production-v4"
+    QwenPagedAttentionPrefillPartitioned8PartialProductionV6 =>
+      "qwen-paged-attention-prefill-partitioned8-partial-production-v6"
+    QwenPagedAttentionPrefillPartitioned8MergeProductionV6 =>
+      "qwen-paged-attention-prefill-partitioned8-merge-production-v6"
     QwenPagedAttentionPrefillWideQueryProductionV5 =>
       "qwen-paged-attention-prefill-wide-query-production-v5"
     QwenPagedAttentionReadOnlyProductionV2 =>
@@ -42,6 +46,10 @@ fn reusable_runtime_parse_abi(
       QwenPagedAttentionPrefillPartitionedPartialProductionV4
     "qwen-paged-attention-prefill-partitioned-merge-production-v4" =>
       QwenPagedAttentionPrefillPartitionedMergeProductionV4
+    "qwen-paged-attention-prefill-partitioned8-partial-production-v6" =>
+      QwenPagedAttentionPrefillPartitioned8PartialProductionV6
+    "qwen-paged-attention-prefill-partitioned8-merge-production-v6" =>
+      QwenPagedAttentionPrefillPartitioned8MergeProductionV6
     "qwen-paged-attention-prefill-wide-query-production-v5" =>
       QwenPagedAttentionPrefillWideQueryProductionV5
     "qwen-paged-attention-readonly-production-v2" =>
@@ -62,6 +70,8 @@ fn reusable_runtime_required_operation_count(
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 1
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 1
+    QwenPagedAttentionPrefillPartitioned8PartialProductionV6 => 1
+    QwenPagedAttentionPrefillPartitioned8MergeProductionV6 => 1
     QwenPagedAttentionPrefillWideQueryProductionV5 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
@@ -76,9 +86,11 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 2
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 3
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 4
-    QwenPagedAttentionPrefillWideQueryProductionV5 => 5
-    QwenPagedAttentionReadOnlyProductionV2 => 6
-    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 7
+    QwenPagedAttentionPrefillPartitioned8PartialProductionV6 => 5
+    QwenPagedAttentionPrefillPartitioned8MergeProductionV6 => 6
+    QwenPagedAttentionPrefillWideQueryProductionV5 => 7
+    QwenPagedAttentionReadOnlyProductionV2 => 8
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 9
   }
 }
 
@@ -98,6 +110,8 @@ fn reusable_runtime_is_qwen_attention_reader(
 ) -> Bool {
   abi == QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
   abi == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
+  abi == QwenPagedAttentionPrefillPartitioned8PartialProductionV6 ||
+  abi == QwenPagedAttentionPrefillPartitioned8MergeProductionV6 ||
   abi == QwenPagedAttentionPrefillWideQueryProductionV5 ||
   abi == QwenPagedAttentionReadOnlyProductionV2 ||
   abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
@@ -152,7 +166,8 @@ fn reusable_runtime_validate_module(
   module_bytes : Bytes,
 ) -> Unit raise FusedArtifactAdmissionError {
   let valid_grid_z = if abi ==
-    QwenPagedAttentionPrefillPartitionedPartialProductionV4 {
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
+    abi == QwenPagedAttentionPrefillPartitioned8PartialProductionV6 {
     launch.grid_z() > 1
   } else {
     launch.grid_z() == 1
@@ -385,6 +400,8 @@ pub fn export_reusable_fused_runtime_bundle(
     QwenQkNormPositionedRopePagedKvWriteProductionV2,
     QwenPagedAttentionPrefillPartitionedPartialProductionV4,
     QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+    QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+    QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
     QwenPagedAttentionPrefillWideQueryProductionV5,
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
