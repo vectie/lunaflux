@@ -545,7 +545,7 @@ fn projection_dimensions(
     if parameters.family == LanguageModelHead {
       8704L
     } else {
-      8192L
+      11264L
     }
   } else if tensor_core_mlp {
     16384L
@@ -560,8 +560,13 @@ fn projection_dimensions(
     if parameters.family == LanguageModelHead {
       output_tile_groups
     } else {
-      let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
-      let prompt_work = projection_checked_mul(output_tile_groups, row_tiles)
+      let cooperative_output_groups = (parameters.output_width.to_int64() + 31L) /
+        32L
+      let cooperative_row_tiles = (profile.max_query_tokens().to_int64() + 63L) /
+        64L
+      let prompt_work = projection_checked_mul(
+        cooperative_output_groups, cooperative_row_tiles,
+      )
       let decode_work = (parameters.output_width.to_int64() + 7L) / 8L
       if prompt_work > decode_work {
         prompt_work

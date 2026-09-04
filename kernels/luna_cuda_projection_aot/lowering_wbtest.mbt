@@ -226,13 +226,18 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     intermediate_width: 1024,
   }
   let qkv = @utf8.decode(
-    projection_tensor_core_qkv_source("qwen_qkv", qkv_parameters, 256),
+    projection_tensor_core_cooperative_qkv_source(
+      "qwen_qkv", qkv_parameters, 256,
+    ),
   )
   assert_true(qkv.contains("if (token_count == 1)"))
   assert_true(qkv.contains("__shfl_down_sync"))
   assert_true(qkv.contains("nvcuda::wmma::mma_sync"))
-  assert_true(qkv.contains("const int group_count = 32;"))
-  assert_true(qkv.contains("blockIdx.x / group_count) * 16"))
+  assert_true(qkv.contains("const int column_groups = 128;"))
+  assert_true(qkv.contains("blockIdx.x / column_groups) * 64"))
+  assert_true(qkv.contains("__nv_bfloat16 *input_tile"))
+  assert_true(qkv.contains("__nv_bfloat16 *weight_tile"))
+  assert_true(qkv.contains("input_tile + warp_row * 256"))
   let dense_parameters : ProjectionParameters = {
     family: DenseProjection,
     input_width: 1024,
@@ -254,27 +259,24 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_fixture_target(),
     records,
   ).dispatch_plan(profile.max_query_tokens())
-  let dense_compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-      dispatch=dense_dispatch,
-      maximum_rows=profile.max_query_rows(),
-      maximum_tokens=profile.max_query_tokens(),
-      demand=(
-        AllTokenRows : @luna_projection_tile_compiler.ProjectionResultDemand),
-    ),
-  )
   let dense = @utf8.decode(
-    projection_tensor_core_dense_source(
-      "qwen_dense", dense_parameters, 256, 32, dense_compilation,
+    projection_tensor_core_cooperative_dense_source(
+      "qwen_dense", dense_parameters, 256,
     ),
   )
   assert_true(dense.contains("if (token_count == 1)"))
   assert_true(dense.contains("__shfl_down_sync"))
   assert_true(dense.contains("nvcuda::wmma::mma_sync"))
-  assert_true(dense.contains("const int group_count = 8;"))
+  assert_true(dense.contains("const int column_groups = 32;"))
+  assert_true(dense.contains("blockIdx.x / column_groups) * 64"))
+  assert_true(dense.contains("weight_tile + warp_column * 256"))
   assert_eq(
     projection_dimensions(profile, qkv_parameters, qkv_dispatch).grid_x(),
     512,
+  )
+  assert_eq(
+    projection_dimensions(profile, qkv_parameters, qkv_dispatch).shared_memory_bytes(),
+    11264,
   )
   assert_eq(
     projection_dimensions(profile, dense_parameters, dense_dispatch).grid_x(),
@@ -435,6 +437,10 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_true(
     @utf8.decode(fallback.source_bytes()).contains("nvcuda::wmma::mma_sync"),
   )
+  assert_true(
+    @utf8.decode(fallback.source_bytes()).contains("__nv_bfloat16 *input_tile"),
+  )
+  assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 11264)
   let foreign_target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,

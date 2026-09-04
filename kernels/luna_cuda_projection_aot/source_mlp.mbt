@@ -278,15 +278,29 @@ fn projection_source(
   match parameters.family {
     QkvProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_qkv_source(symbol, parameters, maximum_tokens)
+        if tile_compilation.schedule().reuse_input_tile() {
+          projection_tensor_core_cooperative_qkv_source(
+            symbol, parameters, maximum_tokens,
+          )
+        } else {
+          projection_tensor_core_qkv_legacy_source(
+            symbol, parameters, maximum_tokens,
+          )
+        }
       } else {
         projection_qkv_source(symbol, parameters, maximum_tokens)
       }
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(
-          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
-        )
+        if tile_compilation.schedule().reuse_input_tile() {
+          projection_tensor_core_cooperative_dense_source(
+            symbol, parameters, maximum_tokens,
+          )
+        } else {
+          projection_tensor_core_dense_legacy_source(
+            symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
+          )
+        }
       } else {
         projection_dense_source(
           symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
@@ -294,7 +308,7 @@ fn projection_source(
       }
     LanguageModelHead => {
       let base = if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(
+        projection_tensor_core_dense_legacy_source(
           symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       } else {
