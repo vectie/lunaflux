@@ -65,12 +65,18 @@ fn dummy_paged_executor(
         graph_bucket_table.bucket_count(),
         -1,
       ),
+      prefill_wide_slot_owner_indices: FixedArray::make(
+        graph_bucket_table.bucket_count(),
+        -1,
+      ),
       prefill_split_slot_owner_indices: FixedArray::make(
         graph_bucket_table.bucket_count(),
         -1,
       ),
       fallback_owner_index: 0,
       telemetry_owner_index: 0,
+      prefill_wide_owner_index: -1,
+      prefill_wide_minimum_query_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_owner_index: -1,
       prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_query_tile: 1,

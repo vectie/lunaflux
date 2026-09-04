@@ -64,9 +64,12 @@ priv struct PagedGraphLaunchContract {
 /// admits eager fallback owns a distinct eager executor instead.
 priv struct PagedOrderedExecutorDispatch {
   slot_owner_indices : FixedArray[Int]
+  prefill_wide_slot_owner_indices : FixedArray[Int]
   prefill_split_slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
+  prefill_wide_owner_index : Int
+  prefill_wide_minimum_query_tokens : Int
   prefill_split_owner_index : Int
   prefill_split_minimum_context_tokens : Int
   prefill_split_query_tile : Int

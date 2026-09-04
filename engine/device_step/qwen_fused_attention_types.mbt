@@ -6,6 +6,15 @@
 /// module once and reuse its function across all shape-identical layer spans.
 /// Prefill and decode remain separate values even for legacy bundles that map
 /// both phases to the same mixed kernel.
+priv struct ApprovedQwenPrefillVariant {
+  module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  module_bytes : Bytes
+  symbol : String
+  launch : @launch_contract.AotLaunchDimensions
+  query_tile_rows : Int
+} derive(Eq)
+
+///|
 priv struct ApprovedQwenPartitionedPrefill {
   module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   module_bytes : Bytes
@@ -35,6 +44,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv decode_module_bytes : Bytes
   priv decode_symbol : String
   priv decode_launch : @launch_contract.AotLaunchDimensions
+  priv wide_query_prefill : ApprovedQwenPrefillVariant?
   priv partitioned_prefill : ApprovedQwenPartitionedPrefill?
   priv qkv_index : Int
   priv qk_norm_index : Int
@@ -79,6 +89,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.decode_module_digest == other.decode_module_digest &&
   self.decode_symbol == other.decode_symbol &&
   self.decode_launch == other.decode_launch &&
+  self.wide_query_prefill == other.wide_query_prefill &&
   self.partitioned_prefill == other.partitioned_prefill
 }
 
@@ -166,4 +177,11 @@ fn ApprovedQwenFusedAttentionSpan::partitioned_prefill(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> ApprovedQwenPartitionedPrefill? {
   self.partitioned_prefill
+}
+
+///|
+fn ApprovedQwenFusedAttentionSpan::wide_query_prefill(
+  self : ApprovedQwenFusedAttentionSpan,
+) -> ApprovedQwenPrefillVariant? {
+  self.wide_query_prefill
 }

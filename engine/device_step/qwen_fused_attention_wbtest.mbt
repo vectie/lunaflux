@@ -72,6 +72,7 @@ fn qwen_fused_test_runtime(
   direct_compiler_decode? : Bool = false,
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
+  wide_query_prefill? : Bool = false,
   partitioned_prefill? : Bool = false,
   partitioned_prefill_grid_x? : Int = -1,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
@@ -187,6 +188,32 @@ fn qwen_fused_test_runtime(
       ),
     )
   }
+  if wide_query_prefill {
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillWideQueryProductionV5,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_tile_compiler_v1_c314",
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=blueprint.profile().max_query_rows() +
+            (
+              blueprint.profile().max_query_tokens() -
+              blueprint.profile().max_query_rows() +
+              15
+            ) /
+            16,
+          grid_y=16,
+          grid_z=1,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=70032,
+        ),
+        module_bytes=b"qwen-wide-prefill-module",
+      ),
+    )
+  }
   if partitioned_prefill {
     let shared_module = b"qwen-partitioned-prefill-module"
     let maximum_prefill_grid = blueprint.profile().max_query_rows() +
@@ -292,6 +319,30 @@ test "reusable Qwen runtime admits direct compiler decode kernel" {
   assert_eq(spans[0].decode_launch().grid_y(), 16)
   assert_eq(spans[0].decode_launch().block_x(), 32)
   assert_eq(spans[0].decode_launch().shared_memory_bytes(), 0)
+}
+
+///|
+test "reusable Qwen runtime admits wide-query prefill frontier member" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    wide_query_prefill=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  guard spans[0].wide_query_prefill() is Some(variant) else {
+    fail("wide-query prefill variant missing")
+  }
+  assert_eq(variant.query_tile_rows, 64)
+  assert_eq(variant.launch.shared_memory_bytes(), 70032)
+  assert_eq(qwen_wide_prefill_minimum_query_tokens(spans), 64)
 }
 
 ///|

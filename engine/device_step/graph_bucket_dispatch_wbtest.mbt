@@ -22,12 +22,18 @@ fn graph_dispatch_fixture(
     profile,
     {
       slot_owner_indices,
+      prefill_wide_slot_owner_indices: FixedArray::make(
+        table.bucket_count(),
+        -1,
+      ),
       prefill_split_slot_owner_indices: FixedArray::make(
         table.bucket_count(),
         -1,
       ),
       fallback_owner_index,
       telemetry_owner_index: 2,
+      prefill_wide_owner_index: -1,
+      prefill_wide_minimum_query_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_owner_index: -1,
       prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_query_tile: 1,
@@ -35,6 +41,39 @@ fn graph_dispatch_fixture(
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     },
+  )
+}
+
+///|
+test "wide-query prefill owns only eligible prefill and mixed buckets" {
+  let (table, profile, base) = graph_dispatch_fixture(7)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    ..base,
+    prefill_wide_owner_index: 11,
+    prefill_wide_minimum_query_tokens: 64,
+  }
+  map_paged_prefill_capture_owner(
+    table,
+    profile.max_query_rows(),
+    64,
+    10,
+    dispatch.prefill_wide_slot_owner_indices,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 32, 4096)),
+    7,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 64, 4096)),
+    10,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 8, 64, 4096)),
+    10,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 64, 4096)),
+    7,
   )
 }
 
@@ -186,9 +225,12 @@ test "phase-specific decode owners replace baseline slots without touching prefi
   let (table, profile, baseline) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     slot_owner_indices: baseline.slot_owner_indices,
+    prefill_wide_slot_owner_indices: baseline.prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices: baseline.prefill_split_slot_owner_indices,
     fallback_owner_index: baseline.fallback_owner_index,
     telemetry_owner_index: baseline.telemetry_owner_index,
+    prefill_wide_owner_index: baseline.prefill_wide_owner_index,
+    prefill_wide_minimum_query_tokens: baseline.prefill_wide_minimum_query_tokens,
     prefill_split_owner_index: baseline.prefill_split_owner_index,
     prefill_split_minimum_context_tokens: baseline.prefill_split_minimum_context_tokens,
     prefill_split_query_tile: baseline.prefill_split_query_tile,

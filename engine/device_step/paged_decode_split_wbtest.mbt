@@ -19,9 +19,12 @@ test "decode split dispatch owns only decode buckets" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     slot_owner_indices: base.slot_owner_indices,
+    prefill_wide_slot_owner_indices: base.prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices: base.prefill_split_slot_owner_indices,
     fallback_owner_index: base.fallback_owner_index,
     telemetry_owner_index: base.telemetry_owner_index,
+    prefill_wide_owner_index: -1,
+    prefill_wide_minimum_query_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     prefill_split_owner_index: -1,
     prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
     prefill_split_query_tile: 1,

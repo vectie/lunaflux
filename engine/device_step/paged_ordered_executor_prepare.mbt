@@ -545,6 +545,8 @@ fn prepare_paged_ordered_executors(
   graph_policy : PagedGraphExecutionPolicy,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
+  prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_wide_minimum_query_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_query_tile? : Int = 1,
@@ -557,6 +559,10 @@ fn prepare_paged_ordered_executors(
     steps.map(step => step.operation_id),
   )
   let slot_owner_indices = FixedArray::make(table.bucket_count(), -1)
+  let prefill_wide_slot_owner_indices = FixedArray::make(
+    table.bucket_count(),
+    -1,
+  )
   let prefill_split_slot_owner_indices = FixedArray::make(
     table.bucket_count(),
     -1,
@@ -720,6 +726,47 @@ fn prepare_paged_ordered_executors(
     }
     None => -1
   }
+  let prefill_wide_owner_index = match prefill_wide_steps {
+    Some(selected) => {
+      let operation_ids = ReadOnlyArray::from_array(
+        selected.map(step => step.operation_id),
+      )
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_prefill_capture_bounds(profile) {
+          if bound >= prefill_wide_minimum_query_tokens {
+            let launches = paged_ordered_launches(
+              selected,
+              resources,
+              query_token_bound=Some(bound),
+            )
+            let owner = prepare_one_paged_ordered_executor(
+              context,
+              launches[:],
+              operation_ids,
+              resources,
+              paged_ordered_device_policy(graph_policy),
+            )
+            map_paged_prefill_capture_owner(
+              table,
+              profile.max_query_rows(),
+              bound,
+              owner,
+              prefill_wide_slot_owner_indices,
+            )
+          }
+        }
+      }
+      let launches = paged_ordered_launches(selected, resources)
+      prepare_one_paged_ordered_executor(
+        context,
+        launches[:],
+        operation_ids,
+        resources,
+        paged_ordered_device_policy(graph_policy),
+      )
+    }
+    None => -1
+  }
   let decode_owner_index = match decode_steps {
     Some(selected) => {
       let operation_ids = ReadOnlyArray::from_array(
@@ -780,9 +827,12 @@ fn prepare_paged_ordered_executors(
   }
   {
     slot_owner_indices,
+    prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices,
     fallback_owner_index,
     telemetry_owner_index,
+    prefill_wide_owner_index,
+    prefill_wide_minimum_query_tokens,
     prefill_split_owner_index,
     prefill_split_minimum_context_tokens,
     prefill_split_query_tile,

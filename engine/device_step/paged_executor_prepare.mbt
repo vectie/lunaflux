@@ -453,7 +453,12 @@ pub fn prepare_paged_graph_executor(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
-  let (model_steps, phase_decode_model_steps, partitioned_prefill_model_steps) = prepare_paged_production_steps(
+  let (
+    model_steps,
+    wide_prefill_model_steps,
+    phase_decode_model_steps,
+    partitioned_prefill_model_steps,
+  ) = prepare_paged_production_steps(
     context,
     blueprint,
     function_indices,
@@ -504,6 +509,11 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let prefill_wide_minimum_query_tokens = qwen_wide_prefill_minimum_query_tokens(
+    qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint,
     model_steps,
@@ -523,6 +533,7 @@ pub fn prepare_paged_graph_executor(
     descriptor.resources,
     activation_workspace,
     model_steps,
+    wide_prefill_model_steps,
     partitioned_prefill_model_steps,
     phase_decode_model_steps,
     split_decode_model_steps,
@@ -530,6 +541,7 @@ pub fn prepare_paged_graph_executor(
     graph_policy,
     fused_residual_spans,
     diagnostic_policy,
+    prefill_wide_minimum_query_tokens~,
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,
     decode_split_minimum_context_tokens~,

@@ -287,6 +287,31 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.block_x() <= 256 &&
     decode_launch.block_x() % (query_heads / kv_heads * 32) == 0 &&
     decode_launch.shared_memory_bytes() > 0
+  let wide_query_prefill = match runtime.qwen_wide_query_prefill_module() {
+    Some(module_) => {
+      let launch = module_.launch_dimensions()
+      if module_.kernel_abi() != QwenPagedAttentionPrefillWideQueryProductionV5 ||
+        module_.operation_span() != (seed_attention, 1) ||
+        launch.grid_x() != compiler_prefill_grid ||
+        launch.grid_y() != query_heads ||
+        launch.grid_z() != 1 ||
+        launch.block_x() != 256 ||
+        launch.block_y() != 1 ||
+        launch.block_z() != 1 ||
+        launch.shared_memory_bytes() <= 0 ||
+        launch.shared_memory_bytes() > 100000 {
+        raise MismatchedFusedGroupedOperation(Launch)
+      }
+      Some({
+        module_digest: module_.module_digest(),
+        module_bytes: module_.module_bytes(),
+        symbol: module_.function_symbol(),
+        launch,
+        query_tile_rows: 64,
+      })
+    }
+    None => None
+  }
   let partitioned_prefill = match partitioned_modules {
     Some((partial, merge)) => {
       let partial_launch = partial.launch_dimensions()
@@ -430,6 +455,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module_bytes: decode_module.module_bytes(),
       decode_symbol: decode_module.function_symbol(),
       decode_launch: decode_module.launch_dimensions(),
+      wide_query_prefill,
       partitioned_prefill,
       qkv_index,
       qk_norm_index: qkv_index + 1,

@@ -300,6 +300,7 @@ fn finish_paged_sampling_preparation(
   descriptor : DeviceStepResources,
   activation : @device.Allocation,
   model_steps : ReadOnlyArray[PreparedPagedGraphStep],
+  prefill_wide_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   prefill_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
@@ -307,6 +308,7 @@ fn finish_paged_sampling_preparation(
   graph_policy : PagedGraphExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
+  prefill_wide_minimum_query_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_query_tile? : Int = 1,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -320,6 +322,11 @@ fn finish_paged_sampling_preparation(
   let decode_steps = match decode_model_steps {
     Some(model_decode) =>
       Some(append_paged_sampling_suffix(model_steps, steps, model_decode))
+    None => None
+  }
+  let prefill_wide_steps = match prefill_wide_model_steps {
+    Some(model_prefill_wide) =>
+      Some(append_paged_sampling_suffix(model_steps, steps, model_prefill_wide))
     None => None
   }
   let prefill_split_steps = match prefill_split_model_steps {
@@ -342,6 +349,8 @@ fn finish_paged_sampling_preparation(
     graph_policy,
     graph_bucket_table,
     blueprint.profile(),
+    prefill_wide_steps~,
+    prefill_wide_minimum_query_tokens~,
     prefill_split_steps~,
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,

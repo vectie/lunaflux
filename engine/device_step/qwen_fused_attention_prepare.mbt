@@ -12,6 +12,7 @@ fn qwen_fused_full_ingress_argument_count() -> Int {
 priv struct PreparedQwenFusedAttentionResources {
   ingress_function : Int
   prefill_function : Int
+  wide_prefill_function : Int?
   decode_function : Int
   sidecar : @device.Allocation
 }
@@ -87,6 +88,18 @@ fn prepare_qwen_fused_attention_resources(
   } else {
     readonly_function
   }
+  let wide_prefill_function = match first.wide_query_prefill() {
+    Some(variant) =>
+      Some(
+        prepare_composite_function(
+          context,
+          variant.module_bytes,
+          variant.symbol,
+          resources,
+        ),
+      )
+    None => None
+  }
   if resources.qwen_fused_attention_sidecar is Some(_) {
     raise InvalidExecutor(ResourceState)
   }
@@ -111,6 +124,7 @@ fn prepare_qwen_fused_attention_resources(
   {
     ingress_function: postprocess,
     prefill_function: readonly_function,
+    wide_prefill_function,
     decode_function,
     sidecar,
   }
@@ -576,6 +590,29 @@ fn qwen_partitioned_prefill_query_tile(
     }
   }
   query_tile
+}
+
+///|
+/// Returns the portable query-token threshold attached to the wide-query
+/// frontier role. Every repeated Qwen layer must share the same immutable
+/// variant; request dispatch then compares one bucket bound without scanning.
+fn qwen_wide_prefill_minimum_query_tokens(
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> Int raise DeviceStepError {
+  guard spans.get(0) is Some(first) &&
+    first.wide_query_prefill() is Some(first_variant) else {
+    return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
+  }
+  if first_variant.query_tile_rows <= 0 {
+    raise InvalidExecutor(ResourceState)
+  }
+  for span in spans {
+    guard span.wide_query_prefill() is Some(variant) &&
+      variant.query_tile_rows == first_variant.query_tile_rows else {
+      raise InvalidExecutor(ResourceState)
+    }
+  }
+  first_variant.query_tile_rows
 }
 
 ///|
