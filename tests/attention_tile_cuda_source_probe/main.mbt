@@ -1,9 +1,17 @@
 ///|
 fn main raise {
   let arguments = @env.args()
-  let partitioned = arguments == [arguments[0], "partitioned"]
-  let compile_query_rows = if partitioned { 64 } else { 128 }
+  let partitioned = arguments == [arguments[0], "partitioned"] ||
+    arguments == [arguments[0], "partitioned-312"]
+  let compile_query_rows = if arguments == [arguments[0], "partitioned-312"] {
+    32
+  } else if partitioned {
+    64
+  } else {
+    128
+  }
   let requested_candidate = match arguments {
+    [_, "partitioned-312"] => Some(312)
     [_, "290"] => Some(290)
     [_, "291"] => Some(291)
     [_, "300"] => Some(300)
@@ -45,7 +53,8 @@ fn main raise {
   )
   let backend = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend()
   let target = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target()
-  let records : ReadOnlyArray[@luna_attention_strategy.AttentionAutotuneRecord] = if partitioned {
+  let records : ReadOnlyArray[@luna_attention_strategy.AttentionAutotuneRecord] = if partitioned &&
+    requested_candidate is None {
     ReadOnlyArray::from_array([])
   } else {
     match requested_candidate {
