@@ -24,6 +24,8 @@ priv struct RuntimeBundleArguments {
   residual : ModuleLaunchInput
   ingress : ModuleLaunchInput
   attention_prefill : ModuleLaunchInput
+  attention_prefill_wide : ModuleLaunchInput
+  attention_prefill_wide_symbol : String
   attention_prefill_partial : ModuleLaunchInput
   attention_prefill_merge : ModuleLaunchInput
   attention_read : ModuleLaunchInput
@@ -77,6 +79,14 @@ fn safe_absolute_file(path : String) -> Bool {
 }
 
 ///|
+fn safe_function_symbol(symbol : StringView) -> Bool {
+  !symbol.is_empty() &&
+  symbol.length() <= 512 &&
+  !symbol.contains("\n") &&
+  !symbol.contains("\r")
+}
+
+///|
 fn parse_arguments(
   args : ArrayView[String],
 ) -> RuntimeBundleArguments raise Qwen3FusedRuntimeBundleExportError {
@@ -104,6 +114,14 @@ fn parse_arguments(
     prefill_block_x,
     prefill_shared,
     prefill_module,
+    prefill_wide_operation,
+    prefill_wide_grid_x,
+    prefill_wide_grid_y,
+    prefill_wide_grid_z,
+    prefill_wide_block_x,
+    prefill_wide_shared,
+    prefill_wide_symbol,
+    prefill_wide_module,
     prefill_partial_operation,
     prefill_partial_grid_x,
     prefill_partial_grid_y,
@@ -152,6 +170,14 @@ fn parse_arguments(
       prefill_block_x,
       prefill_shared,
       prefill_module,
+      prefill_wide_operation,
+      prefill_wide_grid_x,
+      prefill_wide_grid_y,
+      prefill_wide_grid_z,
+      prefill_wide_block_x,
+      prefill_wide_shared,
+      prefill_wide_symbol,
+      prefill_wide_module,
       prefill_partial_operation,
       prefill_partial_grid_x,
       prefill_partial_grid_y,
@@ -180,7 +206,9 @@ fn parse_arguments(
         residual_grid_z, residual_block_x, residual_shared, residual_module, ingress_operation,
         ingress_grid_x, ingress_grid_y, ingress_grid_z, ingress_block_x, ingress_shared,
         ingress_module, prefill_operation, prefill_grid_x, prefill_grid_y, prefill_grid_z,
-        prefill_block_x, prefill_shared, prefill_module, prefill_partial_operation,
+        prefill_block_x, prefill_shared, prefill_module, prefill_wide_operation,
+        prefill_wide_grid_x, prefill_wide_grid_y, prefill_wide_grid_z, prefill_wide_block_x,
+        prefill_wide_shared, prefill_wide_symbol, prefill_wide_module, prefill_partial_operation,
         prefill_partial_grid_x, prefill_partial_grid_y, prefill_partial_grid_z, prefill_partial_block_x,
         prefill_partial_shared, prefill_partial_module, prefill_merge_operation,
         prefill_merge_grid_x, prefill_merge_grid_y, prefill_merge_grid_z, prefill_merge_block_x,
@@ -195,6 +223,8 @@ fn parse_arguments(
     !safe_absolute_file(residual_module) ||
     !safe_absolute_file(ingress_module) ||
     !safe_absolute_file(prefill_module) ||
+    !safe_absolute_file(prefill_wide_module) ||
+    !safe_function_symbol(prefill_wide_symbol) ||
     !safe_absolute_file(prefill_partial_module) ||
     !safe_absolute_file(prefill_merge_module) ||
     !safe_absolute_file(attention_module) ||
@@ -237,6 +267,15 @@ fn parse_arguments(
     shared_memory_bytes: non_negative_int(prefill_shared),
     module_path: prefill_module,
   }
+  let attention_prefill_wide : ModuleLaunchInput = {
+    first_operation: non_negative_int(prefill_wide_operation),
+    grid_x: positive_int(prefill_wide_grid_x),
+    grid_y: positive_int(prefill_wide_grid_y),
+    grid_z: positive_int(prefill_wide_grid_z),
+    block_x: positive_int(prefill_wide_block_x),
+    shared_memory_bytes: non_negative_int(prefill_wide_shared),
+    module_path: prefill_wide_module,
+  }
   let attention_prefill_merge : ModuleLaunchInput = {
     first_operation: non_negative_int(prefill_merge_operation),
     grid_x: positive_int(prefill_merge_grid_x),
@@ -259,6 +298,7 @@ fn parse_arguments(
     raise InvalidArguments
   }
   if attention_prefill.first_operation != attention_read.first_operation ||
+    attention_prefill_wide.first_operation != attention_read.first_operation ||
     attention_prefill_partial.first_operation != attention_read.first_operation ||
     attention_prefill_merge.first_operation != attention_read.first_operation {
     raise InvalidArguments
@@ -269,6 +309,8 @@ fn parse_arguments(
     residual,
     ingress,
     attention_prefill,
+    attention_prefill_wide,
+    attention_prefill_wide_symbol: prefill_wide_symbol,
     attention_prefill_partial,
     attention_prefill_merge,
     attention_read,
@@ -312,6 +354,9 @@ async fn run(
   let residual_bytes = read_module(args.residual.module_path)
   let ingress_bytes = read_module(args.ingress.module_path)
   let attention_prefill_bytes = read_module(args.attention_prefill.module_path)
+  let attention_prefill_wide_bytes = read_module(
+    args.attention_prefill_wide.module_path,
+  )
   let attention_prefill_partial_bytes = read_module(
     args.attention_prefill_partial.module_path,
   )
@@ -361,6 +406,18 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_tile_compiler_v1",
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
+    ) catch {
+      _ => raise InvalidRuntime
+    },
+  )
+  modules.push(
+    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+      abi=QwenPagedAttentionPrefillWideQueryProductionV5,
+      first_operation=args.attention_prefill_wide.first_operation,
+      operation_count=1,
+      function_symbol=args.attention_prefill_wide_symbol,
+      launch=launch_dimensions(args.attention_prefill_wide),
+      module_bytes=attention_prefill_wide_bytes,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -418,7 +475,7 @@ async fn run(
   ) catch {
     _ => raise WriteFailed
   }
-  println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v4")
+  println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
   println(
     "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
   )
@@ -429,6 +486,10 @@ async fn run(
   println(
     "ingress_module_sha256=" +
     @crypto.bytes_to_hex_string(@crypto.sha256(ingress_bytes)),
+  )
+  println(
+    "prefill_wide_module_sha256=" +
+    @crypto.bytes_to_hex_string(@crypto.sha256(attention_prefill_wide_bytes)),
   )
   println(
     "attention_module_sha256=" +

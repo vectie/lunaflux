@@ -193,6 +193,10 @@ validate_module prefill reusable-qwen-prefill-attention \
   lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-tile \
   model_operation_id function_symbol reusable-generic grid shared_memory_bytes
+validate_module prefill_wide reusable-qwen-prefill-wide-query-attention \
+  lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
+  paged-attention-prefill-wide-query-functional-tile \
+  model_operation_id function_symbol reusable-generic grid shared_memory_bytes
 validate_module prefill_partial reusable-qwen-prefill-partitioned-attention \
   lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-partitioned-tile \
@@ -273,6 +277,7 @@ attention_row=$(module_row attention)
 prefill_partial_row=$(module_row prefill_partial)
 prefill_merge_row=$(module_row prefill_merge)
 prefill_row=$(module_row prefill)
+prefill_wide_row=$(module_row prefill_wide)
 IFS=, read -r _ residual_operation residual_grid_x residual_grid_y \
   residual_grid_z residual_block_x residual_shared <<EOF
 $residual_row
@@ -289,6 +294,11 @@ IFS=, read -r _ prefill_operation prefill_grid_x prefill_grid_y \
   prefill_grid_z prefill_block_x prefill_shared <<EOF
 $prefill_row
 EOF
+IFS=, read -r _ prefill_wide_operation prefill_wide_grid_x \
+  prefill_wide_grid_y prefill_wide_grid_z prefill_wide_block_x \
+  prefill_wide_shared <<EOF
+$prefill_wide_row
+EOF
 IFS=, read -r _ prefill_partial_operation prefill_partial_grid_x \
   prefill_partial_grid_y prefill_partial_grid_z prefill_partial_block_x \
   prefill_partial_shared <<EOF
@@ -302,6 +312,7 @@ EOF
 [ "$split_operation" = "$attention_operation" ] ||
   lbf_fail 'decode split and readonly operation identities differ'
 [ "$prefill_operation" = "$attention_operation" ] &&
+  [ "$prefill_wide_operation" = "$attention_operation" ] &&
   [ "$prefill_partial_operation" = "$attention_operation" ] &&
   [ "$prefill_merge_operation" = "$attention_operation" ] ||
   lbf_fail 'partitioned prefill and readonly operation identities differ'
@@ -315,6 +326,12 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$prefill_operation" "$prefill_grid_x" "$prefill_grid_y" \
   "$prefill_grid_z" "$prefill_block_x" "$prefill_shared" \
   "$stage/prefill.cubin" \
+  "$prefill_wide_operation" "$prefill_wide_grid_x" \
+  "$prefill_wide_grid_y" "$prefill_wide_grid_z" \
+  "$prefill_wide_block_x" "$prefill_wide_shared" \
+  "$(lbf_recipe_value function_symbol \
+    "$candidate_output/reusable-qwen-prefill-wide-query-attention/kernel.recipe")" \
+  "$stage/prefill_wide.cubin" \
   "$prefill_partial_operation" "$prefill_partial_grid_x" \
   "$prefill_partial_grid_y" "$prefill_partial_grid_z" \
   "$prefill_partial_block_x" "$prefill_partial_shared" \
@@ -331,7 +348,7 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
 [ ! -s "$scratch/export.stderr" ] ||
   lbf_fail 'reusable fused runtime bundle exporter emitted stderr'
 
-for module in residual ingress prefill prefill_partial prefill_merge attention; do
+for module in residual ingress prefill prefill_wide prefill_partial prefill_merge attention; do
   printf '%s  %s.cubin\n' "$(lbf_sha256_file "$stage/$module.cubin")" "$module"
 done >"$stage/FILES.sha256"
 printf '%s  reusable-fused-runtime-bundle.v3\n' \
@@ -347,5 +364,5 @@ printf '%s\n' 'schema=lunaflux-qwen3-reusable-fused-runtime-build.v1'
 printf 'runtime=%s/reusable-fused-runtime-bundle.v3\n' "$output"
 printf 'runtime_sha256=%s\n' \
   "$(lbf_sha256_file "$output/reusable-fused-runtime-bundle.v3")"
-printf '%s\n' 'compiler_invocations=14'
+printf '%s\n' 'compiler_invocations=16'
 printf '%s\n' 'device_opened=0'
