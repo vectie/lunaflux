@@ -73,6 +73,7 @@ fn qwen_fused_test_runtime(
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
   partitioned_prefill? : Bool = false,
+  partitioned_prefill_grid_x? : Int = -1,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -188,6 +189,18 @@ fn qwen_fused_test_runtime(
   }
   if partitioned_prefill {
     let shared_module = b"qwen-partitioned-prefill-module"
+    let maximum_prefill_grid = blueprint.profile().max_query_rows() +
+      (
+        blueprint.profile().max_query_tokens() -
+        blueprint.profile().max_query_rows() +
+        15
+      ) /
+      16
+    let prefill_grid = if partitioned_prefill_grid_x > 0 {
+      partitioned_prefill_grid_x
+    } else {
+      maximum_prefill_grid
+    }
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
@@ -195,13 +208,7 @@ fn qwen_fused_test_runtime(
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
         launch=@launch_contract.AotLaunchDimensions::new(
-          grid_x=blueprint.profile().max_query_rows() +
-            (
-              blueprint.profile().max_query_tokens() -
-              blueprint.profile().max_query_rows() +
-              15
-            ) /
-            16,
+          grid_x=prefill_grid,
           grid_y=16,
           grid_z=2,
           block_x=256,
@@ -219,13 +226,7 @@ fn qwen_fused_test_runtime(
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
         launch=@launch_contract.AotLaunchDimensions::new(
-          grid_x=blueprint.profile().max_query_rows() +
-            (
-              blueprint.profile().max_query_tokens() -
-              blueprint.profile().max_query_rows() +
-              15
-            ) /
-            16,
+          grid_x=prefill_grid,
           grid_y=16,
           grid_z=1,
           block_x=256,
@@ -476,6 +477,31 @@ test "Qwen runtime admits compiler partition-map fold merge prefill" {
     qwen_partitioned_prefill_minimum_context_tokens(blueprint, spans),
     2 * 16 * blueprint.layout().tokens_per_page(),
   )
+}
+
+///|
+test "Qwen runtime admits low-parallelism partition grid specialization" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    full_ingress=true,
+    partitioned_prefill=true,
+    partitioned_prefill_grid_x=2,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  guard spans[0].partitioned_prefill() is Some(pipeline) else {
+    fail("specialized partitioned Qwen prefill missing")
+  }
+  assert_eq(pipeline.partial_launch.grid_x(), 2)
+  assert_eq(pipeline.merge_launch.grid_x(), 2)
 }
 
 ///|

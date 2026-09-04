@@ -299,7 +299,8 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         merge.operation_span() != (seed_attention, 1) ||
         partial.module_digest() != merge.module_digest() ||
         partial.module_bytes() != merge.module_bytes() ||
-        partial_launch.grid_x() != compiler_prefill_grid ||
+        partial_launch.grid_x() <= 0 ||
+        partial_launch.grid_x() > compiler_prefill_grid ||
         partial_launch.grid_y() != query_heads ||
         partial_launch.grid_z() <= 1 ||
         partial_launch.block_x() != 256 ||

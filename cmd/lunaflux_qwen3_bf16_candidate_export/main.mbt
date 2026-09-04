@@ -155,11 +155,44 @@ priv struct QwenFusedProductionSet {
 }
 
 ///|
+fn qwen_partitioned_prefill_problem(
+  maximum_problem : @luna_attention_strategy.AttentionCompileProblem,
+  query_tile : Int,
+) -> @luna_attention_strategy.AttentionCompileProblem raise Qwen3Bf16CandidateExportCliError {
+  let (_, context_tokens) = maximum_problem.dimensions()
+  if maximum_problem.phase() != Prefill || query_tile <= 0 {
+    raise QwenReadOnlyPreparation
+  }
+  @luna_attention_strategy.AttentionCompileProblem::new(
+    shape=maximum_problem.shape(),
+    phase=maximum_problem.phase(),
+    numeric_type=maximum_problem.numeric_type(),
+    batch_rows=maximum_problem.batch_rows(),
+    query_rows=query_tile,
+    context_tokens~,
+    causal=maximum_problem.is_causal(),
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+}
+
+///|
 fn prepare_qwen_compiler_partitioned_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
-  let problem = baseline.functional().plan().problem()
+  let maximum_problem = baseline.functional().plan().problem()
+  let (query_tile, _, _) = baseline
+    .functional()
+    .plan()
+    .candidate()
+    .tile()
+    .dimensions()
+  // Partitioning is a specialization for the low-query-parallelism bucket,
+  // not for the maximum ragged launch envelope. The generated kernel remains
+  // grid-stride and therefore covers larger envelopes, while the functional
+  // optimizer sees exactly one live query tile and can expose KV parallelism.
+  let problem = qwen_partitioned_prefill_problem(maximum_problem, query_tile)
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,
     max_threads_per_block=256,
