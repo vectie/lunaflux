@@ -26,6 +26,18 @@ pub struct CudaAttentionTileAotCompilation {
 } derive(Debug, Eq)
 
 ///|
+/// CUDA lowering of a backend-neutral functional Pareto frontier. Each
+/// variant has a distinct stable symbol and can be assigned to an execution
+/// graph bucket without runtime compilation.
+pub struct CudaAttentionTileAotFrontier {
+  priv functional : @luna_attention_tile_compiler.AttentionTileCompilationFrontier
+  priv selected : CudaAttentionTileAotCompilation
+  priv variants : ReadOnlyArray[CudaAttentionTileAotCompilation]
+  priv canonical : Bytes
+  priv digest : CudaAttentionTileAotDigest
+} derive(Debug, Eq)
+
+///|
 pub struct CudaPartitionedAttentionTileAotRequest {
   priv backend : @luna_attention_strategy.AttentionBackendId
   priv target_id : @luna_attention_strategy.AttentionTargetId

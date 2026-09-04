@@ -34,6 +34,41 @@ pub fn CudaAttentionTileAotCompilation::digest(
 }
 
 ///|
+pub fn CudaAttentionTileAotFrontier::functional(
+  self : CudaAttentionTileAotFrontier,
+) -> @luna_attention_tile_compiler.AttentionTileCompilationFrontier {
+  self.functional
+}
+
+///|
+pub fn CudaAttentionTileAotFrontier::selected(
+  self : CudaAttentionTileAotFrontier,
+) -> CudaAttentionTileAotCompilation {
+  self.selected
+}
+
+///|
+pub fn CudaAttentionTileAotFrontier::variants(
+  self : CudaAttentionTileAotFrontier,
+) -> ReadOnlyArray[CudaAttentionTileAotCompilation] {
+  self.variants
+}
+
+///|
+pub fn CudaAttentionTileAotFrontier::canonical_bytes(
+  self : CudaAttentionTileAotFrontier,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn CudaAttentionTileAotFrontier::digest(
+  self : CudaAttentionTileAotFrontier,
+) -> CudaAttentionTileAotDigest {
+  self.digest
+}
+
+///|
 pub fn CudaAttentionTileAotDigest::as_hex(
   self : CudaAttentionTileAotDigest,
 ) -> String {
