@@ -7,6 +7,16 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+Reuse and ingress-elision decisions are derived by pure use-def analysis over
+the topological value graph, not just by inspecting the semantic-family tag.
+A reverse demand fold treats output stores and KV commits as observable roots;
+dead sibling computations do not manufacture reuse opportunities. Ingress
+round-trip elimination requires exclusive live use of each projected,
+normalized, and positioned intermediate. Scheduling consumes the resulting
+rewrite decisions rather than reconstructing them from family labels.
+This is a dataflow foundation, not yet general graph-rewriting CSE/DCE or a
+complete effect/alias system. It does not change floating-point evaluation order.
+
 Gated MLP is represented as a pure value graph rather than an opaque kernel:
 two sibling dot products consume one input value, SiLU gating produces one
 intermediate value, and the down-projection fold consumes that intermediate.

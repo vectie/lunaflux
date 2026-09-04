@@ -248,13 +248,14 @@ pub fn optimize_projection_tile(
   semantic : SemanticProjectionTileCompilation,
 ) -> OptimizedProjectionTileCompilation {
   let selected = semantic.program.demand == QueryRowEnds
-  let gated_mlp = semantic.program.shape.family() == GatedMlp
-  // Input reuse is a semantic common-subexpression elimination only when the
+  let facts = projection_dataflow_facts(semantic.program)
+  let gated_mlp = facts.gated_intermediate
+  // Input reuse is a semantic sharing opportunity only when the
   // functional graph has multiple consumers of the same input value. A lone
   // projection has one Dot consumer; staging its input across output tiles is
   // a backend scheduling candidate whose synchronization cost must be proven,
   // not an unconditional functional rewrite.
-  let shared_input_value = gated_mlp
+  let shared_input_value = facts.shared_dot_input
   let trace = [
     { rule: PruneUnobservedTokenRows, changed: selected },
     { rule: HoistSelectedInputTile, changed: selected },
@@ -262,8 +263,8 @@ pub fn optimize_projection_tile(
     { rule: FuseSiblingInputTraversals, changed: gated_mlp },
     { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp },
   ]
-  let fused_attention_ingress = semantic.program.epilogue
-    is ProjectionAttentionIngress(_)
+  let fused_attention_ingress = facts.exclusive_attention_ingress &&
+    semantic.program.epilogue is ProjectionAttentionIngress(_)
   if fused_attention_ingress {
     trace.push({ rule: FuseAttentionIngressEpilogue, changed: true })
     trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true })
@@ -313,9 +314,10 @@ fn projection_schedule_canonical(
   }
   builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
   builder <+
-    "reuse_intermediate_tile=\{optimized.semantic.program.shape.family() == GatedMlp}\n"
-  let rotary_optimized = optimized.semantic.program.epilogue
-    is ProjectionAttentionIngress(_)
+    "reuse_intermediate_tile=\{optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles)}\n"
+  let rotary_optimized = optimized.optimization.applied(
+    FuseAttentionIngressEpilogue,
+  )
   builder <+ "hoist_rotary_inverse_frequencies=\{rotary_optimized}\n"
   builder <+ "fuse_rotary_pairs=\{rotary_optimized}\n"
   @utf8.encode(builder.to_string())
@@ -425,12 +427,16 @@ pub fn schedule_projection_tile(
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
     reuse_input_tile,
-    reuse_intermediate_tile: request.dispatch.shape().family() == GatedMlp,
-    fuse_attention_ingress_epilogue: request.epilogue
-    is ProjectionAttentionIngress(_),
-    hoist_rotary_inverse_frequencies: request.epilogue
-    is ProjectionAttentionIngress(_),
-    fuse_rotary_pairs: request.epilogue is ProjectionAttentionIngress(_),
+    reuse_intermediate_tile: optimized.optimization.applied(
+      ReuseIntermediateTileAcrossOutputTiles,
+    ),
+    fuse_attention_ingress_epilogue: optimized.optimization.applied(
+      FuseAttentionIngressEpilogue,
+    ),
+    hoist_rotary_inverse_frequencies: optimized.optimization.applied(
+      HoistRotaryInverseFrequencies,
+    ),
+    fuse_rotary_pairs: optimized.optimization.applied(FuseRotaryPairEvaluation),
     canonical,
     digest: ProjectionTileScheduleDigest(projection_tile_sha256(canonical)),
   }
