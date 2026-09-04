@@ -134,3 +134,48 @@ test "partitioned compiler path materializes optimizer reduction topology" {
   )
   assert_false(first.digest() == compile_attention_tile(request).digest())
 }
+
+///|
+test "partitioned compiler exposes a pure parallelism frontier" {
+  let request = functional_compiler_request([], query_rows=64)
+  let frontier = compile_partitioned_attention_tile_frontier(request, [
+    32, 64, 128,
+  ])
+  assert_eq(frontier.variants().length(), 3)
+  assert_eq(frontier.variants()[0].parallel_workgroup_target(), 32)
+  assert_eq(
+    frontier.variants()[0].compilation().schedule().key_value_partitions(),
+    2,
+  )
+  assert_eq(frontier.variants()[1].parallel_workgroup_target(), 64)
+  assert_eq(
+    frontier.variants()[1].compilation().schedule().key_value_partitions(),
+    4,
+  )
+  assert_eq(frontier.variants()[2].parallel_workgroup_target(), 128)
+  assert_eq(
+    frontier.variants()[2].compilation().schedule().key_value_partitions(),
+    8,
+  )
+  assert_eq(frontier.digest().as_hex().length(), 64)
+  assert_true(frontier.canonical_bytes().length() > 0)
+  assert_eq(
+    frontier,
+    compile_partitioned_attention_tile_frontier(request, [32, 64, 128]),
+  )
+}
+
+///|
+test "partitioned compiler rejects unordered resource frontiers" {
+  try
+    compile_partitioned_attention_tile_frontier(
+      functional_compiler_request([], query_rows=64),
+      [64, 32],
+    )
+  catch {
+    InvalidAttentionTileCompilation(ResourceFeedback) => ()
+    _ => fail("unexpected partition frontier rejection")
+  } noraise {
+    _ => fail("unordered partition frontier was accepted")
+  }
+}

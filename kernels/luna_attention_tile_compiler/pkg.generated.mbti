@@ -16,6 +16,8 @@ pub fn compile_attention_tile_frontier(AttentionTileCompilerRequest) -> Attentio
 
 pub fn compile_partitioned_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
 
+pub fn compile_partitioned_attention_tile_frontier(AttentionTileCompilerRequest, ArrayView[Int]) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError
+
 pub fn elaborate_attention_tile(SelectedAttentionTileCompilation) -> SemanticAttentionTileCompilation raise AttentionTileCompilerError
 
 pub fn optimize_attention_tile(SemanticAttentionTileCompilation) -> OptimizedAttentionTileCompilation raise AttentionTileCompilerError
@@ -32,6 +34,19 @@ pub(all) suberror AttentionTileCompilerError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionPartitionedTileCompilationFrontier {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionPartitionedTileCompilationFrontier::canonical_bytes(Self) -> Bytes
+pub fn AttentionPartitionedTileCompilationFrontier::digest(Self) -> AttentionTileCompilationDigest
+pub fn AttentionPartitionedTileCompilationFrontier::variants(Self) -> ReadOnlyArray[AttentionPartitionedTileCompilationVariant]
+
+pub struct AttentionPartitionedTileCompilationVariant {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionPartitionedTileCompilationVariant::compilation(Self) -> ScheduledAttentionTileCompilation
+pub fn AttentionPartitionedTileCompilationVariant::parallel_workgroup_target(Self) -> Int
+
 pub struct AttentionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileCompilationDigest::as_hex(Self) -> String
 

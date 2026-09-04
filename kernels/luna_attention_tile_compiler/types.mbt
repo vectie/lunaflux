@@ -55,6 +55,25 @@ pub struct AttentionTileCompilationFrontier {
 } derive(Debug, Eq)
 
 ///|
+/// One immutable schedule variant in a partition-parallelism frontier.
+/// `parallel_workgroup_target` is the portable resource-model input; the
+/// resulting partition count is carried by the compiled schedule itself.
+pub struct AttentionPartitionedTileCompilationVariant {
+  priv parallel_workgroup_target : Int
+  priv compilation : ScheduledAttentionTileCompilation
+} derive(Debug, Eq)
+
+///|
+/// A deterministic family of distinct partitioned online-softmax schedules.
+/// It contains no measured winner: offline autotune or an execution-graph
+/// bucket policy chooses among these immutable values before token execution.
+pub struct AttentionPartitionedTileCompilationFrontier {
+  priv variants : ReadOnlyArray[AttentionPartitionedTileCompilationVariant]
+  priv canonical : Bytes
+  priv digest : AttentionTileCompilationDigest
+} derive(Debug, Eq)
+
+///|
 pub(all) enum AttentionTileCompilerRule {
   StrategySelection
   SemanticElaboration

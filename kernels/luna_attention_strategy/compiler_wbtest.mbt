@@ -174,6 +174,16 @@ test "attention static cost scales linearly with continuous batch rows" {
 }
 
 ///|
+test "attention capabilities derive immutable parallelism variants" {
+  let base = compiler_test_capabilities()
+  let wider = base.with_parallel_workgroup_target(128)
+  assert_eq(base.parallel_workgroup_target(), 32)
+  assert_eq(wider.parallel_workgroup_target(), 128)
+  assert_eq(base.limits(), wider.limits())
+  assert_eq(base.matrix_shape(), wider.matrix_shape())
+}
+
+///|
 test "attention autotune overrides the cost model without leaking device names" {
   let backend = AttentionBackendId::new("portable")
   let target = AttentionTargetId::new("device-a")

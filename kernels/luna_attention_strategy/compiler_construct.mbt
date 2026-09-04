@@ -45,6 +45,25 @@ pub fn AttentionCompilerCapabilities::new(
 }
 
 ///|
+/// Returns a new portable capability value with a different scheduling
+/// parallelism objective. Offline frontier construction uses this instead of
+/// mutating compiler state or introducing backend names into the optimizer.
+pub fn AttentionCompilerCapabilities::with_parallel_workgroup_target(
+  self : AttentionCompilerCapabilities,
+  parallel_workgroup_target : Int,
+) -> AttentionCompilerCapabilities raise AttentionStrategyError {
+  AttentionCompilerCapabilities::new(
+    subgroup_width=self.subgroup_width,
+    max_threads_per_block=self.max_threads_per_block,
+    max_shared_memory_bytes=self.max_shared_memory_bytes,
+    max_pipeline_stages=self.max_pipeline_stages,
+    supports_async_copy=self.supports_async_copy,
+    parallel_workgroup_target~,
+    matrix_shape=self.matrix_shape,
+  )
+}
+
+///|
 pub fn AttentionCompileProblem::new(
   shape~ : AttentionShape,
   phase~ : AttentionExecutionPhase,

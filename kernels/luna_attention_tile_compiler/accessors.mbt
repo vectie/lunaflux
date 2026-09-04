@@ -118,6 +118,41 @@ pub fn AttentionTileCompilationFrontier::digest(
 }
 
 ///|
+pub fn AttentionPartitionedTileCompilationVariant::parallel_workgroup_target(
+  self : AttentionPartitionedTileCompilationVariant,
+) -> Int {
+  self.parallel_workgroup_target
+}
+
+///|
+pub fn AttentionPartitionedTileCompilationVariant::compilation(
+  self : AttentionPartitionedTileCompilationVariant,
+) -> ScheduledAttentionTileCompilation {
+  self.compilation
+}
+
+///|
+pub fn AttentionPartitionedTileCompilationFrontier::variants(
+  self : AttentionPartitionedTileCompilationFrontier,
+) -> ReadOnlyArray[AttentionPartitionedTileCompilationVariant] {
+  self.variants
+}
+
+///|
+pub fn AttentionPartitionedTileCompilationFrontier::canonical_bytes(
+  self : AttentionPartitionedTileCompilationFrontier,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn AttentionPartitionedTileCompilationFrontier::digest(
+  self : AttentionPartitionedTileCompilationFrontier,
+) -> AttentionTileCompilationDigest {
+  self.digest
+}
+
+///|
 pub fn AttentionTileCompilationDigest::as_hex(
   self : AttentionTileCompilationDigest,
 ) -> String {

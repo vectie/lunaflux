@@ -70,6 +70,7 @@ pub fn AttentionCompilerCapabilities::new(subgroup_width~ : Int, max_threads_per
 pub fn AttentionCompilerCapabilities::parallel_workgroup_target(Self) -> Int
 pub fn AttentionCompilerCapabilities::subgroup_width(Self) -> Int
 pub fn AttentionCompilerCapabilities::supports_async_copy(Self) -> Bool
+pub fn AttentionCompilerCapabilities::with_parallel_workgroup_target(Self, Int) -> Self raise AttentionStrategyError
 
 pub struct AttentionDecodeWorkspacePlan {
   // private fields

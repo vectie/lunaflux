@@ -119,6 +119,66 @@ pub fn compile_partitioned_attention_tile(
 }
 
 ///|
+/// Compiles distinct partitioned schedules for an ordered sequence of
+/// portable workgroup objectives. Targets must be strictly increasing so the
+/// result and digest are independent of map iteration or caller sorting.
+/// Equivalent partition counts collapse to their first (smallest) target.
+pub fn compile_partitioned_attention_tile_frontier(
+  request : AttentionTileCompilerRequest,
+  parallel_workgroup_targets : ArrayView[Int],
+) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError {
+  if parallel_workgroup_targets.length() == 0 ||
+    parallel_workgroup_targets.length() > 16 {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
+  let variants : Array[AttentionPartitionedTileCompilationVariant] = []
+  let mut previous_target = 0
+  let mut previous_partitions = 0
+  for target in parallel_workgroup_targets {
+    if target <= previous_target {
+      raise InvalidAttentionTileCompilation(ResourceFeedback)
+    }
+    let capabilities = request.capabilities.with_parallel_workgroup_target(
+      target,
+    ) catch {
+      _ => raise InvalidAttentionTileCompilation(ResourceFeedback)
+    }
+    let variant_request = AttentionTileCompilerRequest::new(
+      backend=request.backend,
+      target=request.target,
+      problem=request.problem,
+      capabilities~,
+      request.autotune_records,
+    )
+    let compilation = compile_partitioned_attention_tile(variant_request)
+    let partitions = compilation.schedule().key_value_partitions()
+    if partitions != previous_partitions {
+      variants.push({ parallel_workgroup_target: target, compilation })
+      previous_partitions = partitions
+    }
+    previous_target = target
+  }
+  if variants.length() == 0 {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
+  let builder = StringBuilder()
+  builder <+ "luna-attention-partitioned-frontier-v1\n"
+  builder <+ "variants=\{variants.length()}\n"
+  for variant in variants {
+    builder <+
+      "variant=\{variant.parallel_workgroup_target},\{variant.compilation.schedule().key_value_partitions()},\{variant.compilation.digest().as_hex()}\n"
+  }
+  let canonical = @utf8.encode(builder.to_string())
+  {
+    variants: ReadOnlyArray::from_array(variants),
+    canonical,
+    digest: AttentionTileCompilationDigest(
+      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+    ),
+  }
+}
+
+///|
 /// Conservative post-rewrite throughput score. The compiler only credits the
 /// first shared-memory occupancy knee: proving two resident workgroups is
 /// useful on every parallel backend, while claiming higher residency would
