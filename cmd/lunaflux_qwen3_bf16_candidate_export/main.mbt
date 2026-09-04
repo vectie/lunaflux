@@ -147,7 +147,7 @@ priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   full_ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
-  attention_prefill : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+  attention_prefill_frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier
   attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
@@ -236,7 +236,7 @@ fn prepare_qwen_compiler_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   qkv_index : Int,
   attention_index : Int,
-) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
+) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&
     plan.operations()[attention_index].shape()
@@ -292,7 +292,7 @@ fn prepare_qwen_compiler_prefill(
   // release artifact. Until a new exact-shape physical autotune table is
   // supplied, use the pure static model instead of inventing an observation.
   let records : Array[@luna_attention_strategy.AttentionAutotuneRecord] = []
-  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot(
+  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
     @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
       backend~,
       target_id=target,
@@ -407,12 +407,22 @@ fn qwen_compiler_attention_recipe(
   family : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   compiled : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
+  frontier_sha256? : String,
+  variant_stable_id? : Int,
 ) -> Bytes {
   let compiler = set.compiler_policy()
   let identity = compiler.identity()
   let source = compiled.source()
   let lowering = compiled.lowering()
   let (grid_x, grid_y, block_x, shared) = lowering.launch()
+  let frontier_record = match (frontier_sha256, variant_stable_id) {
+    (Some(frontier), Some(stable_id)) =>
+      "\nfrontier_sha256=" +
+      frontier +
+      "\nvariant_stable_id=" +
+      stable_id.to_string()
+    _ => ""
+  }
   @utf8.encode(
     "schema=lunaflux-attention-tile-compiler-cuda-aot-candidate.v1\n" +
     "family=" +
@@ -445,6 +455,7 @@ fn qwen_compiler_attention_recipe(
     compiled.functional().digest().as_hex() +
     "\nlowering_sha256=" +
     lowering.digest().as_hex() +
+    frontier_record +
     "\n",
   )
 }
@@ -758,7 +769,7 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenDecodeSplitPreparation
     }
-    let attention_prefill = prepare_qwen_compiler_prefill(
+    let attention_prefill_frontier = prepare_qwen_compiler_prefill(
       plan,
       layout,
       set,
@@ -766,7 +777,8 @@ fn prepare_qwen_fused_production_set(
       index + 3,
     )
     let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(
-      set, attention_prefill,
+      set,
+      attention_prefill_frontier.selected(),
     )
     let attention_decode = prepare_qwen_compiler_decode(
       plan,
@@ -779,7 +791,7 @@ fn prepare_qwen_fused_production_set(
       first_operation: index,
       postprocess,
       full_ingress,
-      attention_prefill,
+      attention_prefill_frontier,
       attention_prefill_partitioned,
       attention_decode,
       attention_read,
@@ -917,16 +929,41 @@ async fn run_qwen3_candidate_export(
   )
   let prefill_root = arguments.absolute_new_output +
     "/reusable-qwen-prefill-attention"
+  let selected_prefill = qwen_fused.attention_prefill_frontier.selected()
   write_new_candidate_pair(
     prefill_root,
-    qwen_fused.attention_prefill.source().bytes(),
+    selected_prefill.source().bytes(),
     qwen_compiler_attention_recipe(
       qwen_fused.first_operation + 3,
       "paged-attention-prefill-functional-tile",
       set,
-      qwen_fused.attention_prefill,
+      selected_prefill,
+      frontier_sha256=qwen_fused.attention_prefill_frontier.digest().as_hex(),
+      variant_stable_id=selected_prefill
+        .functional()
+        .plan()
+        .candidate()
+        .stable_id(),
     ),
   )
+  for variant in qwen_fused.attention_prefill_frontier.variants() {
+    let stable_id = variant.functional().plan().candidate().stable_id()
+    let variant_root = arguments.absolute_new_output +
+      "/reusable-qwen-prefill-attention-c" +
+      stable_id.to_string()
+    write_new_candidate_pair(
+      variant_root,
+      variant.source().bytes(),
+      qwen_compiler_attention_recipe(
+        qwen_fused.first_operation + 3,
+        "paged-attention-prefill-functional-tile-frontier",
+        set,
+        variant,
+        frontier_sha256=qwen_fused.attention_prefill_frontier.digest().as_hex(),
+        variant_stable_id=stable_id,
+      ),
+    )
+  }
   let decode_root = arguments.absolute_new_output +
     "/reusable-qwen-decode-attention"
   write_new_candidate_pair(
@@ -1048,9 +1085,28 @@ async fn run_qwen3_candidate_export(
   println("reusable_qwen_prefill_recipe=" + prefill_root + "/kernel.recipe")
   println(
     "reusable_qwen_prefill_compilation_sha256=" +
-    qwen_fused.attention_prefill.digest().as_hex(),
+    selected_prefill.digest().as_hex(),
   )
-  let (prefill_grid_x, prefill_grid_y, prefill_block_x, prefill_shared) = qwen_fused.attention_prefill
+  println(
+    "reusable_qwen_prefill_frontier_sha256=" +
+    qwen_fused.attention_prefill_frontier.digest().as_hex(),
+  )
+  println(
+    "reusable_qwen_prefill_frontier_variants=" +
+    qwen_fused.attention_prefill_frontier.variants().length().to_string(),
+  )
+  for variant in qwen_fused.attention_prefill_frontier.variants() {
+    let stable_id = variant.functional().plan().candidate().stable_id()
+    println(
+      "reusable_qwen_prefill_variant=" +
+      stable_id.to_string() +
+      "," +
+      variant.source().symbol().to_owned() +
+      "," +
+      variant.digest().as_hex(),
+    )
+  }
+  let (prefill_grid_x, prefill_grid_y, prefill_block_x, prefill_shared) = selected_prefill
     .lowering()
     .launch()
   println(
