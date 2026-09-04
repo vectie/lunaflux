@@ -414,6 +414,10 @@ fn qwen_compiler_attention_recipe(
   let identity = compiler.identity()
   let source = compiled.source()
   let lowering = compiled.lowering()
+  let candidate = compiled.functional().plan().candidate()
+  let (query_tile_rows, key_value_tile_rows, head_columns) = candidate
+    .tile()
+    .dimensions()
   let (grid_x, grid_y, block_x, shared) = lowering.launch()
   let frontier_record = match (frontier_sha256, variant_stable_id) {
     (Some(frontier), Some(stable_id)) =>
@@ -455,9 +459,42 @@ fn qwen_compiler_attention_recipe(
     compiled.functional().digest().as_hex() +
     "\nlowering_sha256=" +
     lowering.digest().as_hex() +
+    "\ncandidate_stable_id=" +
+    candidate.stable_id().to_string() +
+    "\nquery_tile_rows=" +
+    query_tile_rows.to_string() +
+    "\nkey_value_tile_rows=" +
+    key_value_tile_rows.to_string() +
+    "\nhead_columns=" +
+    head_columns.to_string() +
     frontier_record +
     "\n",
   )
+}
+
+///|
+/// Chooses the widest non-selected query tile from the immutable frontier.
+/// This assigns a portable semantic role; a runtime bucket policy may use or
+/// ignore it without inspecting CUDA properties on the request path.
+fn qwen_wide_query_prefill_variant(
+  frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier,
+) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? {
+  let selected = frontier.selected()
+  let mut widest : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? = None
+  let mut widest_rows = 0
+  for variant in frontier.variants() {
+    let (query_rows, _, _) = variant
+      .functional()
+      .plan()
+      .candidate()
+      .tile()
+      .dimensions()
+    if variant != selected && query_rows > widest_rows {
+      widest = Some(variant)
+      widest_rows = query_rows
+    }
+  }
+  widest
 }
 
 ///|
@@ -964,6 +1001,29 @@ async fn run_qwen3_candidate_export(
       ),
     )
   }
+  let wide_prefill = qwen_wide_query_prefill_variant(
+    qwen_fused.attention_prefill_frontier,
+  )
+  let wide_prefill_root = arguments.absolute_new_output +
+    "/reusable-qwen-prefill-wide-query-attention"
+  match wide_prefill {
+    Some(variant) =>
+      write_new_candidate_pair(
+        wide_prefill_root,
+        variant.source().bytes(),
+        qwen_compiler_attention_recipe(
+          qwen_fused.first_operation + 3,
+          "paged-attention-prefill-wide-query-functional-tile",
+          set,
+          variant,
+          frontier_sha256=qwen_fused.attention_prefill_frontier
+            .digest()
+            .as_hex(),
+          variant_stable_id=variant.functional().plan().candidate().stable_id(),
+        ),
+      )
+    None => ()
+  }
   let decode_root = arguments.absolute_new_output +
     "/reusable-qwen-decode-attention"
   write_new_candidate_pair(
@@ -1105,6 +1165,31 @@ async fn run_qwen3_candidate_export(
       "," +
       variant.digest().as_hex(),
     )
+  }
+  match wide_prefill {
+    Some(variant) => {
+      let (query_rows, key_value_rows, _) = variant
+        .functional()
+        .plan()
+        .candidate()
+        .tile()
+        .dimensions()
+      println(
+        "reusable_qwen_prefill_wide_source=" + wide_prefill_root + "/kernel.cu",
+      )
+      println(
+        "reusable_qwen_prefill_wide_recipe=" +
+        wide_prefill_root +
+        "/kernel.recipe",
+      )
+      println(
+        "reusable_qwen_prefill_wide_tile=" +
+        query_rows.to_string() +
+        "," +
+        key_value_rows.to_string(),
+      )
+    }
+    None => println("reusable_qwen_prefill_wide_source=absent")
   }
   let (prefill_grid_x, prefill_grid_y, prefill_block_x, prefill_shared) = selected_prefill
     .lowering()
