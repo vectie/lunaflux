@@ -473,15 +473,25 @@ fn qwen_compiler_attention_recipe(
 }
 
 ///|
-/// Chooses the widest non-selected query tile from the immutable frontier.
-/// This assigns a portable semantic role; a runtime bucket policy may use or
-/// ignore it without inspecting CUDA properties on the request path.
+/// Chooses a query tile that is strictly wider than the selected tile. When
+/// the semantic problem cannot generate one, reuse the selected compilation:
+/// the bundle ABI stays stable while dispatch remains on a profile-valid
+/// kernel. A wider key/value tile is not a wider query tile.
 fn qwen_wide_query_prefill_variant(
   frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? {
   let selected = frontier.selected()
+  let (selected_query_rows, _, _) = selected
+    .functional()
+    .plan()
+    .candidate()
+    .tile()
+    .dimensions()
   let mut widest : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? = None
-  let mut widest_rows = 0
+  let mut widest_rows = selected_query_rows
+  let mut widest_shared = 9223372036854775807L
+  let mut widest_cost = 9223372036854775807L
+  let mut widest_stable_id = 2147483647
   for variant in frontier.variants() {
     let (query_rows, _, _) = variant
       .functional()
@@ -489,12 +499,37 @@ fn qwen_wide_query_prefill_variant(
       .candidate()
       .tile()
       .dimensions()
-    if variant != selected && query_rows > widest_rows {
+    let (_, _, _, shared) = variant.lowering().launch()
+    let cost = variant.functional().plan().static_cost()
+    let stable_id = variant.functional().plan().candidate().stable_id()
+    if variant != selected &&
+      query_rows > selected_query_rows &&
+      (
+        query_rows > widest_rows ||
+        (query_rows == widest_rows && shared < widest_shared) ||
+        (
+          query_rows == widest_rows &&
+          shared == widest_shared &&
+          cost < widest_cost
+        ) ||
+        (
+          query_rows == widest_rows &&
+          shared == widest_shared &&
+          cost == widest_cost &&
+          stable_id < widest_stable_id
+        )
+      ) {
       widest = Some(variant)
       widest_rows = query_rows
+      widest_shared = shared
+      widest_cost = cost
+      widest_stable_id = stable_id
     }
   }
-  widest
+  match widest {
+    Some(variant) => Some(variant)
+    None => Some(selected)
+  }
 }
 
 ///|
