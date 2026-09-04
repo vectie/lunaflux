@@ -133,6 +133,7 @@ pub struct FusedQkvRopeKvWriteProductionCudaCandidate {
 /// CUDA lowering of the backend-neutral Qwen attention-ingress fusion plan.
 /// All vendor decisions remain private to this backend package.
 pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
+  priv model_identity : @spec.ModelIdentity
   priv semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
   priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
   priv qkv_fallback : @luna_cuda_projection_aot.ProjectionCudaLowering

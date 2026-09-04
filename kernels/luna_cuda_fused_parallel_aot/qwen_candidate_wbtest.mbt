@@ -170,6 +170,10 @@ test "Qwen fused production companion removes the diagnostic canary" {
   assert_true(source.contains("q_norm_weight"))
   let recipe = @utf8.decode(production.recipe_bytes())
   assert_true(recipe.contains("diagnostic_canary=absent\n"))
+  assert_true(recipe.contains("model_content_sha256=" + "3".repeat(64) + "\n"))
+  assert_true(recipe.contains("model_plan_sha256="))
+  assert_eq(recipe.split("model_content_sha256=").length(), 2)
+  assert_eq(recipe.split("model_plan_sha256=").length(), 2)
   assert_true(
     recipe.contains(
       "release_binding=external-approval-and-production-physical-gate-required\n",

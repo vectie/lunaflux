@@ -203,6 +203,10 @@ fn qwen_fused_production_recipe(
     qualification.tile_compilation.schedule().digest().as_hex() +
     "\ntile_compilation_sha256=" +
     qualification.tile_compilation.digest().as_hex() +
+    "\nmodel_content_sha256=" +
+    qualification.model_identity.content().as_hex() +
+    "\nmodel_plan_sha256=" +
+    qualification.model_identity.plan().as_hex() +
     "\n" +
     "qkv_operation_id=" +
     qkv_index.to_string() +
@@ -365,6 +369,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   }
   let recipe_digest = fused_parallel_digest(recipe)
   {
+    model_identity: plan.identity(),
     semantic,
     tile_compilation,
     qkv_fallback,
