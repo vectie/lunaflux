@@ -5,6 +5,7 @@ fn projection_fixture_operation(
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
   capability : @plan.KernelCapabilityId,
+  runtime_inputs? : ArrayView[@plan.OperationRuntimeInput] = [StepCounts],
 ) -> @plan.PlanOperation raise {
   @plan.PlanOperation::new_with_runtime_inputs(
     id=@plan.OperationId::new(id),
@@ -14,7 +15,7 @@ fn projection_fixture_operation(
     shape~,
     required_capability=capability,
     workspace_bytes=0L,
-    runtime_inputs=[StepCounts],
+    runtime_inputs~,
   )
 }
 
@@ -102,6 +103,7 @@ fn projection_fixture_plan() -> @plan.ModelPlan raise {
       [Activation(@plan.ActivationRef::new(5)), Tensor(@plan.TensorRef::new(8))],
       ProjectionShape(input_width=4, output_width=16),
       @plan.KernelCapabilityId::dense_projection(),
+      runtime_inputs=[StepCounts, QueryRowOffsets],
     ),
   ]
   @plan.ModelPlan::new_with_kv_execution(

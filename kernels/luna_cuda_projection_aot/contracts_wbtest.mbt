@@ -146,6 +146,7 @@ fn projection_fixture_operands(
     6 =>
       [
         counts,
+        projection_fixture_operand(RuntimeInput(QueryRowOffsets), 12L, 4L),
         projection_fixture_operand(
           ActivationInput(@plan.ActivationRef::new(5)),
           32L,

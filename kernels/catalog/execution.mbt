@@ -167,6 +167,17 @@ fn paged_semantics_are_legal(
           })
         None => false
       }
+    LanguageModelHead =>
+      semantics.kv_layer is None &&
+      (
+        runtime_inputs_match(semantics.runtime_inputs, [StepCounts]) ||
+        runtime_inputs_match(semantics.runtime_inputs, [
+          StepCounts,
+          QueryRowOffsets,
+        ])
+      ) &&
+      semantics.persistent_state == NoPersistentState &&
+      semantics.kv_layout is None
     _ =>
       semantics.kv_layer is None &&
       runtime_inputs_match(semantics.runtime_inputs, [StepCounts]) &&

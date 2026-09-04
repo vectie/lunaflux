@@ -78,4 +78,7 @@ test "Qwen3 paged plan binds live inputs and semantic capability 11" {
   )
   let qk = model_plan.operations()[3]
   assert_eq(qk.runtime_inputs(), [StepCounts])
+  let head = model_plan.operations()[282]
+  assert_eq(head.kind(), LanguageModelHead)
+  assert_eq(head.runtime_inputs(), [StepCounts, QueryRowOffsets])
 }

@@ -100,6 +100,14 @@ fn valid_execution_contract(
         }
         None => false
       }
+    LanguageModelHead =>
+      operation.kv_layer() is None &&
+      (
+        operation.has_runtime_inputs([]) ||
+        operation.has_runtime_inputs([StepCounts]) ||
+        operation.has_runtime_inputs([StepCounts, QueryRowOffsets])
+      ) &&
+      operation.persistent_state() == NoPersistentState
     _ =>
       operation.kv_layer() is None &&
       (
@@ -278,6 +286,18 @@ fn validate_kv_execution_mode(
             }
           PagedKeyValue =>
             if !operation.uses_paged_kv() {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+        }
+      LanguageModelHead =>
+        match mode {
+          StatelessFullContext =>
+            if !operation.has_runtime_inputs([]) {
+              raise InvalidGraph(KvExecutionModeMismatch)
+            }
+          PagedKeyValue =>
+            if !operation.has_runtime_inputs([StepCounts]) &&
+              !operation.has_runtime_inputs([StepCounts, QueryRowOffsets]) {
               raise InvalidGraph(KvExecutionModeMismatch)
             }
         }

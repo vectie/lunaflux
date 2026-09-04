@@ -65,12 +65,17 @@ fn projection_tensor_core_dense_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  maximum_rows : Int,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
     symbol +
-    "(const int32_t *counts, const __nv_bfloat16 *input, " +
+    (if parameters.family == LanguageModelHead {
+      "(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *input, "
+    } else {
+      "(const int32_t *counts, const __nv_bfloat16 *input, "
+    }) +
     "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
@@ -105,8 +110,14 @@ fn projection_tensor_core_dense_source(
       ") return;\n"
     }) +
     (if parameters.family == LanguageModelHead {
+      "  const int row_count = counts[2];\n" +
+      "  if (row_count <= 0 || row_count > " +
+      maximum_rows.to_string() +
+      ") return;\n" +
       "  if (counts[2] == 1) {\n" +
-      "    const unsigned long long live_row = (unsigned long long)(token_count - 1);\n" +
+      "    const int selected_row = row_offsets[1] - 1;\n" +
+      "    if (selected_row < 0 || selected_row >= token_count) return;\n" +
+      "    const unsigned long long live_row = (unsigned long long)selected_row;\n" +
       "    const unsigned long long input_base = live_row * " +
       parameters.input_width.to_string() +
       "ULL;\n" +
@@ -133,7 +144,13 @@ fn projection_tensor_core_dense_source(
     }) +
     "  for (int row = " +
     (if parameters.family == LanguageModelHead { "0" } else { "row_begin" }) +
-    "; row < token_count; row += " +
+    "; row < " +
+    (if parameters.family == LanguageModelHead {
+      "row_count"
+    } else {
+      "token_count"
+    }) +
+    "; row += " +
     (if parameters.family == LanguageModelHead {
       "16"
     } else {
@@ -144,33 +161,75 @@ fn projection_tensor_core_dense_source(
     "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
     "  nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
     "  nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
+    (if parameters.family == LanguageModelHead {
+      "  extern __shared__ unsigned char projection_shared[];\n" +
+      "  float *tile_output = (float *)projection_shared;\n" +
+      "  __nv_bfloat16 *selected_input = (__nv_bfloat16 *)(tile_output + 2048);\n"
+    } else {
+      ""
+    }) +
     "  for (int inner = 0; inner < " +
     parameters.input_width.to_string() +
     "; inner += 16) {\n" +
-    "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
-    parameters.input_width.to_string() +
-    "ULL + inner, " +
-    parameters.input_width.to_string() +
-    ");\n" +
+    (if parameters.family == LanguageModelHead {
+      "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
+      "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
+      "      const int query_row = row + local_row;\n" +
+      "      const int token_row = query_row < row_count ? row_offsets[query_row + 1] - 1 : -1;\n" +
+      "      selected_input[element] = token_row >= 0 && token_row < token_count ? input[(unsigned long long)token_row * " +
+      parameters.input_width.to_string() +
+      "ULL + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
+      "    }\n" +
+      "    __syncthreads();\n" +
+      "    nvcuda::wmma::load_matrix_sync(a, selected_input, 16);\n"
+    } else {
+      "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
+      parameters.input_width.to_string() +
+      "ULL + inner, " +
+      parameters.input_width.to_string() +
+      ");\n"
+    }) +
     "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)column * " +
     parameters.input_width.to_string() +
     "ULL + inner, " +
     parameters.input_width.to_string() +
     ");\n" +
     "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
+    (if parameters.family == LanguageModelHead {
+      "    __syncthreads();\n"
+    } else {
+      ""
+    }) +
     "  }\n" +
-    "  extern __shared__ float tile_output[];\n" +
+    (if parameters.family == LanguageModelHead {
+      ""
+    } else {
+      "  extern __shared__ float tile_output[];\n"
+    }) +
     "  float *warp_output = tile_output + warp * 256;\n" +
     "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
     "  __syncwarp();\n" +
     "  for (int element = lane; element < 256; element += 32) {\n" +
     "    const int local_row = element >> 4;\n" +
     "    const int local_column = element & 15;\n" +
-    "    if (row + local_row < token_count && column + local_column < " +
+    "    if (row + local_row < " +
+    (if parameters.family == LanguageModelHead {
+      "row_count"
+    } else {
+      "token_count"
+    }) +
+    " && column + local_column < " +
     parameters.output_width.to_string() +
-    ") output[(unsigned long long)(row + local_row) * " +
+    ") " +
+    (if parameters.family == LanguageModelHead {
+      "{ const int token_row = row_offsets[row + local_row + 1] - 1; if (token_row >= 0 && token_row < token_count) output[(unsigned long long)token_row * "
+    } else {
+      "output[(unsigned long long)(row + local_row) * "
+    }) +
     parameters.output_width.to_string() +
-    "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);\n" +
+    "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);" +
+    (if parameters.family == LanguageModelHead { " }" } else { "" }) +
+    "\n" +
     "  }\n  }\n}\n",
   )
 }
@@ -274,25 +333,51 @@ fn projection_dense_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  maximum_rows : Int,
 ) -> Bytes {
   @utf8.encode(
     projection_cuda_prelude() +
     "extern \"C\" __global__ void " +
     symbol +
-    "(const int32_t *counts, const __nv_bfloat16 *input, " +
+    (if parameters.family == LanguageModelHead {
+      "(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *input, "
+    } else {
+      "(const int32_t *counts, const __nv_bfloat16 *input, "
+    }) +
     "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
     projection_count_guard(maximum_tokens) +
     "  const unsigned long long index = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
-    "  const unsigned long long live = (unsigned long long)token_count * " +
+    (if parameters.family == LanguageModelHead {
+      "  const int row_count = counts[2]; if (row_count <= 0 || row_count > " +
+      maximum_rows.to_string() +
+      ") return;\n"
+    } else {
+      ""
+    }) +
+    "  const unsigned long long live = (unsigned long long)" +
+    (if parameters.family == LanguageModelHead {
+      "row_count"
+    } else {
+      "token_count"
+    }) +
+    " * " +
     parameters.output_width.to_string() +
     "ULL;\n" +
     "  if (index >= live) return;\n" +
-    "  const unsigned long long row = index / " +
+    "  const unsigned long long " +
+    (if parameters.family == LanguageModelHead { "logical_row" } else { "row" }) +
+    " = index / " +
     parameters.output_width.to_string() +
     "ULL;\n" +
     "  const unsigned long long column = index % " +
     parameters.output_width.to_string() +
     "ULL;\n" +
+    (if parameters.family == LanguageModelHead {
+      "  const int selected_row = row_offsets[logical_row + 1] - 1; if (selected_row < 0 || selected_row >= token_count) return;\n" +
+      "  const unsigned long long row = (unsigned long long)selected_row;\n"
+    } else {
+      ""
+    }) +
     "  const unsigned long long input_base = row * " +
     parameters.input_width.to_string() +
     "ULL;\n" +

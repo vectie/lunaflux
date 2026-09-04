@@ -55,6 +55,7 @@ fn projection_bool_tag(value : Bool) -> String {
 fn projection_role_tag(role : @launch_contract.AotOperandRole) -> String {
   match role {
     RuntimeInput(StepCounts) => "runtime:step_counts"
+    RuntimeInput(QueryRowOffsets) => "runtime:query_row_offsets"
     RuntimeInput(_) => "runtime:unsupported"
     ExternalInput(TokenIds) => "external:token_ids"
     WeightInput(reference) => "weight:" + reference.as_int().to_string()

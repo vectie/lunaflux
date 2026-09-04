@@ -219,9 +219,16 @@ fn projection_matrix_bytes(
 
 ///|
 fn projection_exact_runtime_inputs(
+  family : ProjectionAotFamily,
   actual : ReadOnlyArray[@plan.OperationRuntimeInput],
 ) -> Bool {
-  actual.length() == 1 && actual[0] == StepCounts
+  if family == LanguageModelHead {
+    actual.length() == 2 &&
+    actual[0] == StepCounts &&
+    actual[1] == QueryRowOffsets
+  } else {
+    actual.length() == 1 && actual[0] == StepCounts
+  }
 }
 
 ///|
@@ -241,8 +248,7 @@ fn projection_common_operation(
   if operation.outputs().length() != 1 ||
     operation.workspace_bytes() != 0L ||
     operation.kv_layer() is Some(_) ||
-    operation.persistent_state() != NoPersistentState ||
-    !projection_exact_runtime_inputs(operation.runtime_inputs()) {
+    operation.persistent_state() != NoPersistentState {
     raise Mismatch(Operation)
   }
 }
@@ -256,6 +262,10 @@ fn projection_parameters(
     (QkvProjection, ProjectionShape(input_width~, output_width~)) => {
       if operation.required_capability() !=
         @plan.KernelCapabilityId::qkv_projection() ||
+        !projection_exact_runtime_inputs(
+          QkvProjection,
+          operation.runtime_inputs(),
+        ) ||
         operation.inputs().length() != 4 ||
         !projection_is_activation(operation.inputs()[0]) ||
         !projection_is_weight(operation.inputs()[1]) ||
@@ -280,6 +290,14 @@ fn projection_parameters(
     ) => {
       if operation.required_capability() !=
         @plan.KernelCapabilityId::dense_projection() ||
+        !projection_exact_runtime_inputs(
+          if operation.kind() == LanguageModelHead {
+            LanguageModelHead
+          } else {
+            DenseProjection
+          },
+          operation.runtime_inputs(),
+        ) ||
         operation.inputs().length() != 2 ||
         !projection_is_activation(operation.inputs()[0]) ||
         !projection_is_weight(operation.inputs()[1]) ||
@@ -302,6 +320,7 @@ fn projection_parameters(
     (GatedMlp, GatedMlpShape(hidden_size~, intermediate_size~)) => {
       if operation.required_capability() !=
         @plan.KernelCapabilityId::gated_mlp() ||
+        !projection_exact_runtime_inputs(GatedMlp, operation.runtime_inputs()) ||
         operation.inputs().length() != 4 ||
         !projection_is_activation(operation.inputs()[0]) ||
         !projection_is_weight(operation.inputs()[1]) ||
@@ -385,9 +404,10 @@ fn projection_roles(
   operation : @plan.PlanOperation,
   include_workspace : Bool,
 ) -> Array[@launch_contract.AotOperandRole] {
-  let roles : Array[@launch_contract.AotOperandRole] = [
-    RuntimeInput(StepCounts),
-  ]
+  let roles : Array[@launch_contract.AotOperandRole] = []
+  for input in operation.runtime_inputs() {
+    roles.push(RuntimeInput(input))
+  }
   for input in operation.inputs() {
     roles.push(
       match input {
@@ -481,6 +501,8 @@ fn validate_projection_operands(
     }
     let expected_bytes = match role {
       RuntimeInput(StepCounts) => PROJECTION_STEP_COUNTS_BYTES
+      RuntimeInput(QueryRowOffsets) =>
+        projection_checked_mul((profile.max_query_rows() + 1).to_int64(), 4L)
       ActivationInput(_) => input_bytes
       WeightInput(_) => {
         let result = projection_weight_bytes(
@@ -520,7 +542,11 @@ fn projection_dimensions(
     parameters, dispatch,
   )
   let shared_memory_bytes = if tensor_core {
-    8192L
+    if parameters.family == LanguageModelHead {
+      8704L
+    } else {
+      8192L
+    }
   } else if tensor_core_mlp {
     16384L
   } else if parameters.family == GatedMlp &&
@@ -551,7 +577,11 @@ fn projection_dimensions(
     profile.max_query_tokens().to_int64()
   } else {
     projection_checked_mul(
-      profile.max_query_tokens().to_int64(),
+      (if parameters.family == LanguageModelHead {
+        profile.max_query_rows()
+      } else {
+        profile.max_query_tokens()
+      }).to_int64(),
       parameters.output_width.to_int64(),
     )
   }

@@ -283,15 +283,23 @@ fn projection_source(
       }
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
+        projection_tensor_core_dense_source(
+          symbol, parameters, maximum_tokens, maximum_rows,
+        )
       } else {
-        projection_dense_source(symbol, parameters, maximum_tokens)
+        projection_dense_source(
+          symbol, parameters, maximum_tokens, maximum_rows,
+        )
       }
     LanguageModelHead => {
       let base = if projection_tensor_core_eligible(parameters, dispatch) {
-        projection_tensor_core_dense_source(symbol, parameters, maximum_tokens)
+        projection_tensor_core_dense_source(
+          symbol, parameters, maximum_tokens, maximum_rows,
+        )
       } else {
-        projection_dense_source(symbol, parameters, maximum_tokens)
+        projection_dense_source(
+          symbol, parameters, maximum_tokens, maximum_rows,
+        )
       }
       if !embed_greedy_sampling {
         return base

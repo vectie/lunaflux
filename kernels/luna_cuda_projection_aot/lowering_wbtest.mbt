@@ -156,9 +156,11 @@ test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
     [Activation(@plan.ActivationRef::new(9)), Tensor(@plan.TensorRef::new(0))],
     ProjectionShape(input_width=1024, output_width=151936),
     @plan.KernelCapabilityId::dense_projection(),
+    runtime_inputs=[StepCounts, QueryRowOffsets],
   )
   let operands = [
     projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(RuntimeInput(QueryRowOffsets), 12L, 4L),
     projection_fixture_operand(
       ActivationInput(@plan.ActivationRef::new(9)),
       8192L,
@@ -187,10 +189,16 @@ test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
   )
   let source = @utf8.decode(lowering.source_bytes())
   assert_true(source.contains("if (counts[2] == 1)"))
+  assert_true(source.contains("const int selected_row = row_offsets[1] - 1"))
   assert_true(source.contains("const unsigned long long live_row"))
+  assert_true(
+    source.contains("query_row < row_count ? row_offsets[query_row + 1] - 1"),
+  )
+  assert_true(source.contains("__nv_bfloat16 *selected_input"))
   assert_true(source.contains("nvcuda::wmma::mma_sync"))
   assert_true(source.contains("__shfl_down_sync"))
   assert_eq(lowering.launch_dimensions().grid_x(), 1187)
+  assert_eq(lowering.launch_dimensions().shared_memory_bytes(), 8704)
 }
 
 ///|
@@ -218,7 +226,7 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     intermediate_width: 0,
   }
   let dense = @utf8.decode(
-    projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256),
+    projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256, 32),
   )
   assert_true(dense.contains("if (token_count == 1)"))
   assert_true(dense.contains("__shfl_down_sync"))

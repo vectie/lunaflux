@@ -324,7 +324,10 @@ fn build_with_execution(
     [activation(final_norm), tensor(0)],
     ProjectionShape(input_width=hidden, output_width=spec.vocabulary_size()),
     @plan.KernelCapabilityId::dense_projection(),
-    live_runtime,
+    match kv_execution {
+      StatelessFullContext => []
+      PagedKeyValue => [StepCounts, QueryRowOffsets]
+    },
   )
   @plan.ModelPlan::new_with_kv_execution(
     content_digest=metadata.content_digest(),
