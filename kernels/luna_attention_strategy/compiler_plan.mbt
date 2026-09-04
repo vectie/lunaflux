@@ -581,7 +581,12 @@ fn attention_candidate_static_cost(
     AttentionMatrixDot | AttentionMatrixQkPv =>
       candidate.subgroups_per_block.to_int64() * 64L
   }
-  let arithmetic_cost = dot_work / arithmetic_divisor
+  let arithmetic_cost = attention_checked_product(
+      dot_work,
+      batch_rows,
+      Candidate,
+    ) /
+    arithmetic_divisor
   let key_value_bytes = attention_checked_product(
     attention_checked_product(
       attention_checked_product(query_tiles, padded_keys, Candidate),
@@ -606,8 +611,8 @@ fn attention_candidate_static_cost(
     | AttentionMatrixQkPv => 1L
   }
   let memory_cost = attention_checked_product(
-      key_value_bytes,
-      memory_multiplier,
+      attention_checked_product(key_value_bytes, memory_multiplier, Candidate),
+      batch_rows,
       Candidate,
     ) /
     query_head_group
@@ -630,7 +635,7 @@ fn attention_candidate_static_cost(
       query_heads.to_int64(),
       Candidate,
     ),
-    1024L,
+    attention_checked_product(batch_rows, 1024L, Candidate),
     Candidate,
   )
   attention_checked_add(

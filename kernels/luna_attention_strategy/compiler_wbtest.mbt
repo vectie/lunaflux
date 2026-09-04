@@ -148,6 +148,32 @@ test "attention compiler prunes unsupported pipelines and matrix operations" {
 }
 
 ///|
+test "attention static cost scales linearly with continuous batch rows" {
+  let single = compiler_test_problem()
+  let batched = AttentionCompileProblem::new(
+    shape=compiler_test_shape(),
+    phase=Prefill,
+    numeric_type=AttentionBFloat16,
+    batch_rows=4,
+    query_rows=128,
+    context_tokens=4096,
+    causal=true,
+  )
+  let capabilities = compiler_test_capabilities()
+  let candidate = compiler_candidate_with_id(
+    generate_attention_tile_candidates(single, capabilities),
+    312,
+  )
+  let single_plan = compile_attention_tile_candidate_plan(
+    single, capabilities, candidate,
+  )
+  let batched_plan = compile_attention_tile_candidate_plan(
+    batched, capabilities, candidate,
+  )
+  assert_eq(batched_plan.static_cost(), single_plan.static_cost() * 4L)
+}
+
+///|
 test "attention autotune overrides the cost model without leaking device names" {
   let backend = AttentionBackendId::new("portable")
   let target = AttentionTargetId::new("device-a")
