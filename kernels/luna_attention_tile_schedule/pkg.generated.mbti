@@ -56,6 +56,7 @@ pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
 
 pub struct AttentionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileScheduleDigest::as_hex(Self) -> String

@@ -10,3 +10,7 @@ Autotune records and portable device capabilities are explicit immutable
 inputs. The passes perform no I/O, mutate no global compiler state, and return
 deterministic values. CUDA, HIP, Metal, and CPU instruction choices begin only
 after `ScheduledAttentionTileCompilation`.
+
+Storage planning is expressed as pure lifetime analysis. In particular, the
+online-softmax rewrite overlaps dead key/probability regions and keeps fold
+state local to its owner before any backend selects a concrete address space.

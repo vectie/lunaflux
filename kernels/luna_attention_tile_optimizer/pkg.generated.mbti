@@ -48,6 +48,7 @@ pub(all) enum AttentionTileRewriteRule {
   HoistPagedKeyValuePageLookup
   FuseScoreTransform
   FuseOnlineSoftmaxFold
+  ReuseOnlineSoftmaxTileStorage
   PartitionOnlineSoftmaxFold
 } derive(Eq, @debug.Debug)
 

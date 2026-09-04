@@ -5,6 +5,9 @@ pub(all) enum AttentionTileRewriteRule {
   HoistPagedKeyValuePageLookup
   FuseScoreTransform
   FuseOnlineSoftmaxFold
+  /// Reuses dead key-tile storage for probabilities and retains online
+  /// softmax state in the owning functional fold.
+  ReuseOnlineSoftmaxTileStorage
   PartitionOnlineSoftmaxFold
 } derive(Debug, Eq)
 

@@ -119,6 +119,10 @@ pub fn lower_attention_tile_schedule_to_cuda(
     ) {
     raise InvalidCudaAttentionTileLowering(InvalidOptimization)
   }
+  if schedule.reuses_online_softmax_tile_storage() &&
+    !has_rewrite_rule(optimization, ReuseOnlineSoftmaxTileStorage) {
+    raise InvalidCudaAttentionTileLowering(InvalidOptimization)
+  }
   let problem = program.problem()
   let candidate = program.candidate()
   let (query_rows, _) = problem.dimensions()
@@ -155,6 +159,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
+  let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v3\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
@@ -169,6 +174,8 @@ pub fn lower_attention_tile_schedule_to_cuda(
   builder <+ "pipeline=\{pipeline_stages},\{vector_bytes}\n"
   builder <+
     "hoist_paged_key_value_page_lookup=\{hoist_paged_key_value_page_lookup}\n"
+  builder <+
+    "reuse_online_softmax_tile_storage=\{reuse_online_softmax_tile_storage}\n"
   let canonical = @utf8.encode(builder.to_string())
   {
     program_digest: program.digest(),
@@ -189,6 +196,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     vector_bytes,
     shared_memory_bytes,
     hoist_paged_key_value_page_lookup,
+    reuse_online_softmax_tile_storage,
     canonical,
     digest: CudaAttentionTileLoweringDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

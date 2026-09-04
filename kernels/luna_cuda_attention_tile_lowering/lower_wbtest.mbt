@@ -102,9 +102,10 @@ test "CUDA lowering preserves functional KV partition topology" {
   )
   assert_eq(lowering.key_value_partitions(), 2)
   assert_true(lowering.hoists_paged_key_value_page_lookup())
+  assert_true(lowering.reuses_online_softmax_tile_storage())
   assert_true(
     @utf8.decode(lowering.canonical_bytes()).contains(
-      "launch=64,16,2,256,107280",
+      "launch=64,16,2,256,98304",
     ),
   )
 }

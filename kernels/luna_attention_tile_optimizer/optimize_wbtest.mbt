@@ -50,24 +50,27 @@ test "optimizer extracts deterministic fused functional regions" {
   let second = optimize_attention_tile_program(program)
   assert_eq(first, second)
   assert_eq(first.program_digest(), program.digest())
-  assert_eq(first.regions().length(), 4)
+  assert_eq(first.regions().length(), 5)
   assert_eq(first.regions()[0].rule(), HoistPagedKeyValuePageLookup)
   assert_eq(first.regions()[0].members().length(), 2)
   assert_eq(first.regions()[1].rule(), FuseScoreTransform)
   assert_eq(first.regions()[1].members().length(), 3)
   assert_eq(first.regions()[2].rule(), FuseOnlineSoftmaxFold)
   assert_eq(first.regions()[2].members().length(), 3)
-  assert_eq(first.regions()[3].rule(), PartitionOnlineSoftmaxFold)
+  assert_eq(first.regions()[3].rule(), ReuseOnlineSoftmaxTileStorage)
   assert_eq(first.regions()[3].members().length(), 3)
+  assert_eq(first.regions()[4].rule(), PartitionOnlineSoftmaxFold)
+  assert_eq(first.regions()[4].members().length(), 3)
   assert_eq(
     first.reduction_topology(),
     AttentionPartitionedOnlineSoftmaxFold(2),
   )
-  assert_eq(first.trace().length(), 4)
+  assert_eq(first.trace().length(), 5)
   assert_eq(first.trace()[0].changed(), true)
   assert_eq(first.trace()[1].region_count(), 2)
   assert_eq(first.trace()[2].region_count(), 3)
   assert_eq(first.trace()[3].region_count(), 4)
+  assert_eq(first.trace()[4].region_count(), 5)
   assert_eq(first.digest().as_hex().length(), 64)
 }
 
@@ -86,9 +89,9 @@ test "short prefill keeps one ordered online-softmax fold" {
     optimization_program(true, context_tokens=256),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 3)
-  assert_eq(optimized.trace().length(), 4)
-  assert_false(optimized.trace()[3].changed())
+  assert_eq(optimized.regions().length(), 4)
+  assert_eq(optimized.trace().length(), 5)
+  assert_false(optimized.trace()[4].changed())
 }
 
 ///|
@@ -97,8 +100,8 @@ test "query parallelism removes unnecessary KV partition and merge" {
     optimization_program(true, context_tokens=4096, query_rows=128),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 3)
-  assert_false(optimized.trace()[3].changed())
+  assert_eq(optimized.regions().length(), 4)
+  assert_false(optimized.trace()[4].changed())
 }
 
 ///|
@@ -107,6 +110,6 @@ test "continuous batch parallelism removes unnecessary KV partition" {
     optimization_program(true, context_tokens=4096, query_rows=64, batch_rows=2),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 3)
-  assert_false(optimized.trace()[3].changed())
+  assert_eq(optimized.regions().length(), 4)
+  assert_false(optimized.trace()[4].changed())
 }

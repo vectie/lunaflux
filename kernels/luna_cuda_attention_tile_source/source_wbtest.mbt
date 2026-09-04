@@ -221,8 +221,8 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
   for
     required in [
       "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
-      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 78608", "AttentionTileFoldKeyValueStream",
-      "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
+      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 73728", "AttentionTileFoldKeyValueStream",
+      "fold_denominator[state_slot] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
       "const int page_source_lane", "__shfl_sync(0xffffffffU, physical_page, page_source_lane)",
     ] {
@@ -241,7 +241,7 @@ test "dual-matrix source lowers probability-value multiplication to MMA" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(310))
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.tile(), (16, 32, 128))
-  assert_eq(lowering.launch(), (128, 16, 256, 31952L))
+  assert_eq(lowering.launch(), (128, 16, 256, 30720L))
   let source = @utf8.decode(
     emit_cuda_attention_tile_source(
       lowering,
@@ -261,7 +261,7 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(313))
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.tile(), (32, 64, 128))
-  assert_eq(lowering.launch(), (128, 16, 256, 70032L))
+  assert_eq(lowering.launch(), (128, 16, 256, 65536L))
   let source = @utf8.decode(
     emit_cuda_attention_tile_source(
       lowering,
@@ -271,6 +271,18 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
     ).bytes(),
   )
   assert_true(source.contains("#define LF_QUERY_TILE 32"))
+  assert_true(source.contains("__nv_bfloat16 *weights = key_tiles"))
+  assert_true(source.contains("float fold_maximum[LF_QUERY_STATE_SLOTS]"))
+  assert_true(
+    source.contains(
+      "float *running_denominator = running_maximum + LF_QUERY_TILE",
+    ),
+  )
+  assert_false(
+    source.contains(
+      "*weights = reinterpret_cast<__nv_bfloat16 *>(shared_cursor)",
+    ),
+  )
   assert_true(source.contains("component == 0"))
   assert_true(source.contains("(lane / 16) * 16"))
   assert_true(

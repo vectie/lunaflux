@@ -97,6 +97,8 @@ fn canonical_schedule(
   loops : ReadOnlyArray[AttentionLoopCombinator],
   key_value_partitions : Int,
   hoist_paged_key_value_page_lookup : Bool,
+  reuse_online_softmax_tile_storage : Bool,
+  shared_memory_bytes : Int64,
 ) -> Bytes {
   let candidate = program.candidate()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
@@ -106,6 +108,8 @@ fn canonical_schedule(
   builder <+ "kv_partitions=\{key_value_partitions}\n"
   builder <+
     "hoist_paged_key_value_page_lookup=\{hoist_paged_key_value_page_lookup}\n"
+  builder <+
+    "reuse_online_softmax_tile_storage=\{reuse_online_softmax_tile_storage}\n"
   for combinator in loops {
     builder <+
       "loop=\{iteration_kind_code(combinator.kind)},\{iteration_axis_code(combinator.axis)},\{combinator.extent},\{combinator.tile}\n"
@@ -113,7 +117,7 @@ fn canonical_schedule(
   builder <+ "compute=\{compute_code(candidate.compute())}\n"
   builder <+ "memory=\{memory_code(candidate.memory())}\n"
   builder <+
-    "execution=\{subgroups},\{stages},\{vector_bytes},\{candidate.shared_memory_bytes()}\n"
+    "execution=\{subgroups},\{stages},\{vector_bytes},\{shared_memory_bytes}\n"
   @utf8.encode(builder.to_string())
 }
 
@@ -125,7 +129,7 @@ fn canonical_schedule(
 pub fn schedule_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
-  schedule_attention_tile_program_with_partitions(program, 1, false)
+  schedule_attention_tile_program_with_partitions(program, 1, false, false)
 }
 
 ///|
@@ -143,6 +147,7 @@ pub fn schedule_rewritten_attention_tile_program(
     program,
     1,
     attention_optimization_has_rule(optimization, HoistPagedKeyValuePageLookup),
+    attention_optimization_has_rule(optimization, ReuseOnlineSoftmaxTileStorage),
   )
 }
 
@@ -165,6 +170,7 @@ pub fn schedule_optimized_attention_tile_program(
     program,
     partitions,
     attention_optimization_has_rule(optimization, HoistPagedKeyValuePageLookup),
+    attention_optimization_has_rule(optimization, ReuseOnlineSoftmaxTileStorage),
   )
 }
 
@@ -181,6 +187,7 @@ fn schedule_attention_tile_program_with_partitions(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   key_value_partitions : Int,
   hoist_paged_key_value_page_lookup : Bool,
+  reuse_online_softmax_tile_storage : Bool,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
   let problem = program.problem()
   let candidate = program.candidate()
@@ -272,10 +279,19 @@ fn schedule_attention_tile_program_with_partitions(
   }
   let loops = ReadOnlyArray::from_array(prefix)
   validate_schedule_loops(loops, key_value_partitions)
+  let shared_memory_bytes = if reuse_online_softmax_tile_storage &&
+    candidate.compute() == AttentionMatrixQkPv {
+    candidate.shared_memory_bytes() -
+    query_tile.to_int64() * key_value_tile.to_int64() * 2L -
+    query_tile.to_int64() * 12L -
+    16L
+  } else {
+    candidate.shared_memory_bytes()
+  }
   let canonical = canonical_schedule(
-    program, loops, key_value_partitions, hoist_paged_key_value_page_lookup,
+    program, loops, key_value_partitions, hoist_paged_key_value_page_lookup, reuse_online_softmax_tile_storage,
+    shared_memory_bytes,
   )
-  let shared_memory_bytes = candidate.shared_memory_bytes()
   {
     program_digest: program.digest(),
     loops,
@@ -287,6 +303,7 @@ fn schedule_attention_tile_program_with_partitions(
     shared_memory_bytes,
     key_value_partitions,
     hoist_paged_key_value_page_lookup,
+    reuse_online_softmax_tile_storage,
     canonical,
     digest: AttentionTileScheduleDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

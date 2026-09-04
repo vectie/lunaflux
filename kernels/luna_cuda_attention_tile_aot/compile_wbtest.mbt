@@ -81,7 +81,7 @@ test "CUDA AOT compiler purely composes functional and device stages" {
   let repeated = compile_cuda_attention_tile_aot(request, records)
   assert_eq(first, repeated)
   assert_eq(first.functional().plan().candidate().stable_id(), 310)
-  assert_eq(first.lowering().launch(), (128, 16, 256, 31952L))
+  assert_eq(first.lowering().launch(), (128, 16, 256, 30720L))
   assert_true(
     @utf8.decode(first.source().bytes()).contains(
       "wmma::load_matrix_sync(probability_fragment",

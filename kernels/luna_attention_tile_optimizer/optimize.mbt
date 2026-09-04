@@ -236,6 +236,41 @@ fn apply_online_softmax_fold_pass(
 }
 
 ///|
+/// Matrix QK consumes the staged key tile before online-softmax produces the
+/// probability tile consumed by PV. Their lifetimes are disjoint. Likewise,
+/// maximum and denominator are values of the query-local fold rather than
+/// shared tensors. This pure region records those facts without choosing a
+/// CUDA register, shared-memory address, or any other backend storage class.
+fn apply_online_softmax_tile_storage_pass(
+  program : @luna_attention_tile_ir.AttentionTileProgram,
+  regions : ReadOnlyArray[AttentionTileRewriteRegion],
+) -> AttentionRewritePassResult {
+  if program.candidate().compute() != AttentionMatrixQkPv {
+    return { regions, changed: false }
+  }
+  for binding in program.bindings() {
+    match online_softmax_fold_members(program, binding) {
+      Some(members) => {
+        let root = members[members.length() - 1]
+        if contains_region_root(regions, ReuseOnlineSoftmaxTileStorage, root) {
+          return { regions, changed: false }
+        }
+        return {
+          regions: append_region(regions, {
+            rule: ReuseOnlineSoftmaxTileStorage,
+            members,
+            root,
+          }),
+          changed: true,
+        }
+      }
+      None => ()
+    }
+  }
+  { regions, changed: false }
+}
+
+///|
 fn attention_partition_count(
   program : @luna_attention_tile_ir.AttentionTileProgram,
 ) -> Int {
@@ -311,6 +346,8 @@ fn apply_rewrite_pass(
       apply_paged_key_value_page_lookup_pass(program, regions)
     FuseScoreTransform => apply_score_transform_pass(program, regions)
     FuseOnlineSoftmaxFold => apply_online_softmax_fold_pass(program, regions)
+    ReuseOnlineSoftmaxTileStorage =>
+      apply_online_softmax_tile_storage_pass(program, regions)
     PartitionOnlineSoftmaxFold =>
       apply_partition_online_softmax_pass(program, regions)
   }
@@ -344,7 +381,8 @@ fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int {
     HoistPagedKeyValuePageLookup => 1
     FuseScoreTransform => 2
     FuseOnlineSoftmaxFold => 3
-    PartitionOnlineSoftmaxFold => 4
+    ReuseOnlineSoftmaxTileStorage => 4
+    PartitionOnlineSoftmaxFold => 5
   }
 }
 
@@ -393,6 +431,7 @@ pub fn optimize_attention_tile_program(
     HoistPagedKeyValuePageLookup,
     FuseScoreTransform,
     FuseOnlineSoftmaxFold,
+    ReuseOnlineSoftmaxTileStorage,
     PartitionOnlineSoftmaxFold,
   ])
   let state = run_rewrite_pipeline(program, passes, 0, {

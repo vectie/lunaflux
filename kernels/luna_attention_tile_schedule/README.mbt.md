@@ -14,3 +14,8 @@ Optimizer-selected page-lookup hoisting is also explicit schedule data. It
 means one logical K/V row computes its paged address once for all vector
 fragments; it does not prescribe whether a backend realizes reuse with a
 subgroup broadcast, local memory, or scalar register sharing.
+
+Online-softmax tile-storage reuse is likewise explicit schedule data. The
+schedule shortens the portable shared working-set bound by overlapping
+disjoint key/probability lifetimes and retaining fold state with its query
+owner. Concrete address-space placement remains backend-specific.

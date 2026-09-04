@@ -85,6 +85,13 @@ pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::reuses_online_softmax_tile_storage(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.reuse_online_softmax_tile_storage
+}
+
+///|
 pub fn CudaAttentionTileLowering::canonical_bytes(
   self : CudaAttentionTileLowering,
 ) -> Bytes {

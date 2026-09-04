@@ -15,3 +15,9 @@ terminal lowering computes one page-table address per logical K/V row and
 broadcasts it across that row's vector fragments. This removes repeated page
 division and table loads without exposing CUDA subgroup vocabulary above the
 backend boundary.
+
+When online-softmax storage reuse is selected, each subgroup retains its
+running maximum and denominator in registers. Probability values reuse the
+dead key-tile allocation and terminal fold state reuses that allocation after
+PV, removing one block barrier and shrinking Q32/K64 shared memory from
+70,032 to 65,536 bytes.

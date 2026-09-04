@@ -126,6 +126,59 @@ fn emit_cuda_prefill_attention_tile_source(
   } else {
     "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
   }
+  let reuse_tile_storage = compute == CudaMatrixQkPvMultiplyAccumulate &&
+    lowering.reuses_online_softmax_tile_storage()
+  let shared_layout = if reuse_tile_storage {
+    "  float *scores = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);\n" +
+    "  float *accumulator = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  __nv_bfloat16 *weights = key_tiles;\n" +
+    "  float *running_maximum = reinterpret_cast<float *>(key_tiles);\n" +
+    "  float *running_denominator = running_maximum + LF_QUERY_TILE;\n" +
+    "  float *previous_scales = reinterpret_cast<float *>(\n" +
+    "      key_tiles + LF_QUERY_TILE * LF_KEY_VALUE_TILE);\n" +
+    "  int &tile_valid = *reinterpret_cast<int *>(\n" +
+    "      scores + LF_QUERY_TILE * LF_KEY_VALUE_TILE - 1);\n"
+  } else {
+    "  float *scores = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);\n" +
+    "  " +
+    probability_type +
+    " *weights = reinterpret_cast<" +
+    probability_type +
+    " *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(" +
+    probability_type +
+    ");\n" +
+    "  float *accumulator = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(float);\n" +
+    "  float *running_maximum = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  float *running_denominator = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  float *previous_scales = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);\n"
+  }
+  let fold_state_declaration = if reuse_tile_storage {
+    "  float fold_maximum[LF_QUERY_STATE_SLOTS];\n" +
+    "  float fold_denominator[LF_QUERY_STATE_SLOTS];\n" +
+    "  #pragma unroll\n" +
+    "  for (int slot = 0; slot < LF_QUERY_STATE_SLOTS; ++slot) {\n" +
+    "    fold_maximum[slot] = -CUDART_INF_F;\n" +
+    "    fold_denominator[slot] = 0.0f;\n" +
+    "  }\n"
+  } else {
+    ""
+  }
+  let shared_state_initialization = if reuse_tile_storage {
+    ""
+  } else {
+    "  if (thread < LF_QUERY_TILE) {\n" +
+    "    running_maximum[thread] = -CUDART_INF_F;\n" +
+    "    running_denominator[thread] = 0.0f;\n" +
+    "  }\n"
+  }
   let output_and_cache_parameters = if key_value_partitions == 1 {
     "    __nv_bfloat16 *output, const __nv_bfloat16 *key_cache,\n" +
     "    const __nv_bfloat16 *value_cache)"
@@ -229,6 +282,88 @@ fn emit_cuda_prefill_attention_tile_source(
     "      accumulator[linear] += partial;\n" +
     "    }\n"
   }
+  let online_softmax_update = if reuse_tile_storage {
+    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int state_slot = query / warp_count;\n" +
+    "      float local_maximum = -CUDART_INF_F;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
+    "        local_maximum = fmaxf(local_maximum, scores[query * LF_KEY_VALUE_TILE + key]);\n" +
+    "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
+    "      const float previous_maximum = fold_maximum[state_slot];\n" +
+    "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
+    "      const float previous_scale = isinf(previous_maximum)\n" +
+    "          ? 0.0f : expf(previous_maximum - next_maximum);\n" +
+    "      float local_sum = 0.0f;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
+    "        const float weight = isinf(next_maximum) ? 0.0f :\n" +
+    "            expf(scores[query * LF_KEY_VALUE_TILE + key] - next_maximum);\n" +
+    probability_store +
+    "        local_sum += weight;\n" +
+    "      }\n" +
+    "      const float tile_sum = lf_warp_sum(local_sum);\n" +
+    "      fold_maximum[state_slot] = next_maximum;\n" +
+    "      fold_denominator[state_slot] =\n" +
+    "          fold_denominator[state_slot] * previous_scale + tile_sum;\n" +
+    "      if (lane == 0) previous_scales[query] = previous_scale;\n" +
+    "    }\n" +
+    "    __syncthreads();\n" +
+    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "         linear += LF_BLOCK_THREADS) {\n" +
+    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "      accumulator[linear] *= previous_scales[query];\n" +
+    "    }\n" +
+    "    __syncthreads();\n"
+  } else {
+    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      float local_maximum = -CUDART_INF_F;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
+    "        local_maximum = fmaxf(local_maximum, scores[query * LF_KEY_VALUE_TILE + key]);\n" +
+    "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
+    "      const float previous_maximum = running_maximum[query];\n" +
+    "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
+    "      const float previous_scale = isinf(previous_maximum)\n" +
+    "          ? 0.0f : expf(previous_maximum - next_maximum);\n" +
+    "      if (lane == 0) {\n" +
+    "        running_maximum[query] = next_maximum;\n" +
+    "        previous_scales[query] = previous_scale;\n" +
+    "      }\n" +
+    "    }\n" +
+    "    __syncthreads();\n" +
+    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "         linear += LF_BLOCK_THREADS) {\n" +
+    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "      accumulator[linear] *= previous_scales[query];\n" +
+    "    }\n" +
+    "    __syncthreads();\n" +
+    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const float previous_scale = previous_scales[query];\n" +
+    "      const float maximum = running_maximum[query];\n" +
+    "      float local_sum = 0.0f;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
+    "        const float weight = isinf(maximum) ? 0.0f :\n" +
+    "            expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);\n" +
+    probability_store +
+    "        local_sum += weight;\n" +
+    "      }\n" +
+    "      const float tile_sum = lf_warp_sum(local_sum);\n" +
+    "      if (lane == 0)\n" +
+    "        running_denominator[query] =\n" +
+    "            running_denominator[query] * previous_scale + tile_sum;\n" +
+    "    }\n" +
+    "    __syncthreads();\n"
+  }
+  let terminal_fold_state = if reuse_tile_storage {
+    "  for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "    const int state_slot = query / warp_count;\n" +
+    "    if (lane == 0) {\n" +
+    "      running_maximum[query] = fold_maximum[state_slot];\n" +
+    "      running_denominator[query] = fold_denominator[state_slot];\n" +
+    "    }\n" +
+    "  }\n" +
+    "  __syncthreads();\n"
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -241,6 +376,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_PIPELINE_STAGES \{pipeline_stages}
     $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
     $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
+    $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
     $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
     $|
     $|static __device__ __forceinline__ float lf_warp_sum(float value) {
@@ -317,19 +453,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
     $|  __nv_bfloat16 *value_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);
     $|  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
-    $|  float *scores = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);
-    $|  \{probability_type} *weights = reinterpret_cast<\{probability_type} *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(\{probability_type});
-    $|  float *accumulator = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(float);
-    $|  float *running_maximum = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
-    $|  float *running_denominator = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
-    $|  float *previous_scales = reinterpret_cast<float *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * sizeof(float);
-    $|  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);
+    $|\{shared_layout}
     $|
     $|  const int query_vector_count = LF_QUERY_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
     $|  for (int vector = thread; vector < query_vector_count; vector += LF_BLOCK_THREADS) {
@@ -347,10 +471,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  }
     $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
     $|    accumulator[linear] = 0.0f;
-    $|  if (thread < LF_QUERY_TILE) {
-    $|    running_maximum[thread] = -CUDART_INF_F;
-    $|    running_denominator[thread] = 0.0f;
-    $|  }
+    $|\{shared_state_initialization}
     $|  __syncthreads();
     $|
     $|  int maximum_query_position = query_positions[token_base];
@@ -371,6 +492,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
     $|  const int key_value_head = query_head / \{group_size};
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
+    $|\{fold_state_declaration}
     $|  for (int key_base = partition_begin, tile_index = 0; key_base < partition_end;
     $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
     $|    const int stage = tile_index % LF_PIPELINE_STAGES;
@@ -431,49 +553,13 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    }
     $|    __syncthreads();
     $|
-    $|    for (int query = warp; query < active_queries; query += warp_count) {
-    $|      float local_maximum = -CUDART_INF_F;
-    $|      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)
-    $|        local_maximum = fmaxf(local_maximum, scores[query * LF_KEY_VALUE_TILE + key]);
-    $|      const float tile_maximum = lf_warp_max(local_maximum);
-    $|      const float previous_maximum = running_maximum[query];
-    $|      const float next_maximum = fmaxf(previous_maximum, tile_maximum);
-    $|      const float previous_scale = isinf(previous_maximum)
-    $|          ? 0.0f : expf(previous_maximum - next_maximum);
-    $|      if (lane == 0) {
-    $|        running_maximum[query] = next_maximum;
-    $|        previous_scales[query] = previous_scale;
-    $|      }
-    $|    }
-    $|    __syncthreads();
-    $|    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;
-    $|         linear += LF_BLOCK_THREADS) {
-    $|      const int query = linear / LF_HEAD_DIMENSION;
-    $|      accumulator[linear] *= previous_scales[query];
-    $|    }
-    $|    __syncthreads();
-    $|
-    $|    for (int query = warp; query < active_queries; query += warp_count) {
-    $|      const float previous_scale = previous_scales[query];
-    $|      const float maximum = running_maximum[query];
-    $|      float local_sum = 0.0f;
-    $|      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {
-    $|        const float weight = isinf(maximum) ? 0.0f :
-    $|            expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);
-    $|\{probability_store}
-    $|        local_sum += weight;
-    $|      }
-    $|      const float tile_sum = lf_warp_sum(local_sum);
-    $|      if (lane == 0)
-    $|        running_denominator[query] =
-    $|            running_denominator[query] * previous_scale + tile_sum;
-    $|    }
-    $|    __syncthreads();
+    $|\{online_softmax_update}
     $|
     $|\{value_accumulation}
     $|    __syncthreads();
     $|  }
     $|
+    $|\{terminal_fold_state}
     $|\{terminal_store}
     $|  __syncthreads();
     $|  }

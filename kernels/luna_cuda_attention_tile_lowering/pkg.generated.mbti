@@ -48,6 +48,7 @@ pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_t
 pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)
 pub fn CudaAttentionTileLowering::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
+pub fn CudaAttentionTileLowering::reuses_online_softmax_tile_storage(Self) -> Bool
 pub fn CudaAttentionTileLowering::schedule_digest(Self) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest
 pub fn CudaAttentionTileLowering::target(Self) -> @catalog.DeviceTarget
 pub fn CudaAttentionTileLowering::tile(Self) -> (Int, Int, Int)

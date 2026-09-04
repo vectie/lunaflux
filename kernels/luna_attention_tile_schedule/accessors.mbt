@@ -74,6 +74,13 @@ pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(
 }
 
 ///|
+pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(
+  self : AttentionTileSchedule,
+) -> Bool {
+  self.reuse_online_softmax_tile_storage
+}
+
+///|
 pub fn AttentionTileSchedule::canonical_bytes(
   self : AttentionTileSchedule,
 ) -> Bytes {

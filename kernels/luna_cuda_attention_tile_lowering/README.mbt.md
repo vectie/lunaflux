@@ -11,3 +11,8 @@ The functional schedule can request one paged K/V address calculation per
 logical key row. CUDA realizes that portable reuse decision with subgroup
 broadcast across the vector fragments that consume the row; no CUDA primitive
 is reflected back into the optimizer or schedule vocabulary.
+
+For optimizer-selected online-softmax storage reuse, CUDA maps the query-local
+fold state to registers and aliases the dead staged-key arena for probability
+and terminal state. The generic compiler sees only disjoint lifetimes and a
+smaller working set.
