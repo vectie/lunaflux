@@ -71,14 +71,27 @@ fn qwen_fused_test_runtime(
   phase_specific_attention? : Bool = false,
   direct_compiler_decode? : Bool = false,
   split_compiler_decode? : Bool = false,
+  full_ingress? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-    abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
-    first_operation=3,
-    operation_count=3,
-    function_symbol="qwen_postprocess",
+    abi=if full_ingress {
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+    } else {
+      QwenQkNormPositionedRopePagedKvWriteProductionV2
+    },
+    first_operation=if full_ingress { 2 } else { 3 },
+    operation_count=if full_ingress { 4 } else { 3 },
+    function_symbol=if full_ingress {
+      "qwen_full_ingress"
+    } else {
+      "qwen_postprocess"
+    },
     launch=@launch_contract.AotLaunchDimensions::new(
-      grid_x=blueprint.profile().max_query_tokens(),
+      grid_x=if full_ingress {
+        (blueprint.profile().max_query_tokens() + 15) / 16
+      } else {
+        blueprint.profile().max_query_tokens()
+      },
       grid_y=ingress_grid_y,
       grid_z=1,
       block_x=128,
@@ -296,6 +309,41 @@ test "reusable Qwen runtime expands one module pair over every identical layer" 
 }
 
 ///|
+test "compiler-fused Qwen ingress replaces projection through KV write" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(plan, blueprint, full_ingress=true)
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  assert_eq(spans.length(), 28)
+  assert_true(spans[0].ingress_includes_projection())
+  assert_eq(spans[0].operation_indices(), (2, 3, 4, 5))
+  assert_eq(spans[0].postprocess_function_symbol(), "qwen_full_ingress")
+  let baseline : Array[Int] = []
+  for index in 0..<blueprint.steps().length() {
+    baseline.push(index)
+  }
+  let ingress = Array::make(spans.length(), 10000)
+  let attention_steps = Array::make(spans.length(), 20000)
+  let replaced = replace_qwen_fused_attention_runtime_spans(
+    ReadOnlyArray::from_array(baseline),
+    spans,
+    ReadOnlyArray::from_array(ingress),
+    ReadOnlyArray::from_array(attention_steps),
+  )
+  assert_eq(replaced.length(), blueprint.steps().length() - 2 * spans.length())
+  assert_eq(replaced[0], 0)
+  assert_eq(replaced[1], 1)
+  assert_eq(replaced[2], 10000)
+  assert_eq(replaced[3], 20000)
+  assert_eq(replaced[4], 6)
+}
+
+///|
 test "reusable Qwen runtime requires both ingress and readonly modules" {
   let plan = qwen_fused_test_plan()
   let blueprint = qwen_fused_test_blueprint(plan)
@@ -390,7 +438,7 @@ test "Qwen postprocess replacement preserves fast projection and rejects overlap
   let baseline = ReadOnlyArray::from_array([
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
   ])
-  let replaced = replace_qwen_fused_attention_spans(
+  let replaced = replace_projection_postprocess_attention_spans(
     baseline,
     ReadOnlyArray::from_array([2, 8]),
     ReadOnlyArray::from_array([20, 80]),
@@ -399,7 +447,7 @@ test "Qwen postprocess replacement preserves fast projection and rejects overlap
   assert_eq(replaced, [0, 1, 2, 20, 50, 6, 7, 8, 80, 110])
   try
     ignore(
-      replace_qwen_fused_attention_spans(
+      replace_projection_postprocess_attention_spans(
         baseline,
         ReadOnlyArray::from_array([2, 4]),
         ReadOnlyArray::from_array([20, 40]),

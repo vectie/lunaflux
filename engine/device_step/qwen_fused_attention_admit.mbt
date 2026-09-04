@@ -157,10 +157,31 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     runtime.target() != blueprint.target() {
     raise MismatchedFusedGroupedOperation(ModelIdentity)
   }
-  guard runtime.qwen_qknorm_rope_kv_write_module() is Some(postprocess) &&
+  let ingress_selection = match runtime.qwen_full_attention_ingress_module() {
+    Some(module_) => Some((module_, true))
+    None =>
+      match runtime.qwen_qknorm_rope_kv_write_module() {
+        Some(module_) => Some((module_, false))
+        None => None
+      }
+  }
+  guard ingress_selection is Some((postprocess, includes_projection)) &&
     runtime.qwen_paged_attention_prefill_module() is Some(readonly_module) &&
     runtime.qwen_paged_attention_decode_module() is Some(decode_module) &&
-    postprocess.kernel_abi() == QwenQkNormPositionedRopePagedKvWriteProductionV2 &&
+    (
+      (
+        includes_projection &&
+        postprocess.kernel_abi() ==
+        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 &&
+        postprocess.operation_count() == 4
+      ) ||
+      (
+        !includes_projection &&
+        postprocess.kernel_abi() ==
+        QwenQkNormPositionedRopePagedKvWriteProductionV2 &&
+        postprocess.operation_count() == 3
+      )
+    ) &&
     (
       readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
       readonly_module.kernel_abi() ==
@@ -171,15 +192,22 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3
     ) &&
-    runtime.qwen_qknorm_rope_kv_write_operation_indices()
-    is Some((seed_qk_norm, seed_rope, seed_attention)) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
     decode_module.operation_span() == (readonly_attention, 1) else {
     raise MismatchedFusedGroupedOperation(KernelAbi)
   }
-  let seed_qkv = seed_qk_norm - 1
-  if seed_qk_norm <= 0 ||
+  let seed_qkv = if includes_projection {
+    postprocess.first_operation_index()
+  } else {
+    postprocess.first_operation_index() - 1
+  }
+  let seed_qk_norm = seed_qkv + 1
+  let seed_rope = seed_qkv + 2
+  let seed_attention = seed_qkv + 3
+  if seed_qkv < 0 ||
+    postprocess.first_operation_index() !=
+    (if includes_projection { seed_qkv } else { seed_qk_norm }) ||
     seed_rope != seed_qk_norm + 1 ||
     seed_attention != seed_qk_norm + 2 ||
     readonly_attention != seed_attention {
@@ -253,6 +281,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.block_x() == 128 &&
     decode_launch.shared_memory_bytes() == 0
   }
+  let ingress_grid_x = if includes_projection {
+    (blueprint.profile().max_query_tokens() + 15) / 16
+  } else {
+    Int::min(blueprint.profile().max_query_tokens(), 4096)
+  }
   guard maximum_tokens >= maximum_rows &&
     valid_prefill_launch &&
     readonly_launch.grid_y() == query_heads &&
@@ -269,8 +302,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     valid_decode_launch &&
     decode_launch.block_y() == 1 &&
     decode_launch.block_z() == 1 &&
-    postprocess.launch_dimensions().grid_x() ==
-    Int::min(blueprint.profile().max_query_tokens(), 4096) &&
+    postprocess.launch_dimensions().grid_x() == ingress_grid_x &&
     postprocess.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
     postprocess.launch_dimensions().grid_z() == 1 &&
     postprocess.launch_dimensions().block_x() == 128 &&
@@ -294,6 +326,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       generation,
       target: runtime.target(),
       runtime_digest: runtime.source_digest(),
+      ingress_includes_projection: includes_projection,
       postprocess_module_digest: postprocess.module_digest(),
       postprocess_module_bytes: postprocess.module_bytes(),
       postprocess_symbol: postprocess.function_symbol(),

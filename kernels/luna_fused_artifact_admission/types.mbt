@@ -122,6 +122,7 @@ pub struct ApprovedReusableFusedResidualRuntime {
 /// be admitted by a new schema rather than reinterpreted silently.
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
+  QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3

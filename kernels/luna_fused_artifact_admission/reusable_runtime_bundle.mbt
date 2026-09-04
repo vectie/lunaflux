@@ -11,6 +11,8 @@ const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 16000000
 fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
   match abi {
     ResidualRmsNormProductionV2 => "residual-rmsnorm-production-v2"
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 =>
+      "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4"
     QwenQkNormPositionedRopePagedKvWriteProductionV2 =>
       "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2"
     QwenPagedAttentionReadOnlyProductionV2 =>
@@ -26,6 +28,8 @@ fn reusable_runtime_parse_abi(
 ) -> ReusableFusedRuntimeKernelAbi raise FusedArtifactAdmissionError {
   match name {
     "residual-rmsnorm-production-v2" => ResidualRmsNormProductionV2
+    "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4" =>
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
     "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2" =>
       QwenQkNormPositionedRopePagedKvWriteProductionV2
     "qwen-paged-attention-readonly-production-v2" =>
@@ -42,6 +46,7 @@ fn reusable_runtime_required_operation_count(
 ) -> Int {
   match abi {
     ResidualRmsNormProductionV2 => 2
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 4
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
@@ -52,9 +57,10 @@ fn reusable_runtime_required_operation_count(
 fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
   match abi {
     ResidualRmsNormProductionV2 => 0
-    QwenQkNormPositionedRopePagedKvWriteProductionV2 => 1
-    QwenPagedAttentionReadOnlyProductionV2 => 2
-    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 3
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 1
+    QwenQkNormPositionedRopePagedKvWriteProductionV2 => 2
+    QwenPagedAttentionReadOnlyProductionV2 => 3
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 4
   }
 }
 
@@ -79,6 +85,22 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   first_b : Int,
 ) -> Bool {
   match (abi_a, abi_b) {
+    (
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      QwenPagedAttentionReadOnlyProductionV2,
+    ) => first_b == first_a + 3
+    (
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+    ) => first_b == first_a + 3
+    (
+      QwenPagedAttentionReadOnlyProductionV2,
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+    ) => first_a == first_b + 3
+    (
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+    ) => first_a == first_b + 3
     (
       QwenQkNormPositionedRopePagedKvWriteProductionV2,
       QwenPagedAttentionReadOnlyProductionV2,
@@ -340,6 +362,7 @@ pub fn export_reusable_fused_runtime_bundle(
   out.write_string("module_count=" + modules.length().to_string() + "\n")
   let canonical_abis = [
     ResidualRmsNormProductionV2,
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
     QwenQkNormPositionedRopePagedKvWriteProductionV2,
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,

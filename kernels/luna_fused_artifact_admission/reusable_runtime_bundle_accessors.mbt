@@ -66,6 +66,16 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(
 }
 
 ///|
+/// Returns the compiler-fused projection plus attention-ingress module when
+/// the runtime bundle carries the V4 ABI. Older bundles keep using the
+/// post-projection V2 accessor above.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_full_attention_ingress_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenQkvQkNormPositionedRopePagedKvWriteProductionV4)
+}
+
+///|
 /// Returns only the admitted Qwen cache-read-only attention entry. It cannot
 /// be substituted by the Qwen ingress module or inferred from its presence.
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(

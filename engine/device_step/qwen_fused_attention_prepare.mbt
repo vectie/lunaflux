@@ -4,6 +4,11 @@ fn qwen_fused_postprocess_argument_count() -> Int {
 }
 
 ///|
+fn qwen_fused_full_ingress_argument_count() -> Int {
+  15
+}
+
+///|
 fn qwen_fused_attention_sidecar_shape_from_bindings(
   rotated : PagedKvOperandBinding,
   readonly_input : PagedKvOperandBinding,
@@ -247,6 +252,7 @@ fn prepare_qwen_fused_attention_steps(
     raise InvalidExecutor(ResourceState)
   }
   let qk_norm_weights = qwen_fused_attention_weights(qk_norm_step, 2)
+  let qkv_weights = qwen_fused_attention_weights(qkv_step, 3)
   let output = unique_composite_binding(attention_step, role => {
     role is ActivationOutput(_)
   })
@@ -260,7 +266,16 @@ fn prepare_qwen_fused_attention_steps(
   for binding in runtime {
     postprocess_bindings.push(binding)
   }
-  postprocess_bindings.push(qkv_output)
+  if span.ingress_includes_projection() {
+    postprocess_bindings.push(
+      unique_composite_binding(qkv_step, role => role is ActivationInput(_)),
+    )
+    for binding in qkv_weights {
+      postprocess_bindings.push(binding)
+    }
+  } else {
+    postprocess_bindings.push(qkv_output)
+  }
   for binding in qk_norm_weights {
     postprocess_bindings.push(binding)
   }
@@ -274,13 +289,22 @@ fn prepare_qwen_fused_attention_steps(
   for binding in [readonly_input, output, key_cache, value_cache] {
     readonly_bindings.push(binding)
   }
-  if postprocess_bindings.length() != qwen_fused_postprocess_argument_count() ||
+  let expected_ingress_arguments = if span.ingress_includes_projection() {
+    qwen_fused_full_ingress_argument_count()
+  } else {
+    qwen_fused_postprocess_argument_count()
+  }
+  if postprocess_bindings.length() != expected_ingress_arguments ||
     readonly_bindings.length() != readonly_attention_production_argument_count() {
     raise InvalidExecutor(ResourceState)
   }
   (
     prepare_qwen_fused_attention_launch(
-      qk_norm_step.operation_id(),
+      if span.ingress_includes_projection() {
+        qkv_step.operation_id()
+      } else {
+        qk_norm_step.operation_id()
+      },
       ingress_function,
       span.postprocess_launch(),
       postprocess_bindings,
@@ -307,15 +331,63 @@ fn prepare_qwen_fused_attention_steps(
 }
 
 ///|
-fn[Step] replace_qwen_fused_attention_spans(
+fn[Step] replace_qwen_fused_attention_runtime_spans(
   baseline : ReadOnlyArray[Step],
-  qkv_indices : ReadOnlyArray[Int],
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
   postprocess : ReadOnlyArray[Step],
   readonly_steps : ReadOnlyArray[Step],
 ) -> ReadOnlyArray[Step] raise DeviceStepError {
-  replace_projection_postprocess_attention_spans(
-    baseline, qkv_indices, postprocess, readonly_steps,
-  )
+  if spans.length() != postprocess.length() ||
+    spans.length() != readonly_steps.length() {
+    raise InvalidExecutor(ResourceState)
+  }
+  if spans.all(span => !span.ingress_includes_projection()) {
+    let qkv_indices : Array[Int] = []
+    for span in spans {
+      qkv_indices.push(span.operation_indices().0)
+    }
+    return replace_projection_postprocess_attention_spans(
+      baseline,
+      ReadOnlyArray::from_array(qkv_indices),
+      postprocess,
+      readonly_steps,
+    )
+  }
+  let replacement_for = FixedArray::make(baseline.length(), -1)
+  let skipped = FixedArray::make(baseline.length(), false)
+  for replacement_index, span in spans {
+    let indices = span.operation_indices()
+    let start = if span.ingress_includes_projection() {
+      indices.0
+    } else {
+      indices.1
+    }
+    if indices.0 < 0 ||
+      indices.3 >= baseline.length() ||
+      start < indices.0 ||
+      start > indices.1 ||
+      replacement_for[start] >= 0 {
+      raise InvalidExecutor(ResourceState)
+    }
+    for index in start..<=indices.3 {
+      if skipped[index] {
+        raise InvalidExecutor(ResourceState)
+      }
+      skipped[index] = true
+    }
+    replacement_for[start] = replacement_index
+  }
+  let output : Array[Step] = []
+  for index, step in baseline {
+    let replacement = replacement_for[index]
+    if replacement >= 0 {
+      output.push(postprocess[replacement])
+      output.push(readonly_steps[replacement])
+    } else if !skipped[index] {
+      output.push(step)
+    }
+  }
+  ReadOnlyArray::from_array(output)
 }
 
 ///|

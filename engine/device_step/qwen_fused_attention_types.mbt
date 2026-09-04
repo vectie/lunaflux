@@ -10,6 +10,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv target : @catalog.DeviceTarget
   priv runtime_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv ingress_includes_projection : Bool
   priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv postprocess_module_bytes : Bytes
   priv postprocess_symbol : String
@@ -55,6 +56,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   other : ApprovedQwenFusedAttentionSpan,
 ) -> Bool {
   self.runtime_digest == other.runtime_digest &&
+  self.ingress_includes_projection == other.ingress_includes_projection &&
   self.postprocess_module_digest == other.postprocess_module_digest &&
   self.postprocess_symbol == other.postprocess_symbol &&
   self.postprocess_launch == other.postprocess_launch &&
@@ -64,6 +66,13 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.decode_module_digest == other.decode_module_digest &&
   self.decode_symbol == other.decode_symbol &&
   self.decode_launch == other.decode_launch
+}
+
+///|
+fn ApprovedQwenFusedAttentionSpan::ingress_includes_projection(
+  self : ApprovedQwenFusedAttentionSpan,
+) -> Bool {
+  self.ingress_includes_projection
 }
 
 ///|

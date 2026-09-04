@@ -25,21 +25,26 @@ fn replace_paged_production_spans(
   let qwen_covered = FixedArray::make(baseline.length(), false)
   for span_index, span in qwen_spans {
     let indices = span.operation_indices()
+    let replacement_start = if span.ingress_includes_projection() {
+      indices.0
+    } else {
+      indices.1
+    }
     if indices.0 < 0 ||
       indices.1 != indices.0 + 1 ||
       indices.2 != indices.0 + 2 ||
       indices.3 != indices.0 + 3 ||
       indices.3 >= baseline.length() ||
-      qwen_starts[indices.1] >= 0 {
+      qwen_starts[replacement_start] >= 0 {
       raise InvalidExecutor(ResourceState)
     }
-    for index in [indices.1, indices.2, indices.3] {
+    for index in replacement_start..<=indices.3 {
       if qwen_covered[index] {
         raise InvalidExecutor(ResourceState)
       }
       qwen_covered[index] = true
     }
-    qwen_starts[indices.1] = span_index
+    qwen_starts[replacement_start] = span_index
   }
   for span in residual_spans {
     let residual = span.operation_indices()
@@ -73,15 +78,8 @@ fn replace_paged_production_spans(
     None => ()
   }
   if residual_spans.is_empty() && qkv_indices is None && !qwen_spans.is_empty() {
-    let qwen_indices : Array[Int] = []
-    for span in qwen_spans {
-      qwen_indices.push(span.operation_indices().0)
-    }
-    return replace_qwen_fused_attention_spans(
-      baseline,
-      ReadOnlyArray::from_array(qwen_indices),
-      qwen_ingress_replacements,
-      qwen_readonly_replacements,
+    return replace_qwen_fused_attention_runtime_spans(
+      baseline, qwen_spans, qwen_ingress_replacements, qwen_readonly_replacements,
     )
   }
   match

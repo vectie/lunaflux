@@ -103,6 +103,46 @@ test "reusable fused runtime bundle admits three typed families once" {
 }
 
 ///|
+test "V4 Qwen full ingress owns projection through KV write" {
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let canonical = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target~,
+    modules=[
+      runtime_bundle_test_input(
+        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+        2,
+        4,
+        "qwen_full_ingress",
+      ),
+      runtime_bundle_test_input(
+        QwenPagedAttentionReadOnlyProductionV2,
+        5,
+        1,
+        "qwen_attention",
+      ),
+    ],
+  )
+  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+    canonical,
+    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+  )
+  guard admitted.qwen_full_attention_ingress_module() is Some(ingress) else {
+    fail("Qwen V4 full ingress module missing")
+  }
+  assert_eq(ingress.operation_span(), (2, 4))
+  assert_eq(ingress.function_symbol(), "lunaflux_qwen_full_ingress")
+  assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), Some(5))
+  assert_true(admitted.qwen_qknorm_rope_kv_write_module() is None)
+}
+
+///|
 test "V3 Qwen attention module retains readonly and decode split authority" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
