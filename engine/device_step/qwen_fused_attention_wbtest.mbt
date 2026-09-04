@@ -613,10 +613,7 @@ test "Qwen runtime admits compiler partition-map fold merge prefill" {
     qwen_partitioned_prefill_minimum_context_tokens(blueprint, spans),
     2 * 16 * blueprint.layout().tokens_per_page(),
   )
-  assert_eq(
-    qwen_partitioned_prefill_query_tile(blueprint, spans),
-    blueprint.profile().max_query_rows(),
-  )
+  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 16)
   assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 
@@ -671,7 +668,7 @@ test "Qwen runtime admits low-parallelism partition grid specialization" {
   }
   assert_eq(pipeline.partial_launch.grid_x(), 2)
   assert_eq(pipeline.merge_launch.grid_x(), 2)
-  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 2)
+  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 16)
   assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 

@@ -212,11 +212,15 @@ test "deep partition frontier supersedes base only for enough bucket work" {
     13,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 16, 2048)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 16, 32768)),
+    13,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 16, 65536)),
     17,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 1, 16, 2048)),
+    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 1, 16, 65536)),
     17,
   )
   assert_eq(

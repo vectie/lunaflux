@@ -73,7 +73,7 @@ fn PagedOrderedExecutorDispatch::select(
     bucket.phase() == MixedGraph
   if self.deep_prefill_split_owner_index >= 0 &&
     prefill_phase &&
-    paged_partitioned_prefill_has_enough_work(
+    paged_partitioned_prefill_frontier_has_enough_work(
       batch_rows,
       query_tokens,
       context_tokens,
@@ -158,6 +158,33 @@ fn paged_partitioned_prefill_has_enough_work(
     query_tiles * 2
   } else {
     2147483647
+  }
+  context_tokens >= minimum_context_tokens &&
+  context_tokens / minimum_context_tokens >= context_multiple
+}
+
+///|
+fn paged_partitioned_prefill_frontier_has_enough_work(
+  batch_rows : Int,
+  query_tokens : Int,
+  context_tokens : Int,
+  minimum_context_tokens : Int,
+  query_tile : Int,
+  partition_count : Int,
+) -> Bool {
+  if minimum_context_tokens <= 0 || query_tile <= 0 || partition_count <= 1 {
+    return false
+  }
+  let query_tiles = Int::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
+  let frontier_work = if partition_count <= 268435455 {
+    partition_count * 8
+  } else {
+    2147483647
+  }
+  let context_multiple = if frontier_work == 2147483647 {
+    2147483647
+  } else {
+    Int::max(2, 1 + (frontier_work - 1) / query_tiles)
   }
   context_tokens >= minimum_context_tokens &&
   context_tokens / minimum_context_tokens >= context_multiple

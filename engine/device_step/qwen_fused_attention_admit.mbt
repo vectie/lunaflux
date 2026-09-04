@@ -184,6 +184,7 @@ fn admit_qwen_partitioned_prefill_pair(
   maximum_tokens : Int,
   query_heads : Int,
   head_dimension : Int,
+  query_tile_rows : Int,
 ) -> ApprovedQwenPartitionedPrefill? raise FusedGroupedOperationError {
   match modules {
     Some((partial, merge)) => {
@@ -195,6 +196,7 @@ fn admit_qwen_partitioned_prefill_pair(
         merge.operation_span() != (attention_operation, 1) ||
         partial.module_digest() != merge.module_digest() ||
         partial.module_bytes() != merge.module_bytes() ||
+        query_tile_rows <= 0 ||
         partial_launch.grid_x() <= 0 ||
         partial_launch.grid_x() > compiler_prefill_grid ||
         partial_launch.grid_y() != query_heads ||
@@ -220,6 +222,7 @@ fn admit_qwen_partitioned_prefill_pair(
         partial_launch,
         merge_symbol: merge.function_symbol(),
         merge_launch,
+        query_tile_rows,
         workspace_bytes: qwen_partitioned_prefill_workspace_bytes(
           maximum_tokens,
           query_heads,
@@ -401,6 +404,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     maximum_tokens,
     query_heads,
     head_dimension,
+    16,
   )
   let deep_partitioned_prefill = admit_qwen_partitioned_prefill_pair(
     deep_partitioned_modules,
@@ -411,6 +415,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     maximum_tokens,
     query_heads,
     head_dimension,
+    16,
   )
   match (partitioned_prefill, deep_partitioned_prefill) {
     (Some(base), Some(deep)) =>

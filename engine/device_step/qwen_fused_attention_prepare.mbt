@@ -593,10 +593,8 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 }
 
 ///|
-/// Returns a conservative query-tile extent for low-parallelism routing.
-/// Grid-X is launch coverage, so it must never be reinterpreted as tile width.
-/// The profile row bound supplies the semantic limit until the reusable bundle
-/// carries the compiler tile as first-class dispatch metadata.
+/// Returns the query-tile extent owned by the versioned runtime ABI. Grid-X is
+/// launch coverage and is deliberately never reinterpreted as tile width.
 fn qwen_partitioned_prefill_query_tile(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
@@ -606,20 +604,13 @@ fn qwen_partitioned_prefill_query_tile(
     qwen_partitioned_prefill_variant(first, deep) is Some(first_pipeline) else {
     return 1
   }
-  // Grid-X is the maximum number of logical query tiles, not their extent.
-  // The admitted Qwen profile bounds live rows and the selected compiler tile
-  // cannot exceed that bound. Taking the smaller value is conservative for a
-  // future non-power-of-two profile: it may skip split-K, never over-dispatch.
-  let query_tile = Int::min(
-    blueprint.profile().max_query_rows(),
-    first_pipeline.partial_launch.grid_x(),
-  )
-  if query_tile <= 0 {
+  let query_tile = first_pipeline.query_tile_rows
+  if query_tile <= 0 || blueprint.profile().max_query_tokens() <= 0 {
     raise InvalidExecutor(ResourceState)
   }
   for span in spans {
     guard qwen_partitioned_prefill_variant(span, deep) is Some(pipeline) &&
-      pipeline.partial_launch.grid_x() == first_pipeline.partial_launch.grid_x() else {
+      pipeline.query_tile_rows == query_tile else {
       raise InvalidExecutor(ResourceState)
     }
   }

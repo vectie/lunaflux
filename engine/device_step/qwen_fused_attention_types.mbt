@@ -22,6 +22,7 @@ priv struct ApprovedQwenPartitionedPrefill {
   partial_launch : @launch_contract.AotLaunchDimensions
   merge_symbol : String
   merge_launch : @launch_contract.AotLaunchDimensions
+  query_tile_rows : Int
   workspace_bytes : Int64
   workspace_alignment : Int64
 } derive(Eq)
