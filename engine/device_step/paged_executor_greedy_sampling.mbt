@@ -308,6 +308,7 @@ fn finish_paged_sampling_preparation(
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_query_tile? : Int = 1,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
@@ -343,6 +344,7 @@ fn finish_paged_sampling_preparation(
     blueprint.profile(),
     prefill_split_steps~,
     prefill_split_minimum_context_tokens~,
+    prefill_split_query_tile~,
     decode_steps~,
     decode_split_steps~,
     decode_split_minimum_context_tokens~,

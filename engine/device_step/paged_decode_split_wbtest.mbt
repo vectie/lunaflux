@@ -24,6 +24,7 @@ test "decode split dispatch owns only decode buckets" {
     telemetry_owner_index: base.telemetry_owner_index,
     prefill_split_owner_index: -1,
     prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+    prefill_split_query_tile: 1,
     decode_owner_index: 9,
     decode_split_owner_index: 11,
     decode_split_minimum_context_tokens: 2048,

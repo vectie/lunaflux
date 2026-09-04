@@ -68,10 +68,16 @@ fn PagedOrderedExecutorDispatch::select(
   self : PagedOrderedExecutorDispatch,
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
 ) -> Int raise DeviceStepError {
-  let (_, _, context_tokens) = bucket.upper_bounds()
+  let (batch_rows, query_tokens, context_tokens) = bucket.upper_bounds()
+  let prefill_query_tiles = if self.prefill_split_query_tile > 0 {
+    Int::max(batch_rows, 1 + (query_tokens - 1) / self.prefill_split_query_tile)
+  } else {
+    2147483647
+  }
   if self.prefill_split_owner_index >= 0 &&
     (bucket.phase() == PrefillGraph || bucket.phase() == MixedGraph) &&
-    context_tokens >= self.prefill_split_minimum_context_tokens {
+    context_tokens >= self.prefill_split_minimum_context_tokens &&
+    prefill_query_tiles == 1 {
     let slot = bucket.slot()
     if slot >= 0 && slot < self.prefill_split_slot_owner_indices.length() {
       let owner = self.prefill_split_slot_owner_indices[slot]

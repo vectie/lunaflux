@@ -551,6 +551,32 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 }
 
 ///|
+/// Returns the query tile used to compile the low-parallelism partition map.
+/// The partitioned compiler intentionally receives exactly one query tile, so
+/// its admitted grid-X is also the immutable tile extent. Runtime dispatch
+/// uses this backend-neutral extent to avoid adding KV partitions once the
+/// live query map already exposes more than one independent tile.
+fn qwen_partitioned_prefill_query_tile(
+  spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+) -> Int raise DeviceStepError {
+  guard spans.get(0) is Some(first) &&
+    first.partitioned_prefill() is Some(first_pipeline) else {
+    return 1
+  }
+  let query_tile = first_pipeline.partial_launch.grid_x()
+  if query_tile <= 0 {
+    raise InvalidExecutor(ResourceState)
+  }
+  for span in spans {
+    guard span.partitioned_prefill() is Some(pipeline) &&
+      pipeline.partial_launch.grid_x() == query_tile else {
+      raise InvalidExecutor(ResourceState)
+    }
+  }
+  query_tile
+}
+
+///|
 fn[Step] replace_qwen_fused_attention_runtime_spans(
   baseline : ReadOnlyArray[Step],
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],

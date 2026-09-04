@@ -204,6 +204,10 @@ fn prepare_qwen_graph_launch_contract(
     }
     let postprocess = span.postprocess_launch()
     let readonly_launch = span.readonly_launch()
+    let prefill_query_tile = match span.partitioned_prefill() {
+      Some(pipeline) => pipeline.partial_launch.grid_x()
+      None => 16
+    }
     let expected_ingress_grid = if span.ingress_includes_projection() {
       (blueprint.profile().max_query_tokens() + 15) / 16
     } else {
@@ -233,7 +237,7 @@ fn prepare_qwen_graph_launch_contract(
           paged_qwen_postprocess_bucket_launch(postprocess)
         }
         launches[readonly_index] = if span.has_phase_specific_attention() {
-          QueryTileCappedGridX(readonly_launch, 16)
+          QueryTileCappedGridX(readonly_launch, prefill_query_tile)
         } else {
           QueryTokenCappedGridX(readonly_launch)
         }
@@ -288,11 +292,11 @@ fn prepare_qwen_graph_launch_contract(
         }
         split_launches[attention_steps[0]] = QueryTileCappedGridX(
           pipeline.partial_launch,
-          16,
+          pipeline.partial_launch.grid_x(),
         )
         split_launches[attention_steps[1]] = QueryTileCappedGridX(
           pipeline.merge_launch,
-          16,
+          pipeline.partial_launch.grid_x(),
         )
       }
       Some(split_launches)
@@ -543,6 +547,7 @@ fn prepare_paged_ordered_executors(
   profile : @launch_contract.PagedKernelProfile,
   prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_query_tile? : Int = 1,
   decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -700,11 +705,7 @@ fn prepare_paged_ordered_executors(
             paged_ordered_device_policy(graph_policy),
           )
           map_paged_prefill_capture_owner(
-            table,
-            profile.max_query_rows(),
-            bound,
-            owner,
-            prefill_split_slot_owner_indices,
+            table, 1, bound, owner, prefill_split_slot_owner_indices,
           )
         }
       }
@@ -784,6 +785,7 @@ fn prepare_paged_ordered_executors(
     telemetry_owner_index,
     prefill_split_owner_index,
     prefill_split_minimum_context_tokens,
+    prefill_split_query_tile,
     decode_owner_index,
     decode_split_owner_index,
     decode_split_minimum_context_tokens,

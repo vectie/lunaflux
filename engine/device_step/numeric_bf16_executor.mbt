@@ -185,6 +185,11 @@ fn prepare_numeric_bf16_graph_resources(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let prefill_split_query_tile = qwen_partitioned_prefill_query_tile(
+    qwen_fused_attention_spans,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.graph_launch_contract = prepare_qwen_graph_launch_contract(
     blueprint,
     model_steps,
@@ -212,6 +217,7 @@ fn prepare_numeric_bf16_graph_resources(
     fused_residual_spans,
     ProductionFastPath,
     prefill_split_minimum_context_tokens~,
+    prefill_split_query_tile~,
     decode_split_minimum_context_tokens~,
   )
 }

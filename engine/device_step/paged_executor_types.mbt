@@ -69,6 +69,7 @@ priv struct PagedOrderedExecutorDispatch {
   telemetry_owner_index : Int
   prefill_split_owner_index : Int
   prefill_split_minimum_context_tokens : Int
+  prefill_split_query_tile : Int
   decode_owner_index : Int
   decode_split_owner_index : Int
   decode_split_minimum_context_tokens : Int

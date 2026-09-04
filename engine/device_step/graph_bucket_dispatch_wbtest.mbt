@@ -30,6 +30,7 @@ fn graph_dispatch_fixture(
       telemetry_owner_index: 2,
       prefill_split_owner_index: -1,
       prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+      prefill_split_query_tile: 1,
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -105,24 +106,29 @@ test "prefill bucket owners map live token capacities without touching larger bu
 }
 
 ///|
-test "partitioned prefill owns long prefill and continuous mixed buckets" {
+test "partitioned prefill owns only long single-tile query maps" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     ..base,
     prefill_split_owner_index: 13,
     prefill_split_minimum_context_tokens: 512,
+    prefill_split_query_tile: 32,
   }
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 32, 256)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 32, 256)),
     7,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 32, 4096)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 32, 4096)),
     13,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 8, 32, 4096)),
-    13,
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 2, 32, 4096)),
+    7,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 2, 32, 4096)),
+    7,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 4096)),
@@ -137,6 +143,7 @@ test "partitioned prefill selects the smallest compiled query bucket" {
     ..base,
     prefill_split_owner_index: 15,
     prefill_split_minimum_context_tokens: 512,
+    prefill_split_query_tile: 32,
   }
   map_paged_prefill_capture_owner(
     table,
@@ -153,19 +160,23 @@ test "partitioned prefill selects the smallest compiled query bucket" {
     dispatch.prefill_split_slot_owner_indices,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 12, 4096)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 12, 4096)),
     13,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 16, 24, 4096)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 24, 4096)),
     14,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 32, 64, 4096)),
-    15,
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 2, 24, 4096)),
+    7,
   )
   assert_eq(
-    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 8, 12, 256)),
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 64, 4096)),
+    7,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 12, 256)),
     7,
   )
 }
@@ -180,6 +191,7 @@ test "phase-specific decode owners replace baseline slots without touching prefi
     telemetry_owner_index: baseline.telemetry_owner_index,
     prefill_split_owner_index: baseline.prefill_split_owner_index,
     prefill_split_minimum_context_tokens: baseline.prefill_split_minimum_context_tokens,
+    prefill_split_query_tile: baseline.prefill_split_query_tile,
     decode_owner_index: 12,
     decode_split_owner_index: baseline.decode_split_owner_index,
     decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,
