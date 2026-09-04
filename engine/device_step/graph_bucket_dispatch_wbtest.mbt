@@ -82,8 +82,18 @@ test "prefill bucket owners map live token capacities without touching larger bu
   let exact = graph_dispatch_bucket(table, PrefillGraph, 16, 16, 65536)
   let larger = graph_dispatch_bucket(table, PrefillGraph, 16, 32, 65536)
   let decode = graph_dispatch_bucket(table, DecodeGraph, 8, 8, 65536)
+  let mixed = graph_dispatch_bucket(table, MixedGraph, 8, 12, 65536)
+  let impossible_single_row_mixed = graph_dispatch_bucket(
+    table,
+    MixedGraph,
+    1,
+    1,
+    65536,
+  )
   assert_eq(dispatch.select(small), 5)
   assert_eq(dispatch.select(exact), 5)
+  assert_eq(dispatch.select(mixed), 5)
+  assert_eq(dispatch.select(impossible_single_row_mixed), 7)
   assert_eq(dispatch.select(larger), 7)
   assert_eq(dispatch.select(decode), 7)
 }
