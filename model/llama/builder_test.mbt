@@ -25,7 +25,7 @@ test "paged Llama plan has a pinned self-authenticated canonical digest" {
   let second = @llama.build_paged(metadata)
   inspect(
     first.identity().plan().as_hex(),
-    content="18baaeb07037baa1a8783458b2b014220c3619d2e06f510e9cfeec85d2ca701f",
+    content="50a5f508241eea7ebdac8bec6a218ac2fbc1203a72cbd5349272838a0e55892d",
   )
   assert_eq(first.identity(), second.identity())
   assert_false(
@@ -227,7 +227,7 @@ test "paged Llama plan owns exact layered runtime and persistent-state semantics
   assert_eq(paged.identity().content(), full_context.identity().content())
   assert_eq(
     paged.identity().plan().as_hex(),
-    "18baaeb07037baa1a8783458b2b014220c3619d2e06f510e9cfeec85d2ca701f",
+    "50a5f508241eea7ebdac8bec6a218ac2fbc1203a72cbd5349272838a0e55892d",
   )
   let expected_attention_inputs : Array[@plan.OperationRuntimeInput] = [
     StepCounts,
@@ -239,12 +239,16 @@ test "paged Llama plan owns exact layered runtime and persistent-state semantics
   ]
   for operation in paged.operations() {
     if operation.kind() != RotaryEmbedding &&
-      operation.kind() != CausalAttention {
+      operation.kind() != CausalAttention &&
+      operation.kind() != LanguageModelHead {
       assert_eq(operation.runtime_inputs(), [StepCounts])
       assert_eq(operation.kv_layer(), None)
       assert_eq(operation.persistent_state(), NoPersistentState)
     }
   }
+  let language_model_head = paged.operations()[paged.operations().length() - 1]
+  assert_eq(language_model_head.kind(), LanguageModelHead)
+  assert_eq(language_model_head.runtime_inputs(), [StepCounts, QueryRowOffsets])
   for layer in 0..<2 {
     let layer_id = @plan.KvLayerId::new(layer)
     let rotary = paged.operations()[3 + layer * 9]

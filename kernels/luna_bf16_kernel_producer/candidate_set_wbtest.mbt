@@ -135,7 +135,7 @@ test "authenticated tiny BF16 plan produces canonical sm120 candidate set" {
   )
   assert_eq(
     identity.plan().as_hex(),
-    "22103eddad1277154b79321e53893ad579e47d040d62b896f5596624e0b7be3e",
+    "787d48d4cb2b1f4e848c7ffa41f72173b24c1c2b143d7d8b3cf817de3598fc77",
   )
   assert_eq(set.operation_count(), 21)
   assert_eq(set.candidates().length(), 21)
