@@ -284,6 +284,53 @@ test "V2 compiler prefill and V3 decode may share one attention operation" {
 }
 
 ///|
+test "prefill frontier roles coexist on one attention operation" {
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let canonical = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target~,
+    modules=[
+      runtime_bundle_test_input(
+        QwenPagedAttentionPrefillWideQueryProductionV5,
+        5,
+        1,
+        "qwen_prefill_wide",
+      ),
+      runtime_bundle_test_input(
+        QwenPagedAttentionReadOnlyProductionV2,
+        5,
+        1,
+        "qwen_prefill_selected",
+      ),
+      runtime_bundle_test_input(
+        QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+        5,
+        1,
+        "qwen_decode",
+      ),
+    ],
+  )
+  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+    canonical,
+    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+  )
+  guard admitted.qwen_wide_query_prefill_module() is Some(wide) &&
+    admitted.qwen_paged_attention_prefill_module() is Some(selected) else {
+    fail("prefill frontier modules missing")
+  }
+  assert_eq(wide.operation_span(), (5, 1))
+  assert_eq(wide.function_symbol(), "lunaflux_qwen_prefill_wide")
+  assert_eq(selected.function_symbol(), "lunaflux_qwen_prefill_selected")
+  assert_eq(admitted.modules().length(), 3)
+}
+
+///|
 test "reusable fused runtime bundle rejects duplicate family input" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,

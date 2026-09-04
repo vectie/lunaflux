@@ -90,6 +90,16 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_merge_module
 }
 
 ///|
+/// Returns the optional wider-query prefill frontier member. It has the same
+/// attention semantics as the selected prefill module but a distinct AOT
+/// symbol and launch shape for startup-materialized bucket dispatch.
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> ApprovedReusableFusedRuntimeModule? {
+  self.module_for(QwenPagedAttentionPrefillWideQueryProductionV5)
+}
+
+///|
 /// Returns only the admitted Qwen cache-read-only attention entry. It cannot
 /// be substituted by the Qwen ingress module or inferred from its presence.
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(

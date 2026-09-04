@@ -102,6 +102,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_merge_module
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_partitioned_prefill_partial_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_indices(Self) -> (Int, Int, Int)?
+pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_module(Self) -> ApprovedReusableFusedRuntimeModule?
 pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(Self) -> (Int, Int)?
 pub fn ApprovedReusableFusedRuntimeBundle::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -158,6 +159,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionPrefillPartitionedPartialProductionV4
   QwenPagedAttentionPrefillPartitionedMergeProductionV4
+  QwenPagedAttentionPrefillWideQueryProductionV5
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3
 } derive(Eq, @debug.Debug)

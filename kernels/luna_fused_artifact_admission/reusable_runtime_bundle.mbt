@@ -1,11 +1,11 @@
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 6
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 7
 
 ///|
 const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int = 8388608
 
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 32000000
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 40000000
 
 ///|
 fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
@@ -19,6 +19,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-paged-attention-prefill-partitioned-partial-production-v4"
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 =>
       "qwen-paged-attention-prefill-partitioned-merge-production-v4"
+    QwenPagedAttentionPrefillWideQueryProductionV5 =>
+      "qwen-paged-attention-prefill-wide-query-production-v5"
     QwenPagedAttentionReadOnlyProductionV2 =>
       "qwen-paged-attention-readonly-production-v2"
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 =>
@@ -40,6 +42,8 @@ fn reusable_runtime_parse_abi(
       QwenPagedAttentionPrefillPartitionedPartialProductionV4
     "qwen-paged-attention-prefill-partitioned-merge-production-v4" =>
       QwenPagedAttentionPrefillPartitionedMergeProductionV4
+    "qwen-paged-attention-prefill-wide-query-production-v5" =>
+      QwenPagedAttentionPrefillWideQueryProductionV5
     "qwen-paged-attention-readonly-production-v2" =>
       QwenPagedAttentionReadOnlyProductionV2
     "qwen-paged-attention-readonly-decode-split-production-v3" =>
@@ -58,6 +62,7 @@ fn reusable_runtime_required_operation_count(
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 1
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 1
+    QwenPagedAttentionPrefillWideQueryProductionV5 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
   }
@@ -71,8 +76,9 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 2
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 3
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 4
-    QwenPagedAttentionReadOnlyProductionV2 => 5
-    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 6
+    QwenPagedAttentionPrefillWideQueryProductionV5 => 5
+    QwenPagedAttentionReadOnlyProductionV2 => 6
+    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 7
   }
 }
 
@@ -87,6 +93,28 @@ fn reusable_runtime_spans_overlap(
 }
 
 ///|
+fn reusable_runtime_is_qwen_attention_reader(
+  abi : ReusableFusedRuntimeKernelAbi,
+) -> Bool {
+  abi == QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
+  abi == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
+  abi == QwenPagedAttentionPrefillWideQueryProductionV5 ||
+  abi == QwenPagedAttentionReadOnlyProductionV2 ||
+  abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+}
+
+///|
+fn reusable_runtime_qwen_ingress_terminal_offset(
+  abi : ReusableFusedRuntimeKernelAbi,
+) -> Int? {
+  match abi {
+    QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => Some(3)
+    QwenQkNormPositionedRopePagedKvWriteProductionV2 => Some(2)
+    _ => None
+  }
+}
+
+///|
 /// The Qwen ingress fusion consumes the attention operation's KV-write role,
 /// while the separate readonly kernel consumes that same operation's cache
 /// read role. This terminal overlap is the only valid shared operation claim.
@@ -96,84 +124,20 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   abi_b : ReusableFusedRuntimeKernelAbi,
   first_b : Int,
 ) -> Bool {
-  let reader_a = abi_a ==
-    QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
-    abi_a == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
-    abi_a == QwenPagedAttentionReadOnlyProductionV2 ||
-    abi_a == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
-  let reader_b = abi_b ==
-    QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
-    abi_b == QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
-    abi_b == QwenPagedAttentionReadOnlyProductionV2 ||
-    abi_b == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  let reader_a = reusable_runtime_is_qwen_attention_reader(abi_a)
+  let reader_b = reusable_runtime_is_qwen_attention_reader(abi_b)
   if reader_a && reader_b {
     return first_a == first_b
   }
-  match (abi_a, abi_b) {
+  match
     (
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
-    ) => first_b == first_a + 3
-    (
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
-    ) => first_b == first_a + 3
-    (
-      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    ) => first_a == first_b + 3
-    (
-      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    ) => first_a == first_b + 3
-    (
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      QwenPagedAttentionReadOnlyProductionV2,
-    ) => first_b == first_a + 3
-    (
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-    ) => first_b == first_a + 3
-    (
-      QwenPagedAttentionReadOnlyProductionV2,
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    ) => first_a == first_b + 3
-    (
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-    ) => first_a == first_b + 3
-    (
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
-    ) => first_b == first_a + 2
-    (
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
-    ) => first_b == first_a + 2
-    (
-      QwenPagedAttentionPrefillPartitionedPartialProductionV4,
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-    ) => first_a == first_b + 2
-    (
-      QwenPagedAttentionPrefillPartitionedMergeProductionV4,
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-    ) => first_a == first_b + 2
-    (
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      QwenPagedAttentionReadOnlyProductionV2,
-    ) => first_b == first_a + 2
-    (
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-    ) => first_b == first_a + 2
-    (
-      QwenPagedAttentionReadOnlyProductionV2,
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-    ) => first_a == first_b + 2
-    (
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-    ) => first_a == first_b + 2
+      reader_a,
+      reusable_runtime_qwen_ingress_terminal_offset(abi_b),
+      reader_b,
+      reusable_runtime_qwen_ingress_terminal_offset(abi_a),
+    ) {
+    (true, Some(offset), _, _) => first_a == first_b + offset
+    (_, _, true, Some(offset)) => first_b == first_a + offset
     _ => false
   }
 }
@@ -421,6 +385,7 @@ pub fn export_reusable_fused_runtime_bundle(
     QwenQkNormPositionedRopePagedKvWriteProductionV2,
     QwenPagedAttentionPrefillPartitionedPartialProductionV4,
     QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+    QwenPagedAttentionPrefillWideQueryProductionV5,
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
   ]
