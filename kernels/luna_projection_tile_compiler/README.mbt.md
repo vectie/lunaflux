@@ -7,6 +7,13 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+Gated MLP is represented as a pure value graph rather than an opaque kernel:
+two sibling dot products consume one input value, SiLU gating produces one
+intermediate value, and the down-projection fold consumes that intermediate.
+The middle end therefore records sibling-traversal fusion and intermediate-tile
+reuse once. A device backend lowers those sharing decisions to its own local
+memory and synchronization primitives; model code never names them.
+
 `QueryRowEnds` is legal only for a language-model head. It represents the
 general decoder-serving rule that a row-wise next-token consumer observes only
 the final token of each packed query row. Full-logit callers retain

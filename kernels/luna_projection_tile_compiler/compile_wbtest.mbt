@@ -7,6 +7,7 @@ fn projection_compiler_dispatch(
       family,
       input_width=1024,
       output_width=if family == LanguageModelHead { 151936 } else { 1024 },
+      intermediate_width=if family == GatedMlp { 3072 } else { 0 },
     ),
     256,
     @luna_projection_strategy.ProjectionCapabilities::new(
@@ -39,7 +40,7 @@ test "functional projection compiler prunes unobserved prompt logits" {
     ProjectionSelectQueryRowEnds(ProjectionTileValueId(0)),
   )
   let trace = compiled.optimization().trace()
-  assert_eq(trace.length(), 3)
+  assert_eq(trace.length(), 5)
   assert_true(trace[0].changed())
   assert_true(trace[1].changed())
   assert_true(trace[2].changed())
@@ -65,6 +66,53 @@ test "functional projection compiler preserves all-row dense semantics" {
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 256, 16),
+  )
+}
+
+///|
+test "functional MLP graph shares pure input and intermediate tile values" {
+  let compiled = compile_projection_tile(
+    ProjectionTileCompilerRequest::new(
+      dispatch=projection_compiler_dispatch(GatedMlp),
+      maximum_rows=32,
+      maximum_tokens=256,
+      demand=AllTokenRows,
+    ),
+  )
+  let bindings = compiled.program().bindings()
+  assert_eq(bindings.length(), 9)
+  assert_eq(
+    bindings[4].expression(),
+    ProjectionDot(ProjectionTileValueId(0), ProjectionTileValueId(1)),
+  )
+  assert_eq(
+    bindings[5].expression(),
+    ProjectionDot(ProjectionTileValueId(0), ProjectionTileValueId(2)),
+  )
+  assert_eq(
+    bindings[6].expression(),
+    ProjectionSiluGate(ProjectionTileValueId(4), ProjectionTileValueId(5)),
+  )
+  assert_eq(
+    bindings[7].expression(),
+    ProjectionDot(ProjectionTileValueId(6), ProjectionTileValueId(3)),
+  )
+  let trace = compiled.optimization().trace()
+  assert_eq(trace[3].rule(), FuseSiblingInputTraversals)
+  assert_true(trace[3].changed())
+  assert_eq(trace[4].rule(), ReuseIntermediateTileAcrossOutputTiles)
+  assert_true(trace[4].changed())
+  assert_true(compiled.schedule().reuse_input_tile())
+  assert_true(compiled.schedule().reuse_intermediate_tile())
+  let loops = compiled.schedule().loops()
+  assert_eq(loops.length(), 5)
+  assert_eq(
+    loops[1].components(),
+    (ProjectionParallelMap, ProjectionIntermediateColumnAxis, 3072, 16),
+  )
+  assert_eq(
+    loops[4].components(),
+    (ProjectionSequentialFold, ProjectionIntermediateReductionAxis, 3072, 16),
   )
 }
 

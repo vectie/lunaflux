@@ -123,6 +123,13 @@ pub fn ProjectionTileSchedule::reuse_input_tile(
 }
 
 ///|
+pub fn ProjectionTileSchedule::reuse_intermediate_tile(
+  self : ProjectionTileSchedule,
+) -> Bool {
+  self.reuse_intermediate_tile
+}
+
+///|
 pub fn ProjectionTileSchedule::digest(
   self : ProjectionTileSchedule,
 ) -> ProjectionTileScheduleDigest {

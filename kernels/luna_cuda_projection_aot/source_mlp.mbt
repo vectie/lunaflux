@@ -360,7 +360,9 @@ fn projection_source(
       @utf8.encode(source + reducer)
     }
     GatedMlp =>
-      if projection_tensor_core_mlp_eligible(parameters, dispatch) {
+      if projection_tensor_core_mlp_eligible(parameters, dispatch) &&
+        tile_compilation.schedule().reuse_input_tile() &&
+        tile_compilation.schedule().reuse_intermediate_tile() {
         projection_tensor_core_mlp_source(symbol, parameters, maximum_tokens)
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)

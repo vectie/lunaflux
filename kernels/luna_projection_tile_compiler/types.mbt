@@ -12,8 +12,17 @@ pub(all) enum ProjectionTileValueKind {
   ProjectionInputRows
   ProjectionSelectedRows
   ProjectionWeights
+  ProjectionIntermediateRows
   ProjectionAccumulator
   ProjectionOutputRows
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ProjectionTileWeightRole {
+  ProjectionDenseWeight
+  ProjectionGateWeight
+  ProjectionUpWeight
+  ProjectionDownWeight
 } derive(Debug, Eq)
 
 ///|
@@ -22,9 +31,10 @@ pub struct ProjectionTileValueId(Int) derive(Debug, Eq, Hash)
 ///|
 pub(all) enum ProjectionTileExpression {
   ProjectionTileInput
-  ProjectionTileWeight
+  ProjectionTileWeight(ProjectionTileWeightRole)
   ProjectionSelectQueryRowEnds(ProjectionTileValueId)
   ProjectionDot(ProjectionTileValueId, ProjectionTileValueId)
+  ProjectionSiluGate(ProjectionTileValueId, ProjectionTileValueId)
   ProjectionStore(ProjectionTileValueId)
 } derive(Debug, Eq)
 
@@ -55,6 +65,8 @@ pub(all) enum ProjectionTileRewriteRule {
   PruneUnobservedTokenRows
   HoistSelectedInputTile
   ReuseInputTileAcrossOutputTiles
+  FuseSiblingInputTraversals
+  ReuseIntermediateTileAcrossOutputTiles
 } derive(Debug, Eq)
 
 ///|
@@ -83,8 +95,10 @@ pub(all) enum ProjectionIterationKind {
 ///|
 pub(all) enum ProjectionIterationAxis {
   ProjectionRowAxis
+  ProjectionIntermediateColumnAxis
   ProjectionOutputColumnAxis
   ProjectionReductionAxis
+  ProjectionIntermediateReductionAxis
 } derive(Debug, Eq)
 
 ///|
@@ -105,6 +119,7 @@ pub struct ProjectionTileSchedule {
   priv demand : ProjectionResultDemand
   priv loops : ReadOnlyArray[ProjectionLoopCombinator]
   priv reuse_input_tile : Bool
+  priv reuse_intermediate_tile : Bool
   priv canonical : Bytes
   priv digest : ProjectionTileScheduleDigest
 } derive(Debug, Eq)
