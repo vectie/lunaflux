@@ -8,6 +8,7 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
   "vectie/lunaflux/kernels/luna_cuda_projection_aot",
   "vectie/lunaflux/kernels/luna_fusion_plan",
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
@@ -237,6 +238,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::semantic_plan(Self) -> @luna_
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::source_bytes(Self) -> Bytes
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::source_digest(Self) -> FusedParallelDigest
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::tile_compilation(Self) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
 
 pub struct FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate {
   // private fields
@@ -255,6 +257,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::semantic_plan(Self)
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_bytes(Self) -> Bytes
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_digest(Self) -> FusedParallelDigest
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::tile_compilation(Self) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
 
 pub struct FusedResidualRmsNormCudaCandidate {
   // private fields

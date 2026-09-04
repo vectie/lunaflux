@@ -124,14 +124,21 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_eq(first.candidate_digest(), second.candidate_digest())
   assert_eq(first.semantic_plan().operation_indices(), (2, 3, 4, 5))
   assert_eq(first.launch_dimensions().block_x(), 128)
+  assert_eq(first.launch_dimensions().grid_x(), 1)
   assert_eq(first.launch_dimensions().grid_y(), 8)
+  assert_true(
+    first.tile_compilation().schedule().fuses_attention_ingress_epilogue(),
+  )
   let source = @utf8.decode(first.source_bytes())
   assert_true(source.contains("q_norm_weight"))
   assert_true(source.contains("k_norm_weight"))
-  assert_true(source.contains("rsqrtf(reduction[0]"))
+  assert_true(source.contains("rsqrtf(__fadd_rn"))
   assert_true(source.contains("const int head = (int)blockIdx.y;"))
   assert_false(source.contains("for (int head = 0; head < all_heads; ++head)"))
-  assert_false(source.contains("nvcuda::wmma"))
+  assert_true(source.contains("nvcuda::wmma"))
+  assert_true(
+    source.contains("__shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM]"),
+  )
   let recipe = @utf8.decode(first.recipe_bytes())
   assert_true(
     recipe.contains(
@@ -141,7 +148,8 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_true(
     recipe.contains("reference_fallback=four-distinct-correctness-kernels\n"),
   )
-  assert_true(recipe.contains("grid=8,8,1\n"))
+  assert_true(recipe.contains("grid=1,8,1\n"))
+  assert_true(recipe.contains("tile_compilation_sha256="))
   assert_true(recipe.contains("manifest_bindable=false\n"))
 }
 

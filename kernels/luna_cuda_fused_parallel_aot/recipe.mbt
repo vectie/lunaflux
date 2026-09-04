@@ -28,6 +28,7 @@ fn fused_common_recipe(
   symbol : String,
   canary : UInt,
   numerical : FusedParallelNumericalPolicy,
+  grid_x : Int,
   grid_y : Int,
   shared_memory_bytes : Int,
 ) -> String {
@@ -49,7 +50,7 @@ fn fused_common_recipe(
   "\nfunction_symbol=" +
   symbol +
   "\nblock=128,1,1\ngrid=" +
-  profile.max_query_tokens().to_string() +
+  grid_x.to_string() +
   "," +
   grid_y.to_string() +
   ",1\nshared_memory_bytes=" +
@@ -81,8 +82,17 @@ fn fused_qkv_recipe(
   numerical : FusedParallelNumericalPolicy,
 ) -> Bytes {
   let record = fused_common_recipe(
-      "qkv-positioned-rope-paged-kvwrite-block128", target, profile, compiler, candidate_source,
-      symbol, canary, numerical, 1, 0,
+      "qkv-positioned-rope-paged-kvwrite-block128",
+      target,
+      profile,
+      compiler,
+      candidate_source,
+      symbol,
+      canary,
+      numerical,
+      profile.max_query_tokens(),
+      1,
+      0,
     ) +
     "model_content_sha256=" +
     parameters.model_content +
@@ -244,6 +254,7 @@ fn fused_residual_norm_recipe(
       symbol,
       canary,
       numerical,
+      profile.max_query_tokens(),
       1,
       FUSED_PARALLEL_THREADS * 4,
     ) +

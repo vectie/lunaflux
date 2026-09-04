@@ -80,6 +80,8 @@ fn qwen_fused_recipe(
   compiler : @luna_specialization.LunaCompilerPolicy,
   symbol : String,
   dispatch_canary : UInt,
+  grid_x : Int,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   source_digest : FusedParallelDigest,
 ) -> Bytes {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
@@ -95,10 +97,20 @@ fn qwen_fused_recipe(
       symbol,
       dispatch_canary,
       QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+      grid_x,
       query_heads + 2 * kv_heads,
       0,
     ) +
     "semantic_family=qkv-qknorm-positioned-rope-paged-kvwrite\n" +
+    "tile_program_sha256=" +
+    tile_compilation.program().digest().as_hex() +
+    "\ntile_optimization_sha256=" +
+    tile_compilation.optimization().digest().as_hex() +
+    "\ntile_schedule_sha256=" +
+    tile_compilation.schedule().digest().as_hex() +
+    "\ntile_compilation_sha256=" +
+    tile_compilation.digest().as_hex() +
+    "\n" +
     "model_content_sha256=" +
     plan.identity().content().as_hex() +
     "\nmodel_plan_sha256=" +
@@ -178,11 +190,20 @@ fn qwen_fused_production_recipe(
     "\nmax_page_table_entries=" +
     profile.max_page_table_entries().to_string() +
     "\nblock=128,1,1\ngrid=" +
-    profile.max_query_tokens().to_string() +
+    qualification.dimensions.grid_x().to_string() +
     "," +
     (query_heads + 2 * kv_heads).to_string() +
     ",1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
     fused_compiler_record(qualification.compiler) +
+    "tile_program_sha256=" +
+    qualification.tile_compilation.program().digest().as_hex() +
+    "\ntile_optimization_sha256=" +
+    qualification.tile_compilation.optimization().digest().as_hex() +
+    "\ntile_schedule_sha256=" +
+    qualification.tile_compilation.schedule().digest().as_hex() +
+    "\ntile_compilation_sha256=" +
+    qualification.tile_compilation.digest().as_hex() +
+    "\n" +
     "qkv_operation_id=" +
     qkv_index.to_string() +
     "\nqk_norm_operation_id=" +
@@ -282,8 +303,35 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     kv_write_fallback.operands(),
     layout.segment_alignment_bytes(),
   )
+  let tile_epilogue = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+    query_heads~,
+    kv_heads~,
+    head_dimension~,
+    norm_epsilon=semantic.norm_epsilon(),
+    rope_theta=semantic.rope_theta(),
+  ) catch {
+    _ => raise FusedParallelMismatch(Operation)
+  }
+  let tile_compilation = @luna_projection_tile_compiler.compile_projection_tile(
+    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
+      dispatch=qkv_fallback.dispatch_plan(),
+      maximum_rows=profile.max_query_rows(),
+      maximum_tokens=profile.max_query_tokens(),
+      epilogue=tile_epilogue,
+    ) catch {
+      _ => raise FusedParallelMismatch(Operation)
+    },
+  )
+  if !tile_compilation.schedule().fuses_attention_ingress_epilogue() {
+    raise FusedParallelMismatch(Operation)
+  }
+  let tile_rows = qkv_fallback.dispatch_plan().prefill().tile().dimensions().0
+  if tile_rows <= 0 {
+    raise FusedParallelUnsupported(StaticResources)
+  }
+  let tiled_grid_x = (profile.max_query_tokens() + tile_rows - 1) / tile_rows
   let dimensions = @launch_contract.AotLaunchDimensions::new(
-    grid_x=profile.max_query_tokens(),
+    grid_x=tiled_grid_x,
     grid_y=query_heads + 2 * kv_heads,
     grid_z=1,
     block_x=FUSED_PARALLEL_THREADS,
@@ -300,6 +348,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     semantic,
     layout,
     profile,
+    tile_compilation,
     Some(dispatch_canary),
   )
   if source.length() > limits.maximum_source_bytes {
@@ -308,7 +357,8 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   let source_digest = fused_parallel_digest(source)
   let recipe = qwen_fused_recipe(
     plan, semantic, layout, qkv_fallback, qk_norm_fallback, rope_fallback, kv_write_fallback,
-    target, profile, compiler, function_symbol, dispatch_canary, source_digest,
+    target, profile, compiler, function_symbol, dispatch_canary, tiled_grid_x, tile_compilation,
+    source_digest,
   )
   if recipe.length() > limits.maximum_recipe_bytes {
     raise FusedParallelLimitExceeded(Recipe)
@@ -316,6 +366,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   let recipe_digest = fused_parallel_digest(recipe)
   {
     semantic,
+    tile_compilation,
     qkv_fallback,
     qk_norm_fallback,
     rope_fallback,
@@ -349,6 +400,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
     qualification.semantic,
     qualification.layout,
     qualification.profile,
+    qualification.tile_compilation,
     None,
   )
   if source.length() > limits.maximum_source_bytes {

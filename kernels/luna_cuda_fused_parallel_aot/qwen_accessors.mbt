@@ -6,6 +6,13 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::semantic_plan(
 }
 
 ///|
+pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::tile_compilation(
+  self : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
+) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation {
+  self.tile_compilation
+}
+
+///|
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::target(
   self : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
 ) -> @catalog.DeviceTarget {
@@ -127,6 +134,13 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::semantic_plan(
   self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
 ) -> @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan {
   self.qualification.semantic
+}
+
+///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::tile_compilation(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation {
+  self.qualification.tile_compilation
 }
 
 ///|

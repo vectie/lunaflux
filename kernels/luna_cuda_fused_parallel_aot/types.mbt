@@ -134,6 +134,7 @@ pub struct FusedQkvRopeKvWriteProductionCudaCandidate {
 /// All vendor decisions remain private to this backend package.
 pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
   priv semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
+  priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
   priv qkv_fallback : @luna_cuda_projection_aot.ProjectionCudaLowering
   priv qk_norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
   priv rope_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
