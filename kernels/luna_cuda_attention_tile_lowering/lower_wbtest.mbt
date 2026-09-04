@@ -72,9 +72,36 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
   assert_eq(first.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(first.copy(), CudaCooperativeSharedLoad)
   assert_eq(first.launch(), (128, 16, 256, 107280L))
+  assert_eq(first.key_value_partitions(), 1)
   assert_eq(first.tile(), (64, 64, 128))
   assert_eq(first.pipeline(), (1, 16))
   assert_eq(first.digest().as_hex().length(), 64)
+}
+
+///|
+test "CUDA lowering preserves functional KV partition topology" {
+  let (program, optimization, _) = cuda_lower_test_program_and_schedule()
+  let schedule = @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+    program, optimization,
+  )
+  let lowering = lower_attention_tile_schedule_to_cuda(
+    program,
+    optimization,
+    schedule,
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    262144L,
+  )
+  assert_eq(lowering.key_value_partitions(), 8)
+  assert_true(
+    @utf8.decode(lowering.canonical_bytes()).contains(
+      "launch=128,16,8,256,107280",
+    ),
+  )
 }
 
 ///|

@@ -307,6 +307,77 @@ test "source emitter rejects an asynchronous schedule until its copy lowering ex
 }
 
 ///|
+test "single-kernel emitter rejects partitioned reductions" {
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads=16,
+    kv_heads=4,
+    head_dimension=128,
+    tokens_per_page=16,
+  )
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape~,
+    phase=Prefill,
+    numeric_type=AttentionBFloat16,
+    query_rows=128,
+    context_tokens=4096,
+    causal=true,
+  )
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=100000L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+    matrix_shape=Some(
+      @luna_attention_strategy.AttentionMatrixShape::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
+    ),
+  )
+  let plan = @luna_attention_strategy.compile_attention_tile_plan(
+    [],
+    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+    target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+    problem~,
+    capabilities~,
+  )
+  let program = @luna_attention_tile_ir.compile_attention_tile_ir(plan)
+  let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    program,
+  )
+  let schedule = @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+    program, optimization,
+  )
+  let lowering = @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
+    program,
+    optimization,
+    schedule,
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    100000L,
+  )
+  try
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "lunaflux_attention_prefill_partitioned_v1",
+      1048576,
+    )
+  catch {
+    InvalidCudaAttentionTileSource(UnsupportedLowering) => ()
+    _ => fail("unexpected partitioned lowering rejection")
+  } noraise {
+    _ => fail("single-kernel emitter accepted a partitioned reduction")
+  }
+}
+
+///|
 test "compiler decode source reuses one KV tile across grouped query heads" {
   let lowering = source_test_decode_lowering()
   assert_eq(lowering.phase(), Decode)

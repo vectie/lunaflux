@@ -55,6 +55,15 @@ pub fn CudaAttentionTileLowering::launch(
 }
 
 ///|
+/// Number of independent KV partitions in the generic reduction schedule.
+/// CUDA maps this value to grid Z only in the partitioned pipeline emitter.
+pub fn CudaAttentionTileLowering::key_value_partitions(
+  self : CudaAttentionTileLowering,
+) -> Int {
+  self.key_value_partitions
+}
+
+///|
 pub fn CudaAttentionTileLowering::tile(
   self : CudaAttentionTileLowering,
 ) -> (Int, Int, Int) {

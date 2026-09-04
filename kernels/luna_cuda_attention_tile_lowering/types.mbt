@@ -31,6 +31,7 @@ pub struct CudaAttentionTileLowering {
   priv copy : CudaAttentionCopyPrimitive
   priv grid_x : Int
   priv grid_y : Int
+  priv key_value_partitions : Int
   priv block_threads : Int
   priv query_tile : Int
   priv key_value_tile : Int

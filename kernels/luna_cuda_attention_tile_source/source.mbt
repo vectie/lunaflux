@@ -15,6 +15,9 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(SourceLimit)
   }
   let compute = lowering.compute()
+  if lowering.key_value_partitions() != 1 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   if !(compute == CudaMatrixMultiplyAccumulate ||
     compute == CudaMatrixQkPvMultiplyAccumulate) ||
     lowering.copy() != CudaCooperativeSharedLoad {

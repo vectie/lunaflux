@@ -111,6 +111,14 @@ pub fn lower_attention_tile_schedule_to_cuda(
   if schedule.program_digest() != program.digest() {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
   }
+  let key_value_partitions = schedule.key_value_partitions()
+  if key_value_partitions <= 0 ||
+    (
+      key_value_partitions > 1 &&
+      !has_rewrite_rule(optimization, PartitionOnlineSoftmaxFold)
+    ) {
+    raise InvalidCudaAttentionTileLowering(InvalidOptimization)
+  }
   let problem = program.problem()
   let candidate = program.candidate()
   let (query_rows, _) = problem.dimensions()
@@ -147,7 +155,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
   let builder = StringBuilder()
-  builder <+ "luna-cuda-attention-tile-lowering-v2\n"
+  builder <+ "luna-cuda-attention-tile-lowering-v3\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "optimization_sha256=\{optimization.digest().as_hex()}\n"
   builder <+ "schedule_sha256=\{schedule.digest().as_hex()}\n"
@@ -155,7 +163,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   builder <+ "phase=\{attention_phase_code(problem.phase())}\n"
   builder <+ "primitive=\{cuda_compute_code(compute)},\{cuda_copy_code(copy)}\n"
   builder <+
-    "launch=\{grid_x},\{grid_y},\{block_threads},\{shared_memory_bytes}\n"
+    "launch=\{grid_x},\{grid_y},\{key_value_partitions},\{block_threads},\{shared_memory_bytes}\n"
   builder <+ "tile=\{query_tile},\{key_value_tile},\{head_dimension}\n"
   builder <+ "pipeline=\{pipeline_stages},\{vector_bytes}\n"
   let canonical = @utf8.encode(builder.to_string())
@@ -169,6 +177,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     copy,
     grid_x,
     grid_y,
+    key_value_partitions,
     block_threads,
     query_tile,
     key_value_tile,
