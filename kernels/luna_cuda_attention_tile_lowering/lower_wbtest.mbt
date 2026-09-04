@@ -69,11 +69,11 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
   assert_eq(first.program_digest(), program.digest())
   assert_eq(first.optimization_digest(), optimization.digest())
   assert_eq(first.schedule_digest(), schedule.digest())
-  assert_eq(first.compute(), CudaMatrixMultiplyAccumulate)
-  assert_eq(first.copy(), CudaAsynchronousSharedLoad)
-  assert_eq(first.launch(), (128, 16, 256, 225488L))
-  assert_eq(first.tile(), (16, 128, 128))
-  assert_eq(first.pipeline(), (3, 16))
+  assert_eq(first.compute(), CudaMatrixQkPvMultiplyAccumulate)
+  assert_eq(first.copy(), CudaCooperativeSharedLoad)
+  assert_eq(first.launch(), (128, 16, 256, 47504L))
+  assert_eq(first.tile(), (32, 32, 128))
+  assert_eq(first.pipeline(), (1, 16))
   assert_eq(first.digest().as_hex().length(), 64)
 }
 
@@ -88,7 +88,7 @@ test "CUDA lowering rejects target shared-memory overcommit" {
   )
   try
     lower_attention_tile_schedule_to_cuda(
-      program, optimization, schedule, target, 49152L,
+      program, optimization, schedule, target, 32768L,
     )
   catch {
     InvalidCudaAttentionTileLowering(SharedMemory) => ()

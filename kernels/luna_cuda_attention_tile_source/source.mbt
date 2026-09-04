@@ -26,7 +26,9 @@ fn emit_cuda_prefill_attention_tile_source(
   let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
   let (input_row_width, page_stride_values, physical_page_capacity) = abi.layout()
   let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
-  if query_tile != 16 ||
+  if query_tile < 16 ||
+    query_tile > 64 ||
+    query_tile % 16 != 0 ||
     key_value_tile < 16 ||
     key_value_tile > 128 ||
     key_value_tile % 16 != 0 ||
@@ -59,18 +61,26 @@ fn emit_cuda_prefill_attention_tile_source(
     "      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> probability_fragment;\n" +
     "      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::row_major> value_fragment;\n" +
     "      wmma::fragment<wmma::accumulator, 16, 16, 16, float> output_fragment;\n" +
-    "      wmma::load_matrix_sync(output_fragment, accumulator + output_column, LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
     "      #pragma unroll\n" +
-    "      for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {\n" +
-    "        wmma::load_matrix_sync(probability_fragment, weights + reduction, LF_KEY_VALUE_TILE);\n" +
-    "        wmma::load_matrix_sync(value_fragment,\n" +
-    "            value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
-    "                reduction * LF_HEAD_DIMENSION + output_column,\n" +
-    "            LF_HEAD_DIMENSION);\n" +
-    "        wmma::mma_sync(output_fragment, probability_fragment, value_fragment, output_fragment);\n" +
+    "      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {\n" +
+    "        wmma::load_matrix_sync(output_fragment,\n" +
+    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
+    "            LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
+    "        #pragma unroll\n" +
+    "        for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {\n" +
+    "          wmma::load_matrix_sync(probability_fragment,\n" +
+    "              weights + query_base * LF_KEY_VALUE_TILE + reduction,\n" +
+    "              LF_KEY_VALUE_TILE);\n" +
+    "          wmma::load_matrix_sync(value_fragment,\n" +
+    "              value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
+    "                  reduction * LF_HEAD_DIMENSION + output_column,\n" +
+    "              LF_HEAD_DIMENSION);\n" +
+    "          wmma::mma_sync(output_fragment, probability_fragment, value_fragment, output_fragment);\n" +
+    "        }\n" +
+    "        wmma::store_matrix_sync(\n" +
+    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
+    "            output_fragment, LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
     "      }\n" +
-    "      wmma::store_matrix_sync(accumulator + output_column, output_fragment,\n" +
-    "          LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
     "    }\n"
   } else {
     "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
@@ -266,19 +276,25 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> query_fragment;
     $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> key_fragment;
     $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> score_fragment;
-    $|      wmma::fill_fragment(score_fragment, 0.0f);
     $|      const int key_column = warp * 16;
     $|      #pragma unroll
-    $|      for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
-    $|        wmma::load_matrix_sync(query_fragment, query_tile + reduction, LF_HEAD_DIMENSION);
-    $|        wmma::load_matrix_sync(key_fragment,
-    $|            key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    $|                key_column * LF_HEAD_DIMENSION + reduction,
-    $|            LF_HEAD_DIMENSION);
-    $|        wmma::mma_sync(score_fragment, query_fragment, key_fragment, score_fragment);
+    $|      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {
+    $|        wmma::fill_fragment(score_fragment, 0.0f);
+    $|        #pragma unroll
+    $|        for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
+    $|          wmma::load_matrix_sync(query_fragment,
+    $|              query_tile + query_base * LF_HEAD_DIMENSION + reduction,
+    $|              LF_HEAD_DIMENSION);
+    $|          wmma::load_matrix_sync(key_fragment,
+    $|              key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
+    $|                  key_column * LF_HEAD_DIMENSION + reduction,
+    $|              LF_HEAD_DIMENSION);
+    $|          wmma::mma_sync(score_fragment, query_fragment, key_fragment, score_fragment);
+    $|        }
+    $|        wmma::store_matrix_sync(
+    $|            scores + query_base * LF_KEY_VALUE_TILE + key_column,
+    $|            score_fragment, LF_KEY_VALUE_TILE, wmma::mem_row_major);
     $|      }
-    $|      wmma::store_matrix_sync(scores + key_column, score_fragment,
-    $|          LF_KEY_VALUE_TILE, wmma::mem_row_major);
     $|    }
     $|    __syncthreads();
     $|

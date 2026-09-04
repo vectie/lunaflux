@@ -45,7 +45,7 @@ test "functional attention compiler composes typed immutable passes" {
   let optimized = optimize_attention_tile(semantic)
   let scheduled = schedule_attention_tile(optimized)
   let composed = compile_attention_tile(request)
-  assert_eq(selected.plan().candidate().stable_id(), 300)
+  assert_eq(selected.plan().candidate().stable_id(), 312)
   assert_eq(semantic.plan(), selected.plan())
   assert_eq(optimized.plan(), selected.plan())
   assert_eq(optimized.optimization().regions().length(), 2)

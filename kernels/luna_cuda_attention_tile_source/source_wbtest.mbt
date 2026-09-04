@@ -195,11 +195,11 @@ test "compiler direct decode source keeps one subgroup per query head" {
 }
 
 ///|
-test "matrix-tiled prefill source is deterministic and consumes the schedule" {
+test "wide dual-matrix prefill source is deterministic and consumes the schedule" {
   let lowering = source_test_lowering(false, 100000L, 2)
-  assert_eq(lowering.compute(), CudaMatrixMultiplyAccumulate)
+  assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
-  assert_eq(lowering.tile(), (16, 64, 128))
+  assert_eq(lowering.tile(), (32, 32, 128))
   let first = emit_cuda_attention_tile_source(
     lowering,
     source_test_abi(),
@@ -219,8 +219,8 @@ test "matrix-tiled prefill source is deterministic and consumes the schedule" {
   let source = @utf8.decode(first.bytes())
   for
     required in [
-      "#define LF_QUERY_TILE 16", "#define LF_KEY_VALUE_TILE 64", "wmma::mma_sync",
-      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 53456", "AttentionTileFoldKeyValueStream",
+      "#define LF_QUERY_TILE 32", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
+      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 47504", "AttentionTileFoldKeyValueStream",
       "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
     ] {
@@ -255,8 +255,41 @@ test "dual-matrix source lowers probability-value multiplication to MMA" {
 }
 
 ///|
+test "wide-query prefill reuses one KV tile across two matrix row tiles" {
+  let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(313))
+  assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
+  assert_eq(lowering.tile(), (32, 64, 128))
+  assert_eq(lowering.launch(), (128, 16, 256, 70032L))
+  let source = @utf8.decode(
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "lunaflux_attention_prefill_wide_query_v1",
+      1048576,
+    ).bytes(),
+  )
+  assert_true(source.contains("#define LF_QUERY_TILE 32"))
+  assert_true(
+    source.contains(
+      "for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16)",
+    ),
+  )
+  assert_true(
+    source.contains("weights + query_base * LF_KEY_VALUE_TILE + reduction"),
+  )
+  assert_true(
+    source.contains("scores + query_base * LF_KEY_VALUE_TILE + key_column"),
+  )
+}
+
+///|
 test "source emitter rejects an asynchronous schedule until its copy lowering exists" {
-  let asynchronous = source_test_lowering(true, 262144L, 3)
+  let asynchronous = source_test_lowering(
+    true,
+    262144L,
+    3,
+    candidate_id=Some(301),
+  )
   assert_eq(asynchronous.copy(), CudaAsynchronousSharedLoad)
   try
     emit_cuda_attention_tile_source(
