@@ -139,13 +139,12 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   )
   assert_true(source.contains("* 16;"))
   assert_true(source.contains("float gate_values[8];"))
+  assert_false(source.contains("__nv_bfloat16 *input_tile"))
   assert_true(
     source.contains(
-      "input_tile[element] = row_start + tile_row < token_count ? input[",
+      "load_matrix_sync(a, input + (unsigned long long)row_start * 1024ULL",
     ),
   )
-  assert_true(source.contains("load_matrix_sync(a, input_tile, 16)"))
-  assert_true(source.contains("element < 256"))
   assert_true(
     source.contains(
       "workspace[(unsigned long long)(row_start + tile_row) * 3072ULL",
@@ -155,7 +154,7 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_true(source.contains("row_start + tile_row < token_count"))
   assert_true(source.contains("if (token_count == 1)"))
   assert_true(source.contains("__shfl_down_sync"))
-  assert_true(source.contains("if (warp < 4)"))
+  assert_true(source.contains("if (warp >= 4) return"))
   assert_true(source.contains("const int group_count = 16;"))
   assert_true(source.contains("work_group += (int)gridDim.x"))
   assert_true(source.contains("group_index * 64 + warp * 16"))

@@ -220,7 +220,7 @@ fn projection_schedule_canonical(
   reuse_input_tile : Bool,
 ) -> Bytes {
   let builder = StringBuilder()
-  builder <+ "luna-projection-tile-schedule-v3\n"
+  builder <+ "luna-projection-tile-schedule-v4\n"
   builder <+ "program_sha256=\{optimized.semantic.program.digest.0}\n"
   builder <+ "optimization_sha256=\{optimized.optimization.digest.0}\n"
   for schedule_loop in loops {
@@ -310,7 +310,12 @@ pub fn schedule_projection_tile(
       },
     ]
   }
-  let reuse_input_tile = request.dispatch.shape().family() == GatedMlp
+  // Sibling gate/up dots share the same SSA input fragment already. Turning
+  // that semantic reuse into a cross-warp shared-memory tile adds two block
+  // barriers per reduction tile, so the conservative schedule keeps the
+  // value in registers until a backend autotune record proves materializing
+  // it is cheaper. The optimization trace still records the reuse opportunity.
+  let reuse_input_tile = false
   let canonical = projection_schedule_canonical(
     optimized, loops, reuse_input_tile,
   )
@@ -325,7 +330,7 @@ pub fn schedule_projection_tile(
     digest: ProjectionTileScheduleDigest(projection_tile_sha256(canonical)),
   }
   let compilation_canonical = @utf8.encode(
-    "luna-projection-functional-compilation-v3\n" +
+    "luna-projection-functional-compilation-v4\n" +
     "program_sha256=" +
     optimized.semantic.program.digest.0 +
     "\noptimization_sha256=" +
