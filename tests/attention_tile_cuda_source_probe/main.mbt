@@ -2,6 +2,7 @@
 fn main raise {
   let arguments = @env.args()
   let partitioned = arguments == [arguments[0], "partitioned"]
+  let compile_query_rows = if partitioned { 64 } else { 128 }
   let requested_candidate = match arguments {
     [_, "290"] => Some(290)
     [_, "291"] => Some(291)
@@ -24,7 +25,7 @@ fn main raise {
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows=compile_query_rows,
     context_tokens=4096,
     causal=true,
   )
