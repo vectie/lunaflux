@@ -109,3 +109,45 @@ pub fn CudaPartitionedAttentionTileAotCompilation::digest(
 ) -> CudaAttentionTileAotDigest {
   self.digest
 }
+
+///|
+pub fn CudaPartitionedAttentionTileAotVariant::parallel_workgroup_target(
+  self : CudaPartitionedAttentionTileAotVariant,
+) -> Int {
+  self.parallel_workgroup_target
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotVariant::compilation(
+  self : CudaPartitionedAttentionTileAotVariant,
+) -> CudaPartitionedAttentionTileAotCompilation {
+  self.compilation
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotFrontier::functional(
+  self : CudaPartitionedAttentionTileAotFrontier,
+) -> @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier {
+  self.functional
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotFrontier::variants(
+  self : CudaPartitionedAttentionTileAotFrontier,
+) -> ReadOnlyArray[CudaPartitionedAttentionTileAotVariant] {
+  self.variants
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotFrontier::canonical_bytes(
+  self : CudaPartitionedAttentionTileAotFrontier,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotFrontier::digest(
+  self : CudaPartitionedAttentionTileAotFrontier,
+) -> CudaAttentionTileAotDigest {
+  self.digest
+}

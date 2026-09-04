@@ -62,6 +62,23 @@ pub struct CudaPartitionedAttentionTileAotCompilation {
 } derive(Debug, Eq)
 
 ///|
+pub struct CudaPartitionedAttentionTileAotVariant {
+  priv parallel_workgroup_target : Int
+  priv compilation : CudaPartitionedAttentionTileAotCompilation
+} derive(Debug, Eq)
+
+///|
+/// CUDA lowering of the backend-neutral partition-parallelism frontier. All
+/// source variants are emitted offline with disjoint symbols; runtime bucket
+/// dispatch never compiles or rewrites them.
+pub struct CudaPartitionedAttentionTileAotFrontier {
+  priv functional : @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier
+  priv variants : ReadOnlyArray[CudaPartitionedAttentionTileAotVariant]
+  priv canonical : Bytes
+  priv digest : CudaAttentionTileAotDigest
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CudaAttentionTileAotRule {
   InvalidRequest
   FunctionalCompilation

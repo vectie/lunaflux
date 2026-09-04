@@ -17,6 +17,8 @@ pub fn compile_cuda_attention_tile_aot_frontier(CudaAttentionTileAotRequest, Arr
 
 pub fn compile_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
 
+pub fn compile_cuda_partitioned_attention_tile_aot_frontier(CudaPartitionedAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord], ArrayView[Int]) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError
+
 // Errors
 pub(all) suberror CudaAttentionTileAotError {
   InvalidCudaAttentionTileAot(CudaAttentionTileAotRule)
@@ -65,10 +67,24 @@ pub fn CudaPartitionedAttentionTileAotCompilation::functional(Self) -> @luna_att
 pub fn CudaPartitionedAttentionTileAotCompilation::lowering(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering
 pub fn CudaPartitionedAttentionTileAotCompilation::source(Self) -> @luna_cuda_attention_tile_source.CudaPartitionedAttentionTileSource
 
+pub struct CudaPartitionedAttentionTileAotFrontier {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionTileAotFrontier::canonical_bytes(Self) -> Bytes
+pub fn CudaPartitionedAttentionTileAotFrontier::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaPartitionedAttentionTileAotFrontier::functional(Self) -> @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier
+pub fn CudaPartitionedAttentionTileAotFrontier::variants(Self) -> ReadOnlyArray[CudaPartitionedAttentionTileAotVariant]
+
 pub struct CudaPartitionedAttentionTileAotRequest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, partial_symbol~ : String, merge_symbol~ : String, maximum_workspace_bytes~ : Int64, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+
+pub struct CudaPartitionedAttentionTileAotVariant {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionTileAotVariant::compilation(Self) -> CudaPartitionedAttentionTileAotCompilation
+pub fn CudaPartitionedAttentionTileAotVariant::parallel_workgroup_target(Self) -> Int
 
 // Type aliases
 
