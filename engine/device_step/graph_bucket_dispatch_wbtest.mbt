@@ -106,7 +106,7 @@ test "prefill bucket owners map live token capacities without touching larger bu
 }
 
 ///|
-test "partitioned prefill owns only long single-tile query maps" {
+test "partitioned prefill retains batched rows and long single-tile query maps" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     ..base,
@@ -124,11 +124,11 @@ test "partitioned prefill owns only long single-tile query maps" {
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 2, 32, 4096)),
-    7,
+    13,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, MixedGraph, 2, 32, 4096)),
-    7,
+    13,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 4096)),
@@ -169,7 +169,7 @@ test "partitioned prefill selects the smallest compiled query bucket" {
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 2, 24, 4096)),
-    7,
+    14,
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 64, 4096)),

@@ -77,7 +77,7 @@ fn PagedOrderedExecutorDispatch::select(
   if self.prefill_split_owner_index >= 0 &&
     (bucket.phase() == PrefillGraph || bucket.phase() == MixedGraph) &&
     context_tokens >= self.prefill_split_minimum_context_tokens &&
-    prefill_query_tiles == 1 {
+    (batch_rows > 1 || prefill_query_tiles == 1) {
     let slot = bucket.slot()
     if slot >= 0 && slot < self.prefill_split_slot_owner_indices.length() {
       let owner = self.prefill_split_slot_owner_indices[slot]

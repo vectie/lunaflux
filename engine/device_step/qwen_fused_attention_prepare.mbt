@@ -554,8 +554,10 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 /// Returns the query tile used to compile the low-parallelism partition map.
 /// The partitioned compiler intentionally receives exactly one query tile, so
 /// its admitted grid-X is also the immutable tile extent. Runtime dispatch
-/// uses this backend-neutral extent to avoid adding KV partitions once the
-/// live query map already exposes more than one independent tile.
+/// uses this backend-neutral extent to avoid adding KV partitions only for a
+/// single row whose query map already exposes independent tiles. Batched and
+/// mixed rows retain the partitioned reduction until the baseline kernel's
+/// cross-row numerical contract is independently established.
 fn qwen_partitioned_prefill_query_tile(
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> Int raise DeviceStepError {
