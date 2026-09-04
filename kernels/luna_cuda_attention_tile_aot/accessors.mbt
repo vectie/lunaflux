@@ -39,3 +39,38 @@ pub fn CudaAttentionTileAotDigest::as_hex(
 ) -> String {
   self.0
 }
+
+///|
+pub fn CudaPartitionedAttentionTileAotCompilation::functional(
+  self : CudaPartitionedAttentionTileAotCompilation,
+) -> @luna_attention_tile_compiler.ScheduledAttentionTileCompilation {
+  self.functional
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotCompilation::lowering(
+  self : CudaPartitionedAttentionTileAotCompilation,
+) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering {
+  self.lowering
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotCompilation::source(
+  self : CudaPartitionedAttentionTileAotCompilation,
+) -> @luna_cuda_attention_tile_source.CudaPartitionedAttentionTileSource {
+  self.source
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotCompilation::canonical_bytes(
+  self : CudaPartitionedAttentionTileAotCompilation,
+) -> Bytes {
+  self.canonical
+}
+
+///|
+pub fn CudaPartitionedAttentionTileAotCompilation::digest(
+  self : CudaPartitionedAttentionTileAotCompilation,
+) -> CudaAttentionTileAotDigest {
+  self.digest
+}

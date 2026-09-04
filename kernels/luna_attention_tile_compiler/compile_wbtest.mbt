@@ -66,3 +66,18 @@ test "functional attention compiler is referentially transparent" {
   assert_eq(first.canonical_bytes(), second.canonical_bytes())
   assert_eq(first.digest(), second.digest())
 }
+
+///|
+test "partitioned compiler path materializes optimizer reduction topology" {
+  let request = functional_compiler_request([])
+  let first = compile_partitioned_attention_tile(request)
+  let repeated = compile_partitioned_attention_tile(request)
+  assert_eq(first, repeated)
+  assert_eq(first.schedule().key_value_partitions(), 8)
+  assert_eq(first.schedule().loops().length(), 6)
+  assert_eq(
+    first.optimization().reduction_topology(),
+    @luna_attention_tile_optimizer.AttentionPartitionedOnlineSoftmaxFold(8),
+  )
+  assert_false(first.digest() == compile_attention_tile(request).digest())
+}

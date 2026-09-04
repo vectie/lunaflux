@@ -50,6 +50,33 @@ pub fn schedule_attention_tile(
   ) catch {
     _ => raise InvalidAttentionTileCompilation(ScheduleDerivation)
   }
+  finish_attention_tile_schedule(optimized, schedule)
+}
+
+///|
+/// Schedules the optimizer-selected partition-map/associative-merge topology.
+/// It is a separate typed entry point so a backend cannot accidentally consume
+/// a partitioned program through a legacy single-launch emitter.
+pub fn schedule_partitioned_attention_tile(
+  optimized : OptimizedAttentionTileCompilation,
+) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
+  let schedule = @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+    optimized.semantic.program,
+    optimized.optimization,
+  ) catch {
+    _ => raise InvalidAttentionTileCompilation(ScheduleDerivation)
+  }
+  if schedule.key_value_partitions() <= 1 {
+    raise InvalidAttentionTileCompilation(ScheduleDerivation)
+  }
+  finish_attention_tile_schedule(optimized, schedule)
+}
+
+///|
+fn finish_attention_tile_schedule(
+  optimized : OptimizedAttentionTileCompilation,
+  schedule : @luna_attention_tile_schedule.AttentionTileSchedule,
+) -> ScheduledAttentionTileCompilation {
   let candidate = optimized.semantic.selected.plan.candidate()
   let canonical = @utf8.encode(
     "luna-attention-functional-compilation-v1\n" +
@@ -74,6 +101,19 @@ pub fn schedule_attention_tile(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
     ),
   }
+}
+
+///|
+/// Total pure composition for a backend that supports multi-launch
+/// partitioned prefill attention.
+pub fn compile_partitioned_attention_tile(
+  request : AttentionTileCompilerRequest,
+) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
+  schedule_partitioned_attention_tile(
+    optimize_attention_tile(
+      elaborate_attention_tile(select_attention_tile(request)),
+    ),
+  )
 }
 
 ///|
