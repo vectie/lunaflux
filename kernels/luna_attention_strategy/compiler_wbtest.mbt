@@ -231,6 +231,14 @@ test "attention autotune rejects duplicate and aliased candidate identity" {
     },
     Conflict,
   )
+  expect_attention_compiler_rule(
+    () => {
+      ignore(
+        compile_attention_tile_candidate_plan(problem, capabilities, aliased),
+      )
+    },
+    Candidate,
+  )
 }
 
 ///|

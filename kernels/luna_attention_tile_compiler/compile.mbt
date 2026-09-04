@@ -118,13 +118,88 @@ pub fn compile_partitioned_attention_tile(
 }
 
 ///|
-/// Total composition of the four pure compiler passes.
+/// Conservative post-rewrite throughput score. The compiler only credits the
+/// first shared-memory occupancy knee: proving two resident workgroups is
+/// useful on every parallel backend, while claiming higher residency would
+/// require register-file and execution-unit limits not present in the portable
+/// capability contract.
+fn attention_tile_resource_score(
+  request : AttentionTileCompilerRequest,
+  scheduled : ScheduledAttentionTileCompilation,
+) -> Int64 raise AttentionTileCompilerError {
+  let base = scheduled.plan().static_cost()
+  let (_, shared_capacity, _) = request.capabilities.limits()
+  let (_, _, _, shared_bytes) = scheduled.schedule().execution_geometry()
+  let loops = scheduled.schedule().loops()
+  if base <= 0L || loops.length() < 2 {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
+  let (query_extent, query_tile) = loops[0].geometry()
+  let (head_extent, head_tile) = loops[1].geometry()
+  let logical_workgroups = (1 + (query_extent - 1) / query_tile) *
+    (1 + (head_extent - 1) / head_tile) *
+    request.problem.batch_rows()
+  let shared_residency = if shared_bytes <= 0L {
+    1
+  } else {
+    Int::max(1, Int::min(2, (shared_capacity / shared_bytes).to_int()))
+  }
+  let residency = Int::max(1, Int::min(logical_workgroups, shared_residency))
+  let divisor = residency.to_int64()
+  base / divisor + (if base % divisor == 0L { 0L } else { 1L })
+}
+
+///|
+fn compile_static_attention_tile_candidate(
+  request : AttentionTileCompilerRequest,
+  candidate : @luna_attention_strategy.AttentionTileCandidate,
+) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
+  let plan = @luna_attention_strategy.compile_attention_tile_candidate_plan(
+    request.problem,
+    request.capabilities,
+    candidate,
+  ) catch {
+    _ => raise InvalidAttentionTileCompilation(StrategySelection)
+  }
+  schedule_attention_tile(
+    optimize_attention_tile(elaborate_attention_tile({ request, plan })),
+  )
+}
+
+///|
+/// Total composition of the pure compiler passes. Immutable offline autotune
+/// observations retain authority. Without an exact observation, every bounded
+/// candidate is elaborated, optimized, and scheduled, then the optimized peak
+/// storage feeds back into the final portable strategy choice.
 pub fn compile_attention_tile(
   request : AttentionTileCompilerRequest,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
-  schedule_attention_tile(
-    optimize_attention_tile(
-      elaborate_attention_tile(select_attention_tile(request)),
-    ),
-  )
+  let selected = select_attention_tile(request)
+  if selected.plan().source() == AttentionOfflineAutotune {
+    return schedule_attention_tile(
+      optimize_attention_tile(elaborate_attention_tile(selected)),
+    )
+  }
+  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+    request.problem,
+    request.capabilities,
+  ) catch {
+    _ => raise InvalidAttentionTileCompilation(StrategySelection)
+  }
+  let initial = compile_static_attention_tile_candidate(request, candidates[0])
+  candidates[1:].fold(init=initial, (current, candidate) => {
+    let compiled = compile_static_attention_tile_candidate(request, candidate)
+    let current_score = attention_tile_resource_score(request, current)
+    let compiled_score = attention_tile_resource_score(request, compiled)
+    if compiled_score < current_score ||
+      (
+        compiled_score == current_score &&
+        compiled.plan().candidate().stable_id() <
+        current.plan().candidate().stable_id()
+      ) {
+      compiled
+    } else {
+      current
+    }
+  })
 }

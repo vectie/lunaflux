@@ -14,3 +14,9 @@ after `ScheduledAttentionTileCompilation`.
 Storage planning is expressed as pure lifetime analysis. In particular, the
 online-softmax rewrite overlaps dead key/probability regions and keeps fold
 state local to its owner before any backend selects a concrete address space.
+
+When no exact offline autotune record exists, the total compiler elaborates the
+bounded candidate set and feeds each optimized schedule's peak shared storage
+back into a conservative two-workgroup occupancy score. Functional liveness
+therefore influences tile selection instead of only shrinking an already
+selected kernel. Exact immutable autotune observations remain authoritative.

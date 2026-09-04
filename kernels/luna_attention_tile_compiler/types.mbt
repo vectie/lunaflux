@@ -49,6 +49,7 @@ pub(all) enum AttentionTileCompilerRule {
   SemanticElaboration
   FunctionalOptimization
   ScheduleDerivation
+  ResourceFeedback
 } derive(Debug, Eq)
 
 ///|

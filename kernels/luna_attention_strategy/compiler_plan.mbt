@@ -755,3 +755,25 @@ pub fn compile_attention_tile_plan(
       }
   }
 }
+
+///|
+/// Reifies one generated candidate as a static compiler plan. The functional
+/// compiler uses this entry point to feed post-rewrite resource information
+/// back into strategy selection without constructing or mutating strategy
+/// records. Exact membership in the bounded candidate set is required.
+pub fn compile_attention_tile_candidate_plan(
+  problem : AttentionCompileProblem,
+  capabilities : AttentionCompilerCapabilities,
+  candidate : AttentionTileCandidate,
+) -> CompiledAttentionTilePlan raise AttentionStrategyError {
+  let candidates = generate_attention_tile_candidates(problem, capabilities)
+  if !candidates.any(generated => generated == candidate) {
+    raise InvalidAttentionStrategy(Candidate)
+  }
+  {
+    problem,
+    candidate,
+    source: AttentionStaticCostModel,
+    static_cost: attention_candidate_static_cost(problem, candidate),
+  }
+}

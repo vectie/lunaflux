@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn compile_attention_tile_candidate_plan(AttentionCompileProblem, AttentionCompilerCapabilities, AttentionTileCandidate) -> CompiledAttentionTilePlan raise AttentionStrategyError
+
 pub fn compile_attention_tile_plan(ArrayView[AttentionAutotuneRecord], backend~ : AttentionBackendId, target~ : AttentionTargetId, problem~ : AttentionCompileProblem, capabilities~ : AttentionCompilerCapabilities) -> CompiledAttentionTilePlan raise AttentionStrategyError
 
 pub fn generate_attention_tile_candidates(AttentionCompileProblem, AttentionCompilerCapabilities) -> ReadOnlyArray[AttentionTileCandidate] raise AttentionStrategyError
