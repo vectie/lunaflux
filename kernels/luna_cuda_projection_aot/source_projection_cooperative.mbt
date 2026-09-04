@@ -70,26 +70,18 @@ fn projection_tensor_core_cooperative_dense_source(
     "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
     "    __syncthreads();\n" +
     "  }\n" +
-    "  if (row + 15 < token_count && column + 15 < " +
-    parameters.output_width.to_string() +
-    ") {\n" +
-    "    nvcuda::wmma::store_matrix_sync(output + (unsigned long long)row * " +
-    parameters.output_width.to_string() +
-    "ULL + column, c, " +
-    parameters.output_width.to_string() +
-    ", nvcuda::wmma::mem_row_major);\n" +
-    "  } else {\n" +
-    "    float *warp_output = reinterpret_cast<float *>(projection_shared) + warp * 256;\n" +
-    "    nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
-    "    __syncwarp();\n" +
-    "    for (int element = lane; element < 256; element += 32) {\n" +
-    "      const int local_row = element >> 4; const int local_column = element & 15;\n" +
-    "      if (row + local_row < token_count && column + local_column < " +
+    // The final reduction barrier ends the BF16 input/weight tile lifetime.
+    // Reuse the same 8 KiB arena for the eight FP32 accumulator spills.
+    "  float *warp_output = reinterpret_cast<float *>(projection_shared) + warp * 256;\n" +
+    "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
+    "  __syncwarp();\n" +
+    "  for (int element = lane; element < 256; element += 32) {\n" +
+    "    const int local_row = element >> 4; const int local_column = element & 15;\n" +
+    "    if (row + local_row < token_count && column + local_column < " +
     parameters.output_width.to_string() +
     ") output[(unsigned long long)(row + local_row) * " +
     parameters.output_width.to_string() +
     "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);\n" +
-    "    }\n" +
     "  }\n}\n",
   )
 }
@@ -184,26 +176,18 @@ fn projection_tensor_core_cooperative_qkv_source(
     "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
     "    __syncthreads();\n" +
     "  }\n" +
-    "  if (row + 15 < token_count && column + 15 < " +
-    parameters.output_width.to_string() +
-    ") {\n" +
-    "    nvcuda::wmma::store_matrix_sync(output + (unsigned long long)row * " +
-    parameters.output_width.to_string() +
-    "ULL + column, c, " +
-    parameters.output_width.to_string() +
-    ", nvcuda::wmma::mem_row_major);\n" +
-    "  } else {\n" +
-    "    float *warp_output = reinterpret_cast<float *>(projection_shared) + warp * 256;\n" +
-    "    nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
-    "    __syncwarp();\n" +
-    "    for (int element = lane; element < 256; element += 32) {\n" +
-    "      const int local_row = element >> 4; const int local_column = element & 15;\n" +
-    "      if (row + local_row < token_count && column + local_column < " +
+    // Input/weight tiles are dead after the final block barrier, so the FP32
+    // accumulator spill can own the complete shared arena without overlap.
+    "  float *warp_output = reinterpret_cast<float *>(projection_shared) + warp * 256;\n" +
+    "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
+    "  __syncwarp();\n" +
+    "  for (int element = lane; element < 256; element += 32) {\n" +
+    "    const int local_row = element >> 4; const int local_column = element & 15;\n" +
+    "    if (row + local_row < token_count && column + local_column < " +
     parameters.output_width.to_string() +
     ") output[(unsigned long long)(row + local_row) * " +
     parameters.output_width.to_string() +
     "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);\n" +
-    "    }\n" +
     "  }\n}\n",
   )
 }

@@ -444,7 +444,7 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   )
   assert_true(
     @utf8.decode(fallback.source_bytes()).contains(
-      "store_matrix_sync(output + (unsigned long long)row",
+      "reinterpret_cast<float *>(projection_shared) + warp * 256",
     ),
   )
   assert_true(fallback.tile_compilation().schedule().reuse_input_tile())
