@@ -69,27 +69,30 @@ fn PagedOrderedExecutorDispatch::select(
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
 ) -> Int raise DeviceStepError {
   let (batch_rows, query_tokens, context_tokens) = bucket.upper_bounds()
-  let prefill_query_tiles = if self.prefill_split_query_tile > 0 {
-    Int::max(batch_rows, 1 + (query_tokens - 1) / self.prefill_split_query_tile)
-  } else {
-    2147483647
+  let prefill_phase = bucket.phase() == PrefillGraph ||
+    bucket.phase() == MixedGraph
+  if self.deep_prefill_split_owner_index >= 0 &&
+    prefill_phase &&
+    paged_partitioned_prefill_has_enough_work(
+      batch_rows,
+      query_tokens,
+      context_tokens,
+      self.deep_prefill_split_minimum_context_tokens,
+      self.deep_prefill_split_query_tile,
+      self.deep_prefill_split_partition_count,
+    ) {
+    return self.deep_prefill_split_owner_index
   }
-  let prefill_split_context_multiple = if self.prefill_split_partition_count > 1 &&
-    prefill_query_tiles <= self.prefill_split_partition_count {
-    2
-  } else if prefill_query_tiles <= 1073741823 {
-    prefill_query_tiles * 2
-  } else {
-    2147483647
-  }
-  let prefill_split_has_enough_work = self.prefill_split_minimum_context_tokens >
-    0 &&
-    context_tokens >= self.prefill_split_minimum_context_tokens &&
-    context_tokens / self.prefill_split_minimum_context_tokens >=
-    prefill_split_context_multiple
   if self.prefill_split_owner_index >= 0 &&
-    (bucket.phase() == PrefillGraph || bucket.phase() == MixedGraph) &&
-    prefill_split_has_enough_work {
+    prefill_phase &&
+    paged_partitioned_prefill_has_enough_work(
+      batch_rows,
+      query_tokens,
+      context_tokens,
+      self.prefill_split_minimum_context_tokens,
+      self.prefill_split_query_tile,
+      self.prefill_split_partition_count,
+    ) {
     let slot = bucket.slot()
     if slot >= 0 && slot < self.prefill_split_slot_owner_indices.length() {
       let owner = self.prefill_split_slot_owner_indices[slot]
@@ -134,6 +137,30 @@ fn PagedOrderedExecutorDispatch::select(
   } else {
     raise InvalidExecutor(GraphBucket)
   }
+}
+
+///|
+fn paged_partitioned_prefill_has_enough_work(
+  batch_rows : Int,
+  query_tokens : Int,
+  context_tokens : Int,
+  minimum_context_tokens : Int,
+  query_tile : Int,
+  partition_count : Int,
+) -> Bool {
+  if minimum_context_tokens <= 0 || query_tile <= 0 || partition_count <= 1 {
+    return false
+  }
+  let query_tiles = Int::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
+  let context_multiple = if query_tiles <= partition_count {
+    2
+  } else if query_tiles <= 1073741823 {
+    query_tiles * 2
+  } else {
+    2147483647
+  }
+  context_tokens >= minimum_context_tokens &&
+  context_tokens / minimum_context_tokens >= context_multiple
 }
 
 ///|

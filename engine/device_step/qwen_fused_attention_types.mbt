@@ -46,6 +46,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv decode_launch : @launch_contract.AotLaunchDimensions
   priv wide_query_prefill : ApprovedQwenPrefillVariant?
   priv partitioned_prefill : ApprovedQwenPartitionedPrefill?
+  priv deep_partitioned_prefill : ApprovedQwenPartitionedPrefill?
   priv qkv_index : Int
   priv qk_norm_index : Int
   priv rope_index : Int
@@ -90,7 +91,8 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.decode_symbol == other.decode_symbol &&
   self.decode_launch == other.decode_launch &&
   self.wide_query_prefill == other.wide_query_prefill &&
-  self.partitioned_prefill == other.partitioned_prefill
+  self.partitioned_prefill == other.partitioned_prefill &&
+  self.deep_partitioned_prefill == other.deep_partitioned_prefill
 }
 
 ///|
@@ -177,6 +179,13 @@ fn ApprovedQwenFusedAttentionSpan::partitioned_prefill(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> ApprovedQwenPartitionedPrefill? {
   self.partitioned_prefill
+}
+
+///|
+fn ApprovedQwenFusedAttentionSpan::deep_partitioned_prefill(
+  self : ApprovedQwenFusedAttentionSpan,
+) -> ApprovedQwenPartitionedPrefill? {
+  self.deep_partitioned_prefill
 }
 
 ///|

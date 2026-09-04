@@ -7,6 +7,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     activation_workspace: None,
     qwen_fused_attention_sidecar: None,
     prefill_partition_workspace: None,
+    deep_prefill_partition_workspace: None,
     decode_split_workspace: None,
     persistent_kv: None,
     fused_dispatch_canary: None,
@@ -458,6 +459,7 @@ pub fn prepare_paged_graph_executor(
     wide_prefill_model_steps,
     phase_decode_model_steps,
     partitioned_prefill_model_steps,
+    deep_partitioned_prefill_model_steps,
   ) = prepare_paged_production_steps(
     context,
     blueprint,
@@ -514,6 +516,26 @@ pub fn prepare_paged_graph_executor(
   ) catch {
     error => return paged_construction_failed(resources, error)
   }
+  let deep_prefill_split_minimum_context_tokens = qwen_partitioned_prefill_minimum_context_tokens(
+    blueprint,
+    qwen_fused_attention_spans,
+    deep=true,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  let deep_prefill_split_query_tile = qwen_partitioned_prefill_query_tile(
+    blueprint,
+    qwen_fused_attention_spans,
+    deep=true,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  let deep_prefill_split_partition_count = qwen_partitioned_prefill_partition_count(
+    qwen_fused_attention_spans,
+    deep=true,
+  ) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   let prefill_wide_minimum_query_tokens = qwen_wide_prefill_minimum_query_tokens(
     qwen_fused_attention_spans,
   ) catch {
@@ -540,6 +562,7 @@ pub fn prepare_paged_graph_executor(
     model_steps,
     wide_prefill_model_steps,
     partitioned_prefill_model_steps,
+    deep_partitioned_prefill_model_steps,
     phase_decode_model_steps,
     split_decode_model_steps,
     resources,
@@ -550,6 +573,9 @@ pub fn prepare_paged_graph_executor(
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,
     prefill_split_partition_count~,
+    deep_prefill_split_minimum_context_tokens~,
+    deep_prefill_split_query_tile~,
+    deep_prefill_split_partition_count~,
     decode_split_minimum_context_tokens~,
   )
 }

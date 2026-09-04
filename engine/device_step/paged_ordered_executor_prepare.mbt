@@ -551,6 +551,10 @@ fn prepare_paged_ordered_executors(
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_query_tile? : Int = 1,
   prefill_split_partition_count? : Int = 1,
+  deep_prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  deep_prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  deep_prefill_split_query_tile? : Int = 1,
+  deep_prefill_split_partition_count? : Int = 1,
   decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -727,6 +731,22 @@ fn prepare_paged_ordered_executors(
     }
     None => -1
   }
+  let deep_prefill_split_owner_index = match deep_prefill_split_steps {
+    Some(selected) => {
+      let launches = paged_ordered_launches(selected, resources)
+      let operation_ids = ReadOnlyArray::from_array(
+        selected.map(step => step.operation_id),
+      )
+      prepare_one_paged_ordered_executor(
+        context,
+        launches[:],
+        operation_ids,
+        resources,
+        paged_ordered_device_policy(graph_policy),
+      )
+    }
+    None => -1
+  }
   let prefill_wide_owner_index = match prefill_wide_steps {
     Some(selected) => {
       let operation_ids = ReadOnlyArray::from_array(
@@ -838,6 +858,10 @@ fn prepare_paged_ordered_executors(
     prefill_split_minimum_context_tokens,
     prefill_split_query_tile,
     prefill_split_partition_count,
+    deep_prefill_split_owner_index,
+    deep_prefill_split_minimum_context_tokens,
+    deep_prefill_split_query_tile,
+    deep_prefill_split_partition_count,
     decode_owner_index,
     decode_split_owner_index,
     decode_split_minimum_context_tokens,

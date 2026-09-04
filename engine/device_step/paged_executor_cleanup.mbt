@@ -301,6 +301,13 @@ fn close_paged_resources(
           },
           () => {
             close_paged_allocation(
+              resources.deep_prefill_partition_workspace,
+              DecodeSplitWorkspace,
+              first,
+            )
+          },
+          () => {
+            close_paged_allocation(
               resources.prefill_partition_workspace,
               DecodeSplitWorkspace,
               first,

@@ -391,6 +391,18 @@ fn qwen_partitioned_prefill_step(
 }
 
 ///|
+fn qwen_partitioned_prefill_variant(
+  span : ApprovedQwenFusedAttentionSpan,
+  deep : Bool,
+) -> ApprovedQwenPartitionedPrefill? {
+  if deep {
+    span.deep_partitioned_prefill()
+  } else {
+    span.partitioned_prefill()
+  }
+}
+
+///|
 fn prepare_qwen_partitioned_prefill_steps(
   context : @device.Context,
   blueprint : PagedKvExecutionBlueprint,
@@ -401,15 +413,23 @@ fn prepare_qwen_partitioned_prefill_steps(
   activation : @device.Allocation,
   kv : @device.Allocation,
   resources : PagedGraphResources,
+  deep? : Bool = false,
 ) -> ReadOnlyArray[PreparedPagedGraphStep]? raise DeviceStepError {
   guard spans.get(0) is Some(first) else { return None }
-  guard first.partitioned_prefill() is Some(pipeline) else { return None }
+  guard qwen_partitioned_prefill_variant(first, deep) is Some(pipeline) else {
+    return None
+  }
   for span in spans {
-    if span.partitioned_prefill() != Some(pipeline) {
+    if qwen_partitioned_prefill_variant(span, deep) != Some(pipeline) {
       raise InvalidExecutor(ResourceState)
     }
   }
-  if resources.prefill_partition_workspace is Some(_) ||
+  let workspace_present = if deep {
+    resources.deep_prefill_partition_workspace is Some(_)
+  } else {
+    resources.prefill_partition_workspace is Some(_)
+  }
+  if workspace_present ||
     pipeline.workspace_bytes <= 0L ||
     pipeline.workspace_bytes > 1073741824L {
     raise InvalidExecutor(ResourceState)
@@ -417,10 +437,17 @@ fn prepare_qwen_partitioned_prefill_steps(
   let workspace = context.allocate(pipeline.workspace_bytes) catch {
     error => raise ExecutorDevice(DecodeSplitWorkspace, error)
   }
-  resources.prefill_partition_workspace = Some({
-    resource: workspace,
-    open: true,
-  })
+  if deep {
+    resources.deep_prefill_partition_workspace = Some({
+      resource: workspace,
+      open: true,
+    })
+  } else {
+    resources.prefill_partition_workspace = Some({
+      resource: workspace,
+      open: true,
+    })
+  }
   context.validate_allocation_region(
     workspace,
     offset=0L,
@@ -547,11 +574,12 @@ fn prepare_qwen_partitioned_prefill_steps(
 fn qwen_partitioned_prefill_minimum_context_tokens(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  deep? : Bool = false,
 ) -> Int raise DeviceStepError {
   guard spans.get(0) is Some(first) else {
     return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
   }
-  guard first.partitioned_prefill() is Some(pipeline) else {
+  guard qwen_partitioned_prefill_variant(first, deep) is Some(pipeline) else {
     return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
   }
   let partitions = pipeline.partial_launch.grid_z()
@@ -572,9 +600,10 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 fn qwen_partitioned_prefill_query_tile(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  deep? : Bool = false,
 ) -> Int raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
-    first.partitioned_prefill() is Some(first_pipeline) else {
+    qwen_partitioned_prefill_variant(first, deep) is Some(first_pipeline) else {
     return 1
   }
   // Grid-X is the maximum number of logical query tiles, not their extent.
@@ -589,7 +618,7 @@ fn qwen_partitioned_prefill_query_tile(
     raise InvalidExecutor(ResourceState)
   }
   for span in spans {
-    guard span.partitioned_prefill() is Some(pipeline) &&
+    guard qwen_partitioned_prefill_variant(span, deep) is Some(pipeline) &&
       pipeline.partial_launch.grid_x() == first_pipeline.partial_launch.grid_x() else {
       raise InvalidExecutor(ResourceState)
     }
@@ -603,9 +632,10 @@ fn qwen_partitioned_prefill_query_tile(
 /// metadata and never inspects a CUDA symbol on the token path.
 fn qwen_partitioned_prefill_partition_count(
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  deep? : Bool = false,
 ) -> Int raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
-    first.partitioned_prefill() is Some(first_pipeline) else {
+    qwen_partitioned_prefill_variant(first, deep) is Some(first_pipeline) else {
     return 1
   }
   let partitions = first_pipeline.partial_launch.grid_z()
@@ -613,7 +643,7 @@ fn qwen_partitioned_prefill_partition_count(
     raise InvalidExecutor(ResourceState)
   }
   for span in spans {
-    guard span.partitioned_prefill() is Some(pipeline) &&
+    guard qwen_partitioned_prefill_variant(span, deep) is Some(pipeline) &&
       pipeline.partial_launch.grid_z() == partitions else {
       raise InvalidExecutor(ResourceState)
     }

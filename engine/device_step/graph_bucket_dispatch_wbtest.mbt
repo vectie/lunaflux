@@ -38,6 +38,10 @@ fn graph_dispatch_fixture(
       prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
       prefill_split_query_tile: 1,
       prefill_split_partition_count: 1,
+      deep_prefill_split_owner_index: -1,
+      deep_prefill_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+      deep_prefill_split_query_tile: 1,
+      deep_prefill_split_partition_count: 1,
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
@@ -190,6 +194,38 @@ test "partitioned prefill scales context threshold with query parallelism" {
 }
 
 ///|
+test "deep partition frontier supersedes base only for enough bucket work" {
+  let (table, _, base) = graph_dispatch_fixture(7)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    ..base,
+    prefill_split_owner_index: 13,
+    prefill_split_minimum_context_tokens: 256,
+    prefill_split_query_tile: 16,
+    prefill_split_partition_count: 2,
+    deep_prefill_split_owner_index: 17,
+    deep_prefill_split_minimum_context_tokens: 1024,
+    deep_prefill_split_query_tile: 16,
+    deep_prefill_split_partition_count: 8,
+  }
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 16, 1024)),
+    13,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, PrefillGraph, 1, 16, 2048)),
+    17,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, MixedGraph, 1, 16, 2048)),
+    17,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 1, 1, 4096)),
+    7,
+  )
+}
+
+///|
 test "partitioned prefill selects the smallest compiled query bucket" {
   let (table, profile, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
@@ -250,6 +286,10 @@ test "phase-specific decode owners replace baseline slots without touching prefi
     prefill_split_minimum_context_tokens: baseline.prefill_split_minimum_context_tokens,
     prefill_split_query_tile: baseline.prefill_split_query_tile,
     prefill_split_partition_count: baseline.prefill_split_partition_count,
+    deep_prefill_split_owner_index: baseline.deep_prefill_split_owner_index,
+    deep_prefill_split_minimum_context_tokens: baseline.deep_prefill_split_minimum_context_tokens,
+    deep_prefill_split_query_tile: baseline.deep_prefill_split_query_tile,
+    deep_prefill_split_partition_count: baseline.deep_prefill_split_partition_count,
     decode_owner_index: 12,
     decode_split_owner_index: baseline.decode_split_owner_index,
     decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,

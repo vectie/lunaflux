@@ -20,6 +20,7 @@ fn prepare_paged_production_steps(
   ReadOnlyArray[PreparedPagedGraphStep]?,
   ReadOnlyArray[PreparedPagedGraphStep]?,
   ReadOnlyArray[PreparedPagedGraphStep]?,
+  ReadOnlyArray[PreparedPagedGraphStep]?,
 ) raise DeviceStepError {
   let fused_residual_function = match fused_residual_spans.get(0) {
     Some(span) =>
@@ -259,7 +260,21 @@ fn prepare_paged_production_steps(
     context, blueprint, expanded, qwen_fused_attention_spans, descriptor, weight,
     activation, kv, resources,
   )
-  (expanded, expanded_wide_prefill, expanded_decode, partitioned_prefill)
+  let deep_partitioned_prefill = prepare_qwen_partitioned_prefill_steps(
+    context,
+    blueprint,
+    expanded,
+    qwen_fused_attention_spans,
+    descriptor,
+    weight,
+    activation,
+    kv,
+    resources,
+    deep=true,
+  )
+  (
+    expanded, expanded_wide_prefill, expanded_decode, partitioned_prefill, deep_partitioned_prefill,
+  )
 }
 
 ///|

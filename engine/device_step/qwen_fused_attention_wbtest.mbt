@@ -76,6 +76,7 @@ fn qwen_fused_test_runtime(
   wide_query_prefill_alias_selected? : Bool = false,
   partitioned_prefill? : Bool = false,
   partitioned_prefill_grid_x? : Int = -1,
+  deep_partitioned_prefill? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -265,6 +266,56 @@ fn qwen_fused_test_runtime(
         first_operation=5,
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=prefill_grid,
+          grid_y=16,
+          grid_z=1,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=0,
+        ),
+        module_bytes=shared_module,
+      ),
+    )
+  }
+  if deep_partitioned_prefill {
+    let shared_module = b"qwen-deep-partitioned-prefill-module"
+    let prefill_grid = if partitioned_prefill_grid_x > 0 {
+      partitioned_prefill_grid_x
+    } else {
+      blueprint.profile().max_query_rows() +
+      (
+        blueprint.profile().max_query_tokens() -
+        blueprint.profile().max_query_rows() +
+        15
+      ) /
+      16
+    }
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=prefill_grid,
+          grid_y=16,
+          grid_z=8,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=31952,
+        ),
+        module_bytes=shared_module,
+      ),
+    )
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=prefill_grid,
           grid_y=16,
@@ -567,6 +618,34 @@ test "Qwen runtime admits compiler partition-map fold merge prefill" {
     blueprint.profile().max_query_rows(),
   )
   assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
+}
+
+///|
+test "Qwen runtime admits an ordered deep partition frontier member" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let runtime = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    full_ingress=true,
+    partitioned_prefill=true,
+    deep_partitioned_prefill=true,
+  )
+  let spans = admit_reusable_qwen_fused_attention_spans(
+    plan,
+    @worker_protocol.ModelPlanGeneration::first(),
+    blueprint,
+    runtime,
+  )
+  guard spans[0].partitioned_prefill() is Some(base) &&
+    spans[0].deep_partitioned_prefill() is Some(deep) else {
+    fail("partitioned Qwen frontier missing")
+  }
+  assert_eq(base.partial_launch.grid_z(), 2)
+  assert_eq(deep.partial_launch.grid_z(), 8)
+  assert_true(deep.workspace_bytes > base.workspace_bytes)
+  assert_eq(qwen_partitioned_prefill_partition_count(spans, deep=true), 8)
 }
 
 ///|

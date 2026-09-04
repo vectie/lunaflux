@@ -74,6 +74,10 @@ priv struct PagedOrderedExecutorDispatch {
   prefill_split_minimum_context_tokens : Int
   prefill_split_query_tile : Int
   prefill_split_partition_count : Int
+  deep_prefill_split_owner_index : Int
+  deep_prefill_split_minimum_context_tokens : Int
+  deep_prefill_split_query_tile : Int
+  deep_prefill_split_partition_count : Int
   decode_owner_index : Int
   decode_split_owner_index : Int
   decode_split_minimum_context_tokens : Int
@@ -100,6 +104,7 @@ priv struct PagedGraphResources {
   mut activation_workspace : PagedOwnedAllocation?
   mut qwen_fused_attention_sidecar : PagedOwnedAllocation?
   mut prefill_partition_workspace : PagedOwnedAllocation?
+  mut deep_prefill_partition_workspace : PagedOwnedAllocation?
   mut decode_split_workspace : PagedOwnedAllocation?
   mut persistent_kv : PagedOwnedAllocation?
   mut fused_dispatch_canary : PagedOwnedAllocation?

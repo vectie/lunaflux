@@ -172,6 +172,68 @@ fn qwen_partitioned_prefill_workspace_bytes(
 }
 
 ///|
+fn admit_qwen_partitioned_prefill_pair(
+  modules : (
+    @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeModule,
+    @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeModule,
+  )?,
+  partial_abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
+  merge_abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
+  attention_operation : Int,
+  compiler_prefill_grid : Int,
+  maximum_tokens : Int,
+  query_heads : Int,
+  head_dimension : Int,
+) -> ApprovedQwenPartitionedPrefill? raise FusedGroupedOperationError {
+  match modules {
+    Some((partial, merge)) => {
+      let partial_launch = partial.launch_dimensions()
+      let merge_launch = merge.launch_dimensions()
+      if partial.kernel_abi() != partial_abi ||
+        merge.kernel_abi() != merge_abi ||
+        partial.operation_span() != (attention_operation, 1) ||
+        merge.operation_span() != (attention_operation, 1) ||
+        partial.module_digest() != merge.module_digest() ||
+        partial.module_bytes() != merge.module_bytes() ||
+        partial_launch.grid_x() <= 0 ||
+        partial_launch.grid_x() > compiler_prefill_grid ||
+        partial_launch.grid_y() != query_heads ||
+        partial_launch.grid_z() <= 1 ||
+        partial_launch.block_x() != 256 ||
+        partial_launch.block_y() != 1 ||
+        partial_launch.block_z() != 1 ||
+        partial_launch.shared_memory_bytes() <= 0 ||
+        partial_launch.shared_memory_bytes() > 100000 ||
+        merge_launch.grid_x() != partial_launch.grid_x() ||
+        merge_launch.grid_y() != partial_launch.grid_y() ||
+        merge_launch.grid_z() != 1 ||
+        merge_launch.block_x() != partial_launch.block_x() ||
+        merge_launch.block_y() != 1 ||
+        merge_launch.block_z() != 1 ||
+        merge_launch.shared_memory_bytes() != 0 {
+        raise MismatchedFusedGroupedOperation(Launch)
+      }
+      Some({
+        module_digest: partial.module_digest(),
+        module_bytes: partial.module_bytes(),
+        partial_symbol: partial.function_symbol(),
+        partial_launch,
+        merge_symbol: merge.function_symbol(),
+        merge_launch,
+        workspace_bytes: qwen_partitioned_prefill_workspace_bytes(
+          maximum_tokens,
+          query_heads,
+          head_dimension,
+          partial_launch.grid_z(),
+        ),
+        workspace_alignment: 16L,
+      })
+    }
+    None => None
+  }
+}
+
+///|
 /// Expands one digest-pinned Qwen ingress V4/read-only V2 module pair over
 /// every graph-identical QKV -> QkRmsNorm -> RoPE -> Attention layer span.
 /// Parsing, model identity, shape matching, and blueprint joins all complete
@@ -200,6 +262,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     (
       runtime.qwen_partitioned_prefill_partial_module(),
       runtime.qwen_partitioned_prefill_merge_module(),
+    ) {
+    (Some(partial), Some(merge)) => Some((partial, merge))
+    (None, None) => None
+    _ => raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
+  let deep_partitioned_modules = match
+    (
+      runtime.qwen_partitioned8_prefill_partial_module(),
+      runtime.qwen_partitioned8_prefill_merge_module(),
     ) {
     (Some(partial), Some(merge)) => Some((partial, merge))
     (None, None) => None
@@ -321,53 +392,33 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     }
     None => None
   }
-  let partitioned_prefill = match partitioned_modules {
-    Some((partial, merge)) => {
-      let partial_launch = partial.launch_dimensions()
-      let merge_launch = merge.launch_dimensions()
-      if partial.kernel_abi() !=
-        QwenPagedAttentionPrefillPartitionedPartialProductionV4 ||
-        merge.kernel_abi() !=
-        QwenPagedAttentionPrefillPartitionedMergeProductionV4 ||
-        partial.operation_span() != (seed_attention, 1) ||
-        merge.operation_span() != (seed_attention, 1) ||
-        partial.module_digest() != merge.module_digest() ||
-        partial.module_bytes() != merge.module_bytes() ||
-        partial_launch.grid_x() <= 0 ||
-        partial_launch.grid_x() > compiler_prefill_grid ||
-        partial_launch.grid_y() != query_heads ||
-        partial_launch.grid_z() <= 1 ||
-        partial_launch.block_x() != 256 ||
-        partial_launch.block_y() != 1 ||
-        partial_launch.block_z() != 1 ||
-        partial_launch.shared_memory_bytes() <= 0 ||
-        partial_launch.shared_memory_bytes() > 100000 ||
-        merge_launch.grid_x() != partial_launch.grid_x() ||
-        merge_launch.grid_y() != partial_launch.grid_y() ||
-        merge_launch.grid_z() != 1 ||
-        merge_launch.block_x() != partial_launch.block_x() ||
-        merge_launch.block_y() != 1 ||
-        merge_launch.block_z() != 1 ||
-        merge_launch.shared_memory_bytes() != 0 {
+  let partitioned_prefill = admit_qwen_partitioned_prefill_pair(
+    partitioned_modules,
+    QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+    QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+    seed_attention,
+    compiler_prefill_grid,
+    maximum_tokens,
+    query_heads,
+    head_dimension,
+  )
+  let deep_partitioned_prefill = admit_qwen_partitioned_prefill_pair(
+    deep_partitioned_modules,
+    QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+    QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
+    seed_attention,
+    compiler_prefill_grid,
+    maximum_tokens,
+    query_heads,
+    head_dimension,
+  )
+  match (partitioned_prefill, deep_partitioned_prefill) {
+    (Some(base), Some(deep)) =>
+      if base.partial_launch.grid_z() >= deep.partial_launch.grid_z() {
         raise MismatchedFusedGroupedOperation(Launch)
       }
-      Some({
-        module_digest: partial.module_digest(),
-        module_bytes: partial.module_bytes(),
-        partial_symbol: partial.function_symbol(),
-        partial_launch,
-        merge_symbol: merge.function_symbol(),
-        merge_launch,
-        workspace_bytes: qwen_partitioned_prefill_workspace_bytes(
-          maximum_tokens,
-          query_heads,
-          head_dimension,
-          partial_launch.grid_z(),
-        ),
-        workspace_alignment: 16L,
-      })
-    }
-    None => None
+    (None, Some(_)) => raise MismatchedFusedGroupedOperation(KernelAbi)
+    _ => ()
   }
   let valid_prefill_launch = if partitioned_prefill is Some(_) {
     true
@@ -466,6 +517,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_launch: decode_module.launch_dimensions(),
       wide_query_prefill,
       partitioned_prefill,
+      deep_partitioned_prefill,
       qkv_index,
       qk_norm_index: qkv_index + 1,
       rope_index: qkv_index + 2,

@@ -302,6 +302,7 @@ fn finish_paged_sampling_preparation(
   model_steps : ReadOnlyArray[PreparedPagedGraphStep],
   prefill_wide_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   prefill_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
+  deep_prefill_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   decode_split_model_steps : ReadOnlyArray[PreparedPagedGraphStep]?,
   resources : PagedGraphResources,
@@ -312,6 +313,9 @@ fn finish_paged_sampling_preparation(
   prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_query_tile? : Int = 1,
   prefill_split_partition_count? : Int = 1,
+  deep_prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  deep_prefill_split_query_tile? : Int = 1,
+  deep_prefill_split_partition_count? : Int = 1,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
@@ -337,6 +341,13 @@ fn finish_paged_sampling_preparation(
       )
     None => None
   }
+  let deep_prefill_split_steps = match deep_prefill_split_model_steps {
+    Some(model_prefill_split) =>
+      Some(
+        append_paged_sampling_suffix(model_steps, steps, model_prefill_split),
+      )
+    None => None
+  }
   let decode_split_steps = match decode_split_model_steps {
     Some(model_decode_split) =>
       Some(append_paged_sampling_suffix(model_steps, steps, model_decode_split))
@@ -356,6 +367,10 @@ fn finish_paged_sampling_preparation(
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,
     prefill_split_partition_count~,
+    deep_prefill_split_steps~,
+    deep_prefill_split_minimum_context_tokens~,
+    deep_prefill_split_query_tile~,
+    deep_prefill_split_partition_count~,
     decode_steps~,
     decode_split_steps~,
     decode_split_minimum_context_tokens~,
