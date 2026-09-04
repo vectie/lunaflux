@@ -11,6 +11,7 @@ priv struct ModuleLaunchInput {
   first_operation : Int
   grid_x : Int
   grid_y : Int
+  grid_z : Int
   block_x : Int
   shared_memory_bytes : Int
   module_path : String
@@ -22,7 +23,8 @@ priv struct RuntimeBundleArguments {
   model_plan : String
   residual : ModuleLaunchInput
   ingress : ModuleLaunchInput
-  attention_prefill : ModuleLaunchInput?
+  attention_prefill_partial : ModuleLaunchInput
+  attention_prefill_merge : ModuleLaunchInput
   attention_read : ModuleLaunchInput
   output_path : String
 }
@@ -83,19 +85,35 @@ fn parse_arguments(
     residual_operation,
     residual_grid_x,
     residual_grid_y,
+    residual_grid_z,
     residual_block_x,
     residual_shared,
     residual_module,
     ingress_operation,
     ingress_grid_x,
     ingress_grid_y,
+    ingress_grid_z,
     ingress_block_x,
     ingress_shared,
     ingress_module,
-    prefill_fields,
+    prefill_partial_operation,
+    prefill_partial_grid_x,
+    prefill_partial_grid_y,
+    prefill_partial_grid_z,
+    prefill_partial_block_x,
+    prefill_partial_shared,
+    prefill_partial_module,
+    prefill_merge_operation,
+    prefill_merge_grid_x,
+    prefill_merge_grid_y,
+    prefill_merge_grid_z,
+    prefill_merge_block_x,
+    prefill_merge_shared,
+    prefill_merge_module,
     attention_operation,
     attention_grid_x,
     attention_grid_y,
+    attention_grid_z,
     attention_block_x,
     attention_shared,
     attention_module,
@@ -108,105 +126,50 @@ fn parse_arguments(
       residual_operation,
       residual_grid_x,
       residual_grid_y,
+      residual_grid_z,
       residual_block_x,
       residual_shared,
       residual_module,
       ingress_operation,
       ingress_grid_x,
       ingress_grid_y,
+      ingress_grid_z,
       ingress_block_x,
       ingress_shared,
       ingress_module,
+      prefill_partial_operation,
+      prefill_partial_grid_x,
+      prefill_partial_grid_y,
+      prefill_partial_grid_z,
+      prefill_partial_block_x,
+      prefill_partial_shared,
+      prefill_partial_module,
+      prefill_merge_operation,
+      prefill_merge_grid_x,
+      prefill_merge_grid_y,
+      prefill_merge_grid_z,
+      prefill_merge_block_x,
+      prefill_merge_shared,
+      prefill_merge_module,
       attention_operation,
       attention_grid_x,
       attention_grid_y,
+      attention_grid_z,
       attention_block_x,
       attention_shared,
       attention_module,
       output_path,
     ] =>
       (
-        model_content,
-        model_plan,
-        residual_operation,
-        residual_grid_x,
-        residual_grid_y,
-        residual_block_x,
-        residual_shared,
-        residual_module,
-        ingress_operation,
-        ingress_grid_x,
-        ingress_grid_y,
-        ingress_block_x,
-        ingress_shared,
-        ingress_module,
-        None,
-        attention_operation,
-        attention_grid_x,
-        attention_grid_y,
-        attention_block_x,
-        attention_shared,
-        attention_module,
-        output_path,
-      )
-    [
-      _,
-      model_content,
-      model_plan,
-      residual_operation,
-      residual_grid_x,
-      residual_grid_y,
-      residual_block_x,
-      residual_shared,
-      residual_module,
-      ingress_operation,
-      ingress_grid_x,
-      ingress_grid_y,
-      ingress_block_x,
-      ingress_shared,
-      ingress_module,
-      prefill_operation,
-      prefill_grid_x,
-      prefill_grid_y,
-      prefill_block_x,
-      prefill_shared,
-      prefill_module,
-      attention_operation,
-      attention_grid_x,
-      attention_grid_y,
-      attention_block_x,
-      attention_shared,
-      attention_module,
-      output_path,
-    ] =>
-      (
-        model_content,
-        model_plan,
-        residual_operation,
-        residual_grid_x,
-        residual_grid_y,
-        residual_block_x,
-        residual_shared,
-        residual_module,
-        ingress_operation,
-        ingress_grid_x,
-        ingress_grid_y,
-        ingress_block_x,
-        ingress_shared,
-        ingress_module,
-        Some(
-          (
-            prefill_operation, prefill_grid_x, prefill_grid_y, prefill_block_x, prefill_shared,
-            prefill_module,
-          ),
-        ),
-        attention_operation,
-        attention_grid_x,
-        attention_grid_y,
-        attention_block_x,
-        attention_shared,
-        attention_module,
-        output_path,
+        model_content, model_plan, residual_operation, residual_grid_x, residual_grid_y,
+        residual_grid_z, residual_block_x, residual_shared, residual_module, ingress_operation,
+        ingress_grid_x, ingress_grid_y, ingress_grid_z, ingress_block_x, ingress_shared,
+        ingress_module, prefill_partial_operation, prefill_partial_grid_x, prefill_partial_grid_y,
+        prefill_partial_grid_z, prefill_partial_block_x, prefill_partial_shared,
+        prefill_partial_module, prefill_merge_operation, prefill_merge_grid_x, prefill_merge_grid_y,
+        prefill_merge_grid_z, prefill_merge_block_x, prefill_merge_shared, prefill_merge_module,
+        attention_operation, attention_grid_x, attention_grid_y, attention_grid_z,
+        attention_block_x, attention_shared, attention_module, output_path,
       )
     _ => raise InvalidArguments
   }
@@ -214,6 +177,8 @@ fn parse_arguments(
     !lower_sha256(model_plan) ||
     !safe_absolute_file(residual_module) ||
     !safe_absolute_file(ingress_module) ||
+    !safe_absolute_file(prefill_partial_module) ||
+    !safe_absolute_file(prefill_merge_module) ||
     !safe_absolute_file(attention_module) ||
     !safe_absolute_file(output_path) {
     raise InvalidArguments
@@ -222,6 +187,7 @@ fn parse_arguments(
     first_operation: non_negative_int(residual_operation),
     grid_x: positive_int(residual_grid_x),
     grid_y: positive_int(residual_grid_y),
+    grid_z: positive_int(residual_grid_z),
     block_x: positive_int(residual_block_x),
     shared_memory_bytes: non_negative_int(residual_shared),
     module_path: residual_module,
@@ -230,50 +196,52 @@ fn parse_arguments(
     first_operation: non_negative_int(ingress_operation),
     grid_x: positive_int(ingress_grid_x),
     grid_y: positive_int(ingress_grid_y),
+    grid_z: positive_int(ingress_grid_z),
     block_x: positive_int(ingress_block_x),
     shared_memory_bytes: non_negative_int(ingress_shared),
     module_path: ingress_module,
+  }
+  let attention_prefill_partial : ModuleLaunchInput = {
+    first_operation: non_negative_int(prefill_partial_operation),
+    grid_x: positive_int(prefill_partial_grid_x),
+    grid_y: positive_int(prefill_partial_grid_y),
+    grid_z: positive_int(prefill_partial_grid_z),
+    block_x: positive_int(prefill_partial_block_x),
+    shared_memory_bytes: non_negative_int(prefill_partial_shared),
+    module_path: prefill_partial_module,
+  }
+  let attention_prefill_merge : ModuleLaunchInput = {
+    first_operation: non_negative_int(prefill_merge_operation),
+    grid_x: positive_int(prefill_merge_grid_x),
+    grid_y: positive_int(prefill_merge_grid_y),
+    grid_z: positive_int(prefill_merge_grid_z),
+    block_x: positive_int(prefill_merge_block_x),
+    shared_memory_bytes: non_negative_int(prefill_merge_shared),
+    module_path: prefill_merge_module,
   }
   let attention_read : ModuleLaunchInput = {
     first_operation: non_negative_int(attention_operation),
     grid_x: positive_int(attention_grid_x),
     grid_y: positive_int(attention_grid_y),
+    grid_z: positive_int(attention_grid_z),
     block_x: positive_int(attention_block_x),
     shared_memory_bytes: non_negative_int(attention_shared),
     module_path: attention_module,
   }
-  let attention_prefill = match prefill_fields {
-    Some((operation, grid_x, grid_y, block_x, shared, module_path)) => {
-      if !safe_absolute_file(module_path) {
-        raise InvalidArguments
-      }
-      Some({
-        first_operation: non_negative_int(operation),
-        grid_x: positive_int(grid_x),
-        grid_y: positive_int(grid_y),
-        block_x: positive_int(block_x),
-        shared_memory_bytes: non_negative_int(shared),
-        module_path,
-      })
-    }
-    None => None
-  }
   if attention_read.first_operation != ingress.first_operation + 3 {
     raise InvalidArguments
   }
-  match attention_prefill {
-    Some(prefill) =>
-      if prefill.first_operation != attention_read.first_operation {
-        raise InvalidArguments
-      }
-    None => ()
+  if attention_prefill_partial.first_operation != attention_read.first_operation ||
+    attention_prefill_merge.first_operation != attention_read.first_operation {
+    raise InvalidArguments
   }
   {
     model_content,
     model_plan,
     residual,
     ingress,
-    attention_prefill,
+    attention_prefill_partial,
+    attention_prefill_merge,
     attention_read,
     output_path,
   }
@@ -286,7 +254,7 @@ fn launch_dimensions(
   @launch_contract.AotLaunchDimensions::new(
     grid_x=input.grid_x,
     grid_y=input.grid_y,
-    grid_z=1,
+    grid_z=input.grid_z,
     block_x=input.block_x,
     block_y=1,
     block_z=1,
@@ -314,9 +282,15 @@ async fn run(
   let args = parse_arguments(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
   let ingress_bytes = read_module(args.ingress.module_path)
-  let attention_prefill_bytes = match args.attention_prefill {
-    Some(prefill) => Some(read_module(prefill.module_path))
-    None => None
+  let attention_prefill_partial_bytes = read_module(
+    args.attention_prefill_partial.module_path,
+  )
+  let attention_prefill_merge_bytes = read_module(
+    args.attention_prefill_merge.module_path,
+  )
+  if @crypto.sha256(attention_prefill_partial_bytes) !=
+    @crypto.sha256(attention_prefill_merge_bytes) {
+    raise InvalidModule
   }
   let attention_bytes = read_module(args.attention_read.module_path)
   let target = @catalog.DeviceTarget::new(
@@ -349,23 +323,30 @@ async fn run(
   ] catch {
     _ => raise InvalidRuntime
   }
-  match (args.attention_prefill, attention_prefill_bytes) {
-    (Some(prefill), Some(prefill_bytes)) =>
-      modules.push(
-        @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-          abi=QwenPagedAttentionReadOnlyProductionV2,
-          first_operation=prefill.first_operation,
-          operation_count=1,
-          function_symbol="lunaflux_attention_prefill_tile_compiler_v1",
-          launch=launch_dimensions(prefill),
-          module_bytes=prefill_bytes,
-        ) catch {
-          _ => raise InvalidRuntime
-        },
-      )
-    (None, None) => ()
-    _ => raise InvalidRuntime
-  }
+  modules.push(
+    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+      abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+      first_operation=args.attention_prefill_partial.first_operation,
+      operation_count=1,
+      function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+      launch=launch_dimensions(args.attention_prefill_partial),
+      module_bytes=attention_prefill_partial_bytes,
+    ) catch {
+      _ => raise InvalidRuntime
+    },
+  )
+  modules.push(
+    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+      abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+      first_operation=args.attention_prefill_merge.first_operation,
+      operation_count=1,
+      function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+      launch=launch_dimensions(args.attention_prefill_merge),
+      module_bytes=attention_prefill_merge_bytes,
+    ) catch {
+      _ => raise InvalidRuntime
+    },
+  )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
@@ -411,14 +392,10 @@ async fn run(
     "attention_module_sha256=" +
     @crypto.bytes_to_hex_string(@crypto.sha256(attention_bytes)),
   )
-  match attention_prefill_bytes {
-    Some(bytes) =>
-      println(
-        "attention_prefill_module_sha256=" +
-        @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
-      )
-    None => ()
-  }
+  println(
+    "attention_prefill_module_sha256=" +
+    @crypto.bytes_to_hex_string(@crypto.sha256(attention_prefill_partial_bytes)),
+  )
 }
 
 ///|

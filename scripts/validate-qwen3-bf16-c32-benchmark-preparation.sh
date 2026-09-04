@@ -55,10 +55,11 @@ done
 for exact in \
   'reusable-fused-residual' \
   'reusable-qwen-full-ingress' \
+  'reusable-qwen-prefill-partitioned-attention' \
   'reusable-qwen-decode-attention' \
   'model-bound' \
   'reusable-generic' \
-  'compiler_invocations=10' \
+  'compiler_invocations=12' \
   'reusable-fused-runtime-bundle.v3'; do
   grep -Fq "$exact" "$fused_builder" ||
     fail "reusable Qwen fused-runtime build boundary is absent: $exact"
