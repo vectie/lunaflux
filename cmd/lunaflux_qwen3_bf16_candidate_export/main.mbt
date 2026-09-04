@@ -147,9 +147,52 @@ priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   attention_prefill : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+  attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
   attention_decode_split : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle
+}
+
+///|
+fn prepare_qwen_compiler_partitioned_prefill(
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  baseline : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
+) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
+  let problem = baseline.functional().plan().problem()
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=100000L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+    matrix_shape=Some(
+      @luna_attention_strategy.AttentionMatrixShape::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
+    ),
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot(
+    @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
+      backend=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend(),
+      target_id=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target(),
+      problem~,
+      capabilities~,
+      device_target=set.target(),
+      maximum_shared_memory_bytes=100000L,
+      abi=baseline.source().abi(),
+      partial_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+      merge_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+      maximum_workspace_bytes=1073741824L,
+      maximum_source_bytes=1048576,
+    ),
+    [],
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
 }
 
 ///|
@@ -380,6 +423,77 @@ fn qwen_compiler_attention_recipe(
 }
 
 ///|
+fn qwen_compiler_partitioned_attention_recipe(
+  operation : Int,
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  compiled : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
+) -> Bytes {
+  let compiler = set.compiler_policy()
+  let identity = compiler.identity()
+  let source = compiled.source()
+  let lowering = compiled.lowering()
+  let (grid_x, grid_y, block_x, shared) = lowering.launch()
+  let (partial_symbol, merge_symbol) = source.symbols()
+  let workspace = source.workspace()
+  let (maximum_offset, denominator_offset, numerator_offset) = workspace.region_offsets_bytes()
+  @utf8.encode(
+    "schema=lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1\n" +
+    "family=paged-attention-prefill-functional-partitioned-tile\n" +
+    "model_operation_id=" +
+    operation.to_string() +
+    "\npartial_function_symbol=" +
+    partial_symbol.to_owned() +
+    "\nmerge_function_symbol=" +
+    merge_symbol.to_owned() +
+    "\ntarget=sm_120\ntoolchain_sha256=" +
+    identity.toolchain_digest_sha256() +
+    "\ncompiler_version=" +
+    identity.major().to_string() +
+    "." +
+    identity.minor().to_string() +
+    "." +
+    identity.patch().to_string() +
+    "\nsource_sha256=" +
+    source.digest().as_hex() +
+    "\noptimization=" +
+    compiler.optimization_level().to_string() +
+    "\nfmad=" +
+    compiler.fused_multiply_add().to_string() +
+    "\nreassociate=" +
+    compiler.reassociate().to_string() +
+    "\nmax_registers=" +
+    compiler.max_registers().to_string() +
+    "\npartial_grid=" +
+    grid_x.to_string() +
+    "," +
+    grid_y.to_string() +
+    "," +
+    lowering.key_value_partitions().to_string() +
+    "\nmerge_grid=" +
+    grid_x.to_string() +
+    "," +
+    grid_y.to_string() +
+    ",1\nblock=" +
+    block_x.to_string() +
+    ",1,1\nshared_memory_bytes=" +
+    shared.to_string() +
+    "\nworkspace_bytes=" +
+    workspace.total_bytes().to_string() +
+    "\nworkspace_offsets=" +
+    maximum_offset.to_string() +
+    "," +
+    denominator_offset.to_string() +
+    "," +
+    numerator_offset.to_string() +
+    "\nfunctional_sha256=" +
+    compiled.functional().digest().as_hex() +
+    "\nlowering_sha256=" +
+    lowering.digest().as_hex() +
+    "\n",
+  )
+}
+
+///|
 fn qwen_postprocess_activation_input(
   operand : @launch_contract.AotOperand,
 ) -> @launch_contract.AotOperand raise Qwen3Bf16CandidateExportCliError {
@@ -557,6 +671,9 @@ fn prepare_qwen_fused_production_set(
       index,
       index + 3,
     )
+    let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(
+      set, attention_prefill,
+    )
     let attention_decode = prepare_qwen_compiler_decode(
       plan,
       layout,
@@ -568,6 +685,7 @@ fn prepare_qwen_fused_production_set(
       first_operation: index,
       postprocess,
       attention_prefill,
+      attention_prefill_partitioned,
       attention_decode,
       attention_read,
       attention_decode_split,
@@ -670,6 +788,17 @@ async fn run_qwen3_candidate_export(
     fused_root,
     production.source_bytes(),
     production.recipe_bytes(),
+  )
+  let partitioned_prefill_root = arguments.absolute_new_output +
+    "/reusable-qwen-prefill-partitioned-attention"
+  write_new_candidate_pair(
+    partitioned_prefill_root,
+    qwen_fused.attention_prefill_partitioned.source().bytes(),
+    qwen_compiler_partitioned_attention_recipe(
+      qwen_fused.first_operation + 3,
+      set,
+      qwen_fused.attention_prefill_partitioned,
+    ),
   )
   let ingress_root = arguments.absolute_new_output + "/reusable-qwen-ingress"
   write_new_candidate_pair(
