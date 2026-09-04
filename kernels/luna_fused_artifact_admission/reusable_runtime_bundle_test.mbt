@@ -139,6 +139,10 @@ test "V4 Qwen full ingress owns projection through KV write" {
   }
   assert_eq(ingress.operation_span(), (2, 4))
   assert_eq(ingress.function_symbol(), "lunaflux_qwen_full_ingress")
+  assert_eq(
+    admitted.qwen_qknorm_rope_kv_write_operation_indices(),
+    Some((3, 4, 5)),
+  )
   assert_eq(admitted.qwen_paged_attention_readonly_operation_index(), Some(5))
   assert_true(admitted.qwen_qknorm_rope_kv_write_module() is None)
 }

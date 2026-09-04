@@ -151,16 +151,27 @@ pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_indices(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> (Int, Int, Int)? {
-  match self.qwen_qknorm_rope_kv_write_module() {
+  match self.qwen_full_attention_ingress_module() {
     Some(module_) =>
       Some(
         (
-          module_.first_operation,
           module_.first_operation + 1,
           module_.first_operation + 2,
+          module_.first_operation + 3,
         ),
       )
-    None => None
+    None =>
+      match self.qwen_qknorm_rope_kv_write_module() {
+        Some(module_) =>
+          Some(
+            (
+              module_.first_operation,
+              module_.first_operation + 1,
+              module_.first_operation + 2,
+            ),
+          )
+        None => None
+      }
   }
 }
 

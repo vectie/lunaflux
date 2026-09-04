@@ -75,12 +75,25 @@ fn reusable_qwen_test_bundle(
   target : @catalog.DeviceTarget,
   include_readonly : Bool,
   include_residual? : Bool = false,
+  full_ingress? : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let modules = [
     reusable_qwen_test_module(
-      QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      3,
-      3,
+      if full_ingress {
+        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+      } else {
+        QwenQkNormPositionedRopePagedKvWriteProductionV2
+      },
+      if full_ingress {
+        2
+      } else {
+        3
+      },
+      if full_ingress {
+        4
+      } else {
+        3
+      },
       "lunaflux_qwen_postprocess",
     ),
   ]
@@ -121,6 +134,14 @@ test "Qwen reusable runtime validates exact model and target" {
   let plan = reusable_qwen_test_plan()
   let target = reusable_qwen_test_target(0)
   let bundle = reusable_qwen_test_bundle(plan, target, true)
+  validate_reusable_qwen_runtime_bundle(plan, target, bundle)
+}
+
+///|
+test "Qwen full ingress reusable runtime validates exact model and target" {
+  let plan = reusable_qwen_test_plan()
+  let target = reusable_qwen_test_target(0)
+  let bundle = reusable_qwen_test_bundle(plan, target, true, full_ingress=true)
   validate_reusable_qwen_runtime_bundle(plan, target, bundle)
 }
 
