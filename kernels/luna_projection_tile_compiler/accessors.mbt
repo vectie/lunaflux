@@ -169,6 +169,20 @@ pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(
 }
 
 ///|
+pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(
+  self : ProjectionTileSchedule,
+) -> Bool {
+  self.hoist_rotary_inverse_frequencies
+}
+
+///|
+pub fn ProjectionTileSchedule::fuses_rotary_pairs(
+  self : ProjectionTileSchedule,
+) -> Bool {
+  self.fuse_rotary_pairs
+}
+
+///|
 pub fn ProjectionTileSchedule::digest(
   self : ProjectionTileSchedule,
 ) -> ProjectionTileScheduleDigest {

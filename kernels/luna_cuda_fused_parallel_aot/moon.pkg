@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/math",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -14,7 +15,6 @@ import {
 }
 
 import {
-  "moonbitlang/core/math",
   "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
   "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
   "vectie/lunaflux/kv/device_layout",

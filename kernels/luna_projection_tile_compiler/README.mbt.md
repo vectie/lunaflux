@@ -17,10 +17,14 @@ memory and synchronization primitives; model code never names them.
 Attention ingress is also a composable projection epilogue. Its immutable value
 graph is `QKV dot -> per-head Q/K RMSNorm -> positioned rotary -> output store +
 paged KV commit`. The optimizer records that the projected QKV round trip can be
-elided, while the schedule exposes head and head-component parallel maps. The
-same semantic epilogue can therefore be lowered by CUDA, HIP, Metal, or CPU
-backends without placing warp width, page addressing instructions, or vendor
-types in the compiler middle end.
+elided. It also records two pure rotary rewrites: hoisting the
+position-independent inverse-frequency basis and evaluating each paired rotary
+component together. The schedule exposes those decisions plus head and
+head-component parallel maps. A backend chooses constant storage and a paired
+trigonometric intrinsic when available. The same semantic epilogue can
+therefore be lowered by CUDA, HIP, Metal, or CPU backends without placing warp
+width, page addressing instructions, vendor types, or vendor intrinsics in the
+compiler middle end.
 
 `QueryRowEnds` is legal only for a language-model head. It represents the
 general decoder-serving rule that a row-wise next-token consumer observes only

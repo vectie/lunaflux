@@ -2,8 +2,16 @@
 
 This package emits two offline, deterministic, candidate-only CUDA families:
 
-- QKV projection fused with positioned RoPE and paged split-K/V writes;
+- QKV projection fused with per-head Q/K RMSNorm, positioned RoPE, and paged
+  split-K/V writes;
 - residual addition fused with the immediately following RMSNorm.
+
+The Qwen full-ingress CUDA lowering consumes a backend-neutral functional
+projection schedule. When that schedule hoists the rotary inverse-frequency
+basis and fuses paired rotary evaluation, the lowerer materializes the basis as
+an AOT CUDA constant table and emits one paired `sincosf` evaluation per rotary
+pair. No runtime `powf` remains in this path, and model or compiler-middle-end
+code does not name CUDA storage classes or intrinsics.
 
 Residual/RMSNorm has two deliberately distinct artifacts. The qualification
 artifact retains the dispatch-canary pointer and atomic publication used by

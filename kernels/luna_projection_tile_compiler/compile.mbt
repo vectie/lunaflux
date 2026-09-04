@@ -238,6 +238,8 @@ fn projection_rewrite_code(rule : ProjectionTileRewriteRule) -> Int {
     ReuseIntermediateTileAcrossOutputTiles => 5
     FuseAttentionIngressEpilogue => 6
     ElideProjectedQkvRoundTrip => 7
+    HoistRotaryInverseFrequencies => 8
+    FuseRotaryPairEvaluation => 9
   }
 }
 
@@ -265,6 +267,8 @@ pub fn optimize_projection_tile(
   if fused_attention_ingress {
     trace.push({ rule: FuseAttentionIngressEpilogue, changed: true })
     trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true })
+    trace.push({ rule: HoistRotaryInverseFrequencies, changed: true })
+    trace.push({ rule: FuseRotaryPairEvaluation, changed: true })
   }
   let trace = ReadOnlyArray::from_array(trace)
   let builder = StringBuilder()
@@ -310,6 +314,10 @@ fn projection_schedule_canonical(
   builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
   builder <+
     "reuse_intermediate_tile=\{optimized.semantic.program.shape.family() == GatedMlp}\n"
+  let rotary_optimized = optimized.semantic.program.epilogue
+    is ProjectionAttentionIngress(_)
+  builder <+ "hoist_rotary_inverse_frequencies=\{rotary_optimized}\n"
+  builder <+ "fuse_rotary_pairs=\{rotary_optimized}\n"
   @utf8.encode(builder.to_string())
 }
 
@@ -420,6 +428,9 @@ pub fn schedule_projection_tile(
     reuse_intermediate_tile: request.dispatch.shape().family() == GatedMlp,
     fuse_attention_ingress_epilogue: request.epilogue
     is ProjectionAttentionIngress(_),
+    hoist_rotary_inverse_frequencies: request.epilogue
+    is ProjectionAttentionIngress(_),
+    fuse_rotary_pairs: request.epilogue is ProjectionAttentionIngress(_),
     canonical,
     digest: ProjectionTileScheduleDigest(projection_tile_sha256(canonical)),
   }

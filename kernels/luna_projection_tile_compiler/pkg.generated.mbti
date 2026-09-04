@@ -59,6 +59,11 @@ pub(all) enum ProjectionResultDemand {
   QueryRowEnds
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ProjectionRowTailPolicy {
+  ScalarRowTail
+  ZeroPaddedMatrixRowTail
+} derive(Eq, @debug.Debug)
+
 pub struct ProjectionTileBinding {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -129,6 +134,8 @@ pub(all) enum ProjectionTileRewriteRule {
   ReuseIntermediateTileAcrossOutputTiles
   FuseAttentionIngressEpilogue
   ElideProjectedQkvRoundTrip
+  HoistRotaryInverseFrequencies
+  FuseRotaryPairEvaluation
 } derive(Eq, @debug.Debug)
 
 pub struct ProjectionTileRewriteStep {
@@ -143,9 +150,12 @@ pub struct ProjectionTileSchedule {
 pub fn ProjectionTileSchedule::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
 pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool
+pub fn ProjectionTileSchedule::fuses_rotary_pairs(Self) -> Bool
+pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(Self) -> Bool
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
 pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
+pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
 
 pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileScheduleDigest::as_hex(Self) -> String
