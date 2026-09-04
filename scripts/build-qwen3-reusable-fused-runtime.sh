@@ -180,9 +180,10 @@ validate_module residual reusable-fused-residual \
   lunaflux-fused-parallel-cuda-aot-candidate.v2 \
   residual-rmsnorm-production-block128 residual_operation_id function_symbol \
   model-bound
-validate_module ingress reusable-qwen-ingress \
-  lunaflux-qknorm-rope-paged-kv-write-candidate.v2 \
-  qknorm-positioned-rope-paged-kv-write qkv_operation symbol model-bound
+validate_module ingress reusable-qwen-full-ingress \
+  lunaflux-fused-parallel-cuda-aot-candidate.v2 \
+  qkv-qknorm-positioned-rope-paged-kvwrite-production-head-tiled \
+  qkv_operation_id function_symbol model-bound
 validate_module prefill reusable-qwen-prefill-attention \
   lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-tile \

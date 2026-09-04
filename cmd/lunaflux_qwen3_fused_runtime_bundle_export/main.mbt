@@ -339,10 +339,10 @@ async fn run(
       module_bytes=residual_bytes,
     ),
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
-      first_operation=args.ingress.first_operation + 1,
-      operation_count=3,
-      function_symbol="lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2",
+      abi=QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
+      first_operation=args.ingress.first_operation,
+      operation_count=4,
+      function_symbol="lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
       launch=launch_dimensions(args.ingress),
       module_bytes=ingress_bytes,
     ),
@@ -395,7 +395,7 @@ async fn run(
   ) catch {
     _ => raise WriteFailed
   }
-  println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v3")
+  println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v4")
   println(
     "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
   )

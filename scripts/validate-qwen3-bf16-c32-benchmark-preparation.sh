@@ -54,7 +54,7 @@ done
 
 for exact in \
   'reusable-fused-residual' \
-  'reusable-qwen-ingress' \
+  'reusable-qwen-full-ingress' \
   'reusable-qwen-decode-attention' \
   'model-bound' \
   'reusable-generic' \
