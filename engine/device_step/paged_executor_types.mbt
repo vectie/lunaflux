@@ -54,6 +54,7 @@ priv enum PagedBucketStepLaunch {
 priv struct PagedGraphLaunchContract {
   step_launches : FixedArray[PagedBucketStepLaunch]
   decode_step_launches : FixedArray[PagedBucketStepLaunch]
+  prefill_split_step_launches : FixedArray[PagedBucketStepLaunch]?
 }
 
 ///|
@@ -63,6 +64,7 @@ priv struct PagedGraphLaunchContract {
 /// admits eager fallback owns a distinct eager executor instead.
 priv struct PagedOrderedExecutorDispatch {
   slot_owner_indices : FixedArray[Int]
+  prefill_split_slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
   prefill_split_owner_index : Int

@@ -19,6 +19,20 @@ fn qwen_bucket_step_index(
 }
 
 ///|
+fn qwen_bucket_step_indices(
+  steps : ReadOnlyArray[PreparedPagedGraphStep],
+  operation : @plan.OperationId,
+) -> ReadOnlyArray[Int] {
+  let found : Array[Int] = []
+  for index, step in steps {
+    if step.operation_id == operation {
+      found.push(index)
+    }
+  }
+  ReadOnlyArray::from_array(found)
+}
+
+///|
 fn paged_projection_output_width(
   blueprint : PagedKvExecutionBlueprint,
   step : PagedKvExecutionStep,
@@ -168,6 +182,7 @@ fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
 ) -> PagedGraphLaunchContract? raise DeviceStepError {
   if spans.is_empty() {
     return None
@@ -236,7 +251,59 @@ fn prepare_qwen_graph_launch_contract(
       _ => raise InvalidExecutor(GraphBucket)
     }
   }
-  Some({ step_launches: launches, decode_step_launches: decode_launches })
+  let prefill_split_step_launches = match prefill_split_steps {
+    Some(selected) => {
+      let split_launches = FixedArray::make(
+        selected.length(),
+        FixedBucketLaunch,
+      )
+      prepare_projection_bucket_launches(blueprint, selected, split_launches)
+      for span in spans {
+        let (qkv_index, qk_norm_index, _, attention_index) = span.operation_indices()
+        let ingress_index = if span.ingress_includes_projection() {
+          qkv_index
+        } else {
+          qk_norm_index
+        }
+        guard blueprint.steps().get(ingress_index) is Some(ingress) &&
+          blueprint.steps().get(attention_index) is Some(attention) &&
+          span.partitioned_prefill() is Some(pipeline) else {
+          raise InvalidExecutor(GraphBucket)
+        }
+        let ingress_step = qwen_bucket_step_index(
+          selected,
+          ingress.operation_id(),
+        )
+        let attention_steps = qwen_bucket_step_indices(
+          selected,
+          attention.operation_id(),
+        )
+        if attention_steps.length() != 2 {
+          raise InvalidExecutor(GraphBucket)
+        }
+        split_launches[ingress_step] = if span.ingress_includes_projection() {
+          QueryTileCappedGridX(span.postprocess_launch(), 16)
+        } else {
+          QueryTokenCappedGridX(span.postprocess_launch())
+        }
+        split_launches[attention_steps[0]] = QueryTileCappedGridX(
+          pipeline.partial_launch,
+          16,
+        )
+        split_launches[attention_steps[1]] = QueryTileCappedGridX(
+          pipeline.merge_launch,
+          16,
+        )
+      }
+      Some(split_launches)
+    }
+    None => None
+  }
+  Some({
+    step_launches: launches,
+    decode_step_launches: decode_launches,
+    prefill_split_step_launches,
+  })
 }
 
 ///|
@@ -386,6 +453,7 @@ fn paged_ordered_launches(
   resources : PagedGraphResources,
   query_token_bound? : Int? = None,
   phase_decode? : Bool = false,
+  phase_prefill_split? : Bool = false,
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
@@ -396,7 +464,12 @@ fn paged_ordered_launches(
     let dimensions = match
       (query_token_bound, resources.graph_launch_contract) {
       (Some(bound), Some(contract)) => {
-        let launch_contract = if phase_decode {
+        let launch_contract = if phase_prefill_split {
+          match contract.prefill_split_step_launches {
+            Some(split) => split
+            None => contract.step_launches
+          }
+        } else if phase_decode {
           contract.decode_step_launches
         } else {
           contract.step_launches
@@ -479,6 +552,10 @@ fn prepare_paged_ordered_executors(
     steps.map(step => step.operation_id),
   )
   let slot_owner_indices = FixedArray::make(table.bucket_count(), -1)
+  let prefill_split_slot_owner_indices = FixedArray::make(
+    table.bucket_count(),
+    -1,
+  )
   let mut fallback_owner_index = -1
   let telemetry_owner_index = match graph_policy {
     PagedOrderedEagerOnly => {
@@ -604,10 +681,34 @@ fn prepare_paged_ordered_executors(
   }
   let prefill_split_owner_index = match prefill_split_steps {
     Some(selected) => {
-      let launches = paged_ordered_launches(selected, resources)
       let operation_ids = ReadOnlyArray::from_array(
         selected.map(step => step.operation_id),
       )
+      if resources.graph_launch_contract is Some(_) {
+        for bound in paged_prefill_capture_bounds(profile) {
+          let launches = paged_ordered_launches(
+            selected,
+            resources,
+            query_token_bound=Some(bound),
+            phase_prefill_split=true,
+          )
+          let owner = prepare_one_paged_ordered_executor(
+            context,
+            launches[:],
+            operation_ids,
+            resources,
+            paged_ordered_device_policy(graph_policy),
+          )
+          map_paged_prefill_capture_owner(
+            table,
+            profile.max_query_rows(),
+            bound,
+            owner,
+            prefill_split_slot_owner_indices,
+          )
+        }
+      }
+      let launches = paged_ordered_launches(selected, resources)
       prepare_one_paged_ordered_executor(
         context,
         launches[:],
@@ -678,6 +779,7 @@ fn prepare_paged_ordered_executors(
   }
   {
     slot_owner_indices,
+    prefill_split_slot_owner_indices,
     fallback_owner_index,
     telemetry_owner_index,
     prefill_split_owner_index,
