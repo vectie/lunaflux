@@ -155,14 +155,16 @@ test "CUDA AOT lowering maps the functional frontier to stable symbols" {
   assert_true(stable_ids.contains(314))
   assert_eq(frontier.selected().functional(), frontier.functional().selected())
   for variant in frontier.variants() {
-    assert_true(
-      variant
-      .source()
-      .symbol()
-      .has_suffix(
-        "_c" + variant.functional().plan().candidate().stable_id().to_string(),
-      ),
-    )
+    let symbol = variant.source().symbol()
+    if variant == frontier.selected() {
+      assert_eq(symbol, "lunaflux_attention_prefill_tile_v1")
+    } else {
+      assert_true(
+        symbol.has_suffix(
+          "_c" + variant.functional().plan().candidate().stable_id().to_string(),
+        ),
+      )
+    }
   }
   assert_eq(frontier.digest().as_hex().length(), 64)
   assert_eq(

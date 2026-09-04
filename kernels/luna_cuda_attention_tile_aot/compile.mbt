@@ -90,13 +90,17 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   let variants : Array[CudaAttentionTileAotCompilation] = []
   for compilation in functional.variants() {
     let stable_id = compilation.plan().candidate().stable_id()
+    // Preserve the long-lived production ABI symbol for the selected variant.
+    // Non-selected frontier members receive stable candidate suffixes so a
+    // bundle can retain them without breaking existing selected-only users.
+    let symbol = if compilation == functional.selected() {
+      request.symbol
+    } else {
+      request.symbol + "_c" + stable_id.to_string()
+    }
     try
       variants.push(
-        lower_cuda_attention_tile_aot_variant(
-          request,
-          compilation,
-          request.symbol + "_c" + stable_id.to_string(),
-        ),
+        lower_cuda_attention_tile_aot_variant(request, compilation, symbol),
       )
     catch {
       _ => ()
