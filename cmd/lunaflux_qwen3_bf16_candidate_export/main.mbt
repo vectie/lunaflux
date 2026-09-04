@@ -146,6 +146,7 @@ fn prepare_candidate_set(
 priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
+  full_ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
   attention_prefill : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
   attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
@@ -627,6 +628,33 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenIngressPreparation
     }
+    let full_ingress_qualification = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
+      plan,
+      layout,
+      qkv,
+      qk_norm,
+      rope,
+      kv_write,
+      set.target(),
+      set.compiler_policy(),
+      @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
+        maximum_source_bytes=1048576,
+        maximum_recipe_bytes=65536,
+        maximum_promotion_bytes=65536,
+      ),
+    ) catch {
+      _ => raise QwenIngressPreparation
+    }
+    let full_ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+      full_ingress_qualification,
+      @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
+        maximum_source_bytes=1048576,
+        maximum_recipe_bytes=65536,
+        maximum_promotion_bytes=65536,
+      ),
+    ) catch {
+      _ => raise QwenIngressPreparation
+    }
     let readonly_limits = @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyAotLimits::new(
       maximum_source_bytes=1048576,
       maximum_recipe_bytes=65536,
@@ -684,6 +712,7 @@ fn prepare_qwen_fused_production_set(
     return {
       first_operation: index,
       postprocess,
+      full_ingress,
       attention_prefill,
       attention_prefill_partitioned,
       attention_decode,
@@ -805,6 +834,13 @@ async fn run_qwen3_candidate_export(
     ingress_root,
     qwen_fused.postprocess.source_bytes(),
     qwen_fused.postprocess.recipe_bytes(),
+  )
+  let full_ingress_root = arguments.absolute_new_output +
+    "/reusable-qwen-full-ingress"
+  write_new_candidate_pair(
+    full_ingress_root,
+    qwen_fused.full_ingress.source_bytes(),
+    qwen_fused.full_ingress.recipe_bytes(),
   )
   let readonly_root = arguments.absolute_new_output +
     "/reusable-qwen-readonly-attention"
