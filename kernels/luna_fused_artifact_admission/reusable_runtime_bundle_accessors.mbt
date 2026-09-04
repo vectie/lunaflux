@@ -252,6 +252,14 @@ pub fn ApprovedReusableFusedRuntimeModule::launch_dimensions(
 }
 
 ///|
+/// Semantic rows per tile, independent of the number of launched workgroups.
+pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(
+  self : ApprovedReusableFusedRuntimeModule,
+) -> Int? {
+  self.query_tile_rows
+}
+
+///|
 pub fn ApprovedReusableFusedRuntimeModule::module_digest(
   self : ApprovedReusableFusedRuntimeModule,
 ) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest {

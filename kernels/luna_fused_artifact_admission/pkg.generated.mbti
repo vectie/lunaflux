@@ -121,6 +121,7 @@ pub fn ApprovedReusableFusedRuntimeModule::module_bytes(Self) -> Bytes
 pub fn ApprovedReusableFusedRuntimeModule::module_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
 pub fn ApprovedReusableFusedRuntimeModule::operation_count(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::operation_span(Self) -> (Int, Int)
+pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(Self) -> Int?
 
 pub(all) enum FusedArtifactAdmissionRule {
   Manifest
@@ -171,7 +172,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
 pub struct ReusableFusedRuntimeModuleInput {
   // private fields
 }
-pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int) -> Self raise FusedArtifactAdmissionError
 
 // Type aliases
 

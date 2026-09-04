@@ -31,6 +31,10 @@ priv struct RuntimeBundleArguments {
   attention_prefill_partitioned8_partial : ModuleLaunchInput
   attention_prefill_partitioned8_merge : ModuleLaunchInput
   attention_read : ModuleLaunchInput
+  prefill_query_tile_rows : Int
+  wide_query_tile_rows : Int
+  partitioned_query_tile_rows : Int
+  deep_partitioned_query_tile_rows : Int
   output_path : String
 }
 
@@ -159,6 +163,10 @@ fn parse_arguments(
     attention_block_x,
     attention_shared,
     attention_module,
+    prefill_query_tile_rows,
+    wide_query_tile_rows,
+    partitioned_query_tile_rows,
+    deep_partitioned_query_tile_rows,
     output_path,
   ) = match args {
     [
@@ -229,6 +237,10 @@ fn parse_arguments(
       attention_block_x,
       attention_shared,
       attention_module,
+      prefill_query_tile_rows,
+      wide_query_tile_rows,
+      partitioned_query_tile_rows,
+      deep_partitioned_query_tile_rows,
       output_path,
     ] =>
       (
@@ -250,7 +262,8 @@ fn parse_arguments(
         prefill_partitioned8_merge_grid_y, prefill_partitioned8_merge_grid_z, prefill_partitioned8_merge_block_x,
         prefill_partitioned8_merge_shared, prefill_partitioned8_merge_module, attention_operation,
         attention_grid_x, attention_grid_y, attention_grid_z, attention_block_x,
-        attention_shared, attention_module, output_path,
+        attention_shared, attention_module, prefill_query_tile_rows, wide_query_tile_rows,
+        partitioned_query_tile_rows, deep_partitioned_query_tile_rows, output_path,
       )
     _ => raise InvalidArguments
   }
@@ -376,6 +389,12 @@ fn parse_arguments(
     attention_prefill_partitioned8_partial,
     attention_prefill_partitioned8_merge,
     attention_read,
+    prefill_query_tile_rows: positive_int(prefill_query_tile_rows),
+    wide_query_tile_rows: positive_int(wide_query_tile_rows),
+    partitioned_query_tile_rows: positive_int(partitioned_query_tile_rows),
+    deep_partitioned_query_tile_rows: positive_int(
+      deep_partitioned_query_tile_rows,
+    ),
     output_path,
   }
 }
@@ -476,6 +495,7 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_tile_compiler_v1",
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
+      query_tile_rows=args.prefill_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -488,6 +508,7 @@ async fn run(
       function_symbol=args.attention_prefill_wide_symbol,
       launch=launch_dimensions(args.attention_prefill_wide),
       module_bytes=attention_prefill_wide_bytes,
+      query_tile_rows=args.wide_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -500,6 +521,7 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
       launch=launch_dimensions(args.attention_prefill_partial),
       module_bytes=attention_prefill_partial_bytes,
+      query_tile_rows=args.partitioned_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -512,6 +534,7 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
       launch=launch_dimensions(args.attention_prefill_merge),
       module_bytes=attention_prefill_merge_bytes,
+      query_tile_rows=args.partitioned_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -524,6 +547,7 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
       launch=launch_dimensions(args.attention_prefill_partitioned8_partial),
       module_bytes=attention_prefill_partitioned8_partial_bytes,
+      query_tile_rows=args.deep_partitioned_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -536,6 +560,7 @@ async fn run(
       function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
       launch=launch_dimensions(args.attention_prefill_partitioned8_merge),
       module_bytes=attention_prefill_partitioned8_merge_bytes,
+      query_tile_rows=args.deep_partitioned_query_tile_rows,
     ) catch {
       _ => raise InvalidRuntime
     },

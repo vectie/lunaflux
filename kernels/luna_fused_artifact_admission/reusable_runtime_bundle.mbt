@@ -198,7 +198,11 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   function_symbol~ : String,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
+  query_tile_rows? : Int,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
+  if query_tile_rows is Some(rows) && (rows <= 0 || rows > 1048576) {
+    raise InvalidFusedArtifact(Launch)
+  }
   reusable_runtime_validate_module(
     abi, first_operation, operation_count, function_symbol, launch, module_bytes,
   )
@@ -208,6 +212,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     operation_count,
     symbol: function_symbol,
     launch,
+    query_tile_rows,
     module_bytes,
   }
 }
@@ -335,6 +340,13 @@ fn reusable_runtime_append_module(
     prefix + "operation_count=" + module_.operation_count.to_string() + "\n",
   )
   out.write_string(prefix + "function_symbol=" + module_.symbol + "\n")
+  let query_tile_rows = match module_.query_tile_rows {
+    Some(rows) => rows
+    None => 0
+  }
+  out.write_string(
+    prefix + "query_tile_rows=" + query_tile_rows.to_string() + "\n",
+  )
   out.write_string(
     prefix + "grid_x=" + module_.launch.grid_x().to_string() + "\n",
   )
@@ -389,7 +401,7 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  out.write_string("schema=lunaflux-reusable-fused-runtime-bundle.v3\n")
+  out.write_string("schema=lunaflux-reusable-fused-runtime-bundle.v4\n")
   out.write_string("model_content_sha256=" + model_content_sha256 + "\n")
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
@@ -438,8 +450,10 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
-  if reader.value("schema") != "lunaflux-reusable-fused-runtime-bundle.v3" {
-    raise InvalidFusedArtifact(Manifest)
+  let has_schedule_metadata = match reader.value("schema") {
+    "lunaflux-reusable-fused-runtime-bundle.v4" => true
+    "lunaflux-reusable-fused-runtime-bundle.v3" => false
+    _ => raise InvalidFusedArtifact(Manifest)
   }
   let model_content = fused_deployment_digest(
     reader.value("model_content_sha256"),
@@ -475,6 +489,19 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     let first_operation = reader.int(prefix + "first_operation")
     let operation_count = reader.int(prefix + "operation_count")
     let symbol = reader.value(prefix + "function_symbol")
+    let query_tile_rows = if has_schedule_metadata {
+      let rows = reader.int(prefix + "query_tile_rows")
+      if rows < 0 || rows > 1048576 {
+        raise InvalidFusedArtifact(Launch)
+      }
+      if rows == 0 {
+        None
+      } else {
+        Some(rows)
+      }
+    } else {
+      None
+    }
     let launch = @launch_contract.AotLaunchDimensions::new(
       grid_x=reader.int(prefix + "grid_x"),
       grid_y=reader.int(prefix + "grid_y"),
@@ -504,6 +531,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       operation_count,
       symbol,
       launch,
+      query_tile_rows,
       module_digest,
       module_bytes,
     })

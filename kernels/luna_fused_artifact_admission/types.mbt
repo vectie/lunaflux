@@ -143,6 +143,7 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv operation_count : Int
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
+  priv query_tile_rows : Int?
   priv module_bytes : Bytes
 }
 
@@ -156,6 +157,7 @@ pub struct ApprovedReusableFusedRuntimeModule {
   priv operation_count : Int
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
+  priv query_tile_rows : Int?
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv module_bytes : Bytes
 }

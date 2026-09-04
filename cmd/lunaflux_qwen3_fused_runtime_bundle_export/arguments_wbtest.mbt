@@ -68,6 +68,10 @@ fn runtime_bundle_test_arguments(attention_operation : String) -> Array[String] 
     "64",
     "34076",
     "/tmp/attention.cubin",
+    "32",
+    "64",
+    "32",
+    "64",
     "/tmp/runtime.v3",
   ]
 }
@@ -86,6 +90,10 @@ test "runtime bundle arguments preserve frontier and phase launches" {
   assert_eq(parsed.attention_read.shared_memory_bytes, 34076)
   assert_eq(parsed.attention_prefill_partitioned8_partial.grid_z, 8)
   assert_eq(parsed.attention_prefill_partitioned8_merge.grid_z, 1)
+  assert_eq(parsed.prefill_query_tile_rows, 32)
+  assert_eq(parsed.wide_query_tile_rows, 64)
+  assert_eq(parsed.partitioned_query_tile_rows, 32)
+  assert_eq(parsed.deep_partitioned_query_tile_rows, 64)
 }
 
 ///|

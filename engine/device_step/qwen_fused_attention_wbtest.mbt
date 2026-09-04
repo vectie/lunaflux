@@ -77,6 +77,8 @@ fn qwen_fused_test_runtime(
   partitioned_prefill? : Bool = false,
   partitioned_prefill_grid_x? : Int = -1,
   deep_partitioned_prefill? : Bool = false,
+  partitioned_query_tile_rows? : Int = 32,
+  merge_query_tile_rows? : Int = 32,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -134,6 +136,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionReadOnlyProductionV2,
+        query_tile_rows=16,
         first_operation=5,
         operation_count=1,
         function_symbol=if phase_specific_attention {
@@ -194,6 +197,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillWideQueryProductionV5,
+        query_tile_rows=if wide_query_prefill_alias_selected { 16 } else { 64 },
         first_operation=5,
         operation_count=1,
         function_symbol=if wide_query_prefill_alias_selected {
@@ -245,6 +249,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+        query_tile_rows=partitioned_query_tile_rows,
         first_operation=5,
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
@@ -263,6 +268,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+        query_tile_rows=merge_query_tile_rows,
         first_operation=5,
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
@@ -295,6 +301,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+        query_tile_rows=32,
         first_operation=5,
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
@@ -313,6 +320,7 @@ fn qwen_fused_test_runtime(
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
+        query_tile_rows=32,
         first_operation=5,
         operation_count=1,
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
@@ -613,7 +621,7 @@ test "Qwen runtime admits compiler partition-map fold merge prefill" {
     qwen_partitioned_prefill_minimum_context_tokens(blueprint, spans),
     2 * 16 * blueprint.layout().tokens_per_page(),
   )
-  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 16)
+  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 32)
   assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 
@@ -668,7 +676,7 @@ test "Qwen runtime admits low-parallelism partition grid specialization" {
   }
   assert_eq(pipeline.partial_launch.grid_x(), 2)
   assert_eq(pipeline.merge_launch.grid_x(), 2)
-  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 16)
+  assert_eq(qwen_partitioned_prefill_query_tile(blueprint, spans), 32)
   assert_eq(qwen_partitioned_prefill_partition_count(spans), 2)
 }
 

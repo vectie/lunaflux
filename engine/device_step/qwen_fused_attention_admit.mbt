@@ -184,12 +184,15 @@ fn admit_qwen_partitioned_prefill_pair(
   maximum_tokens : Int,
   query_heads : Int,
   head_dimension : Int,
-  query_tile_rows : Int,
 ) -> ApprovedQwenPartitionedPrefill? raise FusedGroupedOperationError {
   match modules {
     Some((partial, merge)) => {
       let partial_launch = partial.launch_dimensions()
       let merge_launch = merge.launch_dimensions()
+      guard partial.query_tile_rows() is Some(query_tile_rows) &&
+        merge.query_tile_rows() == Some(query_tile_rows) else {
+        raise MismatchedFusedGroupedOperation(Launch)
+      }
       if partial.kernel_abi() != partial_abi ||
         merge.kernel_abi() != merge_abi ||
         partial.operation_span() != (attention_operation, 1) ||
@@ -334,6 +337,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_module.function_symbol() != decode_module.function_symbol() ||
     readonly_module.launch_dimensions() != decode_module.launch_dimensions()
   let readonly_launch = readonly_module.launch_dimensions()
+  let readonly_query_tile_rows = match readonly_module.query_tile_rows() {
+    Some(rows) => rows
+    None => {
+      if phase_specific {
+        raise MismatchedFusedGroupedOperation(Launch)
+      }
+      1
+    }
+  }
   let decode_launch = decode_module.launch_dimensions()
   let maximum_rows = blueprint.profile().max_query_rows()
   let maximum_tokens = blueprint.profile().max_query_tokens()
@@ -367,6 +379,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       if module_.module_digest() == readonly_module.module_digest() &&
         module_.function_symbol() == readonly_module.function_symbol() &&
         launch == readonly_launch {
+        if module_.query_tile_rows() != readonly_module.query_tile_rows() {
+          raise MismatchedFusedGroupedOperation(Launch)
+        }
         // A stable bundle slot may carry the selected prefill module when the
         // semantic profile has no strictly wider query tile. Do not build a
         // duplicate executor or route a bucket through a fake specialization.
@@ -384,12 +399,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         launch.shared_memory_bytes() > 100000 {
         raise MismatchedFusedGroupedOperation(Launch)
       } else {
+        guard module_.query_tile_rows() is Some(query_tile_rows) else {
+          raise MismatchedFusedGroupedOperation(Launch)
+        }
         Some({
           module_digest: module_.module_digest(),
           module_bytes: module_.module_bytes(),
           symbol: module_.function_symbol(),
           launch,
-          query_tile_rows: 64,
+          query_tile_rows,
         })
       }
     }
@@ -404,7 +422,6 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     maximum_tokens,
     query_heads,
     head_dimension,
-    16,
   )
   let deep_partitioned_prefill = admit_qwen_partitioned_prefill_pair(
     deep_partitioned_modules,
@@ -415,7 +432,6 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     maximum_tokens,
     query_heads,
     head_dimension,
-    16,
   )
   match (partitioned_prefill, deep_partitioned_prefill) {
     (Some(base), Some(deep)) =>
@@ -516,6 +532,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       readonly_module_bytes: readonly_module.module_bytes(),
       readonly_symbol: readonly_module.function_symbol(),
       readonly_launch: readonly_module.launch_dimensions(),
+      readonly_query_tile_rows,
       decode_module_digest: decode_module.module_digest(),
       decode_module_bytes: decode_module.module_bytes(),
       decode_symbol: decode_module.function_symbol(),

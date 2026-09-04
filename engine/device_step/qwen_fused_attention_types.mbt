@@ -28,6 +28,18 @@ priv struct ApprovedQwenPartitionedPrefill {
 } derive(Eq)
 
 ///|
+/// Project semantic tile metadata into both launch plans without inferring it
+/// from an independently capped grid envelope.
+fn qwen_partitioned_bucket_launches(
+  pipeline : ApprovedQwenPartitionedPrefill,
+) -> (PagedBucketStepLaunch, PagedBucketStepLaunch) {
+  (
+    QueryTileCappedGridX(pipeline.partial_launch, pipeline.query_tile_rows),
+    QueryTileCappedGridX(pipeline.merge_launch, pipeline.query_tile_rows),
+  )
+}
+
+///|
 pub struct ApprovedQwenFusedAttentionSpan {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv target : @catalog.DeviceTarget
@@ -41,6 +53,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv readonly_module_bytes : Bytes
   priv readonly_symbol : String
   priv readonly_launch : @launch_contract.AotLaunchDimensions
+  priv readonly_query_tile_rows : Int
   priv decode_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv decode_module_bytes : Bytes
   priv decode_symbol : String
@@ -88,6 +101,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.readonly_module_digest == other.readonly_module_digest &&
   self.readonly_symbol == other.readonly_symbol &&
   self.readonly_launch == other.readonly_launch &&
+  self.readonly_query_tile_rows == other.readonly_query_tile_rows &&
   self.decode_module_digest == other.decode_module_digest &&
   self.decode_symbol == other.decode_symbol &&
   self.decode_launch == other.decode_launch &&

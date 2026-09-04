@@ -204,10 +204,7 @@ fn prepare_qwen_graph_launch_contract(
     }
     let postprocess = span.postprocess_launch()
     let readonly_launch = span.readonly_launch()
-    let prefill_query_tile = match span.partitioned_prefill() {
-      Some(pipeline) => pipeline.partial_launch.grid_x()
-      None => 16
-    }
+    let prefill_query_tile = span.readonly_query_tile_rows
     let expected_ingress_grid = if span.ingress_includes_projection() {
       (blueprint.profile().max_query_tokens() + 15) / 16
     } else {
@@ -290,14 +287,9 @@ fn prepare_qwen_graph_launch_contract(
         } else {
           QueryTokenCappedGridX(span.postprocess_launch())
         }
-        split_launches[attention_steps[0]] = QueryTileCappedGridX(
-          pipeline.partial_launch,
-          pipeline.partial_launch.grid_x(),
-        )
-        split_launches[attention_steps[1]] = QueryTileCappedGridX(
-          pipeline.merge_launch,
-          pipeline.partial_launch.grid_x(),
-        )
+        let (partial, merge) = qwen_partitioned_bucket_launches(pipeline)
+        split_launches[attention_steps[0]] = partial
+        split_launches[attention_steps[1]] = merge
       }
       Some(split_launches)
     }

@@ -385,6 +385,10 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$attention_operation" "$attention_grid_x" "$attention_grid_y" \
   "$attention_grid_z" "$attention_block_x" "$attention_shared" \
   "$stage/attention.cubin" \
+  "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-attention/kernel.recipe")" \
+  "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-wide-query-attention/kernel.recipe")" \
+  "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-partitioned-attention/kernel.recipe")" \
+  "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-partitioned-attention-p8/kernel.recipe")" \
   "$runtime" >"$scratch/export.stdout" 2>"$scratch/export.stderr" ||
   lbf_fail 'reusable fused runtime bundle export failed'
 [ ! -s "$scratch/export.stderr" ] ||

@@ -581,6 +581,12 @@ fn qwen_compiler_partitioned_attention_recipe(
   let lowering = compiled.lowering()
   let (grid_x, grid_y, block_x, shared) = lowering.launch()
   let (partial_symbol, merge_symbol) = source.symbols()
+  let (query_tile_rows, _, _) = compiled
+    .functional()
+    .plan()
+    .candidate()
+    .tile()
+    .dimensions()
   let workspace = source.workspace()
   let (maximum_offset, denominator_offset, numerator_offset) = workspace.region_offsets_bytes()
   @utf8.encode(
@@ -619,6 +625,8 @@ fn qwen_compiler_partitioned_attention_recipe(
     ) +
     "\nworkspace_bytes=" +
     workspace.total_bytes().to_string() +
+    "\nquery_tile_rows=" +
+    query_tile_rows.to_string() +
     "\nworkspace_offsets=" +
     maximum_offset.to_string() +
     "," +
