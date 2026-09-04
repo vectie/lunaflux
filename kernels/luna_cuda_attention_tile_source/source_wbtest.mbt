@@ -378,6 +378,120 @@ test "single-kernel emitter rejects partitioned reductions" {
 }
 
 ///|
+fn source_test_partitioned_lowering() -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads=16,
+    kv_heads=4,
+    head_dimension=128,
+    tokens_per_page=16,
+  )
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape~,
+    phase=Prefill,
+    numeric_type=AttentionBFloat16,
+    query_rows=128,
+    context_tokens=4096,
+    causal=true,
+  )
+  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
+    subgroup_width=32,
+    max_threads_per_block=256,
+    max_shared_memory_bytes=100000L,
+    max_pipeline_stages=2,
+    supports_async_copy=false,
+    matrix_shape=Some(
+      @luna_attention_strategy.AttentionMatrixShape::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
+    ),
+  )
+  let plan = @luna_attention_strategy.compile_attention_tile_plan(
+    [],
+    backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
+    target=@luna_attention_strategy.AttentionTargetId::new("sm120-fixture"),
+    problem~,
+    capabilities~,
+  )
+  let program = @luna_attention_tile_ir.compile_attention_tile_ir(plan)
+  let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    program,
+  )
+  @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
+    program,
+    optimization,
+    @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+      program, optimization,
+    ),
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    100000L,
+  )
+}
+
+///|
+test "partitioned emitter preserves tiled partials and associative merge" {
+  let lowering = source_test_partitioned_lowering()
+  let first = emit_cuda_partitioned_attention_tile_source(
+    lowering,
+    source_test_abi(),
+    "lunaflux_attention_prefill_partial_v1",
+    "lunaflux_attention_prefill_merge_v1",
+    16777216L,
+    1048576,
+  )
+  let repeated = emit_cuda_partitioned_attention_tile_source(
+    lowering,
+    source_test_abi(),
+    "lunaflux_attention_prefill_partial_v1",
+    "lunaflux_attention_prefill_merge_v1",
+    16777216L,
+    1048576,
+  )
+  assert_eq(first, repeated)
+  assert_eq(first.lowering_digest(), lowering.digest())
+  assert_eq(first.symbols().0, "lunaflux_attention_prefill_partial_v1")
+  assert_eq(first.symbols().1, "lunaflux_attention_prefill_merge_v1")
+  assert_eq(first.workspace().partial_state_count(), 16384L)
+  assert_eq(first.workspace().region_offsets_bytes(), (0L, 65536L, 131072L))
+  assert_eq(first.workspace().total_bytes(), 8519680L)
+  let source = @utf8.decode(first.bytes())
+  for
+    required in [
+      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_PARTITIONS 8", "const int split = (int)blockIdx.z",
+      "const int partition_begin = split * base_keys_per_partition", "state * LF_HEAD_DIMENSION + component] = accumulator[linear]",
+      "extern \"C\" __global__ void lunaflux_attention_prefill_merge_v1", "const float merge_scale = expf(part_maximum - merged_maximum)",
+      "merged_numerator / merged_denominator",
+    ] {
+    assert_true(source.contains(required))
+  }
+}
+
+///|
+test "partitioned emitter rejects an undersized workspace ceiling" {
+  try
+    emit_cuda_partitioned_attention_tile_source(
+      source_test_partitioned_lowering(),
+      source_test_abi(),
+      "lunaflux_attention_prefill_partial_v1",
+      "lunaflux_attention_prefill_merge_v1",
+      1048576L,
+      1048576,
+    )
+  catch {
+    InvalidCudaAttentionTileSource(WorkspaceLimit) => ()
+    _ => fail("unexpected partitioned workspace rejection")
+  } noraise {
+    _ => fail("undersized partitioned workspace was accepted")
+  }
+}
+
+///|
 test "compiler decode source reuses one KV tile across grouped query heads" {
   let lowering = source_test_decode_lowering()
   assert_eq(lowering.phase(), Decode)

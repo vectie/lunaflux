@@ -15,9 +15,7 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(SourceLimit)
   }
   let compute = lowering.compute()
-  if lowering.key_value_partitions() != 1 {
-    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
+  let key_value_partitions = lowering.key_value_partitions()
   if !(compute == CudaMatrixMultiplyAccumulate ||
     compute == CudaMatrixQkPvMultiplyAccumulate) ||
     lowering.copy() != CudaCooperativeSharedLoad {
@@ -56,6 +54,66 @@ fn emit_cuda_prefill_attention_tile_source(
     "        weights[query * LF_KEY_VALUE_TILE + key] = __float2bfloat16_rn(weight);\n"
   } else {
     "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
+  }
+  let output_and_cache_parameters = if key_value_partitions == 1 {
+    "    __nv_bfloat16 *output, const __nv_bfloat16 *key_cache,\n" +
+    "    const __nv_bfloat16 *value_cache)"
+  } else {
+    "    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache,\n" +
+    "    float *workspace)"
+  }
+  let partition_guard = if key_value_partitions == 1 {
+    ""
+  } else {
+    "  const int split = (int)blockIdx.z;\n" +
+    "  if (split >= LF_KEY_VALUE_PARTITIONS) return;\n"
+  }
+  let partition_bounds = if key_value_partitions == 1 {
+    "  const int partition_begin = 0;\n" +
+    "  const int partition_end = maximum_query_position + 1;\n"
+  } else {
+    "  const int live_key_count = maximum_query_position + 1;\n" +
+    "  const int base_keys_per_partition = live_key_count / LF_KEY_VALUE_PARTITIONS;\n" +
+    "  const int larger_partition_count = live_key_count % LF_KEY_VALUE_PARTITIONS;\n" +
+    "  const int partition_begin = split * base_keys_per_partition +\n" +
+    "      (split < larger_partition_count ? split : larger_partition_count);\n" +
+    "  const int partition_key_count = base_keys_per_partition +\n" +
+    "      (split < larger_partition_count ? 1 : 0);\n" +
+    "  const int partition_end = partition_begin + partition_key_count;\n"
+  }
+  let terminal_store = if key_value_partitions == 1 {
+    "  for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "       linear += LF_BLOCK_THREADS) {\n" +
+    "    const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "    const int component = linear % LF_HEAD_DIMENSION;\n" +
+    "    const float denominator = running_denominator[query];\n" +
+    "    const int output_index = (token_base + query) * " +
+    query_width.to_string() +
+    " +\n" +
+    "        query_head * LF_HEAD_DIMENSION + component;\n" +
+    "    output[output_index] = __float2bfloat16_rn(\n" +
+    "        denominator > 0.0f ? accumulator[linear] / denominator : CUDART_NAN_F);\n" +
+    "  }\n"
+  } else {
+    "  for (int query = thread; query < active_queries; query += LF_BLOCK_THREADS) {\n" +
+    "    const unsigned long long state =\n" +
+    "        (((unsigned long long)(token_base + query) * " +
+    query_heads.to_string() +
+    "ULL + query_head) * LF_KEY_VALUE_PARTITIONS + split);\n" +
+    "    workspace[state] = running_maximum[query];\n" +
+    "    workspace[LF_PARTIAL_STATE_COUNT + state] = running_denominator[query];\n" +
+    "  }\n" +
+    "  for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "       linear += LF_BLOCK_THREADS) {\n" +
+    "    const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "    const int component = linear % LF_HEAD_DIMENSION;\n" +
+    "    const unsigned long long state =\n" +
+    "        (((unsigned long long)(token_base + query) * " +
+    query_heads.to_string() +
+    "ULL + query_head) * LF_KEY_VALUE_PARTITIONS + split);\n" +
+    "    workspace[2ULL * LF_PARTIAL_STATE_COUNT +\n" +
+    "        state * LF_HEAD_DIMENSION + component] = accumulator[linear];\n" +
+    "  }\n"
   }
   let value_accumulation = if compute == CudaMatrixQkPvMultiplyAccumulate {
     "    if (warp < LF_HEAD_DIMENSION / 16) {\n" +
@@ -111,6 +169,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_SHARED_MEMORY_BYTES \{shared_memory_bytes}
     $|#define LF_PIPELINE_STAGES \{pipeline_stages}
     $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
+    $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
+    $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
     $|
     $|static __device__ __forceinline__ float lf_warp_sum(float value) {
     $|  for (int offset = 16; offset > 0; offset >>= 1)
@@ -128,14 +188,15 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    const int *counts, const int *query_positions,
     $|    const int *query_row_offsets, const int *sequence_lengths,
     $|    const int *page_table_offsets, const int *page_table_page_indices,
-    $|    const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,
-    $|    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache) {
+    $|    const __nv_bfloat16 *rotated_qkv_rows,
+    $|\{output_and_cache_parameters} {
     $|  const int thread = (int)threadIdx.x;
     $|  const int lane = thread & 31;
     $|  const int warp = thread >> 5;
     $|  const int warp_count = LF_BLOCK_THREADS >> 5;
     $|  const int query_head = (int)blockIdx.y;
     $|  if (blockDim.x != LF_BLOCK_THREADS || query_head >= \{query_heads}) return;
+    $|\{partition_guard}
     $|
     $|  const int prefill_count = counts[0];
     $|  const int decode_count = counts[1];
@@ -234,11 +295,12 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  __syncthreads();
     $|  maximum_query_position = __float_as_int(scores[0]);
     $|  if (!tile_valid) return;
+    $|\{partition_bounds}
     $|
     $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
     $|  const int key_value_head = query_head / \{group_size};
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
-    $|  for (int key_base = 0, tile_index = 0; key_base <= maximum_query_position;
+    $|  for (int key_base = partition_begin, tile_index = 0; key_base < partition_end;
     $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
     $|    const int stage = tile_index % LF_PIPELINE_STAGES;
     $|    if (thread == 0) tile_valid = 1;
@@ -250,7 +312,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      const int key_position = key_base + key;
     $|      uint4 packed_key = make_uint4(0U, 0U, 0U, 0U);
     $|      uint4 packed_value = make_uint4(0U, 0U, 0U, 0U);
-    $|      if (key_position < sequence_length && key_position <= maximum_query_position) {
+    $|      if (key_position < partition_end && key_position < sequence_length &&
+    $|          key_position <= maximum_query_position) {
     $|        const int logical_page = key_position / \{tokens_per_page};
     $|        const int page_slot = page_start + logical_page;
     $|        const int physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;
@@ -339,7 +402,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      const float maximum = running_maximum[query];
     $|      float local_sum = 0.0f;
     $|      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {
-    $|        const float weight = expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);
+    $|        const float weight = isinf(maximum) ? 0.0f :
+    $|            expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);
     $|\{probability_store}
     $|        local_sum += weight;
     $|      }
@@ -354,16 +418,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    __syncthreads();
     $|  }
     $|
-    $|  for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;
-    $|       linear += LF_BLOCK_THREADS) {
-    $|    const int query = linear / LF_HEAD_DIMENSION;
-    $|    const int component = linear % LF_HEAD_DIMENSION;
-    $|    const float denominator = running_denominator[query];
-    $|    const int output_index = (token_base + query) * \{query_width} +
-    $|        query_head * LF_HEAD_DIMENSION + component;
-    $|    output[output_index] = __float2bfloat16_rn(
-    $|        denominator > 0.0f ? accumulator[linear] / denominator : CUDART_NAN_F);
-    $|  }
+    $|\{terminal_store}
     $|  __syncthreads();
     $|  }
     $|}
@@ -612,6 +667,9 @@ pub fn emit_cuda_attention_tile_source(
   }
   if maximum_source_bytes <= 0 || maximum_source_bytes > 16777216 {
     raise InvalidCudaAttentionTileSource(SourceLimit)
+  }
+  if lowering.key_value_partitions() != 1 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   match lowering.phase() {
     Prefill =>
