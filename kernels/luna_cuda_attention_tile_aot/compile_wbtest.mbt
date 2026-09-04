@@ -101,7 +101,7 @@ test "partitioned CUDA AOT compiler emits two-entry-point prefill pipeline" {
     ),
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows=64,
     context_tokens=4096,
     causal=true,
   )
@@ -150,8 +150,8 @@ test "partitioned CUDA AOT compiler emits two-entry-point prefill pipeline" {
     ),
     [],
   )
-  assert_eq(compilation.functional().schedule().key_value_partitions(), 8)
-  assert_eq(compilation.lowering().key_value_partitions(), 8)
+  assert_eq(compilation.functional().schedule().key_value_partitions(), 2)
+  assert_eq(compilation.lowering().key_value_partitions(), 2)
   assert_eq(
     compilation.source().symbols().0,
     "lunaflux_attention_prefill_partial_v1",
@@ -160,6 +160,6 @@ test "partitioned CUDA AOT compiler emits two-entry-point prefill pipeline" {
     compilation.source().symbols().1,
     "lunaflux_attention_prefill_merge_v1",
   )
-  assert_eq(compilation.source().workspace().total_bytes(), 8519680L)
+  assert_eq(compilation.source().workspace().total_bytes(), 2129920L)
   assert_eq(compilation.digest().as_hex().length(), 64)
 }

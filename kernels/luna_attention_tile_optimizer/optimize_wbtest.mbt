@@ -2,6 +2,8 @@
 fn optimization_program(
   causal : Bool,
   context_tokens? : Int = 4096,
+  query_rows? : Int = 64,
+  batch_rows? : Int = 1,
 ) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -13,7 +15,8 @@ fn optimization_program(
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    batch_rows~,
+    query_rows~,
     context_tokens~,
     causal~,
   )
@@ -56,7 +59,7 @@ test "optimizer extracts deterministic fused functional regions" {
   assert_eq(first.regions()[2].members().length(), 3)
   assert_eq(
     first.reduction_topology(),
-    AttentionPartitionedOnlineSoftmaxFold(8),
+    AttentionPartitionedOnlineSoftmaxFold(2),
   )
   assert_eq(first.trace().length(), 3)
   assert_eq(first.trace()[0].changed(), true)
@@ -77,10 +80,30 @@ test "score fusion is conditional on causal masking" {
 ///|
 test "short prefill keeps one ordered online-softmax fold" {
   let optimized = optimize_attention_tile_program(
-    optimization_program(true, context_tokens=512),
+    optimization_program(true, context_tokens=256),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
   assert_eq(optimized.regions().length(), 2)
   assert_eq(optimized.trace().length(), 3)
+  assert_false(optimized.trace()[2].changed())
+}
+
+///|
+test "query parallelism removes unnecessary KV partition and merge" {
+  let optimized = optimize_attention_tile_program(
+    optimization_program(true, context_tokens=4096, query_rows=128),
+  )
+  assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
+  assert_eq(optimized.regions().length(), 2)
+  assert_false(optimized.trace()[2].changed())
+}
+
+///|
+test "continuous batch parallelism removes unnecessary KV partition" {
+  let optimized = optimize_attention_tile_program(
+    optimization_program(true, context_tokens=4096, query_rows=64, batch_rows=2),
+  )
+  assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
+  assert_eq(optimized.regions().length(), 2)
   assert_false(optimized.trace()[2].changed())
 }

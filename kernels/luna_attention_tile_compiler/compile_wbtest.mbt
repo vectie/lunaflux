@@ -1,6 +1,7 @@
 ///|
 fn functional_compiler_request(
   records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
+  query_rows? : Int = 128,
 ) -> AttentionTileCompilerRequest raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -15,7 +16,7 @@ fn functional_compiler_request(
       shape~,
       phase=Prefill,
       numeric_type=AttentionBFloat16,
-      query_rows=128,
+      query_rows~,
       context_tokens=4096,
       causal=true,
     ),
@@ -48,7 +49,7 @@ test "functional attention compiler composes typed immutable passes" {
   assert_eq(selected.plan().candidate().stable_id(), 314)
   assert_eq(semantic.plan(), selected.plan())
   assert_eq(optimized.plan(), selected.plan())
-  assert_eq(optimized.optimization().regions().length(), 3)
+  assert_eq(optimized.optimization().regions().length(), 2)
   assert_eq(scheduled, composed)
   assert_eq(scheduled.program(), semantic.program())
   assert_eq(scheduled.schedule().program_digest(), semantic.program().digest())
@@ -69,15 +70,15 @@ test "functional attention compiler is referentially transparent" {
 
 ///|
 test "partitioned compiler path materializes optimizer reduction topology" {
-  let request = functional_compiler_request([])
+  let request = functional_compiler_request([], query_rows=64)
   let first = compile_partitioned_attention_tile(request)
   let repeated = compile_partitioned_attention_tile(request)
   assert_eq(first, repeated)
-  assert_eq(first.schedule().key_value_partitions(), 8)
+  assert_eq(first.schedule().key_value_partitions(), 2)
   assert_eq(first.schedule().loops().length(), 6)
   assert_eq(
     first.optimization().reduction_topology(),
-    @luna_attention_tile_optimizer.AttentionPartitionedOnlineSoftmaxFold(8),
+    @luna_attention_tile_optimizer.AttentionPartitionedOnlineSoftmaxFold(2),
   )
   assert_false(first.digest() == compile_attention_tile(request).digest())
 }

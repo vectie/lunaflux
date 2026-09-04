@@ -1,5 +1,7 @@
 ///|
-fn schedule_test_program() -> @luna_attention_tile_ir.AttentionTileProgram raise {
+fn schedule_test_program(
+  query_rows? : Int = 128,
+) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
@@ -10,7 +12,7 @@ fn schedule_test_program() -> @luna_attention_tile_ir.AttentionTileProgram raise
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows~,
     context_tokens=4096,
     causal=true,
   )
@@ -64,22 +66,22 @@ test "attention schedule exposes portable parallel map and online fold" {
 
 ///|
 test "long prefill schedule exposes parallel KV partitions and associative merge" {
-  let program = schedule_test_program()
+  let program = schedule_test_program(query_rows=64)
   let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
     program,
   )
   let schedule = schedule_optimized_attention_tile_program(
     program, optimization,
   )
-  assert_eq(schedule.key_value_partitions(), 8)
+  assert_eq(schedule.key_value_partitions(), 2)
   assert_eq(schedule.loops().length(), 6)
   assert_eq(schedule.loops()[2].kind(), AttentionParallelMap)
   assert_eq(schedule.loops()[2].axis(), AttentionKeyValuePartitionAxis)
-  assert_eq(schedule.loops()[2].geometry(), (4096, 512))
+  assert_eq(schedule.loops()[2].geometry(), (4096, 2048))
   assert_eq(schedule.loops()[3].kind(), AttentionSequentialFold)
-  assert_eq(schedule.loops()[3].geometry(), (512, 64))
+  assert_eq(schedule.loops()[3].geometry(), (2048, 64))
   assert_eq(schedule.loops()[4].kind(), AttentionAssociativeFold)
   assert_eq(schedule.loops()[4].axis(), AttentionSoftmaxPartitionAxis)
-  assert_eq(schedule.loops()[4].geometry(), (8, 1))
+  assert_eq(schedule.loops()[4].geometry(), (2, 1))
   assert_eq(schedule.loops()[5].kind(), AttentionVectorMap)
 }

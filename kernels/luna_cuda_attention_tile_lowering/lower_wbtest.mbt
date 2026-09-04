@@ -1,6 +1,7 @@
 ///|
 fn cuda_lower_test_program_and_schedule(
   causal? : Bool = true,
+  query_rows? : Int = 128,
 ) -> (
   @luna_attention_tile_ir.AttentionTileProgram,
   @luna_attention_tile_optimizer.AttentionTileOptimization,
@@ -16,7 +17,7 @@ fn cuda_lower_test_program_and_schedule(
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows~,
     context_tokens=4096,
     causal~,
   )
@@ -80,7 +81,9 @@ test "CUDA lowering is the only layer with NVIDIA execution vocabulary" {
 
 ///|
 test "CUDA lowering preserves functional KV partition topology" {
-  let (program, optimization, _) = cuda_lower_test_program_and_schedule()
+  let (program, optimization, _) = cuda_lower_test_program_and_schedule(
+    query_rows=64,
+  )
   let schedule = @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
     program, optimization,
   )
@@ -96,10 +99,10 @@ test "CUDA lowering preserves functional KV partition topology" {
     ),
     262144L,
   )
-  assert_eq(lowering.key_value_partitions(), 8)
+  assert_eq(lowering.key_value_partitions(), 2)
   assert_true(
     @utf8.decode(lowering.canonical_bytes()).contains(
-      "launch=128,16,8,256,107280",
+      "launch=64,16,2,256,107280",
     ),
   )
 }

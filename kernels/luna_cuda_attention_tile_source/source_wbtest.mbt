@@ -318,7 +318,7 @@ test "single-kernel emitter rejects partitioned reductions" {
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows=64,
     context_tokens=4096,
     causal=true,
   )
@@ -389,7 +389,7 @@ fn source_test_partitioned_lowering() -> @luna_cuda_attention_tile_lowering.Cuda
     shape~,
     phase=Prefill,
     numeric_type=AttentionBFloat16,
-    query_rows=128,
+    query_rows=64,
     context_tokens=4096,
     causal=true,
   )
@@ -457,13 +457,13 @@ test "partitioned emitter preserves tiled partials and associative merge" {
   assert_eq(first.lowering_digest(), lowering.digest())
   assert_eq(first.symbols().0, "lunaflux_attention_prefill_partial_v1")
   assert_eq(first.symbols().1, "lunaflux_attention_prefill_merge_v1")
-  assert_eq(first.workspace().partial_state_count(), 16384L)
-  assert_eq(first.workspace().region_offsets_bytes(), (0L, 65536L, 131072L))
-  assert_eq(first.workspace().total_bytes(), 8519680L)
+  assert_eq(first.workspace().partial_state_count(), 4096L)
+  assert_eq(first.workspace().region_offsets_bytes(), (0L, 16384L, 32768L))
+  assert_eq(first.workspace().total_bytes(), 2129920L)
   let source = @utf8.decode(first.bytes())
   for
     required in [
-      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_PARTITIONS 8", "const int split = (int)blockIdx.z",
+      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_PARTITIONS 2", "const int split = (int)blockIdx.z",
       "const int partition_begin = split * base_keys_per_partition", "state * LF_HEAD_DIMENSION + component] = accumulator[linear]",
       "key_position < partition_end && key_position <= query_position", "extern \"C\" __global__ void lunaflux_attention_prefill_merge_v1",
       "const float merge_scale = expf(part_maximum - merged_maximum)", "merged_numerator / merged_denominator",
