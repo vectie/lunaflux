@@ -89,6 +89,7 @@ validate_module() {
   symbol_field=$6
   identity_mode=$7
   grid_field=$8
+  shared_field=$9
 
   root=$candidate_output/$relative
   source_file=$root/kernel.cu
@@ -144,7 +145,7 @@ validate_module() {
     lbf_fail "$name source does not define its declared symbol"
   grid=$(lbf_recipe_value "$grid_field" "$recipe")
   block=$(lbf_recipe_value block "$recipe")
-  shared=$(lbf_recipe_value shared_memory_bytes "$recipe")
+  shared=$(lbf_recipe_value "$shared_field" "$recipe")
   grid_x=${grid%%,*}
   grid_tail=${grid#*,}
   grid_y=${grid_tail%%,*}
@@ -183,23 +184,25 @@ validate_module() {
 validate_module residual reusable-fused-residual \
   lunaflux-fused-parallel-cuda-aot-candidate.v2 \
   residual-rmsnorm-production-block128 residual_operation_id function_symbol \
-  model-bound grid
+  model-bound grid shared_memory_bytes
 validate_module ingress reusable-qwen-full-ingress \
   lunaflux-fused-parallel-cuda-aot-candidate.v2 \
   qkv-qknorm-positioned-rope-paged-kvwrite-production-head-tiled \
-  qkv_operation_id function_symbol model-bound grid
+  qkv_operation_id function_symbol model-bound grid shared_memory_bytes
 validate_module prefill_partial reusable-qwen-prefill-partitioned-attention \
   lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-partitioned-tile \
-  model_operation_id partial_function_symbol reusable-generic partial_grid
+  model_operation_id partial_function_symbol reusable-generic partial_grid \
+  partial_shared_memory_bytes
 validate_module prefill_merge reusable-qwen-prefill-partitioned-attention \
   lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-partitioned-tile \
-  model_operation_id merge_function_symbol reusable-generic merge_grid
+  model_operation_id merge_function_symbol reusable-generic merge_grid \
+  merge_shared_memory_bytes
 validate_module attention reusable-qwen-decode-attention \
   lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
   paged-attention-decode-functional-tile \
-  model_operation_id function_symbol reusable-generic grid
+  model_operation_id function_symbol reusable-generic grid shared_memory_bytes
 
 split_root=$candidate_output/reusable-qwen-decode-split-attention
 split_source=$split_root/kernel.cu

@@ -413,8 +413,9 @@ fn qwen_compiler_attention_recipe(
     grid_y.to_string() +
     ",1\nblock=" +
     block_x.to_string() +
-    ",1,1\nshared_memory_bytes=" +
+    ",1,1\npartial_shared_memory_bytes=" +
     shared.to_string() +
+    "\nmerge_shared_memory_bytes=0" +
     "\nfunctional_sha256=" +
     compiled.functional().digest().as_hex() +
     "\nlowering_sha256=" +
