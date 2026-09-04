@@ -189,6 +189,10 @@ validate_module ingress reusable-qwen-full-ingress \
   lunaflux-fused-parallel-cuda-aot-candidate.v2 \
   qkv-qknorm-positioned-rope-paged-kvwrite-production-head-tiled \
   qkv_operation_id function_symbol model-bound grid shared_memory_bytes
+validate_module prefill reusable-qwen-prefill-attention \
+  lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
+  paged-attention-prefill-functional-tile \
+  model_operation_id function_symbol reusable-generic grid shared_memory_bytes
 validate_module prefill_partial reusable-qwen-prefill-partitioned-attention \
   lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
   paged-attention-prefill-functional-partitioned-tile \
@@ -268,6 +272,7 @@ ingress_row=$(module_row ingress)
 attention_row=$(module_row attention)
 prefill_partial_row=$(module_row prefill_partial)
 prefill_merge_row=$(module_row prefill_merge)
+prefill_row=$(module_row prefill)
 IFS=, read -r _ residual_operation residual_grid_x residual_grid_y \
   residual_grid_z residual_block_x residual_shared <<EOF
 $residual_row
@@ -279,6 +284,10 @@ EOF
 IFS=, read -r _ attention_operation attention_grid_x attention_grid_y \
   attention_grid_z attention_block_x attention_shared <<EOF
 $attention_row
+EOF
+IFS=, read -r _ prefill_operation prefill_grid_x prefill_grid_y \
+  prefill_grid_z prefill_block_x prefill_shared <<EOF
+$prefill_row
 EOF
 IFS=, read -r _ prefill_partial_operation prefill_partial_grid_x \
   prefill_partial_grid_y prefill_partial_grid_z prefill_partial_block_x \
@@ -292,7 +301,8 @@ $prefill_merge_row
 EOF
 [ "$split_operation" = "$attention_operation" ] ||
   lbf_fail 'decode split and readonly operation identities differ'
-[ "$prefill_partial_operation" = "$attention_operation" ] &&
+[ "$prefill_operation" = "$attention_operation" ] &&
+  [ "$prefill_partial_operation" = "$attention_operation" ] &&
   [ "$prefill_merge_operation" = "$attention_operation" ] ||
   lbf_fail 'partitioned prefill and readonly operation identities differ'
 
@@ -302,6 +312,9 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$residual_grid_z" "$residual_block_x" "$residual_shared" "$stage/residual.cubin" \
   "$ingress_operation" "$ingress_grid_x" "$ingress_grid_y" \
   "$ingress_grid_z" "$ingress_block_x" "$ingress_shared" "$stage/ingress.cubin" \
+  "$prefill_operation" "$prefill_grid_x" "$prefill_grid_y" \
+  "$prefill_grid_z" "$prefill_block_x" "$prefill_shared" \
+  "$stage/prefill.cubin" \
   "$prefill_partial_operation" "$prefill_partial_grid_x" \
   "$prefill_partial_grid_y" "$prefill_partial_grid_z" \
   "$prefill_partial_block_x" "$prefill_partial_shared" \
@@ -318,7 +331,7 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
 [ ! -s "$scratch/export.stderr" ] ||
   lbf_fail 'reusable fused runtime bundle exporter emitted stderr'
 
-for module in residual ingress prefill_partial prefill_merge attention; do
+for module in residual ingress prefill prefill_partial prefill_merge attention; do
   printf '%s  %s.cubin\n' "$(lbf_sha256_file "$stage/$module.cubin")" "$module"
 done >"$stage/FILES.sha256"
 printf '%s  reusable-fused-runtime-bundle.v3\n' \
@@ -334,5 +347,5 @@ printf '%s\n' 'schema=lunaflux-qwen3-reusable-fused-runtime-build.v1'
 printf 'runtime=%s/reusable-fused-runtime-bundle.v3\n' "$output"
 printf 'runtime_sha256=%s\n' \
   "$(lbf_sha256_file "$output/reusable-fused-runtime-bundle.v3")"
-printf '%s\n' 'compiler_invocations=12'
+printf '%s\n' 'compiler_invocations=14'
 printf '%s\n' 'device_opened=0'

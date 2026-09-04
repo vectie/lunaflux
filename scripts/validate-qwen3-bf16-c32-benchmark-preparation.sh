@@ -59,7 +59,7 @@ for exact in \
   'reusable-qwen-decode-attention' \
   'model-bound' \
   'reusable-generic' \
-  'compiler_invocations=12' \
+  'compiler_invocations=14' \
   'reusable-fused-runtime-bundle.v3'; do
   grep -Fq "$exact" "$fused_builder" ||
     fail "reusable Qwen fused-runtime build boundary is absent: $exact"
