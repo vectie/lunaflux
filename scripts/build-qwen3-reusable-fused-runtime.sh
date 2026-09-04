@@ -207,6 +207,18 @@ validate_module prefill_merge reusable-qwen-prefill-partitioned-attention \
   paged-attention-prefill-functional-partitioned-tile \
   model_operation_id merge_function_symbol reusable-generic merge_grid \
   merge_shared_memory_bytes
+validate_module prefill_partitioned8_partial \
+  reusable-qwen-prefill-partitioned-attention-p8 \
+  lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
+  paged-attention-prefill-functional-partitioned-tile \
+  model_operation_id partial_function_symbol reusable-generic partial_grid \
+  partial_shared_memory_bytes
+validate_module prefill_partitioned8_merge \
+  reusable-qwen-prefill-partitioned-attention-p8 \
+  lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1 \
+  paged-attention-prefill-functional-partitioned-tile \
+  model_operation_id merge_function_symbol reusable-generic merge_grid \
+  merge_shared_memory_bytes
 validate_module attention reusable-qwen-decode-attention \
   lunaflux-attention-tile-compiler-cuda-aot-candidate.v1 \
   paged-attention-decode-functional-tile \
@@ -276,6 +288,8 @@ ingress_row=$(module_row ingress)
 attention_row=$(module_row attention)
 prefill_partial_row=$(module_row prefill_partial)
 prefill_merge_row=$(module_row prefill_merge)
+prefill_partitioned8_partial_row=$(module_row prefill_partitioned8_partial)
+prefill_partitioned8_merge_row=$(module_row prefill_partitioned8_merge)
 prefill_row=$(module_row prefill)
 prefill_wide_row=$(module_row prefill_wide)
 IFS=, read -r _ residual_operation residual_grid_x residual_grid_y \
@@ -309,12 +323,26 @@ IFS=, read -r _ prefill_merge_operation prefill_merge_grid_x \
   prefill_merge_shared <<EOF
 $prefill_merge_row
 EOF
+IFS=, read -r _ prefill_partitioned8_partial_operation \
+  prefill_partitioned8_partial_grid_x prefill_partitioned8_partial_grid_y \
+  prefill_partitioned8_partial_grid_z prefill_partitioned8_partial_block_x \
+  prefill_partitioned8_partial_shared <<EOF
+$prefill_partitioned8_partial_row
+EOF
+IFS=, read -r _ prefill_partitioned8_merge_operation \
+  prefill_partitioned8_merge_grid_x prefill_partitioned8_merge_grid_y \
+  prefill_partitioned8_merge_grid_z prefill_partitioned8_merge_block_x \
+  prefill_partitioned8_merge_shared <<EOF
+$prefill_partitioned8_merge_row
+EOF
 [ "$split_operation" = "$attention_operation" ] ||
   lbf_fail 'decode split and readonly operation identities differ'
 [ "$prefill_operation" = "$attention_operation" ] &&
   [ "$prefill_wide_operation" = "$attention_operation" ] &&
   [ "$prefill_partial_operation" = "$attention_operation" ] &&
-  [ "$prefill_merge_operation" = "$attention_operation" ] ||
+  [ "$prefill_merge_operation" = "$attention_operation" ] &&
+  [ "$prefill_partitioned8_partial_operation" = "$attention_operation" ] &&
+  [ "$prefill_partitioned8_merge_operation" = "$attention_operation" ] ||
   lbf_fail 'partitioned prefill and readonly operation identities differ'
 
 runtime=$stage/reusable-fused-runtime-bundle.v3
@@ -340,6 +368,20 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$prefill_merge_grid_y" "$prefill_merge_grid_z" \
   "$prefill_merge_block_x" "$prefill_merge_shared" \
   "$stage/prefill_merge.cubin" \
+  "$prefill_partitioned8_partial_operation" \
+  "$prefill_partitioned8_partial_grid_x" \
+  "$prefill_partitioned8_partial_grid_y" \
+  "$prefill_partitioned8_partial_grid_z" \
+  "$prefill_partitioned8_partial_block_x" \
+  "$prefill_partitioned8_partial_shared" \
+  "$stage/prefill_partitioned8_partial.cubin" \
+  "$prefill_partitioned8_merge_operation" \
+  "$prefill_partitioned8_merge_grid_x" \
+  "$prefill_partitioned8_merge_grid_y" \
+  "$prefill_partitioned8_merge_grid_z" \
+  "$prefill_partitioned8_merge_block_x" \
+  "$prefill_partitioned8_merge_shared" \
+  "$stage/prefill_partitioned8_merge.cubin" \
   "$attention_operation" "$attention_grid_x" "$attention_grid_y" \
   "$attention_grid_z" "$attention_block_x" "$attention_shared" \
   "$stage/attention.cubin" \
@@ -348,7 +390,8 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
 [ ! -s "$scratch/export.stderr" ] ||
   lbf_fail 'reusable fused runtime bundle exporter emitted stderr'
 
-for module in residual ingress prefill prefill_wide prefill_partial prefill_merge attention; do
+for module in residual ingress prefill prefill_wide prefill_partial prefill_merge \
+  prefill_partitioned8_partial prefill_partitioned8_merge attention; do
   printf '%s  %s.cubin\n' "$(lbf_sha256_file "$stage/$module.cubin")" "$module"
 done >"$stage/FILES.sha256"
 printf '%s  reusable-fused-runtime-bundle.v3\n' \
@@ -364,5 +407,5 @@ printf '%s\n' 'schema=lunaflux-qwen3-reusable-fused-runtime-build.v1'
 printf 'runtime=%s/reusable-fused-runtime-bundle.v3\n' "$output"
 printf 'runtime_sha256=%s\n' \
   "$(lbf_sha256_file "$output/reusable-fused-runtime-bundle.v3")"
-printf '%s\n' 'compiler_invocations=16'
+printf '%s\n' 'compiler_invocations=20'
 printf '%s\n' 'device_opened=0'
