@@ -148,7 +148,7 @@ priv struct QwenFusedProductionSet {
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   full_ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
   attention_prefill_frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier
-  attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation
+  attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
   attention_decode_split : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle
@@ -180,7 +180,7 @@ fn qwen_partitioned_prefill_problem(
 fn prepare_qwen_compiler_partitioned_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
-) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
+) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   let maximum_problem = baseline.functional().plan().problem()
   let (query_tile, _, _) = baseline
     .functional()
@@ -209,7 +209,7 @@ fn prepare_qwen_compiler_partitioned_prefill(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
-  @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot(
+  @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot_frontier(
     @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
       backend=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend(),
       target_id=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target(),
@@ -224,8 +224,25 @@ fn prepare_qwen_compiler_partitioned_prefill(
       maximum_source_bytes=1048576,
     ),
     [],
+    [32, 64, 128],
   ) catch {
     _ => raise QwenReadOnlyPreparation
+  }
+}
+
+///|
+fn qwen_partitioned_prefill_variant_root(
+  output : String,
+  compilation : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
+  index : Int,
+) -> String {
+  let base = output + "/reusable-qwen-prefill-partitioned-attention"
+  if index == 0 {
+    base
+  } else {
+    base +
+    "-p" +
+    compilation.functional().schedule().key_value_partitions().to_string()
   }
 }
 
@@ -968,17 +985,24 @@ async fn run_qwen3_candidate_export(
     production.source_bytes(),
     production.recipe_bytes(),
   )
-  let partitioned_prefill_root = arguments.absolute_new_output +
-    "/reusable-qwen-prefill-partitioned-attention"
-  write_new_candidate_pair(
-    partitioned_prefill_root,
-    qwen_fused.attention_prefill_partitioned.source().bytes(),
-    qwen_compiler_partitioned_attention_recipe(
-      qwen_fused.first_operation + 3,
-      set,
-      qwen_fused.attention_prefill_partitioned,
-    ),
-  )
+  let partitioned_prefill_variants = qwen_fused.attention_prefill_partitioned.variants()
+  for index, variant in partitioned_prefill_variants {
+    let compilation = variant.compilation()
+    let variant_root = qwen_partitioned_prefill_variant_root(
+      arguments.absolute_new_output,
+      compilation,
+      index,
+    )
+    write_new_candidate_pair(
+      variant_root,
+      compilation.source().bytes(),
+      qwen_compiler_partitioned_attention_recipe(
+        qwen_fused.first_operation + 3,
+        set,
+        compilation,
+      ),
+    )
+  }
   let ingress_root = arguments.absolute_new_output + "/reusable-qwen-ingress"
   write_new_candidate_pair(
     ingress_root,
@@ -1199,6 +1223,37 @@ async fn run_qwen3_candidate_export(
       variant.source().symbol().to_owned() +
       "," +
       variant.digest().as_hex(),
+    )
+  }
+  println(
+    "reusable_qwen_prefill_partitioned_frontier_sha256=" +
+    qwen_fused.attention_prefill_partitioned.digest().as_hex(),
+  )
+  println(
+    "reusable_qwen_prefill_partitioned_frontier_variants=" +
+    partitioned_prefill_variants.length().to_string(),
+  )
+  for index, variant in partitioned_prefill_variants {
+    let compilation = variant.compilation()
+    let partitions = compilation.functional().schedule().key_value_partitions()
+    let (partial_symbol, merge_symbol) = compilation.source().symbols()
+    println(
+      "reusable_qwen_prefill_partitioned_variant=" +
+      variant.parallel_workgroup_target().to_string() +
+      "," +
+      partitions.to_string() +
+      "," +
+      qwen_partitioned_prefill_variant_root(
+        arguments.absolute_new_output,
+        compilation,
+        index,
+      ) +
+      "," +
+      partial_symbol.to_owned() +
+      "," +
+      merge_symbol.to_owned() +
+      "," +
+      compilation.digest().as_hex(),
     )
   }
   match wide_prefill {
