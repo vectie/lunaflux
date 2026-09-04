@@ -273,6 +273,7 @@ fn apply_online_softmax_tile_storage_pass(
 ///|
 fn attention_partition_count(
   program : @luna_attention_tile_ir.AttentionTileProgram,
+  parallel_workgroup_target : Int,
 ) -> Int {
   let problem = program.problem()
   let (query_rows, context_tokens) = problem.dimensions()
@@ -284,7 +285,6 @@ fn attention_partition_count(
   // of independent workgroups. This is a pure property of the semantic work
   // graph: a wider query tile or a larger continuous batch naturally removes
   // the need for duplicate KV traversal and a merge launch.
-  let parallel_workgroup_target = 32
   if problem.phase() != Prefill ||
     context_tokens < 512 ||
     natural_workgroups >= parallel_workgroup_target {
@@ -310,8 +310,9 @@ fn attention_partition_count(
 fn apply_partition_online_softmax_pass(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
+  parallel_workgroup_target : Int,
 ) -> AttentionRewritePassResult {
-  if attention_partition_count(program) == 1 {
+  if attention_partition_count(program, parallel_workgroup_target) == 1 {
     return { regions, changed: false }
   }
   let bindings = program.bindings()
@@ -340,6 +341,7 @@ fn apply_rewrite_pass(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
   rule : AttentionTileRewriteRule,
+  parallel_workgroup_target : Int,
 ) -> AttentionRewritePassResult {
   match rule {
     HoistPagedKeyValuePageLookup =>
@@ -349,7 +351,9 @@ fn apply_rewrite_pass(
     ReuseOnlineSoftmaxTileStorage =>
       apply_online_softmax_tile_storage_pass(program, regions)
     PartitionOnlineSoftmaxFold =>
-      apply_partition_online_softmax_pass(program, regions)
+      apply_partition_online_softmax_pass(
+        program, regions, parallel_workgroup_target,
+      )
   }
 }
 
@@ -359,20 +363,32 @@ fn run_rewrite_pipeline(
   passes : ReadOnlyArray[AttentionTileRewriteRule],
   index : Int,
   state : AttentionRewritePipelineState,
+  parallel_workgroup_target : Int,
 ) -> AttentionRewritePipelineState {
   if index == passes.length() {
     return state
   }
   let pass = passes[index]
-  let result = apply_rewrite_pass(program, state.regions, pass)
-  run_rewrite_pipeline(program, passes, index + 1, {
-    regions: result.regions,
-    trace: append_trace(state.trace, {
-      rule: pass,
-      changed: result.changed,
-      region_count: result.regions.length(),
-    }),
-  })
+  let result = apply_rewrite_pass(
+    program,
+    state.regions,
+    pass,
+    parallel_workgroup_target,
+  )
+  run_rewrite_pipeline(
+    program,
+    passes,
+    index + 1,
+    {
+      regions: result.regions,
+      trace: append_trace(state.trace, {
+        rule: pass,
+        changed: result.changed,
+        region_count: result.regions.length(),
+      }),
+    },
+    parallel_workgroup_target,
+  )
 }
 
 ///|
@@ -426,7 +442,11 @@ fn canonical_optimization(
 /// a clock, device, filesystem, global cache, or model-family name.
 pub fn optimize_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
+  parallel_workgroup_target? : Int = 32,
 ) -> AttentionTileOptimization raise AttentionTileOptimizerError {
+  if parallel_workgroup_target <= 0 || parallel_workgroup_target > 1048576 {
+    raise InvalidAttentionTileOptimization(InvalidRewritePipeline)
+  }
   let passes = ReadOnlyArray::from_array([
     HoistPagedKeyValuePageLookup,
     FuseScoreTransform,
@@ -434,14 +454,22 @@ pub fn optimize_attention_tile_program(
     ReuseOnlineSoftmaxTileStorage,
     PartitionOnlineSoftmaxFold,
   ])
-  let state = run_rewrite_pipeline(program, passes, 0, {
-    regions: ReadOnlyArray::from_array([]),
-    trace: ReadOnlyArray::from_array([]),
-  })
+  let state = run_rewrite_pipeline(
+    program,
+    passes,
+    0,
+    {
+      regions: ReadOnlyArray::from_array([]),
+      trace: ReadOnlyArray::from_array([]),
+    },
+    parallel_workgroup_target,
+  )
   if state.trace.length() != passes.length() || state.regions.length() == 0 {
     raise InvalidAttentionTileOptimization(InvalidRewritePipeline)
   }
-  let partition_count = attention_partition_count(program)
+  let partition_count = attention_partition_count(
+    program, parallel_workgroup_target,
+  )
   let reduction_topology = if partition_count == 1 {
     AttentionOrderedOnlineSoftmaxFold
   } else {

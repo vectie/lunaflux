@@ -17,6 +17,7 @@ pub fn AttentionCompilerCapabilities::new(
   max_shared_memory_bytes~ : Int64,
   max_pipeline_stages~ : Int,
   supports_async_copy~ : Bool,
+  parallel_workgroup_target? : Int = 32,
   matrix_shape? : AttentionMatrixShape? = None,
 ) -> AttentionCompilerCapabilities raise AttentionStrategyError {
   if subgroup_width <= 0 ||
@@ -27,7 +28,9 @@ pub fn AttentionCompilerCapabilities::new(
     max_threads_per_block % subgroup_width != 0 ||
     max_shared_memory_bytes <= 0L ||
     max_pipeline_stages <= 0 ||
-    max_pipeline_stages > 8 {
+    max_pipeline_stages > 8 ||
+    parallel_workgroup_target <= 0 ||
+    parallel_workgroup_target > 1048576 {
     raise InvalidAttentionStrategy(Capability)
   }
   {
@@ -36,6 +39,7 @@ pub fn AttentionCompilerCapabilities::new(
     max_shared_memory_bytes,
     max_pipeline_stages,
     supports_async_copy,
+    parallel_workgroup_target,
     matrix_shape,
   }
 }

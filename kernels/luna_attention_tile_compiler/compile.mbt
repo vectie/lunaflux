@@ -34,6 +34,7 @@ pub fn optimize_attention_tile(
 ) -> OptimizedAttentionTileCompilation raise AttentionTileCompilerError {
   let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
     semantic.program,
+    parallel_workgroup_target=semantic.selected.request.capabilities.parallel_workgroup_target(),
   ) catch {
     _ => raise InvalidAttentionTileCompilation(FunctionalOptimization)
   }

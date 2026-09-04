@@ -52,6 +52,9 @@ pub struct AttentionCompilerCapabilities {
   priv max_shared_memory_bytes : Int64
   priv max_pipeline_stages : Int
   priv supports_async_copy : Bool
+  /// Portable occupancy objective used by schedule rewrites. This is a count
+  /// of independent workgroups, not a vendor compute-unit or warp concept.
+  priv parallel_workgroup_target : Int
   priv matrix_shape : AttentionMatrixShape?
 } derive(Debug, Eq)
 

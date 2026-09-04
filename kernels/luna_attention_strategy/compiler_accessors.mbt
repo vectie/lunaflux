@@ -31,6 +31,13 @@ pub fn AttentionCompilerCapabilities::supports_async_copy(
 }
 
 ///|
+pub fn AttentionCompilerCapabilities::parallel_workgroup_target(
+  self : AttentionCompilerCapabilities,
+) -> Int {
+  self.parallel_workgroup_target
+}
+
+///|
 pub fn AttentionCompilerCapabilities::matrix_shape(
   self : AttentionCompilerCapabilities,
 ) -> AttentionMatrixShape? {

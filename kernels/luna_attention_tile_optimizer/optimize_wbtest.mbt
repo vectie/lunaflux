@@ -113,3 +113,25 @@ test "continuous batch parallelism removes unnecessary KV partition" {
   assert_eq(optimized.regions().length(), 4)
   assert_false(optimized.trace()[4].changed())
 }
+
+///|
+test "portable workgroup target controls partition topology" {
+  let program = optimization_program(true, context_tokens=4096, query_rows=32)
+  let target32 = optimize_attention_tile_program(
+    program,
+    parallel_workgroup_target=32,
+  )
+  let target64 = optimize_attention_tile_program(
+    program,
+    parallel_workgroup_target=64,
+  )
+  assert_eq(
+    target32.reduction_topology(),
+    AttentionPartitionedOnlineSoftmaxFold(2),
+  )
+  assert_eq(
+    target64.reduction_topology(),
+    AttentionPartitionedOnlineSoftmaxFold(4),
+  )
+  assert_false(target32.digest() == target64.digest())
+}
