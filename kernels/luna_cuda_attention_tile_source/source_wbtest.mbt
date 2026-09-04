@@ -199,7 +199,7 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
   let lowering = source_test_lowering(false, 100000L, 2)
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.copy(), CudaCooperativeSharedLoad)
-  assert_eq(lowering.tile(), (32, 32, 128))
+  assert_eq(lowering.tile(), (64, 32, 128))
   let first = emit_cuda_attention_tile_source(
     lowering,
     source_test_abi(),
@@ -219,8 +219,8 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
   let source = @utf8.decode(first.bytes())
   for
     required in [
-      "#define LF_QUERY_TILE 32", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
-      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 47504", "AttentionTileFoldKeyValueStream",
+      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
+      "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 78608", "AttentionTileFoldKeyValueStream",
       "running_denominator[query] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
     ] {

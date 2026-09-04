@@ -399,6 +399,32 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
       minimum_context_tokens: 64,
     },
     {
+      stable_id: 314,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionStagedShared,
+      query_rows: 64,
+      key_value_rows: 32,
+      subgroups_per_block: 8,
+      pipeline_stages: 1,
+      vector_bytes: 16,
+      minimum_query_rows: 64,
+      minimum_context_tokens: 32,
+    },
+    {
+      stable_id: 315,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionStagedShared,
+      query_rows: 64,
+      key_value_rows: 64,
+      subgroups_per_block: 8,
+      pipeline_stages: 1,
+      vector_bytes: 16,
+      minimum_query_rows: 64,
+      minimum_context_tokens: 64,
+    },
+    {
       stable_id: 400,
       phase: Decode,
       compute: AttentionScalarDot,
@@ -594,9 +620,26 @@ fn attention_candidate_static_cost(
     4096L,
     Candidate,
   )
+  // The semantic online-softmax fold has one fixed synchronization and state
+  // update per query/KV tile pair. Keeping this cost explicit prevents two
+  // arithmetically equivalent candidates from accidentally preferring the
+  // narrowest KV tile solely because its stable ID is older.
+  let fold_cost = attention_checked_product(
+    attention_checked_product(
+      attention_checked_product(query_tiles, key_value_tiles, Candidate),
+      query_heads.to_int64(),
+      Candidate,
+    ),
+    1024L,
+    Candidate,
+  )
   attention_checked_add(
-    attention_checked_add(arithmetic_cost, memory_cost, Candidate),
-    scheduling_cost,
+    attention_checked_add(
+      attention_checked_add(arithmetic_cost, memory_cost, Candidate),
+      scheduling_cost,
+      Candidate,
+    ),
+    fold_cost,
     Candidate,
   )
 }

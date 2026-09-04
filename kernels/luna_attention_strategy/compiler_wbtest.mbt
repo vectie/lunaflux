@@ -83,7 +83,7 @@ test "attention compiler generates portable long-prefill tile candidates" {
     problem,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 14)
+  assert_eq(candidates.length(), 16)
   let matrix_narrow = compiler_candidate_with_id(candidates, 290)
   assert_eq(matrix_narrow.compute(), AttentionMatrixDot)
   assert_eq(matrix_narrow.memory(), AttentionStagedShared)
@@ -100,6 +100,11 @@ test "attention compiler generates portable long-prefill tile candidates" {
   assert_eq(wide_query_matrix.tile().dimensions(), (32, 64, 128))
   assert_eq(wide_query_matrix.execution_geometry(), (8, 1, 16))
   assert_eq(wide_query_matrix.shared_memory_bytes(), 70032L)
+  let widest_query_matrix = compiler_candidate_with_id(candidates, 315)
+  assert_eq(widest_query_matrix.compute(), AttentionMatrixQkPv)
+  assert_eq(widest_query_matrix.tile().dimensions(), (64, 64, 128))
+  assert_eq(widest_query_matrix.execution_geometry(), (8, 1, 16))
+  assert_eq(widest_query_matrix.shared_memory_bytes(), 107280L)
   let matrix_async = compiler_candidate_with_id(candidates, 301)
   assert_eq(matrix_async.compute(), AttentionMatrixDot)
   assert_eq(matrix_async.memory(), AttentionAsyncStagedShared)
@@ -114,7 +119,7 @@ test "attention compiler generates portable long-prefill tile candidates" {
     capabilities=compiler_test_capabilities(),
   )
   assert_eq(plan.source(), AttentionStaticCostModel)
-  assert_eq(plan.candidate().stable_id(), 312)
+  assert_eq(plan.candidate().stable_id(), 315)
 }
 
 ///|
@@ -178,7 +183,7 @@ test "attention autotune overrides the cost model without leaking device names" 
     capabilities~,
   )
   assert_eq(foreign.source(), AttentionStaticCostModel)
-  assert_eq(foreign.candidate().stable_id(), 312)
+  assert_eq(foreign.candidate().stable_id(), 315)
 }
 
 ///|
