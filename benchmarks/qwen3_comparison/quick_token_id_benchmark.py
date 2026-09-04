@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import math
 import time
@@ -58,6 +59,25 @@ def invoke(
     return elapsed_ms, tuple(tokens), complete, payload
 
 
+def token_summary(
+    actual: tuple[int, ...], expected: tuple[int, ...]
+) -> dict[str, object]:
+    shared = min(len(actual), len(expected))
+    divergence = next(
+        (index for index in range(shared) if actual[index] != expected[index]),
+        shared if len(actual) != len(expected) else None,
+    )
+    encoded = ",".join(str(token) for token in actual).encode("ascii")
+    window_start = 0 if divergence is None else max(0, divergence - 3)
+    window_end = min(len(actual), window_start + 8)
+    return {
+        "token_count": len(actual),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+        "first_divergence": divergence,
+        "divergence_window": actual[window_start:window_end],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
@@ -67,11 +87,22 @@ def main() -> int:
     parser.add_argument("--warmups", type=int, default=8)
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--expected", default="92648,4532")
+    parser.add_argument(
+        "--learn-expected",
+        action="store_true",
+        help="learn deterministic output token IDs from one excluded request",
+    )
     arguments = parser.parse_args()
     if arguments.concurrency <= 0 or arguments.requests <= 0 or arguments.warmups < 0:
         parser.error("concurrency/requests must be positive and warmups non-negative")
     body = open(arguments.request_json, "rb").read()
     expected = tuple(int(value) for value in arguments.expected.split(",") if value)
+    if arguments.learn_expected:
+        _, expected, complete, payload = invoke(arguments.url, body, arguments.timeout)
+        if not complete:
+            raise RuntimeError(
+                "expected-output learning request is incomplete: " f"payload={payload!r}"
+            )
     for _ in range(arguments.warmups):
         _, tokens, complete, payload = invoke(arguments.url, body, arguments.timeout)
         if tokens != expected or not complete:
@@ -93,11 +124,10 @@ def main() -> int:
     mismatches = [
         {
             "index": index,
-            "tokens": tokens,
+            **token_summary(tokens, expected),
             "complete": complete,
-            "payload": payload,
         }
-        for index, (_, tokens, complete, payload) in enumerate(observations)
+        for index, (_, tokens, complete, _) in enumerate(observations)
         if tokens != expected or not complete
     ]
     output_tokens = sum(len(tokens) for _, tokens, _, _ in observations)
@@ -121,7 +151,7 @@ def main() -> int:
                     "p99": percentile(latencies, 0.99),
                     "max": max(latencies),
                 },
-                "expected_tokens": expected,
+                "expected": token_summary(expected, expected),
             },
             sort_keys=True,
             separators=(",", ":"),
