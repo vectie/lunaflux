@@ -271,6 +271,7 @@ fn projection_source(
   maximum_tokens : Int,
   maximum_rows : Int,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
 ) -> Bytes raise ProjectionAotError {
@@ -284,21 +285,21 @@ fn projection_source(
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
         projection_tensor_core_dense_source(
-          symbol, parameters, maximum_tokens, maximum_rows,
+          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       } else {
         projection_dense_source(
-          symbol, parameters, maximum_tokens, maximum_rows,
+          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       }
     LanguageModelHead => {
       let base = if projection_tensor_core_eligible(parameters, dispatch) {
         projection_tensor_core_dense_source(
-          symbol, parameters, maximum_tokens, maximum_rows,
+          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       } else {
         projection_dense_source(
-          symbol, parameters, maximum_tokens, maximum_rows,
+          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
         )
       }
       if !embed_greedy_sampling {

@@ -42,6 +42,7 @@ pub struct ProjectionCudaLowering {
   priv output_width : Int
   priv intermediate_width : Int
   priv dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan
+  priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_contract : ProjectionNumericalContract
@@ -125,6 +126,15 @@ pub fn ProjectionCudaLowering::dispatch_plan(
   self : ProjectionCudaLowering,
 ) -> @luna_projection_strategy.ProjectionDispatchPlan {
   self.dispatch_plan
+}
+
+///|
+/// Backend-neutral functional program, rewrites, and tile schedule consumed by
+/// this device lowering. CUDA source generation is downstream of this value.
+pub fn ProjectionCudaLowering::tile_compilation(
+  self : ProjectionCudaLowering,
+) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation {
+  self.tile_compilation
 }
 
 ///|

@@ -66,12 +66,17 @@ fn projection_tensor_core_dense_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
 ) -> Bytes {
+  let demand : @luna_projection_tile_compiler.ProjectionResultDemand = tile_compilation
+    .schedule()
+    .demand()
+  let query_row_ends = demand == QueryRowEnds
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
     symbol +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *input, "
     } else {
       "(const int32_t *counts, const __nv_bfloat16 *input, "
@@ -80,7 +85,7 @@ fn projection_tensor_core_dense_source(
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
-    (if parameters.family != LanguageModelHead {
+    (if !query_row_ends {
       "  if (token_count == 1) {\n" +
       "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
       parameters.output_width.to_string() +
@@ -109,7 +114,7 @@ fn projection_tensor_core_dense_source(
       parameters.output_width.to_string() +
       ") return;\n"
     }) +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "  const int row_count = counts[2];\n" +
       "  if (row_count <= 0 || row_count > " +
       maximum_rows.to_string() +
@@ -143,25 +148,17 @@ fn projection_tensor_core_dense_source(
       ""
     }) +
     "  for (int row = " +
-    (if parameters.family == LanguageModelHead { "0" } else { "row_begin" }) +
+    (if query_row_ends { "0" } else { "row_begin" }) +
     "; row < " +
-    (if parameters.family == LanguageModelHead {
-      "row_count"
-    } else {
-      "token_count"
-    }) +
+    (if query_row_ends { "row_count" } else { "token_count" }) +
     "; row += " +
-    (if parameters.family == LanguageModelHead {
-      "16"
-    } else {
-      maximum_tokens.to_string()
-    }) +
+    (if query_row_ends { "16" } else { maximum_tokens.to_string() }) +
     ") {\n" +
     "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
     "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
     "  nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
     "  nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "  extern __shared__ unsigned char projection_shared[];\n" +
       "  float *tile_output = (float *)projection_shared;\n" +
       "  __nv_bfloat16 *selected_input = (__nv_bfloat16 *)(tile_output + 2048);\n"
@@ -171,7 +168,7 @@ fn projection_tensor_core_dense_source(
     "  for (int inner = 0; inner < " +
     parameters.input_width.to_string() +
     "; inner += 16) {\n" +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
       "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
       "      const int query_row = row + local_row;\n" +
@@ -195,13 +192,9 @@ fn projection_tensor_core_dense_source(
     parameters.input_width.to_string() +
     ");\n" +
     "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-    (if parameters.family == LanguageModelHead {
-      "    __syncthreads();\n"
-    } else {
-      ""
-    }) +
+    (if query_row_ends { "    __syncthreads();\n" } else { "" }) +
     "  }\n" +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       ""
     } else {
       "  extern __shared__ float tile_output[];\n"
@@ -213,22 +206,18 @@ fn projection_tensor_core_dense_source(
     "    const int local_row = element >> 4;\n" +
     "    const int local_column = element & 15;\n" +
     "    if (row + local_row < " +
-    (if parameters.family == LanguageModelHead {
-      "row_count"
-    } else {
-      "token_count"
-    }) +
+    (if query_row_ends { "row_count" } else { "token_count" }) +
     " && column + local_column < " +
     parameters.output_width.to_string() +
     ") " +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "{ const int token_row = row_offsets[row + local_row + 1] - 1; if (token_row >= 0 && token_row < token_count) output[(unsigned long long)token_row * "
     } else {
       "output[(unsigned long long)(row + local_row) * "
     }) +
     parameters.output_width.to_string() +
     "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);" +
-    (if parameters.family == LanguageModelHead { " }" } else { "" }) +
+    (if query_row_ends { " }" } else { "" }) +
     "\n" +
     "  }\n  }\n}\n",
   )
@@ -334,12 +323,17 @@ fn projection_dense_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
 ) -> Bytes {
+  let demand : @luna_projection_tile_compiler.ProjectionResultDemand = tile_compilation
+    .schedule()
+    .demand()
+  let query_row_ends = demand == QueryRowEnds
   @utf8.encode(
     projection_cuda_prelude() +
     "extern \"C\" __global__ void " +
     symbol +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *input, "
     } else {
       "(const int32_t *counts, const __nv_bfloat16 *input, "
@@ -347,7 +341,7 @@ fn projection_dense_source(
     "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
     projection_count_guard(maximum_tokens) +
     "  const unsigned long long index = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "  const int row_count = counts[2]; if (row_count <= 0 || row_count > " +
       maximum_rows.to_string() +
       ") return;\n"
@@ -355,24 +349,20 @@ fn projection_dense_source(
       ""
     }) +
     "  const unsigned long long live = (unsigned long long)" +
-    (if parameters.family == LanguageModelHead {
-      "row_count"
-    } else {
-      "token_count"
-    }) +
+    (if query_row_ends { "row_count" } else { "token_count" }) +
     " * " +
     parameters.output_width.to_string() +
     "ULL;\n" +
     "  if (index >= live) return;\n" +
     "  const unsigned long long " +
-    (if parameters.family == LanguageModelHead { "logical_row" } else { "row" }) +
+    (if query_row_ends { "logical_row" } else { "row" }) +
     " = index / " +
     parameters.output_width.to_string() +
     "ULL;\n" +
     "  const unsigned long long column = index % " +
     parameters.output_width.to_string() +
     "ULL;\n" +
-    (if parameters.family == LanguageModelHead {
+    (if query_row_ends {
       "  const int selected_row = row_offsets[logical_row + 1] - 1; if (selected_row < 0 || selected_row >= token_count) return;\n" +
       "  const unsigned long long row = (unsigned long long)selected_row;\n"
     } else {

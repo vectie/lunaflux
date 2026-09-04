@@ -36,6 +36,23 @@ fn projection_finish_candidate(
     profile.max_query_tokens(),
     target,
   )
+  let demand : @luna_projection_tile_compiler.ProjectionResultDemand = if parameters.family ==
+    LanguageModelHead {
+    QueryRowEnds
+  } else {
+    AllTokenRows
+  }
+  let tile_request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+    dispatch=dispatch_plan,
+    maximum_rows=profile.max_query_rows(),
+    maximum_tokens=profile.max_query_tokens(),
+    demand~,
+  ) catch {
+    _ => raise Invalid(CompilerPolicy)
+  }
+  let tile_compilation = @luna_projection_tile_compiler.compile_projection_tile(
+    tile_request,
+  )
   validate_projection_operands(
     operation, parameters, profile, operands, dispatch_plan,
   )
@@ -46,6 +63,7 @@ fn projection_finish_candidate(
     profile.max_query_tokens(),
     profile.max_query_rows(),
     dispatch_plan,
+    tile_compilation,
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
   )
@@ -67,6 +85,7 @@ fn projection_finish_candidate(
     dimensions,
     numerical_contract,
     dispatch_plan,
+    tile_compilation,
     symbol,
     source_digest,
     embed_greedy_sampling,
@@ -84,6 +103,7 @@ fn projection_finish_candidate(
     output_width: parameters.output_width,
     intermediate_width: parameters.intermediate_width,
     dispatch_plan,
+    tile_compilation,
     operands: ReadOnlyArray::from_array(operands),
     dimensions,
     numerical_contract,

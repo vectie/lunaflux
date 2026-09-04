@@ -142,6 +142,7 @@ fn projection_recipe(
   dimensions : @launch_contract.AotLaunchDimensions,
   numerical_contract : ProjectionNumericalContract,
   dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   function_symbol : String,
   source_digest : ProjectionCudaSourceDigest,
   embed_greedy_sampling : Bool,
@@ -166,6 +167,9 @@ fn projection_recipe(
     "\n" +
     "source_sha256=" +
     source_digest.as_hex() +
+    "\n" +
+    "functional_compilation_sha256=" +
+    tile_compilation.digest().as_hex() +
     "\n" +
     "toolchain_sha256=" +
     identity.toolchain_digest_sha256() +

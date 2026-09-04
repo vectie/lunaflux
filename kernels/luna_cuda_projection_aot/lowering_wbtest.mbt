@@ -28,6 +28,21 @@ test "projection-family candidates are deterministic and non-circular" {
     assert_eq(first.target(), projection_fixture_target())
     assert_eq(first.profile().max_query_tokens(), 4)
     assert_eq(first.launch_dimensions().block_x(), 256)
+    let expected_demand : @luna_projection_tile_compiler.ProjectionResultDemand = if family ==
+      LanguageModelHead {
+      QueryRowEnds
+    } else {
+      AllTokenRows
+    }
+    assert_eq(first.tile_compilation().schedule().demand(), expected_demand)
+    assert_eq(first.tile_compilation().digest().as_hex().length(), 64)
+    assert_true(
+      @utf8.decode(first.recipe_bytes()).contains(
+        "functional_compilation_sha256=" +
+        first.tile_compilation().digest().as_hex() +
+        "\n",
+      ),
+    )
   }
 }
 
@@ -225,13 +240,6 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     output_width: 1024,
     intermediate_width: 0,
   }
-  let dense = @utf8.decode(
-    projection_tensor_core_dense_source("qwen_dense", dense_parameters, 256, 32),
-  )
-  assert_true(dense.contains("if (token_count == 1)"))
-  assert_true(dense.contains("__shfl_down_sync"))
-  assert_true(dense.contains("nvcuda::wmma::mma_sync"))
-  assert_true(dense.contains("const int group_count = 8;"))
   let profile = projection_fixture_contracts().contracts()[1].profile()
   let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
   let qkv_dispatch = projection_build_runtime_dispatch(
@@ -246,6 +254,24 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     projection_fixture_target(),
     records,
   ).dispatch_plan(profile.max_query_tokens())
+  let dense_compilation = @luna_projection_tile_compiler.compile_projection_tile(
+    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+      dispatch=dense_dispatch,
+      maximum_rows=profile.max_query_rows(),
+      maximum_tokens=profile.max_query_tokens(),
+      demand=(
+        AllTokenRows : @luna_projection_tile_compiler.ProjectionResultDemand),
+    ),
+  )
+  let dense = @utf8.decode(
+    projection_tensor_core_dense_source(
+      "qwen_dense", dense_parameters, 256, 32, dense_compilation,
+    ),
+  )
+  assert_true(dense.contains("if (token_count == 1)"))
+  assert_true(dense.contains("__shfl_down_sync"))
+  assert_true(dense.contains("nvcuda::wmma::mma_sync"))
+  assert_true(dense.contains("const int group_count = 8;"))
   assert_eq(
     projection_dimensions(profile, qkv_parameters, qkv_dispatch).grid_x(),
     512,
