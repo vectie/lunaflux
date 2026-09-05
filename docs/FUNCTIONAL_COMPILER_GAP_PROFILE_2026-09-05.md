@@ -1,5 +1,12 @@
 # Why the remaining 2.3× gap exists — real Qwen profiling, 2026-09-05
 
+Follow-up: the production control-poll fix in `37cb1ad` now has a real,
+same-session A/B: **118.44 → 182.77 tok/s (+54.31%)**, with control endpoints
+retained and identical output tokens. See the
+[control progress report](CONTROL_REACTOR_PROGRESS_2026-09-05.md). The diagnosis
+and diagnostic ablation below remain historical measurements, not the fixed
+runtime's current throughput.
+
 The largest measured problem is **control-plane progress blocking inference
 progress**, not GEMM. A bounded diagnostic ablation that omits control-listener
 progress, without changing any kernel, raises throughput from **118.27 to
