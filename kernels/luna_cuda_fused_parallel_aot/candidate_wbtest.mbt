@@ -244,8 +244,12 @@ test "production residual RMSNorm candidate is deterministic and canary free" {
   )
   assert_false(source.contains("__bfloat162float(residual_output[offset])"))
   assert_true(source.contains("__shfl_down_sync(0xffffffffu, tree_value, 16)"))
-  assert_true(source.contains("partial[threadIdx.x + 64]"))
-  assert_true(source.contains("partial[threadIdx.x + 32]"))
+  assert_true(
+    source.contains(
+      "((partial[subgroup_lane + 0] + partial[subgroup_lane + 64]) + (partial[subgroup_lane + 32] + partial[subgroup_lane + 96]))",
+    ),
+  )
+  assert_true(source.contains("__shfl_sync(0xffffffffu, tree_value, 0)"))
   assert_true(recipe.contains("execution_policy=production-fast-path\n"))
   assert_true(recipe.contains("diagnostic_canary=absent\n"))
   assert_true(
@@ -255,6 +259,31 @@ test "production residual RMSNorm candidate is deterministic and canary free" {
   )
   assert_false(recipe.contains("dispatch_canary="))
   assert_false(first.manifest_bindable())
+}
+
+///|
+test "production norm forwarding uses bounded registers and retains wide fallback" {
+  let fixture = fused_test_fixture()
+  let qualification = fused_test_residual_norm_candidate(fixture)
+  for width in [1, 127, 128, 129, 1024, 2048, 2049, 8192] {
+    let parameters = { ..qualification.parameters, width, }
+    let source = @utf8.decode(
+      fused_residual_rmsnorm_production_source(
+        "norm_probe",
+        parameters,
+        fixture.profile,
+      ),
+    )
+    assert_eq(source.contains("float rounded_values["), width <= 2048)
+    assert_eq(
+      source.contains("__bfloat162float(residual_output[offset])"),
+      width > 2048,
+    )
+    assert_true(source.contains("residual_output[offset] = encoded;"))
+    assert_true(
+      source.contains("const float rounded = __bfloat162float(encoded);"),
+    )
+  }
 }
 
 ///|

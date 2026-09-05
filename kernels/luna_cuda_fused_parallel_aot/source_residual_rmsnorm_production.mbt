@@ -65,7 +65,7 @@ fn fused_residual_rmsnorm_production_source(
   )
   emit_ordered_norm_reduction(output)
   output.write_string(
-    "  const float inverse_rms = rsqrtf(partial[0] / (float)LF_WIDTH + LF_EPSILON);\n" +
+    "  const float inverse_rms = rsqrtf(tree_sum / (float)LF_WIDTH + LF_EPSILON);\n" +
     "  #pragma unroll\n" +
     "  for (int column = (int)threadIdx.x; column < LF_WIDTH; column += LF_BLOCK_THREADS) {\n" +
     "    const int offset = token * LF_WIDTH + column;\n" +
@@ -91,33 +91,46 @@ fn emit_ordered_norm_reduction(output : StringBuilder) -> Unit {
     subgroup_lanes=32,
   )
   let shared = schedule.shared_strides()
-  for index, stride in shared {
-    if index + 1 == shared.length() {
-      output.write_string(
-        "  if ((int)threadIdx.x < 32) {\n    float tree_value = partial[threadIdx.x] + partial[threadIdx.x + " +
-        stride.to_string() +
-        "];\n",
-      )
-    } else {
-      output.write_string(
-        "  if ((int)threadIdx.x < " +
-        stride.to_string() +
-        ") partial[threadIdx.x] += partial[threadIdx.x + " +
-        stride.to_string() +
-        "];\n  __syncthreads();\n",
-      )
-    }
-  }
+  // Rematerialize the tiny pure shared prefix in each subgroup. This replaces
+  // inter-subgroup write/barrier/read stages without regrouping additions.
+  output.write_string(
+    "  const int subgroup_lane = (int)threadIdx.x % 32;\n  float tree_value = ",
+  )
+  emit_norm_shared_tree(output, shared, shared.length(), 0)
+  output.write_string(";\n")
   for stride in schedule.subgroup_strides() {
     output.write_string(
       "    { const float other = __shfl_down_sync(0xffffffffu, tree_value, " +
       stride.to_string() +
-      ");\n      if ((int)threadIdx.x < " +
+      ");\n      if (subgroup_lane < " +
       stride.to_string() +
       ") tree_value += other; }\n",
     )
   }
   output.write_string(
-    "    if (threadIdx.x == 0) partial[0] = tree_value;\n  }\n  __syncthreads();\n",
+    "  const float tree_sum = __shfl_sync(0xffffffffu, tree_value, 0);\n",
   )
+}
+
+///|
+fn emit_norm_shared_tree(
+  output : StringBuilder,
+  strides : ReadOnlyArray[Int],
+  levels : Int,
+  offset : Int,
+) -> Unit {
+  if levels == 0 {
+    output.write_string("partial[subgroup_lane + " + offset.to_string() + "]")
+  } else {
+    output.write_string("(")
+    emit_norm_shared_tree(output, strides, levels - 1, offset)
+    output.write_string(" + ")
+    emit_norm_shared_tree(
+      output,
+      strides,
+      levels - 1,
+      offset + strides[levels - 1],
+    )
+    output.write_string(")")
+  }
 }
