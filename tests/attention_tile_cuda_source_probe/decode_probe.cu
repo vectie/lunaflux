@@ -14,14 +14,18 @@ static void ck(CUresult r) {
 }
 static float fp(uint16_t x) { uint32_t u = uint32_t(x) << 16; float f; std::memcpy(&f, &u, 4); return f; }
 static uint16_t bf(float f) { uint32_t u; std::memcpy(&u, &f, 4); u += 0x7fff + ((u >> 16) & 1); return uint16_t(u >> 16); }
+static int page_tokens = 16;
+static bool real_abi = false;
 template<class T> static CUdeviceptr upload(const std::vector<T>& a) {
   CUdeviceptr p; ck(cuMemAlloc(&p, a.size()*sizeof(T))); ck(cuMemcpyHtoD(p, a.data(), a.size()*sizeof(T))); return p;
 }
 struct Kernel {
   CUmodule module; CUfunction partial, merge; bool split; int heads, threads, shared;
   Kernel(const char* path, bool s, bool grouped): split(s), heads(grouped?8:16), threads(grouped?256:32), shared(grouped?34076:0) {
-    ck(cuModuleLoad(&module, path)); ck(cuModuleGetFunction(&partial, module, s?"decode_partial":"decode_baseline"));
-    if(s) ck(cuModuleGetFunction(&merge,module,"decode_merge"));
+    ck(cuModuleLoad(&module, path));
+    const char* name = real_abi ? (s?"lunaflux_paged_attention_bf16_decode_split_partial_v2_ep_3903":"lunaflux_attention_decode_tile_compiler_v1") : (s?"decode_partial":"decode_baseline");
+    ck(cuModuleGetFunction(&partial, module, name));
+    if(s) ck(cuModuleGetFunction(&merge,module,real_abi?"lunaflux_paged_attention_bf16_decode_split_merge_v2_ep_3904":"decode_merge"));
   }
   void launch(CUdeviceptr* d) {
     // counts, positions, row offsets, lengths, page offsets, page ids, qkv,
@@ -31,9 +35,9 @@ struct Kernel {
     if(split) { void* merge_args[]={d,d+2,d+10,d+7}; ck(cuLaunchKernel(merge,32,16,1,threads,1,1,0,0,merge_args,nullptr)); }
   }
 };
-static void run_case(Kernel* kernels,int context,int batch,bool mixed,int repeats) {
+static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool mixed,int repeats) {
   const int prefill=mixed?1:0, rows=batch+prefill, prefix=mixed?3:0, tokens=batch+prefix;
-  const int pages=(context+15)/16;
+  const int pages=(context+page_tokens-1)/page_tokens, stride=page_tokens*1024;
   std::vector<int> counts={prefill,batch,rows,tokens,batch*pages}, positions(tokens,0), offsets(rows+1), lengths(rows), page_offsets(rows+1), ids;
   if(mixed) { offsets[1]=prefix; lengths[0]=prefix; page_offsets[1]=1; ids.push_back(0); }
   for(int b=0;b<batch;++b) {
@@ -43,7 +47,7 @@ static void run_case(Kernel* kernels,int context,int batch,bool mixed,int repeat
     page_offsets[row+1]=int(ids.size());
   }
   counts[4]=int(ids.size());
-  std::vector<uint16_t> q(tokens*4096), k(8192ULL*16384), v(k.size()), output(tokens*2048,bf(-99.0f));
+  std::vector<uint16_t> q(tokens*4096), k(8192ULL*stride), v(k.size()), output(tokens*2048,bf(-99.0f));
   for(size_t i=0;i<q.size();++i) q[i]=bf(float(int((i*17)%127)-63)/64);
   for(size_t i=0;i<k.size();++i) { k[i]=bf(float(int((i*13)%113)-56)/64); v[i]=bf(float(int((i*19)%109)-54)/64); }
   std::vector<float> workspace(32*16*8*130, NAN);
@@ -53,17 +57,17 @@ static void run_case(Kernel* kernels,int context,int batch,bool mixed,int repeat
   for(int b=0;b<batch;++b) for(int h=0;h<16;++h) {
     std::vector<double> scores(context); double maximum=-INFINITY, denominator=0;
     for(int p=0;p<context;++p) {
-      size_t base=size_t(ids[page_offsets[prefill+b]+p/16])*16384+(p%16)*1024+(h/2)*128;
+      size_t base=size_t(ids[page_offsets[prefill+b]+p/page_tokens])*stride+(p%page_tokens)*1024+(h/2)*128;
       double dot=0; for(int c=0;c<128;++c) dot+=double(fp(q[(prefix+b)*4096+h*128+c]))*fp(k[base+c]);
       scores[p]=dot/std::sqrt(128.0); maximum=std::max(maximum,scores[p]);
     }
     for(double& score:scores) { score=std::exp(score-maximum); denominator+=score; }
     for(int c=0;c<128;++c) {
-      double sum=0; for(int p=0;p<context;++p) { size_t base=size_t(ids[page_offsets[prefill+b]+p/16])*16384+(p%16)*1024+(h/2)*128; sum+=scores[p]*fp(v[base+c]); }
+      double sum=0; for(int p=0;p<context;++p) { size_t base=size_t(ids[page_offsets[prefill+b]+p/page_tokens])*stride+(p%page_tokens)*1024+(h/2)*128; sum+=scores[p]*fp(v[base+c]); }
       expected[b*2048+h*128+c]=float(sum/denominator);
     }
   }
-  for(int which=0;which<3;++which) {
+  for(int which=0;which<kernel_count;++which) {
     ck(cuMemcpyHtoD(d[7],output.data(),output.size()*2)); kernels[which].launch(d); ck(cuCtxSynchronize());
     std::vector<uint16_t> got(output.size()); ck(cuMemcpyDtoH(got.data(),d[7],got.size()*2));
     float error=0;
@@ -74,7 +78,7 @@ static void run_case(Kernel* kernels,int context,int batch,bool mixed,int repeat
     CUevent start,end; ck(cuEventCreate(&start,0)); ck(cuEventCreate(&end,0)); ck(cuEventRecord(start,0));
     for(int n=0;n<repeats;++n) kernels[which].launch(d);
     ck(cuEventRecord(end,0)); ck(cuEventSynchronize(end)); float ms; ck(cuEventElapsedTime(&ms,start,end));
-    std::printf("context=%d batch=%d mixed=%d kernel=%s us=%.6f max_abs_error=%.8f\n",context,batch,int(mixed),which==0?"baseline":which==1?"direct-split8":"grouped-split8",ms*1000/repeats,error);
+    std::printf("context=%d batch=%d mixed=%d kernel=%s us=%.6f max_abs_error=%.8f\n",context,batch,int(mixed),which==0?"baseline":kernels[which].heads==16?"direct-split8":"grouped-split8",ms*1000/repeats,error);
     ck(cuEventDestroy(start)); ck(cuEventDestroy(end));
   }
   // Both compiler partition paths must leave persistent cache bytes untouched.
@@ -83,12 +87,17 @@ static void run_case(Kernel* kernels,int context,int batch,bool mixed,int repeat
   for(CUdeviceptr p:d) ck(cuMemFree(p));
 }
 int main(int argc,char**argv) {
-  if(argc!=5) return 2;
+  if(argc!=5 && argc!=6) return 2;
+  real_abi = argc==6 && std::strcmp(argv[5],"real")==0;
+  page_tokens = real_abi?8:16;
   ck(cuInit(0)); CUdevice dev; ck(cuDeviceGet(&dev,0)); CUcontext ctx; ck(cuCtxCreate(&ctx,nullptr,0,dev));
-  Kernel kernels[]={{argv[1],false,true},{argv[2],true,false},{argv[3],true,true}};
+  std::vector<Kernel> kernels;
+  kernels.emplace_back(argv[1],false,true);
+  kernels.emplace_back(argv[2],true,real_abi);
+  if(!real_abi) kernels.emplace_back(argv[3],true,true);
   int repeats=std::atoi(argv[4]); if(repeats<=0) return 2;
-  for(int context:{1,59,128,256,512,1528,4096}) run_case(kernels,context,1,false,repeats);
-  run_case(kernels,256,2,true,repeats); run_case(kernels,1528,8,false,repeats);
+  for(int context:{1,59,128,256,512,1528,4096}) run_case(kernels.data(),int(kernels.size()),context,1,false,repeats);
+  run_case(kernels.data(),int(kernels.size()),256,2,true,repeats); run_case(kernels.data(),int(kernels.size()),1528,8,false,repeats);
   for(auto& kernel:kernels) ck(cuModuleUnload(kernel.module)); ck(cuCtxDestroy(ctx));
   std::puts("correctness=passed kv_unchanged=true resources_released=true");
 }
