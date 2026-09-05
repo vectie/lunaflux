@@ -39,6 +39,14 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   let accumulator_items = (head_dimension + 31) / 32
   let partitions = lowering.key_value_partitions()
   let partitioned = partitions > 1
+  let output_offset_binding = if partitioned {
+    ""
+  } else {
+    (
+      $|  const int output_offset = token * \{query_width} +
+      $|      query_head * LF_HEAD_DIMENSION;
+    )
+  }
   let warp_sum_symbol = if partitioned {
     symbol + "_warp_sum"
   } else {
@@ -164,8 +172,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|      ? query_positions[token] : -1;
     $|  const int page_start = page_table_offsets[row];
     $|  const int page_end = page_table_offsets[row + 1];
-    $|  const int output_offset = token * \{query_width} +
-    $|      query_head * LF_HEAD_DIMENSION;
+    $|\{output_offset_binding}
     $|  if (token < 0 || row_end != token + 1 || row_end > token_count ||
     $|      query_position < 0 || query_position >= sequence_length ||
     $|      page_start < 0 || page_start >= page_end ||
