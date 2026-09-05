@@ -11,6 +11,7 @@ fn main raise {
     128
   }
   let requested_candidate = match arguments {
+    [_, "315-head64"] => Some(315)
     [_, "partitioned-312"] => Some(312)
     [_, "290"] => Some(290)
     [_, "291"] => Some(291)
@@ -23,10 +24,14 @@ fn main raise {
     [_, "315"] => Some(315)
     _ => None
   }
+  let head_dimension = match arguments {
+    [_, "315-head64"] => 64
+    _ => 128
+  }
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
-    head_dimension=128,
+    head_dimension~,
     tokens_per_page=16,
   )
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
@@ -94,10 +99,10 @@ fn main raise {
   let abi = @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
     query_heads=16,
     key_value_heads=4,
-    head_dimension=128,
+    head_dimension~,
     tokens_per_page=16,
-    input_row_width=3072,
-    page_stride_values=8192L,
+    input_row_width=24 * head_dimension,
+    page_stride_values=64L * head_dimension.to_int64(),
     physical_page_capacity=256L,
     maximum_query_rows=32,
     maximum_query_tokens=128,

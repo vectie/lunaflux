@@ -129,17 +129,15 @@ fn emit_cuda_prefill_attention_tile_source(
   let reuse_tile_storage = compute == CudaMatrixQkPvMultiplyAccumulate &&
     lowering.reuses_online_softmax_tile_storage()
   let shared_layout = if reuse_tile_storage {
-    "  float *scores = reinterpret_cast<float *>(shared_cursor);\n" +
-    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);\n" +
-    "  float *accumulator = reinterpret_cast<float *>(shared_cursor);\n" +
-    "  __nv_bfloat16 *weights = key_tiles;\n" +
-    "  float *running_maximum = reinterpret_cast<float *>(key_tiles);\n" +
-    "  float *running_denominator = running_maximum + LF_QUERY_TILE;\n" +
-    "  float *previous_scales = reinterpret_cast<float *>(\n" +
-    "      key_tiles + LF_QUERY_TILE * LF_KEY_VALUE_TILE);\n" +
-    "  int &tile_valid = *reinterpret_cast<int *>(\n" +
-    "      scores + LF_QUERY_TILE * LF_KEY_VALUE_TILE - 1);\n"
+    cuda_attention_storage_declarations(lowering)
   } else {
+    "  unsigned char *shared_cursor = shared_arena;\n" +
+    "  __nv_bfloat16 *query_tile = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
+    "  __nv_bfloat16 *key_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
+    "  __nv_bfloat16 *value_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
     "  float *scores = reinterpret_cast<float *>(shared_cursor);\n" +
     "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);\n" +
     "  " +
@@ -446,13 +444,6 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    return;
     $|
     $|  extern __shared__ __align__(16) unsigned char shared_arena[];
-    $|  unsigned char *shared_cursor = shared_arena;
-    $|  __nv_bfloat16 *query_tile = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);
-    $|  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
-    $|  __nv_bfloat16 *key_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);
-    $|  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
-    $|  __nv_bfloat16 *value_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);
-    $|  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);
     $|\{shared_layout}
     $|
     $|  const int query_vector_count = LF_QUERY_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
@@ -487,6 +478,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  __syncthreads();
     $|  maximum_query_position = __float_as_int(scores[0]);
     $|  if (!tile_valid) return;
+    $|  // Complete query-bounds/validation reads before the next staging epoch.
+    $|  __syncthreads();
     $|\{partition_bounds}
     $|
     $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
@@ -514,6 +507,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    __syncthreads();
     $|    if (!tile_valid) return;
     $|
+    $|    // End validation lifetime before QK overwrites the aliased score slot.
+    $|    __syncthreads();
     $|    if (warp < LF_KEY_VALUE_TILE / 16) {
     $|      using namespace nvcuda;
     $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> query_fragment;

@@ -271,11 +271,15 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
     ).bytes(),
   )
   assert_true(source.contains("#define LF_QUERY_TILE 32"))
-  assert_true(source.contains("__nv_bfloat16 *weights = key_tiles"))
+  assert_true(
+    source.contains(
+      "__nv_bfloat16 *weights = reinterpret_cast<__nv_bfloat16 *>(shared_arena + 8192)",
+    ),
+  )
   assert_true(source.contains("float fold_maximum[LF_QUERY_STATE_SLOTS]"))
   assert_true(
     source.contains(
-      "float *running_denominator = running_maximum + LF_QUERY_TILE",
+      "float *running_denominator = reinterpret_cast<float *>(shared_arena + 8320)",
     ),
   )
   assert_false(
@@ -284,6 +288,16 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
     ),
   )
   assert_true(source.contains("component == 0"))
+  assert_true(
+    source.contains(
+      "if (!tile_valid) return;\n  // Complete query-bounds/validation reads before the next staging epoch.\n  __syncthreads();",
+    ),
+  )
+  assert_true(
+    source.contains(
+      "// End validation lifetime before QK overwrites the aliased score slot.\n    __syncthreads();",
+    ),
+  )
   assert_true(source.contains("(lane / 16) * 16"))
   assert_true(
     source.contains(

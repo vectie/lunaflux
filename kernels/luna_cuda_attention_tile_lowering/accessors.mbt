@@ -48,6 +48,13 @@ pub fn CudaAttentionTileLowering::copy(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::matrix_storage_layout(
+  self : CudaAttentionTileLowering,
+) -> @luna_attention_tile_schedule.AttentionTileStorageLayout? {
+  self.matrix_storage_layout
+}
+
+///|
 pub fn CudaAttentionTileLowering::launch(
   self : CudaAttentionTileLowering,
 ) -> (Int, Int, Int, Int64) {

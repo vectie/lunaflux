@@ -54,6 +54,7 @@ pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
 pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
+pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorageLayout?
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
@@ -67,6 +68,34 @@ pub(all) enum AttentionTileScheduleRule {
   InvalidVector
   InvalidLoopNest
 } derive(Eq, @debug.Debug)
+
+pub struct AttentionTileStorageLayout {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileStorageLayout::offset(Self, AttentionTileStorageRole) -> Int64
+pub fn AttentionTileStorageLayout::peak_bytes(Self) -> Int64
+pub fn AttentionTileStorageLayout::spans(Self) -> ReadOnlyArray[AttentionTileStorageSpan]
+
+pub(all) enum AttentionTileStorageRole {
+  QueryStorage
+  KeyStorage
+  ValueStorage
+  ScoreStorage
+  ProbabilityStorage
+  AccumulatorStorage
+  PreviousScaleStorage
+  TerminalMaximumStorage
+  TerminalDenominatorStorage
+  ValidationStorage
+  QueryBoundsStorage
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionTileStorageSpan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionTileStorageSpan::lifetime(Self) -> (Int, Int)
+pub fn AttentionTileStorageSpan::range(Self) -> (Int64, Int64)
+pub fn AttentionTileStorageSpan::role(Self) -> AttentionTileStorageRole
 
 // Type aliases
 

@@ -99,6 +99,7 @@ fn canonical_schedule(
   hoist_paged_key_value_page_lookup : Bool,
   reuse_online_softmax_tile_storage : Bool,
   shared_memory_bytes : Int64,
+  storage_layout : AttentionTileStorageLayout?,
 ) -> Bytes {
   let candidate = program.candidate()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
@@ -118,6 +119,9 @@ fn canonical_schedule(
   builder <+ "memory=\{memory_code(candidate.memory())}\n"
   builder <+
     "execution=\{subgroups},\{stages},\{vector_bytes},\{shared_memory_bytes}\n"
+  if storage_layout is Some(layout) {
+    builder <+ "\{attention_storage_canonical(layout)}"
+  }
   @utf8.encode(builder.to_string())
 }
 
@@ -279,18 +283,19 @@ fn schedule_attention_tile_program_with_partitions(
   }
   let loops = ReadOnlyArray::from_array(prefix)
   validate_schedule_loops(loops, key_value_partitions)
-  let shared_memory_bytes = if reuse_online_softmax_tile_storage &&
+  let matrix_storage_layout = if reuse_online_softmax_tile_storage &&
     candidate.compute() == AttentionMatrixQkPv {
-    candidate.shared_memory_bytes() -
-    query_tile.to_int64() * key_value_tile.to_int64() * 2L -
-    query_tile.to_int64() * 12L -
-    16L
+    Some(plan_attention_matrix_storage(program))
   } else {
-    candidate.shared_memory_bytes()
+    None
+  }
+  let shared_memory_bytes = match matrix_storage_layout {
+    Some(layout) => layout.peak_bytes
+    None => candidate.shared_memory_bytes()
   }
   let canonical = canonical_schedule(
     program, loops, key_value_partitions, hoist_paged_key_value_page_lookup, reuse_online_softmax_tile_storage,
-    shared_memory_bytes,
+    shared_memory_bytes, matrix_storage_layout,
   )
   {
     program_digest: program.digest(),
@@ -304,6 +309,7 @@ fn schedule_attention_tile_program_with_partitions(
     key_value_partitions,
     hoist_paged_key_value_page_lookup,
     reuse_online_softmax_tile_storage,
+    matrix_storage_layout,
     canonical,
     digest: AttentionTileScheduleDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

@@ -8,11 +8,11 @@
 
 static constexpr int query_heads = 16;
 static constexpr int key_value_heads = 4;
-static constexpr int head_dimension = 128;
+static constexpr int head_dimension = LF_HEAD_DIMENSION;
 static constexpr int tokens_per_page = 16;
 static constexpr int query_width = query_heads * head_dimension;
-static constexpr int input_row_width = 3072;
-static constexpr int page_stride_values = 8192;
+static constexpr int input_row_width = (query_heads + 2 * key_value_heads) * head_dimension;
+static constexpr int page_stride_values = tokens_per_page * key_value_heads * head_dimension;
 
 static void require_cuda(cudaError_t status, const char *step) {
   if (status != cudaSuccess) {
@@ -203,6 +203,7 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
                           cudaMemcpyDeviceToHost),
                "cudaMemcpyDeviceToHost");
 
+#ifndef LF_SKIP_BENCHMARK
   for (int warmup = 0; warmup < 10; ++warmup) launch();
   require_cuda(cudaDeviceSynchronize(), "benchmark warmup");
   cudaEvent_t begin = nullptr;
@@ -231,6 +232,7 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
       name, token_count, maximum_context_tokens, query_lengths.size(),
       query_tile_count, LF_KEY_VALUE_TILE, LF_BLOCK_THREADS,
       static_cast<long long>(LF_SHARED_MEMORY_BYTES), median_microseconds);
+#endif
 
   float maximum_absolute_error = 0.0f;
   float maximum_normalized_error = 0.0f;

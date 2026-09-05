@@ -44,6 +44,7 @@ pub struct AttentionTileSchedule {
   priv key_value_partitions : Int
   priv hoist_paged_key_value_page_lookup : Bool
   priv reuse_online_softmax_tile_storage : Bool
+  priv matrix_storage_layout : AttentionTileStorageLayout?
   priv canonical : Bytes
   priv digest : AttentionTileScheduleDigest
 } derive(Debug, Eq)

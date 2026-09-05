@@ -59,6 +59,24 @@ increment does not change their generated kernel computation or claim a new
 GPU speedup. Arbitrary-graph CUDA lowering and a full effect/alias type system
 remain follow-on work.
 
+## Attention lifetime storage extraction
+
+The attention matrix path now has explicit storage extraction: a pure layout
+of typed byte spans and live phases is carried from the portable schedule to
+CUDA pointer declarations. The overlay capacity is the maximum of staged K,
+probabilities plus rescale factors, and terminal maximum/denominator state.
+Previously the backend assumed all these fit the K allocation. Q64/K64/head64
+requires 57,600 shared bytes; the old 57,344-byte calculation let rescale
+factors overlap V. Q64/K64/head32 requires 41,216 instead of 36,864 bytes in
+the portable plan; head32 remains unsupported by the current CUDA source ABI.
+Head128 layouts retain their previous byte counts.
+
+The source also synchronizes validation readers before storage reuse. A
+focused racecheck found a staging write racing initial validation reads even
+though the numerical probe passed; that failed first attempt is preserved.
+This change extracts storage for an existing matrix fold pattern, not a
+general-purpose alias analysis or automatic allocator for arbitrary DAGs.
+
 ## Follow-on work
 
 1. Extend dependency-derived reuse and fusion legality to attention and share
@@ -76,7 +94,7 @@ Validation distinguishes structural/unit tests from physical correctness and
 end-to-end performance. New dispatch metadata requires regenerated artifacts
 and a focused GPU campaign before a speed or serving-readiness claim.
 
-## Validation of this increment
+## Validation of dataflow and projection normalization
 
 Warning-denied native check and the affected compiler, exporter, bundle,
 device-step, device-worker, and fused-AOT tests pass. The whole native suite
@@ -94,3 +112,42 @@ lowering, contract, and non-physical fixture tests pass 13/13. The known pinned
 physical-fixture failure above is not included in that targeted 13-test count.
 The symbolic observation tests verify graph substitution and effect ordering,
 not CUDA numerical accuracy or end-to-end throughput.
+
+## Validation of attention storage extraction
+
+Warning-denied native check, generated interfaces, scoped formatting, and
+42 affected schedule/lowering/source/compiler/AOT/Qwen-exporter tests pass.
+Storage regressions cover 30 tile/head combinations, live-range non-overlap,
+capacity, alignment, deterministic identity, and the head64 overlay tail.
+The whole native suite was not rerun for this increment; the earlier unrelated
+failures above remain separate.
+
+On the RTX 5060 Ti (CUDA 13.1, `sm_120`), final `r2` probes for candidate 315
+head64, candidate 314 head128, and partitioned candidate 312 head128 each pass
+16 numerical cases, memcheck with zero errors/leaked allocations, and
+racecheck with zero hazards. All nine final benchmark/sanitizer stderr files
+are empty. Four short/ragged cases use exhaustive reference comparisons;
+12 long cases use deterministic samples at query lengths 16/64/128 and
+contexts 512/1024/2048/4096. Accuracy uses the probe's existing per-value
+absolute/relative tolerance, not bitwise equality.
+
+Current kernel timings below use 10 warmups and the median of nine batches
+of 40 launches, timed with CUDA events. Partitioned timings include partial
+and merge launches. These are standalone attention measurements, not a
+before/after speedup, a comparison of equal tile configurations, or full
+Qwen serving throughput.
+
+| Configuration | Query/context tokens | Shared bytes per block | Median µs |
+| --- | --- | ---: | ---: |
+| 315, head64, Q64/K64 | 128/4096 | 57,600 | 561.005 |
+| 314, head128, Q64/K32 | 128/4096 | 73,728 | 1,156.590 |
+| Partitioned 312, head128, Q32/K32 | 128/4096 | 45,056 | 854.542 |
+
+Results, generated sources, binaries, and the diagnosed first-attempt
+racecheck failure are preserved in remote
+`/tmp/lunaflux-attention-storage-djSwwA-results.tar.gz` and downloaded to
+`/private/tmp/lunaflux-attention-storage.Ze73R0/lunaflux-attention-storage-djSwwA-results.tar.gz`.
+The archive SHA-256 is
+`7050f1159ca7d20f4c922908bf211f651f8144d9ac715a83495570ba25f889d4`.
+Only the final `r2` subdirectories represent the corrected source. No runtime
+deployment or end-to-end performance claim is made by this increment.

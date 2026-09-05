@@ -44,6 +44,7 @@ pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDiges
 pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn CudaAttentionTileLowering::key_value_partitions(Self) -> Int
 pub fn CudaAttentionTileLowering::launch(Self) -> (Int, Int, Int, Int64)
+pub fn CudaAttentionTileLowering::matrix_storage_layout(Self) -> @luna_attention_tile_schedule.AttentionTileStorageLayout?
 pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimizationDigest
 pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)

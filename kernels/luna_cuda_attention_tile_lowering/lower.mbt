@@ -197,6 +197,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     shared_memory_bytes,
     hoist_paged_key_value_page_lookup,
     reuse_online_softmax_tile_storage,
+    matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,
     digest: CudaAttentionTileLoweringDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

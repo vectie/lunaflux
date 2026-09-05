@@ -19,5 +19,9 @@ backend boundary.
 When online-softmax storage reuse is selected, each subgroup retains its
 running maximum and denominator in registers. Probability values reuse the
 dead key-tile allocation and terminal fold state reuses that allocation after
-PV, removing one block barrier and shrinking Q32/K64 shared memory from
-70,032 to 65,536 bytes.
+PV. For head dimension 128, Q32/K64 shared memory shrinks from 70,032 to
+65,536 bytes. These offsets now come from the portable schedule's explicit
+storage plan. At Q64/K64/head64 the key overlay must include a 256-byte rescale
+tail: total shared storage is 57,600 bytes, not the insufficient 57,344-byte
+old bound. Lifetime boundaries include synchronization after query validation
+and after tile-validation readers, before the next staging/QK writer.

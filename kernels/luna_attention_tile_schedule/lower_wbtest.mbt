@@ -1,11 +1,13 @@
 ///|
 fn schedule_test_program(
   query_rows? : Int = 128,
+  head_dimension? : Int = 128,
+  candidate_id? : Int,
 ) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=4,
-    head_dimension=128,
+    head_dimension~,
     tokens_per_page=16,
   )
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
@@ -30,13 +32,25 @@ fn schedule_test_program(
       ),
     ),
   )
-  let plan = @luna_attention_strategy.compile_attention_tile_plan(
-    [],
-    backend=@luna_attention_strategy.AttentionBackendId::new("portable"),
-    target=@luna_attention_strategy.AttentionTargetId::new("fixture"),
-    problem~,
-    capabilities~,
-  )
+  let plan = if candidate_id is Some(stable_id) {
+    guard @luna_attention_strategy.generate_attention_tile_candidates(
+        problem, capabilities,
+      ).filter(candidate => candidate.stable_id() == stable_id)
+      is [candidate] else {
+      fail("storage test candidate unavailable")
+    }
+    @luna_attention_strategy.compile_attention_tile_candidate_plan(
+      problem, capabilities, candidate,
+    )
+  } else {
+    @luna_attention_strategy.compile_attention_tile_plan(
+      [],
+      backend=@luna_attention_strategy.AttentionBackendId::new("portable"),
+      target=@luna_attention_strategy.AttentionTargetId::new("fixture"),
+      problem~,
+      capabilities~,
+    )
+  }
   @luna_attention_tile_ir.compile_attention_tile_ir(plan)
 }
 
