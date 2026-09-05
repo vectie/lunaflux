@@ -231,5 +231,6 @@ pub async fn bind_luna_online_http_control_server(
     failed: false,
     startup_measurement_published: false,
     cold_start_latency_millis: -1,
+    io_started_millis: 0UL,
   }
 }

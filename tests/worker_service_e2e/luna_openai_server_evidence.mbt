@@ -26,6 +26,7 @@ fn openai_e2e_template(
 fn prepare_openai_e2e_server(
   executable : Bytes,
   deadline_millis? : UInt64 = 10000UL,
+  fixture_root? : String = "/private/tmp",
 ) -> @online_tcp.LunaOnlineOpenAIServerPreparation raise {
   let inference = tcp_inference_limits()
   let model = openai_e2e_bytes("model-x")
@@ -38,7 +39,7 @@ fn prepare_openai_e2e_server(
     maximum_credential_bytes=8,
   )
   @online_tcp.prepare_luna_online_openai_server(
-    prepare_tcp_service(executable, session_tokenizer()),
+    prepare_tcp_service(executable, session_tokenizer(), fixture_root~),
     @http1.LunaHttp1Limits::new(max_head_bytes=1024, max_body_bytes=512),
     @http1.LunaHttp1StepBudget::new(1),
     @http1.LunaHttp1ResponseStepBudget::new(17),

@@ -28,10 +28,58 @@ test "control health and readiness projections are exact across lifecycle" {
 }
 
 ///|
-test "control socket polling is independently strict-bounded" {
-  assert_eq(luna_online_http_control_poll_millis(1), 1)
-  assert_eq(luna_online_http_control_poll_millis(25), 1)
-  assert_eq(luna_online_http_control_poll_millis(5000), 1)
+test "control socket polling never waits on the inference reactor" {
+  assert_eq(luna_online_http_control_poll_millis(1), 0)
+  assert_eq(luna_online_http_control_poll_millis(25), 0)
+  assert_eq(luna_online_http_control_poll_millis(5000), 0)
+}
+
+///|
+test "control I/O deadline is independent of empty polls" {
+  for _ in 0..<8192 {
+    assert_false(luna_online_control_io_expired(100UL, 100UL, 25))
+  }
+  assert_false(luna_online_control_io_expired(100UL, 124UL, 25))
+  assert_true(luna_online_control_io_expired(100UL, 125UL, 25))
+  assert_true(luna_online_control_io_expired(100UL, 99UL, 25))
+  assert_false(
+    luna_online_control_io_expired(
+      0xfffffffffffffffeUL, 0xffffffffffffffffUL, 25,
+    ),
+  )
+}
+
+///|
+async test "zero-wait socket polls retain ready accept and fragmented reads" {
+  let listener = @socket.TcpServer::TcpServer(
+    @socket.Addr::parse("127.0.0.1:0"),
+  )
+  defer listener.close()
+  @async.with_timeout(500, () => {
+    for _ in 0..<2048 {
+      let accepted = @async.with_timeout_opt(
+        luna_online_http_control_poll_millis(5000),
+        () => {
+          let (connection, _) = listener.accept()
+          connection.close()
+        },
+      )
+      assert_true(accepted is None)
+    }
+  })
+  let client = @socket.Tcp::connect(listener.addr)
+  defer client.close()
+  let accepted = @async.with_timeout_opt(0, () => listener.accept())
+  guard accepted is Some((peer, _)) else { fail("ready accept was lost") }
+  defer peer.close()
+  let input = FixedArray::make(16, b'\x00')
+  assert_true(@async.with_timeout_opt(0, () => peer.read(input)) is None)
+  client.write(b"GET ")
+  assert_eq(@async.with_timeout_opt(0, () => peer.read(input)), Some(4))
+  assert_true(@async.with_timeout_opt(0, () => peer.read(input)) is None)
+  @async.sleep(5)
+  client.write(b"/healthz")
+  assert_eq(@async.with_timeout_opt(0, () => peer.read(input)), Some(8))
 }
 
 ///|

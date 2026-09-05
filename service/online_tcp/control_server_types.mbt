@@ -86,4 +86,5 @@ pub struct LunaOnlineHttpControlServer {
   priv mut failed : Bool
   priv mut startup_measurement_published : Bool
   priv mut cold_start_latency_millis : Int
+  priv mut io_started_millis : UInt64
 }

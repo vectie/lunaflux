@@ -1,12 +1,41 @@
 ///|
-/// The control listener shares a serialized runtime owner with inference. Its
-/// socket turns therefore use a separate, strict poll cap rather than inheriting
-/// an inference request's admitted transport deadline.
-const LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS : Int = 1
+/// A control turn may attempt ready I/O but must never wait for another peer.
+/// Connection deadlines are tracked separately from this zero-wait poll.
+const LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS : Int = 0
 
 ///|
 fn luna_online_http_control_poll_millis(configured : Int) -> Int {
   Int::min(configured, LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS)
+}
+
+///|
+fn luna_online_control_io_expired(
+  start : UInt64,
+  now : UInt64,
+  budget : Int,
+) -> Bool {
+  now < start || now - start >= budget.to_uint64()
+}
+
+///|
+fn LunaOnlineHttpControlServer::start_io_window(
+  self : LunaOnlineHttpControlServer,
+) -> Bool {
+  self.io_started_millis = @monotonic_clock.MonotonicClock::system().now_millis() catch {
+    _ => return false
+  }
+  true
+}
+
+///|
+fn LunaOnlineHttpControlServer::io_expired(
+  self : LunaOnlineHttpControlServer,
+  budget : Int,
+) -> Bool {
+  let now = @monotonic_clock.MonotonicClock::system().now_millis() catch {
+    _ => return true
+  }
+  luna_online_control_io_expired(self.io_started_millis, now, budget)
 }
 
 ///|
@@ -33,7 +62,7 @@ fn LunaOnlineHttpControlServer::prepare_response(
   self.output_cursor = 0
   self.output_length = length
   self.phase = LUNA_CONTROL_SERVER_WRITING
-  true
+  self.start_io_window()
 }
 
 ///|
@@ -71,7 +100,7 @@ fn LunaOnlineHttpControlServer::prepare_metrics_response(
   self.output_cursor = 0
   self.output_length = length
   self.phase = LUNA_CONTROL_SERVER_WRITING
-  true
+  self.start_io_window()
 }
 
 ///|
@@ -96,6 +125,9 @@ async fn LunaOnlineHttpControlServer::accept_on_reactor(
         raise luna_online_tcp_error(LunaOnlineTcpCancelled)
       }
       if self.drain_requested || self.phase != LUNA_CONTROL_SERVER_ACCEPTING {
+        return false
+      }
+      if !self.start_io_window() {
         return false
       }
       let request = self.workspace.begin() catch { _ => return false }
@@ -140,6 +172,10 @@ async fn LunaOnlineHttpControlServer::read_on_reactor(
     self.fail()
     return LunaOnlineHttpControlFailedProgress
   }
+  if self.io_expired(self.limits.input_idle_timeout_millis) {
+    self.retire_connection()
+    return LunaOnlineHttpControlConnectionRetired
+  }
   let received = @async.with_timeout_opt(
     luna_online_http_control_poll_millis(self.limits.input_idle_timeout_millis),
     () => {
@@ -161,10 +197,7 @@ async fn LunaOnlineHttpControlServer::read_on_reactor(
   }
   let count = match received {
     Some(value) => value
-    None => {
-      self.retire_connection()
-      return LunaOnlineHttpControlConnectionRetired
-    }
+    None => return LunaOnlineHttpControlAdvanced
   }
   if count < 0 || count > self.input.length() {
     self.fail()
@@ -175,6 +208,10 @@ async fn LunaOnlineHttpControlServer::read_on_reactor(
       _ => ()
     }
   } else {
+    if !self.start_io_window() {
+      self.fail()
+      return LunaOnlineHttpControlFailedProgress
+    }
     let consumed = self.requests[0].offer(
       self.input,
       source_offset=0,
@@ -278,6 +315,10 @@ async fn LunaOnlineHttpControlServer::write_on_reactor(
     return LunaOnlineHttpControlFailedProgress
   }
   let remaining = self.output_length - self.output_cursor
+  if self.io_expired(self.limits.write_timeout_millis) {
+    self.retire_connection()
+    return LunaOnlineHttpControlConnectionRetired
+  }
   let written = @async.with_timeout_opt(
     luna_online_http_control_poll_millis(self.limits.write_timeout_millis),
     () => {
@@ -299,10 +340,7 @@ async fn LunaOnlineHttpControlServer::write_on_reactor(
   }
   let count = match written {
     Some(value) => value
-    None => {
-      self.retire_connection()
-      return LunaOnlineHttpControlConnectionRetired
-    }
+    None => return LunaOnlineHttpControlAdvanced
   }
   if count <= 0 || count > remaining {
     self.fail()

@@ -143,8 +143,17 @@ async fn main {
       } noraise {
         _ => println("LunaFlux OpenAI connection-pool evidence passed")
       }
-    [_, "--operational-http", executable] =>
-      try run_operational_http_only(@utf8.encode(executable)) catch {
+    [_, "--operational-http", executable, .. roots] if roots.length() <= 1 =>
+      try
+        run_operational_http_only(
+          @utf8.encode(executable),
+          fixture_root=if roots.length() == 1 {
+            roots[0]
+          } else {
+            "/private/tmp"
+          },
+        )
+      catch {
         @online_tcp.LunaOnlineTcpFailed(rule) => {
           println("LunaFlux operational HTTP TCP rule=\{Repr(rule)}")
           raise @online_tcp.LunaOnlineTcpFailed(rule)

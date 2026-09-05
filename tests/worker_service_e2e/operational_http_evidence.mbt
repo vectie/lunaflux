@@ -74,7 +74,14 @@ async fn run_operational_http_evidence(
   )
   let control = @online_tcp.bind_luna_online_http_control_server(
     prepared,
-    reusable_server_limits(256),
+    @online_tcp.LunaOnlineTcpLimits::new(
+      read_chunk_bytes=256,
+      write_chunk_bytes=17,
+      accept_timeout_millis=25,
+      input_idle_timeout_millis=100,
+      write_timeout_millis=5000,
+      reactor_transition_budget=1,
+    ),
   ) catch {
     error =>
       report_operational_bind_failure(
@@ -84,14 +91,26 @@ async fn run_operational_http_evidence(
   assert_eq(control.health(), LunaOnlineTcpServerHealthy)
   assert_eq(control.readiness(), LunaOnlineHttpControlReady)
 
-  // A connected client that never supplies a request is retired under the
-  // control-only 1 ms poll bound. It cannot consume the inference owner's
-  // admitted I/O deadline or make the observational listener sticky-failed.
+  // 2,048 empty turns must not accumulate the old 1 ms accept wait. The
+  // generous outer bound distinguishes zero-wait polling from timed polling.
+  @async.with_timeout(500, () => {
+    for _ in 0..<2048 {
+      assert_eq(
+        control.progress_on_reactor(),
+        LunaOnlineHttpControlAcceptTimedOut,
+      )
+    }
+  })
+
+  // An empty poll retains a connected peer until its real idle deadline.
   let slow_client = @socket.Tcp::connect(control.local_addr())
   assert_eq(
     control.progress_on_reactor(),
     LunaOnlineHttpControlConnectedProgress,
   )
+  assert_eq(control.progress_on_reactor(), LunaOnlineHttpControlAdvanced)
+  assert_eq(control.state(), LunaOnlineHttpControlConnected)
+  @async.sleep(110)
   assert_eq(
     control.progress_on_reactor(),
     LunaOnlineHttpControlConnectionRetired,
@@ -99,6 +118,27 @@ async fn run_operational_http_evidence(
   slow_client.close()
   assert_eq(control.health(), LunaOnlineTcpServerHealthy)
   assert_eq(control.readiness(), LunaOnlineHttpControlReady)
+
+  // A fragmented request may pause for longer than the former 1 ms poll cap.
+  let fragmented = @socket.Tcp::connect(control.local_addr())
+  assert_eq(
+    control.progress_on_reactor(),
+    LunaOnlineHttpControlConnectedProgress,
+  )
+  let prefix = b"GET /healthz HTTP/1.1\r\n"
+  openai_write_range(fragmented, prefix, 0, prefix.length())
+  assert_eq(control.progress_on_reactor(), LunaOnlineHttpControlAdvanced)
+  assert_eq(control.progress_on_reactor(), LunaOnlineHttpControlAdvanced)
+  @async.sleep(5)
+  let suffix = b"Host: localhost\r\n\r\n"
+  openai_write_range(fragmented, suffix, 0, suffix.length())
+  progress_control_to_retired(control)
+  assert_operational_response(
+    openai_read_all(fragmented),
+    "200 OK",
+    "{\"status\":\"healthy\"}\n",
+  )
+  fragmented.close()
 
   let health = operational_http_exchange(
     control,
@@ -164,10 +204,13 @@ async fn run_operational_http_evidence(
 }
 
 ///|
-async fn run_operational_http_only(executable : Bytes) -> Unit {
+async fn run_operational_http_only(
+  executable : Bytes,
+  fixture_root? : String = "/private/tmp",
+) -> Unit {
   let server = @online_tcp.bind_luna_online_openai_server(
     @socket.Addr::parse("127.0.0.1:0"),
-    prepare_openai_e2e_server(executable),
+    prepare_openai_e2e_server(executable, fixture_root~),
     reusable_server_limits(256),
     log_capacity=32,
   ) catch {
