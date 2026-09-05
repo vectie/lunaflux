@@ -162,6 +162,45 @@ test "decode multi-launch admission owns exact ordered module and workspace" {
 }
 
 ///|
+test "grouped partial and per-head merge have distinct shared-memory geometry" {
+  let limits = ml_limits()
+  let workspace = ml_workspace(limits~)
+  let contract = admit_attention_decode_multilaunch_contract(
+    operation_id=@plan.OperationId::new(9),
+    profile=ml_profile(),
+    target=ml_target(),
+    workspace~,
+    limits~,
+    partial=AttentionOrderedLaunchInput::new(
+      stage=Partial,
+      entry_point=ml_entry(41),
+      function_symbol="partial",
+      dimensions=@launch_contract.AotLaunchDimensions::new(
+        grid_x=ml_profile().max_query_rows(),
+        grid_y=1,
+        grid_z=2,
+        block_x=32,
+        block_y=1,
+        block_z=1,
+        shared_memory_bytes=512,
+      ),
+      operands=ml_partial_operands(workspace),
+    ),
+    merge=AttentionOrderedLaunchInput::new(
+      stage=Merge,
+      entry_point=ml_entry(42),
+      function_symbol="merge",
+      dimensions=ml_dimensions(1),
+      operands=ml_merge_operands(workspace),
+    ),
+  )
+  assert_eq(contract.launches()[0].dimensions().grid_y(), 1)
+  assert_eq(contract.launches()[1].dimensions().grid_y(), 2)
+  assert_eq(contract.launches()[0].dimensions().shared_memory_bytes(), 512)
+  assert_eq(contract.launches()[1].dimensions().shared_memory_bytes(), 0)
+}
+
+///|
 test "decode multi-launch rejects foreign module and reordered stages" {
   let limits = ml_limits()
   let workspace = ml_workspace(limits~)

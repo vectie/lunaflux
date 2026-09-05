@@ -51,6 +51,59 @@ fn runtime_bundle_test_input(
 }
 
 ///|
+test "compiler read-only split ABI roundtrips and cannot coexist with legacy KV-writing split" {
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let compiler = runtime_bundle_test_input(
+    PagedAttentionReadOnlyCompilerDecodeProductionV7,
+    5,
+    1,
+    "compiler_decode",
+  )
+  let bytes = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target~,
+    modules=[compiler],
+  )
+  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+    bytes,
+    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+  )
+  guard admitted.qwen_paged_attention_decode_split_module() is Some(module_) else {
+    fail("compiler module missing")
+  }
+  assert_eq(
+    module_.kernel_abi(),
+    PagedAttentionReadOnlyCompilerDecodeProductionV7,
+  )
+  try
+    export_reusable_fused_runtime_bundle(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target~,
+      modules=[
+        compiler,
+        runtime_bundle_test_input(
+          QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+          5,
+          1,
+          "legacy_decode",
+        ),
+      ],
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("conflicting decode contracts accepted")
+  }
+}
+
+///|
 test "reusable fused runtime bundle admits three typed families once" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
