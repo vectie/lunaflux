@@ -16,6 +16,11 @@ fail() {
 }
 
 sh -n "$materializer" || fail 'materializer syntax is invalid'
+for wiring in "$materializer" scripts/augment-luna-kernel-root-plan-with-fused-runtime.sh; do
+  sh -n "$wiring" || fail 'fused-runtime wiring syntax is invalid'
+  grep -F 'schema=lunaflux-reusable-fused-runtime-bundle.v3|schema=lunaflux-reusable-fused-runtime-bundle.v4)' "$wiring" >/dev/null ||
+    fail 'fused-runtime wiring must accept legacy v3 and compiler-metadata v4'
+done
 for anchor in \
   'lunaflux.runtime.qwen3_bf16.v1' \
   'lunaflux.runtime.qwen3_bf16.v2' \

@@ -34,7 +34,8 @@ case "$(sed -n '1p' "$runtime")" in
   schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1)
     runtime_relative=reusable-fused-residual.runtime.v1
     ;;
-  schema=lunaflux-reusable-fused-runtime-bundle.v3)
+  schema=lunaflux-reusable-fused-runtime-bundle.v3|schema=lunaflux-reusable-fused-runtime-bundle.v4)
+    # Locator compatibility is independent of the bundle's content schema.
     runtime_relative=reusable-fused-runtime-bundle.v3
     ;;
   *) lbf_fail 'fused runtime schema is invalid' ;;
