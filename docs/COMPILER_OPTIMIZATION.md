@@ -158,3 +158,15 @@ The archive SHA-256 is
 `7050f1159ca7d20f4c922908bf211f651f8144d9ac715a83495570ba25f889d4`.
 Only the final `r2` subdirectories represent the corrected source. No runtime
 deployment or end-to-end performance claim is made by this increment.
+
+## Subsequent Qwen end-to-end benchmark
+
+The `aa61315` benchmark includes these compiler changes and the v4 consumer
+fixes described above. Three trials of the 12-point Qwen token vector completed
+576 requests. Observed median changes against the historical `ef1da84` quick
+run range from -0.12% to +3.45%; short decode is essentially unchanged. This
+is not an interleaved A/B or an output-equivalent speedup: 329 concurrent
+outputs differ from their trial's single-request sequence, and two long c1
+continuations differ from the historical version. The base/wide prefill roles
+also resolve to the same cubin in this build. See the complete
+[measurement and limitations](COMPILER_QWEN_BENCHMARK_2026-09-05.md).
