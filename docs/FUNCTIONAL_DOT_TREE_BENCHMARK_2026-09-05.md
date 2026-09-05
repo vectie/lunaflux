@@ -52,7 +52,10 @@ Single-token kernel time falls 83.8%. Multi-token results are effectively
 unchanged at this measurement precision. This is a hot, repeated single-layer
 microbenchmark with the same weight buffers, not rotating all model layers.
 **It does not imply a 6.167× serving speedup**, nor a newly measured advantage
-over vLLM, SGLang, or llama.cpp. End-to-end Qwen measurements remain pending.
+over vLLM, SGLang, or llama.cpp. The subsequent
+[real-weight Qwen serving A/B](FUNCTIONAL_DOT_TREE_QWEN_REAL_BENCHMARK_2026-09-05.md)
+measures 13.7–38.1% single-request improvement, little concurrent improvement,
+and non-identical long generated sequences; see its numerical limitations.
 
 ## Correctness and scope
 
