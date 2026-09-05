@@ -45,7 +45,7 @@ priv struct LoadedOptionalFusedRuntime {
 
 ///|
 priv enum FusedRuntimeSourceSchema {
-  ReusableBundleV3
+  ReusableBundle
   ReusableResidualV1
   ProductionV1
   LegacyCatalogV1
@@ -53,8 +53,9 @@ priv enum FusedRuntimeSourceSchema {
 
 ///|
 fn classify_fused_runtime_source(text : String) -> FusedRuntimeSourceSchema {
-  if text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v3\n") {
-    ReusableBundleV3
+  if text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v3\n") ||
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v4\n") {
+    ReusableBundle
   } else if text.has_prefix(
       "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
     ) {
@@ -97,7 +98,7 @@ fn load_optional_fused_runtime(
   )
   let text = @utf8.decode(canonical) catch { _ => raise Invalid(Digest) }
   match classify_fused_runtime_source(text) {
-    ReusableBundleV3 => {
+    ReusableBundle => {
       let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
         canonical,
         fused.digest_sha256(),

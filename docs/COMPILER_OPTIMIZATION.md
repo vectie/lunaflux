@@ -21,6 +21,13 @@ mixed attention remains supported. Existing build-script filenames ending in
 `.v3` are retained as path compatibility; the content declares schema v4.
 No production deployment is performed by this change.
 
+The end-to-end benchmark preparation subsequently exposed stale v3-only
+dispatch in the Qwen materializer, kernel-root augmentation/assembly, and
+worker bootstrap. All now accept both v3 and v4 while keeping the established
+`.v3` locator. Assembly tests exercise both versions without changing payload
+bytes; the bootstrap regression classifies an actual exporter-produced bundle
+before admission. Merely testing the bundle parser did not cover these callers.
+
 ## Projection dataflow analysis
 
 The projection optimizer now derives live values with a pure reverse fold of

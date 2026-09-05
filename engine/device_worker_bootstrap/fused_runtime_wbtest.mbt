@@ -38,6 +38,11 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
       ),
     ],
   )
+  match classify_fused_runtime_source(@utf8.decode(canonical)) {
+    ReusableBundle => ()
+    _ =>
+      fail("exported bundle must select the reusable-bundle bootstrap parser")
+  }
   @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
@@ -45,13 +50,15 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
 }
 
 ///|
-test "fused runtime schema selects reusable bundle v3 before legacy" {
-  match
-    classify_fused_runtime_source(
-      "schema=lunaflux-reusable-fused-runtime-bundle.v3\nmodule-count=2\n",
-    ) {
-    ReusableBundleV3 => ()
-    _ => fail("reusable fused runtime bundle v3 was not selected")
+test "fused runtime schema selects reusable bundle v3 and v4 before legacy" {
+  for version in [3, 4] {
+    match
+      classify_fused_runtime_source(
+        "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
+      ) {
+      ReusableBundle => ()
+      _ => fail("reusable fused runtime bundle was not selected")
+    }
   }
   match
     classify_fused_runtime_source(
