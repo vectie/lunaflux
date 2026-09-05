@@ -88,6 +88,7 @@ fn dummy_paged_executor(
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+      decode_split_maximum_batch_rows: 2147483647,
     },
     fused_residual_spans: ReadOnlyArray::from_array([]),
     fused_dispatch_canary: None,

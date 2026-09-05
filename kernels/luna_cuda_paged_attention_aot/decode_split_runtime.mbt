@@ -15,6 +15,7 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
   merge_entry_point_id : @catalog.AotKernelEntryPointId,
   maximum_key_value_splits : Int,
   maximum_workspace_bytes : Int64,
+  compiler_readonly? : Bool = false,
 ) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError {
   if partial_entry_point_id == merge_entry_point_id ||
     module_bytes.is_empty() ||
@@ -96,18 +97,32 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
       _ => raise Invalid(Contract)
     },
   )
-  let partial_symbol = "lunaflux_paged_attention_bf16_decode_split_partial_v1_ep_" +
+  let version = if compiler_readonly { "v2" } else { "v1" }
+  let partial_symbol = "lunaflux_paged_attention_bf16_decode_split_partial_" +
+    version +
+    "_ep_" +
     partial_entry_point_id.as_int().to_string()
-  let merge_symbol = "lunaflux_paged_attention_bf16_decode_split_merge_v1_ep_" +
+  let merge_symbol = "lunaflux_paged_attention_bf16_decode_split_merge_" +
+    version +
+    "_ep_" +
     merge_entry_point_id.as_int().to_string()
+  let (_, partial_heads, threads, shared) = if compiler_readonly {
+    compiler_decode_launch_geometry(
+      shape,
+      maximum_context_tokens,
+      workspace_plan.split_count(),
+    )
+  } else {
+    (1, query_heads, 32, 0L)
+  }
   let partial_dimensions = @launch_contract.AotLaunchDimensions::new(
     grid_x=profile.max_query_rows(),
-    grid_y=query_heads,
+    grid_y=partial_heads,
     grid_z=workspace_plan.split_count(),
-    block_x=32,
+    block_x=threads,
     block_y=1,
     block_z=1,
-    shared_memory_bytes=0,
+    shared_memory_bytes=shared.to_int(),
   ) catch {
     _ => raise Invalid(Dimensions)
   }
@@ -115,7 +130,7 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     grid_x=profile.max_query_rows(),
     grid_y=query_heads,
     grid_z=1,
-    block_x=32,
+    block_x=threads,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,
@@ -158,5 +173,6 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     target,
     contract,
     module_bytes,
+    compiler_readonly,
   }
 }

@@ -550,6 +550,7 @@ fn prepare_paged_ordered_executors(
   decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  decode_split_maximum_batch_rows? : Int = 2147483647,
 ) -> PagedOrderedExecutorDispatch raise DeviceStepError {
   let maximum_launches = paged_ordered_launches(steps, resources)
   let baseline_operation_ids = ReadOnlyArray::from_array(
@@ -857,5 +858,6 @@ fn prepare_paged_ordered_executors(
     decode_owner_index,
     decode_split_owner_index,
     decode_split_minimum_context_tokens,
+    decode_split_maximum_batch_rows,
   }
 }

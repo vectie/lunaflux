@@ -105,6 +105,8 @@ fn source_test_abi() -> CudaPagedAttentionTileAbi raise {
 ///|
 fn source_test_decode_lowering(
   candidate_id? : Int = 420,
+  batch_rows? : Int = 32,
+  context_tokens? : Int = 4096,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -116,9 +118,9 @@ fn source_test_decode_lowering(
     shape~,
     phase=Decode,
     numeric_type=AttentionBFloat16,
-    batch_rows=32,
+    batch_rows~,
     query_rows=1,
-    context_tokens=4096,
+    context_tokens~,
     causal=true,
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
@@ -154,10 +156,15 @@ fn source_test_decode_lowering(
     capabilities~,
   )
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
+  let optimized = @luna_attention_tile_optimizer.optimize_attention_tile_program(
+    program,
+  )
   @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     program,
-    @luna_attention_tile_optimizer.optimize_attention_tile_program(program),
-    @luna_attention_tile_schedule.schedule_attention_tile_program(program),
+    optimized,
+    @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+      program, optimized,
+    ),
     @catalog.DeviceTarget::new(
       compute_major=12,
       compute_minor=0,
@@ -165,6 +172,58 @@ fn source_test_decode_lowering(
       supports_cublas_lt=false,
     ),
     100000L,
+  )
+}
+
+///|
+test "decode cross-workgroup fold covers direct and grouped schedules with row workspace" {
+  for candidate_id in [400, 430] {
+    let lowering = source_test_decode_lowering(candidate_id~, batch_rows=1)
+    assert_true(lowering.key_value_partitions() > 1)
+    let first = emit_cuda_partitioned_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "decode_partial",
+      "decode_merge",
+      67108864L,
+      1048576,
+    )
+    assert_eq(
+      first,
+      emit_cuda_partitioned_attention_tile_source(
+        lowering,
+        source_test_abi(),
+        "decode_partial",
+        "decode_merge",
+        67108864L,
+        1048576,
+      ),
+    )
+    assert_eq(
+      first.workspace().partial_state_count(),
+      32L * 16L * lowering.key_value_partitions().to_int64(),
+    )
+    let text = @utf8.decode(first.bytes())
+    assert_true(text.contains("candidate_row = prefill_count"))
+    assert_true(text.contains("candidate_row < row_count"))
+    assert_true(text.contains("part_denominator > 0.0f"))
+    assert_true(text.contains("const __nv_bfloat16 *key_cache"))
+  }
+}
+
+///|
+test "decode launch parallelism and short contexts suppress cross-workgroup partition" {
+  assert_eq(
+    source_test_decode_lowering(candidate_id=430, batch_rows=32).key_value_partitions(),
+    1,
+  )
+  assert_eq(
+    source_test_decode_lowering(
+      candidate_id=430,
+      batch_rows=1,
+      context_tokens=64,
+    ).key_value_partitions(),
+    1,
   )
 }
 

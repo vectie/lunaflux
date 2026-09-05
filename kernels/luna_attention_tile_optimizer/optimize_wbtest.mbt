@@ -4,6 +4,7 @@ fn optimization_program(
   context_tokens? : Int = 4096,
   query_rows? : Int = 64,
   batch_rows? : Int = 1,
+  phase? : @luna_attention_strategy.AttentionExecutionPhase = Prefill,
 ) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -13,7 +14,7 @@ fn optimization_program(
   )
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
     shape~,
-    phase=Prefill,
+    phase~,
     numeric_type=AttentionBFloat16,
     batch_rows~,
     query_rows~,
@@ -112,6 +113,22 @@ test "continuous batch parallelism removes unnecessary KV partition" {
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
   assert_eq(optimized.regions().length(), 4)
   assert_false(optimized.trace()[4].changed())
+}
+
+///|
+test "decode partitions the same functional fold only when its map lacks parallelism" {
+  let small = optimize_attention_tile_program(
+    optimization_program(true, phase=Decode, query_rows=1),
+  )
+  assert_true(small.reduction_topology() != AttentionOrderedOnlineSoftmaxFold)
+  let short = optimize_attention_tile_program(
+    optimization_program(true, phase=Decode, query_rows=1, context_tokens=64),
+  )
+  assert_eq(short.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
+  let batch = optimize_attention_tile_program(
+    optimization_program(true, phase=Decode, query_rows=1, batch_rows=32),
+  )
+  assert_eq(batch.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
 }
 
 ///|

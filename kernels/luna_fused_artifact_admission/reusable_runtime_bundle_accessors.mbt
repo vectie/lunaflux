@@ -119,6 +119,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyCompilerDecodeProductionV7)
+    is Some(module_) {
+    return Some(module_)
+  }
   match self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3) {
     Some(module_) => Some(module_)
     None => self.module_for(QwenPagedAttentionReadOnlyProductionV2)
@@ -145,6 +149,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyCompilerDecodeProductionV7)
+    is Some(module_) {
+    return Some(module_)
+  }
   match self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3) {
     Some(module_) => Some(module_)
     None => self.module_for(QwenPagedAttentionReadOnlyProductionV2)
@@ -157,6 +165,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyCompilerDecodeProductionV7)
+    is Some(module_) {
+    return Some(module_)
+  }
   self.module_for(QwenPagedAttentionReadOnlyDecodeSplitProductionV3)
 }
 

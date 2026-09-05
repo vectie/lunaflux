@@ -30,6 +30,75 @@ fn emit_cuda_direct_attention_tile_source(
   let query_width = query_heads * head_dimension
   let group_size = query_heads / key_value_heads
   let accumulator_items = (head_dimension + 31) / 32
+  let partitions = lowering.key_value_partitions()
+  let partitioned = partitions > 1
+  if partitioned && lowering.phase() != Decode {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let state_count = maximum_query_rows.to_int64() *
+    query_heads.to_int64() *
+    partitions.to_int64()
+  let output_arguments = if partitioned {
+    "const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache, float *workspace"
+  } else {
+    "__nv_bfloat16 *output, const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache"
+  }
+  let initialize_state = if partitioned {
+    (
+      $|    const int partition = (int)blockIdx.z;
+      $|    if (partition >= \{partitions}) return;
+      $|    const unsigned long long state =
+      $|        ((unsigned long long)row * \{query_heads} + query_head) * \{partitions} + partition;
+      $|    if (lane == 0) {
+      $|      workspace[state] = CUDART_NAN_F;
+      $|      workspace[\{state_count}ULL + state] = CUDART_NAN_F;
+      $|    }
+    )
+  } else {
+    ""
+  }
+  let invalid_output = if partitioned {
+    ""
+  } else {
+    (
+      $|      if (token >= 0 && token < token_count && lane == 0)
+      $|        output[output_offset] = __float2bfloat16_rn(CUDART_NAN_F);
+    )
+  }
+  let partition_bounds = if partitioned {
+    (
+      $|    const int tile_count = (query_position + \{key_value_tile}) / \{key_value_tile};
+      $|    const int first_tile = (int)((long long)tile_count * partition / \{partitions});
+      $|    const int last_tile = (int)((long long)tile_count * (partition + 1) / \{partitions});
+      $|    const int key_begin = first_tile * \{key_value_tile};
+      $|    const int key_limit = min(query_position + 1, last_tile * \{key_value_tile});
+    )
+  } else {
+    (
+      $|    const int key_begin = 0;
+      $|    const int key_limit = query_position + 1;
+    )
+  }
+  let write_result = if partitioned {
+    (
+      $|        workspace[2ULL * \{state_count}ULL + state * LF_HEAD_DIMENSION + component] = accumulator[item];
+    )
+  } else {
+    (
+      $|        output[output_offset + component] = __float2bfloat16_rn(
+      $|            denominator > 0.0f ? accumulator[item] / denominator : CUDART_NAN_F);
+    )
+  }
+  let write_state = if partitioned {
+    (
+      $|    if (lane == 0) {
+      $|      workspace[state] = maximum;
+      $|      workspace[\{state_count}ULL + state] = denominator;
+      $|    }
+    )
+  } else {
+    ""
+  }
   let row_open = match lowering.phase() {
     Prefill =>
       (
@@ -87,8 +156,7 @@ fn emit_cuda_direct_attention_tile_source(
     $|    const int *counts, const int *query_positions,
     $|    const int *query_row_offsets, const int *sequence_lengths,
     $|    const int *page_table_offsets, const int *page_table_page_indices,
-    $|    const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,
-    $|    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache) {
+    $|    const __nv_bfloat16 *rotated_qkv_rows, \{output_arguments}) {
     $|  const int lane = (int)threadIdx.x;
     $|  const int query_head = (int)blockIdx.y;
     $|  if (blockDim.x != 32 || query_head >= \{query_heads}) return;
@@ -103,6 +171,7 @@ fn emit_cuda_direct_attention_tile_source(
     $|      page_entry_count > \{maximum_page_entries}) return;
     $|
     $|\{row_open}
+    $|\{initialize_state}
     $|    const int sequence_length = sequence_lengths[row];
     $|    const int query_position = token >= 0 && token < token_count
     $|        ? query_positions[token] : -1;
@@ -116,8 +185,7 @@ fn emit_cuda_direct_attention_tile_source(
     $|        page_end > page_entry_count ||
     $|        page_end - page_start !=
     $|            (sequence_length + \{tokens_per_page - 1}) / \{tokens_per_page}) {
-    $|      if (token >= 0 && token < token_count && lane == 0)
-    $|        output[output_offset] = __float2bfloat16_rn(CUDART_NAN_F);
+    $|\{invalid_output}
     $|      \{invalid_action}
     $|    }
     $|    const int key_value_head = query_head / \{group_size};
@@ -132,7 +200,8 @@ fn emit_cuda_direct_attention_tile_source(
     $|    for (int item = 0; item < \{accumulator_items}; ++item)
     $|      accumulator[item] = 0.0f;
     $|
-    $|    for (int key_position = 0; key_position <= query_position;
+    $|\{partition_bounds}
+    $|    for (int key_position = key_begin; key_position < key_limit;
     $|         ++key_position) {
     $|      const int page_slot = page_start + key_position / \{tokens_per_page};
     $|      const int physical_page = page_slot < page_end
@@ -181,14 +250,13 @@ fn emit_cuda_direct_attention_tile_source(
     $|        }
     $|      }
     $|    }
+    $|\{write_state}
     $|    denominator = __shfl_sync(0xffffffffU, denominator, 0);
     $|    #pragma unroll
     $|    for (int item = 0; item < \{accumulator_items}; ++item) {
     $|      const int component = lane + item * 32;
     $|      if (component < LF_HEAD_DIMENSION)
-    $|        output[output_offset + component] = __float2bfloat16_rn(
-    $|            denominator > 0.0f ? accumulator[item] / denominator
-    $|                               : CUDART_NAN_F);
+    $|\{write_result}
     $|    }
     $|\{row_close}
     $|}

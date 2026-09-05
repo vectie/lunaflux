@@ -160,14 +160,14 @@ pub fn admit_attention_decode_multilaunch_contract(
   }
   if partial.dimensions.grid_x() != profile.max_query_rows() ||
     merge.dimensions.grid_x() != profile.max_query_rows() ||
-    partial.dimensions.grid_y() != merge.dimensions.grid_y() ||
+    partial.dimensions.grid_y() <= 0 ||
+    merge.dimensions.grid_y() % partial.dimensions.grid_y() != 0 ||
     partial.dimensions.grid_z() != workspace.split_count ||
     merge.dimensions.grid_z() != 1 ||
     partial.dimensions.block_x() != merge.dimensions.block_x() ||
     partial.dimensions.block_y() != merge.dimensions.block_y() ||
     partial.dimensions.block_z() != merge.dimensions.block_z() ||
-    partial.dimensions.shared_memory_bytes() !=
-    merge.dimensions.shared_memory_bytes() {
+    merge.dimensions.shared_memory_bytes() != 0 {
     raise MismatchedAttentionMultiLaunchContract(Launch)
   }
   validate_partial_operands(partial.operands, workspace)

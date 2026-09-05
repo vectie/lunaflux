@@ -98,7 +98,13 @@ fn paged_decode_split_minimum_context_tokens(
       PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD / tokens_per_page {
       raise executor_operation_error(binding.operation_id(), ResourceState)
     }
-    let threshold = minimum_pages * tokens_per_page
+    // Buckets use an upper context bound. Selecting the 256 bucket starts
+    // after 128 live tokens, where shared-KV split begins paying for merge.
+    let threshold = if binding.is_compiler_readonly() {
+      256
+    } else {
+      minimum_pages * tokens_per_page
+    }
     if selected < 0 {
       selected = threshold
     } else if selected != threshold {
@@ -106,6 +112,19 @@ fn paged_decode_split_minimum_context_tokens(
     }
   }
   selected
+}
+
+///|
+fn paged_decode_split_maximum_batch_rows(
+  bindings : ReadOnlyArray[
+    @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
+  ],
+) -> Int {
+  if bindings.any(binding => binding.is_compiler_readonly()) {
+    4
+  } else {
+    2147483647
+  }
 }
 
 ///|

@@ -577,5 +577,8 @@ pub fn prepare_paged_graph_executor(
     deep_prefill_split_query_tile~,
     deep_prefill_split_partition_count~,
     decode_split_minimum_context_tokens~,
+    decode_split_maximum_batch_rows=paged_decode_split_maximum_batch_rows(
+      decode_split_bindings,
+    ),
   )
 }

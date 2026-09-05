@@ -18,15 +18,17 @@ fn partitioned_workspace(
   let partitions = lowering.key_value_partitions()
   let (_, _, head_dimension) = lowering.tile()
   let (query_heads, _, _, _) = abi.shape()
-  let (_, maximum_query_tokens, _) = abi.limits()
+  let (maximum_query_rows, maximum_query_tokens, _) = abi.limits()
+  let state_rows = if lowering.phase() == Decode {
+    maximum_query_rows
+  } else {
+    maximum_query_tokens
+  }
   if partitions <= 1 || maximum_workspace_bytes <= 0L {
     raise InvalidCudaAttentionTileSource(WorkspaceLimit)
   }
   let partial_state_count = partitioned_checked_product(
-    partitioned_checked_product(
-      maximum_query_tokens.to_int64(),
-      query_heads.to_int64(),
-    ),
+    partitioned_checked_product(state_rows.to_int64(), query_heads.to_int64()),
     partitions.to_int64(),
   )
   let denominator_offset_bytes = partitioned_checked_product(
@@ -68,6 +70,13 @@ fn partitioned_merge_source(
   let (query_heads, _, _, _) = abi.shape()
   let (_, maximum_query_tokens, _) = abi.limits()
   let partial_state_count = workspace.partial_state_count()
+  let first_row = if lowering.phase() == Decode { "prefill_count" } else { "0" }
+  let final_row = if lowering.phase() == Decode {
+    "row_count"
+  } else {
+    "prefill_count"
+  }
+  let state_row = if lowering.phase() == Decode { "row" } else { "token" }
   (
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -96,7 +105,7 @@ fn partitioned_merge_source(
     $|  for (int tile_ordinal = (int)blockIdx.x; ;
     $|       tile_ordinal += (int)gridDim.x) {
     $|    int row = -1, token_base = 0, tile_prefix = 0;
-    $|    for (int candidate_row = 0; candidate_row < row_count; ++candidate_row) {
+    $|    for (int candidate_row = \{first_row}; candidate_row < \{final_row}; ++candidate_row) {
     $|      const int begin = query_row_offsets[candidate_row];
     $|      const int end = query_row_offsets[candidate_row + 1];
     $|      const int row_tiles = end > begin
@@ -121,7 +130,7 @@ fn partitioned_merge_source(
     $|      const int component = linear % LF_MERGE_HEAD_DIMENSION;
     $|      const int token = token_base + query;
     $|      const unsigned long long first_state =
-    $|          ((unsigned long long)token * LF_MERGE_QUERY_HEADS + query_head) *
+    $|          ((unsigned long long)\{state_row} * LF_MERGE_QUERY_HEADS + query_head) *
     $|          LF_MERGE_PARTITIONS;
     $|      float merged_maximum = -CUDART_INF_F;
     $|      int invalid = 0;
@@ -184,7 +193,7 @@ pub fn emit_cuda_partitioned_attention_tile_source(
   maximum_workspace_bytes : Int64,
   maximum_source_bytes : Int,
 ) -> CudaPartitionedAttentionTileSource raise CudaAttentionTileSourceError {
-  if lowering.phase() != Prefill ||
+  if lowering.phase() == MixedCompatibility ||
     lowering.key_value_partitions() <= 1 ||
     partial_symbol == merge_symbol ||
     !valid_cuda_symbol(partial_symbol) ||
@@ -194,9 +203,24 @@ pub fn emit_cuda_partitioned_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let workspace = partitioned_workspace(lowering, abi, maximum_workspace_bytes)
-  let partial = emit_cuda_prefill_attention_tile_source(
-    lowering, abi, partial_symbol, maximum_source_bytes,
-  )
+  let partial = match lowering.phase() {
+    Prefill =>
+      emit_cuda_prefill_attention_tile_source(
+        lowering, abi, partial_symbol, maximum_source_bytes,
+      )
+    Decode =>
+      if lowering.compute() == CudaGroupedQuerySplitSubgroupShuffleDot {
+        emit_cuda_grouped_split_decode_attention_tile_source(
+          lowering, abi, partial_symbol, maximum_source_bytes,
+        )
+      } else {
+        emit_cuda_direct_attention_tile_source(
+          lowering, abi, partial_symbol, maximum_source_bytes,
+        )
+      }
+    MixedCompatibility =>
+      raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   let partial_text = @utf8.decode(partial.bytes()) catch {
     _ => raise InvalidCudaAttentionTileSource(SourceLimit)
   }

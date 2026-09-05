@@ -567,7 +567,7 @@ async fn run(
   )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+      abi=PagedAttentionReadOnlyCompilerDecodeProductionV7,
       first_operation=args.attention_read.first_operation,
       operation_count=1,
       function_symbol="lunaflux_attention_decode_tile_compiler_v1",

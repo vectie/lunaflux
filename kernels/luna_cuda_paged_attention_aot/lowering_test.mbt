@@ -219,6 +219,7 @@ fn pa_decode_split_lowering(
   max_page_table_entries? : Int = 3,
   maximum_key_value_splits? : Int = 8,
   maximum_workspace_bytes? : Int64 = 1048576L,
+  compiler_readonly? : Bool = false,
 ) -> @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle raise {
   let profile = pa_decode_split_profile(max_page_table_entries)
   @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
@@ -233,7 +234,22 @@ fn pa_decode_split_lowering(
     maximum_key_value_splits,
     maximum_workspace_bytes,
     pa_limits(),
+    compiler_readonly~,
   )
+}
+
+///|
+test "compiler decode split rejects unsupported tiny head instead of relabeling legacy code" {
+  try
+    pa_decode_split_lowering(
+      max_page_table_entries=4096,
+      compiler_readonly=true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("unsupported head must be rejected")
+  }
 }
 
 ///|

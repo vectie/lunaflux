@@ -36,6 +36,7 @@ test "decode split dispatch owns only decode buckets" {
     decode_owner_index: 9,
     decode_split_owner_index: 11,
     decode_split_minimum_context_tokens: 2048,
+    decode_split_maximum_batch_rows: 4,
   }
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 1024)),
@@ -43,6 +44,10 @@ test "decode split dispatch owns only decode buckets" {
   )
   assert_eq(
     dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, 16384)),
+    9,
+  )
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 1, 1, 16384)),
     11,
   )
   assert_eq(

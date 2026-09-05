@@ -863,6 +863,7 @@ fn prepare_qwen_fused_production_set(
         max_source_bytes=1048576,
         max_recipe_bytes=65536,
       ),
+      compiler_readonly=true,
     ) catch {
       _ => raise QwenDecodeSplitPreparation
     }

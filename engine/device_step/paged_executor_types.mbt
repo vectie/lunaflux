@@ -81,6 +81,7 @@ priv struct PagedOrderedExecutorDispatch {
   decode_owner_index : Int
   decode_split_owner_index : Int
   decode_split_minimum_context_tokens : Int
+  decode_split_maximum_batch_rows : Int
 }
 
 ///|

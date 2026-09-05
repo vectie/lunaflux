@@ -17,13 +17,13 @@ pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.
 
 pub fn bind_manifest_paged_attention_decode_split_cuda_aot(PagedAttentionDecodeSplitCudaBundle, @plan.PlanOperation, @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract, Bytes) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError
 
-pub fn bind_reusable_paged_attention_decode_split_cuda_aot(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], Bytes, String, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, Int, Int64) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError
+pub fn bind_reusable_paged_attention_decode_split_cuda_aot(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], Bytes, String, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, Int, Int64, compiler_readonly? : Bool) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_phase_bundle(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionPhaseCudaBundle raise PagedAttentionAotError
 
-pub fn lower_paged_attention_decode_split_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], Int, Int64, PagedAttentionAotLimits) -> PagedAttentionDecodeSplitCudaBundle raise PagedAttentionAotError
+pub fn lower_paged_attention_decode_split_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], Int, Int64, PagedAttentionAotLimits, compiler_readonly? : Bool) -> PagedAttentionDecodeSplitCudaBundle raise PagedAttentionAotError
 
 pub fn lower_reusable_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 
@@ -134,6 +134,7 @@ pub struct PagedAttentionDecodeSplitRuntimeCudaBinding {
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::contract(Self) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_compiler_readonly(Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::manifest_bindable(Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::module_bytes(Self) -> Bytes
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::operation_id(Self) -> @plan.OperationId

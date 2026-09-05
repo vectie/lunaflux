@@ -4,6 +4,7 @@
 /// The candidate alone is not manifest bindable. Production binding is a
 /// separate startup join against an exact ordered multi-launch contract.
 pub struct PagedAttentionDecodeSplitCudaBundle {
+  priv compiler_readonly : Bool
   priv dispatch_plan : @luna_attention_strategy.AttentionDispatchPlan
   priv workspace_plan : @luna_attention_strategy.AttentionDecodeWorkspacePlan
   priv target : @catalog.DeviceTarget
@@ -47,6 +48,7 @@ pub struct PagedAttentionDecodeSplitManifestCudaBinding {
 /// source recipe: those identities were consumed by the digest-pinned runtime
 /// bundle before this exact model operation and launch contract are joined.
 pub struct PagedAttentionDecodeSplitRuntimeCudaBinding {
+  priv compiler_readonly : Bool
   priv operation_id : @plan.OperationId
   priv profile : @launch_contract.PagedKernelProfile
   priv layout : @device_layout.DeviceKvLayout
@@ -315,5 +317,16 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::runtime_binding(
     target: self.candidate.target,
     contract: self.contract,
     module_bytes: self.module_bytes,
+    compiler_readonly: self.candidate.compiler_readonly,
   }
+}
+
+///|
+/// True only for the V2 compiler read-only split ABI. Startup uses this to
+/// resolve the measured dispatch policy without examining source or symbols
+/// during token execution.
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_compiler_readonly(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> Bool {
+  self.compiler_readonly
 }

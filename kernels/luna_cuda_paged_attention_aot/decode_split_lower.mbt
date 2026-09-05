@@ -16,6 +16,7 @@ pub fn lower_paged_attention_decode_split_cuda_aot_candidate(
   maximum_key_value_splits : Int,
   maximum_workspace_bytes : Int64,
   limits : PagedAttentionAotLimits,
+  compiler_readonly? : Bool = false,
 ) -> PagedAttentionDecodeSplitCudaBundle raise PagedAttentionAotError {
   if partial_entry_point_id == merge_entry_point_id ||
     maximum_key_value_splits <= 0 ||
@@ -55,18 +56,32 @@ pub fn lower_paged_attention_decode_split_cuda_aot_candidate(
   ) catch {
     _ => raise Unsupported(Profile)
   }
-  let partial_function_symbol = "lunaflux_paged_attention_bf16_decode_split_partial_v1_ep_" +
+  let version = if compiler_readonly { "v2" } else { "v1" }
+  let partial_function_symbol = "lunaflux_paged_attention_bf16_decode_split_partial_" +
+    version +
+    "_ep_" +
     partial_entry_point_id.as_int().to_string()
-  let merge_function_symbol = "lunaflux_paged_attention_bf16_decode_split_merge_v1_ep_" +
+  let merge_function_symbol = "lunaflux_paged_attention_bf16_decode_split_merge_" +
+    version +
+    "_ep_" +
     merge_entry_point_id.as_int().to_string()
+  let (_, partial_heads, threads, shared) = if compiler_readonly {
+    compiler_decode_launch_geometry(
+      shape,
+      maximum_context_tokens,
+      workspace_plan.split_count(),
+    )
+  } else {
+    (1, query_heads, 32, 0L)
+  }
   let partial_dimensions = @launch_contract.AotLaunchDimensions::new(
     grid_x=profile.max_query_rows(),
-    grid_y=query_heads,
+    grid_y=partial_heads,
     grid_z=workspace_plan.split_count(),
-    block_x=32,
+    block_x=threads,
     block_y=1,
     block_z=1,
-    shared_memory_bytes=0,
+    shared_memory_bytes=shared.to_int(),
   ) catch {
     _ => raise Invalid(Dimensions)
   }
@@ -74,42 +89,86 @@ pub fn lower_paged_attention_decode_split_cuda_aot_candidate(
     grid_x=profile.max_query_rows(),
     grid_y=query_heads,
     grid_z=1,
-    block_x=32,
+    block_x=threads,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,
   ) catch {
     _ => raise Invalid(Dimensions)
   }
-  let source = paged_attention_decode_split_cuda_source(
-    partial_function_symbol,
-    merge_function_symbol,
-    query_heads,
-    kv_heads,
-    head_dimension,
-    layout.tokens_per_page(),
-    page_stride,
-    page_capacity,
-    profile.max_query_rows(),
-    profile.max_query_tokens(),
-    profile.max_page_table_entries(),
-    workspace_plan,
-  )
+  let compiled = if compiler_readonly {
+    Some(
+      compile_readonly_decode_split(
+        shape,
+        profile,
+        target,
+        page_stride,
+        page_capacity,
+        maximum_context_tokens,
+        workspace_plan,
+        partial_function_symbol,
+        merge_function_symbol,
+        limits.max_source_bytes,
+      ),
+    )
+  } else {
+    None
+  }
+  let source = match compiled {
+    Some(compiled) => compiled.source().bytes()
+    None =>
+      paged_attention_decode_split_cuda_source(
+        partial_function_symbol,
+        merge_function_symbol,
+        query_heads,
+        kv_heads,
+        head_dimension,
+        layout.tokens_per_page(),
+        page_stride,
+        page_capacity,
+        profile.max_query_rows(),
+        profile.max_query_tokens(),
+        profile.max_page_table_entries(),
+        workspace_plan,
+      )
+  }
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }
   let source_digest = PagedAttentionCudaSourceDigest(
     paged_attention_sha256(source),
   )
-  let recipe = paged_attention_decode_split_recipe(
-    operation, profile, target, compiler, partial_entry_point_id, merge_entry_point_id,
-    partial_function_symbol, merge_function_symbol, partial_dimensions, merge_dimensions,
-    source_digest, workspace_plan,
+  let base_recipe = paged_attention_decode_split_recipe(
+    operation,
+    profile,
+    target,
+    compiler,
+    partial_entry_point_id,
+    merge_entry_point_id,
+    partial_function_symbol,
+    merge_function_symbol,
+    partial_dimensions,
+    merge_dimensions,
+    source_digest,
+    workspace_plan,
+    compiler_readonly~,
   )
+  let recipe = match compiled {
+    None => base_recipe
+    Some(compiled) =>
+      @utf8.encode(
+        (@utf8.decode(base_recipe) catch { _ => raise Invalid(Recipe) }) +
+        "compiler_pipeline_sha256=" +
+        compiled.digest().as_hex() +
+        "\n" +
+        "kv_effect=readonly\nworkspace_index=sequence-row\n",
+      )
+  }
   if recipe.length() > limits.max_recipe_bytes {
     raise LimitExceeded(Recipe)
   }
   {
+    compiler_readonly,
     dispatch_plan,
     workspace_plan,
     target,

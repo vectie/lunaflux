@@ -303,12 +303,16 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     (
       readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
       readonly_module.kernel_abi() ==
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
+      readonly_module.kernel_abi() ==
+      PagedAttentionReadOnlyCompilerDecodeProductionV7
     ) &&
     (
       decode_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 ||
       decode_module.kernel_abi() ==
-      QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyCompilerDecodeProductionV7
     ) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
@@ -445,8 +449,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     true
   } else if phase_specific {
     readonly_module.kernel_abi() == QwenPagedAttentionReadOnlyProductionV2 &&
-    decode_module.kernel_abi() ==
-    QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
+    (
+      decode_module.kernel_abi() ==
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyCompilerDecodeProductionV7
+    ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
     readonly_launch.block_x() == 256 &&
     readonly_launch.shared_memory_bytes() > 0 &&

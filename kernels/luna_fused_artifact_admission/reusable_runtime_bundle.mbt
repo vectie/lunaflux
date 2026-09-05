@@ -29,6 +29,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-paged-attention-readonly-production-v2"
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 =>
       "qwen-paged-attention-readonly-decode-split-production-v3"
+    PagedAttentionReadOnlyCompilerDecodeProductionV7 =>
+      "paged-attention-readonly-compiler-decode-production-v7"
   }
 }
 
@@ -56,6 +58,8 @@ fn reusable_runtime_parse_abi(
       QwenPagedAttentionReadOnlyProductionV2
     "qwen-paged-attention-readonly-decode-split-production-v3" =>
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+    "paged-attention-readonly-compiler-decode-production-v7" =>
+      PagedAttentionReadOnlyCompilerDecodeProductionV7
     _ => raise InvalidFusedArtifact(Family)
   }
 }
@@ -75,6 +79,7 @@ fn reusable_runtime_required_operation_count(
     QwenPagedAttentionPrefillWideQueryProductionV5 => 1
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
+    PagedAttentionReadOnlyCompilerDecodeProductionV7 => 1
   }
 }
 
@@ -91,6 +96,7 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     QwenPagedAttentionPrefillWideQueryProductionV5 => 7
     QwenPagedAttentionReadOnlyProductionV2 => 8
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 9
+    PagedAttentionReadOnlyCompilerDecodeProductionV7 => 10
   }
 }
 
@@ -114,7 +120,8 @@ fn reusable_runtime_is_qwen_attention_reader(
   abi == QwenPagedAttentionPrefillPartitioned8MergeProductionV6 ||
   abi == QwenPagedAttentionPrefillWideQueryProductionV5 ||
   abi == QwenPagedAttentionReadOnlyProductionV2 ||
-  abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
+  abi == PagedAttentionReadOnlyCompilerDecodeProductionV7
 }
 
 ///|
@@ -141,6 +148,16 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   let reader_a = reusable_runtime_is_qwen_attention_reader(abi_a)
   let reader_b = reusable_runtime_is_qwen_attention_reader(abi_b)
   if reader_a && reader_b {
+    if (
+        abi_a == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
+        abi_b == PagedAttentionReadOnlyCompilerDecodeProductionV7
+      ) ||
+      (
+        abi_b == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
+        abi_a == PagedAttentionReadOnlyCompilerDecodeProductionV7
+      ) {
+      return false
+    }
     return first_a == first_b
   }
   match
@@ -417,6 +434,7 @@ pub fn export_reusable_fused_runtime_bundle(
     QwenPagedAttentionPrefillWideQueryProductionV5,
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+    PagedAttentionReadOnlyCompilerDecodeProductionV7,
   ]
   let mut ordinal = 0
   for abi in canonical_abis {

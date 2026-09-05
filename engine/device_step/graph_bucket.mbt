@@ -107,7 +107,8 @@ fn PagedOrderedExecutorDispatch::select(
       self.decode_split_owner_index >= 0,
     ) ==
     DecodeSplitAttentionPhase &&
-    context_tokens >= self.decode_split_minimum_context_tokens {
+    context_tokens >= self.decode_split_minimum_context_tokens &&
+    batch_rows <= self.decode_split_maximum_batch_rows {
     return self.decode_split_owner_index
   }
   if self.prefill_wide_owner_index >= 0 &&

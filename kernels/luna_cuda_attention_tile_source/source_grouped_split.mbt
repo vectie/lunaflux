@@ -37,6 +37,72 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   }
   let query_width = query_heads * head_dimension
   let accumulator_items = (head_dimension + 31) / 32
+  let partitions = lowering.key_value_partitions()
+  let partitioned = partitions > 1
+  let state_count = maximum_query_rows.to_int64() *
+    query_heads.to_int64() *
+    partitions.to_int64()
+  let output_arguments = if partitioned {
+    "const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache, float *workspace"
+  } else {
+    "__nv_bfloat16 *output, const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache"
+  }
+  let initialize_state = if partitioned {
+    (
+      $|  const int partition = (int)blockIdx.z;
+      $|  if (partition >= \{partitions}) return;
+      $|  const unsigned long long state =
+      $|      ((unsigned long long)row * \{query_heads} + query_head) * \{partitions} + partition;
+      $|  if (lane == 0 && split == 0) {
+      $|    workspace[state] = CUDART_NAN_F;
+      $|    workspace[\{state_count}ULL + state] = CUDART_NAN_F;
+      $|  }
+    )
+  } else {
+    ""
+  }
+  let invalid_output = if partitioned {
+    ""
+  } else {
+    (
+      $|    if (token >= 0 && token < token_count && lane == 0 && split == 0)
+      $|      output[output_offset] = __float2bfloat16_rn(CUDART_NAN_F);
+    )
+  }
+  let partition_bounds = if partitioned {
+    (
+      $|  const int tile_count = (query_position + LF_KEY_VALUE_TILE) / LF_KEY_VALUE_TILE;
+      $|  const int first_tile = (int)((long long)tile_count * partition / \{partitions});
+      $|  const int last_tile = (int)((long long)tile_count * (partition + 1) / \{partitions});
+      $|  const int key_begin = first_tile * LF_KEY_VALUE_TILE;
+      $|  const int key_limit = min(query_position + 1, last_tile * LF_KEY_VALUE_TILE);
+    )
+  } else {
+    (
+      $|  const int key_begin = 0;
+      $|  const int key_limit = query_position + 1;
+    )
+  }
+  let write_result = if partitioned {
+    (
+      $|        workspace[2ULL * \{state_count}ULL + state * LF_HEAD_DIMENSION + component] = merged;
+    )
+  } else {
+    (
+      $|        output[output_offset + component] = __float2bfloat16_rn(
+      $|            merged_denominator > 0.0f ? merged / merged_denominator : CUDART_NAN_F);
+    )
+  }
+  let write_state = if partitioned {
+    (
+      $|    if (lane == 0) {
+      $|      workspace[state] = merged_maximum;
+      $|      workspace[\{state_count}ULL + state] = merged_denominator;
+      $|    }
+    )
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -57,8 +123,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|    const int *counts, const int *query_positions,
     $|    const int *query_row_offsets, const int *sequence_lengths,
     $|    const int *page_table_offsets, const int *page_table_page_indices,
-    $|    const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,
-    $|    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache) {
+    $|    const __nv_bfloat16 *rotated_qkv_rows, \{output_arguments}) {
     $|  const int thread = (int)threadIdx.x;
     $|  const int lane = thread & 31;
     $|  const int warp = thread >> 5;
@@ -86,6 +151,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|    return;
     $|
     $|  const int row = prefill_count + local_row;
+    $|\{initialize_state}
     $|  const int token = query_row_offsets[row];
     $|  const int row_end = query_row_offsets[row + 1];
     $|  const int sequence_length = sequence_lengths[row];
@@ -101,8 +167,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|      page_end > page_entry_count ||
     $|      page_end - page_start !=
     $|          (sequence_length + \{tokens_per_page - 1}) / \{tokens_per_page}) {
-    $|    if (token >= 0 && token < token_count && lane == 0 && split == 0)
-    $|      output[output_offset] = __float2bfloat16_rn(CUDART_NAN_F);
+    $|\{invalid_output}
     $|    return;
     $|  }
     $|
@@ -124,10 +189,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|  for (int item = 0; item < \{accumulator_items}; ++item)
     $|    accumulator[item] = 0.0f;
     $|
-    $|  for (int key_base = 0; key_base <= query_position;
+    $|\{partition_bounds}
+    $|  for (int key_base = key_begin; key_base < key_limit;
     $|       key_base += LF_KEY_VALUE_TILE) {
     $|    const int active_keys =
-    $|        min(LF_KEY_VALUE_TILE, query_position + 1 - key_base);
+    $|        min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|    if (thread == 0) *tile_valid = 1;
     $|    __syncthreads();
     $|    for (int linear = thread;
@@ -219,13 +285,15 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|            merged_maximum, partial_maxima[first_warp + part]);
     $|      #pragma unroll
     $|      for (int part = 0; part < LF_SPLITS_PER_HEAD; ++part)
-    $|        merged_denominator += partial_denominators[first_warp + part] *
+    $|        if (partial_denominators[first_warp + part] > 0.0f)
+    $|          merged_denominator += partial_denominators[first_warp + part] *
     $|            expf(partial_maxima[first_warp + part] - merged_maximum);
     $|    }
     $|    merged_maximum =
     $|        __shfl_sync(0xffffffffU, merged_maximum, 0);
     $|    merged_denominator =
     $|        __shfl_sync(0xffffffffU, merged_denominator, 0);
+    $|\{write_state}
     $|    #pragma unroll
     $|    for (int item = 0; item < \{accumulator_items}; ++item) {
     $|      const int component = lane + item * 32;
@@ -233,12 +301,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|        float merged = 0.0f;
     $|        #pragma unroll
     $|        for (int part = 0; part < LF_SPLITS_PER_HEAD; ++part)
-    $|          merged += partial_numerators[
+    $|          if (partial_denominators[first_warp + part] > 0.0f)
+    $|            merged += partial_numerators[
     $|              (first_warp + part) * LF_HEAD_DIMENSION + component] *
     $|              expf(partial_maxima[first_warp + part] - merged_maximum);
-    $|        output[output_offset + component] = __float2bfloat16_rn(
-    $|            merged_denominator > 0.0f
-    $|                ? merged / merged_denominator : CUDART_NAN_F);
+    $|\{write_result}
     $|      }
     $|    }
     $|  }

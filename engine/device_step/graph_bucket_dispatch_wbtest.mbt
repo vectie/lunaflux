@@ -45,6 +45,7 @@ fn graph_dispatch_fixture(
       decode_owner_index: -1,
       decode_split_owner_index: -1,
       decode_split_minimum_context_tokens: PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+      decode_split_maximum_batch_rows: 2147483647,
     },
   )
 }
@@ -297,6 +298,7 @@ test "phase-specific decode owners replace baseline slots without touching prefi
     decode_owner_index: 12,
     decode_split_owner_index: baseline.decode_split_owner_index,
     decode_split_minimum_context_tokens: baseline.decode_split_minimum_context_tokens,
+    decode_split_maximum_batch_rows: baseline.decode_split_maximum_batch_rows,
   }
   let prefill = graph_dispatch_bucket(table, PrefillGraph, 32, 64, 1048576)
   assert_eq(dispatch.select(prefill), 2)

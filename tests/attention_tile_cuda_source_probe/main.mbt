@@ -1,6 +1,21 @@
 ///|
 fn main raise {
   let arguments = @env.args()
+  match arguments {
+    [_, "decode-direct"] => {
+      emit_decode_probe(false, true)
+      return
+    }
+    [_, "decode-grouped"] => {
+      emit_decode_probe(true, true)
+      return
+    }
+    [_, "decode-baseline"] => {
+      emit_decode_probe(true, false)
+      return
+    }
+    _ => ()
+  }
   let partitioned = arguments == [arguments[0], "partitioned"] ||
     arguments == [arguments[0], "partitioned-312"]
   let compile_query_rows = if arguments == [arguments[0], "partitioned-312"] {

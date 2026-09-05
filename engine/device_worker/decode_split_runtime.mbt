@@ -61,6 +61,8 @@ fn admit_reusable_qwen_decode_split_bindings(
         merge_entry,
         8,
         268435456L,
+        compiler_readonly=module_.kernel_abi() ==
+          PagedAttentionReadOnlyCompilerDecodeProductionV7,
       ) catch {
         _ => raise Invalid(ResourceState)
       },

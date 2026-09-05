@@ -12,6 +12,7 @@ fn paged_attention_decode_split_recipe(
   merge_dimensions : @launch_contract.AotLaunchDimensions,
   source_digest : PagedAttentionCudaSourceDigest,
   workspace : @luna_attention_strategy.AttentionDecodeWorkspacePlan,
+  compiler_readonly? : Bool = false,
 ) -> Bytes {
   let identity = compiler.identity()
   let (maximum_offset, denominator_offset, numerator_offset) = workspace.region_offsets_bytes()
@@ -72,7 +73,9 @@ fn paged_attention_decode_split_recipe(
     merge_dimensions.grid_y().to_string() +
     "," +
     merge_dimensions.grid_z().to_string() +
-    "\nblock=32,1,1\nworkspace_scalar=f32\nworkspace_partial_count=" +
+    "\nblock=" +
+    partial_dimensions.block_x().to_string() +
+    ",1,1\nworkspace_scalar=f32\nworkspace_partial_count=" +
     workspace.partial_count().to_string() +
     "\nworkspace_offsets_bytes=" +
     maximum_offset.to_string() +
@@ -82,7 +85,13 @@ fn paged_attention_decode_split_recipe(
     numerator_offset.to_string() +
     "\nworkspace_total_bytes=" +
     workspace.total_bytes().to_string() +
-    "\npartition_mode=live-page-balanced\nmaximum_partition_envelope=" +
+    "\npartition_mode=" +
+    (if compiler_readonly {
+      "live-tile-balanced"
+    } else {
+      "live-page-balanced"
+    }) +
+    "\nmaximum_partition_envelope=" +
     partitions.to_string() +
     "\npartial_abi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
     "page_table_offsets,page_table_page_indices,qkv,key_cache,value_cache,workspace\n" +

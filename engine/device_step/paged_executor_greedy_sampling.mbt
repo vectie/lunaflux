@@ -317,6 +317,7 @@ fn finish_paged_sampling_preparation(
   deep_prefill_split_query_tile? : Int = 1,
   deep_prefill_split_partition_count? : Int = 1,
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  decode_split_maximum_batch_rows? : Int = 2147483647,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
     context, model_plan, blueprint, limits, policy, artifacts, completion, descriptor,
@@ -374,6 +375,7 @@ fn finish_paged_sampling_preparation(
     decode_steps~,
     decode_split_steps~,
     decode_split_minimum_context_tokens~,
+    decode_split_maximum_batch_rows~,
   ) catch {
     error => return paged_construction_failed(resources, error)
   }

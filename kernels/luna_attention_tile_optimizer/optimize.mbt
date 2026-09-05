@@ -278,22 +278,28 @@ fn attention_partition_count(
   let problem = program.problem()
   let (query_rows, context_tokens) = problem.dimensions()
   let (query_tile, key_value_tile, _) = program.candidate().tile().dimensions()
-  let (query_heads, _, _, _) = problem.shape().dimensions()
+  let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
   let query_tiles = 1 + (query_rows - 1) / query_tile
-  let natural_workgroups = query_tiles * problem.batch_rows() * query_heads
+  let head_workgroups = match program.candidate().compute() {
+    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot =>
+      key_value_heads
+    _ => query_heads
+  }
+  let natural_workgroups = query_tiles * problem.batch_rows() * head_workgroups
   // Partition only when the query/head map cannot provide one portable wave
   // of independent workgroups. This is a pure property of the semantic work
   // graph: a wider query tile or a larger continuous batch naturally removes
   // the need for duplicate KV traversal and a merge launch.
-  if problem.phase() != Prefill ||
-    context_tokens < 512 ||
+  let minimum_context = if problem.phase() == Decode { 128 } else { 512 }
+  if problem.phase() == MixedCompatibility ||
+    context_tokens < minimum_context ||
     natural_workgroups >= parallel_workgroup_target {
     return 1
   }
   let key_value_tiles = 1 + (context_tokens - 1) / key_value_tile
   let context_partitions = Int::min(
     8,
-    Int::max(2, 1 + (context_tokens - 1) / 256),
+    Int::max(2, 1 + (context_tokens - 1) / (minimum_context / 2)),
   )
   let saturation_partitions = 1 +
     (parallel_workgroup_target - 1) / natural_workgroups

@@ -131,6 +131,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenPagedAttentionPrefillWideQueryProductionV5
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  PagedAttentionReadOnlyCompilerDecodeProductionV7
 } derive(Debug, Eq)
 
 ///|
