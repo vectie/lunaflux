@@ -239,6 +239,13 @@ test "production residual RMSNorm candidate is deterministic and canary free" {
   assert_false(source.contains("dispatch_canary"))
   assert_false(source.contains("atomicAdd"))
   assert_true(source.contains("__nv_bfloat16* norm_output)"))
+  assert_true(
+    source.contains("rounded_values[column / LF_BLOCK_THREADS] = rounded;"),
+  )
+  assert_false(source.contains("__bfloat162float(residual_output[offset])"))
+  assert_true(source.contains("__shfl_down_sync(0xffffffffu, tree_value, 16)"))
+  assert_true(source.contains("partial[threadIdx.x + 64]"))
+  assert_true(source.contains("partial[threadIdx.x + 32]"))
   assert_true(recipe.contains("execution_policy=production-fast-path\n"))
   assert_true(recipe.contains("diagnostic_canary=absent\n"))
   assert_true(

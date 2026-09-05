@@ -12,6 +12,8 @@ pub fn admit_luna_tile_program(LunaTileProgramInput, LunaTileLimits) -> LunaTile
 
 pub fn lower_luna_tile_cuda_translation_unit(LunaTileProgram, LunaTileCudaAotInput, LunaTileEntryPointId, LunaTileCudaLoweringLimits) -> LunaTileCudaTranslationUnit raise LunaTileError
 
+pub fn luna_tile_retained_row_values(elements~ : Int, lanes~ : Int, maximum_values_per_lane~ : Int) -> Int?
+
 pub fn plan_luna_tile_cuda_aot_input(LunaTileProgram, LunaTileAotPlanningPolicy) -> LunaTileCudaAotInput raise LunaTileError
 
 pub fn specialize_luna_tile_parallel_candidate(LunaTileProgram, LunaTileCudaAotInput, LunaTileCudaTranslationUnit, LunaTileEntryPointId, LunaTileParallelPolicy, LunaTileCudaLoweringLimits) -> LunaTileParallelCandidate raise LunaTileError
@@ -177,6 +179,13 @@ pub fn LunaTileOperationSummary::elementwise_count(Self) -> Int
 pub fn LunaTileOperationSummary::mma_count(Self) -> Int
 pub fn LunaTileOperationSummary::pipeline_stage_count(Self) -> Int
 pub fn LunaTileOperationSummary::reduction_count(Self) -> Int
+
+pub struct LunaTileOrderedReduction {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LunaTileOrderedReduction::new(lanes~ : Int, subgroup_lanes~ : Int) -> Self raise LunaTileError
+pub fn LunaTileOrderedReduction::shared_strides(Self) -> ReadOnlyArray[Int]
+pub fn LunaTileOrderedReduction::subgroup_strides(Self) -> ReadOnlyArray[Int]
 
 pub struct LunaTileParallelCandidate {
   // private fields
