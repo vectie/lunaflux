@@ -6,6 +6,7 @@ async fn main {
     "export" => qwen3_export(args)
     "materialize" => qwen3_materialize(args)
     "probe" => qwen3_probe(args)
+    "ingress-benchmark" | "ingress-check" => qwen3_ingress_benchmark(args)
     "serve-check" => qwen3_serve_check(args)
     "metrics-check" => qwen3_metrics_check(args)
     "plan-check" => qwen3_plan_check(args)
