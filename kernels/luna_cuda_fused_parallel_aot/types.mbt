@@ -7,6 +7,7 @@ pub(all) enum FusedParallelFamily {
 ///|
 pub(all) enum FusedParallelNumericalPolicy {
   QkvRopeKvWriteOrderedF32TranscendentalToleranceV1
+  QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1
   ResidualRmsNormBlock128F32ReductionToleranceV1
 } derive(Debug, Eq)
 
@@ -17,6 +18,8 @@ pub fn FusedParallelNumericalPolicy::name(
   match self {
     QkvRopeKvWriteOrderedF32TranscendentalToleranceV1 =>
       "fused-qkv-positioned-rope-paged-kvwrite-ordered-f32-tolerance-v1"
+    QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1 =>
+      "fused-qkv-qknorm-rope-kvwrite-deterministic-dot-tree-tolerance-v1"
     ResidualRmsNormBlock128F32ReductionToleranceV1 =>
       "fused-residual-rmsnorm-block128-f32-tree-tolerance-v1"
   }
@@ -28,6 +31,7 @@ pub fn FusedParallelNumericalPolicy::maximum_absolute_error_ppb(
 ) -> Int64 {
   match self {
     QkvRopeKvWriteOrderedF32TranscendentalToleranceV1 => 250000L
+    QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1 => 250000L
     ResidualRmsNormBlock128F32ReductionToleranceV1 => 100000L
   }
 }
@@ -38,6 +42,7 @@ pub fn FusedParallelNumericalPolicy::maximum_relative_error_ppb(
 ) -> Int64 {
   match self {
     QkvRopeKvWriteOrderedF32TranscendentalToleranceV1 => 500000L
+    QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1 => 500000L
     ResidualRmsNormBlock128F32ReductionToleranceV1 => 250000L
   }
 }

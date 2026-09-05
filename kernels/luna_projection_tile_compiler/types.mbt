@@ -168,6 +168,7 @@ pub struct ProjectionTileSchedule {
   priv fuse_attention_ingress_epilogue : Bool
   priv hoist_rotary_inverse_frequencies : Bool
   priv fuse_rotary_pairs : Bool
+  priv single_row_reduction : ProjectionSingleRowReduction
   priv canonical : Bytes
   priv digest : ProjectionTileScheduleDigest
 } derive(Debug, Eq)
@@ -179,6 +180,7 @@ pub struct ProjectionTileCompilerRequest {
   priv maximum_tokens : Int
   priv demand : ProjectionResultDemand
   priv epilogue : ProjectionTileEpilogue
+  priv single_row_numerics : ProjectionSingleRowNumerics
 } derive(Debug, Eq)
 
 ///|

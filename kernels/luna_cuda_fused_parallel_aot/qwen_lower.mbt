@@ -96,7 +96,7 @@ fn qwen_fused_recipe(
       source_digest,
       symbol,
       dispatch_canary,
-      QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+      QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1,
       grid_x,
       query_heads + 2 * kv_heads,
       0,
@@ -322,11 +322,13 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       maximum_rows=profile.max_query_rows(),
       maximum_tokens=profile.max_query_tokens(),
       epilogue=tile_epilogue,
+      single_row_numerics=AllowDeterministicDotTree,
     ) catch {
       _ => raise FusedParallelMismatch(Operation)
     },
   )
-  if !tile_compilation.schedule().fuses_attention_ingress_epilogue() {
+  if !tile_compilation.schedule().fuses_attention_ingress_epilogue() ||
+    tile_compilation.schedule().single_row_reduction() != StridedPairwiseDot(32) {
     raise FusedParallelMismatch(Operation)
   }
   let tile_rows = qkv_fallback.dispatch_plan().prefill().tile().dimensions().0
@@ -381,7 +383,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     compiler,
     layout,
     dimensions,
-    numerical_policy: QkvRopeKvWriteOrderedF32TranscendentalToleranceV1,
+    numerical_policy: QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1,
     function_symbol,
     dispatch_canary,
     source,

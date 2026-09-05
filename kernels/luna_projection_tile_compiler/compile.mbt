@@ -60,6 +60,9 @@ fn projection_program_canonical(
   builder <+ "shape=\{input_width},\{output_width},\{intermediate_width}\n"
   builder <+ "demand=\{if request.demand == QueryRowEnds { 2 } else { 1 }}\n"
   builder <+ "bounds=\{request.maximum_rows},\{request.maximum_tokens}\n"
+  if request.single_row_numerics == AllowDeterministicDotTree {
+    builder <+ "single_row_numerics=deterministic-dot-tree\n"
+  }
   match request.epilogue {
     ProjectionStoreRows => builder <+ "epilogue=store\n"
     ProjectionAttentionIngress(spec) =>
@@ -295,9 +298,16 @@ fn projection_schedule_canonical(
   optimized : OptimizedProjectionTileCompilation,
   loops : ArrayView[ProjectionLoopCombinator],
   reuse_input_tile : Bool,
+  single_row_reduction : ProjectionSingleRowReduction,
 ) -> Bytes {
   let builder = StringBuilder()
-  builder <+ "luna-projection-tile-schedule-v4\n"
+  let explicit_tree = optimized.semantic.selected.request.single_row_numerics ==
+    AllowDeterministicDotTree
+  if explicit_tree {
+    builder <+ "luna-projection-tile-schedule-v5\n"
+  } else {
+    builder <+ "luna-projection-tile-schedule-v4\n"
+  }
   builder <+ "program_sha256=\{optimized.normalized.program.digest.0}\n"
   builder <+ "optimization_sha256=\{optimized.optimization.digest.0}\n"
   for schedule_loop in loops {
@@ -315,6 +325,13 @@ fn projection_schedule_canonical(
       "loop=\{kind},\{axis},\{schedule_loop.extent},\{schedule_loop.tile}\n"
   }
   builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
+  if explicit_tree {
+    match single_row_reduction {
+      OrderedDot => builder <+ "single_row_reduction=ordered\n"
+      StridedPairwiseDot(lanes) =>
+        builder <+ "single_row_reduction=strided-pairwise,\{lanes}\n"
+    }
+  }
   builder <+
     "reuse_intermediate_tile=\{optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles)}\n"
   let rotary_optimized = optimized.optimization.applied(
@@ -420,8 +437,9 @@ pub fn schedule_projection_tile(
   // value in registers until a backend autotune record proves materializing
   // it is cheaper. The optimization trace still records the reuse opportunity.
   let reuse_input_tile = false
+  let single_row_reduction = projection_single_row_reduction(request)
   let canonical = projection_schedule_canonical(
-    optimized, loops, reuse_input_tile,
+    optimized, loops, reuse_input_tile, single_row_reduction,
   )
   let schedule = ProjectionTileSchedule::{
     program_digest: optimized.normalized.program.digest,
@@ -429,6 +447,7 @@ pub fn schedule_projection_tile(
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
     reuse_input_tile,
+    single_row_reduction,
     reuse_intermediate_tile: optimized.optimization.applied(
       ReuseIntermediateTileAcrossOutputTiles,
     ),

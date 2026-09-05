@@ -64,6 +64,16 @@ pub(all) enum ProjectionRowTailPolicy {
   ZeroPaddedMatrixRowTail
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ProjectionSingleRowNumerics {
+  PreserveDotOrder
+  AllowDeterministicDotTree
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ProjectionSingleRowReduction {
+  OrderedDot
+  StridedPairwiseDot(Int)
+} derive(Eq, @debug.Debug)
+
 pub struct ProjectionTileBinding {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -77,8 +87,8 @@ pub fn ProjectionTileCompilationDigest::as_hex(Self) -> String
 pub struct ProjectionTileCompilerRequest {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand) -> Self raise ProjectionTileCompilerError
-pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
 
 pub(all) enum ProjectionTileCompilerRule {
   InvalidProblem
@@ -156,6 +166,7 @@ pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombin
 pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
+pub fn ProjectionTileSchedule::single_row_reduction(Self) -> ProjectionSingleRowReduction
 
 pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileScheduleDigest::as_hex(Self) -> String

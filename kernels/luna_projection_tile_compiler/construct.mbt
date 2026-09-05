@@ -4,6 +4,7 @@ pub fn ProjectionTileCompilerRequest::new(
   maximum_rows~ : Int,
   maximum_tokens~ : Int,
   demand~ : ProjectionResultDemand,
+  single_row_numerics? : ProjectionSingleRowNumerics = PreserveDotOrder,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   if maximum_rows <= 0 ||
     maximum_tokens < maximum_rows ||
@@ -19,6 +20,7 @@ pub fn ProjectionTileCompilerRequest::new(
     maximum_tokens,
     demand,
     epilogue: ProjectionStoreRows,
+    single_row_numerics,
   }
 }
 
@@ -50,12 +52,14 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
   maximum_rows~ : Int,
   maximum_tokens~ : Int,
   epilogue~ : ProjectionAttentionIngressEpilogue,
+  single_row_numerics? : ProjectionSingleRowNumerics = PreserveDotOrder,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   let request = ProjectionTileCompilerRequest::new(
     dispatch~,
     maximum_rows~,
     maximum_tokens~,
     demand=AllTokenRows,
+    single_row_numerics~,
   )
   let (_, output_width, _) = dispatch.shape().dimensions()
   if dispatch.shape().family() != Qkv ||

@@ -7,6 +7,24 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+Single-row dot scheduling also supports an explicitly authorized deterministic
+tree. `PreserveDotOrder` remains the default. `AllowDeterministicDotTree` permits
+a `StridedPairwiseDot(lanes)` schedule only when the selected decode strategy
+supports a power-of-two subgroup; otherwise it retains `OrderedDot`. Each lane
+folds its strided products in increasing index order, then a descending-distance
+pairwise tree combines partial sums. Products and sums round separately. This
+is not equivalent to an ordered FP32 fold and must be checked against the
+caller's numerical tolerance. Purity does not make floating-point addition
+associative; normalization/CSE never grants this permission.
+
+The permission is bound into the semantic program and the chosen topology into
+the v5 schedule. Default ordered requests retain their existing v4 canonical
+bytes, so unrelated kernels do not change identity. The CUDA fused attention
+ingress is the first consumer: all four subgroups share output columns and
+cooperatively load contiguous reduction elements for a single token. Its
+multi-token matrix path and epilogue remain unchanged. This is a reusable
+projection schedule, not a model-specific rewriting rule or an autotuner.
+
 Before reuse analysis, normalization removes unreachable pure bindings and
 performs typed, exact common-subexpression elimination in topological order.
 Operand substitution exposes cascading duplicates; dense value numbering
@@ -61,5 +79,6 @@ projections without changing model-family semantics.
 
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
-value differently. Device instruction names, subgroup widths, and launch
-geometry remain outside this package.
+value differently. Subgroup width arrives as an abstract capability; device
+instruction names, fixed vendor widths, and launch geometry remain outside
+this package.

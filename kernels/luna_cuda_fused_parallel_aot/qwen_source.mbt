@@ -56,6 +56,7 @@ fn qwen_fused_source(
     !tile_compilation.schedule().hoists_rotary_inverse_frequencies() ||
     !tile_compilation.schedule().fuses_rotary_pairs() ||
     tile_compilation.schedule().row_tail_policy() != ZeroPaddedMatrixRowTail ||
+    tile_compilation.schedule().single_row_reduction() != StridedPairwiseDot(32) ||
     tile_rows != 16 ||
     tile_columns != 16 ||
     tile_reduction != 16 ||
@@ -149,16 +150,16 @@ fn qwen_fused_source(
     "  __shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM];\n" +
     "  __shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16];\n" +
     "  if (tokens == 1) {\n" +
-    "    for (int local_row = warp; local_row < LF_TILE_ROWS; local_row += LF_WARPS) {\n" +
-    "      const int token = token_begin + local_row;\n" +
-    "      if (token < tokens) for (int component = lane; component < LF_HEAD_DIM; component += 32) {\n" +
-    "        const int column = matrix_head * LF_HEAD_DIM + component;\n" +
-    "        float value = 0.0f;\n" +
-    "        for (int inner = 0; inner < LF_INPUT_WIDTH; ++inner) value = __fadd_rn(value, __fmul_rn(\n" +
-    "          __bfloat162float(input[(unsigned long long)token * LF_INPUT_WIDTH + inner]),\n" +
-    "          __bfloat162float(matrix[(unsigned long long)column * LF_INPUT_WIDTH + inner])));\n" +
-    "        projected[local_row][component] = __bfloat162float(__float2bfloat16_rn(value));\n" +
-    "      }\n" +
+    "    // Lower the compiler's strided fold followed by a fixed pairwise tree.\n" +
+    "    for (int component = warp; component < LF_HEAD_DIM; component += LF_WARPS) {\n" +
+    "      const int column = matrix_head * LF_HEAD_DIM + component;\n" +
+    "      float value = 0.0f;\n" +
+    "      for (int inner = lane; inner < LF_INPUT_WIDTH; inner += 32) value = __fadd_rn(value, __fmul_rn(\n" +
+    "        __bfloat162float(input[inner]),\n" +
+    "        __bfloat162float(matrix[(unsigned long long)column * LF_INPUT_WIDTH + inner])));\n" +
+    "      for (int offset = 16; offset > 0; offset >>= 1)\n" +
+    "        value = __fadd_rn(value, __shfl_down_sync(0xffffffffu, value, offset));\n" +
+    "      if (lane == 0) projected[0][component] = __bfloat162float(__float2bfloat16_rn(value));\n" +
     "    }\n" +
     "  } else {\n" +
     "    for (int column_base = warp * 16; column_base < LF_HEAD_DIM; column_base += LF_WARPS * 16) {\n" +

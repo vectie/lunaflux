@@ -145,6 +145,7 @@ pub fn FusedParallelKernelAbi::canonical_name(Self) -> String
 
 pub(all) enum FusedParallelNumericalPolicy {
   QkvRopeKvWriteOrderedF32TranscendentalToleranceV1
+  QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1
   ResidualRmsNormBlock128F32ReductionToleranceV1
 } derive(Eq, @debug.Debug)
 pub fn FusedParallelNumericalPolicy::maximum_absolute_error_ppb(Self) -> Int64
