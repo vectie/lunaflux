@@ -90,19 +90,20 @@ augmented_output=$test_root/augmented-output
   "$augmented_output/kernel-root/reusable-fused-residual.runtime.v1")" = \
   "$runtime_digest" ] || lbf_fail 'reusable fused residual runtime changed'
 
-bundle_runtime=$test_root/reusable-fused-runtime-bundle.v3
+for bundle_version in 3 4; do
+bundle_runtime=$test_root/reusable-fused-runtime-bundle.v$bundle_version
 printf '%s\n' \
-  'schema=lunaflux-reusable-fused-runtime-bundle.v3' \
+  "schema=lunaflux-reusable-fused-runtime-bundle.v$bundle_version" \
   'payload=fixture' >"$bundle_runtime"
 bundle_runtime_digest=$(lbf_sha256_file "$bundle_runtime")
-bundle_augmented_source=$test_root/bundle-augmented-source
+bundle_augmented_source=$test_root/bundle-augmented-source-v$bundle_version
 "$repo_root/scripts/augment-luna-kernel-root-plan-with-fused-runtime.sh" \
   "$source_root#sha256=$plan_sha" \
   "$bundle_runtime#sha256=$bundle_runtime_digest" \
   "$bundle_augmented_source" >/dev/null
 bundle_augmented_plan_sha=$(lbf_sha256_file \
   "$bundle_augmented_source/kernel-root.plan.v1")
-bundle_augmented_output=$test_root/bundle-augmented-output
+bundle_augmented_output=$test_root/bundle-augmented-output-v$bundle_version
 "$repo_root/scripts/assemble-luna-kernel-root.sh" \
   "$bundle_augmented_source#sha256=$bundle_augmented_plan_sha" \
   "$bundle_augmented_output" >/dev/null
@@ -113,6 +114,7 @@ bundle_augmented_output=$test_root/bundle-augmented-output
 [ "$(lbf_sha256_file \
   "$bundle_augmented_output/kernel-root/reusable-fused-runtime-bundle.v3")" = \
   "$bundle_runtime_digest" ] || lbf_fail 'reusable fused runtime bundle changed'
+done
 
 if "$repo_root/scripts/assemble-luna-kernel-root.sh" \
   "$source_root#sha256=$plan_sha" "$output" >/dev/null 2>&1; then
