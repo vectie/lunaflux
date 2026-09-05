@@ -39,6 +39,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   let accumulator_items = (head_dimension + 31) / 32
   let partitions = lowering.key_value_partitions()
   let partitioned = partitions > 1
+  let warp_sum_symbol = if partitioned {
+    symbol + "_warp_sum"
+  } else {
+    "lf_split_warp_sum"
+  }
   let state_count = maximum_query_rows.to_int64() *
     query_heads.to_int64() *
     partitions.to_int64()
@@ -113,7 +118,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|#define LF_KEY_VALUE_TILE 64
     $|#define LF_HEAD_DIMENSION \{head_dimension}
     $|
-    $|static __device__ __forceinline__ float lf_split_warp_sum(float value) {
+    $|static __device__ __forceinline__ float \{warp_sum_symbol}(float value) {
     $|  for (int offset = 16; offset > 0; offset >>= 1)
     $|    value += __shfl_down_sync(0xffffffffU, value, offset);
     $|  return __shfl_sync(0xffffffffU, value, 0);
@@ -233,7 +238,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|        partial +=
     $|            __bfloat162float(rotated_qkv_rows[query_offset + component]) *
     $|            __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
-    $|      const float score = lf_split_warp_sum(partial) * scale;
+    $|      const float score = \{warp_sum_symbol}(partial) * scale;
     $|      float old_scale = 0.0f;
     $|      float new_scale = 0.0f;
     $|      if (lane == 0) {

@@ -208,6 +208,10 @@ test "decode cross-workgroup fold covers direct and grouped schedules with row w
     assert_true(text.contains("candidate_row < row_count"))
     assert_true(text.contains("part_denominator > 0.0f"))
     assert_true(text.contains("const __nv_bfloat16 *key_cache"))
+    if candidate_id == 430 {
+      assert_true(text.contains("decode_partial_warp_sum"))
+      assert_false(text.contains("float lf_split_warp_sum("))
+    }
   }
 }
 
