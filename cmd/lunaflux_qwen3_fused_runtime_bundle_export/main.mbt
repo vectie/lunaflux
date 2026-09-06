@@ -431,8 +431,12 @@ async fn read_module(
 async fn run(
   raw_args : ArrayView[String],
 ) -> Unit raise Qwen3FusedRuntimeBundleExportError {
-  let args = parse_arguments(raw_args)
+  let (args, ingress_choice) = prepare_ingress_choice(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
+  if ingress_choice == Unfused {
+    write_unfused_ingress_bundle(args, residual_bytes)
+    return
+  }
   let ingress_bytes = read_module(args.ingress.module_path)
   let attention_prefill_bytes = read_module(args.attention_prefill.module_path)
   let attention_prefill_wide_bytes = read_module(
@@ -465,28 +469,9 @@ async fn run(
   ) catch {
     _ => raise InvalidRuntime
   }
-  let modules : Array[
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput,
-  ] = [
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=ResidualRmsNormProductionV2,
-      first_operation=args.residual.first_operation,
-      operation_count=2,
-      function_symbol="lunaflux_fused_residual_rmsnorm_bf16_block128_tree_production_v2",
-      launch=launch_dimensions(args.residual),
-      module_bytes=residual_bytes,
-    ),
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
-      first_operation=args.ingress.first_operation,
-      operation_count=4,
-      function_symbol="lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
-      launch=launch_dimensions(args.ingress),
-      module_bytes=ingress_bytes,
-    ),
-  ] catch {
-    _ => raise InvalidRuntime
-  }
+  let modules = selected_ingress_modules(
+    args, ingress_choice, residual_bytes, ingress_bytes,
+  )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=QwenPagedAttentionReadOnlyProductionV2,
@@ -595,6 +580,10 @@ async fn run(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
+  println(
+    "ingress_schedule=" +
+    (if ingress_choice == FullyFused { "full" } else { "producer-separated" }),
+  )
   println(
     "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
   )

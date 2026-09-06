@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_fusion_strategy"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn select_fusion_schedule(ArrayView[FusionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> FusionSchedule raise FusionSelectionError
+
+// Errors
+pub(all) suberror FusionSelectionError {
+  InvalidCost
+  InvalidComparison
+  NoFeasibleSchedule
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FusionAlternative {
+  // private fields
+}
+pub fn FusionAlternative::new(schedule~ : FusionSchedule, cost~ : FusionSpanCost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionSelectionError
+
+pub(all) enum FusionSchedule {
+  Unfused
+  ProducerSeparated
+  FullyFused
+} derive(Eq, @debug.Debug)
+
+pub struct FusionSpanCost {
+  // private fields
+} derive(Eq)
+pub fn FusionSpanCost::estimated(compute_nanoseconds~ : Int64, traffic_nanoseconds~ : Int64, synchronization_nanoseconds~ : Int64, launch_nanoseconds~ : Int64) -> Self raise FusionSelectionError
+pub fn FusionSpanCost::measured(median_nanoseconds~ : Int64, samples~ : Int) -> Self raise FusionSelectionError
+
+// Type aliases
+
+// Traits

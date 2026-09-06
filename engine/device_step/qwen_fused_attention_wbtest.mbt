@@ -67,6 +67,7 @@ fn qwen_fused_test_runtime(
   blueprint : PagedKvExecutionBlueprint,
   include_residual? : Bool = false,
   include_readonly? : Bool = true,
+  include_ingress? : Bool = true,
   ingress_grid_y? : Int = 32,
   phase_specific_attention? : Bool = false,
   direct_compiler_decode? : Bool = false,
@@ -131,7 +132,9 @@ fn qwen_fused_test_runtime(
       ),
     )
   }
-  modules.push(ingress)
+  if include_ingress {
+    modules.push(ingress)
+  }
   if include_readonly {
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(

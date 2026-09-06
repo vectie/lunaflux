@@ -283,6 +283,18 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     _ => raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   let prefill_module = runtime.qwen_paged_attention_prefill_module()
+  // An offline profitability choice may retain only independent residual
+  // fusions. Absence is legal only for the entire ingress/read-only family:
+  // never silently install read-only attention without its KV-write producer.
+  if ingress_selection is None &&
+    prefill_module is None &&
+    runtime.qwen_paged_attention_decode_module() is None &&
+    runtime.qwen_paged_attention_readonly_module() is None &&
+    runtime.qwen_wide_query_prefill_module() is None &&
+    partitioned_modules is None &&
+    deep_partitioned_modules is None {
+    return ReadOnlyArray::from_array([])
+  }
   guard ingress_selection is Some((postprocess, includes_projection)) &&
     prefill_module is Some(readonly_module) &&
     runtime.qwen_paged_attention_decode_module() is Some(decode_module) &&
