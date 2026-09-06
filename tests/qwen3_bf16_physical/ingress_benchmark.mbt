@@ -23,6 +23,7 @@ fn ingress_run_pair(
   new_bytes : Bytes,
   balance : Qwen3ProbeBalance,
   benchmark : Bool,
+  projection? : Bytes,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => balance.cleanup += 1 })
@@ -39,16 +40,25 @@ fn ingress_run_pair(
   })
   modules.push(context.load_module(old_bytes))
   modules.push(context.load_module(new_bytes))
+  if projection is Some(bytes) {
+    modules.push(context.load_module(bytes))
+  }
   let functions : Array[@device.Function] = []
   defer (for function_ in functions.rev() {
     function_.close() catch {
       _ => balance.cleanup += 1
     }
   })
-  for module_ in modules {
+  for index, module_ in modules {
     functions.push(
       module_.load_function(
-        b"lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
+        if projection is Some(_) && index == 1 {
+          b"lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2"
+        } else if index == 2 {
+          b"lunaflux_luna_qkv_bf16_release_v1"
+        } else {
+          b"lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+        },
       ),
     )
   }
@@ -78,6 +88,7 @@ fn ingress_run_pair(
     output_sentinel,
     cache_sentinel,
     cache_sentinel,
+    output_sentinel,
   ]
   let allocations : Array[@device.Allocation] = []
   defer (for allocation in allocations.rev() {
@@ -91,7 +102,7 @@ fn ingress_run_pair(
     allocation.copy_from_host(bytes, 0L, 0L, bytes.length().to_int64())
   }
   let arguments = @device.KernelArguments::new(
-    Array::makei(allocations.length(), index => {
+    Array::makei(15, index => {
       qwen3_region(
         allocations[index],
         host[index].length(),
@@ -119,14 +130,24 @@ fn ingress_run_pair(
       _ => balance.cleanup += 1
     }
   })
-  for function_ in functions {
+  for index in 0..<2 {
+    let launches = if projection is Some(_) && index == 1 {
+      ingress_cut_launches(functions, allocations, host)
+    } else {
+      [
+        @device.OrderedKernelLaunch::new(
+          functions[index],
+          dimensions,
+          arguments,
+        ),
+      ]
+    }
     executors.push(
       context.create_ordered_kernel_executor(
         stream,
-        Array::make(
-          repetitions,
-          @device.OrderedKernelLaunch::new(function_, dimensions, arguments),
-        ),
+        Array::makei(repetitions * launches.length(), index => {
+          launches[index % launches.length()]
+        }),
         policy=OrderedKernelCaptureRequired,
       ),
     )
@@ -205,8 +226,8 @@ fn ingress_run_pair(
 ///|
 async fn qwen3_ingress_benchmark(args : ArrayView[String]) -> Unit {
   qwen3_require(
-    args.length() == 4,
-    "usage: ingress-benchmark OLD_CUBIN NEW_CUBIN",
+    args.length() == (if args[1] == "ingress-cut-check" { 5 } else { 4 }),
+    "usage: ingress-check OLD FULL | ingress-cut-check FULL PARTIAL QKV",
   )
   let old_bytes = @fs.read_file(args[2]).binary()
   let new_bytes = @fs.read_file(args[3]).binary()
@@ -214,11 +235,17 @@ async fn qwen3_ingress_benchmark(args : ArrayView[String]) -> Unit {
     "old_sha256=\{qwen3_sha256(old_bytes)} new_sha256=\{qwen3_sha256(new_bytes)}",
   )
   let balance = qwen3_probe_balance()
+  let projection = if args[1] == "ingress-cut-check" {
+    Some(@fs.read_file(args[4]).binary())
+  } else {
+    None
+  }
   ingress_run_pair(
     old_bytes,
     new_bytes,
     balance,
     args[1] == "ingress-benchmark",
+    projection?,
   )
   assert_eq(balance.cleanup, 0)
   println("outcome=ingress-microbenchmark-pass resources_closed=true")
