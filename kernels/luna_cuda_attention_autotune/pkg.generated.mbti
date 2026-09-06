@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn cuda_sm120_decode_compiler_capabilities() -> @luna_attention_strategy.AttentionCompilerCapabilities raise
+
 pub fn cuda_sm120_rtx5060ti_backend() -> @luna_attention_strategy.AttentionBackendId raise
 
 pub fn cuda_sm120_rtx5060ti_prefill_records(@luna_attention_strategy.AttentionCompileProblem, @luna_attention_strategy.AttentionCompilerCapabilities) -> ReadOnlyArray[@luna_attention_strategy.AttentionAutotuneRecord] raise

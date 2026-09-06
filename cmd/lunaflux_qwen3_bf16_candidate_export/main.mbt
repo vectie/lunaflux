@@ -374,13 +374,7 @@ fn prepare_qwen_compiler_decode(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
-    subgroup_width=32,
-    max_threads_per_block=256,
-    max_shared_memory_bytes=100000L,
-    max_pipeline_stages=2,
-    supports_async_copy=false,
-  ) catch {
+  let capabilities = @luna_cuda_attention_autotune.cuda_sm120_decode_compiler_capabilities() catch {
     _ => raise QwenReadOnlyPreparation
   }
   let backend = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend() catch {

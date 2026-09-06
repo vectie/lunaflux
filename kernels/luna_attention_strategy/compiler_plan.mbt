@@ -579,6 +579,27 @@ pub fn generate_attention_tile_candidates(
 }
 
 ///|
+fn attention_candidate_online_fold_steps(
+  problem : AttentionCompileProblem,
+  candidate : AttentionTileCandidate,
+) -> Int {
+  let (_, context) = problem.dimensions()
+  let (_, transfer_rows, _) = candidate.tile.dimensions()
+  match candidate.compute {
+    AttentionMatrixDot | AttentionMatrixQkPv =>
+      attention_ceil_div(context, transfer_rows)
+    AttentionGroupedQuerySplitSubgroupDot => {
+      let (query_heads, kv_heads, _, _) = problem.shape.dimensions()
+      let splits = candidate.subgroups_per_block / (query_heads / kv_heads)
+      attention_ceil_div(context, splits)
+    }
+    AttentionScalarDot
+    | AttentionSubgroupDot
+    | AttentionGroupedQuerySubgroupDot => context
+  }
+}
+
+///|
 fn attention_candidate_static_cost(
   problem : AttentionCompileProblem,
   candidate : AttentionTileCandidate,
@@ -657,17 +678,23 @@ fn attention_candidate_static_cost(
     4096L,
     Candidate,
   )
-  // The semantic online-softmax fold has one fixed synchronization and state
-  // update per query/KV tile pair. Keeping this cost explicit prevents two
-  // arithmetically equivalent candidates from accidentally preferring the
-  // narrowest KV tile solely because its stable ID is older.
+  // Matrix attention folds one vector of scores per tile. Subgroup attention
+  // folds individual keys (or a disjoint ordered key subsequence), regardless
+  // of how many transfers carry those keys. Retiling staging memory must not
+  // invent extra semantic softmax work. Transfer synchronization is separate.
+  let fold_steps = attention_candidate_online_fold_steps(problem, candidate).to_int64()
   let fold_cost = attention_checked_product(
     attention_checked_product(
-      attention_checked_product(query_tiles, key_value_tiles, Candidate),
+      attention_checked_product(query_tiles, fold_steps, Candidate),
       query_heads.to_int64(),
       Candidate,
     ),
     attention_checked_product(batch_rows, 1024L, Candidate),
+    Candidate,
+  )
+  let transfer_cost = attention_checked_product(
+    attention_checked_product(query_tiles, key_value_tiles, Candidate),
+    attention_checked_product(batch_rows, 256L, Candidate),
     Candidate,
   )
   attention_checked_add(
@@ -676,7 +703,7 @@ fn attention_candidate_static_cost(
       scheduling_cost,
       Candidate,
     ),
-    fold_cost,
+    attention_checked_add(fold_cost, transfer_cost, Candidate),
     Candidate,
   )
 }

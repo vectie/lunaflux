@@ -31,7 +31,11 @@ alternatives remain disabled.
 - Attention: query residency, reused transfer addresses and separate K/V
   readiness implemented and physically measured. See
   [the paired report](ATTENTION_DEPENDENCY_PIPELINE_2026-09-06.md). The serving
-  default and end-to-end comparison are not yet updated.
+  exporter now enables asynchronous decode under an explicit CUDA-backend
+  48-KiB per-block occupancy budget. The generic cost model distinguishes
+  per-key subgroup softmax updates from transfer-tile synchronization; it no
+  longer charges extra semantic folds just because staging tiles are smaller.
+  Current-source end-to-end comparison of this new selection is pending.
 - Matrix: output-map distribution is selected through the generic strategy,
   compiler, CUDA source, local-storage calculation and graph launch geometry.
   The artifact producer accepts typed offline records. See the
