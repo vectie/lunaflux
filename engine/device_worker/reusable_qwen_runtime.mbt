@@ -56,6 +56,13 @@ fn validate_reusable_qwen_runtime_bundle(
   if bundle.target() != target {
     raise Invalid(DeviceTarget)
   }
+  // Unfused ingress is an offline schedule choice. Independent residual
+  // fusion remains legal; an incomplete ingress/read-only pair does not.
+  if bundle.modules().length() == 1 &&
+    bundle.residual_rmsnorm_module() is Some(_) {
+    require_optional_reusable_residual_seed(model_plan, bundle)
+    return
+  }
   guard bundle.qwen_qknorm_rope_kv_write_operation_indices()
     is Some((qk_norm_operation, rope_operation, attention_operation)) &&
     bundle.qwen_paged_attention_readonly_operation_index()

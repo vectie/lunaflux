@@ -138,6 +138,40 @@ test "Qwen reusable runtime validates exact model and target" {
 }
 
 ///|
+test "unfused ingress retains only an independently valid residual seed" {
+  let plan = reusable_qwen_test_plan()
+  let target = reusable_qwen_test_target(0)
+  for operation in [7, 2] {
+    let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+      model_content_sha256=plan.identity().content().as_hex(),
+      model_plan_sha256=plan.identity().plan().as_hex(),
+      target~,
+      modules=[
+        reusable_qwen_test_module(
+          ResidualRmsNormProductionV2,
+          operation,
+          2,
+          "lunaflux_qwen_residual",
+        ),
+      ],
+    )
+    let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+      canonical,
+      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+    )
+    if operation == 7 {
+      validate_reusable_qwen_runtime_bundle(plan, target, bundle)
+    } else {
+      try validate_reusable_qwen_runtime_bundle(plan, target, bundle) catch {
+        error => assert_eq(error, Invalid(ResourceState))
+      } noraise {
+        _ => fail("invalid residual seed accepted")
+      }
+    }
+  }
+}
+
+///|
 test "Qwen full ingress reusable runtime validates exact model and target" {
   let plan = reusable_qwen_test_plan()
   let target = reusable_qwen_test_target(0)
