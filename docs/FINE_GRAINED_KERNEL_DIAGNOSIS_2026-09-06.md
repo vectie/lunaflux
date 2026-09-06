@@ -1,6 +1,7 @@
 # Fine-grained kernel diagnosis — 2026-09-06
 
 This supplements the [four-engine comparison](BASELINE_BOTTLENECK_COMPARISON_2026-09-06.md).
+Follow-up: [fixed-context attention crossover and instruction-level load-pipeline diagnosis](ATTENTION_LOAD_PIPELINE_DIAGNOSIS_2026-09-06.md).
 It adds per-step attribution and per-launch distributions from the same fresh
 traces, plus a NEW three-repeat QKV control experiment. It does not change
 production kernels or claim a new end-to-end speedup.
