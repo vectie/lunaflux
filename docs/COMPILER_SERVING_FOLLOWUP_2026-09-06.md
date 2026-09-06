@@ -100,8 +100,10 @@ Production deployments were not changed.
 ## Still open
 
 Per-bucket distinct projection/ingress artifacts and their startup dispatch
-remain unimplemented. Partial/full numerical alignment and measured equivalent
-ingress selection remain open. The existing C8 sequence variation is not fixed.
+remain unimplemented. The subsequent [numerical-alignment follow-up](INGRESS_NUMERICAL_ALIGNMENT_2026-09-06.md)
+aligns partial/full epilogues and measures the complete split route without new
+sequence divergence on the tested Qwen vector. Per-bucket ingress selection
+remains open. The existing C8 sequence variation is not fixed.
 Captured suffix arithmetic is predicated, not a separately pruned graph.
 No production deployment, other-engine speedup, or all-workstreams completion
 is claimed.
