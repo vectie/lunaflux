@@ -55,7 +55,7 @@ fn ingress_run_pair(
         if projection is Some(_) && index == 1 {
           b"lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2"
         } else if index == 2 {
-          b"lunaflux_luna_qkv_bf16_release_v1"
+          b"lunaflux_luna_qkv_projection_bf16_release_v1"
         } else {
           b"lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
         },
