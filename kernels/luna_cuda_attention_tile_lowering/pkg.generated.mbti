@@ -54,6 +54,7 @@ pub fn CudaAttentionTileLowering::reuses_online_softmax_tile_storage(Self) -> Bo
 pub fn CudaAttentionTileLowering::schedule_digest(Self) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest
 pub fn CudaAttentionTileLowering::target(Self) -> @catalog.DeviceTarget
 pub fn CudaAttentionTileLowering::tile(Self) -> (Int, Int, Int)
+pub fn CudaAttentionTileLowering::transfer_readiness(Self) -> @luna_attention_tile_schedule.AttentionTransferReadiness
 
 pub struct CudaAttentionTileLoweringDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn CudaAttentionTileLoweringDigest::as_hex(Self) -> String

@@ -159,10 +159,13 @@ pub fn lower_attention_tile_schedule_to_cuda(
   }
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
+  let transfer_readiness = schedule.transfer_readiness()
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
   let builder = StringBuilder()
-  builder <+ "luna-cuda-attention-tile-lowering-v4\n"
+  builder <+ "luna-cuda-attention-tile-lowering-v5\n"
+  builder <+
+    "key_score_before_value=\{transfer_readiness == KeyScoreBeforeValueReadiness}\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "optimization_sha256=\{optimization.digest().as_hex()}\n"
   builder <+ "schedule_sha256=\{schedule.digest().as_hex()}\n"
@@ -187,6 +190,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     phase: problem.phase(),
     compute,
     copy,
+    transfer_readiness,
     grid_x,
     grid_y,
     key_value_partitions,

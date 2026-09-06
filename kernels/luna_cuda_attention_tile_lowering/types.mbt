@@ -29,6 +29,7 @@ pub struct CudaAttentionTileLowering {
   priv phase : @luna_attention_strategy.AttentionExecutionPhase
   priv compute : CudaAttentionComputePrimitive
   priv copy : CudaAttentionCopyPrimitive
+  priv transfer_readiness : @luna_attention_tile_schedule.AttentionTransferReadiness
   priv grid_x : Int
   priv grid_y : Int
   priv key_value_partitions : Int

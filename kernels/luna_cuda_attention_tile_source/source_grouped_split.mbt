@@ -18,7 +18,9 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   let group_size = query_heads / key_value_heads
   let subgroup_count = block_threads / 32
   let splits_per_head = subgroup_count / group_size
-  let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad &&
+  let asynchronous = lowering.transfer_readiness() ==
+    KeyScoreBeforeValueReadiness &&
+    lowering.copy() == CudaAsynchronousSharedLoad &&
     pipeline_stages == 2
   if lowering.phase() != Decode ||
     lowering.compute() != CudaGroupedQuerySplitSubgroupShuffleDot ||
@@ -85,6 +87,38 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     symbol + "_warp_sum"
   } else {
     "lf_split_warp_sum"
+  }
+  let dot =
+    $|      float partial = 0.0f;
+    $|      #pragma unroll
+    $|      for (int item = 0; item < \{accumulator_items}; ++item) {
+    $|        const int component = lane + item * 32;
+    $|        if (component < LF_HEAD_DIMENSION)
+    $|          partial += query_fragment[item] *
+    $|              __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    $|      }
+    $|      const float score = \{warp_sum_symbol}(partial) * scale;
+  let score_preparation = if asynchronous {
+    (
+      $|    float scores[(LF_KEY_VALUE_TILE + LF_SPLITS_PER_HEAD - 1) / LF_SPLITS_PER_HEAD];
+      $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
+      $|\{dot}
+      $|      scores[key / LF_SPLITS_PER_HEAD] = score;
+      $|    }
+      $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
+      $|    __syncthreads();
+      $|    if (!stage_valid[slot]) return;
+      $|    // The alternate slot is dead; overlap its next K/V with this V fold.
+      $|    if (key_base + LF_KEY_VALUE_TILE < key_limit)
+      $|      stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);
+    )
+  } else {
+    ""
+  }
+  let score_consumption = if asynchronous {
+    "      const float score = scores[key / LF_SPLITS_PER_HEAD];"
+  } else {
+    dot
   }
   let state_count = maximum_query_rows.to_int64() *
     query_heads.to_int64() *
@@ -230,9 +264,15 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|  float maximum = -CUDART_INF_F;
     $|  float denominator = 0.0f;
     $|  float accumulator[\{accumulator_items}];
+    $|  // The query belongs to the outer row/head map, not the KV fold.
+    $|  float query_fragment[\{accumulator_items}];
     $|  #pragma unroll
-    $|  for (int item = 0; item < \{accumulator_items}; ++item)
+    $|  for (int item = 0; item < \{accumulator_items}; ++item) {
     $|    accumulator[item] = 0.0f;
+    $|    const int component = lane + item * 32;
+    $|    query_fragment[item] = component < LF_HEAD_DIMENSION
+    $|        ? __bfloat162float(rotated_qkv_rows[query_offset + component]) : 0.0f;
+    $|  }
     $|
     $|\{partition_bounds}
     $|\{prologue}
@@ -241,14 +281,9 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|    const int active_keys =
     $|        min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|\{iteration}
+    $|\{score_preparation}
     $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
-    $|      float partial = 0.0f;
-    $|      for (int component = lane; component < LF_HEAD_DIMENSION;
-    $|           component += 32)
-    $|        partial +=
-    $|            __bfloat162float(rotated_qkv_rows[query_offset + component]) *
-    $|            __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
-    $|      const float score = \{warp_sum_symbol}(partial) * scale;
+    $|\{score_consumption}
     $|      float old_scale = 0.0f;
     $|      float new_scale = 0.0f;
     $|      if (lane == 0) {

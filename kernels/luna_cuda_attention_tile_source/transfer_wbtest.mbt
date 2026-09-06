@@ -59,6 +59,13 @@ test "grouped split compiler realizes its vector map deterministically" {
   let source = @utf8.decode(first.bytes())
   assert_true(source.contains("Contiguous column map: 4 BF16"))
   assert_true(source.contains("uint2 staged_key = {}"))
+  let sections = source.split("for (int key_base =") |> Iter::collect
+  assert_eq(sections.length(), 2)
+  assert_true(sections[0].contains("float query_fragment["))
+  assert_true(
+    sections[0].contains("rotated_qkv_rows[query_offset + component]"),
+  )
+  assert_false(sections[1].contains("rotated_qkv_rows["))
   assert_true(
     source.contains(
       "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)",
@@ -82,6 +89,10 @@ test "two-stage decode keeps ordered fold and explicit producer consumer lifetim
   assert_true(source.contains("cp.async.ca.shared.global"))
   assert_true(source.contains("cp.async.commit_group"))
   assert_true(source.contains("cp.async.wait_group 0"))
+  assert_eq(lowering.transfer_readiness(), KeyScoreBeforeValueReadiness)
+  assert_true(source.contains("cp.async.wait_group 1"))
+  assert_true(source.contains("scores[key / LF_SPLITS_PER_HEAD] = score"))
+  assert_true(source.contains("value_cache + addresses[item]"))
   assert_true(
     source.contains("stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1)"),
   )

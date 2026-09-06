@@ -125,3 +125,10 @@ pub fn CudaAttentionTileLoweringDigest::as_hex(
 ) -> String {
   self.0
 }
+
+///|
+pub fn CudaAttentionTileLowering::transfer_readiness(
+  self : CudaAttentionTileLowering,
+) -> @luna_attention_tile_schedule.AttentionTransferReadiness {
+  self.transfer_readiness
+}

@@ -59,6 +59,7 @@ pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorag
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
+pub fn AttentionTileSchedule::transfer_readiness(Self) -> AttentionTransferReadiness
 
 pub struct AttentionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileScheduleDigest::as_hex(Self) -> String
@@ -97,6 +98,11 @@ pub struct AttentionTileStorageSpan {
 pub fn AttentionTileStorageSpan::lifetime(Self) -> (Int, Int)
 pub fn AttentionTileStorageSpan::range(Self) -> (Int64, Int64)
 pub fn AttentionTileStorageSpan::role(Self) -> AttentionTileStorageRole
+
+pub(all) enum AttentionTransferReadiness {
+  JoinedKeyValueReadiness
+  KeyScoreBeforeValueReadiness
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 
