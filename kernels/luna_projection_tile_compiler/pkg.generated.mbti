@@ -163,9 +163,11 @@ pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool
 pub fn ProjectionTileSchedule::fuses_rotary_pairs(Self) -> Bool
 pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(Self) -> Bool
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
+pub fn ProjectionTileSchedule::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
+pub fn ProjectionTileSchedule::selected_input_row_resident(Self) -> Bool
 pub fn ProjectionTileSchedule::single_row_reduction(Self) -> ProjectionSingleRowReduction
 
 pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)

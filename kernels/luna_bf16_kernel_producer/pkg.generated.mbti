@@ -10,6 +10,7 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_projection_aot",
   "vectie/lunaflux/kernels/luna_kernel_bundle",
   "vectie/lunaflux/kernels/luna_profile_priority",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
@@ -19,7 +20,7 @@ import {
 // Values
 pub fn collect_luna_bf16_profiler_evidence(LunaBf16CandidateSet, @luna_profile_priority.LunaPagedKernelProfileCapture, ArrayView[LunaBf16MicrobenchmarkObservation], ArrayView[LunaBf16EndToEndObservation], LunaBf16ProfilerEvidenceLimits) -> LunaBf16ProfilerEvidence raise LunaBf16PromotionError
 
-pub fn prepare_luna_bf16_candidate_set(@plan.ModelPlan, @device_layout.DeviceKvLayout, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, LunaBf16CandidateSetLimits) -> LunaBf16CandidateSet raise LunaBf16KernelProducerError
+pub fn prepare_luna_bf16_candidate_set(@plan.ModelPlan, @device_layout.DeviceKvLayout, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, LunaBf16CandidateSetLimits, projection_records? : ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord]) -> LunaBf16CandidateSet raise LunaBf16KernelProducerError
 
 pub fn produce_luna_bf16_kernel_release(@plan.ModelPlan, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[LunaBf16OfflineCompilation], LunaBf16KernelProducerLimits) -> LunaBf16KernelReleaseInput raise LunaBf16KernelProducerError
 

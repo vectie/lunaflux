@@ -147,6 +147,12 @@ fn static_projection_strategy(
       kernel_class~,
       row_bucket~,
       tile~,
+      output_tiles_per_workgroup=if shape.family() == GatedMlp &&
+        kernel_class == MatrixTile {
+        16
+      } else {
+        8
+      },
     )
   }
 }
@@ -173,6 +179,13 @@ fn compatible_projection_candidate(
   if strategy.row_bucket() != row_bucket {
     return false
   }
+  if strategy.input_residency() == SelectedRowTileResidency &&
+    (
+      shape.family() != LanguageModelHead ||
+      strategy.kernel_class() != MatrixTile
+    ) {
+    return false
+  }
   let expected_phase = if row_bucket == 1 { Decode } else { Prefill }
   let expected_class = if row_bucket == 1 {
     DecodeGemv
@@ -190,7 +203,9 @@ fn compatible_projection_candidate(
     SubgroupGemv =>
       row_bucket == 1 && shape.input_width % capabilities.subgroup_width() == 0
     MatrixTile =>
-      row_bucket > 1 && projection_matrix_eligible(shape, strategy.tile())
+      row_bucket > 1 &&
+      capabilities.matrix_tile() == Some(strategy.tile()) &&
+      projection_matrix_eligible(shape, strategy.tile())
   }
 }
 

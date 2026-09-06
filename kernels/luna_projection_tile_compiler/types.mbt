@@ -163,6 +163,8 @@ pub struct ProjectionTileSchedule {
   priv optimization_digest : ProjectionTileOptimizationDigest
   priv demand : ProjectionResultDemand
   priv loops : ReadOnlyArray[ProjectionLoopCombinator]
+  priv output_tiles_per_workgroup : Int
+  priv selected_input_row_resident : Bool
   priv reuse_input_tile : Bool
   priv reuse_intermediate_tile : Bool
   priv fuse_attention_ingress_epilogue : Bool

@@ -158,7 +158,9 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_true(source.contains("const int group_count = 16;"))
   assert_true(source.contains("work_group += (int)gridDim.x"))
   assert_true(source.contains("group_index * 64 + warp * 16"))
-  assert_eq(lowering.launch_dimensions().grid_x(), 12)
+  // The same entry point must also cover single-token GEMV. Prefill's
+  // twelve matrix tiles alone do not cover its 192 decode output groups.
+  assert_eq(lowering.launch_dimensions().grid_x(), 192)
   assert_eq(lowering.launch_dimensions().block_x(), 512)
   assert_eq(lowering.launch_dimensions().shared_memory_bytes(), 16384)
   assert_true(@utf8.decode(lowering.recipe_bytes()).contains("block=512,1,1\n"))

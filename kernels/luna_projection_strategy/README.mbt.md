@@ -15,3 +15,16 @@ must be unique inside one bound shape and bucket. Startup rejects duplicate or
 conflicting keys and materializes a bounded dispatch table. Missing records
 use the documented static fallback. Token-step dispatch performs only fixed
 comparisons plus one table lookup; it does not allocate, scan, or benchmark.
+
+Matrix strategies additionally carry output tiles per workgroup and input
+residency. Distribution enumeration partitions an independent output map while
+preserving row/reduction tiles. Selected-row residency lifts row gathering out
+of the reduction fold; it is a separate measured choice, not a consequence of
+semantic CSE. CUDA source, scratch size and execution-graph launch geometry
+consume the selected plan together. Static fallback choices remain unchanged.
+
+The BF16 kernel producer accepts optional typed offline projection records and
+passes them through the reusable production lowering. Records are selected
+during artifact preparation, not during inference. The current CUDA adapter's
+target key is an architecture key (`sm_...`), not a unique physical GPU identity;
+device-specific measurements must not be treated as universal target results.

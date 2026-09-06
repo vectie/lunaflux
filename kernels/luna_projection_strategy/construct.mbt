@@ -72,8 +72,14 @@ pub fn ProjectionStrategy::new(
   kernel_class~ : ProjectionKernelClass,
   row_bucket~ : Int,
   tile~ : ProjectionTile,
+  output_tiles_per_workgroup? : Int = 8,
+  input_residency? : ProjectionInputResidency = ReductionTileResidency,
 ) -> ProjectionStrategy raise ProjectionStrategyError {
-  if stable_id <= 0 || row_bucket <= 0 {
+  if stable_id <= 0 ||
+    row_bucket <= 0 ||
+    output_tiles_per_workgroup <= 0 ||
+    output_tiles_per_workgroup > 16 ||
+    (output_tiles_per_workgroup & (output_tiles_per_workgroup - 1)) != 0 {
     raise InvalidProjectionStrategy(Candidate)
   }
   if projection_row_bucket(row_bucket) != row_bucket ||
@@ -108,6 +114,8 @@ pub fn ProjectionStrategy::new(
     kernel_class,
     row_bucket,
     tile,
+    output_tiles_per_workgroup,
+    input_residency,
   }
 }
 

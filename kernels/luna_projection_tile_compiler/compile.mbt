@@ -325,6 +325,20 @@ fn projection_schedule_canonical(
       "loop=\{kind},\{axis},\{schedule_loop.extent},\{schedule_loop.tile}\n"
   }
   builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
+  let dispatch = optimized.semantic.selected.request.dispatch
+  if dispatch.prefill().input_residency() == SelectedRowTileResidency {
+    builder <+ "selected_input_residency=row-tile\n"
+  }
+  let baseline_groups = if dispatch.shape().family() == GatedMlp &&
+    dispatch.prefill().kernel_class() == MatrixTile {
+    16
+  } else {
+    8
+  }
+  if dispatch.prefill().output_tiles_per_workgroup() != baseline_groups {
+    builder <+
+      "output_tiles_per_workgroup=\{dispatch.prefill().output_tiles_per_workgroup()}\n"
+  }
   if explicit_tree {
     match single_row_reduction {
       OrderedDot => builder <+ "single_row_reduction=ordered\n"
@@ -446,6 +460,11 @@ pub fn schedule_projection_tile(
     optimization_digest: optimized.optimization.digest,
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
+    output_tiles_per_workgroup: request.dispatch
+    .prefill()
+    .output_tiles_per_workgroup(),
+    selected_input_row_resident: request.demand == QueryRowEnds &&
+    request.dispatch.prefill().input_residency() == SelectedRowTileResidency,
     reuse_input_tile,
     single_row_reduction,
     reuse_intermediate_tile: optimized.optimization.applied(

@@ -115,6 +115,9 @@ fn lower_candidate(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : LunaBf16CandidateSetLimits,
+  projection_records : ArrayView[
+    @luna_projection_strategy.ProjectionAutotuneRecord,
+  ],
 ) -> LunaBf16KernelCandidate raise LunaBf16KernelProducerError {
   let operands = derive_candidate_operands(
     model_plan, operation, profile, layout,
@@ -138,12 +141,17 @@ fn lower_candidate(
       )
     QkvProjection | OutputProjection | GatedMlp | LanguageModelHead =>
       Projection(
-        @luna_cuda_projection_aot.lower_reusable_projection_cuda_aot_candidate(
+        @luna_cuda_projection_aot.lower_reusable_projection_cuda_aot_candidate_with_dispatch(
           operation,
           profile,
           target,
           compiler,
           operands,
+          @luna_cuda_projection_aot.prepare_projection_cuda_runtime_dispatch(
+            operation, profile, target, operands, projection_records,
+          ) catch {
+            _ => raise Invalid(CandidateSet)
+          },
           @luna_cuda_projection_aot.ProjectionAotLimits::new(
             max_source_bytes=limits.max_source_bytes,
             max_recipe_bytes=limits.max_recipe_bytes,
@@ -231,6 +239,9 @@ pub fn prepare_luna_bf16_candidate_set(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : LunaBf16CandidateSetLimits,
+  projection_records? : ArrayView[
+    @luna_projection_strategy.ProjectionAutotuneRecord,
+  ] = [],
 ) -> LunaBf16CandidateSet raise LunaBf16KernelProducerError {
   let operations = model_plan.operations()
   if operations.length() < 9 || operations.length() > limits.max_operations {
@@ -259,7 +270,7 @@ pub fn prepare_luna_bf16_candidate_set(
     }
     candidates.push(
       lower_candidate(
-        model_plan, operation, layout, profile, target, compiler, limits,
+        model_plan, operation, layout, profile, target, compiler, limits, projection_records,
       ),
     )
   }

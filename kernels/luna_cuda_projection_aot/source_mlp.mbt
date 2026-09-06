@@ -67,7 +67,9 @@ fn projection_tensor_core_mlp_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   reuse_input_tile : Bool,
+  groups? : Int = 16,
 ) -> Bytes {
+  let down_groups = Int::min(4, groups)
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
@@ -78,9 +80,9 @@ fn projection_tensor_core_mlp_source(
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
-    "  if (blockDim.x != 512) return;\n" +
+    "  if (blockDim.x != \{groups * 32}) return;\n" +
     "  if (token_count == 1) {\n" +
-    "    const int intermediate = (int)blockIdx.x * 16 + warp;\n" +
+    "    const int intermediate = (int)blockIdx.x * \{groups} + warp;\n" +
     "    if (intermediate >= " +
     parameters.intermediate_width.to_string() +
     ") return;\n" +
@@ -99,12 +101,12 @@ fn projection_tensor_core_mlp_source(
     "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
     "    return;\n  }\n" +
     "  const int group_count = " +
-    (parameters.intermediate_width / 256).to_string() +
+    (parameters.intermediate_width / (groups * 16)).to_string() +
     ";\n" +
     "  const int group_index = (int)blockIdx.x % group_count;\n" +
     "  const int row_start = ((int)blockIdx.x / group_count) * 16;\n" +
     "  if (row_start >= token_count) return;\n" +
-    "  const int column = group_index * 256 + warp * 16;\n" +
+    "  const int column = group_index * \{groups * 16} + warp * 16;\n" +
     "  extern __shared__ unsigned char shared_bytes[];\n" +
     (if reuse_input_tile {
       // This is a physical schedule choice, distinct from the sibling-dot CSE
@@ -171,10 +173,10 @@ fn projection_tensor_core_mlp_source(
     symbol +
     "_down(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {\n" +
     projection_count_guard(maximum_tokens) +
-    "  if (blockDim.x != 512) return;\n" +
+    "  if (blockDim.x != \{groups * 32}) return;\n" +
     "  const int warp = (int)threadIdx.x >> 5, lane = (int)threadIdx.x & 31;\n" +
     "  if (token_count == 1) {\n" +
-    "    const int output_column = (int)blockIdx.x * 16 + warp;\n" +
+    "    const int output_column = (int)blockIdx.x * \{groups} + warp;\n" +
     "    if (output_column >= " +
     parameters.output_width.to_string() +
     ") return;\n" +
@@ -188,9 +190,13 @@ fn projection_tensor_core_mlp_source(
     "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
-    (if reuse_input_tile { "" } else { "  if (warp >= 4) return;\n" }) +
+    (if reuse_input_tile {
+      ""
+    } else {
+      "  if (warp >= \{down_groups}) return;\n"
+    }) +
     "  const int group_count = " +
-    (parameters.output_width / 64).to_string() +
+    (parameters.output_width / (down_groups * 16)).to_string() +
     "; const int live_groups = ((token_count + 15) / 16) * group_count;\n" +
     (if reuse_input_tile {
       // All warps remain live at the block barriers while the invariant
@@ -204,7 +210,7 @@ fn projection_tensor_core_mlp_source(
     "  for (int work_group = (int)blockIdx.x; work_group < live_groups; work_group += (int)gridDim.x) {\n" +
     "  const int group_index = work_group % group_count;\n" +
     "  const int row_start = (work_group / group_count) * 16;\n" +
-    "  const int column = group_index * 64 + warp * 16;\n" +
+    "  const int column = group_index * \{down_groups * 16} + warp * 16;\n" +
     (if reuse_input_tile {
       "  float *warp_output = tile_output + warp * 256;\n"
     } else {
@@ -219,13 +225,13 @@ fn projection_tensor_core_mlp_source(
       parameters.intermediate_width.to_string() +
       "ULL + inner + tile_column] : __float2bfloat16_rn(0.0f); }\n" +
       "    __syncthreads();\n" +
-      "    if (warp < 4) { nvcuda::wmma::load_matrix_sync(a, input_tile, 16); nvcuda::wmma::load_matrix_sync(b, down_weight + (unsigned long long)column * " +
+      "    if (warp < \{down_groups}) { nvcuda::wmma::load_matrix_sync(a, input_tile, 16); nvcuda::wmma::load_matrix_sync(b, down_weight + (unsigned long long)column * " +
       parameters.intermediate_width.to_string() +
       "ULL + inner, " +
       parameters.intermediate_width.to_string() +
       "); nvcuda::wmma::mma_sync(c, a, b, c); }\n" +
       "    __syncthreads();\n  }\n" +
-      "  if (warp < 4) { nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major); __syncwarp();\n  #pragma unroll\n"
+      "  if (warp < \{down_groups}) { nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major); __syncwarp();\n  #pragma unroll\n"
     } else {
       "  for (int inner = 0; inner < " +
       parameters.intermediate_width.to_string() +
@@ -336,7 +342,10 @@ fn projection_source(
           )
         } else {
           projection_tensor_core_direct_qkv_source(
-            symbol, parameters, maximum_tokens,
+            symbol,
+            parameters,
+            maximum_tokens,
+            groups=tile_compilation.schedule().output_tiles_per_workgroup(),
           )
         }
       } else {
@@ -388,6 +397,7 @@ fn projection_source(
           parameters,
           maximum_tokens,
           tile_compilation.schedule().reuse_input_tile(),
+          groups=tile_compilation.schedule().output_tiles_per_workgroup(),
         )
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)

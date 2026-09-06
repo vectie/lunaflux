@@ -249,3 +249,17 @@ pub fn ProjectionTileCompilationDigest::as_hex(
 ) -> String {
   self.0
 }
+
+///|
+pub fn ProjectionTileSchedule::selected_input_row_resident(
+  self : ProjectionTileSchedule,
+) -> Bool {
+  self.selected_input_row_resident
+}
+
+///|
+pub fn ProjectionTileSchedule::output_tiles_per_workgroup(
+  self : ProjectionTileSchedule,
+) -> Int {
+  self.output_tiles_per_workgroup
+}

@@ -50,8 +50,8 @@ fn projection_cuda_capabilities(
       Some(
         @luna_projection_strategy.ProjectionTile::new(
           rows=16,
-          columns=256,
-          reduction=256,
+          columns=16,
+          reduction=16,
         ) catch {
           _ => abort("static CUDA MLP tile rejected")
         },
@@ -541,16 +541,27 @@ fn projection_dimensions(
   let tensor_core_mlp = projection_tensor_core_mlp_eligible(
     parameters, dispatch,
   )
-  let shared_memory_bytes = if tensor_core {
-    if parameters.family == LanguageModelHead {
-      8704L
+  let groups = dispatch.prefill().output_tiles_per_workgroup().to_int64()
+  let shared_memory_bytes = if tensor_core || tensor_core_mlp {
+    let storage = dispatch
+      .prefill()
+      .local_storage(projection_strategy_shape(parameters)) catch {
+        _ => raise SizeOverflow(LaunchDimensions)
+      }
+    let accumulator_bytes = projection_checked_mul(
+      storage.accumulator_elements(),
+      4L,
+    )
+    let input_elements = storage.selected_input_elements()
+    let input_bytes = if input_elements == 0L {
+      0L
     } else {
-      // Direct-fragment QKV and dense use one 8 KiB FP32 accumulator arena.
-      // The mixed entry point retains its allocation-free GEMV decode branch.
-      8192L
+      projection_checked_mul(input_elements, 2L)
     }
-  } else if tensor_core_mlp {
-    16384L
+    if accumulator_bytes > 2147483647L - input_bytes {
+      raise LimitExceeded(LaunchDimensions)
+    }
+    accumulator_bytes + input_bytes
   } else if parameters.family == GatedMlp &&
     parameters.intermediate_width <= 24576 {
     projection_checked_mul(parameters.intermediate_width.to_int64(), 4L)
@@ -559,15 +570,20 @@ fn projection_dimensions(
   }
   let work = if tensor_core {
     if parameters.family == LanguageModelHead {
-      let output_tile_groups = (parameters.output_width.to_int64() + 127L) /
-        128L
+      let output_tile_groups = (
+          parameters.output_width.to_int64() + groups * 16L - 1L
+        ) /
+        (groups * 16L)
       output_tile_groups
     } else {
-      let output_tile_groups = (parameters.output_width.to_int64() + 127L) /
-        128L
+      let output_tile_groups = (
+          parameters.output_width.to_int64() + groups * 16L - 1L
+        ) /
+        (groups * 16L)
       let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
       let prompt_work = projection_checked_mul(output_tile_groups, row_tiles)
-      let decode_work = (parameters.output_width.to_int64() + 7L) / 8L
+      let decode_work = (parameters.output_width.to_int64() + groups - 1L) /
+        groups
       if prompt_work > decode_work {
         prompt_work
       } else {
@@ -576,8 +592,17 @@ fn projection_dimensions(
     }
   } else if tensor_core_mlp {
     let row_tiles = (profile.max_query_tokens().to_int64() + 15L) / 16L
-    let intermediate_groups = parameters.intermediate_width.to_int64() / 256L
-    projection_checked_mul(row_tiles, intermediate_groups)
+    let intermediate_groups = parameters.intermediate_width.to_int64() /
+      (groups * 16L)
+    Int64::max(
+      projection_checked_mul(row_tiles, intermediate_groups),
+      (
+        Int::max(parameters.intermediate_width, parameters.output_width).to_int64() +
+        groups -
+        1L
+      ) /
+      groups,
+    )
   } else if shared_memory_bytes > 0L {
     profile.max_query_tokens().to_int64()
   } else {
@@ -590,7 +615,7 @@ fn projection_dimensions(
       parameters.output_width.to_int64(),
     )
   }
-  let threads = if tensor_core_mlp { 512L } else { 256L }
+  let threads = if tensor_core || tensor_core_mlp { groups * 32L } else { 256L }
   if work > 9223372036854775807L - (threads - 1L) {
     raise SizeOverflow(LaunchDimensions)
   }

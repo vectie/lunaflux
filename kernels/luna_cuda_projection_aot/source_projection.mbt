@@ -72,6 +72,10 @@ fn projection_tensor_core_direct_dense_source(
     .schedule()
     .demand()
   let query_row_ends = demand == QueryRowEnds
+  let groups = tile_compilation.schedule().output_tiles_per_workgroup()
+  let row_resident = tile_compilation.schedule().selected_input_row_resident()
+  let cooperative_column_tail = query_row_ends &&
+    parameters.output_width % (groups * 16) != 0
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
@@ -87,7 +91,7 @@ fn projection_tensor_core_direct_dense_source(
     "  const int lane = (int)threadIdx.x & 31;\n" +
     (if !query_row_ends {
       "  if (token_count == 1) {\n" +
-      "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
+      "    const int output_column = (int)blockIdx.x * \{groups} + warp; if (output_column >= " +
       parameters.output_width.to_string() +
       ") return;\n" +
       "    const unsigned long long weight_base = (unsigned long long)output_column * " +
@@ -100,19 +104,21 @@ fn projection_tensor_core_direct_dense_source(
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
       "    return;\n  }\n" +
       "  const int group_count = " +
-      ((parameters.output_width + 127) / 128).to_string() +
+      ((parameters.output_width + groups * 16 - 1) / (groups * 16)).to_string() +
       ";\n" +
       "  const int group_index = (int)blockIdx.x % group_count;\n" +
       "  const int row_begin = ((int)blockIdx.x / group_count) * 16;\n" +
-      "  const int column = (group_index * 8 + warp) * 16;\n" +
+      "  const int column = (group_index * \{groups} + warp) * 16;\n" +
       "  if (row_begin >= token_count || column >= " +
       parameters.output_width.to_string() +
       ") return;\n"
     } else {
-      "  const int column = ((int)blockIdx.x * 8 + warp) * 16;\n" +
-      "  if (column >= " +
-      parameters.output_width.to_string() +
-      ") return;\n"
+      "  const int column = ((int)blockIdx.x * \{groups} + warp) * 16;\n" +
+      (if cooperative_column_tail {
+        ""
+      } else {
+        "  if (column >= " + parameters.output_width.to_string() + ") return;\n"
+      })
     }) +
     (if query_row_ends {
       "  const int row_count = counts[2];\n" +
@@ -161,14 +167,21 @@ fn projection_tensor_core_direct_dense_source(
     (if query_row_ends {
       "  extern __shared__ unsigned char projection_shared[];\n" +
       "  float *tile_output = (float *)projection_shared;\n" +
-      "  __nv_bfloat16 *selected_input = (__nv_bfloat16 *)(tile_output + 2048);\n"
+      "  __nv_bfloat16 *selected_input = (__nv_bfloat16 *)(tile_output + \{groups * 256});\n"
+    } else {
+      ""
+    }) +
+    (if row_resident {
+      projection_resident_selected_rows(parameters.input_width)
     } else {
       ""
     }) +
     "  for (int inner = 0; inner < " +
     parameters.input_width.to_string() +
     "; inner += 16) {\n" +
-    (if query_row_ends {
+    (if row_resident {
+      "    nvcuda::wmma::load_matrix_sync(a, selected_input + inner, \{parameters.input_width});\n"
+    } else if query_row_ends {
       "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
       "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
       "      const int query_row = row + local_row;\n" +
@@ -186,13 +199,23 @@ fn projection_tensor_core_direct_dense_source(
       parameters.input_width.to_string() +
       ");\n"
     }) +
-    "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)column * " +
+    "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)" +
+    (if cooperative_column_tail {
+      "(column < \{parameters.output_width} ? column : 0)"
+    } else {
+      "column"
+    }) +
+    " * " +
     parameters.input_width.to_string() +
     "ULL + inner, " +
     parameters.input_width.to_string() +
     ");\n" +
     "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-    (if query_row_ends { "    __syncthreads();\n" } else { "" }) +
+    (if query_row_ends && !row_resident {
+      "    __syncthreads();\n"
+    } else {
+      ""
+    }) +
     "  }\n" +
     (if query_row_ends {
       ""
@@ -219,7 +242,9 @@ fn projection_tensor_core_direct_dense_source(
     "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);" +
     (if query_row_ends { " }" } else { "" }) +
     "\n" +
-    "  }\n  }\n}\n",
+    "  }\n" +
+    (if row_resident { "  __syncthreads();\n" } else { "" }) +
+    "  }\n}\n",
   )
 }
 
@@ -228,6 +253,7 @@ fn projection_tensor_core_direct_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  groups? : Int = 8,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
@@ -240,7 +266,7 @@ fn projection_tensor_core_direct_qkv_source(
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
     "  if (token_count == 1) {\n" +
-    "    const int output_column = (int)blockIdx.x * 8 + warp; if (output_column >= " +
+    "    const int output_column = (int)blockIdx.x * \{groups} + warp; if (output_column >= " +
     parameters.output_width.to_string() +
     ") return;\n" +
     "    const __nv_bfloat16 *selected_weight = query_weight;\n" +
@@ -264,11 +290,11 @@ fn projection_tensor_core_direct_qkv_source(
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     "  const int group_count = " +
-    ((parameters.output_width + 127) / 128).to_string() +
+    ((parameters.output_width + groups * 16 - 1) / (groups * 16)).to_string() +
     ";\n" +
     "  const int group_index = (int)blockIdx.x % group_count;\n" +
     "  const int row = ((int)blockIdx.x / group_count) * 16;\n" +
-    "  const int column = (group_index * 8 + warp) * 16;\n" +
+    "  const int column = (group_index * \{groups} + warp) * 16;\n" +
     "  if (row >= token_count || column >= " +
     parameters.output_width.to_string() +
     ") return;\n" +

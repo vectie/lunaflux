@@ -101,6 +101,8 @@ pub struct ProjectionStrategy {
   priv kernel_class : ProjectionKernelClass
   priv row_bucket : Int
   priv tile : ProjectionTile
+  priv output_tiles_per_workgroup : Int
+  priv input_residency : ProjectionInputResidency
 } derive(Debug, Eq)
 
 ///|

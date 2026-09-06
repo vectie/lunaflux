@@ -57,11 +57,22 @@ pub fn ProjectionDispatchPlan::decode(Self) -> ProjectionStrategy
 pub fn ProjectionDispatchPlan::prefill(Self) -> ProjectionStrategy
 pub fn ProjectionDispatchPlan::shape(Self) -> ProjectionShape
 
+pub(all) enum ProjectionInputResidency {
+  ReductionTileResidency
+  SelectedRowTileResidency
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ProjectionKernelClass {
   ScalarTile
   SubgroupGemv
   MatrixTile
 } derive(Eq, @debug.Debug)
+
+pub struct ProjectionLocalStorage {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionLocalStorage::accumulator_elements(Self) -> Int64
+pub fn ProjectionLocalStorage::selected_input_elements(Self) -> Int64
 
 pub(all) enum ProjectionNumericType {
   ProjectionBFloat16
@@ -115,13 +126,18 @@ pub fn ProjectionShape::new(ProjectionSemanticFamily, input_width~ : Int, output
 pub struct ProjectionStrategy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStrategy::input_residency(Self) -> ProjectionInputResidency
 pub fn ProjectionStrategy::kernel_class(Self) -> ProjectionKernelClass
-pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, strategy_class? : ProjectionStrategyClass?, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile) -> Self raise ProjectionStrategyError
+pub fn ProjectionStrategy::local_storage(Self, ProjectionShape) -> ProjectionLocalStorage raise ProjectionStrategyError
+pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, strategy_class? : ProjectionStrategyClass?, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile, output_tiles_per_workgroup? : Int, input_residency? : ProjectionInputResidency) -> Self raise ProjectionStrategyError
+pub fn ProjectionStrategy::output_distribution_candidates(Self) -> ReadOnlyArray[Self] raise ProjectionStrategyError
+pub fn ProjectionStrategy::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionStrategy::phase(Self) -> ProjectionPhase
 pub fn ProjectionStrategy::row_bucket(Self) -> Int
 pub fn ProjectionStrategy::stable_id(Self) -> Int
 pub fn ProjectionStrategy::strategy_class(Self) -> ProjectionStrategyClass
 pub fn ProjectionStrategy::tile(Self) -> ProjectionTile
+pub fn ProjectionStrategy::with_selected_row_residency(Self, stable_id~ : Int) -> Self raise ProjectionStrategyError
 
 pub(all) enum ProjectionStrategyClass {
   DecodeGemv

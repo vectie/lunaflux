@@ -207,3 +207,12 @@ pub fn ProjectionRuntimeDispatch::maximum_rows(
 ) -> Int {
   self.maximum_rows
 }
+
+///|
+/// Independent output fragments assigned to one workgroup. This is a map
+/// partition, not a reduction reassociation or a hardware thread count.
+pub fn ProjectionStrategy::output_tiles_per_workgroup(
+  self : ProjectionStrategy,
+) -> Int {
+  self.output_tiles_per_workgroup
+}
