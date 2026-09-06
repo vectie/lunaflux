@@ -635,6 +635,15 @@ test "compiler split decode source preserves GQA reuse and key parallelism" {
     ).bytes(),
   )
   for
+    name in [
+      "LF_BLOCK_THREADS", "LF_SUBGROUP_COUNT", "LF_QUERY_HEADS_PER_BLOCK", "LF_SPLITS_PER_HEAD",
+      "LF_KEY_VALUE_TILE", "LF_HEAD_DIMENSION",
+    ] {
+    assert_true(source.contains("#undef " + name))
+  }
+  assert_true(source.contains("lunaflux_attention_decode_split_v1_warp_sum"))
+  assert_false(source.contains("float lf_split_warp_sum("))
+  for
     required in [
       "#define LF_QUERY_HEADS_PER_BLOCK 4", "#define LF_SPLITS_PER_HEAD 2", "const int query_in_group = warp / LF_SPLITS_PER_HEAD",
       "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)", "partial_numerators",

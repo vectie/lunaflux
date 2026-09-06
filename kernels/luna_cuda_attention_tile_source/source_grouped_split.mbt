@@ -83,11 +83,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       $|      query_head * LF_HEAD_DIMENSION;
     )
   }
-  let warp_sum_symbol = if partitioned {
-    symbol + "_warp_sum"
-  } else {
-    "lf_split_warp_sum"
-  }
+  let warp_sum_symbol = symbol + "_warp_sum"
   let dot =
     $|      float partial = 0.0f;
     $|      #pragma unroll
@@ -360,6 +356,12 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|    }
     $|  }
     $|}
+    $|#undef LF_BLOCK_THREADS
+    $|#undef LF_SUBGROUP_COUNT
+    $|#undef LF_QUERY_HEADS_PER_BLOCK
+    $|#undef LF_SPLITS_PER_HEAD
+    $|#undef LF_KEY_VALUE_TILE
+    $|#undef LF_HEAD_DIMENSION
   let bytes = @utf8.encode(source)
   if bytes.length() > maximum_source_bytes {
     raise InvalidCudaAttentionTileSource(SourceLimit)
