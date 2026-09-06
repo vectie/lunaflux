@@ -25,3 +25,19 @@ storage plan. At Q64/K64/head64 the key overlay must include a 256-byte rescale
 tail: total shared storage is 57,600 bytes, not the insufficient 57,344-byte
 old bound. Lifetime boundaries include synchronization after query validation
 and after tile-validation readers, before the next staging/QK writer.
+
+Grouped split-subgroup decode now realizes the schedule's contiguous column
+vector map for both direct and partitioned execution. The existing 8-byte
+schedule emits bit-preserving four-BF16 K/V transfers instead of scalar BF16
+loads/stores. Width is selected above CUDA lowering; CUDA packed types remain
+private here. Head boundaries and page strides must preserve alignment, with
+compile-time scalar fallback for an unaligned stride. Key-tail masking, page
+validation, synchronization, shared storage and floating-point fold order are
+unchanged. This is synchronous vectorization, not an asynchronous pipeline.
+
+The test-only `attention_tile_cuda_source_probe decode-serving` exporter emits
+both production-shaped entry points through the compiler. The native CUDA
+probe's `compare` mode compares two such modules bit-for-bit, checks a scalar
+oracle, page/tile tails, empty partitions and mixed rows, verifies unchanged
+K/V, and closes all resources. Its GPU fixture is the explicitly selected
+RTX 5060 Ti, not an arbitrary visible device.

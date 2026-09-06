@@ -2,6 +2,11 @@
 fn main raise {
   let arguments = @env.args()
   match arguments {
+    [_, "decode-serving"] => {
+      emit_decode_probe(true, false, serving_abi=true)
+      emit_decode_probe(true, true, serving_abi=true)
+      return
+    }
     [_, "decode-direct"] => {
       emit_decode_probe(false, true)
       return

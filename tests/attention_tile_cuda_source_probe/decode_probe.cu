@@ -16,6 +16,7 @@ static float fp(uint16_t x) { uint32_t u = uint32_t(x) << 16; float f; std::memc
 static uint16_t bf(float f) { uint32_t u; std::memcpy(&u, &f, 4); u += 0x7fff + ((u >> 16) & 1); return uint16_t(u >> 16); }
 static int page_tokens = 16;
 static bool real_abi = false;
+static bool compare_modules = false;
 template<class T> static CUdeviceptr upload(const std::vector<T>& a) {
   CUdeviceptr p; ck(cuMemAlloc(&p, a.size()*sizeof(T))); ck(cuMemcpyHtoD(p, a.data(), a.size()*sizeof(T))); return p;
 }
@@ -67,9 +68,14 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
       expected[b*2048+h*128+c]=float(sum/denominator);
     }
   }
+  std::vector<std::vector<uint16_t>> reference(2);
   for(int which=0;which<kernel_count;++which) {
     ck(cuMemcpyHtoD(d[7],output.data(),output.size()*2)); kernels[which].launch(d); ck(cuCtxSynchronize());
     std::vector<uint16_t> got(output.size()); ck(cuMemcpyDtoH(got.data(),d[7],got.size()*2));
+    if(compare_modules) {
+      if(which<2) reference[which]=got;
+      else if(got!=reference[which%2]) { std::fprintf(stderr,"bitwise transfer mismatch context=%d batch=%d kernel=%d\n",context,batch,which); std::exit(5); }
+    }
     float error=0;
     for(int i=0;i<batch*2048;++i) { float actual=fp(got[prefix*2048+i]); if(!std::isfinite(actual)) { std::fprintf(stderr,"nonfinite case=%d batch=%d kernel=%d i=%d\n",context,batch,which,i); std::exit(3); } error=std::max(error,std::fabs(actual-expected[i])); }
     if(error>0.004f) { std::fprintf(stderr,"oracle mismatch %f\n",error); std::exit(3); }
@@ -88,16 +94,23 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
 }
 int main(int argc,char**argv) {
   if(argc!=5 && argc!=6) return 2;
-  real_abi = argc==6 && std::strcmp(argv[5],"real")==0;
+  compare_modules = argc==6 && std::strcmp(argv[5],"compare")==0;
+  real_abi = compare_modules || (argc==6 && std::strcmp(argv[5],"real")==0);
   page_tokens = real_abi?8:16;
-  ck(cuInit(0)); CUdevice dev; ck(cuDeviceGet(&dev,0)); CUcontext ctx; ck(cuCtxCreate(&ctx,nullptr,0,dev));
+  ck(cuInit(0)); CUdevice dev; ck(cuDeviceGet(&dev,0));
+  CUuuid uuid; ck(cuDeviceGetUuid(&uuid,dev));
+  const unsigned char expected_uuid[]={0x50,0xc4,0x4f,0x23,0x00,0xcd,0x88,0x71,0xb4,0xc7,0x0c,0x5a,0x62,0xd3,0xe7,0xf6};
+  if(std::memcmp(uuid.bytes,expected_uuid,16)!=0) { std::fprintf(stderr,"unexpected GPU\n"); return 2; }
+  CUcontext ctx; ck(cuCtxCreate(&ctx,nullptr,0,dev));
   std::vector<Kernel> kernels;
   kernels.emplace_back(argv[1],false,true);
-  kernels.emplace_back(argv[2],true,real_abi);
+  kernels.emplace_back(compare_modules?argv[1]:argv[2],true,real_abi);
+  if(compare_modules) { kernels.emplace_back(argv[2],false,true); kernels.emplace_back(argv[2],true,true); }
   if(!real_abi) kernels.emplace_back(argv[3],true,true);
   int repeats=std::atoi(argv[4]); if(repeats<=0) return 2;
-  for(int context:{1,59,128,256,512,1528,4096}) run_case(kernels.data(),int(kernels.size()),context,1,false,repeats);
+  for(int context:{1,7,8,9,59,63,64,65,128,256,512,1528,4096}) run_case(kernels.data(),int(kernels.size()),context,1,false,repeats);
   run_case(kernels.data(),int(kernels.size()),256,2,true,repeats); run_case(kernels.data(),int(kernels.size()),1528,8,false,repeats);
   for(auto& kernel:kernels) ck(cuModuleUnload(kernel.module)); ck(cuCtxDestroy(ctx));
   std::puts("correctness=passed kv_unchanged=true resources_released=true");
+  if(compare_modules) std::puts("scalar_vector_bitwise_equal=true");
 }

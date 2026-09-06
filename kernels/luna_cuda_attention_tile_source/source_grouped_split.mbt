@@ -13,7 +13,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   let (_, grid_y, block_threads, shared_memory_bytes) = lowering.launch()
   let (pipeline_stages, vector_bytes) = lowering.pipeline()
   let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
-  let (input_row_width, page_stride_values, physical_page_capacity) = abi.layout()
+  let (input_row_width, _, _) = abi.layout()
   let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
   let group_size = query_heads / key_value_heads
   let subgroup_count = block_threads / 32
@@ -36,6 +36,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
+  let transfer = emit_decode_key_value_transfer(abi, vector_bytes)
   let accumulator_items = (head_dimension + 31) / 32
   let partitions = lowering.key_value_partitions()
   let partitioned = partitions > 1
@@ -208,34 +209,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|        min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|    if (thread == 0) *tile_valid = 1;
     $|    __syncthreads();
-    $|    for (int linear = thread;
-    $|         linear < LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|         linear += LF_BLOCK_THREADS) {
-    $|      const int key = linear / LF_HEAD_DIMENSION;
-    $|      const int component = linear % LF_HEAD_DIMENSION;
-    $|      __nv_bfloat16 staged_key = __float2bfloat16_rn(0.0f);
-    $|      __nv_bfloat16 staged_value = __float2bfloat16_rn(0.0f);
-    $|      if (key < active_keys) {
-    $|        const int key_position = key_base + key;
-    $|        const int page_slot = page_start + key_position / \{tokens_per_page};
-    $|        const int physical_page =
-    $|            page_slot < page_end ? page_table_page_indices[page_slot] : -1;
-    $|        if (physical_page < 0 ||
-    $|            (unsigned long long)physical_page >= \{physical_page_capacity}ULL) {
-    $|          atomicExch(tile_valid, 0);
-    $|        } else {
-    $|          const int token_in_page = key_position % \{tokens_per_page};
-    $|          const unsigned long long cache_index =
-    $|              (unsigned long long)physical_page * \{page_stride_values}ULL +
-    $|              ((unsigned long long)token_in_page * \{key_value_heads}ULL +
-    $|                  key_value_head) * LF_HEAD_DIMENSION + component;
-    $|          staged_key = key_cache[cache_index];
-    $|          staged_value = value_cache[cache_index];
-    $|        }
-    $|      }
-    $|      key_tile[linear] = staged_key;
-    $|      value_tile[linear] = staged_value;
-    $|    }
+    $|\{transfer}
     $|    __syncthreads();
     $|    if (!*tile_valid) return;
     $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
