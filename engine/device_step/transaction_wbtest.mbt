@@ -23,7 +23,11 @@ fn fake_upload_transaction(
   upload(PageOffsets, host.page_offsets, summary.row_count + 1)
   upload(PhysicalPageIndices, host.physical_page_indices, summary.page_count)
   publish_counts(host, summary)
-  upload(Counts, host.counts, COUNTS_LENGTH)
+  upload(
+    Counts,
+    host.counts,
+    OUTPUT_ROW_ENDS_CELL + output_physical_rows(host, summary) + 1,
+  )
 }
 
 ///|

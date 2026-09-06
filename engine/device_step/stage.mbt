@@ -79,6 +79,7 @@ fn publish_counts(
   write_i32(host.counts, 2, summary.row_count)
   write_i32(host.counts, 3, summary.token_count)
   write_i32(host.counts, 4, summary.page_count)
+  publish_output_counts(host, summary)
 }
 
 ///|
@@ -153,7 +154,7 @@ fn upload_owner_transaction(
     Counts,
     owner.resources.counts,
     owner.host.counts,
-    COUNTS_LENGTH,
+    OUTPUT_ROW_ENDS_CELL + output_physical_rows(owner.host, summary) + 1,
   )
 }
 

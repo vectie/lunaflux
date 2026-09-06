@@ -44,8 +44,21 @@ fn prepare_paged_production_steps(
       ),
     )
   }
+  let project_output_rows = paged_terminal_rows_are_projectable(blueprint) &&
+    resources.fused_dispatch_canary is None
+  match resources.descriptor {
+    Some(Complete(owner)) =>
+      owner.host.project_output_rows = project_output_rows
+    _ => ()
+  }
   let baseline = prepare_paged_steps(
-    blueprint, function_indices, descriptor, weight, activation, kv,
+    blueprint,
+    function_indices,
+    descriptor,
+    weight,
+    activation,
+    kv,
+    project_output_rows~,
   )
   let residual_replacements : Array[PreparedPagedGraphStep] = []
   match fused_residual_function {

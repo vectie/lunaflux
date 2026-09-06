@@ -244,17 +244,32 @@ fn prepare_paged_steps(
   weight : @device.Allocation,
   activation_workspace : @device.Allocation,
   persistent_kv : @device.Allocation,
+  project_output_rows? : Bool = false,
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
   let prepared : Array[PreparedPagedGraphStep] = []
   for step_index, step in blueprint.steps() {
     let arguments : Array[@device.KernelArgument] = []
     for binding in step.operands() {
+      let output_offset = if project_output_rows &&
+        step.operation_kind() == LanguageModelHead {
+        projected_operand_offset(binding)
+      } else {
+        -1L
+      }
       arguments.push(
         @device.KernelArgument::device_region(
-          allocation_for_paged_operand(
-            binding, descriptor, weight, activation_workspace, persistent_kv,
-          ),
-          offset=binding.offset_bytes(),
+          if output_offset >= 0L {
+            descriptor.counts
+          } else {
+            allocation_for_paged_operand(
+              binding, descriptor, weight, activation_workspace, persistent_kv,
+            )
+          },
+          offset=if output_offset >= 0L {
+            output_offset
+          } else {
+            binding.offset_bytes()
+          },
           byte_count=binding.byte_count(),
           alignment=binding.alignment(),
         ) catch {

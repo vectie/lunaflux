@@ -238,7 +238,12 @@ fn prepare_validated(
   accepted_predecessor_value : UInt64,
 ) -> DeviceStepPreparation raise DeviceStepError {
   let resources = empty_partial_resources()
-  let counts = allocate_one(context, resources, Counts, COUNTS_LENGTH) catch {
+  let counts = allocate_one(
+    context,
+    resources,
+    Counts,
+    output_descriptor_cells(limits),
+  ) catch {
     error => return construction_failed(resources, error)
   }
   let token_ids = allocate_one(

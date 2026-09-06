@@ -216,9 +216,7 @@ fn write_frame_prefill(
     write,
   )
   if write {
-    if work.output_token_row() >= 0 {
-      host.output_rows += 1
-    }
+    write_output_row(host, row_index, work.output_token_row())
     write_i32(host.query_row_offsets, row_index, work.query_start())
     write_i32(host.sequence_lengths, row_index, sequence_length)
     write_i32(host.page_offsets, row_index, page_start)
@@ -289,6 +287,7 @@ fn write_frame_decode(
     write,
   )
   if write {
+    write_output_row(host, row_index, token_start)
     write_i32(host.query_row_offsets, row_index, token_start)
     write_i32(host.sequence_lengths, row_index, sequence_length)
     write_i32(host.page_offsets, row_index, page_start)
@@ -313,7 +312,8 @@ fn preflight_frame_and_write(
     frame, expected_generation, layout, limits, expected_identity,
   )
   if write {
-    host.output_rows = summary.decode_count
+    host.output_rows = 0
+    write_i32(host.counts, OUTPUT_ROW_ENDS_CELL, 0)
   }
   let mut token_end = 0
   let mut page_end = 0
@@ -357,6 +357,7 @@ fn preflight_frame_and_write(
     write_i32(host.counts, 2, summary.row_count)
     write_i32(host.counts, 3, summary.token_count)
     write_i32(host.counts, 4, summary.page_count)
+    publish_output_counts(host, summary)
   }
   summary
 }

@@ -2,6 +2,8 @@
 priv struct DeviceStepHostBuffers {
   // Host execution demand only; the existing GPU descriptor ABI is unchanged.
   mut output_rows : Int
+  mut project_output_rows : Bool
+  output_indices : FixedArray[Int]
   counts : FixedArray[Byte]
   token_ids : FixedArray[Byte]
   token_positions : FixedArray[Byte]
@@ -37,7 +39,12 @@ priv struct PartialDeviceStepResources {
 fn make_host_buffers(limits : DeviceStepLimits) -> DeviceStepHostBuffers {
   {
     output_rows: 0,
-    counts: FixedArray::make(COUNTS_LENGTH * INT32_BYTES, b'\x00'),
+    project_output_rows: false,
+    output_indices: FixedArray::make(limits.max_rows(), -1),
+    counts: FixedArray::make(
+      output_descriptor_cells(limits) * INT32_BYTES,
+      b'\x00',
+    ),
     token_ids: FixedArray::make(limits.max_tokens() * INT32_BYTES, b'\x00'),
     token_positions: FixedArray::make(
       limits.max_tokens() * INT32_BYTES,

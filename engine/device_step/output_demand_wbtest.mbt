@@ -89,6 +89,9 @@ test "reused descriptor demand follows producing rows in both plan paths" {
     assert_eq(read_host_i32(wire_host.counts, 3), 2)
     assert_eq(read_host_i32(host.sequence_lengths, 0), 2)
     assert_eq(read_host_i32(wire_host.sequence_lengths, 0), 2)
-    assert_eq(host.counts.length(), 20)
+    assert_eq(
+      host.counts.length(),
+      output_descriptor_cells(step_device_limits()) * 4,
+    )
   }
 }

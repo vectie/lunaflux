@@ -198,13 +198,25 @@ fn prepare_paged_cuda_device_sampling_step(
   let arguments = @device.KernelArguments::new([
     @device.KernelArgument::device_region(
       descriptor.counts,
-      offset=0L,
+      offset=if sampling_descriptor_is_projected(resources) {
+        byte_capacity(OUTPUT_COUNTS_CELL)
+      } else {
+        0L
+      },
       byte_count=16L,
       alignment=4L,
     ),
     @device.KernelArgument::device_region(
-      descriptor.query_row_offsets,
-      offset=0L,
+      if sampling_descriptor_is_projected(resources) {
+        descriptor.counts
+      } else {
+        descriptor.query_row_offsets
+      },
+      offset=if sampling_descriptor_is_projected(resources) {
+        byte_capacity(OUTPUT_ROW_ENDS_CELL)
+      } else {
+        0L
+      },
       byte_count=(blueprint.limits().max_rows() + 1).to_int64() * 4L,
       alignment=4L,
     ),

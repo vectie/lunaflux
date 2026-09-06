@@ -28,7 +28,12 @@ pub fn DeviceStepOwner::descriptor_argument(
     raise DescriptorArgumentMismatch(stage)
   }
   let allocation = descriptor_stage_allocation(self, stage)
-  if allocation.byte_count() != byte_count {
+  let exposed_bytes = if stage == Counts {
+    byte_capacity(COUNTS_LENGTH)
+  } else {
+    allocation.byte_count()
+  }
+  if exposed_bytes != byte_count {
     raise DescriptorArgumentMismatch(stage)
   }
   self.context.validate_allocation_region(

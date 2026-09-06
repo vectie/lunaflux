@@ -203,13 +203,25 @@ fn prepare_paged_cuda_greedy_step(
   let arguments = [
     @device.KernelArgument::device_region(
       descriptor.counts,
-      offset=0L,
+      offset=if sampling_descriptor_is_projected(resources) {
+        byte_capacity(OUTPUT_COUNTS_CELL)
+      } else {
+        0L
+      },
       byte_count=4L * 4L,
       alignment=4L,
     ),
     @device.KernelArgument::device_region(
-      descriptor.query_row_offsets,
-      offset=0L,
+      if sampling_descriptor_is_projected(resources) {
+        descriptor.counts
+      } else {
+        descriptor.query_row_offsets
+      },
+      offset=if sampling_descriptor_is_projected(resources) {
+        byte_capacity(OUTPUT_ROW_ENDS_CELL)
+      } else {
+        0L
+      },
       byte_count=(limits.max_rows() + 1).to_int64() * 4L,
       alignment=4L,
     ),
@@ -412,6 +424,7 @@ fn copy_paged_cuda_greedy_results(
   descriptor : DeviceStepOwner,
   row_count : Int,
 ) -> Unit raise DeviceStepError {
+  let row_count = projected_result_count(descriptor, row_count)
   guard executor.completion.mode is CudaGreedyCompletion(host) else { return }
   guard executor.resources.greedy_sampling_results is Some(owner) &&
     owner.open &&
@@ -451,8 +464,17 @@ fn select_paged_cuda_greedy_result(
       InvalidExecutor(SamplingOutput),
     )
   }
-  let token = read_paged_i32(host, row * 2)
-  let status = read_paged_i32(host, row * 2 + 1)
+  let output_row = projected_result_row(descriptor, row)
+  if output_row < 0 ||
+    output_row >= executor.completion.selected_tokens.length() {
+    return poison_paged_completion_and_raise(
+      executor,
+      descriptor,
+      InvalidExecutor(SamplingOutput),
+    )
+  }
+  let token = read_paged_i32(host, output_row * 2)
+  let status = read_paged_i32(host, output_row * 2 + 1)
   if status >= 0 {
     return poison_paged_completion_and_raise(
       executor,

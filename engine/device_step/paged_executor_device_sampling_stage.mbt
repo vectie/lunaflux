@@ -3,12 +3,16 @@ fn stage_submitted_device_sampling_parameters(
   scratch : PagedDeviceSamplingScratch,
   plan : @worker_protocol.SubmittedSchedulePlan,
   summary : DeviceStepSummary,
+  compact? : Bool = false,
 ) -> Unit raise DeviceStepError {
+  let mut output_index = 0
   for index in 0..<summary.prefill_count {
     let row = plan.prefill_row(index) catch { error => raise Protocol(error) }
     let produces = row.produces_token() catch { error => raise Protocol(error) }
     if !produces {
-      write_paged_device_sampling_fallback(scratch.parameters, index)
+      if !compact {
+        write_paged_device_sampling_fallback(scratch.parameters, index)
+      }
       continue
     }
     let parameters = row.sampling() catch { error => raise Protocol(error) }
@@ -26,7 +30,11 @@ fn stage_submitted_device_sampling_parameters(
     }
     stage_paged_device_sampling_row(
       scratch,
-      index,
+      if compact {
+        output_index
+      } else {
+        index
+      },
       true,
       mode,
       parameters.temperature(),
@@ -41,9 +49,14 @@ fn stage_submitted_device_sampling_parameters(
         error => raise Protocol(error)
       },
     )
+    output_index += 1
   }
   for index in 0..<summary.decode_count {
-    let row_index = summary.prefill_count + index
+    let row_index = if compact {
+      output_index
+    } else {
+      summary.prefill_count + index
+    }
     let row = plan.decode_row(index) catch { error => raise Protocol(error) }
     let parameters = row.sampling() catch { error => raise Protocol(error) }
     let mode = match parameters.mode() {
@@ -75,6 +88,10 @@ fn stage_submitted_device_sampling_parameters(
         error => raise Protocol(error)
       },
     )
+    output_index += 1
+  }
+  if compact && output_index == 1 && summary.row_count > 1 {
+    write_paged_device_sampling_fallback(scratch.parameters, 1)
   }
 }
 
@@ -83,13 +100,22 @@ fn stage_wire_device_sampling_parameters(
   scratch : PagedDeviceSamplingScratch,
   frame : @worker_wire.ValidatedPlanFrame,
   summary : DeviceStepSummary,
+  compact? : Bool = false,
 ) -> Unit raise DeviceStepError {
+  let mut output_index = 0
   for index in 0..<summary.prefill_count {
     let row = frame.prefill_row(index) catch { error => raise Wire(error) }
     let produces = row.produces_token() catch { error => raise Wire(error) }
+    if compact && !produces {
+      continue
+    }
     stage_paged_device_sampling_row(
       scratch,
-      index,
+      if compact {
+        output_index
+      } else {
+        index
+      },
       produces,
       row.sampling_mode_value() catch {
         error => raise Wire(error)
@@ -116,9 +142,14 @@ fn stage_wire_device_sampling_parameters(
         error => raise Wire(error)
       },
     )
+    output_index += 1
   }
   for index in 0..<summary.decode_count {
-    let row_index = summary.prefill_count + index
+    let row_index = if compact {
+      output_index
+    } else {
+      summary.prefill_count + index
+    }
     let row = frame.decode_row(index) catch { error => raise Wire(error) }
     stage_paged_device_sampling_row(
       scratch,
@@ -149,6 +180,10 @@ fn stage_wire_device_sampling_parameters(
         error => raise Wire(error)
       },
     )
+    output_index += 1
+  }
+  if compact && output_index == 1 && summary.row_count > 1 {
+    write_paged_device_sampling_fallback(scratch.parameters, 1)
   }
 }
 
@@ -189,11 +224,19 @@ fn stage_paged_device_sampling_plan(
     scratch,
     plan,
     descriptor.staged_summary,
+    compact=descriptor.host.project_output_rows,
   )
+  if descriptor.host.project_output_rows && descriptor.host.output_rows == 0 {
+    return
+  }
   upload_paged_device_sampling_parameters(
     executor,
     descriptor,
-    descriptor.staged_summary.row_count,
+    if descriptor.host.project_output_rows {
+      output_physical_rows(descriptor.host, descriptor.staged_summary)
+    } else {
+      descriptor.staged_summary.row_count
+    },
   )
 }
 
@@ -210,11 +253,19 @@ fn stage_paged_device_sampling_frame(
     scratch,
     frame,
     descriptor.staged_summary,
+    compact=descriptor.host.project_output_rows,
   )
+  if descriptor.host.project_output_rows && descriptor.host.output_rows == 0 {
+    return
+  }
   upload_paged_device_sampling_parameters(
     executor,
     descriptor,
-    descriptor.staged_summary.row_count,
+    if descriptor.host.project_output_rows {
+      output_physical_rows(descriptor.host, descriptor.staged_summary)
+    } else {
+      descriptor.staged_summary.row_count
+    },
   )
 }
 
@@ -224,6 +275,7 @@ fn copy_paged_cuda_device_sampling_results(
   descriptor : DeviceStepOwner,
   row_count : Int,
 ) -> Unit raise DeviceStepError {
+  let row_count = projected_result_count(descriptor, row_count)
   guard executor.completion.mode is CudaRestrictiveTopKCompletion(scratch) else {
     return
   }
@@ -265,8 +317,16 @@ fn select_paged_cuda_device_sampling_result(
       InvalidExecutor(SamplingOutput),
     )
   }
-  let token = read_paged_i32(scratch.results, row * 2)
-  let status = read_paged_i32(scratch.results, row * 2 + 1)
+  let output_row = projected_result_row(descriptor, row)
+  if output_row < 0 || output_row >= scratch.plan.maximum_rows() {
+    return poison_paged_completion_and_raise(
+      executor,
+      descriptor,
+      InvalidExecutor(SamplingOutput),
+    )
+  }
+  let token = read_paged_i32(scratch.results, output_row * 2)
+  let status = read_paged_i32(scratch.results, output_row * 2 + 1)
   if status >= 0 {
     return poison_paged_completion_and_raise(
       executor,
