@@ -47,6 +47,17 @@ fn projection_finish_candidate(
     maximum_rows=profile.max_query_rows(),
     maximum_tokens=profile.max_query_tokens(),
     demand~,
+    // The matrix companion's single-row lowering uses a deterministic
+    // subgroup tree. Record that permission in the functional compilation;
+    // purity alone must never be mistaken for ordered accumulation.
+    single_row_numerics=if projection_tensor_core_eligible(
+        parameters, dispatch_plan,
+      ) ||
+      projection_tensor_core_mlp_eligible(parameters, dispatch_plan) {
+      AllowDeterministicDotTree
+    } else {
+      PreserveDotOrder
+    },
   ) catch {
     _ => raise Invalid(CompilerPolicy)
   }

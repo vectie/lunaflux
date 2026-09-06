@@ -35,6 +35,10 @@ test "projection-family candidates are deterministic and non-circular" {
       AllTokenRows
     }
     assert_eq(first.tile_compilation().schedule().demand(), expected_demand)
+    assert_eq(
+      first.tile_compilation().schedule().single_row_reduction(),
+      OrderedDot,
+    )
     assert_eq(first.tile_compilation().digest().as_hex().length(), 64)
     assert_true(
       @utf8.decode(first.recipe_bytes()).contains(
@@ -154,6 +158,10 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_true(source.contains("row_start + tile_row < token_count"))
   assert_true(source.contains("if (token_count == 1)"))
   assert_true(source.contains("__shfl_down_sync"))
+  assert_eq(
+    lowering.tile_compilation().schedule().single_row_reduction(),
+    StridedPairwiseDot(32),
+  )
   assert_true(source.contains("if (warp >= 4) return"))
   assert_true(source.contains("const int group_count = 16;"))
   assert_true(source.contains("work_group += (int)gridDim.x"))
