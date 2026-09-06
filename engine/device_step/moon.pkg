@@ -41,6 +41,7 @@ supported_targets = "native"
 
 import {
   "moonbitlang/async",
+  "moonbitlang/core/env",
   "moonbitlang/async/fs",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/engine/device_topology",

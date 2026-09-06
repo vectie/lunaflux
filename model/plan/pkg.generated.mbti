@@ -100,6 +100,7 @@ pub fn ModelPlan::kv_execution(Self) -> ModelKvExecution
 pub fn ModelPlan::new_stateless(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
 pub fn ModelPlan::new_with_kv_execution(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, kv_execution~ : ModelKvExecution, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
 pub fn ModelPlan::numeric_binding(Self) -> ModelNumericBinding
+pub fn ModelPlan::observed_operation_prefix(Self, output_demand~ : Bool) -> Int
 pub fn ModelPlan::operations(Self) -> ReadOnlyArray[PlanOperation]
 pub fn ModelPlan::required_capabilities(Self) -> ReadOnlyArray[KernelCapabilityId]
 pub fn ModelPlan::shape_constraints(Self) -> ShapeConstraints

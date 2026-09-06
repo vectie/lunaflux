@@ -33,6 +33,7 @@ priv struct PagedOwnedFunction {
 priv struct PagedOwnedOrderedExecutor {
   resource : @device.OrderedKernelExecutor
   operation_ids : ReadOnlyArray[@plan.OperationId]
+  mut effect_only_owner_index : Int
   mut open : Bool
 }
 
@@ -116,6 +117,7 @@ priv struct PagedGraphResources {
   modules : Array[PagedOwnedModule]
   functions : Array[PagedOwnedFunction]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
+  mut effect_operation_prefix : Int
   mut graph_launch_contract : PagedGraphLaunchContract?
   mut numeric_weights : PagedNumericWeightOwner?
 }

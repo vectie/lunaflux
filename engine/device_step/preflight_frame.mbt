@@ -216,6 +216,9 @@ fn write_frame_prefill(
     write,
   )
   if write {
+    if work.output_token_row() >= 0 {
+      host.output_rows += 1
+    }
     write_i32(host.query_row_offsets, row_index, work.query_start())
     write_i32(host.sequence_lengths, row_index, sequence_length)
     write_i32(host.page_offsets, row_index, page_start)
@@ -309,6 +312,9 @@ fn preflight_frame_and_write(
   let summary = validate_frame_counts(
     frame, expected_generation, layout, limits, expected_identity,
   )
+  if write {
+    host.output_rows = summary.decode_count
+  }
   let mut token_end = 0
   let mut page_end = 0
   for index in 0..<summary.prefill_count {

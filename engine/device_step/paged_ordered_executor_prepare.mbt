@@ -379,6 +379,9 @@ fn prepare_one_paged_ordered_executor(
   guard resources.stream is Some(stream) && stream.open else {
     raise InvalidExecutor(ResourceState)
   }
+  if operation_ids.length() != launches.length() {
+    raise InvalidExecutor(ResourceState)
+  }
   let executor = context.create_ordered_kernel_executor(
     stream.resource,
     launches,
@@ -386,15 +389,17 @@ fn prepare_one_paged_ordered_executor(
   ) catch {
     error => raise ExecutorDevice(OrderedExecutor, error)
   }
-  if operation_ids.length() != launches.length() {
-    raise InvalidExecutor(ResourceState)
-  }
+  let owner_index = resources.ordered_executors.length()
   resources.ordered_executors.push({
     resource: executor,
     operation_ids,
+    effect_only_owner_index: -1,
     open: true,
   })
-  resources.ordered_executors.length() - 1
+  prepare_paged_effect_only_executor(
+    context, launches, operation_ids, resources, owner_index,
+  )
+  owner_index
 }
 
 ///|

@@ -18,6 +18,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     modules: [],
     functions: [],
     ordered_executors: [],
+    effect_operation_prefix: 0,
     graph_launch_contract: None,
     numeric_weights: None,
   }

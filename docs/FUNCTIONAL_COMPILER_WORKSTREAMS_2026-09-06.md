@@ -42,6 +42,11 @@ alternatives remain disabled.
 - Work planning: pure bounded progress-to-query calculation is consumed by
   scheduler selection; typed query/context/KV-write ranges are consumed by both
   descriptor paths. Existing fairness and KV allocation policy are preserved.
-- Output demand: represented in row work, but GPU head/sampling omission is
-  **not implemented**. No effect-only capture or mixed-row output compaction
-  is claimed. Production default selection and end-to-end validation remain.
+- Output demand: model-level dead-suffix analysis retains the ordered prefix
+  through the last persistent-state effect. Eager executors materialize a
+  shorter reusable queue at startup; both descriptor paths select it only when
+  every row has no output demand. They also omit unused sampling readback.
+  Mixed/output-producing frames retain the full graph. Captures, FP8 envelopes
+  and diagnostic canaries retain their full execution contract. Effect-only
+  capture budgeting, per-row compaction, physical model equivalence and
+  end-to-end validation remain unfinished.

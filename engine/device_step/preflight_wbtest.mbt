@@ -35,6 +35,7 @@ test "mixed rows produce exact CSR and SoA values without page generations" {
     host,
   )
   assert_eq(summary.prefill_count, 1)
+  assert_eq(host.output_rows, 1)
   assert_eq(summary.decode_count, 1)
   assert_eq(summary.row_count, 2)
   assert_eq(summary.token_count, 4)

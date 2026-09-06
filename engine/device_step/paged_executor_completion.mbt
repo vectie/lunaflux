@@ -257,8 +257,10 @@ pub fn PagedGraphExecutor::sample_completion(
 ) -> @worker_protocol.SubmittedCompletion raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_completion_plan(descriptor, plan, writer)
-  copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
-  copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
+  if descriptor.host.output_rows > 0 {
+    copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
+    copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
+  }
   for prefill_index in 0..<summary.prefill_count {
     let row = try plan.prefill_row(prefill_index) catch {
       error => raise Protocol(error)

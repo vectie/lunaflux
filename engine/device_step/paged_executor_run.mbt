@@ -142,7 +142,7 @@ pub fn PagedGraphExecutor::stage(
     self.graph_bucket_table,
     plan,
   )
-  let ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
+  let mut ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
   let descriptor = complete_descriptor(self.resources)
   let staged = descriptor.stage_with_sampling_mode(
     plan,
@@ -153,6 +153,11 @@ pub fn PagedGraphExecutor::stage(
   stage_paged_device_sampling_plan(self, descriptor, plan) catch {
     error => poison_paged_completion_and_raise(self, descriptor, error)
   }
+  ordered_executor_index = select_paged_output_demand(
+    self,
+    ordered_executor_index,
+    descriptor.host.output_rows,
+  )
   self.lifecycle = GraphStaged
   { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
 }
@@ -166,7 +171,7 @@ pub fn PagedGraphExecutor::stage_frame(
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)
-  let ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
+  let mut ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
   let descriptor = complete_descriptor(self.resources)
   let staged = match self.fp8_frame_envelope {
     Some(envelope) => {
@@ -195,6 +200,11 @@ pub fn PagedGraphExecutor::stage_frame(
       staged
     }
   }
+  ordered_executor_index = select_paged_output_demand(
+    self,
+    ordered_executor_index,
+    descriptor.host.output_rows,
+  )
   self.lifecycle = GraphStaged
   { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
 }

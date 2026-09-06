@@ -63,6 +63,7 @@ test "wire plan preflight produces exact descriptor bytes" {
     true,
   )
   assert_eq(summary.row_count, 2)
+  assert_eq(host.output_rows, 1)
   assert_eq(summary.token_count, 4)
   assert_eq(summary.page_count, 3)
   assert_eq(read_host_i32(host.token_ids, 0), 10)

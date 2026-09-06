@@ -356,8 +356,10 @@ pub fn PagedGraphExecutor::sample_completion_frame(
 ) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)
   let summary = validate_wire_completion_plan(descriptor, frame, writer)
-  copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
-  copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
+  if descriptor.host.output_rows > 0 {
+    copy_paged_cuda_greedy_results(self, descriptor, summary.row_count)
+    copy_paged_cuda_device_sampling_results(self, descriptor, summary.row_count)
+  }
   for index in 0..<summary.prefill_count {
     sample_wire_prefill(self, descriptor, frame, index, summary.token_count)
   }
