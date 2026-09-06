@@ -59,6 +59,7 @@ fn prepare_paged_production_steps(
     activation,
     kv,
     project_output_rows~,
+    effect_operation_prefix=resources.effect_operation_prefix,
   )
   let residual_replacements : Array[PreparedPagedGraphStep] = []
   match fused_residual_function {

@@ -2,7 +2,10 @@
 const OUTPUT_COUNTS_CELL : Int = 5
 
 ///|
-const OUTPUT_ROW_ENDS_CELL : Int = 10
+const PURE_SUFFIX_COUNTS_CELL : Int = 10
+
+///|
+const OUTPUT_ROW_ENDS_CELL : Int = 15
 
 ///|
 fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
@@ -53,6 +56,20 @@ fn publish_output_counts(
   write_i32(host.counts, OUTPUT_COUNTS_CELL + 2, physical)
   write_i32(host.counts, OUTPUT_COUNTS_CELL + 3, summary.token_count)
   write_i32(host.counts, OUTPUT_COUNTS_CELL + 4, summary.page_count)
+  // A stable captured argument view, not another graph or descriptor upload.
+  // Mixed demand retains all rows: only the semantically dead suffix of an
+  // entirely output-free frame may observe zero work.
+  for cell in 0..<5 {
+    write_i32(
+      host.counts,
+      PURE_SUFFIX_COUNTS_CELL + cell,
+      if host.output_rows == 0 {
+        0
+      } else {
+        read_descriptor_i32(host.counts, cell)
+      },
+    )
+  }
   if physical > host.output_rows {
     write_i32(host.counts, OUTPUT_ROW_ENDS_CELL + physical, 0)
   }
@@ -90,6 +107,15 @@ fn projected_operand_offset(binding : PagedKvOperandBinding) -> Int64 {
     RuntimeInput(StepCounts) => byte_capacity(OUTPUT_COUNTS_CELL)
     RuntimeInput(QueryRowOffsets) => byte_capacity(OUTPUT_ROW_ENDS_CELL)
     _ => -1L
+  }
+}
+
+///|
+fn pure_suffix_counts_offset(operation : Int, effect_prefix : Int) -> Int64 {
+  if effect_prefix > 0 && operation >= effect_prefix {
+    byte_capacity(PURE_SUFFIX_COUNTS_CELL)
+  } else {
+    -1L
   }
 }
 

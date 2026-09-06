@@ -26,6 +26,18 @@ test "model output demand retains KV effects without requiring terminal logits" 
   for index in prefix..<operations.length() {
     assert_eq(operations[index].persistent_state(), NoPersistentState)
   }
+  for index in 0..<operations.length() {
+    assert_eq(
+      pure_suffix_counts_offset(index, prefix),
+      if index < prefix {
+        -1L
+      } else {
+        byte_capacity(PURE_SUFFIX_COUNTS_CELL)
+      },
+    )
+  }
+  // No effect boundary means no proven prefix; retain the original view.
+  assert_eq(pure_suffix_counts_offset(10, 0), -1L)
 }
 
 ///|

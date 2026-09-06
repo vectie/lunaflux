@@ -245,6 +245,7 @@ fn prepare_paged_steps(
   activation_workspace : @device.Allocation,
   persistent_kv : @device.Allocation,
   project_output_rows? : Bool = false,
+  effect_operation_prefix? : Int = 0,
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
   let prepared : Array[PreparedPagedGraphStep] = []
   for step_index, step in blueprint.steps() {
@@ -253,6 +254,12 @@ fn prepare_paged_steps(
       let output_offset = if project_output_rows &&
         step.operation_kind() == LanguageModelHead {
         projected_operand_offset(binding)
+      } else if project_output_rows &&
+        binding.role() == RuntimeInput(StepCounts) {
+        pure_suffix_counts_offset(
+          step.operation_id().as_int(),
+          effect_operation_prefix,
+        )
       } else {
         -1L
       }
@@ -470,6 +477,9 @@ pub fn prepare_paged_graph_executor(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
+  resources.effect_operation_prefix = model_plan.observed_operation_prefix(
+    output_demand=false,
+  )
   let (
     model_steps,
     wide_prefill_model_steps,

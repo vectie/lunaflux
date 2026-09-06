@@ -60,7 +60,12 @@ alternatives remain disabled.
   The BF16 matrix head and sampler now consume a compact terminal-row view in
   mixed frames and captured execution, with stable pointers and original-row
   result mapping. Upstream KV effects retain the original descriptor. No second
-  graph is allocated; captured upstream pure suffix operations are not pruned.
+  graph is allocated. A second stable count view now predicates pure suffix
+  arithmetic in entirely output-free captured frames, using the model's effect
+  boundary; mixed frames retain full upstream row identity. Baseline and fused
+  residual steps consume this view. This saves arithmetic, not captured node
+  launches. The existing counts allocation grows by 20 bytes, with no extra
+  per-step allocation or transfer call. Physical verification is pending.
   FP8/I8 envelopes and diagnostic canaries retain their original contract.
   See [output-row projection](OUTPUT_ROW_PROJECTION_2026-09-06.md).
   The exact-commit queue regression and four GPU sanitizer checks passed;

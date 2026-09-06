@@ -21,7 +21,7 @@ async test "physical captured descriptor projection preserves mixed and empty fr
   guard prepared is Ready(descriptor) else { fail("descriptor preparation") }
   defer (try! descriptor.close())
   descriptor.host.project_output_rows = true
-  let observed = context.allocate(36L)
+  let observed = context.allocate(56L)
   defer (try! observed.close())
   let loaded = context.load_module(image)
   defer (try! loaded.close())
@@ -37,14 +37,20 @@ async test "physical captured descriptor projection preserves mixed and empty fr
     ),
     @device.KernelArgument::device_region(
       descriptor.resources.counts,
-      offset=40L,
+      offset=byte_capacity(OUTPUT_ROW_ENDS_CELL),
+      byte_count=20L,
+      alignment=4L,
+    ),
+    @device.KernelArgument::device_region(
+      descriptor.resources.counts,
+      offset=byte_capacity(PURE_SUFFIX_COUNTS_CELL),
       byte_count=20L,
       alignment=4L,
     ),
     @device.KernelArgument::device_region(
       observed,
       offset=0L,
-      byte_count=36L,
+      byte_count=56L,
       alignment=4L,
     ),
   ])
@@ -76,13 +82,23 @@ async test "physical captured descriptor projection preserves mixed and empty fr
     graph.record_completion()
     graph.wait_completion()
     let result = FixedArray::from_array(
-      observed.copy_to_host(0L, 36L).to_array(),
+      observed.copy_to_host(0L, 56L).to_array(),
     )
     assert_eq(read_descriptor_i32(result, 0), 4)
     assert_eq(read_descriptor_i32(result, 1), 10)
     assert_eq(read_descriptor_i32(result, 2), 4)
     let rows = output_physical_rows(descriptor.host, descriptor.staged_summary)
     assert_eq(read_descriptor_i32(result, 3), rows)
+    for cell in 0..<5 {
+      assert_eq(
+        read_descriptor_i32(result, 9 + cell),
+        if rows == 0 {
+          0
+        } else {
+          read_descriptor_i32(descriptor.host.counts, cell)
+        },
+      )
+    }
     for row in 0..<(rows + 1) {
       assert_eq(
         read_descriptor_i32(result, 4 + row),

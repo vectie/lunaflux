@@ -32,12 +32,17 @@ fn fused_residual_argument(
   weight : @device.Allocation,
   activation_workspace : @device.Allocation,
   persistent_kv : @device.Allocation,
+  counts_offset? : Int64 = -1L,
 ) -> @device.KernelArgument raise DeviceStepError {
   @device.KernelArgument::device_region(
     allocation_for_paged_operand(
       binding, descriptor, weight, activation_workspace, persistent_kv,
     ),
-    offset=binding.offset_bytes(),
+    offset=if counts_offset >= 0L && binding.role() == RuntimeInput(StepCounts) {
+      counts_offset
+    } else {
+      binding.offset_bytes()
+    },
     byte_count=binding.byte_count(),
     alignment=binding.alignment(),
   ) catch {
@@ -96,10 +101,23 @@ fn prepare_fused_residual_step(
     raise executor_operation_error(residual.operation_id(), ResourceState)
   }
   let arguments : Array[@device.KernelArgument] = []
+  let counts_offset = if sampling_descriptor_is_projected(resources) {
+    pure_suffix_counts_offset(
+      residual.operation_id().as_int(),
+      resources.effect_operation_prefix,
+    )
+  } else {
+    -1L
+  }
   for binding in [r[0], r[1], r[2], n[2], r[3], n[3]] {
     arguments.push(
       fused_residual_argument(
-        binding, descriptor, weight, activation_workspace, persistent_kv,
+        binding,
+        descriptor,
+        weight,
+        activation_workspace,
+        persistent_kv,
+        counts_offset~,
       ),
     )
   }

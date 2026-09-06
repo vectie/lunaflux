@@ -97,6 +97,16 @@ test "terminal projection preserves ragged row identity and original descriptors
       }
     }
     assert_eq(host.output_rows, output)
+    for cell in 0..<5 {
+      assert_eq(
+        read_descriptor_i32(host.counts, PURE_SUFFIX_COUNTS_CELL + cell),
+        if output == 0 {
+          0
+        } else {
+          read_descriptor_i32(host.counts, cell)
+        },
+      )
+    }
     assert_eq(
       read_descriptor_i32(host.counts, OUTPUT_COUNTS_CELL + 2),
       if output == 1 {

@@ -367,9 +367,6 @@ fn finish_paged_sampling_preparation(
     None => None
   }
   let graph_bucket_table = new_paged_graph_bucket_table(blueprint.profile())
-  resources.effect_operation_prefix = model_plan.observed_operation_prefix(
-    output_demand=false,
-  )
   let ordered_dispatch = prepare_paged_ordered_executors(
     context,
     steps,
