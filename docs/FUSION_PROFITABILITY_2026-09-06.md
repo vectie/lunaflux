@@ -37,3 +37,9 @@ allocation or model-name cost heuristic is added.
 This is an offline whole-profile choice. Per-bucket ingress alternatives and
 their captured-graph memory budget are a separate remaining extension. A faster
 isolated span is not an end-to-end performance claim.
+
+Before measurements exist, `--ingress-evaluate full|partial|unfused` followed
+by the same six partial-module launch/path arguments builds an explicit
+alternative. This is evaluation configuration, not a measured winner or an
+autotuning record. It removes the circular need to supply timings before the
+alternatives can be benchmarked. It does not change the default full schedule.

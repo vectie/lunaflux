@@ -15,6 +15,18 @@ fn positive_nanoseconds(
 fn prepare_ingress_choice(
   raw_args : ArrayView[String],
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
+  let evaluation_start = raw_args.length() - 8
+  if evaluation_start > 0 && raw_args[evaluation_start] == "--ingress-evaluate" {
+    let args = parse_arguments(raw_args[:evaluation_start])
+    let choice : @luna_fusion_strategy.FusionSchedule = match
+      raw_args[evaluation_start + 1] {
+      "full" => FullyFused
+      "partial" => ProducerSeparated
+      "unfused" => Unfused
+      _ => raise InvalidArguments
+    }
+    return bind_ingress_choice(args, choice, raw_args[evaluation_start + 2:])
+  }
   let suffix_size = 11
   let suffix_start = raw_args.length() - suffix_size
   if suffix_start < 1 || raw_args[suffix_start] != "--ingress-comparison" {
@@ -48,17 +60,26 @@ fn prepare_ingress_choice(
   ) catch {
     _ => raise InvalidArguments
   }
-  if !safe_absolute_file(suffix[10]) {
+  bind_ingress_choice(args, choice, suffix[5:])
+}
+
+///|
+fn bind_ingress_choice(
+  args : RuntimeBundleArguments,
+  choice : @luna_fusion_strategy.FusionSchedule,
+  partial_args : ArrayView[String],
+) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
+  if partial_args.length() != 6 || !safe_absolute_file(partial_args[5]) {
     raise InvalidArguments
   }
   let partial : ModuleLaunchInput = {
     first_operation: args.ingress.first_operation + 1,
-    grid_x: positive_int(suffix[5]),
-    grid_y: positive_int(suffix[6]),
-    grid_z: positive_int(suffix[7]),
-    block_x: positive_int(suffix[8]),
-    shared_memory_bytes: non_negative_int(suffix[9]),
-    module_path: suffix[10],
+    grid_x: positive_int(partial_args[0]),
+    grid_y: positive_int(partial_args[1]),
+    grid_z: positive_int(partial_args[2]),
+    block_x: positive_int(partial_args[3]),
+    shared_memory_bytes: non_negative_int(partial_args[4]),
+    module_path: partial_args[5],
   }
   (
     if choice == ProducerSeparated {

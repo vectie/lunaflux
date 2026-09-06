@@ -16,6 +16,42 @@ fn ingress_comparison_arguments(
 }
 
 ///|
+test "evaluation builds each alternative without manufacturing measurement records" {
+  for name in ["full", "partial", "unfused"] {
+    let args = runtime_bundle_test_arguments("5")
+    for
+      item in [
+        "--ingress-evaluate", name, "256", "1", "1", "128", "0", "/tmp/postprocess.cubin",
+      ] {
+      args.push(item)
+    }
+    let (selected, choice) = prepare_ingress_choice(args)
+    assert_eq(
+      choice,
+      match name {
+        "full" => @luna_fusion_strategy.FullyFused
+        "partial" => @luna_fusion_strategy.ProducerSeparated
+        _ => @luna_fusion_strategy.Unfused
+      },
+    )
+    assert_eq(
+      selected.ingress.module_path,
+      if name == "partial" {
+        "/tmp/postprocess.cubin"
+      } else {
+        "/tmp/ingress.cubin"
+      },
+    )
+    args[args.length() - 7] = "fastest"
+    try prepare_ingress_choice(args) catch {
+      error => assert_eq(error, InvalidArguments)
+    } noraise {
+      _ => fail("unknown evaluation schedule accepted")
+    }
+  }
+}
+
+///|
 test "offline comparison emits exact full partial or absent ingress family" {
   for entry in [("10", "20", "30"), ("20", "10", "30"), ("20", "30", "10")] {
     let (full, partial, unfused) = entry
