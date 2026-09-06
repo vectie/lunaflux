@@ -29,10 +29,10 @@ void fill(Buffer &buffer,int salt) {
 struct Graph {
   cudaGraph_t graph;
   cudaGraphExec_t executable;
-  Graph(CUfunction function,void **args,int groups,int shared,int repeat,cudaStream_t stream) {
+  Graph(CUfunction function,void **args,int groups,int shared,int repeat,bool boundary,cudaStream_t stream) {
     CK(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
     for(int i=0;i<repeat;++i)
-      CK(cuLaunchKernel(function,(151936+groups*16-1)/(groups*16),1,1,
+      CK(cuLaunchKernel(function,boundary?4:(151936+groups*16-1)/(groups*16),1,1,
                         groups*32,1,1,shared,stream,args,nullptr));
     CK(cudaStreamEndCapture(stream,&graph));
     CK(cudaGraphInstantiate(&executable,graph,0));
@@ -53,7 +53,8 @@ struct Graph {
   }
 };
 int main(int argc,char **argv) {
-  if(argc!=5) return 1;
+  if(argc!=5&&argc!=6) return 1;
+  const bool boundary=argc==6;
   const int groups=atoi(argv[2]),shared=atoi(argv[3]),repeat=atoi(argv[4]);
   if(groups<1||groups>16||shared<1||repeat<1) return 1;
   CK(cudaSetDevice(0)); CK(cudaFree(nullptr));
@@ -67,8 +68,8 @@ int main(int argc,char **argv) {
     void *compact_counts=(char*)descriptor.p+20,*compact_ends=(char*)descriptor.p+40;
     void *original_args[]={&descriptor.p,&ends.p,&input.p,&weight.p,&output.p};
     void *compact_args[]={&compact_counts,&compact_ends,&input.p,&weight.p,&output.p};
-    Graph original(function,original_args,groups,shared,repeat,stream);
-    Graph compact(function,compact_args,groups,shared,repeat,stream);
+    Graph original(function,original_args,groups,shared,repeat,boundary,stream);
+    Graph compact(function,compact_args,groups,shared,repeat,boundary,stream);
     for(int rows:{1,2,8,17,32,64}) {
       std::vector<int> row_ends(257,0);
       for(int row=0;row<rows;++row) row_ends[row+1]=row_ends[row]+1+row%3;
@@ -98,7 +99,10 @@ int main(int argc,char **argv) {
             }
           }
         }
-        float before=original.time(stream,repeat),after=compact.time(stream,repeat);
+        // Sanitizers exercise row/block/padding boundaries, not repeated timing
+        // of the entire unchanged vocabulary GEMM. Full runs check every column.
+        float before=boundary?0:original.time(stream,repeat);
+        float after=boundary?0:compact.time(stream,repeat);
         printf("rows=%d tokens=%d outputs=%zu physical=%d original_us=%.6f compact_us=%.6f bitwise=true untouched=true\n",
                rows,tokens,selected.size(),physical,before,after);
       }
