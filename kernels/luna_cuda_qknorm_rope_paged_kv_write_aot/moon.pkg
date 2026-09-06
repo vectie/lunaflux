@@ -5,6 +5,8 @@ import {
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_fusion_plan",
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
+  "vectie/lunaflux/kernels/luna_cuda_attention_ingress_source",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",

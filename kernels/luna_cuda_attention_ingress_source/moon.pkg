@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+}
+
+supported_targets = "native"

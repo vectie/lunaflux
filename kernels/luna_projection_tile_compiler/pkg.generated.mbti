@@ -23,6 +23,13 @@ pub(all) suberror ProjectionTileCompilerError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionIngressNumerics {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionIngressNumerics::epsilon(Self) -> Float
+pub fn AttentionIngressNumerics::rotary_basis(Self) -> ReadOnlyArray[Float]
+pub fn AttentionIngressNumerics::shape(Self) -> (Int, Int)
+
 pub struct OptimizedProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -32,6 +39,7 @@ pub struct ProjectionAttentionIngressEpilogue {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionAttentionIngressEpilogue::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, norm_epsilon~ : Double, rope_theta~ : Double) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, Double)
+pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
 
 pub(all) enum ProjectionIterationAxis {

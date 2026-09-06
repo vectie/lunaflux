@@ -38,8 +38,15 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
   assert_true(source.contains("token += (int)gridDim.x"))
   assert_true(source.contains("gridDim.x == 0 || gridDim.x > 4096"))
   assert_false(source.contains("for (int row_check"))
-  assert_true(source.contains("lane < LF_HEAD_DIM / 2"))
-  assert_true(source.contains("rope_cosine[lane] = cosf(angle)"))
+  assert_true(source.contains("head < LF_QK_HEADS && lane < 32"))
+  assert_true(
+    source.contains(
+      "lf_ingress_norm_rotary(head_values, norm_weight, position, lane)",
+    ),
+  )
+  assert_true(source.contains("sincosf(__fmul_rn"))
+  assert_false(source.contains("powf("))
+  assert_false(source.contains("reduction[LF_BLOCK_THREADS]"))
   assert_true(source.contains("rotated_qkv[head_base + component] = encoded"))
   assert_true(
     source.contains("(key ? key_cache : value_cache)[cache_index] = encoded"),

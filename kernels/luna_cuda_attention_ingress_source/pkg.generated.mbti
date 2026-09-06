@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_attention_ingress_source"
+
+import {
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
+}
+
+// Values
+pub fn lower_attention_ingress_numerics(@luna_projection_tile_compiler.AttentionIngressNumerics) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

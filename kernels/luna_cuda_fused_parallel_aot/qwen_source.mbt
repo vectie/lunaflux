@@ -2,34 +2,21 @@
 /// Materializes the position-independent RoPE basis during AOT compilation.
 /// The functional compiler owns the invariant-hoist decision; this terminal
 /// lowering only chooses CUDA constant-memory syntax.
-fn qwen_rope_inverse_frequency_source(
+fn qwen_ingress_numerics_source(
   rope_theta : Double,
   head_dimension : Int,
+  norm_epsilon : Double,
 ) -> String {
-  let half = head_dimension / 2
-  let theta = Float::from_double(rope_theta)
-  let dimension = Float::from_int(head_dimension)
-  let out = StringBuilder()
-  out.write_string(
-    "static __device__ __constant__ float LF_ROPE_INV_FREQ[" +
-    half.to_string() +
-    "] = {\n  ",
+  let epilogue = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+    query_heads=1,
+    kv_heads=1,
+    head_dimension~,
+    norm_epsilon~,
+    rope_theta~,
   )
-  for pair in 0..<half {
-    if pair > 0 {
-      out.write_string(if pair % 8 == 0 { "\n  " } else { " " })
-    }
-    let exponent = Float::from_int(pair * 2) / dimension
-    let inverse = (1.0F / @math.powf(theta, exponent)).to_double()
-    out.write_string(
-      @luna_cuda_pointwise_aot.canonical_cuda_float_literal(inverse),
-    )
-    if pair + 1 < half {
-      out.write_char(',')
-    }
-  }
-  out.write_string("\n};\n")
-  out.to_string()
+  @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
+    try! epilogue.numerics(reduction_lanes=32),
+  )
 }
 
 ///|
@@ -92,7 +79,11 @@ fn qwen_fused_source(
     "\n",
   )
   out.write_string(
-    qwen_rope_inverse_frequency_source(semantic.rope_theta(), head_dimension),
+    qwen_ingress_numerics_source(
+      semantic.rope_theta(),
+      head_dimension,
+      semantic.norm_epsilon(),
+    ),
   )
   out.write_string(
     "#define LF_TOKENS_PER_PAGE " + layout.tokens_per_page().to_string() + "\n",
@@ -208,30 +199,14 @@ fn qwen_fused_source(
     "      __bfloat162float(__float2bfloat16_rn(projected[local_row][component]));\n" +
     "    __syncwarp();\n" +
     "    if (head < LF_QK_HEADS) {\n" +
-    "      float square_sum = 0.0f;\n" +
-    "      for (int component = lane; component < LF_HEAD_DIM; component += 32) square_sum = __fadd_rn(\n" +
-    "        square_sum, __fmul_rn(projected[local_row][component], projected[local_row][component]));\n" +
-    "      for (int delta = 16; delta > 0; delta >>= 1) square_sum = __fadd_rn(\n" +
-    "        square_sum, __shfl_down_sync(0xffffffffU, square_sum, delta));\n" +
-    "      const float inverse_rms = __shfl_sync(0xffffffffU,\n" +
-    "        lane == 0 ? rsqrtf(__fadd_rn(__fdividef(square_sum, (float)LF_HEAD_DIM), LF_NORM_EPSILON)) : 0.0f, 0);\n" +
     "      const __nv_bfloat16* norm_weight = is_query ? q_norm_weight : k_norm_weight;\n" +
-    "      for (int component = lane; component < LF_HEAD_DIM; component += 32) projected[local_row][component] =\n" +
-    "        __bfloat162float(__float2bfloat16_rn(__fmul_rn(__fmul_rn(projected[local_row][component], inverse_rms),\n" +
-    "        __bfloat162float(norm_weight[component]))));\n" +
-    "      __syncwarp();\n" +
+    "      lf_ingress_norm_rotary(projected[local_row], norm_weight, position, lane);\n" +
     "    }\n" +
     "    if (head < LF_QK_HEADS) {\n" +
     "      const int half = LF_HEAD_DIM / 2;\n" +
     "      for (int pair = lane; pair < half; pair += 32) {\n" +
-    "        const float first = projected[local_row][pair];\n" +
-    "        const float second = projected[local_row][pair + half];\n" +
-    "        float sine, cosine;\n" +
-    "        sincosf(__fmul_rn((float)position, LF_ROPE_INV_FREQ[pair]), &sine, &cosine);\n" +
-    "        const __nv_bfloat16 first_encoded = __float2bfloat16_rn(\n" +
-    "          __fsub_rn(__fmul_rn(first, cosine), __fmul_rn(second, sine)));\n" +
-    "        const __nv_bfloat16 second_encoded = __float2bfloat16_rn(\n" +
-    "          __fadd_rn(__fmul_rn(second, cosine), __fmul_rn(first, sine)));\n" +
+    "        const __nv_bfloat16 first_encoded = __float2bfloat16_rn(projected[local_row][pair]);\n" +
+    "        const __nv_bfloat16 second_encoded = __float2bfloat16_rn(projected[local_row][pair + half]);\n" +
     "        const unsigned long long output_base =\n" +
     "          ((unsigned long long)token * LF_PACKED_HEADS + head) * LF_HEAD_DIM;\n" +
     "        rotated_qkv[output_base + pair] = first_encoded;\n" +

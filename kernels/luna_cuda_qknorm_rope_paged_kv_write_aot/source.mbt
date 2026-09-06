@@ -23,8 +23,19 @@ fn postprocess_source(
   let packed_heads = query_heads + 2 * kv_heads
   let qk_heads = query_heads + kv_heads
   let kv_width = kv_heads * head_dimension
+  let epilogue = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+    query_heads~,
+    kv_heads~,
+    head_dimension~,
+    norm_epsilon=semantic.norm_epsilon(),
+    rope_theta=semantic.rope_theta(),
+  )
+  let numerics_source = @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
+    try! epilogue.numerics(reduction_lanes=32),
+  )
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
+    numerics_source +
     "#define LF_BLOCK_THREADS 128\n" +
     "#define LF_OUTPUT_WIDTH " +
     output_width.to_string() +
@@ -95,10 +106,6 @@ fn postprocess_source(
     "      query_row_offsets[0] != 0 || query_row_offsets[rows] != tokens ||\n" +
     "      page_table_offsets[0] != 0 || page_table_offsets[rows] != table_cells) return;\n" +
     "  __shared__ float head_values[LF_HEAD_DIM];\n" +
-    "  __shared__ float reduction[LF_BLOCK_THREADS];\n" +
-    "  __shared__ float rope_cosine[LF_HEAD_DIM / 2];\n" +
-    "  __shared__ float rope_sine[LF_HEAD_DIM / 2];\n" +
-    "  __shared__ float inverse_rms;\n" +
     "  for (int token = (int)blockIdx.x; token < tokens; token += (int)gridDim.x) {\n" +
     "    int row = 0;\n" +
     "    while (row + 1 < rows && token >= query_row_offsets[row + 1]) ++row;\n" +
@@ -119,46 +126,14 @@ fn postprocess_source(
     "    for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS)\n" +
     "      head_values[component] = __bfloat162float(projected_qkv[head_base + component]);\n" +
     "    __syncthreads();\n" +
-    "    if (head < LF_QK_HEADS) {\n" +
-    "      float sum = 0.0f;\n" +
-    "      for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS)\n" +
-    "        sum = __fadd_rn(sum, __fmul_rn(head_values[component], head_values[component]));\n" +
-    "      reduction[lane] = sum;\n" +
-    "      __syncthreads();\n" +
-    "      for (int stride = LF_BLOCK_THREADS / 2; stride > 0; stride >>= 1) {\n" +
-    "        if (lane < stride) reduction[lane] = __fadd_rn(reduction[lane], reduction[lane + stride]);\n" +
-    "        __syncthreads();\n" +
-    "      }\n" +
-    "      if (lane == 0) inverse_rms = rsqrtf(__fadd_rn(\n" +
-    "        __fdividef(reduction[0], (float)LF_HEAD_DIM), LF_NORM_EPSILON));\n" +
-    "      __syncthreads();\n" +
+    "    if (head < LF_QK_HEADS && lane < 32) {\n" +
     "      const __nv_bfloat16* norm_weight =\n" +
     "        head < LF_QUERY_HEADS ? query_norm_weight : key_norm_weight;\n" +
-    "      for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS) {\n" +
-    "        const float normalized = __fmul_rn(__fmul_rn(head_values[component], inverse_rms),\n" +
-    "          __bfloat162float(norm_weight[component]));\n" +
-    "        head_values[component] = __bfloat162float(__float2bfloat16_rn(normalized));\n" +
-    "      }\n" +
-    "      __syncthreads();\n" +
-    "    }\n" +
-    "    if (head < LF_QK_HEADS && lane < LF_HEAD_DIM / 2) {\n" +
-    "      const float exponent = (float)(lane * 2) / (float)LF_HEAD_DIM;\n" +
-    "      const float angle = (float)position / powf(LF_ROPE_THETA, exponent);\n" +
-    "      rope_cosine[lane] = cosf(angle);\n" +
-    "      rope_sine[lane] = sinf(angle);\n" +
+    "      lf_ingress_norm_rotary(head_values, norm_weight, position, lane);\n" +
     "    }\n" +
     "    __syncthreads();\n" +
     "    for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS) {\n" +
     "      float value = head_values[component];\n" +
-    "      if (head < LF_QK_HEADS) {\n" +
-    "        const int half = LF_HEAD_DIM / 2;\n" +
-    "        const int pair = component % half;\n" +
-    "        const int paired = component < half ? component + half : component - half;\n" +
-    "        const float cosine = rope_cosine[pair], sine = rope_sine[pair];\n" +
-    "        value = component < half\n" +
-    "          ? __fsub_rn(__fmul_rn(value, cosine), __fmul_rn(head_values[paired], sine))\n" +
-    "          : __fadd_rn(__fmul_rn(value, cosine), __fmul_rn(head_values[paired], sine));\n" +
-    "      }\n" +
     "      const __nv_bfloat16 encoded = __float2bfloat16_rn(value);\n" +
     "      rotated_qkv[head_base + component] = encoded;\n" +
     "      if (head >= LF_QUERY_HEADS) {\n" +
