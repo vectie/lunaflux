@@ -18,11 +18,16 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   let group_size = query_heads / key_value_heads
   let subgroup_count = block_threads / 32
   let splits_per_head = subgroup_count / group_size
+  let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad &&
+    pipeline_stages == 2
   if lowering.phase() != Decode ||
     lowering.compute() != CudaGroupedQuerySplitSubgroupShuffleDot ||
-    lowering.copy() != CudaCooperativeSharedLoad ||
+    (
+      !(lowering.copy() == CudaCooperativeSharedLoad && pipeline_stages == 1) &&
+      !asynchronous
+    ) ||
     query_tile != 1 ||
-    key_value_tile != 64 ||
+    (key_value_tile != 64 && !(asynchronous && key_value_tile == 32)) ||
     head_dimension != abi_head_dimension ||
     query_heads % key_value_heads != 0 ||
     group_size <= 1 ||
@@ -31,14 +36,42 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     block_threads % (group_size * 32) != 0 ||
     grid_y != key_value_heads ||
     shared_memory_bytes <= 0L ||
-    pipeline_stages != 1 ||
     vector_bytes != 8 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
   let transfer = emit_decode_key_value_transfer(abi, vector_bytes)
+  let (_, page_stride, _) = abi.layout()
+  if asynchronous && (head_dimension % 4 != 0 || page_stride % 4L != 0L) {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let storage = if asynchronous {
+    (
+      $|  __nv_bfloat16 *stage_arena = key_tile;
+      $|  int *stage_valid = reinterpret_cast<int *>(stage_arena +
+      $|      4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
+    )
+  } else {
+    (
+      $|  int *tile_valid = reinterpret_cast<int *>(
+      $|      value_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
+    )
+  }
+  let prologue = if asynchronous { emit_decode_async_stage(abi) } else { "" }
+  let iteration = if asynchronous {
+    emit_decode_pipeline_iteration()
+  } else {
+    (
+      $|    if (thread == 0) *tile_valid = 1;
+      $|    __syncthreads();
+      $|\{transfer}
+      $|    __syncthreads();
+      $|    if (!*tile_valid) return;
+    )
+  }
   let accumulator_items = (head_dimension + 31) / 32
   let partitions = lowering.key_value_partitions()
+  let partition_grain = lowering.key_value_partition_grain()
   let partitioned = partitions > 1
   let output_offset_binding = if partitioned {
     ""
@@ -85,11 +118,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   }
   let partition_bounds = if partitioned {
     (
-      $|  const int tile_count = (query_position + LF_KEY_VALUE_TILE) / LF_KEY_VALUE_TILE;
+      $|  const int tile_count = (query_position + \{partition_grain}) / \{partition_grain};
       $|  const int first_tile = (int)((long long)tile_count * partition / \{partitions});
       $|  const int last_tile = (int)((long long)tile_count * (partition + 1) / \{partitions});
-      $|  const int key_begin = first_tile * LF_KEY_VALUE_TILE;
-      $|  const int key_limit = min(query_position + 1, last_tile * LF_KEY_VALUE_TILE);
+      $|  const int key_begin = first_tile * \{partition_grain};
+      $|  const int key_limit = min(query_position + 1, last_tile * \{partition_grain});
     )
   } else {
     (
@@ -124,7 +157,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|#define LF_SUBGROUP_COUNT \{subgroup_count}
     $|#define LF_QUERY_HEADS_PER_BLOCK \{group_size}
     $|#define LF_SPLITS_PER_HEAD \{splits_per_head}
-    $|#define LF_KEY_VALUE_TILE 64
+    $|#define LF_KEY_VALUE_TILE \{key_value_tile}
     $|#define LF_HEAD_DIMENSION \{head_dimension}
     $|
     $|static __device__ __forceinline__ float \{warp_sum_symbol}(float value) {
@@ -189,8 +222,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|      reinterpret_cast<__nv_bfloat16 *>(shared_arena);
     $|  __nv_bfloat16 *value_tile =
     $|      key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|  int *tile_valid = reinterpret_cast<int *>(
-    $|      value_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
+    $|\{storage}
     $|  const unsigned long long query_offset =
     $|      (unsigned long long)token * \{input_row_width}ULL +
     $|      (unsigned long long)query_head * LF_HEAD_DIMENSION;
@@ -203,15 +235,12 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|    accumulator[item] = 0.0f;
     $|
     $|\{partition_bounds}
+    $|\{prologue}
     $|  for (int key_base = key_begin; key_base < key_limit;
     $|       key_base += LF_KEY_VALUE_TILE) {
     $|    const int active_keys =
     $|        min(LF_KEY_VALUE_TILE, key_limit - key_base);
-    $|    if (thread == 0) *tile_valid = 1;
-    $|    __syncthreads();
-    $|\{transfer}
-    $|    __syncthreads();
-    $|    if (!*tile_valid) return;
+    $|\{iteration}
     $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
     $|      float partial = 0.0f;
     $|      for (int component = lane; component < LF_HEAD_DIMENSION;

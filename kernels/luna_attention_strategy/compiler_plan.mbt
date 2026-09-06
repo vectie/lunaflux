@@ -536,6 +536,38 @@ pub fn generate_attention_tile_candidates(
             Some(candidate) => candidates.push(candidate)
             None => ()
           }
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              440,
+              AttentionGroupedQuerySplitSubgroupDot,
+              AttentionAsyncStagedShared,
+              1,
+              64,
+              split_subgroups,
+              2,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              441,
+              AttentionGroupedQuerySplitSubgroupDot,
+              AttentionAsyncStagedShared,
+              1,
+              32,
+              split_subgroups,
+              2,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
         }
       }
     }

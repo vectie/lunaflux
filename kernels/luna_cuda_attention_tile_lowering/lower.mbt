@@ -112,6 +112,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
   }
   let key_value_partitions = schedule.key_value_partitions()
+  let key_value_partition_grain = schedule.key_value_partition_grain()
   if key_value_partitions <= 0 ||
     (
       key_value_partitions > 1 &&
@@ -161,7 +162,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
   let builder = StringBuilder()
-  builder <+ "luna-cuda-attention-tile-lowering-v3\n"
+  builder <+ "luna-cuda-attention-tile-lowering-v4\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "optimization_sha256=\{optimization.digest().as_hex()}\n"
   builder <+ "schedule_sha256=\{schedule.digest().as_hex()}\n"
@@ -170,6 +171,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   builder <+ "primitive=\{cuda_compute_code(compute)},\{cuda_copy_code(copy)}\n"
   builder <+
     "launch=\{grid_x},\{grid_y},\{key_value_partitions},\{block_threads},\{shared_memory_bytes}\n"
+  builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"
   builder <+ "tile=\{query_tile},\{key_value_tile},\{head_dimension}\n"
   builder <+ "pipeline=\{pipeline_stages},\{vector_bytes}\n"
   builder <+
@@ -188,6 +190,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     grid_x,
     grid_y,
     key_value_partitions,
+    key_value_partition_grain,
     block_threads,
     query_tile,
     key_value_tile,

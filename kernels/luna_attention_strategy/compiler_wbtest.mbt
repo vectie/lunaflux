@@ -313,7 +313,7 @@ test "decode compile problem keeps token shape separate from batch rows" {
     decode,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 5)
+  assert_eq(candidates.length(), 7)
   assert_eq(candidates[0].stable_id(), 400)
   assert_eq(candidates[1].stable_id(), 410)
   assert_eq(candidates[2].stable_id(), 411)
@@ -323,6 +323,9 @@ test "decode compile problem keeps token shape separate from batch rows" {
   assert_eq(candidates[4].stable_id(), 430)
   assert_eq(candidates[4].compute(), AttentionGroupedQuerySplitSubgroupDot)
   assert_eq(candidates[4].execution_geometry(), (8, 1, 8))
+  assert_eq(candidates[5].stable_id(), 440)
+  assert_eq(candidates[5].execution_geometry(), (8, 2, 8))
+  assert_eq(candidates[5].memory(), AttentionAsyncStagedShared)
   let plan = compile_attention_tile_plan(
     [],
     backend=AttentionBackendId::new("portable"),
@@ -330,6 +333,40 @@ test "decode compile problem keeps token shape separate from batch rows" {
     problem=decode,
     capabilities=compiler_test_capabilities(),
   )
-  assert_eq(plan.candidate().stable_id(), 430)
+  assert_eq(plan.candidate().stable_id(), 440)
   assert_eq(plan.source(), AttentionStaticCostModel)
+}
+
+///|
+test "decode pipeline capability and double-buffer footprint are explicit" {
+  let problem = AttentionCompileProblem::new(
+    shape=compiler_test_shape(),
+    phase=Decode,
+    numeric_type=AttentionBFloat16,
+    query_rows=1,
+    context_tokens=4096,
+    causal=true,
+  )
+  for
+    scenario in [
+      (false, 2, 100000L, false),
+      (true, 1, 100000L, false),
+      (true, 2, 66843L, false),
+      (true, 2, 66844L, true),
+    ] {
+    let (async_copy, stages, shared, expected) = scenario
+    let caps = AttentionCompilerCapabilities::new(
+      subgroup_width=32,
+      max_threads_per_block=256,
+      max_shared_memory_bytes=shared,
+      max_pipeline_stages=stages,
+      supports_async_copy=async_copy,
+    )
+    let candidates = generate_attention_tile_candidates(problem, caps)
+    assert_eq(
+      candidates.any(candidate => candidate.stable_id() == 440),
+      expected,
+    )
+    assert_true(candidates.any(candidate => candidate.stable_id() == 430))
+  }
 }

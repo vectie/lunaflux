@@ -2,6 +2,28 @@
 fn main raise {
   let arguments = @env.args()
   match arguments {
+    [_, "decode-pipeline32"] => {
+      emit_decode_probe(
+        true,
+        false,
+        serving_abi=true,
+        pipeline=true,
+        pipeline_tile=32,
+      )
+      emit_decode_probe(
+        true,
+        true,
+        serving_abi=true,
+        pipeline=true,
+        pipeline_tile=32,
+      )
+      return
+    }
+    [_, "decode-pipeline"] => {
+      emit_decode_probe(true, false, serving_abi=true, pipeline=true)
+      emit_decode_probe(true, true, serving_abi=true, pipeline=true)
+      return
+    }
     [_, "decode-serving"] => {
       emit_decode_probe(true, false, serving_abi=true)
       emit_decode_probe(true, true, serving_abi=true)

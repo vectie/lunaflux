@@ -4,6 +4,8 @@ fn emit_decode_probe(
   grouped : Bool,
   partitioned : Bool,
   serving_abi? : Bool = false,
+  pipeline? : Bool = false,
+  pipeline_tile? : Int = 64,
 ) -> Unit raise {
   let page_tokens = if serving_abi { 8 } else { 16 }
   let shape = @luna_attention_strategy.AttentionShape::new(
@@ -25,14 +27,37 @@ fn emit_decode_probe(
     subgroup_width=32,
     max_threads_per_block=if grouped { 256 } else { 32 },
     max_shared_memory_bytes=if grouped { 100000L } else { 1L },
-    max_pipeline_stages=1,
-    supports_async_copy=false,
+    max_pipeline_stages=if pipeline { 2 } else { 1 },
+    supports_async_copy=pipeline,
     parallel_workgroup_target=128,
   )
   let backend = @luna_attention_strategy.AttentionBackendId::new("cuda")
   let target_id = @luna_attention_strategy.AttentionTargetId::new(
     "decode-probe",
   )
+  let records = if pipeline {
+    let candidate_id = if pipeline_tile == 32 { 441 } else { 440 }
+    guard @luna_attention_strategy.generate_attention_tile_candidates(
+        problem, capabilities,
+      ).filter(candidate => candidate.stable_id() == candidate_id)
+      is [candidate] else {
+      fail("two-stage decode schedule unavailable")
+    }
+    [
+      @luna_attention_strategy.AttentionAutotuneRecord::new(
+        key=@luna_attention_strategy.AttentionAutotuneKey::new(
+          backend~,
+          target=target_id,
+          problem~,
+          candidate~,
+        ),
+        median_latency_ns=1L,
+        sample_count=3,
+      ),
+    ]
+  } else {
+    []
+  }
   let device_target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -74,7 +99,7 @@ fn emit_decode_probe(
         maximum_workspace_bytes=67108864L,
         maximum_source_bytes=1048576,
       ),
-      [],
+      records,
     )
     let (x, y, threads, shared) = compiled.lowering().launch()
     println(
@@ -99,7 +124,7 @@ fn emit_decode_probe(
         },
         maximum_source_bytes=1048576,
       ),
-      [],
+      records,
     )
     let (x, y, threads, shared) = compiled.lowering().launch()
     println("// launch=\{x},\{y},\{threads},\{shared}")

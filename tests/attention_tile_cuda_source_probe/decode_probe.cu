@@ -22,10 +22,11 @@ template<class T> static CUdeviceptr upload(const std::vector<T>& a) {
 }
 struct Kernel {
   CUmodule module; CUfunction partial, merge; bool split; int heads, threads, shared;
-  Kernel(const char* path, bool s, bool grouped): split(s), heads(grouped?8:16), threads(grouped?256:32), shared(grouped?34076:0) {
+  Kernel(const char* path, bool s, bool grouped, int shared_bytes=34076): split(s), heads(grouped?8:16), threads(grouped?256:32), shared(grouped?shared_bytes:0) {
     ck(cuModuleLoad(&module, path));
     const char* name = real_abi ? (s?"lunaflux_paged_attention_bf16_decode_split_partial_v2_ep_3903":"lunaflux_attention_decode_tile_compiler_v1") : (s?"decode_partial":"decode_baseline");
     ck(cuModuleGetFunction(&partial, module, name));
+    if(shared>49152) ck(cuFuncSetAttribute(partial,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,shared));
     if(s) ck(cuModuleGetFunction(&merge,module,real_abi?"lunaflux_paged_attention_bf16_decode_split_merge_v2_ep_3904":"decode_merge"));
   }
   void launch(CUdeviceptr* d) {
@@ -93,9 +94,9 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
   for(CUdeviceptr p:d) ck(cuMemFree(p));
 }
 int main(int argc,char**argv) {
-  if(argc!=5 && argc!=6) return 2;
-  compare_modules = argc==6 && std::strcmp(argv[5],"compare")==0;
-  real_abi = compare_modules || (argc==6 && std::strcmp(argv[5],"real")==0);
+  if(argc!=5 && argc!=6 && argc!=7) return 2;
+  compare_modules = argc>=6 && std::strcmp(argv[5],"compare")==0;
+  real_abi = compare_modules || (argc>=6 && std::strcmp(argv[5],"real")==0);
   page_tokens = real_abi?8:16;
   ck(cuInit(0)); CUdevice dev; ck(cuDeviceGet(&dev,0));
   CUuuid uuid; ck(cuDeviceGetUuid(&uuid,dev));
@@ -105,7 +106,11 @@ int main(int argc,char**argv) {
   std::vector<Kernel> kernels;
   kernels.emplace_back(argv[1],false,true);
   kernels.emplace_back(compare_modules?argv[1]:argv[2],true,real_abi);
-  if(compare_modules) { kernels.emplace_back(argv[2],false,true); kernels.emplace_back(argv[2],true,true); }
+  if(compare_modules) {
+    const int shared=argc==7?std::atoi(argv[6]):34076;
+    if(shared<16384 || shared>100000) return 2;
+    kernels.emplace_back(argv[2],false,true,shared); kernels.emplace_back(argv[2],true,true,shared);
+  }
   if(!real_abi) kernels.emplace_back(argv[3],true,true);
   int repeats=std::atoi(argv[4]); if(repeats<=0) return 2;
   for(int context:{1,7,8,9,59,63,64,65,128,256,512,1528,4096}) run_case(kernels.data(),int(kernels.size()),context,1,false,repeats);

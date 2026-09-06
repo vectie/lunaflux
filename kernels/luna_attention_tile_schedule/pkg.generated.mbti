@@ -52,6 +52,7 @@ pub fn AttentionTileSchedule::compute(Self) -> @luna_attention_strategy.Attentio
 pub fn AttentionTileSchedule::digest(Self) -> AttentionTileScheduleDigest
 pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
 pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(Self) -> Bool
+pub fn AttentionTileSchedule::key_value_partition_grain(Self) -> Int
 pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
 pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorageLayout?

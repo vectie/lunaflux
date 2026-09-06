@@ -35,6 +35,22 @@ compile-time scalar fallback for an unaligned stride. Key-tail masking, page
 validation, synchronization, shared storage and floating-point fold order are
 unchanged. This is synchronous vectorization, not an asynchronous pipeline.
 
+The backend also realizes the generic two-stage asynchronous schedule as
+alternating shared K/V buffers: produce the first tile, await its completion,
+produce the next tile while consuming the current one, then retire consumers
+before reusing their storage. CUDA `cp.async` and shared-address conversion
+remain private here. Tile-tail transfers are zero-filled without out-of-range
+global addresses. No arithmetic or softmax recurrence is replaced.
+
+The portable schedule keeps logical decode partition grain independent of
+the staging tile: a 64-token partition grain can be consumed by two ordered
+32-token transfers. This prevents smaller buffers from silently changing the
+floating-point reduction grouping. At head dimension 128, two 64-token buffers
+need 66,844 bytes; two 32-token buffers need 33,820 bytes. Async support must be
+explicitly enabled in compiler capabilities; existing synchronous production
+capabilities remain unchanged. The test exporters `decode-pipeline` and
+`decode-pipeline32` explicitly select schedules, not measured autotune records.
+
 The test-only `attention_tile_cuda_source_probe decode-serving` exporter emits
 both production-shaped entry points through the compiler. The native CUDA
 probe's `compare` mode compares two such modules bit-for-bit, checks a scalar

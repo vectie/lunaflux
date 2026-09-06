@@ -96,6 +96,7 @@ fn canonical_schedule(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   loops : ReadOnlyArray[AttentionLoopCombinator],
   key_value_partitions : Int,
+  key_value_partition_grain : Int,
   hoist_paged_key_value_page_lookup : Bool,
   reuse_online_softmax_tile_storage : Bool,
   shared_memory_bytes : Int64,
@@ -104,9 +105,10 @@ fn canonical_schedule(
   let candidate = program.candidate()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
-  builder <+ "luna-attention-tile-schedule-v2\n"
+  builder <+ "luna-attention-tile-schedule-v3\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "kv_partitions=\{key_value_partitions}\n"
+  builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"
   builder <+
     "hoist_paged_key_value_page_lookup=\{hoist_paged_key_value_page_lookup}\n"
   builder <+
@@ -293,9 +295,16 @@ fn schedule_attention_tile_program_with_partitions(
     Some(layout) => layout.peak_bytes
     None => candidate.shared_memory_bytes()
   }
+  // Keep the ordered decode partition decomposition stable when retile only
+  // changes transfer/storage granularity. Each logical partition is traversed
+  // by one or more smaller ordered staging tiles, not repartitioned.
+  let key_value_partition_grain = match candidate.compute() {
+    AttentionGroupedQuerySplitSubgroupDot => Int::max(64, key_value_tile)
+    _ => key_value_tile
+  }
   let canonical = canonical_schedule(
-    program, loops, key_value_partitions, hoist_paged_key_value_page_lookup, reuse_online_softmax_tile_storage,
-    shared_memory_bytes, matrix_storage_layout,
+    program, loops, key_value_partitions, key_value_partition_grain, hoist_paged_key_value_page_lookup,
+    reuse_online_softmax_tile_storage, shared_memory_bytes, matrix_storage_layout,
   )
   {
     program_digest: program.digest(),
@@ -307,6 +316,7 @@ fn schedule_attention_tile_program_with_partitions(
     vector_bytes,
     shared_memory_bytes,
     key_value_partitions,
+    key_value_partition_grain,
     hoist_paged_key_value_page_lookup,
     reuse_online_softmax_tile_storage,
     matrix_storage_layout,
