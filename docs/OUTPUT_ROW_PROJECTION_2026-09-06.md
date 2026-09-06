@@ -28,3 +28,8 @@ not acquire this BF16 terminal-row transformation implicitly.
 Required validation: mixed/empty/alternating descriptor equivalence, fixed
 request-to-result mapping, seeded sampling preservation, capture replay,
 correctness on ragged token rows, sanitizers, and end-to-end Qwen measurement.
+
+These changed-boundary checks and the current-source Qwen measurement are now
+recorded in [the implementation report](COMPILER_REMAINING_RESULTS_2026-09-06.md).
+It distinguishes bitwise kernel checks from the pre-existing C8 end-to-end
+output variation, and reports masks where compaction does not improve timing.

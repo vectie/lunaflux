@@ -38,11 +38,14 @@ alternatives remain disabled.
   [paired matrix/storage report](MATRIX_STORAGE_SCHEDULES_2026-09-06.md).
   Device/toolchain-scoped persistence and matching exporter/release-binder
   consumption are now implemented; see [offline tuning](PROJECTION_TUNING_2026-09-06.md).
-  Installing measured whole-profile choices and per-bucket artifact selection
-  remain distinct from this input plumbing.
+  A measured whole-profile head choice is now installed and benchmarked.
+  Per-bucket artifact selection remains distinct from this input plumbing.
 - Fusion/storage: selected-input residency is a separately measured schedule,
-  not mandatory materialization after CSE. Full/partial/unfused ingress
-  profitability selection is still unfinished.
+  not mandatory materialization after CSE. The pure complete-span cost selector
+  now has an offline exporter consumer for full, producer-separated and unfused
+  ingress. See [fusion selection](FUSION_PROFITABILITY_2026-09-06.md).
+  Per-bucket alternatives and a measured installed ingress comparison remain
+  separate from the completed whole-profile selection mechanism.
 - Work planning: pure bounded progress-to-query calculation is consumed by
   scheduler selection; typed query/context/KV-write ranges are consumed by both
   descriptor paths. Existing fairness and KV allocation policy are preserved.
@@ -50,9 +53,17 @@ alternatives remain disabled.
   through the last persistent-state effect. Eager executors materialize a
   shorter reusable queue at startup; both descriptor paths select it only when
   every row has no output demand. They also omit unused sampling readback.
-  Mixed/output-producing frames retain the full graph. Captures, FP8 envelopes
-  and diagnostic canaries retain their full execution contract. Effect-only
-  capture budgeting, per-row compaction, physical model equivalence and
-  end-to-end validation remain unfinished.
+  The BF16 matrix head and sampler now consume a compact terminal-row view in
+  mixed frames and captured execution, with stable pointers and original-row
+  result mapping. Upstream KV effects retain the original descriptor. No second
+  graph is allocated; captured upstream pure suffix operations are not pruned.
+  FP8/I8 envelopes and diagnostic canaries retain their original contract.
+  See [output-row projection](OUTPUT_ROW_PROJECTION_2026-09-06.md).
   The exact-commit queue regression and four GPU sanitizer checks passed;
   see [the execution report](OUTPUT_DEMAND_EXECUTION_2026-09-06.md).
+
+Current-source installation, compact-head physical checks and the eight-cell
+Qwen result vector are recorded in
+[the implementation report](COMPILER_REMAINING_RESULTS_2026-09-06.md), including
+the existing concurrent-output variation and remaining work. No all-workstreams
+completion or batch-invariant generation claim is implied.
