@@ -32,5 +32,16 @@ alternatives remain disabled.
   readiness implemented and physically measured. See
   [the paired report](ATTENTION_DEPENDENCY_PIPELINE_2026-09-06.md). The serving
   default and end-to-end comparison are not yet updated.
-- Matrix, fusion, work planning and output demand: integration in progress;
-  no new completion or speed claim yet.
+- Matrix: output-map distribution is selected through the generic strategy,
+  compiler, CUDA source, local-storage calculation and graph launch geometry.
+  The artifact producer accepts typed offline records. See the
+  [paired matrix/storage report](MATRIX_STORAGE_SCHEDULES_2026-09-06.md).
+- Fusion/storage: selected-input residency is a separately measured schedule,
+  not mandatory materialization after CSE. Full/partial/unfused ingress
+  profitability selection is still unfinished.
+- Work planning: pure bounded progress-to-query calculation is consumed by
+  scheduler selection; typed query/context/KV-write ranges are consumed by both
+  descriptor paths. Existing fairness and KV allocation policy are preserved.
+- Output demand: represented in row work, but GPU head/sampling omission is
+  **not implemented**. No effect-only capture or mixed-row output compaction
+  is claimed. Production default selection and end-to-end validation remain.

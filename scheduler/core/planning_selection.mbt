@@ -119,9 +119,12 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
     }
     let start = if waiting { matched } else { self.prefill_start(oldest) }
     let target = self.prefill_target(oldest)
-    let chunk = smaller(
-      target - start,
-      smaller(self.capacity.prefill_chunk_tokens(), token_left),
+    let chunk = @work_plan.prefill_query_count(
+      computed=start,
+      target~,
+      token_budget=token_left,
+      chunk_limit=self.capacity.prefill_chunk_tokens(),
+      kv_token_capacity=target,
     )
     let old_pages = if waiting {
       matched / self.capacity.tokens_per_page()
@@ -238,9 +241,12 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
       let matched = self.revalidate_waiting_prefix(current)
       let start = matched
       let target = self.prefill_target(current)
-      let chunk = smaller(
-        target - start,
-        smaller(self.capacity.prefill_chunk_tokens(), token_left),
+      let chunk = @work_plan.prefill_query_count(
+        computed=start,
+        target~,
+        token_budget=token_left,
+        chunk_limit=self.capacity.prefill_chunk_tokens(),
+        kv_token_capacity=target,
       )
       let target_pages = if start + chunk == 0 {
         0
@@ -290,9 +296,12 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
       !self.in_flight[slot] {
       let start = self.prefill_start(slot)
       let target = self.prefill_target(slot)
-      let chunk = smaller(
-        target - start,
-        smaller(self.capacity.prefill_chunk_tokens(), token_left),
+      let chunk = @work_plan.prefill_query_count(
+        computed=start,
+        target~,
+        token_budget=token_left,
+        chunk_limit=self.capacity.prefill_chunk_tokens(),
+        kv_token_capacity=target,
       )
       let old_pages = self.table_page_count(slot)
       let target_pages = ceiling_pages(

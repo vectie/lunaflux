@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/scheduler/work_plan"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn prefill_query_count(computed~ : Int, target~ : Int, token_budget~ : Int, chunk_limit~ : Int, kv_token_capacity~ : Int) -> Int
+
+// Errors
+pub suberror WorkPlanError {
+  InvalidRange
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RowWork {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RowWork::cached_context_end(Self) -> Int
+pub fn RowWork::context_end(Self) -> Int
+pub fn RowWork::kv_write_end(Self) -> Int
+pub fn RowWork::kv_write_start(Self) -> Int
+pub fn RowWork::new(packed_start~ : Int, computed~ : Int, query_count~ : Int, kv_token_capacity~ : Int, output_demand~ : Bool) -> Self raise WorkPlanError
+pub fn RowWork::output_token_row(Self) -> Int
+pub fn RowWork::query_count(Self) -> Int
+pub fn RowWork::query_end(Self) -> Int
+pub fn RowWork::query_start(Self) -> Int
+
+// Type aliases
+
+// Traits

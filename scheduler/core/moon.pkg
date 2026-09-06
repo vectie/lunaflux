@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/scheduler/work_plan",
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",

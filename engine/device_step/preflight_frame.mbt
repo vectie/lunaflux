@@ -188,13 +188,18 @@ fn write_frame_prefill(
   if page_start != expected_page_start {
     raise InvalidPlan(PagePacking)
   }
-  let sequence_length = checked_i32(
-    sequence_start + token_length,
-    SequenceLength,
-  )
-  if sequence_length > limits.max_sequence_tokens() {
-    raise InvalidPlan(SequenceLength)
+  let work = @work_plan.RowWork::new(
+    packed_start=token_start,
+    computed=sequence_start,
+    query_count=token_length,
+    kv_token_capacity=limits.max_sequence_tokens(),
+    output_demand=row.produces_token() catch {
+      error => raise wire_error(error)
+    },
+  ) catch {
+    _ => raise InvalidPlan(SequenceLength)
   }
+  let sequence_length = work.context_end()
   if page_length != expected_pages(sequence_length, layout.tokens_per_page()) {
     raise InvalidPlan(PageCount)
   }
@@ -211,7 +216,7 @@ fn write_frame_prefill(
     write,
   )
   if write {
-    write_i32(host.query_row_offsets, row_index, token_start)
+    write_i32(host.query_row_offsets, row_index, work.query_start())
     write_i32(host.sequence_lengths, row_index, sequence_length)
     write_i32(host.page_offsets, row_index, page_start)
   }
