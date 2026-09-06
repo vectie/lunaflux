@@ -165,6 +165,12 @@ explain why C1 can lag even when the main MLP/LM-head kernels are competitive.
 
 ### Long input: prefill is the largest attention opportunity
 
+Follow-up clarification from [per-step diagnosis](FINE_GRAINED_KERNEL_DIAGNOSIS_2026-09-06.md):
+the prefill-named LunaFlux kernel also handles decode rows in mixed steps.
+The category below is a kernel-route total, not isolated equal-work prefill
+time across engines. The overall workload totals remain valid; attributing the
+entire category ratio to pure prefill-kernel efficiency would be incorrect.
+
 1528 input / 32 output tokens × 8 requests; same whole-window accounting:
 
 | Functional group | LunaFlux ms | vLLM ms | SGLang ms |
