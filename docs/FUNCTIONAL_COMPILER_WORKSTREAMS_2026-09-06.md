@@ -50,3 +50,5 @@ alternatives remain disabled.
   and diagnostic canaries retain their full execution contract. Effect-only
   capture budgeting, per-row compaction, physical model equivalence and
   end-to-end validation remain unfinished.
+  The exact-commit queue regression and four GPU sanitizer checks passed;
+  see [the execution report](OUTPUT_DEMAND_EXECUTION_2026-09-06.md).
