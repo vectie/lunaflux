@@ -35,7 +35,9 @@ alternatives remain disabled.
   48-KiB per-block occupancy budget. The generic cost model distinguishes
   per-key subgroup softmax updates from transfer-tile synchronization; it no
   longer charges extra semantic folds just because staging tiles are smaller.
-  Current-source end-to-end comparison of this new selection is pending.
+  Current-source end-to-end comparison and passing exact-kernel sanitizer checks
+  are recorded;
+  see [the serving follow-up](COMPILER_SERVING_FOLLOWUP_2026-09-06.md).
 - Matrix: output-map distribution is selected through the generic strategy,
   compiler, CUDA source, local-storage calculation and graph launch geometry.
   The artifact producer accepts typed offline records. See the
@@ -48,8 +50,10 @@ alternatives remain disabled.
   not mandatory materialization after CSE. The pure complete-span cost selector
   now has an offline exporter consumer for full, producer-separated and unfused
   ingress. See [fusion selection](FUSION_PROFITABILITY_2026-09-06.md).
-  Per-bucket alternatives and a measured installed ingress comparison remain
-  separate from the completed whole-profile selection mechanism.
+  Full and producer-separated alternatives are now installed and measured;
+  the latter is faster but changes generated sequences. Their numeric lowering
+  must be aligned or qualified before using the measured selector to choose it.
+  Per-bucket alternatives remain separate from whole-profile selection.
 - Work planning: pure bounded progress-to-query calculation is consumed by
   scheduler selection; typed query/context/KV-write ranges are consumed by both
   descriptor paths. Existing fairness and KV allocation policy are preserved.
@@ -65,7 +69,8 @@ alternatives remain disabled.
   boundary; mixed frames retain full upstream row identity. Baseline and fused
   residual steps consume this view. This saves arithmetic, not captured node
   launches. The existing counts allocation grows by 20 bytes, with no extra
-  per-step allocation or transfer call. Physical verification is pending.
+  per-step allocation or transfer call. Captured mixed/empty-frame physical
+  checks and all four GPU sanitizers pass.
   FP8/I8 envelopes and diagnostic canaries retain their original contract.
   See [output-row projection](OUTPUT_ROW_PROJECTION_2026-09-06.md).
   The exact-commit queue regression and four GPU sanitizer checks passed;
