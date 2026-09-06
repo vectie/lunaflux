@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/release/projection_tuning_file"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
+}
+
+// Values
+pub fn load_projection_tuning_records(ProjectionTuningInput?, backend~ : @luna_projection_strategy.ProjectionBackendId, architecture~ : @luna_projection_strategy.ProjectionTargetId, toolchain_sha256~ : String) -> ReadOnlyArray[@luna_projection_strategy.ProjectionAutotuneRecord] raise ProjectionTuningFileError
+
+pub fn parse_projection_tuning_suffix(ArrayView[String]) -> ProjectionTuningInput? raise ProjectionTuningFileError
+
+// Errors
+pub(all) suberror ProjectionTuningFileError {
+  InvalidTuningInput
+  TuningReadFailure
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ProjectionTuningInput {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

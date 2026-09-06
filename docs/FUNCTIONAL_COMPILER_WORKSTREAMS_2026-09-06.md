@@ -36,6 +36,10 @@ alternatives remain disabled.
   compiler, CUDA source, local-storage calculation and graph launch geometry.
   The artifact producer accepts typed offline records. See the
   [paired matrix/storage report](MATRIX_STORAGE_SCHEDULES_2026-09-06.md).
+  Device/toolchain-scoped persistence and matching exporter/release-binder
+  consumption are now implemented; see [offline tuning](PROJECTION_TUNING_2026-09-06.md).
+  Installing measured whole-profile choices and per-bucket artifact selection
+  remain distinct from this input plumbing.
 - Fusion/storage: selected-input residency is a separately measured schedule,
   not mandatory materialization after CSE. Full/partial/unfused ingress
   profitability selection is still unfinished.

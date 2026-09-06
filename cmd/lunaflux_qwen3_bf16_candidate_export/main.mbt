@@ -137,6 +137,7 @@ fn prepare_candidate_set(
       max_recipe_bytes=16777216,
       max_total_bytes=1073741824,
     ),
+    projection_records=load_candidate_projection_records(arguments)[:],
   ) catch {
     _ => raise CandidatePreparation
   }

@@ -1,4 +1,30 @@
 ///|
+test "export consumes an explicit saved projection tuning suffix" {
+  let digest = "a".repeat(64)
+  let arguments = [
+    "export", "/model", "config.json", digest, digest, "weights.numeric", digest,
+    digest, digest, "13", "1", "115", "8", "8192", "32", "256", "5120", "/new-output",
+  ]
+  let legacy = parse_qwen3_candidate_export_arguments(arguments)
+  assert_true(legacy.projection_tuning is None)
+  assert_eq(load_candidate_projection_records(legacy).length(), 0)
+  arguments.append([
+    "--projection-tuning", "/tuning", "projection.v1", digest, "device-a",
+  ])
+  assert_true(
+    parse_qwen3_candidate_export_arguments(arguments).projection_tuning
+    is Some(_),
+  )
+  arguments.push("extra")
+  try parse_qwen3_candidate_export_arguments(arguments) catch {
+    InvalidArguments => ()
+    _ => fail("unexpected error")
+  } noraise {
+    _ => fail("extra argument accepted")
+  }
+}
+
+///|
 test "offline export arguments are exact and positive" {
   let parsed = parse_qwen3_candidate_export_arguments([
     "lunaflux-qwen3-bf16-candidate-export",

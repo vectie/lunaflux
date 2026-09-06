@@ -100,6 +100,7 @@ fn release_candidates(
       max_recipe_bytes=16777216,
       max_total_bytes=1073741824,
     ),
+    projection_records=load_release_projection_records(arguments)[:],
   ) catch {
     error => {
       ignore(error)

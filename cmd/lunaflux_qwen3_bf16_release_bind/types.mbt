@@ -28,6 +28,7 @@ struct Qwen3ReleaseBindArguments {
   max_query_tokens : Int
   max_page_table_entries : Int
   absolute_new_output : String
+  projection_tuning : @projection_tuning_file.ProjectionTuningInput?
 }
 
 ///|

@@ -73,6 +73,37 @@ test "artifact producer consumes an offline projection storage schedule" {
     tiny_candidate_limits(),
     projection_records=[record],
   )
+  let scope = @luna_projection_tuning.ProjectionTuningScope::new(
+    backend=record.key().backend(),
+    architecture=record.key().target(),
+    device_identity="synthetic-test-device",
+    toolchain_sha256="a".repeat(64),
+  )
+  let stored = @luna_projection_tuning.ProjectionTuningSnapshot::new(scope, [
+    record,
+  ])
+  let restored = @luna_projection_tuning.parse_projection_tuning_snapshot(
+    stored.canonical_bytes(),
+  ).records_for(scope)
+  let rebound = prepare_luna_bf16_candidate_set(
+    plan,
+    layout,
+    profile,
+    target,
+    producer_fixture_compiler(),
+    tiny_candidate_limits(),
+    projection_records=restored[:],
+  )
+  for index in 0..<plan.operations().length() {
+    assert_eq(
+      selected.candidate_source_bytes(index),
+      rebound.candidate_source_bytes(index),
+    )
+    assert_eq(
+      selected.candidate_recipe_bytes(index),
+      rebound.candidate_recipe_bytes(index),
+    )
+  }
   assert_eq(baseline.model_identity(), selected.model_identity())
   for index in 0..<head.id().as_int() {
     assert_eq(

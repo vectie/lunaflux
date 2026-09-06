@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/luna_projection_strategy" @strategy,
+  "vectie/lunaflux/kernels/luna_projection_tuning" @tuning,
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+} for "wbtest"

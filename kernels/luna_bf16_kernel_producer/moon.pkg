@@ -20,6 +20,7 @@ supported_targets = "native"
 
 import {
   "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/luna_projection_tuning",
   "vectie/lunaflux/kernels/artifact_file",
   "vectie/lunaflux/kernels/full_graph_manifest",
   "vectie/lunaflux/model/llama",

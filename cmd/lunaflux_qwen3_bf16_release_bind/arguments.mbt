@@ -65,6 +65,7 @@ fn parse_qwen3_release_bind_arguments(
       max_query_tokens,
       max_page_table_entries,
       absolute_new_output,
+      .. tuning_suffix,
     ] else {
     raise InvalidArguments
   }
@@ -95,5 +96,10 @@ fn parse_qwen3_release_bind_arguments(
     max_query_tokens: parse_positive_int(max_query_tokens),
     max_page_table_entries: parse_positive_int(max_page_table_entries),
     absolute_new_output,
+    projection_tuning: @projection_tuning_file.parse_projection_tuning_suffix(
+      tuning_suffix,
+    ) catch {
+      _ => raise InvalidArguments
+    },
   }
 }

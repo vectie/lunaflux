@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_projection_tuning"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_projection_strategy",
+}
+
+// Values
+pub fn parse_projection_tuning_snapshot(Bytes) -> ProjectionTuningSnapshot raise ProjectionTuningError
+
+// Errors
+pub(all) suberror ProjectionTuningError {
+  InvalidSnapshot
+  ScopeMismatch
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ProjectionTuningScope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionTuningScope::new(backend~ : @luna_projection_strategy.ProjectionBackendId, architecture~ : @luna_projection_strategy.ProjectionTargetId, device_identity~ : String, toolchain_sha256~ : String) -> Self raise ProjectionTuningError
+
+pub struct ProjectionTuningSnapshot {
+  // private fields
+}
+pub fn ProjectionTuningSnapshot::canonical_bytes(Self) -> Bytes
+pub fn ProjectionTuningSnapshot::new(ProjectionTuningScope, ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord]) -> Self raise ProjectionTuningError
+pub fn ProjectionTuningSnapshot::records_for(Self, ProjectionTuningScope) -> ReadOnlyArray[@luna_projection_strategy.ProjectionAutotuneRecord] raise ProjectionTuningError
+
+// Type aliases
+
+// Traits
