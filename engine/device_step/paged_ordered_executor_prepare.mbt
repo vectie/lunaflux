@@ -332,6 +332,28 @@ fn paged_ordered_launches(
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
+    if query_token_bound is Some(bound) &&
+      select_projection_variant(
+        resources.projection_variants,
+        step.function_index,
+        bound,
+      )
+      is Some(variant) {
+      guard resources.functions.get(variant.function_index) is Some(function) &&
+        function.open else {
+        raise InvalidExecutor(ResourceState)
+      }
+      launches.push(
+        @device.OrderedKernelLaunch::new(
+          function.resource,
+          paged_device_launch_dimensions(
+            paged_bucket_launch(variant.launch, bound),
+          ),
+          step.arguments,
+        ),
+      )
+      continue
+    }
     guard resources.functions.get(step.function_index) is Some(function) &&
       function.open else {
       raise InvalidExecutor(ResourceState)

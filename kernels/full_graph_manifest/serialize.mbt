@@ -51,8 +51,21 @@ fn append_manifest_modules(
         entry.entry_point_id.as_int().to_string() +
         ",\"symbol\":\"" +
         entry.function_symbol +
-        "\"}",
+        "\"",
       )
+      if !entry.row_variants.is_empty() {
+        output.write_string(",\"row_variants\":[")
+        for index, variant in entry.row_variants {
+          if index > 0 {
+            output.write_string(",")
+          }
+          let d = variant.dimensions()
+          output <+
+            "{\"maximum_token_rows\":\{variant.maximum_token_rows()},\"symbol\":\"\{variant.function_symbol()}\",\"grid_x\":\{d.grid_x()},\"block_x\":\{d.block_x()},\"shared_memory_bytes\":\{d.shared_memory_bytes()}}"
+        }
+        output.write_string("]")
+      }
+      output.write_string("}")
       entry_count += 1
     }
     output.write_string("]}")

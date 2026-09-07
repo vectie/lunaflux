@@ -123,6 +123,22 @@ fn encode_bootstrap(
     encoder.append_entry_identity(entry.identity())
     encoder.append_int(entry.module_index())
     encoder.append_string(entry.function_symbol())
+    if !entry.row_variants().is_empty() {
+      encoder.append_string("token-row-variants-v1")
+      encoder.append_int(entry.row_variants().length())
+      for variant in entry.row_variants() {
+        encoder.append_int(variant.maximum_token_rows())
+        encoder.append_string(variant.function_symbol())
+        let dimensions = variant.dimensions()
+        encoder.append_int(dimensions.grid_x())
+        encoder.append_int(dimensions.grid_y())
+        encoder.append_int(dimensions.grid_z())
+        encoder.append_int(dimensions.block_x())
+        encoder.append_int(dimensions.block_y())
+        encoder.append_int(dimensions.block_z())
+        encoder.append_int(dimensions.shared_memory_bytes())
+      }
+    }
   }
   encoder.append_int(blueprint.steps().length())
   for step in blueprint.steps() {

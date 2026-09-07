@@ -235,6 +235,9 @@ fn derive_v4_artifact_source(
       ),
     )
     for entry in module_claim.entries {
+      if !entry.row_variants.is_empty() {
+        raise invalid_field(Module, UnsupportedValue)
+      }
       entries.push(
         @artifact.KernelEntryPointInput::new(
           entry_point=@catalog.AotKernelEntryPoint::new(

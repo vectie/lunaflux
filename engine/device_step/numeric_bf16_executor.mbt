@@ -139,6 +139,9 @@ fn prepare_numeric_bf16_graph_resources(
   load_paged_functions(functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
+  prepare_projection_variants(blueprint, functions, resources) catch {
+    error => return paged_construction_failed(resources, error)
+  }
   resources.effect_operation_prefix = model_plan.observed_operation_prefix(
     output_demand=false,
   )

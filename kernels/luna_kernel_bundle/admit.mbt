@@ -55,6 +55,7 @@ fn checked_compiled_operation(
   second_module : Bytes,
   receipt : LunaDeterministicCompileReceipt,
   limits : LunaKernelBundleLimits,
+  row_variants? : ArrayView[@artifact.KernelRowVariant] = [],
 ) -> LunaKernelCompiledOperation raise LunaKernelBundleError {
   if dimensions != contract.dimensions() {
     raise Invalid(LaunchDimensions)
@@ -84,6 +85,7 @@ fn checked_compiled_operation(
     operands~,
     workspace_bytes~,
     workspace_alignment~,
+    row_variants~,
   ) catch {
     _ => raise Invalid(Manifest)
   }
@@ -198,6 +200,7 @@ pub fn admit_projection_compiled_operation(
     second_module,
     receipt,
     limits,
+    row_variants=candidate.row_variants(),
   )
 }
 

@@ -31,6 +31,7 @@ priv struct ManifestEntryClaim {
   family_id : @catalog.AotKernelFamilyId
   entry_point_id : @catalog.AotKernelEntryPointId
   symbol : String
+  row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
 }
 
 ///|

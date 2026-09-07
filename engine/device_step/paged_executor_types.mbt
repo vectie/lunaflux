@@ -116,11 +116,20 @@ priv struct PagedGraphResources {
   mut device_sampling_results : PagedOwnedAllocation?
   modules : Array[PagedOwnedModule]
   functions : Array[PagedOwnedFunction]
+  projection_variants : Array[PagedProjectionVariant]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
   mut effect_operation_prefix : Int
   mut effect_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget
   mut graph_launch_contract : PagedGraphLaunchContract?
   mut numeric_weights : PagedNumericWeightOwner?
+}
+
+///|
+priv struct PagedProjectionVariant {
+  base_function_index : Int
+  maximum_token_rows : Int
+  function_index : Int
+  launch : PagedBucketStepLaunch
 }
 
 ///|

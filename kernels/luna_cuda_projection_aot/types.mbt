@@ -49,10 +49,18 @@ pub struct ProjectionCudaLowering {
   priv compiler : @luna_specialization.LunaCompilerPolicy
   priv function_symbol : String
   priv source : Bytes
+  priv row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
   priv source_digest : ProjectionCudaSourceDigest
   priv recipe : Bytes
   priv recipe_digest : ProjectionCudaRecipeDigest
 } derive(Debug, Eq)
+
+///|
+pub fn ProjectionCudaLowering::row_variants(
+  self : ProjectionCudaLowering,
+) -> ReadOnlyArray[@artifact.KernelRowVariant] {
+  self.row_variants
+}
 
 ///|
 pub fn ProjectionCudaLowering::family(

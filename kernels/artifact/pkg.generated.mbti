@@ -22,6 +22,7 @@ pub fn validate_entry_point_symbols(ArrayView[KernelEntryPointInput], KernelArti
 
 // Errors
 pub(all) suberror KernelArtifactError {
+  InvalidRowVariants(@catalog.AotKernelEntryPoint)
   CatalogVersionMismatch(expected~ : @catalog.CatalogVersion, actual~ : @catalog.CatalogVersion)
   InvalidLimit(KernelArtifactLimit)
   ModuleCountExceeded(maximum~ : Int)
@@ -88,13 +89,15 @@ pub struct KernelEntryPoint {
 pub fn KernelEntryPoint::function_symbol(Self) -> String
 pub fn KernelEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
 pub fn KernelEntryPoint::module_index(Self) -> Int
+pub fn KernelEntryPoint::row_variants(Self) -> ReadOnlyArray[KernelRowVariant]
 
 pub struct KernelEntryPointInput {
   // private fields
 }
 pub fn KernelEntryPointInput::function_symbol(Self) -> String
 pub fn KernelEntryPointInput::identity(Self) -> @catalog.AotKernelEntryPoint
-pub fn KernelEntryPointInput::new(entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String) -> Self
+pub fn KernelEntryPointInput::new(entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String, row_variants? : ArrayView[KernelRowVariant]) -> Self
+pub fn KernelEntryPointInput::row_variants(Self) -> ReadOnlyArray[KernelRowVariant]
 
 pub struct KernelModule {
   // private fields
@@ -107,6 +110,14 @@ pub struct KernelModuleInput {
 }
 pub fn KernelModuleInput::from_bytes(digest~ : @catalog.AotArtifactDigest, module_bytes~ : Bytes) -> Self
 pub fn KernelModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes~ : FixedArray[Byte]) -> Self
+
+pub struct KernelRowVariant {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn KernelRowVariant::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn KernelRowVariant::function_symbol(Self) -> String
+pub fn KernelRowVariant::maximum_token_rows(Self) -> Int
+pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions) -> Self
 
 // Type aliases
 

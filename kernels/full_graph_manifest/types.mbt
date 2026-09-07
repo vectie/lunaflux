@@ -45,6 +45,7 @@ pub struct FullGraphAotOperationArtifact {
   priv entry_point : @catalog.AotKernelEntryPoint
   priv module_relative_path : String
   priv function_symbol : String
+  priv row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv workspace_bytes : Int64
@@ -61,6 +62,7 @@ pub fn FullGraphAotOperationArtifact::new(
   operands~ : ArrayView[@launch_contract.AotOperand],
   workspace_bytes~ : Int64,
   workspace_alignment~ : Int64,
+  row_variants? : ArrayView[@artifact.KernelRowVariant] = [],
 ) -> FullGraphAotOperationArtifact raise FullGraphManifestError {
   if operands.is_empty() || workspace_bytes < 0L || workspace_alignment <= 0L {
     raise Invalid(OperandContract)
@@ -73,6 +75,7 @@ pub fn FullGraphAotOperationArtifact::new(
     entry_point,
     module_relative_path,
     function_symbol,
+    row_variants: ReadOnlyArray::from_array(row_variants),
     dimensions,
     operands: ReadOnlyArray::from_array(operands),
     workspace_bytes,
@@ -186,6 +189,7 @@ priv struct FullGraphManifestEntry {
   family_id : @catalog.AotKernelFamilyId
   entry_point_id : @catalog.AotKernelEntryPointId
   function_symbol : String
+  row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
 }
 
 ///|

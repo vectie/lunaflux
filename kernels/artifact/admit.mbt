@@ -220,6 +220,7 @@ fn validate_entry_inputs(
     raise EntryPointCountExceeded(maximum=limits.max_entry_points)
   }
   for index, input in inputs {
+    validate_row_variants(input, limits.max_function_symbol_bytes)
     validate_symbol(
       input.entry_point,
       input.function_symbol,
@@ -256,6 +257,7 @@ pub fn validate_entry_point_symbols(
     raise EntryPointCountExceeded(maximum=limits.max_entry_points)
   }
   for input in inputs {
+    validate_row_variants(input, limits.max_function_symbol_bytes)
     validate_symbol(
       input.entry_point,
       input.function_symbol,
@@ -301,6 +303,7 @@ fn admit_required(
       entry_point: identity,
       module_index,
       function_symbol: entry_point_inputs[input_index].function_symbol,
+      row_variants: entry_point_inputs[input_index].row_variants,
     })
   }
   {

@@ -309,6 +309,7 @@ fn derive_artifact_source(
             entry_point_id=entry.entry_point_id,
           ),
           function_symbol=entry.symbol,
+          row_variants=entry.row_variants,
         ),
       )
     }

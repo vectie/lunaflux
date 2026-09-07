@@ -19,6 +19,60 @@ fn source_entry(
 }
 
 ///|
+test "row variants reject invalid bounds and symbol aliasing" {
+  let base = source_entry(1, 1, "kernel")
+  let dimensions = @launch_contract.AotLaunchDimensions::new(
+    grid_x=32,
+    grid_y=1,
+    grid_z=1,
+    block_x=32,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=1024,
+  )
+  let variant = fn(bound : Int, symbol : String) {
+    KernelRowVariant::new(
+      maximum_token_rows=bound,
+      function_symbol=symbol,
+      dimensions~,
+    )
+  }
+  let valid = KernelEntryPointInput::new(
+    entry_point=base.entry_point,
+    function_symbol="kernel",
+    row_variants=[
+      variant(1, "one"),
+      variant(8, "eight"),
+      variant(1048576, "maximum"),
+    ],
+  )
+  validate_row_variants(valid, 32)
+  for
+    variants in [
+      [variant(0, "zero")],
+      [variant(2, "two")],
+      [variant(9, "nine")],
+      [variant(2097152, "overflow")],
+      [variant(8, "a"), variant(8, "b")],
+      [variant(16, "a"), variant(8, "b")],
+      [variant(8, "kernel")],
+      [variant(8, "duplicate"), variant(16, "duplicate")],
+    ] {
+    let input = KernelEntryPointInput::new(
+      entry_point=base.entry_point,
+      function_symbol="kernel",
+      row_variants=variants,
+    )
+    try validate_row_variants(input, 32) catch {
+      InvalidRowVariants(_) => ()
+      _ => fail("unexpected row variant error")
+    } noraise {
+      _ => fail("invalid variant accepted")
+    }
+  }
+}
+
+///|
 test "source symbol validation is bounded and rejects syntax and count" {
   let limits = KernelArtifactLimits::new(
     max_modules=1,

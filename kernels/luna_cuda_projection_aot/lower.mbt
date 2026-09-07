@@ -68,7 +68,7 @@ fn projection_finish_candidate(
     operation, parameters, profile, operands, dispatch_plan,
   )
   let dimensions = projection_dimensions(profile, parameters, dispatch_plan)
-  let source = projection_source(
+  let primary_source = projection_source(
     symbol,
     parameters,
     profile.max_query_tokens(),
@@ -78,6 +78,19 @@ fn projection_finish_candidate(
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
   )
+  let (variant_source, row_variants) = projection_row_variant_sources(
+    parameters, profile, runtime_dispatch, dispatch_plan, symbol,
+  )
+  let source = if row_variants.is_empty() {
+    primary_source
+  } else {
+    @utf8.encode(
+      (@utf8.decode(primary_source) catch {
+        _ => raise Invalid(CompilerPolicy)
+      }) +
+      variant_source,
+    )
+  }
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }
@@ -121,6 +134,7 @@ fn projection_finish_candidate(
     compiler,
     function_symbol: symbol,
     source,
+    row_variants,
     source_digest,
     recipe,
     recipe_digest: ProjectionCudaRecipeDigest(projection_sha256(recipe)),

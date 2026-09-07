@@ -17,6 +17,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     device_sampling_results: None,
     modules: [],
     functions: [],
+    projection_variants: [],
     ordered_executors: [],
     effect_operation_prefix: 0,
     effect_capture_budget: effect_capture_budget(GraphMemoryUnsupported),
@@ -197,6 +198,22 @@ fn collect_paged_functions(
           })
           split_decode_indices[step_index] = functions.length() - 1
         }
+      }
+    }
+  }
+  for step in blueprint.steps() {
+    for variant in step.row_variants {
+      if paged_function_symbol_index(
+          functions,
+          step.artifact_module_index(),
+          variant.function_symbol(),
+        )
+        is None {
+        functions.push({
+          identity: step.entry_point(),
+          module_index: step.artifact_module_index(),
+          symbol: variant.function_symbol(),
+        })
       }
     }
   }
@@ -476,6 +493,9 @@ pub fn prepare_paged_graph_executor(
     error => return paged_construction_failed(resources, error)
   }
   load_paged_functions(functions, resources) catch {
+    error => return paged_construction_failed(resources, error)
+  }
+  prepare_projection_variants(blueprint, functions, resources) catch {
     error => return paged_construction_failed(resources, error)
   }
   resources.effect_operation_prefix = model_plan.observed_operation_prefix(

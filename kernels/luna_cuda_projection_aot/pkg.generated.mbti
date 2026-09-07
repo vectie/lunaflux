@@ -3,9 +3,11 @@ package "vectie/lunaflux/kernels/luna_cuda_projection_aot"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_projection_strategy",
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
@@ -83,9 +85,11 @@ pub fn ProjectionCudaLowering::output_width(Self) -> Int
 pub fn ProjectionCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn ProjectionCudaLowering::recipe_bytes(Self) -> Bytes
 pub fn ProjectionCudaLowering::recipe_digest(Self) -> ProjectionCudaRecipeDigest
+pub fn ProjectionCudaLowering::row_variants(Self) -> ReadOnlyArray[@artifact.KernelRowVariant]
 pub fn ProjectionCudaLowering::source_bytes(Self) -> Bytes
 pub fn ProjectionCudaLowering::source_digest(Self) -> ProjectionCudaSourceDigest
 pub fn ProjectionCudaLowering::target(Self) -> @catalog.DeviceTarget
+pub fn ProjectionCudaLowering::tile_compilation(Self) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
 
 pub struct ProjectionCudaManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionCudaManifestBindingDigest::as_hex(Self) -> String

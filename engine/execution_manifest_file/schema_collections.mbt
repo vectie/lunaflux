@@ -8,7 +8,11 @@ fn parse_entry_claim(
   guard value is Object(object) else {
     raise invalid_field(Module, ExpectedObject, index=module_index)
   }
-  validate_fields(object, Module, ["family_id", "entry_point_id", "symbol"])
+  let fields = ["family_id", "entry_point_id", "symbol"]
+  if object.contains("row_variants") {
+    fields.push("row_variants")
+  }
+  validate_fields(object, Module, fields)
   let family_id = @catalog.AotKernelFamilyId::from_stable_int(
     require_nonnegative_int(object, "family_id", Module, index=entry_index),
   ) catch {
@@ -23,7 +27,15 @@ fn parse_entry_claim(
   if symbol.length() > maximum_symbol_bytes {
     raise invalid_field(Module, CountExceeded, index=entry_index)
   }
-  { family_id, entry_point_id, symbol }
+  let row_variants : ReadOnlyArray[@artifact.KernelRowVariant] = match
+    object.get("row_variants") {
+    None => []
+    Some(value) =>
+      @artifact_file.decode_row_variants(value, maximum_symbol_bytes) catch {
+        _ => raise invalid_field(Module, UnsupportedValue, index=entry_index)
+      }
+  }
+  { family_id, entry_point_id, symbol, row_variants }
 }
 
 ///|

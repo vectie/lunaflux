@@ -18,6 +18,7 @@ pub(all) enum FunctionSymbolRule {
 
 ///|
 pub(all) suberror KernelArtifactError {
+  InvalidRowVariants(@catalog.AotKernelEntryPoint)
   CatalogVersionMismatch(
     expected~ : @catalog.CatalogVersion,
     actual~ : @catalog.CatalogVersion

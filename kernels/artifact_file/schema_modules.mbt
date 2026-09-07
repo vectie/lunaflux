@@ -13,11 +13,15 @@ fn parse_entry_point(
       index~,
     )
   }
-  validate_fields(entry, ManifestEntryPoint, [
+  let allowed = [
     ("family_id", FamilyIdField),
     ("entry_point_id", EntryPointIdField),
     ("symbol", FunctionSymbolField),
-  ])
+  ]
+  if entry.contains("row_variants") {
+    allowed.push(("row_variants", EntryPointsField))
+  }
+  validate_fields(entry, ManifestEntryPoint, allowed)
   let family_value = require_nonnegative_int(
     entry,
     "family_id",
@@ -72,6 +76,7 @@ fn parse_entry_point(
       entry_point_id~,
     ),
     function_symbol=symbol,
+    row_variants=parse_row_variants(entry, maximum_symbol_bytes),
   )
 }
 

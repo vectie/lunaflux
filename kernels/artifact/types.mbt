@@ -24,6 +24,7 @@ pub struct KernelModuleInput {
 pub struct KernelEntryPointInput {
   priv entry_point : @catalog.AotKernelEntryPoint
   priv function_symbol : String
+  priv row_variants : ReadOnlyArray[KernelRowVariant]
 }
 
 ///|
@@ -39,6 +40,7 @@ pub struct KernelEntryPoint {
   priv entry_point : @catalog.AotKernelEntryPoint
   priv module_index : Int
   priv function_symbol : String
+  priv row_variants : ReadOnlyArray[KernelRowVariant]
 }
 
 ///|
@@ -77,8 +79,27 @@ pub fn KernelModuleInput::from_bytes(
 pub fn KernelEntryPointInput::new(
   entry_point~ : @catalog.AotKernelEntryPoint,
   function_symbol~ : String,
+  row_variants? : ArrayView[KernelRowVariant] = [],
 ) -> KernelEntryPointInput {
-  { entry_point, function_symbol }
+  {
+    entry_point,
+    function_symbol,
+    row_variants: ReadOnlyArray::from_array(row_variants),
+  }
+}
+
+///|
+pub fn KernelEntryPoint::row_variants(
+  self : KernelEntryPoint,
+) -> ReadOnlyArray[KernelRowVariant] {
+  self.row_variants
+}
+
+///|
+pub fn KernelEntryPointInput::row_variants(
+  self : KernelEntryPointInput,
+) -> ReadOnlyArray[KernelRowVariant] {
+  self.row_variants
 }
 
 ///|

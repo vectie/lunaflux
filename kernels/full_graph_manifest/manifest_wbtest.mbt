@@ -51,6 +51,7 @@ fn full_manifest_contracts() -> @launch_contract.PagedKvLaunchContractSet raise 
 fn full_manifest_artifacts(
   bad_operand_at? : Int = -1,
   bad_dimensions_at? : Int = -1,
+  with_row_variant? : Bool = false,
 ) -> Array[FullGraphAotOperationArtifact] raise {
   let contracts = full_manifest_contracts().contracts()
   let artifacts : Array[FullGraphAotOperationArtifact] = []
@@ -83,6 +84,17 @@ fn full_manifest_artifacts(
           contract.entry_point().family().module_digest().sha256() +
           ".cubin",
         function_symbol="kernel_" + (index + 1).to_string(),
+        row_variants=if with_row_variant && index == 0 {
+          [
+            @artifact.KernelRowVariant::new(
+              maximum_token_rows=1,
+              function_symbol="kernel_1_rows1",
+              dimensions~,
+            ),
+          ]
+        } else {
+          []
+        },
         dimensions~,
         operands~,
         workspace_bytes=contract.workspace_bytes(),
@@ -91,6 +103,40 @@ fn full_manifest_artifacts(
     )
   }
   artifacts
+}
+
+///|
+test "row specialization metadata survives canonical manifest serialization" {
+  let manifest = produce_execution_manifest_v2(
+    full_manifest_plan(),
+    full_manifest_target(),
+    full_manifest_contracts(),
+    full_manifest_artifacts(with_row_variant=true),
+    full_manifest_limits(),
+  )
+  guard @json.parse(@utf8.decode(manifest.bytes())) is Object(root) else {
+    fail("expected manifest")
+  }
+  guard root["modules"] is Array(modules) else { fail("expected modules") }
+  let mut count = 0
+  for module_value in modules {
+    guard module_value is Object(fields) else { fail("expected module") }
+    guard fields["entry_points"] is Array(entries) else {
+      fail("expected entries")
+    }
+    for entry in entries {
+      guard entry is Object(fields) else { fail("expected entry") }
+      if fields.get("row_variants") is Some(value) {
+        let variants = @artifact_file.decode_row_variants(value, 32)
+        assert_eq(variants.length(), 1)
+        assert_eq(variants[0].maximum_token_rows(), 1)
+        assert_eq(variants[0].function_symbol(), "kernel_1_rows1")
+        assert_eq(variants[0].dimensions(), full_manifest_dimensions(0))
+        count += 1
+      }
+    }
+  }
+  assert_eq(count, 1)
 }
 
 ///|
