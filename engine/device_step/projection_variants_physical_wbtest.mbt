@@ -55,6 +55,12 @@ async test "physical row variants preserve dense values and graph fallback" {
       )
     }),
   )
+  let benchmark = @env.get_env_var("LUNAFLUX_ROW_VARIANTS_BENCHMARK") ==
+    Some("1")
+  let start = context.create_event()
+  defer (try! start.close())
+  let finish = context.create_event()
+  defer (try! finish.close())
   for tokens in [1, 2, 7, 8, 9, 16, 32, 256] {
     let counts = FixedArray::make(16, b'\x00')
     counts[12] = (tokens & 255).to_byte()
@@ -75,19 +81,36 @@ async test "physical row variants preserve dense values and graph fallback" {
       )
       let zeros = Bytes::make(sizes[3], 0)
       allocations[3].copy_from_host(zeros, 0L, 0L, sizes[3].to_int64())
-      let executor = context.create_ordered_kernel_executor(
-        stream,
+      let resources = empty_paged_resources()
+      resources.functions.push({
+        resource: primary,
+        module_index: 0,
+        open: true,
+      })
+      resources.functions.push({ resource: small, module_index: 0, open: true })
+      if groups == 2 {
+        resources.projection_variants.push({
+          base_function_index: 0,
+          maximum_token_rows: 8,
+          function_index: 1,
+          launch: ProjectionTensorCoreGridX(source, 1024),
+        })
+      }
+      let launches = paged_ordered_launches(
         [
-          @device.OrderedKernelLaunch::new(
-            if groups == 8 {
-              primary
-            } else {
-              small
-            },
+          {
+            operation_id: @plan.OperationId::new(0),
+            function_index: 0,
             dimensions,
             arguments,
-          ),
+          },
         ],
+        resources,
+        query_token_bound=Some(tokens),
+      )
+      let executor = context.create_ordered_kernel_executor(
+        stream,
+        Array::make(if benchmark { 64 } else { 1 }, launches[0]),
         policy=OrderedKernelCaptureRequired,
       )
       defer (try! executor.close())
@@ -103,6 +126,19 @@ async test "physical row variants preserve dense values and graph fallback" {
         assert_eq(result[index], b'\x00')
       }
       executor.reset()
+      if benchmark {
+        for trial in 0..<7 {
+          start.record(stream)
+          executor.launch_captured()
+          finish.record(stream)
+          executor.record_completion()
+          executor.wait_completion()
+          executor.reset()
+          println(
+            "rows=\{tokens} groups=\{groups} trial=\{trial} microseconds=\{start.elapsed_milliseconds(finish) * 1000.0 / 64.0}",
+          )
+        }
+      }
     }
   }
   println(

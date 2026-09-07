@@ -9,10 +9,17 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
   }
   let target = projection_fixture_target()
   let baseline = projection_build_runtime_dispatch(parameters, 256, target, [])
-  let small = baseline
+  let candidates = baseline
     .dispatch_plan(8)
     .prefill()
-    .output_distribution_candidates()[1]
+    .output_distribution_candidates()
+  let mut selected : @luna_projection_strategy.ProjectionStrategy? = None
+  for candidate in candidates {
+    if candidate.output_tiles_per_workgroup() == 2 {
+      selected = Some(candidate)
+    }
+  }
+  let small = selected.unwrap()
   let record = @luna_projection_strategy.ProjectionAutotuneRecord::new(
     key=@luna_projection_strategy.ProjectionAutotuneKey::new(
       backend=projection_cuda_backend_id(),
