@@ -88,3 +88,8 @@ selection. The latter still needs an exporter and runtime representation for
 multiple concrete kernel variants. It also does not establish batch-invariant
 floating-point reduction, resolve the existing C8 token variation, or replace
 the larger matrix/attention schedule work.
+
+Follow-up: `1bd8112` / `f69e798` add the Dense/QKV row-variant artifact and
+startup queue path. Dense physical validation and diagnostic timings are in
+[ROW_BUCKET_ARTIFACTS_2026-09-07.md](ROW_BUCKET_ARTIFACTS_2026-09-07.md).
+Real Qwen tuning, C8 numerical diagnosis, and larger schedules remain open.
