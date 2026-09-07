@@ -118,6 +118,7 @@ priv struct PagedGraphResources {
   functions : Array[PagedOwnedFunction]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
   mut effect_operation_prefix : Int
+  mut effect_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget
   mut graph_launch_contract : PagedGraphLaunchContract?
   mut numeric_weights : PagedNumericWeightOwner?
 }

@@ -142,6 +142,9 @@ fn prepare_numeric_bf16_graph_resources(
   resources.effect_operation_prefix = model_plan.observed_operation_prefix(
     output_demand=false,
   )
+  resources.effect_capture_budget = effect_capture_budget(
+    blueprint.graph_memory_evidence().availability(),
+  )
   let (
     model_steps,
     wide_prefill_model_steps,

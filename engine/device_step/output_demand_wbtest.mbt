@@ -1,4 +1,14 @@
 ///|
+test "effect variants do not silently expand a declared specialization byte bound" {
+  assert_true(
+    effect_capture_budget(GraphMemoryAbsent).reserve(32768) is Some(_),
+  )
+  assert_eq(effect_capture_budget(GraphMemoryAbsent).reserve(32769), None)
+  assert_eq(effect_capture_budget(GraphMemoryBounded).reserve(1), None)
+  assert_eq(effect_capture_budget(GraphMemoryUnsupported).reserve(1), None)
+}
+
+///|
 test "effect-only lowering retains split effects and omits the pure suffix" {
   let operations = ReadOnlyArray::from_array(
     [0, 1, 2, 2, 3, 4, 5, 5].map(value => try! @plan.OperationId::new(value)),

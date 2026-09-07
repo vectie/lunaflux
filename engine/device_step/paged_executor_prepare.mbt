@@ -19,6 +19,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     functions: [],
     ordered_executors: [],
     effect_operation_prefix: 0,
+    effect_capture_budget: effect_capture_budget(GraphMemoryUnsupported),
     graph_launch_contract: None,
     numeric_weights: None,
   }
@@ -479,6 +480,9 @@ pub fn prepare_paged_graph_executor(
   }
   resources.effect_operation_prefix = model_plan.observed_operation_prefix(
     output_demand=false,
+  )
+  resources.effect_capture_budget = effect_capture_budget(
+    blueprint.graph_memory_evidence().availability(),
   )
   let (
     model_steps,

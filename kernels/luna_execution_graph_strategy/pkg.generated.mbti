@@ -44,6 +44,12 @@ pub struct ExecutionGraphShape {
 }
 pub fn ExecutionGraphShape::new(phase~ : ExecutionGraphPhase, batch_rows~ : Int, query_tokens~ : Int, context_tokens~ : Int) -> Self raise ExecutionGraphBucketError
 
+pub struct ExecutionGraphVariantBudget {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ExecutionGraphVariantBudget::new(Int, Int) -> Self raise ExecutionGraphBucketError
+pub fn ExecutionGraphVariantBudget::reserve(Self, Int) -> Self?
+
 // Type aliases
 
 // Traits

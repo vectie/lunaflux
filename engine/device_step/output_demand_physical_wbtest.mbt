@@ -79,8 +79,7 @@ async test "physical eager output demand preserves effects and releases shared l
     assert_eq(result[8].to_int(), index / 2 + 1)
     executor.reset()
   }
-  // Captured execution retains its full list and does not allocate an
-  // unaccounted second graph when an effect-only suffix exists.
+  // A bounded specialization must retain its original capture set.
   let captured = prepare_one_paged_ordered_executor(
     context,
     launches[:],
@@ -99,7 +98,46 @@ async test "physical eager output demand preserves effects and releases shared l
   assert_eq(result[4].to_int(), 3)
   assert_eq(result[8].to_int(), 3)
   graph.reset()
+  // Ordinary AOT capture specializes the actual graph, not merely arithmetic
+  // inside head/sample kernels. All owners share the same leased allocation.
+  resources.effect_capture_budget = effect_capture_budget(GraphMemoryAbsent)
+  let specialized = prepare_one_paged_ordered_executor(
+    context,
+    launches[:],
+    operations,
+    resources,
+    OrderedKernelCaptureRequired,
+  )
+  let short = resources.ordered_executors[specialized].effect_only_owner_index
+  assert_true(short >= 0)
+  assert_eq(resources.ordered_executors[short].resource.kernel_count(), 1)
+  assert_eq(
+    resources.ordered_executors[short].resource.execution_mode(),
+    OrderedKernelCaptured,
+  )
+  for index, selected in [short, specialized, short, specialized] {
+    let executor = resources.ordered_executors[selected].resource
+    executor.launch_captured()
+    executor.record_completion()
+    executor.wait_completion()
+    let result = allocation.copy_to_host(0L, 12L)
+    assert_eq(result[0].to_int(), 6 + index)
+    assert_eq(result[4].to_int(), 3 + (index + 1) / 2)
+    assert_eq(result[8].to_int(), 3 + (index + 1) / 2)
+    executor.reset()
+  }
+  resources.effect_capture_budget = @luna_execution_graph_strategy.ExecutionGraphVariantBudget::new(
+    1, 0,
+  )
+  let exhausted = prepare_one_paged_ordered_executor(
+    context,
+    launches[:],
+    operations,
+    resources,
+    OrderedKernelCaptureRequired,
+  )
+  assert_eq(resources.ordered_executors[exhausted].effect_only_owner_index, -1)
   println(
-    "output_demand_physical=passed eager_effects=preserved head_sampling=omitted capture=unchanged",
+    "output_demand_physical=passed eager_effects=preserved head_sampling=omitted capture=pruned budget_fallback=preserved",
   )
 }
