@@ -103,13 +103,6 @@ fn paged_blueprint_step(
 }
 
 ///|
-fn paged_qwen_postprocess_bucket_launch(
-  source : @launch_contract.AotLaunchDimensions,
-) -> PagedBucketStepLaunch {
-  QueryTokenCappedGridX(source)
-}
-
-///|
 /// Derives the only currently safe smaller-bucket launch contract from the
 /// approved Qwen composite ABI. The V2 reusable postprocess and readonly
 /// attention kernels both authenticate a bounded grid and use grid-stride token
@@ -121,6 +114,7 @@ fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
 ) -> PagedGraphLaunchContract? raise DeviceStepError {
@@ -131,6 +125,10 @@ fn prepare_qwen_graph_launch_contract(
   let decode_launches = FixedArray::make(steps.length(), FixedBucketLaunch)
   prepare_projection_bucket_launches(blueprint, steps, launches)
   prepare_projection_bucket_launches(blueprint, steps, decode_launches)
+  prepare_residual_bucket_launches(blueprint, steps, residual_spans, launches)
+  prepare_residual_bucket_launches(
+    blueprint, steps, residual_spans, decode_launches,
+  )
   for span in spans {
     let (qkv_index, qk_norm_index, _, attention_index) = span.operation_indices()
     let ingress_index = if span.ingress_includes_projection() {
@@ -199,6 +197,9 @@ fn prepare_qwen_graph_launch_contract(
         FixedBucketLaunch,
       )
       prepare_projection_bucket_launches(blueprint, selected, split_launches)
+      prepare_residual_bucket_launches(
+        blueprint, selected, residual_spans, split_launches,
+      )
       for span in spans {
         let (qkv_index, qk_norm_index, _, attention_index) = span.operation_indices()
         let ingress_index = if span.ingress_includes_projection() {

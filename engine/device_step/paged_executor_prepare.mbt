@@ -612,6 +612,7 @@ pub fn prepare_paged_graph_executor(
     model_steps,
     qwen_fused_attention_spans,
     prefill_wide_steps=wide_prefill_model_steps,
+    fused_residual_spans,
     prefill_split_steps=partitioned_prefill_model_steps,
   ) catch {
     error => return paged_construction_failed(resources, error)
