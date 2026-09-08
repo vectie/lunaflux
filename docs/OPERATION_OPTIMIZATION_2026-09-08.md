@@ -86,6 +86,42 @@ However, async-copy schedule316 was 20–24% slower than synchronous312 on the
 measured Qwen geometry. It remains available but is deliberately not selected.
 This is not a claim that the long-prefill attention bottleneck is solved.
 
+## Final serving trace for `8f3708b`
+
+The separately captured trace uses the same final worker and kernel bundle,
+with a diagnostic supervisor for child tracing. The following values are
+cumulative GPU milliseconds in the first timed C8 request window; they are
+not the uninstrumented throughput measurements above. Control is the earlier
+fixed-worker r3 trace. Different launch counts must not be treated as isolated
+kernel latency ratios.
+
+| GPU operation group | Short previous ms | Short new ms | Long previous ms | Long new ms |
+| --- | ---: | ---: | ---: | ---: |
+| QKV projection | 288.471 | 262.145 | 274.085 | 270.977 |
+| Output projection | 184.943 | 115.644 | 137.213 | 128.708 |
+| Vocabulary head | 367.885 | 200.596 | 54.368 | 33.914 |
+| Attention | 155.214 | 151.994 | 732.577 | 535.941 |
+| Residual / RMSNorm | 66.408 | 66.048 | 19.738 | 19.700 |
+| Sampling | 36.605 | 3.820 | 4.990 | 0.493 |
+| MLP | 459.203 | 462.607 | 520.137 | 520.506 |
+
+The head uses grid9496/block32/shared9216; sampling executes the partial
+grid32×38 and merge grid32. Residual uses grid8 for 14,280 short decode calls,
+but its active kernel still takes about 4.53 µs versus 4.56 µs previously.
+The launch-bound fix therefore yields **no material residual speedup**: it
+removes inexpensive early-return workgroups, not the eight synchronization
+barriers or residual-output reload in active workgroups. Those remain the
+next residual lowering target. The ordinary final RMSNorm is only 0.734 ms
+of the short residual/norm group, so it does not explain this remaining cost.
+
+Long attention falls about 27%, but it and the unchanged long-prefill matrix
+work remain dominant. The short-row projection records do not optimize all
+large-prefill GEMMs. This explains why large isolated head/sampler gains do
+not imply an equivalent full-request speedup.
+
+Trace, SQLite database and compact tables are downloaded under
+`/private/tmp/lunaflux-five-ops-profile-results-20260908-r1`.
+
 See `HEAD_STRIP_PERFORMANCE_2026-09-08.md`, `QKV_WORK_DISTRIBUTION_2026-09-08.md`,
 `QWEN_ATTENTION_TRANSFER_2026-09-08.md`, and `SEGMENTED_GREEDY_2026-09-08.md`
 for operation methodology, correctness and sanitizer results.
@@ -110,3 +146,8 @@ Result archive SHA-256:
 `4b9f5947dfdad254e896ed833a6fe894414ba1eda8ce0faae52133dce7b8998a`.
 The compact machine-readable table is checked in alongside the tuning snapshot
 as `benchmarks/operation_optimization_20260908/summary.json`.
+
+Validation after the separate stale-fixture corrections (`00763f7`, `47ddf35`):
+native full suite 3,609/3,609, warning-denied native check and formatting check
+passed. These test/documentation-only corrections do not change the benchmarked
+runtime bytes.
