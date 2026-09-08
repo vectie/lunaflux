@@ -21,7 +21,7 @@ test "attention phase row domains partition ragged mixed and empty batches" {
 ///|
 test "prefill counts share one descriptor upload without modifying original views" {
   let host = make_host_buffers(step_device_limits(max_tokens=32))
-  let original_cells = host.counts.length() / INT32_BYTES - 5
+  let original_cells = host.counts.length() / INT32_BYTES
   for cell in 0..<original_cells {
     write_i32(host.counts, cell, 41 + cell)
   }
@@ -35,14 +35,31 @@ test "prefill counts share one descriptor upload without modifying original view
   }
   publish_prefill_attention_counts(host, summary)
   for cell in 0..<original_cells {
-    assert_eq(read_descriptor_i32(host.counts, cell), 41 + cell)
+    if cell < PREFILL_ATTENTION_COUNTS_CELL || cell >= OUTPUT_ROW_ENDS_CELL {
+      assert_eq(read_descriptor_i32(host.counts, cell), 41 + cell)
+    }
   }
   for cell, value in [2, 0, 2, 13, 9] {
-    assert_eq(read_descriptor_i32(host.counts, original_cells + cell), value)
+    assert_eq(
+      read_descriptor_i32(host.counts, PREFILL_ATTENTION_COUNTS_CELL + cell),
+      value,
+    )
   }
   publish_prefill_attention_counts(host, empty_device_step_summary())
   for cell in 0..<5 {
-    assert_eq(read_descriptor_i32(host.counts, original_cells + cell), 0)
+    assert_eq(
+      read_descriptor_i32(host.counts, PREFILL_ATTENTION_COUNTS_CELL + cell),
+      0,
+    )
+  }
+  for projected in [false, true] {
+    host.project_output_rows = projected
+    for outputs in [0, 1, 4] {
+      host.output_rows = outputs
+      let uploaded = uploaded_count_cells(host, summary)
+      assert_true(PREFILL_ATTENTION_COUNTS_CELL + 5 <= uploaded)
+      assert_true(uploaded <= original_cells)
+    }
   }
 }
 
@@ -72,7 +89,7 @@ test "attention phase rewrite preserves effect order and inserts decode after me
 }
 
 ///|
-test "phase counts preserve ragged submitted and wire rows in both projection modes" {
+fn attention_phase_ragged_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
   let allocator = step_allocator()
   let buffer = @worker_protocol.SchedulePlanBuffer::new(step_protocol_limits())
   for row in 0..<2 {
@@ -98,7 +115,12 @@ test "phase counts preserve ragged submitted and wire rows in both projection mo
     sample_index=0,
     completion_slot=step_slot(2),
   )
-  let submitted = submit_step_buffer(buffer, token_budget=4)
+  submit_step_buffer(buffer, token_budget=4)
+}
+
+///|
+test "phase counts preserve ragged submitted and wire rows in both projection modes" {
+  let submitted = attention_phase_ragged_fixture()
   let frame = encoded_step_frame(submitted)
   let limits = step_device_limits()
   for projected in [false, true] {
@@ -131,7 +153,7 @@ test "phase counts preserve ragged submitted and wire rows in both projection mo
       ),
     )
     assert_eq(host.counts, wire.counts)
-    let phase_start = host.counts.length() / INT32_BYTES - 5
+    let phase_start = PREFILL_ATTENTION_COUNTS_CELL
     for cell, value in [2, 0, 2, 3, 4] {
       assert_eq(read_descriptor_i32(host.counts, phase_start + cell), value)
     }

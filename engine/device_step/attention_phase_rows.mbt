@@ -27,7 +27,7 @@ fn publish_prefill_attention_counts(
     summary.decode_count,
     summary.token_count,
   )
-  let start = host.counts.length() / INT32_BYTES - 5
+  let start = PREFILL_ATTENTION_COUNTS_CELL
   write_i32(host.counts, start, phase.prefill_rows)
   write_i32(host.counts, start + 1, 0)
   write_i32(host.counts, start + 2, phase.prefill_rows)
@@ -36,14 +36,16 @@ fn publish_prefill_attention_counts(
 }
 
 ///|
-/// The last five cells share the descriptor's single upload and lifecycle.
+/// This fixed-prefix view precedes the variable-length output row-end suffix.
+/// Every descriptor upload includes it, including zero-output frames; placing
+/// it at the allocation tail would leave stale device counts on partial copies.
 /// The argument remains fixed throughout graph capture and replay.
 fn prefill_attention_counts_argument(
   descriptor : DeviceStepResources,
 ) -> @device.KernelArgument raise DeviceStepError {
   @device.KernelArgument::device_region(
     descriptor.counts,
-    offset=descriptor.counts.byte_count() - 20L,
+    offset=byte_capacity(PREFILL_ATTENTION_COUNTS_CELL),
     byte_count=20L,
     alignment=4L,
   ) catch {

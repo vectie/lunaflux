@@ -5,11 +5,22 @@ const OUTPUT_COUNTS_CELL : Int = 5
 const PURE_SUFFIX_COUNTS_CELL : Int = 10
 
 ///|
-const OUTPUT_ROW_ENDS_CELL : Int = 15
+const PREFILL_ATTENTION_COUNTS_CELL : Int = 15
+
+///|
+const OUTPUT_ROW_ENDS_CELL : Int = 20
 
 ///|
 fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
-  OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits) + 5
+  OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits)
+}
+
+///|
+fn uploaded_count_cells(
+  host : DeviceStepHostBuffers,
+  summary : DeviceStepSummary,
+) -> Int {
+  OUTPUT_ROW_ENDS_CELL + output_physical_rows(host, summary) + 1
 }
 
 ///|

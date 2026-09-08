@@ -154,7 +154,7 @@ fn upload_owner_transaction(
     Counts,
     owner.resources.counts,
     owner.host.counts,
-    OUTPUT_ROW_ENDS_CELL + output_physical_rows(owner.host, summary) + 1,
+    uploaded_count_cells(owner.host, summary),
   )
 }
 

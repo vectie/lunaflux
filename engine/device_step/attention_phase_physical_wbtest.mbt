@@ -165,3 +165,78 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     "attention_phase_physical=passed ordered=passed captured=passed mixed_disjoint=passed original_effect_order=passed pure_launch_count=unchanged budget_fallback=preserved",
   )
 }
+
+///|
+/// Exercise the production variable-length descriptor transaction rather than
+/// a fixture-owned full allocation copy. Narrow counts must be visible even
+/// when output demand uploads only the shortest row-end suffix.
+async test "physical mixed attention counts survive actual descriptor uploads" {
+  guard @env.get_env_var("LUNAFLUX_ATTENTION_PHASE_FIXTURE") is Some(_) else {
+    return
+  }
+  let context = @device.open_context(0)
+  defer (try! context.close())
+  for projected in [false, true] {
+    for wire in [false, true] {
+      let prepared = prepare_validated(
+        context,
+        step_test_model_plan(),
+        @worker_protocol.ModelPlanGeneration::from_wire(1UL),
+        step_test_layout(),
+        step_device_limits(max_tokens=32),
+        step_required_capabilities(),
+        false,
+        0UL,
+      )
+      guard prepared is Ready(descriptor) else {
+        fail("descriptor preparation")
+      }
+      defer (try! descriptor.close())
+      descriptor.host.project_output_rows = projected
+      for
+        plan in [
+          attention_phase_ragged_fixture(),
+          output_rows_fixture([false, false, false, false], sequence=2UL),
+        ] {
+        let staged = if wire {
+          descriptor.stage_frame(encoded_step_frame(plan))
+        } else {
+          descriptor.stage(plan)
+        }
+        let cells = uploaded_count_cells(
+          descriptor.host,
+          descriptor.staged_summary,
+        )
+        let copied = FixedArray::from_array(
+          descriptor.resources.counts
+          .copy_to_host(0L, byte_capacity(cells))
+          .to_array(),
+        )
+        for cell in 0..<cells {
+          assert_eq(
+            read_descriptor_i32(copied, cell),
+            read_descriptor_i32(descriptor.host.counts, cell),
+          )
+        }
+        let summary = descriptor.staged_summary
+        for
+          cell, value in [
+            summary.prefill_count,
+            0,
+            summary.prefill_count,
+            summary.token_count - summary.decode_count,
+            summary.page_count,
+          ] {
+          assert_eq(
+            read_descriptor_i32(copied, PREFILL_ATTENTION_COUNTS_CELL + cell),
+            value,
+          )
+        }
+        descriptor.finish(staged)
+      }
+    }
+  }
+  println(
+    "attention_phase_descriptor_upload=passed submitted=passed wire=passed projected=passed unprojected=passed zero_output=passed",
+  )
+}
