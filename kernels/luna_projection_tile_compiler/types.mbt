@@ -169,6 +169,7 @@ pub struct ProjectionTileSchedule {
   priv reuse_intermediate_tile : Bool
   priv intermediate_pipeline : ProjectionFoldPipeline?
   priv sibling_pipeline : ProjectionFoldPipeline?
+  priv matrix_pipeline : ProjectionFoldPipeline?
   priv fuse_attention_ingress_epilogue : Bool
   priv hoist_rotary_inverse_frequencies : Bool
   priv fuse_rotary_pairs : Bool

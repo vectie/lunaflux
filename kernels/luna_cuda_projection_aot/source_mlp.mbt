@@ -403,6 +403,7 @@ fn projection_source(
             symbol,
             parameters,
             maximum_tokens,
+            tile_compilation,
             groups=tile_compilation.schedule().output_tiles_per_workgroup(),
           )
         }

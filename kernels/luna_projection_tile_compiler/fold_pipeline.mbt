@@ -7,6 +7,7 @@ pub struct ProjectionFoldPipeline {
   priv transfer_width : Int
   priv row_width : Int
   priv output_tiles : Int
+  priv minimum_rows : Int
 } derive(Debug, Eq)
 
 ///|
@@ -54,9 +55,9 @@ pub fn ProjectionFoldPipeline::single_row_outputs(
 
 ///|
 pub fn ProjectionFoldPipeline::minimum_rows(
-  _self : ProjectionFoldPipeline,
+  self : ProjectionFoldPipeline,
 ) -> Int {
-  256
+  self.minimum_rows
 }
 
 ///|
@@ -79,6 +80,7 @@ fn projection_intermediate_pipeline(
       tile_count: extent / tile,
       transfer_width: tile * 2,
       row_width: 64,
+      minimum_rows: 256,
       output_tiles: projection_companion_output_tiles(
         dispatch.prefill().output_tiles_per_workgroup(),
       ),
@@ -105,6 +107,7 @@ fn projection_sibling_pipeline(
       tile_count: extent / tile,
       transfer_width: tile * 2,
       row_width: 64,
+      minimum_rows: 256,
       output_tiles: Int::max(
         1,
         dispatch.prefill().output_tiles_per_workgroup() / 4,
@@ -127,4 +130,59 @@ pub fn ProjectionTileSchedule::intermediate_pipeline(
   self : ProjectionTileSchedule,
 ) -> ProjectionFoldPipeline? {
   self.intermediate_pipeline
+}
+
+///|
+fn projection_matrix_pipeline(
+  optimized : OptimizedProjectionTileCompilation,
+) -> ProjectionFoldPipeline? {
+  let request = optimized.semantic.selected.request
+  let dispatch = request.dispatch
+  let (extent, _, _) = dispatch.shape().dimensions()
+  let (m, n, k) = dispatch.prefill().tile().dimensions()
+  let selected = request.demand == QueryRowEnds
+  if dispatch.shape().family() == GatedMlp ||
+    optimized.optimization.applied(FuseAttentionIngressEpilogue) ||
+    (selected && dispatch.prefill().output_tiles_per_workgroup() == 1) ||
+    dispatch.prefill().kernel_class() != MatrixTile ||
+    (m, n, k) != (16, 16, 16) ||
+    extent < 512 ||
+    extent % 64 != 0 ||
+    dispatch.prefill().input_residency() == SelectedRowTileResidency {
+    None
+  } else {
+    Some({
+      tile_width: k,
+      tile_count: extent / k,
+      transfer_width: if selected {
+        k * 2
+      } else {
+        k * 4
+      },
+      row_width: if selected {
+        16
+      } else {
+        32
+      },
+      output_tiles: if selected {
+        dispatch.prefill().output_tiles_per_workgroup()
+      } else {
+        Int::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
+      },
+      minimum_rows: if selected {
+        2
+      } else {
+        256
+      },
+    })
+  }
+}
+
+///|
+/// The matrix pipeline preserves each ordered dot fold while sharing immutable
+/// operands across independent rows. Sparse demand is retained by the schedule.
+pub fn ProjectionTileSchedule::matrix_pipeline(
+  self : ProjectionTileSchedule,
+) -> ProjectionFoldPipeline? {
+  self.matrix_pipeline
 }

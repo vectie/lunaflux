@@ -89,6 +89,9 @@ fn projection_tensor_core_direct_dense_source(
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
+    projection_matrix_pipeline_source(
+      parameters, tile_compilation, maximum_rows,
+    ) +
     (if !query_row_ends {
       "  if (token_count == 1) {\n" +
       "    const int output_column = (int)blockIdx.x * \{groups} + warp; if (output_column >= " +
@@ -257,6 +260,7 @@ fn projection_tensor_core_direct_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
+  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   groups? : Int = 8,
 ) -> Bytes {
   @utf8.encode(
@@ -269,6 +273,9 @@ fn projection_tensor_core_direct_qkv_source(
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
+    projection_matrix_pipeline_source(
+      parameters, tile_compilation, maximum_tokens,
+    ) +
     "  if (token_count == 1) {\n" +
     "    const int output_column = (int)blockIdx.x * \{groups} + warp; if (output_column >= " +
     parameters.output_width.to_string() +

@@ -77,6 +77,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
     assert_true(source.contains("if (counts[2] == 1)"))
     assert_true(source.contains("__shfl_down_sync"))
     assert_false(source.contains("__syncthreads"))
+    assert_false(source.contains("cp.async.commit_group"))
     assert_false(source.contains("atomicAdd"))
     assert_false(source.contains("cudaMalloc"))
     // A declared row-resident alternative is not silently rewritten.
