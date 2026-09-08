@@ -184,6 +184,13 @@ fn paged_partitioned_prefill_frontier_has_enough_work(
     return false
   }
   let query_tiles = Int::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
+  // Deep partitioning supplies missing query parallelism; it must not become
+  // easier to select as the query frontier itself grows. Beyond this bound,
+  // retain the ordinary prefill/wide path instead of multiplying partials
+  // and their merge work on an already populated frontier.
+  if query_tiles > partition_count {
+    return false
+  }
   let frontier_work = if partition_count <= 268435455 {
     partition_count * 8
   } else {

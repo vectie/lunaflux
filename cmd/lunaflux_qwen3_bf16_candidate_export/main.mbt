@@ -199,7 +199,7 @@ fn prepare_qwen_compiler_partitioned_prefill(
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=false,
+    supports_async_copy=set.target().compute_major() >= 8,
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,
@@ -288,7 +288,7 @@ fn prepare_qwen_compiler_prefill(
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=false,
+    supports_async_copy=set.target().compute_major() >= 8,
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,
@@ -485,63 +485,14 @@ fn qwen_compiler_attention_recipe(
 }
 
 ///|
-/// Chooses a query tile that is strictly wider than the selected tile. When
-/// the semantic problem cannot generate one, reuse the selected compilation:
-/// the bundle ABI stays stable while dispatch remains on a profile-valid
-/// kernel. A wider key/value tile is not a wider query tile.
+/// The compiler's selected schedule remains authoritative for the large-query
+/// alias. Merely having a wider tile is not a performance observation. Keep
+/// alternatives in the exported frontier for offline measurement, without
+/// silently replacing the selected plan with the largest resource footprint.
 fn qwen_wide_query_prefill_variant(
   frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? {
-  let selected = frontier.selected()
-  let (selected_query_rows, _, _) = selected
-    .functional()
-    .plan()
-    .candidate()
-    .tile()
-    .dimensions()
-  let mut widest : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? = None
-  let mut widest_rows = selected_query_rows
-  let mut widest_shared = 9223372036854775807L
-  let mut widest_cost = 9223372036854775807L
-  let mut widest_stable_id = 2147483647
-  for variant in frontier.variants() {
-    let (query_rows, _, _) = variant
-      .functional()
-      .plan()
-      .candidate()
-      .tile()
-      .dimensions()
-    let (_, _, _, shared) = variant.lowering().launch()
-    let cost = variant.functional().plan().static_cost()
-    let stable_id = variant.functional().plan().candidate().stable_id()
-    if variant != selected &&
-      query_rows > selected_query_rows &&
-      (
-        query_rows > widest_rows ||
-        (query_rows == widest_rows && shared < widest_shared) ||
-        (
-          query_rows == widest_rows &&
-          shared == widest_shared &&
-          cost < widest_cost
-        ) ||
-        (
-          query_rows == widest_rows &&
-          shared == widest_shared &&
-          cost == widest_cost &&
-          stable_id < widest_stable_id
-        )
-      ) {
-      widest = Some(variant)
-      widest_rows = query_rows
-      widest_shared = shared
-      widest_cost = cost
-      widest_stable_id = stable_id
-    }
-  }
-  match widest {
-    Some(variant) => Some(variant)
-    None => Some(selected)
-  }
+  Some(frontier.selected())
 }
 
 ///|

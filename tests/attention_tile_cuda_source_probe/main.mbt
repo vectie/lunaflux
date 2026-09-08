@@ -1,6 +1,11 @@
 ///|
 fn main raise {
-  let arguments = @env.args()
+  let raw_arguments = @env.args()
+  let qwen_geometry = raw_arguments is [_, _, "qwen"]
+  let arguments = match raw_arguments {
+    [program, candidate, "qwen"] => [program, candidate]
+    _ => raw_arguments
+  }
   match arguments {
     [_, "decode-pipeline32"] => {
       emit_decode_probe(
@@ -74,9 +79,9 @@ fn main raise {
   }
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
-    kv_heads=4,
+    kv_heads=if qwen_geometry { 8 } else { 4 },
     head_dimension~,
-    tokens_per_page=16,
+    tokens_per_page=if qwen_geometry { 8 } else { 16 },
   )
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
     shape~,
@@ -142,15 +147,15 @@ fn main raise {
   )
   let abi = @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
     query_heads=16,
-    key_value_heads=4,
+    key_value_heads=if qwen_geometry { 8 } else { 4 },
     head_dimension~,
-    tokens_per_page=16,
-    input_row_width=24 * head_dimension,
+    tokens_per_page=if qwen_geometry { 8 } else { 16 },
+    input_row_width=(if qwen_geometry { 32 } else { 24 }) * head_dimension,
     page_stride_values=64L * head_dimension.to_int64(),
-    physical_page_capacity=256L,
+    physical_page_capacity=if qwen_geometry { 4096L } else { 256L },
     maximum_query_rows=32,
-    maximum_query_tokens=128,
-    maximum_page_entries=256,
+    maximum_query_tokens=if qwen_geometry { 4096 } else { 128 },
+    maximum_page_entries=if qwen_geometry { 4096 } else { 256 },
   )
   if partitioned {
     let compiled = @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot(
