@@ -1,5 +1,11 @@
 # Performance parity work — 2026-09-08
 
+Follow-up: [the new serving-bundle benchmark](QWEN_COMBINED_KERNEL_BENCHMARK_2026-09-08.md)
+now measures the head/MLP variants with the corrected mixed-phase runtime:
+C8 gains are 36.1%, 32.9%, 17.2%, and 4.0% across the four token vectors.
+Async prefill remains unselected by the Qwen exporter. The runtime-only and
+isolated measurements below retain their original scope.
+
 Target: close the measured Qwen3-0.6B BF16 gap to vLLM and SGLang on the
 same RTX 5060 Ti, without changing the model, input tokens, output-token
 budget, prefix-cache policy, or numerical correctness requirements.
