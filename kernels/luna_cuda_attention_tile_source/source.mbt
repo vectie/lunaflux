@@ -282,10 +282,11 @@ fn emit_cuda_prefill_attention_tile_source(
   }
   let online_softmax_update = if reuse_tile_storage {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int query_position = query_positions[token_base + query];\n" +
     "      const int state_slot = query / warp_count;\n" +
     "      float local_maximum = -CUDART_INF_F;\n" +
     "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
-    "        local_maximum = fmaxf(local_maximum, scores[query * LF_KEY_VALUE_TILE + key]);\n" +
+    "        local_maximum = fmaxf(local_maximum, lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale));\n" +
     "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
     "      const float previous_maximum = fold_maximum[state_slot];\n" +
     "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
@@ -294,7 +295,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "      float local_sum = 0.0f;\n" +
     "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
     "        const float weight = isinf(next_maximum) ? 0.0f :\n" +
-    "            expf(scores[query * LF_KEY_VALUE_TILE + key] - next_maximum);\n" +
+    "            expf(lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale) - next_maximum);\n" +
     probability_store +
     "        local_sum += weight;\n" +
     "      }\n" +
@@ -313,9 +314,10 @@ fn emit_cuda_prefill_attention_tile_source(
     "    __syncthreads();\n"
   } else {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int query_position = query_positions[token_base + query];\n" +
     "      float local_maximum = -CUDART_INF_F;\n" +
     "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
-    "        local_maximum = fmaxf(local_maximum, scores[query * LF_KEY_VALUE_TILE + key]);\n" +
+    "        local_maximum = fmaxf(local_maximum, lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale));\n" +
     "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
     "      const float previous_maximum = running_maximum[query];\n" +
     "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
@@ -334,12 +336,13 @@ fn emit_cuda_prefill_attention_tile_source(
     "    }\n" +
     "    __syncthreads();\n" +
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int query_position = query_positions[token_base + query];\n" +
     "      const float previous_scale = previous_scales[query];\n" +
     "      const float maximum = running_maximum[query];\n" +
     "      float local_sum = 0.0f;\n" +
     "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
     "        const float weight = isinf(maximum) ? 0.0f :\n" +
-    "            expf(scores[query * LF_KEY_VALUE_TILE + key] - maximum);\n" +
+    "            expf(lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale) - maximum);\n" +
     probability_store +
     "        local_sum += weight;\n" +
     "      }\n" +
@@ -376,6 +379,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
     $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
     $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
+    $|
+    $|\{cuda_attention_score_transform()}
     $|
     $|static __device__ __forceinline__ float lf_warp_sum(float value) {
     $|  for (int offset = 16; offset > 0; offset >>= 1)
@@ -533,18 +538,6 @@ fn emit_cuda_prefill_attention_tile_source(
     $|            scores + query_base * LF_KEY_VALUE_TILE + key_column,
     $|            score_fragment, LF_KEY_VALUE_TILE, wmma::mem_row_major);
     $|      }
-    $|    }
-    $|    __syncthreads();
-    $|
-    $|    for (int linear = thread; linear < LF_QUERY_TILE * LF_KEY_VALUE_TILE;
-    $|         linear += LF_BLOCK_THREADS) {
-    $|      const int query = linear / LF_KEY_VALUE_TILE;
-    $|      const int key = linear % LF_KEY_VALUE_TILE;
-    $|      const int key_position = key_base + key;
-    $|      const int query_position = query < active_queries ? query_positions[token_base + query] : -1;
-    $|      scores[linear] = query < active_queries &&
-    $|          key_position < partition_end && key_position <= query_position
-    $|          ? scores[linear] * scale : -CUDART_INF_F;
     $|    }
     $|    __syncthreads();
     $|

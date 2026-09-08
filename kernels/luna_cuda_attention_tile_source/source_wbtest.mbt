@@ -320,6 +320,39 @@ test "dual-matrix source lowers probability-value multiplication to MMA" {
 }
 
 ///|
+test "score map is consumed by the fold without shared rematerialization" {
+  for candidate_id in [300, 310, 312, 314] {
+    let lowering = source_test_lowering(
+      false,
+      100000L,
+      2,
+      candidate_id=Some(candidate_id),
+    )
+    let source = @utf8.decode(
+      emit_cuda_attention_tile_source(
+        lowering,
+        source_test_abi(),
+        "prefill_score_fusion",
+        1048576,
+      ).bytes(),
+    )
+    assert_true(source.contains("lf_transformed_score(scores, query, key"))
+    assert_true(
+      source.contains(
+        "__fmul_rn(scores[query * LF_KEY_VALUE_TILE + key], scale)",
+      ),
+    )
+    assert_true(
+      source.contains(
+        "key_position < partition_end && key_position <= query_position",
+      ),
+    )
+    assert_false(source.contains("scores[linear] ="))
+    assert_true(source.contains("wmma::store_matrix_sync("))
+  }
+}
+
+///|
 test "wide-query prefill reuses one KV tile across two matrix row tiles" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(313))
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)

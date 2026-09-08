@@ -203,6 +203,18 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
                           cudaMemcpyDeviceToHost),
                "cudaMemcpyDeviceToHost");
 
+  // Optional paired-run output capture is outside all timing regions.
+  if (const char *directory = std::getenv("LUNAFLUX_ATTENTION_OUTPUT_DIR")) {
+    char path[4096];
+    const int size = std::snprintf(path, sizeof(path), "%s/%s.bf16", directory, name);
+    if (size < 0 || size >= int(sizeof(path))) std::exit(3);
+    FILE *file = std::fopen(path, "wbx");
+    if (!file) std::exit(3);
+    const auto written = std::fwrite(output.data(), sizeof(__nv_bfloat16), output.size(), file);
+    const int closed = std::fclose(file);
+    if (written != output.size() || closed != 0) std::exit(3);
+  }
+
 #ifndef LF_SKIP_BENCHMARK
   for (int warmup = 0; warmup < 10; ++warmup) launch();
   require_cuda(cudaDeviceSynchronize(), "benchmark warmup");
@@ -301,6 +313,11 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
         }
         const float actual = __bfloat162float(
             output[query * query_width + head * head_dimension + component]);
+        if (!std::isfinite(actual)) {
+          std::fprintf(stderr, "nonfinite output case=%s query=%d head=%d component=%d\n",
+                       name, query, head, component);
+          std::exit(1);
+        }
         const float absolute_error = std::fabs(actual - expected);
         const float allowed_error = 0.0025f + 0.005f * std::fabs(expected);
         maximum_normalized_error =
