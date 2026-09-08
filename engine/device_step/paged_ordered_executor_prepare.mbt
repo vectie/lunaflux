@@ -121,6 +121,7 @@ fn prepare_qwen_graph_launch_contract(
   blueprint : PagedKvExecutionBlueprint,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
+  prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
 ) -> PagedGraphLaunchContract? raise DeviceStepError {
   if spans.is_empty() {
@@ -237,6 +238,9 @@ fn prepare_qwen_graph_launch_contract(
   Some({
     step_launches: launches,
     decode_step_launches: decode_launches,
+    prefill_wide_step_launches: prepare_wide_prefill_bucket_contract(
+      blueprint, steps, launches, prefill_wide_steps, spans,
+    ),
     prefill_split_step_launches,
   })
 }
@@ -327,8 +331,7 @@ fn paged_ordered_launches(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
   query_token_bound? : Int? = None,
-  phase_decode? : Bool = false,
-  phase_prefill_split? : Bool = false,
+  phase? : PagedBucketLaunchPhase = BaselineLaunch,
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
@@ -360,23 +363,12 @@ fn paged_ordered_launches(
     }
     let dimensions = match
       (query_token_bound, resources.graph_launch_contract) {
-      (Some(bound), Some(contract)) => {
-        let launch_contract = if phase_prefill_split {
-          match contract.prefill_split_step_launches {
-            Some(split) => split
-            None => contract.step_launches
-          }
-        } else if phase_decode {
-          contract.decode_step_launches
-        } else {
-          contract.step_launches
-        }
-        match launch_contract.get(index) {
-          Some(FixedBucketLaunch) | None => step.dimensions
-          Some(rule) =>
+      (Some(bound), Some(contract)) =>
+        match paged_phase_bucket_rule(contract, phase, index) {
+          FixedBucketLaunch => step.dimensions
+          rule =>
             paged_device_launch_dimensions(paged_bucket_launch(rule, bound))
         }
-      }
       _ => step.dimensions
     }
     launches.push(
@@ -605,7 +597,7 @@ fn prepare_paged_ordered_executors(
             selected,
             resources,
             query_token_bound=Some(bound),
-            phase_prefill_split=true,
+            phase=SplitPrefillLaunch,
           )
           let owner = prepare_one_paged_ordered_executor(
             context,
@@ -658,6 +650,7 @@ fn prepare_paged_ordered_executors(
               selected,
               resources,
               query_token_bound=Some(bound),
+              phase=WidePrefillLaunch,
             )
             let owner = prepare_one_paged_ordered_executor(
               context,
@@ -704,7 +697,7 @@ fn prepare_paged_ordered_executors(
             selected,
             resources,
             query_token_bound=Some(bound),
-            phase_decode=true,
+            phase=DecodeLaunch,
           )
           let owner = prepare_one_paged_ordered_executor(
             context,

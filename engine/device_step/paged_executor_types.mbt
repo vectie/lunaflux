@@ -55,6 +55,7 @@ priv enum PagedBucketStepLaunch {
 priv struct PagedGraphLaunchContract {
   step_launches : FixedArray[PagedBucketStepLaunch]
   decode_step_launches : FixedArray[PagedBucketStepLaunch]
+  prefill_wide_step_launches : FixedArray[PagedBucketStepLaunch]?
   prefill_split_step_launches : FixedArray[PagedBucketStepLaunch]?
 }
 

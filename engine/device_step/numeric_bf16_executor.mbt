@@ -239,6 +239,7 @@ fn prepare_numeric_bf16_graph_resources(
     blueprint,
     model_steps,
     qwen_fused_attention_spans,
+    prefill_wide_steps=wide_prefill_model_steps,
     prefill_split_steps=partitioned_prefill_model_steps,
   ) catch {
     error => return paged_construction_failed(resources, error)
