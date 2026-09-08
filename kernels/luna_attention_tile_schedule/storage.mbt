@@ -104,6 +104,10 @@ fn plan_attention_matrix_storage(
   let key_bytes = stages.to_int64() * k * d * element
   let probability_bytes = q * k * 2L
   let scale_bytes = q * 4L
+  // A lookahead transfer overlaps the complete current fold. Its keys cannot
+  // share storage with current probabilities, and its failure flag cannot
+  // alias scores. The synchronous layout retains its shorter lifetimes.
+  let overlaps_fold = program.candidate().memory() == AttentionAsyncStagedShared
   let key_group_bytes = attention_storage_align(
     Int64::max(
       key_bytes,
@@ -116,6 +120,17 @@ fn plan_attention_matrix_storage(
   let score_bytes = q * k * 4L
   let accumulator_offset = score_offset + attention_storage_align(score_bytes)
   let accumulator_bytes = q * d * 4L
+  let probability_offset = if overlaps_fold {
+    accumulator_offset + attention_storage_align(accumulator_bytes)
+  } else {
+    key_offset
+  }
+  let validation_offset = if overlaps_fold {
+    probability_offset +
+    attention_storage_align(probability_bytes + scale_bytes)
+  } else {
+    score_offset + score_bytes - 4L
+  }
   {
     spans: ReadOnlyArray::from_array([
       { role: QueryStorage, offset: 0L, bytes: query_bytes, begin: 0, end: 5 },
@@ -124,7 +139,11 @@ fn plan_attention_matrix_storage(
         offset: key_offset,
         bytes: key_bytes,
         begin: 0,
-        end: 2,
+        end: if overlaps_fold {
+          4
+        } else {
+          2
+        },
       },
       {
         role: ValueStorage,
@@ -142,7 +161,7 @@ fn plan_attention_matrix_storage(
       },
       {
         role: ProbabilityStorage,
-        offset: key_offset,
+        offset: probability_offset,
         bytes: probability_bytes,
         begin: 2,
         end: 4,
@@ -156,7 +175,7 @@ fn plan_attention_matrix_storage(
       },
       {
         role: PreviousScaleStorage,
-        offset: key_offset + probability_bytes,
+        offset: probability_offset + probability_bytes,
         bytes: scale_bytes,
         begin: 2,
         end: 4,
@@ -177,10 +196,14 @@ fn plan_attention_matrix_storage(
       },
       {
         role: ValidationStorage,
-        offset: score_offset + score_bytes - 4L,
+        offset: validation_offset,
         bytes: 4L,
         begin: 0,
-        end: 1,
+        end: if overlaps_fold {
+          4
+        } else {
+          1
+        },
       },
       {
         role: QueryBoundsStorage,
@@ -190,7 +213,11 @@ fn plan_attention_matrix_storage(
         end: 1,
       },
     ]),
-    peak_bytes: accumulator_offset + attention_storage_align(accumulator_bytes),
+    peak_bytes: if overlaps_fold {
+      validation_offset + 16L
+    } else {
+      accumulator_offset + attention_storage_align(accumulator_bytes)
+    },
   }
 }
 

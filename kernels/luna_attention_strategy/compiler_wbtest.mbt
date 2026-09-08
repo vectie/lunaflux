@@ -83,7 +83,12 @@ test "attention compiler generates portable long-prefill tile candidates" {
     problem,
     compiler_test_capabilities(),
   )
-  assert_eq(candidates.length(), 16)
+  assert_eq(candidates.length(), 18)
+  let async_matrix = compiler_candidate_with_id(candidates, 316)
+  assert_eq(async_matrix.compute(), AttentionMatrixQkPv)
+  assert_eq(async_matrix.memory(), AttentionAsyncStagedShared)
+  assert_eq(async_matrix.tile().dimensions(), (32, 32, 128))
+  assert_eq(async_matrix.execution_geometry(), (8, 2, 16))
   let matrix_narrow = compiler_candidate_with_id(candidates, 290)
   assert_eq(matrix_narrow.compute(), AttentionMatrixDot)
   assert_eq(matrix_narrow.memory(), AttentionStagedShared)

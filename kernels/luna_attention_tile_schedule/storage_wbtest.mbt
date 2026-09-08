@@ -1,7 +1,7 @@
 ///|
 test "online softmax storage never overlaps simultaneously live values" {
   for head_dimension in [16, 32, 64, 128, 256] {
-    for candidate_id in [310, 311, 312, 313, 314, 315] {
+    for candidate_id in [310, 311, 312, 313, 314, 315, 316, 317] {
       let program = schedule_test_program(head_dimension~, candidate_id~)
       let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
         program,
@@ -51,6 +51,24 @@ test "online softmax storage never overlaps simultaneously live values" {
         }
       }
     }
+  }
+}
+
+///|
+test "lookahead storage keeps future keys and validation disjoint from the current fold" {
+  for candidate_id in [316, 317] {
+    let program = schedule_test_program(candidate_id~)
+    let layout = plan_attention_matrix_storage(program)
+    let key = layout.spans()[1]
+    let probability = layout.spans()[4]
+    let validation = layout.spans()[9]
+    assert_eq(key.lifetime(), (0, 4))
+    assert_eq(validation.lifetime(), (0, 4))
+    assert_true(probability.range().0 >= key.range().0 + key.range().1)
+    assert_true(
+      validation.range().0 >= probability.range().0 + probability.range().1,
+    )
+    assert_eq(key.range().1, 2L * 32L * 128L * 2L)
   }
 }
 

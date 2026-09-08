@@ -64,6 +64,8 @@ fn main raise {
     [_, "313"] => Some(313)
     [_, "314"] => Some(314)
     [_, "315"] => Some(315)
+    [_, "316"] => Some(316)
+    [_, "317"] => Some(317)
     _ => None
   }
   let head_dimension = match arguments {
@@ -89,7 +91,7 @@ fn main raise {
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=false,
+    supports_async_copy=requested_candidate is Some(316 | 317),
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,

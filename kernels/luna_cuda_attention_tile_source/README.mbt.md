@@ -19,6 +19,17 @@ changes the per-output reduction order. See
 `docs/PREFILL_SCORE_DEFORESTATION_2026-09-08.md` for paired GPU and Qwen results;
 kernel-level gains must not be reported as whole-serving gains.
 
+Matrix-prefill candidates 316 (Q32/K32) and 317 (Q64/K32) now realize a
+two-slot lookahead over the ordered KV fold. The next tile's zero-filled
+16-byte K/V copies are issued before current QK/softmax/PV, and waited on only
+at the next first consumer. Their portable storage extraction retains future
+keys and transfer validation separately from current probabilities and scores;
+the synchronous overlay would race across iterations. Numerical reduction and
+rounding order are unchanged. Async compiler capability is required, and the
+static cost model does not assume a speedup; paired GPU measurements determine
+selection. The existing source probe accepts `316` and `317`, paired against
+`312` and `314` respectively.
+
 When the functional optimizer selects paged-row address hoisting, the CUDA
 terminal lowering computes one page-table address per logical K/V row and
 broadcasts it across that row's vector fragments. This removes repeated page

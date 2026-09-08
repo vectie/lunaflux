@@ -425,6 +425,32 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
       minimum_context_tokens: 64,
     },
     {
+      stable_id: 316,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionAsyncStagedShared,
+      query_rows: 32,
+      key_value_rows: 32,
+      subgroups_per_block: 8,
+      pipeline_stages: 2,
+      vector_bytes: 16,
+      minimum_query_rows: 32,
+      minimum_context_tokens: 64,
+    },
+    {
+      stable_id: 317,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionAsyncStagedShared,
+      query_rows: 64,
+      key_value_rows: 32,
+      subgroups_per_block: 8,
+      pipeline_stages: 2,
+      vector_bytes: 16,
+      minimum_query_rows: 64,
+      minimum_context_tokens: 64,
+    },
+    {
       stable_id: 400,
       phase: Decode,
       compute: AttentionScalarDot,
@@ -652,7 +678,14 @@ fn attention_candidate_static_cost(
   let memory_multiplier = match candidate.memory {
     AttentionDirectGlobal => 4L
     AttentionStagedShared => 2L
-    AttentionAsyncStagedShared => 1L
+    AttentionAsyncStagedShared =>
+      // Matrix overlap competes with occupancy because both ring slots stay
+      // live. Do not assume a twofold gain without a measured record; preserve
+      // the synchronous default while autotune can select actual winners.
+      match candidate.compute {
+        AttentionMatrixDot | AttentionMatrixQkPv => 2L
+        _ => 1L
+      }
   }
   let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
   let query_head_group = match candidate.compute {

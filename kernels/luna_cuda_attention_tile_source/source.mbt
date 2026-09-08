@@ -15,17 +15,18 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(SourceLimit)
   }
   let compute = lowering.compute()
+  let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad
   let key_value_partitions = lowering.key_value_partitions()
   if !(compute == CudaMatrixMultiplyAccumulate ||
     compute == CudaMatrixQkPvMultiplyAccumulate) ||
-    lowering.copy() != CudaCooperativeSharedLoad {
+    !(lowering.copy() == CudaCooperativeSharedLoad || asynchronous) {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let (query_tile, key_value_tile, head_dimension) = lowering.tile()
   let (_, _, block_threads, shared_memory_bytes) = lowering.launch()
   let (pipeline_stages, vector_bytes) = lowering.pipeline()
   let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
-  let (input_row_width, page_stride_values, physical_page_capacity) = abi.layout()
+  let (input_row_width, page_stride_values, _) = abi.layout()
   let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
   if query_tile < 16 ||
     query_tile > 64 ||
@@ -42,6 +43,9 @@ fn emit_cuda_prefill_attention_tile_source(
     vector_bytes != 16 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
+  if asynchronous && (pipeline_stages != 2 || page_stride_values % 8L != 0L) {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   let query_width = query_heads * head_dimension
   let factor_shared_key = if lowering.factors_shared_key_query_map() &&
     query_tile > 16 {
@@ -55,73 +59,10 @@ fn emit_cuda_prefill_attention_tile_source(
   if vectors_per_key <= 0 || vectors_per_key > 32 || 32 % vectors_per_key != 0 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  let paged_key_value_load = if lowering.hoists_paged_key_value_page_lookup() {
-    "      int physical_page = -1;\n" +
-    "      if (key_position < partition_end && key_position < sequence_length &&\n" +
-    "          key_position <= maximum_query_position && component == 0) {\n" +
-    "        const int logical_page = key_position / " +
-    tokens_per_page.to_string() +
-    ";\n" +
-    "        const int page_slot = page_start + logical_page;\n" +
-    "        physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;\n" +
-    "        if (physical_page < 0 || (unsigned long long)physical_page >= " +
-    physical_page_capacity.to_string() +
-    "ULL) {\n" +
-    "          atomicExch(&tile_valid, 0);\n" +
-    "          physical_page = -1;\n" +
-    "        }\n" +
-    "      }\n" +
-    "      const int page_source_lane =\n" +
-    "          (lane / " +
-    vectors_per_key.to_string() +
-    ") * " +
-    vectors_per_key.to_string() +
-    ";\n" +
-    "      physical_page = __shfl_sync(0xffffffffU, physical_page, page_source_lane);\n" +
-    "      if (physical_page >= 0) {\n" +
-    "        const int token_in_page = key_position % " +
-    tokens_per_page.to_string() +
-    ";\n" +
-    "        const unsigned long long cache_index =\n" +
-    "            (unsigned long long)physical_page * " +
-    page_stride_values.to_string() +
-    "ULL +\n" +
-    "            ((unsigned long long)token_in_page * " +
-    key_value_heads.to_string() +
-    "ULL + key_value_head) *\n" +
-    "            LF_HEAD_DIMENSION + component;\n" +
-    "        packed_key = *reinterpret_cast<const uint4 *>(key_cache + cache_index);\n" +
-    "        packed_value = *reinterpret_cast<const uint4 *>(value_cache + cache_index);\n" +
-    "      }\n"
-  } else {
-    "      if (key_position < partition_end && key_position < sequence_length &&\n" +
-    "          key_position <= maximum_query_position) {\n" +
-    "        const int logical_page = key_position / " +
-    tokens_per_page.to_string() +
-    ";\n" +
-    "        const int page_slot = page_start + logical_page;\n" +
-    "        const int physical_page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;\n" +
-    "        if (physical_page < 0 || (unsigned long long)physical_page >= " +
-    physical_page_capacity.to_string() +
-    "ULL) {\n" +
-    "          atomicExch(&tile_valid, 0);\n" +
-    "        } else {\n" +
-    "          const int token_in_page = key_position % " +
-    tokens_per_page.to_string() +
-    ";\n" +
-    "          const unsigned long long cache_index =\n" +
-    "              (unsigned long long)physical_page * " +
-    page_stride_values.to_string() +
-    "ULL +\n" +
-    "              ((unsigned long long)token_in_page * " +
-    key_value_heads.to_string() +
-    "ULL + key_value_head) *\n" +
-    "              LF_HEAD_DIMENSION + component;\n" +
-    "          packed_key = *reinterpret_cast<const uint4 *>(key_cache + cache_index);\n" +
-    "          packed_value = *reinterpret_cast<const uint4 *>(value_cache + cache_index);\n" +
-    "        }\n" +
-    "      }\n"
-  }
+  let paged_key_value_load = emit_prefill_paged_key_value_load(
+    abi,
+    lowering.hoists_paged_key_value_page_lookup(),
+  )
   let probability_type = if compute == CudaMatrixQkPvMultiplyAccumulate {
     "__nv_bfloat16"
   } else {
@@ -243,49 +184,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "        state * LF_HEAD_DIMENSION + component] = accumulator[linear];\n" +
     "  }\n"
   }
-  let value_accumulation = if compute == CudaMatrixQkPvMultiplyAccumulate {
-    "    if (warp < LF_HEAD_DIMENSION / 16) {\n" +
-    "      using namespace nvcuda;\n" +
-    "      const int output_column = warp * 16;\n" +
-    "      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> probability_fragment;\n" +
-    "      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::row_major> value_fragment;\n" +
-    "      wmma::fragment<wmma::accumulator, 16, 16, 16, float> output_fragment;\n" +
-    "      #pragma unroll\n" +
-    "      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {\n" +
-    "        wmma::load_matrix_sync(output_fragment,\n" +
-    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
-    "            LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
-    "        #pragma unroll\n" +
-    "        for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {\n" +
-    "          wmma::load_matrix_sync(probability_fragment,\n" +
-    "              weights + query_base * LF_KEY_VALUE_TILE + reduction,\n" +
-    "              LF_KEY_VALUE_TILE);\n" +
-    "          wmma::load_matrix_sync(value_fragment,\n" +
-    "              value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
-    "                  reduction * LF_HEAD_DIMENSION + output_column,\n" +
-    "              LF_HEAD_DIMENSION);\n" +
-    "          wmma::mma_sync(output_fragment, probability_fragment, value_fragment, output_fragment);\n" +
-    "        }\n" +
-    "        wmma::store_matrix_sync(\n" +
-    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
-    "            output_fragment, LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
-    "      }\n" +
-    "    }\n"
-  } else {
-    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
-    "         linear += LF_BLOCK_THREADS) {\n" +
-    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
-    "      const int component = linear % LF_HEAD_DIMENSION;\n" +
-    "      float partial = 0.0f;\n" +
-    "      #pragma unroll 4\n" +
-    "      for (int key = 0; key < LF_KEY_VALUE_TILE; ++key)\n" +
-    "        partial += weights[query * LF_KEY_VALUE_TILE + key] *\n" +
-    "            __bfloat162float(value_tiles[\n" +
-    "                stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
-    "                key * LF_HEAD_DIMENSION + component]);\n" +
-    "      accumulator[linear] += partial;\n" +
-    "    }\n"
-  }
+  let value_accumulation = cuda_prefill_value_accumulation(compute)
   let online_softmax_update = if reuse_tile_storage {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
@@ -371,6 +270,12 @@ fn emit_cuda_prefill_attention_tile_source(
   } else {
     ""
   }
+  let async_prefill = if asynchronous { 1 } else { 0 }
+  let async_stage = if asynchronous {
+    emit_prefill_async_stage(abi, lowering.hoists_paged_key_value_page_lookup())
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -382,6 +287,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_BLOCK_THREADS \{block_threads}
     $|#define LF_SHARED_MEMORY_BYTES \{shared_memory_bytes}
     $|#define LF_PIPELINE_STAGES \{pipeline_stages}
+    $|#define LF_ASYNC_PREFILL \{async_prefill}
     $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
     $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
     $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
@@ -498,9 +404,20 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  const int key_value_head = query_head / \{group_size};
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
     $|\{fold_state_declaration}
+    $|\{async_stage}
     $|  for (int key_base = partition_begin, tile_index = 0; key_base < partition_end;
     $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
     $|    const int stage = tile_index % LF_PIPELINE_STAGES;
+    $|#if LF_ASYNC_PREFILL
+    $|    // Wait only at the next tile's first consumer, not at its issue site.
+    $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
+    $|    __syncthreads();
+    $|    if (!tile_valid) return;
+    $|    __syncthreads();
+    $|    const int next_key_base = key_base + LF_KEY_VALUE_TILE;
+    $|    if (next_key_base < partition_end)
+    $|      stage_prefill_tile(next_key_base, stage ^ 1);
+    $|#else
     $|    if (thread == 0) tile_valid = 1;
     $|    __syncthreads();
     $|    for (int vector = thread; vector < key_value_vector_count; vector += LF_BLOCK_THREADS) {
@@ -521,6 +438,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|
     $|    // End validation lifetime before QK overwrites the aliased score slot.
     $|    __syncthreads();
+    $|#endif
     $|#if LF_FACTOR_SHARED_KEY
     $|\{cuda_attention_shared_key_dot()}
     $|#else
