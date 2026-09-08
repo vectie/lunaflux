@@ -16,6 +16,12 @@ the staged key tile is dead before the probability tile is consumed, while
 maximum and denominator are query-local fold values. It records storage reuse
 as a portable semantic fact. It does not choose registers or local memory.
 
+The shared-key pass interchanges an independent query map with the dot's
+ordered reduction. A product of query accumulators consumes one common key
+operand at each reduction position. Each dot keeps its accumulation order;
+this is not floating-point reassociation. Terminal backends decide whether
+their matrix granularity can realize the sharing profitably.
+
 The semantic program remains unchanged and authoritative. CUDA, HIP, Metal,
 and CPU lowerings may interpret the same selected regions differently. Device
 probing, benchmarking, cache lookup, and source publication are intentionally

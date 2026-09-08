@@ -10,6 +10,15 @@ matrix.
 The source ABI is backend-private. Model and scheduler packages see only the
 generic attention problem, semantic IR, and schedule.
 
+`FuseScoreTransform` is realized by consuming scale/mask directly inside
+softmax, without another shared score write and block barrier. Explicit
+float multiplication rounding preserves the former materialization boundary.
+`FactorSharedKeyAcrossQueryMap` keeps independent matrix accumulators while
+loading their shared K fragment once per reduction slice. Neither lowering
+changes the per-output reduction order. See
+`docs/PREFILL_SCORE_DEFORESTATION_2026-09-08.md` for paired GPU and Qwen results;
+kernel-level gains must not be reported as whole-serving gains.
+
 When the functional optimizer selects paged-row address hoisting, the CUDA
 terminal lowering computes one page-table address per logical K/V row and
 broadcasts it across that row's vector fragments. This removes repeated page

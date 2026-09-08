@@ -16,3 +16,8 @@ For optimizer-selected online-softmax storage reuse, CUDA maps the query-local
 fold state to registers and aliases the dead staged-key arena for probability
 and terminal state. The generic compiler sees only disjoint lifetimes and a
 smaller working set.
+
+The shared-key query-map region maps to one matrix-B fragment load per
+reduction slice, reused by independent query-subtile accumulators. CUDA owns
+the fragment dimensions and register realization; the generic pass only
+records the map/fold interchange and shared operand.
