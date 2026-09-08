@@ -114,6 +114,16 @@ barriers or residual-output reload in active workgroups. Those remain the
 next residual lowering target. The ordinary final RMSNorm is only 0.734 ms
 of the short residual/norm group, so it does not explain this remaining cost.
 
+A subsequent isolated residual ablation tested exact-tree subgroup transport,
+register retention, bounded static unrolling, and their combinations. Width1024
+C8 remained effectively unchanged (3.133 µs baseline versus 3.132 µs for the
+combined variant). C1 improved about 4.6% and C32 about 3.7%, but C8 at other
+tested widths regressed. Bitwise checks, memcheck and racecheck passed; lack of
+target-workload benefit, not correctness, rejected the change. Experimental
+planner/emitter additions were removed rather than retained as unused public
+APIs. The benchmarked production runtime is unchanged. The original launch
+bound fix remains, but no residual-kernel speedup is claimed for this pass.
+
 Long attention falls about 27%, but it and the unchanged long-prefill matrix
 work remain dominant. The short-row projection records do not optimize all
 large-prefill GEMMs. This explains why large isolated head/sampler gains do
