@@ -230,7 +230,10 @@ fn compile_static_attention_tile_candidate(
 ///|
 /// True when `left` is never more expensive and never larger than `right`,
 /// with at least one strict improvement. Both metrics are compiler values:
-/// static semantic work and post-rewrite peak shared storage. Vendor-specific
+/// static semantic work and post-rewrite peak shared storage. Distinct transfer
+/// modes are not comparable: the conservative static score deliberately does
+/// not credit asynchronous overlap, so pruning by it would erase every async
+/// schedule before an offline benchmark could select one. Vendor-specific
 /// occupancy or instruction names are deliberately absent.
 fn attention_tile_dominates(
   left : ScheduledAttentionTileCompilation,
@@ -240,6 +243,7 @@ fn attention_tile_dominates(
   let right_cost = right.plan().static_cost()
   let (_, _, _, left_shared) = left.schedule().execution_geometry()
   let (_, _, _, right_shared) = right.schedule().execution_geometry()
+  left.plan().candidate().memory() == right.plan().candidate().memory() &&
   left_cost <= right_cost &&
   left_shared <= right_shared &&
   (left_cost < right_cost || left_shared < right_shared)
