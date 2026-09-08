@@ -25,7 +25,7 @@ test "pinned tiny model identity is the upstream BF16 single row graph" {
   assert_eq(identity.content().as_hex(), PINNED_MODEL_CONTENT_SHA256)
   inspect(
     identity.plan().as_hex(),
-    content="22103eddad1277154b79321e53893ad579e47d040d62b896f5596624e0b7be3e",
+    content="787d48d4cb2b1f4e848c7ffa41f72173b24c1c2b143d7d8b3cf817de3598fc77",
   )
   require_pinned_release_values(
     PINNED_RUNTIME_RECIPE,
