@@ -106,6 +106,14 @@ fn canonical_schedule(
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
   builder <+ "luna-attention-tile-schedule-v3\n"
+  let resident_output = output_fold_storage(
+      candidate.compute(),
+      loops[0].tile,
+      loops[loops.length() - 1].extent,
+      subgroups,
+    ) ==
+    SubgroupResidentOutputFold
+  builder <+ "resident_output_fold=\{resident_output}\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "kv_partitions=\{key_value_partitions}\n"
   builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"

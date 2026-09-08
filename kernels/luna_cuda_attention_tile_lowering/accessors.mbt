@@ -139,3 +139,10 @@ pub fn CudaAttentionTileLowering::transfer_readiness(
 ) -> @luna_attention_tile_schedule.AttentionTransferReadiness {
   self.transfer_readiness
 }
+
+///|
+pub fn CudaAttentionTileLowering::retains_output_fold(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.resident_output_fold
+}

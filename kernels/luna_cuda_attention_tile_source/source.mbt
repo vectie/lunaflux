@@ -184,7 +184,37 @@ fn emit_cuda_prefill_attention_tile_source(
     "        state * LF_HEAD_DIMENSION + component] = accumulator[linear];\n" +
     "  }\n"
   }
-  let value_accumulation = cuda_prefill_value_accumulation(compute)
+  let resident_output = lowering.retains_output_fold()
+  let resident_declaration = if resident_output {
+    cuda_resident_output_fold_declaration()
+  } else {
+    ""
+  }
+  let resident_store = if resident_output {
+    cuda_resident_output_fold_store()
+  } else {
+    ""
+  }
+  let initial_accumulator = if resident_output {
+    "(float)(linear / LF_HEAD_DIMENSION)"
+  } else {
+    "0.0f"
+  }
+  let value_accumulation = if resident_output {
+    cuda_resident_output_fold_step()
+  } else {
+    cuda_prefill_value_accumulation(compute)
+  }
+  let rescale_shared_output = if resident_output {
+    ""
+  } else {
+    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "         linear += LF_BLOCK_THREADS) {\n" +
+    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "      accumulator[linear] *= previous_scales[query];\n" +
+    "    }\n" +
+    "    __syncthreads();\n"
+  }
   let online_softmax_update = if reuse_tile_storage {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
@@ -211,12 +241,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "      if (lane == 0) previous_scales[query] = previous_scale;\n" +
     "    }\n" +
     "    __syncthreads();\n" +
-    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
-    "         linear += LF_BLOCK_THREADS) {\n" +
-    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
-    "      accumulator[linear] *= previous_scales[query];\n" +
-    "    }\n" +
-    "    __syncthreads();\n"
+    rescale_shared_output
   } else {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
@@ -234,12 +259,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "      }\n" +
     "    }\n" +
     "    __syncthreads();\n" +
-    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
-    "         linear += LF_BLOCK_THREADS) {\n" +
-    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
-    "      accumulator[linear] *= previous_scales[query];\n" +
-    "    }\n" +
-    "    __syncthreads();\n" +
+    rescale_shared_output +
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
     "      const float previous_scale = previous_scales[query];\n" +
@@ -379,9 +399,10 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    *reinterpret_cast<uint4 *>(query_tile + first_value) = packed;
     $|  }
     $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
-    $|    accumulator[linear] = 0.0f;
+    $|    accumulator[linear] = \{initial_accumulator};
     $|\{shared_state_initialization}
     $|  __syncthreads();
+    $|\{resident_declaration}
     $|
     $|  int maximum_query_position = query_positions[token_base];
     $|  if (thread == 0) {
@@ -476,6 +497,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    __syncthreads();
     $|  }
     $|
+    $|\{resident_store}
     $|\{terminal_fold_state}
     $|\{terminal_store}
     $|  __syncthreads();

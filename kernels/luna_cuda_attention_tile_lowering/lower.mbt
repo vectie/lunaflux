@@ -159,6 +159,8 @@ pub fn lower_attention_tile_schedule_to_cuda(
   }
   let compute = cuda_compute_primitive(schedule.compute(), target)
   let copy = cuda_copy_primitive(schedule.memory(), target)
+  let resident_output_fold = schedule.output_fold_storage() ==
+    SubgroupResidentOutputFold
   let transfer_readiness = schedule.transfer_readiness()
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
@@ -168,6 +170,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
   )
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
+  builder <+ "resident_output_fold=\{resident_output_fold}\n"
   builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"
   builder <+
     "key_score_before_value=\{transfer_readiness == KeyScoreBeforeValueReadiness}\n"
@@ -210,6 +213,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     hoist_paged_key_value_page_lookup,
     reuse_online_softmax_tile_storage,
     factor_shared_key_query_map,
+    resident_output_fold,
     matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,
     digest: CudaAttentionTileLoweringDigest(

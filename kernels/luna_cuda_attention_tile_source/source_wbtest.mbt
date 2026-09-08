@@ -413,7 +413,7 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
     ),
   )
   assert_true(
-    source.contains("weights + query_base * LF_KEY_VALUE_TILE + reduction"),
+    source.contains("weights + slice * 16 * LF_KEY_VALUE_TILE + reduction"),
   )
   assert_true(
     source.contains("scores + query_base * LF_KEY_VALUE_TILE + key_column"),

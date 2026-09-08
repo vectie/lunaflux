@@ -44,6 +44,11 @@ pub fn AttentionLoopCombinator::axis(Self) -> AttentionIterationAxis
 pub fn AttentionLoopCombinator::geometry(Self) -> (Int, Int)
 pub fn AttentionLoopCombinator::kind(Self) -> AttentionIterationKind
 
+pub(all) enum AttentionOutputFoldStorage {
+  SharedOutputFold
+  SubgroupResidentOutputFold
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -57,6 +62,7 @@ pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
 pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorageLayout?
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
+pub fn AttentionTileSchedule::output_fold_storage(Self) -> AttentionOutputFoldStorage
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
 pub fn AttentionTileSchedule::transfer_readiness(Self) -> AttentionTransferReadiness
