@@ -380,6 +380,13 @@ int main() {
   maximum_absolute_error =
       std::fmax(maximum_absolute_error,
                 run_case("ragged-17-65", {17, 65}, {17, 65}, true));
+#ifdef LF_BOUNDED_SANITIZER
+  // Exercise repeated ring-slot reuse plus both query and KV tails without
+  // repeating the full timing matrix under instrumentation.
+  maximum_absolute_error = std::fmax(
+      maximum_absolute_error,
+      run_case("sanitizer-q17-context-257", {17}, {257}, true));
+#else
   for (int query_tokens : {16, 64, 128}) {
     for (int context_tokens : {512, 1024, 2048, 4096}) {
       char name[64];
@@ -390,6 +397,7 @@ int main() {
           run_case(name, {query_tokens}, {context_tokens}, false));
     }
   }
+#endif
   std::printf(
       "outcome=passed query_token_vectors=16,64,128 "
       "context_token_vectors=16,65,128,512,1024,2048,4096 "
