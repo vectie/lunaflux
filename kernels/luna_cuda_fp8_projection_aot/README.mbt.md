@@ -5,6 +5,16 @@ for catalog-v4 finite-E4M3 projections. Version 1 remains byte-stable: it
 supports QKV, output, and language-model-head projections with one final
 4-byte `Workspace` operand and fails closed for GatedMlp.
 
+The head support in both versions is specifically the full-token contract
+with runtime inputs `[StepCounts]` and storage for every live token's logits.
+The current paged-Llama builder instead declares `[StepCounts, QueryRowOffsets]`
+for selected row-end logits. That head contract remains unsupported here and
+is rejected with `Mismatch(Operation)`; its extra pointer must not be silently
+dropped or replayed through the full-token ABI. Tests construct an explicit,
+validated full-token head plan for positive identity/storage coverage and
+separately retain negative coverage for the current builder's selected-row
+head. This does not add production FP8 serving support or GPU validation.
+
 The additive v2 lowerer authenticates the model plan's exact numeric execution
 policy and complete canonical paged-v4 raw operand order. Simple QKV, output,
 and language-model-head operations own one final 4-byte `Workspace`; compound

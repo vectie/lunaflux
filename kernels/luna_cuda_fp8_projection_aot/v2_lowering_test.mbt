@@ -27,8 +27,9 @@ fn fp8_aot_plan_v2() -> @plan.ModelPlan {
 fn fp8_aot_lower_v2(
   operation : Int,
   profile? : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
+  model_plan? : @plan.ModelPlan = fp8_aot_plan_v2(),
 ) -> Fp8ProjectionCudaLoweringV2 {
-  let plan = fp8_aot_plan_v2()
+  let plan = model_plan
   let id = try! @plan.OperationId::new(operation)
   let operands = try! derive_fp8_projection_operands_v2(
     plan,

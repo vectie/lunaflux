@@ -66,8 +66,9 @@ fn fp8_aot_compiler() -> @luna_specialization.LunaCompilerPolicy {
 fn fp8_aot_lower(
   operation : Int,
   profile? : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
+  model_plan? : @plan.ModelPlan = fp8_aot_plan(),
 ) -> Fp8ProjectionCudaLowering {
-  let plan = fp8_aot_plan()
+  let plan = model_plan
   let id = try! @plan.OperationId::new(operation)
   let operands = try! derive_fp8_projection_operands(
     plan,
@@ -161,9 +162,12 @@ test "FP8 QKV AOT source is deterministic and owns exact scale ABI" {
 }
 
 ///|
-test "FP8 dense and head identities cannot replay across operation or profile" {
+test "FP8 dense and full-token head identities cannot replay across operation or profile" {
   let dense = fp8_aot_lower(5)
-  let head = fp8_aot_lower(11)
+  let head = fp8_aot_lower(
+    11,
+    model_plan=fp8_full_token_head_fixture(fp8_aot_plan()),
+  )
   assert_eq(dense.family(), DenseProjection)
   assert_eq(head.family(), LanguageModelHead)
   assert_true(dense.function_symbol() != head.function_symbol())
