@@ -15,6 +15,14 @@ workspace lifecycle and must be included when accounting for runtime memory;
 it does not change model activation-arena bytes. No token-step allocation is
 introduced.
 
+Accounting limitation: `resolve_graph_memory` currently totals the principal
+arenas and declared graph storage, not separately allocated ancillary buffers.
+The new 19,456-byte sampling scratch, like the pre-existing greedy result and
+descriptor buffers, is not automatically included in that reported total.
+It must not be interpreted as a complete process-wide device-memory ceiling.
+Execution does allocate and deterministically release the scratch; this caveat
+concerns capacity reporting, not a token-step allocation or a leaked buffer.
+
 A version suffix on the admitted head entrypoint selects the two-step ABI.
 Unmarked old head modules retain the original one-step reducer. Source exports
 contain both versions, so no runtime symbol probing or opportunistic fallback
