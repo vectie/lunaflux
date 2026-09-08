@@ -9,6 +9,9 @@ pub(all) enum AttentionTileRewriteRule {
   /// softmax state in the owning functional fold.
   ReuseOnlineSoftmaxTileStorage
   PartitionOnlineSoftmaxFold
+  /// Interchanges an independent query map with each dot's ordered reduction,
+  /// sharing the key operand without reassociating any dot product.
+  FactorSharedKeyAcrossQueryMap
 } derive(Debug, Eq)
 
 ///|

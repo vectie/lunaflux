@@ -50,6 +50,7 @@ pub(all) enum AttentionTileRewriteRule {
   FuseOnlineSoftmaxFold
   ReuseOnlineSoftmaxTileStorage
   PartitionOnlineSoftmaxFold
+  FactorSharedKeyAcrossQueryMap
 } derive(Eq, @debug.Debug)
 
 pub struct AttentionTileRewriteStep {

@@ -350,6 +350,8 @@ fn apply_rewrite_pass(
   parallel_workgroup_target : Int,
 ) -> AttentionRewritePassResult {
   match rule {
+    FactorSharedKeyAcrossQueryMap =>
+      apply_shared_key_query_map_pass(program, regions)
     HoistPagedKeyValuePageLookup =>
       apply_paged_key_value_page_lookup_pass(program, regions)
     FuseScoreTransform => apply_score_transform_pass(program, regions)
@@ -405,6 +407,7 @@ fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int {
     FuseOnlineSoftmaxFold => 3
     ReuseOnlineSoftmaxTileStorage => 4
     PartitionOnlineSoftmaxFold => 5
+    FactorSharedKeyAcrossQueryMap => 6
   }
 }
 
@@ -459,6 +462,7 @@ pub fn optimize_attention_tile_program(
     FuseOnlineSoftmaxFold,
     ReuseOnlineSoftmaxTileStorage,
     PartitionOnlineSoftmaxFold,
+    FactorSharedKeyAcrossQueryMap,
   ])
   let state = run_rewrite_pipeline(
     program,

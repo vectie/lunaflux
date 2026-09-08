@@ -43,6 +43,7 @@ pub struct CudaAttentionTileLowering {
   priv shared_memory_bytes : Int64
   priv hoist_paged_key_value_page_lookup : Bool
   priv reuse_online_softmax_tile_storage : Bool
+  priv factor_shared_key_query_map : Bool
   priv matrix_storage_layout : @luna_attention_tile_schedule.AttentionTileStorageLayout?
   priv canonical : Bytes
   priv digest : CudaAttentionTileLoweringDigest

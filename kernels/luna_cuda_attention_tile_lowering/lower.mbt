@@ -162,8 +162,13 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let transfer_readiness = schedule.transfer_readiness()
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
+  let factor_shared_key_query_map = has_rewrite_rule(
+    optimization,
+    FactorSharedKeyAcrossQueryMap,
+  )
   let builder = StringBuilder()
-  builder <+ "luna-cuda-attention-tile-lowering-v5\n"
+  builder <+ "luna-cuda-attention-tile-lowering-v6\n"
+  builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"
   builder <+
     "key_score_before_value=\{transfer_readiness == KeyScoreBeforeValueReadiness}\n"
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
@@ -204,6 +209,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     shared_memory_bytes,
     hoist_paged_key_value_page_lookup,
     reuse_online_softmax_tile_storage,
+    factor_shared_key_query_map,
     matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,
     digest: CudaAttentionTileLoweringDigest(

@@ -349,6 +349,18 @@ test "score map is consumed by the fold without shared rematerialization" {
     )
     assert_false(source.contains("scores[linear] ="))
     assert_true(source.contains("wmma::store_matrix_sync("))
+    assert_true(lowering.factors_shared_key_query_map())
+    let (query_tile, _, _) = lowering.tile()
+    assert_true(
+      source.contains(
+        if query_tile > 16 {
+          "#define LF_FACTOR_SHARED_KEY 1"
+        } else {
+          "#define LF_FACTOR_SHARED_KEY 0"
+        },
+      ),
+    )
+    assert_true(source.contains("score_fragments[LF_QUERY_TILE / 16]"))
   }
 }
 

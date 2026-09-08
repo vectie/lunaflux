@@ -43,6 +43,12 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
+  let factor_shared_key = if lowering.factors_shared_key_query_map() &&
+    query_tile > 16 {
+    1
+  } else {
+    0
+  }
   let group_size = query_heads / key_value_heads
   let values_per_vector = vector_bytes / 2
   let vectors_per_key = head_dimension / values_per_vector
@@ -370,6 +376,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#include <math_constants.h>
     $|#include <mma.h>
     $|#define LF_QUERY_TILE \{query_tile}
+    $|#define LF_FACTOR_SHARED_KEY \{factor_shared_key}
     $|#define LF_KEY_VALUE_TILE \{key_value_tile}
     $|#define LF_HEAD_DIMENSION \{head_dimension}
     $|#define LF_BLOCK_THREADS \{block_threads}
@@ -514,6 +521,9 @@ fn emit_cuda_prefill_attention_tile_source(
     $|
     $|    // End validation lifetime before QK overwrites the aliased score slot.
     $|    __syncthreads();
+    $|#if LF_FACTOR_SHARED_KEY
+    $|\{cuda_attention_shared_key_dot()}
+    $|#else
     $|    if (warp < LF_KEY_VALUE_TILE / 16) {
     $|      using namespace nvcuda;
     $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> query_fragment;
@@ -539,6 +549,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|            score_fragment, LF_KEY_VALUE_TILE, wmma::mem_row_major);
     $|      }
     $|    }
+    $|#endif
     $|    __syncthreads();
     $|
     $|\{online_softmax_update}

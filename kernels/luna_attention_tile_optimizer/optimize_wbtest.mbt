@@ -51,7 +51,7 @@ test "optimizer extracts deterministic fused functional regions" {
   let second = optimize_attention_tile_program(program)
   assert_eq(first, second)
   assert_eq(first.program_digest(), program.digest())
-  assert_eq(first.regions().length(), 5)
+  assert_eq(first.regions().length(), 6)
   assert_eq(first.regions()[0].rule(), HoistPagedKeyValuePageLookup)
   assert_eq(first.regions()[0].members().length(), 2)
   assert_eq(first.regions()[1].rule(), FuseScoreTransform)
@@ -66,7 +66,9 @@ test "optimizer extracts deterministic fused functional regions" {
     first.reduction_topology(),
     AttentionPartitionedOnlineSoftmaxFold(2),
   )
-  assert_eq(first.trace().length(), 5)
+  assert_eq(first.trace().length(), 6)
+  assert_eq(first.regions()[5].rule(), FactorSharedKeyAcrossQueryMap)
+  assert_eq(first.regions()[5].members().length(), 3)
   assert_eq(first.trace()[0].changed(), true)
   assert_eq(first.trace()[1].region_count(), 2)
   assert_eq(first.trace()[2].region_count(), 3)
@@ -90,8 +92,8 @@ test "short prefill keeps one ordered online-softmax fold" {
     optimization_program(true, context_tokens=256),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 4)
-  assert_eq(optimized.trace().length(), 5)
+  assert_eq(optimized.regions().length(), 5)
+  assert_eq(optimized.trace().length(), 6)
   assert_false(optimized.trace()[4].changed())
 }
 
@@ -101,7 +103,7 @@ test "query parallelism removes unnecessary KV partition and merge" {
     optimization_program(true, context_tokens=4096, query_rows=128),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 4)
+  assert_eq(optimized.regions().length(), 5)
   assert_false(optimized.trace()[4].changed())
 }
 
@@ -111,7 +113,7 @@ test "continuous batch parallelism removes unnecessary KV partition" {
     optimization_program(true, context_tokens=4096, query_rows=64, batch_rows=2),
   )
   assert_eq(optimized.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
-  assert_eq(optimized.regions().length(), 4)
+  assert_eq(optimized.regions().length(), 5)
   assert_false(optimized.trace()[4].changed())
 }
 
@@ -125,6 +127,7 @@ test "decode partitions the same functional fold only when its map lacks paralle
     optimization_program(true, phase=Decode, query_rows=1, context_tokens=64),
   )
   assert_eq(short.reduction_topology(), AttentionOrderedOnlineSoftmaxFold)
+  assert_false(short.trace()[5].changed())
   let batch = optimize_attention_tile_program(
     optimization_program(true, phase=Decode, query_rows=1, batch_rows=32),
   )
@@ -151,4 +154,38 @@ test "portable workgroup target controls partition topology" {
     AttentionPartitionedOnlineSoftmaxFold(4),
   )
   assert_false(target32.digest() == target64.digest())
+}
+
+///|
+test "shared key factoring is idempotent and keeps the dot reduction order" {
+  let program = optimization_program(true)
+  let first = apply_shared_key_query_map_pass(program, [])
+  assert_true(first.changed)
+  let repeated = apply_shared_key_query_map_pass(program, first.regions)
+  assert_false(repeated.changed)
+  assert_eq(repeated.regions, first.regions)
+  let queries : ReadOnlyArray[ReadOnlyArray[Double]] = [
+    [1.0e20, -1.0e20, 3.0],
+    [1.0e20, 3.0, -1.0e20],
+    [-1.0e20, 1.0e20, 7.0],
+  ]
+  let keys : ReadOnlyArray[Double] = [1.0, 1.0, 1.0]
+  let mapped = queries.map(query => {
+    for reduction in 0..<keys.length(); score = 0.0 {
+      continue score + query[reduction] * keys[reduction]
+    } nobreak {
+      score
+    }
+  })
+  let factored = for
+    reduction in 0..<keys.length()
+    scores = queries.map(_ => 0.0) {
+    continue queries.mapi((index, query) => {
+        scores[index] + query[reduction] * keys[reduction]
+      })
+  } nobreak {
+    scores
+  }
+  assert_eq(factored, mapped)
+  assert_eq(factored, [3.0, 0.0, 7.0])
 }

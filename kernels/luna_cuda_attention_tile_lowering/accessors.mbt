@@ -106,6 +106,13 @@ pub fn CudaAttentionTileLowering::reuses_online_softmax_tile_storage(
 }
 
 ///|
+pub fn CudaAttentionTileLowering::factors_shared_key_query_map(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.factor_shared_key_query_map
+}
+
+///|
 pub fn CudaAttentionTileLowering::canonical_bytes(
   self : CudaAttentionTileLowering,
 ) -> Bytes {
