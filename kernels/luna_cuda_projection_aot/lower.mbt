@@ -238,7 +238,12 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
   }
   let symbol = "lunaflux_luna_" +
     projection_family_tag(parameters.family) +
-    "_bf16_release_v1"
+    "_bf16_release_v1" +
+    (if parameters.family == LanguageModelHead {
+      @luna_cuda_sampling_aot.segmented_greedy_head_suffix()
+    } else {
+      ""
+    })
   projection_finish_candidate(
     operation,
     profile,

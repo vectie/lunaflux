@@ -77,7 +77,8 @@ pub fn embedded_greedy_sampling_cuda_source(
   if maximum_rows <= 0 {
     raise Invalid(MaximumRows)
   }
-  greedy_sampling_source_text(vocabulary_size, maximum_rows)
+  greedy_sampling_source_text(vocabulary_size, maximum_rows) +
+  embedded_segmented_greedy_cuda_source(vocabulary_size, maximum_rows)
 }
 
 ///|

@@ -11,6 +11,7 @@ import {
 supported_targets = "native"
 
 import {
+  "moonbitlang/core/env",
   "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/spec",
 } for "test"

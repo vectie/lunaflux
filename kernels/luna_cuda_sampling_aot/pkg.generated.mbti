@@ -22,11 +22,21 @@ pub fn device_sampling_cuda_function_symbol() -> String
 
 pub fn embedded_greedy_sampling_cuda_source(Int, Int) -> String raise SamplingBoundaryError
 
+pub fn embedded_segmented_greedy_cuda_source(Int, Int) -> String raise SamplingBoundaryError
+
 pub fn greedy_sampling_cuda_function_symbol() -> String
 
 pub fn lower_device_sampling_cuda_aot(@luna_sampling_strategy.SamplingDevicePlan, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, DeviceSamplingAotLimits) -> DeviceSamplingCudaLowering raise SamplingBoundaryError
 
 pub fn lower_greedy_sampling_cuda_aot(HostSamplingBoundary, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, Int, GreedySamplingAotLimits) -> GreedySamplingCudaLowering raise SamplingBoundaryError
+
+pub fn plan_segmented_greedy_cuda(Int, Int) -> @luna_sampling_strategy.GreedySegmentPlan raise SamplingBoundaryError
+
+pub fn segmented_greedy_head_suffix() -> String
+
+pub fn segmented_greedy_merge_symbol() -> String
+
+pub fn segmented_greedy_partial_symbol() -> String
 
 // Errors
 pub(all) suberror SamplingBoundaryError {

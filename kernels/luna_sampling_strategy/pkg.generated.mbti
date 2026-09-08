@@ -8,6 +8,8 @@ import {
 // Values
 pub fn plan_device_sampling(maximum_rows~ : Int, vocabulary_size~ : Int, maximum_top_k~ : Int, maximum_workspace_bytes~ : Int64) -> SamplingDevicePlan raise SamplingStrategyError
 
+pub fn plan_greedy_segments(vocabulary_size~ : Int, maximum_rows~ : Int, segment_width~ : Int) -> GreedySegmentPlan raise SamplingStrategyError
+
 pub fn select_sampling_route(SamplingDevicePlan, mode~ : Int, temperature~ : Double, has_top_k~ : Bool, top_k~ : Int, has_top_p~ : Bool, top_p~ : Double) -> SamplingRoute raise SamplingStrategyError
 
 // Errors
@@ -16,6 +18,13 @@ pub(all) suberror SamplingStrategyError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct GreedySegmentPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GreedySegmentPlan::partition(Self) -> (Int, Int)
+pub fn GreedySegmentPlan::shape(Self) -> (Int, Int)
+pub fn GreedySegmentPlan::workspace_bytes(Self) -> Int64
+
 pub struct SamplingDevicePlan {
   // private fields
 } derive(Eq, @debug.Debug)

@@ -69,12 +69,16 @@ pub fn admit_paged_embedded_cuda_greedy_sampling(
     raise InvalidExecutor(SamplingArtifact)
   }
   let mut module_index = -1
+  let mut segmented = false
   for step in blueprint.steps() {
     if step.operation_kind() == LanguageModelHead {
       if module_index >= 0 || step.operation_id() != boundary.producer() {
         raise InvalidExecutor(SamplingArtifact)
       }
       module_index = step.artifact_module_index()
+      segmented = step
+        .function_symbol()
+        .has_suffix(@luna_cuda_sampling_aot.segmented_greedy_head_suffix())
     }
   }
   guard module_index >= 0 &&
@@ -88,7 +92,11 @@ pub fn admit_paged_embedded_cuda_greedy_sampling(
     module_index,
     module_digest: module_.digest(),
     module_bytes: module_.module_bytes(),
-    function_symbol: @luna_cuda_sampling_aot.greedy_sampling_cuda_function_symbol(),
+    function_symbol: if segmented {
+      @luna_cuda_sampling_aot.segmented_greedy_partial_symbol()
+    } else {
+      @luna_cuda_sampling_aot.greedy_sampling_cuda_function_symbol()
+    },
     vocabulary_size: boundary.vocabulary_size(),
     maximum_rows: blueprint.limits().max_rows(),
     result_row_bytes: PAGED_GREEDY_RESULT_ROW_BYTES,
@@ -112,8 +120,12 @@ pub fn validate_paged_sampling_execution_policy(
         model_plan, blueprint, artifacts,
       )
       if expected != policy ||
-        admission.function_symbol !=
-        @luna_cuda_sampling_aot.greedy_sampling_cuda_function_symbol() {
+        (
+          admission.function_symbol !=
+          @luna_cuda_sampling_aot.greedy_sampling_cuda_function_symbol() &&
+          admission.function_symbol !=
+          @luna_cuda_sampling_aot.segmented_greedy_partial_symbol()
+        ) {
         raise InvalidExecutor(SamplingArtifact)
       }
     }
@@ -194,6 +206,26 @@ fn prepare_paged_cuda_greedy_step(
     resource: result_allocation,
     open: true,
   })
+  let segmented = admission.function_symbol ==
+    @luna_cuda_sampling_aot.segmented_greedy_partial_symbol()
+  let (output_allocation, output_bytes, segments) = if segmented {
+    let plan = @luna_cuda_sampling_aot.plan_segmented_greedy_cuda(
+      admission.vocabulary_size,
+      limits.max_rows(),
+    ) catch {
+      _ => raise InvalidExecutor(SamplingArtifact)
+    }
+    let workspace = allocate_paged_sampling_resource(
+      context,
+      plan.workspace_bytes(),
+      SamplingWorkspace,
+    )
+    resources.device_sampling_workspace = Some(workspace)
+    let (_, count) = plan.partition()
+    (workspace.resource, plan.workspace_bytes(), count)
+  } else {
+    (result_allocation, result_bytes, 1)
+  }
   let terminal_bytes = completion.row_bytes * limits.max_tokens().to_int64()
   if terminal_bytes <= 0L ||
     completion.final_output_offset > activation.byte_count() ||
@@ -232,9 +264,9 @@ fn prepare_paged_cuda_greedy_step(
       alignment=2L,
     ),
     @device.KernelArgument::device_region(
-      result_allocation,
+      output_allocation,
       offset=0L,
-      byte_count=result_bytes,
+      byte_count=output_bytes,
       alignment=4L,
     ),
   ] catch {
@@ -245,7 +277,7 @@ fn prepare_paged_cuda_greedy_step(
   }
   let dimensions = @device.KernelLaunchDimensions::new(
     grid_x=limits.max_rows(),
-    grid_y=1,
+    grid_y=segments,
     grid_z=1,
     block_x=256,
     block_y=1,
@@ -281,14 +313,30 @@ fn prepare_paged_sampling_execution(
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
   match policy {
     PagedHostSampling => steps
-    PagedCudaGreedySampling(admission) =>
-      append_paged_steps(
+    PagedCudaGreedySampling(admission) => {
+      let prepared = append_paged_steps(
         steps,
         prepare_paged_cuda_greedy_step(
           context, model_plan, limits, admission, artifacts, completion, descriptor,
           activation, resources,
         ),
       )
+      if admission.function_symbol ==
+        @luna_cuda_sampling_aot.segmented_greedy_partial_symbol() {
+        append_paged_steps(
+          prepared,
+          prepare_paged_segmented_greedy_merge(
+            prepared[prepared.length() - 1].operation_id,
+            limits,
+            admission,
+            descriptor,
+            resources,
+          ),
+        )
+      } else {
+        prepared
+      }
+    }
     PagedCudaRestrictiveTopKV2(admission) =>
       append_paged_steps(
         steps,
