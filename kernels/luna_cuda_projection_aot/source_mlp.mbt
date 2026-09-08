@@ -71,6 +71,7 @@ fn projection_tensor_core_mlp_source(
   groups? : Int = 16,
   down_groups~ : Int,
   pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline?,
+  sibling_pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline?,
 ) -> Bytes {
   @utf8.encode(
     projection_tensor_core_prelude() +
@@ -102,6 +103,11 @@ fn projection_tensor_core_mlp_source(
     "    for (int delta = 16; delta > 0; delta >>= 1) { gate = __fadd_rn(gate, __shfl_down_sync(0xffffffffU, gate, delta)); up = __fadd_rn(up, __shfl_down_sync(0xffffffffU, up, delta)); }\n" +
     "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
     "    return;\n  }\n" +
+    (if sibling_pipeline is Some(plan) {
+      projection_sibling_fold_pipeline_source(plan, parameters)
+    } else {
+      ""
+    }) +
     "  const int group_count = " +
     (parameters.intermediate_width / (groups * 16)).to_string() +
     ";\n" +
@@ -455,6 +461,7 @@ fn projection_source(
             .companion_output_tiles_per_workgroup()
             .unwrap(),
           tile_compilation.schedule().intermediate_pipeline(),
+          tile_compilation.schedule().sibling_pipeline(),
         )
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)

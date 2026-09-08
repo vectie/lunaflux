@@ -48,6 +48,7 @@ pub struct ProjectionFoldPipeline {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
+pub fn ProjectionFoldPipeline::output_tiles(Self) -> Int
 pub fn ProjectionFoldPipeline::row_width(Self) -> Int
 pub fn ProjectionFoldPipeline::single_row_outputs(Self) -> Int
 pub fn ProjectionFoldPipeline::stage_count(Self) -> Int
@@ -199,6 +200,7 @@ pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
 pub fn ProjectionTileSchedule::selected_input_row_resident(Self) -> Bool
+pub fn ProjectionTileSchedule::sibling_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::single_row_reduction(Self) -> ProjectionSingleRowReduction
 
 pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)

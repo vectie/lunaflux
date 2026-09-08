@@ -9,8 +9,8 @@ execution shares each input load across four independent output folds.
 CUDA lowering realizes this plan with double-buffered asynchronous shared
 copies, cooperative input loading, and register accumulators. Model builders
 and scheduling contain no CUDA-specific additions. The implementation covers
-the split BF16 MLP-down path; gate/up, QKV, and other dense GEMMs have **not**
-all been converted to this pipeline.
+the split BF16 MLP-down path and, in the follow-up below, its gate/up producer.
+QKV and other dense GEMMs have **not** all been converted to this pipeline.
 
 At least 256 tokens are required before grouping rows. Complete 64-row blocks
 use the pipeline; any remaining rows use the existing 16-row realization.
@@ -59,3 +59,40 @@ Raw selected campaign: `/dev/shm/lunaflux-pipeline-20260909-r7` on the test host
 downloaded copy: `/private/tmp/lunaflux-pipeline-results-20260909-r7`.
 Both generated CUDA sources, cubins, harness, compiler logs, three timing
 trials, and four sanitizer logs are retained there.
+
+## Sibling gate/up pipeline follow-up
+
+The same immutable pipeline description now covers the product of the gate
+and up ordered folds. A 64-row macro tile shares each staged input between
+both folds and each weight fragment between four independent row fragments.
+Two 32-element transfer slots overlap operand copying with computation;
+16-element reduction order and the existing BF16 SiLU materialization remain
+unchanged. Entirely unobserved row fragments are skipped on partial blocks.
+The generic compiler selects this transformation from
+`FuseSiblingInputTraversals`, not a Qwen model identity. CUDA asynchronous
+copies and warp ownership remain private lowering details.
+
+Paired r9 campaign, same hardware, shape, vector, and timing method as above.
+The baseline here already includes the committed MLP-down pipeline. Median
+of three trials, combined gate/up plus down:
+
+| Tokens | Down-only pipeline µs | Both pipelines µs | Additional speedup |
+| ---: | ---: | ---: | ---: |
+| 256 | 297.626 | 261.342 | 1.14× |
+| 257 | 309.288 | 289.150 | 1.07× |
+| 512 | 530.006 | 463.997 | 1.14× |
+| 513 | 531.755 | 479.862 | 1.11× |
+| 1024 | 1046.155 | 912.408 | 1.15× |
+
+All 18 token lengths retain bit-exact outputs and intermediate workspace and
+untouched allocation tails. All four sanitizers pass. The primary producer
+uses 122 registers, 24 KiB static shared memory, and no register spills.
+The smaller 32-row/K16 experiment was slower on the principal long shapes
+(although faster at 257 tokens); it is not selected. This remains one measured
+shape, not proof that the chosen tile is optimal for every model or device.
+Inputs below 256 tokens retain their prior path.
+
+Raw campaign: `/dev/shm/lunaflux-pipeline-20260909-r9`; downloaded copy:
+`/private/tmp/lunaflux-pipeline-results-20260909-r9`.
+Full-serving benchmarking and extension to QKV, dense output projections,
+and vocabulary projections remain separate work.

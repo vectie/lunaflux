@@ -5,6 +5,8 @@ pub struct ProjectionFoldPipeline {
   priv tile_width : Int
   priv tile_count : Int
   priv transfer_width : Int
+  priv row_width : Int
+  priv output_tiles : Int
 } derive(Debug, Eq)
 
 ///|
@@ -32,8 +34,15 @@ pub fn ProjectionFoldPipeline::transfer_width(
 }
 
 ///|
-pub fn ProjectionFoldPipeline::row_width(_self : ProjectionFoldPipeline) -> Int {
-  64
+pub fn ProjectionFoldPipeline::row_width(self : ProjectionFoldPipeline) -> Int {
+  self.row_width
+}
+
+///|
+pub fn ProjectionFoldPipeline::output_tiles(
+  self : ProjectionFoldPipeline,
+) -> Int {
+  self.output_tiles
 }
 
 ///|
@@ -45,9 +54,9 @@ pub fn ProjectionFoldPipeline::single_row_outputs(
 
 ///|
 pub fn ProjectionFoldPipeline::minimum_rows(
-  self : ProjectionFoldPipeline,
+  _self : ProjectionFoldPipeline,
 ) -> Int {
-  self.row_width() * 4
+  256
 }
 
 ///|
@@ -69,10 +78,48 @@ fn projection_intermediate_pipeline(
       tile_width: tile,
       tile_count: extent / tile,
       transfer_width: tile * 2,
+      row_width: 64,
+      output_tiles: projection_companion_output_tiles(
+        dispatch.prefill().output_tiles_per_workgroup(),
+      ),
     })
   } else {
     None
   }
+}
+
+///|
+fn projection_sibling_pipeline(
+  optimized : OptimizedProjectionTileCompilation,
+) -> ProjectionFoldPipeline? {
+  let dispatch = optimized.semantic.selected.request.dispatch
+  let (extent, _, _) = dispatch.shape().dimensions()
+  let (_, _, tile) = dispatch.prefill().tile().dimensions()
+  if optimized.optimization.applied(FuseSiblingInputTraversals) &&
+    dispatch.prefill().kernel_class() == MatrixTile &&
+    extent >= 512 &&
+    tile > 0 &&
+    extent % (tile * 4) == 0 {
+    Some({
+      tile_width: tile,
+      tile_count: extent / tile,
+      transfer_width: tile * 2,
+      row_width: 64,
+      output_tiles: Int::max(
+        1,
+        dispatch.prefill().output_tiles_per_workgroup() / 4,
+      ),
+    })
+  } else {
+    None
+  }
+}
+
+///|
+pub fn ProjectionTileSchedule::sibling_pipeline(
+  self : ProjectionTileSchedule,
+) -> ProjectionFoldPipeline? {
+  self.sibling_pipeline
 }
 
 ///|

@@ -370,6 +370,10 @@ fn projection_schedule_canonical(
     builder <+
       "intermediate_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width},\{pipeline.tile_count},\{pipeline.transfer_width},\{pipeline.row_width()},\{pipeline.single_row_outputs()},\{pipeline.minimum_rows()}\n"
   }
+  if projection_sibling_pipeline(optimized) is Some(pipeline) {
+    builder <+
+      "sibling_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
+  }
   @utf8.encode(builder.to_string())
 }
 
@@ -485,6 +489,7 @@ pub fn schedule_projection_tile(
     reuse_input_tile,
     single_row_reduction,
     intermediate_pipeline: projection_intermediate_pipeline(optimized),
+    sibling_pipeline: projection_sibling_pipeline(optimized),
     reuse_intermediate_tile: optimized.optimization.applied(
       ReuseIntermediateTileAcrossOutputTiles,
     ),
