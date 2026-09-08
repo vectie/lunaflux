@@ -366,6 +366,10 @@ fn projection_schedule_canonical(
   )
   builder <+ "hoist_rotary_inverse_frequencies=\{rotary_optimized}\n"
   builder <+ "fuse_rotary_pairs=\{rotary_optimized}\n"
+  if projection_intermediate_pipeline(optimized) is Some(pipeline) {
+    builder <+
+      "intermediate_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width},\{pipeline.tile_count},\{pipeline.transfer_width},\{pipeline.row_width()},\{pipeline.single_row_outputs()},\{pipeline.minimum_rows()}\n"
+  }
   @utf8.encode(builder.to_string())
 }
 
@@ -480,6 +484,7 @@ pub fn schedule_projection_tile(
     request.dispatch.prefill().input_residency() == SelectedRowTileResidency,
     reuse_input_tile,
     single_row_reduction,
+    intermediate_pipeline: projection_intermediate_pipeline(optimized),
     reuse_intermediate_tile: optimized.optimization.applied(
       ReuseIntermediateTileAcrossOutputTiles,
     ),

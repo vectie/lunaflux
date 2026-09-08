@@ -63,6 +63,13 @@ The middle end therefore records sibling-traversal fusion and intermediate-tile
 reuse once. A device backend lowers those sharing decisions to its own local
 memory and synchronization primitives; model code never names them.
 
+The materialized intermediate fold also carries an immutable two-stage block
+pipeline: a 64-row map, 32-element transfers, and unchanged 16-element ordered
+reductions. Full blocks and row tails are scheduled separately; single-row
+execution factors one input across four independent output folds. CUDA is the
+first lowering. This is currently implemented for MLP-down, not every matrix
+family. See [pipeline results and limits](../../docs/COMPILER_OPERAND_PIPELINE.md).
+
 Attention ingress is also a composable projection epilogue. Its immutable value
 graph is `QKV dot -> per-head Q/K RMSNorm -> positioned rotary -> output store +
 paged KV commit`. The optimizer records that the projected QKV round trip can be

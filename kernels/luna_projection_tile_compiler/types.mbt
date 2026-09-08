@@ -167,6 +167,7 @@ pub struct ProjectionTileSchedule {
   priv selected_input_row_resident : Bool
   priv reuse_input_tile : Bool
   priv reuse_intermediate_tile : Bool
+  priv intermediate_pipeline : ProjectionFoldPipeline?
   priv fuse_attention_ingress_epilogue : Bool
   priv hoist_rotary_inverse_frequencies : Bool
   priv fuse_rotary_pairs : Bool

@@ -44,6 +44,17 @@ pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, 
 pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
 
+pub struct ProjectionFoldPipeline {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
+pub fn ProjectionFoldPipeline::row_width(Self) -> Int
+pub fn ProjectionFoldPipeline::single_row_outputs(Self) -> Int
+pub fn ProjectionFoldPipeline::stage_count(Self) -> Int
+pub fn ProjectionFoldPipeline::tile_count(Self) -> Int
+pub fn ProjectionFoldPipeline::tile_width(Self) -> Int
+pub fn ProjectionFoldPipeline::transfer_width(Self) -> Int
+
 pub(all) enum ProjectionIterationAxis {
   ProjectionRowAxis
   ProjectionIntermediateColumnAxis
@@ -181,6 +192,7 @@ pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
 pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool
 pub fn ProjectionTileSchedule::fuses_rotary_pairs(Self) -> Bool
 pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(Self) -> Bool
+pub fn ProjectionTileSchedule::intermediate_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
 pub fn ProjectionTileSchedule::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
