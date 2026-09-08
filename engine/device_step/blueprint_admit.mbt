@@ -425,7 +425,9 @@ fn build_paged_step(
   let module_index = entry.module_index()
   if !entry.row_variants().is_empty() &&
     operation.kind() != QkvProjection &&
-    operation.kind() != OutputProjection {
+    operation.kind() != OutputProjection &&
+    operation.kind() != LanguageModelHead &&
+    operation.kind() != GatedMlp {
     raise blueprint_operation_error(operation.id(), ArtifactEntryPoint)
   }
   for variant in entry.row_variants() {

@@ -66,7 +66,7 @@ async test "physical row variants preserve dense values and graph fallback" {
     counts[12] = (tokens & 255).to_byte()
     counts[13] = (tokens >> 8).to_byte()
     allocations[0].copy_from_host(Bytes::from_array(counts), 0L, 0L, 16L)
-    for groups in (if tokens <= 8 { [8, 2] } else { [8] }) {
+    for groups in (if tokens > 1 && tokens <= 8 { [8, 2] } else { [8] }) {
       let source = @launch_contract.AotLaunchDimensions::new(
         grid_x=1024,
         grid_y=1,

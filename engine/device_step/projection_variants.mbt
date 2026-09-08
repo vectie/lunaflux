@@ -12,7 +12,9 @@ fn prepare_projection_variants(
       continue
     }
     if step.operation_kind() != QkvProjection &&
-      step.operation_kind() != OutputProjection {
+      step.operation_kind() != OutputProjection &&
+      step.operation_kind() != LanguageModelHead &&
+      step.operation_kind() != GatedMlp {
       raise executor_operation_error(step.operation_id(), GraphBucket)
     }
     let find = fn(symbol : String) -> Int raise DeviceStepError {
@@ -34,7 +36,15 @@ fn prepare_projection_variants(
       }
       let source = variant.dimensions()
       let width = paged_projection_output_width(blueprint, step)
-      let launch = if source.block_x() >= 32 &&
+      let launch = if step.operation_kind() == LanguageModelHead {
+        // Head residency changes shared storage, not the matrix work mapping.
+        ProjectionTensorCoreGridX(source, width)
+      } else if paged_step_has_split_decode_mlp(step) {
+        ProjectionMlpUpGridX(
+          source,
+          paged_projection_intermediate_width(blueprint, step),
+        )
+      } else if source.block_x() >= 32 &&
         source.block_x() <= 512 &&
         (source.block_x() & (source.block_x() - 1)) == 0 &&
         source.shared_memory_bytes() == source.block_x() * 32 {
@@ -48,6 +58,14 @@ fn prepare_projection_variants(
         function_index: find(variant.function_symbol()),
         launch,
       })
+      if paged_step_has_split_decode_mlp(step) {
+        resources.projection_variants.push({
+          base_function_index: find(step.function_symbol() + "_down"),
+          maximum_token_rows: variant.maximum_token_rows(),
+          function_index: find(variant.function_symbol() + "_down"),
+          launch: ProjectionMlpDownGridX(source, width),
+        })
+      }
     }
   }
 }
@@ -64,7 +82,8 @@ fn select_projection_variant(
   let mut selected : PagedProjectionVariant? = None
   for variant in variants {
     if variant.base_function_index == base_function_index &&
-      variant.maximum_token_rows >= query_token_bound {
+      variant.maximum_token_rows >= query_token_bound &&
+      (query_token_bound != 1 || variant.maximum_token_rows == 1) {
       match selected {
         Some(previous) if previous.maximum_token_rows <=
           variant.maximum_token_rows => ()

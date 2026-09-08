@@ -203,6 +203,21 @@ fn collect_paged_functions(
   }
   for step in blueprint.steps() {
     for variant in step.row_variants {
+      if paged_step_has_split_decode_mlp(step) {
+        let symbol = variant.function_symbol() + "_down"
+        if paged_function_symbol_index(
+            functions,
+            step.artifact_module_index(),
+            symbol,
+          )
+          is None {
+          functions.push({
+            identity: step.entry_point(),
+            module_index: step.artifact_module_index(),
+            symbol,
+          })
+        }
+      }
       if paged_function_symbol_index(
           functions,
           step.artifact_module_index(),

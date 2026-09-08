@@ -33,6 +33,23 @@ static strategy at startup; the compatibility entry points build the same
 runtime table with an empty record set. Source generation does not classify
 shapes or scan tuning records.
 
+Measured matrix row-bucket choices are emitted as additional entry points in
+the same AOT module for all four projection families. Scalar and monolithic
+fallback implementations do not advertise these matrix variants. The exporter compares storage
+residency as well as output workgroup distribution: a selected-row-resident
+head must not disappear merely because it has the same workgroup width as the
+fallback. Gated MLP variants carry a matching `_down` companion and retain the
+full profile's preallocated workspace ABI. Greedy sampling is embedded only
+once, on the primary head source.
+
+Variant bounds remain **token-row bounds**, including for a head whose output
+demand is `QueryRowEnds`. A measured 256-token record can produce a guarded
+256-token variant inside a 1024-token release; it is not a 1024-token
+measurement and cannot select that function for a larger live token envelope.
+An unmeasured bucket retains the existing static fallback. Installation and
+capture selection belong to the device executor; generated variants alone are
+not dispatch or performance evidence.
+
 `fixtures/physical_sm120` records the exact generated CUDA and recipe bytes for
 small QKV, dense-projection, gated-MLP, and language-model-head numerical
 shapes. `physical_fixture_wbtest.mbt` binds both SHA-256 values to fresh typed
