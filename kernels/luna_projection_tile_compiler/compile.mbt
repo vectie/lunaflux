@@ -326,6 +326,13 @@ fn projection_schedule_canonical(
   }
   builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
   let dispatch = optimized.semantic.selected.request.dispatch
+  if projection_selected_row_strip(
+      dispatch,
+      optimized.semantic.selected.request.demand,
+    )
+    is Some(strip) {
+    builder <+ "selected_row_reduction_strip=\{strip.reduction_elements()}\n"
+  }
   if dispatch.prefill().input_residency() == SelectedRowTileResidency {
     builder <+ "selected_input_residency=row-tile\n"
   }

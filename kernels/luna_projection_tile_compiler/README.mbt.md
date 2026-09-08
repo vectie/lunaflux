@@ -77,6 +77,18 @@ the final token of each packed query row. Full-logit callers retain
 `AllTokenRows`. This distinction lets the compiler remove unobserved vocabulary
 projections without changing model-family semantics.
 
+For a single-output-tile matrix strategy with streaming selected rows, the
+compiler now binds a bounded reduction-strip storage plan: 16 selected rows and
+16 output columns share a 128-element reduction strip. The eight 16-element
+inner folds remain ordered; this is strip mining and lifetime reduction, not
+floating-point reassociation. Its local-storage requirement is 9,216 bytes,
+independent of the full input width. The initial eligibility requires input
+width divisible by 128 and complete 16-column tiles; other strategies retain
+their previous storage. CUDA lowers the plan to gathered vector input copies,
+contiguous weight copies and one-warp matrix operations. The existing
+single-row reduction remains unchanged. Offline records still select the
+strategy; this does not install an unmeasured default or claim a speedup.
+
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
 value differently. Subgroup width arrives as an abstract capability; device

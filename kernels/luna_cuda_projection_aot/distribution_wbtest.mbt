@@ -87,14 +87,18 @@ test "matrix distribution lowers through both source and launch geometry" {
       assert_eq(dimensions.block_x(), groups * 32)
       assert_eq(
         dimensions.shared_memory_bytes(),
-        groups * 1024 +
-        (if resident {
-          32768
-        } else if family == LanguageModelHead {
-          512
+        if family == LanguageModelHead && groups == 1 && !resident {
+          9216
         } else {
-          0
-        }),
+          groups * 1024 +
+          (if resident {
+            32768
+          } else if family == LanguageModelHead {
+            512
+          } else {
+            0
+          })
+        },
       )
       assert_eq(compilation.schedule().selected_input_row_resident(), resident)
       let source = projection_source(

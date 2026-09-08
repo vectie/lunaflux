@@ -176,47 +176,51 @@ fn projection_tensor_core_direct_dense_source(
     } else {
       ""
     }) +
-    "  for (int inner = 0; inner < " +
-    parameters.input_width.to_string() +
-    "; inner += 16) {\n" +
-    (if row_resident {
-      "    nvcuda::wmma::load_matrix_sync(a, selected_input + inner, \{parameters.input_width});\n"
-    } else if query_row_ends {
-      "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
-      "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
-      "      const int query_row = row + local_row;\n" +
-      "      const int token_row = query_row < row_count ? row_offsets[query_row + 1] - 1 : -1;\n" +
-      "      selected_input[element] = token_row >= 0 && token_row < token_count ? input[(unsigned long long)token_row * " +
-      parameters.input_width.to_string() +
-      "ULL + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
-      "    }\n" +
-      "    __syncthreads();\n" +
-      "    nvcuda::wmma::load_matrix_sync(a, selected_input, 16);\n"
+    (if tile_compilation.selected_row_strip() is Some(strip) {
+      projection_head_strip_reduction(parameters.input_width, strip)
     } else {
-      "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
+      "  for (int inner = 0; inner < " +
+      parameters.input_width.to_string() +
+      "; inner += 16) {\n" +
+      (if row_resident {
+        "    nvcuda::wmma::load_matrix_sync(a, selected_input + inner, \{parameters.input_width});\n"
+      } else if query_row_ends {
+        "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
+        "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
+        "      const int query_row = row + local_row;\n" +
+        "      const int token_row = query_row < row_count ? row_offsets[query_row + 1] - 1 : -1;\n" +
+        "      selected_input[element] = token_row >= 0 && token_row < token_count ? input[(unsigned long long)token_row * " +
+        parameters.input_width.to_string() +
+        "ULL + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
+        "    }\n" +
+        "    __syncthreads();\n" +
+        "    nvcuda::wmma::load_matrix_sync(a, selected_input, 16);\n"
+      } else {
+        "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
+        parameters.input_width.to_string() +
+        "ULL + inner, " +
+        parameters.input_width.to_string() +
+        ");\n"
+      }) +
+      "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)" +
+      (if cooperative_column_tail {
+        "(column < \{parameters.output_width} ? column : 0)"
+      } else {
+        "column"
+      }) +
+      " * " +
       parameters.input_width.to_string() +
       "ULL + inner, " +
       parameters.input_width.to_string() +
-      ");\n"
+      ");\n" +
+      "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
+      (if query_row_ends && !row_resident {
+        "    __syncthreads();\n"
+      } else {
+        ""
+      }) +
+      "  }\n"
     }) +
-    "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)" +
-    (if cooperative_column_tail {
-      "(column < \{parameters.output_width} ? column : 0)"
-    } else {
-      "column"
-    }) +
-    " * " +
-    parameters.input_width.to_string() +
-    "ULL + inner, " +
-    parameters.input_width.to_string() +
-    ");\n" +
-    "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-    (if query_row_ends && !row_resident {
-      "    __syncthreads();\n"
-    } else {
-      ""
-    }) +
-    "  }\n" +
     (if query_row_ends {
       ""
     } else {
