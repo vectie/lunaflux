@@ -142,7 +142,11 @@ pub fn PagedGraphExecutor::stage(
     self.graph_bucket_table,
     plan,
   )
-  let mut ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
+  let mut ordered_executor_index = select_paged_attention_phase_owner(
+    self.resources,
+    self.ordered_dispatch.select(graph_bucket),
+    graph_bucket.phase(),
+  )
   let descriptor = complete_descriptor(self.resources)
   let staged = descriptor.stage_with_sampling_mode(
     plan,
@@ -171,7 +175,11 @@ pub fn PagedGraphExecutor::stage_frame(
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)
-  let mut ordered_executor_index = self.ordered_dispatch.select(graph_bucket)
+  let mut ordered_executor_index = select_paged_attention_phase_owner(
+    self.resources,
+    self.ordered_dispatch.select(graph_bucket),
+    graph_bucket.phase(),
+  )
   let descriptor = complete_descriptor(self.resources)
   let staged = match self.fp8_frame_envelope {
     Some(envelope) => {

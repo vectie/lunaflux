@@ -155,6 +155,50 @@ fn prepare_paged_production_steps(
         } else {
           qwen_decode_replacements.push(prepared.1)
         }
+        if span.has_phase_specific_attention() {
+          let decode = qwen_decode_replacements.last().unwrap()
+          let narrowed = prepare_qwen_fused_attention_steps(
+              blueprint,
+              span,
+              functions.ingress_function,
+              functions.prefill_function,
+              span.readonly_launch(),
+              descriptor,
+              weight,
+              activation,
+              kv,
+              functions.sidecar,
+              prefill_only=true,
+            ).1
+          register_attention_phase_replacement(
+            resources,
+            narrowed,
+            Some(decode),
+          )
+          match (functions.wide_prefill_function, span.wide_query_prefill()) {
+            (Some(function_index), Some(variant)) => {
+              let narrowed_wide = prepare_qwen_fused_attention_steps(
+                  blueprint,
+                  span,
+                  functions.ingress_function,
+                  function_index,
+                  variant.launch,
+                  descriptor,
+                  weight,
+                  activation,
+                  kv,
+                  functions.sidecar,
+                  prefill_only=true,
+                ).1
+              register_attention_phase_replacement(
+                resources,
+                narrowed_wide,
+                Some(decode),
+              )
+            }
+            _ => ()
+          }
+        }
       }
     None =>
       if !qwen_fused_attention_spans.is_empty() {

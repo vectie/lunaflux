@@ -9,7 +9,7 @@ const OUTPUT_ROW_ENDS_CELL : Int = 15
 
 ///|
 fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
-  OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits)
+  OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits) + 5
 }
 
 ///|
@@ -50,6 +50,7 @@ fn publish_output_counts(
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
 ) -> Unit {
+  publish_prefill_attention_counts(host, summary)
   let physical = output_physical_rows(host, summary)
   write_i32(host.counts, OUTPUT_COUNTS_CELL, physical - summary.decode_count)
   write_i32(host.counts, OUTPUT_COUNTS_CELL + 1, summary.decode_count)

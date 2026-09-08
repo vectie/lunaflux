@@ -282,6 +282,7 @@ pub struct OrderedKernelLaunch {
   // private fields
 }
 pub fn OrderedKernelLaunch::new(Function, KernelLaunchDimensions, KernelArguments) -> Self
+pub fn OrderedKernelLaunch::with_arguments(Self, KernelArguments) -> Self
 
 pub(all) enum ProbeResult {
   Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])

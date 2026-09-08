@@ -109,6 +109,7 @@ fn prepare_paged_effect_only_executor(
     resource: executor,
     operation_ids: prefix_ids,
     effect_only_owner_index: -1,
+    mixed_owner_index: -1,
     open: true,
   })
   if captured && executor.execution_mode() != OrderedKernelCaptured {

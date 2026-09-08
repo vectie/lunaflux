@@ -10,6 +10,17 @@ pub fn OrderedKernelLaunch::new(
 }
 
 ///|
+/// Creates an immutable operand specialization without changing the selected
+/// function or its complete launch geometry. This is a startup planning value;
+/// it cannot update an existing executor or captured graph.
+pub fn OrderedKernelLaunch::with_arguments(
+  self : OrderedKernelLaunch,
+  arguments : KernelArguments,
+) -> OrderedKernelLaunch {
+  { ..self, arguments, }
+}
+
+///|
 /// Builds one reusable ordered queue. The native create boundary revalidates
 /// every record, acquires long-lived leases for its stream, functions, and
 /// argument allocations, and creates its sole completion event atomically.

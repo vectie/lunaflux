@@ -18,6 +18,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     modules: [],
     functions: [],
     projection_variants: [],
+    attention_phase_replacements: [],
     ordered_executors: [],
     effect_operation_prefix: 0,
     effect_capture_budget: effect_capture_budget(GraphMemoryUnsupported),

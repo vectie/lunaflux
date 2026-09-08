@@ -174,6 +174,7 @@ fn prepare_qwen_fused_attention_launch(
   weight : @device.Allocation,
   activation : @device.Allocation,
   kv : @device.Allocation,
+  prefill_only? : Bool = false,
 ) -> PreparedPagedGraphStep raise DeviceStepError {
   if sidecar_binding_index < 0 || sidecar_binding_index >= bindings.length() {
     raise executor_operation_error(operation, ResourceState)
@@ -181,7 +182,9 @@ fn prepare_qwen_fused_attention_launch(
   let arguments : Array[@device.KernelArgument] = []
   for index, binding in bindings {
     arguments.push(
-      if index == sidecar_binding_index {
+      if prefill_only && binding.role() == RuntimeInput(StepCounts) {
+        prefill_attention_counts_argument(descriptor)
+      } else if index == sidecar_binding_index {
         qwen_fused_sidecar_argument(binding, sidecar)
       } else {
         composite_binding_argument(binding, descriptor, weight, activation, kv)
@@ -211,6 +214,7 @@ fn prepare_qwen_fused_attention_steps(
   activation : @device.Allocation,
   kv : @device.Allocation,
   sidecar : @device.Allocation,
+  prefill_only? : Bool = false,
 ) -> (PreparedPagedGraphStep, PreparedPagedGraphStep) raise DeviceStepError {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = span.operation_indices()
   guard blueprint.steps().get(qkv_index) is Some(qkv_step) &&
@@ -353,6 +357,7 @@ fn prepare_qwen_fused_attention_steps(
       weight,
       activation,
       kv,
+      prefill_only~,
     ),
   )
 }
@@ -560,6 +565,35 @@ fn prepare_qwen_partitioned_prefill_steps(
         ),
       ),
     )
+    if span.has_phase_specific_attention() {
+      let decode = paged_attention_decode_companion(
+        resources,
+        attention_step.operation_id(),
+      )
+      guard decode is Some(_) else { raise InvalidExecutor(GraphBucket) }
+      partial_arguments[0] = prefill_attention_counts_argument(descriptor)
+      merge_arguments[0] = prefill_attention_counts_argument(descriptor)
+      register_attention_phase_replacement(
+        resources,
+        qwen_partitioned_prefill_step(
+          attention_step.operation_id(),
+          partial_function,
+          pipeline.partial_launch,
+          partial_arguments,
+        ),
+        None,
+      )
+      register_attention_phase_replacement(
+        resources,
+        qwen_partitioned_prefill_step(
+          attention_step.operation_id(),
+          merge_function,
+          pipeline.merge_launch,
+          merge_arguments,
+        ),
+        decode,
+      )
+    }
   }
   Some(
     replace_paged_decode_split_steps(

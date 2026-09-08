@@ -389,6 +389,7 @@ fn prepare_one_paged_ordered_executor(
   operation_ids : ReadOnlyArray[@plan.OperationId],
   resources : PagedGraphResources,
   policy : @device.OrderedKernelExecutionPolicy,
+  source_steps? : ReadOnlyArray[PreparedPagedGraphStep],
 ) -> Int raise DeviceStepError {
   guard resources.stream is Some(stream) && stream.open else {
     raise InvalidExecutor(ResourceState)
@@ -408,8 +409,14 @@ fn prepare_one_paged_ordered_executor(
     resource: executor,
     operation_ids,
     effect_only_owner_index: -1,
+    mixed_owner_index: -1,
     open: true,
   })
+  if source_steps is Some(steps) {
+    prepare_mixed_attention_executor(
+      context, steps, launches, resources, owner_index,
+    )
+  }
   prepare_paged_effect_only_executor(
     context, launches, operation_ids, resources, owner_index,
   )
@@ -479,6 +486,7 @@ fn prepare_paged_ordered_executors(
             baseline_operation_ids,
             resources,
             OrderedKernelEagerOnly,
+            source_steps=steps,
           )
           map_paged_prefill_capture_owner(
             table,
@@ -501,6 +509,7 @@ fn prepare_paged_ordered_executors(
               baseline_operation_ids,
               resources,
               OrderedKernelEagerOnly,
+              source_steps=steps,
             )
             map_paged_decode_capture_owner(
               table, bound, bound, owner, slot_owner_indices,
@@ -514,6 +523,7 @@ fn prepare_paged_ordered_executors(
         baseline_operation_ids,
         resources,
         OrderedKernelEagerOnly,
+        source_steps=steps,
       )
       fallback_owner_index
     }
@@ -537,6 +547,7 @@ fn prepare_paged_ordered_executors(
             baseline_operation_ids,
             resources,
             paged_ordered_device_policy(graph_policy),
+            source_steps=steps,
           )
           map_paged_prefill_capture_owner(
             table,
@@ -559,6 +570,7 @@ fn prepare_paged_ordered_executors(
               baseline_operation_ids,
               resources,
               paged_ordered_device_policy(graph_policy),
+              source_steps=steps,
             )
             map_paged_decode_capture_owner(
               table, bound, bound, owner, slot_owner_indices,
@@ -572,6 +584,7 @@ fn prepare_paged_ordered_executors(
         baseline_operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=steps,
       )
       for slot in paged_maximum_graph_slots(table, profile) {
         if slot_owner_indices[slot] < 0 {
@@ -605,6 +618,7 @@ fn prepare_paged_ordered_executors(
             operation_ids,
             resources,
             paged_ordered_device_policy(graph_policy),
+            source_steps=selected,
           )
           map_paged_prefill_capture_owner(
             table, 1, bound, owner, prefill_split_slot_owner_indices,
@@ -618,6 +632,7 @@ fn prepare_paged_ordered_executors(
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=selected,
       )
     }
     None => -1
@@ -634,6 +649,7 @@ fn prepare_paged_ordered_executors(
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=selected,
       )
     }
     None => -1
@@ -658,6 +674,7 @@ fn prepare_paged_ordered_executors(
               operation_ids,
               resources,
               paged_ordered_device_policy(graph_policy),
+              source_steps=selected,
             )
             map_paged_prefill_capture_owner(
               table,
@@ -676,6 +693,7 @@ fn prepare_paged_ordered_executors(
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=selected,
       )
     }
     None => -1
@@ -705,6 +723,7 @@ fn prepare_paged_ordered_executors(
             operation_ids,
             resources,
             paged_ordered_device_policy(graph_policy),
+            source_steps=selected,
           )
           map_paged_decode_capture_owner(
             table, bound, bound, owner, slot_owner_indices,
@@ -718,6 +737,7 @@ fn prepare_paged_ordered_executors(
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=selected,
       )
     }
     None => -1
@@ -734,6 +754,7 @@ fn prepare_paged_ordered_executors(
         operation_ids,
         resources,
         paged_ordered_device_policy(graph_policy),
+        source_steps=selected,
       )
     }
     None => -1
