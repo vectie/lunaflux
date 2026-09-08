@@ -37,7 +37,7 @@ test "transfer frontier retains overlap alternatives without selecting them blin
   }
   // Hardware availability is not a performance observation. The conservative
   // resource-feedback choice stays synchronous at this high-query shape.
-  assert_eq(frontier.selected().plan().candidate().stable_id(), 312)
+  assert_eq(frontier.selected().plan().candidate().stable_id(), 313)
   assert_eq(frontier.selected().plan().source(), AttentionStaticCostModel)
   assert_eq(frontier, compile_attention_tile_frontier(request))
   let unsupported = compile_attention_tile_frontier(

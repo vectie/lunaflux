@@ -32,3 +32,11 @@ The immutable layout owns offsets, lifetimes, and peak storage, all bound into
 the schedule identity. CUDA consumes those offsets rather than recalculating
 them. This is storage extraction for the existing online-softmax rewrite,
 not yet a general arbitrary-IR allocator or a cross-iteration alias proof.
+
+Register-resident output folds now have disjoint prologue and terminal shared
+lifetimes. Their temporary layout probe and final output reuse the query/K
+prefix; terminal maximum/denominator reuse the dead score region. The prologue
+ends before query staging, and the terminal store begins after the final fold.
+The generic allocator describes these phases; the device lowering inserts the
+corresponding synchronization and pointer types. This removes the redundant
+full-iteration output allocation without changing the ordered arithmetic.

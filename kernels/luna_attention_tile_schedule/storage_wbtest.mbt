@@ -19,7 +19,14 @@ test "online softmax storage never overlaps simultaneously live values" {
         .matrix_storage_layout()
         .unwrap(),
       )
-      assert_eq(layout.spans().length(), 11)
+      assert_eq(
+        layout.spans().length(),
+        if schedule.output_fold_storage() == SubgroupResidentOutputFold {
+          12
+        } else {
+          11
+        },
+      )
       for i, left in layout.spans() {
         let (offset, bytes) = left.range()
         assert_true(

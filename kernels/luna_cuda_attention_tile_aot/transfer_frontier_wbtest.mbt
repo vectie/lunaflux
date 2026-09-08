@@ -58,7 +58,7 @@ test "available async schedules survive the complete AOT frontier" {
   )
   assert_eq(
     frontier.selected().functional().plan().candidate().stable_id(),
-    312,
+    313,
   )
   assert_eq(frontier.selected().source().symbol(), "prefill_transfer")
   for id in [316, 317] {

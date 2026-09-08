@@ -96,6 +96,7 @@ pub(all) enum AttentionTileStorageRole {
   TerminalDenominatorStorage
   ValidationStorage
   QueryBoundsStorage
+  AccumulatorLayoutProbeStorage
 } derive(Eq, @debug.Debug)
 
 pub struct AttentionTileStorageSpan {

@@ -384,6 +384,11 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  extern __shared__ __align__(16) unsigned char shared_arena[];
     $|\{shared_layout}
     $|
+    $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
+    $|    accumulator[linear] = \{initial_accumulator};
+    $|  __syncthreads();
+    $|\{resident_declaration}
+    $|
     $|  const int query_vector_count = LF_QUERY_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
     $|  for (int vector = thread; vector < query_vector_count; vector += LF_BLOCK_THREADS) {
     $|    const int first_value = vector * LF_VALUES_PER_VECTOR;
@@ -398,11 +403,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    }
     $|    *reinterpret_cast<uint4 *>(query_tile + first_value) = packed;
     $|  }
-    $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
-    $|    accumulator[linear] = \{initial_accumulator};
     $|\{shared_state_initialization}
     $|  __syncthreads();
-    $|\{resident_declaration}
     $|
     $|  int maximum_query_position = query_positions[token_base];
     $|  if (thread == 0) {

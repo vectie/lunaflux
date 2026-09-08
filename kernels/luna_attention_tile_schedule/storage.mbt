@@ -11,10 +11,11 @@ pub(all) enum AttentionTileStorageRole {
   TerminalDenominatorStorage
   ValidationStorage
   QueryBoundsStorage
+  AccumulatorLayoutProbeStorage
 } derive(Debug, Eq)
 
 ///|
-/// Half-open lifetimes within one ordered tile iteration: 0 = staging,
+/// Half-open lifetimes: -1 = layout prologue, 0 = staging,
 /// 1 = QK, 2 = softmax, 3 = PV, 4 = terminal fold-state export.
 /// Iteration barriers make reuse between these phases explicit in lowering.
 pub struct AttentionTileStorageSpan {
@@ -118,105 +119,144 @@ fn plan_attention_matrix_storage(
   let value_offset = key_offset + key_group_bytes
   let score_offset = value_offset + attention_storage_align(key_bytes)
   let score_bytes = q * k * 4L
-  let accumulator_offset = score_offset + attention_storage_align(score_bytes)
   let accumulator_bytes = q * d * 4L
-  let probability_offset = if overlaps_fold {
-    accumulator_offset + attention_storage_align(accumulator_bytes)
+  let resident = output_fold_storage(
+      program.candidate().compute(),
+      query,
+      head,
+      program.candidate().execution_geometry().0,
+    ) ==
+    SubgroupResidentOutputFold
+  let fold_end = score_offset + attention_storage_align(score_bytes)
+  // The register-carried output needs shared storage only before staging and
+  // after the final fold. Reuse the input prefix during these disjoint phases.
+  let accumulator_offset = if resident { 0L } else { fold_end }
+  let output_end = if resident {
+    fold_end
   } else {
-    key_offset
+    accumulator_offset + attention_storage_align(accumulator_bytes)
   }
+  let probability_offset = if overlaps_fold { output_end } else { key_offset }
   let validation_offset = if overlaps_fold {
     probability_offset +
     attention_storage_align(probability_bytes + scale_bytes)
   } else {
     score_offset + score_bytes - 4L
   }
+  let spans : Array[AttentionTileStorageSpan] = [
+    {
+      role: QueryStorage,
+      offset: 0L,
+      bytes: query_bytes,
+      begin: 0,
+      end: if resident {
+        4
+      } else {
+        5
+      },
+    },
+    {
+      role: KeyStorage,
+      offset: key_offset,
+      bytes: key_bytes,
+      begin: 0,
+      end: if overlaps_fold {
+        4
+      } else {
+        2
+      },
+    },
+    {
+      role: ValueStorage,
+      offset: value_offset,
+      bytes: key_bytes,
+      begin: 0,
+      end: 4,
+    },
+    {
+      role: ScoreStorage,
+      offset: score_offset,
+      bytes: score_bytes,
+      begin: 1,
+      end: 3,
+    },
+    {
+      role: ProbabilityStorage,
+      offset: probability_offset,
+      bytes: probability_bytes,
+      begin: 2,
+      end: 4,
+    },
+    {
+      role: AccumulatorStorage,
+      offset: accumulator_offset,
+      bytes: accumulator_bytes,
+      begin: if resident {
+        4
+      } else {
+        0
+      },
+      end: 5,
+    },
+    {
+      role: PreviousScaleStorage,
+      offset: probability_offset + probability_bytes,
+      bytes: scale_bytes,
+      begin: 2,
+      end: 4,
+    },
+    {
+      role: TerminalMaximumStorage,
+      offset: if resident {
+        score_offset
+      } else {
+        key_offset
+      },
+      bytes: scale_bytes,
+      begin: 4,
+      end: 5,
+    },
+    {
+      role: TerminalDenominatorStorage,
+      offset: (if resident { score_offset } else { key_offset }) + scale_bytes,
+      bytes: scale_bytes,
+      begin: 4,
+      end: 5,
+    },
+    {
+      role: ValidationStorage,
+      offset: validation_offset,
+      bytes: 4L,
+      begin: 0,
+      end: if overlaps_fold {
+        4
+      } else {
+        1
+      },
+    },
+    {
+      role: QueryBoundsStorage,
+      offset: score_offset,
+      bytes: 4L,
+      begin: 0,
+      end: 1,
+    },
+  ]
+  if resident {
+    spans.push({
+      role: AccumulatorLayoutProbeStorage,
+      offset: accumulator_offset,
+      bytes: accumulator_bytes,
+      begin: -1,
+      end: 0,
+    })
+  }
   {
-    spans: ReadOnlyArray::from_array([
-      { role: QueryStorage, offset: 0L, bytes: query_bytes, begin: 0, end: 5 },
-      {
-        role: KeyStorage,
-        offset: key_offset,
-        bytes: key_bytes,
-        begin: 0,
-        end: if overlaps_fold {
-          4
-        } else {
-          2
-        },
-      },
-      {
-        role: ValueStorage,
-        offset: value_offset,
-        bytes: key_bytes,
-        begin: 0,
-        end: 4,
-      },
-      {
-        role: ScoreStorage,
-        offset: score_offset,
-        bytes: score_bytes,
-        begin: 1,
-        end: 3,
-      },
-      {
-        role: ProbabilityStorage,
-        offset: probability_offset,
-        bytes: probability_bytes,
-        begin: 2,
-        end: 4,
-      },
-      {
-        role: AccumulatorStorage,
-        offset: accumulator_offset,
-        bytes: accumulator_bytes,
-        begin: 0,
-        end: 5,
-      },
-      {
-        role: PreviousScaleStorage,
-        offset: probability_offset + probability_bytes,
-        bytes: scale_bytes,
-        begin: 2,
-        end: 4,
-      },
-      {
-        role: TerminalMaximumStorage,
-        offset: key_offset,
-        bytes: scale_bytes,
-        begin: 4,
-        end: 5,
-      },
-      {
-        role: TerminalDenominatorStorage,
-        offset: key_offset + scale_bytes,
-        bytes: scale_bytes,
-        begin: 4,
-        end: 5,
-      },
-      {
-        role: ValidationStorage,
-        offset: validation_offset,
-        bytes: 4L,
-        begin: 0,
-        end: if overlaps_fold {
-          4
-        } else {
-          1
-        },
-      },
-      {
-        role: QueryBoundsStorage,
-        offset: score_offset,
-        bytes: 4L,
-        begin: 0,
-        end: 1,
-      },
-    ]),
+    spans: ReadOnlyArray::from_array(spans),
     peak_bytes: if overlaps_fold {
       validation_offset + 16L
     } else {
-      accumulator_offset + attention_storage_align(accumulator_bytes)
+      output_end
     },
   }
 }

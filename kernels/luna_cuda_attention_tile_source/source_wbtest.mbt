@@ -304,7 +304,7 @@ test "dual-matrix source lowers probability-value multiplication to MMA" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(310))
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.tile(), (16, 32, 128))
-  assert_eq(lowering.launch(), (128, 16, 256, 30720L))
+  assert_eq(lowering.launch(), (128, 16, 256, 22528L))
   let source = @utf8.decode(
     emit_cuda_attention_tile_source(
       lowering,
@@ -369,7 +369,7 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(313))
   assert_eq(lowering.compute(), CudaMatrixQkPvMultiplyAccumulate)
   assert_eq(lowering.tile(), (32, 64, 128))
-  assert_eq(lowering.launch(), (128, 16, 256, 65536L))
+  assert_eq(lowering.launch(), (128, 16, 256, 49152L))
   let source = @utf8.decode(
     emit_cuda_attention_tile_source(
       lowering,
@@ -387,7 +387,7 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
   assert_true(source.contains("float fold_maximum[LF_QUERY_STATE_SLOTS]"))
   assert_true(
     source.contains(
-      "float *running_denominator = reinterpret_cast<float *>(shared_arena + 8320)",
+      "float *running_denominator = reinterpret_cast<float *>(shared_arena + 41088)",
     ),
   )
   assert_false(
