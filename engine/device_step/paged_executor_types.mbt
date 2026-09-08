@@ -69,6 +69,7 @@ priv struct PagedOrderedExecutorDispatch {
   slot_owner_indices : FixedArray[Int]
   prefill_wide_slot_owner_indices : FixedArray[Int]
   prefill_split_slot_owner_indices : FixedArray[Int]
+  decode_split_slot_owner_indices : FixedArray[Int]
   fallback_owner_index : Int
   telemetry_owner_index : Int
   prefill_wide_owner_index : Int

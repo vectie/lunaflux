@@ -109,6 +109,13 @@ fn PagedOrderedExecutorDispatch::select(
     DecodeSplitAttentionPhase &&
     context_tokens >= self.decode_split_minimum_context_tokens &&
     batch_rows <= self.decode_split_maximum_batch_rows {
+    let slot = bucket.slot()
+    if slot >= 0 && slot < self.decode_split_slot_owner_indices.length() {
+      let owner = self.decode_split_slot_owner_indices[slot]
+      if owner >= 0 {
+        return owner
+      }
+    }
     return self.decode_split_owner_index
   }
   if self.prefill_wide_owner_index >= 0 &&

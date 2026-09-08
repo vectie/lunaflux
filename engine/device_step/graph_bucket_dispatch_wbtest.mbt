@@ -22,6 +22,10 @@ fn graph_dispatch_fixture(
     profile,
     {
       slot_owner_indices,
+      decode_split_slot_owner_indices: FixedArray::make(
+        table.bucket_count(),
+        -1,
+      ),
       prefill_wide_slot_owner_indices: FixedArray::make(
         table.bucket_count(),
         -1,
@@ -281,6 +285,7 @@ test "phase-specific decode owners replace baseline slots without touching prefi
   let (table, profile, baseline) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
     slot_owner_indices: baseline.slot_owner_indices,
+    decode_split_slot_owner_indices: baseline.decode_split_slot_owner_indices,
     prefill_wide_slot_owner_indices: baseline.prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices: baseline.prefill_split_slot_owner_indices,
     fallback_owner_index: baseline.fallback_owner_index,

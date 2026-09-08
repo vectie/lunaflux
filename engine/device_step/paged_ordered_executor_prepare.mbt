@@ -332,6 +332,7 @@ fn paged_ordered_launches(
   resources : PagedGraphResources,
   query_token_bound? : Int? = None,
   phase? : PagedBucketLaunchPhase = BaselineLaunch,
+  launch_rules? : FixedArray[PagedBucketStepLaunch]? = None,
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
@@ -364,7 +365,11 @@ fn paged_ordered_launches(
     let dimensions = match
       (query_token_bound, resources.graph_launch_contract) {
       (Some(bound), Some(contract)) =>
-        match paged_phase_bucket_rule(contract, phase, index) {
+        match
+          (match launch_rules {
+            Some(rules) => rules[index]
+            None => paged_phase_bucket_rule(contract, phase, index)
+          }) {
           FixedBucketLaunch => step.dimensions
           rule =>
             paged_device_launch_dimensions(paged_bucket_launch(rule, bound))
@@ -424,17 +429,6 @@ fn prepare_one_paged_ordered_executor(
 }
 
 ///|
-fn paged_ordered_device_policy(
-  policy : PagedGraphExecutionPolicy,
-) -> @device.OrderedKernelExecutionPolicy {
-  match policy {
-    PagedOrderedEagerOnly => OrderedKernelEagerOnly
-    PagedCapturedRequired => OrderedKernelCaptureRequired
-    PagedCapturedWithEagerFallback => OrderedKernelCaptureWithEagerFallback
-  }
-}
-
-///|
 fn prepare_paged_ordered_executors(
   context : @device.Context,
   steps : ReadOnlyArray[PreparedPagedGraphStep],
@@ -462,6 +456,10 @@ fn prepare_paged_ordered_executors(
     steps.map(step => step.operation_id),
   )
   let slot_owner_indices = FixedArray::make(table.bucket_count(), -1)
+  let decode_split_slot_owner_indices = FixedArray::make(
+    table.bucket_count(),
+    -1,
+  )
   let prefill_wide_slot_owner_indices = FixedArray::make(
     table.bucket_count(),
     -1,
@@ -748,6 +746,20 @@ fn prepare_paged_ordered_executors(
       let operation_ids = ReadOnlyArray::from_array(
         selected.map(step => step.operation_id),
       )
+      prepare_decode_split_bucket_owners(
+        context,
+        table,
+        profile,
+        match decode_steps {
+          Some(decode) => decode
+          None => steps
+        },
+        selected,
+        operation_ids,
+        resources,
+        graph_policy,
+        decode_split_slot_owner_indices,
+      )
       prepare_one_paged_ordered_executor(
         context,
         launches[:],
@@ -763,6 +775,7 @@ fn prepare_paged_ordered_executors(
     slot_owner_indices,
     prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices,
+    decode_split_slot_owner_indices,
     fallback_owner_index,
     telemetry_owner_index,
     prefill_wide_owner_index,

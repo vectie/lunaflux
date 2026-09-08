@@ -61,6 +61,10 @@ fn dummy_paged_executor(
     graph_telemetry: new_paged_graph_telemetry(OrderedKernelEager, None),
     graph_bucket_table,
     ordered_dispatch: {
+      decode_split_slot_owner_indices: FixedArray::make(
+        graph_bucket_table.bucket_count(),
+        -1,
+      ),
       slot_owner_indices: FixedArray::make(
         graph_bucket_table.bucket_count(),
         -1,
