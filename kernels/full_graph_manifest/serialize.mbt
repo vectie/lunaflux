@@ -61,9 +61,18 @@ fn append_manifest_modules(
           }
           let d = variant.dimensions()
           output <+
-            "{\"maximum_token_rows\":\{variant.maximum_token_rows()},\"symbol\":\"\{variant.function_symbol()}\",\"grid_x\":\{d.grid_x()},\"block_x\":\{d.block_x()},\"shared_memory_bytes\":\{d.shared_memory_bytes()}}"
+            "{\"maximum_token_rows\":\{variant.maximum_token_rows()},\"symbol\":\"\{variant.function_symbol()}\",\"grid_x\":\{d.grid_x()},\"block_x\":\{d.block_x()},\"shared_memory_bytes\":\{d.shared_memory_bytes()}"
+          if variant.companion_dimensions() is Some(companion) {
+            output.write_string(",\"companion_dimensions\":")
+            append_manifest_dimensions(output, companion)
+          }
+          output.write_string("}")
         }
         output.write_string("]")
+      }
+      if entry.companion_dimensions is Some(companion) {
+        output.write_string(",\"companion_dimensions\":")
+        append_manifest_dimensions(output, companion)
       }
       output.write_string("}")
       entry_count += 1

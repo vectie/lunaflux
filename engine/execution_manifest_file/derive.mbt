@@ -310,6 +310,7 @@ fn derive_artifact_source(
           ),
           function_symbol=entry.symbol,
           row_variants=entry.row_variants,
+          companion_dimensions=entry.companion_dimensions,
         ),
       )
     }

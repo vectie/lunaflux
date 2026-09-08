@@ -80,6 +80,7 @@ fn collect_manifest_modules(
       entry_point_id: entry_point.entry_point_id(),
       function_symbol: artifact.function_symbol,
       row_variants: artifact.row_variants,
+      companion_dimensions: artifact.companion_dimensions,
     }
     match manifest_module_index(modules, digest) {
       Some(module_index) => {
@@ -96,7 +97,9 @@ fn collect_manifest_modules(
           Some(entry_index) =>
             if item.entries[entry_index].function_symbol !=
               entry.function_symbol ||
-              item.entries[entry_index].row_variants != entry.row_variants {
+              item.entries[entry_index].row_variants != entry.row_variants ||
+              item.entries[entry_index].companion_dimensions !=
+              entry.companion_dimensions {
               raise Mismatch(rule=FunctionSymbol, operation_index=index)
             }
           None => insert_manifest_entry(item.entries, entry)
@@ -129,6 +132,7 @@ fn collect_manifest_modules(
           ),
           function_symbol=entry.function_symbol,
           row_variants=entry.row_variants,
+          companion_dimensions=entry.companion_dimensions,
         ),
       )
     }

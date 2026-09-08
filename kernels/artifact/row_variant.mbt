@@ -5,6 +5,7 @@ pub struct KernelRowVariant {
   priv maximum_token_rows : Int
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
+  priv companion_dimensions : @launch_contract.AotLaunchDimensions?
 } derive(Debug, Eq)
 
 ///|
@@ -12,8 +13,9 @@ pub fn KernelRowVariant::new(
   maximum_token_rows~ : Int,
   function_symbol~ : String,
   dimensions~ : @launch_contract.AotLaunchDimensions,
+  companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
 ) -> KernelRowVariant {
-  { maximum_token_rows, function_symbol, dimensions }
+  { maximum_token_rows, function_symbol, dimensions, companion_dimensions }
 }
 
 ///|

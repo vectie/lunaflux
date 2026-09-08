@@ -135,6 +135,9 @@ fn projection_finish_candidate(
     function_symbol: symbol,
     source,
     row_variants,
+    companion_dimensions: projection_companion_dimensions(
+      parameters, dispatch_plan, profile, tile_compilation,
+    ),
     source_digest,
     recipe,
     recipe_digest: ProjectionCudaRecipeDigest(projection_sha256(recipe)),

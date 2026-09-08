@@ -56,7 +56,7 @@ fn prepare_projection_bucket_launches(
             )
           } else {
             ProjectionMlpDownGridX(
-              source,
+              step.companion_dimensions.unwrap_or(source),
               paged_projection_output_width(blueprint, step),
             )
           }

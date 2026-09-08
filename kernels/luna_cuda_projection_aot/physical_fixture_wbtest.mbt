@@ -10,7 +10,7 @@ test "current compiler retains physical fixture sources with current recipes" {
     // fixtures were recorded. Source hashes stay pinned; these recipe hashes
     // describe current compilation, not a new physical qualification.
     "f499ebe600cd830d364c7439896bca84d676a53314a3abc3a706039208b00430", "615a6a1a7170cb6f23bab198e724db7d64fb0d10337ead7f1a0c58edeb89659f",
-    "b405ea51d174b481b066bbc46292d2ad4766af2c1b87393f9846dab2efa62a0e", "e7d31acd21d0b63fc02c2f5f80f0dbc0fb3d1e6418733150c97c3966689cdbfe",
+    "fc3477d46718c8ad9c45fb91a70c618d7e3715dc242061533bd57d358e5c1fca", "e7d31acd21d0b63fc02c2f5f80f0dbc0fb3d1e6418733150c97c3966689cdbfe",
   ]
   for index, case in cases {
     let (name, operation) = case

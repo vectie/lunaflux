@@ -61,15 +61,16 @@ fn projection_mlp_source(
 /// per 256-column group. Prompt down projection uses four live warps per
 /// 64-column group so narrow hidden states occupy the whole GPU; a grid-stride
 /// loop still covers the complete admitted token envelope. Decode retains the
-/// 16-warp GEMV path. Both launches share one model-wide BF16 workspace.
+/// subgroup GEMV path with independently declared workgroups. Both launches
+/// share one model-wide BF16 workspace.
 fn projection_tensor_core_mlp_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   reuse_input_tile : Bool,
   groups? : Int = 16,
+  down_groups~ : Int,
 ) -> Bytes {
-  let down_groups = Int::min(4, groups)
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
@@ -173,10 +174,10 @@ fn projection_tensor_core_mlp_source(
     symbol +
     "_down(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {\n" +
     projection_count_guard(maximum_tokens) +
-    "  if (blockDim.x != \{groups * 32}) return;\n" +
+    "  if (blockDim.x != \{down_groups * 32}) return;\n" +
     "  const int warp = (int)threadIdx.x >> 5, lane = (int)threadIdx.x & 31;\n" +
     "  if (token_count == 1) {\n" +
-    "    const int output_column = (int)blockIdx.x * \{groups} + warp;\n" +
+    "    const int output_column = (int)blockIdx.x * \{down_groups} + warp;\n" +
     "    if (output_column >= " +
     parameters.output_width.to_string() +
     ") return;\n" +
@@ -398,6 +399,10 @@ fn projection_source(
           maximum_tokens,
           tile_compilation.schedule().reuse_input_tile(),
           groups=tile_compilation.schedule().output_tiles_per_workgroup(),
+          down_groups=tile_compilation
+            .schedule()
+            .companion_output_tiles_per_workgroup()
+            .unwrap(),
         )
       } else if use_shared_mlp {
         projection_mlp_shared_source(symbol, parameters, maximum_tokens)

@@ -355,6 +355,12 @@ fn projection_schedule_canonical(
   }
   builder <+
     "reuse_intermediate_tile=\{optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles)}\n"
+  if optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles) {
+    let tiles = projection_companion_output_tiles(
+      dispatch.prefill().output_tiles_per_workgroup(),
+    )
+    builder <+ "companion_output_tiles_per_workgroup=\{tiles}\n"
+  }
   let rotary_optimized = optimized.optimization.applied(
     FuseAttentionIngressEpilogue,
   )

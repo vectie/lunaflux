@@ -42,6 +42,7 @@ fn validate_bootstrap_inputs(
     }
     if admitted.module_index() != step.artifact_module_index() ||
       admitted.function_symbol() != step.function_symbol() ||
+      admitted.companion_dimensions() != step.companion_dimensions ||
       @utf8.encode(step.function_symbol()).length() > limits.max_symbol_bytes {
       raise InvalidBootstrap(Artifact)
     }
@@ -123,6 +124,10 @@ fn encode_bootstrap(
     encoder.append_entry_identity(entry.identity())
     encoder.append_int(entry.module_index())
     encoder.append_string(entry.function_symbol())
+    if entry.companion_dimensions() is Some(dimensions) {
+      encoder.append_string("companion-launch-v1")
+      encoder.append_dimensions(dimensions)
+    }
     if !entry.row_variants().is_empty() {
       encoder.append_string("token-row-variants-v1")
       encoder.append_int(entry.row_variants().length())
@@ -137,6 +142,10 @@ fn encode_bootstrap(
         encoder.append_int(dimensions.block_y())
         encoder.append_int(dimensions.block_z())
         encoder.append_int(dimensions.shared_memory_bytes())
+        if variant.companion_dimensions() is Some(companion) {
+          encoder.append_string("companion-launch-v1")
+          encoder.append_dimensions(companion)
+        }
       }
     }
   }

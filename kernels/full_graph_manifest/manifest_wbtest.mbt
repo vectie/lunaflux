@@ -90,12 +90,18 @@ fn full_manifest_artifacts(
               maximum_token_rows=1,
               function_symbol="kernel_1_rows1",
               dimensions~,
+              companion_dimensions=Some(full_manifest_dimensions(8)),
             ),
           ]
         } else {
           []
         },
         dimensions~,
+        companion_dimensions=if with_row_variant && index == 0 {
+          Some(full_manifest_dimensions(9))
+        } else {
+          None
+        },
         operands~,
         workspace_bytes=contract.workspace_bytes(),
         workspace_alignment=contract.workspace_alignment(),
@@ -132,6 +138,16 @@ test "row specialization metadata survives canonical manifest serialization" {
         assert_eq(variants[0].maximum_token_rows(), 1)
         assert_eq(variants[0].function_symbol(), "kernel_1_rows1")
         assert_eq(variants[0].dimensions(), full_manifest_dimensions(0))
+        assert_eq(
+          variants[0].companion_dimensions(),
+          Some(full_manifest_dimensions(8)),
+        )
+        assert_eq(
+          @artifact_file.decode_companion_dimensions(
+            fields["companion_dimensions"],
+          ),
+          full_manifest_dimensions(9),
+        )
         count += 1
       }
     }

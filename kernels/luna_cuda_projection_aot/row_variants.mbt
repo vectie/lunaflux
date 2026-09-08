@@ -94,6 +94,9 @@ fn projection_row_variant_sources(
         maximum_token_rows=bound,
         function_symbol=variant_symbol,
         dimensions~,
+        companion_dimensions=projection_companion_dimensions(
+          parameters, dispatch, variant_profile, compilation,
+        ),
       ),
     )
   }

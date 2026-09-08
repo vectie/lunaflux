@@ -12,6 +12,9 @@ fn parse_entry_claim(
   if object.contains("row_variants") {
     fields.push("row_variants")
   }
+  if object.contains("companion_dimensions") {
+    fields.push("companion_dimensions")
+  }
   validate_fields(object, Module, fields)
   let family_id = @catalog.AotKernelFamilyId::from_stable_int(
     require_nonnegative_int(object, "family_id", Module, index=entry_index),
@@ -35,7 +38,16 @@ fn parse_entry_claim(
         _ => raise invalid_field(Module, UnsupportedValue, index=entry_index)
       }
   }
-  { family_id, entry_point_id, symbol, row_variants }
+  let companion_dimensions = match object.get("companion_dimensions") {
+    None => None
+    Some(value) =>
+      Some(
+        @artifact_file.decode_companion_dimensions(value) catch {
+          _ => raise invalid_field(Module, UnsupportedValue, index=entry_index)
+        },
+      )
+  }
+  { family_id, entry_point_id, symbol, row_variants, companion_dimensions }
 }
 
 ///|

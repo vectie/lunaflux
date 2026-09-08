@@ -32,6 +32,7 @@ priv struct ManifestEntryClaim {
   entry_point_id : @catalog.AotKernelEntryPointId
   symbol : String
   row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
+  companion_dimensions : @launch_contract.AotLaunchDimensions?
 }
 
 ///|

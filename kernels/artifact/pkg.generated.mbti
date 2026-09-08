@@ -86,6 +86,7 @@ pub fn KernelArtifactLimits::new(max_modules~ : Int, max_entry_points~ : Int, ma
 pub struct KernelEntryPoint {
   // private fields
 }
+pub fn KernelEntryPoint::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn KernelEntryPoint::function_symbol(Self) -> String
 pub fn KernelEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
 pub fn KernelEntryPoint::module_index(Self) -> Int
@@ -94,9 +95,10 @@ pub fn KernelEntryPoint::row_variants(Self) -> ReadOnlyArray[KernelRowVariant]
 pub struct KernelEntryPointInput {
   // private fields
 }
+pub fn KernelEntryPointInput::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn KernelEntryPointInput::function_symbol(Self) -> String
 pub fn KernelEntryPointInput::identity(Self) -> @catalog.AotKernelEntryPoint
-pub fn KernelEntryPointInput::new(entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String, row_variants? : ArrayView[KernelRowVariant]) -> Self
+pub fn KernelEntryPointInput::new(entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String, row_variants? : ArrayView[KernelRowVariant], companion_dimensions? : @launch_contract.AotLaunchDimensions?) -> Self
 pub fn KernelEntryPointInput::row_variants(Self) -> ReadOnlyArray[KernelRowVariant]
 
 pub struct KernelModule {
@@ -114,10 +116,11 @@ pub fn KernelModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes
 pub struct KernelRowVariant {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn KernelRowVariant::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn KernelRowVariant::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn KernelRowVariant::function_symbol(Self) -> String
 pub fn KernelRowVariant::maximum_token_rows(Self) -> Int
-pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions) -> Self
+pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, companion_dimensions? : @launch_contract.AotLaunchDimensions?) -> Self
 
 // Type aliases
 

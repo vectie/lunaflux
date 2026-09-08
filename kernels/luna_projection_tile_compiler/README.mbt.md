@@ -55,6 +55,10 @@ speedup or change their floating-point evaluation order.
 Gated MLP is represented as a pure value graph rather than an opaque kernel:
 two sibling dot products consume one input value, SiLU gating produces one
 intermediate value, and the down-projection fold consumes that intermediate.
+The consumer map has its own output-tile distribution, independent of the
+producer's workgroup. This policy is part of schedule identity; CUDA lowers it
+to separate launch dimensions without changing the ordered reduction or BF16
+materialization boundary. See [companion launch results](../../docs/COMPILER_COMPANION_LAUNCH.md).
 The middle end therefore records sibling-traversal fusion and intermediate-tile
 reuse once. A device backend lowers those sharing decisions to its own local
 memory and synchronization primitives; model code never names them.

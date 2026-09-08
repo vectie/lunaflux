@@ -29,13 +29,17 @@ fn parse_row_variants(
         index~,
       )
     }
-    validate_fields(fields, ManifestEntryPoint, [
+    let allowed = [
       ("maximum_token_rows", EntryPointsField),
       ("symbol", FunctionSymbolField),
       ("grid_x", EntryPointsField),
       ("block_x", EntryPointsField),
       ("shared_memory_bytes", EntryPointsField),
-    ])
+    ]
+    if fields.contains("companion_dimensions") {
+      allowed.push(("companion_dimensions", EntryPointsField))
+    }
+    validate_fields(fields, ManifestEntryPoint, allowed)
     let symbol = require_string(
       fields,
       "symbol",
@@ -81,6 +85,7 @@ fn parse_row_variants(
         maximum_token_rows=integer("maximum_token_rows"),
         function_symbol=symbol,
         dimensions~,
+        companion_dimensions=parse_companion_dimensions(fields),
       ),
     )
   }

@@ -11,6 +11,8 @@ import {
 }
 
 // Values
+pub fn decode_companion_dimensions(Json) -> @launch_contract.AotLaunchDimensions raise KernelArtifactFileError
+
 pub fn decode_row_variants(Json, Int) -> ReadOnlyArray[@artifact.KernelRowVariant] raise KernelArtifactFileError
 
 pub fn load(@approved_fs.ApprovedRoot, StringView, KernelManifestDigest, @launch_contract.LaunchContractSet, KernelArtifactFileLimits) -> @artifact.KernelArtifactBundle raise KernelArtifactFileError

@@ -32,6 +32,7 @@ pub struct PagedKvExecutionStep {
   priv artifact_module_index : Int
   priv function_symbol : String
   priv row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
+  priv companion_dimensions : @launch_contract.AotLaunchDimensions?
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[PagedKvOperandBinding]
 } derive(Debug, Eq)

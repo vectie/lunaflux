@@ -175,6 +175,7 @@ pub fn ProjectionTileRewriteStep::rule(Self) -> ProjectionTileRewriteRule
 pub struct ProjectionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(Self) -> Int?
 pub fn ProjectionTileSchedule::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
 pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool

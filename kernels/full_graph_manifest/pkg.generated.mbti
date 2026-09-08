@@ -28,7 +28,7 @@ pub fn FullGraphAotOperationArtifact::entry_point(Self) -> @catalog.AotKernelEnt
 pub fn FullGraphAotOperationArtifact::function_symbol(Self) -> String
 pub fn FullGraphAotOperationArtifact::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn FullGraphAotOperationArtifact::module_relative_path(Self) -> String
-pub fn FullGraphAotOperationArtifact::new(operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, module_relative_path~ : String, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[@launch_contract.AotOperand], workspace_bytes~ : Int64, workspace_alignment~ : Int64, row_variants? : ArrayView[@artifact.KernelRowVariant]) -> Self raise FullGraphManifestError
+pub fn FullGraphAotOperationArtifact::new(operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, module_relative_path~ : String, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[@launch_contract.AotOperand], workspace_bytes~ : Int64, workspace_alignment~ : Int64, row_variants? : ArrayView[@artifact.KernelRowVariant], companion_dimensions? : @launch_contract.AotLaunchDimensions?) -> Self raise FullGraphManifestError
 pub fn FullGraphAotOperationArtifact::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn FullGraphAotOperationArtifact::operation_id(Self) -> @plan.OperationId
 pub fn FullGraphAotOperationArtifact::workspace_alignment(Self) -> Int64

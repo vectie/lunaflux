@@ -260,7 +260,11 @@ fn prepare_paged_production_steps(
       expanded.push({
         operation_id: prepared.operation_id,
         function_index: split_function_index,
-        dimensions: prepared.dimensions,
+        dimensions: paged_companion_dimensions(
+          blueprint,
+          prepared.operation_id,
+          prepared.dimensions,
+        ),
         arguments: prepared.arguments,
       })
     }
@@ -280,7 +284,11 @@ fn prepare_paged_production_steps(
           result.push({
             operation_id: prepared.operation_id,
             function_index: split_function_index,
-            dimensions: prepared.dimensions,
+            dimensions: paged_companion_dimensions(
+              blueprint,
+              prepared.operation_id,
+              prepared.dimensions,
+            ),
             arguments: prepared.arguments,
           })
         }
@@ -304,7 +312,11 @@ fn prepare_paged_production_steps(
           result.push({
             operation_id: prepared.operation_id,
             function_index: split_function_index,
-            dimensions: prepared.dimensions,
+            dimensions: paged_companion_dimensions(
+              blueprint,
+              prepared.operation_id,
+              prepared.dimensions,
+            ),
             arguments: prepared.arguments,
           })
         }

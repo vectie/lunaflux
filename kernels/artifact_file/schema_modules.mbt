@@ -21,6 +21,9 @@ fn parse_entry_point(
   if entry.contains("row_variants") {
     allowed.push(("row_variants", EntryPointsField))
   }
+  if entry.contains("companion_dimensions") {
+    allowed.push(("companion_dimensions", EntryPointsField))
+  }
   validate_fields(entry, ManifestEntryPoint, allowed)
   let family_value = require_nonnegative_int(
     entry,
@@ -77,6 +80,7 @@ fn parse_entry_point(
     ),
     function_symbol=symbol,
     row_variants=parse_row_variants(entry, maximum_symbol_bytes),
+    companion_dimensions=parse_companion_dimensions(entry),
   )
 }
 

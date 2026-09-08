@@ -70,6 +70,7 @@ pub(all) enum ProjectionAotRule {
 pub struct ProjectionCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionCudaLowering::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn ProjectionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
 pub fn ProjectionCudaLowering::dispatch_plan(Self) -> @luna_projection_strategy.ProjectionDispatchPlan
 pub fn ProjectionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId

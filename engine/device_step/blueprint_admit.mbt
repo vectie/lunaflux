@@ -423,6 +423,13 @@ fn build_paged_step(
     raise blueprint_operation_error(operation.id(), ArtifactEntryPoint)
   }
   let module_index = entry.module_index()
+  let workspace = source_operands.any(operand => operand.role() == Workspace)
+  validate_projection_companion(
+    operation.id(),
+    operation.kind(),
+    workspace,
+    entry.companion_dimensions(),
+  )
   if !entry.row_variants().is_empty() &&
     operation.kind() != QkvProjection &&
     operation.kind() != OutputProjection &&
@@ -431,6 +438,12 @@ fn build_paged_step(
     raise blueprint_operation_error(operation.id(), ArtifactEntryPoint)
   }
   for variant in entry.row_variants() {
+    validate_projection_companion(
+      operation.id(),
+      operation.kind(),
+      workspace,
+      variant.companion_dimensions(),
+    )
     let dimensions = variant.dimensions()
     if variant.maximum_token_rows() > profile.max_query_tokens() ||
       dimensions.grid_y() != 1 ||
@@ -457,6 +470,7 @@ fn build_paged_step(
     artifact_module_index: module_index,
     function_symbol: entry.function_symbol(),
     row_variants: entry.row_variants(),
+    companion_dimensions: entry.companion_dimensions(),
     dimensions: contract.dimensions(),
     operands: ReadOnlyArray::from_array(operands),
   }

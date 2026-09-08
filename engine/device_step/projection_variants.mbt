@@ -63,7 +63,10 @@ fn prepare_projection_variants(
           base_function_index: find(step.function_symbol() + "_down"),
           maximum_token_rows: variant.maximum_token_rows(),
           function_index: find(variant.function_symbol() + "_down"),
-          launch: ProjectionMlpDownGridX(source, width),
+          launch: ProjectionMlpDownGridX(
+            variant.companion_dimensions().unwrap_or(source),
+            width,
+          ),
         })
       }
     }

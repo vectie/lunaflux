@@ -304,6 +304,7 @@ fn admit_required(
       module_index,
       function_symbol: entry_point_inputs[input_index].function_symbol,
       row_variants: entry_point_inputs[input_index].row_variants,
+      companion_dimensions: entry_point_inputs[input_index].companion_dimensions,
     })
   }
   {

@@ -45,6 +45,7 @@ pub struct ProjectionCudaLowering {
   priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
+  priv companion_dimensions : @launch_contract.AotLaunchDimensions?
   priv numerical_contract : ProjectionNumericalContract
   priv compiler : @luna_specialization.LunaCompilerPolicy
   priv function_symbol : String

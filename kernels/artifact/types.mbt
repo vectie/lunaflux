@@ -25,6 +25,7 @@ pub struct KernelEntryPointInput {
   priv entry_point : @catalog.AotKernelEntryPoint
   priv function_symbol : String
   priv row_variants : ReadOnlyArray[KernelRowVariant]
+  priv companion_dimensions : @launch_contract.AotLaunchDimensions?
 }
 
 ///|
@@ -41,6 +42,7 @@ pub struct KernelEntryPoint {
   priv module_index : Int
   priv function_symbol : String
   priv row_variants : ReadOnlyArray[KernelRowVariant]
+  priv companion_dimensions : @launch_contract.AotLaunchDimensions?
 }
 
 ///|
@@ -80,11 +82,13 @@ pub fn KernelEntryPointInput::new(
   entry_point~ : @catalog.AotKernelEntryPoint,
   function_symbol~ : String,
   row_variants? : ArrayView[KernelRowVariant] = [],
+  companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
 ) -> KernelEntryPointInput {
   {
     entry_point,
     function_symbol,
     row_variants: ReadOnlyArray::from_array(row_variants),
+    companion_dimensions,
   }
 }
 
