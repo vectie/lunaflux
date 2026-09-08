@@ -152,3 +152,9 @@ Downloaded archive:
 `ddad60d8ff73902caba4af619060f428b28e94deea89c5b2df7be8a0ce2f49a3`.
 The rejected single-warp experiment is retained in that campaign but is not
 enabled in the final compiler. Native suite: 3,620/3,620 passed.
+
+Fresh paired serving results are now available in
+[the matrix pipeline serving report](MATRIX_PIPELINE_SERVING_2026-09-09.md):
+the additional change improves the two longer C8 cases by 2.48% and 2.76%,
+with identical timed output-token sequences. Those results compare against
+the already-pipelined MLP baseline, not against the pre-pipeline implementation.
