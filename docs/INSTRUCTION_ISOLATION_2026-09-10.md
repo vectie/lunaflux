@@ -97,5 +97,8 @@ Remote `/run/user/1000/lunaflux-isolation-20260910-r{1,2,3}` contains source,
 CUBINs, sanitizer logs, NCU reports, source summaries and detailed metrics.
 The corresponding versioned `.mbtx` drivers are preserved alongside them.
 Archive: `/run/user/1000/lunaflux-isolation-20260910-results.tar.gz`.
-Downloading this archive was rejected by automatic approval; it remains
-remote and has not been locally archived or hash-verified.
+The initial download was rejected by automatic approval. After the user
+explicitly authorized download, the archive was saved without overwrite at
+`/private/tmp/lunaflux-isolation-results.xcLDVn/lunaflux-isolation-20260910-results.tar.gz`.
+Remote and local SHA-256 match:
+`1d566d3c3a9343f41c5d937c28b78360be35ccdc5a19fab54a7298f501adda98`.
