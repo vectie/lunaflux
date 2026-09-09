@@ -1,9 +1,12 @@
 ///|
 fn main raise {
   let raw_arguments = @env.args()
-  let qwen_geometry = raw_arguments is [_, _, "qwen"]
+  // Exact launch/ABI envelope of the 2026-09-09 selected-kernel counter replay.
+  // This is a diagnostic fixture, not a production model-selection branch.
+  let selected_counters = raw_arguments is [_, _, "selected-counters"]
+  let qwen_geometry = raw_arguments is [_, _, "qwen"] || selected_counters
   let arguments = match raw_arguments {
-    [program, candidate, "qwen"] => [program, candidate]
+    [program, candidate, "qwen" | "selected-counters"] => [program, candidate]
     _ => raw_arguments
   }
   match arguments {
@@ -152,10 +155,28 @@ fn main raise {
     tokens_per_page=if qwen_geometry { 8 } else { 16 },
     input_row_width=(if qwen_geometry { 32 } else { 24 }) * head_dimension,
     page_stride_values=64L * head_dimension.to_int64(),
-    physical_page_capacity=if qwen_geometry { 4096L } else { 256L },
+    physical_page_capacity=if selected_counters {
+      8192L
+    } else if qwen_geometry {
+      4096L
+    } else {
+      256L
+    },
     maximum_query_rows=32,
-    maximum_query_tokens=if qwen_geometry { 4096 } else { 128 },
-    maximum_page_entries=if qwen_geometry { 4096 } else { 256 },
+    maximum_query_tokens=if selected_counters {
+      1024
+    } else if qwen_geometry {
+      4096
+    } else {
+      128
+    },
+    maximum_page_entries=if selected_counters {
+      8192
+    } else if qwen_geometry {
+      4096
+    } else {
+      256
+    },
   )
   if partitioned {
     let compiled = @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot(
@@ -185,7 +206,11 @@ fn main raise {
         device_target~,
         maximum_shared_memory_bytes=100000L,
         abi~,
-        symbol="lunaflux_attention_prefill_tile_v1",
+        symbol=if selected_counters {
+          "lunaflux_attention_prefill_tile_compiler_v1"
+        } else {
+          "lunaflux_attention_prefill_tile_v1"
+        },
         maximum_source_bytes=1048576,
       ),
       records,

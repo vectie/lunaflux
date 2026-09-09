@@ -105,14 +105,14 @@ fn emit_cuda_prefill_attention_tile_source(
     "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
     "  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);\n"
   }
+  let query_fold_offsets = @luna_attention_tile_schedule.scalarize_attention_query_fold(
+    query_tile,
+    block_threads / 32,
+  ) catch {
+    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   let fold_state_declaration = if reuse_tile_storage {
-    "  float fold_maximum[LF_QUERY_STATE_SLOTS];\n" +
-    "  float fold_denominator[LF_QUERY_STATE_SLOTS];\n" +
-    "  #pragma unroll\n" +
-    "  for (int slot = 0; slot < LF_QUERY_STATE_SLOTS; ++slot) {\n" +
-    "    fold_maximum[slot] = -CUDART_INF_F;\n" +
-    "    fold_denominator[slot] = 0.0f;\n" +
-    "  }\n"
+    cuda_query_fold_declaration(query_fold_offsets)
   } else {
     ""
   }
@@ -216,31 +216,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "    __syncthreads();\n"
   }
   let online_softmax_update = if reuse_tile_storage {
-    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
-    "      const int query_position = query_positions[token_base + query];\n" +
-    "      const int state_slot = query / warp_count;\n" +
-    "      float local_maximum = -CUDART_INF_F;\n" +
-    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
-    "        local_maximum = fmaxf(local_maximum, lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale));\n" +
-    "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
-    "      const float previous_maximum = fold_maximum[state_slot];\n" +
-    "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
-    "      const float previous_scale = isinf(previous_maximum)\n" +
-    "          ? 0.0f : expf(previous_maximum - next_maximum);\n" +
-    "      float local_sum = 0.0f;\n" +
-    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
-    "        const float weight = isinf(next_maximum) ? 0.0f :\n" +
-    "            expf(lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale) - next_maximum);\n" +
-    probability_store +
-    "        local_sum += weight;\n" +
-    "      }\n" +
-    "      const float tile_sum = lf_warp_sum(local_sum);\n" +
-    "      fold_maximum[state_slot] = next_maximum;\n" +
-    "      fold_denominator[state_slot] =\n" +
-    "          fold_denominator[state_slot] * previous_scale + tile_sum;\n" +
-    "      if (lane == 0) previous_scales[query] = previous_scale;\n" +
-    "    }\n" +
-    "    __syncthreads();\n" +
+    cuda_query_fold_update(query_fold_offsets, probability_store) +
     rescale_shared_output
   } else {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
@@ -279,14 +255,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "    __syncthreads();\n"
   }
   let terminal_fold_state = if reuse_tile_storage {
-    "  for (int query = warp; query < active_queries; query += warp_count) {\n" +
-    "    const int state_slot = query / warp_count;\n" +
-    "    if (lane == 0) {\n" +
-    "      running_maximum[query] = fold_maximum[state_slot];\n" +
-    "      running_denominator[query] = fold_denominator[state_slot];\n" +
-    "    }\n" +
-    "  }\n" +
-    "  __syncthreads();\n"
+    cuda_query_fold_store(query_fold_offsets)
   } else {
     ""
   }

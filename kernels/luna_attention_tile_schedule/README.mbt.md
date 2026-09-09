@@ -20,6 +20,13 @@ schedule shortens the portable shared working-set bound by overlapping
 disjoint key/probability lifetimes and retaining fold state with its query
 owner. Concrete address-space placement remains backend-specific.
 
+`scalarize_attention_query_fold` partially evaluates the bounded query map
+into a finite product of independent ordered fold states. Its immutable query
+offsets preserve subgroup ownership and active-row masking; each component
+still traverses keys in the original order. A backend can realize the product
+as named scalars instead of a runtime-indexed array. This transform contains
+no device instructions and makes no register-allocation promise.
+
 For matrix QK/PV, `matrix_storage_layout()` exposes typed byte spans and
 half-open live phases. Disjoint phases share a region whose capacity is the
 maximum of their requirements; values live together add their requirements.

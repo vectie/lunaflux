@@ -285,7 +285,7 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
     required in [
       "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
       "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 73728", "AttentionTileFoldKeyValueStream",
-      "fold_denominator[state_slot] * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
+      "fold_denominator_0 * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
       "const int page_source_lane", "__shfl_sync(0xffffffffU, physical_page, page_source_lane)",
     ] {
@@ -384,7 +384,7 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
       "__nv_bfloat16 *weights = reinterpret_cast<__nv_bfloat16 *>(shared_arena + 8192)",
     ),
   )
-  assert_true(source.contains("float fold_maximum[LF_QUERY_STATE_SLOTS]"))
+  assert_true(source.contains("float fold_maximum_0 = -CUDART_INF_F;"))
   assert_true(
     source.contains(
       "float *running_denominator = reinterpret_cast<float *>(shared_arena + 41088)",

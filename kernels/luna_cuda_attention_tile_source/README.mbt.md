@@ -36,8 +36,15 @@ broadcasts it across that row's vector fragments. This removes repeated page
 division and table loads without exposing CUDA subgroup vocabulary above the
 backend boundary.
 
-When online-softmax storage reuse is selected, each subgroup retains its
-running maximum and denominator in registers. Probability values reuse the
+When online-softmax storage reuse is selected, each subgroup owns its
+running maximum and denominator. The portable finite-product transform now
+expands statically bounded query slots into named scalar states, retaining a
+runtime active-query guard on each component. Unlike the previous dynamically
+indexed local arrays, these states have no addressable array representation.
+Register allocation and actual local-memory traffic still require compiled
+kernel counters; source scalarization alone is not a physical performance claim.
+The ordered KV recurrence and all arithmetic expressions remain unchanged.
+Probability values reuse the
 dead key-tile allocation and terminal fold state reuses that allocation after
 PV. For head dimension 128, Q32/K64 shared memory shrinks from 70,032 to
 65,536 bytes. These offsets now come from the portable schedule's explicit

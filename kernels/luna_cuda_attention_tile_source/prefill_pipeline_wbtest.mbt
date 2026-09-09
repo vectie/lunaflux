@@ -29,7 +29,7 @@ test "matrix prefill overlaps lookahead copies with an unchanged ordered fold" {
       required in [
         "#define LF_ASYNC_PREFILL 1", "cp.async.cg.shared.global", "cp.async.commit_group;",
         "cp.async.wait_group 0;", "stage_prefill_tile(partition_begin, 0)", "stage_prefill_tile(next_key_base, stage ^ 1)",
-        "const int source_bytes = page >= 0 ? 16 : 0", "fold_denominator[state_slot] * previous_scale + tile_sum",
+        "const int source_bytes = page >= 0 ? 16 : 0", "fold_denominator_0 * previous_scale + tile_sum",
         "lf_transformed_score",
       ] {
       assert_true(source.contains(required))
