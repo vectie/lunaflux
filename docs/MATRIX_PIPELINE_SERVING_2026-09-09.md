@@ -52,10 +52,12 @@ counts (288 timed requests total).
 
 ## Why the serving gain is smaller
 
-- Standalone QKV gains approximately 3–4% on long shapes, but Qwen's fused
-  ingress has a separate lowering. This extension does not pipeline that
-  fused kernel; no new per-kernel serving trace was collected to assign it
-  a measured share of total runtime.
+- Standalone QKV gains approximately 3–4% on long shapes. A subsequent matched
+  serving trace confirmed this bundle selects standalone QKV followed by
+  separate QKNorm/RoPE/KV-write, so the new QKV pipeline is exercised. The
+  earlier suggestion that a separate full fused-QKV lowering explains the
+  small serving gain was incorrect for this bundle. See the
+  [matched attribution report](MATCHED_SERVING_ATTRIBUTION_2026-09-09.md).
 - Long dense output projection gains approximately 5–6%, only one component
   of total model execution.
 - Multi-warp vocabulary gains 2.00–3.44× versus its former implementation,
