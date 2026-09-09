@@ -31,7 +31,7 @@ fn CudaProjectionOperandLayout::offset(
   row : Int,
   column : Int,
 ) -> Int {
-  row * self.row_stride + column
+  row * self.row_stride() + column
 }
 
 ///|

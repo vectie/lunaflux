@@ -400,33 +400,21 @@ fn projection_source(
   match parameters.family {
     QkvProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        if tile_compilation.schedule().reuse_input_tile() {
-          projection_tensor_core_cooperative_qkv_source(
-            symbol, parameters, maximum_tokens,
-          )
-        } else {
-          projection_tensor_core_direct_qkv_source(
-            symbol,
-            parameters,
-            maximum_tokens,
-            tile_compilation,
-            groups=tile_compilation.schedule().output_tiles_per_workgroup(),
-          )
-        }
+        projection_tensor_core_direct_qkv_source(
+          symbol,
+          parameters,
+          maximum_tokens,
+          tile_compilation,
+          groups=tile_compilation.schedule().output_tiles_per_workgroup(),
+        )
       } else {
         projection_qkv_source(symbol, parameters, maximum_tokens)
       }
     DenseProjection =>
       if projection_tensor_core_eligible(parameters, dispatch) {
-        if tile_compilation.schedule().reuse_input_tile() {
-          projection_tensor_core_cooperative_dense_source(
-            symbol, parameters, maximum_tokens,
-          )
-        } else {
-          projection_tensor_core_direct_dense_source(
-            symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
-          )
-        }
+        projection_tensor_core_direct_dense_source(
+          symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,
+        )
       } else {
         projection_dense_source(
           symbol, parameters, maximum_tokens, maximum_rows, tile_compilation,

@@ -146,8 +146,8 @@ fn projection_matrix_pipeline(
     (selected && dispatch.prefill().output_tiles_per_workgroup() == 1) ||
     dispatch.prefill().kernel_class() != MatrixTile ||
     (m, n, k) != (16, 16, 16) ||
-    extent < 512 ||
-    extent % 64 != 0 ||
+    extent <= 0 ||
+    extent % k != 0 ||
     dispatch.prefill().input_residency() == SelectedRowTileResidency {
     None
   } else {
@@ -156,12 +156,15 @@ fn projection_matrix_pipeline(
       tile_count: extent / k,
       // A bounded selected-row product can amortize transfers over four
       // ordered microtiles. Wider output products retain the smaller slot.
-      transfer_width: if selected &&
-        dispatch.prefill().output_tiles_per_workgroup() > 8 {
-        k * 2
-      } else {
-        k * 4
-      },
+      transfer_width: projection_transfer_width(
+        extent,
+        k,
+        if selected && dispatch.prefill().output_tiles_per_workgroup() > 8 {
+          2
+        } else {
+          4
+        },
+      ),
       row_width: if selected {
         16
       } else {
@@ -172,13 +175,26 @@ fn projection_matrix_pipeline(
       } else {
         Int::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
       },
-      minimum_rows: if selected {
-        2
-      } else {
-        2
-      },
+      minimum_rows: 2,
     })
   }
+}
+
+///|
+/// Select a complete group of ordered reduction tiles. Short reductions and
+/// non-power-of-two extents use the same fold, without reading padded weights
+/// or changing the order of floating-point accumulation.
+fn projection_transfer_width(
+  extent : Int,
+  tile : Int,
+  maximum_tiles : Int,
+) -> Int {
+  for tiles = maximum_tiles; tiles > 1; tiles = tiles / 2 {
+    if extent % (tile * tiles) == 0 {
+      return tile * tiles
+    }
+  }
+  tile
 }
 
 ///|

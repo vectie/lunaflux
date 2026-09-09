@@ -222,7 +222,7 @@ test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
 }
 
 ///|
-test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
+test "unified QKV and dense folds retain one-token reduction and launch ABI" {
   let qkv_parameters : ProjectionParameters = {
     family: QkvProjection,
     input_width: 1024,
@@ -230,19 +230,6 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
     output_width: 4096,
     intermediate_width: 1024,
   }
-  let qkv = @utf8.decode(
-    projection_tensor_core_cooperative_qkv_source(
-      "qwen_qkv", qkv_parameters, 256,
-    ),
-  )
-  assert_true(qkv.contains("if (token_count == 1)"))
-  assert_true(qkv.contains("__shfl_down_sync"))
-  assert_true(qkv.contains("nvcuda::wmma::mma_sync"))
-  assert_true(qkv.contains("const int column_groups = 128;"))
-  assert_true(qkv.contains("blockIdx.x / column_groups) * 64"))
-  assert_true(qkv.contains("__nv_bfloat16 *input_tile"))
-  assert_true(qkv.contains("__nv_bfloat16 *weight_tile"))
-  assert_true(qkv.contains("input_tile + warp_row * 256"))
   let dense_parameters : ProjectionParameters = {
     family: DenseProjection,
     input_width: 1024,
@@ -254,27 +241,28 @@ test "Qwen tensor-core QKV and dense use warp GEMV for one-token decode" {
   let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
   let qkv_dispatch = projection_build_runtime_dispatch(
     qkv_parameters,
-    profile.max_query_tokens(),
+    1024,
     projection_fixture_target(),
     records,
-  ).dispatch_plan(profile.max_query_tokens())
+  ).dispatch_plan(1024)
   let dense_dispatch = projection_build_runtime_dispatch(
     dense_parameters,
-    profile.max_query_tokens(),
+    1024,
     projection_fixture_target(),
     records,
-  ).dispatch_plan(profile.max_query_tokens())
-  let dense = @utf8.decode(
-    projection_tensor_core_cooperative_dense_source(
-      "qwen_dense", dense_parameters, 256,
-    ),
-  )
+  ).dispatch_plan(1024)
+  let qkv = row_variant_primary_test_source(qkv_parameters, qkv_dispatch)
+  assert_true(qkv.contains("if (token_count == 1)"))
+  assert_true(qkv.contains("__shfl_down_sync"))
+  assert_true(qkv.contains("mma.sync.aligned.m16n8k16"))
+  assert_true(qkv.contains("operand_index(local_row, k)"))
+  assert_false(qkv.contains("wmma::"))
+  let dense = row_variant_primary_test_source(dense_parameters, dense_dispatch)
   assert_true(dense.contains("if (token_count == 1)"))
   assert_true(dense.contains("__shfl_down_sync"))
-  assert_true(dense.contains("nvcuda::wmma::mma_sync"))
-  assert_true(dense.contains("const int column_groups = 32;"))
-  assert_true(dense.contains("blockIdx.x / column_groups) * 64"))
-  assert_true(dense.contains("weight_tile + warp_column * 256"))
+  assert_true(dense.contains("mma.sync.aligned.m16n8k16"))
+  assert_true(dense.contains("operand_index(local_row, k)"))
+  assert_false(dense.contains("wmma::"))
   assert_eq(
     projection_dimensions(profile, qkv_parameters, qkv_dispatch).grid_x(),
     512,

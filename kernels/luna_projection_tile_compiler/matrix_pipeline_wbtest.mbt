@@ -36,7 +36,7 @@ test "matrix pipelines preserve sparse demand and ordered reduction geometry" {
 }
 
 ///|
-test "matrix pipeline eligibility excludes scalar and reduction tails" {
+test "matrix pipeline covers every complete matrix reduction tile" {
   for width in [33, 496, 512, 528, 1024, 1088] {
     let dispatch = @luna_projection_strategy.plan_projection_dispatch(
       @luna_projection_strategy.ProjectionShape::new(
@@ -65,9 +65,6 @@ test "matrix pipeline eligibility excludes scalar and reduction tails" {
         demand=AllTokenRows,
       ),
     )
-    assert_eq(
-      compiled.schedule().matrix_pipeline() is Some(_),
-      width >= 512 && width % 64 == 0,
-    )
+    assert_eq(compiled.schedule().matrix_pipeline() is Some(_), width % 16 == 0)
   }
 }

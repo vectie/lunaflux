@@ -13,7 +13,6 @@ fn projection_matrix_pipeline_source(
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
-  let legacy_selected = selected && width < 64
   let input_width = parameters.input_width
   let output_width = parameters.output_width
   let consumer_groups = compilation.schedule().output_tiles_per_workgroup()
@@ -34,14 +33,13 @@ fn projection_matrix_pipeline_source(
     width,
     padded=padded_bytes <= 49152,
   )
-  let stride = layout.row_stride()
   let transport : CudaProjectionTransportLayout = { columns: width }
-  let slot = if selected && !legacy_selected {
+  let slot = if selected {
     (rows + columns) * width
   } else {
     layout.storage_elements(rows + columns)
   }
-  let input_elements = if selected && !legacy_selected {
+  let input_elements = if selected {
     rows * width
   } else {
     layout.storage_elements(rows)
@@ -66,31 +64,9 @@ fn projection_matrix_pipeline_source(
   } else {
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
-  let fragment_declarations = if legacy_selected {
-    (
-      $|      using namespace nvcuda;
-      $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> a;
-      $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> b;
-      $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> c[\{fold_rows}];
-      $|      #pragma unroll
-      $|      for (int row = 0; row < \{fold_rows}; ++row) wmma::fill_fragment(c[row], 0.0f);
-    )
-  } else {
-    (
-      $|      float c[\{fold_rows}][8] = {};
-    )
-  }
-  let fragment_fold = if legacy_selected {
-    (
-      $|            wmma::load_matrix_sync(b, current + \{input_elements} + consumer_column * \{layout.offset(16, 0)} + k, \{stride});
-      $|            #pragma unroll
-      $|            for (int row = 0; row < \{fold_rows}; ++row) {
-      $|              if (row_begin + (consumer_row + row) * 16 >= pipeline_rows) break;
-      $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{layout.offset(16, 0)} + k, \{stride});
-      $|              wmma::mma_sync(c[row], a, b, c[row]);
-      $|            }
-    )
-  } else if selected {
+  let fragment_declarations =
+    $|      float c[\{fold_rows}][8] = {};
+  let fragment_fold = if selected {
     (
       $|            unsigned b[4];
       $|            const unsigned b_address = (unsigned)__cvta_generic_to_shared(current + \{input_elements} + operand_index(consumer_column * 16 + lane % 16, k + lane / 16 * 8));
@@ -129,24 +105,17 @@ fn projection_matrix_pipeline_source(
       $|            }
     )
   }
-  let fragment_store = if legacy_selected {
-    (
-      $|          wmma::store_matrix_sync(temporary, c[row], 16, wmma::mem_row_major);
-    )
-  } else {
-    (
-      $|          #pragma unroll
-      $|          for (int item = 0; item < 8; ++item)
-      $|            temporary[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
-    )
-  }
+  let fragment_store =
+    $|          #pragma unroll
+    $|          for (int item = 0; item < 8; ++item)
+    $|            temporary[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
   let source =
     $|  const int pipeline_rows = \{row_count};
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
     $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * 2}];
     $|    extern __shared__ unsigned char matrix_output_bytes[];
     $|    float *temporary = reinterpret_cast<float *>(matrix_output_bytes) + warp * 256;
-    $|    \{if legacy_selected { "" } else { transport.address_function() }}
+    $|    \{transport.address_function()}
     $|    const int column_groups = \{(output_width + columns - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
@@ -168,7 +137,7 @@ fn projection_matrix_pipeline_source(
     $|          const bool valid = is_input ? (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count) : logical_column < \{output_width};
     $|          const __nv_bfloat16 *source = input;
     $|          if (valid) source = is_input ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k;
-    $|          const int physical_element = (is_input ? 0 : \{input_elements}) + \{if legacy_selected { "local_row * " + stride.to_string() + " + k" } else { "operand_index(local_row, k)" }};
+    $|          const int physical_element = (is_input ? 0 : \{input_elements}) + operand_index(local_row, k);
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + physical_element);
     $|          const int bytes = valid ? 16 : 0;
     $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
@@ -206,7 +175,7 @@ fn projection_matrix_pipeline_source(
     $|            const int logical_row = row_begin + (consumer_row + row) * 16 + element / 16;
     $|            const int token_row = \{input_row};
     $|            const int column = column_begin + consumer_column * 16 + element % 16;
-    $|            if (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count && column < \{output_width}) output[(unsigned long long)token_row * \{output_width}ULL + column] = __float2bfloat16_rn(temporary[\{if legacy_selected { "element" } else { "result_index(element / 16, element % 16)" }}]);
+    $|            if (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count && column < \{output_width}) output[(unsigned long long)token_row * \{output_width}ULL + column] = __float2bfloat16_rn(temporary[result_index(element / 16, element % 16)]);
     $|          }
     $|          __syncwarp();
     $|        }

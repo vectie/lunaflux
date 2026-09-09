@@ -1,4 +1,18 @@
 ///|
+test "transfer grouping tiles short and irregular reductions exactly" {
+  for extent in [16, 32, 48, 64, 80, 128, 256, 384, 512, 1024] {
+    for maximum_tiles in [2, 4] {
+      let width = projection_transfer_width(extent, 16, maximum_tiles)
+      assert_true(width >= 16 && width <= 16 * maximum_tiles)
+      assert_eq(extent % width, 0)
+      assert_eq(width % 16, 0)
+    }
+  }
+  assert_eq(projection_transfer_width(48, 16, 4), 16)
+  assert_eq(projection_transfer_width(32, 16, 4), 32)
+}
+
+///|
 test "operand lookahead is deterministic and preserves the intermediate ordered fold" {
   let request = ProjectionTileCompilerRequest::new(
     dispatch=projection_compiler_dispatch(GatedMlp),
