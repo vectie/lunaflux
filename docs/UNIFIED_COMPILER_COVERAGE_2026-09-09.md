@@ -12,7 +12,7 @@ Removal is complete only when the shared framework covers the corresponding
 shape, row demand, numeric order, and target capability. Reducing supported
 inputs or merely renaming an old renderer does not satisfy this criterion.
 
-## Implemented in this increment
+## First increment (`c3052dc`)
 
 - Deleted the separate cooperative QKV and dense CUDA generators and their
   source-selection branches. Their tests now exercise the common compiler
@@ -68,15 +68,67 @@ bank-conflict-counter or full-model serving result is claimed here. The first
 campaign directory retains a probe compilation failure caused by using an
 obsolete CUDA context API; r2 uses the primary-context API and releases it.
 
-## Remaining migration, not completed work
+## Completion increment (`f65963c`): remaining projection generators removed
 
-The complete projection cleanup is still open. Selected-row strip and
-whole-row-resident generators, scalar/non-matrix lowering, duplicated
-single-token lowering, and non-pipelined MLP implementations still need
-consolidation. Their replacement must preserve declared storage and numerical
-semantics rather than silently discard an offline strategy. The owner is this
-compiler-unification workstream; its completion boundary requires removing
-these parallel implementations after replacement coverage and GPU checks.
+- Deleted the independent selected-row strip and resident source generators.
+  Both now use the same masked matrix map and immutable transport layout;
+  strip and whole-row residency remain selectable storage strategies.
+- Consolidated scalar QKV/dense/head and single-row subgroup arithmetic into
+  one product-of-dot-fold lowerer. Ordered accumulation and explicitly allowed
+  strided trees remain distinct numerical schedules, not silent fallbacks.
+- Consolidated scalar MLP into one sibling product with optional F32
+  materialization. Matrix MLP keeps its BF16 materialization contract.
+- Removed the old non-pipelined matrix MLP implementation and the remaining
+  WMMA sibling fallback. Small admitted MLP matrix extents (256) use the same
+  staged product folds as large extents. Groups 1/2/4/8/16 retain coverage.
+- Removed the permanently-false public `reuse_input_tile` flag. Schedule v6/v7
+  records actual scalar versus masked-matrix row tails. Reuse and lifetime
+  decisions live in the existing immutable plans.
 
-There is no model-name condition in this increment. It does not claim that
-every operation, shape, or backend has finished migration.
+Physical campaign: `/run/user/1000/lunaflux-unified-fold-20260909-r5`,
+RTX 5060 Ti, CUDA 13.1. This campaign checks generated kernels, not serving:
+
+Native validation passes: `moon info`, `moon fmt`, warning-denied `moon check`,
+and the full suite **3653/3653**. Loopback listener tests require the normal
+unsandboxed test environment. The projection package has 39 tests; the pure
+projection compiler has 36. The final regeneration matches the GPU-tested
+sources byte-for-byte (the additional inline scalar MLP was tested separately).
+
+Downloaded archive: `/private/tmp/lunaflux-unified-fold-20260909-r5.tar.gz`,
+SHA-256 `0d51f335fda06c5feb83e0674370670878ed0cf27482c8e8a0b0b8161a30f409`.
+
+- Repeated all 135 short-K QKV/dense/head cases.
+- 60 independent MLP cases: input K256/K512, intermediate/output256,
+  groups1/2/4/8/16, tokens1/2/7/17/33/65. Both BF16 intermediate and final
+  output match the independent CPU calculation exactly on the dyadic fixture.
+- 20 head cases: strip/resident, groups1/8, tokens1/2/7/17/33, K1024/output80.
+  Sparse selected rows and untouched output sentinels match exactly.
+- 20 scalar cases: QKV/dense/MLP/head plus non-materialized MLP at
+  tokens1/2/3/4 match CPU results,
+  including scalar head's existing packed selected-row output ABI.
+- 20 sanitizer invocations passed: the previous 12 plus all four tools for
+  the small group1 MLP and group8 resident head. Zero errors/hazards; these
+  checks are not bank-conflict-counter measurements.
+- 44 large-shape paired cases, three trials each, remain bitwise identical.
+
+Graph replay medians in microseconds versus the same `2bca035` baseline:
+
+| Kernel | Tokens | Baseline | Unified |
+|---|---:|---:|---:|
+| QKV | 7 | 15.37 | 15.38 |
+| QKV | 1024 | 387.04 | 387.10 |
+| Output | 7 | 17.30 | 17.30 |
+| Output | 1024 | 187.14 | 187.16 |
+| Gate/up | 1024 | 499.83 | 499.86 |
+| Down | 1024 | 174.64 | 175.97 |
+
+This removes parallel projection implementations without removing declared
+capabilities. It is not a speedup claim: down is approximately 0.8% slower in
+this paired run. No fresh end-to-end or all-shape bank-conflict-zero claim is
+made. Historical immutable fixtures remain historical tests, not runtime
+fallbacks. Different physical schedules and scalar/matrix numeric contracts
+are intentional, not duplicate legacy implementations.
+
+The scope is the previously listed projection migration debt, not a claim
+that the entire repository, arbitrary-DAG compiler, or every backend is free
+of technical debt. No model-name condition is introduced.
