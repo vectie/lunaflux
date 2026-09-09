@@ -1,0 +1,86 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Diagnostic only: hardware replay counters must not be mistaken for
+// source-correlated address conflicts. Input is NCU's SASS CSV, not CUDA source.
+fn fields(line : StringView) -> Array[String] raise {
+  guard line.has_prefix("\"") && line.has_suffix("\"") else {
+    fail("expected a quoted NCU CSV record")
+  }
+  line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+}
+
+fn column(header : Array[String], name : String) -> Int raise {
+  for i, value in header {
+    if value == name { return i }
+  }
+  fail("missing NCU counter: " + name)
+}
+
+fn summarize(csv : String) -> (Int64, Int64, Int64) raise {
+  let mut header : Array[String] = []
+  let mut shared_instructions = 0L
+  let mut copy_excess = 0L
+  let mut other_excess = 0L
+  for line in csv.split("\n") {
+    if line.has_prefix("\"Address\",\"Source\",") {
+      guard header.is_empty() else { fail("one kernel per report required") }
+      header = fields(line)
+    } else if line.has_prefix("\"0x") {
+      guard !header.is_empty() else { fail("missing source header") }
+      let row = fields(line)
+      guard row.length() == header.length() else { fail("truncated source row") }
+      let executed = @string.parse_int64(row[column(header, "Instructions Executed")])
+      let actual = @string.parse_int64(row[column(header, "L1 Wavefronts Shared")])
+      let excess = @string.parse_int64(row[column(header, "L1 Wavefronts Shared Excessive")])
+      guard executed >= 0L && actual >= 0L && excess >= 0L else {
+        fail("negative source counter")
+      }
+      if actual > 0L { shared_instructions += executed }
+      if row[column(header, "Source")].contains("LDGSTS") {
+        copy_excess += excess
+      } else {
+        other_excess += excess
+      }
+    }
+  }
+  guard shared_instructions > 0L else {
+    fail("no measured shared instructions; missing coverage is not zero")
+  }
+  (shared_instructions, copy_excess, other_excess)
+}
+
+async fn main {
+  let args = @env.args()
+  if args.length() == 2 && args[1] == "--self-test" {
+    let header = "\"Address\",\"Source\",\"Instructions Executed\",\"L1 Wavefronts Shared\",\"L1 Wavefronts Shared Excessive\"\n"
+    let copy = "\"0x1\",\"LDGSTS.E.128 [R1], [R2]\",\"3\",\"24\",\"12\"\n"
+    let load = "\"0x2\",\"LDS R3, [R4]\",\"5\",\"5\",\"0\"\n"
+    assert_eq(summarize(header + copy + load), (8L, 12L, 0L))
+    assert_eq(summarize(header + load), (5L, 0L, 0L))
+    let conflict = "\"0x3\",\"STS [R4], R3\",\"5\",\"10\",\"5\"\n"
+    assert_eq(summarize(header + copy + conflict), (8L, 12L, 5L))
+    for invalid in ["", header, copy, header + "\"0x1\",\"LDS\"\n", header + header + load] {
+      try summarize(invalid) catch { _ => () } noraise {
+        _ => fail("missing coverage must not pass")
+      }
+    }
+    println("shared-counter self-tests passed")
+    return
+  }
+  guard args.length() == 3 else { fail("usage: NCU_EXECUTABLE REPORT.ncu-rep | --self-test") }
+  let (code, output, error) = @process.collect_output(args[1], [
+    "--import", args[2], "--page", "source", "--print-source", "sass", "--csv",
+  ])
+  guard code == 0 else { fail(error.text()) }
+  let (instructions, copy, other) = summarize(output.text())
+  println("measured_shared_instructions=\{instructions}")
+  println("copy_source_excess=\{copy}")
+  println("other_source_excess=\{other}")
+  println("source_conflicts_zero=\{copy == 0L && other == 0L}")
+  println("scope=one-profiled-launch; aggregate-hardware-replays-are-separate")
+}
