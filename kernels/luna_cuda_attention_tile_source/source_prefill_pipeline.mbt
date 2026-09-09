@@ -45,8 +45,8 @@ fn emit_prefill_async_stage(
     $|        cache_index = (unsigned long long)page * \{stride}ULL +
     $|            ((unsigned long long)(position % \{page_tokens}) * \{heads}ULL + key_value_head) *
     $|                LF_HEAD_DIMENSION + component;
-    $|      const unsigned int key_address = (unsigned int)__cvta_generic_to_shared(stage_keys + linear);
-    $|      const unsigned int value_address = (unsigned int)__cvta_generic_to_shared(stage_values + linear);
+    $|      const unsigned int key_address = (unsigned int)__cvta_generic_to_shared(stage_keys + lf_operand_index(key, component, LF_HEAD_DIMENSION));
+    $|      const unsigned int value_address = (unsigned int)__cvta_generic_to_shared(stage_values + lf_operand_index(key, component, LF_HEAD_DIMENSION));
     $|      asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" ::
     $|          "r"(key_address), "l"(key_cache + cache_index), "r"(source_bytes) : "memory");
     $|      asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" ::

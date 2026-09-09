@@ -69,7 +69,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "float"
   }
   let probability_store = if compute == CudaMatrixQkPvMultiplyAccumulate {
-    "        weights[query * LF_KEY_VALUE_TILE + key] = __float2bfloat16_rn(weight);\n"
+    "        weights[lf_operand_index(query, key, LF_KEY_VALUE_TILE)] = __float2bfloat16_rn(weight);\n"
   } else {
     "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
   }
@@ -260,6 +260,9 @@ fn emit_cuda_prefill_attention_tile_source(
     ""
   }
   let async_prefill = if asynchronous { 1 } else { 0 }
+  let operand_layout = cuda_attention_operand_layout(
+    query_tile, key_value_tile, head_dimension,
+  )
   let async_stage = if asynchronous {
     emit_prefill_async_stage(abi, lowering.hoists_paged_key_value_page_lookup())
   } else {
@@ -281,6 +284,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
     $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
     $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
+    $|\{operand_layout}
     $|
     $|\{cuda_attention_score_transform()}
     $|
@@ -370,7 +374,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|          (unsigned long long)query_head * LF_HEAD_DIMENSION + component;
     $|      packed = *reinterpret_cast<const uint4 *>(rotated_qkv_rows + source_index);
     $|    }
-    $|    *reinterpret_cast<uint4 *>(query_tile + first_value) = packed;
+    $|    *reinterpret_cast<uint4 *>(query_tile + lf_operand_index(query, component, LF_HEAD_DIMENSION)) = packed;
     $|  }
     $|\{shared_state_initialization}
     $|  __syncthreads();
@@ -422,8 +426,8 @@ fn emit_cuda_prefill_attention_tile_source(
     $|\{paged_key_value_load}
     $|      __nv_bfloat16 *stage_keys = key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|      __nv_bfloat16 *stage_values = value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|      *reinterpret_cast<uint4 *>(stage_keys + first_value) = packed_key;
-    $|      *reinterpret_cast<uint4 *>(stage_values + first_value) = packed_value;
+    $|      *reinterpret_cast<uint4 *>(stage_keys + lf_operand_index(key, component, LF_HEAD_DIMENSION)) = packed_key;
+    $|      *reinterpret_cast<uint4 *>(stage_values + lf_operand_index(key, component, LF_HEAD_DIMENSION)) = packed_value;
     $|    }
     $|    __syncthreads();
     $|    if (!tile_valid) return;
@@ -446,12 +450,12 @@ fn emit_cuda_prefill_attention_tile_source(
     $|        #pragma unroll
     $|        for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
     $|          wmma::load_matrix_sync(query_fragment,
-    $|              query_tile + query_base * LF_HEAD_DIMENSION + reduction,
-    $|              LF_HEAD_DIMENSION);
+    $|              query_tile + lf_operand_index(query_base, reduction, LF_HEAD_DIMENSION),
+    $|              LF_OPERAND_TILE);
     $|          wmma::load_matrix_sync(key_fragment,
     $|              key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    $|                  key_column * LF_HEAD_DIMENSION + reduction,
-    $|              LF_HEAD_DIMENSION);
+    $|                  lf_operand_index(key_column, reduction, LF_HEAD_DIMENSION),
+    $|              LF_OPERAND_TILE);
     $|          wmma::mma_sync(score_fragment, query_fragment, key_fragment, score_fragment);
     $|        }
     $|        wmma::store_matrix_sync(

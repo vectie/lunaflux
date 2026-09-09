@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayout?
+
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
 
 pub fn schedule_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileSchedule raise AttentionTileScheduleError
@@ -45,6 +47,14 @@ pub struct AttentionLoopCombinator {
 pub fn AttentionLoopCombinator::axis(Self) -> AttentionIterationAxis
 pub fn AttentionLoopCombinator::geometry(Self) -> (Int, Int)
 pub fn AttentionLoopCombinator::kind(Self) -> AttentionIterationKind
+
+pub struct AttentionOperandTileLayout {
+  rows : Int
+  columns : Int
+  side : Int
+} derive(Eq, @debug.Debug)
+pub fn AttentionOperandTileLayout::microtile_side(Self) -> Int
+pub fn AttentionOperandTileLayout::offset(Self, Int, Int) -> Int?
 
 pub(all) enum AttentionOutputFoldStorage {
   SharedOutputFold

@@ -84,3 +84,19 @@ probe's `compare` mode compares two such modules bit-for-bit, checks a scalar
 oracle, page/tile tails, empty partitions and mixed rows, verifies unchanged
 K/V, and closes all resources. Its GPU fixture is the explicitly selected
 RTX 5060 Ti, not an arbitrary visible device.
+
+## Compact matrix operand storage
+
+Prefill Q/K/V and BF16 probability operands use compact 16-by-16 microtile
+storage. The portable schedule validates a capacity-preserving bijection;
+CUDA owns the WMMA extent and its concrete address expression. Cooperative
+and asynchronous vector stores use the same permutation as matrix loads,
+whose leading dimension is now 16 rather than the whole head/key width.
+Scores and output accumulators retain their existing layout, and no fold,
+rounding, synchronization, storage lifetime, or launch capacity is changed.
+This targets shared-bank aliasing without padding the shared arena. The
+selected candidate313 passes GPU differential and sanitizer checks on sm120;
+fresh counters show 85.3% fewer shared-load conflicts and isolated latency
+improves 1.40×. Producer shared-store conflicts increase. See
+[the measured report](../../docs/OPERAND_REUSE_AND_LAYOUT_2026-09-09.md) for
+geometry and scope; these are not all-shape or end-to-end claims.

@@ -17,13 +17,13 @@ fn cuda_attention_shared_key_dot() -> String {
     #|      for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
     #|        wmma::load_matrix_sync(key_fragment,
     #|            key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    #|                key_column * LF_HEAD_DIMENSION + reduction,
-    #|            LF_HEAD_DIMENSION);
+    #|                lf_operand_index(key_column, reduction, LF_HEAD_DIMENSION),
+    #|            LF_OPERAND_TILE);
     #|        #pragma unroll
     #|        for (int query_slice = 0; query_slice < LF_QUERY_TILE / 16; ++query_slice) {
     #|          wmma::load_matrix_sync(query_fragment,
-    #|              query_tile + query_slice * 16 * LF_HEAD_DIMENSION + reduction,
-    #|              LF_HEAD_DIMENSION);
+    #|              query_tile + lf_operand_index(query_slice * 16, reduction, LF_HEAD_DIMENSION),
+    #|              LF_OPERAND_TILE);
     #|          wmma::mma_sync(score_fragments[query_slice], query_fragment, key_fragment, score_fragments[query_slice]);
     #|        }
     #|      }

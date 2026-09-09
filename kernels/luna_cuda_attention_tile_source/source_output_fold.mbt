@@ -43,10 +43,10 @@ fn cuda_resident_output_fold_step() -> String {
     #|        #pragma unroll
     #|        for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {
     #|          wmma::load_matrix_sync(probability_fragment,
-    #|              weights + slice * 16 * LF_KEY_VALUE_TILE + reduction, LF_KEY_VALUE_TILE);
+    #|              weights + lf_operand_index(slice * 16, reduction, LF_KEY_VALUE_TILE), LF_OPERAND_TILE);
     #|          wmma::load_matrix_sync(value_fragment,
     #|              value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    #|                  reduction * LF_HEAD_DIMENSION + warp * 16, LF_HEAD_DIMENSION);
+    #|                  lf_operand_index(reduction, warp * 16, LF_HEAD_DIMENSION), LF_OPERAND_TILE);
     #|          wmma::mma_sync(output_fold[slice], probability_fragment, value_fragment, output_fold[slice]);
     #|        }
     #|      }
