@@ -374,10 +374,21 @@ fn projection_schedule_canonical(
     builder <+
       "sibling_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
     let (row_tile, _, _) = dispatch.prefill().tile().dimensions()
+    let sibling_reuse = partition_projection_sibling_reuse(
+      row_tiles=pipeline.row_width() / row_tile,
+      output_tiles=pipeline.output_tiles(),
+      consumer_groups=dispatch.prefill().output_tiles_per_workgroup(),
+    )
+    if sibling_reuse is Some(reuse) {
+      builder <+
+        "sibling_axis_reuse=2,\{reuse.row_groups()},\{reuse.output_groups()},\{reuse.rows_per_group()}\n"
+    }
+    let effective_groups = dispatch.prefill().output_tiles_per_workgroup() /
+      (if sibling_reuse is Some(_) { 2 } else { 1 })
     if partition_projection_product_fold(
         row_tiles=pipeline.row_width() / row_tile,
         output_tiles=pipeline.output_tiles(),
-        consumer_groups=dispatch.prefill().output_tiles_per_workgroup(),
+        consumer_groups=effective_groups,
       )
       is Some(distribution) {
       builder <+

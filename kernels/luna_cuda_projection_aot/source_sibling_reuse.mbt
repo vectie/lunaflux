@@ -1,44 +1,35 @@
 ///|
-/// A product of ordered folds shares both the staged input and each pair of
-/// weight tiles. Copy scheduling and CUDA lane ownership are lowering details.
-fn projection_sibling_fold_pipeline_source(
+/// Lower the independent sibling axis to consumers, sharing each weight
+/// fragment across its row product. Once the ordered fold finishes, its input
+/// staging lifetime ends; reuse that storage for the gate epilogue. The up
+/// epilogue uses the already admitted dynamic scratch. CTA fences delimit both
+/// changes of ownership, including inactive tail-row consumers.
+fn projection_sibling_reuse_source(
   plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
   parameters : ProjectionParameters,
-  groups~ : Int,
+  reuse : @luna_projection_tile_compiler.ProjectionProductFoldDistribution,
 ) -> String {
-  if @luna_projection_tile_compiler.partition_projection_sibling_reuse(
-      row_tiles=plan.row_width() / 16,
-      output_tiles=plan.output_tiles(),
-      consumer_groups=groups,
-    )
-    is Some(reuse) {
-    return projection_sibling_reuse_source(plan, parameters, reuse)
-  }
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
+  let slot = (rows + 2 * columns) * width
+  let folds = reuse.rows_per_group()
+  let consumers = reuse.consumer_groups()
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
-  let slot = (rows + 2 * columns) * width
-  let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
-    row_tiles=rows / 16,
-    output_tiles=plan.output_tiles(),
-    consumer_groups=groups,
-  ).unwrap()
-  let fold_rows = distribution.rows_per_group()
-  let consumers = distribution.consumer_groups()
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
     $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * 2}];
     $|    extern __shared__ unsigned char sibling_output_bytes[];
-    $|    float *temporary = reinterpret_cast<float *>(sibling_output_bytes) + warp * 256;
     $|    const int groups = \{intermediate / columns};
     $|    const int work_count = ((token_count + \{rows - 1}) / \{rows}) * groups;
+    $|    const int sibling = warp / \{consumers};
+    $|    const int consumer = warp % \{consumers};
+    $|    const int consumer_row = (consumer / \{reuse.output_groups()}) * \{folds};
+    $|    const int consumer_column = consumer % \{reuse.output_groups()};
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
-    $|      const int consumer_row = (warp / \{distribution.output_groups()}) * \{fold_rows};
-    $|      const int consumer_column = warp % \{distribution.output_groups()};
     $|      auto stage_operands = [&](int k_base, int stage) {
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
     $|        for (int vector = threadIdx.x; vector < \{slot / 8}; vector += blockDim.x) {
@@ -59,10 +50,10 @@ fn projection_sibling_fold_pipeline_source(
     $|      };
     $|      using namespace nvcuda;
     $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> a;
-    $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> bg, bu;
-    $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> cg[\{fold_rows}], cu[\{fold_rows}];
+    $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> b;
+    $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> c[\{folds}];
     $|      #pragma unroll
-    $|      for (int row = 0; row < \{fold_rows}; ++row) { wmma::fill_fragment(cg[row], 0.0f); wmma::fill_fragment(cu[row], 0.0f); }
+    $|      for (int row = 0; row < \{folds}; ++row) wmma::fill_fragment(c[row], 0.0f);
     $|      stage_operands(0, 0);
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
@@ -70,18 +61,16 @@ fn projection_sibling_fold_pipeline_source(
     $|      #pragma unroll 1
     $|      for (int inner = 0; inner < \{input_width}; inner += \{width}) {
     $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1);
-    $|        if (warp < \{consumers}) {
+    $|        if (warp < \{consumers * 2}) {
     $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
     $|          #pragma unroll
     $|          for (int k = 0; k < \{width}; k += 16) {
-    $|            wmma::load_matrix_sync(bg, current + \{rows * width} + consumer_column * \{16 * width} + k, \{width});
-    $|            wmma::load_matrix_sync(bu, current + \{(rows + columns) * width} + consumer_column * \{16 * width} + k, \{width});
+    $|            wmma::load_matrix_sync(b, current + \{rows * width} + sibling * \{columns * width} + consumer_column * \{16 * width} + k, \{width});
     $|            #pragma unroll
-    $|            for (int row = 0; row < \{fold_rows}; ++row) {
+    $|            for (int row = 0; row < \{folds}; ++row) {
     $|              if (row_begin + (consumer_row + row) * 16 >= token_count) break;
     $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{16 * width} + k, \{width});
-    $|              wmma::mma_sync(cg[row], a, bg, cg[row]);
-    $|              wmma::mma_sync(cu[row], a, bu, cu[row]);
+    $|              wmma::mma_sync(c[row], a, b, c[row]);
     $|            }
     $|          }
     $|        }
@@ -89,30 +78,26 @@ fn projection_sibling_fold_pipeline_source(
     $|        __syncthreads();
     $|        stage ^= 1;
     $|      }
-    $|      if (warp < \{consumers}) {
+    $|      float *gate_tiles = reinterpret_cast<float *>(sibling_storage);
+    $|      float *up_tiles = reinterpret_cast<float *>(sibling_output_bytes);
+    $|      if (warp < \{consumers * 2}) {
+    $|        float *result_tiles = sibling == 0 ? gate_tiles : up_tiles;
     $|        #pragma unroll
-    $|        for (int row = 0; row < \{fold_rows}; ++row) {
+    $|        for (int row = 0; row < \{folds}; ++row) {
     $|          if (row_begin + (consumer_row + row) * 16 >= token_count) break;
-    $|          wmma::store_matrix_sync(temporary, cg[row], 16, wmma::mem_row_major);
-    $|          __syncwarp();
-    $|          float gates[8];
-    $|          #pragma unroll
-    $|          for (int item = 0; item < 8; ++item) gates[item] = temporary[lane + item * 32];
-    $|          __syncwarp();
-    $|          wmma::store_matrix_sync(temporary, cu[row], 16, wmma::mem_row_major);
-    $|          __syncwarp();
-    $|          #pragma unroll
-    $|          for (int item = 0; item < 8; ++item) {
-    $|            const int element = lane + item * 32;
-    $|            const int output_row = row_begin + (consumer_row + row) * 16 + element / 16;
-    $|            if (output_row < token_count) {
-    $|              const float gate = gates[item], up = temporary[element];
-    $|              workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + consumer_column * 16 + element % 16] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
-    $|            }
-    $|          }
-    $|          __syncwarp();
+    $|          wmma::store_matrix_sync(result_tiles + ((consumer_row + row) * \{reuse.output_groups()} + consumer_column) * 256, c[row], 16, wmma::mem_row_major);
     $|        }
     $|      }
+    $|      __syncthreads();
+    $|      for (int element = threadIdx.x; element < \{rows * columns}; element += blockDim.x) {
+    $|        const int tile = element / 256, cell = element % 256;
+    $|        const int output_row = row_begin + (tile / \{reuse.output_groups()}) * 16 + cell / 16;
+    $|        if (output_row < token_count) {
+    $|          const float gate = gate_tiles[element], up = up_tiles[element];
+    $|          workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + (tile % \{reuse.output_groups()}) * 16 + cell % 16] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
+    $|        }
+    $|      }
+    $|      __syncthreads();
     $|    }
     $|    return;
     $|  }

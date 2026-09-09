@@ -28,7 +28,7 @@ test "operand lookahead is deterministic and preserves the intermediate ordered 
   )
   assert_true(
     @utf8.decode(compiled.schedule.canonical).contains(
-      "sibling_product_distribution=4,4,1\n",
+      "sibling_product_distribution=2,4,2\n",
     ),
   )
   assert_eq(

@@ -15,6 +15,8 @@ pub fn optimize_projection_tile(SemanticProjectionTileCompilation) -> OptimizedP
 
 pub fn partition_projection_product_fold(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
 
+pub fn partition_projection_sibling_reuse(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
+
 pub fn projection_selected_row_strip(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowStrip?
 
 pub fn schedule_projection_tile(OptimizedProjectionTileCompilation) -> ScheduledProjectionTileCompilation
