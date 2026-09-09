@@ -12,6 +12,7 @@ fn projection_sibling_reuse_source(
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
+  let layout : CudaProjectionMicrotileLayout = { columns: width }
   let slot = (rows + 2 * columns) * width
   let folds = reuse.rows_per_group()
   let consumers = reuse.consumer_groups()
@@ -27,6 +28,7 @@ fn projection_sibling_reuse_source(
     $|    const int consumer = warp % \{consumers};
     $|    const int consumer_row = (consumer / \{reuse.output_groups()}) * \{folds};
     $|    const int consumer_column = consumer % \{reuse.output_groups()};
+    $|    \{layout.address_function()}
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
@@ -42,7 +44,7 @@ fn projection_sibling_reuse_source(
     $|          const __nv_bfloat16 *base = is_input ? input : (is_gate ? gate_weight : up_weight);
     $|          const int source_row = is_input ? row_begin + row : column_begin + row;
     $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + element);
+    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(element / \{width}, k));
     $|          const int bytes = valid ? 16 : 0;
     $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
     $|        }
@@ -65,11 +67,11 @@ fn projection_sibling_reuse_source(
     $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
     $|          #pragma unroll
     $|          for (int k = 0; k < \{width}; k += 16) {
-    $|            wmma::load_matrix_sync(b, current + \{rows * width} + sibling * \{columns * width} + consumer_column * \{16 * width} + k, \{width});
+    $|            wmma::load_matrix_sync(b, current + \{layout.offset(rows, 0)} + sibling * \{columns * width} + operand_index(consumer_column * 16, k), 16);
     $|            #pragma unroll
     $|            for (int row = 0; row < \{folds}; ++row) {
     $|              if (row_begin + (consumer_row + row) * 16 >= token_count) break;
-    $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{16 * width} + k, \{width});
+    $|              wmma::load_matrix_sync(a, current + operand_index((consumer_row + row) * 16, k), 16);
     $|              wmma::mma_sync(c[row], a, b, c[row]);
     $|            }
     $|          }
