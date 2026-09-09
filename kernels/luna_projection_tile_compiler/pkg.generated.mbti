@@ -13,6 +13,8 @@ pub fn elaborate_projection_tile(SelectedProjectionTileCompilation) -> SemanticP
 
 pub fn optimize_projection_tile(SemanticProjectionTileCompilation) -> OptimizedProjectionTileCompilation
 
+pub fn partition_projection_product_fold(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
+
 pub fn projection_selected_row_strip(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowStrip?
 
 pub fn schedule_projection_tile(OptimizedProjectionTileCompilation) -> ScheduledProjectionTileCompilation
@@ -75,6 +77,14 @@ pub struct ProjectionLoopCombinator {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionLoopCombinator::components(Self) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int)
+
+pub struct ProjectionProductFoldDistribution {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionProductFoldDistribution::consumer_groups(Self) -> Int
+pub fn ProjectionProductFoldDistribution::output_groups(Self) -> Int
+pub fn ProjectionProductFoldDistribution::row_groups(Self) -> Int
+pub fn ProjectionProductFoldDistribution::rows_per_group(Self) -> Int
 
 pub(all) enum ProjectionResultDemand {
   AllTokenRows

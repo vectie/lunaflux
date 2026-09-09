@@ -26,6 +26,11 @@ test "operand lookahead is deterministic and preserves the intermediate ordered 
       "sibling_operand_pipeline=",
     ),
   )
+  assert_true(
+    @utf8.decode(compiled.schedule.canonical).contains(
+      "sibling_product_distribution=4,4,1\n",
+    ),
+  )
   assert_eq(
     compiled.schedule().loops()[4].components(),
     (ProjectionSequentialFold, ProjectionIntermediateReductionAxis, 3072, 16),

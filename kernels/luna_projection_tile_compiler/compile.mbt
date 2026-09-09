@@ -373,6 +373,16 @@ fn projection_schedule_canonical(
   if projection_sibling_pipeline(optimized) is Some(pipeline) {
     builder <+
       "sibling_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
+    let (row_tile, _, _) = dispatch.prefill().tile().dimensions()
+    if partition_projection_product_fold(
+        row_tiles=pipeline.row_width() / row_tile,
+        output_tiles=pipeline.output_tiles(),
+        consumer_groups=dispatch.prefill().output_tiles_per_workgroup(),
+      )
+      is Some(distribution) {
+      builder <+
+        "sibling_product_distribution=\{distribution.row_groups()},\{distribution.output_groups()},\{distribution.rows_per_group()}\n"
+    }
   }
   if projection_matrix_pipeline(optimized) is Some(pipeline) {
     builder <+

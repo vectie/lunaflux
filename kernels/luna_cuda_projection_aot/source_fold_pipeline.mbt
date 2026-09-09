@@ -13,7 +13,25 @@ fn projection_fold_pipeline_source(
   let tile = pipeline.tile_width()
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
-  let slot = (rows + groups * 16) * width
+  let layout = cuda_projection_operand_layout(width)
+  let leading = layout.row_stride()
+  let input_elements = layout.storage_elements(rows)
+  let slot = layout.storage_elements(rows + groups * 16)
+  // Distribute the immutable operand product into two affine producer maps.
+  // This removes the per-vector operand tag and pointer selection without
+  // changing the ordered reduction or moving reads across materialization.
+  let input_copy = projection_fold_operand_copy_source(
+    "pipeline_a", "destination", rows, width, leading, stride, true,
+  )
+  let weight_copy = projection_fold_operand_copy_source(
+    "pipeline_b",
+    "destination + \{input_elements}",
+    groups * 16,
+    width,
+    leading,
+    stride,
+    false,
+  )
   let source =
     $|  {
     $|    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;
@@ -26,17 +44,8 @@ fn projection_fold_pipeline_source(
     $|    const __nv_bfloat16 *pipeline_b = \{weight_base};
     $|    auto stage_operands = [&](int offset, int stage) {
     $|      __nv_bfloat16 *destination = pipeline_storage + stage * \{slot};
-    $|      for (int vector = threadIdx.x; vector < \{slot / 8}; vector += blockDim.x) {
-    $|        int element = vector * 8;
-    $|        bool is_a = element < \{rows * width};
-    $|        int local = is_a ? element : element - \{rows * width};
-    $|        int row = local / \{width}, k = local % \{width};
-    $|        bool valid = !is_a || row_start + row < token_count;
-    $|        const __nv_bfloat16 *source = valid ? (is_a ? pipeline_a : pipeline_b) + (unsigned long long)row * \{stride}ULL + offset + k : pipeline_a;
-    $|        unsigned address = (unsigned)__cvta_generic_to_shared(destination + element);
-    $|        int bytes = valid ? 16 : 0;
-    $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
-    $|      }
+    $|\{input_copy}
+    $|\{weight_copy}
     $|      asm volatile("cp.async.commit_group;" ::: "memory");
     $|    };
     $|    stage_operands(0, 0);
@@ -49,10 +58,10 @@ fn projection_fold_pipeline_source(
     $|      const __nv_bfloat16 *current = pipeline_storage + stage * \{slot};
     $|      #pragma unroll
     $|      for (int k = 0; k < \{width}; k += \{tile}) {
-    $|        nvcuda::wmma::load_matrix_sync(b, current + \{rows * width} + warp * \{16 * width} + k, \{width});
+    $|        nvcuda::wmma::load_matrix_sync(b, current + \{input_elements} + warp * \{16 * leading} + k, \{leading});
     $|        #pragma unroll
     $|        for (int row = 0; row < \{rows / 16}; ++row) {
-    $|          nvcuda::wmma::load_matrix_sync(a, current + row * \{16 * width} + k, \{width});
+    $|          nvcuda::wmma::load_matrix_sync(a, current + row * \{16 * leading} + k, \{leading});
     $|          nvcuda::wmma::mma_sync(c[row], a, b, c[row]);
     $|        }
     $|      }
@@ -74,5 +83,34 @@ fn projection_fold_pipeline_source(
     $|    }
     $|  }
     $|
+  source
+}
+
+///|
+/// Specialize one affine copy domain before CUDA rendering. Only live tensor
+/// elements are copied: layout padding has no producer and no matrix consumer.
+fn projection_fold_operand_copy_source(
+  base : String,
+  destination : String,
+  rows : Int,
+  width : Int,
+  leading : Int,
+  stride : Int,
+  guard_rows : Bool,
+) -> String {
+  let validity = if guard_rows {
+    "const bool valid = row_start + row < token_count;"
+  } else {
+    "const bool valid = true;"
+  }
+  let source =
+    $|      for (int vector = threadIdx.x; vector < \{rows * width / 8}; vector += blockDim.x) {
+    $|        const int row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
+    $|        \{validity}
+    $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};
+    $|        const unsigned address = (unsigned)__cvta_generic_to_shared(\{destination} + row * \{leading} + k);
+    $|        const int bytes = valid ? 16 : 0;
+    $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
+    $|      }
   source
 }

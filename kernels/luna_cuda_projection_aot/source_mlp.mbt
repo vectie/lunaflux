@@ -104,7 +104,7 @@ fn projection_tensor_core_mlp_source(
     "    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);\n" +
     "    return;\n  }\n" +
     (if sibling_pipeline is Some(plan) {
-      projection_sibling_fold_pipeline_source(plan, parameters)
+      projection_sibling_fold_pipeline_source(plan, parameters, groups~)
     } else {
       ""
     }) +
