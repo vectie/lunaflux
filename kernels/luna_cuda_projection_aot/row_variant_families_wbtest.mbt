@@ -145,7 +145,7 @@ test "small-row MLP winner exports gate-up and down under one bounded ABI" {
     assert_true(source.contains("__nv_bfloat16 *workspace"))
     assert_true(source.contains("token_count > 8"))
     assert_true(source.contains("blockDim.x != \{groups * 32}"))
-    assert_true(source.contains("group_count = \{3072 / (groups * 16)}"))
+    assert_true(source.contains("sibling_storage"))
     assert_eq(runtime.select(9).source(), StaticFallback)
     // The exported companion borrows the existing maximum-profile workspace;
     // changing work distribution cannot change its tensor storage contract.

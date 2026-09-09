@@ -46,15 +46,15 @@ test "QKV narrow output maps retain bounded row variants and separate weights" {
     // Static dimensions cover the one-row dot path as well; the prepared
     // matrix bucket reduces grid X to the exact output-tile count below.
     assert_eq(variant.dimensions().grid_x(), 4096 / groups)
-    assert_true(source.contains("const int group_count = \{256 / groups};"))
+    assert_true(source.contains("const int column_groups ="))
     assert_true(source.contains("token_count > 8"))
     assert_true(source.contains("const __nv_bfloat16 *query_weight"))
     assert_true(source.contains("const __nv_bfloat16 *key_weight"))
     assert_true(source.contains("const __nv_bfloat16 *value_weight"))
     assert_true(source.contains("selected_weight = value_weight"))
     assert_true(source.contains("selected_weight = key_weight"))
-    assert_true(source.contains("inner += 16"))
-    assert_true(source.contains("nvcuda::wmma::mma_sync(c, a, b, c);"))
+    assert_true(source.contains("k += 16"))
+    assert_true(source.contains("mma.sync.aligned.m16n8k16"))
     assert_false(source.contains("atomicAdd"))
     assert_false(source.contains("cudaMalloc"))
     if @env.get_env_var("LUNA_TEST_EXPORT_QKV_DISTRIBUTION") == Some("1") {

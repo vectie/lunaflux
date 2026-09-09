@@ -33,6 +33,7 @@ test "matrix pipeline family export preserves projection ABIs" {
     let dispatch = runtime.dispatch_plan(1024)
     let source = row_variant_primary_test_source(parameters, dispatch)
     assert_true(source.contains("void baseline("))
+    assert_false(source.contains("wmma::"))
     assert_eq(source.contains("row_offsets"), family == LanguageModelHead)
     if family != LanguageModelHead {
       // Producer and consumer share a row-preserving permutation. Existing

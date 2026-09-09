@@ -45,3 +45,28 @@ Baseline: `/run/user/1000/lunaflux-current-audit-20260909-r1`.
 Head was recompiled but not retimed in this campaign; its eligible path is
 unchanged. Previous experimental conflict measurements must not be relabeled
 as fresh integrated all-kernel conflict coverage.
+
+## Removal of emitted fallback code
+
+For schedules with a new pipeline, the exporter now omits the superseded
+multirow WMMA code instead of merely placing it after the new path's return.
+Default QKV/output/head and paired MLP export tests explicitly reject any
+`wmma::` call. Down no longer emits a redundant full-tile branch around its
+masked pipeline. Single-row strided pairwise arithmetic remains unchanged.
+Schedules without a new pipeline still have separate implementations; this
+change is not repository-wide elimination of every older implementation.
+
+Fresh paired graph measurements against the immediately preceding unified
+version, three trials and 100 launches, median us (before → after removal):
+
+| Tokens | QKV | Output | Gate/up | Down |
+| ---: | ---: | ---: | ---: | ---: |
+| 7 | 15.35 → 15.37 | 17.31 → 17.30 | 26.41 → 26.48 | 29.61 → 29.60 |
+| 255 | 103.67 → 103.79 | 51.37 → 51.37 | 133.28 → 133.25 | 47.33 → 47.29 |
+| 1024 | 386.78 → 387.13 | 187.01 → 187.01 | 500.01 → 500.19 | 174.53 → 174.64 |
+
+All 44 family/length comparisons pass bitwise checks; 69 affected native
+tests and 16 sanitizer runs at 65 tokens pass. Down registers drop 128→113,
+but timings are essentially unchanged.
+No fresh all-kernel conflict-zero or end-to-end speedup claim is made.
+Artifacts: `/run/user/1000/lunaflux-no-fallback-20260909-r1`.

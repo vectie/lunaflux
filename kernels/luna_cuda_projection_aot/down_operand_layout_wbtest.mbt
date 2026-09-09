@@ -51,6 +51,7 @@ test "down fold lowers masked operands through shared transport layout" {
     complete.contains("const int full_tiles = (token_count + 63) / 64;"),
   )
   assert_true(complete.contains("const int full_rows = token_count;"))
+  assert_false(complete.contains("wmma::"))
   if @env.get_env_var("LUNA_TEST_EXPORT_DOWN_OPERAND_LAYOUT") == Some("1") {
     println("LUNA_SOURCE_BEGIN mlp")
     println(

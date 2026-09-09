@@ -47,7 +47,7 @@ test "dense output C8 distribution preserves exact shape and larger-row fallback
     assert_true(source.contains("group_count = \{64 / groups}"))
     assert_true(source.contains("token_count > 8"))
     assert_true(source.contains("inner < 2048"))
-    assert_true(source.contains("inner += 16"))
+    assert_true(source.contains("k += 16"))
     assert_eq(projection_workspace_bytes(parameters, profile, primary), 0L)
     if @env.get_env_var("LUNA_TEST_EXPORT_OUTPUT_DISTRIBUTION") == Some("1") {
       println("LUNA_SOURCE_BEGIN output-g\{groups}")

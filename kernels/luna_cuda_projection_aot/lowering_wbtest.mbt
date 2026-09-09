@@ -138,24 +138,16 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   let source = @utf8.decode(lowering.source_bytes())
   assert_true(source.contains("__nv_bfloat16 *workspace"))
   assert_true(source.contains("_down(const int32_t *counts"))
-  assert_true(
-    source.contains("workspace[(unsigned long long)(row_start + tile_row)"),
-  )
+  assert_true(source.contains("workspace[(unsigned long long)output_row"))
   assert_true(source.contains("* 16;"))
-  assert_true(source.contains("float gate_values[8];"))
+  assert_true(source.contains("float *gate_tiles"))
   assert_false(source.contains("__nv_bfloat16 *input_tile"))
+  assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
   assert_true(
-    source.contains(
-      "load_matrix_sync(a, input + (unsigned long long)row_start * 1024ULL",
-    ),
-  )
-  assert_true(
-    source.contains(
-      "workspace[(unsigned long long)(row_start + tile_row) * 3072ULL",
-    ),
+    source.contains("workspace[(unsigned long long)output_row * 3072ULL"),
   )
   assert_false(source.contains("__nv_bfloat16 *a_tile"))
-  assert_true(source.contains("row_start + tile_row < token_count"))
+  assert_true(source.contains("output_row < token_count"))
   assert_true(source.contains("if (token_count == 1)"))
   assert_true(source.contains("__shfl_down_sync"))
   assert_eq(
@@ -218,10 +210,12 @@ test "Qwen-shaped language head uses tiles for prefill and GEMV for sampling" {
   assert_true(source.contains("const int selected_row = row_offsets[1] - 1"))
   assert_true(source.contains("const unsigned long long live_row"))
   assert_true(
-    source.contains("query_row < row_count ? row_offsets[query_row + 1] - 1"),
+    source.contains(
+      "logical_row < pipeline_rows ? row_offsets[logical_row + 1] - 1",
+    ),
   )
-  assert_true(source.contains("__nv_bfloat16 *selected_input"))
-  assert_true(source.contains("nvcuda::wmma::mma_sync"))
+  assert_true(source.contains("operand_index(local_row, k)"))
+  assert_false(source.contains("wmma::"))
   assert_true(source.contains("__shfl_down_sync"))
   assert_eq(lowering.launch_dimensions().grid_x(), 1187)
   assert_eq(lowering.launch_dimensions().shared_memory_bytes(), 8704)
@@ -446,15 +440,13 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
     projection_fixture_limits(),
   )
   assert_true(
-    @utf8.decode(fallback.source_bytes()).contains("nvcuda::wmma::mma_sync"),
+    @utf8.decode(fallback.source_bytes()).contains("mma.sync.aligned.m16n8k16"),
   )
   assert_false(
     @utf8.decode(fallback.source_bytes()).contains("__nv_bfloat16 *input_tile"),
   )
   assert_true(
-    @utf8.decode(fallback.source_bytes()).contains(
-      "float *warp_output = tile_output + warp * 256",
-    ),
+    @utf8.decode(fallback.source_bytes()).contains("matrix_output_bytes"),
   )
   assert_false(fallback.tile_compilation().schedule().reuse_input_tile())
   assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 8192)
@@ -471,7 +463,7 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_false(
     @utf8.decode(compiler_source).contains("__nv_bfloat16 *input_tile"),
   )
-  assert_true(@utf8.decode(compiler_source).contains("nvcuda::wmma::mma_sync"))
+  assert_false(@utf8.decode(compiler_source).contains("wmma::"))
   let foreign_target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
