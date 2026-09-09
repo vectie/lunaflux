@@ -17,11 +17,7 @@ test "resident output fold crosses KV tiles without shared accumulator round tri
     source.contains("accumulator[linear] *= previous_scales[query];"),
   )
   assert_false(source.contains("load_matrix_sync(output_fragment,"))
-  assert_true(
-    source.contains(
-      "accumulator[linear] = (float)(linear / LF_HEAD_DIMENSION);",
-    ),
-  )
+  assert_true(source.contains("slice * 16 + lf_matrix_row(item, lane)"))
   assert_true(
     source.contains("query < active_queries ? previous_scales[query] : 0.0f"),
   )

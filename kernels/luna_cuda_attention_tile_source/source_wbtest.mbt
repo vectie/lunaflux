@@ -283,7 +283,7 @@ test "wide dual-matrix prefill source is deterministic and consumes the schedule
   let source = @utf8.decode(first.bytes())
   for
     required in [
-      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_TILE 32", "wmma::mma_sync",
+      "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_TILE 32", "lf_matrix_mma",
       "#define LF_PIPELINE_STAGES 1", "#define LF_SHARED_MEMORY_BYTES 73728", "AttentionTileFoldKeyValueStream",
       "fold_denominator_0 * previous_scale + tile_sum", "tile_ordinal < tile_prefix + row_tiles",
       "tile_ordinal += (int)gridDim.x", "const __nv_bfloat16 *key_cache", "const __nv_bfloat16 *value_cache",
@@ -315,8 +315,8 @@ test "dual-matrix source lowers probability-value multiplication to MMA" {
   )
   assert_true(source.contains("__nv_bfloat16 *weights"))
   assert_true(source.contains("__float2bfloat16_rn(weight)"))
-  assert_true(source.contains("wmma::load_matrix_sync(probability_fragment"))
-  assert_true(source.contains("wmma::load_matrix_sync(value_fragment"))
+  assert_true(source.contains("probability_fragment = lf_matrix_load(weights"))
+  assert_true(source.contains("value_fragment = lf_matrix_load(value_tiles"))
 }
 
 ///|
@@ -339,7 +339,7 @@ test "score map is consumed by the fold without shared rematerialization" {
     assert_true(source.contains("lf_transformed_score(scores, query, key"))
     assert_true(
       source.contains(
-        "__fmul_rn(scores[query * LF_KEY_VALUE_TILE + key], scale)",
+        "__fmul_rn(scores[lf_float_index(query, key, LF_KEY_VALUE_TILE)], scale)",
       ),
     )
     assert_true(
@@ -348,7 +348,7 @@ test "score map is consumed by the fold without shared rematerialization" {
       ),
     )
     assert_false(source.contains("scores[linear] ="))
-    assert_true(source.contains("wmma::store_matrix_sync("))
+    assert_true(source.contains("lf_matrix_store_float("))
     assert_true(lowering.factors_shared_key_query_map())
     let (query_tile, _, _) = lowering.tile()
     assert_true(
@@ -414,11 +414,11 @@ test "wide-query prefill reuses one KV tile across two matrix row tiles" {
   )
   assert_true(
     source.contains(
-      "weights + lf_operand_index(slice * 16, reduction, LF_KEY_VALUE_TILE)",
+      "lf_matrix_load(weights, slice * 16, reduction, LF_KEY_VALUE_TILE)",
     ),
   )
   assert_true(
-    source.contains("scores + query_base * LF_KEY_VALUE_TILE + key_column"),
+    source.contains("lf_matrix_store_float(scores, query_base, key_column"),
   )
 }
 
@@ -604,7 +604,7 @@ test "partitioned emitter preserves tiled partials and associative merge" {
   for
     required in [
       "#define LF_QUERY_TILE 64", "#define LF_KEY_VALUE_PARTITIONS 2", "const int split = (int)blockIdx.z",
-      "const int partition_begin = split * base_keys_per_partition", "state * LF_HEAD_DIMENSION + component] = accumulator[linear]",
+      "const int partition_begin = split * base_keys_per_partition", "state * LF_HEAD_DIMENSION + component] = accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)]",
       "key_position < partition_end && key_position <= query_position", "extern \"C\" __global__ void lunaflux_attention_prefill_merge_v1",
       "const float merge_scale = expf(part_maximum - merged_maximum)", "merged_numerator / merged_denominator",
     ] {

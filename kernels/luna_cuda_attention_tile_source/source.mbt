@@ -161,7 +161,7 @@ fn emit_cuda_prefill_attention_tile_source(
     " +\n" +
     "        query_head * LF_HEAD_DIMENSION + component;\n" +
     "    output[output_index] = __float2bfloat16_rn(\n" +
-    "        denominator > 0.0f ? accumulator[linear] / denominator : CUDART_NAN_F);\n" +
+    "        denominator > 0.0f ? accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)] / denominator : CUDART_NAN_F);\n" +
     "  }\n"
   } else {
     "  for (int query = thread; query < active_queries; query += LF_BLOCK_THREADS) {\n" +
@@ -181,7 +181,7 @@ fn emit_cuda_prefill_attention_tile_source(
     query_heads.to_string() +
     "ULL + query_head) * LF_KEY_VALUE_PARTITIONS + split);\n" +
     "    workspace[2ULL * LF_PARTIAL_STATE_COUNT +\n" +
-    "        state * LF_HEAD_DIMENSION + component] = accumulator[linear];\n" +
+    "        state * LF_HEAD_DIMENSION + component] = accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)];\n" +
     "  }\n"
   }
   let resident_output = lowering.retains_output_fold()
@@ -211,7 +211,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
     "         linear += LF_BLOCK_THREADS) {\n" +
     "      const int query = linear / LF_HEAD_DIMENSION;\n" +
-    "      accumulator[linear] *= previous_scales[query];\n" +
+    "      accumulator[lf_float_index(query, linear % LF_HEAD_DIMENSION, LF_HEAD_DIMENSION)] *= previous_scales[query];\n" +
     "    }\n" +
     "    __syncthreads();\n"
   }
@@ -285,6 +285,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
     $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
     $|\{operand_layout}
+    $|\{cuda_attention_matrix_fragments()}
     $|
     $|\{cuda_attention_score_transform()}
     $|
@@ -358,7 +359,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|\{shared_layout}
     $|
     $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
-    $|    accumulator[linear] = \{initial_accumulator};
+    $|    accumulator[lf_float_index(linear / LF_HEAD_DIMENSION, linear % LF_HEAD_DIMENSION, LF_HEAD_DIMENSION)] = \{initial_accumulator};
     $|  __syncthreads();
     $|\{resident_declaration}
     $|
@@ -439,28 +440,17 @@ fn emit_cuda_prefill_attention_tile_source(
     $|\{cuda_attention_shared_key_dot()}
     $|#else
     $|    if (warp < LF_KEY_VALUE_TILE / 16) {
-    $|      using namespace nvcuda;
-    $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> query_fragment;
-    $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> key_fragment;
-    $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> score_fragment;
     $|      const int key_column = warp * 16;
     $|      #pragma unroll
     $|      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {
-    $|        wmma::fill_fragment(score_fragment, 0.0f);
+    $|        LfMatrixAccumulator score_fragment = {};
     $|        #pragma unroll
     $|        for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
-    $|          wmma::load_matrix_sync(query_fragment,
-    $|              query_tile + lf_operand_index(query_base, reduction, LF_HEAD_DIMENSION),
-    $|              LF_OPERAND_TILE);
-    $|          wmma::load_matrix_sync(key_fragment,
-    $|              key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    $|                  lf_operand_index(key_column, reduction, LF_HEAD_DIMENSION),
-    $|              LF_OPERAND_TILE);
-    $|          wmma::mma_sync(score_fragment, query_fragment, key_fragment, score_fragment);
+    $|          const auto query_fragment = lf_matrix_load(query_tile, query_base, reduction, LF_HEAD_DIMENSION);
+    $|          const auto key_fragment = lf_matrix_load(key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION, key_column, reduction, LF_HEAD_DIMENSION);
+    $|          lf_matrix_mma(score_fragment, query_fragment, key_fragment);
     $|        }
-    $|        wmma::store_matrix_sync(
-    $|            scores + query_base * LF_KEY_VALUE_TILE + key_column,
-    $|            score_fragment, LF_KEY_VALUE_TILE, wmma::mem_row_major);
+    $|        lf_matrix_store_float(scores, query_base, key_column, LF_KEY_VALUE_TILE, score_fragment);
     $|      }
     $|    }
     $|#endif

@@ -15,7 +15,7 @@ test "prefill matrix producers and consumers share compact operand addressing" {
         1048576,
       ).bytes(),
     )
-    assert_true(source.contains("#define LF_OPERAND_TILE 16"))
+    assert_true(source.contains("#define LF_OPERAND_TILE 8"))
     assert_true(
       source.contains(
         "query_tile + lf_operand_index(query, component, LF_HEAD_DIMENSION)",
@@ -37,12 +37,8 @@ test "prefill matrix producers and consumers share compact operand addressing" {
       ),
     )
     assert_true(
-      source.contains(
-        "lf_operand_index(reduction, warp * 16, LF_HEAD_DIMENSION), LF_OPERAND_TILE",
-      ) ||
-      source.contains(
-        "lf_operand_index(reduction, output_column, LF_HEAD_DIMENSION)",
-      ),
+      source.contains("reduction, warp * 16, LF_HEAD_DIMENSION, true)") ||
+      source.contains("reduction, output_column, LF_HEAD_DIMENSION, true)"),
     )
     assert_false(source.contains("query_tile + first_value"))
     assert_false(source.contains("stage_keys + linear"))
@@ -83,7 +79,7 @@ test "scalar PV keeps float probabilities logical and maps compact values" {
     assert_false(source.contains("weights[lf_operand_index"))
     assert_true(
       source.contains(
-        "query_tile + lf_operand_index(query_base, reduction, LF_HEAD_DIMENSION)",
+        "lf_matrix_load(query_tile, query_base, reduction, LF_HEAD_DIMENSION)",
       ),
     )
   }

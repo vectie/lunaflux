@@ -4,20 +4,16 @@
 /// The shared terminal-output region is scratch only during this prologue.
 fn cuda_resident_output_fold_declaration() -> String {
   (
-    #|  using OutputFoldFragment = nvcuda::wmma::fragment<
-    #|      nvcuda::wmma::accumulator, 16, 16, 16, float>;
+    #|  using OutputFoldFragment = LfMatrixAccumulator;
     #|  OutputFoldFragment output_fold[LF_QUERY_TILE / 16];
     #|  unsigned char output_fold_rows[LF_QUERY_TILE / 16][OutputFoldFragment::num_elements];
     #|  if (warp < LF_HEAD_DIMENSION / 16) {
     #|    #pragma unroll
     #|    for (int slice = 0; slice < LF_QUERY_TILE / 16; ++slice) {
-    #|      nvcuda::wmma::load_matrix_sync(output_fold[slice],
-    #|          accumulator + slice * 16 * LF_HEAD_DIMENSION + warp * 16,
-    #|          LF_HEAD_DIMENSION, nvcuda::wmma::mem_row_major);
     #|      #pragma unroll
     #|      for (int item = 0; item < OutputFoldFragment::num_elements; ++item)
-    #|        output_fold_rows[slice][item] = (unsigned char)output_fold[slice].x[item];
-    #|      nvcuda::wmma::fill_fragment(output_fold[slice], 0.0f);
+    #|        output_fold_rows[slice][item] = (unsigned char)(slice * 16 + lf_matrix_row(item, lane));
+    #|      output_fold[slice] = {};
     #|    }
     #|  }
     #|  __syncthreads();
@@ -29,9 +25,6 @@ fn cuda_resident_output_fold_declaration() -> String {
 fn cuda_resident_output_fold_step() -> String {
   (
     #|    if (warp < LF_HEAD_DIMENSION / 16) {
-    #|      using namespace nvcuda;
-    #|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> probability_fragment;
-    #|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::row_major> value_fragment;
     #|      #pragma unroll
     #|      for (int slice = 0; slice < LF_QUERY_TILE / 16; ++slice) {
     #|        #pragma unroll
@@ -42,12 +35,9 @@ fn cuda_resident_output_fold_step() -> String {
     #|        }
     #|        #pragma unroll
     #|        for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {
-    #|          wmma::load_matrix_sync(probability_fragment,
-    #|              weights + lf_operand_index(slice * 16, reduction, LF_KEY_VALUE_TILE), LF_OPERAND_TILE);
-    #|          wmma::load_matrix_sync(value_fragment,
-    #|              value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    #|                  lf_operand_index(reduction, warp * 16, LF_HEAD_DIMENSION), LF_OPERAND_TILE);
-    #|          wmma::mma_sync(output_fold[slice], probability_fragment, value_fragment, output_fold[slice]);
+    #|          const auto probability_fragment = lf_matrix_load(weights, slice * 16, reduction, LF_KEY_VALUE_TILE);
+    #|          const auto value_fragment = lf_matrix_load(value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION, reduction, warp * 16, LF_HEAD_DIMENSION, true);
+    #|          lf_matrix_mma(output_fold[slice], probability_fragment, value_fragment, true);
     #|        }
     #|      }
     #|    }
@@ -61,9 +51,7 @@ fn cuda_resident_output_fold_store() -> String {
     #|  if (warp < LF_HEAD_DIMENSION / 16) {
     #|    #pragma unroll
     #|    for (int slice = 0; slice < LF_QUERY_TILE / 16; ++slice)
-    #|      nvcuda::wmma::store_matrix_sync(
-    #|          accumulator + slice * 16 * LF_HEAD_DIMENSION + warp * 16,
-    #|          output_fold[slice], LF_HEAD_DIMENSION, nvcuda::wmma::mem_row_major);
+    #|      lf_matrix_store_float(accumulator, slice * 16, warp * 16, LF_HEAD_DIMENSION, output_fold[slice]);
     #|  }
     #|  __syncthreads();
     #|

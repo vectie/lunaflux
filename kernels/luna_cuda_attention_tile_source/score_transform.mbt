@@ -11,7 +11,7 @@ fn cuda_attention_score_transform() -> String {
     #|    int partition_end, int query_position, float scale) {
     #|  const int key_position = key_base + key;
     #|  return key_position < partition_end && key_position <= query_position
-    #|      ? __fmul_rn(scores[query * LF_KEY_VALUE_TILE + key], scale)
+    #|      ? __fmul_rn(scores[lf_float_index(query, key, LF_KEY_VALUE_TILE)], scale)
     #|      : -CUDART_INF_F;
     #|}
   source

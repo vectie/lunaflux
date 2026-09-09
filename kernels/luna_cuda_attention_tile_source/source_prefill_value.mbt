@@ -5,30 +5,17 @@ fn cuda_prefill_value_accumulation(
 ) -> String {
   if compute == CudaMatrixQkPvMultiplyAccumulate {
     "    if (warp < LF_HEAD_DIMENSION / 16) {\n" +
-    "      using namespace nvcuda;\n" +
     "      const int output_column = warp * 16;\n" +
-    "      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> probability_fragment;\n" +
-    "      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::row_major> value_fragment;\n" +
-    "      wmma::fragment<wmma::accumulator, 16, 16, 16, float> output_fragment;\n" +
     "      #pragma unroll\n" +
     "      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {\n" +
-    "        wmma::load_matrix_sync(output_fragment,\n" +
-    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
-    "            LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
+    "        auto output_fragment = lf_matrix_load_float(accumulator, query_base, output_column, LF_HEAD_DIMENSION);\n" +
     "        #pragma unroll\n" +
     "        for (int reduction = 0; reduction < LF_KEY_VALUE_TILE; reduction += 16) {\n" +
-    "          wmma::load_matrix_sync(probability_fragment,\n" +
-    "              weights + lf_operand_index(query_base, reduction, LF_KEY_VALUE_TILE),\n" +
-    "              LF_OPERAND_TILE);\n" +
-    "          wmma::load_matrix_sync(value_fragment,\n" +
-    "              value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
-    "                  lf_operand_index(reduction, output_column, LF_HEAD_DIMENSION),\n" +
-    "              LF_OPERAND_TILE);\n" +
-    "          wmma::mma_sync(output_fragment, probability_fragment, value_fragment, output_fragment);\n" +
+    "          const auto probability_fragment = lf_matrix_load(weights, query_base, reduction, LF_KEY_VALUE_TILE);\n" +
+    "          const auto value_fragment = lf_matrix_load(value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION, reduction, output_column, LF_HEAD_DIMENSION, true);\n" +
+    "          lf_matrix_mma(output_fragment, probability_fragment, value_fragment, true);\n" +
     "        }\n" +
-    "        wmma::store_matrix_sync(\n" +
-    "            accumulator + query_base * LF_HEAD_DIMENSION + output_column,\n" +
-    "            output_fragment, LF_HEAD_DIMENSION, wmma::mem_row_major);\n" +
+    "        lf_matrix_store_float(accumulator, query_base, output_column, LF_HEAD_DIMENSION, output_fragment);\n" +
     "      }\n" +
     "    }\n"
   } else {
@@ -43,7 +30,7 @@ fn cuda_prefill_value_accumulation(
     "            __bfloat162float(value_tiles[\n" +
     "                stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +\n" +
     "                lf_operand_index(key, component, LF_HEAD_DIMENSION)]);\n" +
-    "      accumulator[linear] += partial;\n" +
+    "      accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)] += partial;\n" +
     "    }\n"
   }
 }
