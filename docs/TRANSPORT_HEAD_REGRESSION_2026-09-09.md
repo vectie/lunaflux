@@ -33,11 +33,18 @@ per transfer for bounded selected-row products with up to eight output tiles;
 wider output products retain two, and the backend retains their existing
 consumer. There is no model-name or vocabulary-size special case.
 
-The integrated generator export differs from the measured K64 experiment only
-in whitespace around two fragment-load declarations. Its own remote rebuild
-was blocked by automatic upload review, including a retry citing the user's
-existing source-upload authorization. Do not claim that rebuild or a new
-end-to-end benchmark completed. Production deployment is unchanged.
+After renewed upload approval, the integrated generator export was rebuilt on
+the test GPU. Three paired graph trials at 1024 tokens measured baseline median
+1410.58 us versus integrated median 826.58 us (41.4% less kernel time). All
+eight input lengths passed bitwise, sampled arithmetic and untouched-tail
+checks; all four integrated sanitizer runs passed. The integrated source
+profile independently reports 4,102,272 executed shared instructions with zero
+copy and other source excess. This completes the previously blocked rebuild,
+not an end-to-end serving benchmark. Production deployment is unchanged.
+
+Integrated logs use the `integrated-` prefix in the physical result directory;
+the new profile is
+`/run/user/1000/lunaflux-counter-coverage-20260909-r1/head-integrated.ncu-rep`.
 
 Physical results and report:
 `/run/user/1000/lunaflux-head-k64-20260909-r1`.
@@ -120,3 +127,46 @@ Registers increase from 116 to 128; static shared storage stays 24,576 bytes.
 Counter and sanitizer validation remain outstanding; down is not integrated.
 Remote artifacts: `/run/user/1000/lunaflux-down-transport-20260909-r1`.
 No all-kernel or all-shape conflict-zero claim is made.
+
+### Graph-timed resource isolation
+
+Subsequent down experiments use 100 captured launches per graph timing to
+remove CPU submission gaps. They pass bitwise checks at the same eleven token
+lengths. They remain experiments, not default compiler selections.
+
+| Down schedule | 1 token us | 256 tokens us | 1024 tokens us |
+| --- | ---: | ---: | ---: |
+| Paired baseline (representative trial) | 5.73 | 48.65 | 188.44 |
+| Row64/K64, two stages, matrix loads | 7.43 | 46.95 | 172.99 |
+| Row32/K64, two stages, matrix loads | 5.76 | 51.56 | 169.92 |
+| Row64/K64, single stage, matrix loads | 5.74 | 51.90 | 165.07 |
+| Row32/K128, single stage, matrix loads (three-trial median) | 5.73 | 53.49 | 175.76 |
+
+Rows come from separate paired runs; the baseline row is not a shared timing
+denominator. Increasing K to 128 did not resolve the 256-token regression and
+also regressed 7/17-token cases. Reducing the shared arena restores single-token
+performance, but does not by itself restore all prefill shapes. Therefore none
+of these substitutions is promoted wholesale. The remaining issue is joint
+resource/transfer scheduling, not merely eliminating bank conflicts.
+
+Graph harness: `/run/user/1000/lunaflux-down-graph-20260909-r1`.
+Single-stage results: `/run/user/1000/lunaflux-down-single-stage-20260909-r1`.
+K128 results: `/run/user/1000/lunaflux-down-k128-20260909-r1`.
+
+### Additional source-counter coverage
+
+The completed `lunaflux-counter-coverage-20260909-r1` campaign reports zero
+copy excess and zero other shared excess for each of these isolated launches:
+
+| Profile | Executed shared instructions |
+| --- | ---: |
+| Integrated head | 4,102,272 |
+| Row64/K64 matrix-load down experiment | 1,441,792 |
+| Sampling partial, rows 1 / 32 | 342 / 342 |
+| Sampling merge, rows 1 / 32 | 9 / 9 |
+
+Sampling uses the existing September 8 segmented-greedy probe, not a new
+current-tree export. Each row describes one profiled launch, not every block,
+shape or sampling algorithm independently. Aggregate hardware replay counters
+remain a separate measurement. Down's zero-conflict result does not waive its
+short-input performance regression.
