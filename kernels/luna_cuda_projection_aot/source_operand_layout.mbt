@@ -39,5 +39,5 @@ fn CudaProjectionOperandLayout::storage_elements(
   self : CudaProjectionOperandLayout,
   rows : Int,
 ) -> Int {
-  rows * self.row_stride
+  self.offset(rows, 0)
 }

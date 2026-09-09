@@ -34,6 +34,7 @@ fn projection_matrix_pipeline_source(
     padded=padded_bytes <= 49152,
   )
   let stride = layout.row_stride()
+  let transport : CudaProjectionTransportLayout = { columns: width }
   let slot = layout.storage_elements(rows + columns)
   let input_elements = layout.storage_elements(rows)
   let logical_elements = (rows + columns) * width
@@ -56,12 +57,69 @@ fn projection_matrix_pipeline_source(
   } else {
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
+  let fragment_declarations = if selected {
+    (
+      $|      using namespace nvcuda;
+      $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> a;
+      $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> b;
+      $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> c[\{fold_rows}];
+      $|      #pragma unroll
+      $|      for (int row = 0; row < \{fold_rows}; ++row) wmma::fill_fragment(c[row], 0.0f);
+    )
+  } else {
+    (
+      $|      float c[\{fold_rows}][8] = {};
+    )
+  }
+  let fragment_fold = if selected {
+    (
+      $|            wmma::load_matrix_sync(b, current + \{input_elements} + consumer_column * \{layout.offset(16, 0)} + k, \{stride});
+      $|            #pragma unroll
+      $|            for (int row = 0; row < \{fold_rows}; ++row) {
+      $|              if (row_begin + (consumer_row + row) * 16 >= pipeline_rows) break;
+      $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{layout.offset(16, 0)} + k, \{stride});
+      $|              wmma::mma_sync(c[row], a, b, c[row]);
+      $|            }
+    )
+  } else {
+    (
+      $|            unsigned b[4];
+      $|            #pragma unroll
+      $|            for (int part = 0; part < 4; ++part)
+      $|              b[part] = *reinterpret_cast<const unsigned *>(current + \{input_elements} + operand_index(consumer_column * 16 + lane / 4 + (part & 1) * 8, k + (lane % 4) * 2 + (part / 2) * 8));
+      $|            #pragma unroll
+      $|            for (int row = 0; row < \{fold_rows}; ++row) {
+      $|              if (row_begin + (consumer_row + row) * 16 >= pipeline_rows) break;
+      $|              unsigned a[4];
+      $|              #pragma unroll
+      $|              for (int part = 0; part < 4; ++part)
+      $|                a[part] = *reinterpret_cast<const unsigned *>(current + operand_index((consumer_row + row) * 16 + lane / 4 + (part & 1) * 8, k + (lane % 4) * 2 + (part / 2) * 8));
+      $|              #pragma unroll
+      $|              for (int half = 0; half < 2; ++half) {
+      $|                float *d = c[row] + half * 4;
+      $|                asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]), "+f"(d[1]), "+f"(d[2]), "+f"(d[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[half]), "r"(b[half+2]));
+      $|              }
+      $|            }
+    )
+  }
+  let fragment_store = if selected {
+    (
+      $|          wmma::store_matrix_sync(temporary, c[row], 16, wmma::mem_row_major);
+    )
+  } else {
+    (
+      $|          #pragma unroll
+      $|          for (int item = 0; item < 8; ++item)
+      $|            temporary[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
+    )
+  }
   let source =
     $|  const int pipeline_rows = \{row_count};
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
     $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * 2}];
     $|    extern __shared__ unsigned char matrix_output_bytes[];
     $|    float *temporary = reinterpret_cast<float *>(matrix_output_bytes) + warp * 256;
+    $|    \{if selected { "" } else { transport.address_function() }}
     $|    const int column_groups = \{(output_width + columns - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
@@ -83,19 +141,14 @@ fn projection_matrix_pipeline_source(
     $|          const bool valid = is_input ? (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count) : logical_column < \{output_width};
     $|          const __nv_bfloat16 *source = input;
     $|          if (valid) source = is_input ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k;
-    $|          const int physical_element = (is_input ? 0 : \{input_elements}) + local_row * \{stride} + k;
+    $|          const int physical_element = (is_input ? 0 : \{input_elements}) + \{if selected { "local_row * " + stride.to_string() + " + k" } else { "operand_index(local_row, k)" }};
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + physical_element);
     $|          const int bytes = valid ? 16 : 0;
     $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
     $|        }
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
-    $|      using namespace nvcuda;
-    $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> a;
-    $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> b;
-    $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> c[\{fold_rows}];
-    $|      #pragma unroll
-    $|      for (int row = 0; row < \{fold_rows}; ++row) wmma::fill_fragment(c[row], 0.0f);
+    $|\{fragment_declarations}
     $|      stage_operands(0, 0);
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
@@ -107,13 +160,7 @@ fn projection_matrix_pipeline_source(
     $|          const __nv_bfloat16 *current = matrix_storage + stage * \{slot};
     $|          #pragma unroll
     $|          for (int k = 0; k < \{width}; k += 16) {
-    $|            wmma::load_matrix_sync(b, current + \{input_elements} + consumer_column * \{layout.offset(16, 0)} + k, \{stride});
-    $|            #pragma unroll
-    $|            for (int row = 0; row < \{fold_rows}; ++row) {
-    $|              if (row_begin + (consumer_row + row) * 16 >= pipeline_rows) break;
-    $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{layout.offset(16, 0)} + k, \{stride});
-    $|              wmma::mma_sync(c[row], a, b, c[row]);
-    $|            }
+    $|\{fragment_fold}
     $|          }
     $|        }
     $|        asm volatile("cp.async.wait_group 0;" ::: "memory");
@@ -124,7 +171,7 @@ fn projection_matrix_pipeline_source(
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {
     $|          if (row_begin + (consumer_row + row) * 16 >= pipeline_rows) break;
-    $|          wmma::store_matrix_sync(temporary, c[row], 16, wmma::mem_row_major);
+    $|\{fragment_store}
     $|          __syncwarp();
     $|          #pragma unroll
     $|          for (int item = 0; item < 8; ++item) {
@@ -132,7 +179,7 @@ fn projection_matrix_pipeline_source(
     $|            const int logical_row = row_begin + (consumer_row + row) * 16 + element / 16;
     $|            const int token_row = \{input_row};
     $|            const int column = column_begin + consumer_column * 16 + element % 16;
-    $|            if (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count && column < \{output_width}) output[(unsigned long long)token_row * \{output_width}ULL + column] = __float2bfloat16_rn(temporary[element]);
+    $|            if (logical_row < pipeline_rows && token_row >= 0 && token_row < token_count && column < \{output_width}) output[(unsigned long long)token_row * \{output_width}ULL + column] = __float2bfloat16_rn(temporary[\{if selected { "element" } else { "result_index(element / 16, element % 16)" }}]);
     $|          }
     $|          __syncwarp();
     $|        }
