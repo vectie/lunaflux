@@ -154,7 +154,10 @@ fn projection_matrix_pipeline(
     Some({
       tile_width: k,
       tile_count: extent / k,
-      transfer_width: if selected {
+      // A bounded selected-row product can amortize transfers over four
+      // ordered microtiles. Wider output products retain the smaller slot.
+      transfer_width: if selected &&
+        dispatch.prefill().output_tiles_per_workgroup() > 8 {
         k * 2
       } else {
         k * 4

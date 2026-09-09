@@ -1,5 +1,48 @@
 # Shared projection transport: selected-row regression
 
+Update: the original regression below is resolved by jointly changing the
+bounded selected-row transfer width to 64, using compact row-XOR operand
+storage, and loading explicit fragments with `ldmatrix`. The original K32
+experiments remain useful negative controls; their regressions are not hidden.
+
+## Joint selected-row solution
+
+Three paired trials (20 graph launches each), same baseline and GPU as below:
+
+| Tokens | Selected rows | Baseline median us | Joint K64 median us |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 | 737.13 | 736.66 |
+| 2 | 2 | 1231.00 | 733.83 |
+| 7 | 7 | 1236.19 | 739.50 |
+| 8 | 8 | 1237.38 | 740.50 |
+| 17 | 17 | 1363.50 | 815.24 |
+| 32 | 32 | 1397.42 | 830.14 |
+| 257 | 32 | 1422.66 | 829.72 |
+| 1024 | 32 | 1405.49 | 827.56 |
+
+All cases pass bitwise, sampled independent arithmetic and untouched-tail
+checks. This is approximately 41% less head time at 32 selected rows, not an
+end-to-end serving speedup. A single 1024-token launch passes memcheck,
+racecheck, initcheck and synccheck. Its source profile has 4,102,272 executed
+shared instructions, zero copy excess and zero other shared excess.
+
+The K32 `ldmatrix` control still regressed (about 1528 us at 1024 tokens).
+Matrix-load substitution alone was insufficient: transfer geometry and layout
+must change together. The pure compiler schedule uses four ordered microtiles
+per transfer for bounded selected-row products with up to eight output tiles;
+wider output products retain two, and the backend retains their existing
+consumer. There is no model-name or vocabulary-size special case.
+
+The integrated generator export differs from the measured K64 experiment only
+in whitespace around two fragment-load declarations. Its own remote rebuild
+was blocked by automatic upload review, including a retry citing the user's
+existing source-upload authorization. Do not claim that rebuild or a new
+end-to-end benchmark completed. Production deployment is unchanged.
+
+Physical results and report:
+`/run/user/1000/lunaflux-head-k64-20260909-r1`.
+K32 control: `/run/user/1000/lunaflux-head-ldmatrix-20260909-r1`.
+
 The row-preserving XOR experiment must not be promoted wholesale. The shared
 generator also covers selected-row vocabulary projection, which has different
 reuse and resource requirements from dense QKV/output. There is no model-name
@@ -46,7 +89,7 @@ explain or fix the regression. The r1 scratch transformation changed only the
 first producer offset occurrence, failed bitwise comparison at two tokens,
 and was rejected; r2 changes both producer and consumer offsets.
 
-The integrated generator therefore retains the original WMMA implementation
+At that checkpoint the integrated generator retained the original WMMA implementation
 for `QueryRowEnds` demand. This is a demand-based lowering decision, not a
 model-name special case. Its exported head source differs from the pinned
 baseline only by one blank line; QKV is byte-identical to the previously

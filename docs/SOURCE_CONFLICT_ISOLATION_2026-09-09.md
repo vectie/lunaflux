@@ -29,10 +29,12 @@ and performance after isolation is complete.
 | Down synchronous-copy isolation | 4,390,912 | 0 | 0 | Bitwise checks pass; slower experiment only |
 | Attention explicit-fragment r2, KV32 | 7,767,040 | 0 | 0 | Different partition from the accepted KV64 schedule |
 | Attention explicit-fragment, matched KV64 | 6,370,304 | 0 | 0 | Bitwise paired checks and four sanitizers pass; generator integrated |
+| Head joint K64 matrix loads | 4,102,272 | 0 | 0 | Eight paired cases and four sanitizers pass; see head report |
+| Down K64 scalar fragments | 4,390,912 | 0 | 0 | Eleven paired cases pass; short-shape regression prevents adoption |
 
 These are individual profiled launches, not coverage of every token length,
 schedule or kernel. Gate/up has its separately recorded selected-path result.
-Head, normalization, sampling, decode and fallback shapes still require the
+Normalization, sampling, decode and fallback shapes still require the
 same source-level audit. Missing reports are not zero.
 
 ## Down: copy mechanism is a separate axis
