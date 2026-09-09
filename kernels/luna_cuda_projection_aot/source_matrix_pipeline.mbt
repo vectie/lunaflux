@@ -139,8 +139,7 @@ fn projection_matrix_pipeline_source(
     $|          if (valid) source = is_input ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k;
     $|          const int physical_element = (is_input ? 0 : \{input_elements}) + operand_index(local_row, k);
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + physical_element);
-    $|          const int bytes = valid ? 16 : 0;
-    $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
+    $|          \{projection_operand_transfer_source(width)}
     $|        }
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };

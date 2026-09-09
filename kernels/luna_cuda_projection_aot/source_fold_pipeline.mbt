@@ -19,8 +19,17 @@ fn projection_fold_pipeline_source(
   // Distribute the immutable operand product into two affine producer maps.
   // This removes the per-vector operand tag and pointer selection without
   // changing the ordered reduction or moving reads across materialization.
+  // Small workgroups use register materialization: their partially active
+  // unrolled bypass copies retain excessive transactions on the measured
+  // backend. This is a workgroup/transport decision, never a model-family rule.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a", "destination", rows, width, stride, true,
+    "pipeline_a",
+    "destination",
+    rows,
+    width,
+    stride,
+    true,
+    groups >= 4,
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
@@ -29,6 +38,7 @@ fn projection_fold_pipeline_source(
     width,
     stride,
     false,
+    groups >= 4,
   )
   let source =
     $|  {
@@ -101,6 +111,7 @@ fn projection_fold_operand_copy_source(
   width : Int,
   stride : Int,
   guard_rows : Bool,
+  asynchronous : Bool,
 ) -> String {
   let validity = if guard_rows {
     "const bool valid = row_start + row < token_count;"
@@ -113,8 +124,7 @@ fn projection_fold_operand_copy_source(
     $|        \{validity}
     $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};
     $|        const unsigned address = (unsigned)__cvta_generic_to_shared(\{destination} + operand_index(row, k));
-    $|        const int bytes = valid ? 16 : 0;
-    $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
+    $|        \{projection_operand_transfer_source(width, asynchronous~)}
     $|      }
   source
 }

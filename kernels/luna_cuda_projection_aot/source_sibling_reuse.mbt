@@ -6,7 +6,7 @@
 /// changes of ownership, including inactive tail-row consumers.
 /// CUDA lowering uses the documented m16n8k16 register layout, not the opaque
 /// WMMA fragment representation. Two independent column halves retain the same
-/// ordered K16 fold. Eight-wide operand tiles feed ldmatrix; register-major
+/// ordered K16 fold. Row-contiguous swizzled operands feed ldmatrix; register-major
 /// result planes make each warp's shared stores and subsequent loads contiguous.
 fn projection_sibling_reuse_source(
   plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
@@ -16,7 +16,7 @@ fn projection_sibling_reuse_source(
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
-  let layout : CudaProjectionMicrotileLayout = { columns: width }
+  let layout : CudaProjectionTransportLayout = { columns: width }
   let slot = (rows + 2 * columns) * width
   let folds = reuse.rows_per_group()
   let consumers = reuse.consumer_groups()
@@ -39,7 +39,7 @@ fn projection_sibling_reuse_source(
     $|      auto stage_operands = [&](int k_base, int stage) {
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
     $|        for (int vector = threadIdx.x; vector < \{slot / 8}; vector += blockDim.x) {
-    $|          const int element = ((vector / 8) / \{width / 8} * 8 + vector % 8) * \{width} + ((vector / 8) % \{width / 8}) * 8;
+    $|          const int element = vector * 8;
     $|          const bool is_input = element < \{rows * width};
     $|          const bool is_gate = element < \{(rows + columns) * width};
     $|          const int offset = is_input ? element : (is_gate ? element - \{rows * width} : element - \{(rows + columns) * width});
@@ -49,8 +49,7 @@ fn projection_sibling_reuse_source(
     $|          const int source_row = is_input ? row_begin + row : column_begin + row;
     $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(element / \{width}, k));
-    $|          const int bytes = valid ? 16 : 0;
-    $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
+    $|          \{projection_operand_transfer_source(width)}
     $|        }
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };

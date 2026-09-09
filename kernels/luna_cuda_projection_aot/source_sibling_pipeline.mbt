@@ -53,8 +53,7 @@ fn projection_sibling_fold_pipeline_source(
     $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
     $|          const int region = is_input ? 0 : (is_gate ? \{rows * width} : \{(rows + columns) * width});
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + region + operand_index(row, k));
-    $|          const int bytes = valid ? 16 : 0;
-    $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
+    $|          \{projection_operand_transfer_source(width)}
     $|        }
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
