@@ -44,8 +44,7 @@ test "functional projection compiler prunes unobserved prompt logits" {
   assert_true(trace[0].changed())
   assert_true(trace[1].changed())
   assert_false(trace[2].changed())
-  assert_false(compiled.schedule().reuse_input_tile())
-  assert_eq(compiled.schedule().row_tail_policy(), ScalarRowTail)
+  assert_eq(compiled.schedule().row_tail_policy(), ZeroPaddedMatrixRowTail)
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 32, 16),
@@ -65,7 +64,7 @@ test "functional projection compiler preserves all-row dense semantics" {
   assert_eq(compiled.program().bindings().length(), 4)
   assert_false(compiled.optimization().trace()[0].changed())
   assert_false(compiled.optimization().trace()[2].changed())
-  assert_false(compiled.schedule().reuse_input_tile())
+  assert_eq(compiled.schedule().row_tail_policy(), ZeroPaddedMatrixRowTail)
   assert_eq(
     compiled.schedule().loops()[0].components(),
     (ProjectionParallelMap, ProjectionRowAxis, 256, 16),
@@ -107,7 +106,7 @@ test "functional MLP graph shares pure input and intermediate tile values" {
   assert_true(trace[3].changed())
   assert_eq(trace[4].rule(), ReuseIntermediateTileAcrossOutputTiles)
   assert_true(trace[4].changed())
-  assert_false(compiled.schedule().reuse_input_tile())
+  assert_true(compiled.schedule().sibling_pipeline() is Some(_))
   assert_true(compiled.schedule().reuse_intermediate_tile())
   let loops = compiled.schedule().loops()
   assert_eq(loops.length(), 5)

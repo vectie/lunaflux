@@ -27,11 +27,11 @@ fn projection_sibling_fold_pipeline_source(
   ).unwrap()
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
+  let layout : CudaProjectionTransportLayout = { columns: width }
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
     $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * 2}];
-    $|    extern __shared__ unsigned char sibling_output_bytes[];
-    $|    float *temporary = reinterpret_cast<float *>(sibling_output_bytes) + warp * 256;
+    $|    \{layout.address_function()}
     $|    const int groups = \{intermediate / columns};
     $|    const int work_count = ((token_count + \{rows - 1}) / \{rows}) * groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
@@ -51,18 +51,14 @@ fn projection_sibling_fold_pipeline_source(
     $|          const __nv_bfloat16 *base = is_input ? input : (is_gate ? gate_weight : up_weight);
     $|          const int source_row = is_input ? row_begin + row : column_begin + row;
     $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + element);
+    $|          const int region = is_input ? 0 : (is_gate ? \{rows * width} : \{(rows + columns) * width});
+    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + region + operand_index(row, k));
     $|          const int bytes = valid ? 16 : 0;
     $|          asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
     $|        }
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
-    $|      using namespace nvcuda;
-    $|      wmma::fragment<wmma::matrix_a, 16, 16, 16, __nv_bfloat16, wmma::row_major> a;
-    $|      wmma::fragment<wmma::matrix_b, 16, 16, 16, __nv_bfloat16, wmma::col_major> bg, bu;
-    $|      wmma::fragment<wmma::accumulator, 16, 16, 16, float> cg[\{fold_rows}], cu[\{fold_rows}];
-    $|      #pragma unroll
-    $|      for (int row = 0; row < \{fold_rows}; ++row) { wmma::fill_fragment(cg[row], 0.0f); wmma::fill_fragment(cu[row], 0.0f); }
+    $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
     $|      stage_operands(0, 0);
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
@@ -74,14 +70,26 @@ fn projection_sibling_fold_pipeline_source(
     $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
     $|          #pragma unroll
     $|          for (int k = 0; k < \{width}; k += 16) {
-    $|            wmma::load_matrix_sync(bg, current + \{rows * width} + consumer_column * \{16 * width} + k, \{width});
-    $|            wmma::load_matrix_sync(bu, current + \{(rows + columns) * width} + consumer_column * \{16 * width} + k, \{width});
+    $|            unsigned bg[4], bu[4];
+    $|            #pragma unroll
+    $|            for (int part = 0; part < 4; ++part) {
+    $|              const int r = consumer_column * 16 + lane / 4 + (part & 1) * 8;
+    $|              const int component = k + lane % 4 * 2 + (part / 2) * 8;
+    $|              bg[part] = *reinterpret_cast<const unsigned *>(current + \{rows * width} + operand_index(r, component));
+    $|              bu[part] = *reinterpret_cast<const unsigned *>(current + \{(rows + columns) * width} + operand_index(r, component));
+    $|            }
     $|            #pragma unroll
     $|            for (int row = 0; row < \{fold_rows}; ++row) {
     $|              if (row_begin + (consumer_row + row) * 16 >= token_count) break;
-    $|              wmma::load_matrix_sync(a, current + (consumer_row + row) * \{16 * width} + k, \{width});
-    $|              wmma::mma_sync(cg[row], a, bg, cg[row]);
-    $|              wmma::mma_sync(cu[row], a, bu, cu[row]);
+    $|              unsigned a[4];
+    $|              #pragma unroll
+    $|              for (int part = 0; part < 4; ++part) a[part] = *reinterpret_cast<const unsigned *>(current + operand_index((consumer_row + row) * 16 + lane / 4 + (part & 1) * 8, k + lane % 4 * 2 + (part / 2) * 8));
+    $|              #pragma unroll
+    $|              for (int half = 0; half < 2; ++half) {
+    $|                float *g = cg[row] + half * 4, *u = cu[row] + half * 4;
+    $|                asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(g[0]), "+f"(g[1]), "+f"(g[2]), "+f"(g[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(bg[half]), "r"(bg[half+2]));
+    $|                asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(u[0]), "+f"(u[1]), "+f"(u[2]), "+f"(u[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(bu[half]), "r"(bu[half+2]));
+    $|              }
     $|            }
     $|          }
     $|        }
@@ -93,21 +101,13 @@ fn projection_sibling_fold_pipeline_source(
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {
     $|          if (row_begin + (consumer_row + row) * 16 >= token_count) break;
-    $|          wmma::store_matrix_sync(temporary, cg[row], 16, wmma::mem_row_major);
-    $|          __syncwarp();
-    $|          float gates[8];
-    $|          #pragma unroll
-    $|          for (int item = 0; item < 8; ++item) gates[item] = temporary[lane + item * 32];
-    $|          __syncwarp();
-    $|          wmma::store_matrix_sync(temporary, cu[row], 16, wmma::mem_row_major);
-    $|          __syncwarp();
     $|          #pragma unroll
     $|          for (int item = 0; item < 8; ++item) {
-    $|            const int element = lane + item * 32;
-    $|            const int output_row = row_begin + (consumer_row + row) * 16 + element / 16;
+    $|            const int output_row = row_begin + (consumer_row + row) * 16 + lane / 4 + (item % 4 / 2) * 8;
+    $|            const int output_column = lane % 4 * 2 + item % 2 + item / 4 * 8;
     $|            if (output_row < token_count) {
-    $|              const float gate = gates[item], up = temporary[element];
-    $|              workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + consumer_column * 16 + element % 16] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
+    $|              const float gate = cg[row][item], up = cu[row][item];
+    $|              workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + consumer_column * 16 + output_column] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
     $|            }
     $|          }
     $|          __syncwarp();

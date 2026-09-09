@@ -84,7 +84,7 @@ test "CUDA AOT compiler purely composes functional and device stages" {
   assert_eq(first.lowering().launch(), (128, 16, 256, 22528L))
   assert_true(
     @utf8.decode(first.source().bytes()).contains(
-      "wmma::load_matrix_sync(probability_fragment",
+      "probability_fragment = lf_matrix_load(weights",
     ),
   )
   assert_eq(first.digest().as_hex().length(), 64)

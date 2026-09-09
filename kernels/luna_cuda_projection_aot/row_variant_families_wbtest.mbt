@@ -32,12 +32,13 @@ fn row_variant_test_profile() -> @launch_contract.PagedKernelProfile raise {
 fn row_variant_primary_test_source(
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+  maximum_tokens? : Int = 1024,
 ) -> String raise {
   let compilation = @luna_projection_tile_compiler.compile_projection_tile(
     @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
       dispatch~,
       maximum_rows=32,
-      maximum_tokens=1024,
+      maximum_tokens~,
       demand=if parameters.family == LanguageModelHead {
         QueryRowEnds
       } else {
@@ -48,7 +49,7 @@ fn row_variant_primary_test_source(
   )
   @utf8.decode(
     projection_source(
-      "baseline", parameters, 1024, 32, dispatch, compilation, false, true,
+      "baseline", parameters, maximum_tokens, 32, dispatch, compilation, false, true,
     ),
   )
 }
@@ -92,8 +93,9 @@ test "head residency-only winner remains executable inside a larger profile" {
   assert_true(source.contains("token_count > 256"))
   assert_true(source.contains("row_count > 32"))
   assert_true(source.contains("element < 16384"))
-  assert_true(source.contains("selected_input + inner, 1024"))
-  assert_false(source.contains("load_matrix_sync(a, selected_input, 16)"))
+  assert_true(source.contains("inner < 1024; inner += 16"))
+  assert_true(source.contains("operand_index(local_row, inner + local_k)"))
+  assert_false(source.contains("wmma::"))
   assert_false(source.contains("sampling"))
   if @env.get_env_var("LUNA_TEST_EXPORT_ROW_VARIANT_FAMILIES") == Some("1") {
     println("LUNA_SOURCE_BEGIN head-resident-256-in-1024")

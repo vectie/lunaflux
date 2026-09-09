@@ -209,7 +209,6 @@ pub fn ProjectionTileSchedule::intermediate_pipeline(Self) -> ProjectionFoldPipe
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
 pub fn ProjectionTileSchedule::matrix_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::output_tiles_per_workgroup(Self) -> Int
-pub fn ProjectionTileSchedule::reuse_input_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
 pub fn ProjectionTileSchedule::selected_input_row_resident(Self) -> Bool

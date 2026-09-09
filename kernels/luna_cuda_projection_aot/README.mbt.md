@@ -28,7 +28,7 @@ Projection workload policy is prepared before source generation through the
 backend-neutral `ProjectionRuntimeDispatch`. CUDA contributes only target and
 capability facts, then lowers the selected `DecodeGemv`,
 `SmallRowTiledGemm`, or `LargeRowTiledGemm` strategy into its private subgroup,
-scalar, or WMMA implementation. Offline autotune records may replace the
+scalar fold, or explicit matrix-fragment implementation. Offline autotune records may replace the
 static strategy at startup; the compatibility entry points build the same
 runtime table with an empty record set. Source generation does not classify
 shapes or scan tuning records.
@@ -50,11 +50,16 @@ An unmeasured bucket retains the existing static fallback. Installation and
 capture selection belong to the device executor; generated variants alone are
 not dispatch or performance evidence.
 
-`fixtures/physical_sm120` records the exact generated CUDA and recipe bytes for
-small QKV, dense-projection, gated-MLP, and language-model-head numerical
-shapes. `physical_fixture_wbtest.mbt` binds both SHA-256 values to fresh typed
-candidates; the shared standalone CUDA Driver probe compares the checked source
-against an independent host referee. The recipe fixtures are explicitly
-non-bindable and contain no module digest; only the post-compile binding record
-may carry that identity. The CUDA source fixtures did not change during this
-ownership correction. No checked fixture is a physical-CUDA pass.
+All admitted matrix MLP extents use the same staged sibling/consumer folds;
+there is no legacy WMMA tail or non-pipelined MLP generator. Selected-row strip
+and whole-row-resident schedules share one matrix-map lowerer. Scalar QKV,
+dense, head, and scalar MLP sibling computations share the same ordered-dot
+emitter, which also lowers explicitly permitted single-row trees. Scalar MLP
+may retain its F32 intermediate or recompute it: storage changes do not insert
+a BF16 rounding boundary. Matrix MLP retains its declared BF16 workspace.
+
+`fixtures/physical_sm120` preserves historical small-shape source/recipe bytes;
+it is not the current generator or an executable fallback. Current deterministic
+snapshots live in `physical_fixture_wbtest.mbt`; fresh physical checks are
+recorded in [unified compiler coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
+Historical source qualifications do not transfer to newly generated source.

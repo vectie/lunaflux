@@ -67,16 +67,13 @@ test "selected-row head strip is compiled into a bounded executable variant" {
     assert_eq(dimensions.shared_memory_bytes(), strip.local_storage_bytes())
     assert_true(source.contains("strip_begin += 128"))
     assert_true(source.contains("inner < 128; inner += 16"))
-    assert_true(
-      source.contains("load_matrix_sync(a, selected_input + inner, 128)"),
-    )
-    assert_true(
-      source.contains("load_matrix_sync(b, selected_weight + inner, 128)"),
-    )
+    assert_true(source.contains("operand_index(local_row, inner + local_k)"))
+    assert_true(source.contains("strip_begin + inner + local_k"))
     assert_true(source.contains("token_row >= 0 && token_row < token_count"))
     assert_true(source.contains("if (counts[2] == 1)"))
     assert_true(source.contains("__shfl_down_sync"))
-    assert_false(source.contains("__syncthreads"))
+    assert_true(source.contains("__syncthreads"))
+    assert_false(source.contains("wmma::"))
     assert_false(source.contains("cp.async.commit_group"))
     assert_false(source.contains("atomicAdd"))
     assert_false(source.contains("cudaMalloc"))

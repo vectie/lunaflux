@@ -18,8 +18,9 @@ caller's numerical tolerance. Purity does not make floating-point addition
 associative; normalization/CSE never grants this permission.
 
 The permission is bound into the semantic program and the chosen topology into
-the v5 schedule. Default ordered requests retain their existing v4 canonical
-bytes, so unrelated kernels do not change identity. The CUDA fused attention
+the v7 schedule (v6 for ordered requests). These versions replace the obsolete
+always-false `reuse_input_tile` toggle with an explicit scalar/masked-matrix
+row-tail policy. Operand lifetime and reuse belong to the fold plans. The CUDA fused attention
 ingress is the first consumer: all four subgroups share output columns and
 cooperatively load contiguous reduction elements for a single token. Its
 multi-token matrix path and epilogue remain unchanged. This is a reusable
@@ -64,11 +65,13 @@ reuse once. A device backend lowers those sharing decisions to its own local
 memory and synchronization primitives; model code never names them.
 
 The materialized intermediate fold also carries an immutable two-stage block
-pipeline: a 64-row map, 32-element transfers, and unchanged 16-element ordered
-reductions. Full blocks and row tails are scheduled separately; single-row
+pipeline: a 64-row map, 64-element consumer transfers, and unchanged 16-element ordered
+reductions. Full blocks and masked row tails share the same fold; single-row
 execution factors one input across four independent output folds. CUDA is the
-first lowering. This is currently implemented for MLP-down, not every matrix
-family. See [pipeline results and limits](../../docs/COMPILER_OPERAND_PIPELINE.md).
+first lowering. MLP sibling input transfers use 32 elements; complete admitted
+MLP matrix extents start at 256. QKV, output, and head matrix pipelines select
+16/32/64-element transfer groups from their reduction extent and storage plan.
+See [current coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
 
 Attention ingress is also a composable projection epilogue. Its immutable value
 graph is `QKV dot -> per-head Q/K RMSNorm -> positioned rotary -> output store +
@@ -95,8 +98,8 @@ inner folds remain ordered; this is strip mining and lifetime reduction, not
 floating-point reassociation. Its local-storage requirement is 9,216 bytes,
 independent of the full input width. The initial eligibility requires input
 width divisible by 128 and complete 16-column tiles; other strategies retain
-their previous storage. CUDA lowers the plan to gathered vector input copies,
-contiguous weight copies and one-warp matrix operations. The existing
+their declared storage. CUDA lowers strip and resident plans through the same
+gathered-input matrix map with direct immutable weight reads. The existing
 single-row reduction remains unchanged. Offline records still select the
 strategy; this does not install an unmeasured default or claim a speedup.
 

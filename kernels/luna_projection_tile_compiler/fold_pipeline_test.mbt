@@ -29,7 +29,7 @@ test "pipeline requires complete reduction blocks and shares no model identity" 
       ),
     )
     let pipeline = compiled.schedule().intermediate_pipeline()
-    assert_eq(pipeline is Some(_), width >= 512 && width % 64 == 0)
+    assert_eq(pipeline is Some(_), width >= 256 && width % 64 == 0)
     if pipeline is Some(plan) {
       assert_eq(plan.tile_count() * plan.tile_width(), width)
       assert_eq(plan.row_width(), 64)

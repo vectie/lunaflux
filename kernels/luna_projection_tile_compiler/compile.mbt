@@ -297,16 +297,16 @@ pub fn optimize_projection_tile(
 fn projection_schedule_canonical(
   optimized : OptimizedProjectionTileCompilation,
   loops : ArrayView[ProjectionLoopCombinator],
-  reuse_input_tile : Bool,
+  row_tail_policy : ProjectionRowTailPolicy,
   single_row_reduction : ProjectionSingleRowReduction,
 ) -> Bytes {
   let builder = StringBuilder()
   let explicit_tree = optimized.semantic.selected.request.single_row_numerics ==
     AllowDeterministicDotTree
   if explicit_tree {
-    builder <+ "luna-projection-tile-schedule-v5\n"
+    builder <+ "luna-projection-tile-schedule-v7\n"
   } else {
-    builder <+ "luna-projection-tile-schedule-v4\n"
+    builder <+ "luna-projection-tile-schedule-v6\n"
   }
   builder <+ "program_sha256=\{optimized.normalized.program.digest.0}\n"
   builder <+ "optimization_sha256=\{optimized.optimization.digest.0}\n"
@@ -324,7 +324,8 @@ fn projection_schedule_canonical(
     builder <+
       "loop=\{kind},\{axis},\{schedule_loop.extent},\{schedule_loop.tile}\n"
   }
-  builder <+ "reuse_input_tile=\{reuse_input_tile}\n"
+  builder <+
+    "row_tail_policy=\{if row_tail_policy == ZeroPaddedMatrixRowTail { "masked-matrix" } else { "scalar" }}\n"
   let dispatch = optimized.semantic.selected.request.dispatch
   if projection_selected_row_strip(
       dispatch,
@@ -491,15 +492,17 @@ pub fn schedule_projection_tile(
     }
     ProjectionStoreRows => ()
   }
-  // Sibling gate/up dots share the same SSA input fragment already. Turning
-  // that semantic reuse into a cross-warp shared-memory tile adds two block
-  // barriers per reduction tile, so the conservative schedule keeps the
-  // value in registers until a backend autotune record proves materializing
-  // it is cheaper. The optimization trace still records the reuse opportunity.
-  let reuse_input_tile = false
+  // Operand reuse is described by the fold lifetime plans, not a second,
+  // permanently-false backend toggle. All matrix folds mask their row tails.
+  let row_tail_policy = if request.dispatch.prefill().kernel_class() ==
+    MatrixTile {
+    ZeroPaddedMatrixRowTail
+  } else {
+    ScalarRowTail
+  }
   let single_row_reduction = projection_single_row_reduction(request)
   let canonical = projection_schedule_canonical(
-    optimized, loops, reuse_input_tile, single_row_reduction,
+    optimized, loops, row_tail_policy, single_row_reduction,
   )
   let schedule = ProjectionTileSchedule::{
     program_digest: optimized.normalized.program.digest,
@@ -511,7 +514,7 @@ pub fn schedule_projection_tile(
     .output_tiles_per_workgroup(),
     selected_input_row_resident: request.demand == QueryRowEnds &&
     request.dispatch.prefill().input_residency() == SelectedRowTileResidency,
-    reuse_input_tile,
+    row_tail_policy,
     single_row_reduction,
     intermediate_pipeline: projection_intermediate_pipeline(optimized),
     sibling_pipeline: projection_sibling_pipeline(optimized),

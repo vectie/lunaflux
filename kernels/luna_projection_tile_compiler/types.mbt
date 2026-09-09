@@ -165,7 +165,7 @@ pub struct ProjectionTileSchedule {
   priv loops : ReadOnlyArray[ProjectionLoopCombinator]
   priv output_tiles_per_workgroup : Int
   priv selected_input_row_resident : Bool
-  priv reuse_input_tile : Bool
+  priv row_tail_policy : ProjectionRowTailPolicy
   priv reuse_intermediate_tile : Bool
   priv intermediate_pipeline : ProjectionFoldPipeline?
   priv sibling_pipeline : ProjectionFoldPipeline?

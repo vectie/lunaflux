@@ -72,7 +72,7 @@ fn projection_intermediate_pipeline(
   // move reads across arbitrary stores, KV commits, or other effectful folds.
   if optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles) &&
     dispatch.prefill().kernel_class() == MatrixTile &&
-    extent >= 512 &&
+    extent >= 256 &&
     tile > 0 &&
     extent % (tile * 4) == 0 {
     Some({
@@ -99,7 +99,7 @@ fn projection_sibling_pipeline(
   let (_, _, tile) = dispatch.prefill().tile().dimensions()
   if optimized.optimization.applied(FuseSiblingInputTraversals) &&
     dispatch.prefill().kernel_class() == MatrixTile &&
-    extent >= 512 &&
+    extent >= 256 &&
     tile > 0 &&
     extent % (tile * 4) == 0 {
     Some({

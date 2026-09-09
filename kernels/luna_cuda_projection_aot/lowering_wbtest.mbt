@@ -60,7 +60,7 @@ test "generated projection sources retain exact canonical ABIs" {
   )
   assert_true(qkv.contains("const int token_count = counts[3];"))
   assert_true(qkv.contains("weight = value_weight"))
-  assert_true(qkv.contains("accumulator = __fadd_rn(accumulator, product);"))
+  assert_true(qkv.contains("accumulator = __fadd_rn(accumulator, __fmul_rn("))
   assert_false(qkv.contains("malloc"))
   assert_false(qkv.contains("cublas"))
   let dense = @utf8.decode(projection_fixture_lowering(4).source_bytes())
@@ -72,7 +72,7 @@ test "generated projection sources retain exact canonical ABIs" {
   assert_true(mlp.contains("const __nv_bfloat16 *down_weight"))
   assert_true(mlp.contains("expf(-gate)"))
   assert_true(mlp.contains("extern __shared__ float combined[];"))
-  assert_true(mlp.contains("const int token = (int)blockIdx.x;"))
+  assert_true(mlp.contains("const int token = blockIdx.x;"))
   assert_true(mlp.contains("__syncthreads();"))
   assert_true(mlp.contains("__float2bfloat16_rn(output_accumulator)"))
   assert_eq(
@@ -154,7 +154,7 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
     lowering.tile_compilation().schedule().single_row_reduction(),
     StridedPairwiseDot(32),
   )
-  assert_true(source.contains("if (warp >= 4) return"))
+  assert_true(source.contains("if (blockDim.x != 128) return"))
   assert_true(source.contains("const int group_count = 16;"))
   assert_true(source.contains("work_group += (int)gridDim.x"))
   assert_true(source.contains("group_index * 64 + warp * 16"))
@@ -414,7 +414,9 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_eq(lowering.dispatch_plan().prefill().stable_id(), 700)
   let source = @utf8.decode(lowering.source_bytes())
   assert_false(source.contains("nvcuda::wmma::mma_sync"))
-  assert_true(source.contains("accumulator = __fadd_rn(accumulator, product)"))
+  assert_true(
+    source.contains("accumulator = __fadd_rn(accumulator, __fmul_rn("),
+  )
   let recipe = @utf8.decode(lowering.recipe_bytes())
   assert_true(recipe.contains("prefill_strategy=scalar-tile\n"))
   assert_true(recipe.contains("prefill_strategy_class=small-row-tiled-gemm\n"))
@@ -436,7 +438,10 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_true(
     @utf8.decode(fallback.source_bytes()).contains("matrix_output_bytes"),
   )
-  assert_false(fallback.tile_compilation().schedule().reuse_input_tile())
+  assert_eq(
+    fallback.tile_compilation().schedule().row_tail_policy(),
+    ZeroPaddedMatrixRowTail,
+  )
   assert_eq(fallback.launch_dimensions().shared_memory_bytes(), 8192)
   let compiler_source = projection_source(
     "projection_compiler",
@@ -521,8 +526,8 @@ test "Qwen-shaped QKV split is authenticated from all three weight bytes" {
   assert_eq(lowering.output_width(), 16)
   assert_eq(lowering.intermediate_width(), 4)
   let source = @utf8.decode(lowering.source_bytes())
-  assert_true(source.contains("if (column >= 8)"))
-  assert_true(source.contains("local_column = column - 8"))
+  assert_true(source.contains("if (local_column >= 8)"))
+  assert_true(source.contains("local_column -= 8"))
   let mismatched = operands.copy()
   mismatched[4] = projection_fixture_operand(
     WeightInput(@plan.TensorRef::new(11)),

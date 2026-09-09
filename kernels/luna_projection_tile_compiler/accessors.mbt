@@ -140,18 +140,7 @@ pub fn ProjectionTileSchedule::loops(
 pub fn ProjectionTileSchedule::row_tail_policy(
   self : ProjectionTileSchedule,
 ) -> ProjectionRowTailPolicy {
-  if self.fuse_attention_ingress_epilogue {
-    ZeroPaddedMatrixRowTail
-  } else {
-    ScalarRowTail
-  }
-}
-
-///|
-pub fn ProjectionTileSchedule::reuse_input_tile(
-  self : ProjectionTileSchedule,
-) -> Bool {
-  self.reuse_input_tile
+  self.row_tail_policy
 }
 
 ///|

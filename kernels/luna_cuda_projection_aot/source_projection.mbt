@@ -73,7 +73,6 @@ fn projection_tensor_core_direct_dense_source(
     .demand()
   let query_row_ends = demand == QueryRowEnds
   let groups = tile_compilation.schedule().output_tiles_per_workgroup()
-  let row_resident = tile_compilation.schedule().selected_input_row_resident()
   let cooperative_column_tail = query_row_ends &&
     parameters.output_width % (groups * 16) != 0
   @utf8.encode(
@@ -99,11 +98,18 @@ fn projection_tensor_core_direct_dense_source(
       ") return;\n" +
       "    const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
-      "ULL; float value = 0.0f;\n" +
-      "    for (int inner = lane; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(weight[weight_base + inner])));\n" +
-      "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+      "ULL;\n" +
+      projection_dot_fold_source(
+        parameters.input_width,
+        [
+          {
+            accumulator: "value",
+            left: "__bfloat162float(input[inner])",
+            right: "__bfloat162float(weight[weight_base + inner])",
+          },
+        ],
+        tile_compilation.schedule().single_row_reduction(),
+      ) +
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
       "    return;\n  }\n" +
       "  const int group_count = " +
@@ -145,11 +151,18 @@ fn projection_tensor_core_direct_dense_source(
       ") break;\n" +
       "      const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
-      "ULL; float value = 0.0f;\n" +
-      "      for (int inner = lane; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner])));\n" +
-      "      for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+      "ULL;\n" +
+      projection_dot_fold_source(
+        parameters.input_width,
+        [
+          {
+            accumulator: "value",
+            left: "__bfloat162float(input[input_base + inner])",
+            right: "__bfloat162float(weight[weight_base + inner])",
+          },
+        ],
+        tile_compilation.schedule().single_row_reduction(),
+      ) +
       "      if (lane == 0) output[output_base + output_column] = __float2bfloat16_rn(value);\n" +
       "    } return;\n" +
       "  }\n"
@@ -159,102 +172,7 @@ fn projection_tensor_core_direct_dense_source(
     (if tile_compilation.schedule().matrix_pipeline() is Some(_) {
       ""
     } else {
-      "  for (int row = " +
-      (if query_row_ends { "0" } else { "row_begin" }) +
-      "; row < " +
-      (if query_row_ends { "row_count" } else { "token_count" }) +
-      "; row += " +
-      (if query_row_ends { "16" } else { maximum_tokens.to_string() }) +
-      ") {\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
-      "  nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
-      (if query_row_ends {
-        "  extern __shared__ unsigned char projection_shared[];\n" +
-        "  float *tile_output = (float *)projection_shared;\n" +
-        "  __nv_bfloat16 *selected_input = (__nv_bfloat16 *)(tile_output + \{groups * 256});\n"
-      } else {
-        ""
-      }) +
-      (if row_resident {
-        projection_resident_selected_rows(parameters.input_width)
-      } else {
-        ""
-      }) +
-      (if tile_compilation.selected_row_strip() is Some(strip) {
-        projection_head_strip_reduction(parameters.input_width, strip)
-      } else {
-        "  for (int inner = 0; inner < " +
-        parameters.input_width.to_string() +
-        "; inner += 16) {\n" +
-        (if row_resident {
-          "    nvcuda::wmma::load_matrix_sync(a, selected_input + inner, \{parameters.input_width});\n"
-        } else if query_row_ends {
-          "    for (int element = (int)threadIdx.x; element < 256; element += (int)blockDim.x) {\n" +
-          "      const int local_row = element >> 4; const int local_inner = element & 15;\n" +
-          "      const int query_row = row + local_row;\n" +
-          "      const int token_row = query_row < row_count ? row_offsets[query_row + 1] - 1 : -1;\n" +
-          "      selected_input[element] = token_row >= 0 && token_row < token_count ? input[(unsigned long long)token_row * " +
-          parameters.input_width.to_string() +
-          "ULL + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
-          "    }\n" +
-          "    __syncthreads();\n" +
-          "    nvcuda::wmma::load_matrix_sync(a, selected_input, 16);\n"
-        } else {
-          "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
-          parameters.input_width.to_string() +
-          "ULL + inner, " +
-          parameters.input_width.to_string() +
-          ");\n"
-        }) +
-        "    nvcuda::wmma::load_matrix_sync(b, weight + (unsigned long long)" +
-        (if cooperative_column_tail {
-          "(column < \{parameters.output_width} ? column : 0)"
-        } else {
-          "column"
-        }) +
-        " * " +
-        parameters.input_width.to_string() +
-        "ULL + inner, " +
-        parameters.input_width.to_string() +
-        ");\n" +
-        "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-        (if query_row_ends && !row_resident {
-          "    __syncthreads();\n"
-        } else {
-          ""
-        }) +
-        "  }\n"
-      }) +
-      (if query_row_ends {
-        ""
-      } else {
-        "  extern __shared__ float tile_output[];\n"
-      }) +
-      "  float *warp_output = tile_output + warp * 256;\n" +
-      "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
-      "  __syncwarp();\n" +
-      "  for (int element = lane; element < 256; element += 32) {\n" +
-      "    const int local_row = element >> 4;\n" +
-      "    const int local_column = element & 15;\n" +
-      "    if (row + local_row < " +
-      (if query_row_ends { "row_count" } else { "token_count" }) +
-      " && column + local_column < " +
-      parameters.output_width.to_string() +
-      ") " +
-      (if query_row_ends {
-        "{ const int token_row = row_offsets[row + local_row + 1] - 1; if (token_row >= 0 && token_row < token_count) output[(unsigned long long)token_row * "
-      } else {
-        "output[(unsigned long long)(row + local_row) * "
-      }) +
-      parameters.output_width.to_string() +
-      "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);" +
-      (if query_row_ends { " }" } else { "" }) +
-      "\n" +
-      "  }\n" +
-      (if row_resident { "  __syncthreads();\n" } else { "" }) +
-      "  }\n"
+      projection_matrix_map_source(parameters, tile_compilation)
     }) +
     "}\n",
   )
@@ -298,195 +216,29 @@ fn projection_tensor_core_direct_qkv_source(
     "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
     "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
     parameters.input_width.to_string() +
-    "ULL; float value = 0.0f;\n" +
-    "    for (int inner = lane; inner < " +
-    parameters.input_width.to_string() +
-    "; inner += 32) value = __fadd_rn(value, __fmul_rn(__bfloat162float(input[inner]), __bfloat162float(selected_weight[weight_base + inner])));\n" +
-    "    for (int delta = 16; delta > 0; delta >>= 1) value = __fadd_rn(value, __shfl_down_sync(0xffffffffU, value, delta));\n" +
+    "ULL;\n" +
+    projection_dot_fold_source(
+      parameters.input_width,
+      [
+        {
+          accumulator: "value",
+          left: "__bfloat162float(input[inner])",
+          right: "__bfloat162float(selected_weight[weight_base + inner])",
+        },
+      ],
+      tile_compilation.schedule().single_row_reduction(),
+    ) +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     (if tile_compilation.schedule().matrix_pipeline() is Some(_) {
       ""
     } else {
-      "  const int group_count = " +
-      ((parameters.output_width + groups * 16 - 1) / (groups * 16)).to_string() +
-      ";\n" +
-      "  const int group_index = (int)blockIdx.x % group_count;\n" +
-      "  const int row = ((int)blockIdx.x / group_count) * 16;\n" +
-      "  const int column = (group_index * \{groups} + warp) * 16;\n" +
-      "  if (row >= token_count || column >= " +
-      parameters.output_width.to_string() +
-      ") return;\n" +
-      "  const __nv_bfloat16 *selected_weight = query_weight;\n" +
-      "  int selected_column = column;\n" +
-      "  if (column >= " +
-      parameters.query_width.to_string() +
-      ") { selected_column -= " +
-      parameters.query_width.to_string() +
-      "; if (selected_column >= " +
-      parameters.intermediate_width.to_string() +
-      ") { selected_column -= " +
-      parameters.intermediate_width.to_string() +
-      "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
-      "  nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
-      "  nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
-      "  for (int inner = 0; inner < " +
-      parameters.input_width.to_string() +
-      "; inner += 16) {\n" +
-      "    nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)row * " +
-      parameters.input_width.to_string() +
-      "ULL + inner, " +
-      parameters.input_width.to_string() +
-      ");\n" +
-      "    nvcuda::wmma::load_matrix_sync(b, selected_weight + (unsigned long long)selected_column * " +
-      parameters.input_width.to_string() +
-      "ULL + inner, " +
-      parameters.input_width.to_string() +
-      ");\n" +
-      "    nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-      "  }\n" +
-      "  extern __shared__ float tile_output[];\n" +
-      "  float *warp_output = tile_output + warp * 256;\n" +
-      "  nvcuda::wmma::store_matrix_sync(warp_output, c, 16, nvcuda::wmma::mem_row_major);\n" +
-      "  __syncwarp();\n" +
-      "  for (int element = lane; element < 256; element += 32) {\n" +
-      "    const int local_row = element >> 4; const int local_column = element & 15;\n" +
-      "    if (row + local_row < token_count && column + local_column < " +
-      parameters.output_width.to_string() +
-      ") output[(unsigned long long)(row + local_row) * " +
-      parameters.output_width.to_string() +
-      "ULL + column + local_column] = __float2bfloat16_rn(warp_output[element]);\n" +
-      "  }\n"
+      "  const int group_count = \{(parameters.output_width + groups * 16 - 1) / (groups * 16)};\n" +
+      "  const int row_begin = ((int)blockIdx.x / group_count) * 16;\n" +
+      "  const int column = ((int)blockIdx.x % group_count * \{groups} + warp) * 16;\n" +
+      "  if (row_begin >= token_count || column >= \{parameters.output_width}) return;\n" +
+      projection_matrix_map_source(parameters, tile_compilation)
     }) +
     "}\n",
-  )
-}
-
-///|
-fn projection_dense_source(
-  symbol : String,
-  parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
-  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
-) -> Bytes {
-  let demand : @luna_projection_tile_compiler.ProjectionResultDemand = tile_compilation
-    .schedule()
-    .demand()
-  let query_row_ends = demand == QueryRowEnds
-  @utf8.encode(
-    projection_cuda_prelude() +
-    "extern \"C\" __global__ void " +
-    symbol +
-    (if query_row_ends {
-      "(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *input, "
-    } else {
-      "(const int32_t *counts, const __nv_bfloat16 *input, "
-    }) +
-    "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
-    projection_count_guard(maximum_tokens) +
-    "  const unsigned long long index = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
-    (if query_row_ends {
-      "  const int row_count = counts[2]; if (row_count <= 0 || row_count > " +
-      maximum_rows.to_string() +
-      ") return;\n"
-    } else {
-      ""
-    }) +
-    "  const unsigned long long live = (unsigned long long)" +
-    (if query_row_ends { "row_count" } else { "token_count" }) +
-    " * " +
-    parameters.output_width.to_string() +
-    "ULL;\n" +
-    "  if (index >= live) return;\n" +
-    "  const unsigned long long " +
-    (if query_row_ends { "logical_row" } else { "row" }) +
-    " = index / " +
-    parameters.output_width.to_string() +
-    "ULL;\n" +
-    "  const unsigned long long column = index % " +
-    parameters.output_width.to_string() +
-    "ULL;\n" +
-    (if query_row_ends {
-      "  const int selected_row = row_offsets[logical_row + 1] - 1; if (selected_row < 0 || selected_row >= token_count) return;\n" +
-      "  const unsigned long long row = (unsigned long long)selected_row;\n"
-    } else {
-      ""
-    }) +
-    "  const unsigned long long input_base = row * " +
-    parameters.input_width.to_string() +
-    "ULL;\n" +
-    "  const unsigned long long weight_base = column * " +
-    parameters.input_width.to_string() +
-    "ULL;\n" +
-    "  float accumulator = 0.0f;\n" +
-    "  for (int inner = 0; inner < " +
-    parameters.input_width.to_string() +
-    "; ++inner) {\n" +
-    "    const float product = __fmul_rn(__bfloat162float(input[input_base + inner]), " +
-    "__bfloat162float(weight[weight_base + inner]));\n" +
-    "    accumulator = __fadd_rn(accumulator, product);\n" +
-    "  }\n" +
-    "  output[index] = __float2bfloat16_rn(accumulator);\n}\n",
-  )
-}
-
-///|
-fn projection_qkv_source(
-  symbol : String,
-  parameters : ProjectionParameters,
-  maximum_tokens : Int,
-) -> Bytes {
-  @utf8.encode(
-    projection_cuda_prelude() +
-    "extern \"C\" __global__ void " +
-    symbol +
-    "(const int32_t *counts, const __nv_bfloat16 *input, " +
-    "const __nv_bfloat16 *query_weight, const __nv_bfloat16 *key_weight, " +
-    "const __nv_bfloat16 *value_weight, __nv_bfloat16 *output) {\n" +
-    projection_count_guard(maximum_tokens) +
-    "  const unsigned long long index = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
-    "  const unsigned long long live = (unsigned long long)token_count * " +
-    parameters.output_width.to_string() +
-    "ULL;\n" +
-    "  if (index >= live) return;\n" +
-    "  const unsigned long long row = index / " +
-    parameters.output_width.to_string() +
-    "ULL;\n" +
-    "  const int column = (int)(index % " +
-    parameters.output_width.to_string() +
-    "ULL);\n" +
-    "  const __nv_bfloat16 *weight = query_weight;\n" +
-    "  int local_column = column;\n" +
-    "  if (column >= " +
-    parameters.query_width.to_string() +
-    ") {\n" +
-    "    local_column = column - " +
-    parameters.query_width.to_string() +
-    ";\n" +
-    "    if (local_column >= " +
-    parameters.intermediate_width.to_string() +
-    ") { weight = value_weight; local_column -= " +
-    parameters.intermediate_width.to_string() +
-    "; }\n" +
-    "    else { weight = key_weight; }\n" +
-    "  }\n" +
-    "  const unsigned long long input_base = row * " +
-    parameters.input_width.to_string() +
-    "ULL;\n" +
-    "  const unsigned long long weight_base = (unsigned long long)local_column * " +
-    parameters.input_width.to_string() +
-    "ULL;\n" +
-    "  float accumulator = 0.0f;\n" +
-    "  for (int inner = 0; inner < " +
-    parameters.input_width.to_string() +
-    "; ++inner) {\n" +
-    "    const float product = __fmul_rn(__bfloat162float(input[input_base + inner]), " +
-    "__bfloat162float(weight[weight_base + inner]));\n" +
-    "    accumulator = __fadd_rn(accumulator, product);\n" +
-    "  }\n" +
-    "  output[index] = __float2bfloat16_rn(accumulator);\n}\n",
   )
 }

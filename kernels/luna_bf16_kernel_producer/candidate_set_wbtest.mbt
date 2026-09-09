@@ -203,8 +203,8 @@ test "Qwen candidate set binds capability-11 Q/K normalization ABI" {
   assert_eq(qkv.operands()[3].byte_count(), 32L)
   assert_eq(qkv.operands()[4].byte_count(), 32L)
   let qkv_source = @utf8.decode(qkv.source_bytes())
-  assert_true(qkv_source.contains("if (column >= 8)"))
-  assert_true(qkv_source.contains("local_column = column - 8"))
+  assert_true(qkv_source.contains("if (local_column >= 8)"))
+  assert_true(qkv_source.contains("local_column -= 8"))
   assert_eq(set.candidate_key(3), Some("op_00000003_qk_rms_norm"))
   guard set.candidates()[3] is Pointwise(qk) else {
     fail("Q/K normalization did not use the pointwise AOT family")
