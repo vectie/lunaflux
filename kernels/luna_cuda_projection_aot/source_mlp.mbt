@@ -229,8 +229,8 @@ fn projection_tensor_core_mlp_source(
       "  if (warp >= \{down_groups}) return;\n"
     }) +
     (if pipeline is Some(plan) {
-      "  const int full_tiles = token_count >= \{plan.minimum_rows()} ? token_count / \{plan.row_width()} : 0;\n" +
-      "  const int full_rows = full_tiles * \{plan.row_width()};\n"
+      "  const int full_tiles = (token_count + \{plan.row_width() - 1}) / \{plan.row_width()};\n" +
+      "  const int full_rows = token_count;\n"
     } else {
       "  const int full_tiles = 0, full_rows = 0;\n"
     }) +

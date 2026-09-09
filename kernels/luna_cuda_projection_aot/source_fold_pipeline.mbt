@@ -13,32 +13,27 @@ fn projection_fold_pipeline_source(
   let tile = pipeline.tile_width()
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
-  let layout = cuda_projection_operand_layout(width)
-  let leading = layout.row_stride()
-  let input_elements = layout.storage_elements(rows)
-  let slot = layout.storage_elements(rows + groups * 16)
+  let layout : CudaProjectionTransportLayout = { columns: width }
+  let input_elements = rows * width
+  let slot = (rows + groups * 16) * width
   // Distribute the immutable operand product into two affine producer maps.
   // This removes the per-vector operand tag and pointer selection without
   // changing the ordered reduction or moving reads across materialization.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a", "destination", rows, width, leading, stride, true,
+    "pipeline_a", "destination", rows, width, stride, true,
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
     "destination + \{input_elements}",
     groups * 16,
     width,
-    leading,
     stride,
     false,
   )
   let source =
     $|  {
-    $|    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;
-    $|    nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;
-    $|    nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c[\{rows / 16}];
-    $|    #pragma unroll
-    $|    for (int row = 0; row < \{rows / 16}; ++row) nvcuda::wmma::fill_fragment(c[row], 0.0f);
+    $|    \{layout.address_function()}
+    $|    float c[\{rows / 16}][8] = {};
     $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * 2}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};
     $|    const __nv_bfloat16 *pipeline_b = \{weight_base};
@@ -58,11 +53,19 @@ fn projection_fold_pipeline_source(
     $|      const __nv_bfloat16 *current = pipeline_storage + stage * \{slot};
     $|      #pragma unroll
     $|      for (int k = 0; k < \{width}; k += \{tile}) {
-    $|        nvcuda::wmma::load_matrix_sync(b, current + \{input_elements} + warp * \{16 * leading} + k, \{leading});
+    $|        unsigned b[4];
+    $|        const unsigned bp = (unsigned)__cvta_generic_to_shared(current + \{input_elements} + operand_index(warp * 16 + lane % 16, k + lane / 16 * 8));
+    $|        asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(b[0]), "=r"(b[1]), "=r"(b[2]), "=r"(b[3]) : "r"(bp));
     $|        #pragma unroll
     $|        for (int row = 0; row < \{rows / 16}; ++row) {
-    $|          nvcuda::wmma::load_matrix_sync(a, current + row * \{16 * leading} + k, \{leading});
-    $|          nvcuda::wmma::mma_sync(c[row], a, b, c[row]);
+    $|          unsigned a[4];
+    $|          const unsigned ap = (unsigned)__cvta_generic_to_shared(current + operand_index(row * 16 + lane % 16, k + lane / 16 * 8));
+    $|          asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3]) : "r"(ap));
+    $|          #pragma unroll
+    $|          for (int half = 0; half < 2; ++half) {
+    $|            float *d = c[row] + half * 4;
+    $|            asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]), "+f"(d[1]), "+f"(d[2]), "+f"(d[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[half]), "r"(b[half+2]));
+    $|          }
     $|        }
     $|      }
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
@@ -71,13 +74,15 @@ fn projection_fold_pipeline_source(
     $|    }
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
-    $|      nvcuda::wmma::store_matrix_sync(warp_output, c[row], 16, nvcuda::wmma::mem_row_major);
+    $|      #pragma unroll
+    $|      for (int item = 0; item < 8; ++item)
+    $|        warp_output[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
     $|      __syncwarp();
     $|      #pragma unroll
     $|      for (int item = 0; item < 8; ++item) {
     $|        int element = lane + item * 32;
     $|        int output_row = row_start + row * 16 + element / 16;
-    $|        if (output_row < token_count) output[(unsigned long long)output_row * \{output_width}ULL + column + element % 16] = __float2bfloat16_rn(warp_output[element]);
+    $|        if (output_row < token_count) output[(unsigned long long)output_row * \{output_width}ULL + column + element % 16] = __float2bfloat16_rn(warp_output[result_index(element / 16, element % 16)]);
     $|      }
     $|      __syncwarp();
     $|    }
@@ -87,14 +92,13 @@ fn projection_fold_pipeline_source(
 }
 
 ///|
-/// Specialize one affine copy domain before CUDA rendering. Only live tensor
-/// elements are copied: layout padding has no producer and no matrix consumer.
+/// Specialize one copy domain before CUDA rendering. Invalid rows are
+/// zero-filled; producer and matrix consumer use one shared permutation.
 fn projection_fold_operand_copy_source(
   base : String,
   destination : String,
   rows : Int,
   width : Int,
-  leading : Int,
   stride : Int,
   guard_rows : Bool,
 ) -> String {
@@ -108,7 +112,7 @@ fn projection_fold_operand_copy_source(
     $|        const int row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|        \{validity}
     $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};
-    $|        const unsigned address = (unsigned)__cvta_generic_to_shared(\{destination} + row * \{leading} + k);
+    $|        const unsigned address = (unsigned)__cvta_generic_to_shared(\{destination} + operand_index(row, k));
     $|        const int bytes = valid ? 16 : 0;
     $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(bytes) : "memory");
     $|      }

@@ -12,11 +12,13 @@ test "operand lookahead is deterministic and preserves the intermediate ordered 
   assert_eq(pipeline.stage_count(), 2)
   assert_eq(pipeline.tile_width(), 16)
   assert_eq(pipeline.tile_count(), 192)
-  assert_eq(pipeline.transfer_width(), 32)
+  assert_eq(pipeline.transfer_width(), 64)
+  assert_eq(pipeline.minimum_rows(), 2)
   let siblings = compiled.schedule().sibling_pipeline().unwrap()
   assert_eq(siblings.tile_count(), 64)
   assert_eq(siblings.row_width(), 64)
   assert_eq(siblings.transfer_width(), 32)
+  assert_eq(siblings.minimum_rows(), 2)
   assert_eq(
     siblings.output_tiles(),
     compiled.schedule().output_tiles_per_workgroup() / 4,
@@ -37,7 +39,7 @@ test "operand lookahead is deterministic and preserves the intermediate ordered 
   )
   assert_true(
     @utf8.decode(compiled.schedule.canonical).contains(
-      "intermediate_operand_pipeline=2,16,192,32,64,4,256\n",
+      "intermediate_operand_pipeline=2,16,192,64,64,4,2\n",
     ),
   )
   let dense = compile_projection_tile(

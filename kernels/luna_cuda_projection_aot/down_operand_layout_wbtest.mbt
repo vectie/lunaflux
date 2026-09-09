@@ -1,5 +1,5 @@
 ///|
-test "down fold lowers two immutable affine operand maps through padded layout" {
+test "down fold lowers masked operands through shared transport layout" {
   let parameters : ProjectionParameters = {
     family: GatedMlp,
     input_width: 1024,
@@ -31,19 +31,26 @@ test "down fold lowers two immutable affine operand maps through padded layout" 
       pipeline, "input_base", "weight_base", 3072, 4, 1024,
     ),
   )
-  // Logical K32 becomes a physical 48-element pitch. Both producer maps and
-  // both WMMA consumers use that same mapping; padding is never copied.
-  assert_true(source.contains("pipeline_storage[12288]"))
-  assert_true(source.contains("vector < 256"))
-  assert_true(source.contains("destination + row * 48 + k"))
-  assert_true(source.contains("destination + 3072 + row * 48 + k"))
-  assert_true(source.contains("current + 3072 + warp * 768 + k, 48"))
-  assert_true(source.contains("current + row * 768 + k, 48"))
+  // Producer and consumer share the same compact K64 permutation.
+  assert_true(source.contains("pipeline_storage[16384]"))
+  assert_true(source.contains("vector < 512"))
+  assert_true(source.contains("destination + operand_index(row, k)"))
+  assert_true(source.contains("destination + 4096 + operand_index(row, k)"))
+  assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
+  assert_false(source.contains("nvcuda::wmma"))
   assert_false(source.contains("is_a"))
-  assert_true(source.contains("inner += 32"))
+  assert_true(source.contains("inner += 64"))
   assert_true(source.contains("k += 16"))
   assert_true(source.contains("row_start + row < token_count"))
-  assert_true(source.contains("stage_operands(inner + 32, stage ^ 1)"))
+  assert_true(source.contains("stage_operands(inner + 64, stage ^ 1)"))
+  let complete = row_variant_primary_test_source(
+    parameters,
+    runtime.dispatch_plan(1024),
+  )
+  assert_true(
+    complete.contains("const int full_tiles = (token_count + 63) / 64;"),
+  )
+  assert_true(complete.contains("const int full_rows = token_count;"))
   if @env.get_env_var("LUNA_TEST_EXPORT_DOWN_OPERAND_LAYOUT") == Some("1") {
     println("LUNA_SOURCE_BEGIN mlp")
     println(

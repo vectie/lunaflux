@@ -78,9 +78,9 @@ fn projection_intermediate_pipeline(
     Some({
       tile_width: tile,
       tile_count: extent / tile,
-      transfer_width: tile * 2,
+      transfer_width: tile * 4,
       row_width: 64,
-      minimum_rows: 256,
+      minimum_rows: 2,
       output_tiles: projection_companion_output_tiles(
         dispatch.prefill().output_tiles_per_workgroup(),
       ),
@@ -107,7 +107,7 @@ fn projection_sibling_pipeline(
       tile_count: extent / tile,
       transfer_width: tile * 2,
       row_width: 64,
-      minimum_rows: 256,
+      minimum_rows: 2,
       output_tiles: Int::max(
         1,
         dispatch.prefill().output_tiles_per_workgroup() / 4,
@@ -175,7 +175,7 @@ fn projection_matrix_pipeline(
       minimum_rows: if selected {
         2
       } else {
-        256
+        2
       },
     })
   }
