@@ -36,23 +36,7 @@ fn projection_sibling_reuse_source(
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
-    $|      auto stage_operands = [&](int k_base, int stage) {
-    $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
-    $|        for (int vector = threadIdx.x; vector < \{slot / 8}; vector += blockDim.x) {
-    $|          const int element = vector * 8;
-    $|          const bool is_input = element < \{rows * width};
-    $|          const bool is_gate = element < \{(rows + columns) * width};
-    $|          const int offset = is_input ? element : (is_gate ? element - \{rows * width} : element - \{(rows + columns) * width});
-    $|          const int row = offset / \{width}, k = offset % \{width};
-    $|          const bool valid = !is_input || row_begin + row < token_count;
-    $|          const __nv_bfloat16 *base = is_input ? input : (is_gate ? gate_weight : up_weight);
-    $|          const int source_row = is_input ? row_begin + row : column_begin + row;
-    $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(element / \{width}, k));
-    $|          \{projection_operand_transfer_source(width)}
-    $|        }
-    $|        asm volatile("cp.async.commit_group;" ::: "memory");
-    $|      };
+    $|      \{projection_sibling_phased_transfer_source(rows, columns, width, input_width, consumers * 2 * 32)}
     $|      float c[\{folds}][8] = {};
     $|      stage_operands(0, 0);
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
