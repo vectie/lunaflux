@@ -88,7 +88,55 @@ Read-only analysis scripts:
 `/private/tmp/lunaflux-memory-attribution.mbtx` and
 `/private/tmp/lunaflux-copy-attribution.mbtx`.
 
-The proposed scratch `.cg` → `.ca` cache-policy ablation was **not uploaded or
-run**: upload was rejected by the permission reviewer. No ablation result is
-claimed. Attention and other kernel families are not covered by this matched
+The scratch `.cg` → `.ca` cache-policy ablation was initially blocked by the
+permission reviewer, then explicitly approved by the user and completed. Results
+are below. Attention and other kernel families are not covered by this matched
 projection attribution and must not inherit its numerical conclusions.
+
+## Approved single-variable cache-policy ablation
+
+Only `cp.async.cg.shared.global` was replaced with `cp.async.ca.shared.global`
+in the retained r5 diagnostic CUDA source. Production source was not modified.
+Both variants use 118 registers/thread and 30,720 bytes static shared memory.
+All 11 token lengths passed bitwise comparison. These are correctness checks,
+not a full sanitizer or deployment qualification.
+
+Fresh paired medians (three trials, 30 repeats) compare r5 bypass to cache-access:
+
+| Tokens | r5 `.cg`, µs | `.ca`, µs |
+| --- | ---: | ---: |
+| 256 | 168.06 | 151.19 |
+| 257 | 178.11 | 159.41 |
+| 504 | 321.23 | 286.78 |
+| 1024 | 635.37 | 562.53 |
+
+The 1024-token latency reduction is 11.5%. A separate fresh accepted-versus-`.ca`
+pair measured 415.45 versus 562.73 µs: the ablation still regresses against the
+accepted kernel and is not proposed as a production replacement.
+
+| Counter at 1024 tokens | r5 `.cg` | `.ca` |
+| --- | ---: | ---: |
+| Executed instructions | 80,691,200 | 80,691,200 |
+| Async-copy global sectors | 25,165,824 | 12,582,912 |
+| L2 TEX read requests | 25,166,023 | 3,138,000 |
+| L2 throughput, % peak sustained elapsed | 98.48 | 28.15 |
+| Long-scoreboard cycles / issued instruction | 4.798 | 0.653 |
+| MIO-throttle cycles / issued instruction | 1.146 | 3.197 |
+| Copy source-correlated excessive shared wavefronts | 44,040,192 | 22,020,096 |
+
+This supports the transport-path diagnosis independently of total instruction
+count. It does **not** mean cache reuse alone explains the improvement: total
+L1 global-load hit sectors are only 55,611 of 12,599,296 in the `.ca` run.
+Transaction grouping changes materially with the copy policy.
+
+The residual copy excessive-shared-wavefront count is still approximately 9.3×
+the accepted version's 2,359,296. MIO-throttle increases as the L2 pressure falls.
+The next diagnostic priority is therefore producer destination grouping and
+shared-copy wavefront efficiency, not another consumer-only bank permutation.
+Neither the stall ratios nor this ablation allocate an exact fraction of the
+remaining latency to any one cause.
+
+Remote results: `/run/user/1000/lunaflux-copy-cache-ablation-20260909-r1`.
+Local download: `/private/tmp/lunaflux-copy-cache-ablation-results-20260909-r1`.
+Additional direct `.cg`/`.ca` paired log: `cg-ca-paired.stdout` in that local
+directory. The experiment did not modify or deploy production kernels.
