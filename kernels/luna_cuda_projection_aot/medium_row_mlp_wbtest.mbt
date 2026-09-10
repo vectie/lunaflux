@@ -14,7 +14,7 @@ test "medium row sibling distributions retain companion and workspace contracts"
     [],
   )
   for bound in [16, 32] {
-    for groups in [2, 4] {
+    for groups in [1, 2, 4] {
       let selected = for
         candidate in baseline
         .dispatch_plan(bound)

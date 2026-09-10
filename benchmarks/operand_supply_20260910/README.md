@@ -29,3 +29,15 @@ The scope line pins the GPU UUID, CUDA backend/architecture and toolchain.
 The pure strategy and ordered reduction are unchanged; the CUDA lowering
 implements packed matrix loads, independent operand-copy domains and direct
 unique-owner stores. No benchmark search runs in the serving request path.
+
+The final snapshot also includes a fresh **MLP bucket-16** record, declared
+distribution 2 (64-thread launch), median **30891 ns** over three trials. The
+compiler owns the final sibling-product partition. Unlike separately
+adding two kernel timings, this replay launches gate/up and its dependent
+down consumer in the same graph with the produced BF16 intermediate. The
+old/new composite means are 48.039/30.915 us. Gate/up alone improves from
+32.118 to 13.566 us; down alone regresses from 16.229 to 17.415 us. The record
+selects the faster complete operation, not a claim that both kernels improve.
+The four-group composite measures 31.322 us and is not selected. A subsequent
+one/two/four-group comparison measured 32.606/30.913/31.302 us respectively,
+confirming the two-group choice.
