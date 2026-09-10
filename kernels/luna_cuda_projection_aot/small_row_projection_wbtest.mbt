@@ -38,9 +38,8 @@ test "bounded dense and segmented maps do not stage a dead second row tile" {
       assert_true(
         source.contains("pipeline_rows + \{row_width - 1}) / \{row_width}"),
       )
-      assert_true(
-        source.contains("const bool is_input = element < \{row_width * 64};"),
-      )
+      assert_true(source.contains("vector < \{row_width * 64 / 8}"))
+      assert_false(source.contains("is_input"))
       assert_true(source.contains("k += 16"))
       assert_true(source.contains("mma.sync.aligned.m16n8k16"))
       assert_true(
@@ -51,7 +50,9 @@ test "bounded dense and segmented maps do not stage a dead second row tile" {
       // The transport permutation and output map stay authoritative: changing
       // a tile domain must not revert to conflicting packed shared addresses.
       assert_true(source.contains("c ^ ((r & 7) * 8)"))
-      assert_true(source.contains("temporary[result_index("))
+      assert_false(source.contains("temporary["))
+      assert_true(source.contains("__float2bfloat16_rn(c[row][item])"))
+      assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
       assert_false(source.contains("__fadd_rn"))
       assert_false(source.contains("atomicAdd"))
     }

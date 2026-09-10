@@ -37,14 +37,15 @@ test "matrix pipeline family export preserves projection ABIs" {
     assert_eq(source.contains("row_offsets"), family == LanguageModelHead)
     if family != LanguageModelHead {
       // Producer and consumer share a row-preserving permutation. Existing
-      // arena capacity and the eight-consumer ordered fold remain unchanged.
-      assert_true(source.contains("matrix_storage[15360]"))
-      assert_true(source.contains("vector < 768"))
+      // Compact storage follows that same map; no padded allocation remains.
+      assert_true(source.contains("matrix_storage[12288]"))
+      assert_true(source.contains("vector < 256"))
+      assert_true(source.contains("vector < 512"))
       assert_true(source.contains("operand_index(local_row, k)"))
       assert_true(source.contains("consumer_row = (warp / 4) * 1"))
       assert_true(source.contains("float c[1][8]"))
       assert_true(source.contains("if (warp < 8)"))
-      assert_true(source.contains("reinterpret_cast<const unsigned *>"))
+      assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
     } else {
       // Sparse demand shares the producer permutation with matrix loads;
       // wider transfers preserve the ordered microtile fold.
@@ -55,6 +56,8 @@ test "matrix pipeline family export preserves projection ABIs" {
       assert_true(source.contains("float c[1][8]"))
       assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
     }
+    assert_false(source.contains("temporary[result_index("))
+    assert_true(source.contains("__float2bfloat16_rn(c[row][item])"))
     if @env.get_env_var("LUNA_TEST_EXPORT_MATRIX_PIPELINE") == Some("1") {
       let name = match family {
         QkvProjection => "qkv"

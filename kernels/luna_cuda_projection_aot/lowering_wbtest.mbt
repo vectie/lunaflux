@@ -469,7 +469,7 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
   assert_false(
     @utf8.decode(fallback.source_bytes()).contains("__nv_bfloat16 *input_tile"),
   )
-  assert_true(
+  assert_false(
     @utf8.decode(fallback.source_bytes()).contains("matrix_output_bytes"),
   )
   assert_eq(
