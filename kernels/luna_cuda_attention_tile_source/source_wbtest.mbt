@@ -693,8 +693,7 @@ test "compiler split decode source preserves GQA reuse and key parallelism" {
   for
     required in [
       "#define LF_QUERY_HEADS_PER_BLOCK 4", "#define LF_SPLITS_PER_HEAD 2", "const int query_in_group = warp / LF_SPLITS_PER_HEAD",
-      "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)", "partial_numerators",
-      "merged_denominator",
+      "const int key = split + 0;", "partial_numerators", "merged_denominator",
     ] {
     assert_true(source.contains(required))
   }

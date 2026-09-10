@@ -67,12 +67,26 @@ alternating shared K/V buffers: produce the first tile, await its completion,
 produce the next tile while consuming the current one, then retire consumers
 before reusing their storage. CUDA `cp.async` and shared-address conversion
 remain private here. Tile-tail transfers are zero-filled without out-of-range
-global addresses. No arithmetic or softmax recurrence is replaced.
+global addresses. This transfer-only step did not replace arithmetic.
+
+The subsequent grouped split-decode tile-fold rewrite now scalarizes the
+bounded score map into named scalar values, with no addressable score array,
+and rescales the running output vector once per tile, with
+one max-delta exponential per key and one for the old tile state. The per-key
+old-state exponential, broadcast and output-vector rescale are removed. Empty
+strided partitions retain the merge identity; causal bounds, page validation,
+transfer widths, shared addresses and launch geometry stay unchanged. Unlike
+the preceding transfer-only changes, this **reassociates F32 arithmetic**.
+Host algebra tests cover empty/masked/ragged cases and large logits, but do not
+prove GPU bit equality or speed. Fresh independent GPU tolerance, sanitizer,
+source counters and model token agreement remain required before adoption.
 
 The portable schedule keeps logical decode partition grain independent of
 the staging tile: a 64-token partition grain can be consumed by two ordered
-32-token transfers. This prevents smaller buffers from silently changing the
-floating-point reduction grouping. At head dimension 128, two 64-token buffers
+32-token transfers. Cross-workgroup partition boundaries therefore stay fixed.
+With the explicitly named tile-fold rewrite, changing the staging tile can
+change its inner F32 reassociation and needs a fresh numerical check. At head
+dimension 128, two 64-token buffers
 need 66,844 bytes; two 32-token buffers need 33,820 bytes. Async support must be
 explicitly enabled in compiler capabilities; existing synchronous production
 capabilities remain unchanged. The test exporters `decode-pipeline` and
@@ -84,6 +98,9 @@ probe's `compare` mode compares two such modules bit-for-bit, checks a scalar
 oracle, page/tile tails, empty partitions and mixed rows, verifies unchanged
 K/V, and closes all resources. Its GPU fixture is the explicitly selected
 RTX 5060 Ti, not an arbitrary visible device.
+That strict comparison remains useful for arithmetic-preserving changes; it
+is not an acceptance criterion between different tile-fold groupings or
+between the old per-key fold and this reassociating rewrite.
 
 ## Compact matrix operand storage
 

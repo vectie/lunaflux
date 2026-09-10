@@ -27,6 +27,15 @@ still traverses keys in the original order. A backend can realize the product
 as named scalars instead of a runtime-indexed array. This transform contains
 no device instructions and makes no register-allocation promise.
 
+`scalarize_attention_decode_softmax_tile` represents the finite strided score
+map for grouped decode. Each active tile has one maximum/weighted-sum summary;
+the running online state is rescaled once per tile. Empty partitions are the
+merge identity and masked/future keys never enter either reduction. This is
+an associative reassociation of the softmax fold, so F32 bit equality with
+the old per-key recurrence is not promised. The canonical grouped-decode
+schedule names `associative-tile-max-delta-v1`; numerical tolerance and real
+model token agreement must be checked independently before adoption.
+
 For matrix QK/PV, `matrix_storage_layout()` exposes typed byte spans and
 half-open live phases. Disjoint phases share a region whose capacity is the
 maximum of their requirements; values live together add their requirements.

@@ -11,6 +11,8 @@ import {
 // Values
 pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayout?
 
+pub fn scalarize_attention_decode_softmax_tile(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
+
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
 
 pub fn schedule_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileSchedule raise AttentionTileScheduleError
