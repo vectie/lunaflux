@@ -47,7 +47,15 @@ fn CudaProjectionTransportLayout::address_function(
     $|      const unsigned r = (unsigned)row, c = (unsigned)column;
     $|      return r * \{stride} + (c ^ ((\{rotation}) * 8));
     $|    };
-    $|    auto result_index = [](int row, int column) {
+  )
+}
+
+///|
+/// Only result-permuting consumers emit this map. Operand-only users such as
+/// sibling products must not acquire an unused result-address declaration.
+fn projection_result_address_source() -> String {
+  (
+    $|auto result_index = [](int row, int column) {
     $|      const unsigned r = (unsigned)row & 7, c = (unsigned)column;
     $|      const unsigned bank = (r * 4) ^ ((r & 1) * 8) ^ (c >> 1) ^ ((c & 1) * 16);
     $|      return ((unsigned)row >> 3) * 128 + ((c >> 3) + (c & 1) * 2) * 32 + bank;

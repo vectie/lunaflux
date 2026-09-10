@@ -53,6 +53,7 @@ fn projection_matrix_map_source(
     $|  float *temporary = reinterpret_cast<float *>(map_bytes) + warp * 256;
     $|  \{input_storage}
     $|  \{layout.address_function()}
+    $|  \{projection_result_address_source()}
     $|  for (int row = \{row_start}; row < \{row_end}; row += 16) {
     $|    float accumulator[8] = {};
     $|    for (int strip_begin = 0; strip_begin < \{parameters.input_width}; strip_begin += \{width}) {

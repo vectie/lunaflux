@@ -116,6 +116,7 @@ fn projection_matrix_pipeline_source(
     $|    extern __shared__ unsigned char matrix_output_bytes[];
     $|    float *temporary = reinterpret_cast<float *>(matrix_output_bytes) + warp * 256;
     $|    \{transport.address_function()}
+    $|    \{projection_result_address_source()}
     $|    const int column_groups = \{(output_width + columns - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {

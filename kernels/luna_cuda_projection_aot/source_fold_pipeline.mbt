@@ -43,6 +43,7 @@ fn projection_fold_pipeline_source(
   let source =
     $|  {
     $|    \{layout.address_function()}
+    $|    \{projection_result_address_source()}
     $|    float c[\{rows / 16}][8] = {};
     $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * 2}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};

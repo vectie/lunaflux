@@ -178,6 +178,15 @@ test "small-row MLP winner exports gate-up and down under one bounded ABI" {
     assert_eq(variant.dimensions().grid_x(), 3072 / groups)
     assert_true(source.contains("void mlp_rows8("))
     assert_true(source.contains("void mlp_rows8_down("))
+    // The primary sibling kernel uses only operand addresses; the companion
+    // owns its result permutation. No unused lambda may precede that boundary.
+    let primary_text = row_variant_primary_test_source(parameters, primary)
+    for text in [primary_text, source] {
+      let parts = text.split("_down(").to_array()
+      assert_true(parts.length() >= 2)
+      assert_false(parts[0].contains("auto result_index"))
+      assert_true(text.contains("auto result_index"))
+    }
     assert_true(source.contains("__nv_bfloat16 *workspace"))
     assert_true(source.contains("token_count > 8"))
     assert_true(source.contains("blockDim.x != \{groups * 32}"))
