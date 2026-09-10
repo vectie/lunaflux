@@ -131,6 +131,9 @@ sibling product lowers its three immutable operand domains separately, so
 source selection disappears before rendering; its matrix consumer uses packed
 fragment loads. Neither transformation changes the ordered fold or epilogue
 rounding. Counter and end-to-end measurements determine the performance result.
+See the [measured operand-supply optimization](../../docs/OPERAND_SUPPLY_OPTIMIZATION_2026-09-10.md)
+for the selected head/down/sibling changes, full concurrency/token vectors,
+numerical coverage, and remaining baseline gaps.
 
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
