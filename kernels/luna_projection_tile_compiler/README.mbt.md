@@ -114,6 +114,15 @@ placement through direct packed fragment loads and unique result stores. The
 existing single-row reduction is unchanged. Offline records still select the
 strategy; this source change alone does not claim a measured speedup.
 
+The selected-row register fold now carries a bounded lookahead window of up to
+four immutable operand fragments. It primes the window, evaluates each future
+operand before consuming its current slot, then consumes slots in the original
+reduction order. Small reductions shrink the window; a partial final window
+performs neither an out-of-range load nor an extra zero-product reduction.
+The window is independent of total K and is part of schedule identity. This
+changes evaluation timing, not floating-point association or memory layout.
+Actual load/compute overlap and speed still require device measurement.
+
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
 value differently. Subgroup width arrives as an abstract capability; device

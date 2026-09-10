@@ -298,6 +298,7 @@ fn paged_bucket_launch(
   let source = match rule {
     FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
     QueryTokenCappedGridX(value)
+    | ProjectionBoundedWorkGridX(value, _)
     | QueryTileCappedGridX(value, _)
     | ProjectionTensorCoreGridX(value, _)
     | ProjectionScalarGridX(value, _)

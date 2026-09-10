@@ -43,6 +43,7 @@ fn validate_bootstrap_inputs(
     if admitted.module_index() != step.artifact_module_index() ||
       admitted.function_symbol() != step.function_symbol() ||
       admitted.companion_dimensions() != step.companion_dimensions ||
+      admitted.row_variants() != step.row_variants ||
       @utf8.encode(step.function_symbol()).length() > limits.max_symbol_bytes {
       raise InvalidBootstrap(Artifact)
     }
@@ -132,20 +133,7 @@ fn encode_bootstrap(
       encoder.append_string("token-row-variants-v1")
       encoder.append_int(entry.row_variants().length())
       for variant in entry.row_variants() {
-        encoder.append_int(variant.maximum_token_rows())
-        encoder.append_string(variant.function_symbol())
-        let dimensions = variant.dimensions()
-        encoder.append_int(dimensions.grid_x())
-        encoder.append_int(dimensions.grid_y())
-        encoder.append_int(dimensions.grid_z())
-        encoder.append_int(dimensions.block_x())
-        encoder.append_int(dimensions.block_y())
-        encoder.append_int(dimensions.block_z())
-        encoder.append_int(dimensions.shared_memory_bytes())
-        if variant.companion_dimensions() is Some(companion) {
-          encoder.append_string("companion-launch-v1")
-          encoder.append_dimensions(companion)
-        }
+        encoder.append_projection_variant(variant)
       }
     }
   }

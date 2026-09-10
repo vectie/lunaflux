@@ -36,7 +36,12 @@ fn prepare_projection_variants(
       }
       let source = variant.dimensions()
       let width = paged_projection_output_width(blueprint, step)
-      let launch = if step.operation_kind() == LanguageModelHead {
+      let launch = if variant.bounded_work_grid_x() is Some(grid) {
+        if grid <= 0 || grid > source.grid_x() {
+          raise executor_operation_error(step.operation_id(), GraphBucket)
+        }
+        ProjectionBoundedWorkGridX(source, grid)
+      } else if step.operation_kind() == LanguageModelHead {
         // Head residency changes shared storage, not the matrix work mapping.
         ProjectionTensorCoreGridX(source, width)
       } else if paged_step_has_split_decode_mlp(step) {

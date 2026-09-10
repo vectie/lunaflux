@@ -70,6 +70,11 @@ test "selected-row gather scope is pure canonical and keeps ordered inner fold" 
       "selected_row_operand_scope=register-fragment,16,16,16\n",
     ),
   )
+  assert_true(
+    @utf8.decode(compiled.schedule.canonical).contains(
+      "selected_row_ordered_prefetch=4\n",
+    ),
+  )
   assert_eq(compiled, compile_projection_tile(request))
   assert_eq(compiled.schedule().single_row_reduction(), OrderedDot)
   assert_eq(
@@ -82,12 +87,20 @@ test "selected-row gather scope is pure canonical and keeps ordered inner fold" 
       is None,
     )
   }
-  for width in [16, 64, 128, 144, 240, 256, 896, 2048] {
+  for width in [16, 32, 48, 64, 80, 128, 144, 240, 256, 896, 2048] {
     let gather = projection_selected_row_gather(
       gather_test_dispatch(width),
       QueryRowEnds,
     ).unwrap()
     assert_eq(gather.dimensions(), (16, 16, 16))
+    assert_eq(
+      gather.prefetch_fragments(),
+      if width < 64 {
+        width / 16
+      } else {
+        4
+      },
+    )
   }
   assert_true(projection_selected_row_gather(dispatch, AllTokenRows) is None)
   assert_true(

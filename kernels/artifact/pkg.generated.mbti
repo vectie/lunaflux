@@ -116,11 +116,12 @@ pub fn KernelModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes
 pub struct KernelRowVariant {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn KernelRowVariant::bounded_work_grid_x(Self) -> Int?
 pub fn KernelRowVariant::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn KernelRowVariant::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn KernelRowVariant::function_symbol(Self) -> String
 pub fn KernelRowVariant::maximum_token_rows(Self) -> Int
-pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, companion_dimensions? : @launch_contract.AotLaunchDimensions?) -> Self
+pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, companion_dimensions? : @launch_contract.AotLaunchDimensions?, bounded_work_grid_x? : Int?) -> Self
 
 // Type aliases
 

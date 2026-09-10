@@ -103,6 +103,13 @@ fn projection_row_variant_sources(
         maximum_token_rows=bound,
         function_symbol=variant_symbol,
         dimensions~,
+        bounded_work_grid_x=projection_bounded_work_grid_x(
+          compilation,
+          parameters,
+          bound,
+          Int::min(profile.max_query_rows(), bound),
+          dimensions,
+        ),
         companion_dimensions=projection_companion_dimensions(
           parameters, dispatch, variant_profile, compilation,
         ),

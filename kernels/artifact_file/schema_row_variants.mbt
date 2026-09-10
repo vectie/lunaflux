@@ -39,6 +39,9 @@ fn parse_row_variants(
     if fields.contains("companion_dimensions") {
       allowed.push(("companion_dimensions", EntryPointsField))
     }
+    if fields.contains("bounded_work_grid_x") {
+      allowed.push(("bounded_work_grid_x", EntryPointsField))
+    }
     validate_fields(fields, ManifestEntryPoint, allowed)
     let symbol = require_string(
       fields,
@@ -80,12 +83,27 @@ fn parse_row_variants(
           index~,
         )
     }
+    let bounded_work_grid_x = if fields.contains("bounded_work_grid_x") {
+      let grid = integer("bounded_work_grid_x")
+      if grid <= 0 || grid > dimensions.grid_x() {
+        raise invalid_field(
+          ManifestEntryPoint,
+          EntryPointsField,
+          UnsupportedValue,
+          index~,
+        )
+      }
+      Some(grid)
+    } else {
+      None
+    }
     variants.push(
       @artifact.KernelRowVariant::new(
         maximum_token_rows=integer("maximum_token_rows"),
         function_symbol=symbol,
         dimensions~,
         companion_dimensions=parse_companion_dimensions(fields),
+        bounded_work_grid_x~,
       ),
     )
   }

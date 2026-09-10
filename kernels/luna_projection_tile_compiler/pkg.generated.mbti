@@ -61,6 +61,7 @@ pub fn ProjectionFoldPipeline::stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_width(Self) -> Int
 pub fn ProjectionFoldPipeline::transfer_width(Self) -> Int
+pub fn ProjectionFoldPipeline::workgroup_count(Self, maximum_rows~ : Int, output_columns~ : Int, matrix_columns~ : Int) -> Int?
 
 pub(all) enum ProjectionIterationAxis {
   ProjectionRowAxis
@@ -104,8 +105,10 @@ pub struct ProjectionSelectedRowGather {
   rows : Int
   columns : Int
   reduction : Int
+  prefetch_fragments : Int
 }
 pub fn ProjectionSelectedRowGather::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionSelectedRowGather::prefetch_fragments(Self) -> Int
 
 pub(all) enum ProjectionSingleRowNumerics {
   PreserveDotOrder

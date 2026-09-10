@@ -92,6 +92,12 @@ fn paged_projection_bucket_grid_x(
   }
   match rule {
     FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
+    ProjectionBoundedWorkGridX(source, grid) =>
+      if grid <= 0 || grid > source.grid_x() {
+        raise InvalidExecutor(GraphBucket)
+      } else {
+        grid
+      }
     QueryTokenCappedGridX(source) =>
       Int::min(source.grid_x(), query_token_bound)
     QueryTileCappedGridX(source, query_tile) =>

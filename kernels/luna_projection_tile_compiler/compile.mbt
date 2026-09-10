@@ -335,6 +335,7 @@ fn projection_schedule_canonical(
     let (rows, columns, reduction) = gather.dimensions()
     builder <+
       "selected_row_operand_scope=register-fragment,\{rows},\{columns},\{reduction}\n"
+    builder <+ "selected_row_ordered_prefetch=\{gather.prefetch_fragments()}\n"
   }
   if dispatch.prefill().input_residency() == SelectedRowTileResidency {
     builder <+ "selected_input_residency=row-tile\n"

@@ -6,6 +6,7 @@ pub struct ProjectionSelectedRowGather {
   rows : Int
   columns : Int
   reduction : Int
+  prefetch_fragments : Int
 }
 
 ///|
@@ -28,7 +29,11 @@ pub fn projection_selected_row_gather(
     output_width % columns != 0 {
     None
   } else {
-    Some({ rows, columns, reduction })
+    // Operand values may be evaluated ahead of their use. The bounded window
+    // does not change which reduction is consumed next, or reassociate it.
+    let fragments = input_width / reduction
+    let prefetch_fragments = if fragments < 4 { fragments } else { 4 }
+    Some({ rows, columns, reduction, prefetch_fragments })
   }
 }
 
@@ -37,6 +42,15 @@ pub fn ProjectionSelectedRowGather::dimensions(
   self : ProjectionSelectedRowGather,
 ) -> (Int, Int, Int) {
   (self.rows, self.columns, self.reduction)
+}
+
+///|
+/// Number of immutable operand fragments kept ahead of the ordered fold.
+/// The window is bounded independently of the full reduction extent.
+pub fn ProjectionSelectedRowGather::prefetch_fragments(
+  self : ProjectionSelectedRowGather,
+) -> Int {
+  self.prefetch_fragments
 }
 
 ///|

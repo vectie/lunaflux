@@ -445,6 +445,10 @@ fn build_paged_step(
       variant.companion_dimensions(),
     )
     let dimensions = variant.dimensions()
+    if variant.bounded_work_grid_x() is Some(grid) &&
+      (grid <= 0 || grid > dimensions.grid_x()) {
+      raise blueprint_operation_error(operation.id(), ArtifactEntryPoint)
+    }
     if variant.maximum_token_rows() > profile.max_query_tokens() ||
       dimensions.grid_y() != 1 ||
       dimensions.grid_z() != 1 ||

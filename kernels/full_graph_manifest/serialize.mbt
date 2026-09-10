@@ -66,6 +66,9 @@ fn append_manifest_modules(
             output.write_string(",\"companion_dimensions\":")
             append_manifest_dimensions(output, companion)
           }
+          if variant.bounded_work_grid_x() is Some(grid) {
+            output.write_string(",\"bounded_work_grid_x\":\{grid}")
+          }
           output.write_string("}")
         }
         output.write_string("]")

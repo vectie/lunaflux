@@ -66,7 +66,8 @@ test "selected-row head register gather reaches segmented greedy executable vari
     assert_eq(dimensions.grid_x(), 9496)
     assert_eq(dimensions.shared_memory_bytes(), 0)
     assert_true(source.contains("head_segmented_greedy_v2_rows\{bound}"))
-    assert_true(source.contains("inner < 1024; inner += 16"))
+    assert_true(source.contains("inner < 1024; inner += 64"))
+    assert_true(source.contains("unsigned operand3_a[4], operand3_b[4]"))
     assert_true(source.contains("token_low >= 0 && token_low < token_count"))
     assert_true(source.contains("token_high >= 0 && token_high < token_count"))
     assert_true(

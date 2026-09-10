@@ -41,6 +41,7 @@ priv struct PagedOwnedOrderedExecutor {
 ///|
 priv enum PagedBucketStepLaunch {
   FixedBucketLaunch
+  ProjectionBoundedWorkGridX(@launch_contract.AotLaunchDimensions, Int)
   QueryTokenCappedGridX(@launch_contract.AotLaunchDimensions)
   QueryTileCappedGridX(@launch_contract.AotLaunchDimensions, Int)
   ProjectionTensorCoreGridX(@launch_contract.AotLaunchDimensions, Int)

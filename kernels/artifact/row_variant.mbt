@@ -6,6 +6,7 @@ pub struct KernelRowVariant {
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv companion_dimensions : @launch_contract.AotLaunchDimensions?
+  priv bounded_work_grid_x : Int?
 } derive(Debug, Eq)
 
 ///|
@@ -14,8 +15,23 @@ pub fn KernelRowVariant::new(
   function_symbol~ : String,
   dimensions~ : @launch_contract.AotLaunchDimensions,
   companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
+  bounded_work_grid_x? : Int? = None,
 ) -> KernelRowVariant {
-  { maximum_token_rows, function_symbol, dimensions, companion_dimensions }
+  {
+    maximum_token_rows,
+    function_symbol,
+    dimensions,
+    companion_dimensions,
+    bounded_work_grid_x,
+  }
+}
+
+///|
+/// Optional compiler-derived work cardinality for this bounded executable.
+/// It preserves the published launch's block/storage contract. Absent values
+/// retain legacy launch planning; no execution layer reconstructs a schedule.
+pub fn KernelRowVariant::bounded_work_grid_x(self : KernelRowVariant) -> Int? {
+  self.bounded_work_grid_x
 }
 
 ///|
@@ -45,6 +61,10 @@ fn validate_row_variants(
   }
   let mut previous = 0
   for index, variant in input.row_variants {
+    if variant.bounded_work_grid_x is Some(grid) &&
+      (grid <= 0 || grid > variant.dimensions.grid_x()) {
+      raise InvalidRowVariants(input.entry_point)
+    }
     let bound = variant.maximum_token_rows
     if bound <= previous ||
       bound > 1048576 ||
