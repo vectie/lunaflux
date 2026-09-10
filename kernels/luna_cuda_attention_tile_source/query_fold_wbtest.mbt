@@ -41,5 +41,25 @@ test "prefill scalarizes carried query state across compact and async schedules"
     assert_false(source.contains("fold_maximum["))
     assert_false(source.contains("fold_denominator["))
     assert_false(source.contains("state_slot"))
+    assert_false(source.contains("const int warp_count"))
+    assert_eq(
+      source.contains("LfMatrixAccumulator lf_matrix_load_float("),
+      !lowering.retains_output_fold(),
+    )
   }
+}
+
+///|
+test "noncompact prefill retains dynamic query traversal but omits unused float reload" {
+  let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(300))
+  let source = @utf8.decode(
+    emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "shared_query_fold",
+      1048576,
+    ).bytes(),
+  )
+  assert_true(source.contains("const int warp_count"))
+  assert_false(source.contains("LfMatrixAccumulator lf_matrix_load_float("))
 }

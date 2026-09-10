@@ -31,15 +31,23 @@ fn cuda_attention_matrix_fragments() -> String {
     #|    asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]),"+f"(d[1]),"+f"(d[2]),"+f"(d[3]) : "r"(a.x[0]),"r"(a.x[1]),"r"(a.x[2]),"r"(a.x[3]),"r"(b0),"r"(b1));
     #|  }
     #|}
+    #|static __device__ __forceinline__ void lf_matrix_store_float(float *p, int row, int column, int columns, const LfMatrixAccumulator &c) {
+    #|  #pragma unroll
+    #|  for (int item = 0; item < 8; ++item) p[lf_float_index(row + lf_matrix_row(item, threadIdx.x % 32), column + lf_matrix_column(item, threadIdx.x % 32), columns)] = c.x[item];
+    #|}
+  )
+}
+
+///|
+/// Only a shared-resident PV fold reloads its F32 accumulator. A register-
+/// resident fold must not emit an unused helper for a materialization it elides.
+fn cuda_attention_matrix_float_load() -> String {
+  (
     #|static __device__ __forceinline__ LfMatrixAccumulator lf_matrix_load_float(const float *p, int row, int column, int columns) {
     #|  LfMatrixAccumulator c;
     #|  #pragma unroll
     #|  for (int item = 0; item < 8; ++item) c.x[item] = p[lf_float_index(row + lf_matrix_row(item, threadIdx.x % 32), column + lf_matrix_column(item, threadIdx.x % 32), columns)];
     #|  return c;
-    #|}
-    #|static __device__ __forceinline__ void lf_matrix_store_float(float *p, int row, int column, int columns, const LfMatrixAccumulator &c) {
-    #|  #pragma unroll
-    #|  for (int item = 0; item < 8; ++item) p[lf_float_index(row + lf_matrix_row(item, threadIdx.x % 32), column + lf_matrix_column(item, threadIdx.x % 32), columns)] = c.x[item];
     #|}
   )
 }

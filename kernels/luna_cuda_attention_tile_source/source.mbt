@@ -185,6 +185,17 @@ fn emit_cuda_prefill_attention_tile_source(
     "  }\n"
   }
   let resident_output = lowering.retains_output_fold()
+  let float_load = if !resident_output &&
+    compute == CudaMatrixQkPvMultiplyAccumulate {
+    cuda_attention_matrix_float_load()
+  } else {
+    ""
+  }
+  let warp_count_declaration = if reuse_tile_storage {
+    ""
+  } else {
+    "  const int warp_count = LF_BLOCK_THREADS >> 5;"
+  }
   let resident_declaration = if resident_output {
     cuda_resident_output_fold_declaration()
   } else {
@@ -286,6 +297,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
     $|\{operand_layout}
     $|\{cuda_attention_matrix_fragments()}
+    $|\{float_load}
     $|
     $|\{cuda_attention_score_transform()}
     $|
@@ -310,7 +322,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  const int thread = (int)threadIdx.x;
     $|  const int lane = thread & 31;
     $|  const int warp = thread >> 5;
-    $|  const int warp_count = LF_BLOCK_THREADS >> 5;
+    $|\{warp_count_declaration}
     $|  const int query_head = (int)blockIdx.y;
     $|  if (blockDim.x != LF_BLOCK_THREADS || query_head >= \{query_heads}) return;
     $|\{partition_guard}
