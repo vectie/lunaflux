@@ -229,12 +229,15 @@ fn paged_decode_capture_bounds(
 /// than replaying the maximum profile envelope. These are execution-graph
 /// buckets, not CUDA-specific shapes: a device backend may capture them or
 /// execute the same immutable launch list eagerly.
+/// Keep the single-token arithmetic domain separate: projection kernels may
+/// use one-output-per-subgroup GEMV at one token and tiled GEMM above one.
+/// Reusing a multi-token owner's smaller grid can leave output columns unwritten.
 fn paged_prefill_capture_bounds(
   profile : @launch_contract.PagedKernelProfile,
 ) -> ReadOnlyArray[Int] {
   let maximum = profile.max_query_tokens()
   let candidates : FixedArray[Int] = [
-    8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096,
+    1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096,
   ]
   let bounds : Array[Int] = []
   for candidate in candidates {

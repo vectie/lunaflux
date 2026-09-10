@@ -120,6 +120,14 @@ and selections finish before the first completion entry is written. The writer
 remains open for explicit submit after executor finish or abort after any
 failure; a readback or invalid-logit failure poisons the executor.
 
+Prefill launch planning keeps a separate one-token owner whenever the profile
+also admits larger queries. One-token projection arithmetic may use a GEMV
+column mapping instead of the multi-token GEMM mapping; its complete grid must
+not be replaced by an eight-token owner's smaller grid. This owner is prepared
+once for eligible base, split, and wide prefill paths, using the existing fixed
+bucket table. Multi-token and decode selection remain unchanged, and a
+one-token-only profile uses its existing maximum owner without duplication.
+
 The reusable FP8-v3 frame route keeps one scalar admission record for the
 executor lifetime. Each accepted frame mutates that record in place and clears
 it on consume or poison, so publication does not box per-frame evidence. It

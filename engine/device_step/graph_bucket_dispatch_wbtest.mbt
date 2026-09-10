@@ -100,7 +100,7 @@ test "decode capture bounds stop before the maximum envelope" {
 ///|
 test "prefill capture bounds cover powers of two below the maximum envelope" {
   let (_, profile, _) = graph_dispatch_fixture(7)
-  assert_eq(paged_prefill_capture_bounds(profile), [8, 16, 32])
+  assert_eq(paged_prefill_capture_bounds(profile), [1, 8, 16, 32])
   let larger = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(92),
     max_query_rows=32,
@@ -108,7 +108,7 @@ test "prefill capture bounds cover powers of two below the maximum envelope" {
     max_page_table_entries=256,
   )
   assert_eq(paged_prefill_capture_bounds(larger), [
-    8, 16, 32, 64, 128, 256, 512, 1024, 2048,
+    1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048,
   ])
 }
 
