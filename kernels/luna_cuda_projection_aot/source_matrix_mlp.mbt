@@ -6,12 +6,17 @@ fn projection_matrix_mlp_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  max_registers~ : Int,
 ) -> Bytes {
   let schedule = compilation.schedule()
   let groups = schedule.output_tiles_per_workgroup()
   let down_groups = schedule.companion_output_tiles_per_workgroup().unwrap()
   let pipeline = schedule.intermediate_pipeline().unwrap()
   let sibling = schedule.sibling_pipeline().unwrap()
+  let launch_bounds = projection_sibling_launch_bounds_source(
+    schedule,
+    max_registers~,
+  )
   let gate_fold = projection_dot_fold_source(
     parameters.input_width,
     [
@@ -56,7 +61,7 @@ fn projection_matrix_mlp_source(
   @utf8.encode(
     projection_tensor_core_prelude() +
     (
-      $|extern "C" __global__ void \{symbol}(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {
+      $|extern "C" __global__ \{launch_bounds}void \{symbol}(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {
       $|\{projection_count_guard(maximum_tokens)}
       $|  const int warp = (int)threadIdx.x >> 5, lane = (int)threadIdx.x & 31;
       $|  if (blockDim.x != \{groups * 32}) return;

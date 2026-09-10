@@ -102,7 +102,15 @@ test "matrix distribution lowers through both source and launch geometry" {
       )
       assert_eq(compilation.schedule().selected_input_row_resident(), resident)
       let source = projection_source(
-        "distribution", parameters, 256, 256, dispatch, compilation, false, true,
+        "distribution",
+        parameters,
+        256,
+        256,
+        dispatch,
+        compilation,
+        false,
+        true,
+        max_registers=128,
       )
       assert_true(source.length() > 0)
       if (

@@ -8,6 +8,7 @@ fn projection_source(
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
+  max_registers~ : Int,
 ) -> Bytes raise ProjectionAotError {
   match parameters.family {
     QkvProjection =>
@@ -60,7 +61,11 @@ fn projection_source(
       if projection_tensor_core_mlp_eligible(parameters, dispatch) &&
         tile_compilation.schedule().reuse_intermediate_tile() {
         projection_matrix_mlp_source(
-          symbol, parameters, maximum_tokens, tile_compilation,
+          symbol,
+          parameters,
+          maximum_tokens,
+          tile_compilation,
+          max_registers~,
         )
       } else if use_shared_mlp {
         projection_scalar_mlp_source(symbol, parameters, maximum_tokens, true)

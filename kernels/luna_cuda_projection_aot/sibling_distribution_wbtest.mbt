@@ -27,8 +27,20 @@ test "sibling lowering distributes independent row folds across launched consume
   assert_true(
     source.contains("column_begin + (tile % 4) * 16 + (owner_lane % 4) * 2"),
   )
-  // Keep copies and CTA publication uniform even for padded tail row owners.
-  assert_true(source.contains("cp.async.wait_group 0;"))
+  // Synchronous gate copies publish at the uniform loop-end CTA fence, even
+  // for padded row owners. Do not mistake the companion down async wait for
+  // gate coverage when inspecting the combined source.
+  let entries = source
+    .split("extern \"C\" __global__ void baseline_down(")
+    .collect()
+  assert_eq(entries.length(), 2)
+  let gate = entries[0].to_owned()
+  assert_false(gate.contains("cp.async"))
+  assert_true(
+    gate.contains(
+      "if (inner + 32 < 1024) stage_operands(inner + 32, stage ^ 1);\n        __syncthreads();",
+    ),
+  )
   assert_true(
     source.contains(
       "float *gate_tiles = reinterpret_cast<float *>(sibling_storage);",

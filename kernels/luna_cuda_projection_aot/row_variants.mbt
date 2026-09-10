@@ -8,6 +8,7 @@ fn projection_row_variant_sources(
   runtime : @luna_projection_strategy.ProjectionRuntimeDispatch,
   primary : @luna_projection_strategy.ProjectionDispatchPlan,
   symbol : String,
+  max_registers~ : Int,
 ) -> (String, ReadOnlyArray[@artifact.KernelRowVariant]) raise ProjectionAotError {
   let sources = StringBuilder()
   let variants : Array[@artifact.KernelRowVariant] = []
@@ -83,6 +84,7 @@ fn projection_row_variant_sources(
       compilation,
       false,
       dimensions.shared_memory_bytes() > 0,
+      max_registers~,
     )
     sources.write_string(
       @utf8.decode(source) catch {

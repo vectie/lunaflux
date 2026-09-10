@@ -77,9 +77,15 @@ fn projection_finish_candidate(
     tile_compilation,
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
+    max_registers=compiler.max_registers(),
   )
   let (variant_source, row_variants) = projection_row_variant_sources(
-    parameters, profile, runtime_dispatch, dispatch_plan, symbol,
+    parameters,
+    profile,
+    runtime_dispatch,
+    dispatch_plan,
+    symbol,
+    max_registers=compiler.max_registers(),
   )
   let source = if row_variants.is_empty() {
     primary_source

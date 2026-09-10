@@ -250,6 +250,7 @@ fn projection_fixture_contracts(
 ///|
 fn projection_fixture_compiler(
   reassociate? : Bool = false,
+  max_registers? : Int = 128,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(
@@ -261,7 +262,7 @@ fn projection_fixture_compiler(
     optimization_level=3,
     fused_multiply_add=false,
     reassociate~,
-    max_registers=128,
+    max_registers~,
   )
 }
 

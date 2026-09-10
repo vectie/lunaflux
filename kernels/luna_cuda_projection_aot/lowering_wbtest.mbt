@@ -164,6 +164,28 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_eq(lowering.launch_dimensions().block_x(), 512)
   assert_eq(lowering.launch_dimensions().shared_memory_bytes(), 16384)
   assert_true(@utf8.decode(lowering.recipe_bytes()).contains("block=512,1,1\n"))
+  for max_registers in [32, 63, 64, 128] {
+    let bounded = lower_projection_cuda_aot_candidate(
+      operation,
+      profile,
+      @catalog.AotKernelEntryPointId::from_stable_int(10),
+      projection_fixture_target(),
+      projection_fixture_compiler(max_registers~),
+      operands,
+      projection_fixture_limits(),
+    )
+    let bounded_source = @utf8.decode(bounded.source_bytes())
+    assert_eq(
+      bounded_source.contains("__launch_bounds__(512, 2)"),
+      max_registers >= 64,
+    )
+    assert_true(
+      bounded_source.contains(
+        "extern \"C\" __global__ void " + bounded.function_symbol() + "_down(",
+      ),
+    )
+    assert_eq(bounded.launch_dimensions(), lowering.launch_dimensions())
+  }
 }
 
 ///|
@@ -452,6 +474,7 @@ test "CUDA lowering consumes the startup-selected backend-neutral strategy" {
     fallback.tile_compilation(),
     false,
     false,
+    max_registers=128,
   )
   assert_false(
     @utf8.decode(compiler_source).contains("__nv_bfloat16 *input_tile"),

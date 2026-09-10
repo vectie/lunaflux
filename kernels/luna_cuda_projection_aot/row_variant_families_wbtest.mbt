@@ -49,7 +49,15 @@ fn row_variant_primary_test_source(
   )
   @utf8.decode(
     projection_source(
-      "baseline", parameters, maximum_tokens, 32, dispatch, compilation, false, true,
+      "baseline",
+      parameters,
+      maximum_tokens,
+      32,
+      dispatch,
+      compilation,
+      false,
+      true,
+      max_registers=128,
     ),
   )
 }
@@ -77,7 +85,12 @@ test "head residency-only winner remains executable inside a larger profile" {
   assert_eq(runtime.select(257).source(), StaticFallback)
   let profile = row_variant_test_profile()
   let (source, variants) = projection_row_variant_sources(
-    parameters, profile, runtime, primary, "head",
+    parameters,
+    profile,
+    runtime,
+    primary,
+    "head",
+    max_registers=128,
   )
   assert_eq(variants.length(), 1)
   let variant = variants[0]
@@ -134,7 +147,12 @@ test "small-row MLP winner exports gate-up and down under one bounded ABI" {
     let primary = runtime.dispatch_plan(1024)
     let profile = row_variant_test_profile()
     let (source, variants) = projection_row_variant_sources(
-      parameters, profile, runtime, primary, "mlp",
+      parameters,
+      profile,
+      runtime,
+      primary,
+      "mlp",
+      max_registers=128,
     )
     assert_eq(variants.length(), 1)
     let variant = variants[0]
@@ -199,6 +217,7 @@ test "monolithic scalar families cannot advertise matrix row variants" {
       runtime,
       runtime.dispatch_plan(1024),
       "scalar",
+      max_registers=128,
     )
     assert_eq(source, "")
     assert_true(variants.is_empty())

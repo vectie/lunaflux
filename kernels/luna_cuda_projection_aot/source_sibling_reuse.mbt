@@ -39,12 +39,10 @@ fn projection_sibling_reuse_source(
     $|      \{projection_sibling_phased_transfer_source(rows, columns, width, input_width, consumers * 2 * 32)}
     $|      float c[\{folds}][8] = {};
     $|      stage_operands(0, 0);
-    $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
     $|      int stage = 0;
     $|      #pragma unroll 1
     $|      for (int inner = 0; inner < \{input_width}; inner += \{width}) {
-    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1);
     $|        if (warp < \{consumers * 2}) {
     $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
     $|          #pragma unroll
@@ -66,7 +64,7 @@ fn projection_sibling_reuse_source(
     $|            }
     $|          }
     $|        }
-    $|        asm volatile("cp.async.wait_group 0;" ::: "memory");
+    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1);
     $|        __syncthreads();
     $|        stage ^= 1;
     $|      }

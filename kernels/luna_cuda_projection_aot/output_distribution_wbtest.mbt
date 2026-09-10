@@ -33,7 +33,12 @@ test "dense output C8 distribution preserves exact shape and larger-row fallback
     assert_eq(runtime.select(9).source(), StaticFallback)
     assert_eq(runtime.select(1024).source(), StaticFallback)
     let (source, variants) = projection_row_variant_sources(
-      parameters, profile, runtime, primary, "output",
+      parameters,
+      profile,
+      runtime,
+      primary,
+      "output",
+      max_registers=128,
     )
     assert_eq(variants.length(), 1)
     let variant = variants[0]

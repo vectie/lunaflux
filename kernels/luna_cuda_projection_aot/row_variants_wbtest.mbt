@@ -46,6 +46,7 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
     runtime,
     runtime.dispatch_plan(256),
     "projection",
+    max_registers=128,
   )
   assert_eq(variants.length(), 1)
   assert_eq(variants[0].maximum_token_rows(), 8)
@@ -62,6 +63,7 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
     baseline,
     baseline.dispatch_plan(256),
     "projection",
+    max_registers=128,
   )
   assert_eq(fallback_source, "")
   assert_true(fallback_variants.is_empty())
@@ -80,7 +82,15 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
     println(
       @utf8.decode(
         projection_source(
-          "projection", parameters, 256, 32, dispatch, compilation, false, true,
+          "projection",
+          parameters,
+          256,
+          32,
+          dispatch,
+          compilation,
+          false,
+          true,
+          max_registers=128,
         ),
       ),
     )

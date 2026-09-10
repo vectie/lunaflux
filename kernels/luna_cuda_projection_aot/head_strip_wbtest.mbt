@@ -59,6 +59,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
       runtime,
       primary,
       "head",
+      max_registers=128,
     )
     assert_eq(variants.length(), 1)
     let dimensions = variants[0].dimensions()
@@ -106,6 +107,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
         resident_runtime,
         primary,
         "resident",
+        max_registers=128,
       )
       let current_runtime = projection_build_runtime_dispatch(
         parameters,
@@ -127,6 +129,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
         current_runtime,
         primary,
         "current",
+        max_registers=128,
       )
       println("LUNA_SOURCE_BEGIN head-strip-\{bound}-in-1024")
       println(row_variant_primary_test_source(parameters, primary))
