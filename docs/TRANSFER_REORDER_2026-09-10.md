@@ -1,5 +1,10 @@
 # Gate/up transfer rescheduling experiment
 
+Follow-up: [residency isolation and the 356-us schedule](SIBLING_RESIDENCY_2026-09-10.md)
+separates Source address-layout excess from hardware arbitration totals. The
+numbers and hardware-zero constraint below describe the earlier r1–r3 work,
+not the latest optimization objective or validation status.
+
 ## Outcome
 
 Real-operand rescheduling reduced the T=1024 gate/up kernel from about 559 us

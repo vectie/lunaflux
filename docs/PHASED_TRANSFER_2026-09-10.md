@@ -1,5 +1,10 @@
 # Real-operand phased shared transfer
 
+This records the initial hardware-zero implementation. The subsequent
+[residency and transfer scheduling update](SIBLING_RESIDENCY_2026-09-10.md)
+supersedes its barrier placement and performance objective while retaining
+zero Source-attributed address-layout excess.
+
 ## Result and scope
 
 The sibling-reuse gate/up lowering now stages real global operands into a
