@@ -28,7 +28,14 @@ test "sibling row product is partially evaluated from the immutable token bound"
     assert_eq(sibling.row_width(), expected_rows)
     assert_eq(sibling.tile_width(), 16)
     assert_eq(sibling.tile_count(), 64)
-    assert_eq(sibling.transfer_width(), 32)
+    assert_eq(
+      sibling.transfer_width(),
+      if expected_rows == 16 {
+        64
+      } else {
+        32
+      },
+    )
     assert_eq(sibling.stage_count(), 2)
     assert_eq(sibling.minimum_rows(), 2)
     assert_eq(sibling.output_tiles(), 4)
@@ -75,7 +82,14 @@ test "sibling row demand preserves shape-neutral reduction and output geometry" 
       let pipeline = compilation.schedule().sibling_pipeline().unwrap()
       assert_eq(pipeline.row_width(), Int::max(16, maximum_tokens))
       assert_eq(pipeline.tile_count() * pipeline.tile_width(), width)
-      assert_eq(pipeline.transfer_width(), 32)
+      assert_eq(
+        pipeline.transfer_width(),
+        if maximum_tokens <= 16 {
+          64
+        } else {
+          32
+        },
+      )
     }
   }
 }

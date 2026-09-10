@@ -22,17 +22,11 @@ fn projection_fold_pipeline_source(
   // Distribute the immutable operand product into two affine producer maps.
   // This removes the per-vector operand tag and pointer selection without
   // changing the ordered reduction or moving reads across materialization.
-  // Small workgroups use register materialization: their partially active
-  // unrolled bypass copies retain excessive transactions on the measured
-  // backend. This is a workgroup/transport decision, never a model-family rule.
+  // Keep the next slot's global reads independent of the current matrix fold.
+  // A synchronous load/store pair blocks this producer at STS on the load's
+  // scoreboard even though its destination is the inactive shared slot.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a",
-    "destination",
-    rows,
-    width,
-    stride,
-    true,
-    groups >= 4,
+    "pipeline_a", "destination", rows, width, stride, true, true,
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
@@ -41,7 +35,7 @@ fn projection_fold_pipeline_source(
     width,
     stride,
     false,
-    groups >= 4,
+    true,
   )
   let source =
     $|  {

@@ -28,6 +28,42 @@ fn projection_sibling_fold_pipeline_source(
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
   let layout : CudaProjectionTransportLayout = { columns: width }
+  let copies = StringBuilder()
+  for
+    domain in [
+      (
+        "input + (unsigned long long)row_begin * \{input_width}ULL",
+        "destination",
+        rows,
+        true,
+      ),
+      (
+        "gate_weight + (unsigned long long)column_begin * \{input_width}ULL",
+        "destination + \{rows * width}",
+        columns,
+        false,
+      ),
+      (
+        "up_weight + (unsigned long long)column_begin * \{input_width}ULL",
+        "destination + \{(rows + columns) * width}",
+        columns,
+        false,
+      ),
+    ] {
+    let (base, destination, domain_rows, guard_rows) = domain
+    copies.write_string(
+      projection_fold_operand_copy_source(
+        "(" + base + ")",
+        destination,
+        domain_rows,
+        width,
+        input_width,
+        guard_rows,
+        true,
+      ),
+    )
+    copies.write_string("\n")
+  }
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
     $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * 2}];
@@ -41,20 +77,8 @@ fn projection_sibling_fold_pipeline_source(
     $|      const int consumer_column = warp % \{distribution.output_groups()};
     $|      auto stage_operands = [&](int k_base, int stage) {
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
-    $|        for (int vector = threadIdx.x; vector < \{slot / 8}; vector += blockDim.x) {
-    $|          const int element = vector * 8;
-    $|          const bool is_input = element < \{rows * width};
-    $|          const bool is_gate = element < \{(rows + columns) * width};
-    $|          const int offset = is_input ? element : (is_gate ? element - \{rows * width} : element - \{(rows + columns) * width});
-    $|          const int row = offset / \{width}, k = offset % \{width};
-    $|          const bool valid = !is_input || row_begin + row < token_count;
-    $|          const __nv_bfloat16 *base = is_input ? input : (is_gate ? gate_weight : up_weight);
-    $|          const int source_row = is_input ? row_begin + row : column_begin + row;
-    $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)source_row * \{input_width}ULL + k_base + k : input;
-    $|          const int region = is_input ? 0 : (is_gate ? \{rows * width} : \{(rows + columns) * width});
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + region + operand_index(row, k));
-    $|          \{projection_operand_transfer_source(width)}
-    $|        }
+    $|        const int row_start = row_begin, offset = k_base;
+    $|\{copies.to_string()}
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
@@ -70,19 +94,18 @@ fn projection_sibling_fold_pipeline_source(
     $|          #pragma unroll
     $|          for (int k = 0; k < \{width}; k += 16) {
     $|            unsigned bg[4], bu[4];
-    $|            #pragma unroll
-    $|            for (int part = 0; part < 4; ++part) {
-    $|              const int r = consumer_column * 16 + lane / 4 + (part & 1) * 8;
-    $|              const int component = k + lane % 4 * 2 + (part / 2) * 8;
-    $|              bg[part] = *reinterpret_cast<const unsigned *>(current + \{rows * width} + operand_index(r, component));
-    $|              bu[part] = *reinterpret_cast<const unsigned *>(current + \{(rows + columns) * width} + operand_index(r, component));
-    $|            }
+    $|            const int r = consumer_column * 16 + lane % 16;
+    $|            const int component = k + lane / 16 * 8;
+    $|            const unsigned gp = (unsigned)__cvta_generic_to_shared(current + \{rows * width} + operand_index(r, component));
+    $|            const unsigned up = (unsigned)__cvta_generic_to_shared(current + \{(rows + columns) * width} + operand_index(r, component));
+    $|            asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(bg[0]), "=r"(bg[1]), "=r"(bg[2]), "=r"(bg[3]) : "r"(gp));
+    $|            asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(bu[0]), "=r"(bu[1]), "=r"(bu[2]), "=r"(bu[3]) : "r"(up));
     $|            #pragma unroll
     $|            for (int row = 0; row < \{fold_rows}; ++row) {
     $|              if (row_begin + (consumer_row + row) * 16 >= token_count) break;
     $|              unsigned a[4];
-    $|              #pragma unroll
-    $|              for (int part = 0; part < 4; ++part) a[part] = *reinterpret_cast<const unsigned *>(current + operand_index((consumer_row + row) * 16 + lane / 4 + (part & 1) * 8, k + lane % 4 * 2 + (part / 2) * 8));
+    $|              const unsigned ap = (unsigned)__cvta_generic_to_shared(current + operand_index((consumer_row + row) * 16 + lane % 16, k + lane / 16 * 8));
+    $|              asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3]) : "r"(ap));
     $|              #pragma unroll
     $|              for (int half = 0; half < 2; ++half) {
     $|                float *g = cg[row] + half * 4, *u = cu[row] + half * 4;

@@ -128,7 +128,10 @@ fn projection_sibling_pipeline(
     Some({
       tile_width: tile,
       tile_count: extent / tile,
-      transfer_width: tile * 2,
+      // A bounded single-row-tile product has room for four immutable fold
+      // fragments per transfer. Wider row products retain the smaller live
+      // operand window. Reduction updates still consume one tile at a time.
+      transfer_width: tile * (if row_width == matrix_rows { 4 } else { 2 }),
       row_width,
       minimum_rows: 2,
       output_tiles: Int::max(

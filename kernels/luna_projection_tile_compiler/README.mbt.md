@@ -68,7 +68,8 @@ The materialized intermediate fold also carries an immutable two-stage block
 pipeline: a bounded row map (up to 64 rows), 64-element consumer transfers, and unchanged 16-element ordered
 reductions. Full blocks and masked row tails share the same fold; single-row
 execution factors one input across four independent output folds. CUDA is the
-first lowering. MLP sibling input transfers use 32 elements; complete admitted
+first lowering. MLP sibling input transfers use 64 elements for a bounded
+single row tile and 32 for wider row products; complete admitted
 MLP matrix extents start at 256. QKV, output, and head matrix pipelines select
 16/32/64-element transfer groups from their reduction extent and storage plan.
 See [current coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
@@ -122,6 +123,13 @@ performs neither an out-of-range load nor an extra zero-product reduction.
 The window is independent of total K and is part of schedule identity. This
 changes evaluation timing, not floating-point association or memory layout.
 Actual load/compute overlap and speed still require device measurement.
+
+The CUDA materialized consumer issues the next slot's asynchronous copies
+before consuming the current slot, including small workgroups. The bounded
+sibling product lowers its three immutable operand domains separately, so
+source selection disappears before rendering; its matrix consumer uses packed
+fragment loads. Neither transformation changes the ordered fold or epilogue
+rounding. Counter and end-to-end measurements determine the performance result.
 
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled

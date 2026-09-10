@@ -43,7 +43,7 @@ test "bounded sibling rows remove dead staging and accumulator products" {
     for groups in [1, 2, 4, 8, 16] {
       let source = sibling_bounded_source_for_test(maximum_tokens, groups)
       let columns = Int::max(1, groups / 4) * 16
-      let slot = (16 + 2 * columns) * 32
+      let slot = (16 + 2 * columns) * 64
       assert_true(source.contains("sibling_storage[\{slot * 2}]"))
       assert_true(source.contains("((token_count + 15) / 16)"))
       assert_true(source.contains("float cg[1][8] = {}, cu[1][8] = {};"))
@@ -52,8 +52,8 @@ test "bounded sibling rows remove dead staging and accumulator products" {
       assert_false(source.contains("__launch_bounds__"))
       // Unused row owners disappear before CUDA rendering. Live tail lanes
       // remain masked; the ordered K16 fold and storage permutation persist.
-      assert_true(source.contains("inner < 1024; inner += 32"))
-      assert_true(source.contains("k < 32; k += 16"))
+      assert_true(source.contains("inner < 1024; inner += 64"))
+      assert_true(source.contains("k < 64; k += 16"))
       assert_true(source.contains("if (output_row < token_count)"))
       assert_true(source.contains("operand_index(row, k)"))
       assert_true(source.contains("mma.sync.aligned.m16n8k16"))
@@ -84,11 +84,12 @@ test "bounded sibling staging fences remain outside consumer and tail guards" {
     ),
   )
   assert_true(
-    source.contains(
-      "const bool valid = !is_input || row_begin + row < token_count;",
-    ),
+    source.contains("const bool valid = row_start + row < token_count;"),
   )
-  assert_true(source.contains("source = valid ? base"))
+  assert_false(source.contains("is_input"))
+  assert_false(source.contains("is_gate"))
+  assert_true(source.contains("cp.async.cg.shared.global"))
+  assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
 }
 
 ///|
