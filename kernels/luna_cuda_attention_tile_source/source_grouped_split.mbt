@@ -72,12 +72,6 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     )
   }
   let accumulator_items = (head_dimension + 31) / 32
-  let score_offsets = @luna_attention_tile_schedule.scalarize_attention_decode_softmax_tile(
-    key_value_tile, splits_per_head,
-  ) catch {
-    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
-  let score_slots = score_offsets.length()
   let partitions = lowering.key_value_partitions()
   let partition_grain = lowering.key_value_partition_grain()
   let partitioned = partitions > 1
@@ -100,10 +94,13 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|              __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
     $|      }
     $|      const float score = \{warp_sum_symbol}(partial) * scale;
-  let score_map = emit_decode_softmax_score_map(dot, score_offsets)
   let score_preparation = if asynchronous {
     (
-      $|\{score_map}
+      $|    float scores[(LF_KEY_VALUE_TILE + LF_SPLITS_PER_HEAD - 1) / LF_SPLITS_PER_HEAD];
+      $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
+      $|\{dot}
+      $|      scores[key / LF_SPLITS_PER_HEAD] = score;
+      $|    }
       $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
       $|    __syncthreads();
       $|    if (!stage_valid[slot]) return;
@@ -112,11 +109,13 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       $|      stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);
     )
   } else {
-    score_map
+    ""
   }
-  let tile_fold = emit_decode_softmax_tile_fold(
-    accumulator_items, score_offsets,
-  )
+  let score_consumption = if asynchronous {
+    "      const float score = scores[key / LF_SPLITS_PER_HEAD];"
+  } else {
+    dot
+  }
   let state_count = maximum_query_rows.to_int64() *
     query_heads.to_int64() *
     partitions.to_int64()
@@ -189,7 +188,6 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|#define LF_QUERY_HEADS_PER_BLOCK \{group_size}
     $|#define LF_SPLITS_PER_HEAD \{splits_per_head}
     $|#define LF_KEY_VALUE_TILE \{key_value_tile}
-    $|#define LF_SCORE_SLOTS \{score_slots}
     $|#define LF_HEAD_DIMENSION \{head_dimension}
     $|
     $|static __device__ __forceinline__ float \{warp_sum_symbol}(float value) {
@@ -280,7 +278,29 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|        min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|\{iteration}
     $|\{score_preparation}
-    $|\{tile_fold}
+    $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
+    $|\{score_consumption}
+    $|      float old_scale = 0.0f;
+    $|      float new_scale = 0.0f;
+    $|      if (lane == 0) {
+    $|        const float next_maximum = fmaxf(maximum, score);
+    $|        old_scale = denominator == 0.0f
+    $|            ? 0.0f : expf(maximum - next_maximum);
+    $|        new_scale = expf(score - next_maximum);
+    $|        maximum = next_maximum;
+    $|        denominator = denominator * old_scale + new_scale;
+    $|      }
+    $|      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);
+    $|      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);
+    $|      #pragma unroll
+    $|      for (int item = 0; item < \{accumulator_items}; ++item) {
+    $|        const int component = lane + item * 32;
+    $|        if (component < LF_HEAD_DIMENSION)
+    $|          accumulator[item] = accumulator[item] * old_scale + new_scale *
+    $|              __bfloat162float(
+    $|                  value_tile[key * LF_HEAD_DIMENSION + component]);
+    $|      }
+    $|    }
     $|    __syncthreads();
     $|  }
     $|
@@ -341,7 +361,6 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|#undef LF_QUERY_HEADS_PER_BLOCK
     $|#undef LF_SPLITS_PER_HEAD
     $|#undef LF_KEY_VALUE_TILE
-    $|#undef LF_SCORE_SLOTS
     $|#undef LF_HEAD_DIMENSION
   let bytes = @utf8.encode(source)
   if bytes.length() > maximum_source_bytes {

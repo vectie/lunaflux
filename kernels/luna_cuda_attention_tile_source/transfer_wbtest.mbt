@@ -66,11 +66,15 @@ test "grouped split compiler realizes its vector map deterministically" {
     sections[0].contains("rotated_qkv_rows[query_offset + component]"),
   )
   assert_false(sections[1].contains("rotated_qkv_rows["))
-  assert_true(source.contains("const int key = split + 0;"))
+  assert_true(
+    source.contains(
+      "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)",
+    ),
+  )
 }
 
 ///|
-test "two-stage decode keeps ordered tiles and explicit producer consumer lifetimes" {
+test "two-stage decode keeps ordered fold and explicit producer consumer lifetimes" {
   let lowering = source_test_decode_lowering(candidate_id=440)
   assert_eq(lowering.pipeline(), (2, 8))
   let (_, _, _, shared) = lowering.launch()
@@ -87,13 +91,17 @@ test "two-stage decode keeps ordered tiles and explicit producer consumer lifeti
   assert_true(source.contains("cp.async.wait_group 0"))
   assert_eq(lowering.transfer_readiness(), KeyScoreBeforeValueReadiness)
   assert_true(source.contains("cp.async.wait_group 1"))
-  assert_true(source.contains("tile_score_0 = score"))
+  assert_true(source.contains("scores[key / LF_SPLITS_PER_HEAD] = score"))
   assert_true(source.contains("value_cache + addresses[item]"))
   assert_true(
     source.contains("stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1)"),
   )
   assert_true(source.contains("if (!stage_valid[slot]) return"))
-  assert_true(source.contains("const int key = split + 0;"))
+  assert_true(
+    source.contains(
+      "for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD)",
+    ),
+  )
   assert_false(source.contains("uint2 staged_key"))
   assert_eq(
     emitted.bytes(),

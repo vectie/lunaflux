@@ -6,8 +6,4 @@ import {
   "moonbitlang/x/crypto",
 }
 
-import {
-  "moonbitlang/core/math",
-} for "test"
-
 supported_targets = "native"

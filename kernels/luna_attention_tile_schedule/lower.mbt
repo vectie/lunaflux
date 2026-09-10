@@ -106,9 +106,6 @@ fn canonical_schedule(
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
   builder <+ "luna-attention-tile-schedule-v3\n"
-  if candidate.compute() == AttentionGroupedQuerySplitSubgroupDot {
-    builder <+ "decode_softmax_fold=associative-tile-max-delta-v1\n"
-  }
   let resident_output = output_fold_storage(
       candidate.compute(),
       loops[0].tile,
