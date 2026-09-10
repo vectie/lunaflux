@@ -1,5 +1,5 @@
 ///|
-fn strip_test_dispatch(
+fn gather_test_dispatch(
   input_width : Int,
 ) -> @luna_projection_strategy.ProjectionDispatchPlan raise {
   let shape = @luna_projection_strategy.ProjectionShape::new(
@@ -20,6 +20,9 @@ fn strip_test_dispatch(
   let baseline = @luna_projection_strategy.plan_projection_dispatch(
     shape, 256, capabilities,
   )
+  if baseline.prefill().kernel_class() != MatrixTile {
+    return baseline
+  }
   let strategy = for
     candidate in baseline.prefill().output_distribution_candidates() {
     if candidate.output_tiles_per_workgroup() == 1 {
@@ -53,8 +56,8 @@ fn strip_test_dispatch(
 }
 
 ///|
-test "selected-row strip lifetime is pure canonical and keeps ordered inner fold" {
-  let dispatch = strip_test_dispatch(1024)
+test "selected-row gather scope is pure canonical and keeps ordered inner fold" {
+  let dispatch = gather_test_dispatch(1024)
   let request = ProjectionTileCompilerRequest::new(
     dispatch~,
     maximum_rows=32,
@@ -64,7 +67,7 @@ test "selected-row strip lifetime is pure canonical and keeps ordered inner fold
   let compiled = compile_projection_tile(request)
   assert_true(
     @utf8.decode(compiled.schedule.canonical).contains(
-      "selected_row_reduction_strip=128\n",
+      "selected_row_operand_scope=register-fragment,16,16,16\n",
     ),
   )
   assert_eq(compiled, compile_projection_tile(request))
@@ -73,23 +76,22 @@ test "selected-row strip lifetime is pure canonical and keeps ordered inner fold
     compiled.schedule().loops()[2].components(),
     (ProjectionSequentialFold, ProjectionReductionAxis, 1024, 16),
   )
-  for width in [64, 144, 240] {
+  for width in [15, 145, 241] {
     assert_true(
-      projection_selected_row_strip(strip_test_dispatch(width), QueryRowEnds)
+      projection_selected_row_gather(gather_test_dispatch(width), QueryRowEnds)
       is None,
     )
   }
-  for width in [128, 256, 896, 2048] {
-    let strip = projection_selected_row_strip(
-      strip_test_dispatch(width),
+  for width in [16, 64, 128, 144, 240, 256, 896, 2048] {
+    let gather = projection_selected_row_gather(
+      gather_test_dispatch(width),
       QueryRowEnds,
     ).unwrap()
-    assert_eq(strip.reduction_elements(), 128)
-    assert_eq(strip.local_storage_bytes(), 9216)
+    assert_eq(gather.dimensions(), (16, 16, 16))
   }
-  assert_true(projection_selected_row_strip(dispatch, AllTokenRows) is None)
+  assert_true(projection_selected_row_gather(dispatch, AllTokenRows) is None)
   assert_true(
-    projection_selected_row_strip(
+    projection_selected_row_gather(
       projection_compiler_dispatch(LanguageModelHead),
       QueryRowEnds,
     )

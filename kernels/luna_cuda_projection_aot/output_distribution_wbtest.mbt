@@ -40,7 +40,7 @@ test "dense output C8 distribution preserves exact shape and larger-row fallback
       "output",
       max_registers=128,
     )
-    assert_eq(variants.length(), 1)
+    assert_eq(variants.length(), 2)
     let variant = variants[0]
     assert_eq(variant.maximum_token_rows(), 8)
     assert_eq(variant.function_symbol(), "output_rows8")

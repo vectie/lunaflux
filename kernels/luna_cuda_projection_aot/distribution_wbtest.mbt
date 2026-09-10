@@ -88,7 +88,7 @@ test "matrix distribution lowers through both source and launch geometry" {
       assert_eq(
         dimensions.shared_memory_bytes(),
         if family == LanguageModelHead && groups == 1 && !resident {
-          9216
+          0
         } else {
           groups * 1024 +
           (if resident {

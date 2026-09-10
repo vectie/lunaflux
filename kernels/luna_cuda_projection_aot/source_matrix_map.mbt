@@ -1,21 +1,18 @@
 ///|
 /// Terminal lowering of one mapped matrix fold. Row selection and operand
 /// lifetime come from the functional schedule; the same fragment operation is
-/// used for streamed, strip-mined and resident input storage.
+/// used for directly gathered, streamed and resident input storage.
 fn projection_matrix_map_source(
   parameters : ProjectionParameters,
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
 ) -> String {
+  if compilation.selected_row_gather() is Some(gather) {
+    return projection_selected_row_gather_source(parameters, gather)
+  }
   let schedule = compilation.schedule()
   let selected = schedule.demand() == QueryRowEnds
   let resident = schedule.selected_input_row_resident()
-  let width = if resident {
-    parameters.input_width
-  } else if compilation.selected_row_strip() is Some(strip) {
-    strip.reduction_elements()
-  } else {
-    16
-  }
+  let width = if resident { parameters.input_width } else { 16 }
   let groups = schedule.output_tiles_per_workgroup()
   let layout : CudaProjectionTransportLayout = { columns: width }
   let gather = if selected {

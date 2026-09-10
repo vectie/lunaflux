@@ -21,8 +21,11 @@ fn projection_sibling_launch_bounds_source(
       output_tiles=pipeline.output_tiles(),
       consumer_groups=groups,
     )
-    is Some(_) else {
+    is Some(reuse) else {
     return ""
   }
+  // Bounding the row product can leave launched groups without consumers.
+  // That is a different resource topology from the fully occupied reuse map.
+  guard reuse.consumer_groups() * 2 == groups else { return "" }
   "__launch_bounds__(\{threads}, 2) "
 }

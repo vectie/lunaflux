@@ -17,7 +17,9 @@ pub fn partition_projection_product_fold(row_tiles~ : Int, output_tiles~ : Int, 
 
 pub fn partition_projection_sibling_reuse(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
 
-pub fn projection_selected_row_strip(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowStrip?
+pub fn projection_bounded_row_extent(maximum_rows~ : Int, matrix_rows~ : Int, preferred_rows~ : Int) -> Int?
+
+pub fn projection_selected_row_gather(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowGather?
 
 pub fn schedule_projection_tile(OptimizedProjectionTileCompilation) -> ScheduledProjectionTileCompilation
 
@@ -98,13 +100,12 @@ pub(all) enum ProjectionRowTailPolicy {
   ZeroPaddedMatrixRowTail
 } derive(Eq, @debug.Debug)
 
-pub struct ProjectionSelectedRowStrip {
+pub struct ProjectionSelectedRowGather {
   rows : Int
   columns : Int
   reduction : Int
 }
-pub fn ProjectionSelectedRowStrip::local_storage_bytes(Self) -> Int
-pub fn ProjectionSelectedRowStrip::reduction_elements(Self) -> Int
+pub fn ProjectionSelectedRowGather::dimensions(Self) -> (Int, Int, Int)
 
 pub(all) enum ProjectionSingleRowNumerics {
   PreserveDotOrder
@@ -249,7 +250,7 @@ pub fn ScheduledProjectionTileCompilation::eliminated_bindings(Self) -> (Int, In
 pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
 pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
 pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
-pub fn ScheduledProjectionTileCompilation::selected_row_strip(Self) -> ProjectionSelectedRowStrip?
+pub fn ScheduledProjectionTileCompilation::selected_row_gather(Self) -> ProjectionSelectedRowGather?
 pub fn ScheduledProjectionTileCompilation::source_program(Self) -> ProjectionTileProgram
 
 pub struct SelectedProjectionTileCompilation {

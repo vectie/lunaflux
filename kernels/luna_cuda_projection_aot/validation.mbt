@@ -542,7 +542,7 @@ fn projection_dimensions(
     parameters, dispatch,
   )
   let groups = dispatch.prefill().output_tiles_per_workgroup().to_int64()
-  let strip = @luna_projection_tile_compiler.projection_selected_row_strip(
+  let gather = @luna_projection_tile_compiler.projection_selected_row_gather(
     dispatch,
     if parameters.family == LanguageModelHead {
       QueryRowEnds
@@ -550,8 +550,8 @@ fn projection_dimensions(
       AllTokenRows
     },
   )
-  let shared_memory_bytes = if tensor_core && strip is Some(plan) {
-    plan.local_storage_bytes().to_int64()
+  let shared_memory_bytes = if tensor_core && gather is Some(_) {
+    0L
   } else if tensor_core || tensor_core_mlp {
     let storage = dispatch
       .prefill()

@@ -64,7 +64,8 @@ pub fn ProjectionFoldPipeline::minimum_rows(
 fn projection_intermediate_pipeline(
   optimized : OptimizedProjectionTileCompilation,
 ) -> ProjectionFoldPipeline? {
-  let dispatch = optimized.semantic.selected.request.dispatch
+  let request = optimized.semantic.selected.request
+  let dispatch = request.dispatch
   let (_, _, extent) = dispatch.shape().dimensions()
   let (_, _, tile) = dispatch.prefill().tile().dimensions()
   // This closed semantic graph has a completed materialization boundary:
@@ -75,11 +76,22 @@ fn projection_intermediate_pipeline(
     extent >= 256 &&
     tile > 0 &&
     extent % (tile * 4) == 0 {
+    // Specialize the independent output-row map to this executable's demand.
+    // The reduction tiles and their order are unchanged; an eight-row bucket
+    // needs one padded matrix row tile, not four fully evaluated row tiles.
+    guard projection_bounded_row_extent(
+        maximum_rows=request.maximum_tokens,
+        matrix_rows=16,
+        preferred_rows=64,
+      )
+      is Some(row_width) else {
+      return None
+    }
     Some({
       tile_width: tile,
       tile_count: extent / tile,
       transfer_width: tile * 4,
-      row_width: 64,
+      row_width,
       minimum_rows: 2,
       output_tiles: projection_companion_output_tiles(
         dispatch.prefill().output_tiles_per_workgroup(),
@@ -94,19 +106,30 @@ fn projection_intermediate_pipeline(
 fn projection_sibling_pipeline(
   optimized : OptimizedProjectionTileCompilation,
 ) -> ProjectionFoldPipeline? {
-  let dispatch = optimized.semantic.selected.request.dispatch
+  let request = optimized.semantic.selected.request
+  let dispatch = request.dispatch
   let (extent, _, _) = dispatch.shape().dimensions()
-  let (_, _, tile) = dispatch.prefill().tile().dimensions()
+  let (matrix_rows, _, tile) = dispatch.prefill().tile().dimensions()
   if optimized.optimization.applied(FuseSiblingInputTraversals) &&
     dispatch.prefill().kernel_class() == MatrixTile &&
     extent >= 256 &&
     tile > 0 &&
     extent % (tile * 4) == 0 {
+    // Restrict the independent row product before storage and consumer
+    // partitioning. The ordered reduction and actual-row masks are intact.
+    guard projection_bounded_row_extent(
+        maximum_rows=request.maximum_tokens,
+        matrix_rows~,
+        preferred_rows=64,
+      )
+      is Some(row_width) else {
+      return None
+    }
     Some({
       tile_width: tile,
       tile_count: extent / tile,
       transfer_width: tile * 2,
-      row_width: 64,
+      row_width,
       minimum_rows: 2,
       output_tiles: Int::max(
         1,
@@ -168,7 +191,11 @@ fn projection_matrix_pipeline(
       row_width: if selected {
         16
       } else {
-        32
+        projection_bounded_row_extent(
+          maximum_rows=request.maximum_tokens,
+          matrix_rows=m,
+          preferred_rows=32,
+        ).unwrap()
       },
       output_tiles: if selected {
         dispatch.prefill().output_tiles_per_workgroup()

@@ -327,12 +327,14 @@ fn projection_schedule_canonical(
   builder <+
     "row_tail_policy=\{if row_tail_policy == ZeroPaddedMatrixRowTail { "masked-matrix" } else { "scalar" }}\n"
   let dispatch = optimized.semantic.selected.request.dispatch
-  if projection_selected_row_strip(
+  if projection_selected_row_gather(
       dispatch,
       optimized.semantic.selected.request.demand,
     )
-    is Some(strip) {
-    builder <+ "selected_row_reduction_strip=\{strip.reduction_elements()}\n"
+    is Some(gather) {
+    let (rows, columns, reduction) = gather.dimensions()
+    builder <+
+      "selected_row_operand_scope=register-fragment,\{rows},\{columns},\{reduction}\n"
   }
   if dispatch.prefill().input_residency() == SelectedRowTileResidency {
     builder <+ "selected_input_residency=row-tile\n"

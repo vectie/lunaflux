@@ -65,13 +65,23 @@ reuse once. A device backend lowers those sharing decisions to its own local
 memory and synchronization primitives; model code never names them.
 
 The materialized intermediate fold also carries an immutable two-stage block
-pipeline: a 64-row map, 64-element consumer transfers, and unchanged 16-element ordered
+pipeline: a bounded row map (up to 64 rows), 64-element consumer transfers, and unchanged 16-element ordered
 reductions. Full blocks and masked row tails share the same fold; single-row
 execution factors one input across four independent output folds. CUDA is the
 first lowering. MLP sibling input transfers use 32 elements; complete admitted
 MLP matrix extents start at 256. QKV, output, and head matrix pipelines select
 16/32/64-element transfer groups from their reduction extent and storage plan.
 See [current coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
+
+Row-domain partial evaluation happens before operand storage and consumer
+distribution: a maximum of 16 rows retains one padded matrix row microtile,
+not two QKV/output tiles or four sibling/down tiles. This removes unobserved
+parallel-map members, without reordering the reduction of any live result.
+The AOT exporter compares the resulting pipeline plans, not merely strategy
+names, so these bounded executables survive even without new autotune records.
+An unmeasured bounded version retains the installed primary distribution;
+only a measured record may replace that distribution. The full-profile
+allocation and single-row numerical contracts remain unchanged.
 
 Attention ingress is also a composable projection epilogue. Its immutable value
 graph is `QKV dot -> per-head Q/K RMSNorm -> positioned rotary -> output store +
@@ -92,16 +102,17 @@ the final token of each packed query row. Full-logit callers retain
 projections without changing model-family semantics.
 
 For a single-output-tile matrix strategy with streaming selected rows, the
-compiler now binds a bounded reduction-strip storage plan: 16 selected rows and
-16 output columns share a 128-element reduction strip. The eight 16-element
-inner folds remain ordered; this is strip mining and lifetime reduction, not
-floating-point reassociation. Its local-storage requirement is 9,216 bytes,
-independent of the full input width. The initial eligibility requires input
-width divisible by 128 and complete 16-column tiles; other strategies retain
-their declared storage. CUDA lowers strip and resident plans through the same
-gathered-input matrix map with direct immutable weight reads. The existing
-single-row reduction remains unchanged. Offline records still select the
-strategy; this does not install an unmeasured default or claim a speedup.
+compiler binds selected input directly to the consumer's register fragments.
+The row-selection map is loop-invariant, and each result element has one
+consumer owner, so the intermediate shared input and result tiles disappear.
+The 16-element matrix folds and final BF16 rounding remain ordered; no
+floating-point reassociation is granted. This replaces the former 9,216-byte
+reduction-strip arena with zero local-memory storage. Eligibility requires
+complete 16-element reduction and output tiles; explicit resident and
+multi-consumer strategies retain their declared storage. CUDA lowers this
+placement through direct packed fragment loads and unique result stores. The
+existing single-row reduction is unchanged. Offline records still select the
+strategy; this source change alone does not claim a measured speedup.
 
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled

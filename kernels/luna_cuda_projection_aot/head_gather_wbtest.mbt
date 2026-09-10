@@ -1,5 +1,5 @@
 ///|
-test "selected-row head strip is compiled into a bounded executable variant" {
+test "selected-row head register gather reaches segmented greedy executable variants" {
   let parameters : ProjectionParameters = {
     family: LanguageModelHead,
     input_width: 1024,
@@ -13,7 +13,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
     projection_fixture_target(),
     [],
   )
-  for bound in [8, 256] {
+  for bound in [8, 16, 256] {
     let selected = for
       candidate in baseline
       .dispatch_plan(bound)
@@ -42,9 +42,8 @@ test "selected-row head strip is compiled into a bounded executable variant" {
     let compiled = @luna_projection_tile_compiler.compile_projection_tile(
       request,
     )
-    let strip = compiled.selected_row_strip().unwrap()
-    assert_eq(strip.reduction_elements(), 128)
-    assert_eq(strip.local_storage_bytes(), 9216)
+    let gather = compiled.selected_row_gather().unwrap()
+    assert_eq(gather.dimensions(), (16, 16, 16))
     assert_eq(
       compiled.schedule().single_row_reduction(),
       @luna_projection_tile_compiler.StridedPairwiseDot(32),
@@ -58,22 +57,31 @@ test "selected-row head strip is compiled into a bounded executable variant" {
       row_variant_test_profile(),
       runtime,
       primary,
-      "head",
+      "head_segmented_greedy_v2",
       max_registers=128,
     )
     assert_eq(variants.length(), 1)
     let dimensions = variants[0].dimensions()
     assert_eq(dimensions.block_x(), 32)
     assert_eq(dimensions.grid_x(), 9496)
-    assert_eq(dimensions.shared_memory_bytes(), strip.local_storage_bytes())
-    assert_true(source.contains("strip_begin += 128"))
-    assert_true(source.contains("inner < 128; inner += 16"))
-    assert_true(source.contains("operand_index(local_row, inner + local_k)"))
-    assert_true(source.contains("strip_begin + inner + local_k"))
-    assert_true(source.contains("token_row >= 0 && token_row < token_count"))
+    assert_eq(dimensions.shared_memory_bytes(), 0)
+    assert_true(source.contains("head_segmented_greedy_v2_rows\{bound}"))
+    assert_true(source.contains("inner < 1024; inner += 16"))
+    assert_true(source.contains("token_low >= 0 && token_low < token_count"))
+    assert_true(source.contains("token_high >= 0 && token_high < token_count"))
+    assert_true(
+      source.contains(
+        "logical_high < row_count ? row_offsets[logical_high + 1] - 1 : -1",
+      ),
+    )
+    assert_true(source.contains("accumulator[pair * 2]"))
+    assert_true(source.contains("mma.sync.aligned.m16n8k16"))
     assert_true(source.contains("if (counts[2] == 1)"))
     assert_true(source.contains("__shfl_down_sync"))
-    assert_true(source.contains("__syncthreads"))
+    assert_false(source.contains("__syncthreads"))
+    assert_false(source.contains("__shared__"))
+    assert_false(source.contains("operand_index"))
+    assert_false(source.contains("result_index"))
     assert_false(source.contains("wmma::"))
     assert_false(source.contains("cp.async.commit_group"))
     assert_false(source.contains("atomicAdd"))
@@ -87,20 +95,20 @@ test "selected-row head strip is compiled into a bounded executable variant" {
       [row_variant_test_record(parameters, resident)],
     )
     assert_true(
-      @luna_projection_tile_compiler.projection_selected_row_strip(
+      @luna_projection_tile_compiler.projection_selected_row_gather(
         resident_runtime.dispatch_plan(bound),
         QueryRowEnds,
       )
       is None,
     )
     assert_true(
-      @luna_projection_tile_compiler.projection_selected_row_strip(
+      @luna_projection_tile_compiler.projection_selected_row_gather(
         dispatch,
         AllTokenRows,
       )
       is None,
     )
-    if @env.get_env_var("LUNA_TEST_EXPORT_HEAD_STRIP") == Some("1") {
+    if @env.get_env_var("LUNA_TEST_EXPORT_HEAD_GATHER") == Some("1") {
       let (resident_source, _) = projection_row_variant_sources(
         parameters,
         row_variant_test_profile(),
@@ -131,7 +139,7 @@ test "selected-row head strip is compiled into a bounded executable variant" {
         "current",
         max_registers=128,
       )
-      println("LUNA_SOURCE_BEGIN head-strip-\{bound}-in-1024")
+      println("LUNA_SOURCE_BEGIN head-gather-\{bound}-in-1024")
       println(row_variant_primary_test_source(parameters, primary))
       println(source)
       println(resident_source)

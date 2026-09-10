@@ -162,7 +162,7 @@ test "small-row MLP winner exports gate-up and down under one bounded ABI" {
       "mlp",
       max_registers=128,
     )
-    assert_eq(variants.length(), 1)
+    assert_eq(variants.length(), 3)
     let assembled = @utf8.decode(
       projection_join_source_fragments(
         @utf8.encode(row_variant_primary_test_source(parameters, primary)),

@@ -1,7 +1,8 @@
 ///|
 /// Compile measured per-bucket strategies into the same immutable AOT module.
-/// Identical fallback strategies need no duplicate code. These variants share
-/// the full allocation layout but accept only their declared token-row domain.
+/// Strategy equality does not imply executable equality: partial evaluation
+/// of a bounded row map may remove complete producer and accumulator tiles.
+/// These variants share allocations but accept only their declared row domain.
 fn projection_row_variant_sources(
   parameters : ProjectionParameters,
   profile : @launch_contract.PagedKernelProfile,
@@ -12,6 +13,12 @@ fn projection_row_variant_sources(
 ) -> (String, ReadOnlyArray[@artifact.KernelRowVariant]) raise ProjectionAotError {
   let sources = StringBuilder()
   let variants : Array[@artifact.KernelRowVariant] = []
+  let primary_compilation = projection_row_variant_compilation(
+    parameters,
+    primary,
+    profile.max_query_rows(),
+    profile.max_query_tokens(),
+  )
   for
     bound in [
       8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
@@ -24,42 +31,41 @@ fn projection_row_variant_sources(
       _ => raise Invalid(CompilerPolicy)
     }
     let strategy = selected.strategy()
-    if selected.source() != OfflineAutotune ||
-      strategy.kernel_class() != MatrixTile ||
-      strategy.kernel_class() != primary.prefill().kernel_class() ||
-      (
-        strategy.output_tiles_per_workgroup() ==
-        primary.prefill().output_tiles_per_workgroup() &&
-        strategy.input_residency() == primary.prefill().input_residency()
-      ) {
+    if strategy.kernel_class() != MatrixTile ||
+      strategy.kernel_class() != primary.prefill().kernel_class() {
       continue
     }
-    let dispatch = runtime.dispatch_plan(bound) catch {
-      _ => raise Invalid(CompilerPolicy)
+    // A row-domain specialization is not a new autotune recommendation. Keep
+    // the installed primary distribution unless a measured winner overrides it.
+    let dispatch = if selected.source() == OfflineAutotune {
+      runtime.dispatch_plan(bound) catch {
+        _ => raise Invalid(CompilerPolicy)
+      }
+    } else {
+      primary
     }
-    let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-      dispatch~,
-      maximum_rows=Int::min(profile.max_query_rows(), bound),
-      maximum_tokens=bound,
-      demand=if parameters.family == LanguageModelHead {
-        QueryRowEnds
-      } else {
-        AllTokenRows
-      },
-      single_row_numerics=if projection_tensor_core_eligible(
-          parameters, dispatch,
-        ) ||
-        projection_tensor_core_mlp_eligible(parameters, dispatch) {
-        AllowDeterministicDotTree
-      } else {
-        PreserveDotOrder
-      },
-    ) catch {
-      _ => raise Invalid(CompilerPolicy)
-    }
-    let compilation = @luna_projection_tile_compiler.compile_projection_tile(
-      request,
+    let compilation = projection_row_variant_compilation(
+      parameters,
+      dispatch,
+      Int::min(profile.max_query_rows(), bound),
+      bound,
     )
+    let measured_distribution = selected.source() == OfflineAutotune &&
+      (
+        strategy.output_tiles_per_workgroup() !=
+        primary.prefill().output_tiles_per_workgroup() ||
+        strategy.input_residency() != primary.prefill().input_residency()
+      )
+    let bounded_schedule = compilation.schedule()
+    let primary_schedule = primary_compilation.schedule()
+    let specialized_pipeline = bounded_schedule.matrix_pipeline() !=
+      primary_schedule.matrix_pipeline() ||
+      bounded_schedule.sibling_pipeline() != primary_schedule.sibling_pipeline() ||
+      bounded_schedule.intermediate_pipeline() !=
+      primary_schedule.intermediate_pipeline()
+    if !measured_distribution && !specialized_pipeline {
+      continue
+    }
     // Keep operand allocations at the complete profile envelope, but derive
     // the launch from this bounded executable's domain. In particular a head
     // variant still accepts token rows, not an invented output-row domain.
@@ -104,4 +110,35 @@ fn projection_row_variant_sources(
     )
   }
   (sources.to_string(), ReadOnlyArray::from_array(variants))
+}
+
+///|
+fn projection_row_variant_compilation(
+  parameters : ProjectionParameters,
+  dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+  maximum_rows : Int,
+  maximum_tokens : Int,
+) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation raise ProjectionAotError {
+  @luna_projection_tile_compiler.compile_projection_tile(
+    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+      dispatch~,
+      maximum_rows~,
+      maximum_tokens~,
+      demand=if parameters.family == LanguageModelHead {
+        QueryRowEnds
+      } else {
+        AllTokenRows
+      },
+      single_row_numerics=if projection_tensor_core_eligible(
+          parameters, dispatch,
+        ) ||
+        projection_tensor_core_mlp_eligible(parameters, dispatch) {
+        AllowDeterministicDotTree
+      } else {
+        PreserveDotOrder
+      },
+    ) catch {
+      _ => raise Invalid(CompilerPolicy)
+    },
+  )
 }

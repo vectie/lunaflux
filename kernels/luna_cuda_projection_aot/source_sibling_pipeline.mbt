@@ -12,7 +12,7 @@ fn projection_sibling_fold_pipeline_source(
       consumer_groups=groups,
     )
     is Some(reuse) {
-    return projection_sibling_reuse_source(plan, parameters, reuse)
+    return projection_sibling_reuse_source(plan, parameters, reuse, groups~)
   }
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16

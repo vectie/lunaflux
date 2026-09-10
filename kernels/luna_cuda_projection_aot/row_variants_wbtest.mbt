@@ -48,7 +48,7 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
     "projection",
     max_registers=128,
   )
-  assert_eq(variants.length(), 1)
+  assert_eq(variants.length(), 2)
   assert_eq(variants[0].maximum_token_rows(), 8)
   assert_eq(variants[0].function_symbol(), "projection_rows8")
   assert_eq(
@@ -93,8 +93,13 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
     "projection",
     max_registers=128,
   )
-  assert_eq(fallback_source, "")
-  assert_true(fallback_variants.is_empty())
+  assert_eq(fallback_variants.length(), 2)
+  assert_eq(fallback_variants[1].maximum_token_rows(), 16)
+  assert_true(fallback_source.contains("void projection_rows16("))
+  assert_eq(
+    fallback_variants[1].dimensions().block_x(),
+    baseline.dispatch_plan(256).prefill().output_tiles_per_workgroup() * 32,
+  )
   if @env.get_env_var("LUNA_TEST_EXPORT_ROW_VARIANTS") == Some("1") {
     let dispatch = runtime.dispatch_plan(256)
     let compilation = @luna_projection_tile_compiler.compile_projection_tile(

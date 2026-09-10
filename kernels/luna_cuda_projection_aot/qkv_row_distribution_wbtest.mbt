@@ -38,7 +38,7 @@ test "QKV narrow output maps retain bounded row variants and separate weights" {
       "qkv",
       max_registers=128,
     )
-    assert_eq(variants.length(), 1)
+    assert_eq(variants.length(), 2)
     let variant = variants[0]
     assert_eq(variant.maximum_token_rows(), 8)
     assert_eq(variant.function_symbol(), "qkv_rows8")

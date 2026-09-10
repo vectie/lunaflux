@@ -140,7 +140,22 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
   assert_true(source.contains("_down(const int32_t *counts"))
   assert_true(source.contains("workspace[(unsigned long long)output_row"))
   assert_true(source.contains("* 16;"))
-  assert_true(source.contains("float *gate_tiles"))
+  // This bounded fixture has one matrix row tile, so its two sibling folds
+  // keep the epilogue in registers instead of materializing padded reuse rows.
+  assert_eq(
+    lowering
+    .tile_compilation()
+    .schedule()
+    .sibling_pipeline()
+    .unwrap()
+    .row_width(),
+    16,
+  )
+  assert_true(source.contains("float cg[1][8] = {}, cu[1][8] = {};"))
+  assert_true(
+    source.contains("const float gate = cg[row][item], up = cu[row][item];"),
+  )
+  assert_false(source.contains("float *gate_tiles"))
   assert_false(source.contains("__nv_bfloat16 *input_tile"))
   assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
   assert_true(
@@ -175,10 +190,7 @@ test "Qwen-shaped MLP tiles prefill and uses warp GEMV for decode" {
       projection_fixture_limits(),
     )
     let bounded_source = @utf8.decode(bounded.source_bytes())
-    assert_eq(
-      bounded_source.contains("__launch_bounds__(512, 2)"),
-      max_registers >= 64,
-    )
+    assert_false(bounded_source.contains("__launch_bounds__"))
     assert_true(
       bounded_source.contains(
         "extern \"C\" __global__ void " + bounded.function_symbol() + "_down(",

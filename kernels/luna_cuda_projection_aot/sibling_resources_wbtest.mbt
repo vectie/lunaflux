@@ -180,7 +180,7 @@ test "a same-width matrix without sibling reuse has no sibling resource target" 
 }
 
 ///|
-test "measured row variants inherit the caller register budget independently" {
+test "bounded row variants do not inherit the larger sibling reuse resource policy" {
   let parameters = sibling_resource_test_parameters()
   let target = projection_fixture_target()
   let baseline = projection_build_runtime_dispatch(parameters, 1024, target, [])
@@ -203,22 +203,17 @@ test "measured row variants inherit the caller register budget independently" {
       "variant_gate",
       max_registers~,
     )
-    assert_eq(variants.length(), 1)
+    assert_eq(variants.length(), 3)
     assert_eq(variants[0].maximum_token_rows(), 8)
     assert_eq(variants[0].dimensions().block_x(), 512)
-    let qualifier = if max_registers >= 64 {
-      "__launch_bounds__(512, 2) "
-    } else {
-      ""
-    }
+    // One matrix row tile has no sibling weight-reuse product. A wide
+    // launch alone cannot authorize a resource policy measured for reuse.
     assert_true(
-      source.contains(
-        "extern \"C\" __global__ " + qualifier + "void variant_gate_rows8(",
-      ),
+      source.contains("extern \"C\" __global__ void variant_gate_rows8("),
     )
     assert_true(
       source.contains("extern \"C\" __global__ void variant_gate_rows8_down("),
     )
-    assert_eq(source.contains("__launch_bounds__"), max_registers >= 64)
+    assert_false(source.contains("__launch_bounds__"))
   }
 }

@@ -12,6 +12,7 @@ fn projection_sibling_reuse_source(
   plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
   parameters : ProjectionParameters,
   reuse : @luna_projection_tile_compiler.ProjectionProductFoldDistribution,
+  groups~ : Int,
 ) -> String {
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
@@ -36,7 +37,7 @@ fn projection_sibling_reuse_source(
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
-    $|      \{projection_sibling_phased_transfer_source(rows, columns, width, input_width, consumers * 2 * 32)}
+    $|      \{projection_sibling_phased_transfer_source(rows, columns, width, input_width, groups * 32)}
     $|      float c[\{folds}][8] = {};
     $|      stage_operands(0, 0);
     $|      __syncthreads();

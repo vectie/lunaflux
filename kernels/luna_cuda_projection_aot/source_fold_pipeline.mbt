@@ -1,6 +1,9 @@
 ///|
 /// Stage immutable matrix blocks while consuming the preceding block. CUDA
 /// owns copy width, workgroup cooperation, and shared-address conversion.
+/// Empty row microtiles are unobserved members of the parallel result map,
+/// not reduction terms. Their workgroup-uniform guards leave every live dot's
+/// ordered updates and all inter-stage barriers unchanged.
 fn projection_fold_pipeline_source(
   pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
   input_base : String,
@@ -69,6 +72,7 @@ fn projection_fold_pipeline_source(
     $|        asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(b[0]), "=r"(b[1]), "=r"(b[2]), "=r"(b[3]) : "r"(bp));
     $|        #pragma unroll
     $|        for (int row = 0; row < \{rows / 16}; ++row) {
+    $|          if (row_start + row * 16 >= token_count) break;
     $|          unsigned a[4];
     $|          const unsigned ap = (unsigned)__cvta_generic_to_shared(current + operand_index(row * 16 + lane % 16, k + lane / 16 * 8));
     $|          asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3]) : "r"(ap));
@@ -85,6 +89,7 @@ fn projection_fold_pipeline_source(
     $|    }
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
+    $|      if (row_start + row * 16 >= token_count) break;
     $|      #pragma unroll
     $|      for (int item = 0; item < 8; ++item)
     $|        warp_output[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
