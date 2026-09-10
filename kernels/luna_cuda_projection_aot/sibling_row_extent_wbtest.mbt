@@ -43,7 +43,8 @@ test "bounded sibling rows remove dead staging and accumulator products" {
     for groups in [1, 2, 4, 8, 16] {
       let source = sibling_bounded_source_for_test(maximum_tokens, groups)
       let columns = Int::max(1, groups / 4) * 16
-      let slot = (16 + 2 * columns) * 64
+      let width = if groups <= 8 { 64 } else { 32 }
+      let slot = (16 + 2 * columns) * width
       assert_true(source.contains("sibling_storage[\{slot * 2}]"))
       assert_true(source.contains("((token_count + 15) / 16)"))
       assert_true(source.contains("float cg[1][8] = {}, cu[1][8] = {};"))
@@ -52,8 +53,9 @@ test "bounded sibling rows remove dead staging and accumulator products" {
       assert_false(source.contains("__launch_bounds__"))
       // Unused row owners disappear before CUDA rendering. Live tail lanes
       // remain masked; the ordered K16 fold and storage permutation persist.
-      assert_true(source.contains("inner < 1024; inner += 64"))
-      assert_true(source.contains("k < 64; k += 16"))
+      assert_true(source.contains("inner < 1024; inner += \{width}"))
+      assert_true(source.contains("k < \{width}; k += 16"))
+      assert_true(slot * 4 + groups * 1024 <= 49152)
       assert_true(source.contains("if (output_row < token_count)"))
       assert_true(source.contains("operand_index(row, k)"))
       assert_true(source.contains("mma.sync.aligned.m16n8k16"))

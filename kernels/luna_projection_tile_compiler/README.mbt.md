@@ -69,7 +69,8 @@ pipeline: a bounded row map (up to 64 rows), 64-element consumer transfers, and 
 reductions. Full blocks and masked row tails share the same fold; single-row
 execution factors one input across four independent output folds. CUDA is the
 first lowering. MLP sibling input transfers use 64 elements for a bounded
-single row tile and 32 for wider row products; complete admitted
+single row tile with at most eight consumer groups, and 32 for wider products
+to retain the existing storage envelope; complete admitted
 MLP matrix extents start at 256. QKV, output, and head matrix pipelines select
 16/32/64-element transfer groups from their reduction extent and storage plan.
 See [current coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
