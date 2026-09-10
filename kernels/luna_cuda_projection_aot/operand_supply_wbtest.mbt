@@ -46,7 +46,10 @@ test "sibling pure operand product lowers to independent affine copy domains" {
   let source = sibling_bounded_source_for_test(8, 2)
   assert_false(source.contains("is_input"))
   assert_false(source.contains("is_gate"))
-  assert_false(source.contains("ld.global.v4.u32"))
+  assert_eq(source.split("ld.global.v4.u32").count(), 2)
+  assert_true(source.contains("if (!overlap)"))
+  assert_true(source.contains("stage_operands(0, 0, false)"))
+  assert_true(source.contains("stage_operands(inner + 64, stage ^ 1, true)"))
   assert_true(source.contains("gate_weight + (unsigned long long)column_begin"))
   assert_true(source.contains("up_weight + (unsigned long long)column_begin"))
   assert_true(

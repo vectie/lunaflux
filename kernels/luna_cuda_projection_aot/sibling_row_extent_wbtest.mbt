@@ -72,7 +72,7 @@ test "bounded sibling staging fences remain outside consumer and tail guards" {
   // workgroup. No consumer predicate or masked row can bypass a CTA fence.
   assert_true(
     source.contains(
-      "stage_operands(0, 0);\n      asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n      __syncthreads();",
+      "stage_operands(0, 0, false);\n      asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n      __syncthreads();",
     ),
   )
   assert_true(

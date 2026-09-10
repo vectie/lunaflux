@@ -51,6 +51,25 @@ fn projection_sibling_fold_pipeline_source(
       ),
     ] {
     let (base, destination, domain_rows, guard_rows) = domain
+    // Priming has no previous fold to overlap. Keep its masked input value
+    // local to the producer rather than issuing partially active bypass-copy
+    // transactions. Both calls below carry constant phase values, so phase
+    // selection disappears before the device loop is emitted.
+    if guard_rows {
+      copies.write_string("if (!overlap) {\n")
+      copies.write_string(
+        projection_fold_operand_copy_source(
+          "(" + base + ")",
+          destination,
+          domain_rows,
+          width,
+          input_width,
+          guard_rows,
+          false,
+        ),
+      )
+      copies.write_string("\n} else {\n")
+    }
     copies.write_string(
       projection_fold_operand_copy_source(
         "(" + base + ")",
@@ -62,6 +81,9 @@ fn projection_sibling_fold_pipeline_source(
         true,
       ),
     )
+    if guard_rows {
+      copies.write_string("\n}\n")
+    }
     copies.write_string("\n")
   }
   let source =
@@ -75,20 +97,20 @@ fn projection_sibling_fold_pipeline_source(
     $|      const int column_begin = (work % groups) * \{columns};
     $|      const int consumer_row = (warp / \{distribution.output_groups()}) * \{fold_rows};
     $|      const int consumer_column = warp % \{distribution.output_groups()};
-    $|      auto stage_operands = [&](int k_base, int stage) {
+    $|      auto stage_operands = [&](int k_base, int stage, bool overlap) {
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
     $|        const int row_start = row_begin, offset = k_base;
     $|\{copies.to_string()}
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|      stage_operands(0, 0);
+    $|      stage_operands(0, 0, false);
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
     $|      int stage = 0;
     $|      #pragma unroll 1
     $|      for (int inner = 0; inner < \{input_width}; inner += \{width}) {
-    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1);
+    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1, true);
     $|        if (warp < \{consumers}) {
     $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
     $|          #pragma unroll
