@@ -118,3 +118,14 @@ overwritten. Supplemental driver awaiting approval:
 
 Downloaded archive: `/private/tmp/lunaflux-copy-fix-20260910-final.tar.gz`.
 SHA-256: `fbf369a605b38aeba4e3492141fcd5b4cb56bfb48602421d79407dccd20349e8`.
+
+## Later current-runtime follow-up
+
+After renewed explicit approval, the previously blocked supplemental work was
+completed in a new, bounded current-runtime matrix: 178 cases / 356 valid
+samples, zero source excess, with shared-free cases separated from positive
+shared-layout coverage. Fresh Qwen comparison also found a small-batch
+performance regression; source-counter zero is not performance parity. See
+[the current-runtime report](SOURCE_COUNTERS_AND_QWEN_COMPARISON_2026-09-10.md)
+for the full vectors, corrected classifier history, timing table, and archive.
+The earlier campaign records and their original limitations remain unchanged.
