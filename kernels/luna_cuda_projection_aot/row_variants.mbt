@@ -86,7 +86,8 @@ fn projection_row_variant_sources(
       dimensions.shared_memory_bytes() > 0,
       max_registers~,
     )
-    sources.write_string(
+    projection_append_source_fragment(
+      sources,
       @utf8.decode(source) catch {
         _ => raise Invalid(CompilerPolicy)
       },

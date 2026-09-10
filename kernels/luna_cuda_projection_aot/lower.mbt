@@ -87,16 +87,7 @@ fn projection_finish_candidate(
     symbol,
     max_registers=compiler.max_registers(),
   )
-  let source = if row_variants.is_empty() {
-    primary_source
-  } else {
-    @utf8.encode(
-      (@utf8.decode(primary_source) catch {
-        _ => raise Invalid(CompilerPolicy)
-      }) +
-      variant_source,
-    )
-  }
+  let source = projection_join_source_fragments(primary_source, variant_source)
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }

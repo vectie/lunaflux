@@ -57,6 +57,34 @@ test "offline small-row winner survives maximum-profile AOT lowering" {
   )
   assert_true(source.contains("token_count > 8"))
   assert_true(source.contains("void projection_rows8("))
+  let dispatch = runtime.dispatch_plan(256)
+  let compilation = @luna_projection_tile_compiler.compile_projection_tile(
+    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+      dispatch~,
+      maximum_rows=32,
+      maximum_tokens=256,
+      demand=AllTokenRows,
+      single_row_numerics=AllowDeterministicDotTree,
+    ),
+  )
+  let assembled = @utf8.decode(
+    projection_join_source_fragments(
+      projection_source(
+        "projection",
+        parameters,
+        256,
+        32,
+        dispatch,
+        compilation,
+        false,
+        true,
+        max_registers=128,
+      ),
+      source,
+    ),
+  )
+  assert_false(assembled.contains("}#include"))
+  assert_true(assembled.contains("\n#include <cuda_bf16.h>"))
   let (fallback_source, fallback_variants) = projection_row_variant_sources(
     parameters,
     profile,

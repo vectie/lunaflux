@@ -102,6 +102,14 @@ test "head residency-only winner remains executable inside a larger profile" {
     8704,
   )
   assert_true(source.contains("void head_rows256("))
+  let assembled = @utf8.decode(
+    projection_join_source_fragments(
+      @utf8.encode(row_variant_primary_test_source(parameters, primary)),
+      source,
+    ),
+  )
+  assert_false(assembled.contains("}#include"))
+  assert_true(assembled.contains("\n#include <cuda_bf16.h>"))
   assert_true(source.contains("const int32_t *row_offsets"))
   assert_true(source.contains("token_count > 256"))
   assert_true(source.contains("row_count > 32"))
@@ -155,6 +163,14 @@ test "small-row MLP winner exports gate-up and down under one bounded ABI" {
       max_registers=128,
     )
     assert_eq(variants.length(), 1)
+    let assembled = @utf8.decode(
+      projection_join_source_fragments(
+        @utf8.encode(row_variant_primary_test_source(parameters, primary)),
+        source,
+      ),
+    )
+    assert_false(assembled.contains("}#include"))
+    assert_true(assembled.contains("\n#include <cuda_bf16.h>"))
     let variant = variants[0]
     assert_eq(variant.maximum_token_rows(), 8)
     assert_eq(variant.dimensions().block_x(), groups * 32)
