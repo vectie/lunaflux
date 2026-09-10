@@ -57,3 +57,32 @@ Device: RTX 5060 Ti, sm120, UUID
 explicit shared load/store hardware totals, cache-control all and
 clock-control none. Normal timings above are not NCU durations; three trials
 are descriptive measurements, not a statistical confidence interval.
+
+## Attempt to recover 390 us
+
+The follow-up r3 campaign tried moving next-stage transfer after current-stage
+MMA and lowering the compiler register budget. No production code was changed.
+
+| Variant | T1024 time (us) | Hardware load, two samples | Hardware store, two samples |
+| --- | ---: | --- | --- |
+| Deferred transfer, default register budget | 501.37–504.96 | 0, 0 | 0, 0 |
+| Prior 490-us schedule, register budget 64 | 394.33–394.44 | 79,045; 80,132 | 585,952; 593,029 |
+| Deferred transfer, register budget 64 | 371.32–371.50 | 74,035; 75,836 | 696,343; 698,862 |
+
+The low-budget prior schedule actually uses 60 registers rather than the
+default schedule's 80, with zero stack or spill bytes in ptxas output. It is
+numerically correct but fails the user's hardware-zero constraint. The faster
+371-us combination fails that constraint too. All four r3 configurations
+(including the repeated default control) pass paired numerical comparison,
+racecheck and synccheck; source-attributed excessive wavefronts remain zero.
+
+This sharp tradeoff strengthens the need to isolate occupancy/concurrent CTA
+effects from source bank-address collisions. Register allocation changes
+instruction scheduling as well as residency eligibility, so it does not yet
+prove an exact hardware arbitration mechanism. In particular, earlier zero
+totals must not be described as a layout-only fix.
+
+The best measured zero-total schedule remains approximately 490 us. We have
+not achieved 390 us with zero totals. The faster nonzero variants are retained
+only as experiments in `/run/user/1000/lunaflux-transfer-reorder-20260910-r3`,
+with its adjacent versioned `.mbtx` driver and ptxas resource logs.
