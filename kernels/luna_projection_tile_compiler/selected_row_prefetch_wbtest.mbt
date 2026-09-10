@@ -6,7 +6,7 @@ test "selected-row prefetch window preserves the exact ordered fold and bounded 
       QueryRowEnds,
     ).unwrap()
     let depth = gather.prefetch_fragments()
-    assert_true(depth >= 1 && depth <= 4 && depth <= fragments)
+    assert_true(depth >= 1 && depth <= 8 && depth <= fragments)
     let window = Array::makei(depth, index => Some(index))
     let consumed : Array[Int] = []
     let loads = Array::make(fragments, 0)

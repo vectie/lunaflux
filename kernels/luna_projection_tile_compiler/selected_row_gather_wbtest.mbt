@@ -72,7 +72,7 @@ test "selected-row gather scope is pure canonical and keeps ordered inner fold" 
   )
   assert_true(
     @utf8.decode(compiled.schedule.canonical).contains(
-      "selected_row_ordered_prefetch=4\n",
+      "selected_row_ordered_prefetch=8\n",
     ),
   )
   assert_eq(compiled, compile_projection_tile(request))
@@ -95,10 +95,10 @@ test "selected-row gather scope is pure canonical and keeps ordered inner fold" 
     assert_eq(gather.dimensions(), (16, 16, 16))
     assert_eq(
       gather.prefetch_fragments(),
-      if width < 64 {
+      if width < 128 {
         width / 16
       } else {
-        4
+        8
       },
     )
   }

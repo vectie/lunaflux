@@ -117,7 +117,7 @@ existing single-row reduction is unchanged. Offline records still select the
 strategy; this source change alone does not claim a measured speedup.
 
 The selected-row register fold now carries a bounded lookahead window of up to
-four immutable operand fragments. It primes the window, evaluates each future
+eight immutable operand fragments. It primes the window, evaluates each future
 operand before consuming its current slot, then consumes slots in the original
 reduction order. Small reductions shrink the window; a partial final window
 performs neither an out-of-range load nor an extra zero-product reduction.
