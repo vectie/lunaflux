@@ -29,7 +29,13 @@ membership and maps stale authority to `Request`/`Stale` before mutation.
 
 The owner allocates fixed request-slot arrays and one intrusive waiting queue
 at startup. Unaged admission candidates prefer the largest reusable full-page
-prefix, with FIFO as the exact tie-break. Once the oldest eligible request
+prefix, with FIFO as the exact tie-break. Resident partial prefills continue
+before admitting additional waiting prefills, after decode reservation and
+the absolute age-priority pass. Finishing a prompt exposes its final-row output
+without changing its ordered KV writes. Requests admitted in the same step
+use their monotonic request generations to break age ties, so a waiting row
+does not displace an earlier resident request merely by being in the queue.
+In-flight or resource-ineligible resident rows do not block other work. Once the oldest eligible request
 reaches the configured age bound it has absolute priority, so cache affinity
 cannot starve ordinary work. A scheduler-global `RequestGeneration` sequence advances on
 every admission, cancellation, and deadline transition, so re-admitting the

@@ -72,7 +72,12 @@ fn Scheduler::oldest_prefill(self : Scheduler) -> Int {
       !self.in_flight[slot] &&
       (
         oldest == NO_INDEX ||
-        self.admitted_steps[slot] < self.admitted_steps[oldest]
+        self.admitted_steps[slot] < self.admitted_steps[oldest] ||
+        (
+          self.admitted_steps[slot] == self.admitted_steps[oldest] &&
+          self.request_generations[slot].value() <
+          self.request_generations[oldest].value()
+        )
       ) {
       oldest = slot
     }
@@ -213,6 +218,62 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
     }
   }
 
+  // Continue already resident prompt folds before admitting more independent
+  // folds. This exposes final-row demand earlier without changing a request's
+  // ordered KV writes. Absolute age priority and decode reservation above still
+  // take precedence; in-flight and resource-ineligible rows are skipped.
+  for index in 0..<self.active_count {
+    let slot = self.active_slots[index]
+    self.selection_active_visits += 1
+    if self.prefill_count + self.decode_count >= row_limit || token_left == 0 {
+      break
+    }
+    if slot != aged_selected &&
+      self.slot_states[slot] == SLOT_PREFILL &&
+      !self.in_flight[slot] {
+      let start = self.prefill_start(slot)
+      let target = self.prefill_target(slot)
+      let chunk = @work_plan.prefill_query_count(
+        computed=start,
+        target~,
+        token_budget=token_left,
+        chunk_limit=self.capacity.prefill_chunk_tokens(),
+        kv_token_capacity=target,
+      )
+      let old_pages = self.table_page_count(slot)
+      let target_pages = ceiling_pages(
+        start + chunk,
+        self.capacity.tokens_per_page(),
+      )
+      let needed = target_pages - old_pages
+      let recipe_length = if self.recompute_required[slot] ||
+        start + chunk != target {
+        self.intermediate_prefill_recipe.length()
+      } else {
+        self.final_prefill_recipe.length()
+      }
+      if chunk > 0 &&
+        plan_pages + target_pages <= self.capacity.worker_max_plan_pages() &&
+        plan_capabilities + recipe_length <=
+        self.capacity.worker_max_capabilities() {
+        virtual_free = self.evict_for_virtual_room(
+          virtual_free,
+          needed + self.capacity.emergency_decode_page_reserve(),
+        )
+        if needed <= virtual_free &&
+          virtual_free - needed >= self.capacity.emergency_decode_page_reserve() {
+          self.prefill_slots[self.prefill_count] = slot
+          self.prefill_tokens[self.prefill_count] = chunk
+          self.prefill_count += 1
+          token_left -= chunk
+          virtual_free -= needed
+          plan_pages += target_pages
+          plan_capabilities += recipe_length
+        }
+      }
+    }
+  }
+
   // An aged pass remains FIFO. Otherwise one bottom-up heap preserves prefix
   // depth priority with FIFO tie-breaking without rescanning the queue.
   let prefix_ordered = !aged
@@ -284,58 +345,6 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
     }
   }
 
-  // Active prefills share the remainder in current deterministic array order.
-  for index in 0..<self.active_count {
-    let slot = self.active_slots[index]
-    self.selection_active_visits += 1
-    if self.prefill_count + self.decode_count >= row_limit || token_left == 0 {
-      break
-    }
-    if slot != aged_selected &&
-      self.slot_states[slot] == SLOT_PREFILL &&
-      !self.in_flight[slot] {
-      let start = self.prefill_start(slot)
-      let target = self.prefill_target(slot)
-      let chunk = @work_plan.prefill_query_count(
-        computed=start,
-        target~,
-        token_budget=token_left,
-        chunk_limit=self.capacity.prefill_chunk_tokens(),
-        kv_token_capacity=target,
-      )
-      let old_pages = self.table_page_count(slot)
-      let target_pages = ceiling_pages(
-        start + chunk,
-        self.capacity.tokens_per_page(),
-      )
-      let needed = target_pages - old_pages
-      let recipe_length = if self.recompute_required[slot] ||
-        start + chunk != target {
-        self.intermediate_prefill_recipe.length()
-      } else {
-        self.final_prefill_recipe.length()
-      }
-      if chunk > 0 &&
-        plan_pages + target_pages <= self.capacity.worker_max_plan_pages() &&
-        plan_capabilities + recipe_length <=
-        self.capacity.worker_max_capabilities() {
-        virtual_free = self.evict_for_virtual_room(
-          virtual_free,
-          needed + self.capacity.emergency_decode_page_reserve(),
-        )
-        if needed <= virtual_free &&
-          virtual_free - needed >= self.capacity.emergency_decode_page_reserve() {
-          self.prefill_slots[self.prefill_count] = slot
-          self.prefill_tokens[self.prefill_count] = chunk
-          self.prefill_count += 1
-          token_left -= chunk
-          virtual_free -= needed
-          plan_pages += target_pages
-          plan_capabilities += recipe_length
-        }
-      }
-    }
-  }
   if self.selection_waiting_visits > self.waiting_selection_heap.length() ||
     self.selection_active_visits > self.active_slots.length() * 3 {
     abort("scheduler selection complexity invariant")

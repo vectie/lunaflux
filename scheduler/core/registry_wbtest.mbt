@@ -39,7 +39,11 @@ fn wb_stop_token_projection(
 }
 
 ///|
-fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
+fn wb_request(
+  id : UInt64,
+  deadline? : UInt64 = 100UL,
+  input_tokens? : Array[Int] = [1, 2],
+) -> TokenizedRequest {
   let limits = try! @inference.InferenceLimits::new(
     max_text_bytes=64,
     max_input_tokens=8,
@@ -59,7 +63,7 @@ fn wb_request(id : UInt64, deadline? : UInt64 = 100UL) -> TokenizedRequest {
   try! TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=wb_identity(),
-    input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),
+    input_tokens=try! @inference.TokenBuffer::new(input_tokens, limits),
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=try! @inference.SamplingSeed::new(id),
     stop_tokens=wb_stop_token_projection(limits, []),
