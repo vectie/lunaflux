@@ -101,6 +101,7 @@ fn projection_intermediate_pipeline(
           projection_companion_output_tiles(
             dispatch.prefill().output_tiles_per_workgroup(),
           ),
+          maximum_tiles=8,
         ),
       ),
       row_width,
@@ -211,6 +212,7 @@ fn projection_matrix_pipeline(
             extent,
             request.maximum_tokens,
             dispatch.prefill().output_tiles_per_workgroup(),
+            maximum_tiles=16,
           )
         } else {
           4
@@ -255,15 +257,16 @@ fn projection_transfer_width(
 ///|
 /// Profitability policy for immutable operand lookahead, not a numerical
 /// transformation. Short folds and wide independent products keep the compact
-/// window. The same policy applies to a dense fold and a materialized consumer;
+/// window. Dense and materialized folds supply different live-storage budgets;
 /// a device backend still owns physical transfer and shared-memory lowering.
 fn projection_operand_window_tiles(
   reduction_extent : Int,
   row_bound : Int,
   output_tiles : Int,
+  maximum_tiles~ : Int,
 ) -> Int {
   if reduction_extent >= 2048 && row_bound <= 16 && output_tiles <= 2 {
-    8
+    maximum_tiles
   } else {
     4
   }

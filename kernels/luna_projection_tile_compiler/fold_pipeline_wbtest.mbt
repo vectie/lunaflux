@@ -1,7 +1,7 @@
 ///|
 test "transfer grouping tiles short and irregular reductions exactly" {
   for extent in [16, 32, 48, 64, 80, 128, 256, 320, 384, 512, 1024] {
-    for maximum_tiles in [2, 4, 8] {
+    for maximum_tiles in [2, 4, 8, 16] {
       let width = projection_transfer_width(extent, 16, maximum_tiles)
       assert_true(width >= 16 && width <= 16 * maximum_tiles)
       assert_eq(extent % width, 0)
@@ -19,24 +19,34 @@ test "lookahead profitability retains short folds and wide products" {
   for extent in [1024, 2048, 2112, 2176, 3072] {
     for rows in [8, 16, 32, 1024] {
       for outputs in [1, 2, 4, 8] {
-        let tiles = projection_operand_window_tiles(extent, rows, outputs)
-        assert_eq(
-          tiles,
-          if extent >= 2048 && rows <= 16 && outputs <= 2 {
-            8
-          } else {
-            4
-          },
-        )
-        let width = projection_transfer_width(extent, 16, tiles)
-        assert_eq(extent % width, 0)
-        assert_eq(width % 16, 0)
-        assert_true(width <= tiles * 16)
+        for maximum_tiles in [8, 16] {
+          let tiles = projection_operand_window_tiles(
+            extent,
+            rows,
+            outputs,
+            maximum_tiles~,
+          )
+          assert_eq(
+            tiles,
+            if extent >= 2048 && rows <= 16 && outputs <= 2 {
+              maximum_tiles
+            } else {
+              4
+            },
+          )
+          let width = projection_transfer_width(extent, 16, tiles)
+          assert_eq(extent % width, 0)
+          assert_eq(width % 16, 0)
+          assert_true(width <= tiles * 16)
+        }
       }
     }
   }
   assert_eq(projection_transfer_width(2112, 16, 8), 64)
   assert_eq(projection_transfer_width(2176, 16, 8), 128)
+  assert_eq(projection_transfer_width(2112, 16, 16), 64)
+  assert_eq(projection_transfer_width(2176, 16, 16), 128)
+  assert_eq(projection_transfer_width(2048, 16, 16), 256)
 }
 
 ///|
