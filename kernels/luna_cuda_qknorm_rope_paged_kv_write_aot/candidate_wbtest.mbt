@@ -21,7 +21,7 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
     "query_norm_weight,key_norm_weight,rotated_qkv,key_cache,value_cache",
   )
   assert_eq(first.launch_dimensions().grid_x(), 4096)
-  assert_eq(first.launch_dimensions().grid_y(), 8)
+  assert_eq(first.launch_dimensions().grid_y(), 2)
   assert_eq(first.launch_dimensions().block_x(), 128)
   assert_false(first.manifest_bindable())
   let source = @utf8.decode(first.source_bytes())
@@ -38,7 +38,11 @@ test "QKNorm RoPE positioned KV-write candidate is deterministic and postprocess
   assert_true(source.contains("token += (int)gridDim.x"))
   assert_true(source.contains("gridDim.x == 0 || gridDim.x > 4096"))
   assert_false(source.contains("for (int row_check"))
-  assert_true(source.contains("head < LF_QK_HEADS && lane < 32"))
+  assert_true(source.contains("head < LF_QK_HEADS"))
+  assert_true(source.contains("#define LF_HEADS_PER_GROUP 4\n"))
+  assert_true(source.contains("subgroup * LF_HEAD_DIM"))
+  assert_true(source.contains("if (head >= LF_PACKED_HEADS) return"))
+  assert_false(source.contains("__syncthreads"))
   assert_true(
     source.contains(
       "lf_ingress_norm_rotary(head_values, norm_weight, position, lane)",

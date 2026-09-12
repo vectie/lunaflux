@@ -7,6 +7,12 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+The ingress numerical plan can group independent complete head folds into a
+workgroup. `AttentionIngressHeadMap` distributes only the product's head axis;
+the lane count, ordered reduction, rotary basis, and BF16 rounding boundaries
+do not change. Tail subgroups own no head or KV write. CUDA lowers this map to
+subgroup-local storage and synchronization rather than whole-block barriers.
+
 Single-row dot scheduling also supports an explicitly authorized deterministic
 tree. `PreserveDotOrder` remains the default. `AllowDeterministicDotTree` permits
 a `StridedPairwiseDot(lanes)` schedule only when the selected decode strategy

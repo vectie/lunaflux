@@ -13,14 +13,24 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     plan, semantic, profile, layout, target, compiler, operands,
   )
   let (_, output_width) = semantic.projection_shape()
-  let (query_heads, kv_heads, _) = semantic.attention_shape()
+  let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
+  let head_map = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+      query_heads~,
+      kv_heads~,
+      head_dimension~,
+      norm_epsilon=semantic.norm_epsilon(),
+      rope_theta=semantic.rope_theta(),
+    )
+    .numerics(reduction_lanes=32)
+    .group_heads(heads=query_heads + 2 * kv_heads, workgroup_lanes=128)
+  let (head_groups, _, _) = head_map.geometry()
   let grid_x = Int::min(profile.max_query_tokens(), limits.maximum_grid_x)
   if grid_x <= 0 {
     raise Unsupported(Profile)
   }
   let dimensions = @launch_contract.AotLaunchDimensions::new(
     grid_x~,
-    grid_y=query_heads + 2 * kv_heads,
+    grid_y=head_groups,
     grid_z=1,
     block_x=128,
     block_y=1,
@@ -33,7 +43,7 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     raise Unsupported(Shape)
   }
   let alias_contract = { first_writable_operand: 9, operand_count: 12 }
-  let source = postprocess_source(semantic, layout, profile, grid_x)
+  let source = postprocess_source(semantic, layout, profile, grid_x, head_map)
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }

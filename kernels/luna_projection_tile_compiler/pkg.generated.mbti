@@ -31,10 +31,17 @@ pub(all) suberror ProjectionTileCompilerError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionIngressHeadMap {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionIngressHeadMap::geometry(Self) -> (Int, Int, Int)
+pub fn AttentionIngressHeadMap::head_at(Self, Int, Int) -> Int?
+
 pub struct AttentionIngressNumerics {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionIngressNumerics::epsilon(Self) -> Float
+pub fn AttentionIngressNumerics::group_heads(Self, heads~ : Int, workgroup_lanes~ : Int) -> AttentionIngressHeadMap raise ProjectionTileCompilerError
 pub fn AttentionIngressNumerics::rotary_basis(Self) -> ReadOnlyArray[Float]
 pub fn AttentionIngressNumerics::shape(Self) -> (Int, Int)
 

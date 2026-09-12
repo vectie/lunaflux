@@ -17,12 +17,14 @@ fn postprocess_source(
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
   grid_x : Int,
+  head_map : @luna_projection_tile_compiler.AttentionIngressHeadMap,
 ) -> Bytes {
   let (_, output_width) = semantic.projection_shape()
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
   let packed_heads = query_heads + 2 * kv_heads
   let qk_heads = query_heads + kv_heads
   let kv_width = kv_heads * head_dimension
+  let (head_groups, heads_per_workgroup, lanes_per_head) = head_map.geometry()
   let epilogue = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
     query_heads~,
     kv_heads~,
@@ -37,6 +39,8 @@ fn postprocess_source(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     numerics_source +
     "#define LF_BLOCK_THREADS 128\n" +
+    "#define LF_HEADS_PER_GROUP \{heads_per_workgroup}\n" +
+    "#define LF_LANES_PER_HEAD \{lanes_per_head}\n" +
     "#define LF_OUTPUT_WIDTH " +
     output_width.to_string() +
     "\n" +
@@ -90,9 +94,11 @@ fn postprocess_source(
     "  __nv_bfloat16* __restrict__ value_cache) {\n" +
     "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z != 0 || gridDim.x == 0 || gridDim.x > " +
     grid_x.to_string() +
-    " || gridDim.y != LF_PACKED_HEADS) return;\n" +
-    "  const int lane = (int)threadIdx.x;\n" +
-    "  const int head = (int)blockIdx.y;\n" +
+    " || gridDim.y != \{head_groups}) return;\n" +
+    "  const int lane = (int)threadIdx.x % LF_LANES_PER_HEAD;\n" +
+    "  const int subgroup = (int)threadIdx.x / LF_LANES_PER_HEAD;\n" +
+    "  const int head = (int)blockIdx.y * LF_HEADS_PER_GROUP + subgroup;\n" +
+    "  if (head >= LF_PACKED_HEADS) return;\n" +
     "  const int prefill = step_counts[0], decode = step_counts[1];\n" +
     "  const int rows = step_counts[2], tokens = step_counts[3];\n" +
     "  const int table_cells = step_counts[4];\n" +
@@ -105,7 +111,8 @@ fn postprocess_source(
     " ||\n" +
     "      query_row_offsets[0] != 0 || query_row_offsets[rows] != tokens ||\n" +
     "      page_table_offsets[0] != 0 || page_table_offsets[rows] != table_cells) return;\n" +
-    "  __shared__ float head_values[LF_HEAD_DIM];\n" +
+    "  __shared__ float head_storage[LF_HEADS_PER_GROUP * LF_HEAD_DIM];\n" +
+    "  float* head_values = head_storage + subgroup * LF_HEAD_DIM;\n" +
     "  for (int token = (int)blockIdx.x; token < tokens; token += (int)gridDim.x) {\n" +
     "    int row = 0;\n" +
     "    while (row + 1 < rows && token >= query_row_offsets[row + 1]) ++row;\n" +
@@ -123,16 +130,15 @@ fn postprocess_source(
     "    if (physical_page < 0 || physical_page >= LF_TOTAL_PAGE_COUNT) return;\n" +
     "    const unsigned long long head_base =\n" +
     "      ((unsigned long long)token * LF_PACKED_HEADS + (unsigned long long)head) * LF_HEAD_DIM;\n" +
-    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS)\n" +
+    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_LANES_PER_HEAD)\n" +
     "      head_values[component] = __bfloat162float(projected_qkv[head_base + component]);\n" +
-    "    __syncthreads();\n" +
-    "    if (head < LF_QK_HEADS && lane < 32) {\n" +
+    "    __syncwarp();\n" +
+    "    if (head < LF_QK_HEADS) {\n" +
     "      const __nv_bfloat16* norm_weight =\n" +
     "        head < LF_QUERY_HEADS ? query_norm_weight : key_norm_weight;\n" +
     "      lf_ingress_norm_rotary(head_values, norm_weight, position, lane);\n" +
     "    }\n" +
-    "    __syncthreads();\n" +
-    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_BLOCK_THREADS) {\n" +
+    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_LANES_PER_HEAD) {\n" +
     "      float value = head_values[component];\n" +
     "      const __nv_bfloat16 encoded = __float2bfloat16_rn(value);\n" +
     "      rotated_qkv[head_base + component] = encoded;\n" +
@@ -146,7 +152,7 @@ fn postprocess_source(
     "        (key ? key_cache : value_cache)[cache_index] = encoded;\n" +
     "      }\n" +
     "    }\n" +
-    "    __syncthreads();\n" +
+    "    __syncwarp();\n" +
     "  }\n" +
     "}\n",
   )
