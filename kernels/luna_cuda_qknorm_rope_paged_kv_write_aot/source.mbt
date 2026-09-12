@@ -38,7 +38,7 @@ fn postprocess_source(
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     numerics_source +
-    "#define LF_BLOCK_THREADS 128\n" +
+    "#define LF_BLOCK_THREADS \{heads_per_workgroup * lanes_per_head}\n" +
     "#define LF_HEADS_PER_GROUP \{heads_per_workgroup}\n" +
     "#define LF_LANES_PER_HEAD \{lanes_per_head}\n" +
     "#define LF_OUTPUT_WIDTH " +

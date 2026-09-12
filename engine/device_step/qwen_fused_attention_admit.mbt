@@ -503,6 +503,15 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   } else {
     Int::min(blueprint.profile().max_query_tokens(), 4096)
   }
+  let ingress_heads = query_heads + 2 * kv_heads
+  let ingress_head_groups = postprocess.launch_dimensions().grid_y()
+  let valid_ingress_head_groups = if includes_projection {
+    ingress_head_groups == ingress_heads
+  } else {
+    @luna_cuda_qknorm_rope_paged_kv_write_aot.supports_production_head_group_count(
+      ingress_heads, ingress_head_groups,
+    )
+  }
   guard maximum_tokens >= maximum_rows &&
     valid_prefill_launch &&
     readonly_launch.grid_y() == query_heads &&
@@ -520,7 +529,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.block_y() == 1 &&
     decode_launch.block_z() == 1 &&
     postprocess.launch_dimensions().grid_x() == ingress_grid_x &&
-    postprocess.launch_dimensions().grid_y() == query_heads + 2 * kv_heads &&
+    valid_ingress_head_groups &&
     postprocess.launch_dimensions().grid_z() == 1 &&
     postprocess.launch_dimensions().block_x() == 128 &&
     postprocess.launch_dimensions().block_y() == 1 &&

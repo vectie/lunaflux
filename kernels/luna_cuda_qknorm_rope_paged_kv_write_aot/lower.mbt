@@ -22,7 +22,10 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
       rope_theta=semantic.rope_theta(),
     )
     .numerics(reduction_lanes=32)
-    .group_heads(heads=query_heads + 2 * kv_heads, workgroup_lanes=128)
+    .group_heads(
+      heads=query_heads + 2 * kv_heads,
+      workgroup_lanes=POSTPROCESS_HEADS_PER_WORKGROUP * 32,
+    )
   let (head_groups, _, _) = head_map.geometry()
   let grid_x = Int::min(profile.max_query_tokens(), limits.maximum_grid_x)
   if grid_x <= 0 {
@@ -32,7 +35,7 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     grid_x~,
     grid_y=head_groups,
     grid_z=1,
-    block_x=128,
+    block_x=POSTPROCESS_HEADS_PER_WORKGROUP * 32,
     block_y=1,
     block_z=1,
     shared_memory_bytes=0,

@@ -20,6 +20,8 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(@plan.ModelPlan, @lun
 
 pub fn qknorm_rope_paged_kv_write_compile_receipt(QkNormRopePagedKvWriteCudaCandidate, String, Bytes) -> Bytes raise QkNormRopePagedKvWriteAotError
 
+pub fn supports_production_head_group_count(Int, Int) -> Bool
+
 // Errors
 pub(all) suberror QkNormRopePagedKvWriteAotError {
   Invalid(QkNormRopePagedKvWriteAotRule)
