@@ -41,7 +41,7 @@ fn projection_matrix_pipeline_source(
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
   let input_copy =
-    $|        for (int vector = threadIdx.x; vector < \{rows * width / 8}; vector += blockDim.x) {
+    $|        \{projection_transfer_map_loop(rows * width / 8, consumer_groups * 32)} {
     $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|          const int logical_row = row_begin + local_row;
     $|          const int token_row = \{input_row};
@@ -55,7 +55,7 @@ fn projection_matrix_pipeline_source(
     $|          }
     $|        }
   let weight_copy =
-    $|        for (int vector = threadIdx.x; vector < \{columns * width / 8}; vector += blockDim.x) {
+    $|        \{projection_transfer_map_loop(columns * width / 8, consumer_groups * 32)} {
     $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|          const int logical_column = column_begin + local_row;
     $|          \{weight_selection}

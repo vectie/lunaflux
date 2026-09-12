@@ -66,6 +66,7 @@ fn projection_sibling_fold_pipeline_source(
           input_width,
           guard_rows,
           false,
+          lanes=groups * 32,
         ),
       )
       copies.write_string("\n} else {\n")
@@ -79,6 +80,7 @@ fn projection_sibling_fold_pipeline_source(
         input_width,
         guard_rows,
         true,
+        lanes=groups * 32,
       ),
     )
     if guard_rows {

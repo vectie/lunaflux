@@ -252,6 +252,13 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionKeyNormWeight
 } derive(Eq, Hash, @debug.Debug)
 
+pub struct ProjectionVectorTransferMap {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionVectorTransferMap::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionVectorTransferMap::new(vectors~ : Int, owners~ : Int) -> Self?
+pub fn ProjectionVectorTransferMap::vector_at(Self, Int, Int) -> Int?
+
 pub struct ScheduledProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)

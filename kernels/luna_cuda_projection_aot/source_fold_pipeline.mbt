@@ -26,7 +26,14 @@ fn projection_fold_pipeline_source(
   // A synchronous load/store pair blocks this producer at STS on the load's
   // scoreboard even though its destination is the inactive shared slot.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a", "destination", rows, width, stride, true, true,
+    "pipeline_a",
+    "destination",
+    rows,
+    width,
+    stride,
+    true,
+    true,
+    lanes=groups * 32,
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
@@ -36,6 +43,7 @@ fn projection_fold_pipeline_source(
     stride,
     false,
     true,
+    lanes=groups * 32,
   )
   let source =
     $|  {
@@ -112,6 +120,7 @@ fn projection_fold_operand_copy_source(
   stride : Int,
   guard_rows : Bool,
   asynchronous : Bool,
+  lanes~ : Int,
 ) -> String {
   let validity = if guard_rows {
     "const bool valid = row_start + row < token_count;"
@@ -119,7 +128,7 @@ fn projection_fold_operand_copy_source(
     "const bool valid = true;"
   }
   let source =
-    $|      for (int vector = threadIdx.x; vector < \{rows * width / 8}; vector += blockDim.x) {
+    $|      \{projection_transfer_map_loop(rows * width / 8, lanes)} {
     $|        const int row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|        \{validity}
     $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};
