@@ -35,8 +35,10 @@ test "materialized consumer keeps asynchronous loads ahead of ordered matrix con
     assert_true(source.contains("cp.async.cg.shared.global"))
     assert_false(source.contains("ld.global.v4.u32"))
     let prefix = source.split("const __nv_bfloat16 *current").to_array()[0]
-    assert_true(prefix.contains("stage_operands(inner + 64, stage ^ 1)"))
-    assert_true(source.contains("k < 64; k += 16"))
+    let width = if groups <= 2 { 128 } else { 64 }
+    assert_eq(pipeline.transfer_width(), width)
+    assert_true(prefix.contains("stage_operands(inner + \{width}, stage ^ 1)"))
+    assert_true(source.contains("k < \{width}; k += 16"))
     assert_true(source.contains("cp.async.wait_group 0;"))
   }
 }

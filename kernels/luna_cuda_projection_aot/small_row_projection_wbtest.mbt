@@ -35,10 +35,11 @@ test "bounded dense and segmented maps do not stage a dead second row tile" {
       )
       let source = projection_matrix_pipeline_source(parameters, compilation, 1)
       let row_width = if bound <= 16 { 16 } else { 32 }
+      let transfer_width = 64
       assert_true(
         source.contains("pipeline_rows + \{row_width - 1}) / \{row_width}"),
       )
-      assert_true(source.contains("vector < \{row_width * 64 / 8}"))
+      assert_true(source.contains("vector < \{row_width * transfer_width / 8}"))
       assert_false(source.contains("is_input"))
       assert_true(source.contains("k += 16"))
       assert_true(source.contains("mma.sync.aligned.m16n8k16"))

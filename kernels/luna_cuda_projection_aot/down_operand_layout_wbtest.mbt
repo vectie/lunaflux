@@ -32,10 +32,11 @@ test "down fold lowers masked operands through shared transport layout" {
     ),
   )
   // Producer and consumer share the same compact K64 permutation.
-  assert_true(source.contains("pipeline_storage[16384]"))
-  assert_true(source.contains("vector < 512"))
+  assert_eq(pipeline.row_width(), 32)
+  assert_true(source.contains("pipeline_storage[12288]"))
+  assert_true(source.contains("vector < 256"))
   assert_true(source.contains("destination + operand_index(row, k)"))
-  assert_true(source.contains("destination + 4096 + operand_index(row, k)"))
+  assert_true(source.contains("destination + 2048 + operand_index(row, k)"))
   assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
   assert_false(source.contains("nvcuda::wmma"))
   assert_false(source.contains("is_a"))
@@ -49,11 +50,11 @@ test "down fold lowers masked operands through shared transport layout" {
   )
   assert_true(
     complete.contains(
-      "const int live_groups = ((token_count + 63) / 64) * group_count;",
+      "const int live_groups = ((token_count + 31) / 32) * group_count;",
     ),
   )
   assert_true(
-    complete.contains("const int row_start = (work_group / group_count) * 64;"),
+    complete.contains("const int row_start = (work_group / group_count) * 32;"),
   )
   assert_false(complete.contains("wmma::"))
   if @env.get_env_var("LUNA_TEST_EXPORT_DOWN_OPERAND_LAYOUT") == Some("1") {
@@ -67,7 +68,7 @@ test "down fold lowers masked operands through shared transport layout" {
 
 ///|
 test "down producer maps cover logical operands exactly once without padding reads" {
-  for width in [16, 32, 64] {
+  for width in [16, 32, 64, 128] {
     let layout : CudaProjectionTransportLayout = { columns: width }
     let rows = 64
     for threads in [32, 64, 128, 256, 512] {

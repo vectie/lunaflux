@@ -82,7 +82,7 @@ fn projection_intermediate_pipeline(
     guard projection_bounded_row_extent(
         maximum_rows=request.maximum_tokens,
         matrix_rows=16,
-        preferred_rows=64,
+        preferred_rows=32,
       )
       is Some(row_width) else {
       return None
@@ -90,7 +90,19 @@ fn projection_intermediate_pipeline(
     Some({
       tile_width: tile,
       tile_count: extent / tile,
-      transfer_width: tile * 4,
+      // Long folds with a narrow independent product can amortize producer
+      // waits without making the live operand footprint dominate residency.
+      transfer_width: projection_transfer_width(
+        extent,
+        tile,
+        projection_operand_window_tiles(
+          extent,
+          row_width,
+          projection_companion_output_tiles(
+            dispatch.prefill().output_tiles_per_workgroup(),
+          ),
+        ),
+      ),
       row_width,
       minimum_rows: 2,
       output_tiles: projection_companion_output_tiles(
@@ -186,13 +198,20 @@ fn projection_matrix_pipeline(
     Some({
       tile_width: k,
       tile_count: extent / k,
-      // A bounded selected-row product can amortize transfers over four
-      // ordered microtiles. Wider output products retain the smaller slot.
+      // Bound lookahead by both fold length and the independent product.
+      // Short folds and wide products lose more residency than they gain in
+      // overlap. Selected gathers retain their separately measured window.
       transfer_width: projection_transfer_width(
         extent,
         k,
         if selected && dispatch.prefill().output_tiles_per_workgroup() > 8 {
           2
+        } else if !selected {
+          projection_operand_window_tiles(
+            extent,
+            request.maximum_tokens,
+            dispatch.prefill().output_tiles_per_workgroup(),
+          )
         } else {
           4
         },
@@ -231,6 +250,23 @@ fn projection_transfer_width(
     }
   }
   tile
+}
+
+///|
+/// Profitability policy for immutable operand lookahead, not a numerical
+/// transformation. Short folds and wide independent products keep the compact
+/// window. The same policy applies to a dense fold and a materialized consumer;
+/// a device backend still owns physical transfer and shared-memory lowering.
+fn projection_operand_window_tiles(
+  reduction_extent : Int,
+  row_bound : Int,
+  output_tiles : Int,
+) -> Int {
+  if reduction_extent >= 2048 && row_bound <= 16 && output_tiles <= 2 {
+    8
+  } else {
+    4
+  }
 }
 
 ///|

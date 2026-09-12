@@ -68,3 +68,23 @@ test "matrix pipeline covers every complete matrix reduction tile" {
     assert_eq(compiled.schedule().matrix_pipeline() is Some(_), width % 16 == 0)
   }
 }
+
+///|
+test "bounded operand lookahead does not widen selected gathers" {
+  for bound in [1, 8, 16, 17, 256] {
+    let selected = compile_projection_tile(
+        ProjectionTileCompilerRequest::new(
+          dispatch=projection_compiler_dispatch(LanguageModelHead),
+          maximum_rows=Int::min(bound, 32),
+          maximum_tokens=bound,
+          demand=QueryRowEnds,
+        ),
+      )
+      .schedule()
+      .matrix_pipeline()
+      .unwrap()
+    assert_eq(selected.transfer_width(), 64)
+    assert_eq(selected.tile_count(), 64)
+    assert_eq(selected.stage_count(), 2)
+  }
+}

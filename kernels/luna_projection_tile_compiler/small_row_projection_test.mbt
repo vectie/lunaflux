@@ -70,6 +70,7 @@ test "dense projection row storage follows token bounds not request slots" {
       assert_eq(pipeline.row_width(), if bound <= 16 { 16 } else { 32 })
       assert_eq(pipeline.tile_width(), 16)
       assert_eq(pipeline.tile_count(), 8)
+      assert_eq(pipeline.transfer_width(), 64)
       assert_eq(pipeline.minimum_rows(), 2)
     }
   }

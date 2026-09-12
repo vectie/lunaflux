@@ -1,7 +1,7 @@
 ///|
 test "transfer grouping tiles short and irregular reductions exactly" {
-  for extent in [16, 32, 48, 64, 80, 128, 256, 384, 512, 1024] {
-    for maximum_tiles in [2, 4] {
+  for extent in [16, 32, 48, 64, 80, 128, 256, 320, 384, 512, 1024] {
+    for maximum_tiles in [2, 4, 8] {
       let width = projection_transfer_width(extent, 16, maximum_tiles)
       assert_true(width >= 16 && width <= 16 * maximum_tiles)
       assert_eq(extent % width, 0)
@@ -10,6 +10,33 @@ test "transfer grouping tiles short and irregular reductions exactly" {
   }
   assert_eq(projection_transfer_width(48, 16, 4), 16)
   assert_eq(projection_transfer_width(32, 16, 4), 32)
+  assert_eq(projection_transfer_width(320, 16, 8), 64)
+  assert_eq(projection_transfer_width(384, 16, 8), 128)
+}
+
+///|
+test "lookahead profitability retains short folds and wide products" {
+  for extent in [1024, 2048, 2112, 2176, 3072] {
+    for rows in [8, 16, 32, 1024] {
+      for outputs in [1, 2, 4, 8] {
+        let tiles = projection_operand_window_tiles(extent, rows, outputs)
+        assert_eq(
+          tiles,
+          if extent >= 2048 && rows <= 16 && outputs <= 2 {
+            8
+          } else {
+            4
+          },
+        )
+        let width = projection_transfer_width(extent, 16, tiles)
+        assert_eq(extent % width, 0)
+        assert_eq(width % 16, 0)
+        assert_true(width <= tiles * 16)
+      }
+    }
+  }
+  assert_eq(projection_transfer_width(2112, 16, 8), 64)
+  assert_eq(projection_transfer_width(2176, 16, 8), 128)
 }
 
 ///|
@@ -53,7 +80,7 @@ test "operand lookahead is deterministic and preserves the intermediate ordered 
   )
   assert_true(
     @utf8.decode(compiled.schedule.canonical).contains(
-      "intermediate_operand_pipeline=2,16,192,64,64,4,2\n",
+      "intermediate_operand_pipeline=2,16,192,64,32,4,2\n",
     ),
   )
   let dense = compile_projection_tile(

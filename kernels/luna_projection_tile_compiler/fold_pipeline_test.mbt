@@ -32,7 +32,7 @@ test "pipeline requires complete reduction blocks and shares no model identity" 
     assert_eq(pipeline is Some(_), width >= 256 && width % 64 == 0)
     if pipeline is Some(plan) {
       assert_eq(plan.tile_count() * plan.tile_width(), width)
-      assert_eq(plan.row_width(), 64)
+      assert_eq(plan.row_width(), 32)
       assert_eq(plan.single_row_outputs(), 4)
     }
   }

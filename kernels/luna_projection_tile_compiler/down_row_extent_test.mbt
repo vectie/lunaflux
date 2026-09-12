@@ -28,12 +28,12 @@ test "materialized down fold specializes row demand without changing reduction" 
       (16, 16),
       (17, 32),
       (32, 32),
-      (33, 48),
-      (48, 48),
-      (49, 64),
-      (64, 64),
-      (65, 64),
-      (1024, 64),
+      (33, 32),
+      (48, 32),
+      (49, 32),
+      (64, 32),
+      (65, 32),
+      (1024, 32),
     ] {
     let (maximum_tokens, expected_rows) = row_case
     let compiled = compile_projection_tile(
