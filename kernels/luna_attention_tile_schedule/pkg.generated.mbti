@@ -13,6 +13,8 @@ pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayou
 
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
 
+pub fn scalarize_attention_score_map(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
+
 pub fn schedule_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram) -> AttentionTileSchedule raise AttentionTileScheduleError
 
 pub fn schedule_optimized_attention_tile_program(@luna_attention_tile_ir.AttentionTileProgram, @luna_attention_tile_optimizer.AttentionTileOptimization) -> AttentionTileSchedule raise AttentionTileScheduleError

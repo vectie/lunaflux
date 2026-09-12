@@ -336,7 +336,7 @@ test "score map is consumed by the fold without shared rematerialization" {
         1048576,
       ).bytes(),
     )
-    assert_true(source.contains("lf_transformed_score(scores, query, key"))
+    assert_true(source.contains("lf_transformed_score(scores, query,"))
     assert_true(
       source.contains(
         "__fmul_rn(scores[lf_float_index(query, key, LF_KEY_VALUE_TILE)], scale)",

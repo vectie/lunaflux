@@ -27,6 +27,14 @@ test "prefill scalarizes carried query state across compact and async schedules"
       )
       assert_true(source.contains("const int query = warp + \{offset};"))
       assert_true(
+        source.contains("const int query_position = fold_position_\{offset};"),
+      )
+      assert_true(
+        source.contains(
+          "const int fold_position_\{offset} = warp + \{offset} < active_queries",
+        ),
+      )
+      assert_true(
         source.contains(
           "fold_denominator_\{offset} * previous_scale + tile_sum",
         ),
@@ -42,6 +50,8 @@ test "prefill scalarizes carried query state across compact and async schedules"
     assert_false(source.contains("fold_denominator["))
     assert_false(source.contains("state_slot"))
     assert_false(source.contains("const int warp_count"))
+    assert_false(source.contains("expf(lf_transformed_score("))
+    assert_true(source.contains("expf(score_0 - next_maximum)"))
     assert_eq(
       source.contains("LfMatrixAccumulator lf_matrix_load_float("),
       !lowering.retains_output_fold(),

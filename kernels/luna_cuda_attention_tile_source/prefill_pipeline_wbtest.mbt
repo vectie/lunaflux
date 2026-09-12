@@ -43,7 +43,7 @@ test "matrix prefill overlaps lookahead copies with an unchanged ordered fold" {
 }
 
 ///|
-test "synchronous matrix prefill retains its compact storage and no async issuer" {
+test "synchronous matrix prefill directly stages into compact storage without lookahead" {
   let lowering = source_test_lowering(false, 100000L, 2, candidate_id=Some(312))
   let source = @utf8.decode(
     emit_cuda_attention_tile_source(
@@ -54,7 +54,10 @@ test "synchronous matrix prefill retains its compact storage and no async issuer
     ).bytes(),
   )
   assert_true(source.contains("#define LF_ASYNC_PREFILL 0"))
-  assert_false(source.contains("cp.async.cg.shared.global"))
+  assert_true(source.contains("#define LF_DIRECT_PREFILL 1"))
+  assert_true(source.contains("cp.async.cg.shared.global"))
+  assert_true(source.contains("stage_prefill_tile(key_base, 0)"))
+  assert_false(source.contains("stage_prefill_tile(partition_begin, 0)"))
   let layout = lowering.matrix_storage_layout().unwrap()
   assert_eq(layout.offset(ProbabilityStorage), layout.offset(KeyStorage))
 }

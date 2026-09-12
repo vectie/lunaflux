@@ -15,3 +15,23 @@ pub fn scalarize_attention_query_fold(
     for slot in 0..<slots => slot * subgroups
   ]
 }
+
+///|
+/// A finite pure score map has two consumers (maximum and exponential sum).
+/// Materialize its per-lane tuple once within the key-tile fold, preserving
+/// increasing-key evaluation order and leaving the tail predicate explicit.
+pub fn scalarize_attention_score_map(
+  key_tile : Int,
+  reduction_lanes : Int,
+) -> ReadOnlyArray[Int] raise AttentionTileScheduleError {
+  if key_tile <= 0 ||
+    key_tile > 128 ||
+    reduction_lanes <= 0 ||
+    reduction_lanes > 32 {
+    raise InvalidAttentionTileSchedule(InvalidTile)
+  }
+  let slots = (key_tile + reduction_lanes - 1) / reduction_lanes
+  [
+    for slot in 0..<slots => slot * reduction_lanes
+  ]
+}

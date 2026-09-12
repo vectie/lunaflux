@@ -6,6 +6,7 @@
 fn emit_prefill_async_stage(
   abi : CudaPagedAttentionTileAbi,
   hoist_page_lookup : Bool,
+  lookahead : Bool,
 ) -> String {
   let (_, heads, dimension, page_tokens) = abi.shape()
   let (_, stride, capacity) = abi.layout()
@@ -54,6 +55,10 @@ fn emit_prefill_async_stage(
     $|    }
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
     $|  };
-    $|  if (partition_begin < partition_end) stage_prefill_tile(partition_begin, 0);
-  )
+  ) +
+  (if lookahead {
+    "\n  if (partition_begin < partition_end) stage_prefill_tile(partition_begin, 0);\n"
+  } else {
+    "\n"
+  })
 }

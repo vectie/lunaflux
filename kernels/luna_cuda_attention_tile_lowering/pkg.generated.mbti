@@ -41,6 +41,7 @@ pub fn CudaAttentionTileLowering::canonical_bytes(Self) -> Bytes
 pub fn CudaAttentionTileLowering::compute(Self) -> CudaAttentionComputePrimitive
 pub fn CudaAttentionTileLowering::copy(Self) -> CudaAttentionCopyPrimitive
 pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest
+pub fn CudaAttentionTileLowering::direct_prefill_staging(Self) -> Bool
 pub fn CudaAttentionTileLowering::factors_shared_key_query_map(Self) -> Bool
 pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn CudaAttentionTileLowering::key_value_partition_grain(Self) -> Int

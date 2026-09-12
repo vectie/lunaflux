@@ -16,6 +16,7 @@ fn emit_cuda_prefill_attention_tile_source(
   }
   let compute = lowering.compute()
   let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad
+  let direct_staging = lowering.direct_prefill_staging()
   let key_value_partitions = lowering.key_value_partitions()
   if !(compute == CudaMatrixMultiplyAccumulate ||
     compute == CudaMatrixQkPvMultiplyAccumulate) ||
@@ -43,7 +44,8 @@ fn emit_cuda_prefill_attention_tile_source(
     vector_bytes != 16 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  if asynchronous && (pipeline_stages != 2 || page_stride_values % 8L != 0L) {
+  if (asynchronous && pipeline_stages != 2) ||
+    ((asynchronous || direct_staging) && page_stride_values % 8L != 0L) {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
@@ -227,7 +229,12 @@ fn emit_cuda_prefill_attention_tile_source(
     "    __syncthreads();\n"
   }
   let online_softmax_update = if reuse_tile_storage {
-    cuda_query_fold_update(query_fold_offsets, probability_store) +
+    let score_offsets = @luna_attention_tile_schedule.scalarize_attention_score_map(
+      key_value_tile, 32,
+    ) catch {
+      _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+    }
+    cuda_query_fold_update(query_fold_offsets, score_offsets, probability_store) +
     rescale_shared_output
   } else {
     "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
@@ -271,11 +278,16 @@ fn emit_cuda_prefill_attention_tile_source(
     ""
   }
   let async_prefill = if asynchronous { 1 } else { 0 }
+  let direct_prefill = if direct_staging { 1 } else { 0 }
   let operand_layout = cuda_attention_operand_layout(
     query_tile, key_value_tile, head_dimension,
   )
-  let async_stage = if asynchronous {
-    emit_prefill_async_stage(abi, lowering.hoists_paged_key_value_page_lookup())
+  let async_stage = if asynchronous || direct_staging {
+    emit_prefill_async_stage(
+      abi,
+      lowering.hoists_paged_key_value_page_lookup(),
+      asynchronous,
+    )
   } else {
     ""
   }
@@ -291,6 +303,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|#define LF_SHARED_MEMORY_BYTES \{shared_memory_bytes}
     $|#define LF_PIPELINE_STAGES \{pipeline_stages}
     $|#define LF_ASYNC_PREFILL \{async_prefill}
+    $|#define LF_DIRECT_PREFILL \{direct_prefill}
     $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
     $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
     $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
@@ -426,6 +439,15 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    const int next_key_base = key_base + LF_KEY_VALUE_TILE;
     $|    if (next_key_base < partition_end)
     $|      stage_prefill_tile(next_key_base, stage ^ 1);
+    $|#elif LF_DIRECT_PREFILL
+    $|    if (thread == 0) tile_valid = 1;
+    $|    __syncthreads();
+    $|    stage_prefill_tile(key_base, 0);
+    $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
+    $|    __syncthreads();
+    $|    if (!tile_valid) return;
+    $|    // The validation/key regions may be reused only after this join.
+    $|    __syncthreads();
     $|#else
     $|    if (thread == 0) tile_valid = 1;
     $|    __syncthreads();

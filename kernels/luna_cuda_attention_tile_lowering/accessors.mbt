@@ -146,3 +146,18 @@ pub fn CudaAttentionTileLowering::retains_output_fold(
 ) -> Bool {
   self.resident_output_fold
 }
+
+///|
+/// A synchronous tile may use direct global-to-shared transport without a
+/// lookahead buffer. Completion is still required before its first consumer;
+/// the generic staged-memory schedule and its shorter lifetimes are unchanged.
+pub fn CudaAttentionTileLowering::direct_prefill_staging(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.phase == Prefill &&
+  self.compute == CudaMatrixQkPvMultiplyAccumulate &&
+  self.copy == CudaCooperativeSharedLoad &&
+  self.pipeline_stages == 1 &&
+  self.vector_bytes == 16 &&
+  self.target.compute_major() >= 8
+}

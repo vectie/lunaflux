@@ -27,6 +27,11 @@ still traverses keys in the original order. A backend can realize the product
 as named scalars instead of a runtime-indexed array. This transform contains
 no device instructions and makes no register-allocation promise.
 
+`scalarize_attention_score_map` similarly describes the finite per-lane score
+tuple shared by maximum and exponential-sum consumers. Masked keys retain their
+original order. The fold's immutable query-position environment is loaded once
+outside the key recurrence; sharing a score does not reassociate either fold.
+
 For matrix QK/PV, `matrix_storage_layout()` exposes typed byte spans and
 half-open live phases. Disjoint phases share a region whose capacity is the
 maximum of their requirements; values live together add their requirements.

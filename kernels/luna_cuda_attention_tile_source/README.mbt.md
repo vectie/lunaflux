@@ -19,6 +19,14 @@ changes the per-output reduction order. See
 `docs/PREFILL_SCORE_DEFORESTATION_2026-09-08.md` for paired GPU and Qwen results;
 kernel-level gains must not be reported as whole-serving gains.
 
+The compact synchronous matrix path uses one-stage direct global-to-shared
+copies on supported CUDA targets. It joins the transfer before validation and
+QK, retaining the original storage lifetimes; this is not double buffering.
+The query fold carries its invariant positions and materializes each bounded
+score tuple once for its two consumers. Ordered reductions, causal predicates,
+and rounding boundaries are unchanged. Resource and timing tests must cover
+the longer register lifetimes as well as the reduced instructions and loads.
+
 Matrix-prefill candidates 316 (Q32/K32) and 317 (Q64/K32) now realize a
 two-slot lookahead over the ordered KV fold. The next tile's zero-filled
 16-byte K/V copies are issued before current QK/softmax/PV, and waited on only

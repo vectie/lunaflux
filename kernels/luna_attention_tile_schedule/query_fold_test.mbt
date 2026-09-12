@@ -38,6 +38,45 @@ test "finite query fold rejects unbounded or empty geometry" {
 }
 
 ///|
+test "finite shared score map preserves each lane's masked key order" {
+  for tile in [1, 16, 32, 48, 64, 128] {
+    for lanes in [8, 16, 32] {
+      let offsets = @luna_attention_tile_schedule.scalarize_attention_score_map(
+        tile, lanes,
+      )
+      for lane in 0..<lanes {
+        let original : Array[Int] = []
+        for key = lane; key < tile; key = key + lanes {
+          original.push(key)
+        }
+        let shared = offsets
+          .iter()
+          .filter_map(offset => {
+            let key = lane + offset
+            if key < tile {
+              Some(key)
+            } else {
+              None
+            }
+          })
+          .to_array()
+        assert_eq(shared, original)
+      }
+    }
+  }
+  for pair in [(0, 32), (129, 32), (64, 0), (64, 33)] {
+    let (tile, lanes) = pair
+    try
+      @luna_attention_tile_schedule.scalarize_attention_score_map(tile, lanes)
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid score map accepted")
+    }
+  }
+}
+
+///|
 test "finite product preserves each masked ordered state recurrence" {
   for active in [1, 7, 8, 9, 17, 31, 32] {
     let original = Array::make(32, 0.0)
