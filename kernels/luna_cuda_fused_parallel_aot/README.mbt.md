@@ -22,7 +22,8 @@ Both remain inert until their own content-addressed CUBIN and startup authority
 are admitted; the current approval record covers only qualification and cannot
 be projected into production runtime authority.
 
-Both candidates require block size 128, bounded paged profiles, canonical BF16
+Both candidates require block size 128, bounded paged profiles (up to 2,048
+query tokens and 8,192 page-table entries), canonical BF16
 layout, an explicitly supported CUDA target, strict non-reassociating compiler
 policy, and exact alignment. Their recipes bind the model and operation chain,
 layout, source, compiler/toolchain, numerical policy, diagnostic policy, and every

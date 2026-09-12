@@ -53,6 +53,19 @@ test "dense output C8 distribution preserves exact shape and larger-row fallback
     assert_true(source.contains("token_count > 8"))
     assert_true(source.contains("inner < 2048"))
     assert_true(source.contains("k += 16"))
+    let compilation = @luna_projection_tile_compiler.compile_projection_tile(
+      @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+        dispatch=runtime.dispatch_plan(8),
+        maximum_rows=8,
+        maximum_tokens=8,
+        demand=AllTokenRows,
+      ),
+    )
+    let pipeline = compilation.schedule().matrix_pipeline().unwrap()
+    assert_eq(pipeline.transfer_width(), if groups <= 2 { 256 } else { 64 })
+    assert_eq(pipeline.tile_width(), 16)
+    assert_eq(pipeline.tile_count(), 128)
+    assert_eq(pipeline.row_width(), 16)
     assert_eq(projection_workspace_bytes(parameters, profile, primary), 0L)
     if @env.get_env_var("LUNA_TEST_EXPORT_OUTPUT_DISTRIBUTION") == Some("1") {
       println("LUNA_SOURCE_BEGIN output-g\{groups}")
