@@ -164,12 +164,12 @@ work is part of this performance campaign.
 
 | Test | Status | Result |
 | --- | --- | --- |
-| T0 | Planned | Fresh bandwidth and GEMM calibration required |
-| T1 | Planned | Extend selected-kernel counters with issue/eligibility metrics |
-| T2 | Planned | Initial and continuation shapes must be distinguished |
+| T0 | Measured | Bandwidth and shape GEMM calibration; see GPU_PIPELINE_MEASUREMENTS_2026-09-13.md |
+| T1 | Partial | M1528 three-engine issue/eligibility counters; small/tail coverage remains |
+| T2 | Partial | 18 query/history timing cases and four NCU cases; baseline-equivalent continuation remains |
 | T3 | Planned | Run only after identifying the dependency to isolate |
-| T4 | Planned | Reconcile saved traces, then confirm selected runtime behavior |
-| T5 | Planned | Fresh repeats after diagnostic findings; no speedup claimed yet |
+| T4 | Partial | Long C8 sums/busy/envelope reconciled; full batch/metadata coverage remains |
+| T5 | Partial | New-toolchain LF/control anchor complete; fresh three-engine extensions and C2 diagnosis remain |
 
 Every entry records command/input identity, raw result location, conclusion,
 and next action. Reuse existing tested harnesses; new orchestration is MoonBit
