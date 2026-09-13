@@ -26,3 +26,19 @@ semantic work and optimized peak storage. This is the functional boundary for
 multi-versioned kernels: an execution-graph compiler can assign different
 frontier members to short, medium, and long buckets without embedding device
 names in model graphs or rerunning compiler passes in the request path.
+
+`with_resource_feedback` adds explicit execution-unit, thread, register
+allocation and shared-memory limits. Schedule-specific offline register counts
+refine residency; absent counts conservatively allow at most one resident
+workgroup. The score includes **rounded waves**, not just occupancy, so the
+last incomplete wave remains visible. Both ordinary and partitioned AOT paths
+consume these values. Measurements remain authoritative; this static score is
+a ranking proxy, not a latency prediction or a substitute for spill counters.
+
+Query-owned fragment schedules retain QK scores, softmax probabilities, and PV
+accumulators in the same owner across operators. Their differently ordered
+softmax reduction requires an explicit numerical permission in the immutable
+problem; old requests retain their existing reduction contract. The optional
+dense-current/paged-history view has its own semantic identity and requires
+current K/V values identical to the committed positioned/normalized cache.
+Neither optimization permits skipping persistent KV writes.

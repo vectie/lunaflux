@@ -13,7 +13,7 @@ pub fn select_attention_tile(
   ) catch {
     _ => raise InvalidAttentionTileCompilation(StrategySelection)
   }
-  { request, plan }
+  { request, plan, }
 }
 
 ///|
@@ -24,7 +24,7 @@ pub fn elaborate_attention_tile(
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected.plan) catch {
     _ => raise InvalidAttentionTileCompilation(SemanticElaboration)
   }
-  { selected, program }
+  { selected, program, }
 }
 
 ///|
@@ -38,7 +38,7 @@ pub fn optimize_attention_tile(
   ) catch {
     _ => raise InvalidAttentionTileCompilation(FunctionalOptimization)
   }
-  { semantic, optimization }
+  { semantic, optimization, }
 }
 
 ///|
@@ -111,11 +111,48 @@ fn finish_attention_tile_schedule(
 pub fn compile_partitioned_attention_tile(
   request : AttentionTileCompilerRequest,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
-  schedule_partitioned_attention_tile(
-    optimize_attention_tile(
-      elaborate_attention_tile(select_attention_tile(request)),
-    ),
-  )
+  let selected = select_attention_tile(request)
+  if request.resource_budget is None ||
+    selected.plan().source() == AttentionOfflineAutotune {
+    return schedule_partitioned_attention_tile(
+      optimize_attention_tile(elaborate_attention_tile(selected)),
+    )
+  }
+  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+    request.problem,
+    request.capabilities,
+  ) catch {
+    _ => raise InvalidAttentionTileCompilation(StrategySelection)
+  }
+  let mut best : ScheduledAttentionTileCompilation? = None
+  let mut best_score = 9223372036854775807L
+  for candidate in candidates {
+    let plan = @luna_attention_strategy.compile_attention_tile_candidate_plan(
+      request.problem,
+      request.capabilities,
+      candidate,
+    ) catch {
+      _ => raise InvalidAttentionTileCompilation(StrategySelection)
+    }
+    let optimized = optimize_attention_tile(
+      elaborate_attention_tile({ request, plan, }),
+    )
+    // An otherwise legal schedule can already have enough query parallelism
+    // and consequently no partition-map. It is not a two-launch candidate.
+    let compilation = schedule_partitioned_attention_tile(optimized) catch {
+      InvalidAttentionTileCompilation(ScheduleDerivation) => continue
+      error => raise error
+    }
+    let score = attention_tile_resource_score(request, compilation)
+    if score < best_score || (score == best_score && best is None) {
+      best = Some(compilation)
+      best_score = score
+    }
+  }
+  guard best is Some(best) && best_score < 9223372036854775807L else {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
+  best
 }
 
 ///|
@@ -143,17 +180,11 @@ pub fn compile_partitioned_attention_tile_frontier(
     ) catch {
       _ => raise InvalidAttentionTileCompilation(ResourceFeedback)
     }
-    let variant_request = AttentionTileCompilerRequest::new(
-      backend=request.backend,
-      target=request.target,
-      problem=request.problem,
-      capabilities~,
-      request.autotune_records,
-    )
+    let variant_request = { ..request, capabilities, }
     let compilation = compile_partitioned_attention_tile(variant_request)
     let partitions = compilation.schedule().key_value_partitions()
     if partitions != previous_partitions {
-      variants.push({ parallel_workgroup_target: target, compilation })
+      variants.push({ parallel_workgroup_target: target, compilation, })
       previous_partitions = partitions
     }
     previous_target = target
@@ -188,6 +219,9 @@ fn attention_tile_resource_score(
   request : AttentionTileCompilerRequest,
   scheduled : ScheduledAttentionTileCompilation,
 ) -> Int64 raise AttentionTileCompilerError {
+  if request.resource_budget is Some(budget) {
+    return attention_observed_resource_score(request, scheduled, budget)
+  }
   let base = scheduled.plan().static_cost()
   let (_, shared_capacity, _) = request.capabilities.limits()
   let (_, _, _, shared_bytes) = scheduled.schedule().execution_geometry()
@@ -223,7 +257,7 @@ fn compile_static_attention_tile_candidate(
     _ => raise InvalidAttentionTileCompilation(StrategySelection)
   }
   schedule_attention_tile(
-    optimize_attention_tile(elaborate_attention_tile({ request, plan })),
+    optimize_attention_tile(elaborate_attention_tile({ request, plan, })),
   )
 }
 
@@ -244,6 +278,7 @@ fn attention_tile_dominates(
   let (_, _, _, left_shared) = left.schedule().execution_geometry()
   let (_, _, _, right_shared) = right.schedule().execution_geometry()
   left.plan().candidate().memory() == right.plan().candidate().memory() &&
+  left.schedule().fragment_ownership() == right.schedule().fragment_ownership() &&
   left_cost <= right_cost &&
   left_shared <= right_shared &&
   (left_cost < right_cost || left_shared < right_shared)
@@ -279,6 +314,11 @@ pub fn compile_attention_tile_frontier(
       compile_static_attention_tile_candidate(request, candidate)
     })
     compiled.filter(candidate => {
+      // Static dominance knows neither register pressure nor rounded waves.
+      // Preserve the complete bounded family when actual resources are given.
+      if request.resource_budget is Some(_) {
+        return true
+      }
       !compiled.any(other => {
         other.plan().candidate().stable_id() !=
         candidate.plan().candidate().stable_id() &&
@@ -306,9 +346,25 @@ pub fn compile_attention_tile_frontier(
       current
     }
   })
+  if attention_tile_resource_score(request, resource_selected) ==
+    9223372036854775807L {
+    raise InvalidAttentionTileCompilation(ResourceFeedback)
+  }
   let builder = StringBuilder()
   builder <+ "luna-attention-functional-frontier-v1\n"
   builder <+ "selected=\{resource_selected.digest().as_hex()}\n"
+  if request.resource_budget is Some(budget) {
+    builder <+
+      "resource_model=\{budget.units},\{budget.threads_per_unit},\{budget.registers_per_unit},\{budget.register_allocation_grain},\{budget.register_allocation_threads},\{budget.shared_bytes_per_unit},\{budget.blocks_per_unit}\n"
+    // Serialize in schedule order, independently of observation input order.
+    for variant in variants {
+      if attention_register_observation(request, variant.schedule().digest())
+        is Some(record) {
+        builder <+
+          "registers=\{record.schedule.as_hex()},\{record.registers_per_thread}\n"
+      }
+    }
+  }
   builder <+ "variants=\{variants.length()}\n"
   for variant in variants {
     let (_, _, _, shared) = variant.schedule().execution_geometry()

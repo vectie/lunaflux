@@ -50,6 +50,7 @@ pub struct CudaAttentionTileAotRequest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, symbol~ : String, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+pub fn CudaAttentionTileAotRequest::with_resource_feedback(Self, @luna_attention_tile_compiler.AttentionResourceBudget, ArrayView[@luna_attention_tile_compiler.AttentionRegisterObservation]) -> Self raise CudaAttentionTileAotError
 
 pub(all) enum CudaAttentionTileAotRule {
   InvalidRequest
@@ -79,6 +80,7 @@ pub struct CudaPartitionedAttentionTileAotRequest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, partial_symbol~ : String, merge_symbol~ : String, maximum_workspace_bytes~ : Int64, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+pub fn CudaPartitionedAttentionTileAotRequest::with_resource_feedback(Self, @luna_attention_tile_compiler.AttentionResourceBudget, ArrayView[@luna_attention_tile_compiler.AttentionRegisterObservation]) -> Self raise CudaAttentionTileAotError
 
 pub struct CudaPartitionedAttentionTileAotVariant {
   // private fields

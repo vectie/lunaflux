@@ -16,6 +16,8 @@ pub fn CudaAttentionTileAotRequest::new(
     raise InvalidCudaAttentionTileAot(InvalidRequest)
   }
   {
+    resource_budget: None,
+    register_observations: [],
     backend,
     target_id,
     problem,
@@ -50,6 +52,8 @@ pub fn CudaPartitionedAttentionTileAotRequest::new(
     raise InvalidCudaAttentionTileAot(InvalidRequest)
   }
   {
+    resource_budget: None,
+    register_observations: [],
     backend,
     target_id,
     problem,

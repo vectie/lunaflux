@@ -88,6 +88,27 @@ test "CUDA AOT compiler purely composes functional and device stages" {
     ),
   )
   assert_eq(first.digest().as_hex().length(), 64)
+  let budget = @luna_attention_tile_compiler.AttentionResourceBudget::new(
+    units=36,
+    threads_per_unit=1536,
+    registers_per_unit=65536,
+    register_allocation_grain=256,
+    register_allocation_threads=32,
+    shared_bytes_per_unit=102400L,
+    blocks_per_unit=24,
+  )
+  let tuned_request = request.with_resource_feedback(budget, [
+    @luna_attention_tile_compiler.AttentionRegisterObservation::new(
+      first.functional().schedule().digest(),
+      registers_per_thread=128,
+    ),
+  ])
+  // Measured latency outranks an occupancy proxy through the final AOT API.
+  let observed = compile_cuda_attention_tile_aot(tuned_request, records)
+  assert_eq(observed.source().bytes(), first.source().bytes())
+  assert_eq(observed.functional().plan().candidate().stable_id(), 310)
+  assert_true(request.resource_budget is None)
+  assert_true(tuned_request.resource_budget is Some(_))
 }
 
 ///|

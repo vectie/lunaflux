@@ -55,13 +55,7 @@ pub fn compile_cuda_partitioned_attention_tile_aot(
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
 ) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError {
   let functional = @luna_attention_tile_compiler.compile_partitioned_attention_tile(
-    @luna_attention_tile_compiler.AttentionTileCompilerRequest::new(
-      backend=request.backend,
-      target=request.target_id,
-      problem=request.problem,
-      capabilities=request.capabilities,
-      autotune_records,
-    ),
+    request.functional_request(autotune_records),
   ) catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
@@ -83,13 +77,7 @@ pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
   parallel_workgroup_targets : ArrayView[Int],
 ) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError {
   let functional = @luna_attention_tile_compiler.compile_partitioned_attention_tile_frontier(
-    @luna_attention_tile_compiler.AttentionTileCompilerRequest::new(
-      backend=request.backend,
-      target=request.target_id,
-      problem=request.problem,
-      capabilities=request.capabilities,
-      autotune_records,
-    ),
+    request.functional_request(autotune_records),
     parallel_workgroup_targets,
   ) catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)

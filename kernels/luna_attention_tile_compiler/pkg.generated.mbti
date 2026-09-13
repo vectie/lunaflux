@@ -47,6 +47,16 @@ pub struct AttentionPartitionedTileCompilationVariant {
 pub fn AttentionPartitionedTileCompilationVariant::compilation(Self) -> ScheduledAttentionTileCompilation
 pub fn AttentionPartitionedTileCompilationVariant::parallel_workgroup_target(Self) -> Int
 
+pub struct AttentionRegisterObservation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionRegisterObservation::new(@luna_attention_tile_schedule.AttentionTileScheduleDigest, registers_per_thread~ : Int) -> Self raise AttentionTileCompilerError
+
+pub struct AttentionResourceBudget {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionResourceBudget::new(units~ : Int, threads_per_unit~ : Int, registers_per_unit~ : Int, register_allocation_grain~ : Int, register_allocation_threads? : Int, shared_bytes_per_unit~ : Int64, blocks_per_unit~ : Int) -> Self raise AttentionTileCompilerError
+
 pub struct AttentionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileCompilationDigest::as_hex(Self) -> String
 
@@ -63,6 +73,7 @@ pub struct AttentionTileCompilerRequest {
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileCompilerRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> Self
 pub fn AttentionTileCompilerRequest::problem(Self) -> @luna_attention_strategy.AttentionCompileProblem
+pub fn AttentionTileCompilerRequest::with_resource_feedback(Self, AttentionResourceBudget, ArrayView[AttentionRegisterObservation]) -> Self raise AttentionTileCompilerError
 
 pub(all) enum AttentionTileCompilerRule {
   StrategySelection

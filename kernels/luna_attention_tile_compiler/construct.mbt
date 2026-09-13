@@ -11,6 +11,8 @@ pub fn AttentionTileCompilerRequest::new(
     target,
     problem,
     capabilities,
+    resource_budget: None,
+    register_observations: [],
     autotune_records: ReadOnlyArray::from_array(autotune_records),
   }
 }

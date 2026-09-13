@@ -7,6 +7,8 @@ pub struct AttentionTileCompilerRequest {
   priv target : @luna_attention_strategy.AttentionTargetId
   priv problem : @luna_attention_strategy.AttentionCompileProblem
   priv capabilities : @luna_attention_strategy.AttentionCompilerCapabilities
+  priv resource_budget : AttentionResourceBudget?
+  priv register_observations : ReadOnlyArray[AttentionRegisterObservation]
   priv autotune_records : ReadOnlyArray[
     @luna_attention_strategy.AttentionAutotuneRecord,
   ]

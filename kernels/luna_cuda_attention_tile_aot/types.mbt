@@ -2,6 +2,10 @@
 /// Explicit immutable input to the CUDA AOT compiler. Device discovery and
 /// file/toolchain effects remain outside this value.
 pub struct CudaAttentionTileAotRequest {
+  priv resource_budget : @luna_attention_tile_compiler.AttentionResourceBudget?
+  priv register_observations : ReadOnlyArray[
+    @luna_attention_tile_compiler.AttentionRegisterObservation,
+  ]
   priv backend : @luna_attention_strategy.AttentionBackendId
   priv target_id : @luna_attention_strategy.AttentionTargetId
   priv problem : @luna_attention_strategy.AttentionCompileProblem
@@ -39,6 +43,10 @@ pub struct CudaAttentionTileAotFrontier {
 
 ///|
 pub struct CudaPartitionedAttentionTileAotRequest {
+  priv resource_budget : @luna_attention_tile_compiler.AttentionResourceBudget?
+  priv register_observations : ReadOnlyArray[
+    @luna_attention_tile_compiler.AttentionRegisterObservation,
+  ]
   priv backend : @luna_attention_strategy.AttentionBackendId
   priv target_id : @luna_attention_strategy.AttentionTargetId
   priv problem : @luna_attention_strategy.AttentionCompileProblem
