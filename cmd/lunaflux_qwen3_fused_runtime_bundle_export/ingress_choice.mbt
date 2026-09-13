@@ -15,6 +15,13 @@ fn positive_nanoseconds(
 fn prepare_ingress_choice(
   raw_args : ArrayView[String],
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
+  // Global ABI options are independent of the optional ingress experiment.
+  // Peel the global suffix before interpreting that experiment's fixed arity.
+  if raw_args is [.. rest, "--query-metadata-v1"] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    if args.query_metadata { raise InvalidArguments }
+    return ({ ..args, query_metadata: true, }, choice)
+  }
   let evaluation_start = raw_args.length() - 8
   if evaluation_start > 0 && raw_args[evaluation_start] == "--ingress-evaluate" {
     let args = parse_arguments(raw_args[:evaluation_start])
@@ -83,7 +90,7 @@ fn bind_ingress_choice(
   }
   (
     if choice == ProducerSeparated {
-      { ..args, ingress: partial }
+      { ..args, ingress: partial, }
     } else {
       args
     },
