@@ -13,12 +13,21 @@ fn projection_fold_pipeline_source(
   output_width : Int,
 ) -> String {
   let extent = pipeline.tile_count() * pipeline.tile_width()
-  let tile = pipeline.tile_width()
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
   let layout : CudaProjectionTransportLayout = { columns: width, }
   let input_elements = rows * width
   let slot = (rows + groups * 16) * width
+  let fragment_fold = projection_fragment_pipeline_source(
+    rows / 16,
+    width,
+    input_elements,
+    pipeline.fragment_stage_count(),
+    row_origin="row_start",
+    row_owner="0",
+    row_limit="token_count",
+    column_owner="warp",
+  )
   // Distribute the immutable operand product into two affine producer maps.
   // This removes the per-vector operand tag and pointer selection without
   // changing the ordered reduction or moving reads across materialization.
@@ -67,24 +76,7 @@ fn projection_fold_pipeline_source(
     $|    for (int inner = 0; inner < \{extent}; inner += \{width}) {
     $|      if (inner + \{width} < \{extent}) stage_operands(inner + \{width}, stage ^ 1);
     $|      const __nv_bfloat16 *current = pipeline_storage + stage * \{slot};
-    $|      #pragma unroll
-    $|      for (int k = 0; k < \{width}; k += \{tile}) {
-    $|        unsigned b[4];
-    $|        const unsigned bp = (unsigned)__cvta_generic_to_shared(current + \{input_elements} + operand_index(warp * 16 + lane % 16, k + lane / 16 * 8));
-    $|        asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(b[0]), "=r"(b[1]), "=r"(b[2]), "=r"(b[3]) : "r"(bp));
-    $|        #pragma unroll
-    $|        for (int row = 0; row < \{rows / 16}; ++row) {
-    $|          if (row_start + row * 16 >= token_count) break;
-    $|          unsigned a[4];
-    $|          const unsigned ap = (unsigned)__cvta_generic_to_shared(current + operand_index(row * 16 + lane % 16, k + lane / 16 * 8));
-    $|          asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3]) : "r"(ap));
-    $|          #pragma unroll
-    $|          for (int half = 0; half < 2; ++half) {
-    $|            float *d = c[row] + half * 4;
-    $|            asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]), "+f"(d[1]), "+f"(d[2]), "+f"(d[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[half]), "r"(b[half+2]));
-    $|          }
-    $|        }
-    $|      }
+    $|      \{fragment_fold}
     $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|      __syncthreads();
     $|      stage ^= 1;

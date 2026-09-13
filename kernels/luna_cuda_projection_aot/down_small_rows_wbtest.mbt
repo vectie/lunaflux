@@ -41,6 +41,11 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     )
     assert_eq(
       source.split("if (row_start + row * 16 >= token_count) break;").count(),
+      2,
+    )
+    // Both lookahead reads and the arithmetic fold prune dead row fragments.
+    assert_eq(
+      source.split("if (row_start+(0+row)*16>=token_count) break;").count(),
       3,
     )
     assert_true(source.contains("inner < 512; inner += \{transfer_width}"))

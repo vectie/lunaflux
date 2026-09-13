@@ -21,6 +21,7 @@ test "matrix pipelines preserve sparse demand and ordered reduction geometry" {
     } else {
       let pipeline = compiled.schedule().matrix_pipeline().unwrap()
       assert_eq(pipeline.stage_count(), 2)
+      assert_eq(pipeline.fragment_stage_count(), 2)
       assert_eq(pipeline.tile_width(), 16)
       assert_eq(pipeline.tile_count(), 64)
       assert_eq(pipeline.row_width(), if selected { 16 } else { 32 })

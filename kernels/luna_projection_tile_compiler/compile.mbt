@@ -228,7 +228,7 @@ pub fn elaborate_projection_tile(
     canonical,
     digest: ProjectionTileProgramDigest(projection_tile_sha256(canonical)),
   }
-  { selected, program }
+  { selected, program, }
 }
 
 ///|
@@ -262,19 +262,19 @@ pub fn optimize_projection_tile(
   // not an unconditional functional rewrite.
   let shared_input_value = facts.shared_dot_input
   let trace = [
-    { rule: PruneUnobservedTokenRows, changed: selected },
-    { rule: HoistSelectedInputTile, changed: selected },
-    { rule: ReuseInputTileAcrossOutputTiles, changed: shared_input_value },
-    { rule: FuseSiblingInputTraversals, changed: gated_mlp },
-    { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp },
+    { rule: PruneUnobservedTokenRows, changed: selected, },
+    { rule: HoistSelectedInputTile, changed: selected, },
+    { rule: ReuseInputTileAcrossOutputTiles, changed: shared_input_value, },
+    { rule: FuseSiblingInputTraversals, changed: gated_mlp, },
+    { rule: ReuseIntermediateTileAcrossOutputTiles, changed: gated_mlp, },
   ]
   let fused_attention_ingress = facts.exclusive_attention_ingress &&
     program.epilogue is ProjectionAttentionIngress(_)
   if fused_attention_ingress {
-    trace.push({ rule: FuseAttentionIngressEpilogue, changed: true })
-    trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true })
-    trace.push({ rule: HoistRotaryInverseFrequencies, changed: true })
-    trace.push({ rule: FuseRotaryPairEvaluation, changed: true })
+    trace.push({ rule: FuseAttentionIngressEpilogue, changed: true, })
+    trace.push({ rule: ElideProjectedQkvRoundTrip, changed: true, })
+    trace.push({ rule: HoistRotaryInverseFrequencies, changed: true, })
+    trace.push({ rule: FuseRotaryPairEvaluation, changed: true, })
   }
   let trace = ReadOnlyArray::from_array(trace)
   let builder = StringBuilder()
@@ -290,7 +290,7 @@ pub fn optimize_projection_tile(
     canonical,
     digest: ProjectionTileOptimizationDigest(projection_tile_sha256(canonical)),
   }
-  { semantic, normalized, optimization }
+  { semantic, normalized, optimization, }
 }
 
 ///|
@@ -373,10 +373,12 @@ fn projection_schedule_canonical(
   if projection_intermediate_pipeline(optimized) is Some(pipeline) {
     builder <+
       "intermediate_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width},\{pipeline.tile_count},\{pipeline.transfer_width},\{pipeline.row_width()},\{pipeline.single_row_outputs()},\{pipeline.minimum_rows()}\n"
+    builder <+ "intermediate_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
   }
   if projection_sibling_pipeline(optimized) is Some(pipeline) {
     builder <+
       "sibling_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
+    builder <+ "sibling_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
     let (row_tile, _, _) = dispatch.prefill().tile().dimensions()
     let sibling_reuse = partition_projection_sibling_reuse(
       row_tiles=pipeline.row_width() / row_tile,
@@ -402,6 +404,7 @@ fn projection_schedule_canonical(
   if projection_matrix_pipeline(optimized) is Some(pipeline) {
     builder <+
       "matrix_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
+    builder <+ "matrix_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
   }
   @utf8.encode(builder.to_string())
 }

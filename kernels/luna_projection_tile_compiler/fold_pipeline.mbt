@@ -28,6 +28,17 @@ pub fn ProjectionFoldPipeline::stage_count(
 }
 
 ///|
+/// Independent immutable operand fragments can be read one tile ahead without
+/// reordering the accumulator fold. A single-tile window needs no lookahead.
+pub fn ProjectionFoldPipeline::fragment_stage_count(
+  self : ProjectionFoldPipeline,
+) -> Int {
+  // A wide independent row product already carries many accumulator values.
+  // Keep its fragment lifetime compact; transfer lookahead remains independent.
+  if self.transfer_width > self.tile_width && self.row_width < 64 { 2 } else { 1 }
+}
+
+///|
 pub fn ProjectionFoldPipeline::transfer_width(
   self : ProjectionFoldPipeline,
 ) -> Int {
