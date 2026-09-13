@@ -4,6 +4,8 @@ fn source_test_lowering(
   maximum_shared_memory_bytes : Int64,
   maximum_pipeline_stages : Int,
   candidate_id? : Int? = None,
+  dense_current? : Bool = false,
+  partitioned? : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -18,6 +20,12 @@ fn source_test_lowering(
     query_rows=128,
     context_tokens=4096,
     causal=true,
+    allow_alternative_softmax_reduction=candidate_id is Some(318 | 319),
+    key_value_read_view=if dense_current {
+      DenseCurrentAndPagedHistory
+    } else {
+      PagedCacheOnly
+    },
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,
@@ -68,10 +76,17 @@ fn source_test_lowering(
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
   let optimization = @luna_attention_tile_optimizer.optimize_attention_tile_program(
     program,
+    parallel_workgroup_target=if partitioned { 256 } else { 32 },
   )
-  let schedule = @luna_attention_tile_schedule.schedule_rewritten_attention_tile_program(
-    program, optimization,
-  )
+  let schedule = if partitioned {
+    @luna_attention_tile_schedule.schedule_optimized_attention_tile_program(
+      program, optimization,
+    )
+  } else {
+    @luna_attention_tile_schedule.schedule_rewritten_attention_tile_program(
+      program, optimization,
+    )
+  }
   @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     program,
     optimization,

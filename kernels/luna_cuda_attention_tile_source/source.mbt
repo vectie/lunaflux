@@ -8,6 +8,11 @@ fn emit_cuda_prefill_attention_tile_source(
   symbol : String,
   maximum_source_bytes : Int,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
+  if lowering.query_owned_fragments() {
+    return emit_cuda_query_owned_attention_source(
+      lowering, abi, symbol, maximum_source_bytes,
+    )
+  }
   if !valid_cuda_symbol(symbol) {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)
   }
@@ -61,10 +66,14 @@ fn emit_cuda_prefill_attention_tile_source(
   if vectors_per_key <= 0 || vectors_per_key > 32 || 32 % vectors_per_key != 0 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  let paged_key_value_load = emit_prefill_paged_key_value_load(
-    abi,
-    lowering.hoists_paged_key_value_page_lookup(),
-  )
+  let paged_key_value_load = if lowering.reads_dense_current_key_value() {
+    cuda_prefill_view_sync_load(abi)
+  } else {
+    emit_prefill_paged_key_value_load(
+      abi,
+      lowering.hoists_paged_key_value_page_lookup(),
+    )
+  }
   let probability_type = if compute == CudaMatrixQkPvMultiplyAccumulate {
     "__nv_bfloat16"
   } else {
@@ -283,11 +292,15 @@ fn emit_cuda_prefill_attention_tile_source(
     query_tile, key_value_tile, head_dimension,
   )
   let async_stage = if asynchronous || direct_staging {
-    emit_prefill_async_stage(
-      abi,
-      lowering.hoists_paged_key_value_page_lookup(),
-      asynchronous,
-    )
+    if lowering.reads_dense_current_key_value() {
+      cuda_prefill_view_async_stage(abi, asynchronous)
+    } else {
+      emit_prefill_async_stage(
+        abi,
+        lowering.hoists_paged_key_value_page_lookup(),
+        asynchronous,
+      )
+    }
   } else {
     ""
   }

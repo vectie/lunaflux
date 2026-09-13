@@ -1,5 +1,25 @@
 # Luna CUDA attention tile source
 
+## Query-owned fragments and current/history views
+
+Schedules 318 (Q64/K64) and 319 (Q32/K32) lower a portable query-owner relation
+to register-resident QK/softmax/PV values. No shared score/probability/output
+round trip is required. Completely inactive query owners skip arithmetic while
+all producers and CTA barriers remain uniform. Head dimensions 64 and 128 and
+the partitioned partial/merge ABI are supported. Reduction order is explicitly
+different and cannot be selected without the problem's alternative-softmax
+permission.
+
+The optional current/history read view is shared by synchronous and async
+prefill address lowering. Dense current rows are used only when their recorded
+positions match; gaps use paged history. Page numbers need not be contiguous.
+Persistent KV ownership is unchanged. These are compiler capabilities, not a
+blanket production default: tested shapes have different winners, and a low
+register cap can introduce spills. See
+[the implementation measurements](../../docs/PIPELINE_IMPLEMENTATION_2026-09-13.md).
+
+## Existing scheduled paths
+
 This CUDA-only backend package emits a matrix-tiled long-prefill kernel from a
 selected functional LunaTile attention schedule. One block handles a
 sequence-aligned query tile, reuses each paged K/V tile across all query rows,

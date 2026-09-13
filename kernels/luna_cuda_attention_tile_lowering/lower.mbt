@@ -111,6 +111,13 @@ pub fn lower_attention_tile_schedule_to_cuda(
   if schedule.program_digest() != program.digest() {
     raise InvalidCudaAttentionTileLowering(InvalidLaunch)
   }
+  // Current terminal emitters realize causal BF16 attention. The portable IR
+  // may express more, but must never silently lower another numeric/mask law.
+  if !program.problem().is_causal() ||
+    program.problem().numeric_type() != AttentionBFloat16 ||
+    !target.supports_bf16() {
+    raise InvalidCudaAttentionTileLowering(UnsupportedCompute)
+  }
   let key_value_partitions = schedule.key_value_partitions()
   let key_value_partition_grain = schedule.key_value_partition_grain()
   if key_value_partitions <= 0 ||
@@ -161,6 +168,10 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let copy = cuda_copy_primitive(schedule.memory(), target)
   let resident_output_fold = schedule.output_fold_storage() ==
     SubgroupResidentOutputFold
+  let query_owned_fragments = schedule.fragment_ownership() ==
+    QueryOwnedFragments
+  let reads_dense_current_key_value = problem.key_value_read_view() ==
+    DenseCurrentAndPagedHistory
   let transfer_readiness = schedule.transfer_readiness()
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
@@ -171,6 +182,9 @@ pub fn lower_attention_tile_schedule_to_cuda(
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
+  if query_owned_fragments {
+    builder <+ "query_owned_fragments=true\n"
+  }
   builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"
   builder <+
     "key_score_before_value=\{transfer_readiness == KeyScoreBeforeValueReadiness}\n"
@@ -214,6 +228,8 @@ pub fn lower_attention_tile_schedule_to_cuda(
     reuse_online_softmax_tile_storage,
     factor_shared_key_query_map,
     resident_output_fold,
+    query_owned_fragments,
+    reads_dense_current_key_value,
     matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,
     digest: CudaAttentionTileLoweringDigest(

@@ -45,6 +45,8 @@ pub struct CudaAttentionTileLowering {
   priv reuse_online_softmax_tile_storage : Bool
   priv factor_shared_key_query_map : Bool
   priv resident_output_fold : Bool
+  priv query_owned_fragments : Bool
+  priv reads_dense_current_key_value : Bool
   priv matrix_storage_layout : @luna_attention_tile_schedule.AttentionTileStorageLayout?
   priv canonical : Bytes
   priv digest : CudaAttentionTileLoweringDigest

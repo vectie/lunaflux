@@ -161,3 +161,17 @@ pub fn CudaAttentionTileLowering::direct_prefill_staging(
   self.vector_bytes == 16 &&
   self.target.compute_major() >= 8
 }
+
+///|
+pub fn CudaAttentionTileLowering::query_owned_fragments(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.query_owned_fragments
+}
+
+///|
+pub fn CudaAttentionTileLowering::reads_dense_current_key_value(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.reads_dense_current_key_value
+}

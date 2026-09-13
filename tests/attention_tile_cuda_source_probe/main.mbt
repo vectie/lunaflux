@@ -4,9 +4,20 @@ fn main raise {
   // Exact launch/ABI envelope of the 2026-09-09 selected-kernel counter replay.
   // This is a diagnostic fixture, not a production model-selection branch.
   let selected_counters = raw_arguments is [_, _, "selected-counters"]
-  let qwen_geometry = raw_arguments is [_, _, "qwen"] || selected_counters
+  let pipeline_probe = raw_arguments is [_, _, "pipeline" | "pipeline-dense"]
+  let dense_current = raw_arguments is [_, _, "pipeline-dense"]
+  let qwen_geometry = raw_arguments is [_, _, "qwen"] ||
+    selected_counters ||
+    pipeline_probe
   let arguments = match raw_arguments {
-    [program, candidate, "qwen" | "selected-counters"] => [program, candidate]
+    [
+      program,
+      candidate,
+      "qwen"
+      | "selected-counters"
+      | "pipeline"
+      | "pipeline-dense",
+    ] => [program, candidate]
     _ => raw_arguments
   }
   match arguments {
@@ -52,7 +63,8 @@ fn main raise {
     _ => ()
   }
   let partitioned = arguments == [arguments[0], "partitioned"] ||
-    arguments == [arguments[0], "partitioned-312"]
+    arguments == [arguments[0], "partitioned-312"] ||
+    arguments == [arguments[0], "partitioned-318"]
   let compile_query_rows = if arguments == [arguments[0], "partitioned-312"] {
     32
   } else if partitioned {
@@ -62,7 +74,10 @@ fn main raise {
   }
   let requested_candidate = match arguments {
     [_, "315-head64"] => Some(315)
+    [_, "318-head64"] => Some(318)
+    [_, "319-head64"] => Some(319)
     [_, "partitioned-312"] => Some(312)
+    [_, "partitioned-318"] => Some(318)
     [_, "290"] => Some(290)
     [_, "291"] => Some(291)
     [_, "300"] => Some(300)
@@ -74,10 +89,12 @@ fn main raise {
     [_, "315"] => Some(315)
     [_, "316"] => Some(316)
     [_, "317"] => Some(317)
+    [_, "318"] => Some(318)
+    [_, "319"] => Some(319)
     _ => None
   }
   let head_dimension = match arguments {
-    [_, "315-head64"] => 64
+    [_, "315-head64" | "318-head64" | "319-head64"] => 64
     _ => 128
   }
   let shape = @luna_attention_strategy.AttentionShape::new(
@@ -93,6 +110,12 @@ fn main raise {
     query_rows=compile_query_rows,
     context_tokens=4096,
     causal=true,
+    allow_alternative_softmax_reduction=requested_candidate is Some(318 | 319),
+    key_value_read_view=if dense_current {
+      DenseCurrentAndPagedHistory
+    } else {
+      PagedCacheOnly
+    },
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,
@@ -155,7 +178,7 @@ fn main raise {
     tokens_per_page=if qwen_geometry { 8 } else { 16 },
     input_row_width=(if qwen_geometry { 32 } else { 24 }) * head_dimension,
     page_stride_values=64L * head_dimension.to_int64(),
-    physical_page_capacity=if selected_counters {
+    physical_page_capacity=if selected_counters || pipeline_probe {
       8192L
     } else if qwen_geometry {
       4096L
@@ -170,7 +193,7 @@ fn main raise {
     } else {
       128
     },
-    maximum_page_entries=if selected_counters {
+    maximum_page_entries=if selected_counters || pipeline_probe {
       8192
     } else if qwen_geometry {
       4096
@@ -190,7 +213,7 @@ fn main raise {
         abi~,
         partial_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
         merge_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
-        maximum_workspace_bytes=67108864L,
+        maximum_workspace_bytes=134217728L,
         maximum_source_bytes=1048576,
       ),
       records,
