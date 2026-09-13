@@ -1,5 +1,8 @@
 # Prefill composition work
 
+Historical implementation snapshot. Follow-up implementation and measurements:
+[composition integration](PREFILL_COMPOSITION_INTEGRATION_2026-09-13.md).
+
 This work targets generic compiler schedules, not Qwen-specific shape branches.
 It is incomplete and is not a new performance result.
 

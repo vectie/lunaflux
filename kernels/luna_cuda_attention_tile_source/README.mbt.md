@@ -1,5 +1,18 @@
 # Luna CUDA attention tile source
 
+## Composed prefill scheduling
+
+Candidates 322/323 split K and V readiness while reusing one storage set.
+This avoids the extra shared-memory footprint of 320/321; it does not imply
+that async is always preferable. Interior/boundary score transforms share the
+same ordered maximum fold.
+
+The optional metadata ABI consumes the portable per-step tile table instead
+of rediscovering CSR rows and scanning query positions in every head/layer.
+It must be bound as bundle v5 metadata, never as legacy row offsets. Table
+publication uses existing preallocated descriptor storage. See
+[integration results](../../docs/PREFILL_COMPOSITION_INTEGRATION_2026-09-13.md).
+
 ## Query-owned fragments and current/history views
 
 Schedules 318 (Q64/K64) and 319 (Q32/K32) lower a portable query-owner relation

@@ -27,6 +27,8 @@ pub fn preflight_materialized_release(StringView, RuntimeInstanceFileLimits, @de
 
 pub fn preflight_release(StringView, RuntimeInstanceFileLimits) -> RuntimeReleaseAdmission raise RuntimeInstanceError
 
+pub fn preflight_release_result(StringView, RuntimeInstanceFileLimits) -> Result[RuntimeReleaseAdmission, RuntimeInstanceError]
+
 pub fn prepare(StringView, RuntimeInstanceFileLimits) -> RuntimeInstanceOwner raise RuntimeInstanceError
 
 pub fn prepare_opaque_cli(StringView, RuntimeInstanceFileLimits, @inference_credential.InheritedInferenceAuthPolicy?, promotion_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff?) -> RuntimeInstanceOwner raise RuntimeInstanceError

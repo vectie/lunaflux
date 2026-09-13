@@ -1,5 +1,9 @@
 # Composition retest: 89234f0
 
+This records the earlier commit, not the latest implementation. The subsequent
+[integration report](PREFILL_COMPOSITION_INTEGRATION_2026-09-13.md) includes
+measured occupancy counters and the single-storage async replacement.
+
 The five workstreams are not complete. Only staged query-owned KV transfers
 and interior/boundary score specialization are implemented. GEMM register
 lookahead, exporter autotune ingestion and per-step metadata reuse remain open.
