@@ -102,4 +102,6 @@ priv struct Qwen3CandidateExportArguments {
   max_page_table_entries : Int
   absolute_new_output : String
   projection_tuning : @projection_tuning_file.ProjectionTuningInput?
+  attention_tuning : (String, String, String)?
+  query_metadata : Bool
 }

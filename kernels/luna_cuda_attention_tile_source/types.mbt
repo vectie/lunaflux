@@ -1,5 +1,6 @@
 ///|
 pub struct CudaPagedAttentionTileAbi {
+  priv query_metadata : Bool
   priv query_heads : Int
   priv key_value_heads : Int
   priv head_dimension : Int

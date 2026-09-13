@@ -10,6 +10,7 @@ pub fn CudaPagedAttentionTileAbi::new(
   maximum_query_rows~ : Int,
   maximum_query_tokens~ : Int,
   maximum_page_entries~ : Int,
+  query_metadata? : Bool = false,
 ) -> CudaPagedAttentionTileAbi raise CudaAttentionTileSourceError {
   if query_heads <= 0 ||
     key_value_heads <= 0 ||
@@ -22,10 +23,12 @@ pub fn CudaPagedAttentionTileAbi::new(
     physical_page_capacity <= 0L ||
     maximum_query_rows <= 0 ||
     maximum_query_tokens < maximum_query_rows ||
+    (query_metadata && maximum_query_tokens > 1048576) ||
     maximum_page_entries <= 0 {
     raise InvalidCudaAttentionTileSource(InvalidAbi)
   }
   {
+    query_metadata,
     query_heads,
     key_value_heads,
     head_dimension,

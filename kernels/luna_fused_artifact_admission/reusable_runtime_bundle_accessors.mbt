@@ -272,6 +272,13 @@ pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(
 }
 
 ///|
+pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(
+  self : ApprovedReusableFusedRuntimeModule,
+) -> Int {
+  self.query_metadata_version
+}
+
+///|
 pub fn ApprovedReusableFusedRuntimeModule::module_digest(
   self : ApprovedReusableFusedRuntimeModule,
 ) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest {

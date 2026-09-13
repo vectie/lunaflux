@@ -245,6 +245,8 @@ fn prepare_qwen_compiler_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   qkv_index : Int,
   attention_index : Int,
+  tuning? : (Bytes, String, String)? = None,
+  query_metadata? : Bool = false,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&
@@ -304,30 +306,50 @@ fn prepare_qwen_compiler_prefill(
   // release artifact. Until a new exact-shape physical autotune table is
   // supplied, use the pure static model instead of inventing an observation.
   let records : Array[@luna_attention_strategy.AttentionAutotuneRecord] = []
-  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
-    @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
-      backend~,
-      target_id=target,
-      problem~,
-      capabilities~,
-      device_target=set.target(),
-      maximum_shared_memory_bytes=100000L,
-      abi=@luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
-        query_heads~,
-        key_value_heads=kv_heads,
-        head_dimension~,
-        tokens_per_page=layout.tokens_per_page(),
-        input_row_width=output_width,
-        page_stride_values=layout.page_stride_bytes() / 2L,
-        physical_page_capacity=layout.total_page_count().to_int64(),
-        maximum_query_rows=maximum_rows,
-        maximum_query_tokens=maximum_tokens,
-        maximum_page_entries=set.profile().max_page_table_entries(),
-      ),
-      symbol="lunaflux_attention_prefill_tile_compiler_v1",
-      maximum_source_bytes=1048576,
+  let request = @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
+    backend~,
+    target_id=target,
+    problem~,
+    capabilities~,
+    device_target=set.target(),
+    maximum_shared_memory_bytes=100000L,
+    abi=@luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
+      query_heads~,
+      key_value_heads=kv_heads,
+      head_dimension~,
+      tokens_per_page=layout.tokens_per_page(),
+      input_row_width=output_width,
+      page_stride_values=layout.page_stride_bytes() / 2L,
+      physical_page_capacity=layout.total_page_count().to_int64(),
+      maximum_query_rows=maximum_rows,
+      maximum_query_tokens=maximum_tokens,
+      maximum_page_entries=set.profile().max_page_table_entries(),
+      query_metadata~,
     ),
-    records,
+    symbol="lunaflux_attention_prefill_tile_compiler_v1",
+    maximum_source_bytes=1048576,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let frontier = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+    request, records,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  guard tuning is Some((bytes, device, toolchain)) else { return frontier }
+  let observations = @luna_attention_tuning.parse_attention_tuning_records(
+    bytes,
+    scope=frontier.digest().as_hex() + "\t" + device + "\t" + toolchain,
+    backend~,
+    target~,
+    problem~,
+    frontier.variants().map(v => v.functional().plan().candidate())[:],
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+    request,
+    observations[:],
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
@@ -469,6 +491,8 @@ fn qwen_compiler_attention_recipe(
     candidate.stable_id().to_string() +
     "\nquery_tile_rows=" +
     query_tile_rows.to_string() +
+    "\nquery_metadata_version=" +
+    compiled.source().abi().query_metadata_version().to_string() +
     "\nkey_value_tile_rows=" +
     key_value_tile_rows.to_string() +
     "\nhead_columns=" +
@@ -565,6 +589,8 @@ fn qwen_compiler_partitioned_attention_recipe(
     ) +
     "\nworkspace_bytes=" +
     workspace.total_bytes().to_string() +
+    "\nquery_metadata_version=" +
+    compiled.source().abi().query_metadata_version().to_string() +
     "\nquery_tile_rows=" +
     query_tile_rows.to_string() +
     "\nworkspace_offsets=" +
@@ -671,6 +697,8 @@ fn prepare_qwen_fused_production_set(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  tuning? : (Bytes, String, String)? = None,
+  query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
   for index in 0..<(candidates.length() - 3) {
@@ -813,6 +841,8 @@ fn prepare_qwen_fused_production_set(
       set,
       index,
       index + 3,
+      tuning~,
+      query_metadata~,
     )
     let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(
       set,
@@ -921,7 +951,25 @@ async fn run_qwen3_candidate_export(
   ) catch {
     _ => raise ResidualProductionPreparation
   }
-  let qwen_fused = prepare_qwen_fused_production_set(plan, layout, set)
+  let tuning = match arguments.attention_tuning {
+    None => None
+    Some((path, digest, device)) => {
+      let bytes = @fs.read_file(path).binary() catch {
+        _ => raise InvalidArguments
+      }
+      if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != digest {
+        raise InvalidArguments
+      }
+      Some((bytes, device, arguments.toolchain_sha256))
+    }
+  }
+  let qwen_fused = prepare_qwen_fused_production_set(
+    plan,
+    layout,
+    set,
+    tuning~,
+    query_metadata=arguments.query_metadata,
+  )
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
     arguments.absolute_new_output,

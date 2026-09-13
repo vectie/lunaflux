@@ -52,6 +52,10 @@ fn is_lower_sha256(value : StringView) -> Bool {
 fn parse_qwen3_candidate_export_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3CandidateExportArguments raise Qwen3Bf16CandidateExportCliError {
+  let (arguments, query_metadata) = match arguments {
+    [.. rest, "--query-metadata-v1"] => (rest, true)
+    _ => (arguments, false)
+  }
   guard arguments
     is [
       _,
@@ -83,6 +87,15 @@ fn parse_qwen3_candidate_export_arguments(
     !is_lower_sha256(toolchain_sha256) {
     raise InvalidArguments
   }
+  let (projection_suffix, attention_tuning) = match tuning_suffix {
+    [.. projection, "--attention-tuning", path, digest, device] => {
+      if !path.has_prefix("/") || !is_lower_sha256(digest) || device.is_empty() {
+        raise InvalidArguments
+      }
+      (projection, Some((path, digest, device)))
+    }
+    _ => (tuning_suffix, None)
+  }
   let parsed : Qwen3CandidateExportArguments = {
     model_root,
     config_locator,
@@ -102,10 +115,12 @@ fn parse_qwen3_candidate_export_arguments(
     max_page_table_entries: parse_positive_decimal(max_page_table_entries),
     absolute_new_output,
     projection_tuning: @projection_tuning_file.parse_projection_tuning_suffix(
-      tuning_suffix,
+      projection_suffix,
     ) catch {
       _ => raise InvalidArguments
     },
+    attention_tuning,
+    query_metadata,
   }
   if parsed.compiler_major == 0U {
     raise InvalidArguments

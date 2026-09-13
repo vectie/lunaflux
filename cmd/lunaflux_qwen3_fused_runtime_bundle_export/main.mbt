@@ -19,6 +19,7 @@ priv struct ModuleLaunchInput {
 
 ///|
 priv struct RuntimeBundleArguments {
+  query_metadata : Bool
   model_content : String
   model_plan : String
   residual : ModuleLaunchInput
@@ -96,6 +97,10 @@ fn safe_function_symbol(symbol : StringView) -> Bool {
 fn parse_arguments(
   args : ArrayView[String],
 ) -> RuntimeBundleArguments raise Qwen3FusedRuntimeBundleExportError {
+  let (args, query_metadata) = match args {
+    [.. rest, "--query-metadata-v1"] => (rest, true)
+    _ => (args, false)
+  }
   let (
     model_content,
     model_plan,
@@ -390,6 +395,7 @@ fn parse_arguments(
     attention_prefill_partitioned8_merge,
     attention_read,
     prefill_query_tile_rows: positive_int(prefill_query_tile_rows),
+    query_metadata,
     wide_query_tile_rows: positive_int(wide_query_tile_rows),
     partitioned_query_tile_rows: positive_int(partitioned_query_tile_rows),
     deep_partitioned_query_tile_rows: positive_int(
@@ -481,6 +487,7 @@ async fn run(
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
       query_tile_rows=args.prefill_query_tile_rows,
+      query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -494,6 +501,7 @@ async fn run(
       launch=launch_dimensions(args.attention_prefill_wide),
       module_bytes=attention_prefill_wide_bytes,
       query_tile_rows=args.wide_query_tile_rows,
+      query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -507,6 +515,7 @@ async fn run(
       launch=launch_dimensions(args.attention_prefill_partial),
       module_bytes=attention_prefill_partial_bytes,
       query_tile_rows=args.partitioned_query_tile_rows,
+      query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
       _ => raise InvalidRuntime
     },
@@ -533,6 +542,7 @@ async fn run(
       launch=launch_dimensions(args.attention_prefill_partitioned8_partial),
       module_bytes=attention_prefill_partitioned8_partial_bytes,
       query_tile_rows=args.deep_partitioned_query_tile_rows,
+      query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
       _ => raise InvalidRuntime
     },

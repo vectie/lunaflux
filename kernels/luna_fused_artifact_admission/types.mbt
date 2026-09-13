@@ -51,7 +51,7 @@ pub fn FusedStandaloneFallbackIdentity::new(
   if operation < 0 {
     raise InvalidFusedArtifact(Fallback)
   }
-  { role, operation, source, recipe }
+  { role, operation, source, recipe, }
 }
 
 ///|
@@ -145,6 +145,7 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv query_tile_rows : Int?
+  priv query_metadata_version : Int
   priv module_bytes : Bytes
 }
 
@@ -159,6 +160,7 @@ pub struct ApprovedReusableFusedRuntimeModule {
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv query_tile_rows : Int?
+  priv query_metadata_version : Int
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv module_bytes : Bytes
 }

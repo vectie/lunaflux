@@ -3,6 +3,9 @@ priv struct DeviceStepHostBuffers {
   // Host execution demand only; the existing GPU descriptor ABI is unchanged.
   mut output_rows : Int
   mut project_output_rows : Bool
+  mut attention_metadata_enabled : Bool
+  attention_metadata_layout : @luna_attention_metadata.AttentionMetadataLayout
+  attention_metadata_offset : Int
   output_indices : FixedArray[Int]
   counts : FixedArray[Byte]
   token_ids : FixedArray[Byte]
@@ -40,6 +43,9 @@ fn make_host_buffers(limits : DeviceStepLimits) -> DeviceStepHostBuffers {
   {
     output_rows: 0,
     project_output_rows: false,
+    attention_metadata_enabled: false,
+    attention_metadata_layout: attention_metadata_layout(limits),
+    attention_metadata_offset: OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits),
     output_indices: FixedArray::make(limits.max_rows(), -1),
     counts: FixedArray::make(
       output_descriptor_cells(limits) * INT32_BYTES,

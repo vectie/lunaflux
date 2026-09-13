@@ -13,6 +13,9 @@ fn emit_cuda_prefill_attention_tile_source(
       lowering, abi, symbol, maximum_source_bytes,
     )
   }
+  if abi.query_metadata {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   if !valid_cuda_symbol(symbol) {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)
   }

@@ -47,8 +47,15 @@ fn prepare_paged_production_steps(
   let project_output_rows = paged_terminal_rows_are_projectable(blueprint) &&
     resources.fused_dispatch_canary is None
   match resources.descriptor {
-    Some(Complete(owner)) =>
+    Some(Complete(owner)) => {
       owner.host.project_output_rows = project_output_rows
+      owner.host.attention_metadata_enabled = qwen_fused_attention_spans.any(span => {
+        span.readonly_query_metadata ||
+        (span.wide_query_prefill is Some(v) && v.query_metadata) ||
+        (span.partitioned_prefill is Some(v) && v.query_metadata) ||
+        (span.deep_partitioned_prefill is Some(v) && v.query_metadata)
+      })
+    }
     _ => ()
   }
   let baseline = prepare_paged_steps(
@@ -114,6 +121,7 @@ fn prepare_paged_production_steps(
           activation,
           kv,
           functions.sidecar,
+          query_metadata=span.readonly_query_metadata,
         )
         qwen_ingress_replacements.push(prepared.0)
         qwen_readonly_replacements.push(prepared.1)
@@ -131,6 +139,7 @@ fn prepare_paged_production_steps(
                 activation,
                 kv,
                 functions.sidecar,
+                query_metadata=variant.query_metadata,
               ).1,
             )
           (None, None) => ()
@@ -169,6 +178,7 @@ fn prepare_paged_production_steps(
               kv,
               functions.sidecar,
               prefill_only=true,
+              query_metadata=span.readonly_query_metadata,
             ).1
           register_attention_phase_replacement(
             resources,
@@ -189,6 +199,7 @@ fn prepare_paged_production_steps(
                   kv,
                   functions.sidecar,
                   prefill_only=true,
+                  query_metadata=variant.query_metadata,
                 ).1
               register_attention_phase_replacement(
                 resources,

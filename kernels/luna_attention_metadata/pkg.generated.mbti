@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_attention_metadata"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AttentionMetadataLayout {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionMetadataLayout::bucket(Self, Int) -> (Int, Int, Int)?
+pub fn AttentionMetadataLayout::bucket_offset(Self, Int) -> Int
+pub fn AttentionMetadataLayout::cell_count(Self) -> Int
+pub fn AttentionMetadataLayout::new(maximum_rows~ : Int, maximum_tokens~ : Int) -> Self?
+
+// Type aliases
+
+// Traits

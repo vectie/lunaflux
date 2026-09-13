@@ -18,8 +18,16 @@ fn cuda_query_owned_score_fold() -> String {
     #|        if (!(position<key_end && position<=(r==0?p0:p1))) x=-CUDART_INF_F;
     #|      }
     #|      score[key].x[item]=x;
-    #|      next[r]=fmaxf(next[r],x);
     #|    }
+    #|  }
+    #|}
+    #|__device__ __forceinline__ void lf_query_score_maximum(
+    #|    const LfMatrixAccumulator *score, float *next) {
+    #|  #pragma unroll
+    #|  for (int key=0; key<LF_KEY_VALUE_TILE/16; ++key) {
+    #|    #pragma unroll
+    #|    for (int item=0; item<8; ++item)
+    #|      next[item%4/2]=fmaxf(next[item%4/2],score[key].x[item]);
     #|  }
     #|}
   source

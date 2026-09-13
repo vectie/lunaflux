@@ -12,7 +12,9 @@ const OUTPUT_ROW_ENDS_CELL : Int = 20
 
 ///|
 fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
-  OUTPUT_ROW_ENDS_CELL + row_offset_cells(limits)
+  OUTPUT_ROW_ENDS_CELL +
+  row_offset_cells(limits) +
+  attention_metadata_layout(limits).cell_count()
 }
 
 ///|
@@ -20,7 +22,11 @@ fn uploaded_count_cells(
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
 ) -> Int {
-  OUTPUT_ROW_ENDS_CELL + output_physical_rows(host, summary) + 1
+  if host.attention_metadata_enabled {
+    host.attention_metadata_offset + host.attention_metadata_layout.cell_count()
+  } else {
+    OUTPUT_ROW_ENDS_CELL + output_physical_rows(host, summary) + 1
+  }
 }
 
 ///|
@@ -62,6 +68,7 @@ fn publish_output_counts(
   summary : DeviceStepSummary,
 ) -> Unit {
   publish_prefill_attention_counts(host, summary)
+  publish_attention_tile_metadata(host, summary)
   let physical = output_physical_rows(host, summary)
   write_i32(host.counts, OUTPUT_COUNTS_CELL, physical - summary.decode_count)
   write_i32(host.counts, OUTPUT_COUNTS_CELL + 1, summary.decode_count)

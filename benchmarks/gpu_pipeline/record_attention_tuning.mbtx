@@ -1,0 +1,47 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array() is [value] else { fail(key) }
+  value[key.length()+1:].to_owned()
+}
+
+async fn main {
+  guard @env.args() is [_, measured, output, device, toolchain] else {
+    fail("MEASUREMENT_ROOT NEW_TABLE DEVICE TOOLCHAIN_SHA")
+  }
+  guard @fs.read_file(measured+"/RESULT.txt").text().has_prefix("outcome=passed\n") else {
+    fail("measurement incomplete")
+  }
+  let frontier = field(@fs.read_file(measured+"/export.stdout").text(), "reusable_qwen_prefill_frontier_sha256")
+  let mut table = "luna-attention-tuning-v1\nscope\t"+frontier+"\t"+device+"\t"+toolchain+"\n"
+  let workloads : Array[(Int,Int,Int)] = []
+  for q in [129,1528] { for rows in [1,8] { for history in [0,4096] {
+    workloads.push((q,rows,history))
+    table += "workload\t\{q}\t\{rows}\t\{history}\n"
+  }}}
+  for id in [318,322] {
+    let totals = Array::make(5, 0.0)
+    for (q,rows,history) in workloads {
+      let name = measured+"/c\{id}-q\{q}-r\{rows}-h\{history}"
+      assert_eq(@fs.read_file(name+".exit").text().trim(), "0")
+      let lines = @fs.read_file(name+".stdout").text().split("\n").filter(x=>x.has_prefix("tokens=")).to_array()
+      guard lines.length()==5 else { fail("five paired trials required") }
+      for trial,line in lines {
+        guard line.contains("bitwise=true") else { fail("mismatched output") }
+        guard line.split(" ").filter(x=>x.has_prefix("new_us=")).to_array() is [latency] else { fail("timing") }
+        let value = @string.parse_double(latency[7:])
+        guard value > 0.0 && value < 1.0e9 else { fail("invalid timing") }
+        totals[trial] += value
+      }
+    }
+    totals.sort()
+    table += "record\t\{id}\t\{(totals[2]*1000.0).to_int64()}\t5\n"
+  }
+  @fs.write_file(output, table, create_mode=CreateNew, permission=0o444)
+  println(table)
+}

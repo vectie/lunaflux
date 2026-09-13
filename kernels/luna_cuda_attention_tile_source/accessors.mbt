@@ -134,3 +134,14 @@ pub fn CudaPartitionedAttentionTileSource::digest(
 ) -> CudaAttentionTileSourceDigest {
   self.digest
 }
+
+///|
+pub fn CudaPagedAttentionTileAbi::query_metadata_version(
+  self : CudaPagedAttentionTileAbi,
+) -> Int {
+  if self.query_metadata {
+    1
+  } else {
+    0
+  }
+}

@@ -1,6 +1,6 @@
 ///|
 test "query-owned source carries QK softmax PV across register ownership" {
-  for id in [318, 319, 320, 321] {
+  for id in [318, 319, 320, 321, 322, 323] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
     assert_true(lowering.query_owned_fragments())
     let source = emit_cuda_attention_tile_source(
@@ -33,7 +33,7 @@ test "query-owned source carries QK softmax PV across register ownership" {
 
 ///|
 test "dense current and paged history share synchronous and async address lowering" {
-  for id in [313, 316, 318, 319, 320, 321] {
+  for id in [313, 316, 318, 319, 320, 321, 322, 323] {
     let lowering = source_test_lowering(
       true,
       100000L,
@@ -52,13 +52,19 @@ test "dense current and paged history share synchronous and async address loweri
     assert_true(text.contains("kv_key_source"))
     assert_true(text.contains("kv_page"))
     assert_true(text.contains("==key_position") || text.contains("==position"))
-    if id == 316 || id == 320 || id == 321 {
+    if id == 316 || id >= 320 {
       assert_true(text.contains("cp.async.cg.shared.global"))
     }
     if id == 320 || id == 321 {
       assert_true(text.contains("cp.async.wait_group 0"))
       assert_true(text.contains("slot^1"))
       assert_true(text.contains("current_k"))
+    }
+    if id == 322 || id == 323 {
+      assert_true(text.contains("cp.async.wait_group 1"))
+      assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,0)"))
+      assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,1)"))
+      assert_false(text.contains("slot^1"))
     }
   }
 }
@@ -86,4 +92,21 @@ test "query-owned partition map exports merge states without shared scores" {
   assert_true(text.contains("workspace[2ULL*"))
   assert_true(text.contains("void merge("))
   assert_false(text.contains("float *scores"))
+}
+
+///|
+test "step metadata removes repeated row lookup and position scan" {
+  let original = source_test_abi()
+  let abi = { ..original, query_metadata: true, }
+  for id in [318, 319, 320, 321, 322, 323] {
+    let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
+    let source = emit_cuda_attention_tile_source(
+      lowering, abi, "metadata", 1048576,
+    )
+    let text = @utf8.decode(source.bytes())
+    assert_true(text.contains("attention-tile-metadata-v1"))
+    assert_false(text.contains("for (int r = 0; r < rows; ++r)"))
+    assert_false(text.contains("for (int i=0; i<active; ++i)"))
+    assert_eq(source.abi().query_metadata_version(), 1)
+  }
 }

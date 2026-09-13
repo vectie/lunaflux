@@ -216,7 +216,16 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
   query_tile_rows? : Int,
+  query_metadata_version? : Int = 0,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
+  if query_metadata_version != 0 &&
+    (
+      query_metadata_version != 1 ||
+      !(query_tile_rows is Some(16 | 32 | 64 | 128)) ||
+      !reusable_runtime_is_qwen_attention_reader(abi)
+    ) {
+    raise InvalidFusedArtifact(KernelAbi)
+  }
   if query_tile_rows is Some(rows) && (rows <= 0 || rows > 1048576) {
     raise InvalidFusedArtifact(Launch)
   }
@@ -230,6 +239,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     symbol: function_symbol,
     launch,
     query_tile_rows,
+    query_metadata_version,
     module_bytes,
   }
 }
@@ -345,6 +355,7 @@ fn reusable_runtime_append_module(
   out : StringBuilder,
   ordinal : Int,
   module_ : ReusableFusedRuntimeModuleInput,
+  metadata : Bool,
 ) -> Unit raise FusedArtifactAdmissionError {
   let prefix = "module_" + ordinal.to_string() + "_"
   out.write_string(
@@ -364,6 +375,14 @@ fn reusable_runtime_append_module(
   out.write_string(
     prefix + "query_tile_rows=" + query_tile_rows.to_string() + "\n",
   )
+  if metadata {
+    out.write_string(
+      prefix +
+      "query_metadata_version=" +
+      module_.query_metadata_version.to_string() +
+      "\n",
+    )
+  }
   out.write_string(
     prefix + "grid_x=" + module_.launch.grid_x().to_string() + "\n",
   )
@@ -418,7 +437,14 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  out.write_string("schema=lunaflux-reusable-fused-runtime-bundle.v4\n")
+  let metadata = modules.any(m => m.query_metadata_version != 0)
+  out.write_string(
+    if metadata {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v5\n"
+    } else {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v4\n"
+    },
+  )
   out.write_string("model_content_sha256=" + model_content_sha256 + "\n")
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
@@ -440,7 +466,7 @@ pub fn export_reusable_fused_runtime_bundle(
   for abi in canonical_abis {
     for module_ in modules {
       if module_.abi == abi {
-        reusable_runtime_append_module(out, ordinal, module_)
+        reusable_runtime_append_module(out, ordinal, module_, metadata)
         ordinal += 1
       }
     }
@@ -468,9 +494,11 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
-  let has_schedule_metadata = match reader.value("schema") {
-    "lunaflux-reusable-fused-runtime-bundle.v4" => true
-    "lunaflux-reusable-fused-runtime-bundle.v3" => false
+  let (has_schedule_metadata, has_query_metadata) = match
+    reader.value("schema") {
+    "lunaflux-reusable-fused-runtime-bundle.v5" => (true, true)
+    "lunaflux-reusable-fused-runtime-bundle.v4" => (true, false)
+    "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
   let model_content = fused_deployment_digest(
@@ -520,6 +548,19 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     } else {
       None
     }
+    let query_metadata_version = if has_query_metadata {
+      reader.int(prefix + "query_metadata_version")
+    } else {
+      0
+    }
+    if query_metadata_version != 0 &&
+      (
+        query_metadata_version != 1 ||
+        !(query_tile_rows is Some(16 | 32 | 64 | 128)) ||
+        !reusable_runtime_is_qwen_attention_reader(abi)
+      ) {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
     let launch = @launch_contract.AotLaunchDimensions::new(
       grid_x=reader.int(prefix + "grid_x"),
       grid_y=reader.int(prefix + "grid_y"),
@@ -550,6 +591,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       symbol,
       launch,
       query_tile_rows,
+      query_metadata_version,
       module_digest,
       module_bytes,
     })

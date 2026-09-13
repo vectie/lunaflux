@@ -42,7 +42,8 @@ pub struct CudaPagedAttentionTileAbi {
 } derive(Eq, @debug.Debug)
 pub fn CudaPagedAttentionTileAbi::layout(Self) -> (Int, Int64, Int64)
 pub fn CudaPagedAttentionTileAbi::limits(Self) -> (Int, Int, Int)
-pub fn CudaPagedAttentionTileAbi::new(query_heads~ : Int, key_value_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int, input_row_width~ : Int, page_stride_values~ : Int64, physical_page_capacity~ : Int64, maximum_query_rows~ : Int, maximum_query_tokens~ : Int, maximum_page_entries~ : Int) -> Self raise CudaAttentionTileSourceError
+pub fn CudaPagedAttentionTileAbi::new(query_heads~ : Int, key_value_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int, input_row_width~ : Int, page_stride_values~ : Int64, physical_page_capacity~ : Int64, maximum_query_rows~ : Int, maximum_query_tokens~ : Int, maximum_page_entries~ : Int, query_metadata? : Bool) -> Self raise CudaAttentionTileSourceError
+pub fn CudaPagedAttentionTileAbi::query_metadata_version(Self) -> Int
 pub fn CudaPagedAttentionTileAbi::shape(Self) -> (Int, Int, Int, Int)
 
 pub struct CudaPartitionedAttentionTileSource {

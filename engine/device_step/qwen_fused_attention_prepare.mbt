@@ -175,6 +175,7 @@ fn prepare_qwen_fused_attention_launch(
   activation : @device.Allocation,
   kv : @device.Allocation,
   prefill_only? : Bool = false,
+  metadata? : @device.KernelArgument,
 ) -> PreparedPagedGraphStep raise DeviceStepError {
   if sidecar_binding_index < 0 || sidecar_binding_index >= bindings.length() {
     raise executor_operation_error(operation, ResourceState)
@@ -182,7 +183,10 @@ fn prepare_qwen_fused_attention_launch(
   let arguments : Array[@device.KernelArgument] = []
   for index, binding in bindings {
     arguments.push(
-      if prefill_only && binding.role() == RuntimeInput(StepCounts) {
+      if binding.role() == RuntimeInput(QueryRowOffsets) &&
+        metadata is Some(argument) {
+        argument
+      } else if prefill_only && binding.role() == RuntimeInput(StepCounts) {
         prefill_attention_counts_argument(descriptor)
       } else if index == sidecar_binding_index {
         qwen_fused_sidecar_argument(binding, sidecar)
@@ -215,6 +219,7 @@ fn prepare_qwen_fused_attention_steps(
   kv : @device.Allocation,
   sidecar : @device.Allocation,
   prefill_only? : Bool = false,
+  query_metadata? : Bool = false,
 ) -> (PreparedPagedGraphStep, PreparedPagedGraphStep) raise DeviceStepError {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = span.operation_indices()
   guard blueprint.steps().get(qkv_index) is Some(qkv_step) &&
@@ -358,6 +363,11 @@ fn prepare_qwen_fused_attention_steps(
       activation,
       kv,
       prefill_only~,
+      metadata?=if query_metadata {
+        Some(attention_metadata_argument(descriptor, blueprint.profile()))
+      } else {
+        None
+      },
     ),
   )
 }
@@ -528,7 +538,14 @@ fn prepare_qwen_partitioned_prefill_steps(
     let partial_arguments : Array[@device.KernelArgument] = []
     for binding in runtime_bindings {
       partial_arguments.push(
-        composite_binding_argument(binding, descriptor, weight, activation, kv),
+        if pipeline.query_metadata &&
+          binding.role() == RuntimeInput(QueryRowOffsets) {
+          attention_metadata_argument(descriptor, blueprint.profile())
+        } else {
+          composite_binding_argument(
+            binding, descriptor, weight, activation, kv,
+          )
+        },
       )
     }
     partial_arguments.push(

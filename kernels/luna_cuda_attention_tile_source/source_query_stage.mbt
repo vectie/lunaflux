@@ -6,14 +6,15 @@ fn cuda_query_owned_stage(
   abi : CudaPagedAttentionTileAbi,
   dense : Bool,
   asynchronous : Bool,
+  split? : Bool = false,
 ) -> String {
   let transfer = if asynchronous {
     let text =
-      #|        const int bytes=kv_source_valid?16:0;
-      #|        const unsigned ka=(unsigned)__cvta_generic_to_shared(destination_k);
-      #|        const unsigned va=(unsigned)__cvta_generic_to_shared(destination_v);
-      #|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(ka),"l"(kv_key_source),"r"(bytes):"memory");
-      #|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(va),"l"(kv_value_source),"r"(bytes):"memory");
+      $|        const int bytes=kv_source_valid?16:0;
+      $|        const unsigned ka=(unsigned)__cvta_generic_to_shared(destination_k);
+      $|        const unsigned va=(unsigned)__cvta_generic_to_shared(destination_v);
+      $|        if (\{if split { "kind==0" } else { "true" }}) asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(ka),"l"(kv_key_source),"r"(bytes):"memory");
+      $|        if (\{if split { "kind==1" } else { "true" }}) asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(va),"l"(kv_value_source),"r"(bytes):"memory");
     text
   } else {
     let text =
@@ -32,7 +33,7 @@ fn cuda_query_owned_stage(
     ""
   }
   let source =
-    $|    auto stage_query_tile = [&](int kb, int stage) {
+    $|    auto stage_query_tile = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {
     $|      for (int vector=thread; vector<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8; vector+=LF_BLOCK_THREADS) {
     $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
     $|        const int position=kb+r;

@@ -202,6 +202,7 @@ fn admit_qwen_partitioned_prefill_pair(
         merge.operation_span() != (attention_operation, 1) ||
         partial.module_digest() != merge.module_digest() ||
         partial.module_bytes() != merge.module_bytes() ||
+        merge.query_metadata_version() != 0 ||
         query_tile_rows <= 0 ||
         partial_launch.grid_x() <= 0 ||
         partial_launch.grid_x() > compiler_prefill_grid ||
@@ -221,6 +222,7 @@ fn admit_qwen_partitioned_prefill_pair(
         raise MismatchedFusedGroupedOperation(Launch)
       }
       Some({
+        query_metadata: partial.query_metadata_version() == 1,
         module_digest: partial.module_digest(),
         module_bytes: partial.module_bytes(),
         partial_symbol: partial.function_symbol(),
@@ -354,6 +356,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_module.module_digest() ||
     readonly_module.function_symbol() != decode_module.function_symbol() ||
     readonly_module.launch_dimensions() != decode_module.launch_dimensions()
+  if decode_module.query_metadata_version() != 0 ||
+    (readonly_module.query_metadata_version() != 0 && !phase_specific) {
+    raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
   let readonly_launch = readonly_module.launch_dimensions()
   let readonly_query_tile_rows = match readonly_module.query_tile_rows() {
     Some(rows) => rows
@@ -400,6 +406,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         if module_.query_tile_rows() != readonly_module.query_tile_rows() {
           raise MismatchedFusedGroupedOperation(Launch)
         }
+        if module_.query_metadata_version() !=
+          readonly_module.query_metadata_version() {
+          raise MismatchedFusedGroupedOperation(KernelAbi)
+        }
         // A stable bundle slot may carry the selected prefill module when the
         // semantic profile has no strictly wider query tile. Do not build a
         // duplicate executor or route a bucket through a fake specialization.
@@ -420,6 +430,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
           raise MismatchedFusedGroupedOperation(Launch)
         }
         Some({
+          query_metadata: module_.query_metadata_version() == 1,
           module_digest: module_.module_digest(),
           module_bytes: module_.module_bytes(),
           symbol: module_.function_symbol(),
@@ -562,6 +573,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       readonly_symbol: readonly_module.function_symbol(),
       readonly_launch: readonly_module.launch_dimensions(),
       readonly_query_tile_rows,
+      readonly_query_metadata: readonly_module.query_metadata_version() == 1,
       decode_module_digest: decode_module.module_digest(),
       decode_module_bytes: decode_module.module_bytes(),
       decode_symbol: decode_module.function_symbol(),

@@ -1,0 +1,86 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+fn field(recipe : String, key : String) -> String raise {
+  let values = recipe.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+  guard values is [value] else { fail("missing/duplicate recipe field: " + key) }
+  value[key.length() + 1:].to_owned()
+}
+
+async fn checked(program : String, args : Array[String]) -> String {
+  let (code, out, err) = @process.collect_output(program, args)
+  guard code == 0 else { fail(out.text() + err.text()) }
+  out.text()
+}
+
+async fn main {
+  guard @env.args() is [_, nvcc, toolchain, candidate, model, plan, exporter_identity, output] else {
+    fail("usage: NVCC TOOLCHAIN#sha256=HEX CANDIDATE MODEL_SHA PLAN_SHA EXPORTER#sha256=HEX NEW_OUTPUT")
+  }
+  guard exporter_identity.split("#sha256=").to_array() is [exporter, _] else {
+    fail("exporter identity required")
+  }
+  // The existing producer retains deterministic compilation and toolchain
+  // validation. Its legacy bundle is intermediate only, never our published
+  // bundle. Rebind from the same recipes with the explicit metadata ABI.
+  // Run from the source root; release archives deliberately have no .git.
+  let repo = checked("pwd", []).trim().to_owned()
+  let attention_dirs = ["reusable-qwen-prefill-attention", "reusable-qwen-prefill-wide-query-attention", "reusable-qwen-prefill-partitioned-attention", "reusable-qwen-prefill-partitioned-attention-p8"]
+  let versions : Array[String] = []
+  let tiles : Array[String] = []
+  for directory in attention_dirs {
+    let recipe = @fs.read_file(candidate + "/" + directory + "/kernel.recipe").text()
+    versions.push(field(recipe, "query_metadata_version"))
+    tiles.push(field(recipe, "query_tile_rows"))
+  }
+  guard versions.all(v => v == versions[0]) && (versions[0] == "0" || versions[0] == "1") else {
+    fail("mixed/unsupported prefill metadata ABIs")
+  }
+  @fs.mkdir(output)
+  let intermediate = output + "/compiled"
+  let build_log = checked(repo + "/scripts/build-qwen3-reusable-fused-runtime.sh", [nvcc, toolchain, candidate, model, plan, exporter_identity, intermediate])
+  @fs.write_file(output + "/compiler.stdout", build_log, create_mode=CreateNew)
+  let args = [model, plan]
+  let modules = [
+    ("residual", "reusable-fused-residual", "residual_operation_id", ""),
+    ("ingress", "reusable-qwen-full-ingress", "qkv_operation_id", ""),
+    ("prefill", attention_dirs[0], "model_operation_id", ""),
+    ("prefill_wide", attention_dirs[1], "model_operation_id", ""),
+    ("prefill_partial", attention_dirs[2], "model_operation_id", "partial_"),
+    ("prefill_merge", attention_dirs[2], "model_operation_id", "merge_"),
+    ("prefill_partitioned8_partial", attention_dirs[3], "model_operation_id", "partial_"),
+    ("prefill_partitioned8_merge", attention_dirs[3], "model_operation_id", "merge_"),
+    ("attention", "reusable-qwen-decode-attention", "model_operation_id", ""),
+  ]
+  let mut hashes = ""
+  for (name, directory, operation, prefix) in modules {
+    let recipe = @fs.read_file(candidate + "/" + directory + "/kernel.recipe").text()
+    args.push(field(recipe, operation))
+    let grid = field(recipe, prefix + "grid").split(",").to_array()
+    guard grid.length() == 3 else { fail("invalid grid") }
+    for axis in grid { args.push(axis.to_owned()) }
+    args.push(field(recipe, "block").split(",").to_array()[0].to_owned())
+    args.push(field(recipe, prefix + "shared_memory_bytes"))
+    if name == "prefill_wide" { args.push(field(recipe, "function_symbol")) }
+    let filename = name + ".cubin"
+    let path = output + "/" + filename
+    @fs.write_file(path, @fs.read_file(intermediate + "/" + filename), create_mode=CreateNew, permission=0o444)
+    args.push(path)
+    let digest = checked("sha256sum", [path]).split(" ").to_array()[0].to_owned()
+    hashes += digest + "  " + filename + "\n"
+  }
+  for tile in tiles { args.push(tile) }
+  let bundle = "reusable-fused-runtime-bundle.v3"
+  args.push(output + "/" + bundle)
+  if versions[0] == "1" { args.push("--query-metadata-v1") }
+  let report = checked(exporter.to_owned(), args)
+  @fs.write_file(output + "/export.stdout", report, create_mode=CreateNew)
+  let digest = checked("sha256sum", [output + "/" + bundle]).split(" ").to_array()[0].to_owned()
+  hashes += digest + "  " + bundle + "\n"
+  @fs.write_file(output + "/FILES.sha256", hashes, create_mode=CreateNew, permission=0o444)
+  println(report)
+}

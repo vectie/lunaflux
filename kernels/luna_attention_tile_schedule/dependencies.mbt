@@ -10,12 +10,17 @@ pub(all) enum AttentionTransferReadiness {
 
 ///|
 /// Pure schedule refinement. The query is an invariant of the outer row/head
-/// map. Splitting transfer readiness needs both an independent score value and
-/// an alternate storage slot; other compute families retain their joined fold.
+/// map. An independent score value permits separate K and V lifetimes: the
+/// query-owned fold reuses K after QK and V after PV, without doubling storage.
+/// The grouped-query decode family instead retains its two-slot ring.
 pub fn AttentionTileSchedule::transfer_readiness(
   self : AttentionTileSchedule,
 ) -> AttentionTransferReadiness {
-  if self.compute == AttentionGroupedQuerySplitSubgroupDot &&
+  if self.fragment_ownership() == QueryOwnedFragments &&
+    self.memory == AttentionAsyncStagedShared &&
+    self.pipeline_stages == 1 {
+    KeyScoreBeforeValueReadiness
+  } else if self.compute == AttentionGroupedQuerySplitSubgroupDot &&
     self.memory == AttentionAsyncStagedShared &&
     self.pipeline_stages == 2 {
     KeyScoreBeforeValueReadiness

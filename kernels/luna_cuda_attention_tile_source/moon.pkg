@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/kernels/luna_attention_metadata",
   "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering",
   "vectie/lunaflux/kernels/luna_attention_tile_schedule",
   "moonbitlang/core/encoding/utf8",

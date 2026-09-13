@@ -13,7 +13,10 @@ fn replace(source : String, old : String, new : String) -> String raise {
 }
 
 async fn main {
-  guard @env.args() is [_, template, root, commit, archive_sha] else {
+  let raw = @env.args()
+  let metadata = raw.last() == Some("--query-metadata-v1")
+  let argv = if metadata { raw[:raw.length()-1].to_owned() } else { raw }
+  guard argv is [_, template, root, commit, archive_sha] else {
     fail("TEMPLATE_CAMPAIGN NEW_CAMPAIGN COMMIT ARCHIVE_SHA")
   }
   let build = replace(@fs.read_file(template + "/retest-build.mbtx").text(), template, root)
@@ -24,6 +27,17 @@ async fn main {
   let runtime = replace(runtime, "82ea813121fcb12af97b57cd554501ee73c86d5df58f8a501ba941d5a03120e3", archive_sha)
   let runtime = replace(runtime, "commit=4896771", "commit=" + commit)
   let runtime = replace(runtime, "\"4896771\"", "\"" + commit + "\"")
+  let runtime = if metadata {
+    let runtime = replace(runtime,
+      "ignore(log(\"candidate-export\",",
+      "args.push(\"--query-metadata-v1\")\n    ignore(log(\"candidate-export\",")
+    let runtime = replace(runtime,
+      "source + \"/scripts/build-qwen3-reusable-fused-runtime.sh\", [nvcc,",
+      "\"/home/jiaanguo/.moon/bin/moon\", [\"run\", source + \"/scripts/build-qwen3-reusable-fused-runtime.mbtx\", \"--\", nvcc,")
+    replace(runtime,
+      "ignore(log(\"partial-bundle\",",
+      "args.push(\"--query-metadata-v1\")\n    ignore(log(\"partial-bundle\",")
+  } else { runtime }
   @fs.write_file(root + "/runtime.mbtx", runtime, create_mode=CreateNew)
   let client = @fs.read_file(template + "/current/client.mbtx").text()
   let client = replace(client,
