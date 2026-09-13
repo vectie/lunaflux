@@ -11,7 +11,14 @@ test "sibling register transfer keeps thread local reads and late addresses" {
   assert_false(source.contains("addresses["))
   assert_false(source.contains("__syncthreads"))
   assert_false(source.contains("cp.async"))
-  assert_true(source.contains("if (valid) {"))
+  assert_true(source.contains("if (source_row < token_count) {"))
+  assert_false(source.contains("is_input"))
+  assert_false(source.contains("is_gate"))
+  let fold = source.split("auto stage_operands").collect()
+  assert_eq(fold.length(), 2)
+  assert_true(fold[0].contains("source_row * 1024ULL"))
+  assert_true(fold[1].contains("transfer_sources[slot]+k_base"))
+  assert_false(fold[1].contains("source_row"))
 }
 
 ///|
@@ -83,7 +90,7 @@ test "phased transfer batching covers arbitrary tile products once" {
             threads,
           )
           assert_true(source.contains("unsigned values[\{batches}][4]"))
-          assert_true(source.contains("vector < \{vectors}"))
+          assert_true(source.contains("< \{vectors}) {"))
         }
       }
     }

@@ -17,6 +17,8 @@ pub fn partition_projection_product_fold(row_tiles~ : Int, output_tiles~ : Int, 
 
 pub fn partition_projection_sibling_reuse(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
 
+pub fn partition_projection_transfer_segments(ArrayView[Int], workers~ : Int) -> Array[ProjectionTransferSegment]?
+
 pub fn projection_bounded_row_extent(maximum_rows~ : Int, matrix_rows~ : Int, preferred_rows~ : Int) -> Int?
 
 pub fn projection_selected_row_gather(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowGather?
@@ -251,6 +253,14 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionQueryNormWeight
   ProjectionKeyNormWeight
 } derive(Eq, Hash, @debug.Debug)
+
+pub struct ProjectionTransferSegment {
+  operand : Int
+  round : Int
+  worker_begin : Int
+  worker_end : Int
+  operand_vector_origin : Int
+} derive(Eq, @debug.Debug)
 
 pub struct ProjectionVectorTransferMap {
   // private fields

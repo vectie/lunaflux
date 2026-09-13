@@ -112,12 +112,8 @@ test "larger sibling envelopes retain bounded reuse and the measured resource to
       // spans every launched thread; a 256-thread stride would duplicate the
       // first half's next vector across the second half's current vector.
       assert_true(source.contains("if (warp < 8)"))
-      assert_true(
-        source.contains("const int vector = threadIdx.x + slot * 512;"),
-      )
-      assert_false(
-        source.contains("const int vector = threadIdx.x + slot * 256;"),
-      )
+      assert_true(source.contains("threadIdx.x + slot * 512 <"))
+      assert_false(source.contains("threadIdx.x + slot * 256 <"))
       assert_true(source.contains("__syncthreads();\n        stage ^= 1;"))
     }
   }
@@ -142,9 +138,7 @@ test "partial sibling consumers do not duplicate shared transfer ownership" {
     }
     assert_true(writes.all(fn(count) { count == 1 }))
     let source = sibling_bounded_source_for_test(33, groups)
-    assert_true(
-      source.contains("const int vector = threadIdx.x + slot * \{threads};"),
-    )
+    assert_true(source.contains("threadIdx.x + slot * \{threads} <"))
     assert_true(source.contains("float *gate_tiles"))
     // The operand staging dies before the register-major sibling epilogue
     // aliases it. Both result planes remain within the admitted storage.

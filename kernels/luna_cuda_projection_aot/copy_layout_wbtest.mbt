@@ -42,7 +42,9 @@ test "sibling copy uses contiguous logical vectors and separate zero stores" {
     runtime.dispatch_plan(1024),
   )
   assert_true(source.contains("sibling_storage[12288]"))
-  assert_true(source.contains("const int element = vector * 8;"))
+  assert_true(
+    source.contains("const int element = (threadIdx.x + slot * 512) * 8;"),
+  )
   assert_false(source.contains("const int bytes = valid ? 16 : 0;"))
   assert_true(source.contains("st.shared.v4.u32"))
   assert_true(source.contains("ldmatrix.sync.aligned.m8n8.x4.shared.b16"))
@@ -81,7 +83,7 @@ test "operand transfer separates narrow reads and zero values from bypass copies
     assert_false(source.contains("16, %2"))
     assert_eq(source.contains("ld.global.v4.u32"), width < 64)
     assert_eq(source.contains("cp.async.cg.shared.global"), width >= 64)
-    let layout : CudaProjectionTransportLayout = { columns: width }
+    let layout : CudaProjectionTransportLayout = { columns: width, }
     // A predicate can remove lanes, but cannot introduce a bank alias into
     // an already disjoint 128-byte store subtransaction. Exhaust row tails.
     for live in 0..<=16 {
