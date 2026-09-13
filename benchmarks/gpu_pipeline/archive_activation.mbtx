@@ -1,0 +1,33 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+async fn main {
+  guard @env.args() is [_, base, current, checked] else {
+    fail("BASE_DIRECTORY CURRENT_CAMPAIGN_BASENAME CHECKED_CAMPAIGN_BASENAME")
+  }
+  for name in [current, checked] {
+    assert_true(name.has_prefix("activation-") && !name.contains("/") && !name.contains(".."))
+  }
+  let output=base+"/"+current+"/archive"
+  @fs.mkdir(output)
+  let archive=output+"/activation-results.tar.gz"
+  let args=["-czf",archive,"--exclude=*/source","--exclude=*/.mooncakes",
+    "--exclude=*/_build","--exclude=*/deployment","--exclude=*/tmp",
+    "--exclude=*/model-root","--exclude=*/kernel-release",
+    "--exclude=*/archive","-C",base,"source.tar.gz","SOURCE.txt",
+    "runtime-final-r2",current,checked]
+  @fs.write_file(output+"/command.json",Json(["tar"]+args).stringify(),create_mode=CreateNew)
+  let (code,out,err)=@process.collect_output("tar",args)
+  @fs.write_file(output+"/tar.stdout",out,create_mode=CreateNew)
+  @fs.write_file(output+"/tar.stderr",err,create_mode=CreateNew)
+  guard code==0 else {fail(err.text())}
+  let (code,hash,err)=@process.collect_output("sha256sum",[archive])
+  guard code==0 else {fail(err.text())}
+  @fs.write_file(output+"/SHA256.txt",hash,create_mode=CreateNew)
+  println(hash.text())
+}

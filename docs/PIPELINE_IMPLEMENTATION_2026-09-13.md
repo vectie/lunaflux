@@ -1,5 +1,9 @@
 # Functional pipeline implementation
 
+Latest: [full-path activation and fresh long-token results](PREFILL_ACTIVATION_2026-09-13.md).
+The new prefill family is enabled in the exported runtime; complete-model
+token identity has an explicitly recorded 3,072-token concurrent-case caveat.
+
 Scope: the five measured follow-ups in
 [GPU_PIPELINE_MEASUREMENTS_2026-09-13.md](GPU_PIPELINE_MEASUREMENTS_2026-09-13.md).
 The target is less total request time, not an instruction-counter target.

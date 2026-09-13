@@ -1,0 +1,38 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+async fn histogram(root : String, name : String) -> Map[String, Int] {
+  let result : Map[String, Int] = Map([])
+  for trial in 1..<6 {
+    guard @json.parse(@fs.read_file(root+"/"+name+"-t\{trial}.json").text()) is {"requests":Array(rows),..} else {fail("requests")}
+    for row in rows {
+      guard row is {"token_ids":ids,..} else {fail("tokens")}
+      let key=ids.stringify()
+      result[key]=result.get(key).unwrap_or(0)+1
+    }
+  }
+  result
+}
+
+async fn main {
+  guard @env.args() is [_,root] else {fail("CAMPAIGN_ROOT")}
+  let report : Array[Json]=[]
+  for (input,output) in [(512,64),(1528,32),(3072,32),(4096,64)] {
+    for c in [1,8,16] {
+      let name="i\{input}-o\{output}-c\{c}"
+      let old=histogram(root+"/control/lunaflux",name)
+      let new=histogram(root+"/current/lunaflux",name)
+      let novel=new.keys().filter(key=>!old.contains(key)).count()
+      let missing=old.keys().filter(key=>!new.contains(key)).count()
+      println("\{name} old_unique=\{old.length()} new_unique=\{new.length()} novel=\{novel} missing=\{missing}")
+      report.push({"input":input,"output":output,"concurrency":c,
+        "old_histogram":old,"new_histogram":new,
+        "novel_sequences":novel,"missing_sequences":missing})
+    }
+  }
+  @fs.write_file(root+"/TOKEN_COMPARISON.json",Json::array(report).stringify(),create_mode=CreateNew)
+}

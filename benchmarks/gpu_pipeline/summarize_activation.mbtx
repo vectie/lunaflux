@@ -3,6 +3,7 @@ import {
   "moonbitlang/async@0.20.3/fs",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
 }
 
 fn field(value : Json, name : String) -> Json raise {
@@ -11,8 +12,12 @@ fn field(value : Json, name : String) -> Json raise {
 }
 
 fn number(value : Json) -> Double raise {
-  guard value is Number(value, ..) else { fail("number required") }
-  value
+  match value {
+    Number(value, ..) => value
+    // MoonBit encodes UInt64 timestamps as decimal strings to retain bits.
+    String(value) => @string.parse_uint64(value).to_double()
+    _ => fail("number required")
+  }
 }
 
 fn rows(value : Json) -> Array[Json] raise {
