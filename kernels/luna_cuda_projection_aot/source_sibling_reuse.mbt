@@ -24,8 +24,12 @@ fn projection_sibling_reuse_source(
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
   let fragment_fold = projection_fragment_pipeline_source(
-    folds, width, layout.offset(rows, 0), plan.fragment_stage_count(),
-    row_limit="token_count", weight_displacement="sibling * \{columns * width}",
+    folds,
+    width,
+    layout.offset(rows, 0),
+    plan.fragment_stage_count(),
+    row_limit="token_count",
+    weight_displacement="sibling * \{columns * width}",
   )
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {

@@ -373,7 +373,8 @@ fn projection_schedule_canonical(
   if projection_intermediate_pipeline(optimized) is Some(pipeline) {
     builder <+
       "intermediate_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width},\{pipeline.tile_count},\{pipeline.transfer_width},\{pipeline.row_width()},\{pipeline.single_row_outputs()},\{pipeline.minimum_rows()}\n"
-    builder <+ "intermediate_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
+    builder <+
+      "intermediate_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
   }
   if projection_sibling_pipeline(optimized) is Some(pipeline) {
     builder <+

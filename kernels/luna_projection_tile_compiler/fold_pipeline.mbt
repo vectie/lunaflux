@@ -35,7 +35,11 @@ pub fn ProjectionFoldPipeline::fragment_stage_count(
 ) -> Int {
   // A wide independent row product already carries many accumulator values.
   // Keep its fragment lifetime compact; transfer lookahead remains independent.
-  if self.transfer_width > self.tile_width && self.row_width < 64 { 2 } else { 1 }
+  if self.transfer_width > self.tile_width && self.row_width < 64 {
+    2
+  } else {
+    1
+  }
 }
 
 ///|

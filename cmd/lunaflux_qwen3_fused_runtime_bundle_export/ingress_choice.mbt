@@ -19,7 +19,9 @@ fn prepare_ingress_choice(
   // Peel the global suffix before interpreting that experiment's fixed arity.
   if raw_args is [.. rest, "--query-metadata-v1"] {
     let (args, choice) = prepare_ingress_choice(rest)
-    if args.query_metadata { raise InvalidArguments }
+    if args.query_metadata {
+      raise InvalidArguments
+    }
     return ({ ..args, query_metadata: true, }, choice)
   }
   let evaluation_start = raw_args.length() - 8

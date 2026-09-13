@@ -1,7 +1,11 @@
 ///|
 test "metadata ABI composes with the trailing ingress evaluation" {
   let args = runtime_bundle_test_arguments("5")
-  for item in ["--ingress-evaluate", "partial", "256", "1", "1", "128", "0", "/tmp/postprocess.cubin", "--query-metadata-v1"] {
+  for
+    item in [
+      "--ingress-evaluate", "partial", "256", "1", "1", "128", "0", "/tmp/postprocess.cubin",
+      "--query-metadata-v1",
+    ] {
     args.push(item)
   }
   let (selected, choice) = prepare_ingress_choice(args)
@@ -9,7 +13,11 @@ test "metadata ABI composes with the trailing ingress evaluation" {
   assert_eq(choice, @luna_fusion_strategy.FusionSchedule::ProducerSeparated)
   assert_eq(selected.ingress.module_path, "/tmp/postprocess.cubin")
   args.push("--query-metadata-v1")
-  try prepare_ingress_choice(args) catch { _ => () } noraise { _ => fail("duplicate global option") }
+  try prepare_ingress_choice(args) catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate global option")
+  }
 }
 
 ///|
