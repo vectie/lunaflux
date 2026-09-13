@@ -1,0 +1,29 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env" }
+
+async fn main {
+  let (root,prior_probe)=match @env.args() {
+    [_,root] => (root,"benchmarks/gpu_pipeline/attention_followup.cu")
+    [_,root,prior] => (root,prior)
+    _ => fail("NEW_LOCAL_OUTPUT [PRIOR_PROBE]")
+  }
+  @fs.mkdir(root)
+  for id in [313,316,318,319] {
+    for dense in [false,true] {
+      let suffix=if dense { "dense" } else { "paged" }
+      let mode=if dense { "pipeline-dense" } else { "pipeline" }
+      let (code,source,err)=@process.collect_output("moon",["run","--target","native","tests/attention_tile_cuda_source_probe","--",id.to_string(),mode])
+      @fs.write_file(root+"/attention-\{id}-\{suffix}.cu",source,create_mode=CreateNew)
+      @fs.write_file(root+"/attention-\{id}-\{suffix}.stderr",err,create_mode=CreateNew)
+      assert_eq(code,0)
+    }
+  }
+  let source=@fs.read_file(prior_probe).text()
+  assert_true(source.contains("struct Kernel {"))
+  assert_true(source.contains("counts.ints({rows,0,rows,tokens,int(indices.size())});"))
+  let source=source.replace(old="struct Kernel {",new="#include \"current_view_fixture.h\"\nstruct Kernel {")
+    .replace(old="counts.ints({rows,0,rows,tokens,int(indices.size())});",new="for(int& page:indices) page=(page*7919+17)%8192;\n initialize_current_view(input,keys,values,pos,off,pages,indices);\n counts.ints({rows,0,rows,tokens,int(indices.size())});")
+  @fs.write_file(root+"/probe.cu",source,create_mode=CreateNew)
+  for name in ["attention_referee.h","current_view_fixture.h"] {
+    @fs.write_file(root+"/"+name,@fs.read_file("benchmarks/gpu_pipeline/"+name),create_mode=CreateNew)
+  }
+}

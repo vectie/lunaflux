@@ -1,0 +1,26 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json" }
+
+async fn run(root:String,label:String,exe:String,args:Array[String])->Unit {
+  @fs.write_file(root+"/"+label+".command.json",Json([exe]+args).stringify(),create_mode=CreateNew)
+  let (code,out,err)=@process.collect_output(exe,args,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+  @fs.write_file(root+"/"+label+".stdout",out,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".stderr",err,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew)
+  assert_eq(code,0,msg=label+" "+err.text());println(label+" passed")
+}
+async fn main {
+  guard @env.args() is [_,root] else { fail("PREPARED_ROOT") }
+  let (code,idle,_)=@process.collect_output("nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+  assert_eq(code,0);assert_true(idle.text().trim().is_empty())
+  for candidate in ["318", "318-head64", "319-head64", "partitioned-318"] {
+    let path=root+"/"+candidate
+    let extra=if candidate=="partitioned-318" { ["-DLF_PARTITIONED_PROBE"] } else { [] }
+    run(path,"build","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false","-lineinfo",path+"/probe.cu","-o",path+"/probe"]+extra)
+    run(path,"numerics",path+"/probe",[])
+    run(path,"build-bounded","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false","-lineinfo","-DLF_SKIP_BENCHMARK","-DLF_BOUNDED_SANITIZER",path+"/probe.cu","-o",path+"/bounded"]+extra)
+    for check in ["memcheck","racecheck","synccheck"] {
+      run(path,check,"/usr/local/cuda-13.1/bin/compute-sanitizer",["--tool",check,"--error-exitcode","9",path+"/bounded"])
+    }
+  }
+  @fs.write_file(root+"/RESULT.txt","outcome=passed\nscope=head64/head128/partitioned independent numerics and sanitizers\n",create_mode=CreateNew)
+}

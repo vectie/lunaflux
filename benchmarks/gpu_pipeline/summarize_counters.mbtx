@@ -1,0 +1,43 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env" }
+
+// NCU raw output is wide CSV; quoted kernel names may contain commas.
+fn fields(line : StringView) -> Array[String] {
+  let result = []
+  let mut value = StringBuilder()
+  let mut quoted = false
+  let mut i = 0
+  while i < line.length() {
+    let c = line[i]
+    if c == '"' {
+      if quoted && i + 1 < line.length() && line[i+1] == '"' {
+        value.write_char('"'); i += 1
+      } else { quoted = !quoted }
+    } else if c == ',' && !quoted {
+      result.push(value.to_string()); value = StringBuilder()
+    } else { value.write_view(line[i:i+1]) }
+    i += 1
+  }
+  result.push(value.to_string())
+  result
+}
+
+async fn main {
+  guard @env.args() is [_, root] else { fail("COUNTER_OUTPUT") }
+  let wanted = ["gpu__time_duration.sum", "launch__registers_per_thread", "launch__waves_per_multiprocessor",
+    "smsp__inst_executed.sum", "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed", "derived__local_spilling_requests",
+    "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__pcsamp_warps_issue_stalled_barrier", "smsp__pcsamp_warps_issue_stalled_long_scoreboard",
+    "smsp__pcsamp_warps_issue_stalled_short_scoreboard", "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum",
+    "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum"]
+  for label in ["gemm-old", "gemm-new", "attention-old", "attention-register-128", "attention-register-default"] {
+    let lines = @fs.read_file(root+"/"+label+"-raw.stdout").text().split("\n").filter(line => line.has_prefix("\"" )).collect()
+    let names = fields(lines[0])
+    let units = fields(lines[1])
+    let values = fields(lines[2])
+    println(label)
+    for index, name in names {
+      if wanted.contains(name) { println("\{name}=\{values[index]} \{units[index]}") }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json" }
+async fn run(root : String,label : String,exe : String,args : Array[String]) -> Unit {
+  @fs.write_file(root+"/"+label+".command.json",Json([exe]+args).stringify(),create_mode=CreateNew)
+  let (code,out,err)=@process.collect_output(exe,args,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+  @fs.write_file(root+"/"+label+".stdout",out,create_mode=CreateNew);@fs.write_file(root+"/"+label+".stderr",err,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew);assert_eq(code,0,msg=label+" "+err.text());println(label+" passed")
+}
+async fn main {
+  guard @env.args() is [_,root] else {fail("PREPARED_ROOT")}
+  let logs=root+"/campaign";@fs.mkdir(logs)
+  let (code,idle,_)=@process.collect_output("nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+  assert_eq(code,0);assert_true(idle.text().trim().is_empty())
+  for version in ["old","new"] {run(logs,"build-"+version,"/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false","--maxrregcount=128","-lineinfo","-cubin",root+"/"+version+".cu","-o",root+"/"+version+".cubin"])}
+  run(logs,"build-probe","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false",root+"/projection_followup.cu","-lcuda","-o",root+"/probe"])
+  for tokens in [1,8,16,32,64,128,129,256,1024,1528,2048] {
+    run(logs,"tokens-\{tokens}",root+"/probe",[root+"/old.cubin",root+"/new.cubin",tokens.to_string(),"0"])
+  }
+  for check in ["memcheck","racecheck","synccheck"] {
+    run(logs,check,"/usr/local/cuda-13.1/bin/compute-sanitizer",["--tool",check,"--error-exitcode","9",root+"/probe",root+"/old.cubin",root+"/new.cubin","129","1"])
+  }
+  @fs.write_file(logs+"/RESULT.txt","outcome=passed\nscope=ordered sibling GEMM segmented transfer paired timing and sanitizer\n",create_mode=CreateNew)
+}

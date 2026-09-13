@@ -1,0 +1,28 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env" }
+
+async fn checked(exe : String,args : Array[String],cwd : String) -> String {
+  let (code,out,err)=@process.collect_output(exe,args,cwd~)
+  assert_eq(code,0,msg=err.text());out.text()
+}
+async fn main {
+  let (root,baseline_revision)=match @env.args() {
+    [_,root] => (root,"daafa52")
+    [_,root,revision] => (root,revision)
+    _ => fail("NEW_OUTPUT [BASELINE_GIT_REVISION]")
+  }
+  let (code,location,err)=@process.collect_output("git",["rev-parse","--show-toplevel"])
+  assert_eq(code,0,msg=err.text())
+  let repo=location.text().trim().to_owned()
+  @fs.mkdir(root);@fs.mkdir(root+"/baseline")
+  ignore(checked("git",["archive",baseline_revision,"-o",root+"/baseline.tar"],repo))
+  ignore(checked("tar",["-xf",root+"/baseline.tar","-C",root+"/baseline"],repo))
+  ignore(checked("ln",["-s",repo+"/.mooncakes",root+"/baseline/.mooncakes"],repo))
+  @fs.mkdir(root+"/baseline/tests/projection_pipeline_cuda_source_probe")
+  for name in ["main.mbt","moon.pkg"] {
+    @fs.write_file(root+"/baseline/tests/projection_pipeline_cuda_source_probe/"+name,@fs.read_file(repo+"/tests/projection_pipeline_cuda_source_probe/"+name),create_mode=CreateNew)
+  }
+  for (label,cwd) in [("old",root+"/baseline"),("new",repo)] {
+    let source=checked("moon",["run","--target","native","tests/projection_pipeline_cuda_source_probe"],cwd)
+    @fs.write_file(root+"/"+label+".cu",source,create_mode=CreateNew)
+  }
+}

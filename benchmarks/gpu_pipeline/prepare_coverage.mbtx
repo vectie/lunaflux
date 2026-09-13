@@ -1,0 +1,15 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env" }
+
+async fn main {
+  guard @env.args() is [_,root] else { fail("NEW_LOCAL_OUTPUT") }
+  @fs.mkdir(root)
+  for candidate in ["318", "318-head64", "319-head64", "partitioned-318"] {
+    let path=root+"/"+candidate
+    @fs.mkdir(path)
+    let (code,source,err)=@process.collect_output("moon",["run","--target","native","tests/attention_tile_cuda_source_probe","--",candidate])
+    @fs.write_file(path+"/generated_attention_tile.cu",source,create_mode=CreateNew)
+    @fs.write_file(path+"/export.stderr",err,create_mode=CreateNew)
+    assert_eq(code,0,msg=err.text())
+    @fs.write_file(path+"/probe.cu",@fs.read_file("tests/attention_tile_cuda_source_probe/probe.cu"),create_mode=CreateNew)
+  }
+}

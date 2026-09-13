@@ -1,0 +1,38 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json" }
+
+async fn run(root:String,label:String,exe:String,args:Array[String])->Unit {
+  @fs.write_file(root+"/"+label+".command.json",Json([exe]+args).stringify(),create_mode=CreateNew)
+  let (code,out,err)=@process.collect_output(exe,args,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+  @fs.write_file(root+"/"+label+".stdout",out,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".stderr",err,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew)
+  assert_eq(code,0,msg=label+" "+err.text());println(label+" passed")
+}
+async fn main {
+  guard @env.args() is [_,root,old] else { fail("PREPARED_ROOT BASELINE_CUBIN") }
+  let logs=root+"/campaign";@fs.mkdir(logs)
+  let (code,idle,_)=@process.collect_output("nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+  assert_eq(code,0);assert_true(idle.text().trim().is_empty())
+  let nvcc="/usr/local/cuda-13.1/bin/nvcc"
+  for (id,cap) in [(313,"128"),(318,"128"),(318,"default"),(319,"default"),(316,"128")] {
+    let flags=if cap=="128" { ["--maxrregcount=128"] } else { [] }
+    let view=if id==316 { "dense" } else { "paged" }
+    let stem="attention-\{id}-\{view}"
+    run(logs,"build-\{id}-\{cap}",nvcc,["-O3","-arch=sm_120","--fmad=false","-lineinfo","-cubin",root+"/"+stem+".cu","-o",root+"/"+stem+"-\{cap}.cubin"]+flags)
+  }
+  run(logs,"build-probe",nvcc,["-O3","-arch=sm_120","--fmad=false",root+"/probe.cu","-lcuda","-o",root+"/probe"])
+  for (id,cap,threads,shared) in [(313,"128",256,49152),(318,"default",128,49168),(319,"default",64,24592)] {
+    for q in [127,128,129,130] { for past in [4095,4096,4097] {
+      run(logs,"v\{id}-q\{q}-p\{past}",root+"/probe",["attention",old,root+"/attention-\{id}-paged-\{cap}.cubin","158","16","49152","158","16",shared.to_string(),"0",q.to_string(),"1","lunaflux_attention_prefill_tile_v1",past.to_string(),threads.to_string()])
+    } }
+  }
+  for (id,cap,view,threads,shared) in [(318,"128","paged",128,49168),(318,"default","paged",128,49168),(319,"default","paged",64,24592),(316,"128","dense",256,47248)] {
+    for (q,rows,past) in [(32,1,0),(1528,1,0),(1528,8,0),(1528,8,4096)] {
+      run(logs,"latest-v\{id}-\{cap}-q\{q}-r\{rows}-p\{past}",root+"/probe",["attention",old,root+"/attention-\{id}-\{view}-\{cap}.cubin","158","16","49152","158","16",shared.to_string(),"0",q.to_string(),rows.to_string(),"lunaflux_attention_prefill_tile_v1",past.to_string(),threads.to_string()])
+    }
+    for check in ["memcheck","racecheck","synccheck"] {
+      run(logs,"latest-v\{id}-\{cap}-"+check,"/usr/local/cuda-13.1/bin/compute-sanitizer",["--tool",check,"--error-exitcode","9",root+"/probe","attention",old,root+"/attention-\{id}-\{view}-\{cap}.cubin","158","16","49152","158","16",shared.to_string(),"2","129","8","lunaflux_attention_prefill_tile_v1","4097",threads.to_string()])
+    }
+  }
+  @fs.write_file(logs+"/RESULT.txt","outcome=passed\nscope=query/history orthogonal tail vector; fragmented current/paged view; scalar referee; sanitizer\n",create_mode=CreateNew)
+}

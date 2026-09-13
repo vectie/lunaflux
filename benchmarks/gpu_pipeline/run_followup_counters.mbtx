@@ -1,0 +1,34 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json" }
+async fn run(root : String,label : String,exe : String,args : Array[String]) -> Unit {
+  @fs.write_file(root+"/"+label+".command.json",Json([exe]+args).stringify(),create_mode=CreateNew)
+  let (command, arguments) = if exe == "/usr/local/cuda-13.1/bin/ncu" && !args.contains("--import") {
+    ("/usr/bin/sudo", ["-n", "/usr/bin/env", "CUDA_VISIBLE_DEVICES=GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6", "TMPDIR="+root, exe]+args)
+  } else { (exe,args) }
+  let (code,out,err)=@process.collect_output(command,arguments,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+  @fs.write_file(root+"/"+label+".stdout",out,create_mode=CreateNew);@fs.write_file(root+"/"+label+".stderr",err,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew);assert_eq(code,0,msg=label+" "+err.text());println(label+" passed")
+}
+async fn main {
+  guard @env.args() is [_,base,root] else {fail("CAMPAIGN_BASE NEW_OUTPUT")}
+  @fs.mkdir(root)
+  let ncu="/usr/local/cuda-13.1/bin/ncu"
+  let gemm=base+"/projection-followup-r2"
+  let old=base+"/runtime-final-r2/fused/prefill.cubin"
+  let probe=base+"/followups-r6/probe"
+  let jobs : Array[(String,String,Array[String])]=[]
+  for version in ["old","new"] {jobs.push(("gemm-"+version,gemm+"/probe",[gemm+"/old.cubin",gemm+"/"+version+".cubin","1528","1"]))}
+  for (label,path,symbol,threads,shared) in [
+    ("attention-old",old,"lunaflux_attention_prefill_tile_compiler_v1",256,49152),
+    ("attention-register-128",base+"/followups-r6/attention-318-paged.cubin","lunaflux_attention_prefill_tile_v1",128,49168),
+    ("attention-register-default",base+"/followups-r5/attention-318-paged.cubin","lunaflux_attention_prefill_tile_v1",128,49168),
+  ] {
+    jobs.push((label,probe,["attention",old,path,"158","16","49152","158","16",shared.to_string(),"2","1528","8",symbol,"0",threads.to_string()]))
+  }
+  let (code,idle,_)=@process.collect_output("nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+  assert_eq(code,0);assert_true(idle.text().trim().is_empty())
+  for (label,exe,args) in jobs {
+    run(root,label,ncu,["--config-file","off","--section","LaunchStats","--section","Occupancy","--section","SchedulerStats","--section","SpeedOfLight","--section","SourceCounters","--section","MemoryWorkloadAnalysis","--metrics","smsp__warps_eligible.avg.per_cycle_active,smsp__issue_active.avg.pct_of_peak_sustained_active,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed,smsp__inst_executed.sum","--cache-control","all","--clock-control","none","--launch-count","1","--export",root+"/"+label,exe]+args)
+    run(root,label+"-raw",ncu,["--import",root+"/"+label+".ncu-rep","--page","raw","--csv","--print-units","base"])
+  }
+  @fs.write_file(root+"/RESULT.txt","outcome=passed\nscope=selected kernel counters; cold replay, not ordinary latency\n",create_mode=CreateNew)
+}

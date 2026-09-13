@@ -1,0 +1,21 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/string" }
+fn value(line : StringView, key : String) -> Double raise {
+  for word in line.split(" ") {
+    if word.has_prefix(key+"=") { return @string.parse_double(word[key.length()+1:]) }
+  }
+  fail("missing field")
+}
+async fn main {
+  guard @env.args() is [_,root] else {fail("ROOT")}
+  for id in [313,316,318,319] { for view in ["paged","dense"] {
+    for (q,rows,past) in [(32,1,0),(128,1,4096),(129,1,4096),(1528,1,0),(1528,8,0),(1528,8,4096)] {
+      let data=@fs.read_file(root+"/campaign/v\{id}-\{view}-q\{q}-r\{rows}-p\{past}.stdout").text()
+      let a : Array[Double]=[];let b : Array[Double]=[]
+      for line in data.split("\n") {
+        if line.has_prefix("tokens=") {a.push(value(line,"old_us"));b.push(value(line,"new_us"))}
+      }
+      assert_eq(a.length(),5);a.sort();b.sort()
+      println("id=\{id} view=\{view} q=\{q} rows=\{rows} past=\{past} old_us=\{a[2]} new_us=\{b[2]} time_reduction=\{1.0-b[2]/a[2]}")
+    }
+  } }
+}
