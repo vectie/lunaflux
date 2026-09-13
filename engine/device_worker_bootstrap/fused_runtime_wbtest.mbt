@@ -1,5 +1,7 @@
 ///|
-fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
+fn bootstrap_reusable_qwen_bundle(
+  query_metadata? : Bool = false,
+) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -34,6 +36,8 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
         operation_count=1,
         function_symbol="lunaflux_qwen_readonly",
         launch~,
+        query_tile_rows?=if query_metadata { Some(64) } else { None },
+        query_metadata_version=if query_metadata { 1 } else { 0 },
         module_bytes=b"qwen-readonly",
       ),
     ],
@@ -50,8 +54,8 @@ fn bootstrap_reusable_qwen_bundle() -> @luna_fused_artifact_admission.ApprovedRe
 }
 
 ///|
-test "fused runtime schema selects reusable bundle v3 and v4 before legacy" {
-  for version in [3, 4] {
+test "fused runtime schema selects reusable bundle v3 v4 and metadata v5 before legacy" {
+  for version in [3, 4, 5] {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
@@ -78,6 +82,11 @@ test "fused runtime schema selects reusable bundle v3 and v4 before legacy" {
     LegacyCatalogV1 => ()
     _ => fail("legacy fused catalog fallback changed")
   }
+}
+
+///|
+test "exported metadata bundle reaches the worker bootstrap bundle parser" {
+  ignore(bootstrap_reusable_qwen_bundle(query_metadata=true))
 }
 
 ///|

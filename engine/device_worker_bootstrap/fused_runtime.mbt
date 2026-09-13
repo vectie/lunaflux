@@ -54,7 +54,8 @@ priv enum FusedRuntimeSourceSchema {
 ///|
 fn classify_fused_runtime_source(text : String) -> FusedRuntimeSourceSchema {
   if text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v3\n") ||
-    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v4\n") {
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v4\n") ||
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") {
     ReusableBundle
   } else if text.has_prefix(
       "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
