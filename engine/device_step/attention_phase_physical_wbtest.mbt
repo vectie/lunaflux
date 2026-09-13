@@ -57,9 +57,13 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     result_argument,
   ])
   let resources = empty_paged_resources()
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   for function in [ingress, attention, decode, output] {
-    resources.functions.push({ resource: function, module_index: 0, open: true })
+    resources.functions.push({
+      resource: function,
+      module_index: 0,
+      open: true,
+    })
   }
   let failure : Ref[DeviceStepError?] = Ref(None)
   defer {
@@ -82,8 +86,8 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
   )
   register_attention_phase_replacement(
     resources,
-    { ..steps[1], arguments: prefill_arguments },
-    Some({ ..steps[1], function_index: 2 }),
+    { ..steps[1], arguments: prefill_arguments, },
+    Some({ ..steps[1], function_index: 2, }),
   )
   let launches = paged_ordered_launches(steps, resources)
   for policy in [@device.OrderedKernelEagerOnly, OrderedKernelCaptureRequired] {

@@ -264,13 +264,13 @@ pub fn prepare_i8_paged_graph_executor_v1(
       let lease = context.lease_allocation(weight) catch {
         error => raise ExecutorDevice(WeightLease, error)
       }
-      resources.weight_lease = Some({ resource: lease, open: true })
+      resources.weight_lease = Some({ resource: lease, open: true, })
     },
     () => {
       let stream = context.create_stream() catch {
         error => raise ExecutorDevice(Stream, error)
       }
-      resources.stream = Some({ resource: stream, open: true })
+      resources.stream = Some({ resource: stream, open: true, })
     },
     () => {
       let allocation = context.allocate(
@@ -279,14 +279,17 @@ pub fn prepare_i8_paged_graph_executor_v1(
         error => raise ExecutorDevice(ActivationWorkspaceArena, error)
       }
       activation_workspace.val = Some(allocation)
-      resources.activation_workspace = Some({ resource: allocation, open: true })
+      resources.activation_workspace = Some({
+        resource: allocation,
+        open: true,
+      })
     },
     () => {
       let allocation = context.allocate(blueprint.layout().arena_bytes()) catch {
         error => raise ExecutorDevice(PersistentKvArena, error)
       }
       persistent_kv.val = Some(allocation)
-      resources.persistent_kv = Some({ resource: allocation, open: true })
+      resources.persistent_kv = Some({ resource: allocation, open: true, })
     },
     () => {
       guard descriptor.val is Some(descriptor_owner) &&
@@ -406,5 +409,5 @@ fn admit_i8_owned_preparation_evidence(
     blueprint.limits(),
   )
   let (functions, function_indices) = collect_i8_paged_functions(blueprint)
-  { blueprint, weight, completion, functions, function_indices }
+  { blueprint, weight, completion, functions, function_indices, }
 }

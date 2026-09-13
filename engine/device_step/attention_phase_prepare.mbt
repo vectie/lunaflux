@@ -100,7 +100,7 @@ fn mixed_attention_steps(
       Some(replacement) =>
         Some(
           (
-            { ..step, arguments: replacement.prefill_arguments },
+            { ..step, arguments: replacement.prefill_arguments, },
             replacement.decode_companion,
           ),
         )

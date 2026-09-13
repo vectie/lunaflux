@@ -17,8 +17,18 @@ test "row variant selection covers the whole captured envelope and preserves fal
       function_index: 8,
       launch,
     },
-    { base_function_index: 3, maximum_token_rows: 8, function_index: 9, launch },
-    { base_function_index: 2, maximum_token_rows: 8, function_index: 7, launch },
+    {
+      base_function_index: 3,
+      maximum_token_rows: 8,
+      function_index: 9,
+      launch,
+    },
+    {
+      base_function_index: 2,
+      maximum_token_rows: 8,
+      function_index: 7,
+      launch,
+    },
   ]
   for bound in [2, 8] {
     assert_eq(

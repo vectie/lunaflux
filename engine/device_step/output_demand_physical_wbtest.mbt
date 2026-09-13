@@ -48,7 +48,7 @@ async test "physical eager output demand preserves effects and releases shared l
     [0, 1, 2].map(value => try! @plan.OperationId::new(value)),
   )
   let resources = empty_paged_resources()
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   resources.effect_operation_prefix = 1
   let failure : Ref[DeviceStepError?] = Ref(None)
   defer {

@@ -87,7 +87,7 @@ async test "physical row variants preserve dense values and graph fallback" {
         module_index: 0,
         open: true,
       })
-      resources.functions.push({ resource: small, module_index: 0, open: true })
+      resources.functions.push({ resource: small, module_index: 0, open: true, })
       if groups == 2 {
         resources.projection_variants.push({
           base_function_index: 0,

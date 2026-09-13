@@ -163,7 +163,7 @@ pub fn PagedGraphExecutor::stage(
     descriptor.host.output_rows,
   )
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
+  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }
 }
 
 ///|
@@ -214,7 +214,7 @@ pub fn PagedGraphExecutor::stage_frame(
     descriptor.host.output_rows,
   )
   self.lifecycle = GraphStaged
-  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index }
+  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }
 }
 
 ///|

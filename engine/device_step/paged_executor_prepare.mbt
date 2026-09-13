@@ -246,7 +246,7 @@ fn load_paged_modules(
     let resource = context.load_module(image.module_bytes()) catch {
       error => raise ExecutorDevice(Module, error)
     }
-    resources.modules.push({ resource, open: true })
+    resources.modules.push({ resource, open: true, })
   }
 }
 
@@ -463,12 +463,12 @@ pub fn prepare_paged_graph_executor(
         ExecutorDevice(WeightLease, error),
       )
   }
-  resources.weight_lease = Some({ resource: lease, open: true })
+  resources.weight_lease = Some({ resource: lease, open: true, })
   let stream = context.create_stream() catch {
     error =>
       return paged_construction_failed(resources, ExecutorDevice(Stream, error))
   }
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   let activation_workspace = context.allocate(
     blueprint.activation_workspace_arena_bytes(),
   ) catch {
@@ -489,7 +489,7 @@ pub fn prepare_paged_graph_executor(
         ExecutorDevice(PersistentKvArena, error),
       )
   }
-  resources.persistent_kv = Some({ resource: persistent_kv, open: true })
+  resources.persistent_kv = Some({ resource: persistent_kv, open: true, })
   if activation_workspace.byte_count() !=
     blueprint.activation_workspace_arena_bytes() ||
     persistent_kv.byte_count() != layout.arena_bytes() {

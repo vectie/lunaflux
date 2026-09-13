@@ -189,6 +189,9 @@ fn admit_qwen_partitioned_prefill_pair(
     Some((partial, merge)) => {
       let partial_launch = partial.launch_dimensions()
       let merge_launch = merge.launch_dimensions()
+      // AOT admission owns the checked worker geometry. The execution layer
+      // binds semantic rows and matching partial/merge layouts, not a previous
+      // backend's fixed 256-thread schedule.
       guard partial.query_tile_rows() is Some(query_tile_rows) &&
         merge.query_tile_rows() == Some(query_tile_rows) else {
         raise MismatchedFusedGroupedOperation(Launch)
@@ -204,7 +207,6 @@ fn admit_qwen_partitioned_prefill_pair(
         partial_launch.grid_x() > compiler_prefill_grid ||
         partial_launch.grid_y() != query_heads ||
         partial_launch.grid_z() <= 1 ||
-        partial_launch.block_x() != 256 ||
         partial_launch.block_y() != 1 ||
         partial_launch.block_z() != 1 ||
         partial_launch.shared_memory_bytes() <= 0 ||
@@ -408,7 +410,6 @@ pub fn admit_reusable_qwen_fused_attention_spans(
         launch.grid_x() != compiler_prefill_grid ||
         launch.grid_y() != query_heads ||
         launch.grid_z() != 1 ||
-        launch.block_x() != 256 ||
         launch.block_y() != 1 ||
         launch.block_z() != 1 ||
         launch.shared_memory_bytes() <= 0 ||
@@ -468,7 +469,6 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       PagedAttentionReadOnlyCompilerDecodeProductionV7
     ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
-    readonly_launch.block_x() == 256 &&
     readonly_launch.shared_memory_bytes() > 0 &&
     readonly_launch.shared_memory_bytes() <= 100000
   } else {

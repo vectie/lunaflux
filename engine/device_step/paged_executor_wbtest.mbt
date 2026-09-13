@@ -371,9 +371,9 @@ test "ordered paged execution records and waits once after semantic enqueue" {
   let lifecycle = Ref(GraphStaged)
   let actions : Array[String] = []
   let steps = ReadOnlyArray::from_array([
-    { operation: @plan.OperationId::new(0) },
-    { operation: @plan.OperationId::new(1) },
-    { operation: @plan.OperationId::new(2) },
+    { operation: @plan.OperationId::new(0), },
+    { operation: @plan.OperationId::new(1), },
+    { operation: @plan.OperationId::new(2), },
   ])
   run_paged_ordered_step_range(
     steps,
@@ -395,9 +395,9 @@ test "ordered paged execution drains and poisons after partial enqueue" {
   let lifecycle = Ref(GraphStaged)
   let actions : Array[String] = []
   let steps = ReadOnlyArray::from_array([
-    { operation: @plan.OperationId::new(0) },
-    { operation: @plan.OperationId::new(1) },
-    { operation: @plan.OperationId::new(2) },
+    { operation: @plan.OperationId::new(0), },
+    { operation: @plan.OperationId::new(1), },
+    { operation: @plan.OperationId::new(2), },
   ])
   try
     run_paged_ordered_step_range(

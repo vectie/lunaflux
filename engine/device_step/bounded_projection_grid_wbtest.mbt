@@ -120,7 +120,7 @@ test "bounded compiler work grid is selected exactly without changing companions
 ///|
 test "bootstrap row encoding preserves legacy bytes and binds compiler grid" {
   let dimensions = bounded_grid_dimensions()
-  let legacy : BootstrapEncoder = { bytes: [], maximum: 4096 }
+  let legacy : BootstrapEncoder = { bytes: [], maximum: 4096, }
   legacy.append_int(16)
   legacy.append_string("rows16")
   for value in [192, 1, 1, 512, 1, 1, 16384] {
@@ -128,7 +128,7 @@ test "bootstrap row encoding preserves legacy bytes and binds compiler grid" {
   }
   legacy.append_string("companion-launch-v1")
   legacy.append_dimensions(dimensions)
-  let encoded : BootstrapEncoder = { bytes: [], maximum: 4096 }
+  let encoded : BootstrapEncoder = { bytes: [], maximum: 4096, }
   encoded.append_projection_variant(
     @artifact.KernelRowVariant::new(
       maximum_token_rows=16,
@@ -138,7 +138,7 @@ test "bootstrap row encoding preserves legacy bytes and binds compiler grid" {
     ),
   )
   assert_eq(encoded.bytes, legacy.bytes)
-  let with_grid : BootstrapEncoder = { bytes: [], maximum: 4096 }
+  let with_grid : BootstrapEncoder = { bytes: [], maximum: 4096, }
   with_grid.append_projection_variant(
     @artifact.KernelRowVariant::new(
       maximum_token_rows=16,
@@ -169,7 +169,7 @@ test "bootstrap refuses row launch policy not authenticated by artifacts" {
       ),
     ],
   }
-  let changed = { ..base, steps: ReadOnlyArray::from_array(steps) }
+  let changed = { ..base, steps: ReadOnlyArray::from_array(steps), }
   try
     admit_device_worker_bootstrap(
       changed,

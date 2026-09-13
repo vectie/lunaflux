@@ -8,7 +8,7 @@ The target is less total request time, not an instruction-counter target.
 
 The user has approved enabling the new ownership/read-view path across the
 exported prefill family, prioritizing long inputs rather than retaining the
-old schedule for short-query regressions. The implementation will carry an
+old schedule for short-query regressions. Commits `3f4dbbd` and `1db2fbb` carry an
 explicit portable ownership requirement through single and partitioned
 compilation, preserve that requirement during bucket specialization, and emit
 CUDA register policy from the selected schedule. Dense current K/V remains a
@@ -24,6 +24,16 @@ build rejects that unsigned tautology. Bounds are now partially evaluated at
 source emission (omit a zero lower bound and a full-domain upper bound), with
 coverage for 128/256/512 workers. The failed activation-r1 output is preserved;
 the corrected complete runtime is rebuilt in a new directory.
+
+The full activation then exposed stale runtime prefill geometry checks: the
+execution layer still required 256 workers for single/wide/partitioned prefill,
+while query-owned schedules legitimately emit 64 or 128. The worker reported
+`Invalid(ResourceState)` and closed its startup channel; the outer CLI masked
+that preparation failure with `InheritedDrainBinding`. Runtime binding now
+retains the checked AOT worker count and still requires matching partial/merge
+geometry. A regression reproduces the old rejection and covers all prefill
+slots at 64/128/256 workers plus a mismatched merge rejection. No diagnostic
+logging is added to the production request path.
 
 ## Ordered work
 
@@ -55,7 +65,7 @@ The previous C2 output disagreement is an unresolved correctness observation;
 performance does not discharge it. A twofold speedup over vLLM is a research
 target, not an established consequence of these changes.
 
-## Progress
+## Initial mechanism results (before full-path activation)
 
 The five compiler mechanisms are implemented. This is **not** a claim that
 every production bucket now selects the new kernel, or that the half-vLLM
@@ -111,8 +121,9 @@ Matched-register-cap controls are important. At cap 128, schedule 318 reduces
 
 The new register path smooths the 128→129 discontinuity (371.59→375.02 µs),
 but it does so partly by being slower at 128. That is not a solved performance
-problem. Keep the old schedule for that bucket until a measured replacement
-wins. Dense-current reads likewise do not automatically beat the paged cache.
+problem. The later full-path activation explicitly accepts this trade-off;
+short buckets no longer retain the old prefill ownership solely for speed.
+Dense-current reads likewise do not automatically beat the paged cache.
 
 ### Selected-kernel counters
 

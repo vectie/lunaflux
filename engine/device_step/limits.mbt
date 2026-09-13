@@ -44,7 +44,7 @@ pub fn DeviceStepLimits::new(
     max_pages > INT32_MAX / INT32_BYTES {
     raise InvalidLimit(ByteCapacity)
   }
-  { max_rows, max_tokens, max_pages, max_sequence_tokens, max_token_id }
+  { max_rows, max_tokens, max_pages, max_sequence_tokens, max_token_id, }
 }
 
 ///|

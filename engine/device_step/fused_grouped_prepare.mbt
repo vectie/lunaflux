@@ -8,19 +8,19 @@ fn prepare_fused_residual_resources(
   let loaded = context.load_module(span.approved_module_bytes()) catch {
     error => raise ExecutorDevice(Module, error)
   }
-  resources.modules.push({ resource: loaded, open: true })
+  resources.modules.push({ resource: loaded, open: true, })
   let function = loaded.load_function(
     @utf8.encode(span.approved_function_symbol()),
   ) catch {
     error => raise ExecutorDevice(Function, error)
   }
   let function_index = resources.functions.length()
-  resources.functions.push({ resource: function, module_index, open: true })
+  resources.functions.push({ resource: function, module_index, open: true, })
   if span.uses_qualification_canary() {
     let canary = context.allocate(4L) catch {
       error => raise ExecutorDevice(FusedDispatchCanary, error)
     }
-    resources.fused_dispatch_canary = Some({ resource: canary, open: true })
+    resources.fused_dispatch_canary = Some({ resource: canary, open: true, })
   }
   function_index
 }

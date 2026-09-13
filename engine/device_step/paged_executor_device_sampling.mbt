@@ -130,7 +130,7 @@ fn allocate_paged_sampling_resource(
     }
     raise InvalidExecutor(AllocationSize)
   }
-  { resource: allocation, open: true }
+  { resource: allocation, open: true, }
 }
 
 ///|
@@ -268,7 +268,7 @@ fn prepare_paged_cuda_device_sampling_step(
   ) catch {
     _ => raise InvalidExecutor(SamplingArtifact)
   }
-  { operation_id: boundary.producer(), function_index, dimensions, arguments }
+  { operation_id: boundary.producer(), function_index, dimensions, arguments, }
 }
 
 ///|

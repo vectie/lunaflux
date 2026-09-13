@@ -9,12 +9,12 @@ fn prepare_composite_function(
   let loaded = context.load_module(module_bytes) catch {
     error => raise ExecutorDevice(Module, error)
   }
-  resources.modules.push({ resource: loaded, open: true })
+  resources.modules.push({ resource: loaded, open: true, })
   let function = loaded.load_function(@utf8.encode(symbol)) catch {
     error => raise ExecutorDevice(Function, error)
   }
   let function_index = resources.functions.length()
-  resources.functions.push({ resource: function, module_index, open: true })
+  resources.functions.push({ resource: function, module_index, open: true, })
   function_index
 }
 

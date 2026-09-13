@@ -80,6 +80,8 @@ fn qwen_fused_test_runtime(
   deep_partitioned_prefill? : Bool = false,
   partitioned_query_tile_rows? : Int = 32,
   merge_query_tile_rows? : Int = 32,
+  prefill_threads? : Int = 256,
+  merge_threads? : Int = -1,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -161,7 +163,7 @@ fn qwen_fused_test_runtime(
           },
           grid_y=16,
           grid_z=1,
-          block_x=if phase_specific_attention { 256 } else { 128 },
+          block_x=if phase_specific_attention { prefill_threads } else { 128 },
           block_y=1,
           block_z=1,
           shared_memory_bytes=if phase_specific_attention { 31952 } else { 0 },
@@ -218,7 +220,7 @@ fn qwen_fused_test_runtime(
             16,
           grid_y=16,
           grid_z=1,
-          block_x=256,
+          block_x=prefill_threads,
           block_y=1,
           block_z=1,
           shared_memory_bytes=if wide_query_prefill_alias_selected {
@@ -260,7 +262,7 @@ fn qwen_fused_test_runtime(
           grid_x=prefill_grid,
           grid_y=16,
           grid_z=2,
-          block_x=256,
+          block_x=prefill_threads,
           block_y=1,
           block_z=1,
           shared_memory_bytes=31952,
@@ -279,7 +281,11 @@ fn qwen_fused_test_runtime(
           grid_x=prefill_grid,
           grid_y=16,
           grid_z=1,
-          block_x=256,
+          block_x=if merge_threads > 0 {
+            merge_threads
+          } else {
+            prefill_threads
+          },
           block_y=1,
           block_z=1,
           shared_memory_bytes=0,
@@ -312,7 +318,7 @@ fn qwen_fused_test_runtime(
           grid_x=prefill_grid,
           grid_y=16,
           grid_z=8,
-          block_x=256,
+          block_x=prefill_threads,
           block_y=1,
           block_z=1,
           shared_memory_bytes=31952,
@@ -331,7 +337,11 @@ fn qwen_fused_test_runtime(
           grid_x=prefill_grid,
           grid_y=16,
           grid_z=1,
-          block_x=256,
+          block_x=if merge_threads > 0 {
+            merge_threads
+          } else {
+            prefill_threads
+          },
           block_y=1,
           block_z=1,
           shared_memory_bytes=0,

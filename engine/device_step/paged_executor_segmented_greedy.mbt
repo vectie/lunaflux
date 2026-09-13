@@ -64,5 +64,5 @@ fn prepare_paged_segmented_greedy_merge(
   ) catch {
     _ => raise InvalidExecutor(LaunchDimensions)
   }
-  { operation_id, function_index, dimensions, arguments }
+  { operation_id, function_index, dimensions, arguments, }
 }

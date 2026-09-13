@@ -1,0 +1,52 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+async fn run(root : String, tag : String, exe : String, args : Array[String]) -> Unit {
+  @fs.write_file(root + "/" + tag + ".command.json", Json([exe]+args).stringify(), create_mode=CreateNew)
+  let (code,out,err) = @process.collect_output(exe,args,
+    extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+  @fs.write_file(root + "/" + tag + ".stdout", out, create_mode=CreateNew)
+  @fs.write_file(root + "/" + tag + ".stderr", err, create_mode=CreateNew)
+  @fs.write_file(root + "/" + tag + ".exit", code.to_string(), create_mode=CreateNew)
+  guard code == 0 else { fail(tag + ": " + out.text() + err.text()) }
+  println(tag + " passed")
+}
+
+async fn main {
+  guard @env.args() is [_, campaign, baseline] else { fail("ACTIVATION_ROOT BASELINE_CAMPAIGN") }
+  let root=campaign + "/selected-checks"
+  @fs.mkdir(root)
+  let (_,apps,_) = @process.collect_output("nvidia-smi",["-i","GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","--query-compute-apps=pid","--format=csv,noheader"])
+  assert_true(apps.text().trim().is_empty())
+  run(root,"identity","nvidia-smi",["--query-gpu=uuid,pci.bus_id,name","--format=csv"])
+  let source=campaign + "/source/benchmarks/gpu_pipeline"
+  let probe=@fs.read_file(source+"/attention_followup.cu").text()
+    .replace(old="struct Kernel {",new="#include \"current_view_fixture.h\"\nstruct Kernel {")
+    .replace(old="counts.ints({rows,0,rows,tokens,int(indices.size())});",new="for(int& page:indices) page=(page*7919+17)%8192;\n initialize_current_view(input,keys,values,pos,off,pages,indices);\n counts.ints({rows,0,rows,tokens,int(indices.size())});")
+  @fs.write_file(root+"/probe.cu",probe,create_mode=CreateNew)
+  for name in ["attention_referee.h","current_view_fixture.h"] {
+    @fs.write_file(root+"/"+name,@fs.read_file(source+"/"+name),create_mode=CreateNew)
+  }
+  run(root,"build","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false",root+"/probe.cu","-lcuda","-o",root+"/probe"])
+  let old=baseline+"/runtime-final-r2/fused/prefill.cubin"
+  let new=campaign+"/runtime-final-r2/fused/prefill.cubin"
+  run(root,"artifacts","sha256sum",[old,new,root+"/probe"])
+  let fixed=["attention",old,new,"158","16","49152","158","16","49168"]
+  for q in [1,16,32,127,128,129,512,1528,2048] {
+    for rows in [1,8] {
+      if q<rows {continue}
+      for past in [0,4096] {
+        run(root,"q\{q}-r\{rows}-h\{past}",root+"/probe",fixed+["0",q.to_string(),rows.to_string(),"lunaflux_attention_prefill_tile_compiler_v1",past.to_string(),"128"])
+      }
+    }
+  }
+  for check in ["memcheck","racecheck","synccheck"] {
+    run(root,check,"/usr/local/cuda-13.1/bin/compute-sanitizer",["--tool",check,"--error-exitcode","9",root+"/probe"]+fixed+["2","129","8","lunaflux_attention_prefill_tile_compiler_v1","4097","128"])
+  }
+  @fs.write_file(root+"/RESULT.txt","outcome=passed\nselected_exported_module=true\npaired_cases=34\nindependent_sampled_scalar_reference=true\npersistent_kv_unchanged=true\nsanitisers=memcheck,racecheck,synccheck\n",create_mode=CreateNew)
+}

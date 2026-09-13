@@ -280,8 +280,8 @@ fn paged_decode_split_loaded_module(
   let module_ = context.load_module(binding.module_bytes()) catch {
     error => raise ExecutorDevice(Module, error)
   }
-  resources.modules.push({ resource: module_, open: true })
-  loaded.push({ digest, module_index })
+  resources.modules.push({ resource: module_, open: true, })
+  loaded.push({ digest, module_index, })
   module_index
 }
 
@@ -304,8 +304,8 @@ fn paged_decode_split_loaded_function(
     error => raise ExecutorDevice(Function, error)
   }
   let function_index = resources.functions.length()
-  resources.functions.push({ resource: function, module_index, open: true })
-  loaded.push({ module_index, symbol, function_index })
+  resources.functions.push({ resource: function, module_index, open: true, })
+  loaded.push({ module_index, symbol, function_index, })
   function_index
 }
 
@@ -498,7 +498,7 @@ fn prepare_paged_decode_split_steps(
   let workspace = context.allocate(workspace_bytes) catch {
     error => raise ExecutorDevice(DecodeSplitWorkspace, error)
   }
-  resources.decode_split_workspace = Some({ resource: workspace, open: true })
+  resources.decode_split_workspace = Some({ resource: workspace, open: true, })
   if workspace.byte_count() != workspace_bytes {
     raise InvalidExecutor(AllocationSize)
   }

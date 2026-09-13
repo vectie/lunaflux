@@ -217,12 +217,12 @@ pub fn prepare_fp8_paged_graph_executor_v3(
         ExecutorDevice(WeightLease, error),
       )
   }
-  resources.weight_lease = Some({ resource: lease, open: true })
+  resources.weight_lease = Some({ resource: lease, open: true, })
   let stream = context.create_stream() catch {
     error =>
       return paged_construction_failed(resources, ExecutorDevice(Stream, error))
   }
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   let activation = context.allocate(
     blueprint.activation_workspace_arena_bytes(),
   ) catch {
@@ -232,7 +232,7 @@ pub fn prepare_fp8_paged_graph_executor_v3(
         ExecutorDevice(ActivationWorkspaceArena, error),
       )
   }
-  resources.activation_workspace = Some({ resource: activation, open: true })
+  resources.activation_workspace = Some({ resource: activation, open: true, })
   let kv = context.allocate(blueprint.layout().arena_bytes()) catch {
     error =>
       return paged_construction_failed(
@@ -240,7 +240,7 @@ pub fn prepare_fp8_paged_graph_executor_v3(
         ExecutorDevice(PersistentKvArena, error),
       )
   }
-  resources.persistent_kv = Some({ resource: kv, open: true })
+  resources.persistent_kv = Some({ resource: kv, open: true, })
   if activation.byte_count() != blueprint.activation_workspace_arena_bytes() ||
     kv.byte_count() != blueprint.layout().arena_bytes() {
     return paged_construction_failed(resources, InvalidExecutor(AllocationSize))

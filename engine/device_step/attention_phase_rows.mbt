@@ -14,7 +14,7 @@ fn attention_phase_rows(
   decode_rows : Int,
   token_count : Int,
 ) -> PagedAttentionPhaseRows {
-  { prefill_rows, prefill_tokens: token_count - decode_rows }
+  { prefill_rows, prefill_tokens: token_count - decode_rows, }
 }
 
 ///|
