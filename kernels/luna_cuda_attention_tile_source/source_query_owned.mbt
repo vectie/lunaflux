@@ -14,17 +14,19 @@ fn emit_cuda_query_owned_attention_source(
   let (row_width, _, _) = abi.layout()
   let (max_rows, max_tokens, max_entries) = abi.limits()
   let partitions = lowering.key_value_partitions()
+  let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad
+  let stages = if asynchronous { 2 } else { 1 }
   if !valid_cuda_symbol(symbol) ||
     maximum_source_bytes <= 0 ||
     maximum_source_bytes > 16777216 ||
     !lowering.query_owned_fragments() ||
     lowering.compute() != CudaMatrixQkPvMultiplyAccumulate ||
-    lowering.copy() != CudaCooperativeSharedLoad ||
-    lowering.pipeline() != (1, 16) ||
+    (!asynchronous && lowering.copy() != CudaCooperativeSharedLoad) ||
+    lowering.pipeline() != (stages, 16) ||
     head != d ||
     threads != q / 16 * 32 ||
     partitions <= 0 ||
-    shared < (q + 2 * k).to_int64() * d.to_int64() * 2L + 16L {
+    shared < (q + 2 * k * stages).to_int64() * d.to_int64() * 2L + 16L {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let layout = cuda_attention_operand_layout(q, k, d)
@@ -56,6 +58,7 @@ fn emit_cuda_query_owned_attention_source(
     $|// query-owner-v1: ordered QK/PV, BF16 probabilities, four-owner softmax.
     $|\{layout}
     $|\{cuda_attention_matrix_fragments(shared_scores=false)}
+    $|\{cuda_query_owned_score_fold()}
     $|extern "C" __global__ void \{symbol}(
     $|    const int *counts, const int *positions, const int *offsets,
     $|    const int *lengths, const int *page_offsets, const int *page_indices,
@@ -69,8 +72,8 @@ fn emit_cuda_query_owned_attention_source(
     $|  extern __shared__ __align__(16) unsigned char arena[];
     $|  auto *qbuf = reinterpret_cast<__nv_bfloat16 *>(arena);
     $|  auto *kbuf = qbuf + LF_QUERY_TILE * LF_HEAD_DIMENSION;
-    $|  auto *vbuf = kbuf + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|  auto *control = reinterpret_cast<int *>(vbuf + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
+    $|  auto *vbuf = kbuf + \{stages} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|  auto *control = reinterpret_cast<int *>(vbuf + \{stages} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
     $|  for (int tile = blockIdx.x; ; tile += gridDim.x) {
     $|    int row = -1, token_base = 0, prefix = 0;
     $|    for (int r = 0; r < rows; ++r) {
@@ -112,21 +115,16 @@ fn emit_cuda_query_owned_attention_source(
     $|    const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
     $|    float maximum[2] = {-CUDART_INF_F,-CUDART_INF_F}, denominator[2] = {};
     $|    LfMatrixAccumulator out[LF_HEAD_DIMENSION/16] = {};
+    $|\{cuda_query_owned_stage(abi, lowering.reads_dense_current_key_value(), asynchronous)}
+    $|    int slot=0;
+    $|    if (key_begin<key_end) stage_query_tile(key_begin,slot);
     $|    for (int kb=key_begin; kb<key_end; kb+=LF_KEY_VALUE_TILE) {
-    $|      for (int vector=thread; vector<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8; vector+=LF_BLOCK_THREADS) {
-    $|        const int r = vector*8/LF_HEAD_DIMENSION, c = vector*8%LF_HEAD_DIMENSION;
-    $|        const int position = kb+r;
-    $|\{cuda_prefill_key_value_view_address(abi, true, dense=lowering.reads_dense_current_key_value())}
-    $|        uint4 pk=make_uint4(0,0,0,0), pv=pk;
-    $|        if (kv_source_valid) {
-    $|          pk=*reinterpret_cast<const uint4 *>(kv_key_source);
-    $|          pv=*reinterpret_cast<const uint4 *>(kv_value_source);
-    $|        }
-    $|        *reinterpret_cast<uint4 *>(kbuf+lf_operand_index(r,c,LF_HEAD_DIMENSION))=pk;
-    $|        *reinterpret_cast<uint4 *>(vbuf+lf_operand_index(r,c,LF_HEAD_DIMENSION))=pv;
-    $|      }
+    $|      \{if asynchronous { "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");" } else { "" }}
     $|      __syncthreads();
     $|      if (!control[0]) return;
+    $|      const auto *current_k=kbuf+slot*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
+    $|      const auto *current_v=vbuf+slot*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
+    $|      \{if asynchronous { "if (kb+LF_KEY_VALUE_TILE<key_end) stage_query_tile(kb+LF_KEY_VALUE_TILE,slot^1);" } else { "" }}
     $|      if (qr<active) {
     $|        LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16] = {};
     $|        #pragma unroll
@@ -134,21 +132,14 @@ fn emit_cuda_query_owned_attention_source(
     $|          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);
     $|          #pragma unroll
     $|          for (int key=0; key<LF_KEY_VALUE_TILE/16; ++key) {
-    $|            const auto b=lf_matrix_load(kbuf,key*16,reduction,LF_HEAD_DIMENSION);
+    $|            const auto b=lf_matrix_load(current_k,key*16,reduction,LF_HEAD_DIMENSION);
     $|            lf_matrix_mma(score[key],a,b);
     $|          }
     $|        }
     $|        float next[2]={-CUDART_INF_F,-CUDART_INF_F};
-    $|        #pragma unroll
-    $|        for (int key=0; key<LF_KEY_VALUE_TILE/16; ++key) {
-    $|          #pragma unroll
-    $|          for (int item=0; item<8; ++item) {
-    $|            const int r=item%4/2, position=kb+key*16+lf_matrix_column(item,lane);
-    $|            const float x=position<key_end && position<=(r==0?p0:p1) ? score[key].x[item]*scale : -CUDART_INF_F;
-    $|            score[key].x[item]=x;
-    $|            next[r]=fmaxf(next[r],x);
-    $|          }
-    $|        }
+    $|        const bool interior=key_end-kb>=LF_KEY_VALUE_TILE && min(p0,p1)-kb>=LF_KEY_VALUE_TILE-1;
+    $|        if (interior) lf_query_score_fold<false>(score,next,scale,kb,key_end,p0,p1,lane);
+    $|        else lf_query_score_fold<true>(score,next,scale,kb,key_end,p0,p1,lane);
     $|        float alpha[2], sum[2]={};
     $|        #pragma unroll
     $|        for (int r=0;r<2;++r) {
@@ -181,7 +172,7 @@ fn emit_cuda_query_owned_attention_source(
     $|          }
     $|          #pragma unroll
     $|          for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {
-    $|            const auto value=lf_matrix_load(vbuf,key*16,column*16,LF_HEAD_DIMENSION,true);
+    $|            const auto value=lf_matrix_load(current_v,key*16,column*16,LF_HEAD_DIMENSION,true);
     $|            lf_matrix_mma(out[column],probability,value,true);
     $|          }
     $|        }
@@ -193,6 +184,7 @@ fn emit_cuda_query_owned_attention_source(
     $|        }
     $|      }
     $|      __syncthreads();
+    $|      \{if asynchronous { "slot^=1;" } else { "if (kb+LF_KEY_VALUE_TILE<key_end) stage_query_tile(kb+LF_KEY_VALUE_TILE,slot);" }}
     $|    }
     $|    if (qr<active) {
     $|      #pragma unroll

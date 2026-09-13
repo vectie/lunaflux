@@ -30,9 +30,9 @@ test "required query ownership excludes exchanged schedules across query buckets
   for queries in [1, 16, 32, 64, 128, 129, 1528, 4096] {
     let bucket = problem.with_query_rows(queries)
     let candidates = generate_attention_tile_candidates(bucket, capabilities)
-    assert_eq(candidates.length(), 2)
+    assert_eq(candidates.length(), 4)
     assert_true(
-      candidates.all(c => c.stable_id() == 318 || c.stable_id() == 319),
+      candidates.all(c => c.stable_id() >= 318 && c.stable_id() <= 321),
     )
     assert_true(bucket.allows_alternative_softmax_reduction())
     assert_eq(bucket.key_value_read_view(), DenseCurrentAndPagedHistory)

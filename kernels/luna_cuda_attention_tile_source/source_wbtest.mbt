@@ -20,7 +20,8 @@ fn source_test_lowering(
     query_rows=128,
     context_tokens=4096,
     causal=true,
-    allow_alternative_softmax_reduction=candidate_id is Some(318 | 319),
+    allow_alternative_softmax_reduction=candidate_id
+      is Some(318 | 319 | 320 | 321),
     key_value_read_view=if dense_current {
       DenseCurrentAndPagedHistory
     } else {
