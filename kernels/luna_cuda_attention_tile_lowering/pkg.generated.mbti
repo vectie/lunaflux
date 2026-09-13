@@ -38,6 +38,7 @@ pub struct CudaAttentionTileLowering {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaAttentionTileLowering::canonical_bytes(Self) -> Bytes
+pub fn CudaAttentionTileLowering::compiler_register_ceiling(Self, Int) -> Int
 pub fn CudaAttentionTileLowering::compute(Self) -> CudaAttentionComputePrimitive
 pub fn CudaAttentionTileLowering::copy(Self) -> CudaAttentionCopyPrimitive
 pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest

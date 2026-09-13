@@ -1,5 +1,5 @@
 ///|
-test "large query alias respects selected compiler schedule instead of largest tile" {
+test "all exported prefill aliases select query ownership and current history reads" {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
     kv_heads=8,
@@ -17,6 +17,9 @@ test "large query alias respects selected compiler schedule instead of largest t
         query_rows=128,
         context_tokens=4096,
         causal=true,
+        allow_alternative_softmax_reduction=true,
+        key_value_read_view=DenseCurrentAndPagedHistory,
+        required_fragment_ownership=Some(QueryOwnedFragments),
       ),
       capabilities=@luna_attention_strategy.AttentionCompilerCapabilities::new(
         subgroup_width=32,
@@ -57,14 +60,17 @@ test "large query alias respects selected compiler schedule instead of largest t
     [],
   )
   let selected = frontier.selected()
+  assert_eq(selected.functional().plan().candidate().stable_id(), 318)
+  assert_true(selected.lowering().query_owned_fragments())
+  assert_true(selected.lowering().reads_dense_current_key_value())
+  assert_eq(selected.lowering().launch(), (128, 16, 128, 49168L))
+  assert_eq(selected.lowering().compiler_register_ceiling(128), 255)
   assert_true(
-    frontier
-    .variants()
-    .any(variant => {
-      variant.functional().plan().candidate().tile().dimensions().0 >
-      selected.functional().plan().candidate().tile().dimensions().0
-    }),
+    frontier.variants().all(v => v.lowering().query_owned_fragments()),
   )
+  let source = @utf8.decode(selected.source().bytes())
+  assert_false(source.contains("lf_matrix_store_float"))
+  assert_false(source.contains("lf_float_index"))
   guard qwen_wide_query_prefill_variant(frontier) is Some(alias_) else {
     fail("missing profile-valid alias")
   }

@@ -1,13 +1,19 @@
 ///|
 /// CUDA-only register ownership for an ordered BF16 matrix fold. Both shared
 /// layouts are permutations; no extra storage or numerical reassociation.
-fn cuda_attention_matrix_fragments() -> String {
-  (
-    #|static __device__ __forceinline__ int lf_float_index(int row, int column, int columns) {
-    #|  const unsigned r = (unsigned)row & 7, c = (unsigned)column & 15;
-    #|  const unsigned bank = (r * 4) ^ ((r & 1) * 8) ^ (c >> 1) ^ ((c & 1) * 16) ^ ((((unsigned)column >> 4) & 1) * 8);
-    #|  return (((unsigned)row >> 3) * (columns / 16) + ((unsigned)column >> 4)) * 128 + ((c >> 3) + (c & 1) * 2) * 32 + bank;
-    #|}
+fn cuda_attention_matrix_fragments(shared_scores? : Bool = true) -> String {
+  let storage_index = if shared_scores {
+    (
+      #|static __device__ __forceinline__ int lf_float_index(int row, int column, int columns) {
+      #|  const unsigned r = (unsigned)row & 7, c = (unsigned)column & 15;
+      #|  const unsigned bank = (r * 4) ^ ((r & 1) * 8) ^ (c >> 1) ^ ((c & 1) * 16) ^ ((((unsigned)column >> 4) & 1) * 8);
+      #|  return (((unsigned)row >> 3) * (columns / 16) + ((unsigned)column >> 4)) * 128 + ((c >> 3) + (c & 1) * 2) * 32 + bank;
+      #|}
+    )
+  } else {
+    ""
+  }
+  let fragments =
     #|struct LfMatrixOperand { unsigned x[4]; };
     #|struct LfMatrixAccumulator { float x[8]; static constexpr int num_elements = 8; };
     #|static __device__ __forceinline__ int lf_matrix_row(int item, int lane) { return lane / 4 + (item % 4 / 2) * 8; }
@@ -31,11 +37,17 @@ fn cuda_attention_matrix_fragments() -> String {
     #|    asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]),"+f"(d[1]),"+f"(d[2]),"+f"(d[3]) : "r"(a.x[0]),"r"(a.x[1]),"r"(a.x[2]),"r"(a.x[3]),"r"(b0),"r"(b1));
     #|  }
     #|}
-    #|static __device__ __forceinline__ void lf_matrix_store_float(float *p, int row, int column, int columns, const LfMatrixAccumulator &c) {
-    #|  #pragma unroll
-    #|  for (int item = 0; item < 8; ++item) p[lf_float_index(row + lf_matrix_row(item, threadIdx.x % 32), column + lf_matrix_column(item, threadIdx.x % 32), columns)] = c.x[item];
-    #|}
-  )
+  let store = if shared_scores {
+    (
+      #|static __device__ __forceinline__ void lf_matrix_store_float(float *p, int row, int column, int columns, const LfMatrixAccumulator &c) {
+      #|  #pragma unroll
+      #|  for (int item = 0; item < 8; ++item) p[lf_float_index(row + lf_matrix_row(item, threadIdx.x % 32), column + lf_matrix_column(item, threadIdx.x % 32), columns)] = c.x[item];
+      #|}
+    )
+  } else {
+    ""
+  }
+  storage_index + "\n" + fragments + "\n" + store
 }
 
 ///|

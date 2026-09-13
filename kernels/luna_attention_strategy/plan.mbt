@@ -12,7 +12,7 @@ pub fn AttentionShape::new(
     tokens_per_page <= 0 {
     raise InvalidAttentionStrategy(Shape)
   }
-  { query_heads, kv_heads, head_dimension, tokens_per_page }
+  { query_heads, kv_heads, head_dimension, tokens_per_page, }
 }
 
 ///|
@@ -73,7 +73,7 @@ pub fn plan_attention_dispatch(
     query_tile: 1,
     key_value_splits: splits,
   }
-  { shape, prefill, decode }
+  { shape, prefill, decode, }
 }
 
 ///|
@@ -146,7 +146,7 @@ pub fn plan_decode_attention_workspace(
       (split_index > 0 && begin_token % shape.tokens_per_page != 0) {
       raise InvalidAttentionStrategy(Partition)
     }
-    partitions.push({ split_index, begin_token, end_token })
+    partitions.push({ split_index, begin_token, end_token, })
   }
   let partial_count = attention_checked_product(
     attention_checked_product(

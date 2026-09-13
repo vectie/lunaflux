@@ -1,0 +1,44 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+}
+
+// Reuse the recorded full-runtime exporter/measurement workflow, not its
+// artifacts. All generated helpers and outputs live in a new campaign root.
+fn replace(source : String, old : String, new : String) -> String raise {
+  let pieces = source.split(old).to_array()
+  guard pieces.length() > 1 else { fail("recorded workflow seam changed: " + old) }
+  pieces.map(p => p.to_owned()).join(new)
+}
+
+async fn main {
+  guard @env.args() is [_, template, root, commit, archive_sha] else {
+    fail("TEMPLATE_CAMPAIGN NEW_CAMPAIGN COMMIT ARCHIVE_SHA")
+  }
+  let build = replace(@fs.read_file(template + "/retest-build.mbtx").text(), template, root)
+  let build = replace(build, "82ea813121fcb12af97b57cd554501ee73c86d5df58f8a501ba941d5a03120e3", archive_sha)
+  let build = replace(build, "commit=4896771", "commit=" + commit)
+  @fs.write_file(root + "/build.mbtx", build, create_mode=CreateNew)
+  let runtime = replace(@fs.read_file(template + "/retest-runtime-current.mbtx").text(), template, root)
+  let runtime = replace(runtime, "82ea813121fcb12af97b57cd554501ee73c86d5df58f8a501ba941d5a03120e3", archive_sha)
+  let runtime = replace(runtime, "commit=4896771", "commit=" + commit)
+  let runtime = replace(runtime, "\"4896771\"", "\"" + commit + "\"")
+  @fs.write_file(root + "/runtime.mbtx", runtime, create_mode=CreateNew)
+  let client = @fs.read_file(template + "/current/client.mbtx").text()
+  let client = replace(client,
+    "[(59,256),(128,128),(512,64),(1528,32)]",
+    "[(512,64),(1528,32),(3072,32),(4096,64)]")
+  let client = replace(client, "let concurrencies=[1,2,4,8,16]", "let concurrencies=[1,8,16]")
+  let client = replace(client,
+    "guard @json.parse(@fs.read_file(\"/tmp/lunaflux-vector-requests-4a98f7d-20260904/request-i\\{input}-o\\{output}.json\").text()) is {\"input_token_ids\":ids,..} else {fail(\"ids\")}",
+    "guard @json.parse(@fs.read_file(\"/tmp/lunaflux-vector-requests-4a98f7d-20260904/request-i1528-o32.json\").text()) is {\"input_token_ids\":Array(pool),..} && pool.length()>0 else {fail(\"ids\")}\n      let ids=Json::array(Array::makei(input,i=>pool[i%pool.length()]))")
+  for name in ["current", "control"] {
+    let directory = root + "/" + name
+    @fs.mkdir(directory)
+    @fs.write_file(directory + "/client.mbtx", client, create_mode=CreateNew)
+    @fs.write_file(directory + "/runner.mbtx", @fs.read_file(template + "/current/runner.mbtx"), create_mode=CreateNew)
+  }
+  @fs.write_file(root + "/WORKLOAD.txt", "input/output=512/64,1528/32,3072/32,4096/64\nconcurrency=1,8,16\ntrials=1 warmup + 5 measured\ninput=repeat/truncate identical committed 1528-token ID sequence\nproduction_deployment=false\n", create_mode=CreateNew)
+  println("prepared new full-runtime workflow at " + root)
+}

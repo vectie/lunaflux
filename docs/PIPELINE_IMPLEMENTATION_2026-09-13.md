@@ -4,6 +4,19 @@ Scope: the five measured follow-ups in
 [GPU_PIPELINE_MEASUREMENTS_2026-09-13.md](GPU_PIPELINE_MEASUREMENTS_2026-09-13.md).
 The target is less total request time, not an instruction-counter target.
 
+## Full-path activation follow-up
+
+The user has approved enabling the new ownership/read-view path across the
+exported prefill family, prioritizing long inputs rather than retaining the
+old schedule for short-query regressions. The implementation will carry an
+explicit portable ownership requirement through single and partitioned
+compilation, preserve that requirement during bucket specialization, and emit
+CUDA register policy from the selected schedule. Dense current K/V remains a
+read optimization only: persistent cache writes and history reads are retained.
+Validation is an isolated complete Qwen runtime comparison on long input/output
+vectors, plus the affected compiler tests and generated-kernel sanitizers.
+This authorizes benchmark runtime preparation, not a production deployment.
+
 ## Ordered work
 
 1. Partially evaluate concatenated GEMM operand iteration into disjoint typed

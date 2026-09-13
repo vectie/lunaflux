@@ -62,10 +62,12 @@ pub fn AttentionCompileProblem::batch_rows(Self) -> Int
 pub fn AttentionCompileProblem::dimensions(Self) -> (Int, Int)
 pub fn AttentionCompileProblem::is_causal(Self) -> Bool
 pub fn AttentionCompileProblem::key_value_read_view(Self) -> AttentionKeyValueReadView
-pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool, allow_alternative_softmax_reduction? : Bool, key_value_read_view? : AttentionKeyValueReadView) -> Self raise AttentionStrategyError
+pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool, allow_alternative_softmax_reduction? : Bool, key_value_read_view? : AttentionKeyValueReadView, required_fragment_ownership? : AttentionFragmentOwnership?) -> Self raise AttentionStrategyError
 pub fn AttentionCompileProblem::numeric_type(Self) -> AttentionNumericType
 pub fn AttentionCompileProblem::phase(Self) -> AttentionExecutionPhase
+pub fn AttentionCompileProblem::required_fragment_ownership(Self) -> AttentionFragmentOwnership?
 pub fn AttentionCompileProblem::shape(Self) -> AttentionShape
+pub fn AttentionCompileProblem::with_query_rows(Self, Int) -> Self raise AttentionStrategyError
 
 pub struct AttentionCompilerCapabilities {
   // private fields

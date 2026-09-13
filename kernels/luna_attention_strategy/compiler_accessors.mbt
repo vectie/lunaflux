@@ -103,6 +103,27 @@ pub fn AttentionCompileProblem::key_value_read_view(
 }
 
 ///|
+pub fn AttentionCompileProblem::required_fragment_ownership(
+  self : AttentionCompileProblem,
+) -> AttentionFragmentOwnership? {
+  self.required_fragment_ownership
+}
+
+///|
+/// Specialize query parallelism without losing numerical or memory semantics.
+pub fn AttentionCompileProblem::with_query_rows(
+  self : AttentionCompileProblem,
+  query_rows : Int,
+) -> AttentionCompileProblem raise AttentionStrategyError {
+  if query_rows <= 0 ||
+    query_rows > 1048576 ||
+    (self.phase == Decode && query_rows != 1) {
+    raise InvalidAttentionStrategy(Problem)
+  }
+  { ..self, query_rows, }
+}
+
+///|
 pub fn AttentionTileShape::dimensions(
   self : AttentionTileShape,
 ) -> (Int, Int, Int) {

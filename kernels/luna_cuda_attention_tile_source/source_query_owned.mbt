@@ -55,7 +55,7 @@ fn emit_cuda_query_owned_attention_source(
     $|#define LF_PARTIAL_STATE_COUNT \{states}ULL
     $|// query-owner-v1: ordered QK/PV, BF16 probabilities, four-owner softmax.
     $|\{layout}
-    $|\{cuda_attention_matrix_fragments()}
+    $|\{cuda_attention_matrix_fragments(shared_scores=false)}
     $|extern "C" __global__ void \{symbol}(
     $|    const int *counts, const int *positions, const int *offsets,
     $|    const int *lengths, const int *page_offsets, const int *page_indices,

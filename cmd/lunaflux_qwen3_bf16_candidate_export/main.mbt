@@ -160,19 +160,10 @@ fn qwen_partitioned_prefill_problem(
   maximum_problem : @luna_attention_strategy.AttentionCompileProblem,
   query_tile : Int,
 ) -> @luna_attention_strategy.AttentionCompileProblem raise Qwen3Bf16CandidateExportCliError {
-  let (_, context_tokens) = maximum_problem.dimensions()
   if maximum_problem.phase() != Prefill || query_tile <= 0 {
     raise QwenReadOnlyPreparation
   }
-  @luna_attention_strategy.AttentionCompileProblem::new(
-    shape=maximum_problem.shape(),
-    phase=maximum_problem.phase(),
-    numeric_type=maximum_problem.numeric_type(),
-    batch_rows=maximum_problem.batch_rows(),
-    query_rows=query_tile,
-    context_tokens~,
-    causal=maximum_problem.is_causal(),
-  ) catch {
+  maximum_problem.with_query_rows(query_tile) catch {
     _ => raise QwenReadOnlyPreparation
   }
 }
@@ -280,6 +271,9 @@ fn prepare_qwen_compiler_prefill(
     query_rows=maximum_query_tiles,
     context_tokens=plan.shape_constraints().max_sequence_tokens(),
     causal=true,
+    allow_alternative_softmax_reduction=true,
+    key_value_read_view=DenseCurrentAndPagedHistory,
+    required_fragment_ownership=Some(QueryOwnedFragments),
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
@@ -465,7 +459,7 @@ fn qwen_compiler_attention_recipe(
     "\nreassociate=" +
     compiler.reassociate().to_string() +
     "\nmax_registers=" +
-    compiler.max_registers().to_string() +
+    lowering.compiler_register_ceiling(compiler.max_registers()).to_string() +
     qwen_compiler_single_launch_record(grid_x, grid_y, block_x, shared) +
     "\nfunctional_sha256=" +
     compiled.functional().digest().as_hex() +
@@ -561,7 +555,7 @@ fn qwen_compiler_partitioned_attention_recipe(
     "\nreassociate=" +
     compiler.reassociate().to_string() +
     "\nmax_registers=" +
-    compiler.max_registers().to_string() +
+    lowering.compiler_register_ceiling(compiler.max_registers()).to_string() +
     qwen_compiler_partitioned_launch_record(
       grid_x,
       grid_y,

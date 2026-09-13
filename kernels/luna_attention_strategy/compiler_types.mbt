@@ -73,6 +73,7 @@ pub struct AttentionCompileProblem {
   priv causal : Bool
   priv allow_alternative_softmax_reduction : Bool
   priv key_value_read_view : AttentionKeyValueReadView
+  priv required_fragment_ownership : AttentionFragmentOwnership?
 } derive(Debug, Eq)
 
 ///|

@@ -74,6 +74,7 @@ pub fn AttentionCompileProblem::new(
   causal~ : Bool,
   allow_alternative_softmax_reduction? : Bool = false,
   key_value_read_view? : AttentionKeyValueReadView = PagedCacheOnly,
+  required_fragment_ownership? : AttentionFragmentOwnership? = None,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
   if phase == MixedCompatibility ||
     batch_rows <= 0 ||
@@ -82,7 +83,15 @@ pub fn AttentionCompileProblem::new(
     query_rows > 1048576 ||
     context_tokens <= 0 ||
     context_tokens > 1048576 ||
-    (phase == Decode && query_rows != 1) {
+    (phase == Decode && query_rows != 1) ||
+    (
+      required_fragment_ownership == Some(QueryOwnedFragments) &&
+      (
+        !allow_alternative_softmax_reduction ||
+        phase != Prefill ||
+        numeric_type != AttentionBFloat16
+      )
+    ) {
     raise InvalidAttentionStrategy(Problem)
   }
   {
@@ -95,6 +104,7 @@ pub fn AttentionCompileProblem::new(
     causal,
     allow_alternative_softmax_reduction,
     key_value_read_view,
+    required_fragment_ownership,
   }
 }
 

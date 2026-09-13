@@ -100,14 +100,18 @@ fn attention_candidate_compatible(
   let (_, _, head_dimension, _) = problem.shape.dimensions()
   let (query_rows, key_value_rows, head_columns) = candidate.tile.dimensions()
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
-  if attention_fragment_ownership(
-      candidate.compute,
-      query_rows~,
-      key_rows=key_value_rows,
-      head_columns~,
-      subgroups~,
-    ) ==
-    QueryOwnedFragments &&
+  let ownership = attention_fragment_ownership(
+    candidate.compute,
+    query_rows~,
+    key_rows=key_value_rows,
+    head_columns~,
+    subgroups~,
+  )
+  if problem.required_fragment_ownership is Some(required) &&
+    required != ownership {
+    return false
+  }
+  if ownership == QueryOwnedFragments &&
     (
       !problem.allow_alternative_softmax_reduction ||
       problem.numeric_type != AttentionBFloat16
@@ -207,7 +211,12 @@ pub fn generate_attention_tile_candidates(
   let (query_rows, context_tokens) = problem.dimensions()
   let candidates = attention_candidate_specs().filter_map(spec => {
     if spec.phase != problem.phase ||
-      query_rows < spec.minimum_query_rows ||
+      // Minimum rows are a profitability heuristic, not a tail-safety limit.
+      // An explicit ownership contract covers short masked tails as well.
+      (
+        query_rows < spec.minimum_query_rows &&
+        problem.required_fragment_ownership is None
+      ) ||
       context_tokens < spec.minimum_context_tokens {
       None
     } else {
