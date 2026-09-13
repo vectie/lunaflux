@@ -1,0 +1,32 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/json", "moonbitlang/core/env", "moonbitlang/core/string" }
+fn number(j : Json) -> Double raise { match j { Number(x, ..) => x; String(s) => @string.parse_double(s); _ => fail("number") } }
+fn field(j : Json, key : String) -> Json raise { guard j is Object(xs) else { fail("object") }; xs[key] }
+async fn main {
+ let root = @env.args()[1]
+ println("input,output,C,engine,tok_s,ttft_ms,unique_outputs,matching_current_pairs,total_requests")
+ for shape in [(59,256),(128,128),(512,64),(1528,32)] {
+  let (i,o) = shape
+  for c in [1,2,4,8,16] {
+   for engine in ["control","current"] {
+    let rates : Array[Double] = []
+    let ttfts : Array[Double] = []
+    let outputs : Map[String, Unit] = Map([])
+    let mut equal = 0
+    for t in 1..<6 {
+     let j = @json.parse(@fs.read_file(root + "/" + engine + "/lunaflux/i\{i}-o\{o}-c\{c}-t\{t}.json").text())
+     rates.push(number(field(j,"output_tokens_per_second")))
+     guard field(j,"requests") is Array(rows) else { fail("rows") }
+     let peer = @json.parse(@fs.read_file(root + "/current/lunaflux/i\{i}-o\{o}-c\{c}-t\{t}.json").text())
+     guard field(peer,"requests") is Array(peers) else { fail("peer rows") }
+     for ordinal, row in rows {
+      let ids = field(row,"token_ids")
+      outputs[ids.stringify()] = ()
+      if ids == field(peers[ordinal],"token_ids") { equal += 1 }
+      ttfts.push(number(field(row,"ttft_ms")))
+     }
+    }
+    println("\{i},\{o},\{c},\{engine},\{rates.fold(init=0.0,(a,b)=>a+b)/rates.length().to_double()},\{ttfts.fold(init=0.0,(a,b)=>a+b)/ttfts.length().to_double()},\{outputs.length()},\{equal},\{ttfts.length()}")
+   }
+  }
+ }
+}
