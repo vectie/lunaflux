@@ -17,6 +17,14 @@ Validation is an isolated complete Qwen runtime comparison on long input/output
 vectors, plus the affected compiler tests and generated-kernel sanitizers.
 This authorizes benchmark runtime preparation, not a production deployment.
 
+The first full-runtime activation build exposed a prior segmented-transfer
+lowering issue that the isolated timing compile did not reject: a partial
+worker interval emitted `threadIdx.x >= 0`. CUDA's warning-as-error release
+build rejects that unsigned tautology. Bounds are now partially evaluated at
+source emission (omit a zero lower bound and a full-domain upper bound), with
+coverage for 128/256/512 workers. The failed activation-r1 output is preserved;
+the corrected complete runtime is rebuilt in a new directory.
+
 ## Ordered work
 
 1. Partially evaluate concatenated GEMM operand iteration into disjoint typed

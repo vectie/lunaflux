@@ -396,7 +396,7 @@ fn projection_bind_qkv_widths(
     parameters.output_width.to_int64() {
     raise Mismatch(OperandSize)
   }
-  { ..parameters, query_width, intermediate_width: key_width }
+  { ..parameters, query_width, intermediate_width: key_width, }
 }
 
 ///|

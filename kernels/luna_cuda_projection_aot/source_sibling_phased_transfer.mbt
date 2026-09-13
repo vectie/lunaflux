@@ -31,8 +31,14 @@ fn projection_sibling_phased_transfer_source(
       segment.worker_end != threads
     addresses <+ "        {\n"
     if guard_workers {
-      addresses <+
-        "          if (threadIdx.x >= \{segment.worker_begin} && threadIdx.x < \{segment.worker_end}) {\n"
+      let predicate = if segment.worker_begin == 0 {
+        "threadIdx.x < \{segment.worker_end}"
+      } else if segment.worker_end == threads {
+        "threadIdx.x >= \{segment.worker_begin}"
+      } else {
+        "threadIdx.x >= \{segment.worker_begin} && threadIdx.x < \{segment.worker_end}"
+      }
+      addresses <+ "          if (\{predicate}) {\n"
     }
     addresses <+
       "          const int element = ((int)threadIdx.x + (\{segment.operand_vector_origin})) * 8;\n"

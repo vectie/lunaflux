@@ -16,7 +16,7 @@ fn projection_matrix_pipeline_source(
   let input_width = parameters.input_width
   let output_width = parameters.output_width
   let consumer_groups = compilation.schedule().output_tiles_per_workgroup()
-  let transport : CudaProjectionTransportLayout = { columns: width }
+  let transport : CudaProjectionTransportLayout = { columns: width, }
   // The row-preserving permutation is compact. Both producer and consumer
   // use that map; an unrelated padded-row allocation only wastes storage.
   let slot = (rows + columns) * width

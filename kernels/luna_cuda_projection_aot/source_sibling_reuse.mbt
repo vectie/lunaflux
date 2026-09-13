@@ -17,7 +17,7 @@ fn projection_sibling_reuse_source(
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
-  let layout : CudaProjectionTransportLayout = { columns: width }
+  let layout : CudaProjectionTransportLayout = { columns: width, }
   let slot = (rows + 2 * columns) * width
   let folds = reuse.rows_per_group()
   let consumers = reuse.consumer_groups()

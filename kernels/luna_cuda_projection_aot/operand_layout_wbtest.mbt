@@ -1,7 +1,7 @@
 ///|
 test "CUDA operand layout is a pure injective aligned physical interpretation" {
   for width in [32, 64, 128] {
-    let layout : CudaProjectionTransportLayout = { columns: width }
+    let layout : CudaProjectionTransportLayout = { columns: width, }
     let occupied = Array::make(width * 64, false)
     for row in 0..<64 {
       for column in 0..<width {

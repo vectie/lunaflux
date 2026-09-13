@@ -69,7 +69,7 @@ test "down fold lowers masked operands through shared transport layout" {
 ///|
 test "down producer maps cover logical operands exactly once without padding reads" {
   for width in [16, 32, 64, 128] {
-    let layout : CudaProjectionTransportLayout = { columns: width }
+    let layout : CudaProjectionTransportLayout = { columns: width, }
     let rows = 64
     for threads in [32, 64, 128, 256, 512] {
       let logical = FixedArray::make(rows * width, 0)

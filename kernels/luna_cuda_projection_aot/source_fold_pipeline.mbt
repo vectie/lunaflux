@@ -16,7 +16,7 @@ fn projection_fold_pipeline_source(
   let tile = pipeline.tile_width()
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
-  let layout : CudaProjectionTransportLayout = { columns: width }
+  let layout : CudaProjectionTransportLayout = { columns: width, }
   let input_elements = rows * width
   let slot = (rows + groups * 16) * width
   // Distribute the immutable operand product into two affine producer maps.

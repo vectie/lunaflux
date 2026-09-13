@@ -14,7 +14,7 @@ fn projection_matrix_map_source(
   let resident = schedule.selected_input_row_resident()
   let width = if resident { parameters.input_width } else { 16 }
   let groups = schedule.output_tiles_per_workgroup()
-  let layout : CudaProjectionTransportLayout = { columns: width }
+  let layout : CudaProjectionTransportLayout = { columns: width, }
   let gather = if selected {
     (
       $|    for (int element = threadIdx.x; element < \{16 * width}; element += blockDim.x) {

@@ -1,7 +1,7 @@
 ///|
 test "transport layout preserves producer vectors and consumer banks" {
   for width in [16, 32, 64, 128] {
-    let layout : CudaProjectionTransportLayout = { columns: width }
+    let layout : CudaProjectionTransportLayout = { columns: width, }
     let rows = 192
     let seen = FixedArray::make(rows * width, false)
     for row in 0..<rows {

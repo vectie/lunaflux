@@ -105,7 +105,7 @@ test "strip and resident schedules share the matrix fold with masked columns" {
 ///|
 test "ordered and tree folds share arithmetic without implicit reassociation" {
   let dots : Array[CudaProjectionDot] = [
-    { accumulator: "value", left: "x[inner]", right: "w[inner]" },
+    { accumulator: "value", left: "x[inner]", right: "w[inner]", },
   ]
   let ordered = projection_dot_fold_source(33, dots[:], OrderedDot)
   let tree = projection_dot_fold_source(33, dots[:], StridedPairwiseDot(32))

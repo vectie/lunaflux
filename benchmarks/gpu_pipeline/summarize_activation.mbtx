@@ -1,0 +1,75 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+fn field(value : Json, name : String) -> Json raise {
+  guard value is Object(fields) else { fail("object required") }
+  fields[name]
+}
+
+fn number(value : Json) -> Double raise {
+  guard value is Number(value, ..) else { fail("number required") }
+  value
+}
+
+fn rows(value : Json) -> Array[Json] raise {
+  guard field(value, "requests") is Array(rows) else { fail("requests required") }
+  rows
+}
+
+fn average(values : Array[Double]) -> Double {
+  values.fold(init=0.0, (a,b) => a+b) / values.length().to_double()
+}
+
+async fn main {
+  guard @env.args() is [_, root] else { fail("CAMPAIGN_ROOT") }
+  let report : Array[Json] = []
+  println("input,output,C,old_tok_s,new_tok_s,gain_percent,old_ttft_ms,new_ttft_ms,old_decode_ms,new_decode_ms,matching_sequences,total_sequences,new_unique_sequences")
+  for (input, output) in [(512,64),(1528,32),(3072,32),(4096,64)] {
+    for c in [1,8,16] {
+      let old_rates : Array[Double] = []
+      let new_rates : Array[Double] = []
+      let old_ttfts : Array[Double] = []
+      let new_ttfts : Array[Double] = []
+      let old_decode : Array[Double] = []
+      let new_decode : Array[Double] = []
+      let unique : Map[String, Unit] = Map([])
+      let mut matches = 0
+      for trial in 1..<6 {
+        let name = "/lunaflux/i\{input}-o\{output}-c\{c}-t\{trial}.json"
+        let old = @json.parse(@fs.read_file(root + "/control" + name).text())
+        let new = @json.parse(@fs.read_file(root + "/current" + name).text())
+        old_rates.push(number(field(old,"output_tokens_per_second")))
+        new_rates.push(number(field(new,"output_tokens_per_second")))
+        let old_rows = rows(old)
+        let new_rows = rows(new)
+        assert_eq(old_rows.length(), c)
+        assert_eq(new_rows.length(), c)
+        for i in 0..<c {
+          let old_ids = field(old_rows[i],"token_ids")
+          let new_ids = field(new_rows[i],"token_ids")
+          if old_ids == new_ids { matches += 1 }
+          unique[new_ids.stringify()] = ()
+          old_ttfts.push(number(field(old_rows[i],"ttft_ms")))
+          new_ttfts.push(number(field(new_rows[i],"ttft_ms")))
+          old_decode.push(number(field(old_rows[i],"decode_ms_per_token")))
+          new_decode.push(number(field(new_rows[i],"decode_ms_per_token")))
+        }
+      }
+      let old_rate = average(old_rates)
+      let new_rate = average(new_rates)
+      let gain = (new_rate/old_rate-1.0)*100.0
+      println("\{input},\{output},\{c},\{old_rate},\{new_rate},\{gain},\{average(old_ttfts)},\{average(new_ttfts)},\{average(old_decode)},\{average(new_decode)},\{matches},\{c*5},\{unique.length()}")
+      report.push({"input":input,"output":output,"concurrency":c,
+        "old_tok_s":old_rate,"new_tok_s":new_rate,"gain_percent":gain,
+        "old_ttft_ms":average(old_ttfts),"new_ttft_ms":average(new_ttfts),
+        "old_decode_ms":average(old_decode),"new_decode_ms":average(new_decode),
+        "matching_sequences":matches,"total_sequences":c*5,
+        "new_unique_sequences":unique.length()})
+    }
+  }
+  @fs.write_file(root + "/COMPARISON.json", Json::array(report).stringify(), create_mode=CreateNew)
+}

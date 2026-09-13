@@ -53,7 +53,7 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     assert_false(source.contains("__shfl_down_sync"))
     // This changes the row domain, not a CUDA-specific replacement for the
     // compiler's ordered matrix fold or its producer/consumer permutation.
-    let layout : CudaProjectionTransportLayout = { columns: transfer_width }
+    let layout : CudaProjectionTransportLayout = { columns: transfer_width, }
     assert_true(source.contains(layout.address_function()))
     assert_true(source.contains(projection_result_address_source()))
   }
@@ -63,7 +63,7 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
 test "bounded down operand bases preserve producer and matrix load bank maps" {
   for shape in [(16, 128), (32, 64), (48, 64), (64, 64)] {
     let (rows, width) = shape
-    let layout : CudaProjectionTransportLayout = { columns: width }
+    let layout : CudaProjectionTransportLayout = { columns: width, }
     for groups in [1, 2, 4, 8] {
       let slot = (rows + groups * 16) * width
       for stage in 0..<2 {

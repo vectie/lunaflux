@@ -27,7 +27,7 @@ fn projection_sibling_fold_pipeline_source(
   ).unwrap()
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
-  let layout : CudaProjectionTransportLayout = { columns: width }
+  let layout : CudaProjectionTransportLayout = { columns: width, }
   let copies = StringBuilder()
   for
     domain in [
