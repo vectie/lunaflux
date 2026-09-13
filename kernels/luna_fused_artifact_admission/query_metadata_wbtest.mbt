@@ -1,5 +1,31 @@
 ///|
 test "query metadata uses an explicit versioned runtime bundle" {
+  for rows in [1, 24, 256] {
+    try
+      ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionReadOnlyProductionV2,
+        first_operation=5,
+        operation_count=1,
+        function_symbol="attention",
+        module_bytes=b"test-module",
+        query_tile_rows=rows,
+        query_metadata_version=1,
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=16,
+          grid_y=16,
+          grid_z=1,
+          block_x=128,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=49168,
+        ),
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsupported metadata tile")
+    }
+  }
   let input = ReusableFusedRuntimeModuleInput::new(
     abi=QwenPagedAttentionReadOnlyProductionV2,
     first_operation=5,

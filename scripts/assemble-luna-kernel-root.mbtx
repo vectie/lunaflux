@@ -1,0 +1,84 @@
+import {
+  "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/string",
+}
+async fn command(exe : String, args : Array[String]) -> String {
+  let (code,out,err)=@process.collect_output(exe,args)
+  guard code==0 else {fail(out.text()+err.text())}
+  out.text()
+}
+async fn sha(path : String) -> String {command("sha256sum",[path]).split(" ").to_array()[0].to_owned()}
+fn digest(value : StringView) -> Bool {value.length()==64 && value.iter().all(c=>c is ('0'..='9'|'a'..='f'))}
+fn relative(value : StringView) -> Bool {
+  !value.is_empty() && !value.has_prefix("/") && value.split("/").all(x=>!x.is_empty() && x!="." && x!="..")
+}
+async fn main {
+  guard @env.args() is [_,source_identity,output] && source_identity.split("#sha256=").to_array() is [root,expected] else {fail("PINNED_SOURCE NEW_OUTPUT")}
+  let root=root.to_owned()
+  guard root.has_prefix("/") && output.has_prefix("/") && digest(expected) else {fail("absolute paths and digest required")}
+  assert_eq(sha(root+"/kernel-root.plan.v1"),expected.to_owned())
+  guard command("find",[root,"-type","l"]).trim().is_empty() && command("find",[root,"!","-type","d","!","-type","f"]).trim().is_empty() else {fail("non-regular source")}
+  let top=command("find",[root,"-mindepth","1","-maxdepth","1","-printf","%f\n"]).split("\n").filter(x=>!x.is_empty()).map(x=>x.to_owned()).to_array()
+  top.sort_by((a,b)=>a.lexical_compare(b))
+  assert_eq(top,["kernel-root.plan.v1","kernel.files.sha256","payload"])
+  let plan=@fs.read_file(root+"/kernel-root.plan.v1").text()
+  let keys=["schema","execution_manifest_relative","execution_manifest_sha256","manifest_schema_version","catalog_version","operation_count","module_count","entry_point_count","total_module_bytes","files_inventory_sha256","kernel_root_identity_sha256","exact_inventory","compiler_jit_free"]
+  let lines=plan.split("\n").to_array()
+  guard lines.length()==14 && lines[13]=="" else {fail("plan fields")}
+  let values : Array[String]=[]
+  for i,key in keys {
+    guard lines[i].has_prefix(key+"=") else {fail("plan order")}
+    values.push(lines[i][key.length()+1:].to_owned())
+  }
+  assert_eq(values[0],"lunaflux-bf16-kernel-root-plan.v1")
+  assert_eq(values[1],"lunaflux.execution.json")
+  assert_eq(values[3],"2")
+  assert_eq(values[4],"3")
+  assert_eq(values[11],"1")
+  assert_eq(values[12],"1")
+  guard @string.parse_int(values[5])>=9 && @string.parse_int(values[7])>=9 else {fail("incomplete plan")}
+  let inventory=@fs.read_file(root+"/kernel.files.sha256").text()
+  assert_eq(sha(root+"/kernel.files.sha256"),values[9])
+  guard inventory.has_suffix("\n") else {fail("inventory newline")}
+  let declared : Array[String]=[]
+  let mut modules=0
+  let mut bytes=0L
+  let mut fused=0
+  for line in inventory.split("\n") {
+    if line.is_empty() {continue}
+    guard line.split("  ").to_array() is [hash,path] && digest(hash) && relative(path) else {fail("inventory line")}
+    let path=path.to_owned()
+    guard !declared.contains(path) else {fail("duplicate path")}
+    declared.push(path)
+    let file=root+"/payload/"+path
+    assert_eq(sha(file),hash.to_owned())
+    if path==values[1] {assert_eq(hash.to_owned(),values[2])}
+    else if path.has_prefix("sha256/") && path.has_suffix(".cubin") {
+      assert_eq(path,"sha256/"+hash.to_owned()+".cubin")
+      modules+=1
+      bytes+=@fs.read_file(file).binary().length().to_int64()
+    } else if path=="reusable-fused-runtime-bundle.v3" {
+      let schema=@fs.read_file(file).text().split("\n").to_array()[0]
+      guard ["schema=lunaflux-reusable-fused-runtime-bundle.v3","schema=lunaflux-reusable-fused-runtime-bundle.v4","schema=lunaflux-reusable-fused-runtime-bundle.v5"].contains(schema.to_owned()) else {fail("runtime schema")}
+      fused+=1
+    } else {fail("unsupported payload")}
+  }
+  guard declared.contains(values[1]) && fused<=1 else {fail("manifest/runtime count")}
+  assert_eq(modules,@string.parse_int(values[6]))
+  assert_eq(bytes,@string.parse_int64(values[8]))
+  let actual=command("find",[root+"/payload","-type","f","-printf","%P\n"]).split("\n").filter(x=>!x.is_empty()).map(x=>x.to_owned()).to_array()
+  actual.sort_by((a,b)=>a.lexical_compare(b))
+  assert_eq(actual,declared)
+  let identity="schema=lunaflux-bf16-kernel-root-identity.v1\nexecution_manifest_sha256="+values[2]+"\nfiles_inventory_sha256="+values[9]+"\n"
+  let temporary=command("mktemp",["/tmp/lunaflux-kernel-identity.XXXXXX"]).trim().to_owned()
+  @fs.write_file(temporary,identity)
+  let identity_sha=sha(temporary)
+  ignore(command("rm",["--",temporary]))
+  assert_eq(identity_sha,values[10])
+  @fs.mkdir(output)
+  ignore(command("cp",["-R",root+"/payload",output+"/kernel-root"]))
+  for name in ["kernel-root.plan.v1","kernel.files.sha256"] {
+    @fs.write_file(output+"/"+name,@fs.read_file(root+"/"+name),create_mode=CreateNew,permission=0o444)
+  }
+  println("kernel_manifest_relative="+values[1]+"\nkernel_manifest_sha256="+values[2]+"\nkernel_inventory_sha256="+values[9])
+}

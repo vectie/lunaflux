@@ -1,0 +1,104 @@
+import {
+  "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json",
+}
+
+async fn command(exe : String, args : Array[String]) -> String {
+  let (code,out,err)=@process.collect_output(exe,args)
+  guard code==0 else { fail(out.text()+err.text()) }
+  out.text()
+}
+async fn sha(path : String) -> String {
+  command("sha256sum",[path]).split(" ").to_array()[0].to_owned()
+}
+fn object(value : Json) -> Map[String,Json] raise {
+  guard value is Object(fields) else {fail("JSON object required")}
+  fields
+}
+async fn json_file(path : String, value : Json) -> String {
+  @fs.write_file(path,value.stringify()+"\n",create_mode=CreateNew,permission=0o444)
+  sha(path)
+}
+async fn inventory(root : String, path : String) -> String {
+  let names=command("find",[root,"-type","f"]).split("\n").filter(x=>!x.is_empty() && x!=path).map(x=>x.to_owned()).to_array()
+  names.sort_by((a,b)=>a.lexical_compare(b))
+  let mut text=""
+  for name in names {text+=sha(name)+"  "+name[root.length()+1:].to_owned()+"\n"}
+  @fs.write_file(path,text,create_mode=CreateNew,permission=0o444)
+  sha(path)
+}
+async fn main {
+  let args=@env.args()[1:].to_owned()
+  let repo=command("pwd",[]).trim().to_owned()
+  guard args.length()==15 else {
+    println(command(repo+"/scripts/materialize-qwen3-bf16-v12-launch.sh",args))
+    return
+  }
+  guard args[14].split("#sha256=").to_array() is [runtime,digest] else {fail("pinned runtime required")}
+  assert_eq(sha(runtime.to_owned()),digest.to_owned())
+  let runtime_bytes=@fs.read_file(runtime.to_owned())
+  guard runtime_bytes.text().has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") else {
+    println(command(repo+"/scripts/materialize-qwen3-bf16-v12-launch.sh",args))
+    return
+  }
+  let output=args[12]
+  // Preserve the validated unfused materialization as an intermediate. Nothing
+  // in that directory is rewritten or mistaken for the final metadata runtime.
+  let base=output+".base"
+  let base_args=args[:14].to_owned()
+  base_args[12]=base
+  let release=args[7]
+  let staged=output+"/kernel-source"
+  let report=command(repo+"/scripts/materialize-qwen3-bf16-v12-launch.sh",base_args)
+  @fs.mkdir(output)
+  @fs.mkdir(output+"/evidence")
+  @fs.write_file(output+"/evidence/base-materialization.stdout",report,create_mode=CreateNew)
+  @fs.write_file(output+"/evidence/release-bind.v1",@fs.read_file(base+"/evidence/release-bind.v1"),create_mode=CreateNew,permission=0o444)
+  @fs.mkdir(staged)
+  ignore(command("cp",["-R",release+"/payload",staged+"/payload"]))
+  ignore(command("chmod",["u+w",staged+"/payload"]))
+  let locator="reusable-fused-runtime-bundle.v3"
+  @fs.write_file(staged+"/payload/"+locator,runtime_bytes,create_mode=CreateNew,permission=0o444)
+  let files_sha=inventory(staged+"/payload",staged+"/kernel.files.sha256")
+  let lines=@fs.read_file(release+"/kernel-root.plan.v1").text().split("\n").map(x=>x.to_owned()).to_array()
+  guard lines.length()==14 && lines[2].has_prefix("execution_manifest_sha256=") else {fail("kernel plan")}
+  let identity="schema=lunaflux-bf16-kernel-root-identity.v1\n"+lines[2]+"\nfiles_inventory_sha256="+files_sha+"\n"
+  @fs.write_file(output+"/evidence/kernel-identity.v1",identity,create_mode=CreateNew)
+  lines[9]="files_inventory_sha256="+files_sha
+  lines[10]="kernel_root_identity_sha256="+sha(output+"/evidence/kernel-identity.v1")
+  @fs.write_file(staged+"/kernel-root.plan.v1",lines.join("\n"),create_mode=CreateNew)
+  assert_eq(sha(staged+"/payload/"+locator),digest.to_owned())
+  let assembled=command("moon",["run",repo+"/scripts/assemble-luna-kernel-root.mbtx","--",staged+"#sha256="+sha(staged+"/kernel-root.plan.v1"),output+"/kernel-release"])
+  @fs.write_file(output+"/evidence/kernel-assemble.stdout",assembled,create_mode=CreateNew)
+  @fs.mkdir(output+"/model-root")
+  @fs.mkdir(output+"/model-root/runtime")
+  @fs.mkdir(output+"/policy-root")
+  @fs.mkdir(output+"/policy-root/instance")
+  for filename in ["config.json","tokenizer.json",args[4]] {
+    ignore(command("cp",[base+"/model-root/"+filename,output+"/model-root/"+filename]))
+  }
+  for directory in ["bin","corpus"] {ignore(command("cp",["-R",base+"/"+directory,output+"/"+directory]))}
+  let descriptor=object(@json.parse(@fs.read_file(base+"/model-root/runtime/descriptor.json").text()))
+  descriptor["schema_version"]=Json::string("lunaflux.runtime.qwen3_bf16.v2")
+  let kernels=object(descriptor["kernels"])
+  kernels["fused_runtime"]={"locator":locator,"sha256":digest.to_owned()}
+  descriptor["kernels"]=Json::object(kernels)
+  let descriptor_sha=json_file(output+"/model-root/runtime/descriptor.json",Json::object(descriptor))
+  let policy=object(@json.parse(@fs.read_file(base+"/policy-root/instance/policy.json").text()))
+  policy["runtime_descriptor_sha256"]=Json::string(descriptor_sha)
+  let policy_sha=json_file(output+"/policy-root/instance/policy.json",Json::object(policy))
+  let launch=object(@json.parse(@fs.read_file(base+"/lunaflux.launch.json").text()))
+  launch["model_root"]=Json::string(output+"/model-root")
+  launch["kernel_root"]=Json::string(output+"/kernel-release/kernel-root")
+  launch["policy_root"]=Json::string(output+"/policy-root")
+  launch["runtime_descriptor"]={"locator":"runtime/descriptor.json","sha256":descriptor_sha}
+  launch["instance_policy"]={"locator":"instance/policy.json","sha256":policy_sha}
+  let worker=object(launch["worker_executable"])
+  worker["path"]=Json::string(output+"/bin/lunaflux-device-worker")
+  launch["worker_executable"]=Json::object(worker)
+  let launch_sha=json_file(output+"/lunaflux.launch.json",Json::object(launch))
+  let preflight=command("moon",["run","--target","native","cmd/lunaflux","--","validate-release",output+"#sha256="+launch_sha])
+  @fs.write_file(output+"/evidence/release-preflight.v1",preflight,create_mode=CreateNew,permission=0o444)
+  ignore(inventory(output,output+"/bundle.files.sha256"))
+  println("schema=lunaflux-qwen3-v12-launch-materialization.v2\ndeployment_root="+output+"\nlaunch_sha256="+launch_sha+"\n")
+}

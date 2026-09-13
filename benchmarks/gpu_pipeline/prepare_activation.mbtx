@@ -34,6 +34,9 @@ async fn main {
     let runtime = replace(runtime,
       "source + \"/scripts/build-qwen3-reusable-fused-runtime.sh\", [nvcc,",
       "\"/home/jiaanguo/.moon/bin/moon\", [\"run\", source + \"/scripts/build-qwen3-reusable-fused-runtime.mbtx\", \"--\", nvcc,")
+    let runtime = replace(runtime,
+      "source + \"/scripts/materialize-qwen3-bf16-v12-launch.sh\", [prior",
+      "\"/home/jiaanguo/.moon/bin/moon\", [\"run\", source + \"/scripts/materialize-qwen3-bf16-v12-launch.mbtx\", \"--\", prior")
     replace(runtime,
       "@fs.write_file(root + \"/export-args.json\",",
       "args.push(\"--query-metadata-v1\")\n    @fs.write_file(root + \"/export-args.json\",")
