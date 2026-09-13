@@ -16,7 +16,7 @@ fn wb_online_lane_lease(
   publication_cursor? : UInt64 = 0UL,
   lane_count? : Int = 1,
 ) -> OnlineWorkerLease {
-  let lane_handles = FixedArray::makei(lane_count, _ => Array::new(capacity=1))
+  let lane_handles = FixedArray::makei(lane_count, _ => Array(capacity=1))
   match handle {
     Some(value) => lane_handles[0].push(value)
     None => ()

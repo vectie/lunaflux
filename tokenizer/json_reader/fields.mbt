@@ -68,7 +68,7 @@ fn require_exact_int(
   }
   match repr {
     Some(encoded) => {
-      let integer : Int = @strconv.from_str(encoded) catch {
+      let integer : Int = @string.parse_int(encoded) catch {
         _ => raise InvalidField(component~, field~, index~)
       }
       integer

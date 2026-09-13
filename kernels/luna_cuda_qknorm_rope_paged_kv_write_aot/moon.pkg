@@ -1,6 +1,5 @@
 import {
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/math",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -13,6 +12,7 @@ import {
 }
 
 import {
+  "moonbitlang/core/math",
   "vectie/lunaflux/model/qwen3",
   "vectie/lunaflux/model/qwen3_spec",
   "vectie/lunaflux/model/spec",

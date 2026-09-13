@@ -173,7 +173,7 @@ fn deployment_int(
   key : String,
 ) -> Int raise PagedCompositeArtifactError {
   let text = deployment_value(fields, key)
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise InvalidPagedCompositeArtifact(Module)
   }
   if value.to_string() != text {
@@ -188,7 +188,7 @@ fn deployment_i64(
   key : String,
 ) -> Int64 raise PagedCompositeArtifactError {
   let text = deployment_value(fields, key)
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise InvalidPagedCompositeArtifact(Module)
   }
   if value.to_string() != text {

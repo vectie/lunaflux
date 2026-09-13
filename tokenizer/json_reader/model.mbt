@@ -93,7 +93,7 @@ fn decode_vocab_id(value : Json, index : Int) -> Int raise TokenizerJsonError {
   }
   let id : Int = match repr {
     Some(encoded) =>
-      @strconv.from_str(encoded) catch {
+      @string.parse_int(encoded) catch {
         _ => raise InvalidField(component=Model, field=Vocab, index~)
       }
     None => {

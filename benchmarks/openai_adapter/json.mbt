@@ -7,7 +7,7 @@ fn openai_baseline_exact_int(
   }
   match repr {
     Some(encoded) => {
-      let parsed : Int64 = @strconv.from_str(encoded) catch {
+      let parsed : Int64 = @string.parse_int64(encoded) catch {
         _ => raise OpenAIBaselineAmbiguousEvent
       }
       parsed

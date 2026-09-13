@@ -53,7 +53,7 @@ fn lower_sha256(value : StringView) -> Bool {
 
 ///|
 fn positive_int(value : String) -> Int raise Qwen3FusedRuntimeBundleExportError {
-  let parsed : Int = @strconv.from_str(value) catch {
+  let parsed : Int = @string.parse_int(value) catch {
     _ => raise InvalidArguments
   }
   if parsed <= 0 || parsed.to_string() != value {

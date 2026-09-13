@@ -16,7 +16,7 @@ fn sentencepiece_decoded_piece(
     _ => raise InvalidSentencePieceToken(entry_index~)
   }
   ignore(text)
-  let decoded : Array[Byte] = Array::new(capacity=piece.length())
+  let decoded : Array[Byte] = Array(capacity=piece.length())
   let mut offset = 0
   while offset < piece.length() {
     if offset + 2 < piece.length() &&
@@ -257,7 +257,7 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
   for token_id in 0..<vocabulary.length() {
     merge_left_offsets[token_id + 1] += merge_left_offsets[token_id]
   }
-  let merge_order : Array[Int] = Array::new(capacity=merges.length())
+  let merge_order : Array[Int] = Array(capacity=merges.length())
   for rank in 0..<merges.length() {
     merge_order.push(rank)
   }

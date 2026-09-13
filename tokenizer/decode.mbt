@@ -32,7 +32,7 @@ pub fn TokenizerSpec::decode_bytes(
         }
     }
   }
-  let output : Array[Byte] = Array::new(capacity=total)
+  let output : Array[Byte] = Array(capacity=total)
   strip_initial = self.decoder_strip_initial_space
   for token_id in token_ids {
     let token = self.tokens_by_id[token_id]

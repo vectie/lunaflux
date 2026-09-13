@@ -1,7 +1,7 @@
 import {
   "vectie/lunaflux/benchmarks/luna_fused_candidate_qualification",
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/strconv",
+  "moonbitlang/core/string",
   "vectie/lunaflux/internal/canonical_sha256",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",

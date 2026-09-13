@@ -49,7 +49,7 @@ fn PagedKvWritePhysicalReader::int64(
   key : String,
 ) -> Int64 raise PagedKvWritePhysicalError {
   let text = self.value(key)
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise Invalid(Canonical)
   }
   if value.to_string() != text {

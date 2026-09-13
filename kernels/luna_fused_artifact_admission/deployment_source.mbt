@@ -44,7 +44,7 @@ fn FusedDeploymentReader::int(
   key : String,
 ) -> Int raise FusedArtifactAdmissionError {
   let text = self.value(key)
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise InvalidFusedArtifact(Manifest)
   }
   if value.to_string() != text {
@@ -59,7 +59,7 @@ fn FusedDeploymentReader::uint(
   key : String,
 ) -> UInt raise FusedArtifactAdmissionError {
   let text = self.value(key)
-  let value : UInt = @strconv.from_str(text) catch {
+  let value : UInt = @string.parse_uint(text) catch {
     _ => raise InvalidFusedArtifact(Manifest)
   }
   if value.to_string() != text {

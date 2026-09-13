@@ -108,7 +108,7 @@ pub fn admit_approved_paged_attention_readonly_physical_policy(
   let memory_text = readonly_physical_policy_value(
     lines, 13, "device_total_memory_bytes",
   )
-  let memory : Int64 = @strconv.from_str(memory_text) catch {
+  let memory : Int64 = @string.parse_int64(memory_text) catch {
     _ => raise PagedAttentionReadOnlyPhysicalEvidenceInvalid(Target)
   }
   if memory <= 0L || memory.to_string() != memory_text {

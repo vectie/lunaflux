@@ -3,7 +3,7 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/core/strconv",
+  "moonbitlang/core/string",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/engine/reference",
   "vectie/lunaflux/kernels/reference" @refkernels,

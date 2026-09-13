@@ -62,7 +62,7 @@ suberror CliError {
 
 ///|
 fn parse_positive(text : StringView) -> Int raise CliError {
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise InvalidReferenceArgument(MaximumNewTokens)
   }
   if value <= 0 || value > REFERENCE_MAX_TOKENS {
@@ -78,7 +78,7 @@ fn parse_token_ids(text : StringView) -> Array[Int] raise CliError {
     if part.is_empty() || tokens.length() >= REFERENCE_MAX_TOKENS {
       raise InvalidReferenceArgument(TokenIds)
     }
-    let token : Int = @strconv.from_str(part) catch {
+    let token : Int = @string.parse_int(part) catch {
       _ => raise InvalidReferenceArgument(TokenIds)
     }
     if token < 0 {

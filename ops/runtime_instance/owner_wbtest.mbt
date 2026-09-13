@@ -95,15 +95,15 @@ fn empty_owner_for_state_test(
 ) -> RuntimeInstanceOwner raise {
   {
     phase,
-    preparations: Array::new(capacity=1),
-    cleanup: Array::new(capacity=1),
-    services: Array::new(capacity=1),
-    servers: Array::new(capacity=1),
-    framed_pools: Array::new(capacity=1),
-    openai_servers: Array::new(capacity=1),
-    openai_pools: Array::new(capacity=1),
-    controls: Array::new(capacity=1),
-    inherited_drains: Array::new(capacity=1),
+    preparations: Array(capacity=1),
+    cleanup: Array(capacity=1),
+    services: Array(capacity=1),
+    servers: Array(capacity=1),
+    framed_pools: Array(capacity=1),
+    openai_servers: Array(capacity=1),
+    openai_pools: Array(capacity=1),
+    controls: Array(capacity=1),
+    inherited_drains: Array(capacity=1),
     inherited_drain_required: false,
     opaque_cli_requires_drain: false,
     release_admission: {
@@ -118,7 +118,7 @@ fn empty_owner_for_state_test(
       evidence_sha256: "e".repeat(64),
     },
     startup_binding: RuntimeOpaqueNativeBinding,
-    borrowed_roots: Array::new(capacity=2),
+    borrowed_roots: Array(capacity=2),
     addr: @socket.Addr::parse("127.0.0.1:0"),
     transport: @online_tcp.LunaOnlineTcpLimits::new(
       read_chunk_bytes=64,

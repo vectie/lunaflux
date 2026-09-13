@@ -31,7 +31,7 @@ priv struct AdmittedPlanEvidence {
 
 ///|
 fn parse_kv_budget(text : StringView) -> Int64 raise PlanError {
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise InvalidKvBudgetBytes
   }
   if value <= 0L || value > PLAN_MAX_KV_BUDGET_BYTES {
@@ -42,7 +42,7 @@ fn parse_kv_budget(text : StringView) -> Int64 raise PlanError {
 
 ///|
 fn parse_tokens_per_page(text : StringView) -> Int raise PlanError {
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise InvalidTokensPerPage
   }
   if value <= 0 || value > PLAN_MAX_TOKENS_PER_PAGE {

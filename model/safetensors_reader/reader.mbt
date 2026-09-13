@@ -73,7 +73,7 @@ fn decode_exact_int64(
   }
   match repr {
     Some(encoded) => {
-      let integer : Int64 = @strconv.from_str(encoded) catch {
+      let integer : Int64 = @string.parse_int64(encoded) catch {
         _ => raise InvalidInteger(tensor_index, field)
       }
       integer

@@ -108,7 +108,7 @@ pub fn LunaOpenAICompatWorkspace::new(
     model_alias_length,
     response_id_prefix: prefix_storage,
     response_id_prefix_length,
-    semantic_views: Array::new(capacity=1),
+    semantic_views: Array(capacity=1),
     epoch: 0UL,
     phase: LUNA_OPENAI_COMPAT_IDLE,
     mode: 0,

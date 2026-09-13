@@ -93,7 +93,7 @@ pub fn TokenizerSpec::encode_bytes(
     )
     copied += length
   }
-  let token_ids : Array[Int] = Array::new(capacity=count)
+  let token_ids : Array[Int] = Array(capacity=count)
   for token_id in storage {
     token_ids.push(token_id)
   }

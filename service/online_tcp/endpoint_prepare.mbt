@@ -17,15 +17,15 @@ pub async fn bind_luna_online_tcp_single_endpoint(
   let output = LunaOnlineTcpOutputScratch::new(limits.write_chunk_bytes) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpLimits)
   }
-  let servers : Array[@socket.TcpServer] = Array::new(capacity=1)
-  let connections : Array[@socket.Tcp] = Array::new(capacity=1)
-  let coordinators : Array[@online_session.LunaOnlineFramedCoordinator] = Array::new(
+  let servers : Array[@socket.TcpServer] = Array(capacity=1)
+  let connections : Array[@socket.Tcp] = Array(capacity=1)
+  let coordinators : Array[@online_session.LunaOnlineFramedCoordinator] = Array(
     capacity=1,
   )
-  let offers : Array[@online_session.LunaOnlineFramedEventOffer] = Array::new(
+  let offers : Array[@online_session.LunaOnlineFramedEventOffer] = Array(
     capacity=1,
   )
-  let flights : Array[LunaOnlineTcpOutputFlight] = Array::new(capacity=1)
+  let flights : Array[LunaOnlineTcpOutputFlight] = Array(capacity=1)
   let endpoint : LunaOnlineTcpEndpoint = {
     limits,
     bound_addr: addr,
@@ -36,12 +36,12 @@ pub async fn bind_luna_online_tcp_single_endpoint(
     output,
     offers,
     flights,
-    activity: { reactor_active: false, maintenance_active: false },
+    activity: { reactor_active: false, maintenance_active: false, },
     phase: LUNA_ONLINE_TCP_LISTENING,
     tail_start: 0,
     tail_length: 0,
     tail_backpressured: false,
-    maintenance_handoff: { pending: false },
+    maintenance_handoff: { pending: false, },
     close_pending: false,
     drain_requested: false,
     disconnect_requested: false,

@@ -78,7 +78,7 @@ fn LunaTensorCoreEvidenceReader::read_int(
   key : String,
 ) -> Int raise LunaTensorCorePhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise LunaTensorCorePhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -105,7 +105,7 @@ fn LunaTensorCoreEvidenceReader::read_int64(
   key : String,
 ) -> Int64 raise LunaTensorCorePhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise LunaTensorCorePhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {

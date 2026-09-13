@@ -167,7 +167,7 @@ fn prepare_owned_shell(
     lane_phases: FixedArray::make(online_lane_count, 0),
     lane_generations: FixedArray::make(online_lane_count, 0UL),
     lane_handles: FixedArray::makei(online_lane_count, _ => {
-      Array::new(capacity=1)
+      Array(capacity=1)
     }),
     lane_semantic_retentions: FixedArray::makei(online_lane_count, _ => {
       @inference.LunaRequestStopTokenRetentionSlot::new()

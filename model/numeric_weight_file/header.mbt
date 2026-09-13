@@ -24,7 +24,7 @@ fn decode_exact_int64(
   guard value is Number(number, repr~) else { raise InvalidTensor(ordinal~) }
   match repr {
     Some(encoded) => {
-      let integer : Int64 = @strconv.from_str(encoded) catch {
+      let integer : Int64 = @string.parse_int64(encoded) catch {
         _ => raise InvalidTensor(ordinal~)
       }
       integer

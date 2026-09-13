@@ -281,7 +281,7 @@ fn new_bytelevel_bpe(
   for token_id in 0..<vocabulary.length() {
     merge_left_offsets[token_id + 1] += merge_left_offsets[token_id]
   }
-  let merge_order : Array[Int] = Array::new(capacity=merges.length())
+  let merge_order : Array[Int] = Array(capacity=merges.length())
   for rank in 0..<merges.length() {
     merge_order.push(rank)
   }

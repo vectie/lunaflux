@@ -186,7 +186,7 @@ async test "exact pinned BF16 model matches independent logits and greedy tokens
       corpus_int(fields["greedy_token"]),
     )
     for token_text, expected in sampled_logits {
-      let token : Int = @strconv.from_str(token_text)
+      let token : Int = @string.parse_int(token_text)
       assert_logit(
         execution,
         input_ids.length() - 1,
@@ -435,7 +435,7 @@ async test "approved upstream SentencePiece BPE tokenizer matches pinned IDs" {
       assert_logit(
         execution,
         0,
-        @strconv.from_str(token_text),
+        @string.parse_int(token_text),
         corpus_float(expected_logit),
       )
     }

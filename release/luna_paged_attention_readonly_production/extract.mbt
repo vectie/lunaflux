@@ -26,7 +26,7 @@ fn readonly_exact_int(
   text : String,
   rule : ReadOnlyProductionRule,
 ) -> Int raise ReadOnlyProductionError {
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise InvalidReadOnlyProduction(rule)
   }
   if value.to_string() != text {
@@ -40,7 +40,7 @@ fn readonly_exact_int64(
   text : String,
   rule : ReadOnlyProductionRule,
 ) -> Int64 raise ReadOnlyProductionError {
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise InvalidReadOnlyProduction(rule)
   }
   if value.to_string() != text {

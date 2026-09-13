@@ -58,7 +58,7 @@ fn FusedPhysicalReader::read_int(
   key : String,
 ) -> Int raise FusedPhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -73,7 +73,7 @@ fn FusedPhysicalReader::read_int64(
   key : String,
 ) -> Int64 raise FusedPhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int64 = @strconv.from_str(text) catch {
+  let value : Int64 = @string.parse_int64(text) catch {
     _ => raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -88,7 +88,7 @@ fn FusedPhysicalReader::read_uint(
   key : String,
 ) -> UInt raise FusedPhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : UInt = @strconv.from_str(text) catch {
+  let value : UInt = @string.parse_uint(text) catch {
     _ => raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {

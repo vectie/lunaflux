@@ -29,7 +29,7 @@ fn reference_encode_ordinary_range(
   if start == end {
     return
   }
-  let symbols : Array[Int] = Array::new(capacity=end - start)
+  let symbols : Array[Int] = Array(capacity=end - start)
   for offset in start..<end {
     symbols.push(spec.byte_token_ids[input[offset].to_int()])
   }
@@ -52,7 +52,7 @@ fn reference_encode_ordinary_range(
       break
     }
     let selected = reference_merge_for(spec, selected_left, selected_right).unwrap()
-    let merged : Array[Int] = Array::new(capacity=symbols.length())
+    let merged : Array[Int] = Array(capacity=symbols.length())
     let mut index = 0
     while index < symbols.length() {
       if index + 1 < symbols.length() &&

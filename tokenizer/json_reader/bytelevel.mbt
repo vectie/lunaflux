@@ -35,7 +35,7 @@ fn decode_bytelevel_piece(
 
 ///|
 fn join_bytes(left : Bytes, right : Bytes) -> Bytes {
-  let output : Array[Byte] = Array::new(capacity=left.length() + right.length())
+  let output : Array[Byte] = Array(capacity=left.length() + right.length())
   output.push_iter(left.iter())
   output.push_iter(right.iter())
   Bytes::from_array(output)

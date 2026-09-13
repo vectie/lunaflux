@@ -27,10 +27,10 @@ fn new_luna_openai_embedded_control() -> LunaOpenAIEmbeddedControl raise LunaOnl
   }
   {
     workspace,
-    requests: Array::new(capacity=1),
+    requests: Array(capacity=1),
     responses: luna_online_control_responses(),
     metrics_output,
-    metrics_flights: Array::new(capacity=1),
+    metrics_flights: Array(capacity=1),
     output: b"",
     output_cursor: 0,
     output_length: 0,

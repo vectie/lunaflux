@@ -78,7 +78,7 @@ fn ReadonlyPhysicalReader::int(
   key : String,
 ) -> Int raise PagedAttentionReadOnlyPhysicalEvidenceError {
   let text = self.value(key)
-  let value : Int = @strconv.from_str(text) catch {
+  let value : Int = @string.parse_int(text) catch {
     _ => raise PagedAttentionReadOnlyPhysicalEvidenceInvalid(Canonical)
   }
   if value.to_string() != text {

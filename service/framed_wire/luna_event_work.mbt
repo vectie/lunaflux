@@ -42,7 +42,7 @@ pub fn LunaFramedEventWorkspace::new(
     limits,
     budget,
     storage: FixedArray::make(capacity, b'\x00'),
-    semantic_views: Array::new(capacity=1),
+    semantic_views: Array(capacity=1),
     epoch: 0UL,
     phase: LUNA_FRAMED_EVENT_IDLE,
     event_kind: 0,

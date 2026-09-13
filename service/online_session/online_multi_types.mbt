@@ -41,8 +41,8 @@ fn new_luna_online_multi_lane(
   inference : @inference.InferenceLimits,
 ) -> LunaOnlineMultiLane {
   {
-    claims: Array::new(capacity=1),
-    worker_requests: Array::new(capacity=1),
+    claims: Array(capacity=1),
+    worker_requests: Array(capacity=1),
     output: FixedArray::make(inference.max_decoded_delta_bytes(), b'\x00'),
     generation: 0UL,
     input_tokens: 0,

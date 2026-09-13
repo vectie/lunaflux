@@ -106,7 +106,7 @@ async test "compatible text reaches independent reference logits and tokens" {
     assert_eq(greedy_token, 2185)
     assert_eq(execution.selection().token_id(), greedy_token)
     for token_text, expected_logit in sampled_logits {
-      let token : Int = @strconv.from_str(token_text)
+      let token : Int = @string.parse_int(token_text)
       assert_logit(
         execution,
         encoded.token_ids.length() - 1,

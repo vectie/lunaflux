@@ -2,7 +2,7 @@
 fn positive_nanoseconds(
   value : String,
 ) -> Int64 raise Qwen3FusedRuntimeBundleExportError {
-  let result : Int64 = @strconv.from_str(value) catch {
+  let result : Int64 = @string.parse_int64(value) catch {
     _ => raise InvalidArguments
   }
   if result <= 0L || result.to_string() != value {

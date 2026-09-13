@@ -3,7 +3,7 @@ import {
   "vectie/lunaflux/tokenizer",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/core/strconv",
+  "moonbitlang/core/string",
 }
 
 supported_targets = "native"

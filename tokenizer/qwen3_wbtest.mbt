@@ -76,7 +76,7 @@ fn qwen3_reference_placeholder(token_id : Int) -> Bytes {
 
 ///|
 fn qwen3_join_reference_piece(left : Bytes, right : Bytes) -> Bytes {
-  let joined : Array[Byte] = Array::new(capacity=left.length() + right.length())
+  let joined : Array[Byte] = Array(capacity=left.length() + right.length())
   for byte in left {
     joined.push(byte)
   }
@@ -88,7 +88,7 @@ fn qwen3_join_reference_piece(left : Bytes, right : Bytes) -> Bytes {
 
 ///|
 fn qwen3_reference_spec() -> TokenizerSpec raise TokenizerError {
-  let vocabulary : Array[VocabularyEntry] = Array::new(capacity=151669)
+  let vocabulary : Array[VocabularyEntry] = Array(capacity=151669)
   for token_id in 0..<151669 {
     vocabulary.push({
       token_id,
@@ -117,7 +117,7 @@ fn qwen3_reference_spec() -> TokenizerSpec raise TokenizerError {
     }
   }
   let merge_ids = qwen3_reference_merge_ids()
-  let merges : Array[MergeRule] = Array::new(capacity=merge_ids.length())
+  let merges : Array[MergeRule] = Array(capacity=merge_ids.length())
   for entry in merge_ids {
     let (left_token_id, right_token_id, result_token_id) = entry
     let piece = qwen3_join_reference_piece(

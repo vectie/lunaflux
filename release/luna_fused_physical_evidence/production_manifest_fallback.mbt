@@ -25,7 +25,7 @@ fn fused_production_parse_fallback_line(
     raise InvalidFusedProductionManifest(Fallback)
   }
   let operation_text = fields[1]["operation=".length():].to_owned()
-  let operation : Int = @strconv.from_str(operation_text) catch {
+  let operation : Int = @string.parse_int(operation_text) catch {
     _ => raise InvalidFusedProductionManifest(Fallback)
   }
   if operation < 0 || operation.to_string() != operation_text {

@@ -7,7 +7,7 @@ pub fn LunaFramedEventAdapter::new(
       limits,
       try! LunaFramedEventStepBudget::new(LUNA_FRAMED_EVENT_MAX_STEP_WORK_UNITS),
     ),
-    views: Array::new(capacity=1),
+    views: Array(capacity=1),
   }
 }
 

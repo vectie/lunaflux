@@ -115,7 +115,7 @@ fn new_luna_incremental_output_workspace(
     pending: FixedArray::make(stop_string_byte_capacity + 3, b'\x00'),
     scratch: FixedArray::make(delta_bytes, b'\x00'),
     setup_stops: None,
-    setup_semantics: Array::new(capacity=1),
+    setup_semantics: Array(capacity=1),
     special_policy: Preserve,
     phase: LUNA_INCREMENTAL_OUTPUT_IDLE,
     epoch: 0UL,

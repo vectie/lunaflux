@@ -231,7 +231,7 @@ async test "Mistral exact dense semantics pass the independent BF16 corpus" {
       corpus_integer(fields["greedy_token"]),
     )
     for token_text, expected in sampled_logits {
-      let token : Int = @strconv.from_str(token_text)
+      let token : Int = @string.parse_int(token_text)
       assert_mistral_logit(
         execution,
         input_ids.length() - 1,
