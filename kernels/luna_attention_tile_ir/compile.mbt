@@ -9,7 +9,7 @@ fn tile_binding(
   kind : AttentionTileValueKind,
   expression : AttentionTileExpression,
 ) -> AttentionTileBinding {
-  { id: tile_value(id), kind, expression }
+  { id: tile_value(id), kind, expression, }
 }
 
 ///|
@@ -203,6 +203,12 @@ fn canonical_attention_tile_program(
     "shape=\{query_heads},\{key_value_heads},\{head_dimension},\{tokens_per_page}\n"
   builder <+
     "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{problem.batch_rows()},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
+  if problem.allows_alternative_softmax_reduction() {
+    builder <+ "softmax_reduction=alternative-ordered-bf16-v1\n"
+  }
+  if problem.key_value_read_view() == DenseCurrentAndPagedHistory {
+    builder <+ "kv_stream=dense-current-paged-history-v1\n"
+  }
   builder <+
     "candidate=\{candidate.stable_id()},\{attention_compute_code(candidate.compute())},\{attention_memory_code(candidate.memory())}\n"
   builder <+

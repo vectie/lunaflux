@@ -97,6 +97,16 @@ fn plan_attention_matrix_storage(
 ) -> AttentionTileStorageLayout {
   let (query, keys, head) = program.candidate().tile().dimensions()
   let stages = program.candidate().execution_geometry().1
+  if attention_fragment_ownership(
+      program.candidate().compute(),
+      query_rows=query,
+      key_rows=keys,
+      head_columns=head,
+      subgroups=program.candidate().execution_geometry().0,
+    ) ==
+    QueryOwnedFragments {
+    return plan_query_owned_storage(query, keys, head, stages)
+  }
   let element = numeric_bytes(program.problem().numeric_type()).to_int64()
   let q = query.to_int64()
   let k = keys.to_int64()
@@ -258,6 +268,39 @@ fn plan_attention_matrix_storage(
     } else {
       output_end
     },
+  }
+}
+
+///|
+fn plan_query_owned_storage(
+  query : Int,
+  keys : Int,
+  head : Int,
+  stages : Int,
+) -> AttentionTileStorageLayout {
+  let q = query.to_int64() * head.to_int64() * 2L
+  let kv = keys.to_int64() * head.to_int64() * stages.to_int64() * 2L
+  {
+    spans: [
+      { role: QueryStorage, offset: 0L, bytes: q, begin: 0, end: 4, },
+      { role: KeyStorage, offset: q, bytes: kv, begin: 0, end: 4, },
+      { role: ValueStorage, offset: q + kv, bytes: kv, begin: 0, end: 4, },
+      {
+        role: ValidationStorage,
+        offset: q + 2L * kv,
+        bytes: 4L,
+        begin: 0,
+        end: 4,
+      },
+      {
+        role: QueryBoundsStorage,
+        offset: q + 2L * kv + 4L,
+        bytes: 4L,
+        begin: 0,
+        end: 4,
+      },
+    ],
+    peak_bytes: q + 2L * kv + 16L,
   }
 }
 

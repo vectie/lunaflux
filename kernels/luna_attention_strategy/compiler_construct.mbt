@@ -7,7 +7,7 @@ pub fn AttentionMatrixShape::new(
   if rows <= 0 || columns <= 0 || reduction <= 0 {
     raise InvalidAttentionStrategy(Tile)
   }
-  { rows, columns, reduction }
+  { rows, columns, reduction, }
 }
 
 ///|
@@ -72,6 +72,8 @@ pub fn AttentionCompileProblem::new(
   query_rows~ : Int,
   context_tokens~ : Int,
   causal~ : Bool,
+  allow_alternative_softmax_reduction? : Bool = false,
+  key_value_read_view? : AttentionKeyValueReadView = PagedCacheOnly,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
   if phase == MixedCompatibility ||
     batch_rows <= 0 ||
@@ -83,7 +85,17 @@ pub fn AttentionCompileProblem::new(
     (phase == Decode && query_rows != 1) {
     raise InvalidAttentionStrategy(Problem)
   }
-  { shape, phase, numeric_type, batch_rows, query_rows, context_tokens, causal }
+  {
+    shape,
+    phase,
+    numeric_type,
+    batch_rows,
+    query_rows,
+    context_tokens,
+    causal,
+    allow_alternative_softmax_reduction,
+    key_value_read_view,
+  }
 }
 
 ///|
@@ -118,7 +130,7 @@ pub fn AttentionAutotuneKey::new(
   problem~ : AttentionCompileProblem,
   candidate~ : AttentionTileCandidate,
 ) -> AttentionAutotuneKey {
-  { backend, target, problem, candidate }
+  { backend, target, problem, candidate, }
 }
 
 ///|
@@ -130,5 +142,5 @@ pub fn AttentionAutotuneRecord::new(
   if median_latency_ns <= 0L || sample_count < 3 {
     raise InvalidAttentionStrategy(Measurement)
   }
-  { key, median_latency_ns, sample_count }
+  { key, median_latency_ns, sample_count, }
 }

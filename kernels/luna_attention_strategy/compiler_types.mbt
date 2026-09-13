@@ -71,6 +71,8 @@ pub struct AttentionCompileProblem {
   priv query_rows : Int
   priv context_tokens : Int
   priv causal : Bool
+  priv allow_alternative_softmax_reduction : Bool
+  priv key_value_read_view : AttentionKeyValueReadView
 } derive(Debug, Eq)
 
 ///|

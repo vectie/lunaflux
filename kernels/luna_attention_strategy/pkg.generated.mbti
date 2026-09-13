@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn attention_fragment_ownership(AttentionTileCompute, query_rows~ : Int, key_rows~ : Int, head_columns~ : Int, subgroups~ : Int) -> AttentionFragmentOwnership
+
+pub fn attention_key_value_read_address(AttentionKeyValueReadView, position~ : Int, current_begin~ : Int, current_count~ : Int) -> AttentionKeyValueReadAddress?
+
 pub fn compile_attention_tile_candidate_plan(AttentionCompileProblem, AttentionCompilerCapabilities, AttentionTileCandidate) -> CompiledAttentionTilePlan raise AttentionStrategyError
 
 pub fn compile_attention_tile_plan(ArrayView[AttentionAutotuneRecord], backend~ : AttentionBackendId, target~ : AttentionTargetId, problem~ : AttentionCompileProblem, capabilities~ : AttentionCompilerCapabilities) -> CompiledAttentionTilePlan raise AttentionStrategyError
@@ -53,10 +57,12 @@ pub(all) enum AttentionCandidateSource {
 pub struct AttentionCompileProblem {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionCompileProblem::allows_alternative_softmax_reduction(Self) -> Bool
 pub fn AttentionCompileProblem::batch_rows(Self) -> Int
 pub fn AttentionCompileProblem::dimensions(Self) -> (Int, Int)
 pub fn AttentionCompileProblem::is_causal(Self) -> Bool
-pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool) -> Self raise AttentionStrategyError
+pub fn AttentionCompileProblem::key_value_read_view(Self) -> AttentionKeyValueReadView
+pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool, allow_alternative_softmax_reduction? : Bool, key_value_read_view? : AttentionKeyValueReadView) -> Self raise AttentionStrategyError
 pub fn AttentionCompileProblem::numeric_type(Self) -> AttentionNumericType
 pub fn AttentionCompileProblem::phase(Self) -> AttentionExecutionPhase
 pub fn AttentionCompileProblem::shape(Self) -> AttentionShape
@@ -96,11 +102,26 @@ pub(all) enum AttentionExecutionPhase {
   Decode
 } derive(Eq, @debug.Debug)
 
+pub(all) enum AttentionFragmentOwnership {
+  ExchangedScoreTiles
+  QueryOwnedFragments
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionKeyValuePartition {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionKeyValuePartition::split_index(Self) -> Int
 pub fn AttentionKeyValuePartition::token_range(Self) -> (Int, Int)
+
+pub(all) enum AttentionKeyValueReadAddress {
+  CurrentRow(Int)
+  HistoricalPosition(Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionKeyValueReadView {
+  PagedCacheOnly
+  DenseCurrentAndPagedHistory
+} derive(Eq, @debug.Debug)
 
 pub struct AttentionMatrixShape {
   // private fields

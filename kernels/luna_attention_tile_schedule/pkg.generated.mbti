@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn attention_fragment_ownership(@luna_attention_strategy.AttentionTileCompute, query_rows~ : Int, key_rows~ : Int, head_columns~ : Int, subgroups~ : Int) -> @luna_attention_strategy.AttentionFragmentOwnership
+
 pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayout?
 
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
@@ -70,6 +72,7 @@ pub fn AttentionTileSchedule::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileSchedule::compute(Self) -> @luna_attention_strategy.AttentionTileCompute
 pub fn AttentionTileSchedule::digest(Self) -> AttentionTileScheduleDigest
 pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
+pub fn AttentionTileSchedule::fragment_ownership(Self) -> @luna_attention_strategy.AttentionFragmentOwnership
 pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn AttentionTileSchedule::key_value_partition_grain(Self) -> Int
 pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
@@ -126,5 +129,6 @@ pub(all) enum AttentionTransferReadiness {
 } derive(Eq, @debug.Debug)
 
 // Type aliases
+pub using @luna_attention_strategy {type AttentionFragmentOwnership}
 
 // Traits

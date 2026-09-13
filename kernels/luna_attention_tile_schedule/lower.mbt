@@ -114,6 +114,18 @@ fn canonical_schedule(
     ) ==
     SubgroupResidentOutputFold
   builder <+ "resident_output_fold=\{resident_output}\n"
+  let (q, k, d) = candidate.tile().dimensions()
+  if attention_fragment_ownership(
+      candidate.compute(),
+      query_rows=q,
+      key_rows=k,
+      head_columns=d,
+      subgroups~,
+    ) ==
+    QueryOwnedFragments {
+    builder <+ "fragment_ownership=query-owner-v1\n"
+    builder <+ "numeric=ordered-qk-pv-bf16-probability-four-owner-softmax-v1\n"
+  }
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
   builder <+ "kv_partitions=\{key_value_partitions}\n"
   builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"

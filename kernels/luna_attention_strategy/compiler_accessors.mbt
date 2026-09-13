@@ -87,6 +87,22 @@ pub fn AttentionCompileProblem::is_causal(
 }
 
 ///|
+/// Whether numerically equivalent, differently ordered softmax reductions
+/// may be considered. Exact offline records never cross this contract.
+pub fn AttentionCompileProblem::allows_alternative_softmax_reduction(
+  self : AttentionCompileProblem,
+) -> Bool {
+  self.allow_alternative_softmax_reduction
+}
+
+///|
+pub fn AttentionCompileProblem::key_value_read_view(
+  self : AttentionCompileProblem,
+) -> AttentionKeyValueReadView {
+  self.key_value_read_view
+}
+
+///|
 pub fn AttentionTileShape::dimensions(
   self : AttentionTileShape,
 ) -> (Int, Int, Int) {
