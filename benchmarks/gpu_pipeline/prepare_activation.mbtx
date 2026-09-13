@@ -35,8 +35,8 @@ async fn main {
       "source + \"/scripts/build-qwen3-reusable-fused-runtime.sh\", [nvcc,",
       "\"/home/jiaanguo/.moon/bin/moon\", [\"run\", source + \"/scripts/build-qwen3-reusable-fused-runtime.mbtx\", \"--\", nvcc,")
     replace(runtime,
-      "ignore(log(\"partial-bundle\",",
-      "args.push(\"--query-metadata-v1\")\n    ignore(log(\"partial-bundle\",")
+      "@fs.write_file(root + \"/export-args.json\",",
+      "args.push(\"--query-metadata-v1\")\n    @fs.write_file(root + \"/export-args.json\",")
   } else { runtime }
   @fs.write_file(root + "/runtime.mbtx", runtime, create_mode=CreateNew)
   let client = @fs.read_file(template + "/current/client.mbtx").text()

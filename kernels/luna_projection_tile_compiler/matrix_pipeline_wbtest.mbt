@@ -18,6 +18,9 @@ test "matrix pipelines preserve sparse demand and ordered reduction geometry" {
     assert_eq(compiled, compile_projection_tile(request))
     if family == GatedMlp {
       assert_eq(compiled.schedule().matrix_pipeline(), None)
+      let sibling = compiled.schedule().sibling_pipeline().unwrap()
+      assert_eq(sibling.row_width(), 64)
+      assert_eq(sibling.fragment_stage_count(), 1)
     } else {
       let pipeline = compiled.schedule().matrix_pipeline().unwrap()
       assert_eq(pipeline.stage_count(), 2)

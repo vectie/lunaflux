@@ -16,8 +16,8 @@ fn cuda_query_tile_binding(
       $|    const int tiles=offsets[\{bucket}];
       $|    if (tiles<0 || tiles>\{capacity} || tile>=tiles) return;
       $|    const int *record=offsets+\{offset}+tile*8;
-      $|    const int row=record[0], token_base=record[1], begin=record[2], end=record[3];
-      $|    const int length=record[4], page_begin=record[5], page_end=record[6];
+      $|    const int token_base=record[1], begin=record[2], end=record[3];
+      $|    const int page_begin=record[5];
       $|    const int active=min(LF_QUERY_TILE,end-token_base);
       $|    if (thread==0) { control[0]=1; control[1]=record[7]; }
     )
