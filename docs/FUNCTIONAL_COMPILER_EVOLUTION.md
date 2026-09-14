@@ -204,3 +204,10 @@ complete geometry, phase, arithmetic family, transfer mode and thresholds.
 These realized-domain limits remain support constraints, not measured tuning
 policy. Grouped decode generation and other kernel families are separate from
 this base table. Strategy (22), compiler (19), and CUDA source (32) tests pass.
+
+The CUDA AOT frontier now exposes `rejected_candidates()` with candidate ID
+and compiler-stage reason. Non-selected backend failures previously disappeared
+silently. Every functional variant must now be accounted for by exactly one
+emitted or rejected entry; failure of the selected variant still fails the
+compilation. Diagnostics remain outside executable canonical bytes and outside
+token execution. This does not make a rejected lowering supported.

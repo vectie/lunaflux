@@ -37,6 +37,7 @@ pub struct CudaAttentionTileAotFrontier {
   priv functional : @luna_attention_tile_compiler.AttentionTileCompilationFrontier
   priv selected : CudaAttentionTileAotCompilation
   priv variants : ReadOnlyArray[CudaAttentionTileAotCompilation]
+  priv rejected : ReadOnlyArray[(Int, CudaAttentionTileAotRule)]
   priv canonical : Bytes
   priv digest : CudaAttentionTileAotDigest
 } derive(Debug, Eq)

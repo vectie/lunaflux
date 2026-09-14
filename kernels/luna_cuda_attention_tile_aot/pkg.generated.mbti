@@ -43,6 +43,7 @@ pub struct CudaAttentionTileAotFrontier {
 pub fn CudaAttentionTileAotFrontier::canonical_bytes(Self) -> Bytes
 pub fn CudaAttentionTileAotFrontier::digest(Self) -> CudaAttentionTileAotDigest
 pub fn CudaAttentionTileAotFrontier::functional(Self) -> @luna_attention_tile_compiler.AttentionTileCompilationFrontier
+pub fn CudaAttentionTileAotFrontier::rejected_candidates(Self) -> ReadOnlyArray[(Int, CudaAttentionTileAotRule)]
 pub fn CudaAttentionTileAotFrontier::selected(Self) -> CudaAttentionTileAotCompilation
 pub fn CudaAttentionTileAotFrontier::variants(Self) -> ReadOnlyArray[CudaAttentionTileAotCompilation]
 

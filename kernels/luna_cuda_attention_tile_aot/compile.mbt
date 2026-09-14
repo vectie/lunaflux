@@ -87,6 +87,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
   let variants : Array[CudaAttentionTileAotCompilation] = []
+  let rejected : Array[(Int, CudaAttentionTileAotRule)] = []
   for compilation in functional.variants() {
     let stable_id = compilation.plan().candidate().stable_id()
     // Preserve the long-lived production ABI symbol for the selected variant.
@@ -102,7 +103,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
         lower_cuda_attention_tile_aot_variant(request, compilation, symbol),
       )
     catch {
-      _ => ()
+      InvalidCudaAttentionTileAot(reason) => rejected.push((stable_id, reason))
     } noraise {
       _ => ()
     }
@@ -128,6 +129,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
     functional,
     selected,
     variants: ReadOnlyArray::from_array(variants),
+    rejected: ReadOnlyArray::from_array(rejected),
     canonical,
     digest: CudaAttentionTileAotDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),

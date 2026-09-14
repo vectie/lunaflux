@@ -175,6 +175,22 @@ test "CUDA AOT lowering maps the functional frontier to stable symbols" {
   assert_true(stable_ids.contains(312))
   assert_true(stable_ids.contains(314))
   assert_eq(frontier.selected().functional(), frontier.functional().selected())
+  assert_eq(
+    frontier.variants().length() + frontier.rejected_candidates().length(),
+    frontier.functional().variants().length(),
+  )
+  for candidate in frontier.functional().variants() {
+    let id = candidate.plan().candidate().stable_id()
+    let emitted = frontier
+      .variants()
+      .filter(v => v.functional().plan().candidate().stable_id() == id)
+      .length()
+    let rejected = frontier
+      .rejected_candidates()
+      .filter(r => r.0 == id)
+      .length()
+    assert_eq(emitted + rejected, 1)
+  }
   for variant in frontier.variants() {
     let symbol = variant.source().symbol()
     if variant == frontier.selected() {

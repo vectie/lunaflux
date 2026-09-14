@@ -151,3 +151,12 @@ pub fn CudaPartitionedAttentionTileAotFrontier::digest(
 ) -> CudaAttentionTileAotDigest {
   self.digest
 }
+
+///|
+/// Compile-time exclusions, keyed by stable candidate identity. These are
+/// diagnostics, not executable artifact bytes or runtime validation work.
+pub fn CudaAttentionTileAotFrontier::rejected_candidates(
+  self : CudaAttentionTileAotFrontier,
+) -> ReadOnlyArray[(Int, CudaAttentionTileAotRule)] {
+  self.rejected
+}
