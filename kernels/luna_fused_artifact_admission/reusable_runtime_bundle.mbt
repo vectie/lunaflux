@@ -429,6 +429,7 @@ pub fn export_reusable_fused_runtime_bundle(
   model_plan_sha256~ : String,
   target~ : @catalog.DeviceTarget,
   modules~ : ArrayView[ReusableFusedRuntimeModuleInput],
+  attention_bucket_routes? : Bytes,
 ) -> Bytes raise FusedArtifactAdmissionError {
   ignore(fused_deployment_digest(model_content_sha256))
   ignore(fused_deployment_digest(model_plan_sha256))
@@ -437,9 +438,12 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  let metadata = modules.any(m => m.query_metadata_version != 0)
+  let metadata = attention_bucket_routes is Some(_) ||
+    modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if metadata {
+    if attention_bucket_routes is Some(_) {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v6\n"
+    } else if metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v5\n"
     } else {
       "schema=lunaflux-reusable-fused-runtime-bundle.v4\n"
@@ -448,6 +452,16 @@ pub fn export_reusable_fused_runtime_bundle(
   out.write_string("model_content_sha256=" + model_content_sha256 + "\n")
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
+  if attention_bucket_routes is Some(routes) {
+    if routes.is_empty() || routes.length() > 1048576 {
+      raise InvalidFusedArtifact(Manifest)
+    }
+    out.write_string(
+      "attention_bucket_routes_hex=" +
+      @crypto.bytes_to_hex_string(routes) +
+      "\n",
+    )
+  }
   out.write_string("module_count=" + modules.length().to_string() + "\n")
   let canonical_abis = [
     ResidualRmsNormProductionV2,
@@ -494,11 +508,12 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
-  let (has_schedule_metadata, has_query_metadata) = match
+  let (has_schedule_metadata, has_query_metadata, has_bucket_routes) = match
     reader.value("schema") {
-    "lunaflux-reusable-fused-runtime-bundle.v5" => (true, true)
-    "lunaflux-reusable-fused-runtime-bundle.v4" => (true, false)
-    "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false)
+    "lunaflux-reusable-fused-runtime-bundle.v6" => (true, true, true)
+    "lunaflux-reusable-fused-runtime-bundle.v5" => (true, true, false)
+    "lunaflux-reusable-fused-runtime-bundle.v4" => (true, false, false)
+    "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
   let model_content = fused_deployment_digest(
@@ -523,6 +538,17 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   if !target.supports_bf16() {
     raise InvalidFusedArtifact(Target)
+  }
+  let attention_bucket_routes = if has_bucket_routes {
+    let routes = fused_deployment_decode_hex(
+      reader.value("attention_bucket_routes_hex"),
+    )
+    if routes.is_empty() || routes.length() > 1048576 {
+      raise InvalidFusedArtifact(Manifest)
+    }
+    Some(routes)
+  } else {
+    None
   }
   let module_count = reader.int("module_count")
   if module_count <= 0 || module_count > REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES {
@@ -606,5 +632,6 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     model_plan,
     target,
     modules: ReadOnlyArray::from_array(modules),
+    attention_bucket_routes,
   }
 }

@@ -291,6 +291,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   // fusions. Absence is legal only for the entire ingress/read-only family:
   // never silently install read-only attention without its KV-write producer.
   if ingress_selection is None &&
+    runtime.attention_bucket_routes() is None &&
     prefill_module is None &&
     runtime.qwen_paged_attention_decode_module() is None &&
     runtime.qwen_paged_attention_readonly_module() is None &&
@@ -548,6 +549,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     postprocess.launch_dimensions().shared_memory_bytes() == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
+  let measured_attention_candidates = admit_qwen_attention_routes(
+    runtime,
+    blueprint.profile(),
+    wide_query_prefill is Some(_),
+  )
   let operations = plan.operations()
   let spans : Array[ApprovedQwenFusedAttentionSpan] = []
   if operations.length() < 4 {
@@ -563,6 +569,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       generation,
       target: runtime.target(),
       runtime_digest: runtime.source_digest(),
+      measured_attention_candidates,
       ingress_includes_projection: includes_projection,
       postprocess_module_digest: postprocess.module_digest(),
       postprocess_module_bytes: postprocess.module_bytes(),

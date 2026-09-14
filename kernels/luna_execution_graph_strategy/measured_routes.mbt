@@ -120,3 +120,12 @@ pub fn ExecutionGraphMeasuredRoutes::select(
     Some(candidate)
   }
 }
+
+///|
+/// Startup projection for mapping candidate IDs to already prepared owners.
+/// Negative entries retain the normal route. The returned storage is immutable.
+pub fn ExecutionGraphMeasuredRoutes::bucket_candidates(
+  self : ExecutionGraphMeasuredRoutes,
+) -> ReadOnlyArray[Int] {
+  self.candidates
+}

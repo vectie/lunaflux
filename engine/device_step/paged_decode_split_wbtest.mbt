@@ -18,6 +18,7 @@ test "decode split phase selection never replaces prefill or mixed attention" {
 test "decode split dispatch owns only decode buckets" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
+    measured_owner_indices: base.measured_owner_indices,
     slot_owner_indices: base.slot_owner_indices,
     decode_split_slot_owner_indices: base.decode_split_slot_owner_indices,
     prefill_wide_slot_owner_indices: base.prefill_wide_slot_owner_indices,

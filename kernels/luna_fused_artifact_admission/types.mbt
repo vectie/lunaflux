@@ -175,4 +175,5 @@ pub struct ApprovedReusableFusedRuntimeBundle {
   priv model_plan : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv target : @catalog.DeviceTarget
   priv modules : ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
+  priv attention_bucket_routes : Bytes?
 }

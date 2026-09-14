@@ -21,6 +21,7 @@ fn graph_dispatch_fixture(
     table,
     profile,
     {
+      measured_owner_indices: ReadOnlyArray::from_array([]),
       slot_owner_indices,
       decode_split_slot_owner_indices: FixedArray::make(
         table.bucket_count(),
@@ -284,6 +285,7 @@ test "partitioned prefill selects the smallest compiled query bucket" {
 test "phase-specific decode owners replace baseline slots without touching prefill" {
   let (table, profile, baseline) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
+    measured_owner_indices: baseline.measured_owner_indices,
     slot_owner_indices: baseline.slot_owner_indices,
     decode_split_slot_owner_indices: baseline.decode_split_slot_owner_indices,
     prefill_wide_slot_owner_indices: baseline.prefill_wide_slot_owner_indices,

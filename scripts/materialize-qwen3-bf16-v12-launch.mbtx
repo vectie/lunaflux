@@ -37,7 +37,8 @@ async fn main {
   guard args[14].split("#sha256=").to_array() is [runtime,digest] else {fail("pinned runtime required")}
   assert_eq(sha(runtime.to_owned()),digest.to_owned())
   let runtime_bytes=@fs.read_file(runtime.to_owned())
-  guard runtime_bytes.text().has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") else {
+  guard runtime_bytes.text().has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") ||
+    runtime_bytes.text().has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v6\n") else {
     println(command(repo+"/scripts/materialize-qwen3-bf16-v12-launch.sh",args))
     return
   }

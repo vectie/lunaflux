@@ -82,6 +82,7 @@ fn qwen_fused_test_runtime(
   merge_query_tile_rows? : Int = 32,
   prefill_threads? : Int = 256,
   merge_threads? : Int = -1,
+  attention_bucket_routes? : Bytes,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
@@ -351,6 +352,7 @@ fn qwen_fused_test_runtime(
     )
   }
   let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+    attention_bucket_routes?,
     model_content_sha256=plan.identity().content().as_hex(),
     model_plan_sha256=plan.identity().plan().as_hex(),
     target=blueprint.target(),

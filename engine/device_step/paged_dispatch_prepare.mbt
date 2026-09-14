@@ -27,6 +27,7 @@ fn prepare_paged_ordered_executors(
   graph_policy : PagedGraphExecutionPolicy,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
+  measured_attention_candidates? : ReadOnlyArray[Int]? = None,
   prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
   prefill_wide_minimum_query_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
@@ -392,6 +393,10 @@ fn prepare_paged_ordered_executors(
     None => -1
   }
   {
+    measured_owner_indices: map_measured_attention_owners(
+      measured_attention_candidates, slot_owner_indices, fallback_owner_index, prefill_wide_slot_owner_indices,
+      prefill_wide_owner_index,
+    ),
     slot_owner_indices,
     prefill_wide_slot_owner_indices,
     prefill_split_slot_owner_indices,

@@ -265,6 +265,9 @@ fn prepare_numeric_bf16_graph_resources(
     graph_policy,
     fused_residual_spans,
     ProductionFastPath,
+    measured_attention_candidates=qwen_measured_attention_candidates(
+      qwen_fused_attention_spans,
+    ),
     prefill_wide_minimum_query_tokens~,
     prefill_split_minimum_context_tokens~,
     prefill_split_query_tile~,

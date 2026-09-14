@@ -18,6 +18,32 @@ fn graph_bucket_value(exponent : Int) -> Int {
 }
 
 ///|
+/// Startup inverse of the compact slot mapping; useful for preparing owners.
+pub fn ExecutionGraphBucketTable::bucket_at(
+  self : ExecutionGraphBucketTable,
+  slot : Int,
+) -> ExecutionGraphBucket raise ExecutionGraphBucketError {
+  if slot < 0 || slot >= self.bucket_count {
+    raise InvalidExecutionGraphBucket(Limit)
+  }
+  let phase = match slot / self.phase_stride {
+    0 => PrefillGraph
+    1 => DecodeGraph
+    _ => MixedGraph
+  }
+  let offset = slot % self.phase_stride
+  {
+    slot,
+    phase,
+    batch_rows: graph_bucket_value(offset / self.query_stride),
+    query_tokens: graph_bucket_value(
+      offset % self.query_stride / self.context_stride,
+    ),
+    context_tokens: graph_bucket_value(offset % self.context_stride),
+  }
+}
+
+///|
 fn graph_phase_index(phase : ExecutionGraphPhase) -> Int {
   match phase {
     PrefillGraph => 0
@@ -36,7 +62,7 @@ pub fn ExecutionGraphShape::new(
   let _ = graph_bucket_exponent(batch_rows)
   let _ = graph_bucket_exponent(query_tokens)
   let _ = graph_bucket_exponent(context_tokens)
-  { phase, batch_rows, query_tokens, context_tokens }
+  { phase, batch_rows, query_tokens, context_tokens, }
 }
 
 ///|

@@ -68,6 +68,7 @@ priv struct PagedGraphLaunchContract {
 /// mode may use its maximum-envelope capture as that fallback; the policy that
 /// admits eager fallback owns a distinct eager executor instead.
 priv struct PagedOrderedExecutorDispatch {
+  measured_owner_indices : ReadOnlyArray[Int]
   slot_owner_indices : FixedArray[Int]
   prefill_wide_slot_owner_indices : FixedArray[Int]
   prefill_split_slot_owner_indices : FixedArray[Int]

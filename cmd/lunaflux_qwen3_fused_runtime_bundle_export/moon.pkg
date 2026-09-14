@@ -5,6 +5,8 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_tuning",
+  "vectie/lunaflux/kernels/luna_execution_graph_strategy",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_fused_artifact_admission",
   "vectie/lunaflux/kernels/luna_fusion_strategy",

@@ -59,7 +59,7 @@ async fn main {
       bytes+=@fs.read_file(file).binary().length().to_int64()
     } else if path=="reusable-fused-runtime-bundle.v3" {
       let schema=@fs.read_file(file).text().split("\n").to_array()[0]
-      guard ["schema=lunaflux-reusable-fused-runtime-bundle.v3","schema=lunaflux-reusable-fused-runtime-bundle.v4","schema=lunaflux-reusable-fused-runtime-bundle.v5"].contains(schema.to_owned()) else {fail("runtime schema")}
+      guard ["schema=lunaflux-reusable-fused-runtime-bundle.v3","schema=lunaflux-reusable-fused-runtime-bundle.v4","schema=lunaflux-reusable-fused-runtime-bundle.v5","schema=lunaflux-reusable-fused-runtime-bundle.v6"].contains(schema.to_owned()) else {fail("runtime schema")}
       fused+=1
     } else {fail("unsupported payload")}
   }

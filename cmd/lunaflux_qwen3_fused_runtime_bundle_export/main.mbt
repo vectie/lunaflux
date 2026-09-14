@@ -437,9 +437,26 @@ async fn read_module(
 async fn run(
   raw_args : ArrayView[String],
 ) -> Unit raise Qwen3FusedRuntimeBundleExportError {
+  let (raw_args, attention_bucket_routes) = match raw_args {
+    [.. rest, "--attention-buckets", path, digest] => {
+      if !safe_absolute_file(path) || !lower_sha256(digest) {
+        raise InvalidArguments
+      }
+      let bytes = read_module(path)
+      if bytes.length() > 1048576 ||
+        @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != digest {
+        raise InvalidModule
+      }
+      (rest, Some(bytes))
+    }
+    _ => (raw_args, None)
+  }
   let (args, ingress_choice) = prepare_ingress_choice(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
   if ingress_choice == Unfused {
+    if attention_bucket_routes is Some(_) {
+      raise InvalidArguments
+    }
     write_unfused_ingress_bundle(args, residual_bytes)
     return
   }
@@ -577,8 +594,41 @@ async fn run(
     model_plan_sha256=args.model_plan,
     target~,
     modules~,
+    attention_bucket_routes?,
   ) catch {
     _ => raise InvalidRuntime
+  }
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+    runtime,
+    @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
+  ) catch {
+    _ => raise InvalidRuntime
+  }
+  let route_scope = admitted.attention_route_scope() catch {
+    _ => raise InvalidRuntime
+  }
+  if attention_bucket_routes is Some(bytes) {
+    let table = @luna_execution_graph_strategy.build_execution_graph_bucket_table(
+      1048576, 1048576, 1048576, 65536,
+    ) catch {
+      _ => raise InvalidRuntime
+    }
+    let selected = @luna_attention_tuning.parse_attention_bucket_routes(
+      bytes,
+      scope=route_scope,
+      table,
+      baseline=1,
+      [1, 2],
+    ) catch {
+      _ => raise InvalidRuntime
+    }
+    for slot, candidate in selected.bucket_candidates() {
+      if candidate >= 0 &&
+        (table.bucket_at(slot) catch { _ => raise InvalidRuntime }).phase() ==
+        DecodeGraph {
+        raise InvalidRuntime
+      }
+    }
   }
   @fs.write_file(
     args.output_path,
@@ -590,6 +640,7 @@ async fn run(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
+  println("attention_route_scope=" + route_scope)
   println(
     "ingress_schedule=" +
     (if ingress_choice == FullyFused { "full" } else { "producer-separated" }),

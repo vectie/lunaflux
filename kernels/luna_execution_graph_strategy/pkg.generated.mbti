@@ -30,12 +30,14 @@ pub(all) enum ExecutionGraphBucketRule {
 pub struct ExecutionGraphBucketTable {
   // private fields
 }
+pub fn ExecutionGraphBucketTable::bucket_at(Self, Int) -> ExecutionGraphBucket raise ExecutionGraphBucketError
 pub fn ExecutionGraphBucketTable::bucket_count(Self) -> Int
 pub fn ExecutionGraphBucketTable::select(Self, ExecutionGraphShape) -> ExecutionGraphBucket raise ExecutionGraphBucketError
 
 pub struct ExecutionGraphMeasuredRoutes {
   // private fields
 }
+pub fn ExecutionGraphMeasuredRoutes::bucket_candidates(Self) -> ReadOnlyArray[Int]
 pub fn ExecutionGraphMeasuredRoutes::new(ExecutionGraphBucketTable, baseline~ : Int, ArrayView[ExecutionGraphRouteMeasurement], minimum_improvement_basis_points? : Int) -> Self raise ExecutionGraphBucketError
 pub fn ExecutionGraphMeasuredRoutes::select(Self, ExecutionGraphShape) -> Int? raise ExecutionGraphBucketError
 

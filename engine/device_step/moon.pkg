@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/kernels/luna_attention_metadata",
+  "vectie/lunaflux/kernels/luna_attention_tuning",
   "vectie/lunaflux/scheduler/work_plan",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",

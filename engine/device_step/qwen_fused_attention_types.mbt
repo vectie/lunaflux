@@ -46,6 +46,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv target : @catalog.DeviceTarget
   priv runtime_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
+  priv measured_attention_candidates : ReadOnlyArray[Int]?
   priv ingress_includes_projection : Bool
   priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv postprocess_module_bytes : Bytes
