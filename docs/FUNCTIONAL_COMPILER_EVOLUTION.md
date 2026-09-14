@@ -198,5 +198,9 @@ Block-owned matrix QK/PV schedules 310–317 are now generated from the supporte
 query/KV domain and the narrower realized async domain. Compatibility tests
 preserve every legacy field, including the small-query profitability threshold.
 This removes repeated schedule records without changing the legal set or
-claiming new kernel speed. Scalar/subgroup and matrix-QK-only tables still need
-the same separation of implementation constraints from search policy.
+claiming new kernel speed. Scalar/subgroup and matrix-QK-only domains now use
+the same generation pattern; 13 additional compatibility cases preserve their
+complete geometry, phase, arithmetic family, transfer mode and thresholds.
+These realized-domain limits remain support constraints, not measured tuning
+policy. Grouped decode generation and other kernel families are separate from
+this base table. Strategy (22), compiler (19), and CUDA source (32) tests pass.
