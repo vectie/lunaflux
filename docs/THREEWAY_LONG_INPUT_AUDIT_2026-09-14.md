@@ -1,5 +1,9 @@
 # Long-input three-engine retest and compiler implementation audit
 
+Subsequent capacity and rotary-storage fixes, completed service timelines and
+new scores are recorded in [the follow-up](BENCHMARK_CAPACITY_AND_TIMELINE_2026-09-14.md).
+The measurements below are the retained pre-fix comparison, not the latest score.
+
 ## Scope and measurements
 
 RTX 5060 Ti, Qwen3-0.6B BF16, identical repeated/truncated token-ID prompts,

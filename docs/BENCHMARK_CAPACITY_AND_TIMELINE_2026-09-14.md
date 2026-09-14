@@ -162,3 +162,17 @@ Remote results: `/tmp/lfreadonly.OZNvH2`. Downloaded archives:
 Local warning-denied native check and all 3,741 native tests passed. Native C
 allocation-probe macro warnings remain distinct from MoonBit warnings. The
 benchmark server was stopped after completion; no production cutover occurred.
+
+## Rejected QKV selection-hoisting experiment
+
+An isolated generated-source experiment moved Q/K/V segment base selection
+outside `stage_operands`, where all columns in these aligned tiles belong to
+one segment. Launch geometry matched the recipe (4,096 CTAs, 256 threads,
+8,192 dynamic shared bytes). Full output bytes and sampled scalar references
+passed at 1, 8, 16, 128, 1,528 and 2,048 tokens. Register count stayed at 72.
+However, 2,048-token timing increased from approximately 438.43 to 453.80 us;
+1,528-token timing also regressed. No production compiler change was made.
+Fewer source-level selections alone are not evidence of a faster instruction
+schedule. Raw experiment: `/tmp/lfreadonly.OZNvH2/qkv-segment-v2` on the GPU
+host. The first probe build failed because of a diagnostic macro name clash;
+that failed build is preserved separately under `qkv-segment`.
