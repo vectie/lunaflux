@@ -86,7 +86,9 @@ void *lunaflux_device_worker_fake_ordered_executor_create(
   if (status == NULL) return value;
   int32_t kernels = functions == NULL ? 0 : Moonbit_array_length(functions);
   int32_t arguments = allocations == NULL ? 0 : Moonbit_array_length(allocations);
-  if (context == NULL || stream == NULL || policy != 0 || kernels <= 0 ||
+  /* No graph implementation: eager-only and explicit eager fallback are
+   * supported; capture-required remains rejected. */
+  if (context == NULL || stream == NULL || (policy != 0 && policy != 2) || kernels <= 0 ||
       arguments <= 0 || Moonbit_array_length(dimensions) != kernels * 7 ||
       Moonbit_array_length(argument_starts) != kernels + 1 ||
       Moonbit_array_length(offsets) != arguments ||

@@ -481,3 +481,11 @@ Native release hot_path_alloc, device_step_alloc, rank_group_wire_alloc and
 tensor_parallel_device_worker_alloc run successfully, including their positive
 controls. device_worker_alloc still exits with DeviceWorkerError.Executor;
 that executable is not a passing allocation gate and requires diagnosis.
+
+The ordered-executor failure was isolated to the test double rejecting policy
+2 (explicit eager fallback), despite valid 12-kernel/59-argument geometry.
+The double now accepts policies 0 and 2 in eager mode, still rejecting required
+capture. With startup repaired, the release campaign reaches its measurement
+and detects 195 direct allocations across 65 cycles (three per cycle), with
+zero array/string allocations. This is an unresolved allocation regression;
+the zero-allocation assertion is retained and the campaign correctly fails.
