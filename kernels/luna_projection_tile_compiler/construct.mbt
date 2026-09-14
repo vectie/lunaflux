@@ -44,7 +44,7 @@ pub fn ProjectionAttentionIngressEpilogue::new(
     rope_theta <= 0.0 {
     raise InvalidProjectionTileCompilation(InvalidProblem)
   }
-  { query_heads, kv_heads, head_dimension, norm_epsilon, rope_theta }
+  { query_heads, kv_heads, head_dimension, norm_epsilon, rope_theta, }
 }
 
 ///|
@@ -63,12 +63,15 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
     single_row_numerics~,
   )
   let (_, output_width, _) = dispatch.shape().dimensions()
+  // Divide the bounded output extent first; even positive head counts can
+  // overflow a narrow sum/product and falsely match a small projection.
   if dispatch.shape().family() != Qkv ||
-    output_width !=
-    (epilogue.query_heads + 2 * epilogue.kv_heads) * epilogue.head_dimension {
+    output_width % epilogue.head_dimension != 0 ||
+    (output_width / epilogue.head_dimension).to_int64() !=
+    epilogue.query_heads.to_int64() + 2L * epilogue.kv_heads.to_int64() {
     raise InvalidProjectionTileCompilation(InvalidDemand)
   }
-  { ..request, epilogue: ProjectionAttentionIngress(epilogue) }
+  { ..request, epilogue: ProjectionAttentionIngress(epilogue), }
 }
 
 ///|

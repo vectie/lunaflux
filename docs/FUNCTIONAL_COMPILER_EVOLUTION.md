@@ -433,3 +433,14 @@ No fresh sanitizer, serving or competitor campaign was run by this replay.
 Downloaded archive (driver, package archive, sources, cubins and raw results):
 `/tmp/lunaflux-compiler-gpu-b4aa5b73.tar.gz`, SHA-256
 `628e135e9e3768a2806be0abe16108c7c2177f73c0d47d0ac5bcfe7c14602820`.
+
+### QKV epilogue extent identity
+
+Regression reproduced acceptance of enormous positive head counts whose
+32-bit sum/product wrapped to a small projection output width. The ingress
+constructor now requires exact head-dimension divisibility and compares the
+quotient with a 64-bit head-count sum, avoiding both narrow multiplication and
+an unnecessarily large wide product. Existing valid ingress plans retain
+their semantic representation; two wrapped-extent regressions are rejected.
+This is a compiler input-identity correction, not the completion of QKV operand
+segmentation or a change to kernel arithmetic.
