@@ -187,3 +187,9 @@ reuse stale generated code. The Qwen resource-feedback export pass uses this
 path. This is not a persistent cache, live publication, or runtime JIT; those
 remain separate work. Regression compares complete incremental and fresh values,
 including generated source and digests, rather than only selected IDs.
+
+Both prefill and decode resource-feedback exports now reuse the earlier
+frontier. Decode also skips its formerly unconditional second compilation when
+there is no resource input. Invalidation regressions cover causal/read-view
+effects, numerical permission, parallel capabilities, shape and target; adding
+and withdrawing measured observations must select exactly as a fresh compile.

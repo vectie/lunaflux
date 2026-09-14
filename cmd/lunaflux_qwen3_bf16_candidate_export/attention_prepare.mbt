@@ -304,10 +304,16 @@ fn prepare_qwen_compiler_decode(
     _ => raise QwenReadOnlyPreparation
   }
   let request = qwen_attention_resource_request(request, frontier, resources)
-  let expanded = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
-    request, records,
-  ) catch {
-    _ => raise QwenReadOnlyPreparation
+  let expanded = if resources is None {
+    frontier
+  } else {
+    @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+      request,
+      records,
+      previous=frontier,
+    ) catch {
+      _ => raise QwenReadOnlyPreparation
+    }
   }
   guard tuning is Some((bytes, device, toolchain)) else { return expanded }
   let observations = @luna_attention_tuning.parse_attention_tuning_records(
