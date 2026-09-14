@@ -1,8 +1,10 @@
 # Diagnostic worker execution trace
 
 Run `install_execution_trace.mbtx DISPOSABLE_SOURCE` only against a disposable
-source copy. Rebuild `cmd/device_worker_child` and bind that executable in a new
-diagnostic launch. The normal repository packages do not import these hooks.
+source copy. Rebuild `cmd/device_worker_child` and `cmd/lunaflux`, and bind both
+executables in a new diagnostic launch. The diagnostic parent retains inherited
+stderr instead of closing it before worker exec. The normal repository packages
+do not import these hooks or change their descriptor/environment isolation.
 No runtime flag, filesystem lookup, or diagnostic FFI call is added to production.
 
 The installer checks exact source seams. All FFI arguments are primitive values;

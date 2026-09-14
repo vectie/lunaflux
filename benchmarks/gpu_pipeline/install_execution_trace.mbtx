@@ -15,6 +15,10 @@ async fn main {
   let args = @env.args()
   guard args.length() == 2 else { fail("usage: install_execution_trace.mbtx DISPOSABLE_SOURCE") }
   let root = args[1] + "/engine/device_step/"
+  let spawn_path = args[1] + "/internal/process/process_approved_spawn.c"
+  let spawn = replace_exact(@fs.read_file(spawn_path).text(),
+    "    if (close(2) != 0 && errno != EBADF) _exit(126);",
+    "    /* DIAGNOSTIC ONLY: retain inherited stderr for worker markers. */", 1)
   let run = @fs.read_file(root + "paged_executor_run.mbt").text()
   let run = replace_exact(run,
     "  let graph_bucket = select_",
@@ -102,5 +106,6 @@ async fn main {
   guard !pkg.contains("native-stub") else { fail("inspect existing native stubs") }
   @fs.write_file(root + "moon.pkg", pkg + "\noptions(\"native-stub\": [\"diagnostic_execution.c\"])\n")
   @fs.write_file(root + "paged_executor_run.mbt", run)
+  @fs.write_file(spawn_path, spawn)
   println("diagnostic-only worker trace installed")
 }

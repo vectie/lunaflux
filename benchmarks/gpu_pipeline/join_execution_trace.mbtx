@@ -1,0 +1,56 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json", "moonbitlang/core/string" }
+async fn command(p:String,a:Array[String])->String {
+  let(c,o,e)=@process.collect_output(p,a);guard c==0 else {fail(o.text()+e.text())};o.text()
+}
+async fn main {
+  let args=@env.args()
+  guard args.length()==5 else {fail("PROFILE_DIRECTORY SQLITE_BINARY MOON_BINARY SUMMARY_SCRIPT")}
+  let root=args[1];let sqlite=args[2]
+  let summary=command(args[3],["run",args[4],"--",root+"/server.stderr"])
+  @fs.write_file(root+"/execution.tsv",summary,create_mode=CreateNew)
+  let db=root+"/execution-analysis.sqlite"
+  assert_false(@fs.exists(db))
+  let inserts=StringBuilder();let mut count=0
+  for line in summary.split("\n") {
+    let cells=line.split("\t").to_array()
+    if cells.length()!=13 || cells[0]=="step" {continue}
+    let values=cells.map(x=>@string.parse_int64(x).to_string())
+    inserts.write_string("INSERT INTO marks VALUES("+values.join(",")+");");count+=1
+  }
+  guard count>0 else {fail("no steps")}
+  let raw=(root+"/trace.sqlite").replace(old="'",new="''")
+  let setup=
+    #|CREATE TABLE marks(step INTEGER PRIMARY KEY,rows INTEGER,tokens INTEGER,prefill INTEGER,decode INTEGER,context INTEGER,bucket_rows INTEGER,bucket_tokens INTEGER,bucket_context INTEGER,owner INTEGER,outputs INTEGER,route_ns INTEGER,row_rounded_queries INTEGER);
+  ignore(command(sqlite,[db,setup+"BEGIN;"+inserts.to_string()+"COMMIT;"]))
+  let joins=
+    #|CREATE TABLE launches_unordered AS SELECT r.start,r.end,r.correlationId FROM raw.CUPTI_ACTIVITY_KIND_RUNTIME r JOIN raw.StringIds s ON s.id=r.nameId WHERE s.value='cuGraphLaunch';
+    #|CREATE UNIQUE INDEX launch_order ON launches_unordered(start);
+    #|CREATE TABLE launches AS SELECT (SELECT count(*) FROM launches_unordered p WHERE p.start<=r.start) step,r.* FROM launches_unordered r;
+    #|CREATE TABLE kernels AS SELECT l.step,k.*,s.value kernel FROM launches l JOIN raw.CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=l.correlationId JOIN raw.StringIds s ON s.id=k.demangledName;
+    #|CREATE INDEX step_kernels ON kernels(step);
+    #|CREATE TABLE totals AS SELECT m.*,l.start submit_start,l.end submit_end,min(k.start) gpu_start,max(k.end) gpu_end,sum(k.end-k.start) kernel_ns,count(*) kernel_calls FROM marks m JOIN launches l USING(step) JOIN kernels k USING(step) GROUP BY m.step;
+  ignore(command(sqlite,[db,"ATTACH '"+raw+"' AS raw;"+joins]))
+  let audit=command(sqlite,["-json",db,"SELECT (SELECT count(*) FROM marks) markers,(SELECT count(*) FROM launches) launches,(SELECT count(*) FROM totals) mapped_steps,(SELECT count(*) FROM kernels) kernels;"])
+  @fs.write_file(root+"/execution-audit.json",audit,create_mode=CreateNew)
+  guard @json.parse(audit) is [{"markers":Number(m,..),"launches":Number(l,..),"mapped_steps":Number(s,..),..}] && m==count.to_double() && l==m && s==m else {fail("graph launch ordinal mapping incomplete")}
+  // Exact CUDA correlation IDs link each launch to its kernel nodes. Monotonic
+  // worker timestamps are not guessed into the profiler's relative clock.
+  let epoch_text=command(sqlite,["-json",root+"/trace.sqlite","SELECT cast(utcEpochNs as text) epoch FROM TARGET_INFO_SESSION_START_TIME;"])
+  guard @json.parse(epoch_text) is [{"epoch":String(epoch),..}] else {fail("epoch")}
+  let epoch=@string.parse_int64(epoch)
+  for c in [8,16] {
+    let stem="i4096-o64-c\{c}-t1"
+    let begin=@string.parse_int64(@fs.read_file(root+"/"+stem+".start").text().trim())-epoch
+    let end=@string.parse_int64(@fs.read_file(root+"/"+stem+".end").text().trim())-epoch
+    let selection="WITH s AS(SELECT *,CASE WHEN prefill=0 THEN 'decode' WHEN decode=0 THEN 'prefill' ELSE 'mixed' END phase FROM totals WHERE submit_start>=\{begin} AND submit_start<\{end}) "
+    let totals=command(sqlite,["-json",db,selection+", x AS(SELECT a.*,(SELECT max(b.gpu_end) FROM s b WHERE b.step<a.step) previous_end FROM s a) SELECT count(*) steps,sum(tokens-decode) prefill_tokens,sum(decode) decode_tokens,sum(outputs) outputs,sum(bucket_tokens-tokens) bucket_query_slack,round(sum(route_ns)/1000.0,3) route_us,round(sum(kernel_ns)/1e6,4) kernel_ms,round(sum(max(0,gpu_start-previous_end))/1e6,4) between_step_gap_ms FROM x;"])
+    @fs.write_file(root+"/"+stem+".execution-totals.json",totals,create_mode=CreateNew)
+    println(stem+" "+totals)
+    guard @json.parse(totals) is [{"prefill_tokens":Number(p,..),"decode_tokens":Number(d,..),"outputs":Number(o,..),..}] && p==(4096*c).to_double() && d==(63*c).to_double() && o==(64*c).to_double() else {fail("work accounting")}
+    let groups=command(sqlite,["-json",db,selection+"SELECT phase,owner,rows,tokens,bucket_rows,bucket_tokens,count(*) steps,round(avg(kernel_ns)/1e6,6) kernel_ms,round(avg(route_ns),1) route_ns FROM s GROUP BY phase,owner,rows,tokens ORDER BY phase,owner,rows,tokens;"])
+    @fs.write_file(root+"/"+stem+".execution-routes.json",groups,create_mode=CreateNew)
+    let kernels=command(sqlite,["-json",db,selection+"SELECT phase,owner,kernel,gridX,gridY,gridZ,blockX,registersPerThread,staticSharedMemory+dynamicSharedMemory shared_bytes,count(*) calls,round(sum(k.end-k.start)/1e6,4) total_ms FROM s JOIN kernels k USING(step) GROUP BY phase,owner,kernel,gridX,gridY,gridZ,blockX ORDER BY total_ms DESC;"])
+    @fs.write_file(root+"/"+stem+".execution-kernels.json",kernels,create_mode=CreateNew)
+  }
+  @fs.write_file(root+"/EXECUTION_ANALYSIS.txt","graph_launch_correlation_and_work_accounting=passed\nbucket_slack_is_not_executed_padding=true\n",create_mode=CreateNew)
+}
