@@ -219,3 +219,18 @@ point still validates external candidates. A regression compares every batch
 plan to its individually validated equivalent. Resource-budget preparation also
 uses the previous AOT frontier. These reduce compiler work, not GPU latency;
 no compile-time speedup percentage has yet been measured.
+
+### Linux cross-check of fda84583
+
+Committed strategy/compiler/AOT/probe packages were overlaid onto the existing
+isolated Linux diagnostic source tree (not a clean whole-repository release).
+Native warning-denied tests passed: strategy 23/23, compiler 19/19, AOT 5/5.
+The release diagnostic exporter rebuilt successfully. Generated instruction-map
+sources for 1003/1004/1005/1006/1008 match the capacity-corrected physical replay
+sources exactly. No new GPU timing was run: these unchanged sources provide no
+basis for claiming inference improvement from the compiler refactoring.
+
+Downloaded results: `/tmp/lunaflux-compiler-linux-fda84583.tar.gz`, SHA-256
+`e7b772a0679b8e42c91a6fa4a565d87de02a08d9c01af8b190afa437323b93f5`.
+This checks these packages and sources only; full exporter integration,
+end-to-end serving, other kernel families and calibrated selection remain open.
