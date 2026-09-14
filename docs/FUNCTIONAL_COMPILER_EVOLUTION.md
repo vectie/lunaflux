@@ -333,3 +333,36 @@ scoring and the optimizer's partition decision. The tests cover large legal
 batch sizes, exact expected scoring and retention of the unsplit fold when
 query/head parallelism is already sufficient. No tensor memory is allocated
 by these compiler tests; they do not claim that such a batch fits a GPU.
+
+### Linux regression and compiler timing at cc215c71
+
+The seven committed compiler-related packages were overlaid on the existing
+isolated Linux diagnostic tree. This is a package-level cross-check, not a
+clean whole-source release or physical serving qualification. Native tests
+passed: attention strategy 23, optimizer 8, compiler 24, CUDA AOT 6, projection
+strategy 10, tuning 5, projection compiler 53 (129 total).
+
+On the host's Intel Core i9-7900X, the same native-release CPU benchmark used
+one warmup per arm, five alternating trials and 20 compilations per trial.
+Every result equals fresh compilation and all twelve variants are reused.
+
+| Trial | Fresh microseconds | Reused microseconds |
+| --- | ---: | ---: |
+| 0 | 468.6694 | 44.8034 |
+| 1 | 456.92505 | 44.58775 |
+| 2 | 434.3678 | 39.4921 |
+| 3 | 437.5933 | 39.2686 |
+| 4 | 432.7358 | 39.5098 |
+
+Medians are 437.5933 and 39.5098 us (approximately 11.1x). This measures only
+pure compiler passes and equality checks, excluding CUDA source emission,
+nvcc, persistence and GPU execution. It must not be reported as inference
+speedup or as a controlled CPU comparison with the earlier Apple M4 run.
+
+Uploaded package archive SHA-256:
+`f0169e9d8c0125589f0a3627d4722d9e3ddca8b4f3a9441b2983d4fc6170b80d`.
+Downloaded results: `/tmp/lunaflux-compiler-linux-cc215c71.tar.gz`, SHA-256
+`6262bb4dc30117772db11d47088688fade74e2720f1ca354db66aa34bbec0ea2`.
+The test filesystem had only 519 MiB free before this run; larger new-source
+builds and end-to-end campaigns require space planning rather than overwriting
+or deleting existing model/evidence directories.
