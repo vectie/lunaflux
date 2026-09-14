@@ -231,16 +231,20 @@ fn attention_tile_resource_score(
   }
   let (query_extent, query_tile) = loops[0].geometry()
   let (head_extent, head_tile) = loops[1].geometry()
-  let logical_workgroups = (1 + (query_extent - 1) / query_tile) *
-    (1 + (head_extent - 1) / head_tile) *
-    request.problem.batch_rows()
+  let logical_workgroups = (
+      1L + (query_extent.to_int64() - 1L) / query_tile.to_int64()
+    ) *
+    (1L + (head_extent.to_int64() - 1L) / head_tile.to_int64()) *
+    request.problem.batch_rows().to_int64()
   let shared_residency = if shared_bytes <= 0L {
     1
   } else {
     Int::max(1, Int::min(2, (shared_capacity / shared_bytes).to_int()))
   }
-  let residency = Int::max(1, Int::min(logical_workgroups, shared_residency))
-  let divisor = residency.to_int64()
+  let divisor = Int64::max(
+    1L,
+    Int64::min(logical_workgroups, shared_residency.to_int64()),
+  )
   base / divisor + (if base % divisor == 0L { 0L } else { 1L })
 }
 

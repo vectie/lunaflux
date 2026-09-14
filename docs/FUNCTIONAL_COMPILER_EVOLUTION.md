@@ -321,3 +321,15 @@ The resource observations in the reproduction are synthetic compiler test
 inputs, not GPU measurements or new production tuning records.
 Native regressions pass: attention compiler 23/23, CUDA AOT 6/6 (including
 full lowering/emission of both equal-count plans), Qwen exporter 11/11.
+
+### Wide attention geometry accounting
+
+A plan-only regression reproduced silent 32-bit overflow in fallback resource
+scoring: a legal large batch was charged 76,737,115,525,742,592 cost units
+instead of 38,368,557,762,871,296 because wrapped workgroup counts lost the
+second resident slot. These are dimensionless model scores, not nanoseconds.
+Workgroup products now widen before multiplication in both compiler resource
+scoring and the optimizer's partition decision. The tests cover large legal
+batch sizes, exact expected scoring and retention of the unsplit fold when
+query/head parallelism is already sufficient. No tensor memory is allocated
+by these compiler tests; they do not claim that such a batch fits a GPU.

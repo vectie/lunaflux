@@ -118,7 +118,7 @@ fn scan_score_transforms(
           if contains_region_root(regions, FuseScoreTransform, root) {
             regions
           } else {
-            append_region(regions, { rule: FuseScoreTransform, members, root })
+            append_region(regions, { rule: FuseScoreTransform, members, root, })
           }
         }
         None => regions
@@ -134,7 +134,7 @@ fn apply_score_transform_pass(
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> AttentionRewritePassResult {
   let next = scan_score_transforms(program, 0, regions)
-  { regions: next, changed: next.length() != regions.length() }
+  { regions: next, changed: next.length() != regions.length(), }
 }
 
 ///|
@@ -159,7 +159,7 @@ fn apply_paged_key_value_page_lookup_pass(
   match (key, value) {
     (Some(key), Some(value)) =>
       if contains_region_root(regions, HoistPagedKeyValuePageLookup, value) {
-        { regions, changed: false }
+        { regions, changed: false, }
       } else {
         {
           regions: append_region(regions, {
@@ -170,7 +170,7 @@ fn apply_paged_key_value_page_lookup_pass(
           changed: true,
         }
       }
-    _ => { regions, changed: false }
+    _ => { regions, changed: false, }
   }
 }
 
@@ -218,7 +218,7 @@ fn scan_online_softmax_folds(
       if contains_region_root(regions, FuseOnlineSoftmaxFold, root) {
         regions
       } else {
-        append_region(regions, { rule: FuseOnlineSoftmaxFold, members, root })
+        append_region(regions, { rule: FuseOnlineSoftmaxFold, members, root, })
       }
     }
     None => regions
@@ -232,7 +232,7 @@ fn apply_online_softmax_fold_pass(
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> AttentionRewritePassResult {
   let next = scan_online_softmax_folds(program, 0, regions)
-  { regions: next, changed: next.length() != regions.length() }
+  { regions: next, changed: next.length() != regions.length(), }
 }
 
 ///|
@@ -246,14 +246,14 @@ fn apply_online_softmax_tile_storage_pass(
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> AttentionRewritePassResult {
   if program.candidate().compute() != AttentionMatrixQkPv {
-    return { regions, changed: false }
+    return { regions, changed: false, }
   }
   for binding in program.bindings() {
     match online_softmax_fold_members(program, binding) {
       Some(members) => {
         let root = members[members.length() - 1]
         if contains_region_root(regions, ReuseOnlineSoftmaxTileStorage, root) {
-          return { regions, changed: false }
+          return { regions, changed: false, }
         }
         return {
           regions: append_region(regions, {
@@ -267,7 +267,7 @@ fn apply_online_softmax_tile_storage_pass(
       None => ()
     }
   }
-  { regions, changed: false }
+  { regions, changed: false, }
 }
 
 ///|
@@ -285,7 +285,11 @@ fn attention_partition_count(
       key_value_heads
     _ => query_heads
   }
-  let natural_workgroups = query_tiles * problem.batch_rows() * head_workgroups
+  // Valid problem dimensions can produce more than 2^31 workgroups. Keep
+  // the product wide before comparing with the bounded parallelism target.
+  let natural_workgroups = query_tiles.to_int64() *
+    problem.batch_rows().to_int64() *
+    head_workgroups.to_int64()
   // Partition only when the query/head map cannot provide one portable wave
   // of independent workgroups. This is a pure property of the semantic work
   // graph: a wider query tile or a larger continuous batch naturally removes
@@ -293,7 +297,7 @@ fn attention_partition_count(
   let minimum_context = if problem.phase() == Decode { 128 } else { 512 }
   if problem.phase() == MixedCompatibility ||
     context_tokens < minimum_context ||
-    natural_workgroups >= parallel_workgroup_target {
+    natural_workgroups >= parallel_workgroup_target.to_int64() {
     return 1
   }
   let key_value_tiles = 1 + (context_tokens - 1) / key_value_tile
@@ -301,8 +305,8 @@ fn attention_partition_count(
     8,
     Int::max(2, 1 + (context_tokens - 1) / (minimum_context / 2)),
   )
-  let saturation_partitions = 1 +
-    (parallel_workgroup_target - 1) / natural_workgroups
+  let saturation_partitions = (1L +
+  (parallel_workgroup_target.to_int64() - 1L) / natural_workgroups).to_int()
   Int::max(
     1,
     Int::min(
@@ -319,7 +323,7 @@ fn apply_partition_online_softmax_pass(
   parallel_workgroup_target : Int,
 ) -> AttentionRewritePassResult {
   if attention_partition_count(program, parallel_workgroup_target) == 1 {
-    return { regions, changed: false }
+    return { regions, changed: false, }
   }
   let bindings = program.bindings()
   for binding in bindings {
@@ -327,19 +331,19 @@ fn apply_partition_online_softmax_pass(
       Some(members) => {
         let root = members[members.length() - 1]
         if contains_region_root(regions, PartitionOnlineSoftmaxFold, root) {
-          return { regions, changed: false }
+          return { regions, changed: false, }
         }
         let next = append_region(regions, {
           rule: PartitionOnlineSoftmaxFold,
           members,
           root,
         })
-        return { regions: next, changed: true }
+        return { regions: next, changed: true, }
       }
       None => ()
     }
   }
-  { regions, changed: false }
+  { regions, changed: false, }
 }
 
 ///|
