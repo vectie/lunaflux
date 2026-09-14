@@ -344,25 +344,26 @@ fn compile_attention_tile_frontier_reusing(
   if variants.length() == 0 {
     raise InvalidAttentionTileCompilation(ResourceFeedback)
   }
-  let resource_selected = variants[1:].fold(init=variants[0], (
-    current,
-    candidate,
-  ) => {
-    let current_score = attention_tile_resource_score(request, current)
-    let candidate_score = attention_tile_resource_score(request, candidate)
-    if candidate_score < current_score ||
-      (
-        candidate_score == current_score &&
-        candidate.plan().candidate().stable_id() <
-        current.plan().candidate().stable_id()
-      ) {
-      candidate
-    } else {
-      current
-    }
-  })
-  if attention_tile_resource_score(request, resource_selected) ==
-    9223372036854775807L {
+  // Carry the incumbent score through the pure fold. Resource observations
+  // are immutable, so rescoring the same incumbent cannot change the result.
+  let (resource_selected, selected_score) = variants[1:].fold(
+    init=(variants[0], attention_tile_resource_score(request, variants[0])),
+    (incumbent, candidate) => {
+      let (current, current_score) = incumbent
+      let candidate_score = attention_tile_resource_score(request, candidate)
+      if candidate_score < current_score ||
+        (
+          candidate_score == current_score &&
+          candidate.plan().candidate().stable_id() <
+          current.plan().candidate().stable_id()
+        ) {
+        (candidate, candidate_score)
+      } else {
+        incumbent
+      }
+    },
+  )
+  if selected_score == 9223372036854775807L {
     raise InvalidAttentionTileCompilation(ResourceFeedback)
   }
   let builder = StringBuilder()

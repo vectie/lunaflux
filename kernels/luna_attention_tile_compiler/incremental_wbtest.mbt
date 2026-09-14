@@ -1,4 +1,47 @@
 ///|
+test "incremental resource invalidation cannot retain an infeasible cached winner" {
+  let base = transfer_frontier_request([])
+  let previous = compile_attention_tile_frontier(base)
+  let winner = previous.selected()
+  let changed = base.with_resource_feedback(feedback_test_budget(), [
+    AttentionRegisterObservation::new(
+      winner.schedule().digest(),
+      registers_per_thread=1024,
+    ),
+  ])
+  let (updated, hits) = compile_attention_tile_frontier_incremental(
+    changed, previous,
+  )
+  assert_eq(hits, previous.variants().length())
+  assert_eq(updated, compile_attention_tile_frontier(changed))
+  assert_false(
+    updated.selected().schedule().digest() == winner.schedule().digest(),
+  )
+  let impossible = base.with_resource_feedback(
+    AttentionResourceBudget::new(
+      units=1,
+      threads_per_unit=1,
+      registers_per_unit=1,
+      register_allocation_grain=1,
+      shared_bytes_per_unit=1L,
+      blocks_per_unit=1,
+    ),
+    [],
+  )
+  try compile_attention_tile_frontier_incremental(impossible, updated) catch {
+    InvalidAttentionTileCompilation(ResourceFeedback) => ()
+    _ => fail("unexpected incremental resource failure")
+  } noraise {
+    _ => fail("cached compilation bypassed impossible resource budget")
+  }
+  let (restored, hits) = compile_attention_tile_frontier_incremental(
+    base, updated,
+  )
+  assert_eq(hits, previous.variants().length())
+  assert_eq(restored, previous)
+}
+
+///|
 test "incremental frontier reuses pure passes and rebinds resource feedback" {
   let request = transfer_frontier_request([])
   let previous = compile_attention_tile_frontier(request)

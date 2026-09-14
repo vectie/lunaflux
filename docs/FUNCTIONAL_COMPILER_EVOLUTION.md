@@ -366,3 +366,14 @@ Downloaded results: `/tmp/lunaflux-compiler-linux-cc215c71.tar.gz`, SHA-256
 The test filesystem had only 519 MiB free before this run; larger new-source
 builds and end-to-end campaigns require space planning rather than overwriting
 or deleting existing model/evidence directories.
+
+### Resource-only incremental transitions
+
+Added regression for a cached winner becoming infeasible after new register
+observations, complete resource exhaustion, and subsequent restoration of the
+original request. Reused results must equal fresh compilation and the old
+immutable frontier must remain recoverable. All 25 compiler tests pass.
+The selection fold now carries the incumbent score explicitly, evaluating
+each variant once instead of rescoring the incumbent and final winner.
+This removes redundant pure compiler work without changing scoring policy,
+candidate tie-breaking, canonical output or runtime kernel execution.
