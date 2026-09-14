@@ -72,3 +72,68 @@ remote SHA-256 `6e5a14cd6c9f1d27c3a1f4369f5f72cdd3b308ffcc5367dc290dd25a2a7fe4c0
 Measured-route production integration was committed as `01ba1c46`; native check
 and all 3,757 tests passed. This is implementation validation, not a claim that
 the new measured route bundle has passed physical qualification.
+
+## Same-multiset order control and alternate attention
+
+`/tmp/lfdiversity-order.3PpwqG` uses the rebuilt integration worker with the
+byte-identical baseline bundle. Reversing the same eight request tuples in each
+staggered group changes C8 median wall time from 1785 to 1764 ms and C16 from
+2762 to 2730 ms. This preserves tokens, lengths and causal work, unlike the
+uniform/ragged comparison. Three measured trials do not establish a universal
+scheduling benefit. C8 request p95 mean inter-token time changes from 30.935 to
+20.666 ms, demonstrating why completion throughput alone is insufficient.
+
+`/tmp/lfdiversity-wide.EU0jMm` uses the same request bodies and worker with the
+c324 wide-prefill artifact instead of the c322 alias. No synthetic measurement
+table was used to force selection. Median wall times:
+
+| Case | Baseline C8 | c324 bundle C8 | Baseline C16 | c324 bundle C16 |
+| --- | ---: | ---: | ---: | ---: |
+| Uniform distinct | 1218 | 1217 | 2187 | 2182 |
+| Ragged input | 1557 | 1568 | 2426 | 2420 |
+| Ragged input/output | 1771 | 1770 | 2678 | 2698 |
+| Ragged staggered | 1785 | 1785 | 2762 | 2755 |
+| Ragged reverse staggered | 1764 | 1761 | 2730 | 2732 |
+
+There is no stable end-to-end improvement in these measurements. The expanded
+workloads did not reveal a hidden large c324 speedup. Actual selected-kernel
+profiling is being checked separately; bundle presence alone is not invocation
+proof.
+
+Across 504 measured requests (32,256 tokens), 62 request sequences differ between
+the two bundles; each bundle has five differing repeated requests among its
+336 within-bundle repeat comparisons. Cross-bundle differences are in ragged
+cases, including repeatable first differences at positions 4, 10, 22 and 51;
+they are not confined to the final token. This exposes coverage missing from
+uniform tests, but does not establish which output is numerically correct.
+Greedy divergence must be investigated against reference logits/tolerances;
+do not relabel token disagreement as proven accuracy loss or harmless rounding.
+The alternate bundle remains experimental, not the new default.
+
+## Actual selected-kernel trace
+
+The separate 4096/64 C8/C16 trace at
+`/tmp/lfwide-selection-trace.ygncsI/lunaflux/trace-export.sqlite` confirms 2,688
+calls to `lunaflux_attention_prefill_tile_compiler_v1_c324`. The prior row-tail
+baseline trace has the same 2,688 prefill calls, 8,288 decode-attention calls and
+82,560 total kernel calls over its four warmup/measured cases.
+
+| Aggregate over the four profiled cases | c322 baseline ms | c324 ms |
+| --- | ---: | ---: |
+| Prefill attention | 2770.429 | 2741.994 |
+| Decode attention | 4098.247 | 4098.238 |
+| All kernels | 13078.436 | 13052.361 |
+
+Thus the selected prefill kernel improves only 1.03% here, not the roughly 14%
+seen on the earlier uniform-row microcase. It represents about 21.2% of baseline
+GPU kernel time; saving 28.435 ms there predicts only about 0.22% of total kernel
+time. Observed aggregate savings are 26.075 ms (0.20%). This directly explains
+why this substitution does not materially move end-to-end throughput. It is not
+an absent-kernel-selection problem. These are single profiling comparisons,
+not statistical proof of a 0.20% production speedup.
+
+The remaining investigation must measure matched **actual row distributions**,
+history, cache conditions and instruction/memory behavior before proposing
+another compiler pass. Uniform-row microbenchmarks and generic bucket upper
+bounds are not substitutes for those inputs. This trace does not diagnose the
+instruction-level reason the microcase benefit disappears.
