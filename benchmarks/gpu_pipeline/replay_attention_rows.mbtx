@@ -1,0 +1,100 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Diagnostic-only replay: real row geometry, synthetic tensor values. It is
+// deliberately not a model-logit oracle or a production tuning-table producer.
+fn replace_once(s : String, old : String, new : String) -> String raise {
+  let parts=s.split(old).to_array()
+  assert_eq(parts.length(),2,msg=old)
+  parts[0].to_owned()+new+parts[1].to_owned()
+}
+
+fn field(line : StringView, key : String) -> Int raise {
+  let values=line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array()
+  guard values is [value] else {fail("missing trace field "+key)}
+  @string.parse_int(value[key.length()+1:])
+}
+
+async fn run(root : String, tag : String, exe : String, args : Array[String]) -> String {
+  @fs.write_file(root+"/"+tag+".command.json",Json([exe]+args).stringify(),create_mode=CreateNew)
+  let (code,out,err)=@process.collect_output(exe,args,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6"})
+  @fs.write_file(root+"/"+tag+".stdout",out,create_mode=CreateNew)
+  @fs.write_file(root+"/"+tag+".stderr",err,create_mode=CreateNew)
+  @fs.write_file(root+"/"+tag+".exit",code.to_string(),create_mode=CreateNew)
+  guard code==0 else {fail(tag+": "+out.text()+err.text())}
+  println(tag+" complete")
+  out.text()
+}
+
+async fn main {
+  guard @env.args() is [_,root,probe,headers,trace,baseline,variant] else {
+    fail("NEW_OUTPUT METADATA_PROBE_CU HEADER_DIRECTORY SERVER_STDERR BASELINE_CUBIN VARIANT_CUBIN")
+  }
+  @fs.mkdir(root)
+  let apps=run(root,"idle","nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+  assert_true(apps.trim().is_empty())
+  ignore(run(root,"identities","sha256sum",[probe,trace,baseline,variant,"/usr/local/cuda-13.1/bin/nvcc"]))
+  let source=@fs.read_file(probe).text()
+  let source=replace_once(source,"pi(8192*4)","pi(9216*4)")
+  let source=replace_once(source,"keys(8192*8*1024*2),values(8192*8*1024*2)","keys(9216*8*1024*2),values(9216*8*1024*2)")
+  let source=replace_once(source,"(page*7919+17)%8192","(page*7919+17)%9216")
+  let source=replace_once(source,"if(argc!=16)return 1;","if(argc!=17)return 1;")
+  let source=replace_once(source,"int n=tokens/rows+(r<tokens%rows);int context=n+past+((rows==1)?0:r%3*8);",
+    "int n,h; if(fscanf(shape,\"%d %d\",&n,&h)!=2 || n<1 || h<0 || n+h>40960) return 6; int context=n+h;")
+  let source=replace_once(source,"for(int r=0;r<rows;r++){int n,h;",
+    "FILE* shape=fopen(argv[16],\"r\"); int prefill; if(!shape || fscanf(shape,\"%d\",&prefill)!=1 || prefill<1 || prefill>rows)return 6; for(int r=0;r<rows;r++){int n,h;")
+  let source=replace_once(source,"for(int& page:indices)","fclose(shape);if(token!=tokens || indices.size()>9216)return 6;\n for(int& page:indices)")
+  let source=replace_once(source,"counts.ints({rows,0,rows,tokens,int(indices.size())});","counts.ints({prefill,rows-prefill,rows,tokens,int(indices.size())});")
+  let source=replace_once(source,"for(int row=0;row<rows;row++)for(int first=off[row]","for(int row=0;row<prefill;row++)for(int first=off[row]")
+  let source=replace_once(source,"size_t(tokens)*2048","size_t(off[prefill])*2048")
+  let source=replace_once(source,"check_attention_referee(input.read(),ek,ev,actual,pos,off,pages,indices);",
+    "std::vector<int> prefix(off.begin(),off.begin()+prefill+1); check_attention_referee(input.read(),ek,ev,expected,pos,prefix,pages,indices); check_attention_referee(input.read(),ek,ev,actual,pos,prefix,pages,indices); now.launch(newargs); CK(cudaDeviceSynchronize()); if(actual!=output.read())return 7;")
+  @fs.write_file(root+"/probe.cu",source,create_mode=CreateNew)
+  for name in ["attention_referee.h","current_view_fixture.h"] {
+    @fs.write_file(root+"/"+name,@fs.read_file(headers+"/"+name),create_mode=CreateNew)
+  }
+  ignore(run(root,"build","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false",root+"/probe.cu","-lcuda","-o",root+"/probe"]))
+  let cases : Array[(String,Int,Int,Int)] = []
+  let mut shape=""
+  let mut total=0
+  let mut rows=0
+  let mut prefill=0
+  let mut active=false
+  for line in @fs.read_file(trace).text().split("\n") {
+    if !line.contains("lf_exec ") {continue}
+    match field(line,"kind") {
+      0 => {assert_true(!active);active=true;total=0;rows=0;prefill=field(line,"c");shape="\{prefill}\n"}
+      1 | 2 => {
+        assert_true(active)
+        let q=field(line,"b");let h=field(line,"c")
+        shape+="\{q} \{h}\n";total+=q;rows+=1
+      }
+      3 => {
+        assert_true(active);active=false
+        if prefill==0 {continue}
+        let mut found=false
+        for i,(s,t,r,n) in cases {
+          if s==shape {cases[i]=(s,t,r,n+1);found=true;break}
+        }
+        if !found {cases.push((shape,total,rows,1))}
+      }
+      _ => ()
+    }
+  }
+  assert_true(!active && cases.length()>0)
+  @fs.write_file(root+"/cases.json",Json::array(cases.map(entry=>{let (s,t,r,n)=entry; {
+    "rows":r,"tokens":t,"occurrences":n,"shape":s
+  }})).stringify(),create_mode=CreateNew)
+  for i,(s,t,r,_) in cases {
+    let shape_path=root+"/shape-\{i}.txt"
+    @fs.write_file(shape_path,s,create_mode=CreateNew)
+    ignore(run(root,"case-\{i}",root+"/probe",["attention",baseline,variant,"158","16","49168","158","16","32784","0",t.to_string(),r.to_string(),"lunaflux_attention_prefill_tile_compiler_v1_c324","0","128",shape_path]))
+  }
+  @fs.write_file(root+"/RESULT.txt","outcome=passed\nscope=actual-row-geometry-synthetic-tensors\n",create_mode=CreateNew)
+}
