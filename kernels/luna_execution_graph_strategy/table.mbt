@@ -3,13 +3,8 @@ fn graph_bucket_exponent(value : Int) -> Int raise ExecutionGraphBucketError {
   if value <= 0 || value > 1048576 {
     raise InvalidExecutionGraphBucket(Shape)
   }
-  let mut exponent = 0
-  let mut bucket = 1
-  while bucket < value {
-    bucket *= 2
-    exponent += 1
-  }
-  exponent
+  // ceil(log2(value)); clz(0) is the Int bit width, so one maps to zero.
+  32 - (value - 1).clz()
 }
 
 ///|

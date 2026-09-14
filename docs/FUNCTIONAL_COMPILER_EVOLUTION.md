@@ -506,3 +506,12 @@ assertion, launch/copy/readback counts, retirement and fault/cleanup checks.
 Thus the previously observed 195 direct allocations are eliminated in this
 campaign. This is host-side allocation validation, not a new GPU throughput
 measurement or completion of the broader compiler roadmap.
+
+Follow-up full native regression passes 3784/3784. The four other native release
+allocation executables (hot path, device step, rank-group wire and tensor-parallel
+worker) also pass with warning denial. Graph bucket exponent calculation now
+uses ceil-log2 via count-leading-zeros rather than a repeated doubling loop.
+An exhaustive test covers all 1,048,576 admitted positive inputs, proving both
+coverage and minimal capacity, and rejects the lower/upper invalid boundaries.
+The updated strategy suite passes 8/8. This arithmetic simplification retains
+the existing shape limit and bucket policy; it is not a measured serving gain.
