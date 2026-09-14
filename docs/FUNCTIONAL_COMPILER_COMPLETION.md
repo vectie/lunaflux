@@ -10,12 +10,12 @@ are inputs to selection; they are never collected inside a token step.
 
 | Work | Completion criterion | Current work |
 | --- | --- | --- |
-| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 MLP and 40 QKV/output/head combinations physically measured; no faster long-input alternative found; final runtime record integration remains |
+| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 MLP and 40 QKV/output/head combinations physically measured; real-record export retains baseline; no faster long-input alternative found in this search |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
 | Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pending |
 | Resource feedback | Measured budgets/register facts reach resource-aware compiler selection, including expanded schedules | Prefill/decode/partitioned exporter connected; decode resource-only choice regresses, measured override physically restores baseline source |
-| Fusion chain selection | Compare full versus partial chain cost, select through a generic immutable policy, validate both | Pending |
+| Fusion chain selection | Compare full versus partial chain cost, select through a generic immutable policy, validate both | Paired measured selector integrated; full-chain serving is slower and has last-token divergence requiring diagnosis; partial retained |
 | Execution diagnostics | Latest runtime trace includes actual work, padded work, selected bucket/route, mixed steps and GPU gaps | Prior trace exists; new coverage pending |
 
 No item is complete merely because an interface exists. Completion includes
@@ -132,3 +132,41 @@ between identical/default-equivalent schedules are not treated as gains.
 
 Downloaded `/tmp/lunaflux-matrix-folds-20260914.tar.gz`, verified SHA-256
 `fd7b4b42b574629fc6b9968b9aad079772a4d7c0bfb92e6ef274ac2292824848`.
+
+## Measured selection and full/partial serving comparison
+
+`/tmp/lffinalselect.Iy6cJP` consumes the combined real fold table. With a 1%
+minimum-improvement margin, the entire exported candidate directory is identical
+to baseline. Thus a noisy sub-percent head result does not replace the kernel.
+The full/partial exporter accepts `--ingress-pair`, backed by the generic pure
+fusion policy; no fabricated unfused timing is needed. The measured pair selects
+partial fusion and reproduces its runtime bundle byte for byte.
+
+`/tmp/lffusionchain.di9JcR/retry-cwd` compares sequential GPU-exclusive serving
+runs, each with one warmup and five measured trials at four input/output lengths
+and C1/C8/C16. Current full/partial generated CUDA sources were checked identical
+to those in the reused runtime. This isolates the fusion choice; it is not a
+fresh build of all current runtime code or a new three-framework campaign.
+
+| Input/output/C | Partial median ms | Full median ms | Partial output tok/s | Full output tok/s |
+| --- | ---: | ---: | ---: | ---: |
+| 4096/64/1 | 549 | 625 | 116.58 | 102.40 |
+| 4096/64/8 | 2365 | 2973 | 216.49 | 172.22 |
+| 4096/64/16 | 4443 | 5547 | 230.47 | 184.60 |
+
+Full fusion is slower throughout the tested matrix. At 3072/32, 44 request
+comparisons differ only at the final token (ID 16 versus 22). Both paths also
+vary across repetitions, so this is not yet attributable solely to full fusion;
+fixed-shape/logit diagnosis remains necessary. Do not claim bitwise equivalence
+or promote full fusion from these measurements.
+
+Downloaded archives, SHA-256 verified locally:
+
+- `/tmp/lunaflux-fusion-pair-20260914.tar.gz`:
+  `9520c3d42cf78932f1b5ccfd804b9a4789afb439404bc09839088ac922440364`.
+- `/tmp/lunaflux-measured-selection-20260914.tar.gz`:
+  `30a750dbb5269e252f9eb78ef48a12a51339e4526fcd9ed1f2972b7553b017f7`.
+
+The new selection machinery intentionally keeps the faster established kernels.
+It is not itself an end-to-end speedup; bucket-specific attention dispatch and
+the new diagnostic trace remain open.
