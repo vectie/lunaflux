@@ -234,6 +234,7 @@ test "CUDA AOT lowering maps the functional frontier to stable symbols" {
         maximum_source_bytes=1048576,
       ),
       [],
+      previous=frontier,
     ),
   )
 }

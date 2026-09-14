@@ -199,7 +199,9 @@ fn prepare_qwen_compiler_prefill(
     frontier
   } else {
     @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
-      request, records,
+      request,
+      records,
+      previous=frontier,
     ) catch {
       _ => raise QwenReadOnlyPreparation
     }

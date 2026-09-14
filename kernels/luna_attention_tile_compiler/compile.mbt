@@ -270,6 +270,26 @@ fn compile_static_attention_tile_candidate(
 pub fn compile_attention_tile_frontier(
   request : AttentionTileCompilerRequest,
 ) -> AttentionTileCompilationFrontier raise AttentionTileCompilerError {
+  compile_attention_tile_frontier_reusing(request, None).0
+}
+
+///|
+/// Reuse pure semantic/optimization/schedule values from an earlier in-process
+/// frontier. Selection and resource scoring are always recomputed. The count
+/// reports reused variants, not request-time work or a persistent cache hit.
+pub fn compile_attention_tile_frontier_incremental(
+  request : AttentionTileCompilerRequest,
+  previous : AttentionTileCompilationFrontier,
+) -> (AttentionTileCompilationFrontier, Int) raise AttentionTileCompilerError {
+  compile_attention_tile_frontier_reusing(request, Some(previous))
+}
+
+///|
+fn compile_attention_tile_frontier_reusing(
+  request : AttentionTileCompilerRequest,
+  previous : AttentionTileCompilationFrontier?,
+) -> (AttentionTileCompilationFrontier, Int) raise AttentionTileCompilerError {
+  let mut reused = 0
   let selected = select_attention_tile(request)
   let variants : ReadOnlyArray[ScheduledAttentionTileCompilation] = if selected
     .plan()
@@ -288,6 +308,25 @@ pub fn compile_attention_tile_frontier(
       _ => raise InvalidAttentionTileCompilation(StrategySelection)
     }
     candidates.map(candidate => {
+      if previous is Some(previous) {
+        for cached in previous.variants {
+          let old = cached.optimized.semantic.selected.request
+          if old.backend == request.backend &&
+            old.target == request.target &&
+            old.problem == request.problem &&
+            old.capabilities == request.capabilities &&
+            cached.plan().source() == AttentionStaticCostModel &&
+            cached.plan().candidate() == candidate {
+            reused += 1
+            // Resource and latency observations are selection inputs, not IR
+            // inputs. Rebind them so downstream scoring sees the new values.
+            let selected = { ..cached.optimized.semantic.selected, request, }
+            let semantic = { ..cached.optimized.semantic, selected, }
+            let optimized = { ..cached.optimized, semantic, }
+            return { ..cached, optimized, }
+          }
+        }
+      }
       compile_static_attention_tile_candidate(request, candidate)
     })
   }
@@ -337,14 +376,17 @@ pub fn compile_attention_tile_frontier(
       "variant=\{variant.plan().candidate().stable_id()},\{variant.plan().static_cost()},\{shared},\{variant.digest().as_hex()}\n"
   }
   let canonical = @utf8.encode(builder.to_string())
-  {
-    selected: resource_selected,
-    variants,
-    canonical,
-    digest: AttentionTileCompilationDigest(
-      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-    ),
-  }
+  (
+    {
+      selected: resource_selected,
+      variants,
+      canonical,
+      digest: AttentionTileCompilationDigest(
+        @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
+      ),
+    },
+    reused,
+  )
 }
 
 ///|

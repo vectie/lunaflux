@@ -63,16 +63,27 @@ pub fn compile_cuda_attention_tile_aot(
 }
 
 ///|
-/// Lowers every non-dominated functional variant to a distinct AOT CUDA
+/// Lowers every legal functional variant to a distinct AOT CUDA
 /// symbol. This is a backend terminal map over an immutable functional value;
-/// candidate discovery, dominance, and selection stay outside CUDA.
+/// candidate discovery and selection stay outside CUDA. An optional earlier
+/// frontier reuses only pure compiler passes; device lowering is rerun.
 pub fn compile_cuda_attention_tile_aot_frontier(
   request : CudaAttentionTileAotRequest,
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
+  previous? : CudaAttentionTileAotFrontier,
 ) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError {
-  let functional = @luna_attention_tile_compiler.compile_attention_tile_frontier(
-    request.functional_request(autotune_records),
-  ) catch {
+  let functional = try {
+    let input = request.functional_request(autotune_records)
+    match previous {
+      Some(previous) =>
+        @luna_attention_tile_compiler.compile_attention_tile_frontier_incremental(
+          input,
+          previous.functional,
+        ).0
+      None =>
+        @luna_attention_tile_compiler.compile_attention_tile_frontier(input)
+    }
+  } catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
   let variants : Array[CudaAttentionTileAotCompilation] = []

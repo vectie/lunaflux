@@ -13,7 +13,7 @@ import {
 // Values
 pub fn compile_cuda_attention_tile_aot(CudaAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> CudaAttentionTileAotCompilation raise CudaAttentionTileAotError
 
-pub fn compile_cuda_attention_tile_aot_frontier(CudaAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError
+pub fn compile_cuda_attention_tile_aot_frontier(CudaAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord], previous? : CudaAttentionTileAotFrontier) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError
 
 pub fn compile_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
 

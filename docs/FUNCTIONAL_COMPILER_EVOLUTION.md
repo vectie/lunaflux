@@ -177,3 +177,13 @@ and no-feedback frontiers now preserve the same legal candidates; exact offline
 measurements still collapse selection to their winner. The tuning parser also
 rejects mixed sample counts within one workload-vector comparison, matching its
 documented equal-repetition contract.
+
+Incremental attention compilation now accepts an earlier immutable in-process
+frontier. Identical semantic problem, candidate, backend, target and capabilities
+reuse elaboration/optimization/scheduling; resource feedback is rebound and
+selection is rerun. Changed shapes or targets miss conservatively. The CUDA AOT
+wrapper reruns device lowering and source emission, so ABI/symbol changes never
+reuse stale generated code. The Qwen resource-feedback export pass uses this
+path. This is not a persistent cache, live publication, or runtime JIT; those
+remain separate work. Regression compares complete incremental and fresh values,
+including generated source and digests, rather than only selected IDs.

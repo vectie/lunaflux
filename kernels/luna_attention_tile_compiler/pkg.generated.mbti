@@ -14,6 +14,8 @@ pub fn compile_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentio
 
 pub fn compile_attention_tile_frontier(AttentionTileCompilerRequest) -> AttentionTileCompilationFrontier raise AttentionTileCompilerError
 
+pub fn compile_attention_tile_frontier_incremental(AttentionTileCompilerRequest, AttentionTileCompilationFrontier) -> (AttentionTileCompilationFrontier, Int) raise AttentionTileCompilerError
+
 pub fn compile_partitioned_attention_tile(AttentionTileCompilerRequest) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
 
 pub fn compile_partitioned_attention_tile_frontier(AttentionTileCompilerRequest, ArrayView[Int]) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError

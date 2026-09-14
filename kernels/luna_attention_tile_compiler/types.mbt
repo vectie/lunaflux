@@ -46,7 +46,7 @@ pub struct ScheduledAttentionTileCompilation {
 } derive(Debug, Eq)
 
 ///|
-/// Immutable non-dominated kernel family for one semantic attention problem.
+/// Immutable legal kernel family for one semantic attention problem.
 /// A later execution-graph compiler may choose among these variants for its
 /// runtime buckets without rerunning semantic optimization or device probes.
 pub struct AttentionTileCompilationFrontier {
