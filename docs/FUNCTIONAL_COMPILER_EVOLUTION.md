@@ -467,3 +467,17 @@ before source generation. The pre-binder-change full native suite completed
 inside the new toolchain's allocator attribute. This is not a zero-warning C
 build and needs a separate probe-header correction. The subsequent binder
 change is covered by the focused projection AOT suite (72/72).
+
+### Native allocator probe migration
+
+Running the release allocation executable exposed a real coverage failure:
+the record positive control observed zero allocations with the new mimalloc
+backend. Five probe headers now redirect malloc calls without rewriting bare
+attribute tokens, and separately intercept mi_malloc. The mimalloc wrapper
+calls mi_malloc, not libc_malloc, preserving the runtime's matching free path.
+Production runtime files and allocation behavior are unchanged.
+
+Native release hot_path_alloc, device_step_alloc, rank_group_wire_alloc and
+tensor_parallel_device_worker_alloc run successfully, including their positive
+controls. device_worker_alloc still exits with DeviceWorkerError.Executor;
+that executable is not a passing allocation gate and requires diagnosis.

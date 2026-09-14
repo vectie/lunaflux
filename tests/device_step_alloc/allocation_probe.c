@@ -72,6 +72,13 @@ void lunaflux_device_step_alloc_probe_keep_alive(const void *value) {
 
 int32_t lunaflux_device_step_alloc_probe_seed(void) { return probe_seed; }
 
+/* Preserve the allocator/free pairing used by the native runtime. */
+extern void *mi_malloc(size_t size);
+void *lunaflux_device_step_probe_mimalloc(size_t size) {
+  probe_count(&probe_direct);
+  return mi_malloc(size);
+}
+
 void *lunaflux_device_step_probe_malloc(size_t size) {
   probe_count(&probe_direct);
   return libc_malloc(size);

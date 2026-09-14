@@ -77,6 +77,13 @@ int32_t lunaflux_alloc_probe_seed(void) {
   return lunaflux_probe_seed_value;
 }
 
+/* Preserve the allocator/free pairing used by the native runtime. */
+extern void *mi_malloc(size_t size);
+void *lunaflux_probe_mimalloc(size_t size) {
+  lunaflux_probe_count(&lunaflux_probe_direct_allocations);
+  return mi_malloc(size);
+}
+
 void *lunaflux_probe_malloc(size_t size) {
   lunaflux_probe_count(&lunaflux_probe_direct_allocations);
   return libc_malloc(size);

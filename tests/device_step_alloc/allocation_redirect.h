@@ -102,7 +102,10 @@ moonbit_string_t lunaflux_device_step_probe_bytes_sub_string(
   int32_t length
 );
 
-#define malloc lunaflux_device_step_probe_malloc
+/* Redirect calls, not the bare malloc token in compiler attributes. */
+#define malloc(size) lunaflux_device_step_probe_malloc(size)
+void *lunaflux_device_step_probe_mimalloc(size_t size);
+#define mi_malloc(size) lunaflux_device_step_probe_mimalloc(size)
 #define moonbit_malloc_array lunaflux_device_step_probe_malloc_array
 #define moonbit_make_string lunaflux_device_step_probe_make_string
 #define moonbit_make_string_raw lunaflux_device_step_probe_make_string_raw

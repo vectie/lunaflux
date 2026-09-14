@@ -80,7 +80,10 @@ moonbit_string_t lunaflux_device_worker_probe_bytes_sub_string(
   int32_t
 );
 
-#define malloc lunaflux_device_worker_probe_malloc
+/* Redirect calls, not the bare malloc token in compiler attributes. */
+#define malloc(size) lunaflux_device_worker_probe_malloc(size)
+void *lunaflux_device_worker_probe_mimalloc(size_t size);
+#define mi_malloc(size) lunaflux_device_worker_probe_mimalloc(size)
 #define moonbit_malloc_raw lunaflux_device_worker_probe_malloc_raw
 #define moonbit_malloc_array lunaflux_device_worker_probe_malloc_array
 #define moonbit_make_string lunaflux_device_worker_probe_make_string
