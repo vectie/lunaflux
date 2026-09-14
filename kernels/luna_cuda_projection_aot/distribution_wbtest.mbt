@@ -68,17 +68,18 @@ test "matrix distribution lowers through both source and launch geometry" {
         [record],
       )
       let dispatch = runtime.dispatch_plan(256)
+      let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+        dispatch~,
+        maximum_rows=256,
+        maximum_tokens=256,
+        demand=if family == LanguageModelHead {
+          QueryRowEnds
+        } else {
+          AllTokenRows
+        },
+      )
       let compilation = @luna_projection_tile_compiler.compile_projection_tile(
-        @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-          dispatch~,
-          maximum_rows=256,
-          maximum_tokens=256,
-          demand=if family == LanguageModelHead {
-            QueryRowEnds
-          } else {
-            AllTokenRows
-          },
-        ),
+        projection_bind_tile_weights(request, parameters),
       )
       let dimensions = projection_dimensions(profile, parameters, dispatch)
       let groups = candidate.output_tiles_per_workgroup()

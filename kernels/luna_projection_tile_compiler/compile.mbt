@@ -60,6 +60,10 @@ fn projection_program_canonical(
   builder <+ "shape=\{input_width},\{output_width},\{intermediate_width}\n"
   builder <+ "demand=\{if request.demand == QueryRowEnds { 2 } else { 1 }}\n"
   builder <+ "bounds=\{request.maximum_rows},\{request.maximum_tokens}\n"
+  for segment in request.concatenated_weights {
+    builder <+
+      "weight-row-segment=\{segment.operand},\{segment.row_begin},\{segment.row_end}\n"
+  }
   if request.single_row_numerics == AllowDeterministicDotTree {
     builder <+ "single_row_numerics=deterministic-dot-tree\n"
   }
@@ -218,6 +222,7 @@ pub fn elaborate_projection_tile(
   }
   let canonical = projection_program_canonical(selected.request, bindings, root)
   let program = ProjectionTileProgram::{
+    concatenated_weights: selected.request.concatenated_weights,
     shape: selected.request.dispatch.shape(),
     demand: selected.request.demand,
     epilogue: selected.request.epilogue,

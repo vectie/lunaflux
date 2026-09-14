@@ -7,7 +7,7 @@ test "unified scalar source and recipe snapshots remain deterministic" {
   ]
   let recipe_sha256 = [
     // These are compiler snapshots, not transitive physical qualifications.
-    "2d8b1cdd7f6b729a2929acb788b4bce622cc5e56f55c42c3443cd5906beff6ce", "44da19a6f299b0d7bd4cc0dd384ca3fe4cef6066e355587835a4fa6b1cbc8de4",
+    "254e5699e7781c467c4711d16cfa981aaa5cb91761a92a8a37112cb2c933384a", "44da19a6f299b0d7bd4cc0dd384ca3fe4cef6066e355587835a4fa6b1cbc8de4",
     "5bc9f61ab2f1f2295e336727ecb020bc37864083260aa574d247025ee4516fb4", "5cbae3310b2a59f0d9f3d0d9f0880d42683400728a9b25377c74c3779d476170",
   ]
   for index, case in cases {

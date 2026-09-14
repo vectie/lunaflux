@@ -35,12 +35,7 @@ fn projection_matrix_pipeline_source(
     "logical_row"
   }
   let weight_selection = if parameters.family == QkvProjection {
-    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([
-        parameters.query_width,
-        parameters.intermediate_width,
-        parameters.intermediate_width,
-      ],
-    ).unwrap()
+    let segments = compilation.program().concatenated_weights()
     let (binding, branch) = projection_concatenated_weight_selection(
       segments,
       ["query_weight", "key_weight", "value_weight"],

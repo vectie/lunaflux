@@ -579,3 +579,46 @@ near-Int-limit widths and compare the generated constant with an independent
 Int64 ceiling calculation. Projection AOT tests pass 73/73. This is a source
 geometry bug fix; it does not allocate a giant tensor or claim a physical run
 at that width, and does not complete QKV transfer scheduling.
+
+### Concatenated weight views enter the semantic program
+
+Weight segmentation is now immutable request/program data, rather than a row
+plan reconstructed independently by CUDA source generators. The generic
+`with_concatenated_weights` binding checks positive, overflow-safe row extents
+and exact output coverage. It describes the logical dense-weight role and
+rejects collapsing GatedMlp's multiple roles into one. Normalization preserves
+the view; its intervals participate in semantic and compilation identities.
+Two equal-total-width projections with different operand splits no longer
+share a program identity. Abstract unbound requests retain their prior form.
+
+QKV primary and row-variant AOT construction bind the validated ABI extents
+before compilation. Scalar, single-token, matrix-map and matrix-pipeline
+lowerings consume the program view, with no repeated Q/K/V extent arithmetic.
+The attention-ingress constructor also binds the view and rejects later
+rebinding that would disagree with its head partitions. CUDA pointer spelling
+and branch lowering remain backend-owned; this does not force a new transfer
+schedule or add work to token execution. Existing bound QKV recipe identities
+change intentionally and require rebuilding, even where source is unchanged.
+
+Validation: native warning-denied full suite 3,791/3,791; projection compiler
+60/60; projection AOT 74/74; formatting, interface generation and native check
+pass. New tests cover immutable rebinding, invalid extents, normalization,
+same-total/different-partition identity and all four lowerers ignoring stale
+ABI partition fields after compilation. The scalar fixture's source SHA is
+unchanged; its recipe snapshot changes because semantics are now bound.
+
+On the RTX 5060 Ti, CUDA 13.1.115 generates identical SASS for the matrix QKV
+fixture and its prior decode-branch spelling. Fresh execution at 1/32/1024
+tokens passes bitwise comparison and sampled independent scalar checks;
+32-token memcheck, racecheck and synccheck pass. Five interleaved trials at
+1024 tokens give medians 223.920 us (prior spelling) and 223.880 us (new),
+effectively unchanged, not a speedup. The comparator restores only the prior
+branch spelling in the same fixture: this is not an old full-runtime versus
+new full-runtime benchmark. Other families, full fused ingress, Linux package
+integration and end-to-end serving are not newly physically qualified here.
+
+Raw source, cubins, SASS, scripts and results are downloaded in
+`/tmp/lunaflux-weight-view-retest.tar.gz` (remote/local SHA-256
+`f8929a6cad9b6198614d6fe081c13651bae13c7e138655c2e03b24fe6cee0acc`). Full transfer-worker integration,
+other compiler work in the completion ledger and fresh serving validation
+remain open.

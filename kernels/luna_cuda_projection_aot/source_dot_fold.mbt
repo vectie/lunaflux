@@ -55,12 +55,7 @@ fn projection_scalar_map_source(
     "const __nv_bfloat16 *weight"
   }
   let select_weight = if segmented {
-    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([
-        parameters.query_width,
-        parameters.intermediate_width,
-        parameters.intermediate_width,
-      ],
-    ).unwrap()
+    let segments = compilation.program().concatenated_weights()
     let (binding, branch) = projection_concatenated_weight_selection(
       segments,
       ["query_weight", "key_weight", "value_weight"],

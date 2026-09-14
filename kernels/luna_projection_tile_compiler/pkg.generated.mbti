@@ -166,6 +166,7 @@ pub struct ProjectionTileCompilerRequest {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_concatenated_weights(Self, ArrayView[Int]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
 
@@ -207,6 +208,7 @@ pub struct ProjectionTileProgram {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTileProgram::bindings(Self) -> ReadOnlyArray[ProjectionTileBinding]
+pub fn ProjectionTileProgram::concatenated_weights(Self) -> ReadOnlyArray[ProjectionRowSegment]
 pub fn ProjectionTileProgram::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileProgram::digest(Self) -> ProjectionTileProgramDigest
 pub fn ProjectionTileProgram::epilogue(Self) -> ProjectionTileEpilogue

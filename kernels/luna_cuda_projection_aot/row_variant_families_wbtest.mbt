@@ -34,18 +34,19 @@ fn row_variant_primary_test_source(
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   maximum_tokens? : Int = 1024,
 ) -> String raise {
+  let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+    dispatch~,
+    maximum_rows=32,
+    maximum_tokens~,
+    demand=if parameters.family == LanguageModelHead {
+      QueryRowEnds
+    } else {
+      AllTokenRows
+    },
+    single_row_numerics=AllowDeterministicDotTree,
+  )
   let compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-      dispatch~,
-      maximum_rows=32,
-      maximum_tokens~,
-      demand=if parameters.family == LanguageModelHead {
-        QueryRowEnds
-      } else {
-        AllTokenRows
-      },
-      single_row_numerics=AllowDeterministicDotTree,
-    ),
+    projection_bind_tile_weights(request, parameters),
   )
   @utf8.decode(
     projection_source(

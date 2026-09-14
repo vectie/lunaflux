@@ -22,6 +22,7 @@ pub fn ProjectionTileCompilerRequest::new(
     epilogue: ProjectionStoreRows,
     single_row_numerics,
     fold_choices: [],
+    concatenated_weights: [],
   }
 }
 
@@ -71,7 +72,12 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
     epilogue.query_heads.to_int64() + 2L * epilogue.kv_heads.to_int64() {
     raise InvalidProjectionTileCompilation(InvalidDemand)
   }
-  { ..request, epilogue: ProjectionAttentionIngress(epilogue), }
+  let segmented = request.with_concatenated_weights([
+    epilogue.query_heads * epilogue.head_dimension,
+    epilogue.kv_heads * epilogue.head_dimension,
+    epilogue.kv_heads * epilogue.head_dimension,
+  ])
+  { ..segmented, epilogue: ProjectionAttentionIngress(epilogue), }
 }
 
 ///|

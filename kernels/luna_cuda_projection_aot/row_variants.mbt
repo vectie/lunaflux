@@ -126,26 +126,25 @@ fn projection_row_variant_compilation(
   maximum_rows : Int,
   maximum_tokens : Int,
 ) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation raise ProjectionAotError {
-  @luna_projection_tile_compiler.compile_projection_tile(
-    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-      dispatch~,
-      maximum_rows~,
-      maximum_tokens~,
-      demand=if parameters.family == LanguageModelHead {
-        QueryRowEnds
-      } else {
-        AllTokenRows
-      },
-      single_row_numerics=if projection_tensor_core_eligible(
-          parameters, dispatch,
-        ) ||
-        projection_tensor_core_mlp_eligible(parameters, dispatch) {
-        AllowDeterministicDotTree
-      } else {
-        PreserveDotOrder
-      },
-    ) catch {
-      _ => raise Invalid(CompilerPolicy)
+  let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+    dispatch~,
+    maximum_rows~,
+    maximum_tokens~,
+    demand=if parameters.family == LanguageModelHead {
+      QueryRowEnds
+    } else {
+      AllTokenRows
     },
+    single_row_numerics=if projection_tensor_core_eligible(parameters, dispatch) ||
+      projection_tensor_core_mlp_eligible(parameters, dispatch) {
+      AllowDeterministicDotTree
+    } else {
+      PreserveDotOrder
+    },
+  ) catch {
+    _ => raise Invalid(CompilerPolicy)
+  }
+  @luna_projection_tile_compiler.compile_projection_tile(
+    projection_bind_tile_weights(request, parameters),
   )
 }

@@ -34,7 +34,14 @@ fn projection_matrix_map_source(
     "a[part] = row + local_row < token_count ? *reinterpret_cast<const unsigned *>(input + (unsigned long long)(row + local_row) * \{parameters.input_width}ULL + strip_begin + inner + local_k) : 0U;"
   }
   let weight_select = if parameters.family == QkvProjection {
-    "const __nv_bfloat16 *base = query_weight; int weight_row = column + local_row; if (weight_row >= \{parameters.query_width}) { weight_row -= \{parameters.query_width}; if (weight_row >= \{parameters.intermediate_width}) { weight_row -= \{parameters.intermediate_width}; base = value_weight; } else base = key_weight; }"
+    let (binding, branch) = projection_concatenated_weight_selection(
+      compilation.program().concatenated_weights(),
+      ["query_weight", "key_weight", "value_weight"],
+      "column + local_row",
+      "base",
+      "weight_row",
+    )
+    binding + " " + branch
   } else {
     "const __nv_bfloat16 *base = weight; const int weight_row = column + local_row;"
   }

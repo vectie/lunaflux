@@ -186,6 +186,13 @@ fn projection_tensor_core_direct_qkv_source(
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   groups? : Int = 8,
 ) -> Bytes {
+  let (weight_binding, weight_branch) = projection_concatenated_weight_selection(
+    tile_compilation.program().concatenated_weights(),
+    ["query_weight", "key_weight", "value_weight"],
+    "output_column",
+    "selected_weight",
+    "selected_column",
+  )
   @utf8.encode(
     projection_tensor_core_prelude() +
     "extern \"C\" __global__ void " +
@@ -203,17 +210,11 @@ fn projection_tensor_core_direct_qkv_source(
     "    const int output_column = (int)blockIdx.x * \{groups} + warp; if (output_column >= " +
     parameters.output_width.to_string() +
     ") return;\n" +
-    "    const __nv_bfloat16 *selected_weight = query_weight;\n" +
-    "    int selected_column = output_column;\n" +
-    "    if (output_column >= " +
-    parameters.query_width.to_string() +
-    ") { selected_column -= " +
-    parameters.query_width.to_string() +
-    "; if (selected_column >= " +
-    parameters.intermediate_width.to_string() +
-    ") { selected_column -= " +
-    parameters.intermediate_width.to_string() +
-    "; selected_weight = value_weight; } else selected_weight = key_weight; }\n" +
+    "    " +
+    weight_binding +
+    "\n    " +
+    weight_branch +
+    "\n" +
     "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
     parameters.input_width.to_string() +
     "ULL;\n" +

@@ -63,7 +63,9 @@ fn projection_finish_candidate(
     _ => raise Invalid(CompilerPolicy)
   }
   let tile_compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    tile_request.with_fold_choices(fold_choices) catch {
+    projection_bind_tile_weights(tile_request, parameters).with_fold_choices(
+      fold_choices,
+    ) catch {
       _ => raise Invalid(CompilerPolicy)
     },
   )

@@ -24,14 +24,15 @@ test "bounded dense and segmented maps do not stage a dead second row tile" {
     )
     let dispatch = runtime.dispatch_plan(1024)
     for bound in [1, 2, 4, 8, 16, 17, 32, 1024] {
+      let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+        dispatch~,
+        maximum_rows=1,
+        maximum_tokens=bound,
+        demand=AllTokenRows,
+        single_row_numerics=AllowDeterministicDotTree,
+      )
       let compilation = @luna_projection_tile_compiler.compile_projection_tile(
-        @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
-          dispatch~,
-          maximum_rows=1,
-          maximum_tokens=bound,
-          demand=AllTokenRows,
-          single_row_numerics=AllowDeterministicDotTree,
-        ),
+        projection_bind_tile_weights(request, parameters),
       )
       let source = projection_matrix_pipeline_source(parameters, compilation, 1)
       let row_width = if bound <= 16 { 16 } else { 32 }

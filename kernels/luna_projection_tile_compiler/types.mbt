@@ -79,6 +79,7 @@ pub struct ProjectionTileProgramDigest(String) derive(Debug, Eq, Hash)
 
 ///|
 pub struct ProjectionTileProgram {
+  priv concatenated_weights : ReadOnlyArray[ProjectionRowSegment]
   priv shape : @luna_projection_strategy.ProjectionShape
   priv demand : ProjectionResultDemand
   priv epilogue : ProjectionTileEpilogue
@@ -187,6 +188,7 @@ pub struct ProjectionTileCompilerRequest {
   priv epilogue : ProjectionTileEpilogue
   priv single_row_numerics : ProjectionSingleRowNumerics
   priv fold_choices : ReadOnlyArray[ProjectionFoldChoice]
+  priv concatenated_weights : ReadOnlyArray[ProjectionRowSegment]
 } derive(Debug, Eq)
 
 ///|
