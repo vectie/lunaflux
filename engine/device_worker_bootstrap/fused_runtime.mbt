@@ -55,7 +55,8 @@ priv enum FusedRuntimeSourceSchema {
 fn classify_fused_runtime_source(text : String) -> FusedRuntimeSourceSchema {
   if text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v3\n") ||
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v4\n") ||
-    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") {
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") ||
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v6\n") {
     ReusableBundle
   } else if text.has_prefix(
       "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",
@@ -81,6 +82,19 @@ fn reject_reusable_qwen_bundle_for_non_qwen(
 }
 
 ///|
+fn fused_runtime_snapshot_limit(
+  module_bytes : Int64,
+) -> Int64 raise DeviceWorkerBootstrapError {
+  // V6 permits one MiB of route observations, encoded as two hex characters
+  // per byte, in addition to the pre-existing module/metadata envelope.
+  let overhead = 2097152L + 65536L
+  if module_bytes <= 0L || module_bytes > (0x7fffffffffffffffL - overhead) / 4L {
+    raise Invalid(RecipeLimit)
+  }
+  module_bytes * 4L + overhead
+}
+
+///|
 fn load_optional_fused_runtime(
   source : @worker_wire.EncodedBootstrapSource,
   kernel_root : @approved_fs.ApprovedRoot,
@@ -89,13 +103,10 @@ fn load_optional_fused_runtime(
     return None
   }
   let module_bytes = source.ceilings().max_total_module_bytes()
-  if module_bytes <= 0L || module_bytes > (0x7fffffffffffffffL - 65536L) / 4L {
-    raise Invalid(RecipeLimit)
-  }
   let canonical = read_fused_runtime_snapshot(
     kernel_root,
     fused,
-    module_bytes * 4L + 65536L,
+    fused_runtime_snapshot_limit(module_bytes),
   )
   let text = @utf8.decode(canonical) catch { _ => raise Invalid(Digest) }
   match classify_fused_runtime_source(text) {

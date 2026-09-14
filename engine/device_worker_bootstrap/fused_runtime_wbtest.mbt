@@ -1,6 +1,7 @@
 ///|
 fn bootstrap_reusable_qwen_bundle(
   query_metadata? : Bool = false,
+  attention_bucket_routes? : Bytes,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
@@ -21,6 +22,7 @@ fn bootstrap_reusable_qwen_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
+    attention_bucket_routes?,
     modules=[
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
@@ -54,8 +56,8 @@ fn bootstrap_reusable_qwen_bundle(
 }
 
 ///|
-test "fused runtime schema selects reusable bundle v3 v4 and metadata v5 before legacy" {
-  for version in [3, 4, 5] {
+test "fused runtime schema selects reusable bundles including measured routes v6" {
+  for version in [3, 4, 5, 6] {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
@@ -87,6 +89,31 @@ test "fused runtime schema selects reusable bundle v3 v4 and metadata v5 before 
 ///|
 test "exported metadata bundle reaches the worker bootstrap bundle parser" {
   ignore(bootstrap_reusable_qwen_bundle(query_metadata=true))
+}
+
+///|
+test "exported measured route bundle reaches bootstrap without losing observations" {
+  let routes = b"luna-attention-buckets-v1\nscope\tfixture\nrecord\tprefill\t1\t64\t64\t1\t100\t3\n"
+  let bundle = bootstrap_reusable_qwen_bundle(
+    query_metadata=true,
+    attention_bucket_routes=routes,
+  )
+  assert_eq(bundle.attention_bucket_routes(), Some(routes))
+}
+
+///|
+test "snapshot envelope includes hex route table and rejects arithmetic overflow" {
+  assert_eq(fused_runtime_snapshot_limit(1L), 2162692L)
+  let largest = (0x7fffffffffffffffL - 2162688L) / 4L
+  assert_true(fused_runtime_snapshot_limit(largest) > 0L)
+  for invalid in [0L, -1L, largest + 1L] {
+    try fused_runtime_snapshot_limit(invalid) catch {
+      Invalid(RecipeLimit) => ()
+      _ => fail("wrong error")
+    } noraise {
+      _ => fail("invalid snapshot limit accepted")
+    }
+  }
 }
 
 ///|
