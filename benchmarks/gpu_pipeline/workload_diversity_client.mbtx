@@ -1,0 +1,126 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Equal total input/output token counts, NOT equal attention work. These are
+// deterministic synthetic token workloads, not a natural-language quality set.
+fn workload(case : String, row : Int) -> (Int, Int, Int, Int) {
+  let inputs = [63, 65, 511, 513, 3583, 3585, 4031, 4033]
+  let outputs = [16, 112, 32, 96, 48, 80, 64, 64]
+  let reversed = case == "ragged-reverse-staggered"
+  let index = if reversed { 7 - row % 8 } else { row % 8 }
+  let ragged = case == "ragged-input" || case == "ragged-both" || case == "ragged-staggered" || reversed
+  let varying_output = case == "ragged-both" || case == "ragged-staggered" || reversed
+  let staggered = case == "uniform-staggered" || case == "ragged-staggered" || reversed
+  (if ragged { inputs[index] } else { 2048 },
+   if varying_output { outputs[index] } else { 64 },
+   if staggered { row * 25 } else { 0 },
+   if case == "uniform-shared" { 0 } else if reversed { (row / 8 * 8 + index) * 97 } else { row * 97 })
+}
+
+fn endpoint(engine : String) -> String {
+  match engine {
+    "vllm" => "http://127.0.0.1:8101/v1/completions"
+    "sglang" => "http://127.0.0.1:8102/generate"
+    _ => "http://127.0.0.1:5062/benchmark/v1/token-ids"
+  }
+}
+
+fn body(engine : String, ids : Array[Json], count : Int) -> Json {
+  match engine {
+    "vllm" => {"model":"Qwen3-0.6B","prompt":ids,"max_tokens":count,"temperature":0,"top_p":1,"seed":0,"ignore_eos":true,"stream":true,"return_token_ids":true}
+    "sglang" => {"input_ids":ids,"sampling_params":{"max_new_tokens":count,"temperature":0,"top_k":1,"top_p":1,"min_p":0,"frequency_penalty":0,"presence_penalty":0,"repetition_penalty":1,"ignore_eos":true,"stream_interval":1},"stream":true}
+    _ => {"schema":"lunaflux.benchmark-token-ids-request.v1","model":"Qwen3-0.6B","input_token_ids":ids,"max_output_tokens":count,"sampling":{"mode":"greedy","temperature":0,"top_p":1,"seed":0,"ignore_eos":true},"stream":true}
+  }
+}
+
+async fn request(root : String, engine : String, name : String, path : String,
+  count : Int, epoch : Int64, arrival : Int) -> Json {
+  let remaining = epoch + arrival.to_int64() - @async.now()
+  if remaining > 0 { @async.sleep(remaining.to_int()) }
+  let started = @async.now()
+  let ids : Array[Json] = []
+  let times : Array[Int64] = []
+  let raw = StringBuilder()
+  let mut terminal = false
+  @async.with_task_group(group => {
+    let (reader, output) = @process.read_from_process()
+    let child = @process.spawn(group, "curl", ["--fail","--silent","--show-error","--no-buffer","--max-time","300","-H","Content-Type: application/json","--data-binary","@"+path,endpoint(engine)], stdout=output, stderr=@process.redirect_to_file(root+"/"+name+".stderr",create_mode=CreateNew))
+    for ;; {
+      guard reader.read_until("\n") is Some(line) else { break }
+      raw.write_string(line); raw.write_string("\n")
+      let line = line.trim().to_owned()
+      if line == "data: [DONE]" { terminal = true; continue }
+      if !line.has_prefix("data: ") { continue }
+      let event = @json.parse(line[6:].to_owned())
+      let stamp = @async.now() - started
+      let fresh : Array[Json] = []
+      match engine {
+        "vllm" => if event is {"choices":Array(choices),..} {
+          for choice in choices { if choice is {"token_ids":Array(xs),..} { fresh.append(xs) } }
+        }
+        "sglang" => if event is {"output_ids":Array(xs),..} {
+          guard xs.length() >= ids.length() else { fail("noncumulative ids") }
+          for i in 0..<ids.length() { assert_eq(xs[i], ids[i]) }
+          fresh.append(xs[ids.length():])
+        }
+        _ => {
+          if event is {"schema":String("lunaflux.benchmark-token.v1"),"token_id":id,..} { fresh.push(id) }
+          if event is {"schema":String("lunaflux.benchmark-terminal.v1"),..} { terminal = true }
+        }
+      }
+      for id in fresh { ids.push(id); times.push(stamp) }
+    }
+    reader.close(); assert_eq(child.wait(), 0)
+  })
+  @fs.write_file(root+"/"+name+".sse",raw.to_string(),create_mode=CreateNew)
+  guard terminal && ids.length() == count else { fail("incomplete "+name) }
+  let result : Json = {"name":name,"scheduled_arrival_ms":arrival,"actual_start_ms":started-epoch,"elapsed_ms":@async.now()-started,"ttft_ms":times[0],"token_ms":times,"token_ids":ids}
+  @fs.write_file(root+"/"+name+".json",result.stringify(),create_mode=CreateNew)
+  result
+}
+
+async fn main {
+  let args = @env.args()
+  guard args.length() == 5 && args[1] == "measure" else { fail("measure ENGINE plain ROOT") }
+  let engine = args[2]; let root = args[4]
+  guard ["lunaflux","vllm","sglang"].contains(engine) else { fail("engine") }
+  guard @json.parse(@fs.read_file("/tmp/lunaflux-vector-requests-4a98f7d-20260904/request-i1528-o32.json").text()) is {"input_token_ids":Array(pool),..} && pool.length() > 0 else { fail("token pool") }
+  let cases = ["uniform-shared","uniform-distinct","ragged-input","ragged-both","uniform-staggered","ragged-staggered","ragged-reverse-staggered"]
+  // Rotate case order each repetition to separate a case from thermal order.
+  for concurrency in [8,16] {
+    for trial in 0..<4 {
+      for ordinal in 0..<cases.length() {
+        let case = cases[(ordinal + trial) % cases.length()]
+        let name = case+"-c\{concurrency}-t\{trial}"
+        let jobs : Array[async () -> Json] = []
+        let paths : Array[String] = []
+        let shapes = Array::makei(concurrency,row => workload(case,row))
+        let mut total_input = 0; let mut total_output = 0
+        let mut causal_pairs : Int64 = 0
+        for row, (input, output, _, offset) in shapes {
+          total_input += input; total_output += output
+          causal_pairs += input.to_int64() * (input + 1).to_int64() / 2
+          let path = root+"/"+name+"-r\{row}.body.json"
+          @fs.write_file(path,body(engine,Array::makei(input,i => pool[(i+offset)%pool.length()]),output).stringify(),create_mode=CreateNew)
+          paths.push(path)
+        }
+        assert_eq(total_input,concurrency*2048); assert_eq(total_output,concurrency*64)
+        let epoch = @async.now()
+        for row, (_, output, arrival, _) in shapes {
+          let row=row; let output=output; let arrival=arrival
+          jobs.push(() => request(root,engine,name+"-r\{row}",paths[row],output,epoch,arrival))
+        }
+        let requests = @async.all(jobs,max_concurrent=concurrency)
+        let elapsed = @async.now()-epoch
+        let result : Json = {"case":case,"concurrency":concurrency,"trial":trial,"warmup":trial==0,"input_tokens":total_input,"output_tokens":total_output,"prefill_causal_pairs":causal_pairs,"wall_ms":elapsed,"output_tokens_per_second":total_output.to_double()*1000.0/elapsed.to_double(),"requests":requests}
+        @fs.write_file(root+"/"+name+".json",result.stringify(),create_mode=CreateNew)
+        println("\{name} \{elapsed} ms")
+      }
+    }
+  }
+}

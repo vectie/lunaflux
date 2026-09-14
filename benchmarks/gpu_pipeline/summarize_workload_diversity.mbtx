@@ -1,0 +1,47 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json", "moonbitlang/core/string" }
+
+fn integer(j : Json, key : String) -> Int raise {
+  guard j is Object(o) && o.get(key) is Some(value) else { fail(key) }
+  match value {
+    Number(n,..) => n.to_int()
+    String(s) => @string.parse_int(s)
+    _ => fail(key)
+  }
+}
+
+fn percentile(values : Array[Int], numerator : Int) -> Int {
+  values.sort()
+  values[(values.length() * numerator + 99) / 100 - 1]
+}
+
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 else { fail("ROOT") }
+  println("case\tC\twall_median_ms\tttft_p50_ms\tttft_p95_ms\trequest_p95_ms\tarrival_lag_p95_ms\tprefill_causal_pairs")
+  for c in [8,16] {
+    for name in ["uniform-shared","uniform-distinct","ragged-input","ragged-both","uniform-staggered","ragged-staggered"] {
+      let walls = []; let firsts = []; let elapsed = []; let lag = []
+      let mut pairs = 0L
+      for t in 1..<4 {
+        let prefix = args[1]+"/"+name+"-c\{c}-t\{t}"
+        let j = @json.parse(@fs.read_file(prefix+".json").text())
+        assert_eq(integer(j,"input_tokens"),c*2048)
+        assert_eq(integer(j,"output_tokens"),c*64)
+        walls.push(integer(j,"wall_ms"))
+        guard j is {"requests":Array(requests),..} && requests.length()==c else {fail("requests")}
+        let mut trial_pairs = 0L
+        for row, request in requests {
+          firsts.push(integer(request,"ttft_ms"))
+          elapsed.push(integer(request,"elapsed_ms"))
+          lag.push(integer(request,"actual_start_ms")-integer(request,"scheduled_arrival_ms"))
+          let body = @json.parse(@fs.read_file(prefix+"-r\{row}.body.json").text())
+          guard body is {"input_token_ids":Array(ids),..} else {fail("input")}
+          let n=ids.length().to_int64()
+          trial_pairs+=n*(n+1)/2
+        }
+        if t==1 {pairs=trial_pairs} else {assert_eq(pairs,trial_pairs)}
+      }
+      println("\{name}\t\{c}\t\{percentile(walls,50)}\t\{percentile(firsts,50)}\t\{percentile(firsts,95)}\t\{percentile(elapsed,95)}\t\{percentile(lag,95)}\t\{pairs}")
+    }
+  }
+}
