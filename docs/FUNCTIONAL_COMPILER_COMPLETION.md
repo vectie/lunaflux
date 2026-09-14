@@ -42,6 +42,7 @@ This is an integration check, not a new performance measurement.
 Validation: warning-denied native check; exporter 11/11, tuning parser 1/1,
 attention compiler 15/15, CUDA attention AOT 5/5. Exporter preparation and
 publication were split into focused files (largest 417 lines).
+The full local warning-denied native suite also passed: 3,742/3,742.
 
 Remote run: `/tmp/lfresources.mANp0Z`. Downloaded archive:
 `/tmp/lunaflux-resource-feedback-20260914.tar.gz`, SHA-256
