@@ -1,6 +1,6 @@
 ///|
 test "query-owned source carries QK softmax PV across register ownership" {
-  for id in [318, 319, 320, 321, 322, 323, 324] {
+  for id in [318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
     assert_true(lowering.query_owned_fragments())
     let source = emit_cuda_attention_tile_source(

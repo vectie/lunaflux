@@ -136,3 +136,36 @@ bitwise outputs and passed bounded sanitizer checks, but did not consistently
 improve matched timings. Production lowering therefore retains its prior fence
 placement; measured selection between placements remains unimplemented. This
 description is not an activated optimization.
+
+The query-owned attention frontier now expands the Cartesian product of the
+currently implemented query/KV ownership domain and three transfer schedules,
+then applies the existing numeric and resource constraints. This generates 12
+combinations rather than seven manually selected combinations. Existing IDs
+318–324 retain their exact meanings; five new combinations use disjoint IDs.
+The numerical opt-in remains required. This removes the hand-picked subset for
+this family, not all compiler-family search tables or backend geometry limits.
+Physical compilation and numerical coverage of the expanded frontier must be
+verified before treating its additional choices as validated serving paths.
+
+Validation follow-up: all 12 combinations compiled on sm120; the five new
+combinations passed independent scalar-reference, deterministic replay and
+read-only KV checks for query=2048 with history=0 and history=2048. This is
+synthetic-activation kernel coverage, not model token agreement or end-to-end
+validation. The KV32 choices differ by up to 0.000488281 from the baseline;
+the KV64 choices were bitwise equal in these samples. All five were slower on
+these two shapes, so frontier expansion is not a performance improvement.
+
+The first physical replay exposed a diagnostic envelope bug: instruction-map
+export still bounded physical pages at 8192 while replay used the corrected
+9216-page pool. Fresh inputs passed, but historical pages above the stale
+bound were rejected. The diagnostic export now matches 9216; old counter and
+pipeline fixtures retain their original envelopes. Both failed and corrected
+results remain under `/tmp/lunaflux-frontier-20260914` on the test host.
+Local warning-denied native check and all 3762 tests passed before the final
+diagnostic capacity correction; its focused native check also passed afterward.
+
+Still outstanding: remaining families' constraint generation, calibrated
+measured selection, incremental cache/publication, and broader numerical and
+performance coverage. The expanded opt-in search can change selection when
+no exact measurement is supplied; it must not be confused with approval of
+every new schedule for serving.

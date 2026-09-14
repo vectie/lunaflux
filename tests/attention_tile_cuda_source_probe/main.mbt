@@ -82,22 +82,9 @@ fn main raise {
     [_, "319-head64"] => Some(319)
     [_, "partitioned-312"] => Some(312)
     [_, "partitioned-318"] => Some(318)
-    [_, "290"] => Some(290)
-    [_, "291"] => Some(291)
-    [_, "300"] => Some(300)
-    [_, "310"] => Some(310)
-    [_, "311"] => Some(311)
-    [_, "312"] => Some(312)
-    [_, "313"] => Some(313)
-    [_, "314"] => Some(314)
-    [_, "315"] => Some(315)
-    [_, "316"] => Some(316)
-    [_, "317"] => Some(317)
-    [_, "318"] => Some(318)
-    [_, "319"] => Some(319)
-    [_, "322"] => Some(322)
-    [_, "323"] => Some(323)
-    [_, "324"] => Some(324)
+    [_, candidate] if candidate.length() > 0 &&
+      candidate.iter().all(c => c >= '0' && c <= '9') =>
+      Some(@string.parse_int(candidate))
     _ => None
   }
   let head_dimension = match arguments {
@@ -117,8 +104,7 @@ fn main raise {
     query_rows=compile_query_rows,
     context_tokens=4096,
     causal=true,
-    allow_alternative_softmax_reduction=requested_candidate
-      is Some(318 | 319 | 322 | 323 | 324),
+    allow_alternative_softmax_reduction=requested_candidate is Some(_),
     key_value_read_view=if dense_current {
       DenseCurrentAndPagedHistory
     } else {
@@ -130,7 +116,7 @@ fn main raise {
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=requested_candidate is Some(316 | 317 | 322 | 323 | 324),
+    supports_async_copy=requested_candidate is Some(_),
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,
@@ -186,9 +172,11 @@ fn main raise {
     tokens_per_page=if qwen_geometry { 8 } else { 16 },
     input_row_width=(if qwen_geometry { 32 } else { 24 }) * head_dimension,
     page_stride_values=64L * head_dimension.to_int64(),
-    physical_page_capacity=if selected_counters ||
-      pipeline_probe ||
-      instruction_probe {
+    // The instruction-map replay uses the capacity-corrected 9,216-page pool.
+    // Keep older counter/pipeline fixture envelopes unchanged.
+    physical_page_capacity=if instruction_probe {
+      9216L
+    } else if selected_counters || pipeline_probe {
       8192L
     } else if qwen_geometry {
       4096L
@@ -205,9 +193,9 @@ fn main raise {
     } else {
       128
     },
-    maximum_page_entries=if selected_counters ||
-      pipeline_probe ||
-      instruction_probe {
+    maximum_page_entries=if instruction_probe {
+      9216
+    } else if selected_counters || pipeline_probe {
       8192
     } else if qwen_geometry {
       4096

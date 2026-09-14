@@ -209,7 +209,9 @@ pub fn generate_attention_tile_candidates(
   capabilities : AttentionCompilerCapabilities,
 ) -> ReadOnlyArray[AttentionTileCandidate] raise AttentionStrategyError {
   let (query_rows, context_tokens) = problem.dimensions()
-  let candidates = attention_candidate_specs().filter_map(spec => {
+  let specs = attention_candidate_specs()
+  specs.append(query_owned_attention_specs())
+  let candidates = specs.filter_map(spec => {
     if spec.phase != problem.phase ||
       // Minimum rows are a profitability heuristic, not a tail-safety limit.
       // An explicit ownership contract covers short masked tails as well.
