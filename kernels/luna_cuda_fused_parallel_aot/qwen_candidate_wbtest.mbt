@@ -5,6 +5,7 @@ fn qwen_fused_test_candidate(
   query_heads? : Int = 4,
   kv_heads? : Int = 2,
   hidden_width? : Int,
+  page_tokens? : Int = 16,
   export_projection? : Bool = false,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
@@ -32,8 +33,11 @@ fn qwen_fused_test_candidate(
     plan.identity(),
     plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
-      tokens_per_page=16,
-      total_page_count=Int::max(64, 4 * (1 + (maximum_tokens - 1) / 16)),
+      tokens_per_page=page_tokens,
+      total_page_count=Int::max(
+        64,
+        4 * (1 + (maximum_tokens - 1) / page_tokens),
+      ),
       max_arena_bytes=67108864L,
     ),
   )
@@ -41,7 +45,10 @@ fn qwen_fused_test_candidate(
     id=@launch_contract.KernelProfileId::from_stable_int(19),
     max_query_rows=4,
     max_query_tokens=maximum_tokens,
-    max_page_table_entries=Int::max(16, 4 * (1 + (maximum_tokens - 1) / 16)),
+    max_page_table_entries=Int::max(
+      16,
+      4 * (1 + (maximum_tokens - 1) / page_tokens),
+    ),
   )
   let target = @catalog.DeviceTarget::new(
     compute_major=12,

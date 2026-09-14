@@ -735,3 +735,14 @@ local/remote SHA-256
 `e86e4152d869e126bad5a9ffa3fb59935b3f3c737acbac947afd107097b7c51f`.
 The full native suite passes 3798/3798; the CUDA-lowering regression explicitly
 rejects the wider logical reduction plan. No public API signatures changed.
+
+### Batch-dependent arithmetic diagnosis
+
+`BENCHMARK_INGRESS_BATCH_NUMERICS_2026-09-15.md` replays the exact historical
+full-ingress module and corrects an initial diagnostic page-geometry mismatch.
+With matching geometry, same-batch full/partial outputs agree, but holding an
+input row fixed while switching from single-row to matrix execution changes
+one synthetic value-projection component. This separates fixed-schedule
+repeatability from cross-schedule bit identity; it does not yet identify the
+cause of the real-model divergence. The numerical fixture now derives its
+capacity from 8/16-token page geometry and passes 24/24 package tests.
