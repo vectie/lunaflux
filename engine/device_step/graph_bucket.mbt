@@ -265,8 +265,10 @@ fn map_paged_decode_capture_owner(
   owner_index : Int,
   slot_owner_indices : FixedArray[Int],
 ) -> Unit raise DeviceStepError {
-  for rows in 1..<=row_bound {
-    for tokens in 1..<=query_token_bound {
+  for rows = 1; rows <= row_bound; rows = next_paged_graph_bucket_start(rows) {
+    for tokens = 1
+        tokens <= query_token_bound
+        tokens = next_paged_graph_bucket_start(tokens) {
       let mut context = 1
       while context <= paged_graph_maximum_context_tokens() {
         let slot = table
@@ -336,8 +338,10 @@ fn map_paged_prefill_capture_owner(
   slot_owner_indices : FixedArray[Int],
 ) -> Unit raise DeviceStepError {
   let maximum_rows = Int::min(row_bound, query_token_bound)
-  for rows in 1..<=maximum_rows {
-    for tokens in rows..<=query_token_bound {
+  for rows = 1; rows <= maximum_rows; rows = next_paged_graph_bucket_start(rows) {
+    for tokens = rows
+        tokens <= query_token_bound
+        tokens = next_paged_graph_bucket_start(tokens) {
       let mut context = 1
       while context <= paged_graph_maximum_context_tokens() {
         map_paged_graph_owner_slot(
@@ -377,8 +381,10 @@ fn clear_paged_decode_capture_owners(
   query_token_bound : Int,
   slot_owner_indices : FixedArray[Int],
 ) -> Unit raise DeviceStepError {
-  for rows in 1..<=row_bound {
-    for tokens in 1..<=query_token_bound {
+  for rows = 1; rows <= row_bound; rows = next_paged_graph_bucket_start(rows) {
+    for tokens = 1
+        tokens <= query_token_bound
+        tokens = next_paged_graph_bucket_start(tokens) {
       let mut context = 1
       while context <= paged_graph_maximum_context_tokens() {
         let slot = table

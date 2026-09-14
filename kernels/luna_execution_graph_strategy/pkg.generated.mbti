@@ -8,6 +8,8 @@ import {
 // Values
 pub fn build_execution_graph_bucket_table(Int, Int, Int, Int) -> ExecutionGraphBucketTable raise ExecutionGraphBucketError
 
+pub fn next_execution_graph_bucket_start(Int) -> Int raise ExecutionGraphBucketError
+
 // Errors
 pub(all) suberror ExecutionGraphBucketError {
   InvalidExecutionGraphBucket(ExecutionGraphBucketRule)

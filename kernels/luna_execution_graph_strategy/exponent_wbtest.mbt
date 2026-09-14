@@ -5,6 +5,7 @@ test "graph exponent preserves every admitted shape and rejects boundaries" {
     let capacity = graph_bucket_value(exponent)
     assert_true(capacity >= value)
     assert_true(exponent == 0 || capacity / 2 < value)
+    assert_eq(next_execution_graph_bucket_start(value), capacity + 1)
   }
   for value in [-2147483648, -1, 0, 1048577, 2147483647] {
     try graph_bucket_exponent(value) catch {

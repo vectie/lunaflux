@@ -515,3 +515,21 @@ An exhaustive test covers all 1,048,576 admitted positive inputs, proving both
 coverage and minimal capacity, and rejects the lower/upper invalid boundaries.
 The updated strategy suite passes 8/8. This arithmetic simplification retains
 the existing shape limit and bucket policy; it is not a measured serving gain.
+
+### Bucket-equivalence traversal during owner preparation
+
+The neutral strategy exposes the first value of the next capacity bucket.
+Runtime startup owner mapping now traverses these representatives rather than
+every concrete rows/token pair. Prefill retains tokens >= rows and the mixed
+phase's two-row minimum; existing owners retain precedence. Decode mapping and
+decode-only clearing use the same traversal. This removes duplicate planning
+work without changing a selected owner or adding hot-path state.
+
+A test compares every slot against the original exhaustive algorithm for
+7 row limits, 8 token limits and all 3 mapping operations (168 combinations),
+including non-power-of-two limits and preexisting owner slots. Device-step
+tests pass 196/196; strategy tests pass 8/8, including exhaustive successor
+geometry over the admitted domain. For rows=32/tokens=4096, counting the loop
+visits gives 5,398,176 old versus 2,373 new prefill/mixed slot visits across
+21 context buckets. These are algorithmic work counts, not measured latency
+or GPU throughput.

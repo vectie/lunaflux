@@ -13,6 +13,16 @@ fn graph_bucket_value(exponent : Int) -> Int {
 }
 
 ///|
+/// First value in the following bucket. The result may be one past the
+/// supported domain, allowing bounded traversals to terminate without a
+/// special final bucket. No value in (value, result) selects a different bucket.
+pub fn next_execution_graph_bucket_start(
+  value : Int,
+) -> Int raise ExecutionGraphBucketError {
+  graph_bucket_value(graph_bucket_exponent(value)) + 1
+}
+
+///|
 /// Startup inverse of the compact slot mapping; useful for preparing owners.
 pub fn ExecutionGraphBucketTable::bucket_at(
   self : ExecutionGraphBucketTable,
