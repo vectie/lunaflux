@@ -644,3 +644,40 @@ retest exports (`/tmp/lunaflux-transfer-plan-retest.mbtx` and its saved outputs)
 No new timing improvement or extra physical coverage is claimed for this
 source-preserving planning refactor. Alternative operand-specific worker
 schedules and their measured selection are still separate work.
+
+### Linux transfer-plan regression and fused-ingress barrier correction
+
+The two packages archived from `2c6bfae5` pass Linux native warning-denied
+tests: projection compiler 62/62 and projection AOT 74/74. They were overlaid
+on the existing isolated diagnostic dependency tree, not built as a clean
+whole-repository Linux release. Source archive SHA-256 is
+`a2e3363d39550100ab3313e22387ddf959eb800607af62578ce645d086eb59eb`.
+Downloaded logs: `/tmp/lunaflux-transfer-linux-2c6bfae5-results.tar.gz`,
+SHA-256 `1ec34009fc058d9841fa48b3c53249465d478603a69eccf9a7e9409263ffaa25`.
+
+Review then found a concrete effect-participation bug in full fused ingress:
+its warp-dependent column loop contains block-wide barriers and cooperative
+input staging for partial row tiles. At head dimensions 16/32 some warps skip
+that loop, although they are needed for the block effects. The fix uses the
+generic finite owner map's uniform round count and masks only the independent
+matrix load/fold/store. Every warp still participates in staging and barriers.
+Unsupported sub-matrix head dimensions now return an error before source
+emission rather than reaching the lowerer's abort.
+
+Fresh RTX 5060 Ti validation covers head dimensions 16/32/64/128 crossed with
+1/2/7/8/15/16/17/31/32 tokens: all 36 cases pass structured independent numeric
+checks and exact output-to-KV checks. All four executables pass memcheck,
+racecheck and synccheck. Restoring the original column-loop structure in the
+32-dimensional fixture reproduces a synccheck exit of 7, divergent-block-barrier
+reports and an error summary of 480. This is an isolated old-loop reproduction,
+not a complete previous runtime. The permanent diagnostic harness is
+`tests/fused_ingress_barrier_cuda/probe.cu`; native source regressions cover all
+four dimensions and unsupported-width rejection.
+
+Local full native suite passes 3,795/3,795; fused AOT passes 22/22.
+Downloaded sources, executables, scripts and old/new logs:
+`/tmp/lunaflux-ingress-barrier-retest.tar.gz`, SHA-256
+`c0ed688e5a98c83b88c8caf38a9939fee15cad7e5bb783d29c8a04532ff95f3b`.
+No performance gain is inferred. These structured numerical cases do not
+resolve the separate 128-dimensional full-chain model-logit divergence or
+replace fresh end-to-end serving qualification.

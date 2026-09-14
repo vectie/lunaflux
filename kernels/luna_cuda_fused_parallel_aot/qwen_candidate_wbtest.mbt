@@ -1,13 +1,16 @@
 ///|
-fn qwen_fused_test_candidate() -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
+fn qwen_fused_test_candidate(
+  head_dimension? : Int = 32,
+  maximum_tokens? : Int = 8,
+) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
-    hidden_size=128,
-    intermediate_size=256,
+    hidden_size=4 * head_dimension,
+    intermediate_size=8 * head_dimension,
     layer_count=1,
     attention_head_count=4,
     kv_head_count=2,
-    head_dimension=32,
+    head_dimension~,
     context_length=256,
     rope_theta=1000000.0,
     weight_dtype=BFloat16,
@@ -33,7 +36,7 @@ fn qwen_fused_test_candidate() -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate rai
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(19),
     max_query_rows=4,
-    max_query_tokens=8,
+    max_query_tokens=maximum_tokens,
     max_page_table_entries=16,
   )
   let target = @catalog.DeviceTarget::new(
@@ -161,6 +164,15 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
     source.contains("__shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16]"),
   )
   assert_true(source.contains("const bool partial_row_tile"))
+  assert_true(source.contains("#define LF_COLUMN_ROUNDS 1\n"))
+  assert_true(source.contains("column_round < LF_COLUMN_ROUNDS"))
+  assert_false(source.contains("column_base < LF_HEAD_DIM; column_base +="))
+  assert_true(source.contains("if (column_base < LF_HEAD_DIM) {"))
+  assert_true(
+    source.contains(
+      "if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync",
+    ),
+  )
   assert_true(source.contains("__device__ const float LF_ROPE_INV_FREQ"))
   assert_false(source.contains("__constant__ float LF_ROPE_INV_FREQ"))
   assert_true(source.contains("sincosf(__fmul_rn"))

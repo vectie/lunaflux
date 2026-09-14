@@ -15,6 +15,7 @@ import {
 }
 
 import {
+  "moonbitlang/core/env",
   "moonbitlang/core/math",
   "vectie/lunaflux/kernels/luna_bf16_kernel_producer",
   "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",

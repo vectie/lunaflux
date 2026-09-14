@@ -287,6 +287,9 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     _ => raise FusedParallelMismatch(Operation)
   }
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
+  if head_dimension % 16 != 0 {
+    raise FusedParallelUnsupported(StaticResources)
+  }
   if head_dimension > FUSED_PARALLEL_THREADS ||
     !fused_is_power_of_two(head_dimension) ||
     !layout.is_canonical_for(plan.identity(), plan.kv_cache_geometry()) ||
