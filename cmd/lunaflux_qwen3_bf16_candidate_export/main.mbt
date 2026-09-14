@@ -5,7 +5,27 @@ async fn run_qwen3_candidate_export(
   let arguments = parse_qwen3_candidate_export_arguments(raw_arguments)
   let plan = load_authenticated_paged_plan(arguments)
   let layout = prepare_device_layout(plan, arguments)
-  let set = prepare_candidate_set(plan, layout, arguments)
+  let fold_input = load_attention_offline_input(
+    arguments.projection_folds,
+    arguments.toolchain_sha256,
+  )
+  let fold_records : ReadOnlyArray[@luna_projection_tuning.ProjectionFoldRecord] = match
+    fold_input {
+    None => []
+    Some((bytes, device, toolchain)) =>
+      @luna_projection_tuning.parse_projection_fold_records(
+        bytes,
+        scope=device + "\t" + toolchain,
+      ) catch {
+        _ => raise InvalidArguments
+      }
+  }
+  let set = prepare_candidate_set(
+    plan,
+    layout,
+    arguments,
+    fold_records=fold_records[:],
+  )
   let residual = prepare_residual_rmsnorm_candidate(plan, set)
   let production = @luna_cuda_fused_parallel_aot.lower_fused_residual_rmsnorm_production_candidate(
     residual,
@@ -31,6 +51,18 @@ async fn run_qwen3_candidate_export(
     set,
     tuning~,
     resources~,
+    decode_resources=load_attention_offline_input(
+      arguments.decode_resources,
+      arguments.toolchain_sha256,
+    ),
+    decode_tuning=load_attention_offline_input(
+      arguments.decode_tuning,
+      arguments.toolchain_sha256,
+    ),
+    partitioned_resources=load_attention_offline_input(
+      arguments.partitioned_resources,
+      arguments.toolchain_sha256,
+    ),
     query_metadata=arguments.query_metadata,
   )
   let evidence = @luna_bf16_candidate_export.export_new(
@@ -60,6 +92,9 @@ async fn run_qwen3_candidate_export(
         qwen_fused.first_operation + 3,
         set,
         compilation,
+        frontier_sha256=qwen_fused.attention_prefill_partitioned
+          .digest()
+          .as_hex(),
       ),
     )
   }
@@ -153,8 +188,17 @@ async fn run_qwen3_candidate_export(
       "paged-attention-decode-functional-tile",
       set,
       qwen_fused.attention_decode,
+      frontier_sha256=qwen_fused.attention_decode_frontier.digest().as_hex(),
+      variant_stable_id=qwen_fused.attention_decode
+        .functional()
+        .plan()
+        .candidate()
+        .stable_id(),
     ),
   )
+  publish_decode_frontier(arguments.absolute_new_output, set, qwen_fused) catch {
+    _ => raise Publication
+  }
   let decode_split_root = arguments.absolute_new_output +
     "/reusable-qwen-decode-split-attention"
   write_new_candidate_pair(

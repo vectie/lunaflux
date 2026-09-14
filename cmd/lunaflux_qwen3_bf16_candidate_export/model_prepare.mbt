@@ -87,6 +87,7 @@ fn prepare_candidate_set(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   arguments : Qwen3CandidateExportArguments,
+  fold_records? : ArrayView[@luna_projection_tuning.ProjectionFoldRecord] = [],
 ) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise Qwen3Bf16CandidateExportCliError {
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
@@ -138,6 +139,7 @@ fn prepare_candidate_set(
       max_total_bytes=1073741824,
     ),
     projection_records=load_candidate_projection_records(arguments)[:],
+    fold_records~,
   ) catch {
     _ => raise CandidatePreparation
   }

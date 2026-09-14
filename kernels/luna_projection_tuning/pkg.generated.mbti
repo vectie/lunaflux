@@ -4,9 +4,12 @@ package "vectie/lunaflux/kernels/luna_projection_tuning"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/luna_projection_strategy",
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
 }
 
 // Values
+pub fn parse_projection_fold_records(Bytes, scope~ : String) -> ReadOnlyArray[ProjectionFoldRecord] raise ProjectionTuningError
+
 pub fn parse_projection_tuning_snapshot(Bytes) -> ProjectionTuningSnapshot raise ProjectionTuningError
 
 // Errors
@@ -16,6 +19,14 @@ pub(all) suberror ProjectionTuningError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct ProjectionFoldRecord {
+  // private fields
+}
+pub fn ProjectionFoldRecord::artifact_sha256(Self) -> String
+pub fn ProjectionFoldRecord::baseline_sha256(Self) -> String
+pub fn ProjectionFoldRecord::fold_choices(Self) -> ReadOnlyArray[@luna_projection_tile_compiler.ProjectionFoldChoice]
+pub fn ProjectionFoldRecord::median_latency_ns(Self) -> Int64
+
 pub struct ProjectionTuningScope {
   // private fields
 } derive(Eq, @debug.Debug)

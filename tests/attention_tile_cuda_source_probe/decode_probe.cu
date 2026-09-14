@@ -86,7 +86,7 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
     CUevent start,end; ck(cuEventCreate(&start,0)); ck(cuEventCreate(&end,0)); ck(cuEventRecord(start,0));
     for(int n=0;n<repeats;++n) kernels[which].launch(d);
     ck(cuEventRecord(end,0)); ck(cuEventSynchronize(end)); float ms; ck(cuEventElapsedTime(&ms,start,end));
-    std::printf("context=%d batch=%d mixed=%d kernel=%s us=%.6f max_abs_error=%.8f\n",context,batch,int(mixed),which==0?"baseline":kernels[which].heads==16?"direct-split8":"grouped-split8",ms*1000/repeats,error);
+    std::printf("context=%d batch=%d mixed=%d kernel=%s us=%.6f max_abs_error=%.8f\n",context,batch,int(mixed),which==0?"baseline":!kernels[which].split?"direct-decode":kernels[which].heads==16?"direct-split8":"grouped-split8",ms*1000/repeats,error);
     ck(cuEventDestroy(start)); ck(cuEventDestroy(end));
   }
   // Both compiler partition paths must leave persistent cache bytes untouched.
@@ -97,7 +97,8 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
 int main(int argc,char**argv) {
   if(argc!=5 && argc!=6 && argc!=7) return 2;
   compare_modules = argc>=6 && std::strcmp(argv[5],"compare")==0;
-  real_abi = compare_modules || (argc>=6 && std::strcmp(argv[5],"real")==0);
+  const bool resource_compare = argc>=6 && std::strcmp(argv[5],"resources")==0;
+  real_abi = resource_compare || compare_modules || (argc>=6 && std::strcmp(argv[5],"real")==0);
   if(real_abi && !compare_modules && argc==7) {
     physical_pages=std::atoi(argv[6]);
     if(physical_pages<8192 || physical_pages>16384) return 2;
@@ -109,8 +110,8 @@ int main(int argc,char**argv) {
   if(std::memcmp(uuid.bytes,expected_uuid,16)!=0) { std::fprintf(stderr,"unexpected GPU\n"); return 2; }
   CUcontext ctx; ck(cuCtxCreate(&ctx,nullptr,0,dev));
   std::vector<Kernel> kernels;
-  kernels.emplace_back(argv[1],false,true);
-  kernels.emplace_back(compare_modules?argv[1]:argv[2],true,real_abi);
+  kernels.emplace_back(argv[1],false,true,resource_compare?33820:34076);
+  kernels.emplace_back(compare_modules?argv[1]:argv[2],!resource_compare,resource_compare?false:real_abi);
   if(compare_modules) {
     const int shared=argc==7?std::atoi(argv[6]):34076;
     if(shared<16384 || shared>100000) return 2;

@@ -15,6 +15,7 @@ fn qwen_partitioned_prefill_problem(
 fn prepare_qwen_compiler_partitioned_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
+  resources? : (Bytes, String, String)? = None,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   let maximum_problem = baseline.functional().plan().problem()
   let (query_tile, _, _) = baseline
@@ -44,20 +45,33 @@ fn prepare_qwen_compiler_partitioned_prefill(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
+  let request = @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
+    backend=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend(),
+    target_id=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target(),
+    problem~,
+    capabilities~,
+    device_target=set.target(),
+    maximum_shared_memory_bytes=100000L,
+    abi=baseline.source().abi(),
+    partial_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+    merge_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+    maximum_workspace_bytes=1073741824L,
+    maximum_source_bytes=1048576,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let frontier = @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot_frontier(
+    request,
+    [],
+    [32, 64, 128],
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  if resources is None {
+    return frontier
+  }
   @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot_frontier(
-    @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
-      backend=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend(),
-      target_id=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target(),
-      problem~,
-      capabilities~,
-      device_target=set.target(),
-      maximum_shared_memory_bytes=100000L,
-      abi=baseline.source().abi(),
-      partial_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
-      merge_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
-      maximum_workspace_bytes=1073741824L,
-      maximum_source_bytes=1048576,
-    ),
+    qwen_partitioned_resource_request(request, frontier, resources),
     [],
     [32, 64, 128],
   ) catch {
@@ -180,36 +194,7 @@ fn prepare_qwen_compiler_prefill(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let request = match resources {
-    None => request
-    Some((bytes, device, toolchain)) => {
-      let scope = frontier.digest().as_hex() + "\t" + device + "\t" + toolchain
-      let budget = @luna_attention_tuning.parse_attention_resource_budget(
-        bytes,
-        scope~,
-      ) catch {
-        _ => raise QwenReadOnlyPreparation
-      }
-      let expanded_request = request.with_resource_feedback(budget, []) catch {
-        _ => raise QwenReadOnlyPreparation
-      }
-      let expanded = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
-        expanded_request, records,
-      ) catch {
-        _ => raise QwenReadOnlyPreparation
-      }
-      let (budget, observations) = @luna_attention_tuning.parse_attention_resource_feedback(
-        bytes,
-        scope~,
-        expanded.variants().map(v => v.functional().schedule().digest())[:],
-      ) catch {
-        _ => raise QwenReadOnlyPreparation
-      }
-      request.with_resource_feedback(budget, observations[:]) catch {
-        _ => raise QwenReadOnlyPreparation
-      }
-    }
-  }
+  let request = qwen_attention_resource_request(request, frontier, resources)
   let resource_frontier = if resources is None {
     frontier
   } else {
@@ -247,7 +232,9 @@ fn prepare_qwen_compiler_decode(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   qkv_index : Int,
   attention_index : Int,
-) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation raise Qwen3Bf16CandidateExportCliError {
+  resources? : (Bytes, String, String)? = None,
+  tuning? : (Bytes, String, String)? = None,
+) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&
     plan.operations()[attention_index].shape()
@@ -285,30 +272,55 @@ fn prepare_qwen_compiler_decode(
     _ => raise QwenReadOnlyPreparation
   }
   let records : Array[@luna_attention_strategy.AttentionAutotuneRecord] = []
-  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot(
-    @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
-      backend~,
-      target_id=target,
-      problem~,
-      capabilities~,
-      device_target=set.target(),
-      maximum_shared_memory_bytes=100000L,
-      abi=@luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
-        query_heads~,
-        key_value_heads=kv_heads,
-        head_dimension~,
-        tokens_per_page=layout.tokens_per_page(),
-        input_row_width=output_width,
-        page_stride_values=layout.page_stride_bytes() / 2L,
-        physical_page_capacity=layout.total_page_count().to_int64(),
-        maximum_query_rows=maximum_rows,
-        maximum_query_tokens=maximum_tokens,
-        maximum_page_entries=set.profile().max_page_table_entries(),
-      ),
-      symbol="lunaflux_attention_decode_tile_compiler_v1",
-      maximum_source_bytes=1048576,
+  let request = @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
+    backend~,
+    target_id=target,
+    problem~,
+    capabilities~,
+    device_target=set.target(),
+    maximum_shared_memory_bytes=100000L,
+    abi=@luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi::new(
+      query_heads~,
+      key_value_heads=kv_heads,
+      head_dimension~,
+      tokens_per_page=layout.tokens_per_page(),
+      input_row_width=output_width,
+      page_stride_values=layout.page_stride_bytes() / 2L,
+      physical_page_capacity=layout.total_page_count().to_int64(),
+      maximum_query_rows=maximum_rows,
+      maximum_query_tokens=maximum_tokens,
+      maximum_page_entries=set.profile().max_page_table_entries(),
     ),
-    records,
+    symbol="lunaflux_attention_decode_tile_compiler_v1",
+    maximum_source_bytes=1048576,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let frontier = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+    request, records,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  let request = qwen_attention_resource_request(request, frontier, resources)
+  let expanded = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+    request, records,
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  guard tuning is Some((bytes, device, toolchain)) else { return expanded }
+  let observations = @luna_attention_tuning.parse_attention_tuning_records(
+    bytes,
+    scope=frontier.digest().as_hex() + "\t" + device + "\t" + toolchain,
+    backend~,
+    target~,
+    problem~,
+    expanded.variants().map(v => v.functional().plan().candidate())[:],
+  ) catch {
+    _ => raise QwenReadOnlyPreparation
+  }
+  @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+    request,
+    observations[:],
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }

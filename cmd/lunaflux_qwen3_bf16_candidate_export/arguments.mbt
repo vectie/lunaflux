@@ -52,9 +52,32 @@ fn is_lower_sha256(value : StringView) -> Bool {
 fn parse_qwen3_candidate_export_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3CandidateExportArguments raise Qwen3Bf16CandidateExportCliError {
+  let (arguments, decode_resources) = extract_resource_option(
+    arguments, "--decode-resources",
+  )
+  let (arguments, decode_tuning) = extract_resource_option(
+    arguments[:],
+    "--decode-tuning",
+  )
+  let (arguments, partitioned_resources) = extract_resource_option(
+    arguments[:],
+    "--partitioned-resources",
+  )
+  let arguments = arguments[:]
   let (arguments, query_metadata) = match arguments {
     [.. rest, "--query-metadata-v1"] => (rest, true)
     _ => (arguments, false)
+  }
+  let (arguments, projection_folds) = match arguments {
+    [.. rest, "--projection-folds", path, digest, device] => {
+      guard path.has_prefix("/") &&
+        is_lower_sha256(digest) &&
+        !device.is_empty() else {
+        raise InvalidArguments
+      }
+      (rest, Some((path, digest, device)))
+    }
+    _ => (arguments, None)
   }
   let (arguments, attention_resources) = match arguments {
     [.. rest, "--attention-resources", path, digest, device] => {
@@ -132,6 +155,10 @@ fn parse_qwen3_candidate_export_arguments(
     },
     attention_tuning,
     attention_resources,
+    projection_folds,
+    decode_resources,
+    decode_tuning,
+    partitioned_resources,
     query_metadata,
   }
   if attention_tuning is Some((_, _, tuning_device)) &&
@@ -142,5 +169,41 @@ fn parse_qwen3_candidate_export_arguments(
   if parsed.compiler_major == 0U {
     raise InvalidArguments
   }
+  for
+    input in [
+      attention_tuning, attention_resources, projection_folds, decode_resources,
+      decode_tuning, partitioned_resources,
+    ]
+    device = None {
+    guard input is Some((_, _, current)) else { continue device }
+    if device is Some(previous) && previous != current {
+      raise InvalidArguments
+    }
+    continue Some(current)
+  }
   parsed
+}
+
+///|
+fn extract_resource_option(
+  arguments : ArrayView[String],
+  key : String,
+) -> (ReadOnlyArray[String], (String, String, String)?) raise Qwen3Bf16CandidateExportCliError {
+  let remaining : Array[String] = []
+  for index = 0, found = None; index < arguments.length(); {
+    if arguments[index] != key {
+      remaining.push(arguments[index])
+      continue index + 1, found
+    }
+    guard found is None &&
+      arguments[index + 1:] is [path, digest, device, ..] &&
+      path.has_prefix("/") &&
+      is_lower_sha256(digest) &&
+      !device.is_empty() else {
+      raise InvalidArguments
+    }
+    continue index + 4, Some((path, digest, device))
+  } nobreak {
+    (ReadOnlyArray::from_array(remaining), found)
+  }
 }

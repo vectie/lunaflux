@@ -8,12 +8,15 @@ import {
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_projection_strategy",
   "vectie/lunaflux/kernels/luna_projection_tile_compiler",
+  "vectie/lunaflux/kernels/luna_projection_tuning",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
 
 // Values
 pub fn bind_manifest_projection_cuda_aot(ProjectionCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> ProjectionManifestCudaLowering raise ProjectionAotError
+
+pub fn lower_measured_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits, ArrayView[@luna_projection_tuning.ProjectionFoldRecord]) -> ProjectionCudaLowering raise ProjectionAotError
 
 pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
 

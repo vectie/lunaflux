@@ -109,6 +109,7 @@ fn qwen_compiler_partitioned_attention_recipe(
   operation : Int,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   compiled : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
+  frontier_sha256~ : String,
 ) -> Bytes {
   let compiler = set.compiler_policy()
   let identity = compiler.identity()
@@ -127,6 +128,11 @@ fn qwen_compiler_partitioned_attention_recipe(
   @utf8.encode(
     "schema=lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1\n" +
     "family=paged-attention-prefill-functional-partitioned-tile\n" +
+    "frontier_sha256=" +
+    frontier_sha256 +
+    "\nschedule_sha256=" +
+    compiled.functional().schedule().digest().as_hex() +
+    "\n" +
     "model_operation_id=" +
     operation.to_string() +
     "\npartial_function_symbol=" +

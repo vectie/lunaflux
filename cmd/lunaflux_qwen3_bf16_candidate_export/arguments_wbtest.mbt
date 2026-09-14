@@ -18,6 +18,12 @@ test "export consumes an explicit saved projection tuning suffix" {
   )
   arguments.append(["--attention-tuning", "/latencies", digest, "device-a"])
   arguments.append(["--attention-resources", "/resources", digest, "device-a"])
+  arguments.append(["--projection-folds", "/folds", digest, "device-a"])
+  arguments.append(["--decode-resources", "/decode", digest, "device-a"])
+  arguments.append(["--decode-tuning", "/decode-times", digest, "device-a"])
+  arguments.append([
+    "--partitioned-resources", "/partitioned", digest, "device-a",
+  ])
   arguments.push("--query-metadata-v1")
   let measured = parse_qwen3_candidate_export_arguments(arguments)
   assert_eq(
@@ -25,6 +31,13 @@ test "export consumes an explicit saved projection tuning suffix" {
     Some(("/resources", digest, "device-a")),
   )
   assert_true(measured.attention_tuning is Some(_))
+  assert_eq(measured.projection_folds, Some(("/folds", digest, "device-a")))
+  assert_eq(measured.decode_resources, Some(("/decode", digest, "device-a")))
+  assert_eq(measured.decode_tuning, Some(("/decode-times", digest, "device-a")))
+  assert_eq(
+    measured.partitioned_resources,
+    Some(("/partitioned", digest, "device-a")),
+  )
   assert_true(measured.query_metadata)
   arguments.push("extra")
   try parse_qwen3_candidate_export_arguments(arguments) catch {

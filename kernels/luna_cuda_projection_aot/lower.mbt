@@ -71,6 +71,12 @@ fn projection_finish_candidate(
     operation, parameters, profile, operands, dispatch_plan,
   )
   let dimensions = projection_dimensions(profile, parameters, dispatch_plan)
+  if !fold_choices.is_empty() {
+    projection_validate_fold_resources(
+      tile_compilation,
+      dimensions.shared_memory_bytes(),
+    )
+  }
   let primary_source = projection_source(
     symbol,
     parameters,

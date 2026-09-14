@@ -10,11 +10,11 @@ are inputs to selection; they are never collected inside a token step.
 
 | Work | Completion criterion | Current work |
 | --- | --- | --- |
-| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Explicit 2/3/4-stage choices and shared ring lowering implemented; first gate experiments regress; resource filtering and full measured selection remain |
+| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 legal MLP combinations physically measured, baseline wins; other projection families remain |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
 | Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pending |
-| Resource feedback | Measured budgets/register facts reach resource-aware compiler selection, including expanded schedules | Prefill exporter connected and physically checked; decode/partitioned export integration remains |
+| Resource feedback | Measured budgets/register facts reach resource-aware compiler selection, including expanded schedules | Prefill/decode/partitioned exporter connected; decode resource-only choice regresses, measured override physically restores baseline source |
 | Fusion chain selection | Compare full versus partial chain cost, select through a generic immutable policy, validate both | Pending |
 | Execution diagnostics | Latest runtime trace includes actual work, padded work, selected bucket/route, mixed steps and GPU gaps | Prior trace exists; new coverage pending |
 
@@ -78,3 +78,32 @@ attribute on each launch, so it is not the final performance harness.
 No experimental variant is selected for production. Resource-aware eligibility,
 full family coverage, sanitizer checks, per-shape measured records and exporter
 selection are still required. More stages alone do not demonstrate a speedup.
+
+## Legal MLP search and decode feedback follow-up
+
+The legal fold search now accounts for static ring storage, epilogue aliasing,
+and each launch's own dynamic shared memory. Nineteen legal baseline/alternative
+modules passed 32/1024/2048-token numerical checks and memcheck, racecheck and
+synccheck in `/tmp/lffoldlegal.uaX4DB`. Five interleaved trials measure gate,
+down and the complete MLP chain. At 2048 tokens the baseline chain is 1030.54 us;
+no alternative improves it. Stage count alone is not a missing speedup.
+
+`--projection-folds PATH SHA256 DEVICE` consumes immutable source-bound fold
+measurements offline. Unmeasured shapes retain their existing strategy. This
+does not yet constitute complete QKV/output/vocabulary physical search coverage.
+
+Decode and partitioned resource observations now reach their exporters. Real
+decode register counts are 56/31/71 across the frontier. Resource-only selection
+changed candidate 441 to 400, but physical comparison showed a severe regression:
+the aggregate median over 25 context/batch cases was 2946123 ns for 441 versus
+61889381 ns for 400 (five trials, separate kernels, not serving throughput).
+Both passed the independent numerical oracle and preserved KV bytes. The
+exporter now also accepts `--decode-tuning PATH SHA256 DEVICE`, so actual latency
+can override the resource estimate. Candidate 400 is not promoted.
+The real exporter with both resource and latency inputs restored candidate 441's
+exact baseline CUDA source in `/tmp/lfresourceall.E8FxK3/tuned`.
+
+Local full native suite: 3748/3748 passed. Existing allocation-probe macro warnings
+from the C toolchain remain; MoonBit warning-denied tests passed. End-to-end
+throughput has not been remeasured by this follow-up, and shape-bucket/fusion/
+timeline completion remains open.

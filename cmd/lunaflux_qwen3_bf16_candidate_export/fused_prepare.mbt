@@ -6,6 +6,7 @@ priv struct QwenFusedProductionSet {
   attention_prefill_frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier
   attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+  attention_decode_frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier
   attention_read : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyProductionCudaCandidate
   attention_decode_split : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle
 }
@@ -75,6 +76,9 @@ fn prepare_qwen_fused_production_set(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   tuning? : (Bytes, String, String)? = None,
   resources? : (Bytes, String, String)? = None,
+  decode_resources? : (Bytes, String, String)? = None,
+  decode_tuning? : (Bytes, String, String)? = None,
+  partitioned_resources? : (Bytes, String, String)? = None,
   query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
@@ -225,13 +229,16 @@ fn prepare_qwen_fused_production_set(
     let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(
       set,
       attention_prefill_frontier.selected(),
+      resources=partitioned_resources,
     )
-    let attention_decode = prepare_qwen_compiler_decode(
+    let attention_decode_frontier = prepare_qwen_compiler_decode(
       plan,
       layout,
       set,
       index,
       index + 3,
+      resources=decode_resources,
+      tuning=decode_tuning,
     )
     return {
       first_operation: index,
@@ -239,7 +246,8 @@ fn prepare_qwen_fused_production_set(
       full_ingress,
       attention_prefill_frontier,
       attention_prefill_partitioned,
-      attention_decode,
+      attention_decode: attention_decode_frontier.selected(),
+      attention_decode_frontier,
       attention_read,
       attention_decode_split,
     }

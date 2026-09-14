@@ -5,6 +5,22 @@ fn main raise {
   let choices : Array[@luna_projection_tile_compiler.ProjectionFoldChoice] = []
   match @env.args() {
     [_] => ()
+    [_, role, stages, window, fragments] => {
+      let role : @luna_projection_tile_compiler.ProjectionFoldRole = match
+        role {
+        "sibling" => SiblingFold
+        "intermediate" => IntermediateFold
+        _ => fail("expected sibling or intermediate")
+      }
+      choices.push(
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          role,
+          stages=probe_choice_int(stages),
+          transfer_tiles=probe_choice_int(window),
+          fragment_stages=probe_choice_int(fragments),
+        ),
+      )
+    }
     [_, stages, window, fragments] =>
       for role in [@luna_projection_tile_compiler.SiblingFold, IntermediateFold] {
         choices.push(
