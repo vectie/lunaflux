@@ -107,3 +107,10 @@ Local full native suite: 3748/3748 passed. Existing allocation-probe macro warni
 from the C toolchain remain; MoonBit warning-denied tests passed. End-to-end
 throughput has not been remeasured by this follow-up, and shape-bucket/fusion/
 timeline completion remains open.
+
+Downloaded follow-up archives (SHA-256 verified locally):
+
+- `/tmp/lunaflux-legal-folds-20260914.tar.gz`:
+  `8c5e1e66a02278275abc19144e641ec41ed82bc967aad5d5e01f65b4e4b5d9fc`.
+- `/tmp/lunaflux-resource-decode-20260914.tar.gz`:
+  `fdd05dafbbc4ac7605d6a70966fca0d32ae3963412f5c0c38defd6f983c65155`.

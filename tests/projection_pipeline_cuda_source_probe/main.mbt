@@ -2,6 +2,10 @@
 /// Source-only diagnostic through the production compiler; no artifact
 /// admission or deployment receipt is created by this fixture.
 fn main raise {
+  if @env.args() is [_, "qkv" | "output" | "head" as family, .. options] {
+    probe_matrix_family(family, options)
+    return
+  }
   let choices : Array[@luna_projection_tile_compiler.ProjectionFoldChoice] = []
   match @env.args() {
     [_] => ()
