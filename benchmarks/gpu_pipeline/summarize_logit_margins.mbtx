@@ -17,13 +17,18 @@ async fn main {
   let identities : Map[Int64,(Int64,Int64,Int64)]=Map([])
   let mut mismatches=0
   let mut ties=0
+  let mut batch : (Int,Int,Int,Int)? = None
   for line in @fs.read_file(path).text().split("\n") {
     if !line.contains("lf_exec ") {continue}
     match field(line,"kind") {
-      0L => identities.clear()
+      0L => {
+        identities.clear()
+        batch=Some((field(line,"a").to_int(),field(line,"b").to_int(),field(line,"c").to_int(),field(line,"d").to_int()))
+      }
       7L => identities[field(line,"a")]=(field(line,"seq"),field(line,"b"),field(line,"elapsed"))
       6L => {
         let row=field(line,"a")
+        guard batch is Some((batch_rows,batch_tokens,prefill_rows,decode_rows)) else {fail("missing batch context")}
         guard identities.get(row) is Some((request,sample,generation)) else {fail("unmapped result")}
         let selected=field(line,"c");let best=field(line,"d");let second=field(line,"e")
         let first_bits=field(line,"f");let second_bits=field(line,"elapsed")
@@ -32,7 +37,7 @@ async fn main {
         let next=Float::reinterpret_from_uint(second_bits.to_int().reinterpret_as_uint()<<16).to_double()
         if selected!=best {mismatches+=1}
         if first_bits==second_bits {ties+=1}
-        records.push({"request":request.to_string(),"generation":generation.to_string(),"sample":sample.to_int(),"position":field(line,"b").to_int(),"selected":selected.to_int(),"best":best.to_int(),"second":second.to_int(),"best_logit":first,"second_logit":next,"margin":first-next})
+        records.push({"request":request.to_string(),"generation":generation.to_string(),"sample":sample.to_int(),"position":field(line,"b").to_int(),"selected":selected.to_int(),"best":best.to_int(),"second":second.to_int(),"best_logit":first,"second_logit":next,"margin":first-next,"batch_rows":batch_rows,"batch_tokens":batch_tokens,"prefill_rows":prefill_rows,"decode_rows":decode_rows})
       }
       _ => ()
     }

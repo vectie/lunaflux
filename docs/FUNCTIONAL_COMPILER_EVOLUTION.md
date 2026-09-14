@@ -746,3 +746,11 @@ one synthetic value-projection component. This separates fixed-schedule
 repeatability from cross-schedule bit identity; it does not yet identify the
 cause of the real-model divergence. The numerical fixture now derives its
 capacity from 8/16-token page geometry and passes 24/24 package tests.
+
+The subsequent actual trace join finds within-runtime variability as well:
+partial C8 and full C16 each return both terminal tokens for an identical
+request body across repeated trials. Not every divergence involves a single
+token batch. The diagnostic comparator now reports within-configuration
+repeatability and preserves observed batch context, with an executable
+regression test. Across-configuration differences alone therefore cannot
+qualify or reject a compiler pass without controlling execution schedules.

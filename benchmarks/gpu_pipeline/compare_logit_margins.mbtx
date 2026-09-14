@@ -51,7 +51,31 @@ async fn main {
       }
     }
   }
-  let result : Json={"requests":count,"divergent_requests":differences.length(),"differences":differences}
+  let result : Json={"requests":count,"divergent_requests":differences.length(),"differences":differences,"left_repeatability":repeatability(left),"right_repeatability":repeatability(right)}
   @fs.write_file(output,result.stringify(),create_mode=CreateNew)
   println("requests=\{count} divergent=\{differences.length()}")
+}
+
+// Compare identical request bodies within one configuration before assigning
+// across-configuration differences to a kernel change. Keep every observation.
+async fn repeatability(root : String) -> Json {
+  let by_body : Map[String,Array[Json]]=Map([])
+  for name in @fs.readdir(root+"/lunaflux") {
+    if !name.has_suffix(".body.json") {continue}
+    let stem=name[:name.length()-10].to_owned()
+    let body=@fs.read_file(root+"/lunaflux/"+name).text()
+    guard @json.parse(@fs.read_file(root+"/lunaflux/"+stem+".json").text()) is {"token_ids":Array(tokens),..} else {fail("tokens")}
+    if !by_body.contains(body) {by_body[body]=[]}
+    by_body[body].push({"name":stem,"tokens":tokens})
+  }
+  let unstable : Array[Json]=[]
+  let mut repeated=0
+  for observations in by_body.values() {
+    if observations.length()<2 {continue}
+    repeated+=1
+    guard observations[0] is {"tokens":first,..} else {fail("first")}
+    let changed=observations.any(x=>match x { {"tokens":tokens,..}=>tokens!=first; _=>false })
+    if changed {unstable.push({"observations":observations})}
+  }
+  {"distinct_request_bodies":by_body.length(),"repeated_request_bodies":repeated,"unstable_request_bodies":unstable.length(),"unstable_groups":unstable}
 }

@@ -1,0 +1,42 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/json" }
+
+// Run from the repository root. This tests diagnostic tools, not GPU math.
+async fn invoke(script:String,args:Array[String],success:Bool) -> Unit {
+  let (code,_,err)=@process.collect_output("moon",["run","benchmarks/gpu_pipeline/"+script,..args])
+  assert_eq(code==0,success,msg=err.text())
+}
+fn trace(selected:Int,request:Int,batch:Int)->String {
+  "lf_exec kind=0 seq=1 a=\{batch} b=\{batch} c=0 d=\{batch} e=0 f=0 elapsed=0\n"+
+  "lf_exec kind=7 seq=\{request} a=0 b=0 c=2 d=0 e=0 f=0 elapsed=1\n"+
+  "lf_exec kind=6 seq=0 a=0 b=0 c=\{selected} d=\{selected} e=0 f=16256 elapsed=0\n"
+}
+async fn main {
+  let(code,out,err)=@process.collect_output("mktemp",["-d","/tmp/lunaflux-margin-analysis.XXXXXX"])
+  assert_eq(code,0,msg=err.text())
+  let root=out.text().trim().to_owned()
+  for side in ["left","right"] {
+    let dir=root+"/"+side;@fs.mkdir(dir);@fs.mkdir(dir+"/lunaflux")
+    let second=if side=="left" {2} else {1}
+    @fs.write_file(dir+"/trace",trace(1,1,1)+trace(second,2,4),create_mode=CreateNew)
+    invoke("summarize_logit_margins.mbtx",[dir+"/trace",dir+"/margins.json"],true)
+    guard @json.parse(@fs.read_file(dir+"/margins.json").text()) is {"records":Array(records),..} else {fail("records")}
+    assert_eq(records.length(),2)
+    assert_true(records[0] is {"batch_tokens":Number(1,..),"decode_rows":Number(1,..),..})
+    assert_true(records[1] is {"batch_tokens":Number(4,..),"decode_rows":Number(4,..),..})
+    for i in 0..<2 {
+      @fs.write_file(dir+"/lunaflux/r\{i}.body.json","{\"input_token_ids\":[7]}",create_mode=CreateNew)
+      let response : Json={"token_ids":[if i==0 {1} else {second}]}
+      @fs.write_file(dir+"/lunaflux/r\{i}.json",response.stringify(),create_mode=CreateNew)
+    }
+  }
+  invoke("compare_logit_margins.mbtx",[root+"/left",root+"/right",root+"/comparison.json"],true)
+  guard @json.parse(@fs.read_file(root+"/comparison.json").text()) is {
+    "requests":Number(2,..),"divergent_requests":Number(1,..),
+    "left_repeatability":{"unstable_request_bodies":Number(1,..),..},
+    "right_repeatability":{"unstable_request_bodies":Number(0,..),..},..
+  } else {fail("repeatability regression")}
+  let no_batch=trace(1,1,1).split("\n").to_array()[1:].join("\n")
+  @fs.write_file(root+"/missing-batch",no_batch,create_mode=CreateNew)
+  invoke("summarize_logit_margins.mbtx",[root+"/missing-batch",root+"/invalid.json"],false)
+  println("margin analysis regression passed: "+root)
+}

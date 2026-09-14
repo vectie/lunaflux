@@ -64,3 +64,43 @@ No serving implementation or model-specific production rule changed.
 Downloaded sources, original module, probes and successful replay logs:
 `/tmp/lunaflux-historical-ingress-retest.tar.gz`, matching local/remote SHA-256
 `435ef52075b65478bf58aa460192b99faff8f6aa4c4ab5675cb9f92cd65cd568`.
+
+## Actual trace join and within-configuration repeatability
+
+Reprocessing the existing 3072-output traces on each side now attaches the
+recorded batch rows, batch tokens, prefill rows and decode rows to every logit
+record. No new GPU run was performed for this join. The original 96 requests
+still have four cross-configuration first divergences at sample 31.
+
+The single-row transition does not explain every observation: for
+`uniform-distinct-c16-t1-r0`, every matching partial trace is multi-token
+(2/8/13/16), and its full trace is a four-token decode. Matching remains
+ambiguous when repeated requests produce identical output vectors; all matches
+are retained rather than picking a convenient one.
+
+More importantly, each runtime has one unstable request body among 16 distinct
+byte-identical bodies that were repeated. This occurs even at fixed concurrency:
+
+| Runtime | Fixed concurrency | Last-token observations across four trials |
+| --- | --- | --- |
+| Partial | C8 | 22, 22, 16, 16 |
+| Full | C16 | 16, 22, 16, 16 |
+
+Trial zero is warmup; this table includes it, consistently with the earlier
+counts. The same request body's other tokens agree. Thus the pairwise 4/96
+count alone cannot isolate a fusion effect: the unchanged runtime also varies
+between repetitions. This is not proof of a race, nor proof that batch size
+alone causes it. Compare fixed/replayed schedules and actual intermediate
+activations before attributing the difference to an individual compiler pass.
+
+`summarize_logit_margins.mbtx` now preserves batch context and rejects a margin
+without a preceding batch record. `compare_logit_margins.mbtx` additionally
+reports identical-body repeatability for each configuration. Regression tool
+`test_margin_analysis.mbtx` exercises batch changes, within-configuration
+instability, a stable control and missing-batch rejection. It passes locally.
+
+The joined summaries, comparison, repeatability checks and scripts were
+downloaded as `/tmp/lunaflux-margin-batches-20260915.tar.gz`; local/remote SHA-256
+is `1656df2f46fba7d2ca3ffc5794057e184b49375419fd1b4f00e863837446848b`.
+The original raw trace archive remains the one linked in the logit-margin
+report; no original trace or response was overwritten.
