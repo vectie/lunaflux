@@ -32,12 +32,34 @@ fn cuda_query_owned_stage(
   } else {
     ""
   }
+  let retained = if split {
+    // K produces the immutable address product; V consumes it before the
+    // next K transfer overwrites it. Fully unroll to scalarize the product.
+    (
+      #|    const __nv_bfloat16 *pending_values[LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8/LF_BLOCK_THREADS];
+      #|    const int row_position_begin=positions[begin];
+    )
+  } else {
+    ""
+  }
+  let vectors = if split {
+    (
+      #|      #pragma unroll
+      #|      for (int index=0; index<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8/LF_BLOCK_THREADS; ++index) {
+      #|        const int vector=thread+index*LF_BLOCK_THREADS;
+    )
+  } else {
+    (
+      #|      for (int vector=thread; vector<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8; vector+=LF_BLOCK_THREADS) {
+    )
+  }
   let source =
+    $|\{retained}
     $|    auto stage_query_tile = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {
-    $|      for (int vector=thread; vector<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8; vector+=LF_BLOCK_THREADS) {
+    $|\{vectors}
     $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
     $|        const int position=kb+r;
-    $|\{cuda_prefill_key_value_view_address(abi, true, dense~)}
+    $|\{cuda_prefill_key_value_view_address(abi, true, dense~, retained_value=split)}
     $|        auto *destination_k=kbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
     $|        auto *destination_v=vbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
     $|\{transfer}

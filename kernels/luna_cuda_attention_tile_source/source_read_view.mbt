@@ -7,6 +7,7 @@ fn cuda_prefill_key_value_view_address(
   abi : CudaPagedAttentionTileAbi,
   query_owned : Bool,
   dense? : Bool = true,
+  retained_value? : Bool = false,
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (row_width, page_stride, pages) = abi.layout()
@@ -48,7 +49,7 @@ fn cuda_prefill_key_value_view_address(
     )
   }
   let current_delta = if dense {
-    "(long long)\{position}-(long long)\{positions}[\{row_begin}]"
+    "(long long)\{position}-(long long)\{if retained_value { "row_position_begin" } else { "\{positions}[\{row_begin}]" }}"
   } else {
     "0"
   }
@@ -57,9 +58,22 @@ fn cuda_prefill_key_value_view_address(
   } else {
     "false"
   }
+  let retain = if retained_value {
+    (
+      #|      pending_values[index]=kv_source_valid?kv_value_source:nullptr;
+      #|      } else {
+      #|        kv_value_source=pending_values[index];
+      #|        kv_source_valid=kv_value_source!=nullptr;
+      #|        if (!kv_source_valid) kv_value_source=values;
+      #|      }
+    )
+  } else {
+    ""
+  }
   (
     $|      const __nv_bfloat16 *kv_key_source=\{keys}, *kv_value_source=\{values};
     $|      bool kv_source_valid=false;
+    $|\{if retained_value { "      if (kind==0) {" } else { "" }}
     $|      const long long current_delta=\{current_delta};
     $|      const bool from_current=\{from_current};
     $|      int kv_page=-1;
@@ -80,6 +94,7 @@ fn cuda_prefill_key_value_view_address(
     $|        kv_key_source=\{keys}+source; kv_value_source=\{values}+source;
     $|        kv_source_valid=true;
     $|      }
+    $|\{retain}
   )
 }
 

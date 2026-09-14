@@ -4,11 +4,14 @@ fn main raise {
   // Exact launch/ABI envelope of the 2026-09-09 selected-kernel counter replay.
   // This is a diagnostic fixture, not a production model-selection branch.
   let selected_counters = raw_arguments is [_, _, "selected-counters"]
+  let instruction_probe = raw_arguments is [_, _, "instruction-map"]
   let pipeline_probe = raw_arguments is [_, _, "pipeline" | "pipeline-dense"]
-  let dense_current = raw_arguments is [_, _, "pipeline-dense"]
+  let dense_current = raw_arguments is [_, _, "pipeline-dense"] ||
+    instruction_probe
   let qwen_geometry = raw_arguments is [_, _, "qwen"] ||
     selected_counters ||
-    pipeline_probe
+    pipeline_probe ||
+    instruction_probe
   let arguments = match raw_arguments {
     [
       program,
@@ -18,6 +21,7 @@ fn main raise {
       | "pipeline"
       | "pipeline-dense",
     ] => [program, candidate]
+    [program, candidate, "instruction-map"] => [program, candidate]
     _ => raw_arguments
   }
   match arguments {
@@ -91,6 +95,8 @@ fn main raise {
     [_, "317"] => Some(317)
     [_, "318"] => Some(318)
     [_, "319"] => Some(319)
+    [_, "322"] => Some(322)
+    [_, "323"] => Some(323)
     _ => None
   }
   let head_dimension = match arguments {
@@ -110,7 +116,8 @@ fn main raise {
     query_rows=compile_query_rows,
     context_tokens=4096,
     causal=true,
-    allow_alternative_softmax_reduction=requested_candidate is Some(318 | 319),
+    allow_alternative_softmax_reduction=requested_candidate
+      is Some(318 | 319 | 322 | 323),
     key_value_read_view=if dense_current {
       DenseCurrentAndPagedHistory
     } else {
@@ -122,7 +129,7 @@ fn main raise {
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=requested_candidate is Some(316 | 317),
+    supports_async_copy=requested_candidate is Some(316 | 317 | 322 | 323),
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,
@@ -178,7 +185,9 @@ fn main raise {
     tokens_per_page=if qwen_geometry { 8 } else { 16 },
     input_row_width=(if qwen_geometry { 32 } else { 24 }) * head_dimension,
     page_stride_values=64L * head_dimension.to_int64(),
-    physical_page_capacity=if selected_counters || pipeline_probe {
+    physical_page_capacity=if selected_counters ||
+      pipeline_probe ||
+      instruction_probe {
       8192L
     } else if qwen_geometry {
       4096L
@@ -186,20 +195,25 @@ fn main raise {
       256L
     },
     maximum_query_rows=32,
-    maximum_query_tokens=if selected_counters {
+    maximum_query_tokens=if instruction_probe {
+      2048
+    } else if selected_counters {
       1024
     } else if qwen_geometry {
       4096
     } else {
       128
     },
-    maximum_page_entries=if selected_counters || pipeline_probe {
+    maximum_page_entries=if selected_counters ||
+      pipeline_probe ||
+      instruction_probe {
       8192
     } else if qwen_geometry {
       4096
     } else {
       256
     },
+    query_metadata=instruction_probe,
   )
   if partitioned {
     let compiled = @luna_cuda_attention_tile_aot.compile_cuda_partitioned_attention_tile_aot(
@@ -229,7 +243,9 @@ fn main raise {
         device_target~,
         maximum_shared_memory_bytes=100000L,
         abi~,
-        symbol=if selected_counters {
+        symbol=if instruction_probe {
+          "lunaflux_attention_prefill_tile_compiler_v1_c322"
+        } else if selected_counters {
           "lunaflux_attention_prefill_tile_compiler_v1"
         } else {
           "lunaflux_attention_prefill_tile_v1"

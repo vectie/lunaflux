@@ -61,10 +61,24 @@ test "dense current and paged history share synchronous and async address loweri
       assert_true(text.contains("current_k"))
     }
     if id == 322 || id == 323 {
+      assert_true(
+        text.contains(
+          "pending_values[index]=kv_source_valid?kv_value_source:nullptr",
+        ),
+      )
+      assert_true(text.contains("kv_value_source=pending_values[index]"))
+      assert_true(
+        text.contains("const int row_position_begin=positions[begin]"),
+      )
+      assert_true(
+        text.contains("const int vector=thread+index*LF_BLOCK_THREADS"),
+      )
       assert_true(text.contains("cp.async.wait_group 1"))
       assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,0)"))
       assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,1)"))
       assert_false(text.contains("slot^1"))
+    } else {
+      assert_false(text.contains("pending_values"))
     }
   }
 }
