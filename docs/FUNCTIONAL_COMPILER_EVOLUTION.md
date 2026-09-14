@@ -119,3 +119,20 @@ Current motivation and measurements:
 
 This record alone changes no runtime implementation, kernel selection or
 deployment behavior.
+
+## Implementation follow-up
+
+The initial refactoring now exposes a dimensionless `AttentionCostBreakdown`
+from the compiled plan. Its arithmetic, memory, scheduling, fold and transfer
+terms sum to the unchanged fallback estimate. A regression checks that the
+64-to-32 KV retile doubles fold/transfer terms without changing the modeled
+arithmetic or bytes. This makes the policy inspectable; it does **not** claim
+that the existing coefficients are calibrated or that candidate generation has
+already replaced the hand-maintained frontier.
+
+`AttentionFoldFences` moves query-owned single-slot publication/release fusion
+into a generic schedule description. A diagnostic CUDA realization preserved
+bitwise outputs and passed bounded sanitizer checks, but did not consistently
+improve matched timings. Production lowering therefore retains its prior fence
+placement; measured selection between placements remains unimplemented. This
+description is not an activated optimization.
