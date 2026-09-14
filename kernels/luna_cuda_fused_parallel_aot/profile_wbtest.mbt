@@ -41,18 +41,32 @@ test "fused token envelope supports coalesced prefill and rejects its next bound
 }
 
 ///|
-test "fused common validation rejects page tables above c32 capacity" {
+test "fused page envelope includes decode growth of a full long prompt batch" {
+  let fixture = fused_test_fixture()
+  for entries in [8192, 8193, 8320, 9216, 16384] {
+    let profile = @launch_contract.PagedKernelProfile::new(
+      id=@launch_contract.KernelProfileId::from_stable_int(1),
+      max_query_rows=32,
+      max_query_tokens=2048,
+      max_page_table_entries=entries,
+    )
+    fused_validate_common(profile, fixture.target, fixture.compiler)
+  }
+}
+
+///|
+test "fused common validation rejects page tables above the bounded envelope" {
   let fixture = fused_test_fixture()
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
     max_query_rows=32,
     max_query_tokens=256,
-    max_page_table_entries=8193,
+    max_page_table_entries=16385,
   )
   try fused_validate_common(profile, fixture.target, fixture.compiler) catch {
     FusedParallelUnsupported(Profile) => ()
     _ => fail("unexpected fused c32 boundary rejection")
   } noraise {
-    _ => fail("8,193 page-table entries reached fused artifact export")
+    _ => fail("16,385 page-table entries reached fused artifact export")
   }
 }

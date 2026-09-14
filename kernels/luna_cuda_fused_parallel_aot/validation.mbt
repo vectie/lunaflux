@@ -5,7 +5,10 @@ const FUSED_PARALLEL_THREADS : Int = 128
 const FUSED_PARALLEL_MAX_QUERY_TOKENS : Int = 2048
 
 ///|
-const FUSED_PARALLEL_MAX_PAGE_TABLE_ENTRIES : Int = 8192
+// Entries cover all rows in a submitted batch, not just prompt tokens.
+// 16 x (4096 prompt + 64 output) with 8-token pages needs 8,320 entries.
+// This is a startup envelope; kernels traverse only live entries.
+const FUSED_PARALLEL_MAX_PAGE_TABLE_ENTRIES : Int = 16384
 
 ///|
 const FUSED_PARALLEL_MAX_WIDTH : Int = 16384

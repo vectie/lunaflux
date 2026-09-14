@@ -114,7 +114,13 @@ int main(int argc,char**argv) {
   if(!real_abi) kernels.emplace_back(argv[3],true,true);
   int repeats=std::atoi(argv[4]); if(repeats<=0) return 2;
   for(int context:{1,7,8,9,59,63,64,65,128,256,512,1528,4096}) run_case(kernels.data(),int(kernels.size()),context,1,false,repeats);
-  run_case(kernels.data(),int(kernels.size()),256,2,true,repeats); run_case(kernels.data(),int(kernels.size()),1528,8,false,repeats);
+  run_case(kernels.data(),int(kernels.size()),256,2,true,repeats);
+  // A C1-only crossover misses the graph bucket dispatch boundary at C4/C8.
+  // Keep context and concurrency independent, including the long C16 service
+  // vector. These timings include both split launches, not only the partial.
+  for(int context:{256,1528,4096})
+    for(int batch:{2,4,8,16})
+      run_case(kernels.data(),int(kernels.size()),context,batch,false,repeats);
   for(auto& kernel:kernels) ck(cuModuleUnload(kernel.module)); ck(cuCtxDestroy(ctx));
   std::puts("correctness=passed kv_unchanged=true resources_released=true");
   if(compare_modules) std::puts("scalar_vector_bitwise_equal=true");

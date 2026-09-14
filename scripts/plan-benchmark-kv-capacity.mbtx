@@ -1,0 +1,46 @@
+import { "moonbitlang/core/env", "moonbitlang/core/string" }
+
+/// Offline, model/backend-neutral capacity planning. Each tuple is one trial
+/// cell, not an additional simultaneous workload. Round each request separately:
+/// pages cannot be shared across unrelated requests even with identical text.
+fn required_pages(cells : ArrayView[(Int, Int, Int)], page_tokens : Int, reserve : Int) -> Int64 raise {
+  guard page_tokens > 0 && reserve >= 0 && !cells.is_empty() else { fail("invalid capacity arguments") }
+  for cell in cells; peak = 0L {
+    let (input, output, concurrency) = cell
+    guard input > 0 && output > 0 && concurrency > 0 else { fail("positive input/output/concurrency required") }
+    let tokens = input.to_int64() + output.to_int64()
+    let pages = (tokens + page_tokens.to_int64() - 1L) / page_tokens.to_int64()
+    guard pages <= (9223372036854775807L - reserve.to_int64()) / concurrency.to_int64() else { fail("capacity overflow") }
+    let total = pages * concurrency.to_int64() + reserve.to_int64()
+    continue if total > peak { total } else { peak }
+  } nobreak { peak }
+}
+
+fn self_test() -> Unit raise {
+  assert_eq(required_pages([(4096,64,16)],8,1),8321L)
+  assert_eq(required_pages([(4096,64,8)],8,1),4161L)
+  assert_eq(required_pages([(7,2,2)],8,1),5L)
+  assert_eq(required_pages([(512,64,16),(4096,64,8)],8,1),4161L)
+  assert_eq(required_pages([(4096,64,16)],8,1)>8192L,true)
+  assert_eq(required_pages([(4096,64,16)],8,1)<=9216L,true)
+  assert_eq(required_pages([(1,1,1)],8,0),1L)
+  for invalid in [([],8,0), ([(0,1,1)],8,0), ([(1,0,1)],8,0), ([(1,1,0)],8,0), ([(1,1,1)],0,0), ([(1,1,1)],8,-1)] {
+    let (cells,page,reserve)=invalid
+    let rejected=try {ignore(required_pages(cells,page,reserve));false} catch {_=>true}
+    assert_true(rejected)
+  }
+}
+
+fn main raise {
+  let args=@env.args()
+  if args is [_,"--self-test"] { self_test();println("capacity regression tests passed");return }
+  guard args is [_,page,reserve,available,..vector] && vector.length()>0 && vector.length()%3==0 else {
+    fail("usage: PAGE_TOKENS RESERVE_PAGES AVAILABLE_PAGES INPUT OUTPUT CONCURRENCY [INPUT OUTPUT CONCURRENCY ...]; --self-test")
+  }
+  let cells=Array::makei(vector.length()/3,i=>(@string.parse_int(vector[i*3]),@string.parse_int(vector[i*3+1]),@string.parse_int(vector[i*3+2])))
+  let required=required_pages(cells,@string.parse_int(page),@string.parse_int(reserve))
+  let available=@string.parse_int64(available)
+  guard available>=0L else {fail("negative available pages")}
+  println("required_pages=\{required}\navailable_pages=\{available}\ncapacity_sufficient=\{available>=required}")
+  if available<required {fail("benchmark would exercise KV pressure/recompute; enlarge capacity or explicitly classify it as a pressure trial")}
+}
