@@ -1,4 +1,30 @@
 ///|
+test "paired comparison does not require a fabricated unfused measurement" {
+  for
+    (full, partial, expected) in [
+      ("10", "20", @luna_fusion_strategy.FullyFused),
+      ("20", "10", @luna_fusion_strategy.ProducerSeparated),
+      ("10", "10", @luna_fusion_strategy.ProducerSeparated),
+    ] {
+    let args = runtime_bundle_test_arguments("5")
+    args.append([
+      "--ingress-pair", full, partial, "4", "256", "1", "1", "128", "0", "/tmp/postprocess.cubin",
+      "--query-metadata-v1",
+    ])
+    let (selected, choice) = prepare_ingress_choice(args)
+    assert_eq(choice, expected)
+    assert_true(selected.query_metadata)
+    args[args.length() - 8] = "2"
+    try prepare_ingress_choice(args) catch {
+      InvalidArguments => ()
+      _ => fail("unexpected error")
+    } noraise {
+      _ => fail("too few samples")
+    }
+  }
+}
+
+///|
 test "metadata ABI composes with the trailing ingress evaluation" {
   let args = runtime_bundle_test_arguments("5")
   for

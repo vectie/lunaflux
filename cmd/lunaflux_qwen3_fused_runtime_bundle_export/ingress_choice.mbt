@@ -36,19 +36,22 @@ fn prepare_ingress_choice(
     }
     return bind_ingress_choice(args, choice, raw_args[evaluation_start + 2:])
   }
-  let suffix_size = 11
+  let pair_start = raw_args.length() - 10
+  let paired = pair_start > 0 && raw_args[pair_start] == "--ingress-pair"
+  let suffix_size = if paired { 10 } else { 11 }
   let suffix_start = raw_args.length() - suffix_size
-  if suffix_start < 1 || raw_args[suffix_start] != "--ingress-comparison" {
+  if suffix_start < 1 ||
+    (!paired && raw_args[suffix_start] != "--ingress-comparison") {
     return (parse_arguments(raw_args), FullyFused)
   }
   let args = parse_arguments(raw_args[:suffix_start])
   let suffix = raw_args[suffix_start:]
-  let samples = positive_int(suffix[4])
-  let schedules : Array[@luna_fusion_strategy.FusionSchedule] = [
-    FullyFused,
-    ProducerSeparated,
-    Unfused,
-  ]
+  let schedules : Array[@luna_fusion_strategy.FusionSchedule] = if paired {
+    [FullyFused, ProducerSeparated]
+  } else {
+    [FullyFused, ProducerSeparated, Unfused]
+  }
+  let samples = positive_int(suffix[schedules.length() + 1])
   let alternatives = schedules.mapi((index, schedule) => {
     @luna_fusion_strategy.FusionAlternative::new(
       schedule~,
@@ -69,7 +72,7 @@ fn prepare_ingress_choice(
   ) catch {
     _ => raise InvalidArguments
   }
-  bind_ingress_choice(args, choice, suffix[5:])
+  bind_ingress_choice(args, choice, suffix[schedules.length() + 2:])
 }
 
 ///|
