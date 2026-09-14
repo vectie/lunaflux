@@ -46,10 +46,10 @@ fn attention_candidate_online_fold_steps(
 }
 
 ///|
-fn attention_candidate_static_cost(
+fn attention_candidate_cost_breakdown(
   problem : AttentionCompileProblem,
   candidate : AttentionTileCandidate,
-) -> Int64 raise AttentionStrategyError {
+) -> AttentionCostBreakdown raise AttentionStrategyError {
   let (query_rows, context_tokens) = problem.dimensions()
   let batch_rows = problem.batch_rows().to_int64()
   let (query_tile, key_value_tile, head_columns) = candidate.tile.dimensions()
@@ -150,7 +150,7 @@ fn attention_candidate_static_cost(
     attention_checked_product(batch_rows, 256L, Candidate),
     Candidate,
   )
-  attention_checked_add(
+  let total = attention_checked_add(
     attention_checked_add(
       attention_checked_add(arithmetic_cost, memory_cost, Candidate),
       scheduling_cost,
@@ -159,4 +159,20 @@ fn attention_candidate_static_cost(
     attention_checked_add(fold_cost, transfer_cost, Candidate),
     Candidate,
   )
+  {
+    arithmetic: arithmetic_cost,
+    memory: memory_cost,
+    scheduling: scheduling_cost,
+    fold: fold_cost,
+    transfer: transfer_cost,
+    total,
+  }
+}
+
+///|
+fn attention_candidate_static_cost(
+  problem : AttentionCompileProblem,
+  candidate : AttentionTileCandidate,
+) -> Int64 raise AttentionStrategyError {
+  attention_candidate_cost_breakdown(problem, candidate).total
 }

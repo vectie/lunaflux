@@ -80,6 +80,15 @@ pub fn AttentionCompilerCapabilities::subgroup_width(Self) -> Int
 pub fn AttentionCompilerCapabilities::supports_async_copy(Self) -> Bool
 pub fn AttentionCompilerCapabilities::with_parallel_workgroup_target(Self, Int) -> Self raise AttentionStrategyError
 
+pub struct AttentionCostBreakdown {
+  arithmetic : Int64
+  memory : Int64
+  scheduling : Int64
+  fold : Int64
+  transfer : Int64
+  total : Int64
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionDecodeWorkspacePlan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -220,6 +229,7 @@ pub struct CompiledAttentionTilePlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CompiledAttentionTilePlan::candidate(Self) -> AttentionTileCandidate
+pub fn CompiledAttentionTilePlan::estimated_cost_breakdown(Self) -> AttentionCostBreakdown raise AttentionStrategyError
 pub fn CompiledAttentionTilePlan::problem(Self) -> AttentionCompileProblem
 pub fn CompiledAttentionTilePlan::source(Self) -> AttentionCandidateSource
 pub fn CompiledAttentionTilePlan::static_cost(Self) -> Int64
