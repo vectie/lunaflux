@@ -1,6 +1,8 @@
 # Attention instruction sharing: first implemented correction
 
 This is a measured reduction, **not closure of the instruction-count gap**.
+The subsequent [exact numeric if-conversion](ATTENTION_IF_CONVERSION_2026-09-14.md)
+reduces the gap further; the tables below preserve this first correction's results.
 The generated split-readiness attention kernel previously recomputed the same
 K/V read-view address map at both transfer points. Its CUDA lowering now
 materializes the value-address product at the K transfer, consumes it at the V

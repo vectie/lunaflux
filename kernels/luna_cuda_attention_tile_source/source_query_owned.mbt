@@ -62,6 +62,7 @@ fn emit_cuda_query_owned_attention_source(
     $|\{layout}
     $|\{cuda_attention_matrix_fragments(shared_scores=false)}
     $|\{cuda_query_owned_score_fold()}
+    $|\{cuda_query_owned_numeric_primitives()}
     $|extern "C" __global__ void \{symbol}(
     $|    const int *counts, const int *positions, const int *offsets,
     $|    const int *lengths, const int *page_offsets, const int *page_indices,
@@ -148,15 +149,13 @@ fn emit_cuda_query_owned_attention_source(
     $|          #pragma unroll
     $|          for (int item=0;item<8;++item) {
     $|            const int r=item%4/2;
-    $|            weight[item]=isinf(score[key].x[item])?0.0f:expf(score[key].x[item]-next[r]);
+    $|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
     $|            sum[r]+=weight[item];
     $|          }
     $|          LfMatrixOperand probability;
     $|          #pragma unroll
     $|          for (int pair=0;pair<4;++pair) {
-    $|            const unsigned lo=__bfloat16_as_ushort(__float2bfloat16_rn(weight[pair*2]));
-    $|            const unsigned hi=__bfloat16_as_ushort(__float2bfloat16_rn(weight[pair*2+1]));
-    $|            probability.x[pair]=lo|(hi<<16);
+    $|            probability.x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
     $|          }
     $|          #pragma unroll
     $|          for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {

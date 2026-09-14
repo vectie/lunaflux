@@ -244,7 +244,10 @@ fn main raise {
         maximum_shared_memory_bytes=100000L,
         abi~,
         symbol=if instruction_probe {
-          "lunaflux_attention_prefill_tile_compiler_v1_c322"
+          match requested_candidate {
+            Some(id) => "lunaflux_attention_prefill_tile_compiler_v1_c\{id}"
+            None => raise Failure("instruction-map requires a candidate")
+          }
         } else if selected_counters {
           "lunaflux_attention_prefill_tile_compiler_v1"
         } else {
