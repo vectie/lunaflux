@@ -210,6 +210,7 @@ pub fn generate_attention_tile_candidates(
 ) -> ReadOnlyArray[AttentionTileCandidate] raise AttentionStrategyError {
   let (query_rows, context_tokens) = problem.dimensions()
   let specs = attention_candidate_specs()
+  specs.append(block_owned_matrix_specs())
   specs.append(query_owned_attention_specs())
   let candidates = specs.filter_map(spec => {
     if spec.phase != problem.phase ||

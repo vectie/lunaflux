@@ -193,3 +193,10 @@ frontier. Decode also skips its formerly unconditional second compilation when
 there is no resource input. Invalidation regressions cover causal/read-view
 effects, numerical permission, parallel capabilities, shape and target; adding
 and withdrawing measured observations must select exactly as a fresh compile.
+
+Block-owned matrix QK/PV schedules 310–317 are now generated from the supported
+query/KV domain and the narrower realized async domain. Compatibility tests
+preserve every legacy field, including the small-query profitability threshold.
+This removes repeated schedule records without changing the legal set or
+claiming new kernel speed. Scalar/subgroup and matrix-QK-only tables still need
+the same separation of implementation constraints from search policy.
