@@ -97,6 +97,7 @@ fn main raise {
     [_, "319"] => Some(319)
     [_, "322"] => Some(322)
     [_, "323"] => Some(323)
+    [_, "324"] => Some(324)
     _ => None
   }
   let head_dimension = match arguments {
@@ -117,7 +118,7 @@ fn main raise {
     context_tokens=4096,
     causal=true,
     allow_alternative_softmax_reduction=requested_candidate
-      is Some(318 | 319 | 322 | 323),
+      is Some(318 | 319 | 322 | 323 | 324),
     key_value_read_view=if dense_current {
       DenseCurrentAndPagedHistory
     } else {
@@ -129,7 +130,7 @@ fn main raise {
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=requested_candidate is Some(316 | 317 | 322 | 323),
+    supports_async_copy=requested_candidate is Some(316 | 317 | 322 | 323 | 324),
     matrix_shape=Some(
       @luna_attention_strategy.AttentionMatrixShape::new(
         rows=16,

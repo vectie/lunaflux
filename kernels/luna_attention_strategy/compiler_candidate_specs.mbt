@@ -329,6 +329,21 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
       minimum_context_tokens: 32,
     },
     {
+      // Decouple query ownership from the KV reduction width. The narrower
+      // fold keeps four query subgroups while reducing live scores and staging.
+      stable_id: 324,
+      phase: Prefill,
+      compute: AttentionMatrixQkPv,
+      memory: AttentionAsyncStagedShared,
+      query_rows: 64,
+      key_value_rows: 32,
+      subgroups_per_block: 4,
+      pipeline_stages: 1,
+      vector_bytes: 16,
+      minimum_query_rows: 64,
+      minimum_context_tokens: 32,
+    },
+    {
       stable_id: 400,
       phase: Decode,
       compute: AttentionScalarDot,

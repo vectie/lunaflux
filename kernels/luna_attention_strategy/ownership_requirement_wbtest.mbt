@@ -30,13 +30,27 @@ test "required query ownership excludes exchanged schedules across query buckets
   for queries in [1, 16, 32, 64, 128, 129, 1528, 4096] {
     let bucket = problem.with_query_rows(queries)
     let candidates = generate_attention_tile_candidates(bucket, capabilities)
-    assert_eq(candidates.length(), 6)
+    assert_eq(candidates.length(), 7)
     assert_true(
-      candidates.all(c => c.stable_id() >= 318 && c.stable_id() <= 323),
+      candidates.all(c => c.stable_id() >= 318 && c.stable_id() <= 324),
     )
     assert_true(bucket.allows_alternative_softmax_reduction())
     assert_eq(bucket.key_value_read_view(), DenseCurrentAndPagedHistory)
   }
+  let narrow = generate_attention_tile_candidates(problem, capabilities).filter(c => {
+      c.stable_id() == 324
+    },
+  )
+  guard narrow is [candidate] else { fail("missing asymmetric reduction tile") }
+  assert_eq(candidate.tile().dimensions(), (64, 32, 64))
+  assert_eq(candidate.execution_geometry(), (4, 1, 16))
+  assert_eq(candidate.shared_memory_bytes(), 16400L)
+  assert_false(
+    generate_attention_tile_candidates(problem, {
+      ..capabilities,
+      supports_async_copy: false,
+    }).any(c => c.stable_id() == 324),
+  )
   try
     AttentionCompileProblem::new(
       shape~,

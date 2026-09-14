@@ -21,7 +21,7 @@ fn source_test_lowering(
     context_tokens=4096,
     causal=true,
     allow_alternative_softmax_reduction=candidate_id
-      is Some(318 | 319 | 320 | 321 | 322 | 323),
+      is Some(318 | 319 | 320 | 321 | 322 | 323 | 324),
     key_value_read_view=if dense_current {
       DenseCurrentAndPagedHistory
     } else {

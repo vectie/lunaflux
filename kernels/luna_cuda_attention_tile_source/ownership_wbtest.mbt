@@ -1,6 +1,6 @@
 ///|
 test "query-owned source carries QK softmax PV across register ownership" {
-  for id in [318, 319, 320, 321, 322, 323] {
+  for id in [318, 319, 320, 321, 322, 323, 324] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
     assert_true(lowering.query_owned_fragments())
     let source = emit_cuda_attention_tile_source(
@@ -40,7 +40,7 @@ test "query-owned source carries QK softmax PV across register ownership" {
 
 ///|
 test "dense current and paged history share synchronous and async address lowering" {
-  for id in [313, 316, 318, 319, 320, 321, 322, 323] {
+  for id in [313, 316, 318, 319, 320, 321, 322, 323, 324] {
     let lowering = source_test_lowering(
       true,
       100000L,
@@ -67,7 +67,7 @@ test "dense current and paged history share synchronous and async address loweri
       assert_true(text.contains("slot^1"))
       assert_true(text.contains("current_k"))
     }
-    if id == 322 || id == 323 {
+    if id == 322 || id == 323 || id == 324 {
       assert_true(
         text.contains(
           "pending_values[index]=kv_source_valid?kv_value_source:nullptr",
