@@ -10,7 +10,7 @@ are inputs to selection; they are never collected inside a token step.
 
 | Work | Completion criterion | Current work |
 | --- | --- | --- |
-| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 legal MLP combinations physically measured, baseline wins; other projection families remain |
+| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 MLP and 40 QKV/output/head combinations physically measured; no faster long-input alternative found; final runtime record integration remains |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
 | Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pending |
@@ -114,3 +114,21 @@ Downloaded follow-up archives (SHA-256 verified locally):
   `8c5e1e66a02278275abc19144e641ec41ed82bc967aad5d5e01f65b4e4b5d9fc`.
 - `/tmp/lunaflux-resource-decode-20260914.tar.gz`:
   `fdd05dafbbc4ac7605d6a70966fca0d32ae3963412f5c0c38defd6f983c65155`.
+
+## QKV, output and selected-row head search
+
+`/tmp/lfmatrix.wbCwip` covers 40 legal modules, each with three workload cases,
+five interleaved timing trials, numerical comparison and memcheck/racecheck/
+synccheck. QKV/output use 32/1024/2048 tokens; head uses 2048 input tokens and
+1/8/32 selected output rows. The source-only fixture uses the production lowerer
+but these are isolated kernels, not an end-to-end release benchmark.
+
+At 2048 tokens the baseline QKV is about 437 us and output 227 us. The
+three-stage/window-four/lookahead-two alternatives take about 485 us and 252 us.
+Head baseline is approximately 738/741/805 us for 1/8/32 selected rows. None of
+the alternative lifetime plans establishes a long-input improvement; ordinary
+two-stage/window-four behavior remains selected. Small sub-percent differences
+between identical/default-equivalent schedules are not treated as gains.
+
+Downloaded `/tmp/lunaflux-matrix-folds-20260914.tar.gz`, verified SHA-256
+`fd7b4b42b574629fc6b9968b9aad079772a4d7c0bfb92e6ef274ac2292824848`.
