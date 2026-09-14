@@ -6,6 +6,13 @@ fn projection_transfer_map_loop(vectors : Int, lanes : Int) -> String {
     vectors~,
     owners=lanes,
   ).unwrap()
+  projection_planned_transfer_map_loop(map)
+}
+
+///|
+fn projection_planned_transfer_map_loop(
+  map : @luna_projection_tile_compiler.ProjectionVectorTransferMap,
+) -> String {
   let (extent, stride, _) = map.geometry()
   "#pragma unroll\n        for (int vector = threadIdx.x; vector < \{extent}; vector += \{stride})"
 }

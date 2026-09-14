@@ -19,8 +19,15 @@ fn projection_matrix_pipeline_source(
   let transport : CudaProjectionTransportLayout = { columns: width, }
   // The row-preserving permutation is compact. Both producer and consumer
   // use that map; an unrelated padded-row allocation only wastes storage.
-  let slot = (rows + columns) * width
-  let input_elements = rows * width
+  let transfers = @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
+    input_rows=rows,
+    weight_rows=columns,
+    row_width=width,
+    vector_width=8,
+    owners=consumer_groups * 32,
+  ).unwrap()
+  let slot = transfers.slot_elements()
+  let input_elements = transfers.weight_offset()
   let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
     row_tiles=rows / 16,
     output_tiles=plan.output_tiles(),
@@ -48,7 +55,7 @@ fn projection_matrix_pipeline_source(
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
   let input_copy =
-    $|        \{projection_transfer_map_loop(rows * width / 8, consumer_groups * 32)} {
+    $|        \{projection_planned_transfer_map_loop(transfers.input_map())} {
     $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|          const int logical_row = row_begin + local_row;
     $|          const int token_row = \{input_row};
@@ -62,7 +69,7 @@ fn projection_matrix_pipeline_source(
     $|          }
     $|        }
   let weight_copy =
-    $|        \{projection_transfer_map_loop(columns * width / 8, consumer_groups * 32)} {
+    $|        \{projection_planned_transfer_map_loop(transfers.weight_map())} {
     $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|          const int logical_column = column_begin + local_row;
     $|          \{weight_selection}

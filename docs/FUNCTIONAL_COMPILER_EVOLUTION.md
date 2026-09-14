@@ -622,3 +622,25 @@ Raw source, cubins, SASS, scripts and results are downloaded in
 `f8929a6cad9b6198614d6fe081c13651bae13c7e138655c2e03b24fe6cee0acc`). Full transfer-worker integration,
 other compiler work in the completion ledger and fresh serving validation
 remain open.
+
+### Matrix transfer packing and ownership plan, 2026-09-15
+
+`ProjectionOperandTransferPlan` now jointly plans the two immutable operand
+strips, their shared-slot offset/extent, and each striped vector-owner map.
+Vector width and owner count are explicit device parameters, not NVIDIA
+constants embedded in the generic planner. The matrix-pipeline lowerer consumes
+these maps and storage bounds instead of separately multiplying and dividing
+them while emitting CUDA. Ordered reductions and the existing producer/consumer
+schedule are unchanged.
+
+The planner rejects invalid dimensions, partial vectors and unrepresentable
+combined storage using widened arithmetic. Tests invert the owner map for
+every vector over row/column/vector-width/owner combinations, including partial
+worker rounds, and cover exact Int-limit storage and overflowing products.
+Projection compiler tests pass 62/62; projection AOT tests pass 74/74; native
+warning-denied check, format and interface generation pass. The QKV/output/head
+matrix fixture exports are byte-for-byte equal to the preceding weight-view
+retest exports (`/tmp/lunaflux-transfer-plan-retest.mbtx` and its saved outputs).
+No new timing improvement or extra physical coverage is claimed for this
+source-preserving planning refactor. Alternative operand-specific worker
+schedules and their measured selection are still separate work.

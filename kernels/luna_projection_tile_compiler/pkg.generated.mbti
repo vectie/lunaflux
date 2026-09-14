@@ -108,6 +108,15 @@ pub struct ProjectionLoopCombinator {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionLoopCombinator::components(Self) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int)
 
+pub struct ProjectionOperandTransferPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionOperandTransferPlan::input_map(Self) -> ProjectionVectorTransferMap
+pub fn ProjectionOperandTransferPlan::new(input_rows~ : Int, weight_rows~ : Int, row_width~ : Int, vector_width~ : Int, owners~ : Int) -> Self?
+pub fn ProjectionOperandTransferPlan::slot_elements(Self) -> Int
+pub fn ProjectionOperandTransferPlan::weight_map(Self) -> ProjectionVectorTransferMap
+pub fn ProjectionOperandTransferPlan::weight_offset(Self) -> Int
+
 pub struct ProjectionProductFoldDistribution {
   // private fields
 } derive(Eq, @debug.Debug)
