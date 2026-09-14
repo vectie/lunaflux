@@ -90,3 +90,11 @@ to this campaign's `interrupted-disk-full` directory. Production was untouched.
 Downloaded GPU-result archive SHA-256:
 `3b216f0f07366bf7d7093e70d282261fca95cb922661d1044efe2c78c51050fc`.
 Local copy: `/tmp/lunaflux-instruction-fix.9n6ITe/results324.tar.gz`.
+
+After the user requested junk cleanup, only pip's `http-v2` and `wheels`
+download caches were removed (12,553,306,112 allocated bytes, about 11.7 GiB).
+Installed environments, uv/model caches, source, runtime artifacts and test
+results were retained. The root filesystem regained about 12 GiB available
+space and an unprivileged `/tmp` creation check passed. Compilation was
+resumed with a new `kernel-build-r3` log; this resolves the storage blocker,
+not the outstanding end-to-end performance question.
