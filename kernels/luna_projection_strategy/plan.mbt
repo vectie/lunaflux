@@ -10,68 +10,22 @@ fn projection_row_bucket_slot(
   }
   if row_count == 1 {
     0
-  } else if row_count <= 8 {
-    1
-  } else if row_count <= 16 {
-    2
-  } else if row_count <= 32 {
-    3
-  } else if row_count <= 64 {
-    4
-  } else if row_count <= 128 {
-    5
-  } else if row_count <= 256 {
-    6
-  } else if row_count <= 512 {
-    7
-  } else if row_count <= 1024 {
-    8
-  } else if row_count <= 2048 {
-    9
-  } else if row_count <= 4096 {
-    10
-  } else if row_count <= 8192 {
-    11
-  } else if row_count <= 16384 {
-    12
-  } else if row_count <= 32768 {
-    13
-  } else if row_count <= 65536 {
-    14
-  } else if row_count <= 131072 {
-    15
-  } else if row_count <= 262144 {
-    16
-  } else if row_count <= 524288 {
-    17
   } else {
-    18
+    // Slot zero is decode. Prefill capacities are 2^(slot+2), starting
+    // at eight rows. Ceil-log2 derives the slot without a duplicated table.
+    Int::max(1, 30 - (row_count - 1).clz())
   }
 }
 
 ///|
 fn projection_bucket_for_slot(slot : Int) -> Int raise ProjectionStrategyError {
-  match slot {
-    0 => 1
-    1 => 8
-    2 => 16
-    3 => 32
-    4 => 64
-    5 => 128
-    6 => 256
-    7 => 512
-    8 => 1024
-    9 => 2048
-    10 => 4096
-    11 => 8192
-    12 => 16384
-    13 => 32768
-    14 => 65536
-    15 => 131072
-    16 => 262144
-    17 => 524288
-    18 => 1048576
-    _ => raise InvalidProjectionStrategy(Bucket)
+  if slot < 0 || slot >= PROJECTION_BUCKET_SLOT_COUNT {
+    raise InvalidProjectionStrategy(Bucket)
+  }
+  if slot == 0 {
+    1
+  } else {
+    1 << (slot + 2)
   }
 }
 

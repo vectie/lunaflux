@@ -276,3 +276,17 @@ workload. Equality-check cost is included. Source emission, nvcc, file caching,
 changed shapes and GPU inference are excluded. This demonstrates reduced CPU
 compiler work, not a kernel or serving speedup. The executable remains a
 reproducible benchmark rather than a timing assertion in normal tests.
+
+### Projection bucket geometry
+
+Replaced the two handwritten row/slot tables with inverse geometric rules:
+decode owns slot zero (one row); prefill slot `s` has capacity `2^(s+2)`.
+The existing minimum prefill capacity of eight and maximum of 1,048,576
+remain unchanged. This removes duplicated policy, not the compatibility
+domain. An exhaustive native test covers every supported row count, minimal
+capacity, round-trip slot identity and rejected out-of-range inputs.
+Projection strategy tests pass 10/10 and compiler tests pass 53/53.
+No kernel schedule or inference speedup is claimed for this refactor.
+
+The CPU benchmark's prose-only README uses `.md`, avoiding the toolchain's
+deprecated blackbox-test input convention for executable packages.
