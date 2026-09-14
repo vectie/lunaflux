@@ -1,0 +1,24 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json" }
+async fn main {
+  let args=@env.args()
+  guard args.length()==3 else {fail("BASE_PROFILE NEW_PROFILE")}
+  let mismatches : Array[Json] = []
+  let mut requests=0
+  for c in [8,16] {
+    for trial in [0,1] {
+      for row in 0..<c {
+        let name="i4096-o64-c\{c}-t\{trial}-r\{row}.json"
+        guard @json.parse(@fs.read_file(args[1]+"/"+name).text()) is {"token_ids":Array(old),..} &&
+          @json.parse(@fs.read_file(args[2]+"/"+name).text()) is {"token_ids":Array(new),..} else {fail("token array")}
+        assert_eq(old.length(),64);assert_eq(new.length(),64)
+        requests+=1
+        for i in 0..<64 {
+          if old[i]!=new[i] {mismatches.push({"request":name,"position":i,"old":old[i],"new":new[i]})}
+        }
+      }
+    }
+  }
+  let result : Json = {"requests":requests,"compared_tokens":requests*64,"different_tokens":mismatches.length(),"differences":mismatches}
+  @fs.write_file(args[2]+"/TOKEN_COMPARISON.json",result.stringify(),create_mode=CreateNew)
+  println("requests=\{requests} different_tokens=\{mismatches.length()}")
+}

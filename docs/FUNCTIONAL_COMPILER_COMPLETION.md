@@ -13,10 +13,10 @@ are inputs to selection; they are never collected inside a token step.
 | Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 MLP and 40 QKV/output/head combinations physically measured; real-record export retains baseline; no faster long-input alternative found in this search |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
-| Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pending |
+| Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pure immutable measured route table and scoped parser tested; exporter/runtime multi-artifact binding remains |
 | Resource feedback | Measured budgets/register facts reach resource-aware compiler selection, including expanded schedules | Prefill/decode/partitioned exporter connected; decode resource-only choice regresses, measured override physically restores baseline source |
 | Fusion chain selection | Compare full versus partial chain cost, select through a generic immutable policy, validate both | Paired measured selector integrated; full-chain serving is slower and has last-token divergence requiring diagnosis; partial retained |
-| Execution diagnostics | Latest runtime trace includes actual work, padded work, selected bucket/route, mixed steps and GPU gaps | Prior trace exists; new coverage pending |
+| Execution diagnostics | Latest runtime trace includes actual work, padded work, selected bucket/route, mixed steps and GPU gaps | Latest worker trace correlated with all CUDA graph launches; capacity slack, final owners and route cost measured; maximum launch-envelope issue found and correction under GPU test |
 
 No item is complete merely because an interface exists. Completion includes
 public behavior tests, integration tests, exact-source physical correctness,
@@ -170,3 +170,66 @@ Downloaded archives, SHA-256 verified locally:
 The new selection machinery intentionally keeps the faster established kernels.
 It is not itself an end-to-end speedup; bucket-specific attention dispatch and
 the new diagnostic trace remain open.
+
+## Current worker trace and maximum-bucket launch gap
+
+`/tmp/lftrace-current.0zPUUu/profile-v2` runs the current worker source with
+diagnostic-only row/bucket/owner/execute markers and retained stderr. The first
+attempt failed because the worker deliberately closes stderr; that diagnostic
+failure and original binary are preserved. Production descriptor isolation was
+not changed. All 352 observed steps in the successful rerun correlate one-to-one
+with `cuGraphLaunch`; all 82560 kernel nodes correlate to those launches.
+
+| Measured cell | Steps | Prefill tokens | Decode tokens | Query bucket slack | Initial route cost, total | Kernel time | Between-step GPU gaps |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4096/64/C8 | 80 | 32768 | 504 | 43 | 88.353 us | 2267.9272 ms | 100.9466 ms |
+| 4096/64/C16 | 96 | 65536 | 1008 | 43 | 132.654 us | 4281.9496 ms | 179.7420 ms |
+
+These are instrumented attribution runs, not replacement uninstrumented
+throughput numbers. Query slack measures capacity, not padded FLOPs. The trace
+includes final output-demand owner selection, but route time covers only initial
+bucket/phase selection. No timestamp offset is guessed: CUDA correlation IDs
+and validated launch order join worker events to device nodes.
+
+The selected prefill attention still launches 158 x 16 CTAs at the maximum
+2048-token bucket. Code inspection shows that maximum fallback launch lists
+bypass the launch-bound contract used by smaller buckets. The correction applies
+the same contract at the profile maximum (and phase-specific maxima), preserving
+fixed launches without such a contract. Grid-stride testing is reported below;
+this is not a demonstrated physical speedup. Preparation was split
+into focused files instead of growing the existing 798-line file.
+
+Local validation before the maximum-bucket change: full native suite 3749/3749.
+After the change: device-step package 192/192 and warning-denied native check.
+
+### Maximum bucket: measured row-tail correction
+
+Reducing the maximum grid to `ceil(total_queries / tile)` alone serialized
+independent CSR row tails: C16 kernel time increased to 4309.0192 ms. The
+corrected pure launch rule reuses `AttentionMetadataLayout.bucket` capacity,
+including independent row tails. At 2048 queries / 32 rows / tile 64 the bound
+is 63 rather than 32 (the original artifact launched 158). This is generic
+metadata geometry, not model-specific tuning.
+
+The corrected trace at `/tmp/lfrowbucket.uISyET/profile` has C16 kernel time
+4276.7488 ms, between-step gaps 164.8558 ms, and the same 96 steps / 65536 prefill
+tokens / 1008 decode tokens. All 3072 generated tokens across 48 requests match
+the original trace. These small timing differences do not establish a speedup.
+
+The uninstrumented rebuilt worker at `/tmp/lfrowbucket.uISyET/plain` completed
+four input/output vectors at C1/C8/C16, one warmup and five measured trials.
+4096/64 medians are 116.79 / 217.04 / 230.63 output tok/s at C1/C8/C16.
+The previous partial-fusion run was 116.58 / 216.49 / 230.47; this is essentially
+unchanged performance, not a closed baseline gap. No competitor was rerun here.
+
+The baseline trace archive was downloaded and SHA-256 verified:
+`/tmp/lunaflux-execution-trace-20260914.tar.gz`,
+`24ec7fdfda5af096b8200403982a64fae913dde4a22c8f8ddac1b95d4d24f246`.
+Measured bucket-table parsing/selection is implemented, but production bundle
+binding and runtime selection remain unfinished. Full-fusion last-token
+variation also remains open; neither is counted as complete.
+
+Both maximum-grid experiments and the uninstrumented matrix were downloaded
+without model duplication in `/tmp/lunaflux-rowbucket-results-20260914.tar.gz`;
+local and remote SHA-256 agree:
+`a79c630029861f46aac6e638aab105ee6c24ba8dc397ba328aa182c28581d416`.
