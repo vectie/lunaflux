@@ -7,6 +7,7 @@ test "export consumes an explicit saved projection tuning suffix" {
   ]
   let legacy = parse_qwen3_candidate_export_arguments(arguments)
   assert_true(legacy.projection_tuning is None)
+  assert_true(legacy.attention_resources is None)
   assert_eq(load_candidate_projection_records(legacy).length(), 0)
   arguments.append([
     "--projection-tuning", "/tuning", "projection.v1", digest, "device-a",
@@ -15,12 +16,39 @@ test "export consumes an explicit saved projection tuning suffix" {
     parse_qwen3_candidate_export_arguments(arguments).projection_tuning
     is Some(_),
   )
+  arguments.append(["--attention-tuning", "/latencies", digest, "device-a"])
+  arguments.append(["--attention-resources", "/resources", digest, "device-a"])
+  arguments.push("--query-metadata-v1")
+  let measured = parse_qwen3_candidate_export_arguments(arguments)
+  assert_eq(
+    measured.attention_resources,
+    Some(("/resources", digest, "device-a")),
+  )
+  assert_true(measured.attention_tuning is Some(_))
+  assert_true(measured.query_metadata)
   arguments.push("extra")
   try parse_qwen3_candidate_export_arguments(arguments) catch {
     InvalidArguments => ()
     _ => fail("unexpected error")
   } noraise {
     _ => fail("extra argument accepted")
+  }
+}
+
+///|
+test "offline attention observations cannot mix devices" {
+  let digest = "a".repeat(64)
+  let arguments = [
+    "export", "/model", "config.json", digest, digest, "weights.numeric", digest,
+    digest, digest, "13", "1", "115", "8", "8192", "32", "256", "5120", "/new-output",
+    "--attention-tuning", "/latencies", digest, "device-a", "--attention-resources",
+    "/resources", digest, "device-b",
+  ]
+  try parse_qwen3_candidate_export_arguments(arguments) catch {
+    InvalidArguments => ()
+    _ => fail("unexpected error")
+  } noraise {
+    _ => fail("mixed-device feedback accepted")
   }
 }
 

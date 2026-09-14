@@ -103,5 +103,6 @@ priv struct Qwen3CandidateExportArguments {
   absolute_new_output : String
   projection_tuning : @projection_tuning_file.ProjectionTuningInput?
   attention_tuning : (String, String, String)?
+  attention_resources : (String, String, String)?
   query_metadata : Bool
 }

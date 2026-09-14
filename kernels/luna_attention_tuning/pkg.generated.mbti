@@ -4,9 +4,15 @@ package "vectie/lunaflux/kernels/luna_attention_tuning"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_attention_tile_compiler",
+  "vectie/lunaflux/kernels/luna_attention_tile_schedule",
 }
 
 // Values
+pub fn parse_attention_resource_budget(Bytes, scope~ : String) -> @luna_attention_tile_compiler.AttentionResourceBudget raise AttentionTuningError
+
+pub fn parse_attention_resource_feedback(Bytes, scope~ : String, ArrayView[@luna_attention_tile_schedule.AttentionTileScheduleDigest]) -> (@luna_attention_tile_compiler.AttentionResourceBudget, ReadOnlyArray[@luna_attention_tile_compiler.AttentionRegisterObservation]) raise AttentionTuningError
+
 pub fn parse_attention_tuning_records(Bytes, scope~ : String, backend~ : @luna_attention_strategy.AttentionBackendId, target~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, ArrayView[@luna_attention_strategy.AttentionTileCandidate]) -> ReadOnlyArray[@luna_attention_strategy.AttentionAutotuneRecord] raise AttentionTuningError
 
 // Errors

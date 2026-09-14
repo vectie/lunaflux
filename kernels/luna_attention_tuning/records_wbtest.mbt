@@ -31,6 +31,49 @@ test "offline observations select a candidate and reject stale or malformed tabl
   let candidates = @strategy.generate_attention_tile_candidates(
     problem, capabilities,
   )
+  let compiled = @compiler.compile_attention_tile_frontier(
+    @compiler.AttentionTileCompilerRequest::new(
+      backend~,
+      target~,
+      problem~,
+      capabilities~,
+      [],
+    ),
+  )
+  let schedules = compiled.variants().map(v => v.schedule().digest())
+  let resource_header = "luna-attention-resources-v1\nscope\tfixture\nbudget\t36\t1536\t65536\t256\t32\t102400\t24\n"
+  let resource_row = "registers\t" + schedules[0].as_hex() + "\t128\n"
+  let (_, resource_records) = parse_attention_resource_feedback(
+    @utf8.encode(resource_header + resource_row),
+    scope="fixture",
+    schedules[:],
+  )
+  assert_eq(resource_records.length(), 1)
+  for
+    invalid in [
+      resource_header,
+      resource_header + resource_row + resource_row,
+      resource_header + "registers\t" + "0".repeat(64) + "\t128\n",
+      resource_header + resource_row.replace(old="128", new="0"),
+      resource_header + resource_row.replace(old="128", new="1025"),
+      (resource_header + resource_row).replace(old="fixture", new="stale"),
+      (resource_header + resource_row).replace(
+        old="65536",
+        new="99999999999999999999",
+      ),
+    ] {
+    try
+      parse_attention_resource_feedback(
+        @utf8.encode(invalid),
+        scope="fixture",
+        schedules[:],
+      )
+    catch {
+      InvalidTable => ()
+    } noraise {
+      _ => fail("invalid resource observations accepted")
+    }
+  }
   let header = "luna-attention-tuning-v1\nscope\tfrontier-device-toolchain\n"
   let workloads = "workload\t1024\t1\t0\nworkload\t2048\t8\t128\n"
   let valid = header +

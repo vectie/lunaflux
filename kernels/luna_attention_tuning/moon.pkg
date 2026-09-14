@@ -2,6 +2,8 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/string",
   "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,
+  "vectie/lunaflux/kernels/luna_attention_tile_compiler" @compiler,
+  "vectie/lunaflux/kernels/luna_attention_tile_schedule" @schedule,
 }
 
 supported_targets = "native"

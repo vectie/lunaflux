@@ -56,6 +56,17 @@ fn parse_qwen3_candidate_export_arguments(
     [.. rest, "--query-metadata-v1"] => (rest, true)
     _ => (arguments, false)
   }
+  let (arguments, attention_resources) = match arguments {
+    [.. rest, "--attention-resources", path, digest, device] => {
+      guard path.has_prefix("/") &&
+        is_lower_sha256(digest) &&
+        !device.is_empty() else {
+        raise InvalidArguments
+      }
+      (rest, Some((path, digest, device)))
+    }
+    _ => (arguments, None)
+  }
   guard arguments
     is [
       _,
@@ -120,7 +131,13 @@ fn parse_qwen3_candidate_export_arguments(
       _ => raise InvalidArguments
     },
     attention_tuning,
+    attention_resources,
     query_metadata,
+  }
+  if attention_tuning is Some((_, _, tuning_device)) &&
+    attention_resources is Some((_, _, resource_device)) &&
+    tuning_device != resource_device {
+    raise InvalidArguments
   }
   if parsed.compiler_major == 0U {
     raise InvalidArguments
