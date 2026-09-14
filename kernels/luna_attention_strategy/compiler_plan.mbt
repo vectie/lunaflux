@@ -38,23 +38,6 @@ pub fn compile_attention_tile_plan(
 ) -> CompiledAttentionTilePlan raise AttentionStrategyError {
   validate_attention_autotune_records(records)
   let candidates = generate_attention_tile_candidates(problem, capabilities)
-  let initial = candidates[0]
-  let (selected, selected_cost) = candidates[1:].fold(
-    init=(initial, attention_candidate_static_cost(problem, initial)),
-    (current, candidate) => {
-      let (current_candidate, current_cost) = current
-      let cost = attention_candidate_static_cost(problem, candidate)
-      if cost < current_cost ||
-        (
-          cost == current_cost &&
-          candidate.stable_id < current_candidate.stable_id
-        ) {
-        (candidate, cost)
-      } else {
-        current
-      }
-    },
-  )
   let selected_record = records.fold(init=None, (
     current : AttentionAutotuneRecord?,
     record,
@@ -100,13 +83,33 @@ pub fn compile_attention_tile_plan(
           record.key.candidate,
         ),
       }
-    None =>
+    None => {
+      // Static ranking is a fallback, not a prerequisite for an exact
+      // measured choice. Only evaluate alternatives when fallback is needed.
+      let initial = candidates[0]
+      let (selected, selected_cost) = candidates[1:].fold(
+        init=(initial, attention_candidate_static_cost(problem, initial)),
+        (current, candidate) => {
+          let (current_candidate, current_cost) = current
+          let cost = attention_candidate_static_cost(problem, candidate)
+          if cost < current_cost ||
+            (
+              cost == current_cost &&
+              candidate.stable_id < current_candidate.stable_id
+            ) {
+            (candidate, cost)
+          } else {
+            current
+          }
+        },
+      )
       {
         problem,
         candidate: selected,
         source: AttentionStaticCostModel,
         static_cost: selected_cost,
       }
+    }
   }
 }
 

@@ -377,3 +377,14 @@ The selection fold now carries the incumbent score explicitly, evaluating
 each variant once instead of rescoring the incumbent and final winner.
 This removes redundant pure compiler work without changing scoring policy,
 candidate tie-breaking, canonical output or runtime kernel execution.
+
+### Demand-driven fallback ranking
+
+Attention strategy selection now evaluates the full static ranking only when
+there is no exact applicable measurement. Previously it ranked every generated
+alternative before discarding that result in favor of the measured winner.
+The selected measured plan still carries its own static score, and record
+validation and candidate compatibility remain mandatory. Tests cover each
+generated candidate as the measured winner, score identity, order-independent
+ties and the existing foreign-target fallback. No GPU performance claim is
+made for removing this unused compiler calculation.
