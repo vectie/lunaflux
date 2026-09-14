@@ -95,6 +95,19 @@ fn projection_matrix_eligible(
 }
 
 ///|
+fn projection_subgroup_eligible(
+  shape : ProjectionShape,
+  capabilities : ProjectionCapabilities,
+) -> Bool {
+  let companion = match capabilities.matrix_tile() {
+    Some(tile) => projection_matrix_eligible(shape, tile)
+    None => false
+  }
+  shape.input_width % capabilities.subgroup_width() == 0 &&
+  (shape.family() != GatedMlp || companion)
+}
+
+///|
 fn static_projection_strategy(
   shape : ProjectionShape,
   row_bucket : Int,
@@ -106,12 +119,7 @@ fn static_projection_strategy(
     // supplies its matrix-tiled gate/up/down companion. Without that
     // companion the admitted implementation is the scalar fused kernel for
     // every row count, so the strategy must not claim an unavailable GEMV.
-    let gated_mlp_subgroup_supported = match capabilities.matrix_tile() {
-      Some(tile) => projection_matrix_eligible(shape, tile)
-      None => false
-    }
-    let kernel_class = if shape.input_width % subgroup == 0 &&
-      (shape.family() != GatedMlp || gated_mlp_subgroup_supported) {
+    let kernel_class = if projection_subgroup_eligible(shape, capabilities) {
       SubgroupGemv
     } else {
       ScalarTile
@@ -166,7 +174,7 @@ pub fn plan_projection_dispatch(
   let row_bucket = projection_row_bucket(maximum_prefill_rows)
   let decode = static_projection_strategy(shape, 1, capabilities)
   let prefill = static_projection_strategy(shape, row_bucket, capabilities)
-  { shape, decode, prefill }
+  { shape, decode, prefill, }
 }
 
 ///|
@@ -201,7 +209,7 @@ fn compatible_projection_candidate(
   match strategy.kernel_class() {
     ScalarTile => true
     SubgroupGemv =>
-      row_bucket == 1 && shape.input_width % capabilities.subgroup_width() == 0
+      row_bucket == 1 && projection_subgroup_eligible(shape, capabilities)
     MatrixTile =>
       row_bucket > 1 &&
       capabilities.matrix_tile() == Some(strategy.tile()) &&
@@ -316,12 +324,12 @@ pub fn build_projection_runtime_dispatch(
       select_projection_record_for_bucket(
         records, backend, target, numeric_type, shape, row_bucket, capabilities,
       ) {
-      Some(record) => { strategy: record.strategy(), source: OfflineAutotune }
-      None => { strategy: fallback, source: StaticFallback }
+      Some(record) => { strategy: record.strategy(), source: OfflineAutotune, }
+      None => { strategy: fallback, source: StaticFallback, }
     }
     slot += 1
   }
-  { backend, target, numeric_type, shape, maximum_rows, slots }
+  { backend, target, numeric_type, shape, maximum_rows, slots, }
 }
 
 ///|
@@ -346,5 +354,5 @@ pub fn ProjectionRuntimeDispatch::dispatch_plan(
 ) -> ProjectionDispatchPlan raise ProjectionStrategyError {
   let decode = self.select(1).strategy()
   let prefill = self.select(maximum_prefill_rows).strategy()
-  { shape: self.shape, decode, prefill }
+  { shape: self.shape, decode, prefill, }
 }

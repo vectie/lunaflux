@@ -234,3 +234,10 @@ Downloaded results: `/tmp/lunaflux-compiler-linux-fda84583.tar.gz`, SHA-256
 `e7b772a0679b8e42c91a6fa4a565d87de02a08d9c01af8b190afa437323b93f5`.
 This checks these packages and sources only; full exporter integration,
 end-to-end serving, other kernel families and calibrated selection remain open.
+
+Projection follow-up found inconsistent capability checks: static gated-MLP
+decode required an eligible matrix companion, but offline subgroup-GEMV
+selection checked only input divisibility. Both now use one pure eligibility
+predicate. Regression rejects missing and dimension-incompatible companions
+while retaining the supported path. Projection strategy 9/9 and tile compiler
+53/53 tests pass. This closes an invalid-selection case, not a GEMM speed gap.

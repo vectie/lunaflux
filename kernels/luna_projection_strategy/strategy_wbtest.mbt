@@ -139,6 +139,32 @@ test "gated MLP decode does not claim a missing tiled companion" {
   let tiled = plan_projection_dispatch(tiled_shape, 8, tiled_capabilities)
   assert_eq(tiled.decode().kernel_class(), SubgroupGemv)
   assert_eq(tiled.prefill().kernel_class(), MatrixTile)
+  // An offline timing must not bypass the same implementation capability
+  // required by fallback selection.
+  assert_false(
+    compatible_projection_candidate(
+      tiled_shape,
+      1,
+      tiled.decode(),
+      capabilities,
+    ),
+  )
+  assert_false(
+    compatible_projection_candidate(
+      shape,
+      1,
+      tiled.decode(),
+      tiled_capabilities,
+    ),
+  )
+  assert_true(
+    compatible_projection_candidate(
+      tiled_shape,
+      1,
+      tiled.decode(),
+      tiled_capabilities,
+    ),
+  )
 }
 
 ///|
