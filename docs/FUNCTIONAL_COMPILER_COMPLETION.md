@@ -233,3 +233,19 @@ Both maximum-grid experiments and the uninstrumented matrix were downloaded
 without model duplication in `/tmp/lunaflux-rowbucket-results-20260914.tar.gz`;
 local and remote SHA-256 agree:
 `a79c630029861f46aac6e638aab105ee6c24ba8dc397ba328aa182c28581d416`.
+
+### Measured-route integration and workload coverage
+
+Commit `01ba1c46` closes the code-level bundle-to-owner connection described
+above: bundle V6 carries scoped observations, startup creates immutable owner
+indices, and dispatch applies measured baseline or wide-prefill choices before
+heuristics. Packaging accepts V6. Native check and all 3,757 tests pass; Linux
+release worker and exporter compile. A physically measured V6 routing table is
+still pending, as is the full-fusion last-token diagnosis. Do not conflate code
+integration with validated measured routing.
+
+The new [workload diversity investigation](BENCHMARK_WORKLOAD_DIVERSITY_2026-09-14.md)
+separates equal token counts from equal attention work and adds request-level
+TTFT/tail measurements. Uniform regression cases alone cannot characterize
+mixed workload behavior. Conversely, their uniformity does not explain the
+lack of speedup when timing-based selection retains byte-identical kernels.

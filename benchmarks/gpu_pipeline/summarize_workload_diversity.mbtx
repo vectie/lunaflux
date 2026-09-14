@@ -16,12 +16,14 @@ fn percentile(values : Array[Int], numerator : Int) -> Int {
 
 async fn main {
   let args = @env.args()
-  guard args.length() == 2 else { fail("ROOT") }
-  println("case\tC\twall_median_ms\tttft_p50_ms\tttft_p95_ms\trequest_p95_ms\tarrival_lag_p95_ms\tprefill_causal_pairs")
+  guard args.length() == 2 || (args.length()==3 && args[2]=="with-reverse") else { fail("ROOT [with-reverse]") }
+  let cases=["uniform-shared","uniform-distinct","ragged-input","ragged-both","uniform-staggered","ragged-staggered"]
+  if args.length()==3 {cases.push("ragged-reverse-staggered")}
+  println("case\tC\twall_median_ms\tttft_p50_ms\tttft_p95_ms\trequest_p95_ms\tarrival_lag_p95_ms\tprefill_causal_pairs\tdecode_pairs\trequest_tpot_p95_us")
   for c in [8,16] {
-    for name in ["uniform-shared","uniform-distinct","ragged-input","ragged-both","uniform-staggered","ragged-staggered"] {
-      let walls = []; let firsts = []; let elapsed = []; let lag = []
-      let mut pairs = 0L
+    for name in cases {
+      let walls = []; let firsts = []; let elapsed = []; let lag = []; let tpots=[]
+      let mut pairs = 0L; let mut decode_pairs=0L
       for t in 1..<4 {
         let prefix = args[1]+"/"+name+"-c\{c}-t\{t}"
         let j = @json.parse(@fs.read_file(prefix+".json").text())
@@ -29,7 +31,7 @@ async fn main {
         assert_eq(integer(j,"output_tokens"),c*64)
         walls.push(integer(j,"wall_ms"))
         guard j is {"requests":Array(requests),..} && requests.length()==c else {fail("requests")}
-        let mut trial_pairs = 0L
+        let mut trial_pairs = 0L; let mut trial_decode=0L
         for row, request in requests {
           firsts.push(integer(request,"ttft_ms"))
           elapsed.push(integer(request,"elapsed_ms"))
@@ -38,10 +40,16 @@ async fn main {
           guard body is {"input_token_ids":Array(ids),..} else {fail("input")}
           let n=ids.length().to_int64()
           trial_pairs+=n*(n+1)/2
+          let d=integer(body,"max_output_tokens").to_int64()
+          trial_decode+=(d-1)*n+d*(d-1)/2
+          guard request is {"token_ms":Array(times),..} && times.length()==d.to_int() else {fail("token times")}
+          let first=integer({"v":times[0]},"v")
+          let last=integer({"v":times[times.length()-1]},"v")
+          if d>1 {tpots.push((last-first)*1000/(d.to_int()-1))}
         }
-        if t==1 {pairs=trial_pairs} else {assert_eq(pairs,trial_pairs)}
+        if t==1 {pairs=trial_pairs;decode_pairs=trial_decode} else {assert_eq(pairs,trial_pairs);assert_eq(decode_pairs,trial_decode)}
       }
-      println("\{name}\t\{c}\t\{percentile(walls,50)}\t\{percentile(firsts,50)}\t\{percentile(firsts,95)}\t\{percentile(elapsed,95)}\t\{percentile(lag,95)}\t\{pairs}")
+      println("\{name}\t\{c}\t\{percentile(walls,50)}\t\{percentile(firsts,50)}\t\{percentile(firsts,95)}\t\{percentile(elapsed,95)}\t\{percentile(lag,95)}\t\{pairs}\t\{decode_pairs}\t\{percentile(tpots,95)}")
     }
   }
 }

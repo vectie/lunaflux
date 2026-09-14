@@ -68,6 +68,18 @@ sample count. Duplicate candidate/bucket rows, unknown candidates, stale scope,
 and invalid phase shapes are rejected. A 1% improvement margin retains the
 baseline for noise. Unmeasured buckets return no override.
 
-The parser and immutable generic selector are implemented. Runtime multi-artifact
-binding must explicitly consume the result before this counts as serving
-integration; merely loading a table does not change the selected kernel.
+The fused-runtime exporter now accepts a final
+`--attention-buckets ABSOLUTE_PATH SHA256` suffix. It emits bundle V6 and an
+`attention_route_scope` binding the model, plan, target and complete compiled
+module/launch chain (excluding observations). The runtime adapter uses candidate
+1 for the baseline graph and 2 for its wide-prefill variant; decode overrides
+are rejected. These adapter IDs are not compiler frontier IDs such as 322/324.
+The device assignment remains deployment-owned; this scope does not independently
+assert a physical GPU UUID and measurements must not be reused across devices.
+
+Startup admission parses the table and maps choices to actually prepared graph
+owners. Both measured baseline and variant choices override heuristic selection;
+unmeasured buckets retain it. Token execution only reads the immutable owner
+array. Physical qualification of a newly measured table is separate from the
+unit-tested integration; aggregate request latency must not be relabeled as a
+particular graph-bucket measurement.
