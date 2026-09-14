@@ -77,5 +77,88 @@ process group was stopped. Do not call the original runner result a pass.
 Decode operator results: `/tmp/lfcapacity.3qmhRb/decode.stdout` and
 `decode.stderr` (empty), exit 0. The separate failed capacity-only
 materializations are retained as diagnostic logs. No production deployment
-was changed. Final plain reruns and any remaining differences must be
-reported separately; this document does not claim parity with either baseline.
+was changed. This document does not claim parity with either baseline.
+
+## Completed capacity-fixed rerun
+
+The new isolated runtime used 9,216 physical pages and 9,216 plan entries.
+The same BF16 Qwen3-0.6B token-ID vector used one warmup and five measured
+trials per cell, prefix reuse disabled. Rates are output tokens/second:
+
+| Input / output / concurrency | Previous LunaFlux | Capacity-fixed LunaFlux | vLLM | SGLang |
+| --- | ---: | ---: | ---: | ---: |
+| 512 / 64 / 1 | 211.65 | 209.31 | 244.29 | 238.46 |
+| 512 / 64 / 8 | 1033.52 | 1030.61 | 1180.81 | 1135.26 |
+| 512 / 64 / 16 | 1375.68 | 1381.55 | 1648.43 | 1454.50 |
+| 1528 / 32 / 1 | 149.42 | 149.13 | 178.22 | 175.06 |
+| 1528 / 32 / 8 | 367.29 | 367.50 | 443.99 | 418.03 |
+| 1528 / 32 / 16 | 405.45 | 404.62 | 493.07 | 467.07 |
+| 3072 / 32 / 1 | 107.54 | 106.32 | 127.20 | 122.72 |
+| 3072 / 32 / 8 | 184.07 | 184.28 | 222.88 | 216.25 |
+| 3072 / 32 / 16 | 195.03 | 195.06 | 232.35 | 228.94 |
+| 4096 / 64 / 1 | 116.53 | 115.78 | 140.79 | 136.94 |
+| 4096 / 64 / 8 | 214.69 | 214.42 | 255.36 | 251.85 |
+| 4096 / 64 / 16 | 175.32 | 228.01 | 266.38 | 260.71 |
+
+The pressure-affected cell gains 30.05% throughput; its wall time falls from
+5,840.8 to 4,491 ms. Other cells are essentially unchanged. Token counts
+passed, but not all generated sequences are bitwise identical across engines;
+these results do not establish cross-engine numerical parity.
+
+Fresh traces confirm C16 prefill work is exactly 65,536 tokens, not 94,352.
+Steps fall from 126 to 96; pure decode uses 63 steps and prefill/mixed uses 33.
+LunaFlux kernel time is 4,320.19 ms, with 136.98 ms inter-step gaps. Independently
+profiled vLLM/SGLang kernel totals are 3,805.98/3,748.00 ms. All LunaFlux kernel
+calls in this trace use graphs. The remaining difference cannot be explained
+as missing batching or graph fallback alone.
+
+Plain results: `/tmp/lfcomplete.B1rRhK/THREEWAY.json` and `lunaflux/` on the
+test host. Local fixed trace: `/tmp/lunaflux-complete-profile-final-20260914`;
+baseline traces: `/tmp/lunaflux-baseline-profiles-20260914`.
+
+## Lane-varying rotary basis storage
+
+The pure compiler already computes the rotary basis ahead of time. Its CUDA
+lowering nevertheless placed the lane-indexed table in constant memory.
+Using read-only device storage retains the same basis, operations and rounding
+boundaries while allowing contiguous lane accesses. Both fusion cuts consume
+this shared lowering; there is no model-specific dispatch or runtime tuning.
+
+Alternated old/new microbenchmarks passed bitwise output and preserved-KV
+checks. At 2,048 tokens / one row the measured duration falls from approximately
+169.47 to 136.76 microseconds; at 1,528 / one row, 96.76 to 71.37. Small one-row
+decode is unchanged. Separate selected-kernel counters report 598,016 to
+507,904 LDC instructions and 191.46 to 141.95 microseconds under profiling.
+The profiled durations are not substituted for ordinary benchmark timings.
+Memcheck and leak checking passed with zero errors and zero leaked allocations.
+The rebuilt runtime completed the same 12-cell end-to-end vector. Long-input
+rates after both fixes are:
+
+| Input / output / concurrency | LunaFlux after both fixes | vLLM | SGLang |
+| --- | ---: | ---: | ---: |
+| 3072 / 32 / 1 | 107.24 | 127.20 | 122.72 |
+| 3072 / 32 / 8 | 186.13 | 222.88 | 216.25 |
+| 3072 / 32 / 16 | 196.80 | 232.35 | 228.94 |
+| 4096 / 64 / 1 | 116.41 | 140.79 | 136.94 |
+| 4096 / 64 / 8 | 216.25 | 255.36 | 251.85 |
+| 4096 / 64 / 16 | 229.68 | 266.38 | 260.71 |
+
+The rotary storage change adds approximately 0.73% throughput at 4096/C16;
+combined with the capacity correction the gain is approximately 31.0%.
+This is not the operator's 16–26% gain applied to the whole engine. C16 wall
+time is now 4,458.4 ms, still 16.0% above vLLM and 13.1% above SGLang.
+All 500 measured requests again have the required output length. Existing
+cross-engine sequence-pool caveats still apply.
+
+The tested source archive is
+`db8a55198c670cd96fc58759ee220f76b423ae6cfb81d1ceac1228440cc716fd`.
+Remote results: `/tmp/lfreadonly.OZNvH2`. Downloaded archives:
+
+- `/tmp/lunaflux-capacity-final-20260914.tar.gz`, SHA-256
+  `6db076c6ad09027236d6342240c849bccd9306aac211bed23c141225fde54772`.
+- `/tmp/lunaflux-readonly-final-20260914.tar.gz`, SHA-256
+  `55b83d52240554a83f84838e749f5248a7f3ba4f6a71c42d4dc02586b9d918c6`.
+
+Local warning-denied native check and all 3,741 native tests passed. Native C
+allocation-probe macro warnings remain distinct from MoonBit warnings. The
+benchmark server was stopped after completion; no production cutover occurred.
