@@ -86,3 +86,9 @@ Remote sources/results:
 Remaining numerical work: capture matching request/sample identities and
 logit margins for the previously observed full/partial and c322/c324 token
 differences. Candidate micro-level tolerance alone does not resolve that work.
+
+Downloaded archive: `/tmp/lunaflux-attention-row-replay-v6-20260914.tar.gz`.
+Remote and local SHA-256 both equal
+`77f99eb02a8145a5c37d6d6611275fa6b7f2d40263bbf10df505a56a2992d28a`.
+It includes the corrected replay, raw counters, V6 run logs and exact fixed
+parent/worker binaries. Local warning-denied native suite: 3759/3759 passed.
