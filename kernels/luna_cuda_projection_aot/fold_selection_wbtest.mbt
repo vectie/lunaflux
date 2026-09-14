@@ -72,7 +72,13 @@ test "offline fold winner is source bound and slower alternatives keep baseline"
   let base = baseline.source_digest().as_hex()
   let selected = variant.source_digest().as_hex()
   assert_false(base == selected)
-  for (latency, expected) in [(50, selected), (150, base)] {
+  for
+    (latency, expected) in [
+      (50, selected),
+      (98, selected),
+      (99, base),
+      (150, base),
+    ] {
     let records = @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         "luna-projection-fold-v1\nscope\ttest\nrecord\t\{base}\t\{base}\t100\t3\t-\nrecord\t\{base}\t\{selected}\t\{latency}\t3\tmatrix:2:1:1\n",
@@ -88,6 +94,7 @@ test "offline fold winner is source bound and slower alternatives keep baseline"
       dispatch,
       limits,
       records[:],
+      minimum_improvement_basis_points=200,
     )
     assert_eq(result.source_digest().as_hex(), expected)
   }

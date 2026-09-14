@@ -10,7 +10,12 @@ pub fn lower_measured_projection_cuda_aot_candidate(
   dispatch : @luna_projection_strategy.ProjectionRuntimeDispatch,
   limits : ProjectionAotLimits,
   records : ArrayView[@luna_projection_tuning.ProjectionFoldRecord],
+  minimum_improvement_basis_points? : Int = 100,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
+  if minimum_improvement_basis_points < 0 ||
+    minimum_improvement_basis_points > 10000 {
+    raise Invalid(CompilerPolicy)
+  }
   let baseline = lower_reusable_projection_cuda_aot_candidate_with_dispatch(
     operation, profile, target, compiler, operands, dispatch, limits,
   )
@@ -19,11 +24,20 @@ pub fn lower_measured_projection_cuda_aot_candidate(
     r.baseline_sha256() == digest && r.fold_choices().is_empty()
   })
   guard baseline_times is [measured] else { return baseline }
+  // A tiny timing fluctuation is not a reason to change an AOT schedule.
+  // Compare against the baseline, not against each intermediate winner, so
+  // table order cannot prevent selecting the best eligible alternative.
+  let baseline_cost = measured.median_latency_ns()
+  let margin = minimum_improvement_basis_points.to_int64()
+  let required_gain = baseline_cost / 10000L * margin +
+    baseline_cost % 10000L * margin / 10000L
+  let cutoff = baseline_cost - Int64::max(1L, required_gain)
   for
     record in records
     selected = baseline, cost = measured.median_latency_ns() {
     if record.baseline_sha256() != digest ||
       record.fold_choices().is_empty() ||
+      record.median_latency_ns() > cutoff ||
       record.median_latency_ns() > cost ||
       (
         record.median_latency_ns() == cost &&

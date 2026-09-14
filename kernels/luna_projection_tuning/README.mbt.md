@@ -24,6 +24,9 @@ The CUDA AOT consumer regenerates a candidate before selecting it and compares
 its source identity. Unsupported shared-memory combinations are excluded.
 Unmeasured source families retain the baseline. Equal-cost baseline wins;
 equal-cost alternatives have deterministic source-identity ordering.
+The consumer defaults to a 1% minimum improvement over the baseline to avoid
+switching schedules for small timing fluctuations. This explicit selection
+parameter is independent of model family and does not alter raw observations.
 
 The record does not imply that deeper pipelines are faster. Hardware timings
 remain authoritative, and this format does not replace query/history/batch
