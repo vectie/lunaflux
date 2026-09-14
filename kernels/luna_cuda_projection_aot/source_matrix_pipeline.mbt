@@ -74,10 +74,18 @@ fn projection_matrix_pipeline_source(
     input_elements,
     plan.fragment_stage_count(),
   )
+  let lifetime = projection_fold_lifetime_source(
+    plan,
+    "if (warp < \{consumers}) {\nconst __nv_bfloat16 *current = matrix_storage + stage * \{slot};\n" +
+    fragment_fold +
+    "\n}",
+    asynchronous=true,
+    phase_argument=true,
+  )
   let source =
     $|  const int pipeline_rows = \{row_count};
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
-    $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * 2}];
+    $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * plan.stage_count()}];
     $|    \{transport.address_function()}
     $|    const int column_groups = \{(output_width + columns - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
@@ -93,21 +101,7 @@ fn projection_matrix_pipeline_source(
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
     $|\{fragment_declarations}
-    $|      stage_operands(0, 0, false);
-    $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|      __syncthreads();
-    $|      int stage = 0;
-    $|      #pragma unroll 1
-    $|      for (int inner = 0; inner < \{input_width}; inner += \{width}) {
-    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1, true);
-    $|        if (warp < \{consumers}) {
-    $|          const __nv_bfloat16 *current = matrix_storage + stage * \{slot};
-    $|\{fragment_fold}
-    $|        }
-    $|        asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|        __syncthreads();
-    $|        stage ^= 1;
-    $|      }
+    $|\{lifetime}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {

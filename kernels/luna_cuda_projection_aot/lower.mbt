@@ -23,6 +23,7 @@ fn projection_finish_candidate(
   symbol : String,
   embed_greedy_sampling : Bool,
   limits : ProjectionAotLimits,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   projection_validate_policy(target, compiler)
   let parameters = projection_bind_qkv_widths(
@@ -62,7 +63,9 @@ fn projection_finish_candidate(
     _ => raise Invalid(CompilerPolicy)
   }
   let tile_compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    tile_request,
+    tile_request.with_fold_choices(fold_choices) catch {
+      _ => raise Invalid(CompilerPolicy)
+    },
   )
   validate_projection_operands(
     operation, parameters, profile, operands, dispatch_plan,
@@ -231,6 +234,7 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
   operands : ArrayView[@launch_contract.AotOperand],
   runtime_dispatch : @luna_projection_strategy.ProjectionRuntimeDispatch,
   limits : ProjectionAotLimits,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let parameters = projection_parameters(operation)
   let entry_point_id = @catalog.AotKernelEntryPointId::from_stable_int(1) catch {
@@ -255,6 +259,7 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
     symbol,
     parameters.family == LanguageModelHead,
     limits,
+    fold_choices~,
   )
 }
 
@@ -269,12 +274,20 @@ pub fn lower_reusable_projection_cuda_aot_candidate(
   compiler : @luna_specialization.LunaCompilerPolicy,
   operands : ArrayView[@launch_contract.AotOperand],
   limits : ProjectionAotLimits,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
   let runtime_dispatch = prepare_projection_cuda_runtime_dispatch(
     operation, profile, target, operands, records,
   )
   lower_reusable_projection_cuda_aot_candidate_with_dispatch(
-    operation, profile, target, compiler, operands, runtime_dispatch, limits,
+    operation,
+    profile,
+    target,
+    compiler,
+    operands,
+    runtime_dispatch,
+    limits,
+    fold_choices~,
   )
 }

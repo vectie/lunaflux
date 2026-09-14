@@ -98,7 +98,7 @@ fn projection_sibling_fold_pipeline_source(
   )
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
-    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * 2}];
+    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * plan.stage_count()}];
     $|    \{layout.address_function()}
     $|    const int groups = \{intermediate / columns};
     $|    const int work_count = ((token_count + \{rows - 1}) / \{rows}) * groups;
@@ -114,21 +114,7 @@ fn projection_sibling_fold_pipeline_source(
     $|        asm volatile("cp.async.commit_group;" ::: "memory");
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|      stage_operands(0, 0, false);
-    $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|      __syncthreads();
-    $|      int stage = 0;
-    $|      #pragma unroll 1
-    $|      for (int inner = 0; inner < \{input_width}; inner += \{width}) {
-    $|        if (inner + \{width} < \{input_width}) stage_operands(inner + \{width}, stage ^ 1, true);
-    $|        if (warp < \{consumers}) {
-    $|          const __nv_bfloat16 *current = sibling_storage + stage * \{slot};
-    $|          \{fragment_fold}
-    $|        }
-    $|        asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|        __syncthreads();
-    $|        stage ^= 1;
-    $|      }
+    $|\{projection_fold_lifetime_source(plan, "if (warp < " + consumers.to_string() + ") {\nconst __nv_bfloat16 *current = sibling_storage + stage * " + slot.to_string() + ";\n" + fragment_fold + "\n        }", asynchronous=true, phase_argument=true)}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {

@@ -21,6 +21,7 @@ pub fn ProjectionTileCompilerRequest::new(
     demand,
     epilogue: ProjectionStoreRows,
     single_row_numerics,
+    fold_choices: [],
   }
 }
 

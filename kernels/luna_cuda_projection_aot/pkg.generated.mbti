@@ -19,9 +19,9 @@ pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract
 
 pub fn lower_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
 
-pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice]) -> ProjectionCudaLowering raise ProjectionAotError
 
-pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
+pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice]) -> ProjectionCudaLowering raise ProjectionAotError
 
 pub fn prepare_projection_cuda_runtime_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord]) -> @luna_projection_strategy.ProjectionRuntimeDispatch raise ProjectionAotError
 

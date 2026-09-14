@@ -2,6 +2,22 @@
 /// Source-only diagnostic through the production compiler; no artifact
 /// admission or deployment receipt is created by this fixture.
 fn main raise {
+  let choices : Array[@luna_projection_tile_compiler.ProjectionFoldChoice] = []
+  match @env.args() {
+    [_] => ()
+    [_, stages, window, fragments] =>
+      for role in [@luna_projection_tile_compiler.SiblingFold, IntermediateFold] {
+        choices.push(
+          @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+            role,
+            stages=probe_choice_int(stages),
+            transfer_tiles=probe_choice_int(window),
+            fragment_stages=probe_choice_int(fragments),
+          ),
+        )
+      }
+    _ => fail("expected optional STAGES TRANSFER_TILES FRAGMENT_STAGES")
+  }
   let activation = @plan.ActivationRef::new(0)
   let output = @plan.ActivationRef::new(1)
   let tensors = [0, 1, 2].map(i => @plan.TensorRef::new(i))
@@ -89,10 +105,24 @@ fn main raise {
       max_source_bytes=1048576,
       max_recipe_bytes=65536,
     ),
+    fold_choices=choices,
   )
   println(@utf8.decode(compiled.source_bytes()))
   println("// RECIPE-BEGIN")
   for line in @utf8.decode(compiled.recipe_bytes()).split("\n") {
     println("// \{line}")
+  }
+}
+
+///|
+fn probe_choice_int(value : String) -> Int raise {
+  match value {
+    "1" => 1
+    "2" => 2
+    "3" => 3
+    "4" => 4
+    "8" => 8
+    "16" => 16
+    _ => fail("unsupported finite scheduling choice")
   }
 }

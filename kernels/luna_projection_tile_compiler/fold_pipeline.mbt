@@ -1,6 +1,6 @@
 ///|
 /// Immutable block tiling and lifetime plan for an ordered matrix fold.
-/// Two transfer slots alternate; reduction updates retain their order.
+/// A finite transfer ring preserves ordered reduction updates.
 pub struct ProjectionFoldPipeline {
   priv tile_width : Int
   priv tile_count : Int
@@ -8,6 +8,8 @@ pub struct ProjectionFoldPipeline {
   priv row_width : Int
   priv output_tiles : Int
   priv minimum_rows : Int
+  priv stages : Int
+  priv fragments : Int?
 } derive(Debug, Eq)
 
 ///|
@@ -22,9 +24,9 @@ pub fn ProjectionFoldPipeline::tile_count(self : ProjectionFoldPipeline) -> Int 
 
 ///|
 pub fn ProjectionFoldPipeline::stage_count(
-  _self : ProjectionFoldPipeline,
+  self : ProjectionFoldPipeline,
 ) -> Int {
-  2
+  self.stages
 }
 
 ///|
@@ -33,6 +35,9 @@ pub fn ProjectionFoldPipeline::stage_count(
 pub fn ProjectionFoldPipeline::fragment_stage_count(
   self : ProjectionFoldPipeline,
 ) -> Int {
+  if self.fragments is Some(count) {
+    return count
+  }
   // A wide independent row product already carries many accumulator values.
   // Keep its fragment lifetime compact; transfer lookahead remains independent.
   if self.transfer_width > self.tile_width && self.row_width < 64 {
@@ -102,29 +107,37 @@ fn projection_intermediate_pipeline(
       is Some(row_width) else {
       return None
     }
-    Some({
-      tile_width: tile,
-      tile_count: extent / tile,
-      // Long folds with a narrow independent product can amortize producer
-      // waits without making the live operand footprint dominate residency.
-      transfer_width: projection_transfer_width(
-        extent,
-        tile,
-        projection_operand_window_tiles(
-          extent,
+    Some(
+      projection_apply_fold_choice(
+        {
+          stages: 2,
+          fragments: None,
+          tile_width: tile,
+          tile_count: extent / tile,
+          // Long folds with a narrow independent product can amortize producer
+          // waits without making the live operand footprint dominate residency.
+          transfer_width: projection_transfer_width(
+            extent,
+            tile,
+            projection_operand_window_tiles(
+              extent,
+              row_width,
+              projection_companion_output_tiles(
+                dispatch.prefill().output_tiles_per_workgroup(),
+              ),
+              maximum_tiles=8,
+            ),
+          ),
           row_width,
-          projection_companion_output_tiles(
+          minimum_rows: 2,
+          output_tiles: projection_companion_output_tiles(
             dispatch.prefill().output_tiles_per_workgroup(),
           ),
-          maximum_tiles=8,
-        ),
+        },
+        IntermediateFold,
+        request,
       ),
-      row_width,
-      minimum_rows: 2,
-      output_tiles: projection_companion_output_tiles(
-        dispatch.prefill().output_tiles_per_workgroup(),
-      ),
-    })
+    )
   } else {
     None
   }
@@ -153,26 +166,34 @@ fn projection_sibling_pipeline(
       is Some(row_width) else {
       return None
     }
-    Some({
-      tile_width: tile,
-      tile_count: extent / tile,
-      // A bounded single-row-tile product has room for four immutable fold
-      // fragments per transfer. Wider row products retain the smaller live
-      // operand window. Reduction updates still consume one tile at a time.
-      transfer_width: tile *
-      (if row_width == matrix_rows &&
-        dispatch.prefill().output_tiles_per_workgroup() <= 8 {
-        4
-      } else {
-        2
-      }),
-      row_width,
-      minimum_rows: 2,
-      output_tiles: Int::max(
-        1,
-        dispatch.prefill().output_tiles_per_workgroup() / 4,
+    Some(
+      projection_apply_fold_choice(
+        {
+          stages: 2,
+          fragments: None,
+          tile_width: tile,
+          tile_count: extent / tile,
+          // A bounded single-row-tile product has room for four immutable fold
+          // fragments per transfer. Wider row products retain the smaller live
+          // operand window. Reduction updates still consume one tile at a time.
+          transfer_width: tile *
+          (if row_width == matrix_rows &&
+            dispatch.prefill().output_tiles_per_workgroup() <= 8 {
+            4
+          } else {
+            2
+          }),
+          row_width,
+          minimum_rows: 2,
+          output_tiles: Int::max(
+            1,
+            dispatch.prefill().output_tiles_per_workgroup() / 4,
+          ),
+        },
+        SiblingFold,
+        request,
       ),
-    })
+    )
   } else {
     None
   }
@@ -211,44 +232,52 @@ fn projection_matrix_pipeline(
     dispatch.prefill().input_residency() == SelectedRowTileResidency {
     None
   } else {
-    Some({
-      tile_width: k,
-      tile_count: extent / k,
-      // Bound lookahead by both fold length and the independent product.
-      // Short folds and wide products lose more residency than they gain in
-      // overlap. Selected gathers retain their separately measured window.
-      transfer_width: projection_transfer_width(
-        extent,
-        k,
-        if selected && dispatch.prefill().output_tiles_per_workgroup() > 8 {
-          2
-        } else if !selected {
-          projection_operand_window_tiles(
+    Some(
+      projection_apply_fold_choice(
+        {
+          stages: 2,
+          fragments: None,
+          tile_width: k,
+          tile_count: extent / k,
+          // Bound lookahead by both fold length and the independent product.
+          // Short folds and wide products lose more residency than they gain in
+          // overlap. Selected gathers retain their separately measured window.
+          transfer_width: projection_transfer_width(
             extent,
-            request.maximum_tokens,
-            dispatch.prefill().output_tiles_per_workgroup(),
-            maximum_tiles=16,
-          )
-        } else {
-          4
+            k,
+            if selected && dispatch.prefill().output_tiles_per_workgroup() > 8 {
+              2
+            } else if !selected {
+              projection_operand_window_tiles(
+                extent,
+                request.maximum_tokens,
+                dispatch.prefill().output_tiles_per_workgroup(),
+                maximum_tiles=16,
+              )
+            } else {
+              4
+            },
+          ),
+          row_width: if selected {
+            16
+          } else {
+            projection_bounded_row_extent(
+              maximum_rows=request.maximum_tokens,
+              matrix_rows=m,
+              preferred_rows=32,
+            ).unwrap()
+          },
+          output_tiles: if selected {
+            dispatch.prefill().output_tiles_per_workgroup()
+          } else {
+            Int::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
+          },
+          minimum_rows: 2,
         },
+        MatrixFold,
+        request,
       ),
-      row_width: if selected {
-        16
-      } else {
-        projection_bounded_row_extent(
-          maximum_rows=request.maximum_tokens,
-          matrix_rows=m,
-          preferred_rows=32,
-        ).unwrap()
-      },
-      output_tiles: if selected {
-        dispatch.prefill().output_tiles_per_workgroup()
-      } else {
-        Int::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
-      },
-      minimum_rows: 2,
-    })
+    )
   }
 }
 

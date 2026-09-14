@@ -1,6 +1,8 @@
 ///|
 test "fold work cardinality follows independent row and column products" {
   let plan : ProjectionFoldPipeline = {
+    stages: 2,
+    fragments: None,
     tile_width: 16,
     tile_count: 64,
     transfer_width: 32,

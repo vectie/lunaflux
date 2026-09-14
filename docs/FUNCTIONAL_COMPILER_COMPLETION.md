@@ -10,7 +10,7 @@ are inputs to selection; they are never collected inside a token step.
 
 | Work | Completion criterion | Current work |
 | --- | --- | --- |
-| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Pending |
+| Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Explicit 2/3/4-stage choices and shared ring lowering implemented; first gate experiments regress; resource filtering and full measured selection remain |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
 | Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pending |
@@ -50,3 +50,31 @@ Remote run: `/tmp/lfresources.mANp0Z`. Downloaded archive:
 It contains the validation driver, device query, actual resource output,
 candidate exports and results. The earlier baseline latency observations are
 reused explicitly, not represented as fresh measurements.
+
+## Projection lifetime experiments, 2026-09-14
+
+The compiler now accepts immutable fold choices (matrix, sibling and
+intermediate roles), stage count, transfer window and fragment lookahead.
+Composition is canonical; tests verify the semantic program digest is unchanged.
+The four projection lowerers consume one finite ring renderer. The established
+two-slot scheduling seam remains the default. A finite slot model checks that
+publication precedes consumption and no live slot is overwritten.
+
+Targeted local validation: projection compiler 53/53; projection CUDA AOT 68/68;
+warning-denied source-probe compile. This is not a full-suite or GPU sanitizer
+completion claim.
+
+GPU exploration is at `/tmp/lffold.Tnkvuy`. Wider 64-element, 3/4-stage gate
+variants exceed the static shared-memory ceiling and fail compilation. The
+32-element variants compile but require opt-in shared-memory launch capacity;
+the unchanged launch fails with CUDA error 1. An explicitly opt-in diagnostic
+launch passes bitwise gate-workspace comparison and independent sampled scalar
+checks at 32/1024/2048 tokens. At 1024 tokens the baseline is approximately
+349 us versus 479/482 us for 3/4 stages; at 2048 tokens approximately 680 us
+versus 944/954 us. These are gate-only exploratory measurements, not down,
+whole-MLP or end-to-end throughput. The diagnostic sets the dynamic shared-memory
+attribute on each launch, so it is not the final performance harness.
+
+No experimental variant is selected for production. Resource-aware eligibility,
+full family coverage, sanitizer checks, per-shape measured records and exporter
+selection are still required. More stages alone do not demonstrate a speedup.

@@ -12,7 +12,6 @@ fn projection_fold_pipeline_source(
   groups : Int,
   output_width : Int,
 ) -> String {
-  let extent = pipeline.tile_count() * pipeline.tile_width()
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
   let layout : CudaProjectionTransportLayout = { columns: width, }
@@ -59,7 +58,7 @@ fn projection_fold_pipeline_source(
     $|    \{layout.address_function()}
     $|    \{projection_result_address_source()}
     $|    float c[\{rows / 16}][8] = {};
-    $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * 2}];
+    $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * pipeline.stage_count()}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};
     $|    const __nv_bfloat16 *pipeline_b = \{weight_base};
     $|    auto stage_operands = [&](int offset, int stage) {
@@ -68,19 +67,7 @@ fn projection_fold_pipeline_source(
     $|\{weight_copy}
     $|      asm volatile("cp.async.commit_group;" ::: "memory");
     $|    };
-    $|    stage_operands(0, 0);
-    $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|    __syncthreads();
-    $|    int stage = 0;
-    $|    #pragma unroll 1
-    $|    for (int inner = 0; inner < \{extent}; inner += \{width}) {
-    $|      if (inner + \{width} < \{extent}) stage_operands(inner + \{width}, stage ^ 1);
-    $|      const __nv_bfloat16 *current = pipeline_storage + stage * \{slot};
-    $|      \{fragment_fold}
-    $|      asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|      __syncthreads();
-    $|      stage ^= 1;
-    $|    }
+    $|\{projection_fold_lifetime_source(pipeline, "const __nv_bfloat16 *current = pipeline_storage + stage * " + slot.to_string() + ";\n" + fragment_fold, asynchronous=true)}
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
     $|      if (row_start + row * 16 >= token_count) break;

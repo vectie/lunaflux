@@ -59,6 +59,11 @@ pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, 
 pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
 
+pub struct ProjectionFoldChoice {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
+
 pub struct ProjectionFoldPipeline {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -67,11 +72,19 @@ pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
 pub fn ProjectionFoldPipeline::output_tiles(Self) -> Int
 pub fn ProjectionFoldPipeline::row_width(Self) -> Int
 pub fn ProjectionFoldPipeline::single_row_outputs(Self) -> Int
+pub fn ProjectionFoldPipeline::slot(Self, Int) -> Int?
 pub fn ProjectionFoldPipeline::stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_width(Self) -> Int
+pub fn ProjectionFoldPipeline::transfer_count(Self) -> Int
 pub fn ProjectionFoldPipeline::transfer_width(Self) -> Int
 pub fn ProjectionFoldPipeline::workgroup_count(Self, maximum_rows~ : Int, output_columns~ : Int, matrix_columns~ : Int) -> Int?
+
+pub(all) enum ProjectionFoldRole {
+  MatrixFold
+  SiblingFold
+  IntermediateFold
+} derive(Eq, @debug.Debug)
 
 pub(all) enum ProjectionIterationAxis {
   ProjectionRowAxis
@@ -145,6 +158,8 @@ pub struct ProjectionTileCompilerRequest {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
 
 pub(all) enum ProjectionTileCompilerRule {
   InvalidProblem

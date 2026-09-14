@@ -186,6 +186,7 @@ pub struct ProjectionTileCompilerRequest {
   priv demand : ProjectionResultDemand
   priv epilogue : ProjectionTileEpilogue
   priv single_row_numerics : ProjectionSingleRowNumerics
+  priv fold_choices : ReadOnlyArray[ProjectionFoldChoice]
 } derive(Debug, Eq)
 
 ///|
