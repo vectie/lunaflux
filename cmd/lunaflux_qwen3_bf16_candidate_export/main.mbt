@@ -82,7 +82,7 @@ async fn run_qwen3_candidate_export(
     let compilation = variant.compilation()
     let variant_root = qwen_partitioned_prefill_variant_root(
       arguments.absolute_new_output,
-      compilation,
+      partitioned_prefill_variants,
       index,
     )
     write_new_candidate_pair(
@@ -349,7 +349,7 @@ async fn run_qwen3_candidate_export(
       "," +
       qwen_partitioned_prefill_variant_root(
         arguments.absolute_new_output,
-        compilation,
+        partitioned_prefill_variants,
         index,
       ) +
       "," +

@@ -302,3 +302,22 @@ cannot override shared-memory, thread or register capacity. Regression covers
 all three impossible budgets and proves a feasible measurement preserves its
 candidate, semantic program, schedule and digest. This changes invalid-plan
 handling, not generated kernels or inference latency.
+
+### Preserve distinct split-K schedules
+
+Resource-conditioned regression exposed another frontier bug: targets 32 and
+64 can select different query tiles (c314 and c312) while both use two KV
+partitions. Deduplicating only by partition count discarded the second legal
+plan. The frontier now collapses only identical complete compilation digests,
+preserving the first target for genuine duplicates. CUDA source naming retains
+existing unique-count `_pN` names and adds a deterministic `_vI` suffix for
+repeated counts, preventing symbol collisions in the expanded family.
+Exporter artifact paths use the same repeated-count distinction so different
+plans cannot overwrite or collide with an earlier `-pN` artifact pair.
+
+Tests cover the reproduced two-plan case, genuine duplicate collapse, 33
+independent target/resource comparisons, and repeated-count symbol uniqueness.
+The resource observations in the reproduction are synthetic compiler test
+inputs, not GPU measurements or new production tuning records.
+Native regressions pass: attention compiler 23/23, CUDA AOT 6/6 (including
+full lowering/emission of both equal-count plans), Qwen exporter 11/11.

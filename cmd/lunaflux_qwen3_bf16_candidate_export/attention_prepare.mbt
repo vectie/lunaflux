@@ -82,16 +82,25 @@ fn prepare_qwen_compiler_partitioned_prefill(
 ///|
 fn qwen_partitioned_prefill_variant_root(
   output : String,
-  compilation : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
+  variants : ArrayView[
+    @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotVariant,
+  ],
   index : Int,
 ) -> String {
   let base = output + "/reusable-qwen-prefill-partitioned-attention"
   if index == 0 {
     base
   } else {
-    base +
-    "-p" +
-    compilation.functional().schedule().key_value_partitions().to_string()
+    let partitions = variants[index]
+      .compilation()
+      .functional()
+      .schedule()
+      .key_value_partitions()
+    let repeated = variants[:index].any(previous => {
+      previous.compilation().functional().schedule().key_value_partitions() ==
+      partitions
+    })
+    base + "-p\{partitions}" + (if repeated { "-v\{index}" } else { "" })
   }
 }
 

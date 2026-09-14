@@ -159,7 +159,8 @@ pub fn compile_partitioned_attention_tile(
 /// Compiles distinct partitioned schedules for an ordered sequence of
 /// portable workgroup objectives. Targets must be strictly increasing so the
 /// result and digest are independent of map iteration or caller sorting.
-/// Equivalent partition counts collapse to their first (smallest) target.
+/// Equivalent complete compilations collapse to their first (smallest) target.
+/// A partition count alone cannot identify tile geometry or memory scheduling.
 pub fn compile_partitioned_attention_tile_frontier(
   request : AttentionTileCompilerRequest,
   parallel_workgroup_targets : ArrayView[Int],
@@ -170,7 +171,6 @@ pub fn compile_partitioned_attention_tile_frontier(
   }
   let variants : Array[AttentionPartitionedTileCompilationVariant] = []
   let mut previous_target = 0
-  let mut previous_partitions = 0
   for target in parallel_workgroup_targets {
     if target <= previous_target {
       raise InvalidAttentionTileCompilation(ResourceFeedback)
@@ -182,10 +182,10 @@ pub fn compile_partitioned_attention_tile_frontier(
     }
     let variant_request = { ..request, capabilities, }
     let compilation = compile_partitioned_attention_tile(variant_request)
-    let partitions = compilation.schedule().key_value_partitions()
-    if partitions != previous_partitions {
+    if !variants.any(variant => {
+        variant.compilation.digest() == compilation.digest()
+      }) {
       variants.push({ parallel_workgroup_target: target, compilation, })
-      previous_partitions = partitions
     }
     previous_target = target
   }

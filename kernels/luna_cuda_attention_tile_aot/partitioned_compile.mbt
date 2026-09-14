@@ -70,7 +70,8 @@ pub fn compile_cuda_partitioned_attention_tile_aot(
 ///|
 /// Lowers every distinct functional partition schedule into an immutable CUDA
 /// source pair. The first variant retains the requested ABI symbols; later
-/// variants receive a stable `_pN` suffix derived only from partition count.
+/// variants retain `_pN` where the partition count is unique. Distinct plans
+/// with a repeated count add `_vI` from deterministic frontier order.
 pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
   request : CudaPartitionedAttentionTileAotRequest,
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
@@ -85,7 +86,13 @@ pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
   let variants : Array[CudaPartitionedAttentionTileAotVariant] = []
   for index, variant in functional.variants() {
     let partitions = variant.compilation().schedule().key_value_partitions()
-    let suffix = if index == 0 { "" } else { "_p" + partitions.to_string() }
+    let repeated = variants.any(previous => {
+      previous.compilation.functional().schedule().key_value_partitions() ==
+      partitions
+    })
+    let suffix = partitioned_attention_symbol_suffix(
+      index, partitions, repeated,
+    )
     let compilation = finish_cuda_partitioned_attention_tile_aot(
       request,
       variant.compilation(),
@@ -117,5 +124,20 @@ pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
     digest: CudaAttentionTileAotDigest(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
     ),
+  }
+}
+
+///|
+fn partitioned_attention_symbol_suffix(
+  index : Int,
+  partitions : Int,
+  repeated : Bool,
+) -> String {
+  if index == 0 {
+    ""
+  } else if repeated {
+    "_p\{partitions}_v\{index}"
+  } else {
+    "_p\{partitions}"
   }
 }

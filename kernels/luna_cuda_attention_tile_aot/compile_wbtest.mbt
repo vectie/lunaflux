@@ -417,4 +417,5 @@ test "partitioned CUDA AOT compiler emits disjoint frontier symbols" {
       32, 64, 128,
     ]),
   )
+  check_equal_partition_aot_symbols(request)
 }
