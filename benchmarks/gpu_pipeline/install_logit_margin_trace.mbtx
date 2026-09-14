@@ -1,0 +1,48 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env" }
+
+// Run after install_execution_trace, and only in a disposable source tree.
+// This intentionally adds synchronous readback and cannot measure performance.
+async fn main {
+  guard @env.args() is [_,root] else {fail("DISPOSABLE_TRACE_SOURCE")}
+  let directory=root+"/engine/device_step/"
+  assert_true(@fs.exists(directory+"diagnostic_execution.mbt"))
+  assert_false(@fs.read_file(root+"/internal/process/process_approved_spawn.c").text().contains("if (close(2) != 0 && errno != EBADF) _exit(126);"),msg="install the current diagnostic stderr-preserving trace first")
+  let events=directory+"diagnostic_execution.mbt"
+  let bindings=@fs.read_file(events).text()
+  let before="      trace_event(1, seq, i, row.token_length(), row.sequence_token_start(), 0, 0, 0, 0UL)"
+  assert_eq(bindings.split(before).count(),2)
+  let bindings=bindings.replace(old=before,new="      trace_event(7, row.request_id_value(), i, row.sample_index(), 1, 0, 0, 0, row.request_generation_value())\n"+before)
+  let before="    for i in 0..<d { trace_event(2, seq, i, 1, frame.decode_row(i).sequence_token_position(), 0, 0, 0, 0UL) }"
+  assert_eq(bindings.split(before).count(),2)
+  @fs.write_file(events,bindings.replace(old=before,new="    for i in 0..<d { let row=frame.decode_row(i); trace_event(7, row.request_id_value(), p+i, row.sample_index(), 2, 0, 0, 0, row.request_generation_value()); trace_event(2, seq, i, 1, row.sequence_token_position(), 0, 0, 0, 0UL) }"))
+  let path=directory+"paged_executor_greedy_sampling.mbt"
+  let source=@fs.read_file(path).text()
+  let parts=source.split("  token\n}").to_array()
+  assert_eq(parts.length(),2)
+  let function=
+    #|///|
+    #|fn trace_paged_margin(executor : PagedGraphExecutor, descriptor : DeviceStepOwner, row : Int, selected : Int) -> Unit raise DeviceStepError {
+    #|  let end = read_paged_i32(descriptor.host.query_row_offsets, row + 1)
+    #|  if end <= 0 { raise InvalidExecutor(SamplingOutput) }
+    #|  let scratch = executor.completion
+    #|  let activation = open_activation_workspace(executor.resources)
+    #|  descriptor.context.copy_to_fixed_host(activation, scratch.encoded_logits,
+    #|    scratch.final_output_offset + (end - 1).to_int64() * scratch.row_bytes, 0L, scratch.row_bytes) catch {
+    #|    error => raise ExecutorDevice(ActivationReadback, error)
+    #|  }
+    #|  decode_paged_bf16_logits(scratch)
+    #|  let mut best = -1
+    #|  let mut second = -1
+    #|  for token in 0..<scratch.vocabulary_size {
+    #|    let value = scratch.logits[token]
+    #|    if best < 0 || value > scratch.logits[best] { second = best; best = token }
+    #|    else if second < 0 || value > scratch.logits[second] { second = token }
+    #|  }
+    #|  if best < 0 || second < 0 { raise InvalidExecutor(SamplingOutput) }
+    #|  let first_bits = scratch.encoded_logits[best * 2].to_int() | (scratch.encoded_logits[best * 2 + 1].to_int() << 8)
+    #|  let second_bits = scratch.encoded_logits[second * 2].to_int() | (scratch.encoded_logits[second * 2 + 1].to_int() << 8)
+    #|  trace_event(6, 0UL, row, read_paged_i32(descriptor.host.token_positions, end - 1), selected, best, second, first_bits, second_bits.to_uint64())
+    #|}
+  @fs.write_file(directory+"diagnostic_logit_margin.mbt",function,create_mode=CreateNew)
+  @fs.write_file(path,parts.join("  trace_paged_margin(executor, descriptor, row, token)\n  token\n}"))
+}

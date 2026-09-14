@@ -1,0 +1,44 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+fn field(line : StringView, key : String) -> Int64 raise {
+  guard line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array() is [value] else {fail(key)}
+  @string.parse_int64(value[key.length()+1:])
+}
+
+async fn main {
+  guard @env.args() is [_,path,output] else {fail("SERVER_STDERR NEW_JSON")}
+  let records : Array[Json]=[]
+  let identities : Map[Int64,(Int64,Int64,Int64)]=Map([])
+  let mut mismatches=0
+  let mut ties=0
+  for line in @fs.read_file(path).text().split("\n") {
+    if !line.contains("lf_exec ") {continue}
+    match field(line,"kind") {
+      0L => identities.clear()
+      7L => identities[field(line,"a")]=(field(line,"seq"),field(line,"b"),field(line,"elapsed"))
+      6L => {
+        let row=field(line,"a")
+        guard identities.get(row) is Some((request,sample,generation)) else {fail("unmapped result")}
+        let selected=field(line,"c");let best=field(line,"d");let second=field(line,"e")
+        let first_bits=field(line,"f");let second_bits=field(line,"elapsed")
+        assert_true(first_bits>=0 && first_bits<=65535 && second_bits>=0 && second_bits<=65535)
+        let first=Float::reinterpret_from_uint(first_bits.to_int().reinterpret_as_uint()<<16).to_double()
+        let next=Float::reinterpret_from_uint(second_bits.to_int().reinterpret_as_uint()<<16).to_double()
+        if selected!=best {mismatches+=1}
+        if first_bits==second_bits {ties+=1}
+        records.push({"request":request.to_string(),"generation":generation.to_string(),"sample":sample.to_int(),"position":field(line,"b").to_int(),"selected":selected.to_int(),"best":best.to_int(),"second":second.to_int(),"best_logit":first,"second_logit":next,"margin":first-next})
+      }
+      _ => ()
+    }
+  }
+  assert_true(records.length()>0)
+  let result : Json={"records":records,"gpu_cpu_argmax_mismatches":mismatches,"exact_top_two_ties":ties,"count":records.length()}
+  @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+  println("records=\{records.length()} gpu_cpu_argmax_mismatches=\{mismatches} exact_top_two_ties=\{ties}")
+}

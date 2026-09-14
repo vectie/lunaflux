@@ -13,7 +13,7 @@ are inputs to selection; they are never collected inside a token step.
 | Projection pipeline search | Generate legal stage/window alternatives, measure and select them; backend implements the selected lifetime plan | Resource filtering and source-bound offline selection integrated; 19 MLP and 40 QKV/output/head combinations physically measured; real-record export retains baseline; no faster long-input alternative found in this search |
 | Operand segmentation | Shared semantic address/segment plan consumed by projection lowerers; preserve useful schedules rather than force losing hoists | Pending; previous QKV hoist regressed |
 | Attention ownership/history | Preserve existing c322 semantics and correctness through new selection | Existing path; regression required |
-| Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | Pure immutable measured route table and scoped parser tested; exporter/runtime multi-artifact binding remains |
+| Attention shape buckets | Query/history/batch-specific measurements choose admitted artifacts through bounded runtime dispatch | V6 exporter/runtime binding and bootstrap classifier integrated; real baseline record passed 48 physical serving trials; no measured c324 production win is claimed |
 | Resource feedback | Measured budgets/register facts reach resource-aware compiler selection, including expanded schedules | Prefill/decode/partitioned exporter connected; decode resource-only choice regresses, measured override physically restores baseline source |
 | Fusion chain selection | Compare full versus partial chain cost, select through a generic immutable policy, validate both | Paired measured selector integrated; full-chain serving is slower and has last-token divergence requiring diagnosis; partial retained |
 | Execution diagnostics | Latest runtime trace includes actual work, padded work, selected bucket/route, mixed steps and GPU gaps | Latest worker trace correlated with all CUDA graph launches; capacity slack, final owners and route cost measured; maximum launch-envelope issue found and correction under GPU test |
@@ -22,6 +22,16 @@ No item is complete merely because an interface exists. Completion includes
 public behavior tests, integration tests, exact-source physical correctness,
 relevant sanitizer checks and matched end-to-end timing. A slower experiment
 may establish a cause but does not become the production choice by default.
+
+Latest follow-up: [actual-row replay and V6 validation](BENCHMARK_ATTENTION_ROW_REPLAY_2026-09-14.md).
+The corrected 34-shape replay reduces the isolated c324 advantage to 1.112%,
+matching the prior serving attention trace's 1.03%. Counters show 29–31% more
+instructions at nearly equal L2 bytes for large shapes. This is a measured
+KV-tile tradeoff, not a missing generic async pass. Model-token divergence
+diagnosis now excludes a greedy-selector mismatch across 30,720 outputs:
+[logit-margin diagnosis](BENCHMARK_LOGIT_MARGINS_2026-09-14.md). First divergent
+ranks are tied or separated by 0.125. Upstream numerical acceptance remains
+open; no candidate promotion or relaxed token contract follows from that fact.
 
 ## Prefill resource integration, 2026-09-14
 

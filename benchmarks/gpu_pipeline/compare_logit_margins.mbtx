@@ -1,0 +1,57 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json" }
+fn number(value : Json, key : String) -> Int raise {
+  guard value is Object(fields) && fields.get(key) is Some(Number(n, ..)) else { fail(key) }
+  n.to_int()
+}
+fn groups(value : Json) -> Array[Array[Json]] raise {
+  guard value is { "records":Array(records), .. } else { fail("records") }
+  let result : Map[String,Array[Json]]=Map([])
+  for record in records {
+    guard record is { "request":String(request),"generation":String(generation), .. } else { fail("identity") }
+    let key=request+":"+generation
+    if !result.contains(key) { result[key]=[] }
+    result[key].push(record)
+  }
+  result.values().to_array()
+}
+fn margins(candidates : Array[Array[Json]], tokens : Array[Json], input : Int, index : Int) -> Array[Json] raise {
+  let result=[]
+  for group in candidates {
+    if group.length()!=tokens.length() {continue}
+    if number(group[0],"position")!=input-1 {continue}
+    let mut matches=true
+    for i in 0..<tokens.length() {
+      if group[i] is {"selected":token,..} && token==tokens[i] && number(group[i],"sample")==i { () }
+      else {matches=false;break}
+    }
+    if matches {result.push(group[index])}
+  }
+  result
+}
+async fn main {
+  guard @env.args() is [_,left,right,output] else {fail("LEFT_ROOT RIGHT_ROOT NEW_JSON")}
+  let a=groups(@json.parse(@fs.read_file(left+"/margins.json").text()))
+  let b=groups(@json.parse(@fs.read_file(right+"/margins.json").text()))
+  let differences : Array[Json]=[]
+  let mut count=0
+  for name in @fs.readdir(left+"/lunaflux") {
+    if !name.has_suffix(".body.json") {continue}
+    let stem=name[:name.length()-10].to_owned()
+    let body=@fs.read_file(left+"/lunaflux/"+name).text()
+    assert_eq(body,@fs.read_file(right+"/lunaflux/"+name).text())
+    guard @json.parse(body) is {"input_token_ids":Array(input),..} else {fail("input")}
+    guard @json.parse(@fs.read_file(left+"/lunaflux/"+stem+".json").text()) is {"token_ids":Array(ta),..} else {fail("left")}
+    guard @json.parse(@fs.read_file(right+"/lunaflux/"+stem+".json").text()) is {"token_ids":Array(tb),..} else {fail("right")}
+    assert_eq(ta.length(),tb.length())
+    count+=1
+    for i in 0..<ta.length() {
+      if ta[i]!=tb[i] {
+        differences.push({"name":stem,"first_difference":i,"left_token":ta[i],"right_token":tb[i],"left_matching_trace_groups":margins(a,ta,input.length(),i),"right_matching_trace_groups":margins(b,tb,input.length(),i)})
+        break
+      }
+    }
+  }
+  let result : Json={"requests":count,"divergent_requests":differences.length(),"differences":differences}
+  @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+  println("requests=\{count} divergent=\{differences.length()}")
+}
