@@ -33,11 +33,22 @@ pub struct ExecutionGraphBucketTable {
 pub fn ExecutionGraphBucketTable::bucket_count(Self) -> Int
 pub fn ExecutionGraphBucketTable::select(Self, ExecutionGraphShape) -> ExecutionGraphBucket raise ExecutionGraphBucketError
 
+pub struct ExecutionGraphMeasuredRoutes {
+  // private fields
+}
+pub fn ExecutionGraphMeasuredRoutes::new(ExecutionGraphBucketTable, baseline~ : Int, ArrayView[ExecutionGraphRouteMeasurement], minimum_improvement_basis_points? : Int) -> Self raise ExecutionGraphBucketError
+pub fn ExecutionGraphMeasuredRoutes::select(Self, ExecutionGraphShape) -> Int? raise ExecutionGraphBucketError
+
 pub(all) enum ExecutionGraphPhase {
   PrefillGraph
   DecodeGraph
   MixedGraph
 } derive(Eq, @debug.Debug)
+
+pub struct ExecutionGraphRouteMeasurement {
+  // private fields
+}
+pub fn ExecutionGraphRouteMeasurement::new(ExecutionGraphShape, candidate~ : Int, median_ns~ : Int64, samples~ : Int) -> Self raise ExecutionGraphBucketError
 
 pub struct ExecutionGraphShape {
   // private fields

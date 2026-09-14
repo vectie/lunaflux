@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/kernels/luna_execution_graph_strategy" @graph,
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/string",
   "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,

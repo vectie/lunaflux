@@ -6,9 +6,12 @@ import {
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_compiler",
   "vectie/lunaflux/kernels/luna_attention_tile_schedule",
+  "vectie/lunaflux/kernels/luna_execution_graph_strategy",
 }
 
 // Values
+pub fn parse_attention_bucket_routes(Bytes, scope~ : String, @luna_execution_graph_strategy.ExecutionGraphBucketTable, baseline~ : Int, ArrayView[Int]) -> @luna_execution_graph_strategy.ExecutionGraphMeasuredRoutes raise AttentionTuningError
+
 pub fn parse_attention_resource_budget(Bytes, scope~ : String) -> @luna_attention_tile_compiler.AttentionResourceBudget raise AttentionTuningError
 
 pub fn parse_attention_resource_feedback(Bytes, scope~ : String, ArrayView[@luna_attention_tile_schedule.AttentionTileScheduleDigest]) -> (@luna_attention_tile_compiler.AttentionResourceBudget, ReadOnlyArray[@luna_attention_tile_compiler.AttentionRegisterObservation]) raise AttentionTuningError
