@@ -15,6 +15,7 @@ static void ck(CUresult r) {
 static float fp(uint16_t x) { uint32_t u = uint32_t(x) << 16; float f; std::memcpy(&f, &u, 4); return f; }
 static uint16_t bf(float f) { uint32_t u; std::memcpy(&u, &f, 4); u += 0x7fff + ((u >> 16) & 1); return uint16_t(u >> 16); }
 static int page_tokens = 16;
+static int physical_pages = 8192;
 static bool real_abi = false;
 static bool compare_modules = false;
 template<class T> static CUdeviceptr upload(const std::vector<T>& a) {
@@ -45,11 +46,11 @@ static void run_case(Kernel* kernels,int kernel_count,int context,int batch,bool
   for(int b=0;b<batch;++b) {
     int row=prefill+b, token=prefix+b; offsets[row]=token; offsets[row+1]=token+1; positions[token]=context-1; lengths[row]=context;
     page_offsets[row]=int(ids.size());
-    for(int p=0;p<pages;++p) ids.push_back((b*pages+p+prefill)*3%8192);
+    for(int p=0;p<pages;++p) ids.push_back((b*pages+p+prefill)*7919%physical_pages);
     page_offsets[row+1]=int(ids.size());
   }
   counts[4]=int(ids.size());
-  std::vector<uint16_t> q(tokens*4096), k(8192ULL*stride), v(k.size()), output(tokens*2048,bf(-99.0f));
+  std::vector<uint16_t> q(tokens*4096), k(size_t(physical_pages)*stride), v(k.size()), output(tokens*2048,bf(-99.0f));
   for(size_t i=0;i<q.size();++i) q[i]=bf(float(int((i*17)%127)-63)/64);
   for(size_t i=0;i<k.size();++i) { k[i]=bf(float(int((i*13)%113)-56)/64); v[i]=bf(float(int((i*19)%109)-54)/64); }
   std::vector<float> workspace(32*16*8*130, NAN);
@@ -97,6 +98,10 @@ int main(int argc,char**argv) {
   if(argc!=5 && argc!=6 && argc!=7) return 2;
   compare_modules = argc>=6 && std::strcmp(argv[5],"compare")==0;
   real_abi = compare_modules || (argc>=6 && std::strcmp(argv[5],"real")==0);
+  if(real_abi && !compare_modules && argc==7) {
+    physical_pages=std::atoi(argv[6]);
+    if(physical_pages<8192 || physical_pages>16384) return 2;
+  }
   page_tokens = real_abi?8:16;
   ck(cuInit(0)); CUdevice dev; ck(cuDeviceGet(&dev,0));
   CUuuid uuid; ck(cuDeviceGetUuid(&uuid,dev));
