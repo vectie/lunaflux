@@ -25,6 +25,42 @@ test "segmentation preserves every vector and register round exactly once" {
 }
 
 ///|
+test "transfer expansion budget cannot overflow on valid total vector counts" {
+  for counts in [[2147483646, 1], [1, 2147483646], [2147483645, 1, 1]] {
+    assert_eq(
+      @luna_projection_tile_compiler.partition_projection_transfer_segments(
+        counts,
+        workers=1,
+      ),
+      None,
+    )
+  }
+  assert_true(
+    @luna_projection_tile_compiler.partition_projection_transfer_segments(
+      [4094, 1],
+      workers=1,
+    )
+    is Some(_),
+  )
+  assert_eq(
+    @luna_projection_tile_compiler.partition_projection_transfer_segments(
+      [4095, 1],
+      workers=1,
+    ),
+    None,
+  )
+  // Large extents are valid when a compact worker map needs only two segments.
+  let compact = @luna_projection_tile_compiler.partition_projection_transfer_segments(
+    [2147483646, 1],
+    workers=2147483647,
+  ).unwrap()
+  assert_eq(compact.length(), 2)
+  assert_eq(compact[0].worker_end, 2147483646)
+  assert_eq(compact[1].worker_begin, 2147483646)
+  assert_eq(compact[1].worker_end, 2147483647)
+}
+
+///|
 test "invalid and overflowing transfer domains are rejected" {
   for counts in [[], [0], [-1], [2147483647, 1]] {
     assert_eq(

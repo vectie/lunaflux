@@ -36,7 +36,9 @@ pub fn partition_projection_transfer_segments(
   // A finite compile-time unroll budget, not a shape or backend restriction.
   // Very large maps must use the loop realization instead of emitting millions
   // of static source blocks.
-  if (total - 1) / workers + operand_vectors.length() > 4096 {
+  // Compare against remaining budget rather than adding to a potentially
+  // maximal vector count. The checked operand count is at most 128.
+  if (total - 1) / workers > 4096 - operand_vectors.length() {
     return None
   }
   for operand = 0, origin = 0; operand < operand_vectors.length(); {

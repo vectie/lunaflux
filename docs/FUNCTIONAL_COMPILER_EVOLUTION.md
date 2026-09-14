@@ -388,3 +388,19 @@ validation and candidate compatibility remain mandatory. Tests cover each
 generated candidate as the measured winner, score identity, order-independent
 ties and the existing foreign-target fallback. No GPU performance claim is
 made for removing this unused compiler calculation.
+
+### Bounded segmentation arithmetic
+
+The operand segmentation unroll guard added round count to operand count in
+32-bit arithmetic. A valid total of INT_MAX vectors split across two operands
+could overflow that guard and enter an enormous expansion loop. The guard now
+compares round count with the remaining budget using subtraction; operand
+count is already bounded to 128. Tests exercise extreme valid totals without
+performing the unsafe expansion, the exact existing budget boundary, and a
+compact two-segment map over the same large extent. Supported ordinary maps
+and the existing 4,096 expansion budget are unchanged.
+Focused native tests pass 54/54 on macOS and Linux. The local aggregate native
+run passes 3,778/3,778; because the segmentation regression was added while
+that run was compiling, the separately completed 54-test run is the explicit
+verification of the new case. Existing C allocation-probe attribute warnings
+remain unrelated to this compiler arithmetic change.
