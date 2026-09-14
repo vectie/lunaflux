@@ -99,7 +99,7 @@ fn projection_matrix_pipeline_source(
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
     $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * plan.stage_count()}];
     $|    \{transport.address_function()}
-    $|    const int column_groups = \{(output_width + columns - 1) / columns};
+    $|    const int column_groups = \{1 + (output_width - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / column_groups) * \{rows};

@@ -567,3 +567,15 @@ operands, complete vector ownership, and extreme Int extents. Projection
 compiler tests pass 57/57 and CUDA projection AOT tests 72/72. This unifies
 semantic interval handling without forcing a new QKV transfer schedule or
 claiming a physical speedup; full transfer-worker integration remains open.
+
+### Matrix column-domain overflow correction
+
+Source generation used `(output_width + columns - 1) / columns` in Int for
+the matrix pipeline's column-group constant. A legal aligned output width of
+2147483632 overflows the intermediate sum even though its tiled work count is
+representable. The lowerer now uses `1 + (output_width - 1) / columns` for
+positive validated extents. Tests compile real matrix plans for ordinary and
+near-Int-limit widths and compare the generated constant with an independent
+Int64 ceiling calculation. Projection AOT tests pass 73/73. This is a source
+geometry bug fix; it does not allocate a giant tensor or claim a physical run
+at that width, and does not complete QKV transfer scheduling.
