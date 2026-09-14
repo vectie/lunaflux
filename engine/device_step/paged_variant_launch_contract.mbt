@@ -56,7 +56,15 @@ fn prepare_wide_prefill_bucket_contract(
       raise InvalidExecutor(GraphBucket)
     }
     let index = qwen_bucket_step_index(steps, attention.operation_id())
-    rules[index] = QueryTileCappedGridX(variant.launch, variant.query_tile_rows)
+    rules[index] = if variant.query_metadata {
+      QueryMetadataCappedGridX(
+        variant.launch,
+        variant.query_tile_rows,
+        blueprint.profile().max_query_rows(),
+      )
+    } else {
+      QueryTileCappedGridX(variant.launch, variant.query_tile_rows)
+    }
   }
   Some(rules)
 }

@@ -44,6 +44,7 @@ priv enum PagedBucketStepLaunch {
   ProjectionBoundedWorkGridX(@launch_contract.AotLaunchDimensions, Int)
   QueryTokenCappedGridX(@launch_contract.AotLaunchDimensions)
   QueryTileCappedGridX(@launch_contract.AotLaunchDimensions, Int)
+  QueryMetadataCappedGridX(@launch_contract.AotLaunchDimensions, Int, Int)
   ProjectionTensorCoreGridX(@launch_contract.AotLaunchDimensions, Int)
   ProjectionScalarGridX(@launch_contract.AotLaunchDimensions, Int)
   ProjectionMlpUpGridX(@launch_contract.AotLaunchDimensions, Int)

@@ -172,7 +172,15 @@ fn prepare_qwen_graph_launch_contract(
           paged_qwen_postprocess_bucket_launch(postprocess)
         }
         launches[readonly_index] = if span.has_phase_specific_attention() {
-          QueryTileCappedGridX(readonly_launch, prefill_query_tile)
+          if span.readonly_query_metadata {
+            QueryMetadataCappedGridX(
+              readonly_launch,
+              prefill_query_tile,
+              blueprint.profile().max_query_rows(),
+            )
+          } else {
+            QueryTileCappedGridX(readonly_launch, prefill_query_tile)
+          }
         } else {
           QueryTokenCappedGridX(readonly_launch)
         }
@@ -295,11 +303,18 @@ fn paged_bucket_launch(
       paged_ceil_div(query_token_bound, query_tile),
     )
   }
+  if rule is QueryMetadataCappedGridX(source, _, _) {
+    return paged_capped_query_token_launch(
+      source,
+      paged_projection_bucket_grid_x(rule, query_token_bound),
+    )
+  }
   let source = match rule {
     FixedBucketLaunch => raise InvalidExecutor(GraphBucket)
     QueryTokenCappedGridX(value)
     | ProjectionBoundedWorkGridX(value, _)
     | QueryTileCappedGridX(value, _)
+    | QueryMetadataCappedGridX(value, _, _)
     | ProjectionTensorCoreGridX(value, _)
     | ProjectionScalarGridX(value, _)
     | ProjectionMlpUpGridX(value, _)

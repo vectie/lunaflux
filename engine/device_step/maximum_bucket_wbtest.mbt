@@ -35,4 +35,39 @@ test "maximum profile bucket retains safe launch specialization instead of artif
   for count in visited {
     assert_eq(count, 1)
   }
+  // CSR query rows have independent tails. The same semantic layout that
+  // allocates metadata supplies enough CTAs to avoid serializing those tails.
+  let metadata_rule = QueryMetadataCappedGridX(source, 64, 32)
+  assert_eq(paged_bucket_launch(metadata_rule, bound).grid_x(), 63)
+  assert_eq(paged_bucket_launch(metadata_rule, 8).grid_x(), 8)
+  assert_eq(paged_bucket_launch(metadata_rule, 1).grid_x(), 1)
+}
+
+///|
+test "metadata launch capacity covers independent row tails across query tiles" {
+  let source = @launch_contract.AotLaunchDimensions::new(
+    grid_x=4096,
+    grid_y=3,
+    grid_z=1,
+    block_x=128,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
+  for tile in [16, 32, 64, 128] {
+    for rows in 1..<=32 {
+      for extra in 0..<=256 {
+        let tokens = rows + extra
+        let launch = paged_bucket_launch(
+          QueryMetadataCappedGridX(source, tile, rows),
+          tokens,
+        )
+        // All rows except the first consume one token. Concentrating the
+        // remaining tokens realizes the maximum possible number of row tiles.
+        let actual_tiles = rows - 1 + paged_ceil_div(1 + extra, tile)
+        assert_eq(launch.grid_x(), actual_tiles)
+        assert_eq(launch.grid_y(), 3)
+      }
+    }
+  }
 }

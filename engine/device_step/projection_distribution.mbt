@@ -102,6 +102,17 @@ fn paged_projection_bucket_grid_x(
       Int::min(source.grid_x(), query_token_bound)
     QueryTileCappedGridX(source, query_tile) =>
       Int::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
+    QueryMetadataCappedGridX(source, query_tile, maximum_rows) => {
+      guard @luna_attention_metadata.AttentionMetadataLayout::new(
+          maximum_rows=Int::min(maximum_rows, query_token_bound),
+          maximum_tokens=query_token_bound,
+        )
+        is Some(layout) &&
+        layout.bucket(query_tile) is Some((_, _, tiles)) else {
+        raise InvalidExecutor(GraphBucket)
+      }
+      Int::min(source.grid_x(), tiles)
+    }
     ProjectionTensorCoreGridX(source, output_width) => {
       let groups = paged_projection_workgroups(source)
       let grid = if query_token_bound == 1 {
