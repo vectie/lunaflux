@@ -135,7 +135,7 @@ fn emit_cuda_query_owned_attention_source(
     $|          next[r]=fmaxf(next[r],__shfl_xor_sync(0xffffffffU,next[r],1,4));
     $|          next[r]=fmaxf(next[r],__shfl_xor_sync(0xffffffffU,next[r],2,4));
     $|          next[r]=fmaxf(next[r],maximum[r]);
-    $|          alpha[r]=isinf(maximum[r])?0.0f:expf(maximum[r]-next[r]);
+    $|          alpha[r]=lf_masked_exp(maximum[r],maximum[r]-next[r]);
     $|          maximum[r]=next[r];
     $|        }
     $|        #pragma unroll

@@ -15,6 +15,9 @@ test "query-owned source carries QK softmax PV across register ownership" {
     assert_true(text.contains("cvt.rn.bf16x2.f32"))
     assert_true(text.contains("__float_as_uint(value)&mask"))
     assert_false(text.contains("weight[item]=isinf"))
+    assert_true(
+      text.contains("alpha[r]=lf_masked_exp(maximum[r],maximum[r]-next[r])"),
+    )
     assert_false(text.contains("__expf("))
     assert_true(
       text.contains("lf_matrix_mma(out[column],probability,value,true)"),
@@ -80,9 +83,15 @@ test "dense current and paged history share synchronous and async address loweri
       assert_true(text.contains("cp.async.wait_group 1"))
       assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,0)"))
       assert_true(text.contains("stage_query_tile(kb+LF_KEY_VALUE_TILE,0,1)"))
+      assert_true(
+        text.contains("(long long)kb+LF_KEY_VALUE_TILE<=row_position_begin"),
+      )
+      assert_true(text.contains("stage_history_tile(kb,stage,kind)"))
+      assert_true(text.contains("const bool from_current=false"))
       assert_false(text.contains("slot^1"))
     } else {
       assert_false(text.contains("pending_values"))
+      assert_false(text.contains("stage_history_tile"))
     }
   }
 }

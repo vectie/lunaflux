@@ -53,9 +53,53 @@ fn cuda_query_owned_stage(
       #|      for (int vector=thread; vector<LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8; vector+=LF_BLOCK_THREADS) {
     )
   }
+  // Partial evaluation of the interval union: a whole historical tile cannot
+  // intersect the current rows. Keep the mixed edge tile and the retained V
+  // consumer unchanged; only K produces a new address product.
+  let specialize = split && dense
+  let mixed = cuda_query_owned_stage_body(
+    abi,
+    dense,
+    split,
+    if specialize {
+      "stage_mixed_tile"
+    } else {
+      "stage_query_tile"
+    },
+    vectors,
+    transfer,
+    commit,
+  )
+  if specialize {
+    retained +
+    mixed +
+    cuda_query_owned_stage_body(
+      abi, false, split, "stage_history_tile", vectors, transfer, commit,
+    ) +
+    (
+      #|    auto stage_query_tile = [&](int kb, int stage, int kind) {
+      #|      if (kind==0 && (long long)kb+LF_KEY_VALUE_TILE<=row_position_begin)
+      #|        stage_history_tile(kb,stage,kind);
+      #|      else stage_mixed_tile(kb,stage,kind);
+      #|    };
+    )
+  } else {
+    retained + mixed
+  }
+}
+
+///|
+fn cuda_query_owned_stage_body(
+  abi : CudaPagedAttentionTileAbi,
+  dense : Bool,
+  split : Bool,
+  name : String,
+  vectors : String,
+  transfer : String,
+  commit : String,
+) -> String {
   let source =
-    $|\{retained}
-    $|    auto stage_query_tile = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {
+    $|    auto \{name} = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {
     $|\{vectors}
     $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
     $|        const int position=kb+r;
