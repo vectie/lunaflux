@@ -444,3 +444,18 @@ an unnecessarily large wide product. Existing valid ingress plans retain
 their semantic representation; two wrapped-extent regressions are rejected.
 This is a compiler input-identity correction, not the completion of QKV operand
 segmentation or a change to kernel arithmetic.
+
+### Shared concatenated-row planning
+
+Projection compilation now owns a pure prefix-sum plan for concatenated
+immutable weight operands: ordinal operand identity and half-open row ranges,
+with nonpositive and overflowing extents rejected. Scalar and matrix QKV
+lowering consume this same plan through one device-side branch renderer.
+The renderer preserves the existing nested selection and generated spelling;
+this change does not enable the previously slower address-hoisting schedule.
+
+Tests cover one, three and four operands, unequal widths, complete row coverage,
+the Int extent boundary and exact QKV branch spelling. Native projection
+compiler tests pass 56/56 and CUDA projection AOT tests pass 71/71; the full
+warning-denied native check passes. This is shared row-view infrastructure,
+not complete transfer-worker segmentation, persistent tuning, or a GPU speedup.

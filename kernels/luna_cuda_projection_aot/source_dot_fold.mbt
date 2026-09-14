@@ -55,7 +55,20 @@ fn projection_scalar_map_source(
     "const __nv_bfloat16 *weight"
   }
   let select_weight = if segmented {
-    "const __nv_bfloat16 *weight = query_weight; int local_column = column; if (local_column >= \{parameters.query_width}) { local_column -= \{parameters.query_width}; if (local_column >= \{parameters.intermediate_width}) { local_column -= \{parameters.intermediate_width}; weight = value_weight; } else weight = key_weight; }"
+    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([
+        parameters.query_width,
+        parameters.intermediate_width,
+        parameters.intermediate_width,
+      ],
+    ).unwrap()
+    let (binding, branch) = projection_concatenated_weight_selection(
+      segments,
+      ["query_weight", "key_weight", "value_weight"],
+      "column",
+      "weight",
+      "local_column",
+    )
+    binding + " " + branch
   } else {
     "const int local_column = column;"
   }

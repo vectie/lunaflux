@@ -35,8 +35,20 @@ fn projection_matrix_pipeline_source(
     "logical_row"
   }
   let weight_selection = if parameters.family == QkvProjection {
-    "const __nv_bfloat16 *base = query_weight; int weight_row = logical_column;\n" +
-    "          if (weight_row >= \{parameters.query_width}) { weight_row -= \{parameters.query_width}; if (weight_row >= \{parameters.intermediate_width}) { weight_row -= \{parameters.intermediate_width}; base = value_weight; } else base = key_weight; }\n"
+    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([
+        parameters.query_width,
+        parameters.intermediate_width,
+        parameters.intermediate_width,
+      ],
+    ).unwrap()
+    let (binding, branch) = projection_concatenated_weight_selection(
+      segments,
+      ["query_weight", "key_weight", "value_weight"],
+      "logical_column",
+      "base",
+      "weight_row",
+    )
+    binding + "\n          " + branch + "\n"
   } else {
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }

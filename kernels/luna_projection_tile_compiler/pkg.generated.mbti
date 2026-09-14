@@ -19,6 +19,8 @@ pub fn partition_projection_sibling_reuse(row_tiles~ : Int, output_tiles~ : Int,
 
 pub fn partition_projection_transfer_segments(ArrayView[Int], workers~ : Int) -> Array[ProjectionTransferSegment]?
 
+pub fn plan_projection_concatenated_rows(ArrayView[Int]) -> ReadOnlyArray[ProjectionRowSegment]?
+
 pub fn projection_bounded_row_extent(maximum_rows~ : Int, matrix_rows~ : Int, preferred_rows~ : Int) -> Int?
 
 pub fn projection_selected_row_gather(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowGather?
@@ -117,6 +119,12 @@ pub fn ProjectionProductFoldDistribution::rows_per_group(Self) -> Int
 pub(all) enum ProjectionResultDemand {
   AllTokenRows
   QueryRowEnds
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionRowSegment {
+  operand : Int
+  row_begin : Int
+  row_end : Int
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ProjectionRowTailPolicy {
