@@ -131,3 +131,19 @@ pub fn compile_attention_tile_candidate_plan(
     static_cost: attention_candidate_static_cost(problem, candidate),
   }
 }
+
+///|
+/// Generate and reify the legal static plans once for whole-frontier consumers.
+/// Unlike the external single-candidate entry point, these values need no
+/// repeated membership scan: they originate from the validated generator.
+pub fn compile_attention_tile_candidate_plans(
+  problem : AttentionCompileProblem,
+  capabilities : AttentionCompilerCapabilities,
+) -> ReadOnlyArray[CompiledAttentionTilePlan] raise AttentionStrategyError {
+  generate_attention_tile_candidates(problem, capabilities).map(candidate => {
+    problem,
+    candidate,
+    source: AttentionStaticCostModel,
+    static_cost: attention_candidate_static_cost(problem, candidate),
+  })
+}

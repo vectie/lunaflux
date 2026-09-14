@@ -211,3 +211,11 @@ silently. Every functional variant must now be accounted for by exactly one
 emitted or rejected entry; failure of the selected variant still fails the
 compilation. Diagnostics remain outside executable canonical bytes and outside
 token execution. This does not make a rejected lowering supported.
+
+Whole-frontier consumers now generate validated static plans in one pass rather
+than regenerating the entire candidate set for each member. Both ordinary and
+partitioned compilation consume those plans. The public single-candidate entry
+point still validates external candidates. A regression compares every batch
+plan to its individually validated equivalent. Resource-budget preparation also
+uses the previous AOT frontier. These reduce compiler work, not GPU latency;
+no compile-time speedup percentage has yet been measured.

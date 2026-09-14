@@ -18,6 +18,7 @@ fn qwen_attention_resource_request(
   let expanded = @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
     expanded_request,
     [],
+    previous=frontier,
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }

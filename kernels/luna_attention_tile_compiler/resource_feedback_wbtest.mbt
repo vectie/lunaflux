@@ -105,10 +105,19 @@ test "numerical and read-view contracts participate in program identity" {
     problem,
     base.capabilities,
   )
-  let first = compile_static_attention_tile_candidate(base, candidates[0])
+  let plan = @luna_attention_strategy.compile_attention_tile_candidate_plan(
+    base.problem,
+    base.capabilities,
+    candidates[0],
+  )
+  let first = compile_static_attention_tile_candidate(base, plan)
   let second = compile_static_attention_tile_candidate(
     { ..base, problem: changed, },
-    candidates[0],
+    @luna_attention_strategy.compile_attention_tile_candidate_plan(
+      changed,
+      base.capabilities,
+      candidates[0],
+    ),
   )
   assert_true(first.program().digest() != second.program().digest())
 }

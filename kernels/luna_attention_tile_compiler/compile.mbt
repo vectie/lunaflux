@@ -118,7 +118,7 @@ pub fn compile_partitioned_attention_tile(
       optimize_attention_tile(elaborate_attention_tile(selected)),
     )
   }
-  let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+  let plans = @luna_attention_strategy.compile_attention_tile_candidate_plans(
     request.problem,
     request.capabilities,
   ) catch {
@@ -126,14 +126,7 @@ pub fn compile_partitioned_attention_tile(
   }
   let mut best : ScheduledAttentionTileCompilation? = None
   let mut best_score = 9223372036854775807L
-  for candidate in candidates {
-    let plan = @luna_attention_strategy.compile_attention_tile_candidate_plan(
-      request.problem,
-      request.capabilities,
-      candidate,
-    ) catch {
-      _ => raise InvalidAttentionTileCompilation(StrategySelection)
-    }
+  for plan in plans {
     let optimized = optimize_attention_tile(
       elaborate_attention_tile({ request, plan, }),
     )
@@ -247,15 +240,8 @@ fn attention_tile_resource_score(
 ///|
 fn compile_static_attention_tile_candidate(
   request : AttentionTileCompilerRequest,
-  candidate : @luna_attention_strategy.AttentionTileCandidate,
+  plan : @luna_attention_strategy.CompiledAttentionTilePlan,
 ) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError {
-  let plan = @luna_attention_strategy.compile_attention_tile_candidate_plan(
-    request.problem,
-    request.capabilities,
-    candidate,
-  ) catch {
-    _ => raise InvalidAttentionTileCompilation(StrategySelection)
-  }
   schedule_attention_tile(
     optimize_attention_tile(elaborate_attention_tile({ request, plan, })),
   )
@@ -301,13 +287,13 @@ fn compile_attention_tile_frontier_reusing(
       ),
     ])
   } else {
-    let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
+    let plans = @luna_attention_strategy.compile_attention_tile_candidate_plans(
       request.problem,
       request.capabilities,
     ) catch {
       _ => raise InvalidAttentionTileCompilation(StrategySelection)
     }
-    candidates.map(candidate => {
+    plans.map(plan => {
       if previous is Some(previous) {
         for cached in previous.variants {
           let old = cached.optimized.semantic.selected.request
@@ -316,7 +302,7 @@ fn compile_attention_tile_frontier_reusing(
             old.problem == request.problem &&
             old.capabilities == request.capabilities &&
             cached.plan().source() == AttentionStaticCostModel &&
-            cached.plan().candidate() == candidate {
+            cached.plan() == plan {
             reused += 1
             // Resource and latency observations are selection inputs, not IR
             // inputs. Rebind them so downstream scoring sees the new values.
@@ -327,7 +313,7 @@ fn compile_attention_tile_frontier_reusing(
           }
         }
       }
-      compile_static_attention_tile_candidate(request, candidate)
+      compile_static_attention_tile_candidate(request, plan)
     })
   }
   if variants.length() == 0 {
