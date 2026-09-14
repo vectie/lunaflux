@@ -533,3 +533,21 @@ geometry over the admitted domain. For rows=32/tokens=4096, counting the loop
 visits gives 5,398,176 old versus 2,373 new prefill/mixed slot visits across
 21 context buckets. These are algorithmic work counts, not measured latency
 or GPU throughput.
+
+### Linux committed-package regression at 3c231dd6
+
+On the NVIDIA host's MoonBit 0.1.20260904 toolchain, native warning-denied tests
+pass for execution-graph strategy (8/8), projection tile compiler (56/56), and
+CUDA projection AOT (72/72). These are the three packages archived from commit
+3c231dd6, overlaid on the existing isolated diagnostic dependency tree; this
+does not establish a clean whole-repository Linux build or Linux runtime
+allocation-probe pass. No GPU workload was launched. Root disk availability
+was 477 MiB before and 445 MiB after the run.
+
+Source-package archive SHA-256:
+`6569bf0d1c515a2f1c9aca22eba1780dcd2901eddfc7bff68cc3929a979d9ed9`.
+Downloaded raw logs and driver:
+`/tmp/lunaflux-compiler-linux-3c231dd6-results.tar.gz`, SHA-256
+`b2f953d7e9007e6b9cf99e63b314149d0c0d0d85e6a5822a5e0270abcc2aac4d`.
+The orchestration script reports an async dependency packaging deprecation;
+that is separate from the package test results.
