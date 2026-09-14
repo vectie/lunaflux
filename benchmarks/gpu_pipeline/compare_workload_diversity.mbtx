@@ -1,0 +1,44 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json" }
+
+async fn tokens(path : String) -> Array[Json] {
+  guard @json.parse(@fs.read_file(path).text()) is {"token_ids":Array(ids),..} else {fail("tokens "+path)}
+  ids
+}
+
+fn difference(a : Array[Json], b : Array[Json]) -> Int raise {
+  assert_eq(a.length(),b.length())
+  for i in 0..<a.length() {if a[i]!=b[i] {return i}}
+  -1
+}
+
+async fn main {
+  let args=@env.args()
+  guard args.length()==3 else {fail("BASELINE_DIRECTORY VARIANT_DIRECTORY")}
+  let differences : Array[Json]=[]
+  let mut requests=0;let mut total=0
+  let mut baseline_repeat_diffs=0;let mut variant_repeat_diffs=0
+  for c in [8,16] {
+    for name in ["uniform-shared","uniform-distinct","ragged-input","ragged-both","uniform-staggered","ragged-staggered","ragged-reverse-staggered"] {
+      for row in 0..<c {
+        let reference=name+"-c\{c}-t1-r\{row}"
+        let first_a=tokens(args[1]+"/"+reference+".json")
+        let first_b=tokens(args[2]+"/"+reference+".json")
+        for t in 1..<4 {
+          let stem=name+"-c\{c}-t\{t}-r\{row}"
+          assert_eq(@fs.read_file(args[1]+"/"+stem+".body.json").text(),@fs.read_file(args[2]+"/"+stem+".body.json").text())
+          let a=tokens(args[1]+"/"+stem+".json");let b=tokens(args[2]+"/"+stem+".json")
+          requests+=1;total+=a.length()
+          let at=difference(a,b)
+          if at>=0 {differences.push({"request":stem,"first_difference":at,"baseline":a[at],"variant":b[at]})}
+          if t>1 {
+            if difference(a,first_a)>=0 {baseline_repeat_diffs+=1}
+            if difference(b,first_b)>=0 {variant_repeat_diffs+=1}
+          }
+        }
+      }
+    }
+  }
+  let result : Json={"requests":requests,"tokens":total,"cross_variant_different_requests":differences.length(),"baseline_repeat_different_requests":baseline_repeat_diffs,"variant_repeat_different_requests":variant_repeat_diffs,"differences":differences}
+  @fs.write_file(args[2]+"/TOKEN_COMPARISON.json",result.stringify(),create_mode=CreateNew)
+  println("requests=\{requests} tokens=\{total} cross_variant_differences=\{differences.length()} baseline_repeat_differences=\{baseline_repeat_diffs} variant_repeat_differences=\{variant_repeat_diffs}")
+}
