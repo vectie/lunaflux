@@ -10,8 +10,10 @@ pub fn lower_attention_ingress_numerics(
     abort("CUDA attention ingress requires a 32-lane numerical schedule")
   }
   let out = StringBuilder()
-  out <+
-    "static __device__ __constant__ float LF_ROPE_INV_FREQ[\{dimension / 2}] = {"
+  // Each lane reads a different frequency. CUDA constant memory broadcasts
+  // uniform addresses but serializes divergent ones; use read-only device
+  // storage so the lane-contiguous basis can be fetched together instead.
+  out <+ "static __device__ const float LF_ROPE_INV_FREQ[\{dimension / 2}] = {"
   for index, frequency in plan.rotary_basis() {
     if index > 0 {
       out.write_string(", ")

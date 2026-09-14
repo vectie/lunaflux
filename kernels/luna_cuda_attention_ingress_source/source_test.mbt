@@ -28,4 +28,8 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
   assert_false(source.contains("blockDim"))
   assert_false(source.contains("powf("))
   assert_false(source.contains("__syncthreads"))
+  assert_true(
+    source.contains("static __device__ const float LF_ROPE_INV_FREQ[64]"),
+  )
+  assert_false(source.contains("__constant__"))
 }
