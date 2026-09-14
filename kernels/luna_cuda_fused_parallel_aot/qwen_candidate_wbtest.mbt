@@ -2,16 +2,20 @@
 fn qwen_fused_test_candidate(
   head_dimension? : Int = 32,
   maximum_tokens? : Int = 8,
+  query_heads? : Int = 4,
+  kv_heads? : Int = 2,
+  hidden_width? : Int,
+  export_projection? : Bool = false,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
-    hidden_size=4 * head_dimension,
+    hidden_size=hidden_width.unwrap_or(4 * head_dimension),
     intermediate_size=8 * head_dimension,
     layer_count=1,
-    attention_head_count=4,
-    kv_head_count=2,
+    attention_head_count=query_heads,
+    kv_head_count=kv_heads,
     head_dimension~,
-    context_length=256,
+    context_length=Int::max(256, maximum_tokens),
     rope_theta=1000000.0,
     weight_dtype=BFloat16,
     kv_dtype=BFloat16,
@@ -29,7 +33,7 @@ fn qwen_fused_test_candidate(
     plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=16,
-      total_page_count=64,
+      total_page_count=Int::max(64, 4 * (1 + (maximum_tokens - 1) / 16)),
       max_arena_bytes=67108864L,
     ),
   )
@@ -37,7 +41,7 @@ fn qwen_fused_test_candidate(
     id=@launch_contract.KernelProfileId::from_stable_int(19),
     max_query_rows=4,
     max_query_tokens=maximum_tokens,
-    max_page_table_entries=16,
+    max_page_table_entries=Int::max(16, 4 * (1 + (maximum_tokens - 1) / 16)),
   )
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
@@ -87,6 +91,11 @@ fn qwen_fused_test_candidate(
     is (Some(qkv), Some(qk_norm), Some(rope), Some(attention)) else {
     abort("Qwen fused fixture lacked reference fallback")
   }
+  if export_projection {
+    println("LUNA_SOURCE_BEGIN projection-cut")
+    println(@utf8.decode(qkv.source_bytes()))
+    println("LUNA_SOURCE_END")
+  }
   let kv_operands : Array[@launch_contract.AotOperand] = []
   for operand in attention.operands() {
     match operand.role() {
@@ -107,6 +116,52 @@ fn qwen_fused_test_candidate(
       max_recipe_bytes=65536,
     ),
   )
+  if export_projection {
+    let operands : Array[@launch_contract.AotOperand] = []
+    for operand in kv_write.operands() {
+      if operand.role() is RuntimeInput(_) {
+        operands.push(operand)
+      }
+    }
+    for operand in qk_norm.operands() {
+      match operand.role() {
+        ActivationInput(_) | WeightInput(_) => operands.push(operand)
+        _ => ()
+      }
+    }
+    for operand in rope.operands() {
+      if operand.role() is ActivationOutput(_) {
+        operands.push(operand)
+      }
+    }
+    for operand in kv_write.operands() {
+      if operand.role() is PersistentKvComponent(_, _) {
+        operands.push(operand)
+      }
+    }
+    let partial = @luna_cuda_qknorm_rope_paged_kv_write_aot.lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
+      plan,
+      @luna_fusion_plan.match_qkv_qknorm_positioned_rope_paged_kv_write(
+        plan,
+        @plan.OperationId::new(2),
+      ),
+      profile,
+      layout,
+      target,
+      compiler,
+      operands[:],
+      @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteAotLimits::new(
+        max_source_bytes=1048576,
+        max_recipe_bytes=65536,
+        max_module_bytes=1048576L,
+        max_receipt_bytes=65536,
+        max_binding_bytes=65536,
+      ),
+    )
+    println("LUNA_SOURCE_BEGIN postprocess-cut")
+    println(@utf8.decode(partial.source_bytes()))
+    println("LUNA_SOURCE_END")
+  }
   lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     plan,
     layout,

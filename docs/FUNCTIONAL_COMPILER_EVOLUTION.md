@@ -681,3 +681,29 @@ Downloaded sources, executables, scripts and old/new logs:
 No performance gain is inferred. These structured numerical cases do not
 resolve the separate 128-dimensional full-chain model-logit divergence or
 replace fresh end-to-end serving qualification.
+
+### Full versus partial ingress: numerical cut-point retest
+
+The fused fixture now accepts query/KV head counts, hidden width and token
+capacity independently. Its opt-in `LUNA_TEST_EXPORT_INGRESS_CUT=1` export emits
+ordinary projection, partial postprocessing and complete fused ingress from
+the same model plan, profile and operands. The default test emits no sources.
+The 1024-to-4096, 16-query/8-KV-head, head-128 fixture has a 2048-token envelope
+and enough context/page-table capacity, rather than silently reusing the small
+fixture's 256-position envelope.
+
+Fresh RTX 5060 Ti synthetic tests compare token counts 1/17/32/1024/2048.
+The diagnostic full kernel writes its BF16-rounded projection intermediate;
+every element matches ordinary projection exactly. Applying partial
+QKNorm/RoPE/KV-write to that ordinary projection also matches the complete
+fused rotated output and both KV arenas bit-for-bit in all five cases.
+Inputs and weights are deterministic pseudorandom BF16, not captured model
+activations. These results therefore do not resolve the real-model logit
+divergence, establish performance, or admit a new production runtime. The
+next numerical test needs actual request activations and the selected runtime
+variants. Fused package tests pass 23/23; native warning-denied check and
+interface generation pass.
+
+Downloaded cut-point sources, diagnostic executables and logs:
+`/tmp/lunaflux-ingress-numeric-cuts.tar.gz`, SHA-256
+`c23c00020058f56f8f7560e64dbb38fd8ad0a68b332a8a582aea91777bb79741`.
