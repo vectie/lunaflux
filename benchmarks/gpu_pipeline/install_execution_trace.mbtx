@@ -1,0 +1,106 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+}
+
+// Apply only to a disposable diagnostic source copy, never the serving tree.
+fn replace_exact(text : String, before : String, after : String, count : Int) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == count + 1 else { fail("diagnostic seam changed: " + before) }
+  parts.join(after)
+}
+
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 else { fail("usage: install_execution_trace.mbtx DISPOSABLE_SOURCE") }
+  let root = args[1] + "/engine/device_step/"
+  let run = @fs.read_file(root + "paged_executor_run.mbt").text()
+  let run = replace_exact(run,
+    "  let graph_bucket = select_",
+    "  let trace_start = trace_clock()\n  let graph_bucket = select_", 2)
+  let run = replace_exact(run,
+    "  let descriptor = complete_descriptor(self.resources)\n  let staged =",
+    "  let trace_route_ns = trace_clock() - trace_start\n  let descriptor = complete_descriptor(self.resources)\n  let staged =", 2)
+  let run = replace_exact(run,
+    "  self.lifecycle = GraphStaged\n  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }",
+    "  trace_bucket(staged.1, graph_bucket, ordered_executor_index, descriptor.host.output_rows, trace_route_ns)\n  self.lifecycle = GraphStaged\n  { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }", 2)
+  let run = replace_exact(run,
+    "  let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)",
+    "  trace_frame(frame)\n  let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)", 1)
+  let run = replace_exact(run,
+    "  let graph_bucket = select_submitted_graph_bucket(",
+    "  trace_plan(plan)\n  let graph_bucket = select_submitted_graph_bucket(", 1)
+  // Exclude row diagnostic writes from the measured route interval.
+  let run = replace_exact(run,"  let trace_start = trace_clock()\n  trace_frame(frame)","  trace_frame(frame)\n  let trace_start = trace_clock()",1)
+  let run = replace_exact(run,"  let trace_start = trace_clock()\n  trace_plan(plan)","  trace_plan(plan)\n  let trace_start = trace_clock()",1)
+  let run = replace_exact(run,
+    "  self.lifecycle = GraphExecuting\n  match ordered.execution_mode() {",
+    "  trace_event(4, staged.epoch, staged.ordered_executor_index, (if ordered.execution_mode() == OrderedKernelCaptured { 1 } else { 0 }), 0, 0, 0, 0, 0UL)\n  self.lifecycle = GraphExecuting\n  match ordered.execution_mode() {",1)
+  let run = replace_exact(run,
+    "  self.graph_telemetry.record_completed(ordered.execution_mode())",
+    "  trace_event(5, staged.epoch, staged.ordered_executor_index, 0, 0, 0, 0, 0, 0UL)\n  self.graph_telemetry.record_completed(ordered.execution_mode())",1)
+  let bindings =
+    #|///|
+    #|extern "c" fn trace_clock() -> UInt64 = "lf_trace_clock"
+    #|///|
+    #|extern "c" fn trace_event(kind : Int, sequence : UInt64, a : Int, b : Int, c : Int, d : Int, e : Int, f : Int, elapsed : UInt64) = "lf_trace_event"
+    #|///|
+    #|fn trace_bucket(epoch : UInt64, bucket : @luna_execution_graph_strategy.ExecutionGraphBucket, owner : Int, outputs : Int, elapsed : UInt64) -> Unit {
+    #|  let (rows, tokens, context) = bucket.upper_bounds()
+    #|  trace_event(3, epoch, bucket.slot(), owner, rows, tokens, context, outputs, elapsed)
+    #|}
+    #|///|
+    #|fn trace_frame(frame : @worker_wire.ValidatedPlanFrame) -> Unit raise DeviceStepError {
+    #|  try {
+    #|    let seq = frame.sequence_value()
+    #|    let p = frame.prefill_count()
+    #|    let d = frame.decode_count()
+    #|    trace_event(0, seq, p+d, frame.token_count(), p, d, 0, 0, 0UL)
+    #|    for i in 0..<p {
+    #|      let row = frame.prefill_row(i)
+    #|      trace_event(1, seq, i, row.token_length(), row.sequence_token_start(), 0, 0, 0, 0UL)
+    #|    }
+    #|    for i in 0..<d { trace_event(2, seq, i, 1, frame.decode_row(i).sequence_token_position(), 0, 0, 0, 0UL) }
+    #|  } catch { error => raise Wire(error) }
+    #|}
+    #|///|
+    #|fn trace_plan(plan : @worker_protocol.SubmittedSchedulePlan) -> Unit raise DeviceStepError {
+    #|  try {
+    #|    let seq = plan.sequence_wire()
+    #|    let p = plan.prefill_count()
+    #|    let d = plan.decode_count()
+    #|    trace_event(0, seq, plan.row_count(), plan.token_count(), p, d, 0, 0, 0UL)
+    #|    for i in 0..<p {
+    #|      let row = plan.prefill_row(i)
+    #|      trace_event(1, seq, i, row.tokens().length(), row.sequence_token_start(), 0, 0, 0, 0UL)
+    #|    }
+    #|    for i in 0..<d { trace_event(2, seq, i, 1, plan.decode_row(i).sequence_token_position(), 0, 0, 0, 0UL) }
+    #|  } catch { error => raise Protocol(error) }
+    #|}
+  let stub =
+    #|#define _POSIX_C_SOURCE 200809L
+    #|#include <moonbit.h>
+    #|#include <stdint.h>
+    #|#include <stdio.h>
+    #|#include <stdlib.h>
+    #|#include <time.h>
+    #|#include <unistd.h>
+    #|#include <errno.h>
+    #|MOONBIT_FFI_EXPORT uint64_t lf_trace_clock(void) {
+    #|  struct timespec t; if(clock_gettime(CLOCK_MONOTONIC,&t)) abort();
+    #|  return (uint64_t)t.tv_sec*1000000000ULL+t.tv_nsec;
+    #|}
+    #|MOONBIT_FFI_EXPORT void lf_trace_event(int k,uint64_t s,int a,int b,int c,int d,int e,int f,uint64_t elapsed) {
+    #|  char buf[256]; int n=snprintf(buf,sizeof(buf),"lf_exec kind=%d ns=%llu seq=%llu a=%d b=%d c=%d d=%d e=%d f=%d elapsed=%llu\n",k,(unsigned long long)lf_trace_clock(),(unsigned long long)s,a,b,c,d,e,f,(unsigned long long)elapsed);
+    #|  if(n<=0 || n>=(int)sizeof(buf)) abort();
+    #|  for(int i=0;i<n;) {ssize_t w=write(2,buf+i,(size_t)(n-i));if(w<0 && errno==EINTR)continue;if(w<=0)abort();i+=(int)w;}
+    #|}
+  @fs.write_file(root + "diagnostic_execution.mbt", bindings, create_mode=CreateNew)
+  @fs.write_file(root + "diagnostic_execution.c", stub, create_mode=CreateNew)
+  let pkg = @fs.read_file(root + "moon.pkg").text()
+  guard !pkg.contains("native-stub") else { fail("inspect existing native stubs") }
+  @fs.write_file(root + "moon.pkg", pkg + "\noptions(\"native-stub\": [\"diagnostic_execution.c\"])\n")
+  @fs.write_file(root + "paged_executor_run.mbt", run)
+  println("diagnostic-only worker trace installed")
+}
