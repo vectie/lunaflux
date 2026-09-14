@@ -404,3 +404,32 @@ run passes 3,778/3,778; because the segmentation regression was added while
 that run was compiling, the separately completed 54-test run is the explicit
 verification of the new case. Existing C allocation-probe attribute warnings
 remain unrelated to this compiler arithmetic change.
+
+### Fresh expanded-attention GPU replay at b4aa5b73
+
+The committed attention packages and diagnostic exporter were overlaid on the
+existing isolated Linux source tree. Exporter rebuild and five fresh cubin
+compilations used CUDA 13.1.115; UUID/PCI matched the RTX 5060 Ti and it was idle
+at admission. All five emitted sources equal the earlier capacity-corrected
+sources byte-for-byte. This is not a clean whole-repository serving rebuild.
+
+Five interleaved trials per candidate compare 2,048 query tokens with either
+zero or 2,048 history tokens against the existing c322 baseline. Median us:
+
+| Candidate | History 0 baseline / new | History 2048 baseline / new |
+| --- | ---: | ---: |
+| 1003 | 533.48 / 1659.61 | 1426.97 / 4966.78 |
+| 1004 | 534.27 / 1030.71 | 1436.06 / 2639.09 |
+| 1005 | 533.87 / 2134.77 | 1432.05 / 6145.28 |
+| 1006 | 538.31 / 590.18 | 1443.65 / 1584.32 |
+| 1008 | 536.86 / 626.29 | 1440.34 / 1647.07 |
+
+All ten probe runs exit zero with empty stderr and pass the independent scalar
+referee. Candidates 1003/1004/1005 equal the baseline bitwise; 1006/1008 differ
+by at most 0.000488281. Thus these latter cases are not bitwise equivalence or
+model-token validation. All remain slower, so no new schedule is promoted.
+No fresh sanitizer, serving or competitor campaign was run by this replay.
+
+Downloaded archive (driver, package archive, sources, cubins and raw results):
+`/tmp/lunaflux-compiler-gpu-b4aa5b73.tar.gz`, SHA-256
+`628e135e9e3768a2806be0abe16108c7c2177f73c0d47d0ac5bcfe7c14602820`.
