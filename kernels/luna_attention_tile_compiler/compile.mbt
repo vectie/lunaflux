@@ -114,9 +114,16 @@ pub fn compile_partitioned_attention_tile(
   let selected = select_attention_tile(request)
   if request.resource_budget is None ||
     selected.plan().source() == AttentionOfflineAutotune {
-    return schedule_partitioned_attention_tile(
+    let compilation = schedule_partitioned_attention_tile(
       optimize_attention_tile(elaborate_attention_tile(selected)),
     )
+    // Measurements outrank cost estimates, not device feasibility. Apply the
+    // same residency check as the ordinary frontier before returning a winner.
+    if attention_tile_resource_score(request, compilation) ==
+      9223372036854775807L {
+      raise InvalidAttentionTileCompilation(ResourceFeedback)
+    }
+    return compilation
   }
   let plans = @luna_attention_strategy.compile_attention_tile_candidate_plans(
     request.problem,

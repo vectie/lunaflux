@@ -290,3 +290,15 @@ No kernel schedule or inference speedup is claimed for this refactor.
 
 The CPU benchmark's prose-only README uses `.md`, avoiding the toolchain's
 deprecated blackbox-test input convention for executable packages.
+
+### Partitioned measured-selection resource fix
+
+Full native regression after the bucket refactor passed 3,770/3,770.
+Further audit reproduced a split-K compiler bug: an exact autotune winner
+returned before checking the supplied resource budget. Ordinary compilation
+already rejected zero residency. Partitioned compilation now applies the
+same feasibility rule; measured latency still outranks static ranking but
+cannot override shared-memory, thread or register capacity. Regression covers
+all three impossible budgets and proves a feasible measurement preserves its
+candidate, semantic program, schedule and digest. This changes invalid-plan
+handling, not generated kernels or inference latency.

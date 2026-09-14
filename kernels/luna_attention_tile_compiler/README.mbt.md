@@ -35,6 +35,9 @@ workgroup. The score includes **rounded waves**, not just occupancy, so the
 last incomplete wave remains visible. Both ordinary and partitioned AOT paths
 consume these values. Measurements remain authoritative; this static score is
 a ranking proxy, not a latency prediction or a substitute for spill counters.
+Measured winners must still fit the supplied resource limits, including on
+the partitioned path. A measurement cannot override zero feasible residency;
+an infeasible measured winner is rejected rather than silently replaced.
 
 Query-owned fragment schedules retain QK scores, softmax probabilities, and PV
 accumulators in the same owner across operators. Their differently ordered
