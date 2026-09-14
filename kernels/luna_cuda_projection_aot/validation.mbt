@@ -391,9 +391,13 @@ fn projection_bind_qkv_widths(
     operands[4].byte_count(),
     parameters.input_width,
   )
-  if key_width != value_width ||
-    query_width.to_int64() + 2L * key_width.to_int64() !=
-    parameters.output_width.to_int64() {
+  guard @luna_projection_tile_compiler.plan_projection_concatenated_rows([
+      query_width, key_width, value_width,
+    ])
+    is Some(segments) else {
+    raise Mismatch(OperandSize)
+  }
+  if key_width != value_width || segments[2].row_end != parameters.output_width {
     raise Mismatch(OperandSize)
   }
   { ..parameters, query_width, intermediate_width: key_width, }

@@ -459,3 +459,11 @@ the Int extent boundary and exact QKV branch spelling. Native projection
 compiler tests pass 56/56 and CUDA projection AOT tests pass 71/71; the full
 warning-denied native check passes. This is shared row-view infrastructure,
 not complete transfer-worker segmentation, persistent tuning, or a GPU speedup.
+
+QKV operand binding also consumes the same row plan rather than independently
+recomputing its total. Two binder regressions reject overflowing concatenations
+before source generation. The pre-binder-change full native suite completed
+3782/3782; it emitted C warnings from allocation-probe `malloc` macros expanding
+inside the new toolchain's allocator attribute. This is not a zero-warning C
+build and needs a separate probe-header correction. The subsequent binder
+change is covered by the focused projection AOT suite (72/72).
