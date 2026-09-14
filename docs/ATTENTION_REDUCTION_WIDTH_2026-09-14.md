@@ -62,3 +62,31 @@ Validation: full native suite 3739/3739, strategy 18/18, source 32/32, IR 3/3,
 schedule 18/18 and CUDA lowering 6/6 passed. All nine representative
 memcheck/racecheck/synccheck runs passed. The historical-interval change also
 passed six additional 63/64/65-position boundary cases.
+
+## Full-runtime integration attempt
+
+Current-worktree source snapshot SHA-256:
+`959032e9312508b7e2afc4bb78460ccfa866853ee05ee755488e621853cb7ef2`.
+This includes existing worktree changes; it is not a clean commit snapshot.
+Linux release builds of the worker, runtime, bridge, supervisor, candidate
+exporter, release binder and fused-bundle exporter passed in
+`/run/lunaflux-toolchain-4896771-20260913/attention-current.vX2pXE`.
+
+Fresh measurements of the actual exported 318/322/324 artifacts over
+`query={129,1528} × rows={1,8} × history={0,4096}` produced aggregate median
+latencies of 6,106,456 / 4,329,342 / 4,347,735 ns. The resulting tuning table
+selected c322, not c324. A narrower reduction is not universally faster, and
+these nearly tied aggregate values must not be presented as a large win for
+either schedule. Both remain available through the common compiler path.
+
+End-to-end measurements are blocked, not passed: the root filesystem has zero
+unprivileged available blocks; `/dev/shm` is also almost full. Moving this
+attempt to `/run` allowed the Linux build, but the existing AOT producer uses
+the hard-coded `/tmp/lunaflux-bf16-producer-input.XXXXXX` scratch path and failed
+twice before kernel compilation. `runtime-tuned/kernel-build*.stderr` preserves
+those failures. The earlier incomplete extraction was moved, without deletion,
+to this campaign's `interrupted-disk-full` directory. Production was untouched.
+
+Downloaded GPU-result archive SHA-256:
+`3b216f0f07366bf7d7093e70d282261fca95cb922661d1044efe2c78c51050fc`.
+Local copy: `/tmp/lunaflux-instruction-fix.9n6ITe/results324.tar.gz`.
