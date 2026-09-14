@@ -241,3 +241,10 @@ selection checked only input divisibility. Both now use one pure eligibility
 predicate. Regression rejects missing and dimension-incompatible companions
 while retaining the supported path. Projection strategy 9/9 and tile compiler
 53/53 tests pass. This closes an invalid-selection case, not a GEMM speed gap.
+
+Projection fold observations now retain sample counts and require the same
+count as their matched baseline. Counts may differ between independent baseline
+groups. Previously counts were discarded after checking only a minimum of
+three, allowing unequal-sample comparisons. Tests cover rejected mismatches,
+valid comparisons and independent groups; no production measurements were
+rewritten to satisfy the new rule.

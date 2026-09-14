@@ -5,6 +5,7 @@ pub struct ProjectionFoldRecord {
   priv baseline : String
   priv artifact : String
   priv nanoseconds : Int64
+  priv samples : Int
   priv choices : ReadOnlyArray[@compiler.ProjectionFoldChoice]
 }
 
@@ -27,6 +28,11 @@ pub fn ProjectionFoldRecord::median_latency_ns(
   self : ProjectionFoldRecord,
 ) -> Int64 {
   self.nanoseconds
+}
+
+///|
+pub fn ProjectionFoldRecord::sample_count(self : ProjectionFoldRecord) -> Int {
+  self.samples
 }
 
 ///|
@@ -68,9 +74,8 @@ pub fn parse_projection_fold_records(
       raise InvalidSnapshot
     }
     let nanoseconds = decimal(ns)
-    guard nanoseconds > 0L && integer(samples) >= 3 else {
-      raise InvalidSnapshot
-    }
+    let sample_count = integer(samples)
+    guard nanoseconds > 0L && sample_count >= 3 else { raise InvalidSnapshot }
     let choices : Array[@compiler.ProjectionFoldChoice] = []
     let roles : Array[@compiler.ProjectionFoldRole] = []
     if encoded != "-" {
@@ -109,12 +114,17 @@ pub fn parse_projection_fold_records(
       baseline: baseline.to_owned(),
       artifact: artifact.to_owned(),
       nanoseconds,
+      samples: sample_count,
       choices: ReadOnlyArray::from_array(choices),
     })
   }
   // Relative improvements require a matched baseline measurement.
   for record in records {
-    guard records.any(r => r.baseline == record.baseline && r.choices.is_empty()) else {
+    guard records.any(r => {
+      r.baseline == record.baseline &&
+      r.choices.is_empty() &&
+      r.samples == record.samples
+    }) else {
       raise InvalidSnapshot
     }
   }

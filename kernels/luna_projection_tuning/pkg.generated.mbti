@@ -26,6 +26,7 @@ pub fn ProjectionFoldRecord::artifact_sha256(Self) -> String
 pub fn ProjectionFoldRecord::baseline_sha256(Self) -> String
 pub fn ProjectionFoldRecord::fold_choices(Self) -> ReadOnlyArray[@luna_projection_tile_compiler.ProjectionFoldChoice]
 pub fn ProjectionFoldRecord::median_latency_ns(Self) -> Int64
+pub fn ProjectionFoldRecord::sample_count(Self) -> Int
 
 pub struct ProjectionTuningScope {
   // private fields
