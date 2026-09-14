@@ -137,3 +137,11 @@ history, cache conditions and instruction/memory behavior before proposing
 another compiler pass. Uniform-row microbenchmarks and generic bucket upper
 bounds are not substitutes for those inputs. This trace does not diagnose the
 instruction-level reason the microcase benefit disappears.
+
+The order/variant archive was downloaded to
+`/tmp/lunaflux-workload-order-wide-verified-20260914.tar.gz`, SHA-256
+`37c863b7eaf0c3e6a8c7af220a07781d32d57f619a060e33e0dc27d7754b65cc`.
+The trace archive `/tmp/lunaflux-wide-selection-trace-20260914.tar.gz` has SHA-256
+`ed172591d436a5664a2dcfd80cd971bb9459eb2ae40f67ee8a2b506733982b74`.
+Both match the remote archives. A stalled first SFTP download was stopped;
+its empty local file was retained and the verified download uses a new name.
