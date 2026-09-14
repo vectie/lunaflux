@@ -103,6 +103,7 @@ test "offline observations select a candidate and reject stale or malformed tabl
       header + workloads + "record\t999\t1\t3\n",
       header + workloads + "record\t318\t1\t3\nrecord\t318\t2\t3\n",
       header + workloads + "record\t318\t1\t2\n",
+      header + workloads + "record\t318\t200000\t7\nrecord\t322\t100000\t3\n",
       header + workloads + "record\t318\t0\t3\n",
       header + "workload\t1\t8\t0\nrecord\t318\t1\t3\n",
       header + workloads,

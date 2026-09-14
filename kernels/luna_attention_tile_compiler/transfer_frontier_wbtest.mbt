@@ -1,4 +1,32 @@
 ///|
+test "query-owned Cartesian schedules survive uncalibrated cost pruning" {
+  let base = transfer_frontier_request([])
+  let problem = @luna_attention_strategy.AttentionCompileProblem::new(
+    shape=@luna_attention_strategy.AttentionShape::new(
+      query_heads=16,
+      kv_heads=8,
+      head_dimension=128,
+      tokens_per_page=8,
+    ),
+    phase=Prefill,
+    numeric_type=AttentionBFloat16,
+    query_rows=2048,
+    context_tokens=4096,
+    causal=true,
+    allow_alternative_softmax_reduction=true,
+    key_value_read_view=DenseCurrentAndPagedHistory,
+    required_fragment_ownership=Some(QueryOwnedFragments),
+  )
+  let frontier = compile_attention_tile_frontier({ ..base, problem, })
+  assert_eq(frontier.variants().length(), 12)
+  for id in [318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008] {
+    assert_true(
+      frontier.variants().any(v => v.plan().candidate().stable_id() == id),
+    )
+  }
+}
+
+///|
 fn transfer_frontier_request(
   records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
 ) -> AttentionTileCompilerRequest raise {
@@ -29,6 +57,14 @@ fn transfer_frontier_request(
 test "transfer frontier retains overlap alternatives without selecting them blindly" {
   let request = transfer_frontier_request([])
   let frontier = compile_attention_tile_frontier(request)
+  let legal = @luna_attention_strategy.generate_attention_tile_candidates(
+    request.problem,
+    request.capabilities,
+  )
+  assert_eq(frontier.variants().length(), legal.length())
+  for candidate in legal {
+    assert_true(frontier.variants().any(v => v.plan().candidate() == candidate))
+  }
   let ids = frontier
     .variants()
     .map(variant => variant.plan().candidate().stable_id())

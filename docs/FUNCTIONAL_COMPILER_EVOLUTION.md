@@ -169,3 +169,11 @@ measured selection, incremental cache/publication, and broader numerical and
 performance coverage. The expanded opt-in search can change selection when
 no exact measurement is supplied; it must not be confused with approval of
 every new schedule for serving.
+
+The functional compiler no longer discards legal schedules using an estimated
+work/shared-storage Pareto test. Those estimates do not prove latency dominance
+and could erase transfer/geometry alternatives before tuning. Resource-feedback
+and no-feedback frontiers now preserve the same legal candidates; exact offline
+measurements still collapse selection to their winner. The tuning parser also
+rejects mixed sample counts within one workload-vector comparison, matching its
+documented equal-repetition contract.

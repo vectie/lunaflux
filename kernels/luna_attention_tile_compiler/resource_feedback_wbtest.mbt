@@ -38,8 +38,8 @@ test "resource feedback is immutable and unknown registers are not zero" {
   let base = functional_compiler_request([])
   let request = base.with_resource_feedback(feedback_test_budget(), [])
   let frontier = compile_attention_tile_frontier(request)
-  assert_true(
-    frontier.variants().length() >
+  assert_eq(
+    frontier.variants().length(),
     compile_attention_tile_frontier(base).variants().length(),
   )
   let variant = frontier.variants()[0]

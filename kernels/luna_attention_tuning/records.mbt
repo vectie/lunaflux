@@ -38,6 +38,7 @@ pub fn parse_attention_tuning_records(
   }
   let records : Array[@strategy.AttentionAutotuneRecord] = []
   let mut workloads = 0
+  let mut sample_count : Int? = None
   for line in lines {
     match line.split("\t").to_array() {
       ["workload", queries, rows, history] => {
@@ -60,6 +61,11 @@ pub fn parse_attention_tuning_records(
         let samples = positive(samples)
         if samples > 2147483647L {
           raise InvalidTable
+        }
+        match sample_count {
+          Some(expected) if expected.to_int64() != samples => raise InvalidTable
+          None => sample_count = Some(samples.to_int())
+          _ => ()
         }
         guard candidates.filter(c => c.stable_id().to_int64() == id)
           is [candidate] else {
