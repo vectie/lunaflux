@@ -97,14 +97,16 @@ test "incremental selection consumes new observations and does not retain old wi
     sample_count=7,
   )
   let request = transfer_frontier_request([record])
-  let (measured, _) = compile_attention_tile_frontier_incremental(
+  let (measured, reused) = compile_attention_tile_frontier_incremental(
     request, previous,
   )
   assert_eq(measured, compile_attention_tile_frontier(request))
+  assert_eq(reused, 1)
   assert_eq(measured.selected().plan().candidate().stable_id(), 316)
   assert_eq(measured.selected().plan().source(), AttentionOfflineAutotune)
-  let (restored, _) = compile_attention_tile_frontier_incremental(
+  let (restored, reused) = compile_attention_tile_frontier_incremental(
     base, measured,
   )
   assert_eq(restored, previous)
+  assert_eq(reused, 1)
 }

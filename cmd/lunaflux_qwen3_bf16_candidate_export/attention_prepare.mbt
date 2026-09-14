@@ -222,6 +222,7 @@ fn prepare_qwen_compiler_prefill(
   @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
     request,
     observations[:],
+    previous=resource_frontier,
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
@@ -329,6 +330,7 @@ fn prepare_qwen_compiler_decode(
   @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
     request,
     observations[:],
+    previous=expanded,
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }

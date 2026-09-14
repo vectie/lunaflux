@@ -271,6 +271,29 @@ pub fn compile_attention_tile_frontier_incremental(
 }
 
 ///|
+fn reuse_attention_tile(
+  selected : SelectedAttentionTileCompilation,
+  previous : AttentionTileCompilationFrontier?,
+) -> ScheduledAttentionTileCompilation? {
+  guard previous is Some(previous) else { return None }
+  let request = selected.request
+  for cached in previous.variants {
+    let old = cached.optimized.semantic.selected.request
+    if old.backend == request.backend &&
+      old.target == request.target &&
+      old.problem == request.problem &&
+      old.capabilities == request.capabilities &&
+      cached.plan().candidate() == selected.plan.candidate() {
+      // Selection provenance is not a semantic or schedule input.
+      let semantic = { ..cached.optimized.semantic, selected, }
+      let optimized = { ..cached.optimized, semantic, }
+      return Some({ ..cached, optimized, })
+    }
+  }
+  None
+}
+
+///|
 fn compile_attention_tile_frontier_reusing(
   request : AttentionTileCompilerRequest,
   previous : AttentionTileCompilationFrontier?,
@@ -281,11 +304,17 @@ fn compile_attention_tile_frontier_reusing(
     .plan()
     .source() ==
     AttentionOfflineAutotune {
-    ReadOnlyArray::from_array([
-      schedule_attention_tile(
-        optimize_attention_tile(elaborate_attention_tile(selected)),
-      ),
-    ])
+    let compilation = match reuse_attention_tile(selected, previous) {
+      Some(cached) => {
+        reused += 1
+        cached
+      }
+      None =>
+        schedule_attention_tile(
+          optimize_attention_tile(elaborate_attention_tile(selected)),
+        )
+    }
+    ReadOnlyArray::from_array([compilation])
   } else {
     let plans = @luna_attention_strategy.compile_attention_tile_candidate_plans(
       request.problem,
@@ -294,24 +323,9 @@ fn compile_attention_tile_frontier_reusing(
       _ => raise InvalidAttentionTileCompilation(StrategySelection)
     }
     plans.map(plan => {
-      if previous is Some(previous) {
-        for cached in previous.variants {
-          let old = cached.optimized.semantic.selected.request
-          if old.backend == request.backend &&
-            old.target == request.target &&
-            old.problem == request.problem &&
-            old.capabilities == request.capabilities &&
-            cached.plan().source() == AttentionStaticCostModel &&
-            cached.plan() == plan {
-            reused += 1
-            // Resource and latency observations are selection inputs, not IR
-            // inputs. Rebind them so downstream scoring sees the new values.
-            let selected = { ..cached.optimized.semantic.selected, request, }
-            let semantic = { ..cached.optimized.semantic, selected, }
-            let optimized = { ..cached.optimized, semantic, }
-            return { ..cached, optimized, }
-          }
-        }
+      if reuse_attention_tile({ request, plan, }, previous) is Some(cached) {
+        reused += 1
+        return cached
       }
       compile_static_attention_tile_candidate(request, plan)
     })

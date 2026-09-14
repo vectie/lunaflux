@@ -248,3 +248,11 @@ groups. Previously counts were discarded after checking only a minimum of
 three, allowing unequal-sample comparisons. Tests cover rejected mismatches,
 valid comparisons and independent groups; no production measurements were
 rewritten to satisfy the new rule.
+
+Measured attention selection now reuses an already compiled identical candidate
+as well as resource-only retuning. Selection provenance and request observations
+are rebound explicitly; semantic/capability identity remains required. Both
+prefill and decode exporters pass their prepared frontier into this final
+selection stage. Tests require one reuse when applying and withdrawing a
+measurement and exact equality with fresh compilation, including provenance.
+This closes the measured-selection reuse gap, not persistent caching or JIT.
