@@ -2,6 +2,8 @@
 /// Numerical schedule of the pure head-normalization/rotary epilogue. The
 /// reduction tree is independent of projection fusion and physical workgroup
 /// size: changing either must not silently reassociate this fold.
+/// The logical tree only requires a positive power-of-two lane count; device
+/// subgroup limits are checked by the lowering, not encoded in this plan.
 pub struct AttentionIngressNumerics {
   priv head_dimension : Int
   priv reduction_lanes : Int
@@ -18,7 +20,6 @@ pub fn ProjectionAttentionIngressEpilogue::numerics(
   let theta = Float::from_double(self.rope_theta)
   if self.head_dimension % 2 != 0 ||
     reduction_lanes <= 0 ||
-    reduction_lanes > 1024 ||
     (reduction_lanes & (reduction_lanes - 1)) != 0 ||
     epsilon.is_inf() ||
     epsilon <= 0.0F ||

@@ -1,7 +1,9 @@
 ///|
 /// Pack independent head folds into a workgroup without changing any fold's
 /// reduction tree. A subgroup owns one complete head, including its terminal
-/// write; tail subgroups have no head and therefore no effects.
+/// write; tail subgroups have no head and therefore no effects. This is a
+/// logical ownership map, not device launch admission: physical workgroup
+/// limits belong to the selected backend's capability checks.
 pub struct AttentionIngressHeadMap {
   priv heads : Int
   priv lanes_per_head : Int
@@ -16,7 +18,6 @@ pub fn AttentionIngressNumerics::group_heads(
 ) -> AttentionIngressHeadMap raise ProjectionTileCompilerError {
   guard heads > 0 &&
     workgroup_lanes >= self.reduction_lanes &&
-    workgroup_lanes <= 1024 &&
     workgroup_lanes % self.reduction_lanes == 0 else {
     raise InvalidProjectionTileCompilation(InvalidProblem)
   }

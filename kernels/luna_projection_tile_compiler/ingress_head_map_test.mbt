@@ -52,7 +52,7 @@ test "head packing rejects incomplete reduction subgroups" {
     norm_epsilon=0.000001,
     rope_theta=1000000.0,
   ).numerics(reduction_lanes=32)
-  for pair in [(0, 128), (1, 0), (1, 16), (1, 33), (1, 2048)] {
+  for pair in [(0, 128), (1, 0), (1, 16), (1, 33), (1, 2049)] {
     let (heads, workgroup_lanes) = pair
     try numerics.group_heads(heads~, workgroup_lanes~) catch {
       InvalidProjectionTileCompilation(InvalidProblem) => ()
@@ -61,4 +61,29 @@ test "head packing rejects incomplete reduction subgroups" {
       _ => fail("invalid head map accepted")
     }
   }
+}
+
+///|
+test "logical ingress ownership does not assume a CUDA block limit" {
+  let epilogue = ProjectionAttentionIngressEpilogue::new(
+    query_heads=1,
+    kv_heads=1,
+    head_dimension=128,
+    norm_epsilon=0.000001,
+    rope_theta=10000.0,
+  )
+  for lanes in [1, 32, 64, 1024, 2048, 1073741824] {
+    let numerics = epilogue.numerics(reduction_lanes=lanes)
+    assert_eq(numerics.shape(), (128, lanes))
+    let map = numerics.group_heads(heads=2147483647, workgroup_lanes=lanes)
+    assert_eq(map.geometry(), (2147483647, 1, lanes))
+    assert_eq(map.head_at(2147483646, 0), Some(2147483646))
+    assert_eq(map.head_at(2147483647, 0), None)
+  }
+  let map = epilogue
+    .numerics(reduction_lanes=32)
+    .group_heads(heads=129, workgroup_lanes=4096)
+  assert_eq(map.geometry(), (2, 128, 32))
+  assert_eq(map.head_at(1, 0), Some(128))
+  assert_eq(map.head_at(1, 1), None)
 }

@@ -33,3 +33,15 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
   )
   assert_false(source.contains("__constant__"))
 }
+
+///|
+test "panic CUDA ingress rejects unsupported logical reduction width" {
+  let numerics = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+    query_heads=1,
+    kv_heads=1,
+    head_dimension=128,
+    norm_epsilon=0.000001,
+    rope_theta=10000.0,
+  ).numerics(reduction_lanes=2048)
+  ignore(lower_attention_ingress_numerics(numerics))
+}

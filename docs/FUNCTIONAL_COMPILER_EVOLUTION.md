@@ -707,3 +707,31 @@ interface generation pass.
 Downloaded cut-point sources, diagnostic executables and logs:
 `/tmp/lunaflux-ingress-numeric-cuts.tar.gz`, SHA-256
 `c23c00020058f56f8f7560e64dbb38fd8ad0a68b332a8a582aea91777bb79741`.
+
+### Logical ingress plans and device limits
+
+Removed the literal 1024-lane CUDA block ceiling from the backend-neutral
+ingress numerical tree and head ownership map. Logical reduction width must
+still be a positive power of two; head packing must contain complete subgroups
+and remain within representable integer extents. Device executability is a
+separate question: CUDA ingress still requires its 32-lane numerical tree,
+and physical launch construction retains its device limits. This does not add
+support for larger CUDA blocks or other device backends.
+
+Regression cases cover logical widths up to 2^30, 4096-lane logical packing,
+tails and Int-limit head indices. Projection compiler tests pass 63/63.
+The three exported QKV/partial-ingress/full-ingress sources remain exactly
+equal to the preceding cut-point test sources; no GPU speedup is claimed.
+
+An additional physical numerical stress test uses a mixed integer hash and
+17 exponent bins for deterministic signed BF16 inputs/weights, rather than
+only the preceding bounded linear-range samples. For token counts
+1/2/4/8/16/17/31/32/127/1024/2048, projection, rotated output and both KV arenas
+match bit-for-bit between full and separated execution. This still uses
+synthetic operands, one query row and one selected projection variant; it is
+not the missing actual-model activation capture or a serving benchmark.
+Downloaded archive `/tmp/lunaflux-ingress-dynamic-range-retest.tar.gz` has matching
+local/remote SHA-256
+`e86e4152d869e126bad5a9ffa3fb59935b3f3c737acbac947afd107097b7c51f`.
+The full native suite passes 3798/3798; the CUDA-lowering regression explicitly
+rejects the wider logical reduction plan. No public API signatures changed.
