@@ -256,3 +256,23 @@ prefill and decode exporters pass their prepared frontier into this final
 selection stage. Tests require one reuse when applying and withdrawing a
 measurement and exact equality with fresh compilation, including provenance.
 This closes the measured-selection reuse gap, not persistent caching or JIT.
+
+### Functional pass reuse CPU measurement
+
+`tests/attention_compiler_bench` on Apple M4, native release, measures the same
+12-candidate request with complete output equality in both arms. One warmup
+per arm, five alternating trials, 20 compilations each:
+
+| Trial | Fresh microseconds | Reused microseconds |
+| --- | ---: | ---: |
+| 0 | 201.3958 | 16.2875 |
+| 1 | 178.58335 | 14.34375 |
+| 2 | 174.4333 | 15.4 |
+| 3 | 184.3042 | 13.93545 |
+| 4 | 179.2375 | 14.01665 |
+
+Medians: 179.2375 versus 14.34375 us, approximately 12.5x for this pure-pass
+workload. Equality-check cost is included. Source emission, nvcc, file caching,
+changed shapes and GPU inference are excluded. This demonstrates reduced CPU
+compiler work, not a kernel or serving speedup. The executable remains a
+reproducible benchmark rather than a timing assertion in normal tests.
