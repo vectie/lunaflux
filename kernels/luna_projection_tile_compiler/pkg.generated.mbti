@@ -17,7 +17,7 @@ pub fn partition_projection_product_fold(row_tiles~ : Int, output_tiles~ : Int, 
 
 pub fn partition_projection_sibling_reuse(row_tiles~ : Int, output_tiles~ : Int, consumer_groups~ : Int) -> ProjectionProductFoldDistribution?
 
-pub fn partition_projection_transfer_segments(ArrayView[Int], workers~ : Int) -> Array[ProjectionTransferSegment]?
+pub fn partition_projection_transfer_segments(ArrayView[Int], workers~ : Int, max_segments? : Int) -> Array[ProjectionTransferSegment]?
 
 pub fn plan_projection_concatenated_rows(ArrayView[Int]) -> ReadOnlyArray[ProjectionRowSegment]?
 

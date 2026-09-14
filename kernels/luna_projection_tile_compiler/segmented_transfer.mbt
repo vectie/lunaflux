@@ -14,35 +14,38 @@ pub struct ProjectionTransferSegment {
 /// Pure interval intersection of concatenated operands with round-robin
 /// worker ownership. Counts are in vectors, independent of scalar dtype,
 /// backend, subgroup width, shared layout, or instruction choice.
+/// `max_segments` is a caller-controlled source expansion budget, not a
+/// hardware or operand-count limit. None retains the caller's loop realization.
 pub fn partition_projection_transfer_segments(
   operand_vectors : ArrayView[Int],
   workers~ : Int,
+  max_segments? : Int = 4096,
 ) -> Array[ProjectionTransferSegment]? {
   if workers <= 0 ||
-    operand_vectors.length() == 0 ||
-    operand_vectors.length() > 128 {
+    max_segments <= 0 ||
+    operand_vectors.length() > max_segments {
     return None
   }
-  let total = for total = 0, i = 0; i < operand_vectors.length(); {
-    let count = operand_vectors[i]
-    if count <= 0 || total > 2147483647 - count {
+  guard plan_projection_concatenated_rows(operand_vectors) is Some(operands) else {
+    return None
+  }
+  // Count exact operand/round intersections before emitting any segment.
+  // Aligned boundaries do not incur the extra block assumed by the old
+  // conservative estimate. Subtract from the budget to avoid overflow.
+  for operand in operands; remaining = max_segments {
+    let count = (operand.row_end - 1) / workers -
+      operand.row_begin / workers +
+      1
+    if count > remaining {
       return None
     }
-    continue total + count, i + 1
-  } nobreak {
-    total
+    continue remaining - count
   }
   let result : Array[ProjectionTransferSegment] = []
-  // A finite compile-time unroll budget, not a shape or backend restriction.
-  // Very large maps must use the loop realization instead of emitting millions
-  // of static source blocks.
-  // Compare against remaining budget rather than adding to a potentially
-  // maximal vector count. The checked operand count is at most 128.
-  if (total - 1) / workers > 4096 - operand_vectors.length() {
-    return None
-  }
-  for operand = 0, origin = 0; operand < operand_vectors.length(); {
-    let end = origin + operand_vectors[operand]
+  for segment in operands {
+    let operand = segment.operand
+    let origin = segment.row_begin
+    let end = segment.row_end
     for round in (origin / workers)..<((end - 1) / workers + 1) {
       let round_origin = round * workers
       result.push({
@@ -53,12 +56,6 @@ pub fn partition_projection_transfer_segments(
         operand_vector_origin: round_origin - origin,
       })
     }
-    continue operand + 1, end
   }
-  // All arithmetic above is bounded by the checked concatenated extent.
-  if total <= 0 {
-    None
-  } else {
-    Some(result)
-  }
+  Some(result)
 }

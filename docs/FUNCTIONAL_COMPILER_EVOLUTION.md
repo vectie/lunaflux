@@ -551,3 +551,19 @@ Downloaded raw logs and driver:
 `b2f953d7e9007e6b9cf99e63b314149d0c0d0d85e6a5822a5e0270abcc2aac4d`.
 The orchestration script reports an async dependency packaging deprecation;
 that is separate from the package test results.
+
+### Exact operand-segmentation expansion budget
+
+Transfer interval planning now consumes the shared immutable concatenated-row
+plan used by QKV lowering. It counts exact operand/worker-round intersections
+before emission and checks them against a caller-controlled `max_segments`
+budget (default 4096). The unrelated 128-operand ceiling is removed. The old
+conservative estimate rejected [4095,1] with one worker even though it expands
+to exactly 4096 segments; that boundary now succeeds, while 4097 requires an
+explicit larger budget. Budget subtraction preserves overflow safety.
+
+Tests cover exact/one-short budgets, aligned and unaligned boundaries, 129
+operands, complete vector ownership, and extreme Int extents. Projection
+compiler tests pass 57/57 and CUDA projection AOT tests 72/72. This unifies
+semantic interval handling without forcing a new QKV transfer schedule or
+claiming a physical speedup; full transfer-worker integration remains open.

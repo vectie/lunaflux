@@ -46,8 +46,10 @@ test "transfer expansion budget cannot overflow on valid total vector counts" {
     @luna_projection_tile_compiler.partition_projection_transfer_segments(
       [4095, 1],
       workers=1,
-    ),
-    None,
+    )
+    .unwrap()
+    .length(),
+    4096,
   )
   // Large extents are valid when a compact worker map needs only two segments.
   let compact = @luna_projection_tile_compiler.partition_projection_transfer_segments(
@@ -58,6 +60,52 @@ test "transfer expansion budget cannot overflow on valid total vector counts" {
   assert_eq(compact[0].worker_end, 2147483646)
   assert_eq(compact[1].worker_begin, 2147483646)
   assert_eq(compact[1].worker_end, 2147483647)
+}
+
+///|
+test "exact transfer budget admits aligned boundaries and arbitrary operand counts" {
+  for counts in [[4, 4], [3, 5], [1, 2, 3], Array::make(129, 1)] {
+    for workers in [1, 2, 4, 7, 256] {
+      let complete = @luna_projection_tile_compiler.partition_projection_transfer_segments(
+        counts,
+        workers~,
+      ).unwrap()
+      let budget = complete.length()
+      assert_eq(
+        @luna_projection_tile_compiler.partition_projection_transfer_segments(
+          counts,
+          workers~,
+          max_segments=budget,
+        ),
+        Some(complete),
+      )
+      assert_eq(
+        @luna_projection_tile_compiler.partition_projection_transfer_segments(
+          counts,
+          workers~,
+          max_segments=budget - 1,
+        ),
+        None,
+      )
+    }
+  }
+  assert_eq(
+    @luna_projection_tile_compiler.partition_projection_transfer_segments(
+      [4096, 1],
+      workers=1,
+    ),
+    None,
+  )
+  assert_eq(
+    @luna_projection_tile_compiler.partition_projection_transfer_segments(
+      [4096, 1],
+      workers=1,
+      max_segments=4097,
+    )
+    .unwrap()
+    .length(),
+    4097,
+  )
 }
 
 ///|
