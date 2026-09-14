@@ -74,7 +74,9 @@ fn PagedOrderedExecutorDispatch::select(
       return owner
     }
   }
-  let (batch_rows, query_tokens, context_tokens) = bucket.upper_bounds()
+  let batch_rows = bucket.batch_rows()
+  let query_tokens = bucket.query_tokens()
+  let context_tokens = bucket.context_tokens()
   let prefill_phase = bucket.phase() == PrefillGraph ||
     bucket.phase() == MixedGraph
   if self.deep_prefill_split_owner_index >= 0 &&

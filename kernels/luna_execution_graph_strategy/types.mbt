@@ -18,6 +18,7 @@ pub(all) suberror ExecutionGraphBucketError {
 } derive(Debug, Eq)
 
 ///|
+#valtype
 pub struct ExecutionGraphShape {
   priv phase : ExecutionGraphPhase
   priv batch_rows : Int
@@ -26,6 +27,7 @@ pub struct ExecutionGraphShape {
 }
 
 ///|
+#valtype
 pub struct ExecutionGraphBucket {
   priv slot : Int
   priv phase : ExecutionGraphPhase

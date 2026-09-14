@@ -17,7 +17,10 @@ pub(all) suberror ExecutionGraphBucketError {
 pub struct ExecutionGraphBucket {
   // private fields
 }
+pub fn ExecutionGraphBucket::batch_rows(Self) -> Int
+pub fn ExecutionGraphBucket::context_tokens(Self) -> Int
 pub fn ExecutionGraphBucket::phase(Self) -> ExecutionGraphPhase
+pub fn ExecutionGraphBucket::query_tokens(Self) -> Int
 pub fn ExecutionGraphBucket::slot(Self) -> Int
 pub fn ExecutionGraphBucket::upper_bounds(Self) -> (Int, Int, Int)
 

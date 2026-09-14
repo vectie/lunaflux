@@ -489,3 +489,20 @@ capture. With startup repaired, the release campaign reaches its measurement
 and detects 195 direct allocations across 65 cycles (three per cycle), with
 zero array/string allocations. This is an unresolved allocation regression;
 the zero-allocation assertion is retained and the campaign correctly fails.
+
+### Allocation-free functional graph selection
+
+Temporary native allocation backtraces localized all three per-cycle objects:
+ExecutionGraphShape::new, ExecutionGraphBucketTable::select, and the bounds
+tuple consumed by PagedOrderedExecutorDispatch::select. Shape and bucket are
+now immutable value types; dispatch reads scalar bounds rather than allocating
+a tuple. Selection semantics and captured-resource ownership remain unchanged;
+no mutable cache or shared scratch object is introduced. Diagnostic backtraces
+were removed before validation.
+
+The release device_worker_alloc campaign now exits zero with empty output,
+including positive allocation controls, the unchanged 65-cycle zero-allocation
+assertion, launch/copy/readback counts, retirement and fault/cleanup checks.
+Thus the previously observed 195 direct allocations are eliminated in this
+campaign. This is host-side allocation validation, not a new GPU throughput
+measurement or completion of the broader compiler roadmap.
