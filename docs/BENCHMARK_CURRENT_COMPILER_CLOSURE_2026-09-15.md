@@ -320,6 +320,39 @@ Results and clean validation logs were downloaded to
 `/tmp/lunaflux-b9440271-download.1hvzzG/results.tar.gz`; local and remote SHA-256
 agree: `74f0259bf2ad1a955be302dead35306f84474c04cbe98585dbd3c223b9374b74`.
 
+### Current-source mixed workload: b9440271
+
+The same uninstrumented runtime completed all seven mixed workloads at C8/C16,
+one warmup and three measured repetitions, rotating case order. Arrival lag
+p95 was at most 1 ms. All requested output lengths and token timestamp counts
+match; the owned server stopped and released the GPU.
+
+| Case | C8 median wall ms | C16 median wall ms | C16 TTFT p50/p95 ms |
+| --- | ---: | ---: | ---: |
+| Uniform shared | 1221 | 2184 | 692/1279 |
+| Uniform distinct | 1219 | 2192 | 696/1279 |
+| Unequal input | 1570 | 2429 | 900/1421 |
+| Unequal input/output | 1768 | 2734 | 729/1414 |
+| Uniform staggered | 1226 | 2193 | 524/912 |
+| Unequal staggered | 1791 | 2767 | 573/1123 |
+| Unequal reversed/staggered | 1767 | 2742 | 643/1141 |
+
+Comparing identical request bodies with the earlier mixed run in
+`/tmp/lunaflux-current-eb927891.zY0UED/physical/diversity/lunaflux` covers 504
+requests / 32256 output tokens. Eight requests differ across runs; repeat
+comparisons within the old run find five differing requests, and within this
+run six. First differing indices include 22, 32 and 102 in unequal-output
+workloads, so numerical variability is not restricted to the uniform matrix's
+last token. These are observed differences, not independent-oracle error rates
+or proof of a regression. Current mixed measurement is complete; numerical
+acceptance remains open.
+
+Archived results: `/tmp/lunaflux-b9440271-diversity-results.tar.gz`, SHA-256
+`492d234e33e2bb29d1e39650021454ec3cfdc8c4d981fcf02a6fb0e533c88c78`.
+The downloaded copy at
+`/tmp/lunaflux-b9440271-download.1hvzzG/diversity-results.tar.gz`
+has the same verified digest.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,
