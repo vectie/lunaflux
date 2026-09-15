@@ -77,6 +77,18 @@ warning-denied check and projection tests (68 compiler, 77 CUDA) pass. This
 closes the map synchronization decision seam, not all remaining effect paths
 or real-model numerical acceptance; it introduces no additional device fence.
 
+Materialization effects are now shared by matrix-map, down result scratch,
+gate/up sibling-result reuse and scalar MLP's one-shot intermediate arena.
+The common plan distinguishes consumer-group/workgroup visibility and whether
+storage is reused. Publication and reader release remain separate operations;
+one-shot storage has no release fence. CUDA renders these decisions without
+adding instructions. Focused source tests assert both reusable fences and the
+single one-shot publication; native check and 69 compiler / 77 CUDA tests pass.
+`ProjectionStorageFence` replaces the map-specific fence name rather than
+introducing a second scope representation. The direct register epilogue's
+existing warp fence and operand-ring priming still require separate review;
+this is not a claim of complete effect coverage or fresh physical validation.
+
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
 reuse and early-exit draining. CUDA lowering renders these actions without

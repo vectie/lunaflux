@@ -7,13 +7,6 @@ pub(all) enum ProjectionMapBoundary {
 } derive(Debug, Eq)
 
 ///|
-/// Visibility/reuse scope, not a device instruction or a fixed lane width.
-pub enum ProjectionMapFence {
-  WorkgroupFence
-  ConsumerGroupFence
-} derive(Debug, Eq)
-
-///|
 /// The strip materialization is shared only for selected-row input. Result
 /// redistribution always borrows consumer-group-local storage. Publication
 /// and reader release remain separate even when a backend spells them alike.
@@ -32,14 +25,27 @@ pub fn ProjectionResultDemand::map_effect_plan(
 pub fn ProjectionMapEffectPlan::at(
   self : ProjectionMapEffectPlan,
   boundary : ProjectionMapBoundary,
-) -> ProjectionMapFence? {
+) -> ProjectionStorageFence? {
   match boundary {
-    InputWritten | InputRead =>
+    InputWritten =>
       if self.shared_input {
-        Some(WorkgroupFence)
+        Some(
+          WorkgroupStorage.materialization_effects(reused=true).publication(),
+        )
       } else {
         None
       }
-    ResultWritten | ResultRead => Some(ConsumerGroupFence)
+    InputRead =>
+      if self.shared_input {
+        WorkgroupStorage.materialization_effects(reused=true).release()
+      } else {
+        None
+      }
+    ResultWritten =>
+      Some(
+        ConsumerGroupStorage.materialization_effects(reused=true).publication(),
+      )
+    ResultRead =>
+      ConsumerGroupStorage.materialization_effects(reused=true).release()
   }
 }

@@ -138,12 +138,19 @@ pub(all) enum ProjectionMapBoundary {
 pub struct ProjectionMapEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn ProjectionMapEffectPlan::at(Self, ProjectionMapBoundary) -> ProjectionMapFence?
+pub fn ProjectionMapEffectPlan::at(Self, ProjectionMapBoundary) -> ProjectionStorageFence?
 
-pub enum ProjectionMapFence {
-  WorkgroupFence
-  ConsumerGroupFence
+pub struct ProjectionMaterializationEffects {
+  // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionMaterializationEffects::publication(Self) -> ProjectionStorageFence
+pub fn ProjectionMaterializationEffects::release(Self) -> ProjectionStorageFence?
+
+pub(all) enum ProjectionMaterializationScope {
+  ConsumerGroupStorage
+  WorkgroupStorage
+} derive(Eq, @debug.Debug)
+pub fn ProjectionMaterializationScope::materialization_effects(Self, reused~ : Bool) -> ProjectionMaterializationEffects
 
 pub struct ProjectionOperandTransferPlan {
   // private fields
@@ -201,6 +208,11 @@ pub(all) enum ProjectionSingleRowNumerics {
 pub(all) enum ProjectionSingleRowReduction {
   OrderedDot
   StridedPairwiseDot(Int)
+} derive(Eq, @debug.Debug)
+
+pub enum ProjectionStorageFence {
+  WorkgroupFence
+  ConsumerGroupFence
 } derive(Eq, @debug.Debug)
 
 pub struct ProjectionTileBinding {

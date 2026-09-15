@@ -140,6 +140,8 @@ test "partial sibling consumers do not duplicate shared transfer ownership" {
     let source = sibling_bounded_source_for_test(33, groups)
     assert_true(source.contains("threadIdx.x + slot * \{threads} <"))
     assert_true(source.contains("float *gate_tiles"))
+    let result_section = source.split("float *gate_tiles").to_array()[1]
+    assert_eq(result_section.split("__syncthreads();").count(), 3)
     // The operand staging dies before the register-major sibling epilogue
     // aliases it. Both result planes remain within the admitted storage.
     let staged_bytes = (rows + columns * 2) * 32 * 2 * 2

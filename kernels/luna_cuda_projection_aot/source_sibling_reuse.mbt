@@ -14,6 +14,9 @@ fn projection_sibling_reuse_source(
   reuse : @luna_projection_tile_compiler.ProjectionProductFoldDistribution,
   groups~ : Int,
 ) -> String {
+  let effects = @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
+    reused=true,
+  )
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
@@ -60,7 +63,7 @@ fn projection_sibling_reuse_source(
     $|            result_tiles[((consumer_row + row) * \{reuse.output_groups()} + consumer_column) * 256 + value * 32 + lane] = c[row][value];
     $|        }
     $|      }
-    $|      __syncthreads();
+    $|      \{projection_materialization_fence_source(Some(effects.publication()))}
     $|      for (int element = threadIdx.x; element < \{rows * columns}; element += blockDim.x) {
     $|        const int tile = element / 256, cell = element % 256;
     $|        const int value = cell / 32, owner_lane = cell % 32;
@@ -70,7 +73,7 @@ fn projection_sibling_reuse_source(
     $|          workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + (tile % \{reuse.output_groups()}) * 16 + (owner_lane % 4) * 2 + value % 2 + (value / 4) * 8] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
     $|        }
     $|      }
-    $|      __syncthreads();
+    $|      \{projection_materialization_fence_source(effects.release())}
     $|    }
     $|    return;
     $|  }

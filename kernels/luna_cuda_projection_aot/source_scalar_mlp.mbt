@@ -8,6 +8,9 @@ fn projection_scalar_mlp_source(
   maximum_tokens : Int,
   materialize : Bool,
 ) -> Bytes {
+  let effects = @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
+    reused=false,
+  )
   let siblings = projection_dot_fold_source(
       parameters.input_width,
       [
@@ -37,7 +40,7 @@ fn projection_scalar_mlp_source(
       $|\{siblings}
       $|    combined[intermediate] = product;
       $|  }
-      $|  __syncthreads();
+      $|  \{projection_materialization_fence_source(Some(effects.publication()))}
       $|  for (int output_column = threadIdx.x; output_column < \{parameters.output_width}; output_column += blockDim.x) {
       $|    const unsigned long long index = (unsigned long long)token * \{parameters.output_width}ULL + output_column;
     )

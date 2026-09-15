@@ -141,6 +141,15 @@ test "scalar sibling materialization preserves the same ordered F32 product" {
       source.contains("extern __shared__ float combined[]"),
       materialize,
     )
+    // One-shot materialization publishes once; no subsequent reuse fence.
+    assert_eq(
+      source.split("__syncthreads();").count(),
+      if materialize {
+        2
+      } else {
+        1
+      },
+    )
     assert_false(source.contains("__float2bfloat16_rn(product)"))
     if !materialize &&
       @env.get_env_var("LUNA_TEST_EXPORT_UNIFIED_STORAGE") == Some("1") {
