@@ -12,6 +12,9 @@ import {
 // input-only observes the semantic input at a real launch boundary without
 // assuming the output survives fusion. ROW=all follows all current owners;
 // correlate kind=7 request identities, never reuse a batch row as identity.
+// A comma-separated operation set is supported in input-only mode so that
+// propagation boundaries share one actual execution, rather than reruns with
+// different batching. The IDs must still refer to surviving launch boundaries.
 fn replace_once(source : String, before : String, after : String) -> String raise {
   assert_eq(source.split(before).count(), 2, msg="activation diagnostic seam")
   source.replace(old=before, new=after)
@@ -20,16 +23,19 @@ fn replace_once(source : String, before : String, after : String) -> String rais
 async fn main {
   let args = @env.args()
   guard args.length() == 6 || (args.length() == 7 && args[6] == "input-only") else {
-    fail("DISPOSABLE_TRACE_SOURCE OPERATION FIRST_EPOCH LAST_EPOCH ROW_OR_all [input-only]")
+    fail("DISPOSABLE_TRACE_SOURCE OPERATION_OR_CSV FIRST_EPOCH LAST_EPOCH ROW_OR_all [input-only]")
   }
   let root = args[1]; let operation_text = args[2]
   let first_text = args[3]; let last_text = args[4]; let row_text = args[5]
   let input_only = args.length() == 7
-  let operation = @string.parse_int(operation_text)
+  let operations = operation_text.split(",").to_array().map(x=>@string.parse_int(x))
+  assert_true(!operations.is_empty() && operations.all(x=>x>=0))
+  assert_true(operations.length()==1 || input_only,msg="multi-operation capture requires input-only boundaries")
+  let operation_guard = operations.map(x=>"operation.as_int() != " + x.to_string()).join(" && ")
   let first = @string.parse_int(first_text)
   let last = @string.parse_int(last_text)
   let row = if row_text == "all" { -1 } else { @string.parse_int(row_text) }
-  assert_true(operation >= 0 && first >= 0 && last >= first && (row >= 0 || row_text == "all"))
+  assert_true(first >= 0 && last >= first && (row >= 0 || row_text == "all"))
   let directory = root + "/engine/device_step/"
   assert_true(@fs.exists(directory + "diagnostic_execution.mbt"))
   assert_false(@fs.exists(directory + "diagnostic_fixed_repeat.mbt"))
@@ -60,7 +66,7 @@ async fn main {
     $|///|
     $|fn diagnostic_activation(executor : PagedGraphExecutor, descriptor : DeviceStepOwner, operation : @plan.OperationId, direction : Int) -> Unit raise DeviceStepError {
     $|  \{if input_only { "if direction != 0 { return }" } else { "" }}
-    $|  if operation.as_int() != \{operation} || descriptor.stage_epoch < \{first}UL || descriptor.stage_epoch > \{last}UL { return }
+    $|  if (\{operation_guard}) || descriptor.stage_epoch < \{first}UL || descriptor.stage_epoch > \{last}UL { return }
     $|  \{if row == -1 { "for row in 0..<descriptor.staged_summary.row_count {" } else { "let row = " + row.to_string() + "\n  if row >= descriptor.staged_summary.row_count { return }" }}
   let body =
     #|  guard executor.resources.diagnostic_memory is Some(memory) &&

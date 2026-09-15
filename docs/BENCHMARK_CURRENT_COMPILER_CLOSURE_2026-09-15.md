@@ -248,6 +248,38 @@ cover explicit multi-operation captures, missing operation identity and mixed
 tensor attribution. Existing single-operation reports remain valid. This fixes
 multi-layer observation plumbing, not the unresolved propagation question.
 
+### Same-run propagation boundary capture
+
+`/tmp/lunaflux-propagation.LBpwrF` observes inputs of operations 2, 6, 9, 12
+and 282 in one C1/C8 identical-input 3072/32 run, retaining the same `3836a256`
+kernel artifacts for diagnosis. All nine responses contain 32 tokens; their
+first 31 tokens match. C1 ends with 16; two C8 responses end with 22 and six
+with 16. The server stopped and released the GPU. This eager/readback run is
+not a throughput measurement or final-current-source qualification.
+
+At position 3072, compared with C1:
+
+| Observed input | Changed BF16 components | Maximum absolute delta |
+| --- | ---: | ---: |
+| First QKV (2) | 0 | 0 |
+| First output projection, after attention (6) | 5 | 0.000030517578125 |
+| First MLP (9) | 3 | 0.0009765625 |
+| Second-layer QKV (12) | 127 | 0.0009765625 |
+| Final head (282) | 920–928 | 1 |
+
+There are 2399 captures and 2053 baseline-owner comparisons. Repeated launches
+at the same baseline operation/position have identical captured words; they
+are observations, not independent samples. At position 3071, operations
+2/6/9/12 still match while some head inputs already differ. Thus the numerical
+divergence expands through the network and is not confined to the head. This
+does not isolate accumulated KV differences from attention arithmetic or prove
+which operation violates its numerical contract. Further causal isolation is
+still required; no blanket bit-equality policy is inferred.
+
+Downloaded logs and summaries:
+`/tmp/lunaflux-propagation-download.LOU99r/results.tar.gz`, matching remote SHA-256
+`52b06a22e75456b1d5e27b4e8a0408f2f9935b7e18fda50eeeee3e0c0734e434`.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,
