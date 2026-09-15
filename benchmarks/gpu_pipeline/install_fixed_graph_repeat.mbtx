@@ -1,0 +1,55 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env" }
+
+// Diagnostic-only, after install_execution_trace in a disposable source copy.
+// Repeats an already selected BF16 greedy graph without advancing the request.
+// Only appropriate for idempotent positioned KV writes; not arbitrary graphs.
+async fn main {
+  guard @env.args() is [_,root] else {fail("DISPOSABLE_TRACE_SOURCE")}
+  let directory=root+"/engine/device_step/"
+  assert_true(@fs.exists(directory+"diagnostic_execution.mbt"))
+  let path=directory+"paged_executor_run.mbt"
+  let source=@fs.read_file(path).text()
+  let seam="  validate_fused_dispatch_canary(self, descriptor, staged.epoch) catch {"
+  assert_eq(source.split(seam).count(),2)
+  let helper=
+    #|///|
+    #|fn repeat_fixed_graph(executor : PagedGraphExecutor, descriptor : DeviceStepOwner, ordered : @device.OrderedKernelExecutor, operations : ReadOnlyArray[@plan.OperationId]) -> Unit raise DeviceStepError {
+    #|  let scratch = executor.completion
+    #|  let activation = open_activation_workspace(executor.resources)
+    #|  let snapshots : Array[(Int, FixedArray[Byte])] = []
+    #|  let rows = descriptor.staged_summary.row_count
+    #|  for row in 0..<rows {
+    #|    if descriptor.host.output_indices[row] < 0 { continue }
+    #|    let end = read_paged_i32(descriptor.host.query_row_offsets, row + 1)
+    #|    if end <= 0 { raise InvalidExecutor(SamplingOutput) }
+    #|    descriptor.context.copy_to_fixed_host(activation, scratch.encoded_logits,
+    #|      scratch.final_output_offset + (end - 1).to_int64() * scratch.row_bytes, 0L, scratch.row_bytes) catch {
+    #|      error => raise ExecutorDevice(ActivationReadback, error)
+    #|    }
+    #|    snapshots.push((row, FixedArray::makei(scratch.encoded_logits.length(), i => scratch.encoded_logits[i])))
+    #|  }
+    #|  try {
+    #|    ordered.reset()
+    #|    match ordered.execution_mode() {
+    #|      OrderedKernelCaptured => ordered.launch_captured()
+    #|      OrderedKernelEager => for index in 0..<operations.length() { ordered.enqueue(index) }
+    #|    }
+    #|    ordered.record_completion()
+    #|    ordered.wait_completion()
+    #|  } catch { error => raise ExecutorDevice(OrderedExecutor, error) }
+    #|  for (row, snapshot) in snapshots {
+    #|    let end = read_paged_i32(descriptor.host.query_row_offsets, row + 1)
+    #|    descriptor.context.copy_to_fixed_host(activation, scratch.encoded_logits,
+    #|      scratch.final_output_offset + (end - 1).to_int64() * scratch.row_bytes, 0L, scratch.row_bytes) catch {
+    #|      error => raise ExecutorDevice(ActivationReadback, error)
+    #|    }
+    #|    let mut changed = 0
+    #|    for i in 0..<scratch.encoded_logits.length() {
+    #|      if snapshot[i] != scratch.encoded_logits[i] { changed += 1 }
+    #|    }
+    #|    trace_event(8, descriptor.stage_epoch, row, changed, scratch.encoded_logits.length(), 0, 0, 0, 0UL)
+    #|  }
+    #|}
+  @fs.write_file(directory+"diagnostic_fixed_repeat.mbt",helper,create_mode=CreateNew)
+  @fs.write_file(path,source.replace(old=seam,new="  repeat_fixed_graph(self, descriptor, ordered, ordered_operations)\n"+seam))
+}

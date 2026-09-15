@@ -170,6 +170,12 @@ vary across repetitions, so this is not yet attributable solely to full fusion;
 fixed-shape/logit diagnosis remains necessary. Do not claim bitwise equivalence
 or promote full fusion from these measurements.
 
+The follow-up [fixed selected-graph repetition](BENCHMARK_FIXED_GRAPH_REPEAT_2026-09-15.md)
+separates replay of an unchanged execution plan from changes in batching and
+kernel schedules. Initial partial/full runs each compare 3072 logits rows
+without changed bytes. These diagnostic historical-runtime results do not
+close cross-batch numerical acceptance or current-source performance testing.
+
 Downloaded archives, SHA-256 verified locally:
 
 - `/tmp/lunaflux-fusion-pair-20260914.tar.gz`:

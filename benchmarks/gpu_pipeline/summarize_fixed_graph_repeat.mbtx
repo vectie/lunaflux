@@ -1,0 +1,22 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json", "moonbitlang/core/string" }
+fn field(line:StringView,key:String)->Int64 raise {
+  guard line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array() is [value] else {fail(key)}
+  @string.parse_int64(value[key.length()+1:])
+}
+async fn main {
+  guard @env.args() is [_,input,output] else {fail("SERVER_STDERR NEW_JSON")}
+  let differences : Array[Json]=[]
+  let mut rows=0
+  let mut bytes=0L
+  for line in @fs.read_file(input).text().split("\n") {
+    if !line.contains("lf_exec ") || field(line,"kind")!=8L {continue}
+    let changed=field(line,"b");let size=field(line,"c")
+    assert_true(changed>=0L && changed<=size && size>0L)
+    rows+=1;bytes+=size
+    if changed>0L {differences.push({"epoch":field(line,"seq").to_string(),"row":field(line,"a").to_int(),"changed_bytes":changed.to_string(),"compared_bytes":size.to_string()})}
+  }
+  assert_true(rows>0,msg="no fixed graph comparisons")
+  let result : Json={"scope":"same-selected-graph-positioned-kv-repeat-bf16-logits","compared_rows":rows,"compared_bytes":bytes.to_string(),"changed_rows":differences.length(),"differences":differences,"performance_measurement":false}
+  @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+  println(result.stringify())
+}

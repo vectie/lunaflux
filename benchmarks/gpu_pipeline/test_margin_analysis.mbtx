@@ -38,5 +38,22 @@ async fn main {
   let no_batch=trace(1,1,1).split("\n").to_array()[1:].join("\n")
   @fs.write_file(root+"/missing-batch",no_batch,create_mode=CreateNew)
   invoke("summarize_logit_margins.mbtx",[root+"/missing-batch",root+"/invalid.json"],false)
+  @fs.write_file(root+"/repeat", "lf_exec kind=8 seq=1 a=0 b=0 c=2\nlf_exec kind=8 seq=2 a=0 b=1 c=2\n",create_mode=CreateNew)
+  invoke("summarize_fixed_graph_repeat.mbtx",[root+"/repeat",root+"/repeat.json"],true)
+  assert_true(@json.parse(@fs.read_file(root+"/repeat.json").text()) is {"compared_rows":Number(2,..),"changed_rows":Number(1,..),"compared_bytes":String("4"),..})
+  @fs.write_file(root+"/empty-repeat","",create_mode=CreateNew)
+  invoke("summarize_fixed_graph_repeat.mbtx",[root+"/empty-repeat",root+"/empty.json"],false)
+  let source=root+"/source"
+  @fs.mkdir(source);@fs.mkdir(source+"/engine");@fs.mkdir(source+"/engine/device_step")
+  let directory=source+"/engine/device_step/"
+  @fs.write_file(directory+"diagnostic_execution.mbt","// diagnostic fixture\n",create_mode=CreateNew)
+  @fs.write_file(directory+"paged_executor_run.mbt","  validate_fused_dispatch_canary(self, descriptor, staged.epoch) catch {",create_mode=CreateNew)
+  invoke("install_fixed_graph_repeat.mbtx",[source],true)
+  let helper=@fs.read_file(directory+"diagnostic_fixed_repeat.mbt").text()
+  assert_true(helper.contains("ordered.reset()\n    match ordered.execution_mode()"))
+  assert_true(helper.contains("descriptor.staged_summary.row_count"))
+  assert_true(helper.contains("if descriptor.host.output_indices[row] < 0 { continue }"))
+  assert_true(helper.contains("for (row, snapshot) in snapshots"))
+  invoke("install_fixed_graph_repeat.mbtx",[source],false)
   println("margin analysis regression passed: "+root)
 }
