@@ -99,7 +99,7 @@ async fn main {
       comparisons+=1
       let changed : Array[Int] = []
       for k in 0..<ao.words.length() {if ao.words[k]!=bo.words[k] {changed.push(k)}}
-      if !changed.is_empty() {differences.push({"left_epoch":a.epoch,"right_epoch":b.epoch,"left_batch_tokens":a.batch_tokens,"right_batch_tokens":b.batch_tokens,"changed_components":changed,"left_words":changed.map(k=>ao.words[k]),"right_words":changed.map(k=>bo.words[k])})}
+      if !changed.is_empty() {differences.push({"left_epoch":a.epoch,"right_epoch":b.epoch,"left_row":a.row,"right_row":b.row,"left_batch_tokens":a.batch_tokens,"right_batch_tokens":b.batch_tokens,"changed_components":changed,"left_words":changed.map(k=>ao.words[k]),"right_words":changed.map(k=>bo.words[k])})}
     }
   }
   let result : Json = {"scope":"diagnostic-eager-single-input-projection","performance_measurement":false,"same_input_comparisons":comparisons,"different_outputs":differences,"captures":captures}

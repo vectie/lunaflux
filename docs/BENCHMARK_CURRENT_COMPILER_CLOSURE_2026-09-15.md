@@ -204,6 +204,19 @@ exactly at position 3071, then differ in 920 components at position 3072.
 The eighth differs already at 3071. Owner identity and the observed execution
 shape matter; a response's client row must not be guessed from identical text.
 
+FP64 sequential dot references over the actual BF16 inputs and numeric tensors
+`lunaflux.tensor.v1.2`, `.3`, `.4` now cover all 880 changed-component
+observations in the 350 pairs. Single-token output is closer in 856
+observations, matrix output in 24, with no equal-error observations. These are
+pair observations, not 880 independent samples. Maximum absolute error across
+both paths is 0.00195430067833513; maximum error divided by the sum of absolute
+products is 0.0008174184027177878. The latter is not a declared acceptance
+threshold. Neither path is uniformly more accurate, and making them bit-equal
+is not justified by these results. The next causal experiment must isolate
+propagation through later operations, rather than classify the final token
+from this first projection alone. The reference tool now preserves explicit
+row identities; ambiguous legacy multi-row inputs fail instead of guessing.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,

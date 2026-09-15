@@ -24,5 +24,20 @@ async fn main {
     {"reference_fp64":Number(1,..),"left_absolute_error":Number(0,..),"right_absolute_error":Number(1,..),..}]),..})
   let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/captures",root+"/invalid","a"])
   assert_true(code!=0,msg="incomplete concatenated matrix must fail")
+  let grouped : Json={"captures":[
+    {"epoch":1,"row":0,"direction":0,"words":[16256,16384]},
+    {"epoch":1,"row":1,"direction":0,"words":[16256,16384]},
+    {"epoch":1,"row":0,"direction":1,"words":[16688,16256]},
+    {"epoch":1,"row":1,"direction":1,"words":[16672,0]}],
+    "different_outputs":[{"left_epoch":1,"right_epoch":1,"left_row":0,"right_row":1,"changed_components":[0,1]}]}
+  @fs.write_file(root+"/grouped",grouped.stringify(),create_mode=CreateNew)
+  let(code,_,err)=@process.collect_output("moon",["run",script,root+"/weights",root+"/grouped",root+"/grouped-result","a","b"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/grouped-result").text()) is {"left_closer":Number(2,..),..})
+  guard grouped is Object(ambiguous) else {fail("object")}
+  ambiguous["different_outputs"]=[{"left_epoch":1,"right_epoch":1,"changed_components":[0,1]}]
+  @fs.write_file(root+"/ambiguous",Json::object(ambiguous).stringify(),create_mode=CreateNew)
+  let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/ambiguous",root+"/ambiguous-result","a","b"])
+  assert_true(code!=0,msg="missing row must not guess in multi-row capture")
   println("activation dot oracle regression passed: "+root)
 }
