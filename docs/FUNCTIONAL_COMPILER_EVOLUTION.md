@@ -754,3 +754,27 @@ token batch. The diagnostic comparator now reports within-configuration
 repeatability and preserves observed batch context, with an executable
 regression test. Across-configuration differences alone therefore cannot
 qualify or reject a compiler pass without controlling execution schedules.
+
+### Explicit projection transfer effects
+
+The common projection compiler now owns `ProjectionFoldEffectPlan`, derived
+immutably from a validated fold pipeline and explicit serial/overlapped
+transfer execution. Ring geometry, priming count, future distance and allowed
+pending transfer-group count are no longer recomputed by CUDA text generation.
+CUDA retains instruction names, group waits, workgroup barriers and the compact
+two-slot XOR realization. This is an AOT planning value, not runtime state or
+request-path work.
+
+The finite-ring tests cover 2/3/4 slots and 4/8/16/32/64 transfers under both
+execution dispositions. The CUDA lifetime test now includes the default
+two-slot path as well as wider rings. Both affected packages pass 137/137 tests
+and the warning-denied native check passes. A temporary differential test
+compared the preceding commit's renderer with the new renderer for all twelve
+stage/mode/phase-argument combinations: generated text is identical. The old
+renderer was removed after comparison rather than retained as a parallel
+implementation. No GPU speedup is inferred from this behavior-preserving
+refactor.
+
+This closes the common projection ring's scalar effect planning gap, not all
+family-specific effect/lifetime integration. Cross-batch model activation
+diagnosis and fresh complete serving qualification remain open.

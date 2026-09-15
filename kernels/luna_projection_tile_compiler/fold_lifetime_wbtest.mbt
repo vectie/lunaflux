@@ -13,6 +13,23 @@ test "finite operand rings publish before consumption without overwriting live s
         minimum_rows: 2,
       }
       let slots : Array[Int?] = Array::make(stages, None)
+      for execution in [SerialTransfer, OverlappedTransfer] {
+        let effects = plan.effect_plan(execution)
+        assert_eq(effects.geometry(), (stages, 16, transfers * 16))
+        assert_eq(effects.prime_count(), stages - 1)
+        assert_eq(effects.future_distance(), (stages - 1) * 16)
+        assert_eq(effects.overlaps(), execution == OverlappedTransfer)
+        assert_eq(
+          effects.pending_group_limit(),
+          if execution == OverlappedTransfer {
+            stages - 2
+          } else {
+            0
+          },
+        )
+        assert_true(effects.prime_count() <= transfers)
+        assert_true(effects.pending_group_limit() < effects.prime_count())
+      }
       for prime in 0..<(stages - 1) {
         slots[plan.slot(prime).unwrap()] = Some(prime)
       }

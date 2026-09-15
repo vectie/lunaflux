@@ -9,9 +9,15 @@ fn projection_fold_lifetime_source(
   asynchronous~ : Bool,
   phase_argument? : Bool = false,
 ) -> String {
-  let stages = plan.stage_count()
-  let width = plan.transfer_width()
-  let extent = plan.transfer_count() * width
+  let effects = plan.effect_plan(
+    if asynchronous {
+      OverlappedTransfer
+    } else {
+      SerialTransfer
+    },
+  )
+  let (stages, width, extent) = effects.geometry()
+  let asynchronous = effects.overlaps()
   // Keep the established two-slot realization byte-for-byte stable at its
   // scheduling seam. Wider rings are explicit offline alternatives.
   if stages == 2 {
@@ -44,17 +50,17 @@ fn projection_fold_lifetime_source(
   }
   let phase = if phase_argument { ", prime != 0" } else { "" }
   let next_phase = if phase_argument { ", true" } else { "" }
-  let prefetch = "if (inner + \{(stages - 1) * width} < \{extent}) stage_operands(inner + \{(stages - 1) * width}, (stage + \{stages - 1}) % \{stages}\{next_phase});"
+  let prefetch = "if (inner + \{effects.future_distance()} < \{extent}) stage_operands(inner + \{effects.future_distance()}, (stage + \{effects.prime_count()}) % \{stages}\{next_phase});"
   let prime_wait = if asynchronous {
     "asm volatile(\"cp.async.wait_group " +
-    (stages - 2).to_string() +
+    effects.pending_group_limit().to_string() +
     ";\" ::: \"memory\");"
   } else {
     ""
   }
   let wait = if asynchronous {
     "if (inner + " +
-    ((stages - 1) * width).to_string() +
+    effects.future_distance().to_string() +
     " < " +
     extent.to_string() +
     ") { " +
@@ -65,7 +71,7 @@ fn projection_fold_lifetime_source(
   }
   (
     $|      #pragma unroll
-    $|      for (int prime = 0; prime < \{stages - 1}; ++prime) stage_operands(prime * \{width}, prime\{phase});
+    $|      for (int prime = 0; prime < \{effects.prime_count()}; ++prime) stage_operands(prime * \{width}, prime\{phase});
     $|      \{prime_wait}
     $|      __syncthreads();
     $|      int stage = 0;

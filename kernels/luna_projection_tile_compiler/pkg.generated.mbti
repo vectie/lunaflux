@@ -66,9 +66,19 @@ pub struct ProjectionFoldChoice {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
 
+pub struct ProjectionFoldEffectPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionFoldEffectPlan::future_distance(Self) -> Int
+pub fn ProjectionFoldEffectPlan::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionFoldEffectPlan::overlaps(Self) -> Bool
+pub fn ProjectionFoldEffectPlan::pending_group_limit(Self) -> Int
+pub fn ProjectionFoldEffectPlan::prime_count(Self) -> Int
+
 pub struct ProjectionFoldPipeline {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionFoldPipeline::effect_plan(Self, ProjectionTransferExecution) -> ProjectionFoldEffectPlan
 pub fn ProjectionFoldPipeline::fragment_stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
 pub fn ProjectionFoldPipeline::output_tiles(Self) -> Int
@@ -288,6 +298,11 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionQueryNormWeight
   ProjectionKeyNormWeight
 } derive(Eq, Hash, @debug.Debug)
+
+pub(all) enum ProjectionTransferExecution {
+  SerialTransfer
+  OverlappedTransfer
+} derive(Eq, @debug.Debug)
 
 pub struct ProjectionTransferSegment {
   operand : Int

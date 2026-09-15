@@ -7,7 +7,7 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
     projection_fixture_target(),
     [],
   )
-  for stages in [3, 4] {
+  for stages in [2, 3, 4] {
     let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
       dispatch=runtime.dispatch_plan(1024),
       maximum_rows=32,
@@ -31,8 +31,13 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
         "consume_current_slot();",
         asynchronous~,
       )
-      assert_true(source.contains("prime < \{stages - 1}"))
-      assert_true(source.contains("stage = (stage + 1) % \{stages}"))
+      if stages == 2 {
+        assert_true(source.contains("stage_operands(0, 0);"))
+        assert_true(source.contains("stage ^= 1;"))
+      } else {
+        assert_true(source.contains("prime < \{stages - 1}"))
+        assert_true(source.contains("stage = (stage + 1) % \{stages}"))
+      }
       assert_eq(source.split("__syncthreads();").count(), 3)
       let pieces = source.split("consume_current_slot();").to_array()
       assert_eq(pieces.length(), 2)
