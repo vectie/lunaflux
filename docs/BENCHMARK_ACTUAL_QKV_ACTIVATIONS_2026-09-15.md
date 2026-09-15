@@ -70,6 +70,36 @@ output mapper. Full ingress fusion must not reuse operation-2 output assumptions
 
 ## Reproduction and validation
 
+### Head input across request-owned rows
+
+Run `/tmp/lunaflux-headall.KaC3sK` captures operation 282 input only,
+at every active row. This uses the historical diagnostic source described below,
+not the latest release. Trace request/generation/sample identities are retained
+as 64-bit strings and cleared at each batch boundary. Row zero alone is not a
+request identity. Repeated head-family captures are deduplicated only after
+their words agree exactly.
+
+For the uniquely response-matched C1/C8 request with identical 3072-token
+input, all 32 generated tokens agree. At position 3071 the 1024 head-input
+components are identical. At positions 3072–3102, 867–955 components differ;
+maximum absolute difference ranges from 0.25 to 1.75. Squared relative L2
+difference against C1 ranges from 0.0001119954 to 0.0008499297. C1 is a
+comparison vector, not an independent numerical oracle. These results do not
+establish an acceptable error bound or resolve earlier last-token differences.
+All 288 sampled decisions agree with CPU argmax of the captured logits, with
+no exact top-two ties. Instrumented wall time is not a throughput result.
+
+The earlier fixed-row run `/tmp/lunaflux-headinput.qHu7lP` supplied only one
+corresponding request-owned row. Its position-only comparison mixed requests
+and must not be used. The all-row run supersedes that comparison.
+
+Installer/parser regressions cover all-row input-only mode, ownership reset,
+full UInt64 identities, and rejection of paired captures in input-only mode.
+This adds no production token-step work.
+
+Result archive: `/tmp/lunaflux-headall-KaC3sK-results.tar.gz`, SHA-256
+`a04a4755f781ddc4dd7aa670107d0cb5a4e11bd92781e551ba6d5e4648ed0efb`.
+
 ### Final-normalization capture attempt
 
 An isolated clone of the same historical diagnostic source was rebuilt with

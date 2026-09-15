@@ -4,6 +4,10 @@ fn field(line:StringView,key:String)->Int raise {
   guard line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array() is [value] else {fail(key)}
   @string.parse_int(value[key.length()+1:])
 }
+fn text_field(line:StringView,key:String)->String raise {
+  guard line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array() is [value] else {fail(key)}
+  value[key.length()+1:].to_owned()
+}
 struct Capture {
   epoch : Int
   operation : Int
@@ -15,22 +19,31 @@ struct Capture {
   batch_tokens : Int
   expected : Int
   words : Array[Int]
+  request : String?
+  generation : String?
+  sample : Int?
 } derive(ToJson)
 
 async fn main {
-  guard @env.args() is [_,input,output] else {fail("STDERR NEW_JSON")}
+  let args = @env.args()
+  guard args.length() == 3 || (args.length() == 4 && args[3] == "input-only") else {fail("STDERR NEW_JSON [input-only]")}
+  let input=args[1];let output=args[2]
+  let input_only=args.length()==4
   let captures : Array[Capture] = []
   let mut batch_rows = 0
   let mut batch_tokens = 0
+  let owners:Map[Int,(String,String,Int)] = Map([])
   for line in @fs.read_file(input).text().split("\n") {
     if !line.contains("lf_exec ") {continue}
     let kind = field(line,"kind")
-    if kind == 0 {batch_rows=field(line,"a");batch_tokens=field(line,"b")}
+    if kind == 0 {batch_rows=field(line,"a");batch_tokens=field(line,"b");owners.clear()}
+    if kind == 7 {owners[field(line,"a")]=(text_field(line,"seq"),text_field(line,"elapsed"),field(line,"b"))}
     if kind == 10 || kind == 12 {
       if captures.last() is Some(previous) {assert_eq(previous.words.length(),previous.expected)}
       let bytes=field(line,"e")
       assert_true(bytes>0 && bytes%2==0 && batch_rows>0 && batch_tokens>0)
-      captures.push({epoch:field(line,"seq"),operation:field(line,"a"),row:field(line,"b"),activation:field(line,"c"),direction:if kind==10 {0} else {1},position:field(line,"f"),batch_rows,batch_tokens,expected:bytes/2,words:[]})
+      let owner=owners.get(field(line,"b"))
+      captures.push({epoch:field(line,"seq"),operation:field(line,"a"),row:field(line,"b"),activation:field(line,"c"),direction:if kind==10 {0} else {1},position:field(line,"f"),batch_rows,batch_tokens,expected:bytes/2,words:[],request:owner.map(x=>x.0),generation:owner.map(x=>x.1),sample:owner.map(x=>x.2)})
     } else if kind == 9 || kind == 11 {
       guard captures.last() is Some(record) else {fail("missing activation header")}
       assert_eq(field(line,"seq"),record.epoch)
@@ -47,6 +60,13 @@ async fn main {
   }
   guard captures.last() is Some(last) else {fail("no activations")}
   assert_eq(last.words.length(),last.expected)
+  if input_only {
+    assert_true(captures.iter().all(c=>c.direction==0),msg="input-only capture contains output")
+    let result:Json={"scope":"diagnostic-eager-input-only","performance_measurement":false,"captures":captures}
+    @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+    println("input_captures=\{captures.length()}")
+    return
+  }
   // Restrict causality comparison to single-input/single-output stateless
   // projection captures. Multi-input or missing-output groups are rejected.
   let pairs : Array[(Capture,Capture)] = []
@@ -56,6 +76,8 @@ async fn main {
     assert_true(inp.direction==0 && out.direction==1 && inp.epoch==out.epoch && inp.operation==out.operation && inp.row==out.row)
     assert_true(inp.position==out.position && inp.batch_rows==out.batch_rows && inp.batch_tokens==out.batch_tokens,
       msg="input/output capture context changed")
+    assert_true(inp.request==out.request && inp.generation==out.generation && inp.sample==out.sample,
+      msg="input/output capture owner changed")
     pairs.push((inp,out))
   }
   let differences : Array[Json] = []

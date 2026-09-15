@@ -65,5 +65,35 @@ async fn main {
   @fs.write_file(root+"/mismatched",mismatched,create_mode=CreateNew)
   let (code,_,_)=@process.collect_output("moon",["run",summary,root+"/mismatched",root+"/mismatched.json"])
   assert_true(code!=0)
+  let input_trace=sample(1,1,16256).split("lf_exec kind=12").to_array()[0].to_owned()
+  @fs.write_file(root+"/input-trace",input_trace,create_mode=CreateNew)
+  let (code,_,err)=@process.collect_output("moon",["run",summary,root+"/input-trace",root+"/input.json","input-only"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/input.json").text()) is {"scope":String("diagnostic-eager-input-only"),"captures":Array([_]),..})
+  let (code,_,_)=@process.collect_output("moon",["run",summary,trace,root+"/wrong-mode.json","input-only"])
+  assert_true(code!=0)
+  let input_root=root+"/input-only-source"
+  @fs.mkdir(input_root)
+  @fs.mkdir(input_root+"/engine")
+  @fs.mkdir(input_root+"/engine/device_step")
+  @fs.mkdir(input_root+"/device")
+  for file in files {
+    @fs.write_file(input_root+"/"+file,@fs.read_file(file),create_mode=CreateNew)
+  }
+  @fs.write_file(input_root+"/engine/device_step/diagnostic_execution.mbt","// isolated fixture",create_mode=CreateNew)
+  let (code,_,err)=@process.collect_output("moon",["run",script,input_root,"282","1","120","all","input-only"])
+  assert_eq(code,0,msg=err.text())
+  let input_helper=@fs.read_file(input_root+"/engine/device_step/diagnostic_activation.mbt").text()
+  assert_true(input_helper.contains("if direction != 0 { return }"))
+  assert_true(input_helper.contains("operation.as_int() != 282"))
+  assert_true(input_helper.contains("for row in 0..<descriptor.staged_summary.row_count {"))
+  let owned_trace=input_trace.replace(old="lf_exec kind=10",new="lf_exec kind=7 seq=18446744073709551615 a=0 b=3 elapsed=18446744073709551614\nlf_exec kind=10")+input_trace.split("seq=1").to_array().join("seq=2")
+  @fs.write_file(root+"/owned-input",owned_trace,create_mode=CreateNew)
+  let (code,_,err)=@process.collect_output("moon",["run",summary,root+"/owned-input",root+"/owned.json","input-only"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/owned.json").text()) is {"captures":Array([
+    {"request":String("18446744073709551615"),"generation":String("18446744073709551614"),..},
+    {"request"?:None,..},
+  ]),..})
   println("activation installer regression passed: " + root)
 }
