@@ -2,6 +2,7 @@
 /// Cross-owner visibility model: pending writes are unavailable until the
 /// workgroup publishes them. The next fold consumes the previous output.
 priv struct ScoreFoldModel {
+  mut visible_scores : Bool
   mut pending_scale : Bool
   mut pending_probability : Bool
   mut pending_output : Bool
@@ -17,12 +18,15 @@ fn ScoreFoldModel::step(
   tile : Int,
 ) -> Unit raise {
   match step {
+    PublishProducedScores => self.visible_scores = true
     UpdateResidentStatisticsAndProbabilities => {
+      assert_true(self.visible_scores)
       assert_true(!self.pending_probability && !self.pending_output)
       self.pending_scale = true
       self.pending_probability = true
     }
     UpdateSharedMaximumAndScale => {
+      assert_true(self.visible_scores)
       assert_true(!self.pending_scale && !self.pending_output)
       self.pending_scale = true
     }
@@ -60,6 +64,7 @@ fn check_score_fold(
   resident_output : Bool,
 ) -> Unit raise {
   let model : ScoreFoldModel = {
+    visible_scores: false,
     pending_scale: false,
     pending_probability: false,
     pending_output: false,
@@ -68,6 +73,7 @@ fn check_score_fold(
     outputs: 0,
   }
   for tile in 0..<tiles {
+    model.visible_scores = false
     for step in steps {
       model.step(step, tile)
     }
@@ -95,7 +101,7 @@ test "score fold publishes shared data before cross-owner use" {
       }
       // The first and final publications have required cross-owner consumers.
       // Intermediate fences are preserved, not claimed minimal by this model.
-      for index in [1, steps.length() - 1] {
+      for index in [0, 2, steps.length() - 1] {
         let kept = []
         for i, item in steps {
           if i != index {

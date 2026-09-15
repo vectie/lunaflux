@@ -2,6 +2,7 @@
 /// Shared-score fold operations. Publication separates cross-owner writes and
 /// reads; a resident output fold does not need a shared rescale operation.
 pub(all) enum AttentionScoreFoldStep {
+  PublishProducedScores
   UpdateResidentStatisticsAndProbabilities
   UpdateSharedMaximumAndScale
   RescaleSharedOutput
@@ -18,9 +19,13 @@ pub fn plan_attention_score_fold(
   resident_output~ : Bool,
 ) -> ReadOnlyArray[AttentionScoreFoldStep] {
   let prefix : Array[AttentionScoreFoldStep] = if resident_statistics {
-    [UpdateResidentStatisticsAndProbabilities, PublishScoreFold]
+    [
+      PublishProducedScores,
+      UpdateResidentStatisticsAndProbabilities,
+      PublishScoreFold,
+    ]
   } else {
-    [UpdateSharedMaximumAndScale, PublishScoreFold]
+    [PublishProducedScores, UpdateSharedMaximumAndScale, PublishScoreFold]
   }
   if !resident_output {
     prefix.push(RescaleSharedOutput)

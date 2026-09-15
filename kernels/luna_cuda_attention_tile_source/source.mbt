@@ -214,11 +214,6 @@ fn emit_cuda_prefill_attention_tile_source(
   } else {
     "  const int warp_count = LF_BLOCK_THREADS >> 5;"
   }
-  let resident_declaration = if resident_output {
-    cuda_resident_output_fold_declaration()
-  } else {
-    ""
-  }
   let resident_store = cuda_score_terminal_effects(
     terminal_plan,
     MaterializeScoreOutput,
@@ -290,6 +285,7 @@ fn emit_cuda_prefill_attention_tile_source(
     )
     .map(step => {
       match step {
+        PublishProducedScores => "    __syncthreads();\n\n"
         UpdateResidentStatisticsAndProbabilities => resident_softmax_update
         UpdateSharedMaximumAndScale => shared_maximum_update
         RescaleSharedOutput => rescale_shared_output
@@ -413,43 +409,11 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  extern __shared__ __align__(16) unsigned char shared_arena[];
     $|\{shared_layout}
     $|
-    $|  for (int linear = thread; linear < LF_QUERY_TILE * LF_HEAD_DIMENSION; linear += LF_BLOCK_THREADS)
-    $|    accumulator[lf_float_index(linear / LF_HEAD_DIMENSION, linear % LF_HEAD_DIMENSION, LF_HEAD_DIMENSION)] = \{initial_accumulator};
-    $|  __syncthreads();
-    $|\{resident_declaration}
+    $|\{cuda_score_bootstrap(InitializeScoreAccumulators, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
     $|
-    $|  const int query_vector_count = LF_QUERY_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
-    $|  for (int vector = thread; vector < query_vector_count; vector += LF_BLOCK_THREADS) {
-    $|    const int first_value = vector * LF_VALUES_PER_VECTOR;
-    $|    const int query = first_value / LF_HEAD_DIMENSION;
-    $|    const int component = first_value % LF_HEAD_DIMENSION;
-    $|    uint4 packed = make_uint4(0U, 0U, 0U, 0U);
-    $|    if (query < active_queries) {
-    $|      const unsigned long long source_index =
-    $|          (unsigned long long)(token_base + query) * \{input_row_width}ULL +
-    $|          (unsigned long long)query_head * LF_HEAD_DIMENSION + component;
-    $|      packed = *reinterpret_cast<const uint4 *>(rotated_qkv_rows + source_index);
-    $|    }
-    $|    *reinterpret_cast<uint4 *>(query_tile + lf_operand_index(query, component, LF_HEAD_DIMENSION)) = packed;
-    $|  }
-    $|\{shared_state_initialization}
-    $|  __syncthreads();
+    $|\{cuda_score_bootstrap(InitializeScoreOperands, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
     $|
-    $|  int maximum_query_position = query_positions[token_base];
-    $|  if (thread == 0) {
-    $|    tile_valid = 1;
-    $|    for (int query = 0; query < active_queries; ++query) {
-    $|      const int position = query_positions[token_base + query];
-    $|      if (position < 0 || position >= sequence_length) tile_valid = 0;
-    $|      maximum_query_position = max(maximum_query_position, position);
-    $|    }
-    $|    scores[0] = __int_as_float(maximum_query_position);
-    $|  }
-    $|  __syncthreads();
-    $|  maximum_query_position = __float_as_int(scores[0]);
-    $|  if (!tile_valid) return;
-    $|  // Complete query-bounds/validation reads before the next staging epoch.
-    $|  __syncthreads();
+    $|\{cuda_score_bootstrap(ValidateScoreOperands, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
     $|\{partition_bounds}
     $|
     $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
@@ -486,8 +450,6 @@ fn emit_cuda_prefill_attention_tile_source(
     $|      }
     $|    }
     $|#endif
-    $|    __syncthreads();
-    $|
     $|\{online_softmax_update}
     $|
     $|\{value_accumulation}

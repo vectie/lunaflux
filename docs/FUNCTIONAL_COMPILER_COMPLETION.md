@@ -137,6 +137,19 @@ storage combinations have explicit plan tests. Prologue initialization and
 validation scratch boundaries still need audit; these changes do not claim
 that every existing barrier is minimal or that new GPU timing has been measured.
 
+The following bootstrap integration closes the shared-score prefill prologue:
+output initialization, optional resident fragment initialization, query/statistic
+publication, query-bound validation, uniform invalid return and release of the
+borrowed score/validity region are common ordered effects. The score-fold plan
+also publishes produced QK scores before softmax reads. CUDA bootstrap helpers
+render these operations but do not select their ordering. All 36 existing
+shared-score source digests remain unchanged; schedule/source tests pass 31/31
+and 35/35, with warning-denied native check. Negative visibility-model tests
+reject omitted publication, query-bound read, validity decision and reader
+release. No asynchronous copy has started at this early-return boundary.
+The separate scalar decode renderer still requires an effect audit; numerical
+acceptance and final integrated physical validation remain open.
+
 Clean `3f5555ef` subsequently passed `moon info`, `moon fmt --check`, native
 warning-denied check and all 3,092 native tests in
 `/tmp/lunaflux-clean-3f5555ef.X94WXp`. The format failure above is resolved by

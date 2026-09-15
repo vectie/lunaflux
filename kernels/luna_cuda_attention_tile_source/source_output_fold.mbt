@@ -16,7 +16,6 @@ fn cuda_resident_output_fold_declaration() -> String {
     #|      output_fold[slice] = {};
     #|    }
     #|  }
-    #|  __syncthreads();
     #|
   )
 }
