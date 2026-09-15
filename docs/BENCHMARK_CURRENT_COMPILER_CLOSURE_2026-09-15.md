@@ -353,6 +353,35 @@ The downloaded copy at
 `/tmp/lunaflux-b9440271-download.1hvzzG/diversity-results.tar.gz`
 has the same verified digest.
 
+### Current-source fixed selected-graph replay: b9440271
+
+The isolated diagnostic build in `/tmp/lunaflux-fixed-b9440271.BECZik`
+uses the same clean source archive and the current runtime's kernel artifacts.
+Worker, parent, bridge and supervisor were rebuilt with diagnostic stderr
+retention. Production source and runtime artifacts were not instrumented.
+
+All four uniform input/output vectors at C1/C8/C16 completed six trials.
+The repeat runs an already-selected graph again without advancing the request,
+so it is limited to these idempotent positioned-KV writes and BF16 logits.
+All 4116 execution markers are captured-graph execution, with zero eager markers.
+Across 28800 compared logit rows / 8751513600 bytes, no row or byte changed.
+The owned server stopped and the cooldown GPU check completed.
+
+This closes current-source selected-graph replay for the tested matrix. It does
+not close cross-batch numerical acceptance, full-fusion replay or all possible
+shapes. Its timings include replay and readback and must not replace the
+uninstrumented performance table above.
+
+The launcher forwards its nested runtime stderr into `server.stderr` on exit.
+The first archival attempt looked for the already-removed temporary nested
+path and failed before writing results; the corrected archival step consumes
+the retained terminal `server.stderr`. No diagnostic data was lost or rerun.
+
+Remote archive: `/tmp/lunaflux-fixed-b9440271-results.tar.gz`, SHA-256
+`1e88eb61c59f5027ef1cb93f25ec9690e3356b00226ac07c2f1c8709ebbac8a9`.
+The downloaded `/tmp/lunaflux-b9440271-download.1hvzzG/fixed-results.tar.gz`
+matches that digest.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,

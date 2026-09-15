@@ -32,6 +32,23 @@ unchanged from the prior 230.63. The 3072/32 last-token variability persists;
 fresh serving completion is not completion of numerical acceptance or all
 common strategy/effect integration.
 
+## Five-closure checkpoint, current source b9440271
+
+This checkpoint supersedes historical pending statements below only for the
+explicitly tested scope; it is not an all-work-complete declaration.
+
+| Closure | Current result | Remaining |
+| --- | --- | --- |
+| Real-model numerical stability | Same-input projection and propagation observations plus a BF16-input FP64 dot reference completed; current mixed workload reproduces differing requests | Isolate accumulated KV/history from attention arithmetic and establish reference-based numerical acceptance; differences are not limited to the last token |
+| Current selected-graph reproducibility | Completed for the selected partial-fusion four-vector C1/C8/C16 matrix: 4116 captured executions, 28800 rows / 8751513600 bytes, zero changed bytes | No claim for untested shapes or full-fusion paths |
+| Common strategy integration | Operand row decisions and striped transfer composition are consumed by production lowering; measured selection keeps the faster established kernels | Complete the remaining transfer-worker strategy audit/integration |
+| Explicit effects/lifetimes | Matrix map, materialization, ring bootstrap and the listed attention families consume common plans; scalar grouped decode is already integrated | Direct-register sibling epilogue fence review and final coverage audit |
+| Final-current-source E2E | Completed on b9440271: clean Linux 3104/3104, seven release entries, uniform matrix and seven mixed workloads | These measurements do not imply numerical acceptance or a speedup; rerun affected scopes if production source changes |
+
+Full results are in the current compiler validation report linked above.
+4096/64/C16 is 230.52679 output tok/s. This checkpoint does not rerun competitors
+or claim that remaining optimization work necessarily closes the baseline gap.
+
 ## Query-owned attention effects, 2026-09-15
 
 ### Ordered operand decisions
