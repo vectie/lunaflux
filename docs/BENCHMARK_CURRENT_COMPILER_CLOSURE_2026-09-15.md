@@ -288,7 +288,7 @@ This is not the clean-commit test count. A separate clean Linux extraction of
 `b9440271` is under `/tmp/lunaflux-integrated-b9440271.RgOXzJ`, source archive
 SHA-256 `eb456db2a76bcd76118c4aa1da4ba151b72ce44c1dcd0e0f18849bcf2a0aea3b`.
 Its interface generation, format check and native warning-denied check pass;
-the full test/release-build session is still running. No physical result for
+all 3104 clean-commit tests pass. Release builds remain running. No physical result for
 this source is asserted here.
 
 ## Earlier mixed workload measurements
