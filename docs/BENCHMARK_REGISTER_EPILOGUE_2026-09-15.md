@@ -44,3 +44,40 @@ pass on the 127-token tail case. Results are in
 The probe uses the real projection lowerer but is not an end-to-end runtime
 benchmark. Final integrated serving performance and the separate cross-batch
 numerical diagnosis are not closed by this measurement.
+
+## Integrated result: 3b2f25d4
+
+The first `a73c7bb1` release binding failed because the execution layer still
+required companion scratch to equal `block_x * 32`. Commit `3b2f25d4` fixes that
+obsolete inference. Its clean native suite passes 3108/3108, all seven release
+entries build, and release binding/materialization pass. The kernel tree is
+unchanged from a73c7bb1, whose compiled modules were reused and rebound; the
+runtime executables are freshly built from 3b2f25d4.
+
+Uninstrumented Qwen3-0.6B BF16 serving, one warmup and five trials per cell:
+
+| Input/output | C1 tok/s | C8 tok/s | C16 tok/s | Prior b9440271 C16 |
+| --- | ---: | ---: | ---: | ---: |
+| 512/64 | 211.921 | 1036.437 | 1395.095 | 1385.656 |
+| 1528/32 | 149.533 | 373.178 | 412.571 | 409.600 |
+| 3072/32 | 107.383 | 187.546 | 198.604 | 197.303 |
+| 4096/64 | 117.216 | 217.502 | 231.569 | 230.527 |
+
+4096/64/C16 improves only 0.45% in throughput. This does not reproduce the
+isolated down improvement as a whole-service improvement. Actual selected
+shapes and time contribution must be measured before attributing the dilution.
+Historical vLLM/SGLang C16 values remain 266.38/260.71 tok/s (not rerun here),
+so current completion time is still approximately 15.0%/12.6% higher.
+
+All response lengths pass and the runner stops its owned service, leaving the
+GPU idle. 3072/32 C8/C16 still show differences at token index 31 relative to
+their first measured response; the other ten cells do not. This is not an
+independent reference accuracy check, and it does not close numerical acceptance.
+
+Remote source: `/tmp/lunaflux-integrated-3b2f25d4.XHVR7g`.
+Downloaded E2E results:
+`/tmp/lunaflux-a73c7bb1-download.U1HUO9/e2e-3b2f25d4-results.tar.gz`, SHA-256
+`030d4d4fdf70b710baf85a18aab06849e2b93e6bc7e288de166ae0451aae0de8`.
+Downloaded isolated experiments: the same directory's `register-results.tar.gz`,
+SHA-256 `f53644b101f7a27f12e867f75d9040dacb8c08a4feabdd81b35ee65d36c4037c`.
+Both hashes match the remote archives.
