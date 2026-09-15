@@ -11,6 +11,7 @@ fn projection_matrix_map_source(
   }
   let schedule = compilation.schedule()
   let selected = schedule.demand() == QueryRowEnds
+  let effects = schedule.demand().map_effect_plan()
   let resident = schedule.selected_input_row_resident()
   let width = if resident { parameters.input_width } else { 16 }
   let groups = schedule.output_tiles_per_workgroup()
@@ -23,7 +24,7 @@ fn projection_matrix_map_source(
       $|      const int token_row = query_row < row_count ? row_offsets[query_row + 1] - 1 : -1;
       $|      selected_input[operand_index(local_row, component)] = token_row >= 0 && token_row < token_count ? input[(unsigned long long)token_row * \{parameters.input_width}ULL + strip_begin + component] : __float2bfloat16_rn(0.0f);
       $|    }
-      $|    __syncthreads();
+      $|    \{projection_map_fence_source(effects, InputWritten)}
     )
   } else {
     ""
@@ -79,17 +80,17 @@ fn projection_matrix_map_source(
     $|          asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]), "+f"(d[1]), "+f"(d[2]), "+f"(d[3]) : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[half]), "r"(b[half+2]));
     $|        }
     $|      }
-    $|      \{if selected { "__syncthreads();" } else { "" }}
+    $|      \{projection_map_fence_source(effects, InputRead)}
     $|    }
     $|    #pragma unroll
     $|    for (int item = 0; item < 8; ++item) temporary[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = accumulator[item];
-    $|    __syncwarp();
+    $|    \{projection_map_fence_source(effects, ResultWritten)}
     $|    for (int element = lane; element < 256; element += 32) {
     $|      const int logical_row = row + element / 16;
     $|      const int token_row = \{if selected { "logical_row < row_count ? row_offsets[logical_row + 1] - 1 : -1" } else { "logical_row" }};
     $|      if (token_row >= 0 && token_row < token_count && column + element % 16 < \{parameters.output_width}) output[(unsigned long long)token_row * \{parameters.output_width}ULL + column + element % 16] = __float2bfloat16_rn(temporary[result_index(element / 16, element % 16)]);
     $|    }
-    $|    __syncwarp();
+    $|    \{projection_map_fence_source(effects, ResultRead)}
     $|  }
   )
 }

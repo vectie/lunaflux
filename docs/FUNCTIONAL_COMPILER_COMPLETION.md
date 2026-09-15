@@ -65,6 +65,18 @@ The temporary prior renderer was removed after comparison; twelve source
 digest snapshots remain as regressions. This covers the changed renderer,
 not every projection family or a new physical performance result.
 
+The non-pipelined matrix-map renderer now consumes a common immutable
+`ProjectionMapEffectPlan`: input publication and reader release use workgroup
+scope only for shared selected input; result publication and reader release
+use consumer-group scope. CUDA only spells the corresponding fences. Six
+dense/selected-row, strip/resident and output-distribution source cases were
+compared byte-for-byte against `10257678`; all match. Resident cases explicitly
+assert they do not bypass the map through the separate gather renderer. The
+temporary old renderer was deleted; source digest regressions remain. Native
+warning-denied check and projection tests (68 compiler, 77 CUDA) pass. This
+closes the map synchronization decision seam, not all remaining effect paths
+or real-model numerical acceptance; it introduces no additional device fence.
+
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
 reuse and early-exit draining. CUDA lowering renders these actions without

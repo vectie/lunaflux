@@ -128,6 +128,23 @@ pub struct ProjectionLoopCombinator {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionLoopCombinator::components(Self) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int)
 
+pub(all) enum ProjectionMapBoundary {
+  InputWritten
+  InputRead
+  ResultWritten
+  ResultRead
+} derive(Eq, @debug.Debug)
+
+pub struct ProjectionMapEffectPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionMapEffectPlan::at(Self, ProjectionMapBoundary) -> ProjectionMapFence?
+
+pub enum ProjectionMapFence {
+  WorkgroupFence
+  ConsumerGroupFence
+} derive(Eq, @debug.Debug)
+
 pub struct ProjectionOperandTransferPlan {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -149,6 +166,7 @@ pub(all) enum ProjectionResultDemand {
   AllTokenRows
   QueryRowEnds
 } derive(Eq, @debug.Debug)
+pub fn ProjectionResultDemand::map_effect_plan(Self) -> ProjectionMapEffectPlan
 
 pub struct ProjectionRowSegment {
   operand : Int
