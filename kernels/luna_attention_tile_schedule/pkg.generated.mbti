@@ -127,6 +127,31 @@ pub(all) enum AttentionQueryEffectPoint {
   ReleaseQueryReaders
 } derive(Eq, @debug.Debug)
 
+pub(all) enum AttentionScoreTransferEffect {
+  ResetValidity
+  PublishWorkgroup
+  StageCurrentPair
+  AwaitPendingTransfers
+  RequireValidTile
+  ReleaseValidationReaders
+  StageNextPairInOtherSlot
+  StageFirstPair
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionScoreTransferMode {
+  CooperativeTransfer
+  ImmediateTransfer
+  LookaheadTransfer
+} derive(Eq, @debug.Debug)
+pub fn AttentionScoreTransferMode::actions(Self, AttentionScoreTransferPoint) -> ReadOnlyArray[AttentionScoreTransferEffect]
+pub fn AttentionScoreTransferMode::from_schedule(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, immediate~ : Bool) -> Self raise AttentionTileScheduleError
+
+pub(all) enum AttentionScoreTransferPoint {
+  PrimeScoreFold
+  AcquireScoreTile
+  ReleaseScoreTile
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)

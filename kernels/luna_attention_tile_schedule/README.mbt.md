@@ -59,3 +59,9 @@ covers query-owned matrix folds; the latter covers grouped decode, including
 separate K/V readiness in a two-slot ring. Backends render actions in order;
 they do not independently select wait counts or move the validity exit across
 outstanding transfers. Finite lifetime tests exercise tails, errors and reuse.
+
+`AttentionScoreTransferMode` covers shared-score prefill acquisition and reuse.
+It distinguishes cooperative transport, immediate asynchronous transport and
+lookahead: using an asynchronous instruction does not by itself imply overlap.
+Its actions join validation readers before the aliased score region is written
+or the next producer updates validity. Both read views consume these actions.

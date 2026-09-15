@@ -107,8 +107,14 @@ fn cuda_prefill_view_sync_load(abi : CudaPagedAttentionTileAbi) -> String {
 ///|
 fn cuda_prefill_view_async_stage(
   abi : CudaPagedAttentionTileAbi,
-  lookahead : Bool,
+  mode : @luna_attention_tile_schedule.AttentionScoreTransferMode,
 ) -> String {
+  let prime = cuda_score_transfer_effects(
+    mode,
+    PrimeScoreFold,
+    "",
+    first_pair="  if (partition_begin<partition_end) stage_prefill_tile(partition_begin,0);",
+  )
   (
     $|  auto stage_prefill_tile = [&](int key_base, int slot) {
     $|    auto *stage_keys=key_tiles+slot*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
@@ -126,9 +132,5 @@ fn cuda_prefill_view_async_stage(
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
     $|  };
   ) +
-  (if lookahead {
-    "\n  if (partition_begin<partition_end) stage_prefill_tile(partition_begin,0);\n"
-  } else {
-    "\n"
-  })
+  (if prime.is_empty() { "\n" } else { "\n" + prime + "\n" })
 }

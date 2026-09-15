@@ -70,8 +70,35 @@ two history lengths, including partitioned output) remain byte-identical.
 The finite asynchronous model covers zero through nine tiles and every invalid
 tile exit; negative tests reject omitted waits, publication and reader release.
 Schedule tests 25/25, source tests 34/34 and warning-denied native check pass.
-These unchanged generated kernels do not establish a new speedup. Shared-score
-prefill and remaining operand-schedule integration are still open.
+These unchanged generated kernels do not establish a new speedup.
+
+Clean Linux `6df9ac50` passed native warning-denied check and 3,088/3,088 tests
+in `/tmp/lunaflux-clean-6df9ac50.B0uBt5`. Whole-repository `fmt --check` failed
+on existing committed formatting (including record trailing commas outside
+this change), while the local formatted working tree passes. The clean run is
+not described as an all-gates pass; its format output is retained separately.
+
+## Shared-score prefill transfer effects, 2026-09-15
+
+`AttentionScoreTransferMode` now owns priming, acquisition, pending-transfer
+completion, validation-reader release, lookahead and tile-reader release for
+cooperative, immediate asynchronous transport and double-buffered lookahead.
+CUDA keeps address expressions and instruction spelling. Both paged-history
+and dense-current transfer renderers consume the same priming actions.
+
+All 36 pre-refactor source snapshots remain identical (nine supported
+candidates, both read views and partitioned/nonpartitioned output). The test
+includes the larger candidate using a correspondingly larger fixture budget;
+it is not a claim that every fixture fits the physical RTX 5060 Ti.
+The common finite lifetime model covers zero through nine tiles, cooperative
+one-to-four-slot rings, immediate one-slot transport, lookahead two-slot
+transport, every invalid exit, and missing wait/publication/validation-release/
+reader-release negative cases. Schedule tests 28/28 and source tests 35/35 pass.
+
+This closes these transfer-order decisions, not every arithmetic or scratch
+publication boundary: shared-score softmax/output publication and the remaining
+QKV operand-worker schedule still need integration. Numerical acceptance also
+remains open. No speedup is inferred from byte-identical generated source.
 
 ## Scalar selected-row scatter correction, 2026-09-15
 

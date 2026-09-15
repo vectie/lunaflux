@@ -23,8 +23,9 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(SourceLimit)
   }
   let compute = lowering.compute()
-  let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad
-  let direct_staging = lowering.direct_prefill_staging()
+  let transfer_mode = cuda_score_transfer_mode(lowering)
+  let asynchronous = transfer_mode == LookaheadTransfer
+  let direct_staging = transfer_mode == ImmediateTransfer
   let key_value_partitions = lowering.key_value_partitions()
   if !(compute == CudaMatrixMultiplyAccumulate ||
     compute == CudaMatrixQkPvMultiplyAccumulate) ||
@@ -52,8 +53,7 @@ fn emit_cuda_prefill_attention_tile_source(
     vector_bytes != 16 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  if (asynchronous && pipeline_stages != 2) ||
-    ((asynchronous || direct_staging) && page_stride_values % 8L != 0L) {
+  if (asynchronous || direct_staging) && page_stride_values % 8L != 0L {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
@@ -296,12 +296,12 @@ fn emit_cuda_prefill_attention_tile_source(
   )
   let async_stage = if asynchronous || direct_staging {
     if lowering.reads_dense_current_key_value() {
-      cuda_prefill_view_async_stage(abi, asynchronous)
+      cuda_prefill_view_async_stage(abi, transfer_mode)
     } else {
       emit_prefill_async_stage(
         abi,
         lowering.hoists_paged_key_value_page_lookup(),
-        asynchronous,
+        transfer_mode,
       )
     }
   } else {
@@ -448,43 +448,11 @@ fn emit_cuda_prefill_attention_tile_source(
     $|    const int stage = tile_index % LF_PIPELINE_STAGES;
     $|#if LF_ASYNC_PREFILL
     $|    // Wait only at the next tile's first consumer, not at its issue site.
-    $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|    __syncthreads();
-    $|    if (!tile_valid) return;
-    $|    __syncthreads();
-    $|    const int next_key_base = key_base + LF_KEY_VALUE_TILE;
-    $|    if (next_key_base < partition_end)
-    $|      stage_prefill_tile(next_key_base, stage ^ 1);
+    $|\{cuda_score_transfer_effects(LookaheadTransfer, AcquireScoreTile, "")}
     $|#elif LF_DIRECT_PREFILL
-    $|    if (thread == 0) tile_valid = 1;
-    $|    __syncthreads();
-    $|    stage_prefill_tile(key_base, 0);
-    $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
-    $|    __syncthreads();
-    $|    if (!tile_valid) return;
-    $|    // The validation/key regions may be reused only after this join.
-    $|    __syncthreads();
+    $|\{cuda_score_transfer_effects(ImmediateTransfer, AcquireScoreTile, "")}
     $|#else
-    $|    if (thread == 0) tile_valid = 1;
-    $|    __syncthreads();
-    $|    for (int vector = thread; vector < key_value_vector_count; vector += LF_BLOCK_THREADS) {
-    $|      const int first_value = vector * LF_VALUES_PER_VECTOR;
-    $|      const int key = first_value / LF_HEAD_DIMENSION;
-    $|      const int component = first_value % LF_HEAD_DIMENSION;
-    $|      const int key_position = key_base + key;
-    $|      uint4 packed_key = make_uint4(0U, 0U, 0U, 0U);
-    $|      uint4 packed_value = make_uint4(0U, 0U, 0U, 0U);
-    $|\{paged_key_value_load}
-    $|      __nv_bfloat16 *stage_keys = key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|      __nv_bfloat16 *stage_values = value_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|      *reinterpret_cast<uint4 *>(stage_keys + lf_operand_index(key, component, LF_HEAD_DIMENSION)) = packed_key;
-    $|      *reinterpret_cast<uint4 *>(stage_values + lf_operand_index(key, component, LF_HEAD_DIMENSION)) = packed_value;
-    $|    }
-    $|    __syncthreads();
-    $|    if (!tile_valid) return;
-    $|
-    $|    // End validation lifetime before QK overwrites the aliased score slot.
-    $|    __syncthreads();
+    $|\{cuda_score_transfer_effects(CooperativeTransfer, AcquireScoreTile, cuda_score_cooperative_transfer(paged_key_value_load))}
     $|#endif
     $|#if LF_FACTOR_SHARED_KEY
     $|\{cuda_attention_shared_key_dot()}
@@ -509,7 +477,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|\{online_softmax_update}
     $|
     $|\{value_accumulation}
-    $|    __syncthreads();
+    $|\{cuda_score_transfer_effects(transfer_mode, ReleaseScoreTile, "")}
     $|  }
     $|
     $|\{resident_store}

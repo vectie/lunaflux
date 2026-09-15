@@ -6,10 +6,11 @@
 fn emit_prefill_async_stage(
   abi : CudaPagedAttentionTileAbi,
   hoist_page_lookup : Bool,
-  lookahead : Bool,
+  mode : @luna_attention_tile_schedule.AttentionScoreTransferMode,
 ) -> String {
   let (_, heads, dimension, page_tokens) = abi.shape()
   let (_, stride, capacity) = abi.layout()
+  let prime = cuda_score_transfer_effects(mode, PrimeScoreFold, "")
   let lookup_lane = if hoist_page_lookup { " && component == 0" } else { "" }
   let page_broadcast = if hoist_page_lookup {
     "      page = __shfl_sync(0xffffffffU, page, (lane / " +
@@ -56,9 +57,5 @@ fn emit_prefill_async_stage(
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
     $|  };
   ) +
-  (if lookahead {
-    "\n  if (partition_begin < partition_end) stage_prefill_tile(partition_begin, 0);\n"
-  } else {
-    "\n"
-  })
+  (if prime.is_empty() { "\n" } else { "\n" + prime + "\n" })
 }
