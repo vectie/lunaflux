@@ -21,6 +21,8 @@ pub fn partition_projection_transfer_segments(ArrayView[Int], workers~ : Int, ma
 
 pub fn plan_projection_concatenated_rows(ArrayView[Int]) -> ReadOnlyArray[ProjectionRowSegment]?
 
+pub fn plan_projection_row_selection(ArrayView[ProjectionRowSegment]) -> ProjectionRowSelection?
+
 pub fn projection_bounded_row_extent(maximum_rows~ : Int, matrix_rows~ : Int, preferred_rows~ : Int) -> Int?
 
 pub fn projection_selected_row_gather(@luna_projection_strategy.ProjectionDispatchPlan, ProjectionResultDemand) -> ProjectionSelectedRowGather?
@@ -152,6 +154,11 @@ pub struct ProjectionRowSegment {
   operand : Int
   row_begin : Int
   row_end : Int
+} derive(Eq, @debug.Debug)
+
+pub enum ProjectionRowSelection {
+  Operand(Int)
+  Skip(width~ : Int, operand~ : Int, ProjectionRowSelection)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ProjectionRowTailPolicy {

@@ -34,6 +34,18 @@ common strategy/effect integration.
 
 ## Query-owned attention effects, 2026-09-15
 
+### Ordered operand decisions
+
+The concatenated-weight selection tree is now an immutable common compiler
+plan (`ProjectionRowSelection`), consumed by scalar, dot-fold, matrix-map and
+matrix-pipeline CUDA lowering. The backend only renders its branches and ABI
+operands; it no longer constructs the selection schedule from interval widths.
+The established nested order is preserved, not replaced with the previously
+slower hoist. Tests cover every logical row, 129 operands, vector worker tails,
+and invalid interval schedules. Existing exact selection-source tests remain
+unchanged. This closes the row-selection decision seam, not all transfer-worker
+planning or the remaining numerical/final-current-source validation work.
+
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
 reuse and early-exit draining. CUDA lowering renders these actions without
