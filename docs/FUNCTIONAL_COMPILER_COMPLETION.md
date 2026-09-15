@@ -56,6 +56,13 @@ value readiness/publication precede next-key issue, value readers release
 before next-value issue, and next-key readiness remains an explicit wait.
 This avoids maintaining a second, disconnected synchronization policy.
 
+Clean Linux archive `6668c725` subsequently passed all 3,083 native tests with
+`--deny-warn` in `/tmp/lunaflux-clean-6668c725.3XxR95`. The dependency C compiler
+still reports an implicit declaration warning for
+`posix_spawn_file_actions_addchdir_np` in async's thread pool; this is not a
+warning-free C build claim. The later unused-policy removal passed local
+warning-denied check and the same 22 schedule / 33 source tests.
+
 Latest numerical follow-up: [actual QKV activation capture](BENCHMARK_ACTUAL_QKV_ACTIVATIONS_2026-09-15.md)
 finds 29 differing output pairs among 77 exactly equal actual-model input pairs,
 all crossing single-token/multi-token execution. A subsequent FP64 dot-product
