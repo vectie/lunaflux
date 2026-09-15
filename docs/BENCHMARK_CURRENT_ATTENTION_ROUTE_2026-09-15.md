@@ -75,6 +75,26 @@ number of partitions relative to the async unsplit implementation. The next
 isolated experiment enables the existing two-stage capability in both places;
 it is not an unconditional production default or a claim of measured gain.
 
+That experiment is now complete and also rejected. With both compiler and
+geometry capabilities updated, 3108/3108 tests and seven release builds pass;
+fresh AOT export, compile and binding pass. The emitted split source uses a
+64-key double-buffered tile and actual `cp.async` instructions. The same
+uninstrumented matrix gives 4096/64 C16 **207.33 tok/s** (4939 ms), versus
+219.27 for broad synchronous split and 231.57 for the current route. C8 is
+192.34 tok/s, and 512/64 C16 is 1117.90 tok/s. No output-length failures occur;
+the 3072-token cross-batch divergence remains and is not numerical acceptance.
+
+The first experimental patch accidentally updated only one occurrence of the
+capability settings, because `String::replace` replaces the first match. Its
+contract-test failure was an experiment-construction error, not a product bug.
+The corrected patch updates both occurrences and passes the full suite. Failed
+and corrected logs are retained separately. No contract assertion was removed.
+
+This rejects enabling asynchronous split as a sufficient solution. Comparing
+transfer tile sizes together with actual residency and partial-kernel counters
+is still required; this matrix alone does not establish the hardware stall
+responsible for the additional regression.
+
 The 3072-token cross-batch output difference at token index 31 remains present;
 these trials do not close the independent reference-accuracy question.
 
@@ -92,6 +112,9 @@ these trials do not close the independent reference-accuracy question.
   `f9d742e6d225c84141f22fcaf3a6d0a571b8cb48222565e77d54b62512bb0030`.
 - Downloaded split experiment archive SHA-256:
   `9950f4c86c54be92ef645f387ec4d5966a8f6ce4a22a8a00739b50e78b5232e5`.
+- Async split experiment: `/tmp/lunaflux-async-split-experiment.vHQziO`;
+  downloaded result archive SHA-256:
+  `816ccbd80add6d7aa7dc1b1ea09b38f6bbc2e3527752117c379327e85f10c094`.
 
 Future selection should compare whole attention routes by workload bucket,
 including partial and merge costs, using immutable startup measurements. A
