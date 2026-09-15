@@ -11,23 +11,17 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   let (query_tile, key_value_tile, head_dimension) = lowering.tile()
   let (_, grid_y, block_threads, shared_memory_bytes) = lowering.launch()
-  let (pipeline_stages, vector_bytes) = lowering.pipeline()
+  let (_, vector_bytes) = lowering.pipeline()
   let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
   let (input_row_width, _, _) = abi.layout()
   let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
   let group_size = query_heads / key_value_heads
   let subgroup_count = block_threads / 32
   let splits_per_head = subgroup_count / group_size
-  let asynchronous = lowering.transfer_readiness() ==
-    KeyScoreBeforeValueReadiness &&
-    lowering.copy() == CudaAsynchronousSharedLoad &&
-    pipeline_stages == 2
+  let effects = cuda_grouped_effect_plan(lowering)
+  let asynchronous = effects.is_pipelined()
   if lowering.phase() != Decode ||
     lowering.compute() != CudaGroupedQuerySplitSubgroupShuffleDot ||
-    (
-      !(lowering.copy() == CudaCooperativeSharedLoad && pipeline_stages == 1) &&
-      !asynchronous
-    ) ||
     query_tile != 1 ||
     (key_value_tile != 64 && !(asynchronous && key_value_tile == 32)) ||
     head_dimension != abi_head_dimension ||
@@ -59,17 +53,15 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       $|      value_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION);
     )
   }
-  let prologue = if asynchronous { emit_decode_async_stage(abi) } else { "" }
-  let iteration = if asynchronous {
-    emit_decode_pipeline_iteration()
+  let prologue = if asynchronous {
+    emit_decode_async_stage(abi, effects)
   } else {
-    (
-      $|    if (thread == 0) *tile_valid = 1;
-      $|    __syncthreads();
-      $|\{transfer}
-      $|    __syncthreads();
-      $|    if (!*tile_valid) return;
-    )
+    ""
+  }
+  let iteration = if asynchronous {
+    emit_decode_pipeline_iteration(effects)
+  } else {
+    cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
   }
   let accumulator_items = (head_dimension + 31) / 32
   let partitions = lowering.key_value_partitions()
@@ -101,12 +93,9 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       $|\{dot}
       $|      scores[key / LF_SPLITS_PER_HEAD] = score;
       $|    }
-      $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
-      $|    __syncthreads();
-      $|    if (!stage_valid[slot]) return;
+      $|\{cuda_grouped_effects(effects, AcquireValueOperands, "", "    ")}
       $|    // The alternate slot is dead; overlap its next K/V with this V fold.
-      $|    if (key_base + LF_KEY_VALUE_TILE < key_limit)
-      $|      stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);
+      $|\{cuda_grouped_effects(effects, PrefetchNextTile, "", "    ")}
     )
   } else {
     ""
@@ -301,7 +290,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|                  value_tile[key * LF_HEAD_DIMENSION + component]);
     $|      }
     $|    }
-    $|    __syncthreads();
+    $|\{cuda_grouped_effects(effects, ReleaseTileReaders, "", "    ")}
     $|  }
     $|
     $|  float *partial_numerators = reinterpret_cast<float *>(shared_arena);
@@ -319,7 +308,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|      partial_numerators[warp * LF_HEAD_DIMENSION + component] =
     $|          accumulator[item];
     $|  }
-    $|  __syncthreads();
+    $|\{cuda_grouped_effects(effects, PublishFoldPartials, "", "  ")}
     $|  if (split == 0) {
     $|    const int first_warp = query_in_group * LF_SPLITS_PER_HEAD;
     $|    float merged_maximum = -CUDART_INF_F;

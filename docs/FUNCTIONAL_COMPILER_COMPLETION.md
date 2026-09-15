@@ -56,6 +56,23 @@ value readiness/publication precede next-key issue, value readers release
 before next-value issue, and next-key readiness remains an explicit wait.
 This avoids maintaining a second, disconnected synchronization policy.
 
+## Grouped decode effects, 2026-09-15
+
+Grouped decode now also consumes `AttentionGroupedEffectPlan`. The common
+plan orders validity initialization, separate key/value readiness, uniform
+error exit, alternate-slot prefetch, reader release and partial-fold publication.
+It preserves cooperative single-slot and asynchronous two-slot schedules;
+CUDA supplies transfer addresses and instruction spellings only. The redundant
+CUDA-side lifetime eligibility rule was removed in favor of the common constructor.
+
+Eighteen pre-refactor source snapshots (three candidates, three batch sizes,
+two history lengths, including partitioned output) remain byte-identical.
+The finite asynchronous model covers zero through nine tiles and every invalid
+tile exit; negative tests reject omitted waits, publication and reader release.
+Schedule tests 25/25, source tests 34/34 and warning-denied native check pass.
+These unchanged generated kernels do not establish a new speedup. Shared-score
+prefill and remaining operand-schedule integration are still open.
+
 ## Scalar selected-row scatter correction, 2026-09-15
 
 The scalar projection lowering gathered `row_offsets[logical_row + 1] - 1`

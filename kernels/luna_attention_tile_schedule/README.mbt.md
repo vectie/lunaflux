@@ -52,3 +52,10 @@ ends before query staging, and the terminal store begins after the final fold.
 The generic allocator describes these phases; the device lowering inserts the
 corresponding synchronization and pointer types. This removes the redundant
 full-iteration output allocation without changing the ordered arithmetic.
+
+`AttentionQueryEffectPlan` and `AttentionGroupedEffectPlan` describe ordered
+transfer/publication/reuse effects at uniform fold boundaries. The former
+covers query-owned matrix folds; the latter covers grouped decode, including
+separate K/V readiness in a two-slot ring. Backends render actions in order;
+they do not independently select wait counts or move the validity exit across
+outstanding transfers. Finite lifetime tests exercise tails, errors and reuse.

@@ -1,7 +1,10 @@
 ///|
 /// Two-stage realization of the schedule's asynchronous shared-memory map.
 /// Only storage lifetimes change: the ordered softmax fold remains untouched.
-fn emit_decode_async_stage(abi : CudaPagedAttentionTileAbi) -> String {
+fn emit_decode_async_stage(
+  abi : CudaPagedAttentionTileAbi,
+  effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
+) -> String {
   let (_, heads, _, page_tokens) = abi.shape()
   let (_, stride, capacity) = abi.layout()
   (
@@ -50,19 +53,18 @@ fn emit_decode_async_stage(abi : CudaPagedAttentionTileAbi) -> String {
     $|    }
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
     $|  };
-    $|  if (thread == 0) { stage_valid[0] = 1; stage_valid[1] = 1; }
-    $|  __syncthreads();
-    $|  if (key_begin < key_limit) stage_tile(key_begin, 0);
+    $|\{cuda_grouped_effects(effects, InitializeTransfers, "", "  ")}
   )
 }
 
 ///|
-fn emit_decode_pipeline_iteration() -> String {
+fn emit_decode_pipeline_iteration(
+  effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
+) -> String {
   (
     $|    const int slot = ((key_base - key_begin) / LF_KEY_VALUE_TILE) & 1;
     $|    // K is ready before V: QK does not depend on the value transfer.
-    $|    asm volatile("cp.async.wait_group 1;" ::: "memory");
-    $|    __syncthreads();
+    $|\{cuda_grouped_effects(effects, AcquireKeyOperands, "", "    ")}
     $|    key_tile = stage_arena + slot * 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|    value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
   )

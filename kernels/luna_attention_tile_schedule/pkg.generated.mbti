@@ -29,6 +29,34 @@ pub(all) suberror AttentionTileScheduleError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum AttentionGroupedEffect {
+  ResetStageValidity
+  ResetTileValidity
+  PublishWorkgroup
+  StageFirstPair
+  StageCurrentPair
+  AwaitPendingTransfers(Int)
+  RequireValidTile
+  RequireValidStage
+  StageNextPairInOtherSlot
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionGroupedEffectPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionGroupedEffectPlan::actions(Self, AttentionGroupedEffectPoint) -> ReadOnlyArray[AttentionGroupedEffect]
+pub fn AttentionGroupedEffectPlan::is_pipelined(Self) -> Bool
+pub fn AttentionGroupedEffectPlan::new(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, readiness~ : AttentionTransferReadiness) -> Self raise AttentionTileScheduleError
+
+pub(all) enum AttentionGroupedEffectPoint {
+  InitializeTransfers
+  AcquireKeyOperands
+  AcquireValueOperands
+  PrefetchNextTile
+  ReleaseTileReaders
+  PublishFoldPartials
+} derive(Eq, @debug.Debug)
+
 pub(all) enum AttentionIterationAxis {
   AttentionQueryRowAxis
   AttentionQueryHeadAxis
