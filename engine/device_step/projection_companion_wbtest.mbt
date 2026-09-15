@@ -65,3 +65,28 @@ test "companion launch requires a split MLP and retains its own bucket geometry"
     assert_eq(launch.shared_memory_bytes(), 4096)
   }
 }
+
+///|
+test "register-only companion preserves zero scratch through every bucket" {
+  let operation = @plan.OperationId::new(0)
+  for scratch in [0, 4096] {
+    let dimensions = @launch_contract.AotLaunchDimensions::new(
+      grid_x=1024,
+      grid_y=1,
+      grid_z=1,
+      block_x=128,
+      block_y=1,
+      block_z=1,
+      shared_memory_bytes=scratch,
+    )
+    validate_projection_companion(operation, GatedMlp, true, Some(dimensions))
+    for rows in [1, 2, 17, 128, 1024] {
+      let launch = paged_bucket_launch(
+        ProjectionMlpDownGridX(dimensions, 1024),
+        rows,
+      )
+      assert_eq(launch.shared_memory_bytes(), scratch)
+      assert_eq(launch.block_x(), 128)
+    }
+  }
+}

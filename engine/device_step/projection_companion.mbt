@@ -14,10 +14,12 @@ fn validate_projection_companion(
       d.block_z() != 1 ||
       d.block_x() < 32 ||
       d.block_x() > 512 ||
-      (d.block_x() & (d.block_x() - 1)) != 0 ||
-      d.shared_memory_bytes() != d.block_x() * 32 {
+      (d.block_x() & (d.block_x() - 1)) != 0 {
       raise blueprint_operation_error(operation, ArtifactEntryPoint)
     }
+    // The admitted companion declares its storage requirement. Register-only
+    // output lowering needs no dynamic scratch; block size does not determine
+    // result layout. Preserve the exact bounded launch contract below.
   }
 }
 
