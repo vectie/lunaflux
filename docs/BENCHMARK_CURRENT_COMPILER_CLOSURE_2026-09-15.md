@@ -152,6 +152,28 @@ Completion of requests therefore does not close cross-batch numerical
 acceptance. Final-token causality and remaining common strategy/effect
 integration are still open.
 
+## Current selected-graph repeat closure
+
+`/tmp/lunaflux-fixed-current.WQZvj4` rebuilds the current production sources
+from `3836a256` with only execution tracing and fixed-graph repetition added.
+The production directories have no changes between that revision and
+`c96d4b13`; subsequent commits changed diagnostic tools and documentation.
+The diagnostic parent, bridge, supervisor and worker were rebuilt together.
+
+The four input/output vectors (512/64, 1528/32, 3072/32, 4096/64), C1/C8/C16,
+and six repetitions per cell complete. Every emitted token's actual output
+row is read before and after repeating the same selected execution graph,
+without advancing the request. All 28,800 comparisons, totaling 8,751,513,600
+logit bytes, are identical. This count equals the complete requested output
+count, not merely a nonempty sample. The owned service was stopped afterward.
+All 4,116 observed execution markers select captured graphs; none selects
+eager execution.
+
+This closes current selected-partial-runtime repeatability for this matrix.
+It does not close cross-batch numerical acceptance, full-fusion qualification,
+or all compiler integration. The repeated work and readbacks make its printed
+throughput diagnostic-only, not a replacement for uninstrumented E2E timing.
+
 ## Current-source identical-prefix diagnostic (3836a256)
 
 The isolated eager diagnostic `/tmp/lunaflux-shared-head-final.ZCZe13`
