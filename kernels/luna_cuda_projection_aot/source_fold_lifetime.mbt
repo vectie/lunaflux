@@ -40,10 +40,7 @@ fn projection_fold_lifetime_source(
       $|      int stage = 0;
       $|      #pragma unroll 1
       $|      for (int inner = 0; inner < \{extent}; inner += \{width}) {
-      $|        \{if asynchronous { copy } else { "" }}
-      $|        \{body}
-      $|        \{if asynchronous { wait } else { copy }}
-      $|        __syncthreads();
+      $|        \{projection_fold_effects_source(effects, body, copy, wait)}
       $|        stage ^= 1;
       $|      }
     )
@@ -77,11 +74,35 @@ fn projection_fold_lifetime_source(
     $|      int stage = 0;
     $|      #pragma unroll 1
     $|      for (int inner = 0; inner < \{extent}; inner += \{width}) {
-    $|        \{if asynchronous { prefetch } else { "" }}
-    $|        \{body}
-    $|        \{if asynchronous { wait } else { prefetch }}
-    $|        __syncthreads();
+    $|        \{projection_fold_effects_source(effects, body, prefetch, wait)}
     $|        stage = (stage + 1) % \{stages};
     $|      }
   )
+}
+
+///|
+/// Instruction rendering only: semantic action order comes from the plan.
+fn projection_fold_effects_source(
+  effects : @luna_projection_tile_compiler.ProjectionFoldEffectPlan,
+  body : String,
+  transfer : String,
+  wait : String,
+) -> String {
+  let lines : Array[String] = []
+  for action in effects.iteration() {
+    match action {
+      IssueFutureOperand => lines.push(transfer)
+      ConsumeCurrentOperand => {
+        // Preserve the established source formatting when there is no
+        // pre-consume transfer; this empty line has no execution effect.
+        if lines.is_empty() {
+          lines.push("")
+        }
+        lines.push(body)
+      }
+      AwaitOperandTransfers => lines.push(wait)
+      PublishOperandSlot => lines.push("__syncthreads();")
+    }
+  }
+  lines.join("\n        ")
 }

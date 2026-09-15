@@ -8,6 +8,16 @@ pub(all) enum ProjectionTransferExecution {
 } derive(Debug, Eq)
 
 ///|
+/// Ordered effects of one ring iteration. Publication is workgroup-wide;
+/// consumption retains the original ordered arithmetic body.
+pub(all) enum ProjectionFoldEffect {
+  IssueFutureOperand
+  ConsumeCurrentOperand
+  AwaitOperandTransfers
+  PublishOperandSlot
+} derive(Debug, Eq)
+
+///|
 /// Finite, immutable control plan for a ring of operand materializations.
 /// Counts describe transfer groups, not CUDA async instructions or subgroups.
 pub struct ProjectionFoldEffectPlan {
@@ -69,5 +79,24 @@ pub fn ProjectionFoldEffectPlan::pending_group_limit(
     self.stages - 2
   } else {
     0
+  }
+}
+
+///|
+/// The compiler owns effect ordering. A backend maps each action to its own
+/// transfer/wait/barrier primitives without deciding where to move the fold.
+pub fn ProjectionFoldEffectPlan::iteration(
+  self : ProjectionFoldEffectPlan,
+) -> ReadOnlyArray[ProjectionFoldEffect] {
+  match self.execution {
+    SerialTransfer =>
+      [ConsumeCurrentOperand, IssueFutureOperand, PublishOperandSlot]
+    OverlappedTransfer =>
+      [
+        IssueFutureOperand,
+        ConsumeCurrentOperand,
+        AwaitOperandTransfers,
+        PublishOperandSlot,
+      ]
   }
 }

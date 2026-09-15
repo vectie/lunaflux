@@ -778,3 +778,13 @@ refactor.
 This closes the common projection ring's scalar effect planning gap, not all
 family-specific effect/lifetime integration. Cross-batch model activation
 diagnosis and fresh complete serving qualification remain open.
+
+The ring plan now also supplies its ordered iteration actions: serial transfer
+consumes, issues and publishes; overlapped transfer issues, consumes, waits and
+publishes. CUDA renders those actions instead of choosing their order with
+local conditionals. The finite-state tests execute the actual action sequence
+for each ring/mode/extent, reject premature or repeated publication, check the
+live slot before consumption and prohibit overwriting it with future data.
+The twelve-case previous-renderer comparison still produces identical text.
+This does not model arbitrary kernel effects or close the separate attention
+and full-model numerical work.

@@ -66,11 +66,19 @@ pub struct ProjectionFoldChoice {
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
 
+pub(all) enum ProjectionFoldEffect {
+  IssueFutureOperand
+  ConsumeCurrentOperand
+  AwaitOperandTransfers
+  PublishOperandSlot
+} derive(Eq, @debug.Debug)
+
 pub struct ProjectionFoldEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldEffectPlan::future_distance(Self) -> Int
 pub fn ProjectionFoldEffectPlan::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionFoldEffectPlan::iteration(Self) -> ReadOnlyArray[ProjectionFoldEffect]
 pub fn ProjectionFoldEffectPlan::overlaps(Self) -> Bool
 pub fn ProjectionFoldEffectPlan::pending_group_limit(Self) -> Int
 pub fn ProjectionFoldEffectPlan::prime_count(Self) -> Int
