@@ -1,0 +1,20 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+// Invoke the actual native CLI with invalid arguments and captured pipes.
+// No model is loaded and no output artifact is created.
+async fn main {
+  guard @env.args() is [_, exporter] else {
+    fail("NATIVE_QWEN_CANDIDATE_EXPORTER")
+  }
+  let (status, _, stderr) = @process.collect_output(exporter, [])
+  assert_true(status != 0)
+  assert_true(
+    stderr.text().contains("outcome=failed\nerror=invalid-arguments\n"),
+    msg="native failure must survive captured pipes without stdbuf",
+  )
+  println("captured native export failure reporting passed")
+}
