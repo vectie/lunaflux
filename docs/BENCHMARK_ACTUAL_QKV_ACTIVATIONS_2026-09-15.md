@@ -70,6 +70,23 @@ output mapper. Full ingress fusion must not reuse operation-2 output assumptions
 
 ## Reproduction and validation
 
+### Final-normalization capture attempt
+
+An isolated clone of the same historical diagnostic source was rebuilt with
+the capture operation changed from 2 to 281. The C1/C8 requests completed and
+the runner stopped its processes, but no activation events were emitted.
+Consequently this attempt supplies no final-normalization numerical result.
+The reusable runtime contains residual/RMSNorm fusion; the standalone
+operation-ID assumption is not a valid way to observe an interior fused
+operation. Follow-up must capture an actual launch boundary with its correct
+output mapping (or the head input alone), not interpret absent events as
+equality. Run: `/tmp/lunaflux-finalnorm.LBtNiA`.
+
+The capture parser now also requires input/output position and batch context
+to match and only compares equal activation identities. Its regression rejects
+an otherwise complete pair whose output position changed. This is offline
+diagnostic validation, with no added token-step work.
+
 Tools: `benchmarks/gpu_pipeline/install_activation_readback.mbtx`,
 `summarize_activation_readback.mbtx`, `test_activation_readback.mbtx`.
 The installer requires an isolated execution-trace tree and cannot be combined

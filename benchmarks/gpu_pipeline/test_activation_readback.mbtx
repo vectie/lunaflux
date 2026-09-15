@@ -58,5 +58,12 @@ async fn main {
   @fs.write_file(root+"/truncated",sample(1,1,16256).replace(old="kind=11",new="kind=99"),create_mode=CreateNew)
   let (code,_,_)=@process.collect_output("moon",["run",summary,root+"/truncated",root+"/bad.json"])
   assert_true(code!=0)
+  let mismatched = sample(1,1,16256).replace(
+    old="kind=12 seq=1 a=2 b=0 c=2 d=0 e=2 f=3",
+    new="kind=12 seq=1 a=2 b=0 c=2 d=0 e=2 f=4",
+  )
+  @fs.write_file(root+"/mismatched",mismatched,create_mode=CreateNew)
+  let (code,_,_)=@process.collect_output("moon",["run",summary,root+"/mismatched",root+"/mismatched.json"])
+  assert_true(code!=0)
   println("activation installer regression passed: " + root)
 }

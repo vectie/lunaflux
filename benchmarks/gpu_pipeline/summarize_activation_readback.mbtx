@@ -54,6 +54,8 @@ async fn main {
     guard captures.get(i+1) is Some(out) else {fail("missing output")}
     let inp=captures[i]
     assert_true(inp.direction==0 && out.direction==1 && inp.epoch==out.epoch && inp.operation==out.operation && inp.row==out.row)
+    assert_true(inp.position==out.position && inp.batch_rows==out.batch_rows && inp.batch_tokens==out.batch_tokens,
+      msg="input/output capture context changed")
     pairs.push((inp,out))
   }
   let differences : Array[Json] = []
@@ -61,7 +63,7 @@ async fn main {
   for i in 0..<pairs.length() {
     for j in (i+1)..<pairs.length() {
       let (a,ao)=pairs[i];let (b,bo)=pairs[j]
-      if a.operation!=b.operation || a.words!=b.words {continue}
+      if a.operation!=b.operation || a.activation!=b.activation || ao.activation!=bo.activation || a.words!=b.words {continue}
       assert_eq(ao.words.length(),bo.words.length())
       comparisons+=1
       let changed : Array[Int] = []
