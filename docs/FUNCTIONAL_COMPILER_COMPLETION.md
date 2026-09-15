@@ -23,11 +23,21 @@ public behavior tests, integration tests, exact-source physical correctness,
 relevant sanitizer checks and matched end-to-end timing. A slower experiment
 may establish a cause but does not become the production choice by default.
 
+Latest clean-source closure campaign:
+[current compiler validation](BENCHMARK_CURRENT_COMPILER_CLOSURE_2026-09-15.md).
+The `d50f3b90` runtime completed the four-vector uninstrumented matrix and seven
+mixed workloads. Current frontier measurements again select c322, whose
+selected source is unchanged. 4096/64/C16 is 230.06 output tok/s, essentially
+unchanged from the prior 230.63. The 3072/32 last-token variability persists;
+fresh serving completion is not completion of numerical acceptance or all
+common strategy/effect integration.
+
 Latest numerical follow-up: [actual QKV activation capture](BENCHMARK_ACTUAL_QKV_ACTIVATIONS_2026-09-15.md)
 finds 29 differing output pairs among 77 exactly equal actual-model input pairs,
-all crossing single-token/multi-token execution. This localizes a numerical
-boundary; independent error measurement, final-token causality and the fresh
-current-source performance campaign remain open.
+all crossing single-token/multi-token execution. A subsequent FP64 dot-product
+reference finds the single-token result closer in all 82 changed-component
+observations. This localizes and measures a numerical boundary; final-token
+causality and the fresh current-source performance campaign remain open.
 
 Latest follow-up: [actual-row replay and V6 validation](BENCHMARK_ATTENTION_ROW_REPLAY_2026-09-14.md).
 The corrected 34-shape replay reduces the isolated c324 advantage to 1.112%,
