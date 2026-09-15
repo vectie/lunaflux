@@ -29,9 +29,32 @@ test "finite operand rings publish before consumption without overwriting live s
         assert_true(effects.prime_count() <= transfers)
         assert_true(effects.pending_group_limit() < effects.prime_count())
         let slots : Array[Int?] = Array::make(stages, None)
-        for prime in 0..<effects.prime_count() {
-          slots[plan.slot(prime).unwrap()] = Some(prime)
+        let mut primed = false
+        let mut ready = false
+        let mut visible = false
+        for action in effects.bootstrap() {
+          assert_false(visible)
+          match action {
+            IssueInitialOperands => {
+              assert_false(primed)
+              for prime in 0..<effects.prime_count() {
+                slots[plan.slot(prime).unwrap()] = Some(prime)
+              }
+              primed = true
+              ready = execution == SerialTransfer
+            }
+            AwaitInitialOperands => {
+              assert_true(primed)
+              assert_false(ready)
+              ready = true
+            }
+            PublishInitialOperands => {
+              assert_true(primed && ready)
+              visible = true
+            }
+          }
         }
+        assert_true(visible)
         for transfer in 0..<transfers {
           let current = plan.slot(transfer).unwrap()
           let future = transfer + effects.prime_count()

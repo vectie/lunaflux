@@ -29,14 +29,13 @@ fn projection_fold_lifetime_source(
     } else {
       ""
     }
-    let prime = if asynchronous {
-      "stage_operands(0, 0\{first_phase});\n      \{wait}"
-    } else {
-      "stage_operands(0, 0\{first_phase});"
-    }
+    let prime = projection_fold_bootstrap_source(
+      effects,
+      "stage_operands(0, 0\{first_phase});",
+      wait,
+    )
     return (
       $|      \{prime}
-      $|      __syncthreads();
       $|      int stage = 0;
       $|      #pragma unroll 1
       $|      for (int inner = 0; inner < \{extent}; inner += \{width}) {
@@ -66,11 +65,10 @@ fn projection_fold_lifetime_source(
   } else {
     ""
   }
+  let issue = "#pragma unroll\n      for (int prime = 0; prime < \{effects.prime_count()}; ++prime) stage_operands(prime * \{width}, prime\{phase});"
+  let prime = projection_fold_bootstrap_source(effects, issue, prime_wait)
   (
-    $|      #pragma unroll
-    $|      for (int prime = 0; prime < \{effects.prime_count()}; ++prime) stage_operands(prime * \{width}, prime\{phase});
-    $|      \{prime_wait}
-    $|      __syncthreads();
+    $|      \{prime}
     $|      int stage = 0;
     $|      #pragma unroll 1
     $|      for (int inner = 0; inner < \{extent}; inner += \{width}) {
@@ -78,6 +76,29 @@ fn projection_fold_lifetime_source(
     $|        stage = (stage + 1) % \{stages};
     $|      }
   )
+}
+
+///|
+fn projection_fold_bootstrap_source(
+  effects : @luna_projection_tile_compiler.ProjectionFoldEffectPlan,
+  issue : String,
+  wait : String,
+) -> String {
+  let lines : Array[String] = []
+  for action in effects.bootstrap() {
+    match action {
+      IssueInitialOperands => lines.push(issue)
+      AwaitInitialOperands => lines.push(wait)
+      PublishInitialOperands => {
+        // Preserve the existing wider serial ring's empty wait line.
+        if !effects.overlaps() && effects.prime_count() > 1 {
+          lines.push("")
+        }
+        lines.push("__syncthreads();")
+      }
+    }
+  }
+  lines.join("\n      ")
 }
 
 ///|

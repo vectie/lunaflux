@@ -1,4 +1,13 @@
 ///|
+/// Priming is distinct from iteration: no current operand may be consumed
+/// before initial producers are ready and their writes are published.
+pub enum ProjectionFoldBootstrapEffect {
+  IssueInitialOperands
+  AwaitInitialOperands
+  PublishInitialOperands
+} derive(Debug, Eq)
+
+///|
 /// Transfer completion is an explicit effect, independent of instruction set.
 /// Overlap issues a future immutable operand before consuming the current one;
 /// serial transfer issues it afterward. Both publish before the next consume.
@@ -98,5 +107,16 @@ pub fn ProjectionFoldEffectPlan::iteration(
         AwaitOperandTransfers,
         PublishOperandSlot,
       ]
+  }
+}
+
+///|
+pub fn ProjectionFoldEffectPlan::bootstrap(
+  self : ProjectionFoldEffectPlan,
+) -> ReadOnlyArray[ProjectionFoldBootstrapEffect] {
+  match self.execution {
+    SerialTransfer => [IssueInitialOperands, PublishInitialOperands]
+    OverlappedTransfer =>
+      [IssueInitialOperands, AwaitInitialOperands, PublishInitialOperands]
   }
 }

@@ -26,6 +26,23 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
       .intermediate_pipeline()
       .unwrap()
     for asynchronous in [true, false] {
+      let effects = pipeline.effect_plan(
+        if asynchronous {
+          OverlappedTransfer
+        } else {
+          SerialTransfer
+        },
+      )
+      assert_eq(
+        projection_fold_bootstrap_source(effects, "issue();", "wait();"),
+        if asynchronous {
+          "issue();\n      wait();\n      __syncthreads();"
+        } else if stages == 2 {
+          "issue();\n      __syncthreads();"
+        } else {
+          "issue();\n      \n      __syncthreads();"
+        },
+      )
       let source = projection_fold_lifetime_source(
         pipeline,
         "consume_current_slot();",

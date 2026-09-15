@@ -86,8 +86,17 @@ adding instructions. Focused source tests assert both reusable fences and the
 single one-shot publication; native check and 69 compiler / 77 CUDA tests pass.
 `ProjectionStorageFence` replaces the map-specific fence name rather than
 introducing a second scope representation. The direct register epilogue's
-existing warp fence and operand-ring priming still require separate review;
+existing warp fence still requires separate review;
 this is not a claim of complete effect coverage or fresh physical validation.
+
+Operand-ring priming now comes from `ProjectionFoldEffectPlan.bootstrap()`.
+Initial issue, async readiness and workgroup publication are explicit ordered
+actions, rather than a separate synchronization policy in CUDA. The finite
+ring model executes bootstrap before iteration and verifies publication cannot
+precede readiness for serial/overlapped transfers, 2/3/4 slots and five extents.
+CUDA tests cover exact bootstrap ordering/formatting, while existing complete
+matrix-pipeline source snapshots remain unchanged. Native check and 69 compiler
+/ 77 CUDA tests pass. This preserves existing execution, not a new speedup.
 
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
