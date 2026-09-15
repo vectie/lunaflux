@@ -95,6 +95,16 @@ transfer tile sizes together with actual residency and partial-kernel counters
 is still required; this matrix alone does not establish the hardware stall
 responsible for the additional regression.
 
+A separate 32-key double-buffer experiment (per-block candidate budget of
+49152 bytes, explicitly not the hardware limit) completes the same matrix.
+It reaches 235.29 tok/s at 4096/64 C16 (4352 ms), 218.43 at C8 and 123.08 at C1.
+However 512/64 C16 is 1323.00 versus the current 1395.10, so it is not a global
+replacement. Long C16 improves 1.61% in throughput while short C16 regresses.
+All lengths pass; the 3072-token divergence remains. This establishes that
+the selected transfer schedule matters, not that asynchronous execution is
+universally beneficial. The experiment is not the subsequent operand-lifetime
+compaction, which is validated separately.
+
 The 3072-token cross-batch output difference at token index 31 remains present;
 these trials do not close the independent reference-accuracy question.
 
@@ -115,6 +125,8 @@ these trials do not close the independent reference-accuracy question.
 - Async split experiment: `/tmp/lunaflux-async-split-experiment.vHQziO`;
   downloaded result archive SHA-256:
   `816ccbd80add6d7aa7dc1b1ea09b38f6bbc2e3527752117c379327e85f10c094`.
+- Async 32-key experiment: `/tmp/lunaflux-async32-split.nmWfXb`; downloaded
+  archive SHA-256 `839223d4d0f58090a2905aaa877353dfb60a16aa137c59b09ff113f90ce1c48e`.
 
 Future selection should compare whole attention routes by workload bucket,
 including partial and merge costs, using immutable startup measurements. A
