@@ -280,6 +280,17 @@ Downloaded logs and summaries:
 `/tmp/lunaflux-propagation-download.LOU99r/results.tar.gz`, matching remote SHA-256
 `52b06a22e75456b1d5e27b4e8a0408f2f9935b7e18fda50eeeee3e0c0734e434`.
 
+### Latest whole-worktree regression
+
+After `b9440271`, `moon test --target native --deny-warn` passes all 3825
+tests in the local working tree, which includes unrelated uncommitted changes.
+This is not the clean-commit test count. A separate clean Linux extraction of
+`b9440271` is under `/tmp/lunaflux-integrated-b9440271.RgOXzJ`, source archive
+SHA-256 `eb456db2a76bcd76118c4aa1da4ba151b72ce44c1dcd0e0f18849bcf2a0aea3b`.
+Its interface generation, format check and native warning-denied check pass;
+the full test/release-build session is still running. No physical result for
+this source is asserted here.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,
