@@ -9,10 +9,11 @@ fn words(value:Json)->Array[Int] raise {
 }
 fn bf16(word:Int)->Double {Float::reinterpret_from_int(word << 16).to_double()}
 fn finite(value:Double)->Bool {value.abs()<=1.7976931348623157e308}
-fn capture(captures:Array[Json],epoch:Int,direction:Int,row:Int?)->Array[Int] raise {
+fn capture(captures:Array[Json],epoch:Int,direction:Int,row:Int?,operation:Int?)->Array[Int] raise {
   let found=captures.filter(x=> {
     let matches_row=match row {None=>true;Some(r)=>x is {"row":Number(actual,..),..} && actual==r.to_double()}
-    x is {"epoch":Number(e,..),"direction":Number(d,..),..} && e==epoch.to_double() && d==direction.to_double() && matches_row
+    let matches_operation=match operation {None=>true;Some(op)=>x is {"operation":Number(actual,..),..} && actual==op.to_double()}
+    x is {"epoch":Number(e,..),"direction":Number(d,..),..} && e==epoch.to_double() && d==direction.to_double() && matches_row && matches_operation
   })
   guard found is [{"words":value,..}] else {fail("unique single-row capture required")}
   words(value)
@@ -36,10 +37,22 @@ async fn main {
   }
   guard @json.parse(@fs.read_file(summary).text()) is {"captures":Array(captures),"different_outputs":Array(differences),..} else {fail("capture summary")}
   let results : Array[Json]=[]
+  let mut reference_operation : Int?? = None
   let mut left_better=0;let mut right_better=0;let mut tied=0
   for difference in differences {
     guard difference is {"left_epoch":Number(le,..),"right_epoch":Number(re,..),"changed_components":Array(components),..} else {fail("difference")}
     let left_epoch=le.to_int();let right_epoch=re.to_int()
+    let operation=match difference {
+      {"operation":Number(op,..),..}=>{
+        assert_true(op>=0 && op==op.to_int().to_double())
+        Some(op.to_int())
+      }
+      _=>None
+    }
+    match reference_operation {
+      None=>reference_operation=Some(operation)
+      Some(previous)=>assert_eq(previous,operation,msg="one tensor set cannot reference multiple operations")
+    }
     let (left_row,right_row)=match difference {
       {"left_row":Number(l,..),"right_row":Number(r,..),..}=>{
         assert_true(l>=0 && r>=0 && l==l.to_int().to_double() && r==r.to_int().to_double())
@@ -47,9 +60,9 @@ async fn main {
       }
       _=>(None,None)
     }
-    let input=capture(captures,le.to_int(),0,left_row)
-    assert_eq(input,capture(captures,re.to_int(),0,right_row))
-    let left=capture(captures,le.to_int(),1,left_row);let right=capture(captures,re.to_int(),1,right_row)
+    let input=capture(captures,le.to_int(),0,left_row,operation)
+    assert_eq(input,capture(captures,re.to_int(),0,right_row,operation))
+    let left=capture(captures,le.to_int(),1,left_row,operation);let right=capture(captures,re.to_int(),1,right_row,operation)
     assert_eq(left.length(),right.length())
     assert_eq(matrices.fold(init=0,(n,m)=>n+m.rows),left.length())
     for component in components {
@@ -77,7 +90,7 @@ async fn main {
     }
   }
   assert_true(!results.is_empty())
-  let result : Json={"scope":"BF16 operands with FP64 sequential dot reference; changed components only","left_closer":left_better,"right_closer":right_better,"equal_error":tied,"components":results}
+  let result : Json={"scope":"BF16 operands with FP64 sequential dot reference; changed components only","operation":match reference_operation {Some(Some(op))=>op.to_json();_=>Json::null()},"left_closer":left_better,"right_closer":right_better,"equal_error":tied,"components":results}
   @fs.write_file(output,result.stringify(),create_mode=CreateNew)
   println("components=\{results.length()} left_closer=\{left_better} right_closer=\{right_better} equal=\{tied}")
 }

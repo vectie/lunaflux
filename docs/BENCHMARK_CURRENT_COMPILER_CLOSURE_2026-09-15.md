@@ -239,6 +239,15 @@ propagation through later operations, rather than classify the final token
 from this first projection alone. The reference tool now preserves explicit
 row identities; ambiguous legacy multi-row inputs fail instead of guessing.
 
+The follow-up diagnostic plumbing now also preserves operation identity in
+each changed-output pair. The FP64 tool matches epoch/row/operation, so captures
+from another operation at the same row cannot be mistaken for this projection.
+A single supplied tensor set is restricted to one operation; mixed-operation
+differences are rejected instead of applying the wrong weights. Regressions
+cover explicit multi-operation captures, missing operation identity and mixed
+tensor attribution. Existing single-operation reports remain valid. This fixes
+multi-layer observation plumbing, not the unresolved propagation question.
+
 ## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,

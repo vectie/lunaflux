@@ -39,5 +39,30 @@ async fn main {
   @fs.write_file(root+"/ambiguous",Json::object(ambiguous).stringify(),create_mode=CreateNew)
   let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/ambiguous",root+"/ambiguous-result","a","b"])
   assert_true(code!=0,msg="missing row must not guess in multi-row capture")
+  let multi : Json={"captures":[
+    {"epoch":1,"row":0,"operation":2,"direction":0,"words":[16256,16384]},
+    {"epoch":1,"row":0,"operation":2,"direction":1,"words":[16688,16256]},
+    {"epoch":2,"row":0,"operation":2,"direction":0,"words":[16256,16384]},
+    {"epoch":2,"row":0,"operation":2,"direction":1,"words":[16672,0]},
+    {"epoch":1,"row":0,"operation":3,"direction":0,"words":[0,0]},
+    {"epoch":1,"row":0,"operation":3,"direction":1,"words":[0,0]},
+    {"epoch":2,"row":0,"operation":3,"direction":0,"words":[0,0]},
+    {"epoch":2,"row":0,"operation":3,"direction":1,"words":[0,0]}],
+    "different_outputs":[{"operation":2,"left_epoch":1,"right_epoch":2,"left_row":0,"right_row":0,"changed_components":[0,1]}]}
+  @fs.write_file(root+"/multi",multi.stringify(),create_mode=CreateNew)
+  let(code,_,err)=@process.collect_output("moon",["run",script,root+"/weights",root+"/multi",root+"/multi-result","a","b"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/multi-result").text()) is {"operation":Number(2,..),"left_closer":Number(2,..),..})
+  guard multi is Object(missing_op) else {fail("object")}
+  missing_op["different_outputs"]=[{"left_epoch":1,"right_epoch":2,"left_row":0,"right_row":0,"changed_components":[0,1]}]
+  @fs.write_file(root+"/missing-op",Json::object(missing_op).stringify(),create_mode=CreateNew)
+  let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/missing-op",root+"/missing-op-result","a","b"])
+  assert_true(code!=0,msg="multi-operation capture requires operation identity")
+  missing_op["different_outputs"]=[
+    {"operation":2,"left_epoch":1,"right_epoch":2,"left_row":0,"right_row":0,"changed_components":[0]},
+    {"operation":3,"left_epoch":1,"right_epoch":2,"left_row":0,"right_row":0,"changed_components":[0]}]
+  @fs.write_file(root+"/mixed-weights",Json::object(missing_op).stringify(),create_mode=CreateNew)
+  let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/mixed-weights",root+"/mixed-weights-result","a","b"])
+  assert_true(code!=0,msg="one tensor set must not silently apply to two operations")
   println("activation dot oracle regression passed: "+root)
 }

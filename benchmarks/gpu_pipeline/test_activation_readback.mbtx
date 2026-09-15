@@ -54,7 +54,7 @@ async fn main {
   let summary="benchmarks/gpu_pipeline/summarize_activation_readback.mbtx"
   let (code,_,err)=@process.collect_output("moon",["run",summary,trace,root+"/summary.json"])
   assert_eq(code,0,msg=err.text())
-  assert_true(@json.parse(@fs.read_file(root+"/summary.json").text()) is {"same_input_comparisons":Number(1,..),"different_outputs":Array([{"changed_components":Array([Number(0,..)]),..}]),..})
+  assert_true(@json.parse(@fs.read_file(root+"/summary.json").text()) is {"same_input_comparisons":Number(1,..),"different_outputs":Array([{"operation":Number(2,..),"changed_components":Array([Number(0,..)]),..}]),..})
   @fs.write_file(root+"/truncated",sample(1,1,16256).replace(old="kind=11",new="kind=99"),create_mode=CreateNew)
   let (code,_,_)=@process.collect_output("moon",["run",summary,root+"/truncated",root+"/bad.json"])
   assert_true(code!=0)
