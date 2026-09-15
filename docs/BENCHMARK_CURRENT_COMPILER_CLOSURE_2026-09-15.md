@@ -152,9 +152,7 @@ Completion of requests therefore does not close cross-batch numerical
 acceptance. Final-token causality and remaining common strategy/effect
 integration are still open.
 
-## Mixed workload coverage
-
-### Current-source identical-prefix diagnostic (3836a256)
+## Current-source identical-prefix diagnostic (3836a256)
 
 The isolated eager diagnostic `/tmp/lunaflux-shared-head-final.ZCZe13`
 reproduces the final-token difference with identical 3072-token inputs and
@@ -183,7 +181,30 @@ digests. Both attempts failed and were stopped, not counted as numerical
 results. The successful run uses rebuilt diagnostic parent/bridge/supervisor
 and refreshed startup identities. No diagnostic edits entered production.
 
-### Earlier mixed workload measurements
+## Identical-prefix first-QKV follow-up
+
+The same `3836a256` kernels were observed at unfused operation 2 in
+`/tmp/lunaflux-shared-qkv.KkEoid`, again with identical 3072/32 requests at C1
+then C8. The trace contains 602 input/output captures. Pairing must use
+epoch/operation/row, because all-row observation emits all inputs before all
+outputs; the former adjacent-pair parser incorrectly rejected this order.
+The parser now accepts grouped and reversed output ordering while rejecting
+missing, duplicate, orphan and owner-substituted pairs (seven regressions).
+
+Of 1702 exactly equal-input pairs, 350 have different QKV outputs, with at
+most six of 4096 components changed. Every changed pair crosses a single-token
+and multi-token execution shape; none compares two multi-token shapes. This
+is direct first-layer projection evidence, not proof that these few changes
+alone cause the final-token flip. Existing high-precision dot-product work
+must be extended to these actual observations before choosing a numerical
+policy; forcing scalar and matrix paths to agree is not itself correctness.
+
+Separately, the preceding head capture shows that seven C8 owners match C1
+exactly at position 3071, then differ in 920 components at position 3072.
+The eighth differs already at 3071. Owner identity and the observed execution
+shape matter; a response's client row must not be guessed from identical text.
+
+## Earlier mixed workload measurements
 
 Seven cases at C8/C16 completed one warmup and three measured repetitions,
 rotating case order between repetitions. All responses returned the requested

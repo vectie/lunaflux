@@ -1,0 +1,47 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+fn capture(row : Int, direction : Int, word : Int) -> String {
+  let activation=direction+1
+  "lf_exec kind=\{10+direction*2} seq=1 a=2 b=\{row} c=\{activation} d=0 e=2 f=0 elapsed=0\n" +
+  "lf_exec kind=\{9+direction*2} seq=1 a=2 b=\{row} c=\{activation} d=0 e=\{word} f=2 elapsed=0\n"
+}
+
+async fn main {
+  guard @env.args() is [_,summarizer] else {fail("SUMMARIZER_MB_TX")}
+  let (code,out,_) = @process.collect_output("mktemp",["-d","/tmp/lunaflux-readback-regression.XXXXXX"])
+  assert_eq(code,0)
+  let root=out.text().trim().to_owned()
+  let context="lf_exec kind=0 seq=1 a=2 b=2 c=0 d=2 elapsed=0\n"+
+    "lf_exec kind=7 seq=18446744073709551615 a=0 b=0 elapsed=18446744073709551615\n"+
+    "lf_exec kind=7 seq=2 a=1 b=0 elapsed=2\n"
+  let a=capture(0,0,1); let b=capture(1,0,1)
+  let x=capture(0,1,2); let y=capture(1,1,3)
+  for (name,body,valid) in [
+    ("interleaved",a+x+b+y,true),
+    ("grouped",a+b+x+y,true),
+    ("reverse-output",a+b+y+x,true),
+    ("missing",a+b+x,false),
+    ("duplicate",a+a+x,false),
+    ("orphan",x,false),
+    ("owner-changed",a+"lf_exec kind=7 seq=3 a=0 b=0 elapsed=3\n"+x,false),
+  ] {
+    let input=root+"/"+name+".log";let output=root+"/"+name+".json"
+    @fs.write_file(input,context+body,create_mode=CreateNew)
+    let (status,stdout,stderr)=@process.collect_output("moon",["run",summarizer,input,output])
+    assert_eq(status==0,valid,msg=name+": "+stdout.text()+stderr.text())
+    if valid {
+      guard @json.parse(@fs.read_file(output).text()) is {
+        "same_input_comparisons":Number(1.0,..),
+        "different_outputs":Array([_]),
+        "captures":Array([_,_,_,_]),..
+      } else {fail("unexpected summary: "+name)}
+    }
+  }
+  println("7 readback pairing regressions passed; fixtures="+root)
+}

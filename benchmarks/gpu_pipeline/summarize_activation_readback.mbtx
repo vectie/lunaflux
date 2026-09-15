@@ -70,9 +70,17 @@ async fn main {
   // Restrict causality comparison to single-input/single-output stateless
   // projection captures. Multi-input or missing-output groups are rejected.
   let pairs : Array[(Capture,Capture)] = []
-  for i=0; i<captures.length(); i=i+2 {
-    guard captures.get(i+1) is Some(out) else {fail("missing output")}
-    let inp=captures[i]
+  let pending : Map[String,Capture] = Map([])
+  for capture in captures {
+    let key="\{capture.epoch}/\{capture.operation}/\{capture.row}"
+    if capture.direction==0 {
+      assert_true(!pending.contains(key),msg="duplicate input before output")
+      pending[key]=capture
+      continue
+    }
+    guard pending.get(key) is Some(inp) else {fail("output without matching input")}
+    let out=capture
+    pending.remove(key)
     assert_true(inp.direction==0 && out.direction==1 && inp.epoch==out.epoch && inp.operation==out.operation && inp.row==out.row)
     assert_true(inp.position==out.position && inp.batch_rows==out.batch_rows && inp.batch_tokens==out.batch_tokens,
       msg="input/output capture context changed")
@@ -80,6 +88,7 @@ async fn main {
       msg="input/output capture owner changed")
     pairs.push((inp,out))
   }
+  assert_true(pending.is_empty(),msg="missing output")
   let differences : Array[Json] = []
   let mut comparisons=0
   for i in 0..<pairs.length() {
