@@ -58,6 +58,13 @@ CUDA projection tests 75/75. The selected branch schedule is preserved rather
 than replaced with the previously losing hoist. This is a code-integration
 increment, not a newly measured speedup or closure of all worker schedules.
 
+A follow-up differential test compares the entire matrix-pipeline renderer
+against its `4b3d835b` implementation for QKV, dense output and selected-row
+head at 32/128/1024/2048 token limits. All twelve sources are byte-identical.
+The temporary prior renderer was removed after comparison; twelve source
+digest snapshots remain as regressions. This covers the changed renderer,
+not every projection family or a new physical performance result.
+
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
 reuse and early-exit draining. CUDA lowering renders these actions without
