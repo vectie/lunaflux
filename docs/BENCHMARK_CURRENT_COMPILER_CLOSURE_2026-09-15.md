@@ -288,8 +288,37 @@ This is not the clean-commit test count. A separate clean Linux extraction of
 `b9440271` is under `/tmp/lunaflux-integrated-b9440271.RgOXzJ`, source archive
 SHA-256 `eb456db2a76bcd76118c4aa1da4ba151b72ce44c1dcd0e0f18849bcf2a0aea3b`.
 Its interface generation, format check and native warning-denied check pass;
-all 3104 clean-commit tests pass. Release builds remain running. No physical result for
-this source is asserted here.
+all 3104 clean-commit tests and all seven release-entry builds pass.
+
+### Current-source uninstrumented matrix: b9440271
+
+Fresh candidate export, base/fused kernel compilation, release binding and
+runtime materialization passed in the same clean tree. The driver preparation
+initially replaced only the first old path occurrence; the corrected `driver-r2`
+uses complete replacement. The failed driver did not run GPU kernels.
+
+One warmup and five measured trials completed for every cell below. Every
+response has the requested output length and the runner stopped its processes
+and released the GPU. Median output tokens/s:
+
+| Input/output | C1 | C8 | C16 |
+| --- | ---: | ---: | ---: |
+| 512/64 | 208.469 | 1028.112 | 1385.656 |
+| 1528/32 | 150.235 | 371.014 | 409.600 |
+| 3072/32 | 107.383 | 186.453 | 197.303 |
+| 4096/64 | 117.002 | 216.399 | 230.527 |
+
+The previous 3836a256 4096/64/C16 result was 230.319 tokens/s: this difference
+does not establish a speedup. No competitor was rerun. Within-cell comparisons
+still find final-token-index-31 differences for 3072/32 C8 and C16; the other ten
+cells have none. Counts depend on which first response becomes the cell-local
+reference, so they must not be interpreted as an error-rate change. This closes
+the fresh uniform end-to-end measurement for the refactor, not numerical
+acceptance, mixed-workload validation or all remaining compiler integration.
+
+Results and clean validation logs were downloaded to
+`/tmp/lunaflux-b9440271-download.1hvzzG/results.tar.gz`; local and remote SHA-256
+agree: `74f0259bf2ad1a955be302dead35306f84474c04cbe98585dbd3c223b9374b74`.
 
 ## Earlier mixed workload measurements
 
