@@ -13,8 +13,6 @@ pub fn attention_fragment_ownership(@luna_attention_strategy.AttentionTileComput
 
 pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayout?
 
-pub fn plan_attention_fold_fences(AttentionTransferReadiness, query_owned~ : Bool, transfer_slots~ : Int) -> AttentionFoldFences
-
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
 
 pub fn scalarize_attention_score_map(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
@@ -31,11 +29,6 @@ pub(all) suberror AttentionTileScheduleError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
-pub(all) enum AttentionFoldFences {
-  SeparateReadinessAndRelease
-  NextKeyPublicationAtValueRelease
-} derive(Eq, @debug.Debug)
-
 pub(all) enum AttentionIterationAxis {
   AttentionQueryRowAxis
   AttentionQueryHeadAxis

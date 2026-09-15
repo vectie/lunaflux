@@ -49,6 +49,13 @@ warning-denied check passed; schedule tests 22/22 and source tests 33/33 passed.
 This is a behavior-preserving compiler refactor, not a new GPU speedup or a
 claim that all attention families now use the common effect plan.
 
+The unused `AttentionFoldFences`/`plan_attention_fold_fences` API was removed
+after semantic reference lookup found only its own test, not a lowering
+consumer. Its replacement regression checks the actual consumed effect plan:
+value readiness/publication precede next-key issue, value readers release
+before next-value issue, and next-key readiness remains an explicit wait.
+This avoids maintaining a second, disconnected synchronization policy.
+
 Latest numerical follow-up: [actual QKV activation capture](BENCHMARK_ACTUAL_QKV_ACTIVATIONS_2026-09-15.md)
 finds 29 differing output pairs among 77 exactly equal actual-model input pairs,
 all crossing single-token/multi-token execution. A subsequent FP64 dot-product

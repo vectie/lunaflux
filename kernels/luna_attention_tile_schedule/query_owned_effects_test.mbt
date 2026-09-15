@@ -192,6 +192,32 @@ test "query effect model detects missing readiness and premature reuse" {
 }
 
 ///|
+test "split lifetime publishes value before recycling key storage" {
+  let plan = @luna_attention_tile_schedule.AttentionQueryEffectPlan::new(
+    @luna_attention_strategy.AttentionAsyncStagedShared,
+    stages=1,
+    readiness=KeyScoreBeforeValueReadiness,
+  )
+  assert_eq(plan.actions(BeforeValueComputation).iter().to_array(), [
+    AwaitPendingTransfers(0),
+    PublishWorkgroup,
+    StageNextKey,
+  ])
+  assert_eq(plan.actions(ReleaseValueReaders).iter().to_array(), [
+    PublishWorkgroup,
+  ])
+  assert_eq(plan.actions(AfterValueRelease).iter().to_array(), [StageNextValue])
+  // Future K is completed at the next iteration's readiness point; release
+  // alone publishes only completed writes, never an outstanding transfer.
+  assert_eq(plan.actions(AwaitKeyReadiness).iter().to_array(), [
+    AwaitPendingTransfers(1),
+  ])
+  assert_eq(plan.actions(PublishKeyReadiness).iter().to_array(), [
+    PublishWorkgroup,
+  ])
+}
+
+///|
 test "query effects reject unsupported lifetime combinations" {
   for
     memory in [
