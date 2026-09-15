@@ -199,6 +199,10 @@ fn emit_cuda_prefill_attention_tile_source(
     "  }\n"
   }
   let resident_output = lowering.retains_output_fold()
+  let terminal_plan = @luna_attention_tile_schedule.AttentionScoreTerminalPlan::new(
+    resident_output~,
+    resident_statistics=reuse_tile_storage,
+  )
   let float_load = if !resident_output &&
     compute == CudaMatrixQkPvMultiplyAccumulate {
     cuda_attention_matrix_float_load()
@@ -215,11 +219,11 @@ fn emit_cuda_prefill_attention_tile_source(
   } else {
     ""
   }
-  let resident_store = if resident_output {
-    cuda_resident_output_fold_store()
-  } else {
-    ""
-  }
+  let resident_store = cuda_score_terminal_effects(
+    terminal_plan,
+    MaterializeScoreOutput,
+    query_fold_offsets,
+  )
   let initial_accumulator = if resident_output {
     "(float)(linear / LF_HEAD_DIMENSION)"
   } else {
@@ -294,11 +298,11 @@ fn emit_cuda_prefill_attention_tile_source(
       }
     })
     .join("")
-  let terminal_fold_state = if reuse_tile_storage {
-    cuda_query_fold_store(query_fold_offsets)
-  } else {
-    ""
-  }
+  let terminal_fold_state = cuda_score_terminal_effects(
+    terminal_plan,
+    MaterializeScoreStatistics,
+    query_fold_offsets,
+  )
   let async_prefill = if asynchronous { 1 } else { 0 }
   let direct_prefill = if direct_staging { 1 } else { 0 }
   let operand_layout = cuda_attention_operand_layout(
@@ -493,7 +497,7 @@ fn emit_cuda_prefill_attention_tile_source(
     $|\{resident_store}
     $|\{terminal_fold_state}
     $|\{terminal_store}
-    $|  __syncthreads();
+    $|\{cuda_score_terminal_effects(terminal_plan, ReleaseScoreArena, query_fold_offsets)}
     $|  }
     $|}
   let bytes = @utf8.encode(source)

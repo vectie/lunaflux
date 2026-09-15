@@ -53,7 +53,6 @@ fn cuda_resident_output_fold_store() -> String {
     #|    for (int slice = 0; slice < LF_QUERY_TILE / 16; ++slice)
     #|      lf_matrix_store_float(accumulator, slice * 16, warp * 16, LF_HEAD_DIMENSION, output_fold[slice]);
     #|  }
-    #|  __syncthreads();
     #|
   )
 }

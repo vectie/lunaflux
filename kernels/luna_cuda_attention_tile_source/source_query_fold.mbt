@@ -79,6 +79,5 @@ fn cuda_query_fold_store(offsets : ReadOnlyArray[Int]) -> String {
     )
   })
   .to_array()
-  .join("") +
-  "  __syncthreads();\n"
+  .join("")
 }

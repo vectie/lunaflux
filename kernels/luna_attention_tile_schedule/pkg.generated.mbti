@@ -137,6 +137,25 @@ pub(all) enum AttentionScoreFoldStep {
   PublishScoreFold
 } derive(Eq, @debug.Debug)
 
+pub(all) enum AttentionScoreTerminalEffect {
+  StoreResidentOutput
+  StoreResidentStatistics
+  PublishTerminalWrites
+  ReleaseTerminalReaders
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionScoreTerminalPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionScoreTerminalPlan::actions(Self, AttentionScoreTerminalPoint) -> ReadOnlyArray[AttentionScoreTerminalEffect]
+pub fn AttentionScoreTerminalPlan::new(resident_output~ : Bool, resident_statistics~ : Bool) -> Self
+
+pub(all) enum AttentionScoreTerminalPoint {
+  MaterializeScoreOutput
+  MaterializeScoreStatistics
+  ReleaseScoreArena
+} derive(Eq, @debug.Debug)
+
 pub(all) enum AttentionScoreTransferEffect {
   ResetValidity
   PublishWorkgroup

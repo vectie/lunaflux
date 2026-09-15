@@ -123,6 +123,20 @@ publication. Intermediate fences are preserved, not proven minimal. Bootstrap,
 terminal scratch publication and other families remain separate audit work;
 this does not close numerical acceptance or fresh integrated GPU validation.
 
+Clean Linux `99e23d7d` passed info, format, warning-denied native check and
+3,095/3,095 tests in `/tmp/lunaflux-clean-99e23d7d.dl1cew`. This includes the
+ordered operand decision and online score-fold changes, but predates the
+terminal-plan integration below.
+
+`AttentionScoreTerminalPlan` subsequently owns resident output/statistics
+materialization, publication before cross-owner terminal reads, and terminal
+reader release before arena reuse. The corresponding CUDA helpers now render
+stores only; publication is supplied by the consumed common plan. All 36
+shared-score source snapshots remain identical. The four resident/shared
+storage combinations have explicit plan tests. Prologue initialization and
+validation scratch boundaries still need audit; these changes do not claim
+that every existing barrier is minimal or that new GPU timing has been measured.
+
 Clean `3f5555ef` subsequently passed `moon info`, `moon fmt --check`, native
 warning-denied check and all 3,092 native tests in
 `/tmp/lunaflux-clean-3f5555ef.X94WXp`. The format failure above is resolved by
