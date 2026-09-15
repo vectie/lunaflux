@@ -13,6 +13,7 @@ pub enum ProjectionFoldBootstrapEffect {
 /// serial transfer issues it afterward. Both publish before the next consume.
 pub(all) enum ProjectionTransferExecution {
   SerialTransfer
+  CompletedPrefetch
   OverlappedTransfer
 } derive(Debug, Eq)
 
@@ -75,6 +76,15 @@ pub fn ProjectionFoldEffectPlan::future_distance(
 pub fn ProjectionFoldEffectPlan::overlaps(
   self : ProjectionFoldEffectPlan,
 ) -> Bool {
+  self.execution != SerialTransfer
+}
+
+///|
+/// Issuing a synchronous prefetch already completes its writes. Publication
+/// still requires a workgroup barrier, but no asynchronous completion event.
+pub fn ProjectionFoldEffectPlan::has_pending_transfers(
+  self : ProjectionFoldEffectPlan,
+) -> Bool {
   self.execution == OverlappedTransfer
 }
 
@@ -84,7 +94,7 @@ pub fn ProjectionFoldEffectPlan::overlaps(
 pub fn ProjectionFoldEffectPlan::pending_group_limit(
   self : ProjectionFoldEffectPlan,
 ) -> Int {
-  if self.overlaps() {
+  if self.has_pending_transfers() {
     self.stages - 2
   } else {
     0
@@ -100,6 +110,8 @@ pub fn ProjectionFoldEffectPlan::iteration(
   match self.execution {
     SerialTransfer =>
       [ConsumeCurrentOperand, IssueFutureOperand, PublishOperandSlot]
+    CompletedPrefetch =>
+      [IssueFutureOperand, ConsumeCurrentOperand, PublishOperandSlot]
     OverlappedTransfer =>
       [
         IssueFutureOperand,
@@ -115,7 +127,8 @@ pub fn ProjectionFoldEffectPlan::bootstrap(
   self : ProjectionFoldEffectPlan,
 ) -> ReadOnlyArray[ProjectionFoldBootstrapEffect] {
   match self.execution {
-    SerialTransfer => [IssueInitialOperands, PublishInitialOperands]
+    SerialTransfer | CompletedPrefetch =>
+      [IssueInitialOperands, PublishInitialOperands]
     OverlappedTransfer =>
       [IssueInitialOperands, AwaitInitialOperands, PublishInitialOperands]
   }

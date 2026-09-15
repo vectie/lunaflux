@@ -12,12 +12,16 @@ test "finite operand rings publish before consumption without overwriting live s
         output_tiles: 1,
         minimum_rows: 2,
       }
-      for execution in [SerialTransfer, OverlappedTransfer] {
+      for execution in [SerialTransfer, CompletedPrefetch, OverlappedTransfer] {
         let effects = plan.effect_plan(execution)
         assert_eq(effects.geometry(), (stages, 16, transfers * 16))
         assert_eq(effects.prime_count(), stages - 1)
         assert_eq(effects.future_distance(), (stages - 1) * 16)
-        assert_eq(effects.overlaps(), execution == OverlappedTransfer)
+        assert_eq(effects.overlaps(), execution != SerialTransfer)
+        assert_eq(
+          effects.has_pending_transfers(),
+          execution == OverlappedTransfer,
+        )
         assert_eq(
           effects.pending_group_limit(),
           if execution == OverlappedTransfer {
@@ -41,7 +45,7 @@ test "finite operand rings publish before consumption without overwriting live s
                 slots[plan.slot(prime).unwrap()] = Some(prime)
               }
               primed = true
-              ready = execution == SerialTransfer
+              ready = execution != OverlappedTransfer
             }
             AwaitInitialOperands => {
               assert_true(primed)

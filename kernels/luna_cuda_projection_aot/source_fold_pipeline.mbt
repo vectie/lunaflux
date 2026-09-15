@@ -12,9 +12,6 @@ fn projection_fold_pipeline_source(
   groups : Int,
   output_width : Int,
 ) -> String {
-  let effects = @luna_projection_tile_compiler.ConsumerGroupStorage.materialization_effects(
-    reused=true,
-  )
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
   let layout : CudaProjectionTransportLayout = { columns: width, }
@@ -59,7 +56,6 @@ fn projection_fold_pipeline_source(
   let source =
     $|  {
     $|    \{layout.address_function()}
-    $|    \{projection_result_address_source()}
     $|    float c[\{rows / 16}][8] = {};
     $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * pipeline.stage_count()}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};
@@ -68,23 +64,13 @@ fn projection_fold_pipeline_source(
     $|      __nv_bfloat16 *destination = pipeline_storage + stage * \{slot};
     $|\{input_copy}
     $|\{weight_copy}
-    $|      asm volatile("cp.async.commit_group;" ::: "memory");
+    $|      \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|    };
-    $|\{projection_fold_lifetime_source(pipeline, "const __nv_bfloat16 *current = pipeline_storage + stage * " + slot.to_string() + ";\n" + fragment_fold, asynchronous=true)}
+    $|\{projection_fold_lifetime_source(pipeline, "const __nv_bfloat16 *current = pipeline_storage + stage * " + slot.to_string() + ";\n" + fragment_fold, asynchronous=true, completed_on_issue=!projection_operand_copy_is_async(width))}
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
     $|      if (row_start + row * 16 >= token_count) break;
-    $|      #pragma unroll
-    $|      for (int item = 0; item < 8; ++item)
-    $|        warp_output[result_index(lane / 4 + (item % 4 / 2) * 8, lane % 4 * 2 + item % 2 + item / 4 * 8)] = c[row][item];
-    $|      \{projection_materialization_fence_source(Some(effects.publication()))}
-    $|      #pragma unroll
-    $|      for (int item = 0; item < 8; ++item) {
-    $|        int element = lane + item * 32;
-    $|        int output_row = row_start + row * 16 + element / 16;
-    $|        if (output_row < token_count) output[(unsigned long long)output_row * \{output_width}ULL + column + element % 16] = __float2bfloat16_rn(warp_output[result_index(element / 16, element % 16)]);
-    $|      }
-    $|      \{projection_materialization_fence_source(effects.release())}
+    $|\{projection_register_exchange_source(output_width)}
     $|    }
     $|  }
     $|

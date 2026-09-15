@@ -31,7 +31,7 @@ fn projection_companion_dimensions(
       block_x=groups * 32,
       block_y=1,
       block_z=1,
-      shared_memory_bytes=groups * 1024,
+      shared_memory_bytes=0,
     ) catch {
       _ => raise Invalid(LaunchDimensions)
     },

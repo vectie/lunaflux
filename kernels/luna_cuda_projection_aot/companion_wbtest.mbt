@@ -32,7 +32,7 @@ test "only split matrix MLP emits an independently distributed companion" {
     if width == 1024 {
       let d = dimensions.unwrap()
       assert_eq(d.block_x(), 128)
-      assert_eq(d.shared_memory_bytes(), 4096)
+      assert_eq(d.shared_memory_bytes(), 0)
       assert_eq(d.grid_x(), 1024)
       let source = row_variant_primary_test_source(parameters, dispatch)
       assert_true(source.contains("blockDim.x != 128"))

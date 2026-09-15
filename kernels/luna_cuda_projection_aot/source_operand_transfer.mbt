@@ -5,11 +5,16 @@
 /// narrow rows; full transport rows retain asynchronous copies. Invalid rows
 /// are pure zero values, not zero-byte global-copy requests. Both branches
 /// preserve the same shared layout and the surrounding stage ownership fence.
+fn projection_operand_copy_is_async(width : Int) -> Bool {
+  width >= 64
+}
+
+///|
 fn projection_operand_transfer_source(
   width : Int,
   asynchronous? : Bool = true,
 ) -> String {
-  let transfer = if width < 64 || !asynchronous {
+  let transfer = if !projection_operand_copy_is_async(width) || !asynchronous {
     (
       #|unsigned x, y, z, w;
       #|            asm volatile("ld.global.v4.u32 {%0,%1,%2,%3}, [%4];" : "=r"(x), "=r"(y), "=r"(z), "=r"(w) : "l"(source) : "memory");

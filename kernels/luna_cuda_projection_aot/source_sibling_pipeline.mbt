@@ -111,10 +111,10 @@ fn projection_sibling_fold_pipeline_source(
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
     $|        const int row_start = row_begin, offset = k_base;
     $|\{copies.to_string()}
-    $|        asm volatile("cp.async.commit_group;" ::: "memory");
+    $|        \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|\{projection_fold_lifetime_source(plan, "if (warp < " + consumers.to_string() + ") {\nconst __nv_bfloat16 *current = sibling_storage + stage * " + slot.to_string() + ";\n" + fragment_fold + "\n        }", asynchronous=true, phase_argument=true)}
+    $|\{projection_fold_lifetime_source(plan, "if (warp < " + consumers.to_string() + ") {\nconst __nv_bfloat16 *current = sibling_storage + stage * " + slot.to_string() + ";\n" + fragment_fold + "\n        }", asynchronous=true, phase_argument=true, completed_on_issue=!projection_operand_copy_is_async(width))}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {
@@ -128,7 +128,6 @@ fn projection_sibling_fold_pipeline_source(
     $|              workspace[(unsigned long long)output_row * \{intermediate}ULL + column_begin + consumer_column * 16 + output_column] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
     $|            }
     $|          }
-    $|          __syncwarp();
     $|        }
     $|      }
     $|    }

@@ -8,18 +8,21 @@ fn projection_fold_lifetime_source(
   body : String,
   asynchronous~ : Bool,
   phase_argument? : Bool = false,
+  completed_on_issue? : Bool = false,
 ) -> String {
   let effects = plan.effect_plan(
-    if asynchronous {
+    if asynchronous && completed_on_issue {
+      CompletedPrefetch
+    } else if asynchronous {
       OverlappedTransfer
     } else {
       SerialTransfer
     },
   )
   let (stages, width, extent) = effects.geometry()
-  let asynchronous = effects.overlaps()
-  // Keep the established two-slot realization byte-for-byte stable at its
-  // scheduling seam. Wider rings are explicit offline alternatives.
+  let asynchronous = effects.has_pending_transfers()
+  // Completion and issue order are independent: a synchronous prefetch may
+  // retain its early issue position without empty async commit/wait groups.
   if stages == 2 {
     let first_phase = if phase_argument { ", false" } else { "" }
     let next_phase = if phase_argument { ", true" } else { "" }

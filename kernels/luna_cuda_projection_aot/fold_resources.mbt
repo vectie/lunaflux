@@ -7,16 +7,11 @@ fn projection_validate_fold_resources(
   dynamic_bytes : Int,
 ) -> Unit raise ProjectionAotError {
   let schedule = compilation.schedule()
-  let companion_dynamic = match
-    schedule.companion_output_tiles_per_workgroup() {
-    Some(groups) => groups * 1024
-    None => 0
-  }
   for
     (plan, products, dynamic_bytes) in [
       (schedule.matrix_pipeline(), 1, dynamic_bytes),
       (schedule.sibling_pipeline(), 2, dynamic_bytes),
-      (schedule.intermediate_pipeline(), 1, companion_dynamic),
+      (schedule.intermediate_pipeline(), 1, 0),
     ] {
     guard plan is Some(plan) else { continue }
     let rows = plan.row_width().to_int64()

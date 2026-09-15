@@ -106,6 +106,7 @@ fn projection_matrix_pipeline_source(
     "\n}",
     asynchronous=true,
     phase_argument=true,
+    completed_on_issue=!projection_operand_copy_is_async(width),
   )
   let source =
     $|  const int pipeline_rows = \{row_count};
@@ -123,7 +124,7 @@ fn projection_matrix_pipeline_source(
     $|        __nv_bfloat16 *destination = matrix_storage + stage * \{slot};
     $|\{input_copy}
     $|\{weight_copy}
-    $|        asm volatile("cp.async.commit_group;" ::: "memory");
+    $|        \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|      };
     $|\{fragment_declarations}
     $|\{lifetime}

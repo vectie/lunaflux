@@ -89,8 +89,6 @@ fn projection_matrix_mlp_source(
       $|  }
       $|  const int group_count = \{parameters.output_width / (down_groups * 16)};
       $|  const int live_groups = ((token_count + \{pipeline.row_width() - 1}) / \{pipeline.row_width()}) * group_count;
-      $|  extern __shared__ unsigned char shared_bytes[];
-      $|  float *warp_output = reinterpret_cast<float *>(shared_bytes) + warp * 256;
       $|  for (int work_group = (int)blockIdx.x; work_group < live_groups; work_group += (int)gridDim.x) {
       $|    const int group_index = work_group % group_count;
       $|    const int row_start = (work_group / group_count) * \{pipeline.row_width()};

@@ -72,3 +72,54 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
     }
   }
 }
+
+///|
+test "completed prefetch eliminates empty async groups but preserves early issue" {
+  let parameters = sibling_resource_test_parameters()
+  let dispatch = projection_build_runtime_dispatch(
+    parameters,
+    1024,
+    projection_fixture_target(),
+    [],
+  ).dispatch_plan(1024)
+  for stages in [2, 3, 4] {
+    for tiles in [2, 4] {
+      let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+        dispatch~,
+        maximum_rows=32,
+        maximum_tokens=1024,
+        demand=AllTokenRows,
+      ).with_fold_pipeline(
+        IntermediateFold,
+        stages~,
+        transfer_tiles=tiles,
+        fragment_stages=1,
+      )
+      let pipeline = @luna_projection_tile_compiler.compile_projection_tile(
+          request,
+        )
+        .schedule()
+        .intermediate_pipeline()
+        .unwrap()
+      let asynchronous = projection_operand_copy_is_async(
+        pipeline.transfer_width(),
+      )
+      assert_eq(asynchronous, tiles == 4)
+      let source = projection_fold_pipeline_source(
+        pipeline, "input", "weight", 3072, 4, 1024,
+      )
+      assert_eq(source.contains("cp.async"), asynchronous)
+      assert_true(source.contains("__syncthreads"))
+      let lifetime = projection_fold_lifetime_source(
+        pipeline,
+        "consume_current();",
+        asynchronous=true,
+        completed_on_issue=!asynchronous,
+      )
+      let parts = lifetime.split("consume_current();").to_array()
+      assert_eq(parts.length(), 2)
+      assert_true(parts[0].contains("stage_operands(inner +"))
+      assert_false(parts[1].contains("stage_operands(inner +"))
+    }
+  }
+}

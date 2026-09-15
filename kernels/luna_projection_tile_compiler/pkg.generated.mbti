@@ -87,6 +87,7 @@ pub struct ProjectionFoldEffectPlan {
 pub fn ProjectionFoldEffectPlan::bootstrap(Self) -> ReadOnlyArray[ProjectionFoldBootstrapEffect]
 pub fn ProjectionFoldEffectPlan::future_distance(Self) -> Int
 pub fn ProjectionFoldEffectPlan::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionFoldEffectPlan::has_pending_transfers(Self) -> Bool
 pub fn ProjectionFoldEffectPlan::iteration(Self) -> ReadOnlyArray[ProjectionFoldEffect]
 pub fn ProjectionFoldEffectPlan::overlaps(Self) -> Bool
 pub fn ProjectionFoldEffectPlan::pending_group_limit(Self) -> Int
@@ -353,6 +354,7 @@ pub(all) enum ProjectionTileWeightRole {
 
 pub(all) enum ProjectionTransferExecution {
   SerialTransfer
+  CompletedPrefetch
   OverlappedTransfer
 } derive(Eq, @debug.Debug)
 

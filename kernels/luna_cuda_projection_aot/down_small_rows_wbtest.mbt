@@ -28,8 +28,9 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     let source = projection_fold_pipeline_source(
       pipeline, "input_base", "weight_base", 512, 2, 256,
     )
-    // Shared result publication and reader release delimit each row reuse.
-    assert_eq(source.split("__syncwarp();").count(), 3)
+    // Register exchange has no shared result lifetime to publish or release.
+    assert_false(source.contains("__syncwarp();"))
+    assert_true(source.contains("__shfl_sync"))
     assert_true(source.contains("float c[\{rows / 16}][8] = {};"))
     assert_eq(pipeline.transfer_width(), transfer_width)
     assert_true(
@@ -62,7 +63,7 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     // compiler's ordered matrix fold or its producer/consumer permutation.
     let layout : CudaProjectionTransportLayout = { columns: transfer_width, }
     assert_true(source.contains(layout.address_function()))
-    assert_true(source.contains(projection_result_address_source()))
+    assert_false(source.contains("warp_output"))
   }
 }
 
