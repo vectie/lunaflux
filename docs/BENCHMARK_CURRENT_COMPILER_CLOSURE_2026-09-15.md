@@ -154,6 +154,37 @@ integration are still open.
 
 ## Mixed workload coverage
 
+### Current-source identical-prefix diagnostic (3836a256)
+
+The isolated eager diagnostic `/tmp/lunaflux-shared-head-final.ZCZe13`
+reproduces the final-token difference with identical 3072-token inputs and
+32 generated tokens, C1 then C8, one trial each. This is instrumented numerical
+diagnosis, **not a throughput measurement**. All nine responses share their
+first 31 generated tokens. C1 ends with token 16; two C8 responses end with
+22 and six end with 16.
+
+All 288 GPU greedy selections agree with a CPU argmax over the actual BF16
+logits. At position 3102, two owners prefer 22 over 16 by 0.125; six owners
+(including C1) prefer 16 over 22 by 0.125; one owner has an exact 25.625 tie
+and selects 16. The tie therefore does not explain the two flips.
+
+There are 894 all-owner head-input captures. Duplicate captures at the final
+position agree exactly. Relative to C1's 1024-component head input, C8 owners
+already differ in 869–911 BF16 components before the vocabulary projection.
+This localizes at least part of the numerical difference upstream of the head;
+it does not establish which earlier layer first diverged, whether the head
+adds error, or which final token an independent reference requires. Request
+identities come from the execution trace; identical responses are not used to
+guess request-to-owner mappings. Numerical closure remains open.
+
+The initial diagnostic worker was accidentally paired with an uninstrumented
+parent that closes stderr. A subsequent launcher retained stale executable
+digests. Both attempts failed and were stopped, not counted as numerical
+results. The successful run uses rebuilt diagnostic parent/bridge/supervisor
+and refreshed startup identities. No diagnostic edits entered production.
+
+### Earlier mixed workload measurements
+
 Seven cases at C8/C16 completed one warmup and three measured repetitions,
 rotating case order between repetitions. All responses returned the requested
 count. Arrival lag p95 was at most 1 ms, and the owned server was stopped.
