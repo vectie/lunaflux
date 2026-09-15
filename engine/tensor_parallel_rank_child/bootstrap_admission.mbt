@@ -282,5 +282,5 @@ fn build_rank_child_admission(
   ) catch {
     error => raise Worker(error)
   }
-  { model_root, kernel_root, collective_runtime, worker_plan }
+  { model_root, kernel_root, collective_runtime, worker_plan, }
 }

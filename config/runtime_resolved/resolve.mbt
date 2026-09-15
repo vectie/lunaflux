@@ -226,9 +226,9 @@ pub fn resolve(
     None
   }
   let decisions : Array[RuntimeCapacityDecision] = [
-    { subject: ContextPagesPerRequest, reason: CeilingDivision },
-    { subject: TotalRequestSlots, reason: CombinedConfiguredCapacity },
-    { subject: MaxRowsPerStep, reason: MinimumOfActiveAndTokenBudget },
+    { subject: ContextPagesPerRequest, reason: CeilingDivision, },
+    { subject: TotalRequestSlots, reason: CombinedConfiguredCapacity, },
+    { subject: MaxRowsPerStep, reason: MinimumOfActiveAndTokenBudget, },
     {
       subject: WorkerPageTableCells,
       reason: MinimumOfRowAndPhysicalReferenceBounds,
@@ -237,8 +237,8 @@ pub fn resolve(
       subject: RecomputeHistoryCells,
       reason: RequestSlotsTimesMaximumGeneratedTokens,
     },
-    { subject: PlanBufferCount, reason: FixedDoubleBuffer },
-    { subject: PageGenerationLimit, reason: OwnerMaximumGenerationDefault },
+    { subject: PlanBufferCount, reason: FixedDoubleBuffer, },
+    { subject: PageGenerationLimit, reason: OwnerMaximumGenerationDefault, },
     {
       subject: BlockTableGenerationLimit,
       reason: OwnerMaximumGenerationDefault,

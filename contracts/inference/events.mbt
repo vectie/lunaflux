@@ -20,7 +20,7 @@ pub fn EffectiveLimits::new(
   if max_new_tokens > context_ceiling {
     raise invalid(ContextCeiling, Inconsistent, 0)
   }
-  { max_new_tokens, context_ceiling }
+  { max_new_tokens, context_ceiling, }
 }
 
 ///|
@@ -45,7 +45,7 @@ pub fn AcceptedEvent::new(
   model_identity~ : @spec.ModelIdentity,
   effective_limits~ : EffectiveLimits,
 ) -> AcceptedEvent {
-  { model_identity, effective_limits }
+  { model_identity, effective_limits, }
 }
 
 ///|
@@ -81,7 +81,7 @@ pub fn DecodedDelta::from_utf8(
   let text = @utf8.decode(bytes) catch {
     _ => raise invalid(DecodedDelta, InvalidFormat, 0)
   }
-  { text, utf8_bytes: bytes.length() }
+  { text, utf8_bytes: bytes.length(), }
 }
 
 ///|
@@ -120,7 +120,7 @@ pub fn TokenEvent::new(
       raise invalid(DecodedDelta, TooLong, 0)
     _ => ()
   }
-  { token_id, decoded_delta, position }
+  { token_id, decoded_delta, position, }
 }
 
 ///|
@@ -234,7 +234,7 @@ pub fn CompletedEvent::new(
   finish_reason~ : FinishReason,
   final_usage~ : Usage,
 ) -> CompletedEvent {
-  { finish_reason, final_usage, final_delta: None }
+  { finish_reason, final_usage, final_delta: None, }
 }
 
 ///|
@@ -248,7 +248,7 @@ pub fn CompletedEvent::with_final_delta(
   if final_delta.utf8_bytes() > limits.max_decoded_delta_bytes() {
     raise invalid(DecodedDelta, TooLong, 0)
   }
-  { finish_reason, final_usage, final_delta: Some(final_delta) }
+  { finish_reason, final_usage, final_delta: Some(final_delta), }
 }
 
 ///|
@@ -280,7 +280,9 @@ pub struct PublicErrorCode {
 pub fn PublicErrorCode::from_ascii(
   value : BytesView,
 ) -> PublicErrorCode raise InferenceContractError {
-  { value: bounded_identifier(value, PUBLIC_ERROR_CODE_BYTES, PublicErrorCode) }
+  {
+    value: bounded_identifier(value, PUBLIC_ERROR_CODE_BYTES, PublicErrorCode),
+  }
 }
 
 ///|
@@ -300,7 +302,7 @@ pub fn FailedEvent::new(
   code~ : PublicErrorCode,
   retryable~ : Bool,
 ) -> FailedEvent {
-  { code, retryable }
+  { code, retryable, }
 }
 
 ///|

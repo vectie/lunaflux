@@ -35,7 +35,7 @@ fn LunaOnlineTcpOutputScratch::begin_write(
   self.generation += 1UL
   self.phase = LUNA_ONLINE_TCP_SCRATCH_MUTATING
   self.length = 0
-  { scratch: self, generation: self.generation }
+  { scratch: self, generation: self.generation, }
 }
 
 ///|
@@ -114,7 +114,7 @@ fn LunaOnlineTcpOutputWrite::publish(
   }
   scratch.length = length
   scratch.phase = LUNA_ONLINE_TCP_SCRATCH_IN_FLIGHT
-  { scratch, generation: self.generation, length }
+  { scratch, generation: self.generation, length, }
 }
 
 ///|

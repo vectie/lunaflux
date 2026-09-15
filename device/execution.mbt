@@ -15,7 +15,7 @@ pub fn open_context(ordinal : Int) -> Context raise DeviceError {
     pci: raw_info.pci(),
     capability: capability_from_raw(raw_info),
   }
-  { raw, identity }
+  { raw, identity, }
 }
 
 ///|
@@ -94,7 +94,7 @@ pub fn Context::allocate(
   let raw = self.raw.allocate(byte_count) catch {
     error => raise error_from_cuda(error)
   }
-  { raw, byte_count }
+  { raw, byte_count, }
 }
 
 ///|
@@ -292,7 +292,7 @@ pub fn CublasLt::create_bf16_gemm_plan(
   ) catch {
     error => raise error_from_cuda(error)
   }
-  { raw, rows, inner, columns, workspace_byte_count }
+  { raw, rows, inner, columns, workspace_byte_count, }
 }
 
 ///|

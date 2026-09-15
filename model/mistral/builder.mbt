@@ -16,7 +16,7 @@ pub fn MistralPagedBatchEnvelope::new(
 
 ///|
 pub fn MistralPagedBatchEnvelope::single_row() -> Self {
-  { max_batch_rows: 1 }
+  { max_batch_rows: 1, }
 }
 
 ///|

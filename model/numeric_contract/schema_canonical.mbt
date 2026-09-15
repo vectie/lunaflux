@@ -98,21 +98,21 @@ fn write_model_numeric_schema(
     write_schema_optional(
       writer,
       match tensor.scale {
-        Some(value) => Some({ value: value.value })
+        Some(value) => Some({ value: value.value, })
         None => None
       },
     )
     write_schema_optional(
       writer,
       match tensor.zero_point {
-        Some(value) => Some({ value: value.value })
+        Some(value) => Some({ value: value.value, })
         None => None
       },
     )
     write_schema_optional(
       writer,
       match tensor.codebook {
-        Some(value) => Some({ value: value.value })
+        Some(value) => Some({ value: value.value, })
         None => None
       },
     )
@@ -254,7 +254,7 @@ fn ModelNumericSchemaCanonicalCursor::new(
   tensors : ReadOnlyArray[NumericTensorSchema],
   operations : ReadOnlyArray[NumericOperationSchema],
 ) -> ModelNumericSchemaCanonicalCursor {
-  { tensors, operations, tensor_index: 0, tensor_start: 41 }
+  { tensors, operations, tensor_index: 0, tensor_start: 41, }
 }
 
 ///|
@@ -302,7 +302,7 @@ fn digest_model_numeric_schema(
 ) -> ModelNumericSchemaDigest {
   let writer = NumericCanonicalWriter::new_hashing(canonical_length)
   try! write_model_numeric_schema(writer, tensors, operations)
-  { value: try! writer.finish_hex() }
+  { value: try! writer.finish_hex(), }
 }
 
 ///|

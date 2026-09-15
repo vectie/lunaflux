@@ -33,7 +33,7 @@ test "Luna queued Ready cannot authorize a read before active retirement" {
   }
   assert_eq(state, LunaRequestPreparationReady)
   coordinator.service.instance.phase = LunaRequestActivePhase
-  coordinator.service.tickets.push({ lane: -1, epoch: 1UL })
+  coordinator.service.tickets.push({ lane: -1, epoch: 1UL, })
   coordinator.service.ticket_sequences.push(1UL)
   coordinator.service.turn_pool = true
   assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorIdle)

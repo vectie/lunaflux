@@ -260,7 +260,7 @@ pub fn LunaEventOwner::replace_usage_with_completed(
   self.epoch += 1UL
   self.kind = LunaCompletedEventSlot
   self.payload_length = tail_length
-  { owner: self, epoch: self.epoch }
+  { owner: self, epoch: self.epoch, }
 }
 
 ///|
@@ -285,7 +285,7 @@ pub fn LunaEventOwner::replace_usage_with_failed(
   self.epoch += 1UL
   self.kind = LunaFailedEventSlot
   self.payload_length = code_length
-  { owner: self, epoch: self.epoch }
+  { owner: self, epoch: self.epoch, }
 }
 
 ///|
@@ -296,7 +296,7 @@ pub fn LunaEventOwner::view(
   if !self.busy {
     raise luna_event_invalid(LunaEventLifecycle)
   }
-  { owner: self, epoch: self.epoch }
+  { owner: self, epoch: self.epoch, }
 }
 
 ///|

@@ -359,7 +359,7 @@ test "candidate promotion remains authority free and evidence bound" {
   }
 
   let slow = trials.copy()
-  slow[0] = { ..slow[0], candidate_duration_ns: 2000L }
+  slow[0] = { ..slow[0], candidate_duration_ns: 2000L, }
   try
     admit_fused_qkv_rope_kv_promotion_evidence(
       candidate,

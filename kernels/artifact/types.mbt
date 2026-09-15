@@ -62,7 +62,7 @@ pub fn KernelModuleInput::new(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : FixedArray[Byte],
 ) -> KernelModuleInput {
-  { digest, storage: AliasedModule(module_bytes) }
+  { digest, storage: AliasedModule(module_bytes), }
 }
 
 ///|
@@ -74,7 +74,7 @@ pub fn KernelModuleInput::from_bytes(
   digest~ : @catalog.AotArtifactDigest,
   module_bytes~ : Bytes,
 ) -> KernelModuleInput {
-  { digest, storage: OwnedModule(module_bytes) }
+  { digest, storage: OwnedModule(module_bytes), }
 }
 
 ///|

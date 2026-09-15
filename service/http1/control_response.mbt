@@ -105,7 +105,7 @@ pub fn LunaHttp1ControlMetricsResponse::new(
     "\r\n\r\n" +
     body,
   )
-  { status, encoded }
+  { status, encoded, }
 }
 
 ///|

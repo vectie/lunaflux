@@ -78,7 +78,7 @@ fn FakeCleanupGuard::retry_close(
 
 ///|
 test "construction and cleanup failure retains explicit retry authority" {
-  let owner : FakePreparationOwner = { id: 7, open: true }
+  let owner : FakePreparationOwner = { id: 7, open: true, }
   let cause = DeviceFailed(Module, DriverFailure(ModuleLoad))
   let cleanup_failure = CleanupFailed(Stream, Device(Busy(StreamClose)))
   let retained = retain_on_cleanup_failure(
@@ -112,9 +112,9 @@ priv struct FakeOptionalResource {
 test "absent arena does not skip token lease and stream cleanup" {
   let first : Ref[DeviceExecutorError?] = Ref(None)
   let order : Array[Int] = []
-  let token : FakeOptionalResource = { id: 2, open: true }
-  let lease : FakeOptionalResource = { id: 3, open: true }
-  let stream : FakeOptionalResource = { id: 1, open: true }
+  let token : FakeOptionalResource = { id: 2, open: true, }
+  let lease : FakeOptionalResource = { id: 3, open: true, }
+  let stream : FakeOptionalResource = { id: 1, open: true, }
   let absent : FakeOptionalResource? = None
   close_optional_resource(
     absent,
@@ -166,10 +166,10 @@ priv struct FakeParent {
 ///|
 test "failed function blocks only its own module" {
   let first : Ref[DeviceExecutorError?] = Ref(None)
-  let children = [{ parent: 0, open: true }, { parent: 1, open: false }]
+  let children = [{ parent: 0, open: true, }, { parent: 1, open: false, }]
   let parents : Array[FakeParent] = [
-    { id: 0, open: true },
-    { id: 1, open: true },
+    { id: 0, open: true, },
+    { id: 1, open: true, },
   ]
   let order : Array[Int] = []
   close_unblocked_parents_reverse(

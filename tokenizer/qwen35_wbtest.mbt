@@ -4,15 +4,15 @@ fn qwen35_mark_test_spec(
 ) -> TokenizerSpec raise TokenizerError {
   let vocabulary : Array[VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
-  vocabulary.push({ token_id: 256, piece: b"\xe0\xa4", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"\xe0\xa4\xbe", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"a\xe0\xa4\xbe", kind: Normal })
+  vocabulary.push({ token_id: 256, piece: b"\xe0\xa4", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"\xe0\xa4\xbe", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"a\xe0\xa4\xbe", kind: Normal, })
   let merges : Array[MergeRule] = [
-    { left_token_id: 224, right_token_id: 164, result_token_id: 256 },
-    { left_token_id: 256, right_token_id: 190, result_token_id: 257 },
-    { left_token_id: 97, right_token_id: 257, result_token_id: 258 },
+    { left_token_id: 224, right_token_id: 164, result_token_id: 256, },
+    { left_token_id: 256, right_token_id: 190, result_token_id: 257, },
+    { left_token_id: 97, right_token_id: 257, result_token_id: 258, },
   ]
   let digest = TokenizerDigest::parse(
     if mark_aware {

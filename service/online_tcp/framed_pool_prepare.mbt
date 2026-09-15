@@ -86,7 +86,7 @@ pub fn prepare_luna_online_framed_connection_pool(
       framed, receipt_deadline, pool_limits,
     )
   })
-  { service, slots, limits: pool_limits, maximum_wait_millis, consumed: false }
+  { service, slots, limits: pool_limits, maximum_wait_millis, consumed: false, }
 }
 
 ///|

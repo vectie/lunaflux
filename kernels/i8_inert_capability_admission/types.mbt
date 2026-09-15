@@ -6,7 +6,7 @@ pub struct I8InertKernelCapabilityAdmissionVersion {
 
 ///|
 pub fn I8InertKernelCapabilityAdmissionVersion::v1() -> I8InertKernelCapabilityAdmissionVersion {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -57,7 +57,7 @@ pub fn I8InertKernelCapabilityAdmissionLimits::new(
     is None {
     raise I8InertKernelCapabilityRejected(Limit)
   }
-  { max_operations, max_weights, max_canonical_bytes }
+  { max_operations, max_weights, max_canonical_bytes, }
 }
 
 ///|

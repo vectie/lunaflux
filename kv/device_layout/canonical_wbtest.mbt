@@ -25,6 +25,6 @@ test "canonical re-admission rejects forged derived scalars" {
     ),
   )
   assert_true(layout.is_canonical_for(identity, geometry))
-  let forged = { ..layout, arena_bytes: layout.arena_bytes() + 256L }
+  let forged = { ..layout, arena_bytes: layout.arena_bytes() + 256L, }
   assert_false(forged.is_canonical_for(identity, geometry))
 }

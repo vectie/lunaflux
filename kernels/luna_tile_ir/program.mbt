@@ -40,7 +40,7 @@ pub fn LunaTileProgramInput::residual_add(
   constraints~ : ArrayView[LunaTileConstraint],
 ) -> LunaTileProgramInput {
   {
-    residual_add: Some({ left, right, output, width }),
+    residual_add: Some({ left, right, output, width, }),
     loop_extents: ReadOnlyArray::from_array(loop_extents),
     tensors: ReadOnlyArray::from_array(tensors),
     instructions: ReadOnlyArray::from_array(instructions),

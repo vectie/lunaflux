@@ -46,5 +46,5 @@ fn bind_fused_production_probe_artifacts(
     !qkv.manifest_bindable() && !residual.manifest_bindable(),
     "production compiled binding gained manifest authority",
   )
-  { qkv, residual, readonly_module: readonly_first }
+  { qkv, residual, readonly_module: readonly_first, }
 }

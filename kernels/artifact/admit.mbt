@@ -288,7 +288,7 @@ fn admit_required(
     if exact_digest(owned_module) != digest.sha256() {
       raise DigestMismatch(digest)
     }
-    modules.push({ digest, module_bytes: owned_module })
+    modules.push({ digest, module_bytes: owned_module, })
   }
   let exports : Array[KernelEntryPoint] = []
   for identity in required_entries {

@@ -26,7 +26,7 @@ pub fn LunaRequestSemanticLease::view(
   self : LunaRequestSemanticLease,
 ) -> LunaRequestSemanticView raise InferenceContractError {
   ignore(self.require_storage())
-  { storage: self.storage, epoch: self.epoch }
+  { storage: self.storage, epoch: self.epoch, }
 }
 
 ///|
@@ -35,7 +35,7 @@ pub fn LunaRequestSemanticLease::stop_token_view(
   self : LunaRequestSemanticLease,
 ) -> LunaRequestStopTokenView raise InferenceContractError {
   ignore(self.require_storage())
-  { storage: self.storage, epoch: self.epoch }
+  { storage: self.storage, epoch: self.epoch, }
 }
 
 ///|
@@ -45,7 +45,7 @@ pub fn LunaRequestSemanticLease::prefix_view(
   self : LunaRequestSemanticLease,
 ) -> LunaRequestPrefixView raise InferenceContractError {
   ignore(self.require_storage())
-  { storage: self.storage, epoch: self.epoch }
+  { storage: self.storage, epoch: self.epoch, }
 }
 
 ///|
@@ -216,7 +216,7 @@ fn LunaRequestSemanticStorage::stop_token_status(
   token_id : Int,
 ) -> LunaRequestSemanticStopTokenStatus {
   if !self.is_current_epoch(epoch) || self.phase != LUNA_REQUEST_SEMANTIC_LEASED {
-    return { state: 2, work_units: 0 }
+    return { state: 2, work_units: 0, }
   }
   let mut low = 0
   let mut high = self.stop_token_count
@@ -226,7 +226,7 @@ fn LunaRequestSemanticStorage::stop_token_status(
     used += 1
     let candidate = self.sorted_stop_tokens[middle]
     if candidate == token_id {
-      return { state: 0, work_units: used }
+      return { state: 0, work_units: used, }
     }
     if candidate < token_id {
       low = middle + 1
@@ -234,7 +234,7 @@ fn LunaRequestSemanticStorage::stop_token_status(
       high = middle
     }
   }
-  { state: 1, work_units: used }
+  { state: 1, work_units: used, }
 }
 
 ///|
@@ -276,7 +276,7 @@ pub fn LunaRequestStopTokenView::retain_into(
 ///|
 /// Allocates one empty owner cell during enclosing-owner startup.
 pub fn LunaRequestStopTokenRetentionSlot::new() -> LunaRequestStopTokenRetentionSlot {
-  { storage: None, epoch: 0UL, retention_id: 0UL }
+  { storage: None, epoch: 0UL, retention_id: 0UL, }
 }
 
 ///|
@@ -319,7 +319,7 @@ pub fn LunaRequestStopTokenRetentionSlot::is_stop_token(
   match self.storage {
     Some(storage) if self.is_live() =>
       storage.stop_token_status(self.epoch, token_id)
-    _ => { state: 2, work_units: 0 }
+    _ => { state: 2, work_units: 0, }
   }
 }
 

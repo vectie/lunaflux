@@ -79,7 +79,7 @@ fn device_weight_preparation(
 ) -> DeviceWeightPreparation {
   match loaded {
     ResourceReady(ready) =>
-      WeightsReady({ allocation: ready.resource, layout: ready.layout })
+      WeightsReady({ allocation: ready.resource, layout: ready.layout, })
     ResourceCleanupRequired(failed) =>
       WeightsCleanupRequired({
         allocation: failed.resource,

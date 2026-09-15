@@ -3,7 +3,7 @@ fn pool_received_at(
   request : @inference.GenerateRequest,
   receipt_at_millis : UInt64,
 ) -> ReceivedRequest raise {
-  let receipt : RequestReceipt = { at_millis: receipt_at_millis }
+  let receipt : RequestReceipt = { at_millis: receipt_at_millis, }
   {
     receipt,
     request,

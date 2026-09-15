@@ -36,7 +36,7 @@ pub fn ReleaseEvidenceEntry::new(
         raise InvalidEvidenceEntry
       }
   }
-  { role, status, artifact, workload_count, losing_workload_count }
+  { role, status, artifact, workload_count, losing_workload_count, }
 }
 
 ///|
@@ -100,7 +100,7 @@ pub fn ReleaseReviewerEntry::new(
         raise InvalidReviewerEntry
       }
   }
-  { role, status, identity, attestation }
+  { role, status, identity, attestation, }
 }
 
 ///|

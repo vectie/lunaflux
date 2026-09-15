@@ -213,8 +213,8 @@ pub fn RankChildControl::progress_send(
   }
   if complete {
     self.send_active = false
-    { kind: 1 }
+    { kind: 1, }
   } else {
-    { kind: 0 }
+    { kind: 0, }
   }
 }

@@ -65,7 +65,7 @@ fn luna_tile_shared_lifetimes(
         raise InvalidProgram(ParallelLifetime)
       }
       let size = luna_tile_tensor_end(tensor) - tensor.offset_bytes
-      let lifetime = { tensor, first, last, size }
+      let lifetime = { tensor, first, last, size, }
       let mut insertion = lifetimes.length()
       while insertion > 0 {
         let previous = lifetimes[insertion - 1]
@@ -132,7 +132,7 @@ fn plan_luna_tile_parallel_shared(
         lifetime.size,
         ParallelLifetime,
       )
-      slots.push({ offset, capacity: lifetime.size, last_use: lifetime.last })
+      slots.push({ offset, capacity: lifetime.size, last_use: lifetime.last, })
       (offset, false)
     }
     placements.push({

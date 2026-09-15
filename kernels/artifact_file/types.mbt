@@ -73,7 +73,7 @@ pub fn KernelModuleFileInput::new(
   digest~ : @catalog.AotArtifactDigest,
   path_identifier~ : String,
 ) -> KernelModuleFileInput {
-  { digest, path_identifier }
+  { digest, path_identifier, }
 }
 
 ///|

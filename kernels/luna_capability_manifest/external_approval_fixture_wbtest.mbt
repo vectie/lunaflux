@@ -36,7 +36,7 @@ fn luna_test_authenticated_external_approval(
     ),
   }
   digest.fill(b'\x00')
-  let verifier : LunaExternalApprovalVerifier = { policy, key, closed: false }
+  let verifier : LunaExternalApprovalVerifier = { policy, key, closed: false, }
   let approval = verifier.verify(canonical, envelope, signed, approved_source)
   verifier.close()
   approval
@@ -78,7 +78,7 @@ fn luna_test_startup_handoff(
   )
   tag.fill(b'\x00')
   {
-    verifier: { policy, key, closed: false },
+    verifier: { policy, key, closed: false, },
     rollout_digest,
     verifier_key_id: "test-key",
     authority_id: "test-authority",
@@ -225,7 +225,7 @@ test "authenticated approval rejects hostile tag and closed verifier and wipes k
     approved_source=source,
     authentication_tag=LunaDetachedSignatureDigest::from_sha256("0".repeat(64)),
   )
-  let verifier : LunaExternalApprovalVerifier = { policy, key, closed: false }
+  let verifier : LunaExternalApprovalVerifier = { policy, key, closed: false, }
   try verifier.verify(canonical, envelope, hostile, source) catch {
     Mismatch(ExternalApproval) => ()
     _ => fail("unexpected hostile authentication-tag rejection")

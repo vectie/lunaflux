@@ -63,7 +63,7 @@ fn LunaIncrementalOutputWorkspace::begin_setup(
   self.utf8_seen = 0
   self.lifecycle = OUTPUT_ACTIVE
   self.phase = LUNA_INCREMENTAL_OUTPUT_SETUP_PATTERN
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|
@@ -319,7 +319,7 @@ pub fn LunaIncrementalOutputWork::take_lease(
   workspace.authenticate_setup_semantics()
   workspace.phase = LUNA_INCREMENTAL_OUTPUT_LEASED
   workspace.clear_setup_source()
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

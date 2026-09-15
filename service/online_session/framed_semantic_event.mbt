@@ -51,7 +51,7 @@ pub fn LunaOnlineFramedSemanticEvent::request_route(
   self : LunaOnlineFramedSemanticEvent,
 ) -> LunaOnlineFramedRequestRoute raise LunaOnlineFramedCoordinatorError {
   ignore(self.require_owner())
-  { sequence: self.route_sequence }
+  { sequence: self.route_sequence, }
 }
 
 ///|
@@ -91,7 +91,7 @@ pub fn LunaOnlineFramedSemanticEvent::cancel_and_discard(
   self : LunaOnlineFramedSemanticEvent,
 ) -> Unit raise LunaOnlineFramedCoordinatorError {
   let owner = self.require_owner()
-  owner.request_cancel_route({ sequence: self.route_sequence })
+  owner.request_cancel_route({ sequence: self.route_sequence, })
   owner.semantic_event_taken = false
   owner.event_ack_pending = true
 }

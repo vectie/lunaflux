@@ -69,7 +69,7 @@ pub fn FusedParallelCompiledArtifactLimits::new(
     maximum_binding_bytes > 1048576 {
     raise FusedParallelInvalid(Limits)
   }
-  { maximum_module_bytes, maximum_receipt_bytes, maximum_binding_bytes }
+  { maximum_module_bytes, maximum_receipt_bytes, maximum_binding_bytes, }
 }
 
 ///|

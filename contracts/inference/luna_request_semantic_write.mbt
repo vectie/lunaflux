@@ -129,7 +129,7 @@ pub fn LunaRequestSemanticWrite::finish(
   storage.item_index = 0
   storage.prior_index = 0
   storage.byte_index = 0
-  { storage, epoch: self.epoch }
+  { storage, epoch: self.epoch, }
 }
 
 ///|

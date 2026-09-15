@@ -58,7 +58,7 @@ fn encode_luna_kernel_profile(
   observations : ArrayView[LunaKernelProfileObservation],
   maximum : Int,
 ) -> Bytes raise LunaKernelProfileError {
-  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum }
+  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum, }
   encoder.append_string("lunaflux.kernel-profile-priority.v1")
   encoder.append_string(identity.content().as_hex())
   encoder.append_string(identity.plan().as_hex())

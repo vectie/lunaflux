@@ -282,7 +282,7 @@ pub fn LunaStartupVerifierKeyOwner::take_handoff(
   wipe_startup_verifier_storage(self.header, self.payload)
   self.phase = 4
   {
-    verifier: { policy, key, closed: false },
+    verifier: { policy, key, closed: false, },
     rollout_digest,
     verifier_key_id,
     authority_id,

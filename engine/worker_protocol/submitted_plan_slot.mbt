@@ -1,6 +1,6 @@
 ///|
 pub fn SubmittedSchedulePlanSlot::new() -> SubmittedSchedulePlanSlot {
-  { owner: None, epoch: 0UL }
+  { owner: None, epoch: 0UL, }
 }
 
 ///|

@@ -197,66 +197,66 @@ pub fn KernelCapabilityId::as_int(self : KernelCapabilityId) -> Int {
 ///|
 /// Semantic capability 1: gather model-width rows from an embedding table.
 pub fn KernelCapabilityId::embedding_lookup() -> KernelCapabilityId {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 /// Semantic capability 2: root-mean-square normalization.
 pub fn KernelCapabilityId::rms_norm() -> KernelCapabilityId {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 /// Semantic capability 3: query, key, and value projection.
 pub fn KernelCapabilityId::qkv_projection() -> KernelCapabilityId {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 /// Semantic capability 4: rotary position transformation.
 pub fn KernelCapabilityId::rotary_embedding() -> KernelCapabilityId {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
 /// Semantic capability 5: causal grouped-query attention.
 pub fn KernelCapabilityId::causal_attention() -> KernelCapabilityId {
-  { value: 5 }
+  { value: 5, }
 }
 
 ///|
 /// Semantic capability 6: dense matrix projection.
 pub fn KernelCapabilityId::dense_projection() -> KernelCapabilityId {
-  { value: 6 }
+  { value: 6, }
 }
 
 ///|
 /// Semantic capability 7: elementwise residual addition.
 pub fn KernelCapabilityId::residual_add() -> KernelCapabilityId {
-  { value: 7 }
+  { value: 7, }
 }
 
 ///|
 /// Semantic capability 8: gated feed-forward transformation.
 pub fn KernelCapabilityId::gated_mlp() -> KernelCapabilityId {
-  { value: 8 }
+  { value: 8, }
 }
 
 ///|
 /// Semantic capability 9: RoPE using explicit per-query positions.
 pub fn KernelCapabilityId::positioned_rotary_embedding() -> KernelCapabilityId {
-  { value: 9 }
+  { value: 9, }
 }
 
 ///|
 /// Semantic capability 10: paged causal attention with persistent KV update.
 pub fn KernelCapabilityId::paged_causal_attention() -> KernelCapabilityId {
-  { value: 10 }
+  { value: 10, }
 }
 
 ///|
 /// Semantic capability 11: per-head query/key RMS normalization over one
 /// packed QKV activation.
 pub fn KernelCapabilityId::qk_rms_norm() -> KernelCapabilityId {
-  { value: 11 }
+  { value: 11, }
 }

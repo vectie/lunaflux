@@ -163,7 +163,7 @@ fn load_modules(
     let resource = context.load_module(image.module_bytes()) catch {
       error => raise DeviceFailed(Module, error)
     }
-    resources.modules.push({ resource, open: true })
+    resources.modules.push({ resource, open: true, })
   }
 }
 
@@ -241,7 +241,7 @@ fn prepare_steps(
           error => raise DeviceFailed(VendorGemmPlan, error)
         }
         let plan_index = resources.vendor_plans.length()
-        resources.vendor_plans.push({ resource, open: true })
+        resources.vendor_plans.push({ resource, open: true, })
         steps.push(
           Vendor({
             plan_index,
@@ -280,16 +280,16 @@ pub fn prepare(
   let weight_lease = context.lease_allocation(weights.allocation()) catch {
     error => raise DeviceFailed(WeightLease, error)
   }
-  resources.weight_lease = Some({ resource: weight_lease, open: true })
+  resources.weight_lease = Some({ resource: weight_lease, open: true, })
   let stream = context.create_stream() catch {
     error => return construction_failed(resources, DeviceFailed(Stream, error))
   }
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   let token_staging = context.allocate(profile.token_staging_capacity_bytes()) catch {
     error =>
       return construction_failed(resources, DeviceFailed(TokenStaging, error))
   }
-  resources.token_staging = Some({ resource: token_staging, open: true })
+  resources.token_staging = Some({ resource: token_staging, open: true, })
   let arena = @device_memory.allocate(context, memory_plan) catch {
     error =>
       return construction_failed(
@@ -297,7 +297,7 @@ pub fn prepare(
         MemoryFailed(ActivationWorkspaceArena, error),
       )
   }
-  resources.arena = Some({ resource: arena, open: true })
+  resources.arena = Some({ resource: arena, open: true, })
   validate_blueprint_regions(
     context,
     blueprint,
@@ -321,7 +321,7 @@ pub fn prepare(
           DeviceFailed(VendorGemmHandle, error),
         )
     }
-    resources.vendor_gemm = Some({ resource, open: true })
+    resources.vendor_gemm = Some({ resource, open: true, })
   }
   let prepared_steps = prepare_steps(
     blueprint,

@@ -21,9 +21,9 @@ fn sentencepiece_fixture_limits() -> TokenizerLimits {
 ///|
 fn sentencepiece_fixture_spec() -> TokenizerSpec raise {
   let vocabulary : Array[VocabularyEntry] = [
-    { token_id: 0, piece: b"<unk>", kind: Special },
-    { token_id: 1, piece: b"<s>", kind: Special },
-    { token_id: 2, piece: b"</s>", kind: Special },
+    { token_id: 0, piece: b"<unk>", kind: Special, },
+    { token_id: 1, piece: b"<s>", kind: Special, },
+    { token_id: 2, piece: b"</s>", kind: Special, },
   ]
   for value in 0..<256 {
     vocabulary.push({
@@ -32,7 +32,7 @@ fn sentencepiece_fixture_spec() -> TokenizerSpec raise {
       kind: ByteFallback,
     })
   }
-  vocabulary.push({ token_id: 259, piece: @utf8.encode("▁L"), kind: Normal })
+  vocabulary.push({ token_id: 259, piece: @utf8.encode("▁L"), kind: Normal, })
   TokenizerSpec::new_sentencepiece_bpe(
     vocabulary,
     [],

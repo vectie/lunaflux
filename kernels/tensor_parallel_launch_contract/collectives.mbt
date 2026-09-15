@@ -116,7 +116,7 @@ test "collective sites bind exact generic operation geometry" {
   ]
   assert_eq(validate_collective_facts(exact, operations).length(), 2)
   let width = exact.copy()
-  width[1] = { ..width[1], local_width: 3 }
+  width[1] = { ..width[1], local_width: 3, }
   try ignore(validate_collective_facts(width, operations)) catch {
     InvalidTensorParallelLaunchContract(rule=CollectiveWidth, ..) => ()
     _ => fail("unexpected collective-width rejection")
@@ -124,7 +124,7 @@ test "collective sites bind exact generic operation geometry" {
     _ => fail("wrong operation-local collective width was admitted")
   }
   let reordered = exact.copy()
-  reordered[1] = { ..reordered[1], operation: 0 }
+  reordered[1] = { ..reordered[1], operation: 0, }
   try ignore(validate_collective_facts(reordered, operations)) catch {
     InvalidTensorParallelLaunchContract(rule=CollectiveSequence, ..) => ()
     _ => fail("unexpected collective-order rejection")

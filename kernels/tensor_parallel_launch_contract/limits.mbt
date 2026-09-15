@@ -28,7 +28,7 @@ pub fn TensorParallelLaunchContractLimits::new(
     max_operands_per_contract > MAX_OPERANDS {
     raise invalid(InvalidLimit)
   }
-  { max_profiles, max_contracts, max_operands_per_contract }
+  { max_profiles, max_contracts, max_operands_per_contract, }
 }
 
 ///|

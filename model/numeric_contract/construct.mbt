@@ -12,7 +12,7 @@ pub fn NumericConversion::new(
     !(exact || quantized) {
     raise InvalidNumericContract(UnsupportedValue)
   }
-  { rounding, saturation, finite_values }
+  { rounding, saturation, finite_values, }
 }
 
 ///|

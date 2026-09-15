@@ -262,5 +262,5 @@ fn[S : Eq] prepare_sharded_streaming_load(
   if digest != model.content_digest().as_hex() {
     raise ContentDigestMismatch
   }
-  { source_stamp, payload_offset_bytes, rank_plan, source_order, scratch }
+  { source_stamp, payload_offset_bytes, rank_plan, source_order, scratch, }
 }

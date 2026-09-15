@@ -81,7 +81,7 @@ pub fn Qwen3SourceFileLimits::new(
     compare_chunk_bytes > 16 * 1024 * 1024 {
     raise InvalidSourceFileLimit
   }
-  { max_file_bytes, compare_chunk_bytes, safetensors }
+  { max_file_bytes, compare_chunk_bytes, safetensors, }
 }
 
 ///|

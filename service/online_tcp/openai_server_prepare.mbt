@@ -175,7 +175,7 @@ pub async fn bind_luna_online_openai_server(
     output,
     flights: Array(capacity=1),
     telemetry,
-    activity: { reactor_active: false, maintenance_active: false },
+    activity: { reactor_active: false, maintenance_active: false, },
     response_copy_quanta: preparation.response_copy_quanta,
     outbound_copy_quanta: preparation.outbound_copy_quanta,
     phase: LUNA_ONLINE_TCP_SERVER_LISTENING,

@@ -20,7 +20,7 @@ pub fn IncrementalOutput::new(
   while work.progress() is LunaIncrementalOutputPending {
 
   }
-  { lease: work.take_lease() }
+  { lease: work.take_lease(), }
 }
 
 ///|

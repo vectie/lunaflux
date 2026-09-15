@@ -14,7 +14,7 @@ pub fn LocalTopologyRank::new(
   if total_memory_bytes <= 0L {
     raise invalid(DeclarationRanks, InvalidMemory, 0, 0)
   }
-  { ordinal, name: name.to_owned(), total_memory_bytes, target }
+  { ordinal, name: name.to_owned(), total_memory_bytes, target, }
 }
 
 ///|
@@ -25,7 +25,7 @@ pub fn LocalTopologyLink::direct(
   if lower_rank < 0 || upper_rank < 0 || lower_rank >= upper_rank {
     raise invalid(DeclarationLinks, Unsupported, lower_rank, upper_rank)
   }
-  { lower_rank, upper_rank }
+  { lower_rank, upper_rank, }
 }
 
 ///|

@@ -1,6 +1,6 @@
 ///|
 fn checksum(bytes : BytesView) -> TensorChecksum {
-  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) }
+  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)), }
 }
 
 ///|

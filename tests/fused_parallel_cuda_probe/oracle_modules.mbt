@@ -15,5 +15,5 @@ fn fused_probe_oracle_modules(
     !qkv.is_empty() && !rope.is_empty() && !kv_write.is_empty(),
     "standalone oracle CUBIN is empty",
   )
-  { qkv, rope, kv_write }
+  { qkv, rope, kv_write, }
 }

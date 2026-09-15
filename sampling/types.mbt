@@ -44,7 +44,7 @@ pub fn SamplingLimits::new(
   if max_tokens_per_row <= 0 || max_tokens_per_row > 1048576 {
     raise InvalidLimit(TokensPerRow)
   }
-  { max_rows, max_tokens_per_row }
+  { max_rows, max_tokens_per_row, }
 }
 
 ///|

@@ -2,7 +2,7 @@
 fn limits_wb_embedding(
   id : Int,
   inputs : ArrayView[ValueRef],
-  outputs? : Array[ActivationRef] = [{ value: 0 }],
+  outputs? : Array[ActivationRef] = [{ value: 0, }],
   runtime_inputs? : Array[OperationRuntimeInput] = [],
 ) -> PlanOperation raise {
   if runtime_inputs.length() == 0 {

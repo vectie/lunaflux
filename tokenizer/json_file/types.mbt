@@ -60,7 +60,7 @@ pub fn TokenizerFileLimits::new(
   if max_json_depth <= 0 || max_json_depth > 256 {
     raise InvalidLimit(JsonDepth)
   }
-  { max_file_bytes, max_json_depth }
+  { max_file_bytes, max_json_depth, }
 }
 
 ///|

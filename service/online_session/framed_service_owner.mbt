@@ -79,7 +79,7 @@ fn LunaOnlineFramedService::open_stream_mode(
   self.stream_epoch += 1UL
   self.stream_phase = 1
   self.stream_mode = mode
-  self.stream_slots.push({ service: self, epoch: self.stream_epoch })
+  self.stream_slots.push({ service: self, epoch: self.stream_epoch, })
   luna_framed_open(LunaOnlineFramedOpened, self.stream_epoch)
 }
 

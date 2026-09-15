@@ -187,7 +187,7 @@ pub fn lower_paged_attention_cuda_aot_phase_bundle(
     Decode,
     Some(dispatch_plan.decode()),
   )
-  { dispatch_plan, prefill, decode }
+  { dispatch_plan, prefill, decode, }
 }
 
 ///|

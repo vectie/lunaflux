@@ -166,7 +166,7 @@ fn encode_luna_specialization(
   evidence : LunaSpecializationEvidence,
   maximum : Int,
 ) -> Bytes raise LunaSpecializationError {
-  let encoder : LunaSpecializationEncoder = { bytes: [], maximum }
+  let encoder : LunaSpecializationEncoder = { bytes: [], maximum, }
   encoder.append_string("LUNA-SPECIALIZATION-V1")
   encoder.append_string(identity.content().as_hex())
   encoder.append_string(identity.plan().as_hex())

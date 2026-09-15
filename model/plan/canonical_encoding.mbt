@@ -11,7 +11,7 @@ priv struct ModelPlanCanonicalWriter {
 fn ModelPlanCanonicalWriter::new_counting(
   max_count : Int,
 ) -> ModelPlanCanonicalWriter {
-  { hasher: None, max_count, count: 0 }
+  { hasher: None, max_count, count: 0, }
 }
 
 ///|

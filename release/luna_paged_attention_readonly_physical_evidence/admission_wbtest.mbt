@@ -446,7 +446,10 @@ test "read-only admission rejects stale outer seal and manifest replay" {
     ),
   )
   try
-    readonly_evidence_admit(candidate, compiled, { ..baseline, result: changed })
+    readonly_evidence_admit(candidate, compiled, {
+      ..baseline,
+      result: changed,
+    })
   catch {
     PagedAttentionReadOnlyPhysicalEvidenceMismatch(Seal) => ()
     _ => fail("unexpected stale-seal rejection")

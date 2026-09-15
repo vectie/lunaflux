@@ -30,7 +30,7 @@ fn coordinator_fixture_identity() -> @spec.ModelIdentity raise {
 fn coordinator_fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -167,5 +167,5 @@ fn coordinator_fixture(
     clock,
   )
   let opened = service.open_stream()
-  { service, stream: service.take_open_stream(opened) }
+  { service, stream: service.take_open_stream(opened), }
 }

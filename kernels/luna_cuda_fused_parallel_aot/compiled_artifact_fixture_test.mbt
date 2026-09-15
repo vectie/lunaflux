@@ -128,7 +128,7 @@ fn fused_compiled_black_box_fixture() -> FusedCompiledBlackBoxFixture raise {
       max_recipe_bytes=65536,
     ),
   )
-  { plan, layout, target, compiler, qkv, rope, kv_write, residual, norm }
+  { plan, layout, target, compiler, qkv, rope, kv_write, residual, norm, }
 }
 
 ///|

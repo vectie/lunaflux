@@ -71,7 +71,7 @@ pub fn LunaTextRequestHandoffWrite::finish(
   storage.semantic_works.push(storage.semantic_writes[0].finish())
   storage.semantic_writes.clear()
   storage.phase = LUNA_TEXT_HANDOFF_SEMANTIC
-  { storage, epoch: self.epoch }
+  { storage, epoch: self.epoch, }
 }
 
 ///|

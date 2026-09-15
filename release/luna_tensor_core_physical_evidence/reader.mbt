@@ -20,7 +20,7 @@ fn tensor_core_evidence_reader(
     lines[lines.length() - 1] != "" {
     raise LunaTensorCorePhysicalEvidenceInvalid(CanonicalDocument)
   }
-  { lines, cursor: 0 }
+  { lines, cursor: 0, }
 }
 
 ///|

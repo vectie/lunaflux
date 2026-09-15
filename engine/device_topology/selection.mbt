@@ -87,7 +87,7 @@ fn rank_ordered_topology_from_projection(
       peers,
     ),
   )
-  { declaration, topology }
+  { declaration, topology, }
 }
 
 ///|

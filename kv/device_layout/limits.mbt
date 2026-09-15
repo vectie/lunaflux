@@ -17,5 +17,5 @@ pub fn DeviceKvLimits::new(
   if max_arena_bytes <= 0L {
     raise InvalidLimit(ArenaBytes)
   }
-  { tokens_per_page, total_page_count, max_arena_bytes }
+  { tokens_per_page, total_page_count, max_arena_bytes, }
 }

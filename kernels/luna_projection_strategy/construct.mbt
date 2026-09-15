@@ -11,7 +11,7 @@ pub fn ProjectionShape::new(
   if family == GatedMlp && intermediate_width == 0 {
     raise InvalidProjectionStrategy(Shape)
   }
-  { family, input_width, output_width, intermediate_width }
+  { family, input_width, output_width, intermediate_width, }
 }
 
 ///|
@@ -23,7 +23,7 @@ pub fn ProjectionTile::new(
   if rows <= 0 || columns <= 0 || reduction <= 0 {
     raise InvalidProjectionStrategy(Shape)
   }
-  { rows, columns, reduction }
+  { rows, columns, reduction, }
 }
 
 ///|
@@ -36,7 +36,7 @@ pub fn ProjectionCapabilities::new(
     (subgroup_width & (subgroup_width - 1)) != 0 {
     raise InvalidProjectionStrategy(Capability)
   }
-  { subgroup_width, matrix_tile }
+  { subgroup_width, matrix_tile, }
 }
 
 ///|
@@ -127,7 +127,7 @@ pub fn ProjectionAutotuneKey::new(
   shape~ : ProjectionShape,
   strategy~ : ProjectionStrategy,
 ) -> ProjectionAutotuneKey {
-  { backend, target, numeric_type, shape, strategy }
+  { backend, target, numeric_type, shape, strategy, }
 }
 
 ///|
@@ -139,5 +139,5 @@ pub fn ProjectionAutotuneRecord::new(
   if median_latency_ns <= 0L || sample_count < 3 {
     raise InvalidProjectionStrategy(Measurement)
   }
-  { key, median_latency_ns, sample_count }
+  { key, median_latency_ns, sample_count, }
 }

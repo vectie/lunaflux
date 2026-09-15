@@ -10,7 +10,7 @@ test "Luna framed ingress route is stable, opaque, and cancellation exact" {
   let second = coordinator.offer_luna_framed(frame, source_offset=1, length=1)
   assert_true(second.has_request_route())
   assert_true(route.same_request(second.request_route()))
-  assert_false(route.same_request({ sequence: 2UL }))
+  assert_false(route.same_request({ sequence: 2UL, }))
   coordinator.stream.request_cancel_route(route) catch {
     LunaOnlineFramedCoordinatorFailed(_) => fail("routed cancellation failed")
   }
@@ -44,8 +44,8 @@ test "Luna rejection credit preserves the exact opaque request route" {
   coordinator.service.publish_rejection(7UL, LunaOnlineFramedRejectedCapacity)
   let rejection = coordinator.take_rejection()
   let route = rejection.request_route()
-  assert_true(route.same_request({ sequence: 7UL }))
-  assert_false(route.same_request({ sequence: 8UL }))
+  assert_true(route.same_request({ sequence: 7UL, }))
+  assert_false(route.same_request({ sequence: 8UL, }))
   rejection.ack()
   try rejection.request_route() catch {
     LunaOnlineFramedCoordinatorFailed(LunaOnlineFramedLifecycle) => ()
@@ -64,7 +64,7 @@ test "Luna semantic event route stales with its exact event credit" {
   stage_fixture_semantic_credit(service, 1)
   service.event_route_sequence = 19UL
   let event = stream.take_semantic_event()
-  assert_true(event.request_route().same_request({ sequence: 19UL }))
+  assert_true(event.request_route().same_request({ sequence: 19UL, }))
   event.delivered()
   clear_fixture_semantic_credit(service)
   service.event_route_sequence = 0UL

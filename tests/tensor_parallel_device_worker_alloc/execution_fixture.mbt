@@ -335,7 +335,7 @@ fn prepare_execution_fixture(
       profile,
       limits,
     )
-    ranks.push({ launch_set, artifacts, execution })
+    ranks.push({ launch_set, artifacts, execution, })
   }
   {
     model,

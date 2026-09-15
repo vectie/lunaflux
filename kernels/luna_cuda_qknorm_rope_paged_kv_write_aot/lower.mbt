@@ -45,7 +45,7 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
   if output_width <= 0 {
     raise Unsupported(Shape)
   }
-  let alias_contract = { first_writable_operand: 9, operand_count: 12 }
+  let alias_contract = { first_writable_operand: 9, operand_count: 12, }
   let source = postprocess_source(semantic, layout, profile, grid_x, head_map)
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)

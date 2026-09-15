@@ -8,7 +8,7 @@ fn normalization_test_semantic(
     maximum_tokens=256,
     demand=AllTokenRows,
   )
-  { selected: select_projection_tile(request), program }
+  { selected: select_projection_tile(request), program, }
 }
 
 ///|
@@ -90,7 +90,7 @@ test "normalization merges cascading exact expressions and prunes dead work" {
   // Reuse analysis must run AFTER CSE; there is now only one live dot.
   assert_false(compiled.optimization().applied(ReuseInputTileAcrossOutputTiles))
   let again = schedule_projection_tile(
-    optimize_projection_tile({ ..semantic, program: compiled.program() }),
+    optimize_projection_tile({ ..semantic, program: compiled.program(), }),
   )
   assert_eq(again.program(), compiled.program())
   assert_eq(again.eliminated_bindings(), (0, 0))
@@ -136,7 +136,7 @@ test "alpha renaming and dead insertions converge without erasing source provena
   )
   let original = schedule_projection_tile(optimize_projection_tile(source))
   let normalized = schedule_projection_tile(
-    optimize_projection_tile({ ..source, program: changed }),
+    optimize_projection_tile({ ..source, program: changed, }),
   )
   assert_eq(normalized.program(), original.program())
   assert_eq(normalized.digest(), original.digest())

@@ -27,7 +27,7 @@ fn[T] resource_failure(
 ) -> ResourcePreparation[T] raise DeviceWeightError {
   try close(resource) catch {
     cleanup_failure =>
-      ResourceCleanupRequired({ resource, cause, stage, cleanup_failure })
+      ResourceCleanupRequired({ resource, cause, stage, cleanup_failure, })
   } noraise {
     _ => raise cause
   }

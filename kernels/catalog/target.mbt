@@ -20,7 +20,7 @@ pub fn DeviceTarget::new(
   if compute_major <= 0 || compute_minor < 0 {
     raise InvalidCatalog(InvalidComputeCapability)
   }
-  { compute_major, compute_minor, supports_bf16, supports_cublas_lt }
+  { compute_major, compute_minor, supports_bf16, supports_cublas_lt, }
 }
 
 ///|

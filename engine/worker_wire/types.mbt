@@ -41,7 +41,7 @@ pub fn PlanFrameBuffer::new(
 ) -> PlanFrameBuffer raise WorkerWireError {
   let capacity = plan_frame_byte_capacity(worker_limits)
   {
-    identity: { marker: Ref(0) },
+    identity: { marker: Ref(0), },
     worker_limits,
     inference_limits,
     storage: FixedArray::make(capacity, b'\x00'),
@@ -71,7 +71,7 @@ pub fn PlanFrameBuffer::new_transport_owned(
     raise InvalidLimit(PlanFrameBytes)
   }
   {
-    identity: { marker: Ref(0) },
+    identity: { marker: Ref(0), },
     worker_limits,
     inference_limits,
     storage: transport,

@@ -122,7 +122,7 @@ pub fn SchedulePlanBuffer::new(
     limits.max_plan_rows(),
   )
   {
-    identity: { marker: Ref(0) },
+    identity: { marker: Ref(0), },
     limits,
     state: Writable,
     epoch: 1UL,

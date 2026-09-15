@@ -6,7 +6,7 @@ pub fn PageRunBuffer::new(
   if capacity <= 0 || capacity > ABSOLUTE_MAX_PAGE_CAPACITY {
     raise InvalidLimit(RunCapacity)
   }
-  { pages: FixedArray::make(capacity, invalid_page_id()), length: 0 }
+  { pages: FixedArray::make(capacity, invalid_page_id()), length: 0, }
 }
 
 ///|

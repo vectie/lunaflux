@@ -132,7 +132,7 @@ pub fn LunaOnlineEventCredit::view(
   self : LunaOnlineEventCredit,
 ) -> @luna_event.LunaEventView raise LunaOnlineInstanceError {
   let instance = self.instance
-  instance.require_active_ticket({ lane: self.lane, epoch: self.request_epoch })
+  instance.require_active_ticket({ lane: self.lane, epoch: self.request_epoch, })
   instance.require_owner()
   if !instance.event_taken || self.event_epoch != instance.event_epoch {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
@@ -269,7 +269,7 @@ pub fn LunaOnlineEventCredit::ack(
   self : LunaOnlineEventCredit,
 ) -> Unit raise LunaOnlineInstanceError {
   self.instance.ack_event_credit(
-    { lane: self.lane, epoch: self.request_epoch },
+    { lane: self.lane, epoch: self.request_epoch, },
     self.event_epoch,
   )
 }

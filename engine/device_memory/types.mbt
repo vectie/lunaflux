@@ -100,7 +100,7 @@ pub fn DeviceMemoryLimits::new(
   if max_arena_bytes <= 0L {
     raise InvalidLimit(ArenaBytes)
   }
-  { activation_alignment, max_arena_bytes }
+  { activation_alignment, max_arena_bytes, }
 }
 
 ///|
@@ -123,7 +123,7 @@ pub fn PagedTokenRowEnvelope::new(
   if max_query_rows <= 0 || max_query_tokens < max_query_rows {
     raise InvalidPlan(ShapeEnvelope)
   }
-  { max_query_rows, max_query_tokens }
+  { max_query_rows, max_query_tokens, }
 }
 
 ///|

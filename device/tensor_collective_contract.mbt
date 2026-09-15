@@ -10,7 +10,7 @@ pub fn TensorCollectiveContractDigest::from_sha256(
       raise InvalidArgument(TensorCollectiveContractCreate)
     }
   }
-  { hex: value.to_owned() }
+  { hex: value.to_owned(), }
 }
 
 ///|
@@ -31,7 +31,7 @@ pub fn TensorCollectiveSite::new(
   if sequence <= 0 || operation_id < 0 || full_width <= 0 || local_width <= 0 {
     raise InvalidArgument(TensorCollectiveContractCreate)
   }
-  { sequence, operation_id, kind, full_width, local_width }
+  { sequence, operation_id, kind, full_width, local_width, }
 }
 
 ///|

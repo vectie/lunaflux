@@ -69,7 +69,7 @@ fn derive_group_template_digest(
     rank_child_executable_digest_sha256 == "0".repeat(64) {
     rejected(Source)
   }
-  let encoder : GroupTemplateEncoder = { bytes: [] }
+  let encoder : GroupTemplateEncoder = { bytes: [], }
   encoder.append("lunaflux.tensor-parallel-group-template.v1")
   encoder.append(source.digest().as_hex())
   encoder.append(source.kernel().manifest_digest())

@@ -174,7 +174,7 @@ fn fused_physical_black_box_fixture() -> FusedPhysicalBlackBoxFixture raise {
     fused_physical_test_digest(residual_receipt),
     limits,
   )
-  { qkv, qkv_compiled, residual, residual_compiled }
+  { qkv, qkv_compiled, residual, residual_compiled, }
 }
 
 ///|

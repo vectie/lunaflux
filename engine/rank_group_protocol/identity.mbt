@@ -10,7 +10,7 @@ pub fn RankGroupGeneration::from_wire(
 
 ///|
 pub fn RankGroupGeneration::first() -> RankGroupGeneration {
-  { value: 1UL }
+  { value: 1UL, }
 }
 
 ///|
@@ -25,5 +25,5 @@ pub fn RankGroupGeneration::next(
   if self.value == 0xffffffffffffffffUL {
     raise Invalid(GroupGeneration)
   }
-  { value: self.value + 1UL }
+  { value: self.value + 1UL, }
 }

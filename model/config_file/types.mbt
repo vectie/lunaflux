@@ -26,7 +26,7 @@ pub fn ModelConfigDigest::from_sha256(
     !value.all(unit => unit.is_ascii_digit() || ('a' <= unit && unit <= 'f')) {
     raise InvalidExpectedDigest
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|
@@ -45,7 +45,7 @@ pub fn ModelConfigFileLimits::new(
   if maximum_depth <= 0 || maximum_depth > ABSOLUTE_MAX_JSON_DEPTH {
     raise InvalidLimit(JsonDepth)
   }
-  { maximum_bytes, maximum_depth }
+  { maximum_bytes, maximum_depth, }
 }
 
 ///|

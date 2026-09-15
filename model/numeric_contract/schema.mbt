@@ -32,62 +32,62 @@ pub fn NumericOperationOrdinal::as_int(self : NumericOperationOrdinal) -> Int {
 pub fn ScaleTensorOrdinal::new(
   tensor : NumericTensorOrdinal,
 ) -> ScaleTensorOrdinal {
-  { value: tensor.value }
+  { value: tensor.value, }
 }
 
 ///|
 pub fn ScaleTensorOrdinal::tensor(
   self : ScaleTensorOrdinal,
 ) -> NumericTensorOrdinal {
-  { value: self.value }
+  { value: self.value, }
 }
 
 ///|
 pub fn ZeroPointTensorOrdinal::new(
   tensor : NumericTensorOrdinal,
 ) -> ZeroPointTensorOrdinal {
-  { value: tensor.value }
+  { value: tensor.value, }
 }
 
 ///|
 pub fn ZeroPointTensorOrdinal::tensor(
   self : ZeroPointTensorOrdinal,
 ) -> NumericTensorOrdinal {
-  { value: self.value }
+  { value: self.value, }
 }
 
 ///|
 pub fn CodebookTensorOrdinal::new(
   tensor : NumericTensorOrdinal,
 ) -> CodebookTensorOrdinal {
-  { value: tensor.value }
+  { value: tensor.value, }
 }
 
 ///|
 pub fn CodebookTensorOrdinal::tensor(
   self : CodebookTensorOrdinal,
 ) -> NumericTensorOrdinal {
-  { value: self.value }
+  { value: self.value, }
 }
 
 ///|
 pub fn NumericTensorRole::parameter() -> NumericTensorRole {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 pub fn NumericTensorRole::scale_metadata() -> NumericTensorRole {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 pub fn NumericTensorRole::zero_point_metadata() -> NumericTensorRole {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 pub fn NumericTensorRole::codebook_metadata() -> NumericTensorRole {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
@@ -110,7 +110,7 @@ pub fn NumericTensorSchema::new(
     storage.requires_codebook() != (codebook is Some(_)) {
     raise InvalidNumericContract(StorageCombination)
   }
-  { ordinal, role, shape, storage, scale, zero_point, codebook }
+  { ordinal, role, shape, storage, scale, zero_point, codebook, }
 }
 
 ///|
@@ -118,7 +118,7 @@ pub fn NumericOperationSchema::new(
   ordinal~ : NumericOperationOrdinal,
   execution~ : OperationExecutionContract,
 ) -> NumericOperationSchema {
-  { ordinal, execution }
+  { ordinal, execution, }
 }
 
 ///|

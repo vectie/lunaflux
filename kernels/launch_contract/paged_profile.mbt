@@ -21,7 +21,7 @@ pub fn PagedKernelProfile::new(
   if max_query_rows <= 0 || max_query_tokens <= 0 || max_page_table_entries <= 0 {
     raise InvalidProfile(NonPositiveDimension)
   }
-  { id, max_query_rows, max_query_tokens, max_page_table_entries }
+  { id, max_query_rows, max_query_tokens, max_page_table_entries, }
 }
 
 ///|

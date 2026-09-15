@@ -21,7 +21,7 @@ pub fn LlamaPagedBatchEnvelope::new(
 
 ///|
 pub fn LlamaPagedBatchEnvelope::single_row() -> LlamaPagedBatchEnvelope {
-  { max_batch_rows: 1 }
+  { max_batch_rows: 1, }
 }
 
 ///|

@@ -71,7 +71,7 @@ fn derive_digest(
   device_plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
   artifacts : @artifact.KernelArtifactBundle,
 ) -> TensorParallelExecutionPlanDigest raise TensorParallelExecutionPlanError {
-  let encoder : ExecutionDigestEncoder = { bytes: [] }
+  let encoder : ExecutionDigestEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-parallel-execution-plan.v1")
   encoder.append_identity(plan.identity)
   encoder.append_int(plan.rank)

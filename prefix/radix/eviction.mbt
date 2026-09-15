@@ -229,7 +229,7 @@ pub fn PrefixEvictionStart::plan(
   if self.state != 0 {
     raise StaleEvictionPlan
   }
-  { owner: self.owner, generation: self.generation }
+  { owner: self.owner, generation: self.generation, }
 }
 
 ///|
@@ -243,11 +243,11 @@ pub fn PrefixIndex::try_plan_eviction(
     raise EvictionPlanBusy
   }
   if self.eviction_plan_generation == 0xffffffffffffffffUL {
-    return { state: 2, owner: self, generation: self.eviction_plan_generation }
+    return { state: 2, owner: self, generation: self.eviction_plan_generation, }
   }
   let selected = self.eviction_candidate()
   if selected < 0 {
-    return { state: 1, owner: self, generation: self.eviction_plan_generation }
+    return { state: 1, owner: self, generation: self.eviction_plan_generation, }
   }
   let removed_pages = self.eviction_page_count(selected)
   if removed_pages > output.capacity() {
@@ -271,7 +271,7 @@ pub fn PrefixIndex::try_plan_eviction(
   self.eviction_plan_entry_index = selected
   self.eviction_plan_entry_generation = self.entry_generations[selected]
   self.eviction_plan_page_count = output.page_count()
-  { state: 0, owner: self, generation: self.eviction_plan_generation }
+  { state: 0, owner: self, generation: self.eviction_plan_generation, }
 }
 
 ///|

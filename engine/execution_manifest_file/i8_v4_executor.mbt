@@ -18,7 +18,7 @@ pub fn I8PagedExecutionAdmissionV4::bind_loaded_executor_transfer(
     loaded.weight_artifact_digest() != self.weight_artifact_digest() {
     raise AdmissionRejected(Blueprint)
   }
-  { admission: self, loaded }
+  { admission: self, loaded, }
 }
 
 ///|

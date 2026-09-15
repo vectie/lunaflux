@@ -38,9 +38,9 @@ fn hostile_work(
 fn hostile_special_tokenizer() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
-  vocabulary.push({ token_id: 256, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 256, piece: b"<eos>", kind: Special, })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
     [],

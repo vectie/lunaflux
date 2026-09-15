@@ -51,7 +51,13 @@ pub fn RawTensorMetadata::new(
   data_start~ : Int64,
   data_end~ : Int64,
 ) -> RawTensorMetadata {
-  { name, dtype, shape: ReadOnlyArray::from_array(shape), data_start, data_end }
+  {
+    name,
+    dtype,
+    shape: ReadOnlyArray::from_array(shape),
+    data_start,
+    data_end,
+  }
 }
 
 ///|
@@ -118,7 +124,7 @@ fn validate_tensor(
     name: raw.name,
     dtype: BFloat16,
     shape: raw.shape,
-    byte_range: { start: raw.data_start, end: raw.data_end },
+    byte_range: { start: raw.data_start, end: raw.data_end, },
   }
 }
 

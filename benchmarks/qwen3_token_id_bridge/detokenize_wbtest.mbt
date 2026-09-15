@@ -8,15 +8,15 @@ fn qwen3_bridge_test_spec() -> @tokenizer.TokenizerSpec {
       kind: Normal,
     })
   }
-  vocabulary.push({ token_id: 256, piece: b"\xe4\xb8", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"\xe4\xb8\xad", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"<|im_start|>", kind: Special })
-  vocabulary.push({ token_id: 259, piece: b"<think>", kind: Added })
+  vocabulary.push({ token_id: 256, piece: b"\xe4\xb8", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"\xe4\xb8\xad", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"<|im_start|>", kind: Special, })
+  vocabulary.push({ token_id: 259, piece: b"<think>", kind: Added, })
   try! @tokenizer.TokenizerSpec::new_qwen3_bpe(
     vocabulary,
     [
-      { left_token_id: 0xe4, right_token_id: 0xb8, result_token_id: 256 },
-      { left_token_id: 256, right_token_id: 0xad, result_token_id: 257 },
+      { left_token_id: 0xe4, right_token_id: 0xb8, result_token_id: 256, },
+      { left_token_id: 256, right_token_id: 0xad, result_token_id: 257, },
     ],
     @tokenizer.TokenizerDigest::parse("0123456789abcdef".repeat(4)),
     {

@@ -12,7 +12,7 @@ pub fn PagedAttentionAotLimits::new(
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 {
     raise Invalid(Limits)
   }
-  { max_source_bytes, max_recipe_bytes }
+  { max_source_bytes, max_recipe_bytes, }
 }
 
 ///|

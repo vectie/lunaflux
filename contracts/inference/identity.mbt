@@ -7,7 +7,7 @@ pub struct ProtocolVersion {
 ///|
 /// Returns the only protocol version implemented by this package.
 pub fn ProtocolVersion::v1() -> ProtocolVersion {
-  { wire_code: 1 }
+  { wire_code: 1, }
 }
 
 ///|
@@ -59,7 +59,7 @@ pub struct RequestGeneration {
 
 ///|
 pub fn RequestGeneration::initial() -> RequestGeneration {
-  { value: 0UL }
+  { value: 0UL, }
 }
 
 ///|
@@ -75,7 +75,7 @@ pub fn RequestGeneration::next(
   if self.value == 0xffffffffffffffffUL {
     raise invalid(RequestGeneration, OutOfRange, 0)
   }
-  { value: self.value + 1UL }
+  { value: self.value + 1UL, }
 }
 
 ///|

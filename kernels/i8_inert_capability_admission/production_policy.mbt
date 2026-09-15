@@ -228,7 +228,7 @@ pub fn admit_production_llama_symmetric_i8_weight_only_v1(
   let (i8_parameter_count, scale_tensor_count) = validate_production_tensor_policy(
     plan,
   )
-  { admission, i8_parameter_count, scale_tensor_count }
+  { admission, i8_parameter_count, scale_tensor_count, }
 }
 
 ///|

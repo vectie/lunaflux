@@ -196,7 +196,7 @@ fn encode_luna_tile_program(
   constraints : ReadOnlyArray[LunaTileConstraint],
   maximum : Int,
 ) -> Bytes raise LunaTileError {
-  let encoder : LunaTileEncoder = { bytes: [], maximum }
+  let encoder : LunaTileEncoder = { bytes: [], maximum, }
   for byte in @utf8.encode("LUNATILE-IR-V2") {
     encoder.append_byte(byte)
   }

@@ -301,7 +301,7 @@ fn tensor_core_evidence_bundle(
     tensor_core_evidence_sha256(result).as_hex() +
     "  RESULT.txt\n",
   )
-  { result, manifest, outer, outer_digest: tensor_core_evidence_sha256(outer) }
+  { result, manifest, outer, outer_digest: tensor_core_evidence_sha256(outer), }
 }
 
 ///|

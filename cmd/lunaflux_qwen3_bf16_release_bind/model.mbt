@@ -52,7 +52,7 @@ fn load_release_bind_inputs(
         weights.identity() != plan.identity() {
         raise ModelAdmission
       }
-      { plan, weights: weights.generic_inspection() }
+      { plan, weights: weights.generic_inspection(), }
     },
   ) catch {
     error => {

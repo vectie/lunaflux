@@ -99,7 +99,7 @@ pub fn LunaFramedEventWorkspace::begin(
   self.event_kind = luna_framed_event_kind_wire(kind)
   self.semantic_views.push(event)
   self.phase = LUNA_FRAMED_EVENT_CLEARING
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

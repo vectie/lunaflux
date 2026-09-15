@@ -31,14 +31,14 @@ pub(all) enum MonotonicReadStatus {
 ///|
 /// Constructs the process-local operating system monotonic clock capability.
 pub fn MonotonicClock::system() -> MonotonicClock {
-  { marker: () }
+  { marker: (), }
 }
 
 ///|
 pub fn MonotonicClock::prepare_read(
   self : MonotonicClock,
 ) -> PreparedMonotonicRead {
-  { clock: self, output: Ref(0UL), used: false, ready: false }
+  { clock: self, output: Ref(0UL), used: false, ready: false, }
 }
 
 ///|

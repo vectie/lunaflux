@@ -49,7 +49,7 @@ fn prepare_cycle(
     limits,
     fixture_inference_limits(),
   ).encode_plan(plan)
-  { frame, sequence }
+  { frame, sequence, }
 }
 
 ///|
@@ -71,7 +71,7 @@ fn prepare_cycles(count : Int, model : @plan.ModelPlan) -> CycleFixture raise {
   for index in 1..<count {
     cycles[index] = prepare_cycle((index + 1).to_uint64(), model, page)
   }
-  { cycles, allocator, page }
+  { cycles, allocator, page, }
 }
 
 ///|

@@ -19,7 +19,7 @@ pub fn LunaTextRequestHandoffWork::progress(
 ) -> LunaRequestSemanticProgress raise InferenceContractError {
   let storage = self.require()
   if storage.phase == LUNA_TEXT_HANDOFF_READY {
-    return { state: 1 }
+    return { state: 1, }
   }
   let progress = storage.semantic_works[0].progress()
   if progress.is_failed() {
@@ -29,9 +29,9 @@ pub fn LunaTextRequestHandoffWork::progress(
     storage.semantic_leases.push(storage.semantic_works[0].take_lease())
     storage.semantic_works.clear()
     storage.phase = LUNA_TEXT_HANDOFF_READY
-    return { state: 1 }
+    return { state: 1, }
   }
-  { state: 0 }
+  { state: 0, }
 }
 
 ///|
@@ -44,7 +44,7 @@ pub fn LunaTextRequestHandoffWork::take_lease(
     raise invalid(LunaRequestSemantic, LunaStorageLifecycle, 0)
   }
   storage.phase = LUNA_TEXT_HANDOFF_LEASED
-  { storage, epoch: self.epoch }
+  { storage, epoch: self.epoch, }
 }
 
 ///|

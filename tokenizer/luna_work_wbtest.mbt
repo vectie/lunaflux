@@ -18,7 +18,7 @@ fn luna_work_limits(
 fn luna_work_vocabulary() -> Array[VocabularyEntry] {
   let vocabulary : Array[VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   vocabulary
 }
@@ -31,23 +31,23 @@ fn luna_work_digest() -> TokenizerDigest raise {
 ///|
 fn luna_work_corpus_spec() -> TokenizerSpec raise {
   let vocabulary = luna_work_vocabulary()
-  vocabulary.push({ token_id: 256, piece: b"he", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"hel", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"hell", kind: Normal })
-  vocabulary.push({ token_id: 259, piece: b"hello", kind: Normal })
-  vocabulary.push({ token_id: 260, piece: b"ab", kind: Normal })
-  vocabulary.push({ token_id: 261, piece: b"bc", kind: Normal })
-  vocabulary.push({ token_id: 262, piece: b"<e", kind: Special })
-  vocabulary.push({ token_id: 263, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 256, piece: b"he", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"hel", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"hell", kind: Normal, })
+  vocabulary.push({ token_id: 259, piece: b"hello", kind: Normal, })
+  vocabulary.push({ token_id: 260, piece: b"ab", kind: Normal, })
+  vocabulary.push({ token_id: 261, piece: b"bc", kind: Normal, })
+  vocabulary.push({ token_id: 262, piece: b"<e", kind: Special, })
+  vocabulary.push({ token_id: 263, piece: b"<eos>", kind: Special, })
   TokenizerSpec::new(
     vocabulary,
     [
-      { left_token_id: 104, right_token_id: 101, result_token_id: 256 },
-      { left_token_id: 256, right_token_id: 108, result_token_id: 257 },
-      { left_token_id: 257, right_token_id: 108, result_token_id: 258 },
-      { left_token_id: 258, right_token_id: 111, result_token_id: 259 },
-      { left_token_id: 97, right_token_id: 98, result_token_id: 260 },
-      { left_token_id: 98, right_token_id: 99, result_token_id: 261 },
+      { left_token_id: 104, right_token_id: 101, result_token_id: 256, },
+      { left_token_id: 256, right_token_id: 108, result_token_id: 257, },
+      { left_token_id: 257, right_token_id: 108, result_token_id: 258, },
+      { left_token_id: 258, right_token_id: 111, result_token_id: 259, },
+      { left_token_id: 97, right_token_id: 98, result_token_id: 260, },
+      { left_token_id: 98, right_token_id: 99, result_token_id: 261, },
     ],
     luna_work_digest(),
     luna_work_limits(),
@@ -57,10 +57,10 @@ fn luna_work_corpus_spec() -> TokenizerSpec raise {
 ///|
 fn luna_overlap_spec() -> TokenizerSpec raise {
   let vocabulary = luna_work_vocabulary()
-  vocabulary.push({ token_id: 256, piece: b"aa", kind: Normal })
+  vocabulary.push({ token_id: 256, piece: b"aa", kind: Normal, })
   TokenizerSpec::new(
     vocabulary,
-    [{ left_token_id: 97, right_token_id: 97, result_token_id: 256 }],
+    [{ left_token_id: 97, right_token_id: 97, result_token_id: 256, }],
     luna_work_digest(),
     luna_work_limits(),
   )
@@ -69,15 +69,15 @@ fn luna_overlap_spec() -> TokenizerSpec raise {
 ///|
 fn luna_new_better_rank_spec() -> TokenizerSpec raise {
   let vocabulary = luna_work_vocabulary()
-  vocabulary.push({ token_id: 256, piece: b"ab", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"cd", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"abc", kind: Normal })
+  vocabulary.push({ token_id: 256, piece: b"ab", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"cd", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"abc", kind: Normal, })
   TokenizerSpec::new(
     vocabulary,
     [
-      { left_token_id: 256, right_token_id: 99, result_token_id: 258 },
-      { left_token_id: 97, right_token_id: 98, result_token_id: 256 },
-      { left_token_id: 99, right_token_id: 100, result_token_id: 257 },
+      { left_token_id: 256, right_token_id: 99, result_token_id: 258, },
+      { left_token_id: 97, right_token_id: 98, result_token_id: 256, },
+      { left_token_id: 99, right_token_id: 100, result_token_id: 257, },
     ],
     luna_work_digest(),
     luna_work_limits(),

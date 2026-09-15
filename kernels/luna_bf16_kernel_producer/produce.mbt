@@ -232,7 +232,7 @@ pub fn produce_luna_bf16_kernel_release(
         _ => raise Invalid(LaunchContracts)
       },
     )
-    prepared.push({ compilation, operation })
+    prepared.push({ compilation, operation, })
   }
   guard selected_profile is Some(profile) else { raise Invalid(Profile) }
   let catalog = @catalog.KernelCatalog::new(
@@ -264,5 +264,5 @@ pub fn produce_luna_bf16_kernel_release(
   ) catch {
     _ => raise Invalid(Bundle)
   }
-  { catalog, contracts, bundle, embedded_greedy_sampling }
+  { catalog, contracts, bundle, embedded_greedy_sampling, }
 }

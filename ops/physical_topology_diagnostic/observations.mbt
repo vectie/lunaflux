@@ -7,7 +7,7 @@ pub fn PhysicalTopologyDeviceObservation::new(
   if ordinal < 0 || ordinal > 1023 || name.is_empty() || name.length() > 256 {
     raise InvalidObservation
   }
-  { ordinal, name: name.to_owned(), capability }
+  { ordinal, name: name.to_owned(), capability, }
 }
 
 ///|
@@ -21,7 +21,7 @@ pub fn PhysicalPeerObservation::new(
     source_ordinal == destination_ordinal {
     raise InvalidObservation
   }
-  { source_ordinal, destination_ordinal, accessible }
+  { source_ordinal, destination_ordinal, accessible, }
 }
 
 ///|
@@ -41,7 +41,7 @@ pub fn PhysicalCollectiveObservation::new(
         raise InvalidObservation
       }
   }
-  { availability, version_code, admitted_version_code }
+  { availability, version_code, admitted_version_code, }
 }
 
 ///|

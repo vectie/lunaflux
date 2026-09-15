@@ -118,7 +118,7 @@ fn LunaApiAuthPolicy::luna_api_auth_compare(
     difference = self.compare_byte(index, actual, difference)
     comparison_count += 1
   }
-  { difference, comparison_count }
+  { difference, comparison_count, }
 }
 
 ///|

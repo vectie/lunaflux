@@ -13,7 +13,7 @@ fn finish_luna_input_work(
     assert_true(status.is_ready())
     tokens.push(status.token_id())
   }
-  { token_ids: tokens, input_bytes, truncated: work.was_truncated() }
+  { token_ids: tokens, input_bytes, truncated: work.was_truncated(), }
 }
 
 ///|

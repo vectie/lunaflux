@@ -70,7 +70,7 @@ fn normalize_projection_tile(
       continue
     }
     let id = projection_tile_value_id(bindings.length())
-    bindings.push({ id, kind: binding.kind, expression })
+    bindings.push({ id, kind: binding.kind, expression, })
     aliases.set(binding.id, id)
     if effect {
       available = Map([])

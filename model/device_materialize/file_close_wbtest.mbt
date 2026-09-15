@@ -1,7 +1,7 @@
 ///|
 fn wb_ready_resource(resource : Int) -> ResourcePreparation[Int] raise {
   let inspection = wb_inspect_file(wb_stream_file())
-  ResourceReady({ resource, layout: inspection.layout })
+  ResourceReady({ resource, layout: inspection.layout, })
 }
 
 ///|

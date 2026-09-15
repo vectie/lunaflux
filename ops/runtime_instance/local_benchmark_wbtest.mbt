@@ -42,7 +42,7 @@ fn local_benchmark_test_result(
 ) -> RuntimeSpawnedBenchmarkResult raise {
   {
     measurements: local_benchmark_test_measurements(),
-    startup: { cold_start_latency_millis: 123, readiness },
+    startup: { cold_start_latency_millis: 123, readiness, },
     serving: {
       first_token: 17,
       second_token: 23,

@@ -6,7 +6,7 @@ pub fn TensorParallelRankDevice::single(
   if device_ordinal < 0 || device_ordinal > 1023 {
     raise invalid(DeviceOrdinal, device_ordinal)
   }
-  { rank: 0, world_size: 1, device_ordinal, target }
+  { rank: 0, world_size: 1, device_ordinal, target, }
 }
 
 ///|

@@ -132,7 +132,11 @@ fn decode_release_campaign(
     canonical.length() > limits.max_canonical_bytes() {
     raise InvalidCanonicalRecord
   }
-  let decoder : ReleaseCampaignDecoder = { bytes: canonical, limits, cursor: 0 }
+  let decoder : ReleaseCampaignDecoder = {
+    bytes: canonical,
+    limits,
+    cursor: 0,
+  }
   if decoder.read_string() != release_campaign_schema() ||
     decoder.read_int() != 1 {
     raise InvalidCanonicalRecord

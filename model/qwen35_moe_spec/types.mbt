@@ -40,7 +40,7 @@ pub struct Qwen35MoeTextMetadata {
 /// Constructs the one exact Qwen3.5-MoE text profile currently understood by
 /// LunaFlux. Numeric tensor and kernel admission remain separate boundaries.
 pub fn Qwen35MoeTextSpec::pinned_35b_a3b_fp8_text_only() -> Self {
-  { profile_version: 1 }
+  { profile_version: 1, }
 }
 
 ///|
@@ -278,7 +278,7 @@ pub fn Qwen35MoeTextSpec::vision_execution_enabled(self : Self) -> Bool {
 pub fn Qwen35MoeTextMetadata::from_verified_config(
   content_digest : @spec.ContentDigest,
 ) -> Self {
-  { spec: Qwen35MoeTextSpec::pinned_35b_a3b_fp8_text_only(), content_digest }
+  { spec: Qwen35MoeTextSpec::pinned_35b_a3b_fp8_text_only(), content_digest, }
 }
 
 ///|

@@ -181,7 +181,7 @@ fn select_prepared(
     }
   }
   let token_id = scratch.token_ids[selected]
-  { token_id, logit: logits[token_id] }
+  { token_id, logit: logits[token_id], }
 }
 
 ///|

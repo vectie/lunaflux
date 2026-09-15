@@ -77,7 +77,7 @@ pub fn LunaApiAuthVerifierWorkspace::begin_verify(
     1
   }
   self.phase = LUNA_API_AUTH_WRITING
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|
@@ -131,7 +131,7 @@ pub fn LunaApiAuthVerificationWrite::finish(
     raise luna_api_auth_error(LunaApiAuthLifecycle, LunaApiAuthNotReady)
   }
   workspace.phase = LUNA_API_AUTH_PADDING
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

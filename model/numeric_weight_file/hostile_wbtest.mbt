@@ -346,7 +346,7 @@ test "copy failure retains cleanup failure and permits deterministic retry" {
     prepared,
     payload_read(file, Ref(0)),
     () => 1,
-    _ => { close_attempts: 0 },
+    _ => { close_attempts: 0, },
     (_, _, _, _, _) => raise InvalidArgument(CopyToDevice),
     arena => {
       arena.close_attempts += 1
@@ -373,7 +373,7 @@ test "copy failure retains cleanup failure and permits deterministic retry" {
 
 ///|
 test "source-close compound semantics retain only allocation retry authority" {
-  let arena = { close_attempts: 0 }
+  let arena = { close_attempts: 0, }
   let result = finish_ready_numeric_source_close(
     arena,
     () => raise FileCloseFailed,
@@ -387,7 +387,7 @@ test "source-close compound semantics retain only allocation retry authority" {
     fail("source-close compound failure lost allocation")
   }
   assert_eq(retained.close_attempts, 1)
-  let closed = { close_attempts: 0 }
+  let closed = { close_attempts: 0, }
   try
     finish_ready_numeric_source_close(closed, () => raise FileCloseFailed, resource => {
       resource.close_attempts += 1

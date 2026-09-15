@@ -16,7 +16,7 @@ pub fn LunaInstanceMetrics::snapshot(
   }
   let generation = self.snapshot_generation + 1UL
   self.snapshot_generation = generation
-  { owner: self, generation }
+  { owner: self, generation, }
 }
 
 ///|

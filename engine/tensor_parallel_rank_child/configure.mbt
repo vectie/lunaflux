@@ -96,5 +96,5 @@ pub fn TensorParallelRankChildConfigureReceiver::progress(
     raise Invalid(BindingMismatch)
   }
   self.configured = true
-  ConfigureReady({ receiver: self, inbound, contract })
+  ConfigureReady({ receiver: self, inbound, contract, })
 }

@@ -32,7 +32,7 @@ test "snapshot exhaustion and forged generations never mutate the slot" {
   }
   assert_eq(metrics.snapshot_generation, 0xffffffffffffffffUL)
   assert_eq(metrics.snapshot_counters[4], 77UL)
-  let zero : LunaInstanceMetricsSnapshot = { owner: metrics, generation: 0UL }
+  let zero : LunaInstanceMetricsSnapshot = { owner: metrics, generation: 0UL, }
   assert_false(zero.is_live())
   try zero.counter_value(Failures) catch {
     StaleSnapshot => ()

@@ -16,7 +16,7 @@ pub fn RuntimeDescriptorFileLimits::new(
   if max_json_depth <= 0 || max_json_depth > ABSOLUTE_MAX_JSON_DEPTH {
     raise InvalidLimit(JsonDepth)
   }
-  { max_descriptor_bytes, max_json_depth }
+  { max_descriptor_bytes, max_json_depth, }
 }
 
 ///|

@@ -112,7 +112,7 @@ fn prepare_i8_with_roots(
     (authority, error) => preparation_failed(roots, authority, error),
     authority => {
       match authority {
-        I8Ready(owner) => ChildReady({ worker: I8(owner) })
+        I8Ready(owner) => ChildReady({ worker: I8(owner), })
         _ => abort("invalid I8 worker passed readiness barrier")
       }
     },

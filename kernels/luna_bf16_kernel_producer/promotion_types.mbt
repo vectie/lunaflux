@@ -116,7 +116,7 @@ pub fn LunaBf16BenchmarkShape::new(
     page_table_entries <= 0 {
     raise LunaBf16PromotionRejected(Shape)
   }
-  { prefill_rows, decode_rows, query_tokens, page_table_entries, trace }
+  { prefill_rows, decode_rows, query_tokens, page_table_entries, trace, }
 }
 
 ///|

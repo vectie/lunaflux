@@ -24,5 +24,5 @@ pub fn lower_and_bind_externally_qualified_luna_tile_bf16_mma16x16x16(
     parallel.digest() != evidence.parallel_fallback_digest {
     raise LunaTensorCorePhysicalEvidenceMismatch(Candidate)
   }
-  { candidate, evidence }
+  { candidate, evidence, }
 }

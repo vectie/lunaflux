@@ -64,7 +64,7 @@ pub fn ReleaseEvidenceObservation::new(
   if byte_length <= 0 || byte_length > limits.max_artifact_bytes() {
     raise InvalidObservation
   }
-  { role, locator: locator.to_owned(), byte_length, digest }
+  { role, locator: locator.to_owned(), byte_length, digest, }
 }
 
 ///|
@@ -127,7 +127,7 @@ pub fn ReleaseReviewerObservation::new(
   if byte_length <= 0 || byte_length > limits.max_artifact_bytes() {
     raise InvalidObservation
   }
-  { role, locator: locator.to_owned(), byte_length, digest }
+  { role, locator: locator.to_owned(), byte_length, digest, }
 }
 
 ///|
@@ -335,5 +335,5 @@ pub fn verify_release_campaign(
   }
   verify_evidence_observations(record, evidence_observations)
   verify_reviewer_observations(record, policy, reviewer_observations)
-  { campaign_digest: record.digest(), status: record.declared_status() }
+  { campaign_digest: record.digest(), status: record.declared_status(), }
 }

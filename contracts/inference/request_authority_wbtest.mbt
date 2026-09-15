@@ -80,7 +80,7 @@ fn valid_authority_stops() -> StopConditions {
 
 ///|
 fn valid_authority_cache() -> CachePolicy {
-  CachePolicy::new({ value: "scope-1" }, ReadWrite)
+  CachePolicy::new({ value: "scope-1", }, ReadWrite)
 }
 
 ///|
@@ -98,7 +98,7 @@ fn forged_owned_input(
 
 ///|
 fn forged_text_input(text : String, utf8 : Bytes) -> Input {
-  Text({ text, utf8 })
+  Text({ text, utf8, })
 }
 
 ///|
@@ -132,12 +132,12 @@ fn validate_input_and_seed(
 test "GenerateRequest rejects forged scalar authority in precedence order" {
   try
     validate_authority_request(
-      protocol_version={ wire_code: 2 },
-      request_id={ value: 0UL },
+      protocol_version={ wire_code: 2, },
+      request_id={ value: 0UL, },
       max_new_tokens=0,
       sampling=SamplingParameters::greedy(),
       stops=valid_authority_stops(),
-      deadline={ milliseconds: 10UL },
+      deadline={ milliseconds: 10UL, },
       cache=valid_authority_cache(),
       trace=None,
     )
@@ -153,11 +153,11 @@ test "GenerateRequest rejects forged scalar authority in precedence order" {
   try
     validate_authority_request(
       protocol_version=ProtocolVersion::v1(),
-      request_id={ value: 0UL },
+      request_id={ value: 0UL, },
       max_new_tokens=0,
       sampling=SamplingParameters::greedy(),
       stops=valid_authority_stops(),
-      deadline={ milliseconds: 10UL },
+      deadline={ milliseconds: 10UL, },
       cache=valid_authority_cache(),
       trace=None,
     )
@@ -292,7 +292,7 @@ test "GenerateRequest validates sampling seed before stop conditions" {
   try
     validate_input_and_seed(
       input=forged_owned_input([1], 1, 1),
-      sampling_seed={ value: 0UL },
+      sampling_seed={ value: 0UL, },
       stops=forged_stops([], [""]),
     )
   catch {
@@ -311,15 +311,15 @@ test "GenerateRequest rejects noncanonical forged greedy sampling" {
   let cfg = authority_limits()
   let cases = [
     (
-      { mode: Greedy, temperature: 0.5, top_k: Some(1), top_p: Some(0.5) },
+      { mode: Greedy, temperature: 0.5, top_k: Some(1), top_p: Some(0.5), },
       "Invalid(field=Temperature, issue=Inconsistent, index=0)",
     ),
     (
-      { mode: Greedy, temperature: 1.0, top_k: Some(1), top_p: Some(0.5) },
+      { mode: Greedy, temperature: 1.0, top_k: Some(1), top_p: Some(0.5), },
       "Invalid(field=TopK, issue=Inconsistent, index=0)",
     ),
     (
-      { mode: Greedy, temperature: 1.0, top_k: None, top_p: Some(0.5) },
+      { mode: Greedy, temperature: 1.0, top_k: None, top_p: Some(0.5), },
       "Invalid(field=TopP, issue=Inconsistent, index=0)",
     ),
   ]
@@ -354,9 +354,9 @@ test "GenerateRequest validates deadline cache and trace by UTF-8 bytes" {
       max_new_tokens=2,
       sampling=SamplingParameters::greedy(),
       stops=forged_stops([], [""]),
-      deadline={ milliseconds: 0UL },
-      cache=CachePolicy::new({ value: "" }, ReadWrite),
-      trace=Some({ value: "" }),
+      deadline={ milliseconds: 0UL, },
+      cache=CachePolicy::new({ value: "", }, ReadWrite),
+      trace=Some({ value: "", }),
     )
   catch {
     error =>
@@ -374,9 +374,9 @@ test "GenerateRequest validates deadline cache and trace by UTF-8 bytes" {
       max_new_tokens=2,
       sampling=SamplingParameters::greedy(),
       stops=valid_authority_stops(),
-      deadline={ milliseconds: 0UL },
-      cache=CachePolicy::new({ value: "" }, ReadWrite),
-      trace=Some({ value: "" }),
+      deadline={ milliseconds: 0UL, },
+      cache=CachePolicy::new({ value: "", }, ReadWrite),
+      trace=Some({ value: "", }),
     )
   catch {
     error =>
@@ -402,8 +402,8 @@ test "GenerateRequest validates deadline cache and trace by UTF-8 bytes" {
         sampling=SamplingParameters::greedy(),
         stops=valid_authority_stops(),
         deadline=DeadlineBudget::from_milliseconds(10UL, cfg),
-        cache=CachePolicy::new({ value: scope }, ReadWrite),
-        trace=Some({ value: "" }),
+        cache=CachePolicy::new({ value: scope, }, ReadWrite),
+        trace=Some({ value: "", }),
       )
     catch {
       error => debug_inspect(error, content=expected)
@@ -427,7 +427,7 @@ test "GenerateRequest validates deadline cache and trace by UTF-8 bytes" {
         stops=valid_authority_stops(),
         deadline=DeadlineBudget::from_milliseconds(10UL, cfg),
         cache=valid_authority_cache(),
-        trace=Some({ value: trace }),
+        trace=Some({ value: trace, }),
       )
     catch {
       error => debug_inspect(error, content=expected)

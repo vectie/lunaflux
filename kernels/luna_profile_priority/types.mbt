@@ -51,7 +51,7 @@ pub fn LunaKernelProfileLimits::new(
     maximum_canonical_bytes > 16_777_216 {
     raise LunaKernelProfileInvalid(Limit)
   }
-  { maximum_observations, maximum_canonical_bytes }
+  { maximum_observations, maximum_canonical_bytes, }
 }
 
 ///|
@@ -79,7 +79,7 @@ pub fn LunaKernelProfileObservation::new(
     inclusive_time_ns > LUNA_KERNEL_PROFILE_MAX_NANOS {
     raise LunaKernelProfileInvalid(Timing)
   }
-  { operation_id, shape, call_count, self_time_ns, inclusive_time_ns }
+  { operation_id, shape, call_count, self_time_ns, inclusive_time_ns, }
 }
 
 ///|

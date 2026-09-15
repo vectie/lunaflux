@@ -64,7 +64,7 @@ fn plan_descriptors(
       if cursor > limits.max_descriptor_bytes {
         raise rejected(Descriptor, operation~, operand=operand_index)
       }
-      values.push({ role, region })
+      values.push({ role, region, })
     }
   }
   (ReadOnlyArray::from_array(values), cursor)

@@ -302,10 +302,10 @@ pub fn LunaRequestSemanticWork::progress(
   let storage = self.require_storage()
   storage.last_work_units = 0
   if storage.phase == LUNA_REQUEST_SEMANTIC_READY {
-    return { state: 1 }
+    return { state: 1, }
   }
   if storage.phase == LUNA_REQUEST_SEMANTIC_FAILED {
-    return { state: 2 }
+    return { state: 2, }
   }
   let mut used = 0
   while used < storage.budget.work_units() &&
@@ -317,11 +317,11 @@ pub fn LunaRequestSemanticWork::progress(
   storage.last_work_units = used
   storage.total_work_units += used.to_uint64()
   if storage.phase == LUNA_REQUEST_SEMANTIC_READY {
-    { state: 1 }
+    { state: 1, }
   } else if storage.phase == LUNA_REQUEST_SEMANTIC_FAILED {
-    { state: 2 }
+    { state: 2, }
   } else {
-    { state: 0 }
+    { state: 0, }
   }
 }
 
@@ -331,11 +331,11 @@ pub fn LunaRequestSemanticWork::state(
 ) -> LunaRequestSemanticState raise InferenceContractError {
   let phase = self.require_storage().phase
   if phase == LUNA_REQUEST_SEMANTIC_READY {
-    { state: 1 }
+    { state: 1, }
   } else if phase == LUNA_REQUEST_SEMANTIC_FAILED {
-    { state: 2 }
+    { state: 2, }
   } else {
-    { state: 0 }
+    { state: 0, }
   }
 }
 
@@ -377,7 +377,7 @@ pub fn LunaRequestSemanticWork::take_lease(
     raise invalid(LunaRequestSemantic, LunaStorageLifecycle, 0)
   }
   storage.phase = LUNA_REQUEST_SEMANTIC_LEASED
-  { storage, epoch: self.epoch }
+  { storage, epoch: self.epoch, }
 }
 
 ///|

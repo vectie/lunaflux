@@ -53,7 +53,7 @@ pub fn LunaRequestReceiptWorkspace::begin(
   self.received_at_millis = received
   self.deadline_at_millis = received + self.budget_millis
   self.phase = LUNA_TRUSTED_RECEIPT_LIVE
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

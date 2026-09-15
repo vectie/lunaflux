@@ -12,7 +12,7 @@ pub fn DeploymentBundleLimits::new(
     maximum_locator_bytes > maximum_bytes {
     raise InvalidLimit
   }
-  { maximum_bytes, maximum_base_image_bytes, maximum_locator_bytes }
+  { maximum_bytes, maximum_base_image_bytes, maximum_locator_bytes, }
 }
 
 ///|

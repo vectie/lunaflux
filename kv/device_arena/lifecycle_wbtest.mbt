@@ -49,7 +49,7 @@ test "semantic rejection happens before the allocation callback" {
       fake_layout(layout_identity),
       bytes => {
         opens.val += 1
-        { byte_count: bytes, context_id: 7, open: true }
+        { byte_count: bytes, context_id: 7, open: true, }
       },
       resource => resource.byte_count,
       (_resource, _bytes, _alignment) => (),
@@ -79,7 +79,7 @@ test "successful construction allocates once and close is idempotent" {
     fake_layout(identity),
     bytes => {
       opens.val += 1
-      { byte_count: bytes, context_id: 7, open: true }
+      { byte_count: bytes, context_id: 7, open: true, }
     },
     resource => resource.byte_count,
     (resource, bytes, alignment) => {
@@ -124,7 +124,7 @@ test "validation failure closes once before returning the original cause" {
     prepare_owned_resource(
       identity,
       fake_layout(identity),
-      bytes => { byte_count: bytes, context_id: 7, open: true },
+      bytes => { byte_count: bytes, context_id: 7, open: true, },
       resource => resource.byte_count,
       (_resource, _bytes, _alignment) => {
         raise DeviceFailed(
@@ -158,7 +158,7 @@ test "cleanup failure retains retry authority until close succeeds" {
   let (_plan, outcome) = prepare_owned_resource(
     identity,
     fake_layout(identity),
-    bytes => { byte_count: bytes, context_id: 7, open: true },
+    bytes => { byte_count: bytes, context_id: 7, open: true, },
     resource => resource.byte_count,
     (_resource, _bytes, _alignment) => {
       raise DeviceFailed(

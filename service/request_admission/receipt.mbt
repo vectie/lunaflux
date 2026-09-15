@@ -2,7 +2,7 @@
 fn capture_receipt_with_clock(
   read_clock : () -> UInt64 raise RequestAdmissionError,
 ) -> RequestReceipt raise RequestAdmissionError {
-  { at_millis: read_clock() }
+  { at_millis: read_clock(), }
 }
 
 ///|
@@ -18,7 +18,7 @@ fn bind_received(
   ) catch {
     _ => raise Invalid(Deadline)
   }
-  { receipt, request, deadline, inference, consumed: false }
+  { receipt, request, deadline, inference, consumed: false, }
 }
 
 ///|
@@ -138,7 +138,7 @@ pub fn IncrementalRequestReceiver::take_received(
     abort("completed request frame has no trusted receipt")
   }
   self.terminal = true
-  bind_received({ at_millis: self.receipt_at_millis }, frame, self.inference)
+  bind_received({ at_millis: self.receipt_at_millis, }, frame, self.inference)
 }
 
 ///|

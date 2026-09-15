@@ -40,7 +40,7 @@ priv struct Scanner {
 
 ///|
 fn Scanner::new(input : StringView, max_depth : Int) -> Scanner {
-  { input, max_depth, position: 0 }
+  { input, max_depth, position: 0, }
 }
 
 ///|

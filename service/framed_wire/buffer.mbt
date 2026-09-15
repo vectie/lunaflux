@@ -46,7 +46,7 @@ fn RequestFrameBuffer::publish(
   self.request = Some(request)
   self.length = length
   self.epoch += 1UL
-  { owner_ref: self, epoch: self.epoch }
+  { owner_ref: self, epoch: self.epoch, }
 }
 
 ///|
@@ -121,7 +121,7 @@ fn EventFrameBuffer::publish(
   self.event = Some(event)
   self.length = length
   self.epoch += 1UL
-  { owner_ref: self, epoch: self.epoch }
+  { owner_ref: self, epoch: self.epoch, }
 }
 
 ///|

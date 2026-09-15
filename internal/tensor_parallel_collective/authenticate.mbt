@@ -60,7 +60,7 @@ pub fn authenticate_rank_plan(
     max_query_tokens <= 0 {
     raise InvalidRankPlan(RankPlanShape)
   }
-  let encoder : ContractEncoder = { bytes: [] }
+  let encoder : ContractEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-collective-contract.v1")
   encoder.append_string(expected_identity.content().as_hex())
   encoder.append_string(expected_identity.plan().as_hex())

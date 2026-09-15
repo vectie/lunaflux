@@ -61,5 +61,5 @@ pub fn LunaTensorCorePhysicalEvidenceLimits::new(
     maximum_manifest_bytes > TENSOR_CORE_EVIDENCE_MAXIMUM_MANIFEST_BYTES {
     raise LunaTensorCorePhysicalEvidenceLimitExceeded
   }
-  { maximum_result_bytes, maximum_manifest_bytes }
+  { maximum_result_bytes, maximum_manifest_bytes, }
 }

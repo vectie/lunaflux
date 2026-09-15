@@ -49,7 +49,7 @@ pub fn KernelProfile::full_prefill(
   if batch * sequence != token_rows {
     raise InvalidProfile(TokenRowMismatch)
   }
-  { id, batch_rows, sequence_tokens, token_rows }
+  { id, batch_rows, sequence_tokens, token_rows, }
 }
 
 ///|

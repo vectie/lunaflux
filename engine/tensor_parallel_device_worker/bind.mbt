@@ -36,7 +36,7 @@ fn load_modules(
     let resource = context.load_module(artifact_module.module_bytes()) catch {
       error => raise Device(Module, error)
     }
-    resources.modules.push({ resource, open: true })
+    resources.modules.push({ resource, open: true, })
   }
   if resources.modules.length() != plan.artifacts.module_count() {
     raise Invalid(ArtifactBinding)
@@ -85,7 +85,7 @@ fn collect_function_blueprints(
     if existing >= 0 {
       indices[operation_index] = existing
     } else {
-      blueprints.push({ module_index, symbol: operation.function_symbol() })
+      blueprints.push({ module_index, symbol: operation.function_symbol(), })
       indices[operation_index] = blueprints.length() - 1
     }
   }

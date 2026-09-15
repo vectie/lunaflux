@@ -173,5 +173,5 @@ pub fn admit_approved_fused_kernel_bundle(
     qkv_benchmark_digest, residual_benchmark_digest, qkv_dispatch_canary_per_token,
     residual_dispatch_canary_per_token, qkv_fallbacks, residual_fallbacks, approval,
   )
-  { manifest: manifest_digest, target, qkv, residual }
+  { manifest: manifest_digest, target, qkv, residual, }
 }

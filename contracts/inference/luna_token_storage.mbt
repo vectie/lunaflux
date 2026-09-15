@@ -91,7 +91,7 @@ pub fn LunaTokenBufferStorage::begin(
   self.expected_count = token_count
   self.written_count = 0
   self.written_maximum_token_id = -1
-  { storage: self, epoch: self.epoch }
+  { storage: self, epoch: self.epoch, }
 }
 
 ///|
@@ -154,7 +154,7 @@ pub fn LunaTokenBufferWrite::seal(
     raise invalid(LunaTokenStorage, LunaStorageLifecycle, storage.written_count)
   }
   storage.phase = LUNA_TOKEN_STORAGE_SEALED
-  { storage, epoch: self.epoch, token_count: storage.expected_count }
+  { storage, epoch: self.epoch, token_count: storage.expected_count, }
 }
 
 ///|

@@ -107,7 +107,7 @@ pub fn LunaRequestPreparationWork::take_prepared(
     None => abort("Luna ready-claim invariant")
   }
   lane.phase = LUNA_PREPARATION_PREPARED
-  { claim: Some(claim) }
+  { claim: Some(claim), }
 }
 
 ///|
@@ -136,5 +136,5 @@ pub fn LunaRequestPreparationAdmission::work(
   if self.disposition != 0 || self.lane < 0 || self.generation == 0UL {
     raise Invalid(LunaPreparedLifecycle)
   }
-  { pool: self.pool, lane: self.lane, generation: self.generation }
+  { pool: self.pool, lane: self.lane, generation: self.generation, }
 }

@@ -82,7 +82,7 @@ pub fn LunaTileAffineTerm::new(
   loop_dimension~ : Int,
   coefficient~ : Int64,
 ) -> LunaTileAffineTerm {
-  { loop_dimension, coefficient }
+  { loop_dimension, coefficient, }
 }
 
 ///|
@@ -96,7 +96,7 @@ pub fn LunaTileAffineExpr::new(
   constant~ : Int64,
   terms~ : ArrayView[LunaTileAffineTerm],
 ) -> LunaTileAffineExpr {
-  { constant, terms: ReadOnlyArray::from_array(terms) }
+  { constant, terms: ReadOnlyArray::from_array(terms), }
 }
 
 ///|

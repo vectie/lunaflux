@@ -130,12 +130,12 @@ pub fn TokenBuffer::maximum_token_status(
   maximum_token_id : Int,
 ) -> LunaTokenBufferBoundStatus {
   if !self.is_live() {
-    return { state: 2 }
+    return { state: 2, }
   }
   if maximum_token_id < 0 || self.maximum_token_id > maximum_token_id {
-    { state: 1 }
+    { state: 1, }
   } else {
-    { state: 0 }
+    { state: 0, }
   }
 }
 
@@ -203,7 +203,7 @@ pub fn TextInput::from_utf8(
   let text = @utf8.decode(bytes) catch {
     _ => raise invalid(InputText, InvalidFormat, 0)
   }
-  { text, utf8: bytes.to_owned() }
+  { text, utf8: bytes.to_owned(), }
 }
 
 ///|

@@ -9,7 +9,7 @@ fn apply_shared_key_query_map_pass(
 ) -> AttentionRewritePassResult {
   match program.candidate().compute() {
     AttentionMatrixDot | AttentionMatrixQkPv => ()
-    _ => return { regions, changed: false }
+    _ => return { regions, changed: false, }
   }
   for binding in program.bindings() {
     match binding.expression() {
@@ -25,7 +25,7 @@ fn apply_shared_key_query_map_pass(
             FactorSharedKeyAcrossQueryMap,
             binding.id(),
           ) {
-          return { regions, changed: false }
+          return { regions, changed: false, }
         }
         return {
           regions: append_region(regions, {
@@ -39,5 +39,5 @@ fn apply_shared_key_query_map_pass(
       _ => ()
     }
   }
-  { regions, changed: false }
+  { regions, changed: false, }
 }

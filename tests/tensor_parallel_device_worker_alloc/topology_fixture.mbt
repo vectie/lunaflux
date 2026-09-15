@@ -135,5 +135,5 @@ fn prepare_topology_fixture(
     maximum_version_code=TP_RUNTIME_VERSION,
   )
   let rendezvous = runtime.create_group_id()
-  { topology, source, runtime, rendezvous }
+  { topology, source, runtime, rendezvous, }
 }

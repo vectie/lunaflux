@@ -29,7 +29,7 @@ fn load_fused_production_kernel(
     Ok(value) => value
   }
   balance.functions += 1
-  { module_, function_ }
+  { module_, function_, }
 }
 
 ///|

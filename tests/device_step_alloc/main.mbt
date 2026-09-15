@@ -34,7 +34,7 @@ let positive_control_sink : FixedArray[PositiveControl?] = FixedArray::make(
 ///|
 fn verify_probe_observes_allocations() -> Unit {
   alloc_probe_begin()
-  let record = { value: alloc_probe_seed() }
+  let record = { value: alloc_probe_seed(), }
   positive_control_sink[0] = Some(record)
   let record_observed = alloc_probe_end()
   positive_control_sink[0] = None

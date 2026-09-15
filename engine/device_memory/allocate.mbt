@@ -30,5 +30,5 @@ pub fn allocate(
     resource => resource.byte_count(),
     resource => resource.close(),
   )
-  { allocation, plan: memory_plan }
+  { allocation, plan: memory_plan, }
 }

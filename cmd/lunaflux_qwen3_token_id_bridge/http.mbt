@@ -135,7 +135,7 @@ async fn bridge_read_http(
   ) catch {
     _ => raise HttpRequest("HTTP body is not UTF-8")
   }
-  { verb, path, body }
+  { verb, path, body, }
 }
 
 ///|

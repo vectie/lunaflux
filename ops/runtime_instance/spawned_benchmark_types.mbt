@@ -62,7 +62,7 @@ pub fn RuntimeSpawnedBenchmarkContract::new(
   if ordinal < 1 || ordinal > 3 || order_position < 0 || order_position > 2 {
     raise spawned_benchmark_error(SpawnedBenchmarkContract)
   }
-  { serving, profile, ordinal, order_position, verify_expected_tokens: true }
+  { serving, profile, ordinal, order_position, verify_expected_tokens: true, }
 }
 
 ///|

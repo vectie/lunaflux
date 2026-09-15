@@ -83,7 +83,7 @@ fn LunaOnlineFramedService::begin_request_timing(
 
 ///|
 fn no_luna_online_framed_timing_sample() -> LunaOnlineFramedTimingSample {
-  { kind: 0, millis: 0 }
+  { kind: 0, millis: 0, }
 }
 
 ///|
@@ -152,7 +152,7 @@ fn LunaOnlineFramedService::sample_request_timing_at(
     slot.last_token_millis = observed
     slot.token_seen = true
   }
-  { kind, millis: elapsed.to_int() }
+  { kind, millis: elapsed.to_int(), }
 }
 
 ///|

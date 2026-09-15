@@ -13,7 +13,7 @@ fn I8CanonicalWriter::new(
   if expected < 0 || expected > maximum {
     raise I8InertKernelCapabilityRejected(CanonicalBytes)
   }
-  { output: [], maximum, expected }
+  { output: [], maximum, expected, }
 }
 
 ///|

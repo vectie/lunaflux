@@ -117,7 +117,7 @@ pub fn admit_external_paged_attention_readonly_runtime_device(
   if approval.record_digest().as_hex() != record.digest.as_hex() {
     raise MismatchedReadOnlyProduction(ExternalApproval)
   }
-  { record, approval }
+  { record, approval, }
 }
 
 ///|

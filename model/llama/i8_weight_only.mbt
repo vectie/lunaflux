@@ -28,7 +28,7 @@ pub fn LlamaI8WeightOnlyPolicy::new(
   if tied_embeddings {
     raise TiedEmbeddingsUnsupported
   }
-  { version: 1 }
+  { version: 1, }
 }
 
 ///|

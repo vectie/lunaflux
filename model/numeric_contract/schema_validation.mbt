@@ -123,7 +123,7 @@ fn validate_schema_scale(
   reference : ScaleTensorOrdinal,
   counters : NumericSchemaConstructionCounters?,
 ) -> Unit raise NumericContractError {
-  let target = schema_tensor_at(tensors, { value: reference.value }, counters)
+  let target = schema_tensor_at(tensors, { value: reference.value, }, counters)
   if target.role != NumericTensorRole::scale_metadata() ||
     target.ordinal == source.ordinal {
     raise InvalidNumericContract(StorageCombination)
@@ -164,7 +164,7 @@ fn validate_schema_metadata(
       validate_schema_scale(tensors, source, reference, counters)
       claim_metadata_owner(
         scale_owners,
-        { value: reference.value },
+        { value: reference.value, },
         source.ordinal,
         counters,
       )
@@ -175,7 +175,7 @@ fn validate_schema_metadata(
     Some(reference) => {
       let target = schema_tensor_at(
         tensors,
-        { value: reference.value },
+        { value: reference.value, },
         counters,
       )
       guard source.shape.dimension(0) is Some(output_channels) &&
@@ -187,7 +187,7 @@ fn validate_schema_metadata(
       }
       claim_metadata_owner(
         zero_owners,
-        { value: reference.value },
+        { value: reference.value, },
         source.ordinal,
         counters,
       )
@@ -198,7 +198,7 @@ fn validate_schema_metadata(
     Some(reference) => {
       let target = schema_tensor_at(
         tensors,
-        { value: reference.value },
+        { value: reference.value, },
         counters,
       )
       if target.role != NumericTensorRole::codebook_metadata() ||
@@ -209,7 +209,7 @@ fn validate_schema_metadata(
       }
       claim_metadata_owner(
         codebook_owners,
-        { value: reference.value },
+        { value: reference.value, },
         source.ordinal,
         counters,
       )

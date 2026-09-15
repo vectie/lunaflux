@@ -99,5 +99,5 @@ pub fn validate_document(
   if seen_device < 0 {
     raise MissingSection(Device)
   }
-  { version: V1Alpha1 }
+  { version: V1Alpha1, }
 }

@@ -86,7 +86,7 @@ pub fn LunaOnlineFramedIngress::request_route(
   if self.route_sequence == 0UL {
     raise luna_coordinator_error(LunaOnlineFramedOwnership)
   }
-  { sequence: self.route_sequence }
+  { sequence: self.route_sequence, }
 }
 
 ///|

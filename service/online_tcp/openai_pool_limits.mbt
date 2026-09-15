@@ -12,7 +12,7 @@ pub fn LunaOnlineOpenAIConnectionPoolLimits::new(
     io_poll_timeout_millis > LUNA_ONLINE_TCP_MAX_TIMEOUT_MILLIS {
     raise luna_online_tcp_error(LunaOnlineTcpLimits)
   }
-  { connection_capacity, output_buffer_bytes, io_poll_timeout_millis }
+  { connection_capacity, output_buffer_bytes, io_poll_timeout_millis, }
 }
 
 ///|

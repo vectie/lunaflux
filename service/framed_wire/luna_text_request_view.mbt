@@ -7,7 +7,7 @@ pub fn LunaFramedTextRequestWork::take_view(
     raise LunaFramedTextRequestNotReady
   }
   workspace.phase = LUNA_TEXT_VIEW
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

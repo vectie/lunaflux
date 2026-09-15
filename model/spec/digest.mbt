@@ -79,7 +79,7 @@ pub fn ModelIdentity::new(
   content : ContentDigest,
   plan : PlanDigest,
 ) -> ModelIdentity raise ModelSpecError {
-  let identity : ModelIdentity = { content, plan }
+  let identity : ModelIdentity = { content, plan, }
   identity.validate()
   identity
 }

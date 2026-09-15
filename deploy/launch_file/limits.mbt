@@ -9,7 +9,7 @@ pub fn LaunchFileLimits::new(
     maximum_json_depth > 16 {
     raise InvalidLimit
   }
-  { maximum_bytes, maximum_json_depth }
+  { maximum_bytes, maximum_json_depth, }
 }
 
 ///|

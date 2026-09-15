@@ -35,7 +35,7 @@ pub fn PagedAttentionReadOnlyPhysicalEvidenceLimits::new(
     maximum_manifest_bytes > 524288 {
     raise PagedAttentionReadOnlyPhysicalEvidenceLimitExceeded
   }
-  { maximum_result_bytes, maximum_manifest_bytes }
+  { maximum_result_bytes, maximum_manifest_bytes, }
 }
 
 ///|

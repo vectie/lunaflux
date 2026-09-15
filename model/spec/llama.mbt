@@ -194,7 +194,7 @@ pub fn LlamaModelMetadata::from_verified_content(
 ) -> LlamaModelMetadata raise ModelSpecError {
   spec.validate()
   content.validate()
-  let metadata : LlamaModelMetadata = { spec, content_digest: content }
+  let metadata : LlamaModelMetadata = { spec, content_digest: content, }
   metadata.validate()
   metadata
 }

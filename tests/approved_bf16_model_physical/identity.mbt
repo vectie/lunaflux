@@ -116,5 +116,5 @@ async fn load_approved_bf16_inputs(root : String) -> ApprovedBf16Inputs {
     fields["revision"] is String(PINNED_REVISION) else {
     raise InvalidInput("reference corpus revision mismatch")
   }
-  { metadata, plan, bindings, corpus }
+  { metadata, plan, bindings, corpus, }
 }

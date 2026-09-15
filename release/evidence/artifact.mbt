@@ -61,7 +61,7 @@ pub fn ReleaseEvidenceArtifact::new(
   if byte_length <= 0 || byte_length > limits.max_artifact_bytes() {
     raise InvalidArtifact
   }
-  { locator: locator.to_owned(), byte_length, digest }
+  { locator: locator.to_owned(), byte_length, digest, }
 }
 
 ///|

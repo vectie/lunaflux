@@ -44,10 +44,10 @@ pub fn resolve(
   let selected_architecture = model.architecture_allowlist()[0]
   let primary_device = device.visible_devices()[0]
   let decisions : Array[Decision] = [
-    { subject: DiagnosticMode, reason: ExplicitConfiguration },
-    { subject: ModelArchitecture, reason: FirstAllowedArchitecture },
-    { subject: PrimaryDevice, reason: FirstVisibleDevice },
-    { subject: MemoryCeiling, reason: ExplicitConfiguration },
+    { subject: DiagnosticMode, reason: ExplicitConfiguration, },
+    { subject: ModelArchitecture, reason: FirstAllowedArchitecture, },
+    { subject: PrimaryDevice, reason: FirstVisibleDevice, },
+    { subject: MemoryCeiling, reason: ExplicitConfiguration, },
   ]
   {
     diagnostic_mode,

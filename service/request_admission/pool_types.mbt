@@ -182,7 +182,7 @@ pub fn LunaRequestPreparationStorageBudget::new(
   if int_cells == 0UL || byte_cells == 0UL || reference_cells == 0UL {
     raise Invalid(LunaPreparationStorage)
   }
-  { int_cells, byte_cells, reference_cells }
+  { int_cells, byte_cells, reference_cells, }
 }
 
 ///|

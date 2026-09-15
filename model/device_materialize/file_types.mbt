@@ -26,7 +26,7 @@ pub fn DeviceWeightFileLimits::new(
     transfer_chunk_bytes > MAX_TRANSFER_CHUNK_BYTES {
     raise InvalidFileLimit(TransferChunkBytes)
   }
-  { max_file_bytes, transfer_chunk_bytes, safetensors }
+  { max_file_bytes, transfer_chunk_bytes, safetensors, }
 }
 
 ///|

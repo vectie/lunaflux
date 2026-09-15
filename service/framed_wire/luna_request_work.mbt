@@ -155,7 +155,7 @@ pub fn LunaFramedRequestWorkspace::begin(
   self.epoch += 1UL
   self.reset_operation()
   self.phase = LUNA_FRAMED_REQUEST_RECEIVING_PREFIX
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|
@@ -287,7 +287,7 @@ pub fn LunaFramedRequestWork::take_view(
     raise LunaFramedRequestNotReady
   }
   workspace.phase = LUNA_FRAMED_REQUEST_VIEW_LEASED
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

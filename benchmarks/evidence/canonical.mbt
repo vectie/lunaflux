@@ -62,7 +62,7 @@ fn encode_comparison(
   workloads : ArrayView[BenchmarkWorkload],
   trials : ArrayView[BenchmarkTrial],
 ) -> Bytes raise BenchmarkEvidenceError {
-  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576 }
+  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576, }
   encoder.append_string("lunaflux.benchmark-comparison.v1")
   encoder.append_digest(environment.hardware)
   encoder.append_digest(environment.driver)

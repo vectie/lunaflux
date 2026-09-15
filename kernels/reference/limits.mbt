@@ -25,7 +25,7 @@ pub fn ReferenceLimits::new(
   if max_elements <= 0 {
     raise InvalidLimit(MaxElements)
   }
-  { max_rows, max_columns, max_elements }
+  { max_rows, max_columns, max_elements, }
 }
 
 ///|

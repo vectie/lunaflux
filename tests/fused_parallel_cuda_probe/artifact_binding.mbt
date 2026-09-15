@@ -55,5 +55,5 @@ fn bind_fused_probe_artifacts(
     residual.target().compute_minor() == 0,
     "compiled candidate target is not exact sm120",
   )
-  { qkv, residual }
+  { qkv, residual, }
 }

@@ -294,7 +294,7 @@ pub fn LunaOpenAIInboundWork::take_view(
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLifecycle)
   }
   workspace.phase = LUNA_INBOUND_VIEW
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

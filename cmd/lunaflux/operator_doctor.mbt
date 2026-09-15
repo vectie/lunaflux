@@ -48,7 +48,7 @@ fn available_doctor_observation(
   device_count : Int,
 ) -> OperatorDoctorObservation {
   {
-    cuda: { available: true, reason: "none", driver_version, device_count },
+    cuda: { available: true, reason: "none", driver_version, device_count, },
     cuda_line: "CUDA device probe: available; driver \{driver_version}; devices \{device_count}",
   }
 }
@@ -81,18 +81,18 @@ fn probe_doctor_observation() -> OperatorDoctorObservation {
 ///|
 fn operator_doctor_checks() -> Array[OperatorDoctorCheck] {
   [
-    { code: "contracts", status: "ready" },
-    { code: "configuration_validators", status: "ready" },
-    { code: "bounded_tokenizer_json_admission", status: "ready" },
-    { code: "bounded_model_and_weight_manifest", status: "ready" },
-    { code: "offline_reference_executor", status: "correctness_only" },
-    { code: "bounded_reference_bundle", status: "whole_file_snapshot" },
+    { code: "contracts", status: "ready", },
+    { code: "configuration_validators", status: "ready", },
+    { code: "bounded_tokenizer_json_admission", status: "ready", },
+    { code: "bounded_model_and_weight_manifest", status: "ready", },
+    { code: "offline_reference_executor", status: "correctness_only", },
+    { code: "bounded_reference_bundle", status: "whole_file_snapshot", },
     {
       code: "streaming_device_weight_loading",
       status: "approved_read_only_regular_file_contract",
     },
-    { code: "exact_static_device_executor", status: "implemented" },
-    { code: "physical_cuda_correctness", status: "not_proven" },
+    { code: "exact_static_device_executor", status: "implemented", },
+    { code: "physical_cuda_correctness", status: "not_proven", },
   ]
 }
 

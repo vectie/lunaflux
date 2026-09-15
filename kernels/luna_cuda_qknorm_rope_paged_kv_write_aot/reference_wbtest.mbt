@@ -136,7 +136,7 @@ fn postprocess_scalar_reference(
       }
     }
   }
-  { rotated_qkv: rotated, key_cache, value_cache }
+  { rotated_qkv: rotated, key_cache, value_cache, }
 }
 
 ///|

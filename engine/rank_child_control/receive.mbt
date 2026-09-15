@@ -46,7 +46,7 @@ fn RankChildControl::publish_received(
   self.inbound_sequence = header.sequence_value()
   self.inbound_payload_length = header.payload_length()
   self.inbound_active = true
-  { kind: 2 }
+  { kind: 2, }
 }
 
 ///|
@@ -54,7 +54,7 @@ fn RankChildControl::finish_held_receive(
   self : RankChildControl,
 ) -> RankChildReceiveProgress raise RankChildControlError {
   if self.send_active {
-    return { kind: 1 }
+    return { kind: 1, }
   }
   let held_eof = self.receive_held_eof
   let held_length = self.receive_held_length
@@ -63,7 +63,7 @@ fn RankChildControl::finish_held_receive(
   self.receive_held_length = 0
   if held_eof {
     if self.transcript.lifecycle() == ClosedGroup {
-      return { kind: 3 }
+      return { kind: 3, }
     }
     return self.poison(Transport)
   }
@@ -87,18 +87,18 @@ pub fn RankChildControl::progress_receive(
     error => return self.map_transport(error)
   }
   match result {
-    None => { kind: 0 }
+    None => { kind: 0, }
     Some(length) => {
       self.receive_active = false
       if self.send_active {
         self.receive_held = true
         self.receive_held_eof = length == 0
         self.receive_held_length = length
-        return { kind: 1 }
+        return { kind: 1, }
       }
       if length == 0 {
         if self.transcript.lifecycle() == ClosedGroup {
-          { kind: 3 }
+          { kind: 3, }
         } else {
           self.poison(Transport)
         }

@@ -108,7 +108,7 @@ pub struct SchedulerPublicationRoute {
 
 ///|
 fn empty_publication_route() -> SchedulerPublicationRoute {
-  { lane_value: -1, generation_value: 0UL }
+  { lane_value: -1, generation_value: 0UL, }
 }
 
 ///|
@@ -119,7 +119,7 @@ pub fn SchedulerPublicationRoute::new(
   if lane < 0 || generation == 0UL || generation > 0xffffffffUL {
     raise invalid(Request, OutOfRange)
   }
-  { lane_value: lane, generation_value: generation }
+  { lane_value: lane, generation_value: generation, }
 }
 
 ///|

@@ -46,7 +46,7 @@ fn validate_luna_evidence_locators(
       raise AdmissionRejected(LunaArtifactAuthorization)
     }
   }
-  Some({ specialization, capability })
+  Some({ specialization, capability, })
 }
 
 ///|

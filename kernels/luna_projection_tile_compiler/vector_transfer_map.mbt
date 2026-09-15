@@ -13,7 +13,7 @@ pub fn ProjectionVectorTransferMap::new(
   owners~ : Int,
 ) -> ProjectionVectorTransferMap? {
   guard vectors > 0 && owners > 0 else { return None }
-  Some({ vectors, owners })
+  Some({ vectors, owners, })
 }
 
 ///|

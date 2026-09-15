@@ -18,7 +18,7 @@ pub fn LunaHttp1Limits::new(
   if max_body_bytes < 0 || max_body_bytes > LUNA_HTTP1_MAX_BODY_BYTES {
     raise luna_http1_error(LunaHttp1Limits, LunaHttp1OutOfRange)
   }
-  { max_head_bytes, max_body_bytes }
+  { max_head_bytes, max_body_bytes, }
 }
 
 ///|
@@ -251,7 +251,7 @@ pub fn LunaHttp1Workspace::begin(
   self.reset_operation()
   self.epoch += 1UL
   self.phase = LUNA_HTTP1_RECEIVING_HEAD
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

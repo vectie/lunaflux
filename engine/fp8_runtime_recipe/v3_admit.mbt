@@ -80,7 +80,7 @@ pub fn admit_reusable_paged_v3(
     if workspace_bytes > limits.max_workspace_arena_bytes - workspace_offset {
       raise InvalidFp8ReusablePagedRecipeV3(Workspace)
     }
-    launches.push({ source: launch, workspace_offset })
+    launches.push({ source: launch, workspace_offset, })
     workspace_offset += workspace_bytes
   }
   let retained = ReadOnlyArray::from_array(launches)

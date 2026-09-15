@@ -32,7 +32,7 @@ pub fn LunaBf16CandidateSetLimits::new(
     max_total_bytes > CANDIDATE_SET_MAX_TOTAL_BYTES {
     raise Invalid(Limits)
   }
-  { max_operations, max_source_bytes, max_recipe_bytes, max_total_bytes }
+  { max_operations, max_source_bytes, max_recipe_bytes, max_total_bytes, }
 }
 
 ///|

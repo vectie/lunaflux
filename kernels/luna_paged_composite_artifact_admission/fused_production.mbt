@@ -77,5 +77,5 @@ pub fn select_fused_qkv_readonly_production_artifacts(
     kv_write.fallback_recipe_digest_sha256() {
     raise MismatchedPagedCompositeArtifact(Fallback)
   }
-  Some({ fused_catalog, fused_bundle, readonly_identity, kv_write })
+  Some({ fused_catalog, fused_bundle, readonly_identity, kv_write, })
 }

@@ -52,7 +52,7 @@ pub fn LunaGpuArchitectureRange::new(
     minimum_major * 100 + minimum_minor > maximum_major * 100 + maximum_minor {
     raise Invalid(Architecture)
   }
-  { minimum_major, minimum_minor, maximum_major, maximum_minor }
+  { minimum_major, minimum_minor, maximum_major, maximum_minor, }
 }
 
 ///|
@@ -96,7 +96,7 @@ pub fn LunaKvLayoutContract::new(
   if stable_version <= 0 || tokens_per_page <= 0 {
     raise Invalid(Layout)
   }
-  { stable_version, tokens_per_page }
+  { stable_version, tokens_per_page, }
 }
 
 ///|

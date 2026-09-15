@@ -136,10 +136,10 @@ fn luna_tile_parallel_placed_program(
       if offset < 0L {
         raise InvalidProgram(ParallelLifetime)
       }
-      tensors.push({ ..tensor, offset_bytes: offset })
+      tensors.push({ ..tensor, offset_bytes: offset, })
     } else {
       tensors.push(tensor)
     }
   }
-  { ..program, tensors: ReadOnlyArray::from_array(tensors) }
+  { ..program, tensors: ReadOnlyArray::from_array(tensors), }
 }

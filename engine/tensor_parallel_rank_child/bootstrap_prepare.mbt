@@ -57,7 +57,7 @@ fn failed_rank_child_worker(
   cause : TensorParallelRankChildError,
   cleanup_failure : TensorParallelRankChildError?,
 ) -> TensorParallelRankChildPreparation {
-  RankChildCleanupRequired({ worker, cause, cleanup_failure, closed: false })
+  RankChildCleanupRequired({ worker, cause, cleanup_failure, closed: false, })
 }
 
 ///|

@@ -273,7 +273,7 @@ pub fn LunaOpenAIInboundWorkspace::begin(
   self.http_views.push(http)
   self.request_ids.push(request_id)
   self.phase = LUNA_INBOUND_PARSE_START
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

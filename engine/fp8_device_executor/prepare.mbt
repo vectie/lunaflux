@@ -200,13 +200,13 @@ pub fn prepare_v2(
       let lease = context.lease_allocation(allocation) catch {
         error => raise Fp8DeviceFailure(WeightLease, error)
       }
-      resources.weight_lease = Some({ resource: lease, open: true })
+      resources.weight_lease = Some({ resource: lease, open: true, })
     },
     () => {
       let stream = context.create_stream() catch {
         error => raise Fp8DeviceFailure(Stream, error)
       }
-      resources.stream = Some({ resource: stream, open: true })
+      resources.stream = Some({ resource: stream, open: true, })
     },
     () => {
       let allocation = context.allocate(recipe.workspace_capacity_bytes()) catch {

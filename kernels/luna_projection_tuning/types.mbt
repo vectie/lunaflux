@@ -44,7 +44,7 @@ pub fn ProjectionTuningScope::new(
     !toolchain_sha256.iter().all(c => c is ('0'..='9' | 'a'..='f')) {
     raise InvalidSnapshot
   }
-  { backend, architecture, device_identity, toolchain_sha256 }
+  { backend, architecture, device_identity, toolchain_sha256, }
 }
 
 ///|

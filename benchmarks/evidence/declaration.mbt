@@ -48,7 +48,7 @@ pub fn BenchmarkEngineIdentity::new(
   revision~ : BenchmarkDigest,
   executable~ : BenchmarkDigest,
 ) -> BenchmarkEngineIdentity {
-  { engine, revision, executable }
+  { engine, revision, executable, }
 }
 
 ///|
@@ -71,7 +71,7 @@ pub fn BenchmarkWorkload::new(
   profile~ : BenchmarkProfile,
   configuration~ : BenchmarkDigest,
 ) -> BenchmarkWorkload {
-  { profile, configuration }
+  { profile, configuration, }
 }
 
 ///|

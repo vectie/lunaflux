@@ -19,7 +19,7 @@ pub struct RuntimeOpenAiLoopbackIngressApproval {
 /// the embedding deployment owner; LunaFlux does not infer it from policy,
 /// environment, qualification evidence, or listener address.
 pub fn RuntimeOpenAiLoopbackIngressApproval::approve_authenticated_loopback() -> RuntimeOpenAiLoopbackIngressApproval {
-  { marker: OPENAI_EMBEDDING_INGRESS_APPROVAL_MARKER }
+  { marker: OPENAI_EMBEDDING_INGRESS_APPROVAL_MARKER, }
 }
 
 ///|

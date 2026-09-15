@@ -51,7 +51,7 @@ fn approved_corpus_case(corpus : Json) -> ApprovedCorpusCase raise {
   if continuation != [1031, 2185, 688, 2844] {
     raise InvalidInput("reference corpus continuation identity mismatch")
   }
-  { selected_ids, selected_logits, continuation }
+  { selected_ids, selected_logits, continuation, }
 }
 
 ///|

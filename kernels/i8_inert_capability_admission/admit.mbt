@@ -84,6 +84,6 @@ pub fn admit_catalog_only_symmetric_i8_weight_only_v1(
     catalog_version: resolved_v4.catalog_version(),
     operations: owned_operations,
     canonical,
-    digest: { value: @crypto.bytes_to_hex_string(@crypto.sha256(canonical)) },
+    digest: { value: @crypto.bytes_to_hex_string(@crypto.sha256(canonical)), },
   }
 }

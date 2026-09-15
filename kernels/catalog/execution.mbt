@@ -33,7 +33,7 @@ pub fn PagedKvLayoutContract::new(
     tokens_per_page <= 0 {
     raise InvalidCatalog(InvalidExecutionSemantics)
   }
-  { layout, stable_version, tokens_per_page }
+  { layout, stable_version, tokens_per_page, }
 }
 
 ///|

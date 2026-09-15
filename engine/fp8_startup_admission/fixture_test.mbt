@@ -290,5 +290,5 @@ fn startup_fixture() -> StartupFixture {
       max_canonical_bytes=4096,
     ),
   )
-  { plan, device_numeric, kernels }
+  { plan, device_numeric, kernels, }
 }

@@ -64,7 +64,7 @@ let string_control_sink : FixedArray[String?] = FixedArray::make(1, None)
 ///|
 fn positive_record_control() -> Unit {
   alloc_probe_begin()
-  let record = { _value: alloc_probe_seed() }
+  let record = { _value: alloc_probe_seed(), }
   positive_control_sink[0] = Some(record)
   let record_observed = alloc_probe_end()
   positive_control_sink[0] = None

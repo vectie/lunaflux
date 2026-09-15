@@ -123,5 +123,5 @@ pub fn LunaTextRequestHandoffStorage::begin(
   self.deadline = deadline
   self.semantic_writes.push(semantic_write)
   self.phase = LUNA_TEXT_HANDOFF_WRITING
-  { storage: self, epoch: self.epoch }
+  { storage: self, epoch: self.epoch, }
 }

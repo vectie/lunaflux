@@ -75,7 +75,7 @@ fn hostile_request(
       sampling_seed~,
       stops~,
       stream_preference=Buffered,
-      deadline={ milliseconds: 10UL },
+      deadline={ milliseconds: 10UL, },
       cache~,
       trace~,
       limits~,
@@ -85,7 +85,7 @@ fn hostile_request(
 
 ///|
 fn hostile_valid_cache() -> CachePolicy {
-  CachePolicy::new({ value: "scope-1" }, ReadWrite)
+  CachePolicy::new({ value: "scope-1", }, ReadWrite)
 }
 
 ///|
@@ -109,11 +109,11 @@ fn invalid_utf16_strings() -> Array[String] {
 
 ///|
 test "GenerateRequest validates forged limits before protocol authority" {
-  let forged = { ..hostile_limits(), max_text_bytes: 0 }
+  let forged = { ..hostile_limits(), max_text_bytes: 0, }
   try
     hostile_request(
       limits=forged,
-      protocol_version={ wire_code: 2 },
+      protocol_version={ wire_code: 2, },
       max_new_tokens=0,
       context_ceiling=0,
       input=hostile_owned_input([-1], -1),
@@ -123,10 +123,10 @@ test "GenerateRequest validates forged limits before protocol authority" {
         top_k: Some(0),
         top_p: Some(@double.not_a_number),
       },
-      sampling_seed={ value: 0UL },
+      sampling_seed={ value: 0UL, },
       stops=hostile_stops(Array::make(4, -1), [""]),
-      cache=CachePolicy::new({ value: "" }, ReadWrite),
-      trace=Some({ value: "" }),
+      cache=CachePolicy::new({ value: "", }, ReadWrite),
+      trace=Some({ value: "", }),
     )
   catch {
     error =>
@@ -149,7 +149,7 @@ test "GenerateRequest adjacent validation precedence is fixed" {
     top_k: Some(0),
     top_p: Some(@double.not_a_number),
   }
-  let invalid_seed : SamplingSeed = { value: 0UL }
+  let invalid_seed : SamplingSeed = { value: 0UL, }
   let cases = [
     (
       0, 0, invalid_input, invalid_sample, invalid_seed, "Invalid(field=MaximumNewTokens, issue=OutOfRange, index=0)",
@@ -216,11 +216,11 @@ test "forged Sample values retain numeric and filter precedence" {
       "Invalid(field=Temperature, issue=NonFinite, index=0)",
     ),
     (
-      { mode: Sample, temperature: @double.infinity, top_k: None, top_p: None },
+      { mode: Sample, temperature: @double.infinity, top_k: None, top_p: None, },
       "Invalid(field=Temperature, issue=NonFinite, index=0)",
     ),
     (
-      { mode: Sample, temperature: 0.0, top_k: None, top_p: None },
+      { mode: Sample, temperature: 0.0, top_k: None, top_p: None, },
       "Invalid(field=Temperature, issue=OutOfRange, index=0)",
     ),
     (
@@ -242,7 +242,7 @@ test "forged Sample values retain numeric and filter precedence" {
       "Invalid(field=TopP, issue=NonFinite, index=0)",
     ),
     (
-      { mode: Sample, temperature: 1.0, top_k: None, top_p: Some(1.1) },
+      { mode: Sample, temperature: 1.0, top_k: None, top_p: Some(1.1), },
       "Invalid(field=TopP, issue=OutOfRange, index=0)",
     ),
   ]
@@ -329,8 +329,8 @@ test "malformed UTF-16 stop and identifier strings fail typed" {
         sampling=SamplingParameters::greedy(),
         sampling_seed=SamplingSeed::new(1UL),
         stops=hostile_stops([], [malformed]),
-        cache=CachePolicy::new({ value: malformed }, ReadWrite),
-        trace=Some({ value: malformed }),
+        cache=CachePolicy::new({ value: malformed, }, ReadWrite),
+        trace=Some({ value: malformed, }),
       )
     catch {
       error =>
@@ -351,8 +351,8 @@ test "malformed UTF-16 stop and identifier strings fail typed" {
         sampling=SamplingParameters::greedy(),
         sampling_seed=SamplingSeed::new(1UL),
         stops=hostile_valid_stops(),
-        cache=CachePolicy::new({ value: malformed }, ReadWrite),
-        trace=Some({ value: malformed }),
+        cache=CachePolicy::new({ value: malformed, }, ReadWrite),
+        trace=Some({ value: malformed, }),
       )
     catch {
       error =>
@@ -374,7 +374,7 @@ test "malformed UTF-16 stop and identifier strings fail typed" {
         sampling_seed=SamplingSeed::new(1UL),
         stops=hostile_valid_stops(),
         cache=hostile_valid_cache(),
-        trace=Some({ value: malformed }),
+        trace=Some({ value: malformed, }),
       )
     catch {
       error =>

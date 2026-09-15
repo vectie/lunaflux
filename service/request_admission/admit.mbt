@@ -69,7 +69,7 @@ fn preflight_bound_request(
   if input_capacity <= 0 {
     raise Invalid(Input)
   }
-  { request, deadline, effective, input_capacity }
+  { request, deadline, effective, input_capacity, }
 }
 
 ///|
@@ -310,7 +310,7 @@ fn finish_preparation(
     input_tokens: prepared.tokens.length(),
     token_ids_only: prepared.request.stream_preference() == TokenIdsStreaming,
   }
-  { claim: Some(claim) }
+  { claim: Some(claim), }
 }
 
 ///|

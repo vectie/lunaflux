@@ -50,15 +50,15 @@ fn canonical_wb_schema(
 ///|
 fn canonical_wb_operation() -> PlanOperation {
   {
-    id: { value: 0 },
+    id: { value: 0, },
     kind: Embedding,
     inputs: ReadOnlyArray::from_array([
       ModelInput(TokenIds),
-      Tensor({ value: 0 }),
+      Tensor({ value: 0, }),
     ]),
-    outputs: ReadOnlyArray::from_array([{ value: 0 }]),
+    outputs: ReadOnlyArray::from_array([{ value: 0, }]),
     shape: EmbeddingShape(vocabulary_size=8, width=4),
-    required_capability: { value: 1 },
+    required_capability: { value: 1, },
     workspace_bytes: 0L,
     kv_layer: None,
     runtime_inputs: ReadOnlyArray::from_array([]),
@@ -132,10 +132,10 @@ fn canonical_wb_geometry() -> KvCacheGeometry {
 fn canonical_wb_hash(
   constraints? : ShapeConstraints = canonical_wb_constraints(),
   geometry? : KvCacheGeometry = canonical_wb_geometry(),
-  workspace? : WorkspaceBounds = { max_temporary_bytes: 0L },
+  workspace? : WorkspaceBounds = { max_temporary_bytes: 0L, },
   operations? : Array[PlanOperation] = [canonical_wb_operation()],
-  required? : Array[KernelCapabilityId] = [{ value: 1 }],
-  final_output? : ActivationRef = { value: 0 },
+  required? : Array[KernelCapabilityId] = [{ value: 1, }],
+  final_output? : ActivationRef = { value: 0, },
   mode? : ModelKvExecution = StatelessFullContext,
   schema? : @numeric_contract.ModelNumericSchema = canonical_wb_schema(),
 ) -> String {
@@ -248,14 +248,14 @@ test "canonical encoder binds every top-level and operation category" {
   let baseline = canonical_wb_hash()
   let constraints = canonical_wb_constraints()
   let constraint_mutations : Array[ShapeConstraints] = [
-    { ..constraints, max_batch_rows: 2 },
-    { ..constraints, max_sequence_tokens: 9 },
-    { ..constraints, vocabulary_size: 9 },
-    { ..constraints, hidden_size: 5 },
-    { ..constraints, intermediate_size: 9 },
-    { ..constraints, attention_head_count: 3 },
-    { ..constraints, kv_head_count: 2 },
-    { ..constraints, head_dimension: 3 },
+    { ..constraints, max_batch_rows: 2, },
+    { ..constraints, max_sequence_tokens: 9, },
+    { ..constraints, vocabulary_size: 9, },
+    { ..constraints, hidden_size: 5, },
+    { ..constraints, intermediate_size: 9, },
+    { ..constraints, attention_head_count: 3, },
+    { ..constraints, kv_head_count: 2, },
+    { ..constraints, head_dimension: 3, },
   ]
   for index, mutation in constraint_mutations {
     assert_canonical_mutation(
@@ -266,10 +266,10 @@ test "canonical encoder binds every top-level and operation category" {
   }
   let geometry = canonical_wb_geometry()
   let geometry_mutations : Array[KvCacheGeometry] = [
-    { ..geometry, layer_count: 2 },
-    { ..geometry, kv_head_count: 2 },
-    { ..geometry, head_dimension: 3 },
-    { ..geometry, dtype: Float16 },
+    { ..geometry, layer_count: 2, },
+    { ..geometry, kv_head_count: 2, },
+    { ..geometry, head_dimension: 3, },
+    { ..geometry, dtype: Float16, },
   ]
   for index, mutation in geometry_mutations {
     assert_canonical_mutation(
@@ -285,29 +285,29 @@ test "canonical encoder binds every top-level and operation category" {
   )
   assert_canonical_mutation(
     baseline,
-    canonical_wb_hash(workspace={ max_temporary_bytes: 1L }),
+    canonical_wb_hash(workspace={ max_temporary_bytes: 1L, }),
     "workspace",
   )
   let operation = canonical_wb_operation()
   let operation_mutations : Array[PlanOperation] = [
-    canonical_wb_clone_operation(operation, id={ value: 1 }),
+    canonical_wb_clone_operation(operation, id={ value: 1, }),
     canonical_wb_clone_operation(operation, kind=RmsNorm),
     canonical_wb_clone_operation(operation, inputs=[
-      Tensor({ value: 0 }),
+      Tensor({ value: 0, }),
       ModelInput(TokenIds),
     ]),
-    canonical_wb_clone_operation(operation, outputs=[{ value: 1 }]),
+    canonical_wb_clone_operation(operation, outputs=[{ value: 1, }]),
     canonical_wb_clone_operation(
       operation,
       shape=EmbeddingShape(vocabulary_size=9, width=4),
     ),
-    canonical_wb_clone_operation(operation, capability={ value: 2 }),
+    canonical_wb_clone_operation(operation, capability={ value: 2, }),
     canonical_wb_clone_operation(operation, workspace_bytes=1L),
-    canonical_wb_clone_operation(operation, kv_layer=Some({ value: 0 })),
+    canonical_wb_clone_operation(operation, kv_layer=Some({ value: 0, })),
     canonical_wb_clone_operation(operation, runtime_inputs=[StepCounts]),
     canonical_wb_clone_operation(
       operation,
-      persistent_state=KvCacheReadWrite({ value: 0 }),
+      persistent_state=KvCacheReadWrite({ value: 0, }),
     ),
   ]
   for index, mutation in operation_mutations {
@@ -319,12 +319,12 @@ test "canonical encoder binds every top-level and operation category" {
   }
   assert_canonical_mutation(
     baseline,
-    canonical_wb_hash(required=[{ value: 1 }, { value: 2 }]),
+    canonical_wb_hash(required=[{ value: 1, }, { value: 2, }]),
     "derived-capability-order",
   )
   assert_canonical_mutation(
     baseline,
-    canonical_wb_hash(final_output={ value: 1 }),
+    canonical_wb_hash(final_output={ value: 1, }),
     "final-output",
   )
   assert_canonical_mutation(

@@ -80,7 +80,7 @@ pub fn MaterializationLimits::new(
   if max_host_bytes <= 0L || max_host_bytes > max_payload_bytes {
     raise InvalidLimit(HostBytes)
   }
-  { max_header_bytes, max_tensor_count, max_payload_bytes, max_host_bytes }
+  { max_header_bytes, max_tensor_count, max_payload_bytes, max_host_bytes, }
 }
 
 ///|

@@ -5,7 +5,7 @@ pub fn PrefixTokenBuffer::new(
   if !valid_capacity(capacity) {
     raise InvalidLimit(TokenCapacity)
   }
-  { tokens: FixedArray::make(capacity, 0), length: 0 }
+  { tokens: FixedArray::make(capacity, 0), length: 0, }
 }
 
 ///|

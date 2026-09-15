@@ -147,7 +147,7 @@ pub fn LunaFramedTextRequestWorkspace::begin_text_with_sampling_scalars(
   }
   self.deadline_millis = deadline.milliseconds()
   self.phase = LUNA_TEXT_WRITING
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|
@@ -187,7 +187,7 @@ pub fn LunaFramedTextRequestWrite::finish(
     raise LunaFramedTextRequestNotReady
   }
   workspace.phase = LUNA_TEXT_HEADER
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

@@ -85,7 +85,7 @@ pub fn admit_approved_paged_attention_readonly_manifest(
     raise MismatchedReadOnlyProduction(ExternalApproval)
   }
   let canonical = readonly_manifest_canonical(approved)
-  { approved, canonical, digest: readonly_production_digest(canonical) }
+  { approved, canonical, digest: readonly_production_digest(canonical), }
 }
 
 ///|

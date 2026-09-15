@@ -13,7 +13,7 @@ fn fp8_probe_allocate(
   let allocation = context.allocate(bytes)
   balance.allocations += 1
   balance.device_bytes += bytes
-  { allocation, bytes }
+  { allocation, bytes, }
 }
 
 ///|

@@ -132,7 +132,7 @@ pub fn Fp8DeviceExecutor::execute(
   }
   self.epoch += 1UL
   self.lifecycle = ExecutorExecuted
-  { executor: self, operation, epoch: self.epoch }
+  { executor: self, operation, epoch: self.epoch, }
 }
 
 ///|

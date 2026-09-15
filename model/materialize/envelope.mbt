@@ -65,7 +65,7 @@ fn validate_envelope(
   if bindings.materialized_bytes() != payload_bytes64 {
     raise EnvelopeLengthMismatch
   }
-  { payload_start, payload_bytes }
+  { payload_start, payload_bytes, }
 }
 
 ///|

@@ -76,5 +76,5 @@ pub fn parse_qwen3_token_id_request(
     ids.push(bridge_exact_int(value, 0, max_token_id))
   }
   let output = bridge_exact_int(output_value, 1, max_output_tokens)
-  { input_token_ids: ids, max_output_tokens: output }
+  { input_token_ids: ids, max_output_tokens: output, }
 }

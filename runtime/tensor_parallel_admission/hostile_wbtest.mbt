@@ -86,7 +86,7 @@ test "private topology seam rejects incomplete and heterogeneous evidence" {
     ..facts,
     ranks: ReadOnlyArray::from_array([
       facts.ranks[0],
-      { ..facts.ranks[1], target: other },
+      { ..facts.ranks[1], target: other, },
     ]),
   }
   try admit_facts(heterogeneous, wb_declaration(target)) catch {

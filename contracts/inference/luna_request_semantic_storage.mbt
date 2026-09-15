@@ -148,7 +148,7 @@ pub fn LunaRequestSemanticStorage::begin(
   self.cache_scope_length = cache_scope_byte_count
   self.cache_permission = cache_permission
   self.phase = LUNA_REQUEST_SEMANTIC_WRITING
-  { storage: self, epoch: self.epoch }
+  { storage: self, epoch: self.epoch, }
 }
 
 ///|

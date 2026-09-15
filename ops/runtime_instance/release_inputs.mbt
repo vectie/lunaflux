@@ -165,5 +165,5 @@ fn admit_release_inputs(
       raise fail(PolicyClose)
     }
   }
-  { launch, runtime, instance, model_root, kernel_root }
+  { launch, runtime, instance, model_root, kernel_root, }
 }

@@ -5,7 +5,7 @@ pub fn OpenAIBaselineIdentity::new(
   image : @evidence.BenchmarkDigest,
   configuration : @evidence.BenchmarkDigest,
 ) -> OpenAIBaselineIdentity {
-  { engine, revision, image, configuration }
+  { engine, revision, image, configuration, }
 }
 
 ///|

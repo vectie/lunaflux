@@ -42,7 +42,7 @@ pub fn KvCacheGeometry::new(
   match layout {
     LayerMajorSplitKeyValueV1 => ()
   }
-  { layer_count, kv_head_count, head_dimension, dtype, layout }
+  { layer_count, kv_head_count, head_dimension, dtype, layout, }
 }
 
 ///|

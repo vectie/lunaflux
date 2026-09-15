@@ -112,7 +112,7 @@ fn prepare_fp8_with_roots(
     (authority, error) => preparation_failed(roots, authority, error),
     authority => {
       match authority {
-        Fp8Ready(owner) => ChildReady({ worker: Fp8(owner) })
+        Fp8Ready(owner) => ChildReady({ worker: Fp8(owner), })
         _ => abort("invalid FP8 worker passed readiness barrier")
       }
     },

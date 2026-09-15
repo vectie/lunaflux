@@ -42,7 +42,7 @@ async fn bind_luna_online_tcp_server_mode(
     flights: Array(capacity=1),
     observations: Array(capacity=1),
     telemetry,
-    activity: { reactor_active: false, maintenance_active: false },
+    activity: { reactor_active: false, maintenance_active: false, },
     pipeline_mode,
     phase: LUNA_ONLINE_TCP_SERVER_LISTENING,
     tail_start: 0,

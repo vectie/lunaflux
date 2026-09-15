@@ -44,7 +44,7 @@ pub fn PagedAttentionReadOnlyAotLimits::new(
     maximum_canonical_bytes > 1048576 {
     raise PagedAttentionReadOnlyInvalid(Limits)
   }
-  { maximum_source_bytes, maximum_recipe_bytes, maximum_canonical_bytes }
+  { maximum_source_bytes, maximum_recipe_bytes, maximum_canonical_bytes, }
 }
 
 ///|

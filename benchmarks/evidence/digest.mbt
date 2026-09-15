@@ -25,7 +25,7 @@ pub fn BenchmarkDigest::from_sha256(
   if !is_lower_sha256(value) {
     raise InvalidDigest
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|

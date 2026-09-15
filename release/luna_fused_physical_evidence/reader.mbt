@@ -20,7 +20,7 @@ fn fused_physical_reader(
     lines[lines.length() - 1] != "" {
     raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
-  { lines, cursor: 0 }
+  { lines, cursor: 0, }
 }
 
 ///|

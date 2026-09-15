@@ -31,7 +31,7 @@ pub fn NumericShape::new(
     element_count = element_count * dimension
     copied.push(dimension)
   }
-  { dimensions: ReadOnlyArray::from_array(copied), element_count }
+  { dimensions: ReadOnlyArray::from_array(copied), element_count, }
 }
 
 ///|

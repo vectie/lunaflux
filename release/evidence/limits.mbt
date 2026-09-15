@@ -20,7 +20,7 @@ pub fn ReleaseCampaignLimits::new(
     max_artifact_bytes <= 0 {
     raise InvalidLimits
   }
-  { max_canonical_bytes, max_locator_bytes, max_artifact_bytes }
+  { max_canonical_bytes, max_locator_bytes, max_artifact_bytes, }
 }
 
 ///|

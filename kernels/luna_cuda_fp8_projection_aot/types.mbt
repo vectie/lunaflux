@@ -29,7 +29,7 @@ pub fn Fp8ProjectionAotLimits::new(
     max_recipe_bytes > 16 * 1024 * 1024 {
     raise Invalid(Limits)
   }
-  { max_source_bytes, max_recipe_bytes }
+  { max_source_bytes, max_recipe_bytes, }
 }
 
 ///|

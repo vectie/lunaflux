@@ -28,7 +28,7 @@ fn inspect_qwen3_plan_file(
     route_manifest_sha256 != expected_route_manifest_sha256.to_owned() {
     raise Mismatch(RouteManifest)
   }
-  { inspection, route_manifest_sha256 }
+  { inspection, route_manifest_sha256, }
 }
 
 ///|

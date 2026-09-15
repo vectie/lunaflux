@@ -104,7 +104,7 @@ fn frozen_prepare(
   for index in 0..<retained {
     retained_total += weights[index]
   }
-  { token_ids, weights, count: retained, total_weight: retained_total }
+  { token_ids, weights, count: retained, total_weight: retained_total, }
 }
 
 ///|

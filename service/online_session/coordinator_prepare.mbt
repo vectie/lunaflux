@@ -379,7 +379,7 @@ pub fn prepare_owned_luna_online_framed_coordinator_approved(
       }
       {
         cleanup: None,
-        coordinator: Some({ service, stream }),
+        coordinator: Some({ service, stream, }),
         state: LunaOnlineInstanceReady,
         consumed: false,
       }

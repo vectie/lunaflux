@@ -35,7 +35,7 @@ fn check_status(
 pub fn probe() -> NcclRuntimeInventory {
   let version = Ref(0)
   let availability = availability_from_code(raw_probe(version))
-  { availability, version_code: version.val }
+  { availability, version_code: version.val, }
 }
 
 ///|
@@ -49,7 +49,7 @@ pub fn admit_runtime(
     raw_runtime_admit(minimum_version_code, maximum_version_code, version),
     RuntimeAdmission,
   )
-  { version_code: version.val }
+  { version_code: version.val, }
 }
 
 ///|

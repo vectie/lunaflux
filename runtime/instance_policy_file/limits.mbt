@@ -38,7 +38,7 @@ pub fn InstancePolicyFileLimits::new(
   if max_json_depth <= 0 || max_json_depth > ABSOLUTE_MAX_JSON_DEPTH {
     raise InvalidLimit(JsonDepth)
   }
-  { max_policy_bytes, max_json_depth }
+  { max_policy_bytes, max_json_depth, }
 }
 
 ///|

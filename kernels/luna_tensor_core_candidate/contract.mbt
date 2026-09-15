@@ -117,5 +117,5 @@ pub fn LunaTileTensorCoreCandidateLimits::new(
   if maximum_source_bytes <= 0 || maximum_canonical_bytes <= 0 {
     raise LunaTileTensorCoreRejected(Contract)
   }
-  { maximum_source_bytes, maximum_canonical_bytes }
+  { maximum_source_bytes, maximum_canonical_bytes, }
 }

@@ -2,7 +2,7 @@
 fn qwen3_test_spec() -> TokenizerSpec raise TokenizerError {
   let vocabulary : Array[VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   let pieces : Array[(Bytes, TokenKind)] = [
     (b"ca", Normal),
@@ -27,27 +27,27 @@ fn qwen3_test_spec() -> TokenizerSpec raise TokenizerError {
   ]
   for entry in pieces {
     let (piece, kind) = entry
-    vocabulary.push({ token_id: vocabulary.length(), piece, kind })
+    vocabulary.push({ token_id: vocabulary.length(), piece, kind, })
   }
   TokenizerSpec::new_qwen3_bpe(
     vocabulary,
     [
-      { left_token_id: 99, right_token_id: 97, result_token_id: 256 },
-      { left_token_id: 256, right_token_id: 110, result_token_id: 257 },
-      { left_token_id: 39, right_token_id: 116, result_token_id: 258 },
-      { left_token_id: 257, right_token_id: 258, result_token_id: 259 },
-      { left_token_id: 104, right_token_id: 101, result_token_id: 260 },
-      { left_token_id: 260, right_token_id: 108, result_token_id: 261 },
-      { left_token_id: 261, right_token_id: 108, result_token_id: 262 },
-      { left_token_id: 262, right_token_id: 111, result_token_id: 263 },
-      { left_token_id: 263, right_token_id: 44, result_token_id: 264 },
-      { left_token_id: 50, right_token_id: 48, result_token_id: 265 },
-      { left_token_id: 265, right_token_id: 50, result_token_id: 266 },
-      { left_token_id: 266, right_token_id: 54, result_token_id: 267 },
-      { left_token_id: 67, right_token_id: 97, result_token_id: 268 },
-      { left_token_id: 268, right_token_id: 102, result_token_id: 269 },
-      { left_token_id: 269, right_token_id: 195, result_token_id: 270 },
-      { left_token_id: 270, right_token_id: 169, result_token_id: 271 },
+      { left_token_id: 99, right_token_id: 97, result_token_id: 256, },
+      { left_token_id: 256, right_token_id: 110, result_token_id: 257, },
+      { left_token_id: 39, right_token_id: 116, result_token_id: 258, },
+      { left_token_id: 257, right_token_id: 258, result_token_id: 259, },
+      { left_token_id: 104, right_token_id: 101, result_token_id: 260, },
+      { left_token_id: 260, right_token_id: 108, result_token_id: 261, },
+      { left_token_id: 261, right_token_id: 108, result_token_id: 262, },
+      { left_token_id: 262, right_token_id: 111, result_token_id: 263, },
+      { left_token_id: 263, right_token_id: 44, result_token_id: 264, },
+      { left_token_id: 50, right_token_id: 48, result_token_id: 265, },
+      { left_token_id: 265, right_token_id: 50, result_token_id: 266, },
+      { left_token_id: 266, right_token_id: 54, result_token_id: 267, },
+      { left_token_id: 67, right_token_id: 97, result_token_id: 268, },
+      { left_token_id: 268, right_token_id: 102, result_token_id: 269, },
+      { left_token_id: 269, right_token_id: 195, result_token_id: 270, },
+      { left_token_id: 270, right_token_id: 169, result_token_id: 271, },
     ],
     TokenizerDigest::parse("0123456789abcdef".repeat(4)),
     {
@@ -129,16 +129,20 @@ fn qwen3_reference_spec() -> TokenizerSpec raise TokenizerError {
       piece,
       kind: Normal,
     }
-    merges.push({ left_token_id, right_token_id, result_token_id })
+    merges.push({ left_token_id, right_token_id, result_token_id, })
   }
   vocabulary[151644] = {
     token_id: 151644,
     piece: b"<|im_start|>",
     kind: Special,
   }
-  vocabulary[151645] = { token_id: 151645, piece: b"<|im_end|>", kind: Special }
-  vocabulary[151667] = { token_id: 151667, piece: b"<think>", kind: Added }
-  vocabulary[151668] = { token_id: 151668, piece: b"</think>", kind: Added }
+  vocabulary[151645] = {
+    token_id: 151645,
+    piece: b"<|im_end|>",
+    kind: Special,
+  }
+  vocabulary[151667] = { token_id: 151667, piece: b"<think>", kind: Added, }
+  vocabulary[151668] = { token_id: 151668, piece: b"</think>", kind: Added, }
   TokenizerSpec::new_qwen3_bpe(
     vocabulary,
     merges,

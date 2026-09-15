@@ -493,7 +493,7 @@ pub fn ChildProcess::wait(self : ChildProcess) -> ChildExit raise ProcessError {
     raw_wait(self.handle, self.limits.shutdown_timeout_millis, kind, code),
     Wait,
   )
-  { kind: kind.val, code: code.val }
+  { kind: kind.val, code: code.val, }
 }
 
 ///|

@@ -18,7 +18,7 @@ fn fused_deployment_reader(
   if lines.length() < 3 || lines[lines.length() - 1] != "" {
     raise InvalidFusedArtifact(Manifest)
   }
-  { lines, cursor: 0 }
+  { lines, cursor: 0, }
 }
 
 ///|
@@ -426,7 +426,7 @@ pub fn admit_digest_pinned_fused_runtime_source(
     qkv.driver != residual.driver {
     raise MismatchedFusedArtifact(Compiler)
   }
-  let bundle : ApprovedFusedKernelBundle = { manifest, target, qkv, residual }
+  let bundle : ApprovedFusedKernelBundle = { manifest, target, qkv, residual, }
   let catalog_canonical = fused_catalog_canonical(
     manifest, target, qkv, residual,
   )

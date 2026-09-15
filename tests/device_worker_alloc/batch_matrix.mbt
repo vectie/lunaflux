@@ -314,7 +314,7 @@ fn prepare_batch_matrix(
       pages,
     )
   }
-  { cycles, allocator, pages }
+  { cycles, allocator, pages, }
 }
 
 ///|

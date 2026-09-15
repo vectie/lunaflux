@@ -36,7 +36,7 @@ pub fn LunaPagedProfileCounter::new(
   if value < 0L || value > 9_000_000_000_000_000L {
     raise LunaKernelProfileInvalid(Counter)
   }
-  { kind, value }
+  { kind, value, }
 }
 
 ///|

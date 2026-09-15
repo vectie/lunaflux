@@ -20,7 +20,7 @@ fn readonly_physical_reader(
     lines[lines.length() - 1] != "" {
     raise PagedAttentionReadOnlyPhysicalEvidenceInvalid(Canonical)
   }
-  { lines, cursor: 0 }
+  { lines, cursor: 0, }
 }
 
 ///|

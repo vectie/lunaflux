@@ -174,5 +174,5 @@ pub fn admit_external_fused_manifest_approval(
   if admitted.record_digest().as_hex() != record.digest.as_hex() {
     raise FusedPhysicalEvidenceMismatch(ExternalApproval)
   }
-  { record, approval: admitted }
+  { record, approval: admitted, }
 }

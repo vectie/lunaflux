@@ -101,7 +101,7 @@ fn scalar_baseline_qkv_rope_kv(
         component]
     }
   }
-  { qkv: rotated, key_cache, value_cache, canary: 0 }
+  { qkv: rotated, key_cache, value_cache, canary: 0, }
 }
 
 ///|
@@ -178,7 +178,7 @@ fn scalar_fused_qkv_rope_kv(
     }
     canary += 1
   }
-  { qkv: output, key_cache, value_cache, canary }
+  { qkv: output, key_cache, value_cache, canary, }
 }
 
 ///|

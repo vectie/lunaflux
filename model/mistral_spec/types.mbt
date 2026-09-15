@@ -187,7 +187,7 @@ pub fn MistralModelMetadata::from_verified_content(
     ),
   )
   // `ContentDigest` is opaque and its only public constructor validates it.
-  { spec, content_digest: content }
+  { spec, content_digest: content, }
 }
 
 ///|

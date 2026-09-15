@@ -181,7 +181,7 @@ fn[S : Eq] prepare_streaming_load(
   if verified_digest != model.content_digest().as_hex() {
     raise ContentDigestMismatch
   }
-  { source_stamp, payload_offset_bytes, layout, regions, scratch }
+  { source_stamp, payload_offset_bytes, layout, regions, scratch, }
 }
 
 ///|
@@ -382,7 +382,7 @@ fn[S : Eq, T] load_prepared_streaming_with_resource(
     error => Err(error)
   }
   match transfer_result {
-    Ok(_) => ResourceReady({ resource, layout: prepared.layout })
+    Ok(_) => ResourceReady({ resource, layout: prepared.layout, })
     Err(error) => {
       let stage = match error {
         DeviceFailed(_) => Transfer

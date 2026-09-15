@@ -121,7 +121,7 @@ fn LunaKernelProfileEncoder::append_paged_launch(
 fn digest_luna_paged_launches(
   launches : ArrayView[@launch_contract.PagedKvAotLaunchContract],
 ) -> LunaKernelProfileDigest raise LunaKernelProfileError {
-  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum: 4_194_304 }
+  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum: 4_194_304, }
   encoder.append_string("lunaflux.kernel-paged-launch-identity.v1")
   encoder.append_int(launches.length())
   for launch in launches {
@@ -213,7 +213,7 @@ fn digest_luna_paged_profile_shape(
   page_table_trace_digest : LunaPagedPageTableTraceDigest,
   rows : ArrayView[LunaPagedProfileRow],
 ) -> LunaKernelProfileDigest raise LunaKernelProfileError {
-  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum: 1_048_576 }
+  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum: 1_048_576, }
   encoder.append_string("lunaflux.kernel-paged-profile-shape.v1")
   encoder.append_paged_shape(
     tokens_per_page, prefill_row_count, decode_row_count, query_token_count, page_table_block_count,
@@ -239,7 +239,7 @@ fn encode_luna_paged_kernel_profile(
   observations : ArrayView[LunaPagedKernelProfileObservation],
   maximum : Int,
 ) -> Bytes raise LunaKernelProfileError {
-  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum }
+  let encoder : LunaKernelProfileEncoder = { bytes: [], maximum, }
   encoder.append_string("lunaflux.kernel-paged-profile-priority.v1")
   encoder.append_string(identity.content().as_hex())
   encoder.append_string(identity.plan().as_hex())

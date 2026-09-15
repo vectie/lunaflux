@@ -36,7 +36,7 @@ pub fn AotOperand::new(
     (alignment & (alignment - 1L)) != 0L {
     raise InvalidOperandDefinition(InvalidAlignment)
   }
-  { role, byte_count, alignment }
+  { role, byte_count, alignment, }
 }
 
 ///|

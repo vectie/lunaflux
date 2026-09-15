@@ -80,7 +80,7 @@ pub fn LunaDetachedSignatureEnvelope::new(
   key_identity~ : LunaSignatureKeyIdentityDigest,
   signature_digest~ : LunaDetachedSignatureDigest,
 ) -> LunaDetachedSignatureEnvelope {
-  { algorithm, key_identity, signature_digest }
+  { algorithm, key_identity, signature_digest, }
 }
 
 ///|

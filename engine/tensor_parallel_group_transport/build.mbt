@@ -294,7 +294,7 @@ fn compose_rank_startups(
       @rank_group_process.RankGroupProcessRankStartup::new(configure),
     )
   }
-  { startups: ReadOnlyArray::from_array(rank_startups) }
+  { startups: ReadOnlyArray::from_array(rank_startups), }
 }
 
 ///|

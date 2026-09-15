@@ -5,5 +5,5 @@ pub fn RuntimeInstanceFileLimits::new(
   policy~ : @instance_policy_file.InstancePolicyFileLimits,
   executable~ : @worker_executable_file.WorkerExecutableFileLimits,
 ) -> RuntimeInstanceFileLimits {
-  { launch, descriptor, policy, executable }
+  { launch, descriptor, policy, executable, }
 }

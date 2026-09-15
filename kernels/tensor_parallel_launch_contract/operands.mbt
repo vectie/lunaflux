@@ -91,7 +91,7 @@ fn push_operand(
     (alignment & (alignment - 1L)) != 0L {
     raise invalid(CapacityOverflow, profile~, operation~)
   }
-  output.push({ role, byte_count, alignment })
+  output.push({ role, byte_count, alignment, })
 }
 
 ///|

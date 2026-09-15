@@ -73,7 +73,7 @@ pub fn LunaOnlineInstanceAdmission::ticket(
   if self.disposition != 0 || self.request_epoch == 0UL {
     raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
-  { lane: self.lane, epoch: self.request_epoch }
+  { lane: self.lane, epoch: self.request_epoch, }
 }
 
 ///|

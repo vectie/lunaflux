@@ -183,7 +183,7 @@ fn bind_qwen3_metadata(
     let reference = @plan.TensorRef::new(descriptor.reference) catch {
       _ => raise InvalidTensor(reference=descriptor.reference, TensorCount)
     }
-    bindings.push({ reference, tensor })
+    bindings.push({ reference, tensor, })
     materialized_bytes = materialized_bytes + tensor.byte_length()
   }
   let embedding = bindings[0].tensor

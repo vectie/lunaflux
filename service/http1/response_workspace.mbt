@@ -63,7 +63,7 @@ fn LunaHttp1ResponseWorkspace::begin_kind(
   self.last_work_units = 0
   self.total_work_units = 0UL
   self.phase = LUNA_HTTP1_RESPONSE_BUILDING
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

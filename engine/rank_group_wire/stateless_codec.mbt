@@ -100,7 +100,7 @@ pub fn decode_rank_group_wire_configure(
   if header.kind() != Configure {
     raise Invalid(Kind)
   }
-  { header, binding: decode_rank_group_wire_binding(source) }
+  { header, binding: decode_rank_group_wire_binding(source), }
 }
 
 ///|

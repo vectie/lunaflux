@@ -6,7 +6,7 @@ pub fn TensorParallelTopology::new(
   if world_size <= 0 || world_size > 16 || rank < 0 || rank >= world_size {
     raise invalid(Topology)
   }
-  { rank, world_size }
+  { rank, world_size, }
 }
 
 ///|
@@ -59,7 +59,7 @@ pub fn TensorArenaRegion::new(
   if end > max_arena_bytes {
     raise invalid(ArenaBytes)
   }
-  { offset_bytes, byte_length, alignment_bytes }
+  { offset_bytes, byte_length, alignment_bytes, }
 }
 
 ///|
@@ -159,7 +159,7 @@ pub fn TensorRankPlacement::new(
         raise invalid(Extent, index~)
       }
   }
-  { reference, placement, extent, region, recipe: transfer_recipe }
+  { reference, placement, extent, region, recipe: transfer_recipe, }
 }
 
 ///|

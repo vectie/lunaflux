@@ -6,7 +6,7 @@ test "Luna disconnect resumes retirement after abort seam" {
   // retirement: the first abort attempt may reject because the instance has
   // already crossed its abortable phase, but maintenance_kind retains the
   // exact retirement obligation and restart observation.
-  service.tickets.push({ lane: -1, epoch: 1UL })
+  service.tickets.push({ lane: -1, epoch: 1UL, })
   service.ticket_sequences.push(1UL)
   service.instance.restart_observation_pending = true
   try service.begin_output_disconnect() catch {

@@ -2,7 +2,7 @@
 fn acquire_roots_with(
   acquire : (BootstrapRootRole) -> @approved_fs.ApprovedRoot raise DeviceWorkerBootstrapError,
 ) -> BootstrapRootAcquisition raise DeviceWorkerBootstrapError {
-  let roots : BootstrapRoots = { model: None, kernel: None }
+  let roots : BootstrapRoots = { model: None, kernel: None, }
   let model = acquire(ModelRoot) catch {
     error => return RootCleanupRequired(preparation_failed(roots, None, error))
   }
@@ -154,7 +154,7 @@ fn prepare_with_roots(
     (authority, error) => preparation_failed(roots, authority, error),
     authority => {
       match authority {
-        LegacyReady(owner) => ChildReady({ worker: Legacy(owner) })
+        LegacyReady(owner) => ChildReady({ worker: Legacy(owner), })
         _ => abort("invalid worker passed readiness barrier")
       }
     },

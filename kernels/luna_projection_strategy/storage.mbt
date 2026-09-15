@@ -38,7 +38,7 @@ pub fn ProjectionStrategy::local_storage(
   shape : ProjectionShape,
 ) -> ProjectionLocalStorage raise ProjectionStrategyError {
   if self.kernel_class != MatrixTile {
-    return { accumulator_elements: 0L, selected_input_elements: 0L }
+    return { accumulator_elements: 0L, selected_input_elements: 0L, }
   }
   let rows = self.tile.rows.to_int64()
   let accumulator_elements = checked_storage_product(
@@ -57,5 +57,5 @@ pub fn ProjectionStrategy::local_storage(
   } else {
     0L
   }
-  { accumulator_elements, selected_input_elements }
+  { accumulator_elements, selected_input_elements, }
 }

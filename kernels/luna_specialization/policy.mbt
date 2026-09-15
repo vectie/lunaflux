@@ -32,7 +32,7 @@ pub fn LunaCompilerIdentity::new(
     patch < 0 {
     raise Invalid(CompilerIdentity)
   }
-  { toolchain_digest: toolchain_digest_sha256, major, minor, patch }
+  { toolchain_digest: toolchain_digest_sha256, major, minor, patch, }
 }
 
 ///|
@@ -168,7 +168,7 @@ pub fn LunaSpecializationEvidence::new(
   dispatch_canary~ : LunaSpecializationEvidenceDigest,
   benchmark~ : LunaSpecializationEvidenceDigest,
 ) -> LunaSpecializationEvidence {
-  { scalar_referee, admitted_tensor_rows, dispatch_canary, benchmark }
+  { scalar_referee, admitted_tensor_rows, dispatch_canary, benchmark, }
 }
 
 ///|
@@ -213,5 +213,5 @@ pub fn LunaSpecializationLimits::new(
   if max_canonical_bytes <= 0 || max_bound_regions <= 0 {
     raise Invalid(CanonicalBytes)
   }
-  { max_canonical_bytes, max_bound_regions }
+  { max_canonical_bytes, max_bound_regions, }
 }

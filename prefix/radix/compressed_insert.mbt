@@ -251,15 +251,15 @@ fn PrefixIndex::existing_publish_preflight(
       parent = self.find_child(root, parent, tokens.token_at(position))
       position += self.node_label_lengths[parent]
     }
-    return { state: 1, duplicate_entry: self.node_terminals[parent] }
+    return { state: 1, duplicate_entry: self.node_terminals[parent], }
   }
   if self.free_entry() < 0 ||
     need.nodes > self.free_node_count() ||
     need.tokens > self.free_token_count() ||
     need.pages > self.free_page_count() {
-    return { state: 2, duplicate_entry: -1 }
+    return { state: 2, duplicate_entry: -1, }
   }
-  { state: 0, duplicate_entry: -1 }
+  { state: 0, duplicate_entry: -1, }
 }
 
 ///|

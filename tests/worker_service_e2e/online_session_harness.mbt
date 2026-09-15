@@ -252,7 +252,7 @@ fn begin_foundation_session(
   let admission = instance.begin(prepared)
   match admission.kind() {
     LunaOnlineInstanceAdmitted =>
-      { instance, ticket: admission.ticket(), adapter, credit: None }
+      { instance, ticket: admission.ticket(), adapter, credit: None, }
     LunaOnlineInstanceBusy =>
       raise Failure("idle online instance rejected a request as busy")
     LunaOnlineInstanceDraining =>

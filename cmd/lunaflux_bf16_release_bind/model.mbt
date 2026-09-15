@@ -52,7 +52,7 @@ fn load_release_bind_inputs(
       if weights.content_digest().as_hex() != APPROVED_MODEL_SHA256 {
         raise ModelAdmission
       }
-      { plan, weights }
+      { plan, weights, }
     },
   ) catch {
     error => {

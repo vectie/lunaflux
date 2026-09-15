@@ -64,7 +64,7 @@ pub fn LunaTokenizerWorker::begin_luna_input(
   self.truncated = false
   self.last_work_units = 0
   self.phase = LUNA_WORKER_INPUT_WRITE
-  { worker: self, epoch: self.epoch }
+  { worker: self, epoch: self.epoch, }
 }
 
 ///|
@@ -108,7 +108,7 @@ pub fn LunaTokenizerInputWrite::finish(
   } else {
     LUNA_WORKER_INITIALIZE
   }
-  { worker, epoch: self.epoch }
+  { worker, epoch: self.epoch, }
 }
 
 ///|

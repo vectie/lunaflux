@@ -201,7 +201,7 @@ pub fn verify(
     ignore(raw_close_executable(handle))
     raise DigestMismatch
   }
-  { activation_path: @utf8.encode(absolute_path), digest: expected, handle }
+  { activation_path: @utf8.encode(absolute_path), digest: expected, handle, }
 }
 
 ///|
@@ -232,7 +232,7 @@ fn verify_bound(
       if actual != expected.as_hex() {
         raise DigestMismatch
       }
-      { activation_path: @utf8.encode(activation_path), digest: expected }
+      { activation_path: @utf8.encode(activation_path), digest: expected, }
     }
   }
 }

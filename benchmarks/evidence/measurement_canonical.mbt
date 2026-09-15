@@ -30,7 +30,7 @@ fn encode_raw_events(
   measurement : BenchmarkDigest,
   events : ArrayView[BenchmarkRequestEvent],
 ) -> Bytes raise BenchmarkEvidenceError {
-  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576 }
+  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576, }
   encoder.append_string("lunaflux.benchmark-request-events.v1")
   encoder.append_int(engine_tag(engine))
   encoder.append_int(profile_tag(profile))
@@ -70,7 +70,7 @@ fn encode_trial_summary(
   raw_events_digest : BenchmarkDigest,
   summary : BenchmarkTrialSummary,
 ) -> Bytes raise BenchmarkEvidenceError {
-  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576 }
+  let encoder : BenchmarkEncoder = { bytes: [], maximum: 1048576, }
   encoder.append_string("lunaflux.benchmark-trial-summary.v1")
   encoder.append_digest(raw_events_digest)
   encoder.append_int(summary.submitted)

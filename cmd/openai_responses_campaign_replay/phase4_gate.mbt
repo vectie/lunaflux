@@ -143,5 +143,5 @@ fn phase4_gate_evidence(
   ) catch {
     _ => raise Phase4InvalidMeasurement
   }
-  { canonical, digest, passed }
+  { canonical, digest, passed, }
 }

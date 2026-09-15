@@ -65,7 +65,7 @@ pub fn FusedParallelPromotionLimits::new(
     maximum_canonical_bytes > 16777216 {
     raise FusedParallelInvalid(Limits)
   }
-  { maximum_shapes, trials_per_shape, maximum_canonical_bytes }
+  { maximum_shapes, trials_per_shape, maximum_canonical_bytes, }
 }
 
 ///|

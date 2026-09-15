@@ -47,7 +47,7 @@ pub fn Fp8KernelManifestClaim::new(
   execution~ : @numeric_contract.OperationExecutionDigest,
   entry_point~ : @catalog.AotKernelEntryPoint,
 ) -> Fp8KernelManifestClaim {
-  { profile, operation, execution, entry_point }
+  { profile, operation, execution, entry_point, }
 }
 
 ///|
@@ -111,7 +111,7 @@ pub fn Fp8KernelManifestLimits::new(
     max_canonical_bytes > 64 * 1024 * 1024 {
     raise InvalidFp8KernelManifest(Limit)
   }
-  { max_entries, max_canonical_bytes }
+  { max_entries, max_canonical_bytes, }
 }
 
 ///|

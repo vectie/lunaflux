@@ -39,7 +39,7 @@ pub fn LunaExternalApprovalPolicy::new(
     !luna_external_approval_identifier(authority_id) {
     raise Invalid(ExternalApproval)
   }
-  { rollout_digest, verifier_key_id, authority_id }
+  { rollout_digest, verifier_key_id, authority_id, }
 }
 
 ///|

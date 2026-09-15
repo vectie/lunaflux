@@ -47,7 +47,7 @@ fn parse_entry_claim(
         },
       )
   }
-  { family_id, entry_point_id, symbol, row_variants, companion_dimensions }
+  { family_id, entry_point_id, symbol, row_variants, companion_dimensions, }
 }
 
 ///|
@@ -119,7 +119,7 @@ fn parse_module_claims(
       entries.push(entry)
       entry_count += 1
     }
-    result.push({ digest, path, entries })
+    result.push({ digest, path, entries, })
   }
   result
 }

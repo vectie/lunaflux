@@ -65,7 +65,7 @@ pub fn Fp8LaunchStorageRegion::new(
   if offset + byte_length > storage_bytes {
     raise InvalidFp8LaunchAbi(RegionOutOfBounds)
   }
-  { storage, storage_bytes, offset, byte_length, alignment }
+  { storage, storage_bytes, offset, byte_length, alignment, }
 }
 
 ///|

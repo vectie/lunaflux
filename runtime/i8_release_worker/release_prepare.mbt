@@ -84,7 +84,7 @@ fn[B, E] retain_exact_release_inputs(
   blueprint : B,
   executable : E,
 ) -> RetainedReleaseInputs[B, E] {
-  { blueprint, executable }
+  { blueprint, executable, }
 }
 
 ///|

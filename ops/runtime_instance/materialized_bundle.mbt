@@ -86,5 +86,5 @@ fn load_materialized_bundle(
   ) catch {
     _ => raise fail(DeploymentBundleAdmission)
   }
-  { root_label, evidence }
+  { root_label, evidence, }
 }

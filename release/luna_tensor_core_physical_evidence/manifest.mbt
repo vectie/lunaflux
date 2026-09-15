@@ -48,7 +48,7 @@ fn tensor_core_evidence_manifest_entries(
       (index > 0 && String::compare(previous, path) >= 0) {
       raise LunaTensorCorePhysicalEvidenceInvalid(Seal)
     }
-    entries.push({ digest, path })
+    entries.push({ digest, path, })
     previous = path
   }
   entries

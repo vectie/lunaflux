@@ -20,7 +20,7 @@ pub fn LunaTextRequestHandoffLease::take_claim(
 ) -> LunaTextRequestHandoffClaim raise InferenceContractError {
   self.storage.require_handoff(self.epoch, false)
   self.storage.phase = LUNA_TEXT_HANDOFF_CLAIMED
-  { storage: self.storage, epoch: self.epoch }
+  { storage: self.storage, epoch: self.epoch, }
 }
 
 ///|

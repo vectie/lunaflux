@@ -23,10 +23,10 @@ async test "device-plan digest binds canonical generic tensor order" {
       topology, model_plan, inspections,
     )
     let device_plan = device_plans[0]
-    let canonical : BootstrapDigestEncoder = { bytes: [] }
+    let canonical : BootstrapDigestEncoder = { bytes: [], }
     canonical.append_string("generic-tensor-order-test.v1")
     append_tensor_table(canonical, device_plan)
-    let reversed : BootstrapDigestEncoder = { bytes: [] }
+    let reversed : BootstrapDigestEncoder = { bytes: [], }
     reversed.append_string("generic-tensor-order-test.v1")
     reversed.append_int(device_plan.tensor_count())
     for offset in 0..<device_plan.tensor_count() {

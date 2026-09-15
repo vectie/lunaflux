@@ -1,7 +1,7 @@
 ///|
 test "Luna max-one timing derives first inter-token and request intervals" {
   let service = coordinator_fixture().service
-  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 7UL }
+  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 7UL, }
   service.begin_request_timing_at(ticket, 100UL, true)
   let first = service.sample_request_timing_at(
     ticket,
@@ -45,8 +45,8 @@ test "Luna max-one timing derives first inter-token and request intervals" {
 ///|
 test "Luna multi-lane timing is generation-authenticated and independent" {
   let service = coordinator_fixture(multi_lane_count=2).service
-  let first_ticket : LunaOnlineRequestTicket = { lane: 0, epoch: 11UL }
-  let second_ticket : LunaOnlineRequestTicket = { lane: 1, epoch: 12UL }
+  let first_ticket : LunaOnlineRequestTicket = { lane: 0, epoch: 11UL, }
+  let second_ticket : LunaOnlineRequestTicket = { lane: 1, epoch: 12UL, }
   service.begin_request_timing_at(first_ticket, 100UL, true)
   service.begin_request_timing_at(second_ticket, 200UL, true)
   let second_first = service.sample_request_timing_at(
@@ -65,7 +65,7 @@ test "Luna multi-lane timing is generation-authenticated and independent" {
   )
   assert_eq(second_first.millis, 15)
   assert_eq(first_first.millis, 40)
-  let stale : LunaOnlineRequestTicket = { lane: 0, epoch: 10UL }
+  let stale : LunaOnlineRequestTicket = { lane: 0, epoch: 10UL, }
   service.retire_request_timing(stale)
   assert_eq(
     service.sample_request_timing_at(
@@ -92,7 +92,7 @@ test "Luna multi-lane timing is generation-authenticated and independent" {
 ///|
 test "Luna timing rollback overflow and stale reuse fail closed" {
   let service = coordinator_fixture().service
-  let first : LunaOnlineRequestTicket = { lane: 0, epoch: 21UL }
+  let first : LunaOnlineRequestTicket = { lane: 0, epoch: 21UL, }
   service.begin_request_timing_at(first, 500UL, true)
   assert_eq(
     service.sample_request_timing_at(
@@ -123,7 +123,7 @@ test "Luna timing rollback overflow and stale reuse fail closed" {
       available=true,
     ),
   )
-  let second : LunaOnlineRequestTicket = { lane: 0, epoch: 22UL }
+  let second : LunaOnlineRequestTicket = { lane: 0, epoch: 22UL, }
   service.begin_request_timing_at(second, 1UL, true)
   assert_eq(
     service.sample_request_timing_at(

@@ -186,7 +186,7 @@ fn activation_view(
     alignment_bytes: memory_plan.limits().activation_alignment(),
   }
   validate_region_capacity(view, memory_plan.activation_bytes())
-  { reference, width, token_rows: exact_token_rows, region: view }
+  { reference, width, token_rows: exact_token_rows, region: view, }
 }
 
 ///|
@@ -379,7 +379,7 @@ pub fn build(
   let maximum_rows = memory_plan.token_rows()
   let token_capacity = checked_token_bytes(maximum_rows)
   let token_staging = {
-    id: { value: 0 },
+    id: { value: 0, },
     space: TokenInput,
     offset_bytes: 0L,
     logical_bytes: checked_token_bytes(shape.token_rows()),

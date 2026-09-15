@@ -20,7 +20,7 @@ pub fn LunaTileAotPlanningPolicy::new(
     max_shared_memory_bytes < 0L {
     raise InvalidProgram(AotPlanningPolicy)
   }
-  { vector_bytes, warp_width, pipeline_stages, max_shared_memory_bytes }
+  { vector_bytes, warp_width, pipeline_stages, max_shared_memory_bytes, }
 }
 
 ///|
@@ -205,7 +205,7 @@ pub fn plan_luna_tile_cuda_aot_input(
     pipeline_stages: maximum_stage,
   }
   let maximum = program.canonical.length() + 256
-  let encoder : LunaTileEncoder = { bytes: [], maximum }
+  let encoder : LunaTileEncoder = { bytes: [], maximum, }
   for byte in @utf8.encode("LUNATILE-CUDA-AOT-PLAN-V2") {
     encoder.append_byte(byte)
   }
@@ -239,7 +239,12 @@ pub fn plan_luna_tile_cuda_aot_input(
   let digest = LunaTileCudaAotDigest(
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
-  let input = { program_digest: program.digest, memory_plan, canonical, digest }
+  let input = {
+    program_digest: program.digest,
+    memory_plan,
+    canonical,
+    digest,
+  }
   validate_luna_tile_decoded_semantics(
     program,
     decode_luna_tile_cuda_aot_plan(input),

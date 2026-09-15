@@ -26,5 +26,5 @@ pub fn decode_bfloat16_le(
     }
     values.push(value)
   }
-  { rows, columns, values: ReadOnlyArray::from_array(values) }
+  { rows, columns, values: ReadOnlyArray::from_array(values), }
 }

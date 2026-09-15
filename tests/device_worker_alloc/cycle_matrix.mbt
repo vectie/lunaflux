@@ -118,5 +118,5 @@ fn prepare_cycle_for_branch(
     limits,
     fixture_inference_limits(),
   )
-  { frame: frame_owner.encode_plan(plan) }
+  { frame: frame_owner.encode_plan(plan), }
 }

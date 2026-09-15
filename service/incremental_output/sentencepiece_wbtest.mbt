@@ -1,9 +1,9 @@
 ///|
 fn sentencepiece_output_spec() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = [
-    { token_id: 0, piece: b"<unk>", kind: Special },
-    { token_id: 1, piece: b"<s>", kind: Special },
-    { token_id: 2, piece: b"</s>", kind: Special },
+    { token_id: 0, piece: b"<unk>", kind: Special, },
+    { token_id: 1, piece: b"<s>", kind: Special, },
+    { token_id: 2, piece: b"</s>", kind: Special, },
   ]
   for value in 0..<256 {
     vocabulary.push({
@@ -12,7 +12,7 @@ fn sentencepiece_output_spec() -> @tokenizer.TokenizerSpec raise {
       kind: ByteFallback,
     })
   }
-  vocabulary.push({ token_id: 259, piece: @utf8.encode("▁L"), kind: Normal })
+  vocabulary.push({ token_id: 259, piece: @utf8.encode("▁L"), kind: Normal, })
   @tokenizer.TokenizerSpec::new_sentencepiece_bpe(
     vocabulary,
     [],

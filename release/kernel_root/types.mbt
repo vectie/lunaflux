@@ -14,7 +14,7 @@ pub fn LunaKernelRootLimits::new(
   if max_files < 2 || max_inventory_bytes <= 0 || max_evidence_bytes <= 0 {
     raise Invalid(Limits)
   }
-  { max_files, max_inventory_bytes, max_evidence_bytes }
+  { max_files, max_inventory_bytes, max_evidence_bytes, }
 }
 
 ///|

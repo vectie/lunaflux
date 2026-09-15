@@ -68,7 +68,7 @@ pub fn FusedParallelAotLimits::new(
     maximum_promotion_bytes > 1048576 {
     raise FusedParallelInvalid(Limits)
   }
-  { maximum_source_bytes, maximum_recipe_bytes, maximum_promotion_bytes }
+  { maximum_source_bytes, maximum_recipe_bytes, maximum_promotion_bytes, }
 }
 
 ///|

@@ -66,7 +66,7 @@ pub fn LunaValidatedSampling::sample(
   if has_top_p && (top_p <= 0.0 || top_p > 1.0) {
     raise invalid(TopP, OutOfRange, 0)
   }
-  { mode: Sample, temperature, has_top_k, top_k, has_top_p, top_p }
+  { mode: Sample, temperature, has_top_k, top_k, has_top_p, top_p, }
 }
 
 ///|
@@ -89,7 +89,7 @@ pub fn LunaValidatedSampling::materialize(self : Self) -> SamplingParameters {
 
 ///|
 pub fn SamplingParameters::greedy() -> SamplingParameters {
-  { mode: Greedy, temperature: 1.0, top_k: None, top_p: None }
+  { mode: Greedy, temperature: 1.0, top_k: None, top_p: None, }
 }
 
 ///|
@@ -118,7 +118,7 @@ pub fn SamplingParameters::sample(
       raise invalid(TopP, OutOfRange, 0)
     _ => ()
   }
-  { mode: Sample, temperature, top_k, top_p }
+  { mode: Sample, temperature, top_k, top_p, }
 }
 
 ///|

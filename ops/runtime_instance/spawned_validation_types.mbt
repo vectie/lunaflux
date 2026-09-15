@@ -153,7 +153,7 @@ pub fn RuntimeSpawnedValidationContract::with_execution_expectation(
   sampling : RuntimeSpawnedSamplingExpectation,
   require_fused_runtime : Bool,
 ) -> RuntimeSpawnedValidationContract {
-  { ..self, sampling_expectation: sampling, require_fused_runtime }
+  { ..self, sampling_expectation: sampling, require_fused_runtime, }
 }
 
 ///|

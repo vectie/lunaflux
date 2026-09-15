@@ -134,7 +134,7 @@ fn allocate_rank_constants(
   let allocation = context.allocate(region.reserved_bytes()) catch {
     error => raise Device(RankConstants, error)
   }
-  resources.rank_constants = Some({ resource: allocation, open: true })
+  resources.rank_constants = Some({ resource: allocation, open: true, })
   if allocation.byte_count() != region.reserved_bytes() {
     raise Invalid(RankConstants)
   }
@@ -168,7 +168,7 @@ fn allocate_activation_workspace(
   let allocation = context.allocate(bytes) catch {
     error => raise Device(ActivationWorkspace, error)
   }
-  resources.activation_workspace = Some({ resource: allocation, open: true })
+  resources.activation_workspace = Some({ resource: allocation, open: true, })
   if allocation.byte_count() != bytes {
     raise Invalid(ActivationWorkspace)
   }
@@ -303,7 +303,7 @@ pub fn prepare(
   let stream = context.create_stream() catch {
     error => return preparation_failed(resources, Device(Stream, error))
   }
-  resources.stream = Some({ resource: stream, open: true })
+  resources.stream = Some({ resource: stream, open: true, })
   let prepared = prepare_physical_steps(plan, resources) catch {
     error => return preparation_failed(resources, error)
   }

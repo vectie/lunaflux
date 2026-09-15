@@ -26,7 +26,7 @@ pub fn CachePolicy::new(
   scope : CacheScope,
   permission : CachePermission,
 ) -> CachePolicy {
-  { scope, permission }
+  { scope, permission, }
 }
 
 ///|
@@ -90,7 +90,7 @@ pub fn AdmissionDeadline::from_receipt(
   if received_at_millis > 0xffffffffffffffffUL - duration {
     raise invalid(DeadlineBudget, OutOfRange, 0)
   }
-  { at_millis: received_at_millis + duration }
+  { at_millis: received_at_millis + duration, }
 }
 
 ///|
@@ -178,7 +178,7 @@ pub fn StopConditions::strings(self : StopConditions) -> ReadOnlyArray[String] {
 /// carried into scheduler state.
 pub fn StopConditions::token_only(self : StopConditions) -> StopConditions {
   let empty : Array[String] = []
-  { token_ids: self.token_ids, strings: ReadOnlyArray::from_array(empty) }
+  { token_ids: self.token_ids, strings: ReadOnlyArray::from_array(empty), }
 }
 
 ///|

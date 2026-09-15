@@ -79,7 +79,7 @@ pub fn FramedWireLimits::new(
     max_frame_bytes > ABSOLUTE_MAX_FRAME_BYTES {
     raise InvalidLimit(FrameBytes)
   }
-  { inference, max_frame_bytes }
+  { inference, max_frame_bytes, }
 }
 
 ///|

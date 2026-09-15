@@ -6,7 +6,7 @@ pub fn OrderedKernelLaunch::new(
   dimensions : KernelLaunchDimensions,
   arguments : KernelArguments,
 ) -> OrderedKernelLaunch {
-  { function, dimensions, arguments }
+  { function, dimensions, arguments, }
 }
 
 ///|

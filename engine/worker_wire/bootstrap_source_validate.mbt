@@ -87,7 +87,7 @@ pub fn WorkerBootstrapRoots::new(
 ) -> WorkerBootstrapRoots raise WorkerWireError {
   validate_bootstrap_root(model_root)
   validate_bootstrap_root(kernel_root)
-  { model_root: model_root.to_owned(), kernel_root: kernel_root.to_owned() }
+  { model_root: model_root.to_owned(), kernel_root: kernel_root.to_owned(), }
 }
 
 ///|
@@ -146,7 +146,7 @@ pub fn WorkerBootstrapFusedRuntimeSource::new(
   if !bootstrap_source_is_sha256(digest_sha256) {
     raise InvalidBootstrapSource(Digest)
   }
-  { locator: locator.to_owned(), digest: digest_sha256.to_owned() }
+  { locator: locator.to_owned(), digest: digest_sha256.to_owned(), }
 }
 
 ///|

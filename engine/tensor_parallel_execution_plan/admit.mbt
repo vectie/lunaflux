@@ -34,7 +34,7 @@ pub fn admit(
     target: launch_set.device_target(),
     catalog_version: launch_set.catalog_version(),
     profile: selected_profile,
-    digest: { sha256: "" },
+    digest: { sha256: "", },
     descriptor_bytes: memory.descriptor_bytes,
     rank_constants: memory.rank_constants,
     weight_arena_bytes: device_plan.arena_bytes(),

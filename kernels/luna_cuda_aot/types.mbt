@@ -19,7 +19,7 @@ pub fn LunaCudaAotLimits::new(
     max_evidence_bytes <= 0 {
     raise Invalid(Limits)
   }
-  { max_source_bytes, max_recipe_bytes, max_module_bytes, max_evidence_bytes }
+  { max_source_bytes, max_recipe_bytes, max_module_bytes, max_evidence_bytes, }
 }
 
 ///|

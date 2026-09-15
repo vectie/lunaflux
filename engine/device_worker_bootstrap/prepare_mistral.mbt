@@ -121,7 +121,7 @@ fn prepare_mistral_with_roots(
     (authority, error) => preparation_failed(roots, authority, error),
     authority => {
       match authority {
-        LegacyReady(owner) => ChildReady({ worker: Legacy(owner) })
+        LegacyReady(owner) => ChildReady({ worker: Legacy(owner), })
         _ => abort("invalid numeric BF16 worker passed readiness barrier")
       }
     },

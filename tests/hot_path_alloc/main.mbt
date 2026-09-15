@@ -42,7 +42,7 @@ fn verify_probe_observes_allocations() -> Unit {
   // Both generated-C record allocation and runtime array allocation must be
   // observable, or a zero result below would not be trustworthy.
   alloc_probe_begin()
-  let record = { value: alloc_probe_seed() }
+  let record = { value: alloc_probe_seed(), }
   positive_control_sink[0] = Some(record)
   let record_observed = alloc_probe_end()
   positive_control_sink[0] = None
@@ -275,7 +275,7 @@ fn request() -> HotPathRequestFixture {
       try! @inference.DeadlineBudget::from_milliseconds(1000UL, limits),
     ),
   )
-  { request, semantics }
+  { request, semantics, }
 }
 
 ///|

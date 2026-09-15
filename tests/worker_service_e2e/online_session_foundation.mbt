@@ -2,7 +2,7 @@
 fn session_tokenizer() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -31,7 +31,7 @@ fn invalid_output_session_tokenizer() -> @tokenizer.TokenizerSpec raise {
     } else {
       Bytes::make(1, value.to_byte())
     }
-    vocabulary.push({ token_id: value, piece, kind: Normal })
+    vocabulary.push({ token_id: value, piece, kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -56,17 +56,17 @@ fn string_session_tokenizer(
 ) -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   let displaced = if piece.length() == 1 { piece[0].to_int() } else { -1 }
-  vocabulary.push({ token_id: 0, piece, kind: Normal })
+  vocabulary.push({ token_id: 0, piece, kind: Normal, })
   for value in 1..<256 {
     let byte_piece = if value == displaced {
       b"\x00"
     } else {
       [value.to_byte()]
     }
-    vocabulary.push({ token_id: value, piece: byte_piece, kind: Normal })
+    vocabulary.push({ token_id: value, piece: byte_piece, kind: Normal, })
   }
   if displaced < 0 {
-    vocabulary.push({ token_id: 256, piece: b"\x00", kind: Normal })
+    vocabulary.push({ token_id: 256, piece: b"\x00", kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,

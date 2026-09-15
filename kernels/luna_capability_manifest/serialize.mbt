@@ -86,7 +86,7 @@ fn encode_luna_capability_entry(
   graph : LunaGraphCapabilityMetadata,
   maximum : Int,
 ) -> Bytes raise LunaCapabilityManifestError {
-  let encoder : LunaCapabilityEncoder = { bytes: [], maximum }
+  let encoder : LunaCapabilityEncoder = { bytes: [], maximum, }
   encoder.append_string("LUNA-CAPABILITY-MANIFEST-ENTRY-V1")
   encoder.append_int(version.as_int())
   let identity = specialization.identity()

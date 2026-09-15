@@ -42,7 +42,7 @@ pub fn LunaHttp1ControlWorkspace::begin(
   self.length = 0
   self.terminator_state = 0
   self.route_code = 0
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|
@@ -327,7 +327,7 @@ pub fn LunaHttp1ControlRequest::take_view(
     raise luna_http1_error(LunaHttp1Lifecycle, LunaHttp1NotReady)
   }
   workspace.phase = LUNA_HTTP1_CONTROL_VIEW_LEASED
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

@@ -41,7 +41,7 @@ pub fn Activation::new(
   if values.length() != elements {
     raise InvalidShape(ElementCount)
   }
-  { rows, columns, values: copy_finite_values(values, ActivationValue) }
+  { rows, columns, values: copy_finite_values(values, ActivationValue), }
 }
 
 ///|
@@ -56,7 +56,7 @@ pub fn Tensor::new(
   if values.length() != elements {
     raise InvalidShape(ElementCount)
   }
-  { rows, columns, values: copy_finite_values(values, TensorValue) }
+  { rows, columns, values: copy_finite_values(values, TensorValue), }
 }
 
 ///|
@@ -129,5 +129,5 @@ fn activation_from_owned(
       raise NonFinite(ComputedValue)
     }
   }
-  { rows, columns, values: ReadOnlyArray::from_array(values) }
+  { rows, columns, values: ReadOnlyArray::from_array(values), }
 }

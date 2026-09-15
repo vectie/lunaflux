@@ -21,7 +21,7 @@ fn select_row(
       best_logit = logit
     }
   }
-  { token_id: best_token, logit: best_logit }
+  { token_id: best_token, logit: best_logit, }
 }
 
 ///|
@@ -73,7 +73,7 @@ pub fn greedy_float(
       best_logit = logit
     }
   }
-  { token_id: best_token, logit: best_logit.to_double() }
+  { token_id: best_token, logit: best_logit.to_double(), }
 }
 
 ///|

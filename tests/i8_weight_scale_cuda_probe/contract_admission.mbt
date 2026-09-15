@@ -125,7 +125,7 @@ fn admit_i8_probe(
     entry.function_symbol() == probe_function_symbols[5],
     "I8 artifact symbol changed",
   )
-  { device_numeric, production_policy, contracts, artifacts, selected }
+  { device_numeric, production_policy, contracts, artifacts, selected, }
 }
 
 ///|

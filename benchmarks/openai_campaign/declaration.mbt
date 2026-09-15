@@ -19,7 +19,7 @@ fn parse_campaign_engine_declaration(
   let identity = @openai_adapter.OpenAIBaselineIdentity::new(
     engine, revision, image, configuration,
   )
-  { engine, endpoint, revision, image, configuration, executable, identity }
+  { engine, endpoint, revision, image, configuration, executable, identity, }
 }
 
 ///|

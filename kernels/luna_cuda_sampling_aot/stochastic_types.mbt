@@ -15,7 +15,7 @@ pub fn DeviceSamplingAotLimits::new(
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 || max_module_bytes <= 0L {
     raise Invalid(ArtifactLimits)
   }
-  { max_source_bytes, max_recipe_bytes, max_module_bytes }
+  { max_source_bytes, max_recipe_bytes, max_module_bytes, }
 }
 
 ///|

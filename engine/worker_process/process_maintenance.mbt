@@ -1,11 +1,15 @@
 ///|
-let worker_maintenance_pending : WorkerProcessMaintenanceProgress = { kind: 0 }
+let worker_maintenance_pending : WorkerProcessMaintenanceProgress = { kind: 0, }
 
 ///|
-let worker_maintenance_advanced : WorkerProcessMaintenanceProgress = { kind: 1 }
+let worker_maintenance_advanced : WorkerProcessMaintenanceProgress = {
+  kind: 1,
+}
 
 ///|
-let worker_maintenance_complete : WorkerProcessMaintenanceProgress = { kind: 2 }
+let worker_maintenance_complete : WorkerProcessMaintenanceProgress = {
+  kind: 2,
+}
 
 ///|
 let worker_maintenance_cleanup_required : WorkerProcessMaintenanceProgress = {
@@ -112,5 +116,5 @@ pub fn WorkerProcessSupervisor::shutdown_maintenance_exit(
   let exit = self.require_child().maintenance_exit() catch {
       error => raise transport_error(error)
     }
-  { kind: exit.kind(), code: exit.code() }
+  { kind: exit.kind(), code: exit.code(), }
 }

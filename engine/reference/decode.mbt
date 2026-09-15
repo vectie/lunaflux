@@ -92,5 +92,5 @@ pub fn prepare(
     }
     tensors.push(tensor)
   }
-  { identity: weights.identity(), tensors: ReadOnlyArray::from_array(tensors) }
+  { identity: weights.identity(), tensors: ReadOnlyArray::from_array(tensors), }
 }

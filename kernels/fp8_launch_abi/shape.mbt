@@ -22,7 +22,7 @@ pub fn Fp8PagedRowShape::new(
     page_table_entries <= 0 {
     raise InvalidFp8LaunchAbi(InvalidShape)
   }
-  { query_tokens, context_tokens, page_table_entries }
+  { query_tokens, context_tokens, page_table_entries, }
 }
 
 ///|
@@ -67,7 +67,7 @@ pub fn Fp8ExactExecutionShape::stateless_full_prefill(
   if shape.phase() != FullPrefill {
     raise InvalidFp8LaunchAbi(InvalidShape)
   }
-  { data: Stateless(profile, shape) }
+  { data: Stateless(profile, shape), }
 }
 
 ///|

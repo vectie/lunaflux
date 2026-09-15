@@ -36,7 +36,7 @@ fn fixture_identity(seed : String) -> @spec.ModelIdentity raise {
 fn fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -60,7 +60,7 @@ fn fixture_tokenizer_with_digest(
 ) -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
   @tokenizer.TokenizerSpec::new(
     vocabulary,
@@ -192,7 +192,7 @@ test "tokenizer digest substitution rejects before clock or tokenization" {
   let tokenizer = fixture_tokenizer()
   let foreign = fixture_tokenizer_with_digest("fedcba9876543210".repeat(4))
   let clock_reads = Ref(0)
-  let receipt : RequestReceipt = { at_millis: 10UL }
+  let receipt : RequestReceipt = { at_millis: 10UL, }
   let request = fixture_request(identity)
   try
     prepare_bound_with_clock(
@@ -247,7 +247,7 @@ test "text admission preserves receipt deadline and separates string stops" {
   let identity = fixture_identity("0")
   let tokenizer = fixture_tokenizer()
   let prepared = prepare_at(
-    { at_millis: 100UL },
+    { at_millis: 100UL, },
     fixture_request(identity),
     tokenizer,
     tokenizer.digest(),
@@ -283,7 +283,7 @@ test "identity receipt and expired budget reject before publication" {
   let request = fixture_request(identity)
   try
     prepare_at(
-      { at_millis: 100UL },
+      { at_millis: 100UL, },
       request,
       fixture_tokenizer(),
       fixture_tokenizer().digest(),
@@ -301,7 +301,7 @@ test "identity receipt and expired budget reject before publication" {
     let (observed, expected) = case
     try
       prepare_at(
-        { at_millis: 100UL },
+        { at_millis: 100UL, },
         request,
         fixture_tokenizer(),
         fixture_tokenizer().digest(),
@@ -358,7 +358,7 @@ test "request evidence is canonically readmitted under instance limits" {
   )
   try
     prepare_at(
-      { at_millis: 0UL },
+      { at_millis: 0UL, },
       request,
       fixture_tokenizer(),
       fixture_tokenizer().digest(),
@@ -378,7 +378,7 @@ test "request evidence is canonically readmitted under instance limits" {
 test "string stops remain in incremental output instead of scheduler state" {
   let identity = fixture_identity("0")
   let prepared = prepare_at(
-    { at_millis: 10UL },
+    { at_millis: 10UL, },
     fixture_request(identity),
     fixture_tokenizer(),
     fixture_tokenizer().digest(),

@@ -53,7 +53,7 @@ pub fn AotLaunchDimensions::new(
   if shared_memory_bytes < 0 || shared_memory_bytes > MAX_SHARED_MEMORY_BYTES {
     raise InvalidDimensions(InvalidSharedMemory)
   }
-  { grid_x, grid_y, grid_z, block_x, block_y, block_z, shared_memory_bytes }
+  { grid_x, grid_y, grid_z, block_x, block_y, block_z, shared_memory_bytes, }
 }
 
 ///|

@@ -23,7 +23,7 @@ pub fn attention_operand_tile_layout(
     columns % side != 0 {
     None
   } else {
-    Some({ rows, columns, side })
+    Some({ rows, columns, side, })
   }
 }
 

@@ -94,7 +94,7 @@ fn group_digest_from_hex(
   if !is_lower_sha256(value) {
     raise rejected(Digest, -1)
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|
@@ -104,7 +104,7 @@ fn topology_digest_from_hex(
   if !is_lower_sha256(value) {
     raise rejected(Digest, -1)
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|
@@ -114,7 +114,7 @@ fn worker_digest_from_hex(
   if !is_lower_sha256(value) {
     raise rejected(Digest, -1)
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|
@@ -124,7 +124,7 @@ fn device_plan_digest_from_hex(
   if !is_lower_sha256(value) {
     raise rejected(Digest, -1)
   }
-  { hex: value }
+  { hex: value, }
 }
 
 ///|
@@ -134,5 +134,5 @@ fn kv_binding_digest_from_hex(
   if !is_lower_sha256(value) {
     raise rejected(Digest, -1)
   }
-  { hex: value }
+  { hex: value, }
 }

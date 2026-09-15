@@ -1,7 +1,7 @@
 ///|
 test "qualification provenance can never publish production readiness" {
   let valid_ingress = RuntimeOpenAiLoopbackIngressApproval::approve_authenticated_loopback()
-  let invalid_ingress : RuntimeOpenAiLoopbackIngressApproval = { marker: 0UL }
+  let invalid_ingress : RuntimeOpenAiLoopbackIngressApproval = { marker: 0UL, }
   assert_false(
     openai_binding_can_publish_ready(OpenAiQualificationBinding, true, true),
   )

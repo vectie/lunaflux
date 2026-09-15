@@ -54,7 +54,7 @@ pub fn ApprovedRelativeLocator::new(
   value : StringView,
 ) -> ApprovedRelativeLocator raise ApprovedFsError {
   validate_relative_locator(value)
-  { value: value.to_owned() }
+  { value: value.to_owned(), }
 }
 
 ///|

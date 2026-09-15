@@ -28,5 +28,5 @@ fn qwen3_greedy_corpus_case(
     !expected_ids.is_empty() && expected_ids.length() <= 256,
     "greedy expected IDs are outside bounds",
   )
-  { input_ids, expected_ids }
+  { input_ids, expected_ids, }
 }

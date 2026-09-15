@@ -40,7 +40,7 @@ fn parse_vocabulary(
             }
         }
     }
-    entries.push({ token_id: id, piece, kind })
+    entries.push({ token_id: id, piece, kind, })
     raw_id_by_token[raw_piece] = id
     if kind is Normal {
       normal_id_by_piece[piece] = id
@@ -83,7 +83,7 @@ fn parse_vocabulary(
       })
     }
   }
-  { entries, normal_id_by_piece }
+  { entries, normal_id_by_piece, }
 }
 
 ///|

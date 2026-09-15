@@ -7,22 +7,22 @@ pub struct StorageDType {
 
 ///|
 pub fn StorageDType::bfloat16() -> StorageDType {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 pub fn StorageDType::f8_e4m3_finite() -> StorageDType {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 pub fn StorageDType::i8() -> StorageDType {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 pub fn StorageDType::f32() -> StorageDType {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
@@ -44,7 +44,7 @@ pub struct StorageLayout {
 
 ///|
 pub fn StorageLayout::dense_row_major_v1() -> StorageLayout {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -56,27 +56,27 @@ pub struct StorageEncoding {
 
 ///|
 pub fn StorageEncoding::plain_v1() -> StorageEncoding {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 pub fn StorageEncoding::scaled_v1() -> StorageEncoding {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 pub fn StorageEncoding::symmetric_v1() -> StorageEncoding {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 pub fn StorageEncoding::affine_v1() -> StorageEncoding {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
 pub fn StorageEncoding::codebook_v1() -> StorageEncoding {
-  { value: 5 }
+  { value: 5, }
 }
 
 ///|
@@ -89,27 +89,27 @@ pub struct ComputeDType {
 
 ///|
 pub fn ComputeDType::absent() -> ComputeDType {
-  { value: 0 }
+  { value: 0, }
 }
 
 ///|
 pub fn ComputeDType::bfloat16() -> ComputeDType {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 pub fn ComputeDType::f8_e4m3_finite() -> ComputeDType {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 pub fn ComputeDType::i8() -> ComputeDType {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 pub fn ComputeDType::f32() -> ComputeDType {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
@@ -134,19 +134,19 @@ pub struct ActivationScaleStage {
 /// The exact external operation input consumed by a simple projection, or by
 /// both the gate and up projections of a gated MLP.
 pub fn ActivationScaleStage::external_operation_input_v1() -> ActivationScaleStage {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 /// The exact post-SiLU gate/up product consumed by the down projection of a
 /// gated MLP.
 pub fn ActivationScaleStage::post_silu_gate_up_product_v1() -> ActivationScaleStage {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
 pub fn ActivationScalePolicy::absent_exact_v1() -> ActivationScalePolicy {
-  { value: 0 }
+  { value: 0, }
 }
 
 ///|
@@ -155,7 +155,7 @@ pub fn ActivationScalePolicy::absent_exact_v1() -> ActivationScalePolicy {
 /// rounding, zero-tensor, clamp, and reconstruction convention is specified in
 /// this package's README and is part of this v1 policy identity.
 pub fn ActivationScalePolicy::dynamic_per_tensor_f32_v1() -> ActivationScalePolicy {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -164,7 +164,7 @@ pub fn ActivationScalePolicy::dynamic_per_tensor_f32_v1() -> ActivationScalePoli
 /// the down projection. The ordered stages and complete numerical convention
 /// are part of this policy identity and are specified in this package's README.
 pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1() -> ActivationScalePolicy {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
@@ -173,7 +173,7 @@ pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1() -> Activ
 /// implementation. This identity never aliases the ideal correctly-rounded
 /// real exponential required by the v1 compound policy.
 pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_bound_expf_f32_v2() -> ActivationScalePolicy {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
@@ -210,12 +210,12 @@ pub struct AccumulatorDType {
 
 ///|
 pub fn AccumulatorDType::f32() -> AccumulatorDType {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 pub fn AccumulatorDType::i32() -> AccumulatorDType {
-  { value: 2 }
+  { value: 2, }
 }
 
 ///|
@@ -227,12 +227,12 @@ pub struct RoundingPolicy {
 
 ///|
 pub fn RoundingPolicy::exact_no_rounding_v1() -> RoundingPolicy {
-  { value: 0 }
+  { value: 0, }
 }
 
 ///|
 pub fn RoundingPolicy::nearest_ties_to_even_v1() -> RoundingPolicy {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -244,12 +244,12 @@ pub struct SaturationPolicy {
 
 ///|
 pub fn SaturationPolicy::none_v1() -> SaturationPolicy {
-  { value: 0 }
+  { value: 0, }
 }
 
 ///|
 pub fn SaturationPolicy::finite_storage_range_v1() -> SaturationPolicy {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -261,7 +261,7 @@ pub struct FiniteValuePolicy {
 
 ///|
 pub fn FiniteValuePolicy::reject_non_finite_v1() -> FiniteValuePolicy {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -273,5 +273,5 @@ pub struct OperationOrderPolicy {
 
 ///|
 pub fn OperationOrderPolicy::strict_declared_order_v1() -> OperationOrderPolicy {
-  { value: 1 }
+  { value: 1, }
 }

@@ -179,7 +179,7 @@ fn[S : Eq, T] load_prepared_sharded_streaming_with_resource(
     error => Err(error)
   }
   match transferred {
-    Ok(_) => ShardedResourceReady({ resource, rank_plan: prepared.rank_plan })
+    Ok(_) => ShardedResourceReady({ resource, rank_plan: prepared.rank_plan, })
     Err(error) => {
       let stage = match error {
         DeviceFailed(_) => Transfer

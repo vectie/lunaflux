@@ -1,6 +1,6 @@
 ///|
 fn digest(bytes : BytesView) -> ArtifactDigest {
-  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) }
+  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)), }
 }
 
 ///|

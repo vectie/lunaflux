@@ -84,5 +84,5 @@ pub fn TensorParallelRuntimeDeclaration::new(
     ranks.length() > MAX_TENSOR_PARALLEL_RANKS {
     raise reject(Declaration, InvalidCount, -1)
   }
-  { host_count, pipeline_stage_count, ranks: ReadOnlyArray::from_array(ranks) }
+  { host_count, pipeline_stage_count, ranks: ReadOnlyArray::from_array(ranks), }
 }

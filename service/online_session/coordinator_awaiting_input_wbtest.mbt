@@ -19,7 +19,7 @@ test "Luna AwaitingInput with an active ticket is not a stream boundary" {
   let coordinator = coordinator_fixture()
   let frame = coordinator_fixture_frame()
   coordinator.service.instance.phase = LunaRequestActivePhase
-  coordinator.service.tickets.push({ lane: -1, epoch: 1UL })
+  coordinator.service.tickets.push({ lane: -1, epoch: 1UL, })
   coordinator.service.ticket_sequences.push(1UL)
   let ingress = coordinator.offer_luna_framed(frame, source_offset=0, length=1)
   assert_eq(ingress.kind(), LunaOnlineFramedIngressAccepted)

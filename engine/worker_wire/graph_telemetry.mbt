@@ -92,7 +92,7 @@ pub fn WorkerGraphShapeClass::new(
     token_rows {
     raise InvalidFrame(Counts)
   }
-  { phase, batch_rows, query_tokens_per_row, context_tokens, token_rows }
+  { phase, batch_rows, query_tokens_per_row, context_tokens, token_rows, }
 }
 
 ///|

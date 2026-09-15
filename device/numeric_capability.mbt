@@ -16,7 +16,7 @@ pub struct DeviceNumericCapabilityVersion {
 
 ///|
 pub fn DeviceNumericCapabilityVersion::v1() -> DeviceNumericCapabilityVersion {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
@@ -144,7 +144,7 @@ fn publish_device_numeric_capability(
     supports_bf16: capability.supports_bf16(),
     supports_cublas_lt: capability.supports_cublas_lt(),
     canonical,
-    digest: { value: @crypto.bytes_to_hex_string(@crypto.sha256(canonical)) },
+    digest: { value: @crypto.bytes_to_hex_string(@crypto.sha256(canonical)), },
   }
 }
 

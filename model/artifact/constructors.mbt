@@ -62,7 +62,7 @@ pub fn ExpectedDigests::new(
   tokenizer~ : ArtifactDigest,
   weights~ : ArtifactDigest,
 ) -> ExpectedDigests {
-  { model_config, tokenizer, weights }
+  { model_config, tokenizer, weights, }
 }
 
 ///|

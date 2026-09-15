@@ -27,7 +27,7 @@ fn dataflow_test_binding(
   kind : ProjectionTileValueKind,
   expression : ProjectionTileExpression,
 ) -> ProjectionTileBinding {
-  { id: projection_tile_value_id(id), kind, expression }
+  { id: projection_tile_value_id(id), kind, expression, }
 }
 
 ///|

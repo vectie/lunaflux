@@ -155,7 +155,7 @@ pub fn ProcessLimits::new(
   if shutdown_timeout_millis <= 0 || shutdown_timeout_millis > 600000 {
     raise InvalidLimit(ShutdownTimeoutMillis)
   }
-  { max_frame_bytes, io_timeout_millis, shutdown_timeout_millis }
+  { max_frame_bytes, io_timeout_millis, shutdown_timeout_millis, }
 }
 
 ///|
@@ -242,7 +242,7 @@ pub fn ChildProcessIdleObservation::exit(
   if self.kind != 1 {
     raise InvalidState(Wait)
   }
-  { kind: self.exit_kind, code: self.exit_code }
+  { kind: self.exit_kind, code: self.exit_code, }
 }
 
 ///|

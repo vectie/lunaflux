@@ -26,7 +26,7 @@ pub fn LunaBf16OfflineCompilation::new(
   second_module~ : Bytes,
   receipt~ : @luna_kernel_bundle.LunaDeterministicCompileReceipt,
 ) -> LunaBf16OfflineCompilation {
-  { candidate, first_module, second_module, receipt }
+  { candidate, first_module, second_module, receipt, }
 }
 
 ///|
@@ -45,7 +45,7 @@ pub fn LunaBf16KernelProducerLimits::new(
   if max_operations < 9 {
     raise Invalid(Limits)
   }
-  { max_operations, launch_contracts, bundle }
+  { max_operations, launch_contracts, bundle, }
 }
 
 ///|

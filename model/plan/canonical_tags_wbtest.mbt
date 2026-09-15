@@ -69,8 +69,8 @@ test "canonical operation and runtime tag tables are pinned" {
   assert_eq(
     [
       value_ref_tag(ModelInput(TokenIds)),
-      value_ref_tag(Tensor({ value: 0 })),
-      value_ref_tag(Activation({ value: 0 })),
+      value_ref_tag(Tensor({ value: 0, })),
+      value_ref_tag(Activation({ value: 0, })),
     ],
     [0x01, 0x02, 0x03],
   )
@@ -104,13 +104,13 @@ test "canonical operation and runtime tag tables are pinned" {
     [0x01, 0x02, 0x08, 0x03, 0x04, 0x05, 0x06, 0x07],
   )
   assert_eq(
-    [optional_kv_layer_tag(None), optional_kv_layer_tag(Some({ value: 0 }))],
+    [optional_kv_layer_tag(None), optional_kv_layer_tag(Some({ value: 0, }))],
     [0x00, 0x01],
   )
   assert_eq(
     [
       persistent_state_tag(NoPersistentState),
-      persistent_state_tag(KvCacheReadWrite({ value: 0 })),
+      persistent_state_tag(KvCacheReadWrite({ value: 0, })),
     ],
     [0x00, 0x01],
   )
@@ -154,8 +154,8 @@ test "all canonical operation-shape tags and payload forms are distinct" {
 ///|
 test "value variants and count framing affect canonical operation bytes" {
   let model_input = canonical_tag_value_hash(ModelInput(TokenIds))
-  let tensor = canonical_tag_value_hash(Tensor({ value: 0 }))
-  let activation = canonical_tag_value_hash(Activation({ value: 0 }))
+  let tensor = canonical_tag_value_hash(Tensor({ value: 0, }))
+  let activation = canonical_tag_value_hash(Activation({ value: 0, }))
   assert_false(model_input == tensor)
   assert_false(model_input == activation)
   assert_false(tensor == activation)
@@ -164,10 +164,13 @@ test "value variants and count framing affect canonical operation bytes" {
   let count_mutations = [
     canonical_wb_clone_operation(operation, inputs=[
       ModelInput(TokenIds),
-      Tensor({ value: 0 }),
-      Activation({ value: 0 }),
+      Tensor({ value: 0, }),
+      Activation({ value: 0, }),
     ]),
-    canonical_wb_clone_operation(operation, outputs=[{ value: 0 }, { value: 1 }]),
+    canonical_wb_clone_operation(operation, outputs=[
+      { value: 0, },
+      { value: 1, },
+    ]),
     canonical_wb_clone_operation(operation, runtime_inputs=[
       StepCounts,
       QueryPositions,

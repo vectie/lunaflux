@@ -107,7 +107,7 @@ pub fn ApprovedRoot::materialization_view(
 ) -> ApprovedRootMaterializationView raise ApprovedFsError {
   self.require_absolute_identity(source_path)
   validate_root_path(target_path)
-  { source_root: self, target_label: target_path.to_owned() }
+  { source_root: self, target_label: target_path.to_owned(), }
 }
 
 ///|
@@ -150,7 +150,7 @@ pub fn acquire_worker_approved_roots(
 /// Preallocates a closed native root-pair owner. It carries no filesystem
 /// authority until `acquire_prepared_worker_approved_roots` succeeds.
 pub fn prepare_worker_approved_roots() -> PreparedWorkerApprovedRoots {
-  { roots: @native.prepare_worker_roots(), consumed: false }
+  { roots: @native.prepare_worker_roots(), consumed: false, }
 }
 
 ///|

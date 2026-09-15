@@ -99,5 +99,5 @@ pub fn TokenizerSpec::encode_bytes(
   }
   let truncated = work.was_truncated()
   work.abort()
-  { token_ids, input_bytes: input.length(), truncated }
+  { token_ids, input_bytes: input.length(), truncated, }
 }

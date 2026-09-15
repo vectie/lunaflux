@@ -295,7 +295,7 @@ test "promotion rejects missing, slow, incorrect, and regressing evidence" {
     MicrobenchmarkWin,
   )
   let incorrect = promotion_microbenchmarks(candidates)
-  incorrect[0] = { ..incorrect[0], correctness_passed: false }
+  incorrect[0] = { ..incorrect[0], correctness_passed: false, }
   expect_promotion_rule(
     () => {
       ignore(
@@ -311,7 +311,7 @@ test "promotion rejects missing, slow, incorrect, and regressing evidence" {
     Correctness,
   )
   let regressing = promotion_end_to_end()
-  regressing[1] = { ..regressing[1], candidate_duration_ns: 1001L }
+  regressing[1] = { ..regressing[1], candidate_duration_ns: 1001L, }
   expect_promotion_rule(
     () => {
       ignore(

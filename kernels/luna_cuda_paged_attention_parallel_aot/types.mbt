@@ -28,7 +28,7 @@ pub fn PagedAttentionParallelAotLimits::new(
     max_canonical_bytes > 1048576 {
     raise PagedAttentionParallelInvalid(Limits)
   }
-  { max_source_bytes, max_recipe_bytes, max_canonical_bytes }
+  { max_source_bytes, max_recipe_bytes, max_canonical_bytes, }
 }
 
 ///|

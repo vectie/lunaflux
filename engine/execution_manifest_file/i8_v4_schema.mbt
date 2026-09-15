@@ -39,7 +39,7 @@ fn parse_v4_numeric_claim(
   if device_numeric_digest != device_numeric.digest().as_hex() {
     raise IdentityMismatch(DeviceNumericDigest)
   }
-  { i8_admission_digest, weight_artifact_digest }
+  { i8_admission_digest, weight_artifact_digest, }
 }
 
 ///|
@@ -83,5 +83,5 @@ fn parse_manifest_v4(
   let profile_id = parse_profile_claim(root)
   let modules = parse_module_claims(root, limits)
   let operations = parse_operation_claims(root, modules, model_plan, limits)
-  { profile_id, modules, operations, numeric }
+  { profile_id, modules, operations, numeric, }
 }

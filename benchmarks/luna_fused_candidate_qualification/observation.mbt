@@ -89,5 +89,5 @@ pub fn FusedCandidateBenchmarkPairedObservation::new(
     repetitions > 1000000 {
     raise InvalidFusedCandidateBenchmark(ObservationOrder)
   }
-  { shape, trial_ordinal, repetitions, order, baseline, candidate }
+  { shape, trial_ordinal, repetitions, order, baseline, candidate, }
 }

@@ -40,7 +40,7 @@ fn append_binding(
   }
   dimensions_match(tensor.shape(), shape, reference)
   let tensor_reference = try! @plan.TensorRef::new(reference)
-  output.push({ reference: tensor_reference, tensor })
+  output.push({ reference: tensor_reference, tensor, })
 }
 
 ///|

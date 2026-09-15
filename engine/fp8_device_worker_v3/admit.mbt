@@ -27,5 +27,5 @@ pub fn admit_plan_v3(
     execution.release_authority().digest().as_hex() {
     raise Invalid(ReleaseIdentity)
   }
-  { startup, execution, expected_total_memory_bytes }
+  { startup, execution, expected_total_memory_bytes, }
 }

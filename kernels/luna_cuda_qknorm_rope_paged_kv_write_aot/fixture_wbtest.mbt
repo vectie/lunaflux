@@ -150,7 +150,7 @@ fn postprocess_test_fixture(
       layout.segment_alignment_bytes(),
     ),
   ]
-  { plan, semantic, profile, layout, target, compiler, operands }
+  { plan, semantic, profile, layout, target, compiler, operands, }
 }
 
 ///|

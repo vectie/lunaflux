@@ -258,7 +258,7 @@ pub fn Qwen3ModelMetadata::from_verified_content(
   spec.validate()
   // ContentDigest is opaque and its public constructors validate SHA-256
   // syntax. This package never converts that claim into plan authority.
-  { spec, content_digest: content }
+  { spec, content_digest: content, }
 }
 
 ///|

@@ -174,7 +174,7 @@ fn parse_added_tokens(
         }
     }
     let piece = @utf8.encode(content)
-    by_id[id] = { id, content, piece, special, source_index: index }
+    by_id[id] = { id, content, piece, special, source_index: index, }
     content_ids[content] = id
   }
   let first = qwen_profile_first_added(profile)

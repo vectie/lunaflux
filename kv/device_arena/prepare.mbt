@@ -19,7 +19,7 @@ fn[Resource] retain_after_validation_failure(
 ) -> OwnedResourcePreparation[Resource] raise DeviceKvArenaError {
   try close(resource) catch {
     cleanup_failure =>
-      OwnedCleanupRequired({ resource, cause, cleanup_failure })
+      OwnedCleanupRequired({ resource, cause, cleanup_failure, })
   } noraise {
     _ => raise cause
   }

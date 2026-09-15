@@ -354,5 +354,5 @@ fn runtime_recipe_fixture(
       max_canonical_bytes=8192,
     ),
   )
-  { plan, startup, contracts }
+  { plan, startup, contracts, }
 }

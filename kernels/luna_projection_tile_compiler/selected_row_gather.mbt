@@ -33,7 +33,7 @@ pub fn projection_selected_row_gather(
     // does not change which reduction is consumed next, or reassociate it.
     let fragments = input_width / reduction
     let prefetch_fragments = if fragments < 8 { fragments } else { 8 }
-    Some({ rows, columns, reduction, prefetch_fragments })
+    Some({ rows, columns, reduction, prefetch_fragments, })
   }
 }
 

@@ -356,9 +356,9 @@ priv struct FakeSibling {
 ///|
 test "production sibling closer is reverse, retry-safe, and idempotent" {
   let siblings : Array[FakeSibling] = [
-    { id: 1, open: true },
-    { id: 2, open: true },
-    { id: 3, open: true },
+    { id: 1, open: true, },
+    { id: 2, open: true, },
+    { id: 3, open: true, },
   ]
   let order : Array[Int] = []
   let fail_once = Ref(true)

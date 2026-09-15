@@ -6,7 +6,7 @@ pub fn BlockTablePageBuffer::new(
   if capacity <= 0 || capacity > ABSOLUTE_MAX_PAGES_PER_TABLE {
     raise InvalidLimit(PagesPerTable)
   }
-  { pages: page_storage_new(capacity, PagesPerTable), length: 0 }
+  { pages: page_storage_new(capacity, PagesPerTable), length: 0, }
 }
 
 ///|

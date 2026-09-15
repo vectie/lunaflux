@@ -6,7 +6,7 @@ pub fn OpenAIComparisonEnvironmentPins::new(
   model : @evidence.BenchmarkDigest,
   randomization : @evidence.BenchmarkDigest,
 ) -> OpenAIComparisonEnvironmentPins {
-  { hardware, driver, toolkit, model, randomization }
+  { hardware, driver, toolkit, model, randomization, }
 }
 
 ///|

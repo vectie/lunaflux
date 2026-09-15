@@ -6,7 +6,7 @@ pub struct PlanSequence {
 
 ///|
 pub fn PlanSequence::first() -> PlanSequence {
-  { value: 1UL }
+  { value: 1UL, }
 }
 
 ///|
@@ -31,7 +31,7 @@ pub fn PlanSequence::next(
   if self.value == 0xffffffffffffffffUL {
     raise IdentityOverflow(PlanSequenceIdentity)
   }
-  { value: self.value + 1UL }
+  { value: self.value + 1UL, }
 }
 
 ///|
@@ -52,7 +52,7 @@ pub struct ModelPlanGeneration {
 
 ///|
 pub fn ModelPlanGeneration::first() -> ModelPlanGeneration {
-  { value: 1UL }
+  { value: 1UL, }
 }
 
 ///|
@@ -77,7 +77,7 @@ pub fn ModelPlanGeneration::next(
   if self.value == 0xffffffffffffffffUL {
     raise IdentityOverflow(ModelPlanGenerationIdentity)
   }
-  { value: self.value + 1UL }
+  { value: self.value + 1UL, }
 }
 
 ///|

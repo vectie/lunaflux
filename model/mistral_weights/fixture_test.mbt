@@ -30,25 +30,25 @@ fn mistral_fixture_metadata(
 ///|
 fn mistral_fixture_entries() -> Array[MistralFixtureEntry] {
   let entries : Array[MistralFixtureEntry] = [
-    { name: "model.embed_tokens.weight", shape: [32L, 8L] },
+    { name: "model.embed_tokens.weight", shape: [32L, 8L], },
   ]
   for layer in 0..<2 {
     let prefix = "model.layers.\{layer}"
-    entries.push({ name: "\{prefix}.input_layernorm.weight", shape: [8L] })
-    entries.push({ name: "\{prefix}.self_attn.q_proj.weight", shape: [8L, 8L] })
-    entries.push({ name: "\{prefix}.self_attn.k_proj.weight", shape: [4L, 8L] })
-    entries.push({ name: "\{prefix}.self_attn.v_proj.weight", shape: [4L, 8L] })
-    entries.push({ name: "\{prefix}.self_attn.o_proj.weight", shape: [8L, 8L] })
+    entries.push({ name: "\{prefix}.input_layernorm.weight", shape: [8L], })
+    entries.push({ name: "\{prefix}.self_attn.q_proj.weight", shape: [8L, 8L], })
+    entries.push({ name: "\{prefix}.self_attn.k_proj.weight", shape: [4L, 8L], })
+    entries.push({ name: "\{prefix}.self_attn.v_proj.weight", shape: [4L, 8L], })
+    entries.push({ name: "\{prefix}.self_attn.o_proj.weight", shape: [8L, 8L], })
     entries.push({
       name: "\{prefix}.post_attention_layernorm.weight",
       shape: [8L],
     })
-    entries.push({ name: "\{prefix}.mlp.gate_proj.weight", shape: [16L, 8L] })
-    entries.push({ name: "\{prefix}.mlp.up_proj.weight", shape: [16L, 8L] })
-    entries.push({ name: "\{prefix}.mlp.down_proj.weight", shape: [8L, 16L] })
+    entries.push({ name: "\{prefix}.mlp.gate_proj.weight", shape: [16L, 8L], })
+    entries.push({ name: "\{prefix}.mlp.up_proj.weight", shape: [16L, 8L], })
+    entries.push({ name: "\{prefix}.mlp.down_proj.weight", shape: [8L, 16L], })
   }
-  entries.push({ name: "model.norm.weight", shape: [8L] })
-  entries.push({ name: "lm_head.weight", shape: [32L, 8L] })
+  entries.push({ name: "model.norm.weight", shape: [8L], })
+  entries.push({ name: "lm_head.weight", shape: [32L, 8L], })
   entries
 }
 

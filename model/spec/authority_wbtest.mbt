@@ -27,11 +27,11 @@ test "LlamaModelSpec defensive validation rejects forged geometry in precedence 
   for
     case in [
       (
-        { ..valid, vocabulary_size: 0, head_dimension: 7 },
+        { ..valid, vocabulary_size: 0, head_dimension: 7, },
         "InvalidDimension(Vocabulary)",
       ),
       (
-        { ..valid, head_dimension: 7 },
+        { ..valid, head_dimension: 7, },
         "InvalidHeadRelationship(HeadDimensionMismatch)",
       ),
     ] {
@@ -79,8 +79,8 @@ test "LlamaModelMetadata defensive validation rejects forged content" {
   let spec = authority_model_spec()
   let content = authority_content_digest()
   let valid = LlamaModelMetadata::from_verified_content(spec, content)
-  let forged_digest : ContentDigest = { hex: "not-a-digest" }
-  let forged = { ..valid, content_digest: forged_digest }
+  let forged_digest : ContentDigest = { hex: "not-a-digest", }
+  let forged = { ..valid, content_digest: forged_digest, }
   try forged.validate() catch {
     error => debug_inspect(error, content="InvalidDigest")
   } noraise {
@@ -90,7 +90,7 @@ test "LlamaModelMetadata defensive validation rejects forged content" {
 
 ///|
 test "LlamaModelMetadata constructor revalidates a forged specification first" {
-  let forged = { ..authority_model_spec(), head_dimension: 7 }
+  let forged = { ..authority_model_spec(), head_dimension: 7, }
   try
     LlamaModelMetadata::from_verified_content(
       forged,
@@ -109,7 +109,7 @@ test "LlamaModelMetadata constructor revalidates a forged specification first" {
 
 ///|
 test "LlamaModelMetadata rejects forged content digest before retention" {
-  let forged_content : ContentDigest = { hex: "not-a-digest" }
+  let forged_content : ContentDigest = { hex: "not-a-digest", }
   try
     LlamaModelMetadata::from_verified_content(
       authority_model_spec(),
@@ -124,8 +124,8 @@ test "LlamaModelMetadata rejects forged content digest before retention" {
 
 ///|
 test "ModelIdentity constructor defensively validates digest components" {
-  let forged_content : ContentDigest = { hex: "not-a-digest" }
-  let forged_plan : PlanDigest = { hex: "also-not-a-digest" }
+  let forged_content : ContentDigest = { hex: "not-a-digest", }
+  let forged_plan : PlanDigest = { hex: "also-not-a-digest", }
   try ModelIdentity::new(forged_content, forged_plan) catch {
     error => debug_inspect(error, content="InvalidDigest")
   } noraise {

@@ -20,7 +20,7 @@ fn base_vocabulary() -> Array[@tokenizer.VocabularyEntry] {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
     let piece : Bytes = [value.to_byte()]
-    vocabulary.push({ token_id: value, piece, kind: Normal })
+    vocabulary.push({ token_id: value, piece, kind: Normal, })
   }
   vocabulary
 }
@@ -33,23 +33,23 @@ fn test_digest() -> @tokenizer.TokenizerDigest raise @tokenizer.TokenizerError {
 ///|
 fn corpus_spec() -> @tokenizer.TokenizerSpec raise @tokenizer.TokenizerError {
   let vocabulary = base_vocabulary()
-  vocabulary.push({ token_id: 256, piece: b"he", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"hel", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"hell", kind: Normal })
-  vocabulary.push({ token_id: 259, piece: b"hello", kind: Normal })
-  vocabulary.push({ token_id: 260, piece: b"ab", kind: Normal })
-  vocabulary.push({ token_id: 261, piece: b"bc", kind: Normal })
-  vocabulary.push({ token_id: 262, piece: b"<e", kind: Special })
-  vocabulary.push({ token_id: 263, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 256, piece: b"he", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"hel", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"hell", kind: Normal, })
+  vocabulary.push({ token_id: 259, piece: b"hello", kind: Normal, })
+  vocabulary.push({ token_id: 260, piece: b"ab", kind: Normal, })
+  vocabulary.push({ token_id: 261, piece: b"bc", kind: Normal, })
+  vocabulary.push({ token_id: 262, piece: b"<e", kind: Special, })
+  vocabulary.push({ token_id: 263, piece: b"<eos>", kind: Special, })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
     [
-      { left_token_id: 104, right_token_id: 101, result_token_id: 256 },
-      { left_token_id: 256, right_token_id: 108, result_token_id: 257 },
-      { left_token_id: 257, right_token_id: 108, result_token_id: 258 },
-      { left_token_id: 258, right_token_id: 111, result_token_id: 259 },
-      { left_token_id: 97, right_token_id: 98, result_token_id: 260 },
-      { left_token_id: 98, right_token_id: 99, result_token_id: 261 },
+      { left_token_id: 104, right_token_id: 101, result_token_id: 256, },
+      { left_token_id: 256, right_token_id: 108, result_token_id: 257, },
+      { left_token_id: 257, right_token_id: 108, result_token_id: 258, },
+      { left_token_id: 258, right_token_id: 111, result_token_id: 259, },
+      { left_token_id: 97, right_token_id: 98, result_token_id: 260, },
+      { left_token_id: 98, right_token_id: 99, result_token_id: 261, },
     ],
     test_digest(),
     test_limits(),
@@ -65,7 +65,7 @@ test "validated identity and immutable metadata" {
     test_digest(),
     test_limits(),
   )
-  vocabulary[0] = { token_id: 999, piece: b"changed", kind: Normal }
+  vocabulary[0] = { token_id: 999, piece: b"changed", kind: Normal, }
   inspect(spec.vocab_size(), content="256")
   inspect(spec.merge_count(), content="0")
   inspect(
@@ -334,7 +334,7 @@ test "invalid digest and incomplete byte vocabulary fail closed" {
 ///|
 test "token IDs must be dense within the vocabulary range" {
   let sparse = base_vocabulary()
-  sparse.push({ token_id: 300, piece: b"ab", kind: Normal })
+  sparse.push({ token_id: 300, piece: b"ab", kind: Normal, })
   try
     @tokenizer.TokenizerSpec::new(sparse, [], test_digest(), test_limits())
   catch {
@@ -348,7 +348,7 @@ test "token IDs must be dense within the vocabulary range" {
 ///|
 test "duplicate vocabulary and malformed merge rules fail closed" {
   let duplicate = base_vocabulary()
-  duplicate.push({ token_id: 256, piece: b"a", kind: Normal })
+  duplicate.push({ token_id: 256, piece: b"a", kind: Normal, })
   try
     @tokenizer.TokenizerSpec::new(duplicate, [], test_digest(), test_limits())
   catch {
@@ -358,11 +358,11 @@ test "duplicate vocabulary and malformed merge rules fail closed" {
     _ => fail("expected duplicate piece rejection")
   }
   let vocabulary = base_vocabulary()
-  vocabulary.push({ token_id: 256, piece: b"ba", kind: Normal })
+  vocabulary.push({ token_id: 256, piece: b"ba", kind: Normal, })
   try
     @tokenizer.TokenizerSpec::new(
       vocabulary,
-      [{ left_token_id: 97, right_token_id: 98, result_token_id: 256 }],
+      [{ left_token_id: 97, right_token_id: 98, result_token_id: 256, }],
       test_digest(),
       test_limits(),
     )

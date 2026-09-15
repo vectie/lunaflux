@@ -35,7 +35,7 @@ fn configured_differential_rig() -> DifferentialRankWireRig {
       Some(configure_payload),
     )
   }
-  { group, locals, sender, limits, bindings }
+  { group, locals, sender, limits, bindings, }
 }
 
 ///|

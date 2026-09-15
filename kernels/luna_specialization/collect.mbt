@@ -53,7 +53,7 @@ fn luna_specialization_region(
     offset_bytes > 9223372036854775807L - byte_length {
     raise Invalid(TensorOffset)
   }
-  { space, semantic_id, offset_bytes, byte_length, alignment_bytes }
+  { space, semantic_id, offset_bytes, byte_length, alignment_bytes, }
 }
 
 ///|

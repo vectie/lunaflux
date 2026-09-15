@@ -42,7 +42,7 @@ fn probe_admitted(
   match @hardware.probe() {
     Unavailable(reason) => {
       let outcome = physical_gate(reason)
-      { admission: Some(admission), outcome }
+      { admission: Some(admission), outcome, }
     }
     Available(driver_version=_, devices~) => {
       let mut selected = None
@@ -54,14 +54,14 @@ fn probe_admitted(
       match selected {
         None => {
           let outcome = LunaModelPhysicalGate(AssignedDeviceMissing)
-          { admission: Some(admission), outcome }
+          { admission: Some(admission), outcome, }
         }
         Some(device) =>
           if !admission.target().matches_capability(device.capability()) {
             let outcome = LunaModelPhysicalGate(DeviceTargetMismatch)
-            { admission: Some(admission), outcome }
+            { admission: Some(admission), outcome, }
           } else {
-            { admission: Some(admission), outcome: LunaModelPreflightComplete }
+            { admission: Some(admission), outcome: LunaModelPreflightComplete, }
           }
       }
     }

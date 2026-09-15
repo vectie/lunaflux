@@ -15,7 +15,7 @@ pub fn ExecutionGraphVariantBudget::new(
   if maximum_graphs < 0 || maximum_nodes < 0 {
     raise InvalidExecutionGraphBucket(Capacity)
   }
-  { remaining_graphs: maximum_graphs, remaining_nodes: maximum_nodes }
+  { remaining_graphs: maximum_graphs, remaining_nodes: maximum_nodes, }
 }
 
 ///|

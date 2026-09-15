@@ -17,7 +17,7 @@ pub fn LunaInstanceLog::snapshot(
   self.snapshot_dropped_count = self.dropped_count
   let generation = self.snapshot_generation + 1UL
   self.snapshot_generation = generation
-  { owner: self, generation }
+  { owner: self, generation, }
 }
 
 ///|

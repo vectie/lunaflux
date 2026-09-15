@@ -9,7 +9,7 @@ priv struct NumericCanonicalWriter {
 fn NumericCanonicalWriter::new_hashing(
   expected : Int,
 ) -> NumericCanonicalWriter {
-  { hasher: @canonical_sha256.CanonicalSha256::new(), expected, count: 0 }
+  { hasher: @canonical_sha256.CanonicalSha256::new(), expected, count: 0, }
 }
 
 ///|
@@ -22,7 +22,7 @@ priv struct NumericCanonicalMaterializationCursor {
 fn NumericCanonicalMaterializationCursor::new(
   expected : Int,
 ) -> NumericCanonicalMaterializationCursor {
-  { expected, next_index: 0 }
+  { expected, next_index: 0, }
 }
 
 ///|

@@ -279,7 +279,7 @@ test "Luna close-only retirement drains partial and ready preparation" {
   partial.service.instance.phase = LunaInstanceClosedPhase
   assert_eq(
     partial.service.finish_ticket_retirement(
-      { lane: -1, epoch: 1UL },
+      { lane: -1, epoch: 1UL, },
       LunaOnlineInstanceClosed,
     ),
     LunaOnlineFramedCoordinatorDraining,
@@ -320,7 +320,7 @@ test "Luna close-only retirement drains partial and ready preparation" {
   ready.service.instance.phase = LunaInstanceClosedPhase
   assert_eq(
     ready.service.finish_ticket_retirement(
-      { lane: -1, epoch: 1UL },
+      { lane: -1, epoch: 1UL, },
       LunaOnlineInstanceClosed,
     ),
     LunaOnlineFramedCoordinatorDraining,
@@ -372,7 +372,7 @@ test "Luna queued failure cannot preempt active request stream" {
     coordinator.service.queue_sequences[coordinator.service.queue_head],
     2UL,
   )
-  coordinator.service.tickets.push({ lane: -1, epoch: 1UL })
+  coordinator.service.tickets.push({ lane: -1, epoch: 1UL, })
   coordinator.service.ticket_sequences.push(1UL)
   coordinator.service.turn_pool = true
   assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorAdvanced)
@@ -426,7 +426,7 @@ test "Luna Busy dispatch retains Prepared before stale Work retry" {
   coordinator.service.instance.phase = LunaInstanceClosedPhase
   assert_eq(
     coordinator.service.finish_ticket_retirement(
-      { lane: -1, epoch: 1UL },
+      { lane: -1, epoch: 1UL, },
       LunaOnlineInstanceClosed,
     ),
     LunaOnlineFramedCoordinatorDraining,

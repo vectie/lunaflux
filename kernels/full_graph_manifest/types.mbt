@@ -17,7 +17,7 @@ pub fn FullGraphManifestLimits::new(
     max_manifest_bytes > artifact_file.max_manifest_bytes() {
     raise Invalid(Limits)
   }
-  { max_manifest_bytes, artifact_file }
+  { max_manifest_bytes, artifact_file, }
 }
 
 ///|

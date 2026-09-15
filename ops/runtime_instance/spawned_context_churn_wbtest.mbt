@@ -63,7 +63,7 @@ test "context churn telemetry requires exact resource balance" {
     kv_pages_free: 31,
   }
   assert_false(spawned_direct_resources_valid(leaked, 32, 0UL))
-  let cached : SpawnedDirectResources = { ..balanced, prefix_lookups: 1UL }
+  let cached : SpawnedDirectResources = { ..balanced, prefix_lookups: 1UL, }
   assert_false(spawned_direct_resources_valid(cached, 32, 0UL))
   let completed : SpawnedDirectResources = {
     ..balanced,

@@ -43,7 +43,7 @@ fn runtime_bound_endpoint_from_addr(
     RuntimeNativeFramedV1 => "tcp://"
     RuntimeOpenAiResponsesV1 => "http://"
   }
-  { protocol, origin: scheme + addr.to_string() }
+  { protocol, origin: scheme + addr.to_string(), }
 }
 
 ///|

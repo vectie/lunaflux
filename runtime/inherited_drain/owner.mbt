@@ -10,7 +10,7 @@ pub fn prepare_inherited_drain_v1() -> InheritedDrainPreparation raise Inherited
   let output = FixedArray::make(INHERITED_DRAIN_FRAME_BYTES, b'\x00')
   let native = @native.open_fixed()
   match @native.open_status(native) {
-    0 => { native, input, output, consumed: false }
+    0 => { native, input, output, consumed: false, }
     1 => raise inherited_drain_error(DescriptorUnavailable)
     _ => raise inherited_drain_error(InvalidDescriptor)
   }

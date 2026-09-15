@@ -162,7 +162,7 @@ pub fn PrefixPublishStart::plan(
   if self.state != 0 {
     raise StalePublishPlan
   }
-  { owner: self.owner, generation: self.generation, key: self.key }
+  { owner: self.owner, generation: self.generation, key: self.key, }
 }
 
 ///|
@@ -222,9 +222,9 @@ pub fn PrefixIndex::try_plan_publish(
   let root = self.find_request_root(key)
   let preflight : PrefixExistingPublishPreflight = if root < 0 {
     if self.has_new_root_room(tokens.length(), pages.length()) {
-      { state: 0, duplicate_entry: -1 }
+      { state: 0, duplicate_entry: -1, }
     } else {
-      { state: 2, duplicate_entry: -1 }
+      { state: 2, duplicate_entry: -1, }
     }
   } else {
     self.existing_publish_preflight(root, tokens, page_size)

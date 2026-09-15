@@ -8,7 +8,7 @@ pub fn LocalPeerAccess::new(
     source_ordinal == destination_ordinal {
     raise invalid(ProbeLinks, Unsupported, source_ordinal, destination_ordinal)
   }
-  { source_ordinal, destination_ordinal }
+  { source_ordinal, destination_ordinal, }
 }
 
 ///|
@@ -113,7 +113,7 @@ pub fn LocalProbeDevice::new(
   if total_memory_bytes <= 0L {
     raise invalid(ProbeDevices, InvalidMemory, 0, 0)
   }
-  { ordinal, name: name.to_owned(), total_memory_bytes, target }
+  { ordinal, name: name.to_owned(), total_memory_bytes, target, }
 }
 
 ///|

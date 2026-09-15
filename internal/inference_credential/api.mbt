@@ -1,6 +1,6 @@
 ///|
 pub fn open_fixed() -> InferenceCredentialHandle {
-  { native: raw_open_fixed() }
+  { native: raw_open_fixed(), }
 }
 
 ///|

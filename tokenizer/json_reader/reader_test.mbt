@@ -334,7 +334,7 @@ test "unsupported tokenizer behavior is never silently admitted" {
 
 ///|
 test "vocabulary, merge, and special limits apply before core construction" {
-  let tiny_vocab = { ..test_limits(), max_vocab_entries: 255 }
+  let tiny_vocab = { ..test_limits(), max_vocab_entries: 255, }
   try
     @json_reader.parse_string(
       tokenizer_document(),
@@ -349,7 +349,7 @@ test "vocabulary, merge, and special limits apply before core construction" {
   } noraise {
     _ => fail("expected failure")
   }
-  let no_merges = { ..test_limits(), max_merge_rules: 0 }
+  let no_merges = { ..test_limits(), max_merge_rules: 0, }
   try
     @json_reader.parse_string(
       tokenizer_document(),
@@ -364,7 +364,7 @@ test "vocabulary, merge, and special limits apply before core construction" {
   } noraise {
     _ => fail("expected failure")
   }
-  let no_specials = { ..test_limits(), max_special_tokens: 0 }
+  let no_specials = { ..test_limits(), max_special_tokens: 0, }
   try
     @json_reader.parse_string(
       tokenizer_document(),

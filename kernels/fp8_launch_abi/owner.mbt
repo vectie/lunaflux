@@ -105,7 +105,7 @@ pub fn Fp8DynamicLaunchOwner::acquire(
   let epoch = self.authority.next_epoch
   self.authority.next_epoch += 1UL
   self.authority.state = AuthorityAcquired(epoch)
-  { authority: self.authority, digest: expected.digest(), generation, epoch }
+  { authority: self.authority, digest: expected.digest(), generation, epoch, }
 }
 
 ///|

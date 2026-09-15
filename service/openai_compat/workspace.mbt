@@ -218,7 +218,7 @@ pub fn LunaOpenAICompatWorkspace::begin(
   self.response_sequence = response_sequence
   self.semantic_views.push(event)
   self.phase = LUNA_OPENAI_COMPAT_SETUP
-  { workspace: self, epoch: self.epoch }
+  { workspace: self, epoch: self.epoch, }
 }
 
 ///|

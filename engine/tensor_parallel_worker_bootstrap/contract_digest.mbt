@@ -2,7 +2,7 @@
 fn digest_topology(
   topology : @device_topology.AdmittedLocalTopology,
 ) -> TensorParallelTopologyDigest raise TensorParallelWorkerBootstrapError {
-  let encoder : BootstrapDigestEncoder = { bytes: [] }
+  let encoder : BootstrapDigestEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-parallel-topology.v1")
   encoder.append_int(topology.driver_version())
   encoder.append_int(topology.world_size())
@@ -72,7 +72,7 @@ fn append_inference_limits(
 fn digest_worker_contract(
   contract : @worker_wire.WorkerStartupContract,
 ) -> TensorParallelWorkerContractDigest raise TensorParallelWorkerBootstrapError {
-  let encoder : BootstrapDigestEncoder = { bytes: [] }
+  let encoder : BootstrapDigestEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-parallel-worker-contract.v1")
   encoder.append_identity(contract.identity())
   encoder.append_string(contract.bootstrap_digest().as_hex())
@@ -168,7 +168,7 @@ fn collective_kind_code(
 fn digest_device_plan(
   plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
 ) -> TensorParallelDevicePlanDigest raise TensorParallelWorkerBootstrapError {
-  let encoder : BootstrapDigestEncoder = { bytes: [] }
+  let encoder : BootstrapDigestEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-parallel-device-plan.v2")
   encoder.append_identity(plan.identity())
   encoder.append_int(plan.rank())
@@ -221,7 +221,7 @@ fn digest_group(
   rendezvous_bytes : Bytes,
   claims : FixedArray[RankBootstrapClaim],
 ) -> TensorParallelGroupBootstrapDigest raise TensorParallelWorkerBootstrapError {
-  let encoder : BootstrapDigestEncoder = { bytes: [] }
+  let encoder : BootstrapDigestEncoder = { bytes: [], }
   encoder.append_string("lunaflux.tensor-parallel-group-bootstrap.v4")
   encoder.append_string(template_digest_sha256)
   encoder.append_identity(identity)

@@ -259,7 +259,7 @@ test "telemetry rejects zero-sequence shape and same-sequence plan drift" {
     prefix_tokens_computed=0UL,
     prefix_publications=0UL,
   )
-  let drift = { ..first, plan_rows: 3 }
+  let drift = { ..first, plan_rows: 3, }
   assert_true(luna_openai_server_refresh_sample(plan, first))
   assert_false(luna_openai_server_refresh_sample(plan, drift))
 }

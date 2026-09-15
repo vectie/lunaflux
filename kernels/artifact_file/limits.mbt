@@ -36,7 +36,7 @@ pub fn KernelArtifactFileLimits::new(
   if max_path_bytes <= 0 || max_path_bytes > ABSOLUTE_MAX_PATH_BYTES {
     raise InvalidLimit(PathBytes)
   }
-  { max_manifest_bytes, max_json_depth, max_path_bytes, artifact }
+  { max_manifest_bytes, max_json_depth, max_path_bytes, artifact, }
 }
 
 ///|

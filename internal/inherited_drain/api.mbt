@@ -1,6 +1,6 @@
 ///|
 pub fn open_fixed() -> InheritedDrainHandle {
-  { native: raw_open_fixed() }
+  { native: raw_open_fixed(), }
 }
 
 ///|

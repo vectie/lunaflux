@@ -32,7 +32,7 @@ pub fn FusionSpanCost::measured(
   if median_nanoseconds <= 0L || samples < 3 {
     raise InvalidCost
   }
-  { nanoseconds: median_nanoseconds, basis: Measured }
+  { nanoseconds: median_nanoseconds, basis: Measured, }
 }
 
 ///|
@@ -57,7 +57,7 @@ pub fn FusionSpanCost::estimated(
   if total == 0L {
     raise InvalidCost
   }
-  { nanoseconds: total, basis: Estimated }
+  { nanoseconds: total, basis: Estimated, }
 }
 
 ///|
@@ -78,7 +78,7 @@ pub fn FusionAlternative::new(
   if workspace_bytes < 0L || local_bytes < 0L {
     raise InvalidCost
   }
-  { schedule, cost, workspace_bytes, local_bytes }
+  { schedule, cost, workspace_bytes, local_bytes, }
 }
 
 ///|

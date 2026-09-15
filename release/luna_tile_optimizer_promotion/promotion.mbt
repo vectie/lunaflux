@@ -207,7 +207,7 @@ pub fn admit_external_luna_tile_optimizer_promotion(
   if admitted.record_digest().as_hex() != record.digest.as_hex() {
     raise LunaTileOptimizerPromotionMismatch(ExternalApproval)
   }
-  { record, approval: admitted }
+  { record, approval: admitted, }
 }
 
 ///|

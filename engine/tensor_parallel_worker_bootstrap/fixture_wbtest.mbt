@@ -69,7 +69,7 @@ fn bootstrap_test_claim_for(
         "5656565656565656565656565656565656565656565656565656565656565656"
       },
     ),
-    kv_digest: { hex: kv_hex },
+    kv_digest: { hex: kv_hex, },
   }
 }
 
@@ -85,7 +85,7 @@ fn bootstrap_test_group(
     bootstrap_test_identity(),
     7UL,
     9UL,
-    { hex: "7777777777777777777777777777777777777777777777777777777777777777" },
+    { hex: "7777777777777777777777777777777777777777777777777777777777777777", },
     21403,
     bootstrap_test_rendezvous(),
     world_size,

@@ -38,7 +38,7 @@ test "fold work cardinality follows independent row and column products" {
     plan.workgroup_count(maximum_rows=8, output_columns=3072, matrix_columns=16),
     Some(48),
   )
-  let one_column = { ..plan, output_tiles: 1 }
+  let one_column = { ..plan, output_tiles: 1, }
   assert_eq(
     one_column.workgroup_count(
       maximum_rows=8,
@@ -47,7 +47,7 @@ test "fold work cardinality follows independent row and column products" {
     ),
     Some(192),
   )
-  let two_rows = { ..plan, row_width: 32 }
+  let two_rows = { ..plan, row_width: 32, }
   assert_eq(
     two_rows.workgroup_count(
       maximum_rows=32,

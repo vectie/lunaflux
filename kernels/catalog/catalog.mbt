@@ -135,7 +135,7 @@ pub fn KernelCatalog::new(
         }
     }
   }
-  { version, entries: ReadOnlyArray::from_array(entries) }
+  { version, entries: ReadOnlyArray::from_array(entries), }
 }
 
 ///|

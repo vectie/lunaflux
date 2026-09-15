@@ -225,7 +225,7 @@ test "multi-row runtime envelope uses checked token and page products" {
 
 ///|
 test "cleanup retries independent worker model and kernel authorities" {
-  let roots : BootstrapRoots = { model: None, kernel: None }
+  let roots : BootstrapRoots = { model: None, kernel: None, }
   let failed : FailedDeviceWorkerBootstrapPreparation = {
     roots,
     worker: None,
@@ -325,7 +325,7 @@ fn orchestration_fixture(
         events.push("worker-cleanup")
       }
       CleanupRequired({
-        roots: { model: None, kernel: None },
+        roots: { model: None, kernel: None, },
         worker: None,
         cause: error,
         worker_cleanup_failure: None,
@@ -337,7 +337,7 @@ fn orchestration_fixture(
     _worker => {
       events.push("ready")
       CleanupRequired({
-        roots: { model: None, kernel: None },
+        roots: { model: None, kernel: None, },
         worker: None,
         cause: Invalid(ReadinessContract),
         worker_cleanup_failure: None,

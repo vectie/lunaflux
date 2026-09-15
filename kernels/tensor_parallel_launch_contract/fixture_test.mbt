@@ -257,7 +257,7 @@ fn fixture() -> LaunchFixture raise {
     version=@catalog.CatalogVersion::v3(),
     entries~,
   ).resolve_paged(model, full_layout, target)
-  { model, rank_plan, local_layout, full_layout, resolved, target }
+  { model, rank_plan, local_layout, full_layout, resolved, target, }
 }
 
 ///|

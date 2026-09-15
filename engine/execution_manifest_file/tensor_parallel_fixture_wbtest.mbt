@@ -236,7 +236,7 @@ fn tp_manifest_fixture(
     tokens_per_page=64,
     total_page_count=8,
   )
-  { model, inspections, devices, kv_plan, target }
+  { model, inspections, devices, kv_plan, target, }
 }
 
 ///|

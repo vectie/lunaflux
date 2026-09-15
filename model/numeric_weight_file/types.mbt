@@ -22,7 +22,7 @@ pub fn NumericWeightArtifactDigest::from_sha256(
     !value.all(c => c.is_ascii_digit() || (c >= 'a' && c <= 'f')) {
     raise InvalidArtifactDigest
   }
-  { value: value.to_owned() }
+  { value: value.to_owned(), }
 }
 
 ///|
@@ -60,7 +60,7 @@ pub fn NumericWeightFileLimits::new(
   if max_tensor_count <= 0 || max_tensor_count > 65536 {
     raise InvalidLimit(TensorCount)
   }
-  { max_file_bytes, max_header_bytes, transfer_chunk_bytes, max_tensor_count }
+  { max_file_bytes, max_header_bytes, transfer_chunk_bytes, max_tensor_count, }
 }
 
 ///|
@@ -271,7 +271,7 @@ pub fn NumericDeviceWeights::authenticate(
     expected_layout,
     expected_artifact_digest,
   )
-  { weights: self }
+  { weights: self, }
 }
 
 ///|

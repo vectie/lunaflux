@@ -144,7 +144,7 @@ pub fn admit_persisted_luna_capability_manifest(
     canonical.length() > maximum_canonical_bytes {
     raise Invalid(CanonicalBytes)
   }
-  let decoder : LunaCapabilityDecoder = { bytes: canonical, cursor: 0 }
+  let decoder : LunaCapabilityDecoder = { bytes: canonical, cursor: 0, }
   if decoder.read_string() != "LUNA-CAPABILITY-MANIFEST-ENTRY-V1" ||
     decoder.read_int() != LunaCapabilityManifestVersion::v1().as_int() {
     raise Unsupported(Version)

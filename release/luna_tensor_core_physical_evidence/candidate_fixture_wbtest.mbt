@@ -211,5 +211,5 @@ fn tensor_core_evidence_candidate_fixture(
   let candidate = @luna_tensor_core_candidate.lower_luna_tile_bf16_mma16x16x16_tensor_core_candidate(
     program, serial, parallel, contract, limits,
   )
-  { program, serial, parallel, contract, limits, candidate }
+  { program, serial, parallel, contract, limits, candidate, }
 }

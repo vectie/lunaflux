@@ -129,5 +129,5 @@ fn kv_physical_fixture() -> KvPhysicalFixture raise {
   let compiled = @luna_cuda_paged_kv_write_aot.bind_positioned_paged_kv_write_compiled_artifact(
     candidate, module_, module_, receipt, limits,
   )
-  { candidate, compiled }
+  { candidate, compiled, }
 }

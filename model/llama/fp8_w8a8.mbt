@@ -37,7 +37,7 @@ pub fn LlamaFp8W8A8Policy::new(
   if tied_embeddings {
     raise TiedFp8EmbeddingsUnsupported
   }
-  { version: 1 }
+  { version: 1, }
 }
 
 ///|
@@ -54,7 +54,7 @@ pub fn LlamaFp8W8A8V2Policy::new(
   if tied_embeddings {
     raise TiedFp8EmbeddingsUnsupported
   }
-  { version: 2 }
+  { version: 2, }
 }
 
 ///|

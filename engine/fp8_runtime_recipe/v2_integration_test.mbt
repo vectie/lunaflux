@@ -75,7 +75,7 @@ fn runtime_v2_inputs(
       ),
     )
   }
-  { launches, weights: claims }
+  { launches, weights: claims, }
 }
 
 ///|

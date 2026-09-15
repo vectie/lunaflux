@@ -86,7 +86,7 @@ pub fn LunaOpenAIChatTemplate::new(
       cursor += 1
     }
   }
-  let template = { storage, offsets, lengths, max_rendered_prompt_bytes }
+  let template = { storage, offsets, lengths, max_rendered_prompt_bytes, }
   template.validate_for(inference)
   template
 }

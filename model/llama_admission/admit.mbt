@@ -40,5 +40,5 @@ pub fn complete(
   let bindings = @llama_weights.bind(metadata, plan, safetensors) catch {
     error => raise Weights(error)
   }
-  { metadata, safetensors, plan, bindings }
+  { metadata, safetensors, plan, bindings, }
 }

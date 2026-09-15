@@ -1,17 +1,19 @@
 ///|
-let maintenance_pending : ChildProcessMaintenanceProgress = { kind: 0 }
+let maintenance_pending : ChildProcessMaintenanceProgress = { kind: 0, }
 
 ///|
-let maintenance_advanced : ChildProcessMaintenanceProgress = { kind: 1 }
+let maintenance_advanced : ChildProcessMaintenanceProgress = { kind: 1, }
 
 ///|
-let maintenance_complete : ChildProcessMaintenanceProgress = { kind: 2 }
+let maintenance_complete : ChildProcessMaintenanceProgress = { kind: 2, }
 
 ///|
-let maintenance_cleanup_required : ChildProcessMaintenanceProgress = { kind: 3 }
+let maintenance_cleanup_required : ChildProcessMaintenanceProgress = {
+  kind: 3,
+}
 
 ///|
-let maintenance_cleanup_stuck : ChildProcessMaintenanceProgress = { kind: 4 }
+let maintenance_cleanup_stuck : ChildProcessMaintenanceProgress = { kind: 4, }
 
 ///|
 fn maintenance_deadline(timeout_millis : Int) -> Int64 raise ProcessError {
@@ -330,5 +332,5 @@ pub fn ChildProcess::maintenance_exit(
   if !self.maintenance_has_exit {
     raise InvalidState(Wait)
   }
-  { kind: self.maintenance_exit_kind, code: self.maintenance_exit_code }
+  { kind: self.maintenance_exit_kind, code: self.maintenance_exit_code, }
 }

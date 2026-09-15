@@ -168,7 +168,7 @@ fn encode_persisted_luna_specialization(
   record : LunaSpecializationRecord,
   maximum : Int,
 ) -> Bytes raise LunaSpecializationError {
-  let encoder : LunaSpecializationEncoder = { bytes: [], maximum }
+  let encoder : LunaSpecializationEncoder = { bytes: [], maximum, }
   encoder.append_string("LUNA-SPECIALIZATION-V1")
   encoder.append_string(record.identity.content().as_hex())
   encoder.append_string(record.identity.plan().as_hex())
@@ -235,7 +235,7 @@ pub fn admit_persisted_luna_specialization(
   if canonical.length() <= 0 || canonical.length() > limits.max_canonical_bytes {
     raise Invalid(CanonicalBytes)
   }
-  let decoder : LunaSpecializationDecoder = { bytes: canonical, cursor: 0 }
+  let decoder : LunaSpecializationDecoder = { bytes: canonical, cursor: 0, }
   if decoder.read_string() != "LUNA-SPECIALIZATION-V1" {
     raise Unsupported(CanonicalBytes)
   }

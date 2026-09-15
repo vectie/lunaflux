@@ -210,7 +210,7 @@ pub fn admit(
     policy,
     tokenizer_file,
   )
-  { runtime, core: derived }
+  { runtime, core: derived, }
 }
 
 ///|
@@ -246,7 +246,7 @@ pub fn admit_i8(
     policy,
     tokenizer_file,
   )
-  { runtime, core: derived }
+  { runtime, core: derived, }
 }
 
 ///|
@@ -280,7 +280,7 @@ pub fn admit_fp8_reusable(
     policy,
     tokenizer_file,
   )
-  { runtime, core: derived }
+  { runtime, core: derived, }
 }
 
 ///|
@@ -305,5 +305,5 @@ pub fn admit_tensor_parallel(
     policy,
     tokenizer_file,
   )
-  { runtime, core }
+  { runtime, core, }
 }

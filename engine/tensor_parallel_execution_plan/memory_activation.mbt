@@ -43,7 +43,7 @@ fn record_activation_input(
     raise rejected(ActivationRegion, operation~, operand~)
   }
   let current = facts[index]
-  facts[index] = { ..current, live_through: operation }
+  facts[index] = { ..current, live_through: operation, }
 }
 
 ///|
@@ -117,7 +117,7 @@ fn collect_activation_facts(
     raise rejected(ActivationRegion)
   }
   let final_fact = facts[final_index]
-  facts[final_index] = { ..final_fact, live_through: operations.length() }
+  facts[final_index] = { ..final_fact, live_through: operations.length(), }
   facts
 }
 
@@ -152,7 +152,7 @@ fn assign_activation_slots(
         offset_bytes: 0L,
       }
     }
-    facts[index] = { ..fact, slot: selected }
+    facts[index] = { ..fact, slot: selected, }
   }
   slots
 }
@@ -166,7 +166,7 @@ fn place_activations(
   for index in 0..<slots.length() {
     let slot = slots[index]
     cursor = checked_align(cursor, slot.alignment)
-    slots[index] = { ..slot, offset_bytes: cursor }
+    slots[index] = { ..slot, offset_bytes: cursor, }
     cursor = checked_add(cursor, checked_align(slot.byte_count, slot.alignment))
   }
   let bindings : Array[TensorParallelActivationBinding] = []

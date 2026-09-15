@@ -21,7 +21,7 @@ pub fn BlockTableLimits::new(
   if max_generation <= 0 || max_generation > ABSOLUTE_MAX_TABLE_GENERATION {
     raise InvalidLimit(Generation)
   }
-  { table_capacity, max_pages_per_table, tokens_per_page, max_generation }
+  { table_capacity, max_pages_per_table, tokens_per_page, max_generation, }
 }
 
 ///|

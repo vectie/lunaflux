@@ -9,7 +9,7 @@ pub fn LunaTilePairedBenchmarkObservation::new(
     fallback_time_ns > 9_000_000_000L {
     raise LunaTileOptimizerPromotionInvalid(Benchmark)
   }
-  { candidate_time_ns, fallback_time_ns }
+  { candidate_time_ns, fallback_time_ns, }
 }
 
 ///|

@@ -20,7 +20,7 @@ pub fn LaunchContractLimits::new(
   if max_operands_per_contract <= 0 || max_operands_per_contract > 32 {
     raise InvalidLimit(OperandsPerContract)
   }
-  { max_profiles, max_contracts, max_operands_per_contract }
+  { max_profiles, max_contracts, max_operands_per_contract, }
 }
 
 ///|

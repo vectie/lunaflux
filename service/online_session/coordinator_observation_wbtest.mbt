@@ -86,7 +86,7 @@ test "Luna admitted event sequence records latency once across ACK retry" {
     inter_token_millis: 0,
     request_millis: 0,
   }
-  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 41UL }
+  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 41UL, }
   service.tickets.push(ticket)
   service.ticket_sequences.push(41UL)
   // This is the same post-commit timing seam used after lower admission and
@@ -156,7 +156,7 @@ test "Luna admitted event sequence records latency once across ACK retry" {
 
   service.tickets.clear()
   service.ticket_sequences.clear()
-  let reused : LunaOnlineRequestTicket = { lane: -1, epoch: 42UL }
+  let reused : LunaOnlineRequestTicket = { lane: -1, epoch: 42UL, }
   service.tickets.push(reused)
   service.ticket_sequences.push(42UL)
   service.begin_request_timing_at(reused, 200UL, true)
@@ -277,7 +277,7 @@ test "Luna worker failure precedes per-request terminal and exact restart" {
   let stream = observation_fixture_stream(compatibility)
   let owner = @luna_event.LunaEventOwner::new(coordinator_fixture_inference())
   let code = FixedArray::make(1, b'w')
-  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 51UL }
+  let ticket : LunaOnlineRequestTicket = { lane: -1, epoch: 51UL, }
   service.tickets.push(ticket)
   service.ticket_sequences.push(51UL)
   service.begin_request_timing(ticket)

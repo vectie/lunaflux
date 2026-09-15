@@ -55,7 +55,7 @@ pub fn plan_luna_bf16_kernel_root(
       raise Invalid(ModuleOrdering)
     }
     previous = expected
-    files.push({ relative_path: expected, digest_sha256: digest, bytes })
+    files.push({ relative_path: expected, digest_sha256: digest, bytes, })
     append_inventory_line(inventory, digest, expected)
   }
   let inventory_bytes = @utf8.encode(inventory.to_string())

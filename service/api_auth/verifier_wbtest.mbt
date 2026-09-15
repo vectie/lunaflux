@@ -19,7 +19,7 @@ test "cooperative Luna API authentication failure remains abortable" {
     last_work_units: 0,
     total_work_units: 0UL,
   }
-  let work : LunaApiAuthVerificationWork = { workspace, epoch: 1UL }
+  let work : LunaApiAuthVerificationWork = { workspace, epoch: 1UL, }
   assert_eq(work.progress(), LunaApiAuthVerificationAdvanced)
   assert_eq(work.state(), LunaApiAuthVerificationFailed)
   match work.failure() {

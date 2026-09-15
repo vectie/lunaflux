@@ -2,7 +2,7 @@
 test "deadline samples once before and once after tokenization" {
   let identity = fixture_identity("0")
   let reads = Ref(0)
-  let receipt : RequestReceipt = { at_millis: 10UL }
+  let receipt : RequestReceipt = { at_millis: 10UL, }
   let request = fixture_request(identity)
   let prepared = prepare_bound_with_clock(
     receipt,
@@ -99,7 +99,7 @@ test "deadline samples once before and once after tokenization" {
 test "retained prepared aliases lose authority after destructive take" {
   let identity = fixture_identity("0")
   let prepared = prepare_at(
-    { at_millis: 10UL },
+    { at_millis: 10UL, },
     fixture_request(identity),
     fixture_tokenizer(),
     fixture_tokenizer().digest(),

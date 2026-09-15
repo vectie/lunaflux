@@ -10,7 +10,7 @@ pub fn LunaFramedEventWork::take_view(
     raise LunaFramedEventNotReady
   }
   workspace.phase = LUNA_FRAMED_EVENT_VIEW_LEASED
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

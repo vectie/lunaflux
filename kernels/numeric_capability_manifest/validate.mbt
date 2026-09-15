@@ -262,5 +262,5 @@ fn publish_admission(
       @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
     ),
   }
-  { manifest, artifacts }
+  { manifest, artifacts, }
 }

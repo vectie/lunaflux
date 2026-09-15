@@ -53,7 +53,7 @@ pub fn LunaEventView::accepted(
   self : LunaEventView,
 ) -> LunaAcceptedEventView raise LunaEventError {
   ignore(luna_authenticate_view(self.owner, self.epoch, LunaAcceptedEventSlot))
-  { owner: self.owner, epoch: self.epoch }
+  { owner: self.owner, epoch: self.epoch, }
 }
 
 ///|
@@ -61,7 +61,7 @@ pub fn LunaEventView::token(
   self : LunaEventView,
 ) -> LunaTokenEventView raise LunaEventError {
   ignore(luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot))
-  { owner: self.owner, epoch: self.epoch }
+  { owner: self.owner, epoch: self.epoch, }
 }
 
 ///|
@@ -69,7 +69,7 @@ pub fn LunaEventView::usage(
   self : LunaEventView,
 ) -> LunaUsageEventView raise LunaEventError {
   ignore(luna_authenticate_view(self.owner, self.epoch, LunaUsageEventSlot))
-  { owner: self.owner, epoch: self.epoch }
+  { owner: self.owner, epoch: self.epoch, }
 }
 
 ///|
@@ -77,7 +77,7 @@ pub fn LunaEventView::completed(
   self : LunaEventView,
 ) -> LunaCompletedEventView raise LunaEventError {
   ignore(luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot))
-  { owner: self.owner, epoch: self.epoch }
+  { owner: self.owner, epoch: self.epoch, }
 }
 
 ///|
@@ -85,7 +85,7 @@ pub fn LunaEventView::failed(
   self : LunaEventView,
 ) -> LunaFailedEventView raise LunaEventError {
   ignore(luna_authenticate_view(self.owner, self.epoch, LunaFailedEventSlot))
-  { owner: self.owner, epoch: self.epoch }
+  { owner: self.owner, epoch: self.epoch, }
 }
 
 ///|

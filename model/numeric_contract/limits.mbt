@@ -41,7 +41,7 @@ pub fn ModelNumericSchemaLimits::new(
     max_canonical_bytes > MODEL_NUMERIC_SCHEMA_HARD_MAX_CANONICAL_BYTES {
     raise NumericSchemaLimitExceeded(SchemaCanonicalBytes)
   }
-  { max_tensors, max_operations, max_rank, max_canonical_bytes }
+  { max_tensors, max_operations, max_rank, max_canonical_bytes, }
 }
 
 ///|

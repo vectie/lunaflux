@@ -36,7 +36,7 @@ async test "release forwards exact blueprint object and admitted activation only
     let second = @worker_executable_file.verify(
       second_path, second_digest, limits,
     )
-    let blueprint = { identity: 7 }
+    let blueprint = { identity: 7, }
     let retained = retain_exact_release_inputs(blueprint, first)
     assert_true(physical_equal(retained.blueprint, blueprint))
     assert_eq(retained.blueprint.identity, 7)

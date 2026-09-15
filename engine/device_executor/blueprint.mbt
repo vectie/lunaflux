@@ -205,7 +205,7 @@ fn append_function_blueprint(
   if module_image.digest() != identity.family().module_digest() {
     raise InvalidPlan(ArtifactModule)
   }
-  functions.push({ identity, module_index, symbol: entry.function_symbol() })
+  functions.push({ identity, module_index, symbol: entry.function_symbol(), })
   functions.length() - 1
 }
 

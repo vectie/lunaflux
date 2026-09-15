@@ -40,7 +40,7 @@ pub fn Fp8RuntimeRecipeLimits::new(
     max_canonical_bytes > 16777216 {
     raise InvalidFp8RuntimeRecipe(Limit)
   }
-  { max_launches, max_workspace_bytes, max_canonical_bytes }
+  { max_launches, max_workspace_bytes, max_canonical_bytes, }
 }
 
 ///|
@@ -74,7 +74,7 @@ pub fn Fp8LaunchWeightRegionClaim::new(
   for region in regions {
     retained.push(region)
   }
-  { profile, operation, regions: ReadOnlyArray::from_array(retained) }
+  { profile, operation, regions: ReadOnlyArray::from_array(retained), }
 }
 
 ///|

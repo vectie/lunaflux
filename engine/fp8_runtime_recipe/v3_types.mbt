@@ -36,7 +36,7 @@ pub fn Fp8ReusablePagedRecipeV3Limits::new(
     max_canonical_bytes > 16777216 {
     raise InvalidFp8ReusablePagedRecipeV3(Limit)
   }
-  { max_launches, max_workspace_arena_bytes, max_canonical_bytes }
+  { max_launches, max_workspace_arena_bytes, max_canonical_bytes, }
 }
 
 ///|

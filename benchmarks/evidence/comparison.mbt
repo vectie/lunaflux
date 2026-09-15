@@ -94,7 +94,7 @@ pub fn BenchmarkComparison::admit(
   let digest = BenchmarkDigest::from_sha256(
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
-  { digest, canonical, trial_count: trials.length() }
+  { digest, canonical, trial_count: trials.length(), }
 }
 
 ///|

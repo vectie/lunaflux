@@ -69,7 +69,7 @@ pub fn Fp8DeviceExecutorLimits::new(
     max_ephemeral_bytes > 1099511627776L {
     raise InvalidFp8DeviceExecutor(Limit)
   }
-  { max_operations, max_ephemeral_allocations, max_ephemeral_bytes }
+  { max_operations, max_ephemeral_allocations, max_ephemeral_bytes, }
 }
 
 ///|

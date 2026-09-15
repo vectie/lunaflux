@@ -28,7 +28,7 @@ pub fn PrefixLayout::new(
   version~ : Int,
   tokens_per_page~ : Int,
 ) -> PrefixLayout raise PrefixIndexError {
-  let layout = { version, tokens_per_page }
+  let layout = { version, tokens_per_page, }
   layout.validate()
   layout
 }
@@ -65,7 +65,7 @@ pub fn PrefixRequestKey::new(
   if !semantic.is_live() {
     raise StaleKey
   }
-  { model_identity, tokenizer, layout, semantic }
+  { model_identity, tokenizer, layout, semantic, }
 }
 
 ///|

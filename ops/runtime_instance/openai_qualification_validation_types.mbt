@@ -101,7 +101,7 @@ pub fn RuntimeOpenAiQualificationValidationContract::new(
     }
     owned[index] = credential[index]
   }
-  { credential: owned, turn_limit, io_timeout_millis, maximum_response_bytes }
+  { credential: owned, turn_limit, io_timeout_millis, maximum_response_bytes, }
 }
 
 ///|

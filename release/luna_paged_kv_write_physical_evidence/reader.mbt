@@ -11,7 +11,7 @@ fn kv_physical_reader(
   if lines.length() < 2 || lines[lines.length() - 1] != "" {
     raise Invalid(Canonical)
   }
-  { lines, cursor: 0 }
+  { lines, cursor: 0, }
 }
 
 ///|

@@ -152,7 +152,7 @@ fn load_admitted_inputs(
     inputs => inputs
   }
   close_module_files(opened)
-  { manifest, module_inputs }
+  { manifest, module_inputs, }
 }
 
 ///|

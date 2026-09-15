@@ -11,7 +11,11 @@ pub fn AttentionMultiLaunchLimits::new(
     maximum_operands_per_launch > 32 {
     raise InvalidAttentionMultiLaunchContract(Limits)
   }
-  { maximum_workspace_bytes, maximum_symbol_bytes, maximum_operands_per_launch }
+  {
+    maximum_workspace_bytes,
+    maximum_symbol_bytes,
+    maximum_operands_per_launch,
+  }
 }
 
 ///|

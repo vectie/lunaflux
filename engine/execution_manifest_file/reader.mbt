@@ -49,5 +49,5 @@ fn parse_manifest(
   } else {
     None
   }
-  { profile_id, modules, operations, luna_authorization }
+  { profile_id, modules, operations, luna_authorization, }
 }

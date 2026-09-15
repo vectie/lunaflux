@@ -12,7 +12,7 @@ fn reference_merge_for(
 ) -> LunaReferenceMerge? {
   for rank in 0..<spec.merge_count {
     if spec.merge_left_ids[rank] == left && spec.merge_right_ids[rank] == right {
-      return Some({ rank, result_token_id: spec.merge_result_ids[rank] })
+      return Some({ rank, result_token_id: spec.merge_result_ids[rank], })
     }
   }
   None
@@ -165,11 +165,11 @@ fn reference_encode_bytes(
       RejectOverflow => raise OutputTooLong(actual~, maximum=output_limit)
       Truncate => {
         token_ids.truncate(output_limit)
-        return { token_ids, input_bytes: input.length(), truncated: true }
+        return { token_ids, input_bytes: input.length(), truncated: true, }
       }
     }
   }
-  { token_ids, input_bytes: input.length(), truncated: false }
+  { token_ids, input_bytes: input.length(), truncated: false, }
 }
 
 ///|

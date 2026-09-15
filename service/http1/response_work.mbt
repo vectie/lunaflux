@@ -64,7 +64,7 @@ pub fn LunaHttp1ResponseWork::take_view(
     raise luna_http1_error(LunaHttp1Lifecycle, LunaHttp1NotReady)
   }
   workspace.phase = LUNA_HTTP1_RESPONSE_VIEW_LEASED
-  { workspace, epoch: self.epoch }
+  { workspace, epoch: self.epoch, }
 }
 
 ///|

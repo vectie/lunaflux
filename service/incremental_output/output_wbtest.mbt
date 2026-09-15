@@ -2,13 +2,13 @@
 fn fixture_tokenizer() -> @tokenizer.TokenizerSpec raise {
   let vocabulary : Array[@tokenizer.VocabularyEntry] = []
   for value in 0..<256 {
-    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal })
+    vocabulary.push({ token_id: value, piece: [value.to_byte()], kind: Normal, })
   }
-  vocabulary.push({ token_id: 256, piece: b"helloE", kind: Normal })
-  vocabulary.push({ token_id: 257, piece: b"NDx", kind: Normal })
-  vocabulary.push({ token_id: 258, piece: b"abcE", kind: Normal })
-  vocabulary.push({ token_id: 259, piece: b"xENDz", kind: Normal })
-  vocabulary.push({ token_id: 260, piece: b"<eos>", kind: Special })
+  vocabulary.push({ token_id: 256, piece: b"helloE", kind: Normal, })
+  vocabulary.push({ token_id: 257, piece: b"NDx", kind: Normal, })
+  vocabulary.push({ token_id: 258, piece: b"abcE", kind: Normal, })
+  vocabulary.push({ token_id: 259, piece: b"xENDz", kind: Normal, })
+  vocabulary.push({ token_id: 260, piece: b"<eos>", kind: Special, })
   @tokenizer.TokenizerSpec::new(
     vocabulary,
     [],

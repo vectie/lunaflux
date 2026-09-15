@@ -10,7 +10,7 @@ pub struct SamplingRng {
 
 ///|
 pub fn SamplingRng::from_seed(seed : @inference.SamplingSeed) -> SamplingRng {
-  { state: seed.value() }
+  { state: seed.value(), }
 }
 
 ///|

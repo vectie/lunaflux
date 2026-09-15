@@ -388,5 +388,5 @@ pub fn bind_qualified_paged_attention_readonly_artifact(
     candidate.input_row_width() != evidence.input_row_width {
     raise PagedAttentionReadOnlyPhysicalEvidenceMismatch(Candidate)
   }
-  { candidate, compiled, evidence }
+  { candidate, compiled, evidence, }
 }

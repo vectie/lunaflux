@@ -159,7 +159,7 @@ pub fn WorkerStartupContract::predecessor_value(
 
 ///|
 pub fn StartupFrameBuffer::new() -> StartupFrameBuffer {
-  { storage: FixedArray::make(startup_length, b'\x00'), epoch: 0UL, length: 0 }
+  { storage: FixedArray::make(startup_length, b'\x00'), epoch: 0UL, length: 0, }
 }
 
 ///|

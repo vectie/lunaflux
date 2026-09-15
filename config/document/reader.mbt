@@ -88,7 +88,7 @@ fn parse_text(
   let model = parse_model(root["model"])
   let device = parse_device(root["device"])
   let resolved_plan = @resolved.resolve(service, model, device)
-  { schema, service, model, device, resolved_plan }
+  { schema, service, model, device, resolved_plan, }
 }
 
 ///|

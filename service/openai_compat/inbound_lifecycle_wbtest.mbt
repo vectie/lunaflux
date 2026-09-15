@@ -137,7 +137,7 @@ test "Luna OpenAI inbound sizing is exact and forged limits fail before allocati
     202UL,
   )
   assert_eq(LunaOpenAIInboundWorkspace::required_reference_cells(), 8UL)
-  let forged : LunaOpenAIInboundLimits = { max_messages: 2147483647 }
+  let forged : LunaOpenAIInboundLimits = { max_messages: 2147483647, }
   openai_expect_rule(
     () => {
       ignore(LunaOpenAIInboundWorkspace::required_int_cells(inference, forged))
@@ -146,7 +146,7 @@ test "Luna OpenAI inbound sizing is exact and forged limits fail before allocati
   )
   let model = inbound_bytes("model-x")
   let prefix = inbound_bytes("resp_")
-  let forged_budget : LunaOpenAICompatStepBudget = { work_units: 0 }
+  let forged_budget : LunaOpenAICompatStepBudget = { work_units: 0, }
   openai_expect_rule(
     () => {
       ignore(

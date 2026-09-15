@@ -66,7 +66,7 @@ fn preflight_i8_admission(
     is Some(canonical_bytes) else {
     raise I8InertKernelCapabilityRejected(CanonicalBytes)
   }
-  { operation_count, weight_count, canonical_bytes }
+  { operation_count, weight_count, canonical_bytes, }
 }
 
 ///|

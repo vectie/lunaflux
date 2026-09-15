@@ -126,7 +126,7 @@ pub fn LunaTilePromotionArtifactInput::new(
       raise LunaTileOptimizerPromotionInvalid(Artifact)
     }
   }
-  { module_digest, entry_point }
+  { module_digest, entry_point, }
 }
 
 ///|

@@ -16,7 +16,7 @@ pub fn Qwen3PagedBatchEnvelope::new(
 
 ///|
 pub fn Qwen3PagedBatchEnvelope::single_row() -> Self {
-  { max_batch_rows: 1 }
+  { max_batch_rows: 1, }
 }
 
 ///|

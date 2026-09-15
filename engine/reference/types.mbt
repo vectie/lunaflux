@@ -50,7 +50,7 @@ pub fn ExecutionLimits::new(
   if max_input_tokens <= 0 {
     raise InvalidLimit(InputTokens)
   }
-  { kernels, sampling, max_operations, max_tensors, max_input_tokens }
+  { kernels, sampling, max_operations, max_tensors, max_input_tokens, }
 }
 
 ///|

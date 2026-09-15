@@ -65,19 +65,19 @@ pub fn CatalogVersion::from_stable_int(
 
 ///|
 pub fn CatalogVersion::v1() -> CatalogVersion {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 /// Catalog contract whose entries name the complete paged-KV semantic ABI.
 pub fn CatalogVersion::v3() -> CatalogVersion {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 /// Catalog contract whose entries bind the exact numeric operation ABI.
 pub fn CatalogVersion::v4() -> CatalogVersion {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
@@ -97,19 +97,19 @@ pub fn KernelSemanticVersion::from_stable_int(
 
 ///|
 pub fn KernelSemanticVersion::v1() -> KernelSemanticVersion {
-  { value: 1 }
+  { value: 1, }
 }
 
 ///|
 /// Paged-KV operation ABI with ordered live inputs and persistent state.
 pub fn KernelSemanticVersion::v3() -> KernelSemanticVersion {
-  { value: 3 }
+  { value: 3, }
 }
 
 ///|
 /// Paged-KV operation ABI bound to one exact numeric execution digest.
 pub fn KernelSemanticVersion::v4() -> KernelSemanticVersion {
-  { value: 4 }
+  { value: 4, }
 }
 
 ///|
@@ -165,7 +165,7 @@ pub fn AotKernelFamily::new(
   module_digest~ : AotArtifactDigest,
   family_id~ : AotKernelFamilyId,
 ) -> AotKernelFamily {
-  { module_digest, family_id }
+  { module_digest, family_id, }
 }
 
 ///|
@@ -200,7 +200,7 @@ pub fn AotKernelEntryPoint::new(
   family~ : AotKernelFamily,
   entry_point_id~ : AotKernelEntryPointId,
 ) -> AotKernelEntryPoint {
-  { family, entry_point_id }
+  { family, entry_point_id, }
 }
 
 ///|

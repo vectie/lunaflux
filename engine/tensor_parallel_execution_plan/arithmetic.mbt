@@ -69,5 +69,5 @@ fn scalar_region(
     operand~,
   )
   ignore(checked_add(offset_bytes, reserved_bytes, operation~, operand~))
-  { space, offset_bytes, byte_count, reserved_bytes, alignment }
+  { space, offset_bytes, byte_count, reserved_bytes, alignment, }
 }

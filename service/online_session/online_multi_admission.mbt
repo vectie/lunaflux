@@ -97,7 +97,7 @@ fn LunaOnlineInstance::multi_event_ticket(
   if lane < 0 || lane >= self.multi.lanes.length() {
     abort("Luna online multi event lane invariant")
   }
-  { lane, epoch: self.multi.lanes[lane].generation }
+  { lane, epoch: self.multi.lanes[lane].generation, }
 }
 
 ///|
