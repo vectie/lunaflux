@@ -31,6 +31,39 @@ causes the previously observed final-token flip, nor establish an error bound
 against an independent high-precision dot-product oracle. Near-zero results
 must not be judged only by BF16 ULP distance.
 
+### FP64 reference follow-up
+
+`check_activation_dot_oracle.mbtx` now reads the actual BF16 Q/K/V rows from
+the numeric safetensors file and computes sequential FP64 dots with captured
+inputs. The tensor names are explicit inputs; row selection respects the
+concatenated matrix dimensions and file offsets. It does not depend on the
+CUDA generator's indexing or accumulator implementation.
+
+Across the 82 changed-component observations in those 29 pairs, the
+single-token result is closer to the reference every time. These observations
+include repeated inputs; they are not 82 independent statistical samples.
+The maximum observed absolute error across both paths is
+0.000976871990133077. The maximum error divided by sum of absolute products is
+0.00027175375139377284, including BF16 output rounding.
+
+For component 4080 at epochs 18/38, the reference is
+`-1.7276033759117126e-7`; single-token gives `-1.7136335372924805e-7`
+(absolute error `1.3969838619232178e-9`) and matrix gives
+`-2.5890767574310303e-7` (absolute error `8.614733815193176e-8`).
+The sum of absolute products is about 3.086: cancellation explains why the
+relative-to-result/ULP difference looks much larger than its absolute error.
+
+This does not establish a universal numerical bound or end-to-end token
+equivalence. Forcing the matrix path solely to match batch outputs would
+discard the more accurate result in these observations. Final-logit propagation
+and numerical acceptance remain open; no production policy was changed.
+
+Oracle result: `/tmp/lunaflux-activation-campaign-20260915-r2/dot-oracle.json`,
+downloaded as `/tmp/lunaflux-dot-oracle-20260915-r2.json`, matching SHA-256
+`8ba8ea53194d630b7c971ba827a19d476105ba188b151a33edc2e30158774a01`.
+The oracle regression checks two concatenated matrices, signed BF16 operands,
+exact known dots, error ranking, and rejection of incomplete weight coverage.
+
 The parser compares only complete single-input/single-output captures and
 rejects missing, reordered or truncated words. It is not a general fused-span
 output mapper. Full ingress fusion must not reuse operation-2 output assumptions.

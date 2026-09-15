@@ -1,0 +1,28 @@
+import {"moonbitlang/async@0.20.3","moonbitlang/async@0.20.3/fs","moonbitlang/async@0.20.3/process","moonbitlang/core/json","moonbitlang/core/encoding/utf8"}
+async fn main {
+  let(code,out,err)=@process.collect_output("mktemp",["-d","/tmp/lunaflux-dot-oracle-test.XXXXXX"])
+  assert_eq(code,0,msg=err.text());let root=out.text().trim().to_owned()
+  let header : Json={"a":{"dtype":"BF16","shape":[1,2],"data_offsets":[0,4]},"b":{"dtype":"BF16","shape":[1,2],"data_offsets":[4,8]}}
+  let bytes=@utf8.encode(header.stringify())
+  let file=@fs.open(root+"/weights",mode=ReadWrite,create_mode=CreateNew)
+  file.write(Bytes::from_array(Array::makei(8,i=>((bytes.length().to_int64()>>(i*8))&255L).to_byte())))
+  file.write(bytes)
+  file.write(b"\x40\x40\x80\x40\x80\xbf\x80\x3f")
+  file.close()
+  let data : Json={"captures":[
+    {"epoch":1,"direction":0,"words":[16256,16384]},
+    {"epoch":1,"direction":1,"words":[16688,16256]},
+    {"epoch":2,"direction":0,"words":[16256,16384]},
+    {"epoch":2,"direction":1,"words":[16672,0]}],
+    "different_outputs":[{"left_epoch":1,"right_epoch":2,"changed_components":[0,1]}]}
+  @fs.write_file(root+"/captures",data.stringify(),create_mode=CreateNew)
+  let script="benchmarks/gpu_pipeline/check_activation_dot_oracle.mbtx"
+  let(code,_,err)=@process.collect_output("moon",["run",script,root+"/weights",root+"/captures",root+"/result","a","b"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/result").text()) is {"left_closer":Number(2,..),"components":Array([
+    {"reference_fp64":Number(11,..),"left_absolute_error":Number(0,..),"right_absolute_error":Number(1,..),..},
+    {"reference_fp64":Number(1,..),"left_absolute_error":Number(0,..),"right_absolute_error":Number(1,..),..}]),..})
+  let(code,_,_)=@process.collect_output("moon",["run",script,root+"/weights",root+"/captures",root+"/invalid","a"])
+  assert_true(code!=0,msg="incomplete concatenated matrix must fail")
+  println("activation dot oracle regression passed: "+root)
+}

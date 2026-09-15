@@ -1,0 +1,73 @@
+import {
+  "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env", "moonbitlang/core/json", "moonbitlang/core/encoding/utf8",
+}
+
+fn words(value:Json)->Array[Int] raise {
+  guard value is Array(xs) else {fail("words")}
+  xs.map(x=>{guard x is Number(n,..) && n>=0 && n<=65535 && n==n.to_int().to_double() else {fail("BF16 word")};n.to_int()})
+}
+fn bf16(word:Int)->Double {Float::reinterpret_from_int(word << 16).to_double()}
+fn finite(value:Double)->Bool {value.abs()<=1.7976931348623157e308}
+fn capture(captures:Array[Json],epoch:Int,direction:Int)->Array[Int] raise {
+  let found=captures.filter(x=>x is {"epoch":Number(e,..),"direction":Number(d,..),..} && e==epoch.to_double() && d==direction.to_double())
+  guard found is [{"words":value,..}] else {fail("unique single-row capture required")}
+  words(value)
+}
+struct Matrix { rows:Int; columns:Int; offset:Int64 }
+
+async fn main {
+  guard @env.args() is [_,numeric,summary,output,..names] && !names.is_empty() else {fail("NUMERIC_SAFETENSORS CAPTURES_JSON NEW_JSON TENSOR_NAMES...")}
+  let file=@fs.open(numeric,mode=ReadOnly)
+  defer file.close()
+  let prefix=file.read_exactly_at(8,position=0L)
+  let length=for i in 0..<8; n=0L {continue n | (prefix[i].to_int().to_int64() << (i*8))} nobreak {n}
+  assert_true(length>0L && length<=16777216L)
+  guard @json.parse(@utf8.decode(file.read_exactly_at(length.to_int(),position=8L))) is Object(header) else {fail("safetensors header")}
+  let matrices : Array[Matrix]=[]
+  for name in names {
+    guard header.get(name) is Some({"dtype":String("BF16"),"shape":Array([Number(rows,..),Number(columns,..)]),"data_offsets":Array([Number(start,..),Number(end,..)]),..}) else {fail("BF16 matrix "+name)}
+    assert_true(rows>0 && columns>0 && rows==rows.to_int().to_double() && columns==columns.to_int().to_double())
+    assert_true(start>=0 && start==start.to_int64().to_double() && end-start==rows*columns*2)
+    matrices.push({rows:rows.to_int(),columns:columns.to_int(),offset:8L+length+start.to_int64()})
+  }
+  guard @json.parse(@fs.read_file(summary).text()) is {"captures":Array(captures),"different_outputs":Array(differences),..} else {fail("capture summary")}
+  let results : Array[Json]=[]
+  let mut left_better=0;let mut right_better=0;let mut tied=0
+  for difference in differences {
+    guard difference is {"left_epoch":Number(le,..),"right_epoch":Number(re,..),"changed_components":Array(components),..} else {fail("difference")}
+    let left_epoch=le.to_int();let right_epoch=re.to_int()
+    let input=capture(captures,le.to_int(),0)
+    assert_eq(input,capture(captures,re.to_int(),0))
+    let left=capture(captures,le.to_int(),1);let right=capture(captures,re.to_int(),1)
+    assert_eq(left.length(),right.length())
+    assert_eq(matrices.fold(init=0,(n,m)=>n+m.rows),left.length())
+    for component in components {
+      guard component is Number(c,..) && c>=0 && c==c.to_int().to_double() && c<left.length().to_double() else {fail("component")}
+      let index=c.to_int()
+      let selected : Array[(Matrix,Int)]=[]
+      for matrix in matrices; start=0 {
+        if index>=start && index<start+matrix.rows {selected.push((matrix,index-start))}
+        continue start+matrix.rows
+      }
+      guard selected is [(matrix,row)] else {fail("matrix row")}
+      assert_eq(matrix.columns,input.length())
+      let weight=file.read_exactly_at(matrix.columns*2,position=matrix.offset+row.to_int64()*matrix.columns.to_int64()*2L)
+      let (reference,absolute_products)=for i in 0..<input.length(); sum=0.0, magnitude=0.0 {
+        let w=weight[i*2].to_int() | (weight[i*2+1].to_int()<<8)
+        let product=bf16(input[i])*bf16(w)
+        assert_true(finite(product))
+        continue sum+product,magnitude+product.abs()
+      } nobreak {(sum,magnitude)}
+      let l=bf16(left[index]);let r=bf16(right[index])
+      assert_true(finite(reference) && finite(absolute_products) && finite(l) && finite(r))
+      let le=(l-reference).abs();let re=(r-reference).abs()
+      if le<re {left_better+=1} else if re<le {right_better+=1} else {tied+=1}
+      results.push({"left_epoch":left_epoch,"right_epoch":right_epoch,"component":index,"reference_fp64":reference,"sum_absolute_products":absolute_products,"left":l,"right":r,"left_absolute_error":le,"right_absolute_error":re})
+    }
+  }
+  assert_true(!results.is_empty())
+  let result : Json={"scope":"BF16 operands with FP64 sequential dot reference; changed components only","left_closer":left_better,"right_closer":right_better,"equal_error":tied,"components":results}
+  @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+  println("components=\{results.length()} left_closer=\{left_better} right_closer=\{right_better} equal=\{tied}")
+}
