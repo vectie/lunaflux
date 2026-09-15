@@ -62,8 +62,7 @@ fn cuda_query_fold_update(
     )
   })
   .to_array()
-  .join("") +
-  "    __syncthreads();\n"
+  .join("")
 }
 
 ///|

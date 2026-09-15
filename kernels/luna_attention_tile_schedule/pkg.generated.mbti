@@ -13,6 +13,8 @@ pub fn attention_fragment_ownership(@luna_attention_strategy.AttentionTileComput
 
 pub fn attention_operand_tile_layout(Int, Int, Int) -> AttentionOperandTileLayout?
 
+pub fn plan_attention_score_fold(resident_statistics~ : Bool, resident_output~ : Bool) -> ReadOnlyArray[AttentionScoreFoldStep]
+
 pub fn scalarize_attention_query_fold(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
 
 pub fn scalarize_attention_score_map(Int, Int) -> ReadOnlyArray[Int] raise AttentionTileScheduleError
@@ -125,6 +127,14 @@ pub(all) enum AttentionQueryEffectPoint {
   ReleaseValueReaders
   AfterValueRelease
   ReleaseQueryReaders
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionScoreFoldStep {
+  UpdateResidentStatisticsAndProbabilities
+  UpdateSharedMaximumAndScale
+  RescaleSharedOutput
+  UpdateSharedProbabilitiesAndDenominator
+  PublishScoreFold
 } derive(Eq, @debug.Debug)
 
 pub(all) enum AttentionScoreTransferEffect {

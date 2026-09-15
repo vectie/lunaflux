@@ -112,6 +112,17 @@ publication boundary: shared-score softmax/output publication and the remaining
 QKV operand-worker schedule still need integration. Numerical acceptance also
 remains open. No speedup is inferred from byte-identical generated source.
 
+The subsequent `plan_attention_score_fold` integration moves the online
+maximum/scale, probability/denominator and shared-output rescale sequence into
+the common plan. Both resident-statistics and shared-statistics paths consume
+it; CUDA renders the arithmetic and publication actions. The 36 source
+snapshots remain identical and schedule/source tests pass 29/29 and 35/35.
+A cross-owner visibility model exercises all four statistics/output storage
+combinations over zero through nine tiles and rejects omitted first/final
+publication. Intermediate fences are preserved, not proven minimal. Bootstrap,
+terminal scratch publication and other families remain separate audit work;
+this does not close numerical acceptance or fresh integrated GPU validation.
+
 Clean `3f5555ef` subsequently passed `moon info`, `moon fmt --check`, native
 warning-denied check and all 3,092 native tests in
 `/tmp/lunaflux-clean-3f5555ef.X94WXp`. The format failure above is resolved by

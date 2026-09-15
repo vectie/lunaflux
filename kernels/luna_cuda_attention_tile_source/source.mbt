@@ -237,19 +237,19 @@ fn emit_cuda_prefill_attention_tile_source(
     "         linear += LF_BLOCK_THREADS) {\n" +
     "      const int query = linear / LF_HEAD_DIMENSION;\n" +
     "      accumulator[lf_float_index(query, linear % LF_HEAD_DIMENSION, LF_HEAD_DIMENSION)] *= previous_scales[query];\n" +
-    "    }\n" +
-    "    __syncthreads();\n"
+    "    }\n"
   }
-  let online_softmax_update = if reuse_tile_storage {
+  let resident_softmax_update = if reuse_tile_storage {
     let score_offsets = @luna_attention_tile_schedule.scalarize_attention_score_map(
       key_value_tile, 32,
     ) catch {
       _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
     }
-    cuda_query_fold_update(query_fold_offsets, score_offsets, probability_store) +
-    rescale_shared_output
+    cuda_query_fold_update(query_fold_offsets, score_offsets, probability_store)
   } else {
-    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    ""
+  }
+  let shared_maximum_update = "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
     "      float local_maximum = -CUDART_INF_F;\n" +
     "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
@@ -263,10 +263,8 @@ fn emit_cuda_prefill_attention_tile_source(
     "        running_maximum[query] = next_maximum;\n" +
     "        previous_scales[query] = previous_scale;\n" +
     "      }\n" +
-    "    }\n" +
-    "    __syncthreads();\n" +
-    rescale_shared_output +
-    "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "    }\n"
+  let shared_probability_update = "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
     "      const int query_position = query_positions[token_base + query];\n" +
     "      const float previous_scale = previous_scales[query];\n" +
     "      const float maximum = running_maximum[query];\n" +
@@ -281,9 +279,21 @@ fn emit_cuda_prefill_attention_tile_source(
     "      if (lane == 0)\n" +
     "        running_denominator[query] =\n" +
     "            running_denominator[query] * previous_scale + tile_sum;\n" +
-    "    }\n" +
-    "    __syncthreads();\n"
-  }
+    "    }\n"
+  let online_softmax_update = @luna_attention_tile_schedule.plan_attention_score_fold(
+      resident_statistics=reuse_tile_storage,
+      resident_output~,
+    )
+    .map(step => {
+      match step {
+        UpdateResidentStatisticsAndProbabilities => resident_softmax_update
+        UpdateSharedMaximumAndScale => shared_maximum_update
+        RescaleSharedOutput => rescale_shared_output
+        UpdateSharedProbabilitiesAndDenominator => shared_probability_update
+        PublishScoreFold => "    __syncthreads();\n"
+      }
+    })
+    .join("")
   let terminal_fold_state = if reuse_tile_storage {
     cuda_query_fold_store(query_fold_offsets)
   } else {
