@@ -150,6 +150,17 @@ release. No asynchronous copy has started at this early-return boundary.
 The separate scalar decode renderer still requires an effect audit; numerical
 acceptance and final integrated physical validation remain open.
 
+The audited remaining path is specifically cooperative grouped decode with
+scalar dot arithmetic (candidate 420), not direct-global decode (400). It now
+reuses `AttentionGroupedEffectPlan` and the existing CUDA effect renderer for
+validity reset, cooperative staging, publication, uniform invalid exit and
+reader release. No duplicate common policy was added. Nine pre-change source
+digests across three batch sizes and three histories are byte-identical after
+integration; the source package passes 36/36 tests. Direct-global decode has no
+shared tile or workgroup barrier and does not need this shared-memory plan.
+Numerical acceptance, the broader compiler closure audit and final exact-source
+physical validation remain separate incomplete work.
+
 Clean `3f5555ef` subsequently passed `moon info`, `moon fmt --check`, native
 warning-denied check and all 3,092 native tests in
 `/tmp/lunaflux-clean-3f5555ef.X94WXp`. The format failure above is resolved by

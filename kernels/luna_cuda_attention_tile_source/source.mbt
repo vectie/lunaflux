@@ -488,6 +488,7 @@ fn emit_cuda_decode_attention_tile_source(
   maximum_source_bytes : Int,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   let compute = lowering.compute()
+  let effect_plan = cuda_grouped_effect_plan(lowering)
   let copy = lowering.copy()
   let (query_tile, key_value_tile, head_dimension) = lowering.tile()
   let (_, grid_y, block_threads, _) = lowering.launch()
@@ -598,41 +599,7 @@ fn emit_cuda_decode_attention_tile_source(
     $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
     $|    const int stage = tile_index & (LF_PIPELINE_STAGES - 1);
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, query_position + 1 - key_base);
-    $|    if (thread == 0) *tile_valid = 1;
-    $|    __syncthreads();
-    $|    for (int linear = thread;
-    $|         linear < LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|         linear += LF_BLOCK_THREADS) {
-    $|      const int key = linear / LF_HEAD_DIMENSION;
-    $|      const int component = linear % LF_HEAD_DIMENSION;
-    $|      __nv_bfloat16 staged_key = __float2bfloat16_rn(0.0f);
-    $|      __nv_bfloat16 staged_value = __float2bfloat16_rn(0.0f);
-    $|      if (key < active_keys) {
-    $|        const int key_position = key_base + key;
-    $|        const int page_slot = page_start + key_position / \{tokens_per_page};
-    $|        const int physical_page =
-    $|            page_slot < page_end ? page_table_page_indices[page_slot] : -1;
-    $|        if (physical_page < 0 ||
-    $|            (unsigned long long)physical_page >= \{physical_page_capacity}ULL) {
-    $|          atomicExch(tile_valid, 0);
-    $|        } else {
-    $|          const int token_in_page = key_position % \{tokens_per_page};
-    $|          const unsigned long long cache_index =
-    $|              (unsigned long long)physical_page * \{page_stride_values}ULL +
-    $|              ((unsigned long long)token_in_page * \{key_value_heads}ULL +
-    $|                  key_value_head) * LF_HEAD_DIMENSION + component;
-    $|          staged_key = key_cache[cache_index];
-    $|          staged_value = value_cache[cache_index];
-    $|        }
-    $|      }
-    $|      const unsigned long long stage_offset =
-    $|          (unsigned long long)stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION +
-    $|          linear;
-    $|      key_tiles[stage_offset] = staged_key;
-    $|      value_tiles[stage_offset] = staged_value;
-    $|    }
-    $|    __syncthreads();
-    $|    if (!*tile_valid) return;
+    $|\{cuda_grouped_effects(effect_plan, AcquireKeyOperands, cuda_cooperative_decode_transfer(tokens_per_page, physical_page_capacity, page_stride_values, key_value_heads), "    ")}
     $|    const __nv_bfloat16 *stage_keys = key_tiles +
     $|        stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|    const __nv_bfloat16 *stage_values = value_tiles +
@@ -665,7 +632,7 @@ fn emit_cuda_decode_attention_tile_source(
     $|                  key * LF_HEAD_DIMENSION + component]);
     $|      }
     $|    }
-    $|    __syncthreads();
+    $|\{cuda_grouped_effects(effect_plan, ReleaseTileReaders, "", "    ")}
     $|  }
     $|
     $|  denominator = __shfl_sync(0xffffffffU, denominator, 0);
