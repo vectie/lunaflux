@@ -72,6 +72,40 @@ pub(all) enum AttentionOutputFoldStorage {
   SubgroupResidentOutputFold
 } derive(Eq, @debug.Debug)
 
+pub(all) enum AttentionQueryEffect {
+  StageFirstKey
+  StageFirstValue
+  StageFirstPair
+  StageCurrentPair
+  AwaitPendingTransfers(Int)
+  PublishWorkgroup
+  StageNextPairInOtherSlot
+  StageNextKey
+  StageNextValue
+  AdvanceTransferSlot
+} derive(Eq, @debug.Debug)
+
+pub struct AttentionQueryEffectPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionQueryEffectPlan::actions(Self, AttentionQueryEffectPoint) -> ReadOnlyArray[AttentionQueryEffect]
+pub fn AttentionQueryEffectPlan::new(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, readiness~ : AttentionTransferReadiness) -> Self raise AttentionTileScheduleError
+pub fn AttentionQueryEffectPlan::split_key_value(Self) -> Bool
+
+pub(all) enum AttentionQueryEffectPoint {
+  PublishQueryOperands
+  PrimeQueryFold
+  IssueCurrentKeyValue
+  AwaitKeyReadiness
+  PublishKeyReadiness
+  InvalidQueryTileExit
+  AfterKeyPublication
+  BeforeValueComputation
+  ReleaseValueReaders
+  AfterValueRelease
+  ReleaseQueryReaders
+} derive(Eq, @debug.Debug)
+
 pub struct AttentionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)

@@ -16,7 +16,6 @@ fn emit_cuda_query_owned_attention_source(
   let partitions = lowering.key_value_partitions()
   let asynchronous = lowering.copy() == CudaAsynchronousSharedLoad
   let stages = lowering.pipeline().0
-  let split = lowering.transfer_readiness() == KeyScoreBeforeValueReadiness
   if !valid_cuda_symbol(symbol) ||
     maximum_source_bytes <= 0 ||
     maximum_source_bytes > 16777216 ||
@@ -33,6 +32,18 @@ fn emit_cuda_query_owned_attention_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let layout = cuda_attention_operand_layout(q, k, d)
+  let effects = @luna_attention_tile_schedule.AttentionQueryEffectPlan::new(
+    if asynchronous {
+      AttentionAsyncStagedShared
+    } else {
+      AttentionStagedShared
+    },
+    stages~,
+    readiness=lowering.transfer_readiness(),
+  ) catch {
+    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let split = effects.split_key_value()
   let output_parameters = if partitions == 1 {
     "const __nv_bfloat16 *input, __nv_bfloat16 *output, const __nv_bfloat16 *keys, const __nv_bfloat16 *values"
   } else {
@@ -86,7 +97,7 @@ fn emit_cuda_query_owned_attention_source(
     $|      if (r<active) packed = *reinterpret_cast<const uint4 *>(input+(unsigned long long)(token_base+r)*\{row_width}ULL+head*LF_HEAD_DIMENSION+c);
     $|      *reinterpret_cast<uint4 *>(qbuf+lf_operand_index(r,c,LF_HEAD_DIMENSION)) = packed;
     $|    }
-    $|    __syncthreads();
+    $|    \{cuda_query_owned_effects(effects, PublishQueryOperands)}
     $|    if (!control[0]) return;
     $|    const int total_keys = control[1], qr = warp*16;
     $|    const int each = total_keys/\{partitions}, larger = total_keys%\{partitions}, split = blockIdx.z;
@@ -100,15 +111,15 @@ fn emit_cuda_query_owned_attention_source(
     $|    LfMatrixAccumulator out[LF_HEAD_DIMENSION/16] = {};
     $|\{cuda_query_owned_stage(abi, lowering.reads_dense_current_key_value(), asynchronous, split~)}
     $|    int slot=0;
-    $|    if (key_begin<key_end) { \{if split { "stage_query_tile(key_begin,0,0); stage_query_tile(key_begin,0,1);" } else if asynchronous { "stage_query_tile(key_begin,slot);" } else { "" }} }
+    $|    if (key_begin<key_end) { \{cuda_query_owned_effects(effects, PrimeQueryFold)} }
     $|    for (int kb=key_begin; kb<key_end; kb+=LF_KEY_VALUE_TILE) {
-    $|      \{if asynchronous { "" } else { "stage_query_tile(kb,0);" }}
-    $|      \{if split { "asm volatile(\"cp.async.wait_group 1;\" ::: \"memory\");" } else if asynchronous { "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");" } else { "" }}
-    $|      __syncthreads();
-    $|      if (!control[0]) { \{if asynchronous { "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");" } else { "" }} return; }
+    $|      \{cuda_query_owned_effects(effects, IssueCurrentKeyValue)}
+    $|      \{cuda_query_owned_effects(effects, AwaitKeyReadiness)}
+    $|      \{cuda_query_owned_effects(effects, PublishKeyReadiness)}
+    $|      if (!control[0]) { \{cuda_query_owned_effects(effects, InvalidQueryTileExit)} return; }
     $|      const auto *current_k=kbuf+slot*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
     $|      const auto *current_v=vbuf+slot*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
-    $|      \{if asynchronous && !split { "if (kb+LF_KEY_VALUE_TILE<key_end) stage_query_tile(kb+LF_KEY_VALUE_TILE,slot^1);" } else { "" }}
+    $|      \{cuda_query_owned_effects(effects, AfterKeyPublication)}
     $|      \{if split { "LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16] = {};" } else { "" }}
     $|      if (qr<active) {
     $|        \{if split { "" } else { "LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16] = {};" }}
@@ -122,7 +133,7 @@ fn emit_cuda_query_owned_attention_source(
     $|          }
     $|        }
     $|      \{if split { "}" } else { "" }}
-    $|      \{if split { "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); if (kb+LF_KEY_VALUE_TILE<key_end) stage_query_tile(kb+LF_KEY_VALUE_TILE,0,0);" } else { "" }}
+    $|      \{cuda_query_owned_effects(effects, BeforeValueComputation)}
     $|      \{if split { "if (qr<active) {" } else { "" }}
     $|        float next[2]={-CUDART_INF_F,-CUDART_INF_F};
     $|        const bool interior=__all_sync(0xffffffffU,key_end-kb>=LF_KEY_VALUE_TILE && min(p0,p1)-kb>=LF_KEY_VALUE_TILE-1);
@@ -170,8 +181,8 @@ fn emit_cuda_query_owned_attention_source(
     $|          denominator[r]=denominator[r]*alpha[r]+sum[r];
     $|        }
     $|      }
-    $|      __syncthreads();
-    $|      \{if split { "if (kb+LF_KEY_VALUE_TILE<key_end) stage_query_tile(kb+LF_KEY_VALUE_TILE,0,1);" } else if asynchronous { "slot^=1;" } else { "" }}
+    $|      \{cuda_query_owned_effects(effects, ReleaseValueReaders)}
+    $|      \{cuda_query_owned_effects(effects, AfterValueRelease)}
     $|    }
     $|    if (qr<active) {
     $|      #pragma unroll
@@ -183,7 +194,7 @@ fn emit_cuda_query_owned_attention_source(
     $|        }
     $|      }
     $|    }
-    $|    __syncthreads();
+    $|    \{cuda_query_owned_effects(effects, ReleaseQueryReaders)}
     $|  }
     $|}
   let bytes = @utf8.encode(source)

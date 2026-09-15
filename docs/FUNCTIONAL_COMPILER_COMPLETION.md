@@ -32,12 +32,30 @@ unchanged from the prior 230.63. The 3072/32 last-token variability persists;
 fresh serving completion is not completion of numerical acceptance or all
 common strategy/effect integration.
 
+## Query-owned attention effects, 2026-09-15
+
+The query-owned attention lowering now consumes an immutable, backend-neutral
+`AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
+reuse and early-exit draining. CUDA lowering renders these actions without
+deciding their ordering. The three existing legal lifetime modes are preserved:
+cooperative single-slot, split K/V single-slot, and joined double-slot.
+
+A differential test against the previous renderer passed all 48 combinations
+of twelve candidates, dense/history mode and partitioned mode, with identical
+source bytes. The old renderer was then removed and source-digest snapshots
+retained. A finite asynchronous memory model covers zero through eight tiles,
+every early-exit position, missing readiness and premature reuse. Native
+warning-denied check passed; schedule tests 22/22 and source tests 33/33 passed.
+This is a behavior-preserving compiler refactor, not a new GPU speedup or a
+claim that all attention families now use the common effect plan.
+
 Latest numerical follow-up: [actual QKV activation capture](BENCHMARK_ACTUAL_QKV_ACTIVATIONS_2026-09-15.md)
 finds 29 differing output pairs among 77 exactly equal actual-model input pairs,
 all crossing single-token/multi-token execution. A subsequent FP64 dot-product
 reference finds the single-token result closer in all 82 changed-component
 observations. This localizes and measures a numerical boundary; final-token
-causality and the fresh current-source performance campaign remain open.
+causality remains open; the fresh current-source performance campaign above
+has completed and still reproduces last-token variability.
 
 Latest follow-up: [actual-row replay and V6 validation](BENCHMARK_ATTENTION_ROW_REPLAY_2026-09-14.md).
 The corrected 34-shape replay reduces the isolated c324 advantage to 1.112%,
