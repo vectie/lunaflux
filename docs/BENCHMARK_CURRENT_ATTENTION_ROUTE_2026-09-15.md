@@ -60,6 +60,21 @@ The additional route requires selected partial/merge timing before attributing
 the regression to bandwidth, arithmetic, or synchronization. It must not be
 shipped based on CTA count alone.
 
+The follow-up split trace confirms the same 96 steps and exact token work.
+Pure-decode kernel time rises from 1374.41 to 1622.93 ms; mixed and prefill
+remain 1613.15 and 1262.92 ms. In pure decode, the experimental partial kernels
+take 1378.45 ms and merges only 12.58 ms. The baseline's unsplit plus partial
+plus merge attention is 1122.42 + 18.29 + 0.33 ms. Thus partial execution, not
+the merge alone, accounts for the regression. This trace does not by itself
+identify an instruction-level stall.
+
+Source inspection also finds the partitioned adapter supplies
+`supports_async_copy=false` and `max_pipeline_stages=1` to both compilation
+and runtime geometry planning. Broad split therefore changes more than the
+number of partitions relative to the async unsplit implementation. The next
+isolated experiment enables the existing two-stage capability in both places;
+it is not an unconditional production default or a claim of measured gain.
+
 The 3072-token cross-batch output difference at token index 31 remains present;
 these trials do not close the independent reference-accuracy question.
 
@@ -71,6 +86,12 @@ these trials do not close the independent reference-accuracy question.
 - Local joined execution tables and JSON are alongside that SQLite file.
 - Split experiment: `/tmp/lunaflux-split32-3b2f25d4.S3pPqE`, including source,
   build logs, complete matrix, summary and owned-server shutdown confirmation.
+- Split trace: `/tmp/lunaflux-profile-split32.I24Hoq/lunaflux`; downloaded and
+  joined at `/tmp/lunaflux-split-profile-analysis.Hkuw1r`.
+- Downloaded baseline profile archive SHA-256:
+  `f9d742e6d225c84141f22fcaf3a6d0a571b8cb48222565e77d54b62512bb0030`.
+- Downloaded split experiment archive SHA-256:
+  `9950f4c86c54be92ef645f387ec4d5966a8f6ce4a22a8a00739b50e78b5232e5`.
 
 Future selection should compare whole attention routes by workload bucket,
 including partial and merge costs, using immutable startup measurements. A
