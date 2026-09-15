@@ -56,6 +56,25 @@ value readiness/publication precede next-key issue, value readers release
 before next-value issue, and next-key readiness remains an explicit wait.
 This avoids maintaining a second, disconnected synchronization policy.
 
+## Scalar selected-row scatter correction, 2026-09-15
+
+The scalar projection lowering gathered `row_offsets[logical_row + 1] - 1`
+but stored into packed `output[index]`. The semantic selected-row result and
+the matrix lowerings retain original token-row positions. The scalar path now
+scatters to `row * output_width + column`; all-token scalar source is unchanged.
+This is a general non-matrix fallback correction, not the cause established
+for the current Tensor Core runtime's last-token variability.
+
+The actual exported CUDA kernel passes five cases on RTX 5060 Ti: noncontiguous
+ends, contiguous decode, one long row, and an invalid selected row. The probe
+checks every output value, including untouched sentinel rows. A negative
+control restoring only the previous packed store fails at trial 0 / row 0 /
+column 0. Memcheck (including leak check), racecheck and synccheck pass with
+zero errors; no speedup is claimed. Native warning-denied check and projection
+tests 75/75 pass. Reproduction uses `export_scalar_scatter.mbtx` and
+`scalar_scatter_probe.cu`; remote results are in
+`/tmp/lunaflux-scalar-scatter.6QkWjs`.
+
 Clean Linux archive `6668c725` subsequently passed all 3,083 native tests with
 `--deny-warn` in `/tmp/lunaflux-clean-6668c725.3XxR95`. The dependency C compiler
 still reports an implicit declaration warning for

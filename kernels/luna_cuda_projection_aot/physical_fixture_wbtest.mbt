@@ -3,12 +3,12 @@ test "unified scalar source and recipe snapshots remain deterministic" {
   let cases = [("qkv", 1), ("dense", 4), ("mlp", 5), ("lm_head", 6)]
   let source_sha256 = [
     "55e13aadc1ec8da702754fedee3fcc1400fe4e17e2fbb8b81893ad79db2e404d", "cd7829586c606ededfad491f9c232a3e651f64e15c35b1c0612229e6859eacc9",
-    "d9f0331fcd68b053fb7bb262a1a7d2fc85f4b28ff9dd78c9204a2a83a7c12321", "4a380c6e9cb782160c242f98a00d5a363d1c2afe7320792208da6c7d4fd5a9c1",
+    "d9f0331fcd68b053fb7bb262a1a7d2fc85f4b28ff9dd78c9204a2a83a7c12321", "869c6fb18964c5b26bd359306b100dbbf4dbaa7df7e473e04176d33c430c624b",
   ]
   let recipe_sha256 = [
     // These are compiler snapshots, not transitive physical qualifications.
     "254e5699e7781c467c4711d16cfa981aaa5cb91761a92a8a37112cb2c933384a", "44da19a6f299b0d7bd4cc0dd384ca3fe4cef6066e355587835a4fa6b1cbc8de4",
-    "5bc9f61ab2f1f2295e336727ecb020bc37864083260aa574d247025ee4516fb4", "5cbae3310b2a59f0d9f3d0d9f0880d42683400728a9b25377c74c3779d476170",
+    "5bc9f61ab2f1f2295e336727ecb020bc37864083260aa574d247025ee4516fb4", "9b0a0f517675effc47dfcb14b285bf1912ea91829d50f64a0aa1ef8023e434ba",
   ]
   for index, case in cases {
     let (name, operation) = case

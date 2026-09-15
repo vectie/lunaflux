@@ -96,7 +96,7 @@ fn projection_scalar_map_source(
       $|  const unsigned long long input_base = (unsigned long long)row * \{parameters.input_width}ULL;
       $|  const unsigned long long weight_base = (unsigned long long)local_column * \{parameters.input_width}ULL;
       $|\{fold}
-      $|  output[index] = __float2bfloat16_rn(accumulator);
+      $|  output[\{if selected { "(unsigned long long)row * " + parameters.output_width.to_string() + "ULL + column" } else { "index" }}] = __float2bfloat16_rn(accumulator);
       $|}
     ),
   )

@@ -1,0 +1,22 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 else { fail("usage: export_scalar_scatter.mbtx NEW_SOURCE_PATH") }
+  let (code, out, err) = @process.collect_output("env", [
+    "LUNA_TEST_EXPORT_SCALAR_SCATTER=1", "moon", "test", "--target", "native",
+    "--deny-warn", "kernels/luna_cuda_projection_aot/scalar_scatter_wbtest.mbt",
+  ])
+  assert_eq(code, 0, msg=err.text())
+  let parts = out.text().split("LUNA_SOURCE_BEGIN scalar-scatter\n").to_array()
+  assert_eq(parts.length(), 2, msg=out.text())
+  let body = parts[1].split("LUNA_SOURCE_END").to_array()
+  assert_eq(body.length(), 2)
+  @fs.write_file(args[1], body[0], create_mode=CreateNew)
+  println("exported selected-row scalar kernel")
+}
