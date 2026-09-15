@@ -46,6 +46,18 @@ and invalid interval schedules. Existing exact selection-source tests remain
 unchanged. This closes the row-selection decision seam, not all transfer-worker
 planning or the remaining numerical/final-current-source validation work.
 
+`ProjectionWeightTransferPlan` now composes the striped vector ownership,
+vectors-per-row coordinate map and immutable operand decision tree. The matrix
+pipeline lowerer consumes this composition for QKV, output and selected-row
+head transfer loops instead of independently assembling the weight map and
+selection. Ordinary single-weight projections are represented as a one-operand
+row view. Device vector width remains a lowering parameter. The plan rejects
+partial rows and invalid vector geometry; tests cover irregular operand
+intervals and one through 256 owners. Projection compiler tests pass 67/67 and
+CUDA projection tests 75/75. The selected branch schedule is preserved rather
+than replaced with the previously losing hoist. This is a code-integration
+increment, not a newly measured speedup or closure of all worker schedules.
+
 The query-owned attention lowering now consumes an immutable, backend-neutral
 `AttentionQueryEffectPlan` for transfer issue, readiness, publication, slot
 reuse and early-exit draining. CUDA lowering renders these actions without

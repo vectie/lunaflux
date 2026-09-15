@@ -27,6 +27,18 @@ fn projection_matrix_pipeline_source(
     owners=consumer_groups * 32,
   ).unwrap()
   let slot = transfers.slot_elements()
+  let weight_plan = @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(
+    transfers.weight_map(),
+    if compilation.program().concatenated_weights().is_empty() {
+      @luna_projection_tile_compiler.plan_projection_concatenated_rows([
+        output_width,
+      ]).unwrap()
+    } else {
+      compilation.program().concatenated_weights()
+    },
+    row_width=width,
+    vector_width=8,
+  ).unwrap()
   let input_elements = transfers.weight_offset()
   let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
     row_tiles=rows / 16,
@@ -42,9 +54,8 @@ fn projection_matrix_pipeline_source(
     "logical_row"
   }
   let weight_selection = if parameters.family == QkvProjection {
-    let segments = compilation.program().concatenated_weights()
-    let (binding, branch) = projection_concatenated_weight_selection(
-      segments,
+    let (binding, branch) = projection_weight_selection_source(
+      weight_plan.row_selection(),
       ["query_weight", "key_weight", "value_weight"],
       "logical_column",
       "base",
@@ -69,8 +80,8 @@ fn projection_matrix_pipeline_source(
     $|          }
     $|        }
   let weight_copy =
-    $|        \{projection_planned_transfer_map_loop(transfers.weight_map())} {
-    $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
+    $|        \{projection_planned_transfer_map_loop(weight_plan.vector_map())} {
+    $|          const int local_row = vector / \{weight_plan.row_vectors()}, k = (vector % \{weight_plan.row_vectors()}) * 8;
     $|          const int logical_column = column_begin + local_row;
     $|          \{weight_selection}
     $|          const bool valid = \{if output_width % columns == 0 { "true" } else { "logical_column < " + output_width.to_string() }};
