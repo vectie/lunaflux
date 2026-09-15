@@ -100,6 +100,17 @@ publication boundary: shared-score softmax/output publication and the remaining
 QKV operand-worker schedule still need integration. Numerical acceptance also
 remains open. No speedup is inferred from byte-identical generated source.
 
+Clean `3f5555ef` subsequently passed `moon info`, `moon fmt --check`, native
+warning-denied check and all 3,092 native tests in
+`/tmp/lunaflux-clean-3f5555ef.X94WXp`. The format failure above is resolved by
+a separate formatter-only commit made from an isolated clean tree; unrelated
+working-tree feature changes were not included or overwritten. Results are
+downloaded under `/tmp/lunaflux-clean-final-results.wKzKwH`. The existing async
+C dependency warning for `posix_spawn_file_actions_addchdir_np` remains; MoonBit
+warning-denied success is not a warning-free C-toolchain claim. The local
+working tree, which includes additional uncommitted work, separately passed
+3,813/3,813 native tests. These are software checks, not fresh GPU timings.
+
 ## Scalar selected-row scatter correction, 2026-09-15
 
 The scalar projection lowering gathered `row_offsets[logical_row + 1] - 1`
