@@ -4,7 +4,14 @@ async fn command(p:String,a:Array[String])->String {
 }
 async fn main {
   let args=@env.args()
-  guard args.length()==5 else {fail("PROFILE_DIRECTORY SQLITE_BINARY MOON_BINARY SUMMARY_SCRIPT")}
+  guard args.length()==5 || args.length()==6 else {fail("PROFILE_DIRECTORY SQLITE_BINARY MOON_BINARY SUMMARY_SCRIPT [CONCURRENCY_CSV]")}
+  let concurrencies=if args.length()==6 {
+    args[5].split(",").to_array().map(x=>@string.parse_int(x))
+  } else {[8,16]}
+  assert_true(!concurrencies.is_empty() && concurrencies.all(c=>c>0),msg="positive concurrency vector required")
+  for i,c in concurrencies {
+    assert_false(concurrencies[:i].contains(c),msg="duplicate concurrency")
+  }
   let root=args[1];let sqlite=args[2]
   let summary=command(args[3],["run",args[4],"--",root+"/server.stderr"])
   @fs.write_file(root+"/execution.tsv",summary,create_mode=CreateNew)
@@ -38,7 +45,7 @@ async fn main {
   let epoch_text=command(sqlite,["-json",root+"/trace.sqlite","SELECT cast(utcEpochNs as text) epoch FROM TARGET_INFO_SESSION_START_TIME;"])
   guard @json.parse(epoch_text) is [{"epoch":String(epoch),..}] else {fail("epoch")}
   let epoch=@string.parse_int64(epoch)
-  for c in [8,16] {
+  for c in concurrencies {
     let stem="i4096-o64-c\{c}-t1"
     let begin=@string.parse_int64(@fs.read_file(root+"/"+stem+".start").text().trim())-epoch
     let end=@string.parse_int64(@fs.read_file(root+"/"+stem+".end").text().trim())-epoch
