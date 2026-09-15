@@ -23,6 +23,12 @@ public behavior tests, integration tests, exact-source physical correctness,
 relevant sanitizer checks and matched end-to-end timing. A slower experiment
 may establish a cause but does not become the production choice by default.
 
+Latest numerical follow-up: [actual QKV activation capture](BENCHMARK_ACTUAL_QKV_ACTIVATIONS_2026-09-15.md)
+finds 29 differing output pairs among 77 exactly equal actual-model input pairs,
+all crossing single-token/multi-token execution. This localizes a numerical
+boundary; independent error measurement, final-token causality and the fresh
+current-source performance campaign remain open.
+
 Latest follow-up: [actual-row replay and V6 validation](BENCHMARK_ATTENTION_ROW_REPLAY_2026-09-14.md).
 The corrected 34-shape replay reduces the isolated c324 advantage to 1.112%,
 matching the prior serving attention trace's 1.03%. Counters show 29–31% more

@@ -1,0 +1,75 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json", "moonbitlang/core/string" }
+
+fn field(line:StringView,key:String)->Int raise {
+  guard line.split(" ").filter(x=>x.has_prefix(key+"=")).to_array() is [value] else {fail(key)}
+  @string.parse_int(value[key.length()+1:])
+}
+struct Capture {
+  epoch : Int
+  operation : Int
+  row : Int
+  activation : Int
+  direction : Int
+  position : Int
+  batch_rows : Int
+  batch_tokens : Int
+  expected : Int
+  words : Array[Int]
+} derive(ToJson)
+
+async fn main {
+  guard @env.args() is [_,input,output] else {fail("STDERR NEW_JSON")}
+  let captures : Array[Capture] = []
+  let mut batch_rows = 0
+  let mut batch_tokens = 0
+  for line in @fs.read_file(input).text().split("\n") {
+    if !line.contains("lf_exec ") {continue}
+    let kind = field(line,"kind")
+    if kind == 0 {batch_rows=field(line,"a");batch_tokens=field(line,"b")}
+    if kind == 10 || kind == 12 {
+      if captures.last() is Some(previous) {assert_eq(previous.words.length(),previous.expected)}
+      let bytes=field(line,"e")
+      assert_true(bytes>0 && bytes%2==0 && batch_rows>0 && batch_tokens>0)
+      captures.push({epoch:field(line,"seq"),operation:field(line,"a"),row:field(line,"b"),activation:field(line,"c"),direction:if kind==10 {0} else {1},position:field(line,"f"),batch_rows,batch_tokens,expected:bytes/2,words:[]})
+    } else if kind == 9 || kind == 11 {
+      guard captures.last() is Some(record) else {fail("missing activation header")}
+      assert_eq(field(line,"seq"),record.epoch)
+      assert_eq(field(line,"a"),record.operation)
+      assert_eq(field(line,"b"),record.row)
+      assert_eq(field(line,"c"),record.activation)
+      assert_eq(kind,9+record.direction*2)
+      assert_eq(field(line,"d"),record.words.length())
+      assert_eq(field(line,"f"),record.expected*2)
+      let word=field(line,"e")
+      assert_true(word>=0 && word<=65535 && record.words.length()<record.expected)
+      record.words.push(word)
+    }
+  }
+  guard captures.last() is Some(last) else {fail("no activations")}
+  assert_eq(last.words.length(),last.expected)
+  // Restrict causality comparison to single-input/single-output stateless
+  // projection captures. Multi-input or missing-output groups are rejected.
+  let pairs : Array[(Capture,Capture)] = []
+  for i=0; i<captures.length(); i=i+2 {
+    guard captures.get(i+1) is Some(out) else {fail("missing output")}
+    let inp=captures[i]
+    assert_true(inp.direction==0 && out.direction==1 && inp.epoch==out.epoch && inp.operation==out.operation && inp.row==out.row)
+    pairs.push((inp,out))
+  }
+  let differences : Array[Json] = []
+  let mut comparisons=0
+  for i in 0..<pairs.length() {
+    for j in (i+1)..<pairs.length() {
+      let (a,ao)=pairs[i];let (b,bo)=pairs[j]
+      if a.operation!=b.operation || a.words!=b.words {continue}
+      assert_eq(ao.words.length(),bo.words.length())
+      comparisons+=1
+      let changed : Array[Int] = []
+      for k in 0..<ao.words.length() {if ao.words[k]!=bo.words[k] {changed.push(k)}}
+      if !changed.is_empty() {differences.push({"left_epoch":a.epoch,"right_epoch":b.epoch,"left_batch_tokens":a.batch_tokens,"right_batch_tokens":b.batch_tokens,"changed_components":changed,"left_words":changed.map(k=>ao.words[k]),"right_words":changed.map(k=>bo.words[k])})}
+    }
+  }
+  let result : Json = {"scope":"diagnostic-eager-single-input-projection","performance_measurement":false,"same_input_comparisons":comparisons,"different_outputs":differences,"captures":captures}
+  @fs.write_file(output,result.stringify(),create_mode=CreateNew)
+  println("captures=\{captures.length()} same_input_pairs=\{comparisons} different_output_pairs=\{differences.length()}")
+}

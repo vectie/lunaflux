@@ -1,0 +1,91 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Install only in an isolated execution-trace source tree. This deliberately
+// changes graph execution to eager and must never be used for performance.
+// OPERATION must denote an unfused operation whose semantic outputs survive
+// that launch. Fused spans require their own output mapping, not guessed IDs.
+fn replace_once(source : String, before : String, after : String) -> String raise {
+  assert_eq(source.split(before).count(), 2, msg="activation diagnostic seam")
+  source.replace(old=before, new=after)
+}
+
+async fn main {
+  guard @env.args() is [_, root, operation_text, first_text, last_text, row_text] else {
+    fail("DISPOSABLE_TRACE_SOURCE OPERATION FIRST_EPOCH LAST_EPOCH ROW")
+  }
+  let operation = @string.parse_int(operation_text)
+  let first = @string.parse_int(first_text)
+  let last = @string.parse_int(last_text)
+  let row = @string.parse_int(row_text)
+  assert_true(operation >= 0 && first >= 0 && last >= first && row >= 0)
+  let directory = root + "/engine/device_step/"
+  assert_true(@fs.exists(directory + "diagnostic_execution.mbt"))
+  assert_false(@fs.exists(directory + "diagnostic_fixed_repeat.mbt"))
+  let types_path = directory + "paged_executor_types.mbt"
+  let prepare_path = directory + "paged_executor_prepare.mbt"
+  let run_path = directory + "paged_executor_run.mbt"
+  let bf16_path = directory + "numeric_bf16_executor.mbt"
+  let device_path = root + "/device/ordered_executor.mbt"
+  let types = replace_once(@fs.read_file(types_path).text(),
+    "priv struct PagedGraphResources {",
+    "priv struct PagedGraphResources {\n  mut diagnostic_memory : @device_memory.DeviceMemoryPlan?")
+  let prepare = replace_once(@fs.read_file(prepare_path).text(),
+    "    descriptor: None,", "    diagnostic_memory: None,\n    descriptor: None,")
+  let prepare = replace_once(prepare, "  let resources = empty_paged_resources()",
+    "  let resources = empty_paged_resources()\n  resources.diagnostic_memory = Some(memory_plan)")
+  let bf16 = replace_once(@fs.read_file(bf16_path).text(), "  let resources = empty_paged_resources()",
+    "  let resources = empty_paged_resources()\n  resources.diagnostic_memory = Some(memory_plan)")
+  let seam = "            raise ExecutorLaunchFailed(ordered_operations[index], error)\n          }\n        }"
+  let run = replace_once(@fs.read_file(run_path).text(), seam,
+    seam + "\n        diagnostic_activation(self, descriptor, ordered_operations[index], 1)")
+  let run = replace_once(run, "        ordered.enqueue(index) catch {",
+    "        diagnostic_activation(self, descriptor, ordered_operations[index], 0)\n        ordered.enqueue(index) catch {")
+  let device = replace_once(@fs.read_file(device_path).text(),
+    "  let raw = @cuda.prepare_ordered_kernel_executor(",
+    "  ignore(raw_policy) // Diagnostic build: preserve selected launches, disable capture.\n  let raw = @cuda.prepare_ordered_kernel_executor(")
+  let device = replace_once(device, "    policy=raw_policy,", "    policy=OrderedExecutorEagerOnly,")
+  let helper =
+    $|///|
+    $|fn diagnostic_activation(executor : PagedGraphExecutor, descriptor : DeviceStepOwner, operation : @plan.OperationId, direction : Int) -> Unit raise DeviceStepError {
+    $|  if operation.as_int() != \{operation} || descriptor.stage_epoch < \{first}UL || descriptor.stage_epoch > \{last}UL { return }
+    $|  let row = \{row}
+    $|  if row >= descriptor.staged_summary.row_count { return }
+  let body =
+    #|  guard executor.resources.diagnostic_memory is Some(memory) &&
+    #|    memory.operation_binding(operation) is Some(binding) &&
+    #|    executor.resources.stream is Some(stream) && stream.open else { raise InvalidExecutor(ResourceState) }
+    #|  stream.resource.synchronize() catch { error => raise ExecutorDevice(OrderedExecutor, error) }
+    #|  let end = read_paged_i32(descriptor.host.query_row_offsets, row + 1)
+    #|  let start = read_paged_i32(descriptor.host.query_row_offsets, row)
+    #|  if end <= start || memory.token_rows() <= 0L { raise InvalidExecutor(SamplingOutput) }
+    #|  let activation = open_activation_workspace(executor.resources)
+    #|  let regions = if direction == 0 { binding.activation_inputs() } else { binding.activation_outputs() }
+    #|  for region in regions {
+    #|    if region.logical_bytes() % memory.token_rows() != 0L { raise InvalidExecutor(SamplingOutput) }
+    #|    let stride = region.logical_bytes() / memory.token_rows()
+    #|    if stride <= 0L || stride % 2L != 0L || stride > 2147483647L { raise InvalidExecutor(SamplingOutput) }
+    #|    let bytes = FixedArray::make(stride.to_int(), b'\x00')
+    #|    descriptor.context.copy_to_fixed_host(activation, bytes,
+    #|      region.offset_bytes() + (end - 1).to_int64() * stride, 0L, stride) catch {
+    #|      error => raise ExecutorDevice(ActivationReadback, error)
+    #|    }
+    #|    trace_event(10 + direction * 2, descriptor.stage_epoch, operation.as_int(), row, region.reference().as_int(), end - 1, stride.to_int(), read_paged_i32(descriptor.host.token_positions, end - 1), 0UL)
+    #|    for i in 0..<(bytes.length() / 2) {
+    #|      let word = bytes[i * 2].to_int() | (bytes[i * 2 + 1].to_int() << 8)
+    #|      trace_event(9 + direction * 2, descriptor.stage_epoch, operation.as_int(), row, region.reference().as_int(), i, word, stride.to_int(), 0UL)
+    #|    }
+    #|  }
+    #|}
+  // Validate all seams before writing. CreateNew prevents duplicate installs.
+  @fs.write_file(directory + "diagnostic_activation.mbt", helper + "\n" + body, create_mode=CreateNew)
+  @fs.write_file(types_path, types)
+  @fs.write_file(prepare_path, prepare)
+  @fs.write_file(bf16_path, bf16)
+  @fs.write_file(run_path, run)
+  @fs.write_file(device_path, device)
+}

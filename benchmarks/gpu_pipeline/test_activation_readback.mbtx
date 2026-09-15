@@ -1,0 +1,62 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/json",
+}
+
+fn sample(epoch:Int,tokens:Int,word:Int)->String {
+  "lf_exec kind=0 seq=\{epoch} a=\{tokens} b=\{tokens}\n"+
+  "lf_exec kind=10 seq=\{epoch} a=2 b=0 c=1 d=0 e=2 f=3\n"+
+  "lf_exec kind=9 seq=\{epoch} a=2 b=0 c=1 d=0 e=16256 f=2\n"+
+  "lf_exec kind=12 seq=\{epoch} a=2 b=0 c=2 d=0 e=2 f=3\n"+
+  "lf_exec kind=11 seq=\{epoch} a=2 b=0 c=2 d=0 e=\{word} f=2\n"
+}
+
+async fn main {
+  let (code, out, err) = @process.collect_output("mktemp", ["-d", "/tmp/lunaflux-activation-install.XXXXXX"])
+  assert_eq(code, 0, msg=err.text())
+  let root = out.text().trim().to_owned()
+  @fs.mkdir(root + "/engine")
+  @fs.mkdir(root + "/engine/device_step")
+  @fs.mkdir(root + "/device")
+  let files = [
+    "engine/device_step/paged_executor_types.mbt",
+    "engine/device_step/paged_executor_prepare.mbt",
+    "engine/device_step/numeric_bf16_executor.mbt",
+    "engine/device_step/paged_executor_run.mbt",
+    "device/ordered_executor.mbt",
+  ]
+  for file in files {
+    @fs.write_file(root + "/" + file, @fs.read_file(file), create_mode=CreateNew)
+  }
+  @fs.write_file(root + "/engine/device_step/diagnostic_execution.mbt", "// isolated fixture", create_mode=CreateNew)
+  let script = "benchmarks/gpu_pipeline/install_activation_readback.mbtx"
+  let (code, _, err) = @process.collect_output("moon", ["run", script, root, "2", "1", "4", "0"])
+  assert_eq(code, 0, msg=err.text())
+  let helper = @fs.read_file(root + "/engine/device_step/diagnostic_activation.mbt").text()
+  assert_true(helper.contains("operation.as_int() != 2"))
+  assert_true(helper.contains("descriptor.stage_epoch > 4UL"))
+  assert_true(helper.contains("stream.resource.synchronize()"))
+  assert_true(helper.contains("region.offset_bytes() + (end - 1).to_int64() * stride"))
+  assert_true(helper.contains("memory.token_rows()"))
+  let device = @fs.read_file(root + "/device/ordered_executor.mbt").text()
+  assert_true(device.contains("policy=OrderedExecutorEagerOnly,"))
+  assert_false(device.contains("policy=raw_policy,"))
+  assert_true(@fs.read_file(root+"/engine/device_step/numeric_bf16_executor.mbt").text().contains("resources.diagnostic_memory = Some(memory_plan)"))
+  let installed = @fs.read_file(root + "/engine/device_step/paged_executor_run.mbt").text()
+  let (code, _, _) = @process.collect_output("moon", ["run", script, root, "2", "1", "4", "0"])
+  assert_true(code != 0)
+  assert_eq(@fs.read_file(root + "/engine/device_step/paged_executor_run.mbt").text(), installed)
+  assert_true(installed.contains("diagnostic_activation(self, descriptor, ordered_operations[index], 0)\n        ordered.enqueue"))
+  let trace=root+"/trace"
+  @fs.write_file(trace,sample(1,1,16256)+sample(2,8,16257),create_mode=CreateNew)
+  let summary="benchmarks/gpu_pipeline/summarize_activation_readback.mbtx"
+  let (code,_,err)=@process.collect_output("moon",["run",summary,trace,root+"/summary.json"])
+  assert_eq(code,0,msg=err.text())
+  assert_true(@json.parse(@fs.read_file(root+"/summary.json").text()) is {"same_input_comparisons":Number(1,..),"different_outputs":Array([{"changed_components":Array([Number(0,..)]),..}]),..})
+  @fs.write_file(root+"/truncated",sample(1,1,16256).replace(old="kind=11",new="kind=99"),create_mode=CreateNew)
+  let (code,_,_)=@process.collect_output("moon",["run",summary,root+"/truncated",root+"/bad.json"])
+  assert_true(code!=0)
+  println("activation installer regression passed: " + root)
+}
