@@ -470,6 +470,16 @@ change is covered by the focused projection AOT suite (72/72).
 
 ### Native allocator probe migration
 
+Clean-source follow-up on 2026-09-15 found one missed consumer:
+`rank_child_control_alloc` force-includes the rank-group redirect header but
+had not supplied `lunaflux_probe_mimalloc`. Linux test linking failed with an
+undefined symbol. Its wrapper now counts the allocation and delegates to
+`mi_malloc`, preserving the allocator/free pair. The existing release main
+passes both positive controls and its zero-allocation assertion on macOS and
+Linux. The isolated committed-source Linux suite, plus this repair, passes
+3079/3079; the earlier 3800-test local worktree includes unrelated uncommitted
+work and is not the same source scope. This change affects tests only.
+
 Running the release allocation executable exposed a real coverage failure:
 the record positive control observed zero allocations with the new mimalloc
 backend. Five probe headers now redirect malloc calls without rewriting bare
