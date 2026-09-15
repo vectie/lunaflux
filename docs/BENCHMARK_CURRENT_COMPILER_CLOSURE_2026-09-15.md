@@ -4,6 +4,49 @@ This is an in-progress validation record, not completion of all five closure
 items or a production deployment. Sources are commit-pinned; unrelated local
 worktree changes are excluded.
 
+## Latest integrated refactor: 3836a256
+
+The clean source archive SHA-256 is
+`1f0638ec159a867a48847047d2ab230ff82cce79df20322ae46548dc7f4db4f1`.
+Info, format, native warning-denied check and all 3,098 native tests passed.
+All seven release entry packages built, followed by fresh candidate export,
+standard/fused CUDA compilation, release binding, materialization and capacity
+validation. Previous measured tuning records were explicitly reused as selection
+inputs and accepted; they are not new tuning measurements.
+
+The rebuilt uninstrumented runtime completed one warmup and five measured trials
+for each cell below. Every response returned the required token count. These
+are median batch-completion output throughput, not isolated GPU kernel timing.
+
+| Input/output | C1 output tok/s | C8 output tok/s | C16 output tok/s |
+| --- | ---: | ---: | ---: |
+| 512/64 | 209.84 | 1030.18 | 1380.05 |
+| 1528/32 | 151.66 | 372.09 | 409.27 |
+| 3072/32 | 107.74 | 186.32 | 197.15 |
+| 4096/64 | 117.22 | 216.49 | 230.32 |
+
+4096/64 request TTFT p50/p95 is 174/179 ms at C1, 992/1460 ms at C8,
+and 1701/2947 ms at C16. Compared with the earlier d50f3b90 C16 value of
+230.06 tok/s, performance is essentially unchanged. The behavior-preserving
+effect-plan refactor is not a demonstrated speedup. No competitor was rerun.
+
+The 3072/32 numerical issue persists: 30/40 C8 and 15/80 C16 responses differ
+from their cell's first measured response, first at token index 31. The other
+ten cells have no within-cell token changes. This comparison is not an
+independent numerical oracle and does not close numerical acceptance.
+Current-source mixed workloads, fixed-graph diagnosis and relevant physical
+sanitizer coverage are not established by this uninstrumented matrix.
+
+Remote source/results: `/tmp/lunaflux-integrated-3836a256.9vOS4i`.
+The runner stopped its owned service; no live owned-group processes remained
+and the target GPU was idle after the run. The reused offline runner emitted
+unused-helper and future cancellation-cleanup warnings; these are separate
+from the warning-denied production build. Downloaded test/build/measurement
+logs and responses: `/tmp/lunaflux-integrated-results.AHwvNG/results.tar.gz`,
+SHA-256 `18b669dd36f2be14d7e63351b27c5abd1814bb8c02061103b798d97b44a95f78`
+(verified against the remote archive). Launch argument and process-argument
+files are excluded.
+
 ## Clean Linux boundary
 
 The clean `86f48eb7` source passed warning-denied native check and 3079/3079
