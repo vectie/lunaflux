@@ -255,6 +255,14 @@ fn run_paged_attention_allocation_close_order(
 fn close_paged_resources(
   resources : PagedGraphResources,
 ) -> Unit raise DeviceStepError {
+  // DMA owns the KV allocation until every lane has drained and closed. A
+  // failed close preserves this owner and prevents lower dependency teardown.
+  if resources.host_cache is Some(cache) {
+    cache.close() catch {
+      error => raise ExecutorDevice(PersistentKvArena, error)
+    }
+    resources.host_cache = None
+  }
   let first : Ref[DeviceStepError?] = Ref(None)
   run_paged_ordered_dependency_close(
     () => close_paged_ordered_executors(resources, first),

@@ -115,6 +115,7 @@ priv struct PagedGraphResources {
   mut deep_prefill_partition_workspace : PagedOwnedAllocation?
   mut decode_split_workspace : PagedOwnedAllocation?
   mut persistent_kv : PagedOwnedAllocation?
+  mut host_cache : @host_cache.Cache?
   mut fused_dispatch_canary : PagedOwnedAllocation?
   mut greedy_sampling_results : PagedOwnedAllocation?
   mut device_sampling_parameters : PagedOwnedAllocation?

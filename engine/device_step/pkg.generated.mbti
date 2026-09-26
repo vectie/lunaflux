@@ -25,6 +25,8 @@ import {
   "vectie/lunaflux/kernels/luna_kernel_bundle",
   "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/host_cache",
+  "vectie/lunaflux/kv/residency",
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/numeric_weight_file",
@@ -414,12 +416,18 @@ pub(all) enum PagedGraphExecutionPolicy {
 pub struct PagedGraphExecutor {
   // private fields
 }
+pub fn PagedGraphExecutor::begin_prefix_restore(Self, @residency.Entry, Int) -> @host_cache.Start raise DeviceStepError
+pub fn PagedGraphExecutor::begin_prefix_spill(Self, Int) -> @host_cache.Start raise DeviceStepError
+pub fn PagedGraphExecutor::cancel_prefix_transfer(Self, @host_cache.Operation) -> Bool
 pub fn PagedGraphExecutor::close(Self) -> Unit raise DeviceStepError
+pub fn PagedGraphExecutor::evict_host_prefix(Self, @residency.Entry) -> Bool
 pub fn PagedGraphExecutor::execute(Self, StagedPagedGraphExecution) -> ExecutedPagedGraphExecution raise DeviceStepError
 pub fn PagedGraphExecutor::finish(Self, ExecutedPagedGraphExecution) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::graph_runtime_telemetry(Self) -> PagedGraphRuntimeTelemetry
 pub fn PagedGraphExecutor::lifecycle(Self) -> PagedGraphLifecycle
 pub fn PagedGraphExecutor::observe_offline_selected_logits(Self, ExecutedPagedGraphExecution, Int, ArrayView[Int], FixedArray[Double]) -> Unit raise DeviceStepError
+pub fn PagedGraphExecutor::poll_prefix_transfer(Self, @host_cache.Operation) -> @host_cache.Progress raise DeviceStepError
+pub fn PagedGraphExecutor::prepare_host_cache(Self, @host_cache.Plan) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::sample_completion(Self, ExecutedPagedGraphExecution, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.CompletionWriter) -> @worker_protocol.SubmittedCompletion raise DeviceStepError
 pub fn PagedGraphExecutor::sample_completion_frame(Self, ExecutedPagedGraphExecution, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise DeviceStepError
 pub fn PagedGraphExecutor::stage(Self, @worker_protocol.SubmittedSchedulePlan) -> StagedPagedGraphExecution raise DeviceStepError

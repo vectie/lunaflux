@@ -135,6 +135,7 @@ pub fn PagedGraphExecutor::stage(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
+  require_host_cache_idle(self.resources)
   if self.fp8_frame_envelope is Some(_) {
     raise InvalidExecutor(Fp8FrameAdmission)
   }
@@ -174,6 +175,7 @@ pub fn PagedGraphExecutor::stage_frame(
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> StagedPagedGraphExecution raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
+  require_host_cache_idle(self.resources)
   let graph_bucket = select_frame_graph_bucket(self.graph_bucket_table, frame)
   let mut ordered_executor_index = select_paged_attention_phase_owner(
     self.resources,

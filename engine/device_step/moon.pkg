@@ -32,6 +32,8 @@ import {
   "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
   "vectie/lunaflux/kernels/luna_kernel_bundle",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/host_cache",
+  "vectie/lunaflux/kv/residency",
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/numeric_weight_file",
   "vectie/lunaflux/model/numeric_contract",
