@@ -78,6 +78,8 @@ pub fn RankGroupWireFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedR
 pub fn RankGroupWireFrameBuffer::new(RankGroupWireLimits) -> Self
 
 pub(all) enum RankGroupWireKind {
+  StreamingRequest
+  StreamingReply
   Configure
   Ready
   Submit

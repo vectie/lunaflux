@@ -93,3 +93,30 @@ fn admit_streaming(
     _ => raise AdmissionRejected(StartupContract)
   }
 }
+
+///|
+fn parse_versioned_streaming(
+  root : Map[String, Json],
+  enabled : Bool,
+) -> StreamingClaims? raise RuntimeDescriptorFileError {
+  if enabled {
+    Some(parse_streaming(root))
+  } else {
+    if root.contains("streaming") {
+      raise invalid_field(Root, UnsupportedValue)
+    }
+    None
+  }
+}
+
+///|
+fn bind_streaming_startup(
+  startup : @worker_wire.WorkerStartupContract,
+  claims : StreamingClaims?,
+  layout : @device_layout.DeviceKvLayout,
+) -> @worker_wire.WorkerStartupContract raise RuntimeDescriptorFileError {
+  match claims {
+    Some(claims) => startup.with_streaming(admit_streaming(claims, layout))
+    None => startup
+  }
+}

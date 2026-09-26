@@ -339,11 +339,14 @@ residency transitions are interpreted through fixed storage and explicit CUDA
 owners. Restores copy complete K/V pages into the existing stable device arena;
 graph staging is fenced while any copy is outstanding. The scheduler must retain
 the matching page-generation reservation until completion or proven drain.
-The explicit BF16 v6 runtime descriptor admits the capability through startup
-v5. The neutral [streaming IR](STREAMING_ARCHITECTURE.md) drives cooperative
+Explicit versioned runtime descriptors for BF16, I8, FP8, Qwen3, Mistral and
+tensor parallel admit the capability through startup v5. The neutral
+[streaming IR](STREAMING_ARCHITECTURE.md) drives cooperative
 worker commands and atomic multi-page restore publication in the existing radix.
 Cancellation retains reservations until completion or post-reap invalidation;
-replacement binds a new child epoch. Physical model parity and performance
+replacement binds a new child or whole-group epoch. The immutable all-rank
+barrier retains each completed shard until the group transaction resolves.
+Physical model parity and performance
 qualification remain release gates.
 
 ## Model planning and loading

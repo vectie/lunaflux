@@ -12,7 +12,11 @@ pub fn encode(Reply, FixedArray[Byte]) -> Unit raise StreamingError
 
 pub fn frame_bytes() -> Int
 
+pub fn group_status(Opcode, Int, Bool) -> Status
+
 pub fn is_frame(FixedArray[Byte], Int) -> Bool
+
+pub fn rank_status_valid(Opcode, Status, Bool) -> Bool
 
 // Errors
 pub(all) suberror StreamingError {
@@ -44,6 +48,7 @@ pub struct Capability {
   shapes : ReadOnlyArray[Shape]
 } derive(Eq, @debug.Debug)
 pub fn Capability::equal(Self, Self) -> Bool
+pub fn Capability::for_rank(Self, Int64, Int) -> Self raise StreamingError
 pub fn Capability::host_bytes(Self) -> Int64
 pub fn Capability::new(slots~ : Int, host_bytes~ : Int64, page_bytes~ : Int64, page_count~ : Int, reserve_pages~ : Int, restore_ns~ : Int64, recompute_ns~ : Int64, separate_host_memory~ : Bool, transfer_timeout_millis? : Int, workspace_budget? : Int64, shapes? : ArrayView[Shape]) -> Self raise StreamingError
 pub fn Capability::not_equal(Self, Self) -> Bool
@@ -91,6 +96,20 @@ pub(all) struct Decision {
   next : Control
   action : Action
 }
+
+pub struct GroupTransfer {
+  command : Command
+  ranks : Int
+  finished : UInt
+  remaining : Int
+  host : HostPage
+  cancelled : Bool
+}
+pub fn GroupTransfer::accept(Self, Int, Reply) -> Self raise StreamingError
+pub fn GroupTransfer::cancel(Self) -> Self raise StreamingError
+pub fn GroupTransfer::new(Command, Int) -> Self raise StreamingError
+pub fn GroupTransfer::rank_done(Self, Int) -> Bool
+pub fn GroupTransfer::reply(Self, Command) -> Reply
 
 pub(all) struct HostPage {
   slot : Int

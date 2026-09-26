@@ -96,7 +96,7 @@ pub fn compose_rank_configure(
 ) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError {
   validate_configure_claims(binding, startup, source, topology, envelope)
   let storage = FixedArray::make(RANK_CONFIGURE_CAPACITY, b'\x00')
-  let startup_buffer = @worker_wire.StartupFrameBuffer::new()
+  let startup_buffer = @worker_wire.StartupFrameBuffer::new(streaming=true)
   let startup_frame = startup_buffer.encode(Configure, startup) catch {
     _ => raise Invalid(Startup)
   }
@@ -193,9 +193,9 @@ pub fn decode_rank_configure(
   let source_length = configure_read_i32(source, 20)
   let topology_length = configure_read_i32(source, 24)
   let envelope_length = configure_read_i32(source, 28)
-  let startup_capacity = @worker_wire.StartupFrameBuffer::new().capacity()
+  let startup_capacity = @worker_wire.StartupFrameBuffer::new(streaming=true).capacity()
   let envelope_capacity = @tensor_parallel_worker_bootstrap.tensor_parallel_rank_envelope_frame_bytes()
-  if startup_length != startup_capacity ||
+  if (startup_length != 408 && startup_length != startup_capacity) ||
     source_length <= 0 ||
     source_length > @worker_wire.bootstrap_source_capacity() ||
     topology_length < SELECTED_TOPOLOGY_HEADER_BYTES ||
@@ -214,7 +214,7 @@ pub fn decode_rank_configure(
   for index in 0..<startup_length {
     startup_wire[index] = source[startup_offset + index]
   }
-  let startup_frame = @worker_wire.StartupFrameBuffer::new().load(
+  let startup_frame = @worker_wire.StartupFrameBuffer::new(streaming=true).load(
     startup_wire, startup_length,
   ) catch {
     _ => raise Invalid(Startup)

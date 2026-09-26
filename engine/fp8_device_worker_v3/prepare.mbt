@@ -106,7 +106,14 @@ pub fn prepare_v3(
     error => return fail_preparation_v3(resources, Executor(error))
   }
   match outcome {
-    PagedReady(executor) => resources.executor = Some(Complete(executor))
+    PagedReady(executor) => {
+      resources.executor = Some(Complete(executor))
+      if plan.startup.streaming() is Some(capability) {
+        executor.prepare_streaming(capability, plan.startup.streaming_epoch()) catch {
+          error => return fail_preparation_v3(resources, Executor(error))
+        }
+      }
+    }
     PagedCleanupRequired(failed) => {
       resources.executor = Some(Failed(failed))
       return fail_preparation_v3(resources, Executor(failed.cause()))

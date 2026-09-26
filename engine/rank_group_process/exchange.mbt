@@ -153,6 +153,16 @@ pub fn RankGroupProcessSupervisor::begin(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> Unit raise RankGroupProcessError {
   self.require_lifecycle(Ready)
+  if self.streaming is Some(streaming) &&
+    (
+      streaming.exchanging ||
+      (
+        streaming.transfer.command.sequence != 0UL &&
+        streaming.transfer.remaining != 0
+      )
+    ) {
+    self.reject(Lifecycle)
+  }
   let started = self.clock.now_millis() catch {
     _ => {
       self.protocol.report_begin_host_failure(plan) catch {

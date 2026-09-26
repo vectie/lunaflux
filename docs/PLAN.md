@@ -41,7 +41,8 @@ The branch-local [bounded streaming plan](STREAMING.md) tracks the separate
 host-memory workstream. It uses functional MoonBit plans and transitions,
 preallocated transfer ownership, and staged qualification. Worker protocol,
 logical prefix ownership, serving lifecycle, and bounded policy selection are
-integrated under the explicit BF16 descriptor v6 capability. Physical model
+integrated under explicit versioned BF16, I8, FP8, Qwen3, Mistral and
+tensor-parallel descriptor capabilities. Physical model
 parity and performance remain named gates before production qualification.
 
 ## Latest sealed physical gate position — 2026-08-28

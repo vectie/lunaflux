@@ -69,6 +69,9 @@ pub fn RankGroupProcessSupervisor::begin_close(
   self : RankGroupProcessSupervisor,
 ) -> Unit raise RankGroupProcessError {
   self.require_lifecycle(Ready)
+  if self.streaming_busy() {
+    self.reject(Lifecycle)
+  }
   self.healthy_terminal = true
   self.lifecycle_value = Draining
   self.stage_terminal(0, Drain)

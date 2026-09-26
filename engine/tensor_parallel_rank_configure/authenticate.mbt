@@ -59,7 +59,11 @@ fn validate_configure_claims(
     envelope.model_generation_value() != binding.model_generation_value() {
     raise Invalid(ModelGeneration)
   }
-  if envelope.group_generation_value() != binding.group_generation_value() {
+  if envelope.group_generation_value() != binding.group_generation_value() ||
+    (
+      startup.streaming() is Some(_) &&
+      startup.streaming_epoch() != binding.group_generation_value()
+    ) {
     raise Invalid(GroupGeneration)
   }
   if envelope.rank() != binding.rank() {

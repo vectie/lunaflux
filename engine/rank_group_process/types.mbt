@@ -24,6 +24,7 @@ pub(all) enum RankGroupProcessFailure {
   Protocol(@rank_group_protocol.RankGroupError)
   WorkerWire(@worker_wire.WorkerWireError)
   GraphTelemetry(rank~ : Int)
+  Streaming(rank~ : Int)
   RankConfigure(
     @tensor_parallel_rank_configure.TensorParallelRankConfigureError
   )
@@ -108,6 +109,7 @@ priv enum RankGroupChildCleanupProgress {
 
 ///|
 pub struct RankGroupProcessSupervisor {
+  priv streaming : StreamingGroup?
   priv limits : RankGroupProcessLimits
   priv wire_limits : @rank_group_wire.RankGroupWireLimits
   priv children : FixedArray[RankGroupChildOwner]

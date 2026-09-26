@@ -39,6 +39,11 @@ fn prepare_owned_tensor_parallel_internal(
   let scheduler = blueprint.instantiate() catch {
     error => raise owned_failure(OwnedSchedulerFailure(error))
   }
+  if inputs.streaming() is Some(capability) {
+    scheduler.configure_streaming(capability, 1UL) catch {
+      error => raise owned_failure(OwnedSchedulerFailure(error))
+    }
+  }
   let (outcome, service, failed_owner) = prepare_owned_shell(
     blueprint,
     scheduler,

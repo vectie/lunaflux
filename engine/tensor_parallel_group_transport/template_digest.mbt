@@ -64,6 +64,7 @@ fn derive_group_template_digest(
   process_limits : @rank_group_process.RankGroupProcessLimits,
   admitted_rank_child_activation_path : Bytes,
   rank_child_executable_digest_sha256 : StringView,
+  streaming? : @streaming_ir.Capability,
 ) -> TensorParallelGroupTemplateDigest raise TensorParallelGroupTransportError {
   if rank_child_executable_digest_sha256.length() != 64 ||
     rank_child_executable_digest_sha256 == "0".repeat(64) {
@@ -71,6 +72,10 @@ fn derive_group_template_digest(
   }
   let encoder : GroupTemplateEncoder = { bytes: [], }
   encoder.append("lunaflux.tensor-parallel-group-template.v1")
+  if streaming is Some(capability) {
+    encoder.append("streaming.v1")
+    append_streaming_template(encoder, capability)
+  }
   encoder.append(source.digest().as_hex())
   encoder.append(source.kernel().manifest_digest())
   match source.kernel().luna_approval() {

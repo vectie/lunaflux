@@ -25,11 +25,18 @@ fn parse_fp8_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings",
-  ])
-  if require_string(root, "schema_version", Root) != FP8_RUNTIME_SCHEMA {
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings",
+    ],
+    ["streaming"],
+  )
+  let schema_version = require_string(root, "schema_version", Root)
+  if schema_version != FP8_RUNTIME_SCHEMA &&
+    schema_version != "lunaflux.runtime.fp8-reusable.v4" {
     raise invalid_field(Root, UnsupportedValue)
   }
   let kernels = require_object(root, "kernels", Root, index=2)
@@ -40,7 +47,12 @@ fn parse_fp8_descriptor(
   if policy != FP8_RUNTIME_POLICY {
     raise invalid_field(Kernels, UnsupportedValue, index=2)
   }
+  let streaming = parse_versioned_streaming(
+    root,
+    schema_version == "lunaflux.runtime.fp8-reusable.v4",
+  )
   {
+    streaming,
     model: parse_i8_model(root),
     kernels: {
       manifest_locator: require_string(kernels, "manifest_locator", Kernels),
@@ -55,6 +67,6 @@ fn parse_fp8_descriptor(
     execution: parse_i8_execution(root),
     worker: parse_worker(root),
     inference: parse_inference(root),
-    ceilings: parse_ceilings(root),
+    ceilings: parse_ceilings(root, graph_memory_required=streaming is Some(_)),
   }
 }

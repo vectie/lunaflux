@@ -25,20 +25,32 @@ fn parse_i8_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings",
-  ])
-  if require_string(root, "schema_version", Root) != I8_RUNTIME_SCHEMA {
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings",
+    ],
+    ["streaming"],
+  )
+  let schema_version = require_string(root, "schema_version", Root)
+  if schema_version != I8_RUNTIME_SCHEMA &&
+    schema_version != "lunaflux.runtime.i8.v3" {
     raise invalid_field(Root, UnsupportedValue)
   }
+  let streaming = parse_versioned_streaming(
+    root,
+    schema_version == "lunaflux.runtime.i8.v3",
+  )
   {
+    streaming,
     model: parse_i8_model(root),
     kernels: parse_i8_kernels(root),
     execution: parse_i8_execution(root),
     worker: parse_worker(root),
     inference: parse_inference(root),
-    ceilings: parse_ceilings(root),
+    ceilings: parse_ceilings(root, graph_memory_required=streaming is Some(_)),
   }
 }
 

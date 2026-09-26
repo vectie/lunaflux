@@ -8,6 +8,13 @@ pub fn DeviceWorkerBootstrapOwner::streaming_command(
       owner.streaming_command(command) catch {
         error => raise Worker(error)
       }
-    _ => raise Invalid(NumericCapability)
+    I8(owner) =>
+      owner.streaming_command(command) catch {
+        error => raise I8Worker(error)
+      }
+    Fp8(owner) =>
+      owner.streaming_command(command) catch {
+        error => raise Fp8Worker(error)
+      }
   }
 }

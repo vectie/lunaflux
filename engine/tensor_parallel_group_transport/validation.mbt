@@ -51,6 +51,18 @@ fn validate_limit_bindings(
   let shapes = inputs.model_plan.shape_constraints()
   let step = inputs.device_step_limits
   let worker = inputs.worker_limits
+  if inputs.streaming is Some(capability) {
+    if capability.page_count() != inputs.source.execution().total_page_count() ||
+      capability.workspace_budget() >
+      inputs.source.ceilings().max_activation_arena_bytes() {
+      rejected(KvPlan)
+    }
+    for index in 0..<capability.shape_count() {
+      if capability.shape_at(index).tokens() > step.max_tokens() {
+        rejected(Limit)
+      }
+    }
+  }
   if step.max_rows() != worker.max_plan_rows() ||
     step.max_tokens() != worker.max_plan_tokens() ||
     step.max_pages() != worker.max_plan_pages() ||

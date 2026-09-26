@@ -295,6 +295,7 @@ fn TensorParallelRankChildReady::accept_inbound(
 ) -> Unit raise TensorParallelRankChildError {
   let kind = inbound.kind() catch { error => raise Control(error) }
   match kind {
+    StreamingRequest => self.accept_streaming(inbound)
     Submit => self.accept_submit(inbound)
     PollComplete => self.accept_poll(inbound)
     Abort => {

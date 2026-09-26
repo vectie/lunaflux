@@ -137,15 +137,25 @@ fn parse_tensor_parallel_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings", "tensor_parallel",
-  ])
-  if require_string(root, "schema_version", Root) !=
-    "lunaflux.runtime.tensor-parallel.v1" {
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings", "tensor_parallel",
+    ],
+    ["streaming"],
+  )
+  let schema = require_string(root, "schema_version", Root)
+  if schema != "lunaflux.runtime.tensor-parallel.v1" &&
+    schema != "lunaflux.runtime.tensor-parallel.v2" {
     raise invalid_field(Root, UnsupportedValue)
   }
   {
+    streaming: parse_versioned_streaming(
+      root,
+      schema == "lunaflux.runtime.tensor-parallel.v2",
+    ),
     model: parse_model(root),
     kernels: parse_tensor_parallel_kernels(root),
     execution: parse_execution(root),

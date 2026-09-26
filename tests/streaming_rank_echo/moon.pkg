@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/engine/rank_child_control",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_rank_configure",
+  "vectie/lunaflux/engine/streaming_ir",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

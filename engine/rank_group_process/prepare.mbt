@@ -149,7 +149,13 @@ fn prepare_rank_group_process_internal(
     if contract.length() > wire_limits.max_payload_bytes() {
       raise Invalid(Limit)
     }
-    if rank_startup.identity() != worker_startup.identity() ||
+    if rank_startup.streaming() != worker_startup.streaming() ||
+      rank_startup.streaming_epoch() != worker_startup.streaming_epoch() ||
+      (
+        rank_startup.streaming() is Some(_) &&
+        rank_startup.streaming_epoch() != first_binding.group_generation_value()
+      ) ||
+      rank_startup.identity() != worker_startup.identity() ||
       rank_startup.model_generation_value() !=
       worker_startup.model_generation_value() ||
       rank_startup.worker_limits() != worker_startup.worker_limits() ||
@@ -216,6 +222,17 @@ fn prepare_rank_group_process_internal(
     raise Invalid(Limit)
   }
   let supervisor : RankGroupProcessSupervisor = {
+    streaming: match worker_startup.streaming() {
+      Some(capability) =>
+        Some(
+          new_streaming_group(
+            capability,
+            worker_startup.streaming_epoch(),
+            world_size,
+          ),
+        )
+      None => None
+    },
     limits,
     wire_limits,
     children: prepared_children(executable, process_limits, world_size),

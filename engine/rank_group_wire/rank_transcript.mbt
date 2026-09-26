@@ -3,6 +3,7 @@
 /// every post-Configure frame against the startup-locked binding before any
 /// lifecycle state is changed.
 pub struct RankGroupWireRankTranscript {
+  priv mut streaming_sequence : UInt64
   priv mut binding_value : RankGroupWireBinding?
   priv mut lifecycle_value : RankGroupWireLifecycle
   priv mut previous_sequence : UInt64
@@ -16,6 +17,7 @@ pub struct RankGroupWireRankTranscript {
 ///|
 pub fn RankGroupWireRankTranscript::new() -> RankGroupWireRankTranscript {
   {
+    streaming_sequence: 0UL,
     binding_value: None,
     lifecycle_value: NewGroup,
     previous_sequence: 0UL,
@@ -175,7 +177,24 @@ fn RankGroupWireRankTranscript::accept_rank_header(
   self : RankGroupWireRankTranscript,
   header : RankGroupWireDecodedHeader,
 ) -> Unit raise RankGroupWireError {
+  if self.streaming_sequence != 0UL && header.kind() != StreamingReply {
+    return self.reject_rank(Lifecycle)
+  }
   match header.kind() {
+    StreamingRequest => {
+      if self.lifecycle_value != ReadyGroup {
+        return self.reject_rank(Lifecycle)
+      }
+      self.streaming_sequence = header.sequence_value()
+    }
+    StreamingReply => {
+      if self.lifecycle_value != ReadyGroup ||
+        self.streaming_sequence == 0UL ||
+        self.streaming_sequence != header.sequence_value() {
+        return self.reject_rank(Sequence)
+      }
+      self.streaming_sequence = 0UL
+    }
     Configure => return self.reject_rank(Lifecycle)
     Ready => {
       if self.lifecycle_value != Configuring || !self.startup_admitted {

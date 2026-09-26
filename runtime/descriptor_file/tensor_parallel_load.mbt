@@ -220,6 +220,10 @@ fn load_tensor_parallel_bound(
     _ => raise AdmissionRejected(ExecutionLimits)
   }
   {
+    streaming: match claims.streaming {
+      Some(claims) => Some(admit_streaming(claims, kv_layout))
+      None => None
+    },
     descriptor_digest: expected_digest,
     model,
     plan,

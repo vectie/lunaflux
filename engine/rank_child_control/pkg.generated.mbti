@@ -32,6 +32,7 @@ pub fn RankChildControl::begin_leader_complete(Self, RankChildInbound, FixedArra
 pub fn RankChildControl::begin_pending(Self, RankChildInbound) -> Unit raise RankChildControlError
 pub fn RankChildControl::begin_ready(Self, RankChildInbound, @rank_group_wire.RankGroupWireBinding, previous_sequence_value~ : UInt64) -> Unit raise RankChildControlError
 pub fn RankChildControl::begin_receive(Self) -> Unit raise RankChildControlError
+pub fn RankChildControl::begin_streaming_reply(Self, RankChildInbound, FixedArray[Byte]) -> Unit raise RankChildControlError
 pub fn RankChildControl::fail_local_admission(Self) -> Unit raise RankChildControlError
 pub fn RankChildControl::failure_rule(Self) -> RankChildControlRule?
 pub fn RankChildControl::inbound(Self) -> RankChildInbound raise RankChildControlError

@@ -240,13 +240,14 @@ fn load_mistral_bound(
   let source = admit_mistral_source(
     model_root_label, kernel_root_label, claims, ceilings,
   )
-  let startup = admit_startup_contract(
+  let base_startup = admit_startup_contract(
     bootstrap,
     source,
     claims.execution.model_generation,
     worker,
     inference,
   )
+  let startup = bind_streaming_startup(base_startup, claims.streaming, layout)
   let sampling_policy = @device_worker.admit_bootstrap_sampling_policy(
     source, plan, execution,
   ) catch {

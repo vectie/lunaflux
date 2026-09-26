@@ -86,6 +86,23 @@ fn streaming_command_cycle(
   if !(restore.opcode is Restore) {
     alloc_probe_abort()
   }
+  let ranks = try! @streaming_ir.GroupTransfer::new(restore, 2)
+  let first = try! ranks.accept(0, {
+    command: restore,
+    status: DeviceReady,
+    host: restore.host,
+  })
+  if !(first.reply(restore).status is Pending) {
+    alloc_probe_abort()
+  }
+  let last = try! first.accept(1, {
+    command: restore,
+    status: DeviceReady,
+    host: restore.host,
+  })
+  if !(last.reply(restore).status is DeviceReady) {
+    alloc_probe_abort()
+  }
   try! owner.accept_streaming_reply({
     command: restore,
     status: DeviceReady,

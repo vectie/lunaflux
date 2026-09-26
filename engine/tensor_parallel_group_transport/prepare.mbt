@@ -1,5 +1,6 @@
 ///|
 pub fn TensorParallelGroupPlanningInputs::new(
+  streaming? : @streaming_ir.Capability,
   source~ : @worker_wire.EncodedBootstrapSource,
   model_plan~ : @plan.ModelPlan,
   model_generation~ : @worker_protocol.ModelPlanGeneration,
@@ -23,11 +24,24 @@ pub fn TensorParallelGroupPlanningInputs::new(
     inspections.push(inspection)
   }
   let template_digest = derive_group_template_digest(
-    source, model_plan, model_generation, topology_declaration, inspection_blueprints,
-    device_step_limits, manifest_limits, launch_limits, execution_limits, worker_limits,
-    inference_limits, process_limits, admitted_rank_child_activation_path, rank_child_executable_digest_sha256,
+    source,
+    model_plan,
+    model_generation,
+    topology_declaration,
+    inspection_blueprints,
+    device_step_limits,
+    manifest_limits,
+    launch_limits,
+    execution_limits,
+    worker_limits,
+    inference_limits,
+    process_limits,
+    admitted_rank_child_activation_path,
+    rank_child_executable_digest_sha256,
+    streaming?,
   )
   let inputs : TensorParallelGroupPlanningInputs = {
+    streaming,
     source,
     model_plan,
     model_generation,

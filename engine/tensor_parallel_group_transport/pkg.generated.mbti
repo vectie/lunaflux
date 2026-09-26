@@ -10,6 +10,7 @@ import {
   "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/rank_group_process",
   "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/tensor_parallel_execution_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
@@ -46,7 +47,8 @@ pub fn TensorParallelGroupPlanningInputs::bootstrap_source_digest(Self) -> @work
 pub fn TensorParallelGroupPlanningInputs::inference_limits(Self) -> @inference.InferenceLimits
 pub fn TensorParallelGroupPlanningInputs::model_generation_value(Self) -> UInt64
 pub fn TensorParallelGroupPlanningInputs::model_identity(Self) -> @spec.ModelIdentity
-pub fn TensorParallelGroupPlanningInputs::new(source~ : @worker_wire.EncodedBootstrapSource, model_plan~ : @plan.ModelPlan, model_generation~ : @worker_protocol.ModelPlanGeneration, topology_declaration~ : @device_topology.LocalTopologyDeclaration, topology~ : @device_topology.AdmittedLocalTopology, inspection_blueprints~ : ArrayView[@device_materialize.DeviceShardedWeightFileInspection], device_step_limits~ : @device_step.DeviceStepLimits, manifest_limits~ : @execution_manifest_file.ExecutionManifestFileLimits, launch_limits~ : @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits, execution_limits~ : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, process_limits~ : @rank_group_process.RankGroupProcessLimits, admitted_rank_child_activation_path~ : Bytes, rank_child_executable_digest_sha256~ : StringView) -> Self raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupPlanningInputs::new(streaming? : @streaming_ir.Capability, source~ : @worker_wire.EncodedBootstrapSource, model_plan~ : @plan.ModelPlan, model_generation~ : @worker_protocol.ModelPlanGeneration, topology_declaration~ : @device_topology.LocalTopologyDeclaration, topology~ : @device_topology.AdmittedLocalTopology, inspection_blueprints~ : ArrayView[@device_materialize.DeviceShardedWeightFileInspection], device_step_limits~ : @device_step.DeviceStepLimits, manifest_limits~ : @execution_manifest_file.ExecutionManifestFileLimits, launch_limits~ : @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits, execution_limits~ : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, process_limits~ : @rank_group_process.RankGroupProcessLimits, admitted_rank_child_activation_path~ : Bytes, rank_child_executable_digest_sha256~ : StringView) -> Self raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupPlanningInputs::streaming(Self) -> @streaming_ir.Capability?
 pub fn TensorParallelGroupPlanningInputs::template_digest(Self) -> TensorParallelGroupTemplateDigest
 pub fn TensorParallelGroupPlanningInputs::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
@@ -71,7 +73,9 @@ pub fn TensorParallelGroupTransport::accepted_completion_for_sequence(Self, UInt
 pub fn TensorParallelGroupTransport::begin(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::begin_close(Self) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::begin_recovery(Self) -> Unit raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::begin_streaming_exchange(Self, @streaming_ir.Command) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::completion_frame(Self, TensorParallelGroupReceivedCompletion) -> @worker_wire.ValidatedCompletionFrame raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::fail_streaming(Self) -> Unit
 pub fn TensorParallelGroupTransport::failure_report_invalid(Self) -> Bool
 pub fn TensorParallelGroupTransport::graph_telemetry(Self, TensorParallelGroupReceivedCompletion) -> @worker_wire.WorkerGraphTelemetry raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::group_generation_value(Self) -> UInt64
@@ -86,10 +90,14 @@ pub fn TensorParallelGroupTransport::previous_plan_sequence_value(Self) -> UInt6
 pub fn TensorParallelGroupTransport::probe_idle_rank(Self) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::progress(Self, @worker_protocol.SubmittedSchedulePlan) -> @rank_group_process.RankGroupProcessProgress raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::progress_cleanup(Self) -> TensorParallelGroupCleanupProgress raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::progress_streaming_exchange(Self) -> @streaming_ir.ReplyOption raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::received_completion(Self) -> TensorParallelGroupReceivedCompletion raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::retire_after_scheduler_commit(Self, TensorParallelGroupAcceptedCompletion) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::retire_scheduler_only_failure(Self, UInt64) -> Unit raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::start(Self) -> TensorParallelGroupStart raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::streaming_epoch(Self) -> UInt64 raise TensorParallelGroupTransportError
+pub fn TensorParallelGroupTransport::streaming_exchange_pending(Self) -> Bool
+pub fn TensorParallelGroupTransport::streaming_now_millis(Self) -> UInt64 raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::take_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::taken_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise TensorParallelGroupTransportError
 pub fn TensorParallelGroupTransport::validate_service_identity(Self, model_identity~ : @spec.ModelIdentity, model_generation_value~ : UInt64, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, previous_plan_sequence_value~ : UInt64) -> Unit raise TensorParallelGroupTransportError

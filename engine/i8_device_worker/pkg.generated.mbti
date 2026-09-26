@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/execution_manifest_file",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/model/numeric_weight_file",
@@ -60,6 +61,7 @@ pub fn I8DeviceWorkerOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame,
 pub fn I8DeviceWorkerOwner::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise I8DeviceWorkerError
 pub fn I8DeviceWorkerOwner::lifecycle(Self) -> I8DeviceWorkerLifecycle
 pub fn I8DeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise I8DeviceWorkerError
+pub fn I8DeviceWorkerOwner::streaming_command(Self, @streaming_ir.Command) -> @streaming_ir.Reply raise I8DeviceWorkerError
 
 pub struct I8DeviceWorkerPlan {
   // private fields

@@ -218,3 +218,18 @@ pub fn RankChildControl::progress_send(
     { kind: 0, }
   }
 }
+
+///|
+pub fn RankChildControl::begin_streaming_reply(
+  self : RankChildControl,
+  inbound : RankChildInbound,
+  payload : FixedArray[Byte],
+) -> Unit raise RankChildControlError {
+  self.begin_response(
+    inbound,
+    StreamingRequest,
+    StreamingReply,
+    Some(payload),
+    64,
+  )
+}

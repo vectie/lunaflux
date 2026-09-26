@@ -64,6 +64,8 @@ pub fn RankGroupWireTranscript::new(
   let copied = copy_group_bindings(bindings)
   let world_size = copied.length()
   {
+    streaming_rank: -1,
+    streaming_sequence: 0UL,
     bindings: copied,
     rank_states: FixedArray::make(world_size, 0),
     configured_ranks: FixedArray::make(world_size, false),
@@ -252,7 +254,26 @@ fn RankGroupWireTranscript::accept_rank_header(
   let kind = header.kind()
   let sequence = header.sequence_value()
   let slot = header.slot()
+  if self.streaming_rank >= 0 && kind != StreamingReply {
+    return self.reject(Lifecycle)
+  }
   match kind {
+    StreamingRequest => {
+      if self.lifecycle != ReadyGroup {
+        return self.reject(Lifecycle)
+      }
+      self.streaming_rank = rank
+      self.streaming_sequence = sequence
+    }
+    StreamingReply => {
+      if self.lifecycle != ReadyGroup ||
+        self.streaming_rank != rank ||
+        self.streaming_sequence != sequence {
+        return self.reject(Sequence)
+      }
+      self.streaming_rank = -1
+      self.streaming_sequence = 0UL
+    }
     Configure => {
       if self.lifecycle == NewGroup {
         self.lifecycle = Configuring

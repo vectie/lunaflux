@@ -18,13 +18,19 @@ fn parse_mistral_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings",
-  ])
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings",
+    ],
+    ["streaming"],
+  )
   let schema_version = require_string(root, "schema_version", Root)
   if schema_version != "lunaflux.runtime.mistral_bf16.v1" &&
-    schema_version != "lunaflux.runtime.mistral_bf16.v2" {
+    schema_version != "lunaflux.runtime.mistral_bf16.v2" &&
+    schema_version != "lunaflux.runtime.mistral_bf16.v3" {
     raise invalid_field(Root, UnsupportedValue)
   }
   let object = require_object(root, "model", Root, index=1)
@@ -36,10 +42,16 @@ fn parse_mistral_descriptor(
   let kernels = parse_kernels(root)
   let has_extensions = kernels.fused_runtime is Some(_) ||
     kernels.sampling_runtime == EmbeddedCudaGreedyV1
-  if (schema_version == "lunaflux.runtime.mistral_bf16.v2") != has_extensions {
+  if schema_version != "lunaflux.runtime.mistral_bf16.v3" &&
+    (schema_version == "lunaflux.runtime.mistral_bf16.v2") != has_extensions {
     raise invalid_field(Kernels, UnsupportedValue)
   }
+  let streaming = parse_versioned_streaming(
+    root,
+    schema_version == "lunaflux.runtime.mistral_bf16.v3",
+  )
   {
+    streaming,
     model: {
       family: require_string(object, "family", Model),
       config_locator: require_string(object, "config_locator", Model, index=1),

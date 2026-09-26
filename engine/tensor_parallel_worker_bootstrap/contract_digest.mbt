@@ -83,6 +83,11 @@ fn digest_worker_contract(
   append_inference_limits(encoder, contract.inference_limits())
   encoder.append_bool(contract.has_predecessor())
   encoder.append_u64(contract.predecessor_value())
+  if contract.streaming() is Some(capability) {
+    encoder.append_string("streaming.v1")
+    encoder.append_u64(contract.streaming_epoch())
+    append_streaming_contract(encoder, capability)
+  }
   worker_digest_from_hex(encoder.finish())
 }
 

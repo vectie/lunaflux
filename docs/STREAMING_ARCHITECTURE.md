@@ -45,3 +45,33 @@ the scheduler.
 This decision owns the experimental boundary until the streaming workstream's
 physical parity/performance gate. At that boundary the v6 capability is either
 promoted with evidence or removed; no second scheduler or prefix index is kept.
+
+## Extension to quantized workers, model families, and rank groups
+
+The same immutable streaming capability and scalar command IR apply to every
+paged KV owner. I8 and FP8 retain BF16 KV and reuse the paged executor's transfer
+interpreter. Qwen and Mistral activate through new descriptor versions, preserving
+strict rejection of streaming fields in older versions.
+
+Tensor parallel requires one logical transaction across all rank-local KV
+shards. Each rank retains its own transfer and cleanup authority. The parent
+publishes a logical host page or restored device page only after every rank
+acknowledges the matching command. Partial failures invalidate the entire group;
+page reservations survive until all ranks have been reaped. Rank transfers never
+interleave with collective execution. Policy remains architecture-neutral in the
+scheduler; rank coordination belongs to the group transport.
+
+`GroupTransfer` is a value-type immutable barrier. It records an exact original
+command, completed-rank mask, remaining count, host-slot identity and cancellation
+bit. The transport replaces this value after pure result admission, using one
+preallocated frame and bounded rank cursor for I/O. Completed ranks receive no
+duplicate poll. Raced restore completion and cancellation converge to one
+cancelled group result after every outstanding shard is safe.
+
+Rank wire kinds 15/16 carry the fixed 64-byte command/reply payload, bound to the
+existing startup identity and group generation. They have a separate transaction
+sequence and never advance the graph predecessor. Both rank and group transcripts
+reject unmatched replies and graph interleaving during a control exchange.
+The process owner additionally fences graphs for the entire transfer transaction.
+The startup policy participates in both worker-contract and group-template
+digests; old descriptors retain their existing canonical identities.

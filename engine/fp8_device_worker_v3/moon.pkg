@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/execution_manifest_file",

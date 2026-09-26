@@ -16,7 +16,9 @@ fn require_worker_contract(
   if contract.device_ordinal() != device_ordinal {
     raise rejected(DeviceOrdinal, rank)
   }
-  if contract.worker_limits() != reference.worker_limits() ||
+  if contract.streaming() != reference.streaming() ||
+    contract.streaming_epoch() != reference.streaming_epoch() ||
+    contract.worker_limits() != reference.worker_limits() ||
     contract.inference_limits() != reference.inference_limits() ||
     contract.bootstrap_source_digest() != reference.bootstrap_source_digest() ||
     contract.has_predecessor() != reference.has_predecessor() ||

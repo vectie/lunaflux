@@ -72,6 +72,7 @@ pub struct Fp8RuntimeDescriptorAdmission {
 
 ///|
 priv struct Fp8RuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : I8RuntimeDescriptorModelClaims
   kernels : Fp8RuntimeDescriptorKernelClaims
   execution : I8RuntimeDescriptorExecutionClaims
@@ -108,6 +109,7 @@ priv struct TensorParallelDescriptorClaims {
 
 ///|
 priv struct TensorParallelRuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : RuntimeDescriptorModelClaims
   kernels : TensorParallelRuntimeDescriptorKernelClaims
   execution : RuntimeDescriptorExecutionClaims
@@ -132,6 +134,7 @@ priv struct TensorParallelRuntimeDescriptorKernelClaims {
 /// startup. The topology is admitted from physical inventory, but no context,
 /// collective, process, allocation, module, or readiness authority is owned.
 pub struct TensorParallelRuntimeDescriptorAdmission {
+  priv streaming : @streaming_ir.Capability?
   priv descriptor_digest : RuntimeDescriptorDigest
   priv model : @spec.LlamaModelMetadata
   priv plan : @plan.ModelPlan
@@ -153,6 +156,7 @@ pub struct TensorParallelRuntimeDescriptorAdmission {
 
 ///|
 priv struct I8RuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : I8RuntimeDescriptorModelClaims
   kernels : I8RuntimeDescriptorKernelClaims
   execution : I8RuntimeDescriptorExecutionClaims
@@ -205,6 +209,7 @@ priv struct RuntimeDescriptorClaims {
 
 ///|
 priv struct MistralRuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : MistralRuntimeDescriptorModelClaims
   kernels : RuntimeDescriptorKernelClaims
   execution : RuntimeDescriptorExecutionClaims
@@ -228,6 +233,7 @@ priv struct MistralRuntimeDescriptorModelClaims {
 
 ///|
 priv struct Qwen3RuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : Qwen3RuntimeDescriptorModelClaims
   kernels : RuntimeDescriptorKernelClaims
   execution : RuntimeDescriptorExecutionClaims

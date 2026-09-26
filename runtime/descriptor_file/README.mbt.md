@@ -37,3 +37,14 @@ bootstrap v3 and worker-source v6. Its opaque admission owns no root, device,
 allocation, executor, or readiness authority. Physical readiness therefore
 remains false until the admitted runtime is rebuilt and validated on the
 assigned CUDA machine.
+
+Bounded cold-prefix streaming is opt-in through additive descriptor versions:
+`lunaflux.runtime.v6`, `lunaflux.runtime.i8.v3`,
+`lunaflux.runtime.fp8-reusable.v4`, `lunaflux.runtime.qwen3_bf16.v3`,
+`lunaflux.runtime.mistral_bf16.v3`, and
+`lunaflux.runtime.tensor-parallel.v2`. Each requires the same explicit
+`streaming` object; prior versions reject that field. The existing loaders and
+launch routes admit these versions. Tensor-parallel host budgets cover all
+ranks, while workspace budgets and admitted shapes apply per rank. See
+[the activation contract](../../docs/STREAMING.md#activation-contract) for
+fields, ownership semantics, and remaining physical qualification gates.

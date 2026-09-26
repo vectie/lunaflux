@@ -73,12 +73,17 @@ fn load_i8_v2_bound(
   let source = admit_i8_source_v6(
     model_root_label, kernel_root_label, claims, ceilings,
   )
-  let startup = admit_i8_startup_contract(
+  let base_startup = admit_i8_startup_contract(
     execution,
     source,
     claims.execution.model_generation,
     worker,
     inference,
+  )
+  let startup = bind_streaming_startup(
+    base_startup,
+    claims.streaming,
+    kv_layout,
   )
   {
     descriptor_digest: expected_digest,

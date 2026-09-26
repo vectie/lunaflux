@@ -112,13 +112,13 @@ Foundation results before serving integration (Moon `0.1.20260920`, 2026-09-26):
 | Step | Implemented on `stream` | Remaining gate |
 | --- | --- | --- |
 | 1. Residency | Pure transitions, fixed slots/credits, generation checks, quarantine/drain; scheduler pins spill sources and reserves every restore destination | Physical qualification |
-| 2. Transfer ABI | `device.TransferPool` over private `internal/cuda`: pinned storage, reusable streams/events, asynchronous copies, range/overlap checks, retained allocation lease, partial-construction cleanup | Discrete-GPU correctness, transfer benchmark and Linux leak gate |
+| 2. Transfer ABI | `device.TransferPool` over private `internal/cuda`: pinned storage, reusable streams/events, asynchronous copies, range/overlap checks, retained allocation lease, partial-construction cleanup | Discrete-GPU correctness and transfer benchmark |
 | 3. Cold payload | Canonical full-page K/V copies; the existing radix now retains host payload identities under the original model/tokenizer/layout/scope key, including shared ancestors | Physical cached/recomputed parity |
 | 4. Execution | Value-type streaming IR, v5 startup capability, cooperative parent/child transport, stable destination arena, atomic restore publication, cancellation, timeout, post-reap invalidation and replacement epochs | Physical model-output parity |
 | 5. Selection and gates | Measured restore/recompute policy and workspace-aware admitted prefill shapes wired into scheduling; bounded scan, sanitizer and allocation probes | Representative TTFT/decode-interference measurements and production qualification |
 
-The feature is explicitly enabled by the digest-pinned BF16 runtime descriptor
-v6 below. Legacy descriptors retain the resident path. No performance claim is
+The feature is explicitly enabled by the digest-pinned descriptor versions
+below. Legacy descriptors retain the resident path. No performance claim is
 inferred from the Polars benchmark. Startup weight-copy overlap and per-step
 dense-weight offloading remain separately scoped follow-on capabilities.
 
@@ -191,8 +191,37 @@ both K/V components. Shapes must fit the scheduler/worker token envelope and
 the policy budget cannot exceed the allocated activation arena. Selection
 debits the workspace budget across selected rows and preserves the decode page
 reserve. Costs and shapes must come from qualification of the pinned deployment;
-the implementation does not fabricate calibration values. Tensor-parallel,
-I8/FP8 and separate Qwen/Mistral descriptor schemas do not opt into v6.
+the implementation does not fabricate calibration values.
+
+### Additional worker routes
+
+The same `streaming` object is required by these additive descriptor versions:
+
+| Execution route | Streaming descriptor |
+| --- | --- |
+| Llama BF16 | `lunaflux.runtime.v6` |
+| I8 weights with BF16 KV | `lunaflux.runtime.i8.v3` |
+| Reusable FP8 weights with BF16 KV | `lunaflux.runtime.fp8-reusable.v4` |
+| Qwen3 BF16 | `lunaflux.runtime.qwen3_bf16.v3` |
+| Mistral BF16 | `lunaflux.runtime.mistral_bf16.v3` |
+| Local tensor parallel | `lunaflux.runtime.tensor-parallel.v2` |
+
+The existing loaders and launch routes select these versions; no new launch
+schema or scheduler family branch is needed. Prior descriptor versions reject
+the streaming object. Single-device versions require the graph-memory ceiling.
+Tensor-parallel workspace budgets and prefill shapes apply per rank; host-budget
+bytes cover the entire group and are divided before each rank's shard is admitted.
+Replication cannot silently multiply the declared pinned-memory budget.
+
+I8, FP8, BF16, and rank workers share the same `StreamingSession` interpreter.
+Each session binds one cache for its lifetime. Tensor-parallel `GroupTransfer`
+is immutable value-type IR: it rejects duplicate/stale/divergent rank results,
+retains a completion mask, and publishes only when every shard is terminal.
+Completed ranks are skipped during later polls. Restore cancellation may race
+with completed shards and still suppresses publication for the entire group.
+Maintenance spills finish normally; abandoning them uses whole-group recovery.
+Any transfer timeout or protocol/device failure preserves page ownership until
+all ranks have been reaped. Replacement uses a fresh group epoch.
 
 ## Integration validation (2026-09-26)
 
@@ -222,14 +251,47 @@ I8/FP8 and separate Qwen/Mistral descriptor schemas do not opt into v6.
   with leak detection enabled. An earlier x86-emulated container was unsuitable
   for process/sanitizer validation and supplies no passing evidence.
 
+## Worker-family and rank-group extension (2026-09-26)
+
+- 461 affected native tests pass across descriptors, shared execution, numeric
+  workers, rank configuration, wire control, process ownership and service
+  integration. The inherited warning exclusions below remain necessary.
+  The pure streaming IR, residency, and policy packages pass 17 native release
+  tests with all warnings denied and no exclusions.
+- The scheduler/IR allocation gate passes 10,000 cycles including the immutable
+  rank barrier. Both rank-wire and socket-backed rank-child-control allocation
+  gates pass 1,000 streaming exchanges with zero measured allocations and
+  working positive controls.
+- Native Linux ARM64 passes all 19 rank-process tests, including skipped
+  platform-dependent cases. A real two-process fixture passes skewed rank
+  completion, cancellation after one shard completes, a subsequent restore,
+  eviction, healthy close, and whole-group failure during a pending exchange
+  followed by cleanup and reap. This fixture does not execute CUDA or NCCL.
+- ASan/UBSan again passes all 16,384 deferred-DMA scenarios with exact native
+  lease balance. The extension changes no native ABI implementation.
+- The final unfiltered native check reports 161 errors in 21 files. Every
+  diagnostic file is byte-for-byte unchanged from the original branch base;
+  the earlier 144-error report above is historical. The unfiltered native test
+  command also stops on inherited warnings. No full-repository pass is claimed.
+  Checking the entire repository with the four warning exclusions reaches an
+  additional compiler parser-consistency diagnostic (16) in the unchanged
+  `benchmarks/qwen3_token_id_bridge/detokenize.mbt`; the affected-package native
+  check passes with those exclusions.
+- Physical cached/recomputed model-output parity, discrete-GPU transfer
+  measurements, NCCL execution and production performance qualification remain
+  outstanding.
+
 ## Reproducing the local gates
 
 ```sh
 moon test engine/streaming_ir kv/residency scheduler/streaming_policy --target native --release --deny-warn
 moon test scheduler/core prefix/radix runtime/descriptor_file engine/worker_service --target native --deny-warn --warn-list '-79-25-20-29'
 moon test kv/host_cache device internal/cuda engine/device_step engine/device_worker engine/device_worker_bootstrap engine/device_worker_child engine/worker_wire --target native --deny-warn --warn-list '-79-25-20-29'
+moon test engine/streaming_ir engine/rank_group_wire engine/rank_child_control engine/rank_group_process engine/tensor_parallel_rank_configure engine/tensor_parallel_group_transport engine/tensor_parallel_device_worker engine/tensor_parallel_worker_bootstrap engine/worker_service runtime/descriptor_file engine/device_step engine/i8_device_worker engine/fp8_device_worker_v3 engine/device_worker engine/device_worker_bootstrap kv/device_arena --target native --deny-warn --warn-list '-79-25-20-29'
 moon run scripts/validate-streaming.mbtx
 moon run tests/hot_path_alloc --target native --release --deny-warn --warn-list '-79-25-20-29'
+moon run tests/rank_group_wire_alloc --target native --release --deny-warn --warn-list '-79-25-20-29'
+moon run tests/rank_child_control_alloc --target native --release --deny-warn --warn-list '-79-25-20-29'
 ```
 
 On native Linux, build `cmd/worker_echo` and run `tests/worker_process_e2e`
@@ -239,6 +301,12 @@ The echo worker is a protocol fixture: it proves scheduler/wire/lifecycle
 integration and deterministic token semantics, not CUDA payload correctness.
 The production descriptor-based process spawning API intentionally rejects
 unsupported hosts, including macOS.
+
+For the rank-group extension on native Linux, build `tests/streaming_rank_echo`
+and run `tests/streaming_rank_group_e2e` with its absolute executable path. Run
+the latter again with `--failure` after the executable path to exercise failure
+during an active transfer and post-reap cleanup. These packages contain only
+synthetic metadata and protocol fixtures; they confer no deployment authority.
 
 The warning exclusions above apply to inherited dependency diagnostics from
 the base revision; repository warning configuration is unchanged. The new pure
