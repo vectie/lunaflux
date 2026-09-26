@@ -333,6 +333,16 @@ Eviction removes only zero-reference cached runs. Prefix identity is salted by:
 - cache security scope;
 - hashes of non-text inputs when such inputs are later supported.
 
+The experimental [streaming workstream](STREAMING.md) adds a worker-local
+pinned-host payload tier beneath prefix matching. Its immutable plans and pure
+residency transitions are interpreted through fixed storage and explicit CUDA
+owners. Restores copy complete K/V pages into the existing stable device arena;
+graph staging is fenced while any copy is outstanding. The scheduler must retain
+the matching page-generation reservation until completion or proven drain.
+The current payload APIs are not enabled by the serving startup contract.
+Logical prefix transactions and worker-wire admission require the separate
+integration and physical qualification gates described in that workstream.
+
 ## Model planning and loading
 
 The loader parses bounded JSON and safetensors metadata without executing model

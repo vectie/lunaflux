@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/scheduler/streaming_policy"
+
+// Values
+pub fn select_prefill(ArrayView[PrefillShape], remaining_tokens~ : Int, token_budget~ : Int, workspace_budget~ : Int64, available_pages~ : Int, decode_reserve~ : Int, tokens_per_page~ : Int, tail_free_tokens~ : Int) -> Int
+
+// Errors
+pub(all) suberror PolicyError {
+  InvalidProfile
+}
+
+// Types and methods
+pub struct PrefillShape {
+  tokens : Int
+  workspace_bytes : Int64
+}
+pub fn PrefillShape::new(tokens~ : Int, workspace_bytes~ : Int64) -> Self raise PolicyError
+
+pub struct RestoreCost {
+  restore_ns : Int64
+  recompute_ns : Int64
+  minimum_saving_ns : Int64
+}
+pub fn RestoreCost::new(restore_ns~ : Int64, recompute_ns~ : Int64, minimum_saving_ns~ : Int64) -> Self raise PolicyError
+pub fn RestoreCost::should_restore(Self, queued_ns~ : Int64, deadline_slack_ns~ : Int64, destination_reserved~ : Bool, transfer_credit~ : Bool) -> Bool
+
+// Type aliases
+
+// Traits

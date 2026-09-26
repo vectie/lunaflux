@@ -1,0 +1,73 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/residency"
+
+// Values
+
+// Errors
+pub(all) suberror ResidencyError {
+  InvalidLimits
+}
+
+// Types and methods
+pub(all) enum Begin {
+  Started(Transfer)
+  Backpressured
+  InvalidEntry
+  Closed
+}
+
+pub(all) enum Effect {
+  Rejected
+  CopyToHost
+  CopyToDevice
+  RetainUntilCompletion
+  HostReady
+  DeviceReady
+  RestoreCancelled
+  DrainRequired
+  Released
+}
+
+pub struct Entry {
+  // private fields
+}
+pub fn Entry::slot(Self) -> Int
+
+pub struct Limits {
+  slots : Int
+  transfers : Int
+  bytes_per_slot : Int64
+  host_bytes : Int64
+}
+pub fn Limits::bytes_per_slot(Self) -> Int64
+pub fn Limits::host_bytes(Self) -> Int64
+pub fn Limits::new(slots~ : Int, transfers~ : Int, bytes_per_slot~ : Int64, host_budget~ : Int64, separate_host_memory~ : Bool) -> Self raise ResidencyError
+pub fn Limits::slots(Self) -> Int
+pub fn Limits::transfers(Self) -> Int
+
+pub struct Pool {
+  // private fields
+}
+pub fn Pool::available(Self) -> Int
+pub fn Pool::begin_restore(Self, Entry) -> Begin
+pub fn Pool::begin_spill(Self) -> Begin
+pub fn Pool::cancel(Self, Transfer) -> Effect
+pub fn Pool::close(Self) -> Bool
+pub fn Pool::complete(Self, Transfer) -> Effect
+pub fn Pool::drained(Self, Transfer) -> Effect
+pub fn Pool::evict(Self, Entry) -> Effect
+pub fn Pool::fail(Self, Transfer) -> Effect
+pub fn Pool::inflight(Self) -> Int
+pub fn Pool::is_host_ready(Self, Entry) -> Bool
+pub fn Pool::new(Limits) -> Self
+
+pub struct Transfer {
+  // private fields
+}
+pub fn Transfer::entry(Self) -> Entry
+pub fn Transfer::same_attempt(Self, Self) -> Bool
+pub fn Transfer::slot(Self) -> Int
+
+// Type aliases
+
+// Traits

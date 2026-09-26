@@ -35,6 +35,14 @@ Current implementation progress is recorded in [STATUS.md](STATUS.md). A
 completed workstream foundation does not promote its enclosing phase before
 the phase outcome and every named gate pass.
 
+## Bounded streaming workstream
+
+The branch-local [bounded streaming plan](STREAMING.md) tracks the separate
+host-memory workstream. It uses functional MoonBit plans and transitions,
+preallocated transfer ownership, and staged qualification. The payload/cache
+foundations do not promote a serving capability; worker protocol, logical
+prefix integration, model parity, and physical performance remain named gates.
+
 ## Latest sealed physical gate position — 2026-08-28
 
 The latest sealed portable source snapshot

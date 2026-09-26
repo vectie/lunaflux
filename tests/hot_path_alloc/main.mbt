@@ -391,6 +391,7 @@ fn complete_decode(
 ///|
 fn main {
   verify_probe_observes_allocations()
+  verify_streaming_allocations()
   let owner = scheduler()
   let wire = wire_audit()
   let request_fixture = request()
