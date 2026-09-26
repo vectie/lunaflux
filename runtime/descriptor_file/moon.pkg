@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
   "moonbitlang/x/crypto",

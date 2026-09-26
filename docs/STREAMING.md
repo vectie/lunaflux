@@ -1,6 +1,6 @@
 # Bounded streaming and cold-prefix residency
 
-Status: implementation in progress on branch `stream`, based on
+Status: software integration implemented on branch `stream`, based on
 `aad4e7e578b4e2d7f984ce3c9f448f4e90543121`. The branch has an isolated worktree;
 uncommitted compiler and two-Spark work on `main` is not included.
 
@@ -88,7 +88,7 @@ diagnostics from the current toolchain, including warning 79 trait-method
 promotion changes. This is recorded separately from new-package validation.
 No streaming physical-CUDA correctness or performance claim exists yet.
 
-Local results (Moon `0.1.20260920`, 2026-09-26):
+Foundation results before serving integration (Moon `0.1.20260920`, 2026-09-26):
 
 - `moon info` and affected-package formatting/checking pass with the inherited
   warning exclusions below. Generated interfaces expose no internal CUDA types
@@ -111,24 +111,24 @@ Local results (Moon `0.1.20260920`, 2026-09-26):
 
 | Step | Implemented on `stream` | Remaining gate |
 | --- | --- | --- |
-| 1. Residency | `kv/residency`: pure total transition function, fixed slot/free storage, bounded credits, owner/generation/attempt checks, quarantine/drain, cancellation and generation retirement; zero measured heap allocations over 10,000 warmed cycles | Downstream page ownership integration |
+| 1. Residency | Pure transitions, fixed slots/credits, generation checks, quarantine/drain; scheduler pins spill sources and reserves every restore destination | Physical qualification |
 | 2. Transfer ABI | `device.TransferPool` over private `internal/cuda`: pinned storage, reusable streams/events, asynchronous copies, range/overlap checks, retained allocation lease, partial-construction cleanup | Discrete-GPU correctness, transfer benchmark and Linux leak gate |
-| 3. Cold payload | `kv/host_cache`: canonical full-page K/V mapping for every layer, immutable budget plan, opaque cache/operation identities | Logical prefix key/index, parent page reservations and worker transaction protocol |
-| 4. Execution | Opt-in paged-executor preparation, stable destination arena, stage fence, transfer-first teardown | Startup capability, child transport dispatch, restore-before-activation and worker-restart recovery |
-| 5. Selection and gates | Pure prefill shape and restore cost policies, native failure probe, sanitizer runner, physical page probe | Policy hookup, cached/recomputed logits and token equality, TTFT/decode-interference measurements |
+| 3. Cold payload | Canonical full-page K/V copies; the existing radix now retains host payload identities under the original model/tokenizer/layout/scope key, including shared ancestors | Physical cached/recomputed parity |
+| 4. Execution | Value-type streaming IR, v5 startup capability, cooperative parent/child transport, stable destination arena, atomic restore publication, cancellation, timeout, post-reap invalidation and replacement epochs | Physical model-output parity |
+| 5. Selection and gates | Measured restore/recompute policy and workspace-aware admitted prefill shapes wired into scheduling; bounded scan, sanitizer and allocation probes | Representative TTFT/decode-interference measurements and production qualification |
 
-These are foundation APIs, not an enabled serving feature. Neither the request
-scheduler nor worker startup silently opts into spilling. No performance claim
-is inferred from the Polars benchmark. Startup weight-copy overlap and per-step
+The feature is explicitly enabled by the digest-pinned BF16 runtime descriptor
+v6 below. Legacy descriptors retain the resident path. No performance claim is
+inferred from the Polars benchmark. Startup weight-copy overlap and per-step
 dense-weight offloading remain separately scoped follow-on capabilities.
 
-## Worker transaction design (next integration boundary)
+## Implemented worker transaction design
 
 The parent owns logical prefix identity and allocator page generations; the
 child owns the actual payload bytes, pinned allocation, streams and events.
 Neither an `Entry` nor an `Operation` containing a MoonBit owner reference may
 be serialized. A versioned scalar transaction protocol must carry the admitted
-worker generation, transaction sequence, host slot/generation/attempt and
+worker epoch, transaction sequence, host slot/generation and
 device page index/generation. Every reply binds the same transaction. Startup
 binds model/tokenizer/KV-layout/security-scope identities once; token execution
 uses the resulting scalar authorities.
@@ -137,10 +137,10 @@ uses the resulting scalar authorities.
    its radix identity and source page references while reserving host slots.
    Shared prefix ancestors cannot be reclaimed until all remaining references
    are accounted for.
-2. Send bounded spill commands while retaining the source reservations. Commit
-   the host prefix only after every layer of every page completes. A prefix
-   transaction is all-or-nothing; partial success cannot advertise a reusable
-   prefix. Release the corresponding device cache references after commit.
+2. Send bounded spill commands while retaining source reservations. Each page
+   changes tier only after every layer's K/V copy completes. Mixed resident/cold
+   prefixes remain cold misses to ordinary activation. Release the page's
+   device cache reference only after its host payload is committed.
 3. On a host hit, compare qualified restore/recompute costs and reserve every
    destination page plus transfer credit before submission. Keep the request
    out of active schedules while destinations are incomplete. A restore target
@@ -158,25 +158,93 @@ first integration is conservative: graph work and transfers are fenced rather
 than overlapped. Permitting independent-page compute/transfer overlap requires
 a later hazard proof and a measured decode-interference budget.
 
-The next implementation must extend the existing startup capability and
-private worker transport together, including malformed-frame, duplicate-reply,
-restart, shared-ancestor and cancellation fixtures. It must not add an
-unvalidated environment switch or use integer IDs as unauthenticated pointers.
+The neutral `engine/streaming_ir` owns pure protocol decisions and scalar value
+results; the interpreter owns effects. The 64-byte transfer frame rejects
+noncanonical tags/padding and binds each response to the exact command. The
+1024-byte startup v5 frame carries at most 32 shapes and a separate child epoch;
+legacy v4 stays exactly 408 bytes. See [the architecture decision](STREAMING_ARCHITECTURE.md).
+
+The service counts a live transfer as outstanding work, including after logical
+cancellation. It refreshes the monotonic deadline before interpreting a reply.
+Timeouts retain reservations until child cleanup; replacement binds a strictly
+newer epoch. Spill candidate selection visits at most 64 radix anchors per turn.
+
+## Activation contract
+
+Use `schema_version: "lunaflux.runtime.v6"` on the existing BF16 descriptor,
+including its required graph memory ceiling, and provide a `streaming` object:
+
+| Required field | Meaning |
+| --- | --- |
+| `host_slots` | Fixed complete-page host capacity, 1–65,536 |
+| `host_budget_bytes` | Pinned-memory ceiling; must cover every slot |
+| `reserve_pages` | Target free device pages below which cold candidates spill |
+| `restore_nanoseconds_per_page` | Qualified conservative end-to-end restore cost |
+| `recompute_nanoseconds_per_page` | Qualified cost for the same complete logical page |
+| `separate_host_memory` | Must be true; the worker independently rejects integrated GPUs |
+| `transfer_timeout_millis` | Bounded transfer timeout, 1–600,000 |
+| `workspace_budget_bytes` | Shared prefill workspace budget for one schedule |
+| `prefill_shapes` | 1–32 unique `{ "tokens": ..., "workspace_bytes": ... }` profiles, including a one-token shape that fits |
+
+Page bytes are derived from the authenticated KV layout across every layer and
+both K/V components. Shapes must fit the scheduler/worker token envelope and
+the policy budget cannot exceed the allocated activation arena. Selection
+debits the workspace budget across selected rows and preserves the decode page
+reserve. Costs and shapes must come from qualification of the pinned deployment;
+the implementation does not fabricate calibration values. Tensor-parallel,
+I8/FP8 and separate Qwen/Mistral descriptor schemas do not opt into v6.
+
+## Integration validation (2026-09-26)
+
+- 275 native scheduler, IR, radix, descriptor and worker-service tests pass with
+  inherited dependency warnings excluded. New pure packages pass 14 release
+  tests with **all** warnings denied.
+- A separate device/worker/wire/cache run passes 369 tests with the same
+  inherited dependency warning exclusions.
+- The real scheduler/IR allocation gate passes 10,000 complete spill/restore/
+  eviction cycles. It caught and removed optional-value boxing and temporary
+  prefix-key allocation; both request keys and effect results are value types.
+- Tests cover atomic multi-page restoration, shared ancestors, scope isolation,
+  cancellation, deadline expiry, timeout ownership, stale replies, replacement
+  epochs, host eviction, and workspace selection across multiple rows.
+- ASan/UBSan still passes 16,384 deferred-DMA scenarios; every cycle also checks
+  live discrete/shared-memory detection and balances native leases.
+- `moon info` and `moon fmt` complete. The full warning-denied native check
+  reports the same 144 inherited diagnostics. No clean full-repository result
+  is claimed.
+- Native Linux ARM64 passes the streaming process fixture (startup, cooperative
+  copies, cancellation, replacement epochs), 19 worker-process tests, and the
+  complete service fixture (cold reuse before activation, equal fixture output,
+  cancellation and close). The broader legacy process E2E driver also passes;
+  its fixture now consumes parent attestation, follows graph telemetry sampling,
+  and checks the rooted supervisor's existing single-flight backpressure.
+- Native Linux ASan/UBSan/LeakSanitizer passes all 16,384 deferred-DMA scenarios
+  with leak detection enabled. An earlier x86-emulated container was unsuitable
+  for process/sanitizer validation and supplies no passing evidence.
 
 ## Reproducing the local gates
 
 ```sh
-moon test kv/residency scheduler/streaming_policy --target native --release --deny-warn
-moon test kv/host_cache device internal/cuda engine/device_step --target native --deny-warn --warn-list '-79-25-20-29'
+moon test engine/streaming_ir kv/residency scheduler/streaming_policy --target native --release --deny-warn
+moon test scheduler/core prefix/radix runtime/descriptor_file engine/worker_service --target native --deny-warn --warn-list '-79-25-20-29'
+moon test kv/host_cache device internal/cuda engine/device_step engine/device_worker engine/device_worker_bootstrap engine/device_worker_child engine/worker_wire --target native --deny-warn --warn-list '-79-25-20-29'
 moon run scripts/validate-streaming.mbtx
 moon run tests/hot_path_alloc --target native --release --deny-warn --warn-list '-79-25-20-29'
 ```
+
+On native Linux, build `cmd/worker_echo` and run `tests/worker_process_e2e`
+with `--streaming` followed by the absolute worker executable path. Run
+`tests/streaming_service_e2e` with the same executable path.
+The echo worker is a protocol fixture: it proves scheduler/wire/lifecycle
+integration and deterministic token semantics, not CUDA payload correctness.
+The production descriptor-based process spawning API intentionally rejects
+unsupported hosts, including macOS.
 
 The warning exclusions above apply to inherited dependency diagnostics from
 the base revision; repository warning configuration is unchanged. The new pure
 packages run with warnings denied and no exclusions. The sanitizer runner uses
 ASan/UBSan and explicit native host/stream/event/lease balance checks; macOS does
-not supply LeakSanitizer, so the Linux leak gate remains outstanding.
+not supply LeakSanitizer; the separate native Linux run above supplies that gate.
 
 ## Completion criteria
 
@@ -184,5 +252,5 @@ The workstream is complete only when cold prefixes cross the worker boundary,
 restore before request activation, reproduce the resident outputs, balance
 all resources through cancellation/restart, and have measured physical
 performance. A standalone residency model or fake-driver test does not fulfill
-that end-to-end gate. Each stage's implementation and remaining work is recorded
-below as it is completed.
+that end-to-end gate. Software completion and the remaining physical
+qualification are recorded separately above.

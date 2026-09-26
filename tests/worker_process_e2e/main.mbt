@@ -168,8 +168,11 @@ fn start_worker(
   kernel.close()
   match prepared {
     ReadyRootBoundProcess(owner) => owner
-    RootBoundCleanupRequired(_) =>
-      raise Failure("worker startup cleanup required")
+    RootBoundCleanupRequired(failed) => {
+      let cause = failed.cause()
+      failed.retry_close()
+      raise Failure("worker startup cleanup required: \{Repr(cause)}")
+    }
   }
 }
 
@@ -274,16 +277,22 @@ async fn run(executable : Bytes) -> Unit {
     let plan_a1 = plan(1UL, 11UL)
     let plan_b2 = plan(2UL, 12UL)
     let submission_a1 = supervisor.submit(plan_a1)
-    let submission_b2 = supervisor.submit(plan_b2)
+    try supervisor.submit(plan_b2) catch {
+      RootBoundFailure(Process(Backpressured)) => ()
+      _ => fail("unexpected rooted single-flight rejection")
+    } noraise {
+      _ => fail("rooted supervisor accepted concurrent legacy submissions")
+    }
     let completion_a1 = supervisor.receive(submission_a1, plan_a1)
     let frame_a1 = completion_a1.frame(supervisor)
     assert_eq(frame_a1.entry_count(), 1)
     assert_eq(frame_a1.entry_for_slot(0).processed_tokens(), 2)
     supervisor.retire_received(completion_a1)
+    let submission_b2 = supervisor.submit(plan_b2)
     let plan_a3 = plan(3UL, 13UL)
-    let submission_a3 = supervisor.submit(plan_a3)
     let completion_b2 = supervisor.receive(submission_b2, plan_b2)
     supervisor.retire_received(completion_b2)
+    let submission_a3 = supervisor.submit(plan_a3)
     let completion_a3 = supervisor.receive(submission_a3, plan_a3)
     supervisor.retire_received(completion_a3)
     assert_eq(supervisor.outstanding_count(), 0)
@@ -296,6 +305,8 @@ async fn run(executable : Bytes) -> Unit {
 ///|
 async fn main {
   match @env.args() {
+    [_, "--streaming", executable] =>
+      run_streaming_exchange(@utf8.encode(executable))
     [_, executable] => run(@utf8.encode(executable))
     _ => println("worker executable path is required")
   }

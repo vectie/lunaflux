@@ -39,9 +39,10 @@ the phase outcome and every named gate pass.
 
 The branch-local [bounded streaming plan](STREAMING.md) tracks the separate
 host-memory workstream. It uses functional MoonBit plans and transitions,
-preallocated transfer ownership, and staged qualification. The payload/cache
-foundations do not promote a serving capability; worker protocol, logical
-prefix integration, model parity, and physical performance remain named gates.
+preallocated transfer ownership, and staged qualification. Worker protocol,
+logical prefix ownership, serving lifecycle, and bounded policy selection are
+integrated under the explicit BF16 descriptor v6 capability. Physical model
+parity and performance remain named gates before production qualification.
 
 ## Latest sealed physical gate position — 2026-08-28
 

@@ -9,7 +9,7 @@ test "compressed radix sizing is exact and constructor revalidates limits" {
     max_scope_bytes=64,
     max_active_references_per_entry=4,
   )
-  assert_eq(PrefixIndex::required_int_cells(limits), 1192UL)
+  assert_eq(PrefixIndex::required_int_cells(limits), 1224UL)
   assert_eq(PrefixIndex::required_bool_cells(limits), 136UL)
   assert_eq(PrefixIndex::required_byte_cells(limits), 576UL)
   assert_eq(PrefixIndex::required_reference_cells(limits), 24UL)

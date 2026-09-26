@@ -25,6 +25,48 @@ fn startup_contract() -> @worker_wire.WorkerStartupContract raise {
 }
 
 ///|
+test "streaming startup v5 binds capacity measured shapes and worker epoch" {
+  let cap = @streaming_ir.Capability::new(
+    slots=4,
+    host_bytes=256L,
+    page_bytes=64L,
+    page_count=16,
+    reserve_pages=4,
+    restore_ns=100L,
+    recompute_ns=1000L,
+    separate_host_memory=true,
+    workspace_budget=1024L,
+    shapes=[
+      @streaming_ir.Shape::new(tokens=1, workspace_bytes=128L),
+      @streaming_ir.Shape::new(tokens=4, workspace_bytes=1024L),
+    ],
+  )
+  let expected = startup_contract().with_streaming(cap)
+  let sender = @worker_wire.StartupFrameBuffer::new(streaming=true)
+  let frame = sender.encode(Configure, expected)
+  assert_eq(frame.length(), 1024)
+  let bytes = FixedArray::make(1024, b'\x00')
+  frame.copy_to(bytes, destination_offset=0)
+  let receiver = @worker_wire.StartupFrameBuffer::new(streaming=true)
+  let decoded = receiver.load(bytes, 1024).contract()
+  assert_eq(decoded, expected)
+  assert_eq(decoded.streaming().unwrap().shape_at(1).tokens(), 4)
+  assert_eq(decoded.streaming_epoch(), 1UL)
+  try @worker_wire.StartupFrameBuffer::new().load(bytes, 1024) catch {
+    _ => ()
+  } noraise {
+    _ => fail("small legacy buffer accepted extension")
+  }
+  bytes[488] = b'\xff'
+  try receiver.load(bytes, 1024) catch {
+    InvalidFrame(Checksum) => ()
+    _ => fail("wrong corruption error")
+  } noraise {
+    _ => fail("unbound policy")
+  }
+}
+
+///|
 test "startup frame round trips exact contract and kind" {
   let sender = @worker_wire.StartupFrameBuffer::new()
   assert_eq(sender.capacity(), 408)

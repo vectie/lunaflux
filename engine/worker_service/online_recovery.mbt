@@ -39,6 +39,10 @@ fn OnlineWorkerLease::invalidate_device_state_exact_impl(
   service : WorkerService,
 ) -> Int raise WorkerServiceError {
   service.require_lifecycle(ServiceDeviceInvalidationRequired)
+  if service.scheduler.streaming_enabled() &&
+    !service.require_transport().recovery_cleanup_complete() {
+    raise PhysicalTransport(PhysicalBackpressured)
+  }
   if self.active_lane_count == 0 {
     raise Invalid(Recovery)
   }

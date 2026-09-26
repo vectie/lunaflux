@@ -69,6 +69,8 @@ fn PrefixIndex::lookup_rooted(
   }
   output.clear()
   for index in 0..<page_count {
+    output.cells[index] = self.lookup_page_scratch[index]
+    output.hosts[index] = self.page_hosts[self.lookup_page_scratch[index]]
     let page = self.page_values.read(self.lookup_page_scratch[index]) catch {
       _ => raise InvariantViolation(PageChain)
     }

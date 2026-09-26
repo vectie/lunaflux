@@ -247,6 +247,11 @@ fn prepare_owned_internal(
   let scheduler = blueprint.instantiate() catch {
     error => raise owned_failure(OwnedSchedulerFailure(error))
   }
+  if startup.streaming() is Some(capability) {
+    scheduler.configure_streaming(capability, startup.streaming_epoch()) catch {
+      error => raise owned_failure(OwnedSchedulerFailure(error))
+    }
+  }
   let (outcome, service, failed_owner) = prepare_owned_shell(
     blueprint,
     scheduler,

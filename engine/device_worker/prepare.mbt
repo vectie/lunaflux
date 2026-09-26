@@ -9,6 +9,8 @@ fn exact_startup_contract(
     error => raise Protocol(error)
   }
   let expected = manifest.worker_startup_contract(
+    streaming?=startup.streaming(),
+    streaming_epoch=startup.streaming_epoch(),
     generation,
     bootstrap_source_digest=startup.bootstrap_source_digest(),
     startup.worker_limits(),
@@ -438,7 +440,14 @@ pub fn prepare(
     _ => return preparation_failed(resources, Invalid(WeightEnvelope))
   }
   match executor_outcome {
-    PagedReady(executor) => resources.executor = Some(Complete(executor))
+    PagedReady(executor) => {
+      resources.executor = Some(Complete(executor))
+      if plan.startup.streaming() is Some(capability) {
+        executor.prepare_streaming(capability, plan.startup.streaming_epoch()) catch {
+          error => return preparation_failed(resources, Executor(error))
+        }
+      }
+    }
     PagedCleanupRequired(failed) => {
       resources.executor = Some(Failed(failed))
       return preparation_failed(resources, Executor(failed.cause()))

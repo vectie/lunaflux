@@ -106,7 +106,9 @@ fn worker_limits() -> @worker_protocol.WorkerProtocolLimits {
 }
 
 ///|
-fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
+fn resolved_capacity(
+  prefix? : Bool = false,
+) -> @runtime_resolved.ResolvedRuntimeCapacity {
   let scheduler = try! @scheduler_config.new(
     step_token_budget=1,
     max_active_requests=1,
@@ -120,11 +122,12 @@ fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
     tokens_per_page=4,
     total_page_count=10,
     block_table_pages_per_request=8,
-    prefix_enabled=false,
-    max_prefix_entries=0,
-    max_prefix_nodes=0,
-    max_prefix_tokens_per_entry=0,
-    max_prefix_pages=0,
+    prefix_enabled=prefix,
+    max_prefix_entries=if prefix { 2 } else { 0 },
+    max_prefix_nodes=if prefix { 16 } else { 0 },
+    max_prefix_tokens_per_entry=if prefix { 8 } else { 0 },
+    max_prefix_pages=if prefix { 4 } else { 0 },
+    max_prefix_scope_bytes=if prefix { 8 } else { 0 },
     max_active_references_per_page=2,
     max_cached_references_per_page=2,
     layout_version=1,
@@ -143,7 +146,7 @@ fn resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
 }
 
 ///|
-fn scheduler() -> @scheduler.Scheduler {
+fn scheduler(prefix? : Bool = false) -> @scheduler.Scheduler {
   let identity = model_identity()
   let generation = @worker_protocol.ModelPlanGeneration::first()
   let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
@@ -153,7 +156,7 @@ fn scheduler() -> @scheduler.Scheduler {
     worker_limits(),
   )
   try! @scheduler.Scheduler::new(
-    resolved_capacity(),
+    resolved_capacity(prefix~),
     identity,
     generation,
     recipe,
@@ -392,6 +395,7 @@ fn complete_decode(
 fn main {
   verify_probe_observes_allocations()
   verify_streaming_allocations()
+  verify_streaming_scheduler_allocations()
   let owner = scheduler()
   let wire = wire_audit()
   let request_fixture = request()

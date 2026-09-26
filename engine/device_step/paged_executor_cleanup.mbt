@@ -262,6 +262,7 @@ fn close_paged_resources(
       error => raise ExecutorDevice(PersistentKvArena, error)
     }
     resources.host_cache = None
+    resources.streaming = None
   }
   let first : Ref[DeviceStepError?] = Ref(None)
   run_paged_ordered_dependency_close(

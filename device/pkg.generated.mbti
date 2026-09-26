@@ -81,6 +81,7 @@ pub fn Context::create_ordered_kernel_executor(Self, Stream, ArrayView[OrderedKe
 pub fn Context::create_stream(Self) -> Stream raise DeviceError
 pub fn Context::create_tensor_collective_owner(Self, runtime~ : TensorCollectiveRuntime, group_id~ : TensorCollectiveGroupId, contract~ : TensorCollectiveContract, generation~ : UInt64, previous_plan_sequence_value~ : UInt64) -> TensorCollectiveOwner raise DeviceError
 pub fn Context::device_identity(Self) -> ContextDeviceIdentity
+pub fn Context::has_separate_host_memory(Self) -> Bool raise DeviceError
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise DeviceError
 pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
 pub fn Context::ordinal(Self) -> Int

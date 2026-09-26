@@ -2,6 +2,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Startup-only memory-tier observation. CUDA attribute 18 is INTEGRATED:
+ * https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TYPES.html */
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_cuda_separate_host_memory(lf_context *context, int32_t ordinal) {
+  if (context == NULL || ordinal < 0) return LF_INVALID_ARGUMENT;
+  int32_t result = lf_operation_begin(&context->state, &context->active_operations);
+  if (result != LF_OK) return result;
+  CUdevice device = 0;
+  int32_t integrated = -1;
+  result = lf_cuda_map_result(context->api->cuDeviceGet(&device, ordinal));
+  if (result == LF_OK) result = lf_cuda_map_result(
+    context->api->cuDeviceGetAttribute(&integrated, 18, device));
+  lf_operation_end(&context->active_operations);
+  if (result != LF_OK) return result;
+  return integrated == 0 ? 1 : integrated == 1 ? 0 : LF_INVALID_OUTPUT;
+}
+
 int lf_transfer_pending(int32_t phase) {
   return phase == LF_TRANSFER_QUEUED || phase == LF_TRANSFER_RECORDED ||
     phase == LF_TRANSFER_POISONED;

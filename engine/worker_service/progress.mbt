@@ -54,6 +54,12 @@ fn WorkerService::progress_impl(
       if self.has_pending_plan() {
         return self.start_pending_plan()
       }
+      let streaming_progress = self.progress_streaming() catch {
+        error => enter_service_recovery(self, error)
+      }
+      if streaming_progress {
+        return ServiceAdvanced
+      }
       if !self.require_transport().has_exchange_capacity() {
         return ServiceBackpressured
       }
@@ -79,7 +85,7 @@ fn WorkerService::progress_impl(
       self.start_pending_plan()
     }
     FlightSubmitted(_) => {
-      if !self.has_pending_plan() {
+      if !self.has_pending_plan() && !self.scheduler.streaming_enabled() {
         let outcome = self.scheduler.build_next() catch {
           error => raise scheduler_error(error)
         }
@@ -113,6 +119,12 @@ fn WorkerService::progress_existing_flight_impl(
 ) -> WorkerServiceProgress raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
   match self.flight {
+    FlightEmpty if self.scheduler.streaming_busy() => {
+      ignore(self.progress_streaming()) catch {
+        error => enter_service_recovery(self, error)
+      }
+      ServiceAdvanced
+    }
     FlightSubmitted(sequence) => {
       let plan = self.scheduler.submitted_plan_for_sequence(sequence) catch {
         error => raise scheduler_error(error)

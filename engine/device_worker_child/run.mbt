@@ -127,14 +127,39 @@ fn serve_frames(
 ) -> Unit raise DeviceWorkerChildError {
   serve_serialized_with(
     () => {
-      let length = channel.read_frame_or_eof(buffers.input) catch {
-        _ => raise StartupFailed
-      }
-      if length == 0 {
-        raise CleanEof
-      }
-      buffers.plan_owner.load(buffers.input, length) catch {
-        _ => raise StartupFailed
+      for ;; {
+        let length = channel.read_frame_or_eof(buffers.input) catch {
+          _ => raise StartupFailed
+        }
+        if length == 0 {
+          raise CleanEof
+        }
+        if @streaming_ir.is_frame(buffers.input, length) {
+          let request = @streaming_ir.decode(buffers.input, length) catch {
+            _ => raise StartupFailed
+          }
+          if !(request.status is Pending) ||
+            !request.host.same(request.command.host) {
+            raise StartupFailed
+          }
+          let reply = owner.streaming_command(request.command) catch {
+            _ => raise StartupFailed
+          }
+          @streaming_ir.encode(reply, buffers.output) catch {
+            _ => raise StartupFailed
+          }
+          channel.write_frame(
+            buffers.output,
+            offset=0,
+            byte_count=@streaming_ir.frame_bytes(),
+          ) catch {
+            _ => raise StartupFailed
+          }
+          continue
+        }
+        break buffers.plan_owner.load(buffers.input, length) catch {
+          _ => raise StartupFailed
+        }
       }
     },
     plan => {
@@ -197,7 +222,7 @@ pub fn run() -> Bool {
     _ => return false
   }
   let channel = @process.open_inherited(limits)
-  let startup_owner = @worker_wire.StartupFrameBuffer::new()
+  let startup_owner = @worker_wire.StartupFrameBuffer::new(streaming=true)
   let startup_input = FixedArray::make(startup_owner.capacity(), b'\x00')
   let source_input = FixedArray::make(
     @worker_wire.bootstrap_source_capacity(),

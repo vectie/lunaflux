@@ -46,7 +46,17 @@ pub fn WorkerProcessSupervisor::recovery_startup_contract(
   if self.last_submitted == 0xffffffffffffffffUL {
     raise Invalid(Sequence)
   }
+  if self.startup.streaming() is Some(_) &&
+    self.startup.streaming_epoch() == 0xffffffffffffffffUL {
+    raise Invalid(Recovery)
+  }
   @worker_wire.WorkerStartupContract::new(
+    streaming?=self.startup.streaming(),
+    streaming_epoch=if self.startup.streaming() is Some(_) {
+      self.startup.streaming_epoch() + 1UL
+    } else {
+      0UL
+    },
     identity=self.startup.identity(),
     bootstrap_digest=self.startup.bootstrap_digest(),
     bootstrap_source_digest=self.startup.bootstrap_source_digest(),

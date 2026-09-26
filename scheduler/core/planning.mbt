@@ -278,6 +278,9 @@ pub fn Scheduler::build_next(
   self : Scheduler,
 ) -> BuildNextOutcome raise SchedulerError {
   self.require_no_cancel_reservation()
+  if self.streaming_busy() {
+    return BuildBackpressured
+  }
   if self.step == MAX_GENERATION || self.last_plan_sequence == MAX_GENERATION {
     raise invalid(Plan, Exhausted)
   }

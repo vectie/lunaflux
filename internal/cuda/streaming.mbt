@@ -2,6 +2,25 @@
 type StreamingPool
 
 ///|
+#borrow(context)
+extern "c" fn raw_separate_host_memory(context : Context, ordinal : Int) -> Int = "lunaflux_cuda_separate_host_memory"
+
+///|
+pub fn Context::separate_host_memory(
+  self : Context,
+  ordinal : Int,
+) -> Bool raise CudaError {
+  match raw_separate_host_memory(self, ordinal) {
+    1 => true
+    0 => false
+    status => {
+      check_status(status, StreamingTransfer)
+      false
+    }
+  }
+}
+
+///|
 pub struct StreamingPreparation {
   priv raw : StreamingPool
   priv status : Int

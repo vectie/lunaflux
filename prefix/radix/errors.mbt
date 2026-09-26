@@ -34,6 +34,7 @@ pub(all) suberror PrefixIndexError {
   StaleKey
   CachePermissionDenied
   InvalidPageCount
+  PageNotResident
   ResultBufferTooSmall
   ResultIndexOutOfBounds
   Exhausted

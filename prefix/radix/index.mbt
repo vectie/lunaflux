@@ -95,6 +95,7 @@ pub fn PrefixIndex::new(
     child_index_free_head: 0,
     node_path_scratch: FixedArray::make(nodes, -1),
     lookup_page_scratch: FixedArray::make(pages, -1),
+    page_hosts: FixedArray::make(pages, { slot: -1, generation: 0, }),
     publish_token_scratch: FixedArray::make(tokens, 0),
     publish_page_scratch: @page_allocator.PageIdStorage::new(pages) catch {
       _ => raise InvalidLimit(PageCapacity)

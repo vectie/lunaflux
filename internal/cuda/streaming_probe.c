@@ -11,6 +11,7 @@ typedef struct {
   int streams;
   int events;
   int pending_once;
+  int integrated;
 } probe_state;
 static _Thread_local probe_state *streaming_probe;
 
@@ -20,6 +21,16 @@ static int fail_once(int point) {
   return 1;
 }
 static CUresult current(CUcontext context) { return context == NULL; }
+static CUresult device_get(CUdevice *device, int ordinal) {
+  if (ordinal != 0) return 1;
+  *device = 0;
+  return 0;
+}
+static CUresult attribute_get(int *value, int attribute, CUdevice device) {
+  if (attribute != 18 || device != 0) return 1;
+  *value = streaming_probe->integrated;
+  return 0;
+}
 static CUresult host_new(void **p, size_t bytes, uint32_t flags) {
   if (flags != 0 || fail_once(1)) return 1;
   *p = calloc(1, bytes);
@@ -104,6 +115,8 @@ static int32_t run_probe(int fault) {
   streaming_probe = &state;
   lf_cuda_api api = {0};
   api.cuCtxSetCurrent = current;
+  api.cuDeviceGet = device_get;
+  api.cuDeviceGetAttribute = attribute_get;
   api.cuMemHostAlloc = host_new;
   api.cuMemFreeHost = host_free;
   api.cuStreamCreate = stream_new;
@@ -138,6 +151,13 @@ static int32_t run_probe(int fault) {
   if ((fault >= 1 && fault <= 3) || (fault >= 12 && fault <= 14)) state.fail = fault;
   if (fault == 11) api.cuMemHostAlloc = NULL;
   lf_streaming_pool *pool = lunaflux_cuda_streaming_create(context, allocation, 128, 2, 4, &status);
+  CHECK(lunaflux_cuda_separate_host_memory(context, 0) == 1, 194);
+  state.integrated = 1;
+  CHECK(lunaflux_cuda_separate_host_memory(context, 0) == 0, 195);
+  state.integrated = 2;
+  CHECK(lunaflux_cuda_separate_host_memory(context, 0) == LF_INVALID_OUTPUT, 196);
+  CHECK(lunaflux_cuda_separate_host_memory(context, 1) == LF_DRIVER_FAILURE, 197);
+  CHECK(atomic_load(&context->active_operations) == 0, 198);
   if ((fault >= 1 && fault <= 3) || (fault >= 11 && fault <= 14)) {
     CHECK(status != LF_OK, 100 + fault);
     CHECK(lunaflux_cuda_streaming_enqueue(pool, 0, 0, 0, 8, 0) == LF_CLOSED, 120);

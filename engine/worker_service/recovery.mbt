@@ -170,6 +170,10 @@ fn WorkerService::invalidate_device_state_impl(
   self : WorkerService,
 ) -> Int raise WorkerServiceError {
   self.require_lifecycle(ServiceDeviceInvalidationRequired)
+  if self.scheduler.streaming_enabled() &&
+    !self.require_transport().recovery_cleanup_complete() {
+    raise PhysicalTransport(PhysicalBackpressured)
+  }
   let count = self.scheduler.invalidate_device_state() catch {
     error => raise scheduler_error(error)
   }
@@ -221,6 +225,7 @@ fn WorkerService::restart_impl(
   let result = self.require_transport().restart()
   match result {
     PhysicalRestarted => {
+      self.bind_streaming_replacement()
       self.graph_telemetry.begin_replacement_child()
       self.lifecycle = ServiceReady
       Restarted
@@ -250,6 +255,7 @@ fn WorkerService::shutdown_clean_impl(
 ) -> Unit raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
   if self.raw_outstanding_count() != 0 ||
+    self.scheduler.streaming_busy() ||
     self.scheduler.live_request_count() != 0 {
     raise Invalid(Lifecycle)
   }

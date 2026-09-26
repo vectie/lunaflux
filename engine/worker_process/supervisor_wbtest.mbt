@@ -170,6 +170,7 @@ fn test_supervisor(
       ),
     ),
     child_selected: true,
+    streaming_io: new_streaming_io(),
     startup: supervisor_startup(),
     source: supervisor_source(),
     parent_approval: None,

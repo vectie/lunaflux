@@ -8,6 +8,7 @@ import {
   "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/fp8_device_worker_v3",
   "vectie/lunaflux/engine/i8_device_worker",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/luna_capability_manifest",
@@ -70,6 +71,7 @@ pub fn DeviceWorkerBootstrapOwner::close(Self) -> Unit raise DeviceWorkerBootstr
 pub fn DeviceWorkerBootstrapOwner::execute_frame(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> @worker_wire.ValidatedCompletionFrame raise DeviceWorkerBootstrapError
 pub fn DeviceWorkerBootstrapOwner::graph_runtime_telemetry(Self) -> @device_step.PagedGraphRuntimeTelemetry raise DeviceWorkerBootstrapError
 pub fn DeviceWorkerBootstrapOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise DeviceWorkerBootstrapError
+pub fn DeviceWorkerBootstrapOwner::streaming_command(Self, @streaming_ir.Command) -> @streaming_ir.Reply raise DeviceWorkerBootstrapError
 
 pub(all) enum DeviceWorkerBootstrapPreparation {
   ChildReady(DeviceWorkerBootstrapOwner)

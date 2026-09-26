@@ -87,6 +87,7 @@ fn Scheduler::release_waiting_prefix_device_state(self : Scheduler) -> Unit {
 
 ///|
 fn Scheduler::clear_cached_prefix_device_state(self : Scheduler) -> Unit {
+  self.forget_streaming_worker()
   if !self.capacity.prefix_enabled() {
     return
   }
@@ -97,5 +98,10 @@ fn Scheduler::clear_cached_prefix_device_state(self : Scheduler) -> Unit {
     if index.entry_count() == before {
       abort("scheduler prefix device-loss eviction invariant")
     }
+  }
+  // Host drops are unnecessary after the old child has been reaped.
+  if self.streaming is Some(owner) {
+    owner.drop_count = 0
+    owner.host_used = 0
   }
 }

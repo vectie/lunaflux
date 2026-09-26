@@ -165,6 +165,11 @@ pub fn Entry::slot(self : Entry) -> Int {
 }
 
 ///|
+pub fn Entry::generation(self : Entry) -> Int {
+  self.generation
+}
+
+///|
 pub fn Transfer::same_attempt(self : Transfer, other : Transfer) -> Bool {
   physical_equal(self.entry.owner, other.entry.owner) &&
   self.entry.slot == other.entry.slot &&

@@ -29,6 +29,9 @@ fn Scheduler::prefix_hit_preflight(
   entry : @radix.PrefixEntryId,
   lookup : @radix.PrefixLookupBuffer,
 ) -> Bool {
+  if !lookup.fully_resident() {
+    return false
+  }
   if self.block_tables.free_table_count() == 0 ||
     lookup.page_count() > self.capacity.block_table_pages_per_request() ||
     (try! self.prefix_index.unwrap().active_reference_count(entry)) >=
@@ -134,7 +137,10 @@ fn Scheduler::revalidate_waiting_prefix(self : Scheduler, slot : Int) -> Int {
     lookup.matched_tokens() == self.prefix_candidate_tokens[slot] &&
     self.prefix_hit_preflight(try! lookup.entry_id(), lookup)
   if !valid {
-    self.clear_prefix_candidate(slot)
+    // A cold match remains discoverable for the separate restore transaction.
+    if lookup.fully_resident() {
+      self.clear_prefix_candidate(slot)
+    }
     self.prefix_misses = Scheduler::prefix_saturating_add(self.prefix_misses, 1)
     return 0
   }

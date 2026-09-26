@@ -2,6 +2,7 @@
 /// Single thread-confined owner of request, physical-page, and block-table
 /// metadata. Every mutable collection is fixed at startup.
 pub struct Scheduler {
+  priv mut streaming : StreamingOwner?
   priv capacity : @runtime_resolved.ResolvedRuntimeCapacity
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv model_identity : @spec.ModelIdentity

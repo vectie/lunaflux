@@ -49,5 +49,6 @@ int32_t lunaflux_cuda_streaming_reset(lf_streaming_pool *, int32_t);
 int32_t lunaflux_cuda_streaming_host_copy(
   lf_streaming_pool *, uint8_t *, int64_t, int32_t, int32_t, int32_t);
 int32_t lunaflux_cuda_test_streaming(int32_t);
+int32_t lunaflux_cuda_separate_host_memory(lf_context *, int32_t);
 
 #endif

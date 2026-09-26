@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",

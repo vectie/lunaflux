@@ -7,6 +7,16 @@ pub struct TransferPool {
 }
 
 ///|
+/// Live startup observation; never used on token-step dispatch.
+pub fn Context::has_separate_host_memory(
+  self : Context,
+) -> Bool raise DeviceError {
+  self.raw.separate_host_memory(self.ordinal()) catch {
+    error => raise error_from_cuda(error)
+  }
+}
+
+///|
 pub fn Context::prepare_transfer_pool(
   self : Context,
   allocation : Allocation,

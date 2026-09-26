@@ -60,6 +60,7 @@ pub fn Context::create_stream(Self) -> Stream raise CudaError
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise CudaError
 pub fn Context::load_module(Self, Bytes) -> Module raise CudaError
 pub fn Context::prepare_streaming(Self, Allocation, Int64, Int, Int) -> StreamingPreparation
+pub fn Context::separate_host_memory(Self, Int) -> Bool raise CudaError
 pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise CudaError
 
 type CublasLt

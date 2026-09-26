@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/model/spec",
@@ -107,6 +108,7 @@ pub fn RootBoundWorkerProcessSupervisor::begin_exchange(Self, @worker_protocol.S
 pub fn RootBoundWorkerProcessSupervisor::begin_recovery(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::begin_recovery_maintenance(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::begin_replacement_cleanup_maintenance(Self) -> Unit raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::begin_streaming_exchange(Self, @streaming_ir.Command) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::bootstrap_source(Self) -> @worker_wire.EncodedBootstrapSource
 pub fn RootBoundWorkerProcessSupervisor::cause(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::child_cleanup_failure(Self) -> RootBoundWorkerProcessFailure?
@@ -121,6 +123,7 @@ pub fn RootBoundWorkerProcessSupervisor::maintenance_remaining_millis(Self) -> I
 pub fn RootBoundWorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn RootBoundWorkerProcessSupervisor::progress_exchange(Self) -> RootBoundWorkerExchangeProgress raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::progress_maintenance(Self) -> WorkerProcessMaintenanceProgress raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::progress_streaming_exchange(Self) -> @streaming_ir.ReplyOption raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::receive(Self, RootBoundWorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::restart(Self) -> RootBoundWorkerProcessRestart raise RootBoundWorkerProcessError
@@ -129,6 +132,8 @@ pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(Self) -> Unit
 pub fn RootBoundWorkerProcessSupervisor::roots_cleanup_failure(Self) -> RootBoundWorkerProcessFailure?
 pub fn RootBoundWorkerProcessSupervisor::shutdown_clean(Self) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::startup_contract(Self) -> @worker_wire.WorkerStartupContract
+pub fn RootBoundWorkerProcessSupervisor::streaming_exchange_pending(Self) -> Bool
+pub fn RootBoundWorkerProcessSupervisor::streaming_now_millis(Self) -> UInt64 raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::submission_for_sequence(Self, UInt64) -> RootBoundWorkerSubmission raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::submit(Self, @worker_protocol.SubmittedSchedulePlan) -> RootBoundWorkerSubmission raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::validate_abandonment(Self, RootBoundWorkerSubmission) -> Unit raise RootBoundWorkerProcessError

@@ -99,6 +99,7 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
   let row_limit = self.capacity.max_rows_per_step()
   let mut token_left = self.capacity.step_token_budget()
   let mut virtual_free = self.page_allocator.free_page_count()
+  let mut workspace_left = self.streaming_workspace_budget()
   let mut plan_pages = 0
   let mut plan_capabilities = 0
   let mut active_room = self.capacity.max_active_requests() - self.active_count
@@ -136,6 +137,20 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
     } else {
       self.slot_page_count(oldest)
     }
+    if self.streaming_enabled() {
+      virtual_free = self.evict_for_virtual_room(
+        virtual_free,
+        ceiling_pages(start + chunk, self.capacity.tokens_per_page()) -
+        old_pages +
+        self.capacity.emergency_decode_page_reserve(),
+      )
+    }
+    let chunk = self.streaming_prefill_chunk(
+      chunk,
+      virtual_free,
+      (old_pages * self.capacity.tokens_per_page() - start).max(0),
+      workspace_left,
+    )
     let target_pages = if start + chunk == 0 {
       0
     } else {
@@ -164,6 +179,7 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
           self.acquire_revalidated_prefix(oldest, 0, matched)
         }
         self.prefill_count = 1
+        workspace_left -= self.streaming_workspace_cost(chunk)
         token_left -= chunk
         virtual_free -= needed
         plan_pages += target_pages
@@ -241,6 +257,20 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
         kv_token_capacity=target,
       )
       let old_pages = self.table_page_count(slot)
+      if self.streaming_enabled() {
+        virtual_free = self.evict_for_virtual_room(
+          virtual_free,
+          ceiling_pages(start + chunk, self.capacity.tokens_per_page()) -
+          old_pages +
+          self.capacity.emergency_decode_page_reserve(),
+        )
+      }
+      let chunk = self.streaming_prefill_chunk(
+        chunk,
+        virtual_free,
+        (old_pages * self.capacity.tokens_per_page() - start).max(0),
+        workspace_left,
+      )
       let target_pages = ceiling_pages(
         start + chunk,
         self.capacity.tokens_per_page(),
@@ -264,6 +294,7 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
           virtual_free - needed >= self.capacity.emergency_decode_page_reserve() {
           self.prefill_slots[self.prefill_count] = slot
           self.prefill_tokens[self.prefill_count] = chunk
+          workspace_left -= self.streaming_workspace_cost(chunk)
           self.prefill_count += 1
           token_left -= chunk
           virtual_free -= needed
@@ -309,6 +340,17 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
         chunk_limit=self.capacity.prefill_chunk_tokens(),
         kv_token_capacity=target,
       )
+      if self.streaming_enabled() {
+        virtual_free = self.evict_for_virtual_room(
+          virtual_free,
+          ceiling_pages(start + chunk, self.capacity.tokens_per_page()) -
+          matched / self.capacity.tokens_per_page() +
+          self.capacity.emergency_decode_page_reserve(),
+        )
+      }
+      let chunk = self.streaming_prefill_chunk(
+        chunk, virtual_free, 0, workspace_left,
+      )
       let target_pages = if start + chunk == 0 {
         0
       } else {
@@ -334,6 +376,7 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
           self.prefill_slots[self.prefill_count] = current
           self.prefill_tokens[self.prefill_count] = chunk
           self.acquire_revalidated_prefix(current, self.prefill_count, matched)
+          workspace_left -= self.streaming_workspace_cost(chunk)
           self.prefill_count += 1
           token_left -= chunk
           virtual_free -= needed

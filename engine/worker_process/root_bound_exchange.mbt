@@ -25,6 +25,7 @@ fn RootBoundWorkerProcessSupervisor::clear_exchange(
   self.exchange_side = -1
   self.exchange_sequence = 0UL
   self.exchange_plan.clear()
+  self.process.streaming_io.phase = 0
 }
 
 ///|
@@ -168,6 +169,7 @@ pub fn RootBoundWorkerProcessSupervisor::begin_exchange(
     raise RootBoundInvalidLifecycle
   }
   if self.transport_mode == ROOT_TRANSPORT_LEGACY ||
+    self.process.streaming_io.phase != 0 ||
     self.active_exchange_epoch != 0UL {
     raise RootBoundFailure(Process(Backpressured))
   }
@@ -208,6 +210,7 @@ pub fn RootBoundWorkerProcessSupervisor::has_exchange_capacity(
   self : RootBoundWorkerProcessSupervisor,
 ) -> Bool {
   self.lifecycle == RootBoundReady &&
+  self.process.streaming_io.phase == 0 &&
   self.transport_mode != ROOT_TRANSPORT_LEGACY &&
   self.exchange_epoch != 0xffffffffffffffffUL &&
   self.active_exchange_epoch == 0UL &&

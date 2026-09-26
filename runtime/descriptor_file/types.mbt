@@ -194,6 +194,7 @@ priv struct I8RuntimeDescriptorExecutionClaims {
 
 ///|
 priv struct RuntimeDescriptorClaims {
+  streaming : StreamingClaims?
   model : RuntimeDescriptorModelClaims
   kernels : RuntimeDescriptorKernelClaims
   execution : RuntimeDescriptorExecutionClaims

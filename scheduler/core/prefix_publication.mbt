@@ -15,6 +15,9 @@ fn Scheduler::evict_one_prefix(self : Scheduler) -> Int {
   }
   let plan = try! start.plan()
   for index in 0..<output.page_count() {
+    if (try! output.host_at(index)).slot >= 0 {
+      continue
+    }
     if (try! self.page_allocator.cached_reference_count(
         try! output.page_at(index),
       )) <=
@@ -24,7 +27,12 @@ fn Scheduler::evict_one_prefix(self : Scheduler) -> Int {
   }
   ignore(try! self.prefix_index.unwrap().commit_eviction(plan, output))
   for index in 0..<output.page_count() {
-    try! self.page_allocator.release_cached(try! output.page_at(index))
+    let host = try! output.host_at(index)
+    if host.slot >= 0 {
+      self.streaming.unwrap().drop(host)
+    } else {
+      try! self.page_allocator.release_cached(try! output.page_at(index))
+    }
   }
   self.prefix_evictions = Scheduler::prefix_saturating_add(
     self.prefix_evictions,
