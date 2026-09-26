@@ -59,6 +59,7 @@ pub fn Context::create_event(Self) -> Event raise CudaError
 pub fn Context::create_stream(Self) -> Stream raise CudaError
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise CudaError
 pub fn Context::load_module(Self, Bytes) -> Module raise CudaError
+pub fn Context::prepare_streaming(Self, Allocation, Int64, Int, Int) -> StreamingPreparation
 pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise CudaError
 
 type CublasLt
@@ -85,6 +86,7 @@ pub(all) enum CudaOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  StreamingTransfer
   ModuleLoad
   ModuleClose
   FunctionLoad
@@ -186,6 +188,21 @@ type Stream
 pub fn Stream::close(Self) -> Unit raise CudaError
 pub fn Stream::collective_token(Self) -> @device_collective_interop.QueueToken
 pub fn Stream::synchronize(Self) -> Unit raise CudaError
+
+type StreamingPool
+
+pub struct StreamingPreparation {
+  // private fields
+}
+pub fn StreamingPreparation::check_prepared(Self) -> Unit raise CudaError
+pub fn StreamingPreparation::close(Self) -> Unit raise CudaError
+pub fn StreamingPreparation::drain(Self, Int) -> Unit raise CudaError
+pub fn StreamingPreparation::enqueue(Self, Int, Int64, Int64, Int64, Bool) -> Unit raise CudaError
+pub fn StreamingPreparation::host_copy(Self, FixedArray[Byte], Int64, Int, Int, Bool) -> Unit raise CudaError
+pub fn StreamingPreparation::is_ready(Self) -> Bool
+pub fn StreamingPreparation::poll(Self, Int) -> Bool raise CudaError
+pub fn StreamingPreparation::record(Self, Int) -> Unit raise CudaError
+pub fn StreamingPreparation::reset(Self, Int) -> Unit raise CudaError
 
 // Type aliases
 

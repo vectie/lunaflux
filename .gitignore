@@ -1,4 +1,5 @@
 /_build/
+/scripts/_build/
 /.mooncakes/
 /.repos/
 .DS_Store

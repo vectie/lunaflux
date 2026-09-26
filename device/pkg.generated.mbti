@@ -84,6 +84,7 @@ pub fn Context::device_identity(Self) -> ContextDeviceIdentity
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise DeviceError
 pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
 pub fn Context::ordinal(Self) -> Int
+pub fn Context::prepare_transfer_pool(Self, Allocation, host_bytes~ : Int64, lanes~ : Int, max_regions_per_lane~ : Int) -> TransferPool
 pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise DeviceError
 
 pub struct ContextDeviceIdentity {
@@ -188,6 +189,7 @@ pub(all) enum DeviceOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  StreamingTransfer
   ModuleLoad
   ModuleClose
   FunctionLoad
@@ -357,6 +359,20 @@ pub struct TensorCollectiveSite {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorCollectiveSite::new(sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, full_width~ : Int, local_width~ : Int) -> Self raise DeviceError
+
+pub struct TransferPool {
+  // private fields
+}
+pub fn TransferPool::check_prepared(Self) -> Unit raise DeviceError
+pub fn TransferPool::close(Self) -> Unit raise DeviceError
+pub fn TransferPool::drain(Self, Int) -> Unit raise DeviceError
+pub fn TransferPool::enqueue(Self, lane~ : Int, host_offset~ : Int64, device_offset~ : Int64, bytes~ : Int64, to_device~ : Bool) -> Unit raise DeviceError
+pub fn TransferPool::is_prepared(Self) -> Bool
+pub fn TransferPool::poll(Self, Int) -> Bool raise DeviceError
+pub fn TransferPool::read_host(Self, FixedArray[Byte], host_offset~ : Int64, destination_offset~ : Int, bytes~ : Int) -> Unit raise DeviceError
+pub fn TransferPool::record(Self, Int) -> Unit raise DeviceError
+pub fn TransferPool::reset(Self, Int) -> Unit raise DeviceError
+pub fn TransferPool::write_host(Self, FixedArray[Byte], host_offset~ : Int64, source_offset~ : Int, bytes~ : Int) -> Unit raise DeviceError
 
 pub(all) enum UnavailableReason {
   UnsupportedPlatform

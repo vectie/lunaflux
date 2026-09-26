@@ -1,0 +1,63 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/process",
+}
+
+///|
+async fn command(executable : String, arguments : Array[String]) -> String {
+  let (code, stdout, stderr) = @process.collect_output(executable, arguments)
+  guard code == 0 else { fail(stdout.text() + stderr.text()) }
+  stdout.text().trim().to_owned()
+}
+
+///|
+async fn main {
+  let moon = command("which", ["moon"])
+  let components = moon.split("/").to_array()
+  guard components.length() > 2 else {
+    fail("absolute moon executable required")
+  }
+  let headers = components[:components.length() - 2].join("/") + "/include"
+  let directory = command("mktemp", [
+    "-d", "/tmp/lunaflux-streaming-sanitizer.XXXXXX",
+  ])
+  let executable = directory + "/probe"
+  ignore(
+    command("clang", [
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-g",
+      "-pthread",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-DLF_STREAMING_SANITIZER",
+      "-I" + headers,
+      "internal/cuda/ordered_executor_sanitizer_main.c",
+      "internal/cuda/streaming_pool.c",
+      "internal/cuda/streaming_transfer.c",
+      "internal/cuda/streaming_probe.c",
+      "internal/cuda/resources.c",
+      "internal/cuda/regions.c",
+      "-o",
+      executable,
+    ]),
+  )
+  let darwin = command("uname", ["-s"]) == "Darwin"
+  let leaks = if darwin { "0" } else { "1" }
+  ignore(
+    command("env", [
+      "ASAN_OPTIONS=detect_leaks=" + leaks + ":fast_unwind_on_malloc=0",
+      "UBSAN_OPTIONS=halt_on_error=1",
+      executable,
+    ]),
+  )
+  println("Streaming ASan/UBSan: 1024 cycles x 16 scenarios passed")
+  println(
+    "LeakSanitizer enabled: " +
+    (if darwin { "false (unavailable on macOS)" } else { "true" }),
+  )
+  println("Native host/stream/event/lease balance checked in every cycle")
+}

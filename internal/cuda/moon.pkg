@@ -29,6 +29,9 @@ options(
     "resources.c",
     "transfer_probe.c",
     "transfers.c",
+    "streaming_pool.c",
+    "streaming_transfer.c",
+    "streaming_probe.c",
   ],
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
 )

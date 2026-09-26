@@ -114,6 +114,7 @@ pub(all) enum CudaOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  StreamingTransfer
   ModuleLoad
   ModuleClose
   FunctionLoad

@@ -20,6 +20,7 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     AllocationRegionValidate => AllocationRegionValidate
     CopyToDevice => CopyToDevice
     CopyToHost => CopyToHost
+    StreamingTransfer => StreamingTransfer
     ModuleLoad => ModuleLoad
     ModuleClose => ModuleClose
     FunctionLoad => FunctionLoad
