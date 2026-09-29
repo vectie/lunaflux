@@ -24,3 +24,10 @@ changing the scalar probability law into the BF16 matrix law. The schedule's
 closed `AttentionPhysicalProgram` binds these distinct dialects and the
 shared-score program to their transfer/storage effects. Full device instruction
 and copy-address realization remain backend responsibilities.
+
+`PagedRowOwnership` describes address-invariant sharing independently of a
+vendor subgroup width. It elects one producer only when vector consumers of a
+row fit wholly inside a subgroup; otherwise each consumer retains its address.
+CUDA grouped synchronous and asynchronous transfers both consume this plan.
+Collectives are outside the active-key predicate, including zero-fill lanes.
+This is compile-time ownership, not an extra token-step validation pass.

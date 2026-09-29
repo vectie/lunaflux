@@ -7,6 +7,7 @@ pub(all) enum AttentionGroupedEffectPoint {
   AcquireValueOperands
   PrefetchNextTile
   ReleaseTileReaders
+  CompleteTileReaders
   PublishFoldPartials
 } derive(Debug, Eq)
 
@@ -74,7 +75,12 @@ pub fn AttentionGroupedEffectPlan::actions(
     (AcquireValueOperands, true) =>
       [AwaitPendingTransfers(0), PublishWorkgroup, RequireValidStage]
     (PrefetchNextTile, true) => [StageNextPairInOtherSlot]
-    (ReleaseTileReaders | PublishFoldPartials, _) => [PublishWorkgroup]
+    // In the double-slot fold the following key publication also ends the
+    // previous readers' epoch, before PrefetchNextTile reuses their slot.
+    // At loop exit there is no next acquire: publish before arena reuse.
+    (ReleaseTileReaders, false) => [PublishWorkgroup]
+    (CompleteTileReaders, true) => [PublishWorkgroup]
+    (PublishFoldPartials, _) => [PublishWorkgroup]
     _ => []
   }
 }

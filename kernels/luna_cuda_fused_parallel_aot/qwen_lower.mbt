@@ -343,7 +343,9 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       guard fold_choices.is_empty() else {
         raise FusedParallelInvalid(CompilerPolicy)
       }
-      request.with_fold_pipeline(
+      request
+      .with_ingress_row_tiles(policy.row_tiles())
+      .with_fold_pipeline(
         MatrixFold,
         stages=policy.operand_stages(),
         transfer_tiles=policy.transfer_tiles(),
@@ -384,7 +386,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     raise FusedParallelUnsupported(StaticResources)
   }
   let physical_program = qwen_refine_physical(tile_compilation, ingress_policy)
-  let tile_rows = qkv_fallback.dispatch_plan().prefill().tile().dimensions().0
+  let tile_rows = pipeline.row_width()
   if tile_rows <= 0 {
     raise FusedParallelUnsupported(StaticResources)
   }

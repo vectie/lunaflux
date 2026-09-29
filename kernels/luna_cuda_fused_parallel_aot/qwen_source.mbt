@@ -34,6 +34,7 @@ fn qwen_fused_source(
   let packed_heads = query_heads + 2 * kv_heads
   let qk_heads = query_heads + kv_heads
   let kv_width = kv_heads * head_dimension
+  let tile_rows = physical.pipeline.schedule.row_width()
   let maximum_tile_count = (profile.max_query_tokens() + tile_rows - 1) /
     tile_rows
   let column_plan = physical.columns

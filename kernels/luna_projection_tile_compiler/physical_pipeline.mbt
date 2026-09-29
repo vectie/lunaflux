@@ -43,15 +43,19 @@ pub fn ProjectionPhysicalPipeline::new(
   } else {
     None
   }
-  guard partition_projection_product_fold(
-      row_tiles=schedule.row_width() / schedule.tile_width(),
-      output_tiles=if columns is Some(_) {
-        Int::min(output_tiles, consumer_groups)
-      } else {
-        output_tiles
-      },
-      consumer_groups~,
-    )
+  guard (if columns is Some(_) {
+      partition_projection_column_fold(
+        schedule.row_width() / schedule.tile_width(),
+        output_tiles,
+        consumer_groups,
+      )
+    } else {
+      partition_projection_product_fold(
+        row_tiles=schedule.row_width() / schedule.tile_width(),
+        output_tiles~,
+        consumer_groups~,
+      )
+    })
     is Some(ordinary) else {
     return None
   }
@@ -74,10 +78,10 @@ pub fn ProjectionPhysicalPipeline::new(
     return None
   }
   guard layout.geometry().0 == schedule.transfer_width() else { return None }
-  let fragment_rows = if columns is Some(_) {
-    1
-  } else {
-    distribution.rows_per_group()
+  let fragment_rows = distribution.rows_per_group()
+  guard fragment_rows > 0 &&
+    fragment_rows <= schedule.row_width() / schedule.tile_width() else {
+    return None
   }
   let fragment_columns = columns.unwrap_or(
     if reuse is Some(_) {

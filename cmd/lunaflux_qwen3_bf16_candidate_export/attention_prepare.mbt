@@ -46,8 +46,11 @@ fn prepare_qwen_compiler_partitioned_prefill(
     _ => raise QwenReadOnlyPreparation
   }
   let request = @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
-    backend=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend(),
-    target_id=@luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target(),
+    backend=@luna_cuda_attention_autotune.cuda_attention_backend(),
+    target_id=@luna_cuda_attention_autotune.cuda_architecture_target(
+      set.target().compute_major(),
+      set.target().compute_minor(),
+    ),
     problem~,
     capabilities~,
     device_target=set.target(),
@@ -162,10 +165,13 @@ fn prepare_qwen_compiler_prefill(
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let backend = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend() catch {
+  let backend = @luna_cuda_attention_autotune.cuda_attention_backend() catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let target = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target() catch {
+  let target = @luna_cuda_attention_autotune.cuda_architecture_target(
+    set.target().compute_major(),
+    set.target().compute_minor(),
+  ) catch {
     _ => raise QwenReadOnlyPreparation
   }
   // The earlier exporter reconstructed one historical candidate-310 result
@@ -277,10 +283,13 @@ fn prepare_qwen_compiler_decode(
   let capabilities = @luna_cuda_attention_autotune.cuda_sm120_decode_compiler_capabilities() catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let backend = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_backend() catch {
+  let backend = @luna_cuda_attention_autotune.cuda_attention_backend() catch {
     _ => raise QwenReadOnlyPreparation
   }
-  let target = @luna_cuda_attention_autotune.cuda_sm120_rtx5060ti_target() catch {
+  let target = @luna_cuda_attention_autotune.cuda_architecture_target(
+    set.target().compute_major(),
+    set.target().compute_minor(),
+  ) catch {
     _ => raise QwenReadOnlyPreparation
   }
   let records : Array[@luna_attention_strategy.AttentionAutotuneRecord] = []

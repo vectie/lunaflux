@@ -10,6 +10,7 @@ fn query_owned_candidate_id(query : Int, keys : Int, pipeline : Int) -> Int {
     (64, 64, 1) => 322
     (32, 32, 1) => 323
     (64, 32, 1) => 324
+    (_, 128, _) => 2000 + (query / 32 - 1) * 3 + pipeline
     _ => 1000 + (query / 32 - 1) * 6 + (keys / 32 - 1) * 3 + pipeline
   }
 }
@@ -18,12 +19,13 @@ fn query_owned_candidate_id(query : Int, keys : Int, pipeline : Int) -> Int {
 /// Enumerate the complete currently supported ownership domain, rather than
 /// enumerating hand-picked schedules. Resource and numeric constraints are
 /// applied by make_attention_candidate, after this pure Cartesian expansion.
-/// 32/64 are the current ownership implementation domain, not latency weights;
-/// expanding that domain requires corresponding backend realizations.
+/// Query rows and KV rows are independent ownership axes, not latency weights.
+/// KV128 uses the same ordered fragment fold with a larger score product;
+/// shared storage/resource admission still decides whether it is legal.
 fn query_owned_attention_specs() -> Array[AttentionCandidateSpec] {
   let specs : Array[AttentionCandidateSpec] = []
   for query in [32, 64] {
-    for keys in [32, 64] {
+    for keys in [32, 64, 128] {
       for pipeline in [0, 1, 2] {
         specs.push({
           stable_id: query_owned_candidate_id(query, keys, pipeline),

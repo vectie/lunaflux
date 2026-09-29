@@ -23,6 +23,7 @@ pub fn ProjectionTileCompilerRequest::new(
     single_row_numerics,
     fold_choices: [],
     concatenated_weights: [],
+    ingress_row_tiles: 1,
   }
 }
 

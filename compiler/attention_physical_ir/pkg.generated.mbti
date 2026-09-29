@@ -78,6 +78,17 @@ pub fn OnlineFold::score_phase(Self) -> ReadOnlyArray[FoldOperation]
 pub fn OnlineFold::to_repr(Self) -> @debug.Repr
 pub fn OnlineFold::value_phase(Self) -> ReadOnlyArray[FoldOperation]
 
+pub struct PagedRowOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedRowOwnership::address_owner(Self, Int) -> Int
+pub fn PagedRowOwnership::consumers(Self) -> Int
+pub fn PagedRowOwnership::equal(Self, Self) -> Bool
+pub fn PagedRowOwnership::new(row_elements~ : Int, vector_elements~ : Int, subgroup_size~ : Int, hoist~ : Bool) -> Self?
+pub fn PagedRowOwnership::not_equal(Self, Self) -> Bool
+pub fn PagedRowOwnership::shares_address(Self) -> Bool
+pub fn PagedRowOwnership::to_repr(Self) -> @debug.Repr
+
 // Type aliases
 
 // Traits

@@ -9,6 +9,25 @@ pub struct ProjectionProductFoldDistribution {
 } derive(Debug, Eq)
 
 ///|
+/// A column-window consumer owns every row in its assigned columns. Idle
+/// column consumers remain participants in workgroup effects, not duplicate
+/// row owners. This is distinct from distributing the product over both axes.
+fn partition_projection_column_fold(
+  row_tiles : Int,
+  output_tiles : Int,
+  consumer_groups : Int,
+) -> ProjectionProductFoldDistribution? {
+  guard row_tiles > 0 && output_tiles > 0 && consumer_groups > 0 else {
+    return None
+  }
+  Some({
+    row_groups: 1,
+    output_groups: Int::min(output_tiles, consumer_groups),
+    rows_per_group: row_tiles,
+  })
+}
+
+///|
 pub fn partition_projection_product_fold(
   row_tiles~ : Int,
   output_tiles~ : Int,

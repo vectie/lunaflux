@@ -18,9 +18,20 @@ test "query-owned Cartesian schedules survive uncalibrated cost pruning" {
     required_fragment_ownership=Some(QueryOwnedFragments),
   )
   let frontier = compile_attention_tile_frontier({ ..base, problem, })
-  assert_eq(frontier.variants().length(), 12)
-  for id in [318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008] {
+  assert_eq(frontier.variants().length(), 16)
+  for
+    id in [
+      318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,
+      2003, 2004,
+    ] {
     assert_true(
+      frontier.variants().any(v => v.plan().candidate().stable_id() == id),
+    )
+  }
+  // The two KV128 double-buffer schedules exceed this target's 100000-byte
+  // shared-memory budget; extending the domain must not bypass resources.
+  for id in [2002, 2005] {
+    assert_false(
       frontier.variants().any(v => v.plan().candidate().stable_id() == id),
     )
   }

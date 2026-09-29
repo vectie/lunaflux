@@ -109,14 +109,15 @@ pub fn CudaProjectionFoldBody::ingress(
   let slot_elements = operands.slot_elements()
   guard projection_cuda_fragment_geometry(physical) &&
     pipeline.tile_width() == 16 &&
-    input_rows == 16 &&
+    input_rows > 0 &&
+    input_rows % 16 == 0 &&
     width == pipeline.transfer_width() &&
     input_rows == pipeline.row_width() &&
     weight_rows == pipeline.output_tiles() * 16 &&
     vector == 8 &&
     rotations == 1 &&
     operands.allocation_elements() / slot_elements == pipeline.stage_count() &&
-    rows == 1 &&
+    rows == input_rows / 16 &&
     columns > 0 &&
     columns <= pipeline.output_tiles() else {
     return None

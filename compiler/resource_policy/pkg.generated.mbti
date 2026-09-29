@@ -35,9 +35,10 @@ pub fn Policy::equal(Self, Self) -> Bool
 pub fn Policy::fragment_stages(Self) -> Int
 pub fn Policy::id(Self) -> String
 pub fn Policy::live_accumulators(Self) -> Int
-pub fn Policy::new(id~ : String, consumer_groups~ : Int, live_accumulators~ : Int, operand_stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self?
+pub fn Policy::new(id~ : String, consumer_groups~ : Int, live_accumulators~ : Int, operand_stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int) -> Self?
 pub fn Policy::not_equal(Self, Self) -> Bool
 pub fn Policy::operand_stages(Self) -> Int
+pub fn Policy::row_tiles(Self) -> Int
 pub fn Policy::to_repr(Self) -> @debug.Repr
 pub fn Policy::transfer_tiles(Self) -> Int
 

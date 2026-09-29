@@ -1,6 +1,27 @@
 ///|
-pub fn cuda_sm120_rtx5060ti_backend() -> @luna_attention_strategy.AttentionBackendId raise {
+/// Architecture namespace for uncalibrated compilation. Exact device and
+/// toolchain identities remain part of measured resource scopes. In
+/// particular, this namespace never replays a named board's historic timings.
+pub fn cuda_architecture_target(
+  major : Int,
+  minor : Int,
+) -> @luna_attention_strategy.AttentionTargetId raise {
+  guard major > 0 && minor >= 0 && minor <= 9 else {
+    raise Failure("invalid CUDA architecture")
+  }
+  @luna_attention_strategy.AttentionTargetId::new(
+    "sm\{major}\{minor}-bf16-uncalibrated-v1",
+  )
+}
+
+///|
+pub fn cuda_attention_backend() -> @luna_attention_strategy.AttentionBackendId raise {
   @luna_attention_strategy.AttentionBackendId::new("cuda")
+}
+
+///|
+pub fn cuda_sm120_rtx5060ti_backend() -> @luna_attention_strategy.AttentionBackendId raise {
+  cuda_attention_backend()
 }
 
 ///|

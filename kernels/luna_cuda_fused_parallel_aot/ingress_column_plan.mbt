@@ -28,6 +28,7 @@ fn qwen_default_ingress_policy(
     pipeline.stage_count(),
     pipeline.transfer_width() / pipeline.tile_width(),
     pipeline.fragment_stage_count(),
+    rows=pipeline.row_width() / pipeline.tile_width(),
   )
 }
 
@@ -37,14 +38,17 @@ fn qwen_ingress_policy(
   stages : Int,
   tiles : Int,
   fragments : Int,
+  rows? : Int = 1,
 ) -> @resource_policy.Policy {
   @resource_policy.Policy::new(
-    id="ingress-g4-a\{live}-s\{stages}-t\{tiles}-f\{fragments}",
+    id="ingress-g4-a\{live}-s\{stages}-t\{tiles}-f\{fragments}" +
+      (if rows == 1 { "" } else { "-r\{rows}" }),
     consumer_groups=4,
     live_accumulators=live,
     operand_stages=stages,
     transfer_tiles=tiles,
     fragment_stages=fragments,
+    row_tiles=rows,
   ).unwrap()
 }
 
@@ -64,26 +68,35 @@ pub fn qwen_ingress_policies(
   let head = pipeline.output_tiles().to_int64() * 16L
   // These are this backend's realizable finite-ring choices, not universal IR
   // constants or asserted profitability thresholds. Measurements choose them.
-  for stages in 2..<=4 {
-    for tiles in [1, 2, 4, 8, 16] {
-      if pipeline.tile_count() % tiles != 0 ||
-        pipeline.tile_count() / tiles < stages {
-        continue
-      }
-      let shared = (pipeline.row_width().to_int64() + head) *
-        pipeline.tile_width().to_int64() *
-        tiles.to_int64() *
-        stages.to_int64() *
-        2L +
-        pipeline.row_width().to_int64() * head * 4L
-      if shared > 49152L {
-        continue
-      }
-      for fragments in 1..<=Int::min(2, tiles) {
-        for live in 1..<=2 {
-          let policy = qwen_ingress_policy(live, stages, tiles, fragments)
-          if !policies.contains(policy) {
-            policies.push(policy)
+  for rows in [1, 2, 4, 8] {
+    for stages in 2..<=4 {
+      for tiles in [1, 2, 4, 8, 16] {
+        if pipeline.tile_count() % tiles != 0 ||
+          pipeline.tile_count() / tiles < stages {
+          continue
+        }
+        let row_width = rows.to_int64() * pipeline.tile_width().to_int64()
+        let shared = (row_width + head) *
+          pipeline.tile_width().to_int64() *
+          tiles.to_int64() *
+          stages.to_int64() *
+          2L +
+          row_width * head * 4L
+        if shared > 49152L {
+          continue
+        }
+        for fragments in 1..<=Int::min(2, tiles) {
+          for live in 1..<=2 {
+            let policy = qwen_ingress_policy(
+              live,
+              stages,
+              tiles,
+              fragments,
+              rows~,
+            )
+            if !policies.contains(policy) {
+              policies.push(policy)
+            }
           }
         }
       }

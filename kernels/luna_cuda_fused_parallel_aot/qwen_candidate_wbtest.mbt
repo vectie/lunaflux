@@ -8,6 +8,7 @@ fn qwen_fused_test_candidate(
   page_tokens? : Int = 16,
   export_projection? : Bool = false,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  ingress_policy? : @resource_policy.Policy,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
@@ -181,6 +182,7 @@ fn qwen_fused_test_candidate(
     compiler,
     fused_test_limits(),
     fold_choices~,
+    ingress_policy?,
   )
 }
 
@@ -244,7 +246,7 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_false(source.contains("powf("))
   assert_true(
     source.contains(
-      "nvcuda::wmma::load_matrix_sync(a[0], current + fragment_inner,",
+      "nvcuda::wmma::load_matrix_sync(a[0][row_fragment], current + row_fragment * 16 *",
     ),
   )
   let recipe = @utf8.decode(first.recipe_bytes())

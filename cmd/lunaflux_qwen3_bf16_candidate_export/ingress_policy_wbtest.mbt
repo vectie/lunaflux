@@ -116,7 +116,8 @@ fn ingress_policy_fixture() -> ReadOnlyArray[
 ///|
 test "ingress exporter uses measured resource policy and retains source-bound unmeasured default" {
   let variants = ingress_policy_fixture()
-  assert_true(variants.length() > 2 && variants.length() <= 64)
+  // Finite backend domain: rows × stages × transfer × lookahead × columns.
+  assert_true(variants.length() > 2 && variants.length() <= 4 * 3 * 5 * 2 * 2)
   let baseline = variants[0]
   let alternate = variants
     .iter()

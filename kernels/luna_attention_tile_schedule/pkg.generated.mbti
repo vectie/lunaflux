@@ -59,6 +59,7 @@ pub(all) enum AttentionGroupedEffectPoint {
   AcquireValueOperands
   PrefetchNextTile
   ReleaseTileReaders
+  CompleteTileReaders
   PublishFoldPartials
 } derive(Eq, @debug.Debug)
 

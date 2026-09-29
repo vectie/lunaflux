@@ -1,4 +1,31 @@
 ///|
+test "double-slot publication cost is two per tile plus final ownership handoff" {
+  let plan = @luna_attention_tile_schedule.AttentionGroupedEffectPlan::new(
+    AttentionAsyncStagedShared,
+    stages=2,
+    readiness=KeyScoreBeforeValueReadiness,
+  )
+  let mut per_tile = 0
+  for
+    point in [
+      @luna_attention_tile_schedule.AcquireKeyOperands,
+      AcquireValueOperands,
+      PrefetchNextTile,
+      ReleaseTileReaders,
+    ] {
+    for effect in plan.actions(point) {
+      if effect == PublishWorkgroup {
+        per_tile += 1
+      }
+    }
+  }
+  assert_eq(per_tile, 2)
+  assert_eq(plan.actions(CompleteTileReaders).iter().to_array(), [
+    PublishWorkgroup,
+  ])
+}
+
+///|
 fn apply_grouped_effects(
   machine : QueryEffectMachine,
   actions : ArrayView[@luna_attention_tile_schedule.AttentionGroupedEffect],
@@ -90,6 +117,12 @@ fn exercise_grouped_effects(
       return
     }
     assert_eq(machine.visible[key], epoch, msg="QK read an unpublished key")
+    if plan.is_pipelined() && epoch > 0 && !omit_release && !omit_publication {
+      // The acquire publication joins every worker after the previous PV.
+      let previous = (epoch - 1) % machine.stages * 2
+      machine.consumed[previous] = epoch - 1
+      machine.consumed[previous + 1] = epoch - 1
+    }
     if !apply_grouped_effects(
         machine,
         plan.actions(AcquireValueOperands),
@@ -117,7 +150,7 @@ fn exercise_grouped_effects(
       epoch,
       msg="PV read an unpublished value",
     )
-    if !omit_release {
+    if !omit_release && !plan.is_pipelined() {
       assert_eq(plan.actions(ReleaseTileReaders).iter().to_array(), [
         PublishWorkgroup,
       ])
@@ -135,6 +168,28 @@ fn exercise_grouped_effects(
       // All workers have completed both reads before this slot is reusable.
       machine.consumed[key] = epoch
       machine.consumed[key + 1] = epoch
+    }
+  }
+  if plan.is_pipelined() && tiles > 0 && !omit_release {
+    assert_eq(plan.actions(ReleaseTileReaders).length(), 0)
+    assert_eq(plan.actions(CompleteTileReaders).iter().to_array(), [
+      PublishWorkgroup,
+    ])
+    ignore(
+      apply_grouped_effects(
+        machine,
+        plan.actions(CompleteTileReaders),
+        tiles - 1,
+        tiles,
+        false,
+        omit_wait,
+        omit_publication,
+      ),
+    )
+    if !omit_publication {
+      let last = (tiles - 1) % machine.stages * 2
+      machine.consumed[last] = tiles - 1
+      machine.consumed[last + 1] = tiles - 1
     }
   }
   assert_true(machine.pending.is_empty())

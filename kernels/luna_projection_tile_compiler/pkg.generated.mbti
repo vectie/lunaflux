@@ -319,6 +319,7 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ 
 pub fn ProjectionTileCompilerRequest::with_concatenated_weights(Self, ArrayView[Int]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_ingress_row_tiles(Self, Int) -> Self raise ProjectionTileCompilerError
 
 pub(all) enum ProjectionTileCompilerRule {
   InvalidProblem

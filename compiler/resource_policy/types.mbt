@@ -8,6 +8,7 @@ pub struct Policy {
   priv stages : Int
   priv tiles : Int
   priv fragments : Int
+  priv row_tiles : Int
 } derive(Eq, Debug)
 
 ///|
@@ -24,6 +25,7 @@ pub fn Policy::new(
   operand_stages~ : Int,
   transfer_tiles~ : Int,
   fragment_stages~ : Int,
+  row_tiles? : Int = 1,
 ) -> Policy? {
   guard valid_label(id) &&
     consumer_groups > 0 &&
@@ -31,7 +33,8 @@ pub fn Policy::new(
     operand_stages > 0 &&
     transfer_tiles > 0 &&
     fragment_stages > 0 &&
-    fragment_stages <= transfer_tiles else {
+    fragment_stages <= transfer_tiles &&
+    row_tiles > 0 else {
     return None
   }
   Some({
@@ -41,6 +44,7 @@ pub fn Policy::new(
     stages: operand_stages,
     tiles: transfer_tiles,
     fragments: fragment_stages,
+    row_tiles,
   })
 }
 
@@ -72,6 +76,11 @@ pub fn Policy::transfer_tiles(self : Policy) -> Int {
 ///|
 pub fn Policy::fragment_stages(self : Policy) -> Int {
   self.fragments
+}
+
+///|
+pub fn Policy::row_tiles(self : Policy) -> Int {
+  self.row_tiles
 }
 
 ///|

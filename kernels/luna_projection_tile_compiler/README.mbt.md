@@ -44,12 +44,21 @@ workgroup effects even when they own no column. No reassociation is permitted.
 
 For ingress, the projection domain is one head's component axis, not the
 concatenation of every Q/K/V head. The CUDA full-ingress lowering consumes this
-plan, retains at most two accumulator fragments per consumer, and no longer
+plan, retains at most two column accumulators per row fragment per consumer, and no longer
 repeats input loads and padded-tail barriers separately for every column round.
 The physical plan identity is included in the AOT recipe. Single-token dot
 order, projection BF16 materialization, Q/K normalization and KV commits are
 unchanged. Two live fragments are a static backend envelope, **not** a measured
 optimum; register pressure and runtime still need physical evaluation.
+
+Ingress requests can independently choose the CTA row-tile multiplicity.
+The semantic program and ordered reduction stay unchanged; the schedule binds
+the wider row extent. Physical column-window ownership assigns every row to
+its column consumer (not the ordinary two-axis product distribution). Fragment
+rows are derived from that ownership, not overridden by the CUDA emitter.
+The CUDA backend enumerates row factors 1/2/4/8 subject to actual shared-memory
+bounds; source-bound offline resource selection chooses among them. The
+unmeasured default remains factor 1. Larger factors are not presumed faster.
 
 Ingress also refines its head domain into the common `ProjectionFoldPipeline`.
 The CUDA consumer uses the common operand transfer plan and finite-ring effect

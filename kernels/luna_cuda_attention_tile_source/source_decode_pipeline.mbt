@@ -4,9 +4,11 @@
 fn emit_decode_async_stage(
   abi : CudaPagedAttentionTileAbi,
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
+  hoist_page_lookup : Bool,
 ) -> String {
-  let (_, heads, _, page_tokens) = abi.shape()
-  let (_, stride, capacity) = abi.layout()
+  let address = cuda_decode_row_address(
+    abi, 4, hoist_page_lookup, "atomicExch(stage_valid + slot, 0)",
+  )
   (
     $|  auto stage_tile = [&](int key_base, int slot) {
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
@@ -21,21 +23,8 @@ fn emit_decode_async_stage(
     $|      const int linear = vector * 4;
     $|      const int key = linear / LF_HEAD_DIMENSION;
     $|      const int component = linear % LF_HEAD_DIMENSION;
-    $|      unsigned long long cache_index = 0;
-    $|      int source_bytes = 0;
-    $|      if (key < active_keys) {
-    $|        const int position = key_base + key;
-    $|        const int page_slot = page_start + position / \{page_tokens};
-    $|        const int page = page_slot < page_end ? page_table_page_indices[page_slot] : -1;
-    $|        if (page < 0 || (unsigned long long)page >= \{capacity}ULL) {
-    $|          atomicExch(stage_valid + slot, 0);
-    $|        } else {
-    $|          cache_index = (unsigned long long)page * \{stride}ULL +
-    $|              ((unsigned long long)(position % \{page_tokens}) * \{heads}ULL + key_value_head) *
-    $|                  LF_HEAD_DIMENSION + component;
-    $|          source_bytes = 8;
-    $|        }
-    $|      }
+    $|\{address}
+    $|      const int source_bytes = row_valid ? 8 : 0;
     $|      const unsigned int key_address = (unsigned int)__cvta_generic_to_shared(key_tile + linear);
     $|      addresses[item] = cache_index;
     $|      sizes[item++] = source_bytes;

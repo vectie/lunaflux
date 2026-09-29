@@ -12,9 +12,31 @@ test "decode column transfer follows schedule width without numeric conversion" 
     assert_true(
       source.contains("reinterpret_cast<\{packed} *>(value_tile + linear)"),
     )
-    assert_true(source.contains("if (key < active_keys)"))
+    assert_true(source.contains("if (key < active_keys && true)"))
     assert_true(source.contains("atomicExch(tile_valid, 0)"))
     assert_false(source.contains("__float2bfloat16"))
+  }
+}
+
+///|
+test "grouped copies realize the optimizer page ownership in sync and async source" {
+  for id in [430, 440, 441] {
+    let lowering = source_test_decode_lowering(candidate_id=id)
+    assert_true(lowering.hoists_paged_key_value_page_lookup())
+    let source = @utf8.decode(
+      emit_cuda_attention_tile_source(
+        lowering,
+        source_test_abi(),
+        "owned_decode",
+        1048576,
+      ).bytes(),
+    )
+    assert_true(source.contains("if (key < active_keys && component == 0)"))
+    assert_true(source.contains("row_address = __shfl_sync"))
+    assert_true(source.contains("row_valid = __shfl_sync"))
+    assert_true(
+      source.contains("cache_index = row_valid ? row_address + component : 0"),
+    )
   }
 }
 

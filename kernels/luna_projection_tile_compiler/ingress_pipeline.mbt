@@ -1,6 +1,6 @@
 ///|
 /// An ingress epilogue observes one complete head, so its materialized operand
-/// product is one row microtile by one head, not the entire Q/K/V concatenation.
+/// product is an independently selected row tile by one complete head.
 /// Reuse the same finite ring and ordered fragment fold as ordinary projection.
 fn projection_ingress_pipeline(
   optimized : OptimizedProjectionTileCompilation,
@@ -27,7 +27,7 @@ fn projection_ingress_pipeline(
         tile_width: reduction,
         tile_count: extent / reduction,
         transfer_width: projection_transfer_width(extent, reduction, 4),
-        row_width: rows,
+        row_width: rows * request.ingress_row_tiles,
         output_tiles: spec.head_dimension / columns,
         minimum_rows: 2,
         stages: 2,
@@ -37,4 +37,21 @@ fn projection_ingress_pipeline(
       request,
     ),
   )
+}
+
+///|
+/// Widen the independent row map without changing instruction geometry or
+/// the ordered dot fold. Epilogue ownership remains a complete head per row.
+pub fn ProjectionTileCompilerRequest::with_ingress_row_tiles(
+  self : ProjectionTileCompilerRequest,
+  tiles : Int,
+) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
+  let rows = self.dispatch.prefill().tile().dimensions().0
+  guard self.epilogue is ProjectionAttentionIngress(_) &&
+    tiles > 0 &&
+    rows > 0 &&
+    tiles <= 2147483647 / rows else {
+    raise InvalidProjectionTileCompilation(InvalidProblem)
+  }
+  { ..self, ingress_row_tiles: tiles, }
 }

@@ -16,7 +16,7 @@ pub fn attention_fragment_ownership(
 ) -> AttentionFragmentOwnership {
   if compute == AttentionMatrixQkPv &&
     (query_rows == 32 || query_rows == 64) &&
-    (key_rows == 32 || key_rows == 64) &&
+    (key_rows == 32 || key_rows == 64 || key_rows == 128) &&
     (head_columns == 64 || head_columns == 128) &&
     subgroups == query_rows / 16 {
     QueryOwnedFragments

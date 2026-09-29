@@ -36,7 +36,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
-  let transfer = emit_decode_key_value_transfer(abi, vector_bytes)
+  let transfer = emit_decode_key_value_transfer(
+    abi,
+    vector_bytes,
+    hoist_page_lookup=lowering.hoists_paged_key_value_page_lookup(),
+  )
   let (_, page_stride, _) = abi.layout()
   if asynchronous && (head_dimension % 4 != 0 || page_stride % 4L != 0L) {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
@@ -54,7 +58,11 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     )
   }
   let prologue = if asynchronous {
-    emit_decode_async_stage(abi, effects)
+    emit_decode_async_stage(
+      abi,
+      effects,
+      lowering.hoists_paged_key_value_page_lookup(),
+    )
   } else {
     ""
   }
@@ -283,6 +291,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|\{cuda_grouped_effects(effects, ReleaseTileReaders, "", "    ")}
     $|  }
     $|
+    $|\{cuda_grouped_effects(effects, CompleteTileReaders, "", "  ")}
     $|  float *partial_numerators = reinterpret_cast<float *>(shared_arena);
     $|  float *partial_maxima = partial_numerators +
     $|      LF_SUBGROUP_COUNT * LF_HEAD_DIMENSION;

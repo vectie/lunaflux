@@ -7,13 +7,15 @@ fn projection_head_fragment_source(
   input_elements : Int,
 ) -> String {
   let (rows, live, width, quantum, fragments) = program.geometry()
-  guard rows == 1 && quantum == 16 else {
+  guard rows > 0 && quantum == 16 else {
     abort("unsupported head fragment binding")
   }
   let load = fn(offset : String, slot : String) -> String {
     (
       $|        if ((window * LF_LIVE_COLUMNS * LF_WARPS + warp) * 16 < LF_HEAD_DIM) {
-      $|          nvcuda::wmma::load_matrix_sync(a[\{slot}], current + \{offset}, \{width});
+      $|          #pragma unroll
+      $|          for (int row_fragment=0; row_fragment<\{rows}; ++row_fragment)
+      $|            nvcuda::wmma::load_matrix_sync(a[\{slot}][row_fragment], current + row_fragment * 16 * \{width} + \{offset}, \{width});
       $|        }
       $|        #pragma unroll
       $|        for (int column_slot = 0; column_slot < \{live}; ++column_slot) {
@@ -36,14 +38,16 @@ fn projection_head_fragment_source(
             $|        #pragma unroll
             $|        for (int column_slot = 0; column_slot < \{live}; ++column_slot) {
             $|          const int column_base = ((window * LF_LIVE_COLUMNS + column_slot) * LF_WARPS + warp) * 16;
-            $|          if (column_base < LF_HEAD_DIM) nvcuda::wmma::mma_sync(c[column_slot], a[fragment_stage], b[fragment_stage][column_slot], c[column_slot]);
+            $|          #pragma unroll
+            $|          for (int row_fragment=0; row_fragment<\{rows}; ++row_fragment)
+            $|            if (column_base < LF_HEAD_DIM) nvcuda::wmma::mma_sync(c[row_fragment][column_slot], a[fragment_stage][row_fragment], b[fragment_stage][column_slot], c[row_fragment][column_slot]);
             $|        }
           )
       }
     })
     .join("\n")
   (
-    $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a[\{fragments}];
+    $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a[\{fragments}][\{rows}];
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b[\{fragments}][\{live}];
     $|      \{if program.primes_operands() { load("0", "0") } else { "" }}
     $|      int fragment_stage = 0;

@@ -42,10 +42,10 @@ test "ingress physical IR bounds accumulators and shares the ordered fold input"
   )
   assert_eq(plan.geometry(), (4, 2, 2, 1))
   let source = @utf8.decode(candidate.source_bytes())
-  assert_true(source.contains("float> c[LF_LIVE_COLUMNS]"))
+  assert_true(source.contains("float> c[1][LF_LIVE_COLUMNS]"))
   assert_true(
     source.contains(
-      "mma_sync(c[column_slot], a[fragment_stage], b[fragment_stage][column_slot], c[column_slot])",
+      "mma_sync(c[row_fragment][column_slot], a[fragment_stage][row_fragment], b[fragment_stage][column_slot], c[row_fragment][column_slot])",
     ),
   )
   let pipeline = candidate
@@ -59,7 +59,9 @@ test "ingress physical IR bounds accumulators and shares the ordered fold input"
   // Publication is outside the independent consumer map, including tail CTAs.
   assert_true(source.contains("cp.async.cg.shared.global"))
   assert_true(
-    source.contains("current + fragment_inner, \{pipeline.transfer_width()}"),
+    source.contains(
+      "current + row_fragment * 16 * \{pipeline.transfer_width()} + fragment_inner, \{pipeline.transfer_width()}",
+    ),
   )
   assert_true(
     source.contains(

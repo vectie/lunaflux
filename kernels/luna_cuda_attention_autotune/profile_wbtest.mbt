@@ -1,4 +1,26 @@
 ///|
+test "architecture compilation cannot reuse a named board measurement namespace" {
+  let problem = sm120_profile_problem()
+  let capabilities = sm120_profile_capabilities()
+  let records = cuda_sm120_rtx5060ti_prefill_records(problem, capabilities)
+  for minor in [0, 1] {
+    let target = cuda_architecture_target(12, minor)
+    assert_true(target != cuda_sm120_rtx5060ti_target())
+    let selected = @luna_attention_strategy.compile_attention_tile_plan(
+      records,
+      backend=cuda_attention_backend(),
+      target~,
+      problem~,
+      capabilities~,
+    )
+    assert_true(selected.source() != AttentionOfflineAutotune)
+  }
+  assert_true(
+    cuda_architecture_target(12, 0) != cuda_architecture_target(12, 1),
+  )
+}
+
+///|
 fn sm120_profile_problem() -> @luna_attention_strategy.AttentionCompileProblem raise {
   @luna_attention_strategy.AttentionCompileProblem::new(
     shape=@luna_attention_strategy.AttentionShape::new(

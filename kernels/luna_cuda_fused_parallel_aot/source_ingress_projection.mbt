@@ -21,6 +21,7 @@ fn ingress_matrix_projection_source(
   )
   let input_vectors = input_region.ownership().geometry().0
   let weight_vectors = weight_region.ownership().geometry().0
+  let row_fragments = physical.pipeline.fragments.geometry().0
   let source =
     $|    __shared__ __align__(32) __nv_bfloat16 ingress_operands[\{storage.allocation_elements()}];
     $|    auto stage_operands = [&](int offset, int stage) {
@@ -41,14 +42,17 @@ fn ingress_matrix_projection_source(
     $|      asm volatile("cp.async.commit_group;" ::: "memory");
     $|    };
     $|    for (int window = 0; window < LF_COLUMN_WINDOWS; ++window) {
-    $|      nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c[LF_LIVE_COLUMNS];
+    $|      nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c[\{row_fragments}][LF_LIVE_COLUMNS];
     $|      #pragma unroll
-    $|      for (int slot = 0; slot < LF_LIVE_COLUMNS; ++slot) nvcuda::wmma::fill_fragment(c[slot], 0.0f);
+    $|      for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
+    $|        for (int slot = 0; slot < LF_LIVE_COLUMNS; ++slot) nvcuda::wmma::fill_fragment(c[row_fragment][slot], 0.0f);
     $|      \{lifetime}
     $|      #pragma unroll
     $|      for (int slot = 0; slot < LF_LIVE_COLUMNS; ++slot) {
     $|        const int column_base = ((window * LF_LIVE_COLUMNS + slot) * LF_WARPS + warp) * 16;
-    $|        if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync(&projected[0][column_base], c[slot], LF_HEAD_DIM, nvcuda::wmma::mem_row_major);
+    $|        #pragma unroll
+    $|        for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
+    $|          if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync(&projected[row_fragment*16][column_base], c[row_fragment][slot], LF_HEAD_DIM, nvcuda::wmma::mem_row_major);
     $|      }
     $|    }
     $|
