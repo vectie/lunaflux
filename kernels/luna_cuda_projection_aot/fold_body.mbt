@@ -26,12 +26,12 @@ pub struct CudaProjectionFoldBody {
 /// Bind the ordinary matrix consumer to the same checked operand storage used
 /// by its producer. No independently reconstructed strip offsets or slot size.
 fn projection_storage_fold_body(
-  pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
-  operands : @physical_tile_ir.OperandStorage,
-  rows~ : Int,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   storage~ : String,
   consumers~ : Int,
 ) -> CudaProjectionFoldBody {
+  let pipeline = physical.schedule
+  let operands = physical.operands
   let (_, input_rows, width) = operands.region(0).unwrap().geometry()
   let (_, weight_rows, weight_width) = operands.region(1).unwrap().geometry()
   guard operands.region(2) is None &&
@@ -43,14 +43,12 @@ fn projection_storage_fold_body(
     pipeline.stage_count() else {
     abort("matrix operand storage and fragment schedule disagree")
   }
-  projection_packed_fold_body(pipeline, operands, rows~, storage~, consumers~)
+  projection_packed_fold_body(physical, storage~, consumers~)
 }
 
 ///|
 fn projection_packed_fold_body(
-  pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
-  operands : @physical_tile_ir.OperandStorage,
-  rows~ : Int,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   storage~ : String,
   consumers? : Int,
   products? : Array[(Int, String)] = [],
@@ -60,9 +58,12 @@ fn projection_packed_fold_body(
   column_owner? : String = "consumer_column",
   weight_displacement? : String = "0",
 ) -> CudaProjectionFoldBody {
+  let pipeline = physical.schedule
+  let operands = physical.operands
   let products = if products.is_empty() { [(1, "c")] } else { products }
   let (_, input_rows, width) = operands.region(0).unwrap().geometry()
-  guard width == pipeline.transfer_width() &&
+  guard projection_cuda_fragment_geometry(physical) &&
+    width == pipeline.transfer_width() &&
     input_rows == pipeline.row_width() &&
     operands.allocation_elements() / operands.slot_elements() ==
     pipeline.stage_count() else {
@@ -75,9 +76,7 @@ fn projection_packed_fold_body(
     (offset, accumulator)
   })
   {
-    program: pipeline
-    .fragment_program(rows~, columns=products.length())
-    .unwrap(),
+    program: physical.fragments,
     form: Packed(
       products=ReadOnlyArray::from_array(products),
       row_origin~,
@@ -94,10 +93,11 @@ fn projection_packed_fold_body(
 
 ///|
 pub fn CudaProjectionFoldBody::ingress(
-  pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
-  operands : @physical_tile_ir.OperandStorage,
-  columns~ : Int,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
 ) -> CudaProjectionFoldBody? {
+  let pipeline = physical.schedule
+  let operands = physical.operands
+  let (rows, columns, _, _, _) = physical.fragments.geometry()
   guard operands.region(0) is Some(input) &&
     operands.region(1) is Some(weight) &&
     operands.region(2) is None else {
@@ -107,7 +107,8 @@ pub fn CudaProjectionFoldBody::ingress(
   let (input_elements, weight_rows, _) = weight.geometry()
   let (_, vector, rotations, _) = operands.layout().geometry()
   let slot_elements = operands.slot_elements()
-  guard pipeline.tile_width() == 16 &&
+  guard projection_cuda_fragment_geometry(physical) &&
+    pipeline.tile_width() == 16 &&
     input_rows == 16 &&
     width == pipeline.transfer_width() &&
     input_rows == pipeline.row_width() &&
@@ -115,20 +116,28 @@ pub fn CudaProjectionFoldBody::ingress(
     vector == 8 &&
     rotations == 1 &&
     operands.allocation_elements() / slot_elements == pipeline.stage_count() &&
+    rows == 1 &&
     columns > 0 &&
     columns <= pipeline.output_tiles() else {
     return None
   }
-  guard pipeline.fragment_program(rows=1, columns~) is Some(program) else {
-    return None
-  }
   Some({
-    program,
+    program: physical.fragments,
     form: HeadColumns(input_elements~),
     storage: "ingress_operands",
     slot_elements,
     consumers: None,
   })
+}
+
+///|
+/// Instruction geometry belongs to this backend binding, not the generic IR.
+fn projection_cuda_fragment_geometry(
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
+) -> Bool {
+  physical.owners_per_group == 32 &&
+  physical.operands.layout().geometry().1 == 8 &&
+  physical.fragments.geometry().3 == 16
 }
 
 ///|

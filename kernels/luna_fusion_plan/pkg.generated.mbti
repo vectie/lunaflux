@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_fusion_plan"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/fusion_regions",
   "vectie/lunaflux/kernels/luna_fusion_strategy",
   "vectie/lunaflux/model/plan",
 }
@@ -11,6 +12,8 @@ import {
 pub fn find_qkv_qknorm_positioned_rope_paged_kv_write_plans(@plan.ModelPlan) -> ReadOnlyArray[QkvQkNormPositionedRopePagedKvWritePlan]
 
 pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(@plan.ModelPlan, @plan.OperationId) -> QkvQkNormPositionedRopePagedKvWritePlan raise FusionPlanError
+
+pub fn select_attention_ingress_cut(ArrayView[@luna_fusion_strategy.FusionAlternative], qkv_operation~ : Int, maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> AttentionIngressCutPlan raise FusionPlanError
 
 // Errors
 pub(all) suberror FusionPlanError {
@@ -24,13 +27,17 @@ pub struct AttentionIngressCutPlan {
 pub fn AttentionIngressCutPlan::materialized_values(Self) -> (Bool, Bool, Bool)
 pub fn AttentionIngressCutPlan::module_span(Self) -> (Int, Int)?
 pub fn AttentionIngressCutPlan::new(@luna_fusion_strategy.FusionSchedule, qkv_operation~ : Int) -> Self raise FusionPlanError
+pub fn AttentionIngressCutPlan::partition(Self) -> @fusion_regions.Partition
 pub fn AttentionIngressCutPlan::permits_readonly_attention(Self) -> Bool
+pub fn AttentionIngressCutPlan::schedule(Self) -> @luna_fusion_strategy.FusionSchedule
 
 pub(all) enum FusionPlanRule {
   OperationOrder
   Dataflow
   Shape
   PersistentState
+  InvalidSelection
+  NoFeasibleCut
 } derive(Eq, @debug.Debug)
 
 pub(all) enum FusionSemanticFamily {
@@ -50,6 +57,7 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::positioned_qkv(Self) -> @plan.Ac
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::projected_qkv(Self) -> @plan.ActivationRef
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::projection_shape(Self) -> (Int, Int)
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::rope_theta(Self) -> Double
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::select_cut(Self, ArrayView[@luna_fusion_strategy.FusionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> AttentionIngressCutPlan raise FusionPlanError
 
 // Type aliases
 

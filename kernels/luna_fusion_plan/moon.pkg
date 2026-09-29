@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/fusion_regions",
   "vectie/lunaflux/kernels/luna_fusion_strategy",
   "vectie/lunaflux/model/plan",
 }

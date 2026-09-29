@@ -2,7 +2,7 @@
 test "segmented transfer guards specialize unsigned worker bounds" {
   for rows in [16, 32, 64] {
     for threads in [128, 256, 512] {
-      let source = projection_sibling_phased_transfer_source(
+      let source = phased_transfer_fixture(
         projection_test_operand_storage(rows, 32, 128, threads),
         1024,
       )

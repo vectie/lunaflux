@@ -3,7 +3,6 @@ package "vectie/lunaflux/kernels/luna_cuda_projection_aot"
 
 import {
   "moonbitlang/core/debug",
-  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -23,7 +22,7 @@ pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract
 
 pub fn lower_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
 
-pub fn lower_projection_fold_lifetime(@luna_projection_tile_compiler.ProjectionFoldPipeline, CudaProjectionFoldBody, @luna_projection_tile_compiler.ProjectionTransferExecution) -> String
+pub fn lower_projection_fold_lifetime(@luna_projection_tile_compiler.ProjectionPhysicalPipeline, CudaProjectionFoldBody) -> String
 
 pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice]) -> ProjectionCudaLowering raise ProjectionAotError
 
@@ -46,7 +45,7 @@ pub(all) suberror ProjectionAotError {
 pub struct CudaProjectionFoldBody {
   // private fields
 }
-pub fn CudaProjectionFoldBody::ingress(@luna_projection_tile_compiler.ProjectionFoldPipeline, @physical_tile_ir.OperandStorage, columns~ : Int) -> Self?
+pub fn CudaProjectionFoldBody::ingress(@luna_projection_tile_compiler.ProjectionPhysicalPipeline) -> Self?
 
 pub(all) enum ProjectionAotFamily {
   QkvProjection
@@ -94,6 +93,7 @@ pub fn ProjectionCudaLowering::numerical_contract(Self) -> ProjectionNumericalCo
 pub fn ProjectionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn ProjectionCudaLowering::operation_id(Self) -> @plan.OperationId
 pub fn ProjectionCudaLowering::output_width(Self) -> Int
+pub fn ProjectionCudaLowering::physical_compilation(Self) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation
 pub fn ProjectionCudaLowering::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn ProjectionCudaLowering::recipe_bytes(Self) -> Bytes
 pub fn ProjectionCudaLowering::recipe_digest(Self) -> ProjectionCudaRecipeDigest

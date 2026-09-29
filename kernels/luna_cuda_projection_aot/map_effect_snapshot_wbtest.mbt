@@ -55,7 +55,10 @@ test "matrix map effect boundaries preserve full source" {
         let compilation = @luna_projection_tile_compiler.compile_projection_tile(
           projection_bind_tile_weights(request, parameters),
         )
-        let source = projection_matrix_map_source(parameters, compilation)
+        let source = projection_matrix_map_source(
+          parameters,
+          projection_refine_physical(compilation),
+        )
         assert_false(source.is_empty())
         if resident {
           assert_true(compilation.selected_row_gather() is None)

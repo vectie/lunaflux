@@ -54,3 +54,11 @@ existing Phase 5 `LunaSpecializationEvidence` subjects. It remains
 compiler, device, runtime, or deployment authority. Physical differential,
 sanitizer, race, microbenchmark-win, mixed-workload, compilation, and reviewer
 evidence are still required before any release integration.
+
+Ingress qualification and production rendering share one retained physical
+program: selected column window, operand ownership/layout, matrix fragment
+lifetime, scalar fold and numerical epilogue. The source and recipe consume
+that same program; neither independently reconstructs its column-fold plan.
+An incompatible refinement raises the existing typed compiler-policy error.
+Digest regressions preserve complete pre-refactor ingress sources for three
+head dimensions and three token bounds, including production forms.

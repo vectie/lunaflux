@@ -1,8 +1,21 @@
 ///|
-fn kv_write_source(symbol : String, parameters : PointwiseParameters) -> Bytes {
-  let query_width = parameters.query_heads * parameters.head_dimension
-  let kv_width = parameters.kv_heads * parameters.head_dimension
-  let page_stride_elements = parameters.page_stride_bytes / 2L
+fn kv_write_source(
+  symbol : String,
+  parameters : PointwiseParameters,
+  program : @elementwise_physical_ir.KvWriteProgram,
+) -> Bytes {
+  let (query_width, kv_width, page_stride_elements) = program.geometry()
+  let (_, owners, _) = program.ownership().geometry()
+  let stores = StringBuilder()
+  for effect in program.effects() {
+    let (cache, offset) = match effect {
+      StoreKey => ("key_cache", query_width)
+      StoreValue => ("value_cache", query_width + kv_width)
+    }
+    stores.write_string(
+      "  \{cache}[cache_index] = rotated_qkv[input_base + \{offset}ULL + component];\n",
+    )
+  }
   @utf8.encode(
     cuda_prelude() +
     "extern \"C\" __global__ void " +
@@ -13,7 +26,7 @@ fn kv_write_source(symbol : String, parameters : PointwiseParameters) -> Bytes {
     "const __nv_bfloat16 *rotated_qkv, __nv_bfloat16 *key_cache, " +
     "__nv_bfloat16 *value_cache) {\n" +
     "  (void)sequence_lengths;\n" +
-    "  const unsigned long long i = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
+    "  const unsigned long long i = (unsigned long long)blockIdx.x * \{owners}ULL + threadIdx.x;\n" +
     "  const int live_tokens = counts[3];\n  if (live_tokens <= 0 || counts[2] <= 0 || counts[4] <= 0) return;\n" +
     "  const unsigned long long live = (unsigned long long)live_tokens * " +
     kv_width.to_string() +
@@ -47,11 +60,7 @@ fn kv_write_source(symbol : String, parameters : PointwiseParameters) -> Bytes {
     "  const unsigned long long input_base = (unsigned long long)token * " +
     parameters.width.to_string() +
     "ULL;\n" +
-    "  key_cache[cache_index] = rotated_qkv[input_base + " +
-    query_width.to_string() +
-    "ULL + component];\n" +
-    "  value_cache[cache_index] = rotated_qkv[input_base + " +
-    (query_width + kv_width).to_string() +
-    "ULL + component];\n}\n",
+    stores.to_string() +
+    "}\n",
   )
 }

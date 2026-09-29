@@ -26,25 +26,70 @@ test "all QKV lowerings consume semantic weight partitions" {
   // must use the bound program, not re-derive its partitions from ABI metadata.
   let stale = { ..parameters, query_width: 64, intermediate_width: 96, }
   assert_eq(
-    projection_scalar_map_source("qkv", parameters, 32, 1, compilation),
-    projection_scalar_map_source("qkv", stale, 32, 1, compilation),
+    projection_scalar_map_source(
+      "qkv",
+      parameters,
+      32,
+      1,
+      projection_refine_physical(compilation),
+    ),
+    projection_scalar_map_source(
+      "qkv",
+      stale,
+      32,
+      1,
+      projection_refine_physical(compilation),
+    ),
   )
   assert_eq(
-    projection_matrix_pipeline_source(parameters, compilation, 1),
-    projection_matrix_pipeline_source(stale, compilation, 1),
+    projection_matrix_pipeline_source(
+      parameters,
+      projection_refine_physical(compilation),
+      1,
+    ),
+    projection_matrix_pipeline_source(
+      stale,
+      projection_refine_physical(compilation),
+      1,
+    ),
   )
   assert_eq(
-    projection_matrix_map_source(parameters, compilation),
-    projection_matrix_map_source(stale, compilation),
+    projection_matrix_map_source(
+      parameters,
+      projection_refine_physical(compilation),
+    ),
+    projection_matrix_map_source(stale, projection_refine_physical(compilation)),
   )
   assert_eq(
-    projection_tensor_core_direct_qkv_source("qkv", parameters, 32, compilation),
-    projection_tensor_core_direct_qkv_source("qkv", stale, 32, compilation),
+    projection_tensor_core_direct_qkv_source(
+      "qkv",
+      parameters,
+      32,
+      projection_refine_physical(compilation),
+    ),
+    projection_tensor_core_direct_qkv_source(
+      "qkv",
+      stale,
+      32,
+      projection_refine_physical(compilation),
+    ),
   )
   let rebound = projection_row_variant_compilation(stale, dispatch, 1, 32)
   assert_true(compilation.program().digest() != rebound.program().digest())
   assert_true(
-    projection_scalar_map_source("qkv", parameters, 32, 1, compilation) !=
-    projection_scalar_map_source("qkv", stale, 32, 1, rebound),
+    projection_scalar_map_source(
+      "qkv",
+      parameters,
+      32,
+      1,
+      projection_refine_physical(compilation),
+    ) !=
+    projection_scalar_map_source(
+      "qkv",
+      stale,
+      32,
+      1,
+      projection_refine_physical(rebound),
+    ),
   )
 }

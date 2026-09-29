@@ -176,6 +176,15 @@ See the [measured operand-supply optimization](../../docs/OPERAND_SUPPLY_OPTIMIZ
 for the selected head/down/sibling changes, full concurrency/token vectors,
 numerical coverage, and remaining baseline gaps.
 
+Before source emission, `ScheduledProjectionTileCompilation::refine_physical`
+retains a checked `PhysicalProjectionTileCompilation`. It binds scalar laws,
+operand ownership and layouts, transfer segments, fragment rings, selected-row
+windows, weight selection, and effect lifetimes together. A required refinement
+failure rejects the compilation; it cannot silently switch to another route.
+CUDA emitters consume this retained value, including transport mode, rather
+than reconstructing independent producer and consumer plans. Backend binding
+checks instruction vector and subgroup geometry separately from generic IR.
+
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
 value differently. Subgroup width arrives as an abstract capability; device

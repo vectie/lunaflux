@@ -6,6 +6,7 @@
 fn projection_selected_row_gather_source(
   parameters : ProjectionParameters,
   gather : @luna_projection_tile_compiler.ProjectionSelectedRowGather,
+  window : @luna_projection_tile_compiler.ProjectionOperandWindow,
 ) -> String {
   let (rows, _, _) = gather.dimensions()
   (
@@ -21,7 +22,7 @@ fn projection_selected_row_gather_source(
     $|    const unsigned long long weight_low = (unsigned long long)(column + lane / 4) * \{parameters.input_width}ULL;
     $|    const unsigned long long weight_high = weight_low + \{8 * parameters.input_width}ULL;
     $|    float accumulator[8] = {};
-    $|\{projection_selected_row_prefetch_fold_source(parameters, gather)}
+    $|\{projection_selected_row_prefetch_fold_source(window)}
     $|    #pragma unroll
     $|    for (int pair = 0; pair < 4; ++pair) {
     $|      const bool high = (pair & 1) != 0;
@@ -44,10 +45,8 @@ fn projection_selected_row_gather_source(
 /// runtime indexing into a device array. The final partial window issues no
 /// out-of-domain load and executes no extra zero-product reduction.
 fn projection_selected_row_prefetch_fold_source(
-  parameters : ProjectionParameters,
-  gather : @luna_projection_tile_compiler.ProjectionSelectedRowGather,
+  window : @luna_projection_tile_compiler.ProjectionOperandWindow,
 ) -> String {
-  let window = gather.operand_window(parameters.input_width).unwrap()
   let (extent, _, depth, advance) = window.geometry()
   let builder = StringBuilder()
   for slot in 0..<depth {

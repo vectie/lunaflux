@@ -82,6 +82,7 @@ fn qwen_fused_recipe(
   dispatch_canary : UInt,
   grid_x : Int,
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  physical_program : QwenIngressPhysicalProgram,
   source_digest : FusedParallelDigest,
 ) -> Bytes {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
@@ -112,9 +113,7 @@ fn qwen_fused_recipe(
     tile_compilation.digest().as_hex() +
     "\n" +
     "column_fold_plan_sha256=" +
-    fused_parallel_digest(
-      qwen_ingress_column_plan(tile_compilation).canonical_bytes(),
-    ).as_hex() +
+    fused_parallel_digest(physical_program.columns.canonical_bytes()).as_hex() +
     "\n" +
     "model_content_sha256=" +
     plan.identity().content().as_hex() +
@@ -269,6 +268,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : FusedParallelAotLimits,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  ingress_policy? : @resource_policy.Policy,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError {
   let profile = qkv_fallback.profile()
   fused_validate_common(profile, target, compiler)
@@ -328,16 +328,33 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   ) catch {
     _ => raise FusedParallelMismatch(Operation)
   }
+  let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
+    dispatch=qkv_fallback.dispatch_plan(),
+    maximum_rows=profile.max_query_rows(),
+    maximum_tokens=profile.max_query_tokens(),
+    epilogue=tile_epilogue,
+    single_row_numerics=AllowDeterministicDotTree,
+  ).with_fold_choices(fold_choices) catch {
+    _ => raise FusedParallelMismatch(Operation)
+  }
+  let request = match ingress_policy {
+    None => request
+    Some(policy) => {
+      guard fold_choices.is_empty() else {
+        raise FusedParallelInvalid(CompilerPolicy)
+      }
+      request.with_fold_pipeline(
+        MatrixFold,
+        stages=policy.operand_stages(),
+        transfer_tiles=policy.transfer_tiles(),
+        fragment_stages=policy.fragment_stages(),
+      ) catch {
+        _ => raise FusedParallelUnsupported(StaticResources)
+      }
+    }
+  }
   let tile_compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
-      dispatch=qkv_fallback.dispatch_plan(),
-      maximum_rows=profile.max_query_rows(),
-      maximum_tokens=profile.max_query_tokens(),
-      epilogue=tile_epilogue,
-      single_row_numerics=AllowDeterministicDotTree,
-    ).with_fold_choices(fold_choices) catch {
-      _ => raise FusedParallelMismatch(Operation)
-    },
+    request,
   )
   if !tile_compilation.schedule().fuses_attention_ingress_epilogue() ||
     tile_compilation.schedule().single_row_reduction() != StridedPairwiseDot(32) {
@@ -359,6 +376,14 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   if shared_bytes > 49152L {
     raise FusedParallelUnsupported(StaticResources)
   }
+  let ingress_policy = match ingress_policy {
+    Some(policy) => policy
+    None => qwen_default_ingress_policy(tile_compilation)
+  }
+  guard qwen_ingress_policies(tile_compilation).contains(ingress_policy) else {
+    raise FusedParallelUnsupported(StaticResources)
+  }
+  let physical_program = qwen_refine_physical(tile_compilation, ingress_policy)
   let tile_rows = qkv_fallback.dispatch_plan().prefill().tile().dimensions().0
   if tile_rows <= 0 {
     raise FusedParallelUnsupported(StaticResources)
@@ -383,6 +408,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     layout,
     profile,
     tile_compilation,
+    physical_program,
     Some(dispatch_canary),
   )
   if source.length() > limits.maximum_source_bytes {
@@ -392,7 +418,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   let recipe = qwen_fused_recipe(
     plan, semantic, layout, qkv_fallback, qk_norm_fallback, rope_fallback, kv_write_fallback,
     target, profile, compiler, function_symbol, dispatch_canary, tiled_grid_x, tile_compilation,
-    source_digest,
+    physical_program, source_digest,
   )
   if recipe.length() > limits.maximum_recipe_bytes {
     raise FusedParallelLimitExceeded(Recipe)
@@ -402,6 +428,8 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     model_identity: plan.identity(),
     semantic,
     tile_compilation,
+    ingress_policy,
+    physical_program,
     qkv_fallback,
     qk_norm_fallback,
     rope_fallback,
@@ -436,6 +464,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
     qualification.layout,
     qualification.profile,
     qualification.tile_compilation,
+    qualification.physical_program,
     None,
   )
   if source.length() > limits.maximum_source_bytes {

@@ -1,11 +1,11 @@
 ///|
-fn projection_source(
+fn projection_emit_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
-  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
   max_registers~ : Int,
@@ -68,9 +68,13 @@ fn projection_source(
           max_registers~,
         )
       } else if use_shared_mlp {
-        projection_scalar_mlp_source(symbol, parameters, maximum_tokens, true)
+        projection_scalar_mlp_source(
+          symbol, parameters, maximum_tokens, true, tile_compilation,
+        )
       } else {
-        projection_scalar_mlp_source(symbol, parameters, maximum_tokens, false)
+        projection_scalar_mlp_source(
+          symbol, parameters, maximum_tokens, false, tile_compilation,
+        )
       }
   }
 }

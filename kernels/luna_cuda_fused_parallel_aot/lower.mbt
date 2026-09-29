@@ -181,8 +181,18 @@ pub fn lower_fused_residual_rmsnorm_candidate(
   )
   fused_validate_operand_alignments(residual_fallback.operands(), 16L)
   fused_validate_operand_alignments(norm_fallback.operands(), 16L)
+  guard @elementwise_physical_ir.NormalizationProgram::new(
+      width=parameters.width,
+      owners=FUSED_PARALLEL_THREADS,
+      subgroup_lanes=32,
+      residual=true,
+      owner_tree=true,
+    )
+    is Some(physical_program) else {
+    raise FusedParallelUnsupported(StaticResources)
+  }
   let shared_memory_bytes = fused_checked_mul(
-    FUSED_PARALLEL_THREADS.to_int64(),
+    physical_program.partial_count().to_int64(),
     4L,
   ).to_int()
   if shared_memory_bytes > 49152 {
@@ -207,7 +217,7 @@ pub fn lower_fused_residual_rmsnorm_candidate(
   }
   let numerical_policy = ResidualRmsNormBlock128F32ReductionToleranceV1
   let source = fused_residual_rmsnorm_source(
-    function_symbol, parameters, profile, dispatch_canary,
+    function_symbol, parameters, profile, dispatch_canary, physical_program,
   )
   if source.length() > limits.maximum_source_bytes {
     raise FusedParallelLimitExceeded(Source)
@@ -228,6 +238,7 @@ pub fn lower_fused_residual_rmsnorm_candidate(
     profile,
     compiler,
     parameters,
+    physical_program,
     dimensions,
     numerical_policy,
     function_symbol,
@@ -255,6 +266,7 @@ pub fn lower_fused_residual_rmsnorm_production_candidate(
     function_symbol,
     qualification.parameters,
     qualification.profile,
+    qualification.physical_program,
   )
   if source.length() > limits.maximum_source_bytes {
     raise FusedParallelLimitExceeded(Source)

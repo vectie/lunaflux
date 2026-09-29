@@ -28,9 +28,11 @@ test "direct sibling epilogue has unique stores and needs no reader fence" {
     None,
   )
   let source = projection_sibling_fold_pipeline_source(
-    plan,
+    physical_pipeline_fixture(plan, groups, products=2),
     parameters,
-    groups~,
+    @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
+      reused=false,
+    ),
   )
   assert_true(source.contains("float cg["))
   assert_false(source.contains("__syncwarp"))

@@ -73,12 +73,14 @@ test "register-plane handoff covers every result with disjoint banks" {
 ///|
 test "operand transfer separates narrow reads and zero values from bypass copies" {
   assert_false(
-    projection_operand_transfer_source(64, asynchronous=false).contains(
+    projection_operand_transfer_source(asynchronous=false).contains(
       "cp.async.cg",
     ),
   )
   for width in [16, 32, 64, 128] {
-    let source = projection_operand_transfer_source(width)
+    let source = projection_operand_transfer_source(
+      asynchronous=projection_operand_copy_is_async(width),
+    )
     assert_true(source.contains("st.shared.v4.u32 [%0], {0,0,0,0}"))
     assert_false(source.contains("16, %2"))
     assert_eq(source.contains("ld.global.v4.u32"), width < 64)

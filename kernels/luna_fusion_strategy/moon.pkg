@@ -1,1 +1,6 @@
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/fusion_regions",
+}
+
 supported_targets = "native"

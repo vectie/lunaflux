@@ -9,21 +9,16 @@
 /// The companion down entry point has a different lifetime and resource plan
 /// and deliberately does not consume this qualifier.
 fn projection_sibling_launch_bounds_source(
-  schedule : @luna_projection_tile_compiler.ProjectionTileSchedule,
+  compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   max_registers~ : Int,
 ) -> String {
-  let groups = schedule.output_tiles_per_workgroup()
+  let groups = compilation.schedule().output_tiles_per_workgroup()
   let threads = groups * 32
   guard threads == 512 && max_registers >= 64 else { return "" }
-  guard schedule.sibling_pipeline() is Some(pipeline) else { return "" }
-  guard @luna_projection_tile_compiler.partition_projection_sibling_reuse(
-      row_tiles=pipeline.row_width() / 16,
-      output_tiles=pipeline.output_tiles(),
-      consumer_groups=groups,
-    )
-    is Some(reuse) else {
+  guard compilation.sibling is Some(physical) && physical.sibling_reuse else {
     return ""
   }
+  let reuse = physical.distribution
   // Bounding the row product can leave launched groups without consumers.
   // That is a different resource topology from the fully occupied reuse map.
   guard reuse.consumer_groups() * 2 == groups else { return "" }

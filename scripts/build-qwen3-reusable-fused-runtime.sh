@@ -389,7 +389,8 @@ runtime=$stage/reusable-fused-runtime-bundle.v3
   "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-wide-query-attention/kernel.recipe")" \
   "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-partitioned-attention/kernel.recipe")" \
   "$(lbf_recipe_value query_tile_rows "$candidate_output/reusable-qwen-prefill-partitioned-attention-p8/kernel.recipe")" \
-  "$runtime" >"$scratch/export.stdout" 2>"$scratch/export.stderr" ||
+  "$runtime" --ingress-evaluate full \
+  >"$scratch/export.stdout" 2>"$scratch/export.stderr" ||
   lbf_fail 'reusable fused runtime bundle export failed'
 [ ! -s "$scratch/export.stderr" ] ||
   lbf_fail 'reusable fused runtime bundle exporter emitted stderr'

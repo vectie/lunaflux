@@ -106,6 +106,27 @@ test "elided activation must have exactly one consumer and not be final output" 
     (true, false, true),
   )
   let observed_projection = { ..semantic, projected_exclusive: false, }
+  let costs = [@luna_fusion_strategy.FullyFused, ProducerSeparated, Unfused].mapi((
+      index,
+      schedule,
+    ) => {
+      @luna_fusion_strategy.FusionAlternative::new(
+        schedule~,
+        cost=@luna_fusion_strategy.FusionSpanCost::measured(
+          median_nanoseconds=(index + 1).to_int64(),
+          samples=3,
+        ),
+        workspace_bytes=0L,
+        local_bytes=0L,
+      )
+    },
+  )
+  assert_eq(
+    observed_projection
+    .select_cut(costs, maximum_workspace_bytes=0L, maximum_local_bytes=0L)
+    .schedule(),
+    @luna_fusion_strategy.ProducerSeparated,
+  )
   assert_true(
     observed_projection.cut(ProducerSeparated).permits_readonly_attention(),
   )
@@ -116,6 +137,12 @@ test "elided activation must have exactly one consumer and not be final output" 
     _ => fail("shared projected value elided")
   }
   let observed_norm = { ..semantic, normalized_exclusive: false, }
+  assert_eq(
+    observed_norm
+    .select_cut(costs, maximum_workspace_bytes=0L, maximum_local_bytes=0L)
+    .schedule(),
+    @luna_fusion_strategy.Unfused,
+  )
   assert_false(observed_norm.cut(Unfused).permits_readonly_attention())
   for schedule in [@luna_fusion_strategy.FullyFused, ProducerSeparated] {
     try observed_norm.cut(schedule) catch {

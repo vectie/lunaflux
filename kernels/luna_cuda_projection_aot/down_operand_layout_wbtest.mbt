@@ -22,14 +22,12 @@ test "down fold lowers masked operands through shared transport layout" {
     ),
   )
   let pipeline = compiled.schedule().intermediate_pipeline().unwrap()
-  let source = projection_fold_pipeline_source(
+  let source = fold_pipeline_fixture(
     pipeline, "input_base", "weight_base", 3072, 4, 1024,
   )
   assert_eq(
     source,
-    projection_fold_pipeline_source(
-      pipeline, "input_base", "weight_base", 3072, 4, 1024,
-    ),
+    fold_pipeline_fixture(pipeline, "input_base", "weight_base", 3072, 4, 1024),
   )
   // Producer and consumer share the same compact K64 permutation.
   assert_eq(pipeline.row_width(), 32)

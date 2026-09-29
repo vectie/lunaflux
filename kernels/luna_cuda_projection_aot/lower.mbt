@@ -82,13 +82,14 @@ fn projection_finish_candidate(
       dimensions.shared_memory_bytes(),
     )
   }
-  let primary_source = projection_source(
+  let physical_compilation = projection_refine_physical(tile_compilation)
+  let primary_source = projection_emit_source(
     symbol,
     parameters,
     profile.max_query_tokens(),
     profile.max_query_rows(),
     dispatch_plan,
-    tile_compilation,
+    physical_compilation,
     embed_greedy_sampling,
     dimensions.shared_memory_bytes() > 0,
     max_registers=compiler.max_registers(),
@@ -139,6 +140,7 @@ fn projection_finish_candidate(
     intermediate_width: parameters.intermediate_width,
     dispatch_plan,
     tile_compilation,
+    physical_compilation,
     operands: ReadOnlyArray::from_array(operands),
     dimensions,
     numerical_contract,

@@ -26,7 +26,11 @@ test "matrix column ceiling does not overflow for large legal output widths" {
     let pipeline = compilation.schedule().matrix_pipeline().unwrap()
     let columns = pipeline.output_tiles().to_int64() * 16L
     let expected = (output_width.to_int64() + columns - 1L) / columns
-    let source = projection_matrix_pipeline_source(parameters, compilation, 1)
+    let source = projection_matrix_pipeline_source(
+      parameters,
+      projection_refine_physical(compilation),
+      1,
+    )
     assert_true(source.contains("const int column_groups = \{expected};"))
     assert_true(expected > 0L)
   }

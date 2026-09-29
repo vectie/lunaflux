@@ -9,24 +9,15 @@
 /// ordered K16 fold. Row-contiguous swizzled operands feed ldmatrix; register-major
 /// result planes make each warp's shared stores and subsequent loads contiguous.
 fn projection_sibling_reuse_source(
-  plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   parameters : ProjectionParameters,
-  reuse : @luna_projection_tile_compiler.ProjectionProductFoldDistribution,
-  groups~ : Int,
+  effects : @luna_projection_tile_compiler.ProjectionMaterializationEffects,
 ) -> String {
-  let effects = @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
-    reused=true,
-  )
+  let plan = physical.schedule
+  let reuse = physical.distribution
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
-  let width = plan.transfer_width()
-  let layout : CudaProjectionTransportLayout = { columns: width, }
-  let operands = @physical_tile_ir.OperandStorage::new(
-    layout.plan(),
-    [rows, columns, columns],
-    owners=groups * 32,
-    stages=plan.stage_count(),
-  ).unwrap()
+  let operands = physical.operands
   let (gate_offset, _, _) = operands.region(1).unwrap().geometry()
   let (up_offset, _, _) = operands.region(2).unwrap().geometry()
   let folds = reuse.rows_per_group()
@@ -34,9 +25,7 @@ fn projection_sibling_reuse_source(
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
   let body = projection_packed_fold_body(
-    plan,
-    operands,
-    rows=folds,
+    physical,
     storage="sibling_storage",
     consumers=consumers * 2,
     row_limit="token_count",
@@ -56,9 +45,9 @@ fn projection_sibling_reuse_source(
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
-    $|      \{projection_sibling_phased_transfer_source(operands, input_width)}
+    $|      \{projection_sibling_phased_transfer_source(physical.operands, physical.transfer_segments, input_width)}
     $|      float c[\{folds}][8] = {};
-    $|\{projection_fold_lifetime_source(plan, body, asynchronous=false)}
+    $|\{projection_fold_lifetime_source(physical, body)}
     $|      float *gate_tiles = reinterpret_cast<float *>(sibling_storage);
     $|      float *up_tiles = reinterpret_cast<float *>(sibling_output_bytes);
     $|      if (warp < \{consumers * 2}) {

@@ -6,23 +6,29 @@ pub(all) enum FusionSchedule {
 } derive(Eq, Debug)
 
 ///|
+pub extend FusionSchedule with Eq::{equal, not_equal}
+
+///|
+pub extend FusionSchedule with @debug.Debug::{to_repr}
+
+///|
 pub(all) suberror FusionSelectionError {
   InvalidCost
-  InvalidComparison
-  NoFeasibleSchedule
 } derive(Eq, Debug)
 
 ///|
-priv enum CostBasis {
-  Measured
-  Estimated
-} derive(Eq)
+pub extend FusionSelectionError with Eq::{equal, not_equal}
+
+///|
+pub extend FusionSelectionError with @debug.Debug::{to_repr}
 
 ///|
 pub struct FusionSpanCost {
-  priv nanoseconds : Int64
-  priv basis : CostBasis
+  priv region_cost : @fusion_regions.Cost
 } derive(Eq)
+
+///|
+pub extend FusionSpanCost with Eq::{equal, not_equal}
 
 ///|
 pub fn FusionSpanCost::measured(
@@ -32,7 +38,14 @@ pub fn FusionSpanCost::measured(
   if median_nanoseconds <= 0L || samples < 3 {
     raise InvalidCost
   }
-  { nanoseconds: median_nanoseconds, basis: Measured, }
+  {
+    region_cost: @fusion_regions.Cost::measured(
+      nanoseconds=median_nanoseconds,
+      samples~,
+    ) catch {
+      _ => raise InvalidCost
+    },
+  }
 }
 
 ///|
@@ -59,7 +72,18 @@ pub fn FusionSpanCost::estimated(
   if total == 0L {
     raise InvalidCost
   }
-  { nanoseconds: total, basis: Estimated, }
+  {
+    region_cost: @fusion_regions.Cost::estimated(nanoseconds=total) catch {
+      _ => raise InvalidCost
+    },
+  }
+}
+
+///|
+pub fn FusionSpanCost::region_cost(
+  self : FusionSpanCost,
+) -> @fusion_regions.Cost {
+  self.region_cost
 }
 
 ///|
@@ -84,62 +108,18 @@ pub fn FusionAlternative::new(
 }
 
 ///|
-fn schedule_order(schedule : FusionSchedule) -> Int {
-  match schedule {
-    Unfused => 0
-    ProducerSeparated => 1
-    FullyFused => 2
-  }
+pub fn FusionAlternative::schedule(self : FusionAlternative) -> FusionSchedule {
+  self.schedule
 }
 
 ///|
-/// Pure offline/startup choice. Never queries a device or times an operation.
-pub fn select_fusion_schedule(
-  alternatives : ArrayView[FusionAlternative],
-  maximum_workspace_bytes~ : Int64,
-  maximum_local_bytes~ : Int64,
-) -> FusionSchedule raise FusionSelectionError {
-  if alternatives.is_empty() ||
-    alternatives.length() > 3 ||
-    maximum_workspace_bytes < 0L ||
-    maximum_local_bytes < 0L {
-    raise InvalidComparison
-  }
-  let best = for
-    index, candidate in alternatives
-    best = (None : FusionAlternative?) {
-    if candidate.cost.basis != alternatives[0].cost.basis {
-      raise InvalidComparison
-    }
-    for prior in 0..<index {
-      if candidate.schedule == alternatives[prior].schedule {
-        raise InvalidComparison
-      }
-    }
-    if candidate.workspace_bytes > maximum_workspace_bytes ||
-      candidate.local_bytes > maximum_local_bytes {
-      continue best
-    }
-    let next = match best {
-      None => Some(candidate)
-      Some(previous) =>
-        if candidate.cost.nanoseconds < previous.cost.nanoseconds ||
-          (
-            candidate.cost.nanoseconds == previous.cost.nanoseconds &&
-            schedule_order(candidate.schedule) <
-            schedule_order(previous.schedule)
-          ) {
-          Some(candidate)
-        } else {
-          best
-        }
-    }
-    continue next
-  } nobreak {
-    best
-  }
-  match best {
-    Some(value) => value.schedule
-    None => raise NoFeasibleSchedule
-  }
+pub fn FusionAlternative::cost(self : FusionAlternative) -> FusionSpanCost {
+  self.cost
 }
+
+///|
+pub fn FusionAlternative::resources(self : FusionAlternative) -> (Int64, Int64) {
+  (self.workspace_bytes, self.local_bytes)
+}
+
+///|

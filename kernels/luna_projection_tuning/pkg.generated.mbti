@@ -3,12 +3,17 @@ package "vectie/lunaflux/kernels/luna_projection_tuning"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/resource_policy",
   "vectie/lunaflux/kernels/luna_projection_strategy",
   "vectie/lunaflux/kernels/luna_projection_tile_compiler",
 }
 
 // Values
 pub fn parse_projection_fold_records(Bytes, scope~ : String) -> ReadOnlyArray[ProjectionFoldRecord] raise ProjectionTuningError
+
+pub fn parse_projection_resource_budget(Bytes) -> @resource_policy.ResourceBudget raise ProjectionTuningError
+
+pub fn parse_projection_resource_records(Bytes, scope~ : @resource_policy.Scope) -> ReadOnlyArray[@resource_policy.Observation] raise ProjectionTuningError
 
 pub fn parse_projection_tuning_snapshot(Bytes) -> ProjectionTuningSnapshot raise ProjectionTuningError
 

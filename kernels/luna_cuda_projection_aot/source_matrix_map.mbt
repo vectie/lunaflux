@@ -4,21 +4,18 @@
 /// used for directly gathered, streamed and resident input storage.
 fn projection_matrix_map_source(
   parameters : ProjectionParameters,
-  compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> String {
-  if compilation.selected_row_gather() is Some(gather) {
-    return projection_selected_row_gather_source(parameters, gather)
+  if compilation.selected_gather is Some((gather, window)) {
+    return projection_selected_row_gather_source(parameters, gather, window)
   }
   let schedule = compilation.schedule()
   let selected = schedule.demand() == QueryRowEnds
-  let effects = schedule.demand().map_effect_plan()
-  let physical = schedule
-    .mapped_fragment_program(parameters.input_width)
-    .unwrap()
+  let effects = compilation.map_effects
+  let (physical, layout) = compilation.mapped.unwrap()
   let (_, _, width, quantum, _) = physical.geometry()
   guard quantum == 16 else { abort("unsupported CUDA mapped fragment shape") }
   let groups = schedule.output_tiles_per_workgroup()
-  let layout : CudaProjectionTransportLayout = { columns: width, }
   let gather = if selected {
     (
       $|    for (int element = threadIdx.x; element < \{16 * width}; element += blockDim.x) {
@@ -38,8 +35,8 @@ fn projection_matrix_map_source(
     "a[part] = row + local_row < token_count ? *reinterpret_cast<const unsigned *>(input + (unsigned long long)(row + local_row) * \{parameters.input_width}ULL + strip_begin + inner + local_k) : 0U;"
   }
   let weight_select = if parameters.family == QkvProjection {
-    let (binding, branch) = projection_concatenated_weight_selection(
-      compilation.program().concatenated_weights(),
+    let (binding, branch) = projection_weight_selection_source(
+      compilation.weight_selection,
       ["query_weight", "key_weight", "value_weight"],
       "column + local_row",
       "base",
@@ -60,7 +57,7 @@ fn projection_matrix_map_source(
     $|  extern __shared__ unsigned char map_bytes[];
     $|  float *temporary = reinterpret_cast<float *>(map_bytes) + warp * 256;
     $|  \{input_storage}
-    $|  \{layout.address_function()}
+    $|  \{projection_operand_address_source(layout)}
     $|  \{projection_result_address_source()}
     $|  for (int row = \{row_start}; row < \{row_end}; row += 16) {
     $|    float accumulator[8] = {};

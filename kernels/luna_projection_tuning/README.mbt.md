@@ -31,3 +31,25 @@ parameter is independent of model family and does not alter raw observations.
 The record does not imply that deeper pipelines are faster. Hardware timings
 remain authoritative, and this format does not replace query/history/batch
 attention routing or a complete serving benchmark.
+
+## Resource-policy observations
+
+`parse_projection_resource_records` reads the offline
+`luna-projection-resources-v1` table. The second line is
+`scope<TAB>device<TAB>toolchain<TAB>shape<TAB>program`; the third is
+`budget<TAB>max_threads<TAB>max_shared_bytes<TAB>max_registers_per_thread<TAB>min_resident_groups`.
+Each following line is
+`record<TAB>policy_id<TAB>source_sha256<TAB>latency_ns<TAB>samples<TAB>registers_per_thread<TAB>resident_groups`.
+Tables end in a newline, require at least three timing samples, and reject
+duplicate policy/source identities. Hardware observations must be collected
+externally, not inferred from a policy identifier.
+
+The Qwen candidate exporter accepts `--ingress-policy-search` to emit the bounded
+backend-supported stage/window/fragment/accumulator frontier. Normal exports do
+not build that frontier. `--ingress-policy-records PATH SHA256 DEVICE` enables
+measured selection; it checks the saved scope, matches the baseline and each
+alternative's freshly emitted source, and intersects supplied resource ceilings
+with backend limits. Missing/stale baseline records or unknown constrained
+resources cannot promote a candidate. No records preserves the labelled
+unmeasured default. Export output prints the exact baseline scope, policy IDs,
+source digests and candidate directories needed to construct a replayable table.

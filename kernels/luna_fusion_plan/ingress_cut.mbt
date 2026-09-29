@@ -4,6 +4,7 @@
 pub struct AttentionIngressCutPlan {
   priv schedule : @luna_fusion_strategy.FusionSchedule
   priv qkv_operation : Int
+  priv partition : @fusion_regions.Partition
 }
 
 ///|
@@ -14,7 +15,12 @@ pub fn AttentionIngressCutPlan::new(
   if qkv_operation < 0 || qkv_operation > 2147483644 {
     raise InvalidFusionPlan(OperationOrder)
   }
-  { schedule, qkv_operation, }
+  ingress_cut(
+    schedule,
+    qkv_operation~,
+    projected_observable=false,
+    normalized_observable=false,
+  )
 }
 
 ///|
@@ -24,18 +30,20 @@ pub fn AttentionIngressCutPlan::new(
 pub fn AttentionIngressCutPlan::module_span(
   self : AttentionIngressCutPlan,
 ) -> (Int, Int)? {
-  match self.schedule {
-    FullyFused => Some((self.qkv_operation, 4))
-    ProducerSeparated => Some((self.qkv_operation + 1, 3))
-    Unfused => None
+  for region in self.partition.regions() {
+    let (start, count) = region.span()
+    if count > 1 && start + count == 4 {
+      return Some((self.qkv_operation + start, count))
+    }
   }
+  None
 }
 
 ///|
 pub fn AttentionIngressCutPlan::permits_readonly_attention(
   self : AttentionIngressCutPlan,
 ) -> Bool {
-  self.schedule != Unfused
+  self.module_span() is Some(_)
 }
 
 ///|
@@ -43,11 +51,12 @@ pub fn AttentionIngressCutPlan::permits_readonly_attention(
 pub fn AttentionIngressCutPlan::materialized_values(
   self : AttentionIngressCutPlan,
 ) -> (Bool, Bool, Bool) {
-  match self.schedule {
-    FullyFused => (false, false, true)
-    ProducerSeparated => (true, false, true)
-    Unfused => (true, true, true)
-  }
+  let regions = self.partition.regions()
+  (
+    regions.any(region => region.exports().contains(0)),
+    regions.any(region => region.exports().contains(1)),
+    regions.any(region => region.exports().contains(2)),
+  )
 }
 
 ///|
@@ -55,9 +64,10 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::cut(
   self : QkvQkNormPositionedRopePagedKvWritePlan,
   schedule : @luna_fusion_strategy.FusionSchedule,
 ) -> AttentionIngressCutPlan raise FusionPlanError {
-  if (schedule == FullyFused && !self.projected_exclusive) ||
-    (schedule != Unfused && !self.normalized_exclusive) {
-    raise InvalidFusionPlan(Dataflow)
-  }
-  { schedule, qkv_operation: self.qkv_operation.as_int(), }
+  ingress_cut(
+    schedule,
+    qkv_operation=self.qkv_operation.as_int(),
+    projected_observable=!self.projected_exclusive,
+    normalized_observable=!self.normalized_exclusive,
+  )
 }

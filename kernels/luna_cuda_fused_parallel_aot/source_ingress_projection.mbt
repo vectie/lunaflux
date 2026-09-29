@@ -3,43 +3,21 @@
 /// The epilogue only receives the completed projection; it cannot change the
 /// ordered dot fold or the publication/lifetime of its input operands.
 fn ingress_matrix_projection_source(
-  compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  physical : QwenIngressPhysicalProgram,
 ) -> String {
-  let columns = qwen_ingress_column_plan(compilation)
-  let pipeline = compilation.schedule().matrix_pipeline().unwrap()
-  let (groups, _, live, _) = columns.geometry()
-  let rows = pipeline.row_width()
+  let pipeline = physical.pipeline.schedule
   let width = pipeline.transfer_width()
-  let head_width = pipeline.output_tiles() * 16
-  let transfers = @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
-    input_rows=rows,
-    weight_rows=head_width,
-    row_width=width,
-    vector_width=8,
-    owners=groups * 32,
-  ).unwrap()
-  let layout = @physical_tile_ir.OperandLayout::new(
-    columns=width,
-    vector=8,
-    rotations=1,
-    row_group=1,
-  ).unwrap()
-  let storage = transfers
-    .storage(layout, stages=pipeline.stage_count())
-    .unwrap()
+  let storage = physical.pipeline.operands
   let input_region = storage.region(0).unwrap()
   let weight_region = storage.region(1).unwrap()
   let (input_elements, _, _) = weight_region.geometry()
   let slot_elements = storage.slot_elements()
   let body = @luna_cuda_projection_aot.CudaProjectionFoldBody::ingress(
-    pipeline,
-    storage,
-    columns=live,
+    physical.pipeline,
   ).unwrap()
   let lifetime = @luna_cuda_projection_aot.lower_projection_fold_lifetime(
-    pipeline,
+    physical.pipeline,
     body,
-    OverlappedTransfer,
   )
   let input_vectors = input_region.ownership().geometry().0
   let weight_vectors = weight_region.ownership().geometry().0

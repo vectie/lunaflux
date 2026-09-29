@@ -7,36 +7,27 @@ fn projection_scalar_mlp_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   materialize : Bool,
+  physical : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> Bytes {
-  let down = @luna_projection_tile_compiler.ProjectionScalarFoldPlan::new(
-    extent=parameters.intermediate_width,
-    products=1,
-    OrderedDot,
-  ).unwrap()
+  let down = physical.ordered_down.unwrap()
   let (down_extent, _, down_stride) = down.geometry()
   let down_begin = down.read_at(worker=0, iteration=0).unwrap()
   guard down_stride == 1 else {
     abort("scalar MLP requires an ordered down fold")
   }
-  let effects = @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
-    reused=false,
-  )
-  let siblings = projection_dot_fold_source(
-      parameters.input_width,
-      [
-        {
-          accumulator: "gate",
-          left: "__bfloat162float(input[input_base + inner])",
-          right: "__bfloat162float(gate_weight[projection_base + inner])",
-        },
-        {
-          accumulator: "up",
-          left: "__bfloat162float(input[input_base + inner])",
-          right: "__bfloat162float(up_weight[projection_base + inner])",
-        },
-      ],
-      OrderedDot,
-    ) +
+  let effects = physical.materialization
+  let siblings = projection_dot_fold_source(physical.sibling_scalar.unwrap(), [
+      {
+        accumulator: "gate",
+        left: "__bfloat162float(input[input_base + inner])",
+        right: "__bfloat162float(gate_weight[projection_base + inner])",
+      },
+      {
+        accumulator: "up",
+        left: "__bfloat162float(input[input_base + inner])",
+        right: "__bfloat162float(up_weight[projection_base + inner])",
+      },
+    ]) +
     "const float silu = gate / __fadd_rn(1.0f, expf(-gate));\n" +
     "const float product = __fmul_rn(silu, up);\n"
   let body = if materialize {

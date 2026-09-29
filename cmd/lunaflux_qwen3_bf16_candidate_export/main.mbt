@@ -63,6 +63,11 @@ async fn run_qwen3_candidate_export(
       arguments.partitioned_resources,
       arguments.toolchain_sha256,
     ),
+    ingress_policy_records=load_attention_offline_input(
+      arguments.ingress_policy_records,
+      arguments.toolchain_sha256,
+    ),
+    ingress_policy_search=arguments.ingress_policy_search,
     query_metadata=arguments.query_metadata,
   )
   let evidence = @luna_bf16_candidate_export.export_new(
@@ -111,6 +116,13 @@ async fn run_qwen3_candidate_export(
     qwen_fused.full_ingress.source_bytes(),
     qwen_fused.full_ingress.recipe_bytes(),
   )
+  for variant in qwen_fused.ingress_variants {
+    write_new_candidate_pair(
+      full_ingress_root + "-" + variant.ingress_policy().id(),
+      variant.source_bytes(),
+      variant.recipe_bytes(),
+    )
+  }
   let readonly_root = arguments.absolute_new_output +
     "/reusable-qwen-readonly-attention"
   write_new_candidate_pair(
@@ -230,6 +242,7 @@ async fn run_qwen3_candidate_export(
   println("device_opened=0")
   println("runtime_authority=0")
   println("physical_readiness=0")
+  print_qwen_ingress_resource_policy(arguments, qwen_fused, full_ingress_root)
   println("reusable_fused_residual_source=" + fused_root + "/kernel.cu")
   println("reusable_fused_residual_recipe=" + fused_root + "/kernel.recipe")
   println(

@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/resource_policy",
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
   "vectie/lunaflux/compiler/physical_tile_ir",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",

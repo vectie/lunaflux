@@ -21,15 +21,16 @@ fn sampling_is_sha256(value : StringView) -> Bool {
 
 ///|
 fn greedy_sampling_source_text(
-  vocabulary_size : Int,
+  program : @elementwise_physical_ir.SelectionProgram,
   maximum_rows : Int,
 ) -> String {
+  let (vocabulary_size, owners, _) = program.geometry()
   "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n#include <limits.h>\n" +
   "extern \"C\" __global__ void lunaflux_greedy_bf16_rows_v1(" +
   "const int32_t *counts, const int32_t *row_offsets, " +
   "const __nv_bfloat16 *logits, int32_t *results) {\n" +
-  "  __shared__ float values[256];\n  __shared__ int tokens[256];\n" +
-  "  __shared__ int invalids[256];\n" +
+  "  __shared__ float values[\{owners}];\n  __shared__ int tokens[\{owners}];\n" +
+  "  __shared__ int invalids[\{owners}];\n" +
   "  const int row = (int)blockIdx.x;\n  const int lane = (int)threadIdx.x;\n" +
   "  const int row_count = counts[2];\n  const int token_count = counts[3];\n" +
   "  if (row >= row_count || row >= " +
@@ -43,16 +44,12 @@ fn greedy_sampling_source_text(
   "  float best = -INFINITY;\n  int best_token = INT_MAX;\n  int invalid = INT_MAX;\n" +
   "  for (int token = lane; token < " +
   vocabulary_size.to_string() +
-  "; token += 256) {\n" +
+  "; token += \{owners}) {\n" +
   "    const float value = __bfloat162float(row_logits[token]);\n" +
   "    if (!isfinite(value)) { if (token < invalid) invalid = token; }\n" +
   "    else if (value > best || (value == best && token < best_token)) { best = value; best_token = token; }\n  }\n" +
-  "  values[lane] = best; tokens[lane] = best_token; invalids[lane] = invalid;\n  __syncthreads();\n" +
-  "  for (int stride = 128; stride > 0; stride >>= 1) {\n" +
-  "    if (lane < stride) {\n      const float other = values[lane + stride];\n      const int other_token = tokens[lane + stride];\n" +
-  "      if (other > values[lane] || (other == values[lane] && other_token < tokens[lane])) { values[lane] = other; tokens[lane] = other_token; }\n" +
-  "      if (invalids[lane + stride] < invalids[lane]) invalids[lane] = invalids[lane + stride];\n    }\n    __syncthreads();\n  }\n" +
-  "  if (lane == 0) { const int bad = invalids[0]; results[row * 2] = bad == INT_MAX ? tokens[0] : -1; results[row * 2 + 1] = bad == INT_MAX ? -1 : bad; }\n}\n"
+  greedy_owner_reduction_source(program) +
+  "}\n"
 }
 
 ///|
@@ -77,7 +74,17 @@ pub fn embedded_greedy_sampling_cuda_source(
   if maximum_rows <= 0 {
     raise Invalid(MaximumRows)
   }
-  greedy_sampling_source_text(vocabulary_size, maximum_rows) +
+  let physical = sampling_selection_program(vocabulary_size, segmented=false)
+  embedded_greedy_sampling_program_source(physical, maximum_rows)
+}
+
+///|
+fn embedded_greedy_sampling_program_source(
+  physical : @elementwise_physical_ir.SelectionProgram,
+  maximum_rows : Int,
+) -> String raise SamplingBoundaryError {
+  let (vocabulary_size, _, _) = physical.geometry()
+  greedy_sampling_source_text(physical, maximum_rows) +
   embedded_segmented_greedy_cuda_source(vocabulary_size, maximum_rows)
 }
 
@@ -124,8 +131,12 @@ pub fn lower_greedy_sampling_cuda_aot(
   if !target.supports_bf16() || compiler.reassociate() {
     raise Unsupported(ArtifactTarget)
   }
+  let physical_program = sampling_selection_program(
+    boundary.vocabulary_size,
+    segmented=false,
+  )
   let source = @utf8.encode(
-    embedded_greedy_sampling_cuda_source(boundary.vocabulary_size, maximum_rows),
+    embedded_greedy_sampling_program_source(physical_program, maximum_rows),
   )
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(ArtifactSource)
@@ -142,6 +153,7 @@ pub fn lower_greedy_sampling_cuda_aot(
     raise LimitExceeded(ArtifactRecipe)
   }
   {
+    physical_program,
     target,
     vocabulary_size: boundary.vocabulary_size,
     maximum_rows,

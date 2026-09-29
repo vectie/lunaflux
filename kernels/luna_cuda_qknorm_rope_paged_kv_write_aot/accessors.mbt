@@ -207,3 +207,26 @@ pub fn QkNormRopePagedKvWriteCudaBinding::manifest_bindable(
 ) -> Bool {
   false
 }
+
+///|
+/// The immutable program consumed by offline emission, retained for compiler
+/// inspection without reconstructing scheduling decisions from CUDA text.
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_program(
+  self : QkNormRopePagedKvWriteCudaCandidate,
+) -> @elementwise_physical_ir.IngressProgram {
+  self.physical_program
+}
+
+///|
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_numerics(
+  self : QkNormRopePagedKvWriteCudaCandidate,
+) -> @luna_projection_tile_compiler.AttentionIngressNumerics {
+  self.numerics
+}
+
+///|
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_head_map(
+  self : QkNormRopePagedKvWriteCudaCandidate,
+) -> @luna_projection_tile_compiler.AttentionIngressHeadMap {
+  self.head_map
+}

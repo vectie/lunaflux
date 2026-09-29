@@ -3,53 +3,26 @@
 /// sparse result demand; segmented weight lookup implements Q/K/V concatenation.
 fn projection_matrix_pipeline_source(
   parameters : ProjectionParameters,
-  compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   maximum_rows : Int,
 ) -> String {
-  guard compilation.schedule().matrix_pipeline() is Some(plan) else {
-    return ""
-  }
+  guard compilation.matrix is Some(physical) else { return "" }
+  let plan = physical.schedule
   let selected = compilation.schedule().demand() == QueryRowEnds
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
   let input_width = parameters.input_width
   let output_width = parameters.output_width
-  let consumer_groups = compilation.schedule().output_tiles_per_workgroup()
-  let transport : CudaProjectionTransportLayout = { columns: width, }
   // The row-preserving permutation is compact. Both producer and consumer
   // use that map; an unrelated padded-row allocation only wastes storage.
-  let transfers = @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
-    input_rows=rows,
-    weight_rows=columns,
-    row_width=width,
-    vector_width=8,
-    owners=consumer_groups * 32,
-  ).unwrap()
-  let storage_plan = transfers
-    .storage(transport.plan(), stages=plan.stage_count())
-    .unwrap()
+  let storage_plan = physical.operands
   let input_region = storage_plan.region(0).unwrap()
   let weight_region = storage_plan.region(1).unwrap()
   let slot = storage_plan.slot_elements()
-  let weight_plan = @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(
-    transfers.weight_map(),
-    if compilation.program().concatenated_weights().is_empty() {
-      @luna_projection_tile_compiler.plan_projection_concatenated_rows([
-        output_width,
-      ]).unwrap()
-    } else {
-      compilation.program().concatenated_weights()
-    },
-    row_width=width,
-    vector_width=8,
-  ).unwrap()
+  let weight_plan = compilation.matrix_weights.unwrap()
   let (input_elements, _, _) = weight_region.geometry()
-  let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
-    row_tiles=rows / 16,
-    output_tiles=plan.output_tiles(),
-    consumer_groups~,
-  ).unwrap()
+  let distribution = physical.distribution
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
   let row_count = if selected { "counts[2]" } else { "token_count" }
@@ -79,9 +52,9 @@ fn projection_matrix_pipeline_source(
     $|          const __nv_bfloat16 *source = valid ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : input;
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(local_row, k));
     $|          if (overlap) {
-    $|            \{projection_operand_transfer_source(width)}
+    $|            \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
     $|          } else {
-    $|            \{projection_operand_transfer_source(width, asynchronous=false)}
+    $|            \{projection_operand_transfer_source(asynchronous=false)}
     $|          }
     $|        }
   let weight_copy =
@@ -92,25 +65,21 @@ fn projection_matrix_pipeline_source(
     $|          const bool valid = \{if output_width % columns == 0 { "true" } else { "logical_column < " + output_width.to_string() }};
     $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k : base;
     $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + \{input_elements} + operand_index(local_row, k));
-    $|          \{projection_operand_transfer_source(width)}
+    $|          \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
     $|        }
   let fragment_declarations =
     $|      float c[\{fold_rows}][8] = {};
   // Selection changes logical row addresses, not matrix-fragment ownership.
   // Both row maps lower through the same packed transport permutation.
   let body = projection_storage_fold_body(
-    plan,
-    storage_plan,
-    rows=fold_rows,
+    physical,
     storage="matrix_storage",
     consumers~,
   )
   let lifetime = projection_fold_lifetime_source(
-    plan,
+    physical,
     body,
-    asynchronous=true,
     phase_argument=true,
-    completed_on_issue=!projection_operand_copy_is_async(width),
   )
   let source =
     $|  const int pipeline_rows = \{row_count};
@@ -128,7 +97,7 @@ fn projection_matrix_pipeline_source(
     $|        __nv_bfloat16 *destination = matrix_storage + stage * \{slot};
     $|\{input_copy}
     $|\{weight_copy}
-    $|        \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
+    $|        \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|      };
     $|\{fragment_declarations}
     $|\{lifetime}

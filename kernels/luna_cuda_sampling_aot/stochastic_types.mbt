@@ -21,6 +21,7 @@ pub fn DeviceSamplingAotLimits::new(
 ///|
 /// Exact CUDA lowering for restrictive-top-k stochastic sampling.
 pub struct DeviceSamplingCudaLowering {
+  priv physical_program : @elementwise_physical_ir.StochasticProgram
   priv target : @catalog.DeviceTarget
   priv plan : @luna_sampling_strategy.SamplingDevicePlan
   priv function_symbol : String

@@ -35,6 +35,7 @@ pub fn PointwiseAotLimits::new(
 
 ///|
 pub struct PointwiseCudaLowering {
+  priv physical_program : PointwiseProgram
   priv family : PointwiseAotFamily
   priv operation_id : @plan.OperationId
   priv entry_point_id : @catalog.AotKernelEntryPointId

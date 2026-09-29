@@ -66,7 +66,7 @@ fn projection_tensor_core_direct_dense_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
-  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> Bytes {
   let demand : @luna_projection_tile_compiler.ProjectionResultDemand = tile_compilation
     .schedule()
@@ -99,17 +99,13 @@ fn projection_tensor_core_direct_dense_source(
       "    const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
       "ULL;\n" +
-      projection_dot_fold_source(
-        parameters.input_width,
-        [
-          {
-            accumulator: "value",
-            left: "__bfloat162float(input[inner])",
-            right: "__bfloat162float(weight[weight_base + inner])",
-          },
-        ],
-        tile_compilation.schedule().single_row_reduction(),
-      ) +
+      projection_dot_fold_source(tile_compilation.scalar, [
+        {
+          accumulator: "value",
+          left: "__bfloat162float(input[inner])",
+          right: "__bfloat162float(weight[weight_base + inner])",
+        },
+      ]) +
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
       "    return;\n  }\n" +
       "  const int group_count = " +
@@ -152,17 +148,13 @@ fn projection_tensor_core_direct_dense_source(
       "      const unsigned long long weight_base = (unsigned long long)output_column * " +
       parameters.input_width.to_string() +
       "ULL;\n" +
-      projection_dot_fold_source(
-        parameters.input_width,
-        [
-          {
-            accumulator: "value",
-            left: "__bfloat162float(input[input_base + inner])",
-            right: "__bfloat162float(weight[weight_base + inner])",
-          },
-        ],
-        tile_compilation.schedule().single_row_reduction(),
-      ) +
+      projection_dot_fold_source(tile_compilation.scalar, [
+        {
+          accumulator: "value",
+          left: "__bfloat162float(input[input_base + inner])",
+          right: "__bfloat162float(weight[weight_base + inner])",
+        },
+      ]) +
       "      if (lane == 0) output[output_base + output_column] = __float2bfloat16_rn(value);\n" +
       "    } return;\n" +
       "  }\n"
@@ -183,11 +175,11 @@ fn projection_tensor_core_direct_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
-  tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   groups? : Int = 8,
 ) -> Bytes {
-  let (weight_binding, weight_branch) = projection_concatenated_weight_selection(
-    tile_compilation.program().concatenated_weights(),
+  let (weight_binding, weight_branch) = projection_weight_selection_source(
+    tile_compilation.weight_selection,
     ["query_weight", "key_weight", "value_weight"],
     "output_column",
     "selected_weight",
@@ -218,17 +210,13 @@ fn projection_tensor_core_direct_qkv_source(
     "    const unsigned long long weight_base = (unsigned long long)selected_column * " +
     parameters.input_width.to_string() +
     "ULL;\n" +
-    projection_dot_fold_source(
-      parameters.input_width,
-      [
-        {
-          accumulator: "value",
-          left: "__bfloat162float(input[inner])",
-          right: "__bfloat162float(selected_weight[weight_base + inner])",
-        },
-      ],
-      tile_compilation.schedule().single_row_reduction(),
-    ) +
+    projection_dot_fold_source(tile_compilation.scalar, [
+      {
+        accumulator: "value",
+        left: "__bfloat162float(input[inner])",
+        right: "__bfloat162float(selected_weight[weight_base + inner])",
+      },
+    ]) +
     "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
     "    return;\n  }\n" +
     (if tile_compilation.schedule().matrix_pipeline() is Some(_) {

@@ -1,44 +1,4 @@
 ///|
-/// Private lowering of an immutable operand map. Unlike compact microtiles,
-/// this permutation keeps each logical row in one contiguous physical row,
-/// while separating the banks read by packed matrix-fragment lanes.
-priv struct CudaProjectionTransportLayout {
-  columns : Int
-}
-
-///|
-fn CudaProjectionTransportLayout::rotations(
-  self : CudaProjectionTransportLayout,
-) -> Int {
-  if self.columns / 8 % 8 == 0 {
-    8
-  } else if self.columns / 8 % 4 == 0 {
-    4
-  } else {
-    2
-  }
-}
-
-///|
-fn CudaProjectionTransportLayout::plan(
-  self : CudaProjectionTransportLayout,
-) -> @physical_tile_ir.OperandLayout {
-  @physical_tile_ir.OperandLayout::new(
-    columns=self.columns,
-    vector=8,
-    rotations=self.rotations(),
-    row_group=8 / self.rotations(),
-  ).unwrap()
-}
-
-///|
-fn CudaProjectionTransportLayout::address_function(
-  self : CudaProjectionTransportLayout,
-) -> String {
-  projection_operand_address_source(self.plan())
-}
-
-///|
 fn projection_operand_address_source(
   layout : @physical_tile_ir.OperandLayout,
 ) -> String {

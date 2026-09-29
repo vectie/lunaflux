@@ -24,7 +24,7 @@ test "materialized consumer keeps asynchronous loads ahead of ordered matrix con
       ),
     )
     let pipeline = compilation.schedule().intermediate_pipeline().unwrap()
-    let source = projection_fold_pipeline_source(
+    let source = fold_pipeline_fixture(
       pipeline,
       "input",
       "weight",

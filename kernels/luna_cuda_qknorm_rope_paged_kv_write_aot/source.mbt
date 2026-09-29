@@ -18,22 +18,16 @@ fn postprocess_source(
   profile : @launch_contract.PagedKernelProfile,
   grid_x : Int,
   head_map : @luna_projection_tile_compiler.AttentionIngressHeadMap,
+  numerics : @luna_projection_tile_compiler.AttentionIngressNumerics,
+  physical : @elementwise_physical_ir.IngressProgram,
 ) -> Bytes {
   let (_, output_width) = semantic.projection_shape()
-  let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
-  let packed_heads = query_heads + 2 * kv_heads
-  let qk_heads = query_heads + kv_heads
-  let kv_width = kv_heads * head_dimension
-  let (head_groups, heads_per_workgroup, lanes_per_head) = head_map.geometry()
-  let epilogue = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
-    query_heads~,
-    kv_heads~,
-    head_dimension~,
-    norm_epsilon=semantic.norm_epsilon(),
-    rope_theta=semantic.rope_theta(),
-  )
+  let (query_heads, kv_heads, _) = semantic.attention_shape()
+  let (packed_heads, qk_heads, kv_width) = physical.geometry()
+  let (head_groups, heads_per_workgroup, _) = head_map.geometry()
+  let (head_dimension, lanes_per_head, _) = physical.ownership().geometry()
   let numerics_source = @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
-    try! epilogue.numerics(reduction_lanes=32),
+    numerics,
   )
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
@@ -130,29 +124,7 @@ fn postprocess_source(
     "    if (physical_page < 0 || physical_page >= LF_TOTAL_PAGE_COUNT) return;\n" +
     "    const unsigned long long head_base =\n" +
     "      ((unsigned long long)token * LF_PACKED_HEADS + (unsigned long long)head) * LF_HEAD_DIM;\n" +
-    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_LANES_PER_HEAD)\n" +
-    "      head_values[component] = __bfloat162float(projected_qkv[head_base + component]);\n" +
-    "    __syncwarp();\n" +
-    "    if (head < LF_QK_HEADS) {\n" +
-    "      const __nv_bfloat16* norm_weight =\n" +
-    "        head < LF_QUERY_HEADS ? query_norm_weight : key_norm_weight;\n" +
-    "      lf_ingress_norm_rotary(head_values, norm_weight, position, lane);\n" +
-    "    }\n" +
-    "    for (int component = lane; component < LF_HEAD_DIM; component += LF_LANES_PER_HEAD) {\n" +
-    "      float value = head_values[component];\n" +
-    "      const __nv_bfloat16 encoded = __float2bfloat16_rn(value);\n" +
-    "      rotated_qkv[head_base + component] = encoded;\n" +
-    "      if (head >= LF_QUERY_HEADS) {\n" +
-    "        const bool key = head < LF_QK_HEADS;\n" +
-    "        const int kv_head = key ? head - LF_QUERY_HEADS : head - LF_QK_HEADS;\n" +
-    "        const unsigned long long cache_index =\n" +
-    "          (unsigned long long)physical_page * LF_PAGE_STRIDE_BF16 +\n" +
-    "          (unsigned long long)(position % LF_TOKENS_PER_PAGE) * LF_KV_WIDTH +\n" +
-    "          (unsigned long long)kv_head * LF_HEAD_DIM + (unsigned long long)component;\n" +
-    "        (key ? key_cache : value_cache)[cache_index] = encoded;\n" +
-    "      }\n" +
-    "    }\n" +
-    "    __syncwarp();\n" +
+    postprocess_effect_source(physical) +
     "  }\n" +
     "}\n",
   )

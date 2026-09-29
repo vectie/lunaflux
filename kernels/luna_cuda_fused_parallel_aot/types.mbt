@@ -141,6 +141,8 @@ pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
   priv model_identity : @spec.ModelIdentity
   priv semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
   priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
+  priv ingress_policy : @resource_policy.Policy
+  priv physical_program : QwenIngressPhysicalProgram
   priv qkv_fallback : @luna_cuda_projection_aot.ProjectionCudaLowering
   priv qk_norm_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
   priv rope_fallback : @luna_cuda_pointwise_aot.PointwiseCudaLowering
@@ -181,6 +183,7 @@ pub struct FusedResidualRmsNormCudaCandidate {
   priv profile : @launch_contract.PagedKernelProfile
   priv compiler : @luna_specialization.LunaCompilerPolicy
   priv parameters : FusedResidualNormParameters
+  priv physical_program : @elementwise_physical_ir.NormalizationProgram
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_policy : FusedParallelNumericalPolicy
   priv function_symbol : String

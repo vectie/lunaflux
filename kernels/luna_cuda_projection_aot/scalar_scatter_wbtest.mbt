@@ -11,7 +11,11 @@ test "scalar selected-row projection scatters to original token rows" {
   }
   let source = @utf8.decode(
     projection_scalar_map_source(
-      "selected_head_probe", parameters, 4, 2, compilation,
+      "selected_head_probe",
+      parameters,
+      4,
+      2,
+      projection_refine_physical(compilation),
     ),
   )
   assert_true(source.contains("row_offsets[logical_row + 1] - 1"))

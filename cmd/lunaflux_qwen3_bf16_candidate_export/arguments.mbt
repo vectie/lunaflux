@@ -52,8 +52,17 @@ fn is_lower_sha256(value : StringView) -> Bool {
 fn parse_qwen3_candidate_export_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3CandidateExportArguments raise Qwen3Bf16CandidateExportCliError {
+  let flags = arguments.filter(value => value == "--ingress-policy-search")
+  guard flags.length() <= 1 else { raise InvalidArguments }
+  let ingress_policy_search = !flags.is_empty()
+  let arguments = arguments.filter(value => value != "--ingress-policy-search")
+  let (arguments, ingress_policy_records) = extract_resource_option(
+    arguments[:],
+    "--ingress-policy-records",
+  )
   let (arguments, decode_resources) = extract_resource_option(
-    arguments, "--decode-resources",
+    arguments[:],
+    "--decode-resources",
   )
   let (arguments, decode_tuning) = extract_resource_option(
     arguments[:],
@@ -159,6 +168,8 @@ fn parse_qwen3_candidate_export_arguments(
     decode_resources,
     decode_tuning,
     partitioned_resources,
+    ingress_policy_records,
+    ingress_policy_search,
     query_metadata,
   }
   if attention_tuning is Some((_, _, tuning_device)) &&
@@ -172,7 +183,7 @@ fn parse_qwen3_candidate_export_arguments(
   for
     input in [
       attention_tuning, attention_resources, projection_folds, decode_resources,
-      decode_tuning, partitioned_resources,
+      decode_tuning, partitioned_resources, ingress_policy_records,
     ]
     device = None {
     guard input is Some((_, _, current)) else { continue device }

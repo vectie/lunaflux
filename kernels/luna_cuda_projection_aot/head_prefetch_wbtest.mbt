@@ -30,7 +30,7 @@ test "selected-row prefetch lowering emits bounded constant slots and guards par
     ).unwrap()
     let depth = gather.prefetch_fragments()
     let source = projection_selected_row_prefetch_fold_source(
-      parameters, gather,
+      gather.operand_window(parameters.input_width).unwrap(),
     )
     let advance = depth * 16
     assert_true(source.contains("inner < \{width}; inner += \{advance}"))

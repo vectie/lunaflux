@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/resource_policy",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/luna_projection_strategy" @strategy,
   "vectie/lunaflux/kernels/luna_projection_tile_compiler" @compiler,

@@ -107,8 +107,8 @@ test "ordered and tree folds share arithmetic without implicit reassociation" {
   let dots : Array[CudaProjectionDot] = [
     { accumulator: "value", left: "x[inner]", right: "w[inner]", },
   ]
-  let ordered = projection_dot_fold_source(33, dots[:], OrderedDot)
-  let tree = projection_dot_fold_source(33, dots[:], StridedPairwiseDot(32))
+  let ordered = dot_fold_fixture(33, dots[:], OrderedDot)
+  let tree = dot_fold_fixture(33, dots[:], StridedPairwiseDot(32))
   assert_true(ordered.contains("inner = 0; inner < 33; inner += 1"))
   assert_false(ordered.contains("shfl"))
   assert_true(tree.contains("inner = lane; inner < 33; inner += 32"))
@@ -131,8 +131,26 @@ test "scalar sibling materialization preserves the same ordered F32 product" {
     intermediate_width: 8,
   }
   for materialize in [false, true] {
+    let dispatch = projection_build_runtime_dispatch(
+      parameters,
+      4,
+      projection_fixture_target(),
+      [],
+    ).dispatch_plan(4)
+    let physical = projection_refine_physical(
+      @luna_projection_tile_compiler.compile_projection_tile(
+        @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+          dispatch~,
+          maximum_rows=4,
+          maximum_tokens=4,
+          demand=AllTokenRows,
+        ),
+      ),
+    )
     let source = @utf8.decode(
-      projection_scalar_mlp_source("baseline", parameters, 4, materialize),
+      projection_scalar_mlp_source(
+        "baseline", parameters, 4, materialize, physical,
+      ),
     )
     assert_true(source.contains("gate = __fadd_rn(gate, __fmul_rn("))
     assert_true(source.contains("up = __fadd_rn(up, __fmul_rn("))

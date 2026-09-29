@@ -44,9 +44,16 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
         },
       )
       let source = projection_fold_lifetime_source(
-        pipeline,
+        physical_pipeline_fixture(
+          pipeline,
+          pipeline.output_tiles(),
+          execution=if asynchronous {
+            OverlappedTransfer
+          } else {
+            SerialTransfer
+          },
+        ),
         projection_test_fold_body(pipeline),
-        asynchronous~,
       )
       if stages == 2 {
         assert_true(source.contains("stage_operands(0, 0);"))
@@ -107,16 +114,14 @@ test "completed prefetch eliminates empty async groups but preserves early issue
         pipeline.transfer_width(),
       )
       assert_eq(asynchronous, tiles == 4)
-      let source = projection_fold_pipeline_source(
+      let source = fold_pipeline_fixture(
         pipeline, "input", "weight", 3072, 4, 1024,
       )
       assert_eq(source.contains("cp.async"), asynchronous)
       assert_true(source.contains("__syncthreads"))
       let lifetime = projection_fold_lifetime_source(
-        pipeline,
+        physical_pipeline_fixture(pipeline, pipeline.output_tiles()),
         projection_test_fold_body(pipeline),
-        asynchronous=true,
-        completed_on_issue=!asynchronous,
       )
       let parts = lifetime
         .split("const __nv_bfloat16 *current = test_storage")
@@ -132,19 +137,53 @@ test "completed prefetch eliminates empty async groups but preserves early issue
 fn projection_test_fold_body(
   pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
 ) -> CudaProjectionFoldBody {
-  let layout : CudaProjectionTransportLayout = {
-    columns: pipeline.transfer_width(),
-  }
-  let operands = @physical_tile_ir.OperandStorage::new(
-    layout.plan(),
-    [pipeline.row_width(), 16],
-    owners=128,
-    stages=pipeline.stage_count(),
-  ).unwrap()
   projection_packed_fold_body(
-    pipeline,
-    operands,
-    rows=1,
+    physical_pipeline_fixture(pipeline, pipeline.output_tiles()),
     storage="test_storage",
   )
+}
+
+///|
+test "wide completed physical transfer never emits asynchronous copies" {
+  let parameters = sibling_resource_test_parameters()
+  let runtime = projection_build_runtime_dispatch(
+    parameters,
+    1024,
+    projection_fixture_target(),
+    [],
+  )
+  let scheduled = @luna_projection_tile_compiler.compile_projection_tile(
+    @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
+      dispatch=runtime.dispatch_plan(1024),
+      maximum_rows=32,
+      maximum_tokens=1024,
+      demand=AllTokenRows,
+    ).with_fold_pipeline(
+      IntermediateFold,
+      stages=3,
+      transfer_tiles=4,
+      fragment_stages=2,
+    ),
+  )
+  let pipeline = scheduled.schedule().intermediate_pipeline().unwrap()
+  assert_eq(pipeline.transfer_width(), 64)
+  let executions : Array[
+    @luna_projection_tile_compiler.ProjectionTransferExecution,
+  ] = [SerialTransfer, CompletedPrefetch, OverlappedTransfer]
+  for execution in executions {
+    let physical = physical_pipeline_fixture(
+      pipeline,
+      pipeline.output_tiles(),
+      execution~,
+    )
+    let source = projection_fold_pipeline_source(
+      physical, "input", "weight", 3072, 1024,
+    )
+    assert_eq(source.contains("cp.async"), execution == OverlappedTransfer)
+    assert_true(source.contains("__syncthreads"))
+    if execution != OverlappedTransfer {
+      assert_true(source.contains("ld.global.v4.u32"))
+      assert_true(source.contains("st.shared.v4.u32"))
+    }
+  }
 }

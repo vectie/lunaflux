@@ -385,7 +385,7 @@ fn parse_arguments(
   {
     model_content,
     model_plan,
-    ingress_selection: CompatibilityDefault,
+    ingress_selection: ConservativeUnmeasured,
     residual,
     ingress,
     attention_prefill,

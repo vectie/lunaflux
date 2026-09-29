@@ -14,18 +14,26 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
   )
   let (_, output_width) = semantic.projection_shape()
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
-  let head_map = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+  let numerics = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
+    query_heads~,
+    kv_heads~,
+    head_dimension~,
+    norm_epsilon=semantic.norm_epsilon(),
+    rope_theta=semantic.rope_theta(),
+  ).numerics(reduction_lanes=32)
+  let head_map = try! numerics.group_heads(
+    heads=query_heads + 2 * kv_heads,
+    workgroup_lanes=POSTPROCESS_HEADS_PER_WORKGROUP * 32,
+  )
+  guard @elementwise_physical_ir.IngressProgram::new(
       query_heads~,
       kv_heads~,
       head_dimension~,
-      norm_epsilon=semantic.norm_epsilon(),
-      rope_theta=semantic.rope_theta(),
+      owners=32,
     )
-    .numerics(reduction_lanes=32)
-    .group_heads(
-      heads=query_heads + 2 * kv_heads,
-      workgroup_lanes=POSTPROCESS_HEADS_PER_WORKGROUP * 32,
-    )
+    is Some(physical_program) else {
+    raise Unsupported(Shape)
+  }
   let (head_groups, _, _) = head_map.geometry()
   let grid_x = Int::min(profile.max_query_tokens(), limits.maximum_grid_x)
   if grid_x <= 0 {
@@ -46,7 +54,9 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     raise Unsupported(Shape)
   }
   let alias_contract = { first_writable_operand: 9, operand_count: 12, }
-  let source = postprocess_source(semantic, layout, profile, grid_x, head_map)
+  let source = postprocess_source(
+    semantic, layout, profile, grid_x, head_map, numerics, physical_program,
+  )
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(Source)
   }
@@ -73,6 +83,9 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     ),
   )
   {
+    physical_program,
+    numerics,
+    head_map,
     semantic,
     model_content: plan.identity().content().as_hex(),
     model_plan: plan.identity().plan().as_hex(),

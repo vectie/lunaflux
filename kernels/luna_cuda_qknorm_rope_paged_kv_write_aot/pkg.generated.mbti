@@ -3,9 +3,11 @@ package "vectie/lunaflux/kernels/luna_cuda_qknorm_rope_paged_kv_write_aot"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_fusion_plan",
+  "vectie/lunaflux/kernels/luna_projection_tile_compiler",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
@@ -99,6 +101,9 @@ pub fn QkNormRopePagedKvWriteCudaCandidate::kv_layout(Self) -> @device_layout.De
 pub fn QkNormRopePagedKvWriteCudaCandidate::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn QkNormRopePagedKvWriteCudaCandidate::manifest_bindable(Self) -> Bool
 pub fn QkNormRopePagedKvWriteCudaCandidate::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_head_map(Self) -> @luna_projection_tile_compiler.AttentionIngressHeadMap
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_numerics(Self) -> @luna_projection_tile_compiler.AttentionIngressNumerics
+pub fn QkNormRopePagedKvWriteCudaCandidate::physical_program(Self) -> @elementwise_physical_ir.IngressProgram
 pub fn QkNormRopePagedKvWriteCudaCandidate::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn QkNormRopePagedKvWriteCudaCandidate::recipe_bytes(Self) -> Bytes
 pub fn QkNormRopePagedKvWriteCudaCandidate::recipe_digest(Self) -> QkNormRopePagedKvWriteDigest

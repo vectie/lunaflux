@@ -8,27 +8,18 @@
 /// contribute zero without issuing an invalid global read.
 fn projection_sibling_phased_transfer_source(
   operands : @physical_tile_ir.OperandStorage,
+  segments : ArrayView[@luna_projection_tile_compiler.ProjectionTransferSegment],
   input_width : Int,
 ) -> String {
   guard operands.has_concatenated_layout() else {
     abort("phased transfer requires compatible concatenated operand layout")
   }
   let input = operands.region(0).unwrap()
-  let gate = operands.region(1).unwrap()
-  let up = operands.region(2).unwrap()
   let (_, _, width) = input.geometry()
   let (_, threads, _) = input.ownership().geometry()
   let elements = operands.slot_elements()
   let vectors = elements / 8
   let batches = (vectors + threads - 1) / threads
-  let segments = @luna_projection_tile_compiler.partition_projection_transfer_segments(
-    [
-      input.ownership().geometry().0,
-      gate.ownership().geometry().0,
-      up.ownership().geometry().0,
-    ],
-    workers=threads,
-  ).unwrap()
   let addresses = StringBuilder()
   for segment in segments {
     let (base, row_base) = match segment.operand {

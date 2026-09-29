@@ -16,18 +16,10 @@ test "matrix producer and consumer bind one checked storage plan" {
     ),
   )
   let pipeline = compilation.schedule().matrix_pipeline().unwrap()
-  let width = pipeline.transfer_width()
-  let transport : CudaProjectionTransportLayout = { columns: width, }
-  let storage = @physical_tile_ir.OperandStorage::new(
-    transport.plan(),
-    [pipeline.row_width(), pipeline.output_tiles() * 16],
-    owners=128,
-    stages=pipeline.stage_count(),
-  ).unwrap()
+  let physical = physical_pipeline_fixture(pipeline, 4)
+  let storage = physical.operands
   let body = projection_storage_fold_body(
-    pipeline,
-    storage,
-    rows=1,
+    physical,
     storage="fixture",
     consumers=4,
   )
@@ -71,75 +63,71 @@ test "ingress constructor binds complete row-major operand storage" {
   )
   let pipeline = compilation.schedule().matrix_pipeline().unwrap()
   let width = pipeline.transfer_width()
-  let transport : CudaProjectionTransportLayout = { columns: width, }
-  let storage = @physical_tile_ir.OperandStorage::new(
-    transport.plan(),
-    [pipeline.row_width(), pipeline.output_tiles() * 16],
-    owners=128,
-    stages=pipeline.stage_count(),
-  ).unwrap()
   let identity = @physical_tile_ir.OperandLayout::new(
     columns=width,
     vector=8,
     rotations=1,
     row_group=1,
   ).unwrap()
-  let ingress_storage = @physical_tile_ir.OperandStorage::new(
-    identity,
-    [pipeline.row_width(), pipeline.output_tiles() * 16],
-    owners=128,
-    stages=pipeline.stage_count(),
-  ).unwrap()
-  let ingress = CudaProjectionFoldBody::ingress(
+  let physical = @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
     pipeline,
-    ingress_storage,
+    identity,
+    consumer_groups=4,
+    owners_per_group=32,
+    products=1,
+    OverlappedTransfer,
     columns=1,
-  )
+  ).unwrap()
+  let ingress = CudaProjectionFoldBody::ingress(physical)
   assert_true(ingress is Some(_))
-  assert_true(
-    CudaProjectionFoldBody::ingress(pipeline, storage, columns=1) is None,
-  )
-  for
-    (input_rows, weight_rows, stages, columns) in [
-      (
-        pipeline.row_width() + 1,
-        pipeline.output_tiles() * 16,
-        pipeline.stage_count(),
-        1,
-      ),
-      (
-        pipeline.row_width(),
-        pipeline.output_tiles() * 16 + 1,
-        pipeline.stage_count(),
-        1,
-      ),
-      (
-        pipeline.row_width(),
-        pipeline.output_tiles() * 16,
-        pipeline.stage_count() + 1,
-        1,
-      ),
-      (
-        pipeline.row_width(),
-        pipeline.output_tiles() * 16,
-        pipeline.stage_count(),
-        pipeline.output_tiles() + 1,
-      ),
-      (
-        pipeline.row_width(),
-        pipeline.output_tiles() * 16,
-        pipeline.stage_count(),
-        0,
-      ),
-    ] {
-    let invalid = @physical_tile_ir.OperandStorage::new(
-      identity,
-      [input_rows, weight_rows],
-      owners=128,
-      stages~,
+  // Other backends may accept these geometries; CUDA's fixed packed
+  // instruction lowering must reject them instead of changing ownership.
+  for geometry in [(4, 32), (8, 16), (8, 64)] {
+    let (vector, owners_per_group) = geometry
+    let layout = @physical_tile_ir.OperandLayout::new(
+      columns=width,
+      vector~,
+      rotations=1,
+      row_group=1,
     ).unwrap()
-    assert_true(
-      CudaProjectionFoldBody::ingress(pipeline, invalid, columns~) is None,
+    let incompatible = @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
+      pipeline,
+      layout,
+      consumer_groups=4,
+      owners_per_group~,
+      products=1,
+      OverlappedTransfer,
+      columns=1,
+    ).unwrap()
+    assert_false(projection_cuda_fragment_geometry(incompatible))
+    assert_true(CudaProjectionFoldBody::ingress(incompatible) is None)
+  }
+  assert_true(
+    CudaProjectionFoldBody::ingress(
+      @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
+        pipeline,
+        ({ columns: width, } : CudaProjectionTransportLayout).plan(),
+        consumer_groups=4,
+        owners_per_group=32,
+        products=1,
+        OverlappedTransfer,
+        columns=1,
+      ).unwrap(),
     )
+    is None,
+  )
+  // Geometry is no longer caller-assembled: regions and stage count are
+  // derived together. Illegal fragment domains fail before a body exists.
+  for columns in [0, pipeline.output_tiles() + 1] {
+    let invalid = @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
+      pipeline,
+      identity,
+      consumer_groups=4,
+      owners_per_group=32,
+      products=1,
+      OverlappedTransfer,
+      columns~,
+    )
+    assert_true(invalid is None)
   }
 }

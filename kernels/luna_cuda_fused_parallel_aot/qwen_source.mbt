@@ -1,31 +1,11 @@
 ///|
-/// Materializes the position-independent RoPE basis during AOT compilation.
-/// The functional compiler owns the invariant-hoist decision; this terminal
-/// lowering chooses CUDA read-only storage syntax.
-fn qwen_ingress_numerics_source(
-  rope_theta : Double,
-  head_dimension : Int,
-  norm_epsilon : Double,
-) -> String {
-  let epilogue = try! @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
-    query_heads=1,
-    kv_heads=1,
-    head_dimension~,
-    norm_epsilon~,
-    rope_theta~,
-  )
-  @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
-    try! epilogue.numerics(reduction_lanes=32),
-  )
-}
-
-///|
 fn qwen_fused_source(
   symbol : String,
   semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  physical : QwenIngressPhysicalProgram,
   dispatch_canary : UInt?,
 ) -> Bytes {
   let (input_width, output_width) = semantic.projection_shape()
@@ -56,7 +36,7 @@ fn qwen_fused_source(
   let kv_width = kv_heads * head_dimension
   let maximum_tile_count = (profile.max_query_tokens() + tile_rows - 1) /
     tile_rows
-  let column_plan = qwen_ingress_column_plan(tile_compilation)
+  let column_plan = physical.columns
   let (consumer_groups, column_rounds, live_columns, column_windows) = column_plan.geometry()
   let out = StringBuilder()
   out.write_string(
@@ -84,10 +64,8 @@ fn qwen_fused_source(
     "\n",
   )
   out.write_string(
-    qwen_ingress_numerics_source(
-      semantic.rope_theta(),
-      head_dimension,
-      semantic.norm_epsilon(),
+    @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
+      physical.numerics,
     ),
   )
   out.write_string(
@@ -149,15 +127,15 @@ fn qwen_fused_source(
     "    for (int component = warp; component < LF_HEAD_DIM; component += LF_WARPS) {\n" +
     "      const int column = matrix_head * LF_HEAD_DIM + component;\n" +
     "      float value = 0.0f;\n" +
-    "      for (int inner = lane; inner < LF_INPUT_WIDTH; inner += 32) value = __fadd_rn(value, __fmul_rn(\n" +
+    "      for (int inner = lane; inner < LF_INPUT_WIDTH; inner += \{physical.scalar.geometry().2}) value = __fadd_rn(value, __fmul_rn(\n" +
     "        __bfloat162float(input[inner]),\n" +
     "        __bfloat162float(matrix[(unsigned long long)column * LF_INPUT_WIDTH + inner])));\n" +
-    "      for (int offset = 16; offset > 0; offset >>= 1)\n" +
+    "      for (int offset = \{physical.scalar.combination_distances()[0]}; offset > 0; offset >>= 1)\n" +
     "        value = __fadd_rn(value, __shfl_down_sync(0xffffffffu, value, offset));\n" +
     "      if (lane == 0) projected[0][component] = __bfloat162float(__float2bfloat16_rn(value));\n" +
     "    }\n" +
     "  } else {\n" +
-    ingress_matrix_projection_source(tile_compilation) +
+    ingress_matrix_projection_source(physical) +
     "  }\n" +
     "  __syncthreads();\n",
   )

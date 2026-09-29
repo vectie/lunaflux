@@ -6,13 +6,15 @@ fn fused_residual_rmsnorm_production_source(
   symbol : String,
   parameters : FusedResidualNormParameters,
   profile : @launch_contract.PagedKernelProfile,
-) -> Bytes {
+  physical_program : @elementwise_physical_ir.NormalizationProgram,
+) -> Bytes raise FusedParallelAotError {
+  let (width, owners, _) = physical_program.geometry()
   let output = StringBuilder()
   output.write_string(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n",
   )
-  output.write_string("#define LF_BLOCK_THREADS 128\n")
-  output.write_string("#define LF_WIDTH " + parameters.width.to_string() + "\n")
+  output.write_string("#define LF_BLOCK_THREADS " + owners.to_string() + "\n")
+  output.write_string("#define LF_WIDTH " + width.to_string() + "\n")
   output.write_string(
     "#define LF_EPSILON " +
     @luna_cuda_pointwise_aot.canonical_cuda_float_literal(parameters.epsilon) +
@@ -33,29 +35,7 @@ fn fused_residual_rmsnorm_production_source(
     "      tokens < rows || tokens > " +
     profile.max_query_tokens().to_string() +
     " || token >= tokens) return;\n" +
-    "  __shared__ float partial[LF_BLOCK_THREADS];\n" +
-    "  float local_sum = 0.0f;\n" +
-    "  for (int column = (int)threadIdx.x; column < LF_WIDTH; column += LF_BLOCK_THREADS) {\n" +
-    "    const int offset = token * LF_WIDTH + column;\n" +
-    "    const float value = __bfloat162float(residual[offset]) + __bfloat162float(branch[offset]);\n" +
-    "    const __nv_bfloat16 encoded = __float2bfloat16_rn(value);\n" +
-    "    residual_output[offset] = encoded;\n" +
-    "    const float rounded = __bfloat162float(encoded);\n" +
-    "    local_sum += rounded * rounded;\n" +
-    "  }\n" +
-    "  partial[threadIdx.x] = local_sum;\n" +
-    "  __syncthreads();\n" +
-    "  for (int stride = LF_BLOCK_THREADS / 2; stride > 0; stride >>= 1) {\n" +
-    "    if ((int)threadIdx.x < stride) partial[threadIdx.x] += partial[threadIdx.x + stride];\n" +
-    "    __syncthreads();\n" +
-    "  }\n" +
-    "  const float inverse_rms = rsqrtf(partial[0] / (float)LF_WIDTH + LF_EPSILON);\n" +
-    "  for (int column = (int)threadIdx.x; column < LF_WIDTH; column += LF_BLOCK_THREADS) {\n" +
-    "    const int offset = token * LF_WIDTH + column;\n" +
-    "    const float value = __bfloat162float(residual_output[offset]);\n" +
-    "    const float weight = __bfloat162float(norm_weight[column]);\n" +
-    "    norm_output[offset] = __float2bfloat16_rn(value * inverse_rms * weight);\n" +
-    "  }\n" +
+    residual_program_source(physical_program) +
     "}\n",
   )
   @utf8.encode(output.to_string())

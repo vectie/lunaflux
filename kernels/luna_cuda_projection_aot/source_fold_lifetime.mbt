@@ -4,16 +4,10 @@
 /// `inner`; `stage_operands(offset, stage)` supplies immutable operands. Every
 /// workgroup member must execute this scope, including inactive consumers.
 pub fn lower_projection_fold_lifetime(
-  plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   body : CudaProjectionFoldBody,
-  execution : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> String {
-  projection_fold_lifetime_source(
-    plan,
-    body,
-    asynchronous=execution != SerialTransfer,
-    completed_on_issue=execution == CompletedPrefetch,
-  )
+  projection_fold_lifetime_source(physical, body)
 }
 
 ///|
@@ -22,12 +16,11 @@ pub fn lower_projection_fold_lifetime(
 /// A synchronous producer publishes after consumption, while an asynchronous
 /// producer starts before it. Neither can overwrite the current live slot.
 fn projection_fold_lifetime_source(
-  plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   body : CudaProjectionFoldBody,
-  asynchronous~ : Bool,
   phase_argument? : Bool = false,
-  completed_on_issue? : Bool = false,
 ) -> String {
+  let plan = physical.schedule
   let (_, _, body_width, body_quantum, body_slots) = body.program.geometry()
   guard body_width == plan.transfer_width() &&
     body_quantum == plan.tile_width() &&
@@ -35,15 +28,7 @@ fn projection_fold_lifetime_source(
     abort("physical fragment program does not match the operand ring")
   }
   let body = body.source()
-  let effects = plan.effect_plan(
-    if asynchronous && completed_on_issue {
-      CompletedPrefetch
-    } else if asynchronous {
-      OverlappedTransfer
-    } else {
-      SerialTransfer
-    },
-  )
+  let effects = physical.effects
   let (stages, width, extent) = effects.geometry()
   let asynchronous = effects.has_pending_transfers()
   // Completion and issue order are independent: a synchronous prefetch may

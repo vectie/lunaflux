@@ -24,6 +24,15 @@ fn prepare_ingress_choice(
     }
     return ({ ..args, query_metadata: true, }, choice)
   }
+  if raw_args is [.. rest, "--ingress-evaluate", name] {
+    let args = parse_arguments(rest)
+    let choice : @luna_fusion_strategy.FusionSchedule = match name {
+      "full" => FullyFused
+      "unfused" => Unfused
+      _ => raise InvalidArguments
+    }
+    return ({ ..args, ingress_selection: ExplicitEvaluation, }, choice)
+  }
   let evaluation_start = raw_args.length() - 8
   if evaluation_start > 0 && raw_args[evaluation_start] == "--ingress-evaluate" {
     let args = parse_arguments(raw_args[:evaluation_start])
@@ -46,7 +55,10 @@ fn prepare_ingress_choice(
   let suffix_start = raw_args.length() - suffix_size
   if suffix_start < 1 ||
     (!paired && raw_args[suffix_start] != "--ingress-comparison") {
-    return (parse_arguments(raw_args), FullyFused)
+    // No observation does not imply maximal fusion is fastest. Preserve all
+    // semantic stages and their KV-write owner unless a cut is explicitly
+    // evaluated or selected from comparable full-span measurements.
+    return (parse_arguments(raw_args), Unfused)
   }
   let args = parse_arguments(raw_args[:suffix_start])
   let suffix = raw_args[suffix_start:]
@@ -69,13 +81,15 @@ fn prepare_ingress_choice(
   }) catch {
     _ => raise InvalidArguments
   }
-  let choice = @luna_fusion_strategy.select_fusion_schedule(
+  let cut = @luna_fusion_plan.select_attention_ingress_cut(
     alternatives,
+    qkv_operation=args.ingress.first_operation,
     maximum_workspace_bytes=0L,
     maximum_local_bytes=0L,
   ) catch {
     _ => raise InvalidArguments
   }
+  let choice = cut.schedule()
   bind_ingress_choice(
     { ..args, ingress_selection: MeasuredComparison, },
     choice,

@@ -3,6 +3,10 @@ priv struct QwenFusedProductionSet {
   first_operation : Int
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   full_ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
+  ingress_variants : ReadOnlyArray[
+    @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+  ]
+  ingress_selection_origin : @resource_policy.SelectionOrigin
   attention_prefill_frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier
   attention_prefill_partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier
   attention_decode : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
@@ -79,6 +83,8 @@ fn prepare_qwen_fused_production_set(
   decode_resources? : (Bytes, String, String)? = None,
   decode_tuning? : (Bytes, String, String)? = None,
   partitioned_resources? : (Bytes, String, String)? = None,
+  ingress_policy_records? : (Bytes, String, String)? = None,
+  ingress_policy_search? : Bool = false,
   query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
@@ -168,7 +174,7 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenIngressPreparation
     }
-    let full_ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+    let default_ingress = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
       full_ingress_qualification,
       @luna_cuda_fused_parallel_aot.FusedParallelAotLimits::new(
         maximum_source_bytes=1048576,
@@ -178,6 +184,20 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenIngressPreparation
     }
+    let ingress_variants = if ingress_policy_search ||
+      ingress_policy_records is Some(_) {
+      prepare_qwen_ingress_resource_variants(
+        plan, layout, qkv, qk_norm, rope, kv_write, set, full_ingress_qualification,
+        default_ingress,
+      )
+    } else {
+      ReadOnlyArray::from_array([default_ingress])
+    }
+    let (full_ingress, ingress_selection_origin) = select_qwen_ingress_resource_variant(
+      default_ingress,
+      ingress_variants[:],
+      ingress_policy_records,
+    )
     let readonly_limits = @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyAotLimits::new(
       maximum_source_bytes=1048576,
       maximum_recipe_bytes=65536,
@@ -244,6 +264,8 @@ fn prepare_qwen_fused_production_set(
       first_operation: index,
       postprocess,
       full_ingress,
+      ingress_variants,
+      ingress_selection_origin,
       attention_prefill_frontier,
       attention_prefill_partitioned,
       attention_decode: attention_decode_frontier.selected(),

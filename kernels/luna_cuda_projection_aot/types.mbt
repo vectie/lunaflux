@@ -43,6 +43,7 @@ pub struct ProjectionCudaLowering {
   priv intermediate_width : Int
   priv dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan
   priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
+  priv physical_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv companion_dimensions : @launch_contract.AotLaunchDimensions?
@@ -144,6 +145,13 @@ pub fn ProjectionCudaLowering::tile_compilation(
   self : ProjectionCudaLowering,
 ) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation {
   self.tile_compilation
+}
+
+///|
+pub fn ProjectionCudaLowering::physical_compilation(
+  self : ProjectionCudaLowering,
+) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation {
+  self.physical_compilation
 }
 
 ///|

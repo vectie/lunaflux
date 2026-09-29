@@ -40,7 +40,9 @@ test "composed weight transfer preserves complete matrix pipeline source" {
         projection_bind_tile_weights(request, parameters),
       )
       let source = projection_matrix_pipeline_source(
-        parameters, compilation, 32,
+        parameters,
+        projection_refine_physical(compilation),
+        32,
       )
       assert_true(!source.is_empty())
       digests.push(

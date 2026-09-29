@@ -56,6 +56,28 @@ pub struct OptimizedProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
 
+pub struct PhysicalProjectionTileCompilation {
+  scheduled : ScheduledProjectionTileCompilation
+  scalar : ProjectionScalarFoldPlan
+  sibling_scalar : ProjectionScalarFoldPlan?
+  down_scalar : ProjectionScalarFoldPlan?
+  ordered_down : ProjectionScalarFoldPlan?
+  matrix : ProjectionPhysicalPipeline?
+  sibling : ProjectionPhysicalPipeline?
+  intermediate : ProjectionPhysicalPipeline?
+  mapped : (@physical_tile_ir.FragmentProgram, @physical_tile_ir.OperandLayout)?
+  map_effects : ProjectionMapEffectPlan
+  selected_gather : (ProjectionSelectedRowGather, ProjectionOperandWindow)?
+  weight_selection : ProjectionRowSelection
+  matrix_weights : ProjectionWeightTransferPlan?
+  materialization : ProjectionMaterializationEffects
+} derive(Eq, @debug.Debug)
+pub fn PhysicalProjectionTileCompilation::equal(Self, Self) -> Bool
+pub fn PhysicalProjectionTileCompilation::not_equal(Self, Self) -> Bool
+pub fn PhysicalProjectionTileCompilation::program(Self) -> ProjectionTileProgram
+pub fn PhysicalProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
+pub fn PhysicalProjectionTileCompilation::to_repr(Self) -> @debug.Repr
+
 pub struct ProjectionAttentionIngressEpilogue {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -193,6 +215,21 @@ pub fn ProjectionOperandWindow::not_equal(Self, Self) -> Bool
 pub fn ProjectionOperandWindow::read_at(Self, window~ : Int, slot~ : Int) -> Int?
 pub fn ProjectionOperandWindow::to_repr(Self) -> @debug.Repr
 
+pub struct ProjectionPhysicalPipeline {
+  schedule : ProjectionFoldPipeline
+  operands : @physical_tile_ir.OperandStorage
+  fragments : @physical_tile_ir.FragmentProgram
+  effects : ProjectionFoldEffectPlan
+  distribution : ProjectionProductFoldDistribution
+  sibling_reuse : Bool
+  owners_per_group : Int
+  transfer_segments : ReadOnlyArray[ProjectionTransferSegment]
+} derive(Eq, @debug.Debug)
+pub fn ProjectionPhysicalPipeline::equal(Self, Self) -> Bool
+pub fn ProjectionPhysicalPipeline::new(ProjectionFoldPipeline, @physical_tile_ir.OperandLayout, consumer_groups~ : Int, owners_per_group~ : Int, products~ : Int, ProjectionTransferExecution, columns? : Int, output_tiles? : Int) -> Self?
+pub fn ProjectionPhysicalPipeline::not_equal(Self, Self) -> Bool
+pub fn ProjectionPhysicalPipeline::to_repr(Self) -> @debug.Repr
+
 pub struct ProjectionProductFoldDistribution {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -241,10 +278,13 @@ pub struct ProjectionSelectedRowGather {
   columns : Int
   reduction : Int
   prefetch_fragments : Int
-}
+} derive(Eq, @debug.Debug)
 pub fn ProjectionSelectedRowGather::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionSelectedRowGather::equal(Self, Self) -> Bool
+pub fn ProjectionSelectedRowGather::not_equal(Self, Self) -> Bool
 pub fn ProjectionSelectedRowGather::operand_window(Self, Int) -> ProjectionOperandWindow?
 pub fn ProjectionSelectedRowGather::prefetch_fragments(Self) -> Int
+pub fn ProjectionSelectedRowGather::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionSingleRowNumerics {
   PreserveDotOrder
@@ -428,6 +468,7 @@ pub fn ScheduledProjectionTileCompilation::digest(Self) -> ProjectionTileCompila
 pub fn ScheduledProjectionTileCompilation::eliminated_bindings(Self) -> (Int, Int)
 pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
 pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
+pub fn ScheduledProjectionTileCompilation::refine_physical(Self, (Int) -> @physical_tile_ir.OperandLayout?, (Int) -> ProjectionTransferExecution, owners_per_group~ : Int) -> PhysicalProjectionTileCompilation?
 pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
 pub fn ScheduledProjectionTileCompilation::selected_row_gather(Self) -> ProjectionSelectedRowGather?
 pub fn ScheduledProjectionTileCompilation::source_program(Self) -> ProjectionTileProgram

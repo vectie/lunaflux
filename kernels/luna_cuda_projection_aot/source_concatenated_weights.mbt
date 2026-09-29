@@ -1,23 +1,4 @@
 ///|
-/// Device spelling of a generic concatenated row view. Keep the existing
-/// nested decision schedule; the pure compiler owns its decision tree.
-fn projection_concatenated_weight_selection(
-  segments : ArrayView[@luna_projection_tile_compiler.ProjectionRowSegment],
-  operands : ArrayView[String],
-  logical_row : String,
-  pointer : String,
-  local_row : String,
-) -> (String, String) {
-  projection_weight_selection_source(
-    @luna_projection_tile_compiler.plan_projection_row_selection(segments).unwrap(),
-    operands,
-    logical_row,
-    pointer,
-    local_row,
-  )
-}
-
-///|
 fn projection_weight_selection_source(
   tree : @luna_projection_tile_compiler.ProjectionRowSelection,
   operands : ArrayView[String],

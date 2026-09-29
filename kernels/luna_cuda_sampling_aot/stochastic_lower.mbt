@@ -6,10 +6,12 @@ pub fn device_sampling_cuda_function_symbol() -> String {
 ///|
 fn device_sampling_source_text(
   plan : @luna_sampling_strategy.SamplingDevicePlan,
+  physical : @elementwise_physical_ir.StochasticProgram,
 ) -> String {
+  let (_, owners, _) = physical.selection().geometry()
   let vocabulary = plan.vocabulary_size().to_string()
   let maximum_rows = plan.maximum_rows().to_string()
-  let maximum_top_k = plan.maximum_top_k().to_string()
+  let maximum_top_k = physical.maximum_top_k().to_string()
   let weight_offset = plan.candidate_weight_offset_bytes().to_string()
   "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n#include <limits.h>\n" +
   "struct __align__(8) LunaSamplingParametersV2 { int32_t mode; int32_t top_k; double temperature; double top_p; uint64_t seed; int32_t sample_index; int32_t flags; };\n" +
@@ -19,7 +21,7 @@ fn device_sampling_source_text(
   "extern \"C\" __global__ void lunaflux_sample_restrictive_topk_bf16_rows_v2(" +
   "const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *logits, " +
   "const LunaSamplingParametersV2 *parameters, void *workspace, int32_t *results) {\n" +
-  "  __shared__ double reduce_values[256];\n  __shared__ int reduce_tokens[256];\n  __shared__ int reduce_invalid[256];\n" +
+  "  __shared__ double reduce_values[\{owners}];\n  __shared__ int reduce_tokens[\{owners}];\n  __shared__ int reduce_invalid[\{owners}];\n" +
   "  __shared__ double selected_value;\n  __shared__ int selected_token;\n  __shared__ int parameter_status;\n" +
   "  const int row = (int)blockIdx.x; const int lane = (int)threadIdx.x;\n" +
   "  const int row_count = counts[2]; const int token_count = counts[3];\n" +
@@ -38,8 +40,8 @@ fn device_sampling_source_text(
   "ULL;\n" +
   "  int invalid = INT_MAX; for (int token = lane; token < " +
   vocabulary +
-  "; token += 256) { const double value = (double)__bfloat162float(row_logits[token]); if (!isfinite(value) && token < invalid) invalid = token; }\n" +
-  "  reduce_invalid[lane] = invalid; __syncthreads(); for (int stride = 128; stride > 0; stride >>= 1) { if (lane < stride && reduce_invalid[lane + stride] < reduce_invalid[lane]) reduce_invalid[lane] = reduce_invalid[lane + stride]; __syncthreads(); }\n" +
+  "; token += \{owners}) { const double value = (double)__bfloat162float(row_logits[token]); if (!isfinite(value) && token < invalid) invalid = token; }\n" +
+  "  reduce_invalid[lane] = invalid; __syncthreads(); for (int stride = \{owners / 2}; stride > 0; stride >>= 1) { if (lane < stride && reduce_invalid[lane + stride] < reduce_invalid[lane]) reduce_invalid[lane] = reduce_invalid[lane + stride]; __syncthreads(); }\n" +
   "  if (reduce_invalid[0] != INT_MAX) { if (lane == 0) { results[row * 2] = -1; results[row * 2 + 1] = reduce_invalid[0]; } return; }\n" +
   "  int32_t *candidate_tokens = (int32_t *)workspace + row * " +
   maximum_top_k +
@@ -59,20 +61,13 @@ fn device_sampling_source_text(
   "    double best = -INFINITY; int best_token = INT_MAX; const double previous_value = selected_value; const int previous_token = selected_token;\n" +
   "    for (int token = lane; token < " +
   vocabulary +
-  "; token += 256) { const double value = (double)__bfloat162float(row_logits[token]); const bool below_previous = rank == 0 || value < previous_value || (value == previous_value && token > previous_token); if (below_previous && luna_preferred_v2(value, token, best, best_token)) { best = value; best_token = token; } }\n" +
+  "; token += \{owners}) { const double value = (double)__bfloat162float(row_logits[token]); const bool below_previous = rank == 0 || value < previous_value || (value == previous_value && token > previous_token); if (below_previous && luna_preferred_v2(value, token, best, best_token)) { best = value; best_token = token; } }\n" +
   "    reduce_values[lane] = best; reduce_tokens[lane] = best_token; __syncthreads();\n" +
-  "    for (int stride = 128; stride > 0; stride >>= 1) { if (lane < stride && luna_preferred_v2(reduce_values[lane + stride], reduce_tokens[lane + stride], reduce_values[lane], reduce_tokens[lane])) { reduce_values[lane] = reduce_values[lane + stride]; reduce_tokens[lane] = reduce_tokens[lane + stride]; } __syncthreads(); }\n" +
+  "    for (int stride = \{owners / 2}; stride > 0; stride >>= 1) { if (lane < stride && luna_preferred_v2(reduce_values[lane + stride], reduce_tokens[lane + stride], reduce_values[lane], reduce_tokens[lane])) { reduce_values[lane] = reduce_values[lane + stride]; reduce_tokens[lane] = reduce_tokens[lane + stride]; } __syncthreads(); }\n" +
   "    if (lane == 0) { selected_value = reduce_values[0]; selected_token = reduce_tokens[0]; candidate_tokens[rank] = selected_token; } __syncthreads();\n" +
   "  }\n" +
   "  if (lane == 0) {\n" +
-  "    const double maximum = (double)__bfloat162float(row_logits[candidate_tokens[0]]); double total = 0.0;\n" +
-  "    for (int rank = 0; rank < retained_top_k; ++rank) { const double value = (double)__bfloat162float(row_logits[candidate_tokens[rank]]); const double weight = exp((value - maximum) / p.temperature); candidate_weights[rank] = weight; total += weight; }\n" +
-  "    if (!(total > 0.0) || !isfinite(total)) { results[row * 2] = -1; results[row * 2 + 1] = -3; return; }\n" +
-  "    int retained = retained_top_k; if (p.flags & 2) { const double target = p.top_p * total; double cumulative = 0.0; retained = 0; while (retained < retained_top_k && cumulative < target) { cumulative += candidate_weights[retained]; ++retained; } if (retained < 1) retained = 1; }\n" +
-  "    double retained_total = 0.0; for (int rank = 0; rank < retained; ++rank) retained_total += candidate_weights[rank];\n" +
-  "    const uint64_t random_bits = luna_counter_v2(p.seed, p.sample_index); const double unit = (double)(random_bits >> 11) * 1.1102230246251565e-16; const double threshold = unit * retained_total;\n" +
-  "    double cumulative = 0.0; int chosen = retained - 1; for (int rank = 0; rank < retained; ++rank) { cumulative += candidate_weights[rank]; if (threshold < cumulative) { chosen = rank; break; } }\n" +
-  "    results[row * 2] = candidate_tokens[chosen]; results[row * 2 + 1] = -1;\n" +
+  stochastic_final_source(physical) +
   "  }\n}\n"
 }
 
@@ -137,7 +132,8 @@ pub fn lower_device_sampling_cuda_aot(
   if !target.supports_bf16() || compiler.reassociate() {
     raise Unsupported(ArtifactTarget)
   }
-  let source = @utf8.encode(device_sampling_source_text(plan))
+  let physical_program = stochastic_physical_program(plan)
+  let source = @utf8.encode(device_sampling_source_text(plan, physical_program))
   if source.length() > limits.max_source_bytes {
     raise LimitExceeded(ArtifactSource)
   }
@@ -147,6 +143,7 @@ pub fn lower_device_sampling_cuda_aot(
     raise LimitExceeded(ArtifactRecipe)
   }
   {
+    physical_program,
     target,
     plan,
     function_symbol: device_sampling_cuda_function_symbol(),

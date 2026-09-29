@@ -63,3 +63,13 @@ it is not the current generator or an executable fallback. Current deterministic
 snapshots live in `physical_fixture_wbtest.mbt`; fresh physical checks are
 recorded in [unified compiler coverage](../../docs/UNIFIED_COMPILER_COVERAGE_2026-09-09.md).
 Historical source qualifications do not transfer to newly generated source.
+
+Every candidate and row variant now refines its scheduled program once into a
+retained `PhysicalProjectionTileCompilation` before source emission. Scalar
+folds, selected-row windows, matrix ownership, shared layouts, fragment rings,
+weight routing and transfer lifetimes are consumed from that value. CUDA binds
+its packed-vector and subgroup geometry explicitly; unsupported geometry is
+not silently reinterpreted. Copy instructions, async commits and waits follow
+the same retained effect plan, including wide synchronous schedules. Whole
+source digest regressions cover QKV, dense, gate/up/down and selected-row head;
+the refactor preserves their captured source bytes, not a new speed claim.

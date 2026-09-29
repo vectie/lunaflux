@@ -34,7 +34,11 @@ test "bounded dense and segmented maps do not stage a dead second row tile" {
       let compilation = @luna_projection_tile_compiler.compile_projection_tile(
         projection_bind_tile_weights(request, parameters),
       )
-      let source = projection_matrix_pipeline_source(parameters, compilation, 1)
+      let source = projection_matrix_pipeline_source(
+        parameters,
+        projection_refine_physical(compilation),
+        1,
+      )
       let row_width = if bound <= 16 { 16 } else { 32 }
       let transfer_width = 64
       assert_true(

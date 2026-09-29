@@ -174,11 +174,11 @@ test "offline comparison emits exact full partial or absent ingress family" {
   }
   assert_eq(
     prepare_ingress_choice(runtime_bundle_test_arguments("5")).1,
-    FullyFused,
+    Unfused,
   )
   assert_eq(
     prepare_ingress_choice(runtime_bundle_test_arguments("5")).0.ingress_selection.canonical_name(),
-    "compatibility-default",
+    "conservative-unmeasured",
   )
 }
 
@@ -196,6 +196,68 @@ test "offline ingress comparisons reject incomplete noncanonical or under-sample
       error => assert_eq(error, InvalidArguments)
     } noraise {
       _ => fail("invalid comparison accepted")
+    }
+  }
+}
+
+///|
+test "unmeasured default bundle preserves original KV writer instead of attaching read only attention" {
+  let (args, choice) = prepare_ingress_choice(
+    runtime_bundle_test_arguments("5"),
+  )
+  assert_eq(choice, @luna_fusion_strategy.Unfused)
+  assert_eq(args.ingress_selection.canonical_name(), "conservative-unmeasured")
+  let cut = selected_ingress_cut(args, choice)
+  assert_false(cut.permits_readonly_attention())
+  assert_eq(cut.materialized_values(), (true, true, true))
+  let modules = selected_ingress_modules(args, choice, b"residual", b"")
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+    model_content_sha256=args.model_content,
+    model_plan_sha256=args.model_plan,
+    target=@catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    modules~,
+  )
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+    bytes,
+    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+  )
+  assert_eq(modules.length(), 1)
+  assert_true(admitted.qwen_full_attention_ingress_module() is None)
+  assert_true(admitted.qwen_qknorm_rope_kv_write_module() is None)
+  assert_true(admitted.qwen_paged_attention_readonly_module() is None)
+}
+
+///|
+test "full and unfused evaluation need no fabricated partial artifact metadata" {
+  for name in ["full", "unfused"] {
+    let raw = runtime_bundle_test_arguments("5")
+    raw.append(["--ingress-evaluate", name, "--query-metadata-v1"])
+    let (args, choice) = prepare_ingress_choice(raw)
+    assert_true(args.query_metadata)
+    assert_eq(args.ingress_selection.canonical_name(), "explicit-evaluation")
+    assert_eq(
+      choice,
+      if name == "full" {
+        @luna_fusion_strategy.FullyFused
+      } else {
+        @luna_fusion_strategy.Unfused
+      },
+    )
+    assert_eq(args.ingress.module_path, "/tmp/ingress.cubin")
+  }
+  for name in ["partial", "fastest"] {
+    let raw = runtime_bundle_test_arguments("5")
+    raw.append(["--ingress-evaluate", name])
+    try prepare_ingress_choice(raw) catch {
+      InvalidArguments => ()
+      _ => fail("wrong evaluation rejection")
+    } noraise {
+      _ => fail("missing partial ABI or unknown policy accepted")
     }
   }
 }

@@ -64,7 +64,7 @@ test "sibling launch bounds preserve caller budget and companion entry point" {
   assert_true(schedule.sibling_pipeline() is Some(_))
   for max_registers in [32, 63, 64, 128] {
     let qualifier = projection_sibling_launch_bounds_source(
-      schedule,
+      projection_refine_physical(compilation),
       max_registers~,
     )
     assert_eq(
@@ -124,7 +124,10 @@ test "sibling resource target does not extrapolate to smaller workgroups" {
     assert_eq(reuse is Some(_), groups >= 4)
     for max_registers in [32, 64, 128] {
       assert_eq(
-        projection_sibling_launch_bounds_source(schedule, max_registers~),
+        projection_sibling_launch_bounds_source(
+          projection_refine_physical(compilation),
+          max_registers~,
+        ),
         "",
       )
       let source = @utf8.decode(
@@ -160,7 +163,10 @@ test "a same-width matrix without sibling reuse has no sibling resource target" 
   assert_eq(schedule.output_tiles_per_workgroup(), 16)
   assert_true(schedule.sibling_pipeline() is None)
   assert_eq(
-    projection_sibling_launch_bounds_source(schedule, max_registers=128),
+    projection_sibling_launch_bounds_source(
+      projection_refine_physical(compilation),
+      max_registers=128,
+    ),
     "",
   )
   let source = @utf8.decode(

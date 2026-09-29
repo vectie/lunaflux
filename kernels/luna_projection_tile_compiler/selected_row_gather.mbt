@@ -7,7 +7,13 @@ pub struct ProjectionSelectedRowGather {
   columns : Int
   reduction : Int
   prefetch_fragments : Int
-}
+} derive(Debug, Eq)
+
+///|
+pub extend ProjectionSelectedRowGather with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionSelectedRowGather with Eq::{equal, not_equal}
 
 ///|
 pub fn projection_selected_row_gather(

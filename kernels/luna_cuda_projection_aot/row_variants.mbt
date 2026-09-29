@@ -81,13 +81,13 @@ fn projection_row_variant_sources(
       variant_profile, parameters, dispatch,
     )
     let variant_symbol = symbol + "_rows" + bound.to_string()
-    let source = projection_source(
+    let source = projection_emit_source(
       variant_symbol,
       parameters,
       bound,
       Int::min(profile.max_query_rows(), bound),
       dispatch,
-      compilation,
+      projection_refine_physical(compilation),
       false,
       dimensions.shared_memory_bytes() > 0,
       max_registers~,

@@ -1,6 +1,6 @@
 ///|
 test "sibling register transfer keeps thread local reads and late addresses" {
-  let source = projection_sibling_phased_transfer_source(
+  let source = phased_transfer_fixture(
     projection_test_operand_storage(64, 64, 32, 512),
     1024,
   )
@@ -85,7 +85,7 @@ test "phased transfer batching covers arbitrary tile products once" {
           for present in seen {
             assert_true(present)
           }
-          let source = projection_sibling_phased_transfer_source(
+          let source = phased_transfer_fixture(
             projection_test_operand_storage(rows, columns, width, threads),
             width * 8,
           )

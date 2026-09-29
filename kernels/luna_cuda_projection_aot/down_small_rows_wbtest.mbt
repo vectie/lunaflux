@@ -25,7 +25,7 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
       ),
     )
     let pipeline = compilation.schedule().intermediate_pipeline().unwrap()
-    let source = projection_fold_pipeline_source(
+    let source = fold_pipeline_fixture(
       pipeline, "input_base", "weight_base", 512, 2, 256,
     )
     // Register exchange has no shared result lifetime to publish or release.
@@ -62,7 +62,9 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     // This changes the row domain, not a CUDA-specific replacement for the
     // compiler's ordered matrix fold or its producer/consumer permutation.
     let layout : CudaProjectionTransportLayout = { columns: transfer_width, }
-    assert_true(source.contains(layout.address_function()))
+    assert_true(
+      source.contains(projection_operand_address_source(layout.plan())),
+    )
     assert_false(source.contains("warp_output"))
   }
 }

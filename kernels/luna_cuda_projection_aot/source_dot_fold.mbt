@@ -21,19 +21,13 @@ fn projection_validate_scalar_realization(
 /// Lower a product of pure scalar folds. Reassociation is explicitly supplied
 /// by the numeric schedule; sharing a loop does not grant reassociation.
 fn projection_dot_fold_source(
-  extent : Int,
+  plan : @luna_projection_tile_compiler.ProjectionScalarFoldPlan,
   dots : ArrayView[CudaProjectionDot],
-  reduction : @luna_projection_tile_compiler.ProjectionSingleRowReduction,
 ) -> String {
-  projection_validate_scalar_realization(reduction) catch {
-    _ => abort("unsupported CUDA scalar reduction worker geometry")
-  }
-  let plan = @luna_projection_tile_compiler.ProjectionScalarFoldPlan::new(
-    extent~,
-    products=dots.length(),
-    reduction,
-  ).unwrap()
   let (extent, products, workers) = plan.geometry()
+  guard (workers == 1 || workers == 32) && products == dots.length() else {
+    abort("unsupported CUDA scalar reduction worker geometry")
+  }
   // The closed product dialect shares the left value. Reject an inconsistent
   // backend binding rather than silently assigning two expressions one SSA ID.
   guard dots.all(dot => dot.left == dots[0].left) else {
@@ -72,7 +66,7 @@ fn projection_scalar_map_source(
   parameters : ProjectionParameters,
   maximum_tokens : Int,
   maximum_rows : Int,
-  compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> Bytes {
   let selected = compilation.schedule().demand() == QueryRowEnds
   let segmented = parameters.family == QkvProjection
@@ -82,9 +76,8 @@ fn projection_scalar_map_source(
     "const __nv_bfloat16 *weight"
   }
   let select_weight = if segmented {
-    let segments = compilation.program().concatenated_weights()
-    let (binding, branch) = projection_concatenated_weight_selection(
-      segments,
+    let (binding, branch) = projection_weight_selection_source(
+      compilation.weight_selection,
       ["query_weight", "key_weight", "value_weight"],
       "column",
       "weight",
@@ -94,17 +87,13 @@ fn projection_scalar_map_source(
   } else {
     "const int local_column = column;"
   }
-  let fold = projection_dot_fold_source(
-    parameters.input_width,
-    [
-      {
-        accumulator: "accumulator",
-        left: "__bfloat162float(input[input_base + inner])",
-        right: "__bfloat162float(weight[weight_base + inner])",
-      },
-    ],
-    OrderedDot,
-  )
+  let fold = projection_dot_fold_source(compilation.scalar, [
+    {
+      accumulator: "accumulator",
+      left: "__bfloat162float(input[input_base + inner])",
+      right: "__bfloat162float(weight[weight_base + inner])",
+    },
+  ])
   @utf8.encode(
     projection_cuda_prelude() +
     (

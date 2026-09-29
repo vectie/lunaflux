@@ -5,30 +5,21 @@
 /// not reduction terms. Their workgroup-uniform guards leave every live dot's
 /// ordered updates and all inter-stage barriers unchanged.
 fn projection_fold_pipeline_source(
-  pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   input_base : String,
   weight_base : String,
   stride : Int,
-  groups : Int,
   output_width : Int,
 ) -> String {
-  let width = pipeline.transfer_width()
+  let pipeline = physical.schedule
   let rows = pipeline.row_width()
-  let layout : CudaProjectionTransportLayout = { columns: width, }
-  let operands = @physical_tile_ir.OperandStorage::new(
-    layout.plan(),
-    [rows, groups * 16],
-    owners=groups * 32,
-    stages=pipeline.stage_count(),
-  ).unwrap()
+  let operands = physical.operands
   let input_region = operands.region(0).unwrap()
   let weight_region = operands.region(1).unwrap()
   let (input_elements, _, _) = weight_region.geometry()
   let slot = operands.slot_elements()
   let body = projection_packed_fold_body(
-    pipeline,
-    operands,
-    rows=rows / 16,
+    physical,
     storage="pipeline_storage",
     row_origin="row_start",
     row_owner="0",
@@ -42,7 +33,12 @@ fn projection_fold_pipeline_source(
   // A synchronous load/store pair blocks this producer at STS on the load's
   // scoreboard even though its destination is the inactive shared slot.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a", "destination", input_region, stride, true, true,
+    "pipeline_a",
+    "destination",
+    input_region,
+    stride,
+    true,
+    physical.effects.has_pending_transfers(),
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
@@ -50,7 +46,7 @@ fn projection_fold_pipeline_source(
     weight_region,
     stride,
     false,
-    true,
+    physical.effects.has_pending_transfers(),
   )
   let source =
     $|  {
@@ -63,9 +59,9 @@ fn projection_fold_pipeline_source(
     $|      __nv_bfloat16 *destination = pipeline_storage + stage * \{slot};
     $|\{input_copy}
     $|\{weight_copy}
-    $|      \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
+    $|      \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|    };
-    $|\{projection_fold_lifetime_source(pipeline, body, asynchronous=true, completed_on_issue=!projection_operand_copy_is_async(width))}
+    $|\{projection_fold_lifetime_source(physical, body)}
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
     $|      if (row_start + row * 16 >= token_count) break;
@@ -99,7 +95,7 @@ fn projection_fold_operand_copy_source(
     $|        \{validity}
     $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};
     $|        const unsigned address = (unsigned)__cvta_generic_to_shared(\{destination} + operand_index(row, k));
-    $|        \{projection_operand_transfer_source(width, asynchronous~)}
+    $|        \{projection_operand_transfer_source(asynchronous~)}
     $|      }
   source
 }

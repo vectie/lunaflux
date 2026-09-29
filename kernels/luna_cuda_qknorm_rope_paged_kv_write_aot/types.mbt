@@ -102,6 +102,9 @@ pub fn QkNormRopePagedKvWriteAotLimits::new(
 
 ///|
 pub struct QkNormRopePagedKvWriteCudaCandidate {
+  priv physical_program : @elementwise_physical_ir.IngressProgram
+  priv numerics : @luna_projection_tile_compiler.AttentionIngressNumerics
+  priv head_map : @luna_projection_tile_compiler.AttentionIngressHeadMap
   priv semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan
   priv model_content : String
   priv model_plan : String

@@ -21,6 +21,7 @@ pub fn GreedySamplingAotLimits::new(
 ///|
 /// Exact deterministic CUDA source and recipe selected before compilation.
 pub struct GreedySamplingCudaLowering {
+  priv physical_program : @elementwise_physical_ir.SelectionProgram
   priv target : @catalog.DeviceTarget
   priv vocabulary_size : Int
   priv maximum_rows : Int

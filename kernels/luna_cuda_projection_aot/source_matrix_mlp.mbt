@@ -5,20 +5,19 @@ fn projection_matrix_mlp_source(
   symbol : String,
   parameters : ProjectionParameters,
   maximum_tokens : Int,
-  compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   max_registers~ : Int,
 ) -> Bytes {
   let schedule = compilation.schedule()
   let groups = schedule.output_tiles_per_workgroup()
   let down_groups = schedule.companion_output_tiles_per_workgroup().unwrap()
   let pipeline = schedule.intermediate_pipeline().unwrap()
-  let sibling = schedule.sibling_pipeline().unwrap()
   let launch_bounds = projection_sibling_launch_bounds_source(
-    schedule,
+    compilation,
     max_registers~,
   )
   let gate_fold = projection_dot_fold_source(
-    parameters.input_width,
+    compilation.sibling_scalar.unwrap(),
     [
       {
         accumulator: "gate",
@@ -31,7 +30,6 @@ fn projection_matrix_mlp_source(
         right: "__bfloat162float(up_weight[weight_base + inner])",
       },
     ],
-    schedule.single_row_reduction(),
   )
   let outputs = ["value", "second", "third", "fourth"]
   let dots : Array[CudaProjectionDot] = []
@@ -46,16 +44,14 @@ fn projection_matrix_mlp_source(
       "if (lane == 0) output[output_column + \{index}] = __float2bfloat16_rn(\{name});\n"
   }
   let down_fold = projection_dot_fold_source(
-    parameters.intermediate_width,
+    compilation.down_scalar.unwrap(),
     dots[:],
-    schedule.single_row_reduction(),
   )
   let matrix_fold = projection_fold_pipeline_source(
-    pipeline,
+    compilation.intermediate.unwrap(),
     "workspace + (unsigned long long)row_start * \{parameters.intermediate_width}ULL",
     "down_weight + (unsigned long long)(group_index * \{down_groups * 16}) * \{parameters.intermediate_width}ULL",
     parameters.intermediate_width,
-    down_groups,
     parameters.output_width,
   )
   @utf8.encode(
@@ -73,7 +69,7 @@ fn projection_matrix_mlp_source(
       $|    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
       $|    return;
       $|  }
-      $|\{projection_sibling_fold_pipeline_source(sibling, parameters, groups~)}
+      $|\{projection_sibling_fold_pipeline_source(compilation.sibling.unwrap(), parameters, compilation.materialization)}
       $|}
       $|extern "C" __global__ void \{symbol}_down(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {
       $|\{projection_count_guard(maximum_tokens)}

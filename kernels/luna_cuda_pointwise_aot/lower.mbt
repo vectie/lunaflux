@@ -13,6 +13,7 @@ fn validate_offline_policy(
 
 ///|
 fn finish_lowering(
+  physical_program : PointwiseProgram,
   family : PointwiseAotFamily,
   operation : @plan.PlanOperation,
   entry_point_id : @catalog.AotKernelEntryPointId,
@@ -47,6 +48,7 @@ fn finish_lowering(
     raise LimitExceeded(Recipe)
   }
   {
+    physical_program,
     family,
     operation_id: operation.id(),
     entry_point_id,
@@ -81,37 +83,20 @@ pub fn lower_pointwise_cuda_aot_candidate(
   validate_offline_policy(target, compiler)
   let parameters = pointwise_parameters(operation)
   validate_operands(operation, parameters, profile, operands)
-  let work_items = match parameters.family {
-    RmsNorm => profile.max_query_tokens().to_int64()
-    QkRmsNorm =>
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
-      )
-    PositionedRotary => {
-      let rotary_width = (parameters.query_heads + parameters.kv_heads) *
-        parameters.head_dimension
-      let work_per_token = parameters.head_dimension / 2 +
-        (parameters.width - rotary_width + 31) / 32
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        work_per_token.to_int64(),
-      )
-    }
-    _ =>
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        parameters.width.to_int64(),
-      )
-  }
+  let physical = pointwise_program(parameters)
+  let work_items = checked_mul(
+    profile.max_query_tokens().to_int64(),
+    physical.work_per_token(parameters).to_int64(),
+  )
   let dimensions = pointwise_dimensions(parameters.family, work_items)
   let symbol = pointwise_symbol(
     parameters.family,
     operation.id(),
     entry_point_id,
   )
-  let source = pointwise_source(symbol, parameters)
+  let source = pointwise_source(symbol, parameters, physical)
   finish_lowering(
+    physical,
     parameters.family,
     operation,
     entry_point_id,
@@ -145,29 +130,11 @@ pub fn lower_reusable_pointwise_cuda_aot_candidate(
     raise Unsupported(Operation)
   }
   validate_operands(operation, parameters, profile, operands)
-  let work_items = match parameters.family {
-    RmsNorm => profile.max_query_tokens().to_int64()
-    QkRmsNorm =>
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        (parameters.query_heads + 2 * parameters.kv_heads).to_int64(),
-      )
-    PositionedRotary => {
-      let rotary_width = (parameters.query_heads + parameters.kv_heads) *
-        parameters.head_dimension
-      let work_per_token = parameters.head_dimension / 2 +
-        (parameters.width - rotary_width + 31) / 32
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        work_per_token.to_int64(),
-      )
-    }
-    _ =>
-      checked_mul(
-        profile.max_query_tokens().to_int64(),
-        parameters.width.to_int64(),
-      )
-  }
+  let physical = pointwise_program(parameters)
+  let work_items = checked_mul(
+    profile.max_query_tokens().to_int64(),
+    physical.work_per_token(parameters).to_int64(),
+  )
   let dimensions = pointwise_dimensions(parameters.family, work_items)
   let entry_point_id = @catalog.AotKernelEntryPointId::from_stable_int(1) catch {
     _ => raise Invalid(Operation)
@@ -175,8 +142,9 @@ pub fn lower_reusable_pointwise_cuda_aot_candidate(
   let symbol = "lunaflux_luna_" +
     family_tag(parameters.family) +
     "_bf16_release_v1"
-  let source = pointwise_source(symbol, parameters)
+  let source = pointwise_source(symbol, parameters, physical)
   finish_lowering(
+    physical,
     parameters.family,
     operation,
     entry_point_id,
@@ -210,15 +178,17 @@ pub fn lower_auxiliary_kv_cache_write_cuda_aot(
   validate_offline_policy(target, compiler)
   let parameters = kv_write_parameters(operation, layout)
   validate_kv_write_operands(operation, parameters, profile, layout, operands)
-  let kv_width = checked_mul(
-    parameters.kv_heads.to_int64(),
-    parameters.head_dimension.to_int64(),
+  let physical = pointwise_program(parameters)
+  guard physical is WriteKv(kv) else { raise Unsupported(Operation) }
+  let work_items = checked_mul(
+    profile.max_query_tokens().to_int64(),
+    physical.work_per_token(parameters).to_int64(),
   )
-  let work_items = checked_mul(profile.max_query_tokens().to_int64(), kv_width)
   let dimensions = pointwise_dimensions(KvCacheWrite, work_items)
   let symbol = pointwise_symbol(KvCacheWrite, operation.id(), entry_point_id)
-  let source = kv_write_source(symbol, parameters)
+  let source = kv_write_source(symbol, parameters, kv)
   finish_lowering(
+    physical,
     KvCacheWrite,
     operation,
     entry_point_id,

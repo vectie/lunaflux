@@ -36,6 +36,9 @@ pub fn embedded_segmented_greedy_cuda_source(
 ) -> String raise SamplingBoundaryError {
   let plan = plan_segmented_greedy_cuda(vocabulary_size, maximum_rows)
   let (width, segments) = plan.partition()
+  let physical = sampling_selection_program(width, segmented=true)
+  let (_, owners, _) = physical.geometry()
+  let reduction_source = greedy_subgroup_reduction_source(physical)
   let source =
     $|struct LunaGreedySummaryV2 { float value; int token; int invalid; int padding; };
     $|__device__ __forceinline__ void luna_greedy_combine_v2(float &value, int &token, int &invalid, float other, int other_token, int other_invalid) {
@@ -43,28 +46,7 @@ pub fn embedded_segmented_greedy_cuda_source(
     $|  invalid = invalid < other_invalid ? invalid : other_invalid;
     $|}
     $|__device__ __forceinline__ void luna_greedy_reduce_v2(float &value, int &token, int &invalid) {
-    $|  __shared__ LunaGreedySummaryV2 warp_summaries[8];
-    $|  const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
-    $|  for (int delta=16; delta>0; delta>>=1) {
-    $|    float other=__shfl_down_sync(0xffffffffU,value,delta);
-    $|    int other_token=__shfl_down_sync(0xffffffffU,token,delta);
-    $|    int other_invalid=__shfl_down_sync(0xffffffffU,invalid,delta);
-    $|    if (lane+delta<32) luna_greedy_combine_v2(value,token,invalid,other,other_token,other_invalid);
-    $|  }
-    $|  if (lane==0) warp_summaries[warp]={value,token,invalid,0};
-    $|  __syncthreads();
-    $|  if (warp==0) {
-    $|    value=lane<8?warp_summaries[lane].value:-INFINITY;
-    $|    token=lane<8?warp_summaries[lane].token:INT_MAX;
-    $|    invalid=lane<8?warp_summaries[lane].invalid:INT_MAX;
-    $|    for(int delta=16;delta>0;delta>>=1) {
-    $|      float other=__shfl_down_sync(0xffffffffU,value,delta);
-    $|      int other_token=__shfl_down_sync(0xffffffffU,token,delta);
-    $|      int other_invalid=__shfl_down_sync(0xffffffffU,invalid,delta);
-    $|      if(lane+delta<32) luna_greedy_combine_v2(value,token,invalid,other,other_token,other_invalid);
-    $|    }
-    $|  }
-    $|}
+    $|\{reduction_source}}
     $|extern "C" __global__ void lunaflux_greedy_bf16_partial_v2(const int32_t *counts, const int32_t *row_offsets, const __nv_bfloat16 *logits, LunaGreedySummaryV2 *workspace) {
     $|  const int row=blockIdx.x, segment=blockIdx.y;
     $|  if(row>=counts[2] || row>=\{maximum_rows} || segment>=\{segments}) return;
@@ -73,7 +55,7 @@ pub fn embedded_segmented_greedy_cuda_source(
     $|  const __nv_bfloat16 *input=logits+(unsigned long long)(end-1)*\{vocabulary_size}ULL;
     $|  float value=-INFINITY; int token=INT_MAX, invalid=INT_MAX;
     $|  const unsigned long long start=(unsigned long long)segment*\{width};
-    $|  for(int local=threadIdx.x;local<\{width};local+=256) {
+    $|  for(int local=threadIdx.x;local<\{width};local+=\{owners}) {
     $|    const unsigned long long index=start+local;
     $|    if(index<\{vocabulary_size}ULL) {
     $|      const float item=__bfloat162float(input[index]);
@@ -88,7 +70,7 @@ pub fn embedded_segmented_greedy_cuda_source(
     $|  const int row=blockIdx.x;
     $|  if(row>=counts[2] || row>=\{maximum_rows}) return;
     $|  float value=-INFINITY; int token=INT_MAX, invalid=INT_MAX;
-    $|  for(int segment=threadIdx.x;segment<\{segments};segment+=256) {
+    $|  for(int segment=threadIdx.x;segment<\{segments};segment+=\{owners}) {
     $|    const LunaGreedySummaryV2 item=workspace[(unsigned long long)row*\{segments}+segment];
     $|    luna_greedy_combine_v2(value,token,invalid,item.value,item.token,item.invalid);
     $|  }

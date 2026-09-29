@@ -2,37 +2,22 @@
 /// A product of ordered folds shares both the staged input and each pair of
 /// weight tiles. Copy scheduling and CUDA lane ownership are lowering details.
 fn projection_sibling_fold_pipeline_source(
-  plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   parameters : ProjectionParameters,
-  groups~ : Int,
+  effects : @luna_projection_tile_compiler.ProjectionMaterializationEffects,
 ) -> String {
-  if @luna_projection_tile_compiler.partition_projection_sibling_reuse(
-      row_tiles=plan.row_width() / 16,
-      output_tiles=plan.output_tiles(),
-      consumer_groups=groups,
-    )
-    is Some(reuse) {
-    return projection_sibling_reuse_source(plan, parameters, reuse, groups~)
+  if physical.sibling_reuse {
+    return projection_sibling_reuse_source(physical, parameters, effects)
   }
+  let plan = physical.schedule
   let rows = plan.row_width()
   let columns = plan.output_tiles() * 16
-  let width = plan.transfer_width()
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
-  let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
-    row_tiles=rows / 16,
-    output_tiles=plan.output_tiles(),
-    consumer_groups=groups,
-  ).unwrap()
+  let distribution = physical.distribution
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
-  let layout : CudaProjectionTransportLayout = { columns: width, }
-  let operands = @physical_tile_ir.OperandStorage::new(
-    layout.plan(),
-    [rows, columns, columns],
-    owners=groups * 32,
-    stages=plan.stage_count(),
-  ).unwrap()
+  let operands = physical.operands
   let slot = operands.slot_elements()
   let copies = StringBuilder()
   for
@@ -82,7 +67,7 @@ fn projection_sibling_fold_pipeline_source(
         region,
         input_width,
         guard_rows,
-        true,
+        physical.effects.has_pending_transfers(),
       ),
     )
     if guard_rows {
@@ -91,9 +76,7 @@ fn projection_sibling_fold_pipeline_source(
     copies.write_string("\n")
   }
   let body = projection_packed_fold_body(
-    plan,
-    operands,
-    rows=fold_rows,
+    physical,
     storage="sibling_storage",
     consumers~,
     products=[(1, "cg"), (2, "cu")],
@@ -114,10 +97,10 @@ fn projection_sibling_fold_pipeline_source(
     $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
     $|        const int row_start = row_begin, offset = k_base;
     $|\{copies.to_string()}
-    $|        \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
+    $|        \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|\{projection_fold_lifetime_source(plan, body, asynchronous=true, phase_argument=true, completed_on_issue=!projection_operand_copy_is_async(width))}
+    $|\{projection_fold_lifetime_source(physical, body, phase_argument=true)}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {

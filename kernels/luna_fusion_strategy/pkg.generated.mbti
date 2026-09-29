@@ -3,35 +3,45 @@ package "vectie/lunaflux/kernels/luna_fusion_strategy"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/fusion_regions",
 }
 
 // Values
-pub fn select_fusion_schedule(ArrayView[FusionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> FusionSchedule raise FusionSelectionError
 
 // Errors
 pub(all) suberror FusionSelectionError {
   InvalidCost
-  InvalidComparison
-  NoFeasibleSchedule
 } derive(Eq, @debug.Debug)
+pub fn FusionSelectionError::equal(Self, Self) -> Bool
+pub fn FusionSelectionError::not_equal(Self, Self) -> Bool
+pub fn FusionSelectionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FusionAlternative {
   // private fields
 }
+pub fn FusionAlternative::cost(Self) -> FusionSpanCost
 pub fn FusionAlternative::new(schedule~ : FusionSchedule, cost~ : FusionSpanCost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionSelectionError
+pub fn FusionAlternative::resources(Self) -> (Int64, Int64)
+pub fn FusionAlternative::schedule(Self) -> FusionSchedule
 
 pub(all) enum FusionSchedule {
   Unfused
   ProducerSeparated
   FullyFused
 } derive(Eq, @debug.Debug)
+pub fn FusionSchedule::equal(Self, Self) -> Bool
+pub fn FusionSchedule::not_equal(Self, Self) -> Bool
+pub fn FusionSchedule::to_repr(Self) -> @debug.Repr
 
 pub struct FusionSpanCost {
   // private fields
 } derive(Eq)
+pub fn FusionSpanCost::equal(Self, Self) -> Bool
 pub fn FusionSpanCost::estimated(compute_nanoseconds~ : Int64, traffic_nanoseconds~ : Int64, synchronization_nanoseconds~ : Int64, launch_nanoseconds~ : Int64) -> Self raise FusionSelectionError
 pub fn FusionSpanCost::measured(median_nanoseconds~ : Int64, samples~ : Int) -> Self raise FusionSelectionError
+pub fn FusionSpanCost::not_equal(Self, Self) -> Bool
+pub fn FusionSpanCost::region_cost(Self) -> @fusion_regions.Cost
 
 // Type aliases
 

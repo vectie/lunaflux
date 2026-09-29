@@ -36,7 +36,10 @@ test "ingress physical IR bounds accumulators and shares the ordered fold input"
     head_dimension=128,
     maximum_tokens=32,
   )
-  let plan = qwen_ingress_column_plan(candidate.tile_compilation())
+  let plan = qwen_ingress_column_plan(
+    candidate.tile_compilation(),
+    policy=candidate.ingress_policy(),
+  )
   assert_eq(plan.geometry(), (4, 2, 2, 1))
   let source = @utf8.decode(candidate.source_bytes())
   assert_true(source.contains("float> c[LF_LIVE_COLUMNS]"))

@@ -11,6 +11,8 @@ pub(all) enum FusionPlanRule {
   Dataflow
   Shape
   PersistentState
+  InvalidSelection
+  NoFeasibleCut
 } derive(Debug, Eq)
 
 ///|
