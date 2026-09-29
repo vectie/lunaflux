@@ -203,24 +203,9 @@ pub fn emit_cuda_partitioned_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let workspace = partitioned_workspace(lowering, abi, maximum_workspace_bytes)
-  let partial = match lowering.phase() {
-    Prefill =>
-      emit_cuda_prefill_attention_tile_source(
-        lowering, abi, partial_symbol, maximum_source_bytes,
-      )
-    Decode =>
-      if lowering.compute() == CudaGroupedQuerySplitSubgroupShuffleDot {
-        emit_cuda_grouped_split_decode_attention_tile_source(
-          lowering, abi, partial_symbol, maximum_source_bytes,
-        )
-      } else {
-        emit_cuda_direct_attention_tile_source(
-          lowering, abi, partial_symbol, maximum_source_bytes,
-        )
-      }
-    MixedCompatibility =>
-      raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
+  let partial = cuda_emit_physical_attention(
+    lowering, abi, partial_symbol, maximum_source_bytes,
+  )
   let partial_text = @utf8.decode(partial.bytes()) catch {
     _ => raise InvalidCudaAttentionTileSource(SourceLimit)
   }

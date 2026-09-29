@@ -69,6 +69,9 @@ fn projection_finish_candidate(
       _ => raise Invalid(CompilerPolicy)
     },
   )
+  projection_validate_scalar_realization(
+    tile_compilation.schedule().single_row_reduction(),
+  )
   validate_projection_operands(
     operation, parameters, profile, operands, dispatch_plan,
   )

@@ -90,6 +90,7 @@ fn projection_use_count(
 fn projection_shared_dot_input(
   program : ProjectionTileProgram,
   live : ReadOnlyArray[ProjectionTileValueId],
+  regions : ReadOnlyArray[ProjectionEffectRegionEntry],
 ) -> Bool {
   program.bindings.any(binding => {
     if !live.contains(binding.id) {
@@ -100,7 +101,8 @@ fn projection_shared_dot_input(
       other.id != binding.id &&
       live.contains(other.id) &&
       other.expression is ProjectionDot(other_input, _) &&
-      other_input == input
+      other_input == input &&
+      projection_same_effect_region(regions, [binding.id, other.id])
     })
   })
 }
@@ -109,6 +111,7 @@ fn projection_shared_dot_input(
 fn projection_gated_intermediate(
   program : ProjectionTileProgram,
   live : ReadOnlyArray[ProjectionTileValueId],
+  regions : ReadOnlyArray[ProjectionEffectRegionEntry],
 ) -> Bool {
   program.bindings.any(binding => {
     if !live.contains(binding.id) {
@@ -123,7 +126,13 @@ fn projection_gated_intermediate(
       up_dot.expression is ProjectionDot(up_input, _) else {
       return false
     }
-    gate_input == up_input
+    gate_input == up_input &&
+    projection_same_effect_region(regions, [
+      gate_dot.id,
+      up_dot.id,
+      activated.id,
+      binding.id,
+    ])
   })
 }
 
@@ -133,6 +142,7 @@ fn projection_gated_intermediate(
 fn projection_exclusive_attention_ingress(
   program : ProjectionTileProgram,
   live : ReadOnlyArray[ProjectionTileValueId],
+  regions : ReadOnlyArray[ProjectionEffectRegionEntry],
 ) -> Bool {
   guard projection_binding(program, program.root) is Some(commit) &&
     commit.expression is ProjectionStoreAndCommitPagedKv(rotary_id) &&
@@ -144,6 +154,7 @@ fn projection_exclusive_attention_ingress(
     dot.expression is ProjectionDot(_, _) else {
     return false
   }
+  projection_same_effect_region(regions, [dot_id, norm_id, rotary_id, commit.id]) &&
   [dot_id, norm_id, rotary_id].all(id => {
     projection_use_count(program, live, id) == 1
   })
@@ -154,11 +165,12 @@ fn projection_dataflow_facts(
   program : ProjectionTileProgram,
 ) -> ProjectionDataflowFacts {
   let live = projection_live_values(program)
+  let regions = projection_effect_regions(program)
   {
-    shared_dot_input: projection_shared_dot_input(program, live),
-    gated_intermediate: projection_gated_intermediate(program, live),
+    shared_dot_input: projection_shared_dot_input(program, live, regions),
+    gated_intermediate: projection_gated_intermediate(program, live, regions),
     exclusive_attention_ingress: projection_exclusive_attention_ingress(
-      program, live,
+      program, live, regions,
     ),
   }
 }

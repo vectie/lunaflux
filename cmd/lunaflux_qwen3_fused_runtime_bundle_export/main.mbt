@@ -19,6 +19,7 @@ priv struct ModuleLaunchInput {
 
 ///|
 priv struct RuntimeBundleArguments {
+  ingress_selection : IngressSelectionBasis
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -384,6 +385,7 @@ fn parse_arguments(
   {
     model_content,
     model_plan,
+    ingress_selection: CompatibilityDefault,
     residual,
     ingress,
     attention_prefill,
@@ -453,7 +455,7 @@ async fn run(
   }
   let (args, ingress_choice) = prepare_ingress_choice(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
-  if ingress_choice == Unfused {
+  if !selected_ingress_cut(args, ingress_choice).permits_readonly_attention() {
     if attention_bucket_routes is Some(_) {
       raise InvalidArguments
     }
@@ -640,6 +642,7 @@ async fn run(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
+  println("ingress_selection_basis=" + args.ingress_selection.canonical_name())
   println("attention_route_scope=" + route_scope)
   println(
     "ingress_schedule=" +

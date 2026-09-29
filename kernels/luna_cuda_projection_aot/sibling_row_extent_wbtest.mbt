@@ -77,7 +77,7 @@ test "bounded sibling staging fences remain outside consumer and tail guards" {
   )
   assert_true(
     source.contains(
-      "        }\n        asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n        __syncthreads();\n        stage ^= 1;",
+      "\n}\n        asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n        __syncthreads();\n        stage ^= 1;",
     ),
   )
   assert_true(

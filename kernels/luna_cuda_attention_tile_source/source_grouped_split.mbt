@@ -63,7 +63,8 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
   } else {
     cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
   }
-  let accumulator_items = (head_dimension + 31) / 32
+  let key_fold = cuda_key_fold(lowering)
+  let accumulator_items = key_fold.values_per_owner(32).unwrap()
   let partitions = lowering.key_value_partitions()
   let partition_grain = lowering.key_value_partition_grain()
   let partitioned = partitions > 1
@@ -269,18 +270,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
     $|\{score_preparation}
     $|    for (int key = split; key < active_keys; key += LF_SPLITS_PER_HEAD) {
     $|\{score_consumption}
-    $|      float old_scale = 0.0f;
-    $|      float new_scale = 0.0f;
-    $|      if (lane == 0) {
-    $|        const float next_maximum = fmaxf(maximum, score);
-    $|        old_scale = denominator == 0.0f
-    $|            ? 0.0f : expf(maximum - next_maximum);
-    $|        new_scale = expf(score - next_maximum);
-    $|        maximum = next_maximum;
-    $|        denominator = denominator * old_scale + new_scale;
-    $|      }
-    $|      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);
-    $|      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);
+    $|\{cuda_key_scale_source(key_fold)}
     $|      #pragma unroll
     $|      for (int item = 0; item < \{accumulator_items}; ++item) {
     $|        const int component = lane + item * 32;

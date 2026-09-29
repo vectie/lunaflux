@@ -6,6 +6,17 @@
 #include <cstdlib>
 #include <vector>
 
+// Offline diagnostic capacities must match the source-export ABI envelope.
+#ifdef LF_LONG_PROBE
+static constexpr int probe_max_tokens = 2048;
+static constexpr int probe_page_capacity = 4096;
+static constexpr int probe_max_context = 8192;
+#else
+static constexpr int probe_max_tokens = 128;
+static constexpr int probe_page_capacity = 256;
+static constexpr int probe_max_context = 4096;
+#endif
+
 static constexpr int query_heads = 16;
 static constexpr int key_value_heads = 4;
 static constexpr int head_dimension = LF_HEAD_DIMENSION;
@@ -71,14 +82,14 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
         (query_lengths[row] + LF_QUERY_TILE - 1) / LF_QUERY_TILE;
   }
   if (query_lengths.empty() || query_lengths.size() > 32 ||
-      token_count > 128 || page_count > 256 || query_tile_count <= 0) {
+      token_count > probe_max_tokens || page_count > probe_page_capacity || query_tile_count <= 0) {
     std::fprintf(stderr, "invalid probe case=%s\n", name);
     std::exit(3);
   }
   for (int row = 0; row < int(query_lengths.size()); ++row) {
     if (query_lengths[row] <= 0 ||
         context_lengths[row] < query_lengths[row] ||
-        context_lengths[row] > 4096) {
+        context_lengths[row] > probe_max_context) {
       std::fprintf(stderr, "invalid probe row case=%s row=%d\n", name, row);
       std::exit(3);
     }
@@ -94,8 +105,8 @@ static float run_case(const char *name, const std::vector<int> &query_lengths,
   std::vector<int> page_indices(page_count);
   std::vector<int> token_rows(token_count);
   std::vector<__nv_bfloat16> qkv(token_count * input_row_width);
-  std::vector<__nv_bfloat16> keys(256 * page_stride_values);
-  std::vector<__nv_bfloat16> values(256 * page_stride_values);
+  std::vector<__nv_bfloat16> keys(probe_page_capacity * page_stride_values);
+  std::vector<__nv_bfloat16> values(probe_page_capacity * page_stride_values);
   std::vector<__nv_bfloat16> output(token_count * query_width);
 
   int token_base = 0;
@@ -397,6 +408,18 @@ int main() {
           run_case(name, {query_tokens}, {context_tokens}, false));
     }
   }
+#endif
+#ifdef LF_LONG_PROBE
+  for (int queries : {512, 1024, 2048}) {
+    for (int context : {2048, 4096, 8192}) {
+      char name[64];
+      std::snprintf(name, sizeof(name), "long-q%d-context-%d", queries, context);
+      maximum_absolute_error = std::fmax(maximum_absolute_error,
+          run_case(name, {queries}, {context}, false));
+    }
+  }
+  maximum_absolute_error = std::fmax(maximum_absolute_error,
+      run_case("long-ragged-513-127-256", {513,127,256}, {4096,2048,8192}, false));
 #endif
   std::printf(
       "outcome=passed query_token_vectors=16,64,128 "

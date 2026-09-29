@@ -34,7 +34,11 @@ fn prepare_ingress_choice(
       "unfused" => Unfused
       _ => raise InvalidArguments
     }
-    return bind_ingress_choice(args, choice, raw_args[evaluation_start + 2:])
+    return bind_ingress_choice(
+      { ..args, ingress_selection: ExplicitEvaluation, },
+      choice,
+      raw_args[evaluation_start + 2:],
+    )
   }
   let pair_start = raw_args.length() - 10
   let paired = pair_start > 0 && raw_args[pair_start] == "--ingress-pair"
@@ -72,7 +76,11 @@ fn prepare_ingress_choice(
   ) catch {
     _ => raise InvalidArguments
   }
-  bind_ingress_choice(args, choice, suffix[schedules.length() + 2:])
+  bind_ingress_choice(
+    { ..args, ingress_selection: MeasuredComparison, },
+    choice,
+    suffix[schedules.length() + 2:],
+  )
 }
 
 ///|
@@ -84,8 +92,14 @@ fn bind_ingress_choice(
   if partial_args.length() != 6 || !safe_absolute_file(partial_args[5]) {
     raise InvalidArguments
   }
+  let cut = @luna_fusion_plan.AttentionIngressCutPlan::new(
+    ProducerSeparated,
+    qkv_operation=args.ingress.first_operation,
+  ) catch {
+    _ => raise InvalidArguments
+  }
   let partial : ModuleLaunchInput = {
-    first_operation: args.ingress.first_operation + 1,
+    first_operation: cut.module_span().unwrap().0,
     grid_x: positive_int(partial_args[0]),
     grid_y: positive_int(partial_args[1]),
     grid_z: positive_int(partial_args[2]),
@@ -122,7 +136,8 @@ fn selected_ingress_modules(
   ] catch {
     _ => raise InvalidRuntime
   }
-  if choice == Unfused {
+  let cut = selected_ingress_cut(args, choice)
+  guard cut.module_span() is Some((first_operation, operation_count)) else {
     return modules
   }
   modules.push(
@@ -132,8 +147,8 @@ fn selected_ingress_modules(
       } else {
         QwenQkNormPositionedRopePagedKvWriteProductionV2
       },
-      first_operation=args.ingress.first_operation,
-      operation_count=if choice == FullyFused { 4 } else { 3 },
+      first_operation~,
+      operation_count~,
       function_symbol=if choice == FullyFused {
         "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
       } else {
@@ -176,6 +191,7 @@ async fn write_unfused_ingress_bundle(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
+  println("ingress_selection_basis=" + args.ingress_selection.canonical_name())
   println("ingress_schedule=unfused")
   println(
     "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),

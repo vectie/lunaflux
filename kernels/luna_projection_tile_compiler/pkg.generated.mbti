@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_projection_tile_compiler"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/luna_projection_strategy",
 }
 
@@ -63,6 +64,17 @@ pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, 
 pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
 
+pub struct ProjectionColumnFoldPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionColumnFoldPlan::canonical_bytes(Self) -> Bytes
+pub fn ProjectionColumnFoldPlan::column_at(Self, Int, Int, Int) -> Int?
+pub fn ProjectionColumnFoldPlan::equal(Self, Self) -> Bool
+pub fn ProjectionColumnFoldPlan::geometry(Self) -> (Int, Int, Int, Int)
+pub fn ProjectionColumnFoldPlan::new(output_tiles~ : Int, consumer_groups~ : Int, maximum_live_accumulators~ : Int) -> Self?
+pub fn ProjectionColumnFoldPlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionColumnFoldPlan::to_repr(Self) -> @debug.Repr
+
 pub enum ProjectionFoldBootstrapEffect {
   IssueInitialOperands
   AwaitInitialOperands
@@ -97,6 +109,7 @@ pub struct ProjectionFoldPipeline {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldPipeline::effect_plan(Self, ProjectionTransferExecution) -> ProjectionFoldEffectPlan
+pub fn ProjectionFoldPipeline::fragment_program(Self, rows~ : Int, columns~ : Int) -> @physical_tile_ir.FragmentProgram?
 pub fn ProjectionFoldPipeline::fragment_stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
 pub fn ProjectionFoldPipeline::output_tiles(Self) -> Int
@@ -166,8 +179,19 @@ pub struct ProjectionOperandTransferPlan {
 pub fn ProjectionOperandTransferPlan::input_map(Self) -> ProjectionVectorTransferMap
 pub fn ProjectionOperandTransferPlan::new(input_rows~ : Int, weight_rows~ : Int, row_width~ : Int, vector_width~ : Int, owners~ : Int) -> Self?
 pub fn ProjectionOperandTransferPlan::slot_elements(Self) -> Int
+pub fn ProjectionOperandTransferPlan::storage(Self, @physical_tile_ir.OperandLayout, stages~ : Int) -> @physical_tile_ir.OperandStorage?
 pub fn ProjectionOperandTransferPlan::weight_map(Self) -> ProjectionVectorTransferMap
 pub fn ProjectionOperandTransferPlan::weight_offset(Self) -> Int
+
+pub struct ProjectionOperandWindow {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionOperandWindow::equal(Self, Self) -> Bool
+pub fn ProjectionOperandWindow::geometry(Self) -> (Int, Int, Int, Int)
+pub fn ProjectionOperandWindow::new(extent~ : Int, quantum~ : Int, slots~ : Int) -> Self?
+pub fn ProjectionOperandWindow::not_equal(Self, Self) -> Bool
+pub fn ProjectionOperandWindow::read_at(Self, window~ : Int, slot~ : Int) -> Int?
+pub fn ProjectionOperandWindow::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionProductFoldDistribution {
   // private fields
@@ -199,6 +223,19 @@ pub(all) enum ProjectionRowTailPolicy {
   ZeroPaddedMatrixRowTail
 } derive(Eq, @debug.Debug)
 
+pub struct ProjectionScalarFoldPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionScalarFoldPlan::combination_distances(Self) -> ReadOnlyArray[Int]
+pub fn ProjectionScalarFoldPlan::combine_from(Self, worker~ : Int, distance~ : Int) -> Int?
+pub fn ProjectionScalarFoldPlan::equal(Self, Self) -> Bool
+pub fn ProjectionScalarFoldPlan::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionScalarFoldPlan::new(extent~ : Int, products~ : Int, ProjectionSingleRowReduction) -> Self?
+pub fn ProjectionScalarFoldPlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionScalarFoldPlan::product(Self, Int) -> (Int, Int, Int)?
+pub fn ProjectionScalarFoldPlan::read_at(Self, worker~ : Int, iteration~ : Int) -> Int?
+pub fn ProjectionScalarFoldPlan::to_repr(Self) -> @debug.Repr
+
 pub struct ProjectionSelectedRowGather {
   rows : Int
   columns : Int
@@ -206,6 +243,7 @@ pub struct ProjectionSelectedRowGather {
   prefetch_fragments : Int
 }
 pub fn ProjectionSelectedRowGather::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionSelectedRowGather::operand_window(Self, Int) -> ProjectionOperandWindow?
 pub fn ProjectionSelectedRowGather::prefetch_fragments(Self) -> Int
 
 pub(all) enum ProjectionSingleRowNumerics {
@@ -310,6 +348,7 @@ pub fn ProjectionTileRewriteStep::rule(Self) -> ProjectionTileRewriteRule
 pub struct ProjectionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileSchedule::column_fold_plan(Self, consumer_groups~ : Int, maximum_live_accumulators~ : Int) -> ProjectionColumnFoldPlan?
 pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(Self) -> Int?
 pub fn ProjectionTileSchedule::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
@@ -318,6 +357,7 @@ pub fn ProjectionTileSchedule::fuses_rotary_pairs(Self) -> Bool
 pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(Self) -> Bool
 pub fn ProjectionTileSchedule::intermediate_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
+pub fn ProjectionTileSchedule::mapped_fragment_program(Self, Int) -> @physical_tile_ir.FragmentProgram?
 pub fn ProjectionTileSchedule::matrix_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool

@@ -13,7 +13,21 @@ test "paired comparison does not require a fabricated unfused measurement" {
     ])
     let (selected, choice) = prepare_ingress_choice(args)
     assert_eq(choice, expected)
+    let cut = selected_ingress_cut(selected, choice)
+    assert_eq(cut.permits_readonly_attention(), choice != Unfused)
+    assert_eq(
+      cut.module_span(),
+      match choice {
+        FullyFused => Some((2, 4))
+        ProducerSeparated => Some((3, 3))
+        Unfused => None
+      },
+    )
     assert_true(selected.query_metadata)
+    assert_eq(
+      selected.ingress_selection.canonical_name(),
+      "measured-comparison",
+    )
     args[args.length() - 8] = "2"
     try prepare_ingress_choice(args) catch {
       InvalidArguments => ()
@@ -36,6 +50,7 @@ test "metadata ABI composes with the trailing ingress evaluation" {
   }
   let (selected, choice) = prepare_ingress_choice(args)
   assert_true(selected.query_metadata)
+  assert_eq(selected.ingress_selection.canonical_name(), "explicit-evaluation")
   assert_eq(choice, @luna_fusion_strategy.FusionSchedule::ProducerSeparated)
   assert_eq(selected.ingress.module_path, "/tmp/postprocess.cubin")
   args.push("--query-metadata-v1")
@@ -160,6 +175,10 @@ test "offline comparison emits exact full partial or absent ingress family" {
   assert_eq(
     prepare_ingress_choice(runtime_bundle_test_arguments("5")).1,
     FullyFused,
+  )
+  assert_eq(
+    prepare_ingress_choice(runtime_bundle_test_arguments("5")).0.ingress_selection.canonical_name(),
+    "compatibility-default",
   )
 }
 

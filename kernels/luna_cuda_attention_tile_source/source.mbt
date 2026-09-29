@@ -8,11 +8,7 @@ fn emit_cuda_prefill_attention_tile_source(
   symbol : String,
   maximum_source_bytes : Int,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
-  if lowering.query_owned_fragments() {
-    return emit_cuda_query_owned_attention_source(
-      lowering, abi, symbol, maximum_source_bytes,
-    )
-  }
+  let physical = cuda_shared_score_program(lowering)
   if abi.query_metadata {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
@@ -57,12 +53,7 @@ fn emit_cuda_prefill_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
-  let factor_shared_key = if lowering.factors_shared_key_query_map() &&
-    query_tile > 16 {
-    1
-  } else {
-    0
-  }
+  let factor_shared_key = if physical.factor_shared_key() { 1 } else { 0 }
   let group_size = query_heads / key_value_heads
   let values_per_vector = vector_bytes / 2
   let vectors_per_key = head_dimension / values_per_vector
@@ -77,18 +68,17 @@ fn emit_cuda_prefill_attention_tile_source(
       lowering.hoists_paged_key_value_page_lookup(),
     )
   }
-  let probability_type = if compute == CudaMatrixQkPvMultiplyAccumulate {
+  let probability_type = if physical.matrix_probability() {
     "__nv_bfloat16"
   } else {
     "float"
   }
-  let probability_store = if compute == CudaMatrixQkPvMultiplyAccumulate {
+  let probability_store = if physical.matrix_probability() {
     "        weights[lf_operand_index(query, key, LF_KEY_VALUE_TILE)] = __float2bfloat16_rn(weight);\n"
   } else {
     "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
   }
-  let reuse_tile_storage = compute == CudaMatrixQkPvMultiplyAccumulate &&
-    lowering.reuses_online_softmax_tile_storage()
+  let reuse_tile_storage = physical.resident_statistics()
   let shared_layout = if reuse_tile_storage {
     cuda_attention_storage_declarations(lowering)
   } else {
@@ -119,12 +109,7 @@ fn emit_cuda_prefill_attention_tile_source(
     "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
     "  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);\n"
   }
-  let query_fold_offsets = @luna_attention_tile_schedule.scalarize_attention_query_fold(
-    query_tile,
-    block_threads / 32,
-  ) catch {
-    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
+  let query_fold_offsets = physical.query_offsets()
   let fold_state_declaration = if reuse_tile_storage {
     cuda_query_fold_declaration(query_fold_offsets)
   } else {
@@ -198,11 +183,8 @@ fn emit_cuda_prefill_attention_tile_source(
     "        state * LF_HEAD_DIMENSION + component] = accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)];\n" +
     "  }\n"
   }
-  let resident_output = lowering.retains_output_fold()
-  let terminal_plan = @luna_attention_tile_schedule.AttentionScoreTerminalPlan::new(
-    resident_output~,
-    resident_statistics=reuse_tile_storage,
-  )
+  let resident_output = physical.resident_output()
+  let terminal_plan = physical.terminal()
   let float_load = if !resident_output &&
     compute == CudaMatrixQkPvMultiplyAccumulate {
     cuda_attention_matrix_float_load()
@@ -227,7 +209,7 @@ fn emit_cuda_prefill_attention_tile_source(
   let value_accumulation = if resident_output {
     cuda_resident_output_fold_step()
   } else {
-    cuda_prefill_value_accumulation(compute)
+    cuda_prefill_value_accumulation(physical)
   }
   let rescale_shared_output = if resident_output {
     ""
@@ -279,10 +261,8 @@ fn emit_cuda_prefill_attention_tile_source(
     "        running_denominator[query] =\n" +
     "            running_denominator[query] * previous_scale + tile_sum;\n" +
     "    }\n"
-  let online_softmax_update = @luna_attention_tile_schedule.plan_attention_score_fold(
-      resident_statistics=reuse_tile_storage,
-      resident_output~,
-    )
+  let online_softmax_update = physical
+    .fold_steps()
     .map(step => {
       match step {
         PublishProducedScores => "    __syncthreads();\n\n"
@@ -409,11 +389,11 @@ fn emit_cuda_prefill_attention_tile_source(
     $|  extern __shared__ __align__(16) unsigned char shared_arena[];
     $|\{shared_layout}
     $|
-    $|\{cuda_score_bootstrap(InitializeScoreAccumulators, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|\{cuda_score_bootstrap(InitializeScoreAccumulators, physical, initial_accumulator, input_row_width, shared_state_initialization)}
     $|
-    $|\{cuda_score_bootstrap(InitializeScoreOperands, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|\{cuda_score_bootstrap(InitializeScoreOperands, physical, initial_accumulator, input_row_width, shared_state_initialization)}
     $|
-    $|\{cuda_score_bootstrap(ValidateScoreOperands, resident_output, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|\{cuda_score_bootstrap(ValidateScoreOperands, physical, initial_accumulator, input_row_width, shared_state_initialization)}
     $|\{partition_bounds}
     $|
     $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
@@ -511,7 +491,8 @@ fn emit_cuda_decode_attention_tile_source(
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let query_width = query_heads * head_dimension
-  let accumulator_items = (head_dimension + 31) / 32
+  let key_fold = cuda_key_fold(lowering)
+  let accumulator_items = key_fold.values_per_owner(32).unwrap()
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -611,18 +592,7 @@ fn emit_cuda_decode_attention_tile_source(
     $|        partial += __bfloat162float(rotated_qkv_rows[query_offset + component]) *
     $|            __bfloat162float(stage_keys[key * LF_HEAD_DIMENSION + component]);
     $|      const float score = lf_decode_warp_sum(partial) * scale;
-    $|      float old_scale = 0.0f;
-    $|      float new_scale = 0.0f;
-    $|      if (lane == 0) {
-    $|        const float next_maximum = fmaxf(maximum, score);
-    $|        old_scale = denominator == 0.0f
-    $|            ? 0.0f : expf(maximum - next_maximum);
-    $|        new_scale = expf(score - next_maximum);
-    $|        maximum = next_maximum;
-    $|        denominator = denominator * old_scale + new_scale;
-    $|      }
-    $|      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);
-    $|      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);
+    $|\{cuda_key_scale_source(key_fold)}
     $|      #pragma unroll
     $|      for (int item = 0; item < \{accumulator_items}; ++item) {
     $|        const int component = lane + item * 32;
@@ -678,32 +648,5 @@ pub fn emit_cuda_attention_tile_source(
   if lowering.key_value_partitions() != 1 {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  match lowering.phase() {
-    Prefill =>
-      if lowering.copy() == CudaDirectGlobalLoad {
-        emit_cuda_direct_attention_tile_source(
-          lowering, abi, symbol, maximum_source_bytes,
-        )
-      } else {
-        emit_cuda_prefill_attention_tile_source(
-          lowering, abi, symbol, maximum_source_bytes,
-        )
-      }
-    Decode =>
-      if lowering.copy() == CudaDirectGlobalLoad {
-        emit_cuda_direct_attention_tile_source(
-          lowering, abi, symbol, maximum_source_bytes,
-        )
-      } else if lowering.compute() == CudaGroupedQuerySplitSubgroupShuffleDot {
-        emit_cuda_grouped_split_decode_attention_tile_source(
-          lowering, abi, symbol, maximum_source_bytes,
-        )
-      } else {
-        emit_cuda_decode_attention_tile_source(
-          lowering, abi, symbol, maximum_source_bytes,
-        )
-      }
-    MixedCompatibility =>
-      raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
+  cuda_emit_physical_attention(lowering, abi, symbol, maximum_source_bytes)
 }

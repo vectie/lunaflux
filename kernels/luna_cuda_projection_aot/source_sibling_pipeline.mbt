@@ -19,7 +19,6 @@ fn projection_sibling_fold_pipeline_source(
   let width = plan.transfer_width()
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
-  let slot = (rows + 2 * columns) * width
   let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
     row_tiles=rows / 16,
     output_tiles=plan.output_tiles(),
@@ -28,29 +27,36 @@ fn projection_sibling_fold_pipeline_source(
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
   let layout : CudaProjectionTransportLayout = { columns: width, }
+  let operands = @physical_tile_ir.OperandStorage::new(
+    layout.plan(),
+    [rows, columns, columns],
+    owners=groups * 32,
+    stages=plan.stage_count(),
+  ).unwrap()
+  let slot = operands.slot_elements()
   let copies = StringBuilder()
   for
     domain in [
-      (
-        "input + (unsigned long long)row_begin * \{input_width}ULL",
-        "destination",
-        rows,
-        true,
-      ),
+      ("input + (unsigned long long)row_begin * \{input_width}ULL", 0, true),
       (
         "gate_weight + (unsigned long long)column_begin * \{input_width}ULL",
-        "destination + \{rows * width}",
-        columns,
+        1,
         false,
       ),
       (
         "up_weight + (unsigned long long)column_begin * \{input_width}ULL",
-        "destination + \{(rows + columns) * width}",
-        columns,
+        2,
         false,
       ),
     ] {
-    let (base, destination, domain_rows, guard_rows) = domain
+    let (base, operand, guard_rows) = domain
+    let region = operands.region(operand).unwrap()
+    let (offset, _, _) = region.geometry()
+    let destination = if offset == 0 {
+      "destination"
+    } else {
+      "destination + \{offset}"
+    }
     // Priming has no previous fold to overlap. Keep its masked input value
     // local to the producer rather than issuing partially active bypass-copy
     // transactions. Both calls below carry constant phase values, so phase
@@ -61,12 +67,10 @@ fn projection_sibling_fold_pipeline_source(
         projection_fold_operand_copy_source(
           "(" + base + ")",
           destination,
-          domain_rows,
-          width,
+          region,
           input_width,
           guard_rows,
           false,
-          lanes=groups * 32,
         ),
       )
       copies.write_string("\n} else {\n")
@@ -75,12 +79,10 @@ fn projection_sibling_fold_pipeline_source(
       projection_fold_operand_copy_source(
         "(" + base + ")",
         destination,
-        domain_rows,
-        width,
+        region,
         input_width,
         guard_rows,
         true,
-        lanes=groups * 32,
       ),
     )
     if guard_rows {
@@ -88,18 +90,19 @@ fn projection_sibling_fold_pipeline_source(
     }
     copies.write_string("\n")
   }
-  let fragment_fold = projection_fragment_pipeline_source(
-    fold_rows,
-    width,
-    rows * width,
-    plan.fragment_stage_count(),
-    products=[(rows * width, "cg"), ((rows + columns) * width, "cu")],
+  let body = projection_packed_fold_body(
+    plan,
+    operands,
+    rows=fold_rows,
+    storage="sibling_storage",
+    consumers~,
+    products=[(1, "cg"), (2, "cu")],
     row_limit="token_count",
   )
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
-    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{slot * plan.stage_count()}];
-    $|    \{layout.address_function()}
+    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{operands.allocation_elements()}];
+    $|    \{projection_operand_address_source(operands.layout())}
     $|    const int groups = \{intermediate / columns};
     $|    const int work_count = ((token_count + \{rows - 1}) / \{rows}) * groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
@@ -114,7 +117,7 @@ fn projection_sibling_fold_pipeline_source(
     $|        \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|      };
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|\{projection_fold_lifetime_source(plan, "if (warp < " + consumers.to_string() + ") {\nconst __nv_bfloat16 *current = sibling_storage + stage * " + slot.to_string() + ";\n" + fragment_fold + "\n        }", asynchronous=true, phase_argument=true, completed_on_issue=!projection_operand_copy_is_async(width))}
+    $|\{projection_fold_lifetime_source(plan, body, asynchronous=true, phase_argument=true, completed_on_issue=!projection_operand_copy_is_async(width))}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {

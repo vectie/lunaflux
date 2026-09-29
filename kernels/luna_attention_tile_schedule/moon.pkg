@@ -1,4 +1,6 @@
 import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/attention_physical_ir",
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
   "vectie/lunaflux/kernels/luna_attention_tile_optimizer",

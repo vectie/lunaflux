@@ -7,6 +7,8 @@ pub struct ProjectionOperandTransferPlan {
   priv weight : ProjectionVectorTransferMap
   priv input_elements : Int
   priv slot_elements : Int
+  priv row_width : Int
+  priv vector_width : Int
 } derive(Debug, Eq)
 
 ///|
@@ -43,6 +45,8 @@ pub fn ProjectionOperandTransferPlan::new(
     ).unwrap(),
     input_elements: input_elements.to_int(),
     slot_elements: slot_elements.to_int(),
+    row_width,
+    vector_width,
   })
 }
 
@@ -73,4 +77,28 @@ pub fn ProjectionOperandTransferPlan::slot_elements(
   self : ProjectionOperandTransferPlan,
 ) -> Int {
   self.slot_elements
+}
+
+///|
+/// Bind the logical transfers to one checked physical layout. Both producer
+/// ownership and fragment consumers then refer to the same operand regions.
+pub fn ProjectionOperandTransferPlan::storage(
+  self : ProjectionOperandTransferPlan,
+  layout : @physical_tile_ir.OperandLayout,
+  stages~ : Int,
+) -> @physical_tile_ir.OperandStorage? {
+  let (columns, vector, _, _) = layout.geometry()
+  guard columns == self.row_width && vector == self.vector_width else {
+    return None
+  }
+  let (_, owners, _) = self.input.geometry()
+  @physical_tile_ir.OperandStorage::new(
+    layout,
+    [
+      self.input_elements / columns,
+      (self.slot_elements - self.input_elements) / columns,
+    ],
+    owners~,
+    stages~,
+  )
 }

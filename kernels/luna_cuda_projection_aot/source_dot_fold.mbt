@@ -6,6 +6,18 @@ priv struct CudaProjectionDot {
 }
 
 ///|
+/// This realization uses one CUDA warp. Wider generic reduction plans remain
+/// legal compiler values, but need a different backend communication program.
+fn projection_validate_scalar_realization(
+  reduction : @luna_projection_tile_compiler.ProjectionSingleRowReduction,
+) -> Unit raise ProjectionAotError {
+  match reduction {
+    OrderedDot | StridedPairwiseDot(32) => ()
+    _ => raise Unsupported(Strategy)
+  }
+}
+
+///|
 /// Lower a product of pure scalar folds. Reassociation is explicitly supplied
 /// by the numeric schedule; sharing a loop does not grant reassociation.
 fn projection_dot_fold_source(
@@ -13,23 +25,38 @@ fn projection_dot_fold_source(
   dots : ArrayView[CudaProjectionDot],
   reduction : @luna_projection_tile_compiler.ProjectionSingleRowReduction,
 ) -> String {
+  projection_validate_scalar_realization(reduction) catch {
+    _ => abort("unsupported CUDA scalar reduction worker geometry")
+  }
+  let plan = @luna_projection_tile_compiler.ProjectionScalarFoldPlan::new(
+    extent~,
+    products=dots.length(),
+    reduction,
+  ).unwrap()
+  let (extent, products, workers) = plan.geometry()
+  // The closed product dialect shares the left value. Reject an inconsistent
+  // backend binding rather than silently assigning two expressions one SSA ID.
+  guard dots.all(dot => dot.left == dots[0].left) else {
+    abort("scalar projection left operand identity mismatch")
+  }
   let builder = StringBuilder()
-  for dot in dots {
+  for product in 0..<products {
+    let (_, _, accumulator) = plan.product(product).unwrap()
+    let dot = dots[accumulator]
     builder <+ "float \{dot.accumulator} = 0.0f;\n"
   }
-  let (start, stride) = match reduction {
-    OrderedDot => ("0", 1)
-    StridedPairwiseDot(lanes) => ("lane", lanes)
-  }
+  let start = if workers == 1 { "0" } else { "lane" }
   builder <+
-    "for (int inner = \{start}; inner < \{extent}; inner += \{stride}) {\n"
-  for dot in dots {
+    "for (int inner = \{start}; inner < \{extent}; inner += \{workers}) {\n"
+  for product in 0..<products {
+    let (_, _, accumulator) = plan.product(product).unwrap()
+    let dot = dots[accumulator]
     builder <+
       "  \{dot.accumulator} = __fadd_rn(\{dot.accumulator}, __fmul_rn(\{dot.left}, \{dot.right}));\n"
   }
   builder <+ "}\n"
-  if reduction is StridedPairwiseDot(lanes) {
-    builder <+ "for (int delta = \{lanes / 2}; delta > 0; delta >>= 1) {\n"
+  if plan.combination_distances().get(0) is Some(first_distance) {
+    builder <+ "for (int delta = \{first_distance}; delta > 0; delta >>= 1) {\n"
     for dot in dots {
       builder <+
         "  \{dot.accumulator} = __fadd_rn(\{dot.accumulator}, __shfl_down_sync(0xffffffffU, \{dot.accumulator}, delta));\n"

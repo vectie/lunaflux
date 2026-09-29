@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_attention_tile_schedule"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/attention_physical_ir",
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
   "vectie/lunaflux/kernels/luna_attention_tile_optimizer",
@@ -96,6 +97,17 @@ pub(all) enum AttentionOutputFoldStorage {
   SharedOutputFold
   SubgroupResidentOutputFold
 } derive(Eq, @debug.Debug)
+
+pub(all) enum AttentionPhysicalProgram {
+  DirectKeyProgram(@attention_physical_ir.KeyFold)
+  GroupedKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
+  SplitKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
+  SharedScoreProgram(AttentionSharedScoreProgram)
+  QueryFragmentProgram(@attention_physical_ir.OnlineFold, AttentionQueryEffectPlan)
+} derive(Eq, @debug.Debug)
+pub fn AttentionPhysicalProgram::equal(Self, Self) -> Bool
+pub fn AttentionPhysicalProgram::not_equal(Self, Self) -> Bool
+pub fn AttentionPhysicalProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionQueryEffect {
   StageFirstKey
@@ -202,6 +214,22 @@ pub(all) enum AttentionScoreTransferPoint {
   ReleaseScoreTile
 } derive(Eq, @debug.Debug)
 
+pub struct AttentionSharedScoreProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionSharedScoreProgram::bootstrap(Self, AttentionScoreBootstrapPoint) -> ReadOnlyArray[AttentionScoreBootstrapEffect]
+pub fn AttentionSharedScoreProgram::equal(Self, Self) -> Bool
+pub fn AttentionSharedScoreProgram::factor_shared_key(Self) -> Bool
+pub fn AttentionSharedScoreProgram::fold_steps(Self) -> ReadOnlyArray[AttentionScoreFoldStep]
+pub fn AttentionSharedScoreProgram::matrix_probability(Self) -> Bool
+pub fn AttentionSharedScoreProgram::not_equal(Self, Self) -> Bool
+pub fn AttentionSharedScoreProgram::query_offsets(Self) -> ReadOnlyArray[Int]
+pub fn AttentionSharedScoreProgram::resident_output(Self) -> Bool
+pub fn AttentionSharedScoreProgram::resident_statistics(Self) -> Bool
+pub fn AttentionSharedScoreProgram::terminal(Self) -> AttentionScoreTerminalPlan
+pub fn AttentionSharedScoreProgram::to_repr(Self) -> @debug.Repr
+pub fn AttentionSharedScoreProgram::transfer_mode(Self) -> AttentionScoreTransferMode
+
 pub struct AttentionTileSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -217,6 +245,7 @@ pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinat
 pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorageLayout?
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
 pub fn AttentionTileSchedule::output_fold_storage(Self) -> AttentionOutputFoldStorage
+pub fn AttentionTileSchedule::physical_program(Self, supports_immediate_copy~ : Bool, fragment_rows~ : Int, factor_shared_key~ : Bool) -> AttentionPhysicalProgram raise AttentionTileScheduleError
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
 pub fn AttentionTileSchedule::transfer_readiness(Self) -> AttentionTransferReadiness

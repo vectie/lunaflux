@@ -179,6 +179,18 @@ pub fn lower_attention_tile_schedule_to_cuda(
     optimization,
     FactorSharedKeyAcrossQueryMap,
   )
+  // Refine once. Unsupported terminal combinations retain their typed error;
+  // lowering inspection remains possible, but source emission cannot fall back.
+  let physical_program = Ok(
+    schedule.physical_program(
+      supports_immediate_copy=target.compute_major() >= 8 &&
+        problem.phase() == Prefill,
+      fragment_rows=16,
+      factor_shared_key=factor_shared_key_query_map,
+    ),
+  ) catch {
+    InvalidAttentionTileSchedule(rule) => Err(rule)
+  }
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
@@ -229,6 +241,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     factor_shared_key_query_map,
     resident_output_fold,
     query_owned_fragments,
+    physical_program,
     reads_dense_current_key_value,
     matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,

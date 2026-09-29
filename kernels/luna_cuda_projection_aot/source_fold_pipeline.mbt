@@ -15,13 +15,21 @@ fn projection_fold_pipeline_source(
   let width = pipeline.transfer_width()
   let rows = pipeline.row_width()
   let layout : CudaProjectionTransportLayout = { columns: width, }
-  let input_elements = rows * width
-  let slot = (rows + groups * 16) * width
-  let fragment_fold = projection_fragment_pipeline_source(
-    rows / 16,
-    width,
-    input_elements,
-    pipeline.fragment_stage_count(),
+  let operands = @physical_tile_ir.OperandStorage::new(
+    layout.plan(),
+    [rows, groups * 16],
+    owners=groups * 32,
+    stages=pipeline.stage_count(),
+  ).unwrap()
+  let input_region = operands.region(0).unwrap()
+  let weight_region = operands.region(1).unwrap()
+  let (input_elements, _, _) = weight_region.geometry()
+  let slot = operands.slot_elements()
+  let body = projection_packed_fold_body(
+    pipeline,
+    operands,
+    rows=rows / 16,
+    storage="pipeline_storage",
     row_origin="row_start",
     row_owner="0",
     row_limit="token_count",
@@ -34,30 +42,21 @@ fn projection_fold_pipeline_source(
   // A synchronous load/store pair blocks this producer at STS on the load's
   // scoreboard even though its destination is the inactive shared slot.
   let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a",
-    "destination",
-    rows,
-    width,
-    stride,
-    true,
-    true,
-    lanes=groups * 32,
+    "pipeline_a", "destination", input_region, stride, true, true,
   )
   let weight_copy = projection_fold_operand_copy_source(
     "pipeline_b",
     "destination + \{input_elements}",
-    groups * 16,
-    width,
+    weight_region,
     stride,
     false,
     true,
-    lanes=groups * 32,
   )
   let source =
     $|  {
-    $|    \{layout.address_function()}
+    $|    \{projection_operand_address_source(operands.layout())}
     $|    float c[\{rows / 16}][8] = {};
-    $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{slot * pipeline.stage_count()}];
+    $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{operands.allocation_elements()}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};
     $|    const __nv_bfloat16 *pipeline_b = \{weight_base};
     $|    auto stage_operands = [&](int offset, int stage) {
@@ -66,7 +65,7 @@ fn projection_fold_pipeline_source(
     $|\{weight_copy}
     $|      \{if projection_operand_copy_is_async(width) { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
     $|    };
-    $|\{projection_fold_lifetime_source(pipeline, "const __nv_bfloat16 *current = pipeline_storage + stage * " + slot.to_string() + ";\n" + fragment_fold, asynchronous=true, completed_on_issue=!projection_operand_copy_is_async(width))}
+    $|\{projection_fold_lifetime_source(pipeline, body, asynchronous=true, completed_on_issue=!projection_operand_copy_is_async(width))}
     $|    #pragma unroll
     $|    for (int row = 0; row < \{rows / 16}; ++row) {
     $|      if (row_start + row * 16 >= token_count) break;
@@ -83,20 +82,19 @@ fn projection_fold_pipeline_source(
 fn projection_fold_operand_copy_source(
   base : String,
   destination : String,
-  rows : Int,
-  width : Int,
+  region : @physical_tile_ir.OperandRegion,
   stride : Int,
   guard_rows : Bool,
   asynchronous : Bool,
-  lanes~ : Int,
 ) -> String {
+  let (_, _, width) = region.geometry()
   let validity = if guard_rows {
     "const bool valid = row_start + row < token_count;"
   } else {
     "const bool valid = true;"
   }
   let source =
-    $|      \{projection_transfer_map_loop(rows * width / 8, lanes)} {
+    $|      \{projection_physical_transfer_map_loop(region.ownership())} {
     $|        const int row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|        \{validity}
     $|        const __nv_bfloat16 *source = valid ? \{base} + (unsigned long long)row * \{stride}ULL + offset + k : \{base};

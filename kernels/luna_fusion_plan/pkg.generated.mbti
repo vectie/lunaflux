@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_fusion_plan"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_fusion_strategy",
   "vectie/lunaflux/model/plan",
 }
 
@@ -17,6 +18,14 @@ pub(all) suberror FusionPlanError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct AttentionIngressCutPlan {
+  // private fields
+}
+pub fn AttentionIngressCutPlan::materialized_values(Self) -> (Bool, Bool, Bool)
+pub fn AttentionIngressCutPlan::module_span(Self) -> (Int, Int)?
+pub fn AttentionIngressCutPlan::new(@luna_fusion_strategy.FusionSchedule, qkv_operation~ : Int) -> Self raise FusionPlanError
+pub fn AttentionIngressCutPlan::permits_readonly_attention(Self) -> Bool
+
 pub(all) enum FusionPlanRule {
   OperationOrder
   Dataflow
@@ -32,6 +41,7 @@ pub struct QkvQkNormPositionedRopePagedKvWritePlan {
   // private fields
 }
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::attention_shape(Self) -> (Int, Int, Int)
+pub fn QkvQkNormPositionedRopePagedKvWritePlan::cut(Self, @luna_fusion_strategy.FusionSchedule) -> AttentionIngressCutPlan raise FusionPlanError
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::family(Self) -> FusionSemanticFamily
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::kv_layer(Self) -> @plan.KvLayerId
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::norm_epsilon(Self) -> Double

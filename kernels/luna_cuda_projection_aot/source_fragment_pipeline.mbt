@@ -3,26 +3,24 @@
 /// fold. The two physical register slots are a backend realization of the
 /// compiler's bounded fragment lifetime plan, not a model-specific policy.
 fn projection_fragment_pipeline_source(
-  rows : Int,
-  width : Int,
-  input_elements : Int,
-  stages : Int,
-  products? : Array[(Int, String)] = [],
+  program : @physical_tile_ir.FragmentProgram,
+  products : ReadOnlyArray[(Int, String)],
   row_origin? : String = "row_begin",
   row_owner? : String = "consumer_row",
   row_limit? : String = "pipeline_rows",
   column_owner? : String = "consumer_column",
   weight_displacement? : String = "0",
 ) -> String {
-  let products = if products.is_empty() {
-    [(input_elements, "c")]
-  } else {
-    products
+  let (rows, columns, width, quantum, stages) = program.geometry()
+  guard quantum == 16 && columns == products.length() else {
+    abort("unsupported physical fragment binding")
   }
   let declarations = StringBuilder()
   let loads = StringBuilder()
   let folds = StringBuilder()
-  for index, (offset, accumulator) in products {
+  for index in 0..<columns {
+    let (_, right, _) = program.product(index).unwrap()
+    let (offset, accumulator) = products[right]
     declarations.write_string("unsigned fragments_b\{index}[\{stages}][4];\n")
     let load =
       $|{
@@ -41,12 +39,18 @@ fn projection_fragment_pipeline_source(
       $|
     folds.write_string(fold)
   }
-  let prime = if stages > 1 { "read_fragment(0,0);" } else { "" }
-  let advance = if stages > 1 {
-    "if (k+16<\{width}) read_fragment(k+16,(slot+1)%\{stages});"
-  } else {
-    "read_fragment(k,0);"
-  }
+  let prime = if program.primes_operands() { "read_fragment(0,0);" } else { "" }
+  let advance = program
+    .iteration()
+    .fold(init="", (source, action) => {
+      let next = match action {
+        ReadCurrent => "read_fragment(k,0);"
+        ReadNextIfPresent =>
+          "if (k+\{quantum}<\{width}) read_fragment(k+\{quantum},(slot+1)%\{stages});"
+        AccumulateCurrent => ""
+      }
+      source + next
+    })
   let source =
     $|          unsigned fragments_a[\{stages}][\{rows}][4];
     $|          \{declarations.to_string()}

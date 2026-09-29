@@ -144,7 +144,11 @@ fn projection_row_variant_compilation(
   ) catch {
     _ => raise Invalid(CompilerPolicy)
   }
-  @luna_projection_tile_compiler.compile_projection_tile(
+  let compilation = @luna_projection_tile_compiler.compile_projection_tile(
     projection_bind_tile_weights(request, parameters),
   )
+  projection_validate_scalar_realization(
+    compilation.schedule().single_row_reduction(),
+  )
+  compilation
 }

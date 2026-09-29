@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/attention_physical_ir"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum FoldOperation {
+  ScoreProduct
+  PrepareScores
+  MergeMaximum
+  RescaleOutput
+  AccumulateProbabilityValue
+  UpdateDenominator
+} derive(Eq, @debug.Debug)
+pub fn FoldOperation::equal(Self, Self) -> Bool
+pub fn FoldOperation::not_equal(Self, Self) -> Bool
+pub fn FoldOperation::reads(Self) -> ReadOnlyArray[FoldValue]
+pub fn FoldOperation::to_repr(Self) -> @debug.Repr
+pub fn FoldOperation::writes(Self) -> ReadOnlyArray[FoldValue]
+
+pub(all) enum FoldValue {
+  QueryOperand
+  KeyOperand
+  ValueOperand
+  VisibilityControl
+  ScoreScale
+  RawScores
+  Scores
+  LocalMaximum
+  PreviousMaximum
+  NextMaximum
+  PreviousDenominator
+  NextDenominator
+  PreviousOutput
+  RescaledOutput
+  NextOutput
+  RescaleFactor
+  ProbabilitySum
+} derive(Eq, @debug.Debug)
+pub fn FoldValue::equal(Self, Self) -> Bool
+pub fn FoldValue::not_equal(Self, Self) -> Bool
+pub fn FoldValue::to_repr(Self) -> @debug.Repr
+
+pub struct KeyFold {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn KeyFold::equal(Self, Self) -> Bool
+pub fn KeyFold::new(dimensions~ : Int) -> Self?
+pub fn KeyFold::not_equal(Self, Self) -> Bool
+pub fn KeyFold::scale_steps(Self) -> ReadOnlyArray[KeyScaleStep]
+pub fn KeyFold::to_repr(Self) -> @debug.Repr
+pub fn KeyFold::values_per_owner(Self, Int) -> Int?
+
+pub(all) enum KeyScaleStep {
+  MergeKeyStatistics
+  PublishKeyScales
+} derive(Eq, @debug.Debug)
+pub fn KeyScaleStep::equal(Self, Self) -> Bool
+pub fn KeyScaleStep::not_equal(Self, Self) -> Bool
+pub fn KeyScaleStep::to_repr(Self) -> @debug.Repr
+
+pub struct OnlineFold {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OnlineFold::canonical(Self) -> String
+pub fn OnlineFold::carried_state(Self) -> ReadOnlyArray[(FoldValue, FoldValue)]
+pub fn OnlineFold::equal(Self, Self) -> Bool
+pub fn OnlineFold::geometry(Self) -> (Int, Int, Int)
+pub fn OnlineFold::new(queries~ : Int, keys~ : Int, dimensions~ : Int) -> Self?
+pub fn OnlineFold::not_equal(Self, Self) -> Bool
+pub fn OnlineFold::score_phase(Self) -> ReadOnlyArray[FoldOperation]
+pub fn OnlineFold::to_repr(Self) -> @debug.Repr
+pub fn OnlineFold::value_phase(Self) -> ReadOnlyArray[FoldOperation]
+
+// Type aliases
+
+// Traits

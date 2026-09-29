@@ -20,32 +20,40 @@ fn CudaProjectionTransportLayout::rotations(
 }
 
 ///|
-fn CudaProjectionTransportLayout::offset(
+fn CudaProjectionTransportLayout::plan(
   self : CudaProjectionTransportLayout,
-  row : Int,
-  column : Int,
-) -> Int {
-  let rotations = self.rotations()
-  row * self.columns + (column ^ (row / (8 / rotations) % rotations * 8))
+) -> @physical_tile_ir.OperandLayout {
+  @physical_tile_ir.OperandLayout::new(
+    columns=self.columns,
+    vector=8,
+    rotations=self.rotations(),
+    row_group=8 / self.rotations(),
+  ).unwrap()
 }
 
 ///|
 fn CudaProjectionTransportLayout::address_function(
   self : CudaProjectionTransportLayout,
 ) -> String {
-  let rotations = self.rotations()
+  projection_operand_address_source(self.plan())
+}
+
+///|
+fn projection_operand_address_source(
+  layout : @physical_tile_ir.OperandLayout,
+) -> String {
+  let (stride, vector, rotations, row_group) = layout.geometry()
   // The permutation repeats every eight rows; derive its physical stride
   // from the same map that is checked by the producer/consumer tests.
-  let stride = self.offset(8, 0) / 8
-  let rotation = if rotations == 8 {
+  let rotation = if rotations == 8 && row_group == 1 {
     "r & 7"
   } else {
-    "(r / \{8 / rotations}) & \{rotations - 1}"
+    "(r / \{row_group}) & \{rotations - 1}"
   }
   (
     $|auto operand_index = [](int row, int column) {
     $|      const unsigned r = (unsigned)row, c = (unsigned)column;
-    $|      return r * \{stride} + (c ^ ((\{rotation}) * 8));
+    $|      return r * \{stride} + (c ^ ((\{rotation}) * \{vector}));
     $|    };
   )
 }

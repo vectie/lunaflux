@@ -44,15 +44,17 @@ pub fn FusionSpanCost::estimated(
   synchronization_nanoseconds~ : Int64,
   launch_nanoseconds~ : Int64,
 ) -> FusionSpanCost raise FusionSelectionError {
-  let mut total = 0L
-  for
+  let total = for
     term in [
       compute_nanoseconds, traffic_nanoseconds, synchronization_nanoseconds, launch_nanoseconds,
-    ] {
+    ]
+    total = 0L {
     if term < 0L || total > 9223372036854775807L - term {
       raise InvalidCost
     }
-    total += term
+    continue total + term
+  } nobreak {
+    total
   }
   if total == 0L {
     raise InvalidCost
@@ -103,8 +105,9 @@ pub fn select_fusion_schedule(
     maximum_local_bytes < 0L {
     raise InvalidComparison
   }
-  let mut best : FusionAlternative? = None
-  for index, candidate in alternatives {
+  let best = for
+    index, candidate in alternatives
+    best = (None : FusionAlternative?) {
     if candidate.cost.basis != alternatives[0].cost.basis {
       raise InvalidComparison
     }
@@ -115,10 +118,10 @@ pub fn select_fusion_schedule(
     }
     if candidate.workspace_bytes > maximum_workspace_bytes ||
       candidate.local_bytes > maximum_local_bytes {
-      continue
+      continue best
     }
-    match best {
-      None => best = Some(candidate)
+    let next = match best {
+      None => Some(candidate)
       Some(previous) =>
         if candidate.cost.nanoseconds < previous.cost.nanoseconds ||
           (
@@ -126,9 +129,14 @@ pub fn select_fusion_schedule(
             schedule_order(candidate.schedule) <
             schedule_order(previous.schedule)
           ) {
-          best = Some(candidate)
+          Some(candidate)
+        } else {
+          best
         }
     }
+    continue next
+  } nobreak {
+    best
   }
   match best {
     Some(value) => value.schedule

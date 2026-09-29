@@ -47,28 +47,26 @@ fn projection_selected_row_prefetch_fold_source(
   parameters : ProjectionParameters,
   gather : @luna_projection_tile_compiler.ProjectionSelectedRowGather,
 ) -> String {
-  let (_, _, reduction) = gather.dimensions()
-  let depth = gather.prefetch_fragments()
-  let advance = depth * reduction
+  let window = gather.operand_window(parameters.input_width).unwrap()
+  let (extent, _, depth, advance) = window.geometry()
   let builder = StringBuilder()
   for slot in 0..<depth {
     builder <+ "    unsigned operand\{slot}_a[4], operand\{slot}_b[4];\n"
     builder.write_string(
       projection_selected_row_fragment_load_source(
         "operand\{slot}",
-        "\{slot * reduction} + (lane % 4) * 2",
+        "\{window.read_at(window=0, slot~).unwrap()} + (lane % 4) * 2",
       ),
     )
   }
   builder <+ "    #pragma unroll 1\n"
   builder <+
-    "    for (int inner = 0; inner < \{parameters.input_width}; inner += \{advance}) {\n"
+    "    for (int inner = 0; inner < \{extent}; inner += \{advance}) {\n"
   for slot in 0..<depth {
-    let offset = slot * reduction
-    builder <+ "      if (inner + \{offset} < \{parameters.input_width}) {\n"
+    let offset = window.read_at(window=0, slot~).unwrap()
+    builder <+ "      if (inner + \{offset} < \{extent}) {\n"
     builder <+ "        unsigned next_a[4] = {}, next_b[4] = {};\n"
-    builder <+
-      "        if (inner + \{advance + offset} < \{parameters.input_width}) {\n"
+    builder <+ "        if (inner + \{advance + offset} < \{extent}) {\n"
     builder.write_string(
       projection_selected_row_fragment_load_source(
         "next",

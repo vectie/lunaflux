@@ -2,16 +2,8 @@
 fn cuda_grouped_effect_plan(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
 ) -> @luna_attention_tile_schedule.AttentionGroupedEffectPlan raise CudaAttentionTileSourceError {
-  let memory = match lowering.copy() {
-    CudaCooperativeSharedLoad => @luna_attention_strategy.AttentionStagedShared
-    CudaAsynchronousSharedLoad => AttentionAsyncStagedShared
-    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
-  @luna_attention_tile_schedule.AttentionGroupedEffectPlan::new(
-    memory,
-    stages=lowering.pipeline().0,
-    readiness=lowering.transfer_readiness(),
-  ) catch {
+  match cuda_physical_program(lowering) {
+    GroupedKeyProgram(_, effects) | SplitKeyProgram(_, effects) => effects
     _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
 }

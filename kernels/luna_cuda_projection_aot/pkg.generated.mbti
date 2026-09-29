@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_cuda_projection_aot"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -22,6 +23,8 @@ pub fn lower_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract
 
 pub fn lower_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits) -> ProjectionCudaLowering raise ProjectionAotError
 
+pub fn lower_projection_fold_lifetime(@luna_projection_tile_compiler.ProjectionFoldPipeline, CudaProjectionFoldBody, @luna_projection_tile_compiler.ProjectionTransferExecution) -> String
+
 pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice]) -> ProjectionCudaLowering raise ProjectionAotError
 
 pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice]) -> ProjectionCudaLowering raise ProjectionAotError
@@ -40,6 +43,11 @@ pub(all) suberror ProjectionAotError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct CudaProjectionFoldBody {
+  // private fields
+}
+pub fn CudaProjectionFoldBody::ingress(@luna_projection_tile_compiler.ProjectionFoldPipeline, @physical_tile_ir.OperandStorage, columns~ : Int) -> Self?
+
 pub(all) enum ProjectionAotFamily {
   QkvProjection
   DenseProjection

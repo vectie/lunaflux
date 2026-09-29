@@ -111,6 +111,11 @@ fn qwen_fused_recipe(
     "\ntile_compilation_sha256=" +
     tile_compilation.digest().as_hex() +
     "\n" +
+    "column_fold_plan_sha256=" +
+    fused_parallel_digest(
+      qwen_ingress_column_plan(tile_compilation).canonical_bytes(),
+    ).as_hex() +
+    "\n" +
     "model_content_sha256=" +
     plan.identity().content().as_hex() +
     "\nmodel_plan_sha256=" +
@@ -263,6 +268,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : FusedParallelAotLimits,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError {
   let profile = qkv_fallback.profile()
   fused_validate_common(profile, target, compiler)
@@ -284,6 +290,9 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     plan,
     qkv_fallback.operation_id(),
   ) catch {
+    _ => raise FusedParallelMismatch(Operation)
+  }
+  ignore(semantic.cut(FullyFused)) catch {
     _ => raise FusedParallelMismatch(Operation)
   }
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
@@ -326,13 +335,29 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       maximum_tokens=profile.max_query_tokens(),
       epilogue=tile_epilogue,
       single_row_numerics=AllowDeterministicDotTree,
-    ) catch {
+    ).with_fold_choices(fold_choices) catch {
       _ => raise FusedParallelMismatch(Operation)
     },
   )
   if !tile_compilation.schedule().fuses_attention_ingress_epilogue() ||
     tile_compilation.schedule().single_row_reduction() != StridedPairwiseDot(32) {
     raise FusedParallelMismatch(Operation)
+  }
+  // Static CUDA shared storage must fit without a dynamic-memory opt-in. The
+  // generic compiler may describe larger rings; this backend rejects them
+  // rather than silently dropping the supplied offline scheduling choice.
+  guard tile_compilation.schedule().matrix_pipeline() is Some(pipeline) else {
+    raise FusedParallelUnsupported(StaticResources)
+  }
+  let shared_bytes = (
+      pipeline.row_width().to_int64() + head_dimension.to_int64()
+    ) *
+    pipeline.transfer_width().to_int64() *
+    pipeline.stage_count().to_int64() *
+    2L +
+    pipeline.row_width().to_int64() * head_dimension.to_int64() * 4L
+  if shared_bytes > 49152L {
+    raise FusedParallelUnsupported(StaticResources)
   }
   let tile_rows = qkv_fallback.dispatch_plan().prefill().tile().dimensions().0
   if tile_rows <= 0 {

@@ -1,15 +1,40 @@
 ///|
+/// Shared terminal renderer for backends composing a projection with an
+/// epilogue. The typed body reads the published `stage` at reduction offset
+/// `inner`; `stage_operands(offset, stage)` supplies immutable operands. Every
+/// workgroup member must execute this scope, including inactive consumers.
+pub fn lower_projection_fold_lifetime(
+  plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+  body : CudaProjectionFoldBody,
+  execution : @luna_projection_tile_compiler.ProjectionTransferExecution,
+) -> String {
+  projection_fold_lifetime_source(
+    plan,
+    body,
+    asynchronous=execution != SerialTransfer,
+    completed_on_issue=execution == CompletedPrefetch,
+  )
+}
+
+///|
 /// Terminal realization of a finite immutable operand ring. Publication and
 /// reuse are CTA-uniform; the ordered accumulator body is inserted unchanged.
 /// A synchronous producer publishes after consumption, while an asynchronous
 /// producer starts before it. Neither can overwrite the current live slot.
 fn projection_fold_lifetime_source(
   plan : @luna_projection_tile_compiler.ProjectionFoldPipeline,
-  body : String,
+  body : CudaProjectionFoldBody,
   asynchronous~ : Bool,
   phase_argument? : Bool = false,
   completed_on_issue? : Bool = false,
 ) -> String {
+  let (_, _, body_width, body_quantum, body_slots) = body.program.geometry()
+  guard body_width == plan.transfer_width() &&
+    body_quantum == plan.tile_width() &&
+    body_slots == plan.fragment_stage_count() else {
+    abort("physical fragment program does not match the operand ring")
+  }
+  let body = body.source()
   let effects = plan.effect_plan(
     if asynchronous && completed_on_issue {
       CompletedPrefetch

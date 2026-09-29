@@ -8,6 +8,16 @@ fn projection_scalar_mlp_source(
   maximum_tokens : Int,
   materialize : Bool,
 ) -> Bytes {
+  let down = @luna_projection_tile_compiler.ProjectionScalarFoldPlan::new(
+    extent=parameters.intermediate_width,
+    products=1,
+    OrderedDot,
+  ).unwrap()
+  let (down_extent, _, down_stride) = down.geometry()
+  let down_begin = down.read_at(worker=0, iteration=0).unwrap()
+  guard down_stride == 1 else {
+    abort("scalar MLP requires an ordered down fold")
+  }
   let effects = @luna_projection_tile_compiler.WorkgroupStorage.materialization_effects(
     reused=false,
   )
@@ -66,7 +76,7 @@ fn projection_scalar_mlp_source(
       $|\{body}
       $|  const unsigned long long down_base = (unsigned long long)output_column * \{parameters.intermediate_width}ULL;
       $|  float output_accumulator = 0.0f;
-      $|  for (int intermediate = 0; intermediate < \{parameters.intermediate_width}; ++intermediate) {
+      $|  for (int intermediate = \{down_begin}; intermediate < \{down_extent}; ++intermediate) {
       $|\{value}
       $|    output_accumulator = __fadd_rn(output_accumulator, __fmul_rn(product, __bfloat162float(down_weight[down_base + intermediate])));
       $|  }

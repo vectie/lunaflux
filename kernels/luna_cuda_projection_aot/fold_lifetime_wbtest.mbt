@@ -45,7 +45,7 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
       )
       let source = projection_fold_lifetime_source(
         pipeline,
-        "consume_current_slot();",
+        projection_test_fold_body(pipeline),
         asynchronous~,
       )
       if stages == 2 {
@@ -56,7 +56,9 @@ test "multi stage lowering keeps publication uniform and drains asynchronous tai
         assert_true(source.contains("stage = (stage + 1) % \{stages}"))
       }
       assert_eq(source.split("__syncthreads();").count(), 3)
-      let pieces = source.split("consume_current_slot();").to_array()
+      let pieces = source
+        .split("const __nv_bfloat16 *current = test_storage")
+        .to_array()
       assert_eq(pieces.length(), 2)
       let future = "stage_operands(inner + \{(stages - 1) * 64}"
       if asynchronous {
@@ -112,14 +114,37 @@ test "completed prefetch eliminates empty async groups but preserves early issue
       assert_true(source.contains("__syncthreads"))
       let lifetime = projection_fold_lifetime_source(
         pipeline,
-        "consume_current();",
+        projection_test_fold_body(pipeline),
         asynchronous=true,
         completed_on_issue=!asynchronous,
       )
-      let parts = lifetime.split("consume_current();").to_array()
+      let parts = lifetime
+        .split("const __nv_bfloat16 *current = test_storage")
+        .to_array()
       assert_eq(parts.length(), 2)
       assert_true(parts[0].contains("stage_operands(inner +"))
       assert_false(parts[1].contains("stage_operands(inner +"))
     }
   }
+}
+
+///|
+fn projection_test_fold_body(
+  pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
+) -> CudaProjectionFoldBody {
+  let layout : CudaProjectionTransportLayout = {
+    columns: pipeline.transfer_width(),
+  }
+  let operands = @physical_tile_ir.OperandStorage::new(
+    layout.plan(),
+    [pipeline.row_width(), 16],
+    owners=128,
+    stages=pipeline.stage_count(),
+  ).unwrap()
+  projection_packed_fold_body(
+    pipeline,
+    operands,
+    rows=1,
+    storage="test_storage",
+  )
 }

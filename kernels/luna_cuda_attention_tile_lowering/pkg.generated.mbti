@@ -42,7 +42,6 @@ pub fn CudaAttentionTileLowering::compiler_register_ceiling(Self, Int) -> Int
 pub fn CudaAttentionTileLowering::compute(Self) -> CudaAttentionComputePrimitive
 pub fn CudaAttentionTileLowering::copy(Self) -> CudaAttentionCopyPrimitive
 pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest
-pub fn CudaAttentionTileLowering::direct_prefill_staging(Self) -> Bool
 pub fn CudaAttentionTileLowering::factors_shared_key_query_map(Self) -> Bool
 pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn CudaAttentionTileLowering::key_value_partition_grain(Self) -> Int
@@ -51,6 +50,7 @@ pub fn CudaAttentionTileLowering::launch(Self) -> (Int, Int, Int, Int64)
 pub fn CudaAttentionTileLowering::matrix_storage_layout(Self) -> @luna_attention_tile_schedule.AttentionTileStorageLayout?
 pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimizationDigest
 pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
+pub fn CudaAttentionTileLowering::physical_program(Self) -> @luna_attention_tile_schedule.AttentionPhysicalProgram raise CudaAttentionTileLoweringError
 pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)
 pub fn CudaAttentionTileLowering::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn CudaAttentionTileLowering::query_owned_fragments(Self) -> Bool

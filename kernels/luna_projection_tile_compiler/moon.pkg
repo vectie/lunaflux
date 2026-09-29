@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/physical_tile_ir",
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/math",
   "moonbitlang/x/crypto",

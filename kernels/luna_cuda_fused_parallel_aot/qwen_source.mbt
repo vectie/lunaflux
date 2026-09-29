@@ -1,7 +1,7 @@
 ///|
 /// Materializes the position-independent RoPE basis during AOT compilation.
 /// The functional compiler owns the invariant-hoist decision; this terminal
-/// lowering only chooses CUDA constant-memory syntax.
+/// lowering chooses CUDA read-only storage syntax.
 fn qwen_ingress_numerics_source(
   rope_theta : Double,
   head_dimension : Int,
@@ -56,21 +56,17 @@ fn qwen_fused_source(
   let kv_width = kv_heads * head_dimension
   let maximum_tile_count = (profile.max_query_tokens() + tile_rows - 1) /
     tile_rows
-  // All owners participate in each round's block-wide effects, even when
-  // their independent matrix column is absent. Only the pure fold is masked.
-  let (_, _, column_rounds) = @luna_projection_tile_compiler.ProjectionVectorTransferMap::new(
-      vectors=head_dimension / tile_columns,
-      owners=4,
-    )
-    .unwrap()
-    .geometry()
+  let column_plan = qwen_ingress_column_plan(tile_compilation)
+  let (consumer_groups, column_rounds, live_columns, column_windows) = column_plan.geometry()
   let out = StringBuilder()
   out.write_string(
     "#include <cuda_bf16.h>\n#include <mma.h>\n#include <math.h>\n#include <stdint.h>\n",
   )
   out.write_string("#define LF_BLOCK_THREADS 128\n")
-  out.write_string("#define LF_WARPS 4\n")
+  out.write_string("#define LF_WARPS \{consumer_groups}\n")
   out.write_string("#define LF_COLUMN_ROUNDS \{column_rounds}\n")
+  out.write_string("#define LF_LIVE_COLUMNS \{live_columns}\n")
+  out.write_string("#define LF_COLUMN_WINDOWS \{column_windows}\n")
   out.write_string("#define LF_TILE_ROWS " + tile_rows.to_string() + "\n")
   out.write_string("#define LF_INPUT_WIDTH " + input_width.to_string() + "\n")
   out.write_string("#define LF_OUTPUT_WIDTH " + output_width.to_string() + "\n")
@@ -148,7 +144,6 @@ fn qwen_fused_source(
     "  const int matrix_head = is_query ? head : (is_key ? head - LF_QUERY_HEADS : head - LF_QK_HEADS);\n" +
     "  const __nv_bfloat16* matrix = is_query ? q_weight : (is_key ? k_weight : v_weight);\n" +
     "  __shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM];\n" +
-    "  __shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16];\n" +
     "  if (tokens == 1) {\n" +
     "    // Lower the compiler's strided fold followed by a fixed pairwise tree.\n" +
     "    for (int component = warp; component < LF_HEAD_DIM; component += LF_WARPS) {\n" +
@@ -162,32 +157,7 @@ fn qwen_fused_source(
     "      if (lane == 0) projected[0][component] = __bfloat162float(__float2bfloat16_rn(value));\n" +
     "    }\n" +
     "  } else {\n" +
-    "    for (int column_round = 0; column_round < LF_COLUMN_ROUNDS; ++column_round) {\n" +
-    "      const int column_base = (column_round * LF_WARPS + warp) * 16;\n" +
-    "      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major> a;\n" +
-    "      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major> b;\n" +
-    "      nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c;\n" +
-    "      nvcuda::wmma::fill_fragment(c, 0.0f);\n" +
-    "      const bool partial_row_tile = token_begin + LF_TILE_ROWS > tokens;\n" +
-    "      for (int inner = 0; inner < LF_INPUT_WIDTH; inner += 16) {\n" +
-    "        if (partial_row_tile) {\n" +
-    "          for (int element = (int)threadIdx.x; element < LF_TILE_ROWS * 16; element += LF_BLOCK_THREADS) {\n" +
-    "            const int local_row = element >> 4, local_inner = element & 15;\n" +
-    "            padded_input[local_row][local_inner] = token_begin + local_row < tokens ?\n" +
-    "              input[(unsigned long long)(token_begin + local_row) * LF_INPUT_WIDTH + inner + local_inner] : __float2bfloat16_rn(0.0f);\n" +
-    "          }\n" +
-    "          __syncthreads();\n" +
-    "        }\n" +
-    "        if (column_base < LF_HEAD_DIM) {\n" +
-    "          if (partial_row_tile) nvcuda::wmma::load_matrix_sync(a, &padded_input[0][0], 16);\n" +
-    "          else nvcuda::wmma::load_matrix_sync(a, input + (unsigned long long)token_begin * LF_INPUT_WIDTH + inner, LF_INPUT_WIDTH);\n" +
-    "          nvcuda::wmma::load_matrix_sync(b, matrix + (unsigned long long)(matrix_head * LF_HEAD_DIM + column_base) * LF_INPUT_WIDTH + inner, LF_INPUT_WIDTH);\n" +
-    "          nvcuda::wmma::mma_sync(c, a, b, c);\n" +
-    "        }\n" +
-    "        if (partial_row_tile) __syncthreads();\n" +
-    "      }\n" +
-    "      if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync(&projected[0][column_base], c, LF_HEAD_DIM, nvcuda::wmma::mem_row_major);\n" +
-    "    }\n" +
+    ingress_matrix_projection_source(tile_compilation) +
     "  }\n" +
     "  __syncthreads();\n",
   )

@@ -1,6 +1,9 @@
 ///|
 test "sibling register transfer keeps thread local reads and late addresses" {
-  let source = projection_sibling_phased_transfer_source(64, 64, 32, 1024, 512)
+  let source = projection_sibling_phased_transfer_source(
+    projection_test_operand_storage(64, 64, 32, 512),
+    1024,
+  )
   assert_true(source.contains("unsigned values[2][4] = {};"))
   let phases = source.split("const unsigned address").collect()
   assert_eq(phases.length(), 2)
@@ -83,11 +86,8 @@ test "phased transfer batching covers arbitrary tile products once" {
             assert_true(present)
           }
           let source = projection_sibling_phased_transfer_source(
-            rows,
-            columns,
-            width,
+            projection_test_operand_storage(rows, columns, width, threads),
             width * 8,
-            threads,
           )
           assert_true(source.contains("unsigned values[\{batches}][4]"))
           assert_true(source.contains("< \{vectors}) {"))
@@ -95,4 +95,20 @@ test "phased transfer batching covers arbitrary tile products once" {
       }
     }
   }
+}
+
+///|
+fn projection_test_operand_storage(
+  rows : Int,
+  columns : Int,
+  width : Int,
+  owners : Int,
+) -> @physical_tile_ir.OperandStorage {
+  let layout : CudaProjectionTransportLayout = { columns: width, }
+  @physical_tile_ir.OperandStorage::new(
+    layout.plan(),
+    [rows, columns, columns],
+    owners~,
+    stages=2,
+  ).unwrap()
 }

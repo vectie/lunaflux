@@ -12,8 +12,11 @@ fn projection_matrix_map_source(
   let schedule = compilation.schedule()
   let selected = schedule.demand() == QueryRowEnds
   let effects = schedule.demand().map_effect_plan()
-  let resident = schedule.selected_input_row_resident()
-  let width = if resident { parameters.input_width } else { 16 }
+  let physical = schedule
+    .mapped_fragment_program(parameters.input_width)
+    .unwrap()
+  let (_, _, width, quantum, _) = physical.geometry()
+  guard quantum == 16 else { abort("unsupported CUDA mapped fragment shape") }
   let groups = schedule.output_tiles_per_workgroup()
   let layout : CudaProjectionTransportLayout = { columns: width, }
   let gather = if selected {
@@ -64,7 +67,7 @@ fn projection_matrix_map_source(
     $|    for (int strip_begin = 0; strip_begin < \{parameters.input_width}; strip_begin += \{width}) {
     $|\{gather}
     $|      #pragma unroll
-    $|      for (int inner = 0; inner < \{width}; inner += 16) {
+    $|      for (int inner = 0; inner < \{width}; inner += \{quantum}) {
     $|        unsigned a[4], b[4];
     $|        #pragma unroll
     $|        for (int part = 0; part < 4; ++part) {

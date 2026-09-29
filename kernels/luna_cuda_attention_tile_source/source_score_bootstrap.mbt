@@ -1,15 +1,12 @@
 ///|
 fn cuda_score_bootstrap(
   point : @luna_attention_tile_schedule.AttentionScoreBootstrapPoint,
-  resident_output : Bool,
+  physical : @luna_attention_tile_schedule.AttentionSharedScoreProgram,
   initial_accumulator : String,
   input_row_width : Int,
   shared_statistics : String,
 ) -> String {
-  let actions = @luna_attention_tile_schedule.plan_attention_score_bootstrap(
-    point,
-    resident_output~,
-  )
+  let actions = physical.bootstrap(point)
   let result = actions
     .map(action => {
       match action {

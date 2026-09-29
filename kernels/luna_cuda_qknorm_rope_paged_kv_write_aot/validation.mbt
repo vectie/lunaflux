@@ -26,6 +26,19 @@ fn postprocess_semantic_span(
   plan : @plan.ModelPlan,
   semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
 ) -> (@plan.TensorRef, @plan.TensorRef) raise QkNormRopePagedKvWriteAotError {
+  // Recompute cut legality on the supplied model, not on an independently
+  // passed semantic value from a potentially different graph.
+  let current = @luna_fusion_plan.match_qkv_qknorm_positioned_rope_paged_kv_write(
+    plan,
+    @plan.OperationId::new(semantic.operation_indices().0) catch {
+      _ => raise Mismatch(SemanticPlan)
+    },
+  ) catch {
+    _ => raise Mismatch(SemanticPlan)
+  }
+  ignore(current.cut(ProducerSeparated)) catch {
+    _ => raise Mismatch(SemanticPlan)
+  }
   let (qkv_index, norm_index, rope_index, attention_index) = semantic.operation_indices()
   if norm_index != qkv_index + 1 ||
     rope_index != norm_index + 1 ||

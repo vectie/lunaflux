@@ -1,6 +1,7 @@
 ///|
 fn main raise {
   let raw_arguments = @env.args()
+  let bounded_long = raw_arguments is [_, _, "bounded-long"]
   // Exact launch/ABI envelope of the 2026-09-09 selected-kernel counter replay.
   // This is a diagnostic fixture, not a production model-selection branch.
   let selected_counters = raw_arguments is [_, _, "selected-counters"]
@@ -19,7 +20,8 @@ fn main raise {
       "qwen"
       | "selected-counters"
       | "pipeline"
-      | "pipeline-dense",
+      | "pipeline-dense"
+      | "bounded-long",
     ] => [program, candidate]
     [program, candidate, "instruction-map"] => [program, candidate]
     _ => raw_arguments
@@ -102,7 +104,7 @@ fn main raise {
     phase=Prefill,
     numeric_type=AttentionBFloat16,
     query_rows=compile_query_rows,
-    context_tokens=4096,
+    context_tokens=if bounded_long { 8192 } else { 4096 },
     causal=true,
     allow_alternative_softmax_reduction=requested_candidate is Some(_),
     key_value_read_view=if dense_current {
@@ -174,7 +176,9 @@ fn main raise {
     page_stride_values=64L * head_dimension.to_int64(),
     // The instruction-map replay uses the capacity-corrected 9,216-page pool.
     // Keep older counter/pipeline fixture envelopes unchanged.
-    physical_page_capacity=if instruction_probe {
+    physical_page_capacity=if bounded_long {
+      4096L
+    } else if instruction_probe {
       9216L
     } else if selected_counters || pipeline_probe {
       8192L
@@ -184,7 +188,9 @@ fn main raise {
       256L
     },
     maximum_query_rows=32,
-    maximum_query_tokens=if instruction_probe {
+    maximum_query_tokens=if bounded_long {
+      2048
+    } else if instruction_probe {
       2048
     } else if selected_counters {
       1024
@@ -193,7 +199,9 @@ fn main raise {
     } else {
       128
     },
-    maximum_page_entries=if instruction_probe {
+    maximum_page_entries=if bounded_long {
+      4096
+    } else if instruction_probe {
       9216
     } else if selected_counters || pipeline_probe {
       8192

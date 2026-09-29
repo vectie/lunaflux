@@ -36,4 +36,6 @@ pub struct QkvQkNormPositionedRopePagedKvWritePlan {
   priv rope_theta : Double
   priv projected_qkv : @plan.ActivationRef
   priv positioned_qkv : @plan.ActivationRef
+  priv projected_exclusive : Bool
+  priv normalized_exclusive : Bool
 }

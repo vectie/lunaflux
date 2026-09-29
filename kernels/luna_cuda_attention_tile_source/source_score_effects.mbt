@@ -2,18 +2,7 @@
 fn cuda_score_transfer_mode(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
 ) -> @luna_attention_tile_schedule.AttentionScoreTransferMode raise CudaAttentionTileSourceError {
-  let memory = match lowering.copy() {
-    CudaCooperativeSharedLoad => @luna_attention_strategy.AttentionStagedShared
-    CudaAsynchronousSharedLoad => AttentionAsyncStagedShared
-    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
-  @luna_attention_tile_schedule.AttentionScoreTransferMode::from_schedule(
-    memory,
-    stages=lowering.pipeline().0,
-    immediate=lowering.direct_prefill_staging(),
-  ) catch {
-    _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
-  }
+  cuda_shared_score_program(lowering).transfer_mode()
 }
 
 ///|

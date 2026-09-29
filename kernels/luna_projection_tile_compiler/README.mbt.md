@@ -29,15 +29,50 @@ always-false `reuse_input_tile` toggle with an explicit scalar/masked-matrix
 row-tail policy. Operand lifetime and reuse belong to the fold plans. The CUDA fused attention
 ingress is the first consumer: all four subgroups share output columns and
 cooperatively load contiguous reduction elements for a single token. Its
-multi-token matrix path and epilogue remain unchanged. This is a reusable
+single-token epilogue remains unchanged. This is a reusable
 projection schedule, not a model-specific rewriting rule or an autotuner.
+
+### Physical column-fold refinement
+
+`ProjectionTileSchedule::column_fold_plan` now refines the scheduled output
+map into an immutable `ProjectionColumnFoldPlan`. The backend supplies consumer
+group count and a live-accumulator budget. The pure plan partitions independent
+columns into bounded windows and specifies `window -> ordered reduction ->
+column map`: the input fragment is evaluated once per reduction step per
+consumer and reused across that window's columns. Tail consumers remain in
+workgroup effects even when they own no column. No reassociation is permitted.
+
+For ingress, the projection domain is one head's component axis, not the
+concatenation of every Q/K/V head. The CUDA full-ingress lowering consumes this
+plan, retains at most two accumulator fragments per consumer, and no longer
+repeats input loads and padded-tail barriers separately for every column round.
+The physical plan identity is included in the AOT recipe. Single-token dot
+order, projection BF16 materialization, Q/K normalization and KV commits are
+unchanged. Two live fragments are a static backend envelope, **not** a measured
+optimum; register pressure and runtime still need physical evaluation.
+
+Ingress also refines its head domain into the common `ProjectionFoldPipeline`.
+The CUDA consumer uses the common operand transfer plan and finite-ring effect
+renderer. Offline matrix-fold choices select transfer width, operand stage
+count and fragment lookahead; ordered accumulation is retained. Backend static
+shared-memory limits constrain these choices. None is a measured winner merely
+because it is the default.
+
+This fills physical-loop and lifetime boundaries, not a new parallel compiler
+stack. Existing Semantic/Optimized/Scheduled types remain authoritative.
+The semantic ingress cut lives in `luna_fusion_plan`: it records which values
+remain materialized and whether ingress owns KV writes. CUDA instruction and
+layout realization stays in the backend.
 
 Before reuse analysis, normalization removes unreachable pure bindings and
 performs typed, exact common-subexpression elimination in topological order.
 Operand substitution exposes cascading duplicates; dense value numbering
 normalizes alpha-renamed IDs. Stores and KV commits are preserved in order and
-end each CSE region. No floating-point reassociation or approximate matching is
-performed. This is backend-neutral graph rewriting, not a Qwen-specific rule.
+end each CSE region. Reuse and ingress-elision analysis use the same conservative
+effect-region boundary: a producer can fuse into its terminating effect, but
+not cross an unrelated store or KV commit. No floating-point reassociation or
+approximate matching is performed. This is backend-neutral graph rewriting,
+not a Qwen-specific rule.
 
 Reuse and ingress-elision decisions are derived by pure use-def analysis over
 the topological value graph, not just by inspecting the semantic-family tag.

@@ -46,6 +46,10 @@ pub struct CudaAttentionTileLowering {
   priv factor_shared_key_query_map : Bool
   priv resident_output_fold : Bool
   priv query_owned_fragments : Bool
+  priv physical_program : Result[
+    @luna_attention_tile_schedule.AttentionPhysicalProgram,
+    @luna_attention_tile_schedule.AttentionTileScheduleRule,
+  ]
   priv reads_dense_current_key_value : Bool
   priv matrix_storage_layout : @luna_attention_tile_schedule.AttentionTileStorageLayout?
   priv canonical : Bytes

@@ -7,6 +7,7 @@ fn qwen_fused_test_candidate(
   hidden_width? : Int,
   page_tokens? : Int = 16,
   export_projection? : Bool = false,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
@@ -179,6 +180,7 @@ fn qwen_fused_test_candidate(
     target,
     compiler,
     fused_test_limits(),
+    fold_choices~,
   )
 }
 
@@ -223,13 +225,14 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
     source.contains("__shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM]"),
   )
   assert_true(
-    source.contains("__shared__ __nv_bfloat16 padded_input[LF_TILE_ROWS][16]"),
+    source.contains("__shared__ __align__(32) __nv_bfloat16 ingress_operands["),
   )
-  assert_true(source.contains("const bool partial_row_tile"))
+  assert_true(source.contains("valid ? 16 : 0"))
   assert_true(source.contains("#define LF_COLUMN_ROUNDS 1\n"))
-  assert_true(source.contains("column_round < LF_COLUMN_ROUNDS"))
+  assert_true(source.contains("window < LF_COLUMN_WINDOWS"))
+  assert_true(source.contains("slot < LF_LIVE_COLUMNS"))
   assert_false(source.contains("column_base < LF_HEAD_DIM; column_base +="))
-  assert_true(source.contains("if (column_base < LF_HEAD_DIM) {"))
+  assert_true(source.contains("if (column_base < LF_HEAD_DIM)"))
   assert_true(
     source.contains(
       "if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync",
@@ -241,7 +244,7 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_false(source.contains("powf("))
   assert_true(
     source.contains(
-      "nvcuda::wmma::load_matrix_sync(a, &padded_input[0][0], 16)",
+      "nvcuda::wmma::load_matrix_sync(a[0], current + fragment_inner,",
     ),
   )
   let recipe = @utf8.decode(first.recipe_bytes())

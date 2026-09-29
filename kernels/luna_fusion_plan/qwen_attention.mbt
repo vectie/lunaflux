@@ -55,7 +55,10 @@ pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(
     query_heads <= 0 ||
     kv_heads <= 0 ||
     head_dimension <= 0 ||
-    output_width != (query_heads + 2 * kv_heads) * head_dimension ||
+    output_width <= 0 ||
+    output_width % head_dimension != 0 ||
+    (output_width / head_dimension).to_int64() !=
+    query_heads.to_int64() + 2L * kv_heads.to_int64() ||
     rope_query_heads != query_heads ||
     rope_kv_heads != kv_heads ||
     rope_head_dimension != head_dimension ||
@@ -88,10 +91,15 @@ pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(
     raise InvalidFusionPlan(Dataflow)
   }
   guard attention.kv_layer() is Some(kv_layer) &&
+    qkv.persistent_state() == NoPersistentState &&
+    qk_norm.persistent_state() == NoPersistentState &&
+    rope.persistent_state() == NoPersistentState &&
     attention.persistent_state() is KvCacheReadWrite(persistent_layer) &&
     kv_layer == persistent_layer else {
     raise InvalidFusionPlan(PersistentState)
   }
+  // Record demand before choosing a fusion cut. A separated producer keeps
+  // projected QKV observable even when a fully fused cut would be illegal.
   {
     qkv_operation: qkv.id(),
     qk_norm_operation: qk_norm.id(),
@@ -107,6 +115,43 @@ pub fn match_qkv_qknorm_positioned_rope_paged_kv_write(
     rope_theta,
     projected_qkv: projected,
     positioned_qkv: positioned,
+    projected_exclusive: fusion_exclusive_activation(
+      plan.operations(),
+      plan.final_output(),
+      projected,
+      qk_norm.id(),
+    ),
+    normalized_exclusive: fusion_exclusive_activation(
+      plan.operations(),
+      plan.final_output(),
+      normalized,
+      rope.id(),
+    ),
+  }
+}
+
+///|
+fn fusion_exclusive_activation(
+  operations : ReadOnlyArray[@plan.PlanOperation],
+  final_output : @plan.ActivationRef,
+  activation : @plan.ActivationRef,
+  consumer : @plan.OperationId,
+) -> Bool {
+  if final_output == activation {
+    return false
+  }
+  for operation in operations; uses = 0 {
+    let count = operation
+      .inputs()
+      .fold(init=0, (count, input) => {
+        count + (if input == Activation(activation) { 1 } else { 0 })
+      })
+    if count > 0 && operation.id() != consumer {
+      return false
+    }
+    continue uses + count
+  } nobreak {
+    uses == 1
   }
 }
 

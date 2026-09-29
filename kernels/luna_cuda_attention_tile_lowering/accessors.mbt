@@ -148,21 +148,6 @@ pub fn CudaAttentionTileLowering::retains_output_fold(
 }
 
 ///|
-/// A synchronous tile may use direct global-to-shared transport without a
-/// lookahead buffer. Completion is still required before its first consumer;
-/// the generic staged-memory schedule and its shorter lifetimes are unchanged.
-pub fn CudaAttentionTileLowering::direct_prefill_staging(
-  self : CudaAttentionTileLowering,
-) -> Bool {
-  self.phase == Prefill &&
-  self.compute == CudaMatrixQkPvMultiplyAccumulate &&
-  self.copy == CudaCooperativeSharedLoad &&
-  self.pipeline_stages == 1 &&
-  self.vector_bytes == 16 &&
-  self.target.compute_major() >= 8
-}
-
-///|
 pub fn CudaAttentionTileLowering::query_owned_fragments(
   self : CudaAttentionTileLowering,
 ) -> Bool {
@@ -174,4 +159,16 @@ pub fn CudaAttentionTileLowering::reads_dense_current_key_value(
   self : CudaAttentionTileLowering,
 ) -> Bool {
   self.reads_dense_current_key_value
+}
+
+///|
+/// The only terminal-plan entry. Source generators consume this refinement;
+/// they do not reverse-map CUDA instructions back into generic schedules.
+pub fn CudaAttentionTileLowering::physical_program(
+  self : CudaAttentionTileLowering,
+) -> @luna_attention_tile_schedule.AttentionPhysicalProgram raise CudaAttentionTileLoweringError {
+  match self.physical_program {
+    Ok(program) => program
+    Err(_) => raise InvalidCudaAttentionTileLowering(UnsupportedCompute)
+  }
 }

@@ -56,3 +56,73 @@ test "Qwen fusion plan rejects a non-QKV starting operation" {
     _ => fail("non-QKV start was accepted")
   }
 }
+
+///|
+test "elided activation must have exactly one consumer and not be final output" {
+  let plan = fusion_qwen_plan()
+  let projected = plan.operations()[2].outputs()[0]
+  let consumer = plan.operations()[3].id()
+  assert_true(
+    fusion_exclusive_activation(
+      plan.operations(),
+      plan.final_output(),
+      projected,
+      consumer,
+    ),
+  )
+  assert_false(
+    fusion_exclusive_activation(
+      plan.operations(),
+      projected,
+      projected,
+      consumer,
+    ),
+  )
+  assert_false(
+    fusion_exclusive_activation(
+      plan.operations(),
+      plan.final_output(),
+      projected,
+      plan.operations()[4].id(),
+    ),
+  )
+  let duplicate = [ for operation in plan.operations() => operation ]
+  duplicate.push(plan.operations()[3])
+  assert_false(
+    fusion_exclusive_activation(
+      ReadOnlyArray::from_array(duplicate),
+      plan.final_output(),
+      projected,
+      consumer,
+    ),
+  )
+  let semantic = match_qkv_qknorm_positioned_rope_paged_kv_write(
+    plan,
+    plan.operations()[2].id(),
+  )
+  assert_eq(semantic.cut(FullyFused).module_span(), Some((2, 4)))
+  assert_eq(
+    semantic.cut(ProducerSeparated).materialized_values(),
+    (true, false, true),
+  )
+  let observed_projection = { ..semantic, projected_exclusive: false, }
+  assert_true(
+    observed_projection.cut(ProducerSeparated).permits_readonly_attention(),
+  )
+  try observed_projection.cut(FullyFused) catch {
+    InvalidFusionPlan(Dataflow) => ()
+    _ => fail("wrong shared projection error")
+  } noraise {
+    _ => fail("shared projected value elided")
+  }
+  let observed_norm = { ..semantic, normalized_exclusive: false, }
+  assert_false(observed_norm.cut(Unfused).permits_readonly_attention())
+  for schedule in [@luna_fusion_strategy.FullyFused, ProducerSeparated] {
+    try observed_norm.cut(schedule) catch {
+      InvalidFusionPlan(Dataflow) => ()
+      _ => fail("wrong shared normalization error")
+    } noraise {
+      _ => fail("shared normalized value elided")
+    }
+  }
+}

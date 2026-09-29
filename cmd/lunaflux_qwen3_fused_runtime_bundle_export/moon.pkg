@@ -10,6 +10,7 @@ import {
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_fused_artifact_admission",
   "vectie/lunaflux/kernels/luna_fusion_strategy",
+  "vectie/lunaflux/kernels/luna_fusion_plan",
 }
 
 supported_targets = "native"

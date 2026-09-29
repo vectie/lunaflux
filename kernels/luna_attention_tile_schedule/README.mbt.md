@@ -65,3 +65,20 @@ It distinguishes cooperative transport, immediate asynchronous transport and
 lookahead: using an asynchronous instruction does not by itself imply overlap.
 Its actions join validation readers before the aliased score region is written
 or the next producer updates validity. Both read views consume these actions.
+
+`physical_program()` selects one closed physical program for direct, grouped,
+split-key, shared-score, or query-fragment attention. It binds numerical state
+and transfer/publication effects before source emission. Immediate-copy
+capability and matrix-fragment rows are explicit backend inputs, not vendor
+names in the generic schedule. Unsupported combinations are errors.
+
+The query-fragment variant derives its register-state program from
+`compiler/attention_physical_ir`. Raw scores,
+scaled/masked scores, local and running maxima, rescale factors, unrounded
+probability sums and ordered PV outputs have explicit SSA read/write edges.
+The three loop-carried state pairs remain distinct logical versions even when
+CUDA reuses registers. Scalar key folds retain F32 probabilities; shared-score
+folds bind their own storage, bootstrap, fold and terminal plans. These families
+are not silently assigned the query-fragment numerical contract. Existing
+transfer effects surround score and value phases without changing readiness,
+synchronization or arithmetic.

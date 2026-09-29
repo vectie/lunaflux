@@ -222,8 +222,10 @@ fn projection_matrix_pipeline(
   let (extent, _, _) = dispatch.shape().dimensions()
   let (m, n, k) = dispatch.prefill().tile().dimensions()
   let selected = request.demand == QueryRowEnds
+  if optimized.optimization.applied(FuseAttentionIngressEpilogue) {
+    return projection_ingress_pipeline(optimized)
+  }
   if dispatch.shape().family() == GatedMlp ||
-    optimized.optimization.applied(FuseAttentionIngressEpilogue) ||
     (selected && dispatch.prefill().output_tiles_per_workgroup() == 1) ||
     dispatch.prefill().kernel_class() != MatrixTile ||
     (m, n, k) != (16, 16, 16) ||

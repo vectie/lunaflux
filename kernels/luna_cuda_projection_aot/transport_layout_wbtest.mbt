@@ -1,19 +1,31 @@
 ///|
+/// Scalar address oracle for bank/layout fixtures only; production lowering
+/// renders the shared physical map and does not retain this helper.
+fn CudaProjectionTransportLayout::offset(
+  self : CudaProjectionTransportLayout,
+  row : Int,
+  column : Int,
+) -> Int {
+  self.plan().offset(row, column).unwrap()
+}
+
+///|
 test "transport layout preserves producer vectors and consumer banks" {
   for width in [16, 32, 64, 128] {
-    let layout : CudaProjectionTransportLayout = { columns: width, }
+    let transport : CudaProjectionTransportLayout = { columns: width, }
+    let layout = transport.plan()
     let rows = 192
     let seen = FixedArray::make(rows * width, false)
     for row in 0..<rows {
       for column in 0..<width {
-        let index = layout.offset(row, column)
+        let index = layout.offset(row, column).unwrap()
         assert_true(index >= 0 && index < seen.length())
         assert_false(seen[index])
         seen[index] = true
         if column % 8 == 0 {
           assert_eq(index % 8, 0)
           for item in 0..<8 {
-            assert_eq(layout.offset(row, column + item), index + item)
+            assert_eq(layout.offset(row, column + item), Some(index + item))
           }
         }
       }
@@ -23,7 +35,7 @@ test "transport layout preserves producer vectors and consumer banks" {
       let banks = FixedArray::make(32, false)
       for lane in 0..<8 {
         let logical = (first * 8 + lane) * 8
-        let index = layout.offset(logical / width, logical % width)
+        let index = layout.offset(logical / width, logical % width).unwrap()
         for word in 0..<4 {
           let bank = (index / 2 + word) % 32
           assert_false(banks[bank])
@@ -39,7 +51,7 @@ test "transport layout preserves producer vectors and consumer banks" {
           for lane in 0..<32 {
             let row = row_tile * 16 + lane / 4 + part % 2 * 8
             let col = k_tile * 16 + lane % 4 * 2 + part / 2 * 8
-            let bank = layout.offset(row, col) / 2 % 32
+            let bank = layout.offset(row, col).unwrap() / 2 % 32
             assert_false(banks[bank])
             banks[bank] = true
           }

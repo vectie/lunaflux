@@ -26,7 +26,12 @@ fn projection_matrix_pipeline_source(
     vector_width=8,
     owners=consumer_groups * 32,
   ).unwrap()
-  let slot = transfers.slot_elements()
+  let storage_plan = transfers
+    .storage(transport.plan(), stages=plan.stage_count())
+    .unwrap()
+  let input_region = storage_plan.region(0).unwrap()
+  let weight_region = storage_plan.region(1).unwrap()
+  let slot = storage_plan.slot_elements()
   let weight_plan = @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(
     transfers.weight_map(),
     if compilation.program().concatenated_weights().is_empty() {
@@ -39,7 +44,7 @@ fn projection_matrix_pipeline_source(
     row_width=width,
     vector_width=8,
   ).unwrap()
-  let input_elements = transfers.weight_offset()
+  let (input_elements, _, _) = weight_region.geometry()
   let distribution = @luna_projection_tile_compiler.partition_projection_product_fold(
     row_tiles=rows / 16,
     output_tiles=plan.output_tiles(),
@@ -66,7 +71,7 @@ fn projection_matrix_pipeline_source(
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
   let input_copy =
-    $|        \{projection_planned_transfer_map_loop(transfers.input_map())} {
+    $|        \{projection_physical_transfer_map_loop(input_region.ownership())} {
     $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
     $|          const int logical_row = row_begin + local_row;
     $|          const int token_row = \{input_row};
@@ -80,7 +85,7 @@ fn projection_matrix_pipeline_source(
     $|          }
     $|        }
   let weight_copy =
-    $|        \{projection_planned_transfer_map_loop(weight_plan.vector_map())} {
+    $|        \{projection_physical_transfer_map_loop(weight_region.ownership())} {
     $|          const int local_row = vector / \{weight_plan.row_vectors()}, k = (vector % \{weight_plan.row_vectors()}) * 8;
     $|          const int logical_column = column_begin + local_row;
     $|          \{weight_selection}
@@ -93,17 +98,16 @@ fn projection_matrix_pipeline_source(
     $|      float c[\{fold_rows}][8] = {};
   // Selection changes logical row addresses, not matrix-fragment ownership.
   // Both row maps lower through the same packed transport permutation.
-  let fragment_fold = projection_fragment_pipeline_source(
-    fold_rows,
-    width,
-    input_elements,
-    plan.fragment_stage_count(),
+  let body = projection_storage_fold_body(
+    plan,
+    storage_plan,
+    rows=fold_rows,
+    storage="matrix_storage",
+    consumers~,
   )
   let lifetime = projection_fold_lifetime_source(
     plan,
-    "if (warp < \{consumers}) {\nconst __nv_bfloat16 *current = matrix_storage + stage * \{slot};\n" +
-    fragment_fold +
-    "\n}",
+    body,
     asynchronous=true,
     phase_argument=true,
     completed_on_issue=!projection_operand_copy_is_async(width),
@@ -111,8 +115,8 @@ fn projection_matrix_pipeline_source(
   let source =
     $|  const int pipeline_rows = \{row_count};
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
-    $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{slot * plan.stage_count()}];
-    $|    \{transport.address_function()}
+    $|    __shared__ __align__(32) __nv_bfloat16 matrix_storage[\{storage_plan.allocation_elements()}];
+    $|    \{projection_operand_address_source(storage_plan.layout())}
     $|    const int column_groups = \{1 + (output_width - 1) / columns};
     $|    const int work_count = ((pipeline_rows + \{rows - 1}) / \{rows}) * column_groups;
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {

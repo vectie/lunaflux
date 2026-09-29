@@ -1,0 +1,95 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/physical_tile_ir"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum FragmentAction {
+  ReadCurrent
+  ReadNextIfPresent
+  AccumulateCurrent
+} derive(Eq, @debug.Debug)
+pub fn FragmentAction::equal(Self, Self) -> Bool
+pub fn FragmentAction::not_equal(Self, Self) -> Bool
+pub fn FragmentAction::to_repr(Self) -> @debug.Repr
+
+pub(all) enum FragmentOperand {
+  LeftOperand
+  RightOperand
+} derive(Eq, @debug.Debug)
+pub fn FragmentOperand::equal(Self, Self) -> Bool
+pub fn FragmentOperand::not_equal(Self, Self) -> Bool
+pub fn FragmentOperand::to_repr(Self) -> @debug.Repr
+
+pub struct FragmentProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FragmentProgram::canonical(Self) -> String
+pub fn FragmentProgram::equal(Self, Self) -> Bool
+pub fn FragmentProgram::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn FragmentProgram::iteration(Self) -> ReadOnlyArray[FragmentAction]
+pub fn FragmentProgram::load(Self, Int) -> (FragmentOperand, Int)?
+pub fn FragmentProgram::load_count(Self) -> Int
+pub fn FragmentProgram::new(rows~ : Int, columns~ : Int, extent~ : Int, quantum~ : Int, slots~ : Int) -> Self?
+pub fn FragmentProgram::not_equal(Self, Self) -> Bool
+pub fn FragmentProgram::primes_operands(Self) -> Bool
+pub fn FragmentProgram::product(Self, Int) -> (Int, Int, Int)?
+pub fn FragmentProgram::product_count(Self) -> Int
+pub fn FragmentProgram::read_at(Self, Int, next~ : Bool) -> (Int, Int)?
+pub fn FragmentProgram::to_repr(Self) -> @debug.Repr
+
+pub struct OperandLayout {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperandLayout::canonical(Self) -> String
+pub fn OperandLayout::equal(Self, Self) -> Bool
+pub fn OperandLayout::geometry(Self) -> (Int, Int, Int, Int)
+pub fn OperandLayout::new(columns~ : Int, vector~ : Int, rotations~ : Int, row_group~ : Int) -> Self?
+pub fn OperandLayout::not_equal(Self, Self) -> Bool
+pub fn OperandLayout::offset(Self, Int, Int) -> Int?
+pub fn OperandLayout::to_repr(Self) -> @debug.Repr
+
+pub struct OperandRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperandRegion::copy_at(Self, Int, Int) -> (Int, Int, Int)?
+pub fn OperandRegion::equal(Self, Self) -> Bool
+pub fn OperandRegion::geometry(Self) -> (Int, Int, Int)
+pub fn OperandRegion::not_equal(Self, Self) -> Bool
+pub fn OperandRegion::offset(Self, Int, Int) -> Int?
+pub fn OperandRegion::ownership(Self) -> VectorOwnership
+pub fn OperandRegion::to_repr(Self) -> @debug.Repr
+
+pub struct OperandStorage {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperandStorage::allocation_elements(Self) -> Int
+pub fn OperandStorage::canonical(Self) -> String
+pub fn OperandStorage::equal(Self, Self) -> Bool
+pub fn OperandStorage::has_concatenated_layout(Self) -> Bool
+pub fn OperandStorage::layout(Self) -> OperandLayout
+pub fn OperandStorage::new(OperandLayout, ArrayView[Int], owners~ : Int, stages~ : Int) -> Self?
+pub fn OperandStorage::not_equal(Self, Self) -> Bool
+pub fn OperandStorage::region(Self, Int) -> OperandRegion?
+pub fn OperandStorage::slot_elements(Self) -> Int
+pub fn OperandStorage::to_repr(Self) -> @debug.Repr
+
+pub struct VectorOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn VectorOwnership::equal(Self, Self) -> Bool
+pub fn VectorOwnership::geometry(Self) -> (Int, Int, Int)
+pub fn VectorOwnership::new(vectors~ : Int, owners~ : Int) -> Self?
+pub fn VectorOwnership::not_equal(Self, Self) -> Bool
+pub fn VectorOwnership::to_repr(Self) -> @debug.Repr
+pub fn VectorOwnership::vector_at(Self, Int, Int) -> Int?
+
+// Type aliases
+
+// Traits

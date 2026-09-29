@@ -29,7 +29,8 @@ fn emit_cuda_direct_attention_tile_source(
   }
   let query_width = query_heads * head_dimension
   let group_size = query_heads / key_value_heads
-  let accumulator_items = (head_dimension + 31) / 32
+  let key_fold = cuda_key_fold(lowering)
+  let accumulator_items = key_fold.values_per_owner(32).unwrap()
   let partitions = lowering.key_value_partitions()
   let partitioned = partitions > 1
   let output_offset_binding = if partitioned {
@@ -232,18 +233,7 @@ fn emit_cuda_direct_attention_tile_source(
     $|            __bfloat162float(rotated_qkv_rows[query_offset + component]) * key;
     $|      }
     $|      const float score = lf_direct_warp_sum(partial) * scale;
-    $|      float old_scale = 0.0f;
-    $|      float new_scale = 0.0f;
-    $|      if (lane == 0) {
-    $|        const float next_maximum = fmaxf(maximum, score);
-    $|        old_scale = denominator == 0.0f
-    $|            ? 0.0f : expf(maximum - next_maximum);
-    $|        new_scale = expf(score - next_maximum);
-    $|        maximum = next_maximum;
-    $|        denominator = denominator * old_scale + new_scale;
-    $|      }
-    $|      old_scale = __shfl_sync(0xffffffffU, old_scale, 0);
-    $|      new_scale = __shfl_sync(0xffffffffU, new_scale, 0);
+    $|\{cuda_key_scale_source(key_fold)}
     $|      #pragma unroll
     $|      for (int item = 0; item < \{accumulator_items}; ++item) {
     $|        const int component = lane + item * 32;

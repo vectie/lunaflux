@@ -21,22 +21,30 @@ fn projection_sibling_reuse_source(
   let columns = plan.output_tiles() * 16
   let width = plan.transfer_width()
   let layout : CudaProjectionTransportLayout = { columns: width, }
-  let slot = (rows + 2 * columns) * width
+  let operands = @physical_tile_ir.OperandStorage::new(
+    layout.plan(),
+    [rows, columns, columns],
+    owners=groups * 32,
+    stages=plan.stage_count(),
+  ).unwrap()
+  let (gate_offset, _, _) = operands.region(1).unwrap().geometry()
+  let (up_offset, _, _) = operands.region(2).unwrap().geometry()
   let folds = reuse.rows_per_group()
   let consumers = reuse.consumer_groups()
   let input_width = parameters.input_width
   let intermediate = parameters.intermediate_width
-  let fragment_fold = projection_fragment_pipeline_source(
-    folds,
-    width,
-    layout.offset(rows, 0),
-    plan.fragment_stage_count(),
+  let body = projection_packed_fold_body(
+    plan,
+    operands,
+    rows=folds,
+    storage="sibling_storage",
+    consumers=consumers * 2,
     row_limit="token_count",
-    weight_displacement="sibling * \{columns * width}",
+    weight_displacement="sibling * \{up_offset - gate_offset}",
   )
   let source =
     $|  if (token_count >= \{plan.minimum_rows()}) {
-    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{Int::max(slot * plan.stage_count(), rows * columns * 2)}];
+    $|    __shared__ __align__(32) __nv_bfloat16 sibling_storage[\{Int::max(operands.allocation_elements(), rows * columns * 2)}];
     $|    extern __shared__ unsigned char sibling_output_bytes[];
     $|    const int groups = \{intermediate / columns};
     $|    const int work_count = ((token_count + \{rows - 1}) / \{rows}) * groups;
@@ -44,13 +52,13 @@ fn projection_sibling_reuse_source(
     $|    const int consumer = warp % \{consumers};
     $|    const int consumer_row = (consumer / \{reuse.output_groups()}) * \{folds};
     $|    const int consumer_column = consumer % \{reuse.output_groups()};
-    $|    \{layout.address_function()}
+    $|    \{projection_operand_address_source(operands.layout())}
     $|    for (int work = blockIdx.x; work < work_count; work += gridDim.x) {
     $|      const int row_begin = (work / groups) * \{rows};
     $|      const int column_begin = (work % groups) * \{columns};
-    $|      \{projection_sibling_phased_transfer_source(rows, columns, width, input_width, groups * 32)}
+    $|      \{projection_sibling_phased_transfer_source(operands, input_width)}
     $|      float c[\{folds}][8] = {};
-    $|\{projection_fold_lifetime_source(plan, "if (warp < " + (consumers * 2).to_string() + ") {\nconst __nv_bfloat16 *current = sibling_storage + stage * " + slot.to_string() + ";\n" + fragment_fold + "\n}", asynchronous=false)}
+    $|\{projection_fold_lifetime_source(plan, body, asynchronous=false)}
     $|      float *gate_tiles = reinterpret_cast<float *>(sibling_storage);
     $|      float *up_tiles = reinterpret_cast<float *>(sibling_output_bytes);
     $|      if (warp < \{consumers * 2}) {

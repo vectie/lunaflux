@@ -1,9 +1,9 @@
 ///|
 /// Preserve the ordered PV accumulation while transfer scheduling changes.
 fn cuda_prefill_value_accumulation(
-  compute : @luna_cuda_attention_tile_lowering.CudaAttentionComputePrimitive,
+  physical : @luna_attention_tile_schedule.AttentionSharedScoreProgram,
 ) -> String {
-  if compute == CudaMatrixQkPvMultiplyAccumulate {
+  if physical.matrix_probability() {
     "    if (warp < LF_HEAD_DIMENSION / 16) {\n" +
     "      const int output_column = warp * 16;\n" +
     "      #pragma unroll\n" +
