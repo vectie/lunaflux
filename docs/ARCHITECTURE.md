@@ -728,6 +728,14 @@ publication by itself. See [the migration status](PHYSICAL_TILE_IR_2026-09-29.md
 for exact coverage and remaining families; this is not a claim that every
 backend path has been unified.
 
+Projection emission now requires a retained `PhysicalProjectionTileCompilation`.
+Row-domain normalization, rotary/KV writes and sampling retain distinct programs
+in `compiler/elementwise_physical_ir`. `compiler/fusion_regions` validates
+observable outputs and ordered effects before choosing executable partitions;
+`compiler/resource_policy` separates resource eligibility, measured choices and
+explicitly unmeasured fallback. These are AOT planning layers, not token-path
+interpreters. See [completion scope and validation](COMPILER_ARCHITECTURE_COMPLETION_2026-09-29.md).
+
 ~~~text
 contracts  ← api, tokenizer, engine
 model      ← loader and architecture builders

@@ -110,7 +110,12 @@ directory. The full native type check passed with the same legacy-warning
 exclusions; **307/307 affected tests** and affected-package formatting passed.
 This clean-subset result is distinct from the 4,134-test working-tree result.
 
-## Remaining broader compiler work
+## Follow-up work identified after the attention merge
+
+The four workstreams below are the audit that initiated the next increment;
+they are retained as historical scope, not the current outstanding task list.
+See [compiler architecture completion](COMPILER_ARCHITECTURE_COMPLETION_2026-09-29.md)
+for their implementation and validation, including remaining hardware scope.
 
 Source audit after the attention merge identifies four architectural workstreams:
 
