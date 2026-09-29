@@ -2,6 +2,10 @@
 
 ## Working policy
 
+Active compiler work: [counter-driven repair, 2026-09-29](COMPILER_COUNTER_REPAIR_2026-09-29.md).
+The three-kernel diagnosis is recorded there with implemented changes,
+remaining algorithm work and the bounded physical regression procedure.
+
 LunaFlux is built as vertical, measurable phases. A phase is complete only when
 its named behavior and failure gates pass. Later feature work must not bypass
 an earlier correctness or ownership gate.

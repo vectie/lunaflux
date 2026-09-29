@@ -6,6 +6,15 @@ not by itself claim physical-CUDA readiness or release performance.
 
 ## System context
 
+The [counter-driven compiler repair](COMPILER_COUNTER_REPAIR_2026-09-29.md)
+keeps optimization in the existing typed chain: semantic/numeric program →
+legal schedule domain → resource/measured selection → ownership, storage and
+effects → terminal device lowering. Instruction geometry, CTA row ownership
+and complete-head epilogue ownership are independent choices. Address sharing
+and publication coalescing must be represented before emission; a renderer
+must not silently change a reduction law or infer a different ownership map.
+Source coverage and physical performance completion are tracked separately.
+
 LunaFlux is an instance-level execution engine. Deployment systems are callers,
 not libraries.
 
