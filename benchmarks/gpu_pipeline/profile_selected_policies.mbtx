@@ -1,0 +1,101 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, calibration] else {
+    fail("COMPLETED_SERVING_ROOT CALIBRATION_ROOT")
+  }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("serving measurement must finish before profiling")
+  }
+  let destination = root + "/counters"
+  @fs.mkdir(destination)
+  let metrics = [
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "dram__bytes_read.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ].join(",")
+  for kind in ["ingress", "prefill"] {
+    let gpu = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    gpu.check()
+    guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("MemAvailable:"))
+      .to_array()
+      is [line] else {
+      fail("MemAvailable")
+    }
+    let cells = line.split(" ").filter(x => !x.is_empty()).to_array()
+    guard @string.parse_int64(cells[1]) >= 33554432L else {
+      fail("32 GiB reserve")
+    }
+    // Exactly two matching launches: the reference, then selected module.
+    // No profiler timing is substituted for the unsanitized serving result.
+    let args = [
+      "-n",
+      "/usr/local/cuda/bin/ncu",
+      "--csv",
+      "--page",
+      "raw",
+      "--kernel-name",
+      "regex:lunaflux_",
+      "--launch-count",
+      "2",
+      "--metrics",
+      metrics,
+      "--export",
+      destination + "/" + kind,
+      root + "/check-probe",
+      calibration + "/" + kind + ".spec",
+      root + "/" + kind + "-baseline",
+      root + "/" + kind + "-selected",
+      "2048",
+      "1",
+      "2048",
+      "--check-only",
+    ]
+    @fs.write_file(
+      destination + "/" + kind + ".command.json",
+      Json(["sudo"] + args).stringify(),
+      create_mode=CreateNew,
+    )
+    let result = @shell.Cmd("sudo", args).output(max_output_bytes=16777216)
+    @fs.write_file(
+      destination + "/" + kind + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/" + kind + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/" + kind + ".exit",
+      result.exit_code().to_string(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println(kind + " counters complete")
+  }
+  @fs.write_file(
+    destination + "/RESULT.txt",
+    "outcome=completed\nscope=paired-selected-kernel-counters\n",
+    create_mode=CreateNew,
+  )
+}

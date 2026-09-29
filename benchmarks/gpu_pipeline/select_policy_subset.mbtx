@@ -1,0 +1,129 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, measured, root, policy] else {
+    fail("BASE CALIBRATION NEW_EMPTY_ROOT POLICY")
+  }
+  let report = @fs.read_file(measured + "/export.stdout").text()
+  let baseline = field(report, "ingress_policy_selected")
+  let records = @fs.read_file(measured + "/ingress.records").text()
+  guard records
+    .split("\n")
+    .filter(x => x.has_prefix("record\t" + policy + "\t"))
+    .to_array()
+    .length() ==
+    1 else {
+    fail("policy is not measured")
+  }
+  // Compare whole serving chains of measured kernel finalists. This does not
+  // fabricate costs or overwrite the full calibration: retain its actual
+  // baseline observation and the requested finalist in a separate table.
+  let subset = records
+    .split("\n")
+    .filter(x => {
+      !x.has_prefix("record\t") ||
+      x.has_prefix("record\t" + baseline + "\t") ||
+      x.has_prefix("record\t" + policy + "\t")
+    })
+    .to_array()
+    .join("\n")
+  @fs.write_file(root + "/ingress.records", subset, create_mode=CreateNew)
+  for
+    name in [
+      "attention.records", "decode.records", "ingress.spec", "prefill.spec", "decode.spec",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(measured + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let converted = @fs.read_file(base + "/convert.stdout").text()
+  // Unmeasured exports deliberately have an architecture namespace; use the
+  // UUID from the already measured table, not that uncalibrated label.
+  guard subset.split("\n").filter(x => x.has_prefix("scope\t")).to_array()
+    is [scope] else {
+    fail("scope")
+  }
+  let measured_device = scope.split("\t").to_array()[1].to_owned()
+  let args = [
+    model,
+    "config.json",
+    sha(model + "/config.json"),
+    sha(model + "/model.safetensors"),
+    "qwen.numeric",
+    field(converted, "output_artifact_sha256"),
+    field(converted, "route_manifest_sha256"),
+    sha(base + "/toolchain.v1"),
+    "13",
+    "0",
+    "88",
+    "8",
+    "16384",
+    "32",
+    "2048",
+    "16384",
+    root + "/selected",
+  ]
+  for
+    (option, name) in [
+      ("--ingress-policy-records", "ingress.records"),
+      ("--decode-tuning", "decode.records"),
+      ("--attention-tuning", "attention.records"),
+    ] {
+    args.append([
+      option,
+      root + "/" + name,
+      sha(root + "/" + name),
+      measured_device,
+    ])
+  }
+  args.push("--query-metadata-v1")
+  let out = @shell.Cmd(
+    base +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+    args,
+  ).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/selected-export.stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/selected-export.stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  assert_eq(field(out.stdout(), "ingress_policy_selected"), policy)
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+  println("selected " + policy)
+}

@@ -1,0 +1,376 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("missing/duplicate " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  println("starting " + label)
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  @fs.write_file(root + "/" + label + ".exit", "0", create_mode=CreateNew)
+  result.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn reserve() -> Unit {
+  let text = @fs.read_file("/proc/meminfo").text()
+  guard text.split("\n").filter(x => x.has_prefix("MemAvailable:")).to_array()
+    is [line] else {
+    fail("memory")
+  }
+  let cells = line.split(" ").filter(x => !x.is_empty()).to_array()
+  guard @string.parse_int64(cells[1]) >= 33554432L else {
+    fail("32 GiB memory reserve")
+  }
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+}
+
+///|
+async fn compile(
+  root : String,
+  name : String,
+  directory : String,
+  nvcc : String,
+) -> Unit {
+  let recipe = @fs.read_file(directory + "/kernel.recipe").text()
+  ignore(
+    run(root, "compile-" + name, nvcc, [
+      "-O3",
+      "-arch=" + field(recipe, "target"),
+      "--fmad=false",
+      "--maxrregcount=" + field(recipe, "max_registers"),
+      "-Xptxas=-v",
+      "-cubin",
+      directory + "/kernel.cu",
+      "-o",
+      directory + "/kernel.cubin",
+    ]),
+  )
+}
+
+///|
+async fn measure(
+  root : String,
+  name : String,
+  spec : String,
+  baseline : String,
+  candidate : String,
+  workloads : Array[(Int, Int, Int)],
+) -> (Int64, String, String) {
+  let totals = Array::make(5, 0.0)
+  let mut registers = ""
+  let mut residency = ""
+  for (tokens, rows, history) in workloads {
+    reserve()
+    let output = run(
+      root,
+      name + "-q\{tokens}-r\{rows}-h\{history}",
+      root + "/probe",
+      [spec, baseline, candidate, "\{tokens}", "\{rows}", "\{history}"],
+    )
+    let lines = output
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+    guard lines.length() == 5 else { fail("five successful trials required") }
+    guard output.split("\n").filter(x => x.has_prefix("resources ")).to_array()
+      is [resources] else {
+      fail("resources")
+    }
+    for cell in resources.split(" ") {
+      if cell.has_prefix("registers=") {
+        registers = cell[10:].to_owned()
+      }
+      if cell.has_prefix("resident_blocks=") {
+        residency = cell[16:].to_owned()
+      }
+    }
+    for trial, line in lines {
+      guard line.split(" ").filter(x => x.has_prefix("new_us=")).to_array()
+        is [time] else {
+        fail("latency")
+      }
+      let latency = @string.parse_double(time[7:])
+      guard latency > 0.0 && latency < 1.0e9 else { fail("invalid latency") }
+      totals[trial] += latency
+    }
+  }
+  totals.sort()
+  ((totals[2] * 1000.0).to_int64(), registers, residency)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, probe_source, .. suffix] else {
+    fail(
+      "BENCHMARK_ROOT NEW_EMPTY_ROOT PROBE_SOURCE [--reuse-attention RECORDS]",
+    )
+  }
+  let (reuse_ingress, reuse_attention) = match suffix {
+    [] => (None, None)
+    ["--reuse-attention", path] => (None, Some(path))
+    ["--reuse-ingress", ingress, "--reuse-attention", attention] =>
+      (Some(ingress), Some(attention))
+    _ => fail("invalid reuse option")
+  }
+  reserve()
+  let nvcc = "/usr/local/cuda/bin/nvcc"
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let cli = base + "/source/_build/native/release/build/cmd/"
+  let exporter = cli +
+    "lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+  let converted = @fs.read_file(base + "/convert.stdout").text()
+  let toolchain = sha(base + "/toolchain.v1")
+  let identity = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  identity.check()
+  let device = identity.stdout().trim().to_owned()
+  let common = [
+    model,
+    "config.json",
+    sha(model + "/config.json"),
+    sha(model + "/model.safetensors"),
+    "qwen.numeric",
+    field(converted, "output_artifact_sha256"),
+    field(converted, "route_manifest_sha256"),
+    toolchain,
+    "13",
+    "0",
+    "88",
+    "8",
+    "16384",
+    "32",
+    "2048",
+    "16384",
+  ]
+  let args = common.copy()
+  args.append([
+    root + "/candidate",
+    "--ingress-policy-search",
+    "--query-metadata-v1",
+  ])
+  let exported = run(root, "export", exporter, args)
+  ignore(
+    run(root, "probe-build", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      probe_source,
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  let geometry = "query_heads=16\nkey_value_heads=8\nhead_dimension=128\ntokens_per_page=8\npage_stride_values=8192\nmaximum_rows=32\nmaximum_tokens=2048\nmaximum_pages=16384\nquery_metadata_version=1\n"
+  for kind in ["ingress", "prefill", "decode"] {
+    @fs.write_file(
+      root + "/" + kind + ".spec",
+      "kind=" +
+      kind +
+      "\ninput_width=" +
+      (if kind == "ingress" { "1024" } else { "4096" }) +
+      "\n" +
+      geometry,
+      create_mode=CreateNew,
+    )
+  }
+  let workloads = [(128, 1, 0), (2048, 1, 0), (2048, 1, 2048), (2048, 8, 2048)]
+  let ingress_base = root + "/candidate/reusable-qwen-full-ingress"
+  compile(root, "ingress-baseline", ingress_base, nvcc)
+  let prefill_base = root + "/candidate/reusable-qwen-prefill-attention"
+  compile(root, "prefill-baseline", prefill_base, nvcc)
+  let mut ingress = "luna-projection-resources-v1\nscope\t" +
+    device +
+    "\t" +
+    toolchain +
+    "\t" +
+    field(exported, "ingress_policy_scope_shape") +
+    "\t" +
+    field(exported, "ingress_policy_scope_program") +
+    "\nbudget\t128\t49152\t128\t1\n"
+  // A declared finite search, not an assertion of global optimality. Retain
+  // the baseline and span row reuse versus transfer depth and live operands.
+  if reuse_ingress is Some(path) {
+    let previous = @fs.read_file(path).text()
+    guard previous.has_prefix(ingress) else {
+      fail("ingress resource scope mismatch")
+    }
+    ingress = previous
+  } else {
+    for
+      line in exported
+      .split("\n")
+      .filter(x => x.has_prefix("ingress_policy_candidate=")) {
+      guard line[25:].split(",").to_array() is [id, source, directory] else {
+        fail("variant")
+      }
+      let id = id.to_owned()
+      if !(id.contains("-s2-") &&
+        id.has_prefix("ingress-g4-") &&
+        (id.contains("-t1-") || id.contains("-t2-") || id.contains("-t4-")) &&
+        (id.has_suffix("-f1") || id.contains("-f1-r"))) {
+        continue
+      }
+      compile(root, id, directory.to_owned(), nvcc)
+      let (latency, registers, residency) = measure(
+        root,
+        id,
+        root + "/ingress.spec",
+        ingress_base,
+        directory.to_owned(),
+        workloads,
+      )
+      ingress += "record\t" +
+        id +
+        "\t" +
+        source.to_owned() +
+        "\t\{latency}\t5\t" +
+        registers +
+        "\t" +
+        residency +
+        "\n"
+      println(id + " total_ns=\{latency}")
+    }
+  }
+  @fs.write_file(root + "/ingress.records", ingress, create_mode=CreateNew)
+  let attention_scope = "luna-attention-tuning-v1\nscope\t" +
+    field(exported, "reusable_qwen_prefill_frontier_sha256") +
+    "\t" +
+    device +
+    "\t" +
+    toolchain +
+    "\n"
+  let mut attention = attention_scope
+  for (tokens, rows, history) in workloads {
+    attention += "workload\t\{tokens}\t\{rows}\t\{history}\n"
+  }
+  if reuse_attention is Some(path) {
+    let previous = @fs.read_file(path).text()
+    guard previous.has_prefix(attention) else {
+      fail(
+        "reused attention must match exact frontier, device, toolchain and workload vector",
+      )
+    }
+    attention = previous
+  } else {
+    for
+      id in [
+        318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,
+        2003, 2004,
+      ] {
+      let directory = root + "/candidate/reusable-qwen-prefill-attention-c\{id}"
+      compile(root, "prefill-c\{id}", directory, nvcc)
+      let (latency, _, _) = measure(
+        root,
+        "prefill-c\{id}",
+        root + "/prefill.spec",
+        prefill_base,
+        directory,
+        workloads,
+      )
+      attention += "record\t\{id}\t\{latency}\t5\n"
+      println("prefill-c\{id} total_ns=\{latency}")
+    }
+  }
+  @fs.write_file(root + "/attention.records", attention, create_mode=CreateNew)
+  let decode_base = root + "/candidate/reusable-qwen-decode-attention"
+  compile(root, "decode-baseline", decode_base, nvcc)
+  let decode_recipe = @fs.read_file(decode_base + "/kernel.recipe").text()
+  let mut decode = "luna-attention-tuning-v1\nscope\t" +
+    field(decode_recipe, "frontier_sha256") +
+    "\t" +
+    device +
+    "\t" +
+    toolchain +
+    "\n"
+  let decode_workloads = [
+    (1, 1, 127),
+    (8, 8, 127),
+    (16, 16, 127),
+    (1, 1, 4095),
+    (8, 8, 4095),
+    (16, 16, 4095),
+  ]
+  for (tokens, rows, history) in decode_workloads {
+    decode += "workload\t\{tokens}\t\{rows}\t\{history}\n"
+  }
+  for id in [400, 420, 430, 441] {
+    let directory = root + "/candidate/reusable-qwen-decode-attention-c\{id}"
+    compile(root, "decode-c\{id}", directory, nvcc)
+    let (latency, _, _) = measure(
+      root,
+      "decode-c\{id}",
+      root + "/decode.spec",
+      decode_base,
+      directory,
+      decode_workloads,
+    )
+    decode += "record\t\{id}\t\{latency}\t5\n"
+    println("decode-c\{id} total_ns=\{latency}")
+  }
+  @fs.write_file(root + "/decode.records", decode, create_mode=CreateNew)
+  let tuned = common.copy()
+  tuned.append([
+    root + "/selected",
+    "--ingress-policy-records",
+    root + "/ingress.records",
+    sha(root + "/ingress.records"),
+    device,
+    "--decode-tuning",
+    root + "/decode.records",
+    sha(root + "/decode.records"),
+    device,
+    "--attention-tuning",
+    root + "/attention.records",
+    sha(root + "/attention.records"),
+    device,
+    "--query-metadata-v1",
+  ])
+  ignore(run(root, "selected-export", exporter, tuned))
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}
