@@ -120,6 +120,10 @@ async fn main {
   // retain that explicit route: the exporter's conservative default omits
   // both ingress and attention modules, not merely the metadata annotation.
   args.append(["--ingress-evaluate", "full"])
+  let ingress_recipe = @fs.read_file(
+    candidate + "/reusable-qwen-full-ingress/kernel.recipe",
+  ).text()
+  args.append(["--ingress-query-tile", field(ingress_recipe, "query_tile_rows")])
   if versions[0] == "1" {
     args.push("--query-metadata-v1")
   }

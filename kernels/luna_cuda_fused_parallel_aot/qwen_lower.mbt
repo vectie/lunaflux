@@ -191,6 +191,13 @@ fn qwen_fused_production_recipe(
     profile.max_query_rows().to_string() +
     "\nmax_query_tokens=" +
     profile.max_query_tokens().to_string() +
+    "\nquery_tile_rows=" +
+    qualification.tile_compilation
+    .schedule()
+    .matrix_pipeline()
+    .unwrap()
+    .row_width()
+    .to_string() +
     "\nmax_page_table_entries=" +
     profile.max_page_table_entries().to_string() +
     "\nblock=128,1,1\ngrid=" +

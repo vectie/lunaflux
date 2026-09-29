@@ -274,3 +274,47 @@ test "full and unfused evaluation need no fabricated partial artifact metadata" 
     }
   }
 }
+
+///|
+test "full ingress carries explicit compiler tile metadata through export and admission" {
+  for rows in [16, 32, 64] {
+    let raw = runtime_bundle_test_arguments("5")
+    raw.append([
+      "--ingress-evaluate",
+      "full",
+      "--ingress-query-tile",
+      rows.to_string(),
+      "--query-metadata-v1",
+    ])
+    let (args, choice) = prepare_ingress_choice(raw)
+    let modules = selected_ingress_modules(
+      args, choice, b"residual", b"ingress",
+    )
+    let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+      model_content_sha256=args.model_content,
+      model_plan_sha256=args.model_plan,
+      target=@catalog.DeviceTarget::new(
+        compute_major=12,
+        compute_minor=0,
+        supports_bf16=true,
+        supports_cublas_lt=false,
+      ),
+      modules~,
+    )
+    let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+      bytes,
+      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+    )
+    assert_eq(
+      admitted.qwen_full_attention_ingress_module().unwrap().query_tile_rows(),
+      Some(rows),
+    )
+    raw.append(["--ingress-query-tile", "32"])
+    try prepare_ingress_choice(raw) catch {
+      InvalidArguments => ()
+      _ => fail("wrong duplicate error")
+    } noraise {
+      _ => fail("duplicate tile metadata")
+    }
+  }
+}

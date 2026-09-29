@@ -511,7 +511,10 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.shared_memory_bytes() == 0
   }
   let ingress_grid_x = if includes_projection {
-    (blueprint.profile().max_query_tokens() + 15) / 16
+    // CTA row ownership is selected by the compiler, not by the model adapter.
+    // Bundles predating explicit schedule metadata retain the old 16-row ABI.
+    let rows = postprocess.query_tile_rows().unwrap_or(16)
+    (maximum_tokens - 1) / rows + 1
   } else {
     Int::min(blueprint.profile().max_query_tokens(), 4096)
   }

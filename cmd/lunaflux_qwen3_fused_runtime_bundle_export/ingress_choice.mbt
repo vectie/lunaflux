@@ -24,6 +24,16 @@ fn prepare_ingress_choice(
     }
     return ({ ..args, query_metadata: true, }, choice)
   }
+  if raw_args is [.. rest, "--ingress-query-tile", value] {
+    let rows = positive_int(value)
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard rows <= 1048576 &&
+      args.ingress_query_tile_rows is None &&
+      choice == FullyFused else {
+      raise InvalidArguments
+    }
+    return ({ ..args, ingress_query_tile_rows: Some(rows), }, choice)
+  }
   if raw_args is [.. rest, "--ingress-evaluate", name] {
     let args = parse_arguments(rest)
     let choice : @luna_fusion_strategy.FusionSchedule = match name {
@@ -169,6 +179,7 @@ fn selected_ingress_modules(
         "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2"
       },
       launch=launch_dimensions(args.ingress),
+      query_tile_rows?=args.ingress_query_tile_rows,
       module_bytes=ingress_bytes,
     ) catch {
       _ => raise InvalidRuntime

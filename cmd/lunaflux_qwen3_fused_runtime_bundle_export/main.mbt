@@ -20,6 +20,7 @@ priv struct ModuleLaunchInput {
 ///|
 priv struct RuntimeBundleArguments {
   ingress_selection : IngressSelectionBasis
+  ingress_query_tile_rows : Int?
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -386,6 +387,7 @@ fn parse_arguments(
     model_content,
     model_plan,
     ingress_selection: ConservativeUnmeasured,
+    ingress_query_tile_rows: None,
     residual,
     ingress,
     attention_prefill,

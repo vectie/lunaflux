@@ -36,6 +36,11 @@ test "ingress CTA row ownership is independent of instruction and epilogue geome
       candidate,
       fused_test_limits(),
     )
+    assert_true(
+      @utf8.decode(production.recipe_bytes()).contains(
+        "query_tile_rows=\{16 * tiles}\n",
+      ),
+    )
     if @env.get_env_var("LUNA_TEST_EXPORT_COUNTER_REPAIR") == Some("1") {
       println("LUNA_SOURCE_BEGIN ingress-\{tiles}")
       println(@utf8.decode(production.source_bytes()))

@@ -73,6 +73,8 @@ fn qwen_fused_test_runtime(
   direct_compiler_decode? : Bool = false,
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
+  ingress_query_tile_rows? : Int,
+  ingress_grid_x? : Int = -1,
   wide_query_prefill? : Bool = false,
   wide_query_prefill_alias_selected? : Bool = false,
   partitioned_prefill? : Bool = false,
@@ -98,8 +100,12 @@ fn qwen_fused_test_runtime(
       "qwen_postprocess"
     },
     launch=@launch_contract.AotLaunchDimensions::new(
-      grid_x=if full_ingress {
-        (blueprint.profile().max_query_tokens() + 15) / 16
+      grid_x=if ingress_grid_x > 0 {
+        ingress_grid_x
+      } else if full_ingress {
+        (blueprint.profile().max_query_tokens() - 1) /
+        ingress_query_tile_rows.unwrap_or(16) +
+        1
       } else {
         blueprint.profile().max_query_tokens()
       },
@@ -111,6 +117,7 @@ fn qwen_fused_test_runtime(
       shared_memory_bytes=0,
     ),
     module_bytes=b"qwen-postprocess-module",
+    query_tile_rows?=ingress_query_tile_rows,
   )
   let modules : Array[
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput,
