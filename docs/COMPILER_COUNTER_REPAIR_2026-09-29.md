@@ -1,5 +1,9 @@
 # Counter-driven compiler repair
 
+Follow-up: [selected schedules and serving integration repairs](BENCHMARK_SELECTED_SCHEDULES_2026-09-30.md)
+contains the subsequent matched serving results and selected-kernel counters.
+The source-only and unmeasured statements below describe this original stage.
+
 This work implements the source findings in
 [the three-kernel review](BENCHMARK_SPARK_THREE_KERNEL_SOURCE_REVIEW_2026-09-29.md).
 The measured Spark baseline is `53deab59`, not a measurement of these changes.
