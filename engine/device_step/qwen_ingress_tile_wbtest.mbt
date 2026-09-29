@@ -27,6 +27,13 @@ test "full ingress admission consumes compiler row ownership instead of a fixed 
     assert_eq(spans.length(), 28)
     assert_eq(spans[0].postprocess_launch().grid_x(), 128 / rows + 1)
     assert_true(spans[0].ingress_includes_projection())
+    let rule = qwen_ingress_bucket_launch(spans[0])
+    for tokens in [1, 16, 17, 32, 33, 64, 65, 128, 129] {
+      assert_eq(
+        paged_bucket_launch(rule, tokens).grid_x(),
+        (tokens - 1) / rows + 1,
+      )
+    }
   }
   let wrong = qwen_fused_test_runtime(
     plan,

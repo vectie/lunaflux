@@ -106,7 +106,7 @@ fn paged_blueprint_step(
 /// Derives the only currently safe smaller-bucket launch contract from the
 /// approved Qwen composite ABI. The V2 reusable postprocess and readonly
 /// attention kernels both authenticate a bounded grid and use grid-stride token
-/// traversal. Full ingress maps one block to a 16-token tile; the legacy
+/// traversal. Full ingress uses the compiler-admitted token tile; the legacy
 /// postprocess maps one block to one token.
 /// Projection rules use their admitted shape-specific decode/prefill geometry,
 /// avoiding maximum-envelope decode work where the kernel ABI permits it.
@@ -144,7 +144,9 @@ fn prepare_qwen_graph_launch_contract(
     let readonly_launch = span.readonly_launch()
     let prefill_query_tile = span.readonly_query_tile_rows
     let expected_ingress_grid = if span.ingress_includes_projection() {
-      (blueprint.profile().max_query_tokens() + 15) / 16
+      (blueprint.profile().max_query_tokens() - 1) /
+      span.ingress_query_tile_rows +
+      1
     } else {
       Int::min(blueprint.profile().max_query_tokens(), 4096)
     }
@@ -166,11 +168,7 @@ fn prepare_qwen_graph_launch_contract(
         decode_launches[readonly_index],
       ) {
       (_, FixedBucketLaunch, _, FixedBucketLaunch) => {
-        launches[postprocess_index] = if span.ingress_includes_projection() {
-          QueryTileCappedGridX(postprocess, 16)
-        } else {
-          paged_qwen_postprocess_bucket_launch(postprocess)
-        }
+        launches[postprocess_index] = qwen_ingress_bucket_launch(span)
         launches[readonly_index] = if span.has_phase_specific_attention() {
           if span.readonly_query_metadata {
             QueryMetadataCappedGridX(
@@ -184,11 +182,7 @@ fn prepare_qwen_graph_launch_contract(
         } else {
           QueryTokenCappedGridX(readonly_launch)
         }
-        decode_launches[postprocess_index] = if span.ingress_includes_projection() {
-          QueryTileCappedGridX(postprocess, 16)
-        } else {
-          paged_qwen_postprocess_bucket_launch(postprocess)
-        }
+        decode_launches[postprocess_index] = qwen_ingress_bucket_launch(span)
         decode_launches[readonly_index] = if span.has_phase_specific_attention() {
           QueryTokenCappedGridX(span.decode_launch())
         } else {
@@ -231,11 +225,7 @@ fn prepare_qwen_graph_launch_contract(
         if attention_steps.length() != 2 {
           raise InvalidExecutor(GraphBucket)
         }
-        split_launches[ingress_step] = if span.ingress_includes_projection() {
-          QueryTileCappedGridX(span.postprocess_launch(), 16)
-        } else {
-          QueryTokenCappedGridX(span.postprocess_launch())
-        }
+        split_launches[ingress_step] = qwen_ingress_bucket_launch(span)
         let (partial, merge) = qwen_partitioned_bucket_launches(pipeline)
         split_launches[attention_steps[0]] = partial
         split_launches[attention_steps[1]] = merge

@@ -574,6 +574,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       runtime_digest: runtime.source_digest(),
       measured_attention_candidates,
       ingress_includes_projection: includes_projection,
+      ingress_query_tile_rows: if includes_projection {
+        postprocess.query_tile_rows().unwrap_or(16)
+      } else {
+        1
+      },
       postprocess_module_digest: postprocess.module_digest(),
       postprocess_module_bytes: postprocess.module_bytes(),
       postprocess_symbol: postprocess.function_symbol(),

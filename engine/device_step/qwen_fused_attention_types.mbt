@@ -48,6 +48,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv runtime_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv measured_attention_candidates : ReadOnlyArray[Int]?
   priv ingress_includes_projection : Bool
+  priv ingress_query_tile_rows : Int
   priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv postprocess_module_bytes : Bytes
   priv postprocess_symbol : String
@@ -99,6 +100,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
 ) -> Bool {
   self.runtime_digest == other.runtime_digest &&
   self.ingress_includes_projection == other.ingress_includes_projection &&
+  self.ingress_query_tile_rows == other.ingress_query_tile_rows &&
   self.postprocess_module_digest == other.postprocess_module_digest &&
   self.postprocess_symbol == other.postprocess_symbol &&
   self.postprocess_launch == other.postprocess_launch &&
@@ -120,6 +122,17 @@ fn ApprovedQwenFusedAttentionSpan::ingress_includes_projection(
   self : ApprovedQwenFusedAttentionSpan,
 ) -> Bool {
   self.ingress_includes_projection
+}
+
+///|
+fn qwen_ingress_bucket_launch(
+  span : ApprovedQwenFusedAttentionSpan,
+) -> PagedBucketStepLaunch {
+  if span.ingress_includes_projection {
+    QueryTileCappedGridX(span.postprocess_launch, span.ingress_query_tile_rows)
+  } else {
+    paged_qwen_postprocess_bucket_launch(span.postprocess_launch)
+  }
 }
 
 ///|
