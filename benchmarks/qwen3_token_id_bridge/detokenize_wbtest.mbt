@@ -89,3 +89,20 @@ test "Qwen token SSE escapes hostile JSON text without changing token IDs" {
     "data: {\"schema\":\"lunaflux.benchmark-terminal.v1\",\"text\":\"�\"}\n\ndata: [DONE]\n\n",
   )
 }
+
+///|
+test "Qwen finish closes both empty and incomplete streams exactly once" {
+  for incomplete in [false, true] {
+    let decode = Qwen3IncrementalDetokenizer::new(qwen3_bridge_test_spec())
+    if incomplete {
+      assert_eq(decode.advance(0xf0), b"")
+    }
+    assert_eq(decode.finish(), if incomplete { b"\xef\xbf\xbd" } else { b"" })
+    try decode.finish() catch {
+      DetokenizerFinished => ()
+      _ => fail("unexpected finish error")
+    } noraise {
+      _ => fail("stream finished twice")
+    }
+  }
+}

@@ -177,9 +177,10 @@ pub fn Qwen3IncrementalDetokenizer::finish(
   }
   self.finished = true
   if self.pending_length == 0 {
-    return b""
+    b""
+  } else {
+    self.pending_length = 0
+    let length = self.append_replacement(0)
+    Bytes::makei(length, index => self.output[index])
   }
-  self.pending_length = 0
-  let length = self.append_replacement(0)
-  Bytes::makei(length, index => self.output[index])
 }
