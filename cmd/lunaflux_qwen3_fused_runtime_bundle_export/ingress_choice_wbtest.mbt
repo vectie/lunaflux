@@ -249,6 +249,19 @@ test "full and unfused evaluation need no fabricated partial artifact metadata" 
       },
     )
     assert_eq(args.ingress.module_path, "/tmp/ingress.cubin")
+    // The metadata-aware builder performs a second export after compilation.
+    // That export must keep the chosen ingress cut and read-only attention,
+    // rather than falling back to the no-option conservative/unfused route.
+    let cut = selected_ingress_cut(args, choice)
+    assert_eq(cut.permits_readonly_attention(), name == "full")
+    assert_eq(
+      selected_ingress_modules(args, choice, b"residual", b"ingress").length(),
+      if name == "full" {
+        2
+      } else {
+        1
+      },
+    )
   }
   for name in ["partial", "fastest"] {
     let raw = runtime_bundle_test_arguments("5")
